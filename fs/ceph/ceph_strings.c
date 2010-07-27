@@ -10,7 +10,6 @@ const char *ceph_entity_type_name(int type)
 	case CEPH_ENTITY_TYPE_OSD: return "osd";
 	case CEPH_ENTITY_TYPE_MON: return "mon";
 	case CEPH_ENTITY_TYPE_CLIENT: return "client";
-	case CEPH_ENTITY_TYPE_ADMIN: return "admin";
 	case CEPH_ENTITY_TYPE_AUTH: return "auth";
 	default: return "unknown";
 	}
@@ -45,6 +44,7 @@ const char *ceph_osd_op_name(int op)
 	case CEPH_OSD_OP_SETXATTRS: return "setxattrs";
 	case CEPH_OSD_OP_RESETXATTRS: return "resetxattrs";
 	case CEPH_OSD_OP_RMXATTR: return "rmxattr";
+	case CEPH_OSD_OP_CMPXATTR: return "cmpxattr";
 
 	case CEPH_OSD_OP_PULL: return "pull";
 	case CEPH_OSD_OP_PUSH: return "push";
@@ -171,6 +171,20 @@ const char *ceph_snap_op_name(int o)
 	case CEPH_SNAP_OP_CREATE: return "create";
 	case CEPH_SNAP_OP_DESTROY: return "destroy";
 	case CEPH_SNAP_OP_SPLIT: return "split";
+	}
+	return "???";
+}
+
+const char *ceph_pool_op_name(int op)
+{
+	switch (op) {
+	case POOL_OP_CREATE: return "create";
+	case POOL_OP_DELETE: return "delete";
+	case POOL_OP_AUID_CHANGE: return "auid change";
+	case POOL_OP_CREATE_SNAP: return "create snap";
+	case POOL_OP_DELETE_SNAP: return "delete snap";
+	case POOL_OP_CREATE_UNMANAGED_SNAP: return "create unmanaged snap";
+	case POOL_OP_DELETE_UNMANAGED_SNAP: return "delete unmanaged snap";
 	}
 	return "???";
 }

@@ -67,7 +67,7 @@ ext2_init_security(struct inode *inode, struct inode *dir)
 	return err;
 }
 
-struct xattr_handler ext2_xattr_security_handler = {
+const struct xattr_handler ext2_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= ext2_xattr_security_list,
 	.get	= ext2_xattr_security_get,

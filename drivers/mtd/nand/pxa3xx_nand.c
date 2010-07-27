@@ -1320,6 +1320,17 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_free_irq;
 	}
 
+	if (mtd_has_cmdlinepart()) {
+		static const char *probes[] = { "cmdlinepart", NULL };
+		struct mtd_partition *parts;
+		int nr_parts;
+
+		nr_parts = parse_mtd_partitions(mtd, probes, &parts, 0);
+
+		if (nr_parts)
+			return add_mtd_partitions(mtd, parts, nr_parts);
+	}
+
 	return add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
 
 fail_free_irq:

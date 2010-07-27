@@ -90,10 +90,9 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
-	pDevice->apdev = (struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
+	pDevice->apdev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
 	if (pDevice->apdev == NULL)
 		return -ENOMEM;
-	memset(pDevice->apdev, 0, sizeof(struct net_device));
 
     apdev_priv = netdev_priv(pDevice->apdev);
     *apdev_priv = *pDevice;
@@ -183,7 +182,7 @@ KeyvInitTable(&pDevice->sKey,pDevice->PortOffset);
  *
  */
 
-int hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
+int vt6655_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
 {
 	if (val < 0 || val > 1)
 		return -EINVAL;
@@ -746,7 +745,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 
 /*
  * Description:
- *      hostap_ioctl main function supported for hostap deamon.
+ *      vt6655_hostap_ioctl main function supported for hostap deamon.
  *
  * Parameters:
  *  In:
@@ -758,7 +757,7 @@ static int hostap_get_encryption(PSDevice pDevice,
  *
  */
 
-int hostap_ioctl(PSDevice pDevice, struct iw_point *p)
+int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 {
 	struct viawget_hostapd_param *param;
 	int ret = 0;
@@ -768,7 +767,7 @@ int hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	    p->length > VIAWGET_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = (struct viawget_hostapd_param *) kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, (int)GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 
@@ -846,7 +845,7 @@ int hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	    return -EOPNOTSUPP;
 
 	default:
-	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_ioctl: unknown cmd=%d\n",
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "vt6655_hostap_ioctl: unknown cmd=%d\n",
 		       (int)param->cmd);
 		return -EOPNOTSUPP;
 		break;

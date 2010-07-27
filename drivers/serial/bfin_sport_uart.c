@@ -34,31 +34,11 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 
+#include <asm/bfin_sport.h>
 #include <asm/delay.h>
 #include <asm/portmux.h>
 
 #include "bfin_sport_uart.h"
-
-#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
-unsigned short bfin_uart_pin_req_sport0[] =
-	{P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS, \
-	 P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
-unsigned short bfin_uart_pin_req_sport1[] =
-	{P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS, \
-	P_SPORT1_DRPRI, P_SPORT1_RSCLK, P_SPORT1_DRSEC, P_SPORT1_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
-unsigned short bfin_uart_pin_req_sport2[] =
-	{P_SPORT2_TFS, P_SPORT2_DTPRI, P_SPORT2_TSCLK, P_SPORT2_RFS, \
-	P_SPORT2_DRPRI, P_SPORT2_RSCLK, P_SPORT2_DRSEC, P_SPORT2_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
-unsigned short bfin_uart_pin_req_sport3[] =
-	{P_SPORT3_TFS, P_SPORT3_DTPRI, P_SPORT3_TSCLK, P_SPORT3_RFS, \
-	P_SPORT3_DRPRI, P_SPORT3_RSCLK, P_SPORT3_DRSEC, P_SPORT3_DTSEC, 0};
-#endif
 
 struct sport_uart_port {
 	struct uart_port	port;
@@ -69,9 +49,13 @@ struct sport_uart_port {
 	unsigned short		txmask2;
 	unsigned char		stopb;
 /*	unsigned char		parib; */
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	int cts_pin;
+	int rts_pin;
+#endif
 };
 
-static void sport_uart_tx_chars(struct sport_uart_port *up);
+static int sport_uart_tx_chars(struct sport_uart_port *up);
 static void sport_stop_tx(struct uart_port *port);
 
 static inline void tx_one_byte(struct sport_uart_port *up, unsigned int value)
@@ -219,6 +203,59 @@ static irqreturn_t sport_uart_err_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+static unsigned int sport_get_mctrl(struct uart_port *port)
+{
+	struct sport_uart_port *up = (struct sport_uart_port *)port;
+	if (up->cts_pin < 0)
+		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+
+	/* CTS PIN is negative assertive. */
+	if (SPORT_UART_GET_CTS(up))
+		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+	else
+		return TIOCM_DSR | TIOCM_CAR;
+}
+
+static void sport_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	struct sport_uart_port *up = (struct sport_uart_port *)port;
+	if (up->rts_pin < 0)
+		return;
+
+	/* RTS PIN is negative assertive. */
+	if (mctrl & TIOCM_RTS)
+		SPORT_UART_ENABLE_RTS(up);
+	else
+		SPORT_UART_DISABLE_RTS(up);
+}
+
+/*
+ * Handle any change of modem status signal.
+ */
+static irqreturn_t sport_mctrl_cts_int(int irq, void *dev_id)
+{
+	struct sport_uart_port *up = (struct sport_uart_port *)dev_id;
+	unsigned int status;
+
+	status = sport_get_mctrl(&up->port);
+	uart_handle_cts_change(&up->port, status & TIOCM_CTS);
+
+	return IRQ_HANDLED;
+}
+#else
+static unsigned int sport_get_mctrl(struct uart_port *port)
+{
+	pr_debug("%s enter\n", __func__);
+	return TIOCM_CTS | TIOCM_CD | TIOCM_DSR;
+}
+
+static void sport_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	pr_debug("%s enter\n", __func__);
+}
+#endif
+
 /* Reqeust IRQ, Setup clock */
 static int sport_startup(struct uart_port *port)
 {
@@ -247,6 +284,21 @@ static int sport_startup(struct uart_port *port)
 		goto fail2;
 	}
 
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	if (up->cts_pin >= 0) {
+		if (request_irq(gpio_to_irq(up->cts_pin),
+			sport_mctrl_cts_int,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+			IRQF_DISABLED, "BFIN_SPORT_UART_CTS", up)) {
+			up->cts_pin = -1;
+			dev_info(port->dev, "Unable to attach BlackFin UART \
+				over SPORT CTS interrupt. So, disable it.\n");
+		}
+	}
+	if (up->rts_pin >= 0)
+		gpio_direction_output(up->rts_pin, 0);
+#endif
+
 	return 0;
  fail2:
 	free_irq(up->port.irq+1, up);
@@ -256,23 +308,35 @@ static int sport_startup(struct uart_port *port)
 	return ret;
 }
 
-static void sport_uart_tx_chars(struct sport_uart_port *up)
+/*
+ * sport_uart_tx_chars
+ *
+ * ret 1 means need to enable sport.
+ * ret 0 means do nothing.
+ */
+static int sport_uart_tx_chars(struct sport_uart_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 
 	if (SPORT_GET_STAT(up) & TXF)
-		return;
+		return 0;
 
 	if (up->port.x_char) {
 		tx_one_byte(up, up->port.x_char);
 		up->port.icount.tx++;
 		up->port.x_char = 0;
-		return;
+		return 1;
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		sport_stop_tx(&up->port);
-		return;
+		/* The waiting loop to stop SPORT TX from TX interrupt is
+		 * too long. This may block SPORT RX interrupts and cause
+		 * RX FIFO overflow. So, do stop sport TX only after the last
+		 * char in TX FIFO is moved into the shift register.
+		 */
+		if (SPORT_GET_STAT(up) & TXHRE)
+			sport_stop_tx(&up->port);
+		return 0;
 	}
 
 	while(!(SPORT_GET_STAT(up) & TXF) && !uart_circ_empty(xmit)) {
@@ -283,6 +347,8 @@ static void sport_uart_tx_chars(struct sport_uart_port *up)
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
+
+	return 1;
 }
 
 static unsigned int sport_tx_empty(struct uart_port *port)
@@ -298,22 +364,14 @@ static unsigned int sport_tx_empty(struct uart_port *port)
 		return 0;
 }
 
-static unsigned int sport_get_mctrl(struct uart_port *port)
-{
-	pr_debug("%s enter\n", __func__);
-	return (TIOCM_CTS | TIOCM_CD | TIOCM_DSR);
-}
-
-static void sport_set_mctrl(struct uart_port *port, unsigned int mctrl)
-{
-	pr_debug("%s enter\n", __func__);
-}
-
 static void sport_stop_tx(struct uart_port *port)
 {
 	struct sport_uart_port *up = (struct sport_uart_port *)port;
 
 	pr_debug("%s enter\n", __func__);
+
+	if (!(SPORT_GET_TCR1(up) & TSPEN))
+		return;
 
 	/* Although the hold register is empty, last byte is still in shift
 	 * register and not sent out yet. So, put a dummy data into TX FIFO.
@@ -337,11 +395,12 @@ static void sport_start_tx(struct uart_port *port)
 	pr_debug("%s enter\n", __func__);
 
 	/* Write data into SPORT FIFO before enable SPROT to transmit */
-	sport_uart_tx_chars(up);
+	if (sport_uart_tx_chars(up)) {
+		/* Enable transmit, then an interrupt will generated */
+		SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) | TSPEN));
+		SSYNC();
+	}
 
-	/* Enable transmit, then an interrupt will generated */
-	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) | TSPEN));
-	SSYNC();
 	pr_debug("%s exit\n", __func__);
 }
 
@@ -379,6 +438,10 @@ static void sport_shutdown(struct uart_port *port)
 	free_irq(up->port.irq, up);
 	free_irq(up->port.irq+1, up);
 	free_irq(up->err_irq, up);
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	if (up->cts_pin >= 0)
+		free_irq(gpio_to_irq(up->cts_pin), up);
+#endif
 }
 
 static const char *sport_type(struct uart_port *port)
@@ -448,27 +511,14 @@ static void sport_set_termios(struct uart_port *port,
 		/* up->parib = 1; */
 	}
 
-	port->read_status_mask = OE;
-	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= (FE | PE);
-	if (termios->c_iflag & (BRKINT | PARMRK))
-		port->read_status_mask |= BI;
+	spin_lock_irqsave(&up->port.lock, flags);
+
+	port->read_status_mask = 0;
 
 	/*
 	 * Characters to ignore
 	 */
 	port->ignore_status_mask = 0;
-	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= FE | PE;
-	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BI;
-		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
-		 */
-		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= OE;
-	}
 
 	/* RX extract mask */
 	up->rxmask = 0x01 | (((up->csize + up->stopb) * 2 - 1) << 0x8);
@@ -487,8 +537,6 @@ static void sport_set_termios(struct uart_port *port,
 	up->txmask2 <<= 1;
 	/* uart baud rate */
 	port->uartclk = uart_get_baud_rate(port, termios, old, 0, get_sclk()/16);
-
-	spin_lock_irqsave(&up->port.lock, flags);
 
 	/* Disable UART */
 	SPORT_PUT_TCR1(up, SPORT_GET_TCR1(up) & ~TSPEN);
@@ -542,6 +590,8 @@ struct uart_ops sport_uart_ops = {
 static struct sport_uart_port *bfin_sport_uart_ports[BFIN_SPORT_UART_MAX_PORTS];
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
+#define CLASS_BFIN_SPORT_CONSOLE	"bfin-sport-console"
+
 static int __init
 sport_uart_console_setup(struct console *co, char *options)
 {
@@ -549,7 +599,11 @@ sport_uart_console_setup(struct console *co, char *options)
 	int baud = 57600;
 	int bits = 8;
 	int parity = 'n';
+# ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	int flow = 'r';
+# else
 	int flow = 'n';
+# endif
 
 	/* Check whether an invalid uart number has been specified */
 	if (co->index < 0 || co->index >= BFIN_SPORT_UART_MAX_PORTS)
@@ -690,11 +744,11 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 
 	if (bfin_sport_uart_ports[pdev->id] == NULL) {
 		bfin_sport_uart_ports[pdev->id] =
-			kmalloc(sizeof(struct sport_uart_port), GFP_KERNEL);
+			kzalloc(sizeof(struct sport_uart_port), GFP_KERNEL);
 		sport = bfin_sport_uart_ports[pdev->id];
 		if (!sport) {
 			dev_err(&pdev->dev,
-				"Fail to kmalloc sport_uart_port\n");
+				"Fail to malloc sport_uart_port\n");
 			return -ENOMEM;
 		}
 
@@ -720,13 +774,13 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 			goto out_error_free_peripherals;
 		}
 
-		sport->port.membase = ioremap(res->start,
-			res->end - res->start);
+		sport->port.membase = ioremap(res->start, resource_size(res));
 		if (!sport->port.membase) {
 			dev_err(&pdev->dev, "Cannot map sport IO\n");
 			ret = -ENXIO;
 			goto out_error_free_peripherals;
 		}
+		sport->port.mapbase = res->start;
 
 		sport->port.irq = platform_get_irq(pdev, 0);
 		if (sport->port.irq < 0) {
@@ -741,6 +795,22 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 			ret = -ENOENT;
 			goto out_error_unmap;
 		}
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+		if (res == NULL)
+			sport->cts_pin = -1;
+		else
+			sport->cts_pin = res->start;
+
+		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
+		if (res == NULL)
+			sport->rts_pin = -1;
+		else
+			sport->rts_pin = res->start;
+
+		if (sport->rts_pin >= 0)
+			gpio_request(sport->rts_pin, DRV_NAME);
+#endif
 	}
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
@@ -779,6 +849,10 @@ static int __devexit sport_uart_remove(struct platform_device *pdev)
 
 	if (sport) {
 		uart_remove_one_port(&sport_uart_reg, &sport->port);
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+		if (sport->rts_pin >= 0)
+			gpio_free(sport->rts_pin);
+#endif
 		iounmap(sport->port.membase);
 		peripheral_free_list(
 			(unsigned short *)pdev->dev.platform_data);
@@ -802,7 +876,7 @@ static struct platform_driver sport_uart_driver = {
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
 static __initdata struct early_platform_driver early_sport_uart_driver = {
-	.class_str = DRV_NAME,
+	.class_str = CLASS_BFIN_SPORT_CONSOLE,
 	.pdrv = &sport_uart_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,
 };
@@ -811,7 +885,8 @@ static int __init sport_uart_rs_console_init(void)
 {
 	early_platform_driver_register(&early_sport_uart_driver, DRV_NAME);
 
-	early_platform_driver_probe(DRV_NAME, BFIN_SPORT_UART_MAX_PORTS, 0);
+	early_platform_driver_probe(CLASS_BFIN_SPORT_CONSOLE,
+		BFIN_SPORT_UART_MAX_PORTS, 0);
 
 	register_console(&sport_uart_console);
 
@@ -824,7 +899,7 @@ static int __init sport_uart_init(void)
 {
 	int ret;
 
-	pr_info("Serial: Blackfin uart over sport driver\n");
+	pr_info("Blackfin uart over sport driver\n");
 
 	ret = uart_register_driver(&sport_uart_reg);
 	if (ret) {

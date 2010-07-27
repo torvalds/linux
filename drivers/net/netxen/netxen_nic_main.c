@@ -2560,7 +2560,8 @@ netxen_sysfs_validate_crb(struct netxen_adapter *adapter,
 }
 
 static ssize_t
-netxen_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_read_crb(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2587,7 +2588,8 @@ netxen_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
 }
 
 static ssize_t
-netxen_sysfs_write_crb(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_write_crb(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2627,7 +2629,8 @@ netxen_sysfs_validate_mem(struct netxen_adapter *adapter,
 }
 
 static ssize_t
-netxen_sysfs_read_mem(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_read_mem(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2647,7 +2650,7 @@ netxen_sysfs_read_mem(struct kobject *kobj, struct bin_attribute *attr,
 	return size;
 }
 
-static ssize_t netxen_sysfs_write_mem(struct kobject *kobj,
+static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t offset, size_t size)
 {

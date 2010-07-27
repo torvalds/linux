@@ -1457,7 +1457,6 @@ struct dev_info {
  * @adapter:		Adapter device information.
  * @port:		Port information.
  * @monitor_time_info:	Timer to monitor ports.
- * @stats:		Network statistics.
  * @proc_sem:		Semaphore for proc accessing.
  * @id:			Device ID.
  * @mii_if:		MII interface information.
@@ -1471,7 +1470,6 @@ struct dev_priv {
 	struct dev_info *adapter;
 	struct ksz_port port;
 	struct ksz_timer_info monitor_timer_info;
-	struct net_device_stats stats;
 
 	struct semaphore proc_sem;
 	int id;
@@ -4751,8 +4749,8 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 	hw_send_pkt(hw);
 
 	/* Update transmit statistics. */
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += len;
 }
 
 /**
@@ -4854,7 +4852,7 @@ static inline void copy_old_skb(struct sk_buff *old, struct sk_buff *skb)
  *
  * Return 0 if successful; otherwise an error code indicating failure.
  */
-static int netdev_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
@@ -5030,7 +5028,7 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 		/* skb->data != skb->head */
 		skb = dev_alloc_skb(packet_len + 2);
 		if (!skb) {
-			priv->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return -ENOMEM;
 		}
 
@@ -5050,8 +5048,8 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 		csum_verified(skb);
 
 	/* Update receive statistics. */
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += packet_len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += packet_len;
 
 	/* Notify upper layer for received packet. */
 	rx_status = netif_rx(skb);
@@ -5291,7 +5289,7 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 		}
 
 		if (unlikely(int_enable & KS884X_INT_RX_OVERRUN)) {
-			priv->stats.rx_fifo_errors++;
+			dev->stats.rx_fifo_errors++;
 			hw_resume_rx(hw);
 		}
 
@@ -5522,7 +5520,7 @@ static int netdev_open(struct net_device *dev)
 	priv->promiscuous = 0;
 
 	/* Reset device statistics. */
-	memset(&priv->stats, 0, sizeof(struct net_device_stats));
+	memset(&dev->stats, 0, sizeof(struct net_device_stats));
 	memset((void *) port->counter, 0,
 		(sizeof(u64) * OID_COUNTER_LAST));
 
@@ -5622,42 +5620,42 @@ static struct net_device_stats *netdev_query_statistics(struct net_device *dev)
 	int i;
 	int p;
 
-	priv->stats.rx_errors = port->counter[OID_COUNTER_RCV_ERROR];
-	priv->stats.tx_errors = port->counter[OID_COUNTER_XMIT_ERROR];
+	dev->stats.rx_errors = port->counter[OID_COUNTER_RCV_ERROR];
+	dev->stats.tx_errors = port->counter[OID_COUNTER_XMIT_ERROR];
 
 	/* Reset to zero to add count later. */
-	priv->stats.multicast = 0;
-	priv->stats.collisions = 0;
-	priv->stats.rx_length_errors = 0;
-	priv->stats.rx_crc_errors = 0;
-	priv->stats.rx_frame_errors = 0;
-	priv->stats.tx_window_errors = 0;
+	dev->stats.multicast = 0;
+	dev->stats.collisions = 0;
+	dev->stats.rx_length_errors = 0;
+	dev->stats.rx_crc_errors = 0;
+	dev->stats.rx_frame_errors = 0;
+	dev->stats.tx_window_errors = 0;
 
 	for (i = 0, p = port->first_port; i < port->mib_port_cnt; i++, p++) {
 		mib = &hw->port_mib[p];
 
-		priv->stats.multicast += (unsigned long)
+		dev->stats.multicast += (unsigned long)
 			mib->counter[MIB_COUNTER_RX_MULTICAST];
 
-		priv->stats.collisions += (unsigned long)
+		dev->stats.collisions += (unsigned long)
 			mib->counter[MIB_COUNTER_TX_TOTAL_COLLISION];
 
-		priv->stats.rx_length_errors += (unsigned long)(
+		dev->stats.rx_length_errors += (unsigned long)(
 			mib->counter[MIB_COUNTER_RX_UNDERSIZE] +
 			mib->counter[MIB_COUNTER_RX_FRAGMENT] +
 			mib->counter[MIB_COUNTER_RX_OVERSIZE] +
 			mib->counter[MIB_COUNTER_RX_JABBER]);
-		priv->stats.rx_crc_errors += (unsigned long)
+		dev->stats.rx_crc_errors += (unsigned long)
 			mib->counter[MIB_COUNTER_RX_CRC_ERR];
-		priv->stats.rx_frame_errors += (unsigned long)(
+		dev->stats.rx_frame_errors += (unsigned long)(
 			mib->counter[MIB_COUNTER_RX_ALIGNMENT_ERR] +
 			mib->counter[MIB_COUNTER_RX_SYMBOL_ERR]);
 
-		priv->stats.tx_window_errors += (unsigned long)
+		dev->stats.tx_window_errors += (unsigned long)
 			mib->counter[MIB_COUNTER_TX_LATE_COLLISION];
 	}
 
-	return &priv->stats;
+	return &dev->stats;
 }
 
 /**
@@ -5718,7 +5716,7 @@ static void dev_set_promiscuous(struct net_device *dev, struct dev_priv *priv,
 		 * from the bridge.
 		 */
 		if ((hw->features & STP_SUPPORT) && !promiscuous &&
-				dev->br_port) {
+		    (dev->priv_flags & IFF_BRIDGE_PORT)) {
 			struct ksz_switch *sw = hw->ksz_switch;
 			int port = priv->port.first_port;
 
@@ -6863,6 +6861,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= netdev_tx_timeout,
 	.ndo_change_mtu		= netdev_change_mtu,
 	.ndo_set_mac_address	= netdev_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netdev_ioctl,
 	.ndo_set_rx_mode	= netdev_set_rx_mode,
 #ifdef CONFIG_NET_POLL_CONTROLLER

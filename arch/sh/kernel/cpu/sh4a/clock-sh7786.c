@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/freq.h>

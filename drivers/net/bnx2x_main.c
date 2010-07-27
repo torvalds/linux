@@ -1545,6 +1545,20 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 	   fp->index, bd_prod, rx_comp_prod, rx_sge_prod);
 }
 
+/* Set Toeplitz hash value in the skb using the value from the
+ * CQE (calculated by HW).
+ */
+static inline void bnx2x_set_skb_rxhash(struct bnx2x *bp, union eth_rx_cqe *cqe,
+					struct sk_buff *skb)
+{
+	/* Set Toeplitz hash from CQE */
+	if ((bp->dev->features & NETIF_F_RXHASH) &&
+	    (cqe->fast_path_cqe.status_flags &
+	     ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
+		skb->rxhash =
+		le32_to_cpu(cqe->fast_path_cqe.rss_hash_result);
+}
+
 static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 {
 	struct bnx2x *bp = fp->bp;
@@ -1582,7 +1596,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		struct sw_rx_bd *rx_buf = NULL;
 		struct sk_buff *skb;
 		union eth_rx_cqe *cqe;
-		u8 cqe_fp_flags, cqe_fp_status_flags;
+		u8 cqe_fp_flags;
 		u16 len, pad;
 
 		comp_ring_cons = RCQ_BD(sw_comp_cons);
@@ -1598,7 +1612,6 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 
 		cqe = &fp->rx_comp_ring[comp_ring_cons];
 		cqe_fp_flags = cqe->fast_path_cqe.type_error_flags;
-		cqe_fp_status_flags = cqe->fast_path_cqe.status_flags;
 
 		DP(NETIF_MSG_RX_STATUS, "CQE type %x  err %x  status %x"
 		   "  queue %x  vlan %x  len %u\n", CQE_TYPE(cqe_fp_flags),
@@ -1634,6 +1647,10 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 
 					bnx2x_tpa_start(fp, queue, skb,
 							bd_cons, bd_prod);
+
+					/* Set Toeplitz hash for an LRO skb */
+					bnx2x_set_skb_rxhash(bp, cqe, skb);
+
 					goto next_rx;
 				}
 
@@ -1726,11 +1743,8 @@ reuse_rx:
 
 			skb->protocol = eth_type_trans(skb, bp->dev);
 
-			if ((bp->dev->features & NETIF_F_RXHASH) &&
-			    (cqe_fp_status_flags &
-			     ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
-				skb->rxhash = le32_to_cpu(
-				    cqe->fast_path_cqe.rss_hash_result);
+			/* Set Toeplitz hash for a none-LRO skb */
+			bnx2x_set_skb_rxhash(bp, cqe, skb);
 
 			skb->ip_summed = CHECKSUM_NONE;
 			if (bp->rx_csum) {
@@ -10981,6 +10995,9 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 	struct bnx2x *bp = netdev_priv(dev);
 	int changed = 0;
 	int rc = 0;
+
+	if (data & ~(ETH_FLAG_LRO | ETH_FLAG_RXHASH))
+		return -EINVAL;
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		printk(KERN_ERR "Handling parity error recovery. Try again later\n");

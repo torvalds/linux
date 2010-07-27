@@ -553,7 +553,6 @@
 #       define RADEON_CRTC_CRNT_VLINE_MASK  (0x7ff << 16)
 #define RADEON_CRTC2_CRNT_FRAME             0x0314
 #define RADEON_CRTC2_GUI_TRIG_VLINE         0x0318
-#define RADEON_CRTC2_STATUS                 0x03fc
 #define RADEON_CRTC2_VLINE_CRNT_VLINE       0x0310
 #define RADEON_CRTC8_DATA                   0x03d5 /* VGA, 0x3b5 */
 #define RADEON_CRTC8_IDX                    0x03d4 /* VGA, 0x3b4 */
@@ -995,6 +994,7 @@
 #	define RADEON_FP_DETECT_MASK		(1 << 4)
 #	define RADEON_CRTC2_VBLANK_MASK		(1 << 9)
 #	define RADEON_FP2_DETECT_MASK		(1 << 10)
+#	define RADEON_GUI_IDLE_MASK		(1 << 19)
 #	define RADEON_SW_INT_ENABLE		(1 << 25)
 #define RADEON_GEN_INT_STATUS               0x0044
 #	define AVIVO_DISPLAY_INT_STATUS		(1 << 0)
@@ -1006,6 +1006,8 @@
 #	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
 #	define RADEON_FP2_DETECT_STAT		(1 << 10)
 #	define RADEON_FP2_DETECT_STAT_ACK	(1 << 10)
+#	define RADEON_GUI_IDLE_STAT		(1 << 19)
+#	define RADEON_GUI_IDLE_STAT_ACK		(1 << 19)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)

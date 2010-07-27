@@ -60,8 +60,8 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-static VOID
-s_vCheckKeyTableValid (PVOID pDeviceHandler, PSKeyManagement pTable)
+static void s_vCheckKeyTableValid(void *pDeviceHandler,
+				  PSKeyManagement pTable)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int         i;
@@ -112,7 +112,7 @@ s_vCheckKeyTableValid (PVOID pDeviceHandler, PSKeyManagement pTable)
  * Return Value: none
  *
  */
-VOID KeyvInitTable(PVOID pDeviceHandler, PSKeyManagement pTable)
+void KeyvInitTable(void *pDeviceHandler, PSKeyManagement pTable)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int i;
@@ -123,10 +123,12 @@ VOID KeyvInitTable(PVOID pDeviceHandler, PSKeyManagement pTable)
     for (i=0;i<MAX_KEY_TABLE;i++) {
         pTable->KeyTable[i].bInUse = FALSE;
         pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
-        pTable->KeyTable[i].PairwiseKey.pvKeyTable = (PVOID)&pTable->KeyTable[i];
+	pTable->KeyTable[i].PairwiseKey.pvKeyTable =
+	  (void *)&pTable->KeyTable[i];
         for (jj=0; jj < MAX_GROUP_KEY; jj++) {
             pTable->KeyTable[i].GroupKey[jj].bKeyValid = FALSE;
-            pTable->KeyTable[i].GroupKey[jj].pvKeyTable = (PVOID) &(pTable->KeyTable[i]);
+	    pTable->KeyTable[i].GroupKey[jj].pvKeyTable =
+	      (void *) &(pTable->KeyTable[i]);
         }
         pTable->KeyTable[i].wKeyCtl = 0;
         pTable->KeyTable[i].dwGTKeyIndex = 0;
@@ -162,12 +164,8 @@ VOID KeyvInitTable(PVOID pDeviceHandler, PSKeyManagement pTable)
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybGetKey (
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyIndex,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybGetKey(PSKeyManagement pTable, PBYTE pbyBSSID, DWORD dwKeyIndex,
+		PSKeyItem *pKey)
 {
     int i;
 
@@ -220,12 +218,12 @@ BOOL KeybGetKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-BOOL KeybSetKey (
-    PVOID           pDeviceHandler,
+BOOL KeybSetKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
@@ -233,9 +231,9 @@ BOOL KeybSetKey (
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int         i,j;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetKey: %lX\n", dwKeyIndex);
 
@@ -312,7 +310,7 @@ BOOL KeybSetKey (
         }
     }
     if (j < (MAX_KEY_TABLE-1)) {
-        memcpy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
+	memcpy(pTable->KeyTable[j].abyBSSID, pbyBSSID, ETH_ALEN);
         pTable->KeyTable[j].bInUse = TRUE;
         if ((dwKeyIndex & PAIRWISE_KEY) != 0)  {
             // Pairwise key
@@ -393,8 +391,8 @@ BOOL KeybSetKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-BOOL KeybRemoveKey (
-    PVOID           pDeviceHandler,
+BOOL KeybRemoveKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex
@@ -474,8 +472,8 @@ BOOL KeybRemoveKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-BOOL KeybRemoveAllKey (
-    PVOID           pDeviceHandler,
+BOOL KeybRemoveAllKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID
     )
@@ -510,8 +508,8 @@ BOOL KeybRemoveAllKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-VOID KeyvRemoveWEPKey (
-    PVOID           pDeviceHandler,
+void KeyvRemoveWEPKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex
     )
@@ -533,8 +531,8 @@ VOID KeyvRemoveWEPKey (
     return;
 }
 
-VOID KeyvRemoveAllWEPKey (
-    PVOID           pDeviceHandler,
+void KeyvRemoveAllWEPKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable
     )
 {
@@ -561,12 +559,8 @@ VOID KeyvRemoveAllWEPKey (
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybGetTransmitKey (
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyType,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybGetTransmitKey(PSKeyManagement pTable, PBYTE pbyBSSID, DWORD dwKeyType,
+			PSKeyItem *pKey)
 {
     int i, ii;
 
@@ -641,10 +635,7 @@ BOOL KeybGetTransmitKey (
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybCheckPairewiseKey (
-    IN  PSKeyManagement pTable,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey)
 {
     int i;
 
@@ -675,23 +666,23 @@ BOOL KeybCheckPairewiseKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-BOOL KeybSetDefaultKey (
-    PVOID           pDeviceHandler,
+BOOL KeybSetDefaultKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
-
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d\n",
+	    (int) dwKeyIndex, (int) uKeyLength);
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
         return (FALSE);
@@ -700,7 +691,7 @@ BOOL KeybSetDefaultKey (
     }
 
     pTable->KeyTable[MAX_KEY_TABLE-1].bInUse = TRUE;
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for (ii = 0; ii < ETH_ALEN; ii++)
         pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID[ii] = 0xFF;
 
     // Group key
@@ -783,11 +774,11 @@ BOOL KeybSetDefaultKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-BOOL KeybSetAllGroupKey (
-    PVOID           pDeviceHandler,
+BOOL KeybSetAllGroupKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
@@ -795,9 +786,9 @@ BOOL KeybSetAllGroupKey (
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int         i;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 

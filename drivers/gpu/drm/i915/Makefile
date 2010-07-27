@@ -33,3 +33,5 @@ i915-$(CONFIG_ACPI)	+= i915_opregion.o
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
+
+CFLAGS_i915_trace_points.o := -I$(src)

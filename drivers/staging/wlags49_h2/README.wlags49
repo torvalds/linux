@@ -84,7 +84,7 @@ TABLE OF CONTENTS.
        the functions to interface to the Network Interface Card (NIC).  The HCF
        provides for all WaveLAN NIC types one standard interface to the MSF.
        This I/F is called the Wireless Connection Interface (WCI) and is the
-       subject of a seperate document (025726).
+       subject of a separate document (025726).
 
     The HCF directory contains firmware images to allow the card to operate in
     either station (STA) or Access Point (AP) mode. In the build process, the

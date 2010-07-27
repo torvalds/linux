@@ -1060,7 +1060,7 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			rc = strict_strtoul(string, 10, &option);
 			kfree(string);
-			if (rc != 0 || option > USHORT_MAX)
+			if (rc != 0 || option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->nfs_server.port = option;
 			break;
@@ -1181,7 +1181,7 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			rc = strict_strtoul(string, 10, &option);
 			kfree(string);
-			if (rc != 0 || option > USHORT_MAX)
+			if (rc != 0 || option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->mount_server.port = option;
 			break;

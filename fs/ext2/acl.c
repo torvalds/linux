@@ -420,7 +420,7 @@ release_and_out:
 	return error;
 }
 
-struct xattr_handler ext2_xattr_acl_access_handler = {
+const struct xattr_handler ext2_xattr_acl_access_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.list	= ext2_xattr_list_acl_access,
@@ -428,7 +428,7 @@ struct xattr_handler ext2_xattr_acl_access_handler = {
 	.set	= ext2_xattr_set_acl,
 };
 
-struct xattr_handler ext2_xattr_acl_default_handler = {
+const struct xattr_handler ext2_xattr_acl_default_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= ext2_xattr_list_acl_default,

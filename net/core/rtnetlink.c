@@ -579,7 +579,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 }
 
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
-				 const struct net_device_stats *b)
+				 const struct rtnl_link_stats64 *b)
 {
 	a->rx_packets = b->rx_packets;
 	a->tx_packets = b->tx_packets;
@@ -610,7 +610,7 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 }
 
-static void copy_rtnl_link_stats64(void *v, const struct net_device_stats *b)
+static void copy_rtnl_link_stats64(void *v, const struct rtnl_link_stats64 *b)
 {
 	struct rtnl_link_stats64 a;
 
@@ -650,11 +650,12 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev)
 	if (dev->dev.parent && dev_is_pci(dev->dev.parent)) {
 
 		int num_vfs = dev_num_vf(dev->dev.parent);
-		size_t size = nlmsg_total_size(sizeof(struct nlattr));
-		size += nlmsg_total_size(num_vfs * sizeof(struct nlattr));
-		size += num_vfs * (sizeof(struct ifla_vf_mac) +
-				  sizeof(struct ifla_vf_vlan) +
-				  sizeof(struct ifla_vf_tx_rate));
+		size_t size = nla_total_size(sizeof(struct nlattr));
+		size += nla_total_size(num_vfs * sizeof(struct nlattr));
+		size += num_vfs *
+			(nla_total_size(sizeof(struct ifla_vf_mac)) +
+			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
+			 nla_total_size(sizeof(struct ifla_vf_tx_rate)));
 		return size;
 	} else
 		return 0;
@@ -685,7 +686,7 @@ static size_t rtnl_port_size(const struct net_device *dev)
 		return port_self_size;
 }
 
-static inline size_t if_nlmsg_size(const struct net_device *dev)
+static noinline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -722,14 +723,13 @@ static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
 
 	for (vf = 0; vf < dev_num_vf(dev->dev.parent); vf++) {
 		vf_port = nla_nest_start(skb, IFLA_VF_PORT);
-		if (!vf_port) {
-			nla_nest_cancel(skb, vf_ports);
-			return -EMSGSIZE;
-		}
+		if (!vf_port)
+			goto nla_put_failure;
 		NLA_PUT_U32(skb, IFLA_PORT_VF, vf);
 		err = dev->netdev_ops->ndo_get_vf_port(dev, vf, skb);
+		if (err == -EMSGSIZE)
+			goto nla_put_failure;
 		if (err) {
-nla_put_failure:
 			nla_nest_cancel(skb, vf_port);
 			continue;
 		}
@@ -739,6 +739,10 @@ nla_put_failure:
 	nla_nest_end(skb, vf_ports);
 
 	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, vf_ports);
+	return -EMSGSIZE;
 }
 
 static int rtnl_port_self_fill(struct sk_buff *skb, struct net_device *dev)
@@ -753,7 +757,7 @@ static int rtnl_port_self_fill(struct sk_buff *skb, struct net_device *dev)
 	err = dev->netdev_ops->ndo_get_vf_port(dev, PORT_SELF_VF, skb);
 	if (err) {
 		nla_nest_cancel(skb, port_self);
-		return err;
+		return (err == -EMSGSIZE) ? err : 0;
 	}
 
 	nla_nest_end(skb, port_self);
@@ -787,7 +791,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
-	const struct net_device_stats *stats;
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *stats;
 	struct nlattr *attr;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ifm), flags);
@@ -843,7 +848,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	if (attr == NULL)
 		goto nla_put_failure;
 
-	stats = dev_get_stats(dev);
+	stats = dev_get_stats(dev, &temp);
 	copy_rtnl_link_stats(nla_data(attr), stats);
 
 	attr = nla_reserve(skb, IFLA_STATS64,
@@ -1199,8 +1204,10 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		struct nlattr *attr;
 		int rem;
 		nla_for_each_nested(attr, tb[IFLA_VFINFO_LIST], rem) {
-			if (nla_type(attr) != IFLA_VF_INFO)
+			if (nla_type(attr) != IFLA_VF_INFO) {
+				err = -EINVAL;
 				goto errout;
+			}
 			err = do_setvfinfo(dev, attr);
 			if (err < 0)
 				goto errout;

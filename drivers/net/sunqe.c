@@ -695,7 +695,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->version, "3.0");
 
 	op = qep->op;
-	regs = of_get_property(op->node, "reg", NULL);
+	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (regs)
 		sprintf(info->bus_info, "SBUS:%d", regs->which_io);
 
@@ -799,7 +799,7 @@ static struct sunqec * __devinit get_qec(struct of_device *child)
 			if (qec_global_reset(qecp->gregs))
 				goto fail;
 
-			qecp->qec_bursts = qec_get_burst(op->node);
+			qecp->qec_bursts = qec_get_burst(op->dev.of_node);
 
 			qec_init_once(qecp, op);
 
@@ -857,7 +857,7 @@ static int __devinit qec_ether_init(struct of_device *op)
 
 	res = -ENODEV;
 
-	i = of_getintprop_default(op->node, "channel#", -1);
+	i = of_getintprop_default(op->dev.of_node, "channel#", -1);
 	if (i == -1)
 		goto fail;
 	qe->channel = i;
@@ -977,8 +977,11 @@ static const struct of_device_id qec_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, qec_sbus_match);
 
 static struct of_platform_driver qec_sbus_driver = {
-	.name		= "qec",
-	.match_table	= qec_sbus_match,
+	.driver = {
+		.name = "qec",
+		.owner = THIS_MODULE,
+		.of_match_table = qec_sbus_match,
+	},
 	.probe		= qec_sbus_probe,
 	.remove		= __devexit_p(qec_sbus_remove),
 };

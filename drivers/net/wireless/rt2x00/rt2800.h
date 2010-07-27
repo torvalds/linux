@@ -1435,17 +1435,17 @@
 struct mac_wcid_entry {
 	u8 mac[6];
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct hw_key_entry {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct mac_iveiv_entry {
 	u8 iv[8];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * MAC_WCID_ATTRIBUTE:

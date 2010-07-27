@@ -456,7 +456,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 			__func__, (int)len);
 
 	nwords = ddebug_tokenize(tmpbuf, words, MAXWORDS);
-	if (nwords < 0)
+	if (nwords <= 0)
 		return -EINVAL;
 	if (ddebug_parse_query(words, nwords-1, &query))
 		return -EINVAL;

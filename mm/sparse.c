@@ -382,13 +382,15 @@ static void __init sparse_early_usemaps_alloc_node(unsigned long**usemap_map,
 struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 {
 	struct page *map;
+	unsigned long size;
 
 	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
 	if (map)
 		return map;
 
-	map = alloc_bootmem_pages_node(NODE_DATA(nid),
-		       PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION));
+	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+	map = __alloc_bootmem_node_high(NODE_DATA(nid), size,
+					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 	return map;
 }
 void __init sparse_mem_maps_populate_node(struct page **map_map,
@@ -412,7 +414,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 	}
 
 	size = PAGE_ALIGN(size);
-	map = alloc_bootmem_pages_node(NODE_DATA(nodeid), size * map_count);
+	map = __alloc_bootmem_node_high(NODE_DATA(nodeid), size * map_count,
+					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 	if (map) {
 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
 			if (!present_section_nr(pnum))

@@ -1027,12 +1027,12 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		ro_sn = (reorder >> I2400M_RO_SN_SHIFT) & I2400M_RO_SN;
 
 		spin_lock_irqsave(&i2400m->rx_lock, flags);
-		roq = &i2400m->rx_roq[ro_cin];
-		if (roq == NULL) {
+		if (i2400m->rx_roq == NULL) {
 			kfree_skb(skb);	/* rx_roq is already destroyed */
 			spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 			goto error;
 		}
+		roq = &i2400m->rx_roq[ro_cin];
 		kref_get(&i2400m->rx_roq_refcount);
 		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 

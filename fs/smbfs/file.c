@@ -28,8 +28,9 @@
 #include "proto.h"
 
 static int
-smb_fsync(struct file *file, struct dentry * dentry, int datasync)
+smb_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct smb_sb_info *server = server_from_dentry(dentry);
 	int result;
 
@@ -437,7 +438,7 @@ const struct file_operations smb_file_operations =
 	.aio_read	= smb_file_aio_read,
 	.write		= do_sync_write,
 	.aio_write	= smb_file_aio_write,
-	.ioctl		= smb_ioctl,
+	.unlocked_ioctl	= smb_ioctl,
 	.mmap		= smb_file_mmap,
 	.open		= smb_file_open,
 	.release	= smb_file_release,

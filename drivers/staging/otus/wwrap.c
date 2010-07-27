@@ -956,7 +956,6 @@ int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len)
 	/*填写数据报相关信息*/
 	nlh = NLMSG_PUT(skb, 0, 0, WAI_K_MSG, size-sizeof(*nlh));
 	pos = NLMSG_DATA(nlh);
-	memset(pos, 0, len);
 
 	/*传输到用户空间的数据*/
 	memcpy(pos, msg,  len);

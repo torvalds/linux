@@ -93,13 +93,13 @@ static int pdc202xx_test_irq(ide_hwif_t *hwif)
 		 * bit 7: error, bit 6: interrupting,
 		 * bit 5: FIFO full, bit 4: FIFO empty
 		 */
-		return ((sc1d & 0x50) == 0x50) ? 1 : 0;
+		return (sc1d & 0x40) ? 1 : 0;
 	} else	{
 		/*
 		 * bit 3: error, bit 2: interrupting,
 		 * bit 1: FIFO full, bit 0: FIFO empty
 		 */
-		return ((sc1d & 0x05) == 0x05) ? 1 : 0;
+		return (sc1d & 0x04) ? 1 : 0;
 	}
 }
 
@@ -241,6 +241,7 @@ static const struct ide_port_ops pdc20246_port_ops = {
 static const struct ide_port_ops pdc2026x_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
+	.test_irq		= pdc202xx_test_irq,
 	.cable_detect		= pdc2026x_cable_detect,
 };
 

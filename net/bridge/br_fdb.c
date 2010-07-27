@@ -128,7 +128,7 @@ void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
 	unsigned long delay = hold_time(br);
-	unsigned long next_timer = jiffies + br->forward_delay;
+	unsigned long next_timer = jiffies + br->ageing_time;
 	int i;
 
 	spin_lock_bh(&br->hash_lock);
@@ -149,9 +149,7 @@ void br_fdb_cleanup(unsigned long _data)
 	}
 	spin_unlock_bh(&br->hash_lock);
 
-	/* Add HZ/4 to ensure we round the jiffies upwards to be after the next
-	 * timer, otherwise we might round down and will have no-op run. */
-	mod_timer(&br->gc_timer, round_jiffies(next_timer + HZ/4));
+	mod_timer(&br->gc_timer, round_jiffies_up(next_timer));
 }
 
 /* Completely flush all dynamic entries in forwarding database.*/
@@ -242,11 +240,11 @@ int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 	struct net_bridge_fdb_entry *fdb;
 	int ret;
 
-	if (!dev->br_port)
+	if (!br_port_exists(dev))
 		return 0;
 
 	rcu_read_lock();
-	fdb = __br_fdb_get(dev->br_port->br, addr);
+	fdb = __br_fdb_get(br_port_get_rcu(dev)->br, addr);
 	ret = fdb && fdb->dst->dev != dev &&
 		fdb->dst->state == BR_STATE_FORWARDING;
 	rcu_read_unlock();

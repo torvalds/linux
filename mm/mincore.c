@@ -19,6 +19,40 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
+static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long end,
+				unsigned char *vec)
+{
+#ifdef CONFIG_HUGETLB_PAGE
+	struct hstate *h;
+
+	h = hstate_vma(vma);
+	while (1) {
+		unsigned char present;
+		pte_t *ptep;
+		/*
+		 * Huge pages are always in RAM for now, but
+		 * theoretically it needs to be checked.
+		 */
+		ptep = huge_pte_offset(current->mm,
+				       addr & huge_page_mask(h));
+		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
+		while (1) {
+			*vec = present;
+			vec++;
+			addr += PAGE_SIZE;
+			if (addr == end)
+				return;
+			/* check hugepage border */
+			if (!(addr & ~huge_page_mask(h)))
+				break;
+		}
+	}
+#else
+	BUG();
+#endif
+}
+
 /*
  * Later we can get more picky about what "in core" means precisely.
  * For now, simply check to see if the page is in the page cache,
@@ -49,136 +83,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 	return present;
 }
 
-/*
- * Do a chunk of "sys_mincore()". We've already checked
- * all the arguments, we hold the mmap semaphore: we should
- * just return the amount of info we're asked for.
- */
-static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pages)
+static void mincore_unmapped_range(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long end,
+				unsigned char *vec)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep;
-	spinlock_t *ptl;
-	unsigned long nr;
+	unsigned long nr = (end - addr) >> PAGE_SHIFT;
 	int i;
-	pgoff_t pgoff;
-	struct vm_area_struct *vma = find_vma(current->mm, addr);
 
-	/*
-	 * find_vma() didn't find anything above us, or we're
-	 * in an unmapped hole in the address space: ENOMEM.
-	 */
-	if (!vma || addr < vma->vm_start)
-		return -ENOMEM;
-
-#ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma)) {
-		struct hstate *h;
-		unsigned long nr_huge;
-		unsigned char present;
-
-		i = 0;
-		nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
-		h = hstate_vma(vma);
-		nr_huge = ((addr + pages * PAGE_SIZE - 1) >> huge_page_shift(h))
-			  - (addr >> huge_page_shift(h)) + 1;
-		nr_huge = min(nr_huge,
-			      (vma->vm_end - addr) >> huge_page_shift(h));
-		while (1) {
-			/* hugepage always in RAM for now,
-			 * but generally it needs to be check */
-			ptep = huge_pte_offset(current->mm,
-					       addr & huge_page_mask(h));
-			present = !!(ptep &&
-				     !huge_pte_none(huge_ptep_get(ptep)));
-			while (1) {
-				vec[i++] = present;
-				addr += PAGE_SIZE;
-				/* reach buffer limit */
-				if (i == nr)
-					return nr;
-				/* check hugepage border */
-				if (!((addr & ~huge_page_mask(h))
-				      >> PAGE_SHIFT))
-					break;
-			}
-		}
-		return nr;
-	}
-#endif
-
-	/*
-	 * Calculate how many pages there are left in the last level of the
-	 * PTE array for our address.
-	 */
-	nr = PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1));
-
-	/*
-	 * Don't overrun this vma
-	 */
-	nr = min(nr, (vma->vm_end - addr) >> PAGE_SHIFT);
-
-	/*
-	 * Don't return more than the caller asked for
-	 */
-	nr = min(nr, pages);
-
-	pgd = pgd_offset(vma->vm_mm, addr);
-	if (pgd_none_or_clear_bad(pgd))
-		goto none_mapped;
-	pud = pud_offset(pgd, addr);
-	if (pud_none_or_clear_bad(pud))
-		goto none_mapped;
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none_or_clear_bad(pmd))
-		goto none_mapped;
-
-	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
-		unsigned char present;
-		pte_t pte = *ptep;
-
-		if (pte_present(pte)) {
-			present = 1;
-
-		} else if (pte_none(pte)) {
-			if (vma->vm_file) {
-				pgoff = linear_page_index(vma, addr);
-				present = mincore_page(vma->vm_file->f_mapping,
-							pgoff);
-			} else
-				present = 0;
-
-		} else if (pte_file(pte)) {
-			pgoff = pte_to_pgoff(pte);
-			present = mincore_page(vma->vm_file->f_mapping, pgoff);
-
-		} else { /* pte is a swap entry */
-			swp_entry_t entry = pte_to_swp_entry(pte);
-			if (is_migration_entry(entry)) {
-				/* migration entries are always uptodate */
-				present = 1;
-			} else {
-#ifdef CONFIG_SWAP
-				pgoff = entry.val;
-				present = mincore_page(&swapper_space, pgoff);
-#else
-				WARN_ON(1);
-				present = 1;
-#endif
-			}
-		}
-
-		vec[i] = present;
-	}
-	pte_unmap_unlock(ptep-1, ptl);
-
-	return nr;
-
-none_mapped:
 	if (vma->vm_file) {
+		pgoff_t pgoff;
+
 		pgoff = linear_page_index(vma, addr);
 		for (i = 0; i < nr; i++, pgoff++)
 			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
@@ -186,8 +100,133 @@ none_mapped:
 		for (i = 0; i < nr; i++)
 			vec[i] = 0;
 	}
+}
 
-	return nr;
+static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+			unsigned long addr, unsigned long end,
+			unsigned char *vec)
+{
+	unsigned long next;
+	spinlock_t *ptl;
+	pte_t *ptep;
+
+	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+	do {
+		pte_t pte = *ptep;
+		pgoff_t pgoff;
+
+		next = addr + PAGE_SIZE;
+		if (pte_none(pte))
+			mincore_unmapped_range(vma, addr, next, vec);
+		else if (pte_present(pte))
+			*vec = 1;
+		else if (pte_file(pte)) {
+			pgoff = pte_to_pgoff(pte);
+			*vec = mincore_page(vma->vm_file->f_mapping, pgoff);
+		} else { /* pte is a swap entry */
+			swp_entry_t entry = pte_to_swp_entry(pte);
+
+			if (is_migration_entry(entry)) {
+				/* migration entries are always uptodate */
+				*vec = 1;
+			} else {
+#ifdef CONFIG_SWAP
+				pgoff = entry.val;
+				*vec = mincore_page(&swapper_space, pgoff);
+#else
+				WARN_ON(1);
+				*vec = 1;
+#endif
+			}
+		}
+		vec++;
+	} while (ptep++, addr = next, addr != end);
+	pte_unmap_unlock(ptep - 1, ptl);
+}
+
+static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+			unsigned long addr, unsigned long end,
+			unsigned char *vec)
+{
+	unsigned long next;
+	pmd_t *pmd;
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			mincore_unmapped_range(vma, addr, next, vec);
+		else
+			mincore_pte_range(vma, pmd, addr, next, vec);
+		vec += (next - addr) >> PAGE_SHIFT;
+	} while (pmd++, addr = next, addr != end);
+}
+
+static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+			unsigned long addr, unsigned long end,
+			unsigned char *vec)
+{
+	unsigned long next;
+	pud_t *pud;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			mincore_unmapped_range(vma, addr, next, vec);
+		else
+			mincore_pmd_range(vma, pud, addr, next, vec);
+		vec += (next - addr) >> PAGE_SHIFT;
+	} while (pud++, addr = next, addr != end);
+}
+
+static void mincore_page_range(struct vm_area_struct *vma,
+			unsigned long addr, unsigned long end,
+			unsigned char *vec)
+{
+	unsigned long next;
+	pgd_t *pgd;
+
+	pgd = pgd_offset(vma->vm_mm, addr);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			mincore_unmapped_range(vma, addr, next, vec);
+		else
+			mincore_pud_range(vma, pgd, addr, next, vec);
+		vec += (next - addr) >> PAGE_SHIFT;
+	} while (pgd++, addr = next, addr != end);
+}
+
+/*
+ * Do a chunk of "sys_mincore()". We've already checked
+ * all the arguments, we hold the mmap semaphore: we should
+ * just return the amount of info we're asked for.
+ */
+static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
+{
+	struct vm_area_struct *vma;
+	unsigned long end;
+
+	vma = find_vma(current->mm, addr);
+	if (!vma || addr < vma->vm_start)
+		return -ENOMEM;
+
+	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
+
+	if (is_vm_hugetlb_page(vma)) {
+		mincore_hugetlb_page_range(vma, addr, end, vec);
+		return (end - addr) >> PAGE_SHIFT;
+	}
+
+	end = pmd_addr_end(addr, end);
+
+	if (is_vm_hugetlb_page(vma))
+		mincore_hugetlb_page_range(vma, addr, end, vec);
+	else
+		mincore_page_range(vma, addr, end, vec);
+
+	return (end - addr) >> PAGE_SHIFT;
 }
 
 /*
@@ -247,7 +286,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 		 * the temporary buffer size.
 		 */
 		down_read(&current->mm->mmap_sem);
-		retval = do_mincore(start, tmp, min(pages, PAGE_SIZE));
+		retval = do_mincore(start, min(pages, PAGE_SIZE), tmp);
 		up_read(&current->mm->mmap_sem);
 
 		if (retval <= 0)

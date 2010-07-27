@@ -70,7 +70,7 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case EMULATE_FAIL:
 		/* XXX Deliver Program interrupt to guest. */
 		printk(KERN_EMERG "%s: emulation failed (%08x)\n", __func__,
-		       vcpu->arch.last_inst);
+		       kvmppc_get_last_inst(vcpu));
 		r = RESUME_HOST;
 		break;
 	default:
@@ -148,6 +148,10 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 	switch (ext) {
 	case KVM_CAP_PPC_SEGSTATE:
+	case KVM_CAP_PPC_PAIRED_SINGLES:
+	case KVM_CAP_PPC_UNSET_IRQ:
+	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_PPC_OSI:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -193,12 +197,17 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
 	vcpu = kvmppc_core_vcpu_create(kvm, id);
-	kvmppc_create_vcpu_debugfs(vcpu, id);
+	if (!IS_ERR(vcpu))
+		kvmppc_create_vcpu_debugfs(vcpu, id);
 	return vcpu;
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	/* Make sure we're not using the vcpu anymore */
+	hrtimer_cancel(&vcpu->arch.dec_timer);
+	tasklet_kill(&vcpu->arch.tasklet);
+
 	kvmppc_remove_vcpu_debugfs(vcpu);
 	kvmppc_core_vcpu_free(vcpu);
 }
@@ -278,7 +287,7 @@ static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	ulong gpr;
+	u64 gpr;
 
 	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
@@ -287,6 +296,7 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 
 	if (vcpu->arch.mmio_is_bigendian) {
 		switch (run->mmio.len) {
+		case 8: gpr = *(u64 *)run->mmio.data; break;
 		case 4: gpr = *(u32 *)run->mmio.data; break;
 		case 2: gpr = *(u16 *)run->mmio.data; break;
 		case 1: gpr = *(u8 *)run->mmio.data; break;
@@ -300,7 +310,43 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		}
 	}
 
+	if (vcpu->arch.mmio_sign_extend) {
+		switch (run->mmio.len) {
+#ifdef CONFIG_PPC64
+		case 4:
+			gpr = (s64)(s32)gpr;
+			break;
+#endif
+		case 2:
+			gpr = (s64)(s16)gpr;
+			break;
+		case 1:
+			gpr = (s64)(s8)gpr;
+			break;
+		}
+	}
+
 	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
+
+	switch (vcpu->arch.io_gpr & KVM_REG_EXT_MASK) {
+	case KVM_REG_GPR:
+		kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
+		break;
+	case KVM_REG_FPR:
+		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+#ifdef CONFIG_PPC_BOOK3S
+	case KVM_REG_QPR:
+		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+	case KVM_REG_FQPR:
+		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+#endif
+	default:
+		BUG();
+	}
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -319,12 +365,25 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	vcpu->arch.mmio_is_bigendian = is_bigendian;
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_is_write = 0;
+	vcpu->arch.mmio_sign_extend = 0;
 
 	return EMULATE_DO_MMIO;
 }
 
+/* Same as above, but sign extends */
+int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                        unsigned int rt, unsigned int bytes, int is_bigendian)
+{
+	int r;
+
+	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
+	vcpu->arch.mmio_sign_extend = 1;
+
+	return r;
+}
+
 int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        u32 val, unsigned int bytes, int is_bigendian)
+                        u64 val, unsigned int bytes, int is_bigendian)
 {
 	void *data = run->mmio.data;
 
@@ -342,6 +401,7 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* Store the value at the lowest bytes in 'data'. */
 	if (is_bigendian) {
 		switch (bytes) {
+		case 8: *(u64 *)data = val; break;
 		case 4: *(u32 *)data = val; break;
 		case 2: *(u16 *)data = val; break;
 		case 1: *(u8  *)data = val; break;
@@ -376,6 +436,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (!vcpu->arch.dcr_is_write)
 			kvmppc_complete_dcr_load(vcpu, run);
 		vcpu->arch.dcr_needed = 0;
+	} else if (vcpu->arch.osi_needed) {
+		u64 *gprs = run->osi.gprs;
+		int i;
+
+		for (i = 0; i < 32; i++)
+			kvmppc_set_gpr(vcpu, i, gprs[i]);
+		vcpu->arch.osi_needed = 0;
 	}
 
 	kvmppc_core_deliver_interrupts(vcpu);
@@ -396,7 +463,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
-	kvmppc_core_queue_external(vcpu, irq);
+	if (irq->irq == KVM_INTERRUPT_UNSET)
+		kvmppc_core_dequeue_external(vcpu, irq);
+	else
+		kvmppc_core_queue_external(vcpu, irq);
 
 	if (waitqueue_active(&vcpu->wq)) {
 		wake_up_interruptible(&vcpu->wq);
@@ -404,6 +474,27 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	}
 
 	return 0;
+}
+
+static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
+				     struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+	case KVM_CAP_PPC_OSI:
+		r = 0;
+		vcpu->arch.osi_enabled = true;
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
@@ -432,6 +523,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&irq, argp, sizeof(irq)))
 			goto out;
 		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+		break;
+	}
+	case KVM_ENABLE_CAP:
+	{
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			goto out;
+		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
 		break;
 	}
 	default:

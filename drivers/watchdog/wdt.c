@@ -91,7 +91,7 @@ MODULE_PARM_DESC(tachometer,
 static int type = 500;
 module_param(type, int, 0);
 MODULE_PARM_DESC(type,
-		"WDT501-P Card type (500 or 501 , default=500)");
+		"WDT501-P Card type (500 or 501, default=500)");
 
 /*
  *	Programming support

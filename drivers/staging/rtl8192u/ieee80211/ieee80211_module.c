@@ -65,17 +65,14 @@ static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kmalloc(
-		MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
+	ieee->networks = kcalloc(
+		MAX_NETWORK_COUNT, sizeof(struct ieee80211_network),
 		GFP_KERNEL);
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
 		       ieee->dev->name);
 		return -ENOMEM;
 	}
-
-	memset(ieee->networks, 0,
-	       MAX_NETWORK_COUNT * sizeof(struct ieee80211_network));
 
 	return 0;
 }
@@ -161,7 +158,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee80211_softmac_init(ieee);
 
-	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
+	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	if (ieee->pHTInfo == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");

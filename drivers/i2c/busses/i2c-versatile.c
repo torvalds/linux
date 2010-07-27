@@ -15,8 +15,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define I2C_CONTROL	0x00
 #define I2C_CONTROLS	0x00

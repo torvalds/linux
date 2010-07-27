@@ -81,7 +81,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 event_inj_err;
 	u64 nested_cr3;
 	u64 lbr_ctl;
-	u8 reserved_5[832];
+	u64 reserved_5;
+	u64 next_rip;
+	u8 reserved_6[816];
 };
 
 
@@ -114,6 +116,10 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define SVM_IOIO_REP_MASK (1 << SVM_IOIO_REP_SHIFT)
 #define SVM_IOIO_SIZE_MASK (7 << SVM_IOIO_SIZE_SHIFT)
 #define SVM_IOIO_ASIZE_MASK (7 << SVM_IOIO_ASIZE_SHIFT)
+
+#define SVM_VM_CR_VALID_MASK	0x001fULL
+#define SVM_VM_CR_SVM_LOCK_MASK 0x0008ULL
+#define SVM_VM_CR_SVM_DIS_MASK  0x0010ULL
 
 struct __attribute__ ((__packed__)) vmcb_seg {
 	u16 selector;
@@ -238,6 +244,7 @@ struct __attribute__ ((__packed__)) vmcb {
 
 #define SVM_EXITINFOSHIFT_TS_REASON_IRET 36
 #define SVM_EXITINFOSHIFT_TS_REASON_JMP 38
+#define SVM_EXITINFOSHIFT_TS_HAS_ERROR_CODE 44
 
 #define	SVM_EXIT_READ_CR0 	0x000
 #define	SVM_EXIT_READ_CR3 	0x003

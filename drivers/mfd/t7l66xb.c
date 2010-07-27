@@ -318,6 +318,9 @@ static int t7l66xb_probe(struct platform_device *dev)
 	struct resource *iomem, *rscr;
 	int ret;
 
+	if (pdata == NULL)
+		return -EINVAL;
+
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!iomem)
 		return -EINVAL;

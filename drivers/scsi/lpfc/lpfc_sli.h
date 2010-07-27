@@ -36,6 +36,7 @@ struct lpfc_cq_event {
 		struct lpfc_acqe_link		acqe_link;
 		struct lpfc_acqe_fcoe		acqe_fcoe;
 		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_acqe_grp5		acqe_grp5;
 		struct lpfc_rcqe		rcqe_cmpl;
 		struct sli4_wcqe_xri_aborted	wcqe_axri;
 		struct lpfc_wcqe_complete	wcqe_cmpl;
@@ -110,6 +111,9 @@ typedef struct lpfcMboxq {
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;
+	uint16_t in_ext_byte_len;
+	uint16_t out_ext_byte_len;
+	uint8_t  mbox_offset_word;
 	struct lpfc_mcqe mcqe;
 	struct lpfc_mbx_nembed_sge_virt *sge_array;
 } LPFC_MBOXQ_t;

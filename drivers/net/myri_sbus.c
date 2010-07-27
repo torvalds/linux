@@ -928,7 +928,7 @@ static const struct net_device_ops myri_ops = {
 
 static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
 	struct net_device *dev;
 	struct myri_eth *mp;
@@ -1161,8 +1161,11 @@ static const struct of_device_id myri_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
 static struct of_platform_driver myri_sbus_driver = {
-	.name		= "myri",
-	.match_table	= myri_sbus_match,
+	.driver = {
+		.name = "myri",
+		.owner = THIS_MODULE,
+		.of_match_table = myri_sbus_match,
+	},
 	.probe		= myri_sbus_probe,
 	.remove		= __devexit_p(myri_sbus_remove),
 };

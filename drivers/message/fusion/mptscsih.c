@@ -1149,11 +1149,6 @@ mptscsih_remove(struct pci_dev *pdev)
 	MPT_SCSI_HOST		*hd;
 	int sz1;
 
-	if(!host) {
-		mpt_detach(pdev);
-		return;
-	}
-
 	scsi_remove_host(host);
 
 	if((hd = shost_priv(host)) == NULL)
@@ -1711,7 +1706,7 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun,
 	if (issue_hard_reset) {
 		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 			ioc->name, __func__);
-		retval = mpt_HardResetHandler(ioc, CAN_SLEEP);
+		retval = mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		mpt_free_msg_frame(ioc, mf);
 	}
 
@@ -1728,6 +1723,7 @@ mptscsih_get_tm_timeout(MPT_ADAPTER *ioc)
 	case FC:
 		return 40;
 	case SAS:
+		return 30;
 	case SPI:
 	default:
 		return 10;
@@ -1777,7 +1773,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_NO_CONNECT << 16;
 		SCpnt->scsi_done(SCpnt);
-		retval = 0;
+		retval = SUCCESS;
 		goto out;
 	}
 
@@ -1786,6 +1782,17 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "task abort: hidden raid component (sc=%p)\n",
+		    ioc->name, SCpnt));
+		SCpnt->result = DID_RESET << 16;
+		retval = FAILED;
+		goto out;
+	}
+
+	/* Task aborts are not supported for volumes.
+	 */
+	if (vdevice->vtarget->raidVolume) {
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "task abort: raid volume (sc=%p)\n",
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_RESET << 16;
 		retval = FAILED;
@@ -1991,7 +1998,7 @@ mptscsih_host_reset(struct scsi_cmnd *SCpnt)
 	/*  If our attempts to reset the host failed, then return a failed
 	 *  status.  The host will be taken off line by the SCSI mid-layer.
 	 */
-    retval = mpt_HardResetHandler(ioc, CAN_SLEEP);
+    retval = mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 	if (retval < 0)
 		status = FAILED;
 	else
@@ -2344,6 +2351,8 @@ mptscsih_slave_destroy(struct scsi_device *sdev)
 	starget = scsi_target(sdev);
 	vtarget = starget->hostdata;
 	vdevice = sdev->hostdata;
+	if (!vdevice)
+		return;
 
 	mptscsih_search_running_cmds(hd, vdevice);
 	vtarget->num_luns--;
@@ -2561,9 +2570,7 @@ mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i)
 }
 
 /**
- * mptscsih_set_scsi_lookup
- *
- * writes a scmd entry into the ScsiLookup[] array list
+ * mptscsih_set_scsi_lookup - write a scmd entry into the ScsiLookup[] array list
  *
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
@@ -2726,7 +2733,7 @@ mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req,
 
 
 /**
- *	mptscsih_get_completion_code -
+ *	mptscsih_get_completion_code - get completion code from MPT request
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@req: Pointer to original MPT request frame
  *	@reply: Pointer to MPT reply frame (NULL if TurboReply)
@@ -3040,7 +3047,7 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
 		if (!timeleft) {
 			printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 			    ioc->name, __func__);
-			mpt_HardResetHandler(ioc, CAN_SLEEP);
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 			mpt_free_msg_frame(ioc, mf);
 		}
 		goto out;

@@ -212,5 +212,9 @@
 
 #define NR_IRQS	(IRQ_BOARD_END + 1)
 
+/* Compatibility */
+
+#define IRQ_ONENAND	IRQ_ONENAND0
+
 #endif /* __ASM_MACH_S3C64XX_IRQS_H */
 

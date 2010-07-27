@@ -43,18 +43,17 @@
 
 BOOL
 FIRMWAREbDownload(
-    IN PSDevice pDevice
+     PSDevice pDevice
     );
 
 BOOL
 FIRMWAREbBrach2Sram(
-    IN PSDevice pDevice
+     PSDevice pDevice
     );
 
 BOOL
 FIRMWAREbCheckVersion(
-    IN PSDevice pDevice
+     PSDevice pDevice
     );
 
-
-#endif // __FIRMWARE_H__
+#endif /* __FIRMWARE_H__ */

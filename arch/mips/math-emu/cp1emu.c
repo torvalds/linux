@@ -354,7 +354,8 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 
 			if (MIPSInst_RD(ir) == FPCREG_CSR) {
 				value = ctx->fcr31;
-				value = (value & ~0x3) | mips_rm[value & 0x3];
+				value = (value & ~FPU_CSR_RM) |
+					mips_rm[modeindex(value)];
 #ifdef CSRTRACE
 				printk("%p gpr[%d]<-csr=%08x\n",
 					(void *) (xcp->cp0_epc),
@@ -907,7 +908,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754sp fs;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.w = ieee754sp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -933,7 +934,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754sp fs;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.l = ieee754sp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1081,7 +1082,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754dp fs;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.w = ieee754dp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -1107,7 +1108,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754dp fs;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.l = ieee754dp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;

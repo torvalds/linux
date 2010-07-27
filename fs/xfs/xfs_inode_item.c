@@ -543,6 +543,7 @@ xfs_inode_item_pin(
 {
 	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
 
+	trace_xfs_inode_pin(iip->ili_inode, _RET_IP_);
 	atomic_inc(&iip->ili_inode->i_pincount);
 }
 
@@ -556,11 +557,11 @@ xfs_inode_item_pin(
 /* ARGSUSED */
 STATIC void
 xfs_inode_item_unpin(
-	xfs_inode_log_item_t	*iip,
-	int			stale)
+	xfs_inode_log_item_t	*iip)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
 
+	trace_xfs_inode_unpin(ip, _RET_IP_);
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 	if (atomic_dec_and_test(&ip->i_pincount))
 		wake_up(&ip->i_ipin_wait);
@@ -572,7 +573,7 @@ xfs_inode_item_unpin_remove(
 	xfs_inode_log_item_t	*iip,
 	xfs_trans_t		*tp)
 {
-	xfs_inode_item_unpin(iip, 0);
+	xfs_inode_item_unpin(iip);
 }
 
 /*
@@ -838,7 +839,7 @@ static struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_inode_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_inode_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_inode_item_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_inode_item_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
 					xfs_inode_item_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_inode_item_trylock,
@@ -865,17 +866,9 @@ xfs_inode_item_init(
 	ASSERT(ip->i_itemp == NULL);
 	iip = ip->i_itemp = kmem_zone_zalloc(xfs_ili_zone, KM_SLEEP);
 
-	iip->ili_item.li_type = XFS_LI_INODE;
-	iip->ili_item.li_ops = &xfs_inode_item_ops;
-	iip->ili_item.li_mountp = mp;
-	iip->ili_item.li_ailp = mp->m_ail;
 	iip->ili_inode = ip;
-
-	/*
-	   We have zeroed memory. No need ...
-	   iip->ili_extents_buf = NULL;
-	 */
-
+	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
+						&xfs_inode_item_ops);
 	iip->ili_format.ilf_type = XFS_LI_INODE;
 	iip->ili_format.ilf_ino = ip->i_ino;
 	iip->ili_format.ilf_blkno = ip->i_imap.im_blkno;

@@ -2,7 +2,7 @@
  * This module provides common API for accessing firmware configuration pages
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.c
- * Copyright (C) 2007-2009  LSI Corporation
+ * Copyright (C) 2007-2010  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -258,7 +258,7 @@ mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	_config_display_some_debug(ioc, smid, "config_done", mpi_reply);
 #endif
-	ioc->config_cmds.smid = USHORT_MAX;
+	ioc->config_cmds.smid = USHRT_MAX;
 	complete(&ioc->config_cmds.done);
 	return 1;
 }
@@ -1390,12 +1390,12 @@ mpt2sas_config_get_volume_handle(struct MPT2SAS_ADAPTER *ioc, u16 pd_handle,
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
 		goto out;
 	for (i = 0; i < config_page->NumElements; i++) {
-		if ((config_page->ConfigElement[i].ElementFlags &
+		if ((le16_to_cpu(config_page->ConfigElement[i].ElementFlags) &
 		    MPI2_RAIDCONFIG0_EFLAGS_MASK_ELEMENT_TYPE) !=
 		    MPI2_RAIDCONFIG0_EFLAGS_VOL_PHYS_DISK_ELEMENT)
 			continue;
-		if (config_page->ConfigElement[i].PhysDiskDevHandle ==
-		    pd_handle) {
+		if (le16_to_cpu(config_page->ConfigElement[i].
+		    PhysDiskDevHandle) == pd_handle) {
 			*volume_handle = le16_to_cpu(config_page->
 			    ConfigElement[i].VolDevHandle);
 			r = 0;

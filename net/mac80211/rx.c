@@ -2194,7 +2194,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		u8 rate_or_pad;
 		__le16 chan_freq;
 		__le16 chan_flags;
-	} __attribute__ ((packed)) *rthdr;
+	} __packed *rthdr;
 	struct sk_buff *skb = rx->skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);

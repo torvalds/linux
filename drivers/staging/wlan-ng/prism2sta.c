@@ -426,7 +426,7 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 *	msgp		ptr to msg buffer
 *
 * Returns:
-* 	A p80211 message resultcode value.
+*	A p80211 message resultcode value.
 *
 * Side effects:
 *
@@ -458,7 +458,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 				       "hfa384x_drvr_start() failed,"
 				       "result=%d\n", (int)result);
 				result =
-				    P80211ENUM_resultcode_implementation_failure;
+				 P80211ENUM_resultcode_implementation_failure;
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
 			}
@@ -503,7 +503,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 				       "hfa384x_drvr_start() failed,"
 				       "result=%d\n", (int)result);
 				result =
-				    P80211ENUM_resultcode_implementation_failure;
+				  P80211ENUM_resultcode_implementation_failure;
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
 			}
@@ -514,7 +514,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 				       "prism2sta_getcardinfo() failed,"
 				       "result=%d\n", (int)result);
 				result =
-				    P80211ENUM_resultcode_implementation_failure;
+				  P80211ENUM_resultcode_implementation_failure;
 				hfa384x_drvr_stop(hw);
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
@@ -525,7 +525,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 				       "prism2sta_globalsetup() failed,"
 				       "result=%d\n", (int)result);
 				result =
-				    P80211ENUM_resultcode_implementation_failure;
+				  P80211ENUM_resultcode_implementation_failure;
 				hfa384x_drvr_stop(hw);
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
@@ -1178,8 +1178,8 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 			chinforesult->active =
 			    le16_to_cpu(inf->info.chinforesult.result[n].
 					active);
-			pr_debug
-			    ("chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
+	pr_debug
+		("chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
 			     channel + 1,
 			     chinforesult->
 			     active & HFA384x_CHINFORESULT_BSSACTIVE ? "signal"
@@ -1246,7 +1246,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 		netif_carrier_on(wlandev->netdev);
 
-		/* If we are joining a specific AP, set our state and reset retries */
+		/* If we are joining a specific AP, set our
+		 * state and reset retries
+		 */
 		if (hw->join_ap == 1)
 			hw->join_ap = 2;
 		hw->join_retries = 60;
@@ -1261,9 +1263,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 			/* Collect the BSSID, and set state to allow tx */
 
 			result = hfa384x_drvr_getconfig(hw,
-							HFA384x_RID_CURRENTBSSID,
-							wlandev->bssid,
-							WLAN_BSSID_LEN);
+						HFA384x_RID_CURRENTBSSID,
+						wlandev->bssid,
+						WLAN_BSSID_LEN);
 			if (result) {
 				pr_debug
 				    ("getconfig(0x%02x) failed, result = %d\n",
@@ -1286,8 +1288,8 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 			/* Collect the port status */
 			result = hfa384x_drvr_getconfig16(hw,
-							  HFA384x_RID_PORTSTATUS,
-							  &portstatus);
+							HFA384x_RID_PORTSTATUS,
+							&portstatus);
 			if (result) {
 				pr_debug
 				    ("getconfig(0x%02x) failed, result = %d\n",
@@ -1322,7 +1324,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 					       &joinreq,
 					       HFA384x_RID_JOINREQUEST_LEN);
 			printk(KERN_INFO
-			       "linkstatus=DISCONNECTED (re-submitting join)\n");
+			    "linkstatus=DISCONNECTED (re-submitting join)\n");
 		} else {
 			if (wlandev->netdev->type == ARPHRD_ETHER)
 				printk(KERN_INFO
@@ -1509,14 +1511,15 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 	rec.reason = le16_to_cpu(rec.reason);
 
 	/*
-	 ** Find the address in the list of authenticated stations.  If it wasn't
-	 ** found, then this address has not been previously authenticated and
-	 ** something weird has happened if this is anything other than an
-	 ** "authentication failed" message.  If the address was found, then
-	 ** set the "associated" flag for that station, based on whether the
-	 ** station is associating or losing its association.  Something weird
-	 ** has also happened if we find the address in the list of authenticated
-	 ** stations but we are getting an "authentication failed" message.
+	 ** Find the address in the list of authenticated stations.
+	 ** If it wasn't found, then this address has not been previously
+	 ** authenticated and something weird has happened if this is
+	 ** anything other than an "authentication failed" message.
+	 ** If the address was found, then set the "associated" flag for
+	 ** that station, based on whether the station is associating or
+	 ** losing its association.  Something weird has also happened
+	 ** if we find the address in the list of authenticated stations
+	 ** but we are getting an "authentication failed" message.
 	 */
 
 	for (i = 0; i < hw->authlist.cnt; i++)
@@ -1526,7 +1529,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 	if (i >= hw->authlist.cnt) {
 		if (rec.assocstatus != HFA384x_ASSOCSTATUS_AUTHFAIL)
 			printk(KERN_WARNING
-			       "assocstatus info frame received for non-authenticated station.\n");
+	"assocstatus info frame received for non-authenticated station.\n");
 	} else {
 		hw->authlist.assoc[i] =
 		    (rec.assocstatus == HFA384x_ASSOCSTATUS_STAASSOC ||
@@ -1534,7 +1537,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 
 		if (rec.assocstatus == HFA384x_ASSOCSTATUS_AUTHFAIL)
 			printk(KERN_WARNING
-			       "authfail assocstatus info frame received for authenticated station.\n");
+"authfail assocstatus info frame received for authenticated station.\n");
 	}
 
 	return;
@@ -1681,12 +1684,12 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	}
 
 	/*
-	 ** If the authentication is okay, then add the MAC address to the list
-	 ** of authenticated stations.  Don't add the address if it is already in
-	 ** the list.  (802.11b does not seem to disallow a station from issuing
-	 ** an authentication request when the station is already authenticated.
-	 ** Does this sort of thing ever happen?  We might as well do the check
-	 ** just in case.)
+	 ** If the authentication is okay, then add the MAC address to the
+	 ** list of authenticated stations.  Don't add the address if it
+	 ** is already in the list. (802.11b does not seem to disallow
+	 ** a station from issuing an authentication request when the
+	 ** station is already authenticated. Does this sort of thing
+	 ** ever happen?  We might as well do the check just in case.)
 	 */
 
 	added = 0;
@@ -1931,7 +1934,7 @@ void prism2sta_ev_alloc(wlandevice_t *wlandev)
 *	the created wlandevice_t structure.
 *
 * Side effects:
-* 	also allocates the priv/hw structures.
+*	also allocates the priv/hw structures.
 *
 * Call context:
 *	process thread
@@ -1995,9 +1998,9 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 
 	/* It only makes sense to poll these in non-IBSS */
 	if (wlandev->macmode != WLAN_MACMODE_IBSS_STA) {
-		result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DBMCOMMSQUALITY,
-						&hw->qual,
-						HFA384x_RID_DBMCOMMSQUALITY_LEN);
+		result = hfa384x_drvr_getconfig(
+				hw, HFA384x_RID_DBMCOMMSQUALITY,
+				&hw->qual, HFA384x_RID_DBMCOMMSQUALITY_LEN);
 
 		if (result) {
 			printk(KERN_ERR "error fetching commsqual\n");

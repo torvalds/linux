@@ -138,7 +138,7 @@ struct iwl_queue {
 				* space more than this */
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
-} __attribute__ ((packed));
+} __packed;
 
 /* One for each TFD */
 struct iwl_tx_info {
@@ -324,8 +324,8 @@ struct iwl_device_cmd {
 		struct iwl_tx_cmd tx;
 		struct iwl6000_channel_switch_cmd chswitch;
 		u8 payload[DEF_CMD_PAYLOAD_SIZE];
-	} __attribute__ ((packed)) cmd;
-} __attribute__ ((packed));
+	} __packed cmd;
+} __packed;
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
 
@@ -579,7 +579,7 @@ struct iwl_ucode_tlv {
 	__le16 alternative;	/* see comment */
 	__le32 length;		/* not including type/length fields */
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define IWL_TLV_UCODE_MAGIC	0x0a4c5749
 

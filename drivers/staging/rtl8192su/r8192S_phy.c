@@ -882,7 +882,7 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 
 	//
 	// 1. Read PHY_REG.TXT BB INIT!!
-	// We will seperate as 1T1R/1T2R/1T2R_GREEN/2T2R
+	// We will separate as 1T1R/1T2R/1T2R_GREEN/2T2R
 	//
 	if (priv->rf_type == RF_1T2R || priv->rf_type == RF_2T2R ||
 	    priv->rf_type == RF_1T1R ||priv->rf_type == RF_2T2R_GREEN)
@@ -1873,10 +1873,9 @@ PHY_GetTxPowerLevel8192S(
 	if(priv->bTXPowerDataReadFromEEPORM == FALSE)
 		return;
 
-	//
-	// Read predefined TX power index in EEPROM
-	//
-//	if(priv->epromtype == EPROM_93c46)
+	/*
+	 * Read predefined TX power index in EEPROM
+	 */
 	{
 		//
 		// Mainly we use RF-A Tx Power to write the Tx Power registers, but the RF-B Tx
@@ -3607,128 +3606,103 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 	RT_TRACE(COMP_SCAN, "<==SetBWMode8190Pci()" );
 }
 
-//
-// Callback routine of the work item for set bandwidth mode.
-//
-//    use in phy only (in win it's work)
+/*
+ * Callback routine of the work item for set bandwidth mode.
+ *
+ *    use in phy only (in win it's work)
+ */
 void SetBWModeCallback8192SUsbWorkItem(struct net_device *dev)
 {
-	struct r8192_priv 		*priv = ieee80211_priv(dev);
-	u8	 			regBwOpMode;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	u8 regBwOpMode;
+	u8 regRRSR_RSC;
 
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//u32				NowL, NowH;
-	//u8Byte				BeginTime, EndTime;
-	u8			regRRSR_RSC;
+	RT_TRACE(COMP_SCAN, "%s(): Switch to %s bandwidth", __func__,
+	priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ? "20MHz" : "40MHz");
 
-	RT_TRACE(COMP_SCAN, "==>SetBWModeCallback8192SUsbWorkItem()  Switch to %s bandwidth\n", \
-					priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz");
-
-	if(priv->rf_chip == RF_PSEUDO_11N)
-	{
+	if (priv->rf_chip == RF_PSEUDO_11N) {
 		priv->SetBWModeInProgress= FALSE;
 		return;
 	}
-
 	if(!priv->up)
 		return;
-
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//NowL = read_nic_dword(dev, TSFR);
-	//NowH = read_nic_dword(dev, TSFR+4);
-	//BeginTime = ((u8Byte)NowH << 32) + NowL;
-
-	//3<1>Set MAC register
+	/* Set MAC register */
 	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
 	regRRSR_RSC = read_nic_byte(dev, RRSR+2);
-
-	switch(priv->CurrentChannelBW)
-	{
-		case HT_CHANNEL_WIDTH_20:
-			regBwOpMode |= BW_OPMODE_20MHZ;
-		       // 2007/02/07 Mark by Emily becasue we have not verify whether this register works
-			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
-			break;
-
-		case HT_CHANNEL_WIDTH_20_40:
-			regBwOpMode &= ~BW_OPMODE_20MHZ;
-        		// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
-			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
-			regRRSR_RSC = (regRRSR_RSC&0x90) |(priv->nCur40MhzPrimeSC<<5);
-			write_nic_byte(dev, RRSR+2, regRRSR_RSC);
-
-			break;
-
-		default:
-			RT_TRACE(COMP_DBG, "SetBWModeCallback8192SUsbWorkItem(): unknown Bandwidth: %#X\n",
-				 priv->CurrentChannelBW);
-			break;
+	switch (priv->CurrentChannelBW) {
+	case HT_CHANNEL_WIDTH_20:
+		regBwOpMode |= BW_OPMODE_20MHZ;
+		/* we have not verified whether this register works */
+		write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+		break;
+	case HT_CHANNEL_WIDTH_20_40:
+		regBwOpMode &= ~BW_OPMODE_20MHZ;
+		/* we have not verified whether this register works */
+		write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+		regRRSR_RSC = (regRRSR_RSC&0x90) | (priv->nCur40MhzPrimeSC<<5);
+		write_nic_byte(dev, RRSR+2, regRRSR_RSC);
+		break;
+	default:
+		RT_TRACE(COMP_DBG, "%s(): unknown Bandwidth: %#X", __func__,
+		priv->CurrentChannelBW);
+		break;
 	}
-
-	//3 <2>Set PHY related register
-	switch(priv->CurrentChannelBW)
-	{
-		case HT_CHANNEL_WIDTH_20:
-			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
-			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
-
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x58);
-
-			break;
-		case HT_CHANNEL_WIDTH_20_40:
-			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
-			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
-
-			// Set Control channel to upper or lower. These settings are required only for 40MHz
-			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
-			rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00, priv->nCur40MhzPrimeSC);
-
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x18);
-
-			break;
-
-
-		default:
-			RT_TRACE(COMP_DBG, "SetBWModeCallback8192SUsbWorkItem(): unknown Bandwidth: %#X\n"\
-						,priv->CurrentChannelBW);
-			break;
+	/* Set PHY related register */
+	switch (priv->CurrentChannelBW) {
+	case HT_CHANNEL_WIDTH_20:
+		rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
+		rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
+		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x58);
+		break;
+	case HT_CHANNEL_WIDTH_20_40:
+		rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
+		rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
+		/*
+		 * Set Control channel to upper or lower.
+		 * These settings are required only for 40MHz
+		 */
+		rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand,
+						(priv->nCur40MhzPrimeSC>>1));
+		rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00,
+						priv->nCur40MhzPrimeSC);
+		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x18);
+		break;
+	default:
+		RT_TRACE(COMP_DBG, "%s(): unknown Bandwidth: %#X", __func__,
+							priv->CurrentChannelBW);
+		break;
 
 	}
-	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
+	/*
+	 * Skip over setting of J-mode in BB register here.
+	 * Default value is "None J mode".
+	 */
 
-	//3<3>Set RF related register
-	switch( priv->rf_chip )
-	{
-		case RF_8225:
-			PHY_SetRF8225Bandwidth(dev, priv->CurrentChannelBW);
-			break;
-
-		case RF_8256:
-			// Please implement this function in Hal8190PciPhy8256.c
-			//PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW);
-			break;
-
-		case RF_6052:
-			PHY_RF6052SetBandwidth(dev, priv->CurrentChannelBW);
-			break;
-
-		case RF_8258:
-			// Please implement this function in Hal8190PciPhy8258.c
-			// PHY_SetRF8258Bandwidth();
-			break;
-
-		case RF_PSEUDO_11N:
-			// Do Nothing
-			break;
-
-		default:
-			//RT_ASSERT(FALSE, ("Unknown rf_chip: %d\n", priv->rf_chip));
-			break;
+	/* Set RF related register */
+	switch (priv->rf_chip) {
+	case RF_8225:
+		PHY_SetRF8225Bandwidth(dev, priv->CurrentChannelBW);
+		break;
+	case RF_8256:
+		/* Please implement this function in Hal8190PciPhy8256.c */
+		/* PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW); */
+		break;
+	case RF_6052:
+		PHY_RF6052SetBandwidth(dev, priv->CurrentChannelBW);
+		break;
+	case RF_8258:
+		/* Please implement this function in Hal8190PciPhy8258.c */
+		/* PHY_SetRF8258Bandwidth(); */
+		break;
+	case RF_PSEUDO_11N:
+		/* Do Nothing */
+		break;
+	default:
+		RT_TRACE(COMP_DBG, "%s(): unknown rf_chip: %d", __func__,
+								priv->rf_chip);
+		break;
 	}
-
 	priv->SetBWModeInProgress= FALSE;
-
-	RT_TRACE(COMP_SCAN, "<==SetBWModeCallback8192SUsbWorkItem()" );
 }
 
 //--------------------------Move to oter DIR later-------------------------------*/

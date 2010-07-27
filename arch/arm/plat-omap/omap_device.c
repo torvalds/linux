@@ -2,10 +2,10 @@
  * omap_device implementation
  *
  * Copyright (C) 2009 Nokia Corporation
- * Paul Walmsley
+ * Paul Walmsley, Kevin Hilman
  *
  * Developed in collaboration with (alphabetical order): Benoit
- * Cousson, Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram
+ * Cousson, Thara Gopinath, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff
  *

@@ -786,6 +786,12 @@ wait_for_iobuf:
 
 	jbd_debug(3, "JBD: commit phase 6\n");
 
+	/* All metadata is written, now write commit record and do cleanup */
+	spin_lock(&journal->j_state_lock);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	commit_transaction->t_state = T_COMMIT_RECORD;
+	spin_unlock(&journal->j_state_lock);
+
 	if (journal_write_commit_record(journal, commit_transaction))
 		err = -EIO;
 
@@ -923,7 +929,7 @@ restart_loop:
 
 	jbd_debug(3, "JBD: commit phase 8\n");
 
-	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT_RECORD);
 
 	commit_transaction->t_state = T_FINISHED;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);

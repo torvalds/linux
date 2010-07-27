@@ -14,7 +14,9 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/slab.h>
+#include <linux/nsproxy.h>
 #include <net/sock.h>
+#include <net/net_namespace.h>
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <linux/vmalloc.h>
@@ -27,6 +29,7 @@ static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
+static const char fmt_u64[] = "%llu\n";
 
 static inline int dev_isalive(const struct net_device *dev)
 {
@@ -322,14 +325,15 @@ static ssize_t netstat_show(const struct device *d,
 	struct net_device *dev = to_net_dev(d);
 	ssize_t ret = -EINVAL;
 
-	WARN_ON(offset > sizeof(struct net_device_stats) ||
-			offset % sizeof(unsigned long) != 0);
+	WARN_ON(offset > sizeof(struct rtnl_link_stats64) ||
+			offset % sizeof(u64) != 0);
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
-		const struct net_device_stats *stats = dev_get_stats(dev);
-		ret = sprintf(buf, fmt_ulong,
-			      *(unsigned long *)(((u8 *) stats) + offset));
+		struct rtnl_link_stats64 temp;
+		const struct rtnl_link_stats64 *stats = dev_get_stats(dev, &temp);
+
+		ret = sprintf(buf, fmt_u64, *(u64 *)(((u8 *) stats) + offset));
 	}
 	read_unlock(&dev_base_lock);
 	return ret;
@@ -341,7 +345,7 @@ static ssize_t show_##name(struct device *d,				\
 			   struct device_attribute *attr, char *buf) 	\
 {									\
 	return netstat_show(d, attr, buf,				\
-			    offsetof(struct net_device_stats, name));	\
+			    offsetof(struct rtnl_link_stats64, name));	\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 
@@ -467,6 +471,7 @@ static struct attribute_group wireless_group = {
 	.attrs = wireless_attrs,
 };
 #endif
+#endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_RPS
 /*
@@ -766,16 +771,44 @@ static void rx_queue_remove_kobjects(struct net_device *net)
 	kset_unregister(net->queues_kset);
 }
 #endif /* CONFIG_RPS */
-#endif /* CONFIG_SYSFS */
+
+static const void *net_current_ns(void)
+{
+	return current->nsproxy->net_ns;
+}
+
+static const void *net_initial_ns(void)
+{
+	return &init_net;
+}
+
+static const void *net_netlink_ns(struct sock *sk)
+{
+	return sock_net(sk);
+}
+
+static struct kobj_ns_type_operations net_ns_type_operations = {
+	.type = KOBJ_NS_TYPE_NET,
+	.current_ns = net_current_ns,
+	.netlink_ns = net_netlink_ns,
+	.initial_ns = net_initial_ns,
+};
+
+static void net_kobj_ns_exit(struct net *net)
+{
+	kobj_ns_exit(KOBJ_NS_TYPE_NET, net);
+}
+
+static struct pernet_operations kobj_net_ops = {
+	.exit = net_kobj_ns_exit,
+};
+
 
 #ifdef CONFIG_HOTPLUG
 static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
 {
 	struct net_device *dev = to_net_dev(d);
 	int retval;
-
-	if (!net_eq(dev_net(dev), &init_net))
-		return 0;
 
 	/* pass interface to uevent. */
 	retval = add_uevent_var(env, "INTERFACE=%s", dev->name);
@@ -806,6 +839,13 @@ static void netdev_release(struct device *d)
 	kfree((char *)dev - dev->padded);
 }
 
+static const void *net_namespace(struct device *d)
+{
+	struct net_device *dev;
+	dev = container_of(d, struct net_device, dev);
+	return dev_net(dev);
+}
+
 static struct class net_class = {
 	.name = "net",
 	.dev_release = netdev_release,
@@ -815,6 +855,8 @@ static struct class net_class = {
 #ifdef CONFIG_HOTPLUG
 	.dev_uevent = netdev_uevent,
 #endif
+	.ns_type = &net_ns_type_operations,
+	.namespace = net_namespace,
 };
 
 /* Delete sysfs entries but hold kobject reference until after all
@@ -825,9 +867,6 @@ void netdev_unregister_kobject(struct net_device * net)
 	struct device *dev = &(net->dev);
 
 	kobject_get(&dev->kobj);
-
-	if (!net_eq(dev_net(net), &init_net))
-		return;
 
 #ifdef CONFIG_RPS
 	rx_queue_remove_kobjects(net);
@@ -843,6 +882,7 @@ int netdev_register_kobject(struct net_device *net)
 	const struct attribute_group **groups = net->sysfs_groups;
 	int error = 0;
 
+	device_initialize(dev);
 	dev->class = &net_class;
 	dev->platform_data = net;
 	dev->groups = groups;
@@ -865,9 +905,6 @@ int netdev_register_kobject(struct net_device *net)
 #endif
 #endif /* CONFIG_SYSFS */
 
-	if (!net_eq(dev_net(net), &init_net))
-		return 0;
-
 	error = device_add(dev);
 	if (error)
 		return error;
@@ -887,22 +924,17 @@ int netdev_class_create_file(struct class_attribute *class_attr)
 {
 	return class_create_file(&net_class, class_attr);
 }
+EXPORT_SYMBOL(netdev_class_create_file);
 
 void netdev_class_remove_file(struct class_attribute *class_attr)
 {
 	class_remove_file(&net_class, class_attr);
 }
-
-EXPORT_SYMBOL(netdev_class_create_file);
 EXPORT_SYMBOL(netdev_class_remove_file);
-
-void netdev_initialize_kobject(struct net_device *net)
-{
-	struct device *device = &(net->dev);
-	device_initialize(device);
-}
 
 int netdev_kobject_init(void)
 {
+	kobj_ns_type_register(&net_ns_type_operations);
+	register_pernet_subsys(&kobj_net_ops);
 	return class_register(&net_class);
 }

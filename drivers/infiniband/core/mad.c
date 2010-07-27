@@ -47,8 +47,8 @@ MODULE_DESCRIPTION("kernel IB MAD API");
 MODULE_AUTHOR("Hal Rosenstock");
 MODULE_AUTHOR("Sean Hefty");
 
-int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
-int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
+static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
+static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
 
 module_param_named(send_queue_size, mad_sendq_size, int, 0444);
 MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests");

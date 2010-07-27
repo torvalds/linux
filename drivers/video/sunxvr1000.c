@@ -114,7 +114,7 @@ static int __devinit gfb_set_fbinfo(struct gfb_info *gp)
 static int __devinit gfb_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct gfb_info *gp;
 	int err;
@@ -199,10 +199,13 @@ static const struct of_device_id gfb_match[] = {
 MODULE_DEVICE_TABLE(of, ffb_match);
 
 static struct of_platform_driver gfb_driver = {
-	.name		= "gfb",
-	.match_table	= gfb_match,
 	.probe		= gfb_probe,
 	.remove		= __devexit_p(gfb_remove),
+	.driver = {
+		.name		= "gfb",
+		.owner		= THIS_MODULE,
+		.of_match_table	= gfb_match,
+	},
 };
 
 static int __init gfb_init(void)

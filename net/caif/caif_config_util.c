@@ -80,6 +80,11 @@ int connect_req_to_link_param(struct cfcnfg *cnfg,
 		       l->u.utility.paramlen);
 
 		break;
+	case CAIFPROTO_DEBUG:
+		l->linktype = CFCTRL_SRV_DBG;
+		l->endpoint = s->sockaddr.u.dbg.service;
+		l->chtype = s->sockaddr.u.dbg.type;
+		break;
 	default:
 		return -EINVAL;
 	}

@@ -47,7 +47,7 @@ struct rtl8187_rx_hdr {
 	u8 agc;
 	u8 reserved;
 	__le64 mac_time;
-} __attribute__((packed));
+} __packed;
 
 struct rtl8187b_rx_hdr {
 	__le32 flags;
@@ -59,7 +59,7 @@ struct rtl8187b_rx_hdr {
 	__le16 snr_long2end;
 	s8 pwdb_g12;
 	u8 fot;
-} __attribute__((packed));
+} __packed;
 
 /* {rtl8187,rtl8187b}_tx_info is in skb */
 
@@ -68,7 +68,7 @@ struct rtl8187_tx_hdr {
 	__le16 rts_duration;
 	__le16 len;
 	__le32 retry;
-} __attribute__((packed));
+} __packed;
 
 struct rtl8187b_tx_hdr {
 	__le32 flags;
@@ -80,7 +80,7 @@ struct rtl8187b_tx_hdr {
 	__le32 unused_3;
 	__le32 retry;
 	__le32 unused_4[2];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	DEVICE_RTL8187,

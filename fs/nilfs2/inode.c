@@ -280,16 +280,7 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
 
 	atomic_inc(&sbi->s_inodes_count);
-
-	inode->i_uid = current_fsuid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else
-		inode->i_gid = current_fsgid();
-
-	inode->i_mode = mode;
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = ino;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 
@@ -451,7 +442,7 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 		inode->i_op = &nilfs_special_inode_operations;
 		init_special_inode(
 			inode, inode->i_mode,
-			new_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
+			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
 	}
 	nilfs_ifile_unmap_inode(sbi->s_ifile, ino, bh);
 	brelse(bh);
@@ -511,7 +502,7 @@ void nilfs_write_inode_common(struct inode *inode,
 		nilfs_bmap_write(ii->i_bmap, raw_inode);
 	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		raw_inode->i_device_code =
-			cpu_to_le64(new_encode_dev(inode->i_rdev));
+			cpu_to_le64(huge_encode_dev(inode->i_rdev));
 	/* When extending inode, nilfs->ns_inode_size should be checked
 	   for substitutions of appended fields */
 }

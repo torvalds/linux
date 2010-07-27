@@ -79,6 +79,7 @@ xfs_qm_scall_quotaoff(
 	xfs_mount_t		*mp,
 	uint			flags)
 {
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	uint			dqtype;
 	int			error;
 	uint			inactivate_flags;
@@ -102,11 +103,8 @@ xfs_qm_scall_quotaoff(
 	 * critical thing.
 	 * If quotaoff, then we must be dealing with the root filesystem.
 	 */
-	ASSERT(mp->m_quotainfo);
-	if (mp->m_quotainfo)
-		mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
-
-	ASSERT(mp->m_quotainfo);
+	ASSERT(q);
+	mutex_lock(&q->qi_quotaofflock);
 
 	/*
 	 * If we're just turning off quota enforcement, change mp and go.
@@ -117,7 +115,7 @@ xfs_qm_scall_quotaoff(
 		spin_lock(&mp->m_sb_lock);
 		mp->m_sb.sb_qflags = mp->m_qflags;
 		spin_unlock(&mp->m_sb_lock);
-		mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
+		mutex_unlock(&q->qi_quotaofflock);
 
 		/* XXX what to do if error ? Revert back to old vals incore ? */
 		error = xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS);
@@ -150,10 +148,8 @@ xfs_qm_scall_quotaoff(
 	 * Nothing to do?  Don't complain. This happens when we're just
 	 * turning off quota enforcement.
 	 */
-	if ((mp->m_qflags & flags) == 0) {
-		mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
-		return (0);
-	}
+	if ((mp->m_qflags & flags) == 0)
+		goto out_unlock;
 
 	/*
 	 * Write the LI_QUOTAOFF log record, and do SB changes atomically,
@@ -162,7 +158,7 @@ xfs_qm_scall_quotaoff(
 	 */
 	error = xfs_qm_log_quotaoff(mp, &qoffstart, flags);
 	if (error)
-		goto out_error;
+		goto out_unlock;
 
 	/*
 	 * Next we clear the XFS_MOUNT_*DQ_ACTIVE bit(s) in the mount struct
@@ -204,7 +200,7 @@ xfs_qm_scall_quotaoff(
 	 * So, if we couldn't purge all the dquots from the filesystem,
 	 * we can't get rid of the incore data structures.
 	 */
-	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype|XFS_QMOPT_QUOTAOFF)))
+	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype)))
 		delay(10 * nculprits);
 
 	/*
@@ -222,7 +218,7 @@ xfs_qm_scall_quotaoff(
 	if (error) {
 		/* We're screwed now. Shutdown is the only option. */
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		goto out_error;
+		goto out_unlock;
 	}
 
 	/*
@@ -230,27 +226,26 @@ xfs_qm_scall_quotaoff(
 	 */
 	if (((flags & XFS_MOUNT_QUOTA_ALL) == XFS_MOUNT_QUOTA_SET1) ||
 	    ((flags & XFS_MOUNT_QUOTA_ALL) == XFS_MOUNT_QUOTA_SET2)) {
-		mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
+		mutex_unlock(&q->qi_quotaofflock);
 		xfs_qm_destroy_quotainfo(mp);
 		return (0);
 	}
 
 	/*
-	 * Release our quotainode references, and vn_purge them,
-	 * if we don't need them anymore.
+	 * Release our quotainode references if we don't need them anymore.
 	 */
-	if ((dqtype & XFS_QMOPT_UQUOTA) && XFS_QI_UQIP(mp)) {
-		IRELE(XFS_QI_UQIP(mp));
-		XFS_QI_UQIP(mp) = NULL;
+	if ((dqtype & XFS_QMOPT_UQUOTA) && q->qi_uquotaip) {
+		IRELE(q->qi_uquotaip);
+		q->qi_uquotaip = NULL;
 	}
-	if ((dqtype & (XFS_QMOPT_GQUOTA|XFS_QMOPT_PQUOTA)) && XFS_QI_GQIP(mp)) {
-		IRELE(XFS_QI_GQIP(mp));
-		XFS_QI_GQIP(mp) = NULL;
+	if ((dqtype & (XFS_QMOPT_GQUOTA|XFS_QMOPT_PQUOTA)) && q->qi_gquotaip) {
+		IRELE(q->qi_gquotaip);
+		q->qi_gquotaip = NULL;
 	}
-out_error:
-	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 
-	return (error);
+out_unlock:
+	mutex_unlock(&q->qi_quotaofflock);
+	return error;
 }
 
 int
@@ -379,9 +374,9 @@ xfs_qm_scall_quotaon(
 	/*
 	 * Switch on quota enforcement in core.
 	 */
-	mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
+	mutex_lock(&mp->m_quotainfo->qi_quotaofflock);
 	mp->m_qflags |= (flags & XFS_ALL_QUOTA_ENFD);
-	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
+	mutex_unlock(&mp->m_quotainfo->qi_quotaofflock);
 
 	return (0);
 }
@@ -392,11 +387,12 @@ xfs_qm_scall_quotaon(
  */
 int
 xfs_qm_scall_getqstat(
-	xfs_mount_t	*mp,
-	fs_quota_stat_t *out)
+	struct xfs_mount	*mp,
+	struct fs_quota_stat	*out)
 {
-	xfs_inode_t	*uip, *gip;
-	boolean_t	tempuqip, tempgqip;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	struct xfs_inode	*uip, *gip;
+	boolean_t		tempuqip, tempgqip;
 
 	uip = gip = NULL;
 	tempuqip = tempgqip = B_FALSE;
@@ -415,9 +411,9 @@ xfs_qm_scall_getqstat(
 	out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
 	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
 
-	if (mp->m_quotainfo) {
-		uip = mp->m_quotainfo->qi_uquotaip;
-		gip = mp->m_quotainfo->qi_gquotaip;
+	if (q) {
+		uip = q->qi_uquotaip;
+		gip = q->qi_gquotaip;
 	}
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
@@ -441,16 +437,19 @@ xfs_qm_scall_getqstat(
 		if (tempgqip)
 			IRELE(gip);
 	}
-	if (mp->m_quotainfo) {
-		out->qs_incoredqs = XFS_QI_MPLNDQUOTS(mp);
-		out->qs_btimelimit = XFS_QI_BTIMELIMIT(mp);
-		out->qs_itimelimit = XFS_QI_ITIMELIMIT(mp);
-		out->qs_rtbtimelimit = XFS_QI_RTBTIMELIMIT(mp);
-		out->qs_bwarnlimit = XFS_QI_BWARNLIMIT(mp);
-		out->qs_iwarnlimit = XFS_QI_IWARNLIMIT(mp);
+	if (q) {
+		out->qs_incoredqs = q->qi_dquots;
+		out->qs_btimelimit = q->qi_btimelimit;
+		out->qs_itimelimit = q->qi_itimelimit;
+		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+		out->qs_bwarnlimit = q->qi_bwarnlimit;
+		out->qs_iwarnlimit = q->qi_iwarnlimit;
 	}
-	return (0);
+	return 0;
 }
+
+#define XFS_DQ_MASK \
+	(FS_DQ_LIMIT_MASK | FS_DQ_TIMER_MASK | FS_DQ_WARNS_MASK)
 
 /*
  * Adjust quota limits, and start/stop timers accordingly.
@@ -462,15 +461,17 @@ xfs_qm_scall_setqlim(
 	uint			type,
 	fs_disk_quota_t		*newlim)
 {
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	xfs_disk_dquot_t	*ddq;
 	xfs_dquot_t		*dqp;
 	xfs_trans_t		*tp;
 	int			error;
 	xfs_qcnt_t		hard, soft;
 
-	if ((newlim->d_fieldmask &
-	    (FS_DQ_LIMIT_MASK|FS_DQ_TIMER_MASK|FS_DQ_WARNS_MASK)) == 0)
-		return (0);
+	if (newlim->d_fieldmask & ~XFS_DQ_MASK)
+		return EINVAL;
+	if ((newlim->d_fieldmask & XFS_DQ_MASK) == 0)
+		return 0;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
 	if ((error = xfs_trans_reserve(tp, 0, sizeof(xfs_disk_dquot_t) + 128,
@@ -485,7 +486,7 @@ xfs_qm_scall_setqlim(
 	 * a quotaoff from happening). (XXXThis doesn't currently happen
 	 * because we take the vfslock before calling xfs_qm_sysent).
 	 */
-	mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
+	mutex_lock(&q->qi_quotaofflock);
 
 	/*
 	 * Get the dquot (locked), and join it to the transaction.
@@ -493,9 +494,8 @@ xfs_qm_scall_setqlim(
 	 */
 	if ((error = xfs_qm_dqget(mp, NULL, id, type, XFS_QMOPT_DQALLOC, &dqp))) {
 		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 		ASSERT(error != ENOENT);
-		return (error);
+		goto out_unlock;
 	}
 	xfs_trans_dqjoin(tp, dqp);
 	ddq = &dqp->q_core;
@@ -513,8 +513,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_blk_hardlimit = cpu_to_be64(hard);
 		ddq->d_blk_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
-			mp->m_quotainfo->qi_bhardlimit = hard;
-			mp->m_quotainfo->qi_bsoftlimit = soft;
+			q->qi_bhardlimit = hard;
+			q->qi_bsoftlimit = soft;
 		}
 	} else {
 		qdprintk("blkhard %Ld < blksoft %Ld\n", hard, soft);
@@ -529,8 +529,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_rtb_hardlimit = cpu_to_be64(hard);
 		ddq->d_rtb_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
-			mp->m_quotainfo->qi_rtbhardlimit = hard;
-			mp->m_quotainfo->qi_rtbsoftlimit = soft;
+			q->qi_rtbhardlimit = hard;
+			q->qi_rtbsoftlimit = soft;
 		}
 	} else {
 		qdprintk("rtbhard %Ld < rtbsoft %Ld\n", hard, soft);
@@ -546,8 +546,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_ino_hardlimit = cpu_to_be64(hard);
 		ddq->d_ino_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
-			mp->m_quotainfo->qi_ihardlimit = hard;
-			mp->m_quotainfo->qi_isoftlimit = soft;
+			q->qi_ihardlimit = hard;
+			q->qi_isoftlimit = soft;
 		}
 	} else {
 		qdprintk("ihard %Ld < isoft %Ld\n", hard, soft);
@@ -572,23 +572,23 @@ xfs_qm_scall_setqlim(
 		 * for warnings.
 		 */
 		if (newlim->d_fieldmask & FS_DQ_BTIMER) {
-			mp->m_quotainfo->qi_btimelimit = newlim->d_btimer;
+			q->qi_btimelimit = newlim->d_btimer;
 			ddq->d_btimer = cpu_to_be32(newlim->d_btimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_ITIMER) {
-			mp->m_quotainfo->qi_itimelimit = newlim->d_itimer;
+			q->qi_itimelimit = newlim->d_itimer;
 			ddq->d_itimer = cpu_to_be32(newlim->d_itimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_RTBTIMER) {
-			mp->m_quotainfo->qi_rtbtimelimit = newlim->d_rtbtimer;
+			q->qi_rtbtimelimit = newlim->d_rtbtimer;
 			ddq->d_rtbtimer = cpu_to_be32(newlim->d_rtbtimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_BWARNS)
-			mp->m_quotainfo->qi_bwarnlimit = newlim->d_bwarns;
+			q->qi_bwarnlimit = newlim->d_bwarns;
 		if (newlim->d_fieldmask & FS_DQ_IWARNS)
-			mp->m_quotainfo->qi_iwarnlimit = newlim->d_iwarns;
+			q->qi_iwarnlimit = newlim->d_iwarns;
 		if (newlim->d_fieldmask & FS_DQ_RTBWARNS)
-			mp->m_quotainfo->qi_rtbwarnlimit = newlim->d_rtbwarns;
+			q->qi_rtbwarnlimit = newlim->d_rtbwarns;
 	} else {
 		/*
 		 * If the user is now over quota, start the timelimit.
@@ -605,8 +605,9 @@ xfs_qm_scall_setqlim(
 	error = xfs_trans_commit(tp, 0);
 	xfs_qm_dqprint(dqp);
 	xfs_qm_dqrele(dqp);
-	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 
+ out_unlock:
+	mutex_unlock(&q->qi_quotaofflock);
 	return error;
 }
 
@@ -853,7 +854,8 @@ xfs_dqrele_inode(
 	int			error;
 
 	/* skip quota inodes */
-	if (ip == XFS_QI_UQIP(ip->i_mount) || ip == XFS_QI_GQIP(ip->i_mount)) {
+	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
+	    ip == ip->i_mount->m_quotainfo->qi_gquotaip) {
 		ASSERT(ip->i_udquot == NULL);
 		ASSERT(ip->i_gdquot == NULL);
 		read_unlock(&pag->pag_ici_lock);
@@ -931,7 +933,8 @@ struct mutex  qcheck_lock;
 }
 
 typedef struct dqtest {
-	xfs_dqmarker_t	q_lists;
+	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
+	struct list_head q_hashlist;
 	xfs_dqhash_t	*q_hash;	/* the hashchain header */
 	xfs_mount_t	*q_mount;	/* filesystem this relates to */
 	xfs_dqid_t	d_id;		/* user id or group id */
@@ -942,14 +945,9 @@ typedef struct dqtest {
 STATIC void
 xfs_qm_hashinsert(xfs_dqhash_t *h, xfs_dqtest_t *dqp)
 {
-	xfs_dquot_t *d;
-	if (((d) = (h)->qh_next))
-		(d)->HL_PREVP = &((dqp)->HL_NEXT);
-	(dqp)->HL_NEXT = d;
-	(dqp)->HL_PREVP = &((h)->qh_next);
-	(h)->qh_next = (xfs_dquot_t *)dqp;
-	(h)->qh_version++;
-	(h)->qh_nelems++;
+	list_add(&dqp->q_hashlist, &h->qh_list);
+	h->qh_version++;
+	h->qh_nelems++;
 }
 STATIC void
 xfs_qm_dqtest_print(
@@ -1061,9 +1059,7 @@ xfs_qm_internalqcheck_dqget(
 	xfs_dqhash_t	*h;
 
 	h = DQTEST_HASH(mp, id, type);
-	for (d = (xfs_dqtest_t *) h->qh_next; d != NULL;
-	     d = (xfs_dqtest_t *) d->HL_NEXT) {
-		/* DQTEST_LIST_PRINT(h, HL_NEXT, "@@@@@ dqtestlist @@@@@"); */
+	list_for_each_entry(d, &h->qh_list, q_hashlist) {
 		if (d->d_id == id && mp == d->q_mount) {
 			*O_dq = d;
 			return (0);
@@ -1074,6 +1070,7 @@ xfs_qm_internalqcheck_dqget(
 	d->d_id = id;
 	d->q_mount = mp;
 	d->q_hash = h;
+	INIT_LIST_HEAD(&d->q_hashlist);
 	xfs_qm_hashinsert(h, d);
 	*O_dq = d;
 	return (0);
@@ -1180,8 +1177,6 @@ xfs_qm_internalqcheck(
 	xfs_ino_t	lastino;
 	int		done, count;
 	int		i;
-	xfs_dqtest_t	*d, *e;
-	xfs_dqhash_t	*h1;
 	int		error;
 
 	lastino = 0;
@@ -1221,19 +1216,18 @@ xfs_qm_internalqcheck(
 	}
 	cmn_err(CE_DEBUG, "Checking results against system dquots");
 	for (i = 0; i < qmtest_hashmask; i++) {
-		h1 = &qmtest_udqtab[i];
-		for (d = (xfs_dqtest_t *) h1->qh_next; d != NULL; ) {
+		xfs_dqtest_t	*d, *n;
+		xfs_dqhash_t	*h;
+
+		h = &qmtest_udqtab[i];
+		list_for_each_entry_safe(d, n, &h->qh_list, q_hashlist) {
 			xfs_dqtest_cmp(d);
-			e = (xfs_dqtest_t *) d->HL_NEXT;
 			kmem_free(d);
-			d = e;
 		}
-		h1 = &qmtest_gdqtab[i];
-		for (d = (xfs_dqtest_t *) h1->qh_next; d != NULL; ) {
+		h = &qmtest_gdqtab[i];
+		list_for_each_entry_safe(d, n, &h->qh_list, q_hashlist) {
 			xfs_dqtest_cmp(d);
-			e = (xfs_dqtest_t *) d->HL_NEXT;
 			kmem_free(d);
-			d = e;
 		}
 	}
 

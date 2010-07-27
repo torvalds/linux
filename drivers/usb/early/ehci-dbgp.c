@@ -19,6 +19,9 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/delay.h>
+#include <linux/serial_core.h>
+#include <linux/kgdb.h>
+#include <linux/kthread.h>
 #include <asm/io.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
@@ -55,6 +58,7 @@ static struct ehci_regs __iomem *ehci_regs;
 static struct ehci_dbg_port __iomem *ehci_debug;
 static int dbgp_not_safe; /* Cannot use debug device during ehci reset */
 static unsigned int dbgp_endpoint_out;
+static unsigned int dbgp_endpoint_in;
 
 struct ehci_dev {
 	u32 bus;
@@ -90,6 +94,13 @@ static inline u32 dbgp_len_update(u32 x, u32 len)
 {
 	return (x & ~0x0f) | (len & 0x0f);
 }
+
+#ifdef CONFIG_KGDB
+static struct kgdb_io kgdbdbgp_io_ops;
+#define dbgp_kgdb_mode (dbg_io_ops == &kgdbdbgp_io_ops)
+#else
+#define dbgp_kgdb_mode (0)
+#endif
 
 /*
  * USB Packet IDs (PIDs)
@@ -182,11 +193,10 @@ static void dbgp_breath(void)
 	/* Sleep to give the debug port a chance to breathe */
 }
 
-static int dbgp_wait_until_done(unsigned ctrl)
+static int dbgp_wait_until_done(unsigned ctrl, int loop)
 {
 	u32 pids, lpid;
 	int ret;
-	int loop = DBGP_LOOPS;
 
 retry:
 	writel(ctrl | DBGP_GO, &ehci_debug->control);
@@ -276,13 +286,13 @@ static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
 	dbgp_set_data(bytes, size);
 	writel(addr, &ehci_debug->address);
 	writel(pids, &ehci_debug->pids);
-	ret = dbgp_wait_until_done(ctrl);
+	ret = dbgp_wait_until_done(ctrl, DBGP_LOOPS);
 
 	return ret;
 }
 
 static int dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
-				 int size)
+			  int size, int loops)
 {
 	u32 pids, addr, ctrl;
 	int ret;
@@ -302,7 +312,7 @@ static int dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
 
 	writel(addr, &ehci_debug->address);
 	writel(pids, &ehci_debug->pids);
-	ret = dbgp_wait_until_done(ctrl);
+	ret = dbgp_wait_until_done(ctrl, loops);
 	if (ret < 0)
 		return ret;
 
@@ -343,12 +353,12 @@ static int dbgp_control_msg(unsigned devnum, int requesttype,
 	dbgp_set_data(&req, sizeof(req));
 	writel(addr, &ehci_debug->address);
 	writel(pids, &ehci_debug->pids);
-	ret = dbgp_wait_until_done(ctrl);
+	ret = dbgp_wait_until_done(ctrl, DBGP_LOOPS);
 	if (ret < 0)
 		return ret;
 
 	/* Read the result */
-	return dbgp_bulk_read(devnum, 0, data, size);
+	return dbgp_bulk_read(devnum, 0, data, size, DBGP_LOOPS);
 }
 
 /* Find a PCI capability */
@@ -559,6 +569,7 @@ try_again:
 		goto err;
 	}
 	dbgp_endpoint_out = dbgp_desc.bDebugOutEndpoint;
+	dbgp_endpoint_in = dbgp_desc.bDebugInEndpoint;
 
 	/* Move the device to 127 if it isn't already there */
 	if (devnum != USB_DEBUG_DEVNUM) {
@@ -968,8 +979,9 @@ int dbgp_reset_prep(void)
 	if (!ehci_debug)
 		return 0;
 
-	if (early_dbgp_console.index != -1 &&
-		!(early_dbgp_console.flags & CON_BOOT))
+	if ((early_dbgp_console.index != -1 &&
+	     !(early_dbgp_console.flags & CON_BOOT)) ||
+	    dbgp_kgdb_mode)
 		return 1;
 	/* This means the console is not initialized, or should get
 	 * shutdown so as to allow for reuse of the usb device, which
@@ -982,3 +994,93 @@ int dbgp_reset_prep(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dbgp_reset_prep);
+
+#ifdef CONFIG_KGDB
+
+static char kgdbdbgp_buf[DBGP_MAX_PACKET];
+static int kgdbdbgp_buf_sz;
+static int kgdbdbgp_buf_idx;
+static int kgdbdbgp_loop_cnt = DBGP_LOOPS;
+
+static int kgdbdbgp_read_char(void)
+{
+	int ret;
+
+	if (kgdbdbgp_buf_idx < kgdbdbgp_buf_sz) {
+		char ch = kgdbdbgp_buf[kgdbdbgp_buf_idx++];
+		return ch;
+	}
+
+	ret = dbgp_bulk_read(USB_DEBUG_DEVNUM, dbgp_endpoint_in,
+			     &kgdbdbgp_buf, DBGP_MAX_PACKET,
+			     kgdbdbgp_loop_cnt);
+	if (ret <= 0)
+		return NO_POLL_CHAR;
+	kgdbdbgp_buf_sz = ret;
+	kgdbdbgp_buf_idx = 1;
+	return kgdbdbgp_buf[0];
+}
+
+static void kgdbdbgp_write_char(u8 chr)
+{
+	early_dbgp_write(NULL, &chr, 1);
+}
+
+static struct kgdb_io kgdbdbgp_io_ops = {
+	.name = "kgdbdbgp",
+	.read_char = kgdbdbgp_read_char,
+	.write_char = kgdbdbgp_write_char,
+};
+
+static int kgdbdbgp_wait_time;
+
+static int __init kgdbdbgp_parse_config(char *str)
+{
+	char *ptr;
+
+	if (!ehci_debug) {
+		if (early_dbgp_init(str))
+			return -1;
+	}
+	ptr = strchr(str, ',');
+	if (ptr) {
+		ptr++;
+		kgdbdbgp_wait_time = simple_strtoul(ptr, &ptr, 10);
+	}
+	kgdb_register_io_module(&kgdbdbgp_io_ops);
+	kgdbdbgp_io_ops.is_console = early_dbgp_console.index != -1;
+
+	return 0;
+}
+early_param("kgdbdbgp", kgdbdbgp_parse_config);
+
+static int kgdbdbgp_reader_thread(void *ptr)
+{
+	int ret;
+
+	while (readl(&ehci_debug->control) & DBGP_ENABLED) {
+		kgdbdbgp_loop_cnt = 1;
+		ret = kgdbdbgp_read_char();
+		kgdbdbgp_loop_cnt = DBGP_LOOPS;
+		if (ret != NO_POLL_CHAR) {
+			if (ret == 0x3 || ret == '$') {
+				if (ret == '$')
+					kgdbdbgp_buf_idx--;
+				kgdb_breakpoint();
+			}
+			continue;
+		}
+		schedule_timeout_interruptible(kgdbdbgp_wait_time * HZ);
+	}
+	return 0;
+}
+
+static int __init kgdbdbgp_start_thread(void)
+{
+	if (dbgp_kgdb_mode && kgdbdbgp_wait_time)
+		kthread_run(kgdbdbgp_reader_thread, NULL, "%s", "dbgp");
+
+	return 0;
+}
+module_init(kgdbdbgp_start_thread);
+#endif /* CONFIG_KGDB */

@@ -133,14 +133,14 @@ struct wl1271_cmd_header {
 	__le16 status;
 	/* payload */
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define WL1271_CMD_MAX_PARAMS 572
 
 struct wl1271_command {
 	struct wl1271_cmd_header header;
 	u8  parameters[WL1271_CMD_MAX_PARAMS];
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	CMD_MAILBOX_IDLE		=  0,
@@ -193,7 +193,7 @@ struct cmd_read_write_memory {
 	   of this field is the Host in WRITE command or the Wilink in READ
 	   command. */
 	u8 value[MAX_READ_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4
@@ -240,14 +240,14 @@ struct wl1271_cmd_join {
 	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 ctrl; /* JOIN_CMD_CTRL_* */
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_enabledisable_path {
 	struct wl1271_cmd_header header;
 
 	u8 channel;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define WL1271_RATE_AUTOMATIC  0
 
@@ -263,7 +263,7 @@ struct wl1271_cmd_template_set {
 	u8 aflags;
 	u8 reserved;
 	u8 template_data[WL1271_CMD_TEMPL_MAX_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 #define TIM_ELE_ID    5
 #define PARTIAL_VBM_MAX    251
@@ -275,7 +275,7 @@ struct wl1271_tim {
 	u8 dtim_period;
 	u8 bitmap_ctrl;
 	u8 pvb_field[PARTIAL_VBM_MAX]; /* Partial Virtual Bitmap */
-} __attribute__ ((packed));
+} __packed;
 
 enum wl1271_cmd_ps_mode {
 	STATION_ACTIVE_MODE,
@@ -295,7 +295,7 @@ struct wl1271_cmd_ps_params {
 	  */
 	u8 hang_over_period;
 	__le32 null_data_rate;
-} __attribute__ ((packed));
+} __packed;
 
 /* HW encryption keys */
 #define NUM_ACCESS_CATEGORIES_COPY 4
@@ -345,12 +345,12 @@ struct wl1271_cmd_set_keys {
 	u8 key[MAX_KEY_SIZE];
 	__le16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
 	__le32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_cmd_test_header {
 	u8 id;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum wl1271_channel_tune_bands {
 	WL1271_CHANNEL_TUNE_BAND_2_4,
@@ -379,7 +379,7 @@ struct wl1271_general_parms_cmd {
 	u8 sr_sen_nrn;
 	u8 sr_sen_prn;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_radio_parms_cmd {
 	struct wl1271_cmd_header header;
@@ -395,7 +395,7 @@ struct wl1271_radio_parms_cmd {
 	u8 padding2;
 	struct wl1271_ini_fem_params_5 dyn_params_5;
 	u8 padding3[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_cmd_cal_channel_tune {
 	struct wl1271_cmd_header header;
@@ -406,7 +406,7 @@ struct wl1271_cmd_cal_channel_tune {
 	u8 channel;
 
 	__le16 radio_status;
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_cmd_cal_update_ref_point {
 	struct wl1271_cmd_header header;
@@ -417,7 +417,7 @@ struct wl1271_cmd_cal_update_ref_point {
 	__le32 ref_detector;
 	u8  sub_band;
 	u8  padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_TLV_LENGTH         400
 #define	MAX_NVS_VERSION_LENGTH 12
@@ -439,7 +439,7 @@ struct wl1271_cmd_cal_p2g {
 
 	u8  sub_band_mask;
 	u8  padding2;
-} __attribute__ ((packed));
+} __packed;
 
 
 /*
@@ -467,6 +467,6 @@ struct wl1271_cmd_disconnect {
 	u8  type;
 
 	u8  padding;
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* __WL1271_CMD_H__ */

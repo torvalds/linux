@@ -669,7 +669,7 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 	struct keyring_list *klist =
 		container_of(rcu, struct keyring_list, rcu);
 
-	if (klist->delkey != USHORT_MAX)
+	if (klist->delkey != USHRT_MAX)
 		key_put(klist->keys[klist->delkey]);
 	kfree(klist);
 }
@@ -746,7 +746,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 			max += klist->maxkeys;
 
 		ret = -ENFILE;
-		if (max > USHORT_MAX - 1)
+		if (max > USHRT_MAX - 1)
 			goto error_quota;
 		size = sizeof(*klist) + sizeof(struct key *) * max;
 		if (size > PAGE_SIZE)
@@ -763,7 +763,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 			       sizeof(struct key *) * klist->nkeys);
 			nklist->delkey = klist->nkeys;
 			nklist->nkeys = klist->nkeys + 1;
-			klist->delkey = USHORT_MAX;
+			klist->delkey = USHRT_MAX;
 		} else {
 			nklist->nkeys = 1;
 			nklist->delkey = 0;

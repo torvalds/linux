@@ -946,16 +946,62 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
  * In order to avoid seeing no nodes if the old and new nodes are disjoint,
  * we structure updates as setting all new allowed nodes, then clearing newly
  * disallowed ones.
- *
- * Called with task's alloc_lock held
  */
 static void cpuset_change_task_nodemask(struct task_struct *tsk,
 					nodemask_t *newmems)
 {
+repeat:
+	/*
+	 * Allow tasks that have access to memory reserves because they have
+	 * been OOM killed to get memory anywhere.
+	 */
+	if (unlikely(test_thread_flag(TIF_MEMDIE)))
+		return;
+	if (current->flags & PF_EXITING) /* Let dying task have memory */
+		return;
+
+	task_lock(tsk);
 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-	mpol_rebind_task(tsk, &tsk->mems_allowed);
-	mpol_rebind_task(tsk, newmems);
+	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+
+
+	/*
+	 * ensure checking ->mems_allowed_change_disable after setting all new
+	 * allowed nodes.
+	 *
+	 * the read-side task can see an nodemask with new allowed nodes and
+	 * old allowed nodes. and if it allocates page when cpuset clears newly
+	 * disallowed ones continuous, it can see the new allowed bits.
+	 *
+	 * And if setting all new allowed nodes is after the checking, setting
+	 * all new allowed nodes and clearing newly disallowed ones will be done
+	 * continuous, and the read-side task may find no node to alloc page.
+	 */
+	smp_mb();
+
+	/*
+	 * Allocation of memory is very fast, we needn't sleep when waiting
+	 * for the read-side.
+	 */
+	while (ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+		task_unlock(tsk);
+		if (!task_curr(tsk))
+			yield();
+		goto repeat;
+	}
+
+	/*
+	 * ensure checking ->mems_allowed_change_disable before clearing all new
+	 * disallowed nodes.
+	 *
+	 * if clearing newly disallowed bits before the checking, the read-side
+	 * task may find no node to alloc page.
+	 */
+	smp_mb();
+
+	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
 	tsk->mems_allowed = *newmems;
+	task_unlock(tsk);
 }
 
 /*
@@ -978,9 +1024,7 @@ static void cpuset_change_nodemask(struct task_struct *p,
 	cs = cgroup_cs(scan->cg);
 	guarantee_online_mems(cs, newmems);
 
-	task_lock(p);
 	cpuset_change_task_nodemask(p, newmems);
-	task_unlock(p);
 
 	NODEMASK_FREE(newmems);
 
@@ -1383,9 +1427,7 @@ static void cpuset_attach_task(struct task_struct *tsk, nodemask_t *to,
 	err = set_cpus_allowed_ptr(tsk, cpus_attach);
 	WARN_ON_ONCE(err);
 
-	task_lock(tsk);
 	cpuset_change_task_nodemask(tsk, to);
-	task_unlock(tsk);
 	cpuset_update_task_spread_flag(cs, tsk);
 
 }
@@ -2427,7 +2469,8 @@ void cpuset_unlock(void)
 }
 
 /**
- * cpuset_mem_spread_node() - On which node to begin search for a page
+ * cpuset_mem_spread_node() - On which node to begin search for a file page
+ * cpuset_slab_spread_node() - On which node to begin search for a slab page
  *
  * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
  * tasks in a cpuset with is_spread_page or is_spread_slab set),
@@ -2452,16 +2495,27 @@ void cpuset_unlock(void)
  * See kmem_cache_alloc_node().
  */
 
-int cpuset_mem_spread_node(void)
+static int cpuset_spread_node(int *rotor)
 {
 	int node;
 
-	node = next_node(current->cpuset_mem_spread_rotor, current->mems_allowed);
+	node = next_node(*rotor, current->mems_allowed);
 	if (node == MAX_NUMNODES)
 		node = first_node(current->mems_allowed);
-	current->cpuset_mem_spread_rotor = node;
+	*rotor = node;
 	return node;
 }
+
+int cpuset_mem_spread_node(void)
+{
+	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
+}
+
+int cpuset_slab_spread_node(void)
+{
+	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
+}
+
 EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 
 /**

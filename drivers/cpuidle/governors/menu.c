@@ -21,9 +21,12 @@
 #include <linux/math64.h>
 
 #define BUCKETS 12
+#define INTERVALS 8
 #define RESOLUTION 1024
-#define DECAY 4
+#define DECAY 8
 #define MAX_INTERESTING 50000
+#define STDDEV_THRESH 400
+
 
 /*
  * Concepts and ideas behind the menu governor
@@ -63,6 +66,16 @@
  * For these two reasons we keep an array of 12 independent factors, that gets
  * indexed based on the magnitude of the expected duration as well as the
  * "is IO outstanding" property.
+ *
+ * Repeatable-interval-detector
+ * ----------------------------
+ * There are some cases where "next timer" is a completely unusable predictor:
+ * Those cases where the interval is fixed, for example due to hardware
+ * interrupt mitigation, but also due to fixed transfer rate devices such as
+ * mice.
+ * For this, we use a different predictor: We track the duration of the last 8
+ * intervals and if the stand deviation of these 8 intervals is below a
+ * threshold value, we use the average of these intervals as prediction.
  *
  * Limiting Performance Impact
  * ---------------------------
@@ -104,6 +117,8 @@ struct menu_device {
 	unsigned int	exit_us;
 	unsigned int	bucket;
 	u64		correction_factor[BUCKETS];
+	u32		intervals[INTERVALS];
+	int		interval_ptr;
 };
 
 
@@ -175,6 +190,42 @@ static u64 div_round64(u64 dividend, u32 divisor)
 	return div_u64(dividend + (divisor / 2), divisor);
 }
 
+/*
+ * Try detecting repeating patterns by keeping track of the last 8
+ * intervals, and checking if the standard deviation of that set
+ * of points is below a threshold. If it is... then use the
+ * average of these 8 points as the estimated value.
+ */
+static void detect_repeating_patterns(struct menu_device *data)
+{
+	int i;
+	uint64_t avg = 0;
+	uint64_t stddev = 0; /* contains the square of the std deviation */
+
+	/* first calculate average and standard deviation of the past */
+	for (i = 0; i < INTERVALS; i++)
+		avg += data->intervals[i];
+	avg = avg / INTERVALS;
+
+	/* if the avg is beyond the known next tick, it's worthless */
+	if (avg > data->expected_us)
+		return;
+
+	for (i = 0; i < INTERVALS; i++)
+		stddev += (data->intervals[i] - avg) *
+			  (data->intervals[i] - avg);
+
+	stddev = stddev / INTERVALS;
+
+	/*
+	 * now.. if stddev is small.. then assume we have a
+	 * repeating pattern and predict we keep doing this.
+	 */
+
+	if (avg && stddev < STDDEV_THRESH)
+		data->predicted_us = avg;
+}
+
 /**
  * menu_select - selects the next idle state to enter
  * @dev: the CPU
@@ -217,6 +268,8 @@ static int menu_select(struct cpuidle_device *dev)
 	/* Make sure to round up for half microseconds */
 	data->predicted_us = div_round64(data->expected_us * data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
+
+	detect_repeating_patterns(data);
 
 	/*
 	 * We want to default to C1 (hlt), not to busy polling
@@ -310,6 +363,11 @@ static void menu_update(struct cpuidle_device *dev)
 		new_factor = 1;
 
 	data->correction_factor[data->bucket] = new_factor;
+
+	/* update the repeating-pattern data */
+	data->intervals[data->interval_ptr++] = last_idle_us;
+	if (data->interval_ptr >= INTERVALS)
+		data->interval_ptr = 0;
 }
 
 /**

@@ -36,7 +36,7 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	u16 reg16 = 0;
 	int pos;
 
-	if (dev->aer_firmware_first)
+	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
@@ -47,13 +47,12 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	if (!pos)
 		return -EIO;
 
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
-	reg16 = reg16 |
-		PCI_EXP_DEVCTL_CERE |
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
+	reg16 |= (PCI_EXP_DEVCTL_CERE |
 		PCI_EXP_DEVCTL_NFERE |
 		PCI_EXP_DEVCTL_FERE |
-		PCI_EXP_DEVCTL_URRE;
-	pci_write_config_word(dev, pos+PCI_EXP_DEVCTL, reg16);
+		PCI_EXP_DEVCTL_URRE);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
 
 	return 0;
 }
@@ -64,19 +63,19 @@ int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	u16 reg16 = 0;
 	int pos;
 
-	if (dev->aer_firmware_first)
+	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return -EIO;
 
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
-	reg16 = reg16 & ~(PCI_EXP_DEVCTL_CERE |
-			PCI_EXP_DEVCTL_NFERE |
-			PCI_EXP_DEVCTL_FERE |
-			PCI_EXP_DEVCTL_URRE);
-	pci_write_config_word(dev, pos+PCI_EXP_DEVCTL, reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
+	reg16 &= ~(PCI_EXP_DEVCTL_CERE |
+		PCI_EXP_DEVCTL_NFERE |
+		PCI_EXP_DEVCTL_FERE |
+		PCI_EXP_DEVCTL_URRE);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
 
 	return 0;
 }
@@ -99,99 +98,46 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
 
-static int set_device_error_reporting(struct pci_dev *dev, void *data)
-{
-	bool enable = *((bool *)data);
-
-	if ((dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) ||
-	    (dev->pcie_type == PCI_EXP_TYPE_UPSTREAM) ||
-	    (dev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)) {
-		if (enable)
-			pci_enable_pcie_error_reporting(dev);
-		else
-			pci_disable_pcie_error_reporting(dev);
-	}
-
-	if (enable)
-		pcie_set_ecrc_checking(dev);
-
-	return 0;
-}
-
 /**
- * set_downstream_devices_error_reporting - enable/disable the error reporting  bits on the root port and its downstream ports.
- * @dev: pointer to root port's pci_dev data structure
- * @enable: true = enable error reporting, false = disable error reporting.
+ * add_error_device - list device to be handled
+ * @e_info: pointer to error info
+ * @dev: pointer to pci_dev to be added
  */
-static void set_downstream_devices_error_reporting(struct pci_dev *dev,
-						   bool enable)
-{
-	set_device_error_reporting(dev, &enable);
-
-	if (!dev->subordinate)
-		return;
-	pci_walk_bus(dev->subordinate, set_device_error_reporting, &enable);
-}
-
-static inline int compare_device_id(struct pci_dev *dev,
-			struct aer_err_info *e_info)
-{
-	if (e_info->id == ((dev->bus->number << 8) | dev->devfn)) {
-		/*
-		 * Device ID match
-		 */
-		return 1;
-	}
-
-	return 0;
-}
-
 static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
 {
 	if (e_info->error_dev_num < AER_MAX_MULTI_ERR_DEVICES) {
 		e_info->dev[e_info->error_dev_num] = dev;
 		e_info->error_dev_num++;
-		return 1;
+		return 0;
 	}
-
-	return 0;
+	return -ENOSPC;
 }
-
 
 #define	PCI_BUS(x)	(((x) >> 8) & 0xff)
 
-static int find_device_iter(struct pci_dev *dev, void *data)
+/**
+ * is_error_source - check whether the device is source of reported error
+ * @dev: pointer to pci_dev to be checked
+ * @e_info: pointer to reported error info
+ */
+static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 {
 	int pos;
-	u32 status;
-	u32 mask;
+	u32 status, mask;
 	u16 reg16;
-	int result;
-	struct aer_err_info *e_info = (struct aer_err_info *)data;
 
 	/*
 	 * When bus id is equal to 0, it might be a bad id
 	 * reported by root port.
 	 */
 	if (!nosourceid && (PCI_BUS(e_info->id) != 0)) {
-		result = compare_device_id(dev, e_info);
-		if (result)
-			add_error_device(e_info, dev);
+		/* Device ID match? */
+		if (e_info->id == ((dev->bus->number << 8) | dev->devfn))
+			return true;
 
-		/*
-		 * If there is no multiple error, we stop
-		 * or continue based on the id comparing.
-		 */
+		/* Continue id comparing if there is no multiple error */
 		if (!e_info->multi_error_valid)
-			return result;
-
-		/*
-		 * If there are multiple errors and id does match,
-		 * We need continue to search other devices under
-		 * the root port. Return 0 means that.
-		 */
-		if (result)
-			return 0;
+			return false;
 	}
 
 	/*
@@ -200,71 +146,94 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	 *      2) bus id is equal to 0. Some ports might lose the bus
 	 *              id of error source id;
 	 *      3) There are multiple errors and prior id comparing fails;
-	 * We check AER status registers to find the initial reporter.
+	 * We check AER status registers to find possible reporter.
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
-		return 0;
+		return false;
 	pos = pci_pcie_cap(dev);
 	if (!pos)
-		return 0;
+		return false;
+
 	/* Check if AER is enabled */
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
 	if (!(reg16 & (
 		PCI_EXP_DEVCTL_CERE |
 		PCI_EXP_DEVCTL_NFERE |
 		PCI_EXP_DEVCTL_FERE |
 		PCI_EXP_DEVCTL_URRE)))
-		return 0;
+		return false;
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos)
-		return 0;
+		return false;
 
-	status = 0;
-	mask = 0;
+	/* Check if error is recorded */
 	if (e_info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &mask);
-		if (status & ~mask) {
-			add_error_device(e_info, dev);
-			goto added;
-		}
 	} else {
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &mask);
-		if (status & ~mask) {
-			add_error_device(e_info, dev);
-			goto added;
-		}
 	}
+	if (status & ~mask)
+		return true;
 
+	return false;
+}
+
+static int find_device_iter(struct pci_dev *dev, void *data)
+{
+	struct aer_err_info *e_info = (struct aer_err_info *)data;
+
+	if (is_error_source(dev, e_info)) {
+		/* List this device */
+		if (add_error_device(e_info, dev)) {
+			/* We cannot handle more... Stop iteration */
+			/* TODO: Should print error message here? */
+			return 1;
+		}
+
+		/* If there is only a single error, stop iteration */
+		if (!e_info->multi_error_valid)
+			return 1;
+	}
 	return 0;
-
-added:
-	if (e_info->multi_error_valid)
-		return 0;
-	else
-		return 1;
 }
 
 /**
  * find_source_device - search through device hierarchy for source device
  * @parent: pointer to Root Port pci_dev data structure
- * @err_info: including detailed error information such like id
+ * @e_info: including detailed error information such like id
  *
- * Invoked when error is detected at the Root Port.
+ * Return true if found.
+ *
+ * Invoked by DPC when error is detected at the Root Port.
+ * Caller of this function must set id, severity, and multi_error_valid of
+ * struct aer_err_info pointed by @e_info properly.  This function must fill
+ * e_info->error_dev_num and e_info->dev[], based on the given information.
  */
-static void find_source_device(struct pci_dev *parent,
+static bool find_source_device(struct pci_dev *parent,
 		struct aer_err_info *e_info)
 {
 	struct pci_dev *dev = parent;
 	int result;
 
+	/* Must reset in this function */
+	e_info->error_dev_num = 0;
+
 	/* Is Root Port an agent that sends error message? */
 	result = find_device_iter(dev, e_info);
 	if (result)
-		return;
+		return true;
 
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
+
+	if (!e_info->error_dev_num) {
+		dev_printk(KERN_DEBUG, &parent->dev,
+				"can't find device of ID%04x\n",
+				e_info->id);
+		return false;
+	}
+	return true;
 }
 
 static int report_error_detected(struct pci_dev *dev, void *data)
@@ -403,43 +372,77 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	return result_data.result;
 }
 
-struct find_aer_service_data {
-	struct pcie_port_service_driver *aer_driver;
-	int is_downstream;
-};
+/**
+ * aer_do_secondary_bus_reset - perform secondary bus reset
+ * @dev: pointer to bridge's pci_dev data structure
+ *
+ * Invoked when performing link reset at Root Port or Downstream Port.
+ */
+void aer_do_secondary_bus_reset(struct pci_dev *dev)
+{
+	u16 p2p_ctrl;
+
+	/* Assert Secondary Bus Reset */
+	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
+	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
+
+	/*
+	 * we should send hot reset message for 2ms to allow it time to
+	 * propagate to all downstream ports
+	 */
+	msleep(2);
+
+	/* De-assert Secondary Bus Reset */
+	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
+
+	/*
+	 * System software must wait for at least 100ms from the end
+	 * of a reset of one or more device before it is permitted
+	 * to issue Configuration Requests to those devices.
+	 */
+	msleep(200);
+}
+
+/**
+ * default_downstream_reset_link - default reset function for Downstream Port
+ * @dev: pointer to downstream port's pci_dev data structure
+ *
+ * Invoked when performing link reset at Downstream Port w/ no aer driver.
+ */
+static pci_ers_result_t default_downstream_reset_link(struct pci_dev *dev)
+{
+	aer_do_secondary_bus_reset(dev);
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"Downstream Port link has been reset\n");
+	return PCI_ERS_RESULT_RECOVERED;
+}
 
 static int find_aer_service_iter(struct device *device, void *data)
 {
-	struct device_driver *driver;
-	struct pcie_port_service_driver *service_driver;
-	struct find_aer_service_data *result;
+	struct pcie_port_service_driver *service_driver, **drv;
 
-	result = (struct find_aer_service_data *) data;
+	drv = (struct pcie_port_service_driver **) data;
 
-	if (device->bus == &pcie_port_bus_type) {
-		struct pcie_device *pcie = to_pcie_device(device);
-
-		if (pcie->port->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)
-			result->is_downstream = 1;
-
-		driver = device->driver;
-		if (driver) {
-			service_driver = to_service_driver(driver);
-			if (service_driver->service == PCIE_PORT_SERVICE_AER) {
-				result->aer_driver = service_driver;
-				return 1;
-			}
+	if (device->bus == &pcie_port_bus_type && device->driver) {
+		service_driver = to_service_driver(device->driver);
+		if (service_driver->service == PCIE_PORT_SERVICE_AER) {
+			*drv = service_driver;
+			return 1;
 		}
 	}
 
 	return 0;
 }
 
-static void find_aer_service(struct pci_dev *dev,
-		struct find_aer_service_data *data)
+static struct pcie_port_service_driver *find_aer_service(struct pci_dev *dev)
 {
-	int retval;
-	retval = device_for_each_child(&dev->dev, data, find_aer_service_iter);
+	struct pcie_port_service_driver *drv = NULL;
+
+	device_for_each_child(&dev->dev, &drv, find_aer_service_iter);
+
+	return drv;
 }
 
 static pci_ers_result_t reset_link(struct pcie_device *aerdev,
@@ -447,38 +450,34 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 {
 	struct pci_dev *udev;
 	pci_ers_result_t status;
-	struct find_aer_service_data data;
+	struct pcie_port_service_driver *driver;
 
-	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE)
+	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE) {
+		/* Reset this port for all subordinates */
 		udev = dev;
-	else
+	} else {
+		/* Reset the upstream component (likely downstream port) */
 		udev = dev->bus->self;
-
-	data.is_downstream = 0;
-	data.aer_driver = NULL;
-	find_aer_service(udev, &data);
-
-	/*
-	 * Use the aer driver of the error agent firstly.
-	 * If it hasn't the aer driver, use the root port's
-	 */
-	if (!data.aer_driver || !data.aer_driver->reset_link) {
-		if (data.is_downstream &&
-			aerdev->device.driver &&
-			to_service_driver(aerdev->device.driver)->reset_link) {
-			data.aer_driver =
-				to_service_driver(aerdev->device.driver);
-		} else {
-			dev_printk(KERN_DEBUG, &dev->dev, "no link-reset "
-				   "support\n");
-			return PCI_ERS_RESULT_DISCONNECT;
-		}
 	}
 
-	status = data.aer_driver->reset_link(udev);
+	/* Use the aer driver of the component firstly */
+	driver = find_aer_service(udev);
+
+	if (driver && driver->reset_link) {
+		status = driver->reset_link(udev);
+	} else if (udev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM) {
+		status = default_downstream_reset_link(udev);
+	} else {
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"no link-reset support at upstream device %s\n",
+			pci_name(udev));
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
 	if (status != PCI_ERS_RESULT_RECOVERED) {
-		dev_printk(KERN_DEBUG, &dev->dev, "link reset at upstream "
-			   "device %s failed\n", pci_name(udev));
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"link reset at upstream device %s failed\n",
+			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -495,8 +494,7 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
  * error detected message to all downstream drivers within a hierarchy in
  * question and return the returned code.
  */
-static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
-		struct pci_dev *dev,
+static void do_recovery(struct pcie_device *aerdev, struct pci_dev *dev,
 		int severity)
 {
 	pci_ers_result_t status, result = PCI_ERS_RESULT_RECOVERED;
@@ -514,10 +512,8 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
 
 	if (severity == AER_FATAL) {
 		result = reset_link(aerdev, dev);
-		if (result != PCI_ERS_RESULT_RECOVERED) {
-			/* TODO: Should panic here? */
-			return result;
-		}
+		if (result != PCI_ERS_RESULT_RECOVERED)
+			goto failed;
 	}
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER)
@@ -538,13 +534,22 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
 				report_slot_reset);
 	}
 
-	if (status == PCI_ERS_RESULT_RECOVERED)
-		broadcast_error_message(dev,
+	if (status != PCI_ERS_RESULT_RECOVERED)
+		goto failed;
+
+	broadcast_error_message(dev,
 				state,
 				"resume",
 				report_resume);
 
-	return status;
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"AER driver successfully recovered\n");
+	return;
+
+failed:
+	/* TODO: Should kernel panic here? */
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"AER driver didn't recover\n");
 }
 
 /**
@@ -559,7 +564,6 @@ static void handle_error_source(struct pcie_device *aerdev,
 	struct pci_dev *dev,
 	struct aer_err_info *info)
 {
-	pci_ers_result_t status = 0;
 	int pos;
 
 	if (info->severity == AER_CORRECTABLE) {
@@ -571,114 +575,8 @@ static void handle_error_source(struct pcie_device *aerdev,
 		if (pos)
 			pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS,
 					info->status);
-	} else {
-		status = do_recovery(aerdev, dev, info->severity);
-		if (status == PCI_ERS_RESULT_RECOVERED) {
-			dev_printk(KERN_DEBUG, &dev->dev, "AER driver "
-				   "successfully recovered\n");
-		} else {
-			/* TODO: Should kernel panic here? */
-			dev_printk(KERN_DEBUG, &dev->dev, "AER driver didn't "
-				   "recover\n");
-		}
-	}
-}
-
-/**
- * aer_enable_rootport - enable Root Port's interrupts when receiving messages
- * @rpc: pointer to a Root Port data structure
- *
- * Invoked when PCIe bus loads AER service driver.
- */
-void aer_enable_rootport(struct aer_rpc *rpc)
-{
-	struct pci_dev *pdev = rpc->rpd->port;
-	int pos, aer_pos;
-	u16 reg16;
-	u32 reg32;
-
-	pos = pci_pcie_cap(pdev);
-	/* Clear PCIe Capability's Device Status */
-	pci_read_config_word(pdev, pos+PCI_EXP_DEVSTA, &reg16);
-	pci_write_config_word(pdev, pos+PCI_EXP_DEVSTA, reg16);
-
-	/* Disable system error generation in response to error messages */
-	pci_read_config_word(pdev, pos + PCI_EXP_RTCTL, &reg16);
-	reg16 &= ~(SYSTEM_ERROR_INTR_ON_MESG_MASK);
-	pci_write_config_word(pdev, pos + PCI_EXP_RTCTL, reg16);
-
-	aer_pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
-	/* Clear error status */
-	pci_read_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, &reg32);
-	pci_write_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, reg32);
-	pci_read_config_dword(pdev, aer_pos + PCI_ERR_COR_STATUS, &reg32);
-	pci_write_config_dword(pdev, aer_pos + PCI_ERR_COR_STATUS, reg32);
-	pci_read_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, &reg32);
-	pci_write_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, reg32);
-
-	/*
-	 * Enable error reporting for the root port device and downstream port
-	 * devices.
-	 */
-	set_downstream_devices_error_reporting(pdev, true);
-
-	/* Enable Root Port's interrupt in response to error messages */
-	pci_write_config_dword(pdev,
-		aer_pos + PCI_ERR_ROOT_COMMAND,
-		ROOT_PORT_INTR_ON_MESG_MASK);
-}
-
-/**
- * disable_root_aer - disable Root Port's interrupts when receiving messages
- * @rpc: pointer to a Root Port data structure
- *
- * Invoked when PCIe bus unloads AER service driver.
- */
-static void disable_root_aer(struct aer_rpc *rpc)
-{
-	struct pci_dev *pdev = rpc->rpd->port;
-	u32 reg32;
-	int pos;
-
-	/*
-	 * Disable error reporting for the root port device and downstream port
-	 * devices.
-	 */
-	set_downstream_devices_error_reporting(pdev, false);
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
-	/* Disable Root's interrupt in response to error messages */
-	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, 0);
-
-	/* Clear Root's error status reg */
-	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_STATUS, &reg32);
-	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_STATUS, reg32);
-}
-
-/**
- * get_e_source - retrieve an error source
- * @rpc: pointer to the root port which holds an error
- *
- * Invoked by DPC handler to consume an error.
- */
-static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
-{
-	struct aer_err_source *e_source;
-	unsigned long flags;
-
-	/* Lock access to Root error producer/consumer index */
-	spin_lock_irqsave(&rpc->e_lock, flags);
-	if (rpc->prod_idx == rpc->cons_idx) {
-		spin_unlock_irqrestore(&rpc->e_lock, flags);
-		return NULL;
-	}
-	e_source = &rpc->e_sources[rpc->cons_idx];
-	rpc->cons_idx++;
-	if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
-		rpc->cons_idx = 0;
-	spin_unlock_irqrestore(&rpc->e_lock, flags);
-
-	return e_source;
+	} else
+		do_recovery(aerdev, dev, info->severity);
 }
 
 /**
@@ -687,11 +585,14 @@ static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
  * @info: pointer to structure to store the error record
  *
  * Return 1 on success, 0 on error.
+ *
+ * Note that @info is reused among all error devices. Clear fields properly.
  */
 static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
 	int pos, temp;
 
+	/* Must reset in this function */
 	info->status = 0;
 	info->tlp_header_valid = 0;
 
@@ -744,12 +645,6 @@ static inline void aer_process_err_devices(struct pcie_device *p_device,
 {
 	int i;
 
-	if (!e_info->dev[0]) {
-		dev_printk(KERN_DEBUG, &p_device->port->dev,
-				"can't find device of ID%04x\n",
-				e_info->id);
-	}
-
 	/* Report all before handle them, not to lost records by reset etc. */
 	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
 		if (get_device_error_info(e_info->dev[i], e_info))
@@ -770,11 +665,10 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 		struct aer_err_source *e_src)
 {
 	struct aer_err_info *e_info;
-	int i;
 
 	/* struct aer_err_info might be big, so we allocate it with slab */
 	e_info = kmalloc(sizeof(struct aer_err_info), GFP_KERNEL);
-	if (e_info == NULL) {
+	if (!e_info) {
 		dev_printk(KERN_DEBUG, &p_device->port->dev,
 			"Can't allocate mem when processing AER errors\n");
 		return;
@@ -784,34 +678,69 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 	 * There is a possibility that both correctable error and
 	 * uncorrectable error being logged. Report correctable error first.
 	 */
-	for (i = 1; i & ROOT_ERR_STATUS_MASKS ; i <<= 2) {
-		if (i > 4)
-			break;
-		if (!(e_src->status & i))
-			continue;
+	if (e_src->status & PCI_ERR_ROOT_COR_RCV) {
+		e_info->id = ERR_COR_ID(e_src->id);
+		e_info->severity = AER_CORRECTABLE;
 
-		memset(e_info, 0, sizeof(struct aer_err_info));
-
-		/* Init comprehensive error information */
-		if (i & PCI_ERR_ROOT_COR_RCV) {
-			e_info->id = ERR_COR_ID(e_src->id);
-			e_info->severity = AER_CORRECTABLE;
-		} else {
-			e_info->id = ERR_UNCOR_ID(e_src->id);
-			e_info->severity = ((e_src->status >> 6) & 1);
-		}
-		if (e_src->status &
-			(PCI_ERR_ROOT_MULTI_COR_RCV |
-			 PCI_ERR_ROOT_MULTI_UNCOR_RCV))
+		if (e_src->status & PCI_ERR_ROOT_MULTI_COR_RCV)
 			e_info->multi_error_valid = 1;
+		else
+			e_info->multi_error_valid = 0;
 
 		aer_print_port_info(p_device->port, e_info);
 
-		find_source_device(p_device->port, e_info);
-		aer_process_err_devices(p_device, e_info);
+		if (find_source_device(p_device->port, e_info))
+			aer_process_err_devices(p_device, e_info);
+	}
+
+	if (e_src->status & PCI_ERR_ROOT_UNCOR_RCV) {
+		e_info->id = ERR_UNCOR_ID(e_src->id);
+
+		if (e_src->status & PCI_ERR_ROOT_FATAL_RCV)
+			e_info->severity = AER_FATAL;
+		else
+			e_info->severity = AER_NONFATAL;
+
+		if (e_src->status & PCI_ERR_ROOT_MULTI_UNCOR_RCV)
+			e_info->multi_error_valid = 1;
+		else
+			e_info->multi_error_valid = 0;
+
+		aer_print_port_info(p_device->port, e_info);
+
+		if (find_source_device(p_device->port, e_info))
+			aer_process_err_devices(p_device, e_info);
 	}
 
 	kfree(e_info);
+}
+
+/**
+ * get_e_source - retrieve an error source
+ * @rpc: pointer to the root port which holds an error
+ * @e_src: pointer to store retrieved error source
+ *
+ * Return 1 if an error source is retrieved, otherwise 0.
+ *
+ * Invoked by DPC handler to consume an error.
+ */
+static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	/* Lock access to Root error producer/consumer index */
+	spin_lock_irqsave(&rpc->e_lock, flags);
+	if (rpc->prod_idx != rpc->cons_idx) {
+		*e_src = rpc->e_sources[rpc->cons_idx];
+		rpc->cons_idx++;
+		if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
+			rpc->cons_idx = 0;
+		ret = 1;
+	}
+	spin_unlock_irqrestore(&rpc->e_lock, flags);
+
+	return ret;
 }
 
 /**
@@ -824,31 +753,14 @@ void aer_isr(struct work_struct *work)
 {
 	struct aer_rpc *rpc = container_of(work, struct aer_rpc, dpc_handler);
 	struct pcie_device *p_device = rpc->rpd;
-	struct aer_err_source *e_src;
+	struct aer_err_source e_src;
 
 	mutex_lock(&rpc->rpc_mutex);
-	e_src = get_e_source(rpc);
-	while (e_src) {
-		aer_isr_one_error(p_device, e_src);
-		e_src = get_e_source(rpc);
-	}
+	while (get_e_source(rpc, &e_src))
+		aer_isr_one_error(p_device, &e_src);
 	mutex_unlock(&rpc->rpc_mutex);
 
 	wake_up(&rpc->wait_release);
-}
-
-/**
- * aer_delete_rootport - disable root port aer and delete service data
- * @rpc: pointer to a root port device being deleted
- *
- * Invoked when AER service unloaded on a specific Root Port
- */
-void aer_delete_rootport(struct aer_rpc *rpc)
-{
-	/* Disable root port AER itself */
-	disable_root_aer(rpc);
-
-	kfree(rpc);
 }
 
 /**
@@ -859,7 +771,7 @@ void aer_delete_rootport(struct aer_rpc *rpc)
  */
 int aer_init(struct pcie_device *dev)
 {
-	if (dev->port->aer_firmware_first) {
+	if (pcie_aer_get_firmware_first(dev->port)) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "PCIe errors handled by platform firmware.\n");
 		goto out;
@@ -873,7 +785,7 @@ out:
 	if (forceload) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "aerdrv forceload requested.\n");
-		dev->port->aer_firmware_first = 0;
+		pcie_aer_force_firmware_first(dev->port, 0);
 		return 0;
 	}
 	return -ENXIO;

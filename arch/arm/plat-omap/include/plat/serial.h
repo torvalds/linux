@@ -15,6 +15,20 @@
 
 #include <linux/init.h>
 
+/*
+ * Memory entry used for the DEBUG_LL UART configuration. See also
+ * uncompress.h and debug-macro.S.
+ *
+ * Note that using a memory location for storing the UART configuration
+ * has at least two limitations:
+ *
+ * 1. Kernel uncompress code cannot overlap OMAP_UART_INFO as the
+ *    uncompress code could then partially overwrite itself
+ * 2. We assume printascii is called at least once before paging_init,
+ *    and addruart has a chance to read OMAP_UART_INFO
+ */
+#define OMAP_UART_INFO		(PHYS_OFFSET + 0x3ffc)
+
 /* OMAP1 serial ports */
 #define OMAP1_UART1_BASE	0xfffb0000
 #define OMAP1_UART2_BASE	0xfffb0800
@@ -39,7 +53,7 @@
 
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
-#define ZOOM_UART_VIRT		0xfb000000
+#define ZOOM_UART_VIRT		0xfa400000
 
 #define OMAP_PORT_SHIFT		2
 #define OMAP7XX_PORT_SHIFT	0

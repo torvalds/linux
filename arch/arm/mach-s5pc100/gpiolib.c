@@ -1,10 +1,10 @@
 /*
- * arch/arm/plat-s5pc1xx/gpiolib.c
+ * arch/arm/plat-s5pc100/gpiolib.c
  *
  *  Copyright 2009 Samsung Electronics Co
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
- * S5PC1XX - GPIOlib support
+ * S5PC100 - GPIOlib support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -61,13 +61,12 @@
  * L3	8	4Bit	None
  */
 
-#if 0
-static int s5pc1xx_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
+static int s5pc100_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	return S3C_IRQ_GPIO(chip->base + offset);
 }
 
-static int s5pc1xx_gpiolib_to_eint(struct gpio_chip *chip, unsigned int offset)
+static int s5pc100_gpiolib_to_eint(struct gpio_chip *chip, unsigned int offset)
 {
 	int base;
 
@@ -85,7 +84,7 @@ static int s5pc1xx_gpiolib_to_eint(struct gpio_chip *chip, unsigned int offset)
 		return IRQ_EINT(24 + offset);
 	return -EINVAL;
 }
-#endif
+
 static struct s3c_gpio_cfg gpio_cfg = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
@@ -382,31 +381,30 @@ static struct s3c_gpio_chip s5pc100_gpio_chips[] = {
 };
 
 /* FIXME move from irq-gpio.c */
-extern struct irq_chip s5pc1xx_gpioint;
-extern void s5pc1xx_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc);
+extern struct irq_chip s5pc100_gpioint;
+extern void s5pc100_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc);
 
 static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 {
-#if 0
 	/* Interrupt */
 	if (chip->config == &gpio_cfg) {
 		int i, irq;
 
-		chip->chip.to_irq = s5pc1xx_gpiolib_to_irq;
+		chip->chip.to_irq = s5pc100_gpiolib_to_irq;
 
 		for (i = 0;  i < chip->chip.ngpio; i++) {
 			irq = S3C_IRQ_GPIO_BASE + chip->chip.base + i;
-			set_irq_chip(irq, &s5pc1xx_gpioint);
+			set_irq_chip(irq, &s5pc100_gpioint);
 			set_irq_data(irq, &chip->chip);
 			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		}
-	} else if (chip->config == &gpio_cfg_eint)
-		chip->chip.to_irq = s5pc1xx_gpiolib_to_eint;
-#endif
+	} else if (chip->config == &gpio_cfg_eint) {
+		chip->chip.to_irq = s5pc100_gpiolib_to_eint;
+	}
 }
 
-static __init int s5pc1xx_gpiolib_init(void)
+static __init int s5pc100_gpiolib_init(void)
 {
 	struct s3c_gpio_chip *chip;
 	int nr_chips;
@@ -419,10 +417,10 @@ static __init int s5pc1xx_gpiolib_init(void)
 
 	samsung_gpiolib_add_4bit_chips(s5pc100_gpio_chips,
 				       ARRAY_SIZE(s5pc100_gpio_chips));
-#if 0
+
 	/* Interrupt */
-	set_irq_chained_handler(IRQ_GPIOINT, s5pc1xx_irq_gpioint_handler);
-#endif
+	set_irq_chained_handler(IRQ_GPIOINT, s5pc100_irq_gpioint_handler);
+
 	return 0;
 }
-core_initcall(s5pc1xx_gpiolib_init);
+core_initcall(s5pc100_gpiolib_init);

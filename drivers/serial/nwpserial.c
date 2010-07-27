@@ -344,7 +344,7 @@ int nwpserial_register_port(struct uart_port *port)
 
 	mutex_lock(&nwpserial_mutex);
 
-	dn = to_of_device(port->dev)->node;
+	dn = to_of_device(port->dev)->dev.of_node;
 	if (dn == NULL)
 		goto out;
 

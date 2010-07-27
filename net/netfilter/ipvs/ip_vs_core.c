@@ -194,6 +194,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
 	__be16  dport;			/* destination port to forward */
+	__be16  flags;
 	union nf_inet_addr snet;	/* source network of the client,
 					   after masking */
 
@@ -340,6 +341,10 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		dport = ports[1];
 	}
 
+	flags = (svc->flags & IP_VS_SVC_F_ONEPACKET
+		 && iph.protocol == IPPROTO_UDP)?
+		IP_VS_CONN_F_ONE_PACKET : 0;
+
 	/*
 	 *    Create a new connection according to the template
 	 */
@@ -347,7 +352,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			    &iph.saddr, ports[0],
 			    &iph.daddr, ports[1],
 			    &dest->addr, dport,
-			    0,
+			    flags,
 			    dest);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
@@ -377,7 +382,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_conn *cp = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
-	__be16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr, flags;
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
@@ -407,6 +412,10 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 	}
 
+	flags = (svc->flags & IP_VS_SVC_F_ONEPACKET
+		 && iph.protocol == IPPROTO_UDP)?
+		IP_VS_CONN_F_ONE_PACKET : 0;
+
 	/*
 	 *    Create a connection entry.
 	 */
@@ -414,7 +423,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 			    &iph.saddr, pptr[0],
 			    &iph.daddr, pptr[1],
 			    &dest->addr, dest->port ? dest->port : pptr[1],
-			    0,
+			    flags,
 			    dest);
 	if (cp == NULL)
 		return NULL;
@@ -464,6 +473,9 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark && unicast) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
+		__u16 flags = (svc->flags & IP_VS_SVC_F_ONEPACKET &&
+				iph.protocol == IPPROTO_UDP)?
+				IP_VS_CONN_F_ONE_PACKET : 0;
 		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
 
 		ip_vs_service_put(svc);
@@ -474,7 +486,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 				    &iph.saddr, pptr[0],
 				    &iph.daddr, pptr[1],
 				    &daddr, 0,
-				    IP_VS_CONN_F_BYPASS,
+				    IP_VS_CONN_F_BYPASS | flags,
 				    NULL);
 		if (cp == NULL)
 			return NF_DROP;

@@ -42,16 +42,10 @@ dev_t iio_devt;
 EXPORT_SYMBOL(iio_devt);
 
 #define IIO_DEV_MAX 256
-static char *iio_devnode(struct device *dev, mode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "iio/%s", dev_name(dev));
-}
-
-struct class iio_class = {
+struct bus_type iio_bus_type = {
 	.name = "iio",
-	.devnode = iio_devnode,
 };
-EXPORT_SYMBOL(iio_class);
+EXPORT_SYMBOL(iio_bus_type);
 
 void __iio_change_event(struct iio_detected_event_list *ev,
 			int ev_code,
@@ -405,7 +399,7 @@ int iio_setup_ev_int(struct iio_event_interface *ev_int,
 {
 	int ret, minor;
 
-	ev_int->dev.class = &iio_class;
+	ev_int->dev.bus = &iio_bus_type;
 	ev_int->dev.parent = dev;
 	ev_int->dev.type = &iio_event_type;
 	device_initialize(&ev_int->dev);
@@ -478,23 +472,23 @@ static int __init iio_init(void)
 {
 	int ret;
 
-	/* Create sysfs class */
-	ret  = class_register(&iio_class);
+	/* Register sysfs bus */
+	ret  = bus_register(&iio_bus_type);
 	if (ret < 0) {
 		printk(KERN_ERR
-		       "%s could not create sysfs class\n",
+		       "%s could not register bus type\n",
 			__FILE__);
 		goto error_nothing;
 	}
 
 	ret = iio_dev_init();
 	if (ret < 0)
-		goto error_unregister_class;
+		goto error_unregister_bus_type;
 
 	return 0;
 
-error_unregister_class:
-	class_unregister(&iio_class);
+error_unregister_bus_type:
+	bus_unregister(&iio_bus_type);
 error_nothing:
 	return ret;
 }
@@ -502,7 +496,7 @@ error_nothing:
 static void __exit iio_exit(void)
 {
 	iio_dev_exit();
-	class_unregister(&iio_class);
+	bus_unregister(&iio_bus_type);
 }
 
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
@@ -667,8 +661,9 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 			dev_info->event_interfaces[i].id = ret;
 
 		snprintf(dev_info->event_interfaces[i]._name, 20,
-			 "event_line%d",
-			dev_info->event_interfaces[i].id);
+			 "%s:event%d",
+			 dev_name(&dev_info->dev),
+			 dev_info->event_interfaces[i].id);
 
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
 				       (const char *)(dev_info
@@ -683,16 +678,14 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 					 dev_info->event_interfaces[i].id);
 			goto error_free_setup_ev_ints;
 		}
-	}
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		snprintf(dev_info->event_interfaces[i]._attrname, 20,
-			"event_line%d_sources", i);
-		dev_info->event_attrs[i].name
-			= (const char *)
-			(dev_info->event_interfaces[i]._attrname);
-		ret = sysfs_create_group(&dev_info->dev.kobj,
-					 &dev_info->event_attrs[i]);
+		dev_set_drvdata(&dev_info->event_interfaces[i].dev,
+				(void *)dev_info);
+		ret = sysfs_create_group(&dev_info
+					->event_interfaces[i]
+					.dev.kobj,
+					&dev_info->event_attrs[i]);
+
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Failed to register sysfs for event attrs");
@@ -714,13 +707,13 @@ error_unregister_config_attrs:
 	i = dev_info->num_interrupt_lines - 1;
 error_remove_sysfs_interfaces:
 	for (j = 0; j < i; j++)
-		sysfs_remove_group(&dev_info->dev.kobj,
+		sysfs_remove_group(&dev_info
+				   ->event_interfaces[j].dev.kobj,
 				   &dev_info->event_attrs[j]);
-	i = dev_info->num_interrupt_lines - 1;
 error_free_setup_ev_ints:
 	for (j = 0; j < i; j++) {
 		iio_free_idr_val(&iio_event_idr,
-				 dev_info->event_interfaces[i].id);
+				 dev_info->event_interfaces[j].id);
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
 	}
 	kfree(dev_info->interrupts);
@@ -738,7 +731,8 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 	if (dev_info->num_interrupt_lines == 0)
 		return;
 	for (i = 0; i < dev_info->num_interrupt_lines; i++)
-		sysfs_remove_group(&dev_info->dev.kobj,
+		sysfs_remove_group(&dev_info
+				   ->event_interfaces[i].dev.kobj,
 				   &dev_info->event_attrs[i]);
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
@@ -769,7 +763,7 @@ struct iio_dev *iio_allocate_device(void)
 
 	if (dev) {
 		dev->dev.type = &iio_dev_type;
-		dev->dev.class = &iio_class;
+		dev->dev.bus = &iio_bus_type;
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
@@ -810,7 +804,7 @@ int iio_device_register(struct iio_dev *dev_info)
 	ret = iio_device_register_eventset(dev_info);
 	if (ret) {
 		dev_err(dev_info->dev.parent,
-			"Failed to register event set \n");
+			"Failed to register event set\n");
 		goto error_free_sysfs;
 	}
 	if (dev_info->modes & INDIO_RING_TRIGGERED)

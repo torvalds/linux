@@ -869,6 +869,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
+	uint32_t max_vpi;
 
 	/*
 	 * prevent udev from issuing mailbox commands until the port is
@@ -916,11 +917,17 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		if (axri)
 			*axri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config) -
 					phba->sli4_hba.max_cfg_param.xri_used;
+
+		/* Account for differences with SLI-3.  Get vpi count from
+		 * mailbox data and subtract one for max vpi value.
+		 */
+		max_vpi = (bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) > 0) ?
+			(bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) - 1) : 0;
+
 		if (mvpi)
-			*mvpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config);
+			*mvpi = max_vpi;
 		if (avpi)
-			*avpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) -
-					phba->sli4_hba.max_cfg_param.vpi_used;
+			*avpi = max_vpi - phba->sli4_hba.max_cfg_param.vpi_used;
 	} else {
 		if (mrpi)
 			*mrpi = pmb->un.varRdConfig.max_rpi;
@@ -1925,13 +1932,12 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-int lpfc_enable_npiv = 0;
+int lpfc_enable_npiv = 1;
 module_param(lpfc_enable_npiv, int, 0);
 MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
 lpfc_param_show(enable_npiv);
-lpfc_param_init(enable_npiv, 0, 0, 1);
-static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
-			 lpfc_enable_npiv_show, NULL);
+lpfc_param_init(enable_npiv, 1, 0, 1);
+static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO, lpfc_enable_npiv_show, NULL);
 
 /*
 # lpfc_suppress_link_up:  Bring link up at initialization
@@ -2637,6 +2643,7 @@ static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
 
 /**
  * sysfs_drvr_stat_data_read - Read function for lpfc_drvr_stat_data attribute
+ * @filp: sysfs file
  * @kobj: Pointer to the kernel object
  * @bin_attr: Attribute object
  * @buff: Buffer pointer
@@ -2648,7 +2655,8 @@ static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
  * applications.
  **/
 static ssize_t
-sysfs_drvr_stat_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device,
@@ -3356,6 +3364,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 
 /**
  * sysfs_ctlreg_write - Write method for writing to ctlreg
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be written to the adapter IOREG space.
@@ -3373,7 +3382,8 @@ struct device_attribute *lpfc_vport_attrs[] = {
  * value of count, buf contents written
  **/
 static ssize_t
-sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_ctlreg_write(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
 	size_t buf_off;
@@ -3409,6 +3419,7 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * sysfs_ctlreg_read - Read method for reading from ctlreg
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: if successful contains the data from the adapter IOREG space.
@@ -3425,7 +3436,8 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
  * value of count, buf contents read
  **/
 static ssize_t
-sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_ctlreg_read(struct file *filp, struct kobject *kobj,
+		  struct bin_attribute *bin_attr,
 		  char *buf, loff_t off, size_t count)
 {
 	size_t buf_off;
@@ -3490,6 +3502,7 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
 
 /**
  * sysfs_mbox_write - Write method for writing information via mbox
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be written to sysfs mbox.
@@ -3510,7 +3523,8 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
  * count number of bytes transferred
  **/
 static ssize_t
-sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_mbox_write(struct file *filp, struct kobject *kobj,
+		 struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -3565,6 +3579,7 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * sysfs_mbox_read - Read method for reading information via mbox
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be read from sysfs mbox.
@@ -3587,7 +3602,8 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
  * count number of bytes transferred
  **/
 static ssize_t
-sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_mbox_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

@@ -356,68 +356,23 @@ xfs_commit_dummy_trans(
 
 STATIC int
 xfs_sync_fsdata(
-	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp;
-	struct xfs_buf_log_item	*bip;
-	int			error = 0;
 
 	/*
-	 * If this is xfssyncd() then only sync the superblock if we can
-	 * lock it without sleeping and it is not pinned.
+	 * If the buffer is pinned then push on the log so we won't get stuck
+	 * waiting in the write for someone, maybe ourselves, to flush the log.
+	 *
+	 * Even though we just pushed the log above, we did not have the
+	 * superblock buffer locked at that point so it can become pinned in
+	 * between there and here.
 	 */
-	if (flags & SYNC_TRYLOCK) {
-		ASSERT(!(flags & SYNC_WAIT));
+	bp = xfs_getsb(mp, 0);
+	if (XFS_BUF_ISPINNED(bp))
+		xfs_log_force(mp, 0);
 
-		bp = xfs_getsb(mp, XBF_TRYLOCK);
-		if (!bp)
-			goto out;
-
-		bip = XFS_BUF_FSPRIVATE(bp, struct xfs_buf_log_item *);
-		if (!bip || !xfs_buf_item_dirty(bip) || XFS_BUF_ISPINNED(bp))
-			goto out_brelse;
-	} else {
-		bp = xfs_getsb(mp, 0);
-
-		/*
-		 * If the buffer is pinned then push on the log so we won't
-		 * get stuck waiting in the write for someone, maybe
-		 * ourselves, to flush the log.
-		 *
-		 * Even though we just pushed the log above, we did not have
-		 * the superblock buffer locked at that point so it can
-		 * become pinned in between there and here.
-		 */
-		if (XFS_BUF_ISPINNED(bp))
-			xfs_log_force(mp, 0);
-	}
-
-
-	if (flags & SYNC_WAIT)
-		XFS_BUF_UNASYNC(bp);
-	else
-		XFS_BUF_ASYNC(bp);
-
-	error = xfs_bwrite(mp, bp);
-	if (error)
-		return error;
-
-	/*
-	 * If this is a data integrity sync make sure all pending buffers
-	 * are flushed out for the log coverage check below.
-	 */
-	if (flags & SYNC_WAIT)
-		xfs_flush_buftarg(mp->m_ddev_targp, 1);
-
-	if (xfs_log_need_covered(mp))
-		error = xfs_commit_dummy_trans(mp, flags);
-	return error;
-
- out_brelse:
-	xfs_buf_relse(bp);
- out:
-	return error;
+	return xfs_bwrite(mp, bp);
 }
 
 /*
@@ -441,7 +396,7 @@ int
 xfs_quiesce_data(
 	struct xfs_mount	*mp)
 {
-	int error;
+	int			error, error2 = 0;
 
 	/* push non-blocking */
 	xfs_sync_data(mp, 0);
@@ -452,13 +407,20 @@ xfs_quiesce_data(
 	xfs_qm_sync(mp, SYNC_WAIT);
 
 	/* write superblock and hoover up shutdown errors */
-	error = xfs_sync_fsdata(mp, SYNC_WAIT);
+	error = xfs_sync_fsdata(mp);
+
+	/* make sure all delwri buffers are written out */
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
+
+	/* mark the log as covered if needed */
+	if (xfs_log_need_covered(mp))
+		error2 = xfs_commit_dummy_trans(mp, SYNC_WAIT);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
 		XFS_bflush(mp->m_rtdev_targp);
 
-	return error;
+	return error ? error : error2;
 }
 
 STATIC void
@@ -581,9 +543,9 @@ xfs_flush_inodes(
 }
 
 /*
- * Every sync period we need to unpin all items, reclaim inodes, sync
- * quota and write out the superblock. We might need to cover the log
- * to indicate it is idle.
+ * Every sync period we need to unpin all items, reclaim inodes and sync
+ * disk quotas.  We might need to cover the log to indicate that the
+ * filesystem is idle.
  */
 STATIC void
 xfs_sync_worker(
@@ -597,7 +559,8 @@ xfs_sync_worker(
 		xfs_reclaim_inodes(mp, 0);
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
-		error = xfs_sync_fsdata(mp, SYNC_TRYLOCK);
+		if (xfs_log_need_covered(mp))
+			error = xfs_commit_dummy_trans(mp, 0);
 	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
@@ -660,7 +623,7 @@ xfs_syncd_init(
 	mp->m_sync_work.w_syncer = xfs_sync_worker;
 	mp->m_sync_work.w_mount = mp;
 	mp->m_sync_work.w_completion = NULL;
-	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd");
+	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd/%s", mp->m_fsname);
 	if (IS_ERR(mp->m_sync_task))
 		return -PTR_ERR(mp->m_sync_task);
 	return 0;

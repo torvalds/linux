@@ -10,6 +10,7 @@ config PANEL_GENERIC
 config PANEL_SHARP_LS037V7DW01
         tristate "Sharp LS037V7DW01 LCD Panel"
         depends on OMAP2_DSS
+        select BACKLIGHT_CLASS_DEVICE
         help
           LCD Panel used in TI's SDP3430 and EVM boards
 
@@ -33,8 +34,14 @@ config PANEL_TOPPOLY_TDO35S
 
 config PANEL_TPO_TD043MTEA1
         tristate "TPO TD043MTEA1 LCD Panel"
-        depends on OMAP2_DSS && I2C
+        depends on OMAP2_DSS && SPI
         help
           LCD Panel used in OMAP3 Pandora
 
+config PANEL_ACX565AKM
+	tristate "ACX565AKM Panel"
+	depends on OMAP2_DSS_SDI
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  This is the LCD panel used on Nokia N900
 endmenu

@@ -1428,10 +1428,13 @@ extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 /* Graphics Execution Manager library functions (drm_gem.c) */
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
+void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
 void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
+int drm_gem_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size);
 void drm_gem_object_handle_free(struct kref *kref);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);

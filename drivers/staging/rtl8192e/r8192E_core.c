@@ -62,7 +62,7 @@
 //#include <linux/usb.h>
 // FIXME: check if 2.6.7 is ok
 
-#ifdef CONFIG_PM_RTL
+#ifdef CONFIG_PM
 #include "r8192_pm.h"
 #endif
 
@@ -146,7 +146,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.id_table	= rtl8192_pci_id_tbl,	          /* PCI_ID table  */
 	.probe		= rtl8192_pci_probe,	          /* probe fn      */
 	.remove		= __devexit_p(rtl8192_pci_disconnect),	  /* remove fn     */
-#ifdef CONFIG_PM_RTL
+#ifdef CONFIG_PM
 	.suspend	= rtl8192E_suspend,	          /* PM suspend fn */
 	.resume		= rtl8192E_resume,                 /* PM resume fn  */
 #else
@@ -407,7 +407,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 			case RT_OP_MODE_IBSS:
 				btMsr |= MSR_ADHOC;
-				// led link set seperate
+				// led link set separate
 				break;
 
 			case RT_OP_MODE_AP:
@@ -1864,13 +1864,15 @@ static short rtl8192_pci_initdescring(struct net_device *dev)
 
     /* general process for other queue */
     for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
-        if ((ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount)))
+        ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount);
+        if (ret)
             goto err_free_rings;
     }
 
 #if 0
     /* specific process for hardware beacon process */
-    if ((ret = rtl8192_alloc_tx_desc_ring(dev, MAX_TX_QUEUE_COUNT - 1, 2)))
+    ret = rtl8192_alloc_tx_desc_ring(dev, MAX_TX_QUEUE_COUNT - 1, 2);
+    if (ret)
         goto err_free_rings;
 #endif
 
@@ -5038,7 +5040,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
              goto out;
      }
 
-     ipw = (struct ieee_param *)kmalloc(p->length, GFP_KERNEL);
+     ipw = kmalloc(p->length, GFP_KERNEL);
      if (ipw == NULL){
              ret = -ENOMEM;
              goto out;

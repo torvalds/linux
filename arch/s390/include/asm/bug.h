@@ -46,18 +46,18 @@
 	unreachable();					\
 } while (0)
 
-#define __WARN() do {					\
-	__EMIT_BUG(BUGFLAG_WARNING);			\
+#define __WARN_TAINT(taint) do {			\
+	__EMIT_BUG(BUGFLAG_TAINT(taint));		\
 } while (0)
 
 #define WARN_ON(x) ({					\
 	int __ret_warn_on = !!(x);			\
 	if (__builtin_constant_p(__ret_warn_on)) {	\
 		if (__ret_warn_on)			\
-			__EMIT_BUG(BUGFLAG_WARNING);	\
+			__WARN();			\
 	} else {					\
 		if (unlikely(__ret_warn_on))		\
-			__EMIT_BUG(BUGFLAG_WARNING);	\
+			__WARN();			\
 	}						\
 	unlikely(__ret_warn_on);			\
 })

@@ -5229,7 +5229,7 @@ struct security_info_params {
 	u8 auth_mode;
 	u8 replay_counters_number;
 	u8 unicast_using_group;
-} __attribute__ ((packed));
+} __packed;
 
 static int ipw2100_set_security_information(struct ipw2100_priv *priv,
 					    int auth_mode,
@@ -8471,7 +8471,7 @@ struct ipw2100_fw_header {
 	short mode;
 	unsigned int fw_size;
 	unsigned int uc_size;
-} __attribute__ ((packed));
+} __packed;
 
 static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 {

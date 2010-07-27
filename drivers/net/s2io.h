@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2007 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -745,10 +745,6 @@ struct ring_info {
 
 	/* Buffer Address store. */
 	struct buffAdd **ba;
-
-	/* per-Ring statistics */
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
 } ____cacheline_aligned;
 
 /* Fifo specific structure */

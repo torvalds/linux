@@ -73,7 +73,7 @@ struct pca953x_chip {
 	struct i2c_client *client;
 	struct pca953x_platform_data *dyn_pdata;
 	struct gpio_chip gpio_chip;
-	char **names;
+	const char *const *names;
 };
 
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
@@ -449,7 +449,7 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 	struct device_node *node;
 	const uint16_t *val;
 
-	node = dev_archdata_get_node(&client->dev.archdata);
+	node = client->dev.of_node;
 	if (node == NULL)
 		return NULL;
 

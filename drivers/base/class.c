@@ -63,6 +63,14 @@ static void class_release(struct kobject *kobj)
 	kfree(cp);
 }
 
+static const struct kobj_ns_type_operations *class_child_ns_type(struct kobject *kobj)
+{
+	struct class_private *cp = to_class(kobj);
+	struct class *class = cp->class;
+
+	return class->ns_type;
+}
+
 static const struct sysfs_ops class_sysfs_ops = {
 	.show	= class_attr_show,
 	.store	= class_attr_store,
@@ -71,6 +79,7 @@ static const struct sysfs_ops class_sysfs_ops = {
 static struct kobj_type class_ktype = {
 	.sysfs_ops	= &class_sysfs_ops,
 	.release	= class_release,
+	.child_ns_type	= class_child_ns_type,
 };
 
 /* Hotplug events for classes go to the class class_subsys */

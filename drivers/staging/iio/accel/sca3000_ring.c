@@ -186,11 +186,29 @@ static ssize_t sca3000_store_ring_bpse(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_CONST_ATTR(bpse_available, "8 11");
+static IIO_SCAN_EL_C(accel_x, 0, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_y, 1, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_z, 2, 0, 0, NULL);
+static IIO_CONST_ATTR(accel_precision_available, "8 11");
+static IIO_DEVICE_ATTR(accel_precision,
+		       S_IRUGO | S_IWUSR,
+		       sca3000_show_ring_bpse,
+		       sca3000_store_ring_bpse,
+		       0);
 
-static IIO_DEV_ATTR_BPSE(S_IRUGO | S_IWUSR,
-			      sca3000_show_ring_bpse,
-			      sca3000_store_ring_bpse);
+static struct attribute *sca3000_scan_el_attrs[] = {
+	&iio_scan_el_accel_x.dev_attr.attr,
+	&iio_scan_el_accel_y.dev_attr.attr,
+	&iio_scan_el_accel_z.dev_attr.attr,
+	&iio_const_attr_accel_precision_available.dev_attr.attr,
+	&iio_dev_attr_accel_precision.dev_attr.attr,
+	NULL
+};
+
+static struct attribute_group sca3000_scan_el_group = {
+	.attrs = sca3000_scan_el_attrs,
+	.name = "scan_elements",
+};
 
 /*
  * Ring buffer attributes
@@ -198,17 +216,15 @@ static IIO_DEV_ATTR_BPSE(S_IRUGO | S_IWUSR,
  * only apply to the ring buffer.  At all times full rate and accuracy
  * is available via direct reading from registers.
  */
-static struct attribute *iio_ring_attributes[] = {
+static struct attribute *sca3000_ring_attributes[] = {
 	&dev_attr_length.attr,
 	&dev_attr_bps.attr,
 	&dev_attr_ring_enable.attr,
-	&iio_dev_attr_bpse.dev_attr.attr,
-	&iio_const_attr_bpse_available.dev_attr.attr,
 	NULL,
 };
 
 static struct attribute_group sca3000_ring_attr = {
-	.attrs = iio_ring_attributes,
+	.attrs = sca3000_ring_attributes,
 };
 
 static const struct attribute_group *sca3000_ring_attr_groups[] = {
@@ -228,7 +244,7 @@ static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 
 	ring = kzalloc(sizeof *ring, GFP_KERNEL);
 	if (!ring)
-		return 0;
+		return NULL;
 	ring->private = indio_dev;
 	buf = &ring->buf;
 	iio_ring_buffer_init(buf, indio_dev);
@@ -248,6 +264,7 @@ static inline void sca3000_rb_free(struct iio_ring_buffer *r)
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
+	indio_dev->scan_el_attrs = &sca3000_scan_el_group;
 	indio_dev->ring = sca3000_rb_allocate(indio_dev);
 	if (indio_dev->ring == NULL)
 		return -ENOMEM;

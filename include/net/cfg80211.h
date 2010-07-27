@@ -1358,26 +1358,15 @@ struct wiphy {
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 
-#ifdef CONFIG_NET_NS
 static inline struct net *wiphy_net(struct wiphy *wiphy)
 {
-	return wiphy->_net;
+	return read_pnet(&wiphy->_net);
 }
 
 static inline void wiphy_net_set(struct wiphy *wiphy, struct net *net)
 {
-	wiphy->_net = net;
+	write_pnet(&wiphy->_net, net);
 }
-#else
-static inline struct net *wiphy_net(struct wiphy *wiphy)
-{
-	return &init_net;
-}
-
-static inline void wiphy_net_set(struct wiphy *wiphy, struct net *net)
-{
-}
-#endif
 
 /**
  * wiphy_priv - return priv from wiphy

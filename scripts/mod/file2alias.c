@@ -828,6 +828,19 @@ static int do_zorro_entry(const char *filename, struct zorro_device_id *id,
 	return 1;
 }
 
+/* looks like: "pnp:dD" */
+static int do_isapnp_entry(const char *filename,
+			   struct isapnp_device_id *id, char *alias)
+{
+	sprintf(alias, "pnp:d%c%c%c%x%x%x%x*",
+		'A' + ((id->vendor >> 2) & 0x3f) - 1,
+		'A' + (((id->vendor & 3) << 3) | ((id->vendor >> 13) & 7)) - 1,
+		'A' + ((id->vendor >> 8) & 0x1f) - 1,
+		(id->function >> 4) & 0x0f, id->function & 0x0f,
+		(id->function >> 12) & 0x0f, (id->function >> 8) & 0x0f);
+	return 1;
+}
+
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -983,6 +996,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct zorro_device_id), "zorro",
 			 do_zorro_entry, mod);
+	else if (sym_is(symname, "__mod_isapnp_device_table"))
+		do_table(symval, sym->st_size,
+			sizeof(struct isapnp_device_id), "isa",
+			do_isapnp_entry, mod);
 	free(zeros);
 }
 

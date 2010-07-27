@@ -757,10 +757,8 @@ static int __devexit wf_smu_remove(struct platform_device *ddev)
 		wf_put_control(cpufreq_clamp);
 
 	/* Destroy control loops state structures */
-	if (wf_smu_sys_fans)
-		kfree(wf_smu_sys_fans);
-	if (wf_smu_cpu_fans)
-		kfree(wf_smu_cpu_fans);
+	kfree(wf_smu_sys_fans);
+	kfree(wf_smu_cpu_fans);
 
 	return 0;
 }

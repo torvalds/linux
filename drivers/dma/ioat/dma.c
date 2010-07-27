@@ -727,18 +727,18 @@ static void ioat1_timer_event(unsigned long data)
 }
 
 enum dma_status
-ioat_is_dma_complete(struct dma_chan *c, dma_cookie_t cookie,
-		      dma_cookie_t *done, dma_cookie_t *used)
+ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		   struct dma_tx_state *txstate)
 {
 	struct ioat_chan_common *chan = to_chan_common(c);
 	struct ioatdma_device *device = chan->device;
 
-	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
+	if (ioat_tx_status(c, cookie, txstate) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
 	device->cleanup_fn((unsigned long) c);
 
-	return ioat_is_complete(c, cookie, done, used);
+	return ioat_tx_status(c, cookie, txstate);
 }
 
 static void ioat1_dma_start_null_desc(struct ioat_dma_chan *ioat)
@@ -858,7 +858,7 @@ int __devinit ioat_dma_self_test(struct ioatdma_device *device)
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
 	if (tmo == 0 ||
-	    dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL)
+	    dma->device_tx_status(dma_chan, cookie, NULL)
 					!= DMA_SUCCESS) {
 		dev_err(dev, "Self-test copy timed out, disabling\n");
 		err = -ENODEV;
@@ -1199,7 +1199,7 @@ int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_issue_pending = ioat1_dma_memcpy_issue_pending;
 	dma->device_alloc_chan_resources = ioat1_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat1_dma_free_chan_resources;
-	dma->device_is_tx_complete = ioat_is_dma_complete;
+	dma->device_tx_status = ioat_dma_tx_status;
 
 	err = ioat_probe(device);
 	if (err)

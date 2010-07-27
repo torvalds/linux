@@ -162,6 +162,7 @@ struct lpfc_fcf {
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
 	uint16_t fcf_rr_init_indx;
+	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
 	struct timer_list redisc_wait;
@@ -492,8 +493,8 @@ void lpfc_sli4_queue_free(struct lpfc_queue *);
 uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint16_t);
 uint32_t lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
-uint32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
-			struct lpfc_queue *, uint32_t);
+int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
+		       struct lpfc_queue *, uint32_t);
 uint32_t lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 uint32_t lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,

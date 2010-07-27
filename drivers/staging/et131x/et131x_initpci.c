@@ -113,7 +113,13 @@
 static u32 et131x_speed_set;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
-		"Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
+		"Set Link speed and dublex manually (0-5)  [0]\n \
+		 1 : 10Mb   Half-Duplex\n \
+		 2 : 10Mb   Full-Duplex\n \
+		 3 : 100Mb  Half-Duplex\n \
+		 4 : 100Mb  Full-Duplex\n \
+		 5 : 1000Mb Full-Duplex\n \
+		 0 : Auto Speed Auto Dublex");
 
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -558,7 +564,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	/* Parse configuration parameters into the private adapter struct */
 	if (et131x_speed_set)
 		dev_info(&etdev->pdev->dev,
-			"Speed set manually to : %d \n", et131x_speed_set);
+			"Speed set manually to : %d\n", et131x_speed_set);
 
 	etdev->SpeedDuplex = et131x_speed_set;
 	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
@@ -820,7 +826,7 @@ static int __init et131x_init_module(void)
 	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
 	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
 		printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
-	    	et131x_speed_set = 0;
+		et131x_speed_set = 0;
 	}
 	return pci_register_driver(&et131x_driver);
 }

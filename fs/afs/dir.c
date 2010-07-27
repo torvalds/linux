@@ -189,13 +189,9 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 				     struct key *key)
 {
 	struct page *page;
-	struct file file = {
-		.private_data = key,
-	};
-
 	_enter("{%lu},%lu", dir->i_ino, index);
 
-	page = read_mapping_page(dir->i_mapping, index, &file);
+	page = read_cache_page(dir->i_mapping, index, afs_page_filler, key);
 	if (!IS_ERR(page)) {
 		kmap(page);
 		if (!PageChecked(page))

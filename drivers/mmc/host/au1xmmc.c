@@ -1142,7 +1142,7 @@ static int au1xmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct au1xmmc_host *host = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = mmc_suspend_host(host->mmc, state);
+	ret = mmc_suspend_host(host->mmc);
 	if (ret)
 		return ret;
 

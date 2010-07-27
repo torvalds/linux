@@ -414,7 +414,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	 * 0 contains more recent information.
 	 *
 	 * So the plan is to first check LEB 0. Then
-	 * a. if LEB 0 is OK, it must be containing the most resent data; then
+	 * a. if LEB 0 is OK, it must be containing the most recent data; then
 	 *    we compare it with LEB 1, and if they are different, we copy LEB
 	 *    0 to LEB 1;
 	 * b. if LEB 0 is corrupted, but LEB 1 has to be OK, and we copy LEB 1
@@ -848,7 +848,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 		goto out_free;
 
 	/*
-	 * Get sure that the scanning information is consistent to the
+	 * Make sure that the scanning information is consistent to the
 	 * information stored in the volume table.
 	 */
 	err = check_scanning_info(ubi, si);

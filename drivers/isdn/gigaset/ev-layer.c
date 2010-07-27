@@ -35,53 +35,40 @@
 #define RT_RING		2
 #define RT_NUMBER	3
 #define RT_STRING	4
-#define RT_HEX		5
 #define RT_ZCAU		6
 
 /* Possible ASCII responses */
 #define RSP_OK		0
-#define RSP_BUSY	1
-#define RSP_CONNECT	2
+#define RSP_ERROR	1
 #define RSP_ZGCI	3
 #define RSP_RING	4
-#define RSP_ZAOC	5
-#define RSP_ZCSTR	6
-#define RSP_ZCFGT	7
-#define RSP_ZCFG	8
-#define RSP_ZCCR	9
-#define RSP_EMPTY	10
-#define RSP_ZLOG	11
-#define RSP_ZCAU	12
-#define RSP_ZMWI	13
-#define RSP_ZABINFO	14
-#define RSP_ZSMLSTCHG	15
+#define RSP_ZVLS	5
+#define RSP_ZCAU	6
+
+/* responses with values to store in at_state */
+/* - numeric */
 #define RSP_VAR		100
 #define RSP_ZSAU	(RSP_VAR + VAR_ZSAU)
 #define RSP_ZDLE	(RSP_VAR + VAR_ZDLE)
-#define RSP_ZVLS	(RSP_VAR + VAR_ZVLS)
 #define RSP_ZCTP	(RSP_VAR + VAR_ZCTP)
+/* - string */
 #define RSP_STR		(RSP_VAR + VAR_NUM)
 #define RSP_NMBR	(RSP_STR + STR_NMBR)
 #define RSP_ZCPN	(RSP_STR + STR_ZCPN)
 #define RSP_ZCON	(RSP_STR + STR_ZCON)
 #define RSP_ZBC		(RSP_STR + STR_ZBC)
 #define RSP_ZHLC	(RSP_STR + STR_ZHLC)
-#define RSP_ERROR	-1	/* ERROR              */
+
 #define RSP_WRONG_CID	-2	/* unknown cid in cmd */
-#define RSP_UNKNOWN	-4	/* unknown response   */
-#define RSP_FAIL	-5	/* internal error     */
 #define RSP_INVAL	-6	/* invalid response   */
+#define RSP_NODEV	-9	/* device not connected */
 
 #define RSP_NONE	-19
 #define RSP_STRING	-20
 #define RSP_NULL	-21
-#define RSP_RETRYFAIL	-22
-#define RSP_RETRY	-23
-#define RSP_SKIP	-24
 #define RSP_INIT	-27
 #define RSP_ANY		-26
 #define RSP_LAST	-28
-#define RSP_NODEV	-9
 
 /* actions for process_response */
 #define ACT_NOTHING		0
@@ -259,13 +246,6 @@ struct reply_t gigaset_tab_nocid[] =
 
 /* misc. */
 {RSP_ERROR,	 -1,  -1, -1,			 -1, -1, {ACT_ERROR} },
-{RSP_ZCFGT,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZCFG,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZLOG,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZMWI,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZABINFO,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZSMLSTCHG,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-
 {RSP_ZCAU,	 -1,  -1, -1,			 -1, -1, {ACT_ZCAU} },
 {RSP_NONE,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
 {RSP_ANY,	 -1,  -1, -1,			 -1, -1, {ACT_WARN} },
@@ -282,9 +262,7 @@ struct reply_t gigaset_tab_cid[] =
 /* dial */
 {EV_DIAL,	 -1,  -1, -1,			 -1, -1, {ACT_DIAL} },
 {RSP_INIT,	  0,   0, SEQ_DIAL,		601,  5, {ACT_CMD+AT_BC} },
-{RSP_OK,	601, 601, -1,			602,  5, {ACT_CMD+AT_HLC} },
-{RSP_NULL,	602, 602, -1,			603,  5, {ACT_CMD+AT_PROTO} },
-{RSP_OK,	602, 602, -1,			603,  5, {ACT_CMD+AT_PROTO} },
+{RSP_OK,	601, 601, -1,			603,  5, {ACT_CMD+AT_PROTO} },
 {RSP_OK,	603, 603, -1,			604,  5, {ACT_CMD+AT_TYPE} },
 {RSP_OK,	604, 604, -1,			605,  5, {ACT_CMD+AT_MSN} },
 {RSP_NULL,	605, 605, -1,			606,  5, {ACT_CMD+AT_CLIP} },
@@ -363,10 +341,6 @@ struct reply_t gigaset_tab_cid[] =
 
 /* misc. */
 {RSP_ZCON,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZCCR,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZAOC,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-{RSP_ZCSTR,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
-
 {RSP_ZCAU,	 -1,  -1, -1,			 -1, -1, {ACT_ZCAU} },
 {RSP_NONE,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
 {RSP_ANY,	 -1,  -1, -1,			 -1, -1, {ACT_WARN} },
@@ -389,20 +363,11 @@ static const struct resp_type_t {
 	{"ZVLS",	RSP_ZVLS,	RT_NUMBER},
 	{"ZCTP",	RSP_ZCTP,	RT_NUMBER},
 	{"ZDLE",	RSP_ZDLE,	RT_NUMBER},
-	{"ZCFGT",	RSP_ZCFGT,	RT_NUMBER},
-	{"ZCCR",	RSP_ZCCR,	RT_NUMBER},
-	{"ZMWI",	RSP_ZMWI,	RT_NUMBER},
 	{"ZHLC",	RSP_ZHLC,	RT_STRING},
 	{"ZBC",		RSP_ZBC,	RT_STRING},
 	{"NMBR",	RSP_NMBR,	RT_STRING},
 	{"ZCPN",	RSP_ZCPN,	RT_STRING},
 	{"ZCON",	RSP_ZCON,	RT_STRING},
-	{"ZAOC",	RSP_ZAOC,	RT_STRING},
-	{"ZCSTR",	RSP_ZCSTR,	RT_STRING},
-	{"ZCFG",	RSP_ZCFG,	RT_HEX},
-	{"ZLOG",	RSP_ZLOG,	RT_NOTHING},
-	{"ZABINFO",	RSP_ZABINFO,	RT_NOTHING},
-	{"ZSMLSTCHG",	RSP_ZSMLSTCHG,	RT_NOTHING},
 	{NULL,		0,		0}
 };
 
@@ -420,64 +385,18 @@ static const struct zsau_resp_t {
 	{NULL,				ZSAU_UNKNOWN}
 };
 
-/*
- * Get integer from char-pointer
- */
-static int isdn_getnum(char *p)
-{
-	int v = -1;
-
-	gig_dbg(DEBUG_EVENT, "string: %s", p);
-
-	while (*p >= '0' && *p <= '9')
-		v = ((v < 0) ? 0 : (v * 10)) + (int) ((*p++) - '0');
-	if (*p)
-		v = -1; /* invalid Character */
-	return v;
-}
-
-/*
- * Get integer from char-pointer
- */
-static int isdn_gethex(char *p)
-{
-	int v = 0;
-	int c;
-
-	gig_dbg(DEBUG_EVENT, "string: %s", p);
-
-	if (!*p)
-		return -1;
-
-	do {
-		if (v > (INT_MAX - 15) / 16)
-			return -1;
-		c = *p;
-		if (c >= '0' && c <= '9')
-			c -= '0';
-		else if (c >= 'a' && c <= 'f')
-			c -= 'a' - 10;
-		else if (c >= 'A' && c <= 'F')
-			c -= 'A' - 10;
-		else
-			return -1;
-		v = v * 16 + c;
-	} while (*++p);
-
-	return v;
-}
-
 /* retrieve CID from parsed response
  * returns 0 if no CID, -1 if invalid CID, or CID value 1..65535
  */
 static int cid_of_response(char *s)
 {
-	int cid;
+	unsigned long cid;
+	int rc;
 
 	if (s[-1] != ';')
 		return 0;	/* no CID separator */
-	cid = isdn_getnum(s);
-	if (cid < 0)
+	rc = strict_strtoul(s, 10, &cid);
+	if (rc)
 		return 0;	/* CID not numeric */
 	if (cid < 1 || cid > 65535)
 		return -1;	/* CID out of range */
@@ -590,10 +509,10 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					break;
 
 			if (!rt->response) {
-				event->type = RSP_UNKNOWN;
-				dev_warn(cs->dev,
-					 "unknown modem response: %s\n",
-					 argv[curarg]);
+				event->type = RSP_NONE;
+				gig_dbg(DEBUG_EVENT,
+					"unknown modem response: '%s'\n",
+					argv[curarg]);
 				break;
 			}
 
@@ -647,27 +566,27 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		case RT_ZCAU:
 			event->parameter = -1;
 			if (curarg + 1 < params) {
-				i = isdn_gethex(argv[curarg]);
-				j = isdn_gethex(argv[curarg + 1]);
-				if (i >= 0 && i < 256 && j >= 0 && j < 256)
-					event->parameter = (unsigned) i << 8
-							   | j;
-				curarg += 2;
+				unsigned long type, value;
+
+				i = strict_strtoul(argv[curarg++], 16, &type);
+				j = strict_strtoul(argv[curarg++], 16, &value);
+
+				if (i == 0 && type < 256 &&
+				    j == 0 && value < 256)
+					event->parameter = (type << 8) | value;
 			} else
 				curarg = params - 1;
 			break;
 		case RT_NUMBER:
-		case RT_HEX:
+			event->parameter = -1;
 			if (curarg < params) {
-				if (param_type == RT_HEX)
-					event->parameter =
-						isdn_gethex(argv[curarg]);
-				else
-					event->parameter =
-						isdn_getnum(argv[curarg]);
-				++curarg;
-			} else
-				event->parameter = -1;
+				unsigned long res;
+				int rc;
+
+				rc = strict_strtoul(argv[curarg++], 10, &res);
+				if (rc == 0)
+					event->parameter = res;
+			}
 			gig_dbg(DEBUG_EVENT, "parameter==%d", event->parameter);
 			break;
 		}
@@ -799,48 +718,27 @@ static void schedule_init(struct cardstate *cs, int state)
 static void send_command(struct cardstate *cs, const char *cmd, int cid,
 			 int dle, gfp_t kmallocflags)
 {
-	size_t cmdlen, buflen;
-	char *cmdpos, *cmdbuf, *cmdtail;
+	struct cmdbuf_t *cb;
+	size_t buflen;
 
-	cmdlen = strlen(cmd);
-	buflen = 11 + cmdlen;
-	if (unlikely(buflen <= cmdlen)) {
-		dev_err(cs->dev, "integer overflow in buflen\n");
+	buflen = strlen(cmd) + 12; /* DLE ( A T 1 2 3 4 5 <cmd> DLE ) \0 */
+	cb = kmalloc(sizeof(struct cmdbuf_t) + buflen, kmallocflags);
+	if (!cb) {
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		return;
 	}
-
-	cmdbuf = kmalloc(buflen, kmallocflags);
-	if (unlikely(!cmdbuf)) {
-		dev_err(cs->dev, "out of memory\n");
-		return;
-	}
-
-	cmdpos = cmdbuf + 9;
-	cmdtail = cmdpos + cmdlen;
-	memcpy(cmdpos, cmd, cmdlen);
-
-	if (cid > 0 && cid <= 65535) {
-		do {
-			*--cmdpos = '0' + cid % 10;
-			cid /= 10;
-			++cmdlen;
-		} while (cid);
-	}
-
-	cmdlen += 2;
-	*--cmdpos = 'T';
-	*--cmdpos = 'A';
-
-	if (dle) {
-		cmdlen += 4;
-		*--cmdpos = '(';
-		*--cmdpos = 0x10;
-		*cmdtail++ = 0x10;
-		*cmdtail++ = ')';
-	}
-
-	cs->ops->write_cmd(cs, cmdpos, cmdlen, NULL);
-	kfree(cmdbuf);
+	if (cid > 0 && cid <= 65535)
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%d%s\020)" : "AT%d%s",
+				  cid, cmd);
+	else
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%s\020)" : "AT%s",
+				  cmd);
+	cb->offset = 0;
+	cb->next = NULL;
+	cb->wake_tasklet = NULL;
+	cs->ops->write_cmd(cs, cb);
 }
 
 static struct at_state_t *at_state_from_cid(struct cardstate *cs, int cid)
@@ -1242,8 +1140,22 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUPMODEM:
 		/* send "+++" (hangup in unimodem mode) */
-		if (cs->connected)
-			cs->ops->write_cmd(cs, "+++", 3, NULL);
+		if (cs->connected) {
+			struct cmdbuf_t *cb;
+
+			cb = kmalloc(sizeof(struct cmdbuf_t) + 3, GFP_ATOMIC);
+			if (!cb) {
+				dev_err(cs->dev, "%s: out of memory\n",
+					__func__);
+				return;
+			}
+			memcpy(cb->buf, "+++", 3);
+			cb->len = 3;
+			cb->offset = 0;
+			cb->next = NULL;
+			cb->wake_tasklet = NULL;
+			cs->ops->write_cmd(cs, cb);
+		}
 		break;
 	case ACT_RING:
 		/* get fresh AT state structure for new CID */
@@ -1857,19 +1769,13 @@ static void process_command_flags(struct cardstate *cs)
 				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 				cs->commands_pending = 1;
 				return;
-#ifdef GIG_MAYINITONDIAL
 			case M_UNKNOWN:
 				schedule_init(cs, MS_INIT);
 				return;
-#endif
 			}
 			bcs->at_state.pending_commands &= ~PC_CID;
 			cs->curchannel = bcs->channel;
-#ifdef GIG_RETRYCID
 			cs->retry_count = 2;
-#else
-			cs->retry_count = 1;
-#endif
 			schedule_sequence(cs, &cs->at_state, SEQ_CID);
 			return;
 		}

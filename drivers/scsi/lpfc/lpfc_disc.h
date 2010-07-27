@@ -38,6 +38,7 @@ enum lpfc_work_type {
 	LPFC_EVT_ELS_RETRY,
 	LPFC_EVT_DEV_LOSS,
 	LPFC_EVT_FASTPATH_MGMT_EVT,
+	LPFC_EVT_RESET_HBA,
 };
 
 /* structure used to queue event to the discovery tasklet */

@@ -18,7 +18,6 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl_devices.h>
 #include <linux/gfp.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -221,11 +220,54 @@ static struct mc13783_regulator_init_data moboard_regulators[] = {
 	},
 };
 
+static struct mc13783_led_platform_data moboard_led[] = {
+	{
+		.id = MC13783_LED_R1,
+		.name = "coreboard-led-4:red",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_G1,
+		.name = "coreboard-led-4:green",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_B1,
+		.name = "coreboard-led-4:blue",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_R2,
+		.name = "coreboard-led-5:red",
+		.max_current = 3,
+	},
+	{
+		.id = MC13783_LED_G2,
+		.name = "coreboard-led-5:green",
+		.max_current = 3,
+	},
+	{
+		.id = MC13783_LED_B2,
+		.name = "coreboard-led-5:blue",
+		.max_current = 3,
+	},
+};
+
+static struct mc13783_leds_platform_data moboard_leds = {
+	.num_leds = ARRAY_SIZE(moboard_led),
+	.led = moboard_led,
+	.flags = MC13783_LED_SLEWLIMTC,
+	.abmode = MC13783_LED_AB_DISABLED,
+	.tc1_period = MC13783_LED_PERIOD_10MS,
+	.tc2_period = MC13783_LED_PERIOD_10MS,
+};
+
 static struct mc13783_platform_data moboard_pmic = {
 	.regulators = moboard_regulators,
 	.num_regulators = ARRAY_SIZE(moboard_regulators),
+	.leds = &moboard_leds,
 	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC |
-		MC13783_USE_ADC,
+		MC13783_USE_ADC | MC13783_USE_LED,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
@@ -306,84 +348,56 @@ static struct imxmmc_platform_data sdhc1_pdata = {
  * this pin is dedicated for all mx31moboard systems, so we do it here
  */
 #define USB_RESET_B	IOMUX_TO_GPIO(MX31_PIN_GPIO1_0)
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+		      PAD_CTL_ODE_CMOS)
+
+#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
+#define USBH2_EN_B IOMUX_TO_GPIO(MX31_PIN_SCK6)
 
 static void usb_xcvr_reset(void)
 {
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG | PAD_CTL_100K_PU);
+
+	mxc_iomux_set_gpr(MUX_PGP_UH2, true);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_CLK, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DIR, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_NXT, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_STP, USB_PAD_CFG | PAD_CTL_100K_PU);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA0, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA1, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_SRXD6, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_STXD6, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_SFS3, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_SCK3, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_SRXD3, USB_PAD_CFG | PAD_CTL_100K_PD);
+	mxc_iomux_set_pad(MX31_PIN_STXD3, USB_PAD_CFG | PAD_CTL_100K_PD);
+
+	gpio_request(OTG_EN_B, "usb-udc-en");
+	gpio_direction_output(OTG_EN_B, 0);
+	gpio_request(USBH2_EN_B, "usbh2-en");
+	gpio_direction_output(USBH2_EN_B, 0);
+
 	gpio_request(USB_RESET_B, "usb-reset");
 	gpio_direction_output(USB_RESET_B, 0);
 	mdelay(1);
 	gpio_set_value(USB_RESET_B, 1);
+	mdelay(1);
 }
-
-#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
-			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
-
-#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
-
-static void moboard_usbotg_init(void)
-{
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
-
-	gpio_request(OTG_EN_B, "usb-udc-en");
-	gpio_direction_output(OTG_EN_B, 0);
-}
-
-static struct fsl_usb2_platform_data usb_pdata = {
-	.operating_mode	= FSL_USB2_DR_DEVICE,
-	.phy_mode	= FSL_USB2_PHY_ULPI,
-};
 
 #if defined(CONFIG_USB_ULPI)
 
-#define USBH2_EN_B IOMUX_TO_GPIO(MX31_PIN_SCK6)
-
-static int moboard_usbh2_hw_init(struct platform_device *pdev)
-{
-	int ret;
-
-	mxc_iomux_set_gpr(MUX_PGP_UH2, true);
-
-	mxc_iomux_set_pad(MX31_PIN_USBH2_CLK, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBH2_DIR, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBH2_NXT, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBH2_STP, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA0, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA1, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_SRXD6, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_STXD6, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_SFS3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_SCK3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_SRXD3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_STXD3, USB_PAD_CFG);
-
-	ret = gpio_request(USBH2_EN_B, "usbh2-en");
-	if (ret)
-		return ret;
-	gpio_direction_output(USBH2_EN_B, 0);
-
-	return 0;
-}
-
-static int moboard_usbh2_hw_exit(struct platform_device *pdev)
-{
-	gpio_free(USBH2_EN_B);
-	return 0;
-}
-
 static struct mxc_usbh_platform_data usbh2_pdata = {
-	.init	= moboard_usbh2_hw_init,
-	.exit	= moboard_usbh2_hw_exit,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
@@ -508,8 +522,6 @@ static void __init mxc_board_init(void)
 
 	usb_xcvr_reset();
 
-	moboard_usbotg_init();
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 	moboard_usbh2_init();
 
 	switch (mx31moboard_baseboard) {
@@ -522,7 +534,8 @@ static void __init mxc_board_init(void)
 		mx31moboard_marxbot_init();
 		break;
 	case MX31SMARTBOT:
-		mx31moboard_smartbot_init();
+	case MX31EYEBOT:
+		mx31moboard_smartbot_init(mx31moboard_baseboard);
 		break;
 	default:
 		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n",

@@ -137,12 +137,13 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		struct net_device *dev)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	struct net_bridge_port *p = rcu_dereference(dev->br_port);
+	struct net_bridge_port *p;
 	struct net_bridge *br;
 	const unsigned char *buf;
 
-	if (!p)
+	if (!br_port_exists(dev))
 		goto err;
+	p = br_port_get_rcu(dev);
 
 	if (!pskb_may_pull(skb, 4))
 		goto err;

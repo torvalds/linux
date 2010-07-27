@@ -17,8 +17,8 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.1.0"
-#define DRV_MODULE_RELDATE	"Dec 06, 2009"
+#define DRV_MODULE_VERSION	"2.1.1"
+#define DRV_MODULE_RELDATE	"Mar 24, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
@@ -26,7 +26,8 @@ static char version[] __devinitdata =
 
 
 MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709 iSCSI Driver");
+MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711"
+		   " iSCSI Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -289,6 +290,7 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	mutex_lock(&bnx2i_dev_lock);
+	hba->cnic = cnic;
 	rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
 	if (!rc) {
 		hba->age++;
@@ -335,8 +337,7 @@ void bnx2i_ulp_init(struct cnic_dev *dev)
 	if (bnx2i_init_one(hba, dev)) {
 		printk(KERN_ERR "bnx2i - hba %p init failed\n", hba);
 		bnx2i_free_hba(hba);
-	} else
-		hba->cnic = dev;
+	}
 }
 
 

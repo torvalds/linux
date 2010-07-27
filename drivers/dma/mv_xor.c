@@ -810,14 +810,14 @@ static void mv_xor_free_chan_resources(struct dma_chan *chan)
 }
 
 /**
- * mv_xor_is_complete - poll the status of an XOR transaction
+ * mv_xor_status - poll the status of an XOR transaction
  * @chan: XOR channel handle
  * @cookie: XOR transaction identifier
+ * @txstate: XOR transactions state holder (or NULL)
  */
-static enum dma_status mv_xor_is_complete(struct dma_chan *chan,
+static enum dma_status mv_xor_status(struct dma_chan *chan,
 					  dma_cookie_t cookie,
-					  dma_cookie_t *done,
-					  dma_cookie_t *used)
+					  struct dma_tx_state *txstate)
 {
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
 	dma_cookie_t last_used;
@@ -827,10 +827,7 @@ static enum dma_status mv_xor_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = mv_chan->completed_cookie;
 	mv_chan->is_complete_cookie = cookie;
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret == DMA_SUCCESS) {
@@ -842,11 +839,7 @@ static enum dma_status mv_xor_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = mv_chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
-
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
 
@@ -975,7 +968,7 @@ static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
 	async_tx_ack(tx);
 	msleep(1);
 
-	if (mv_xor_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (mv_xor_status(dma_chan, cookie, NULL) !=
 	    DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			   "Self-test copy timed out, disabling\n");
@@ -1073,7 +1066,7 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 	async_tx_ack(tx);
 	msleep(8);
 
-	if (mv_xor_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (mv_xor_status(dma_chan, cookie, NULL) !=
 	    DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			   "Self-test xor timed out, disabling\n");
@@ -1168,7 +1161,7 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 	/* set base routines */
 	dma_dev->device_alloc_chan_resources = mv_xor_alloc_chan_resources;
 	dma_dev->device_free_chan_resources = mv_xor_free_chan_resources;
-	dma_dev->device_is_tx_complete = mv_xor_is_complete;
+	dma_dev->device_tx_status = mv_xor_status;
 	dma_dev->device_issue_pending = mv_xor_issue_pending;
 	dma_dev->dev = &pdev->dev;
 

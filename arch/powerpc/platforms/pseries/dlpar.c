@@ -79,13 +79,12 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 	 * prepend this to the full_name.
 	 */
 	name = (char *)ccwa + ccwa->name_offset;
-	dn->full_name = kmalloc(strlen(name) + 2, GFP_KERNEL);
+	dn->full_name = kasprintf(GFP_KERNEL, "/%s", name);
 	if (!dn->full_name) {
 		kfree(dn);
 		return NULL;
 	}
 
-	sprintf(dn->full_name, "/%s", name);
 	return dn;
 }
 
@@ -410,15 +409,13 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	 * directory of the device tree.  CPUs actually live in the
 	 * cpus directory so we need to fixup the full_name.
 	 */
-	cpu_name = kzalloc(strlen(dn->full_name) + strlen("/cpus") + 1,
-			   GFP_KERNEL);
+	cpu_name = kasprintf(GFP_KERNEL, "/cpus%s", dn->full_name);
 	if (!cpu_name) {
 		dlpar_free_cc_nodes(dn);
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	sprintf(cpu_name, "/cpus%s", dn->full_name);
 	kfree(dn->full_name);
 	dn->full_name = cpu_name;
 
@@ -433,6 +430,7 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	if (rc) {
 		dlpar_release_drc(drc_index);
 		dlpar_free_cc_nodes(dn);
+		goto out;
 	}
 
 	rc = dlpar_online_cpu(dn);

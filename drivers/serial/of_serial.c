@@ -31,7 +31,7 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 					int type, struct uart_port *port)
 {
 	struct resource resource;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	const unsigned int *clk, *spd;
 	const u32 *prop;
 	int ret, prop_size;
@@ -88,7 +88,7 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 	int port_type;
 	int ret;
 
-	if (of_find_property(ofdev->node, "used-by-rtas", NULL))
+	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
 		return -EBUSY;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -175,11 +175,13 @@ static struct of_device_id __devinitdata of_platform_serial_table[] = {
 };
 
 static struct of_platform_driver of_platform_serial_driver = {
-	.owner = THIS_MODULE,
-	.name = "of_serial",
+	.driver = {
+		.name = "of_serial",
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_serial_table,
+	},
 	.probe = of_platform_serial_probe,
 	.remove = of_platform_serial_remove,
-	.match_table = of_platform_serial_table,
 };
 
 static int __init of_platform_serial_init(void)

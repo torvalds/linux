@@ -63,6 +63,8 @@ Configuration options:
 #define DPRINTK(fmt, args...)
 #endif
 
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+
 /* hardware types of the cards */
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
@@ -657,9 +659,9 @@ static void interrupt_pci1710_every_sample(void *d)
 #endif
 		++s->async->cur_chan;
 
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		if (s->async->cur_chan >= devpriv->ai_n_chan)
 			s->async->cur_chan = 0;
-		}
+
 
 		if (s->async->cur_chan == 0) {	/*  one scan done */
 			devpriv->ai_act_scan++;
@@ -863,12 +865,12 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		devpriv->ai_eos = 0;
 	}
 
-	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1)) {
+	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1))
 		devpriv->neverending_ai = 1;
-	} /* well, user want neverending */
-	else {
+	/* well, user want neverending */
+	else
 		devpriv->neverending_ai = 0;
-	}
+
 	switch (mode) {
 	case 1:
 	case 2:
@@ -935,7 +937,8 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	int tmp;
+	unsigned int divisor1 = 0, divisor2 = 0;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG
@@ -1109,11 +1112,11 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scans = cmd->stop_arg;
-	} else {
+	else
 		devpriv->ai_scans = 0;
-	}
+
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
@@ -1593,9 +1596,9 @@ static int pci1710_detach(struct comedi_device *dev)
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->pcidev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-			}
+
 			pci_dev_put(devpriv->pcidev);
 		}
 	}

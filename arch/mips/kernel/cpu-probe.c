@@ -125,6 +125,30 @@ static int __init wait_disable(char *s)
 
 __setup("nowait", wait_disable);
 
+static int __cpuinitdata mips_fpu_disabled;
+
+static int __init fpu_disable(char *s)
+{
+	cpu_data[0].options &= ~MIPS_CPU_FPU;
+	mips_fpu_disabled = 1;
+
+	return 1;
+}
+
+__setup("nofpu", fpu_disable);
+
+int __cpuinitdata mips_dsp_disabled;
+
+static int __init dsp_disable(char *s)
+{
+	cpu_data[0].ases &= ~MIPS_ASE_DSP;
+	mips_dsp_disabled = 1;
+
+	return 1;
+}
+
+__setup("nodsp", dsp_disable);
+
 void __init check_wait(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -981,6 +1005,12 @@ __cpuinit void cpu_probe(void)
 	 * manually setup otherwise it could trigger some nasty bugs.
 	 */
 	BUG_ON(current_cpu_type() != c->cputype);
+
+	if (mips_fpu_disabled)
+		c->options &= ~MIPS_CPU_FPU;
+
+	if (mips_dsp_disabled)
+		c->ases &= ~MIPS_ASE_DSP;
 
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();

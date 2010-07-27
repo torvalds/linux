@@ -33,7 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-smbus.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "i2c-parport.h"
 
 #define DEFAULT_BASE 0x378

@@ -494,6 +494,7 @@ extern const struct file_operations afs_file_operations;
 
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
+extern int afs_page_filler(void *, struct page *);
 
 /*
  * flock.c
@@ -739,7 +740,7 @@ extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
 extern ssize_t afs_file_write(struct kiocb *, const struct iovec *,
 			      unsigned long, loff_t);
 extern int afs_writeback_all(struct afs_vnode *);
-extern int afs_fsync(struct file *, struct dentry *, int);
+extern int afs_fsync(struct file *, int);
 
 
 /*****************************************************************************/

@@ -2038,16 +2038,10 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		/* Now copy the data to the card. */
 
-		buf = kmalloc(wrthdr.size, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-
-		if (copy_from_user(buf,
-				   ifr->ifr_data + sizeof (struct fstioc_write),
-				   wrthdr.size)) {
-			kfree(buf);
-			return -EFAULT;
-		}
+		buf = memdup_user(ifr->ifr_data + sizeof(struct fstioc_write),
+				  wrthdr.size);
+		if (IS_ERR(buf))
+			return PTR_ERR(buf);
 
 		memcpy_toio(card->mem + wrthdr.offset, buf, wrthdr.size);
 		kfree(buf);

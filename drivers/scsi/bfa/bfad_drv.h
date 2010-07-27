@@ -162,7 +162,6 @@ struct bfad_s {
 	const char *pci_name;
 	struct bfa_pcidev_s hal_pcidev;
 	struct bfa_ioc_pci_attr_s pci_attr;
-	unsigned long   pci_bar0_map;
 	void __iomem   *pci_bar0_kva;
 	struct completion comp;
 	struct completion suspend;
@@ -254,7 +253,7 @@ do {                                            	\
 
 
 bfa_status_t    bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-				  struct bfa_port_cfg_s *port_cfg);
+			  struct bfa_port_cfg_s *port_cfg, struct device *dev);
 bfa_status_t    bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
 			       struct bfa_port_cfg_s *port_cfg);
 bfa_status_t    bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role);
@@ -294,5 +293,6 @@ extern struct list_head bfad_list;
 extern int bfa_lun_queue_depth;
 extern int bfad_supported_fc4s;
 extern int bfa_linkup_delay;
+extern struct mutex bfad_mutex;
 
 #endif /* __BFAD_DRV_H__ */

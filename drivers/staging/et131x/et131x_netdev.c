@@ -426,26 +426,22 @@ void et131x_multicast(struct net_device *netdev)
 	 * accordingly
 	 */
 
-	if (netdev->flags & IFF_PROMISC) {
+	if (netdev->flags & IFF_PROMISC)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_PROMISCUOUS;
-	} else {
+	else
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_PROMISCUOUS;
-	}
 
-	if (netdev->flags & IFF_ALLMULTI) {
+	if (netdev->flags & IFF_ALLMULTI)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
-	}
 
-	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST) {
+	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
-	}
 
 	if (netdev_mc_count(netdev) < 1) {
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_MULTICAST;
-	} else {
+	} else
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_MULTICAST;
-	}
 
 	/* Set values in the private adapter struct */
 	i = 0;

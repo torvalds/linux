@@ -49,6 +49,7 @@ Table of Contents
 3.3	Configuring Bonding Manually with Ifenslave
 3.3.1		Configuring Multiple Bonds Manually
 3.4	Configuring Bonding Manually via Sysfs
+3.5	Overriding Configuration for Special Cases
 
 4. Querying Bonding Configuration
 4.1	Bonding Configuration
@@ -1318,8 +1319,87 @@ echo 2000 > /sys/class/net/bond1/bonding/arp_interval
 echo +eth2 > /sys/class/net/bond1/bonding/slaves
 echo +eth3 > /sys/class/net/bond1/bonding/slaves
 
+3.5 Overriding Configuration for Special Cases
+----------------------------------------------
+When using the bonding driver, the physical port which transmits a frame is
+typically selected by the bonding driver, and is not relevant to the user or
+system administrator.  The output port is simply selected using the policies of
+the selected bonding mode.  On occasion however, it is helpful to direct certain
+classes of traffic to certain physical interfaces on output to implement
+slightly more complex policies.  For example, to reach a web server over a
+bonded interface in which eth0 connects to a private network, while eth1
+connects via a public network, it may be desirous to bias the bond to send said
+traffic over eth0 first, using eth1 only as a fall back, while all other traffic
+can safely be sent over either interface.  Such configurations may be achieved
+using the traffic control utilities inherent in linux.
 
-4. Querying Bonding Configuration 
+By default the bonding driver is multiqueue aware and 16 queues are created
+when the driver initializes (see Documentation/networking/multiqueue.txt
+for details).  If more or less queues are desired the module parameter
+tx_queues can be used to change this value.  There is no sysfs parameter
+available as the allocation is done at module init time.
+
+The output of the file /proc/net/bonding/bondX has changed so the output Queue
+ID is now printed for each slave:
+
+Bonding Mode: fault-tolerance (active-backup)
+Primary Slave: None
+Currently Active Slave: eth0
+MII Status: up
+MII Polling Interval (ms): 0
+Up Delay (ms): 0
+Down Delay (ms): 0
+
+Slave Interface: eth0
+MII Status: up
+Link Failure Count: 0
+Permanent HW addr: 00:1a:a0:12:8f:cb
+Slave queue ID: 0
+
+Slave Interface: eth1
+MII Status: up
+Link Failure Count: 0
+Permanent HW addr: 00:1a:a0:12:8f:cc
+Slave queue ID: 2
+
+The queue_id for a slave can be set using the command:
+
+# echo "eth1:2" > /sys/class/net/bond0/bonding/queue_id
+
+Any interface that needs a queue_id set should set it with multiple calls
+like the one above until proper priorities are set for all interfaces.  On
+distributions that allow configuration via initscripts, multiple 'queue_id'
+arguments can be added to BONDING_OPTS to set all needed slave queues.
+
+These queue id's can be used in conjunction with the tc utility to configure
+a multiqueue qdisc and filters to bias certain traffic to transmit on certain
+slave devices.  For instance, say we wanted, in the above configuration to
+force all traffic bound to 192.168.1.100 to use eth1 in the bond as its output
+device. The following commands would accomplish this:
+
+# tc qdisc add dev bond0 handle 1 root multiq
+
+# tc filter add dev bond0 protocol ip parent 1: prio 1 u32 match ip dst \
+	192.168.1.100 action skbedit queue_mapping 2
+
+These commands tell the kernel to attach a multiqueue queue discipline to the
+bond0 interface and filter traffic enqueued to it, such that packets with a dst
+ip of 192.168.1.100 have their output queue mapping value overwritten to 2.
+This value is then passed into the driver, causing the normal output path
+selection policy to be overridden, selecting instead qid 2, which maps to eth1.
+
+Note that qid values begin at 1.  Qid 0 is reserved to initiate to the driver
+that normal output policy selection should take place.  One benefit to simply
+leaving the qid for a slave to 0 is the multiqueue awareness in the bonding
+driver that is now present.  This awareness allows tc filters to be placed on
+slave devices as well as bond devices and the bonding driver will simply act as
+a pass-through for selecting output queues on the slave device rather than 
+output port selection.
+
+This feature first appeared in bonding driver version 3.7.0 and support for
+output slave selection was limited to round-robin and active-backup modes.
+
+4 Querying Bonding Configuration
 =================================
 
 4.1 Bonding Configuration

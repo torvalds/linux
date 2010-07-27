@@ -42,7 +42,7 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 
 		info.addr = be32_to_cpup(addr);
 
-		dev_archdata_set_node(&dev_ad, node);
+		info.of_node = node;
 		info.archdata = &dev_ad;
 
 		request_module("%s", info.type);
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(of_register_i2c_devices);
 
 static int of_dev_node_match(struct device *dev, void *data)
 {
-        return dev_archdata_get_node(&dev->archdata) == data;
+        return dev->of_node == data;
 }
 
 /* must call put_device() when done with returned i2c_client device */

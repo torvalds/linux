@@ -1973,6 +1973,17 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* AKAI devices */
+{
+	USB_DEVICE(0x09e8, 0x0062),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "AKAI",
+		.product_name = "MPD16",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_AKAI,
+	}
+},
+
 /* TerraTec devices */
 {
 	USB_DEVICE_VENDOR_SPEC(0x0ccd, 0x0012),

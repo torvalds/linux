@@ -10,6 +10,8 @@
  */
 
 #include <linux/highmem.h>
+#include <linux/interrupt.h>
+#include <linux/dmaengine.h>
 
 #define CTL_SD_CMD 0x00
 #define CTL_ARG_REG 0x04
@@ -106,6 +108,17 @@ struct tmio_mmc_host {
 	unsigned int            sg_off;
 
 	struct platform_device *pdev;
+
+	/* DMA support */
+	struct dma_chan		*chan_rx;
+	struct dma_chan		*chan_tx;
+	struct tasklet_struct	dma_complete;
+	struct tasklet_struct	dma_issue;
+#ifdef CONFIG_TMIO_MMC_DMA
+	struct dma_async_tx_descriptor *desc;
+	unsigned int            dma_sglen;
+	dma_cookie_t		cookie;
+#endif
 };
 
 #include <linux/io.h>

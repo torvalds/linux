@@ -52,6 +52,8 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 /* #define CBPCIMDAS_DEBUG */
 #undef CBPCIMDAS_DEBUG
 
+#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
+
 /* Registers for the PCIM-DAS1602/16 */
 
 /* sizes of io regions (bytes) */

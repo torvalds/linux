@@ -41,6 +41,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/fec.h>
 
 #include <asm/cacheflush.h>
 
@@ -182,9 +183,11 @@ struct fec_enet_private {
 	struct  phy_device *phy_dev;
 	int     mii_timeout;
 	uint    phy_speed;
+	phy_interface_t	phy_interface;
 	int	index;
 	int	link;
 	int	full_duplex;
+	struct	completion mdio_done;
 };
 
 static irqreturn_t fec_enet_interrupt(int irq, void * dev_id);
@@ -203,12 +206,12 @@ static void fec_stop(struct net_device *dev);
 #define FEC_MMFR_TA		(2 << 16)
 #define FEC_MMFR_DATA(v)	(v & 0xffff)
 
-#define FEC_MII_TIMEOUT		10000
+#define FEC_MII_TIMEOUT		1000 /* us */
 
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
 
-static int
+static netdev_tx_t
 fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
@@ -331,6 +334,11 @@ fec_enet_interrupt(int irq, void * dev_id)
 		if (int_events & FEC_ENET_TXF) {
 			ret = IRQ_HANDLED;
 			fec_enet_tx(dev);
+		}
+
+		if (int_events & FEC_ENET_MII) {
+			ret = IRQ_HANDLED;
+			complete(&fep->mdio_done);
 		}
 	} while (int_events);
 
@@ -606,18 +614,13 @@ spin_unlock:
 		phy_print_status(phy_dev);
 }
 
-/*
- * NOTE: a MII transaction is during around 25 us, so polling it...
- */
 static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct fec_enet_private *fep = bus->priv;
-	int timeout = FEC_MII_TIMEOUT;
+	unsigned long time_left;
 
 	fep->mii_timeout = 0;
-
-	/* clear MII end of transfer bit*/
-	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
+	init_completion(&fep->mdio_done);
 
 	/* start a read op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
@@ -625,13 +628,12 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 		FEC_MMFR_TA, fep->hwp + FEC_MII_DATA);
 
 	/* wait for end of transfer */
-	while (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_MII)) {
-		cpu_relax();
-		if (timeout-- < 0) {
-			fep->mii_timeout = 1;
-			printk(KERN_ERR "FEC: MDIO read timeout\n");
-			return -ETIMEDOUT;
-		}
+	time_left = wait_for_completion_timeout(&fep->mdio_done,
+			usecs_to_jiffies(FEC_MII_TIMEOUT));
+	if (time_left == 0) {
+		fep->mii_timeout = 1;
+		printk(KERN_ERR "FEC: MDIO read timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	/* return value */
@@ -642,12 +644,10 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 			   u16 value)
 {
 	struct fec_enet_private *fep = bus->priv;
-	int timeout = FEC_MII_TIMEOUT;
+	unsigned long time_left;
 
 	fep->mii_timeout = 0;
-
-	/* clear MII end of transfer bit*/
-	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
+	init_completion(&fep->mdio_done);
 
 	/* start a read op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
@@ -656,13 +656,12 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 		fep->hwp + FEC_MII_DATA);
 
 	/* wait for end of transfer */
-	while (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_MII)) {
-		cpu_relax();
-		if (timeout-- < 0) {
-			fep->mii_timeout = 1;
-			printk(KERN_ERR "FEC: MDIO write timeout\n");
-			return -ETIMEDOUT;
-		}
+	time_left = wait_for_completion_timeout(&fep->mdio_done,
+			usecs_to_jiffies(FEC_MII_TIMEOUT));
+	if (time_left == 0) {
+		fep->mii_timeout = 1;
+		printk(KERN_ERR "FEC: MDIO write timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -677,28 +676,24 @@ static int fec_enet_mii_probe(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct phy_device *phy_dev = NULL;
-	int phy_addr;
+	int ret;
+
+	fep->phy_dev = NULL;
 
 	/* find the first phy */
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (fep->mii_bus->phy_map[phy_addr]) {
-			phy_dev = fep->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
-
+	phy_dev = phy_find_first(fep->mii_bus);
 	if (!phy_dev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
 		return -ENODEV;
 	}
 
 	/* attach the mac to the phy */
-	phy_dev = phy_connect(dev, dev_name(&phy_dev->dev),
+	ret = phy_connect_direct(dev, phy_dev,
 			     &fec_enet_adjust_link, 0,
 			     PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phy_dev)) {
+	if (ret) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(phy_dev);
+		return ret;
 	}
 
 	/* mask with MAC supported features */
@@ -708,6 +703,11 @@ static int fec_enet_mii_probe(struct net_device *dev)
 	fep->phy_dev = phy_dev;
 	fep->link = 0;
 	fep->full_duplex = 0;
+
+	printk(KERN_INFO "%s: Freescale FEC PHY driver [%s] "
+		"(mii_bus:phy_addr=%s, irq=%d)\n", dev->name,
+		fep->phy_dev->drv->name, dev_name(&fep->phy_dev->dev),
+		fep->phy_dev->irq);
 
 	return 0;
 }
@@ -754,13 +754,8 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	if (mdiobus_register(fep->mii_bus))
 		goto err_out_free_mdio_irq;
 
-	if (fec_enet_mii_probe(dev) != 0)
-		goto err_out_unregister_bus;
-
 	return 0;
 
-err_out_unregister_bus:
-	mdiobus_unregister(fep->mii_bus);
 err_out_free_mdio_irq:
 	kfree(fep->mii_bus->irq);
 err_out_free_mdiobus:
@@ -830,7 +825,7 @@ static int fec_enet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
 static void fec_enet_free_buffers(struct net_device *dev)
@@ -913,7 +908,12 @@ fec_enet_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	/* schedule a link state check */
+	/* Probe and connect to PHY when open the interface */
+	ret = fec_enet_mii_probe(dev);
+	if (ret) {
+		fec_enet_free_buffers(dev);
+		return ret;
+	}
 	phy_start(fep->phy_dev);
 	netif_start_queue(dev);
 	fep->opened = 1;
@@ -927,9 +927,11 @@ fec_enet_close(struct net_device *dev)
 
 	/* Don't know what to do yet. */
 	fep->opened = 0;
-	phy_stop(fep->phy_dev);
 	netif_stop_queue(dev);
 	fec_stop(dev);
+
+	if (fep->phy_dev)
+		phy_disconnect(fep->phy_dev);
 
         fec_enet_free_buffers(dev);
 
@@ -1191,12 +1193,28 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
+#ifdef FEC_MIIGSK_ENR
+	if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
+		/* disable the gasket and wait */
+		writel(0, fep->hwp + FEC_MIIGSK_ENR);
+		while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
+			udelay(1);
+
+		/* configure the gasket: RMII, 50 MHz, no loopback, no echo */
+		writel(1, fep->hwp + FEC_MIIGSK_CFGR);
+
+		/* re-enable the gasket */
+		writel(2, fep->hwp + FEC_MIIGSK_ENR);
+	}
+#endif
+
 	/* And last, enable the transmit and receive processing */
 	writel(2, fep->hwp + FEC_ECNTRL);
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
 
 	/* Enable interrupts we wish to service */
-	writel(FEC_ENET_TXF | FEC_ENET_RXF, fep->hwp + FEC_IMASK);
+	writel(FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII,
+			fep->hwp + FEC_IMASK);
 }
 
 static void
@@ -1216,9 +1234,6 @@ fec_stop(struct net_device *dev)
 	writel(1, fep->hwp + FEC_ECNTRL);
 	udelay(10);
 
-	/* Clear outstanding MII command interrupts. */
-	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
-
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 }
 
@@ -1226,6 +1241,7 @@ static int __devinit
 fec_probe(struct platform_device *pdev)
 {
 	struct fec_enet_private *fep;
+	struct fec_platform_data *pdata;
 	struct net_device *ndev;
 	int i, irq, ret = 0;
 	struct resource *r;
@@ -1258,6 +1274,10 @@ fec_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ndev);
+
+	pdata = pdev->dev.platform_data;
+	if (pdata)
+		fep->phy_interface = pdata->phy;
 
 	/* This device has up to three irqs on some platforms */
 	for (i = 0; i < 3; i++) {
@@ -1293,11 +1313,6 @@ fec_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret)
 		goto failed_register;
-
-	printk(KERN_INFO "%s: Freescale FEC PHY driver [%s] "
-		"(mii_bus:phy_addr=%s, irq=%d)\n", ndev->name,
-		fep->phy_dev->drv->name, dev_name(&fep->phy_dev->dev),
-		fep->phy_dev->irq);
 
 	return 0;
 
@@ -1339,45 +1354,57 @@ fec_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int
-fec_suspend(struct platform_device *dev, pm_message_t state)
+fec_suspend(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep;
 
 	if (ndev) {
 		fep = netdev_priv(ndev);
-		if (netif_running(ndev)) {
-			netif_device_detach(ndev);
-			fec_stop(ndev);
-		}
+		if (netif_running(ndev))
+			fec_enet_close(ndev);
+		clk_disable(fep->clk);
 	}
 	return 0;
 }
 
 static int
-fec_resume(struct platform_device *dev)
+fec_resume(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct fec_enet_private *fep;
 
 	if (ndev) {
-		if (netif_running(ndev)) {
-			fec_enet_init(ndev, 0);
-			netif_device_attach(ndev);
-		}
+		fep = netdev_priv(ndev);
+		clk_enable(fep->clk);
+		if (netif_running(ndev))
+			fec_enet_open(ndev);
 	}
 	return 0;
 }
 
+static const struct dev_pm_ops fec_pm_ops = {
+	.suspend	= fec_suspend,
+	.resume		= fec_resume,
+	.freeze		= fec_suspend,
+	.thaw		= fec_resume,
+	.poweroff	= fec_suspend,
+	.restore	= fec_resume,
+};
+#endif
+
 static struct platform_driver fec_driver = {
 	.driver	= {
-		.name    = "fec",
-		.owner	 = THIS_MODULE,
+		.name	= "fec",
+		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &fec_pm_ops,
+#endif
 	},
-	.probe   = fec_probe,
-	.remove  = __devexit_p(fec_drv_remove),
-	.suspend = fec_suspend,
-	.resume  = fec_resume,
+	.probe	= fec_probe,
+	.remove	= __devexit_p(fec_drv_remove),
 };
 
 static int __init

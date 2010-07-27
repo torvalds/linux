@@ -584,6 +584,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_unreg_rpi(vport, np);
 		}
+		lpfc_cleanup_pending_mbox(vport);
 		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
@@ -864,6 +865,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
+	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	spin_unlock_irq(shost->host_lock);
 
 	/*
@@ -893,11 +895,14 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		if (!rc) {
 			/* Mark the FCF discovery process done */
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP | LOG_ELS,
-					 "2769 FLOGI successful on FCF record: "
-					 "current_fcf_index:x%x, terminate FCF "
-					 "round robin failover process\n",
-					 phba->fcf.current_rec.fcf_indx);
+			if (phba->hba_flag & HBA_FIP_SUPPORT)
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP |
+						LOG_ELS,
+						"2769 FLOGI successful on FCF "
+						"record: current_fcf_index:"
+						"x%x, terminate FCF round "
+						"robin failover process\n",
+						phba->fcf.current_rec.fcf_indx);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
 			spin_unlock_irq(&phba->hbalock);
@@ -5366,7 +5371,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
 			sizeof(struct lpfc_name));
 		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
 			cmdiocbp->context2)->virt);
-		lsrjt_event.command = *pcmd;
+		lsrjt_event.command = (pcmd != NULL) ? *pcmd : 0;
 		stat.un.lsRjtError = be32_to_cpu(rspiocbp->iocb.un.ulpWord[4]);
 		lsrjt_event.reason_code = stat.un.b.lsRjtRsnCode;
 		lsrjt_event.explanation = stat.un.b.lsRjtRsnCodeExp;
@@ -6050,7 +6055,8 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
-			if (vport->port_type == LPFC_PHYSICAL_PORT)
+			if (vport->port_type == LPFC_PHYSICAL_PORT
+				&& !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
 				lpfc_initial_flogi(vport);
 			else
 				lpfc_initial_fdisc(vport);
@@ -6286,6 +6292,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
+	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	vport->fc_flag |= FC_FABRIC;
 	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
 		vport->fc_flag |=  FC_PUBLIC_LOOP;
@@ -6310,11 +6317,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_unreg_rpi(vport, np);
 		}
+		lpfc_cleanup_pending_mbox(vport);
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		else
+			vport->fc_flag |= FC_LOGO_RCVD_DID_CHNG;
 		spin_unlock_irq(shost->host_lock);
 	}
 

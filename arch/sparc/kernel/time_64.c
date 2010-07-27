@@ -424,7 +424,7 @@ static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *
 	struct resource *r;
 
 	printk(KERN_INFO "%s: RTC regs at 0x%llx\n",
-	       op->node->full_name, op->resource[0].start);
+	       op->dev.of_node->full_name, op->resource[0].start);
 
 	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
 	 * up a fake resource so that the probe works for all cases.
@@ -463,10 +463,11 @@ static struct of_device_id __initdata rtc_match[] = {
 };
 
 static struct of_platform_driver rtc_driver = {
-	.match_table	= rtc_match,
 	.probe		= rtc_probe,
-	.driver		= {
-		.name	= "rtc",
+	.driver = {
+		.name = "rtc",
+		.owner = THIS_MODULE,
+		.of_match_table = rtc_match,
 	},
 };
 
@@ -480,7 +481,7 @@ static int __devinit bq4802_probe(struct of_device *op, const struct of_device_i
 {
 
 	printk(KERN_INFO "%s: BQ4802 regs at 0x%llx\n",
-	       op->node->full_name, op->resource[0].start);
+	       op->dev.of_node->full_name, op->resource[0].start);
 
 	rtc_bq4802_device.resource = &op->resource[0];
 	return platform_device_register(&rtc_bq4802_device);
@@ -495,10 +496,11 @@ static struct of_device_id __initdata bq4802_match[] = {
 };
 
 static struct of_platform_driver bq4802_driver = {
-	.match_table	= bq4802_match,
 	.probe		= bq4802_probe,
-	.driver		= {
-		.name	= "bq4802",
+	.driver = {
+		.name = "bq4802",
+		.owner = THIS_MODULE,
+		.of_match_table = bq4802_match,
 	},
 };
 
@@ -534,7 +536,7 @@ static struct platform_device m48t59_rtc = {
 
 static int __devinit mostek_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.
@@ -558,10 +560,11 @@ static struct of_device_id __initdata mostek_match[] = {
 };
 
 static struct of_platform_driver mostek_driver = {
-	.match_table	= mostek_match,
 	.probe		= mostek_probe,
-	.driver		= {
-		.name	= "mostek",
+	.driver = {
+		.name = "mostek",
+		.owner = THIS_MODULE,
+		.of_match_table = mostek_match,
 	},
 };
 

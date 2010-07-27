@@ -360,10 +360,10 @@ static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 	/* We know electra_cf devices will always have of_node set, since
 	 * electra_cf is an of_platform driver.
 	 */
-	if (!parent->archdata.of_node)
+	if (!parent->of_node)
 		return 0;
 
-	if (!of_device_is_compatible(parent->archdata.of_node, "electra-cf"))
+	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
 		return 0;
 
 	/* We use the direct ops for localbus */

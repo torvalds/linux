@@ -575,6 +575,13 @@ MODULE_PARM_DESC(annex,
 			sc->usbatm->atm_dev->type = val; \
 	} while (0)
 
+#define UPDATE_ATM_SIGNAL(val) \
+	do { \
+		if (sc->usbatm->atm_dev) \
+			atm_dev_signal_change(sc->usbatm->atm_dev, val); \
+	} while (0)
+
+
 /* Firmware loading */
 #define LOAD_INTERNAL     0xA0
 #define F8051_USBCS       0x7f92
@@ -1359,7 +1366,7 @@ static int uea_stat_e1(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1498,7 +1505,7 @@ static int uea_stat_e4(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1825,7 +1832,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	 * So we will failed to wait Ready CMV.
 	 */
 	sc->cmv_ack = 0;
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_LOST);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_LOST);
 
 	/* reset statistics */
 	memset(&sc->stats, 0, sizeof(struct uea_stats));

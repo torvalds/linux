@@ -1323,7 +1323,7 @@ static int __devinit sparc_lance_probe_one(struct of_device *op,
 					   struct of_device *ledma,
 					   struct of_device *lebuffer)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
 	struct lance_private *lp;
 	struct net_device *dev;
@@ -1410,7 +1410,7 @@ static int __devinit sparc_lance_probe_one(struct of_device *op,
 
 	lp->burst_sizes = 0;
 	if (lp->ledma) {
-		struct device_node *ledma_dp = ledma->node;
+		struct device_node *ledma_dp = ledma->dev.of_node;
 		struct device_node *sbus_dp;
 		unsigned int sbmask;
 		const char *prop;
@@ -1506,7 +1506,7 @@ fail:
 static int __devinit sunlance_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct of_device *parent = to_of_device(op->dev.parent);
-	struct device_node *parent_dp = parent->node;
+	struct device_node *parent_dp = parent->dev.of_node;
 	int err;
 
 	if (!strcmp(parent_dp->name, "ledma")) {
@@ -1545,8 +1545,11 @@ static const struct of_device_id sunlance_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
 
 static struct of_platform_driver sunlance_sbus_driver = {
-	.name		= "sunlance",
-	.match_table	= sunlance_sbus_match,
+	.driver = {
+		.name = "sunlance",
+		.owner = THIS_MODULE,
+		.of_match_table = sunlance_sbus_match,
+	},
 	.probe		= sunlance_sbus_probe,
 	.remove		= __devexit_p(sunlance_sbus_remove),
 };

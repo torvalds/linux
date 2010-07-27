@@ -53,6 +53,7 @@
 #define  TG3PCI_DEVICE_TIGON3_57765	 0x16b4
 #define  TG3PCI_DEVICE_TIGON3_57791	 0x16b2
 #define  TG3PCI_DEVICE_TIGON3_57795	 0x16b6
+#define  TG3PCI_DEVICE_TIGON3_5719	 0x1657
 /* 0x04 --> 0x2c unused */
 #define TG3PCI_SUBVENDOR_ID_BROADCOM		PCI_VENDOR_ID_BROADCOM
 #define TG3PCI_SUBDEVICE_ID_BROADCOM_95700A6	0x1644
@@ -160,6 +161,7 @@
 #define   ASIC_REV_57780		 0x57780
 #define   ASIC_REV_5717			 0x5717
 #define   ASIC_REV_57765		 0x57785
+#define   ASIC_REV_5719			 0x5719
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -231,6 +233,7 @@
 #define  PCISTATE_RETRY_SAME_DMA	 0x00002000
 #define  PCISTATE_ALLOW_APE_CTLSPC_WR	 0x00010000
 #define  PCISTATE_ALLOW_APE_SHMEM_WR	 0x00020000
+#define  PCISTATE_ALLOW_APE_PSPACE_WR	 0x00040000
 #define TG3PCI_CLOCK_CTRL		0x00000074
 #define  CLOCK_CTRL_CORECLK_DISABLE	 0x00000200
 #define  CLOCK_CTRL_RXCLK_DISABLE	 0x00000400
@@ -468,6 +471,7 @@
 #define  TX_MODE_FLOW_CTRL_ENABLE	 0x00000010
 #define  TX_MODE_BIG_BCKOFF_ENABLE	 0x00000020
 #define  TX_MODE_LONG_PAUSE_ENABLE	 0x00000040
+#define  TX_MODE_MBUF_LOCKUP_FIX	 0x00000100
 #define MAC_TX_STATUS			0x00000460
 #define  TX_STATUS_XOFFED		 0x00000001
 #define  TX_STATUS_SENT_XOFF		 0x00000002
@@ -1071,10 +1075,8 @@
 #define TG3_CPMU_HST_ACC		0x0000361c
 #define  CPMU_HST_ACC_MACCLK_MASK	 0x001f0000
 #define  CPMU_HST_ACC_MACCLK_6_25	 0x00130000
-/* 0x3620 --> 0x362c unused */
+/* 0x3620 --> 0x3630 unused */
 
-#define TG3_CPMU_STATUS			0x0000362c
-#define  TG3_CPMU_STATUS_PCIE_FUNC	 0x20000000
 #define TG3_CPMU_CLCK_STAT		0x00003630
 #define  CPMU_CLCK_STAT_MAC_CLCK_MASK	 0x001f0000
 #define  CPMU_CLCK_STAT_MAC_CLCK_62_5	 0x00000000
@@ -2030,29 +2032,7 @@
 
 
 /* Currently this is fixed. */
-#define TG3_PHY_PCIE_ADDR		0x00
 #define TG3_PHY_MII_ADDR		0x01
-
-
-/*** Tigon3 specific PHY PCIE registers. ***/
-
-#define TG3_PCIEPHY_BLOCK_ADDR		0x1f
-#define  TG3_PCIEPHY_XGXS_BLK1		0x0801
-#define  TG3_PCIEPHY_TXB_BLK		0x0861
-#define  TG3_PCIEPHY_BLOCK_SHIFT	4
-
-/* TG3_PCIEPHY_TXB_BLK */
-#define TG3_PCIEPHY_TX0CTRL1		0x15
-#define  TG3_PCIEPHY_TX0CTRL1_TXOCM	0x0003
-#define  TG3_PCIEPHY_TX0CTRL1_RDCTL	0x0008
-#define  TG3_PCIEPHY_TX0CTRL1_TXCMV	0x0030
-#define  TG3_PCIEPHY_TX0CTRL1_TKSEL	0x0040
-#define  TG3_PCIEPHY_TX0CTRL1_NB_EN	0x0400
-
-/* TG3_PCIEPHY_XGXS_BLK1 */
-#define TG3_PCIEPHY_PWRMGMT4		0x1a
-#define TG3_PCIEPHY_PWRMGMT4_L1PLLPD_EN	0x0038
-#define TG3_PCIEPHY_PWRMGMT4_LOWPWR_EN	0x4000
 
 
 /*** Tigon3 specific PHY MII registers. ***/
@@ -2191,7 +2171,9 @@
 #define  APE_HOST_SEG_LEN_MAGIC		 0x0000001c
 #define TG3_APE_HOST_INIT_COUNT		0x4208
 #define TG3_APE_HOST_DRIVER_ID		0x420c
-#define  APE_HOST_DRIVER_ID_MAGIC	 0xf0035100
+#define  APE_HOST_DRIVER_ID_LINUX	 0xf0000000
+#define  APE_HOST_DRIVER_ID_MAGIC(maj, min)	\
+	(APE_HOST_DRIVER_ID_LINUX | (maj & 0xff) << 16 | (min & 0xff) << 8)
 #define TG3_APE_HOST_BEHAVIOR		0x4210
 #define  APE_HOST_BEHAV_NO_PHYLOCK	 0x00000001
 #define TG3_APE_HOST_HEARTBEAT_INT_MS	0x4214
@@ -2208,6 +2190,11 @@
 #define  APE_EVENT_STATUS_STATE_WOL	 0x00030000
 #define  APE_EVENT_STATUS_STATE_SUSPEND	 0x00040000
 #define  APE_EVENT_STATUS_EVENT_PENDING	 0x80000000
+
+#define TG3_APE_PER_LOCK_REQ		0x8400
+#define  APE_LOCK_PER_REQ_DRIVER	 0x00001000
+#define TG3_APE_PER_LOCK_GRANT		0x8420
+#define  APE_PER_LOCK_GRANT_DRIVER	 0x00001000
 
 /* APE convenience enumerations. */
 #define TG3_APE_LOCK_GRC                1
@@ -2765,8 +2752,8 @@ struct tg3 {
 
 
 	/* begin "everything else" cacheline(s) section */
-	struct net_device_stats		net_stats;
-	struct net_device_stats		net_stats_prev;
+	struct rtnl_link_stats64	net_stats;
+	struct rtnl_link_stats64	net_stats_prev;
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
 
@@ -2942,6 +2929,7 @@ struct tg3 {
 #define TG3_PHY_ID_BCM5718C		0x5c0d8a00
 #define TG3_PHY_ID_BCM5718S		0xbc050ff0
 #define TG3_PHY_ID_BCM57765		0x5c0d8a40
+#define TG3_PHY_ID_BCM5719C		0x5c0d8a20
 #define TG3_PHY_ID_BCM5906		0xdc00ac40
 #define TG3_PHY_ID_BCM8002		0x60010140
 #define TG3_PHY_ID_INVALID		0xffffffff
@@ -2965,7 +2953,8 @@ struct tg3 {
 	 (X) == TG3_PHY_ID_BCM5755 || (X) == TG3_PHY_ID_BCM5756 || \
 	 (X) == TG3_PHY_ID_BCM5906 || (X) == TG3_PHY_ID_BCM5761 || \
 	 (X) == TG3_PHY_ID_BCM5718C || (X) == TG3_PHY_ID_BCM5718S || \
-	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM8002)
+	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM5719C || \
+	 (X) == TG3_PHY_ID_BCM8002)
 
 	u32				led_ctrl;
 	u32				phy_otp;

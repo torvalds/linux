@@ -68,16 +68,13 @@ long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
 {
 	const struct prcm_config *ptr;
 	long highest_rate;
-	long sys_ck_rate;
-
-	sys_ck_rate = clk_get_rate(sclk);
 
 	highest_rate = -EINVAL;
 
 	for (ptr = rate_table; ptr->mpu_speed; ptr++) {
 		if (!(ptr->flags & cpu_mask))
 			continue;
-		if (ptr->xtal_speed != sys_ck_rate)
+		if (ptr->xtal_speed != sclk->rate)
 			continue;
 
 		highest_rate = ptr->mpu_speed;
@@ -96,15 +93,12 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 	const struct prcm_config *prcm;
 	unsigned long found_speed = 0;
 	unsigned long flags;
-	long sys_ck_rate;
-
-	sys_ck_rate = clk_get_rate(sclk);
 
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;
 
-		if (prcm->xtal_speed != sys_ck_rate)
+		if (prcm->xtal_speed != sclk->rate)
 			continue;
 
 		if (prcm->mpu_speed <= rate) {
@@ -181,19 +175,16 @@ static struct cpufreq_frequency_table *freq_table;
 void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	const struct prcm_config *prcm;
-	long sys_ck_rate;
 	int i = 0;
 	int tbl_sz = 0;
 
 	if (!cpu_is_omap24xx())
 		return;
 
-	sys_ck_rate = clk_get_rate(sclk);
-
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;
-		if (prcm->xtal_speed != sys_ck_rate)
+		if (prcm->xtal_speed != sclk->rate)
 			continue;
 
 		/* don't put bypass rates in table */
@@ -226,7 +217,7 @@ void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;
-		if (prcm->xtal_speed != sys_ck_rate)
+		if (prcm->xtal_speed != sclk->rate)
 			continue;
 
 		/* don't put bypass rates in table */

@@ -180,8 +180,8 @@ static const char *gdth_ctr_name(gdth_ha_str *ha);
 
 static int gdth_open(struct inode *inode, struct file *filep);
 static int gdth_close(struct inode *inode, struct file *filep);
-static int gdth_ioctl(struct inode *inode, struct file *filep,
-                      unsigned int cmd, unsigned long arg);
+static long gdth_unlocked_ioctl(struct file *filep, unsigned int cmd,
+			        unsigned long arg);
 
 static void gdth_flush(gdth_ha_str *ha);
 static int gdth_queuecommand(Scsi_Cmnd *scp,void (*done)(Scsi_Cmnd *));
@@ -369,7 +369,7 @@ MODULE_LICENSE("GPL");
 
 /* ioctl interface */
 static const struct file_operations gdth_fops = {
-    .ioctl   = gdth_ioctl,
+    .unlocked_ioctl   = gdth_unlocked_ioctl,
     .open    = gdth_open,
     .release = gdth_close,
 };
@@ -3842,7 +3842,7 @@ int __init option_setup(char *str)
 
     TRACE2(("option_setup() str %s\n", str ? str:"NULL")); 
 
-    while (cur && isdigit(*cur) && i <= MAXHA) {
+    while (cur && isdigit(*cur) && i < MAXHA) {
         ints[i++] = simple_strtoul(cur, NULL, 0);
         if ((cur = strchr(cur, ',')) != NULL) cur++;
     }
@@ -4462,8 +4462,7 @@ free_fail:
     return rc;
 }
   
-static int gdth_ioctl(struct inode *inode, struct file *filep,
-                      unsigned int cmd, unsigned long arg)
+static int gdth_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
     gdth_ha_str *ha; 
     Scsi_Cmnd *scp;
@@ -4611,6 +4610,17 @@ static int gdth_ioctl(struct inode *inode, struct file *filep,
     return 0;
 }
 
+static long gdth_unlocked_ioctl(struct file *file, unsigned int cmd,
+			        unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = gdth_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
 
 /* flush routine */
 static void gdth_flush(gdth_ha_str *ha)

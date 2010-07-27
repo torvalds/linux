@@ -44,17 +44,9 @@
  * Returns locked and up-to-date page (if ok), with increased
  * refcnt.
  */
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index)
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
 {
-	struct dentry *dentry;
-	struct inode *inode;
-	struct address_space *mapping;
-	struct page *page;
-
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
-	mapping = inode->i_mapping;
-	page = read_mapping_page(mapping, index, (void *)file);
+	struct page *page = read_mapping_page(inode->i_mapping, index, NULL);
 	if (!IS_ERR(page))
 		lock_page(page);
 	return page;
@@ -198,7 +190,7 @@ out:
 static int ecryptfs_readpage(struct file *file, struct page *page)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
 	int rc = 0;
 
 	if (!crypt_stat
@@ -300,8 +292,7 @@ static int ecryptfs_write_begin(struct file *file,
 
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
-			&ecryptfs_inode_to_private(
-				file->f_path.dentry->d_inode)->crypt_stat;
+			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
 		    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
@@ -487,7 +478,7 @@ static int ecryptfs_write_end(struct file *file,
 	unsigned to = from + copied;
 	struct inode *ecryptfs_inode = mapping->host;
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc;
 
 	if (crypt_stat->flags & ECRYPTFS_NEW_FILE) {

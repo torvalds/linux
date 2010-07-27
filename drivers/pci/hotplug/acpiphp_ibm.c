@@ -108,7 +108,7 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status);
 static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status);
 static void ibm_handle_events(acpi_handle handle, u32 event, void *context);
 static int ibm_get_table_from_acpi(char **bufp);
-static ssize_t ibm_read_apci_table(struct kobject *kobj,
+static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size);
 static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
@@ -351,6 +351,7 @@ read_table_done:
 
 /**
  * ibm_read_apci_table - callback for the sysfs apci_table file
+ * @filp: the open sysfs file
  * @kobj: the kobject this binary attribute is a part of
  * @bin_attr: struct bin_attribute for this file
  * @buffer: the kernel space buffer to fill
@@ -364,7 +365,7 @@ read_table_done:
  * things get really tricky here...
  * our solution is to only allow reading the table in all at once.
  */
-static ssize_t ibm_read_apci_table(struct kobject *kobj,
+static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size)
 {

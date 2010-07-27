@@ -896,7 +896,7 @@ static void ffb_init_fix(struct fb_info *info)
 static int __devinit ffb_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct ffb_fbc __iomem *fbc;
 	struct ffb_dac __iomem *dac;
 	struct fb_info *info;
@@ -1053,8 +1053,11 @@ static const struct of_device_id ffb_match[] = {
 MODULE_DEVICE_TABLE(of, ffb_match);
 
 static struct of_platform_driver ffb_driver = {
-	.name		= "ffb",
-	.match_table	= ffb_match,
+	.driver = {
+		.name = "ffb",
+		.owner = THIS_MODULE,
+		.of_match_table = ffb_match,
+	},
 	.probe		= ffb_probe,
 	.remove		= __devexit_p(ffb_remove),
 };

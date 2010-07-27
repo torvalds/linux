@@ -362,7 +362,7 @@ struct ide_drive_s;
 struct ide_disk_ops {
 	int		(*check)(struct ide_drive_s *, const char *);
 	int		(*get_capacity)(struct ide_drive_s *);
-	u64		(*set_capacity)(struct ide_drive_s *, u64);
+	void		(*unlock_native_capacity)(struct ide_drive_s *);
 	void		(*setup)(struct ide_drive_s *);
 	void		(*flush)(struct ide_drive_s *);
 	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
@@ -516,8 +516,8 @@ struct ide_drive_s {
         u8	current_speed;	/* current transfer rate set */
 	u8	desired_speed;	/* desired transfer rate set */
 	u8	pio_mode;	/* for ->set_pio_mode _only_ */
-	u8	dma_mode;	/* for ->dma_pio_mode _only_ */
-        u8	dn;		/* now wide spread use */
+	u8	dma_mode;	/* for ->set_dma_mode _only_ */
+	u8	dn;		/* now wide spread use */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
 	u8	ready_stat;	/* min status value for drive ready */

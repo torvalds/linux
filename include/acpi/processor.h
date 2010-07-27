@@ -52,17 +52,6 @@ struct acpi_power_register {
 	u64 address;
 } __attribute__ ((packed));
 
-struct acpi_processor_cx_policy {
-	u32 count;
-	struct acpi_processor_cx *state;
-	struct {
-		u32 time;
-		u32 ticks;
-		u32 count;
-		u32 bm;
-	} threshold;
-};
-
 struct acpi_processor_cx {
 	u8 valid;
 	u8 type;
@@ -74,8 +63,6 @@ struct acpi_processor_cx {
 	u32 power;
 	u32 usage;
 	u64 time;
-	struct acpi_processor_cx_policy promotion;
-	struct acpi_processor_cx_policy demotion;
 	char desc[ACPI_CX_DESC_LEN];
 };
 

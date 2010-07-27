@@ -3151,7 +3151,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
-	if (ia_valid & ATTR_SIZE)
+	if (is_quota_modification(inode, attr))
 		dquot_initialize(inode);
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 		(ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {

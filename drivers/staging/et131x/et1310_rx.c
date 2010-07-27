@@ -344,7 +344,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			  "Cannot alloc memory for Packet Status Ring\n");
 		return -ENOMEM;
 	}
-	printk("PSR %lx\n", (unsigned long) rx_ring->pPSRingPa);
+	printk(KERN_INFO "PSR %lx\n", (unsigned long) rx_ring->pPSRingPa);
 
 	/*
 	 * NOTE : pci_alloc_consistent(), used above to alloc DMA regions,
@@ -363,7 +363,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 	}
 	rx_ring->NumRfd = NIC_DEFAULT_NUM_RFD;
-	printk("PRS %lx\n", (unsigned long)rx_ring->rx_status_bus);
+	printk(KERN_INFO "PRS %lx\n", (unsigned long)rx_ring->rx_status_bus);
 
 	/* Recv
 	 * pci_pool_create initializes a lookaside list. After successful
@@ -445,10 +445,10 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 				rx_ring->pFbr1RingVa - rx_ring->Fbr1offset);
 
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr1NumEntries)
-	                                                        + 0xfff;
+							    + 0xfff;
 
 		pci_free_consistent(adapter->pdev, bufsize,
-                                rx_ring->pFbr1RingVa, rx_ring->pFbr1RingPa);
+				rx_ring->pFbr1RingVa, rx_ring->pFbr1RingPa);
 
 		rx_ring->pFbr1RingVa = NULL;
 	}
@@ -478,7 +478,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 				rx_ring->pFbr0RingVa - rx_ring->Fbr0offset);
 
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr0NumEntries)
-                                                                + 0xfff;
+							    + 0xfff;
 
 		pci_free_consistent(adapter->pdev,
 				    bufsize,
@@ -504,7 +504,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		pci_free_consistent(adapter->pdev,
 			sizeof(struct rx_status_block),
 			rx_ring->rx_status_block, rx_ring->rx_status_bus);
-        	rx_ring->rx_status_block = NULL;
+		rx_ring->rx_status_block = NULL;
 	}
 
 	/* Free receive buffer pool */
@@ -547,7 +547,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->NumRfd; rfdct++) {
-		rfd = (MP_RFD *) kmem_cache_alloc(rx_ring->RecvLookaside,
+		rfd = kmem_cache_alloc(rx_ring->RecvLookaside,
 						     GFP_ATOMIC | GFP_DMA);
 
 		if (!rfd) {
@@ -713,7 +713,7 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
  */
 void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 {
-        u32 csr;
+	u32 csr;
 	/* Setup the receive dma configuration register */
 	writel(0x00002001, &etdev->regs->rxdma.csr);
 	csr = readl(&etdev->regs->rxdma.csr);
@@ -743,9 +743,9 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 	else if (etdev->rx_ring.Fbr1BufferSize == 16384)
 		csr |= 0x1800;
 #ifdef USE_FBR0
-        csr |= 0x0400;		/* FBR0 enable */
+	csr |= 0x0400;		/* FBR0 enable */
 	if (etdev->rx_ring.Fbr0BufferSize == 256)
-	        csr |= 0x0100;
+		csr |= 0x0100;
 	else if (etdev->rx_ring.Fbr0BufferSize == 512)
 		csr |= 0x0200;
 	else if (etdev->rx_ring.Fbr0BufferSize == 1024)
@@ -757,7 +757,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 	if ((csr & 0x00020000) != 0) {
 		udelay(5);
 		csr = readl(&etdev->regs->rxdma.csr);
-        	if ((csr & 0x00020000) != 0) {
+		if ((csr & 0x00020000) != 0) {
 			dev_err(&etdev->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
 				csr);
@@ -841,8 +841,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		(rindex == 1 &&
 		bindex > rx_local->Fbr1NumEntries - 1))
 #else
-	if (rindex != 1 ||
-		bindex > rx_local->Fbr1NumEntries - 1)
+	if (rindex != 1 || bindex > rx_local->Fbr1NumEntries - 1)
 #endif
 	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
@@ -1063,20 +1062,20 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 
 static inline u32 bump_fbr(u32 *fbr, u32 limit)
 {
-        u32 v = *fbr;
-        v++;
-        /* This works for all cases where limit < 1024. The 1023 case
-           works because 1023++ is 1024 which means the if condition is not
-           taken but the carry of the bit into the wrap bit toggles the wrap
-           value correctly */
-        if ((v & ET_DMA10_MASK) > limit) {
-                v &= ~ET_DMA10_MASK;
-                v ^= ET_DMA10_WRAP;
-        }
-        /* For the 1023 case */
-        v &= (ET_DMA10_MASK|ET_DMA10_WRAP);
-        *fbr = v;
-        return v;
+	u32 v = *fbr;
+	v++;
+	/* This works for all cases where limit < 1024. The 1023 case
+	   works because 1023++ is 1024 which means the if condition is not
+	   taken but the carry of the bit into the wrap bit toggles the wrap
+	   value correctly */
+	if ((v & ET_DMA10_MASK) > limit) {
+		v &= ~ET_DMA10_MASK;
+		v ^= ET_DMA10_WRAP;
+	}
+	/* For the 1023 case */
+	v &= (ET_DMA10_MASK|ET_DMA10_WRAP);
+	*fbr = v;
+	return v;
 }
 
 /**
@@ -1105,7 +1104,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 		if (ri == 1) {
 			struct fbr_desc *next =
 			    (struct fbr_desc *) (rx_local->pFbr1RingVa) +
-                		            INDEX10(rx_local->local_Fbr1_full);
+					 INDEX10(rx_local->local_Fbr1_full);
 
 			/* Handle the Free Buffer Ring advancement here. Write
 			 * the PA / Buffer Index for the returned buffer into

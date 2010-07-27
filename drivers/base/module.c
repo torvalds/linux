@@ -15,12 +15,10 @@ static char *make_driver_name(struct device_driver *drv)
 {
 	char *driver_name;
 
-	driver_name = kmalloc(strlen(drv->name) + strlen(drv->bus->name) + 2,
-			      GFP_KERNEL);
+	driver_name = kasprintf(GFP_KERNEL, "%s:%s", drv->bus->name, drv->name);
 	if (!driver_name)
 		return NULL;
 
-	sprintf(driver_name, "%s:%s", drv->bus->name, drv->name);
 	return driver_name;
 }
 

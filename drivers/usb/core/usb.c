@@ -573,7 +573,7 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 			iface->condition == USB_INTERFACE_UNBOUND))
 		return -EINTR;
 
-	while (usb_trylock_device(udev) != 0) {
+	while (!usb_trylock_device(udev)) {
 
 		/* If we can't acquire the lock after waiting one second,
 		 * we're probably deadlocked */

@@ -770,7 +770,7 @@ const BYTE abyFirmware[] = {
 
 BOOL
 FIRMWAREbDownload(
-    IN PSDevice pDevice
+     PSDevice pDevice
     )
 {
     NDIS_STATUS NdisStatus;
@@ -820,7 +820,7 @@ FIRMWAREbDownload(
 
 BOOL
 FIRMWAREbBrach2Sram(
-    IN PSDevice pDevice
+     PSDevice pDevice
     )
 {
     NDIS_STATUS NdisStatus;
@@ -845,7 +845,7 @@ FIRMWAREbBrach2Sram(
 
 BOOL
 FIRMWAREbCheckVersion(
-    IN PSDevice pDevice
+     PSDevice pDevice
     )
 {
     NTSTATUS                ntStatus;

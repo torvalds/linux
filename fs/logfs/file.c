@@ -219,9 +219,9 @@ int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 }
 
-int logfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int logfs_fsync(struct file *file, int datasync)
 {
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct super_block *sb = file->f_mapping->host->i_sb;
 
 	logfs_write_anchor(sb);
 	return 0;

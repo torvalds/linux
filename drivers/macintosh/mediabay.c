@@ -564,7 +564,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 	unsigned long base;
 	int i;
 
-	ofnode = mdev->ofdev.node;
+	ofnode = mdev->ofdev.dev.of_node;
 
 	if (macio_resource_count(mdev) < 1)
 		return -ENODEV;

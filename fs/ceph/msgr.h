@@ -50,7 +50,6 @@ struct ceph_entity_name {
 #define CEPH_ENTITY_TYPE_MDS    0x02
 #define CEPH_ENTITY_TYPE_OSD    0x04
 #define CEPH_ENTITY_TYPE_CLIENT 0x08
-#define CEPH_ENTITY_TYPE_ADMIN  0x10
 #define CEPH_ENTITY_TYPE_AUTH   0x20
 
 #define CEPH_ENTITY_TYPE_ANY    0xFF
@@ -120,7 +119,7 @@ struct ceph_msg_connect_reply {
 /*
  * message header
  */
-struct ceph_msg_header {
+struct ceph_msg_header_old {
 	__le64 seq;       /* message seq# for this session */
 	__le64 tid;       /* transaction id */
 	__le16 type;      /* message type */
@@ -134,6 +133,24 @@ struct ceph_msg_header {
 			     receiver: mask against ~PAGE_MASK */
 
 	struct ceph_entity_inst src, orig_src;
+	__le32 reserved;
+	__le32 crc;       /* header crc32c */
+} __attribute__ ((packed));
+
+struct ceph_msg_header {
+	__le64 seq;       /* message seq# for this session */
+	__le64 tid;       /* transaction id */
+	__le16 type;      /* message type */
+	__le16 priority;  /* priority.  higher value == higher priority */
+	__le16 version;   /* version of message encoding */
+
+	__le32 front_len; /* bytes in main payload */
+	__le32 middle_len;/* bytes in middle payload */
+	__le32 data_len;  /* bytes of data payload */
+	__le16 data_off;  /* sender: include full offset;
+			     receiver: mask against ~PAGE_MASK */
+
+	struct ceph_entity_name src;
 	__le32 reserved;
 	__le32 crc;       /* header crc32c */
 } __attribute__ ((packed));

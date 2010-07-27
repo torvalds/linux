@@ -36,7 +36,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.4.0.98"
+#define DRV_VERSION		"1.4.0.145"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -45,7 +45,7 @@
 #define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	32
 #define	FNIC_STATS_RATE_LIMIT	4 /* limit rate at which stats are pulled up */
-#define FNIC_MAX_CMD_LEN        16 /* Supported CDB length */
+
 /*
  * Tag bits used for special requests.
  */

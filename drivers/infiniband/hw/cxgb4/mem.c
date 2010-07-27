@@ -712,8 +712,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
-	if (!mhp)
+	if (!mhp) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	mhp->rhp = rhp;
 	ret = alloc_pbl(mhp, pbl_depth);
@@ -730,8 +732,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	mhp->attr.state = 1;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid))
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		ret = -ENOMEM;
 		goto err3;
+	}
 
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmr);
@@ -754,9 +758,6 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
 	struct c4iw_dev *dev = to_c4iw_dev(device);
 	dma_addr_t dma_addr;
 	int size = sizeof *c4pl + page_list_len * sizeof(u64);
-
-	if (page_list_len > T4_MAX_FR_DEPTH)
-		return ERR_PTR(-EINVAL);
 
 	c4pl = dma_alloc_coherent(&dev->rdev.lldi.pdev->dev, size,
 				  &dma_addr, GFP_KERNEL);

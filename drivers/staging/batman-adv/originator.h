@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -28,4 +28,7 @@ struct orig_node *get_orig_node(uint8_t *addr);
 struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming);
-
+ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
+			      size_t count, loff_t off);
+int orig_hash_add_if(struct batman_if *batman_if, int max_if_num);
+int orig_hash_del_if(struct batman_if *batman_if, int max_if_num);

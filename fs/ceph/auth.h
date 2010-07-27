@@ -15,11 +15,19 @@ struct ceph_auth_client;
 struct ceph_authorizer;
 
 struct ceph_auth_client_ops {
+	const char *name;
+
 	/*
 	 * true if we are authenticated and can connect to
 	 * services.
 	 */
 	int (*is_authenticated)(struct ceph_auth_client *ac);
+
+	/*
+	 * true if we should (re)authenticate, e.g., when our tickets
+	 * are getting old and crusty.
+	 */
+	int (*should_authenticate)(struct ceph_auth_client *ac);
 
 	/*
 	 * build requests and process replies during monitor

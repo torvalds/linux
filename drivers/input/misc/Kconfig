@@ -80,6 +80,16 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_MAX8925_ONKEY
+	tristate "MAX8925 ONKEY support"
+	depends on MFD_MAX8925
+	help
+	  Support the ONKEY of MAX8925 PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max8925_onkey.
+
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS

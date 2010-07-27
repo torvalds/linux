@@ -93,11 +93,11 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		return ERR_PTR(-ESTALE);
 
 	dentry = d_obtain_alias(inode);
-	if (!dentry) {
+	if (IS_ERR(dentry)) {
 		pr_err("fh_to_dentry %llx -- inode %p but ENOMEM\n",
 		       fh->ino, inode);
 		iput(inode);
-		return ERR_PTR(-ENOMEM);
+		return dentry;
 	}
 	err = ceph_init_dentry(dentry);
 
@@ -115,7 +115,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 static struct dentry *__cfh_to_dentry(struct super_block *sb,
 				      struct ceph_nfs_confh *cfh)
 {
-	struct ceph_mds_client *mdsc = &ceph_client(sb)->mdsc;
+	struct ceph_mds_client *mdsc = &ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -133,7 +133,7 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPHASH,
 					       USE_ANY_MDS);
 		if (IS_ERR(req))
-			return ERR_PTR(PTR_ERR(req));
+			return ERR_CAST(req);
 
 		req->r_ino1 = vino;
 		req->r_ino2.ino = cfh->parent_ino;
@@ -149,11 +149,11 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 	}
 
 	dentry = d_obtain_alias(inode);
-	if (!dentry) {
+	if (IS_ERR(dentry)) {
 		pr_err("cfh_to_dentry %llx -- inode %p but ENOMEM\n",
 		       cfh->ino, inode);
 		iput(inode);
-		return ERR_PTR(-ENOMEM);
+		return dentry;
 	}
 	err = ceph_init_dentry(dentry);
 	if (err < 0) {
@@ -202,11 +202,11 @@ static struct dentry *ceph_fh_to_parent(struct super_block *sb,
 		return ERR_PTR(-ESTALE);
 
 	dentry = d_obtain_alias(inode);
-	if (!dentry) {
+	if (IS_ERR(dentry)) {
 		pr_err("fh_to_parent %llx -- inode %p but ENOMEM\n",
 		       cfh->ino, inode);
 		iput(inode);
-		return ERR_PTR(-ENOMEM);
+		return dentry;
 	}
 	err = ceph_init_dentry(dentry);
 	if (err < 0) {

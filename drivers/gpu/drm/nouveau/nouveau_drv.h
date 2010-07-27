@@ -535,6 +535,7 @@ struct drm_nouveau_private {
 
 	struct fb_info *fbdev_info;
 
+	int fifo_alloc_count;
 	struct nouveau_channel *fifos[NOUVEAU_MAX_CHANNEL_NR];
 
 	struct nouveau_engine engine;
@@ -621,6 +622,9 @@ struct drm_nouveau_private {
 	struct {
 		struct dentry *channel_root;
 	} debugfs;
+
+	struct nouveau_fbdev *nfbdev;
+	struct apertures_struct *apertures;
 };
 
 static inline struct drm_nouveau_private *
@@ -1165,6 +1169,12 @@ int nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 /* nv50_gpio.c */
 int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+
+/* nv50_calc. */
+int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
+		  int *N1, int *M1, int *N2, int *M2, int *P);
+int nv50_calc_pll2(struct drm_device *, struct pll_lims *,
+		   int clk, int *N, int *fN, int *M, int *P);
 
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN

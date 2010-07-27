@@ -182,9 +182,6 @@ struct audio {
 	int stopped; /* set when stopped, cleared on flush */
 	unsigned volume;
 
-	struct wake_lock wakelock;
-	struct wake_lock idlelock;
-
 	int adrc_enable;
 	struct adrc_filter adrc;
 
@@ -198,14 +195,10 @@ struct audio {
 static void audio_prevent_sleep(struct audio *audio)
 {
 	printk(KERN_INFO "++++++++++++++++++++++++++++++\n");
-	wake_lock(&audio->wakelock);
-	wake_lock(&audio->idlelock);
 }
 
 static void audio_allow_sleep(struct audio *audio)
 {
-	wake_unlock(&audio->wakelock);
-	wake_unlock(&audio->idlelock);
 	printk(KERN_INFO "------------------------------\n");
 }
 
@@ -840,8 +833,6 @@ static int __init audio_init(void)
 	mutex_init(&the_audio.write_lock);
 	spin_lock_init(&the_audio.dsp_lock);
 	init_waitqueue_head(&the_audio.wait);
-	wake_lock_init(&the_audio.wakelock, WAKE_LOCK_SUSPEND, "audio_pcm");
-	wake_lock_init(&the_audio.idlelock, WAKE_LOCK_IDLE, "audio_pcm_idle");
 	return (misc_register(&audio_misc) || misc_register(&audpp_misc));
 }
 

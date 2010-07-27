@@ -19,7 +19,7 @@
  * Ceph release version
  */
 #define CEPH_VERSION_MAJOR 0
-#define CEPH_VERSION_MINOR 19
+#define CEPH_VERSION_MINOR 20
 #define CEPH_VERSION_PATCH 0
 
 #define _CEPH_STRINGIFY(x) #x
@@ -36,7 +36,7 @@
  * client-facing protocol.
  */
 #define CEPH_OSD_PROTOCOL     8 /* cluster internal */
-#define CEPH_MDS_PROTOCOL     9 /* cluster internal */
+#define CEPH_MDS_PROTOCOL    12 /* cluster internal */
 #define CEPH_MON_PROTOCOL     5 /* cluster internal */
 #define CEPH_OSDC_PROTOCOL   24 /* server/client */
 #define CEPH_MDSC_PROTOCOL   32 /* server/client */
@@ -53,8 +53,18 @@
 /*
  * feature bits
  */
-#define CEPH_FEATURE_SUPPORTED  0
-#define CEPH_FEATURE_REQUIRED   0
+#define CEPH_FEATURE_UID        1
+#define CEPH_FEATURE_NOSRCADDR  2
+#define CEPH_FEATURE_FLOCK      4
+
+#define CEPH_FEATURE_SUPPORTED_MON  CEPH_FEATURE_UID|CEPH_FEATURE_NOSRCADDR
+#define CEPH_FEATURE_REQUIRED_MON   CEPH_FEATURE_UID
+#define CEPH_FEATURE_SUPPORTED_MDS  CEPH_FEATURE_UID|CEPH_FEATURE_NOSRCADDR|CEPH_FEATURE_FLOCK
+#define CEPH_FEATURE_REQUIRED_MDS   CEPH_FEATURE_UID
+#define CEPH_FEATURE_SUPPORTED_OSD  CEPH_FEATURE_UID|CEPH_FEATURE_NOSRCADDR
+#define CEPH_FEATURE_REQUIRED_OSD   CEPH_FEATURE_UID
+#define CEPH_FEATURE_SUPPORTED_CLIENT CEPH_FEATURE_NOSRCADDR
+#define CEPH_FEATURE_REQUIRED_CLIENT CEPH_FEATURE_NOSRCADDR
 
 
 /*
@@ -90,6 +100,8 @@ int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 #define CEPH_AUTH_UNKNOWN	0x0
 #define CEPH_AUTH_NONE	 	0x1
 #define CEPH_AUTH_CEPHX	 	0x2
+
+#define CEPH_AUTH_UID_DEFAULT ((__u64) -1)
 
 
 /*********************************************
@@ -128,10 +140,26 @@ int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 #define CEPH_MSG_CLIENT_SNAP            0x312
 #define CEPH_MSG_CLIENT_CAPRELEASE      0x313
 
+/* pool ops */
+#define CEPH_MSG_POOLOP_REPLY           48
+#define CEPH_MSG_POOLOP                 49
+
+
 /* osd */
 #define CEPH_MSG_OSD_MAP          41
 #define CEPH_MSG_OSD_OP           42
 #define CEPH_MSG_OSD_OPREPLY      43
+
+/* pool operations */
+enum {
+  POOL_OP_CREATE			= 0x01,
+  POOL_OP_DELETE			= 0x02,
+  POOL_OP_AUID_CHANGE			= 0x03,
+  POOL_OP_CREATE_SNAP			= 0x11,
+  POOL_OP_DELETE_SNAP			= 0x12,
+  POOL_OP_CREATE_UNMANAGED_SNAP		= 0x21,
+  POOL_OP_DELETE_UNMANAGED_SNAP		= 0x22,
+};
 
 struct ceph_mon_request_header {
 	__le64 have_version;
@@ -153,6 +181,31 @@ struct ceph_mon_statfs_reply {
 	struct ceph_fsid fsid;
 	__le64 version;
 	struct ceph_statfs st;
+} __attribute__ ((packed));
+
+const char *ceph_pool_op_name(int op);
+
+struct ceph_mon_poolop {
+	struct ceph_mon_request_header monhdr;
+	struct ceph_fsid fsid;
+	__le32 pool;
+	__le32 op;
+	__le64 auid;
+	__le64 snapid;
+	__le32 name_len;
+} __attribute__ ((packed));
+
+struct ceph_mon_poolop_reply {
+	struct ceph_mon_request_header monhdr;
+	struct ceph_fsid fsid;
+	__le32 reply_code;
+	__le32 epoch;
+	char has_data;
+	char data[0];
+} __attribute__ ((packed));
+
+struct ceph_mon_unmanaged_snap {
+	__le64 snapid;
 } __attribute__ ((packed));
 
 struct ceph_osd_getmap {
@@ -212,16 +265,17 @@ extern const char *ceph_mds_state_name(int s);
  *  - they also define the lock ordering by the MDS
  *  - a few of these are internal to the mds
  */
-#define CEPH_LOCK_DN          1
-#define CEPH_LOCK_ISNAP       2
-#define CEPH_LOCK_IVERSION    4     /* mds internal */
-#define CEPH_LOCK_IFILE       8     /* mds internal */
-#define CEPH_LOCK_IAUTH       32
-#define CEPH_LOCK_ILINK       64
-#define CEPH_LOCK_IDFT        128   /* dir frag tree */
-#define CEPH_LOCK_INEST       256   /* mds internal */
-#define CEPH_LOCK_IXATTR      512
-#define CEPH_LOCK_INO         2048  /* immutable inode bits; not a lock */
+#define CEPH_LOCK_DVERSION    1
+#define CEPH_LOCK_DN          2
+#define CEPH_LOCK_ISNAP       16
+#define CEPH_LOCK_IVERSION    32    /* mds internal */
+#define CEPH_LOCK_IFILE       64
+#define CEPH_LOCK_IAUTH       128
+#define CEPH_LOCK_ILINK       256
+#define CEPH_LOCK_IDFT        512   /* dir frag tree */
+#define CEPH_LOCK_INEST       1024  /* mds internal */
+#define CEPH_LOCK_IXATTR      2048
+#define CEPH_LOCK_INO         8192  /* immutable inode bits; not a lock */
 
 /* client_session ops */
 enum {
@@ -308,6 +362,7 @@ union ceph_mds_request_args {
 	struct {
 		__le32 frag;                 /* which dir fragment */
 		__le32 max_entries;          /* how many dentries to grab */
+		__le32 max_bytes;
 	} __attribute__ ((packed)) readdir;
 	struct {
 		__le32 mode;

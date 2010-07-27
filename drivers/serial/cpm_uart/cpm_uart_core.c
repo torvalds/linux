@@ -1342,7 +1342,7 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
 
-	ret = cpm_uart_init_port(ofdev->node, pinfo);
+	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
 	if (ret)
 		return ret;
 
@@ -1372,8 +1372,11 @@ static struct of_device_id cpm_uart_match[] = {
 };
 
 static struct of_platform_driver cpm_uart_driver = {
-	.name = "cpm_uart",
-	.match_table = cpm_uart_match,
+	.driver = {
+		.name = "cpm_uart",
+		.owner = THIS_MODULE,
+		.of_match_table = cpm_uart_match,
+	},
 	.probe = cpm_uart_probe,
 	.remove = cpm_uart_remove,
  };

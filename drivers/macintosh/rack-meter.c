@@ -375,7 +375,7 @@ static int __devinit rackmeter_probe(struct macio_dev* mdev,
 	pr_debug("rackmeter_probe()\n");
 
 	/* Get i2s-a node */
-	while ((i2s = of_get_next_child(mdev->ofdev.node, i2s)) != NULL)
+	while ((i2s = of_get_next_child(mdev->ofdev.dev.of_node, i2s)) != NULL)
 	       if (strcmp(i2s->name, "i2s-a") == 0)
 		       break;
 	if (i2s == NULL) {
@@ -431,7 +431,7 @@ static int __devinit rackmeter_probe(struct macio_dev* mdev,
 	    of_address_to_resource(i2s, 1, &rdma)) {
 		printk(KERN_ERR
 		       "rackmeter: found match but lacks resources: %s",
-		       mdev->ofdev.node->full_name);
+		       mdev->ofdev.dev.of_node->full_name);
 		rc = -ENXIO;
 		goto bail_free;
 	}

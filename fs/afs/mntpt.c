@@ -49,9 +49,6 @@ static unsigned long afs_mntpt_expiry_timeout = 10 * 60;
  */
 int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 {
-	struct file file = {
-		.private_data = key,
-	};
 	struct page *page;
 	size_t size;
 	char *buf;
@@ -61,7 +58,8 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
-	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, &file);
+	page = read_cache_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0,
+			       afs_page_filler, key);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
 		goto out;

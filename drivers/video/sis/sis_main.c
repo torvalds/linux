@@ -1845,7 +1845,7 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
-	strcpy(fix->id, ivideo->myid);
+	strlcpy(fix->id, ivideo->myid, sizeof(fix->id));
 
 	mutex_lock(&info->mm_lock);
 	fix->smem_start  = ivideo->video_base + ivideo->video_offset;

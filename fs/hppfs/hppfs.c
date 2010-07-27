@@ -587,7 +587,7 @@ static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	return err;
 }
 
-static int hppfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int hppfs_fsync(struct file *file, int datasync)
 {
 	return 0;
 }

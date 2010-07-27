@@ -3,7 +3,7 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_ctl.c
- * Copyright (C) 2007-2009  LSI Corporation
+ * Copyright (C) 2007-2010  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -533,7 +533,7 @@ _ctl_set_task_mid(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command *karg,
 	if (!found) {
 		dctlprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "handle(0x%04x), lun(%d), no active mid!!\n", ioc->name,
-		    desc, tm_request->DevHandle, lun));
+		    desc, le16_to_cpu(tm_request->DevHandle), lun));
 		tm_reply = ioc->ctl_cmds.reply;
 		tm_reply->DevHandle = tm_request->DevHandle;
 		tm_reply->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
@@ -551,7 +551,8 @@ _ctl_set_task_mid(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command *karg,
 
 	dctlprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 	    "handle(0x%04x), lun(%d), task_mid(%d)\n", ioc->name,
-	    desc, tm_request->DevHandle, lun, tm_request->TaskMID));
+	    desc, le16_to_cpu(tm_request->DevHandle), lun,
+	     le16_to_cpu(tm_request->TaskMID)));
 	return 0;
 }
 
@@ -647,9 +648,9 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 	    mpi_request->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
-		if (!mpi_request->FunctionDependent1 ||
-		    mpi_request->FunctionDependent1 >
-		    cpu_to_le16(ioc->facts.MaxDevHandle)) {
+		if (!le16_to_cpu(mpi_request->FunctionDependent1) ||
+		    le16_to_cpu(mpi_request->FunctionDependent1) >
+		    ioc->facts.MaxDevHandle) {
 			ret = -EINVAL;
 			mpt2sas_base_free_smid(ioc, smid);
 			goto out;
@@ -743,14 +744,21 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		    mpt2sas_base_get_sense_buffer_dma(ioc, smid);
 		priv_sense = mpt2sas_base_get_sense_buffer(ioc, smid);
 		memset(priv_sense, 0, SCSI_SENSE_BUFFERSIZE);
-		mpt2sas_base_put_smid_scsi_io(ioc, smid,
-		    le16_to_cpu(mpi_request->FunctionDependent1));
+		if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST)
+			mpt2sas_base_put_smid_scsi_io(ioc, smid,
+			    le16_to_cpu(mpi_request->FunctionDependent1));
+		else
+			mpt2sas_base_put_smid_default(ioc, smid);
 		break;
 	}
 	case MPI2_FUNCTION_SCSI_TASK_MGMT:
 	{
 		Mpi2SCSITaskManagementRequest_t *tm_request =
 		    (Mpi2SCSITaskManagementRequest_t *)mpi_request;
+
+		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "TASK_MGMT: "
+		    "handle(0x%04x), task_type(0x%02x)\n", ioc->name,
+		    le16_to_cpu(tm_request->DevHandle), tm_request->TaskType));
 
 		if (tm_request->TaskType ==
 		    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK ||
@@ -762,7 +770,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			}
 		}
 
-		mutex_lock(&ioc->tm_cmds.mutex);
 		mpt2sas_scsih_set_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
 		mpt2sas_base_put_smid_hi_priority(ioc, smid);
@@ -818,7 +825,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT) {
 		Mpi2SCSITaskManagementRequest_t *tm_request =
 		    (Mpi2SCSITaskManagementRequest_t *)mpi_request;
-		mutex_unlock(&ioc->tm_cmds.mutex);
 		mpt2sas_scsih_clear_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
 	} else if ((mpi_request->Function == MPI2_FUNCTION_SMP_PASSTHROUGH ||
@@ -897,14 +903,13 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
 			printk(MPT2SAS_INFO_FMT "issue target reset: handle "
 			    "= (0x%04x)\n", ioc->name,
-			    mpi_request->FunctionDependent1);
+			    le16_to_cpu(mpi_request->FunctionDependent1));
 			mpt2sas_halt_firmware(ioc);
-			mutex_lock(&ioc->tm_cmds.mutex);
 			mpt2sas_scsih_issue_tm(ioc,
-			    mpi_request->FunctionDependent1, 0,
-			    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10);
+			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
+			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10,
+			    NULL);
 			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-			mutex_unlock(&ioc->tm_cmds.mutex);
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 			    FORCE_BIG_HAMMER);
@@ -1373,7 +1378,8 @@ _ctl_diag_register_2(struct MPT2SAS_ADAPTER *ioc,
 
 	dctlprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: diag_buffer(0x%p), "
 	    "dma(0x%llx), sz(%d)\n", ioc->name, __func__, request_data,
-	    (unsigned long long)request_data_dma, mpi_request->BufferLength));
+	    (unsigned long long)request_data_dma,
+	    le32_to_cpu(mpi_request->BufferLength)));
 
 	for (i = 0; i < MPT2_PRODUCT_SPECIFIC_DWORDS; i++)
 		mpi_request->ProductSpecific[i] =
@@ -2334,8 +2340,8 @@ _ctl_version_nvdata_persistent_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 
-	return snprintf(buf, PAGE_SIZE, "%02xh\n",
-	    le16_to_cpu(ioc->iounit_pg0.NvdataVersionPersistent.Word));
+	return snprintf(buf, PAGE_SIZE, "%08xh\n",
+	    le32_to_cpu(ioc->iounit_pg0.NvdataVersionPersistent.Word));
 }
 static DEVICE_ATTR(version_nvdata_persistent, S_IRUGO,
     _ctl_version_nvdata_persistent_show, NULL);
@@ -2354,8 +2360,8 @@ _ctl_version_nvdata_default_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 
-	return snprintf(buf, PAGE_SIZE, "%02xh\n",
-	    le16_to_cpu(ioc->iounit_pg0.NvdataVersionDefault.Word));
+	return snprintf(buf, PAGE_SIZE, "%08xh\n",
+	    le32_to_cpu(ioc->iounit_pg0.NvdataVersionDefault.Word));
 }
 static DEVICE_ATTR(version_nvdata_default, S_IRUGO,
     _ctl_version_nvdata_default_show, NULL);

@@ -39,7 +39,6 @@
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
-#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>

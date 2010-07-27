@@ -3215,6 +3215,8 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 					   __func__, __LINE__, (u32) skb);
 			if (skb) {
 				skb->data = skb->head + NET_SKB_PAD;
+				skb->len = 0;
+				skb_reset_tail_pointer(skb);
 				__skb_queue_head(&ugeth->rx_recycle, skb);
 			}
 
@@ -3702,6 +3704,19 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 	return PHY_INTERFACE_MODE_MII;
 }
 
+static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	if (!ugeth->phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(ugeth->phydev, rq, cmd);
+}
+
 static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_open		= ucc_geth_open,
 	.ndo_stop		= ucc_geth_close,
@@ -3711,6 +3726,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_multicast_list	= ucc_geth_set_multi,
 	.ndo_tx_timeout		= ucc_geth_timeout,
+	.ndo_do_ioctl		= ucc_geth_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ucc_netpoll,
 #endif
@@ -3719,7 +3735,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
@@ -3963,8 +3979,11 @@ static struct of_device_id ucc_geth_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_geth_match);
 
 static struct of_platform_driver ucc_geth_driver = {
-	.name		= DRV_NAME,
-	.match_table	= ucc_geth_match,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = ucc_geth_match,
+	},
 	.probe		= ucc_geth_probe,
 	.remove		= ucc_geth_remove,
 	.suspend	= ucc_geth_suspend,

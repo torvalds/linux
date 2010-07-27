@@ -164,6 +164,8 @@
 #define E1000_SWFW_EEP_SM   0x1
 #define E1000_SWFW_PHY0_SM  0x2
 #define E1000_SWFW_PHY1_SM  0x4
+#define E1000_SWFW_PHY2_SM  0x20
+#define E1000_SWFW_PHY3_SM  0x40
 
 /* FACTPS Definitions */
 /* Device Control */

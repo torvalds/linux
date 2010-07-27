@@ -282,15 +282,19 @@ struct be_adapter {
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
+	u8 autoneg;
 	u8 generation;		/* BladeEngine ASIC generation */
+	u32 flash_status;
+	struct completion flash_compl;
 
 	bool sriov_enabled;
 	u32 vf_if_handle[BE_MAX_VF];
 	u32 vf_pmac_id[BE_MAX_VF];
 	u8 base_eq_id;
+	u8 is_virtfn;
 };
 
-#define be_physfn(adapter) (!adapter->pdev->is_virtfn)
+#define be_physfn(adapter) (!adapter->is_virtfn)
 
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
@@ -388,6 +392,15 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 		val = (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP);
 
 	return val;
+}
+
+static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
+{
+	u8 data;
+
+	pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
+	pci_read_config_byte(adapter->pdev, 0xFE, &data);
+	adapter->is_virtfn = (data != 0xAA);
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

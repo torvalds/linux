@@ -998,7 +998,7 @@ static ssize_t __write_ports_addxprt(char *buf)
 	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX)
+	if (port < 1 || port > USHRT_MAX)
 		return -EINVAL;
 
 	err = nfsd_create_serv();
@@ -1040,7 +1040,7 @@ static ssize_t __write_ports_delxprt(char *buf)
 	if (sscanf(&buf[1], "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX || nfsd_serv == NULL)
+	if (port < 1 || port > USHRT_MAX || nfsd_serv == NULL)
 		return -EINVAL;
 
 	xprt = svc_find_xprt(nfsd_serv, transport, AF_UNSPEC, port);

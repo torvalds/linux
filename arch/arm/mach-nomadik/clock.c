@@ -56,6 +56,7 @@ static struct clk_lookup lookups[] = {
 	CLK(&clk_default, "gpio.1"),
 	CLK(&clk_default, "gpio.2"),
 	CLK(&clk_default, "gpio.3"),
+	CLK(&clk_default, "rng"),
 };
 
 static int __init clk_init(void)

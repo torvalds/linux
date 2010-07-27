@@ -7,7 +7,8 @@
 
 static bool ceph_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, XATTR_SECURITY_PREFIX,
+	return !strncmp(name, "ceph.", 5) ||
+	       !strncmp(name, XATTR_SECURITY_PREFIX,
 			XATTR_SECURITY_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
@@ -76,14 +77,14 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
-	{ true, "user.ceph.dir.entries", ceph_vxattrcb_entries},
-	{ true, "user.ceph.dir.files", ceph_vxattrcb_files},
-	{ true, "user.ceph.dir.subdirs", ceph_vxattrcb_subdirs},
-	{ true, "user.ceph.dir.rentries", ceph_vxattrcb_rentries},
-	{ true, "user.ceph.dir.rfiles", ceph_vxattrcb_rfiles},
-	{ true, "user.ceph.dir.rsubdirs", ceph_vxattrcb_rsubdirs},
-	{ true, "user.ceph.dir.rbytes", ceph_vxattrcb_rbytes},
-	{ true, "user.ceph.dir.rctime", ceph_vxattrcb_rctime},
+	{ true, "ceph.dir.entries", ceph_vxattrcb_entries},
+	{ true, "ceph.dir.files", ceph_vxattrcb_files},
+	{ true, "ceph.dir.subdirs", ceph_vxattrcb_subdirs},
+	{ true, "ceph.dir.rentries", ceph_vxattrcb_rentries},
+	{ true, "ceph.dir.rfiles", ceph_vxattrcb_rfiles},
+	{ true, "ceph.dir.rsubdirs", ceph_vxattrcb_rsubdirs},
+	{ true, "ceph.dir.rbytes", ceph_vxattrcb_rbytes},
+	{ true, "ceph.dir.rctime", ceph_vxattrcb_rctime},
 	{ true, NULL, NULL }
 };
 
@@ -107,7 +108,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
-	{ true, "user.ceph.layout", ceph_vxattrcb_layout},
+	{ true, "ceph.layout", ceph_vxattrcb_layout},
 	{ NULL, NULL }
 };
 
@@ -185,12 +186,6 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		}
 		ci->i_xattrs.names_size -= xattr->name_len;
 		ci->i_xattrs.vals_size -= xattr->val_len;
-	}
-	if (!xattr) {
-		pr_err("__set_xattr ENOMEM on %p %llx.%llx xattr %s=%s\n",
-		       &ci->vfs_inode, ceph_vinop(&ci->vfs_inode), name,
-		       xattr->val);
-		return -ENOMEM;
 	}
 	ci->i_xattrs.names_size += name_len;
 	ci->i_xattrs.vals_size += val_len;
@@ -574,7 +569,7 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
 	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
-	    (ci->i_xattrs.index_version > ci->i_xattrs.version)) {
+	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
 		goto list_xattr;
 	} else {
 		spin_unlock(&inode->i_lock);
@@ -622,7 +617,7 @@ out:
 static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 			      const char *value, size_t size, int flags)
 {
-	struct ceph_client *client = ceph_client(dentry->d_sb);
+	struct ceph_client *client = ceph_sb_to_client(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct inode *parent_inode = dentry->d_parent->d_inode;
@@ -641,7 +636,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 			return -ENOMEM;
 		err = -ENOMEM;
 		for (i = 0; i < nr_pages; i++) {
-			pages[i] = alloc_page(GFP_NOFS);
+			pages[i] = __page_cache_alloc(GFP_NOFS);
 			if (!pages[i]) {
 				nr_pages = i;
 				goto out;
@@ -779,7 +774,7 @@ out:
 
 static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 {
-	struct ceph_client *client = ceph_client(dentry->d_sb);
+	struct ceph_client *client = ceph_sb_to_client(dentry->d_sb);
 	struct ceph_mds_client *mdsc = &client->mdsc;
 	struct inode *inode = dentry->d_inode;
 	struct inode *parent_inode = dentry->d_parent->d_inode;

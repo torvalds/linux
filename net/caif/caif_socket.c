@@ -28,8 +28,8 @@
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_CAIF);
 
-#define CAIF_DEF_SNDBUF (CAIF_MAX_PAYLOAD_SIZE*10)
-#define CAIF_DEF_RCVBUF (CAIF_MAX_PAYLOAD_SIZE*100)
+#define CAIF_DEF_SNDBUF (4096*10)
+#define CAIF_DEF_RCVBUF (4096*100)
 
 /*
  * CAIF state is re-using the TCP socket states.
@@ -60,7 +60,7 @@ struct debug_fs_counter {
 	atomic_t num_rx_flow_off;
 	atomic_t num_rx_flow_on;
 };
-struct debug_fs_counter cnt;
+static struct debug_fs_counter cnt;
 #define	dbfs_atomic_inc(v) atomic_inc(v)
 #define	dbfs_atomic_dec(v) atomic_dec(v)
 #else
@@ -76,6 +76,7 @@ struct caifsock {
 	struct caif_connect_request conn_req;
 	struct mutex readlock;
 	struct dentry *debugfs_socket_dir;
+	int headroom, tailroom, maxframe;
 };
 
 static int rx_flow_is_on(struct caifsock *cf_sk)
@@ -128,17 +129,17 @@ static void caif_read_unlock(struct sock *sk)
 	mutex_unlock(&cf_sk->readlock);
 }
 
-int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
+static int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
 {
 	/* A quarter of full buffer is used a low water mark */
 	return cf_sk->sk.sk_rcvbuf / 4;
 }
 
-void caif_flow_ctrl(struct sock *sk, int mode)
+static void caif_flow_ctrl(struct sock *sk, int mode)
 {
 	struct caifsock *cf_sk;
 	cf_sk = container_of(sk, struct caifsock, sk);
-	if (cf_sk->layer.dn)
+	if (cf_sk->layer.dn && cf_sk->layer.dn->modemcmd)
 		cf_sk->layer.dn->modemcmd(cf_sk->layer.dn, mode);
 }
 
@@ -146,7 +147,7 @@ void caif_flow_ctrl(struct sock *sk, int mode)
  * Copied from sock.c:sock_queue_rcv_skb(), but changed so packets are
  * not dropped, but CAIF is sending flow off instead.
  */
-int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 	int skb_len;
@@ -162,9 +163,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			atomic_read(&cf_sk->sk.sk_rmem_alloc),
 			sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 
 	err = sk_filter(sk, skb);
@@ -175,9 +175,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		trace_printk("CAIF: %s():"
 			" sending flow OFF due to rmem_schedule\n",
 			__func__);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
@@ -285,65 +284,51 @@ static void caif_check_flow_release(struct sock *sk)
 {
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 
-	if (cf_sk->layer.dn == NULL || cf_sk->layer.dn->modemcmd == NULL)
-		return;
 	if (rx_flow_is_on(cf_sk))
 		return;
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk_rcvbuf_lowwater(cf_sk)) {
 			dbfs_atomic_inc(&cnt.num_rx_flow_on);
 			set_rx_flow_on(cf_sk);
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_ON_REQ);
+			caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_ON_REQ);
 	}
 }
-/*
- * Copied from sock.c:sock_queue_rcv_skb(), and added check that user buffer
- * has sufficient size.
- */
 
+/*
+ * Copied from unix_dgram_recvmsg, but removed credit checks,
+ * changed locking, address handling and added MSG_TRUNC.
+ */
 static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *m, size_t buf_len, int flags)
+				struct msghdr *m, size_t len, int flags)
 
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
-	int ret = 0;
-	int len;
+	int ret;
+	int copylen;
 
-	if (unlikely(!buf_len))
-		return -EINVAL;
+	ret = -EOPNOTSUPP;
+	if (m->msg_flags&MSG_OOB)
+		goto read_error;
 
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
 	if (!skb)
 		goto read_error;
-
-	len = skb->len;
-
-	if (skb && skb->len > buf_len && !(flags & MSG_PEEK)) {
-		len = buf_len;
-		/*
-		 * Push skb back on receive queue if buffer too small.
-		 * This has a built-in race where multi-threaded receive
-		 * may get packet in wrong order, but multiple read does
-		 * not really guarantee ordered delivery anyway.
-		 * Let's optimize for speed without taking locks.
-		 */
-
-		skb_queue_head(&sk->sk_receive_queue, skb);
-		ret = -EMSGSIZE;
-		goto read_error;
+	copylen = skb->len;
+	if (len < copylen) {
+		m->msg_flags |= MSG_TRUNC;
+		copylen = len;
 	}
 
-	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, len);
+	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, copylen);
 	if (ret)
-		goto read_error;
+		goto out_free;
 
+	ret = (flags & MSG_TRUNC) ? skb->len : copylen;
+out_free:
 	skb_free_datagram(sk, skb);
-
 	caif_check_flow_release(sk);
-
-	return len;
+	return ret;
 
 read_error:
 	return ret;
@@ -610,27 +595,32 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 	noblock = msg->msg_flags & MSG_DONTWAIT;
 
-	buffer_size = len + CAIF_NEEDED_HEADROOM + CAIF_NEEDED_TAILROOM;
-
-	ret = -EMSGSIZE;
-	if (buffer_size > CAIF_MAX_PAYLOAD_SIZE)
-		goto err;
-
 	timeo = sock_sndtimeo(sk, noblock);
 	timeo = caif_wait_for_flow_on(container_of(sk, struct caifsock, sk),
 				1, timeo, &ret);
 
+	if (ret)
+		goto err;
 	ret = -EPIPE;
 	if (cf_sk->sk.sk_state != CAIF_CONNECTED ||
 		sock_flag(sk, SOCK_DEAD) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
 		goto err;
 
+	/* Error if trying to write more than maximum frame size. */
+	ret = -EMSGSIZE;
+	if (len > cf_sk->maxframe && cf_sk->sk.sk_protocol != CAIFPROTO_RFM)
+		goto err;
+
+	buffer_size = len + cf_sk->headroom + cf_sk->tailroom;
+
 	ret = -ENOMEM;
 	skb = sock_alloc_send_skb(sk, buffer_size, noblock, &ret);
-	if (!skb)
+
+	if (!skb || skb_tailroom(skb) < buffer_size)
 		goto err;
-	skb_reserve(skb, CAIF_NEEDED_HEADROOM);
+
+	skb_reserve(skb, cf_sk->headroom);
 
 	ret = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 
@@ -661,7 +651,6 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	long timeo;
 
 	err = -EOPNOTSUPP;
-
 	if (unlikely(msg->msg_flags&MSG_OOB))
 		goto out_err;
 
@@ -678,8 +667,8 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 		size = len-sent;
 
-		if (size > CAIF_MAX_PAYLOAD_SIZE)
-			size = CAIF_MAX_PAYLOAD_SIZE;
+		if (size > cf_sk->maxframe)
+			size = cf_sk->maxframe;
 
 		/* If size is more than half of sndbuf, chop up message */
 		if (size > ((sk->sk_sndbuf >> 1) - 64))
@@ -689,14 +678,14 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 			size = SKB_MAX_ALLOC;
 
 		skb = sock_alloc_send_skb(sk,
-					size + CAIF_NEEDED_HEADROOM
-					+ CAIF_NEEDED_TAILROOM,
+					size + cf_sk->headroom +
+					cf_sk->tailroom,
 					msg->msg_flags&MSG_DONTWAIT,
 					&err);
 		if (skb == NULL)
 			goto out_err;
 
-		skb_reserve(skb, CAIF_NEEDED_HEADROOM);
+		skb_reserve(skb, cf_sk->headroom);
 		/*
 		 *	If you pass two values to the sock_alloc_send_skb
 		 *	it tries to grab the large buffer with GFP_NOFS
@@ -837,17 +826,15 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 	long timeo;
 	int err;
+	int ifindex, headroom, tailroom;
+	struct net_device *dev;
+
 	lock_sock(sk);
 
 	err = -EAFNOSUPPORT;
 	if (uaddr->sa_family != AF_CAIF)
 		goto out;
 
-	err = -ESOCKTNOSUPPORT;
-	if (unlikely(!(sk->sk_type == SOCK_STREAM &&
-		       cf_sk->sk.sk_protocol == CAIFPROTO_AT) &&
-		       sk->sk_type != SOCK_SEQPACKET))
-		goto out;
 	switch (sock->state) {
 	case SS_UNCONNECTED:
 		/* Normal case, a fresh connect */
@@ -890,8 +877,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	sk_stream_kill_queues(&cf_sk->sk);
 
 	err = -EINVAL;
-	if (addr_len != sizeof(struct sockaddr_caif) ||
-		!uaddr)
+	if (addr_len != sizeof(struct sockaddr_caif))
 		goto out;
 
 	memcpy(&cf_sk->conn_req.sockaddr, uaddr,
@@ -904,10 +890,21 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
 	err = caif_connect_client(&cf_sk->conn_req,
-				&cf_sk->layer);
+				&cf_sk->layer, &ifindex, &headroom, &tailroom);
 	if (err < 0) {
 		cf_sk->sk.sk_socket->state = SS_UNCONNECTED;
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
+		goto out;
+	}
+	dev = dev_get_by_index(sock_net(sk), ifindex);
+	cf_sk->headroom = LL_RESERVED_SPACE_EXTRA(dev, headroom);
+	cf_sk->tailroom = tailroom;
+	cf_sk->maxframe = dev->mtu - (headroom + tailroom);
+	dev_put(dev);
+	if (cf_sk->maxframe < 1) {
+		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%d)\n",
+			__func__, dev->mtu);
+		err = -ENODEV;
 		goto out;
 	}
 
@@ -920,17 +917,17 @@ wait_connect:
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 	release_sock(sk);
-	err = wait_event_interruptible_timeout(*sk_sleep(sk),
+	err = -ERESTARTSYS;
+	timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 			sk->sk_state != CAIF_CONNECTING,
 			timeo);
 	lock_sock(sk);
-	if (err < 0)
+	if (timeo < 0)
 		goto out; /* -ERESTARTSYS */
-	if (err == 0 && sk->sk_state != CAIF_CONNECTED) {
-		err = -ETIMEDOUT;
-		goto out;
-	}
 
+	err = -ETIMEDOUT;
+	if (timeo == 0 && sk->sk_state != CAIF_CONNECTED)
+		goto out;
 	if (sk->sk_state != CAIF_CONNECTED) {
 		sock->state = SS_UNCONNECTED;
 		err = sock_error(sk);
@@ -944,7 +941,6 @@ out:
 	release_sock(sk);
 	return err;
 }
-
 
 /*
  * caif_release() - Disconnect a CAIF Socket
@@ -1018,10 +1014,6 @@ static unsigned int caif_poll(struct file *file,
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
 		mask |= POLLIN | POLLRDNORM;
-
-	/* Connection-based need to check for termination and startup */
-	if (sk->sk_state == CAIF_DISCONNECTED)
-		mask |= POLLHUP;
 
 	/*
 	 * we set writable also when the other side has shut down the
@@ -1194,7 +1186,7 @@ static struct net_proto_family caif_family_ops = {
 	.owner = THIS_MODULE,
 };
 
-int af_caif_init(void)
+static int af_caif_init(void)
 {
 	int err = sock_register(&caif_family_ops);
 	if (!err)

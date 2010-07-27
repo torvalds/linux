@@ -813,7 +813,7 @@ static int pxamci_suspend(struct device *dev)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, PMSG_SUSPEND);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

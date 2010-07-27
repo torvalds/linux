@@ -162,6 +162,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	backlight_update_status(bl);
 	return 0;
 out:
+	backlight_device_unregister(bl);
 	kfree(data);
 	return ret;
 }

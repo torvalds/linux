@@ -39,11 +39,6 @@ const char *get_system_type(void)
 	return "Alchemy Pb1100";
 }
 
-void board_reset(void)
-{
-	bcsr_write(BCSR_SYSTEM, 0);
-}
-
 void __init board_setup(void)
 {
 	volatile void __iomem *base = (volatile void __iomem *)0xac000000UL;

@@ -775,13 +775,18 @@ fail:
 	return NULL;
 }
 
-static void fsl_dma_device_terminate_all(struct dma_chan *dchan)
+static int fsl_dma_device_control(struct dma_chan *dchan,
+				  enum dma_ctrl_cmd cmd, unsigned long arg)
 {
 	struct fsldma_chan *chan;
 	unsigned long flags;
 
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
 	if (!dchan)
-		return;
+		return -EINVAL;
 
 	chan = to_fsl_chan(dchan);
 
@@ -795,6 +800,8 @@ static void fsl_dma_device_terminate_all(struct dma_chan *dchan)
 	fsldma_free_desc_list(chan, &chan->ld_running);
 
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
+
+	return 0;
 }
 
 /**
@@ -965,13 +972,12 @@ static void fsl_dma_memcpy_issue_pending(struct dma_chan *dchan)
 }
 
 /**
- * fsl_dma_is_complete - Determine the DMA status
+ * fsl_tx_status - Determine the DMA status
  * @chan : Freescale DMA channel
  */
-static enum dma_status fsl_dma_is_complete(struct dma_chan *dchan,
+static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					dma_cookie_t cookie,
-					dma_cookie_t *done,
-					dma_cookie_t *used)
+					struct dma_tx_state *txstate)
 {
 	struct fsldma_chan *chan = to_fsl_chan(dchan);
 	dma_cookie_t last_used;
@@ -982,11 +988,7 @@ static enum dma_status fsl_dma_is_complete(struct dma_chan *dchan,
 	last_used = dchan->cookie;
 	last_complete = chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -1313,7 +1315,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	INIT_LIST_HEAD(&fdev->common.channels);
 
 	/* ioremap the registers for use */
-	fdev->regs = of_iomap(op->node, 0);
+	fdev->regs = of_iomap(op->dev.of_node, 0);
 	if (!fdev->regs) {
 		dev_err(&op->dev, "unable to ioremap registers\n");
 		err = -ENOMEM;
@@ -1321,7 +1323,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	}
 
 	/* map the channel IRQ if it exists, but don't hookup the handler yet */
-	fdev->irq = irq_of_parse_and_map(op->node, 0);
+	fdev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 	dma_cap_set(DMA_MEMCPY, fdev->common.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);
@@ -1330,10 +1332,10 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	fdev->common.device_free_chan_resources = fsl_dma_free_chan_resources;
 	fdev->common.device_prep_dma_interrupt = fsl_dma_prep_interrupt;
 	fdev->common.device_prep_dma_memcpy = fsl_dma_prep_memcpy;
-	fdev->common.device_is_tx_complete = fsl_dma_is_complete;
+	fdev->common.device_tx_status = fsl_tx_status;
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
 	fdev->common.device_prep_slave_sg = fsl_dma_prep_slave_sg;
-	fdev->common.device_terminate_all = fsl_dma_device_terminate_all;
+	fdev->common.device_control = fsl_dma_device_control;
 	fdev->common.dev = &op->dev;
 
 	dev_set_drvdata(&op->dev, fdev);
@@ -1343,7 +1345,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	 * of_platform_bus_remove(). Instead, we manually instantiate every DMA
 	 * channel object.
 	 */
-	for_each_child_of_node(op->node, child) {
+	for_each_child_of_node(op->dev.of_node, child) {
 		if (of_device_is_compatible(child, "fsl,eloplus-dma-channel")) {
 			fsl_dma_chan_probe(fdev, child,
 				FSL_DMA_IP_85XX | FSL_DMA_BIG_ENDIAN,
@@ -1409,10 +1411,13 @@ static const struct of_device_id fsldma_of_ids[] = {
 };
 
 static struct of_platform_driver fsldma_of_driver = {
-	.name		= "fsl-elo-dma",
-	.match_table	= fsldma_of_ids,
-	.probe		= fsldma_of_probe,
-	.remove		= fsldma_of_remove,
+	.driver = {
+		.name = "fsl-elo-dma",
+		.owner = THIS_MODULE,
+		.of_match_table = fsldma_of_ids,
+	},
+	.probe = fsldma_of_probe,
+	.remove = fsldma_of_remove,
 };
 
 /*----------------------------------------------------------------------------*/

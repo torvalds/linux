@@ -1090,7 +1090,7 @@ struct ieee80211_tx_status_rtap_hdr {
 	u8 padding_for_rate;
 	__le16 tx_flags;
 	u8 data_retries;
-} __attribute__ ((packed));
+} __packed;
 
 
 /* HT */

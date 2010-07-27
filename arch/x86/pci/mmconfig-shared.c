@@ -483,16 +483,17 @@ static void __init pci_mmcfg_reject_broken(int early)
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		int valid = 0;
 
-		if (!early && !acpi_disabled)
+		if (!early && !acpi_disabled) {
 			valid = is_mmconf_reserved(is_acpi_reserved, cfg, 0);
 
-		if (valid)
-			continue;
-
-		if (!early)
-			printk(KERN_ERR FW_BUG PREFIX
-			       "MMCONFIG at %pR not reserved in "
-			       "ACPI motherboard resources\n", &cfg->res);
+			if (valid)
+				continue;
+			else
+				printk(KERN_ERR FW_BUG PREFIX
+				       "MMCONFIG at %pR not reserved in "
+				       "ACPI motherboard resources\n",
+				       &cfg->res);
+		}
 
 		/* Don't try to do this check unless configuration
 		   type 1 is available. how about type 2 ?*/

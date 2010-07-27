@@ -1,6 +1,7 @@
 #ifndef _LINUX_OF_DEVICE_H
 #define _LINUX_OF_DEVICE_H
 
+#ifdef CONFIG_OF_DEVICE
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/mod_devicetable.h>
@@ -10,7 +11,7 @@
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 
 extern const struct of_device_id *of_match_device(
-	const struct of_device_id *matches, const struct of_device *dev);
+	const struct of_device_id *matches, const struct device *dev);
 
 extern struct of_device *of_dev_get(struct of_device *dev);
 extern void of_dev_put(struct of_device *dev);
@@ -26,5 +27,6 @@ static inline void of_device_free(struct of_device *dev)
 
 extern ssize_t of_device_get_modalias(struct of_device *ofdev,
 					char *str, ssize_t len);
+#endif /* CONFIG_OF_DEVICE */
 
 #endif /* _LINUX_OF_DEVICE_H */

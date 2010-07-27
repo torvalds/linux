@@ -48,8 +48,6 @@ static int rs690_mc_wait_for_idle(struct radeon_device *rdev)
 
 static void rs690_gpu_init(struct radeon_device *rdev)
 {
-	/* FIXME: HDP same place on rs690 ? */
-	r100_hdp_reset(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs690_mc_wait_for_idle(rdev)) {
@@ -78,59 +76,59 @@ void rs690_pm_info(struct radeon_device *rdev)
 		/* Get various system informations from bios */
 		switch (crev) {
 		case 1:
-			tmp.full = rfixed_const(100);
-			rdev->pm.igp_sideport_mclk.full = rfixed_const(info->info.ulBootUpMemoryClock);
-			rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			rdev->pm.igp_system_mclk.full = rfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
-			rdev->pm.igp_ht_link_clk.full = rfixed_const(le16_to_cpu(info->info.usFSBClock));
-			rdev->pm.igp_ht_link_width.full = rfixed_const(info->info.ucHTLinkWidth);
+			tmp.full = dfixed_const(100);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info.ulBootUpMemoryClock);
+			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
+			rdev->pm.igp_system_mclk.full = dfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
+			rdev->pm.igp_ht_link_clk.full = dfixed_const(le16_to_cpu(info->info.usFSBClock));
+			rdev->pm.igp_ht_link_width.full = dfixed_const(info->info.ucHTLinkWidth);
 			break;
 		case 2:
-			tmp.full = rfixed_const(100);
-			rdev->pm.igp_sideport_mclk.full = rfixed_const(info->info_v2.ulBootUpSidePortClock);
-			rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			rdev->pm.igp_system_mclk.full = rfixed_const(info->info_v2.ulBootUpUMAClock);
-			rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
-			rdev->pm.igp_ht_link_clk.full = rfixed_const(info->info_v2.ulHTLinkFreq);
-			rdev->pm.igp_ht_link_clk.full = rfixed_div(rdev->pm.igp_ht_link_clk, tmp);
-			rdev->pm.igp_ht_link_width.full = rfixed_const(le16_to_cpu(info->info_v2.usMinHTLinkWidth));
+			tmp.full = dfixed_const(100);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info_v2.ulBootUpSidePortClock);
+			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
+			rdev->pm.igp_system_mclk.full = dfixed_const(info->info_v2.ulBootUpUMAClock);
+			rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
+			rdev->pm.igp_ht_link_clk.full = dfixed_const(info->info_v2.ulHTLinkFreq);
+			rdev->pm.igp_ht_link_clk.full = dfixed_div(rdev->pm.igp_ht_link_clk, tmp);
+			rdev->pm.igp_ht_link_width.full = dfixed_const(le16_to_cpu(info->info_v2.usMinHTLinkWidth));
 			break;
 		default:
-			tmp.full = rfixed_const(100);
+			tmp.full = dfixed_const(100);
 			/* We assume the slower possible clock ie worst case */
 			/* DDR 333Mhz */
-			rdev->pm.igp_sideport_mclk.full = rfixed_const(333);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(333);
 			/* FIXME: system clock ? */
-			rdev->pm.igp_system_mclk.full = rfixed_const(100);
-			rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
-			rdev->pm.igp_ht_link_clk.full = rfixed_const(200);
-			rdev->pm.igp_ht_link_width.full = rfixed_const(8);
+			rdev->pm.igp_system_mclk.full = dfixed_const(100);
+			rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
+			rdev->pm.igp_ht_link_clk.full = dfixed_const(200);
+			rdev->pm.igp_ht_link_width.full = dfixed_const(8);
 			DRM_ERROR("No integrated system info for your GPU, using safe default\n");
 			break;
 		}
 	} else {
-		tmp.full = rfixed_const(100);
+		tmp.full = dfixed_const(100);
 		/* We assume the slower possible clock ie worst case */
 		/* DDR 333Mhz */
-		rdev->pm.igp_sideport_mclk.full = rfixed_const(333);
+		rdev->pm.igp_sideport_mclk.full = dfixed_const(333);
 		/* FIXME: system clock ? */
-		rdev->pm.igp_system_mclk.full = rfixed_const(100);
-		rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
-		rdev->pm.igp_ht_link_clk.full = rfixed_const(200);
-		rdev->pm.igp_ht_link_width.full = rfixed_const(8);
+		rdev->pm.igp_system_mclk.full = dfixed_const(100);
+		rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
+		rdev->pm.igp_ht_link_clk.full = dfixed_const(200);
+		rdev->pm.igp_ht_link_width.full = dfixed_const(8);
 		DRM_ERROR("No integrated system info for your GPU, using safe default\n");
 	}
 	/* Compute various bandwidth */
 	/* k8_bandwidth = (memory_clk / 2) * 2 * 8 * 0.5 = memory_clk * 4  */
-	tmp.full = rfixed_const(4);
-	rdev->pm.k8_bandwidth.full = rfixed_mul(rdev->pm.igp_system_mclk, tmp);
+	tmp.full = dfixed_const(4);
+	rdev->pm.k8_bandwidth.full = dfixed_mul(rdev->pm.igp_system_mclk, tmp);
 	/* ht_bandwidth = ht_clk * 2 * ht_width / 8 * 0.8
 	 *              = ht_clk * ht_width / 5
 	 */
-	tmp.full = rfixed_const(5);
-	rdev->pm.ht_bandwidth.full = rfixed_mul(rdev->pm.igp_ht_link_clk,
+	tmp.full = dfixed_const(5);
+	rdev->pm.ht_bandwidth.full = dfixed_mul(rdev->pm.igp_ht_link_clk,
 						rdev->pm.igp_ht_link_width);
-	rdev->pm.ht_bandwidth.full = rfixed_div(rdev->pm.ht_bandwidth, tmp);
+	rdev->pm.ht_bandwidth.full = dfixed_div(rdev->pm.ht_bandwidth, tmp);
 	if (tmp.full < rdev->pm.max_bandwidth.full) {
 		/* HT link is a limiting factor */
 		rdev->pm.max_bandwidth.full = tmp.full;
@@ -138,10 +136,10 @@ void rs690_pm_info(struct radeon_device *rdev)
 	/* sideport_bandwidth = (sideport_clk / 2) * 2 * 2 * 0.7
 	 *                    = (sideport_clk * 14) / 10
 	 */
-	tmp.full = rfixed_const(14);
-	rdev->pm.sideport_bandwidth.full = rfixed_mul(rdev->pm.igp_sideport_mclk, tmp);
-	tmp.full = rfixed_const(10);
-	rdev->pm.sideport_bandwidth.full = rfixed_div(rdev->pm.sideport_bandwidth, tmp);
+	tmp.full = dfixed_const(14);
+	rdev->pm.sideport_bandwidth.full = dfixed_mul(rdev->pm.igp_sideport_mclk, tmp);
+	tmp.full = dfixed_const(10);
+	rdev->pm.sideport_bandwidth.full = dfixed_div(rdev->pm.sideport_bandwidth, tmp);
 }
 
 void rs690_mc_init(struct radeon_device *rdev)
@@ -241,20 +239,20 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 		return;
 	}
 
-	if (crtc->vsc.full > rfixed_const(2))
-		wm->num_line_pair.full = rfixed_const(2);
+	if (crtc->vsc.full > dfixed_const(2))
+		wm->num_line_pair.full = dfixed_const(2);
 	else
-		wm->num_line_pair.full = rfixed_const(1);
+		wm->num_line_pair.full = dfixed_const(1);
 
-	b.full = rfixed_const(mode->crtc_hdisplay);
-	c.full = rfixed_const(256);
-	a.full = rfixed_div(b, c);
-	request_fifo_depth.full = rfixed_mul(a, wm->num_line_pair);
-	request_fifo_depth.full = rfixed_ceil(request_fifo_depth);
-	if (a.full < rfixed_const(4)) {
+	b.full = dfixed_const(mode->crtc_hdisplay);
+	c.full = dfixed_const(256);
+	a.full = dfixed_div(b, c);
+	request_fifo_depth.full = dfixed_mul(a, wm->num_line_pair);
+	request_fifo_depth.full = dfixed_ceil(request_fifo_depth);
+	if (a.full < dfixed_const(4)) {
 		wm->lb_request_fifo_depth = 4;
 	} else {
-		wm->lb_request_fifo_depth = rfixed_trunc(request_fifo_depth);
+		wm->lb_request_fifo_depth = dfixed_trunc(request_fifo_depth);
 	}
 
 	/* Determine consumption rate
@@ -263,23 +261,23 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  vsc = vertical scaling ratio, defined as source/destination
 	 *  hsc = horizontal scaling ration, defined as source/destination
 	 */
-	a.full = rfixed_const(mode->clock);
-	b.full = rfixed_const(1000);
-	a.full = rfixed_div(a, b);
-	pclk.full = rfixed_div(b, a);
+	a.full = dfixed_const(mode->clock);
+	b.full = dfixed_const(1000);
+	a.full = dfixed_div(a, b);
+	pclk.full = dfixed_div(b, a);
 	if (crtc->rmx_type != RMX_OFF) {
-		b.full = rfixed_const(2);
+		b.full = dfixed_const(2);
 		if (crtc->vsc.full > b.full)
 			b.full = crtc->vsc.full;
-		b.full = rfixed_mul(b, crtc->hsc);
-		c.full = rfixed_const(2);
-		b.full = rfixed_div(b, c);
-		consumption_time.full = rfixed_div(pclk, b);
+		b.full = dfixed_mul(b, crtc->hsc);
+		c.full = dfixed_const(2);
+		b.full = dfixed_div(b, c);
+		consumption_time.full = dfixed_div(pclk, b);
 	} else {
 		consumption_time.full = pclk.full;
 	}
-	a.full = rfixed_const(1);
-	wm->consumption_rate.full = rfixed_div(a, consumption_time);
+	a.full = dfixed_const(1);
+	wm->consumption_rate.full = dfixed_div(a, consumption_time);
 
 
 	/* Determine line time
@@ -287,18 +285,18 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  LineTime = total number of horizontal pixels
 	 *  pclk = pixel clock period(ns)
 	 */
-	a.full = rfixed_const(crtc->base.mode.crtc_htotal);
-	line_time.full = rfixed_mul(a, pclk);
+	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
+	line_time.full = dfixed_mul(a, pclk);
 
 	/* Determine active time
 	 *  ActiveTime = time of active region of display within one line,
 	 *  hactive = total number of horizontal active pixels
 	 *  htotal = total number of horizontal pixels
 	 */
-	a.full = rfixed_const(crtc->base.mode.crtc_htotal);
-	b.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
-	wm->active_time.full = rfixed_mul(line_time, b);
-	wm->active_time.full = rfixed_div(wm->active_time, a);
+	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
+	b.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	wm->active_time.full = dfixed_mul(line_time, b);
+	wm->active_time.full = dfixed_div(wm->active_time, a);
 
 	/* Maximun bandwidth is the minimun bandwidth of all component */
 	rdev->pm.max_bandwidth = rdev->pm.core_bandwidth;
@@ -306,8 +304,8 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 		if (rdev->pm.max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
 			rdev->pm.max_bandwidth = rdev->pm.sideport_bandwidth;
-		read_delay_latency.full = rfixed_const(370 * 800 * 1000);
-		read_delay_latency.full = rfixed_div(read_delay_latency,
+		read_delay_latency.full = dfixed_const(370 * 800 * 1000);
+		read_delay_latency.full = dfixed_div(read_delay_latency,
 			rdev->pm.igp_sideport_mclk);
 	} else {
 		if (rdev->pm.max_bandwidth.full > rdev->pm.k8_bandwidth.full &&
@@ -316,23 +314,23 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 		if (rdev->pm.max_bandwidth.full > rdev->pm.ht_bandwidth.full &&
 			rdev->pm.ht_bandwidth.full)
 			rdev->pm.max_bandwidth = rdev->pm.ht_bandwidth;
-		read_delay_latency.full = rfixed_const(5000);
+		read_delay_latency.full = dfixed_const(5000);
 	}
 
 	/* sclk = system clocks(ns) = 1000 / max_bandwidth / 16 */
-	a.full = rfixed_const(16);
-	rdev->pm.sclk.full = rfixed_mul(rdev->pm.max_bandwidth, a);
-	a.full = rfixed_const(1000);
-	rdev->pm.sclk.full = rfixed_div(a, rdev->pm.sclk);
+	a.full = dfixed_const(16);
+	rdev->pm.sclk.full = dfixed_mul(rdev->pm.max_bandwidth, a);
+	a.full = dfixed_const(1000);
+	rdev->pm.sclk.full = dfixed_div(a, rdev->pm.sclk);
 	/* Determine chunk time
 	 * ChunkTime = the time it takes the DCP to send one chunk of data
 	 * to the LB which consists of pipeline delay and inter chunk gap
 	 * sclk = system clock(ns)
 	 */
-	a.full = rfixed_const(256 * 13);
-	chunk_time.full = rfixed_mul(rdev->pm.sclk, a);
-	a.full = rfixed_const(10);
-	chunk_time.full = rfixed_div(chunk_time, a);
+	a.full = dfixed_const(256 * 13);
+	chunk_time.full = dfixed_mul(rdev->pm.sclk, a);
+	a.full = dfixed_const(10);
+	chunk_time.full = dfixed_div(chunk_time, a);
 
 	/* Determine the worst case latency
 	 * NumLinePair = Number of line pairs to request(1=2 lines, 2=4 lines)
@@ -342,13 +340,13 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 * ChunkTime = time it takes the DCP to send one chunk of data to the LB
 	 *             which consists of pipeline delay and inter chunk gap
 	 */
-	if (rfixed_trunc(wm->num_line_pair) > 1) {
-		a.full = rfixed_const(3);
-		wm->worst_case_latency.full = rfixed_mul(a, chunk_time);
+	if (dfixed_trunc(wm->num_line_pair) > 1) {
+		a.full = dfixed_const(3);
+		wm->worst_case_latency.full = dfixed_mul(a, chunk_time);
 		wm->worst_case_latency.full += read_delay_latency.full;
 	} else {
-		a.full = rfixed_const(2);
-		wm->worst_case_latency.full = rfixed_mul(a, chunk_time);
+		a.full = dfixed_const(2);
+		wm->worst_case_latency.full = dfixed_mul(a, chunk_time);
 		wm->worst_case_latency.full += read_delay_latency.full;
 	}
 
@@ -362,34 +360,34 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *              of data to the LB which consists of
 	 *  pipeline delay and inter chunk gap
 	 */
-	if ((2+wm->lb_request_fifo_depth) >= rfixed_trunc(request_fifo_depth)) {
+	if ((2+wm->lb_request_fifo_depth) >= dfixed_trunc(request_fifo_depth)) {
 		tolerable_latency.full = line_time.full;
 	} else {
-		tolerable_latency.full = rfixed_const(wm->lb_request_fifo_depth - 2);
+		tolerable_latency.full = dfixed_const(wm->lb_request_fifo_depth - 2);
 		tolerable_latency.full = request_fifo_depth.full - tolerable_latency.full;
-		tolerable_latency.full = rfixed_mul(tolerable_latency, chunk_time);
+		tolerable_latency.full = dfixed_mul(tolerable_latency, chunk_time);
 		tolerable_latency.full = line_time.full - tolerable_latency.full;
 	}
 	/* We assume worst case 32bits (4 bytes) */
-	wm->dbpp.full = rfixed_const(4 * 8);
+	wm->dbpp.full = dfixed_const(4 * 8);
 
 	/* Determine the maximum priority mark
 	 *  width = viewport width in pixels
 	 */
-	a.full = rfixed_const(16);
-	wm->priority_mark_max.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
-	wm->priority_mark_max.full = rfixed_div(wm->priority_mark_max, a);
-	wm->priority_mark_max.full = rfixed_ceil(wm->priority_mark_max);
+	a.full = dfixed_const(16);
+	wm->priority_mark_max.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	wm->priority_mark_max.full = dfixed_div(wm->priority_mark_max, a);
+	wm->priority_mark_max.full = dfixed_ceil(wm->priority_mark_max);
 
 	/* Determine estimated width */
 	estimated_width.full = tolerable_latency.full - wm->worst_case_latency.full;
-	estimated_width.full = rfixed_div(estimated_width, consumption_time);
-	if (rfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
-		wm->priority_mark.full = rfixed_const(10);
+	estimated_width.full = dfixed_div(estimated_width, consumption_time);
+	if (dfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
+		wm->priority_mark.full = dfixed_const(10);
 	} else {
-		a.full = rfixed_const(16);
-		wm->priority_mark.full = rfixed_div(estimated_width, a);
-		wm->priority_mark.full = rfixed_ceil(wm->priority_mark);
+		a.full = dfixed_const(16);
+		wm->priority_mark.full = dfixed_div(estimated_width, a);
+		wm->priority_mark.full = dfixed_ceil(wm->priority_mark);
 		wm->priority_mark.full = wm->priority_mark_max.full - wm->priority_mark.full;
 	}
 }
@@ -441,58 +439,58 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	WREG32(R_006D58_LB_MAX_REQ_OUTSTANDING, tmp);
 
 	if (mode0 && mode1) {
-		if (rfixed_trunc(wm0.dbpp) > 64)
-			a.full = rfixed_mul(wm0.dbpp, wm0.num_line_pair);
+		if (dfixed_trunc(wm0.dbpp) > 64)
+			a.full = dfixed_mul(wm0.dbpp, wm0.num_line_pair);
 		else
 			a.full = wm0.num_line_pair.full;
-		if (rfixed_trunc(wm1.dbpp) > 64)
-			b.full = rfixed_mul(wm1.dbpp, wm1.num_line_pair);
+		if (dfixed_trunc(wm1.dbpp) > 64)
+			b.full = dfixed_mul(wm1.dbpp, wm1.num_line_pair);
 		else
 			b.full = wm1.num_line_pair.full;
 		a.full += b.full;
-		fill_rate.full = rfixed_div(wm0.sclk, a);
+		fill_rate.full = dfixed_div(wm0.sclk, a);
 		if (wm0.consumption_rate.full > fill_rate.full) {
 			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm0.active_time);
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			b.full = dfixed_mul(b, wm0.active_time);
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
 			a.full = a.full + b.full;
-			b.full = rfixed_const(16 * 1000);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
 		} else {
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
 		}
 		if (wm1.consumption_rate.full > fill_rate.full) {
 			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm1.active_time);
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			b.full = dfixed_mul(b, wm1.active_time);
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
 			a.full = a.full + b.full;
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		} else {
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		}
 		if (wm0.priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark.full;
-		if (rfixed_trunc(priority_mark02) < 0)
+		if (dfixed_trunc(priority_mark02) < 0)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
 		if (wm1.priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark.full;
-		if (rfixed_trunc(priority_mark12) < 0)
+		if (dfixed_trunc(priority_mark12) < 0)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
-		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
 		if (rdev->disp_priority == 2) {
 			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
 			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
@@ -502,32 +500,32 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
 		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
-		if (rfixed_trunc(wm0.dbpp) > 64)
-			a.full = rfixed_mul(wm0.dbpp, wm0.num_line_pair);
+		if (dfixed_trunc(wm0.dbpp) > 64)
+			a.full = dfixed_mul(wm0.dbpp, wm0.num_line_pair);
 		else
 			a.full = wm0.num_line_pair.full;
-		fill_rate.full = rfixed_div(wm0.sclk, a);
+		fill_rate.full = dfixed_div(wm0.sclk, a);
 		if (wm0.consumption_rate.full > fill_rate.full) {
 			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm0.active_time);
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			b.full = dfixed_mul(b, wm0.active_time);
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
 			a.full = a.full + b.full;
-			b.full = rfixed_const(16 * 1000);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
 		} else {
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
 		}
 		if (wm0.priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark.full;
-		if (rfixed_trunc(priority_mark02) < 0)
+		if (dfixed_trunc(priority_mark02) < 0)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
-		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
 		if (rdev->disp_priority == 2)
 			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
 		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
@@ -537,32 +535,32 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT,
 			S_006D4C_D2MODE_PRIORITY_B_OFF(1));
 	} else {
-		if (rfixed_trunc(wm1.dbpp) > 64)
-			a.full = rfixed_mul(wm1.dbpp, wm1.num_line_pair);
+		if (dfixed_trunc(wm1.dbpp) > 64)
+			a.full = dfixed_mul(wm1.dbpp, wm1.num_line_pair);
 		else
 			a.full = wm1.num_line_pair.full;
-		fill_rate.full = rfixed_div(wm1.sclk, a);
+		fill_rate.full = dfixed_div(wm1.sclk, a);
 		if (wm1.consumption_rate.full > fill_rate.full) {
 			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm1.active_time);
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			b.full = dfixed_mul(b, wm1.active_time);
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
 			a.full = a.full + b.full;
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		} else {
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		}
 		if (wm1.priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark.full;
-		if (rfixed_trunc(priority_mark12) < 0)
+		if (dfixed_trunc(priority_mark12) < 0)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
 		if (rdev->disp_priority == 2)
 			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
 		WREG32(R_006548_D1MODE_PRIORITY_A_CNT,
@@ -653,7 +651,7 @@ int rs690_resume(struct radeon_device *rdev)
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
@@ -678,7 +676,6 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
-	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -717,7 +714,7 @@ int rs690_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev,
 			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
@@ -729,8 +726,6 @@ int rs690_init(struct radeon_device *rdev)
 
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	/* Initialize power management */
-	radeon_pm_init(rdev);
 	/* initialize memory controller */
 	rs690_mc_init(rdev);
 	rv515_debugfs(rdev);

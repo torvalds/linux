@@ -98,6 +98,9 @@ config STACKTRACE_SUPPORT
 config NEED_DMA_MAP_STATE
 	def_bool y
 
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config ISA_DMA_API
 	bool
 

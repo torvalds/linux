@@ -132,6 +132,7 @@ enum {
 	PM8607_ID_LDO9,
 	PM8607_ID_LDO10,
 	PM8607_ID_LDO12,
+	PM8607_ID_LDO13,
 	PM8607_ID_LDO14,
 
 	PM8607_ID_RG_MAX,
@@ -309,7 +310,7 @@ struct pm860x_chip {
 
 };
 
-#define PM8607_MAX_REGULATOR	15	/* 3 Bucks, 12 LDOs */
+#define PM8607_MAX_REGULATOR	PM8607_ID_RG_MAX	/* 3 Bucks, 13 LDOs */
 
 enum {
 	GI2C_PORT = 0,
@@ -369,7 +370,7 @@ extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
 
 extern int pm860x_device_init(struct pm860x_chip *chip,
-			      struct pm860x_platform_data *pdata);
-extern void pm860x_device_exit(struct pm860x_chip *chip);
+			      struct pm860x_platform_data *pdata) __devinit ;
+extern void pm860x_device_exit(struct pm860x_chip *chip) __devexit ;
 
 #endif /* __LINUX_MFD_88PM860X_H */

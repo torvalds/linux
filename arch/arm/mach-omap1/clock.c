@@ -578,7 +578,7 @@ int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 
-void __init omap1_clk_disable_unused(struct clk *clk)
+void omap1_clk_disable_unused(struct clk *clk)
 {
 	__u32 regval32;
 

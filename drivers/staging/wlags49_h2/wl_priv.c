@@ -503,7 +503,8 @@ int wvlan_uil_send_diag_msg( struct uilreq *urq, struct wl_private *lp )
 						return result;
 					}
 
-					if ((data = kmalloc(urq->len, GFP_KERNEL)) != NULL) {
+					data = kmalloc(urq->len, GFP_KERNEL);
+					if (data != NULL) {
 						memset( Descp, 0, sizeof( DESC_STRCT ));
 						memcpy( data, urq->data, urq->len );
 
@@ -617,7 +618,8 @@ int wvlan_uil_put_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					if(( pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL )) != NULL ) {
+					pLtv = kmalloc(urq->len, GFP_KERNEL);
+					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 					} else {
 						DBG_ERROR( DbgInfo, "Alloc FAILED\n" );
@@ -652,7 +654,7 @@ int wvlan_uil_put_info( struct uilreq *urq, struct wl_private *lp )
 					pLtv->u.u16[0]  = CNV_INT_TO_LITTLE( pLtv->u.u16[0] );
 					break;
 				/* CFG_CNF_OWN_SSID currently same as CNF_DESIRED_SSID. Do we
-				   need seperate storage for this? */
+				   need separate storage for this? */
 				//case CFG_CNF_OWN_SSID:
 				case CFG_CNF_OWN_ATIM_WINDOW:
 					lp->atimWindow  = pLtv->u.u16[0];
@@ -1296,7 +1298,8 @@ int wvlan_uil_get_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					if(( pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL )) != NULL ) {
+					pLtv = kmalloc(urq->len, GFP_KERNEL);
+					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 
 						/* Copy the command/length information into the new buffer. */

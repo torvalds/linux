@@ -112,7 +112,7 @@ extern u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
 
 extern int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
 				      u8 idlest_shift);
-extern int omap4_cm_wait_module_ready(u32 prcm_mod, u8 prcm_dev_offs);
+extern int omap4_cm_wait_module_ready(void __iomem *clkctrl_reg);
 
 static inline u32 cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
@@ -134,13 +134,23 @@ static inline u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 
 /* CM_ICLKEN_GFX */
 #define OMAP_EN_GFX_SHIFT				0
-#define OMAP_EN_GFX					(1 << 0)
+#define OMAP_EN_GFX_MASK				(1 << 0)
 
 /* CM_IDLEST_GFX */
-#define OMAP_ST_GFX					(1 << 0)
+#define OMAP_ST_GFX_MASK				(1 << 0)
+
 
 /* CM_IDLEST indicator */
 #define OMAP24XX_CM_IDLEST_VAL		0
 #define OMAP34XX_CM_IDLEST_VAL		1
+
+/*
+ * MAX_MODULE_READY_TIME: max duration in microseconds to wait for the
+ * PRCM to request that a module exit the inactive state in the case of
+ * OMAP2 & 3.
+ * In the case of OMAP4 this is the max duration in microseconds for the
+ * module to reach the functionnal state from an inactive state.
+ */
+#define MAX_MODULE_READY_TIME		2000
 
 #endif

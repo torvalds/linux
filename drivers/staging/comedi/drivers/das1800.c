@@ -797,10 +797,8 @@ static int das1800_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma0);
 		if (devpriv->dma1)
 			free_dma(devpriv->dma1);
-		if (devpriv->ai_buf0)
-			kfree(devpriv->ai_buf0);
-		if (devpriv->ai_buf1)
-			kfree(devpriv->ai_buf1);
+		kfree(devpriv->ai_buf0);
+		kfree(devpriv->ai_buf1);
 	}
 
 	printk("comedi%d: %s: remove\n", dev->minor,
@@ -1639,7 +1637,8 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 		}
 		if (i == timeout) {
 			comedi_error(dev, "timeout");
-			return -ETIME;
+			n = -ETIME;
+			goto exit;
 		}
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
 		/* shift data to offset binary for bipolar ranges */
@@ -1647,6 +1646,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			dpnt += 1 << (thisboard->resolution - 1);
 		data[n] = dpnt;
 	}
+exit:
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return n;

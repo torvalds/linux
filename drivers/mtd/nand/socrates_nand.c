@@ -220,7 +220,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, host);
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 1, NULL)) {
 		res = -ENXIO;
 		goto out;
 	}
@@ -290,7 +290,7 @@ static int __devexit socrates_nand_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id socrates_nand_match[] =
+static const struct of_device_id socrates_nand_match[] =
 {
 	{
 		.compatible   = "abb,socrates-nand",
@@ -301,8 +301,11 @@ static struct of_device_id socrates_nand_match[] =
 MODULE_DEVICE_TABLE(of, socrates_nand_match);
 
 static struct of_platform_driver socrates_nand_driver = {
-	.name		= "socrates_nand",
-	.match_table	= socrates_nand_match,
+	.driver = {
+		.name = "socrates_nand",
+		.owner = THIS_MODULE,
+		.of_match_table = socrates_nand_match,
+	},
 	.probe		= socrates_nand_probe,
 	.remove		= __devexit_p(socrates_nand_remove),
 };

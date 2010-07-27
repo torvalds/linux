@@ -26,6 +26,7 @@
  * http://infocenter.arm.com/help/topic/com.arm.doc.subset.swdev.abi/index.html
  */
 
+#ifndef __CHECKER__
 #if !defined (__ARM_EABI__)
 #warning Your compiler does not have EABI support.
 #warning    ARM unwind is known to compile only with EABI compilers.
@@ -34,6 +35,7 @@
 #warning Your compiler is too buggy; it is known to not compile ARM unwind support.
 #warning    Change compiler or disable ARM_UNWIND option.
 #endif
+#endif /* __CHECKER__ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>

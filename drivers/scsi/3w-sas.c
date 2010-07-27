@@ -98,7 +98,7 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 /* Functions */
 
 /* This function returns AENs through sysfs */
-static ssize_t twl_sysfs_aen_read(struct kobject *kobj,
+static ssize_t twl_sysfs_aen_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *outbuf, loff_t offset, size_t count)
 {
@@ -129,7 +129,7 @@ static struct bin_attribute twl_sysfs_aen_read_attr = {
 };
 
 /* This function returns driver compatibility info through sysfs */
-static ssize_t twl_sysfs_compat_info(struct kobject *kobj,
+static ssize_t twl_sysfs_compat_info(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *bin_attr,
 				     char *outbuf, loff_t offset, size_t count)
 {
@@ -750,18 +750,21 @@ static void twl_load_sgl(TW_Device_Extension *tw_dev, TW_Command_Full *full_comm
 
 /* This function handles ioctl for the character device
    This interface is used by smartmontools open source software */
-static int twl_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long timeout;
 	unsigned long *cpu_addr, data_buffer_length_adjusted = 0, flags = 0;
 	dma_addr_t dma_handle;
 	int request_id = 0;
 	TW_Ioctl_Driver_Command driver_command;
+	struct inode *inode = file->f_dentry->d_inode;
 	TW_Ioctl_Buf_Apache *tw_ioctl;
 	TW_Command_Full *full_command_packet;
 	TW_Device_Extension *tw_dev = twl_device_extension_list[iminor(inode)];
 	int retval = -EFAULT;
 	void __user *argp = (void __user *)arg;
+
+	lock_kernel();
 
 	/* Only let one of these through at a time */
 	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
@@ -858,6 +861,7 @@ out3:
 out2:
 	mutex_unlock(&tw_dev->ioctl_lock);
 out:
+	unlock_kernel();
 	return retval;
 } /* End twl_chrdev_ioctl() */
 
@@ -884,7 +888,7 @@ out:
 /* File operations struct for character device */
 static const struct file_operations twl_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= twl_chrdev_ioctl,
+	.unlocked_ioctl	= twl_chrdev_ioctl,
 	.open		= twl_chrdev_open,
 	.release	= NULL
 };

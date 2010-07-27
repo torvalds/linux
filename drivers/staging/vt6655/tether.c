@@ -68,7 +68,7 @@ BYTE ETHbyGetHashIndexByCrc32 (PBYTE pbyMultiAddr)
     BYTE    byHash = 0;
 
     // get the least 6-bits from CRC generator
-    byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, U_ETHER_ADDR_LEN,
+    byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
             0xFFFFFFFFL) & 0x3F);
     // reverse most bit to least bit
     for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {

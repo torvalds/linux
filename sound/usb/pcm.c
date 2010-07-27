@@ -120,10 +120,6 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
-	/* if endpoint doesn't have pitch control, bail out */
-	if (!(fmt->attributes & UAC_EP_CS_ATTR_PITCH_CONTROL))
-		return 0;
-
 	data[0] = 1;
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
 				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
@@ -137,8 +133,32 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 	return 0;
 }
 
+static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
+			 struct usb_host_interface *alts,
+			 struct audioformat *fmt)
+{
+	struct usb_device *dev = chip->dev;
+	unsigned char data[1];
+	unsigned int ep;
+	int err;
+
+	ep = get_endpoint(alts, 0)->bEndpointAddress;
+
+	data[0] = 1;
+	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
+				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+				   UAC2_EP_CS_PITCH << 8, 0,
+				   data, sizeof(data), 1000)) < 0) {
+		snd_printk(KERN_ERR "%d:%d:%d: cannot set enable PITCH (v2)\n",
+			   dev->devnum, iface, fmt->altsetting);
+		return err;
+	}
+
+	return 0;
+}
+
 /*
- * initialize the picth control and sample rate
+ * initialize the pitch control and sample rate
  */
 int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 		       struct usb_host_interface *alts,
@@ -146,13 +166,16 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 {
 	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
 
+	/* if endpoint doesn't have pitch control, bail out */
+	if (!(fmt->attributes & UAC_EP_CS_ATTR_PITCH_CONTROL))
+		return 0;
+
 	switch (altsd->bInterfaceProtocol) {
 	case UAC_VERSION_1:
 		return init_pitch_v1(chip, iface, alts, fmt);
 
 	case UAC_VERSION_2:
-		/* not implemented yet */
-		return 0;
+		return init_pitch_v2(chip, iface, alts, fmt);
 	}
 
 	return -EINVAL;

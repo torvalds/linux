@@ -53,6 +53,7 @@ static int __pci_mmap_fits(struct pci_dev *pdev, int num,
 
 /**
  * pci_mmap_resource - map a PCI resource into user memory space
+ * @filp: open sysfs file
  * @kobj: kobject for mapping
  * @attr: struct bin_attribute for the file being mapped
  * @vma: struct vm_area_struct passed into the mmap
@@ -60,7 +61,8 @@ static int __pci_mmap_fits(struct pci_dev *pdev, int num,
  *
  * Use the bus mapping routines to map a PCI resource into userspace.
  */
-static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
+static int pci_mmap_resource(struct file *filp, struct kobject *kobj,
+			     struct bin_attribute *attr,
 			     struct vm_area_struct *vma, int sparse)
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj,
@@ -89,14 +91,14 @@ static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	return hose_mmap_page_range(pdev->sysdata, vma, mmap_type, sparse);
 }
 
-static int pci_mmap_resource_sparse(struct kobject *kobj,
+static int pci_mmap_resource_sparse(struct file *filp, struct kobject *kobj,
 				    struct bin_attribute *attr,
 				    struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 1);
 }
 
-static int pci_mmap_resource_dense(struct kobject *kobj,
+static int pci_mmap_resource_dense(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *attr,
 				   struct vm_area_struct *vma)
 {

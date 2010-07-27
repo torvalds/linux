@@ -656,6 +656,7 @@ struct kvm_clock_data {
 4.29 KVM_GET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
+Extended by: KVM_CAP_INTR_SHADOW
 Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_vcpu_event (out)
@@ -676,7 +677,7 @@ struct kvm_vcpu_events {
 		__u8 injected;
 		__u8 nr;
 		__u8 soft;
-		__u8 pad;
+		__u8 shadow;
 	} interrupt;
 	struct {
 		__u8 injected;
@@ -688,9 +689,13 @@ struct kvm_vcpu_events {
 	__u32 flags;
 };
 
+KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
+interrupt.shadow contains a valid state. Otherwise, this field is undefined.
+
 4.30 KVM_SET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
+Extended by: KVM_CAP_INTR_SHADOW
 Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_vcpu_event (in)
@@ -709,6 +714,183 @@ current in-kernel state. The bits are:
 KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
 KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
 
+If KVM_CAP_INTR_SHADOW is available, KVM_VCPUEVENT_VALID_SHADOW can be set in
+the flags field to signal that interrupt.shadow contains a valid state and
+shall be written into the VCPU.
+
+4.32 KVM_GET_DEBUGREGS
+
+Capability: KVM_CAP_DEBUGREGS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_debugregs (out)
+Returns: 0 on success, -1 on error
+
+Reads debug registers from the vcpu.
+
+struct kvm_debugregs {
+	__u64 db[4];
+	__u64 dr6;
+	__u64 dr7;
+	__u64 flags;
+	__u64 reserved[9];
+};
+
+4.33 KVM_SET_DEBUGREGS
+
+Capability: KVM_CAP_DEBUGREGS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_debugregs (in)
+Returns: 0 on success, -1 on error
+
+Writes debug registers into the vcpu.
+
+See KVM_GET_DEBUGREGS for the data structure. The flags field is unused
+yet and must be cleared on entry.
+
+4.34 KVM_SET_USER_MEMORY_REGION
+
+Capability: KVM_CAP_USER_MEM
+Architectures: all
+Type: vm ioctl
+Parameters: struct kvm_userspace_memory_region (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_userspace_memory_region {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+};
+
+/* for kvm_memory_region::flags */
+#define KVM_MEM_LOG_DIRTY_PAGES  1UL
+
+This ioctl allows the user to create or modify a guest physical memory
+slot.  When changing an existing slot, it may be moved in the guest
+physical memory space, or its flags may be modified.  It may not be
+resized.  Slots may not overlap in guest physical address space.
+
+Memory for the region is taken starting at the address denoted by the
+field userspace_addr, which must point at user addressable memory for
+the entire memory slot size.  Any object may back this memory, including
+anonymous memory, ordinary files, and hugetlbfs.
+
+It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
+be identical.  This allows large pages in the guest to be backed by large
+pages in the host.
+
+The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
+instructs kvm to keep track of writes to memory within the slot.  See
+the KVM_GET_DIRTY_LOG ioctl.
+
+When the KVM_CAP_SYNC_MMU capability, changes in the backing of the memory
+region are automatically reflected into the guest.  For example, an mmap()
+that affects the region will be made visible immediately.  Another example
+is madvise(MADV_DROP).
+
+It is recommended to use this API instead of the KVM_SET_MEMORY_REGION ioctl.
+The KVM_SET_MEMORY_REGION does not allow fine grained control over memory
+allocation and is deprecated.
+
+4.35 KVM_SET_TSS_ADDR
+
+Capability: KVM_CAP_SET_TSS_ADDR
+Architectures: x86
+Type: vm ioctl
+Parameters: unsigned long tss_address (in)
+Returns: 0 on success, -1 on error
+
+This ioctl defines the physical address of a three-page region in the guest
+physical address space.  The region must be within the first 4GB of the
+guest physical address space and must not conflict with any memory slot
+or any mmio address.  The guest may malfunction if it accesses this memory
+region.
+
+This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
+because of a quirk in the virtualization implementation (see the internals
+documentation when it pops into existence).
+
+4.36 KVM_ENABLE_CAP
+
+Capability: KVM_CAP_ENABLE_CAP
+Architectures: ppc
+Type: vcpu ioctl
+Parameters: struct kvm_enable_cap (in)
+Returns: 0 on success; -1 on error
+
++Not all extensions are enabled by default. Using this ioctl the application
+can enable an extension, making it available to the guest.
+
+On systems that do not support this ioctl, it always fails. On systems that
+do support it, it only works for extensions that are supported for enablement.
+
+To check if a capability can be enabled, the KVM_CHECK_EXTENSION ioctl should
+be used.
+
+struct kvm_enable_cap {
+       /* in */
+       __u32 cap;
+
+The capability that is supposed to get enabled.
+
+       __u32 flags;
+
+A bitfield indicating future enhancements. Has to be 0 for now.
+
+       __u64 args[4];
+
+Arguments for enabling a feature. If a feature needs initial values to
+function properly, this is the place to put them.
+
+       __u8  pad[64];
+};
+
+4.37 KVM_GET_MP_STATE
+
+Capability: KVM_CAP_MP_STATE
+Architectures: x86, ia64
+Type: vcpu ioctl
+Parameters: struct kvm_mp_state (out)
+Returns: 0 on success; -1 on error
+
+struct kvm_mp_state {
+	__u32 mp_state;
+};
+
+Returns the vcpu's current "multiprocessing state" (though also valid on
+uniprocessor guests).
+
+Possible values are:
+
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running
+ - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
+                                 which has not yet received an INIT signal
+ - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
+                                 now ready for a SIPI
+ - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
+                                 is waiting for an interrupt
+ - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
+                                 accesible via KVM_GET_VCPU_EVENTS)
+
+This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
+irqchip, the multiprocessing state must be maintained by userspace.
+
+4.38 KVM_SET_MP_STATE
+
+Capability: KVM_CAP_MP_STATE
+Architectures: x86, ia64
+Type: vcpu ioctl
+Parameters: struct kvm_mp_state (in)
+Returns: 0 on success; -1 on error
+
+Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
+arguments.
+
+This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
+irqchip, the multiprocessing state must be maintained by userspace.
 
 5. The kvm_run structure
 
@@ -820,6 +1002,13 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO and KVM_EXIT_OSI, the corresponding
+operations are complete (and guest state is consistent) only after userspace
+has re-entered the kernel with KVM_RUN.  The kernel side will first finish
+incomplete operations and then check for pending signals.  Userspace
+can re-enter the guest with an unmasked signal pending to complete
+pending operations.
+
 		/* KVM_EXIT_HYPERCALL */
 		struct {
 			__u64 nr;
@@ -829,7 +1018,9 @@ true, and should be filled by application code otherwise.
 			__u32 pad;
 		} hypercall;
 
-Unused.
+Unused.  This was once used for 'hypercall to userspace'.  To implement
+such functionality, use KVM_EXIT_IO (x86) or KVM_EXIT_MMIO (all except s390).
+Note KVM_EXIT_IO is significantly faster than KVM_EXIT_MMIO.
 
 		/* KVM_EXIT_TPR_ACCESS */
 		struct {
@@ -869,6 +1060,19 @@ s390 specific.
 		} dcr;
 
 powerpc specific.
+
+		/* KVM_EXIT_OSI */
+		struct {
+			__u64 gprs[32];
+		} osi;
+
+MOL uses a special hypercall interface it calls 'OSI'. To enable it, we catch
+hypercalls and exit with this exit struct that contains all the guest gprs.
+
+If exit_reason is KVM_EXIT_OSI, then the vcpu has triggered such a hypercall.
+Userspace can now handle the hypercall and when it's done modify the gprs as
+necessary. Upon guest entry all guest GPRs will then be replaced by the values
+in this struct.
 
 		/* Fix the size of the union. */
 		char padding[256];

@@ -1060,7 +1060,7 @@ static void event__process_sample(const event_t *self,
 			pr_err("Can't annotate %s", sym->name);
 			if (sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
 				pr_err(": No vmlinux file was found in the path:\n");
-				vmlinux_path__fprintf(stderr);
+				machine__fprintf_vmlinux_path(machine, stderr);
 			} else
 				pr_err(".\n");
 			exit(1);

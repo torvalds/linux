@@ -169,10 +169,9 @@ static void add_sector(conf_t *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static int make_request(struct request_queue *q, struct bio *bio)
+static int make_request(mddev_t *mddev, struct bio *bio)
 {
-	mddev_t *mddev = q->queuedata;
-	conf_t *conf = (conf_t*)mddev->private;
+	conf_t *conf = mddev->private;
 	int failit = 0;
 
 	if (bio_data_dir(bio) == WRITE) {
@@ -225,7 +224,7 @@ static int make_request(struct request_queue *q, struct bio *bio)
 
 static void status(struct seq_file *seq, mddev_t *mddev)
 {
-	conf_t *conf = (conf_t*)mddev->private;
+	conf_t *conf = mddev->private;
 	int n;
 
 	if ((n=atomic_read(&conf->counters[WriteTransient])) != 0)
@@ -328,7 +327,7 @@ static int run(mddev_t *mddev)
 
 static int stop(mddev_t *mddev)
 {
-	conf_t *conf = (conf_t *)mddev->private;
+	conf_t *conf = mddev->private;
 
 	kfree(conf);
 	mddev->private = NULL;

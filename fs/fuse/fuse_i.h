@@ -177,6 +177,9 @@ struct fuse_out {
 	/** Zero partially or not copied pages */
 	unsigned page_zeroing:1;
 
+	/** Pages may be replaced with new ones */
+	unsigned page_replace:1;
+
 	/** Number or arguments */
 	unsigned numargs;
 
@@ -568,8 +571,7 @@ void fuse_release_common(struct file *file, int opcode);
 /**
  * Send FSYNC or FSYNCDIR request
  */
-int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
-		      int isdir);
+int fuse_fsync_common(struct file *file, int datasync, int isdir);
 
 /**
  * Notify poll wakeup

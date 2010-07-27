@@ -158,10 +158,14 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	unsigned hash;
 	int ret;
 
+	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
+		return 0;
+
 	/* Hash by protocol, client address and port */
 	hash = ip_vs_conn_hashkey(cp->af, cp->protocol, &cp->caddr, cp->cport);
 
 	ct_write_lock(hash);
+	spin_lock(&cp->lock);
 
 	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
 		list_add(&cp->c_list, &ip_vs_conn_tab[hash]);
@@ -174,6 +178,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		ret = 0;
 	}
 
+	spin_unlock(&cp->lock);
 	ct_write_unlock(hash);
 
 	return ret;
@@ -193,6 +198,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	hash = ip_vs_conn_hashkey(cp->af, cp->protocol, &cp->caddr, cp->cport);
 
 	ct_write_lock(hash);
+	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		list_del(&cp->c_list);
@@ -202,6 +208,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	} else
 		ret = 0;
 
+	spin_unlock(&cp->lock);
 	ct_write_unlock(hash);
 
 	return ret;
@@ -355,8 +362,9 @@ struct ip_vs_conn *ip_vs_conn_out_get
  */
 void ip_vs_conn_put(struct ip_vs_conn *cp)
 {
-	/* reset it expire in its timeout */
-	mod_timer(&cp->timer, jiffies+cp->timeout);
+	unsigned long t = (cp->flags & IP_VS_CONN_F_ONE_PACKET) ?
+		0 : cp->timeout;
+	mod_timer(&cp->timer, jiffies+t);
 
 	__ip_vs_conn_put(cp);
 }
@@ -649,7 +657,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	/*
 	 *	unhash it if it is hashed in the conn table
 	 */
-	if (!ip_vs_conn_unhash(cp))
+	if (!ip_vs_conn_unhash(cp) && !(cp->flags & IP_VS_CONN_F_ONE_PACKET))
 		goto expire_later;
 
 	/*

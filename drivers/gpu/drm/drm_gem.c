@@ -124,6 +124,31 @@ drm_gem_destroy(struct drm_device *dev)
 }
 
 /**
+ * Initialize an already allocate GEM object of the specified size with
+ * shmfs backing store.
+ */
+int drm_gem_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size)
+{
+	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
+
+	obj->dev = dev;
+	obj->filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+	if (IS_ERR(obj->filp))
+		return -ENOMEM;
+
+	kref_init(&obj->refcount);
+	kref_init(&obj->handlecount);
+	obj->size = size;
+
+	atomic_inc(&dev->object_count);
+	atomic_add(obj->size, &dev->object_memory);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_object_init);
+
+/**
  * Allocate a GEM object of the specified size with shmfs backing store
  */
 struct drm_gem_object *
@@ -131,28 +156,22 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 {
 	struct drm_gem_object *obj;
 
-	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
-
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
 		goto free;
 
-	obj->dev = dev;
-	obj->filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
-	if (IS_ERR(obj->filp))
+	if (drm_gem_object_init(dev, obj, size) != 0)
 		goto free;
 
-	kref_init(&obj->refcount);
-	kref_init(&obj->handlecount);
-	obj->size = size;
 	if (dev->driver->gem_init_object != NULL &&
 	    dev->driver->gem_init_object(obj) != 0) {
 		goto fput;
 	}
-	atomic_inc(&dev->object_count);
-	atomic_add(obj->size, &dev->object_memory);
 	return obj;
 fput:
+	/* Object_init mangles the global counters - readjust them. */
+	atomic_dec(&dev->object_count);
+	atomic_sub(obj->size, &dev->object_memory);
 	fput(obj->filp);
 free:
 	kfree(obj);
@@ -403,15 +422,15 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 	idr_destroy(&file_private->object_idr);
 }
 
-static void
-drm_gem_object_free_common(struct drm_gem_object *obj)
+void
+drm_gem_object_release(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	fput(obj->filp);
 	atomic_dec(&dev->object_count);
 	atomic_sub(obj->size, &dev->object_memory);
-	kfree(obj);
 }
+EXPORT_SYMBOL(drm_gem_object_release);
 
 /**
  * Called after the last reference to the object has been lost.
@@ -429,8 +448,6 @@ drm_gem_object_free(struct kref *kref)
 
 	if (dev->driver->gem_free_object != NULL)
 		dev->driver->gem_free_object(obj);
-
-	drm_gem_object_free_common(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
@@ -453,8 +470,6 @@ drm_gem_object_free_unlocked(struct kref *kref)
 		dev->driver->gem_free_object(obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
-
-	drm_gem_object_free_common(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free_unlocked);
 

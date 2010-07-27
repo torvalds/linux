@@ -203,3 +203,11 @@ const struct file_operations v9fs_dir_operations = {
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 };
+
+const struct file_operations v9fs_dir_operations_dotl = {
+	.read = generic_read_dir,
+	.llseek = generic_file_llseek,
+	.readdir = v9fs_dir_readdir,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+};

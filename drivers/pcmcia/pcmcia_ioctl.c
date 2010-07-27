@@ -813,8 +813,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
 
 /*====================================================================*/
 
-static int ds_ioctl(struct inode *inode, struct file *file,
-		    u_int cmd, u_long arg)
+static int ds_ioctl(struct file *file, u_int cmd, u_long arg)
 {
     struct pcmcia_socket *s;
     void __user *uarg = (char __user *)arg;
@@ -1021,13 +1020,25 @@ free_out:
     return err;
 } /* ds_ioctl */
 
+static long ds_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ds_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 /*====================================================================*/
 
 static const struct file_operations ds_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds_open,
 	.release	= ds_release,
-	.ioctl		= ds_ioctl,
+	.unlocked_ioctl	= ds_unlocked_ioctl,
 	.read		= ds_read,
 	.write		= ds_write,
 	.poll		= ds_poll,

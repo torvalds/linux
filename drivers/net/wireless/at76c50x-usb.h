@@ -99,7 +99,7 @@ struct hwcfg_r505 {
 	u8 reserved2[14];
 	u8 cr15_values[14];
 	u8 reserved3[3];
-} __attribute__((packed));
+} __packed;
 
 struct hwcfg_rfmd {
 	u8 cr20_values[14];
@@ -111,7 +111,7 @@ struct hwcfg_rfmd {
 	u8 low_power_values[14];
 	u8 normal_power_values[14];
 	u8 reserved1[3];
-} __attribute__((packed));
+} __packed;
 
 struct hwcfg_intersil {
 	u8 mac_addr[ETH_ALEN];
@@ -120,7 +120,7 @@ struct hwcfg_intersil {
 	u8 pidvid[4];
 	u8 regulatory_domain;
 	u8 reserved[1];
-} __attribute__((packed));
+} __packed;
 
 union at76_hwcfg {
 	struct hwcfg_intersil i;
@@ -149,14 +149,14 @@ struct at76_card_config {
 	u8 ssid_len;
 	u8 short_preamble;
 	__le16 beacon_period;
-} __attribute__((packed));
+} __packed;
 
 struct at76_command {
 	u8 cmd;
 	u8 reserved;
 	__le16 size;
 	u8 data[0];
-} __attribute__((packed));
+} __packed;
 
 /* Length of Atmel-specific Rx header before 802.11 frame */
 #define AT76_RX_HDRLEN offsetof(struct at76_rx_buffer, packet)
@@ -171,7 +171,7 @@ struct at76_rx_buffer {
 	u8 noise_level;
 	__le32 rx_time;
 	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
-} __attribute__((packed));
+} __packed;
 
 /* Length of Atmel-specific Tx header before 802.11 frame */
 #define AT76_TX_HDRLEN offsetof(struct at76_tx_buffer, packet)
@@ -182,7 +182,7 @@ struct at76_tx_buffer {
 	u8 padding;
 	u8 reserved[4];
 	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
-} __attribute__((packed));
+} __packed;
 
 /* defines for scan_type below */
 #define SCAN_TYPE_ACTIVE	0
@@ -198,7 +198,7 @@ struct at76_req_scan {
 	__le16 max_channel_time;
 	u8 essid_size;
 	u8 international_scan;
-} __attribute__((packed));
+} __packed;
 
 struct at76_req_ibss {
 	u8 bssid[ETH_ALEN];
@@ -207,7 +207,7 @@ struct at76_req_ibss {
 	u8 channel;
 	u8 essid_size;
 	u8 reserved[3];
-} __attribute__((packed));
+} __packed;
 
 struct at76_req_join {
 	u8 bssid[ETH_ALEN];
@@ -217,7 +217,7 @@ struct at76_req_join {
 	__le16 timeout;
 	u8 essid_size;
 	u8 reserved;
-} __attribute__((packed));
+} __packed;
 
 struct set_mib_buffer {
 	u8 type;
@@ -229,7 +229,7 @@ struct set_mib_buffer {
 		__le16 word;
 		u8 addr[ETH_ALEN];
 	} data;
-} __attribute__((packed));
+} __packed;
 
 struct mib_local {
 	u16 reserved0;
@@ -241,14 +241,14 @@ struct mib_local {
 	u16 reserved2;
 	u8 preamble_type;
 	u16 reserved3;
-} __attribute__((packed));
+} __packed;
 
 struct mib_mac_addr {
 	u8 mac_addr[ETH_ALEN];
 	u8 res[2];		/* ??? */
 	u8 group_addr[4][ETH_ALEN];
 	u8 group_addr_status[4];
-} __attribute__((packed));
+} __packed;
 
 struct mib_mac {
 	__le32 max_tx_msdu_lifetime;
@@ -269,7 +269,7 @@ struct mib_mac {
 	u8 desired_bssid[ETH_ALEN];
 	u8 desired_bsstype;	/* ad-hoc or infrastructure */
 	u8 reserved2;
-} __attribute__((packed));
+} __packed;
 
 struct mib_mac_mgmt {
 	__le16 beacon_period;
@@ -292,7 +292,7 @@ struct mib_mac_mgmt {
 	u8 multi_domain_capability_enabled;
 	u8 country_string[3];
 	u8 reserved[3];
-} __attribute__((packed));
+} __packed;
 
 struct mib_mac_wep {
 	u8 privacy_invoked;	/* 0 disable encr., 1 enable encr */
@@ -303,7 +303,7 @@ struct mib_mac_wep {
 	__le32 wep_excluded_count;
 	u8 wep_default_keyvalue[WEP_KEYS][WEP_LARGE_KEY_LEN];
 	u8 encryption_level;	/* 1 for 40bit, 2 for 104bit encryption */
-} __attribute__((packed));
+} __packed;
 
 struct mib_phy {
 	__le32 ed_threshold;
@@ -320,19 +320,19 @@ struct mib_phy {
 	u8 current_cca_mode;
 	u8 phy_type;
 	u8 current_reg_domain;
-} __attribute__((packed));
+} __packed;
 
 struct mib_fw_version {
 	u8 major;
 	u8 minor;
 	u8 patch;
 	u8 build;
-} __attribute__((packed));
+} __packed;
 
 struct mib_mdomain {
 	u8 tx_powerlevel[14];
 	u8 channel_list[14];	/* 0 for invalid channels */
-} __attribute__((packed));
+} __packed;
 
 struct at76_fw_header {
 	__le32 crc;		/* CRC32 of the whole image */
@@ -346,7 +346,7 @@ struct at76_fw_header {
 	__le32 int_fw_len;	/* internal firmware image length */
 	__le32 ext_fw_offset;	/* external firmware image offset */
 	__le32 ext_fw_len;	/* external firmware image length */
-} __attribute__((packed));
+} __packed;
 
 /* a description of a regulatory domain and the allowed channels */
 struct reg_domain {

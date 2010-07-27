@@ -9,7 +9,7 @@
 #include "check.h"
 #include "ultrix.h"
 
-int ultrix_partition(struct parsed_partitions *state, struct block_device *bdev)
+int ultrix_partition(struct parsed_partitions *state)
 {
 	int i;
 	Sector sect;
@@ -26,7 +26,7 @@ int ultrix_partition(struct parsed_partitions *state, struct block_device *bdev)
 #define PT_MAGIC	0x032957	/* Partition magic number */
 #define PT_VALID	1		/* Indicates if struct is valid */
 
-	data = read_dev_sector(bdev, (16384 - sizeof(*label))/512, &sect);
+	data = read_part_sector(state, (16384 - sizeof(*label))/512, &sect);
 	if (!data)
 		return -1;
 	

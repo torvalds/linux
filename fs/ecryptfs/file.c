@@ -274,11 +274,9 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-ecryptfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+ecryptfs_fsync(struct file *file, int datasync)
 {
-	return vfs_fsync(ecryptfs_file_to_lower(file),
-			 ecryptfs_dentry_to_lower(dentry),
-			 datasync);
+	return vfs_fsync(ecryptfs_file_to_lower(file), datasync);
 }
 
 static int ecryptfs_fasync(int fd, struct file *file, int flag)

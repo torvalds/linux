@@ -167,23 +167,23 @@ int bfin_special_gpio_request(unsigned gpio, const char *label);
 #endif
 
 #ifdef CONFIG_PM
+int bfin_pm_standby_ctrl(unsigned ctrl);
 
-unsigned int bfin_pm_standby_setup(void);
-void bfin_pm_standby_restore(void);
+static inline int bfin_pm_standby_setup(void)
+{
+	return bfin_pm_standby_ctrl(1);
+}
+
+static inline void bfin_pm_standby_restore(void)
+{
+	bfin_pm_standby_ctrl(0);
+}
 
 void bfin_gpio_pm_hibernate_restore(void);
 void bfin_gpio_pm_hibernate_suspend(void);
 
 #ifndef CONFIG_BF54x
-#define PM_WAKE_RISING	0x1
-#define PM_WAKE_FALLING	0x2
-#define PM_WAKE_HIGH	0x4
-#define PM_WAKE_LOW	0x8
-#define PM_WAKE_BOTH_EDGES	(PM_WAKE_RISING | PM_WAKE_FALLING)
-#define PM_WAKE_IGNORE	0xF0
-
-int gpio_pm_wakeup_request(unsigned gpio, unsigned char type);
-void gpio_pm_wakeup_free(unsigned gpio);
+int gpio_pm_wakeup_ctrl(unsigned gpio, unsigned ctrl);
 
 struct gpio_port_s {
 	unsigned short data;

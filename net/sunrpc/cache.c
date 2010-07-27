@@ -34,6 +34,7 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/smp_lock.h>
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -1545,12 +1546,18 @@ static unsigned int cache_poll_pipefs(struct file *filp, poll_table *wait)
 	return cache_poll(filp, wait, cd);
 }
 
-static int cache_ioctl_pipefs(struct inode *inode, struct file *filp,
+static long cache_ioctl_pipefs(struct file *filp,
 			      unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct cache_detail *cd = RPC_I(inode)->private;
+	long ret;
 
-	return cache_ioctl(inode, filp, cmd, arg, cd);
+	lock_kernel();
+	ret = cache_ioctl(inode, filp, cmd, arg, cd);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int cache_open_pipefs(struct inode *inode, struct file *filp)
@@ -1573,7 +1580,7 @@ const struct file_operations cache_file_operations_pipefs = {
 	.read		= cache_read_pipefs,
 	.write		= cache_write_pipefs,
 	.poll		= cache_poll_pipefs,
-	.ioctl		= cache_ioctl_pipefs, /* for FIONREAD */
+	.unlocked_ioctl	= cache_ioctl_pipefs, /* for FIONREAD */
 	.open		= cache_open_pipefs,
 	.release	= cache_release_pipefs,
 };

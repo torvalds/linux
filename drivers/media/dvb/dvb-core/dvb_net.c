@@ -59,6 +59,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dvb/net.h>
+#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
@@ -1329,7 +1330,7 @@ static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 	return 0;
 }
 
-static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_net_do_ioctl(struct file *file,
 		  unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1431,10 +1432,16 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
-static int dvb_net_ioctl(struct inode *inode, struct file *file,
+static long dvb_net_ioctl(struct file *file,
 	      unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_net_do_ioctl);
+	int ret;
+
+	lock_kernel();
+	ret = dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int dvb_net_close(struct inode *inode, struct file *file)
@@ -1455,7 +1462,7 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 
 static const struct file_operations dvb_net_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = dvb_net_ioctl,
+	.unlocked_ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
 };

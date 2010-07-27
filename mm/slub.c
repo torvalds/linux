@@ -157,14 +157,6 @@
 #define SLUB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
 		SLAB_CACHE_DMA | SLAB_NOTRACK)
 
-#ifndef ARCH_KMALLOC_MINALIGN
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
-#endif
-
-#ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
-#endif
-
 #define OO_SHIFT	16
 #define OO_MASK		((1 << OO_SHIFT) - 1)
 #define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
@@ -1084,7 +1076,7 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
 	if (node == -1)
 		return alloc_pages(flags, order);
 	else
-		return alloc_pages_node(node, flags, order);
+		return alloc_pages_exact_node(node, flags, order);
 }
 
 static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
@@ -1368,6 +1360,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 			get_cycles() % 1024 > s->remote_node_defrag_ratio)
 		return NULL;
 
+	get_mems_allowed();
 	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 		struct kmem_cache_node *n;
@@ -1377,10 +1370,13 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
 				n->nr_partial > s->min_partial) {
 			page = get_partial_node(n);
-			if (page)
+			if (page) {
+				put_mems_allowed();
 				return page;
+			}
 		}
 	}
+	put_mems_allowed();
 #endif
 	return NULL;
 }
@@ -2141,7 +2137,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
 
 	for_each_node_state(node, N_NORMAL_MEMORY) {
 		struct kmem_cache_node *n = s->node[node];
-		if (n && n != &s->local_node)
+		if (n)
 			kmem_cache_free(kmalloc_caches, n);
 		s->node[node] = NULL;
 	}
@@ -2150,33 +2146,22 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
 static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 {
 	int node;
-	int local_node;
-
-	if (slab_state >= UP && (s < kmalloc_caches ||
-			s >= kmalloc_caches + KMALLOC_CACHES))
-		local_node = page_to_nid(virt_to_page(s));
-	else
-		local_node = 0;
 
 	for_each_node_state(node, N_NORMAL_MEMORY) {
 		struct kmem_cache_node *n;
 
-		if (local_node == node)
-			n = &s->local_node;
-		else {
-			if (slab_state == DOWN) {
-				early_kmem_cache_node_alloc(gfpflags, node);
-				continue;
-			}
-			n = kmem_cache_alloc_node(kmalloc_caches,
-							gfpflags, node);
-
-			if (!n) {
-				free_kmem_cache_nodes(s);
-				return 0;
-			}
-
+		if (slab_state == DOWN) {
+			early_kmem_cache_node_alloc(gfpflags, node);
+			continue;
 		}
+		n = kmem_cache_alloc_node(kmalloc_caches,
+						gfpflags, node);
+
+		if (!n) {
+			free_kmem_cache_nodes(s);
+			return 0;
+		}
+
 		s->node[node] = n;
 		init_kmem_cache_node(n, s);
 	}
@@ -2429,9 +2414,11 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 #ifdef CONFIG_SLUB_DEBUG
 	void *addr = page_address(page);
 	void *p;
-	DECLARE_BITMAP(map, page->objects);
+	long *map = kzalloc(BITS_TO_LONGS(page->objects) * sizeof(long),
+			    GFP_ATOMIC);
 
-	bitmap_zero(map, page->objects);
+	if (!map)
+		return;
 	slab_err(s, page, "%s", text);
 	slab_lock(page);
 	for_each_free_object(p, s, page->freelist)
@@ -2446,6 +2433,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 		}
 	}
 	slab_unlock(page);
+	kfree(map);
 #endif
 }
 
@@ -3338,8 +3326,15 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	struct kmem_cache *s;
 	void *ret;
 
-	if (unlikely(size > SLUB_MAX_SIZE))
-		return kmalloc_large_node(size, gfpflags, node);
+	if (unlikely(size > SLUB_MAX_SIZE)) {
+		ret = kmalloc_large_node(size, gfpflags, node);
+
+		trace_kmalloc_node(caller, ret,
+				   size, PAGE_SIZE << get_order(size),
+				   gfpflags, node);
+
+		return ret;
+	}
 
 	s = get_slab(size, gfpflags);
 
@@ -3651,10 +3646,10 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 }
 
 static void process_slab(struct loc_track *t, struct kmem_cache *s,
-		struct page *page, enum track_item alloc)
+		struct page *page, enum track_item alloc,
+		long *map)
 {
 	void *addr = page_address(page);
-	DECLARE_BITMAP(map, page->objects);
 	void *p;
 
 	bitmap_zero(map, page->objects);
@@ -3673,11 +3668,14 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	unsigned long i;
 	struct loc_track t = { 0, 0, NULL };
 	int node;
+	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->max)) *
+				     sizeof(unsigned long), GFP_KERNEL);
 
-	if (!alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
-			GFP_TEMPORARY))
+	if (!map || !alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
+				     GFP_TEMPORARY)) {
+		kfree(map);
 		return sprintf(buf, "Out of memory\n");
-
+	}
 	/* Push back cpu slabs */
 	flush_all(s);
 
@@ -3691,9 +3689,9 @@ static int list_locations(struct kmem_cache *s, char *buf,
 
 		spin_lock_irqsave(&n->list_lock, flags);
 		list_for_each_entry(page, &n->partial, lru)
-			process_slab(&t, s, page, alloc);
+			process_slab(&t, s, page, alloc, map);
 		list_for_each_entry(page, &n->full, lru)
-			process_slab(&t, s, page, alloc);
+			process_slab(&t, s, page, alloc, map);
 		spin_unlock_irqrestore(&n->list_lock, flags);
 	}
 
@@ -3744,6 +3742,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	}
 
 	free_loc_track(&t);
+	kfree(map);
 	if (!t.count)
 		len += sprintf(buf, "No data\n");
 	return len;

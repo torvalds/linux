@@ -145,13 +145,19 @@ config KS8695_WATCHDOG
 	  Watchdog timer embedded into KS8695 processor. This will reboot your
 	  system when the timeout is reached.
 
+config HAVE_S3C2410_WATCHDOG
+	bool
+	help
+	  This will include watchdog timer support for Samsung SoCs. If
+	  you want to include watchdog support for any machine, kindly
+	  select this in the respective mach-XXXX/Kconfig file.
+
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
 	help
-	  Watchdog timer block in the Samsung S3C2410 chips. This will
-	  reboot the system when the timer expires with the watchdog
-	  enabled.
+	  Watchdog timer block in the Samsung SoCs. This will reboot
+	  the system when the timer expires with the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK
 	  signal, so with reasonably fast systems (PCLK around 50-66MHz)
@@ -305,6 +311,18 @@ config MAX63XX_WATCHDOG
 	depends on ARM && HAS_IOMEM
 	help
 	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
+
+config IMX2_WDT
+	tristate "IMX2+ Watchdog"
+	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	help
+	  This is the driver for the hardware watchdog
+	  on the Freescale IMX2 and later processors.
+	  If you have one of these processors and wish to have
+	  watchdog support enabled, say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx2_wdt.
 
 # AVR32 Architecture
 

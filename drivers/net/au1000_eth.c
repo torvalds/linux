@@ -978,7 +978,7 @@ static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!aup->phy_dev)
 		return -EINVAL; /* PHY not controllable */
 
-	return phy_mii_ioctl(aup->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(aup->phy_dev, rq, cmd);
 }
 
 static const struct net_device_ops au1000_netdev_ops = {

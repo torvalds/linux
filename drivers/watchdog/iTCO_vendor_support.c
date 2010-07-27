@@ -101,13 +101,6 @@ static void supermicro_old_pre_stop(unsigned long acpibase)
 	outl(val32, SMI_EN);	/* Needed to deactivate watchdog */
 }
 
-static void supermicro_old_pre_keepalive(unsigned long acpibase)
-{
-	/* Reload TCO Timer (done in iTCO_wdt_keepalive) + */
-	/* Clear "Expire Flag" (Bit 3 of TC01_STS register) */
-	outb(0x08, TCO1_STS);
-}
-
 /*
  *	Vendor Support: 2
  *	Board: Super Micro Computer Inc. P4SBx, P4DPx
@@ -337,9 +330,7 @@ EXPORT_SYMBOL(iTCO_vendor_pre_stop);
 
 void iTCO_vendor_pre_keepalive(unsigned long acpibase, unsigned int heartbeat)
 {
-	if (vendorsupport == SUPERMICRO_OLD_BOARD)
-		supermicro_old_pre_keepalive(acpibase);
-	else if (vendorsupport == SUPERMICRO_NEW_BOARD)
+	if (vendorsupport == SUPERMICRO_NEW_BOARD)
 		supermicro_new_pre_set_heartbeat(heartbeat);
 }
 EXPORT_SYMBOL(iTCO_vendor_pre_keepalive);

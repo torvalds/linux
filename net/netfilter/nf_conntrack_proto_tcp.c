@@ -736,27 +736,19 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	return res;
 }
 
-#define	TH_FIN	0x01
-#define	TH_SYN	0x02
-#define	TH_RST	0x04
-#define	TH_PUSH	0x08
-#define	TH_ACK	0x10
-#define	TH_URG	0x20
-#define	TH_ECE	0x40
-#define	TH_CWR	0x80
-
 /* table of valid flag combinations - PUSH, ECE and CWR are always valid */
-static const u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
+static const u8 tcp_valid_flags[(TCPHDR_FIN|TCPHDR_SYN|TCPHDR_RST|TCPHDR_ACK|
+				 TCPHDR_URG) + 1] =
 {
-	[TH_SYN]			= 1,
-	[TH_SYN|TH_URG]			= 1,
-	[TH_SYN|TH_ACK]			= 1,
-	[TH_RST]			= 1,
-	[TH_RST|TH_ACK]			= 1,
-	[TH_FIN|TH_ACK]			= 1,
-	[TH_FIN|TH_ACK|TH_URG]		= 1,
-	[TH_ACK]			= 1,
-	[TH_ACK|TH_URG]			= 1,
+	[TCPHDR_SYN]				= 1,
+	[TCPHDR_SYN|TCPHDR_URG]			= 1,
+	[TCPHDR_SYN|TCPHDR_ACK]			= 1,
+	[TCPHDR_RST]				= 1,
+	[TCPHDR_RST|TCPHDR_ACK]			= 1,
+	[TCPHDR_FIN|TCPHDR_ACK]			= 1,
+	[TCPHDR_FIN|TCPHDR_ACK|TCPHDR_URG]	= 1,
+	[TCPHDR_ACK]				= 1,
+	[TCPHDR_ACK|TCPHDR_URG]			= 1,
 };
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
@@ -803,7 +795,7 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* Check TCP flags. */
-	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR|TH_PUSH));
+	tcpflags = (tcp_flag_byte(th) & ~(TCPHDR_ECE|TCPHDR_CWR|TCPHDR_PSH));
 	if (!tcp_valid_flags[tcpflags]) {
 		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,

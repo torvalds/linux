@@ -31,7 +31,7 @@ static int of_isp1760_probe(struct of_device *dev,
 		const struct of_device_id *match)
 {
 	struct usb_hcd *hcd;
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	struct resource *res;
 	struct resource memory;
 	struct of_irq oirq;
@@ -120,8 +120,11 @@ static const struct of_device_id of_isp1760_match[] = {
 MODULE_DEVICE_TABLE(of, of_isp1760_match);
 
 static struct of_platform_driver isp1760_of_driver = {
-	.name           = "nxp-isp1760",
-	.match_table    = of_isp1760_match,
+	.driver = {
+		.name = "nxp-isp1760",
+		.owner = THIS_MODULE,
+		.of_match_table = of_isp1760_match,
+	},
 	.probe          = of_isp1760_probe,
 	.remove         = of_isp1760_remove,
 };

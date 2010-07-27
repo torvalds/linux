@@ -110,8 +110,13 @@ config OMAP_IOMMU
 	tristate
 
 config OMAP_IOMMU_DEBUG
-	depends on OMAP_IOMMU
-	tristate
+       tristate "Export OMAP IOMMU internals in DebugFS"
+       depends on OMAP_IOMMU && DEBUG_FS
+       help
+         Select this to see extensive information about
+         the internal state of OMAP IOMMU in debugfs.
+
+         Say N unless you know you need this.
 
 choice
 	prompt "System timer"

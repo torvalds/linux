@@ -345,7 +345,7 @@ static int axon_msi_shutdown(struct of_device *device)
 static int axon_msi_probe(struct of_device *device,
 			  const struct of_device_id *device_id)
 {
-	struct device_node *dn = device->node;
+	struct device_node *dn = device->dev.of_node;
 	struct axon_msic *msic;
 	unsigned int virq;
 	int dcr_base, dcr_len;
@@ -447,11 +447,12 @@ static const struct of_device_id axon_msi_device_id[] = {
 };
 
 static struct of_platform_driver axon_msi_driver = {
-	.match_table	= axon_msi_device_id,
 	.probe		= axon_msi_probe,
 	.shutdown	= axon_msi_shutdown,
-	.driver		= {
-		.name	= "axon-msi"
+	.driver = {
+		.name = "axon-msi",
+		.owner = THIS_MODULE,
+		.of_match_table = axon_msi_device_id,
 	},
 };
 

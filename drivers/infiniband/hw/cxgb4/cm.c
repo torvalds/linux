@@ -1364,7 +1364,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		       __func__);
 		goto reject;
 	}
-	dst = &rt->u.dst;
+	dst = &rt->dst;
 	if (dst->neighbour->dev->flags & IFF_LOOPBACK) {
 		pdev = ip_dev_find(&init_net, peer_ip);
 		BUG_ON(!pdev);
@@ -1938,7 +1938,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
-	ep->dst = &rt->u.dst;
+	ep->dst = &rt->dst;
 
 	/* get a l2t entry */
 	if (ep->dst->neighbour->dev->flags & IFF_LOOPBACK) {

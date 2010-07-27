@@ -1,4 +1,4 @@
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // MAC_Structures.h
 //
 // This file contains the definitions and data structures used by SW-MAC.
@@ -16,24 +16,24 @@
 //                      Deleted some unused.
 //          20021129    PD43 Austin
 //			20030617	increase the 802.11g definition
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #ifndef _MAC_Structures_H_
 #define _MAC_Structures_H_
 
 #include <linux/skbuff.h>
 
-//=========================================================
+/*=========================================================
 // Some miscellaneous definitions
-//-----
+//-----*/
 #define MAX_CHANNELS                        30
 #define MAC_ADDR_LENGTH                     6
-#define MAX_WEP_KEY_SIZE                    16  // 128 bits
-#define	MAX_802_11_FRAGMENT_NUMBER		10 // By spec
+#define MAX_WEP_KEY_SIZE                    16  /* 128 bits */
+#define	MAX_802_11_FRAGMENT_NUMBER		10 /* By spec */
 
-//========================================================
+/* ========================================================
 // 802.11 Frame define
-//-----
+//----- */
 #define MASK_PROTOCOL_VERSION_TYPE	0x0F
 #define MASK_FRAGMENT_NUMBER		0x000F
 #define SEQUENCE_NUMBER_SHIFT		4
@@ -41,8 +41,8 @@
 #define DOT_11_MAC_HEADER_SIZE		24
 #define DOT_11_SNAP_SIZE			6
 #define DOT_11_DURATION_OFFSET		2
-#define DOT_11_SEQUENCE_OFFSET		22 //Sequence control offset
-#define DOT_11_TYPE_OFFSET			30 //The start offset of 802.11 Frame//
+#define DOT_11_SEQUENCE_OFFSET		22 /* Sequence control offset */
+#define DOT_11_TYPE_OFFSET			30 /* The start offset of 802.11 Frame// */
 #define DOT_11_DATA_OFFSET          24
 #define DOT_11_DA_OFFSET			4
 #define DOT_3_TYPE_ARP				0x80F3
@@ -54,7 +54,7 @@
 #define MAX_ETHERNET_PACKET_SIZE		1514
 
 
-//-----  management : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7)
+/* -----  management : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7) */
 #define MAC_SUBTYPE_MNGMNT_ASSOC_REQUEST    0x00
 #define MAC_SUBTYPE_MNGMNT_ASSOC_RESPONSE   0x10
 #define MAC_SUBTYPE_MNGMNT_REASSOC_REQUEST  0x20
@@ -67,7 +67,7 @@
 #define MAC_SUBTYPE_MNGMNT_AUTHENTICATION   0xB0
 #define MAC_SUBTYPE_MNGMNT_DEAUTHENTICATION 0xC0
 
-//-----  control : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7)
+/* -----  control : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7) */
 #define MAC_SUBTYPE_CONTROL_PSPOLL          0xA4
 #define MAC_SUBTYPE_CONTROL_RTS             0xB4
 #define MAC_SUBTYPE_CONTROL_CTS             0xC4
@@ -75,7 +75,7 @@
 #define MAC_SUBTYPE_CONTROL_CFEND           0xE4
 #define MAC_SUBTYPE_CONTROL_CFEND_CFACK     0xF4
 
-//-----  data : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7)
+/* -----  data : Type of Bits (2, 3) and Subtype of Bits (4, 5, 6, 7) */
 #define MAC_SUBTYPE_DATA                    0x08
 #define MAC_SUBTYPE_DATA_CFACK              0x18
 #define MAC_SUBTYPE_DATA_CFPOLL             0x28
@@ -85,12 +85,12 @@
 #define MAC_SUBTYPE_DATA_CFPOLL_NULL        0x68
 #define MAC_SUBTYPE_DATA_CFACK_CFPOLL_NULL  0x78
 
-//-----  Frame Type of Bits (2, 3)
+/* -----  Frame Type of Bits (2, 3) */
 #define MAC_TYPE_MANAGEMENT                 0x00
 #define MAC_TYPE_CONTROL                    0x04
 #define MAC_TYPE_DATA                       0x08
 
-//----- definitions for Management Frame Element ID (1 BYTE)
+/* ----- definitions for Management Frame Element ID (1 BYTE) */
 #define ELEMENT_ID_SSID                     0
 #define ELEMENT_ID_SUPPORTED_RATES          1
 #define ELEMENT_ID_FH_PARAMETER_SET         2
@@ -116,13 +116,6 @@
 #define WLAN_MAX_PAIRWISE_CIPHER_SUITE_COUNT    ((u16) 6)
 #define WLAN_MAX_AUTH_KEY_MGT_SUITE_LIST_COUNT  ((u16) 2)
 
-//========================================================
-typedef enum enum_PowerManagementMode
-{
-    ACTIVE = 0,
-    POWER_SAVE
-} WB_PM_Mode, *PWB_PM_MODE;
-
 //===================================================================
 //  Reason Code (Table 18): indicate the reason of DisAssoc, DeAuthen
 //  length of ReasonCode is 2 Octs.
@@ -137,7 +130,7 @@ typedef enum enum_PowerManagementMode
 #define REASON_CLASS3_FRAME_FROM_NONASSO_STA    7
 #define DISASS_REASON_LEFT_BSS      8
 #define REASON_NOT_AUTH_YET         9
-//802.11i define
+/* 802.11i define */
 #define REASON_INVALID_IE						13
 #define REASON_MIC_ERROR						14
 #define REASON_4WAY_HANDSHAKE_TIMEOUT			15
@@ -182,13 +175,12 @@ enum enum_MMPDUResultCode
 } WB_MMPDURESULTCODE, *PWB_MMPDURESULTCODE;
 */
 
-//===========================================================
+/*===========================================================
 // enum_TxRate --
 //   Define the transmission constants based on W89C32 MAC
 //   target specification.
-//===========================================================
-typedef enum enum_TxRate
-{
+//===========================================================*/
+typedef enum enum_TxRate {
     TXRATE_1M               = 0,
     TXRATE_2MLONG           = 2,
     TXRATE_2MSHORT          = 3,
@@ -196,7 +188,7 @@ typedef enum enum_TxRate
     TXRATE_55MSHORT         = 5,
     TXRATE_11MLONG          = 6,
     TXRATE_11MSHORT         = 7,
-    TXRATE_AUTO             = 255           // PD43 20021108
+    TXRATE_AUTO             = 255           /* PD43 20021108 */
 } WB_TXRATE, *PWB_TXRATE;
 
 
@@ -232,7 +224,7 @@ typedef enum enum_TxRate
 #define RATE_54M					108
 #define RATE_MAX					255
 
-//CAPABILITY
+/* CAPABILITY */
 #define CAPABILITY_ESS_BIT				0x0001
 #define CAPABILITY_IBSS_BIT				0x0002
 #define CAPABILITY_CF_POLL_BIT			0x0004
@@ -245,53 +237,48 @@ typedef enum enum_TxRate
 #define CAPABILITY_DSSS_OFDM_BIT		0x2000
 
 
-struct Capability_Information_Element
-{
-  union
-  {
-  	u16 __attribute__ ((packed)) wValue;
-    #ifdef _BIG_ENDIAN_  //20060926 add by anson's endian
-    struct _Capability
-    {
-        //--  11G  --
-	u8	Reserved3 : 2;
-	u8	DSSS_OFDM : 1;
-	u8	Reserved2 : 2;
-	u8	Short_Slot_Time : 1;
-	u8    Reserved1 : 2;
-	u8    Channel_Agility : 1;
-	u8    PBCC : 1;
-	u8    ShortPreamble : 1;
-	u8    CF_Privacy : 1;
-	u8    CF_Poll_Request : 1;
-	u8    CF_Pollable : 1;
-	u8    IBSS : 1;
-	u8    ESS : 1;
+struct Capability_Information_Element {
+  union {
+	u16 __attribute__ ((packed)) wValue;
+    #ifdef _BIG_ENDIAN_  /* 20060926 add by anson's endian */
+    struct _Capability {
+	/* --  11G  -- */
+	u8	Reserved3:2;
+	u8	DSSS_OFDM:1;
+	u8	Reserved2:2;
+	u8	Short_Slot_Time:1;
+	u8    Reserved1:2;
+	u8    Channel_Agility:1;
+	u8    PBCC:1;
+	u8    ShortPreamble:1;
+	u8    CF_Privacy:1;
+	u8    CF_Poll_Request:1;
+	u8    CF_Pollable:1;
+	u8    IBSS:1;
+	u8    ESS:1;
     } __attribute__ ((packed)) Capability;
     #else
-    struct _Capability
-    {
-        u8    ESS : 1;
-        u8    IBSS : 1;
-        u8    CF_Pollable : 1;
-        u8    CF_Poll_Request : 1;
-        u8    CF_Privacy : 1;
-        u8    ShortPreamble : 1;
-        u8    PBCC : 1;
-        u8    Channel_Agility : 1;
-        u8    Reserved1 : 2;
-		//--  11G  --
-		u8	Short_Slot_Time : 1;
-		u8	Reserved2 : 2;
-		u8	DSSS_OFDM : 1;
-		u8	Reserved3 : 2;
+    struct _Capability {
+	u8    ESS:1;
+	u8    IBSS:1;
+	u8    CF_Pollable:1;
+	u8    CF_Poll_Request:1;
+	u8    CF_Privacy:1;
+	u8    ShortPreamble:1;
+	u8    PBCC:1;
+	u8    Channel_Agility:1;
+	u8    Reserved1:2;
+		/* --  11G  -- */
+		u8	Short_Slot_Time:1;
+		u8	Reserved2:2;
+		u8	DSSS_OFDM:1;
+		u8	Reserved3:2;
     } __attribute__ ((packed)) Capability;
     #endif
-  }__attribute__ ((packed)) ;
-}__attribute__ ((packed));
+  } __attribute__ ((packed)) ;
+} __attribute__ ((packed));
 
-struct FH_Parameter_Set_Element
-{
+struct FH_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    Dwell_Time[2];
@@ -300,39 +287,34 @@ struct FH_Parameter_Set_Element
     u8    Hop_Index;
 };
 
-struct DS_Parameter_Set_Element
-{
+struct DS_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    Current_Channel;
 };
 
-struct Supported_Rates_Element
-{
+struct Supported_Rates_Element {
     u8    Element_ID;
     u8    Length;
     u8    SupportedRates[8];
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct SSID_Element
-{
+struct SSID_Element {
     u8    Element_ID;
     u8    Length;
     u8    SSID[32];
-}__attribute__ ((packed)) ;
+} __attribute__ ((packed)) ;
 
-struct CF_Parameter_Set_Element
-{
+struct CF_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    CFP_Count;
     u8    CFP_Period;
-    u8    CFP_MaxDuration[2];     // in Time Units
-    u8    CFP_DurRemaining[2];    // in time units
+    u8    CFP_MaxDuration[2];     /* in Time Units */
+    u8    CFP_DurRemaining[2];    /* in time units */
 };
 
-struct TIM_Element
-{
+struct TIM_Element {
     u8    Element_ID;
     u8    Length;
     u8    DTIM_Count;
@@ -341,24 +323,21 @@ struct TIM_Element
     u8    Partial_Virtual_Bitmap[251];
 };
 
-struct IBSS_Parameter_Set_Element
-{
+struct IBSS_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    ATIM_Window[2];
 };
 
-struct Challenge_Text_Element
-{
+struct Challenge_Text_Element {
     u8    Element_ID;
     u8    Length;
     u8    Challenge_Text[253];
 };
 
-struct PHY_Parameter_Set_Element
-{
-//  int     aSlotTime;
-//  int     aSifsTime;
+struct PHY_Parameter_Set_Element {
+/*  int     aSlotTime; */
+/*  int     aSifsTime; */
     s32     aCCATime;
     s32     aRxTxTurnaroundTime;
     s32     aTxPLCPDelay;
@@ -374,18 +353,17 @@ struct PHY_Parameter_Set_Element
     s32     aPLCPHeaderLength;
     s32     aMPDUDurationFactor;
     s32     aMPDUMaxLength;
-//  int     aCWmin;
-//  int     aCWmax;
+/*  int     aCWmin; */
+/*  int     aCWmax; */
 };
 
-//--  11G  --
-struct ERP_Information_Element
-{
+/* --  11G  -- */
+struct ERP_Information_Element {
     u8	Element_ID;
     u8	Length;
-    #ifdef _BIG_ENDIAN_ //20060926 add by anson's endian
-    	u8	Reserved:5;   //20060926 add by anson
-       u8	Barker_Preamble_Mode:1;
+    #ifdef _BIG_ENDIAN_ /* 20060926 add by anson's endian */
+	u8	Reserved:5;   /* 20060926 add by anson */
+	u8	Barker_Preamble_Mode:1;
 	u8	Use_Protection:1;
        u8	NonERP_Present:1;
     #else
@@ -396,54 +374,53 @@ struct ERP_Information_Element
     #endif
 };
 
-struct Extended_Supported_Rates_Element
-{
+struct Extended_Supported_Rates_Element {
     u8	Element_ID;
     u8	Length;
     u8	ExtendedSupportedRates[255];
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-//WPA(802.11i draft 3.0)
+/* WPA(802.11i draft 3.0) */
 #define VERSION_WPA				1
 #ifdef _WPA2_
 #define VERSION_WPA2            1
-#endif //end def  _WPA2_
-#define OUI_WPA					0x00F25000	//WPA2.0 OUI=00:50:F2, the MSB is reserved for suite type
+#endif /* end def  _WPA2_ */
+#define OUI_WPA					0x00F25000	/* WPA2.0 OUI=00:50:F2, the MSB is reserved for suite type */
 #ifdef _WPA2_
-#define OUI_WPA2				0x00AC0F00	// for wpa2 change to 0x00ACOF04 by Ws 26/04/04
-#endif //end def _WPA2_
+#define OUI_WPA2				0x00AC0F00	/* for wpa2 change to 0x00ACOF04 by Ws 26/04/04 */
+#endif /* end def _WPA2_ */
 
 #define OUI_WPA_ADDITIONAL		0x01
-#define WLAN_MIN_RSN_WPA_LENGTH                 6 //added by ws 09/10/04
+#define WLAN_MIN_RSN_WPA_LENGTH                 6 /* added by ws 09/10/04 */
 #ifdef _WPA2_
-#define WLAN_MIN_RSN_WPA2_LENGTH                2 // Fix to 2 09/14/05
-#endif //end def _WPA2_
+#define WLAN_MIN_RSN_WPA2_LENGTH                2 /* Fix to 2 09/14/05 */
+#endif /* end def _WPA2_ */
 
 #define oui_wpa                  (u32)(OUI_WPA|OUI_WPA_ADDITIONAL)
 
-#define WPA_OUI_BIG    ((u32) 0x01F25000)//added by ws 09/23/04
-#define WPA_OUI_LITTLE  ((u32) 0x01F25001)//added by ws 09/23/04
+#define WPA_OUI_BIG    ((u32) 0x01F25000)/* added by ws 09/23/04 */
+#define WPA_OUI_LITTLE  ((u32) 0x01F25001)/* added by ws 09/23/04 */
 
-#define WPA_WPS_OUI				cpu_to_le32(0x04F25000) // 20061108 For WPS. It's little endian. Big endian is 0x0050F204
+#define WPA_WPS_OUI				cpu_to_le32(0x04F25000) /* 20061108 For WPS. It's little endian. Big endian is 0x0050F204 */
 
-//-----WPA2-----
+/* -----WPA2----- */
 #ifdef _WPA2_
 #define WPA2_OUI_BIG    ((u32)0x01AC0F00)
 #define WPA2_OUI_LITTLE ((u32)0x01AC0F01)
-#endif //end def _WPA2_
+#endif /* end def _WPA2_ */
 
-//Authentication suite
-#define OUI_AUTH_WPA_NONE           0x00 //for WPA_NONE
+/* Authentication suite */
+#define OUI_AUTH_WPA_NONE           0x00 /* for WPA_NONE */
 #define OUI_AUTH_8021X				0x01
 #define OUI_AUTH_PSK				0x02
-//Cipher suite
-#define OUI_CIPHER_GROUP_KEY        0x00  //added by ws 05/21/04
+/* Cipher suite */
+#define OUI_CIPHER_GROUP_KEY        0x00  /* added by ws 05/21/04 */
 #define OUI_CIPHER_WEP_40			0x01
 #define OUI_CIPHER_TKIP				0x02
 #define OUI_CIPHER_CCMP				0x04
 #define OUI_CIPHER_WEP_104			0x05
 
-typedef struct _SUITE_SELECTOR_
+struct suite_selector
 {
 	union
 	{
@@ -454,35 +431,35 @@ typedef struct _SUITE_SELECTOR_
 			u8	Type;
 		}SuitSelector;
 	};
-}SUITE_SELECTOR;
+};
 
 //--  WPA  --
 struct	RSN_Information_Element
 {
 	u8					Element_ID;
 	u8					Length;
-	SUITE_SELECTOR	OuiWPAAdditional;//WPA version 2.0 additional field, and should be 00:50:F2:01
+	struct suite_selector	OuiWPAAdditional; /* WPA version 2.0 additional field, and should be 00:50:F2:01 */
 	u16					Version;
-	SUITE_SELECTOR		GroupKeySuite;
+	struct suite_selector		GroupKeySuite;
 	u16					PairwiseKeySuiteCount;
-	SUITE_SELECTOR		PairwiseKeySuite[1];
+	struct suite_selector		PairwiseKeySuite[1];
 }__attribute__ ((packed));
 struct RSN_Auth_Sub_Information_Element
 {
 	u16				AuthKeyMngtSuiteCount;
-	SUITE_SELECTOR	AuthKeyMngtSuite[1];
+	struct suite_selector	AuthKeyMngtSuite[1];
 }__attribute__ ((packed));
 
-//--  WPA2  --
+/* --  WPA2  -- */
 struct RSN_Capability_Element
 {
   union
   {
 	u16	__attribute__ ((packed))	wValue;
-    #ifdef _BIG_ENDIAN_	 //20060927 add by anson's endian
+    #ifdef _BIG_ENDIAN_	 /* 20060927 add by anson's endian */
     struct _RSN_Capability
     {
-    	u16   __attribute__ ((packed))  Reserved2 : 8; // 20051201
+    	u16   __attribute__ ((packed))  Reserved2 : 8; /* 20051201 */
 	u16   __attribute__ ((packed))  Reserved1 : 2;
 	u16   __attribute__ ((packed))  GTK_Replay_Counter : 2;
 	u16   __attribute__ ((packed))  PTK_Replay_Counter : 2;
@@ -497,7 +474,7 @@ struct RSN_Capability_Element
         u16   __attribute__ ((packed))  PTK_Replay_Counter : 2;
 	    u16   __attribute__ ((packed))  GTK_Replay_Counter : 2;
 	    u16   __attribute__ ((packed))  Reserved1 : 2;
-	    u16   __attribute__ ((packed))  Reserved2 : 8; // 20051201
+	    u16   __attribute__ ((packed))  Reserved2 : 8; /* 20051201 */
     }__attribute__ ((packed))  RSN_Capability;
     #endif
 
@@ -505,43 +482,43 @@ struct RSN_Capability_Element
 }__attribute__ ((packed)) ;
 
 #ifdef _WPA2_
-typedef struct _PMKID
+struct pmkid
 {
   u8 pValue[16];
-}PMKID;
+};
 
 struct	WPA2_RSN_Information_Element
 {
 	u8					Element_ID;
 	u8					Length;
 	u16					Version;
-	SUITE_SELECTOR		GroupKeySuite;
+	struct suite_selector		GroupKeySuite;
 	u16					PairwiseKeySuiteCount;
-	SUITE_SELECTOR		PairwiseKeySuite[1];
+	struct suite_selector		PairwiseKeySuite[1];
 
 }__attribute__ ((packed));
 
 struct WPA2_RSN_Auth_Sub_Information_Element
 {
 	u16				AuthKeyMngtSuiteCount;
-	SUITE_SELECTOR	AuthKeyMngtSuite[1];
+	struct suite_selector	AuthKeyMngtSuite[1];
 }__attribute__ ((packed));
 
 
 struct PMKID_Information_Element
 {
 	u16				PMKID_Count;
-	PMKID pmkid [16] ;
+	struct pmkid pmkid[16];
 }__attribute__ ((packed));
 
-#endif //enddef _WPA2_
-//============================================================
+#endif /* enddef _WPA2_ */
+/*============================================================
 // MAC Frame structure (different type) and subfield structure
-//============================================================
+//============================================================*/
 struct MAC_frame_control
 {
-    u8    mac_frame_info; // a combination of the [Protocol Version, Control Type, Control Subtype]
-    #ifdef _BIG_ENDIAN_ //20060927 add by anson's endian
+    u8    mac_frame_info; /* a combination of the [Protocol Version, Control Type, Control Subtype]*/
+    #ifdef _BIG_ENDIAN_ /* 20060927 add by anson's endian */
     u8    order:1;
     u8    WEP:1;
     u8    more_data:1;
@@ -563,24 +540,24 @@ struct MAC_frame_control
 } __attribute__ ((packed));
 
 struct Management_Frame {
-    struct MAC_frame_control frame_control; // 2B, ToDS,FromDS,MoreFrag,MoreData,Order=0
+    struct MAC_frame_control frame_control; /* 2B, ToDS,FromDS,MoreFrag,MoreData,Order=0 */
     u16		duration;
-    u8		DA[MAC_ADDR_LENGTH];			// Addr1
-    u8		SA[MAC_ADDR_LENGTH];			// Addr2
-    u8		BSSID[MAC_ADDR_LENGTH];			// Addr3
+    u8		DA[MAC_ADDR_LENGTH];			/* Addr1 */
+    u8		SA[MAC_ADDR_LENGTH];			/* Addr2 */
+    u8		BSSID[MAC_ADDR_LENGTH];			/* Addr3 */
     u16		Sequence_Control;
-    // Management Frame Body <= 325 bytes
-    // FCS 4 bytes
-}__attribute__ ((packed));
+    /* Management Frame Body <= 325 bytes */
+    /* FCS 4 bytes */
+} __attribute__ ((packed));
 
-// SW-MAC don't Tx/Rx Control-Frame, HW-MAC do it.
+/* SW-MAC don't Tx/Rx Control-Frame, HW-MAC do it. */
 struct Control_Frame {
-    struct MAC_frame_control frame_control; // ToDS,FromDS,MoreFrag,Retry,MoreData,WEP,Order=0
+    struct MAC_frame_control frame_control; /* ToDS,FromDS,MoreFrag,Retry,MoreData,WEP,Order=0 */
     u16		duration;
     u8		RA[MAC_ADDR_LENGTH];
     u8		TA[MAC_ADDR_LENGTH];
     u16		FCS;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 struct Data_Frame {
     struct MAC_frame_control frame_control;
@@ -589,32 +566,29 @@ struct Data_Frame {
     u8		Addr2[MAC_ADDR_LENGTH];
     u8		Addr3[MAC_ADDR_LENGTH];
     u16		Sequence_Control;
-    u8		Addr4[MAC_ADDR_LENGTH]; // only exist when ToDS=FromDS=1
-    // Data Frame Body <= 2312
-    // FCS
-}__attribute__ ((packed));
+    u8		Addr4[MAC_ADDR_LENGTH]; /* only exist when ToDS=FromDS=1 */
+    /* Data Frame Body <= 2312 */
+    /* FCS */
+} __attribute__ ((packed));
 
-struct Disassociation_Frame_Body
-{
+struct Disassociation_Frame_Body {
     u16    reasonCode;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Association_Request_Frame_Body
-{
+struct Association_Request_Frame_Body {
     u16    capability_information;
     u16    listenInterval;
-    u8     Current_AP_Address[MAC_ADDR_LENGTH];//for reassociation only
-    // SSID (2+32 bytes)
-    // Supported_Rates (2+8 bytes)
-}__attribute__ ((packed));
+    u8     Current_AP_Address[MAC_ADDR_LENGTH];/* for reassociation only */
+    /*  SSID (2+32 bytes) */
+    /*  Supported_Rates (2+8 bytes) */
+} __attribute__ ((packed));
 
-struct Association_Response_Frame_Body
-{
+struct Association_Response_Frame_Body {
     u16    capability_information;
     u16    statusCode;
     u16    Association_ID;
     struct Supported_Rates_Element supportedRates;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 /*struct Reassociation_Request_Frame_Body
 {
@@ -624,44 +598,40 @@ struct Association_Response_Frame_Body
     // SSID (2+32 bytes)
     // Supported_Rates (2+8 bytes)
 };*/
-// eliminated by WS 07/22/04 comboined with associateion request frame.
+/* eliminated by WS 07/22/04 comboined with associateion request frame. */
 
-struct Reassociation_Response_Frame_Body
-{
+struct Reassociation_Response_Frame_Body {
     u16    capability_information;
     u16    statusCode;
     u16    Association_ID;
     struct Supported_Rates_Element supportedRates;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Deauthentication_Frame_Body
-{
+struct Deauthentication_Frame_Body {
     u16    reasonCode;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 
-struct Probe_Response_Frame_Body
-{
+struct Probe_Response_Frame_Body {
     u16    Timestamp;
     u16    Beacon_Interval;
     u16    Capability_Information;
-    // SSID
+    /* SSID
     // Supported_Rates
     // PHY parameter Set (DS Parameters)
     // CF parameter Set
-    // IBSS parameter Set
-}__attribute__ ((packed));
+    // IBSS parameter Set */
+} __attribute__ ((packed));
 
-struct Authentication_Frame_Body
-{
+struct Authentication_Frame_Body {
     u16    algorithmNumber;
     u16    sequenceNumber;
     u16    statusCode;
-    // NB: don't include ChallengeText in this structure
-	// struct Challenge_Text_Element sChallengeTextElement; // wkchen added
-}__attribute__ ((packed));
+    /* NB: don't include ChallengeText in this structure
+	// struct Challenge_Text_Element sChallengeTextElement; // wkchen added */
+} __attribute__ ((packed));
 
 
-#endif // _MAC_Structure_H_
+#endif /* _MAC_Structure_H_ */
 
 

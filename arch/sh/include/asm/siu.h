@@ -11,8 +11,6 @@
 #ifndef ASM_SIU_H
 #define ASM_SIU_H
 
-#include <asm/dmaengine.h>
-
 struct device;
 
 struct siu_platform {

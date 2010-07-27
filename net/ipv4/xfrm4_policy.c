@@ -37,7 +37,7 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 		fl.fl4_src = saddr->a4;
 
 	err = __ip_route_output_key(net, &rt, &fl);
-	dst = &rt->u.dst;
+	dst = &rt->dst;
 	if (err)
 		dst = ERR_PTR(err);
 	return dst;
@@ -108,6 +108,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
+	fl->mark = skb->mark;
+
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:

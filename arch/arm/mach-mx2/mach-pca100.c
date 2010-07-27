@@ -145,6 +145,7 @@ static struct mxc_nand_platform_data pca100_nand_board_info = {
 static struct platform_device *platform_devices[] __initdata = {
 	&mxc_w1_master_device,
 	&mxc_fec_device,
+	&mxc_wdt,
 };
 
 static struct imxi2c_platform_data pca100_i2c_1_data = {

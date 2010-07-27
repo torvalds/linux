@@ -760,12 +760,17 @@ err_desc_get:
 	return NULL;
 }
 
-static void atc_terminate_all(struct dma_chan *chan)
+static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		       unsigned long arg)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	struct at_desc		*desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	/*
 	 * This is only called when something went wrong elsewhere, so
@@ -790,31 +795,29 @@ static void atc_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		atc_chain_complete(atchan, desc);
+
+	return 0;
 }
 
 /**
- * atc_is_tx_complete - poll for transaction completion
+ * atc_tx_status - poll for transaction completion
  * @chan: DMA channel
  * @cookie: transaction identifier to check status of
- * @done: if not %NULL, updated with last completed transaction
- * @used: if not %NULL, updated with last used transaction
+ * @txstate: if not %NULL updated with transaction state
  *
- * If @done and @used are passed in, upon return they reflect the driver
+ * If @txstate is passed in, upon return it reflect the driver
  * internal state and can be used with dma_async_is_complete() to check
  * the status of multiple cookies without re-checking hardware state.
  */
 static enum dma_status
-atc_is_tx_complete(struct dma_chan *chan,
+atc_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie,
-		dma_cookie_t *done, dma_cookie_t *used)
+		struct dma_tx_state *txstate)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	dma_cookie_t		last_used;
 	dma_cookie_t		last_complete;
 	enum dma_status		ret;
-
-	dev_vdbg(chan2dev(chan), "is_tx_complete: %d (d%d, u%d)\n",
-			cookie, done ? *done : 0, used ? *used : 0);
 
 	spin_lock_bh(&atchan->lock);
 
@@ -833,10 +836,10 @@ atc_is_tx_complete(struct dma_chan *chan,
 
 	spin_unlock_bh(&atchan->lock);
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
+	dev_vdbg(chan2dev(chan), "tx_status: %d (d%d, u%d)\n",
+		 cookie, last_complete ? last_complete : 0,
+		 last_used ? last_used : 0);
 
 	return ret;
 }
@@ -1082,7 +1085,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	/* set base routines */
 	atdma->dma_common.device_alloc_chan_resources = atc_alloc_chan_resources;
 	atdma->dma_common.device_free_chan_resources = atc_free_chan_resources;
-	atdma->dma_common.device_is_tx_complete = atc_is_tx_complete;
+	atdma->dma_common.device_tx_status = atc_tx_status;
 	atdma->dma_common.device_issue_pending = atc_issue_pending;
 	atdma->dma_common.dev = &pdev->dev;
 
@@ -1092,7 +1095,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
 		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
-		atdma->dma_common.device_terminate_all = atc_terminate_all;
+		atdma->dma_common.device_control = atc_control;
 	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);

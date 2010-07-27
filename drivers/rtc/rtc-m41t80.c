@@ -595,10 +595,6 @@ static void wdt_disable(void)
 static ssize_t wdt_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	/*  Can't seek (pwrite) on this device
-	if (ppos != &file->f_pos)
-	return -ESPIPE;
-	*/
 	if (count) {
 		wdt_ping();
 		return 1;
@@ -623,7 +619,7 @@ static ssize_t wdt_read(struct file *file, char __user *buf,
  *	according to their available features. We only actually usefully support
  *	querying capabilities and current status.
  */
-static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+static int wdt_ioctl(struct file *file, unsigned int cmd,
 		     unsigned long arg)
 {
 	int new_margin, rv;
@@ -676,6 +672,18 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	return -ENOTTY;
 }
 
+static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = wdt_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 /**
  *	wdt_open:
  *	@inode: inode of device
@@ -695,7 +703,7 @@ static int wdt_open(struct inode *inode, struct file *file)
 		 */
 		wdt_is_open = 1;
 		unlock_kernel();
-		return 0;
+		return nonseekable_open(inode, file);
 	}
 	return -ENODEV;
 }
@@ -736,7 +744,7 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 static const struct file_operations wdt_fops = {
 	.owner	= THIS_MODULE,
 	.read	= wdt_read,
-	.ioctl	= wdt_ioctl,
+	.unlocked_ioctl = wdt_unlocked_ioctl,
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,

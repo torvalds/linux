@@ -170,17 +170,17 @@ static int pohmelfs_crypto_process(struct ablkcipher_request *req,
 		err = crypto_ablkcipher_decrypt(req);
 
 	switch (err) {
-		case -EINPROGRESS:
-		case -EBUSY:
-			err = wait_for_completion_interruptible_timeout(&complete.complete,
+	case -EINPROGRESS:
+	case -EBUSY:
+		err = wait_for_completion_interruptible_timeout(&complete.complete,
 					timeout);
-			if (!err)
-				err = -ETIMEDOUT;
-			else if (err > 0)
-				err = complete.error;
-			break;
-		default:
-			break;
+		if (!err)
+			err = -ETIMEDOUT;
+		else if (err > 0)
+			err = complete.error;
+		break;
+	default:
+		break;
 	}
 
 	return err;
@@ -196,7 +196,7 @@ int pohmelfs_crypto_process_input_data(struct pohmelfs_crypto_engine *e, u64 cmd
 		return 0;
 
 	dprintk("%s: eng: %p, iv: %llx, data: %p, page: %p/%lu, size: %u.\n",
-		__func__, e, cmd_iv, data, page, (page)?page->index:0, size);
+		__func__, e, cmd_iv, data, page, (page) ? page->index : 0, size);
 
 	if (data) {
 		sg_init_one(&sg, data, size);
@@ -247,7 +247,7 @@ int pohmelfs_crypto_process_input_data(struct pohmelfs_crypto_engine *e, u64 cmd
 
 			dprintk("%s: eng: %p, hash: %p, cipher: %p: iv : %llx, hash mismatch (recv/calc): ",
 					__func__, e, e->hash, e->cipher, cmd_iv);
-			for (i=0; i<crypto_hash_digestsize(e->hash); ++i) {
+			for (i = 0; i < crypto_hash_digestsize(e->hash); ++i) {
 #if 0
 				dprintka("%02x ", recv[i]);
 				if (recv[i] != calc[i]) {
@@ -279,7 +279,7 @@ err_out_exit:
 }
 
 static int pohmelfs_trans_iter(struct netfs_trans *t, struct pohmelfs_crypto_engine *e,
-		int (* iterator) (struct pohmelfs_crypto_engine *e,
+		int (*iterator) (struct pohmelfs_crypto_engine *e,
 				  struct scatterlist *dst,
 				  struct scatterlist *src))
 {
@@ -319,7 +319,7 @@ static int pohmelfs_trans_iter(struct netfs_trans *t, struct pohmelfs_crypto_eng
 		return 0;
 
 	dpage_idx = 0;
-	for (i=0; i<t->page_num; ++i) {
+	for (i = 0; i < t->page_num; ++i) {
 		struct page *page = t->pages[i];
 		struct page *dpage = e->pages[dpage_idx];
 
@@ -402,7 +402,7 @@ static int pohmelfs_hash(struct pohmelfs_crypto_thread *tc)
 	{
 		unsigned int i;
 		dprintk("%s: ", __func__);
-		for (i=0; i<tc->psb->crypto_attached_size; ++i)
+		for (i = 0; i < tc->psb->crypto_attached_size; ++i)
 			dprintka("%02x ", dst[i]);
 		dprintka("\n");
 	}
@@ -414,7 +414,7 @@ static void pohmelfs_crypto_pages_free(struct pohmelfs_crypto_engine *e)
 {
 	unsigned int i;
 
-	for (i=0; i<e->page_num; ++i)
+	for (i = 0; i < e->page_num; ++i)
 		__free_page(e->pages[i]);
 	kfree(e->pages);
 }
@@ -427,7 +427,7 @@ static int pohmelfs_crypto_pages_alloc(struct pohmelfs_crypto_engine *e, struct 
 	if (!e->pages)
 		return -ENOMEM;
 
-	for (i=0; i<psb->trans_max_pages; ++i) {
+	for (i = 0; i < psb->trans_max_pages; ++i) {
 		e->pages[i] = alloc_page(GFP_KERNEL);
 		if (!e->pages[i])
 			break;
@@ -612,7 +612,7 @@ static int pohmelfs_sys_crypto_init(struct pohmelfs_sb *psb)
 				__func__, st, &st->eng, &st->eng.hash, &st->eng.cipher);
 	}
 
-	for (i=0; i<psb->crypto_thread_num; ++i) {
+	for (i = 0; i < psb->crypto_thread_num; ++i) {
 		err = -ENOMEM;
 		t = kzalloc(sizeof(struct pohmelfs_crypto_thread), GFP_KERNEL);
 		if (!t)
@@ -780,7 +780,7 @@ int pohmelfs_crypto_init(struct pohmelfs_sb *psb)
 }
 
 static int pohmelfs_crypto_thread_get(struct pohmelfs_sb *psb,
-		int (* action)(struct pohmelfs_crypto_thread *t, void *data), void *data)
+		int (*action)(struct pohmelfs_crypto_thread *t, void *data), void *data)
 {
 	struct pohmelfs_crypto_thread *t = NULL;
 	int err;

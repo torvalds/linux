@@ -2481,7 +2481,7 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	else {
 		const struct linux_prom_registers *regs;
 		struct of_device *op = hp->happy_dev;
-		regs = of_get_property(op->node, "regs", NULL);
+		regs = of_get_property(op->dev.of_node, "regs", NULL);
 		if (regs)
 			sprintf(info->bus_info, "SBUS:%d",
 				regs->which_io);
@@ -2641,14 +2641,14 @@ static const struct net_device_ops hme_netdev_ops = {
 #ifdef CONFIG_SBUS
 static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 {
-	struct device_node *dp = op->node, *sbus_dp;
+	struct device_node *dp = op->dev.of_node, *sbus_dp;
 	struct quattro *qp = NULL;
 	struct happy_meal *hp;
 	struct net_device *dev;
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
 
-	sbus_dp = to_of_device(op->dev.parent)->node;
+	sbus_dp = to_of_device(op->dev.parent)->dev.of_node;
 
 	/* We can match PCI devices too, do not accept those here. */
 	if (strcmp(sbus_dp->name, "sbus"))
@@ -3237,7 +3237,7 @@ static void happy_meal_pci_exit(void)
 #ifdef CONFIG_SBUS
 static int __devinit hme_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
 	int is_qfe = (match->data != NULL);
 
@@ -3291,8 +3291,11 @@ static const struct of_device_id hme_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, hme_sbus_match);
 
 static struct of_platform_driver hme_sbus_driver = {
-	.name		= "hme",
-	.match_table	= hme_sbus_match,
+	.driver = {
+		.name = "hme",
+		.owner = THIS_MODULE,
+		.of_match_table = hme_sbus_match,
+	},
 	.probe		= hme_sbus_probe,
 	.remove		= __devexit_p(hme_sbus_remove),
 };

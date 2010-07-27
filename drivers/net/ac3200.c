@@ -211,7 +211,7 @@ static int __init ac_probe1(int ioaddr, struct net_device *dev)
 	retval = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
 	if (retval) {
 		printk (" nothing! Unable to get IRQ %d.\n", dev->irq);
-		goto out1;
+		goto out;
 	}
 
 	printk(" IRQ %d, %s port\n", dev->irq, port_name[dev->if_port]);

@@ -755,6 +755,21 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
+static int exofs_releasepage(struct page *page, gfp_t gfp)
+{
+	EXOFS_DBGMSG("page 0x%lx\n", page->index);
+	WARN_ON(1);
+	return try_to_free_buffers(page);
+}
+
+static void exofs_invalidatepage(struct page *page, unsigned long offset)
+{
+	EXOFS_DBGMSG("page_has_buffers=>%d\n", page_has_buffers(page));
+	WARN_ON(1);
+
+	block_invalidatepage(page, offset);
+}
+
 const struct address_space_operations exofs_aops = {
 	.readpage	= exofs_readpage,
 	.readpages	= exofs_readpages,
@@ -762,6 +777,21 @@ const struct address_space_operations exofs_aops = {
 	.writepages	= exofs_writepages,
 	.write_begin	= exofs_write_begin_export,
 	.write_end	= exofs_write_end,
+	.releasepage	= exofs_releasepage,
+	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.invalidatepage = exofs_invalidatepage,
+
+	/* Not implemented Yet */
+	.bmap		= NULL, /* TODO: use osd's OSD_ACT_READ_MAP */
+	.direct_IO	= NULL, /* TODO: Should be trivial to do */
+
+	/* With these NULL has special meaning or default is not exported */
+	.sync_page	= NULL,
+	.get_xip_mem	= NULL,
+	.migratepage	= NULL,
+	.launder_page	= NULL,
+	.is_partially_uptodate = NULL,
+	.error_remove_page = NULL,
 };
 
 /******************************************************************************
@@ -1123,16 +1153,7 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	sbi = sb->s_fs_info;
 
 	sb->s_dirt = 1;
-	inode->i_uid = current->cred->fsuid;
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		inode->i_gid = current->cred->fsgid;
-	}
-	inode->i_mode = mode;
-
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
 	inode->i_blkbits = EXOFS_BLKSHIFT;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;

@@ -1,7 +1,6 @@
 #include "ceph_debug.h"
 
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
@@ -150,7 +149,8 @@ int ceph_build_auth_request(struct ceph_auth_client *ac,
 
 	ret = ac->ops->build_request(ac, p + sizeof(u32), end);
 	if (ret < 0) {
-		pr_err("error %d building request\n", ret);
+		pr_err("error %d building auth method %s request\n", ret,
+		       ac->ops->name);
 		return ret;
 	}
 	dout(" built request %d bytes\n", ret);
@@ -229,7 +229,7 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	if (ret == -EAGAIN) {
 		return ceph_build_auth_request(ac, reply_buf, reply_len);
 	} else if (ret) {
-		pr_err("authentication error %d\n", ret);
+		pr_err("auth method '%s' error %d\n", ac->ops->name, ret);
 		return ret;
 	}
 	return 0;
@@ -246,7 +246,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 	if (!ac->protocol)
 		return ceph_auth_build_hello(ac, msg_buf, msg_len);
 	BUG_ON(!ac->ops);
-	if (!ac->ops->is_authenticated(ac))
+	if (ac->ops->should_authenticate(ac))
 		return ceph_build_auth_request(ac, msg_buf, msg_len);
 	return 0;
 }

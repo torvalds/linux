@@ -64,7 +64,7 @@ msdos_magic_present(unsigned char *p)
 #define AIX_LABEL_MAGIC2	0xC2
 #define AIX_LABEL_MAGIC3	0xD4
 #define AIX_LABEL_MAGIC4	0xC1
-static int aix_magic_present(unsigned char *p, struct block_device *bdev)
+static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 {
 	struct partition *pt = (struct partition *) (p + 0x1be);
 	Sector sect;
@@ -85,7 +85,7 @@ static int aix_magic_present(unsigned char *p, struct block_device *bdev)
 			is_extended_partition(pt))
 			return 0;
 	}
-	d = read_dev_sector(bdev, 7, &sect);
+	d = read_part_sector(state, 7, &sect);
 	if (d) {
 		if (d[0] == '_' && d[1] == 'L' && d[2] == 'V' && d[3] == 'M')
 			ret = 1;
@@ -105,15 +105,14 @@ static int aix_magic_present(unsigned char *p, struct block_device *bdev)
  * only for the actual data partitions.
  */
 
-static void
-parse_extended(struct parsed_partitions *state, struct block_device *bdev,
-			sector_t first_sector, sector_t first_size)
+static void parse_extended(struct parsed_partitions *state,
+			   sector_t first_sector, sector_t first_size)
 {
 	struct partition *p;
 	Sector sect;
 	unsigned char *data;
 	sector_t this_sector, this_size;
-	sector_t sector_size = bdev_logical_block_size(bdev) / 512;
+	sector_t sector_size = bdev_logical_block_size(state->bdev) / 512;
 	int loopct = 0;		/* number of links followed
 				   without finding a data partition */
 	int i;
@@ -126,7 +125,7 @@ parse_extended(struct parsed_partitions *state, struct block_device *bdev,
 			return;
 		if (state->next == state->limit)
 			return;
-		data = read_dev_sector(bdev, this_sector, &sect);
+		data = read_part_sector(state, this_sector, &sect);
 		if (!data)
 			return;
 
@@ -198,9 +197,8 @@ done:
 /* james@bpgc.com: Solaris has a nasty indicator: 0x82 which also
    indicates linux swap.  Be careful before believing this is Solaris. */
 
-static void
-parse_solaris_x86(struct parsed_partitions *state, struct block_device *bdev,
-			sector_t offset, sector_t size, int origin)
+static void parse_solaris_x86(struct parsed_partitions *state,
+			      sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_SOLARIS_X86_PARTITION
 	Sector sect;
@@ -208,7 +206,7 @@ parse_solaris_x86(struct parsed_partitions *state, struct block_device *bdev,
 	int i;
 	short max_nparts;
 
-	v = (struct solaris_x86_vtoc *)read_dev_sector(bdev, offset+1, &sect);
+	v = read_part_sector(state, offset + 1, &sect);
 	if (!v)
 		return;
 	if (le32_to_cpu(v->v_sanity) != SOLARIS_X86_VTOC_SANE) {
@@ -245,16 +243,15 @@ parse_solaris_x86(struct parsed_partitions *state, struct block_device *bdev,
  * Create devices for BSD partitions listed in a disklabel, under a
  * dos-like partition. See parse_extended() for more information.
  */
-static void
-parse_bsd(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin, char *flavour,
-		int max_partitions)
+static void parse_bsd(struct parsed_partitions *state,
+		      sector_t offset, sector_t size, int origin, char *flavour,
+		      int max_partitions)
 {
 	Sector sect;
 	struct bsd_disklabel *l;
 	struct bsd_partition *p;
 
-	l = (struct bsd_disklabel *)read_dev_sector(bdev, offset+1, &sect);
+	l = read_part_sector(state, offset + 1, &sect);
 	if (!l)
 		return;
 	if (le32_to_cpu(l->d_magic) != BSD_DISKMAGIC) {
@@ -291,33 +288,28 @@ parse_bsd(struct parsed_partitions *state, struct block_device *bdev,
 }
 #endif
 
-static void
-parse_freebsd(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin)
+static void parse_freebsd(struct parsed_partitions *state,
+			  sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_BSD_DISKLABEL
-	parse_bsd(state, bdev, offset, size, origin,
-			"bsd", BSD_MAXPARTITIONS);
+	parse_bsd(state, offset, size, origin, "bsd", BSD_MAXPARTITIONS);
 #endif
 }
 
-static void
-parse_netbsd(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin)
+static void parse_netbsd(struct parsed_partitions *state,
+			 sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_BSD_DISKLABEL
-	parse_bsd(state, bdev, offset, size, origin,
-			"netbsd", BSD_MAXPARTITIONS);
+	parse_bsd(state, offset, size, origin, "netbsd", BSD_MAXPARTITIONS);
 #endif
 }
 
-static void
-parse_openbsd(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin)
+static void parse_openbsd(struct parsed_partitions *state,
+			  sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_BSD_DISKLABEL
-	parse_bsd(state, bdev, offset, size, origin,
-			"openbsd", OPENBSD_MAXPARTITIONS);
+	parse_bsd(state, offset, size, origin, "openbsd",
+		  OPENBSD_MAXPARTITIONS);
 #endif
 }
 
@@ -325,16 +317,15 @@ parse_openbsd(struct parsed_partitions *state, struct block_device *bdev,
  * Create devices for Unixware partitions listed in a disklabel, under a
  * dos-like partition. See parse_extended() for more information.
  */
-static void
-parse_unixware(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin)
+static void parse_unixware(struct parsed_partitions *state,
+			   sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_UNIXWARE_DISKLABEL
 	Sector sect;
 	struct unixware_disklabel *l;
 	struct unixware_slice *p;
 
-	l = (struct unixware_disklabel *)read_dev_sector(bdev, offset+29, &sect);
+	l = read_part_sector(state, offset + 29, &sect);
 	if (!l)
 		return;
 	if (le32_to_cpu(l->d_magic) != UNIXWARE_DISKMAGIC ||
@@ -365,9 +356,8 @@ parse_unixware(struct parsed_partitions *state, struct block_device *bdev,
  * Anand Krishnamurthy <anandk@wiproge.med.ge.com>
  * Rajeev V. Pillai    <rajeevvp@yahoo.com>
  */
-static void
-parse_minix(struct parsed_partitions *state, struct block_device *bdev,
-		sector_t offset, sector_t size, int origin)
+static void parse_minix(struct parsed_partitions *state,
+			sector_t offset, sector_t size, int origin)
 {
 #ifdef CONFIG_MINIX_SUBPARTITION
 	Sector sect;
@@ -375,7 +365,7 @@ parse_minix(struct parsed_partitions *state, struct block_device *bdev,
 	struct partition *p;
 	int i;
 
-	data = read_dev_sector(bdev, offset, &sect);
+	data = read_part_sector(state, offset, &sect);
 	if (!data)
 		return;
 
@@ -404,8 +394,7 @@ parse_minix(struct parsed_partitions *state, struct block_device *bdev,
 
 static struct {
 	unsigned char id;
-	void (*parse)(struct parsed_partitions *, struct block_device *,
-			sector_t, sector_t, int);
+	void (*parse)(struct parsed_partitions *, sector_t, sector_t, int);
 } subtypes[] = {
 	{FREEBSD_PARTITION, parse_freebsd},
 	{NETBSD_PARTITION, parse_netbsd},
@@ -417,16 +406,16 @@ static struct {
 	{0, NULL},
 };
  
-int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
+int msdos_partition(struct parsed_partitions *state)
 {
-	sector_t sector_size = bdev_logical_block_size(bdev) / 512;
+	sector_t sector_size = bdev_logical_block_size(state->bdev) / 512;
 	Sector sect;
 	unsigned char *data;
 	struct partition *p;
 	struct fat_boot_sector *fb;
 	int slot;
 
-	data = read_dev_sector(bdev, 0, &sect);
+	data = read_part_sector(state, 0, &sect);
 	if (!data)
 		return -1;
 	if (!msdos_magic_present(data + 510)) {
@@ -434,7 +423,7 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 		return 0;
 	}
 
-	if (aix_magic_present(data, bdev)) {
+	if (aix_magic_present(state, data)) {
 		put_dev_sector(sect);
 		printk( " [AIX]");
 		return 0;
@@ -503,13 +492,13 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 			put_partition(state, slot, start, n);
 
 			printk(" <");
-			parse_extended(state, bdev, start, size);
+			parse_extended(state, start, size);
 			printk(" >");
 			continue;
 		}
 		put_partition(state, slot, start, size);
 		if (SYS_IND(p) == LINUX_RAID_PARTITION)
-			state->parts[slot].flags = 1;
+			state->parts[slot].flags = ADDPART_FLAG_RAID;
 		if (SYS_IND(p) == DM6_PARTITION)
 			printk("[DM]");
 		if (SYS_IND(p) == EZD_PARTITION)
@@ -532,8 +521,8 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 
 		if (!subtypes[n].parse)
 			continue;
-		subtypes[n].parse(state, bdev, start_sect(p)*sector_size,
-						nr_sects(p)*sector_size, slot);
+		subtypes[n].parse(state, start_sect(p) * sector_size,
+				  nr_sects(p) * sector_size, slot);
 	}
 	put_dev_sector(sect);
 	return 1;

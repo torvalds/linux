@@ -12,9 +12,8 @@
 #include <linux/serial.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-
-#include <asm/dmaengine.h>
 
 #include <cpu/dma-register.h>
 

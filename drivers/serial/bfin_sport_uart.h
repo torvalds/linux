@@ -37,7 +37,21 @@
 #define SPORT_GET_TFSDIV(sport)		bfin_read16(((sport)->port.membase + OFFSET_TFSDIV))
 #define SPORT_GET_TX(sport)		bfin_read16(((sport)->port.membase + OFFSET_TX))
 #define SPORT_GET_RX(sport)		bfin_read16(((sport)->port.membase + OFFSET_RX))
-#define SPORT_GET_RX32(sport)		bfin_read32(((sport)->port.membase + OFFSET_RX))
+/*
+ * If another interrupt fires while doing a 32-bit read from RX FIFO,
+ * a fake RX underflow error will be generated.  So disable interrupts
+ * to prevent interruption while reading the FIFO.
+ */
+#define SPORT_GET_RX32(sport) \
+({ \
+	unsigned int __ret; \
+	if (ANOMALY_05000473) \
+		local_irq_disable(); \
+	__ret = bfin_read32((sport)->port.membase + OFFSET_RX); \
+	if (ANOMALY_05000473) \
+		local_irq_enable(); \
+	__ret; \
+})
 #define SPORT_GET_RCR1(sport)		bfin_read16(((sport)->port.membase + OFFSET_RCR1))
 #define SPORT_GET_RCR2(sport)		bfin_read16(((sport)->port.membase + OFFSET_RCR2))
 #define SPORT_GET_RCLKDIV(sport)	bfin_read16(((sport)->port.membase + OFFSET_RCLKDIV))
@@ -57,5 +71,16 @@
 #define SPORT_PUT_STAT(sport, v)	bfin_write16(((sport)->port.membase + OFFSET_STAT), v)
 
 #define SPORT_TX_FIFO_SIZE	8
+
+#define SPORT_UART_GET_CTS(x)		gpio_get_value(x->cts_pin)
+#define SPORT_UART_DISABLE_RTS(x)	gpio_set_value(x->rts_pin, 1)
+#define SPORT_UART_ENABLE_RTS(x)	gpio_set_value(x->rts_pin, 0)
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT0_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT1_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT2_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT3_UART_CTSRTS)
+# define CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+#endif
 
 #endif /* _BFIN_SPORT_UART_H */

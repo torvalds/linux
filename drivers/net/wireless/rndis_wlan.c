@@ -238,19 +238,19 @@ struct ndis_80211_auth_request {
 	u8 bssid[6];
 	u8 padding[2];
 	__le32 flags;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_pmkid_candidate {
 	u8 bssid[6];
 	u8 padding[2];
 	__le32 flags;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_pmkid_cand_list {
 	__le32 version;
 	__le32 num_candidates;
 	struct ndis_80211_pmkid_candidate candidate_list[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_status_indication {
 	__le32 status_type;
@@ -260,19 +260,19 @@ struct ndis_80211_status_indication {
 		struct ndis_80211_auth_request		auth_request[0];
 		struct ndis_80211_pmkid_cand_list	cand_list;
 	} u;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_ssid {
 	__le32 length;
 	u8 essid[NDIS_802_11_LENGTH_SSID];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_conf_freq_hop {
 	__le32 length;
 	__le32 hop_pattern;
 	__le32 hop_set;
 	__le32 dwell_time;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_conf {
 	__le32 length;
@@ -280,7 +280,7 @@ struct ndis_80211_conf {
 	__le32 atim_window;
 	__le32 ds_config;
 	struct ndis_80211_conf_freq_hop fh_config;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_ex {
 	__le32 length;
@@ -295,25 +295,25 @@ struct ndis_80211_bssid_ex {
 	u8 rates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 ie_length;
 	u8 ies[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_list_ex {
 	__le32 num_items;
 	struct ndis_80211_bssid_ex bssid[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_fixed_ies {
 	u8 timestamp[8];
 	__le16 beacon_interval;
 	__le16 capabilities;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_wep_key {
 	__le32 size;
 	__le32 index;
 	__le32 length;
 	u8 material[32];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_key {
 	__le32 size;
@@ -323,14 +323,14 @@ struct ndis_80211_key {
 	u8 padding[6];
 	u8 rsc[8];
 	u8 material[32];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_remove_key {
 	__le32 size;
 	__le32 index;
 	u8 bssid[6];
 	u8 padding[2];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_config_param {
 	__le32 name_offs;
@@ -338,7 +338,7 @@ struct ndis_config_param {
 	__le32 type;
 	__le32 value_offs;
 	__le32 value_length;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_assoc_info {
 	__le32 length;
@@ -358,12 +358,12 @@ struct ndis_80211_assoc_info {
 	} resp_ie;
 	__le32 resp_ie_length;
 	__le32 offset_resp_ies;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_auth_encr_pair {
 	__le32 auth_mode;
 	__le32 encr_mode;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_capability {
 	__le32 length;
@@ -371,7 +371,7 @@ struct ndis_80211_capability {
 	__le32 num_pmkids;
 	__le32 num_auth_encr_pair;
 	struct ndis_80211_auth_encr_pair auth_encr_pair[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_info {
 	u8 bssid[6];

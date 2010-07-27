@@ -14,11 +14,17 @@ menuconfig MISC_DEVICES
 if MISC_DEVICES
 
 config AD525X_DPOT
-	tristate "Analog Devices AD525x Digital Potentiometers"
-	depends on I2C && SYSFS
+	tristate "Analog Devices Digital Potentiometers"
+	depends on (I2C || SPI) && SYSFS
 	help
 	  If you say yes here, you get support for the Analog Devices
-	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254 and AD5255
+	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254, AD5255
+	  AD5160, AD5161, AD5162, AD5165, AD5200, AD5201, AD5203,
+	  AD5204, AD5206, AD5207, AD5231, AD5232, AD5233, AD5235,
+	  AD5260, AD5262, AD5263, AD5290, AD5291, AD5292, AD5293,
+	  AD7376, AD8400, AD8402, AD8403, ADN2850, AD5241, AD5242,
+	  AD5243, AD5245, AD5246, AD5247, AD5248, AD5280, AD5282,
+	  ADN2860, AD5273, AD5171, AD5170, AD5172, AD5173
 	  digital potentiometer chips.
 
 	  See Documentation/misc-devices/ad525x_dpot.txt for the
@@ -26,6 +32,26 @@ config AD525X_DPOT
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ad525x_dpot.
+
+config AD525X_DPOT_I2C
+	tristate "support I2C bus connection"
+	depends on AD525X_DPOT && I2C
+	help
+	  Say Y here if you have a digital potentiometers hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-i2c.
+
+config AD525X_DPOT_SPI
+	tristate "support SPI bus connection"
+	depends on AD525X_DPOT && SPI_MASTER
+	help
+	  Say Y here if you have a digital potentiometers hooked to an SPI bus.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-spi.
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"

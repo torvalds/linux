@@ -498,7 +498,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root, 0);
 	btrfs_wait_ordered_extents(root, 0, 0);
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	ret = btrfs_commit_transaction(trans, root);
 	return ret;
 }
@@ -694,11 +694,11 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (btrfs_super_log_root(&root->fs_info->super_copy) != 0)
 			return -EINVAL;
 
-		/* recover relocation */
-		ret = btrfs_recover_relocation(root);
+		ret = btrfs_cleanup_fs_roots(root->fs_info);
 		WARN_ON(ret);
 
-		ret = btrfs_cleanup_fs_roots(root->fs_info);
+		/* recover relocation */
+		ret = btrfs_recover_relocation(root);
 		WARN_ON(ret);
 
 		sb->s_flags &= ~MS_RDONLY;
@@ -714,34 +714,18 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct list_head *head = &root->fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
-	u64 data_used = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list) {
-		if (found->flags & (BTRFS_BLOCK_GROUP_DUP|
-				    BTRFS_BLOCK_GROUP_RAID10|
-				    BTRFS_BLOCK_GROUP_RAID1)) {
-			total_used += found->bytes_used;
-			if (found->flags & BTRFS_BLOCK_GROUP_DATA)
-				data_used += found->bytes_used;
-			else
-				data_used += found->total_bytes;
-		}
-
-		total_used += found->bytes_used;
-		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
-			data_used += found->bytes_used;
-		else
-			data_used += found->total_bytes;
-	}
+	list_for_each_entry_rcu(found, head, list)
+		total_used += found->disk_used;
 	rcu_read_unlock();
 
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
 	buf->f_bfree = buf->f_blocks - (total_used >> bits);
-	buf->f_bavail = buf->f_blocks - (data_used >> bits);
+	buf->f_bavail = buf->f_bfree;
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
@@ -832,10 +816,13 @@ static const struct file_operations btrfs_ctl_fops = {
 };
 
 static struct miscdevice btrfs_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= BTRFS_MINOR,
 	.name		= "btrfs-control",
 	.fops		= &btrfs_ctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(BTRFS_MINOR);
+MODULE_ALIAS("devname:btrfs-control");
 
 static int btrfs_interface_init(void)
 {

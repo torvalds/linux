@@ -218,7 +218,7 @@ order they appear in the channel list.
 #define DIO200_DRIVER_NAME	"amplc_dio200"
 
 /* PCI IDs */
-/* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
+#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
 #define PCI_DEVICE_ID_INVALID 0xffff
@@ -661,7 +661,7 @@ dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv = s->private;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	s->async->inttrig = 0;
+	s->async->inttrig = NULL;
 	if (subpriv->active)
 		event = dio200_start_intr(dev, s);
 
@@ -1364,7 +1364,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
-			ret = subdev_8255_init(dev, s, 0,
+			ret = subdev_8255_init(dev, s, NULL,
 					       iobase + layout->sdinfo[n]);
 			if (ret < 0)
 				return ret;

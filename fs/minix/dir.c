@@ -22,7 +22,7 @@ const struct file_operations minix_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= minix_readdir,
-	.fsync		= simple_fsync,
+	.fsync		= generic_file_fsync,
 };
 
 static inline void dir_put_page(struct page *page)
@@ -72,11 +72,8 @@ static struct page * dir_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
+	if (!IS_ERR(page))
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
-	}
 	return page;
 
 fail:

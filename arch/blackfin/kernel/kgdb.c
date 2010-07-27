@@ -66,7 +66,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[BFIN_RETN] = regs->retn;
 	gdb_regs[BFIN_RETE] = regs->rete;
 	gdb_regs[BFIN_PC] = regs->pc;
-	gdb_regs[BFIN_CC] = 0;
+	gdb_regs[BFIN_CC] = (regs->astat >> 5) & 1;
 	gdb_regs[BFIN_EXTRA1] = 0;
 	gdb_regs[BFIN_EXTRA2] = 0;
 	gdb_regs[BFIN_EXTRA3] = 0;
@@ -437,6 +437,11 @@ int kgdb_validate_break_address(unsigned long addr)
 		return 0;
 
 	return -EFAULT;
+}
+
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+{
+	regs->retx = ip;
 }
 
 int kgdb_arch_init(void)

@@ -71,7 +71,7 @@ struct acpi_table_attr {
 	struct list_head node;
 };
 
-static ssize_t acpi_table_show(struct kobject *kobj,
+static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr, char *buf,
 			       loff_t offset, size_t count)
 {

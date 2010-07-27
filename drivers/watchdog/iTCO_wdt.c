@@ -40,7 +40,7 @@
 
 /* Module and version information */
 #define DRV_NAME	"iTCO_wdt"
-#define DRV_VERSION	"1.05"
+#define DRV_VERSION	"1.06"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -391,8 +391,8 @@ static struct platform_device *iTCO_wdt_platform_device;
 #define WATCHDOG_HEARTBEAT 30	/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;  /* in seconds */
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
-	"(2<heartbeat<39 (TCO v1) or 613 (TCO v2), default="
+MODULE_PARM_DESC(heartbeat, "Watchdog timeout in seconds. "
+	"5..76 (TCO v1) or 3..614 (TCO v2), default="
 				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
@@ -523,8 +523,13 @@ static int iTCO_wdt_keepalive(void)
 	/* Reload the timer by writing to the TCO Timer Counter register */
 	if (iTCO_wdt_private.iTCO_version == 2)
 		outw(0x01, TCO_RLD);
-	else if (iTCO_wdt_private.iTCO_version == 1)
+	else if (iTCO_wdt_private.iTCO_version == 1) {
+		/* Reset the timeout status bit so that the timer
+		 * needs to count down twice again before rebooting */
+		outw(0x0008, TCO1_STS);	/* write 1 to clear bit */
+
 		outb(0x01, TCO_RLD);
+	}
 
 	spin_unlock(&iTCO_wdt_private.io_lock);
 	return 0;
@@ -537,6 +542,11 @@ static int iTCO_wdt_set_heartbeat(int t)
 	unsigned int tmrval;
 
 	tmrval = seconds_to_ticks(t);
+
+	/* For TCO v1 the timer counts down twice before rebooting */
+	if (iTCO_wdt_private.iTCO_version == 1)
+		tmrval /= 2;
+
 	/* from the specs: */
 	/* "Values of 0h-3h are ignored and should not be attempted" */
 	if (tmrval < 0x04)
@@ -593,6 +603,8 @@ static int iTCO_wdt_get_timeleft(int *time_left)
 		spin_lock(&iTCO_wdt_private.io_lock);
 		val8 = inb(TCO_RLD);
 		val8 &= 0x3f;
+		if (!(inw(TCO1_STS) & 0x0008))
+			val8 += (inb(TCOv1_TMR) & 0x3f);
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
 		*time_left = (val8 * 6) / 10;
@@ -832,9 +844,9 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 			TCOBASE);
 
 	/* Clear out the (probably old) status */
-	outb(8, TCO1_STS);	/* Clear the Time Out Status bit */
-	outb(2, TCO2_STS);	/* Clear SECOND_TO_STS bit */
-	outb(4, TCO2_STS);	/* Clear BOOT_STS bit */
+	outw(0x0008, TCO1_STS);	/* Clear the Time Out Status bit */
+	outw(0x0002, TCO2_STS);	/* Clear SECOND_TO_STS bit */
+	outw(0x0004, TCO2_STS);	/* Clear BOOT_STS bit */
 
 	/* Make sure the watchdog is not running */
 	iTCO_wdt_stop();
@@ -844,8 +856,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	if (iTCO_wdt_set_heartbeat(heartbeat)) {
 		iTCO_wdt_set_heartbeat(WATCHDOG_HEARTBEAT);
 		printk(KERN_INFO PFX
-			"heartbeat value must be 2 < heartbeat < 39 (TCO v1) "
-				"or 613 (TCO v2), using %d\n", heartbeat);
+			"timeout value out of range, using %d\n", heartbeat);
 	}
 
 	ret = misc_register(&iTCO_wdt_miscdev);

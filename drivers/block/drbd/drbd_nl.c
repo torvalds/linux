@@ -510,7 +510,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
  * Returns 0 on success, negative return values indicate errors.
  * You should call drbd_md_sync() after calling this function.
  */
-enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, int force) __must_hold(local)
+enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
 {
 	sector_t prev_first_sect, prev_size; /* previous meta location */
 	sector_t la_size;
@@ -541,12 +541,12 @@ enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, int force
 	/* TODO: should only be some assert here, not (re)init... */
 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
 
-	size = drbd_new_dev_size(mdev, mdev->ldev, force);
+	size = drbd_new_dev_size(mdev, mdev->ldev, flags & DDSF_FORCED);
 
 	if (drbd_get_capacity(mdev->this_bdev) != size ||
 	    drbd_bm_capacity(mdev) != size) {
 		int err;
-		err = drbd_bm_resize(mdev, size);
+		err = drbd_bm_resize(mdev, size, !(flags & DDSF_NO_RESYNC));
 		if (unlikely(err)) {
 			/* currently there is only one error: ENOMEM! */
 			size = drbd_bm_capacity(mdev)>>1;
@@ -703,9 +703,6 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 	struct request_queue * const q = mdev->rq_queue;
 	struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
 	int max_segments = mdev->ldev->dc.max_bio_bvecs;
-
-	if (b->merge_bvec_fn && !mdev->ldev->dc.use_bmbv)
-		max_seg_s = PAGE_SIZE;
 
 	max_seg_s = min(queue_max_sectors(b) * queue_logical_block_size(b), max_seg_s);
 
@@ -1199,13 +1196,12 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	/* allocation not in the IO path, cqueue thread context */
-	new_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
+	new_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
 	if (!new_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
 	}
 
-	memset(new_conf, 0, sizeof(struct net_conf));
 	new_conf->timeout	   = DRBD_TIMEOUT_DEF;
 	new_conf->try_connect_int  = DRBD_CONNECT_INT_DEF;
 	new_conf->ping_int	   = DRBD_PING_INT_DEF;
@@ -1477,8 +1473,8 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 {
 	struct resize rs;
 	int retcode = NO_ERROR;
-	int ldsc = 0; /* local disk size changed */
 	enum determine_dev_size dd;
+	enum dds_flags ddsf;
 
 	memset(&rs, 0, sizeof(struct resize));
 	if (!resize_from_tags(mdev, nlp->tag_list, &rs)) {
@@ -1502,13 +1498,17 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		goto fail;
 	}
 
-	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev)) {
-		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
-		ldsc = 1;
+	if (rs.no_resync && mdev->agreed_pro_version < 93) {
+		retcode = ERR_NEED_APV_93;
+		goto fail;
 	}
 
+	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
+		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
+
 	mdev->ldev->dc.disk_size = (sector_t)rs.resize_size;
-	dd = drbd_determin_dev_size(mdev, rs.resize_force);
+	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
+	dd = drbd_determin_dev_size(mdev, ddsf);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
 	if (dd == dev_size_error) {
@@ -1516,12 +1516,12 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		goto fail;
 	}
 
-	if (mdev->state.conn == C_CONNECTED && (dd != unchanged || ldsc)) {
+	if (mdev->state.conn == C_CONNECTED) {
 		if (dd == grew)
 			set_bit(RESIZE_PENDING, &mdev->flags);
 
 		drbd_send_uuids(mdev);
-		drbd_send_sizes(mdev, 1);
+		drbd_send_sizes(mdev, 1, ddsf);
 	}
 
  fail:
@@ -1551,6 +1551,10 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		sc.rate       = DRBD_RATE_DEF;
 		sc.after      = DRBD_AFTER_DEF;
 		sc.al_extents = DRBD_AL_EXTENTS_DEF;
+		sc.dp_volume  = DRBD_DP_VOLUME_DEF;
+		sc.dp_interval = DRBD_DP_INTERVAL_DEF;
+		sc.throttle_th = DRBD_RS_THROTTLE_TH_DEF;
+		sc.hold_off_th = DRBD_RS_HOLD_OFF_TH_DEF;
 	} else
 		memcpy(&sc, &mdev->sync_conf, sizeof(struct syncer_conf));
 
@@ -2207,9 +2211,9 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 {
 	struct cn_msg *cn_reply;
 	struct drbd_nl_cfg_reply *reply;
-	struct bio_vec *bvec;
 	unsigned short *tl;
-	int i;
+	struct page *page;
+	unsigned len;
 
 	if (!e)
 		return;
@@ -2247,11 +2251,15 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 	put_unaligned(T_ee_data, tl++);
 	put_unaligned(e->size, tl++);
 
-	__bio_for_each_segment(bvec, e->private_bio, i, 0) {
-		void *d = kmap(bvec->bv_page);
-		memcpy(tl, d + bvec->bv_offset, bvec->bv_len);
-		kunmap(bvec->bv_page);
-		tl=(unsigned short*)((char*)tl + bvec->bv_len);
+	len = e->size;
+	page = e->pages;
+	page_chain_for_each(page) {
+		void *d = kmap_atomic(page, KM_USER0);
+		unsigned l = min_t(unsigned, len, PAGE_SIZE);
+		memcpy(tl, d, l);
+		kunmap_atomic(d, KM_USER0);
+		tl = (unsigned short*)((char*)tl + l);
+		len -= l;
 	}
 	put_unaligned(TT_END, tl++); /* Close the tag list */
 

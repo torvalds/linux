@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.23';
+my $V = '0.24';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -25,6 +25,7 @@ my $email_list = 1;
 my $email_subscriber_list = 0;
 my $email_git_penguin_chiefs = 0;
 my $email_git = 1;
+my $email_git_all_signature_types = 0;
 my $email_git_blame = 0;
 my $email_git_min_signatures = 1;
 my $email_git_max_maintainers = 5;
@@ -51,9 +52,9 @@ my $help = 0;
 my $exit = 0;
 
 my @penguin_chief = ();
-push(@penguin_chief,"Linus Torvalds:torvalds\@linux-foundation.org");
+push(@penguin_chief, "Linus Torvalds:torvalds\@linux-foundation.org");
 #Andrew wants in on most everything - 2009/01/14
-#push(@penguin_chief,"Andrew Morton:akpm\@linux-foundation.org");
+#push(@penguin_chief, "Andrew Morton:akpm\@linux-foundation.org");
 
 my @penguin_chief_names = ();
 foreach my $chief (@penguin_chief) {
@@ -63,7 +64,16 @@ foreach my $chief (@penguin_chief) {
 	push(@penguin_chief_names, $chief_name);
     }
 }
-my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
+my $penguin_chiefs = "\(" . join("|", @penguin_chief_names) . "\)";
+
+# Signature types of people who are either
+# 	a) responsible for the code in question, or
+# 	b) familiar enough with it to give relevant feedback
+my @signature_tags = ();
+push(@signature_tags, "Signed-off-by:");
+push(@signature_tags, "Reviewed-by:");
+push(@signature_tags, "Acked-by:");
+my $signaturePattern = "\(" . join("|", @signature_tags) . "\)";
 
 # rfc822 email address - preloaded methods go here.
 my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
@@ -97,9 +107,34 @@ my %VCS_cmds_hg = (
     "blame_commit_pattern" => "^([0-9a-f]+):"
 );
 
+if (-f "${lk_path}.get_maintainer.conf") {
+    my @conf_args;
+    open(my $conffile, '<', "${lk_path}.get_maintainer.conf")
+	or warn "$P: Can't open .get_maintainer.conf: $!\n";
+    while (<$conffile>) {
+	my $line = $_;
+
+	$line =~ s/\s*\n?$//g;
+	$line =~ s/^\s*//g;
+	$line =~ s/\s+/ /g;
+
+	next if ($line =~ m/^\s*#/);
+	next if ($line =~ m/^\s*$/);
+
+	my @words = split(" ", $line);
+	foreach my $word (@words) {
+	    last if ($word =~ m/^#/);
+	    push (@conf_args, $word);
+	}
+    }
+    close($conffile);
+    unshift(@ARGV, @conf_args) if @conf_args;
+}
+
 if (!GetOptions(
 		'email!' => \$email,
 		'git!' => \$email_git,
+		'git-all-signature-types!' => \$email_git_all_signature_types,
 		'git-blame!' => \$email_git_blame,
 		'git-chief-penguins!' => \$email_git_penguin_chiefs,
 		'git-min-signatures=i' => \$email_git_min_signatures,
@@ -178,6 +213,10 @@ if ($email &&
 if (!top_of_kernel_tree($lk_path)) {
     die "$P: The current directory does not appear to be "
 	. "a linux kernel source tree.\n";
+}
+
+if ($email_git_all_signature_types) {
+    $signaturePattern = "(.+?)[Bb][Yy]:";
 }
 
 ## Read MAINTAINERS for type/value pairs
@@ -497,13 +536,15 @@ version: $V
 MAINTAINER field selection options:
   --email => print email address(es) if any
     --git => include recent git \*-by: signers
+    --git-all-signature-types => include signers regardless of signature type
+        or use only ${signaturePattern} signers (default: $email_git_all_signature_types)
     --git-chief-penguins => include ${penguin_chiefs}
-    --git-min-signatures => number of signatures required (default: 1)
-    --git-max-maintainers => maximum maintainers to add (default: 5)
-    --git-min-percent => minimum percentage of commits required (default: 5)
+    --git-min-signatures => number of signatures required (default: $email_git_min_signatures)
+    --git-max-maintainers => maximum maintainers to add (default: $email_git_max_maintainers)
+    --git-min-percent => minimum percentage of commits required (default: $email_git_min_percent)
     --git-blame => use git blame to find modified commits for patch or file
-    --git-since => git history to use (default: 1-year-ago)
-    --hg-since => hg history to use (default: -365)
+    --git-since => git history to use (default: $email_git_since)
+    --hg-since => hg history to use (default: $email_hg_since)
     --m => include maintainer(s) if any
     --n => include name 'Full Name <addr\@domain.tld>'
     --l => include list(s) if any
@@ -556,6 +597,11 @@ Notes:
           --git-min-signatures, --git-max-maintainers, --git-min-percent, and
           --git-blame
       Use --hg-since not --git-since to control date selection
+  File ".get_maintainer.conf", if it exists in the linux kernel source root
+      directory, can change whatever get_maintainer defaults are desired.
+      Entries in this file can be any command line argument.
+      This file is prepended to any additional command line arguments.
+      Multiple lines and # comments are allowed.
 EOT
 }
 
@@ -964,7 +1010,7 @@ sub vcs_find_signers {
 
     $commits = grep(/$pattern/, @lines);	# of commits
 
-    @lines = grep(/^[-_ 	a-z]+by:.*\@.*$/i, @lines);
+    @lines = grep(/^[ \t]*${signaturePattern}.*\@.*$/, @lines);
     if (!$email_git_penguin_chiefs) {
 	@lines = grep(!/${penguin_chiefs}/i, @lines);
     }

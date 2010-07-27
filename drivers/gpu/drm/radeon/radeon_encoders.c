@@ -309,9 +309,6 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	/* adjust pm to upcoming mode change */
-	radeon_pm_compute_clocks(rdev);
-
 	/* set the active encoder to connector routing */
 	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
@@ -1111,8 +1108,6 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	}
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 union crtc_source_param {
@@ -1546,9 +1541,48 @@ static void radeon_atom_encoder_commit(struct drm_encoder *encoder)
 
 static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig;
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+
+	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		atombios_digital_setup(encoder, PANEL_ENCODER_ACTION_DISABLE);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		if (ASIC_IS_DCE4(rdev))
+			/* disable the transmitter */
+			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
+		else {
+			/* disable the encoder and transmitter */
+			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
+			atombios_dig_encoder_setup(encoder, ATOM_DISABLE);
+		}
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_DDI:
+		atombios_ddia_setup(encoder, ATOM_DISABLE);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		atombios_external_tmds_setup(encoder, ATOM_DISABLE);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+		atombios_dac_setup(encoder, ATOM_DISABLE);
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+			atombios_tv_setup(encoder, ATOM_DISABLE);
+		break;
+	}
 
 	if (radeon_encoder_is_digital(encoder)) {
 		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)

@@ -2844,10 +2844,6 @@ struct cas {
 	atomic_t		reset_task_pending_all;
 #endif
 
-#ifdef CONFIG_CASSINI_QGE_DEBUG
-	atomic_t interrupt_seen; /* 1 if any interrupts are getting through */
-#endif
-
 	/* Link-down problem workaround */
 #define LINK_TRANSITION_UNKNOWN 	0
 #define LINK_TRANSITION_ON_FAILURE 	1

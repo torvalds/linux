@@ -537,9 +537,9 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 		goto err_battery;
 
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_syslo_irq,
-				 IRQF_TRIGGER_RISING, "SYSLO",
-				 power);
+	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq,
+				   IRQF_TRIGGER_RISING, "System power low",
+				   power);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request SYSLO IRQ %d: %d\n",
 			irq, ret);
@@ -547,9 +547,9 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_pwr_src_irq,
-				 IRQF_TRIGGER_RISING, "Power source",
-				 power);
+	ret = request_threaded_irq(irq, NULL, wm831x_pwr_src_irq,
+				   IRQF_TRIGGER_RISING, "Power source",
+				   power);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request PWR SRC IRQ %d: %d\n",
 			irq, ret);
@@ -558,10 +558,10 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		ret = wm831x_request_irq(wm831x, irq, wm831x_bat_irq,
-					 IRQF_TRIGGER_RISING,
-					 wm831x_bat_irqs[i],
-					 power);
+		ret = request_threaded_irq(irq, NULL, wm831x_bat_irq,
+					   IRQF_TRIGGER_RISING,
+					   wm831x_bat_irqs[i],
+					   power);
 		if (ret != 0) {
 			dev_err(&pdev->dev,
 				"Failed to request %s IRQ %d: %d\n",
@@ -575,13 +575,13 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 err_bat_irq:
 	for (; i >= 0; i--) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		wm831x_free_irq(wm831x, irq, power);
+		free_irq(irq, power);
 	}
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	wm831x_free_irq(wm831x, irq, power);
+	free_irq(irq, power);
 err_syslo:
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	wm831x_free_irq(wm831x, irq, power);
+	free_irq(irq, power);
 err_usb:
 	power_supply_unregister(usb);
 err_battery:
@@ -596,19 +596,18 @@ err_kmalloc:
 static __devexit int wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
-	struct wm831x *wm831x = wm831x_power->wm831x;
 	int irq, i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		wm831x_free_irq(wm831x, irq, wm831x_power);
+		free_irq(irq, wm831x_power);
 	}
 
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	wm831x_free_irq(wm831x, irq, wm831x_power);
+	free_irq(irq, wm831x_power);
 
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	wm831x_free_irq(wm831x, irq, wm831x_power);
+	free_irq(irq, wm831x_power);
 
 	power_supply_unregister(&wm831x_power->battery);
 	power_supply_unregister(&wm831x_power->wall);

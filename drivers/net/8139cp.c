@@ -322,7 +322,7 @@ struct cp_dma_stats {
 	__le32			rx_ok_mcast;
 	__le16			tx_abort;
 	__le16			tx_underrun;
-} __attribute__((packed));
+} __packed;
 
 struct cp_extra_stats {
 	unsigned long		rx_frags;
@@ -598,8 +598,8 @@ rx_next:
 			goto rx_status_loop;
 
 		spin_lock_irqsave(&cp->lock, flags);
-		cpw16_f(IntrMask, cp_intr_mask);
 		__napi_complete(napi);
+		cpw16_f(IntrMask, cp_intr_mask);
 		spin_unlock_irqrestore(&cp->lock, flags);
 	}
 

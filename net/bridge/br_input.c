@@ -27,8 +27,10 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	struct net_bridge *br = netdev_priv(brdev);
 	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
 
+	u64_stats_update_begin(&brstats->syncp);
 	brstats->rx_packets++;
 	brstats->rx_bytes += skb->len;
+	u64_stats_update_end(&brstats->syncp);
 
 	indev = skb->dev;
 	skb->dev = brdev;
@@ -41,7 +43,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 int br_handle_frame_finish(struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	struct net_bridge *br;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
@@ -111,10 +113,9 @@ drop:
 /* note: already called with rcu_read_lock (preempt_disabled) */
 static int br_handle_local_finish(struct sk_buff *skb)
 {
-	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 
-	if (p)
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 	return 0;	 /* process further */
 }
 
@@ -131,14 +132,18 @@ static inline int is_link_local(const unsigned char *dest)
 }
 
 /*
- * Called via br_handle_frame_hook.
  * Return NULL if skb is handled
- * note: already called with rcu_read_lock (preempt_disabled)
+ * note: already called with rcu_read_lock (preempt_disabled) from
+ * netif_receive_skb
  */
-struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
+struct sk_buff *br_handle_frame(struct sk_buff *skb)
 {
+	struct net_bridge_port *p;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	int (*rhook)(struct sk_buff *skb);
+
+	if (skb->pkt_type == PACKET_LOOPBACK)
+		return skb;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
@@ -146,6 +151,8 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+
+	p = br_port_get_rcu(skb->dev);
 
 	if (unlikely(is_link_local(dest))) {
 		/* Pause frames shouldn't be passed up by driver anyway */

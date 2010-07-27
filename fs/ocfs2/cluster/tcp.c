@@ -583,6 +583,9 @@ static void o2net_state_change(struct sock *sk)
 			o2net_sc_queue_work(sc, &sc->sc_connect_work);
 			break;
 		default:
+			printk(KERN_INFO "o2net: connection to " SC_NODEF_FMT
+			      " shutdown, state %d\n",
+			      SC_NODEF_ARGS(sc), sk->sk_state);
 			o2net_sc_queue_work(sc, &sc->sc_shutdown_work);
 			break;
 	}

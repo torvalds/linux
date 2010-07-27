@@ -18,9 +18,9 @@ config UEVENT_HELPER_PATH
 
 config DEVTMPFS
 	bool "Maintain a devtmpfs filesystem to mount at /dev"
-	depends on HOTPLUG && SHMEM && TMPFS
+	depends on HOTPLUG
 	help
-	  This creates a tmpfs filesystem instance early at bootup.
+	  This creates a tmpfs/ramfs filesystem instance early at bootup.
 	  In this filesystem, the kernel driver core maintains device
 	  nodes with their default names and permissions for all
 	  registered devices with an assigned major/minor number.
@@ -32,6 +32,9 @@ config DEVTMPFS
 	  In very limited environments, it may provide a sufficient
 	  functional /dev without any further help. It also allows simple
 	  rescue systems, and reliably handles dynamic major/minor numbers.
+
+	  Notice: if CONFIG_TMPFS isn't enabled, the simpler ramfs
+	  file system will be used instead.
 
 config DEVTMPFS_MOUNT
 	bool "Automount devtmpfs at /dev, after the kernel mounted the rootfs"

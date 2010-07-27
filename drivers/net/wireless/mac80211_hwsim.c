@@ -317,7 +317,7 @@ struct hwsim_radiotap_hdr {
 	u8 rt_rate;
 	__le16 rt_channel;
 	__le16 rt_chbitmask;
-} __attribute__ ((packed));
+} __packed;
 
 
 static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,

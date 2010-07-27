@@ -291,7 +291,7 @@ struct wl1271_fw_status {
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
 	__le32 padding[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;

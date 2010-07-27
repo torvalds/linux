@@ -447,13 +447,14 @@ config SENSORS_IT87
 	  will be called it87.
 
 config SENSORS_LM63
-	tristate "National Semiconductor LM63"
+	tristate "National Semiconductor LM63 and LM64"
 	depends on I2C
 	help
-	  If you say yes here you get support for the National Semiconductor
-	  LM63 remote diode digital temperature sensor with integrated fan
-	  control.  Such chips are found on the Tyan S4882 (Thunder K8QS Pro)
-	  motherboard, among others.
+	  If you say yes here you get support for the National
+	  Semiconductor LM63 and LM64 remote diode digital temperature
+	  sensors with integrated fan control.  Such chips are found
+	  on the Tyan S4882 (Thunder K8QS Pro) motherboard, among
+	  others.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm63.
@@ -492,7 +493,8 @@ config SENSORS_LM75
 		- NXP's LM75A
 		- ST Microelectronics STDS75
 		- TelCom (now Microchip) TCN75
-		- Texas Instruments TMP100, TMP101, TMP75, TMP175, TMP275
+		- Texas Instruments TMP100, TMP101, TMP105, TMP75, TMP175,
+		  TMP275
 
 	  This driver supports driver model based binding through board
 	  specific I2C device tables.
@@ -749,6 +751,16 @@ config SENSORS_DME1737
 	  This driver can also be built as a module.  If so, the module
 	  will be called dme1737.
 
+config SENSORS_EMC1403
+	tristate "SMSC EMC1403 thermal sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the SMSC EMC1403
+	  temperature monitoring chip.
+
+	  Threshold values can be configured using sysfs.
+	  Data from the different diodes are accessible via sysfs.
+
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
 	help
@@ -802,6 +814,15 @@ config SENSORS_ADS7828
 	  This driver can also be built as a module.  If so, the module
 	  will be called ads7828.
 
+config SENSORS_ADS7871
+	tristate "Texas Instruments ADS7871 A/D converter"
+	depends on SPI
+	help
+	  If you say yes here you get support for TI ADS7871 & ADS7870
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ads7871.
+
 config SENSORS_AMC6821
 	tristate "Texas Instruments AMC6821"
 	depends on I2C  && EXPERIMENTAL
@@ -821,6 +842,16 @@ config SENSORS_THMC50
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called thmc50.
+
+config SENSORS_TMP102
+	tristate "Texas Instruments TMP102"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Texas Instruments TMP102
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp102.
 
 config SENSORS_TMP401
 	tristate "Texas Instruments TMP401 and compatibles"

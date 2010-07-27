@@ -1311,7 +1311,6 @@ int jbd2_journal_stop(handle_t *handle)
 	if (handle->h_sync)
 		transaction->t_synchronous_commit = 1;
 	current->journal_info = NULL;
-	spin_lock(&journal->j_state_lock);
 	spin_lock(&transaction->t_handle_lock);
 	transaction->t_outstanding_credits -= handle->h_buffer_credits;
 	transaction->t_updates--;
@@ -1340,8 +1339,7 @@ int jbd2_journal_stop(handle_t *handle)
 		jbd_debug(2, "transaction too old, requesting commit for "
 					"handle %p\n", handle);
 		/* This is non-blocking */
-		__jbd2_log_start_commit(journal, transaction->t_tid);
-		spin_unlock(&journal->j_state_lock);
+		jbd2_log_start_commit(journal, transaction->t_tid);
 
 		/*
 		 * Special case: JBD2_SYNC synchronous updates require us
@@ -1351,7 +1349,6 @@ int jbd2_journal_stop(handle_t *handle)
 			err = jbd2_log_wait_commit(journal, tid);
 	} else {
 		spin_unlock(&transaction->t_handle_lock);
-		spin_unlock(&journal->j_state_lock);
 	}
 
 	lock_map_release(&handle->h_lockdep_map);

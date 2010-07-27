@@ -1141,37 +1141,47 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 }
 
 /*
- * Given a scsi cmnd, determine the BlockGuard profile to be used
- * with the cmd
+ * Given a scsi cmnd, determine the BlockGuard opcodes to be used with it
+ * @sc: The SCSI command to examine
+ * @txopt: (out) BlockGuard operation for transmitted data
+ * @rxopt: (out) BlockGuard operation for received data
+ *
+ * Returns: zero on success; non-zero if tx and/or rx op cannot be determined
+ *
  */
 static int
-lpfc_sc_to_sli_prof(struct lpfc_hba *phba, struct scsi_cmnd *sc)
+lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
+		uint8_t *txop, uint8_t *rxop)
 {
 	uint8_t guard_type = scsi_host_get_guard(sc->device->host);
-	uint8_t ret_prof = LPFC_PROF_INVALID;
+	uint8_t ret = 0;
 
 	if (guard_type == SHOST_DIX_GUARD_IP) {
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
-			ret_prof = LPFC_PROF_AST2;
+			*txop = BG_OP_IN_CSUM_OUT_NODIF;
+			*rxop = BG_OP_IN_NODIF_OUT_CSUM;
 			break;
 
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			ret_prof = LPFC_PROF_A1;
+			*txop = BG_OP_IN_NODIF_OUT_CRC;
+			*rxop = BG_OP_IN_CRC_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
-			ret_prof = LPFC_PROF_AST1;
+			*txop = BG_OP_IN_CSUM_OUT_CRC;
+			*rxop = BG_OP_IN_CRC_OUT_CSUM;
 			break;
 
 		case SCSI_PROT_NORMAL:
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9063 BLKGRD:Bad op/guard:%d/%d combination\n",
+				"9063 BLKGRD: Bad op/guard:%d/%d combination\n",
 					scsi_get_prot_op(sc), guard_type);
+			ret = 1;
 			break;
 
 		}
@@ -1179,12 +1189,14 @@ lpfc_sc_to_sli_prof(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			ret_prof = LPFC_PROF_A1;
+			*txop = BG_OP_IN_NODIF_OUT_CRC;
+			*rxop = BG_OP_IN_CRC_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
-			ret_prof = LPFC_PROF_C1;
+			*txop = BG_OP_IN_CRC_OUT_CRC;
+			*rxop = BG_OP_IN_CRC_OUT_CRC;
 			break;
 
 		case SCSI_PROT_READ_INSERT:
@@ -1194,6 +1206,7 @@ lpfc_sc_to_sli_prof(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 				"9075 BLKGRD: Bad op/guard:%d/%d combination\n",
 					scsi_get_prot_op(sc), guard_type);
+			ret = 1;
 			break;
 		}
 	} else {
@@ -1201,7 +1214,7 @@ lpfc_sc_to_sli_prof(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 		BUG();
 	}
 
-	return ret_prof;
+	return ret;
 }
 
 struct scsi_dif_tuple {
@@ -1266,7 +1279,9 @@ lpfc_get_cmd_dif_parms(struct scsi_cmnd *sc, uint16_t *apptagmask,
  * The buffer list consists of just one protection group described
  * below:
  *                                +-------------------------+
- *   start of prot group  -->     |          PDE_1          |
+ *   start of prot group  -->     |          PDE_5          |
+ *                                +-------------------------+
+ *                                |          PDE_6          |
  *                                +-------------------------+
  *                                |         Data BDE        |
  *                                +-------------------------+
@@ -1284,30 +1299,49 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		struct ulp_bde64 *bpl, int datasegcnt)
 {
 	struct scatterlist *sgde = NULL; /* s/g data entry */
-	struct lpfc_pde *pde1 = NULL;
+	struct lpfc_pde5 *pde5 = NULL;
+	struct lpfc_pde6 *pde6 = NULL;
 	dma_addr_t physaddr;
-	int i = 0, num_bde = 0;
+	int i = 0, num_bde = 0, status;
 	int datadir = sc->sc_data_direction;
-	int prof = LPFC_PROF_INVALID;
 	unsigned blksize;
 	uint32_t reftag;
 	uint16_t apptagmask, apptagval;
+	uint8_t txop, rxop;
 
-	pde1 = (struct lpfc_pde *) bpl;
-	prof = lpfc_sc_to_sli_prof(phba, sc);
-
-	if (prof == LPFC_PROF_INVALID)
+	status  = lpfc_sc_to_bg_opcodes(phba, sc, &txop, &rxop);
+	if (status)
 		goto out;
 
-	/* extract some info from the scsi command for PDE1*/
+	/* extract some info from the scsi command for pde*/
 	blksize = lpfc_cmd_blksize(sc);
 	lpfc_get_cmd_dif_parms(sc, &apptagmask, &apptagval, &reftag);
 
-	/* setup PDE1 with what we have */
-	lpfc_pde_set_bg_parms(pde1, LPFC_PDE1_DESCRIPTOR, prof, blksize,
-			BG_EC_STOP_ERR);
-	lpfc_pde_set_dif_parms(pde1, apptagmask, apptagval, reftag);
+	/* setup PDE5 with what we have */
+	pde5 = (struct lpfc_pde5 *) bpl;
+	memset(pde5, 0, sizeof(struct lpfc_pde5));
+	bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
+	pde5->reftag = reftag;
 
+	/* advance bpl and increment bde count */
+	num_bde++;
+	bpl++;
+	pde6 = (struct lpfc_pde6 *) bpl;
+
+	/* setup PDE6 with the rest of the info */
+	memset(pde6, 0, sizeof(struct lpfc_pde6));
+	bf_set(pde6_type, pde6, LPFC_PDE6_DESCRIPTOR);
+	bf_set(pde6_optx, pde6, txop);
+	bf_set(pde6_oprx, pde6, rxop);
+	if (datadir == DMA_FROM_DEVICE) {
+		bf_set(pde6_ce, pde6, 1);
+		bf_set(pde6_re, pde6, 1);
+		bf_set(pde6_ae, pde6, 1);
+	}
+	bf_set(pde6_ai, pde6, 1);
+	bf_set(pde6_apptagval, pde6, apptagval);
+
+	/* advance bpl and increment bde count */
 	num_bde++;
 	bpl++;
 
@@ -1342,15 +1376,17 @@ out:
  * The buffer list for this type consists of one or more of the
  * protection groups described below:
  *                                    +-------------------------+
- *   start of first prot group  -->   |          PDE_1          |
+ *   start of first prot group  -->   |          PDE_5          |
  *                                    +-------------------------+
- *                                    |      PDE_3 (Prot BDE)   |
+ *                                    |          PDE_6          |
+ *                                    +-------------------------+
+ *                                    |      PDE_7 (Prot BDE)   |
  *                                    +-------------------------+
  *                                    |        Data BDE         |
  *                                    +-------------------------+
  *                                    |more Data BDE's ... (opt)|
  *                                    +-------------------------+
- *   start of new  prot group  -->    |          PDE_1          |
+ *   start of new  prot group  -->    |          PDE_5          |
  *                                    +-------------------------+
  *                                    |          ...            |
  *                                    +-------------------------+
@@ -1369,19 +1405,21 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 {
 	struct scatterlist *sgde = NULL; /* s/g data entry */
 	struct scatterlist *sgpe = NULL; /* s/g prot entry */
-	struct lpfc_pde *pde1 = NULL;
+	struct lpfc_pde5 *pde5 = NULL;
+	struct lpfc_pde6 *pde6 = NULL;
 	struct ulp_bde64 *prot_bde = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
 	unsigned short curr_data = 0, curr_prot = 0;
 	unsigned int split_offset, protgroup_len;
 	unsigned int protgrp_blks, protgrp_bytes;
 	unsigned int remainder, subtotal;
-	int prof = LPFC_PROF_INVALID;
+	int status;
 	int datadir = sc->sc_data_direction;
 	unsigned char pgdone = 0, alldone = 0;
 	unsigned blksize;
 	uint32_t reftag;
 	uint16_t apptagmask, apptagval;
+	uint8_t txop, rxop;
 	int num_bde = 0;
 
 	sgpe = scsi_prot_sglist(sc);
@@ -1394,31 +1432,47 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		return 0;
 	}
 
-	prof = lpfc_sc_to_sli_prof(phba, sc);
-	if (prof == LPFC_PROF_INVALID)
+	status = lpfc_sc_to_bg_opcodes(phba, sc, &txop, &rxop);
+	if (status)
 		goto out;
 
-	/* extract some info from the scsi command for PDE1*/
+	/* extract some info from the scsi command */
 	blksize = lpfc_cmd_blksize(sc);
 	lpfc_get_cmd_dif_parms(sc, &apptagmask, &apptagval, &reftag);
 
 	split_offset = 0;
 	do {
-		/* setup the first PDE_1 */
-		pde1 = (struct lpfc_pde *) bpl;
+		/* setup PDE5 with what we have */
+		pde5 = (struct lpfc_pde5 *) bpl;
+		memset(pde5, 0, sizeof(struct lpfc_pde5));
+		bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
+		pde5->reftag = reftag;
 
-		lpfc_pde_set_bg_parms(pde1, LPFC_PDE1_DESCRIPTOR, prof, blksize,
-				BG_EC_STOP_ERR);
-		lpfc_pde_set_dif_parms(pde1, apptagmask, apptagval, reftag);
+		/* advance bpl and increment bde count */
+		num_bde++;
+		bpl++;
+		pde6 = (struct lpfc_pde6 *) bpl;
 
+		/* setup PDE6 with the rest of the info */
+		memset(pde6, 0, sizeof(struct lpfc_pde6));
+		bf_set(pde6_type, pde6, LPFC_PDE6_DESCRIPTOR);
+		bf_set(pde6_optx, pde6, txop);
+		bf_set(pde6_oprx, pde6, rxop);
+		bf_set(pde6_ce, pde6, 1);
+		bf_set(pde6_re, pde6, 1);
+		bf_set(pde6_ae, pde6, 1);
+		bf_set(pde6_ai, pde6, 1);
+		bf_set(pde6_apptagval, pde6, apptagval);
+
+		/* advance bpl and increment bde count */
 		num_bde++;
 		bpl++;
 
 		/* setup the first BDE that points to protection buffer */
 		prot_bde = (struct ulp_bde64 *) bpl;
 		protphysaddr = sg_dma_address(sgpe);
-		prot_bde->addrLow = le32_to_cpu(putPaddrLow(protphysaddr));
-		prot_bde->addrHigh = le32_to_cpu(putPaddrHigh(protphysaddr));
+		prot_bde->addrHigh = le32_to_cpu(putPaddrLow(protphysaddr));
+		prot_bde->addrLow = le32_to_cpu(putPaddrHigh(protphysaddr));
 		protgroup_len = sg_dma_len(sgpe);
 
 
@@ -1429,10 +1483,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		protgrp_bytes = protgrp_blks * blksize;
 
 		prot_bde->tus.f.bdeSize = protgroup_len;
-		if (datadir == DMA_TO_DEVICE)
-			prot_bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
-		else
-			prot_bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64I;
+		prot_bde->tus.f.bdeFlags = LPFC_PDE7_DESCRIPTOR;
 		prot_bde->tus.w = le32_to_cpu(bpl->tus.w);
 
 		curr_prot++;
@@ -1484,6 +1535,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 			/* Move to the next s/g segment if possible */
 			sgde = sg_next(sgde);
+
 		}
 
 		/* are we done ? */
@@ -1505,7 +1557,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	} while (!alldone);
 
 out:
-
 
 	return num_bde;
 }
@@ -1828,8 +1879,8 @@ out:
  * field of @lpfc_cmd for device with SLI-4 interface spec.
  *
  * Return codes:
- * 	1 - Error
- * 	0 - Success
+ *	1 - Error
+ *	0 - Success
  **/
 static int
 lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
@@ -1937,8 +1988,8 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
  * lpfc_hba struct.
  *
  * Return codes:
- * 	1 - Error
- * 	0 - Success
+ *	1 - Error
+ *	0 - Success
  **/
 static inline int
 lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)

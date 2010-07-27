@@ -55,7 +55,7 @@ struct ixgbe_stats {
 				offsetof(struct ixgbe_adapter, m)
 #define IXGBE_NETDEV_STAT(m)	NETDEV_STATS, \
 				sizeof(((struct net_device *)0)->m), \
-				offsetof(struct net_device, m)
+				offsetof(struct net_device, m) - offsetof(struct net_device, stats)
 
 static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBE_NETDEV_STAT(stats.rx_packets)},
@@ -234,6 +234,13 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		case ixgbe_sfp_type_not_present:
 			ecmd->port = PORT_NONE;
 			break;
+		case ixgbe_sfp_type_1g_cu_core0:
+		case ixgbe_sfp_type_1g_cu_core1:
+			ecmd->port = PORT_TP;
+			ecmd->supported = SUPPORTED_TP;
+			ecmd->advertising = (ADVERTISED_1000baseT_Full |
+			                     ADVERTISED_TP);
+			break;
 		case ixgbe_sfp_type_unknown:
 		default:
 			ecmd->port = PORT_OTHER;
@@ -294,8 +301,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		hw->mac.autotry_restart = true;
 		err = hw->mac.ops.setup_link(hw, advertised, true, true);
 		if (err) {
-			DPRINTK(PROBE, INFO,
-			        "setup link failed with code %d\n", err);
+			e_info(probe, "setup link failed with code %d\n", err);
 			hw->mac.ops.setup_link(hw, old, true, true);
 		}
 	} else {
@@ -992,16 +998,18 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u64 *queue_stat;
 	int stat_count = sizeof(struct ixgbe_queue_stats) / sizeof(u64);
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *net_stats;
 	int j, k;
 	int i;
 	char *p = NULL;
 
 	ixgbe_update_stats(adapter);
-	dev_get_stats(netdev);
+	net_stats = dev_get_stats(netdev, &temp);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
 		switch (ixgbe_gstrings_stats[i].type) {
 		case NETDEV_STATS:
-			p = (char *) netdev +
+			p = (char *) net_stats +
 					ixgbe_gstrings_stats[i].stat_offset;
 			break;
 		case IXGBE_STATS:
@@ -1188,9 +1196,9 @@ static struct ixgbe_reg_test reg_test_82598[] = {
 		writel((_test[pat] & W), (adapter->hw.hw_addr + R));          \
 		val = readl(adapter->hw.hw_addr + R);                         \
 		if (val != (_test[pat] & W & M)) {                            \
-			DPRINTK(DRV, ERR, "pattern test reg %04X failed: got "\
-					  "0x%08X expected 0x%08X\n",         \
-				R, val, (_test[pat] & W & M));                \
+			e_err(drv, "pattern test reg %04X failed: got "   \
+			      "0x%08X expected 0x%08X\n",		      \
+			      R, val, (_test[pat] & W & M));                \
 			*data = R;                                            \
 			writel(before, adapter->hw.hw_addr + R);              \
 			return 1;                                             \
@@ -1206,8 +1214,8 @@ static struct ixgbe_reg_test reg_test_82598[] = {
 	writel((W & M), (adapter->hw.hw_addr + R));                           \
 	val = readl(adapter->hw.hw_addr + R);                                 \
 	if ((W & M) != (val & M)) {                                           \
-		DPRINTK(DRV, ERR, "set/check reg %04X test failed: got 0x%08X "\
-				 "expected 0x%08X\n", R, (val & M), (W & M)); \
+		e_err(drv, "set/check reg %04X test failed: got 0x%08X "  \
+		      "expected 0x%08X\n", R, (val & M), (W & M));        \
 		*data = R;                                                    \
 		writel(before, (adapter->hw.hw_addr + R));                    \
 		return 1;                                                     \
@@ -1240,8 +1248,8 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_STATUS, toggle);
 	after = IXGBE_READ_REG(&adapter->hw, IXGBE_STATUS) & toggle;
 	if (value != after) {
-		DPRINTK(DRV, ERR, "failed STATUS register test got: "
-		        "0x%08X expected: 0x%08X\n", after, value);
+		e_err(drv, "failed STATUS register test got: 0x%08X "
+		      "expected: 0x%08X\n", after, value);
 		*data = 1;
 		return 1;
 	}
@@ -1341,8 +1349,8 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 		*data = 1;
 		return -1;
 	}
-	DPRINTK(HW, INFO, "testing %s interrupt\n",
-		(shared_int ? "shared" : "unshared"));
+	e_info(hw, "testing %s interrupt\n", shared_int ?
+	       "shared" : "unshared");
 
 	/* Disable all the interrupts */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFFFFFF);
@@ -1847,7 +1855,7 @@ static void ixgbe_diag_test(struct net_device *netdev,
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
-		DPRINTK(HW, INFO, "offline testing starting\n");
+		e_info(hw, "offline testing starting\n");
 
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result */
@@ -1880,17 +1888,17 @@ static void ixgbe_diag_test(struct net_device *netdev,
 		else
 			ixgbe_reset(adapter);
 
-		DPRINTK(HW, INFO, "register testing starting\n");
+		e_info(hw, "register testing starting\n");
 		if (ixgbe_reg_test(adapter, &data[0]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		ixgbe_reset(adapter);
-		DPRINTK(HW, INFO, "eeprom testing starting\n");
+		e_info(hw, "eeprom testing starting\n");
 		if (ixgbe_eeprom_test(adapter, &data[1]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		ixgbe_reset(adapter);
-		DPRINTK(HW, INFO, "interrupt testing starting\n");
+		e_info(hw, "interrupt testing starting\n");
 		if (ixgbe_intr_test(adapter, &data[2]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -1898,14 +1906,14 @@ static void ixgbe_diag_test(struct net_device *netdev,
 		 * loopback diagnostic. */
 		if (adapter->flags & (IXGBE_FLAG_SRIOV_ENABLED |
 				      IXGBE_FLAG_VMDQ_ENABLED)) {
-			DPRINTK(HW, INFO, "Skip MAC loopback diagnostic in VT "
-				"mode\n");
+			e_info(hw, "Skip MAC loopback diagnostic in VT "
+			       "mode\n");
 			data[3] = 0;
 			goto skip_loopback;
 		}
 
 		ixgbe_reset(adapter);
-		DPRINTK(HW, INFO, "loopback testing starting\n");
+		e_info(hw, "loopback testing starting\n");
 		if (ixgbe_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -1916,7 +1924,7 @@ skip_loopback:
 		if (if_running)
 			dev_open(netdev);
 	} else {
-		DPRINTK(HW, INFO, "online testing starting\n");
+		e_info(hw, "online testing starting\n");
 		/* Online tests */
 		if (ixgbe_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -2077,25 +2085,6 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-/*
- * this function must be called before setting the new value of
- * rx_itr_setting
- */
-static bool ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
-                               struct ethtool_coalesce *ec)
-{
-	/* check the old value and enable RSC if necessary */
-	if ((adapter->rx_itr_setting == 0) &&
-	    (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)) {
-		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
-		adapter->netdev->features |= NETIF_F_LRO;
-		DPRINTK(PROBE, INFO, "rx-usecs set to %d, re-enabling RSC\n",
-		        ec->rx_coalesce_usecs);
-		return true;
-	}
-	return false;
-}
-
 static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
@@ -2124,9 +2113,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		    (1000000/ec->rx_coalesce_usecs < IXGBE_MIN_INT_RATE))
 			return -EINVAL;
 
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_reenable_rsc(adapter, ec);
-
 		/* store the value in ints/second */
 		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
 
@@ -2135,9 +2121,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		/* clear the lower bit as its used for dynamic state */
 		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_reenable_rsc(adapter, ec);
-
 		/* 1 means dynamic mode */
 		adapter->rx_eitr_param = 20000;
 		adapter->rx_itr_setting = 1;
@@ -2157,10 +2140,11 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 */
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
-			netdev->features &= ~NETIF_F_LRO;
-			DPRINTK(PROBE, INFO,
-			        "rx-usecs set to 0, disabling RSC\n");
-
+			if (netdev->features & NETIF_F_LRO) {
+				netdev->features &= ~NETIF_F_LRO;
+				e_info(probe, "rx-usecs set to 0, "
+				       "disabling RSC\n");
+			}
 			need_reset = true;
 		}
 	}
@@ -2232,8 +2216,11 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	bool need_reset = false;
+	int rc;
 
-	ethtool_op_set_flags(netdev, data);
+	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_LRO | ETH_FLAG_NTUPLE);
+	if (rc)
+		return rc;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
@@ -2254,7 +2241,10 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 				break;
 			}
 		} else if (!adapter->rx_itr_setting) {
-			netdev->features &= ~ETH_FLAG_LRO;
+			netdev->features &= ~NETIF_F_LRO;
+			if (data & ETH_FLAG_LRO)
+				e_info(probe, "rx-usecs set to 0, "
+				       "LRO/RSC cannot be enabled.\n");
 		}
 	}
 

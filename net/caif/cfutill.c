@@ -31,7 +31,7 @@ struct cflayer *cfutill_create(u8 channel_id, struct dev_info *dev_info)
 	}
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
 	memset(util, 0, sizeof(struct cfsrvl));
-	cfsrvl_init(util, channel_id, dev_info);
+	cfsrvl_init(util, channel_id, dev_info, true);
 	util->layer.receive = cfutill_receive;
 	util->layer.transmit = cfutill_transmit;
 	snprintf(util->layer.name, CAIF_LAYER_NAME_SZ - 1, "util1");
@@ -89,12 +89,6 @@ static int cfutill_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	caif_assert(layr->dn->transmit != NULL);
 	if (!cfsrvl_ready(service, &ret))
 		return ret;
-
-	if (cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
-		pr_err("CAIF: %s(): packet too large size=%d\n",
-			__func__, cfpkt_getlen(pkt));
-		return -EOVERFLOW;
-	}
 
 	cfpkt_add_head(pkt, &zero, 1);
 	/* Add info for MUX-layer to route the packet out. */

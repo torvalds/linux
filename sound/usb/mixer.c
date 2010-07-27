@@ -1126,7 +1126,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 	} else {
 		struct uac2_feature_unit_descriptor *ftr = _ftr;
 		csize = 4;
-		channels = (hdr->bLength - 6) / 4;
+		channels = (hdr->bLength - 6) / 4 - 1;
 		bmaControls = ftr->bmaControls;
 	}
 

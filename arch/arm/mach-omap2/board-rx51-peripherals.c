@@ -45,11 +45,23 @@
 /* list all spi devices here */
 enum {
 	RX51_SPI_WL1251,
+	RX51_SPI_MIPID,		/* LCD panel */
+	RX51_SPI_TSC2005,	/* Touch Controller */
 };
 
 static struct wl12xx_platform_data wl1251_pdata;
 
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,
+};
+
+static struct omap2_mcspi_device_config mipid_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,
+};
+
+static struct omap2_mcspi_device_config tsc2005_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel	= 1,
 };
@@ -63,6 +75,22 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.mode                   = SPI_MODE_3,
 		.controller_data	= &wl1251_mcspi_config,
 		.platform_data		= &wl1251_pdata,
+	},
+	[RX51_SPI_MIPID] = {
+		.modalias		= "acx565akm",
+		.bus_num		= 1,
+		.chip_select		= 2,
+		.max_speed_hz		= 6000000,
+		.controller_data	= &mipid_mcspi_config,
+	},
+	[RX51_SPI_TSC2005] = {
+		.modalias		= "tsc2005",
+		.bus_num		= 1,
+		.chip_select		= 0,
+		/* .irq = OMAP_GPIO_IRQ(RX51_TSC2005_IRQ_GPIO),*/
+		.max_speed_hz		= 6000000,
+		.controller_data	= &tsc2005_mcspi_config,
+		/* .platform_data = &tsc2005_config,*/
 	},
 };
 
@@ -277,7 +305,7 @@ static struct regulator_consumer_supply rx51_vmmc1_supply = {
 	.dev_name = "mmci-omap-hs.0",
 };
 
-static struct regulator_consumer_supply rx51_vmmc2_supply = {
+static struct regulator_consumer_supply rx51_vaux3_supply = {
 	.supply   = "vmmc",
 	.dev_name = "mmci-omap-hs.1",
 };
@@ -285,6 +313,48 @@ static struct regulator_consumer_supply rx51_vmmc2_supply = {
 static struct regulator_consumer_supply rx51_vsim_supply = {
 	.supply   = "vmmc_aux",
 	.dev_name = "mmci-omap-hs.1",
+};
+
+static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
+	/* tlv320aic3x analog supplies */
+	{
+		.supply		= "AVDD",
+		.dev_name	= "2-0018",
+	},
+	{
+		.supply		= "DRVDD",
+		.dev_name	= "2-0018",
+	},
+	/* Keep vmmc as last item. It is not iterated for newer boards */
+	{
+		.supply		= "vmmc",
+		.dev_name	= "mmci-omap-hs.1",
+	},
+};
+
+static struct regulator_consumer_supply rx51_vio_supplies[] = {
+	/* tlv320aic3x digital supplies */
+	{
+		.supply		= "IOVDD",
+		.dev_name	= "2-0018"
+	},
+	{
+		.supply		= "DVDD",
+		.dev_name	= "2-0018"
+	},
+};
+
+#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
+extern struct platform_device rx51_display_device;
+#endif
+
+static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
+#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
+	{
+		.supply	= "vdds_sdi",
+		.dev	= &rx51_display_device.dev,
+	},
+#endif
 };
 
 static struct regulator_init_data rx51_vaux1 = {
@@ -297,6 +367,8 @@ static struct regulator_init_data rx51_vaux1 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vaux1_consumers),
+	.consumer_supplies	= rx51_vaux1_consumers,
 };
 
 static struct regulator_init_data rx51_vaux2 = {
@@ -338,7 +410,7 @@ static struct regulator_init_data rx51_vaux3_mmc = {
 					| REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &rx51_vmmc2_supply,
+	.consumer_supplies	= &rx51_vaux3_supply,
 };
 
 static struct regulator_init_data rx51_vaux4 = {
@@ -370,9 +442,9 @@ static struct regulator_init_data rx51_vmmc1 = {
 
 static struct regulator_init_data rx51_vmmc2 = {
 	.constraints = {
-		.name			= "VMMC2_30",
-		.min_uV			= 1850000,
-		.max_uV			= 3150000,
+		.name			= "V28_A",
+		.min_uV			= 2800000,
+		.max_uV			= 3000000,
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -380,8 +452,8 @@ static struct regulator_init_data rx51_vmmc2 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &rx51_vmmc2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vmmc2_supplies),
+	.consumer_supplies	= rx51_vmmc2_supplies,
 };
 
 static struct regulator_init_data rx51_vsim = {
@@ -409,6 +481,20 @@ static struct regulator_init_data rx51_vdac = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+};
+
+static struct regulator_init_data rx51_vio = {
+	.constraints = {
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vio_supplies),
+	.consumer_supplies	= rx51_vio_supplies,
 };
 
 static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
@@ -618,6 +704,7 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vmmc1			= &rx51_vmmc1,
 	.vsim			= &rx51_vsim,
 	.vdac			= &rx51_vdac,
+	.vio			= &rx51_vio,
 };
 
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
@@ -629,18 +716,27 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 	},
 };
 
+static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	},
+};
+
 static int __init rx51_i2c_init(void)
 {
 	if ((system_rev >= SYSTEM_REV_S_USES_VAUX3 && system_rev < 0x100) ||
-	    system_rev >= SYSTEM_REV_B_USES_VAUX3)
+	    system_rev >= SYSTEM_REV_B_USES_VAUX3) {
 		rx51_twldata.vaux3 = &rx51_vaux3_mmc;
-	else {
+		/* Only older boards use VMMC2 for internal MMC */
+		rx51_vmmc2.num_consumer_supplies--;
+	} else {
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
-		rx51_twldata.vmmc2 = &rx51_vmmc2;
 	}
+	rx51_twldata.vmmc2 = &rx51_vmmc2;
 	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
-			ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
-	omap_register_i2c_bus(2, 100, NULL, 0);
+			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
+	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
+			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }

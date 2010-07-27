@@ -427,9 +427,9 @@ struct transaction_s
 	enum {
 		T_RUNNING,
 		T_LOCKED,
-		T_RUNDOWN,
 		T_FLUSH,
 		T_COMMIT,
+		T_COMMIT_RECORD,
 		T_FINISHED
 	}			t_state;
 
@@ -991,6 +991,7 @@ int journal_start_commit(journal_t *journal, tid_t *tid);
 int journal_force_commit_nested(journal_t *journal);
 int log_wait_commit(journal_t *journal, tid_t tid);
 int log_do_checkpoint(journal_t *journal);
+int journal_trans_will_send_data_barrier(journal_t *journal, tid_t tid);
 
 void __log_wait_for_space(journal_t *journal);
 extern void	__journal_drop_transaction(journal_t *, transaction_t *);

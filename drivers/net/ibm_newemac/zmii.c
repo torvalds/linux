@@ -121,13 +121,14 @@ int __devinit zmii_attach(struct of_device *ofdev, int input, int *mode)
 			dev->mode = *mode;
 
 		printk(KERN_NOTICE "%s: bridge in %s mode\n",
-		       ofdev->node->full_name, zmii_mode_name(dev->mode));
+		       ofdev->dev.of_node->full_name,
+		       zmii_mode_name(dev->mode));
 	} else {
 		/* All inputs must use the same mode */
 		if (*mode != PHY_MODE_NA && *mode != dev->mode) {
 			printk(KERN_ERR
 			       "%s: invalid mode %d specified for input %d\n",
-			       ofdev->node->full_name, *mode, input);
+			       ofdev->dev.of_node->full_name, *mode, input);
 			mutex_unlock(&dev->lock);
 			return -EINVAL;
 		}
@@ -233,7 +234,7 @@ void *zmii_dump_regs(struct of_device *ofdev, void *buf)
 static int __devinit zmii_probe(struct of_device *ofdev,
 				const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct zmii_instance *dev;
 	struct resource regs;
 	int rc;
@@ -273,7 +274,7 @@ static int __devinit zmii_probe(struct of_device *ofdev,
 	out_be32(&dev->base->fer, 0);
 
 	printk(KERN_INFO
-	       "ZMII %s initialized\n", ofdev->node->full_name);
+	       "ZMII %s initialized\n", ofdev->dev.of_node->full_name);
 	wmb();
 	dev_set_drvdata(&ofdev->dev, dev);
 
@@ -312,9 +313,11 @@ static struct of_device_id zmii_match[] =
 };
 
 static struct of_platform_driver zmii_driver = {
-	.name = "emac-zmii",
-	.match_table = zmii_match,
-
+	.driver = {
+		.name = "emac-zmii",
+		.owner = THIS_MODULE,
+		.of_match_table = zmii_match,
+	},
 	.probe = zmii_probe,
 	.remove = zmii_remove,
 };

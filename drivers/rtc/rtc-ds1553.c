@@ -252,7 +252,7 @@ static const struct rtc_class_ops ds1553_rtc_ops = {
 	.update_irq_enable	= ds1553_rtc_update_irq_enable,
 };
 
-static ssize_t ds1553_nvram_read(struct kobject *kobj,
+static ssize_t ds1553_nvram_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
@@ -267,7 +267,7 @@ static ssize_t ds1553_nvram_read(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t ds1553_nvram_write(struct kobject *kobj,
+static ssize_t ds1553_nvram_write(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {

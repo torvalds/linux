@@ -49,7 +49,6 @@ static atomic_t trapped;
 		(MAX_UDP_CHUNK + sizeof(struct udphdr) + \
 				sizeof(struct iphdr) + sizeof(struct ethhdr))
 
-static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
 
 static unsigned int carrier_timeout = 4;
@@ -197,13 +196,14 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	service_arp_queue(dev->npinfo);
 
-	zap_completion_queue();
 }
+EXPORT_SYMBOL(netpoll_poll_dev);
 
 void netpoll_poll(struct netpoll *np)
 {
 	netpoll_poll_dev(np->dev);
 }
+EXPORT_SYMBOL(netpoll_poll);
 
 static void refill_skbs(void)
 {
@@ -221,40 +221,11 @@ static void refill_skbs(void)
 	spin_unlock_irqrestore(&skb_pool.lock, flags);
 }
 
-static void zap_completion_queue(void)
-{
-	unsigned long flags;
-	struct softnet_data *sd = &get_cpu_var(softnet_data);
-
-	if (sd->completion_queue) {
-		struct sk_buff *clist;
-
-		local_irq_save(flags);
-		clist = sd->completion_queue;
-		sd->completion_queue = NULL;
-		local_irq_restore(flags);
-
-		while (clist != NULL) {
-			struct sk_buff *skb = clist;
-			clist = clist->next;
-			if (skb->destructor) {
-				atomic_inc(&skb->users);
-				dev_kfree_skb_any(skb); /* put this one back */
-			} else {
-				__kfree_skb(skb);
-			}
-		}
-	}
-
-	put_cpu_var(softnet_data);
-}
-
 static struct sk_buff *find_skb(struct netpoll *np, int len, int reserve)
 {
 	int count = 0;
 	struct sk_buff *skb;
 
-	zap_completion_queue();
 	refill_skbs();
 repeat:
 
@@ -292,6 +263,7 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	unsigned long tries;
 	struct net_device *dev = np->dev;
 	const struct net_device_ops *ops = dev->netdev_ops;
+	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo = np->dev->npinfo;
 
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
@@ -343,6 +315,7 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		schedule_delayed_work(&npinfo->tx_work,0);
 	}
 }
+EXPORT_SYMBOL(netpoll_send_skb);
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
@@ -404,6 +377,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 
 	netpoll_send_skb(np, skb);
 }
+EXPORT_SYMBOL(netpoll_send_udp);
 
 static void arp_reply(struct sk_buff *skb)
 {
@@ -630,6 +604,7 @@ void netpoll_print_options(struct netpoll *np)
 	printk(KERN_INFO "%s: remote ethernet address %pM\n",
 	                 np->name, np->remote_mac);
 }
+EXPORT_SYMBOL(netpoll_print_options);
 
 int netpoll_parse_options(struct netpoll *np, char *opt)
 {
@@ -722,30 +697,29 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 	       np->name, cur);
 	return -1;
 }
+EXPORT_SYMBOL(netpoll_parse_options);
 
-int netpoll_setup(struct netpoll *np)
+int __netpoll_setup(struct netpoll *np)
 {
-	struct net_device *ndev = NULL;
-	struct in_device *in_dev;
+	struct net_device *ndev = np->dev;
 	struct netpoll_info *npinfo;
-	struct netpoll *npe, *tmp;
+	const struct net_device_ops *ops;
 	unsigned long flags;
 	int err;
 
-	if (np->dev_name)
-		ndev = dev_get_by_name(&init_net, np->dev_name);
-	if (!ndev) {
-		printk(KERN_ERR "%s: %s doesn't exist, aborting.\n",
+	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
+	    !ndev->netdev_ops->ndo_poll_controller) {
+		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
 		       np->name, np->dev_name);
-		return -ENODEV;
+		err = -ENOTSUPP;
+		goto out;
 	}
 
-	np->dev = ndev;
 	if (!ndev->npinfo) {
 		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
 		if (!npinfo) {
 			err = -ENOMEM;
-			goto put;
+			goto out;
 		}
 
 		npinfo->rx_flags = 0;
@@ -757,6 +731,13 @@ int netpoll_setup(struct netpoll *np)
 		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
 
 		atomic_set(&npinfo->refcnt, 1);
+
+		ops = np->dev->netdev_ops;
+		if (ops->ndo_netpoll_setup) {
+			err = ops->ndo_netpoll_setup(ndev, npinfo);
+			if (err)
+				goto free_npinfo;
+		}
 	} else {
 		npinfo = ndev->npinfo;
 		atomic_inc(&npinfo->refcnt);
@@ -764,12 +745,37 @@ int netpoll_setup(struct netpoll *np)
 
 	npinfo->netpoll = np;
 
-	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
-	    !ndev->netdev_ops->ndo_poll_controller) {
-		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
+	if (np->rx_hook) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
+		list_add_tail(&np->rx, &npinfo->rx_np);
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	}
+
+	/* last thing to do is link it to the net device structure */
+	rcu_assign_pointer(ndev->npinfo, npinfo);
+
+	return 0;
+
+free_npinfo:
+	kfree(npinfo);
+out:
+	return err;
+}
+EXPORT_SYMBOL_GPL(__netpoll_setup);
+
+int netpoll_setup(struct netpoll *np)
+{
+	struct net_device *ndev = NULL;
+	struct in_device *in_dev;
+	int err;
+
+	if (np->dev_name)
+		ndev = dev_get_by_name(&init_net, np->dev_name);
+	if (!ndev) {
+		printk(KERN_ERR "%s: %s doesn't exist, aborting.\n",
 		       np->name, np->dev_name);
-		err = -ENOTSUPP;
-		goto release;
+		return -ENODEV;
 	}
 
 	if (!netif_running(ndev)) {
@@ -785,7 +791,7 @@ int netpoll_setup(struct netpoll *np)
 		if (err) {
 			printk(KERN_ERR "%s: failed to open %s\n",
 			       np->name, ndev->name);
-			goto release;
+			goto put;
 		}
 
 		atleast = jiffies + HZ/10;
@@ -822,7 +828,7 @@ int netpoll_setup(struct netpoll *np)
 			printk(KERN_ERR "%s: no IP address for %s, aborting\n",
 			       np->name, np->dev_name);
 			err = -EDESTADDRREQ;
-			goto release;
+			goto put;
 		}
 
 		np->local_ip = in_dev->ifa_list->ifa_local;
@@ -830,38 +836,25 @@ int netpoll_setup(struct netpoll *np)
 		printk(KERN_INFO "%s: local IP %pI4\n", np->name, &np->local_ip);
 	}
 
-	if (np->rx_hook) {
-		spin_lock_irqsave(&npinfo->rx_lock, flags);
-		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
-		list_add_tail(&np->rx, &npinfo->rx_np);
-		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-	}
+	np->dev = ndev;
 
 	/* fill up the skb queue */
 	refill_skbs();
 
-	/* last thing to do is link it to the net device structure */
-	ndev->npinfo = npinfo;
+	rtnl_lock();
+	err = __netpoll_setup(np);
+	rtnl_unlock();
 
-	/* avoid racing with NAPI reading npinfo */
-	synchronize_rcu();
+	if (err)
+		goto put;
 
 	return 0;
 
- release:
-	if (!ndev->npinfo) {
-		spin_lock_irqsave(&npinfo->rx_lock, flags);
-		list_for_each_entry_safe(npe, tmp, &npinfo->rx_np, rx) {
-			npe->dev = NULL;
-		}
-		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-
-		kfree(npinfo);
-	}
 put:
 	dev_put(ndev);
 	return err;
 }
+EXPORT_SYMBOL(netpoll_setup);
 
 static int __init netpoll_init(void)
 {
@@ -870,49 +863,65 @@ static int __init netpoll_init(void)
 }
 core_initcall(netpoll_init);
 
-void netpoll_cleanup(struct netpoll *np)
+void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
 	unsigned long flags;
 
-	if (np->dev) {
-		npinfo = np->dev->npinfo;
-		if (npinfo) {
-			if (!list_empty(&npinfo->rx_np)) {
-				spin_lock_irqsave(&npinfo->rx_lock, flags);
-				list_del(&np->rx);
-				if (list_empty(&npinfo->rx_np))
-					npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
-				spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-			}
+	npinfo = np->dev->npinfo;
+	if (!npinfo)
+		return;
 
-			if (atomic_dec_and_test(&npinfo->refcnt)) {
-				const struct net_device_ops *ops;
-				skb_queue_purge(&npinfo->arp_tx);
-				skb_queue_purge(&npinfo->txq);
-				cancel_rearming_delayed_work(&npinfo->tx_work);
-
-				/* clean after last, unfinished work */
-				__skb_queue_purge(&npinfo->txq);
-				kfree(npinfo);
-				ops = np->dev->netdev_ops;
-				if (ops->ndo_netpoll_cleanup)
-					ops->ndo_netpoll_cleanup(np->dev);
-				else
-					np->dev->npinfo = NULL;
-			}
-		}
-
-		dev_put(np->dev);
+	if (!list_empty(&npinfo->rx_np)) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		list_del(&np->rx);
+		if (list_empty(&npinfo->rx_np))
+			npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
 
+	if (atomic_dec_and_test(&npinfo->refcnt)) {
+		const struct net_device_ops *ops;
+
+		ops = np->dev->netdev_ops;
+		if (ops->ndo_netpoll_cleanup)
+			ops->ndo_netpoll_cleanup(np->dev);
+
+		rcu_assign_pointer(np->dev->npinfo, NULL);
+
+		/* avoid racing with NAPI reading npinfo */
+		synchronize_rcu_bh();
+
+		skb_queue_purge(&npinfo->arp_tx);
+		skb_queue_purge(&npinfo->txq);
+		cancel_rearming_delayed_work(&npinfo->tx_work);
+
+		/* clean after last, unfinished work */
+		__skb_queue_purge(&npinfo->txq);
+		kfree(npinfo);
+	}
+}
+EXPORT_SYMBOL_GPL(__netpoll_cleanup);
+
+void netpoll_cleanup(struct netpoll *np)
+{
+	if (!np->dev)
+		return;
+
+	rtnl_lock();
+	__netpoll_cleanup(np);
+	rtnl_unlock();
+
+	dev_put(np->dev);
 	np->dev = NULL;
 }
+EXPORT_SYMBOL(netpoll_cleanup);
 
 int netpoll_trap(void)
 {
 	return atomic_read(&trapped);
 }
+EXPORT_SYMBOL(netpoll_trap);
 
 void netpoll_set_trap(int trap)
 {
@@ -921,14 +930,4 @@ void netpoll_set_trap(int trap)
 	else
 		atomic_dec(&trapped);
 }
-
-EXPORT_SYMBOL(netpoll_send_skb);
 EXPORT_SYMBOL(netpoll_set_trap);
-EXPORT_SYMBOL(netpoll_trap);
-EXPORT_SYMBOL(netpoll_print_options);
-EXPORT_SYMBOL(netpoll_parse_options);
-EXPORT_SYMBOL(netpoll_setup);
-EXPORT_SYMBOL(netpoll_cleanup);
-EXPORT_SYMBOL(netpoll_send_udp);
-EXPORT_SYMBOL(netpoll_poll_dev);
-EXPORT_SYMBOL(netpoll_poll);

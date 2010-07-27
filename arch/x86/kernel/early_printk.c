@@ -41,6 +41,14 @@ static void early_vga_write(struct console *con, const char *str, unsigned n)
 				writew(0x720, VGABASE + 2*(max_xpos*j + i));
 			current_ypos = max_ypos-1;
 		}
+#ifdef CONFIG_KGDB_KDB
+		if (c == '\b') {
+			if (current_xpos > 0)
+				current_xpos--;
+		} else if (c == '\r') {
+			current_xpos = 0;
+		} else
+#endif
 		if (c == '\n') {
 			current_xpos = 0;
 			current_ypos++;

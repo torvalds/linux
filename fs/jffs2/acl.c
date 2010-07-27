@@ -419,7 +419,7 @@ static int jffs2_acl_setxattr(struct dentry *dentry, const char *name,
 	return rc;
 }
 
-struct xattr_handler jffs2_acl_access_xattr_handler = {
+const struct xattr_handler jffs2_acl_access_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_access_listxattr,
@@ -427,7 +427,7 @@ struct xattr_handler jffs2_acl_access_xattr_handler = {
 	.set	= jffs2_acl_setxattr,
 };
 
-struct xattr_handler jffs2_acl_default_xattr_handler = {
+const struct xattr_handler jffs2_acl_default_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_default_listxattr,

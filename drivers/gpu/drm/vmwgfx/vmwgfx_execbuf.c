@@ -570,7 +570,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * Put BO in VRAM, only if there is space.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false, false);
 	if (unlikely(ret == -ERESTARTSYS))
 		return ret;
 
@@ -590,7 +590,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * previous contents.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false, false);
 	return ret;
 }
 

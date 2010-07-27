@@ -27,8 +27,6 @@
 #include <linux/pci.h>
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_NATINST		0x1093
-
 /*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
 

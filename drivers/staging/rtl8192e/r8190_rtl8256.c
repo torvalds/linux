@@ -802,7 +802,7 @@ MgntDisconnectIBSS(
 
 			case RT_OP_MODE_IBSS:
 				btMsr |= MSR_LINK_ADHOC;
-				// led link set seperate
+				// led link set separate
 				break;
 
 			case RT_OP_MODE_AP:
@@ -885,7 +885,7 @@ MlmeDisassociateRequest(
 
 			case RT_OP_MODE_IBSS:
 				btMsr |= MSR_LINK_ADHOC;
-				// led link set seperate
+				// led link set separate
 				break;
 
 			case RT_OP_MODE_AP:

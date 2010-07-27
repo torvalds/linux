@@ -18,6 +18,7 @@
 
 #include "iio.h"
 #include "trigger.h"
+#include "trigger_consumer.h"
 
 /* RFC - Question of approach
  * Make the common case (single sensor single trigger)
@@ -92,9 +93,9 @@ idr_again:
  **/
 static void iio_trigger_unregister_id(struct iio_trigger *trig_info)
 {
-		spin_lock(&iio_trigger_idr_lock);
-		idr_remove(&iio_trigger_idr, trig_info->id);
-		spin_unlock(&iio_trigger_idr_lock);
+	spin_lock(&iio_trigger_idr_lock);
+	idr_remove(&iio_trigger_idr, trig_info->id);
+	spin_unlock(&iio_trigger_idr_lock);
 }
 
 int iio_trigger_register(struct iio_trigger *trig_info)
@@ -156,6 +157,9 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 	struct iio_trigger *trig;
 	bool found = false;
 
+	if (len && name[len - 1] == '\n')
+		len--;
+
 	mutex_lock(&iio_trigger_list_lock);
 	list_for_each_entry(trig, &iio_trigger_list, list) {
 		if (strncmp(trig->name, name, len) == 0) {
@@ -166,7 +170,7 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return found ? trig : NULL;
-};
+}
 EXPORT_SYMBOL(iio_trigger_find_by_name);
 
 void iio_trigger_poll(struct iio_trigger *trig)
@@ -331,9 +335,9 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	return len;
 }
 
-DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
-	    iio_trigger_read_current,
-	    iio_trigger_write_current);
+static DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
+		   iio_trigger_read_current,
+		   iio_trigger_write_current);
 
 static struct attribute *iio_trigger_consumer_attrs[] = {
 	&dev_attr_current_trigger.attr,
@@ -362,7 +366,7 @@ struct iio_trigger *iio_allocate_trigger(void)
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
 		trig->dev.type = &iio_trig_type;
-		trig->dev.class = &iio_class;
+		trig->dev.bus = &iio_bus_type;
 		device_initialize(&trig->dev);
 		dev_set_drvdata(&trig->dev, (void *)trig);
 		spin_lock_init(&trig->pollfunc_list_lock);

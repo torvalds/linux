@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+# Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
 #
 # Marek Lindner, Simon Wunderlich
 #
@@ -19,4 +19,4 @@
 #
 
 obj-m += batman-adv.o
-batman-adv-objs := main.o proc.o send.o routing.o soft-interface.o device.o translation-table.o bitarray.o hash.o ring_buffer.o vis.o hard-interface.o aggregation.o originator.o
+batman-adv-objs := main.o send.o routing.o soft-interface.o device.o translation-table.o bitarray.o hash.o ring_buffer.o vis.o hard-interface.o aggregation.o originator.o bat_sysfs.o

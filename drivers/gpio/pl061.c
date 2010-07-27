@@ -164,7 +164,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
 
-	if (offset < 0 || offset > PL061_GPIO_NR)
+	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->irq_lock, flags);

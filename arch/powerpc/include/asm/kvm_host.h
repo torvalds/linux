@@ -66,7 +66,7 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_wakeup;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	u32 pf_storage;
 	u32 pf_instruc;
 	u32 sp_storage;
@@ -124,12 +124,12 @@ struct kvm_arch {
 };
 
 struct kvmppc_pte {
-	u64 eaddr;
+	ulong eaddr;
 	u64 vpage;
-	u64 raddr;
-	bool may_read;
-	bool may_write;
-	bool may_execute;
+	ulong raddr;
+	bool may_read		: 1;
+	bool may_write		: 1;
+	bool may_execute	: 1;
 };
 
 struct kvmppc_mmu {
@@ -145,7 +145,7 @@ struct kvmppc_mmu {
 	int  (*xlate)(struct kvm_vcpu *vcpu, gva_t eaddr, struct kvmppc_pte *pte, bool data);
 	void (*reset_msr)(struct kvm_vcpu *vcpu);
 	void (*tlbie)(struct kvm_vcpu *vcpu, ulong addr, bool large);
-	int  (*esid_to_vsid)(struct kvm_vcpu *vcpu, u64 esid, u64 *vsid);
+	int  (*esid_to_vsid)(struct kvm_vcpu *vcpu, ulong esid, u64 *vsid);
 	u64  (*ea_to_vp)(struct kvm_vcpu *vcpu, gva_t eaddr, bool data);
 	bool (*is_dcbz32)(struct kvm_vcpu *vcpu);
 };
@@ -160,7 +160,7 @@ struct hpte_cache {
 struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	ulong host_msr;
 	ulong host_r2;
 	void *host_retip;
@@ -175,7 +175,7 @@ struct kvm_vcpu_arch {
 	ulong gpr[32];
 
 	u64 fpr[32];
-	u32 fpscr;
+	u64 fpscr;
 
 #ifdef CONFIG_ALTIVEC
 	vector128 vr[32];
@@ -186,19 +186,23 @@ struct kvm_vcpu_arch {
 	u64 vsr[32];
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S
+	/* For Gekko paired singles */
+	u32 qpr[32];
+#endif
+
+#ifdef CONFIG_BOOKE
 	ulong pc;
 	ulong ctr;
 	ulong lr;
 
-#ifdef CONFIG_BOOKE
 	ulong xer;
 	u32 cr;
 #endif
 
 	ulong msr;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	ulong shadow_msr;
-	ulong shadow_srr1;
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
@@ -253,20 +257,22 @@ struct kvm_vcpu_arch {
 	struct dentry *debugfs_exit_timing;
 #endif
 
+#ifdef CONFIG_BOOKE
 	u32 last_inst;
-#ifdef CONFIG_PPC64
-	ulong fault_dsisr;
-#endif
 	ulong fault_dear;
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+#endif
 	gpa_t paddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
+	u8 mmio_sign_extend;
 	u8 dcr_needed;
 	u8 dcr_is_write;
+	u8 osi_needed;
+	u8 osi_enabled;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
@@ -275,7 +281,7 @@ struct kvm_vcpu_arch {
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	struct hpte_cache hpte_cache[HPTEG_CACHE_NUM];
 	int hpte_cache_offset;
 #endif

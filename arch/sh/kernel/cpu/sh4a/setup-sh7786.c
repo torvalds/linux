@@ -21,10 +21,10 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sh_timer.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_intc.h>
 #include <cpu/dma-register.h>
 #include <asm/mmzone.h>
-#include <asm/dmaengine.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffea0000,

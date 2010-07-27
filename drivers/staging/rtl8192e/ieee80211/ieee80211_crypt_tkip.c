@@ -87,10 +87,9 @@ static void * ieee80211_tkip_init(int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
-	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!OPENSUSE_SLED))
 	priv->tx_tfm_arc4 = crypto_alloc_tfm("arc4", 0);

@@ -144,7 +144,7 @@ static struct platform_device m48t59_rtc = {
 
 static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
 
 	if (!model)
@@ -177,10 +177,11 @@ static struct of_device_id __initdata clock_match[] = {
 };
 
 static struct of_platform_driver clock_driver = {
-	.match_table	= clock_match,
 	.probe		= clock_probe,
-	.driver		= {
-		.name	= "rtc",
+	.driver = {
+		.name = "rtc",
+		.owner = THIS_MODULE,
+		.of_match_table = clock_match,
 	},
 };
 

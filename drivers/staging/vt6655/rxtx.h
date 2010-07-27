@@ -40,67 +40,67 @@
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-VOID vGenerateMACHeader(
-    IN PSDevice pDevice,
-    IN DWORD dwTxBufferAddr,
-    IN PBYTE pbySkbData,
-    IN UINT cbPacketSize,
-    IN BOOL bDMA0Used,
-    OUT PUINT pcbHeadSize,
-    OUT PUINT pcbAppendPayload
+void vGenerateMACHeader(
+    PSDevice pDevice,
+    DWORD dwTxBufferAddr,
+    PBYTE pbySkbData,
+    UINT cbPacketSize,
+    BOOL bDMA0Used,
+    PUINT pcbHeadSize,
+    PUINT pcbAppendPayload
      );
 
-VOID vProcessRxMACHeader (
-    IN  PSDevice pDevice,
-    IN  DWORD dwRxBufferAddr,
-    IN  UINT cbPacketSize,
-    IN  BOOL bIsWEP,
-    OUT PUINT pcbHeadSize
+void vProcessRxMACHeader (
+    PSDevice pDevice,
+    DWORD dwRxBufferAddr,
+    UINT cbPacketSize,
+    BOOL bIsWEP,
+    PUINT pcbHeadSize
     );
 */
 
 
-VOID
+void
 vGenerateMACHeader (
-    IN PSDevice         pDevice,
-    IN PBYTE            pbyBufferAddr,
-    IN WORD             wDuration,
-    IN PSEthernetHeader psEthHeader,
-    IN BOOL             bNeedEncrypt,
-    IN WORD             wFragType,
-    IN UINT             uDMAIdx,
-    IN UINT             uFragIdx
+    PSDevice         pDevice,
+    PBYTE            pbyBufferAddr,
+    WORD             wDuration,
+    PSEthernetHeader psEthHeader,
+    BOOL             bNeedEncrypt,
+    WORD             wFragType,
+    UINT             uDMAIdx,
+    UINT             uFragIdx
     );
 
 
 UINT
 cbGetFragCount(
-    IN  PSDevice         pDevice,
-    IN  PSKeyItem        pTransmitKey,
-    IN  UINT             cbFrameBodySize,
-    IN  PSEthernetHeader psEthHeader
+    PSDevice         pDevice,
+    PSKeyItem        pTransmitKey,
+    UINT             cbFrameBodySize,
+    PSEthernetHeader psEthHeader
     );
 
 
-VOID
+void
 vGenerateFIFOHeader (
-    IN  PSDevice         pDevice,
-    IN  BYTE             byPktTyp,
-    IN  PBYTE            pbyTxBufferAddr,
-    IN  BOOL             bNeedEncrypt,
-    IN  UINT             cbPayloadSize,
-    IN  UINT             uDMAIdx,
-    IN  PSTxDesc         pHeadTD,
-    IN  PSEthernetHeader psEthHeader,
-    IN  PBYTE            pPacket,
-    IN  PSKeyItem        pTransmitKey,
-    IN  UINT             uNodeIndex,
-    OUT PUINT            puMACfragNum,
-    OUT PUINT            pcbHeaderSize
+    PSDevice         pDevice,
+    BYTE             byPktTyp,
+    PBYTE            pbyTxBufferAddr,
+    BOOL             bNeedEncrypt,
+    UINT             cbPayloadSize,
+    UINT             uDMAIdx,
+    PSTxDesc         pHeadTD,
+    PSEthernetHeader psEthHeader,
+    PBYTE            pPacket,
+    PSKeyItem        pTransmitKey,
+    UINT             uNodeIndex,
+    PUINT            puMACfragNum,
+    PUINT            pcbHeaderSize
     );
 
 
-VOID vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 

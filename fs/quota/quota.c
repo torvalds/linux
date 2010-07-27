@@ -45,36 +45,22 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 	return security_quotactl(cmd, type, id, sb);
 }
 
+static void quota_sync_one(struct super_block *sb, void *arg)
+{
+	if (sb->s_qcop && sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, *(int *)arg, 1);
+}
+
 static int quota_sync_all(int type)
 {
-	struct super_block *sb;
 	int ret;
 
 	if (type >= MAXQUOTAS)
 		return -EINVAL;
 	ret = security_quotactl(Q_SYNC, type, 0, NULL);
-	if (ret)
-		return ret;
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_qcop || !sb->s_qcop->quota_sync)
-			continue;
-
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			sb->s_qcop->quota_sync(sb, type, 1);
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-
-	return 0;
+	if (!ret)
+		iterate_supers(quota_sync_one, &type);
+	return ret;
 }
 
 static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
@@ -87,7 +73,7 @@ static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
 	if (IS_ERR(pathname))
 		return PTR_ERR(pathname);
 	if (sb->s_qcop->quota_on)
-		ret = sb->s_qcop->quota_on(sb, type, id, pathname, 0);
+		ret = sb->s_qcop->quota_on(sb, type, id, pathname);
 	putname(pathname);
 	return ret;
 }
@@ -113,8 +99,6 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 	struct if_dqinfo info;
 	int ret;
 
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->get_info)
 		return -ENOSYS;
 	ret = sb->s_qcop->get_info(sb, type, &info);
@@ -129,43 +113,80 @@ static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 
 	if (copy_from_user(&info, addr, sizeof(info)))
 		return -EFAULT;
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->set_info)
 		return -ENOSYS;
 	return sb->s_qcop->set_info(sb, type, &info);
 }
 
+static void copy_to_if_dqblk(struct if_dqblk *dst, struct fs_disk_quota *src)
+{
+	dst->dqb_bhardlimit = src->d_blk_hardlimit;
+	dst->dqb_bsoftlimit = src->d_blk_softlimit;
+	dst->dqb_curspace = src->d_bcount;
+	dst->dqb_ihardlimit = src->d_ino_hardlimit;
+	dst->dqb_isoftlimit = src->d_ino_softlimit;
+	dst->dqb_curinodes = src->d_icount;
+	dst->dqb_btime = src->d_btimer;
+	dst->dqb_itime = src->d_itimer;
+	dst->dqb_valid = QIF_ALL;
+}
+
 static int quota_getquota(struct super_block *sb, int type, qid_t id,
 			  void __user *addr)
 {
+	struct fs_disk_quota fdq;
 	struct if_dqblk idq;
 	int ret;
 
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_dqblk(sb, type, id, &idq);
+	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
 	if (ret)
 		return ret;
+	copy_to_if_dqblk(&idq, &fdq);
 	if (copy_to_user(addr, &idq, sizeof(idq)))
 		return -EFAULT;
 	return 0;
 }
 
+static void copy_from_if_dqblk(struct fs_disk_quota *dst, struct if_dqblk *src)
+{
+	dst->d_blk_hardlimit = src->dqb_bhardlimit;
+	dst->d_blk_softlimit  = src->dqb_bsoftlimit;
+	dst->d_bcount = src->dqb_curspace;
+	dst->d_ino_hardlimit = src->dqb_ihardlimit;
+	dst->d_ino_softlimit = src->dqb_isoftlimit;
+	dst->d_icount = src->dqb_curinodes;
+	dst->d_btimer = src->dqb_btime;
+	dst->d_itimer = src->dqb_itime;
+
+	dst->d_fieldmask = 0;
+	if (src->dqb_valid & QIF_BLIMITS)
+		dst->d_fieldmask |= FS_DQ_BSOFT | FS_DQ_BHARD;
+	if (src->dqb_valid & QIF_SPACE)
+		dst->d_fieldmask |= FS_DQ_BCOUNT;
+	if (src->dqb_valid & QIF_ILIMITS)
+		dst->d_fieldmask |= FS_DQ_ISOFT | FS_DQ_IHARD;
+	if (src->dqb_valid & QIF_INODES)
+		dst->d_fieldmask |= FS_DQ_ICOUNT;
+	if (src->dqb_valid & QIF_BTIME)
+		dst->d_fieldmask |= FS_DQ_BTIMER;
+	if (src->dqb_valid & QIF_ITIME)
+		dst->d_fieldmask |= FS_DQ_ITIMER;
+}
+
 static int quota_setquota(struct super_block *sb, int type, qid_t id,
 			  void __user *addr)
 {
+	struct fs_disk_quota fdq;
 	struct if_dqblk idq;
 
 	if (copy_from_user(&idq, addr, sizeof(idq)))
 		return -EFAULT;
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
-	return sb->s_qcop->set_dqblk(sb, type, id, &idq);
+	copy_from_if_dqblk(&fdq, &idq);
+	return sb->s_qcop->set_dqblk(sb, type, id, &fdq);
 }
 
 static int quota_setxstate(struct super_block *sb, int cmd, void __user *addr)
@@ -199,9 +220,9 @@ static int quota_setxquota(struct super_block *sb, int type, qid_t id,
 
 	if (copy_from_user(&fdq, addr, sizeof(fdq)))
 		return -EFAULT;
-	if (!sb->s_qcop->set_xquota)
+	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
-	return sb->s_qcop->set_xquota(sb, type, id, &fdq);
+	return sb->s_qcop->set_dqblk(sb, type, id, &fdq);
 }
 
 static int quota_getxquota(struct super_block *sb, int type, qid_t id,
@@ -210,9 +231,9 @@ static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 	struct fs_disk_quota fdq;
 	int ret;
 
-	if (!sb->s_qcop->get_xquota)
+	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_xquota(sb, type, id, &fdq);
+	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
 	if (!ret && copy_to_user(addr, &fdq, sizeof(fdq)))
 		return -EFAULT;
 	return ret;
@@ -239,7 +260,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_QUOTAOFF:
 		if (!sb->s_qcop->quota_off)
 			return -ENOSYS;
-		return sb->s_qcop->quota_off(sb, type, 0);
+		return sb->s_qcop->quota_off(sb, type);
 	case Q_GETFMT:
 		return quota_getfmt(sb, type, addr);
 	case Q_GETINFO:

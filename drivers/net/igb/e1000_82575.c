@@ -295,6 +295,10 @@ static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_1)
 		mask = E1000_SWFW_PHY1_SM;
+	else if (hw->bus.func == E1000_FUNC_2)
+		mask = E1000_SWFW_PHY2_SM;
+	else if (hw->bus.func == E1000_FUNC_3)
+		mask = E1000_SWFW_PHY3_SM;
 
 	return igb_acquire_swfw_sync_82575(hw, mask);
 }
@@ -312,6 +316,10 @@ static void igb_release_phy_82575(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_1)
 		mask = E1000_SWFW_PHY1_SM;
+	else if (hw->bus.func == E1000_FUNC_2)
+		mask = E1000_SWFW_PHY2_SM;
+	else if (hw->bus.func == E1000_FUNC_3)
+		mask = E1000_SWFW_PHY3_SM;
 
 	igb_release_swfw_sync_82575(hw, mask);
 }

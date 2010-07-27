@@ -755,7 +755,7 @@ static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 	struct of_device *op = qpti->op;
 	struct device_node *dp;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 
 	qpti->scsi_id = of_getintprop_default(dp, "initiator-id", -1);
 	if (qpti->scsi_id == -1)
@@ -776,8 +776,8 @@ static void qpti_get_bursts(struct qlogicpti *qpti)
 	struct of_device *op = qpti->op;
 	u8 bursts, bmask;
 
-	bursts = of_getintprop_default(op->node, "burst-sizes", 0xff);
-	bmask = of_getintprop_default(op->node->parent, "burst-sizes", 0xff);
+	bursts = of_getintprop_default(op->dev.of_node, "burst-sizes", 0xff);
+	bmask = of_getintprop_default(op->dev.of_node->parent, "burst-sizes", 0xff);
 	if (bmask != 0xff)
 		bursts &= bmask;
 	if (bursts == 0xff ||
@@ -1293,7 +1293,7 @@ static struct scsi_host_template qpti_template = {
 static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct scsi_host_template *tpnt = match->data;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
 	static int nqptis;
@@ -1315,7 +1315,7 @@ static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_devic
 	qpti->qhost = host;
 	qpti->op = op;
 	qpti->qpti_id = nqptis;
-	strcpy(qpti->prom_name, op->node->name);
+	strcpy(qpti->prom_name, op->dev.of_node->name);
 	qpti->is_pti = strcmp(qpti->prom_name, "QLGC,isp");
 
 	if (qpti_map_regs(qpti) < 0)
@@ -1456,8 +1456,11 @@ static const struct of_device_id qpti_match[] = {
 MODULE_DEVICE_TABLE(of, qpti_match);
 
 static struct of_platform_driver qpti_sbus_driver = {
-	.name		= "qpti",
-	.match_table	= qpti_match,
+	.driver = {
+		.name = "qpti",
+		.owner = THIS_MODULE,
+		.of_match_table = qpti_match,
+	},
 	.probe		= qpti_sbus_probe,
 	.remove		= __devexit_p(qpti_sbus_remove),
 };

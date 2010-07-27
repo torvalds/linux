@@ -188,7 +188,7 @@ static const struct rtc_class_ops tx4939_rtc_ops = {
 	.alarm_irq_enable	= tx4939_rtc_alarm_irq_enable,
 };
 
-static ssize_t tx4939_rtc_nvram_read(struct kobject *kobj,
+static ssize_t tx4939_rtc_nvram_read(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *bin_attr,
 				     char *buf, loff_t pos, size_t size)
 {
@@ -207,7 +207,7 @@ static ssize_t tx4939_rtc_nvram_read(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t tx4939_rtc_nvram_write(struct kobject *kobj,
+static ssize_t tx4939_rtc_nvram_write(struct file *filp, struct kobject *kobj,
 				      struct bin_attribute *bin_attr,
 				      char *buf, loff_t pos, size_t size)
 {

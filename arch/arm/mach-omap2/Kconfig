@@ -10,6 +10,7 @@ config ARCH_OMAP2420
 config ARCH_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
+	select ARCH_OMAP_OTG
 
 config ARCH_OMAP3430
 	bool "OMAP3430 support"
@@ -140,6 +141,12 @@ config MACH_IGEP0020
 	bool "IGEP v2 board"
 	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
+
+config MACH_SBC3530
+	bool "OMAP3 SBC STALKER board"
+	depends on ARCH_OMAP3
+	select OMAP_PACKAGE_CUS
+	select OMAP_MUX
 
 config MACH_OMAP_3630SDP
 	bool "OMAP3630 SDP board"

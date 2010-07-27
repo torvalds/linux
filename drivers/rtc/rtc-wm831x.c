@@ -449,17 +449,17 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = wm831x_request_irq(wm831x, per_irq, wm831x_per_irq,
-				 IRQF_TRIGGER_RISING, "wm831x_rtc_per",
-				 wm831x_rtc);
+	ret = request_threaded_irq(per_irq, NULL, wm831x_per_irq,
+				   IRQF_TRIGGER_RISING, "RTC period",
+				   wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request periodic IRQ %d: %d\n",
 			per_irq, ret);
 	}
 
-	ret = wm831x_request_irq(wm831x, alm_irq, wm831x_alm_irq,
-				 IRQF_TRIGGER_RISING, "wm831x_rtc_alm",
-				 wm831x_rtc);
+	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq,
+				   IRQF_TRIGGER_RISING, "RTC alarm",
+				   wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",
 			alm_irq, ret);
@@ -478,8 +478,8 @@ static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
 	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 
-	wm831x_free_irq(wm831x_rtc->wm831x, alm_irq, wm831x_rtc);
-	wm831x_free_irq(wm831x_rtc->wm831x, per_irq, wm831x_rtc);
+	free_irq(alm_irq, wm831x_rtc);
+	free_irq(per_irq, wm831x_rtc);
 	rtc_device_unregister(wm831x_rtc->rtc);
 	kfree(wm831x_rtc);
 

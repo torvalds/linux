@@ -306,7 +306,8 @@ static void c4iw_remove(struct c4iw_dev *dev)
 	PDBG("%s c4iw_dev %p\n", __func__,  dev);
 	cancel_delayed_work_sync(&dev->db_drop_task);
 	list_del(&dev->entry);
-	c4iw_unregister_device(dev);
+	if (dev->registered)
+		c4iw_unregister_device(dev);
 	c4iw_rdev_close(&dev->rdev);
 	idr_destroy(&dev->cqidr);
 	idr_destroy(&dev->qpidr);
@@ -343,12 +344,6 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	list_add_tail(&devp->entry, &dev_list);
 	mutex_unlock(&dev_mutex);
 
-	if (c4iw_register_device(devp)) {
-		printk(KERN_ERR MOD "Unable to register device\n");
-		mutex_lock(&dev_mutex);
-		c4iw_remove(devp);
-		mutex_unlock(&dev_mutex);
-	}
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(
 					pci_name(devp->rdev.lldi.pdev),
@@ -379,9 +374,6 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 
 	for (i = 0; i < dev->rdev.lldi.nrxq; i++)
 		PDBG("rxqid[%u] %u\n", i, dev->rdev.lldi.rxq_ids[i]);
-
-	printk(KERN_INFO MOD "Initialized device %s\n",
-	       pci_name(dev->rdev.lldi.pdev));
 out:
 	return dev;
 }
@@ -471,7 +463,41 @@ nomem:
 
 static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
+	struct c4iw_dev *dev = handle;
+
 	PDBG("%s new_state %u\n", __func__, new_state);
+	switch (new_state) {
+	case CXGB4_STATE_UP:
+		printk(KERN_INFO MOD "%s: Up\n", pci_name(dev->rdev.lldi.pdev));
+		if (!dev->registered) {
+			int ret;
+			ret = c4iw_register_device(dev);
+			if (ret)
+				printk(KERN_ERR MOD
+				       "%s: RDMA registration failed: %d\n",
+				       pci_name(dev->rdev.lldi.pdev), ret);
+		}
+		break;
+	case CXGB4_STATE_DOWN:
+		printk(KERN_INFO MOD "%s: Down\n",
+		       pci_name(dev->rdev.lldi.pdev));
+		if (dev->registered)
+			c4iw_unregister_device(dev);
+		break;
+	case CXGB4_STATE_START_RECOVERY:
+		printk(KERN_INFO MOD "%s: Fatal Error\n",
+		       pci_name(dev->rdev.lldi.pdev));
+		if (dev->registered)
+			c4iw_unregister_device(dev);
+		break;
+	case CXGB4_STATE_DETACH:
+		printk(KERN_INFO MOD "%s: Detach\n",
+		       pci_name(dev->rdev.lldi.pdev));
+		mutex_lock(&dev_mutex);
+		c4iw_remove(dev);
+		mutex_unlock(&dev_mutex);
+		break;
+	}
 	return 0;
 }
 
@@ -504,14 +530,12 @@ static void __exit c4iw_exit_module(void)
 {
 	struct c4iw_dev *dev, *tmp;
 
-	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
-
 	mutex_lock(&dev_mutex);
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		c4iw_remove(dev);
 	}
 	mutex_unlock(&dev_mutex);
-
+	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);
 }

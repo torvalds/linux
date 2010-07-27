@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *	@size: size
  *
  *	Queue a series of bytes to the tty buffering. All the characters
- *	passed are marked as without error. Returns the number added.
+ *	passed are marked with the supplied flag. Returns the number added.
  *
  *	Locking: Called functions may take tty->buf.lock
  */

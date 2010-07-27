@@ -559,7 +559,7 @@ static int __devinit apbuart_probe(struct of_device *op,
 
 	i = 0;
 	for (i = 0; i < grlib_apbuart_port_nr; i++) {
-		if (op->node == grlib_apbuart_nodes[i])
+		if (op->dev.of_node == grlib_apbuart_nodes[i])
 			break;
 	}
 
@@ -584,12 +584,12 @@ static struct of_device_id __initdata apbuart_match[] = {
 };
 
 static struct of_platform_driver grlib_apbuart_of_driver = {
-	.match_table = apbuart_match,
 	.probe = apbuart_probe,
 	.driver = {
-		   .owner = THIS_MODULE,
-		   .name = "grlib-apbuart",
-		   },
+		.owner = THIS_MODULE,
+		.name = "grlib-apbuart",
+		.of_match_table = apbuart_match,
+	},
 };
 
 

@@ -105,6 +105,8 @@ static void store_segsum_info(struct nilfs_segsum_info *ssi,
 
 	ssi->nsumblk = DIV_ROUND_UP(ssi->sumbytes, blocksize);
 	ssi->nfileblk = ssi->nblocks - ssi->nsumblk - !!NILFS_SEG_HAS_SR(ssi);
+
+	/* need to verify ->ss_bytes field if read ->ss_cno */
 }
 
 /**

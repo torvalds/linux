@@ -59,6 +59,7 @@
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
+#include <linux/i8042.h>
 
 #define MSI_DRIVER_VERSION "0.5"
 
@@ -118,7 +119,8 @@ static int set_lcd_level(int level)
 	buf[0] = 0x80;
 	buf[1] = (u8) (level*31);
 
-	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, buf, sizeof(buf), NULL, 0, 1);
+	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, buf, sizeof(buf),
+			      NULL, 0, 1);
 }
 
 static int get_lcd_level(void)
@@ -126,7 +128,8 @@ static int get_lcd_level(void)
 	u8 wdata = 0, rdata;
 	int result;
 
-	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1, &rdata, 1, 1);
+	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1,
+				&rdata, 1, 1);
 	if (result < 0)
 		return result;
 
@@ -138,7 +141,8 @@ static int get_auto_brightness(void)
 	u8 wdata = 4, rdata;
 	int result;
 
-	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1, &rdata, 1, 1);
+	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1,
+				&rdata, 1, 1);
 	if (result < 0)
 		return result;
 
@@ -152,14 +156,16 @@ static int set_auto_brightness(int enable)
 
 	wdata[0] = 4;
 
-	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 1, &rdata, 1, 1);
+	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 1,
+				&rdata, 1, 1);
 	if (result < 0)
 		return result;
 
 	wdata[0] = 0x84;
 	wdata[1] = (rdata & 0xF7) | (enable ? 8 : 0);
 
-	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 2, NULL, 0, 1);
+	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 2,
+			      NULL, 0, 1);
 }
 
 static ssize_t set_device_state(const char *buf, size_t count, u8 mask)
@@ -254,7 +260,7 @@ static int bl_update_status(struct backlight_device *b)
 	return set_lcd_level(b->props.brightness);
 }
 
-static struct backlight_ops msibl_ops = {
+static const struct backlight_ops msibl_ops = {
 	.get_brightness = bl_get_brightness,
 	.update_status  = bl_update_status,
 };
@@ -353,7 +359,8 @@ static ssize_t store_lcd_level(struct device *dev,
 
 	int level, ret;
 
-	if (sscanf(buf, "%i", &level) != 1 || (level < 0 || level >= MSI_LCD_LEVEL_MAX))
+	if (sscanf(buf, "%i", &level) != 1 ||
+	    (level < 0 || level >= MSI_LCD_LEVEL_MAX))
 		return -EINVAL;
 
 	ret = set_lcd_level(level);
@@ -393,7 +400,8 @@ static ssize_t store_auto_brightness(struct device *dev,
 }
 
 static DEVICE_ATTR(lcd_level, 0644, show_lcd_level, store_lcd_level);
-static DEVICE_ATTR(auto_brightness, 0644, show_auto_brightness, store_auto_brightness);
+static DEVICE_ATTR(auto_brightness, 0644, show_auto_brightness,
+		   store_auto_brightness);
 static DEVICE_ATTR(bluetooth, 0444, show_bluetooth, NULL);
 static DEVICE_ATTR(wlan, 0444, show_wlan, NULL);
 static DEVICE_ATTR(threeg, 0444, show_threeg, NULL);
@@ -424,8 +432,9 @@ static struct platform_device *msipf_device;
 
 static int dmi_check_cb(const struct dmi_system_id *id)
 {
-        printk("msi-laptop: Identified laptop model '%s'.\n", id->ident);
-        return 0;
+	printk(KERN_INFO "msi-laptop: Identified laptop model '%s'.\n",
+	       id->ident);
+	return 0;
 }
 
 static struct dmi_system_id __initdata msi_dmi_table[] = {
@@ -435,7 +444,8 @@ static struct dmi_system_id __initdata msi_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1013"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0131"),
-			DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR INT'L CO.,LTD")
+			DMI_MATCH(DMI_CHASSIS_VENDOR,
+				  "MICRO-STAR INT'L CO.,LTD")
 		},
 		.callback = dmi_check_cb
 	},
@@ -465,7 +475,8 @@ static struct dmi_system_id __initdata msi_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NOTEBOOK"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SAM2000"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0131"),
-			DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR INT'L CO.,LTD")
+			DMI_MATCH(DMI_CHASSIS_VENDOR,
+				  "MICRO-STAR INT'L CO.,LTD")
 		},
 		.callback = dmi_check_cb
 	},
@@ -481,6 +492,35 @@ static struct dmi_system_id __initdata msi_load_scm_models_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-N034"),
 			DMI_MATCH(DMI_CHASSIS_VENDOR,
 			"MICRO-STAR INTERNATIONAL CO., LTD")
+		},
+		.callback = dmi_check_cb
+	},
+	{
+		.ident = "MSI N051",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+				"MICRO-STAR INTERNATIONAL CO., LTD"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-N051"),
+			DMI_MATCH(DMI_CHASSIS_VENDOR,
+			"MICRO-STAR INTERNATIONAL CO., LTD")
+		},
+		.callback = dmi_check_cb
+	},
+	{
+		.ident = "MSI N014",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+				"MICRO-STAR INTERNATIONAL CO., LTD"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-N014"),
+		},
+		.callback = dmi_check_cb
+	},
+	{
+		.ident = "MSI CR620",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+				"Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CR620"),
 		},
 		.callback = dmi_check_cb
 	},
@@ -552,10 +592,70 @@ static void rfkill_cleanup(void)
 	}
 }
 
+static void msi_update_rfkill(struct work_struct *ignored)
+{
+	get_wireless_state_ec_standard();
+
+	if (rfk_wlan)
+		rfkill_set_sw_state(rfk_wlan, !wlan_s);
+	if (rfk_bluetooth)
+		rfkill_set_sw_state(rfk_bluetooth, !bluetooth_s);
+	if (rfk_threeg)
+		rfkill_set_sw_state(rfk_threeg, !threeg_s);
+}
+static DECLARE_DELAYED_WORK(msi_rfkill_work, msi_update_rfkill);
+
+static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
+				struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	/* 0x54 wwan, 0x62 bluetooth, 0x76 wlan*/
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x54:
+		case 0x62:
+		case 0x76:
+			schedule_delayed_work(&msi_rfkill_work,
+				round_jiffies_relative(0.5 * HZ));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
+
+static void msi_init_rfkill(struct work_struct *ignored)
+{
+	if (rfk_wlan) {
+		rfkill_set_sw_state(rfk_wlan, !wlan_s);
+		rfkill_wlan_set(NULL, !wlan_s);
+	}
+	if (rfk_bluetooth) {
+		rfkill_set_sw_state(rfk_bluetooth, !bluetooth_s);
+		rfkill_bluetooth_set(NULL, !bluetooth_s);
+	}
+	if (rfk_threeg) {
+		rfkill_set_sw_state(rfk_threeg, !threeg_s);
+		rfkill_threeg_set(NULL, !threeg_s);
+	}
+}
+static DECLARE_DELAYED_WORK(msi_rfkill_init, msi_init_rfkill);
+
 static int rfkill_init(struct platform_device *sdev)
 {
 	/* add rfkill */
 	int retval;
+
+	/* keep the hardware wireless state */
+	get_wireless_state_ec_standard();
 
 	rfk_bluetooth = rfkill_alloc("msi-bluetooth", &sdev->dev,
 				RFKILL_TYPE_BLUETOOTH,
@@ -589,6 +689,10 @@ static int rfkill_init(struct platform_device *sdev)
 		if (retval)
 			goto err_threeg;
 	}
+
+	/* schedule to run rfkill state initial */
+	schedule_delayed_work(&msi_rfkill_init,
+				round_jiffies_relative(1 * HZ));
 
 	return 0;
 
@@ -653,9 +757,24 @@ static int load_scm_model_init(struct platform_device *sdev)
 	/* initial rfkill */
 	result = rfkill_init(sdev);
 	if (result < 0)
-		return result;
+		goto fail_rfkill;
+
+	result = i8042_install_filter(msi_laptop_i8042_filter);
+	if (result) {
+		printk(KERN_ERR
+			"msi-laptop: Unable to install key filter\n");
+		goto fail_filter;
+	}
 
 	return 0;
+
+fail_filter:
+	rfkill_cleanup();
+
+fail_rfkill:
+
+	return result;
+
 }
 
 static int __init msi_init(void)
@@ -714,7 +833,8 @@ static int __init msi_init(void)
 		goto fail_platform_device1;
 	}
 
-	ret = sysfs_create_group(&msipf_device->dev.kobj, &msipf_attribute_group);
+	ret = sysfs_create_group(&msipf_device->dev.kobj,
+				 &msipf_attribute_group);
 	if (ret)
 		goto fail_platform_device2;
 
@@ -739,6 +859,11 @@ static int __init msi_init(void)
 
 fail_platform_device2:
 
+	if (load_scm_model) {
+		i8042_remove_filter(msi_laptop_i8042_filter);
+		cancel_delayed_work_sync(&msi_rfkill_work);
+		rfkill_cleanup();
+	}
 	platform_device_del(msipf_device);
 
 fail_platform_device1:
@@ -758,6 +883,11 @@ fail_backlight:
 
 static void __exit msi_cleanup(void)
 {
+	if (load_scm_model) {
+		i8042_remove_filter(msi_laptop_i8042_filter);
+		cancel_delayed_work_sync(&msi_rfkill_work);
+		rfkill_cleanup();
+	}
 
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 	if (!old_ec_model && threeg_exists)
@@ -765,8 +895,6 @@ static void __exit msi_cleanup(void)
 	platform_device_unregister(msipf_device);
 	platform_driver_unregister(&msipf_driver);
 	backlight_device_unregister(msibl_device);
-
-	rfkill_cleanup();
 
 	/* Enable automatic brightness control again */
 	if (auto_brightness != 2)
@@ -788,3 +916,6 @@ MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1058:pvr0581:rvnMSI:rnMS-105
 MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1412:*:rvnMSI:rnMS-1412:*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
 MODULE_ALIAS("dmi:*:svnNOTEBOOK:pnSAM2000:pvr0131*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
 MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N034:*");
+MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N051:*");
+MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N014:*");
+MODULE_ALIAS("dmi:*:svnMicro-StarInternational*:pnCR620:*");

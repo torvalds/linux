@@ -1186,6 +1186,29 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	dasd_schedule_device_bh(device);
 }
 
+enum uc_todo dasd_generic_uc_handler(struct ccw_device *cdev, struct irb *irb)
+{
+	struct dasd_device *device;
+
+	device = dasd_device_from_cdev_locked(cdev);
+
+	if (IS_ERR(device))
+		goto out;
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
+	   device->state != device->target ||
+	   !device->discipline->handle_unsolicited_interrupt){
+		dasd_put_device(device);
+		goto out;
+	}
+
+	dasd_device_clear_timer(device);
+	device->discipline->handle_unsolicited_interrupt(device, irb);
+	dasd_put_device(device);
+out:
+	return UC_TODO_RETRY;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_uc_handler);
+
 /*
  * If we have an error on a dasd_block layer request then we cancel
  * and return all further requests from the same dasd_block as well.

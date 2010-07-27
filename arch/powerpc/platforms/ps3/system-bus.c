@@ -766,7 +766,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 		BUG();
 	};
 
-	dev->core.archdata.of_node = NULL;
+	dev->core.of_node = NULL;
 	set_dev_node(&dev->core, 0);
 
 	pr_debug("%s:%d add %s\n", __func__, __LINE__, dev_name(&dev->core));

@@ -130,6 +130,8 @@ Linux kernel master tree:
 	ftp.??.kernel.org:/pub/linux/kernel/...
 	?? == your country code, such as "us", "uk", "fr", etc.
 
+	http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git
+
 Linux kernel mailing list:
 	linux-kernel@vger.kernel.org
 	[mail majordomo@vger.kernel.org to subscribe]
@@ -160,3 +162,6 @@ How to NOT write kernel driver by Arjan van de Ven:
 
 Kernel Janitor:
 	http://janitor.kernelnewbies.org/
+
+GIT, Fast Version Control System:
+	http://git-scm.com/

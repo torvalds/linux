@@ -475,6 +475,10 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			lpfc_send_fastpath_evt(phba, evtp);
 			free_evt = 0;
 			break;
+		case LPFC_EVT_RESET_HBA:
+			if (!(phba->pport->load_flag & FC_UNLOADING))
+				lpfc_reset_hba(phba);
+			break;
 		}
 		if (free_evt)
 			kfree(evtp);
@@ -1531,7 +1535,37 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 }
 
 /**
- * lpfc_sli4_fcf_rec_mbox_parse - parse non-embedded fcf record mailbox command
+ * lpfc_sli4_new_fcf_random_select - Randomly select an eligible new fcf record
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_cnt: number of eligible fcf record seen so far.
+ *
+ * This function makes an running random selection decision on FCF record to
+ * use through a sequence of @fcf_cnt eligible FCF records with equal
+ * probability. To perform integer manunipulation of random numbers with
+ * size unit32_t, the lower 16 bits of the 32-bit random number returned
+ * from random32() are taken as the random random number generated.
+ *
+ * Returns true when outcome is for the newly read FCF record should be
+ * chosen; otherwise, return false when outcome is for keeping the previously
+ * chosen FCF record.
+ **/
+static bool
+lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
+{
+	uint32_t rand_num;
+
+	/* Get 16-bit uniform random number */
+	rand_num = (0xFFFF & random32());
+
+	/* Decision with probability 1/fcf_cnt */
+	if ((fcf_cnt * rand_num) < 0xFFFF)
+		return true;
+	else
+		return false;
+}
+
+/**
+ * lpfc_mbx_cmpl_read_fcf_record - Completion handler for read_fcf mbox.
  * @phba: pointer to lpfc hba data structure.
  * @mboxq: pointer to mailbox object.
  * @next_fcf_index: pointer to holder of next fcf index.
@@ -1592,7 +1626,9 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	new_fcf_record = (struct fcf_record *)(virt_addr +
 			  sizeof(struct lpfc_mbx_read_fcf_tbl));
 	lpfc_sli_pcimem_bcopy(new_fcf_record, new_fcf_record,
-			      sizeof(struct fcf_record));
+				offsetof(struct fcf_record, vlan_bitmap));
+	new_fcf_record->word137 = le32_to_cpu(new_fcf_record->word137);
+	new_fcf_record->word138 = le32_to_cpu(new_fcf_record->word138);
 
 	return new_fcf_record;
 }
@@ -1679,6 +1715,8 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t fcf_index, next_fcf_index;
 	struct lpfc_fcf_rec *fcf_rec = NULL;
 	uint16_t vlan_id;
+	uint32_t seed;
+	bool select_new_fcf;
 	int rc;
 
 	/* If there is pending FCoE event restart FCF table scan */
@@ -1809,9 +1847,21 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		 * than the driver FCF record, use the new record.
 		 */
 		if (new_fcf_record->fip_priority < fcf_rec->priority) {
-			/* Choose this FCF record */
+			/* Choose the new FCF record with lower priority */
 			__lpfc_update_fcf_record(phba, fcf_rec, new_fcf_record,
 					addr_mode, vlan_id, 0);
+			/* Reset running random FCF selection count */
+			phba->fcf.eligible_fcf_cnt = 1;
+		} else if (new_fcf_record->fip_priority == fcf_rec->priority) {
+			/* Update running random FCF selection count */
+			phba->fcf.eligible_fcf_cnt++;
+			select_new_fcf = lpfc_sli4_new_fcf_random_select(phba,
+						phba->fcf.eligible_fcf_cnt);
+			if (select_new_fcf)
+				/* Choose the new FCF by random selection */
+				__lpfc_update_fcf_record(phba, fcf_rec,
+							 new_fcf_record,
+							 addr_mode, vlan_id, 0);
 		}
 		spin_unlock_irq(&phba->hbalock);
 		goto read_next_fcf;
@@ -1825,6 +1875,11 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					 addr_mode, vlan_id, (boot_flag ?
 					 BOOT_ENABLE : 0));
 		phba->fcf.fcf_flag |= FCF_AVAILABLE;
+		/* Setup initial running random FCF selection count */
+		phba->fcf.eligible_fcf_cnt = 1;
+		/* Seeding the random number generator for random selection */
+		seed = (uint32_t)(0xFFFFFFFF & jiffies);
+		srandom32(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;
@@ -2686,11 +2741,18 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	switch (mb->mbxStatus) {
 	case 0x0011:
 	case 0x0020:
-	case 0x9700:
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0911 cmpl_unreg_vpi, mb status = 0x%x\n",
 				 mb->mbxStatus);
 		break;
+	/* If VPI is busy, reset the HBA */
+	case 0x9700:
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+			"2798 Unreg_vpi failed vpi 0x%x, mb status = 0x%x\n",
+			vport->vpi, mb->mbxStatus);
+		if (!(phba->pport->load_flag & FC_UNLOADING))
+			lpfc_workq_post_event(phba, NULL, NULL,
+				LPFC_EVT_RESET_HBA);
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
@@ -2965,7 +3027,12 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		lpfc_start_fdiscs(phba);
+		/* when physical port receive logo donot start
+		 * vport discovery */
+		if (!(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
+			lpfc_start_fdiscs(phba);
+		else
+			vport->fc_flag &= ~FC_LOGO_RCVD_DID_CHNG ;
 		lpfc_do_scr_ns_plogi(phba, vport);
 	}
 
@@ -3177,7 +3244,6 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
-		ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		ndlp->nlp_type |= NLP_FC_NODE;
 	}
@@ -4935,6 +5001,7 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
 			if (ndlp)
 				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
+			lpfc_cleanup_pending_mbox(vports[i]);
 			lpfc_mbx_unreg_vpi(vports[i]);
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);

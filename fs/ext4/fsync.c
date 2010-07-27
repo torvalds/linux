@@ -35,6 +35,29 @@
 #include <trace/events/ext4.h>
 
 /*
+ * If we're not journaling and this is a just-created file, we have to
+ * sync our parent directory (if it was freshly created) since
+ * otherwise it will only be written by writeback, leaving a huge
+ * window during which a crash may lose the file.  This may apply for
+ * the parent directory's parent as well, and so on recursively, if
+ * they are also freshly created.
+ */
+static void ext4_sync_parent(struct inode *inode)
+{
+	struct dentry *dentry = NULL;
+
+	while (inode && ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
+		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
+		dentry = list_entry(inode->i_dentry.next,
+				    struct dentry, d_alias);
+		if (!dentry || !dentry->d_parent || !dentry->d_parent->d_inode)
+			break;
+		inode = dentry->d_parent->d_inode;
+		sync_mapping_buffers(inode->i_mapping);
+	}
+}
+
+/*
  * akpm: A new design for ext4_sync_file().
  *
  * This is only called from sys_fsync(), sys_fdatasync() and sys_msync().
@@ -48,9 +71,9 @@
  * i_mutex lock is held when entering and exiting this function
  */
 
-int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
+int ext4_sync_file(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
 	int ret;
@@ -58,7 +81,7 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
 
-	trace_ext4_sync_file(file, dentry, datasync);
+	trace_ext4_sync_file(file, datasync);
 
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return 0;
@@ -66,9 +89,13 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	ret = flush_completed_IO(inode);
 	if (ret < 0)
 		return ret;
-	
-	if (!journal)
-		return simple_fsync(file, dentry, datasync);
+
+	if (!journal) {
+		ret = generic_file_fsync(file, datasync);
+		if (!ret && !list_empty(&inode->i_dentry))
+			ext4_sync_parent(inode);
+		return ret;
+	}
 
 	/*
 	 * data=writeback,ordered:
@@ -100,9 +127,11 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		if (ext4_should_writeback_data(inode) &&
 		    (journal->j_fs_dev != journal->j_dev) &&
 		    (journal->j_flags & JBD2_BARRIER))
-			blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
-		jbd2_log_wait_commit(journal, commit_tid);
+			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
+					NULL, BLKDEV_IFL_WAIT);
+		ret = jbd2_log_wait_commit(journal, commit_tid);
 	} else if (journal->j_flags & JBD2_BARRIER)
-		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
+			BLKDEV_IFL_WAIT);
 	return ret;
 }

@@ -3234,7 +3234,8 @@ free:
 }
 
 static void
-ftrace_graph_probe_sched_switch(struct task_struct *prev, struct task_struct *next)
+ftrace_graph_probe_sched_switch(void *ignore,
+			struct task_struct *prev, struct task_struct *next)
 {
 	unsigned long long timestamp;
 	int index;
@@ -3288,7 +3289,7 @@ static int start_graph_tracing(void)
 	} while (ret == -EAGAIN);
 
 	if (!ret) {
-		ret = register_trace_sched_switch(ftrace_graph_probe_sched_switch);
+		ret = register_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 		if (ret)
 			pr_info("ftrace_graph: Couldn't activate tracepoint"
 				" probe to kernel_sched_switch\n");
@@ -3364,7 +3365,7 @@ void unregister_ftrace_graph(void)
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
-	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
+	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 
  out:
 	mutex_unlock(&ftrace_lock);

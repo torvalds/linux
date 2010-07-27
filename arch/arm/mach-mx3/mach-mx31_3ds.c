@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -26,6 +27,8 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
+#include <linux/fsl_devices.h>
+#include <linux/input/matrix_keypad.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -65,6 +68,50 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_CSPI2_SS2__SS2, /*CS for MC13783 */
 	/* MC13783 IRQ */
 	IOMUX_MODE(MX31_PIN_GPIO1_3, IOMUX_CONFIG_GPIO),
+	/* USB OTG reset */
+	IOMUX_MODE(MX31_PIN_USB_PWR, IOMUX_CONFIG_GPIO),
+	/* USB OTG */
+	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
+	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
+	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
+	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
+	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
+	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
+	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
+	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
+	MX31_PIN_USBOTG_CLK__USBOTG_CLK,
+	MX31_PIN_USBOTG_DIR__USBOTG_DIR,
+	MX31_PIN_USBOTG_NXT__USBOTG_NXT,
+	MX31_PIN_USBOTG_STP__USBOTG_STP,
+	/*Keyboard*/
+	MX31_PIN_KEY_ROW0_KEY_ROW0,
+	MX31_PIN_KEY_ROW1_KEY_ROW1,
+	MX31_PIN_KEY_ROW2_KEY_ROW2,
+	MX31_PIN_KEY_COL0_KEY_COL0,
+	MX31_PIN_KEY_COL1_KEY_COL1,
+	MX31_PIN_KEY_COL2_KEY_COL2,
+	MX31_PIN_KEY_COL3_KEY_COL3,
+};
+
+/*
+ * Matrix keyboard
+ */
+
+static const uint32_t mx31_3ds_keymap[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(0, 1, KEY_DOWN),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(1, 1, KEY_LEFT),
+	KEY(1, 2, KEY_ENTER),
+	KEY(2, 0, KEY_F6),
+	KEY(2, 1, KEY_F8),
+	KEY(2, 2, KEY_F9),
+	KEY(2, 3, KEY_F10),
+};
+
+static struct matrix_keymap_data mx31_3ds_keymap_data = {
+	.keymap		= mx31_3ds_keymap,
+	.keymap_size	= ARRAY_SIZE(mx31_3ds_keymap),
 };
 
 /* Regulators */
@@ -124,6 +171,41 @@ static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
 #ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
 	.flash_bbt	= 1,
 #endif
+};
+
+/*
+ * USB OTG
+ */
+
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+		     PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+#define USBOTG_RST_B IOMUX_TO_GPIO(MX31_PIN_USB_PWR)
+
+static void mx31_3ds_usbotg_init(void)
+{
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
+
+	gpio_request(USBOTG_RST_B, "otgusb-reset");
+	gpio_direction_output(USBOTG_RST_B, 0);
+	mdelay(1);
+	gpio_set_value(USBOTG_RST_B, 1);
+}
+
+static struct fsl_usb2_platform_data usbotg_pdata = {
+	.operating_mode = FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
 static struct imxuart_platform_data uart_pdata = {
@@ -314,6 +396,11 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
+
+	mxc_register_device(&imx_kpp_device, &mx31_3ds_keymap_data);
+
+	mx31_3ds_usbotg_init();
+	mxc_register_device(&mxc_otg_udc_device, &usbotg_pdata);
 
 	if (!mx31_3ds_init_expio())
 		platform_device_register(&smsc911x_device);

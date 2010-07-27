@@ -645,8 +645,10 @@ void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired)
 			found = 1;
 			break;
 		}
-	if (!found)
+	if (!found) {
+		spin_unlock_irqrestore(&vio_cmo.lock, flags);
 		return;
+	}
 
 	/* Increase/decrease in desired device entitlement */
 	if (desired >= viodev->cmo.desired) {
@@ -705,7 +707,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 	 * Check to see that device has a DMA window and configure
 	 * entitlement for the device.
 	 */
-	if (of_get_property(viodev->dev.archdata.of_node,
+	if (of_get_property(viodev->dev.of_node,
 	                    "ibm,my-dma-window", NULL)) {
 		/* Check that the driver is CMO enabled and get desired DMA */
 		if (!viodrv->get_desired_dma) {
@@ -958,9 +960,12 @@ viodev_cmo_rd_attr(allocated);
 
 static ssize_t name_show(struct device *, struct device_attribute *, char *);
 static ssize_t devspec_show(struct device *, struct device_attribute *, char *);
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf);
 static struct device_attribute vio_cmo_dev_attrs[] = {
 	__ATTR_RO(name),
 	__ATTR_RO(devspec),
+	__ATTR_RO(modalias),
 	__ATTR(cmo_desired,       S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH,
 	       viodev_cmo_desired_show, viodev_cmo_desired_set),
 	__ATTR(cmo_entitled,      S_IRUGO, viodev_cmo_entitled_show,      NULL),
@@ -1049,7 +1054,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		return vio_build_iommu_table_iseries(dev);
 
-	dma_window = of_get_property(dev->dev.archdata.of_node,
+	dma_window = of_get_property(dev->dev.of_node,
 				  "ibm,my-dma-window", NULL);
 	if (!dma_window)
 		return NULL;
@@ -1058,7 +1063,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	if (tbl == NULL)
 		return NULL;
 
-	of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
+	of_parse_dma_window(dev->dev.of_node, dma_window,
 			    &tbl->it_index, &offset, &size);
 
 	/* TCE table size - measured in tce entries */
@@ -1086,7 +1091,7 @@ static const struct vio_device_id *vio_match_device(
 {
 	while (ids->type[0] != '\0') {
 		if ((strncmp(dev->type, ids->type, strlen(ids->type)) == 0) &&
-		    of_device_is_compatible(dev->dev.archdata.of_node,
+		    of_device_is_compatible(dev->dev.of_node,
 					 ids->compat))
 			return ids;
 		ids++;
@@ -1179,7 +1184,7 @@ EXPORT_SYMBOL(vio_unregister_driver);
 static void __devinit vio_dev_release(struct device *dev)
 {
 	/* XXX should free TCE table */
-	of_node_put(dev->archdata.of_node);
+	of_node_put(dev->of_node);
 	kfree(to_vio_dev(dev));
 }
 
@@ -1230,7 +1235,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 		if (unit_address != NULL)
 			viodev->unit_address = *unit_address;
 	}
-	viodev->dev.archdata.of_node = of_node_get(of_node);
+	viodev->dev.of_node = of_node_get(of_node);
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		vio_cmo_set_dma_ops(viodev);
@@ -1315,14 +1320,32 @@ static ssize_t name_show(struct device *dev,
 static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct device_node *of_node = dev->archdata.of_node;
+	struct device_node *of_node = dev->of_node;
 
 	return sprintf(buf, "%s\n", of_node ? of_node->full_name : "none");
+}
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	const struct vio_dev *vio_dev = to_vio_dev(dev);
+	struct device_node *dn;
+	const char *cp;
+
+	dn = dev->of_node;
+	if (!dn)
+		return -ENODEV;
+	cp = of_get_property(dn, "compatible", NULL);
+	if (!cp)
+		return -ENODEV;
+
+	return sprintf(buf, "vio:T%sS%s\n", vio_dev->type, cp);
 }
 
 static struct device_attribute vio_dev_attrs[] = {
 	__ATTR_RO(name),
 	__ATTR_RO(devspec),
+	__ATTR_RO(modalias),
 	__ATTR_NULL
 };
 
@@ -1347,7 +1370,7 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 	struct device_node *dn;
 	const char *cp;
 
-	dn = dev->archdata.of_node;
+	dn = dev->of_node;
 	if (!dn)
 		return -ENODEV;
 	cp = of_get_property(dn, "compatible", NULL);
@@ -1365,6 +1388,7 @@ static struct bus_type vio_bus_type = {
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
+	.pm = GENERIC_SUBSYS_PM_OPS,
 };
 
 /**
@@ -1378,7 +1402,7 @@ static struct bus_type vio_bus_type = {
 */
 const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 {
-	return of_get_property(vdev->dev.archdata.of_node, which, length);
+	return of_get_property(vdev->dev.of_node, which, length);
 }
 EXPORT_SYMBOL(vio_get_attribute);
 

@@ -43,8 +43,8 @@
 typedef struct tagSRTSDataF {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
-    BYTE    abyTA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
+    BYTE    abyTA[ETH_ALEN];
 } SRTSDataF, *PSRTSDataF;
 
 //
@@ -53,7 +53,7 @@ typedef struct tagSRTSDataF {
 typedef struct tagSCTSDataF {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
     WORD    wReserved;
 } SCTSDataF, *PSCTSDataF;
 
@@ -667,28 +667,28 @@ typedef struct tagSBEACON_BUFFER
 
 BOOL
 bPacketToWirelessUsb(
-    IN  PSDevice         pDevice,
-    IN  BYTE             byPktType,
-    IN  PBYTE            usbPacketBuf,
-    IN  BOOL             bNeedEncrypt,
-    IN  UINT             cbPayloadSize,
-    IN  UINT             uDMAIdx,
-    IN  PSEthernetHeader psEthHeader,
-    IN  PBYTE            pPacket,
-    IN  PSKeyItem        pTransmitKey,
-    IN  UINT             uNodeIndex,
-    IN  WORD             wCurrentRate,
-    OUT UINT             *pcbHeaderLen,
-    OUT UINT             *pcbTotalLen
+      PSDevice         pDevice,
+      BYTE             byPktType,
+      PBYTE            usbPacketBuf,
+      BOOL             bNeedEncrypt,
+      unsigned int             cbPayloadSize,
+      unsigned int             uDMAIdx,
+      PSEthernetHeader psEthHeader,
+      PBYTE            pPacket,
+      PSKeyItem        pTransmitKey,
+      unsigned int             uNodeIndex,
+      WORD             wCurrentRate,
+     unsigned int             *pcbHeaderLen,
+     unsigned int             *pcbTotalLen
     );
 
-VOID vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
-NTSTATUS nsDMA_tx_packet(PSDevice  pDevice, UINT uDMAIdx, struct sk_buff *skb);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
+NTSTATUS nsDMA_tx_packet(PSDevice  pDevice,
+			 unsigned int uDMAIdx,
+			 struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
-BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex);
+BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData,
+		      unsigned int uDataLen, unsigned int uNodeIndex);
 
-#endif // __RXTX_H__
-
-
-
+#endif /* __RXTX_H__ */

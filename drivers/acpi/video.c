@@ -45,6 +45,7 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/suspend.h>
+#include <acpi/video.h>
 
 #define PREFIX "ACPI: "
 
@@ -64,11 +65,6 @@
 #define ACPI_VIDEO_NOTIFY_DISPLAY_OFF		0x89
 
 #define MAX_NAME_LEN	20
-
-#define ACPI_VIDEO_DISPLAY_CRT	1
-#define ACPI_VIDEO_DISPLAY_TV	2
-#define ACPI_VIDEO_DISPLAY_DVI	3
-#define ACPI_VIDEO_DISPLAY_LCD	4
 
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 ACPI_MODULE_NAME("video");
@@ -1007,11 +1003,11 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		result = acpi_video_init_brightness(device);
 		if (result)
 			return;
-		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 		if (!name)
 			return;
+		count++;
 
-		sprintf(name, "acpi_video%d", count++);
 		memset(&props, 0, sizeof(struct backlight_properties));
 		props.max_brightness = device->brightness->count - 3;
 		device->backlight = backlight_device_register(name, NULL, device,
@@ -1067,10 +1063,10 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (device->cap._DCS && device->cap._DSS) {
 			static int count;
 			char *name;
-			name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+			name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 			if (!name)
 				return;
-			sprintf(name, "acpi_video%d", count++);
+			count++;
 			device->output_dev = video_output_register(name,
 					NULL, device, &acpi_output_properties);
 			kfree(name);
@@ -1748,11 +1744,27 @@ acpi_video_get_device_attr(struct acpi_video_bus *video, unsigned long device_id
 }
 
 static int
+acpi_video_get_device_type(struct acpi_video_bus *video,
+			   unsigned long device_id)
+{
+	struct acpi_video_enumerated_device *ids;
+	int i;
+
+	for (i = 0; i < video->attached_count; i++) {
+		ids = &video->attached_array[i];
+		if ((ids->value.int_val & 0xffff) == device_id)
+			return ids->value.int_val;
+	}
+
+	return 0;
+}
+
+static int
 acpi_video_bus_get_one_device(struct acpi_device *device,
 			      struct acpi_video_bus *video)
 {
 	unsigned long long device_id;
-	int status;
+	int status, device_type;
 	struct acpi_video_device *data;
 	struct acpi_video_device_attrib* attribute;
 
@@ -1797,8 +1809,25 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 			}
 			if(attribute->bios_can_detect)
 				data->flags.bios = 1;
-		} else
-			data->flags.unknown = 1;
+		} else {
+			/* Check for legacy IDs */
+			device_type = acpi_video_get_device_type(video,
+								 device_id);
+			/* Ignore bits 16 and 18-20 */
+			switch (device_type & 0xffe2ffff) {
+			case ACPI_VIDEO_DISPLAY_LEGACY_MONITOR:
+				data->flags.crt = 1;
+				break;
+			case ACPI_VIDEO_DISPLAY_LEGACY_PANEL:
+				data->flags.lcd = 1;
+				break;
+			case ACPI_VIDEO_DISPLAY_LEGACY_TV:
+				data->flags.tvout = 1;
+				break;
+			default:
+				data->flags.unknown = 1;
+			}
+		}
 
 		acpi_video_device_bind(video, data);
 		acpi_video_device_find_cap(data);
@@ -2031,6 +2060,71 @@ out:
 
 	return result;
 }
+
+int acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
+			void **edid)
+{
+	struct acpi_video_bus *video;
+	struct acpi_video_device *video_device;
+	union acpi_object *buffer = NULL;
+	acpi_status status;
+	int i, length;
+
+	if (!device || !acpi_driver_data(device))
+		return -EINVAL;
+
+	video = acpi_driver_data(device);
+
+	for (i = 0; i < video->attached_count; i++) {
+		video_device = video->attached_array[i].bind_info;
+		length = 256;
+
+		if (!video_device)
+			continue;
+
+		if (type) {
+			switch (type) {
+			case ACPI_VIDEO_DISPLAY_CRT:
+				if (!video_device->flags.crt)
+					continue;
+				break;
+			case ACPI_VIDEO_DISPLAY_TV:
+				if (!video_device->flags.tvout)
+					continue;
+				break;
+			case ACPI_VIDEO_DISPLAY_DVI:
+				if (!video_device->flags.dvi)
+					continue;
+				break;
+			case ACPI_VIDEO_DISPLAY_LCD:
+				if (!video_device->flags.lcd)
+					continue;
+				break;
+			}
+		} else if (video_device->device_id != device_id) {
+			continue;
+		}
+
+		status = acpi_video_device_EDID(video_device, &buffer, length);
+
+		if (ACPI_FAILURE(status) || !buffer ||
+		    buffer->type != ACPI_TYPE_BUFFER) {
+			length = 128;
+			status = acpi_video_device_EDID(video_device, &buffer,
+							length);
+			if (ACPI_FAILURE(status) || !buffer ||
+			    buffer->type != ACPI_TYPE_BUFFER) {
+				continue;
+			}
+		}
+
+		*edid = buffer->buffer.pointer;
+		return length;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(acpi_video_get_edid);
 
 static int
 acpi_video_bus_get_devices(struct acpi_video_bus *video,

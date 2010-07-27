@@ -826,7 +826,7 @@ static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!priv->phydev)
 		return -ENOTSUPP;
 
-	return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
@@ -871,21 +871,25 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	priv->ndev = ndev;
 
 	/* Reserve FEC control zone */
-	rv = of_address_to_resource(op->node, 0, &mem);
+	rv = of_address_to_resource(op->dev.of_node, 0, &mem);
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
 				"Error while parsing device node resource\n" );
-		return rv;
+		goto err_netdev;
 	}
 	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
 			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
-		return -EINVAL;
+		rv = -EINVAL;
+		goto err_netdev;
 	}
 
-	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec), DRIVER_NAME))
-		return -EBUSY;
+	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec),
+				DRIVER_NAME)) {
+		rv = -EBUSY;
+		goto err_netdev;
+	}
 
 	/* Init ether ndev with what we have */
 	ndev->netdev_ops	= &mpc52xx_fec_netdev_ops;
@@ -901,7 +905,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	if (!priv->fec) {
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_mem_region;
 	}
 
 	/* Bestcomm init */
@@ -914,12 +918,12 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
 		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_rx_tx_dmatsk;
 	}
 
 	/* Get the IRQ we need one by one */
 		/* Control */
-	ndev->irq = irq_of_parse_and_map(op->node, 0);
+	ndev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 		/* RX */
 	priv->r_irq = bcom_get_task_irq(priv->rx_dmatsk);
@@ -942,20 +946,20 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->dev.of_node) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
-	prop = of_get_property(op->node, "current-speed", &prop_size);
+	prop = of_get_property(op->dev.of_node, "current-speed", &prop_size);
 	if (prop && (prop_size >= sizeof(u32) * 2)) {
 		priv->speed = prop[0];
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(op->node, "phy-handle", 0);
+	priv->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
-	if (of_find_property(op->node, "fsl,7-wire-mode", NULL)) {
+	if (of_find_property(op->dev.of_node, "fsl,7-wire-mode", NULL)) {
 		priv->seven_wire_mode = 1;
 		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
 	}
@@ -966,33 +970,25 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	rv = register_netdev(ndev);
 	if (rv < 0)
-		goto probe_error;
+		goto err_node;
 
 	/* We're done ! */
 	dev_set_drvdata(&op->dev, ndev);
 
 	return 0;
 
-
-	/* Error handling - free everything that might be allocated */
-probe_error:
-
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	priv->phy_node = NULL;
-
+err_node:
+	of_node_put(priv->phy_node);
 	irq_dispose_mapping(ndev->irq);
-
+err_rx_tx_dmatsk:
 	if (priv->rx_dmatsk)
 		bcom_fec_rx_release(priv->rx_dmatsk);
 	if (priv->tx_dmatsk)
 		bcom_fec_tx_release(priv->tx_dmatsk);
-
-	if (priv->fec)
-		iounmap(priv->fec);
-
+	iounmap(priv->fec);
+err_mem_region:
 	release_mem_region(mem.start, sizeof(struct mpc52xx_fec));
-
+err_netdev:
 	free_netdev(ndev);
 
 	return rv;
@@ -1063,9 +1059,11 @@ static struct of_device_id mpc52xx_fec_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
 static struct of_platform_driver mpc52xx_fec_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_fec_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_match,
+	},
 	.probe		= mpc52xx_fec_probe,
 	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM

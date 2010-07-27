@@ -111,7 +111,7 @@ void reiserfs_security_free(struct reiserfs_security_handle *sec)
 	sec->value = NULL;
 }
 
-struct xattr_handler reiserfs_xattr_security_handler = {
+const struct xattr_handler reiserfs_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = security_get,
 	.set = security_set,

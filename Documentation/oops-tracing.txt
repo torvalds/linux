@@ -256,8 +256,12 @@ characters, each representing a particular tainted value.
   9: 'A' if the ACPI table has been overridden.
 
  10: 'W' if a warning has previously been issued by the kernel.
+     (Though some warnings may set more specific taint flags.)
 
  11: 'C' if a staging driver has been loaded.
+
+ 12: 'I' if the kernel is working around a severe bug in the platform
+     firmware (BIOS or similar).
 
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has

@@ -190,6 +190,8 @@ static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
 
 	twl4030_wdt_dev = pdev;
 
+	twl4030_wdt_disable(wdt);
+
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {
 		dev_err(wdt->miscdev.parent,

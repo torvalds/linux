@@ -1313,7 +1313,7 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	dev_printk(KERN_INFO, &ofdev->dev,
 		   "Sata FSL Platform/CSB Driver init\n");
 
-	hcr_base = of_iomap(ofdev->node, 0);
+	hcr_base = of_iomap(ofdev->dev.of_node, 0);
 	if (!hcr_base)
 		goto error_exit_with_cleanup;
 
@@ -1332,7 +1332,7 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	host_priv->ssr_base = ssr_base;
 	host_priv->csr_base = csr_base;
 
-	irq = irq_of_parse_and_map(ofdev->node, 0);
+	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (irq < 0) {
 		dev_printk(KERN_ERR, &ofdev->dev, "invalid irq from platform\n");
 		goto error_exit_with_cleanup;
@@ -1427,8 +1427,11 @@ static struct of_device_id fsl_sata_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_sata_match);
 
 static struct of_platform_driver fsl_sata_driver = {
-	.name		= "fsl-sata",
-	.match_table	= fsl_sata_match,
+	.driver = {
+		.name = "fsl-sata",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_sata_match,
+	},
 	.probe		= sata_fsl_probe,
 	.remove		= sata_fsl_remove,
 #ifdef CONFIG_PM

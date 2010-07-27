@@ -179,6 +179,8 @@ static void jfs_put_super(struct super_block *sb)
 
 	jfs_info("In jfs_put_super");
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	lock_kernel();
 
 	rc = jfs_umount(sb);
@@ -396,10 +398,20 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 
 		JFS_SBI(sb)->flag = flag;
 		ret = jfs_mount_rw(sb, 1);
+
+		/* mark the fs r/w for quota activity */
+		sb->s_flags &= ~MS_RDONLY;
+
 		unlock_kernel();
+		dquot_resume(sb, -1);
 		return ret;
 	}
 	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
+		rc = dquot_suspend(sb, -1);
+		if (rc < 0) {
+			unlock_kernel();
+			return rc;
+		}
 		rc = jfs_umount_rw(sb);
 		JFS_SBI(sb)->flag = flag;
 		unlock_kernel();
@@ -469,6 +481,10 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
+#ifdef CONFIG_QUOTA
+	sb->dq_op = &dquot_operations;
+	sb->s_qcop = &dquot_quotactl_ops;
+#endif
 
 	/*
 	 * Initialize direct-mapping inode/address-space

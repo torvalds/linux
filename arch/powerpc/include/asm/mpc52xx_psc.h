@@ -248,6 +248,7 @@ struct mpc52xx_psc_fifo {
 	u16		tflwfptr;	/* PSC + 0x9e */
 };
 
+#define MPC512x_PSC_FIFO_EOF		0x100
 #define MPC512x_PSC_FIFO_RESET_SLICE	0x80
 #define MPC512x_PSC_FIFO_ENABLE_SLICE	0x01
 #define MPC512x_PSC_FIFO_ENABLE_DMA	0x04

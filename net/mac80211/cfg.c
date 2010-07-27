@@ -595,7 +595,7 @@ struct iapp_layer2_update {
 	u8 ssap;		/* 0 */
 	u8 control;
 	u8 xid_info[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void ieee80211_send_layer2_update(struct sta_info *sta)
 {

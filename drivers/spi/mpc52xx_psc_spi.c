@@ -472,18 +472,18 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 	s16 id = -1;
 	int rc;
 
-	regaddr_p = of_get_address(op->node, 0, &size64, NULL);
+	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
 	if (!regaddr_p) {
 		dev_err(&op->dev, "Invalid PSC address\n");
 		return -EINVAL;
 	}
-	regaddr64 = of_translate_address(op->node, regaddr_p);
+	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
 
 	/* get PSC id (1..6, used by port_config) */
 	if (op->dev.platform_data == NULL) {
 		const u32 *psc_nump;
 
-		psc_nump = of_get_property(op->node, "cell-index", NULL);
+		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
 		if (!psc_nump || *psc_nump > 5) {
 			dev_err(&op->dev, "Invalid cell-index property\n");
 			return -EINVAL;
@@ -492,9 +492,10 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 	}
 
 	rc = mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
-					irq_of_parse_and_map(op->node, 0), id);
+				irq_of_parse_and_map(op->dev.of_node, 0), id);
 	if (rc == 0)
-		of_register_spi_devices(dev_get_drvdata(&op->dev), op->node);
+		of_register_spi_devices(dev_get_drvdata(&op->dev),
+					op->dev.of_node);
 
 	return rc;
 }
@@ -513,14 +514,12 @@ static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_psc_spi_of_match);
 
 static struct of_platform_driver mpc52xx_psc_spi_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc52xx-psc-spi",
-	.match_table = mpc52xx_psc_spi_of_match,
 	.probe = mpc52xx_psc_spi_of_probe,
 	.remove = __exit_p(mpc52xx_psc_spi_of_remove),
 	.driver = {
 		.name = "mpc52xx-psc-spi",
 		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_psc_spi_of_match,
 	},
 };
 

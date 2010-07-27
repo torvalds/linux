@@ -322,8 +322,9 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		goto out;
 
+	/* XXX: this is missing some actual on-disk truncation.. */
 	if (ia_valid & ATTR_SIZE)
-		error = vmtruncate(inode, attr->ia_size);
+		error = simple_setsize(inode, attr->ia_size);
 
 	if (error)
 		goto out;

@@ -96,8 +96,6 @@ struct intel_framebuffer {
 
 
 struct intel_encoder {
-	struct drm_connector base;
-
 	struct drm_encoder enc;
 	int type;
 	struct i2c_adapter *i2c_bus;
@@ -108,6 +106,11 @@ struct intel_encoder {
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
 	int clone_mask;
+};
+
+struct intel_connector {
+	struct drm_connector base;
+	void *dev_priv;
 };
 
 struct intel_crtc;
@@ -149,17 +152,18 @@ struct intel_crtc {
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
+	int fdi_lanes;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
-#define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
+#define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
 struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 				     const char *name);
 void intel_i2c_destroy(struct i2c_adapter *adapter);
-int intel_ddc_get_modes(struct intel_encoder *intel_encoder);
+int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder);
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
 void intel_i2c_reset_gmbus(struct drm_device *dev);
@@ -183,7 +187,7 @@ extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
 
-extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
+extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
 
 extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
@@ -192,17 +196,16 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 extern void intel_wait_for_vblank(struct drm_device *dev);
 extern struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe);
 extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
+						   struct drm_connector *connector,
 						   struct drm_display_mode *mode,
 						   int *dpms_mode);
 extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
+					   struct drm_connector *connector,
 					   int dpms_mode);
 
 extern struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB);
 extern int intel_sdvo_supports_hotplug(struct drm_connector *connector);
 extern void intel_sdvo_set_hotplug(struct drm_connector *connector, int enable);
-extern int intelfb_probe(struct drm_device *dev);
-extern int intelfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
-extern int intelfb_resize(struct drm_device *dev, struct drm_crtc *crtc);
 extern void intelfb_restore(void);
 extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
@@ -212,10 +215,12 @@ extern void intel_init_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 
-extern int intel_framebuffer_create(struct drm_device *dev,
-				    struct drm_mode_fb_cmd *mode_cmd,
-				    struct drm_framebuffer **fb,
-				    struct drm_gem_object *obj);
+extern int intel_framebuffer_init(struct drm_device *dev,
+				  struct intel_framebuffer *ifb,
+				  struct drm_mode_fb_cmd *mode_cmd,
+				  struct drm_gem_object *obj);
+extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_fini(struct drm_device *dev);
 
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
 extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
@@ -229,4 +234,6 @@ extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
+
+extern void intel_fb_output_poll_changed(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */

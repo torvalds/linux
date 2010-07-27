@@ -21,7 +21,7 @@ comment "LED drivers"
 
 config LEDS_88PM860X
 	tristate "LED Support for Marvell 88PM860x PMIC"
-	depends on LEDS_CLASS && MFD_88PM860X
+	depends on MFD_88PM860X
 	help
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
@@ -66,6 +66,16 @@ config LEDS_NET48XX
 	help
 	  This option enables support for the Soekris net4801 and net4826 error
 	  LED.
+
+config LEDS_NET5501
+	tristate "LED Support for Soekris net5501 series Error LED"
+	depends on LEDS_TRIGGERS
+	depends on X86 && LEDS_GPIO_PLATFORM && GPIO_CS5535
+	select LEDS_TRIGGER_DEFAULT_ON
+	default n
+	help
+	  Add support for the Soekris net5501 board (detection, error led
+	  and GPIO).
 
 config LEDS_FSG
 	tristate "LED Support for the Freecom FSG-3"
@@ -284,6 +294,13 @@ config LEDS_DELL_NETBOOKS
 	help
 	  This adds support for the Latitude 2100 and similar
 	  notebooks that have an external LED.
+
+config LEDS_MC13783
+	tristate "LED Support for MC13783 PMIC"
+	depends on MFD_MC13783
+	help
+	  This option enable support for on-chip LED drivers found
+	  on Freescale Semiconductor MC13783 PMIC.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"

@@ -144,6 +144,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
+#define OPCODE_COMMON_GET_PHY_DETAILS			102
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -869,6 +870,30 @@ struct be_cmd_resp_seeprom_read {
 	u8 seeprom_data[BE_READ_SEEPROM_LEN];
 };
 
+enum {
+	PHY_TYPE_CX4_10GB = 0,
+	PHY_TYPE_XFP_10GB,
+	PHY_TYPE_SFP_1GB,
+	PHY_TYPE_SFP_PLUS_10GB,
+	PHY_TYPE_KR_10GB,
+	PHY_TYPE_KX4_10GB,
+	PHY_TYPE_BASET_10GB,
+	PHY_TYPE_BASET_1GB,
+	PHY_TYPE_DISABLED = 255
+};
+
+struct be_cmd_req_get_phy_info {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[24];
+};
+struct be_cmd_resp_get_phy_info {
+	struct be_cmd_req_hdr hdr;
+	u16 phy_type;
+	u16 interface_type;
+	u32 misc_params;
+	u32 future_use[4];
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -947,4 +972,6 @@ extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
+extern int be_cmd_get_phy_info(struct be_adapter *adapter,
+		struct be_dma_mem *cmd);
 

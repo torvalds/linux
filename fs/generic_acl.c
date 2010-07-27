@@ -201,7 +201,7 @@ generic_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-struct xattr_handler generic_acl_access_handler = {
+const struct xattr_handler generic_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.list	= generic_acl_list,
@@ -209,7 +209,7 @@ struct xattr_handler generic_acl_access_handler = {
 	.set	= generic_acl_set,
 };
 
-struct xattr_handler generic_acl_default_handler = {
+const struct xattr_handler generic_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= generic_acl_list,

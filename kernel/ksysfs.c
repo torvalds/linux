@@ -138,7 +138,8 @@ extern const void __start_notes __attribute__((weak));
 extern const void __stop_notes __attribute__((weak));
 #define	notes_size (&__stop_notes - &__start_notes)
 
-static ssize_t notes_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+static ssize_t notes_read(struct file *filp, struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
 	memcpy(buf, &__start_notes + off, count);

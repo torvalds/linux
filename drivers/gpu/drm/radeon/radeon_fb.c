@@ -23,10 +23,6 @@
  * Authors:
  *     David Airlie
  */
-    /*
-     *  Modularization
-     */
-
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
@@ -42,17 +38,21 @@
 
 #include <linux/vga_switcheroo.h>
 
-struct radeon_fb_device {
+/* object hierarchy -
+   this contains a helper + a radeon fb
+   the helper contains a pointer to radeon framebuffer baseclass.
+*/
+struct radeon_fbdev {
 	struct drm_fb_helper helper;
-	struct radeon_framebuffer	*rfb;
-	struct radeon_device		*rdev;
+	struct radeon_framebuffer rfb;
+	struct list_head fbdev_list;
+	struct radeon_device *rdev;
 };
 
 static struct fb_ops radeonfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
-	.fb_setcolreg = drm_fb_helper_setcolreg,
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
@@ -61,45 +61,6 @@ static struct fb_ops radeonfb_ops = {
 	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
-/**
- * Currently it is assumed that the old framebuffer is reused.
- *
- * LOCKING
- * caller should hold the mode config lock.
- *
- */
-int radeonfb_resize(struct drm_device *dev, struct drm_crtc *crtc)
-{
-	struct fb_info *info;
-	struct drm_framebuffer *fb;
-	struct drm_display_mode *mode = crtc->desired_mode;
-
-	fb = crtc->fb;
-	if (fb == NULL) {
-		return 1;
-	}
-	info = fb->fbdev;
-	if (info == NULL) {
-		return 1;
-	}
-	if (mode == NULL) {
-		return 1;
-	}
-	info->var.xres = mode->hdisplay;
-	info->var.right_margin = mode->hsync_start - mode->hdisplay;
-	info->var.hsync_len = mode->hsync_end - mode->hsync_start;
-	info->var.left_margin = mode->htotal - mode->hsync_end;
-	info->var.yres = mode->vdisplay;
-	info->var.lower_margin = mode->vsync_start - mode->vdisplay;
-	info->var.vsync_len = mode->vsync_end - mode->vsync_start;
-	info->var.upper_margin = mode->vtotal - mode->vsync_end;
-	info->var.pixclock = 10000000 / mode->htotal * 1000 / mode->vtotal * 100;
-	/* avoid overflow */
-	info->var.pixclock = info->var.pixclock * 1000 / mode->vrefresh;
-
-	return 0;
-}
-EXPORT_SYMBOL(radeonfb_resize);
 
 static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
@@ -125,57 +86,44 @@ static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bo
 	return aligned;
 }
 
-static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
-	.gamma_set = radeon_crtc_fb_gamma_set,
-	.gamma_get = radeon_crtc_fb_gamma_get,
-};
-
-int radeonfb_create(struct drm_device *dev,
-		    uint32_t fb_width, uint32_t fb_height,
-		    uint32_t surface_width, uint32_t surface_height,
-		    uint32_t surface_depth, uint32_t surface_bpp,
-		    struct drm_framebuffer **fb_p)
+static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
-	struct radeon_device *rdev = dev->dev_private;
-	struct fb_info *info;
-	struct radeon_fb_device *rfbdev;
-	struct drm_framebuffer *fb = NULL;
-	struct radeon_framebuffer *rfb;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct radeon_bo *rbo = gobj->driver_private;
+	int ret;
+
+	ret = radeon_bo_reserve(rbo, false);
+	if (likely(ret == 0)) {
+		radeon_bo_kunmap(rbo);
+		radeon_bo_unreserve(rbo);
+	}
+	drm_gem_object_unreference_unlocked(gobj);
+}
+
+static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
+					 struct drm_mode_fb_cmd *mode_cmd,
+					 struct drm_gem_object **gobj_p)
+{
+	struct radeon_device *rdev = rfbdev->rdev;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_bo *rbo = NULL;
-	struct device *device = &rdev->pdev->dev;
-	int size, aligned_size, ret;
-	u64 fb_gpuaddr;
-	void *fbptr = NULL;
-	unsigned long tmp;
 	bool fb_tiled = false; /* useful for testing */
 	u32 tiling_flags = 0;
+	int ret;
+	int aligned_size, size;
 
-	mode_cmd.width = surface_width;
-	mode_cmd.height = surface_height;
-
-	/* avivo can't scanout real 24bpp */
-	if ((surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
-		surface_bpp = 32;
-
-	mode_cmd.bpp = surface_bpp;
 	/* need to align pitch with crtc limits */
-	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
-	mode_cmd.depth = surface_depth;
+	mode_cmd->pitch = radeon_align_pitch(rdev, mode_cmd->width, mode_cmd->bpp, fb_tiled) * ((mode_cmd->bpp + 1) / 8);
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	size = mode_cmd->pitch * mode_cmd->height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
-
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
-			RADEON_GEM_DOMAIN_VRAM,
-			false, ttm_bo_type_kernel,
-			&gobj);
+				       RADEON_GEM_DOMAIN_VRAM,
+				       false, ttm_bo_type_kernel,
+				       &gobj);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate framebuffer (%d %d)\n",
-		       surface_width, surface_height);
-		ret = -ENOMEM;
-		goto out;
+		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
+		       aligned_size);
+		return -ENOMEM;
 	}
 	rbo = gobj->driver_private;
 
@@ -183,7 +131,7 @@ int radeonfb_create(struct drm_device *dev,
 		tiling_flags = RADEON_TILING_MACRO;
 
 #ifdef __BIG_ENDIAN
-	switch (mode_cmd.bpp) {
+	switch (mode_cmd->bpp) {
 	case 32:
 		tiling_flags |= RADEON_TILING_SWAP_32BIT;
 		break;
@@ -196,57 +144,81 @@ int radeonfb_create(struct drm_device *dev,
 
 	if (tiling_flags) {
 		ret = radeon_bo_set_tiling_flags(rbo,
-					tiling_flags | RADEON_TILING_SURFACE,
-					mode_cmd.pitch);
+						 tiling_flags | RADEON_TILING_SURFACE,
+						 mode_cmd->pitch);
 		if (ret)
 			dev_err(rdev->dev, "FB failed to set tiling flags\n");
 	}
-	mutex_lock(&rdev->ddev->struct_mutex);
-	fb = radeon_framebuffer_create(rdev->ddev, &mode_cmd, gobj);
-	if (fb == NULL) {
-		DRM_ERROR("failed to allocate fb.\n");
-		ret = -ENOMEM;
-		goto out_unref;
-	}
+
+
 	ret = radeon_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
 		goto out_unref;
-	ret = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_gpuaddr);
+	ret = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, NULL);
 	if (ret) {
 		radeon_bo_unreserve(rbo);
 		goto out_unref;
 	}
 	if (fb_tiled)
 		radeon_bo_check_tiling(rbo, 0, 0);
-	ret = radeon_bo_kmap(rbo, &fbptr);
+	ret = radeon_bo_kmap(rbo, NULL);
 	radeon_bo_unreserve(rbo);
 	if (ret) {
 		goto out_unref;
 	}
 
-	list_add(&fb->filp_head, &rdev->ddev->mode_config.fb_kernel_list);
+	*gobj_p = gobj;
+	return 0;
+out_unref:
+	radeonfb_destroy_pinned_object(gobj);
+	*gobj_p = NULL;
+	return ret;
+}
 
-	*fb_p = fb;
-	rfb = to_radeon_framebuffer(fb);
-	rdev->fbdev_rfb = rfb;
-	rdev->fbdev_rbo = rbo;
+static int radeonfb_create(struct radeon_fbdev *rfbdev,
+			   struct drm_fb_helper_surface_size *sizes)
+{
+	struct radeon_device *rdev = rfbdev->rdev;
+	struct fb_info *info;
+	struct drm_framebuffer *fb = NULL;
+	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_gem_object *gobj = NULL;
+	struct radeon_bo *rbo = NULL;
+	struct device *device = &rdev->pdev->dev;
+	int ret;
+	unsigned long tmp;
 
-	info = framebuffer_alloc(sizeof(struct radeon_fb_device), device);
+	mode_cmd.width = sizes->surface_width;
+	mode_cmd.height = sizes->surface_height;
+
+	/* avivo can't scanout real 24bpp */
+	if ((sizes->surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
+		sizes->surface_bpp = 32;
+
+	mode_cmd.bpp = sizes->surface_bpp;
+	mode_cmd.depth = sizes->surface_depth;
+
+	ret = radeonfb_create_pinned_object(rfbdev, &mode_cmd, &gobj);
+	rbo = gobj->driver_private;
+
+	/* okay we have an object now allocate the framebuffer */
+	info = framebuffer_alloc(0, device);
 	if (info == NULL) {
 		ret = -ENOMEM;
 		goto out_unref;
 	}
 
-	rdev->fbdev_info = info;
-	rfbdev = info->par;
-	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
-	rfbdev->helper.dev = dev;
-	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, rdev->num_crtc,
-					    RADEONFB_CONN_LIMIT);
-	if (ret)
-		goto out_unref;
+	info->par = rfbdev;
 
-	memset_io(fbptr, 0x0, aligned_size);
+	radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
+
+	fb = &rfbdev->rfb.base;
+
+	/* setup helper */
+	rfbdev->helper.fb = fb;
+	rfbdev->helper.fbdev = info;
+
+	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
 	strcpy(info->fix.id, "radeondrmfb");
 
@@ -255,17 +227,22 @@ int radeonfb_create(struct drm_device *dev,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
 
-	tmp = fb_gpuaddr - rdev->mc.vram_start;
+	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
 	info->fix.smem_start = rdev->mc.aper_base + tmp;
-	info->fix.smem_len = size;
-	info->screen_base = fbptr;
-	info->screen_size = size;
+	info->fix.smem_len = radeon_bo_size(rbo);
+	info->screen_base = rbo->kptr;
+	info->screen_size = radeon_bo_size(rbo);
 
-	drm_fb_helper_fill_var(info, fb, fb_width, fb_height);
+	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->aperture_base = rdev->ddev->mode_config.fb_base;
-	info->aperture_size = rdev->mc.real_vram_size;
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
+	info->apertures->ranges[0].size = rdev->mc.real_vram_size;
 
 	info->fix.mmio_start = 0;
 	info->fix.mmio_len = 0;
@@ -274,42 +251,53 @@ int radeonfb_create(struct drm_device *dev,
 	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->pixmap.scan_align = 1;
+
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
 		goto out_unref;
 	}
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
-	DRM_INFO("size %lu\n", (unsigned long)size);
+	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitch);
 
-	fb->fbdev = info;
-	rfbdev->rfb = rfb;
-	rfbdev->rdev = rdev;
-
-	mutex_unlock(&rdev->ddev->struct_mutex);
 	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;
 
 out_unref:
 	if (rbo) {
-		ret = radeon_bo_reserve(rbo, false);
-		if (likely(ret == 0)) {
-			radeon_bo_kunmap(rbo);
-			radeon_bo_unreserve(rbo);
-		}
+
 	}
 	if (fb && ret) {
-		list_del(&fb->filp_head);
 		drm_gem_object_unreference(gobj);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
 	}
-	drm_gem_object_unreference(gobj);
-	mutex_unlock(&rdev->ddev->struct_mutex);
-out:
 	return ret;
+}
+
+static int radeon_fb_find_or_create_single(struct drm_fb_helper *helper,
+					   struct drm_fb_helper_surface_size *sizes)
+{
+	struct radeon_fbdev *rfbdev = (struct radeon_fbdev *)helper;
+	int new_fb = 0;
+	int ret;
+
+	if (!helper->fb) {
+		ret = radeonfb_create(rfbdev, sizes);
+		if (ret)
+			return ret;
+		new_fb = 1;
+	}
+	return new_fb;
 }
 
 static char *mode_option;
@@ -328,46 +316,102 @@ int radeon_parse_options(char *options)
 	return 0;
 }
 
-int radeonfb_probe(struct drm_device *dev)
+void radeon_fb_output_poll_changed(struct radeon_device *rdev)
 {
-	struct radeon_device *rdev = dev->dev_private;
-	int bpp_sel = 32;
-
-	/* select 8 bpp console on RN50 or 16MB cards */
-	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
-		bpp_sel = 8;
-
-	return drm_fb_helper_single_fb_probe(dev, bpp_sel, &radeonfb_create);
+	drm_fb_helper_hotplug_event(&rdev->mode_info.rfbdev->helper);
 }
 
-int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
+static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
 {
 	struct fb_info *info;
-	struct radeon_framebuffer *rfb = to_radeon_framebuffer(fb);
+	struct radeon_framebuffer *rfb = &rfbdev->rfb;
 	struct radeon_bo *rbo;
 	int r;
 
-	if (!fb) {
-		return -EINVAL;
-	}
-	info = fb->fbdev;
-	if (info) {
-		struct radeon_fb_device *rfbdev = info->par;
-		rbo = rfb->obj->driver_private;
+	if (rfbdev->helper.fbdev) {
+		info = rfbdev->helper.fbdev;
+
 		unregister_framebuffer(info);
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+	}
+
+	if (rfb->obj) {
+		rbo = rfb->obj->driver_private;
 		r = radeon_bo_reserve(rbo, false);
 		if (likely(r == 0)) {
 			radeon_bo_kunmap(rbo);
 			radeon_bo_unpin(rbo);
 			radeon_bo_unreserve(rbo);
 		}
-		drm_fb_helper_free(&rfbdev->helper);
-		framebuffer_release(info);
+		drm_gem_object_unreference_unlocked(rfb->obj);
 	}
-
-	printk(KERN_INFO "unregistered panic notifier\n");
+	drm_fb_helper_fini(&rfbdev->helper);
+	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
 }
-EXPORT_SYMBOL(radeonfb_remove);
-MODULE_LICENSE("GPL");
+
+static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
+	.gamma_set = radeon_crtc_fb_gamma_set,
+	.gamma_get = radeon_crtc_fb_gamma_get,
+	.fb_probe = radeon_fb_find_or_create_single,
+};
+
+int radeon_fbdev_init(struct radeon_device *rdev)
+{
+	struct radeon_fbdev *rfbdev;
+	int bpp_sel = 32;
+
+	/* select 8 bpp console on RN50 or 16MB cards */
+	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
+		bpp_sel = 8;
+
+	rfbdev = kzalloc(sizeof(struct radeon_fbdev), GFP_KERNEL);
+	if (!rfbdev)
+		return -ENOMEM;
+
+	rfbdev->rdev = rdev;
+	rdev->mode_info.rfbdev = rfbdev;
+	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
+
+	drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
+			   rdev->num_crtc,
+			   RADEONFB_CONN_LIMIT);
+	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
+	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
+	return 0;
+}
+
+void radeon_fbdev_fini(struct radeon_device *rdev)
+{
+	if (!rdev->mode_info.rfbdev)
+		return;
+
+	radeon_fbdev_destroy(rdev->ddev, rdev->mode_info.rfbdev);
+	kfree(rdev->mode_info.rfbdev);
+	rdev->mode_info.rfbdev = NULL;
+}
+
+void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
+{
+	fb_set_suspend(rdev->mode_info.rfbdev->helper.fbdev, state);
+}
+
+int radeon_fbdev_total_size(struct radeon_device *rdev)
+{
+	struct radeon_bo *robj;
+	int size = 0;
+
+	robj = rdev->mode_info.rfbdev->rfb.obj->driver_private;
+	size += radeon_bo_size(robj);
+	return size;
+}
+
+bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
+{
+	if (robj == rdev->mode_info.rfbdev->rfb.obj->driver_private)
+		return true;
+	return false;
+}

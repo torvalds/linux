@@ -159,6 +159,7 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 {
 	struct irb *irb = &cdev->private->irb;
 	struct cmd_scsw *scsw = &irb->scsw.cmd;
+	enum uc_todo todo;
 
 	/* Perform BASIC SENSE if needed. */
 	if (ccw_device_accumulate_and_sense(cdev, lcirb))
@@ -178,6 +179,20 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 		/* Check for command reject. */
 		if (irb->ecw[0] & SNS0_CMD_REJECT)
 			return IO_REJECTED;
+		/* Ask the driver what to do */
+		if (cdev->drv && cdev->drv->uc_handler) {
+			todo = cdev->drv->uc_handler(cdev, lcirb);
+			switch (todo) {
+			case UC_TODO_RETRY:
+				return IO_STATUS_ERROR;
+			case UC_TODO_RETRY_ON_NEW_PATH:
+				return IO_PATH_ERROR;
+			case UC_TODO_STOP:
+				return IO_REJECTED;
+			default:
+				return IO_STATUS_ERROR;
+			}
+		}
 		/* Assume that unexpected SENSE data implies an error. */
 		return IO_STATUS_ERROR;
 	}

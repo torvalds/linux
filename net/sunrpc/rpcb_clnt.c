@@ -783,7 +783,7 @@ static int rpcb_dec_getport(struct rpc_rqst *req, __be32 *p,
 	port = ntohl(*p);
 	dprintk("RPC: %5u PMAP_%s result: %lu\n", task->tk_pid,
 			task->tk_msg.rpc_proc->p_name, port);
-	if (unlikely(port > USHORT_MAX))
+	if (unlikely(port > USHRT_MAX))
 		return -EIO;
 
 	rpcb->r_port = port;

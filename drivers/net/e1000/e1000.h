@@ -86,12 +86,12 @@ struct e1000_adapter;
 /* TX/RX descriptor defines */
 #define E1000_DEFAULT_TXD                  256
 #define E1000_MAX_TXD                      256
-#define E1000_MIN_TXD                       80
+#define E1000_MIN_TXD                       48
 #define E1000_MAX_82544_TXD               4096
 
 #define E1000_DEFAULT_RXD                  256
 #define E1000_MAX_RXD                      256
-#define E1000_MIN_RXD                       80
+#define E1000_MIN_RXD                       48
 #define E1000_MAX_82544_RXD               4096
 
 #define E1000_MIN_ITR_USECS		10 /* 100000 irq/sec */
