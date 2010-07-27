@@ -1747,7 +1747,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->r.eof) {
-		tomoyo_io_printf(head, "2.3.0-pre");
+		tomoyo_io_printf(head, "2.3.0");
 		head->r.eof = true;
 	}
 }
@@ -2054,6 +2054,6 @@ void tomoyo_check_profile(void)
 	if (tomoyo_profile_version != 20090903)
 		panic("Profile version %u is not supported.\n",
 		      tomoyo_profile_version);
-	printk(KERN_INFO "TOMOYO: 2.3.0-pre   2010/06/03\n");
+	printk(KERN_INFO "TOMOYO: 2.3.0\n");
 	printk(KERN_INFO "Mandatory Access Control activated.\n");
 }
