@@ -74,7 +74,7 @@ static const struct ath_rate_table ar5416_11na_ratetable = {
 		[24] = { RC_HT_DT_20, WLAN_RC_PHY_HT_20_DS, 130000,
 			108300, 15, 15, 4, 23, 54, 25, 55 }, /* 130 Mb */
 		[25] = { RC_HT_DT_20, WLAN_RC_PHY_HT_20_DS_HGI, 144400,
-			12000, 15, 15, 4, 23, 54, 25, 55 }, /* 144.4 Mb */
+			120000, 15, 15, 4, 23, 54, 25, 55 }, /* 144.4 Mb */
 		[26] = {  RC_INVALID, WLAN_RC_PHY_HT_20_TS, 19500,
 			17400, 16, 16, 0, 24, 56, 26, 56 }, /* 19.5 Mb */
 		[27] = {  RC_INVALID, WLAN_RC_PHY_HT_20_TS, 39000,
