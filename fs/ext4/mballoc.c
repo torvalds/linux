@@ -3575,7 +3575,7 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 			trace_ext4_mballoc_discard(ac);
 		}
 
-		trace_ext4_mb_release_inode_pa(ac, pa, grp_blk_start + bit,
+		trace_ext4_mb_release_inode_pa(sb, ac, pa, grp_blk_start + bit,
 					       next - bit);
 		mb_free_blocks(pa->pa_inode, e4b, bit, next - bit);
 		bit = next + 1;
@@ -3606,7 +3606,7 @@ ext4_mb_release_group_pa(struct ext4_buddy *e4b,
 	ext4_group_t group;
 	ext4_grpblk_t bit;
 
-	trace_ext4_mb_release_group_pa(ac, pa);
+	trace_ext4_mb_release_group_pa(sb, ac, pa);
 	BUG_ON(pa->pa_deleted == 0);
 	ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, &bit);
 	BUG_ON(group != e4b->bd_group && pa->pa_len != 0);
