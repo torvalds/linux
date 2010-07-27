@@ -2304,6 +2304,8 @@ static ssize_t session_write_kbytes_show(struct ext4_attr *a,
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
+	if (!sb->s_bdev->bd_part)
+		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%lu\n",
 			(part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
 			 sbi->s_sectors_written_start) >> 1);
@@ -2314,6 +2316,8 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
+	if (!sb->s_bdev->bd_part)
+		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 			(unsigned long long)(sbi->s_kbytes_written +
 			((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
@@ -2575,8 +2579,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_resgid = EXT4_DEF_RESGID;
 	sbi->s_inode_readahead_blks = EXT4_DEF_INODE_READAHEAD_BLKS;
 	sbi->s_sb_block = sb_block;
-	sbi->s_sectors_written_start = part_stat_read(sb->s_bdev->bd_part,
-						      sectors[1]);
+	if (sb->s_bdev->bd_part)
+		sbi->s_sectors_written_start =
+			part_stat_read(sb->s_bdev->bd_part, sectors[1]);
 
 	unlock_kernel();
 
@@ -3492,10 +3497,14 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	 */
 	if (!(sb->s_flags & MS_RDONLY))
 		es->s_wtime = cpu_to_le32(get_seconds());
-	es->s_kbytes_written =
-		cpu_to_le64(EXT4_SB(sb)->s_kbytes_written +
+	if (sb->s_bdev->bd_part)
+		es->s_kbytes_written =
+			cpu_to_le64(EXT4_SB(sb)->s_kbytes_written +
 			    ((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
 			      EXT4_SB(sb)->s_sectors_written_start) >> 1));
+	else
+		es->s_kbytes_written =
+			cpu_to_le64(EXT4_SB(sb)->s_kbytes_written);
 	ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
 					&EXT4_SB(sb)->s_freeblocks_counter));
 	es->s_free_inodes_count = cpu_to_le32(percpu_counter_sum_positive(
