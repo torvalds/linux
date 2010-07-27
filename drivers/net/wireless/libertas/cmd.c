@@ -1208,10 +1208,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	cmdptr->result = 0;
 
 	switch (cmd_no) {
-	case CMD_802_11_DEEP_SLEEP:
-		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
-		cmdptr->size = cpu_to_le16(sizeof(struct cmd_header));
-		break;
 	default:
 		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);
 		ret = -1;
