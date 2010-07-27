@@ -176,8 +176,6 @@ extern void padata_free(struct padata_instance *pinst);
 extern int padata_do_parallel(struct padata_instance *pinst,
 			      struct padata_priv *padata, int cb_cpu);
 extern void padata_do_serial(struct padata_priv *padata);
-extern int padata_get_cpumask(struct padata_instance *pinst,
-			      int cpumask_type, struct cpumask *out_mask);
 extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
 extern int padata_set_cpumasks(struct padata_instance *pinst,

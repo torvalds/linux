@@ -589,41 +589,6 @@ static bool padata_validate_cpumask(struct padata_instance *pinst,
 	return true;
 }
 
-/**
- * padata_get_cpumask: Fetch serial or parallel cpumask from the
- *                     given padata instance and copy it to @out_mask
- *
- * @pinst: A pointer to padata instance
- * @cpumask_type: Specifies which cpumask will be copied.
- *                Possible values are PADATA_CPU_SERIAL *or* PADATA_CPU_PARALLEL
- *                corresponding to serial and parallel cpumask respectively.
- * @out_mask: A pointer to cpumask structure where selected
- *            cpumask will be copied.
- */
-int padata_get_cpumask(struct padata_instance *pinst,
-		       int cpumask_type, struct cpumask *out_mask)
-{
-	struct parallel_data *pd;
-	int ret = 0;
-
-	rcu_read_lock_bh();
-	pd = rcu_dereference(pinst->pd);
-	switch (cpumask_type) {
-	case PADATA_CPU_SERIAL:
-		cpumask_copy(out_mask, pd->cpumask.cbcpu);
-		break;
-	case PADATA_CPU_PARALLEL:
-		cpumask_copy(out_mask, pd->cpumask.pcpu);
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	rcu_read_unlock_bh();
-	return ret;
-}
-EXPORT_SYMBOL(padata_get_cpumask);
-
 static int __padata_set_cpumasks(struct padata_instance *pinst,
 				 cpumask_var_t pcpumask,
 				 cpumask_var_t cbcpumask)
