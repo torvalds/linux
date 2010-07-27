@@ -903,6 +903,8 @@ struct cmd_ds_get_tsf {
 } __packed;
 
 struct cmd_ds_bt_access {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le32 id;
 	u8 addr1[ETH_ALEN];
@@ -959,7 +961,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 	} params;
 } __packed;

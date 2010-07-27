@@ -1208,10 +1208,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 #ifdef CONFIG_LIBERTAS_MESH
 
-	case CMD_BT_ACCESS:
-		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
-		break;
-
 	case CMD_FWT_ACCESS:
 		ret = lbs_cmd_fwt_access(cmdptr, cmd_action, pdata_buf);
 		break;

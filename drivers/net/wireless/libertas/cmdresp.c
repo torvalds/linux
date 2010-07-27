@@ -68,13 +68,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;
 
-	case CMD_RET(CMD_BT_ACCESS):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->callback_arg)
-			memcpy((void *)priv->cur_cmd->callback_arg,
-			       &resp->params.bt.addr1, 2 * ETH_ALEN);
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
 	case CMD_RET(CMD_FWT_ACCESS):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (priv->cur_cmd->callback_arg)
