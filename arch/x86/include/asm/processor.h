@@ -762,6 +762,7 @@ extern void init_c1e_mask(void);
 extern unsigned long		boot_option_idle_override;
 extern unsigned long		idle_halt;
 extern unsigned long		idle_nomwait;
+extern bool			c1e_detected;
 
 /*
  * on systems with caches, caches must be flashed as the absolute
