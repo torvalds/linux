@@ -5472,10 +5472,8 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-			if (attr->ia_size > sbi->s_bitmap_maxbytes) {
-				error = -EFBIG;
-				goto err_out;
-			}
+			if (attr->ia_size > sbi->s_bitmap_maxbytes)
+				return -EFBIG;
 		}
 	}
 
