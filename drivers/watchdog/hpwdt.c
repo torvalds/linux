@@ -16,30 +16,22 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/nmi.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
 #include <linux/moduleparam.h>
 #include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <linux/reboot.h>
-#include <linux/sched.h>
-#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
 #include <linux/dmi.h>
-#include <linux/efi.h>
-#include <linux/string.h>
-#include <linux/bootmem.h>
-#include <asm/desc.h>
+#include <linux/spinlock.h>
 #include <asm/cacheflush.h>
 
 #define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
