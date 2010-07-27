@@ -362,54 +362,16 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 	return priv;
 }
 
-
-static struct usb_host_endpoint *get_ep_from_epnum(struct usb_device *udev,
-		int epnum0)
-{
-	struct usb_host_config *config;
-	int i = 0, j = 0;
-	struct usb_host_endpoint *ep = NULL;
-	int epnum;
-	int found = 0;
-
-	if (epnum0 == 0)
-		return &udev->ep0;
-
-	config = udev->actconfig;
-	if (!config)
-		return NULL;
-
-	for (i = 0; i < config->desc.bNumInterfaces; i++) {
-		struct usb_host_interface *setting;
-
-		setting = config->interface[i]->cur_altsetting;
-
-		for (j = 0; j < setting->desc.bNumEndpoints; j++) {
-			ep = &setting->endpoint[j];
-			epnum = (ep->desc.bEndpointAddress & 0x7f);
-
-			if (epnum == epnum0) {
-				/* usbip_uinfo("found epnum %d\n", epnum0);*/
-				found = 1;
-				break;
-			}
-		}
-	}
-
-	if (found)
-		return ep;
-	else
-		return NULL;
-}
-
-
 static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 {
 	struct usb_device *udev = interface_to_usbdev(sdev->interface);
 	struct usb_host_endpoint *ep;
 	struct usb_endpoint_descriptor *epd = NULL;
 
-	ep = get_ep_from_epnum(udev, epnum);
+	if (dir == USBIP_DIR_IN)
+		ep = udev->ep_in[epnum & 0x7f];
+	else
+		ep = udev->ep_out[epnum & 0x7f];
 	if (!ep) {
 		dev_err(&sdev->interface->dev, "no such endpoint?, %d\n",
 			epnum);
