@@ -15,8 +15,6 @@
 #define CAL_NF(nf)		((s32)(-(s32)(nf)))
 #define CAL_RSSI(snr, nf)	((s32)((s32)(snr) + CAL_NF(nf)))
 
-static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
-
 /**
  *  @brief Simple callback that copies response back into command
  *
@@ -1207,7 +1205,7 @@ done:
  *  @param priv		A pointer to struct lbs_private structure
  *  @return cmd_ctrl_node A pointer to cmd_ctrl_node structure or NULL
  */
-static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
+static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *tempnode;
 	unsigned long flags;
@@ -1578,7 +1576,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 		}
 	}
 
-	cmdnode = lbs_get_cmd_ctrl_node(priv);
+	cmdnode = lbs_get_free_cmd_node(priv);
 	if (cmdnode == NULL) {
 		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
 
