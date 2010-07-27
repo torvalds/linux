@@ -133,7 +133,7 @@ static struct cmn_registers cmn_regs;
 extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
 						unsigned long *pRomEntry);
 
-#ifndef CONFIG_X86_64
+#ifdef CONFIG_X86_32
 /* --32 Bit Bios------------------------------------------------------------ */
 
 #define HPWDT_ARCH	32
@@ -322,8 +322,9 @@ static int __devinit detect_cru_service(void)
 	iounmap(p);
 	return rc;
 }
-
-#else
+/* ------------------------------------------------------------------------- */
+#endif /* CONFIG_X86_32 */
+#ifdef CONFIG_X86_64
 /* --64 Bit Bios------------------------------------------------------------ */
 
 #define HPWDT_ARCH	64
@@ -401,10 +402,8 @@ static int __devinit detect_cru_service(void)
 	/* if cru_rom_addr has been set then we found a CRU service */
 	return ((cru_rom_addr != NULL) ? 0 : -ENODEV);
 }
-
 /* ------------------------------------------------------------------------- */
-
-#endif
+#endif /* CONFIG_X86_64 */
 
 /*
  *	Watchdog operations
