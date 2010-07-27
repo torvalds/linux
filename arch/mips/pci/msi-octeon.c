@@ -177,6 +177,34 @@ msi_irq_allocated:
 	return 0;
 }
 
+int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	struct msi_desc *entry;
+	int ret;
+
+	/*
+	 * MSI-X is not supported.
+	 */
+	if (type == PCI_CAP_ID_MSIX)
+		return -EINVAL;
+
+	/*
+	 * If an architecture wants to support multiple MSI, it needs to
+	 * override arch_setup_msi_irqs()
+	 */
+	if (type == PCI_CAP_ID_MSI && nvec > 1)
+		return 1;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		ret = arch_setup_msi_irq(dev, entry);
+		if (ret < 0)
+			return ret;
+		if (ret > 0)
+			return -ENOSPC;
+	}
+
+	return 0;
+}
 
 /**
  * Called when a device no longer needs its MSI interrupts. All
