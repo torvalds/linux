@@ -156,19 +156,22 @@ static int device_authorization(struct hdpvr_device *dev)
 	v4l2_info(&dev->v4l2_dev, "firmware version 0x%x dated %s\n",
 			  dev->usbc_buf[1], &dev->usbc_buf[2]);
 
-	if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION) {
+	switch (dev->usbc_buf[1]) {
+	case HDPVR_FIRMWARE_VERSION:
 		dev->flags &= ~HDPVR_FLAG_AC3_CAP;
-	} else if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION_AC3) {
+		break;
+	case HDPVR_FIRMWARE_VERSION_AC3:
+	case HDPVR_FIRMWARE_VERSION_0X12:
+	case HDPVR_FIRMWARE_VERSION_0X15:
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
-	} else if (dev->usbc_buf[1] > HDPVR_FIRMWARE_VERSION_AC3) {
-		v4l2_info(&dev->v4l2_dev, "untested firmware version 0x%x, "
-			  "the driver might not work\n", dev->usbc_buf[1]);
-		dev->flags |= HDPVR_FLAG_AC3_CAP;
-	} else {
-		v4l2_err(&dev->v4l2_dev, "unknown firmware version 0x%x\n",
-			dev->usbc_buf[1]);
-		ret = -EINVAL;
-		goto unlock;
+		break;
+	default:
+		v4l2_info(&dev->v4l2_dev, "untested firmware, the driver might"
+			  " not work.\n");
+		if (dev->usbc_buf[1] >= HDPVR_FIRMWARE_VERSION_AC3)
+			dev->flags |= HDPVR_FLAG_AC3_CAP;
+		else
+			dev->flags &= ~HDPVR_FLAG_AC3_CAP;
 	}
 
 	response = dev->usbc_buf+38;
