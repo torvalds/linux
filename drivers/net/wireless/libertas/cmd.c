@@ -1217,18 +1217,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = 0;
 		goto done;
 
-	case CMD_802_11_TPC_CFG:
-		cmdptr->command = cpu_to_le16(CMD_802_11_TPC_CFG);
-		cmdptr->size =
-		    cpu_to_le16(sizeof(struct cmd_ds_802_11_tpc_cfg) +
-				     sizeof(struct cmd_header));
-
-		memmove(&cmdptr->params.tpccfg,
-			pdata_buf, sizeof(struct cmd_ds_802_11_tpc_cfg));
-
-		ret = 0;
-		break;
-
 #ifdef CONFIG_LIBERTAS_MESH
 
 	case CMD_BT_ACCESS:
