@@ -32,7 +32,7 @@
 
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
-#include "cnic_if.h"
+#include "../cnic_if.h"
 #endif
 
 
