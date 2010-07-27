@@ -1822,8 +1822,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 
 /*
  * This is a special case for storages like raid5
- * we try to find stripe-aligned chunks for stripe-size requests
- * XXX should do so at least for multiples of stripe size as well
+ * we try to find stripe-aligned chunks for stripe-size-multiple requests
  */
 static noinline_for_stack
 void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
@@ -2092,8 +2091,8 @@ repeat:
 			ac->ac_groups_scanned++;
 			if (cr == 0)
 				ext4_mb_simple_scan_group(ac, &e4b);
-			else if (cr == 1 &&
-					ac->ac_g_ex.fe_len == sbi->s_stripe)
+			else if (cr == 1 && sbi->s_stripe &&
+					!(ac->ac_g_ex.fe_len % sbi->s_stripe))
 				ext4_mb_scan_aligned(ac, &e4b);
 			else
 				ext4_mb_complex_scan_group(ac, &e4b);
