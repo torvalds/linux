@@ -247,8 +247,8 @@ struct vmbus_channel {
 	/* Allocated memory for ring buffer */
 	void *RingBufferPages;
 	u32 RingBufferPageCount;
-	RING_BUFFER_INFO Outbound;	/* send to parent */
-	RING_BUFFER_INFO Inbound;	/* receive from parent */
+	struct hv_ring_buffer_info Outbound;	/* send to parent */
+	struct hv_ring_buffer_info Inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
 	struct workqueue_struct *ControlWQ;
 
