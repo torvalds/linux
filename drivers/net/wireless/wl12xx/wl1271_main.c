@@ -277,6 +277,67 @@ static struct platform_device wl1271_device = {
 
 static LIST_HEAD(wl_list);
 
+static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
+			     void *arg)
+{
+	struct net_device *dev = arg;
+	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
+	struct ieee80211_hw *hw;
+	struct wl1271 *wl;
+	struct wl1271 *wl_temp;
+	int ret = 0;
+
+	/* Check that this notification is for us. */
+	if (what != NETDEV_CHANGE)
+		return NOTIFY_DONE;
+
+	wdev = dev->ieee80211_ptr;
+	if (wdev == NULL)
+		return NOTIFY_DONE;
+
+	wiphy = wdev->wiphy;
+	if (wiphy == NULL)
+		return NOTIFY_DONE;
+
+	hw = wiphy_priv(wiphy);
+	if (hw == NULL)
+		return NOTIFY_DONE;
+
+	wl_temp = hw->priv;
+	list_for_each_entry(wl, &wl_list, list) {
+		if (wl == wl_temp)
+			break;
+	}
+	if (wl != wl_temp)
+		return NOTIFY_DONE;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	if ((dev->operstate == IF_OPER_UP) &&
+	    !test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags)) {
+		wl1271_cmd_set_sta_state(wl);
+		wl1271_info("Association completed.");
+	}
+
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return NOTIFY_OK;
+}
+
 static void wl1271_conf_init(struct wl1271 *wl)
 {
 
@@ -813,6 +874,10 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	return NETDEV_TX_OK;
 }
+
+static struct notifier_block wl1271_dev_notifier = {
+	.notifier_call = wl1271_dev_notify,
+};
 
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
@@ -1783,6 +1848,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		} else {
 			/* use defaults when not associated */
+			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
 
@@ -2307,6 +2373,8 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	wl->mac80211_registered = true;
 
+	register_netdevice_notifier(&wl1271_dev_notifier);
+
 	wl1271_notice("loaded");
 
 	return 0;
@@ -2315,6 +2383,7 @@ EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
 void wl1271_unregister_hw(struct wl1271 *wl)
 {
+	unregister_netdevice_notifier(&wl1271_dev_notifier);
 	ieee80211_unregister_hw(wl->hw);
 	wl->mac80211_registered = false;
 

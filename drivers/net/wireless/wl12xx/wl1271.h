@@ -350,6 +350,7 @@ struct wl1271 {
 #define WL1271_FLAG_IDLE              (10)
 #define WL1271_FLAG_IDLE_REQUESTED    (11)
 #define WL1271_FLAG_PSPOLL_FAILURE    (12)
+#define WL1271_FLAG_STA_STATE_SENT    (13)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
