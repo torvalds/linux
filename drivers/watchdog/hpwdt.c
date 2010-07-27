@@ -17,14 +17,11 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/nmi.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/kdebug.h>
 #include <linux/moduleparam.h>
-#include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/types.h>
@@ -32,14 +29,36 @@
 #include <linux/watchdog.h>
 #include <linux/dmi.h>
 #include <linux/spinlock.h>
+#include <linux/nmi.h>
+#include <linux/kdebug.h>
+#include <linux/notifier.h>
 #include <asm/cacheflush.h>
+
+#define HPWDT_VERSION			"1.1.1"
+#define DEFAULT_MARGIN			30
+
+static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
+static unsigned int reload;			/* the computed soft_margin */
+static int nowayout = WATCHDOG_NOWAYOUT;
+static char expect_release;
+static unsigned long hpwdt_is_open;
+
+static void __iomem *pci_mem_addr;		/* the PCI-memory address */
+static unsigned long __iomem *hpwdt_timer_reg;
+static unsigned long __iomem *hpwdt_timer_con;
+
+static struct pci_device_id hpwdt_devices[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },
+	{0},			/* terminate list */
+};
+MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
 #define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
 #define CRU_BIOS_SIGNATURE_VALUE	0x55524324
 #define PCI_BIOS32_PARAGRAPH_LEN	16
 #define PCI_ROM_BASE1			0x000F0000
 #define ROM_SIZE			0x10000
-#define HPWDT_VERSION			"1.1.1"
 
 struct bios32_service_dir {
 	u32 signature;
@@ -104,32 +123,12 @@ struct cmn_registers {
 	u32 reflags;
 }  __attribute__((packed));
 
-#define DEFAULT_MARGIN	30
-static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
-static unsigned int reload;			/* the computed soft_margin */
-static int nowayout = WATCHDOG_NOWAYOUT;
-static char expect_release;
-static unsigned long hpwdt_is_open;
-static unsigned int allow_kdump;
 static unsigned int hpwdt_nmi_sourcing;
+static unsigned int allow_kdump;
 static unsigned int priority;		/* hpwdt at end of die_notify list */
-
-static void __iomem *pci_mem_addr;		/* the PCI-memory address */
-static unsigned long __iomem *hpwdt_timer_reg;
-static unsigned long __iomem *hpwdt_timer_con;
-
 static DEFINE_SPINLOCK(rom_lock);
-
 static void *cru_rom_addr;
-
 static struct cmn_registers cmn_regs;
-
-static struct pci_device_id hpwdt_devices[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },
-	{0},			/* terminate list */
-};
-MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
 extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
 						unsigned long *pRomEntry);
