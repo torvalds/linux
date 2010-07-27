@@ -59,21 +59,12 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 {
 	struct cmd_ds_command *resp = (struct cmd_ds_command *) cmd_response;
 	int ret = 0;
-	unsigned long flags;
 	uint16_t respcmd = le16_to_cpu(resp->command);
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	switch (respcmd) {
 	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	case CMD_RET(CMD_FWT_ACCESS):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->callback_arg)
-			memcpy((void *)priv->cur_cmd->callback_arg, &resp->params.fwt,
-			       sizeof(resp->params.fwt));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
 	default:

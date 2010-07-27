@@ -1206,14 +1206,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
-#ifdef CONFIG_LIBERTAS_MESH
-
-	case CMD_FWT_ACCESS:
-		ret = lbs_cmd_fwt_access(cmdptr, cmd_action, pdata_buf);
-		break;
-
-#endif
-
 	case CMD_802_11_DEEP_SLEEP:
 		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
 		cmdptr->size = cpu_to_le16(sizeof(struct cmd_header));

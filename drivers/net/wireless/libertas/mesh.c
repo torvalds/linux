@@ -613,25 +613,31 @@ int lbs_mesh_bt_get_entry(struct lbs_private *priv, u32 id, u8 *addr1)
 	return ret;
 }
 
-int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
-			       u16 cmd_action, void *pdata_buf)
+/**
+ *  @brief Access the mesh forwarding table
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param cmd_action	The forwarding table action to perform
+ *  @param cmd		The pre-filled FWT_ACCESS command
+ *
+ *  @return 	   	0 on success and 'cmd' will be filled with the
+ *                        firmware's response
+ */
+int lbs_cmd_fwt_access(struct lbs_private *priv, u16 cmd_action,
+			struct cmd_ds_fwt_access *cmd)
 {
-	struct cmd_ds_fwt_access *fwt_access = &cmd->params.fwt;
+	int ret;
+
 	lbs_deb_enter_args(LBS_DEB_CMD, "action %d", cmd_action);
 
-	cmd->command = cpu_to_le16(CMD_FWT_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_fwt_access) +
-		sizeof(struct cmd_header));
-	cmd->result = 0;
+	cmd->hdr.command = cpu_to_le16(CMD_FWT_ACCESS);
+	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_fwt_access));
+	cmd->hdr.result = 0;
+	cmd->action = cpu_to_le16(cmd_action);
 
-	if (pdata_buf)
-		memcpy(fwt_access, pdata_buf, sizeof(*fwt_access));
-	else
-		memset(fwt_access, 0, sizeof(*fwt_access));
+	ret = lbs_cmd_with_response(priv, CMD_FWT_ACCESS, cmd);
 
-	fwt_access->action = cpu_to_le16(cmd_action);
-
-	lbs_deb_leave(LBS_DEB_CMD);
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return 0;
 }
 
