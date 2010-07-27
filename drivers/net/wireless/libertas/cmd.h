@@ -139,4 +139,8 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 			    struct regulatory_request *request,
 			    struct ieee80211_supported_band **bands);
 
+int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value);
+
+int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value);
+
 #endif /* _LBS_CMD_H */

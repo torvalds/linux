@@ -64,7 +64,6 @@ struct lbs_private {
 	u32 mac_offset;
 	u32 bbp_offset;
 	u32 rf_offset;
-	struct lbs_offset_value offsetvalue;
 
 	/* Power management */
 	u16 psmode;

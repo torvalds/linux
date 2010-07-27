@@ -567,24 +567,15 @@ struct cmd_ds_802_11_snmp_mib {
 	u8 value[128];
 } __packed;
 
-struct cmd_ds_mac_reg_access {
-	__le16 action;
-	__le16 offset;
-	__le32 value;
-} __packed;
+struct cmd_ds_reg_access {
+	struct cmd_header hdr;
 
-struct cmd_ds_bbp_reg_access {
 	__le16 action;
 	__le16 offset;
-	u8 value;
-	u8 reserved[3];
-} __packed;
-
-struct cmd_ds_rf_reg_access {
-	__le16 action;
-	__le16 offset;
-	u8 value;
-	u8 reserved[3];
+	union {
+		u8 bbp_rf;  /* for BBP and RF registers */
+		__le32 mac; /* for MAC registers */
+	} value;
 } __packed;
 
 struct cmd_ds_802_11_radio_control {
@@ -968,9 +959,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_mac_reg_access macreg;
-		struct cmd_ds_bbp_reg_access bbpreg;
-		struct cmd_ds_rf_reg_access rfreg;
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 	} params;

@@ -54,48 +54,6 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
-static int lbs_ret_reg_access(struct lbs_private *priv,
-			       u16 type, struct cmd_ds_command *resp)
-{
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	switch (type) {
-	case CMD_RET(CMD_MAC_REG_ACCESS):
-		{
-			struct cmd_ds_mac_reg_access *reg = &resp->params.macreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = le32_to_cpu(reg->value);
-			break;
-		}
-
-	case CMD_RET(CMD_BBP_REG_ACCESS):
-		{
-			struct cmd_ds_bbp_reg_access *reg = &resp->params.bbpreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = reg->value;
-			break;
-		}
-
-	case CMD_RET(CMD_RF_REG_ACCESS):
-		{
-			struct cmd_ds_rf_reg_access *reg = &resp->params.rfreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = reg->value;
-			break;
-		}
-
-	default:
-		ret = -1;
-	}
-
-	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return ret;
-}
 static inline int handle_cmd_response(struct lbs_private *priv,
 				      struct cmd_header *cmd_response)
 {
@@ -107,12 +65,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	switch (respcmd) {
-	case CMD_RET(CMD_MAC_REG_ACCESS):
-	case CMD_RET(CMD_BBP_REG_ACCESS):
-	case CMD_RET(CMD_RF_REG_ACCESS):
-		ret = lbs_ret_reg_access(priv, respcmd, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;
 

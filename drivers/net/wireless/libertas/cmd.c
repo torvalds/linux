@@ -848,78 +848,86 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 	return ret;
 }
 
-static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
-			       u8 cmd_action, void *pdata_buf)
+/**
+ *  @brief Read a MAC, Baseband, or RF register
+ *
+ *  @param priv		pointer to struct lbs_private
+ *  @param cmd		register command, one of CMD_MAC_REG_ACCESS,
+ *                        CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
+ *  @param offset       byte offset of the register to get
+ *  @param value        on success, the value of the register at 'offset'
+ *
+ *  @return		0 on success, error code on failure
+*/
+int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 {
-	struct lbs_offset_value *offval;
+	struct cmd_ds_reg_access cmd;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	offval = (struct lbs_offset_value *)pdata_buf;
+	BUG_ON(value == NULL);
 
-	switch (le16_to_cpu(cmdptr->command)) {
-	case CMD_MAC_REG_ACCESS:
-		{
-			struct cmd_ds_mac_reg_access *macreg;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
 
-			cmdptr->size =
-			    cpu_to_le16(sizeof (struct cmd_ds_mac_reg_access)
-					+ sizeof(struct cmd_header));
-			macreg =
-			    (struct cmd_ds_mac_reg_access *)&cmdptr->params.
-			    macreg;
-
-			macreg->action = cpu_to_le16(cmd_action);
-			macreg->offset = cpu_to_le16((u16) offval->offset);
-			macreg->value = cpu_to_le32(offval->value);
-
-			break;
-		}
-
-	case CMD_BBP_REG_ACCESS:
-		{
-			struct cmd_ds_bbp_reg_access *bbpreg;
-
-			cmdptr->size =
-			    cpu_to_le16(sizeof
-					     (struct cmd_ds_bbp_reg_access)
-					     + sizeof(struct cmd_header));
-			bbpreg =
-			    (struct cmd_ds_bbp_reg_access *)&cmdptr->params.
-			    bbpreg;
-
-			bbpreg->action = cpu_to_le16(cmd_action);
-			bbpreg->offset = cpu_to_le16((u16) offval->offset);
-			bbpreg->value = (u8) offval->value;
-
-			break;
-		}
-
-	case CMD_RF_REG_ACCESS:
-		{
-			struct cmd_ds_rf_reg_access *rfreg;
-
-			cmdptr->size =
-			    cpu_to_le16(sizeof
-					     (struct cmd_ds_rf_reg_access) +
-					     sizeof(struct cmd_header));
-			rfreg =
-			    (struct cmd_ds_rf_reg_access *)&cmdptr->params.
-			    rfreg;
-
-			rfreg->action = cpu_to_le16(cmd_action);
-			rfreg->offset = cpu_to_le16((u16) offval->offset);
-			rfreg->value = (u8) offval->value;
-
-			break;
-		}
-
-	default:
-		break;
+	if (reg != CMD_MAC_REG_ACCESS &&
+	    reg != CMD_BBP_REG_ACCESS &&
+	    reg != CMD_RF_REG_ACCESS) {
+		ret = -EINVAL;
+		goto out;
 	}
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	ret = lbs_cmd_with_response(priv, reg, &cmd);
+	if (ret) {
+		if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
+			*value = cmd.value.bbp_rf;
+		else if (reg == CMD_MAC_REG_ACCESS)
+			*value = le32_to_cpu(cmd.value.mac);
+	}
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+/**
+ *  @brief Write a MAC, Baseband, or RF register
+ *
+ *  @param priv		pointer to struct lbs_private
+ *  @param cmd		register command, one of CMD_MAC_REG_ACCESS,
+ *                        CMD_BBP_REG_ACCESS, or CMD_RF_REG_ACCESS
+ *  @param offset       byte offset of the register to set
+ *  @param value        the value to write to the register at 'offset'
+ *
+ *  @return		0 on success, error code on failure
+*/
+int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value)
+{
+	struct cmd_ds_reg_access cmd;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+
+	if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
+		cmd.value.bbp_rf = (u8) (value & 0xFF);
+	else if (reg == CMD_MAC_REG_ACCESS)
+		cmd.value.mac = cpu_to_le32(value);
+	else {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = lbs_cmd_with_response(priv, reg, &cmd);
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 static void lbs_queue_cmd(struct lbs_private *priv,
@@ -1196,12 +1204,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	switch (cmd_no) {
 	case CMD_802_11_PS_MODE:
 		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
-		break;
-
-	case CMD_MAC_REG_ACCESS:
-	case CMD_BBP_REG_ACCESS:
-	case CMD_RF_REG_ACCESS:
-		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 #ifdef CONFIG_LIBERTAS_MESH
