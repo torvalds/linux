@@ -165,10 +165,11 @@ struct padata_instance {
 #define	PADATA_INVALID	4
 };
 
-extern struct padata_instance *padata_alloc(struct workqueue_struct *wq);
-extern struct padata_instance *__padata_alloc(struct workqueue_struct *wq,
-					      const struct cpumask *pcpumask,
-					      const struct cpumask *cbcpumask);
+extern struct padata_instance *padata_alloc_possible(
+					struct workqueue_struct *wq);
+extern struct padata_instance *padata_alloc(struct workqueue_struct *wq,
+					    const struct cpumask *pcpumask,
+					    const struct cpumask *cbcpumask);
 extern void padata_free(struct padata_instance *pinst);
 extern int padata_do_parallel(struct padata_instance *pinst,
 			      struct padata_priv *padata, int cb_cpu);

@@ -457,7 +457,7 @@ static int __pcrypt_init_instance(struct pcrypt_instance *pcrypt,
 	if (!pcrypt->wq)
 		goto err;
 
-	pcrypt->pinst = padata_alloc(pcrypt->wq);
+	pcrypt->pinst = padata_alloc_possible(pcrypt->wq);
 	if (!pcrypt->pinst)
 		goto err_destroy_workqueue;
 
