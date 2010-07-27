@@ -238,7 +238,7 @@ struct mx2_camera_dev {
 
 	u32			csicr1;
 
-	void __iomem		*discard_buffer;
+	void			*discard_buffer;
 	dma_addr_t		discard_buffer_dma;
 	size_t			discard_size;
 };
