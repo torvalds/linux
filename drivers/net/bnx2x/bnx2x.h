@@ -20,6 +20,10 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
+#define DRV_MODULE_VERSION      "1.52.53-1"
+#define DRV_MODULE_RELDATE      "2010/18/04"
+#define BNX2X_BC_VER            0x040200
+
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN			1
 #endif
@@ -1133,6 +1137,10 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command);
 void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
 void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
 			       u32 addr, u32 len);
+void bnx2x_calc_fc_adv(struct bnx2x *bp);
+int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
+		  u32 data_hi, u32 data_lo, int common);
+void bnx2x_update_coalesce(struct bnx2x *bp);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
@@ -1383,5 +1391,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 BNX2X_EXTERN int load_count[3]; /* 0-common, 1-port0, 2-port1 */
 
 /* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
+
+extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
 
 #endif /* bnx2x.h */
