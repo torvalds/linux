@@ -433,7 +433,7 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 
 static int if_usb_reset_device(struct if_usb_card *cardp)
 {
-	struct cmd_ds_command *cmd = cardp->ep_out_buf + 4;
+	struct cmd_header *cmd = cardp->ep_out_buf + 4;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_USB);
@@ -441,7 +441,7 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	*(__le32 *)cardp->ep_out_buf = cpu_to_le32(CMD_TYPE_REQUEST);
 
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_header));
+	cmd->size = cpu_to_le16(sizeof(cmd));
 	cmd->result = cpu_to_le16(0);
 	cmd->seqnum = cpu_to_le16(0x5a5a);
 	usb_tx_block(cardp, cardp->ep_out_buf, 4 + sizeof(struct cmd_header));

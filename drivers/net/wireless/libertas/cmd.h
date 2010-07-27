@@ -94,10 +94,6 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 				struct sleep_params *sp);
 
-void lbs_ps_sleep(struct lbs_private *priv, int wait_option);
-
-void lbs_ps_wakeup(struct lbs_private *priv, int wait_option);
-
 void lbs_ps_confirm_sleep(struct lbs_private *priv);
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
@@ -142,5 +138,7 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value);
 
 int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value);
+
+int lbs_set_ps_mode(struct lbs_private *priv, u16 cmd_action, bool block);
 
 #endif /* _LBS_CMD_H */

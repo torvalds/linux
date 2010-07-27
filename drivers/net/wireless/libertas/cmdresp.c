@@ -49,7 +49,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	if (priv->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
 		lbs_deb_cmd("disconnected, so exit PS mode\n");
-		lbs_ps_wakeup(priv, 0);
+		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, false);
 	}
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
@@ -132,9 +132,9 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			 * lbs_execute_next_command().
 			 */
 			if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR &&
-			    action == CMD_SUBCMD_ENTER_PS)
+			    action == PS_MODE_ACTION_ENTER_PS)
 				priv->psmode = LBS802_11POWERMODECAM;
-		} else if (action == CMD_SUBCMD_ENTER_PS) {
+		} else if (action == PS_MODE_ACTION_ENTER_PS) {
 			priv->needtowakeup = 0;
 			priv->psstate = PS_STATE_AWAKE;
 
@@ -149,11 +149,12 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 
 				spin_unlock_irqrestore(&priv->driver_lock, flags);
 				mutex_unlock(&priv->lock);
-				lbs_ps_wakeup(priv, 0);
+				lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS,
+						false);
 				mutex_lock(&priv->lock);
 				spin_lock_irqsave(&priv->driver_lock, flags);
 			}
-		} else if (action == CMD_SUBCMD_EXIT_PS) {
+		} else if (action == PS_MODE_ACTION_EXIT_PS) {
 			priv->needtowakeup = 0;
 			priv->psstate = PS_STATE_FULL_POWER;
 			lbs_deb_host("CMD_RESP: EXIT_PS command response\n");
@@ -291,7 +292,7 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 			 * in lbs_ps_wakeup()
 			 */
 			lbs_deb_cmd("waking up ...\n");
-			lbs_ps_wakeup(priv, 0);
+			lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, false);
 		}
 		break;
 

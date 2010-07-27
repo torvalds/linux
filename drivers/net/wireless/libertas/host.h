@@ -94,11 +94,9 @@
 #define CMD_802_11_BEACON_CTRL                  0x00b0
 
 /* For the IEEE Power Save */
-#define CMD_SUBCMD_ENTER_PS                     0x0030
-#define CMD_SUBCMD_EXIT_PS                      0x0031
-#define CMD_SUBCMD_SLEEP_CONFIRMED              0x0034
-#define CMD_SUBCMD_FULL_POWERDOWN               0x0035
-#define CMD_SUBCMD_FULL_POWERUP                 0x0036
+#define PS_MODE_ACTION_ENTER_PS                 0x0030
+#define PS_MODE_ACTION_EXIT_PS                  0x0031
+#define PS_MODE_ACTION_SLEEP_CONFIRMED          0x0034
 
 #define CMD_ENABLE_RSN                          0x0001
 #define CMD_DISABLE_RSN                         0x0000
@@ -162,11 +160,6 @@
 #define CMD_ACT_SET_TX_AUTO                     0x0000
 #define CMD_ACT_SET_TX_FIX_RATE                 0x0001
 #define CMD_ACT_GET_TX_RATE                     0x0002
-
-/* Define action or option for CMD_802_11_PS_MODE */
-#define CMD_TYPE_CAM                            0x0000
-#define CMD_TYPE_MAX_PSP                        0x0001
-#define CMD_TYPE_FAST_PSP                       0x0002
 
 /* Options for CMD_802_11_FW_WAKE_METHOD */
 #define CMD_WAKE_METHOD_UNCHANGED               0x0000
@@ -683,11 +676,35 @@ struct cmd_ds_802_11_fw_wake_method {
 } __packed;
 
 struct cmd_ds_802_11_ps_mode {
+	struct cmd_header hdr;
+
 	__le16 action;
+
+	/* Interval for keepalive in PS mode:
+	 * 0x0000 = don't change
+	 * 0x001E = firmware default
+	 * 0xFFFF = disable
+	 */
 	__le16 nullpktinterval;
+
+	/* Number of DTIM intervals to wake up for:
+	 * 0 = don't change
+	 * 1 = firmware default
+	 * 5 = max
+	 */
 	__le16 multipledtim;
+
 	__le16 reserved;
 	__le16 locallisteninterval;
+
+	/* AdHoc awake period (FW v9+ only):
+	 * 0 = don't change
+	 * 1 = always awake (IEEE standard behavior)
+	 * 2 - 31 = sleep for (n - 1) periods and awake for 1 period
+	 * 32 - 254 = invalid
+	 * 255 = sleep at each ATIM
+	 */
+	__le16 adhoc_awake_period;
 } __packed;
 
 struct cmd_confirm_sleep {
@@ -952,17 +969,4 @@ struct cmd_ds_mesh_access {
 
 /* Number of stats counters returned by the firmware */
 #define MESH_STATS_NUM 8
-
-struct cmd_ds_command {
-	/* command header */
-	__le16 command;
-	__le16 size;
-	__le16 seqnum;
-	__le16 result;
-
-	/* command Body */
-	union {
-		struct cmd_ds_802_11_ps_mode psmode;
-	} params;
-} __packed;
 #endif

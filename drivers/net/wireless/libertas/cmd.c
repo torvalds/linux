@@ -230,42 +230,49 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 }
 EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);
 
-static int lbs_cmd_802_11_ps_mode(struct cmd_ds_command *cmd,
-				   u16 cmd_action)
+/**
+ *  @brief Sets the Power Save mode
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param cmd_action	The Power Save operation (PS_MODE_ACTION_ENTER_PS or
+ *                         PS_MODE_ACTION_EXIT_PS)
+ *  @param block	Whether to block on a response or not
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_ps_mode(struct lbs_private *priv, u16 cmd_action, bool block)
 {
-	struct cmd_ds_802_11_ps_mode *psm = &cmd->params.psmode;
+	struct cmd_ds_802_11_ps_mode cmd;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_PS_MODE);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_ps_mode) +
-				sizeof(struct cmd_header));
-	psm->action = cpu_to_le16(cmd_action);
-	psm->multipledtim = 0;
-	switch (cmd_action) {
-	case CMD_SUBCMD_ENTER_PS:
-		lbs_deb_cmd("PS command:" "SubCode- Enter PS\n");
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(cmd_action);
 
-		psm->locallisteninterval = 0;
-		psm->nullpktinterval = 0;
-		psm->multipledtim =
-		    cpu_to_le16(MRVDRV_DEFAULT_MULTIPLE_DTIM);
-		break;
-
-	case CMD_SUBCMD_EXIT_PS:
-		lbs_deb_cmd("PS command:" "SubCode- Exit PS\n");
-		break;
-
-	case CMD_SUBCMD_SLEEP_CONFIRMED:
-		lbs_deb_cmd("PS command: SubCode- sleep confirm\n");
-		break;
-
-	default:
-		break;
+	if (cmd_action == PS_MODE_ACTION_ENTER_PS) {
+		lbs_deb_cmd("PS_MODE: action ENTER_PS\n");
+		cmd.multipledtim = cpu_to_le16(1);  /* Default DTIM multiple */
+	} else if (cmd_action == PS_MODE_ACTION_EXIT_PS) {
+		lbs_deb_cmd("PS_MODE: action EXIT_PS\n");
+	} else {
+		/* We don't handle CONFIRM_SLEEP here because it needs to
+		 * be fastpathed to the firmware.
+		 */
+		lbs_deb_cmd("PS_MODE: unknown action 0x%X\n", cmd_action);
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	if (block)
+		ret = lbs_cmd_with_response(priv, CMD_802_11_PS_MODE, &cmd);
+	else
+		lbs_cmd_async(priv, CMD_802_11_PS_MODE, &cmd.hdr, sizeof (cmd));
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
@@ -950,16 +957,15 @@ static void lbs_queue_cmd(struct lbs_private *priv,
 
 	/* Exit_PS command needs to be queued in the header always. */
 	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_PS_MODE) {
-		struct cmd_ds_802_11_ps_mode *psm = (void *) &cmdnode->cmdbuf[1];
+		struct cmd_ds_802_11_ps_mode *psm = (void *) &cmdnode->cmdbuf;
 
-		if (psm->action == cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
+		if (psm->action == cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 			if (priv->psstate != PS_STATE_FULL_POWER)
 				addtail = 0;
 		}
 	}
 
-	if (le16_to_cpu(cmdnode->cmdbuf->command) ==
-			CMD_802_11_WAKEUP_CONFIRM)
+	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_WAKEUP_CONFIRM)
 		addtail = 0;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -1154,7 +1160,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 {
 	int ret = 0;
 	struct cmd_ctrl_node *cmdnode;
-	struct cmd_ds_command *cmdptr;
+	struct cmd_header *cmdptr;
 	unsigned long flags;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1190,7 +1196,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	cmdnode->callback = NULL;
 	cmdnode->callback_arg = (unsigned long)pdata_buf;
 
-	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
+	cmdptr = (struct cmd_header *)cmdnode->cmdbuf;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", cmd_no);
 
@@ -1202,10 +1208,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	cmdptr->result = 0;
 
 	switch (cmd_no) {
-	case CMD_802_11_PS_MODE:
-		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
-		break;
-
 	case CMD_802_11_DEEP_SLEEP:
 		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
 		cmdptr->size = cpu_to_le16(sizeof(struct cmd_header));
@@ -1426,10 +1428,10 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			/*
 			 * 1. Non-PS command:
 			 * Queue it. set needtowakeup to TRUE if current state
-			 * is SLEEP, otherwise call lbs_ps_wakeup to send Exit_PS.
-			 * 2. PS command but not Exit_PS:
+			 * is SLEEP, otherwise call send EXIT_PS.
+			 * 2. PS command but not EXIT_PS:
 			 * Ignore it.
-			 * 3. PS command Exit_PS:
+			 * 3. PS command EXIT_PS:
 			 * Set needtowakeup to TRUE if current state is SLEEP,
 			 * otherwise send this command down to firmware
 			 * immediately.
@@ -1443,8 +1445,11 @@ int lbs_execute_next_command(struct lbs_private *priv)
 					/* w/ new scheme, it will not reach here.
 					   since it is blocked in main_thread. */
 					priv->needtowakeup = 1;
-				} else
-					lbs_ps_wakeup(priv, 0);
+				} else {
+					lbs_set_ps_mode(priv,
+							PS_MODE_ACTION_EXIT_PS,
+							false);
+				}
 
 				ret = 0;
 				goto done;
@@ -1459,7 +1464,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				       "EXEC_NEXT_CMD: PS cmd, action 0x%02x\n",
 				       psm->action);
 				if (psm->action !=
-				    cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
+				    cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
 					list_del(&cmdnode->list);
@@ -1519,13 +1524,16 @@ int lbs_execute_next_command(struct lbs_private *priv)
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: WPA enabled and GTK_SET"
 					       " go back to PS_SLEEP");
-					lbs_ps_sleep(priv, 0);
+					lbs_set_ps_mode(priv,
+							PS_MODE_ACTION_ENTER_PS,
+							false);
 				}
 			} else {
 				lbs_deb_host(
 				       "EXEC_NEXT_CMD: cmdpendingq empty, "
 				       "go back to PS_SLEEP");
-				lbs_ps_sleep(priv, 0);
+				lbs_set_ps_mode(priv, PS_MODE_ACTION_ENTER_PS,
+						false);
 			}
 		}
 #endif
@@ -1570,43 +1578,6 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 out:
-	lbs_deb_leave(LBS_DEB_HOST);
-}
-
-void lbs_ps_sleep(struct lbs_private *priv, int wait_option)
-{
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	/*
-	 * PS is currently supported only in Infrastructure mode
-	 * Remove this check if it is to be supported in IBSS mode also
-	 */
-
-	lbs_prepare_and_send_command(priv, CMD_802_11_PS_MODE,
-			      CMD_SUBCMD_ENTER_PS, wait_option, 0, NULL);
-
-	lbs_deb_leave(LBS_DEB_HOST);
-}
-
-/**
- *  @brief This function sends Exit_PS command to firmware.
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param wait_option	wait response or not
- *  @return 	   	n/a
- */
-void lbs_ps_wakeup(struct lbs_private *priv, int wait_option)
-{
-	__le32 Localpsmode;
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	Localpsmode = cpu_to_le32(LBS802_11POWERMODECAM);
-
-	lbs_prepare_and_send_command(priv, CMD_802_11_PS_MODE,
-			      CMD_SUBCMD_EXIT_PS,
-			      wait_option, 0, &Localpsmode);
-
 	lbs_deb_leave(LBS_DEB_HOST);
 }
 

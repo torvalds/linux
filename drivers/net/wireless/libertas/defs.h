@@ -172,11 +172,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define MRVDRV_MAX_BSS_DESCRIPTS		16
 #define MRVDRV_MAX_REGION_CODE			6
 
-#define MRVDRV_IGNORE_MULTIPLE_DTIM		0xfffe
-#define MRVDRV_MIN_MULTIPLE_DTIM		1
-#define MRVDRV_MAX_MULTIPLE_DTIM		5
-#define MRVDRV_DEFAULT_MULTIPLE_DTIM		1
-
 #define MRVDRV_DEFAULT_LISTEN_INTERVAL		10
 
 #define	MRVDRV_CHANNELS_PER_SCAN		4

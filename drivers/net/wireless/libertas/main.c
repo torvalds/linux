@@ -897,7 +897,7 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
-		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
+		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, true);
 	}
 
 	if (priv->is_deep_sleep) {
@@ -1060,7 +1060,7 @@ static int __init lbs_init_module(void)
 	memset(&confirm_sleep, 0, sizeof(confirm_sleep));
 	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
 	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
-	confirm_sleep.action = cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
+	confirm_sleep.action = cpu_to_le16(PS_MODE_ACTION_SLEEP_CONFIRMED);
 	lbs_debugfs_init();
 	lbs_deb_leave(LBS_DEB_MAIN);
 	return 0;
