@@ -26,6 +26,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/types.h>
+#include <linux/i2c/pcf857x.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -375,15 +376,65 @@ static struct gpio_led_platform_data balloon3_gpio_led_info = {
 
 static struct platform_device balloon3_leds = {
 	.name	= "leds-gpio",
-	.id	= -1,
+	.id	= 0,
 	.dev	= {
 		.platform_data	= &balloon3_gpio_led_info,
+	}
+};
+
+struct gpio_led balloon3_pcf_gpio_leds[] = {
+	{
+		.name			= "balloon3:green:led0",
+		.gpio			= BALLOON3_PCF_GPIO_LED0,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:green:led1",
+		.gpio			= BALLOON3_PCF_GPIO_LED1,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:orange:led2",
+		.gpio			= BALLOON3_PCF_GPIO_LED2,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:orange:led3",
+		.gpio			= BALLOON3_PCF_GPIO_LED3,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:orange:led4",
+		.gpio			= BALLOON3_PCF_GPIO_LED4,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:orange:led5",
+		.gpio			= BALLOON3_PCF_GPIO_LED5,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:red:led6",
+		.gpio			= BALLOON3_PCF_GPIO_LED6,
+		.active_low		= 1,
+	}, {
+		.name			= "balloon3:red:led7",
+		.gpio			= BALLOON3_PCF_GPIO_LED7,
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data balloon3_pcf_gpio_led_info = {
+	.leds		= balloon3_pcf_gpio_leds,
+	.num_leds	= ARRAY_SIZE(balloon3_pcf_gpio_leds),
+};
+
+static struct platform_device balloon3_pcf_leds = {
+	.name	= "leds-gpio",
+	.id	= 1,
+	.dev	= {
+		.platform_data	= &balloon3_pcf_gpio_led_info,
 	}
 };
 
 static void __init balloon3_leds_init(void)
 {
 	platform_device_register(&balloon3_leds);
+	platform_device_register(&balloon3_pcf_leds);
 }
 #else
 static inline void balloon3_leds_init(void) {}
@@ -451,6 +502,34 @@ static void __init balloon3_init_irq(void)
 }
 
 /******************************************************************************
+ * GPIO expander
+ ******************************************************************************/
+#if defined(CONFIG_GPIO_PCF857X) || defined(CONFIG_GPIO_PCF857X_MODULE)
+static struct pcf857x_platform_data balloon3_pcf857x_pdata = {
+	.gpio_base	= BALLOON3_PCF_GPIO_BASE,
+	.n_latch	= 0,
+	.setup		= NULL,
+	.teardown	= NULL,
+	.context	= NULL,
+};
+
+static struct i2c_board_info __initdata balloon3_i2c_devs[] = {
+	{
+		I2C_BOARD_INFO("pcf8574a", 0x38),
+		.platform_data	= &balloon3_pcf857x_pdata,
+	},
+};
+
+static void __init balloon3_i2c_init(void)
+{
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(balloon3_i2c_devs));
+}
+#else
+static inline void balloon3_i2c_init(void) {}
+#endif
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void __init balloon3_init(void)
@@ -463,8 +542,7 @@ static void __init balloon3_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	pxa_set_i2c_info(NULL);
-
+	balloon3_i2c_init();
 	balloon3_irda_init();
 	balloon3_lcd_init();
 	balloon3_leds_init();
