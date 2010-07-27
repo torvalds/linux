@@ -459,10 +459,6 @@ const u32 r6xx_default_state[] =
 	0x00000000,
 
 	0xc0016900,
-	0x00000206, /* PA_CL_VTE_CNTL */
-	0x00000000,
-
-	0xc0016900,
 	0x00000207,
 	0x00000000, /* PA_CL_VS_OUT_CNTL */
 
@@ -476,10 +472,6 @@ const u32 r6xx_default_state[] =
 	0x3f800000,
 	0x3f800000,
 	0x3f800000,
-
-	0xc0016900,
-	0x00000205,
-	0x00000004, /* PA_SU_SC_MODE_CNTL */
 
 	0xc0016900,
 	0x00000280,
@@ -1118,10 +1110,6 @@ const u32 r7xx_default_state[] =
 	0x00000000,
 
 	0xc0016900,
-	0x00000206,
-	0x00000000, /* PA_CL_VTE_CNTL */
-
-	0xc0016900,
 	0x00000207,
 	0x00000000, /* PA_CL_VS_OUT_CNTL */
 
@@ -1135,10 +1123,6 @@ const u32 r7xx_default_state[] =
 	0x3f800000,
 	0x3f800000,
 	0x3f800000,
-
-	0xc0016900,
-	0x00000205,
-	0x00000004, /* PA_SU_SC_MODE_CNTL */
 
 	0xc0016900,
 	0x00000280,
