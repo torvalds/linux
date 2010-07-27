@@ -265,7 +265,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_i2c, "pxa2xx-i2c.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_udc, "pxa27x-udc", NULL),
 	INIT_CLKREG(&clk_pxa3xx_usbh, "pxa27x-ohci", NULL),
-	INIT_CLKREG(&clk_pxa3xx_u2d, NULL, "U2DCLK"),
+	INIT_CLKREG(&clk_pxa3xx_u2d, "pxa3xx-u2d", NULL),
 	INIT_CLKREG(&clk_pxa3xx_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp1, "pxa27x-ssp.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp2, "pxa27x-ssp.1", NULL),

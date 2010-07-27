@@ -643,6 +643,7 @@ config CPU_PXA300
 config CPU_PXA310
 	bool
 	select CPU_PXA300
+	select PXA310_ULPI if USB_ULPI
 	help
 	  PXA310 (codename Monahans-LV)
 
@@ -696,6 +697,9 @@ config PXA_HAVE_BOARD_IRQS
 	bool
 
 config PXA_HAVE_ISA_IRQS
+	bool
+
+config PXA310_ULPI
 	bool
 
 endif
