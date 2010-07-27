@@ -7878,7 +7878,7 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 {
 	int rc = 0;
 
-	switch (int_mode) {
+	switch (bp->int_mode) {
 	case INT_MODE_INTx:
 	case INT_MODE_MSI:
 		bp->num_queues = 1;
@@ -9951,7 +9951,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		multi_mode = ETH_RSS_MODE_DISABLED;
 	}
 	bp->multi_mode = multi_mode;
-
+	bp->int_mode = int_mode;
 
 	bp->dev->features |= NETIF_F_GRO;
 
@@ -9963,6 +9963,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		bp->flags |= TPA_ENABLE_FLAG;
 		bp->dev->features |= NETIF_F_LRO;
 	}
+	bp->disable_tpa = disable_tpa;
 
 	if (CHIP_IS_E1(bp))
 		bp->dropless_fc = 0;
@@ -11006,7 +11007,7 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 
 	/* TPA requires Rx CSUM offloading */
 	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
-		if (!disable_tpa) {
+		if (!bp->disable_tpa) {
 			if (!(dev->features & NETIF_F_LRO)) {
 				dev->features |= NETIF_F_LRO;
 				bp->flags |= TPA_ENABLE_FLAG;

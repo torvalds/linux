@@ -1006,6 +1006,8 @@ struct bnx2x {
 
 	int			multi_mode;
 	int			num_queues;
+	int			disable_tpa;
+	int			int_mode;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
