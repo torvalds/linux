@@ -260,7 +260,7 @@ static gid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
  *
  */
 
-struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
+static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
 {
 	struct dentry *dentry;
 
