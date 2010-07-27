@@ -2572,6 +2572,11 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 				    unsigned long cap)
 {
+	switch (cap) {
+	case IOMMU_CAP_CACHE_COHERENCY:
+		return 1;
+	}
+
 	return 0;
 }
 
