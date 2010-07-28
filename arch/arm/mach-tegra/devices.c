@@ -21,6 +21,8 @@
 
 #include <linux/resource.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/fsl_devices.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 
@@ -310,4 +312,97 @@ struct platform_device tegra_w1_device = {
 	.id            = -1,
 	.resource      = w1_resources,
 	.num_resources = ARRAY_SIZE(w1_resources),
+};
+
+static struct resource tegra_usb1_resources[] = {
+	[0] = {
+		.start	= TEGRA_USB_BASE,
+		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_USB,
+		.end	= INT_USB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource tegra_usb2_resources[] = {
+	[0] = {
+		.start	= TEGRA_USB2_BASE,
+		.end	= TEGRA_USB2_BASE + TEGRA_USB2_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_USB2,
+		.end	= INT_USB2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource tegra_usb3_resources[] = {
+	[0] = {
+		.start	= TEGRA_USB3_BASE,
+		.end	= TEGRA_USB3_BASE + TEGRA_USB3_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_USB3,
+		.end	= INT_USB3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 tegra_udc_dmamask = DMA_BIT_MASK(32);
+
+static struct fsl_usb2_platform_data tegra_udc_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_UTMI,
+};
+
+struct platform_device tegra_udc_device = {
+	.name	= "fsl-tegra-udc",
+	.id	= -1,
+	.dev	= {
+		.dma_mask	= &tegra_udc_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data	= &tegra_udc_pdata,
+	},
+	.resource = tegra_usb1_resources,
+	.num_resources = ARRAY_SIZE(tegra_usb1_resources),
+};
+
+static u64 tegra_ehci_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device tegra_ehci1_device = {
+	.name	= "tegra-ehci",
+	.id	= 0,
+	.dev	= {
+		.dma_mask	= &tegra_ehci_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource = tegra_usb1_resources,
+	.num_resources = ARRAY_SIZE(tegra_usb1_resources),
+};
+
+struct platform_device tegra_ehci2_device = {
+	.name	= "tegra-ehci",
+	.id	= 1,
+	.dev	= {
+		.dma_mask	= &tegra_ehci_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource = tegra_usb2_resources,
+	.num_resources = ARRAY_SIZE(tegra_usb2_resources),
+};
+
+struct platform_device tegra_ehci3_device = {
+	.name	= "tegra-ehci",
+	.id	= 2,
+	.dev	= {
+		.dma_mask	= &tegra_ehci_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource = tegra_usb3_resources,
+	.num_resources = ARRAY_SIZE(tegra_usb3_resources),
 };
