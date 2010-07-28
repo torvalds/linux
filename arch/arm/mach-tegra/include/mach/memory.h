@@ -24,5 +24,8 @@
 /* physical offset of RAM */
 #define PHYS_OFFSET		UL(0)
 
+#define NET_IP_ALIGN	0
+#define NET_SKB_PAD	L1_CACHE_BYTES
+
 #endif
 
