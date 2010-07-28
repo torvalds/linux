@@ -5,12 +5,10 @@
 
 #define __xg(x) ((volatile long *)(x))
 
-static inline void set_64bit(volatile unsigned long *ptr, unsigned long val)
+static inline void set_64bit(volatile u64 *ptr, u64 val)
 {
 	*ptr = val;
 }
-
-#define _set_64bit set_64bit
 
 extern void __xchg_wrong_size(void);
 extern void __cmpxchg_wrong_size(void);
