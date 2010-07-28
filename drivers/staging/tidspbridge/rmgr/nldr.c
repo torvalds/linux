@@ -399,11 +399,11 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 		*nldr_nodeobj = (struct nldr_nodeobject *)nldr_node_obj;
 	}
 	/* Cleanup on failure */
-	if (DSP_FAILED(status) && nldr_node_obj)
+	if (status && nldr_node_obj)
 		kfree(nldr_node_obj);
 
 	DBC_ENSURE((!status && *nldr_nodeobj)
-		   || (DSP_FAILED(status) && *nldr_nodeobj == NULL));
+		   || (status && *nldr_nodeobj == NULL));
 	return status;
 }
 
@@ -587,8 +587,7 @@ int nldr_create(struct nldr_object **nldr,
 		*nldr = NULL;
 	}
 	/* FIXME:Temp. Fix. Must be removed */
-	DBC_ENSURE((!status && *nldr)
-		   || (DSP_FAILED(status) && (*nldr == NULL)));
+	DBC_ENSURE((!status && *nldr) || (status && *nldr == NULL));
 	return status;
 }
 
@@ -1012,7 +1011,7 @@ static int add_ovly_node(struct dsp_uuid *uuid_obj,
 	status =
 	    dcd_get_object_def(nldr_obj->hdcd_mgr, uuid_obj, obj_type,
 			       &obj_def);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* If overlay node, add to the list */
@@ -1422,7 +1421,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 	 *  were loaded, and close the root library.
 	 *  (Persistent libraries are unloaded from the very top)
 	 */
-	if (DSP_FAILED(status)) {
+	if (status) {
 		if (phase != NLDR_EXECUTE) {
 			for (i = 0; i < nldr_node_obj->pers_libs; i++)
 				unload_lib(nldr_node_obj,
@@ -1593,7 +1592,7 @@ static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 			}
 		}
 	}
-	if (DSP_FAILED(status)) {
+	if (status) {
 		/* 'Deallocate' memory */
 		free_sects(nldr_obj, phase_sects, alloc_num);
 		free_sects(nldr_obj, other_sects_list, other_alloc);
@@ -1684,7 +1683,7 @@ static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 		rmm_addr_obj->segid = segid;
 		status =
 		    rmm_alloc(rmm, segid, word_size, align, dsp_address, false);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			dev_dbg(bridge, "%s: Unable allocate from segment %d\n",
 				__func__, segid);
 		}

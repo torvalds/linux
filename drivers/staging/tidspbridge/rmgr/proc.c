@@ -302,7 +302,7 @@ proc_attach(u32 processor_id,
 	if (!status)
 		status = dev_get_dev_type(hdev_obj, &dev_type);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* If we made it this far, create the Proceesor object: */
@@ -329,12 +329,12 @@ proc_attach(u32 processor_id,
 	if (!status) {
 		status = dev_get_bridge_context(hdev_obj,
 					     &p_proc_object->hbridge_context);
-		if (DSP_FAILED(status))
+		if (status)
 			kfree(p_proc_object);
 	} else
 		kfree(p_proc_object);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Create the Notification Object */
@@ -376,7 +376,7 @@ proc_attach(u32 processor_id,
 						  DSP_PROCESSORATTACH);
 		}
 	} else {
-		/* Don't leak memory if DSP_FAILED */
+		/* Don't leak memory if status is failed */
 		kfree(p_proc_object);
 	}
 func_end:
@@ -437,7 +437,7 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 
 	/* Create a Dummy PROC Object */
 	status = cfg_get_object((u32 *) &hmgr_obj, REG_MGR_OBJECT);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	p_proc_object = kzalloc(sizeof(struct proc_object), GFP_KERNEL);
@@ -451,13 +451,13 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 	if (!status)
 		status = dev_get_bridge_context(hdev_obj,
 					     &p_proc_object->hbridge_context);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	/* Stop the Device, put it into standby mode */
 	status = proc_stop(p_proc_object);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	/* Get the default executable for this board... */
@@ -953,7 +953,7 @@ int proc_get_dev_object(void *hprocessor,
 	}
 
 	DBC_ENSURE((!status && *device_obj != NULL) ||
-		   (DSP_FAILED(status) && *device_obj == NULL));
+		   (status && *device_obj == NULL));
 
 	return status;
 }
@@ -1103,12 +1103,12 @@ int proc_load(void *hprocessor, const s32 argc_index,
 		goto func_end;
 	}
 	status = proc_stop(hprocessor);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Place the board in the monitor state. */
 	status = proc_monitor(hprocessor);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Save ptr to  original argv[0]. */
@@ -1174,7 +1174,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			if (status == -EACCES)
 				status = 0;
 
-			if (DSP_FAILED(status)) {
+			if (status) {
 				status = -EPERM;
 			} else {
 				DBC_ASSERT(p_proc_object->psz_last_coff ==
@@ -1225,7 +1225,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 		status = cod_load_base(cod_mgr, argc_index, (char **)user_args,
 				       dev_brd_write_fxn,
 				       p_proc_object->hdev_obj, NULL);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			if (status == -EBADF) {
 				dev_dbg(bridge, "%s: Failure to Load the EXE\n",
 					__func__);
@@ -1302,12 +1302,12 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	}
 
 func_end:
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Processor failed to load\n", __func__);
 
 	DBC_ENSURE((!status
 		    && p_proc_object->proc_state == PROC_LOADED)
-		   || DSP_FAILED(status));
+		   || status);
 #ifdef OPT_LOAD_TIME_INSTRUMENTATION
 	do_gettimeofday(&tv2);
 	if (tv2.tv_usec < tv1.tv_usec) {
@@ -1391,7 +1391,7 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 	}
 	mutex_unlock(&proc_lock);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 func_end:
@@ -1454,7 +1454,7 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 			 * so if we're trying to deregister and ntfy_register
 			 * failed, we'll give the deh manager a shot.
 			 */
-			if ((event_mask == 0) && DSP_FAILED(status)) {
+			if ((event_mask == 0) && status) {
 				status =
 				    dev_get_deh_mgr(p_proc_object->hdev_obj,
 						    &hdeh_mgr);
@@ -1558,12 +1558,12 @@ int proc_start(void *hprocessor)
 	}
 
 	status = cod_get_entry(cod_mgr, &dw_dsp_addr);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	status = (*p_proc_object->intf_fxns->pfn_brd_start)
 	    (p_proc_object->hbridge_context, dw_dsp_addr);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	/* Call dev_create2 */
@@ -1598,7 +1598,7 @@ func_cont:
 
 func_end:
 	DBC_ENSURE((!status && p_proc_object->proc_state ==
-		    PROC_RUNNING) || DSP_FAILED(status));
+		    PROC_RUNNING) || status);
 	return status;
 }
 
@@ -1705,7 +1705,7 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	}
 
 	mutex_unlock(&proc_lock);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/*
@@ -1817,7 +1817,7 @@ static int proc_monitor(struct proc_object *proc_obj)
 	}
 
 	DBC_ENSURE((!status && brd_state == BRD_IDLE) ||
-		   DSP_FAILED(status));
+		   status);
 	return status;
 }
 

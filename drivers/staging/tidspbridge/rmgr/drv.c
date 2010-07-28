@@ -180,7 +180,7 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 	list_for_each_entry_safe(map_obj, temp_map, &ctxt->dmm_map_list, link) {
 		status = proc_un_map(ctxt->hprocessor,
 				     (void *)map_obj->dsp_addr, ctxt);
-		if (DSP_FAILED(status))
+		if (status)
 			pr_err("%s: proc_un_map failed!"
 			       " status = 0x%xn", __func__, status);
 	}
@@ -190,7 +190,7 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 		status = proc_un_reserve_memory(ctxt->hprocessor, (void *)
 						rsv_obj->dsp_reserved_addr,
 						ctxt);
-		if (DSP_FAILED(status))
+		if (status)
 			pr_err("%s: proc_un_reserve_memory failed!"
 			       " status = 0x%xn", __func__, status);
 	}
@@ -464,7 +464,7 @@ int drv_create(struct drv_object **drv_obj)
 		kfree(pdrv_object);
 	}
 
-	DBC_ENSURE(DSP_FAILED(status) || pdrv_object);
+	DBC_ENSURE(status || pdrv_object);
 	return status;
 }
 
@@ -767,7 +767,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 
 	DBC_ENSURE((!status && dev_node_strg != NULL &&
 		    !LST_IS_EMPTY(pdrv_object->dev_node_string)) ||
-		   (DSP_FAILED(status) && *dev_node_strg == 0));
+		   (status && *dev_node_strg == 0));
 
 	return status;
 }

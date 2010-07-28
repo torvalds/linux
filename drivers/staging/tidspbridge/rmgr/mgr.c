@@ -82,7 +82,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 		status = -ENOMEM;
 	}
 
-	DBC_ENSURE(DSP_FAILED(status) || pmgr_obj);
+	DBC_ENSURE(status || pmgr_obj);
 	return status;
 }
 
@@ -132,7 +132,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	*pu_num_nodes = 0;
 	/* Get The Manager Object from the Registry */
 	status = cfg_get_object((u32 *) &pmgr_obj, REG_MGR_OBJECT);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	DBC_ASSERT(pmgr_obj);
@@ -167,7 +167,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 
 func_cont:
 	DBC_ENSURE((!status && *pu_num_nodes > 0) ||
-		   (DSP_FAILED(status) && *pu_num_nodes == 0));
+		   (status && *pu_num_nodes == 0));
 
 	return status;
 }
@@ -216,11 +216,11 @@ int mgr_enum_processor_info(u32 processor_id,
 				processor_info->processor_type = DSPTYPE64;
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Get The Manager Object from the Registry */
-	if (DSP_FAILED(cfg_get_object((u32 *) &pmgr_obj, REG_MGR_OBJECT))) {
+	if (cfg_get_object((u32 *) &pmgr_obj, REG_MGR_OBJECT)) {
 		dev_dbg(bridge, "%s: Failed to get MGR Object\n", __func__);
 		goto func_end;
 	}
@@ -319,7 +319,7 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 		status = 0;
 	}
 	DBC_ENSURE((!status && *dcd_handle != (u32) NULL) ||
-		   (DSP_FAILED(status) && *dcd_handle == (u32) NULL));
+		   (status && *dcd_handle == (u32) NULL));
 
 	return status;
 }

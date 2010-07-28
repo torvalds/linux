@@ -56,7 +56,7 @@ u32 dsp_init(u32 *init_status)
 		goto func_cont;
 
 	status = drv_create(&drv_obj);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		api_exit();
 		goto func_cont;
 	}
@@ -68,7 +68,7 @@ u32 dsp_init(u32 *init_status)
 		/* Attempt to Start the Device */
 		status = dev_start_device((struct cfg_devnode *)
 					  device_node_string);
-		if (DSP_FAILED(status))
+		if (status)
 			(void)drv_release_resources
 			    ((u32) device_node_string, drv_obj);
 	} else {
@@ -77,7 +77,7 @@ u32 dsp_init(u32 *init_status)
 	}
 
 	/* Unwind whatever was loaded */
-	if (DSP_FAILED(status)) {
+	if (status) {
 		/* irrespective of the status of dev_remove_device we conitinue
 		 * unloading. Get the Driver Object iterate through and remove.
 		 * Reset the status to E_FAIL to avoid going through
@@ -106,7 +106,7 @@ func_cont:
 		dev_dbg(bridge, "%s: Failed\n", __func__);
 	}			/* End api_init_complete2 */
 	DBC_ENSURE((!status && drv_obj != NULL) ||
-		   (DSP_FAILED(status) && drv_obj == NULL));
+		   (status && drv_obj == NULL));
 	*init_status = status;
 	/* Return the Driver Object */
 	return (u32) drv_obj;

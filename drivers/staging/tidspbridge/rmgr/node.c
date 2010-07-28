@@ -345,7 +345,7 @@ int node_allocate(struct proc_object *hprocessor,
 
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	status = dev_get_bridge_context(hdev_obj, &pbridge_context);
@@ -356,7 +356,7 @@ int node_allocate(struct proc_object *hprocessor,
 
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in error state then don't attempt
 	   to send the message */
@@ -380,7 +380,7 @@ int node_allocate(struct proc_object *hprocessor,
 		}
 	}
 	/* Allocate node object and fill in */
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	pnode = kzalloc(sizeof(struct node_object), GFP_KERNEL);
@@ -395,7 +395,7 @@ int node_allocate(struct proc_object *hprocessor,
 	/* Get dsp_ndbprops from node database */
 	status = get_node_props(hnode_mgr->hdcd_mgr, pnode, node_uuid,
 				&(pnode->dcd_props));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	pnode->node_uuid = *node_uuid;
@@ -428,7 +428,7 @@ int node_allocate(struct proc_object *hprocessor,
 		pnode->create_args.asa.task_arg_obj.ugpp_heap_addr =
 		    (u32) attr_in->pgpp_virt_addr;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	status = proc_reserve_memory(hprocessor,
@@ -437,7 +437,7 @@ int node_allocate(struct proc_object *hprocessor,
 				     (void **)&(pnode->create_args.asa.
 					task_arg_obj.udsp_heap_res_addr),
 				     pr_ctxt);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		pr_err("%s: Failed to reserve memory for heap: 0x%x\n",
 		       __func__, status);
 		goto func_cont;
@@ -460,7 +460,7 @@ int node_allocate(struct proc_object *hprocessor,
 			  (void *)pnode->create_args.asa.task_arg_obj.
 			  udsp_heap_res_addr, (void **)&mapped_addr, map_attrs,
 			  pr_ctxt);
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Failed to map memory for Heap: 0x%x\n",
 		       __func__, status);
 	else
@@ -597,7 +597,7 @@ func_cont:
 			    hnode_mgr->nldr_fxns.
 			    pfn_get_fxn_addr(pnode->nldr_node_obj, "DYNEXT_BEG",
 					     &dynext_base);
-			if (DSP_FAILED(status))
+			if (status)
 				pr_err("%s: Failed to get addr for DYNEXT_BEG"
 				       " status = 0x%x\n", __func__, status);
 
@@ -606,7 +606,7 @@ func_cont:
 			    pfn_get_fxn_addr(pnode->nldr_node_obj,
 					     "L1DSRAM_HEAP", &pul_value);
 
-			if (DSP_FAILED(status))
+			if (status)
 				pr_err("%s: Failed to get addr for L1DSRAM_HEAP"
 				       " status = 0x%x\n", __func__, status);
 
@@ -614,7 +614,7 @@ func_cont:
 			if (!host_res)
 				status = -EPERM;
 
-			if (DSP_FAILED(status)) {
+			if (status) {
 				pr_err("%s: Failed to get host resource, status"
 				       " = 0x%x\n", __func__, status);
 				goto func_end;
@@ -670,7 +670,7 @@ func_cont:
 		drv_proc_node_update_heap_status(node_res, true);
 		drv_proc_node_update_status(node_res, true);
 	}
-	DBC_ENSURE((DSP_FAILED(status) && (*ph_node == NULL)) ||
+	DBC_ENSURE((status && (*ph_node == NULL)) ||
 			(!status && *ph_node));
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: %p node_uuid: %p pargs: %p attr_in:"
@@ -704,7 +704,7 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 	else if (node_get_type(pnode) == NODE_DEVICE)
 		status = -EPERM;
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (pattr == NULL)
@@ -792,7 +792,7 @@ int node_change_priority(struct node_object *hnode, s32 prio)
 		else if (prio < hnode_mgr->min_pri || prio > hnode_mgr->max_pri)
 			status = -EDOM;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Enter critical section */
@@ -905,7 +905,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 			status = -EPERM;	/* illegal stream mode */
 
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (node1_type != NODE_GPP) {
@@ -1167,7 +1167,7 @@ int node_create(struct node_object *hnode)
 	hprocessor = hnode->hprocessor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in error state then don't attempt to create
 	   new node */
@@ -1190,7 +1190,7 @@ int node_create(struct node_object *hnode)
 	if (!status)
 		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont2;
 
 	if (proc_id != DSP_UNIT)
@@ -1267,7 +1267,7 @@ int node_create(struct node_object *hnode)
 							  NLDR_CREATE);
 		hnode->loaded = false;
 	}
-	if (DSP_FAILED(status1))
+	if (status1)
 		pr_err("%s: Failed to unload create code: 0x%x\n",
 		       __func__, status1);
 func_cont2:
@@ -1421,8 +1421,7 @@ int node_create_mgr(struct node_mgr **node_man,
 	else
 		delete_node_mgr(node_mgr_obj);
 
-	DBC_ENSURE((DSP_FAILED(status) && (*node_man == NULL)) ||
-			(!status && *node_man));
+	DBC_ENSURE((status && *node_man == NULL) || (!status && *node_man));
 
 	return status;
 }
@@ -1478,7 +1477,7 @@ int node_delete(struct node_object *hnode,
 	if (!(state == NODE_ALLOCATED && hnode->node_env == (u32) NULL) &&
 	    node_type != NODE_DEVICE) {
 		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont1;
 
 		if (proc_id == DSP_UNIT || proc_id == IVA_UNIT) {
@@ -1549,7 +1548,7 @@ func_cont1:
 					    pfn_unload(hnode->nldr_node_obj,
 						       NLDR_EXECUTE);
 				}
-				if (DSP_FAILED(status1))
+				if (status1)
 					pr_err("%s: fail - unload execute code:"
 					       " 0x%x\n", __func__, status1);
 
@@ -1558,7 +1557,7 @@ func_cont1:
 							    nldr_node_obj,
 							    NLDR_DELETE);
 				hnode->loaded = false;
-				if (DSP_FAILED(status1))
+				if (status1)
 					pr_err("%s: fail - unload delete code: "
 					       "0x%x\n", __func__, status1);
 			}
@@ -1822,7 +1821,7 @@ int node_get_message(struct node_object *hnode,
 	hprocessor = hnode->hprocessor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in error state then don't attempt to get the
 	   message */
@@ -1846,7 +1845,7 @@ int node_get_message(struct node_object *hnode,
 	status =
 	    (*intf_fxns->pfn_msg_get) (hnode->msg_queue_obj, message, utimeout);
 	/* Check if message contains SM descriptor */
-	if (DSP_FAILED(status) || !(message->dw_cmd & DSP_RMSBUFDESC))
+	if (status || !(message->dw_cmd & DSP_RMSBUFDESC))
 		goto func_end;
 
 	/* Translate DSP byte addr to GPP Va. */
@@ -2030,7 +2029,7 @@ int node_pause(struct node_object *hnode)
 		if (node_type != NODE_TASK && node_type != NODE_DAISSOCKET)
 			status = -EPERM;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
@@ -2048,12 +2047,12 @@ int node_pause(struct node_object *hnode)
 		if (state != NODE_RUNNING)
 			status = -EBADR;
 
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 		hprocessor = hnode->hprocessor;
 		status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 		/* If processor is in error state then don't attempt
 		   to send the message */
@@ -2115,7 +2114,7 @@ int node_put_message(struct node_object *hnode,
 	hprocessor = hnode->hprocessor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in bad state then don't attempt sending the
 	   message */
@@ -2145,7 +2144,7 @@ int node_put_message(struct node_object *hnode,
 		/* end of sync_enter_cs */
 		mutex_unlock(&hnode_mgr->node_mgr_lock);
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* assign pmsg values to new msg */
@@ -2267,7 +2266,7 @@ int node_run(struct node_object *hnode)
 	hprocessor = hnode->hprocessor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in error state then don't attempt to run the node */
 	if (proc_state.proc_state == PROC_ERROR) {
@@ -2277,7 +2276,7 @@ int node_run(struct node_object *hnode)
 	node_type = node_get_type(hnode);
 	if (node_type == NODE_DEVICE)
 		status = -EPERM;
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	hnode_mgr = hnode->hnode_mgr;
@@ -2296,7 +2295,7 @@ int node_run(struct node_object *hnode)
 	if (!status)
 		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont1;
 
 	if ((proc_id != DSP_UNIT) && (proc_id != IVA_UNIT))
@@ -2420,7 +2419,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		 */
 		status = proc_get_state(pnode->hprocessor, &proc_state,
 					sizeof(struct dsp_processorstate));
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 		/* If processor is in error state then don't attempt to send
 		 * A kill task command */
@@ -2442,7 +2441,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 
 		status = (*intf_fxns->pfn_msg_put) (hnode->msg_queue_obj, &msg,
 						    hnode->utimeout);
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 
 		/*
@@ -2458,11 +2457,11 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 
 		status = (*intf_fxns->pfn_msg_put)(hnode->msg_queue_obj,
 						&killmsg, hnode->utimeout);
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 		status = sync_wait_on_event(hnode->sync_done,
 					     kill_time_out / 2);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			/*
 			 * Here it goes the part of the simulation of
 			 * the DSP exception.
@@ -3022,7 +3021,7 @@ int node_get_uuid_props(void *hprocessor,
 	}
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* If processor is in error state then don't attempt
 	   to send the message */
@@ -3099,7 +3098,7 @@ static int get_rms_fxns(struct node_mgr *hnode_mgr)
 	for (i = 0; i < NUMRMSFXNS; i++) {
 		status = dev_get_symbol(dev_obj, psz_fxns[i],
 					&(hnode_mgr->ul_fxn_addrs[i]));
-		if (DSP_FAILED(status)) {
+		if (status) {
 			if (status == -ESPIPE) {
 				/*
 				 *  May be loaded dynamically (in the future),

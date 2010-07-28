@@ -121,12 +121,12 @@ int disp_create(struct disp_object **dispatch_obj,
 
 	/* check device type and decide if streams or messag'ing is used for
 	 * RMS/EDS */
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	status = dev_get_dev_type(hdev_obj, &dev_type);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	if (dev_type != DSP_UNIT) {
@@ -168,7 +168,7 @@ func_cont:
 	else
 		delete_disp(disp_obj);
 
-	DBC_ENSURE(((DSP_FAILED(status)) && ((*dispatch_obj == NULL))) ||
+	DBC_ENSURE((status && *dispatch_obj == NULL) ||
 				(!status && *dispatch_obj));
 	return status;
 }
@@ -284,7 +284,7 @@ int disp_node_create(struct disp_object *disp_obj,
 
 	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (dev_type != DSP_UNIT) {
@@ -377,7 +377,7 @@ int disp_node_create(struct disp_object *disp_obj,
 		       node_msg_args.arg_length);
 		total += dw_length;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* If node is a task node, copy task create arguments into  buffer */
@@ -425,7 +425,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			/* Fill SIO defs and offsets */
 			offset = sio_defs_offset;
 			for (i = 0; i < task_arg_obj.num_inputs; i++) {
-				if (DSP_FAILED(status))
+				if (status)
 					break;
 
 				pdw_buf[sio_in_def_offset + i] =
@@ -467,7 +467,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			 * on the DSP-side
 			 */
 			status = (((rms_word *) (disp_obj->pbuf))[0]);
-			if (DSP_FAILED(status))
+			if (status < 0)
 				dev_dbg(bridge, "%s: DSP-side failed: 0x%x\n",
 					__func__, status);
 		}
@@ -520,7 +520,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 				 * function on the DSP-side
 				 */
 				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (DSP_FAILED(status))
+				if (status < 0)
 					dev_dbg(bridge, "%s: DSP-side failed: "
 						"0x%x\n", __func__, status);
 			}
@@ -573,7 +573,7 @@ int disp_node_run(struct disp_object *disp_obj,
 				 * function on the DSP-side
 				 */
 				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (DSP_FAILED(status))
+				if (status < 0)
 					dev_dbg(bridge, "%s: DSP-side failed: "
 						"0x%x\n", __func__, status);
 			}
@@ -603,7 +603,7 @@ static void delete_disp(struct disp_object *disp_obj)
 			 * is invalid. */
 			status = (*intf_fxns->pfn_chnl_close)
 			    (disp_obj->chnl_from_dsp);
-			if (DSP_FAILED(status)) {
+			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel "
 					"from RMS: 0x%x\n", __func__, status);
 			}
@@ -612,7 +612,7 @@ static void delete_disp(struct disp_object *disp_obj)
 			status =
 			    (*intf_fxns->pfn_chnl_close) (disp_obj->
 							  chnl_to_dsp);
-			if (DSP_FAILED(status)) {
+			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel to"
 					" RMS: 0x%x\n", __func__, status);
 			}
@@ -704,7 +704,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 	/* Send the command */
 	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
 						    0L, dw_arg);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	status =
@@ -718,14 +718,14 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 		}
 	}
 	/* Get the reply */
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	chnl_obj = disp_obj->chnl_from_dsp;
 	ul_bytes = REPLYSIZE;
 	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes,
 						    0, 0L, dw_arg);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	status =

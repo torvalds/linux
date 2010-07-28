@@ -49,14 +49,14 @@ int pwr_sleep_dsp(const u32 sleep_code, const u32 timeout)
 	     hdev_obj != NULL;
 	     hdev_obj =
 	     (struct dev_object *)drv_get_next_dev_object((u32) hdev_obj)) {
-		if (DSP_FAILED(dev_get_bridge_context(hdev_obj,
+		if (dev_get_bridge_context(hdev_obj,
 						(struct bridge_dev_context **)
-						   &dw_context))) {
+						   &dw_context)) {
 			continue;
 		}
-		if (DSP_FAILED(dev_get_intf_fxns(hdev_obj,
+		if (dev_get_intf_fxns(hdev_obj,
 						(struct bridge_drv_interface **)
-						&intf_fxns))) {
+						&intf_fxns)) {
 			continue;
 		}
 		if (sleep_code == PWR_DEEPSLEEP)

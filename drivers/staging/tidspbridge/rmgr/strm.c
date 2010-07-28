@@ -120,7 +120,7 @@ int strm_allocate_buffer(struct strm_object *stream_obj, u32 usize,
 		status = -EFAULT;
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	for (i = 0; i < num_bufs; i++) {
@@ -133,10 +133,10 @@ int strm_allocate_buffer(struct strm_object *stream_obj, u32 usize,
 			break;
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		strm_free_buffer(stream_obj, ap_buffer, alloc_cnt, pr_ctxt);
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (drv_get_strm_res_element(stream_obj, &hstrm_res, pr_ctxt) !=
@@ -180,7 +180,7 @@ int strm_close(struct strm_object *stream_obj,
 			status = delete_strm(stream_obj);
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (drv_get_strm_res_element(stream_obj, &hstrm_res, pr_ctxt) !=
@@ -233,8 +233,7 @@ int strm_create(struct strm_mgr **strm_man,
 	else
 		kfree(strm_mgr_obj);
 
-	DBC_ENSURE((!status && *strm_man) ||
-				(DSP_FAILED(status) && *strm_man == NULL));
+	DBC_ENSURE((!status && *strm_man) || (status && *strm_man == NULL));
 
 	return status;
 }
@@ -291,7 +290,7 @@ int strm_free_buffer(struct strm_object *stream_obj, u8 ** ap_buffer,
 			status =
 			    cmm_xlator_free_buf(stream_obj->xlator,
 						ap_buffer[i]);
-			if (DSP_FAILED(status))
+			if (status)
 				break;
 			ap_buffer[i] = NULL;
 		}
@@ -329,14 +328,14 @@ int strm_get_info(struct strm_object *stream_obj,
 			status = -EINVAL;
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 	status =
 	    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
 						  &chnl_info_obj);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (stream_obj->xlator) {
@@ -540,7 +539,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	if ((pattr->virt_base == NULL) || !(pattr->ul_virt_size > 0))
@@ -572,7 +571,7 @@ func_cont:
 						      strm_mgr_obj->hchnl_mgr,
 						      chnl_mode, ul_chnl_id,
 						      &chnl_attr_obj);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			/*
 			 * over-ride non-returnable status codes so we return
 			 * something documented
@@ -767,7 +766,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 			break;
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Determine which channels have IO ready */
@@ -775,7 +774,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 		intf_fxns = strm_tab[i]->strm_mgr_obj->intf_fxns;
 		status = (*intf_fxns->pfn_chnl_get_info) (strm_tab[i]->chnl_obj,
 							  &chnl_info_obj);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			break;
 		} else {
 			if (chnl_info_obj.cio_cs > 0)
@@ -796,7 +795,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 				    strm_tab[i]->strm_mgr_obj->intf_fxns;
 				status = (*intf_fxns->pfn_chnl_get_info)
 				    (strm_tab[i]->chnl_obj, &chnl_info_obj);
-				if (DSP_FAILED(status))
+				if (status)
 					break;
 				else
 					sync_events[i] =
@@ -820,7 +819,7 @@ func_end:
 	kfree(sync_events);
 
 	DBC_ENSURE((!status && (*pmask != 0 || utimeout == 0)) ||
-		   (DSP_FAILED(status) && *pmask == 0));
+		   (status && *pmask == 0));
 
 	return status;
 }

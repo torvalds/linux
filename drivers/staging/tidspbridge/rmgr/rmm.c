@@ -186,7 +186,7 @@ int rmm_create(struct rmm_target_obj **target_obj,
 	if (target == NULL)
 		status = -ENOMEM;
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	target->num_segs = num_segs;
@@ -249,7 +249,7 @@ func_cont:
 	}
 
 	DBC_ENSURE((!status && *target_obj)
-		   || (DSP_FAILED(status) && *target_obj == NULL));
+		   || (status && *target_obj == NULL));
 
 	return status;
 }

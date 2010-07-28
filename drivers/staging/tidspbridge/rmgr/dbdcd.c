@@ -135,7 +135,7 @@ int dcd_create_manager(char *sz_zl_dll_name,
 	DBC_REQUIRE(dcd_mgr);
 
 	status = cod_create(&cod_mgr, sz_zl_dll_name, NULL);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/* Create a DCD object. */
@@ -464,7 +464,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	/* Open COFF file. */
 	status = cod_open(dcd_mgr_obj->cod_mgr, dcd_key->path,
 							COD_NOLOAD, &lib);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		status = -EACCES;
 		goto func_end;
 	}
@@ -480,7 +480,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 
 	/* Get section information. */
 	status = cod_get_section(lib, sz_sect_name, &ul_addr, &ul_len);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		status = -EACCES;
 		goto func_end;
 	}
@@ -513,7 +513,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 		/* Parse the content of the COFF buffer. */
 		status =
 		    get_attrs_from_buf(psz_coff_buf, ul_len, obj_type, obj_def);
-		if (DSP_FAILED(status))
+		if (status)
 			status = -EACCES;
 	} else {
 		status = -EACCES;
@@ -557,14 +557,14 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 
 	/* Open DSP coff file, don't load symbols. */
 	status = cod_open(dcd_mgr_obj->cod_mgr, sz_coff_path, COD_NOLOAD, &lib);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		status = -EACCES;
 		goto func_cont;
 	}
 
 	/* Get DCD_RESIGER_SECTION section information. */
 	status = cod_get_section(lib, DCD_REGISTER_SECTION, &ul_addr, &ul_len);
-	if (DSP_FAILED(status) || !(ul_len > 0)) {
+	if (status || !(ul_len > 0)) {
 		status = -EACCES;
 		goto func_cont;
 	}
@@ -617,7 +617,7 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 			 */
 			status =
 			    register_fxn(&dsp_uuid_obj, object_type, handle);
-			if (DSP_FAILED(status)) {
+			if (status) {
 				/* if error occurs, break from while loop. */
 				break;
 			}
@@ -729,7 +729,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		status = -ENOKEY;
 
 	/* If can't find, phases might be registered as generic LIBRARYTYPE */
-	if (DSP_FAILED(status) && phase != NLDR_NOPHASE) {
+	if (status && phase != NLDR_NOPHASE) {
 		if (phase_split)
 			*phase_split = false;
 
@@ -872,7 +872,7 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 			status = -EPERM;
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/*
@@ -1449,14 +1449,14 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 		/* Get dependent library section information. */
 		status = cod_get_section(lib, DEPLIBSECT, &ul_addr, &ul_len);
 
-		if (DSP_FAILED(status)) {
+		if (status) {
 			/* Ok, no dependent libraries */
 			ul_len = 0;
 			status = 0;
 		}
 	}
 
-	if (DSP_FAILED(status) || !(ul_len > 0))
+	if (status || !(ul_len > 0))
 		goto func_cont;
 
 	/* Allocate zeroed buffer. */
@@ -1466,7 +1466,7 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 
 	/* Read section contents. */
 	status = cod_read_section(lib, DEPLIBSECT, psz_coff_buf, ul_len);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	/* Compress and format DSP buffer to conform to PC format. */

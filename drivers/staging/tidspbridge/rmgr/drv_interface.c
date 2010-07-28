@@ -201,7 +201,7 @@ static void bridge_recover(struct work_struct *work)
 	}
 	dev = dev_get_first();
 	dev_get_dev_node(dev, &dev_node);
-	if (!dev_node || DSP_FAILED(proc_auto_start(dev_node, dev)))
+	if (!dev_node || proc_auto_start(dev_node, dev))
 		pr_err("DSP could not be restarted\n");
 	recover = false;
 	complete_all(&bridge_open_comp);
@@ -397,7 +397,7 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 	void *hdrv_obj = NULL;
 
 	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
@@ -439,7 +439,7 @@ static int BRIDGE_SUSPEND(struct platform_device *pdev, pm_message_t state)
 	u32 command = PWR_EMERGENCYDEEPSLEEP;
 
 	status = pwr_sleep_dsp(command, time_out);
-	if (DSP_FAILED(status))
+	if (status)
 		return -1;
 
 	bridge_suspend_data.suspended = 1;
@@ -451,7 +451,7 @@ static int BRIDGE_RESUME(struct platform_device *pdev)
 	u32 status;
 
 	status = pwr_wake_dsp(time_out);
-	if (DSP_FAILED(status))
+	if (status)
 		return -1;
 
 	bridge_suspend_data.suspended = 0;
