@@ -1059,7 +1059,7 @@ inline void find_node_handle(struct node_res_object **noderes,
 {
 	rcu_read_lock();
 	*noderes = idr_find(((struct process_context *)pr_ctxt)->node_id,
-								(int)hnode);
+								(int)hnode - 1);
 	rcu_read_unlock();
 	return;
 }
@@ -1077,6 +1077,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	u8 *pargs = NULL;
 	struct dsp_nodeattrin proc_attr_in, *attr_in = NULL;
 	struct node_res_object *node_res;
+	int nodeid;
 
 	/* Optional argument */
 	if (psize) {
@@ -1112,7 +1113,8 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 				       attr_in, &node_res, pr_ctxt);
 	}
 	if (!status) {
-		CP_TO_USR(args->args_node_allocate.ph_node, &node_res->id,
+		nodeid = node_res->id + 1;
+		CP_TO_USR(args->args_node_allocate.ph_node, &nodeid,
 			status, 1);
 		if (status) {
 			status = -EFAULT;
