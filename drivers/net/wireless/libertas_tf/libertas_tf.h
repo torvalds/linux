@@ -253,6 +253,9 @@ struct lbtf_private {
 	u8 fw_ready;
 	u8 surpriseremoved;
 	struct sk_buff_head bc_ps_buf;
+
+	/* Most recently reported noise in dBm */
+	s8 noise;
 };
 
 /* 802.11-related definitions */
