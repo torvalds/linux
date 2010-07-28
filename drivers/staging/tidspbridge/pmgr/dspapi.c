@@ -1527,7 +1527,7 @@ inline void find_strm_handle(struct strm_res_object **strmres,
 {
 	rcu_read_lock();
 	*strmres = idr_find(((struct process_context *)pr_ctxt)->stream_id,
-							(int)hstream);
+							(int)hstream - 1);
 	rcu_read_unlock();
 	return;
 }
@@ -1724,6 +1724,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 	struct strm_res_object *strm_res_obj;
 	struct dsp_streamattrin strm_attr_in;
 	struct node_res_object *node_res;
+	int strmid;
 
 	find_node_handle(&node_res, pr_ctxt, args->args_strm_open.hnode);
 
@@ -1745,7 +1746,10 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 			   args->args_strm_open.direction,
 			   args->args_strm_open.index, &attr, &strm_res_obj,
 			   pr_ctxt);
-	CP_TO_USR(args->args_strm_open.ph_stream, &strm_res_obj->id, status, 1);
+	if (!status) {
+		strmid = strm_res_obj->id + 1;
+		CP_TO_USR(args->args_strm_open.ph_stream, &strmid, status, 1);
+	}
 	return status;
 }
 
