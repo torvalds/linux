@@ -36,7 +36,7 @@
  *      pargs:              Optional arguments to be passed to the node.
  *      attr_in:            Optional pointer to node attributes (priority,
  *                          timeout...)
- *      ph_node:             Location to store node handle on output.
+ *      noderes:             Location to store node resource info.
  *  Returns:
  *      0:            Success.
  *      -ENOMEM:        Insufficient memory on GPP.
@@ -50,17 +50,17 @@
  *      node_init(void) called.
  *      hprocessor != NULL.
  *      node_uuid != NULL.
- *      ph_node != NULL.
+ *      noderes != NULL.
  *  Ensures:
  *      0:            IsValidNode(*ph_node).
- *      error:              *ph_node == NULL.
+ *      error:              *noderes == NULL.
  */
 extern int node_allocate(struct proc_object *hprocessor,
 				const struct dsp_uuid *node_uuid,
 				const struct dsp_cbdata
 				*pargs, const struct dsp_nodeattrin
 				*attr_in,
-				struct node_object **ph_node,
+				struct node_res_object **noderes,
 				struct process_context *pr_ctxt);
 
 /*
@@ -242,7 +242,9 @@ extern int node_create_mgr(struct node_mgr **node_man,
  *      delete function. Loads the node's delete function if necessary.
  *      GPP side resources are freed after node's delete function returns.
  *  Parameters:
- *      hnode:              Node handle returned from node_allocate().
+ *      noderes:              Node resource info handle returned from
+ *                                 node_allocate().
+ *      pr_ctxt:                Poninter to process context data.
  *  Returns:
  *      0:            Success.
  *      -EFAULT:        Invalid hnode.
@@ -254,7 +256,7 @@ extern int node_create_mgr(struct node_mgr **node_man,
  *  Ensures:
  *      0:            hnode is invalid.
  */
-extern int node_delete(struct node_object *hnode,
+extern int node_delete(struct node_res_object *noderes,
 			      struct process_context *pr_ctxt);
 
 /*

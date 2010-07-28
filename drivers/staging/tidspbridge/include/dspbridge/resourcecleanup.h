@@ -34,16 +34,10 @@ extern int drv_remove_all_resources(void *process_ctxt);
 extern int drv_remove_proc_context(struct drv_object *driver_obj,
 					  void *pr_ctxt);
 
-extern int drv_get_node_res_element(void *hnode, void *node_resource,
-					   void *process_ctx);
-
 extern int drv_insert_node_res_element(void *hnode, void *node_resource,
 					      void *process_ctxt);
 
 extern void drv_proc_node_update_heap_status(void *node_resource, s32 status);
-
-extern int drv_remove_node_res_element(void *node_resource,
-						void *process_ctxt);
 
 extern void drv_proc_node_update_status(void *node_resource, s32 status);
 

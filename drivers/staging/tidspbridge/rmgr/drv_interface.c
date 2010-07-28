@@ -511,8 +511,13 @@ static int bridge_open(struct inode *ip, struct file *filp)
 		INIT_LIST_HEAD(&pr_ctxt->dmm_map_list);
 		spin_lock_init(&pr_ctxt->dmm_rsv_lock);
 		INIT_LIST_HEAD(&pr_ctxt->dmm_rsv_list);
-		mutex_init(&pr_ctxt->node_mutex);
 		mutex_init(&pr_ctxt->strm_mutex);
+
+		pr_ctxt->node_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
+		if (pr_ctxt->node_id)
+			idr_init(pr_ctxt->node_id);
+		else
+			status = -ENOMEM;
 	} else {
 		status = -ENOMEM;
 	}

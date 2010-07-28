@@ -73,7 +73,7 @@ static int request_bridge_resources(struct cfg_hostres *res);
 
 /* GPP PROCESS CLEANUP CODE */
 
-static int drv_proc_free_node_res(void *process_ctxt);
+static int drv_proc_free_node_res(int id, void *p, void *data);
 
 /* Allocate and add a node resource element
 * This function is called from .Node_Allocate. */
@@ -84,88 +84,61 @@ int drv_insert_node_res_element(void *hnode, void *node_resource,
 	    (struct node_res_object **)node_resource;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
-	struct node_res_object *temp_node_res = NULL;
+	int retval;
 
 	*node_res_obj = kzalloc(sizeof(struct node_res_object), GFP_KERNEL);
-	if (*node_res_obj == NULL)
-		status = -EFAULT;
-
-	if (!status) {
-		if (mutex_lock_interruptible(&ctxt->node_mutex)) {
-			kfree(*node_res_obj);
-			return -EPERM;
-		}
-		(*node_res_obj)->hnode = hnode;
-		if (ctxt->node_list != NULL) {
-			temp_node_res = ctxt->node_list;
-			while (temp_node_res->next != NULL)
-				temp_node_res = temp_node_res->next;
-
-			temp_node_res->next = *node_res_obj;
-		} else {
-			ctxt->node_list = *node_res_obj;
-		}
-		mutex_unlock(&ctxt->node_mutex);
+	if (!*node_res_obj) {
+		status = -ENOMEM;
+		goto func_end;
 	}
+
+	(*node_res_obj)->hnode = hnode;
+	retval = idr_get_new(ctxt->node_id, *node_res_obj,
+						&(*node_res_obj)->id);
+	if (retval == -EAGAIN) {
+		if (!idr_pre_get(ctxt->node_id, GFP_KERNEL)) {
+			pr_err("%s: OUT OF MEMORY\n", __func__);
+			status = -ENOMEM;
+			goto func_end;
+		}
+
+		retval = idr_get_new(ctxt->node_id, *node_res_obj,
+						&(*node_res_obj)->id);
+	}
+	if (retval) {
+		pr_err("%s: FAILED, IDR is FULL\n", __func__);
+		status = -EFAULT;
+	}
+func_end:
+	if (status)
+		kfree(*node_res_obj);
 
 	return status;
 }
 
 /* Release all Node resources and its context
-* This is called from .Node_Delete. */
-int drv_remove_node_res_element(void *node_resource, void *process_ctxt)
+ * Actual Node De-Allocation */
+static int drv_proc_free_node_res(int id, void *p, void *data)
 {
-	struct node_res_object *node_res_obj =
-	    (struct node_res_object *)node_resource;
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	struct node_res_object *temp_node;
-	int status = 0;
-
-	if (mutex_lock_interruptible(&ctxt->node_mutex))
-		return -EPERM;
-	temp_node = ctxt->node_list;
-	if (temp_node == node_res_obj) {
-		ctxt->node_list = node_res_obj->next;
-	} else {
-		while (temp_node && temp_node->next != node_res_obj)
-			temp_node = temp_node->next;
-		if (!temp_node)
-			status = -ENOENT;
-		else
-			temp_node->next = node_res_obj->next;
-	}
-	mutex_unlock(&ctxt->node_mutex);
-	kfree(node_res_obj);
-	return status;
-}
-
-/* Actual Node De-Allocation */
-static int drv_proc_free_node_res(void *process_ctxt)
-{
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
-	struct node_res_object *node_list = NULL;
-	struct node_res_object *node_res_obj = NULL;
+	struct process_context *ctxt = data;
+	int status;
+	struct node_res_object *node_res_obj = p;
 	u32 node_state;
 
-	node_list = ctxt->node_list;
-	while (node_list != NULL) {
-		node_res_obj = node_list;
-		node_list = node_list->next;
-		if (node_res_obj->node_allocated) {
-			node_state = node_get_state(node_res_obj->hnode);
-			if (node_state <= NODE_DELETING) {
-				if ((node_state == NODE_RUNNING) ||
-				    (node_state == NODE_PAUSED) ||
-				    (node_state == NODE_TERMINATING))
-					status = node_terminate
-					    (node_res_obj->hnode, &status);
+	if (node_res_obj->node_allocated) {
+		node_state = node_get_state(node_res_obj->hnode);
+		if (node_state <= NODE_DELETING) {
+			if ((node_state == NODE_RUNNING) ||
+			    (node_state == NODE_PAUSED) ||
+			    (node_state == NODE_TERMINATING))
+				node_terminate
+				    (node_res_obj->hnode, &status);
 
-				status = node_delete(node_res_obj->hnode, ctxt);
-			}
+			node_delete(node_res_obj, ctxt);
 		}
 	}
-	return status;
+
+	return 0;
 }
 
 /* Release all Mapped and Reserved DMM resources */
@@ -220,50 +193,12 @@ void drv_proc_node_update_heap_status(void *node_resource, s32 status)
  */
 int drv_remove_all_node_res_elements(void *process_ctxt)
 {
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
-	struct node_res_object *temp_node2 = NULL;
-	struct node_res_object *temp_node = NULL;
+	struct process_context *ctxt = process_ctxt;
 
-	drv_proc_free_node_res(ctxt);
-	temp_node = ctxt->node_list;
-	while (temp_node != NULL) {
-		temp_node2 = temp_node;
-		temp_node = temp_node->next;
-		kfree(temp_node2);
-	}
-	ctxt->node_list = NULL;
-	return status;
-}
+	idr_for_each(ctxt->node_id, drv_proc_free_node_res, ctxt);
+	idr_destroy(ctxt->node_id);
 
-/* Getting the node resource element */
-int drv_get_node_res_element(void *hnode, void *node_resource,
-				    void *process_ctxt)
-{
-	struct node_res_object **node_res =
-				     (struct node_res_object **)node_resource;
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
-	struct node_res_object *temp_node2 = NULL;
-	struct node_res_object *temp_node = NULL;
-
-	if (mutex_lock_interruptible(&ctxt->node_mutex))
-		return -EPERM;
-
-	temp_node = ctxt->node_list;
-	while ((temp_node != NULL) && (temp_node->hnode != hnode)) {
-		temp_node2 = temp_node;
-		temp_node = temp_node->next;
-	}
-
-	mutex_unlock(&ctxt->node_mutex);
-
-	if (temp_node != NULL)
-		*node_res = temp_node;
-	else
-		status = -ENOENT;
-
-	return status;
+	return 0;
 }
 
 /* Allocate the STRM resource element

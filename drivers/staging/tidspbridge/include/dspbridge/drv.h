@@ -24,6 +24,7 @@
 #include <dspbridge/devdefs.h>
 
 #include <dspbridge/drvdefs.h>
+#include <linux/idr.h>
 
 #define DRV_ASSIGN     1
 #define DRV_RELEASE    0
@@ -81,7 +82,7 @@ struct node_res_object {
 	s32 node_allocated;	/* Node status */
 	s32 heap_allocated;	/* Heap status */
 	s32 streams_allocated;	/* Streams status */
-	struct node_res_object *next;
+	int id;
 };
 
 /* used to cache dma mapping information */
@@ -158,8 +159,7 @@ struct process_context {
 	void *hprocessor;
 
 	/* DSP Node resources */
-	struct node_res_object *node_list;
-	struct mutex node_mutex;
+	struct idr *node_id;
 
 	/* DMM mapped memory resources */
 	struct list_head dmm_map_list;
