@@ -639,10 +639,10 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	dsp_pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
 					OMAP_POWERSTATEST_MASK;
 	if (dsp_pwr_state != PWRDM_POWER_OFF) {
+		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
+					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 		sm_interrupt_dsp(dev_context, MBX_PM_DSPIDLE);
 		mdelay(10);
-
-		clk_status = dsp_clk_disable(DSP_CLK_IVA2);
 
 		/* IVA2 is not in OFF state */
 		/* Set PM_PWSTCTRL_IVA2  to OFF */
@@ -651,8 +651,6 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 		/* Set the SW supervised state transition for Sleep */
 		(*pdata->dsp_cm_write)(OMAP34XX_CLKSTCTRL_FORCE_SLEEP,
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
-	} else {
-		clk_status = dsp_clk_disable(DSP_CLK_IVA2);
 	}
 	udelay(10);
 	/* Release the Ext Base virtual Address as the next DSP Program
@@ -681,6 +679,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	/* Reset IVA2 clocks*/
 	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
 			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+
+	clk_status = dsp_clk_disable(DSP_CLK_IVA2);
 
 	return status;
 }
