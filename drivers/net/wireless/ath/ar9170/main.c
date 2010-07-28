@@ -1905,6 +1905,24 @@ static int ar9170_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int ar9170_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct ar9170 *ar = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	/* TODO: update noise value, e.g. call ar9170_set_channel */
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = ar->noise[0];
+
+	return 0;
+}
+
 static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
 {
@@ -1957,6 +1975,7 @@ static const struct ieee80211_ops ar9170_ops = {
 	.get_tsf		= ar9170_op_get_tsf,
 	.set_key		= ar9170_set_key,
 	.get_stats		= ar9170_get_stats,
+	.get_survey		= ar9170_get_survey,
 	.ampdu_action		= ar9170_ampdu_action,
 };
 
