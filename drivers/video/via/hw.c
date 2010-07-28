@@ -733,7 +733,6 @@ static void set_display_channel(void);
 static void device_off(void);
 static void device_on(void);
 static void enable_second_display_channel(void);
-static void disable_second_display_channel(void);
 
 void viafb_lock_crt(void)
 {
@@ -856,6 +855,9 @@ void viafb_set_output_path(int device, int set_iga, int output_interface)
 		set_lcd_output_path(set_iga, output_interface);
 		break;
 	}
+
+	if (set_iga == IGA2)
+		enable_second_display_channel();
 }
 
 static void set_crt_output_path(int set_iga)
@@ -867,7 +869,6 @@ static void set_crt_output_path(int set_iga)
 		viafb_write_reg_mask(SR16, VIASR, 0x00, BIT6);
 		break;
 	case IGA2:
-		viafb_write_reg_mask(CR6A, VIACR, 0xC0, BIT6 + BIT7);
 		viafb_write_reg_mask(SR16, VIASR, 0x40, BIT6);
 		break;
 	}
@@ -1017,7 +1018,6 @@ static void set_dvi_output_path(int set_iga, int output_interface)
 	}
 
 	if (set_iga == IGA2) {
-		enable_second_display_channel();
 		/* Disable LCD Scaling */
 		viafb_write_reg_mask(CR79, VIACR, 0x00, BIT0);
 	}
@@ -1028,21 +1028,9 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 	DEBUG_MSG(KERN_INFO
 		  "set_lcd_output_path, iga:%d,out_interface:%d\n",
 		  set_iga, output_interface);
-	switch (set_iga) {
-	case IGA1:
-		viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
-		viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
 
-		disable_second_display_channel();
-		break;
-
-	case IGA2:
-		viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
-		viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-
-		enable_second_display_channel();
-		break;
-	}
+	viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
+	viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
 
 	switch (output_interface) {
 	case INTERFACE_DVP0:
@@ -2480,10 +2468,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 			viafb_DeviceStatus = CRT_Device;
 	}
 	device_on();
-
-	if (viafb_SAMM_ON == 1)
-		viafb_write_reg_mask(CR6A, VIACR, 0xC0, BIT6 + BIT7);
-
 	device_screen_on();
 	return 1;
 }
@@ -2556,15 +2540,6 @@ static void enable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT7, BIT7);
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
-
-static void disable_second_display_channel(void)
-{
-	/* to disable second display channel. */
-	viafb_write_reg_mask(CR6A, VIACR, 0x00, BIT6);
-	viafb_write_reg_mask(CR6A, VIACR, 0x00, BIT7);
-	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
-}
-
 
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting)
