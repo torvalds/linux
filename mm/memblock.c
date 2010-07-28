@@ -49,7 +49,7 @@ void memblock_dump_all(void)
 		return;
 
 	pr_info("MEMBLOCK configuration:\n");
-	pr_info(" memory.size = 0x%llx\n", (unsigned long long)memblock.memory.size);
+	pr_info(" memory size = 0x%llx\n", (unsigned long long)memblock.memory_size);
 
 	memblock_dump(&memblock.memory, "memory");
 	memblock_dump(&memblock.reserved, "reserved");
@@ -123,10 +123,10 @@ void __init memblock_analyze(void)
 {
 	int i;
 
-	memblock.memory.size = 0;
+	memblock.memory_size = 0;
 
 	for (i = 0; i < memblock.memory.cnt; i++)
-		memblock.memory.size += memblock.memory.regions[i].size;
+		memblock.memory_size += memblock.memory.regions[i].size;
 }
 
 static long memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
@@ -423,7 +423,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
 /* You must call memblock_analyze() before this. */
 phys_addr_t __init memblock_phys_mem_size(void)
 {
-	return memblock.memory.size;
+	return memblock.memory_size;
 }
 
 phys_addr_t memblock_end_of_DRAM(void)
