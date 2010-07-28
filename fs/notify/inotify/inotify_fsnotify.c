@@ -68,13 +68,11 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 	return false;
 }
 
-static int inotify_merge(struct list_head *list,
-			 struct fsnotify_event *event,
-			 void **arg)
+static struct fsnotify_event *inotify_merge(struct list_head *list,
+					    struct fsnotify_event *event)
 {
 	struct fsnotify_event_holder *last_holder;
 	struct fsnotify_event *last_event;
-	int ret = 0;
 
 	/* and the list better be locked by something too */
 	spin_lock(&event->lock);
@@ -82,11 +80,13 @@ static int inotify_merge(struct list_head *list,
 	last_holder = list_entry(list->prev, struct fsnotify_event_holder, event_list);
 	last_event = last_holder->event;
 	if (event_compare(last_event, event))
-		ret = -EEXIST;
+		fsnotify_get_event(last_event);
+	else
+		last_event = NULL;
 
 	spin_unlock(&event->lock);
 
-	return ret;
+	return last_event;
 }
 
 static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
@@ -96,7 +96,8 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	struct inode *to_tell;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
-	int wd, ret;
+	struct fsnotify_event *added_event;
+	int wd, ret = 0;
 
 	pr_debug("%s: group=%p event=%p to_tell=%p mask=%x\n", __func__, group,
 		 event, event->to_tell, event->mask);
@@ -120,14 +121,13 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	fsn_event_priv->group = group;
 	event_priv->wd = wd;
 
-	ret = fsnotify_add_notify_event(group, event, fsn_event_priv, inotify_merge, NULL);
-	if (ret) {
+	added_event = fsnotify_add_notify_event(group, event, fsn_event_priv, inotify_merge);
+	if (added_event) {
 		inotify_free_event_priv(fsn_event_priv);
-		/* EEXIST says we tail matched, EOVERFLOW isn't something
-		 * to report up the stack. */
-		if ((ret == -EEXIST) ||
-		    (ret == -EOVERFLOW))
-			ret = 0;
+		if (!IS_ERR(added_event))
+			fsnotify_put_event(added_event);
+		else
+			ret = PTR_ERR(added_event);
 	}
 
 	if (fsn_mark->mask & IN_ONESHOT)

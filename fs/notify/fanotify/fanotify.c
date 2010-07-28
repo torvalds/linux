@@ -30,65 +30,58 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 	return false;
 }
 
-/* Note, if we return an event in *arg that a reference is being held... */
-static int fanotify_merge(struct list_head *list,
-			  struct fsnotify_event *event,
-			  void **arg)
+/* and the list better be locked by something too! */
+static struct fsnotify_event *fanotify_merge(struct list_head *list,
+					     struct fsnotify_event *event)
 {
 	struct fsnotify_event_holder *test_holder;
-	struct fsnotify_event *test_event;
+	struct fsnotify_event *test_event = NULL;
 	struct fsnotify_event *new_event;
-	struct fsnotify_event **return_event = (struct fsnotify_event **)arg;
-	int ret = 0;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 
-	*return_event = NULL;
-
-	/* and the list better be locked by something too! */
 
 	list_for_each_entry_reverse(test_holder, list, event_list) {
-		test_event = test_holder->event;
-		if (should_merge(test_event, event)) {
-			fsnotify_get_event(test_event);
-			*return_event = test_event;
-
-			ret = -EEXIST;
-			/* if they are exactly the same we are done */
-			if (test_event->mask == event->mask)
-				goto out;
-
-			/*
-			 * if the refcnt == 1 this is the only queue
-			 * for this event and so we can update the mask
-			 * in place.
-			 */
-			if (atomic_read(&test_event->refcnt) == 1) {
-				test_event->mask |= event->mask;
-				goto out;
-			}
-
-			/* can't allocate memory, merge was no possible */
-			new_event = fsnotify_clone_event(test_event);
-			if (unlikely(!new_event)) {
-				ret = 0;
-				goto out;
-			}
-
-			/* we didn't return the test_event, so drop that ref */
-			fsnotify_put_event(test_event);
-			/* the reference we return on new_event is from clone */
-			*return_event = new_event;
-
-			/* build new event and replace it on the list */
-			new_event->mask = (test_event->mask | event->mask);
-			fsnotify_replace_event(test_holder, new_event);
-
+		if (should_merge(test_holder->event, event)) {
+			test_event = test_holder->event;
 			break;
 		}
 	}
-out:
-	return ret;
+
+	if (!test_event)
+		return NULL;
+
+	fsnotify_get_event(test_event);
+
+	/* if they are exactly the same we are done */
+	if (test_event->mask == event->mask)
+		return test_event;
+
+	/*
+	 * if the refcnt == 2 this is the only queue
+	 * for this event and so we can update the mask
+	 * in place.
+	 */
+	if (atomic_read(&test_event->refcnt) == 2) {
+		test_event->mask |= event->mask;
+		return test_event;
+	}
+
+	new_event = fsnotify_clone_event(test_event);
+
+	/* done with test_event */
+	fsnotify_put_event(test_event);
+
+	/* couldn't allocate memory, merge was not possible */
+	if (unlikely(!new_event))
+		return ERR_PTR(-ENOMEM);
+
+	/* build new event and replace it on the list */
+	new_event->mask = (test_event->mask | event->mask);
+	fsnotify_replace_event(test_holder, new_event);
+
+	/* we hold a reference on new_event from clone_event */
+	return new_event;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
@@ -123,7 +116,7 @@ static int fanotify_get_response_from_access(struct fsnotify_group *group,
 
 static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
-	int ret;
+	int ret = 0;
 	struct fsnotify_event *notify_event = NULL;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
@@ -138,13 +131,9 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge,
-					(void **)&notify_event);
-	/* -EEXIST means this event was merged with another, not that it was an error */
-	if (ret == -EEXIST)
-		ret = 0;
-	if (ret)
-		goto out;
+	notify_event = fsnotify_add_notify_event(group, event, NULL, fanotify_merge);
+	if (IS_ERR(notify_event))
+		return PTR_ERR(notify_event);
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (event->mask & FAN_ALL_PERM_EVENTS) {
@@ -155,9 +144,9 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 	}
 #endif
 
-out:
 	if (notify_event)
 		fsnotify_put_event(notify_event);
+
 	return ret;
 }
 

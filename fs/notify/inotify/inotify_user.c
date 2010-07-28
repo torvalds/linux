@@ -516,7 +516,7 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark *i_mark;
-	struct fsnotify_event *ignored_event;
+	struct fsnotify_event *ignored_event, *notify_event;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
 	int ret;
@@ -538,9 +538,14 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 	fsn_event_priv->group = group;
 	event_priv->wd = i_mark->wd;
 
-	ret = fsnotify_add_notify_event(group, ignored_event, fsn_event_priv, NULL, NULL);
-	if (ret)
+	notify_event = fsnotify_add_notify_event(group, ignored_event, fsn_event_priv, NULL);
+	if (notify_event) {
+		if (IS_ERR(notify_event))
+			ret = PTR_ERR(notify_event);
+		else
+			fsnotify_put_event(notify_event);
 		inotify_free_event_priv(fsn_event_priv);
+	}
 
 skip_send_ignore:
 

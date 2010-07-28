@@ -137,16 +137,14 @@ struct fsnotify_event_private_data *fsnotify_remove_priv_from_event(struct fsnot
  * event off the queue to deal with.  If the event is successfully added to the
  * group's notification queue, a reference is taken on event.
  */
-int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event,
-			      struct fsnotify_event_private_data *priv,
-			      int (*merge)(struct list_head *,
-					   struct fsnotify_event *,
-					   void **arg),
-			      void **arg)
+struct fsnotify_event *fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event,
+						 struct fsnotify_event_private_data *priv,
+						 struct fsnotify_event *(*merge)(struct list_head *,
+										 struct fsnotify_event *))
 {
+	struct fsnotify_event *return_event = NULL;
 	struct fsnotify_event_holder *holder = NULL;
 	struct list_head *list = &group->notification_list;
-	int rc = 0;
 
 	pr_debug("%s: group=%p event=%p priv=%p\n", __func__, group, event, priv);
 
@@ -162,27 +160,37 @@ int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_even
 alloc_holder:
 		holder = fsnotify_alloc_event_holder();
 		if (!holder)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 	}
 
 	mutex_lock(&group->notification_mutex);
 
 	if (group->q_len >= group->max_events) {
 		event = q_overflow_event;
-		rc = -EOVERFLOW;
+
+		/*
+		 * we need to return the overflow event
+		 * which means we need a ref
+		 */
+		fsnotify_get_event(event);
+		return_event = event;
+
 		/* sorry, no private data on the overflow event */
 		priv = NULL;
 	}
 
 	if (!list_empty(list) && merge) {
-		int ret;
+		struct fsnotify_event *tmp;
 
-		ret = merge(list, event, arg);
-		if (ret) {
+		tmp = merge(list, event);
+		if (tmp) {
 			mutex_unlock(&group->notification_mutex);
+
+			if (return_event)
+				fsnotify_put_event(return_event);
 			if (holder != &event->holder)
 				fsnotify_destroy_event_holder(holder);
-			return ret;
+			return tmp;
 		}
 	}
 
@@ -197,6 +205,12 @@ alloc_holder:
 		 * event holder was used, go back and get a new one */
 		spin_unlock(&event->lock);
 		mutex_unlock(&group->notification_mutex);
+
+		if (return_event) {
+			fsnotify_put_event(return_event);
+			return_event = NULL;
+		}
+
 		goto alloc_holder;
 	}
 
@@ -211,7 +225,7 @@ alloc_holder:
 	mutex_unlock(&group->notification_mutex);
 
 	wake_up(&group->notification_waitq);
-	return rc;
+	return return_event;
 }
 
 /*
