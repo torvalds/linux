@@ -3632,6 +3632,7 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	const struct iwl_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_channel *channel = ch_switch->channel;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	u16 ch;
 	unsigned long flags = 0;
@@ -3655,10 +3656,10 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 	if (priv->cfg->ops->lib->set_channel_switch) {
 
-		ch = ch_switch->channel->hw_value;
+		ch = channel->hw_value;
 		if (le16_to_cpu(priv->active_rxon.channel) != ch) {
 			ch_info = iwl_get_channel_info(priv,
-						       conf->channel->band,
+						       channel->band,
 						       ch);
 			if (!is_channel_valid(ch_info)) {
 				IWL_DEBUG_MAC80211(priv, "invalid channel\n");
@@ -3687,15 +3688,12 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 			} else
 				ht_conf->is_40mhz = false;
 
-			/* if we are switching from ht to 2.4 clear flags
-			 * from any ht related info since 2.4 does not
-			 * support ht */
-			if ((le16_to_cpu(priv->staging_rxon.channel) != ch))
+			if (le16_to_cpu(priv->staging_rxon.channel) != ch)
 				priv->staging_rxon.flags = 0;
 
-			iwl_set_rxon_channel(priv, conf->channel);
+			iwl_set_rxon_channel(priv, channel);
 			iwl_set_rxon_ht(priv, ht_conf);
-			iwl_set_flags_for_band(priv, conf->channel->band,
+			iwl_set_flags_for_band(priv, channel->band,
 					       priv->vif);
 			spin_unlock_irqrestore(&priv->lock, flags);
 

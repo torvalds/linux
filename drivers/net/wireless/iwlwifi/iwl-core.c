@@ -1992,6 +1992,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct iwl_priv *priv = hw->priv;
 	const struct iwl_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_channel *channel = conf->channel;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	unsigned long flags = 0;
 	int ret = 0;
@@ -2001,7 +2002,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "enter to channel %d changed 0x%X\n",
-					conf->channel->hw_value, changed);
+					channel->hw_value, changed);
 
 	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
 			test_bit(STATUS_SCANNING, &priv->status))) {
@@ -2032,8 +2033,8 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if (scan_active)
 			goto set_ch_out;
 
-		ch = conf->channel->hw_value;
-		ch_info = iwl_get_channel_info(priv, conf->channel->band, ch);
+		ch = channel->hw_value;
+		ch_info = iwl_get_channel_info(priv, channel->band, ch);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
 			ret = -EINVAL;
@@ -2064,16 +2065,13 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * from BSS config in iwl_ht_conf */
 		ht_conf->ht_protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 
-		/* if we are switching from ht to 2.4 clear flags
-		 * from any ht related info since 2.4 does not
-		 * support ht */
 		if ((le16_to_cpu(priv->staging_rxon.channel) != ch))
 			priv->staging_rxon.flags = 0;
 
-		iwl_set_rxon_channel(priv, conf->channel);
+		iwl_set_rxon_channel(priv, channel);
 		iwl_set_rxon_ht(priv, ht_conf);
 
-		iwl_set_flags_for_band(priv, conf->channel->band, priv->vif);
+		iwl_set_flags_for_band(priv, channel->band, priv->vif);
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		if (priv->cfg->ops->lib->update_bcast_station)
