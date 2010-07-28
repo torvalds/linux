@@ -149,6 +149,14 @@ static inline unsigned long memblock_region_pages(const struct memblock_region *
 	     region++)
 
 
+#ifdef ARCH_DISCARD_MEMBLOCK
+#define __init_memblock __init
+#define __initdata_memblock __initdata
+#else
+#define __init_memblock
+#define __initdata_memblock
+#endif
+
 #endif /* CONFIG_HAVE_MEMBLOCK */
 
 #endif /* __KERNEL__ */
