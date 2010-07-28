@@ -992,16 +992,12 @@ int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
-	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 
-	if (xlator_obj)
-		kfree(xlator_obj);
-	else
-		status = -EFAULT;
+	kfree(xlator_obj);
 
-	return status;
+	return 0;
 }
 
 /*
