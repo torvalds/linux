@@ -15,6 +15,7 @@
 
 struct tlv320dac33_platform_data {
 	int power_gpio;
+	int mode1_latency; /* latency caused by the i2c writes in us */
 	int keep_bclk;	/* Keep the BCLK running in FIFO modes */
 	u8 burst_bclkdiv;
 };
