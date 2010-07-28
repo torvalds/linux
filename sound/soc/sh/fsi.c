@@ -1043,11 +1043,6 @@ static int fsi_probe(struct platform_device *pdev)
 	unsigned int irq;
 	int ret;
 
-	if (0 != pdev->id) {
-		dev_err(&pdev->dev, "current fsi support id 0 only now\n");
-		return -ENODEV;
-	}
-
 	id_entry = pdev->id_entry;
 	if (!id_entry) {
 		dev_err(&pdev->dev, "unknown fsi device\n");
