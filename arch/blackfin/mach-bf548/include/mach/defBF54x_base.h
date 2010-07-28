@@ -105,15 +105,15 @@
 #define                     TWI0_REGBASE  0xffc00700
 #define                      TWI0_CLKDIV  0xffc00700   /* Clock Divider Register */
 #define                     TWI0_CONTROL  0xffc00704   /* TWI Control Register */
-#define                  TWI0_SLAVE_CTRL  0xffc00708   /* TWI Slave Mode Control Register */
+#define                   TWI0_SLAVE_CTL  0xffc00708   /* TWI Slave Mode Control Register */
 #define                  TWI0_SLAVE_STAT  0xffc0070c   /* TWI Slave Mode Status Register */
 #define                  TWI0_SLAVE_ADDR  0xffc00710   /* TWI Slave Mode Address Register */
-#define                 TWI0_MASTER_CTRL  0xffc00714   /* TWI Master Mode Control Register */
+#define                  TWI0_MASTER_CTL  0xffc00714   /* TWI Master Mode Control Register */
 #define                 TWI0_MASTER_STAT  0xffc00718   /* TWI Master Mode Status Register */
 #define                 TWI0_MASTER_ADDR  0xffc0071c   /* TWI Master Mode Address Register */
 #define                    TWI0_INT_STAT  0xffc00720   /* TWI Interrupt Status Register */
 #define                    TWI0_INT_MASK  0xffc00724   /* TWI Interrupt Mask Register */
-#define                   TWI0_FIFO_CTRL  0xffc00728   /* TWI FIFO Control Register */
+#define                    TWI0_FIFO_CTL  0xffc00728   /* TWI FIFO Control Register */
 #define                   TWI0_FIFO_STAT  0xffc0072c   /* TWI FIFO Status Register */
 #define                   TWI0_XMT_DATA8  0xffc00780   /* TWI FIFO Transmit Data Single Byte Register */
 #define                  TWI0_XMT_DATA16  0xffc00784   /* TWI FIFO Transmit Data Double Byte Register */
