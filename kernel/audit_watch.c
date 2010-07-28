@@ -164,8 +164,6 @@ static struct audit_parent *audit_init_parent(struct nameidata *ndp)
 		return ERR_PTR(ret);
 	}
 
-	fsnotify_recalc_group_mask(audit_watch_group);
-
 	return parent;
 }
 
@@ -352,9 +350,6 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	mutex_unlock(&audit_filter_mutex);
 
 	fsnotify_destroy_mark(&parent->mark);
-
-	fsnotify_recalc_group_mask(audit_watch_group);
-
 }
 
 /* Get path information necessary for adding watches. */
@@ -505,9 +500,6 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 			audit_put_parent(parent);
 		}
 	}
-
-	fsnotify_recalc_group_mask(audit_watch_group);
-
 }
 
 static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,

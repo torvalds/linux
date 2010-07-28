@@ -35,22 +35,6 @@ LIST_HEAD(fsnotify_inode_groups);
 /* all groups registered to receive mount point filesystem notifications */
 LIST_HEAD(fsnotify_vfsmount_groups);
 
-/*
- * Update the group->mask by running all of the marks associated with this
- * group and finding the bitwise | of all of the mark->mask.
- */
-void fsnotify_recalc_group_mask(struct fsnotify_group *group)
-{
-	__u32 mask = 0;
-	struct fsnotify_mark *mark;
-
-	spin_lock(&group->mark_lock);
-	list_for_each_entry(mark, &group->marks_list, g_list)
-		mask |= mark->mask;
-	group->mask = mask;
-	spin_unlock(&group->mark_lock);
-}
-
 void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
 {
 	struct fsnotify_group *group_iter;

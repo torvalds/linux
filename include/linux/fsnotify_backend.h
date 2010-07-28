@@ -120,15 +120,6 @@ struct fsnotify_group {
 	struct list_head vfsmount_group_list;
 
 	/*
-	 * Defines all of the event types in which this group is interested.
-	 * This mask is a bitwise OR of the FS_* events from above.  Each time
-	 * this mask changes for a group (if it changes) the correct functions
-	 * must be called to update the global structures which indicate global
-	 * interest in event types.
-	 */
-	__u32 mask;
-
-	/*
 	 * How the refcnt is used is up to each group.  When the refcnt hits 0
 	 * fsnotify will clean up all of the resources associated with this group.
 	 * As an example, the dnotify group will always have a refcnt=1 and that
@@ -367,8 +358,6 @@ static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode 
 
 /* get a reference to an existing or create a new group */
 extern struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops);
-/* run all marks associated with this group and update group->mask */
-extern void fsnotify_recalc_group_mask(struct fsnotify_group *group);
 /* drop reference on a group from fsnotify_alloc_group */
 extern void fsnotify_put_group(struct fsnotify_group *group);
 

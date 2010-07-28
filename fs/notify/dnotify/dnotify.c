@@ -199,8 +199,6 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	if (dn_mark->dn == NULL)
 		fsnotify_destroy_mark(fsn_mark);
 
-	fsnotify_recalc_group_mask(dnotify_group);
-
 	mutex_unlock(&dnotify_mark_mutex);
 
 	fsnotify_put_mark(fsn_mark);
@@ -384,8 +382,6 @@ out:
 
 	if (destroy)
 		fsnotify_destroy_mark(fsn_mark);
-
-	fsnotify_recalc_group_mask(dnotify_group);
 
 	mutex_unlock(&dnotify_mark_mutex);
 	fsnotify_put_mark(fsn_mark);

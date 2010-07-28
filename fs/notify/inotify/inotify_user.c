@@ -606,16 +606,11 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 		int dropped = (old_mask & ~new_mask);
 		/* more bits in this fsn_mark than the inode's mask? */
 		int do_inode = (new_mask & ~inode->i_fsnotify_mask);
-		/* more bits in this fsn_mark than the group? */
-		int do_group = (new_mask & ~group->mask);
 
 		/* update the inode with this new fsn_mark */
 		if (dropped || do_inode)
 			fsnotify_recalc_inode_mask(inode);
 
-		/* update the group mask with the new mask */
-		if (dropped || do_group)
-			fsnotify_recalc_group_mask(group);
 	}
 
 	/* return the wd */
@@ -672,10 +667,6 @@ static int inotify_new_watch(struct fsnotify_group *group,
 
 	/* return the watch descriptor for this new mark */
 	ret = tmp_i_mark->wd;
-
-	/* if this mark added a new event update the group mask */
-	if (mask & ~group->mask)
-		fsnotify_recalc_group_mask(group);
 
 out_err:
 	/* match the ref from fsnotify_init_mark() */
