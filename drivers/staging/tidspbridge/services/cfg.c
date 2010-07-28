@@ -102,7 +102,7 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
 		      "TIOMAP1510")))
 			*value = (u32)drv_datap->dev_object;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	return status;
 }
@@ -130,7 +130,7 @@ int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 buf_size,
 	if (!status && drv_datap->base_img)
 		strcpy(str_exec_file, drv_datap->base_img);
 
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	DBC_ENSURE(((status == 0) &&
 		    (strlen(str_exec_file) <= buf_size))
@@ -174,12 +174,11 @@ int cfg_get_object(u32 *value, u8 dw_type)
 	default:
 		break;
 	}
-	if (DSP_FAILED(status)) {
+	if (status) {
 		*value = 0;
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	}
-	DBC_ENSURE((!status && *value != 0) ||
-		   (DSP_FAILED(status) && *value == 0));
+	DBC_ENSURE((!status && *value != 0) || (status && *value == 0));
 	return status;
 }
 
@@ -217,7 +216,7 @@ int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 value)
 		if (!(strcmp((char *)dev_node_obj, "TIOMAP1510")))
 			drv_datap->dev_object = (void *) value;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 
 	return status;
@@ -248,7 +247,7 @@ int cfg_set_object(u32 value, u8 dw_type)
 	default:
 		break;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	return status;
 }
