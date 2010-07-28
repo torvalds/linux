@@ -1267,11 +1267,11 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 	unsigned nid = 0;
 	struct alc_spec *spec = codec->spec;
 
+	spec->cdefine.enable_pcbeep = 1; /* assume always enabled */
+
 	ass = codec->subsystem_id & 0xffff;
-	if (ass != codec->bus->pci->subsystem_device && (ass & 1)) {
-		spec->cdefine.enable_pcbeep = 1; /* assume always enabled */
+	if (ass != codec->bus->pci->subsystem_device && (ass & 1))
 		goto do_sku;
-	}
 
 	nid = 0x1d;
 	if (codec->vendor_id == 0x10ec0260)
