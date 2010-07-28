@@ -839,6 +839,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 
@@ -892,6 +893,12 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 		wl->state = WL1271_STATE_ON;
 		wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
+
+		/* update hw/fw version info in wiphy struct */
+		wiphy->hw_version = wl->chip.id;
+		strncpy(wiphy->fw_version, wl->chip.fw_ver,
+			sizeof(wiphy->fw_version));
+
 		goto out;
 
 irq_disable:
