@@ -93,7 +93,6 @@ static int inotify_handle_event(struct fsnotify_group *group,
 				struct fsnotify_mark *mark,
 				struct fsnotify_event *event)
 {
-	struct fsnotify_mark *fsn_mark;
 	struct inotify_inode_mark *i_mark;
 	struct inode *to_tell;
 	struct inotify_event_private_data *event_priv;
@@ -106,11 +105,7 @@ static int inotify_handle_event(struct fsnotify_group *group,
 
 	to_tell = event->to_tell;
 
-	fsn_mark = fsnotify_find_inode_mark(group, to_tell);
-	/* race with watch removal?  We already passes should_send */
-	if (unlikely(!fsn_mark))
-		return 0;
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark,
+	i_mark = container_of(mark, struct inotify_inode_mark,
 			      fsn_mark);
 	wd = i_mark->wd;
 
@@ -132,14 +127,8 @@ static int inotify_handle_event(struct fsnotify_group *group,
 			ret = PTR_ERR(added_event);
 	}
 
-	if (fsn_mark->mask & IN_ONESHOT)
-		fsnotify_destroy_mark(fsn_mark);
-
-	/*
-	 * If we hold the fsn_mark until after the event is on the queue
-	 * IN_IGNORED won't be able to pass this event in the queue
-	 */
-	fsnotify_put_mark(fsn_mark);
+	if (mark->mask & IN_ONESHOT)
+		fsnotify_destroy_mark(mark);
 
 	return ret;
 }
@@ -153,29 +142,21 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 				      struct vfsmount *mnt, struct fsnotify_mark *mark,
 				      __u32 mask, void *data, int data_type)
 {
-	struct fsnotify_mark *fsn_mark;
 	bool send;
 
 	pr_debug("%s: group=%p inode=%p mask=%x data=%p data_type=%d\n",
 		 __func__, group, inode, mask, data, data_type);
 
-	fsn_mark = fsnotify_find_inode_mark(group, inode);
-	if (!fsn_mark)
-		return false;
-
 	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (fsn_mark->mask & mask);
+	send = (mark->mask & mask);
 
-	if (send && (fsn_mark->mask & FS_EXCL_UNLINK) &&
+	if (send && (mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_FILE)) {
 		struct file *file  = data;
 
 		if (d_unlinked(file->f_path.dentry))
 			send = false;
 	}
-
-	/* find took a reference */
-	fsnotify_put_mark(fsn_mark);
 
 	return send;
 }
