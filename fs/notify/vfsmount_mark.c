@@ -141,34 +141,46 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 			       struct fsnotify_group *group, struct vfsmount *mnt,
 			       int allow_dups)
 {
-	struct fsnotify_mark *lmark = NULL;
+	struct fsnotify_mark *lmark;
+	struct hlist_node *node, *last = NULL;
 	int ret = 0;
 
 	mark->flags = FSNOTIFY_MARK_FLAG_VFSMOUNT;
 
-	/*
-	 * LOCKING ORDER!!!!
-	 * mark->lock
-	 * group->mark_lock
-	 * mnt->mnt_root->d_lock
-	 */
 	assert_spin_locked(&mark->lock);
 	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 
-	if (!allow_dups)
-		lmark = fsnotify_find_vfsmount_mark_locked(group, mnt);
-	if (!lmark) {
-		mark->m.mnt = mnt;
+	mark->m.mnt = mnt;
 
+	/* is mark the first mark? */
+	if (hlist_empty(&mnt->mnt_fsnotify_marks)) {
 		hlist_add_head(&mark->m.m_list, &mnt->mnt_fsnotify_marks);
-
-		fsnotify_recalc_vfsmount_mask_locked(mnt);
-	} else {
-		ret = -EEXIST;
+		goto out;
 	}
 
+	/* should mark be in the middle of the current list? */
+	hlist_for_each_entry(lmark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
+		last = node;
+
+		if ((lmark->group == group) && !allow_dups) {
+			ret = -EEXIST;
+			goto out;
+		}
+
+		if (mark->group < lmark->group)
+			continue;
+
+		hlist_add_before(&mark->m.m_list, &lmark->m.m_list);
+		goto out;
+	}
+
+	BUG_ON(last == NULL);
+	/* mark should be the last entry.  last is the current last entry */
+	hlist_add_after(last, &mark->m.m_list);
+out:
+	fsnotify_recalc_vfsmount_mask_locked(mnt);
 	spin_unlock(&mnt->mnt_root->d_lock);
 
 	return ret;

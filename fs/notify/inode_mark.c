@@ -174,15 +174,17 @@ void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
 }
 
 /*
- * Attach an initialized mark to a given group and inode.
+ * Attach an initialized mark to a given inode.
  * These marks may be used for the fsnotify backend to determine which
- * event types should be delivered to which group and for which inodes.
+ * event types should be delivered to which group and for which inodes.  These
+ * marks are ordered according to the group's location in memory.
  */
 int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			    struct fsnotify_group *group, struct inode *inode,
 			    int allow_dups)
 {
-	struct fsnotify_mark *lmark = NULL;
+	struct fsnotify_mark *lmark;
+	struct hlist_node *node, *last = NULL;
 	int ret = 0;
 
 	mark->flags = FSNOTIFY_MARK_FLAG_INODE;
@@ -192,20 +194,36 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	spin_lock(&inode->i_lock);
 
-	if (!allow_dups)
-		lmark = fsnotify_find_inode_mark_locked(group, inode);
-	if (!lmark) {
-		mark->i.inode = inode;
+	mark->i.inode = inode;
 
+	/* is mark the first mark? */
+	if (hlist_empty(&inode->i_fsnotify_marks)) {
 		hlist_add_head(&mark->i.i_list, &inode->i_fsnotify_marks);
-
-		fsnotify_recalc_inode_mask_locked(inode);
+		goto out;
 	}
 
-	spin_unlock(&inode->i_lock);
+	/* should mark be in the middle of the current list? */
+	hlist_for_each_entry(lmark, node, &inode->i_fsnotify_marks, i.i_list) {
+		last = node;
 
-	if (lmark)
-		ret = -EEXIST;
+		if ((lmark->group == group) && !allow_dups) {
+			ret = -EEXIST;
+			goto out;
+		}
+
+		if (mark->group < lmark->group)
+			continue;
+
+		hlist_add_before(&mark->i.i_list, &lmark->i.i_list);
+		goto out;
+	}
+
+	BUG_ON(last == NULL);
+	/* mark should be the last entry.  last is the current last entry */
+	hlist_add_after(last, &mark->i.i_list);
+out:
+	fsnotify_recalc_inode_mask_locked(inode);
+	spin_unlock(&inode->i_lock);
 
 	return ret;
 }
