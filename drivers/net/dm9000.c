@@ -1228,8 +1228,13 @@ dm9000_open(struct net_device *dev)
 
 	irqflags |= IRQF_SHARED;
 
-	if (request_irq(dev->irq, &dm9000_interrupt, irqflags, dev->name, dev))
+	#ifndef CONFIG_MACH_RK2818MID
+	if (request_irq(dev->irq, dm9000_interrupt, IRQF_TRIGGER_HIGH, dev->name, dev))
 		return -EAGAIN;
+	#else
+	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
+		return -EAGAIN;
+	#endif
 
 	/* Initialize DM9000 board */
 	dm9000_reset(db);
