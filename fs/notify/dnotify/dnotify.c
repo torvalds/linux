@@ -129,20 +129,11 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct fsnotify_mark *mark, __u32 mask,
 				      void *data, int data_type)
 {
-	bool send;
-
-	/* !dir_notify_enable should never get here, don't waste time checking
-	if (!dir_notify_enable)
-		return 0; */
-
 	/* not a dir, dnotify doesn't care */
 	if (!S_ISDIR(inode->i_mode))
 		return false;
 
-	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (mask & mark->mask);
-
-	return send;
+	return true;
 }
 
 static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)

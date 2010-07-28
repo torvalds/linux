@@ -514,12 +514,7 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 					  struct vfsmount *mnt, struct fsnotify_mark *mark,
 					  __u32 mask, void *data, int data_type)
 {
-	bool send;
-
-	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (mark->mask & mask);
-
-	return send;
+       return true;
 }
 
 /* Update watch data in audit rules based on fsnotify events. */

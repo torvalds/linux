@@ -185,22 +185,15 @@ static bool should_send_inode_event(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mark=%p mask=%x\n",
 		 __func__, group, inode, mark, mask);
 
-	/* if the event is for a child and this inode doesn't care about
-	 * events on the child, don't send it! */
+	/*
+	 * if the event is for a child and this inode doesn't care about
+	 * events on the child, don't send it!
+	 */
 	if ((mask & FS_EVENT_ON_CHILD) &&
-	    !(mark->mask & FS_EVENT_ON_CHILD)) {
-		mask = 0;
-	} else {
-		/*
-		 * We care about children, but do we care about this particular
-		 * type of event?
-		 */
-		mask &= ~FS_EVENT_ON_CHILD;
-		mask &= mark->mask;
-		mask &= ~mark->ignored_mask;
-	}
-
-	return mask;
+	    !(mark->mask & FS_EVENT_ON_CHILD))
+		return false;
+	else
+		return true;
 }
 
 static bool fanotify_should_send_event(struct fsnotify_group *group, struct inode *to_tell,

@@ -142,23 +142,15 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 				      struct vfsmount *mnt, struct fsnotify_mark *mark,
 				      __u32 mask, void *data, int data_type)
 {
-	bool send;
-
-	pr_debug("%s: group=%p inode=%p mask=%x data=%p data_type=%d\n",
-		 __func__, group, inode, mask, data, data_type);
-
-	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (mark->mask & mask);
-
-	if (send && (mark->mask & FS_EXCL_UNLINK) &&
+	if ((mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_FILE)) {
 		struct file *file  = data;
 
 		if (d_unlinked(file->f_path.dentry))
-			send = false;
+			return false;
 	}
 
-	return send;
+	return true;
 }
 
 /*

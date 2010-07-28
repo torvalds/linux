@@ -180,8 +180,8 @@ static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
 		 mnt, mark, mask, data, data_is, cookie, *event);
 
-	if (!group->ops->should_send_event(group, to_tell, mnt, mark, mask,
-					   data, data_is))
+	if (group->ops->should_send_event(group, to_tell, mnt, mark, mask,
+					  data, data_is) == false)
 		return 0;
 	if (!*event) {
 		*event = fsnotify_create_event(to_tell, mask, data,

@@ -923,7 +923,7 @@ static bool audit_tree_send_event(struct fsnotify_group *group, struct inode *in
 				  struct vfsmount *mnt, struct fsnotify_mark *mark,
 				  __u32 mask, void *data, int data_type)
 {
-	return 0;
+	return false;
 }
 
 static const struct fsnotify_ops audit_tree_ops = {
