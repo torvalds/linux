@@ -18,7 +18,8 @@
 
 #include <asm/memblock.h>
 
-#define INIT_MEMBLOCK_REGIONS 128
+#define INIT_MEMBLOCK_REGIONS	128
+#define MEMBLOCK_ERROR		(~(phys_addr_t)0)
 
 struct memblock_region {
 	phys_addr_t base;
