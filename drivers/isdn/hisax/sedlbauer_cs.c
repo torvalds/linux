@@ -171,8 +171,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 				  unsigned int vcc,
 				  void *priv_data)
 {
-	win_req_t *req = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -219,31 +217,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 			return -ENODEV;
 	}
 
-	/*
-	  Now set up a common memory window, if needed.  There is room
-	  in the struct pcmcia_device structure for one memory window handle,
-	  but if the base addresses need to be saved, or if multiple
-	  windows are needed, the info should go in the private data
-	  structure for this device.
-
-	  Note that the memory window base is a physical address, and
-	  needs to be mapped to virtual space with ioremap() before it
-	  is used.
-	*/
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win) != 0)
-			return -ENODEV;
-
-		if (pcmcia_map_mem_page(p_dev, p_dev->win,
-						mem->win[0].card_addr) != 0)
-			return -ENODEV;
-	}
 	return 0;
 }
 
@@ -251,15 +224,10 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 
 static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
-    win_req_t *req;
     int ret;
     IsdnCard_t  icard;
 
     dev_dbg(&link->dev, "sedlbauer_config(0x%p)\n", link);
-
-    req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
-    if (!req)
-	    return -ENOMEM;
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -273,7 +241,7 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
       these things without consulting the CIS, and most client drivers
       will only use the CIS to fill in implementation-defined details.
     */
-    ret = pcmcia_loop_config(link, sedlbauer_config_check, req);
+    ret = pcmcia_loop_config(link, sedlbauer_config_check, NULL);
     if (ret)
 	    goto failed;
 
@@ -297,9 +265,6 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
 	printk(" & %pR", link->resource[0]);
     if (link->resource[1])
 	printk(" & %pR", link->resource[1]);
-    if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", req->Base,
-	       req->Base+req->Size-1);
     printk("\n");
 
     icard.para[0] = link->irq;

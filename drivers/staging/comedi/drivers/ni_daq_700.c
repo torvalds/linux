@@ -555,8 +555,6 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				unsigned int vcc,
 				void *priv_data)
 {
-	win_req_t *req = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -589,22 +587,6 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 			return -ENODEV;
 	}
 
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem =
-			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		if (req->Size < 0x1000)
-			req->Size = 0x1000;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win))
-			return -ENODEV;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win,
-				mem->win[0].card_addr))
-			return -ENODEV;
-	}
 	/* If we got this far, we're cool! */
 	return 0;
 }
@@ -618,7 +600,7 @@ static void dio700_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "dio700_config\n");
 
-	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, &req);
+	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
 		goto failed;
@@ -644,9 +626,6 @@ static void dio700_config(struct pcmcia_device *link)
 		printk(", io %pR", link->resource[0]);
 	if (link->resource[1])
 		printk(" & %pR", link->resource[1]);
-	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base + req.Size - 1);
 	printk("\n");
 
 	return;
