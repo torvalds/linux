@@ -366,8 +366,5 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 #define machine_late_initcall(mach,fn)		__define_machine_initcall(mach,"7",fn,7)
 #define machine_late_initcall_sync(mach,fn)	__define_machine_initcall(mach,"7s",fn,7s)
 
-void generic_suspend_disable_irqs(void);
-void generic_suspend_enable_irqs(void);
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MACHDEP_H */
