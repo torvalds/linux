@@ -2970,11 +2970,13 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		if (srwm < 0)
 			srwm = 1;
 		srwm &= 0x3f;
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+		if (IS_I965GM(dev))
+			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
-		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
-					& ~FW_BLC_SELF_EN);
+		if (IS_I965GM(dev))
+			I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+				   & ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
@@ -3652,6 +3654,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		else
 			pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
 	}
+
+	dspcntr |= DISPLAY_PLANE_ENABLE;
+	pipeconf |= PIPEACONF_ENABLE;
+	dpll |= DPLL_VCO_ENABLE;
+
 
 	/* Disable the panel fitter if it was on our pipe */
 	if (!HAS_PCH_SPLIT(dev) && intel_panel_fitter_pipe(dev) == pipe)
@@ -4478,6 +4485,7 @@ static void intel_idle_update(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
+	int enabled = 0;
 
 	if (!i915_powersave)
 		return;
@@ -4486,19 +4494,20 @@ static void intel_idle_update(struct work_struct *work)
 
 	i915_update_gfx_val(dev_priv);
 
-	if (IS_I945G(dev) || IS_I945GM(dev)) {
-		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
-	}
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
 			continue;
 
+		enabled++;
 		intel_crtc = to_intel_crtc(crtc);
 		if (!intel_crtc->busy)
 			intel_decrease_pllclock(crtc);
+	}
+
+	if ((enabled == 1) && (IS_I945G(dev) || IS_I945GM(dev))) {
+		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -4596,10 +4605,10 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	kfree(work);
 }
 
-void intel_finish_page_flip(struct drm_device *dev, int pipe)
+static void do_intel_finish_page_flip(struct drm_device *dev,
+				      struct drm_crtc *crtc)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj_priv;
@@ -4643,6 +4652,22 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	schedule_work(&work->work);
 }
 
+void intel_finish_page_flip(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	do_intel_finish_page_flip(dev, crtc);
+}
+
+void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
+
+	do_intel_finish_page_flip(dev, crtc);
+}
+
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -4673,6 +4698,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int ret, pipesrc;
+	u32 flip_mask;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -4726,15 +4752,28 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
+	if (intel_crtc->plane)
+		flip_mask = I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+	else
+		flip_mask = I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+
+	/* Wait for any previous flip to finish */
+	if (IS_GEN3(dev))
+		while (I915_READ(ISR) & flip_mask)
+			;
+
 	BEGIN_LP_RING(4);
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
 	if (IS_I965G(dev)) {
+		OUT_RING(MI_DISPLAY_FLIP |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
 		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
 		pipesrc = I915_READ(pipesrc_reg); 
 		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
+		OUT_RING(MI_DISPLAY_FLIP_I915 |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
 		OUT_RING(obj_priv->gtt_offset);
 		OUT_RING(MI_NOOP);
 	}
@@ -5470,7 +5509,6 @@ static void intel_init_display(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int num_pipe;
 	int i;
 
 	drm_mode_config_init(dev);
@@ -5500,13 +5538,13 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
 
 	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		num_pipe = 2;
+		dev_priv->num_pipe = 2;
 	else
-		num_pipe = 1;
+		dev_priv->num_pipe = 1;
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		  num_pipe, num_pipe > 1 ? "s" : "");
+		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
 
-	for (i = 0; i < num_pipe; i++) {
+	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
 	}
 

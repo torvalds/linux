@@ -144,6 +144,7 @@ int kvm_arch_hardware_enable(void *garbage)
 				VP_INIT_ENV : VP_INIT_ENV_INITALIZE,
 			__pa(kvm_vm_buffer), KVM_VM_BUFFER_BASE, &tmp_base);
 	if (status != 0) {
+		spin_unlock(&vp_lock);
 		printk(KERN_WARNING"kvm: Failed to Enable VT Support!!!!\n");
 		return -EINVAL;
 	}

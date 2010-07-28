@@ -9,7 +9,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/gfp.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 
@@ -89,7 +89,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= (lmb_end_of_DRAM() - 1);
+	return mask >= (memblock_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif

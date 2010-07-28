@@ -224,6 +224,7 @@ extern void intel_fbdev_fini(struct drm_device *dev);
 
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
 extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
+extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);

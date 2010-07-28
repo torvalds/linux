@@ -1944,6 +1944,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
+		if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			return ieee80211_sta_rx_mgmt(sdata, rx->skb);
+
 		switch (mgmt->u.action.u.addba_req.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +

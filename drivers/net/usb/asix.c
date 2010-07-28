@@ -344,7 +344,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			return 2;
 		}
 
-		if (size > ETH_FRAME_LEN) {
+		if (size > dev->net->mtu + ETH_HLEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   size);
 			return 0;

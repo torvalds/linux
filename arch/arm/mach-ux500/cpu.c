@@ -62,6 +62,12 @@ void __init ux500_init_irq(void)
 {
 	gic_dist_init(0, __io_address(UX500_GIC_DIST_BASE), 29);
 	gic_cpu_init(0, __io_address(UX500_GIC_CPU_BASE));
+
+	/*
+	 * Init clocks here so that they are available for system timer
+	 * initialization.
+	 */
+	clk_init();
 }
 
 #ifdef CONFIG_CACHE_L2X0

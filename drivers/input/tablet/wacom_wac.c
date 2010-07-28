@@ -284,12 +284,13 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 			(data[4] << 20) + (data[5] << 12) +
 			(data[6] << 4) + (data[7] >> 4);
 
-		wacom->id[idx] = (data[2] << 4) | (data[3] >> 4);
+		wacom->id[idx] = (data[2] << 4) | (data[3] >> 4) |
+			((data[7] & 0x0f) << 20) | ((data[8] & 0xf0) << 12);
 
-		switch (wacom->id[idx]) {
+		switch (wacom->id[idx] & 0xfffff) {
 		case 0x812: /* Inking pen */
 		case 0x801: /* Intuos3 Inking pen */
-		case 0x20802: /* Intuos4 Classic Pen */
+		case 0x20802: /* Intuos4 Inking Pen */
 		case 0x012:
 			wacom->tool[idx] = BTN_TOOL_PENCIL;
 			break;
@@ -513,7 +514,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_abs(input, ABS_RX, ((data[1] & 0x1f) << 8) | data[2]);
 			input_report_abs(input, ABS_RY, ((data[3] & 0x1f) << 8) | data[4]);
 
-			if ((data[5] & 0x1f) | (data[6] & 0x1f) | (data[1] & 0x1f) |
+			if ((data[5] & 0x1f) | data[6] | (data[1] & 0x1f) |
 				data[2] | (data[3] & 0x1f) | data[4] | data[8] |
 				(data[7] & 0x01)) {
 				input_report_key(input, wacom->tool[1], 1);

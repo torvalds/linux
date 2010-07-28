@@ -267,8 +267,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 {
 	struct mr_table *mrt, *next;
 
-	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list)
+	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list) {
+		list_del(&mrt->list);
 		kfree(mrt);
+	}
 	fib_rules_unregister(net->ipv4.mr_rules_ops);
 }
 #else
@@ -440,8 +442,10 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 	int err;
 
 	err = ipmr_fib_lookup(net, &fl, &mrt);
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	read_lock(&mrt_lock);
 	dev->stats.tx_bytes += skb->len;
@@ -1726,8 +1730,10 @@ int ip_mr_input(struct sk_buff *skb)
 		goto dont_forward;
 
 	err = ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt);
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	if (!local) {
 		    if (IPCB(skb)->opt.router_alert) {

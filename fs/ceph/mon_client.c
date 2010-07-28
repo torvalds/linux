@@ -400,6 +400,8 @@ static void release_generic_request(struct kref *kref)
 		ceph_msg_put(req->reply);
 	if (req->request)
 		ceph_msg_put(req->request);
+
+	kfree(req);
 }
 
 static void put_generic_request(struct ceph_mon_generic_request *req)
@@ -723,7 +725,8 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		dout("authenticated, starting session\n");
 
 		monc->client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
-		monc->client->msgr->inst.name.num = monc->auth->global_id;
+		monc->client->msgr->inst.name.num =
+					cpu_to_le64(monc->auth->global_id);
 
 		__send_subscribe(monc);
 		__resend_generic_request(monc);

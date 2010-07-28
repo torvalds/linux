@@ -89,7 +89,7 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_files = le64_to_cpu(st.num_objects);
 	buf->f_ffree = -1;
-	buf->f_namelen = PATH_MAX;
+	buf->f_namelen = NAME_MAX;
 	buf->f_frsize = PAGE_CACHE_SIZE;
 
 	/* leave fsid little-endian, regardless of host endianness */
@@ -926,7 +926,7 @@ static int ceph_compare_super(struct super_block *sb, void *data)
 /*
  * construct our own bdi so we can control readahead, etc.
  */
-static atomic_long_t bdi_seq = ATOMIC_INIT(0);
+static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
 static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {

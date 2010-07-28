@@ -31,7 +31,7 @@ nv50_gpio_location(struct dcb_gpio_entry *gpio, uint32_t *reg, uint32_t *shift)
 {
 	const uint32_t nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
 
-	if (gpio->line > 32)
+	if (gpio->line >= 32)
 		return -EINVAL;
 
 	*reg = nv50_gpio_reg[gpio->line >> 3];

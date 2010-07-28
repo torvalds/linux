@@ -34,6 +34,7 @@
 #include "irq_impl.h"
 #include "pci_impl.h"
 #include "machvec_impl.h"
+#include "pc873xx.h"
 
 #if defined(ALPHA_RESTORE_SRM_SETUP)
 /* Save LCA configuration data as the console had it set up.  */
@@ -208,7 +209,27 @@ noname_init_pci(void)
 	common_init_pci();
 	sio_pci_route();
 	sio_fixup_irq_levels(sio_collect_irq_levels());
-	ns87312_enable_ide(0x26e);
+
+	if (pc873xx_probe() == -1) {
+		printk(KERN_ERR "Probing for PC873xx Super IO chip failed.\n");
+	} else {
+		printk(KERN_INFO "Found %s Super IO chip at 0x%x\n",
+			pc873xx_get_model(), pc873xx_get_base());
+
+		/* Enabling things in the Super IO chip doesn't actually
+		 * configure and enable things, the legacy drivers still
+		 * need to do the actual configuration and enabling.
+		 * This only unblocks them.
+		 */
+
+#if !defined(CONFIG_ALPHA_AVANTI)
+		/* Don't bother on the Avanti family.
+		 * None of them had on-board IDE.
+		 */
+		pc873xx_enable_ide();
+#endif
+		pc873xx_enable_epp19();
+	}
 }
 
 static inline void __init

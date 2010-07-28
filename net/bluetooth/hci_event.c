@@ -1049,6 +1049,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	if (conn) {
 		if (!ev->status)
 			conn->link_mode |= HCI_LM_AUTH;
+		else
+			conn->sec_level = BT_SECURITY_LOW;
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
 

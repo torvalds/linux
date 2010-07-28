@@ -168,7 +168,7 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
-
+static int disable_netpoll = 1;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
@@ -1742,15 +1742,23 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	bond_set_carrier(bond);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	if (slaves_support_netpoll(bond_dev)) {
-		bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-		if (bond_dev->npinfo)
-			slave_dev->npinfo = bond_dev->npinfo;
-	} else if (!(bond_dev->priv_flags & IFF_DISABLE_NETPOLL)) {
+	/*
+	 * Netpoll and bonding is broken, make sure it is not initialized
+	 * until it is fixed.
+	 */
+	if (disable_netpoll) {
 		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
-		pr_info("New slave device %s does not support netpoll\n",
-			slave_dev->name);
-		pr_info("Disabling netpoll support for %s\n", bond_dev->name);
+	} else {
+		if (slaves_support_netpoll(bond_dev)) {
+			bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+			if (bond_dev->npinfo)
+				slave_dev->npinfo = bond_dev->npinfo;
+		} else if (!(bond_dev->priv_flags & IFF_DISABLE_NETPOLL)) {
+			bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
+			pr_info("New slave device %s does not support netpoll\n",
+				slave_dev->name);
+			pr_info("Disabling netpoll support for %s\n", bond_dev->name);
+		}
 	}
 #endif
 	read_unlock(&bond->lock);
@@ -1950,8 +1958,11 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	read_lock_bh(&bond->lock);
-	if (slaves_support_netpoll(bond_dev))
-		bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+
+	 /* Make sure netpoll over stays disabled until fixed. */
+	if (!disable_netpoll)
+		if (slaves_support_netpoll(bond_dev))
+				bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
 	read_unlock_bh(&bond->lock);
 	if (slave_dev->netdev_ops->ndo_netpoll_cleanup)
 		slave_dev->netdev_ops->ndo_netpoll_cleanup(slave_dev);

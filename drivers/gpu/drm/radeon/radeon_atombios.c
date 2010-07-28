@@ -280,6 +280,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* ASUS HD 3600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x9598) &&
+	    (dev->pdev->subsystem_vendor == 0x1043) &&
+	    (dev->pdev->subsystem_device == 0x01e4)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
+		}
+	}
+
 	/* ASUS HD 3450 board lists the DVI port as HDMI */
 	if ((dev->pdev->device == 0x95C5) &&
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
@@ -1029,8 +1038,15 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 				      data_offset);
 		switch (crev) {
 		case 1:
-			if (igp_info->info.ucMemoryType & 0xf0)
-				return true;
+			/* AMD IGPS */
+			if ((rdev->family == CHIP_RS690) ||
+			    (rdev->family == CHIP_RS740)) {
+				if (igp_info->info.ulBootUpMemoryClock)
+					return true;
+			} else {
+				if (igp_info->info.ucMemoryType & 0xf0)
+					return true;
+			}
 			break;
 		case 2:
 			if (igp_info->info_2.ucMemoryType & 0x0f)
@@ -1833,10 +1849,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						/* skip invalid modes */
 						if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0)
 							continue;
-						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
-							VOLTAGE_SW;
-						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
-							clock_info->usVDDC;
+						/* voltage works differently on IGPs */
 						mode_index++;
 					} else if (ASIC_IS_DCE4(rdev)) {
 						struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO *clock_info =
@@ -1969,6 +1982,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 
 	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 	rdev->pm.current_clock_mode_index = 0;
+	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
 }
 
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)

@@ -117,6 +117,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 					 * Invalidate the resource to prevent
 					 * child resource allocations in this
 					 * range. */
+					r->start = r->end = 0;
 					r->flags = 0;
 				}
 			}

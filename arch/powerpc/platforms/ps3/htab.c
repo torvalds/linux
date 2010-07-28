@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>

@@ -818,6 +818,9 @@ static struct i2c_board_info akita_i2c_board_info[] = {
 		.type		= "max7310",
 		.addr		= 0x18,
 		.platform_data	= &akita_ioexp,
+	}, {
+		.type		= "wm8750",
+		.addr		= 0x1b,
 	},
 };
 

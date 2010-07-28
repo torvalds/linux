@@ -48,7 +48,16 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	debug_kmap_atomic(type);
 
-	kmap = kmap_high_get(page);
+#ifdef CONFIG_DEBUG_HIGHMEM
+	/*
+	 * There is no cache coherency issue when non VIVT, so force the
+	 * dedicated kmap usage for better debugging purposes in that case.
+	 */
+	if (!cache_is_vivt())
+		kmap = NULL;
+	else
+#endif
+		kmap = kmap_high_get(page);
 	if (kmap)
 		return kmap;
 

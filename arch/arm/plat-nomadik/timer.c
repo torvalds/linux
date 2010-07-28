@@ -13,7 +13,9 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clockchips.h>
+#include <linux/clk.h>
 #include <linux/jiffies.h>
+#include <linux/err.h>
 #include <asm/mach/time.h>
 
 #include <plat/mtu.h>
@@ -124,13 +126,25 @@ static struct irqaction nmdk_timer_irq = {
 void __init nmdk_timer_init(void)
 {
 	unsigned long rate;
-	u32 cr = MTU_CRn_32BITS;;
+	struct clk *clk0;
+	struct clk *clk1;
+	u32 cr;
+
+	clk0 = clk_get_sys("mtu0", NULL);
+	BUG_ON(IS_ERR(clk0));
+
+	clk1 = clk_get_sys("mtu1", NULL);
+	BUG_ON(IS_ERR(clk1));
+
+	clk_enable(clk0);
+	clk_enable(clk1);
 
 	/*
 	 * Tick rate is 2.4MHz for Nomadik and 110MHz for ux500:
 	 * use a divide-by-16 counter if it's more than 16MHz
 	 */
-	rate = CLOCK_TICK_RATE;
+	cr = MTU_CRn_32BITS;;
+	rate = clk_get_rate(clk0);
 	if (rate > 16 << 20) {
 		rate /= 16;
 		cr |= MTU_CRn_PRESCALE_16;
@@ -153,6 +167,14 @@ void __init nmdk_timer_init(void)
 		       nmdk_clksrc.name);
 
 	/* Timer 1 is used for events, fix according to rate */
+	cr = MTU_CRn_32BITS;
+	rate = clk_get_rate(clk1);
+	if (rate > 16 << 20) {
+		rate /= 16;
+		cr |= MTU_CRn_PRESCALE_16;
+	} else {
+		cr |= MTU_CRn_PRESCALE_1;
+	}
 	writel(cr | MTU_CRn_ONESHOT, mtu_base + MTU_CR(1)); /* off, currently */
 	nmdk_clkevt.mult = div_sc(rate, NSEC_PER_SEC, nmdk_clkevt.shift);
 	nmdk_clkevt.max_delta_ns =

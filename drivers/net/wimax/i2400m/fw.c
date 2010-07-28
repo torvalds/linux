@@ -1192,7 +1192,7 @@ int i2400m_fw_hdr_check(struct i2400m *i2400m,
 	unsigned module_type, header_len, major_version, minor_version,
 		module_id, module_vendor, date, size;
 
-	module_type = bcf_hdr->module_type;
+	module_type = le32_to_cpu(bcf_hdr->module_type);
 	header_len = sizeof(u32) * le32_to_cpu(bcf_hdr->header_len);
 	major_version = (le32_to_cpu(bcf_hdr->header_version) & 0xffff0000)
 		>> 16;

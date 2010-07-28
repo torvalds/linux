@@ -465,7 +465,12 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 	inode->i_blocks = 0;
 	inode->i_size = 0;
 
-	insert_inode_hash(inode);
+	if (insert_inode_locked(inode) < 0) {
+		make_bad_inode(inode);
+		unlock_new_inode(inode);
+		iput(inode);
+		return ERR_PTR(-EINVAL);
+	}
 
 	return inode;
 }

@@ -105,7 +105,7 @@ static int
 dcss_set_subcodes(void)
 {
 #ifdef CONFIG_64BIT
-	char *name = kmalloc(8 * sizeof(char), GFP_DMA);
+	char *name = kmalloc(8 * sizeof(char), GFP_KERNEL | GFP_DMA);
 	unsigned long rx, ry;
 	int rc;
 
@@ -252,12 +252,13 @@ dcss_diag_translate_rc (int vm_rc) {
 static int
 query_segment_type (struct dcss_segment *seg)
 {
-	struct qin64  *qin = kmalloc (sizeof(struct qin64), GFP_DMA);
-	struct qout64 *qout = kmalloc (sizeof(struct qout64), GFP_DMA);
-
-	int diag_cc, rc, i;
 	unsigned long dummy, vmrc;
+	int diag_cc, rc, i;
+	struct qout64 *qout;
+	struct qin64 *qin;
 
+	qin = kmalloc(sizeof(*qin), GFP_KERNEL | GFP_DMA);
+	qout = kmalloc(sizeof(*qout), GFP_KERNEL | GFP_DMA);
 	if ((qin == NULL) || (qout == NULL)) {
 		rc = -ENOMEM;
 		goto out_free;
@@ -286,7 +287,7 @@ query_segment_type (struct dcss_segment *seg)
 	   copy data for the new format. */
 	if (segext_scode == DCSS_SEGEXT) {
 		struct qout64_old *qout_old;
-		qout_old = kzalloc(sizeof(struct qout64_old), GFP_DMA);
+		qout_old = kzalloc(sizeof(*qout_old), GFP_KERNEL | GFP_DMA);
 		if (qout_old == NULL) {
 			rc = -ENOMEM;
 			goto out_free;
@@ -407,11 +408,11 @@ segment_overlaps_others (struct dcss_segment *seg)
 static int
 __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long *end)
 {
-	struct dcss_segment *seg = kmalloc(sizeof(struct dcss_segment),
-			GFP_DMA);
-	int rc, diag_cc;
 	unsigned long start_addr, end_addr, dummy;
+	struct dcss_segment *seg;
+	int rc, diag_cc;
 
+	seg = kmalloc(sizeof(*seg), GFP_KERNEL | GFP_DMA);
 	if (seg == NULL) {
 		rc = -ENOMEM;
 		goto out;

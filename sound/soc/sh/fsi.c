@@ -683,20 +683,15 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 
 	/* clock inversion (CKG2) */
 	data = 0;
-	switch (SH_FSI_INVERSION_MASK & flags) {
-	case SH_FSI_LRM_INV:
-		data = 1 << 12;
-		break;
-	case SH_FSI_BRM_INV:
-		data = 1 << 8;
-		break;
-	case SH_FSI_LRS_INV:
-		data = 1 << 4;
-		break;
-	case SH_FSI_BRS_INV:
-		data = 1 << 0;
-		break;
-	}
+	if (SH_FSI_LRM_INV & flags)
+		data |= 1 << 12;
+	if (SH_FSI_BRM_INV & flags)
+		data |= 1 << 8;
+	if (SH_FSI_LRS_INV & flags)
+		data |= 1 << 4;
+	if (SH_FSI_BRS_INV & flags)
+		data |= 1 << 0;
+
 	fsi_reg_write(fsi, CKG2, data);
 
 	/* do fmt, di fmt */
@@ -726,15 +721,15 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		break;
 	case SH_FSI_FMT_TDM:
 		msg = "TDM";
-		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
+		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
 		break;
 	case SH_FSI_FMT_TDM_DELAY:
 		msg = "TDM Delay";
-		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
+		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
 		break;
 	default:
 		dev_err(dai->dev, "unknown format.\n");

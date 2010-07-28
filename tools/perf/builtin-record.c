@@ -193,7 +193,7 @@ static void sig_handler(int sig)
 
 static void sig_atexit(void)
 {
-	if (child_pid != -1)
+	if (child_pid > 0)
 		kill(child_pid, SIGTERM);
 
 	if (signr == -1)

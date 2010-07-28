@@ -234,8 +234,9 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			if (inode->i_mode != mode) {
 				struct iattr attr;
 
-				attr.ia_valid = ATTR_MODE;
+				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
+				attr.ia_ctime = CURRENT_TIME_SEC;
 				rc = jffs2_do_setattr(inode, &attr);
 				if (rc < 0)
 					return rc;

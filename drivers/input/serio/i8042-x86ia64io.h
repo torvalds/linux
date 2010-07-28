@@ -7,6 +7,10 @@
  * the Free Software Foundation.
  */
 
+#ifdef CONFIG_X86
+#include <asm/x86_init.h>
+#endif
+
 /*
  * Names.
  */
@@ -163,6 +167,13 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co.,Ltd."),
 			DMI_MATCH(DMI_BOARD_NAME, "M1022E"),
 			DMI_MATCH(DMI_BOARD_VERSION, "1.02"),
+		},
+	},
+	{
+		/* Gigabyte Spring Peak - defines wrong chassis type */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Spring Peak"),
 		},
 	},
 	{
@@ -839,6 +850,12 @@ static inline void i8042_pnp_exit(void) { }
 static int __init i8042_platform_init(void)
 {
 	int retval;
+
+#ifdef CONFIG_X86
+	/* Just return if pre-detection shows no i8042 controller exist */
+	if (!x86_platform.i8042_detect())
+		return -ENODEV;
+#endif
 
 /*
  * On ix86 platforms touching the i8042 data register region can do really

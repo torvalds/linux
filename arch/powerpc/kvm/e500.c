@@ -164,7 +164,7 @@ static int __init kvmppc_e500_init(void)
 	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 }
 
-static void __init kvmppc_e500_exit(void)
+static void __exit kvmppc_e500_exit(void)
 {
 	kvmppc_booke_exit();
 }

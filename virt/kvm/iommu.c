@@ -271,7 +271,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 		pfn  = phys >> PAGE_SHIFT;
 
 		/* Unmap address from IO address space */
-		order       = iommu_unmap(domain, gfn_to_gpa(gfn), PAGE_SIZE);
+		order       = iommu_unmap(domain, gfn_to_gpa(gfn), 0);
 		unmap_pages = 1ULL << order;
 
 		/* Unpin all pages we just unmapped to not leak any memory */

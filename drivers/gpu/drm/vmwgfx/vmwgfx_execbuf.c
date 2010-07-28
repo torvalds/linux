@@ -644,6 +644,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(cmd, user_cmd, arg->command_size);
 
 	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		DRM_ERROR("Failed copying commands.\n");
 		goto out_commit;
 	}

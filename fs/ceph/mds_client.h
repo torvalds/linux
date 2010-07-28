@@ -188,6 +188,7 @@ struct ceph_mds_request {
 	int r_old_inode_drop, r_old_inode_unless;
 
 	struct ceph_msg  *r_request;  /* original request */
+	int r_request_release_offset;
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
 	int r_err;
@@ -321,6 +322,12 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 {
 	kref_put(&req->r_kref, ceph_mdsc_release_request);
 }
+
+extern int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
+				 struct ceph_mds_session *session,
+				 int extra);
+extern void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
+				   struct ceph_mds_session *session);
 
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 

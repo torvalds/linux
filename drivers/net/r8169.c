@@ -559,6 +559,11 @@ static void mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 			break;
 		udelay(25);
 	}
+	/*
+	 * According to hardware specs a 20us delay is required after write
+	 * complete indication, but before sending next command.
+	 */
+	udelay(20);
 }
 
 static int mdio_read(void __iomem *ioaddr, int reg_addr)
@@ -578,6 +583,12 @@ static int mdio_read(void __iomem *ioaddr, int reg_addr)
 		}
 		udelay(25);
 	}
+	/*
+	 * According to hardware specs a 20us delay is required after read
+	 * complete indication, but before sending next command.
+	 */
+	udelay(20);
+
 	return value;
 }
 
@@ -1305,7 +1316,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 		{ 0x7c800000, 0x28000000,	RTL_GIGA_MAC_VER_26 },
 
 		/* 8168C family. */
-		{ 0x7cf00000, 0x3ca00000,	RTL_GIGA_MAC_VER_24 },
+		{ 0x7cf00000, 0x3cb00000,	RTL_GIGA_MAC_VER_24 },
 		{ 0x7cf00000, 0x3c900000,	RTL_GIGA_MAC_VER_23 },
 		{ 0x7cf00000, 0x3c800000,	RTL_GIGA_MAC_VER_18 },
 		{ 0x7c800000, 0x3c800000,	RTL_GIGA_MAC_VER_24 },

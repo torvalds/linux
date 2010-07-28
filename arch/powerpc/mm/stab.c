@@ -12,7 +12,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -252,7 +252,7 @@ void __init stabs_alloc(void)
 		if (cpu == 0)
 			continue; /* stab for CPU 0 is statically allocated */
 
-		newstab = lmb_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
+		newstab = memblock_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
 					 1<<SID_SHIFT);
 		newstab = (unsigned long)__va(newstab);
 
