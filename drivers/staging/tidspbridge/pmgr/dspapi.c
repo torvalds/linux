@@ -170,7 +170,7 @@ static u8 size_cmd[] = {
 static inline void _cp_fm_usr(void *to, const void __user * from,
 			      int *err, unsigned long bytes)
 {
-	if (DSP_FAILED(*err))
+	if (*err)
 		return;
 
 	if (unlikely(!from)) {
@@ -188,7 +188,7 @@ static inline void _cp_fm_usr(void *to, const void __user * from,
 static inline void _cp_to_usr(void __user *to, const void *from,
 			      int *err, unsigned long bytes)
 {
-	if (DSP_FAILED(*err))
+	if (*err)
 		return;
 
 	if (unlikely(!to)) {
@@ -391,10 +391,10 @@ int api_init_complete2(void)
 	 *  requires KFILE. */
 	for (hdev_obj = dev_get_first(); hdev_obj != NULL;
 	     hdev_obj = dev_get_next(hdev_obj)) {
-		if (DSP_FAILED(dev_get_dev_node(hdev_obj, &dev_node)))
+		if (dev_get_dev_node(hdev_obj, &dev_node))
 			continue;
 
-		if (DSP_FAILED(dev_get_dev_type(hdev_obj, &dev_type)))
+		if (dev_get_dev_type(hdev_obj, &dev_type))
 			continue;
 
 		if ((dev_type == DSP_UNIT) || (dev_type == IVA_UNIT))
@@ -486,7 +486,7 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 
 	CP_FM_USR(&uuid_obj, args->args_mgr_registerobject.uuid_obj, status, 1);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 	/* path_size is increased by 1 to accommodate NULL */
 	path_size = strlen_user((char *)
@@ -523,7 +523,7 @@ u32 mgrwrap_unregister_object(union trapped_args *args, void *pr_ctxt)
 	struct dsp_uuid uuid_obj;
 
 	CP_FM_USR(&uuid_obj, args->args_mgr_registerobject.uuid_obj, status, 1);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	status = dcd_unregister_object(&uuid_obj,
@@ -834,7 +834,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 	}
 
 	CP_FM_USR(argv, args->args_proc_load.user_args, status, count);
-	if (DSP_FAILED(status)) {
+	if (status) {
 		kfree(argv);
 		argv = NULL;
 		goto func_cont;
@@ -850,7 +850,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 			argv[i] = kmalloc(len, GFP_KERNEL);
 			if (argv[i]) {
 				CP_FM_USR(argv[i], temp, status, len);
-				if (DSP_FAILED(status)) {
+				if (status) {
 					kfree(argv[i]);
 					argv[i] = NULL;
 					goto func_cont;
@@ -876,7 +876,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 		}
 
 		CP_FM_USR(envp, args->args_proc_load.user_envp, status, count);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			kfree(envp);
 			envp = NULL;
 			goto func_cont;
@@ -890,7 +890,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 			envp[i] = kmalloc(len, GFP_KERNEL);
 			if (envp[i]) {
 				CP_FM_USR(envp[i], temp, status, len);
-				if (DSP_FAILED(status)) {
+				if (status) {
 					kfree(envp[i]);
 					envp[i] = NULL;
 					goto func_cont;
@@ -1078,7 +1078,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 			  cb_data_size);
 	}
 	CP_FM_USR(&node_uuid, args->args_node_allocate.node_id_ptr, status, 1);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 	/* Optional argument */
 	if (args->args_node_allocate.attr_in) {
@@ -1097,7 +1097,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	}
 	if (!status) {
 		CP_TO_USR(args->args_node_allocate.ph_node, &hnode, status, 1);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			status = -EFAULT;
 			node_delete(hnode, pr_ctxt);
 		}
@@ -1179,7 +1179,7 @@ u32 nodewrap_connect(union trapped_args *args, void *pr_ctxt)
 		}
 		CP_FM_USR(pargs, args->args_node_connect.conn_param, status,
 			  cb_data_size);
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_cont;
 	}
 	if (args->args_node_connect.pattrs) {	/* Optional argument */
@@ -1378,7 +1378,7 @@ u32 nodewrap_get_uuid_props(union trapped_args *args, void *pr_ctxt)
 
 	CP_FM_USR(&node_uuid, args->args_node_getuuidprops.node_id_ptr, status,
 		  1);
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 	pnode_props = kmalloc(sizeof(struct dsp_ndbprops), GFP_KERNEL);
 	if (pnode_props != NULL) {
@@ -1416,7 +1416,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 	if (!status) {
 		CP_TO_USR(args->args_strm_allocatebuffer.ap_buffer, ap_buffer,
 			  status, num_bufs);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			status = -EFAULT;
 			strm_free_buffer(args->args_strm_allocatebuffer.hstream,
 					 ap_buffer, num_bufs, pr_ctxt);

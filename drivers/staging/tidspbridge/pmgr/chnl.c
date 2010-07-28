@@ -100,7 +100,7 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 		}
 	}
 
-	DBC_ENSURE(DSP_FAILED(status) || chnl_mgr_obj);
+	DBC_ENSURE(status || chnl_mgr_obj);
 
 	return status;
 }

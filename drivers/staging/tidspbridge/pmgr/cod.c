@@ -257,7 +257,7 @@ int cod_create(struct cod_manager **mgr, char *str_zl_file,
 
 	status = mgr_new->fxns.create_fxn(&mgr_new->target, &zl_attrs);
 
-	if (DSP_FAILED(status)) {
+	if (status) {
 		cod_delete(mgr_new);
 		return -ESPIPE;
 	}
@@ -529,7 +529,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 	status = cod_mgr_obj->fxns.load_fxn(cod_mgr_obj->base_lib, flags,
 					    &new_attrs,
 					    &cod_mgr_obj->ul_entry);
-	if (DSP_FAILED(status))
+	if (status)
 		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 
 	if (!status)
@@ -570,7 +570,7 @@ int cod_open(struct cod_manager *hmgr, char *sz_coff_path,
 			*lib_obj = lib;
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: error status 0x%x, sz_coff_path: %s flags: 0x%x\n",
 		       __func__, status, sz_coff_path, flags);
 	return status;
@@ -608,7 +608,7 @@ int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
 		hmgr->sz_zl_file[COD_MAXPATHLENGTH - 1] = '\0';
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: error status 0x%x sz_coff_path: %s\n", __func__,
 		       status, sz_coff_path);
 	return status;

@@ -1042,7 +1042,7 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
 		if (buf_pa) {
 			status = cmm_free_buf(xlator_obj->hcmm_mgr, buf_pa,
 					      xlator_obj->ul_seg_id);
-			if (DSP_FAILED(status)) {
+			if (status) {
 				/* Uh oh, this shouldn't happen. Descriptor
 				 * gone! */
 				DBC_ASSERT(false);	/* CMM is leaking mem */

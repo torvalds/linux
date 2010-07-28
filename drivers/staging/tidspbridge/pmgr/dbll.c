@@ -256,7 +256,7 @@ int dbll_create(struct dbll_tar_obj **target_obj,
 			*target_obj = (struct dbll_tar_obj *)pzl_target;
 		}
 		DBC_ENSURE((!status && *target_obj) ||
-				(DSP_FAILED(status) && *target_obj == NULL));
+				(status && *target_obj == NULL));
 	}
 
 	return status;
@@ -559,7 +559,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 	if (opened_doff)
 		dof_close(zl_lib);
 
-	DBC_ENSURE(DSP_FAILED(status) || zl_lib->load_ref > 0);
+	DBC_ENSURE(status || zl_lib->load_ref > 0);
 
 	dev_dbg(bridge, "%s: lib: %p flags: 0x%x entry: %p, status 0x%x\n",
 		__func__, lib, flags, entry, status);
@@ -631,7 +631,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 	/*
 	 *  Set up objects needed by the dynamic loader
 	 */
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	/* Stream */
@@ -713,7 +713,7 @@ func_cont:
 
 	}
 	DBC_ENSURE((!status && (zl_lib->open_ref > 0) && *lib_obj)
-				|| (DSP_FAILED(status) && *lib_obj == NULL));
+				|| (status && *lib_obj == NULL));
 
 	dev_dbg(bridge, "%s: target: %p file: %s lib_obj: %p, status 0x%x\n",
 		__func__, target, file, lib_obj, status);
@@ -756,7 +756,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_cont;
 
 	byte_size = 1;
@@ -1314,7 +1314,7 @@ func_cont:
 						    (u32 *) &rmm_addr_obj,
 						    seg_id, req, false);
 	}
-	if (DSP_FAILED(status)) {
+	if (status) {
 		ret = false;
 	} else {
 		/* RMM gives word address. Need to convert to byte address */

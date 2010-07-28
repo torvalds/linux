@@ -150,7 +150,7 @@ int dev_create_device(struct dev_object **device_obj,
 
 	status = drv_request_bridge_res_dsp((void *)&host_res);
 
-	if (DSP_FAILED(status)) {
+	if (status) {
 		dev_dbg(bridge, "%s: Failed to reserve bridge resources\n",
 			__func__);
 		goto leave;
@@ -158,7 +158,7 @@ int dev_create_device(struct dev_object **device_obj,
 
 	/*  Get the Bridge driver interface functions */
 	bridge_drv_entry(&drv_fxns, driver_file_name);
-	if (DSP_FAILED(cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT))) {
+	if (cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT)) {
 		/* don't propogate CFG errors from this PROC function */
 		status = -EPERM;
 	}
@@ -189,7 +189,7 @@ int dev_create_device(struct dev_object **device_obj,
 			    (&dev_obj->hbridge_context, dev_obj,
 			     host_res);
 			/* Assert bridge_dev_create()'s ensure clause: */
-			DBC_ASSERT(DSP_FAILED(status)
+			DBC_ASSERT(status
 				   || (dev_obj->hbridge_context != NULL));
 		} else {
 			status = -ENOMEM;
@@ -276,8 +276,7 @@ leave:
 		*device_obj = NULL;
 	}
 
-	DBC_ENSURE((!status && *device_obj) ||
-		   (DSP_FAILED(status) && !*device_obj));
+	DBC_ENSURE((!status && *device_obj) || (status && !*device_obj));
 	return status;
 }
 
@@ -299,11 +298,11 @@ int dev_create2(struct dev_object *hdev_obj)
 	/* There can be only one Node Manager per DEV object */
 	DBC_ASSERT(!dev_obj->hnode_mgr);
 	status = node_create_mgr(&dev_obj->hnode_mgr, hdev_obj);
-	if (DSP_FAILED(status))
+	if (status)
 		dev_obj->hnode_mgr = NULL;
 
 	DBC_ENSURE((!status && dev_obj->hnode_mgr != NULL)
-		   || (DSP_FAILED(status) && dev_obj->hnode_mgr == NULL));
+		   || (status && dev_obj->hnode_mgr == NULL));
 	return status;
 }
 
@@ -321,15 +320,14 @@ int dev_destroy2(struct dev_object *hdev_obj)
 	DBC_REQUIRE(hdev_obj);
 
 	if (dev_obj->hnode_mgr) {
-		if (DSP_FAILED(node_delete_mgr(dev_obj->hnode_mgr)))
+		if (node_delete_mgr(dev_obj->hnode_mgr))
 			status = -EPERM;
 		else
 			dev_obj->hnode_mgr = NULL;
 
 	}
 
-	DBC_ENSURE((!status && dev_obj->hnode_mgr == NULL) ||
-		   DSP_FAILED(status));
+	DBC_ENSURE((!status && dev_obj->hnode_mgr == NULL) || status);
 	return status;
 }
 
@@ -847,7 +845,7 @@ int dev_set_chnl_mgr(struct dev_object *hdev_obj,
 	else
 		status = -EFAULT;
 
-	DBC_ENSURE(DSP_FAILED(status) || (dev_obj->hchnl_mgr == hmgr));
+	DBC_ENSURE(status || (dev_obj->hchnl_mgr == hmgr));
 	return status;
 }
 
@@ -885,7 +883,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 	if (!status) {
 		/* Store away the hdev_obj with the DEVNODE */
 		status = cfg_set_dev_object(dev_node_obj, (u32) hdev_obj);
-		if (DSP_FAILED(status)) {
+		if (status) {
 			/* Clean up */
 			dev_destroy_device(hdev_obj);
 			hdev_obj = NULL;
@@ -895,7 +893,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 		/* Create the Manager Object */
 		status = mgr_create(&hmgr_obj, dev_node_obj);
 	}
-	if (DSP_FAILED(status)) {
+	if (status) {
 		if (hdev_obj)
 			dev_destroy_device(hdev_obj);
 

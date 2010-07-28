@@ -106,7 +106,7 @@ int dmm_create_tables(struct dmm_object *dmm_mgr, u32 addr, u32 size)
 		}
 	}
 
-	if (DSP_FAILED(status))
+	if (status)
 		pr_err("%s: failure, status 0x%x\n", __func__, status);
 
 	return status;
