@@ -121,11 +121,17 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	phpi_ioctl_data = (struct hpi_ioctl_linux __user *)arg;
 
 	/* Read the message and response pointers from user space.  */
-	get_user(puhm, &phpi_ioctl_data->phm);
-	get_user(puhr, &phpi_ioctl_data->phr);
+	if (get_user(puhm, &phpi_ioctl_data->phm) ||
+	    get_user(puhr, &phpi_ioctl_data->phr)) {
+		err = -EFAULT;
+		goto out;
+	}
 
 	/* Now read the message size and data from user space.  */
-	get_user(hm->h.size, (u16 __user *)puhm);
+	if (get_user(hm->h.size, (u16 __user *)puhm)) {
+		err = -EFAULT;
+		goto out;
+	}
 	if (hm->h.size > sizeof(*hm))
 		hm->h.size = sizeof(*hm);
 
@@ -138,7 +144,10 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		goto out;
 	}
 
-	get_user(res_max_size, (u16 __user *)puhr);
+	if (get_user(res_max_size, (u16 __user *)puhr)) {
+		err = -EFAULT;
+		goto out;
+	}
 	/* printk(KERN_INFO "user response size %d\n", res_max_size); */
 	if (res_max_size < sizeof(struct hpi_response_header)) {
 		HPI_DEBUG_LOG(WARNING, "small res size %d\n", res_max_size);
