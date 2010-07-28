@@ -1049,49 +1049,33 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 
 	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
 	if (!ehci->debug_dir)
-		goto dir_error;
+		return;
 
-	ehci->debug_async = debugfs_create_file("async", S_IRUGO,
-						ehci->debug_dir, bus,
-						&debug_async_fops);
-	if (!ehci->debug_async)
-		goto async_error;
+	if (!debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
+						&debug_async_fops))
+		goto file_error;
 
-	ehci->debug_periodic = debugfs_create_file("periodic", S_IRUGO,
-						   ehci->debug_dir, bus,
-						   &debug_periodic_fops);
-	if (!ehci->debug_periodic)
-		goto periodic_error;
+	if (!debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
+						&debug_periodic_fops))
+		goto file_error;
 
-	ehci->debug_registers = debugfs_create_file("registers", S_IRUGO,
-						    ehci->debug_dir, bus,
-						    &debug_registers_fops);
+	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
+						    &debug_registers_fops))
+		goto file_error;
 
-	ehci->debug_registers = debugfs_create_file("lpm", S_IRUGO|S_IWUGO,
-						    ehci->debug_dir, bus,
-						    &debug_lpm_fops);
-	if (!ehci->debug_registers)
-		goto registers_error;
+	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUGO, ehci->debug_dir, bus,
+						    &debug_lpm_fops))
+		goto file_error;
+
 	return;
 
-registers_error:
-	debugfs_remove(ehci->debug_periodic);
-periodic_error:
-	debugfs_remove(ehci->debug_async);
-async_error:
-	debugfs_remove(ehci->debug_dir);
-dir_error:
-	ehci->debug_periodic = NULL;
-	ehci->debug_async = NULL;
-	ehci->debug_dir = NULL;
+file_error:
+	debugfs_remove_recursive(ehci->debug_dir);
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
 {
-	debugfs_remove(ehci->debug_registers);
-	debugfs_remove(ehci->debug_periodic);
-	debugfs_remove(ehci->debug_async);
-	debugfs_remove(ehci->debug_dir);
+	debugfs_remove_recursive(ehci->debug_dir);
 }
 
 #endif /* STUB_DEBUG_FILES */
