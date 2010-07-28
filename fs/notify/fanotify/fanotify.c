@@ -153,59 +153,20 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	return ret;
 }
 
-static bool should_send_vfsmount_event(struct fsnotify_group *group,
-				       struct vfsmount *mnt,
-				       struct inode *inode,
-				       struct fsnotify_mark *mnt_mark,
-				       __u32 mask)
-{
-	struct fsnotify_mark *inode_mark;
-
-	pr_debug("%s: group=%p vfsmount=%p mark=%p mask=%x\n",
-		 __func__, group, mnt, mnt_mark, mask);
-
-	mask &= mnt_mark->mask;
-	mask &= ~mnt_mark->ignored_mask;
-
-	if (mask) {
-		inode_mark = fsnotify_find_inode_mark(group, inode);
-		if (inode_mark) {
-			mask &= ~inode_mark->ignored_mask;
-			fsnotify_put_mark(inode_mark);
-		}
-	}
-
-	return mask;
-}
-
-static bool should_send_inode_event(struct fsnotify_group *group,
-				    struct inode *inode,
-				    struct fsnotify_mark *mark,
-				    __u32 mask)
-{
-	pr_debug("%s: group=%p inode=%p mark=%p mask=%x\n",
-		 __func__, group, inode, mark, mask);
-
-	/*
-	 * if the event is for a child and this inode doesn't care about
-	 * events on the child, don't send it!
-	 */
-	if ((mask & FS_EVENT_ON_CHILD) &&
-	    !(mark->mask & FS_EVENT_ON_CHILD))
-		return false;
-	else
-		return true;
-}
-
 static bool fanotify_should_send_event(struct fsnotify_group *group,
 				       struct inode *to_tell,
-				       struct vfsmount *mnt,
 				       struct fsnotify_mark *inode_mark,
-				       struct fsnotify_mark *vfsmount_mark,
-				       __u32 mask, void *data, int data_type)
+				       struct fsnotify_mark *vfsmnt_mark,
+				       __u32 event_mask, void *data, int data_type)
 {
-	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x data=%p data_type=%d\n",
-		 __func__, group, to_tell, mnt, mask, data, data_type);
+	__u32 marks_mask, marks_ignored_mask;
+
+	pr_debug("%s: group=%p to_tell=%p inode_mark=%p vfsmnt_mark=%p "
+		 "mask=%x data=%p data_type=%d\n", __func__, group, to_tell,
+		 inode_mark, vfsmnt_mark, event_mask, data, data_type);
+
+	pr_debug("%s: group=%p vfsmount_mark=%p inode_mark=%p mask=%x\n",
+		 __func__, group, vfsmnt_mark, inode_mark, event_mask);
 
 	/* sorry, fanotify only gives a damn about files and dirs */
 	if (!S_ISREG(to_tell->i_mode) &&
@@ -216,11 +177,30 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 	if (data_type != FSNOTIFY_EVENT_FILE)
 		return false;
 
-	if (mnt)
-		return should_send_vfsmount_event(group, mnt, to_tell,
-						  vfsmount_mark, mask);
-	else
-		return should_send_inode_event(group, to_tell, inode_mark, mask);
+	if (inode_mark && vfsmnt_mark) {
+		marks_mask = (vfsmnt_mark->mask | inode_mark->mask);
+		marks_ignored_mask = (vfsmnt_mark->ignored_mask | inode_mark->ignored_mask);
+	} else if (inode_mark) {
+		/*
+		 * if the event is for a child and this inode doesn't care about
+		 * events on the child, don't send it!
+		 */
+		if ((event_mask & FS_EVENT_ON_CHILD) &&
+		    !(inode_mark->mask & FS_EVENT_ON_CHILD))
+			return false;
+		marks_mask = inode_mark->mask;
+		marks_ignored_mask = inode_mark->ignored_mask;
+	} else if (vfsmnt_mark) {
+		marks_mask = vfsmnt_mark->mask;
+		marks_ignored_mask = vfsmnt_mark->ignored_mask;
+	} else {
+		BUG();
+	}
+
+	if (event_mask & marks_mask & ~marks_ignored_mask)
+		return true;
+
+	return false;
 }
 
 const struct fsnotify_ops fanotify_fsnotify_ops = {

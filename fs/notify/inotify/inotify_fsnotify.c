@@ -142,11 +142,11 @@ static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify
 }
 
 static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
-				      struct vfsmount *mnt, struct fsnotify_mark *mark,
+				      struct fsnotify_mark *inode_mark,
 				      struct fsnotify_mark *vfsmount_mark,
 				      __u32 mask, void *data, int data_type)
 {
-	if ((mark->mask & FS_EXCL_UNLINK) &&
+	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_FILE)) {
 		struct file *file  = data;
 

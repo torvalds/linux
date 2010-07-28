@@ -503,7 +503,7 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 }
 
 static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,
-					  struct vfsmount *mnt, struct fsnotify_mark *inode_mark,
+					  struct fsnotify_mark *inode_mark,
 					  struct fsnotify_mark *vfsmount_mark,
 					  __u32 mask, void *data, int data_type)
 {

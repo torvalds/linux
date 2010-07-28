@@ -183,7 +183,7 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 	if (!inode_test_mask && !vfsmount_test_mask)
 		return 0;
 
-	if (group->ops->should_send_event(group, to_tell, mnt, inode_mark,
+	if (group->ops->should_send_event(group, to_tell, inode_mark,
 					  vfsmount_mark, mask, data,
 					  data_is) == false)
 		return 0;
