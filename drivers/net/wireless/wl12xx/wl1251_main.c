@@ -411,6 +411,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int wl1251_op_start(struct ieee80211_hw *hw)
 {
 	struct wl1251 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int ret = 0;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 start");
@@ -443,6 +444,10 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	wl->state = WL1251_STATE_ON;
 
 	wl1251_info("firmware booted (%s)", wl->fw_ver);
+
+	/* update hw/fw version info in wiphy struct */
+	wiphy->hw_version = wl->chip_id;
+	strncpy(wiphy->fw_version, wl->fw_ver, sizeof(wiphy->fw_version));
 
 out:
 	if (ret < 0)
