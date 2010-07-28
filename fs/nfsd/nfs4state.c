@@ -2317,10 +2317,21 @@ nfs4_alloc_stateid(void)
 	return kmem_cache_alloc(stateid_slab, GFP_KERNEL);
 }
 
+static inline int nfs4_access_to_access(u32 nfs4_access)
+{
+	int flags = 0;
+
+	if (nfs4_access & NFS4_SHARE_ACCESS_READ)
+		flags |= NFSD_MAY_READ;
+	if (nfs4_access & NFS4_SHARE_ACCESS_WRITE)
+		flags |= NFSD_MAY_WRITE;
+	return flags;
+}
+
 static __be32
 nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 		struct nfs4_delegation *dp,
-		struct svc_fh *cur_fh, int flags)
+		struct svc_fh *cur_fh, struct nfsd4_open *open)
 {
 	struct nfs4_stateid *stp;
 
@@ -2333,8 +2344,10 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 		stp->st_vfs_file = dp->dl_vfs_file;
 	} else {
 		__be32 status;
-		status = nfsd_open(rqstp, cur_fh, S_IFREG, flags,
-				&stp->st_vfs_file);
+		int access = nfs4_access_to_access(open->op_share_access);
+
+		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
+					&stp->st_vfs_file);
 		if (status) {
 			if (status == nfserr_dropit)
 				status = nfserr_jukebox;
@@ -2531,12 +2544,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		update_stateid(&stp->st_stateid);
 	} else {
 		/* Stateid was not found, this is a new OPEN */
-		int flags = 0;
-		if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
-			flags |= NFSD_MAY_READ;
-		if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-			flags |= NFSD_MAY_WRITE;
-		status = nfs4_new_open(rqstp, &stp, dp, current_fh, flags);
+		status = nfs4_new_open(rqstp, &stp, dp, current_fh, open);
 		if (status)
 			goto out;
 		init_stateid(stp, fp, open);
