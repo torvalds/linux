@@ -411,7 +411,7 @@ int cod_get_section(struct cod_libraryobj *lib, char *str_sect,
 		status = -ESPIPE;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((*addr == 0) && (*len == 0)));
+	DBC_ENSURE(!status || ((*addr == 0) && (*len == 0)));
 
 	return status;
 }
@@ -532,7 +532,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 	if (DSP_FAILED(status))
 		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		cod_mgr_obj->loaded = true;
 	else
 		cod_mgr_obj->base_lib = NULL;
@@ -562,11 +562,11 @@ int cod_open(struct cod_manager *hmgr, char *sz_coff_path,
 	if (lib == NULL)
 		status = -ENOMEM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		lib->cod_mgr = hmgr;
 		status = hmgr->fxns.open_fxn(hmgr->target, sz_coff_path, flags,
 					     &lib->dbll_lib);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			*lib_obj = lib;
 	}
 
@@ -601,7 +601,7 @@ int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
 		hmgr->base_lib = NULL;
 	}
 	status = hmgr->fxns.open_fxn(hmgr->target, sz_coff_path, flags, &lib);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* hang onto the library for subsequent sym table usage */
 		hmgr->base_lib = lib;
 		strncpy(hmgr->sz_zl_file, sz_coff_path, COD_MAXPATHLENGTH - 1);

@@ -255,7 +255,7 @@ int dbll_create(struct dbll_tar_obj **target_obj,
 			pzl_target->attrs = *pattrs;
 			*target_obj = (struct dbll_tar_obj *)pzl_target;
 		}
-		DBC_ENSURE((DSP_SUCCEEDED(status) && *target_obj) ||
+		DBC_ENSURE((!status && *target_obj) ||
 				(DSP_FAILED(status) && *target_obj == NULL));
 	}
 
@@ -393,7 +393,7 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 	if (zl_lib != NULL) {
 		if (zl_lib->fp == NULL) {
 			status = dof_open(zl_lib);
-			if (DSP_SUCCEEDED(status))
+			if (!status)
 				opened_doff = true;
 
 		} else {
@@ -404,7 +404,7 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		byte_size = 1;
 		if (dload_get_section_info(zl_lib->desc, name, &sect)) {
 			*paddr = sect->load_addr;
@@ -517,11 +517,11 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 		/* If COFF file is not open, we open it. */
 		if (zl_lib->fp == NULL) {
 			status = dof_open(zl_lib);
-			if (DSP_SUCCEEDED(status))
+			if (!status)
 				opened_doff = true;
 
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell))
 			    (zl_lib->fp);
 			/* Reset file cursor */
@@ -552,7 +552,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 			}
 		}
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		zl_lib->load_ref++;
 
 	/* Clean up DOFF resources */
@@ -658,7 +658,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 	zl_lib->init.dl_init.execute = execute;
 	zl_lib->init.dl_init.release = release;
 	zl_lib->init.lib = zl_lib;
-	if (DSP_SUCCEEDED(status) && zl_lib->fp == NULL)
+	if (!status && zl_lib->fp == NULL)
 		status = dof_open(zl_lib);
 
 	zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell)) (zl_lib->fp);
@@ -695,7 +695,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 		}
 	}
 func_cont:
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (zl_lib->open_ref == 1) {
 			/* First time opened - insert in list */
 			if (zl_target->head)
@@ -712,7 +712,7 @@ func_cont:
 			dbll_close((struct dbll_library_obj *)zl_lib);
 
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && (zl_lib->open_ref > 0) && *lib_obj)
+	DBC_ENSURE((!status && (zl_lib->open_ref > 0) && *lib_obj)
 				|| (DSP_FAILED(status) && *lib_obj == NULL));
 
 	dev_dbg(bridge, "%s: target: %p file: %s lib_obj: %p, status 0x%x\n",
@@ -745,7 +745,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	if (zl_lib != NULL) {
 		if (zl_lib->fp == NULL) {
 			status = dof_open(zl_lib);
-			if (DSP_SUCCEEDED(status))
+			if (!status)
 				opened_doff = true;
 
 		} else {

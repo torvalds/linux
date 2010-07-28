@@ -425,7 +425,7 @@ u32 mgrwrap_enum_node_info(union trapped_args *args, void *pr_ctxt)
 	if (pndb_props == NULL)
 		status = -ENOMEM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    mgr_enum_node_info(args->args_mgr_enumnode_info.node_id,
 				       (struct dsp_ndbprops *)pndb_props, size,
@@ -457,7 +457,7 @@ u32 mgrwrap_enum_proc_info(union trapped_args *args, void *pr_ctxt)
 	if (processor_info == NULL)
 		status = -ENOMEM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    mgr_enum_processor_info(args->args_mgr_enumproc_info.
 					    processor_id,
@@ -554,12 +554,12 @@ u32 mgrwrap_wait_for_bridge_events(union trapped_args *args, void *pr_ctxt)
 	/* get the events */
 	for (i = 0; i < count; i++) {
 		CP_FM_USR(&notifications[i], anotifications[i], status, 1);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* set the array of pointers to kernel structures */
 			anotifications[i] = &notifications[i];
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		real_status = mgr_wait_for_bridge_events(anotifications, count,
 							 &index,
 							 args->args_mgr_wait.
@@ -592,7 +592,7 @@ u32 procwrap_attach(union trapped_args *args, void *pr_ctxt)
 	if (args->args_proc_attach.attr_in) {
 		CP_FM_USR(&proc_attr_in, args->args_proc_attach.attr_in, status,
 			  1);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			attr_in = &proc_attr_in;
 		else
 			goto func_end;
@@ -630,7 +630,7 @@ u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 		CP_FM_USR(pargs, args->args_proc_ctrl.pargs, status,
 			  cb_data_size);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = proc_ctrl(args->args_proc_ctrl.hprocessor,
 				   args->args_proc_ctrl.dw_cmd,
 				   (struct dsp_cbdata *)pargs);
@@ -902,7 +902,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = proc_load(args->args_proc_load.hprocessor,
 				   args->args_proc_load.argc_index,
 				   (const char **)argv, (const char **)envp);
@@ -943,7 +943,7 @@ u32 procwrap_map(union trapped_args *args, void *pr_ctxt)
 			  args->args_proc_mapmem.ul_size,
 			  args->args_proc_mapmem.req_addr, &map_addr,
 			  args->args_proc_mapmem.ul_map_attr, pr_ctxt);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (put_user(map_addr, args->args_proc_mapmem.pp_map_addr)) {
 			status = -EINVAL;
 			proc_un_map(args->args_proc_mapmem.hprocessor,
@@ -991,7 +991,7 @@ u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
 	status = proc_reserve_memory(args->args_proc_rsvmem.hprocessor,
 				     args->args_proc_rsvmem.ul_size, &prsv_addr,
 				     pr_ctxt);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (put_user(prsv_addr, args->args_proc_rsvmem.pp_rsv_addr)) {
 			status = -EINVAL;
 			proc_un_reserve_memory(args->args_proc_rsvmem.
@@ -1068,7 +1068,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 			status = -EPERM;
 
 		cb_data_size += sizeof(u32);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			pargs = kmalloc(cb_data_size, GFP_KERNEL);
 			if (pargs == NULL)
 				status = -ENOMEM;
@@ -1084,18 +1084,18 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	if (args->args_node_allocate.attr_in) {
 		CP_FM_USR(&proc_attr_in, args->args_node_allocate.attr_in,
 			  status, 1);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			attr_in = &proc_attr_in;
 		else
 			status = -ENOMEM;
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = node_allocate(args->args_node_allocate.hprocessor,
 				       &node_uuid, (struct dsp_cbdata *)pargs,
 				       attr_in, &hnode, pr_ctxt);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		CP_TO_USR(args->args_node_allocate.ph_node, &hnode, status, 1);
 		if (DSP_FAILED(status)) {
 			status = -EFAULT;
@@ -1123,13 +1123,13 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 
 	if (args->args_node_allocmsgbuf.pattr) {	/* Optional argument */
 		CP_FM_USR(&attr, args->args_node_allocmsgbuf.pattr, status, 1);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			pattr = &attr;
 
 	}
 	/* argument */
 	CP_FM_USR(&pbuffer, args->args_node_allocmsgbuf.pbuffer, status, 1);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = node_alloc_msg_buf(args->args_node_allocmsgbuf.hnode,
 					    args->args_node_allocmsgbuf.usize,
 					    pattr, &pbuffer);
@@ -1169,7 +1169,7 @@ u32 nodewrap_connect(union trapped_args *args, void *pr_ctxt)
 			status = -EPERM;
 
 		cb_data_size += sizeof(u32);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			pargs = kmalloc(cb_data_size, GFP_KERNEL);
 			if (pargs == NULL) {
 				status = -ENOMEM;
@@ -1184,11 +1184,11 @@ u32 nodewrap_connect(union trapped_args *args, void *pr_ctxt)
 	}
 	if (args->args_node_connect.pattrs) {	/* Optional argument */
 		CP_FM_USR(&attrs, args->args_node_connect.pattrs, status, 1);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			pattrs = &attrs;
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = node_connect(args->args_node_connect.hnode,
 				      args->args_node_connect.stream_id,
 				      args->args_node_connect.other_node,
@@ -1235,7 +1235,7 @@ u32 nodewrap_free_msg_buf(union trapped_args *args, void *pr_ctxt)
 	struct dsp_bufferattr attr;
 	if (args->args_node_freemsgbuf.pattr) {	/* Optional argument */
 		CP_FM_USR(&attr, args->args_node_freemsgbuf.pattr, status, 1);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			pattr = &attr;
 
 	}
@@ -1243,7 +1243,7 @@ u32 nodewrap_free_msg_buf(union trapped_args *args, void *pr_ctxt)
 	if (!args->args_node_freemsgbuf.pbuffer)
 		return -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = node_free_msg_buf(args->args_node_freemsgbuf.hnode,
 					   args->args_node_freemsgbuf.pbuffer,
 					   pattr);
@@ -1305,7 +1305,7 @@ u32 nodewrap_put_message(union trapped_args *args, void *pr_ctxt)
 
 	CP_FM_USR(&msg, args->args_node_putmessage.message, status, 1);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    node_put_message(args->args_node_putmessage.hnode, &msg,
 				     args->args_node_putmessage.utimeout);
@@ -1413,7 +1413,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 	status = strm_allocate_buffer(args->args_strm_allocatebuffer.hstream,
 				      args->args_strm_allocatebuffer.usize,
 				      ap_buffer, num_bufs, pr_ctxt);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		CP_TO_USR(args->args_strm_allocatebuffer.ap_buffer, ap_buffer,
 			  status, num_bufs);
 		if (DSP_FAILED(status)) {
@@ -1454,7 +1454,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	CP_FM_USR(ap_buffer, args->args_strm_freebuffer.ap_buffer, status,
 		  num_bufs);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = strm_free_buffer(args->args_strm_freebuffer.hstream,
 					  ap_buffer, num_bufs, pr_ctxt);
 	}
@@ -1490,7 +1490,7 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 
 	strm_info.user_strm = &user;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = strm_get_info(args->args_strm_getinfo.hstream,
 				       &strm_info,
 				       args->args_strm_getinfo.
@@ -1551,7 +1551,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 
 	if (attr.stream_attr_in != NULL) {	/* Optional argument */
 		CP_FM_USR(&strm_attr_in, attr.stream_attr_in, status, 1);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			attr.stream_attr_in = &strm_attr_in;
 			if (attr.stream_attr_in->strm_mode == STRMMODE_LDMA)
 				return -ENOSYS;
@@ -1627,7 +1627,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 
 	CP_FM_USR(strm_tab, args->args_strm_select.stream_tab, status,
 		  args->args_strm_select.strm_num);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = strm_select(strm_tab, args->args_strm_select.strm_num,
 				     &mask, args->args_strm_select.utimeout);
 	}

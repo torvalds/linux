@@ -118,7 +118,7 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
 		/* Special case of getting the address only */
 		if (ul_num_bytes == 0)
 			ul_num_bytes = 1;
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			ul_written = ul_num_bytes;
 
 	}
@@ -164,7 +164,7 @@ int dev_create_device(struct dev_object **device_obj,
 	}
 	/* Create the device object, and pass a handle to the Bridge driver for
 	 * storage. */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		DBC_ASSERT(drv_fxns);
 		dev_obj = kzalloc(sizeof(struct dev_object), GFP_KERNEL);
 		if (dev_obj) {
@@ -196,11 +196,11 @@ int dev_create_device(struct dev_object **device_obj,
 		}
 	}
 	/* Attempt to create the COD manager for this device: */
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = init_cod_mgr(dev_obj);
 
 	/* Attempt to create the channel manager for this device: */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		mgr_attrs.max_channels = CHNL_MAXCHANNELS;
 		io_mgr_attrs.birq = host_res->birq_registers;
 		io_mgr_attrs.irq_shared =
@@ -231,12 +231,12 @@ int dev_create_device(struct dev_object **device_obj,
 		status = cmm_create(&dev_obj->hcmm_mgr,
 				    (struct dev_object *)dev_obj, NULL);
 		/* Only create IO manager if we have a channel manager */
-		if (DSP_SUCCEEDED(status) && dev_obj->hchnl_mgr) {
+		if (!status && dev_obj->hchnl_mgr) {
 			status = io_create(&dev_obj->hio_mgr, dev_obj,
 					   &io_mgr_attrs);
 		}
 		/* Only create DEH manager if we have an IO manager */
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Instantiate the DEH module */
 			status = bridge_deh_create(&dev_obj->hdeh_mgr, dev_obj);
 		}
@@ -245,12 +245,12 @@ int dev_create_device(struct dev_object **device_obj,
 				    (struct dev_object *)dev_obj, NULL);
 	}
 	/* Add the new DEV_Object to the global list: */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		lst_init_elem(&dev_obj->link);
 		status = drv_insert_dev_object(hdrv_obj, dev_obj);
 	}
 	/* Create the Processor List */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_obj->proc_list = kzalloc(sizeof(struct lst_list),
 							GFP_KERNEL);
 		if (!(dev_obj->proc_list))
@@ -260,8 +260,8 @@ int dev_create_device(struct dev_object **device_obj,
 	}
 leave:
 	/*  If all went well, return a handle to the dev object;
-	 *  else, cleanup and return NULL in the parameter. */
-	if (DSP_SUCCEEDED(status)) {
+	 *  else, cleanup and return NULL in the OUT parameter. */
+	if (!status) {
 		*device_obj = dev_obj;
 	} else {
 		if (dev_obj) {
@@ -276,7 +276,7 @@ leave:
 		*device_obj = NULL;
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *device_obj) ||
+	DBC_ENSURE((!status && *device_obj) ||
 		   (DSP_FAILED(status) && !*device_obj));
 	return status;
 }
@@ -302,7 +302,7 @@ int dev_create2(struct dev_object *hdev_obj)
 	if (DSP_FAILED(status))
 		dev_obj->hnode_mgr = NULL;
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && dev_obj->hnode_mgr != NULL)
+	DBC_ENSURE((!status && dev_obj->hnode_mgr != NULL)
 		   || (DSP_FAILED(status) && dev_obj->hnode_mgr == NULL));
 	return status;
 }
@@ -328,7 +328,7 @@ int dev_destroy2(struct dev_object *hdev_obj)
 
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && dev_obj->hnode_mgr == NULL) ||
+	DBC_ENSURE((!status && dev_obj->hnode_mgr == NULL) ||
 		   DSP_FAILED(status));
 	return status;
 }
@@ -394,7 +394,7 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 			dev_obj->hbridge_context = NULL;
 		} else
 			status = -EPERM;
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			kfree(dev_obj->proc_list);
 			dev_obj->proc_list = NULL;
 
@@ -435,8 +435,7 @@ int dev_get_chnl_mgr(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
-					     (*mgr == NULL)));
+	DBC_ENSURE(!status || (mgr != NULL && *mgr == NULL));
 	return status;
 }
 
@@ -462,8 +461,7 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
-					     (*mgr == NULL)));
+	DBC_ENSURE(!status || (mgr != NULL && *mgr == NULL));
 	return status;
 }
 
@@ -489,8 +487,7 @@ int dev_get_dmm_mgr(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
-					     (*mgr == NULL)));
+	DBC_ENSURE(!status || (mgr != NULL && *mgr == NULL));
 	return status;
 }
 
@@ -515,8 +512,7 @@ int dev_get_cod_mgr(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((cod_mgr != NULL) &&
-					     (*cod_mgr == NULL)));
+	DBC_ENSURE(!status || (cod_mgr != NULL && *cod_mgr == NULL));
 	return status;
 }
 
@@ -561,8 +557,7 @@ int dev_get_dev_node(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((dev_nde != NULL) &&
-					     (*dev_nde == NULL)));
+	DBC_ENSURE(!status || (dev_nde != NULL && *dev_nde == NULL));
 	return status;
 }
 
@@ -603,8 +598,7 @@ int dev_get_intf_fxns(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((if_fxns != NULL) &&
-					     (*if_fxns == NULL)));
+	DBC_ENSURE(!status || ((if_fxns != NULL) && (*if_fxns == NULL)));
 	return status;
 }
 
@@ -682,8 +676,7 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((node_man != NULL) &&
-					     (*node_man == NULL)));
+	DBC_ENSURE(!status || (node_man != NULL && *node_man == NULL));
 	return status;
 }
 
@@ -733,7 +726,7 @@ int dev_get_bridge_context(struct dev_object *hdev_obj,
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phbridge_context != NULL) &&
+	DBC_ENSURE(!status || ((phbridge_context != NULL) &&
 					     (*phbridge_context == NULL)));
 	return status;
 }
@@ -826,7 +819,7 @@ int dev_remove_device(struct cfg_devnode *dev_node_obj)
 	/* Retrieve the device object handle originaly stored with
 	 * the dev_node: */
 	status = cfg_get_dev_object(dev_node_obj, (u32 *) &hdev_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Remove the Processor List */
 		dev_obj = (struct dev_object *)hdev_obj;
 		/* Destroy the device object. */
@@ -889,7 +882,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 	/* Given all resources, create a device object. */
 	status = dev_create_device(&hdev_obj, bridge_file_name,
 				   dev_node_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Store away the hdev_obj with the DEVNODE */
 		status = cfg_set_dev_object(dev_node_obj, (u32) hdev_obj);
 		if (DSP_FAILED(status)) {
@@ -898,7 +891,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 			hdev_obj = NULL;
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Create the Manager Object */
 		status = mgr_create(&hmgr_obj, dev_node_obj);
 	}
@@ -990,7 +983,7 @@ int dev_insert_proc_object(struct dev_object *hdev_obj,
 	/* Add DevObject to tail. */
 	lst_put_tail(dev_obj->proc_list, (struct list_head *)proc_obj);
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) && !LST_IS_EMPTY(dev_obj->proc_list));
+	DBC_ENSURE(!status && !LST_IS_EMPTY(dev_obj->proc_list));
 
 	return status;
 }

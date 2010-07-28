@@ -77,20 +77,20 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 	if (mgr_attrts->word_size == 0)
 		status = -EINVAL;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_chnl_mgr(hdev_obj, &hchnl_mgr);
-		if (DSP_SUCCEEDED(status) && hchnl_mgr != NULL)
+		if (!status && hchnl_mgr != NULL)
 			status = -EEXIST;
 
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		struct bridge_drv_interface *intf_fxns;
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 		/* Let Bridge channel module finish the create: */
 		status = (*intf_fxns->pfn_chnl_create) (&hchnl_mgr, hdev_obj,
 							mgr_attrts);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Fill in DSP API channel module's fields of the
 			 * chnl_mgr structure */
 			chnl_mgr_obj = (struct chnl_mgr_ *)hchnl_mgr;

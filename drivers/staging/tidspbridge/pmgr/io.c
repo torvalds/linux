@@ -67,14 +67,14 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 	if (mgr_attrts->word_size == 0)
 		status = -EINVAL;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 
 		/* Let Bridge channel module finish the create: */
 		status = (*intf_fxns->pfn_io_create) (&hio_mgr, hdev_obj,
 						      mgr_attrts);
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			pio_mgr = (struct io_mgr_ *)hio_mgr;
 			pio_mgr->intf_fxns = intf_fxns;
 			pio_mgr->hdev_obj = hdev_obj;

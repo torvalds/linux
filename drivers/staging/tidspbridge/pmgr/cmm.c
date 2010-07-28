@@ -266,33 +266,25 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 		sys_info.dw_page_size = PAGE_SIZE;
 		sys_info.dw_allocation_granularity = PAGE_SIZE;
 		sys_info.dw_number_of_processors = 1;
-		if (DSP_SUCCEEDED(status)) {
-			cmm_obj->dw_page_size = sys_info.dw_page_size;
-		} else {
-			cmm_obj->dw_page_size = 0;
-			status = -EPERM;
-		}
+
+		cmm_obj->dw_page_size = sys_info.dw_page_size;
+
 		/* Note: DSP SM seg table(aDSPSMSegTab[]) zero'd by
 		 * MEM_ALLOC_OBJECT */
-		if (DSP_SUCCEEDED(status)) {
-			/* create node free list */
-			cmm_obj->node_free_list_head =
-					kzalloc(sizeof(struct lst_list),
-							GFP_KERNEL);
-			if (cmm_obj->node_free_list_head == NULL)
-				status = -ENOMEM;
-			else
-				INIT_LIST_HEAD(&cmm_obj->
-					       node_free_list_head->head);
-		}
-		if (DSP_SUCCEEDED(status))
-			mutex_init(&cmm_obj->cmm_lock);
 
-		if (DSP_SUCCEEDED(status))
-			*ph_cmm_mgr = cmm_obj;
-		else
+		/* create node free list */
+		cmm_obj->node_free_list_head =
+				kzalloc(sizeof(struct lst_list),
+						GFP_KERNEL);
+		if (cmm_obj->node_free_list_head == NULL) {
+			status = -ENOMEM;
 			cmm_destroy(cmm_obj, true);
-
+		} else {
+			INIT_LIST_HEAD(&cmm_obj->
+				       node_free_list_head->head);
+			mutex_init(&cmm_obj->cmm_lock);
+			*ph_cmm_mgr = cmm_obj;
+		}
 	} else {
 		status = -ENOMEM;
 	}
@@ -322,14 +314,14 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 	if (!force) {
 		/* Check for outstanding memory allocations */
 		status = cmm_get_info(hcmm_mgr, &temp_info);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (temp_info.ul_total_in_use_cnt > 0) {
 				/* outstanding allocations */
 				status = -EPERM;
 			}
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* UnRegister SM allocator */
 		for (slot_seg = 0; slot_seg < CMM_MAXGPPSEGS; slot_seg++) {
 			if (cmm_mgr_obj->pa_gppsm_seg_tab[slot_seg] != NULL) {
@@ -351,7 +343,7 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 		kfree(cmm_mgr_obj->node_free_list_head);
 	}
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* delete CS & cmm mgr object */
 		mutex_destroy(&cmm_mgr_obj->cmm_lock);
 		kfree(cmm_mgr_obj);
@@ -441,7 +433,7 @@ int cmm_get_handle(void *hprocessor, struct cmm_object ** ph_cmm_mgr)
 	else
 		hdev_obj = dev_get_first();	/* default */
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = dev_get_cmm_mgr(hdev_obj, ph_cmm_mgr);
 
 	return status;
@@ -571,16 +563,13 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 		goto func_end;
 	}
 	/* Check if input ul_size is big enough to alloc at least one block */
-	if (DSP_SUCCEEDED(status)) {
-		if (ul_size < cmm_mgr_obj->ul_min_block_size) {
-			status = -EINVAL;
-			goto func_end;
-		}
+	if (ul_size < cmm_mgr_obj->ul_min_block_size) {
+		status = -EINVAL;
+		goto func_end;
 	}
-	if (DSP_SUCCEEDED(status)) {
-		/* create, zero, and tag an SM allocator object */
-		psma = kzalloc(sizeof(struct cmm_allocator), GFP_KERNEL);
-	}
+
+	/* create, zero, and tag an SM allocator object */
+	psma = kzalloc(sizeof(struct cmm_allocator), GFP_KERNEL);
 	if (psma != NULL) {
 		psma->hcmm_mgr = hcmm_mgr;	/* ref to parent */
 		psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
@@ -594,54 +583,50 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 			status = -EPERM;
 			goto func_end;
 		}
-		if (DSP_SUCCEEDED(status)) {
-			/* return the actual segment identifier */
-			*sgmt_id = (u32) slot_seg + 1;
-			/* create memory free list */
-			psma->free_list_head = kzalloc(sizeof(struct lst_list),
-								GFP_KERNEL);
-			if (psma->free_list_head == NULL) {
-				status = -ENOMEM;
-				goto func_end;
-			}
-			INIT_LIST_HEAD(&psma->free_list_head->head);
+		/* return the actual segment identifier */
+		*sgmt_id = (u32) slot_seg + 1;
+		/* create memory free list */
+		psma->free_list_head = kzalloc(sizeof(struct lst_list),
+							GFP_KERNEL);
+		if (psma->free_list_head == NULL) {
+			status = -ENOMEM;
+			goto func_end;
 		}
-		if (DSP_SUCCEEDED(status)) {
-			/* create memory in-use list */
-			psma->in_use_list_head = kzalloc(sizeof(struct
-							lst_list), GFP_KERNEL);
-			if (psma->in_use_list_head == NULL) {
-				status = -ENOMEM;
-				goto func_end;
-			}
-			INIT_LIST_HEAD(&psma->in_use_list_head->head);
+		INIT_LIST_HEAD(&psma->free_list_head->head);
+
+		/* create memory in-use list */
+		psma->in_use_list_head = kzalloc(sizeof(struct
+						lst_list), GFP_KERNEL);
+		if (psma->in_use_list_head == NULL) {
+			status = -ENOMEM;
+			goto func_end;
 		}
-		if (DSP_SUCCEEDED(status)) {
-			/* Get a mem node for this hunk-o-memory */
-			new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
-					    psma->dw_vm_base, ul_size);
-			/* Place node on the SM allocator's free list */
-			if (new_node) {
-				lst_put_tail(psma->free_list_head,
-					     (struct list_head *)new_node);
-			} else {
-				status = -ENOMEM;
-				goto func_end;
-			}
-		}
-		if (DSP_FAILED(status)) {
-			/* Cleanup allocator */
-			un_register_gppsm_seg(psma);
+		INIT_LIST_HEAD(&psma->in_use_list_head->head);
+
+		/* Get a mem node for this hunk-o-memory */
+		new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
+				    psma->dw_vm_base, ul_size);
+		/* Place node on the SM allocator's free list */
+		if (new_node) {
+			lst_put_tail(psma->free_list_head,
+				     (struct list_head *)new_node);
+		} else {
+			status = -ENOMEM;
+			goto func_end;
 		}
 	} else {
 		status = -ENOMEM;
 		goto func_end;
 	}
 	/* make entry */
-	if (DSP_SUCCEEDED(status))
-		cmm_mgr_obj->pa_gppsm_seg_tab[slot_seg] = psma;
+	cmm_mgr_obj->pa_gppsm_seg_tab[slot_seg] = psma;
 
 func_end:
+	if (status && psma) {
+		/* Cleanup allocator */
+		un_register_gppsm_seg(psma);
+	}
+
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	return status;
 }
@@ -977,7 +962,7 @@ int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 	} else {
 		status = -ENOMEM;
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		*xlator = (struct cmm_xlatorobject *)xlator_object;
 
 	return status;

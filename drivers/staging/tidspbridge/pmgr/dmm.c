@@ -88,7 +88,7 @@ int dmm_create_tables(struct dmm_object *dmm_mgr, u32 addr, u32 size)
 	int status = 0;
 
 	status = dmm_delete_tables(dmm_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dyn_mem_map_beg = addr;
 		table_size = PG_ALIGN_HIGH(size, PG_SIZE4K) / PG_SIZE4K;
 		/*  Create the free list */
@@ -152,7 +152,7 @@ int dmm_destroy(struct dmm_object *dmm_mgr)
 	DBC_REQUIRE(refs > 0);
 	if (dmm_mgr) {
 		status = dmm_delete_tables(dmm_obj);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			kfree(dmm_obj);
 	} else
 		status = -EFAULT;
@@ -209,7 +209,7 @@ int dmm_get_handle(void *hprocessor, struct dmm_object **dmm_manager)
 	else
 		hdev_obj = dev_get_first();	/* default */
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = dev_get_dmm_mgr(hdev_obj, dmm_manager);
 
 	return status;
@@ -337,7 +337,7 @@ int dmm_un_map_memory(struct dmm_object *dmm_mgr, u32 addr, u32 *psize)
 	if (chunk == NULL)
 		status = -ENOENT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Unmap the region */
 		*psize = chunk->mapped_size * PG_SIZE4K;
 		chunk->mapped = false;
@@ -371,7 +371,7 @@ int dmm_un_reserve_memory(struct dmm_object *dmm_mgr, u32 rsv_addr)
 	if (chunk == NULL)
 		status = -ENOENT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Free all the mapped pages for this reserved region */
 		i = 0;
 		while (i < chunk->region_size) {

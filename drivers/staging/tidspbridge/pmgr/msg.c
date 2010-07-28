@@ -66,7 +66,7 @@ int msg_create(struct msg_mgr **msg_man,
 	status =
 	    (*intf_fxns->pfn_msg_create) (&hmsg_mgr, hdev_obj, msg_callback);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Fill in DSP API message module's fields of the msg_mgr
 		 * structure */
 		msg_mgr_obj = (struct msg_mgr_ *)hmsg_mgr;
