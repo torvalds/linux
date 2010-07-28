@@ -221,5 +221,7 @@ struct mux_config {
 
 extern int rk2818_iomux_init(void);
 extern void rk2818_mux_api_set(char *name, unsigned int mode);
+extern unsigned int rk2818_mux_api_get(char *name);
+
 #endif
 

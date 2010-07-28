@@ -127,3 +127,19 @@ void rk2818_mux_api_set(char *name, unsigned int mode)
 	}
 }
 EXPORT_SYMBOL(rk2818_mux_api_set);
+
+unsigned int rk2818_mux_api_get(char *name)
+{
+    int i; 
+	for(i=0;i<ARRAY_SIZE(rk2818_muxs);i++)
+	{
+		//if(rockchip_muxs[i].name == cfg->name)
+		if (!strcmp(rk2818_muxs[i].name, name))
+		{
+			return rk2818_muxs[i].mode;
+		}
+	}
+	return 0xff;
+}
+EXPORT_SYMBOL(rk2818_mux_api_get);
+
