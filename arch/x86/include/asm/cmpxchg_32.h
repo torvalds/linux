@@ -34,12 +34,12 @@ static inline void __set_64bit(unsigned long long *ptr,
 			       unsigned int low, unsigned int high)
 {
 	asm volatile("\n1:\t"
-		     "movl (%0), %%eax\n\t"
-		     "movl 4(%0), %%edx\n\t"
-		     LOCK_PREFIX "cmpxchg8b (%0)\n\t"
+		     "movl (%1), %%eax\n\t"
+		     "movl 4(%1), %%edx\n\t"
+		     LOCK_PREFIX "cmpxchg8b %0\n\t"
 		     "jnz 1b"
-		     : /* no outputs */
-		     : "D"(ptr),
+		     : "=m"(*ptr)
+		     : "D" (ptr),
 		       "b"(low),
 		       "c"(high)
 		     : "ax", "dx", "memory");
@@ -82,20 +82,20 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 	switch (size) {
 	case 1:
 		asm volatile("xchgb %b0,%1"
-			     : "=q" (x)
-			     : "m" (*__xg(ptr)), "0" (x)
+			     : "=q" (x), "+m" (*__xg(ptr))
+			     : "0" (x)
 			     : "memory");
 		break;
 	case 2:
 		asm volatile("xchgw %w0,%1"
-			     : "=r" (x)
-			     : "m" (*__xg(ptr)), "0" (x)
+			     : "=r" (x), "+m" (*__xg(ptr))
+			     : "0" (x)
 			     : "memory");
 		break;
 	case 4:
 		asm volatile("xchgl %0,%1"
-			     : "=r" (x)
-			     : "m" (*__xg(ptr)), "0" (x)
+			     : "=r" (x), "+m" (*__xg(ptr))
+			     : "0" (x)
 			     : "memory");
 		break;
 	}
@@ -139,21 +139,21 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	unsigned long prev;
 	switch (size) {
 	case 1:
-		asm volatile(LOCK_PREFIX "cmpxchgb %b1,%2"
-			     : "=a"(prev)
-			     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile(LOCK_PREFIX "cmpxchgb %b2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "q"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 2:
-		asm volatile(LOCK_PREFIX "cmpxchgw %w1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile(LOCK_PREFIX "cmpxchgw %w2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 4:
-		asm volatile(LOCK_PREFIX "cmpxchgl %1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile(LOCK_PREFIX "cmpxchgl %2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	}
@@ -172,21 +172,21 @@ static inline unsigned long __sync_cmpxchg(volatile void *ptr,
 	unsigned long prev;
 	switch (size) {
 	case 1:
-		asm volatile("lock; cmpxchgb %b1,%2"
-			     : "=a"(prev)
-			     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("lock; cmpxchgb %b2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "q"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 2:
-		asm volatile("lock; cmpxchgw %w1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("lock; cmpxchgw %w2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 4:
-		asm volatile("lock; cmpxchgl %1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("lock; cmpxchgl %2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	}
@@ -200,21 +200,21 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	unsigned long prev;
 	switch (size) {
 	case 1:
-		asm volatile("cmpxchgb %b1,%2"
-			     : "=a"(prev)
-			     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("cmpxchgb %b2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "q"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 2:
-		asm volatile("cmpxchgw %w1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("cmpxchgw %w2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	case 4:
-		asm volatile("cmpxchgl %1,%2"
-			     : "=a"(prev)
-			     : "r"(new), "m"(*__xg(ptr)), "0"(old)
+		asm volatile("cmpxchgl %2,%1"
+			     : "=a"(prev), "+m"(*__xg(ptr))
+			     : "r"(new), "0"(old)
 			     : "memory");
 		return prev;
 	}
@@ -226,11 +226,10 @@ static inline unsigned long long __cmpxchg64(volatile void *ptr,
 					     unsigned long long new)
 {
 	unsigned long long prev;
-	asm volatile(LOCK_PREFIX "cmpxchg8b %3"
-		     : "=A"(prev)
+	asm volatile(LOCK_PREFIX "cmpxchg8b %1"
+		     : "=A"(prev), "+m" (*__xg(ptr))
 		     : "b"((unsigned long)new),
 		       "c"((unsigned long)(new >> 32)),
-		       "m"(*__xg(ptr)),
 		       "0"(old)
 		     : "memory");
 	return prev;
@@ -241,11 +240,10 @@ static inline unsigned long long __cmpxchg64_local(volatile void *ptr,
 						   unsigned long long new)
 {
 	unsigned long long prev;
-	asm volatile("cmpxchg8b %3"
-		     : "=A"(prev)
+	asm volatile("cmpxchg8b %1"
+		     : "=A"(prev), "+m"(*__xg(ptr))
 		     : "b"((unsigned long)new),
 		       "c"((unsigned long)(new >> 32)),
-		       "m"(*__xg(ptr)),
 		       "0"(old)
 		     : "memory");
 	return prev;
