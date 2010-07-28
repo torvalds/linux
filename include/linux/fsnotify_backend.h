@@ -64,6 +64,15 @@
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
+#define ALL_FSNOTIFY_EVENTS (FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
+			     FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN | \
+			     FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE | \
+			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
+			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
+			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_EXCL_UNLINK | \
+			     FS_IN_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
+			     FS_DN_MULTISHOT | FS_EVENT_ON_CHILD)
+
 struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark;

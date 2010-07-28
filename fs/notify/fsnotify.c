@@ -275,6 +275,8 @@ EXPORT_SYMBOL_GPL(fsnotify);
 
 static __init int fsnotify_init(void)
 {
+	BUG_ON(hweight32(ALL_FSNOTIFY_EVENTS) != 23);
+
 	return init_srcu_struct(&fsnotify_grp_srcu);
 }
 subsys_initcall(fsnotify_init);
