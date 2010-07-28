@@ -295,8 +295,6 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 #define LOW_LEVEL                       false
 
 /* Macro's */
-#define REG16(A)    (*(reg_uword16 *)(A))
-
 #define CLEAR_BIT(reg, mask)             (reg &= ~mask)
 #define SET_BIT(reg, mask)               (reg |= mask)
 
