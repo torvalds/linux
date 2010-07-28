@@ -140,36 +140,6 @@ void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
-void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
-{
-	struct fsnotify_mark *mark;
-	struct hlist_node *node;
-	int idx;
-
-	idx = srcu_read_lock(&fsnotify_mark_srcu);
-
-	if (!hlist_empty(&inode->i_fsnotify_marks)) {
-		hlist_for_each_entry_rcu(mark, node, &inode->i_fsnotify_marks, i.i_list) {
-			if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-				mark->ignored_mask = 0;
-		}
-	}
-
-	if (data_is == FSNOTIFY_EVENT_FILE) {
-		struct vfsmount *mnt;
-
-		mnt = ((struct file *)data)->f_path.mnt;
-		if (mnt && !hlist_empty(&mnt->mnt_fsnotify_marks)) {
-			hlist_for_each_entry_rcu(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
-				if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-					mark->ignored_mask = 0;
-			}
-		}
-	}
-
-	srcu_read_unlock(&fsnotify_mark_srcu, idx);
-}
-
 static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 			 struct vfsmount *mnt, struct fsnotify_mark *mark,
 			 __u32 mask, void *data, int data_is, u32 cookie,
@@ -193,14 +163,6 @@ static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 	return group->ops->handle_event(group, mark, *event);
 }
 
-static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
-{
-	if (!mnt)
-		return false;
-
-	return (test_mask & mnt->mnt_fsnotify_mask);
-}
-
 /*
  * This is the main call to fsnotify.  The VFS calls into hook specific functions
  * in linux/fsnotify.h.  Those functions then in turn call here.  Here will call
@@ -219,25 +181,20 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
-	if (mask & FS_MODIFY)
-		__fsnotify_flush_ignored_mask(to_tell, data, data_is);
-
 	if (data_is == FSNOTIFY_EVENT_FILE)
 		mnt = ((struct file *)data)->f_path.mnt;
 
-	/* if this inode's directed listeners don't care and nothing on the vfsmount
-	 * listeners list cares, nothing to do */
-	if (!(test_mask & to_tell->i_fsnotify_mask) &&
-	    !needed_by_vfsmount(test_mask, mnt))
-		return 0;
-
 	idx = srcu_read_lock(&fsnotify_mark_srcu);
 
-	if (test_mask & to_tell->i_fsnotify_mask) {
+	if ((test_mask & to_tell->i_fsnotify_mask) || (mask & FS_MODIFY)) {
 		hlist_for_each_entry_rcu(mark, node, &to_tell->i_fsnotify_marks, i.i_list) {
 
 			pr_debug("%s: inode_loop: mark=%p mark->mask=%x mark->ignored_mask=%x\n",
 				 __func__, mark, mark->mask, mark->ignored_mask);
+
+			if ((mask & FS_MODIFY) &&
+			    !(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+				mark->ignored_mask = 0;
 
 			if (test_mask & mark->mask & ~mark->ignored_mask) {
 				group = mark->group;
@@ -252,11 +209,16 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 		}
 	}
 
-	if (mnt && (test_mask & mnt->mnt_fsnotify_mask)) {
+	if (mnt && ((test_mask & mnt->mnt_fsnotify_mask) ||
+		    (mask & FS_MODIFY))) {
 		hlist_for_each_entry_rcu(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
 
 			pr_debug("%s: mnt_loop: mark=%p mark->mask=%x mark->ignored_mask=%x\n",
 				 __func__, mark, mark->mask, mark->ignored_mask);
+
+			if ((mask & FS_MODIFY) &&
+			    !(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+				mark->ignored_mask = 0;
 
 			if (test_mask & mark->mask & ~mark->ignored_mask)  {
 				group = mark->group;
