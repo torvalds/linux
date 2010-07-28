@@ -126,6 +126,9 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 			ret = 0;
 	}
 
+	if (fsn_mark->mask & IN_ONESHOT)
+		fsnotify_destroy_mark(fsn_mark);
+
 	/*
 	 * If we hold the fsn_mark until after the event is on the queue
 	 * IN_IGNORED won't be able to pass this event in the queue
