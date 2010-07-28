@@ -39,7 +39,7 @@ void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 	spin_lock(&mnt->mnt_root->d_lock);
 	hlist_for_each_entry_safe(mark, pos, n, &mnt->mnt_fsnotify_marks, m.m_list) {
 		list_add(&mark->m.free_m_list, &free_list);
-		hlist_del_init(&mark->m.m_list);
+		hlist_del_init_rcu(&mark->m.m_list);
 		fsnotify_get_mark(mark);
 	}
 	spin_unlock(&mnt->mnt_root->d_lock);
@@ -91,7 +91,7 @@ void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 
 	spin_lock(&mnt->mnt_root->d_lock);
 
-	hlist_del_init(&mark->m.m_list);
+	hlist_del_init_rcu(&mark->m.m_list);
 	mark->m.mnt = NULL;
 
 	fsnotify_recalc_vfsmount_mask_locked(mnt);
@@ -156,7 +156,7 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 
 	/* is mark the first mark? */
 	if (hlist_empty(&mnt->mnt_fsnotify_marks)) {
-		hlist_add_head(&mark->m.m_list, &mnt->mnt_fsnotify_marks);
+		hlist_add_head_rcu(&mark->m.m_list, &mnt->mnt_fsnotify_marks);
 		goto out;
 	}
 
@@ -172,13 +172,13 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 		if (mark->group < lmark->group)
 			continue;
 
-		hlist_add_before(&mark->m.m_list, &lmark->m.m_list);
+		hlist_add_before_rcu(&mark->m.m_list, &lmark->m.m_list);
 		goto out;
 	}
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_after(last, &mark->m.m_list);
+	hlist_add_after_rcu(last, &mark->m.m_list);
 out:
 	fsnotify_recalc_vfsmount_mask_locked(mnt);
 	spin_unlock(&mnt->mnt_root->d_lock);

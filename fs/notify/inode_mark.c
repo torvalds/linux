@@ -67,7 +67,7 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 
 	spin_lock(&inode->i_lock);
 
-	hlist_del_init(&mark->i.i_list);
+	hlist_del_init_rcu(&mark->i.i_list);
 	mark->i.inode = NULL;
 
 	/*
@@ -92,7 +92,7 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	spin_lock(&inode->i_lock);
 	hlist_for_each_entry_safe(mark, pos, n, &inode->i_fsnotify_marks, i.i_list) {
 		list_add(&mark->i.free_i_list, &free_list);
-		hlist_del_init(&mark->i.i_list);
+		hlist_del_init_rcu(&mark->i.i_list);
 		fsnotify_get_mark(mark);
 	}
 	spin_unlock(&inode->i_lock);
@@ -198,7 +198,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	/* is mark the first mark? */
 	if (hlist_empty(&inode->i_fsnotify_marks)) {
-		hlist_add_head(&mark->i.i_list, &inode->i_fsnotify_marks);
+		hlist_add_head_rcu(&mark->i.i_list, &inode->i_fsnotify_marks);
 		goto out;
 	}
 
@@ -214,13 +214,13 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 		if (mark->group < lmark->group)
 			continue;
 
-		hlist_add_before(&mark->i.i_list, &lmark->i.i_list);
+		hlist_add_before_rcu(&mark->i.i_list, &lmark->i.i_list);
 		goto out;
 	}
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_after(last, &mark->i.i_list);
+	hlist_add_after_rcu(last, &mark->i.i_list);
 out:
 	fsnotify_recalc_inode_mask_locked(inode);
 	spin_unlock(&inode->i_lock);
