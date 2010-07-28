@@ -1098,7 +1098,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		if (chan->band != band)
 			continue;
 
-		channel = ieee80211_frequency_to_channel(chan->center_freq);
+		channel = chan->hw_value;
 		scan_ch->channel = cpu_to_le16(channel);
 
 		ch_info = iwl_get_channel_info(priv, band, channel);

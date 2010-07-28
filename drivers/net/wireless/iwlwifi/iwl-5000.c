@@ -291,7 +291,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	};
 
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
-	ch = ieee80211_frequency_to_channel(ch_switch->channel->center_freq);
+	ch = ch_switch->channel->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
 		priv->active_rxon.channel, ch);
 	cmd.channel = cpu_to_le16(ch);

@@ -3655,8 +3655,7 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 	if (priv->cfg->ops->lib->set_channel_switch) {
 
-		ch = ieee80211_frequency_to_channel(
-			ch_switch->channel->center_freq);
+		ch = ch_switch->channel->hw_value;
 		if (le16_to_cpu(priv->active_rxon.channel) != ch) {
 			ch_info = iwl_get_channel_info(priv,
 						       conf->channel->band,

@@ -916,7 +916,7 @@ EXPORT_SYMBOL(iwl_get_single_channel_number);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch)
 {
 	enum ieee80211_band band = ch->band;
-	u16 channel = ieee80211_frequency_to_channel(ch->center_freq);
+	u16 channel = ch->hw_value;
 
 	if (!iwl_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO(priv, "Could not set channel to %d [%d]\n",
@@ -2032,7 +2032,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if (scan_active)
 			goto set_ch_out;
 
-		ch = ieee80211_frequency_to_channel(conf->channel->center_freq);
+		ch = conf->channel->hw_value;
 		ch_info = iwl_get_channel_info(priv, conf->channel->band, ch);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
