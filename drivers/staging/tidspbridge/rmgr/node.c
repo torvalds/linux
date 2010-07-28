@@ -338,7 +338,7 @@ int node_allocate(struct proc_object *hprocessor,
 		goto func_end;
 
 	status = proc_get_dev_object(hprocessor, &hdev_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_node_manager(hdev_obj, &hnode_mgr);
 		if (hnode_mgr == NULL)
 			status = -EPERM;
@@ -475,7 +475,7 @@ func_cont:
 		pnode->prio = attr_in->prio;
 	}
 	/* Create object to manage notifications */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		pnode->ntfy_obj = kmalloc(sizeof(struct ntfy_object),
 							GFP_KERNEL);
 		if (pnode->ntfy_obj)
@@ -484,7 +484,7 @@ func_cont:
 			status = -ENOMEM;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		node_type = node_get_type(pnode);
 		/*  Allocate dsp_streamconnect array for device, task, and
 		 *  dais socket nodes. */
@@ -497,7 +497,7 @@ func_cont:
 				status = -ENOMEM;
 
 		}
-		if (DSP_SUCCEEDED(status) && (node_type == NODE_TASK ||
+		if (!status && (node_type == NODE_TASK ||
 					      node_type == NODE_DAISSOCKET)) {
 			/* Allocate arrays for maintainig stream connections */
 			pnode->inputs = kzalloc(MAX_INPUTS(pnode) *
@@ -520,7 +520,7 @@ func_cont:
 				status = -ENOMEM;
 		}
 	}
-	if (DSP_SUCCEEDED(status) && (node_type != NODE_DEVICE)) {
+	if (!status && (node_type != NODE_DEVICE)) {
 		/* Create an event that will be posted when RMS_EXIT is
 		 * received. */
 		pnode->sync_done = kzalloc(sizeof(struct sync_object),
@@ -530,17 +530,17 @@ func_cont:
 		else
 			status = -ENOMEM;
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/*Get the shared mem mgr for this nodes dev object */
 			status = cmm_get_handle(hprocessor, &hcmm_mgr);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				/* Allocate a SM addr translator for this node
 				 * w/ deflt attr */
 				status = cmm_xlator_create(&pnode->xlator,
 							   hcmm_mgr, NULL);
 			}
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Fill in message args */
 			if ((pargs != NULL) && (pargs->cb_data > 0)) {
 				pmsg_args =
@@ -559,7 +559,7 @@ func_cont:
 		}
 	}
 
-	if (DSP_SUCCEEDED(status) && node_type != NODE_DEVICE) {
+	if (!status && node_type != NODE_DEVICE) {
 		/* Create a message queue for this node */
 		intf_fxns = hnode_mgr->intf_fxns;
 		status =
@@ -571,7 +571,7 @@ func_cont:
 							pnode);
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Create object for dynamic loading */
 
 		status = hnode_mgr->nldr_fxns.pfn_allocate(hnode_mgr->nldr_obj,
@@ -587,7 +587,7 @@ func_cont:
 	 * STACKSEGLABEL, if yes read the Address of STACKSEGLABEL, calculate
 	 * GPP Address, Read the value in that address and override the
 	 * stack_seg value in task args */
-	if (DSP_SUCCEEDED(status) &&
+	if (!status &&
 	    (char *)pnode->dcd_props.obj_data.node_obj.ndb_props.
 	    stack_seg_name != NULL) {
 		if (strcmp((char *)
@@ -635,7 +635,7 @@ func_cont:
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Add the node to the node manager's list of allocated
 		 * nodes. */
 		lst_init_elem((struct list_head *)pnode);
@@ -653,7 +653,7 @@ func_cont:
 		 * (for overlay and dll) */
 		pnode->phase_split = true;
 
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			*ph_node = pnode;
 
 		/* Notify all clients registered for DSP_NODESTATECHANGE. */
@@ -665,13 +665,13 @@ func_cont:
 
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		drv_insert_node_res_element(*ph_node, &node_res, pr_ctxt);
 		drv_proc_node_update_heap_status(node_res, true);
 		drv_proc_node_update_status(node_res, true);
 	}
 	DBC_ENSURE((DSP_FAILED(status) && (*ph_node == NULL)) ||
-			(DSP_SUCCEEDED(status) && *ph_node));
+			(!status && *ph_node));
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: %p node_uuid: %p pargs: %p attr_in:"
 		" %p ph_node: %p status: 0x%x\n", __func__, hprocessor,
@@ -730,7 +730,7 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 		status = cmm_xlator_info(pnode->xlator, pbuffer, usize,
 					 pattr->segment_id, set_info);
 	}
-	if (DSP_SUCCEEDED(status) && (!va_flag)) {
+	if (!status && (!va_flag)) {
 		if (pattr->segment_id != 1) {
 			/* Node supports single SM segment only. */
 			status = -EBADR;
@@ -749,7 +749,7 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 			status = -EPERM;
 			break;
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* allocate physical buffer from seg_id in node's
 			 * translator */
 			(void)cmm_xlator_alloc_buf(pnode->xlator, pbuffer,
@@ -815,7 +815,7 @@ int node_change_priority(struct node_object *hnode, s32 prio)
 						      [RMSCHANGENODEPRIORITY],
 						      hnode->node_env, prio);
 		}
-		if (DSP_SUCCEEDED(status))
+		if (status >= 0)
 			NODE_SET_PRIORITY(hnode, prio);
 
 	}
@@ -857,7 +857,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 	    (node2 != (struct node_object *)DSP_HGPPNODE && !node2))
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* The two nodes must be on the same processor */
 		if (node1 != (struct node_object *)DSP_HGPPNODE &&
 		    node2 != (struct node_object *)DSP_HGPPNODE &&
@@ -868,7 +868,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 			status = -EPERM;
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* node_get_type() will return NODE_GPP if hnode =
 		 * DSP_HGPPNODE. */
 		node1_type = node_get_type(node1);
@@ -882,7 +882,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 							  MAX_INPUTS(node2)))
 			status = -EINVAL;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*
 		 *  Only the following types of connections are allowed:
 		 *      task/dais socket < == > task/dais socket
@@ -900,7 +900,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 	/*
 	 * Check stream mode. Default is STRMMODE_PROCCOPY.
 	 */
-	if (DSP_SUCCEEDED(status) && pattrs) {
+	if (!status && pattrs) {
 		if (pattrs->strm_mode != STRMMODE_PROCCOPY)
 			status = -EPERM;	/* illegal stream mode */
 
@@ -924,7 +924,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 	if (node2_type != NODE_GPP && node_get_state(node2) != NODE_ALLOCATED)
 		status = -EBADR;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*  Check that stream indices for task and dais socket nodes
 		 *  are not already be used. (Device nodes checked later) */
 		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
@@ -945,7 +945,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 		}
 	}
 	/* Connecting two task nodes? */
-	if (DSP_SUCCEEDED(status) && ((node1_type == NODE_TASK ||
+	if (!status && ((node1_type == NODE_TASK ||
 				       node1_type == NODE_DAISSOCKET)
 				      && (node2_type == NODE_TASK
 					  || node2_type == NODE_DAISSOCKET))) {
@@ -981,7 +981,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 		}
 	}
 	/* Connecting task node to host? */
-	if (DSP_SUCCEEDED(status) && (node1_type == NODE_GPP ||
+	if (!status && (node1_type == NODE_GPP ||
 				      node2_type == NODE_GPP)) {
 		if (node1_type == NODE_GPP) {
 			chnl_mode = CHNL_MODETODSP;
@@ -1047,7 +1047,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 		}
 		status = -ENOMEM;
 func_cont2:
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (node1 == (struct node_object *)DSP_HGPPNODE) {
 				node2->inputs[stream2].type = HOSTCONNECT;
 				node2->inputs[stream2].dev_id = chnl_id;
@@ -1061,7 +1061,7 @@ func_cont2:
 		}
 	}
 	/* Connecting task node to device node? */
-	if (DSP_SUCCEEDED(status) && ((node1_type == NODE_DEVICE) ||
+	if (!status && ((node1_type == NODE_DEVICE) ||
 				      (node2_type == NODE_DEVICE))) {
 		if (node2_type == NODE_DEVICE) {
 			/* node1 == > device */
@@ -1101,7 +1101,7 @@ func_cont2:
 			dev_node_obj->device_owner = hnode;
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Fill in create args */
 		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
 			node1->create_args.asa.task_arg_obj.num_outputs++;
@@ -1187,7 +1187,7 @@ int node_create(struct node_object *hnode)
 	if (node_get_state(hnode) != NODE_ALLOCATED)
 		status = -EBADR;
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 
 	if (DSP_FAILED(status))
@@ -1203,7 +1203,7 @@ int node_create(struct node_object *hnode)
 	     hnode->num_outputs - 1))
 		status = -ENOTCONN;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* If node's create function is not loaded, load it */
 		/* Boost the OPP level to max level that DSP can be requested */
 #if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
@@ -1213,7 +1213,7 @@ int node_create(struct node_object *hnode)
 		status = hnode_mgr->nldr_fxns.pfn_load(hnode->nldr_node_obj,
 						       NLDR_CREATE);
 		/* Get address of node's create function */
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			hnode->loaded = true;
 			if (node_type != NODE_DEVICE) {
 				status = get_fxn_address(hnode, &ul_create_fxn,
@@ -1229,7 +1229,7 @@ int node_create(struct node_object *hnode)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP1]);
 #endif
 		/* Get address of iAlg functions, if socket node */
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (node_type == NODE_DAISSOCKET) {
 				status = hnode_mgr->nldr_fxns.pfn_get_fxn_addr
 				    (hnode->nldr_node_obj,
@@ -1240,7 +1240,7 @@ int node_create(struct node_object *hnode)
 			}
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (node_type != NODE_DEVICE) {
 			status = disp_node_create(hnode_mgr->disp_obj, hnode,
 						  hnode_mgr->ul_fxn_addrs
@@ -1248,7 +1248,7 @@ int node_create(struct node_object *hnode)
 						  ul_create_fxn,
 						  &(hnode->create_args),
 						  &(hnode->node_env));
-			if (DSP_SUCCEEDED(status)) {
+			if (status >= 0) {
 				/* Set the message queue id to the node env
 				 * pointer */
 				intf_fxns = hnode_mgr->intf_fxns;
@@ -1272,7 +1272,7 @@ int node_create(struct node_object *hnode)
 		       __func__, status1);
 func_cont2:
 	/* Update node state and node manager state */
-	if (DSP_SUCCEEDED(status)) {
+	if (status >= 0) {
 		NODE_SET_STATE(hnode, NODE_CREATED);
 		hnode_mgr->num_created++;
 		goto func_cont;
@@ -1285,7 +1285,7 @@ func_cont:
 	/* Free access to node dispatcher */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 func_end:
-	if (DSP_SUCCEEDED(status)) {
+	if (status >= 0) {
 		proc_notify_clients(hnode->hprocessor, DSP_NODESTATECHANGE);
 		ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 	}
@@ -1341,19 +1341,19 @@ int node_create_mgr(struct node_mgr **node_man,
 		status = -ENOMEM;
 	}
 	/* get devNodeType */
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = dev_get_dev_type(hdev_obj, &dev_type);
 
 	/* Create the DCD Manager */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    dcd_create_manager(sz_zl_file, &node_mgr_obj->hdcd_mgr);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			status = get_proc_props(node_mgr_obj, hdev_obj);
 
 	}
 	/* Create NODE Dispatcher */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		disp_attr_obj.ul_chnl_offset = node_mgr_obj->ul_chnl_offset;
 		disp_attr_obj.ul_chnl_buf_size = node_mgr_obj->ul_chnl_buf_size;
 		disp_attr_obj.proc_family = node_mgr_obj->proc_family;
@@ -1363,10 +1363,10 @@ int node_create_mgr(struct node_mgr **node_man,
 				&disp_attr_obj);
 	}
 	/* Create a STRM Manager */
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = strm_create(&node_mgr_obj->strm_mgr_obj, hdev_obj);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_get_intf_fxns(hdev_obj, &node_mgr_obj->intf_fxns);
 		/* Get msg_ctrl queue manager */
 		dev_get_msg_mgr(hdev_obj, &node_mgr_obj->msg_mgr_obj);
@@ -1393,7 +1393,7 @@ int node_create_mgr(struct node_mgr **node_man,
 			       node_mgr_obj->ul_chnl_offset + 1);
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* NO RM Server on the IVA */
 		if (dev_type != IVA_UNIT) {
 			/* Get addresses of any RMS functions loaded */
@@ -1402,10 +1402,10 @@ int node_create_mgr(struct node_mgr **node_man,
 	}
 
 	/* Get loader functions and create loader */
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		node_mgr_obj->nldr_fxns = nldr_fxns;	/* Dyn loader funcs */
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		nldr_attrs_obj.pfn_ovly = ovly;
 		nldr_attrs_obj.pfn_write = mem_write;
 		nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
@@ -1416,13 +1416,13 @@ int node_create_mgr(struct node_mgr **node_man,
 						       hdev_obj,
 						       &nldr_attrs_obj);
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		*node_man = node_mgr_obj;
 	else
 		delete_node_mgr(node_mgr_obj);
 
 	DBC_ENSURE((DSP_FAILED(status) && (*node_man == NULL)) ||
-			(DSP_SUCCEEDED(status) && *node_man));
+			(!status && *node_man));
 
 	return status;
 }
@@ -1506,7 +1506,7 @@ int node_delete(struct node_object *hnode,
 				status =
 				    hnode_mgr->nldr_fxns.
 				    pfn_load(hnode->nldr_node_obj, NLDR_DELETE);
-				if (DSP_SUCCEEDED(status))
+				if (!status)
 					hnode->loaded = true;
 				else
 					pr_err("%s: fail - load delete code:"
@@ -1514,7 +1514,7 @@ int node_delete(struct node_object *hnode,
 			}
 		}
 func_cont1:
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Unblock a thread trying to terminate the node */
 			(void)sync_set_event(hnode->sync_done);
 			if (proc_id == DSP_UNIT) {
@@ -1524,7 +1524,7 @@ func_cont1:
 							 DELETEPHASE);
 			} else if (proc_id == IVA_UNIT)
 				ul_delete_fxn = (u32) hnode->node_env;
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				status = proc_get_state(hprocessor,
 						&proc_state,
 						sizeof(struct
@@ -1690,7 +1690,7 @@ int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
 	}
 	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 	if (proc_id == DSP_UNIT) {
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (pattr == NULL) {
 				/* set defaults */
 				pattr = &node_dfltbufattrs;
@@ -1889,8 +1889,7 @@ int node_get_nldr_obj(struct node_mgr *hnode_mgr,
 	else
 		*nldr_ovlyobj = node_mgr_obj->nldr_obj;
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((nldr_ovlyobj != NULL) &&
-					     (*nldr_ovlyobj == NULL)));
+	DBC_ENSURE(!status || (nldr_ovlyobj != NULL && *nldr_ovlyobj == NULL));
 	return status;
 }
 
@@ -2039,7 +2038,7 @@ int node_pause(struct node_object *hnode)
 	if (proc_id == IVA_UNIT)
 		status = -ENOSYS;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		hnode_mgr = hnode->hnode_mgr;
 
 		/* Enter critical section */
@@ -2068,14 +2067,14 @@ int node_pause(struct node_object *hnode)
 			hnode->node_env, NODE_SUSPENDEDPRI);
 
 		/* Update state */
-		if (DSP_SUCCEEDED(status))
+		if (status >= 0)
 			NODE_SET_STATE(hnode, NODE_PAUSED);
 
 func_cont:
 		/* End of sync_enter_cs */
 		/* Leave critical section */
 		mutex_unlock(&hnode_mgr->node_mgr_lock);
-		if (DSP_SUCCEEDED(status)) {
+		if (status >= 0) {
 			proc_notify_clients(hnode->hprocessor,
 					    DSP_NODESTATECHANGE);
 			ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
@@ -2130,7 +2129,7 @@ int node_put_message(struct node_object *hnode,
 	    node_type != NODE_DAISSOCKET)
 		status = -EPERM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*  Check node state. Can't send messages to a node after
 		 *  we've sent the RMS_EXIT command. There is still the
 		 *  possibility that node_terminate can be called after we've
@@ -2175,7 +2174,7 @@ int node_put_message(struct node_object *hnode,
 			status = -ESRCH;
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		intf_fxns = hnode_mgr->intf_fxns;
 		status = (*intf_fxns->pfn_msg_put) (hnode->msg_queue_obj,
 						    &new_msg, utimeout);
@@ -2217,7 +2216,7 @@ int node_register_notify(struct node_object *hnode, u32 event_mask,
 		if (event_mask == (DSP_NODESTATECHANGE | DSP_NODEMESSAGEREADY))
 			status = -EINVAL;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (event_mask == DSP_NODESTATECHANGE) {
 			status = ntfy_register(hnode->ntfy_obj, hnotification,
 					       event_mask & DSP_NODESTATECHANGE,
@@ -2294,7 +2293,7 @@ int node_run(struct node_object *hnode)
 	if (state != NODE_CREATED && state != NODE_PAUSED)
 		status = -EBADR;
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 
 	if (DSP_FAILED(status))
@@ -2309,14 +2308,14 @@ int node_run(struct node_object *hnode)
 			status =
 			    hnode_mgr->nldr_fxns.pfn_load(hnode->nldr_node_obj,
 							  NLDR_EXECUTE);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				hnode->loaded = true;
 			} else {
 				pr_err("%s: fail - load execute code: 0x%x\n",
 				       __func__, status);
 			}
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Get address of node's execute function */
 			if (proc_id == IVA_UNIT)
 				ul_execute_fxn = (u32) hnode->node_env;
@@ -2325,7 +2324,7 @@ int node_run(struct node_object *hnode)
 							 EXECUTEPHASE);
 			}
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			ul_fxn_addr = hnode_mgr->ul_fxn_addrs[RMSEXECUTENODE];
 			status =
 			    disp_node_run(hnode_mgr->disp_obj, hnode,
@@ -2343,14 +2342,14 @@ int node_run(struct node_object *hnode)
 	}
 func_cont1:
 	/* Update node state. */
-	if (DSP_SUCCEEDED(status))
+	if (status >= 0)
 		NODE_SET_STATE(hnode, NODE_RUNNING);
 	else			/* Set state back to previous value */
 		NODE_SET_STATE(hnode, state);
 	/*End of sync_enter_cs */
 	/* Exit critical section */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
-	if (DSP_SUCCEEDED(status)) {
+	if (status >= 0) {
 		proc_notify_clients(hnode->hprocessor, DSP_NODESTATECHANGE);
 		ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 	}
@@ -2391,13 +2390,13 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 	}
 	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		hnode_mgr = hnode->hnode_mgr;
 		node_type = node_get_type(hnode);
 		if (node_type != NODE_TASK && node_type != NODE_DAISSOCKET)
 			status = -EPERM;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Check node state */
 		mutex_lock(&hnode_mgr->node_mgr_lock);
 		state = node_get_state(hnode);
@@ -2414,7 +2413,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		/* end of sync_enter_cs */
 		mutex_unlock(&hnode_mgr->node_mgr_lock);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*
 		 *  Send exit message. Do not change state to NODE_DONE
 		 *  here. That will be done in callback.
@@ -2476,7 +2475,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		}
 	}
 func_cont:
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Enter CS before getting exit status, in case node was
 		 * deleted. */
 		mutex_lock(&hnode_mgr->node_mgr_lock);
@@ -2903,7 +2902,7 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 	status = dcd_get_object_def(hdcd_mgr, (struct dsp_uuid *)node_uuid,
 				    DSP_DCDNODETYPE, dcd_prop);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		hnode->ntype = node_type = pndb_props->ntype;
 
 		/* Create UUID value to set in registry. */
@@ -2935,7 +2934,7 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 			}
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Fill in create args that come from NDB */
 		if (node_type == NODE_TASK || node_type == NODE_DAISSOCKET) {
 			task_arg_obj = &(hnode->create_args.asa.task_arg_obj);
@@ -2973,7 +2972,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 	if (!pbridge_context)
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		host_res = pbridge_context->resources;
 		if (!host_res)
 			return -EPERM;
@@ -3058,7 +3057,7 @@ int node_get_uuid_props(void *hprocessor,
 		(struct dsp_uuid *)node_uuid, DSP_DCDNODETYPE,
 		(struct dcd_genericobj *)&dcd_node_props);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		*node_props = dcd_node_props.ndb_props;
 		kfree(dcd_node_props.pstr_create_phase_fxn);
 
@@ -3148,12 +3147,12 @@ static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 	/* Call new MemCopy function */
 	intf_fxns = hnode_mgr->intf_fxns;
 	status = dev_get_bridge_context(hnode_mgr->hdev_obj, &hbridge_context);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    (*intf_fxns->pfn_brd_mem_copy) (hbridge_context,
 						dsp_run_addr, dsp_load_addr,
 						ul_num_bytes, (u32) mem_space);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			ul_bytes = ul_num_bytes;
 		else
 			pr_debug("%s: failed to copy brd memory, status 0x%x\n",
@@ -3220,7 +3219,7 @@ int node_find_addr(struct node_mgr *node_mgr, u32 sym_addr,
 		status = nldr_find_addr(node_obj->nldr_node_obj, sym_addr,
 			offset_range, sym_addr_output, sym_name);
 
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			break;
 
 		node_obj = (struct node_object *) (node_obj->list_elem.next);

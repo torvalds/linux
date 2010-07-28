@@ -111,9 +111,9 @@ int disp_create(struct disp_object **dispatch_obj,
 		disp_obj->hdev_obj = hdev_obj;
 
 	/* Get Channel manager and Bridge function interface */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_chnl_mgr(hdev_obj, &(disp_obj->hchnl_mgr));
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			(void)dev_get_intf_fxns(hdev_obj, &intf_fxns);
 			disp_obj->intf_fxns = intf_fxns;
 		}
@@ -146,7 +146,7 @@ int disp_create(struct disp_object **dispatch_obj,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
 		status =
 		    (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_from_dsp),
@@ -154,7 +154,7 @@ int disp_create(struct disp_object **dispatch_obj,
 						 CHNL_MODEFROMDSP, ul_chnl_id,
 						 &chnl_attr_obj);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Allocate buffer for commands, replies */
 		disp_obj->ul_bufsize = disp_attrs->ul_chnl_buf_size;
 		disp_obj->ul_bufsize_rms = RMS_COMMANDBUFSIZE;
@@ -163,13 +163,13 @@ int disp_create(struct disp_object **dispatch_obj,
 			status = -ENOMEM;
 	}
 func_cont:
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		*dispatch_obj = disp_obj;
 	else
 		delete_disp(disp_obj);
 
 	DBC_ENSURE(((DSP_FAILED(status)) && ((*dispatch_obj == NULL))) ||
-				((DSP_SUCCEEDED(status)) && *dispatch_obj));
+				(!status && *dispatch_obj));
 	return status;
 }
 
@@ -345,7 +345,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	 *  Socket Args (if DAIS socket node):
 	 *
 	 */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		total = 0;	/* Total number of words in buffer so far */
 		pdw_buf = (rms_word *) disp_obj->pbuf;
 		rms_cmd = (struct rms_command *)pdw_buf;
@@ -439,7 +439,7 @@ int disp_node_create(struct disp_object *disp_obj,
 				offset = total;
 			}
 			for (i = 0; (i < task_arg_obj.num_outputs) &&
-			     (DSP_SUCCEEDED(status)); i++) {
+			     (!status); i++) {
 				pdw_buf[sio_out_def_offset + i] =
 				    (offset - args_offset)
 				    * (sizeof(rms_word) / DSPWORDSIZE);
@@ -455,12 +455,12 @@ int disp_node_create(struct disp_object *disp_obj,
 			status = -EPERM;
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		ul_bytes = total * sizeof(rms_word);
 		DBC_ASSERT(ul_bytes < (RMS_COMMANDBUFSIZE * sizeof(rms_word)));
 		status = send_message(disp_obj, node_get_timeout(hnode),
 				      ul_bytes, node_env);
-		if (DSP_SUCCEEDED(status)) {
+		if (status >= 0) {
 			/*
 			 * Message successfully received from RMS.
 			 * Return the status of the Node's create function
@@ -497,7 +497,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 
 	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 
 		if (dev_type == DSP_UNIT) {
 
@@ -513,7 +513,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (DSP_SUCCEEDED(status)) {
+			if (status >= 0) {
 				/*
 				 * Message successfully received from RMS.
 				 * Return the status of the Node's delete
@@ -550,7 +550,7 @@ int disp_node_run(struct disp_object *disp_obj,
 
 	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 
 		if (dev_type == DSP_UNIT) {
 
@@ -566,7 +566,7 @@ int disp_node_run(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (DSP_SUCCEEDED(status)) {
+			if (status >= 0) {
 				/*
 				 * Message successfully received from RMS.
 				 * Return the status of the Node's execute
@@ -649,7 +649,7 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 		strm_def_obj->timeout = strm_def.utimeout;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*
 		 *  Since we haven't added the device name yet, subtract
 		 *  1 from total.
@@ -709,7 +709,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 
 	status =
 	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj))
 				status = -ETIME;
@@ -730,7 +730,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 
 	status =
 	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 			status = -ETIME;
 		} else if (chnl_ioc_obj.byte_size < ul_bytes) {

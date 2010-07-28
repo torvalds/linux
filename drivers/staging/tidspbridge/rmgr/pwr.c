@@ -91,12 +91,10 @@ int pwr_wake_dsp(const u32 timeout)
 	     hdev_obj != NULL;
 	     hdev_obj = (struct dev_object *)drv_get_next_dev_object
 	     ((u32) hdev_obj)) {
-		if (DSP_SUCCEEDED(dev_get_bridge_context(hdev_obj,
+		if (!(dev_get_bridge_context(hdev_obj,
 						      (struct bridge_dev_context
 						       **)&dw_context))) {
-			if (DSP_SUCCEEDED
-			    (dev_get_intf_fxns
-			     (hdev_obj,
+			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
 				    (*intf_fxns->pfn_dev_cntrl) (dw_context,
@@ -127,12 +125,10 @@ int pwr_pm_pre_scale(u16 voltage_domain, u32 level)
 	     hdev_obj != NULL;
 	     hdev_obj = (struct dev_object *)drv_get_next_dev_object
 	     ((u32) hdev_obj)) {
-		if (DSP_SUCCEEDED(dev_get_bridge_context(hdev_obj,
+		if (!(dev_get_bridge_context(hdev_obj,
 						      (struct bridge_dev_context
 						       **)&dw_context))) {
-			if (DSP_SUCCEEDED
-			    (dev_get_intf_fxns
-			     (hdev_obj,
+			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
 				    (*intf_fxns->pfn_dev_cntrl) (dw_context,
@@ -163,12 +159,10 @@ int pwr_pm_post_scale(u16 voltage_domain, u32 level)
 	     hdev_obj != NULL;
 	     hdev_obj = (struct dev_object *)drv_get_next_dev_object
 	     ((u32) hdev_obj)) {
-		if (DSP_SUCCEEDED(dev_get_bridge_context(hdev_obj,
+		if (!(dev_get_bridge_context(hdev_obj,
 						      (struct bridge_dev_context
 						       **)&dw_context))) {
-			if (DSP_SUCCEEDED
-			    (dev_get_intf_fxns
-			     (hdev_obj,
+			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
 				    (*intf_fxns->pfn_dev_cntrl) (dw_context,

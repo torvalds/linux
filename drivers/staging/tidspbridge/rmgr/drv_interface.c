@@ -588,7 +588,7 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 		status = api_call_dev_ioctl(code, &buf_in, &retval,
 					     filp->private_data);
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = retval;
 		} else {
 			dev_dbg(bridge, "%s: IOCTL Failed, code: 0x%x "

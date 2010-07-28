@@ -65,10 +65,10 @@ int mgr_create(struct mgr_object **mgr_obj,
 	pmgr_obj = kzalloc(sizeof(struct mgr_object), GFP_KERNEL);
 	if (pmgr_obj) {
 		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->hdcd_mgr);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* If succeeded store the handle in the MGR Object */
 			status = cfg_set_object((u32) pmgr_obj, REG_MGR_OBJECT);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				*mgr_obj = pmgr_obj;
 			} else {
 				dcd_destroy_manager(pmgr_obj->hdcd_mgr);
@@ -148,7 +148,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (node_id > (node_index - 1)) {
 			status = -EINVAL;
 		} else {
@@ -156,7 +156,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 						    (struct dsp_uuid *)
 						    &node_uuid, DSP_DCDNODETYPE,
 						    &gen_obj);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				/* Get the Obj def */
 				*pndb_props =
 				    gen_obj.obj_data.node_obj.ndb_props;
@@ -166,7 +166,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	}
 
 func_cont:
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *pu_num_nodes > 0) ||
+	DBC_ENSURE((!status && *pu_num_nodes > 0) ||
 		   (DSP_FAILED(status) && *pu_num_nodes == 0));
 
 	return status;
@@ -204,15 +204,15 @@ int mgr_enum_processor_info(u32 processor_id,
 
 	*pu_num_procs = 0;
 	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = drv_get_dev_object(processor_id, hdrv_obj, &hdev_obj);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = dev_get_dev_type(hdev_obj, (u8 *) &dev_type);
 			status = dev_get_dev_node(hdev_obj, &dev_node);
 			if (dev_type != DSP_UNIT)
 				status = -EPERM;
 
-			if (DSP_SUCCEEDED(status))
+			if (!status)
 				processor_info->processor_type = DSPTYPE64;
 		}
 	}
@@ -243,7 +243,7 @@ int mgr_enum_processor_info(u32 processor_id,
 		status2 = dcd_get_object_def(pmgr_obj->hdcd_mgr,
 					     (struct dsp_uuid *)&temp_uuid,
 					     DSP_DCDPROCESSORTYPE, &gen_obj);
-		if (DSP_SUCCEEDED(status2)) {
+		if (!status2) {
 			/* Get the Obj def */
 			if (processor_info_size <
 			    sizeof(struct mgr_processorextinfo)) {
@@ -318,7 +318,7 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 		*dcd_handle = (u32) pmgr_obj->hdcd_mgr;
 		status = 0;
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *dcd_handle != (u32) NULL) ||
+	DBC_ENSURE((!status && *dcd_handle != (u32) NULL) ||
 		   (DSP_FAILED(status) && *dcd_handle == (u32) NULL));
 
 	return status;

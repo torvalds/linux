@@ -64,7 +64,7 @@ u32 dsp_init(u32 *init_status)
 	/* End drv_create */
 	/* Request Resources */
 	status = drv_request_resources((u32) &dev_node, &device_node_string);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Attempt to Start the Device */
 		status = dev_start_device((struct cfg_devnode *)
 					  device_node_string);
@@ -97,7 +97,7 @@ u32 dsp_init(u32 *init_status)
 	}			/* Unwinding the loaded drivers */
 func_cont:
 	/* Attempt to Start the Board */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* BRD_AutoStart could fail if the dsp execuetable is not the
 		 * correct one. We should not propagate that error
 		 * into the device loader. */
@@ -105,7 +105,7 @@ func_cont:
 	} else {
 		dev_dbg(bridge, "%s: Failed\n", __func__);
 	}			/* End api_init_complete2 */
-	DBC_ENSURE((DSP_SUCCEEDED(status) && drv_obj != NULL) ||
+	DBC_ENSURE((!status && drv_obj != NULL) ||
 		   (DSP_FAILED(status) && drv_obj == NULL));
 	*init_status = status;
 	/* Return the Driver Object */
@@ -133,7 +133,7 @@ bool dsp_deinit(u32 device_context)
 
 	/* Get the Manager Object from Registry
 	 * MGR Destroy will unload the DCD dll */
-	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &mgr_obj, REG_MGR_OBJECT)))
+	if (!cfg_get_object((u32 *) &mgr_obj, REG_MGR_OBJECT))
 		(void)mgr_destroy(mgr_obj);
 
 	api_exit();

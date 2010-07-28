@@ -90,7 +90,7 @@ int drv_insert_node_res_element(void *hnode, void *node_resource,
 	if (*node_res_obj == NULL)
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (mutex_lock_interruptible(&ctxt->node_mutex)) {
 			kfree(*node_res_obj);
 			return -EPERM;
@@ -282,7 +282,7 @@ int drv_proc_insert_strm_res_element(void *stream_obj,
 	if (*pstrm_res == NULL)
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (mutex_lock_interruptible(&ctxt->strm_mutex)) {
 			kfree(*pstrm_res);
 			return -EPERM;
@@ -453,9 +453,9 @@ int drv_create(struct drv_object **drv_obj)
 		status = -ENOMEM;
 	}
 	/* Store the DRV Object in the Registry */
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = cfg_set_object((u32) pdrv_object, REG_DRV_OBJECT);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		*drv_obj = pdrv_object;
 	} else {
 		kfree(pdrv_object->dev_list);
@@ -556,7 +556,7 @@ u32 drv_get_first_dev_object(void)
 	u32 dw_dev_object = 0;
 	struct drv_object *pdrv_obj;
 
-	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT))) {
+	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list))
 			dw_dev_object = (u32) lst_first(pdrv_obj->dev_list);
@@ -576,7 +576,7 @@ u32 drv_get_first_dev_extension(void)
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
 
-	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT))) {
+	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
 
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
@@ -602,7 +602,7 @@ u32 drv_get_next_dev_object(u32 hdev_obj)
 
 	DBC_REQUIRE(hdev_obj != 0);
 
-	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT))) {
+	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
 
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list)) {
@@ -629,7 +629,7 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 
 	DBC_REQUIRE(dev_extension != 0);
 
-	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT))) {
+	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
@@ -668,7 +668,6 @@ int drv_init(void)
 int drv_insert_dev_object(struct drv_object *driver_obj,
 				 struct dev_object *hdev_obj)
 {
-	int status = 0;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 
 	DBC_REQUIRE(refs > 0);
@@ -678,10 +677,9 @@ int drv_insert_dev_object(struct drv_object *driver_obj,
 
 	lst_put_tail(pdrv_object->dev_list, (struct list_head *)hdev_obj);
 
-	DBC_ENSURE(DSP_SUCCEEDED(status)
-		   && !LST_IS_EMPTY(pdrv_object->dev_list));
+	DBC_ENSURE(!LST_IS_EMPTY(pdrv_object->dev_list));
 
-	return status;
+	return 0;
 }
 
 /*
@@ -746,7 +744,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	 */
 
 	status = cfg_get_object((u32 *) &pdrv_object, REG_DRV_OBJECT);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		pszdev_node = kzalloc(sizeof(struct drv_ext), GFP_KERNEL);
 		if (pszdev_node) {
 			lst_init_elem(&pszdev_node->link);
@@ -767,7 +765,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 		*dev_node_strg = 0;
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && dev_node_strg != NULL &&
+	DBC_ENSURE((!status && dev_node_strg != NULL &&
 		    !LST_IS_EMPTY(pdrv_object->dev_node_string)) ||
 		   (DSP_FAILED(status) && *dev_node_strg == 0));
 
@@ -820,7 +818,6 @@ int drv_release_resources(u32 dw_context, struct drv_object *hdrv_obj)
  */
 static int request_bridge_resources(struct cfg_hostres *res)
 {
-	int status = 0;
 	struct cfg_hostres *host_res = res;
 
 	/* num_mem_windows must not be more than CFG_MAXMEMREGISTERS */
@@ -845,7 +842,7 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->dw_num_chnls = CHNL_MAXCHANNELS;
 	host_res->dw_chnl_buf_size = 0x400;
 
-	return status;
+	return 0;
 }
 
 /*
@@ -919,7 +916,7 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 					dma_addr, shm_size);
 			}
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* These are hard-coded values */
 			host_res->birq_registers = 0;
 			host_res->birq_attrib = 0;

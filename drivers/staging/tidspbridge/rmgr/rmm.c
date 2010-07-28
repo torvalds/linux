@@ -139,7 +139,7 @@ int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
 							(struct list_head *)
 							sect);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* No overlap - allocate list element for new section. */
 		new_sect = kzalloc(sizeof(struct rmm_ovly_sect), GFP_KERNEL);
 		if (new_sect == NULL) {
@@ -230,7 +230,7 @@ int rmm_create(struct rmm_target_obj **target_obj,
 	}
 func_cont:
 	/* Initialize overlay memory list */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		target->ovly_list = kzalloc(sizeof(struct lst_list),
 							GFP_KERNEL);
 		if (target->ovly_list == NULL)
@@ -239,7 +239,7 @@ func_cont:
 			INIT_LIST_HEAD(&target->ovly_list->head);
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		*target_obj = target;
 	} else {
 		*target_obj = NULL;
@@ -248,7 +248,7 @@ func_cont:
 
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *target_obj)
+	DBC_ENSURE((!status && *target_obj)
 		   || (DSP_FAILED(status) && *target_obj == NULL));
 
 	return status;

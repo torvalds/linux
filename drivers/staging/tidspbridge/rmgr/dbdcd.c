@@ -156,7 +156,7 @@ int dcd_create_manager(char *sz_zl_dll_name,
 		cod_delete(cod_mgr);
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status)) ||
+	DBC_ENSURE((!status) ||
 			((dcd_mgr_obj == NULL) && (status == -ENOMEM)));
 
 func_end:
@@ -252,7 +252,7 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 			}
 		}
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			len = strlen(sz_reg_key);
 			spin_lock(&dbdcd_lock);
 			list_for_each_entry(dcd_key, &reg_key_list, link) {
@@ -269,7 +269,7 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 				status = -ENODATA;
 		}
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Create UUID value using string retrieved from
 			 * registry. */
 			uuid_uuid_from_string(sz_value, &dsp_uuid_obj);
@@ -446,7 +446,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 		/* Retrieve paths from the registry based on struct dsp_uuid */
 		dw_buf_size = DCD_MAXPATHLENGTH;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		spin_lock(&dbdcd_lock);
 		list_for_each_entry(dcd_key, &reg_key_list, link) {
 			if (!strncmp(dcd_key->name, sz_reg_key,
@@ -500,7 +500,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 #else
 	status = cod_read_section(lib, sz_sect_name, psz_coff_buf, ul_len);
 #endif
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Compres DSP buffer to conform to PC format. */
 		if (strstr(dcd_key->path, "iva") == NULL) {
 			compress_buf(psz_coff_buf, ul_len, DSPWORDSIZE);
@@ -585,7 +585,7 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 	status =
 	    cod_read_section(lib, DCD_REGISTER_SECTION, psz_coff_buf, ul_len);
 #endif
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Compress DSP buffer to conform to PC format. */
 		if (strstr(sz_coff_path, "iva") == NULL) {
 			compress_buf(psz_coff_buf, ul_len, DSPWORDSIZE);
@@ -699,7 +699,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		status = -EINVAL;
 		DBC_ASSERT(false);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if ((strlen(sz_reg_key) + strlen(sz_obj_type)) <
 		    DCD_MAXPATHLENGTH) {
 			strncat(sz_reg_key, sz_obj_type,
@@ -714,7 +714,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		else
 			status = -EPERM;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		spin_lock(&dbdcd_lock);
 		list_for_each_entry(dcd_key, &reg_key_list, link) {
 			/*  See if the name matches. */
@@ -767,7 +767,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 						0 : -ENOKEY;
 	}
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		memcpy(str_lib_name, dcd_key->path, strlen(dcd_key->path) + 1);
 	return status;
 }
@@ -955,7 +955,7 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 			status = -EPERM;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*
 		 *  Because the node database has been updated through a
 		 *  successful object registration/de-registration operation,
@@ -1441,11 +1441,11 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 	}
 
 	/* Open the library */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = cod_open(dcd_mgr_obj->cod_mgr, psz_file_name,
 				  COD_NOLOAD, &lib);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Get dependent library section information. */
 		status = cod_get_section(lib, DEPLIBSECT, &ul_addr, &ul_len);
 

@@ -172,7 +172,7 @@ int strm_close(struct strm_object *stream_obj,
 		status =
 		    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
-		DBC_ASSERT(DSP_SUCCEEDED(status));
+		DBC_ASSERT(!status);
 
 		if (chnl_info_obj.cio_cs > 0 || chnl_info_obj.cio_reqs > 0)
 			status = -EPIPE;
@@ -219,21 +219,21 @@ int strm_create(struct strm_mgr **strm_man,
 		strm_mgr_obj->dev_obj = dev_obj;
 
 	/* Get Channel manager and Bridge function interface */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_chnl_mgr(dev_obj, &(strm_mgr_obj->hchnl_mgr));
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			(void)dev_get_intf_fxns(dev_obj,
 						&(strm_mgr_obj->intf_fxns));
 			DBC_ASSERT(strm_mgr_obj->intf_fxns != NULL);
 		}
 	}
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		*strm_man = strm_mgr_obj;
 	else
 		kfree(strm_mgr_obj);
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *strm_man) ||
+	DBC_ENSURE((!status && *strm_man) ||
 				(DSP_FAILED(status) && *strm_man == NULL));
 
 	return status;
@@ -285,7 +285,7 @@ int strm_free_buffer(struct strm_object *stream_obj, u8 ** ap_buffer,
 	if (!stream_obj)
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		for (i = 0; i < num_bufs; i++) {
 			DBC_ASSERT(stream_obj->xlator != NULL);
 			status =
@@ -445,7 +445,7 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 				status = -ESRCH;
 
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = (*intf_fxns->pfn_chnl_add_io_req)
 			    (stream_obj->chnl_obj, pbuf, ul_bytes, ul_buf_size,
 			     (u32) tmp_buf, dw_arg);
@@ -492,10 +492,10 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		/* Get the channel id from the node (set in node_connect()) */
 		status = node_get_channel_id(hnode, dir, index, &ul_chnl_id);
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = node_get_strm_mgr(hnode, &strm_mgr_obj);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		strm_obj = kzalloc(sizeof(struct strm_object), GFP_KERNEL);
 		if (strm_obj == NULL) {
 			status = -ENOMEM;
@@ -550,10 +550,10 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 	DBC_ASSERT(strm_obj->strm_mode != STRMMODE_LDMA);
 	/* Get the shared mem mgr for this streams dev object */
 	status = dev_get_cmm_mgr(strm_mgr_obj->dev_obj, &hcmm_mgr);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/*Allocate a SM addr translator for this strm. */
 		status = cmm_xlator_create(&strm_obj->xlator, hcmm_mgr, NULL);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			DBC_ASSERT(strm_obj->segment_id > 0);
 			/*  Set translators Virt Addr attributes */
 			status = cmm_xlator_info(strm_obj->xlator,
@@ -563,7 +563,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		}
 	}
 func_cont:
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Open channel */
 		chnl_mode = (dir == DSP_TONODE) ?
 		    CHNL_MODETODSP : CHNL_MODEFROMDSP;
@@ -594,7 +594,7 @@ func_cont:
 			}
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		*strm_objct = strm_obj;
 		drv_proc_insert_strm_res_element(*strm_objct, &hstrm_res,
 						  pr_ctxt);
@@ -603,7 +603,7 @@ func_cont:
 	}
 
 	/* ensure we return a documented error code */
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *strm_objct) ||
+	DBC_ENSURE((!status && *strm_objct) ||
 		   (*strm_objct == NULL && (status == -EFAULT ||
 					status == -EPERM
 					|| status == -EINVAL)));
@@ -642,7 +642,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	    (*intf_fxns->pfn_chnl_get_ioc) (stream_obj->chnl_obj,
 					    stream_obj->utimeout,
 					    &chnl_ioc_obj);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		*nbytes = chnl_ioc_obj.byte_size;
 		if (buff_size)
 			*buff_size = chnl_ioc_obj.buf_size;
@@ -659,7 +659,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 			}
 		}
 		/* Translate zerocopy buffer if channel not canceled. */
-		if (DSP_SUCCEEDED(status)
+		if (!status
 		    && (!CHNL_IS_IO_CANCELLED(chnl_ioc_obj))
 		    && (stream_obj->strm_mode == STRMMODE_ZEROCOPY)) {
 			/*
@@ -688,7 +688,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	}
 func_end:
 	/* ensure we return a documented return code */
-	DBC_ENSURE(DSP_SUCCEEDED(status) || status == -EFAULT ||
+	DBC_ENSURE(!status || status == -EFAULT ||
 		   status == -ETIME || status == -ESRCH ||
 		   status == -EPERM);
 
@@ -723,7 +723,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 			status = -ENOSYS;
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 		status =
@@ -734,7 +734,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 							    hnotification);
 	}
 	/* ensure we return a documented return code */
-	DBC_ENSURE(DSP_SUCCEEDED(status) || status == -EFAULT ||
+	DBC_ENSURE(!status || status == -EFAULT ||
 		   status == -ETIME || status == -ESRCH ||
 		   status == -ENOSYS || status == -EPERM);
 	return status;
@@ -783,7 +783,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 
 		}
 	}
-	if (DSP_SUCCEEDED(status) && utimeout > 0 && *pmask == 0) {
+	if (!status && utimeout > 0 && *pmask == 0) {
 		/* Non-zero timeout */
 		sync_events = kmalloc(strms * sizeof(struct sync_object *),
 								GFP_KERNEL);
@@ -804,11 +804,11 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 
 			}
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status =
 			    sync_wait_on_multiple_events(sync_events, strms,
 							 utimeout, &index);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				/* Since we waited on the event, we have to
 				 * reset it */
 				sync_set_event(sync_events[index]);
@@ -819,7 +819,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 func_end:
 	kfree(sync_events);
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && (*pmask != 0 || utimeout == 0)) ||
+	DBC_ENSURE((!status && (*pmask != 0 || utimeout == 0)) ||
 		   (DSP_FAILED(status) && *pmask == 0));
 
 	return status;
@@ -843,7 +843,7 @@ static int delete_strm(struct strm_object *stream_obj)
 			status = (*intf_fxns->pfn_chnl_close)
 					(stream_obj->chnl_obj);
 			/* Free all SM address translator resources */
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				if (stream_obj->xlator) {
 					/* force free */
 					(void)cmm_xlator_delete(stream_obj->
