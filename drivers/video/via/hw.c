@@ -1688,8 +1688,8 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	}
 
 	if (set_iga == IGA2) {
-		viafb_write_reg_mask(SR40, VIASR, 0x01, BIT0);
-		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT0);
+		viafb_write_reg_mask(SR40, VIASR, 0x04, BIT2);
+		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT2);
 	}
 
 	/* Fire! */
