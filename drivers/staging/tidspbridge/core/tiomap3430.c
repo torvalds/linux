@@ -404,7 +404,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		pr_err("%s: Illegal SM base\n", __func__);
 		status = -EPERM;
 	} else
-		*((volatile u32 *)dw_sync_addr) = 0xffffffff;
+		__raw_writel(0xffffffff, dw_sync_addr);
 
 	if (DSP_SUCCEEDED(status)) {
 		resources = dev_context->resources;
@@ -584,7 +584,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dev_dbg(bridge, "Waiting for Sync @ 0x%x\n", dw_sync_addr);
 		dev_dbg(bridge, "DSP c_int00 Address =  0x%x\n", dsp_addr);
 		if (dsp_debug)
-			while (*((volatile u16 *)dw_sync_addr))
+			while (__raw_readw(dw_sync_addr))
 				;;
 
 		/* Wait for DSP to clear word in shared memory */
@@ -602,7 +602,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 			/* Write the synchronization bit to indicate the
 			 * completion of OPP table update to DSP
 			 */
-			*((volatile u32 *)dw_sync_addr) = 0XCAFECAFE;
+			__raw_writel(0XCAFECAFE, dw_sync_addr);
 
 			/* update board state */
 			dev_context->dw_brd_state = BRD_RUNNING;
@@ -1852,7 +1852,7 @@ bool wait_for_start(struct bridge_dev_context *dev_context, u32 dw_sync_addr)
 	u16 timeout = TIHELEN_ACKTIMEOUT;
 
 	/*  Wait for response from board */
-	while (*((volatile u16 *)dw_sync_addr) && --timeout)
+	while (__raw_readw(dw_sync_addr) && --timeout)
 		udelay(10);
 
 	/*  If timed out: return false */

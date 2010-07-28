@@ -1008,6 +1008,7 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
 	void *pbuf = NULL;
+	void *tmp_va_buff;
 	struct cmm_attrs attrs;
 
 	DBC_REQUIRE(refs > 0);
@@ -1019,16 +1020,16 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
 
 	if (xlator_obj) {
 		attrs.ul_seg_id = xlator_obj->ul_seg_id;
-		*(volatile u32 *)va_buf = 0;
+		__raw_writel(0, va_buf);
 		/* Alloc SM */
 		pbuf =
 		    cmm_calloc_buf(xlator_obj->hcmm_mgr, pa_size, &attrs, NULL);
 		if (pbuf) {
 			/* convert to translator(node/strm) process Virtual
 			 * address */
-			*(volatile u32 **)va_buf =
-			    (u32 *) cmm_xlator_translate(xlator,
+			 tmp_va_buff = cmm_xlator_translate(xlator,
 							 pbuf, CMM_PA2VA);
+			__raw_writel((u32)tmp_va_buff, va_buf);
 		}
 	}
 	return pbuf;

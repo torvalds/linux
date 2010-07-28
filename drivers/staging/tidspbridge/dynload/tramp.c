@@ -86,8 +86,8 @@ static u8 priv_h2a(u8 value)
 static void priv_tramp_sym_gen_name(u32 value, char *dst)
 {
 	u32 i;
-	volatile char *prefix = TRAMP_SYM_PREFIX;
-	volatile char *dst_local = dst;
+	char *prefix = TRAMP_SYM_PREFIX;
+	char *dst_local = dst;
 	u8 tmp;
 
 	/*  Clear out the destination, including the ending NULL */
