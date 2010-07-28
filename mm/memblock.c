@@ -105,6 +105,12 @@ static phys_addr_t __init memblock_find_region(phys_addr_t start, phys_addr_t en
 	phys_addr_t base, res_base;
 	long j;
 
+	/* Prevent allocations returning 0 as it's also used to
+	 * indicate an allocation failure
+	 */
+	if (start == 0)
+		start = PAGE_SIZE;
+
 	base = memblock_align_down((end - size), align);
 	while (start <= base) {
 		j = memblock_overlaps_region(&memblock.reserved, base, size);
