@@ -91,9 +91,6 @@
 #define DSPWORD       unsigned char
 #define DSPWORDSIZE     sizeof(DSPWORD)
 
-/* Failure macro */
-#define DSP_FAILED(status)         unlikely((s32)(status) < 0)
-
 /* Power control enumerations */
 #define PROC_PWRCONTROL             0x8070
 
