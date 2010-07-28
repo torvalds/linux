@@ -81,7 +81,7 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 	 * are NULL;  That's fine, just don't call dentry open */
 	if (dentry && mnt)
 		new_file = dentry_open(dentry, mnt,
-				       O_RDONLY | O_LARGEFILE | FMODE_NONOTIFY,
+				       group->fanotify_data.f_flags | FMODE_NONOTIFY,
 				       current_cred());
 	else
 		new_file = ERR_PTR(-EOVERFLOW);
@@ -625,9 +625,6 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	pr_debug("%s: flags=%d event_f_flags=%d\n",
 		__func__, flags, event_f_flags);
 
-	if (event_f_flags)
-		return -EINVAL;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
@@ -645,6 +642,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
+	group->fanotify_data.f_flags = event_f_flags;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	mutex_init(&group->fanotify_data.access_mutex);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);

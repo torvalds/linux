@@ -169,14 +169,17 @@ struct fsnotify_group {
 			struct user_struct      *user;
 		} inotify_data;
 #endif
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+#ifdef CONFIG_FANOTIFY
 		struct fanotify_group_private_data {
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 			/* allows a group to block waiting for a userspace response */
 			struct mutex access_mutex;
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
+#endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
+			int f_flags;
 		} fanotify_data;
-#endif
+#endif /* CONFIG_FANOTIFY */
 	};
 };
 
