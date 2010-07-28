@@ -86,6 +86,8 @@ do { \
 
 /**
  * enum p9_msg_t - 9P message types
+ * @P9_TLERROR: not used
+ * @P9_RLERROR: response for any failed request for 9P2000.L
  * @P9_TSTATFS: file system status request
  * @P9_RSTATFS: file system status response
  * @P9_TSYMLINK: make symlink request
@@ -137,6 +139,8 @@ do { \
  */
 
 enum p9_msg_t {
+	P9_TLERROR = 6,
+	P9_RLERROR,
 	P9_TSTATFS = 8,
 	P9_RSTATFS,
 	P9_TLOPEN = 12,
