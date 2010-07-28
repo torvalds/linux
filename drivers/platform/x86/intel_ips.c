@@ -607,7 +607,7 @@ static bool mcp_exceeded(struct ips_driver *ips)
 	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
 	if (ret)
-		dev_warn(&ips->dev->dev,
+		dev_info(&ips->dev->dev,
 			 "MCP power or thermal limit exceeded\n");
 
 	return ret;
@@ -635,7 +635,7 @@ static bool cpu_exceeded(struct ips_driver *ips, int cpu)
 	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
 	if (ret)
-		dev_warn(&ips->dev->dev,
+		dev_info(&ips->dev->dev,
 			 "CPU power or thermal limit exceeded\n");
 
 	return ret;
