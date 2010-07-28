@@ -1,6 +1,6 @@
 config ACPI_QUICKSTART
 	tristate "ACPI Quickstart key driver"
-	depends on ACPI
+	depends on ACPI && INPUT
 	help
 	  Say Y here if you have a platform that supports the ACPI
 	  quickstart key protocol.
