@@ -108,7 +108,7 @@ long st_kim_stop(void *);
 void st_kim_recv(void *, const unsigned char *, long count);
 void st_kim_chip_toggle(enum proto_type, enum kim_gpio_state);
 void st_kim_complete(void *);
-void kim_st_list_protocols(struct st_data_s *, char *);
+void kim_st_list_protocols(struct st_data_s *, void *);
 
 /*
  * BTS headers

@@ -26,6 +26,8 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/gpio.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <linux/sched.h>
 
@@ -53,36 +55,6 @@ static struct platform_driver kim_platform_driver = {
 		   .name = "kim",
 		   .owner = THIS_MODULE,
 		   },
-};
-
-static ssize_t show_pid(struct device *dev, struct device_attribute
-		*attr, char *buf);
-static ssize_t store_pid(struct device *dev, struct device_attribute
-		*devattr, char *buf, size_t count);
-static ssize_t show_list(struct device *dev, struct device_attribute
-		*attr, char *buf);
-static ssize_t show_version(struct device *dev, struct device_attribute
-		*attr, char *buf);
-/* structures specific for sysfs entries */
-static struct kobj_attribute pid_attr =
-__ATTR(pid, 0644, (void *)show_pid, (void *)store_pid);
-
-static struct kobj_attribute list_protocols =
-__ATTR(protocols, 0444, (void *)show_list, NULL);
-
-static struct kobj_attribute chip_version =
-__ATTR(version, 0444, (void *)show_version, NULL);
-
-static struct attribute *uim_attrs[] = {
-	&pid_attr.attr,
-	/* add more debug sysfs entries */
-	&list_protocols.attr,
-	&chip_version.attr,
-	NULL,
-};
-
-static struct attribute_group uim_attr_grp = {
-	.attrs = uim_attrs,
 };
 
 static int kim_toggle_radio(void*, bool);
@@ -550,45 +522,22 @@ long st_kim_stop(void *kim_data)
 
 /**********************************************************************/
 /* functions called from subsystems */
-/* called when sysfs entry is read from */
+/* called when debugfs entry is read from */
 
-static ssize_t show_version(struct device *dev, struct device_attribute
-		*attr, char *buf)
+static int show_version(struct seq_file *s, void *unused)
 {
-	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
-	sprintf(buf, "%04X %d.%d.%d", kim_gdata->version.full,
+	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	seq_printf(s, "%04X %d.%d.%d\n", kim_gdata->version.full,
 			kim_gdata->version.chip, kim_gdata->version.maj_ver,
 			kim_gdata->version.min_ver);
-	return strlen(buf);
+	return 0;
 }
 
-/* called when sysfs entry is written to */
-static ssize_t store_pid(struct device *dev, struct device_attribute
-			 *devattr, char *buf, size_t count)
+static int show_list(struct seq_file *s, void *unused)
 {
-	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
-	sscanf(buf, "%ld", &kim_gdata->uim_pid);
-	/* to be made use by kim_start to signal SIGUSR2
-	 */
-	return strlen(buf);
-}
-
-/* called when sysfs entry is read from */
-static ssize_t show_pid(struct device *dev, struct device_attribute
-			*attr, char *buf)
-{
-	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
-	sprintf(buf, "%ld", kim_gdata->uim_pid);
-	return strlen(buf);
-}
-
-/* called when sysfs entry is read from */
-static ssize_t show_list(struct device *dev, struct device_attribute
-			 *attr, char *buf)
-{
-	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
-	kim_st_list_protocols(kim_gdata->core_data, buf);
-	return strlen(buf);
+	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	kim_st_list_protocols(kim_gdata->core_data, s);
+	return 0;
 }
 
 /* function called from rfkill subsystem, when someone from
@@ -635,12 +584,38 @@ void st_kim_ref(struct st_data_s **core_data)
 	*core_data = kim_gdata->core_data;
 }
 
+static int kim_version_open(struct inode *i, struct file *f)
+{
+	return single_open(f, show_version, i->i_private);
+}
+
+static int kim_list_open(struct inode *i, struct file *f)
+{
+	return single_open(f, show_list, i->i_private);
+}
+
+static const struct file_operations version_debugfs_fops = {
+	/* version info */
+	.open = kim_version_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+static const struct file_operations list_debugfs_fops = {
+	/* protocols info */
+	.open = kim_list_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 /**********************************************************************/
 /* functions called from platform device driver subsystem
  * need to have a relevant platform device entry in the platform's
  * board-*.c file
  */
 
+struct dentry *kim_debugfs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	long status;
@@ -726,11 +701,18 @@ static int kim_probe(struct platform_device *pdev)
 		pr_info("rfkill entry created for %ld", gpios[proto]);
 	}
 
-	if (sysfs_create_group(&pdev->dev.kobj, &uim_attr_grp)) {
-		pr_err(" sysfs entry creation failed");
+	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
+	if (IS_ERR(kim_debugfs_dir)) {
+		pr_err(" debugfs entries creation failed ");
+		kim_debugfs_dir = NULL;
 		return -1;
 	}
-	pr_info(" sysfs entries created ");
+
+	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
+				kim_gdata, &version_debugfs_fops);
+	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
+				kim_gdata, &list_debugfs_fops);
+	pr_info(" debugfs entries created ");
 	return 0;
 }
 
@@ -754,7 +736,7 @@ static int kim_remove(struct platform_device *pdev)
 		kim_gdata->rfkill[proto] = NULL;
 	}
 	pr_info("kim: GPIO Freed");
-	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
+	debugfs_remove_recursive(kim_debugfs_dir);
 	kim_gdata->kim_pdev = NULL;
 	st_core_exit(kim_gdata->core_data);
 

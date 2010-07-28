@@ -39,7 +39,6 @@
 #include "st.h"
 
 #define VERBOSE
-#ifdef DEBUG
 /* strings to be used for rfkill entries and by
  * ST Core to be used for sysfs debug entry
  */
@@ -49,7 +48,6 @@ const unsigned char *protocol_strngs[] = {
 	PROTO_ENTRY(ST_FM, "FM"),
 	PROTO_ENTRY(ST_GPS, "GPS"),
 };
-#endif
 /* function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
@@ -563,34 +561,13 @@ void st_tx_wakeup(struct st_data_s *st_data)
 /********************************************************************/
 /* functions called from ST KIM
 */
-void kim_st_list_protocols(struct st_data_s *st_gdata, char *buf)
+void kim_st_list_protocols(struct st_data_s *st_gdata, void *buf)
 {
-	unsigned long flags = 0;
-#ifdef DEBUG
-	unsigned char i = ST_MAX;
-#endif
-	spin_lock_irqsave(&st_gdata->lock, flags);
-#ifdef DEBUG			/* more detailed log */
-	for (i = 0; i < ST_MAX; i++) {
-		if (i == 0) {
-			sprintf(buf, "%s is %s", protocol_strngs[i],
-				st_gdata->list[i] !=
-				NULL ? "Registered" : "Unregistered");
-		} else {
-			sprintf(buf, "%s\n%s is %s", buf, protocol_strngs[i],
-				st_gdata->list[i] !=
-				NULL ? "Registered" : "Unregistered");
-		}
-	}
-	sprintf(buf, "%s\n", buf);
-#else /* limited info */
-	sprintf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
+	seq_printf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
 			st_gdata->protos_registered,
 			st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
 			st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
 			st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
-#endif
-	spin_unlock_irqrestore(&st_gdata->lock, flags);
 }
 
 /********************************************************************/
