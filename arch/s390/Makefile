@@ -22,7 +22,8 @@ STACK_SIZE	:= 8192
 CHECKFLAGS	+= -D__s390__ -msize-long
 else
 LDFLAGS		:= -m elf64_s390
-MODFLAGS	+= -fpic -D__PIC__
+KBUILD_AFLAGS_MODULE += -fpic -D__PIC__
+KBUILD_CFLAGS_MODULE += -fpic -D__PIC__
 KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x

@@ -22,11 +22,23 @@ building C files and assembler files.
 
 KAFLAGS
 --------------------------------------------------
-Additional options to the assembler.
+Additional options to the assembler (for built-in and modules).
+
+AFLAGS_MODULE
+--------------------------------------------------
+Addtional module specific options to use for $(AS).
 
 KCFLAGS
 --------------------------------------------------
-Additional options to the C compiler.
+Additional options to the C compiler (for built-in and modules).
+
+CFLAGS_MODULE
+--------------------------------------------------
+Addtional module specific options to use for $(CC).
+
+LDFLAGS_MODULE
+--------------------------------------------------
+Additional options used for $(LD) when linking modules.
 
 KBUILD_VERBOSE
 --------------------------------------------------
