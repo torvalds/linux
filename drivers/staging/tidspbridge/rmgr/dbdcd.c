@@ -1012,6 +1012,8 @@ static s32 atoi(char *psz_buf)
 {
 	char *pch = psz_buf;
 	s32 base = 0;
+	unsigned long res;
+	int ret_val;
 
 	while (isspace(*pch))
 		pch++;
@@ -1023,7 +1025,9 @@ static s32 atoi(char *psz_buf)
 		base = 16;
 	}
 
-	return simple_strtoul(pch, NULL, base);
+	ret_val = strict_strtoul(pch, base, &res);
+
+	return ret_val ? : res;
 }
 
 /*
