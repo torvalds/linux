@@ -313,19 +313,26 @@ static ssize_t bonding_store_mode(struct device *d,
 		       bond->dev->name, (int)strlen(buf) - 1, buf);
 		ret = -EINVAL;
 		goto out;
-	} else {
-		if (bond->params.mode == BOND_MODE_8023AD)
-			bond_unset_master_3ad_flags(bond);
-
-		if (bond->params.mode == BOND_MODE_ALB)
-			bond_unset_master_alb_flags(bond);
-
-		bond->params.mode = new_value;
-		bond_set_mode_ops(bond, bond->params.mode);
-		pr_info("%s: setting mode to %s (%d).\n",
-			bond->dev->name, bond_mode_tbl[new_value].modename,
-		       new_value);
 	}
+	if ((new_value == BOND_MODE_ALB ||
+	     new_value == BOND_MODE_TLB) &&
+	    bond->params.arp_interval) {
+		pr_err("%s: %s mode is incompatible with arp monitoring.\n",
+		       bond->dev->name, bond_mode_tbl[new_value].modename);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (bond->params.mode == BOND_MODE_8023AD)
+		bond_unset_master_3ad_flags(bond);
+
+	if (bond->params.mode == BOND_MODE_ALB)
+		bond_unset_master_alb_flags(bond);
+
+	bond->params.mode = new_value;
+	bond_set_mode_ops(bond, bond->params.mode);
+	pr_info("%s: setting mode to %s (%d).\n",
+		bond->dev->name, bond_mode_tbl[new_value].modename,
+		new_value);
 out:
 	return ret;
 }
@@ -510,7 +517,13 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-
+	if (bond->params.mode == BOND_MODE_ALB ||
+	    bond->params.mode == BOND_MODE_TLB) {
+		pr_info("%s: ARP monitoring cannot be used with ALB/TLB. Only MII monitoring is supported on %s.\n",
+			bond->dev->name, bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
 	pr_info("%s: Setting ARP monitoring interval to %d.\n",
 		bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
