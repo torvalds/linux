@@ -35,6 +35,7 @@
 #include <dspbridge/uuidutil.h>
 
 #include <dspbridge/nldr.h>
+#include <linux/gcd.h>
 
 /* Name of section containing dynamic load mem */
 #define DYNMEMSECT  ".dspbridge_mem"
@@ -304,7 +305,6 @@ static void unload_ovly(struct nldr_nodeobject *nldr_node_obj,
 static bool find_in_persistent_lib_array(struct nldr_nodeobject *nldr_node_obj,
 					 struct dbll_library_obj *lib);
 static u32 find_lcm(u32 a, u32 b);
-static u32 find_gcf(u32 a, u32 b);
 
 /*
  *  ======== nldr_allocate ========
@@ -1887,25 +1887,9 @@ static u32 find_lcm(u32 a, u32 b)
 {
 	u32 ret;
 
-	ret = a * b / find_gcf(a, b);
+	ret = a * b / gcd(a, b);
 
 	return ret;
-}
-
-/*
- * ================ Find GCF (Greatest Common Factor ) ===
- */
-static u32 find_gcf(u32 a, u32 b)
-{
-	u32 c;
-
-	/* Get the GCF (Greatest common factor between the numbers,
-	 * using Euclidian Algo */
-	while ((c = (a % b))) {
-		a = b;
-		b = c;
-	}
-	return b;
 }
 
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
