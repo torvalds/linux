@@ -86,7 +86,6 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 				struct fsnotify_mark *mark,
 				struct fsnotify_event *event)
 {
-	struct fsnotify_mark *fsn_mark = NULL;
 	struct dnotify_mark *dn_mark;
 	struct inode *to_tell;
 	struct dnotify_struct *dn;
@@ -96,12 +95,9 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 
 	to_tell = event->to_tell;
 
-	fsn_mark = fsnotify_find_inode_mark(group, to_tell);
-	if (unlikely(!fsn_mark))
-		return 0;
-	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
+	dn_mark = container_of(mark, struct dnotify_mark, fsn_mark);
 
-	spin_lock(&fsn_mark->lock);
+	spin_lock(&mark->lock);
 	prev = &dn_mark->dn;
 	while ((dn = *prev) != NULL) {
 		if ((dn->dn_mask & test_mask) == 0) {
@@ -115,12 +111,11 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 		else {
 			*prev = dn->dn_next;
 			kmem_cache_free(dnotify_struct_cache, dn);
-			dnotify_recalc_inode_mask(fsn_mark);
+			dnotify_recalc_inode_mask(mark);
 		}
 	}
 
-	spin_unlock(&fsn_mark->lock);
-	fsnotify_put_mark(fsn_mark);
+	spin_unlock(&mark->lock);
 
 	return 0;
 }
@@ -134,7 +129,6 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct fsnotify_mark *mark, __u32 mask,
 				      void *data, int data_type)
 {
-	struct fsnotify_mark *fsn_mark;
 	bool send;
 
 	/* !dir_notify_enable should never get here, don't waste time checking
@@ -145,14 +139,8 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	if (!S_ISDIR(inode->i_mode))
 		return false;
 
-	fsn_mark = fsnotify_find_inode_mark(group, inode);
-	if (!fsn_mark)
-		return false;
-
 	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (mask & fsn_mark->mask);
-
-	fsnotify_put_mark(fsn_mark); /* matches fsnotify_find_inode_mark */
+	send = (mask & mark->mask);
 
 	return send;
 }
