@@ -91,8 +91,7 @@
 #define DSPWORD       unsigned char
 #define DSPWORDSIZE     sizeof(DSPWORD)
 
-/* Success & Failure macros */
-#define DSP_SUCCEEDED(status)      likely((s32)(status) >= 0)
+/* Failure macro */
 #define DSP_FAILED(status)         unlikely((s32)(status) < 0)
 
 /* Power control enumerations */
