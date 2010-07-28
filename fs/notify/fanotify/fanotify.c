@@ -17,9 +17,9 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 	    old->data_type == new->data_type &&
 	    old->tgid == new->tgid) {
 		switch (old->data_type) {
-		case (FSNOTIFY_EVENT_PATH):
-			if ((old->path.mnt == new->path.mnt) &&
-			    (old->path.dentry == new->path.dentry))
+		case (FSNOTIFY_EVENT_FILE):
+			if ((old->file->f_path.mnt == new->file->f_path.mnt) &&
+			    (old->file->f_path.dentry == new->file->f_path.dentry))
 				return true;
 		case (FSNOTIFY_EVENT_NONE):
 			return true;
@@ -226,7 +226,7 @@ static bool fanotify_should_send_event(struct fsnotify_group *group, struct inod
 		return false;
 
 	/* if we don't have enough info to send an event to userspace say no */
-	if (data_type != FSNOTIFY_EVENT_PATH)
+	if (data_type != FSNOTIFY_EVENT_FILE)
 		return false;
 
 	if (mnt)

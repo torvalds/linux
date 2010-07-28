@@ -223,20 +223,20 @@ struct fsnotify_event {
 	/* to_tell may ONLY be dereferenced during handle_event(). */
 	struct inode *to_tell;	/* either the inode the event happened to or its parent */
 	/*
-	 * depending on the event type we should have either a path or inode
-	 * We hold a reference on path, but NOT on inode.  Since we have the ref on
-	 * the path, it may be dereferenced at any point during this object's
+	 * depending on the event type we should have either a file or inode
+	 * We hold a reference on file, but NOT on inode.  Since we have the ref on
+	 * the file, it may be dereferenced at any point during this object's
 	 * lifetime.  That reference is dropped when this object's refcnt hits
-	 * 0.  If this event contains an inode instead of a path, the inode may
+	 * 0.  If this event contains an inode instead of a file, the inode may
 	 * ONLY be used during handle_event().
 	 */
 	union {
-		struct path path;
+		struct file *file;
 		struct inode *inode;
 	};
 /* when calling fsnotify tell it if the data is a path or inode */
 #define FSNOTIFY_EVENT_NONE	0
-#define FSNOTIFY_EVENT_PATH	1
+#define FSNOTIFY_EVENT_FILE	1
 #define FSNOTIFY_EVENT_INODE	2
 	int data_type;		/* which of the above union we have */
 	atomic_t refcnt;	/* how many groups still are using/need to send this event */
@@ -311,7 +311,7 @@ struct fsnotify_mark {
 /* main fsnotify call to send events */
 extern int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 		    const unsigned char *name, u32 cookie);
-extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
+extern void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern u32 fsnotify_get_cookie(void);
@@ -444,7 +444,7 @@ static inline int fsnotify(struct inode *to_tell, __u32 mask, void *data, int da
 	return 0;
 }
 
-static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
+static inline void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
 {}
 
 static inline void __fsnotify_inode_delete(struct inode *inode)

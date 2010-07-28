@@ -545,8 +545,8 @@ static int audit_watch_handle_event(struct fsnotify_group *group, struct fsnotif
 		return 0;
 
 	switch (event->data_type) {
-	case (FSNOTIFY_EVENT_PATH):
-		inode = event->path.dentry->d_inode;
+	case (FSNOTIFY_EVENT_FILE):
+		inode = event->file->f_path.dentry->d_inode;
 		break;
 	case (FSNOTIFY_EVENT_INODE):
 		inode = event->inode;

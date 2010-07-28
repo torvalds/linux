@@ -52,9 +52,9 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 			    !strcmp(old->file_name, new->file_name))
 				return true;
 			break;
-		case (FSNOTIFY_EVENT_PATH):
-			if ((old->path.mnt == new->path.mnt) &&
-			    (old->path.dentry == new->path.dentry))
+		case (FSNOTIFY_EVENT_FILE):
+			if ((old->file->f_path.mnt == new->file->f_path.mnt) &&
+			    (old->file->f_path.dentry == new->file->f_path.dentry))
 				return true;
 			break;
 		case (FSNOTIFY_EVENT_NONE):
@@ -165,10 +165,10 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 	send = (fsn_mark->mask & mask);
 
 	if (send && (fsn_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		struct path *path  = data;
+	    (data_type == FSNOTIFY_EVENT_FILE)) {
+		struct file *file  = data;
 
-		if (d_unlinked(path->dentry))
+		if (d_unlinked(file->f_path.dentry))
 			send = false;
 	}
 
