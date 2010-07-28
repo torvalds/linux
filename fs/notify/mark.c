@@ -223,15 +223,6 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 	BUG_ON(!inode && !mnt);
 
 	/*
-	 * if this group isn't being testing for inode type events we need
-	 * to start testing
-	 */
-	if (inode && unlikely(list_empty(&group->inode_group_list)))
-		fsnotify_add_inode_group(group);
-	else if (mnt && unlikely(list_empty(&group->vfsmount_group_list)))
-		fsnotify_add_vfsmount_group(group);
-
-	/*
 	 * LOCKING ORDER!!!!
 	 * mark->lock
 	 * group->mark_lock

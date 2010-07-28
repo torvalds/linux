@@ -109,17 +109,6 @@ struct fsnotify_ops {
  */
 struct fsnotify_group {
 	/*
-	 * global list of all groups receiving events from fsnotify.
-	 * anchored by fsnotify_inode_groups and protected by either fsnotify_grp_mutex
-	 * or fsnotify_grp_srcu depending on write vs read.
-	 */
-	struct list_head inode_group_list;
-	/*
-	 * same as above except anchored by fsnotify_vfsmount_groups
-	 */
-	struct list_head vfsmount_group_list;
-
-	/*
 	 * How the refcnt is used is up to each group.  When the refcnt hits 0
 	 * fsnotify will clean up all of the resources associated with this group.
 	 * As an example, the dnotify group will always have a refcnt=1 and that
@@ -144,10 +133,6 @@ struct fsnotify_group {
 					 * past the point of no return when freeing
 					 * a group */
 	struct list_head marks_list;	/* all inode marks for this group */
-
-	/* prevents double list_del of group_list.  protected by global fsnotify_grp_mutex */
-	bool on_inode_group_list;
-	bool on_vfsmount_group_list;
 
 	/* groups can define private fields here or use the void *private */
 	union {

@@ -6,11 +6,6 @@
 #include <linux/srcu.h>
 #include <linux/types.h>
 
-/* all groups which receive inode fsnotify events */
-extern struct list_head fsnotify_inode_groups;
-/* all groups which receive vfsmount fsnotify events */
-extern struct list_head fsnotify_vfsmount_groups;
-
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
@@ -28,10 +23,6 @@ extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 				      struct fsnotify_group *group, struct vfsmount *mnt,
 				      int allow_dups);
 
-/* add a group to the inode group list */
-extern void fsnotify_add_inode_group(struct fsnotify_group *group);
-/* add a group to the vfsmount group list */
-extern void fsnotify_add_vfsmount_group(struct fsnotify_group *group);
 /* final kfree of a group */
 extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
 

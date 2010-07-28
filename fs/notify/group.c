@@ -28,67 +28,6 @@
 
 #include <asm/atomic.h>
 
-/* protects writes to fsnotify_groups and fsnotify_mask */
-static DEFINE_MUTEX(fsnotify_grp_mutex);
-/* all groups registered to receive inode filesystem notifications */
-LIST_HEAD(fsnotify_inode_groups);
-/* all groups registered to receive mount point filesystem notifications */
-LIST_HEAD(fsnotify_vfsmount_groups);
-
-void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
-{
-	struct fsnotify_group *group_iter;
-
-	mutex_lock(&fsnotify_grp_mutex);
-
-	if (!group->on_vfsmount_group_list) {
-		list_for_each_entry(group_iter, &fsnotify_vfsmount_groups,
-				    vfsmount_group_list) {
-			/* insert in front of this one? */
-			if (group < group_iter) {
-				/* list_add_tail() insert in front of group_iter */
-				list_add_tail_rcu(&group->inode_group_list,
-						  &group_iter->inode_group_list);
-				goto out;
-			}
-		}
-
-		/* apparently we need to be the last entry */
-		list_add_tail_rcu(&group->vfsmount_group_list, &fsnotify_vfsmount_groups);
-	}
-out:
-	group->on_vfsmount_group_list = 1;
-
-	mutex_unlock(&fsnotify_grp_mutex);
-}
-
-void fsnotify_add_inode_group(struct fsnotify_group *group)
-{
-	struct fsnotify_group *group_iter;
-
-	mutex_lock(&fsnotify_grp_mutex);
-
-	/* add to global group list */
-	if (!group->on_inode_group_list) {
-		list_for_each_entry(group_iter, &fsnotify_inode_groups,
-				    inode_group_list) {
-			if (group < group_iter) {
-				/* list_add_tail() insert in front of group_iter */
-				list_add_tail_rcu(&group->inode_group_list,
-						  &group_iter->inode_group_list);
-				goto out;
-			}
-		}
-
-		/* apparently we need to be the last entry */
-		list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
-	}
-out:
-	group->on_inode_group_list = 1;
-
-	mutex_unlock(&fsnotify_grp_mutex);
-}
-
 /*
  * Final freeing of a group
  */
@@ -124,51 +63,12 @@ static void fsnotify_destroy_group(struct fsnotify_group *group)
 }
 
 /*
- * Remove this group from the global list of groups that will get events
- * this can be done even if there are still references and things still using
- * this group.  This just stops the group from getting new events.
- */
-static void __fsnotify_evict_group(struct fsnotify_group *group)
-{
-	BUG_ON(!mutex_is_locked(&fsnotify_grp_mutex));
-
-	if (group->on_inode_group_list)
-		list_del_rcu(&group->inode_group_list);
-	group->on_inode_group_list = 0;
-	if (group->on_vfsmount_group_list)
-		list_del_rcu(&group->vfsmount_group_list);
-	group->on_vfsmount_group_list = 0;
-}
-
-/*
- * Called when a group is no longer interested in getting events.  This can be
- * used if a group is misbehaving or if for some reason a group should no longer
- * get any filesystem events.
- */
-void fsnotify_evict_group(struct fsnotify_group *group)
-{
-	mutex_lock(&fsnotify_grp_mutex);
-	__fsnotify_evict_group(group);
-	mutex_unlock(&fsnotify_grp_mutex);
-}
-
-/*
  * Drop a reference to a group.  Free it if it's through.
  */
 void fsnotify_put_group(struct fsnotify_group *group)
 {
-	if (!atomic_dec_and_mutex_lock(&group->refcnt, &fsnotify_grp_mutex))
-		return;
-
-	/*
-	 * OK, now we know that there's no other users *and* we hold mutex,
-	 * so no new references will appear
-	 */
-	__fsnotify_evict_group(group);
-
-	mutex_unlock(&fsnotify_grp_mutex);
-
-	fsnotify_destroy_group(group);
+	if (atomic_dec_and_test(&group->refcnt))
+		fsnotify_destroy_group(group);
 }
 
 /*
@@ -194,9 +94,6 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	INIT_LIST_HEAD(&group->notification_list);
 	init_waitqueue_head(&group->notification_waitq);
 	group->max_events = UINT_MAX;
-
-	INIT_LIST_HEAD(&group->inode_group_list);
-	INIT_LIST_HEAD(&group->vfsmount_group_list);
 
 	spin_lock_init(&group->mark_lock);
 	INIT_LIST_HEAD(&group->marks_list);

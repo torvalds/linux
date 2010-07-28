@@ -219,11 +219,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
-	/* if no fsnotify listeners, nothing to do */
-	if (list_empty(&fsnotify_inode_groups) &&
-	    list_empty(&fsnotify_vfsmount_groups))
-		return 0;
- 
 	if (mask & FS_MODIFY)
 		__fsnotify_flush_ignored_mask(to_tell, data, data_is);
 
