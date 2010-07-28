@@ -2092,8 +2092,8 @@ struct iwl_link_qual_general_params {
 } __packed;
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
-#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(65535)
-#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(0)
+#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
+#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(100)
 
 #define LINK_QUAL_AGG_DISABLE_START_DEF	(3)
 #define LINK_QUAL_AGG_DISABLE_START_MAX	(255)
