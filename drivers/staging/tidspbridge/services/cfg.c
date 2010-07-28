@@ -62,7 +62,7 @@ int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
 		status = -EFAULT;
 	if (!auto_start || !drv_datap)
 		status = -EFAULT;
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		*auto_start = (drv_datap->base_img) ? 1 : 0;
 
 	DBC_ENSURE((status == 0 &&
@@ -93,7 +93,7 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
 		status = -EFAULT;
 
 	dw_buf_size = sizeof(value);
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 
 		/* check the device string and then store dev object */
 		if (!
@@ -127,7 +127,7 @@ int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 buf_size,
 	if (strlen(drv_datap->base_img) > buf_size)
 		status = -EINVAL;
 
-	if (DSP_SUCCEEDED(status) && drv_datap->base_img)
+	if (!status && drv_datap->base_img)
 		strcpy(str_exec_file, drv_datap->base_img);
 
 	if (DSP_FAILED(status))
@@ -178,7 +178,7 @@ int cfg_get_object(u32 *value, u8 dw_type)
 		*value = 0;
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *value != 0) ||
+	DBC_ENSURE((!status && *value != 0) ||
 		   (DSP_FAILED(status) && *value == 0));
 	return status;
 }
@@ -211,7 +211,7 @@ int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 value)
 	if (!dev_node_obj)
 		status = -EFAULT;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Store the Bridge device object in the Registry */
 
 		if (!(strcmp((char *)dev_node_obj, "TIOMAP1510")))
