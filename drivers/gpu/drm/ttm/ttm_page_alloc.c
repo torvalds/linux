@@ -40,13 +40,13 @@
 #include <linux/slab.h>
 
 #include <asm/atomic.h>
-#ifdef TTM_HAS_AGP
-#include <asm/agp.h>
-#endif
 
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
 
+#ifdef TTM_HAS_AGP
+#include <asm/agp.h>
+#endif
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		16

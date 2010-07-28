@@ -43,10 +43,9 @@
 struct ds278x_info;
 
 struct ds278x_battery_ops {
-	int	(*get_current)(struct ds278x_info *info, int *current_uA);
-	int	(*get_voltage)(struct ds278x_info *info, int *voltage_uA);
-	int	(*get_capacity)(struct ds278x_info *info, int *capacity_uA);
-
+	int (*get_battery_current)(struct ds278x_info *info, int *current_uA);
+	int (*get_battery_voltage)(struct ds278x_info *info, int *voltage_uA);
+	int (*get_battery_capacity)(struct ds278x_info *info, int *capacity_uA);
 };
 
 #define to_ds278x_info(x) container_of(x, struct ds278x_info, battery)
@@ -213,11 +212,11 @@ static int ds278x_get_status(struct ds278x_info *info, int *status)
 	int current_uA;
 	int capacity;
 
-	err = info->ops->get_current(info, &current_uA);
+	err = info->ops->get_battery_current(info, &current_uA);
 	if (err)
 		return err;
 
-	err = info->ops->get_capacity(info, &capacity);
+	err = info->ops->get_battery_capacity(info, &capacity);
 	if (err)
 		return err;
 
@@ -246,15 +245,15 @@ static int ds278x_battery_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		ret = info->ops->get_capacity(info, &val->intval);
+		ret = info->ops->get_battery_capacity(info, &val->intval);
 		break;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = info->ops->get_voltage(info, &val->intval);
+		ret = info->ops->get_battery_voltage(info, &val->intval);
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = info->ops->get_current(info, &val->intval);
+		ret = info->ops->get_battery_current(info, &val->intval);
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
@@ -307,14 +306,14 @@ enum ds278x_num_id {
 
 static struct ds278x_battery_ops ds278x_ops[] = {
 	[DS2782] = {
-		.get_current  = ds2782_get_current,
-		.get_voltage  = ds2782_get_voltage,
-		.get_capacity = ds2782_get_capacity,
+		.get_battery_current  = ds2782_get_current,
+		.get_battery_voltage  = ds2782_get_voltage,
+		.get_battery_capacity = ds2782_get_capacity,
 	},
 	[DS2786] = {
-		.get_current  = ds2786_get_current,
-		.get_voltage  = ds2786_get_voltage,
-		.get_capacity = ds2786_get_capacity,
+		.get_battery_current  = ds2786_get_current,
+		.get_battery_voltage  = ds2786_get_voltage,
+		.get_battery_capacity = ds2786_get_capacity,
 	}
 };
 

@@ -26,26 +26,26 @@ extern void __cmpxchg_wrong_size(void);
 	switch (size) {							\
 	case 1:								\
 		asm volatile("xchgb %b0,%1"				\
-			     : "=q" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+			     : "=q" (__x), "+m" (*__xg(ptr))		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 2:								\
 		asm volatile("xchgw %w0,%1"				\
-			     : "=r" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+			     : "=r" (__x), "+m" (*__xg(ptr))		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 4:								\
 		asm volatile("xchgl %k0,%1"				\
-			     : "=r" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+			     : "=r" (__x), "+m" (*__xg(ptr))		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 8:								\
 		asm volatile("xchgq %0,%1"				\
-			     : "=r" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+			     : "=r" (__x), "+m" (*__xg(ptr))		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	default:							\
@@ -71,27 +71,27 @@ extern void __cmpxchg_wrong_size(void);
 	__typeof__(*(ptr)) __new = (new);				\
 	switch (size) {							\
 	case 1:								\
-		asm volatile(lock "cmpxchgb %b1,%2"			\
-			     : "=a"(__ret)				\
-			     : "q"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+		asm volatile(lock "cmpxchgb %b2,%1"			\
+			     : "=a" (__ret), "+m" (*__xg(ptr))		\
+			     : "q" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
 	case 2:								\
-		asm volatile(lock "cmpxchgw %w1,%2"			\
-			     : "=a"(__ret)				\
-			     : "r"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+		asm volatile(lock "cmpxchgw %w2,%1"			\
+			     : "=a" (__ret), "+m" (*__xg(ptr))		\
+			     : "r" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
 	case 4:								\
-		asm volatile(lock "cmpxchgl %k1,%2"			\
-			     : "=a"(__ret)				\
-			     : "r"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+		asm volatile(lock "cmpxchgl %k2,%1"			\
+			     : "=a" (__ret), "+m" (*__xg(ptr))		\
+			     : "r" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
 	case 8:								\
-		asm volatile(lock "cmpxchgq %1,%2"			\
-			     : "=a"(__ret)				\
-			     : "r"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+		asm volatile(lock "cmpxchgq %2,%1"			\
+			     : "=a" (__ret), "+m" (*__xg(ptr))		\
+			     : "r" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
 	default:							\

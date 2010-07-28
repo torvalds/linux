@@ -124,7 +124,7 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
-config QT2160
+config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
 	depends on I2C && EXPERIMENTAL
 	help

@@ -1562,7 +1562,7 @@ static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 
 	r = -ENOMEM;
 	size = sizeof(struct kvm_msr_entry) * msrs.nmsrs;
-	entries = vmalloc(size);
+	entries = kmalloc(size, GFP_KERNEL);
 	if (!entries)
 		goto out;
 
@@ -1581,7 +1581,7 @@ static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 	r = n;
 
 out_free:
-	vfree(entries);
+	kfree(entries);
 out:
 	return r;
 }

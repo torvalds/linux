@@ -141,8 +141,13 @@ static int synaptics_capability(struct psmouse *psmouse)
 	priv->capabilities = (cap[0] << 16) | (cap[1] << 8) | cap[2];
 	priv->ext_cap = priv->ext_cap_0c = 0;
 
-	if (!SYN_CAP_VALID(priv->capabilities))
+	/*
+	 * Older firmwares had submodel ID fixed to 0x47
+	 */
+	if (SYN_ID_FULL(priv->identity) < 0x705 &&
+	    SYN_CAP_SUBMODEL_ID(priv->capabilities) != 0x47) {
 		return -1;
+	}
 
 	/*
 	 * Unless capExtended is set the rest of the flags should be ignored

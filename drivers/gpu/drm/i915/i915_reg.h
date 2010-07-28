@@ -2869,6 +2869,7 @@
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
+#define  PANEL_UNLOCK_REGS	(0xabcd << 16)
 #define  EDP_FORCE_VDD		(1 << 3)
 #define  EDP_BLC_ENABLE		(1 << 2)
 #define  PANEL_POWER_RESET	(1 << 1)

@@ -632,7 +632,7 @@ static void ieee80211_send_layer2_update(struct sta_info *sta)
 	skb->dev = sta->sdata->dev;
 	skb->protocol = eth_type_trans(skb, sta->sdata->dev);
 	memset(skb->cb, 0, sizeof(skb->cb));
-	netif_rx(skb);
+	netif_rx_ni(skb);
 }
 
 static void sta_apply_parameters(struct ieee80211_local *local,
