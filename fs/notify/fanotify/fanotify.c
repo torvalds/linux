@@ -152,18 +152,16 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	return ret;
 }
 
-static bool should_send_vfsmount_event(struct fsnotify_group *group, struct vfsmount *mnt,
-				       struct inode *inode, __u32 mask)
+static bool should_send_vfsmount_event(struct fsnotify_group *group,
+				       struct vfsmount *mnt,
+				       struct inode *inode,
+				       struct fsnotify_mark *mnt_mark,
+				       __u32 mask)
 {
-	struct fsnotify_mark *mnt_mark;
 	struct fsnotify_mark *inode_mark;
 
-	pr_debug("%s: group=%p vfsmount=%p mask=%x\n",
-		 __func__, group, mnt, mask);
-
-	mnt_mark = fsnotify_find_vfsmount_mark(group, mnt);
-	if (!mnt_mark)
-		return false;
+	pr_debug("%s: group=%p vfsmount=%p mark=%p mask=%x\n",
+		 __func__, group, mnt, mnt_mark, mask);
 
 	mask &= mnt_mark->mask;
 	mask &= ~mnt_mark->ignored_mask;
@@ -176,28 +174,21 @@ static bool should_send_vfsmount_event(struct fsnotify_group *group, struct vfsm
 		}
 	}
 
-	/* find took a reference */
-	fsnotify_put_mark(mnt_mark);
-
 	return mask;
 }
 
-static bool should_send_inode_event(struct fsnotify_group *group, struct inode *inode,
+static bool should_send_inode_event(struct fsnotify_group *group,
+				    struct inode *inode,
+				    struct fsnotify_mark *mark,
 				    __u32 mask)
 {
-	struct fsnotify_mark *fsn_mark;
-
-	pr_debug("%s: group=%p inode=%p mask=%x\n",
-		 __func__, group, inode, mask);
-
-	fsn_mark = fsnotify_find_inode_mark(group, inode);
-	if (!fsn_mark)
-		return false;
+	pr_debug("%s: group=%p inode=%p mark=%p mask=%x\n",
+		 __func__, group, inode, mark, mask);
 
 	/* if the event is for a child and this inode doesn't care about
 	 * events on the child, don't send it! */
 	if ((mask & FS_EVENT_ON_CHILD) &&
-	    !(fsn_mark->mask & FS_EVENT_ON_CHILD)) {
+	    !(mark->mask & FS_EVENT_ON_CHILD)) {
 		mask = 0;
 	} else {
 		/*
@@ -205,12 +196,9 @@ static bool should_send_inode_event(struct fsnotify_group *group, struct inode *
 		 * type of event?
 		 */
 		mask &= ~FS_EVENT_ON_CHILD;
-		mask &= fsn_mark->mask;
-		mask &= ~fsn_mark->ignored_mask;
+		mask &= mark->mask;
+		mask &= ~mark->ignored_mask;
 	}
-
-	/* find took a reference */
-	fsnotify_put_mark(fsn_mark);
 
 	return mask;
 }
@@ -232,9 +220,9 @@ static bool fanotify_should_send_event(struct fsnotify_group *group, struct inod
 		return false;
 
 	if (mnt)
-		return should_send_vfsmount_event(group, mnt, to_tell, mask);
+		return should_send_vfsmount_event(group, mnt, to_tell, mark, mask);
 	else
-		return should_send_inode_event(group, to_tell, mask);
+		return should_send_inode_event(group, to_tell, mark, mask);
 }
 
 const struct fsnotify_ops fanotify_fsnotify_ops = {
