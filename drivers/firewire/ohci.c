@@ -2309,6 +2309,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	free_page((unsigned long)ctx->header);
  out:
 	spin_lock_irqsave(&ohci->lock, flags);
+	*channels |= 1ULL << channel;
 	*mask |= 1 << index;
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
