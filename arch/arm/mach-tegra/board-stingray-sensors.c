@@ -27,6 +27,7 @@
 #include <linux/led-lm3559.h>
 #include <linux/max9635.h>
 #include <linux/akm8975.h>
+#include <media/ov5650.h>
 #include <linux/platform_device.h>
 
 #include <linux/regulator/consumer.h>
@@ -41,6 +42,69 @@
 #define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
 #define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
 #define LM3559_GPIO		TEGRA_GPIO_PT4
+#define OV5650_RESETN_GPIO	TEGRA_GPIO_PD2
+#define OV5650_PWRDN_GPIO	TEGRA_GPIO_PBB1
+
+struct regulator *stingray_ov5650_regulator_vcam;
+
+static int stingray_ov5650_init(void)
+{
+	tegra_gpio_enable(OV5650_RESETN_GPIO);
+	gpio_request(OV5650_RESETN_GPIO, "ov5650_reset");
+	gpio_direction_output(OV5650_RESETN_GPIO, 0);
+	gpio_export(OV5650_RESETN_GPIO, false);
+
+	tegra_gpio_enable(OV5650_PWRDN_GPIO);
+	gpio_request(OV5650_PWRDN_GPIO, "ov5650_pwrdn");
+	gpio_direction_output(OV5650_PWRDN_GPIO, 1);
+	gpio_export(OV5650_PWRDN_GPIO, false);
+
+	pr_info("initialize the ov5650 sensor\n");
+
+	return 0;
+}
+
+static int stingray_ov5650_power_on(void)
+{
+	pr_info("power on the ov5650 sensor\n");
+	if (!stingray_ov5650_regulator_vcam) {
+		stingray_ov5650_regulator_vcam = regulator_get(NULL, "vcam");
+		if (IS_ERR(stingray_ov5650_regulator_vcam)) {
+			pr_err("ov5650_power_on: couldn't get regulator vcam\n");
+			return PTR_ERR(stingray_ov5650_regulator_vcam);
+		}
+	}
+
+	regulator_enable(stingray_ov5650_regulator_vcam);
+	msleep(20);
+
+	gpio_direction_output(OV5650_PWRDN_GPIO, 0);
+	msleep(10);
+
+	gpio_direction_output(OV5650_RESETN_GPIO, 1);
+	msleep(5);
+	gpio_direction_output(OV5650_RESETN_GPIO, 0);
+	msleep(5);
+	gpio_direction_output(OV5650_RESETN_GPIO, 1);
+	msleep(5);
+
+	return 0;
+}
+
+static int stingray_ov5650_power_off(void)
+{
+	gpio_direction_output(OV5650_PWRDN_GPIO, 1);
+	gpio_direction_output(OV5650_RESETN_GPIO, 0);
+	regulator_disable(stingray_ov5650_regulator_vcam);
+
+	return 0;
+}
+
+struct ov5650_platform_data stingray_ov5650_data = {
+	.power_on = stingray_ov5650_power_on,
+	.power_off = stingray_ov5650_power_off,
+};
+
 
 static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
@@ -421,6 +485,7 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
 		.irq = TEGRA_GPIO_TO_IRQ(MAX9635_IRQ_GPIO),
 	 },
 };
+
 static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 	 {
 		I2C_BOARD_INFO(L3G4200D_NAME, 0x68),
@@ -432,6 +497,11 @@ static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 		I2C_BOARD_INFO(LM3559_NAME, 0x53),
 		.platform_data = &stingray_lm3559_data,
 	 },
+
+	{
+		I2C_BOARD_INFO("ov5650", 0x36),
+		.platform_data = &stingray_ov5650_data,
+	},
 };
 
 int __init stingray_sensors_init(void)
@@ -442,6 +512,7 @@ int __init stingray_sensors_init(void)
 	stingray_l3g4200d_init();
 	stingray_akm8975_init();
 	stingray_lm3559_init();
+	stingray_ov5650_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
