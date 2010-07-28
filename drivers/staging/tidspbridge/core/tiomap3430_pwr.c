@@ -228,7 +228,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 
 		/* Turn off DSP Peripheral clocks */
 		status = dsp_clock_disable_all(dev_context->dsp_per_clks);
-		if (DSP_FAILED(status))
+		if (status)
 			return status;
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 		else if (target_pwr_state == PWRDM_POWER_OFF) {

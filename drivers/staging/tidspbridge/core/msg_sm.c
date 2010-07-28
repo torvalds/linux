@@ -210,7 +210,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 				status = add_new_msg(msg_q->msg_free_list);
 			}
 		}
-		if (DSP_FAILED(status)) {
+		if (status) {
 			/*  Stay inside CS to prevent others from taking any
 			 *  of the newly allocated message frames. */
 			delete_msg_queue(msg_q, num_allocated);
@@ -439,7 +439,7 @@ int bridge_msg_put(struct msg_queue *msg_queue_obj,
 		syncs[1] = msg_queue_obj->sync_done;
 		status = sync_wait_on_multiple_events(syncs, 2, utimeout,
 						      &index);
-		if (DSP_FAILED(status))
+		if (status)
 			goto func_end;
 		/* Enter critical section */
 		spin_lock_bh(&hmsg_mgr->msg_mgr_lock);

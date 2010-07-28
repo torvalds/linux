@@ -135,7 +135,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 	if (!dev_ctxt)
 		status = -EFAULT;
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	if (pchnl->chnl_type == CHNL_PCPY && pchnl->chnl_id > 1 && host_buf) {
@@ -266,7 +266,7 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	/*  Mark this channel as cancelled, to prevent further IORequests or
@@ -372,7 +372,7 @@ func_cont:
 		kfree(pchnl);
 		pchnl = NULL;
 	}
-	DBC_ENSURE(DSP_FAILED(status) || !pchnl);
+	DBC_ENSURE(status || !pchnl);
 	return status;
 }
 
@@ -428,7 +428,7 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 		status = -ENOMEM;
 	}
 
-	if (DSP_FAILED(status)) {
+	if (status) {
 		bridge_chnl_destroy(chnl_mgr_obj);
 		*channel_mgr = NULL;
 	} else {
@@ -456,7 +456,7 @@ int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr)
 			status =
 			    bridge_chnl_close(chnl_mgr_obj->ap_channel
 					      [chnl_id]);
-			if (DSP_FAILED(status))
+			if (status)
 				dev_dbg(bridge, "%s: Error status 0x%x\n",
 					__func__, status);
 		}
@@ -509,7 +509,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 			while (!LST_IS_EMPTY(pchnl->pio_requests) && !status) {
 				status = bridge_chnl_get_ioc(chnl_obj,
 						timeout, &chnl_ioc_obj);
-				if (DSP_FAILED(status))
+				if (status)
 					continue;
 
 				if (chnl_ioc_obj.status & CHNL_IOCSTATTIMEOUT)
@@ -522,7 +522,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 			pchnl->dw_state &= ~CHNL_STATECANCEL;
 		}
 	}
-	DBC_ENSURE(DSP_FAILED(status) || LST_IS_EMPTY(pchnl->pio_requests));
+	DBC_ENSURE(status || LST_IS_EMPTY(pchnl->pio_requests));
 	return status;
 }
 
@@ -592,7 +592,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	if (!dev_ctxt)
 		status = -EFAULT;
 
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	ioc.status = CHNL_IOCSTATCOMPLETE;
@@ -806,7 +806,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 			}
 		}
 	}
-	if (DSP_FAILED(status))
+	if (status)
 		goto func_end;
 
 	DBC_ASSERT(ch_id < chnl_mgr_obj->max_channels);
@@ -860,7 +860,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 		}
 	}
 
-	if (DSP_FAILED(status)) {
+	if (status) {
 		/* Free memory */
 		if (pchnl->pio_completions) {
 			free_chirp_list(pchnl->pio_completions);

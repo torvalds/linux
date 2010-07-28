@@ -1318,7 +1318,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 			}
 			status = pte_set(dev_context->pt_attrs, pa,
 					 va, HW_PAGE_SIZE4KB, &hw_attrs);
-			if (DSP_FAILED(status))
+			if (status)
 				break;
 
 			va += HW_PAGE_SIZE4KB;
@@ -1344,7 +1344,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 				status = pte_set(dev_context->pt_attrs,
 						 page_to_phys(mapped_page), va,
 						 HW_PAGE_SIZE4KB, &hw_attrs);
-				if (DSP_FAILED(status))
+				if (status)
 					break;
 
 				if (mapped_pages)
