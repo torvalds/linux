@@ -20,10 +20,21 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
+struct tegra_utmip_config {
+	u8 hssync_start_delay;
+	u8 elastic_limit;
+	u8 idle_wait_delay;
+	u8 term_range_adj;
+	u8 xcvr_setup;
+	u8 xcvr_lsfslew;
+	u8 xcvr_lsrslew;
+};
+
 struct tegra_usb_phy {
 	int instance;
 	void __iomem *regs;
 	struct clk *pll_u;
+	struct tegra_utmip_config *config;
 };
 
 enum tegra_usb_phy_mode {
@@ -31,7 +42,8 @@ enum tegra_usb_phy_mode {
 	TEGRA_USB_PHY_MODE_HOST,
 };
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs);
+struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
+					 struct tegra_utmip_config *config);
 
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy,
 			   enum tegra_usb_phy_mode phy_mode);

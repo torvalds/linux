@@ -22,6 +22,8 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 	int instance;
+	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+
 
 	udc_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc_clk)) {
@@ -49,7 +51,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	if (instance == -1)
 		instance = 0;
 
-	phy = tegra_usb_phy_open(instance, udc_base);
+	phy = tegra_usb_phy_open(instance, udc_base, pdata->phy_config);
 	if (IS_ERR(phy)) {
 		dev_err(&pdev->dev, "Can't open phy\n");
 		err = PTR_ERR(phy);

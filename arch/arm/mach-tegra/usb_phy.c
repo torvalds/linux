@@ -120,6 +120,27 @@ static const u16 udc_debounce_table[] = {
 	0xFDE8, /* 26 MHz */
 };
 
+static struct tegra_utmip_config utmip_default[] = {
+	[0] = {
+		.hssync_start_delay = 9,
+		.idle_wait_delay = 17,
+		.elastic_limit = 16,
+		.term_range_adj = 6,
+		.xcvr_setup = 9,
+		.xcvr_lsfslew = 1,
+		.xcvr_lsrslew = 1,
+	},
+	[2] = {
+		.hssync_start_delay = 9,
+		.idle_wait_delay = 17,
+		.elastic_limit = 16,
+		.term_range_adj = 6,
+		.xcvr_setup = 9,
+		.xcvr_lsfslew = 2,
+		.xcvr_lsrslew = 2,
+	},
+};
+
 static int utmi_phy_wait_stable(struct tegra_usb_phy *phy)
 {
 	void __iomem *base = phy->regs;
@@ -141,6 +162,7 @@ static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
+	struct tegra_utmip_config *config = phy->config;
 
 	val = readl(base + USB_SUSP_CTRL);
 	val |= UTMIP_RESET;
@@ -154,12 +176,13 @@ static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 
 	val = readl(base + UTMIP_HSRX_CFG0);
 	val &= ~(UTMIP_IDLE_WAIT(~0) | UTMIP_ELASTIC_LIMIT(~0));
-	val |= UTMIP_IDLE_WAIT(17) | UTMIP_ELASTIC_LIMIT(16);
+	val |= UTMIP_IDLE_WAIT(config->idle_wait_delay);
+	val |= UTMIP_ELASTIC_LIMIT(config->elastic_limit);
 	writel(val, base + UTMIP_HSRX_CFG0);
 
 	val = readl(base + UTMIP_HSRX_CFG1);
 	val &= ~UTMIP_HS_SYNC_START_DLY(~0);
-	val |= UTMIP_HS_SYNC_START_DLY(9);
+	val |= UTMIP_HS_SYNC_START_DLY(config->hssync_start_delay);
 	writel(val, base + UTMIP_HSRX_CFG1);
 
 	val = readl(base + UTMIP_DEBOUNCE_CFG0);
@@ -189,6 +212,7 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
+	struct tegra_utmip_config *config = phy->config;
 
 	if (phy_mode == TEGRA_USB_PHY_MODE_DEVICE) {
 		val = readl(base + USB_SUSP_CTRL);
@@ -198,15 +222,12 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 
 	val = readl(base + UTMIP_XCVR_CFG0);
 	val &= ~(UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
-		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0));
-	if (phy_mode == TEGRA_USB_PHY_MODE_HOST) {
-		val &= ~(UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0));
-		val |= UTMIP_XCVR_LSFSLEW(2) | UTMIP_XCVR_LSRSLEW(2);
-		val |= UTMIP_XCVR_SETUP(0x9);
-	} else {
-		val &= ~(UTMIP_XCVR_HSSLEW_MSB(~0));
-		val |= UTMIP_XCVR_SETUP(0xF);
-	}
+		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0) |
+		 UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0) |
+		 UTMIP_XCVR_HSSLEW_MSB(~0));
+	val |= UTMIP_XCVR_SETUP(config->xcvr_setup);
+	val |= UTMIP_XCVR_LSFSLEW(config->xcvr_lsfslew);
+	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
 	writel(val, base + UTMIP_XCVR_CFG0);
 
 	val = readl(base + UTMIP_BIAS_CFG0);
@@ -216,7 +237,7 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 	val = readl(base + UTMIP_XCVR_CFG1);
 	val &= ~(UTMIP_FORCE_PDDISC_POWERDOWN | UTMIP_FORCE_PDCHRP_POWERDOWN |
 		 UTMIP_FORCE_PDDR_POWERDOWN | UTMIP_XCVR_TERM_RANGE_ADJ(~0));
-	val |= UTMIP_XCVR_TERM_RANGE_ADJ(0x6);
+	val |= UTMIP_XCVR_TERM_RANGE_ADJ(config->term_range_adj);
 	writel(val, base + UTMIP_XCVR_CFG1);
 
 	val = readl(base + UTMIP_BAT_CHRG_CFG0);
@@ -310,7 +331,8 @@ void utmi_phy_power_off(struct tegra_usb_phy *phy)
 	writel(val, base + UTMIP_XCVR_CFG1);
 }
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs)
+struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
+					 struct tegra_utmip_config *config)
 {
 	struct tegra_usb_phy *phy;
 	unsigned long parent_rate;
@@ -323,6 +345,10 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs)
 
 	phy->instance = instance;
 	phy->regs = regs;
+	phy->config = config;
+
+	if (!phy->config)
+		phy->config = &utmip_default[instance];
 
 	phy->pll_u = clk_get_sys(NULL, "pll_u");
 	if (IS_ERR(phy->pll_u)) {

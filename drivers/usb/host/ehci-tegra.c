@@ -366,6 +366,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
 	struct tegra_ehci_hcd *tegra;
+	struct tegra_utmip_config *config;
 	int err = 0;
 	int irq;
 	unsigned int temp;
@@ -412,7 +413,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	tegra->phy = tegra_usb_phy_open(instance, hcd->regs);
+	config = pdev->dev.platform_data;
+
+	tegra->phy = tegra_usb_phy_open(instance, hcd->regs, config);
 	if (IS_ERR(tegra->phy)) {
 		dev_err(&pdev->dev, "Failed to open USB phy\n");
 		err = -ENXIO;
