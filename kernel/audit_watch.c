@@ -511,8 +511,8 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 }
 
 static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,
-					  struct vfsmount *mnt, __u32 mask, void *data,
-					  int data_type)
+					  struct vfsmount *mnt, struct fsnotify_mark *mark,
+					  __u32 mask, void *data, int data_type)
 {
 	struct fsnotify_mark *entry;
 	bool send;
@@ -531,7 +531,9 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 }
 
 /* Update watch data in audit rules based on fsnotify events. */
-static int audit_watch_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
+static int audit_watch_handle_event(struct fsnotify_group *group,
+				    struct fsnotify_mark *mark,
+				    struct fsnotify_event *event)
 {
 	struct inode *inode;
 	__u32 mask = event->mask;

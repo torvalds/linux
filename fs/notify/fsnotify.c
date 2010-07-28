@@ -171,15 +171,16 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 }
 
 static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
-			 struct vfsmount *mnt, __u32 mask, void *data,
-			 int data_is, u32 cookie, const unsigned char *file_name,
+			 struct vfsmount *mnt, struct fsnotify_mark *mark,
+			 __u32 mask, void *data, int data_is, u32 cookie,
+			 const unsigned char *file_name,
 			 struct fsnotify_event **event)
 {
-	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x data=%p data_is=%d"
-		 " cookie=%d event=%p\n", __func__, group, to_tell, mnt,
-		 mask, data, data_is, cookie, *event);
+	pr_debug("%s: group=%p to_tell=%p mnt=%p mark=%p mask=%x data=%p"
+		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
+		 mnt, mark, mask, data, data_is, cookie, *event);
 
-	if (!group->ops->should_send_event(group, to_tell, mnt, mask,
+	if (!group->ops->should_send_event(group, to_tell, mnt, mark, mask,
 					   data, data_is))
 		return 0;
 	if (!*event) {
@@ -189,7 +190,7 @@ static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 		if (!*event)
 			return -ENOMEM;
 	}
-	return group->ops->handle_event(group, *event);
+	return group->ops->handle_event(group, mark, *event);
 }
 
 static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
@@ -252,7 +253,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 				group = mark->group;
 				if (!group)
 					continue;
-				ret = send_to_group(group, to_tell, NULL, mask,
+				ret = send_to_group(group, to_tell, NULL, mark, mask,
 						    data, data_is, cookie, file_name,
 						    &event);
 				if (ret)
@@ -271,7 +272,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 				group = mark->group;
 				if (!group)
 					continue;
-				ret = send_to_group(group, to_tell, mnt, mask,
+				ret = send_to_group(group, to_tell, mnt, mark, mask,
 						    data, data_is, cookie, file_name,
 						    &event);
 				if (ret)

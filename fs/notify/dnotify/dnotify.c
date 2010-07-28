@@ -83,6 +83,7 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * events.
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
+				struct fsnotify_mark *mark,
 				struct fsnotify_event *event)
 {
 	struct fsnotify_mark *fsn_mark = NULL;
@@ -130,7 +131,8 @@ static int dnotify_handle_event(struct fsnotify_group *group,
  */
 static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct inode *inode, struct vfsmount *mnt,
-				      __u32 mask, void *data, int data_type)
+				      struct fsnotify_mark *mark, __u32 mask,
+				      void *data, int data_type)
 {
 	struct fsnotify_mark *fsn_mark;
 	bool send;

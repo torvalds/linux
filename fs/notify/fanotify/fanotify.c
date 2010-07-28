@@ -114,7 +114,9 @@ static int fanotify_get_response_from_access(struct fsnotify_group *group,
 }
 #endif
 
-static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
+static int fanotify_handle_event(struct fsnotify_group *group,
+				 struct fsnotify_mark *mark,
+				 struct fsnotify_event *event)
 {
 	int ret = 0;
 	struct fsnotify_event *notify_event = NULL;
@@ -214,8 +216,8 @@ static bool should_send_inode_event(struct fsnotify_group *group, struct inode *
 }
 
 static bool fanotify_should_send_event(struct fsnotify_group *group, struct inode *to_tell,
-				       struct vfsmount *mnt, __u32 mask, void *data,
-				       int data_type)
+				       struct vfsmount *mnt, struct fsnotify_mark *mark,
+				       __u32 mask, void *data, int data_type)
 {
 	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x data=%p data_type=%d\n",
 		 __func__, group, to_tell, mnt, mask, data, data_type);

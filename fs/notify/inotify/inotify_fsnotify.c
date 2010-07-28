@@ -89,7 +89,9 @@ static struct fsnotify_event *inotify_merge(struct list_head *list,
 	return last_event;
 }
 
-static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
+static int inotify_handle_event(struct fsnotify_group *group,
+				struct fsnotify_mark *mark,
+				struct fsnotify_event *event)
 {
 	struct fsnotify_mark *fsn_mark;
 	struct inotify_inode_mark *i_mark;
@@ -148,8 +150,8 @@ static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify
 }
 
 static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
-				      struct vfsmount *mnt, __u32 mask, void *data,
-				      int data_type)
+				      struct vfsmount *mnt, struct fsnotify_mark *mark,
+				      __u32 mask, void *data, int data_type)
 {
 	struct fsnotify_mark *fsn_mark;
 	bool send;
