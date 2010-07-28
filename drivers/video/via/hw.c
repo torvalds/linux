@@ -860,18 +860,78 @@ void viafb_set_output_path(int device, int set_iga, int output_interface)
 		enable_second_display_channel();
 }
 
+static void set_source_common(u8 index, u8 offset, u8 iga)
+{
+	u8 value, mask = 1 << offset;
+
+	switch (iga) {
+	case IGA1:
+		value = 0x00;
+		break;
+	case IGA2:
+		value = mask;
+		break;
+	default:
+		printk(KERN_WARNING "viafb: Unsupported source: %d\n", iga);
+		return;
+	}
+
+	via_write_reg_mask(VIACR, index, value, mask);
+}
+
+static void set_crt_source(u8 iga)
+{
+	u8 value;
+
+	switch (iga) {
+	case IGA1:
+		value = 0x00;
+		break;
+	case IGA2:
+		value = 0x40;
+		break;
+	default:
+		printk(KERN_WARNING "viafb: Unsupported source: %d\n", iga);
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x16, value, 0x40);
+}
+
+static inline void set_6C_source(u8 iga)
+{
+	set_source_common(0x6C, 7, iga);
+}
+
+static inline void set_93_source(u8 iga)
+{
+	set_source_common(0x93, 7, iga);
+}
+
+static inline void set_96_source(u8 iga)
+{
+	set_source_common(0x96, 4, iga);
+}
+
+static inline void set_dvp1_source(u8 iga)
+{
+	set_source_common(0x9B, 4, iga);
+}
+
+static inline void set_lvds1_source(u8 iga)
+{
+	set_source_common(0x99, 4, iga);
+}
+
+static inline void set_lvds2_source(u8 iga)
+{
+	set_source_common(0x97, 4, iga);
+}
+
 static void set_crt_output_path(int set_iga)
 {
 	viafb_write_reg_mask(CR36, VIACR, 0x00, BIT4 + BIT5);
-
-	switch (set_iga) {
-	case IGA1:
-		viafb_write_reg_mask(SR16, VIASR, 0x00, BIT6);
-		break;
-	case IGA2:
-		viafb_write_reg_mask(SR16, VIASR, 0x40, BIT6);
-		break;
-	}
+	set_crt_source(set_iga);
 }
 
 static void dvi_patch_skew_dvp0(void)
@@ -944,76 +1004,45 @@ static void set_dvi_output_path(int set_iga, int output_interface)
 {
 	switch (output_interface) {
 	case INTERFACE_DVP0:
+		set_96_source(set_iga);
+		set_6C_source(set_iga);
 		viafb_write_reg_mask(CR6B, VIACR, 0x01, BIT0);
-
-		if (set_iga == IGA1) {
-			viafb_write_reg_mask(CR96, VIACR, 0x00, BIT4);
-			viafb_write_reg_mask(CR6C, VIACR, 0x21, BIT0 +
-				BIT5 + BIT7);
-		} else {
-			viafb_write_reg_mask(CR96, VIACR, 0x10, BIT4);
-			viafb_write_reg_mask(CR6C, VIACR, 0xA1, BIT0 +
-				BIT5 + BIT7);
-		}
-
+		viafb_write_reg_mask(CR6C, VIACR, 0x21, BIT0 + BIT5);
 		viafb_write_reg_mask(SR1E, VIASR, 0xC0, BIT7 + BIT6);
-
 		dvi_patch_skew_dvp0();
 		break;
 
 	case INTERFACE_DVP1:
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
-			if (set_iga == IGA1)
-				viafb_write_reg_mask(CR93, VIACR, 0x21,
-					       BIT0 + BIT5 + BIT7);
-			else
-				viafb_write_reg_mask(CR93, VIACR, 0xA1,
-					       BIT0 + BIT5 + BIT7);
+			set_93_source(set_iga);
+			viafb_write_reg_mask(CR93, VIACR, 0x21, BIT0 + BIT5);
 		} else {
-			if (set_iga == IGA1)
-				viafb_write_reg_mask(CR9B, VIACR, 0x00, BIT4);
-			else
-				viafb_write_reg_mask(CR9B, VIACR, 0x10, BIT4);
+			set_dvp1_source(set_iga);
 		}
 
 		viafb_write_reg_mask(SR1E, VIASR, 0x30, BIT4 + BIT5);
 		break;
 	case INTERFACE_DFP_HIGH:
 		if (viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266) {
-			if (set_iga == IGA1) {
-				viafb_write_reg_mask(CR96, VIACR, 0x00, BIT4);
-				viafb_write_reg_mask(CR97, VIACR, 0x03,
-					       BIT0 + BIT1 + BIT4);
-			} else {
-				viafb_write_reg_mask(CR96, VIACR, 0x10, BIT4);
-				viafb_write_reg_mask(CR97, VIACR, 0x13,
-					       BIT0 + BIT1 + BIT4);
-			}
+			via_write_reg_mask(VIACR, CR97, 0x03, 0x03);
+			set_lvds2_source(set_iga);
+			set_96_source(set_iga);
 		}
+
 		viafb_write_reg_mask(SR2A, VIASR, 0x0C, BIT2 + BIT3);
 		break;
 
 	case INTERFACE_DFP_LOW:
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			break;
-
-		if (set_iga == IGA1) {
-			viafb_write_reg_mask(CR99, VIACR, 0x00, BIT4);
-			viafb_write_reg_mask(CR9B, VIACR, 0x00, BIT4);
-		} else {
-			viafb_write_reg_mask(CR99, VIACR, 0x10, BIT4);
-			viafb_write_reg_mask(CR9B, VIACR, 0x10, BIT4);
-		}
-
+		set_dvp1_source(set_iga);
+		set_lvds1_source(set_iga);
 		viafb_write_reg_mask(SR2A, VIASR, 0x03, BIT0 + BIT1);
 		dvi_patch_skew_dvp_low();
 		break;
 
 	case INTERFACE_TMDS:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR99, VIACR, 0x00, BIT4);
-		else
-			viafb_write_reg_mask(CR99, VIACR, 0x10, BIT4);
+		set_lvds1_source(set_iga);
 		break;
 	}
 
@@ -1031,45 +1060,31 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 
 	viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
 	viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-
 	switch (output_interface) {
 	case INTERFACE_DVP0:
-		if (set_iga == IGA1) {
-			viafb_write_reg_mask(CR96, VIACR, 0x00, BIT4);
-		} else {
+		set_96_source(set_iga);
+		if (set_iga == IGA2)
 			viafb_write_reg(CR91, VIACR, 0x00);
-			viafb_write_reg_mask(CR96, VIACR, 0x10, BIT4);
-		}
 		break;
 
 	case INTERFACE_DVP1:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR9B, VIACR, 0x00, BIT4);
-		else {
+		set_dvp1_source(set_iga);
+		if (set_iga == IGA2)
 			viafb_write_reg(CR91, VIACR, 0x00);
-			viafb_write_reg_mask(CR9B, VIACR, 0x10, BIT4);
-		}
 		break;
 
 	case INTERFACE_DFP_HIGH:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR97, VIACR, 0x00, BIT4);
-		else {
+		set_lvds2_source(set_iga);
+		set_96_source(set_iga);
+		if (set_iga == IGA2)
 			viafb_write_reg(CR91, VIACR, 0x00);
-			viafb_write_reg_mask(CR97, VIACR, 0x10, BIT4);
-			viafb_write_reg_mask(CR96, VIACR, 0x10, BIT4);
-		}
 		break;
 
 	case INTERFACE_DFP_LOW:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR99, VIACR, 0x00, BIT4);
-		else {
+		set_lvds1_source(set_iga);
+		set_dvp1_source(set_iga);
+		if (set_iga == IGA2)
 			viafb_write_reg(CR91, VIACR, 0x00);
-			viafb_write_reg_mask(CR99, VIACR, 0x10, BIT4);
-			viafb_write_reg_mask(CR9B, VIACR, 0x10, BIT4);
-		}
-
 		break;
 
 	case INTERFACE_DFP:
@@ -1078,30 +1093,20 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 		    viaparinfo->chip_info->gfx_chip_name))
 			viafb_write_reg_mask(CR97, VIACR, 0x84,
 				       BIT7 + BIT2 + BIT1 + BIT0);
-		if (set_iga == IGA1) {
-			viafb_write_reg_mask(CR97, VIACR, 0x00, BIT4);
-			viafb_write_reg_mask(CR99, VIACR, 0x00, BIT4);
-		} else {
+
+		set_lvds1_source(set_iga);
+		set_lvds2_source(set_iga);
+		if (set_iga == IGA2)
 			viafb_write_reg(CR91, VIACR, 0x00);
-			viafb_write_reg_mask(CR97, VIACR, 0x10, BIT4);
-			viafb_write_reg_mask(CR99, VIACR, 0x10, BIT4);
-		}
 		break;
 
 	case INTERFACE_LVDS0:
 	case INTERFACE_LVDS0LVDS1:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR99, VIACR, 0x00, BIT4);
-		else
-			viafb_write_reg_mask(CR99, VIACR, 0x10, BIT4);
-
+		set_lvds1_source(set_iga);
 		break;
 
 	case INTERFACE_LVDS1:
-		if (set_iga == IGA1)
-			viafb_write_reg_mask(CR97, VIACR, 0x00, BIT4);
-		else
-			viafb_write_reg_mask(CR97, VIACR, 0x10, BIT4);
+		set_lvds2_source(set_iga);
 		break;
 	}
 }
