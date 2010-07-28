@@ -2694,8 +2694,18 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 
 	lq_cmd->agg_params.agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	lq_cmd->agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
+
 	lq_cmd->agg_params.agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+	/*
+	 * overwrite if needed, pass aggregation time limit
+	 * to uCode in uSec
+	 */
+	if (priv && priv->cfg->agg_time_limit &&
+	    priv->cfg->agg_time_limit >= LINK_QUAL_AGG_TIME_LIMIT_MIN &&
+	    priv->cfg->agg_time_limit <= LINK_QUAL_AGG_TIME_LIMIT_MAX)
+		lq_cmd->agg_params.agg_time_limit =
+			cpu_to_le16(priv->cfg->agg_time_limit);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)

@@ -2110,8 +2110,10 @@ struct iwl_link_qual_general_params {
  */
 struct iwl_link_qual_agg_params {
 
-	/* Maximum number of uSec in aggregation.
-	 * Driver should set this to 4000 (4 milliseconds). */
+	/*
+	 *Maximum number of uSec in aggregation.
+	 * default set to 4000 (4 milliseconds) if not configured in .cfg
+	 */
 	__le16 agg_time_limit;
 
 	/*
