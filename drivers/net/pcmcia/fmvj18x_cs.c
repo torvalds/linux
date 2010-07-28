@@ -544,20 +544,18 @@ failed:
 
 static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 {
-    win_req_t req;
     u_char __iomem *base;
     int i, j;
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = 0; link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	return -1;
 
-    base = ioremap(req.Base, req.Size);
-    pcmcia_map_mem_page(link, link->win, 0);
+    base = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
+    pcmcia_map_mem_page(link, link->resource[2], 0);
 
     /*
      *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
@@ -582,7 +580,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     }
 
     iounmap(base);
-    j = pcmcia_release_window(link, link->win);
+    j = pcmcia_release_window(link, link->resource[2]);
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
@@ -590,27 +588,26 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
 static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 {
-    win_req_t req;
     int i;
     struct net_device *dev = link->priv;
     unsigned int ioaddr;
     local_info_t *lp = netdev_priv(dev);
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[3]->flags = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[3]->start = link->resource[3]->end = 0;
+    i = pcmcia_request_window(link, link->resource[3], 0);
     if (i != 0)
 	return -1;
 
-    lp->base = ioremap(req.Base, req.Size);
+    lp->base = ioremap(link->resource[3]->start,
+		       resource_size(link->resource[3]));
     if (lp->base == NULL) {
 	printk(KERN_NOTICE "fmvj18x_cs: ioremap failed\n");
 	return -1;
     }
 
-    i = pcmcia_map_mem_page(link, link->win, 0);
+    i = pcmcia_map_mem_page(link, link->resource[3], 0);
     if (i != 0) {
 	iounmap(lp->base);
 	lp->base = NULL;
@@ -638,7 +635,6 @@ static void fmvj18x_release(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
     u_char __iomem *tmp;
-    int j;
 
     dev_dbg(&link->dev, "fmvj18x_release\n");
 
@@ -646,7 +642,6 @@ static void fmvj18x_release(struct pcmcia_device *link)
 	tmp = lp->base;
 	lp->base = NULL;    /* set NULL before iounmap */
 	iounmap(tmp);
-	j = pcmcia_release_window(link, link->win);
     }
 
     pcmcia_disable_device(link);

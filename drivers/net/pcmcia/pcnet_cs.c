@@ -300,22 +300,22 @@ static void pcnet_detach(struct pcmcia_device *link)
 static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    win_req_t req;
     u_char __iomem *base, *virt;
     int i, j;
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = 0; link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	return NULL;
 
-    virt = ioremap(req.Base, req.Size);
+    virt = ioremap(link->resource[2]->start,
+	    resource_size(link->resource[2]));
     for (i = 0; i < NR_INFO; i++) {
-	pcmcia_map_mem_page(link, link->win, hw_info[i].offset & ~(req.Size-1));
-	base = &virt[hw_info[i].offset & (req.Size-1)];
+	pcmcia_map_mem_page(link, link->resource[2],
+		hw_info[i].offset & ~(resource_size(link->resource[2])-1));
+	base = &virt[hw_info[i].offset & (resource_size(link->resource[2])-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
 	    (readb(base+4) == hw_info[i].a2)) {
@@ -326,7 +326,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     }
 
     iounmap(virt);
-    j = pcmcia_release_window(link, link->win);
+    j = pcmcia_release_window(link, link->resource[2]);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -1486,7 +1486,6 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
-    win_req_t req;
     int i, window_size, offset, ret;
 
     window_size = (stop_pg - start_pg) << 8;
@@ -1497,22 +1496,22 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     window_size = roundup_pow_of_two(window_size);
 
     /* Allocate a memory window */
-    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
-    req.Base = 0; req.Size = window_size;
-    req.AccessSpeed = mem_speed;
-    ret = pcmcia_request_window(link, &req, &link->win);
+    link->resource[3]->flags |= WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+    link->resource[3]->flags |= WIN_USE_WAIT;
+    link->resource[3]->start = 0; link->resource[3]->end = window_size;
+    ret = pcmcia_request_window(link, link->resource[3], mem_speed);
     if (ret)
 	    goto failed;
 
     offset = (start_pg << 8) + cm_offset;
     offset -= offset % window_size;
-    ret = pcmcia_map_mem_page(link, link->win, offset);
+    ret = pcmcia_map_mem_page(link, link->resource[3], offset);
     if (ret)
 	    goto failed;
 
     /* Try scribbling on the buffer */
-    info->base = ioremap(req.Base, window_size);
+    info->base = ioremap(link->resource[3]->start,
+			resource_size(link->resource[3]));
     for (i = 0; i < (TX_PAGES<<8); i += 2)
 	__raw_writew((i>>1), info->base+offset+i);
     udelay(100);
@@ -1521,19 +1520,20 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     pcnet_reset_8390(dev);
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);
-	pcmcia_release_window(link, link->win);
-	info->base = NULL; link->win = 0;
+	pcmcia_release_window(link, link->resource[3]);
+	info->base = NULL;
 	goto failed;
     }
 
     ei_status.mem = info->base + offset;
-    ei_status.priv = req.Size;
+    ei_status.priv = resource_size(link->resource[3]);
     dev->mem_start = (u_long)ei_status.mem;
-    dev->mem_end = dev->mem_start + req.Size;
+    dev->mem_end = dev->mem_start + resource_size(link->resource[3]);
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;
-    ei_status.stop_page = start_pg + ((req.Size - offset) >> 8);
+    ei_status.stop_page = start_pg + (
+	    (resource_size(link->resource[3]) - offset) >> 8);
 
     /* set up block i/o functions */
     ei_status.get_8390_hdr = &shmem_get_8390_hdr;

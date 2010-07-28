@@ -45,13 +45,9 @@ struct ipw_dev {
 	struct pcmcia_device *link;
 	int is_v2_card;
 
-	window_handle_t handle_attr_memory;
 	void __iomem *attr_memory;
-	win_req_t request_attr_memory;
 
-	window_handle_t handle_common_memory;
 	void __iomem *common_memory;
-	win_req_t request_common_memory;
 
 	/* Reference to attribute memory, containing CIS data */
 	void *attribute_memory;

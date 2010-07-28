@@ -442,7 +442,6 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
-    win_req_t req;
     unsigned int offset;
     int i;
 
@@ -459,16 +458,16 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     dev->base_addr = link->resource[0]->start;
 
     /* Allocate a memory window, for accessing the ISR */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	    return -ENODEV;
 
-    smc->base = ioremap(req.Base, req.Size);
+    smc->base = ioremap(link->resource[2]->start,
+		    resource_size(link->resource[2]));
     offset = (smc->manfid == MANFID_MOTOROLA) ? link->conf.ConfigBase : 0;
-    i = pcmcia_map_mem_page(link, link->win, offset);
+    i = pcmcia_map_mem_page(link, link->resource[2], offset);
     if ((i == 0) &&
 	(smc->manfid == MANFID_MEGAHERTZ) &&
 	(smc->cardid == PRODID_MEGAHERTZ_EM3288))
@@ -999,7 +998,7 @@ config_failed:
 static void smc91c92_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "smc91c92_release\n");
-	if (link->win) {
+	if (link->resource[2]->end) {
 		struct net_device *dev = link->priv;
 		struct smc_private *smc = netdev_priv(dev);
 		iounmap(smc->base);

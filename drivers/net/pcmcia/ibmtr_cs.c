@@ -102,9 +102,8 @@ static void ibmtr_detach(struct pcmcia_device *p_dev);
 
 typedef struct ibmtr_dev_t {
 	struct pcmcia_device	*p_dev;
-    struct net_device	*dev;
-    window_handle_t     sram_win_handle;
-    struct tok_info	*ti;
+	struct net_device	*dev;
+	struct tok_info		*ti;
 } ibmtr_dev_t;
 
 static void netdev_get_drvinfo(struct net_device *dev,
@@ -210,7 +209,6 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
     struct tok_info *ti = netdev_priv(dev);
-    win_req_t req;
     int i, ret;
 
     dev_dbg(&link->dev, "ibmtr_config\n");
@@ -240,37 +238,37 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
 
     /* Allocate the MMIO memory window */
-    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
-    req.Base = 0; 
-    req.Size = 0x2000;
-    req.AccessSpeed = 250;
-    ret = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+    link->resource[2]->flags |= WIN_USE_WAIT;
+    link->resource[2]->start = 0;
+    link->resource[2]->end = 0x2000;
+    ret = pcmcia_request_window(link, link->resource[2], 250);
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_map_mem_page(link, link->win, mmiobase);
+    ret = pcmcia_map_mem_page(link, link->resource[2], mmiobase);
     if (ret)
 	    goto failed;
-    ti->mmio = ioremap(req.Base, req.Size);
+    ti->mmio = ioremap(link->resource[2]->start,
+		    resource_size(link->resource[2]));
 
     /* Allocate the SRAM memory window */
-    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
-    req.Base = 0;
-    req.Size = sramsize * 1024;
-    req.AccessSpeed = 250;
-    ret = pcmcia_request_window(link, &req, &info->sram_win_handle);
+    link->resource[3]->flags = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+    link->resource[3]->flags |= WIN_USE_WAIT;
+    link->resource[3]->start = 0;
+    link->resource[3]->end = sramsize * 1024;
+    ret = pcmcia_request_window(link, link->resource[3], 250);
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_map_mem_page(link, info->sram_win_handle, srambase);
+    ret = pcmcia_map_mem_page(link, link->resource[3], srambase);
     if (ret)
 	    goto failed;
 
     ti->sram_base = srambase >> 12;
-    ti->sram_virt = ioremap(req.Base, req.Size);
-    ti->sram_phys = req.Base;
+    ti->sram_virt = ioremap(link->resource[3]->start,
+		    resource_size(link->resource[3]));
+    ti->sram_phys = link->resource[3]->start;
 
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
@@ -316,7 +314,7 @@ static void ibmtr_release(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "ibmtr_release\n");
 
-	if (link->win) {
+	if (link->resource[2]->end) {
 		struct tok_info *ti = netdev_priv(dev);
 		iounmap(ti->mmio);
 	}

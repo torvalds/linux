@@ -391,7 +391,6 @@ static int ray_config(struct pcmcia_device *link)
 {
 	int ret = 0;
 	int i;
-	win_req_t req;
 	struct net_device *dev = (struct net_device *)link->priv;
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -420,46 +419,45 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 
 /*** Set up 32k window for shared memory (transmit and control) ************/
-	req.Attributes =
-	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x8000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &link->win);
+	link->resource[2]->flags |= WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
+	link->resource[2]->start = 0;
+	link->resource[2]->end = 0x8000;
+	ret = pcmcia_request_window(link, link->resource[2], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, link->win, 0);
+	ret = pcmcia_map_mem_page(link, link->resource[2], 0);
 	if (ret)
 		goto failed;
-	local->sram = ioremap(req.Base, req.Size);
+	local->sram = ioremap(link->resource[2]->start,
+			resource_size(link->resource[2]));
 
 /*** Set up 16k window for shared memory (receive buffer) ***************/
-	req.Attributes =
+	link->resource[3]->flags |=
 	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x4000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &local->rmem_handle);
+	link->resource[3]->start = 0;
+	link->resource[3]->end = 0x4000;
+	ret = pcmcia_request_window(link, link->resource[3], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, local->rmem_handle, 0x8000);
+	ret = pcmcia_map_mem_page(link, link->resource[3], 0x8000);
 	if (ret)
 		goto failed;
-	local->rmem = ioremap(req.Base, req.Size);
+	local->rmem = ioremap(link->resource[3]->start,
+			resource_size(link->resource[3]));
 
 /*** Set up window for attribute memory ***********************************/
-	req.Attributes =
+	link->resource[4]->flags |=
 	    WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_AM | WIN_ENABLE | WIN_USE_WAIT;
-	req.Base = 0;
-	req.Size = 0x1000;
-	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(link, &req, &local->amem_handle);
+	link->resource[4]->start = 0;
+	link->resource[4]->end = 0x1000;
+	ret = pcmcia_request_window(link, link->resource[4], ray_mem_speed);
 	if (ret)
 		goto failed;
-	ret = pcmcia_map_mem_page(link, local->amem_handle, 0);
+	ret = pcmcia_map_mem_page(link, link->resource[4], 0);
 	if (ret)
 		goto failed;
-	local->amem = ioremap(req.Base, req.Size);
+	local->amem = ioremap(link->resource[4]->start,
+			resource_size(link->resource[4]));
 
 	dev_dbg(&link->dev, "ray_config sram=%p\n", local->sram);
 	dev_dbg(&link->dev, "ray_config rmem=%p\n", local->rmem);

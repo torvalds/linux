@@ -1596,18 +1596,13 @@ static void nsp_cs_detach(struct pcmcia_device *link)
     ethernet device available to the system.
 ======================================================================*/
 
-struct nsp_cs_configdata {
-	nsp_hw_data		*data;
-	win_req_t		req;
-};
-
 static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
 			       unsigned int vcc,
 			       void *priv_data)
 {
-	struct nsp_cs_configdata *cfg_mem = priv_data;
+	nsp_hw_data		*data = priv_data;
 
 	if (cfg->index == 0)
 		return -ENODEV;
@@ -1663,21 +1658,24 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 		if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
 			cistpl_mem_t	*mem =
 				(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-			cfg_mem->req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-			cfg_mem->req.Attributes |= WIN_ENABLE;
-			cfg_mem->req.Base = mem->win[0].host_addr;
-			cfg_mem->req.Size = mem->win[0].len;
-			if (cfg_mem->req.Size < 0x1000)
-				cfg_mem->req.Size = 0x1000;
-			cfg_mem->req.AccessSpeed = 0;
-			if (pcmcia_request_window(p_dev, &cfg_mem->req, &p_dev->win) != 0)
+			p_dev->resource[2]->flags |= (WIN_DATA_WIDTH_16 |
+						WIN_MEMORY_TYPE_CM |
+						WIN_ENABLE);
+			p_dev->resource[2]->start = mem->win[0].host_addr;
+			p_dev->resource[2]->end = mem->win[0].len;
+			if (p_dev->resource[2]->end < 0x1000)
+				p_dev->resource[2]->end = 0x1000;
+			if (pcmcia_request_window(p_dev, p_dev->resource[2],
+							0) != 0)
 				goto next_entry;
-			if (pcmcia_map_mem_page(p_dev, p_dev->win,
+			if (pcmcia_map_mem_page(p_dev, p_dev->resource[2],
 					mem->win[0].card_addr) != 0)
 				goto next_entry;
 
-			cfg_mem->data->MmioAddress = (unsigned long) ioremap_nocache(cfg_mem->req.Base, cfg_mem->req.Size);
-			cfg_mem->data->MmioLength  = cfg_mem->req.Size;
+			data->MmioAddress = (unsigned long)
+				ioremap_nocache(p_dev->resource[2]->start,
+					resource_size(p_dev->resource[2]));
+			data->MmioLength  = resource_size(p_dev->resource[2]);
 		}
 		/* If we got this far, we're cool! */
 		return 0;
@@ -1693,18 +1691,12 @@ static int nsp_cs_config(struct pcmcia_device *link)
 {
 	int		  ret;
 	scsi_info_t	 *info	 = link->priv;
-	struct nsp_cs_configdata *cfg_mem;
 	struct Scsi_Host *host;
 	nsp_hw_data      *data = &nsp_data_base;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
-	cfg_mem = kzalloc(sizeof(*cfg_mem), GFP_KERNEL);
-	if (!cfg_mem)
-		return -ENOMEM;
-	cfg_mem->data = data;
-
-	ret = pcmcia_loop_config(link, nsp_cs_config_check, cfg_mem);
+	ret = pcmcia_loop_config(link, nsp_cs_config_check, data);
 	if (ret)
 		goto cs_failed;
 
@@ -1767,18 +1759,15 @@ static int nsp_cs_config(struct pcmcia_device *link)
 		printk(", io %pR", link->resource[0]);
 	if (link->resource[1])
 		printk(" & %pR", link->resource[1]);
-	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", cfg_mem->req.Base,
-		       cfg_mem->req.Base+cfg_mem->req.Size-1);
+	if (link->resource[2])
+		printk(", mem %pR", link->resource[2]);
 	printk("\n");
 
-	kfree(cfg_mem);
 	return 0;
 
  cs_failed:
 	nsp_dbg(NSP_DEBUG_INIT, "config fail");
 	nsp_cs_release(link);
-	kfree(cfg_mem);
 
 	return -ENODEV;
 } /* nsp_cs_config */
@@ -1807,7 +1796,7 @@ static void nsp_cs_release(struct pcmcia_device *link)
 		scsi_remove_host(info->host);
 	}
 
-	if (link->win) {
+	if (resource_size(link->resource[2])) {
 		if (data != NULL) {
 			iounmap((void *)(data->MmioAddress));
 		}

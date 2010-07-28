@@ -1,4 +1,11 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_request_window changes (as of 2.6.36)
+   Instead of win_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[2,3,4,5] for up to four ioport
+   ranges. After a call to pcmcia_request_window(), the regions found there
+   are reserved and may be used immediately -- until pcmcia_release_window()
+   is called.
+
 * pcmcia_request_io changes (as of 2.6.36)
    Instead of io_req_t, drivers are now requested to fill out
    struct pcmcia_device *p_dev->resource[0,1] for up to two ioport

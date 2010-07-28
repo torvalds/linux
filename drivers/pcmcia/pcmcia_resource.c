@@ -204,11 +204,10 @@ int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val)
 EXPORT_SYMBOL(pcmcia_write_config_byte);
 
 
-int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
+int pcmcia_map_mem_page(struct pcmcia_device *p_dev, struct resource *res,
 			unsigned int offset)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	struct resource *res = wh;
 	unsigned int w;
 	int ret;
 
@@ -386,7 +385,12 @@ out:
 	return ret;
 } /* pcmcia_release_io */
 
-
+/**
+ * pcmcia_release_window() - release reserved iomem for PCMCIA devices
+ *
+ * pcmcia_release_window() releases struct resource *res which was
+ * previously reserved by calling pcmcia_request_window().
+ */
 int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 {
 	struct pcmcia_socket *s = p_dev->socket;
@@ -420,6 +424,8 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 		kfree(win->res);
 		win->res = NULL;
 	}
+	res->start = res->end = 0;
+	res->flags = IORESOURCE_MEM;
 	p_dev->_win &= ~CLIENT_WIN_REQ(w);
 	mutex_unlock(&s->ops_mutex);
 
@@ -795,17 +801,21 @@ int pcmcia_setup_irq(struct pcmcia_device *p_dev)
 }
 
 
-/** pcmcia_request_window
+/**
+ * pcmcia_request_window() - attempt to reserve iomem for PCMCIA devices
  *
- * Request_window() establishes a mapping between card memory space
- * and system memory space.
+ * pcmcia_request_window() attepts to reserve an iomem ranges specified in
+ * struct resource *res pointing to one of the entries in
+ * struct pcmcia_device *p_dev->resource[2..5]. The "start" value is the
+ * requested start of the IO mem resource; "end" reflects the size
+ * requested.
  */
-int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_handle_t *wh)
+int pcmcia_request_window(struct pcmcia_device *p_dev, struct resource *res,
+			unsigned int speed)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
 	u_long align;
-	struct resource *res;
 	int w;
 
 	if (!(s->state & SOCKET_PRESENT)) {
@@ -814,19 +824,19 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	}
 
 	/* Window size defaults to smallest available */
-	if (req->Size == 0)
-		req->Size = s->map_size;
-	align = (s->features & SS_CAP_MEM_ALIGN) ? req->Size : s->map_size;
-	if (req->Size & (s->map_size-1)) {
+	if (res->end == 0)
+		res->end = s->map_size;
+	align = (s->features & SS_CAP_MEM_ALIGN) ? res->end : s->map_size;
+	if (res->end & (s->map_size-1)) {
 		dev_dbg(&p_dev->dev, "invalid map size\n");
 		return -EINVAL;
 	}
-	if ((req->Base && (s->features & SS_CAP_STATIC_MAP)) ||
-	    (req->Base & (align-1))) {
+	if ((res->start && (s->features & SS_CAP_STATIC_MAP)) ||
+	    (res->start & (align-1))) {
 		dev_dbg(&p_dev->dev, "invalid base address\n");
 		return -EINVAL;
 	}
-	if (req->Base)
+	if (res->start)
 		align = 0;
 
 	/* Allocate system memory window */
@@ -843,7 +853,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	win = &s->win[w];
 
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
-		win->res = pcmcia_find_mem_region(req->Base, req->Size, align,
+		win->res = pcmcia_find_mem_region(res->start, res->end, align,
 						0, s);
 		if (!win->res) {
 			dev_dbg(&p_dev->dev, "allocating mem region failed\n");
@@ -855,8 +865,8 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 
 	/* Configure the socket controller */
 	win->map = w+1;
-	win->flags = req->Attributes;
-	win->speed = req->AccessSpeed;
+	win->flags = res->flags & WIN_FLAGS_MAP;
+	win->speed = speed;
 	win->card_start = 0;
 
 	if (s->ops->set_mem_map(s, win) != 0) {
@@ -868,17 +878,14 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 
 	/* Return window handle */
 	if (s->features & SS_CAP_STATIC_MAP)
-		req->Base = win->static_start;
+		res->start = win->static_start;
 	else
-		req->Base = win->res->start;
+		res->start = win->res->start;
 
 	/* convert to new-style resources */
-	res = p_dev->resource[w + MAX_IO_WIN];
-	res->start = req->Base;
-	res->end = req->Base + req->Size - 1;
-	res->flags &= ~IORESOURCE_BITS;
-	res->flags |= (req->Attributes & WIN_FLAGS_MAP) | (win->map << 2);
-	res->flags |= IORESOURCE_MEM;
+	res->end += res->start - 1;
+	res->flags &= ~WIN_FLAGS_REQ;
+	res->flags |= (win->map << 2) | IORESOURCE_MEM;
 	res->parent = win->res;
 	if (win->res)
 		request_resource(&iomem_resource, res);
@@ -886,7 +893,6 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	dev_dbg(&p_dev->dev, "request_window results in %pR\n", res);
 
 	mutex_unlock(&s->ops_mutex);
-	*wh = res;
 
 	return 0;
 } /* pcmcia_request_window */

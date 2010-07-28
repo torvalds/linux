@@ -68,28 +68,4 @@ typedef struct config_req_t {
 #define PRESENT_IOBASE_3	0x100
 #define PRESENT_IOSIZE		0x200
 
-/* For RequestWindow */
-typedef struct win_req_t {
-    u_int	Attributes;
-    u_long	Base;
-    u_int	Size;
-    u_int	AccessSpeed;
-} win_req_t;
-
-/* Attributes for RequestWindow */
-#define WIN_MEMORY_TYPE_CM	0x00 /* default */
-#define WIN_MEMORY_TYPE_AM	0x20 /* MAP_ATTRIB */
-#define WIN_DATA_WIDTH_8	0x00 /* default */
-#define WIN_DATA_WIDTH_16	0x02 /* MAP_16BIT */
-#define WIN_ENABLE		0x01 /* MAP_ACTIVE */
-#define WIN_USE_WAIT		0x40 /* MAP_USE_WAIT */
-
-#define WIN_FLAGS_MAP		0x63 /* MAP_ATTRIB | MAP_16BIT | MAP_ACTIVE |
-					MAP_USE_WAIT */
-#define WIN_FLAGS_REQ		0x1c /* mapping to socket->win[i]:
-					0x04 -> 0
-					0x08 -> 1
-					0x0c -> 2
-					0x10 -> 3 */
-
 #endif /* _LINUX_CS_H */

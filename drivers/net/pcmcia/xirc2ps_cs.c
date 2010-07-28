@@ -869,8 +869,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto config_error;
 
     if (local->dingo) {
-	win_req_t req;
-
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
 	 * the base address of the ethernet port (BasePort1) is written
@@ -890,14 +888,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
-	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-	req.Base = req.Size = 0;
-	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(link, &req, &link->win)))
+	link->resource[2]->flags = WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_AM |
+					WIN_ENABLE;
+	link->resource[2]->start = link->resource[2]->end = 0;
+	if ((err = pcmcia_request_window(link, link->resource[2], 0)))
 	    goto config_error;
 
-	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
-	if ((err = pcmcia_map_mem_page(link, link->win, 0)))
+	local->dingo_ccr = ioremap(link->resource[2]->start, 0x1000) + 0x0800;
+	if ((err = pcmcia_map_mem_page(link, link->resource[2], 0)))
 	    goto config_error;
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
@@ -988,7 +986,7 @@ xirc2ps_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "release\n");
 
-	if (link->win) {
+	if (link->resource[2]->end) {
 		struct net_device *dev = link->priv;
 		local_info_t *local = netdev_priv(dev);
 		if (local->dingo)

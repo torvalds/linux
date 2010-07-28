@@ -36,8 +36,6 @@ struct pcmcia_device;
 struct config_t;
 struct net_device;
 
-typedef struct resource *window_handle_t;
-
 /* dynamic device IDs for PCMCIA device drivers. See
  * Documentation/pcmcia/driver.txt for details.
 */
@@ -92,7 +90,6 @@ struct pcmcia_device {
 
 	/* deprecated, will be cleaned up soon */
 	config_req_t		conf;
-	window_handle_t		win;
 
 	/* device setup */
 	unsigned int		irq;
@@ -209,10 +206,10 @@ int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 				 config_req_t *req);
 
-int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req,
-			  window_handle_t *wh);
-int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t win);
-int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t win,
+int pcmcia_request_window(struct pcmcia_device *p_dev, struct resource *res,
+			unsigned int speed);
+int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res);
+int pcmcia_map_mem_page(struct pcmcia_device *p_dev, struct resource *res,
 			unsigned int offset);
 
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
@@ -233,6 +230,23 @@ static inline int pcmcia_io_cfg_data_width(unsigned int flags)
 		return IO_DATA_PATH_WIDTH_8;
 	return IO_DATA_PATH_WIDTH_AUTO;
 }
+
+/* IO memory */
+#define WIN_MEMORY_TYPE_CM	0x00 /* default */
+#define WIN_MEMORY_TYPE_AM	0x20 /* MAP_ATTRIB */
+#define WIN_DATA_WIDTH_8	0x00 /* default */
+#define WIN_DATA_WIDTH_16	0x02 /* MAP_16BIT */
+#define WIN_ENABLE		0x01 /* MAP_ACTIVE */
+#define WIN_USE_WAIT		0x40 /* MAP_USE_WAIT */
+
+#define WIN_FLAGS_MAP		0x63 /* MAP_ATTRIB | MAP_16BIT | MAP_ACTIVE |
+					MAP_USE_WAIT */
+#define WIN_FLAGS_REQ		0x1c /* mapping to socket->win[i]:
+					0x04 -> 0
+					0x08 -> 1
+					0x0c -> 2
+					0x10 -> 3 */
+
 
 #endif /* __KERNEL__ */
 
