@@ -121,11 +121,13 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	group = mark->group;
 
-	/* if !group something else already marked this to die */
-	if (!group) {
+	/* something else already called this function on this mark */
+	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
 		return;
 	}
+
+	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 
 	/* 1 from caller and 1 for being on i_list/g_list */
 	BUG_ON(atomic_read(&mark->refcnt) < 2);
@@ -141,7 +143,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 		BUG();
 
 	list_del_init(&mark->g_list);
-	mark->group = NULL;
 
 	fsnotify_put_mark(mark); /* for i_list and g_list */
 
@@ -229,6 +230,8 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 	spin_lock(&mark->lock);
 	spin_lock(&group->mark_lock);
 
+	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
+
 	mark->group = group;
 	list_add(&mark->g_list, &group->marks_list);
 	atomic_inc(&group->num_marks);
@@ -258,7 +261,7 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 
 	return ret;
 err:
-	mark->group = NULL;
+	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	list_del_init(&mark->g_list);
 	atomic_dec(&group->num_marks);
 	fsnotify_put_mark(mark);

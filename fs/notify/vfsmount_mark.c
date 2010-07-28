@@ -145,7 +145,7 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 	struct hlist_node *node, *last = NULL;
 	int ret = 0;
 
-	mark->flags = FSNOTIFY_MARK_FLAG_VFSMOUNT;
+	mark->flags |= FSNOTIFY_MARK_FLAG_VFSMOUNT;
 
 	assert_spin_locked(&mark->lock);
 	assert_spin_locked(&group->mark_lock);

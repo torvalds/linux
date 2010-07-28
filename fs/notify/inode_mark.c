@@ -187,7 +187,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 	struct hlist_node *node, *last = NULL;
 	int ret = 0;
 
-	mark->flags = FSNOTIFY_MARK_FLAG_INODE;
+	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
 	assert_spin_locked(&mark->lock);
 	assert_spin_locked(&group->mark_lock);
