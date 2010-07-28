@@ -341,6 +341,9 @@ static u32 group2_table[] = {
 #define EFLG_PF (1<<2)
 #define EFLG_CF (1<<0)
 
+#define EFLG_RESERVED_ZEROS_MASK 0xffc0802a
+#define EFLG_RESERVED_ONE_MASK 2
+
 /*
  * Instruction emulation:
  * Most instructions are emulated directly via a fragment of inline assembly
@@ -1729,6 +1732,78 @@ static int emulate_popa(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static int emulate_iret_real(struct x86_emulate_ctxt *ctxt,
+			     struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc = X86EMUL_CONTINUE;
+	unsigned long temp_eip = 0;
+	unsigned long temp_eflags = 0;
+	unsigned long cs = 0;
+	unsigned long mask = EFLG_CF | EFLG_PF | EFLG_AF | EFLG_ZF | EFLG_SF | EFLG_TF |
+			     EFLG_IF | EFLG_DF | EFLG_OF | EFLG_IOPL | EFLG_NT | EFLG_RF |
+			     EFLG_AC | EFLG_ID | (1 << 1); /* Last one is the reserved bit */
+	unsigned long vm86_mask = EFLG_VM | EFLG_VIF | EFLG_VIP;
+
+	/* TODO: Add stack limit check */
+
+	rc = emulate_pop(ctxt, ops, &temp_eip, c->op_bytes);
+
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	if (temp_eip & ~0xffff) {
+		emulate_gp(ctxt, 0);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+
+	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
+
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	rc = emulate_pop(ctxt, ops, &temp_eflags, c->op_bytes);
+
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	rc = load_segment_descriptor(ctxt, ops, (u16)cs, VCPU_SREG_CS);
+
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->eip = temp_eip;
+
+
+	if (c->op_bytes == 4)
+		ctxt->eflags = ((temp_eflags & mask) | (ctxt->eflags & vm86_mask));
+	else if (c->op_bytes == 2) {
+		ctxt->eflags &= ~0xffff;
+		ctxt->eflags |= temp_eflags;
+	}
+
+	ctxt->eflags &= ~EFLG_RESERVED_ZEROS_MASK; /* Clear reserved zeros */
+	ctxt->eflags |= EFLG_RESERVED_ONE_MASK;
+
+	return rc;
+}
+
+static inline int emulate_iret(struct x86_emulate_ctxt *ctxt,
+				    struct x86_emulate_ops* ops)
+{
+	switch(ctxt->mode) {
+	case X86EMUL_MODE_REAL:
+		return emulate_iret_real(ctxt, ops);
+	case X86EMUL_MODE_VM86:
+	case X86EMUL_MODE_PROT16:
+	case X86EMUL_MODE_PROT32:
+	case X86EMUL_MODE_PROT64:
+	default:
+		/* iret from protected mode unimplemented yet */
+		return X86EMUL_UNHANDLEABLE;
+	}
+}
+
 static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
@@ -2857,6 +2932,12 @@ special_insn:
 		break;
 	case 0xcb:		/* ret far */
 		rc = emulate_ret_far(ctxt, ops);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
+	case 0xcf:		/* iret */
+		rc = emulate_iret(ctxt, ops);
+
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
