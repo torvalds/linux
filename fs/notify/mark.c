@@ -349,10 +349,8 @@ static int fsnotify_mark_destroy(void *ignored)
 
 	for (;;) {
 		spin_lock(&destroy_lock);
-		list_for_each_entry_safe(mark, next, &destroy_list, destroy_list) {
-			list_del(&mark->destroy_list);
-			list_add(&mark->destroy_list, &private_destroy_list);
-		}
+		/* exchange the list head */
+		list_replace_init(&destroy_list, &private_destroy_list);
 		spin_unlock(&destroy_lock);
 
 		synchronize_srcu(&fsnotify_mark_srcu);
