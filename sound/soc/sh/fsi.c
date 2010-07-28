@@ -803,10 +803,6 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 	if (!set_rate)
 		return -EIO;
 
-	/* clock stop */
-	pm_runtime_put_sync(dai->dev);
-	fsi_clk_ctrl(fsi, 0);
-
 	ret = set_rate(fsi_is_port_a(fsi), params_rate(params));
 	if (ret > 0) {
 		u32 data = 0;
@@ -865,7 +861,6 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 		fsi_clk_ctrl(fsi, 1);
 		ret = 0;
 	}
-	pm_runtime_get_sync(dai->dev);
 
 	return ret;
 
