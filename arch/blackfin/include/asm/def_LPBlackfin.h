@@ -394,6 +394,7 @@
 #define EVT13              0xFFE02034	/* Event Vector 13 ESR Address */
 #define EVT14              0xFFE02038	/* Event Vector 14 ESR Address */
 #define EVT15              0xFFE0203C	/* Event Vector 15 ESR Address */
+#define EVT_OVERRIDE       0xFFE02100	/* Event Vector Override Register */
 #define IMASK              0xFFE02104	/* Interrupt Mask Register */
 #define IPEND              0xFFE02108	/* Interrupt Pending Register */
 #define ILAT               0xFFE0210C	/* Interrupt Latch Register */
