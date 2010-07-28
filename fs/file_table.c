@@ -230,6 +230,15 @@ static void __fput(struct file *file)
 	might_sleep();
 
 	fsnotify_close(file);
+
+	/*
+	 * fsnotify_create_event may have taken one or more references on this
+	 * file.  If it did so it left one reference for us to drop to make sure
+	 * its calls to fput could not prematurely destroy the file.
+	 */
+	if (atomic_long_read(&file->f_count))
+		return fput(file);
+
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.

@@ -426,6 +426,19 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 	switch (data_type) {
 	case FSNOTIFY_EVENT_FILE: {
 		event->file = data;
+		/*
+		 * if this file is about to disappear hold an extra reference
+		 * until we return to __fput so we don't have to worry about
+		 * future get/put destroying the file under us or generating
+		 * additional events.  Notice that we change f_mode without
+		 * holding f_lock.  This is safe since this is the only possible
+		 * reference to this object in the kernel (it was about to be
+		 * freed, remember?)
+		 */
+		if (!atomic_long_read(&event->file->f_count)) {
+			event->file->f_mode |= FMODE_NONOTIFY;
+			get_file(event->file);
+		}
 		get_file(event->file);
 		break;
 	}
