@@ -594,7 +594,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 {
 	int i;
 
-	ugeth_info("UCC%d Geth registers:", ugeth->ug_info->uf_info.ucc_num);
+	ugeth_info("UCC%d Geth registers:", ugeth->ug_info->uf_info.ucc_num + 1);
 	ugeth_info("Base address: 0x%08x", (u32) ugeth->ug_regs);
 
 	ugeth_info("maccfg1    : addr - 0x%08x, val - 0x%08x",
