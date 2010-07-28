@@ -3868,6 +3868,9 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 			rpos = reader->read;
 			pos += size;
 
+			if (rpos >= commit)
+				break;
+
 			event = rb_reader_event(cpu_buffer);
 			size = rb_event_length(event);
 		} while (len > size);
