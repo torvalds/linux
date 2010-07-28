@@ -141,28 +141,51 @@ void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
 static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
-			 struct fsnotify_mark *mark,
-			__u32 mask, void *data,
+			 struct fsnotify_mark *inode_mark,
+			 struct fsnotify_mark *vfsmount_mark,
+			 __u32 mask, void *data,
 			 int data_is, u32 cookie,
 			 const unsigned char *file_name,
 			 struct fsnotify_event **event)
 {
-	struct fsnotify_group *group = mark->group;
-	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
+	struct fsnotify_group *group = inode_mark->group;
+	__u32 inode_test_mask = (mask & ~FS_EVENT_ON_CHILD);
+	__u32 vfsmount_test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
 	pr_debug("%s: group=%p to_tell=%p mnt=%p mark=%p mask=%x data=%p"
 		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
-		 mnt, mark, mask, data, data_is, cookie, *event);
+		 mnt, inode_mark, mask, data, data_is, cookie, *event);
 
-	if ((mask & FS_MODIFY) &&
-	    !(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-		mark->ignored_mask = 0;
+	/* clear ignored on inode modification */
+	if (mask & FS_MODIFY) {
+		if (inode_mark &&
+		    !(inode_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+			inode_mark->ignored_mask = 0;
+		if (vfsmount_mark &&
+		    !(vfsmount_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+			vfsmount_mark->ignored_mask = 0;
+	}
 
-	if (!(test_mask & mark->mask & ~mark->ignored_mask))
+	/* does the inode mark tell us to do something? */
+	if (inode_mark) {
+		inode_test_mask &= inode_mark->mask;
+		inode_test_mask &= ~inode_mark->ignored_mask;
+	}
+
+	/* does the vfsmount_mark tell us to do something? */
+	if (vfsmount_mark) {
+		vfsmount_test_mask &= vfsmount_mark->mask;
+		vfsmount_test_mask &= ~vfsmount_mark->ignored_mask;
+		if (inode_mark)
+			vfsmount_test_mask &= ~inode_mark->ignored_mask;
+	}
+
+	if (!inode_test_mask && !vfsmount_test_mask)
 		return 0;
 
-	if (group->ops->should_send_event(group, to_tell, mnt, mark, mask,
-					  data, data_is) == false)
+	if (group->ops->should_send_event(group, to_tell, mnt, inode_mark,
+					  vfsmount_mark, mask, data,
+					  data_is) == false)
 		return 0;
 
 	if (!*event) {
@@ -172,7 +195,7 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 		if (!*event)
 			return -ENOMEM;
 	}
-	return group->ops->handle_event(group, mark, *event);
+	return group->ops->handle_event(group, inode_mark, vfsmount_mark, *event);
 }
 
 /*
@@ -213,14 +236,16 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 	if ((mask & FS_MODIFY) ||
 	    (test_mask & to_tell->i_fsnotify_mask))
-		inode_node = to_tell->i_fsnotify_marks.first;
+		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
+					      &fsnotify_mark_srcu);
 	else
 		inode_node = NULL;
 
 	if (mnt) {
 		if ((mask & FS_MODIFY) ||
 		    (test_mask & mnt->mnt_fsnotify_mask))
-			vfsmount_node = mnt->mnt_fsnotify_marks.first;
+			vfsmount_node = srcu_dereference(mnt->mnt_fsnotify_marks.first,
+							 &fsnotify_mark_srcu);
 		else
 			vfsmount_node = NULL;
 	} else {
@@ -245,26 +270,27 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 		if (inode_group < vfsmount_group) {
 			/* handle inode */
-			send_to_group(to_tell, NULL, inode_mark, mask, data,
+			send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
 				      data_is, cookie, file_name, &event);
 			used_inode = true;
 		} else if (vfsmount_group < inode_group) {
-			send_to_group(to_tell, mnt, vfsmount_mark, mask, data,
+			send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
 				      data_is, cookie, file_name, &event);
 			used_vfsmount = true;
 		} else {
-			send_to_group(to_tell, mnt, vfsmount_mark, mask, data,
-				      data_is, cookie, file_name, &event);
+			send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
+				      mask, data, data_is, cookie, file_name,
+				      &event);
 			used_vfsmount = true;
-			send_to_group(to_tell, NULL, inode_mark, mask, data,
-				      data_is, cookie, file_name, &event);
 			used_inode = true;
 		}
 
 		if (used_inode)
-			inode_node = inode_node->next;
+			inode_node = srcu_dereference(inode_node->next,
+						      &fsnotify_mark_srcu);
 		if (used_vfsmount)
-			vfsmount_node = vfsmount_node->next;
+			vfsmount_node = srcu_dereference(vfsmount_node->next,
+							 &fsnotify_mark_srcu);
 	}
 
 	srcu_read_unlock(&fsnotify_mark_srcu, idx);

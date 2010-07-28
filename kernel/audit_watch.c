@@ -503,7 +503,8 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 }
 
 static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,
-					  struct vfsmount *mnt, struct fsnotify_mark *mark,
+					  struct vfsmount *mnt, struct fsnotify_mark *inode_mark,
+					  struct fsnotify_mark *vfsmount_mark,
 					  __u32 mask, void *data, int data_type)
 {
        return true;
@@ -511,7 +512,8 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 
 /* Update watch data in audit rules based on fsnotify events. */
 static int audit_watch_handle_event(struct fsnotify_group *group,
-				    struct fsnotify_mark *mark,
+				    struct fsnotify_mark *inode_mark,
+				    struct fsnotify_mark *vfsmount_mark,
 				    struct fsnotify_event *event)
 {
 	struct inode *inode;
@@ -519,7 +521,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 	const char *dname = event->file_name;
 	struct audit_parent *parent;
 
-	parent = container_of(mark, struct audit_parent, mark);
+	parent = container_of(inode_mark, struct audit_parent, mark);
 
 	BUG_ON(group != audit_watch_group);
 

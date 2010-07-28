@@ -904,7 +904,8 @@ static void evict_chunk(struct audit_chunk *chunk)
 }
 
 static int audit_tree_handle_event(struct fsnotify_group *group,
-				   struct fsnotify_mark *mark,
+				   struct fsnotify_mark *inode_mark,
+				   struct fsnotify_mark *vfsmonut_mark,
 				   struct fsnotify_event *event)
 {
 	BUG();
@@ -920,7 +921,8 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify
 }
 
 static bool audit_tree_send_event(struct fsnotify_group *group, struct inode *inode,
-				  struct vfsmount *mnt, struct fsnotify_mark *mark,
+				  struct vfsmount *mnt, struct fsnotify_mark *inode_mark,
+				  struct fsnotify_mark *vfsmount_mark,
 				  __u32 mask, void *data, int data_type)
 {
 	return false;

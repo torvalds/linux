@@ -83,7 +83,8 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * events.
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
-				struct fsnotify_mark *mark,
+				struct fsnotify_mark *inode_mark,
+				struct fsnotify_mark *vfsmount_mark,
 				struct fsnotify_event *event)
 {
 	struct dnotify_mark *dn_mark;
@@ -93,11 +94,13 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	struct fown_struct *fown;
 	__u32 test_mask = event->mask & ~FS_EVENT_ON_CHILD;
 
+	BUG_ON(vfsmount_mark);
+
 	to_tell = event->to_tell;
 
-	dn_mark = container_of(mark, struct dnotify_mark, fsn_mark);
+	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
-	spin_lock(&mark->lock);
+	spin_lock(&inode_mark->lock);
 	prev = &dn_mark->dn;
 	while ((dn = *prev) != NULL) {
 		if ((dn->dn_mask & test_mask) == 0) {
@@ -111,11 +114,11 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 		else {
 			*prev = dn->dn_next;
 			kmem_cache_free(dnotify_struct_cache, dn);
-			dnotify_recalc_inode_mask(mark);
+			dnotify_recalc_inode_mask(inode_mark);
 		}
 	}
 
-	spin_unlock(&mark->lock);
+	spin_unlock(&inode_mark->lock);
 
 	return 0;
 }
@@ -126,8 +129,9 @@ static int dnotify_handle_event(struct fsnotify_group *group,
  */
 static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct inode *inode, struct vfsmount *mnt,
-				      struct fsnotify_mark *mark, __u32 mask,
-				      void *data, int data_type)
+				      struct fsnotify_mark *inode_mark,
+				      struct fsnotify_mark *vfsmount_mark,
+				      __u32 mask, void *data, int data_type)
 {
 	/* not a dir, dnotify doesn't care */
 	if (!S_ISDIR(inode->i_mode))

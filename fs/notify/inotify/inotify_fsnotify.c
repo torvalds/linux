@@ -90,7 +90,8 @@ static struct fsnotify_event *inotify_merge(struct list_head *list,
 }
 
 static int inotify_handle_event(struct fsnotify_group *group,
-				struct fsnotify_mark *mark,
+				struct fsnotify_mark *inode_mark,
+				struct fsnotify_mark *vfsmount_mark,
 				struct fsnotify_event *event)
 {
 	struct inotify_inode_mark *i_mark;
@@ -100,12 +101,14 @@ static int inotify_handle_event(struct fsnotify_group *group,
 	struct fsnotify_event *added_event;
 	int wd, ret = 0;
 
+	BUG_ON(vfsmount_mark);
+
 	pr_debug("%s: group=%p event=%p to_tell=%p mask=%x\n", __func__, group,
 		 event, event->to_tell, event->mask);
 
 	to_tell = event->to_tell;
 
-	i_mark = container_of(mark, struct inotify_inode_mark,
+	i_mark = container_of(inode_mark, struct inotify_inode_mark,
 			      fsn_mark);
 	wd = i_mark->wd;
 
@@ -127,8 +130,8 @@ static int inotify_handle_event(struct fsnotify_group *group,
 			ret = PTR_ERR(added_event);
 	}
 
-	if (mark->mask & IN_ONESHOT)
-		fsnotify_destroy_mark(mark);
+	if (inode_mark->mask & IN_ONESHOT)
+		fsnotify_destroy_mark(inode_mark);
 
 	return ret;
 }
@@ -140,6 +143,7 @@ static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify
 
 static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
 				      struct vfsmount *mnt, struct fsnotify_mark *mark,
+				      struct fsnotify_mark *vfsmount_mark,
 				      __u32 mask, void *data, int data_type)
 {
 	if ((mark->mask & FS_EXCL_UNLINK) &&
