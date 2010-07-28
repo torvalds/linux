@@ -2451,7 +2451,7 @@ int wiphy_debug(const struct wiphy *wiphy, const char *format, ...)
 	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
 #elif defined(CONFIG_DYNAMIC_DEBUG)
 #define wiphy_dbg(wiphy, format, args...)			\
-	dynamic_pr_debug("%s: " format,	wiphy_name(dev), ##args)
+	dynamic_pr_debug("%s: " format,	wiphy_name(wiphy), ##args)
 #else
 #define wiphy_dbg(wiphy, format, args...)				\
 ({									\
