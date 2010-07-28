@@ -47,6 +47,8 @@ extern int memblock_can_resize;
 #define memblock_dbg(fmt, ...) \
 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
+u64 memblock_find_in_range(u64 start, u64 end, u64 size, u64 align);
+
 extern void __init memblock_init(void);
 extern void __init memblock_analyze(void);
 extern long memblock_add(phys_addr_t base, phys_addr_t size);
