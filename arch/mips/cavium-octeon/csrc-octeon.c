@@ -53,7 +53,6 @@ static struct clocksource clocksource_mips = {
 unsigned long long notrace sched_clock(void)
 {
 	/* 64-bit arithmatic can overflow, so use 128-bit.  */
-#if (__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ <= 3))
 	u64 t1, t2, t3;
 	unsigned long long rv;
 	u64 mult = clocksource_mips.mult;
@@ -73,13 +72,6 @@ unsigned long long notrace sched_clock(void)
 		: [cnt] "r" (cnt), [mult] "r" (mult), [shift] "r" (shift)
 		: "hi", "lo");
 	return rv;
-#else
-	/* GCC > 4.3 do it the easy way.  */
-	unsigned int __attribute__((mode(TI))) t;
-	t = read_c0_cvmcount();
-	t = t * clocksource_mips.mult;
-	return (unsigned long long)(t >> clocksource_mips.shift);
-#endif
 }
 
 void __init plat_time_init(void)
