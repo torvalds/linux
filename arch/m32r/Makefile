@@ -12,7 +12,7 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux	:=
 
 KBUILD_CFLAGS += -pipe -fno-schedule-insns
-CFLAGS_KERNEL += -mmodel=medium
+KBUILD_CFLAGS_KERNEL += -mmodel=medium
 KBUILD_CFLAGS_MODULE += -mmodel=large
 
 ifdef CONFIG_CHIP_VDEC2

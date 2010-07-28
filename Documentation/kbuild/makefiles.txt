@@ -923,9 +923,9 @@ When kbuild executes, the following steps are followed (roughly):
 	The first example utilises the trick that a config option expands
 	to 'y' when selected.
 
-    CFLAGS_KERNEL	$(CC) options specific for built-in
+    KBUILD_AFLAGS_KERNEL	$(AS) options specific for built-in
 
-	$(CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	$(KBUILD_AFLAGS_KERNEL) contains extra C compiler flags used to compile
 	resident kernel code.
 
     KBUILD_AFLAGS_MODULE   Options for $(AS) when building modules
@@ -933,6 +933,11 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_AFLAGS_MODULE) is used to add arch specific options that
 	are used for $(AS).
 	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
+
+    KBUILD_CFLAGS_KERNEL	$(CC) options specific for built-in
+
+	$(KBUILD_CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	resident kernel code.
 
     KBUILD_CFLAGS_MODULE   Options for $(CC) when building modules
 
