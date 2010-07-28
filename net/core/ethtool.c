@@ -216,22 +216,34 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
-static int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
+static int ethtool_set_rxnfc(struct net_device *dev,
+			     u32 cmd, void __user *useraddr)
 {
-	struct ethtool_rxnfc cmd;
+	struct ethtool_rxnfc info;
+	size_t info_size = sizeof(info);
 
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
+	/* struct ethtool_rxnfc was originally defined for
+	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
+	 * members.  User-space might still be using that
+	 * definition. */
+	if (cmd == ETHTOOL_SRXFH)
+		info_size = (offsetof(struct ethtool_rxnfc, data) +
+			     sizeof(info.data));
+
+	if (copy_from_user(&info, useraddr, info_size))
 		return -EFAULT;
 
-	return dev->ethtool_ops->set_rxnfc(dev, &cmd);
+	return dev->ethtool_ops->set_rxnfc(dev, &info);
 }
 
-static int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
+static int ethtool_get_rxnfc(struct net_device *dev,
+			     u32 cmd, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
+	size_t info_size = sizeof(info);
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	int ret;
 	void *rule_buf = NULL;
@@ -239,7 +251,15 @@ static int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
 	if (!ops->get_rxnfc)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&info, useraddr, sizeof(info)))
+	/* struct ethtool_rxnfc was originally defined for
+	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
+	 * members.  User-space might still be using that
+	 * definition. */
+	if (cmd == ETHTOOL_GRXFH)
+		info_size = (offsetof(struct ethtool_rxnfc, data) +
+			     sizeof(info.data));
+
+	if (copy_from_user(&info, useraddr, info_size))
 		return -EFAULT;
 
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
@@ -257,7 +277,7 @@ static int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
 		goto err_out;
 
 	ret = -EFAULT;
-	if (copy_to_user(useraddr, &info, sizeof(info)))
+	if (copy_to_user(useraddr, &info, info_size))
 		goto err_out;
 
 	if (rule_buf) {
@@ -1112,12 +1132,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCLSRLCNT:
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_GRXCLSRLALL:
-		rc = ethtool_get_rxnfc(dev, useraddr);
+		rc = ethtool_get_rxnfc(dev, ethcmd, useraddr);
 		break;
 	case ETHTOOL_SRXFH:
 	case ETHTOOL_SRXCLSRLDEL:
 	case ETHTOOL_SRXCLSRLINS:
-		rc = ethtool_set_rxnfc(dev, useraddr);
+		rc = ethtool_set_rxnfc(dev, ethcmd, useraddr);
 		break;
 	case ETHTOOL_GGRO:
 		rc = ethtool_get_gro(dev, useraddr);
