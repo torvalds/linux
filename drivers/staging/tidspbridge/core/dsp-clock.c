@@ -285,7 +285,7 @@ int dsp_clk_enable(enum dsp_clk_id clk_id)
 		status = -EPERM;
 	}
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		set_dsp_clk_active(&dsp_clocks, clk_id);
 
 out:
@@ -354,7 +354,7 @@ int dsp_clk_disable(enum dsp_clk_id clk_id)
 		status = -EPERM;
 	}
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		set_dsp_clk_inactive(&dsp_clocks, clk_id);
 
 out:

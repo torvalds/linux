@@ -70,19 +70,19 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 	DBC_ASSERT(ul_shm_base_virt != 0);
 
 	/* Check if it is a read of Trace section */
-	if (DSP_SUCCEEDED(status) && !ul_trace_sec_beg) {
+	if (!status && !ul_trace_sec_beg) {
 		status = dev_get_symbol(dev_context->hdev_obj,
 					DSP_TRACESEC_BEG, &ul_trace_sec_beg);
 	}
 	DBC_ASSERT(ul_trace_sec_beg != 0);
 
-	if (DSP_SUCCEEDED(status) && !ul_trace_sec_end) {
+	if (!status && !ul_trace_sec_end) {
 		status = dev_get_symbol(dev_context->hdev_obj,
 					DSP_TRACESEC_END, &ul_trace_sec_end);
 	}
 	DBC_ASSERT(ul_trace_sec_end != 0);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if ((dsp_addr <= ul_trace_sec_end) &&
 		    (dsp_addr >= ul_trace_sec_beg))
 			trace_read = true;
@@ -100,19 +100,19 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 		ul_ext_end = 0;
 
 		/* Get DYNEXT_BEG, EXT_BEG and EXT_END. */
-		if (DSP_SUCCEEDED(status) && !ul_dyn_ext_base) {
+		if (!status && !ul_dyn_ext_base) {
 			status = dev_get_symbol(dev_context->hdev_obj,
 						DYNEXTBASE, &ul_dyn_ext_base);
 		}
 		DBC_ASSERT(ul_dyn_ext_base != 0);
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = dev_get_symbol(dev_context->hdev_obj,
 						EXTBASE, &ul_ext_base);
 		}
 		DBC_ASSERT(ul_ext_base != 0);
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = dev_get_symbol(dev_context->hdev_obj,
 						EXTEND, &ul_ext_end);
 		}
@@ -131,7 +131,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 		if (ul_ext_end < ul_ext_base)
 			status = -EPERM;
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			ul_tlb_base_virt =
 			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
@@ -167,7 +167,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 
 	offset = dsp_addr - ul_ext_base;
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		memcpy(host_buff, (u8 *) dw_base_addr + offset, ul_num_bytes);
 
 	return status;
@@ -247,12 +247,12 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 		/* Check if it is a load to Trace section */
 		ret = dev_get_symbol(dev_context->hdev_obj,
 				     DSP_TRACESEC_BEG, &ul_trace_sec_beg);
-		if (DSP_SUCCEEDED(ret))
+		if (!ret)
 			ret = dev_get_symbol(dev_context->hdev_obj,
 					     DSP_TRACESEC_END,
 					     &ul_trace_sec_end);
 	}
-	if (DSP_SUCCEEDED(ret)) {
+	if (!ret) {
 		if ((dsp_addr <= ul_trace_sec_end) &&
 		    (dsp_addr >= ul_trace_sec_beg))
 			trace_load = true;
@@ -272,7 +272,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 					     SHMBASENAME, &ul_shm_base_virt);
 		DBC_ASSERT(ul_shm_base_virt != 0);
 		if (dynamic_load) {
-			if (DSP_SUCCEEDED(ret)) {
+			if (!ret) {
 				if (symbols_reloaded)
 					ret =
 					    dev_get_symbol
@@ -280,7 +280,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 					     &ul_ext_base);
 			}
 			DBC_ASSERT(ul_ext_base != 0);
-			if (DSP_SUCCEEDED(ret)) {
+			if (!ret) {
 				/* DR  OMAPS00013235 : DLModules array may be
 				 * in EXTMEM. It is expected that DYNEXTMEM and
 				 * EXTMEM are contiguous, so checking for the
@@ -293,13 +293,13 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			}
 		} else {
 			if (symbols_reloaded) {
-				if (DSP_SUCCEEDED(ret))
+				if (!ret)
 					ret =
 					    dev_get_symbol
 					    (dev_context->hdev_obj, EXTBASE,
 					     &ul_ext_base);
 				DBC_ASSERT(ul_ext_base != 0);
-				if (DSP_SUCCEEDED(ret))
+				if (!ret)
 					ret =
 					    dev_get_symbol
 					    (dev_context->hdev_obj, EXTEND,
@@ -316,19 +316,16 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 		if (ul_ext_end < ul_ext_base)
 			ret = -EPERM;
 
-		if (DSP_SUCCEEDED(ret)) {
+		if (!ret) {
 			ul_tlb_base_virt =
 			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 
 			if (symbols_reloaded) {
-				if (DSP_SUCCEEDED(ret)) {
-					ret =
-					    dev_get_symbol
+				ret = dev_get_symbol
 					    (dev_context->hdev_obj,
 					     DSP_TRACESEC_END, &shm0_end);
-				}
-				if (DSP_SUCCEEDED(ret)) {
+				if (!ret) {
 					ret =
 					    dev_get_symbol
 					    (dev_context->hdev_obj, DYNEXTBASE,
@@ -360,7 +357,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	if (!dw_base_addr || !ul_ext_base || !ul_ext_end)
 		ret = -EPERM;
 
-	if (DSP_SUCCEEDED(ret)) {
+	if (!ret) {
 		for (i = 0; i < 4; i++)
 			remain_byte[i] = 0x0;
 
@@ -369,7 +366,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 		if (dsp_addr > ul_ext_end || dw_offset > dsp_addr)
 			ret = -EPERM;
 	}
-	if (DSP_SUCCEEDED(ret)) {
+	if (!ret) {
 		if (ul_num_bytes)
 			memcpy((u8 *) dw_base_addr + dw_offset, host_buff,
 			       ul_num_bytes);

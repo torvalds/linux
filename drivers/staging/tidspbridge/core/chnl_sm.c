@@ -170,7 +170,7 @@ func_cont:
 	omap_mbox_disable_irq(dev_ctxt->mbox, IRQ_RX);
 	if (pchnl->chnl_type == CHNL_PCPY) {
 		/* This is a processor-copy channel. */
-		if (DSP_SUCCEEDED(status) && CHNL_IS_OUTPUT(pchnl->chnl_mode)) {
+		if (!status && CHNL_IS_OUTPUT(pchnl->chnl_mode)) {
 			/* Check buffer size on output channels for fit. */
 			if (byte_size >
 			    io_buf_size(pchnl->chnl_mgr_obj->hio_mgr))
@@ -178,7 +178,7 @@ func_cont:
 
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Get a free chirp: */
 		chnl_packet_obj =
 		    (struct chnl_irp *)lst_get_head(pchnl->free_packets_list);
@@ -186,7 +186,7 @@ func_cont:
 			status = -EIO;
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Enqueue the chirp on the chnl's IORequest queue: */
 		chnl_packet_obj->host_user_buf = chnl_packet_obj->host_sys_buf =
 		    host_buf;
@@ -330,7 +330,7 @@ int bridge_chnl_close(struct chnl_object *chnl_obj)
 		status = bridge_chnl_cancel_io(chnl_obj);
 	}
 func_cont:
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Assert I/O on this channel is now cancelled: Protects
 		 * from io_dpc. */
 		DBC_ASSERT((pchnl->dw_state & CHNL_STATECANCEL));
@@ -420,8 +420,7 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 			chnl_mgr_obj->dw_output_mask = 0;
 			chnl_mgr_obj->dw_last_output = 0;
 			chnl_mgr_obj->hdev_obj = hdev_obj;
-			if (DSP_SUCCEEDED(status))
-				spin_lock_init(&chnl_mgr_obj->chnl_mgr_lock);
+			spin_lock_init(&chnl_mgr_obj->chnl_mgr_lock);
 		} else {
 			status = -ENOMEM;
 		}
@@ -499,7 +498,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Note: Currently, if another thread continues to add IO
 		 * requests to this channel, this function will continue to
 		 * flush all such queued IO requests. */
@@ -507,8 +506,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 		    && (pchnl->chnl_type == CHNL_PCPY)) {
 			/* Wait for IO completions, up to the specified
 			 * timeout: */
-			while (!LST_IS_EMPTY(pchnl->pio_requests) &&
-			       DSP_SUCCEEDED(status)) {
+			while (!LST_IS_EMPTY(pchnl->pio_requests) && !status) {
 				status = bridge_chnl_get_ioc(chnl_obj,
 						timeout, &chnl_ioc_obj);
 				if (DSP_FAILED(status))
@@ -833,7 +831,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	else
 		status = -ENOMEM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		pchnl->ntfy_obj = kmalloc(sizeof(struct ntfy_object),
 							GFP_KERNEL);
 		if (pchnl->ntfy_obj)
@@ -842,7 +840,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 			status = -ENOMEM;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (pchnl->pio_completions && pchnl->pio_requests &&
 		    pchnl->free_packets_list) {
 			/* Initialize CHNL object fields: */
@@ -897,7 +895,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 		*chnl = pchnl;
 	}
 func_end:
-	DBC_ENSURE((DSP_SUCCEEDED(status) && pchnl) || (*chnl == NULL));
+	DBC_ENSURE((!status && pchnl) || (*chnl == NULL));
 	return status;
 }
 

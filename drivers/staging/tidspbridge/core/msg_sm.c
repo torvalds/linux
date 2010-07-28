@@ -102,7 +102,7 @@ int bridge_msg_create(struct msg_mgr **msg_man,
 		else
 			sync_init_event(msg_mgr_obj->sync_event);
 
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			*msg_man = msg_mgr_obj;
 		else
 			delete_msg_mgr(msg_mgr_obj);
@@ -157,7 +157,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 
 	/*  Create event that will be signalled when a message from
 	 *  the DSP is available. */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		msg_q->sync_event = kzalloc(sizeof(struct sync_object),
 							GFP_KERNEL);
 		if (msg_q->sync_event)
@@ -167,7 +167,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 	}
 
 	/* Create a notification list for message ready notification. */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		msg_q->ntfy_obj = kmalloc(sizeof(struct ntfy_object),
 							GFP_KERNEL);
 		if (msg_q->ntfy_obj)
@@ -181,7 +181,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 	 *  unblock threads in MSG_Put() or MSG_Get(). sync_done_ack
 	 *  will be set by the unblocked thread to signal that it
 	 *  is unblocked and will no longer reference the object. */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		msg_q->sync_done = kzalloc(sizeof(struct sync_object),
 							GFP_KERNEL);
 		if (msg_q->sync_done)
@@ -190,7 +190,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 			status = -ENOMEM;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		msg_q->sync_done_ack = kzalloc(sizeof(struct sync_object),
 							GFP_KERNEL);
 		if (msg_q->sync_done_ack)
@@ -199,13 +199,13 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 			status = -ENOMEM;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Enter critical section */
 		spin_lock_bh(&hmsg_mgr->msg_mgr_lock);
 		/* Initialize message frames and put in appropriate queues */
-		for (i = 0; i < max_msgs && DSP_SUCCEEDED(status); i++) {
+		for (i = 0; i < max_msgs && !status; i++) {
 			status = add_new_msg(hmsg_mgr->msg_free_list);
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				num_allocated++;
 				status = add_new_msg(msg_q->msg_free_list);
 			}
@@ -330,7 +330,7 @@ int bridge_msg_get(struct msg_queue *msg_queue_obj,
 	}
 	/* Exit critical section */
 	spin_unlock_bh(&hmsg_mgr->msg_mgr_lock);
-	if (DSP_SUCCEEDED(status) && !got_msg) {
+	if (!status && !got_msg) {
 		/*  Wait til message is available, timeout, or done. We don't
 		 *  have to schedule the DPC, since the DSP will send messages
 		 *  when they are available. */
@@ -349,7 +349,7 @@ int bridge_msg_get(struct msg_queue *msg_queue_obj,
 			(void)sync_set_event(msg_queue_obj->sync_done_ack);
 			status = -EPERM;
 		} else {
-			if (DSP_SUCCEEDED(status)) {
+			if (!status) {
 				DBC_ASSERT(!LST_IS_EMPTY
 					   (msg_queue_obj->msg_used_list));
 				/* Get msg from used list */
@@ -432,7 +432,7 @@ int bridge_msg_put(struct msg_queue *msg_queue_obj,
 
 		spin_unlock_bh(&hmsg_mgr->msg_mgr_lock);
 	}
-	if (DSP_SUCCEEDED(status) && !put_msg) {
+	if (!status && !put_msg) {
 		/* Wait til a free message frame is available, timeout,
 		 * or done */
 		syncs[0] = hmsg_mgr->sync_event;

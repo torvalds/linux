@@ -112,7 +112,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 		/* Disable wdt on hibernation. */
 		dsp_wdt_enable(false);
 
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			/* Update the Bridger Driver state */
 			dev_context->dw_brd_state = BRD_DSP_HIBERNATION;
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
@@ -310,7 +310,7 @@ int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
 		status = dsp_clk_disable(bpwr_clks[clk_id_index].clk);
 		dsp_clk_wakeup_event_ctrl(bpwr_clks[clk_id_index].clk_id,
 					  false);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			(dev_context->dsp_per_clks) &=
 				(~((u32) (1 << bpwr_clks[clk_id_index].clk)));
 		}
@@ -318,7 +318,7 @@ int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
 	case BPWR_ENABLE_CLOCK:
 		status = dsp_clk_enable(bpwr_clks[clk_id_index].clk);
 		dsp_clk_wakeup_event_ctrl(bpwr_clks[clk_id_index].clk_id, true);
-		if (DSP_SUCCEEDED(status))
+		if (!status)
 			(dev_context->dsp_per_clks) |=
 				(1 << bpwr_clks[clk_id_index].clk);
 		break;

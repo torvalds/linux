@@ -230,11 +230,10 @@ int bridge_io_create(struct io_mgr **io_man,
 
 		spin_lock_init(&pio_mgr->dpc_lock);
 
-		if (DSP_SUCCEEDED(status))
-			status = dev_get_dev_node(hdev_obj, &dev_node_obj);
+		status = dev_get_dev_node(hdev_obj, &dev_node_obj);
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		pio_mgr->hbridge_context = hbridge_context;
 		pio_mgr->shared_irq = mgr_attrts->irq_shared;
 		if (dsp_wdt_init())
@@ -378,15 +377,13 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	dev_dbg(bridge, "%s: (proc)proccopy shmmem size: 0x%x bytes\n",
 		__func__, (ul_shm_length - sizeof(struct shm)));
 
-	if (DSP_SUCCEEDED(status)) {
-		/* Get start and length of message part of shared memory */
-		status = cod_get_sym_value(cod_man, MSG_SHARED_BUFFER_BASE_SYM,
+	/* Get start and length of message part of shared memory */
+	status = cod_get_sym_value(cod_man, MSG_SHARED_BUFFER_BASE_SYM,
 					   &ul_msg_base);
-	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = cod_get_sym_value(cod_man, MSG_SHARED_BUFFER_LIMIT_SYM,
 					   &ul_msg_limit);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (ul_msg_limit <= ul_msg_base) {
 				status = -EINVAL;
 			} else {
@@ -409,7 +406,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 #if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 		status =
 		    cod_get_sym_value(cod_man, DSP_TRACESEC_END, &shm0_end);
@@ -420,18 +417,18 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		if (DSP_FAILED(status))
 			status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status =
 		    cod_get_sym_value(cod_man, DYNEXTBASE, &ul_dyn_ext_base);
 		if (DSP_FAILED(status))
 			status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = cod_get_sym_value(cod_man, EXTEND, &ul_ext_end);
 		if (DSP_FAILED(status))
 			status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Get memory reserved in host resources */
 		(void)mgr_enum_processor_info(0, (struct dsp_processorinfo *)
 					      &hio_mgr->ext_proc_info,
@@ -1551,7 +1548,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 		goto func_end;
 	}
 	/* Get end of 1st SM Heap region */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Get start and length of message part of shared memory */
 		status = cod_get_sym_value(cod_man, SHM0_SHARED_END_SYM,
 					   &shm0_end);
@@ -1561,7 +1558,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 		}
 	}
 	/* Start of Gpp reserved region */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Get start and length of message part of shared memory */
 		status =
 		    cod_get_sym_value(cod_man, SHM0_SHARED_RESERVED_BASE_SYM,
@@ -1572,15 +1569,15 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 		}
 	}
 	/* Register with CMM */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_cmm_mgr(hio_mgr->hdev_obj, &hio_mgr->hcmm_mgr);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			status = cmm_un_register_gppsm_seg(hio_mgr->hcmm_mgr,
 							   CMM_ALLSEGMENTS);
 		}
 	}
 	/* Register new SM region(s) */
-	if (DSP_SUCCEEDED(status) && (shm0_end - ul_shm0_base) > 0) {
+	if (!status && (shm0_end - ul_shm0_base) > 0) {
 		/* Calc size (bytes) of SM the GPP can alloc from */
 		ul_rsrvd_size =
 		    (shm0_end - ul_shm0_rsrvd_start + 1) * hio_mgr->word_size;
@@ -1843,11 +1840,11 @@ int print_dsp_trace_buffer(struct bridge_dev_context *hbridge_context)
 	} else {
 		status = -EFAULT;
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status =
 		    cod_get_sym_value(cod_mgr, COD_TRACEEND, &ul_trace_end);
 
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		/* trace_cur_pos will hold the address of a DSP pointer */
 		status = cod_get_sym_value(cod_mgr, COD_TRACECURPOS,
 							&trace_cur_pos);
@@ -2013,7 +2010,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 		status = -EFAULT;
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		status = dev_get_node_manager(dev_object, &node_mgr);
 		if (!node_mgr) {
 			pr_debug("%s: Failed on dev_get_node_manager.\n",
@@ -2022,7 +2019,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Look for SYS_PUTCBEG/SYS_PUTCEND: */
 		status =
 			cod_get_sym_value(code_mgr, COD_TRACEBEG, &trace_begin);
@@ -2032,7 +2029,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 			pr_debug("%s: Failed on cod_get_sym_value.\n",
 								__func__);
 	}
-	if (DSP_SUCCEEDED(status))
+	if (!status)
 		status = dev_get_intf_fxns(dev_object, &intf_fxns);
 	/*
 	 * Check for the "magic number" in the trace buffer.  If it has
@@ -2041,7 +2038,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 	 */
 	mmu_fault_dbg_info.head[0] = 0;
 	mmu_fault_dbg_info.head[1] = 0;
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		poll_cnt = 0;
 		while ((mmu_fault_dbg_info.head[0] != MMU_FAULT_HEAD1 ||
 			mmu_fault_dbg_info.head[1] != MMU_FAULT_HEAD2) &&
@@ -2066,7 +2063,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		total_size = mmu_fault_dbg_info.size;
 		/* Limit the size in case DSP went crazy */
 		if (total_size > MAX_MMU_DBGBUFF)

@@ -262,7 +262,6 @@ void bridge_drv_entry(struct bridge_drv_interface **drv_intf,
  */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 {
-	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	u32 temp;
 	struct dspbridge_platform_data *pdata =
@@ -291,11 +290,10 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 	dsp_clk_enable(DSP_CLK_IVA2);
 
-	if (DSP_SUCCEEDED(status)) {
-		/* set the device state to IDLE */
-		dev_context->dw_brd_state = BRD_IDLE;
-	}
-	return status;
+	/* set the device state to IDLE */
+	dev_context->dw_brd_state = BRD_IDLE;
+
+	return 0;
 }
 
 /*
@@ -406,13 +404,13 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	} else
 		__raw_writel(0xffffffff, dw_sync_addr);
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		resources = dev_context->resources;
 		if (!resources)
 			status = -EPERM;
 
 		/* Assert RST1 i.e only the RST only for DSP megacell */
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK,
 					OMAP3430_RST1_IVA2_MASK, OMAP3430_IVA2_MOD,
 					OMAP2_RM_RSTCTRL);
@@ -428,7 +426,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 					OMAP343X_CONTROL_IVA2_BOOTMOD));
 		}
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Reset and Unreset the RST2, so that BOOTADDR is copied to
 		 * IVA2 SYSC register */
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK,
@@ -476,7 +474,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 	/* Lock the above TLB entries and get the BIOS and load monitor timer
 	 * information */
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		hw_mmu_num_locked_set(resources->dw_dmmu_base, itmp_entry_ndx);
 		hw_mmu_victim_num_set(resources->dw_dmmu_base, itmp_entry_ndx);
 		hw_mmu_ttb_set(resources->dw_dmmu_base,
@@ -499,7 +497,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 				     &ul_load_monitor_timer);
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (ul_load_monitor_timer != 0xFFFF) {
 			clk_cmd = (BPWR_ENABLE_CLOCK << MBX_PM_CLK_CMDSHIFT) |
 			    ul_load_monitor_timer;
@@ -510,7 +508,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		if (ul_bios_gp_timer != 0xFFFF) {
 			clk_cmd = (BPWR_ENABLE_CLOCK << MBX_PM_CLK_CMDSHIFT) |
 			    ul_bios_gp_timer;
@@ -521,7 +519,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		}
 	}
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		/* Set the DSP clock rate */
 		(void)dev_get_symbol(dev_context->hdev_obj,
 				     "_BRIDGEINIT_DSP_FREQ", &ul_dsp_clk_addr);
@@ -551,7 +549,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		}
 
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_context->mbox->rxq->callback = (int (*)(void *))io_mbox_msg;
 
 /*PM_IVA2GRPSEL_PER = 0xC0;*/
@@ -908,7 +906,7 @@ static int bridge_dev_create(struct bridge_dev_context
 	else
 		status = -ENOMEM;
 
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		spin_lock_init(&pt_attrs->pg_lock);
 		dev_context->tc_word_swap_on = drv_datap->tc_wordswapon;
 
@@ -918,7 +916,7 @@ static int bridge_dev_create(struct bridge_dev_context
 		 * resources struct */
 		dev_context->dw_dsp_mmu_base = resources->dw_dmmu_base;
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_context->hdev_obj = hdev_obj;
 		/* Store current board state. */
 		dev_context->dw_brd_state = BRD_STOPPED;
@@ -1111,13 +1109,13 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 	u32 total_bytes = ul_num_bytes;
 	u8 host_buf[BUFFERSIZE];
 	struct bridge_dev_context *dev_context = dev_ctxt;
-	while ((total_bytes > 0) && DSP_SUCCEEDED(status)) {
+	while (total_bytes > 0 && !status) {
 		copy_bytes =
 		    total_bytes > BUFFERSIZE ? BUFFERSIZE : total_bytes;
 		/* Read from External memory */
 		status = read_ext_dsp_data(dev_ctxt, host_buf, src_addr,
 					   copy_bytes, mem_type);
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			if (dest_addr < (dev_context->dw_dsp_start_add +
 					 dev_context->dw_internal_size)) {
 				/* Write to Internal memory */
@@ -1149,7 +1147,7 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 	u32 ul_remain_bytes = 0;
 	u32 ul_bytes = 0;
 	ul_remain_bytes = ul_num_bytes;
-	while (ul_remain_bytes > 0 && DSP_SUCCEEDED(status)) {
+	while (ul_remain_bytes > 0 && !status) {
 		ul_bytes =
 		    ul_remain_bytes > BUFFERSIZE ? BUFFERSIZE : ul_remain_bytes;
 		if (dsp_addr < (dev_context->dw_dsp_start_add +
@@ -1369,9 +1367,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 	}
 	up_read(&mm->mmap_sem);
 func_cont:
-	if (DSP_SUCCEEDED(status)) {
-		status = 0;
-	} else {
+	if (status) {
 		/*
 		 * Roll out the mapped pages incase it failed in middle of
 		 * mapping
@@ -1433,7 +1429,7 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 		"pte_addr_l1 %x\n", __func__, dev_ctxt, virt_addr,
 		ul_num_bytes, l1_base_va, pte_addr_l1);
 
-	while (rem_bytes && (DSP_SUCCEEDED(status))) {
+	while (rem_bytes && !status) {
 		u32 va_curr_orig = va_curr;
 		/* Find whether the L1 PTE points to a valid L2 PT */
 		pte_addr_l1 = hw_mmu_pte_addr_l1(l1_base_va, va_curr);
@@ -1472,7 +1468,7 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 		 * entry. Similar checking is done for L1 PTEs too
 		 * below
 		 */
-		while (rem_bytes_l2 && (DSP_SUCCEEDED(status))) {
+		while (rem_bytes_l2 && !status) {
 			pte_val = *(u32 *) pte_addr_l2;
 			pte_size = hw_mmu_pte_size_l2(pte_val);
 			/* va_curr aligned to pte_size? */
@@ -1639,7 +1635,7 @@ static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
 		HW_PAGE_SIZE64KB, HW_PAGE_SIZE4KB
 	};
 
-	while (num_bytes && DSP_SUCCEEDED(status)) {
+	while (num_bytes && !status) {
 		/* To find the max. page size with which both PA & VA are
 		 * aligned */
 		all_bits = pa_curr | va_curr;
@@ -1736,7 +1732,7 @@ static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 			 * Should not overwrite it. */
 			status = -EPERM;
 		}
-		if (DSP_SUCCEEDED(status)) {
+		if (!status) {
 			pg_tbl_va = l2_base_va;
 			if (size == HW_PAGE_SIZE64KB)
 				pt->pg_info[l2_page_num].num_entries += 16;
@@ -1749,7 +1745,7 @@ static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 		}
 		spin_unlock(&pt->pg_lock);
 	}
-	if (DSP_SUCCEEDED(status)) {
+	if (!status) {
 		dev_dbg(bridge, "PTE: pg_tbl_va %x, pa %x, va %x, size %x\n",
 			pg_tbl_va, pa, va, size);
 		dev_dbg(bridge, "PTE: endianism %x, element_size %x, "
@@ -1789,7 +1785,7 @@ static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 	va_curr = ul_mpu_addr;
 	page[0] = vmalloc_to_page((void *)va_curr);
 	pa_next = page_to_phys(page[0]);
-	while (DSP_SUCCEEDED(status) && (i < num_pages)) {
+	while (!status && (i < num_pages)) {
 		/*
 		 * Reuse pa_next from the previous iteraion to avoid
 		 * an extra va2pa call
@@ -1827,11 +1823,6 @@ static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 				    hw_attrs);
 		va_curr += size_curr;
 	}
-	if (DSP_SUCCEEDED(status))
-		status = 0;
-	else
-		status = -EPERM;
-
 	/*
 	 * In any case, flush the TLB
 	 * This is called from here instead from pte_update to avoid unnecessary
