@@ -368,7 +368,7 @@ C_ENTRY(_user_exception):
 	# Find and jump into the syscall handler.
 	lwi	r12, r12, sys_call_table
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
-	la	r15, r0, ret_from_trap-8
+	addi	r15, r0, ret_from_trap-8
 	bra	r12
 
 	/* The syscall number is invalid, return an error.  */
@@ -416,7 +416,7 @@ C_ENTRY(ret_from_trap):
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
-	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	addi	r7, r0, 1;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
@@ -450,7 +450,7 @@ TRAP_return:		/* Make global symbol for debugging */
 C_ENTRY(sys_fork_wrapper):
 	addi	r5, r0, SIGCHLD			/* Arg 0: flags */
 	lwi	r6, r1, PTO+PT_R1	/* Arg 1: child SP (use parent's) */
-	la	r7, r1, PTO			/* Arg 2: parent context */
+	addik	r7, r1, PTO			/* Arg 2: parent context */
 	add	r8. r0, r0			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
 	add	r10, r0, r0;			/* Arg 5: (unused) */
@@ -472,27 +472,27 @@ C_ENTRY(ret_from_fork):
 
 C_ENTRY(sys_vfork):
 	brid	microblaze_vfork	/* Do real work (tail-call) */
-	la	r5, r1, PTO
+	addik	r5, r1, PTO
 
 C_ENTRY(sys_clone):
 	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
 	lwi	r6, r1, PTO + PT_R1;	/* If so, use paret's stack ptr */
-1:	add	r10, r0, r9;		/* Arg 6: (child_tidptr) */
-	add	r9, r0, r8;		/* Arg 5: (parent_tidptr) */
-	add	r8, r0, r7;		/* Arg 4: (stack_size) */
-	la	r7, r1, PTO;		/* Arg 3: pt_regs  */
-	brid	do_fork			/* Do real work (tail-call) */
-	nop
+1:	addik	r7, r1, PTO;			/* Arg 2: parent context */
+	add	r8, r0, r0;			/* Arg 3: (unused) */
+	add	r9, r0, r0;			/* Arg 4: (unused) */
+	add	r10, r0, r0;			/* Arg 5: (unused) */
+	brid	do_fork		/* Do real work (tail-call) */
+	nop;
 
 C_ENTRY(sys_execve):
-	la	r8, r1, PTO;		/* add user context as 4th arg */
+	addik	r8, r1, PTO;		/* add user context as 4th arg */
 	brid	microblaze_execve;	/* Do real work (tail-call).*/
 	nop;
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	swi	r4, r1, PTO+PT_R4;
-	la	r5, r1, PTO;		/* add user context as 1st arg */
+	addik	r5, r1, PTO;		/* add user context as 1st arg */
 	brlid	r15, sys_rt_sigreturn	/* Do real work */
 	nop;
 	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
@@ -559,15 +559,15 @@ C_ENTRY(full_exception_trap):
 	/* FIXME this can be store directly in PT_ESR reg.
 	 * I tested it but there is a fault */
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
-	la	r15, r0, ret_from_exc - 8
-	la	r5, r1, PTO		 /* parameter struct pt_regs * regs */
+	addik	r15, r0, ret_from_exc - 8
+	addik	r5, r1, PTO		 /* parameter struct pt_regs * regs */
 	mfs	r6, resr
 	nop
 	mfs	r7, rfsr;		/* save FSR */
 	nop
 	mts	rfsr, r0;	/* Clear sticky fsr */
 	nop
-	la	r12, r0, full_exception
+	addik	r12, r0, full_exception
 	set_vms;
 	rtbd	r12, 0;
 	nop;
@@ -585,13 +585,13 @@ C_ENTRY(full_exception_trap):
 C_ENTRY(unaligned_data_trap):
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
-	la	r15, r0, ret_from_exc-8
+	addik	r15, r0, ret_from_exc-8
 	mfs	r3, resr		/* ESR */
 	nop
 	mfs	r4, rear		/* EAR */
 	nop
-	la	r7, r1, PTO		/* parameter struct pt_regs * regs */
-	la	r12, r0, _unaligned_data_exception
+	addik	r7, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r12, r0, _unaligned_data_exception
 	set_vms;
 	rtbd	r12, 0;	/* interrupts enabled */
 	nop;
@@ -617,13 +617,13 @@ C_ENTRY(unaligned_data_trap):
 C_ENTRY(page_fault_data_trap):
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
-	la	r15, r0, ret_from_exc-8
-	la	r5, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r15, r0, ret_from_exc-8
+	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 	mfs	r6, rear		/* parameter unsigned long address */
 	nop
 	mfs	r7, resr		/* parameter unsigned long error_code */
 	nop
-	la	r12, r0, do_page_fault
+	addik	r12, r0, do_page_fault
 	set_vms;
 	rtbd	r12, 0;	/* interrupts enabled */
 	nop;
@@ -631,12 +631,12 @@ C_ENTRY(page_fault_data_trap):
 C_ENTRY(page_fault_instr_trap):
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
-	la	r15, r0, ret_from_exc-8
-	la	r5, r1, PTO		/* parameter struct pt_regs * regs */
+	addik	r15, r0, ret_from_exc-8
+	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 	mfs	r6, rear		/* parameter unsigned long address */
 	nop
 	ori	r7, r0, 0		/* parameter unsigned long error_code */
-	la	r12, r0, do_page_fault
+	addik	r12, r0, do_page_fault
 	set_vms;
 	rtbd	r12, 0;	/* interrupts enabled */
 	nop;
@@ -675,7 +675,7 @@ C_ENTRY(ret_from_exc):
 	 * complete register state.  Here we save anything not saved by
 	 * the normal entry sequence, so that it may be safely restored
 	 * (in a possibly modified form) after do_signal returns. */
-	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
@@ -763,10 +763,10 @@ C_ENTRY(_interrupt):
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	swi	r0, r1, PTO + PT_R0;
 	tovirt(r1,r1)
-	la	r5, r1, PTO;
+	addik	r5, r1, PTO;
 	set_vms;
-	la	r11, r0, do_IRQ;
-	la	r15, r0, irq_call;
+	addik	r11, r0, do_IRQ;
+	addik	r15, r0, irq_call;
 irq_call:rtbd	r11, 0;
 	nop;
 
@@ -789,7 +789,7 @@ ret_from_irq:
 	beqid	r11, no_intr_resched
 /* Handle a signal return; Pending signals should be in r18. */
 	addi	r7, r0, 0; /* Arg 3: int in_syscall */
-	la	r5, r1, PTO; /* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, PTO; /* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0; /* Arg 2: sigset_t *oldset */
 
@@ -892,8 +892,8 @@ C_ENTRY(_debug_exception):
 	addk	r7, r0, r0		     /* 3rd param zero */
 
 	set_vms;
-	la	r11, r0, send_sig;
-	la	r15, r0, dbtrap_call;
+	addik	r11, r0, send_sig;
+	addik	r15, r0, dbtrap_call;
 dbtrap_call:	rtbd	r11, 0;
 	nop;
 
@@ -930,7 +930,7 @@ dbtrap_call:	rtbd	r11, 0;
 	   the normal entry sequence, so that it may be safely restored
 	   (in a possibly modified form) after do_signal returns.  */
 
-	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
+	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	addi  r7, r0, 0;	/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
