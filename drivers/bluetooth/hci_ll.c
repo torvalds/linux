@@ -517,7 +517,7 @@ static struct hci_uart_proto llp = {
 	.flush		= ll_flush,
 };
 
-int ll_init(void)
+int __init ll_init(void)
 {
 	int err = hci_uart_register_proto(&llp);
 
@@ -529,7 +529,7 @@ int ll_init(void)
 	return err;
 }
 
-int ll_deinit(void)
+int __exit ll_deinit(void)
 {
 	return hci_uart_unregister_proto(&llp);
 }

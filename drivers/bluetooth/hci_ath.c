@@ -163,7 +163,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	struct ath_struct *ath = hu->priv;
 
 	if (bt_cb(skb)->pkt_type == HCI_SCODATA_PKT) {
-		kfree(skb);
+		kfree_skb(skb);
 		return 0;
 	}
 
@@ -217,7 +217,7 @@ static struct hci_uart_proto athp = {
 	.flush = ath_flush,
 };
 
-int ath_init(void)
+int __init ath_init(void)
 {
 	int err = hci_uart_register_proto(&athp);
 
@@ -229,7 +229,7 @@ int ath_init(void)
 	return err;
 }
 
-int ath_deinit(void)
+int __exit ath_deinit(void)
 {
 	return hci_uart_unregister_proto(&athp);
 }
