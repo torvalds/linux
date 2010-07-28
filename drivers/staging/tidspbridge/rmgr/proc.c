@@ -1302,9 +1302,10 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	}
 
 func_end:
-	if (status)
+	if (status) {
 		pr_err("%s: Processor failed to load\n", __func__);
-
+		proc_stop(p_proc_object);
+	}
 	DBC_ENSURE((!status
 		    && p_proc_object->proc_state == PROC_LOADED)
 		   || status);
@@ -1594,6 +1595,7 @@ func_cont:
 		}
 	} else {
 		pr_err("%s: Failed to start the dsp\n", __func__);
+		proc_stop(p_proc_object);
 	}
 
 func_end:
