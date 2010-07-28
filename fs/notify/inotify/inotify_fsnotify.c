@@ -22,6 +22,7 @@
  * General Public License for more details.
  */
 
+#include <linux/dcache.h> /* d_unlinked */
 #include <linux/fs.h> /* struct inode */
 #include <linux/fsnotify_backend.h>
 #include <linux/inotify.h>
@@ -156,6 +157,14 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 
 	mask = (mask & ~FS_EVENT_ON_CHILD);
 	send = (fsn_mark->mask & mask);
+
+	if (send && (fsn_mark->mask & FS_EXCL_UNLINK) &&
+	    (data_type == FSNOTIFY_EVENT_PATH)) {
+		struct path *path  = data;
+
+		if (d_unlinked(path->dentry))
+			send = false;
+	}
 
 	/* find took a reference */
 	fsnotify_put_mark(fsn_mark);
