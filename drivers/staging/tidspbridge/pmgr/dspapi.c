@@ -1520,6 +1520,19 @@ func_cont:
 }
 
 /*
+ * ======== find_strm_handle =========
+ */
+inline void find_strm_handle(struct strm_res_object **strmres,
+				void *pr_ctxt, void *hstream)
+{
+	rcu_read_lock();
+	*strmres = idr_find(((struct process_context *)pr_ctxt)->stream_id,
+							(int)hstream);
+	rcu_read_unlock();
+	return;
+}
+
+/*
  * ======== strmwrap_allocate_buffer ========
  */
 u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
@@ -1527,6 +1540,13 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 	int status;
 	u8 **ap_buffer = NULL;
 	u32 num_bufs = args->args_strm_allocatebuffer.num_bufs;
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt,
+		args->args_strm_allocatebuffer.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
 
 	if (num_bufs > MAX_BUFS)
 		return -EINVAL;
@@ -1535,7 +1555,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 	if (ap_buffer == NULL)
 		return -ENOMEM;
 
-	status = strm_allocate_buffer(args->args_strm_allocatebuffer.hstream,
+	status = strm_allocate_buffer(strm_res,
 				      args->args_strm_allocatebuffer.usize,
 				      ap_buffer, num_bufs, pr_ctxt);
 	if (!status) {
@@ -1543,7 +1563,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 			  status, num_bufs);
 		if (status) {
 			status = -EFAULT;
-			strm_free_buffer(args->args_strm_allocatebuffer.hstream,
+			strm_free_buffer(strm_res,
 					 ap_buffer, num_bufs, pr_ctxt);
 		}
 	}
@@ -1557,7 +1577,14 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
  */
 u32 strmwrap_close(union trapped_args *args, void *pr_ctxt)
 {
-	return strm_close(args->args_strm_close.hstream, pr_ctxt);
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_close.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
+
+	return strm_close(strm_res, pr_ctxt);
 }
 
 /*
@@ -1568,6 +1595,13 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 	u8 **ap_buffer = NULL;
 	u32 num_bufs = args->args_strm_freebuffer.num_bufs;
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt,
+			args->args_strm_freebuffer.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
 
 	if (num_bufs > MAX_BUFS)
 		return -EINVAL;
@@ -1579,10 +1613,10 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	CP_FM_USR(ap_buffer, args->args_strm_freebuffer.ap_buffer, status,
 		  num_bufs);
 
-	if (!status) {
-		status = strm_free_buffer(args->args_strm_freebuffer.hstream,
+	if (!status)
+		status = strm_free_buffer(strm_res,
 					  ap_buffer, num_bufs, pr_ctxt);
-	}
+
 	CP_TO_USR(args->args_strm_freebuffer.ap_buffer, ap_buffer, status,
 		  num_bufs);
 	kfree(ap_buffer);
@@ -1609,6 +1643,13 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 	struct stream_info strm_info;
 	struct dsp_streaminfo user;
 	struct dsp_streaminfo *temp;
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt,
+			args->args_strm_getinfo.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
 
 	CP_FM_USR(&strm_info, args->args_strm_getinfo.stream_info, status, 1);
 	temp = strm_info.user_strm;
@@ -1616,7 +1657,7 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 	strm_info.user_strm = &user;
 
 	if (!status) {
-		status = strm_get_info(args->args_strm_getinfo.hstream,
+		status = strm_get_info(strm_res->hstream,
 				       &strm_info,
 				       args->args_strm_getinfo.
 				       stream_info_size);
@@ -1633,9 +1674,14 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 u32 strmwrap_idle(union trapped_args *args, void *pr_ctxt)
 {
 	u32 ret;
+	struct strm_res_object *strm_res;
 
-	ret = strm_idle(args->args_strm_idle.hstream,
-			args->args_strm_idle.flush_flag);
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_idle.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
+
+	ret = strm_idle(strm_res->hstream, args->args_strm_idle.flush_flag);
 
 	return ret;
 }
@@ -1646,6 +1692,12 @@ u32 strmwrap_idle(union trapped_args *args, void *pr_ctxt)
 u32 strmwrap_issue(union trapped_args *args, void *pr_ctxt)
 {
 	int status = 0;
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_issue.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
 
 	if (!args->args_strm_issue.pbuffer)
 		return -EFAULT;
@@ -1653,7 +1705,7 @@ u32 strmwrap_issue(union trapped_args *args, void *pr_ctxt)
 	/* No need of doing CP_FM_USR for the user buffer (pbuffer)
 	   as this is done in Bridge internal function bridge_chnl_add_io_req
 	   in chnl_sm.c */
-	status = strm_issue(args->args_strm_issue.hstream,
+	status = strm_issue(strm_res->hstream,
 			    args->args_strm_issue.pbuffer,
 			    args->args_strm_issue.dw_bytes,
 			    args->args_strm_issue.dw_buf_size,
@@ -1669,7 +1721,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 {
 	int status = 0;
 	struct strm_attr attr;
-	struct strm_object *strm_obj;
+	struct strm_res_object *strm_res_obj;
 	struct dsp_streamattrin strm_attr_in;
 	struct node_res_object *node_res;
 
@@ -1691,9 +1743,9 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 	}
 	status = strm_open(node_res->hnode,
 			   args->args_strm_open.direction,
-			   args->args_strm_open.index, &attr, &strm_obj,
+			   args->args_strm_open.index, &attr, &strm_res_obj,
 			   pr_ctxt);
-	CP_TO_USR(args->args_strm_open.ph_stream, &strm_obj, status, 1);
+	CP_TO_USR(args->args_strm_open.ph_stream, &strm_res_obj->id, status, 1);
 	return status;
 }
 
@@ -1707,8 +1759,14 @@ u32 strmwrap_reclaim(union trapped_args *args, void *pr_ctxt)
 	u32 ul_bytes;
 	u32 dw_arg;
 	u32 ul_buf_size;
+	struct strm_res_object *strm_res;
 
-	status = strm_reclaim(args->args_strm_reclaim.hstream, &buf_ptr,
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_reclaim.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
+
+	status = strm_reclaim(strm_res->hstream, &buf_ptr,
 			      &ul_bytes, &ul_buf_size, &dw_arg);
 	CP_TO_USR(args->args_strm_reclaim.buf_ptr, &buf_ptr, status, 1);
 	CP_TO_USR(args->args_strm_reclaim.bytes, &ul_bytes, status, 1);
@@ -1729,12 +1787,19 @@ u32 strmwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 {
 	int status = 0;
 	struct dsp_notification notification;
+	struct strm_res_object *strm_res;
+
+	find_strm_handle(&strm_res, pr_ctxt,
+			args->args_strm_registernotify.hstream);
+
+	if (!strm_res)
+		return -EFAULT;
 
 	/* Initialize the notification data structure */
 	notification.ps_name = NULL;
 	notification.handle = NULL;
 
-	status = strm_register_notify(args->args_strm_registernotify.hstream,
+	status = strm_register_notify(strm_res->hstream,
 				      args->args_strm_registernotify.event_mask,
 				      args->args_strm_registernotify.
 				      notify_type, &notification);
@@ -1752,12 +1817,28 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 	u32 mask;
 	struct strm_object *strm_tab[MAX_STREAMS];
 	int status = 0;
+	struct strm_res_object *strm_res;
+	int *ids[MAX_STREAMS];
+	int i;
 
 	if (args->args_strm_select.strm_num > MAX_STREAMS)
 		return -EINVAL;
 
-	CP_FM_USR(strm_tab, args->args_strm_select.stream_tab, status,
-		  args->args_strm_select.strm_num);
+	CP_FM_USR(ids, args->args_strm_select.stream_tab, status,
+		args->args_strm_select.strm_num);
+
+	if (status)
+		return status;
+
+	for (i = 0; i < args->args_strm_select.strm_num; i++) {
+		find_strm_handle(&strm_res, pr_ctxt, ids[i]);
+
+		if (!strm_res)
+			return -EFAULT;
+
+		strm_tab[i] = strm_res->hstream;
+	}
+
 	if (!status) {
 		status = strm_select(strm_tab, args->args_strm_select.strm_num,
 				     &mask, args->args_strm_select.utimeout);

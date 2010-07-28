@@ -131,7 +131,7 @@ struct strm_res_object {
 	void *hstream;
 	u32 num_bufs;
 	u32 dir;
-	struct strm_res_object *next;
+	int id;
 };
 
 /* Overall Bridge process resource usage state */
@@ -173,8 +173,7 @@ struct process_context {
 	struct dspheap_res_object *pdspheap_list;
 
 	/* Stream resources */
-	struct strm_res_object *pstrm_list;
-	struct mutex strm_mutex;
+	struct idr *stream_id;
 };
 
 /*

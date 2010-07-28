@@ -29,7 +29,7 @@
  *  Purpose:
  *      Allocate data buffer(s) for use with a stream.
  *  Parameter:
- *      stream_obj:     Stream handle returned from strm_open().
+ *      strmres:     Stream resource info handle returned from strm_open().
  *      usize:          Size (GPP bytes) of the buffer(s).
  *      num_bufs:       Number of buffers to allocate.
  *      ap_buffer:       Array to hold buffer addresses.
@@ -44,7 +44,7 @@
  *      ap_buffer != NULL.
  *  Ensures:
  */
-extern int strm_allocate_buffer(struct strm_object *stream_obj,
+extern int strm_allocate_buffer(struct strm_res_object *strmres,
 				       u32 usize,
 				       u8 **ap_buffer,
 				       u32 num_bufs,
@@ -55,7 +55,7 @@ extern int strm_allocate_buffer(struct strm_object *stream_obj,
  *  Purpose:
  *      Close a stream opened with strm_open().
  *  Parameter:
- *      stream_obj:          Stream handle returned from strm_open().
+ *      strmres:          Stream resource info handle returned from strm_open().
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid stream_obj.
@@ -66,7 +66,7 @@ extern int strm_allocate_buffer(struct strm_object *stream_obj,
  *      strm_init(void) called.
  *  Ensures:
  */
-extern int strm_close(struct strm_object *stream_obj,
+extern int strm_close(struct strm_res_object *strmres,
 			     struct process_context *pr_ctxt);
 
 /*
@@ -125,7 +125,7 @@ extern void strm_exit(void);
  *  Purpose:
  *      Free buffer(s) allocated with strm_allocate_buffer.
  *  Parameter:
- *      stream_obj:     Stream handle returned from strm_open().
+ *      strmres:     Stream resource info handle returned from strm_open().
  *      ap_buffer:       Array containing buffer addresses.
  *      num_bufs:       Number of buffers to be freed.
  *  Returns:
@@ -137,7 +137,7 @@ extern void strm_exit(void);
  *      ap_buffer != NULL.
  *  Ensures:
  */
-extern int strm_free_buffer(struct strm_object *stream_obj,
+extern int strm_free_buffer(struct strm_res_object *strmres,
 				   u8 **ap_buffer, u32 num_bufs,
 				   struct process_context *pr_ctxt);
 
@@ -254,7 +254,7 @@ extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
  *      index:         Stream index.
  *      pattr:          Pointer to structure containing attributes to be
  *                      applied to stream. Cannot be NULL.
- *      strm_objct:     Location to store stream handle on output.
+ *      strmres:     Location to store stream resuorce info handle on output.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.
@@ -264,15 +264,15 @@ extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
  *      -EINVAL:     Invalid index.
  *  Requires:
  *      strm_init(void) called.
- *      strm_objct != NULL.
+ *      strmres != NULL.
  *      pattr != NULL.
  *  Ensures:
- *      0:        *strm_objct is valid.
- *      error:          *strm_objct == NULL.
+ *      0:        *strmres is valid.
+ *      error:          *strmres == NULL.
  */
 extern int strm_open(struct node_object *hnode, u32 dir,
 			    u32 index, struct strm_attr *pattr,
-			    struct strm_object **strm_objct,
+			    struct strm_res_object **strmres,
 			    struct process_context *pr_ctxt);
 
 /*

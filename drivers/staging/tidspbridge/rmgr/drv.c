@@ -211,70 +211,40 @@ int drv_proc_insert_strm_res_element(void *stream_obj,
 	    (struct strm_res_object **)strm_res;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
-	struct strm_res_object *temp_strm_res = NULL;
+	int retval;
 
 	*pstrm_res = kzalloc(sizeof(struct strm_res_object), GFP_KERNEL);
-	if (*pstrm_res == NULL)
+	if (*pstrm_res == NULL) {
 		status = -EFAULT;
-
-	if (!status) {
-		if (mutex_lock_interruptible(&ctxt->strm_mutex)) {
-			kfree(*pstrm_res);
-			return -EPERM;
-		}
-		(*pstrm_res)->hstream = stream_obj;
-		if (ctxt->pstrm_list != NULL) {
-			temp_strm_res = ctxt->pstrm_list;
-			while (temp_strm_res->next != NULL)
-				temp_strm_res = temp_strm_res->next;
-
-			temp_strm_res->next = *pstrm_res;
-		} else {
-			ctxt->pstrm_list = *pstrm_res;
-		}
-		mutex_unlock(&ctxt->strm_mutex);
+		goto func_end;
 	}
+
+	(*pstrm_res)->hstream = stream_obj;
+	retval = idr_get_new(ctxt->stream_id, *pstrm_res,
+						&(*pstrm_res)->id);
+	if (retval == -EAGAIN) {
+		if (!idr_pre_get(ctxt->stream_id, GFP_KERNEL)) {
+			pr_err("%s: OUT OF MEMORY\n", __func__);
+			status = -ENOMEM;
+			goto func_end;
+		}
+
+		retval = idr_get_new(ctxt->stream_id, *pstrm_res,
+						&(*pstrm_res)->id);
+	}
+	if (retval) {
+		pr_err("%s: FAILED, IDR is FULL\n", __func__);
+		status = -EPERM;
+	}
+
+func_end:
 	return status;
 }
 
-/* Release Stream resource element context
-* This function called after the actual resource is freed
- */
-int drv_proc_remove_strm_res_element(void *strm_res, void *process_ctxt)
+static int drv_proc_free_strm_res(int id, void *p, void *process_ctxt)
 {
-	struct strm_res_object *pstrm_res = (struct strm_res_object *)strm_res;
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	struct strm_res_object *temp_strm_res;
-	int status = 0;
-
-	if (mutex_lock_interruptible(&ctxt->strm_mutex))
-		return -EPERM;
-	temp_strm_res = ctxt->pstrm_list;
-
-	if (ctxt->pstrm_list == pstrm_res) {
-		ctxt->pstrm_list = pstrm_res->next;
-	} else {
-		while (temp_strm_res && temp_strm_res->next != pstrm_res)
-			temp_strm_res = temp_strm_res->next;
-		if (temp_strm_res == NULL)
-			status = -ENOENT;
-		else
-			temp_strm_res->next = pstrm_res->next;
-	}
-	mutex_unlock(&ctxt->strm_mutex);
-	kfree(pstrm_res);
-	return status;
-}
-
-/* Release all Stream resources and its context
-* This is called from .bridge_release.
- */
-int drv_remove_all_strm_res_elements(void *process_ctxt)
-{
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
-	struct strm_res_object *strm_res = NULL;
-	struct strm_res_object *strm_tmp = NULL;
+	struct process_context *ctxt = process_ctxt;
+	struct strm_res_object *strm_res = p;
 	struct stream_info strm_info;
 	struct dsp_streaminfo user;
 	u8 **ap_buffer = NULL;
@@ -283,60 +253,38 @@ int drv_remove_all_strm_res_elements(void *process_ctxt)
 	u32 dw_arg;
 	s32 ul_buf_size;
 
-	strm_tmp = ctxt->pstrm_list;
-	while (strm_tmp) {
-		strm_res = strm_tmp;
-		strm_tmp = strm_tmp->next;
-		if (strm_res->num_bufs) {
-			ap_buffer = kmalloc((strm_res->num_bufs *
-					sizeof(u8 *)), GFP_KERNEL);
-			if (ap_buffer) {
-				status = strm_free_buffer(strm_res->hstream,
-							  ap_buffer,
-							  strm_res->num_bufs,
-							  ctxt);
-				kfree(ap_buffer);
-			}
+	if (strm_res->num_bufs) {
+		ap_buffer = kmalloc((strm_res->num_bufs *
+				       sizeof(u8 *)), GFP_KERNEL);
+		if (ap_buffer) {
+			strm_free_buffer(strm_res,
+						  ap_buffer,
+						  strm_res->num_bufs,
+						  ctxt);
+			kfree(ap_buffer);
 		}
-		strm_info.user_strm = &user;
-		user.number_bufs_in_stream = 0;
-		strm_get_info(strm_res->hstream, &strm_info, sizeof(strm_info));
-		while (user.number_bufs_in_stream--)
-			strm_reclaim(strm_res->hstream, &buf_ptr, &ul_bytes,
-				     (u32 *) &ul_buf_size, &dw_arg);
-		status = strm_close(strm_res->hstream, ctxt);
 	}
-	return status;
+	strm_info.user_strm = &user;
+	user.number_bufs_in_stream = 0;
+	strm_get_info(strm_res->hstream, &strm_info, sizeof(strm_info));
+	while (user.number_bufs_in_stream--)
+		strm_reclaim(strm_res->hstream, &buf_ptr, &ul_bytes,
+			     (u32 *) &ul_buf_size, &dw_arg);
+	strm_close(strm_res, ctxt);
+	return 0;
 }
 
-/* Getting the stream resource element */
-int drv_get_strm_res_element(void *stream_obj, void *strm_resources,
-				    void *process_ctxt)
+/* Release all Stream resources and its context
+* This is called from .bridge_release.
+ */
+int drv_remove_all_strm_res_elements(void *process_ctxt)
 {
-	struct strm_res_object **strm_res =
-	    (struct strm_res_object **)strm_resources;
-	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
-	struct strm_res_object *temp_strm2 = NULL;
-	struct strm_res_object *temp_strm;
+	struct process_context *ctxt = process_ctxt;
 
-	if (mutex_lock_interruptible(&ctxt->strm_mutex))
-		return -EPERM;
+	idr_for_each(ctxt->stream_id, drv_proc_free_strm_res, ctxt);
+	idr_destroy(ctxt->stream_id);
 
-	temp_strm = ctxt->pstrm_list;
-	while ((temp_strm != NULL) && (temp_strm->hstream != stream_obj)) {
-		temp_strm2 = temp_strm;
-		temp_strm = temp_strm->next;
-	}
-
-	mutex_unlock(&ctxt->strm_mutex);
-
-	if (temp_strm != NULL)
-		*strm_res = temp_strm;
-	else
-		status = -ENOENT;
-
-	return status;
+	return 0;
 }
 
 /* Updating the stream resource element */
