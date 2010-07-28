@@ -35,7 +35,7 @@ quiet_cmd_cp = CP      $< $@$2
 	cmd_cp = cat $< >$@$2 || (rm -f $@ && echo false)
 
 quiet_cmd_strip = STRIP   $@
-	cmd_strip = $(STRIP) -K _start -K _end -K __log_buf \
+	cmd_strip = $(STRIP) -K microblaze_start -K _end -K __log_buf \
 				-K _fdt_start vmlinux -o $@
 
 quiet_cmd_uimage = UIMAGE  $@.ub

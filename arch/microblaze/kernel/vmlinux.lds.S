@@ -10,7 +10,7 @@
 
 OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
-ENTRY(_start)
+ENTRY(microblaze_start)
 
 #include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
@@ -20,7 +20,7 @@ jiffies = jiffies_64 + 4;
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;
-	_start = CONFIG_KERNEL_BASE_ADDR;
+	microblaze_start = CONFIG_KERNEL_BASE_ADDR;
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = . ;
 		_stext = . ;
