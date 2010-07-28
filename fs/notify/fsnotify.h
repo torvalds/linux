@@ -10,10 +10,6 @@
 extern struct list_head fsnotify_inode_groups;
 /* all groups which receive vfsmount fsnotify events */
 extern struct list_head fsnotify_vfsmount_groups;
-/* all bitwise OR of all event types (FS_*) for all fsnotify_inode_groups */
-extern __u32 fsnotify_inode_mask;
-/* all bitwise OR of all event types (FS_*) for all fsnotify_vfsmount_groups */
-extern __u32 fsnotify_vfsmount_mask;
 
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);

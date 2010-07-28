@@ -227,11 +227,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	if (mask & FS_MODIFY)
 		__fsnotify_flush_ignored_mask(to_tell, data, data_is);
 
-	/* if none of the directed listeners or vfsmount listeners care */
-	if (!(test_mask & fsnotify_inode_mask) &&
-	    !(test_mask & fsnotify_vfsmount_mask))
-		return 0;
- 
 	if (data_is == FSNOTIFY_EVENT_FILE)
 		mnt = ((struct file *)data)->f_path.mnt;
 

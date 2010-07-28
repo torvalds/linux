@@ -34,54 +34,21 @@ static DEFINE_MUTEX(fsnotify_grp_mutex);
 LIST_HEAD(fsnotify_inode_groups);
 /* all groups registered to receive mount point filesystem notifications */
 LIST_HEAD(fsnotify_vfsmount_groups);
-/* bitwise OR of all events (FS_*) interesting to some group on this system */
-__u32 fsnotify_inode_mask;
-/* bitwise OR of all events (FS_*) interesting to some group on this system */
-__u32 fsnotify_vfsmount_mask;
-
-/*
- * When a new group registers or changes it's set of interesting events
- * this function updates the fsnotify_mask to contain all interesting events
- */
-void fsnotify_recalc_global_mask(void)
-{
-	struct fsnotify_group *group;
-	__u32 inode_mask = 0;
-	__u32 vfsmount_mask = 0;
-
-	mutex_lock(&fsnotify_grp_mutex);
-	list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list)
-		inode_mask |= group->mask;
-	list_for_each_entry_rcu(group, &fsnotify_vfsmount_groups, vfsmount_group_list)
-		vfsmount_mask |= group->mask;
-
-	fsnotify_inode_mask = inode_mask;
-	fsnotify_vfsmount_mask = vfsmount_mask;
-
-	mutex_unlock(&fsnotify_grp_mutex);
-}
 
 /*
  * Update the group->mask by running all of the marks associated with this
- * group and finding the bitwise | of all of the mark->mask.  If we change
- * the group->mask we need to update the global mask of events interesting
- * to the system.
+ * group and finding the bitwise | of all of the mark->mask.
  */
 void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 {
 	__u32 mask = 0;
-	__u32 old_mask = group->mask;
 	struct fsnotify_mark *mark;
 
 	spin_lock(&group->mark_lock);
 	list_for_each_entry(mark, &group->marks_list, g_list)
 		mask |= mark->mask;
-	spin_unlock(&group->mark_lock);
-
 	group->mask = mask;
-
-	if (old_mask != mask)
-		fsnotify_recalc_global_mask();
+	spin_unlock(&group->mark_lock);
 }
 
 void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
@@ -217,8 +184,6 @@ void fsnotify_put_group(struct fsnotify_group *group)
 
 	mutex_unlock(&fsnotify_grp_mutex);
 
-	/* and now it is really dead. _Nothing_ could be seeing it */
-	fsnotify_recalc_global_mask();
 	fsnotify_destroy_group(group);
 }
 
