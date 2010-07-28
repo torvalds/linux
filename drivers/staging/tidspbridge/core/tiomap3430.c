@@ -919,8 +919,10 @@ static int bridge_dev_create(struct bridge_dev_context
 	if (!status) {
 		dev_context->hdev_obj = hdev_obj;
 		/* Store current board state. */
-		dev_context->dw_brd_state = BRD_STOPPED;
+		dev_context->dw_brd_state = BRD_UNKNOWN;
 		dev_context->resources = resources;
+		dsp_clk_enable(DSP_CLK_IVA2);
+		bridge_brd_stop(dev_context);
 		/* Return ptr to our device state to the DSP API for storage */
 		*dev_cntxt = dev_context;
 	} else {
