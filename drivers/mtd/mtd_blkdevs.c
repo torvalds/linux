@@ -410,12 +410,13 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 		BUG();
 	}
 
-	/* Stop new requests to arrive */
-	del_gendisk(old->disk);
-
 	if (old->disk_attributes)
 		sysfs_remove_group(&disk_to_dev(old->disk)->kobj,
 						old->disk_attributes);
+
+	/* Stop new requests to arrive */
+	del_gendisk(old->disk);
+
 
 	/* Stop the thread */
 	kthread_stop(old->thread);
