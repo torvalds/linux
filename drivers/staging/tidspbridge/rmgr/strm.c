@@ -90,7 +90,6 @@ static u32 refs;		/* module reference count */
 
 /*  ----------------------------------- Function Prototypes */
 static int delete_strm(struct strm_object *stream_obj);
-static void delete_strm_mgr(struct strm_mgr *strm_mgr_obj);
 
 /*
  *  ======== strm_allocate_buffer ========
@@ -232,7 +231,7 @@ int strm_create(struct strm_mgr **strm_man,
 	if (DSP_SUCCEEDED(status))
 		*strm_man = strm_mgr_obj;
 	else
-		delete_strm_mgr(strm_mgr_obj);
+		kfree(strm_mgr_obj);
 
 	DBC_ENSURE((DSP_SUCCEEDED(status) && *strm_man) ||
 				(DSP_FAILED(status) && *strm_man == NULL));
@@ -250,7 +249,7 @@ void strm_delete(struct strm_mgr *strm_mgr_obj)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(strm_mgr_obj);
 
-	delete_strm_mgr(strm_mgr_obj);
+	kfree(strm_mgr_obj);
 }
 
 /*
@@ -858,15 +857,4 @@ static int delete_strm(struct strm_object *stream_obj)
 		status = -EFAULT;
 	}
 	return status;
-}
-
-/*
- *  ======== delete_strm_mgr ========
- *  Purpose:
- *      Frees stream manager.
- */
-static void delete_strm_mgr(struct strm_mgr *strm_mgr_obj)
-{
-	if (strm_mgr_obj)
-		kfree(strm_mgr_obj);
 }
