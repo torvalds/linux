@@ -231,7 +231,7 @@ config REGULATOR_AB8500
 
 config REGULATOR_TPS6586X
 	tristate "TI TPS6586X Power regulators"
-	depends on I2C
+	depends on MFD_TPS6586X
 	help
 	  This driver supports TPS6586X voltage regulator chips.
 
