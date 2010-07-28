@@ -85,16 +85,23 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/srcu.h>
 #include <linux/writeback.h> /* for inode_lock */
 
 #include <asm/atomic.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
+
+struct srcu_struct fsnotify_mark_srcu;
+static DEFINE_SPINLOCK(destroy_lock);
+static LIST_HEAD(destroy_list);
+static DECLARE_WAIT_QUEUE_HEAD(destroy_waitq);
 
 void fsnotify_get_mark(struct fsnotify_mark *mark)
 {
@@ -144,10 +151,13 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	list_del_init(&mark->g_list);
 
-	fsnotify_put_mark(mark); /* for i_list and g_list */
-
 	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
+
+	spin_lock(&destroy_lock);
+	list_add(&mark->destroy_list, &destroy_list);
+	spin_unlock(&destroy_lock);
+	wake_up(&destroy_waitq);
 
 	/*
 	 * Some groups like to know that marks are being freed.  This is a
@@ -263,11 +273,16 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 err:
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	list_del_init(&mark->g_list);
+	mark->group = NULL;
 	atomic_dec(&group->num_marks);
-	fsnotify_put_mark(mark);
 
 	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
+
+	spin_lock(&destroy_lock);
+	list_add(&mark->destroy_list, &destroy_list);
+	spin_unlock(&destroy_lock);
+	wake_up(&destroy_waitq);
 
 	return ret;
 }
@@ -326,3 +341,42 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 	atomic_set(&mark->refcnt, 1);
 	mark->free_mark = free_mark;
 }
+
+static int fsnotify_mark_destroy(void *ignored)
+{
+	struct fsnotify_mark *mark, *next;
+	LIST_HEAD(private_destroy_list);
+
+	for (;;) {
+		spin_lock(&destroy_lock);
+		list_for_each_entry_safe(mark, next, &destroy_list, destroy_list) {
+			list_del(&mark->destroy_list);
+			list_add(&mark->destroy_list, &private_destroy_list);
+		}
+		spin_unlock(&destroy_lock);
+
+		synchronize_srcu(&fsnotify_mark_srcu);
+
+		list_for_each_entry_safe(mark, next, &private_destroy_list, destroy_list) {
+			list_del_init(&mark->destroy_list);
+			fsnotify_put_mark(mark);
+		}
+
+		wait_event_interruptible(destroy_waitq, !list_empty(&destroy_list));
+	}
+
+	return 0;
+}
+
+static int __init fsnotify_mark_init(void)
+{
+	struct task_struct *thread;
+
+	thread = kthread_run(fsnotify_mark_destroy, NULL,
+			     "fsnotify_mark");
+	if (IS_ERR(thread))
+		panic("unable to start fsnotify mark destruction thread.");
+
+	return 0;
+}
+device_initcall(fsnotify_mark_init);

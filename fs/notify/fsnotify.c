@@ -144,14 +144,15 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 {
 	struct fsnotify_mark *mark;
 	struct hlist_node *node;
+	int idx;
+
+	idx = srcu_read_lock(&fsnotify_mark_srcu);
 
 	if (!hlist_empty(&inode->i_fsnotify_marks)) {
-		spin_lock(&inode->i_lock);
-		hlist_for_each_entry(mark, node, &inode->i_fsnotify_marks, i.i_list) {
+		hlist_for_each_entry_rcu(mark, node, &inode->i_fsnotify_marks, i.i_list) {
 			if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
 				mark->ignored_mask = 0;
 		}
-		spin_unlock(&inode->i_lock);
 	}
 
 	if (data_is == FSNOTIFY_EVENT_FILE) {
@@ -159,14 +160,14 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 
 		mnt = ((struct file *)data)->f_path.mnt;
 		if (mnt && !hlist_empty(&mnt->mnt_fsnotify_marks)) {
-			spin_lock(&mnt->mnt_root->d_lock);
-			hlist_for_each_entry(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
+			hlist_for_each_entry_rcu(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
 				if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
 					mark->ignored_mask = 0;
 			}
-			spin_unlock(&mnt->mnt_root->d_lock);
 		}
 	}
+
+	srcu_read_unlock(&fsnotify_mark_srcu, idx);
 }
 
 static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
@@ -208,8 +209,10 @@ static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
 int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	     const unsigned char *file_name, u32 cookie)
 {
+	struct fsnotify_mark *mark;
 	struct fsnotify_group *group;
 	struct fsnotify_event *event = NULL;
+	struct hlist_node *node;
 	struct vfsmount *mnt = NULL;
 	int idx, ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
@@ -237,35 +240,47 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	    !needed_by_vfsmount(test_mask, mnt))
 		return 0;
 
-	/*
-	 * SRCU!!  the groups list is very very much read only and the path is
-	 * very hot.  The VAST majority of events are not going to need to do
-	 * anything other than walk the list so it's crazy to pre-allocate.
-	 */
-	idx = srcu_read_lock(&fsnotify_grp_srcu);
+	idx = srcu_read_lock(&fsnotify_mark_srcu);
 
 	if (test_mask & to_tell->i_fsnotify_mask) {
-		list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list) {
-			if (test_mask & group->mask) {
-				ret = send_to_group(group, to_tell, NULL, mask, data, data_is,
-						    cookie, file_name, &event);
+		hlist_for_each_entry_rcu(mark, node, &to_tell->i_fsnotify_marks, i.i_list) {
+
+			pr_debug("%s: inode_loop: mark=%p mark->mask=%x mark->ignored_mask=%x\n",
+				 __func__, mark, mark->mask, mark->ignored_mask);
+
+			if (test_mask & mark->mask & ~mark->ignored_mask) {
+				group = mark->group;
+				if (!group)
+					continue;
+				ret = send_to_group(group, to_tell, NULL, mask,
+						    data, data_is, cookie, file_name,
+						    &event);
 				if (ret)
 					goto out;
 			}
 		}
 	}
-	if (needed_by_vfsmount(test_mask, mnt)) {
-		list_for_each_entry_rcu(group, &fsnotify_vfsmount_groups, vfsmount_group_list) {
-			if (test_mask & group->mask) {
-				ret = send_to_group(group, to_tell, mnt, mask, data, data_is,
-						    cookie, file_name, &event);
+
+	if (mnt && (test_mask & mnt->mnt_fsnotify_mask)) {
+		hlist_for_each_entry_rcu(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
+
+			pr_debug("%s: mnt_loop: mark=%p mark->mask=%x mark->ignored_mask=%x\n",
+				 __func__, mark, mark->mask, mark->ignored_mask);
+
+			if (test_mask & mark->mask & ~mark->ignored_mask)  {
+				group = mark->group;
+				if (!group)
+					continue;
+				ret = send_to_group(group, to_tell, mnt, mask,
+						    data, data_is, cookie, file_name,
+						    &event);
 				if (ret)
 					goto out;
 			}
 		}
 	}
 out:
-	srcu_read_unlock(&fsnotify_grp_srcu, idx);
+	srcu_read_unlock(&fsnotify_mark_srcu, idx);
 	/*
 	 * fsnotify_create_event() took a reference so the event can't be cleaned
 	 * up while we are still trying to add it to lists, drop that one.
@@ -279,8 +294,14 @@ EXPORT_SYMBOL_GPL(fsnotify);
 
 static __init int fsnotify_init(void)
 {
+	int ret;
+
 	BUG_ON(hweight32(ALL_FSNOTIFY_EVENTS) != 23);
 
-	return init_srcu_struct(&fsnotify_grp_srcu);
+	ret = init_srcu_struct(&fsnotify_mark_srcu);
+	if (ret)
+		panic("initializing fsnotify_mark_srcu");
+
+	return 0;
 }
-subsys_initcall(fsnotify_init);
+core_initcall(fsnotify_init);

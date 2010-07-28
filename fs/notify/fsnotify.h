@@ -6,8 +6,6 @@
 #include <linux/srcu.h>
 #include <linux/types.h>
 
-/* protects reads of fsnotify_groups */
-extern struct srcu_struct fsnotify_grp_srcu;
 /* all groups which receive inode fsnotify events */
 extern struct list_head fsnotify_inode_groups;
 /* all groups which receive vfsmount fsnotify events */
@@ -19,6 +17,9 @@ extern __u32 fsnotify_vfsmount_mask;
 
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
+
+/* protects reads of inode and vfsmount marks list */
+extern struct srcu_struct fsnotify_mark_srcu;
 
 extern void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *fsn_mark,
 						__u32 mask);

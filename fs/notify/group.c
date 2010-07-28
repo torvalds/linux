@@ -30,8 +30,6 @@
 
 /* protects writes to fsnotify_groups and fsnotify_mask */
 static DEFINE_MUTEX(fsnotify_grp_mutex);
-/* protects reads while running the fsnotify_groups list */
-struct srcu_struct fsnotify_grp_srcu;
 /* all groups registered to receive inode filesystem notifications */
 LIST_HEAD(fsnotify_inode_groups);
 /* all groups registered to receive mount point filesystem notifications */
@@ -50,18 +48,17 @@ void fsnotify_recalc_global_mask(void)
 	struct fsnotify_group *group;
 	__u32 inode_mask = 0;
 	__u32 vfsmount_mask = 0;
-	int idx;
 
-	idx = srcu_read_lock(&fsnotify_grp_srcu);
+	mutex_lock(&fsnotify_grp_mutex);
 	list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list)
 		inode_mask |= group->mask;
 	list_for_each_entry_rcu(group, &fsnotify_vfsmount_groups, vfsmount_group_list)
 		vfsmount_mask |= group->mask;
-		
-	srcu_read_unlock(&fsnotify_grp_srcu, idx);
 
 	fsnotify_inode_mask = inode_mask;
 	fsnotify_vfsmount_mask = vfsmount_mask;
+
+	mutex_unlock(&fsnotify_grp_mutex);
 }
 
 /*
@@ -168,6 +165,8 @@ static void fsnotify_destroy_group(struct fsnotify_group *group)
 	/* clear all inode marks for this group */
 	fsnotify_clear_marks_by_group(group);
 
+	synchronize_srcu(&fsnotify_mark_srcu);
+
 	/* past the point of no return, matches the initial value of 1 */
 	if (atomic_dec_and_test(&group->num_marks))
 		fsnotify_final_destroy_group(group);
@@ -216,12 +215,7 @@ void fsnotify_put_group(struct fsnotify_group *group)
 	 */
 	__fsnotify_evict_group(group);
 
-	/*
-	 * now it's off the list, so the only thing we might care about is
-	 * srcu access....
-	 */
 	mutex_unlock(&fsnotify_grp_mutex);
-	synchronize_srcu(&fsnotify_grp_srcu);
 
 	/* and now it is really dead. _Nothing_ could be seeing it */
 	fsnotify_recalc_global_mask();
