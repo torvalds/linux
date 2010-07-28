@@ -1024,7 +1024,7 @@ CONFIG_WLAN=y
 # CONFIG_USB_ZD1201 is not set
 CONFIG_BCM4329=m
 CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
-CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
+CONFIG_BCM4329_NVRAM_PATH="/system/etc/wifi/bcm4329.cal"
 # CONFIG_HOSTAP is not set
 
 #
