@@ -98,6 +98,9 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	struct fsnotify_event_private_data *fsn_event_priv;
 	int wd, ret;
 
+	pr_debug("%s: group=%p event=%p to_tell=%p mask=%x\n", __func__, group,
+		 event, event->to_tell, event->mask);
+
 	to_tell = event->to_tell;
 
 	fsn_mark = fsnotify_find_inode_mark(group, to_tell);
@@ -150,6 +153,9 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 {
 	struct fsnotify_mark *fsn_mark;
 	bool send;
+
+	pr_debug("%s: group=%p inode=%p mask=%x data=%p data_type=%d\n",
+		 __func__, group, inode, mask, data, data_type);
 
 	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)

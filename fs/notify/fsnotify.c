@@ -174,6 +174,10 @@ static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 			 int data_is, u32 cookie, const unsigned char *file_name,
 			 struct fsnotify_event **event)
 {
+	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x data=%p data_is=%d"
+		 " cookie=%d event=%p\n", __func__, group, to_tell, mnt,
+		 mask, data, data_is, cookie, *event);
+
 	if (!group->ops->should_send_event(group, to_tell, mnt, mask,
 					   data, data_is))
 		return 0;

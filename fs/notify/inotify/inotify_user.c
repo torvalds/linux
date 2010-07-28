@@ -141,6 +141,8 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	event = fsnotify_peek_notify_event(group);
 
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+
 	if (event->name_len)
 		event_size += roundup(event->name_len + 1, event_size);
 
@@ -169,6 +171,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct inotify_event_private_data *priv;
 	size_t event_size = sizeof(struct inotify_event);
 	size_t name_len = 0;
+
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	/* we get the inotify watch descriptor from the event private data */
 	spin_lock(&event->lock);
@@ -242,6 +246,8 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 		kevent = get_one_event(group, count);
 		mutex_unlock(&group->notification_mutex);
 
+		pr_debug("%s: group=%p kevent=%p\n", __func__, group, kevent);
+
 		if (kevent) {
 			ret = PTR_ERR(kevent);
 			if (IS_ERR(kevent))
@@ -286,6 +292,8 @@ static int inotify_release(struct inode *ignored, struct file *file)
 	struct fsnotify_group *group = file->private_data;
 	struct user_struct *user = group->inotify_data.user;
 
+	pr_debug("%s: group=%p\n", __func__, group);
+
 	fsnotify_clear_marks_by_group(group);
 
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
@@ -308,6 +316,8 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 
 	group = file->private_data;
 	p = (void __user *) arg;
+
+	pr_debug("%s: group=%p cmd=%u\n", __func__, group, cmd);
 
 	switch (cmd) {
 	case FIONREAD:
