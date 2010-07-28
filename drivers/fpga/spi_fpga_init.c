@@ -307,7 +307,7 @@ static int spi_open_sysclk(int set)
 	return 0;
 }
 
-extern int spi_i2c_set_bt_power(void);
+
 static int __devinit spi_fpga_probe(struct spi_device * spi)
 {
 	struct spi_fpga_port *port;
@@ -361,18 +361,18 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 #endif
 #if defined(CONFIG_SPI_I2C)
 
-	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	spin_lock_init(&port->i2c.i2c_lock);
 	for (num= 2;num<4;num++)
 	{
-		ret = spi_i2c_register(port,num);
-		printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+		ret = spi_i2c_register(port,num);		
 		if(ret)
 		{
 			spi_i2c_unregister(port);
 			printk("%s:ret=%d,fail to spi_i2c_register\n",__FUNCTION__,ret);
 			return ret;
 		}
+		DBG("spi_i2c spi_i2c.%d: i2c-%d: spi_i2c I2C adapter\n",num,num);
 	}
 #endif
 

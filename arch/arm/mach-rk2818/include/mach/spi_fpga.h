@@ -61,7 +61,16 @@ struct spi_gpio
 	struct timer_list 	gpio_timer;
 
 };
-
+struct spi_i2c_data
+{
+	struct i2c_adapter     adapter;
+	struct i2c_client         *client;
+	struct spi_fpga_port   *port;
+	unsigned int                 speed;	
+	unsigned int                 mode;
+	unsigned int			msg_idx;
+	unsigned int			msg_num;
+};
 struct spi_i2c
 {
 	struct workqueue_struct 	*spi_i2c_workqueue;
@@ -206,14 +215,9 @@ typedef enum I2C_ch
 typedef enum eI2CReadMode
 {
 	I2C_NORMAL,
-	I2C_NOREG
+	I2C_NO_REG,
+	I2C_NO_STOP
 }eI2ReadMode_t;
-
-typedef enum eI2RegType
-{
-	I2C_8_BIT,
-	I2C_16_BIT
-}eI2RegType_t;
 
 #define ICE_SEL_I2C_START            (0<<0)
 #define ICE_SEL_I2C_STOP              (1<<0)

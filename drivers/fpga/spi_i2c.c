@@ -35,17 +35,13 @@
 #define DBG(x...)
 #endif
 
-#define MAXMSGLEN   8
-#define DRV_NAME    "fpga_i2c"
+#define MAXMSGLEN      8
+#define I2C_COUNT       20
+#define DRV_NAME    "spi_i2c"
 #define SPI_I2C_TEST 0
-struct spi_i2c_data {
-	struct device *dev;
-	struct i2c_adapter adapter;
-	unsigned long scl_rate;
-	spinlock_t i2c_lock;	
-};
-
-
+#if SPI_I2C_TEST
+struct i2c_adapter *adap;
+#endif
 int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel)
 {
 	int reg;
@@ -81,22 +77,23 @@ int spi_i2c_select_speed(int speed)
 	int result = 0; 
 	switch(speed)
 	{
-		case 10:
+		case 10*1000:
 			result = ICE_SET_10K_I2C_SPEED;	
 			break;			
-		case 100:
+		case 100*1000:
 			result = ICE_SET_100K_I2C_SPEED;		
 			break;			
-		case 200:
+		case 200*1000:
 			result = ICE_SET_200K_I2C_SPEED;	
 			break;			
-		case 300:			
+		case 300*1000:			
 		       result = ICE_SET_300K_I2C_SPEED;	
 			break;			
-		case 400:			
+		case 400*1000:			
 			result = ICE_SET_400K_I2C_SPEED;	
 			break;			
-		default:			
+		default:	
+			printk("not support this rate ,set spi i2c rate fail\n");
 			break;		
 	}
 	return result;
@@ -106,13 +103,13 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 {
 	
 	unsigned int reg ;
-	unsigned int len,i;
+	unsigned int len,i,j;
 	unsigned int slaveaddr;
 	unsigned int speed;
 	unsigned int channel = 0 ;
 	unsigned int result;
 	
-	slaveaddr = pmsg->addr;
+	slaveaddr = pmsg->addr<<1;
 	len = pmsg->len;	
 	speed = spi_i2c_select_speed(pmsg->scl_rate);
 	
@@ -126,46 +123,13 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		return 0;
 	}
 
-	//printk("len = %d chan = %d read=%d,reg=%d\n",pmsg->len,ch,pmsg->read_type,pmsg->reg_type);
-	
-	if(pmsg->read_type == I2C_NORMAL)
-	{
-		//slaveaddr ;
-		slaveaddr = slaveaddr<<1;
-		reg = channel |ICE_SEL_I2C_START;
-		spi_out(port,reg,slaveaddr,SEL_I2C);
-		//speed;
-		reg = channel |ICE_SEL_I2C_SPEED|ICE_SEL_I2C_TRANS;
-		spi_out(port,reg,speed,SEL_I2C);
-		//len;&&data
-		reg = channel |ICE_SEL_I2C_FIFO |ICE_SEL_I2C_TRANS;
-		if(pmsg->reg_type == I2C_8_BIT)
-		{				
-			spi_out(port,reg,1,SEL_I2C);
-			reg = channel  |ICE_SEL_I2C_TRANS;
-			spi_out(port,reg,pmsg->buf[0],SEL_I2C);
-		}
-		else if(pmsg->reg_type == I2C_16_BIT)
-		{
-			spi_out(port,reg,2,SEL_I2C);
-			reg = channel  |ICE_SEL_I2C_TRANS;
-			spi_out(port,reg,pmsg->buf[0],SEL_I2C);
-			spi_out(port,reg,pmsg->buf[1],SEL_I2C);
-		}
-	}
-
-	//handle irq after send stop cmd
-
-
-
-
+	DBG("len = %d chan = %d read=%d\n",pmsg->len,ch,pmsg->read_type);	
 
 	
-	//slaveaddr
 	slaveaddr = slaveaddr|ICE_I2C_SLAVE_READ;
-	if(pmsg->read_type == 0)
+	if(pmsg->read_type == I2C_NORMAL  || pmsg->read_type == I2C_NO_STOP)
 		reg = channel |ICE_SEL_I2C_RESTART;
-	else
+	else if(pmsg->read_type == I2C_NO_REG )
 		reg = channel |ICE_SEL_I2C_START;
 	spi_out(port,reg,slaveaddr,SEL_I2C);
 	//speed;
@@ -175,8 +139,11 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	reg = channel |ICE_SEL_I2C_FIFO |ICE_SEL_I2C_STOP;
 	spi_out(port,reg,len,SEL_I2C);
 	
-	msleep(100);	
-	if(port->i2c.interrupt == INT_I2C_READ_ACK)
+	j = I2C_COUNT;
+	while(j--)
+
+	{
+		if(port->i2c.interrupt == INT_I2C_READ_ACK)
 		{						
 			//printk("%s:line=%d\n",__FUNCTION__,__LINE__);
 			for(i = 0;i<len;i++)
@@ -188,7 +155,11 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 			spin_lock(&port->i2c.i2c_lock);
 			port->i2c.interrupt &= INT_I2C_READ_MASK;
 			spin_unlock(&port->i2c.i2c_lock);
-		}	
+			break;
+		}
+		else
+			msleep(2);
+	}
 	//for(i = 0;i<len;i++)
 		//printk("pmsg->buf[%d] = 0x%x \n",i,pmsg->buf[i]);	
 	return pmsg->len;
@@ -199,7 +170,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 {
 	
 	unsigned int reg ;
-	unsigned int len,i;
+	unsigned int len,i,j;
 	unsigned int slaveaddr;
 	unsigned int speed;
 	unsigned int channel = 0;
@@ -217,7 +188,8 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		printk("Error: try to write the error i2c channel\n");
 		return 0;
 	}
-	DBG("len = %d ch = %d\n",pmsg->len,ch);
+	DBG("len = %d chan = %d read=%d\n",pmsg->len,ch,pmsg->read_type);	
+
 	//slaveaddr ;
 	slaveaddr = slaveaddr<<1;
 	reg = channel |ICE_SEL_I2C_START;
@@ -230,31 +202,98 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	spi_out(port,reg,len,SEL_I2C);
 	reg = channel  |ICE_SEL_I2C_TRANS;
 	//data;
-	for(i = 0 ;i < len;i++)
-	{
-		if(i == len-1)
-			reg = channel|ICE_SEL_I2C_STOP;
+	for(i = 0 ;i < len;i++){
+		if(i==len-1 &&  pmsg->read_type == I2C_NORMAL)
+		{
+		reg = channel|ICE_SEL_I2C_STOP;
 		spi_out(port,reg,pmsg->buf[i],SEL_I2C);
-	}
-	msleep(25);
-	i = 50;
-	while(i--)
-	{		
-		if(port->i2c.interrupt  == INT_I2C_WRITE_ACK)
+	
+		j = I2C_COUNT;	
+		while(j--)
 		{		
-			//printk("wait num= %d,port->i2c.interrupt = 0x%x\n",i,port->i2c.interrupt);
-			spin_lock(&port->i2c.i2c_lock);
-			port->i2c.interrupt &= INT_I2C_WRITE_MASK;
-			spin_unlock(&port->i2c.i2c_lock);
-			break;
-		}			
-	}
+			if(port->i2c.interrupt  == INT_I2C_WRITE_ACK)
+			{		
+				//printk("wait num= %d,port->i2c.interrupt = 0x%x\n",i,port->i2c.interrupt);
+				spin_lock(&port->i2c.i2c_lock);
+				port->i2c.interrupt &= INT_I2C_WRITE_MASK;
+				spin_unlock(&port->i2c.i2c_lock);
+				break;
+			}
+			else
+				msleep(2);
+		}
+	
+		}
+		else if(i==len-1 &&  pmsg->read_type == I2C_NO_STOP)
+		{					
+			spi_out(port,reg,pmsg->buf[i],SEL_I2C);
+		}
+		else
+		{			
+			spi_out(port,reg,pmsg->buf[i],SEL_I2C);
+		}
+	}	
+	
 	
 	return pmsg->len;
 	
 	
 }
 
+static int spi_xfer_msg(struct i2c_adapter *adapter,
+						struct i2c_msg *msg,int stop)
+{
+	int ret;
+	struct spi_i2c_data *i2c = (struct spi_i2c_data *)adapter->algo_data;
+	struct spi_fpga_port *port = (struct spi_fpga_port *) i2c->port;	
+	//printk("%s:line=%d,channel = %d port= 0x%x\n",__FUNCTION__,__LINE__,adapter->nr,port);	
+
+	if(msg->len >MAXMSGLEN)
+		return EFBIG;
+	if(msg->flags & I2C_M_RD)	
+		ret = spi_i2c_readbuf(port,msg,adapter->nr);
+
+	else 
+		ret = spi_i2c_writebuf(port,msg,adapter->nr);
+	return ret;
+}
+
+int spi_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+{
+	
+	int i;
+	int ret;
+	struct spi_i2c_data *i2c = (struct spi_i2c_data *)adapter->algo_data;
+	
+	if(adapter->nr != I2C_CH2 && adapter->nr != I2C_CH3)
+		return -EPERM;
+	
+	//i2c->msg_num = num;		
+	
+	for(i = 0;i<num;i++)
+	{
+		//i2c->msg_idx = i;
+		ret = spi_xfer_msg(adapter,&msgs[i],(i == (num - 1)));	
+		if(ret == 0)
+		{
+			num = ret;
+			printk("spi_xfer_msg error .ret = %d\n",ret);
+			break;
+		}
+	}
+	return num;
+}
+
+
+static unsigned int spi_i2c_func(struct i2c_adapter *adapter)
+{
+	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL);
+}
+			
+static const struct i2c_algorithm spi_i2c_algorithm = {
+	.master_xfer		= spi_i2c_xfer,
+	.functionality		= spi_i2c_func,
+};
 
 #if SPI_I2C_TEST
 unsigned short rda5400[][2] = 
@@ -300,9 +339,10 @@ int spi_i2c_16bit_test(struct spi_fpga_port *port)
 	u8 i2c_buf[8];
 	int len = 2;
 	int i ;
+	struct i2c_adapter *adapter = adap;
 	struct i2c_msg msg[1] = 
 	{
-		{0x16,0,len+2,i2c_buf,200,0,0}
+		{0x16,0,len+2,i2c_buf,200*1000,0,0}
 	};
 	
 	for(i = 0;i < (sizeof(rda5400)/sizeof(rda5400[0]));i++)
@@ -328,11 +368,16 @@ int spi_i2c_8bit_test(struct spi_fpga_port *port)
 	u8 i2c_buf[8];
 	int len = 2;
 	int i ;
+	struct i2c_adapter *adapter = adap;
 	struct i2c_msg msg[1] = 
 	{
-		{0x16,0,len+1,i2c_buf,200,0,0}
+		{0x16,0,len+1,i2c_buf,200*1000,0,0}
 	};
-	
+	struct i2c_msg msgs[2] = 
+	{
+		{0x16,0,1,i2c_buf,200*1000,2,0},
+		{0x16,1,2,i2c_buf,200*1000,2,0},
+	};
 	for(i = 0;i < (sizeof(rda5400)/sizeof(rda5400[0]));i++)
 	{	
 		printk("i=%d\n",i);
@@ -340,11 +385,14 @@ int spi_i2c_8bit_test(struct spi_fpga_port *port)
 		i2c_buf[0] = rda5400[i][0];
 		i2c_buf[1] = rda5400[i][1]>>8;
 		i2c_buf[2] = rda5400[i][1]&0xFF;
-		spi_i2c_writebuf(port, msg,3);
-		msg[0].len = 2;
+		//spi_i2c_writebuf(port, msg,3);
+		spi_i2c_xfer(adapter,msg,1);
+		
+		
 		i2c_buf[1] = 0;
 		i2c_buf[2] = 0;
-		spi_i2c_readbuf(port, msg,3);
+		spi_i2c_xfer(adapter,msgs,2);
+		//spi_i2c_readbuf(port, msg,3);
 		if(msg->buf[0] !=  (rda5400[i][1]>>8) ||msg->buf[1] != (rda5400[i][1]&0xff)  )
 			printk("i=%d,msg[0]=0x%x,msg[1]=0x%x\n",i,msg->buf[0],msg->buf[1]);
 	}
@@ -358,8 +406,6 @@ int spi_i2c_test(void)
 	spi_i2c_8bit_test(port);
 	return 0;
 }
-
-//EXPORT_SYMBOL(spi_i2c_test);
 void spi_i2c_work_handler(struct work_struct *work)
 {
 	struct spi_fpga_port *port =
@@ -381,7 +427,7 @@ static void spi_testi2c_timer(unsigned long data)
 #define BT_PWR_PIN	SPI_GPIO_P1_06
 int spi_i2c_set_bt_power(void)
 {
-#if 1
+#if 0
 
 	spi_gpio_set_pinlevel(BT_RST_PIN, SPI_GPIO_HIGH);
 	spi_gpio_set_pindirection(BT_RST_PIN, SPI_GPIO_OUT);
@@ -405,80 +451,44 @@ int spi_i2c_set_bt_power(void)
 	return 0;
 }
 #endif
-#if 0
-int spi_i2c_register(struct spi_fpga_port *port,int num)
-{	
 
-	spin_lock_init(&port->i2c.i2c_lock);
-	return 0;
-}
-#endif
 
-int spi_i2c_unregister(struct spi_fpga_port *port)
-{
-	return 0;
-}
-
-int spi_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *pmsg, int num)
-{
-	//struct spi_fpga_port *port1 = pFpgaPort;	
-	struct spi_fpga_port *port = adapter->algo_data;
-	
-	DBG("%s:line=%d,channel = %d\n",__FUNCTION__,__LINE__,adapter->nr);
-	if(pmsg->len > MAXMSGLEN)
-		return 0;
-	if(adapter->nr != I2C_CH2 && adapter->nr != I2C_CH3)
-		return 0;
-	if(pmsg->flags)	
-		spi_i2c_readbuf(port,pmsg,adapter->nr);
-		//spi_i2c_readbuf(port,pmsg,adapter->nr,num);
-	else
-		spi_i2c_writebuf(port,pmsg,adapter->nr);
-
-	return pmsg->len;	
-
-	return 0;
-}
-
-static unsigned int spi_i2c_func(struct i2c_adapter *adapter)
-{
-	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL);
-}
-			
-static const struct i2c_algorithm spi_i2c_algorithm = {
-	.master_xfer		= spi_i2c_xfer,
-	.functionality		= spi_i2c_func,
-};
-#if 1
 int spi_i2c_register(struct spi_fpga_port *port,int num)
 {
 	int ret;
-	struct i2c_adapter *adapter;
+	struct spi_i2c_data *i2c;
+	//struct i2c_adapter *adapter;
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
-	//spi_i2c_add_bus(port);
-	adapter = kzalloc(sizeof(struct i2c_adapter),GFP_KERNEL);
-	if(adapter == NULL)
+	i2c = kzalloc(sizeof(struct spi_i2c_data),GFP_KERNEL);
+	if(i2c == NULL)
+	{	
+		printk("%s:no memory for state \n",__FUNCTION__);
 		return -ENOMEM;
-	sprintf(adapter->name,"spi_i2c");
-	adapter->algo = &spi_i2c_algorithm;
-	adapter->class = I2C_CLASS_HWMON;
-	adapter->nr = num;
-	adapter->algo_data = port;
-	ret = i2c_add_numbered_adapter(adapter);
+	}
+	i2c->port = port;
+	strlcpy(i2c->adapter.name,DRV_NAME,sizeof(i2c->adapter.name));
+	i2c->adapter.owner = THIS_MODULE;
+	i2c->adapter.algo = &spi_i2c_algorithm;
+	i2c->adapter.class = I2C_CLASS_HWMON;
+	//lock	
+	i2c->adapter.nr = num;
+	i2c->adapter.algo_data = i2c;
+	ret = i2c_add_numbered_adapter(&i2c->adapter);
 	if(ret)
 	{
 		printk(KERN_INFO "SPI2I2C: Failed to add bus\n");
-		kfree(adapter);
+		kfree(i2c);
 		
 		return ret;
 	}
-
+	
 #if SPI_I2C_TEST
 	char b[20];
 	if(num != 3)
 		return 0;
 	sprintf(b, "spi_i2c_workqueue");
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+	adap = &i2c->adapter;
 	port->i2c.spi_i2c_workqueue = create_freezeable_workqueue(b);
 	if (!port->i2c.spi_i2c_workqueue) {
 		printk("cannot create workqueue\n");
@@ -494,13 +504,14 @@ int spi_i2c_register(struct spi_fpga_port *port,int num)
 	
 #endif
 
-	return 0;
+	return 0;	
+	
 }
 
-#endif
-
-
-
+int spi_i2c_unregister(struct spi_fpga_port *port)
+{
+	return 0;
+}
 
 
 MODULE_DESCRIPTION("Driver for spi2i2c.");
