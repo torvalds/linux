@@ -1,0 +1,7 @@
+config VIDEO_OV5650
+        tristate "OV5650 camera sensor support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the Omnivision OV5650 5MP camera sensor
+	  for use with the tegra isp.
+
