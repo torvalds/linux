@@ -451,6 +451,11 @@ static struct platform_device bcm4329_rfkill = {
 	.id = -1,
 };
 
+static struct platform_device tegra_isp = {
+	.name = "tegra_isp",
+	.id = -1,
+};
+
 static struct tegra_w1_timings tegra_w1_platform_timings = {
 	.tsu = 0x1,
 	.trelease = 0xf,
@@ -506,6 +511,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_spi_device4,
 	&tegra_gart_dev,
 	&ram_console_device,
+	&tegra_isp,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
