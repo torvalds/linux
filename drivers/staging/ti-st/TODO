@@ -11,16 +11,12 @@ a st_register() would know whether the registration from BT/FM or GPS was intend
 2. Improve upon the way requirement of line discipline is communicated to
 user-space, The current user-space application which open/installs ldisc
 as and when required can be found at,
-http://git.omapzoom.org/?pÿatform/hardware/ti/omap3.git;aÿob;fÿ_st/uim/uim.c;ha16c2c2b5085eb54a1bbc7096d779d7594eb11;hbìlair
+http://dev.omapzoom.org/pub/scm/jsistla/L23-btfm.git
+branch: UIM
 
 3. Re-view/Re-work on the locking.
 
-4. Re-structure to make the ldisc driver more generic for chipsets which mux
-multiple connectivity (BT, FM, GPS) upon 1 TTY port.
-
-5. Remove global references by providing a context which can be moved around the driver like the other ldisc drivers. (ldiscs tend to use tty's disc_data and platform devices use the device's driver data)
-
-6. Step up and maintain this driver to ensure that it continues
+4. Step up and maintain this driver to ensure that it continues
 to work.  Having the hardware for this is pretty much a
 requirement.  If this does not happen, the will be removed in
 the 2.6.35 kernel release.
