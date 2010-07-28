@@ -514,18 +514,10 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 					  struct vfsmount *mnt, struct fsnotify_mark *mark,
 					  __u32 mask, void *data, int data_type)
 {
-	struct fsnotify_mark *entry;
 	bool send;
 
-	entry = fsnotify_find_inode_mark(group, inode);
-	if (!entry)
-		return false;
-
 	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (entry->mask & mask);
-
-	/* find took a reference */
-	fsnotify_put_mark(entry);
+	send = (mark->mask & mask);
 
 	return send;
 }
@@ -540,11 +532,9 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 	const char *dname = event->file_name;
 	struct audit_parent *parent;
 
-	BUG_ON(group != audit_watch_group);
+	parent = container_of(mark, struct audit_parent, mark);
 
-	parent = audit_find_parent(event->to_tell);
-	if (unlikely(!parent))
-		return 0;
+	BUG_ON(group != audit_watch_group);
 
 	switch (event->data_type) {
 	case (FSNOTIFY_EVENT_FILE):
@@ -565,10 +555,6 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 		audit_update_watch(parent, dname, (dev_t)-1, (unsigned long)-1, 1);
 	else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
 		audit_remove_parent_watches(parent);
-	/* moved put_inotify_watch to freeing mark */
-
-	/* matched the ref taken by audit_find_parent */
-	audit_put_parent(parent);
 
 	return 0;
 }
