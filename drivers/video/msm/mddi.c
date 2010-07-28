@@ -668,7 +668,7 @@ static int __init mddi_rev_data_setup(struct mddi_info *mddi)
 	return 0;
 }
 
-static int __init mddi_probe(struct platform_device *pdev)
+static int __devinit mddi_probe(struct platform_device *pdev)
 {
 	struct msm_mddi_platform_data *pdata = pdev->dev.platform_data;
 	struct mddi_info *mddi = &mddi_info[pdev->id];
