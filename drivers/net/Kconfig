@@ -1751,7 +1751,7 @@ config TLAN
 
 config KS8842
 	tristate "Micrel KSZ8841/42 with generic bus interface"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && DMA_ENGINE
 	help
 	 This platform driver is for KSZ8841(1-port) / KS8842(2-port)
 	 ethernet switch chip (managed, VLAN, QoS) from Micrel or
