@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched.h> /* required for linux/wait.h */
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/time.h>
@@ -993,7 +993,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 	struct fw_cdev_queue_iso *a = &arg->queue_iso;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
 	struct fw_iso_context *ctx = client->iso_context;
-	unsigned long payload, buffer_end, header_length;
+	unsigned long payload, buffer_end, transmit_header_bytes;
 	u32 control;
 	int count;
 	struct {
@@ -1042,7 +1042,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
 			if (u.packet.header_length % 4 != 0)
 				return -EINVAL;
-			header_length = u.packet.header_length;
+			transmit_header_bytes = u.packet.header_length;
 		} else {
 			/*
 			 * We require that header_length is a multiple of
@@ -1051,15 +1051,15 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 			if (u.packet.header_length == 0 ||
 			    u.packet.header_length % ctx->header_size != 0)
 				return -EINVAL;
-			header_length = 0;
+			transmit_header_bytes = 0;
 		}
 
 		next = (struct fw_cdev_iso_packet __user *)
-			&p->header[header_length / 4];
+			&p->header[transmit_header_bytes / 4];
 		if (next > end)
 			return -EINVAL;
 		if (__copy_from_user
-		    (u.packet.header, p->header, header_length))
+		    (u.packet.header, p->header, transmit_header_bytes))
 			return -EFAULT;
 		if (u.packet.skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
 		    u.packet.header_length + u.packet.payload_length > 0)
