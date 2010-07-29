@@ -60,68 +60,94 @@ void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	u64 index;
 
+	spin_lock(&vcpu->arch.mmu_lock);
+
 	/* Add to ePTE list */
 	index = kvmppc_mmu_hash_pte(pte->pte.eaddr);
-	hlist_add_head(&pte->list_pte, &vcpu->arch.hpte_hash_pte[index]);
+	hlist_add_head_rcu(&pte->list_pte, &vcpu->arch.hpte_hash_pte[index]);
 
 	/* Add to vPTE list */
 	index = kvmppc_mmu_hash_vpte(pte->pte.vpage);
-	hlist_add_head(&pte->list_vpte, &vcpu->arch.hpte_hash_vpte[index]);
+	hlist_add_head_rcu(&pte->list_vpte, &vcpu->arch.hpte_hash_vpte[index]);
 
 	/* Add to vPTE_long list */
 	index = kvmppc_mmu_hash_vpte_long(pte->pte.vpage);
-	hlist_add_head(&pte->list_vpte_long,
-		       &vcpu->arch.hpte_hash_vpte_long[index]);
+	hlist_add_head_rcu(&pte->list_vpte_long,
+			   &vcpu->arch.hpte_hash_vpte_long[index]);
+
+	spin_unlock(&vcpu->arch.mmu_lock);
+}
+
+static void free_pte_rcu(struct rcu_head *head)
+{
+	struct hpte_cache *pte = container_of(head, struct hpte_cache, rcu_head);
+	kmem_cache_free(hpte_cache, pte);
 }
 
 static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
+	/* pte already invalidated? */
+	if (hlist_unhashed(&pte->list_pte))
+		return;
+
 	dprintk_mmu("KVM: Flushing SPT: 0x%lx (0x%llx) -> 0x%llx\n",
 		    pte->pte.eaddr, pte->pte.vpage, pte->host_va);
 
 	/* Different for 32 and 64 bit */
 	kvmppc_mmu_invalidate_pte(vcpu, pte);
 
+	spin_lock(&vcpu->arch.mmu_lock);
+
+	hlist_del_init_rcu(&pte->list_pte);
+	hlist_del_init_rcu(&pte->list_vpte);
+	hlist_del_init_rcu(&pte->list_vpte_long);
+
+	spin_unlock(&vcpu->arch.mmu_lock);
+
 	if (pte->pte.may_write)
 		kvm_release_pfn_dirty(pte->pfn);
 	else
 		kvm_release_pfn_clean(pte->pfn);
 
-	hlist_del(&pte->list_pte);
-	hlist_del(&pte->list_vpte);
-	hlist_del(&pte->list_vpte_long);
-
 	vcpu->arch.hpte_cache_count--;
-	kmem_cache_free(hpte_cache, pte);
+	call_rcu(&pte->rcu_head, free_pte_rcu);
 }
 
 static void kvmppc_mmu_pte_flush_all(struct kvm_vcpu *vcpu)
 {
 	struct hpte_cache *pte;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *node;
 	int i;
+
+	rcu_read_lock();
 
 	for (i = 0; i < HPTEG_HASH_NUM_VPTE_LONG; i++) {
 		struct hlist_head *list = &vcpu->arch.hpte_hash_vpte_long[i];
 
-		hlist_for_each_entry_safe(pte, node, tmp, list, list_vpte_long)
+		hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
 			invalidate_pte(vcpu, pte);
 	}
+
+	rcu_read_unlock();
 }
 
 static void kvmppc_mmu_pte_flush_page(struct kvm_vcpu *vcpu, ulong guest_ea)
 {
 	struct hlist_head *list;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *node;
 	struct hpte_cache *pte;
 
 	/* Find the list of entries in the map */
 	list = &vcpu->arch.hpte_hash_pte[kvmppc_mmu_hash_pte(guest_ea)];
 
+	rcu_read_lock();
+
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_safe(pte, node, tmp, list, list_pte)
+	hlist_for_each_entry_rcu(pte, node, list, list_pte)
 		if ((pte->pte.eaddr & ~0xfffUL) == guest_ea)
 			invalidate_pte(vcpu, pte);
+
+	rcu_read_unlock();
 }
 
 void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong guest_ea, ulong ea_mask)
@@ -156,33 +182,41 @@ void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong guest_ea, ulong ea_mask)
 static void kvmppc_mmu_pte_vflush_short(struct kvm_vcpu *vcpu, u64 guest_vp)
 {
 	struct hlist_head *list;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *node;
 	struct hpte_cache *pte;
 	u64 vp_mask = 0xfffffffffULL;
 
 	list = &vcpu->arch.hpte_hash_vpte[kvmppc_mmu_hash_vpte(guest_vp)];
 
+	rcu_read_lock();
+
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_safe(pte, node, tmp, list, list_vpte)
+	hlist_for_each_entry_rcu(pte, node, list, list_vpte)
 		if ((pte->pte.vpage & vp_mask) == guest_vp)
 			invalidate_pte(vcpu, pte);
+
+	rcu_read_unlock();
 }
 
 /* Flush with mask 0xffffff000 */
 static void kvmppc_mmu_pte_vflush_long(struct kvm_vcpu *vcpu, u64 guest_vp)
 {
 	struct hlist_head *list;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *node;
 	struct hpte_cache *pte;
 	u64 vp_mask = 0xffffff000ULL;
 
 	list = &vcpu->arch.hpte_hash_vpte_long[
 		kvmppc_mmu_hash_vpte_long(guest_vp)];
 
+	rcu_read_lock();
+
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_safe(pte, node, tmp, list, list_vpte_long)
+	hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
 		if ((pte->pte.vpage & vp_mask) == guest_vp)
 			invalidate_pte(vcpu, pte);
+
+	rcu_read_unlock();
 }
 
 void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 guest_vp, u64 vp_mask)
@@ -206,21 +240,25 @@ void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 guest_vp, u64 vp_mask)
 
 void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 {
-	struct hlist_node *node, *tmp;
+	struct hlist_node *node;
 	struct hpte_cache *pte;
 	int i;
 
 	dprintk_mmu("KVM: Flushing %d Shadow pPTEs: 0x%lx - 0x%lx\n",
 		    vcpu->arch.hpte_cache_count, pa_start, pa_end);
 
+	rcu_read_lock();
+
 	for (i = 0; i < HPTEG_HASH_NUM_VPTE_LONG; i++) {
 		struct hlist_head *list = &vcpu->arch.hpte_hash_vpte_long[i];
 
-		hlist_for_each_entry_safe(pte, node, tmp, list, list_vpte_long)
+		hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
 			if ((pte->pte.raddr >= pa_start) &&
 			    (pte->pte.raddr < pa_end))
 				invalidate_pte(vcpu, pte);
 	}
+
+	rcu_read_unlock();
 }
 
 struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu)
@@ -258,6 +296,8 @@ int kvmppc_mmu_hpte_init(struct kvm_vcpu *vcpu)
 				  ARRAY_SIZE(vcpu->arch.hpte_hash_vpte));
 	kvmppc_mmu_hpte_init_hash(vcpu->arch.hpte_hash_vpte_long,
 				  ARRAY_SIZE(vcpu->arch.hpte_hash_vpte_long));
+
+	spin_lock_init(&vcpu->arch.mmu_lock);
 
 	return 0;
 }

@@ -165,6 +165,7 @@ struct hpte_cache {
 	struct hlist_node list_pte;
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
+	struct rcu_head rcu_head;
 	u64 host_va;
 	u64 pfn;
 	ulong slot;
@@ -295,6 +296,7 @@ struct kvm_vcpu_arch {
 	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
 	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
 	int hpte_cache_count;
+	spinlock_t mmu_lock;
 #endif
 };
 
