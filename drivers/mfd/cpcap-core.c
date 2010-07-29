@@ -422,10 +422,15 @@ static int adc_ioctl(unsigned int cmd, unsigned long arg)
 static int accy_ioctl(unsigned int cmd, unsigned long arg)
 {
 	int retval = -EINVAL;
+	struct cpcap_whisper_request read_data;
 
 	switch (cmd) {
 	case CPCAP_IOCTL_ACCY_WHISPER:
-		retval = cpcap_accy_whisper(misc_cpcap, arg);
+		if (copy_from_user((void *) &read_data, (void *) arg,
+				   sizeof(read_data)))
+			return -EFAULT;
+		retval = cpcap_accy_whisper(misc_cpcap, read_data.cmd,
+					    read_data.dock_id);
 	break;
 
 	default:

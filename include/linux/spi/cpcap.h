@@ -41,8 +41,9 @@
 
 #define CPCAP_WHISPER_MODE_PU       0x00000001
 #define CPCAP_WHISPER_ENABLE_UART   0x00000002
-#define CPCAP_WHISPER_ACCY_MASK     0xF1000000
+#define CPCAP_WHISPER_ACCY_MASK     0xF8000000
 #define CPCAP_WHISPER_ACCY_SHFT     27
+#define CPCAP_WHISPER_ID_SIZE       16
 
 enum cpcap_regulator_id {
 	CPCAP_SW2,
@@ -596,6 +597,11 @@ struct cpcap_regacc {
 	unsigned short mask;
 };
 
+struct cpcap_whisper_request {
+	unsigned int cmd;
+	char dock_id[CPCAP_WHISPER_ID_SIZE];
+};
+
 /*
  * Gets the contents of the specified cpcap register.
  *
@@ -656,7 +662,7 @@ struct cpcap_regacc {
 	_IOW(0, CPCAP_IOCTL_NUM_UC_SET_TURBO_MODE, unsigned short)
 
 #define CPCAP_IOCTL_ACCY_WHISPER \
-	_IOW(0, CPCAP_IOCTL_NUM_ACCY_WHISPER, unsigned long)
+	_IOW(0, CPCAP_IOCTL_NUM_ACCY_WHISPER, struct cpcap_whisper_request*)
 
 #ifdef __KERNEL__
 struct cpcap_device {
@@ -746,7 +752,8 @@ int cpcap_uc_stop(struct cpcap_device *cpcap, enum cpcap_macro macro);
 unsigned char cpcap_uc_status(struct cpcap_device *cpcap,
 			      enum cpcap_macro macro);
 
-int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd);
+int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
+		       char *dock_id);
 
 #define  cpcap_driver_register platform_driver_register
 #define  cpcap_driver_unregister platform_driver_unregister

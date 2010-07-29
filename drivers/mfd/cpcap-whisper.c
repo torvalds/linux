@@ -97,6 +97,7 @@ struct cpcap_whisper_data {
 	struct switch_dev wsdev;
 	struct switch_dev dsdev;
 	struct switch_dev asdev;
+	char dock_id[CPCAP_WHISPER_ID_SIZE];
 	struct otg_transceiver *otg;
 };
 
@@ -120,6 +121,17 @@ static ssize_t print_name(struct switch_dev *dsdev, char *buf)
 
 	return -EINVAL;
 }
+
+static ssize_t dock_id_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct switch_dev *dsdev = dev_get_drvdata(dev);
+	struct cpcap_whisper_data *data =
+		container_of(dsdev, struct cpcap_whisper_data, dsdev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", data->dock_id);
+}
+static DEVICE_ATTR(dock_addr, S_IRUGO | S_IWUSR, dock_id_show, NULL);
 
 static void vusb_enable(struct cpcap_whisper_data *data)
 {
@@ -271,6 +283,7 @@ static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 		switch_set_state(&di->wsdev, 0);
 		switch_set_state(&di->dsdev, NO_DOCK);
 		switch_set_state(&di->asdev, 0);
+		memset(di->dock_id, 0, CPCAP_WHISPER_ID_SIZE);
 	}
 }
 
@@ -451,7 +464,8 @@ static void whisper_int_handler(enum cpcap_irqs int_event, void *data)
 	schedule_delayed_work(&(di->work), 0);
 }
 
-int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd)
+int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
+		       char *dock_id)
 {
 	struct cpcap_whisper_data *di = cpcap->accydata;
 	int retval = -EAGAIN;
@@ -478,10 +492,11 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd)
 		/* Report dock type to system. */
 		dock = (cmd & CPCAP_WHISPER_ACCY_MASK) >>
 			CPCAP_WHISPER_ACCY_SHFT;
+		if (dock && (strlen(dock_id) < CPCAP_WHISPER_ID_SIZE))
+			strncpy(di->dock_id, dock_id, CPCAP_WHISPER_ID_SIZE);
 		switch_set_state(&di->dsdev, dock);
 
-		if (dock)
-			whisper_audio_check(di);
+		whisper_audio_check(di);
 	}
 
 	return retval;
@@ -510,12 +525,17 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 	data->wsdev.name = "whisper";
 	switch_dev_register(&data->wsdev);
 
+	data->asdev.name = "usb_audio";
+	switch_dev_register(&data->asdev);
+
 	data->dsdev.name = "dock";
 	data->dsdev.print_name = print_name;
 	switch_dev_register(&data->dsdev);
-
-	data->asdev.name = "usb_audio";
-	switch_dev_register(&data->asdev);
+	retval = device_create_file(data->dsdev.dev, &dev_attr_dock_addr);
+	if (retval < 0) {
+		dev_err(&pdev->dev, "Failed to create device file\n");
+		goto free_mem;
+	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -524,7 +544,7 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Could not get regulator for cpcap_whisper\n");
 		retval = PTR_ERR(data->regulator);
-		goto free_mem;
+		goto free_dock_id;
 	}
 	regulator_set_voltage(data->regulator, 3300000, 3300000);
 
@@ -566,6 +586,8 @@ free_irqs:
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_IDFLOAT);
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_CHRG_DET);
 	regulator_put(data->regulator);
+free_dock_id:
+	device_remove_file(data->dsdev.dev, &dev_attr_dock_addr);
 free_mem:
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
@@ -587,6 +609,7 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 	configure_hardware(data, CPCAP_ACCY_NONE);
 	cancel_delayed_work_sync(&data->work);
 
+	device_remove_file(data->dsdev.dev, &dev_attr_dock_addr);
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
 	switch_dev_unregister(&data->asdev);
