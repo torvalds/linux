@@ -278,8 +278,7 @@ static int apparmor_path_mknod(struct path *dir, struct dentry *dentry,
 	return common_perm_create(OP_MKNOD, dir, dentry, AA_MAY_CREATE, mode);
 }
 
-static int apparmor_path_truncate(struct path *path, loff_t length,
-				  unsigned int time_attrs)
+static int apparmor_path_truncate(struct path *path)
 {
 	struct path_cond cond = { path->dentry->d_inode->i_uid,
 				  path->dentry->d_inode->i_mode
