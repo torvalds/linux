@@ -434,7 +434,9 @@ static void hp_wmi_notify(u32 value, void *context)
 
 	obj = (union acpi_object *)response.pointer;
 
-	if (obj || obj->type != ACPI_TYPE_BUFFER) {
+	if (!obj)
+		return;
+	if (obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_INFO "hp-wmi: Unknown response received %d\n",
 		       obj->type);
 		kfree(obj);
