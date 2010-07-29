@@ -204,3 +204,44 @@ kvm_emulate_mtmsr_orig_ins_offs:
 .global kvm_emulate_mtmsr_len
 kvm_emulate_mtmsr_len:
 	.long (kvm_emulate_mtmsr_end - kvm_emulate_mtmsr) / 4
+
+
+
+.global kvm_emulate_wrteei
+kvm_emulate_wrteei:
+
+	SCRATCH_SAVE
+
+	/* Fetch old MSR in r31 */
+	LL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
+	/* Remove MSR_EE from old MSR */
+	li	r30, 0
+	ori	r30, r30, MSR_EE
+	andc	r31, r31, r30
+
+	/* OR new MSR_EE onto the old MSR */
+kvm_emulate_wrteei_ee:
+	ori	r31, r31, 0
+
+	/* Write new MSR value back */
+	STL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
+	SCRATCH_RESTORE
+
+	/* Go back to caller */
+kvm_emulate_wrteei_branch:
+	b	.
+kvm_emulate_wrteei_end:
+
+.global kvm_emulate_wrteei_branch_offs
+kvm_emulate_wrteei_branch_offs:
+	.long (kvm_emulate_wrteei_branch - kvm_emulate_wrteei) / 4
+
+.global kvm_emulate_wrteei_ee_offs
+kvm_emulate_wrteei_ee_offs:
+	.long (kvm_emulate_wrteei_ee - kvm_emulate_wrteei) / 4
+
+.global kvm_emulate_wrteei_len
+kvm_emulate_wrteei_len:
+	.long (kvm_emulate_wrteei_end - kvm_emulate_wrteei) / 4
