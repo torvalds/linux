@@ -4057,32 +4057,27 @@ restart:
 		return handle_emulation_failure(vcpu);
 	}
 
+	r = EMULATE_DONE;
+
+	if (vcpu->arch.emulate_ctxt.exception >= 0)
+		inject_emulated_exception(vcpu);
+	else if (vcpu->arch.pio.count) {
+		if (!vcpu->arch.pio.in)
+			vcpu->arch.pio.count = 0;
+		r = EMULATE_DO_MMIO;
+	} else if (vcpu->mmio_needed) {
+		if (vcpu->mmio_is_write)
+			vcpu->mmio_needed = 0;
+		r = EMULATE_DO_MMIO;
+	} else if (vcpu->arch.emulate_ctxt.restart)
+		goto restart;
+
 	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 
-	if (vcpu->arch.emulate_ctxt.exception >= 0) {
-		inject_emulated_exception(vcpu);
-		return EMULATE_DONE;
-	}
-
-	if (vcpu->arch.pio.count) {
-		if (!vcpu->arch.pio.in)
-			vcpu->arch.pio.count = 0;
-		return EMULATE_DO_MMIO;
-	}
-
-	if (vcpu->mmio_needed) {
-		if (vcpu->mmio_is_write)
-			vcpu->mmio_needed = 0;
-		return EMULATE_DO_MMIO;
-	}
-
-	if (vcpu->arch.emulate_ctxt.restart)
-		goto restart;
-
-	return EMULATE_DONE;
+	return r;
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
