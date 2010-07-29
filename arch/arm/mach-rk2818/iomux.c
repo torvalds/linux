@@ -117,9 +117,9 @@ void rk2818_mux_api_set(char *name, unsigned int mode)
   int i; 
 	for(i=0;i<ARRAY_SIZE(rk2818_muxs);i++)
 	{
-		//if(rockchip_muxs[i].name == cfg->name)
 		if (!strcmp(rk2818_muxs[i].name, name))
 		{
+		    rk2818_muxs[i].premode = rk2818_muxs[i].mode;
 			rk2818_muxs[i].mode = mode;
 			rk2818_mux_set(&rk2818_muxs[i]);	
 			break;			
@@ -128,18 +128,21 @@ void rk2818_mux_api_set(char *name, unsigned int mode)
 }
 EXPORT_SYMBOL(rk2818_mux_api_set);
 
-unsigned int rk2818_mux_api_get(char *name)
+void rk2818_mux_api_mode_resume(char *name)
 {
     int i; 
 	for(i=0;i<ARRAY_SIZE(rk2818_muxs);i++)
 	{
-		//if(rockchip_muxs[i].name == cfg->name)
 		if (!strcmp(rk2818_muxs[i].name, name))
 		{
-			return rk2818_muxs[i].mode;
+		    if(rk2818_muxs[i].mode != rk2818_muxs[i].premode)
+		    {
+    			rk2818_muxs[i].mode = rk2818_muxs[i].premode;
+    			rk2818_mux_set(&rk2818_muxs[i]);
+			}
+			break;
 		}
 	}
-	return 0xff;
 }
-EXPORT_SYMBOL(rk2818_mux_api_get);
+EXPORT_SYMBOL(rk2818_mux_api_mode_resume);
 
