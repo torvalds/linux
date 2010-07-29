@@ -114,6 +114,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss->dtim_period = tim_ie->dtim_period;
 	}
 
+	/* If the beacon had no TIM IE, or it was invalid, use 1 */
+	if (beacon && !bss->dtim_period)
+		bss->dtim_period = 1;
+
 	/* replace old supported rates if we get new values */
 	srlen = 0;
 	if (elems->supp_rates) {
