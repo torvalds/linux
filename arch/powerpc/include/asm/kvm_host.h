@@ -287,6 +287,8 @@ struct kvm_vcpu_arch {
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
 	struct kvm_vcpu_arch_shared *shared;
+	unsigned long magic_page_pa; /* phys addr to map the magic page to */
+	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
 
 #ifdef CONFIG_PPC_BOOK3S
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
