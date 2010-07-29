@@ -43,6 +43,8 @@
 #include <mach/gpio.h>
 #include <mach/clk.h>
 #include <mach/usb_phy.h>
+#include <mach/i2s.h>
+#include <mach/audio.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -220,6 +222,17 @@ static struct platform_device cpcap_otg = {
 	.id   = -1,
 	.resource = cpcap_otg_resources,
 	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
+};
+
+static struct tegra_audio_platform_data tegra_audio_pdata = {
+	.master		= false,
+	.dma_on		= true,  /* use dma by default */
+	.i2s_clk_rate	= 240000000,
+	.dap_clk	= "clk_dev1",
+	.audio_sync_clk = "audio_2x",
+	.mode		= I2S_BIT_FORMAT_I2S,
+	.fifo_fmt	= I2S_FIFO_16_LSB,
+	.bit_size	= I2S_BIT_SIZE_16,
 };
 
 static char *usb_functions[] = { "mtp" };
@@ -440,6 +453,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_gart_dev,
 	&ram_console_device,
 	&tegra_isp,
+	&tegra_i2s_device1,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -662,6 +676,30 @@ static struct tegra_suspend_platform_data stingray_suspend = {
 	.wake_any = 0,
 };
 
+static void *das_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
+
+static inline void das_writel(unsigned long value, unsigned long offset)
+{
+	writel(value, das_base + offset);
+}
+
+#define APB_MISC_DAS_DAP_CTRL_SEL_0             0xc00
+#define APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0   0xc40
+
+static void init_das(void)
+{
+	bool master = tegra_audio_pdata.master;
+
+	/* DAC1 -> DAP1 */
+	das_writel((!master)<<31, APB_MISC_DAS_DAP_CTRL_SEL_0);
+	das_writel(0, APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0);
+
+	/* DAC2 -> DAP2 */
+	das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
+	das_writel(1<<28 | 1<<24 | 1,
+			APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
+}
+
 extern int nvmap_add_carveout_heap(unsigned long, size_t, const char *,
 				   unsigned int);
 
@@ -732,6 +770,9 @@ static void __init tegra_stingray_init(void)
 	writel(1 << 1, IO_ADDRESS(TEGRA_PMC_BASE) + 0x34);
 	tegra_periph_reset_deassert(clk);
 	clk_put(clk);
+
+	init_das();
+	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
