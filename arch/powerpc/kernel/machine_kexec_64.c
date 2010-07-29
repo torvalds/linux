@@ -15,6 +15,7 @@
 #include <linux/thread_info.h>
 #include <linux/init_task.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 
 #include <asm/page.h>
 #include <asm/current.h>
@@ -184,7 +185,20 @@ static void kexec_prepare_cpus_wait(int wait_state)
 
 	hw_breakpoint_disable();
 	my_cpu = get_cpu();
-	/* Make sure each CPU has atleast made it to the state we need */
+	/* Make sure each CPU has at least made it to the state we need.
+	 *
+	 * FIXME: There is a (slim) chance of a problem if not all of the CPUs
+	 * are correctly onlined.  If somehow we start a CPU on boot with RTAS
+	 * start-cpu, but somehow that CPU doesn't write callin_cpu_map[] in
+	 * time, the boot CPU will timeout.  If it does eventually execute
+	 * stuff, the secondary will start up (paca[].cpu_start was written) and
+	 * get into a peculiar state.  If the platform supports
+	 * smp_ops->take_timebase(), the secondary CPU will probably be spinning
+	 * in there.  If not (i.e. pseries), the secondary will continue on and
+	 * try to online itself/idle/etc. If it survives that, we need to find
+	 * these possible-but-not-online-but-should-be CPUs and chaperone them
+	 * into kexec_smp_wait().
+	 */
 	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
@@ -192,9 +206,9 @@ static void kexec_prepare_cpus_wait(int wait_state)
 		while (paca[i].kexec_state < wait_state) {
 			barrier();
 			if (i != notified) {
-				printk( "kexec: waiting for cpu %d (physical"
-						" %d) to enter %i state\n",
-					i, paca[i].hw_cpu_id, wait_state);
+				printk(KERN_INFO "kexec: waiting for cpu %d "
+				       "(physical %d) to enter %i state\n",
+				       i, paca[i].hw_cpu_id, wait_state);
 				notified = i;
 			}
 		}
@@ -218,7 +232,10 @@ static void kexec_prepare_cpus(void)
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 0);
 
-	/* Before removing MMU mapings make sure all CPUs have entered real mode */
+	/*
+	 * Before removing MMU mappings make sure all CPUs have entered real
+	 * mode:
+	 */
 	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
 
 	put_cpu();
@@ -286,6 +303,8 @@ void default_machine_kexec(struct kimage *image)
 
 	if (crashing_cpu == -1)
 		kexec_prepare_cpus();
+
+	pr_debug("kexec: Starting switchover sequence.\n");
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * XXX: the task struct will likely be invalid once we do the copy!
