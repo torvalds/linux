@@ -165,5 +165,13 @@ adis16350_read_data_from_ring(struct device *dev,
 	return 0;
 }
 
+static inline int adis16350_configure_ring(struct iio_dev *indio_dev)
+{
+	return 0;
+}
+
+static inline void adis16350_unconfigure_ring(struct iio_dev *indio_dev)
+{
+}
 #endif /* CONFIG_IIO_RING_BUFFER */
 #endif /* SPI_ADIS16350_H_ */
