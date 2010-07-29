@@ -132,8 +132,8 @@ extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 extern int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
-extern u32 kvmppc_trampoline_lowmem;
-extern u32 kvmppc_trampoline_enter;
+extern ulong kvmppc_trampoline_lowmem;
+extern ulong kvmppc_trampoline_enter;
 extern void kvmppc_rmcall(ulong srr0, ulong srr1);
 extern void kvmppc_load_up_fpu(void);
 extern void kvmppc_load_up_altivec(void);
