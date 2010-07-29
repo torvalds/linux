@@ -107,6 +107,20 @@ static void kvm_patch_ins_nop(u32 *inst)
 	kvm_patch_ins(inst, KVM_INST_NOP);
 }
 
+static void kvm_patch_ins_b(u32 *inst, int addr)
+{
+#ifdef CONFIG_RELOCATABLE
+	/* On relocatable kernels interrupts handlers and our code
+	   can be in different regions, so we don't patch them */
+
+	extern u32 __end_interrupts;
+	if ((ulong)inst < (ulong)&__end_interrupts)
+		return;
+#endif
+
+	kvm_patch_ins(inst, KVM_INST_B | (addr & KVM_INST_B_MASK));
+}
+
 static u32 *kvm_alloc(int len)
 {
 	u32 *p;
