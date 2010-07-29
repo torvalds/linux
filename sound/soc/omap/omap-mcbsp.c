@@ -348,11 +348,13 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
-	int dma, bus_id = mcbsp_data->bus_id, id = cpu_dai->id;
+	struct omap_pcm_dma_data *dma_data;
+	int dma, bus_id = mcbsp_data->bus_id;
 	int wlen, channels, wpf, sync_mode = OMAP_DMA_SYNC_ELEMENT;
 	unsigned long port;
 	unsigned int format, div, framesize, master;
 
+	dma_data = &omap_mcbsp_dai_dma_params[cpu_dai->id][substream->stream];
 	if (cpu_class_is_omap1()) {
 		dma = omap1_dma_reqs[bus_id][substream->stream];
 		port = omap1_mcbsp_port[bus_id][substream->stream];
@@ -365,8 +367,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	} else if (cpu_is_omap343x()) {
 		dma = omap24xx_dma_reqs[bus_id][substream->stream];
 		port = omap34xx_mcbsp_port[bus_id][substream->stream];
-		omap_mcbsp_dai_dma_params[id][substream->stream].set_threshold =
-						omap_mcbsp_set_threshold;
+		dma_data->set_threshold = omap_mcbsp_set_threshold;
 		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 		if (omap_mcbsp_get_dma_op_mode(bus_id) ==
 						MCBSP_DMA_MODE_THRESHOLD)
@@ -374,26 +375,22 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		return -ENODEV;
 	}
-	omap_mcbsp_dai_dma_params[id][substream->stream].name =
-		substream->stream ? "Audio Capture" : "Audio Playback";
-	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
-	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
-	omap_mcbsp_dai_dma_params[id][substream->stream].sync_mode = sync_mode;
+	dma_data->name = substream->stream ? "Audio Capture" : "Audio Playback";
+	dma_data->dma_req = dma;
+	dma_data->port_addr = port;
+	dma_data->sync_mode = sync_mode;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
-			 OMAP_DMA_DATA_TYPE_S16;
+		dma_data->data_type = OMAP_DMA_DATA_TYPE_S16;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
-			 OMAP_DMA_DATA_TYPE_S32;
+		dma_data->data_type = OMAP_DMA_DATA_TYPE_S32;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
-		&omap_mcbsp_dai_dma_params[id][substream->stream]);
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	if (mcbsp_data->configured) {
 		/* McBSP already configured by another stream */
