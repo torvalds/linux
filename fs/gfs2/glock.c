@@ -707,17 +707,7 @@ static void glock_work_func(struct work_struct *work)
 {
 	unsigned long delay = 0;
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_work.work);
-	struct gfs2_holder *gh;
 	int drop_ref = 0;
-
-	if (unlikely(test_bit(GLF_FROZEN, &gl->gl_flags))) {
-		spin_lock(&gl->gl_spin);
-		gh = find_first_waiter(gl);
-		if (gh && (gh->gh_flags & LM_FLAG_NOEXP) &&
-		    test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))
-			set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
-		spin_unlock(&gl->gl_spin);
-	}
 
 	if (test_and_clear_bit(GLF_REPLY_PENDING, &gl->gl_flags)) {
 		finish_xmote(gl, gl->gl_reply);
