@@ -86,14 +86,15 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case 31:
 		switch (get_xop(inst)) {
 		case OP_31_XOP_MFMSR:
-			kvmppc_set_gpr(vcpu, get_rt(inst), vcpu->arch.msr);
+			kvmppc_set_gpr(vcpu, get_rt(inst),
+				       vcpu->arch.shared->msr);
 			break;
 		case OP_31_XOP_MTMSRD:
 		{
 			ulong rs = kvmppc_get_gpr(vcpu, get_rs(inst));
 			if (inst & 0x10000) {
-				vcpu->arch.msr &= ~(MSR_RI | MSR_EE);
-				vcpu->arch.msr |= rs & (MSR_RI | MSR_EE);
+				vcpu->arch.shared->msr &= ~(MSR_RI | MSR_EE);
+				vcpu->arch.shared->msr |= rs & (MSR_RI | MSR_EE);
 			} else
 				kvmppc_set_msr(vcpu, rs);
 			break;
@@ -204,7 +205,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				ra = kvmppc_get_gpr(vcpu, get_ra(inst));
 
 			addr = (ra + rb) & ~31ULL;
-			if (!(vcpu->arch.msr & MSR_SF))
+			if (!(vcpu->arch.shared->msr & MSR_SF))
 				addr &= 0xffffffff;
 			vaddr = addr;
 

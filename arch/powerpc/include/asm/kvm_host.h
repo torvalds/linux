@@ -211,7 +211,6 @@ struct kvm_vcpu_arch {
 	u32 cr;
 #endif
 
-	ulong msr;
 #ifdef CONFIG_PPC_BOOK3S
 	ulong shadow_msr;
 	ulong hflags;

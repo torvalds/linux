@@ -62,7 +62,7 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		case OP_31_XOP_MFMSR:
 			rt = get_rt(inst);
-			kvmppc_set_gpr(vcpu, rt, vcpu->arch.msr);
+			kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->msr);
 			kvmppc_set_exit_type(vcpu, EMULATED_MFMSR_EXITS);
 			break;
 
@@ -74,13 +74,13 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		case OP_31_XOP_WRTEE:
 			rs = get_rs(inst);
-			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
+			vcpu->arch.shared->msr = (vcpu->arch.shared->msr & ~MSR_EE)
 					| (kvmppc_get_gpr(vcpu, rs) & MSR_EE);
 			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;
 
 		case OP_31_XOP_WRTEEI:
-			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
+			vcpu->arch.shared->msr = (vcpu->arch.shared->msr & ~MSR_EE)
 							 | (inst & MSR_EE);
 			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;

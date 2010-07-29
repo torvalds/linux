@@ -54,12 +54,12 @@ extern unsigned long kvmppc_booke_handlers;
  * changing. */
 static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 {
-	if ((new_msr & MSR_PR) != (vcpu->arch.msr & MSR_PR))
+	if ((new_msr & MSR_PR) != (vcpu->arch.shared->msr & MSR_PR))
 		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
 
-	vcpu->arch.msr = new_msr;
+	vcpu->arch.shared->msr = new_msr;
 
-	if (vcpu->arch.msr & MSR_WE) {
+	if (vcpu->arch.shared->msr & MSR_WE) {
 		kvm_vcpu_block(vcpu);
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
 	};
