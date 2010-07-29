@@ -2016,6 +2016,12 @@ static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned long base,
 	op->ptr = (unsigned long *)register_address(c,  base, c->regs[reg]);
 }
 
+static int em_push(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_push(ctxt, ctxt->ops);
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2111,7 +2117,7 @@ static struct opcode opcode_table[256] = {
 	/* 0x40 - 0x4F */
 	X16(D(DstReg)),
 	/* 0x50 - 0x57 */
-	X8(D(SrcReg | Stack)),
+	X8(I(SrcReg | Stack, em_push)),
 	/* 0x58 - 0x5F */
 	X8(D(DstReg | Stack)),
 	/* 0x60 - 0x67 */
@@ -2119,7 +2125,8 @@ static struct opcode opcode_table[256] = {
 	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
 	N, N, N, N,
 	/* 0x68 - 0x6F */
-	D(SrcImm | Mov | Stack), N, D(SrcImmByte | Mov | Stack), N,
+	I(SrcImm | Mov | Stack, em_push), N,
+	I(SrcImmByte | Mov | Stack, em_push), N,
 	D(DstDI | ByteOp | Mov | String), D(DstDI | Mov | String), /* insb, insw/insd */
 	D(SrcSI | ByteOp | ImplicitOps | String), D(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
@@ -2786,9 +2793,6 @@ special_insn:
 	case 0x48 ... 0x4f: /* dec r16/r32 */
 		emulate_1op("dec", c->dst, ctxt->eflags);
 		break;
-	case 0x50 ... 0x57:  /* push reg */
-		emulate_push(ctxt, ops);
-		break;
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
 		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
@@ -2809,10 +2813,6 @@ special_insn:
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
 		c->dst.val = (s32) c->src.val;
-		break;
-	case 0x68: /* push imm */
-	case 0x6a: /* push imm8 */
-		emulate_push(ctxt, ops);
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
