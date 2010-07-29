@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/i2c-tegra.h>
+#include <linux/spi/cpcap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -45,6 +46,7 @@
 #include <mach/usb_phy.h>
 #include <mach/i2s.h>
 #include <mach/audio.h>
+#include <mach/cpcap_audio.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -222,6 +224,92 @@ static struct platform_device cpcap_otg = {
 	.id   = -1,
 	.resource = cpcap_otg_resources,
 	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
+};
+
+#define CPCAP_REG(r, v, m) { .reg = (r), .val = (v), .mask = (m) }
+#define CPCAP_REG_SLAVE(r, v, m, s) { .reg = (r), .val = (v), \
+					.mask = (m), .slave_or = (s) }
+
+static const struct cpcap_audio_config_table speaker_config_table[] = {
+	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0007, 0x77),		/* 512 */
+	CPCAP_REG(CPCAP_REG_CC, 0x8E93, 0xFEDF),		/* 513 */
+	CPCAP_REG(CPCAP_REG_CDI, 0x1E42, 0xBFFF),		/* 514 */
+	CPCAP_REG(CPCAP_REG_SDAC, 0x0079, 0xFFF),		/* 515 */
+	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x003E, 0x3FFF, 1),	/* 516 */
+	CPCAP_REG(CPCAP_REG_TXI, 0x0CC6, 0xFFFF),		/* 517 */
+	CPCAP_REG(CPCAP_REG_TXMP, 0x03FF, 0x0FFF),		/* 518 */
+	CPCAP_REG(CPCAP_REG_RXOA, 0x0218, 0x07FF),		/* 519 */
+	CPCAP_REG(CPCAP_REG_RXVC, 0xAA28, 0xFF3C),		/* 520 */
+	CPCAP_REG(CPCAP_REG_RXCOA, 0x0618, 0x07FF),		/* 521 */
+	CPCAP_REG(CPCAP_REG_RXSDOA, 0x1818, 0x1FFF),		/* 522 */
+};
+
+static const struct cpcap_audio_config_table headset_config_table[] = {
+	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0007, 0x0077),		/* 512 */
+	CPCAP_REG(CPCAP_REG_CC, 0x8000, 0xFEDF),		/* 513 */
+	CPCAP_REG(CPCAP_REG_CDI, 0x8607, 0xBFFF),		/* 514 */
+	CPCAP_REG(CPCAP_REG_SDAC, 0x0079, 0xFFF),		/* 515 */
+	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x003E, 0x3FFF, 1),	/* 516 */
+	CPCAP_REG(CPCAP_REG_TXI, 0x500A, 0xFFFF),		/* 517 */
+	CPCAP_REG(CPCAP_REG_TXMP, 0x039C, 0x0FFF),		/* 518 */
+	CPCAP_REG(CPCAP_REG_RXOA, 0x0262, 0x07FF),		/* 519 */
+	CPCAP_REG(CPCAP_REG_RXVC, 0xCC30, 0xFF3C),		/* 520 */
+	CPCAP_REG(CPCAP_REG_RXCOA, 0x0000, 0x07FF),		/* 521 */
+	CPCAP_REG(CPCAP_REG_RXSDOA, 0x1862, 0x1FFF),		/* 522 */
+};
+
+static const struct cpcap_audio_config_table mic1_config_table[] = {
+	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0035, 0xFFFF),		/* 512 */
+	CPCAP_REG(CPCAP_REG_CC, 0x8FB3, 0xFEDF),		/* 513 */
+	CPCAP_REG(CPCAP_REG_CDI, 0x9E40, 0xFFFF),		/* 514 */
+	CPCAP_REG(CPCAP_REG_SDAC, 0x0008, 0xFCFF),		/* 515 */
+	CPCAP_REG(CPCAP_REG_SDACDI, 0x0808, 0xFFFF),		/* 516 */
+	CPCAP_REG(CPCAP_REG_TXI, 0x1CC6, 0xFFFF),		/* 517 */
+	CPCAP_REG(CPCAP_REG_TXMP, 0x03FF, 0xFFFF),		/* 518 */
+	CPCAP_REG(CPCAP_REG_RXOA, 0x0000, 0xFFFF),		/* 519 */
+	CPCAP_REG(CPCAP_REG_RXVC, 0xDD34, 0xFFFF),		/* 520 */
+	CPCAP_REG(CPCAP_REG_RXCOA, 0x0200, 0xFFFF),		/* 521 */
+	CPCAP_REG(CPCAP_REG_RXSDOA, 0x1E02, 0xFFFF),		/* 522 */
+};
+
+#undef CPCAP_REG
+#undef CPCAP_REG_SLAVE
+
+static struct cpcap_audio_path speaker = {
+	.name = "speaker",
+	.gpio = TEGRA_GPIO_PR3,
+	.table = speaker_config_table,
+	.table_len = ARRAY_SIZE(speaker_config_table)
+};
+
+static const struct cpcap_audio_path headset = {
+	.name = "headset",
+	.gpio = TEGRA_GPIO_PS7,
+	.table = headset_config_table,
+	.table_len = ARRAY_SIZE(headset_config_table)
+};
+
+static const struct cpcap_audio_path mic1 = {
+	.name = "mic1",
+	.gpio = -1,
+	.table = mic1_config_table,
+	.table_len = ARRAY_SIZE(mic1_config_table),
+};
+
+/* CPCAP is i2s master; tegra_audio_pdata.master == false */
+static struct cpcap_audio_platform_data cpcap_audio_pdata = {
+	.master = true,
+	.speaker = &speaker,
+	.headset = &headset,
+	.mic1 = &mic1,
+};
+
+static struct platform_device cpcap_audio_device = {
+	.name   = "cpcap_audio",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &cpcap_audio_pdata,
+	},
 };
 
 static struct tegra_audio_platform_data tegra_audio_pdata = {
@@ -773,6 +861,7 @@ static void __init tegra_stingray_init(void)
 
 	init_das();
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
+	cpcap_device_register(&cpcap_audio_device);
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
