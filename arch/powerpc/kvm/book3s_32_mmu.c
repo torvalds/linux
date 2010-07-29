@@ -104,7 +104,7 @@ static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvmppc_vcpu_book3s *vcpu_book3
 	pteg = (vcpu_book3s->sdr1 & 0xffff0000) | hash;
 
 	dprintk("MMU: pc=0x%lx eaddr=0x%lx sdr1=0x%llx pteg=0x%x vsid=0x%x\n",
-		vcpu_book3s->vcpu.arch.pc, eaddr, vcpu_book3s->sdr1, pteg,
+		kvmppc_get_pc(&vcpu_book3s->vcpu), eaddr, vcpu_book3s->sdr1, pteg,
 		sre->vsid);
 
 	r = gfn_to_hva(vcpu_book3s->vcpu.kvm, pteg >> PAGE_SHIFT);
@@ -269,7 +269,7 @@ no_page_found:
 		dprintk_pte("KVM MMU: No PTE found (sdr1=0x%llx ptegp=0x%lx)\n",
 			    to_book3s(vcpu)->sdr1, ptegp);
 		for (i=0; i<16; i+=2) {
-			dprintk_pte("   %02d: 0x%x - 0x%x (0x%llx)\n",
+			dprintk_pte("   %02d: 0x%x - 0x%x (0x%x)\n",
 				    i, pteg[i], pteg[i+1], ptem);
 		}
 	}
