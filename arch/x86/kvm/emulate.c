@@ -105,7 +105,7 @@
 #define X16(x) X8(x), X8(x)
 
 enum {
-	NoGrp, Group8, Group9,
+	NoGrp, Group9,
 };
 
 struct opcode {
@@ -162,11 +162,13 @@ static struct group_dual group7 = { {
 	D(SrcMem16 | ModRM | Mov | Priv), N,
 } };
 
-static struct opcode group_table[] = {
-	[Group8*8] =
+static struct opcode group8[] = {
 	N, N, N, N,
 	D(DstMem | SrcImmByte | ModRM), D(DstMem | SrcImmByte | ModRM | Lock),
 	D(DstMem | SrcImmByte | ModRM | Lock), D(DstMem | SrcImmByte | ModRM | Lock),
+};
+
+static struct opcode group_table[] = {
 	[Group9*8] =
 	N, D(DstMem64 | ModRM | Lock), N, N, N, N, N, N,
 };
@@ -337,7 +339,7 @@ static struct opcode twobyte_table[256] = {
 	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
-	D(Group | Group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	G(0, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
 	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
