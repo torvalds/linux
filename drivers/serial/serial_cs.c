@@ -440,7 +440,7 @@ static int simple_config_check(struct pcmcia_device *p_dev,
 	int *try = priv_data;
 
 	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
+		p_dev->vpp =
 			cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	p_dev->io_lines = ((*try & 0x1) == 0) ?

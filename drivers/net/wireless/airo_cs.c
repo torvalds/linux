@@ -166,9 +166,9 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
+		p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
+		p_dev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
@@ -244,8 +244,8 @@ static int airo_config(struct pcmcia_device *link)
 	/* Finally, report what we've done */
 	dev_info(&link->dev, "index 0x%02x: ",
 	       link->conf.ConfigIndex);
-	if (link->conf.Vpp)
-		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
+	if (link->vpp)
+		printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
 	printk(", irq %d", link->irq);
 	if (link->resource[0])
 		printk(" & %pR", link->resource[0]);

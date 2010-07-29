@@ -221,9 +221,9 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 	}
 
 	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		pdev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		pdev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
@@ -311,7 +311,7 @@ static int ide_config(struct pcmcia_device *link)
     info->host = host;
     dev_info(&link->dev, "ide-cs: hd%c: Vpp = %d.%d\n",
 	    'a' + host->ports[0]->index * 2,
-	    link->conf.Vpp / 10, link->conf.Vpp % 10);
+	    link->vpp / 10, link->vpp % 10);
 
     kfree(stk);
     return 0;

@@ -94,6 +94,7 @@ struct pcmcia_device {
 	/* device setup */
 	unsigned int		irq;
 	struct resource		*resource[PCMCIA_NUM_RESOURCES];
+	unsigned int		vpp;
 
 	unsigned int		io_lines; /* number of I/O lines */
 

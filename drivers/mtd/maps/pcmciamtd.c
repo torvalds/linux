@@ -570,9 +570,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	dev->vpp = (vpp) ? vpp : link->socket->socket.Vpp;
 	link->conf.Attributes = 0;
 	if(setvpp == 2) {
-		link->conf.Vpp = dev->vpp;
+		link->vpp = dev->vpp;
 	} else {
-		link->conf.Vpp = 0;
+		link->vpp = 0;
 	}
 
 	link->conf.IntType = INT_MEMORY;

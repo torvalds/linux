@@ -686,7 +686,7 @@ static int bt3c_check_config(struct pcmcia_device *p_dev,
 	p_dev->io_lines = (try == 0) ? 16 : cf->io.flags & CISTPL_IO_LINES_MASK;
 
 	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		p_dev->vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
 	    (cf->io.win[0].base != 0)) {
 		p_dev->resource[0]->start = cf->io.win[0].base;

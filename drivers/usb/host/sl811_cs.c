@@ -152,10 +152,10 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 		}
 
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
+		p_dev->vpp =
 			cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
+		p_dev->vpp =
 			dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* we need an interrupt */
@@ -201,8 +201,8 @@ static int sl811_cs_config(struct pcmcia_device *link)
 
 	dev_info(&link->dev, "index 0x%02x: ",
 		link->conf.ConfigIndex);
-	if (link->conf.Vpp)
-		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
+	if (link->vpp)
+		printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
 	printk(", irq %d", link->irq);
 	printk(", io %pR", link->resource[0]);
 	printk("\n");

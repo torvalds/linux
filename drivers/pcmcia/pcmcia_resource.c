@@ -303,6 +303,7 @@ int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp)
 		ret = -EIO;
 		goto unlock;
 	}
+	p_dev->vpp = new_vpp;
 
 unlock:
 	mutex_unlock(&s->ops_mutex);
@@ -458,7 +459,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	}
 
 	/* Do power control.  We don't allow changes in Vcc. */
-	s->socket.Vpp = req->Vpp;
+	s->socket.Vpp = p_dev->vpp;
 	if (s->ops->set_socket(s, &s->socket)) {
 		mutex_unlock(&s->ops_mutex);
 		dev_printk(KERN_WARNING, &p_dev->dev,

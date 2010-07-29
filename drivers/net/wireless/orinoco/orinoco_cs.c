@@ -181,10 +181,10 @@ static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 	}
 
 	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
+		p_dev->vpp =
 			cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
+		p_dev->vpp =
 			dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	/* Do we need to allocate an interrupt? */
