@@ -105,7 +105,7 @@
 #define X16(x) X8(x), X8(x)
 
 enum {
-	Group1, Group1A, Group3, Group4, Group5, Group7, Group8, Group9,
+	NoGrp, Group1, Group1A, Group3, Group4, Group5, Group7, Group8, Group9,
 };
 
 struct opcode {
