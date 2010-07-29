@@ -634,6 +634,7 @@ config ARCH_S3C2410
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -663,6 +664,7 @@ config ARCH_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
+	select HAVE_S3C2410_I2C
 	help
 	  Samsung S3C64XX series based systems
 
@@ -672,6 +674,7 @@ config ARCH_S5P6440
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
 	help
 	  Samsung S5P6440 CPU based systems
@@ -692,6 +695,7 @@ config ARCH_S5PC100
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
 	help
 	  Samsung S5PC100 series based systems
@@ -703,6 +707,7 @@ config ARCH_S5PV210
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
 	help
 	  Samsung S5PV210/S5PC110 series based systems

@@ -521,12 +521,19 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config HAVE_S3C2410_I2C
+	bool
+	help
+	  This will include I2C support for Samsung SoCs. If you want to
+	  include I2C support for any machine, kindly select this in the
+	  respective Kconfig file.
+
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX
+	depends on HAVE_S3C2410_I2C
 	help
 	  Say Y here to include support for I2C controller in the
-	  Samsung S3C2410 based System-on-Chip devices.
+	  Samsung SoCs.
 
 config I2C_S6000
 	tristate "S6000 I2C support"
