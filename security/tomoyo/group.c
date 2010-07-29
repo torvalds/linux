@@ -80,24 +80,24 @@ int tomoyo_write_group(char *data, const bool is_delete, const u8 type)
  * @pathname:        The name of pathname.
  * @group:           Pointer to "struct tomoyo_path_group".
  *
- * Returns true if @pathname matches pathnames in @group, false otherwise.
+ * Returns matched member's pathname if @pathname matches pathnames in @group,
+ * NULL otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_group *group)
+const struct tomoyo_path_info *
+tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
+			  const struct tomoyo_group *group)
 {
 	struct tomoyo_path_group *member;
-	bool matched = false;
 	list_for_each_entry_rcu(member, &group->member_list, head.list) {
 		if (member->head.is_deleted)
 			continue;
 		if (!tomoyo_path_matches_pattern(pathname, member->member_name))
 			continue;
-		matched = true;
-		break;
+		return member->member_name;
 	}
-	return matched;
+	return NULL;
 }
 
 /**

@@ -246,6 +246,8 @@ struct tomoyo_request_info {
 	union {
 		struct {
 			const struct tomoyo_path_info *filename;
+			/* For using wildcards at tomoyo_find_next_domain(). */
+			const struct tomoyo_path_info *matched_path;
 			u8 operation;
 		} path;
 		struct {
@@ -718,8 +720,9 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 /* Print out of memory warning message. */
 void tomoyo_warn_oom(const char *function);
 /* Check whether the given name matches the given name_union. */
-bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
-			       const struct tomoyo_name_union *ptr);
+const struct tomoyo_path_info *
+tomoyo_compare_name_union(const struct tomoyo_path_info *name,
+			  const struct tomoyo_name_union *ptr);
 /* Check whether the given number matches the given number_union. */
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
@@ -736,8 +739,9 @@ bool tomoyo_domain_def(const unsigned char *buffer);
 bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr);
 /* Check whether the given filename matches the given path_group. */
-bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_group *group);
+const struct tomoyo_path_info *
+tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
+			  const struct tomoyo_group *group);
 /* Check whether the given value matches the given number_group. */
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
@@ -879,7 +883,7 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 						  const struct tomoyo_acl_head
 						  *));
 void tomoyo_check_acl(struct tomoyo_request_info *r,
-		      bool (*check_entry) (const struct tomoyo_request_info *,
+		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *));
 
 /********** External variable definitions. **********/

@@ -60,7 +60,7 @@ static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 				 flags);
 }
 
-static bool tomoyo_check_mount_acl(const struct tomoyo_request_info *r,
+static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
 				   const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_mount_acl *acl =

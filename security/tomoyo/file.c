@@ -95,12 +95,15 @@ void tomoyo_put_name_union(struct tomoyo_name_union *ptr)
 		tomoyo_put_name(ptr->filename);
 }
 
-bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
-			       const struct tomoyo_name_union *ptr)
+const struct tomoyo_path_info *
+tomoyo_compare_name_union(const struct tomoyo_path_info *name,
+			  const struct tomoyo_name_union *ptr)
 {
 	if (ptr->is_group)
 		return tomoyo_path_matches_group(name, ptr->group);
-	return tomoyo_path_matches_pattern(name, ptr->filename);
+	if (tomoyo_path_matches_pattern(name, ptr->filename))
+		return ptr->filename;
+	return NULL;
 }
 
 void tomoyo_put_number_union(struct tomoyo_number_union *ptr)
@@ -504,16 +507,21 @@ int tomoyo_write_no_rewrite(char *data, const bool is_delete)
 	return tomoyo_update_no_rewrite_entry(data, is_delete);
 }
 
-static bool tomoyo_check_path_acl(const struct tomoyo_request_info *r,
+static bool tomoyo_check_path_acl(struct tomoyo_request_info *r,
 				  const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_path_acl *acl = container_of(ptr, typeof(*acl),
 							 head);
-	return (acl->perm & (1 << r->param.path.operation)) &&
-		tomoyo_compare_name_union(r->param.path.filename, &acl->name);
+	if (acl->perm & (1 << r->param.path.operation)) {
+		r->param.path.matched_path =
+			tomoyo_compare_name_union(r->param.path.filename,
+						  &acl->name);
+		return r->param.path.matched_path != NULL;
+	}
+	return false;
 }
 
-static bool tomoyo_check_path_number_acl(const struct tomoyo_request_info *r,
+static bool tomoyo_check_path_number_acl(struct tomoyo_request_info *r,
 					 const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_path_number_acl *acl =
@@ -525,7 +533,7 @@ static bool tomoyo_check_path_number_acl(const struct tomoyo_request_info *r,
 					  &acl->name);
 }
 
-static bool tomoyo_check_path2_acl(const struct tomoyo_request_info *r,
+static bool tomoyo_check_path2_acl(struct tomoyo_request_info *r,
 				   const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_path2_acl *acl =
@@ -536,7 +544,7 @@ static bool tomoyo_check_path2_acl(const struct tomoyo_request_info *r,
 					     &acl->name2);
 }
 
-static bool tomoyo_check_mkdev_acl(const struct tomoyo_request_info *r,
+static bool tomoyo_check_mkdev_acl(struct tomoyo_request_info *r,
 				const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_mkdev_acl *acl =

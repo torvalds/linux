@@ -110,7 +110,7 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 }
 
 void tomoyo_check_acl(struct tomoyo_request_info *r,
-		      bool (*check_entry) (const struct tomoyo_request_info *,
+		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *))
 {
 	const struct tomoyo_domain_info *domain = r->domain;
@@ -465,6 +465,19 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		goto retry;
 	if (retval < 0)
 		goto out;
+	/*
+	 * To be able to specify domainnames with wildcards, use the
+	 * pathname specified in the policy (which may contain
+	 * wildcard) rather than the pathname passed to execve()
+	 * (which never contains wildcard).
+	 */
+	if (r.param.path.matched_path) {
+		if (need_kfree)
+			kfree(rn.name);
+		need_kfree = false;
+		/* This is OK because it is read only. */
+		rn = *r.param.path.matched_path;
+	}
 
 	/* Calculate domain to transit to. */
 	switch (tomoyo_transition_type(old_domain->domainname, &rn)) {
