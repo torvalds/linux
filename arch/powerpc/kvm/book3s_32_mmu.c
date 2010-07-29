@@ -281,8 +281,24 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 				      struct kvmppc_pte *pte, bool data)
 {
 	int r;
+	ulong mp_ea = vcpu->arch.magic_page_ea;
 
 	pte->eaddr = eaddr;
+
+	/* Magic page override */
+	if (unlikely(mp_ea) &&
+	    unlikely((eaddr & ~0xfffULL) == (mp_ea & ~0xfffULL)) &&
+	    !(vcpu->arch.shared->msr & MSR_PR)) {
+		pte->vpage = kvmppc_mmu_book3s_32_ea_to_vp(vcpu, eaddr, data);
+		pte->raddr = vcpu->arch.magic_page_pa | (pte->raddr & 0xfff);
+		pte->raddr &= KVM_PAM;
+		pte->may_execute = true;
+		pte->may_read = true;
+		pte->may_write = true;
+
+		return 0;
+	}
+
 	r = kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, pte, data);
 	if (r < 0)
 	       r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte, data, true);

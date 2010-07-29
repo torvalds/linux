@@ -419,6 +419,25 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	}
 }
 
+pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
+{
+	ulong mp_pa = vcpu->arch.magic_page_pa;
+
+	/* Magic page override */
+	if (unlikely(mp_pa) &&
+	    unlikely(((gfn << PAGE_SHIFT) & KVM_PAM) ==
+		     ((mp_pa & PAGE_MASK) & KVM_PAM))) {
+		ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
+		pfn_t pfn;
+
+		pfn = (pfn_t)virt_to_phys((void*)shared_page) >> PAGE_SHIFT;
+		get_page(pfn_to_page(pfn));
+		return pfn;
+	}
+
+	return gfn_to_pfn(vcpu->kvm, gfn);
+}
+
 /* Book3s_32 CPUs always have 32 bytes cache line size, which Linux assumes. To
  * make Book3s_32 Linux work on Book3s_64, we have to make sure we trap dcbz to
  * emulate 32 bytes dcbz length.
@@ -554,6 +573,13 @@ mmio:
 
 static int kvmppc_visible_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
+	ulong mp_pa = vcpu->arch.magic_page_pa;
+
+	if (unlikely(mp_pa) &&
+	    unlikely((mp_pa & KVM_PAM) >> PAGE_SHIFT == gfn)) {
+		return 1;
+	}
+
 	return kvm_is_visible_gfn(vcpu->kvm, gfn);
 }
 
@@ -1257,6 +1283,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	struct kvmppc_vcpu_book3s *vcpu_book3s;
 	struct kvm_vcpu *vcpu;
 	int err = -ENOMEM;
+	unsigned long p;
 
 	vcpu_book3s = vmalloc(sizeof(struct kvmppc_vcpu_book3s));
 	if (!vcpu_book3s)
@@ -1274,8 +1301,10 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_shadow_vcpu;
 
-	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-	if (!vcpu->arch.shared)
+	p = __get_free_page(GFP_KERNEL|__GFP_ZERO);
+	/* the real shared page fills the last 4k of our page */
+	vcpu->arch.shared = (void*)(p + PAGE_SIZE - 4096);
+	if (!p)
 		goto uninit_vcpu;
 
 	vcpu->arch.host_retip = kvm_return_point;
@@ -1322,7 +1351,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 
-	free_page((unsigned long)vcpu->arch.shared);
+	free_page((unsigned long)vcpu->arch.shared & PAGE_MASK);
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu_book3s->shadow_vcpu);
 	vfree(vcpu_book3s);
