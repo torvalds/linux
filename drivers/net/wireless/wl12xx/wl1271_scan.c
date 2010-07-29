@@ -215,12 +215,11 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_DONE:
-		ieee80211_scan_completed(wl->hw, false);
-
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;
 
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
+		ieee80211_scan_completed(wl->hw, false);
 		break;
 
 	default:

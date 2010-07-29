@@ -1015,10 +1015,10 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		ieee80211_enable_dyn_ps(wl->vif);
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
-		ieee80211_scan_completed(wl->hw, true);
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;
+		ieee80211_scan_completed(wl->hw, true);
 	}
 
 	wl->state = WL1271_STATE_OFF;
