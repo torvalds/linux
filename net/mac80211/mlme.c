@@ -870,6 +870,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_led_assoc(local, 1);
 
+	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD)
+		bss_conf->dtim_period = bss->dtim_period;
+	else
+		bss_conf->dtim_period = 0;
+
 	bss_conf->assoc = 1;
 	/*
 	 * For now just always ask the driver to update the basic rateset
@@ -1751,7 +1756,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			if (wk->sdata != sdata)
 				continue;
 
-			if (wk->type != IEEE80211_WORK_ASSOC)
+			if (wk->type != IEEE80211_WORK_ASSOC &&
+			    wk->type != IEEE80211_WORK_ASSOC_BEACON_WAIT)
 				continue;
 
 			if (memcmp(mgmt->bssid, wk->filter_ta, ETH_ALEN))
@@ -2086,11 +2092,26 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 						  struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
+	struct ieee80211_rx_status *rx_status;
+	struct ieee802_11_elems elems;
 	u16 status;
 
 	if (!skb) {
 		cfg80211_send_assoc_timeout(wk->sdata->dev, wk->filter_ta);
 		return WORK_DONE_DESTROY;
+	}
+
+	if (wk->type == IEEE80211_WORK_ASSOC_BEACON_WAIT) {
+		mutex_lock(&wk->sdata->u.mgd.mtx);
+		rx_status = (void *) skb->cb;
+		ieee802_11_parse_elems(skb->data + 24 + 12, skb->len - 24 - 12, &elems);
+		ieee80211_rx_bss_info(wk->sdata, (void *)skb->data, skb->len, rx_status,
+				      &elems, true);
+		mutex_unlock(&wk->sdata->u.mgd.mtx);
+
+		wk->type = IEEE80211_WORK_ASSOC;
+		/* not really done yet */
+		return WORK_DONE_REQUEUE;
 	}
 
 	mgmt = (void *)skb->data;
@@ -2206,10 +2227,14 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (req->prev_bssid)
 		memcpy(wk->assoc.prev_bssid, req->prev_bssid, ETH_ALEN);
 
-	wk->type = IEEE80211_WORK_ASSOC;
 	wk->chan = req->bss->channel;
 	wk->sdata = sdata;
 	wk->done = ieee80211_assoc_done;
+	if (!bss->dtim_period &&
+	    sdata->local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD)
+		wk->type = IEEE80211_WORK_ASSOC_BEACON_WAIT;
+	else
+		wk->type = IEEE80211_WORK_ASSOC;
 
 	if (req->use_mfp) {
 		ifmgd->mfp = IEEE80211_MFP_REQUIRED;
@@ -2257,7 +2282,8 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 			if (wk->type != IEEE80211_WORK_DIRECT_PROBE &&
 			    wk->type != IEEE80211_WORK_AUTH &&
-			    wk->type != IEEE80211_WORK_ASSOC)
+			    wk->type != IEEE80211_WORK_ASSOC &&
+			    wk->type != IEEE80211_WORK_ASSOC_BEACON_WAIT)
 				continue;
 
 			if (memcmp(req->bss->bssid, wk->filter_ta, ETH_ALEN))

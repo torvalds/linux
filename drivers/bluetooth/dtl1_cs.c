@@ -104,7 +104,7 @@ typedef struct {
 	u8 type;
 	u8 zero;
 	u16 len;
-} __attribute__ ((packed)) nsh_t;	/* Nokia Specific Header */
+} __packed nsh_t;	/* Nokia Specific Header */
 
 #define NSHL  4				/* Nokia Specific Header Length */
 

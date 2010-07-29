@@ -53,9 +53,4 @@ int lbs_exit_auto_deep_sleep(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
 
-int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
-		struct cmd_ds_command *cmd, u16 cmdoption);
-
-int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp);
-
 #endif

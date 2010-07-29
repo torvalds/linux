@@ -94,11 +94,9 @@
 #define CMD_802_11_BEACON_CTRL                  0x00b0
 
 /* For the IEEE Power Save */
-#define CMD_SUBCMD_ENTER_PS                     0x0030
-#define CMD_SUBCMD_EXIT_PS                      0x0031
-#define CMD_SUBCMD_SLEEP_CONFIRMED              0x0034
-#define CMD_SUBCMD_FULL_POWERDOWN               0x0035
-#define CMD_SUBCMD_FULL_POWERUP                 0x0036
+#define PS_MODE_ACTION_ENTER_PS                 0x0030
+#define PS_MODE_ACTION_EXIT_PS                  0x0031
+#define PS_MODE_ACTION_SLEEP_CONFIRMED          0x0034
 
 #define CMD_ENABLE_RSN                          0x0001
 #define CMD_DISABLE_RSN                         0x0000
@@ -162,11 +160,6 @@
 #define CMD_ACT_SET_TX_AUTO                     0x0000
 #define CMD_ACT_SET_TX_FIX_RATE                 0x0001
 #define CMD_ACT_GET_TX_RATE                     0x0002
-
-/* Define action or option for CMD_802_11_PS_MODE */
-#define CMD_TYPE_CAM                            0x0000
-#define CMD_TYPE_MAX_PSP                        0x0001
-#define CMD_TYPE_FAST_PSP                       0x0002
 
 /* Options for CMD_802_11_FW_WAKE_METHOD */
 #define CMD_WAKE_METHOD_UNCHANGED               0x0000
@@ -389,28 +382,20 @@ struct lbs_offset_value {
 	u32 value;
 } __packed;
 
-#define MRVDRV_MAX_TRIPLET_802_11D              83
-
-#define COUNTRY_CODE_LEN                        3
+#define MAX_11D_TRIPLETS	83
 
 struct mrvl_ie_domain_param_set {
 	struct mrvl_ie_header header;
 
-	u8 countrycode[COUNTRY_CODE_LEN];
-	struct ieee80211_country_ie_triplet triplet[1];
+	u8 country_code[3];
+	struct ieee80211_country_ie_triplet triplet[MAX_11D_TRIPLETS];
 } __packed;
 
 struct cmd_ds_802_11d_domain_info {
+	struct cmd_header hdr;
+
 	__le16 action;
 	struct mrvl_ie_domain_param_set domain;
-} __packed;
-
-struct lbs_802_11d_domain_reg {
-	/** Country code*/
-	u8 country_code[COUNTRY_CODE_LEN];
-	/** No. of triplet*/
-	u8 no_triplet;
-	struct ieee80211_country_ie_triplet triplet[MRVDRV_MAX_TRIPLET_802_11D];
 } __packed;
 
 /*
@@ -575,24 +560,15 @@ struct cmd_ds_802_11_snmp_mib {
 	u8 value[128];
 } __packed;
 
-struct cmd_ds_mac_reg_access {
-	__le16 action;
-	__le16 offset;
-	__le32 value;
-} __packed;
+struct cmd_ds_reg_access {
+	struct cmd_header hdr;
 
-struct cmd_ds_bbp_reg_access {
 	__le16 action;
 	__le16 offset;
-	u8 value;
-	u8 reserved[3];
-} __packed;
-
-struct cmd_ds_rf_reg_access {
-	__le16 action;
-	__le16 offset;
-	u8 value;
-	u8 reserved[3];
+	union {
+		u8 bbp_rf;  /* for BBP and RF registers */
+		__le32 mac; /* for MAC registers */
+	} value;
 } __packed;
 
 struct cmd_ds_802_11_radio_control {
@@ -603,6 +579,8 @@ struct cmd_ds_802_11_radio_control {
 } __packed;
 
 struct cmd_ds_802_11_beacon_control {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 beacon_enable;
 	__le16 beacon_period;
@@ -644,19 +622,19 @@ struct cmd_ds_802_11_rf_channel {
 } __packed;
 
 struct cmd_ds_802_11_rssi {
-	/* weighting factor */
-	__le16 N;
+	struct cmd_header hdr;
 
-	__le16 reserved_0;
-	__le16 reserved_1;
-	__le16 reserved_2;
-} __packed;
+	/* request:  number of beacons (N) to average the SNR and NF over
+	 * response: SNR of most recent beacon
+	 */
+	__le16 n_or_snr;
 
-struct cmd_ds_802_11_rssi_rsp {
-	__le16 SNR;
-	__le16 noisefloor;
-	__le16 avgSNR;
-	__le16 avgnoisefloor;
+	/* The following fields are only set in the response.
+	 * In the request these are reserved and should be set to 0.
+	 */
+	__le16 nf;       /* most recent beacon noise floor */
+	__le16 avg_snr;  /* average SNR weighted by N from request */
+	__le16 avg_nf;   /* average noise floor weighted by N from request */
 } __packed;
 
 struct cmd_ds_802_11_mac_address {
@@ -675,7 +653,10 @@ struct cmd_ds_802_11_rf_tx_power {
 	s8 minlevel;
 } __packed;
 
+/* MONITOR_MODE only exists in OLPC v5 firmware */
 struct cmd_ds_802_11_monitor_mode {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 mode;
 } __packed;
@@ -695,11 +676,35 @@ struct cmd_ds_802_11_fw_wake_method {
 } __packed;
 
 struct cmd_ds_802_11_ps_mode {
+	struct cmd_header hdr;
+
 	__le16 action;
+
+	/* Interval for keepalive in PS mode:
+	 * 0x0000 = don't change
+	 * 0x001E = firmware default
+	 * 0xFFFF = disable
+	 */
 	__le16 nullpktinterval;
+
+	/* Number of DTIM intervals to wake up for:
+	 * 0 = don't change
+	 * 1 = firmware default
+	 * 5 = max
+	 */
 	__le16 multipledtim;
+
 	__le16 reserved;
 	__le16 locallisteninterval;
+
+	/* AdHoc awake period (FW v9+ only):
+	 * 0 = don't change
+	 * 1 = always awake (IEEE standard behavior)
+	 * 2 - 31 = sleep for (n - 1) periods and awake for 1 period
+	 * 32 - 254 = invalid
+	 * 255 = sleep at each ATIM
+	 */
+	__le16 adhoc_awake_period;
 } __packed;
 
 struct cmd_confirm_sleep {
@@ -882,12 +887,17 @@ struct cmd_ds_802_11_pa_cfg {
 
 
 struct cmd_ds_802_11_led_ctrl {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 numled;
 	u8 data[256];
 } __packed;
 
+/* Automatic Frequency Control */
 struct cmd_ds_802_11_afc {
+	struct cmd_header hdr;
+
 	__le16 afc_auto;
 	union {
 		struct {
@@ -910,6 +920,8 @@ struct cmd_ds_get_tsf {
 } __packed;
 
 struct cmd_ds_bt_access {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le32 id;
 	u8 addr1[ETH_ALEN];
@@ -917,6 +929,8 @@ struct cmd_ds_bt_access {
 } __packed;
 
 struct cmd_ds_fwt_access {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le32 id;
 	u8 valid;
@@ -955,34 +969,4 @@ struct cmd_ds_mesh_access {
 
 /* Number of stats counters returned by the firmware */
 #define MESH_STATS_NUM 8
-
-struct cmd_ds_command {
-	/* command header */
-	__le16 command;
-	__le16 size;
-	__le16 seqnum;
-	__le16 result;
-
-	/* command Body */
-	union {
-		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_monitor_mode monitor;
-		struct cmd_ds_802_11_rssi rssi;
-		struct cmd_ds_802_11_rssi_rsp rssirsp;
-		struct cmd_ds_mac_reg_access macreg;
-		struct cmd_ds_bbp_reg_access bbpreg;
-		struct cmd_ds_rf_reg_access rfreg;
-
-		struct cmd_ds_802_11d_domain_info domaininfo;
-		struct cmd_ds_802_11d_domain_info domaininforesp;
-
-		struct cmd_ds_802_11_tpc_cfg tpccfg;
-		struct cmd_ds_802_11_afc afc;
-		struct cmd_ds_802_11_led_ctrl ledgpio;
-
-		struct cmd_ds_bt_access bt;
-		struct cmd_ds_fwt_access fwt;
-		struct cmd_ds_802_11_beacon_control bcn_ctrl;
-	} params;
-} __packed;
 #endif

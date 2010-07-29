@@ -239,6 +239,9 @@ static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
 		"TSF\t\t0x%016llx\tTU: %08x\n",
 		(unsigned long long)tsf, TSF_TO_TU(tsf));
 
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -333,6 +336,9 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 		"%10s %c 0x%08x - %s\n", dbg_info[i].name,
 		sc->debug.level == dbg_info[i].level ? '+' : ' ',
 		dbg_info[i].level, dbg_info[i].desc);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -432,6 +438,9 @@ static ssize_t read_file_antenna(struct file *file, char __user *user_buf,
 	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_ANT_SWITCH_TABLE_1);
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"AR5K_PHY_ANT_SWITCH_TABLE_1\t0x%08x\n", v);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -541,6 +550,9 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				st->txerr_filt*100/st->tx_all_count : 0);
 	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
 			st->tx_all_count);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -681,6 +693,9 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 			ATH5K_ANI_CCK_TRIG_HIGH - (ATH5K_PHYERR_CNT_MAX -
 			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT2)));
 
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -765,6 +780,9 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 			n++;
 		len += snprintf(buf+len, sizeof(buf)-len, "  len: %d\n", n);
 	}
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

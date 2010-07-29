@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -292,9 +294,7 @@ static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
 					  struct ieee80211_hdr *hdr,
 					  int left)
 {
-	if (!iwl_is_associated(priv) || !priv->ibss_beacon ||
-	    ((priv->iw_mode != NL80211_IFTYPE_ADHOC) &&
-	     (priv->iw_mode != NL80211_IFTYPE_AP)))
+	if (!priv->ibss_beacon)
 		return 0;
 
 	if (priv->ibss_beacon->len > left)
@@ -1692,6 +1692,7 @@ static void iwl_nic_start(struct iwl_priv *priv)
 
 struct iwlagn_ucode_capabilities {
 	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
 };
 
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
@@ -1827,7 +1828,6 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
-	int ret = 0;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(priv, "uCode has invalid length: %zd\n", len);
@@ -1863,9 +1863,8 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 
 	len -= sizeof(*ucode);
 
-	while (len >= sizeof(*tlv) && !ret) {
+	while (len >= sizeof(*tlv)) {
 		u16 tlv_alt;
-		u32 fixed_tlv_size = 4;
 
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
@@ -1913,59 +1912,57 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			pieces->boot_size = tlv_len;
 			break;
 		case IWL_UCODE_TLV_PROBE_MAX_LEN:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				capa->max_probe_length =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->max_probe_length =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_evtlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_SIZE:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_evtlog_size =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_ERRLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_errlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_errlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_evtlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_SIZE:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_evtlog_size =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_ERRLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_errlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_errlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
 			if (tlv_len)
-				ret = -EINVAL;
-			else
-				priv->enhance_sensitivity_table = true;
+				goto invalid_tlv_len;
+			priv->enhance_sensitivity_table = true;
+			break;
+		case IWL_UCODE_TLV_PHY_CALIBRATION_SIZE:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->standard_phy_calibration_size =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		default:
 			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
@@ -1976,14 +1973,16 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	if (len) {
 		IWL_ERR(priv, "invalid TLV after parsing: %zd\n", len);
 		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)data, len);
-		ret = -EINVAL;
-	} else if (ret) {
-		IWL_ERR(priv, "TLV %d has invalid size: %u\n",
-			tlv_type, tlv_len);
-		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)tlv_data, tlv_len);
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
+
+ invalid_tlv_len:
+	IWL_ERR(priv, "TLV %d has invalid size: %u\n", tlv_type, tlv_len);
+	iwl_print_hex_dump(priv, IWL_DL_FW, tlv_data, tlv_len);
+
+	return -EINVAL;
 }
 
 /**
@@ -2005,6 +2004,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	u32 build;
 	struct iwlagn_ucode_capabilities ucode_capa = {
 		.max_probe_length = 200,
+		.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
 	memset(&pieces, 0, sizeof(pieces));
@@ -2225,6 +2226,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n",
 			pieces.boot_size);
 	memcpy(priv->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
+
+	/*
+	 * figure out the offset of chain noise reset and gain commands
+	 * base on the size of standard phy calibration commands table size
+	 */
+	if (ucode_capa.standard_phy_calibration_size >
+	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
+		ucode_capa.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+
+	priv->_agn.phy_calib_chain_noise_reset_cmd =
+		ucode_capa.standard_phy_calibration_size;
+	priv->_agn.phy_calib_chain_noise_gain_cmd =
+		ucode_capa.standard_phy_calibration_size + 1;
 
 	/**************************************************
 	 * This is still part of probe() in a sense...
@@ -3008,9 +3023,17 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv, &priv->_agn.statistics);
-
-		iwl_sensitivity_calibration(priv, &priv->_agn.statistics);
+		if (priv->cfg->bt_statistics) {
+			iwl_chain_noise_calibration(priv,
+					(void *)&priv->_agn.statistics_bt);
+			iwl_sensitivity_calibration(priv,
+					(void *)&priv->_agn.statistics_bt);
+		} else {
+			iwl_chain_noise_calibration(priv,
+					(void *)&priv->_agn.statistics);
+			iwl_sensitivity_calibration(priv,
+					(void *)&priv->_agn.statistics);
+		}
 	}
 
 	mutex_unlock(&priv->mutex);
@@ -3909,8 +3932,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ieee80211_hw *hw;
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	unsigned long flags;
-	u16 pci_cmd;
-	u8 perm_addr[ETH_ALEN];
+	u16 pci_cmd, num_mac;
 
 	/************************
 	 * 1. Allocating HW data
@@ -4028,9 +4050,17 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv, perm_addr);
-	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", perm_addr);
-	SET_IEEE80211_PERM_ADDR(priv->hw, perm_addr);
+	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
+	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
+	priv->hw->wiphy->addresses = priv->addresses;
+	priv->hw->wiphy->n_addresses = 1;
+	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
+	if (num_mac > 1) {
+		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
+		       ETH_ALEN);
+		priv->addresses[1].addr[5]++;
+		priv->hw->wiphy->n_addresses++;
+	}
 
 	/************************
 	 * 5. Setup HW constants
@@ -4389,19 +4419,18 @@ static int __init iwl_init(void)
 {
 
 	int ret;
-	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
+	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {
-		printk(KERN_ERR DRV_NAME
-		       "Unable to register rate control algorithm: %d\n", ret);
+		pr_err("Unable to register rate control algorithm: %d\n", ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&iwl_driver);
 	if (ret) {
-		printk(KERN_ERR DRV_NAME "Unable to initialize PCI module\n");
+		pr_err("Unable to initialize PCI module\n");
 		goto error_register;
 	}
 

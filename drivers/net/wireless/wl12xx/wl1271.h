@@ -475,6 +475,9 @@ struct wl1271 {
 	bool sg_enabled;
 
 	struct list_head list;
+
+	/* Most recently reported noise in dBm */
+	s8 noise;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);

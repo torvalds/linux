@@ -411,6 +411,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int wl1251_op_start(struct ieee80211_hw *hw)
 {
 	struct wl1251 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int ret = 0;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 start");
@@ -443,6 +444,10 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	wl->state = WL1251_STATE_ON;
 
 	wl1251_info("firmware booted (%s)", wl->fw_ver);
+
+	/* update hw/fw version info in wiphy struct */
+	wiphy->hw_version = wl->chip_id;
+	strncpy(wiphy->fw_version, wl->fw_ver, sizeof(wiphy->fw_version));
 
 out:
 	if (ret < 0)
@@ -1172,6 +1177,22 @@ out:
 	return ret;
 }
 
+static int wl1251_op_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct wl1251 *wl = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+ 
+	if (idx != 0)
+		return -ENOENT;
+ 
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = wl->noise;
+ 
+	return 0;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1251_band_2ghz = {
 	.channels = wl1251_channels,
@@ -1193,6 +1214,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.bss_info_changed = wl1251_op_bss_info_changed,
 	.set_rts_threshold = wl1251_op_set_rts_threshold,
 	.conf_tx = wl1251_op_conf_tx,
+	.get_survey = wl1251_op_get_survey,
 };
 
 static int wl1251_read_eeprom_byte(struct wl1251 *wl, off_t offset, u8 *data)

@@ -571,6 +571,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
 	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
 	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
+	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
 };
 
 struct iwl_ucode_tlv {
@@ -1153,6 +1154,9 @@ struct iwl_priv {
 	u32  hw_wa_rev;
 	u8   rev_id;
 
+	/* EEPROM MAC addresses */
+	struct mac_address addresses[2];
+
 	/* uCode images, save to reload in case of failure */
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
@@ -1321,11 +1325,23 @@ struct iwl_priv {
 			u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 			u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
+			/*
+			 * chain noise reset and gain commands are the
+			 * two extra calibration commands follows the standard
+			 * phy calibration commands
+			 */
+			u8 phy_calib_chain_noise_reset_cmd;
+			u8 phy_calib_chain_noise_gain_cmd;
+
 			struct iwl_notif_statistics statistics;
+			struct iwl_bt_notif_statistics statistics_bt;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 			struct iwl_notif_statistics accum_statistics;
 			struct iwl_notif_statistics delta_statistics;
 			struct iwl_notif_statistics max_delta;
+			struct iwl_bt_notif_statistics accum_statistics_bt;
+			struct iwl_bt_notif_statistics delta_statistics_bt;
+			struct iwl_bt_notif_statistics max_delta_bt;
 #endif
 		} _agn;
 #endif

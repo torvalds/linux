@@ -803,8 +803,12 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 	/* after reinitialize QoS TX queues setting to default,
 	 * disable QoS at all */
-	sdata->vif.bss_conf.qos = sdata->vif.type != NL80211_IFTYPE_STATION;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+		sdata->vif.bss_conf.qos =
+			sdata->vif.type != NL80211_IFTYPE_STATION;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+	}
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,

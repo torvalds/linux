@@ -636,7 +636,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	int i;
 
 	/* fall back to the old minstrel for legacy stations */
-	if (sta && !sta->ht_cap.ht_supported) {
+	if (!sta->ht_cap.ht_supported) {
 		msp->is_ht = false;
 		memset(&msp->legacy, 0, sizeof(msp->legacy));
 		msp->legacy.r = msp->ratelist;
@@ -748,7 +748,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	return msp;
 
 error1:
-	kfree(msp->sample_table);
+	kfree(msp->ratelist);
 error:
 	kfree(msp);
 	return NULL;

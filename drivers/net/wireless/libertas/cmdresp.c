@@ -49,169 +49,9 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	if (priv->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
 		lbs_deb_cmd("disconnected, so exit PS mode\n");
-		lbs_ps_wakeup(priv, 0);
+		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, false);
 	}
 	lbs_deb_leave(LBS_DEB_ASSOC);
-}
-
-static int lbs_ret_reg_access(struct lbs_private *priv,
-			       u16 type, struct cmd_ds_command *resp)
-{
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	switch (type) {
-	case CMD_RET(CMD_MAC_REG_ACCESS):
-		{
-			struct cmd_ds_mac_reg_access *reg = &resp->params.macreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = le32_to_cpu(reg->value);
-			break;
-		}
-
-	case CMD_RET(CMD_BBP_REG_ACCESS):
-		{
-			struct cmd_ds_bbp_reg_access *reg = &resp->params.bbpreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = reg->value;
-			break;
-		}
-
-	case CMD_RET(CMD_RF_REG_ACCESS):
-		{
-			struct cmd_ds_rf_reg_access *reg = &resp->params.rfreg;
-
-			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			priv->offsetvalue.value = reg->value;
-			break;
-		}
-
-	default:
-		ret = -1;
-	}
-
-	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return ret;
-}
-
-/**
- *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to struct lbs_private
- *  @param resp    pointer to command response buffer
- *  @return        0; -1
- */
-static int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11d_domain_info *domaininfo =
-			&resp->params.domaininforesp;
-	struct mrvl_ie_domain_param_set *domain = &domaininfo->domain;
-	u16 action = le16_to_cpu(domaininfo->action);
-	s16 ret = 0;
-	u8 nr_triplet = 0;
-
-	lbs_deb_enter(LBS_DEB_11D);
-
-	lbs_deb_hex(LBS_DEB_11D, "domain info resp", (u8 *) resp,
-			(int)le16_to_cpu(resp->size));
-
-	nr_triplet = (le16_to_cpu(domain->header.len) - COUNTRY_CODE_LEN) /
-		sizeof(struct ieee80211_country_ie_triplet);
-
-	lbs_deb_11d("domain info resp: nr_triplet %d\n", nr_triplet);
-
-	if (nr_triplet > MRVDRV_MAX_TRIPLET_802_11D) {
-		lbs_deb_11d("invalid number of triplets returned!!\n");
-		return -1;
-	}
-
-	switch (action) {
-	case CMD_ACT_SET:	/*Proc set action */
-		break;
-
-	case CMD_ACT_GET:
-		break;
-	default:
-		lbs_deb_11d("invalid action:%d\n", domaininfo->action);
-		ret = -1;
-		break;
-	}
-
-	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
-	return ret;
-}
-
-static inline int handle_cmd_response(struct lbs_private *priv,
-				      struct cmd_header *cmd_response)
-{
-	struct cmd_ds_command *resp = (struct cmd_ds_command *) cmd_response;
-	int ret = 0;
-	unsigned long flags;
-	uint16_t respcmd = le16_to_cpu(resp->command);
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	switch (respcmd) {
-	case CMD_RET(CMD_MAC_REG_ACCESS):
-	case CMD_RET(CMD_BBP_REG_ACCESS):
-	case CMD_RET(CMD_RF_REG_ACCESS):
-		ret = lbs_ret_reg_access(priv, respcmd, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_SET_AFC):
-	case CMD_RET(CMD_802_11_GET_AFC):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.afc,
-			sizeof(struct cmd_ds_802_11_afc));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-		break;
-
-	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	case CMD_RET(CMD_802_11_RSSI):
-		ret = lbs_ret_802_11_rssi(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
-		ret = lbs_ret_802_11d_domain_info(resp);
-		break;
-
-	case CMD_RET(CMD_802_11_TPC_CFG):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,
-			sizeof(struct cmd_ds_802_11_tpc_cfg));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
-
-	case CMD_RET(CMD_BT_ACCESS):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->callback_arg)
-			memcpy((void *)priv->cur_cmd->callback_arg,
-			       &resp->params.bt.addr1, 2 * ETH_ALEN);
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
-	case CMD_RET(CMD_FWT_ACCESS):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->callback_arg)
-			memcpy((void *)priv->cur_cmd->callback_arg, &resp->params.fwt,
-			       sizeof(resp->params.fwt));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
-	case CMD_RET(CMD_802_11_BEACON_CTRL):
-		ret = lbs_ret_802_11_bcn_ctrl(priv, resp);
-		break;
-
-	default:
-		lbs_pr_err("CMD_RESP: unknown cmd response 0x%04x\n",
-			   le16_to_cpu(resp->command));
-		break;
-	}
-	lbs_deb_leave(LBS_DEB_HOST);
-	return ret;
 }
 
 int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
@@ -272,9 +112,6 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 
-	/* Store the response code to cur_cmd_retcode. */
-	priv->cur_cmd_retcode = result;
-
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
 		struct cmd_ds_802_11_ps_mode *psmode = (void *) &resp[1];
 		u16 action = le16_to_cpu(psmode->action);
@@ -292,9 +129,9 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			 * lbs_execute_next_command().
 			 */
 			if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR &&
-			    action == CMD_SUBCMD_ENTER_PS)
+			    action == PS_MODE_ACTION_ENTER_PS)
 				priv->psmode = LBS802_11POWERMODECAM;
-		} else if (action == CMD_SUBCMD_ENTER_PS) {
+		} else if (action == PS_MODE_ACTION_ENTER_PS) {
 			priv->needtowakeup = 0;
 			priv->psstate = PS_STATE_AWAKE;
 
@@ -309,11 +146,12 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 
 				spin_unlock_irqrestore(&priv->driver_lock, flags);
 				mutex_unlock(&priv->lock);
-				lbs_ps_wakeup(priv, 0);
+				lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS,
+						false);
 				mutex_lock(&priv->lock);
 				spin_lock_irqsave(&priv->driver_lock, flags);
 			}
-		} else if (action == CMD_SUBCMD_EXIT_PS) {
+		} else if (action == PS_MODE_ACTION_EXIT_PS) {
 			priv->needtowakeup = 0;
 			priv->psstate = PS_STATE_FULL_POWER;
 			lbs_deb_host("CMD_RESP: EXIT_PS command response\n");
@@ -354,8 +192,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	if (priv->cur_cmd && priv->cur_cmd->callback) {
 		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg,
 				resp);
-	} else
-		ret = handle_cmd_response(priv, resp);
+	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
@@ -452,7 +289,7 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 			 * in lbs_ps_wakeup()
 			 */
 			lbs_deb_cmd("waking up ...\n");
-			lbs_ps_wakeup(priv, 0);
+			lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, false);
 		}
 		break;
 

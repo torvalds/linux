@@ -172,26 +172,9 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	struct ath9k_nfcal_hist *h;
 	unsigned i, j;
 	int32_t val;
-	u8 chainmask;
+	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
-		chainmask = 0x3F;
-	else if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		chainmask = 0x9;
-	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
-		if ((ah->rxchainmask & 0x2) || (ah->rxchainmask & 0x4))
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	} else {
-		if (ah->rxchainmask & 0x4)
-			chainmask = 0x3F;
-		else if (ah->rxchainmask & 0x2)
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	}
 	h = ah->nfCalHist;
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
@@ -278,7 +261,7 @@ static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
 
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "NF calibrated [%s] [chain %d] is %d\n",
-			  (i > 3 ? "ext" : "ctl"), i % 3, nf[i]);
+			  (i >= 3 ? "ext" : "ctl"), i % 3, nf[i]);
 
 		if (nf[i] > limit->max) {
 			ath_print(common, ATH_DBG_CALIBRATE,

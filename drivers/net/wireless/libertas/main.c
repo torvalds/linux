@@ -157,12 +157,7 @@ static void lbs_tx_timeout(struct net_device *dev)
 	   to kick it somehow? */
 	lbs_host_to_card_done(priv);
 
-	/* More often than not, this actually happens because the
-	   firmware has crapped itself -- rather than just a very
-	   busy medium. So send a harmless command, and if/when
-	   _that_ times out, we'll kick it in the head. */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-				     0, 0, NULL);
+	/* FIXME: reset the card */
 
 	lbs_deb_leave(LBS_DEB_TX);
 }
@@ -507,12 +502,6 @@ static int lbs_thread(void *data)
 		if (!priv->dnld_sent && !priv->cur_cmd)
 			lbs_execute_next_command(priv);
 
-		/* Wake-up command waiters which can't sleep in
-		 * lbs_prepare_and_send_command
-		 */
-		if (!list_empty(&priv->cmdpendingq))
-			wake_up_all(&priv->cmd_pending);
-
 		spin_lock_irq(&priv->driver_lock);
 		if (!priv->dnld_sent && priv->tx_pending_len > 0) {
 			int ret = priv->hw_host_to_card(priv, MVMS_DAT,
@@ -538,7 +527,6 @@ static int lbs_thread(void *data)
 
 	del_timer(&priv->command_timer);
 	del_timer(&priv->auto_deepsleep_timer);
-	wake_up_all(&priv->cmd_pending);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
@@ -663,7 +651,6 @@ out:
 static void auto_deepsleep_timer_fn(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
-	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -671,14 +658,15 @@ static void auto_deepsleep_timer_fn(unsigned long data)
 		priv->is_activity_detected = 0;
 	} else {
 		if (priv->is_auto_deep_sleep_enabled &&
-				(!priv->wakeup_dev_required) &&
-				(priv->connect_status != LBS_CONNECTED)) {
+		    (!priv->wakeup_dev_required) &&
+		    (priv->connect_status != LBS_CONNECTED)) {
+			struct cmd_header cmd;
+
 			lbs_deb_main("Entering auto deep sleep mode...\n");
-			ret = lbs_prepare_and_send_command(priv,
-					CMD_802_11_DEEP_SLEEP, 0,
-					0, 0, NULL);
-			if (ret)
-				lbs_pr_err("Enter Deep Sleep command failed\n");
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.size = cpu_to_le16(sizeof(cmd));
+			lbs_cmd_async(priv, CMD_802_11_DEEP_SLEEP, &cmd,
+					sizeof(cmd));
 		}
 	}
 	mod_timer(&priv->auto_deepsleep_timer , jiffies +
@@ -746,7 +734,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	INIT_LIST_HEAD(&priv->cmdpendingq);
 
 	spin_lock_init(&priv->driver_lock);
-	init_waitqueue_head(&priv->cmd_pending);
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
@@ -902,7 +889,7 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
-		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
+		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, true);
 	}
 
 	if (priv->is_deep_sleep) {
@@ -1065,7 +1052,7 @@ static int __init lbs_init_module(void)
 	memset(&confirm_sleep, 0, sizeof(confirm_sleep));
 	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
 	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
-	confirm_sleep.action = cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
+	confirm_sleep.action = cpu_to_le16(PS_MODE_ACTION_SLEEP_CONFIRMED);
 	lbs_debugfs_init();
 	lbs_deb_leave(LBS_DEB_MAIN);
 	return 0;

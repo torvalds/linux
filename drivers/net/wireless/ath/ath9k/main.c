@@ -1994,11 +1994,12 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&sc->mutex);
 	if (ath9k_wiphy_scanning(sc)) {
-		printk(KERN_DEBUG "ath9k: Two wiphys trying to scan at the "
-		       "same time\n");
 		/*
-		 * Do not allow the concurrent scanning state for now. This
-		 * could be improved with scanning control moved into ath9k.
+		 * There is a race here in mac80211 but fixing it requires
+		 * we revisit how we handle the scan complete callback.
+		 * After mac80211 fixes we will not have configured hardware
+		 * to the home channel nor would we have configured the RX
+		 * filter yet.
 		 */
 		mutex_unlock(&sc->mutex);
 		return;
@@ -2014,6 +2015,10 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	mutex_unlock(&sc->mutex);
 }
 
+/*
+ * XXX: this requires a revisit after the driver
+ * scan_complete gets moved to another place/removed in mac80211.
+ */
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;

@@ -964,8 +964,8 @@ struct iwl_qosparam_cmd {
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
 
-#define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2);
-#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
+#define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)
+#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8)
 #define STA_FLG_RTS_MIMO_PROT_MSK	cpu_to_le32(1 << 17)
 #define STA_FLG_AGG_MPDU_8US_MSK	cpu_to_le32(1 << 18)
 #define STA_FLG_MAX_AGG_SIZE_POS	(19)
@@ -3127,10 +3127,24 @@ struct statistics_rx_non_phy {
 	__le32 beacon_energy_c;
 } __packed;
 
+struct statistics_rx_non_phy_bt {
+	struct statistics_rx_non_phy common;
+	/* additional stats for bt */
+	__le32 num_bt_kills;
+	__le32 reserved[2];
+} __packed;
+
 struct statistics_rx {
 	struct statistics_rx_phy ofdm;
 	struct statistics_rx_phy cck;
 	struct statistics_rx_non_phy general;
+	struct statistics_rx_ht_phy ofdm_ht;
+} __packed;
+
+struct statistics_rx_bt {
+	struct statistics_rx_phy ofdm;
+	struct statistics_rx_phy cck;
+	struct statistics_rx_non_phy_bt general;
 	struct statistics_rx_ht_phy ofdm_ht;
 } __packed;
 
@@ -3196,7 +3210,7 @@ struct statistics_div {
 	__le32 reserved2;
 } __packed;
 
-struct statistics_general {
+struct statistics_general_common {
 	__le32 temperature;   /* radio temperature */
 	__le32 temperature_m; /* for 5000 and up, this is radio voltage */
 	struct statistics_dbg dbg;
@@ -3212,6 +3226,30 @@ struct statistics_general {
 	 *  in order to get out of bad PHY status
 	 */
 	__le32 num_of_sos_states;
+} __packed;
+
+struct statistics_bt_activity {
+	/* Tx statistics */
+	__le32 hi_priority_tx_req_cnt;
+	__le32 hi_priority_tx_denied_cnt;
+	__le32 lo_priority_tx_req_cnt;
+	__le32 lo_priority_tx_denied_cnt;
+	/* Rx statistics */
+	__le32 hi_priority_rx_req_cnt;
+	__le32 hi_priority_rx_denied_cnt;
+	__le32 lo_priority_rx_req_cnt;
+	__le32 lo_priority_rx_denied_cnt;
+} __packed;
+
+struct statistics_general {
+	struct statistics_general_common common;
+	__le32 reserved2;
+	__le32 reserved3;
+} __packed;
+
+struct statistics_general_bt {
+	struct statistics_general_common common;
+	struct statistics_bt_activity activity;
 	__le32 reserved2;
 	__le32 reserved3;
 } __packed;
@@ -3273,6 +3311,12 @@ struct iwl_notif_statistics {
 	struct statistics_general general;
 } __packed;
 
+struct iwl_bt_notif_statistics {
+	__le32 flag;
+	struct statistics_rx_bt rx;
+	struct statistics_tx tx;
+	struct statistics_general_bt general;
+} __packed;
 
 /*
  * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
@@ -3616,10 +3660,10 @@ enum {
 	IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
 	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
 	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
-	IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD	= 18,
-	IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD	= 19,
+	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 18,
 };
 
+#define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
 #define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(0xffffffff)
 
@@ -3944,6 +3988,7 @@ struct iwl_rx_packet {
 		struct iwl_sleep_notification sleep_notif;
 		struct iwl_spectrum_resp spectrum;
 		struct iwl_notif_statistics stats;
+		struct iwl_bt_notif_statistics stats_bt;
 		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl_missed_beacon_notif missed_beacon;
 		struct iwl_coex_medium_notification coex_medium_notif;

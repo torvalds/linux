@@ -323,6 +323,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
 		.general_stats_read = iwl_ucode_general_stats_read,
+		.bt_stats_read = iwl_ucode_bt_stats_read,
 	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
@@ -500,6 +501,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -535,6 +537,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -572,6 +575,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -607,6 +611,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -644,6 +649,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -679,6 +685,7 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
+	.bt_statistics = true,
 };
 
 /*

@@ -446,30 +446,24 @@ static ssize_t lbs_bcnmiss_write(struct file *file, const char __user *userbuf,
 }
 
 
-
 static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	u32 val = 0;
+
 	if (!buf)
 		return -ENOMEM;
 
-	offval.offset = priv->mac_offset;
-	offval.value = 0;
-
-	ret = lbs_prepare_and_send_command(priv,
-				CMD_MAC_REG_ACCESS, 0,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	ret = lbs_get_reg(priv, CMD_MAC_REG_ACCESS, priv->mac_offset, &val);
 	mdelay(10);
 	if (!ret) {
-		pos += snprintf(buf+pos, len-pos, "MAC[0x%x] = 0x%08x\n",
-				priv->mac_offset, priv->offsetvalue.value);
-
+		pos = snprintf(buf, len, "MAC[0x%x] = 0x%08x\n",
+				priv->mac_offset, val);
 		ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	}
 	free_page(addr);
@@ -507,7 +501,6 @@ static ssize_t lbs_wrmac_write(struct file *file,
 	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
@@ -524,11 +517,7 @@ static ssize_t lbs_wrmac_write(struct file *file,
 		goto out_unlock;
 	}
 
-	offval.offset = offset;
-	offval.value = value;
-	res = lbs_prepare_and_send_command(priv,
-				CMD_MAC_REG_ACCESS, 1,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	res = lbs_set_reg(priv, CMD_MAC_REG_ACCESS, offset, value);
 	mdelay(10);
 
 	if (!res)
@@ -542,25 +531,20 @@ static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	u32 val;
+
 	if (!buf)
 		return -ENOMEM;
 
-	offval.offset = priv->bbp_offset;
-	offval.value = 0;
-
-	ret = lbs_prepare_and_send_command(priv,
-				CMD_BBP_REG_ACCESS, 0,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	ret = lbs_get_reg(priv, CMD_BBP_REG_ACCESS, priv->bbp_offset, &val);
 	mdelay(10);
 	if (!ret) {
-		pos += snprintf(buf+pos, len-pos, "BBP[0x%x] = 0x%08x\n",
-				priv->bbp_offset, priv->offsetvalue.value);
-
+		pos = snprintf(buf, len, "BBP[0x%x] = 0x%08x\n",
+				priv->bbp_offset, val);
 		ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	}
 	free_page(addr);
@@ -599,7 +583,6 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
@@ -616,11 +599,7 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 		goto out_unlock;
 	}
 
-	offval.offset = offset;
-	offval.value = value;
-	res = lbs_prepare_and_send_command(priv,
-				CMD_BBP_REG_ACCESS, 1,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	res = lbs_set_reg(priv, CMD_BBP_REG_ACCESS, offset, value);
 	mdelay(10);
 
 	if (!res)
@@ -634,25 +613,20 @@ static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	u32 val;
+
 	if (!buf)
 		return -ENOMEM;
 
-	offval.offset = priv->rf_offset;
-	offval.value = 0;
-
-	ret = lbs_prepare_and_send_command(priv,
-				CMD_RF_REG_ACCESS, 0,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	ret = lbs_get_reg(priv, CMD_RF_REG_ACCESS, priv->rf_offset, &val);
 	mdelay(10);
 	if (!ret) {
-		pos += snprintf(buf+pos, len-pos, "RF[0x%x] = 0x%08x\n",
-				priv->rf_offset, priv->offsetvalue.value);
-
+		pos = snprintf(buf, len, "RF[0x%x] = 0x%08x\n",
+				priv->rf_offset, val);
 		ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	}
 	free_page(addr);
@@ -691,7 +665,6 @@ static ssize_t lbs_wrrf_write(struct file *file,
 	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
@@ -708,11 +681,7 @@ static ssize_t lbs_wrrf_write(struct file *file,
 		goto out_unlock;
 	}
 
-	offval.offset = offset;
-	offval.value = value;
-	res = lbs_prepare_and_send_command(priv,
-				CMD_RF_REG_ACCESS, 1,
-				CMD_OPTION_WAITFORRSP, 0, &offval);
+	res = lbs_set_reg(priv, CMD_RF_REG_ACCESS, offset, value);
 	mdelay(10);
 
 	if (!res)

@@ -175,8 +175,8 @@ struct cmd_read_write_memory {
 #define WL1251_SCAN_NUM_PROBES 3
 
 struct wl1251_scan_parameters {
-	u32 rx_config_options;
-	u32 rx_filter_options;
+	__le32 rx_config_options;
+	__le32 rx_filter_options;
 
 	/*
 	 * Scan options:
@@ -186,7 +186,7 @@ struct wl1251_scan_parameters {
 	 * bit 2: voice mode, 0 for normal scan.
 	 * bit 3: scan priority, 1 for high priority.
 	 */
-	u16 scan_options;
+	__le16 scan_options;
 
 	/* Number of channels to scan */
 	u8 num_channels;
@@ -195,7 +195,7 @@ struct wl1251_scan_parameters {
 	u8 num_probe_requests;
 
 	/* Rate and modulation for probe requests */
-	u16 tx_rate;
+	__le16 tx_rate;
 
 	u8 tid_trigger;
 	u8 ssid_len;
@@ -204,8 +204,8 @@ struct wl1251_scan_parameters {
 } __packed;
 
 struct wl1251_scan_ch_parameters {
-	u32 min_duration; /* in TU */
-	u32 max_duration; /* in TU */
+	__le32 min_duration; /* in TU */
+	__le32 max_duration; /* in TU */
 	u32 bssid_lsb;
 	u16 bssid_msb;
 

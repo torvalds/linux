@@ -576,15 +576,13 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl->nvs = kzalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memcpy(wl->nvs, fw->data, fw->size);
 
 out:
 	release_firmware(fw);
@@ -841,6 +839,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 
@@ -894,6 +893,12 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 		wl->state = WL1271_STATE_ON;
 		wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
+
+		/* update hw/fw version info in wiphy struct */
+		wiphy->hw_version = wl->chip.id;
+		strncpy(wiphy->fw_version, wl->chip.fw_ver,
+			sizeof(wiphy->fw_version));
+
 		goto out;
 
 irq_disable:
@@ -1929,6 +1934,22 @@ out:
 	return mactime;
 }
 
+static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct wl1271 *wl = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+ 
+	if (idx != 0)
+		return -ENOENT;
+ 
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = wl->noise;
+ 
+	return 0;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
 	{ .bitrate = 10,
@@ -2158,6 +2179,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
 	.conf_tx = wl1271_op_conf_tx,
 	.get_tsf = wl1271_op_get_tsf,
+	.get_survey = wl1271_op_get_survey,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
@@ -2350,14 +2372,12 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_hw_alloc;
 	}
 
-	plat_dev = kmalloc(sizeof(wl1271_device), GFP_KERNEL);
+	plat_dev = kmemdup(&wl1271_device, sizeof(wl1271_device), GFP_KERNEL);
 	if (!plat_dev) {
 		wl1271_error("could not allocate platform_device");
 		ret = -ENOMEM;
 		goto err_plat_alloc;
 	}
-
-	memcpy(plat_dev, &wl1271_device, sizeof(wl1271_device));
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));

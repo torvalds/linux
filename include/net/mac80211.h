@@ -194,7 +194,9 @@ enum ieee80211_bss_change {
  *	if the hardware cannot handle this it must set the
  *	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE hardware flag
  * @dtim_period: num of beacons before the next DTIM, for beaconing,
- *	not valid in station mode (cf. hw conf ps_dtim_period)
+ *	valid in station mode only while @assoc is true and if also
+ *	requested by %IEEE80211_HW_NEED_DTIM_PERIOD (cf. also hw conf
+ *	@ps_dtim_period)
  * @timestamp: beacon timestamp
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
@@ -625,11 +627,14 @@ struct ieee80211_rx_status {
  *	may turn the device off as much as possible. Typically, this flag will
  *	be set when an interface is set UP but not associated or scanning, but
  *	it can also be unset in that case when monitor interfaces are active.
+ * @IEEE80211_CONF_OFFCHANNEL: The device is currently not on its main
+ *	operating channel.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
+	IEEE80211_CONF_OFFCHANNEL	= (1<<3),
 };
 
 
@@ -1024,6 +1029,9 @@ enum ieee80211_tkip_key_type {
  *	connection quality related parameters, such as the RSSI level and
  *	provide notifications if configured trigger levels are reached.
  *
+ * @IEEE80211_HW_NEED_DTIM_PERIOD:
+ *	This device needs to know the DTIM period for the BSS before
+ *	associating.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1033,7 +1041,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
-	/* use this hole */
+	IEEE80211_HW_NEED_DTIM_PERIOD			= 1<<7,
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
 	IEEE80211_HW_SUPPORTS_PS			= 1<<10,

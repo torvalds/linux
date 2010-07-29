@@ -7,7 +7,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/if_arp.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -1383,92 +1382,9 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 
-
-/***************************************************************************
- * Monitor mode
- */
-
-/* like "struct cmd_ds_802_11_monitor_mode", but with cmd_header. Once we
- * get rid of WEXT, this should go into host.h */
-struct cmd_monitor_mode {
-	struct cmd_header hdr;
-
-	__le16 action;
-	__le16 mode;
-} __packed;
-
-static int lbs_enable_monitor_mode(struct lbs_private *priv, int mode)
-{
-	struct cmd_monitor_mode cmd;
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
-	/*
-	 * cmd       98 00
-	 * size      0c 00
-	 * sequence  xx xx
-	 * result    00 00
-	 * action    01 00    ACT_SET
-	 * enable    01 00
-	 */
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_SET);
-	cmd.mode = cpu_to_le16(mode);
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_MONITOR_MODE, &cmd);
-
-	if (ret == 0)
-		priv->dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	else
-		priv->dev->type = ARPHRD_ETHER;
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
-	return ret;
-}
-
-
-
-
-
-
 /***************************************************************************
  * Get station
  */
-
-/*
- * Returns the signal or 0 in case of an error.
- */
-
-/* like "struct cmd_ds_802_11_rssi", but with cmd_header. Once we get rid
- * of WEXT, this should go into host.h */
-struct cmd_rssi {
-	struct cmd_header hdr;
-
-	__le16 n_or_snr;
-	__le16 nf;
-	__le16 avg_snr;
-	__le16 avg_nf;
-} __packed;
-
-static int lbs_get_signal(struct lbs_private *priv, s8 *signal, s8 *noise)
-{
-	struct cmd_rssi cmd;
-	int ret;
-
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.n_or_snr = cpu_to_le16(DEFAULT_BCN_AVG_FACTOR);
-	ret = lbs_cmd_with_response(priv, CMD_802_11_RSSI, &cmd);
-
-	if (ret == 0) {
-		*signal = CAL_RSSI(le16_to_cpu(cmd.n_or_snr),
-				le16_to_cpu(cmd.nf));
-		*noise  = CAL_NF(le16_to_cpu(cmd.nf));
-	}
-	return ret;
-}
-
 
 static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 			      u8 *mac, struct station_info *sinfo)
@@ -1490,7 +1406,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	sinfo->rx_packets = priv->dev->stats.rx_packets;
 
 	/* Get current RSSI */
-	ret = lbs_get_signal(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		sinfo->signal = signal;
 		sinfo->filled |= STATION_INFO_SIGNAL;
@@ -1530,7 +1446,7 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = ieee80211_get_channel(wiphy,
 		ieee80211_channel_to_frequency(priv->channel));
 
-	ret = lbs_get_signal(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		survey->filled = SURVEY_INFO_NOISE_DBM;
 		survey->noise = noise;
@@ -1558,17 +1474,17 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
-		ret = lbs_enable_monitor_mode(priv, 1);
+		ret = lbs_set_monitor_mode(priv, 1);
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_enable_monitor_mode(priv, 0);
+			ret = lbs_set_monitor_mode(priv, 0);
 		if (!ret)
 			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 1);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_enable_monitor_mode(priv, 0);
+			ret = lbs_set_monitor_mode(priv, 0);
 		if (!ret)
 			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;
@@ -2063,113 +1979,20 @@ int lbs_cfg_register(struct lbs_private *priv)
 	return ret;
 }
 
-/**
- *  @brief This function sets DOMAIN INFO to FW
- *  @param priv       pointer to struct lbs_private
- *  @return          0; -1
-*/
-static int lbs_11d_set_domain_info(struct lbs_private *priv)
-{
-	int ret;
-
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11D_DOMAIN_INFO,
-			CMD_ACT_SET,
-			CMD_OPTION_WAITFORRSP, 0, NULL);
-	if (ret)
-		lbs_deb_11d("fail to dnld domain info\n");
-
-	return ret;
-}
-
-static void lbs_send_domain_info_cmd_fw(struct wiphy *wiphy,
-					struct regulatory_request *request)
-{
-	u8   no_of_triplet = 0;
-	u8   no_of_parsed_chan = 0;
-	u8   first_channel = 0, next_chan = 0, max_pwr = 0;
-	u8   i, flag = 0;
-	enum ieee80211_band band;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	struct lbs_private *priv = wiphy_priv(wiphy);
-	struct lbs_802_11d_domain_reg *domain_info = &priv->domain_reg;
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
-	/* Set country code */
-	domain_info->country_code[0] = request->alpha2[0];
-	domain_info->country_code[1] = request->alpha2[1];
-	domain_info->country_code[2] = ' ';
-
-	for (band = 0; band < IEEE80211_NUM_BANDS ; band++) {
-
-		if (!wiphy->bands[band])
-			continue;
-
-		sband = wiphy->bands[band];
-
-		for (i = 0; i < sband->n_channels ; i++) {
-			ch = &sband->channels[i];
-			if (ch->flags & IEEE80211_CHAN_DISABLED)
-				continue;
-
-			if (!flag) {
-				flag = 1;
-				next_chan = first_channel = (u32) ch->hw_value;
-				max_pwr = ch->max_power;
-				no_of_parsed_chan = 1;
-				continue;
-			}
-
-			if (ch->hw_value == next_chan + 1 &&
-					ch->max_power == max_pwr) {
-				next_chan++;
-				no_of_parsed_chan++;
-			} else {
-				domain_info->triplet[no_of_triplet]
-					.chans.first_channel = first_channel;
-				domain_info->triplet[no_of_triplet]
-					.chans.num_channels = no_of_parsed_chan;
-				domain_info->triplet[no_of_triplet]
-					.chans.max_power = max_pwr;
-				no_of_triplet++;
-				flag = 0;
-			}
-		}
-		if (flag) {
-			domain_info->triplet[no_of_triplet]
-				.chans.first_channel = first_channel;
-			domain_info->triplet[no_of_triplet]
-				.chans.num_channels = no_of_parsed_chan;
-			domain_info->triplet[no_of_triplet]
-				.chans.max_power = max_pwr;
-			no_of_triplet++;
-		}
-	}
-
-	domain_info->no_triplet = no_of_triplet;
-
-	/* Set domain info */
-	ret = lbs_11d_set_domain_info(priv);
-	if (ret)
-		lbs_pr_err("11D: error setting domain info in FW\n");
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
-}
-
 int lbs_reg_notifier(struct wiphy *wiphy,
 		struct regulatory_request *request)
 {
+	struct lbs_private *priv = wiphy_priv(wiphy);
+	int ret;
+
 	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
 			"callback for domain %c%c\n", request->alpha2[0],
 			request->alpha2[1]);
 
-	lbs_send_domain_info_cmd_fw(wiphy, request);
+	ret = lbs_set_11d_domain_info(priv, request, wiphy->bands);
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
-
-	return 0;
+	return ret;
 }
 
 void lbs_scan_deinit(struct lbs_private *priv)

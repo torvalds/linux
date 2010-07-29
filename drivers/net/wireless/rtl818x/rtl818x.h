@@ -193,6 +193,7 @@ struct rtl818x_rf_ops {
 	void (*stop)(struct ieee80211_hw *);
 	void (*set_chan)(struct ieee80211_hw *, struct ieee80211_conf *);
 	void (*conf_erp)(struct ieee80211_hw *, struct ieee80211_bss_conf *);
+	u8 (*calc_rssi)(u8 agc, u8 sq);
 };
 
 /**

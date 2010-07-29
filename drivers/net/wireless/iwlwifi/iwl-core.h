@@ -125,6 +125,8 @@ struct iwl_debugfs_ops {
 				 size_t count, loff_t *ppos);
 	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos);
+	ssize_t (*bt_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
 };
 
 struct iwl_temp_ops {
@@ -335,6 +337,7 @@ struct iwl_cfg {
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	const bool need_dc_calib;
+	const bool bt_statistics;
 };
 
 /***************************
@@ -377,7 +380,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
-int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwl_commit_rxon(struct iwl_priv *priv);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);

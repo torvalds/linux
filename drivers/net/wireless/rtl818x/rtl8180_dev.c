@@ -103,7 +103,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	unsigned int count = 32;
-	u8 signal;
+	u8 signal, agc, sq;
 
 	while (count--) {
 		struct rtl8180_rx_desc *entry = &priv->rx_ring[priv->rx_idx];
@@ -132,12 +132,16 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 
 			rx_status.antenna = (flags2 >> 15) & 1;
 			rx_status.rate_idx = (flags >> 20) & 0xF;
-			/* TODO: improve signal/rssi reporting for !rtl8185 */
-			signal = (flags2 >> 17) & 0x7F;
-			if (rx_status.rate_idx > 3)
-				signal = 90 - clamp_t(u8, signal, 25, 90);
-			else
-				signal = 95 - clamp_t(u8, signal, 30, 95);
+			agc = (flags2 >> 17) & 0x7F;
+			if (priv->r8185) {
+				if (rx_status.rate_idx > 3)
+					signal = 90 - clamp_t(u8, agc, 25, 90);
+				else
+					signal = 95 - clamp_t(u8, agc, 30, 95);
+			} else {
+				sq = flags2 & 0xff;
+				signal = priv->rf->calc_rssi(agc, sq);
+			}
 			rx_status.signal = signal;
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
@@ -357,7 +361,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	/* check success of reset */
 	if (rtl818x_ioread8(priv, &priv->map->CMD) & RTL818X_CMD_RESET) {
-		printk(KERN_ERR "%s: reset timeout!\n", wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "reset timeout!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -441,8 +445,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 					     &priv->rx_ring_dma);
 
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
-		printk(KERN_ERR "%s: Cannot allocate RX ring\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "cannot allocate rx ring\n");
 		return -ENOMEM;
 	}
 
@@ -499,8 +502,8 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 
 	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		printk(KERN_ERR "%s: Cannot allocate TX ring (prio = %d)\n",
-		       wiphy_name(dev->wiphy), prio);
+		wiphy_err(dev->wiphy, "cannot allocate tx ring (prio = %d)\n",
+			  prio);
 		return -ENOMEM;
 	}
 
@@ -565,8 +568,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "failed to register irq handler\n");
 		goto err_free_rings;
 	}
 
@@ -1103,9 +1105,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	printk(KERN_INFO "%s: hwaddr %pM, %s + %s\n",
-	       wiphy_name(dev->wiphy), mac_addr,
-	       chip_name, priv->rf->name);
+	wiphy_info(dev->wiphy, "hwaddr %pm, %s + %s\n",
+		   mac_addr, chip_name, priv->rf->name);
 
 	return 0;
 

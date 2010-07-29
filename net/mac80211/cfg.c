@@ -158,7 +158,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	if (mac_addr) {
 		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta) {
-			ieee80211_key_free(key);
+			ieee80211_key_free(sdata->local, key);
 			err = -ENOENT;
 			goto out_unlock;
 		}
@@ -192,7 +192,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 			goto out_unlock;
 
 		if (sta->key) {
-			ieee80211_key_free(sta->key);
+			ieee80211_key_free(sdata->local, sta->key);
 			WARN_ON(sta->key);
 			ret = 0;
 		}
@@ -205,7 +205,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 		goto out_unlock;
 	}
 
-	ieee80211_key_free(sdata->keys[key_idx]);
+	ieee80211_key_free(sdata->local, sdata->keys[key_idx]);
 	WARN_ON(sdata->keys[key_idx]);
 
 	ret = 0;
@@ -324,14 +324,9 @@ static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
 					     struct net_device *dev,
 					     u8 key_idx)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	rcu_read_lock();
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	ieee80211_set_default_mgmt_key(sdata, key_idx);
-
-	rcu_read_unlock();
 
 	return 0;
 }

@@ -60,14 +60,10 @@ struct lbs_private {
 	struct dentry *regs_dir;
 	struct dentry *debugfs_regs_files[6];
 
-	/** 11D and domain regulatory data */
-	struct lbs_802_11d_domain_reg domain_reg;
-
 	/* Hardware debugging */
 	u32 mac_offset;
 	u32 bbp_offset;
 	u32 rf_offset;
-	struct lbs_offset_value offsetvalue;
 
 	/* Power management */
 	u16 psmode;
@@ -115,12 +111,10 @@ struct lbs_private {
 	struct cmd_ctrl_node *cur_cmd;
 	struct list_head cmdfreeq;    /* free command buffers */
 	struct list_head cmdpendingq; /* pending command buffers */
-	wait_queue_head_t cmd_pending;
 	struct timer_list command_timer;
 	int cmd_timed_out;
 
 	/* Command responses sent from the hardware to the driver */
-	int cur_cmd_retcode;
 	u8 resp_idx;
 	u8 resp_buf[2][LBS_UPLD_SIZE];
 	u32 resp_len[2];

@@ -1306,6 +1306,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	int r = 0;
 	struct wiphy *wiphy = NULL;
+	enum nl80211_reg_initiator initiator = reg_request->initiator;
 
 	BUG_ON(!reg_request->alpha2);
 
@@ -1325,7 +1326,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	/* This is required so that the orig_* parameters are saved */
 	if (r == -EALREADY && wiphy &&
 	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
-		wiphy_update_regulatory(wiphy, reg_request->initiator);
+		wiphy_update_regulatory(wiphy, initiator);
 out:
 	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
@@ -1492,7 +1493,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 			 u8 *country_ie,
 			 u8 country_ie_len)
 {
-	struct ieee80211_regdomain *rd = NULL;
 	char alpha2[2];
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
@@ -1529,7 +1529,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 
 	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
 	if (!request)
-		goto free_rd_out;
+		goto out;
 
 	request->wiphy_idx = get_wiphy_idx(wiphy);
 	request->alpha2[0] = alpha2[0];
@@ -1543,8 +1543,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 
 	return;
 
-free_rd_out:
-	kfree(rd);
 out:
 	mutex_unlock(&reg_mutex);
 }

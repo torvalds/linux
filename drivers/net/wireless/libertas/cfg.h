@@ -13,12 +13,6 @@ void lbs_cfg_free(struct lbs_private *priv);
 int lbs_reg_notifier(struct wiphy *wiphy,
 		struct regulatory_request *request);
 
-/* All of those are TODOs: */
-#define lbs_cmd_802_11_rssi(priv, cmdptr) (0)
-#define lbs_ret_802_11_rssi(priv, resp) (0)
-#define lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action) (0)
-#define lbs_ret_802_11_bcn_ctrl(priv, resp) (0)
-
 void lbs_send_disconnect_notification(struct lbs_private *priv);
 void lbs_send_mic_failureevent(struct lbs_private *priv, u32 event);
 

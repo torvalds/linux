@@ -62,7 +62,7 @@ struct hci_vendor_hdr {
 	__u8    type;
 	__le16  snum;
 	__le16  dlen;
-} __attribute__ ((packed));
+} __packed;
 
 static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 {

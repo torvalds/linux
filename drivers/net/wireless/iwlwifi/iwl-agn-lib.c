@@ -364,7 +364,7 @@ void iwlagn_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from statistics (in Celsius) */
 	priv->temperature =
-		le32_to_cpu(priv->_agn.statistics.general.temperature);
+		le32_to_cpu(priv->_agn.statistics.general.common.temperature);
 	iwl_tt_handler(priv);
 }
 
@@ -1234,7 +1234,10 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 		spin_lock_irqsave(&priv->lock, flags);
-		interval = vif ? vif->bss_conf.beacon_int : 0;
+		if (priv->is_internal_short_scan)
+			interval = 0;
+		else
+			interval = vif->bss_conf.beacon_int;
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		scan->suspend_time = 0;
