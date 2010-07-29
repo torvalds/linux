@@ -314,6 +314,19 @@ struct platform_device tegra_w1_device = {
 	.num_resources = ARRAY_SIZE(w1_resources),
 };
 
+static struct resource tegra_udc_resources[] = {
+	[0] = {
+		.start	= TEGRA_USB_BASE,
+		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_USB,
+		.end	= INT_USB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct resource tegra_usb1_resources[] = {
 	[0] = {
 		.start	= TEGRA_USB_BASE,
@@ -368,8 +381,8 @@ struct platform_device tegra_udc_device = {
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data	= &tegra_udc_pdata,
 	},
-	.resource = tegra_usb1_resources,
-	.num_resources = ARRAY_SIZE(tegra_usb1_resources),
+	.resource = tegra_udc_resources,
+	.num_resources = ARRAY_SIZE(tegra_udc_resources),
 };
 
 static u64 tegra_ehci_dmamask = DMA_BIT_MASK(32);
