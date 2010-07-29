@@ -458,6 +458,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
+	unsigned int tmp, i;
 	int ret;
 
 	pr_debug("%s: probe=%p\n", __func__, pdev);
@@ -535,6 +536,15 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 	}
 
 	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
+
+	/* Check RTC Time */
+
+	for (i = S3C2410_RTCSEC; i <= S3C2410_RTCYEAR; i += 0x4) {
+		tmp = readb(s3c_rtc_base + i);
+
+		if ((tmp & 0xf) > 0x9 || ((tmp >> 4) & 0xf) > 0x9)
+			writeb(0, s3c_rtc_base + i);
+	}
 
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
 		rtc->max_user_freq = 32768;
