@@ -26,9 +26,6 @@
 
 #define DEBUG_SDSLOT_VDD 1
 
-extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
-			unsigned int stat_irq, unsigned long stat_irq_flags);
-
 /* ---- COMMON ---- */
 static void config_gpio_table(uint32_t *table, int len)
 {
