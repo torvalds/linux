@@ -307,13 +307,15 @@ static int __init nvram_remove_os_partition(void)
 	return 0;
 }
 
-/* nvram_create_os_partition
- *
- * Create a OS linux partition to buffer error logs.
- * Will create a partition starting at the first free
- * space found if space has enough room.
+/**
+ * nvram_create_partition - Create a partition in nvram
+ * @name: name of the partition to create
+ * @sig: signature of the partition to create
+ * @req_size: size to allocate preferrably
+ * @min_size: minimum acceptable size (0 means req_size)
  */
-static int __init nvram_create_os_partition(void)
+static int __init nvram_create_partition(const char *name, int sig,
+					 int req_size, int min_size)
 {
 	struct nvram_partition *part;
 	struct nvram_partition *new_part;
@@ -322,20 +324,27 @@ static int __init nvram_create_os_partition(void)
 	loff_t tmp_index;
 	long size = 0;
 	int rc;
-	
+
+	/* If no minimum size specified, make it the same as the
+	 * requested size
+	 */
+	if (min_size == 0)
+		min_size = req_size;
+
 	/* Find a free partition that will give us the maximum needed size 
 	   If can't find one that will give us the minimum size needed */
 	list_for_each_entry(part, &nvram_part->partition, partition) {
 		if (part->header.signature != NVRAM_SIG_FREE)
 			continue;
 
-		if (part->header.length >= NVRAM_MAX_REQ) {
-			size = NVRAM_MAX_REQ;
+		if (part->header.length >= req_size) {
+			size = req_size;
 			free_part = part;
 			break;
 		}
-		if (!size && part->header.length >= NVRAM_MIN_REQ) {
-			size = NVRAM_MIN_REQ;
+		if (part->header.length > size &&
+		    part->header.length >= min_size) {
+			size = part->header.length;
 			free_part = part;
 		}
 	}
@@ -350,9 +359,9 @@ static int __init nvram_create_os_partition(void)
 	}
 
 	new_part->index = free_part->index;
-	new_part->header.signature = NVRAM_SIG_OS;
+	new_part->header.signature = sig;
 	new_part->header.length = size;
-	strcpy(new_part->header.name, "ppc64,linux");
+	strncpy(new_part->header.name, name, 12);
 	new_part->header.checksum = nvram_checksum(&new_part->header);
 
 	rc = nvram_write_header(new_part);
@@ -451,10 +460,10 @@ static int __init nvram_setup_partition(void)
 	}
 	
 	/* try creating a partition with the free space we have */
-	rc = nvram_create_partition("ppc64,linux", );
-	if (!rc) {
+	rc = 	nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
+				       NVRAM_MAX_REQ, NVRAM_MIN_REQ);
+	if (!rc)
 		return 0;
-	}
 		
 	/* need to free up some space */
 	rc = nvram_remove_os_partition();
@@ -463,9 +472,10 @@ static int __init nvram_setup_partition(void)
 	}
 	
 	/* create a partition in this new space */
-	rc = nvram_create_os_partition();
+	rc = 	nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
+				       NVRAM_MAX_REQ, NVRAM_MIN_REQ);
 	if (rc) {
-		printk(KERN_ERR "nvram_create_os_partition: Could not find a "
+		printk(KERN_ERR "nvram_create_partition: Could not find a "
 		       "NVRAM partition large enough\n");
 		return rc;
 	}
