@@ -120,3 +120,87 @@ kvm_emulate_mtmsrd_reg_offs:
 .global kvm_emulate_mtmsrd_len
 kvm_emulate_mtmsrd_len:
 	.long (kvm_emulate_mtmsrd_end - kvm_emulate_mtmsrd) / 4
+
+
+#define MSR_SAFE_BITS (MSR_EE | MSR_CE | MSR_ME | MSR_RI)
+#define MSR_CRITICAL_BITS ~MSR_SAFE_BITS
+
+.global kvm_emulate_mtmsr
+kvm_emulate_mtmsr:
+
+	SCRATCH_SAVE
+
+	/* Fetch old MSR in r31 */
+	LL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
+	/* Find the changed bits between old and new MSR */
+kvm_emulate_mtmsr_reg1:
+	xor	r31, r0, r31
+
+	/* Check if we need to really do mtmsr */
+	LOAD_REG_IMMEDIATE(r30, MSR_CRITICAL_BITS)
+	and.	r31, r31, r30
+
+	/* No critical bits changed? Maybe we can stay in the guest. */
+	beq	maybe_stay_in_guest
+
+do_mtmsr:
+
+	SCRATCH_RESTORE
+
+	/* Just fire off the mtmsr if it's critical */
+kvm_emulate_mtmsr_orig_ins:
+	mtmsr	r0
+
+	b	kvm_emulate_mtmsr_branch
+
+maybe_stay_in_guest:
+
+	/* Check if we have to fetch an interrupt */
+	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
+	cmpwi	r31, 0
+	beq+	no_mtmsr
+
+	/* Check if we may trigger an interrupt */
+kvm_emulate_mtmsr_reg2:
+	andi.	r31, r0, MSR_EE
+	beq	no_mtmsr
+
+	b	do_mtmsr
+
+no_mtmsr:
+
+	/* Put MSR into magic page because we don't call mtmsr */
+kvm_emulate_mtmsr_reg3:
+	STL64(r0, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
+	SCRATCH_RESTORE
+
+	/* Go back to caller */
+kvm_emulate_mtmsr_branch:
+	b	.
+kvm_emulate_mtmsr_end:
+
+.global kvm_emulate_mtmsr_branch_offs
+kvm_emulate_mtmsr_branch_offs:
+	.long (kvm_emulate_mtmsr_branch - kvm_emulate_mtmsr) / 4
+
+.global kvm_emulate_mtmsr_reg1_offs
+kvm_emulate_mtmsr_reg1_offs:
+	.long (kvm_emulate_mtmsr_reg1 - kvm_emulate_mtmsr) / 4
+
+.global kvm_emulate_mtmsr_reg2_offs
+kvm_emulate_mtmsr_reg2_offs:
+	.long (kvm_emulate_mtmsr_reg2 - kvm_emulate_mtmsr) / 4
+
+.global kvm_emulate_mtmsr_reg3_offs
+kvm_emulate_mtmsr_reg3_offs:
+	.long (kvm_emulate_mtmsr_reg3 - kvm_emulate_mtmsr) / 4
+
+.global kvm_emulate_mtmsr_orig_ins_offs
+kvm_emulate_mtmsr_orig_ins_offs:
+	.long (kvm_emulate_mtmsr_orig_ins - kvm_emulate_mtmsr) / 4
+
+.global kvm_emulate_mtmsr_len
+kvm_emulate_mtmsr_len:
+	.long (kvm_emulate_mtmsr_end - kvm_emulate_mtmsr) / 4

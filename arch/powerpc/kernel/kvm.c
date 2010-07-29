@@ -63,7 +63,9 @@
 #define KVM_INST_MTSPR_DSISR	0x7c1203a6
 
 #define KVM_INST_TLBSYNC	0x7c00046c
+#define KVM_INST_MTMSRD_L0	0x7c000164
 #define KVM_INST_MTMSRD_L1	0x7c010164
+#define KVM_INST_MTMSR		0x7c000124
 
 static bool kvm_patching_worked = true;
 static char kvm_tmp[1024 * 1024];
@@ -176,6 +178,49 @@ static void kvm_patch_ins_mtmsrd(u32 *inst, u32 rt)
 	kvm_patch_ins_b(inst, distance_start);
 }
 
+extern u32 kvm_emulate_mtmsr_branch_offs;
+extern u32 kvm_emulate_mtmsr_reg1_offs;
+extern u32 kvm_emulate_mtmsr_reg2_offs;
+extern u32 kvm_emulate_mtmsr_reg3_offs;
+extern u32 kvm_emulate_mtmsr_orig_ins_offs;
+extern u32 kvm_emulate_mtmsr_len;
+extern u32 kvm_emulate_mtmsr[];
+
+static void kvm_patch_ins_mtmsr(u32 *inst, u32 rt)
+{
+	u32 *p;
+	int distance_start;
+	int distance_end;
+	ulong next_inst;
+
+	p = kvm_alloc(kvm_emulate_mtmsr_len * 4);
+	if (!p)
+		return;
+
+	/* Find out where we are and put everything there */
+	distance_start = (ulong)p - (ulong)inst;
+	next_inst = ((ulong)inst + 4);
+	distance_end = next_inst - (ulong)&p[kvm_emulate_mtmsr_branch_offs];
+
+	/* Make sure we only write valid b instructions */
+	if (distance_start > KVM_INST_B_MAX) {
+		kvm_patching_worked = false;
+		return;
+	}
+
+	/* Modify the chunk to fit the invocation */
+	memcpy(p, kvm_emulate_mtmsr, kvm_emulate_mtmsr_len * 4);
+	p[kvm_emulate_mtmsr_branch_offs] |= distance_end & KVM_INST_B_MASK;
+	p[kvm_emulate_mtmsr_reg1_offs] |= rt;
+	p[kvm_emulate_mtmsr_reg2_offs] |= rt;
+	p[kvm_emulate_mtmsr_reg3_offs] |= rt;
+	p[kvm_emulate_mtmsr_orig_ins_offs] = *inst;
+	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_mtmsr_len * 4);
+
+	/* Patch the invocation */
+	kvm_patch_ins_b(inst, distance_start);
+}
+
 static void kvm_map_magic_page(void *data)
 {
 	kvm_hypercall2(KVM_HC_PPC_MAP_MAGIC_PAGE,
@@ -255,6 +300,12 @@ static void kvm_check_ins(u32 *inst)
 		/* We use r30 and r31 during the hook */
 		if (get_rt(inst_rt) < 30)
 			kvm_patch_ins_mtmsrd(inst, inst_rt);
+		break;
+	case KVM_INST_MTMSR:
+	case KVM_INST_MTMSRD_L0:
+		/* We use r30 and r31 during the hook */
+		if (get_rt(inst_rt) < 30)
+			kvm_patch_ins_mtmsr(inst, inst_rt);
 		break;
 	}
 
