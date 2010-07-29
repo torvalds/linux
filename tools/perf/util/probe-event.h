@@ -7,33 +7,33 @@
 extern bool probe_event_dry_run;
 
 /* kprobe-tracer tracing point */
-struct kprobe_trace_point {
+struct probe_trace_point {
 	char		*symbol;	/* Base symbol */
 	unsigned long	offset;		/* Offset from symbol */
 	bool		retprobe;	/* Return probe flag */
 };
 
-/* kprobe-tracer tracing argument referencing offset */
-struct kprobe_trace_arg_ref {
-	struct kprobe_trace_arg_ref	*next;	/* Next reference */
+/* probe-tracer tracing argument referencing offset */
+struct probe_trace_arg_ref {
+	struct probe_trace_arg_ref	*next;	/* Next reference */
 	long				offset;	/* Offset value */
 };
 
 /* kprobe-tracer tracing argument */
-struct kprobe_trace_arg {
+struct probe_trace_arg {
 	char				*name;	/* Argument name */
 	char				*value;	/* Base value */
 	char				*type;	/* Type name */
-	struct kprobe_trace_arg_ref	*ref;	/* Referencing offset */
+	struct probe_trace_arg_ref	*ref;	/* Referencing offset */
 };
 
 /* kprobe-tracer tracing event (point + arg) */
-struct kprobe_trace_event {
+struct probe_trace_event {
 	char				*event;	/* Event name */
 	char				*group;	/* Group name */
-	struct kprobe_trace_point	point;	/* Trace point */
+	struct probe_trace_point	point;	/* Trace point */
 	int				nargs;	/* Number of args */
-	struct kprobe_trace_arg		*args;	/* Arguments */
+	struct probe_trace_arg		*args;	/* Arguments */
 };
 
 /* Perf probe probing point */
@@ -93,25 +93,18 @@ struct line_range {
 /* Command string to events */
 extern int parse_perf_probe_command(const char *cmd,
 				    struct perf_probe_event *pev);
-extern int parse_kprobe_trace_command(const char *cmd,
-				      struct kprobe_trace_event *tev);
 
 /* Events to command string */
 extern char *synthesize_perf_probe_command(struct perf_probe_event *pev);
-extern char *synthesize_kprobe_trace_command(struct kprobe_trace_event *tev);
+extern char *synthesize_probe_trace_command(struct probe_trace_event *tev);
 extern int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf,
 				     size_t len);
 
 /* Check the perf_probe_event needs debuginfo */
 extern bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
 
-/* Convert from kprobe_trace_event to perf_probe_event */
-extern int convert_to_perf_probe_event(struct kprobe_trace_event *tev,
-				       struct perf_probe_event *pev);
-
 /* Release event contents */
 extern void clear_perf_probe_event(struct perf_probe_event *pev);
-extern void clear_kprobe_trace_event(struct kprobe_trace_event *tev);
 
 /* Command string to line-range */
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);

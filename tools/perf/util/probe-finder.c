@@ -366,10 +366,10 @@ static Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
  * Probe finder related functions
  */
 
-static struct kprobe_trace_arg_ref *alloc_trace_arg_ref(long offs)
+static struct probe_trace_arg_ref *alloc_trace_arg_ref(long offs)
 {
-	struct kprobe_trace_arg_ref *ref;
-	ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+	struct probe_trace_arg_ref *ref;
+	ref = zalloc(sizeof(struct probe_trace_arg_ref));
 	if (ref != NULL)
 		ref->offset = offs;
 	return ref;
@@ -385,7 +385,7 @@ static int convert_variable_location(Dwarf_Die *vr_die, struct probe_finder *pf)
 	Dwarf_Word offs = 0;
 	bool ref = false;
 	const char *regs;
-	struct kprobe_trace_arg *tvar = pf->tvar;
+	struct probe_trace_arg *tvar = pf->tvar;
 	int ret;
 
 	/* TODO: handle more than 1 exprs */
@@ -459,10 +459,10 @@ static int convert_variable_location(Dwarf_Die *vr_die, struct probe_finder *pf)
 }
 
 static int convert_variable_type(Dwarf_Die *vr_die,
-				 struct kprobe_trace_arg *tvar,
+				 struct probe_trace_arg *tvar,
 				 const char *cast)
 {
-	struct kprobe_trace_arg_ref **ref_ptr = &tvar->ref;
+	struct probe_trace_arg_ref **ref_ptr = &tvar->ref;
 	Dwarf_Die type;
 	char buf[16];
 	int ret;
@@ -500,7 +500,7 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 			while (*ref_ptr)
 				ref_ptr = &(*ref_ptr)->next;
 			/* Add new reference with offset +0 */
-			*ref_ptr = zalloc(sizeof(struct kprobe_trace_arg_ref));
+			*ref_ptr = zalloc(sizeof(struct probe_trace_arg_ref));
 			if (*ref_ptr == NULL) {
 				pr_warning("Out of memory error\n");
 				return -ENOMEM;
@@ -545,10 +545,10 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 
 static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 				    struct perf_probe_arg_field *field,
-				    struct kprobe_trace_arg_ref **ref_ptr,
+				    struct probe_trace_arg_ref **ref_ptr,
 				    Dwarf_Die *die_mem)
 {
-	struct kprobe_trace_arg_ref *ref = *ref_ptr;
+	struct probe_trace_arg_ref *ref = *ref_ptr;
 	Dwarf_Die type;
 	Dwarf_Word offs;
 	int ret, tag;
@@ -574,7 +574,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 		pr_debug2("Array real type: (%x)\n",
 			 (unsigned)dwarf_dieoffset(&type));
 		if (tag == DW_TAG_pointer_type) {
-			ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+			ref = zalloc(sizeof(struct probe_trace_arg_ref));
 			if (ref == NULL)
 				return -ENOMEM;
 			if (*ref_ptr)
@@ -605,7 +605,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			return -EINVAL;
 		}
 
-		ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+		ref = zalloc(sizeof(struct probe_trace_arg_ref));
 		if (ref == NULL)
 			return -ENOMEM;
 		if (*ref_ptr)
@@ -738,7 +738,7 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 /* Show a probe point to output buffer */
 static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
-	struct kprobe_trace_event *tev;
+	struct probe_trace_event *tev;
 	Dwarf_Addr eaddr;
 	Dwarf_Die die_mem;
 	const char *name;
@@ -803,7 +803,7 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* Find each argument */
 	tev->nargs = pf->pev->nargs;
-	tev->args = zalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
+	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
 	if (tev->args == NULL)
 		return -ENOMEM;
 	for (i = 0; i < pf->pev->nargs; i++) {
@@ -1060,9 +1060,9 @@ static int find_probe_point_by_func(struct probe_finder *pf)
 	return _param.retval;
 }
 
-/* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
-int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
-			     struct kprobe_trace_event **tevs, int max_tevs)
+/* Find probe_trace_events specified by perf_probe_event from debuginfo */
+int find_probe_trace_events(int fd, struct perf_probe_event *pev,
+			     struct probe_trace_event **tevs, int max_tevs)
 {
 	struct probe_finder pf = {.pev = pev, .max_tevs = max_tevs};
 	struct perf_probe_point *pp = &pev->point;
@@ -1072,7 +1072,7 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	Dwarf *dbg;
 	int ret = 0;
 
-	pf.tevs = zalloc(sizeof(struct kprobe_trace_event) * max_tevs);
+	pf.tevs = zalloc(sizeof(struct probe_trace_event) * max_tevs);
 	if (pf.tevs == NULL)
 		return -ENOMEM;
 	*tevs = pf.tevs;

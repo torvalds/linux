@@ -267,4 +267,3 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 	return 0;
 }
-
