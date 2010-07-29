@@ -565,6 +565,8 @@ static int __init nvram_init(void)
 	int error;
 	int rc;
 	
+	BUILD_BUG_ON(NVRAM_BLOCK_LEN != 16);
+
 	if (ppc_md.nvram_size == NULL || ppc_md.nvram_size() <= 0)
 		return  -ENODEV;
 
