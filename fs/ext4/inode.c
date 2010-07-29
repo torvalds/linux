@@ -221,6 +221,7 @@ void ext4_delete_inode(struct inode *inode)
 				     "couldn't extend journal (err %d)", err);
 		stop_handle:
 			ext4_journal_stop(handle);
+			ext4_orphan_del(NULL, inode);
 			goto no_delete;
 		}
 	}
