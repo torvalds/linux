@@ -439,6 +439,7 @@ static void atexit_header(void)
 
 		process_buildids();
 		perf_header__write(&session->header, output, true);
+		perf_session__delete(session);
 	}
 }
 
@@ -558,12 +559,15 @@ static int __cmd_record(int argc, const char **argv)
 	if (!file_new) {
 		err = perf_header__read(session, output);
 		if (err < 0)
-			return err;
+			goto out_delete_session;
 	}
 
 	if (have_tracepoints(attrs, nr_counters))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
+	/*
+ 	 * perf_session__delete(session) will be called at atexit_header()
+	 */
 	atexit(atexit_header);
 
 	if (forks) {
@@ -768,6 +772,10 @@ static int __cmd_record(int argc, const char **argv)
 		bytes_written / 24);
 
 	return 0;
+
+out_delete_session:
+	perf_session__delete(session);
+	return err;
 }
 
 static const char * const record_usage[] = {
@@ -824,7 +832,7 @@ static const struct option options[] = {
 
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
-	int i,j;
+	int i, j, err = -ENOMEM;
 
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
@@ -873,13 +881,13 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		for (j = 0; j < MAX_COUNTERS; j++) {
 			fd[i][j] = malloc(sizeof(int)*thread_num);
 			if (!fd[i][j])
-				return -ENOMEM;
+				goto out_free_fd;
 		}
 	}
 	event_array = malloc(
 		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
 	if (!event_array)
-		return -ENOMEM;
+		goto out_free_fd;
 
 	if (user_interval != ULLONG_MAX)
 		default_interval = user_interval;
@@ -895,8 +903,20 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		default_interval = freq;
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
-		exit(EXIT_FAILURE);
+		err = -EINVAL;
+		goto out_free_event_array;
 	}
 
-	return __cmd_record(argc, argv);
+	err = __cmd_record(argc, argv);
+
+out_free_event_array:
+	free(event_array);
+out_free_fd:
+	for (i = 0; i < MAX_NR_CPUS; i++) {
+		for (j = 0; j < MAX_COUNTERS; j++)
+			free(fd[i][j]);
+	}
+	free(all_tids);
+	all_tids = NULL;
+	return err;
 }
