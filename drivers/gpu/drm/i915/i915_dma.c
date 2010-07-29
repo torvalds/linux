@@ -1300,7 +1300,7 @@ static void i915_cleanup_compression(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	drm_mm_put_block(dev_priv->compressed_fb);
-	if (!IS_GM45(dev))
+	if (dev_priv->compressed_llb)
 		drm_mm_put_block(dev_priv->compressed_llb);
 }
 

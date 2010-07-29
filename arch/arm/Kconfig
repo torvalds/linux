@@ -483,6 +483,19 @@ config ARCH_LOKI
 	help
 	  Support for the Marvell Loki (88RC8480) SoC.
 
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select ARM_AMBA
+	select USB_ARCH_HAS_OHCI
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for the NXP LPC32XX family of processors
+
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
@@ -846,6 +859,8 @@ source "arch/arm/mach-ks8695/Kconfig"
 source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
+
+source "arch/arm/mach-lpc32xx/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
 
