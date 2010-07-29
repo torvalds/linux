@@ -75,6 +75,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			be_dws_le_to_cpu(&resp->hw_stats,
 						sizeof(resp->hw_stats));
 			netdev_stats_update(adapter);
+			adapter->stats_ioctl_sent = false;
 		}
 	} else if ((compl_status != MCC_STATUS_NOT_SUPPORTED) &&
 		   (compl->tag0 != OPCODE_COMMON_NTWK_MAC_QUERY)) {
@@ -951,6 +952,7 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	sge->len = cpu_to_le32(nonemb_cmd->size);
 
 	be_mcc_notify(adapter);
+	adapter->stats_ioctl_sent = true;
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);

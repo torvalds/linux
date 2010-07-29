@@ -1801,7 +1801,8 @@ static void be_worker(struct work_struct *work)
 	struct be_adapter *adapter =
 		container_of(work, struct be_adapter, work.work);
 
-	be_cmd_get_stats(adapter, &adapter->stats.cmd);
+	if (!adapter->stats_ioctl_sent)
+		be_cmd_get_stats(adapter, &adapter->stats.cmd);
 
 	/* Set EQ delay */
 	be_rx_eqd_update(adapter);
