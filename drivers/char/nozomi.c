@@ -1611,6 +1611,7 @@ static int ntty_install(struct tty_driver *driver, struct tty_struct *tty)
 	ret = tty_init_termios(tty);
 	if (ret == 0) {
 		tty_driver_kref_get(driver);
+		tty->count++;
 		driver->ttys[tty->index] = tty;
 	}
 	return ret;
