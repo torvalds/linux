@@ -812,10 +812,9 @@ xirc2ps_config(struct pcmcia_device * link)
     if (local->modem) {
 	int pass;
 
-	if (do_sound) {
+	if (do_sound)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
-	    link->conf.Status |= CCSR_AUDIO_ENA;
-	}
+
 	link->resource[1]->end = 8;
 	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {

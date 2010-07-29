@@ -183,10 +183,8 @@ static void quirk_config_socket(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
-	if (info->multi) {
-		link->conf.Present |= PRESENT_EXT_STATUS;
-		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
-	}
+	if (info->multi)
+		link->conf.Attributes |= CONF_ENABLE_ESR;
 }
 
 static const struct serial_quirk quirks[] = {
@@ -336,10 +334,9 @@ static int serial_probe(struct pcmcia_device *link)
 	link->priv = info;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	if (do_sound) {
+	if (do_sound)
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
+
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	return serial_config(link);

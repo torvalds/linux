@@ -441,6 +441,8 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
 	pccard_io_map iomap;
+	unsigned char status = 0;
+	unsigned char ext_status = 0;
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
@@ -476,12 +478,21 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		s->socket.flags |= SS_ZVCARD | SS_IOCARD;
 	if (req->Attributes & CONF_ENABLE_DMA)
 		s->socket.flags |= SS_DMA_MODE;
-	if (req->Attributes & CONF_ENABLE_SPKR)
+	if (req->Attributes & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;
+		status = CCSR_AUDIO_ENA;
+		if (!(req->Present & PRESENT_STATUS))
+			dev_warn(&p_dev->dev, "speaker requested, but "
+					      "PRESENT_STATUS not set!\n");
+	}
 	if (req->Attributes & CONF_ENABLE_IRQ)
 		s->socket.io_irq = s->pcmcia_irq;
 	else
 		s->socket.io_irq = 0;
+	if (req->Attributes & CONF_ENABLE_ESR) {
+		req->Present |= PRESENT_EXT_STATUS;
+		ext_status = ESR_REQ_ATTN_ENA;
+	}
 	s->ops->set_socket(s, &s->socket);
 	s->lock_count++;
 
@@ -513,14 +524,13 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
 		mdelay(40);
 	}
-	if (req->Present & PRESENT_STATUS) {
-		c->Status = req->Status;
-		pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &c->Status);
-	}
-	if (req->Present & PRESENT_EXT_STATUS) {
-		c->ExtStatus = req->ExtStatus;
-		pcmcia_write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1, &c->ExtStatus);
-	}
+	if (req->Present & PRESENT_STATUS)
+		pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &status);
+
+	if (req->Present & PRESENT_EXT_STATUS)
+		pcmcia_write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1,
+					&ext_status);
+
 	if (req->Present & PRESENT_IOBASE_0) {
 		u8 b = c->io[0].start & 0xff;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);

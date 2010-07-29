@@ -1608,10 +1608,8 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
+	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
 		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */

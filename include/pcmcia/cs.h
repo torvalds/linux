@@ -24,7 +24,6 @@ typedef struct config_req_t {
     u_int	Attributes;
     u_int	IntType;
     u_int	ConfigBase;
-    u_char	Status, ExtStatus;
     u_char	ConfigIndex;
     u_int	Present;
 } config_req_t;
@@ -34,6 +33,7 @@ typedef struct config_req_t {
 #define CONF_ENABLE_DMA		0x02
 #define CONF_ENABLE_SPKR	0x04
 #define CONF_ENABLE_PULSE_IRQ	0x08
+#define CONF_ENABLE_ESR		0x10
 #define CONF_VALID_CLIENT	0x100
 
 /* IntType field */

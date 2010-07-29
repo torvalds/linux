@@ -560,10 +560,9 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	if (!link->irq)
 		return NULL;
 
-	if (resource_size(link->resource[1]) == 8) {
+	if (resource_size(link->resource[1]) == 8)
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
+
 	if ((link->manf_id == MANFID_IBM) &&
 	    (link->card_id == PRODID_IBM_HOME_AND_AWAY))
 		link->conf.ConfigIndex |= 0x10;

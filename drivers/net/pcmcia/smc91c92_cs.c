@@ -446,7 +446,6 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     int i;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
-    link->conf.Status = CCSR_AUDIO_ENA;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;
 
@@ -640,7 +639,6 @@ static int osi_config(struct pcmcia_device *link)
     int i, j;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
-    link->conf.Status = CCSR_AUDIO_ENA;
     link->resource[0]->end = 64;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;

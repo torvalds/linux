@@ -334,10 +334,8 @@ static int axnet_config(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
     
-    if (resource_size(link->resource[1]) == 8) {
+    if (resource_size(link->resource[1]) == 8)
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
-	link->conf.Status = CCSR_AUDIO_ENA;
-    }
     
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
