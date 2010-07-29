@@ -879,21 +879,10 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 	opcode = *(u8 *) iu->buf;
 
 	if (0) {
-		int i;
-
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "recv completion, opcode 0x%02x\n", opcode);
-
-		for (i = 0; i < wc->byte_len; ++i) {
-			if (i % 8 == 0)
-				printk(KERN_ERR "  [%02x] ", i);
-			printk(" %02x", ((u8 *) iu->buf)[i]);
-			if ((i + 1) % 8 == 0)
-				printk("\n");
-		}
-
-		if (wc->byte_len % 8)
-			printk("\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 8, 1,
+			       iu->buf, wc->byte_len, true);
 	}
 
 	switch (opcode) {
