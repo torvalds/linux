@@ -298,6 +298,11 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_CTRL_EWCTL		(0x4)
 #define EMAC_CTRL_EWINTTCNT	(0x8)
 
+/* EMAC DM644x control module masks */
+#define EMAC_DM644X_EWINTCNT_MASK	0x1FFFF
+#define EMAC_DM644X_INTMIN_INTVL	0x1
+#define EMAC_DM644X_INTMAX_INTVL	(EMAC_DM644X_EWINTCNT_MASK)
+
 /* EMAC MDIO related */
 /* Mask & Control defines */
 #define MDIO_CONTROL_CLKDIV	(0xFF)
@@ -318,8 +323,20 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define MDIO_CONTROL		(0x04)
 
 /* EMAC DM646X control module registers */
-#define EMAC_DM646X_CMRXINTEN	(0x14)
-#define EMAC_DM646X_CMTXINTEN	(0x18)
+#define EMAC_DM646X_CMINTCTRL	0x0C
+#define EMAC_DM646X_CMRXINTEN	0x14
+#define EMAC_DM646X_CMTXINTEN	0x18
+#define EMAC_DM646X_CMRXINTMAX	0x70
+#define EMAC_DM646X_CMTXINTMAX	0x74
+
+/* EMAC DM646X control module masks */
+#define EMAC_DM646X_INTPACEEN		(0x3 << 16)
+#define EMAC_DM646X_INTPRESCALE_MASK	(0x7FF << 0)
+#define EMAC_DM646X_CMINTMAX_CNT	63
+#define EMAC_DM646X_CMINTMIN_CNT	2
+#define EMAC_DM646X_CMINTMAX_INTVL	(1000 / EMAC_DM646X_CMINTMIN_CNT)
+#define EMAC_DM646X_CMINTMIN_INTVL	((1000 / EMAC_DM646X_CMINTMAX_CNT) + 1)
+
 
 /* EMAC EOI codes for C0 */
 #define EMAC_DM646X_MAC_EOI_C0_RXEN	(0x01)
@@ -468,6 +485,8 @@ struct emac_priv {
 	u32 duplex; /* Link duplex: 0=Half, 1=Full */
 	u32 rx_buf_size;
 	u32 isr_count;
+	u32 coal_intvl;
+	u32 bus_freq_mhz;
 	u8 rmii_en;
 	u8 version;
 	u32 mac_hash1;
@@ -691,6 +710,103 @@ static int emac_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 }
 
 /**
+ * emac_get_coalesce : Get interrupt coalesce settings for this device
+ * @ndev : The DaVinci EMAC network adapter
+ * @coal : ethtool coalesce settings structure
+ *
+ * Fetch the current interrupt coalesce settings
+ *
+ */
+static int emac_get_coalesce(struct net_device *ndev,
+				struct ethtool_coalesce *coal)
+{
+	struct emac_priv *priv = netdev_priv(ndev);
+
+	coal->rx_coalesce_usecs = priv->coal_intvl;
+	return 0;
+
+}
+
+/**
+ * emac_set_coalesce : Set interrupt coalesce settings for this device
+ * @ndev : The DaVinci EMAC network adapter
+ * @coal : ethtool coalesce settings structure
+ *
+ * Set interrupt coalesce parameters
+ *
+ */
+static int emac_set_coalesce(struct net_device *ndev,
+				struct ethtool_coalesce *coal)
+{
+	struct emac_priv *priv = netdev_priv(ndev);
+	u32 int_ctrl, num_interrupts = 0;
+	u32 prescale = 0, addnl_dvdr = 1, coal_intvl = 0;
+
+	if (!coal->rx_coalesce_usecs)
+		return -EINVAL;
+
+	coal_intvl = coal->rx_coalesce_usecs;
+
+	switch (priv->version) {
+	case EMAC_VERSION_2:
+		int_ctrl =  emac_ctrl_read(EMAC_DM646X_CMINTCTRL);
+		prescale = priv->bus_freq_mhz * 4;
+
+		if (coal_intvl < EMAC_DM646X_CMINTMIN_INTVL)
+			coal_intvl = EMAC_DM646X_CMINTMIN_INTVL;
+
+		if (coal_intvl > EMAC_DM646X_CMINTMAX_INTVL) {
+			/*
+			 * Interrupt pacer works with 4us Pulse, we can
+			 * throttle further by dilating the 4us pulse.
+			 */
+			addnl_dvdr = EMAC_DM646X_INTPRESCALE_MASK / prescale;
+
+			if (addnl_dvdr > 1) {
+				prescale *= addnl_dvdr;
+				if (coal_intvl > (EMAC_DM646X_CMINTMAX_INTVL
+							* addnl_dvdr))
+					coal_intvl = (EMAC_DM646X_CMINTMAX_INTVL
+							* addnl_dvdr);
+			} else {
+				addnl_dvdr = 1;
+				coal_intvl = EMAC_DM646X_CMINTMAX_INTVL;
+			}
+		}
+
+		num_interrupts = (1000 * addnl_dvdr) / coal_intvl;
+
+		int_ctrl |= EMAC_DM646X_INTPACEEN;
+		int_ctrl &= (~EMAC_DM646X_INTPRESCALE_MASK);
+		int_ctrl |= (prescale & EMAC_DM646X_INTPRESCALE_MASK);
+		emac_ctrl_write(EMAC_DM646X_CMINTCTRL, int_ctrl);
+
+		emac_ctrl_write(EMAC_DM646X_CMRXINTMAX, num_interrupts);
+		emac_ctrl_write(EMAC_DM646X_CMTXINTMAX, num_interrupts);
+
+		break;
+	default:
+		int_ctrl = emac_ctrl_read(EMAC_CTRL_EWINTTCNT);
+		int_ctrl &= (~EMAC_DM644X_EWINTCNT_MASK);
+		prescale = coal_intvl * priv->bus_freq_mhz;
+		if (prescale > EMAC_DM644X_EWINTCNT_MASK) {
+			prescale = EMAC_DM644X_EWINTCNT_MASK;
+			coal_intvl = prescale / priv->bus_freq_mhz;
+		}
+		emac_ctrl_write(EMAC_CTRL_EWINTTCNT, (int_ctrl | prescale));
+
+		break;
+	}
+
+	printk(KERN_INFO"Set coalesce to %d usecs.\n", coal_intvl);
+	priv->coal_intvl = coal_intvl;
+
+	return 0;
+
+}
+
+
+/**
  * ethtool_ops: DaVinci EMAC Ethtool structure
  *
  * Ethtool support for EMAC adapter
@@ -701,6 +817,8 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_settings = emac_get_settings,
 	.set_settings = emac_set_settings,
 	.get_link = ethtool_op_get_link,
+	.get_coalesce = emac_get_coalesce,
+	.set_coalesce =  emac_set_coalesce,
 };
 
 /**
@@ -2437,6 +2555,14 @@ static int emac_dev_open(struct net_device *ndev)
 	/* Start/Enable EMAC hardware */
 	emac_hw_enable(priv);
 
+	/* Enable Interrupt pacing if configured */
+	if (priv->coal_intvl != 0) {
+		struct ethtool_coalesce coal;
+
+		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
+		emac_set_coalesce(ndev, &coal);
+	}
+
 	/* find the first phy */
 	priv->phydev = NULL;
 	if (priv->phy_mask) {
@@ -2676,6 +2802,9 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	priv->version = pdata->version;
 	priv->int_enable = pdata->interrupt_enable;
 	priv->int_disable = pdata->interrupt_disable;
+
+	priv->coal_intvl = 0;
+	priv->bus_freq_mhz = (u32)(emac_bus_frequency / 1000000);
 
 	emac_dev = &ndev->dev;
 	/* Get EMAC platform data */
