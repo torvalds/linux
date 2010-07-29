@@ -6243,6 +6243,8 @@ F:	drivers/mmc/host/wbsd.*
 
 WATCHDOG DEVICE DRIVERS
 M:	Wim Van Sebroeck <wim@iguana.be>
+L:	linux-watchdog@vger.kernel.org
+W:	http://www.linux-watchdog.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wim/linux-2.6-watchdog.git
 S:	Maintained
 F:	Documentation/watchdog/
