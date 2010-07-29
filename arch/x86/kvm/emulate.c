@@ -112,219 +112,225 @@ struct opcode {
 	u32 flags;
 };
 
+#define D(_y) { .flags = (_y) }
+#define N    D(0)
+
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
-	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x08 - 0x0F */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
-	ImplicitOps | Stack | No64, 0,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D(ImplicitOps | Stack | No64), N,
 	/* 0x10 - 0x17 */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
-	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x18 - 0x1F */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
-	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x20 - 0x27 */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImmByte, DstAcc | SrcImm, 0, 0,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
 	/* 0x28 - 0x2F */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImmByte, DstAcc | SrcImm, 0, 0,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
 	/* 0x30 - 0x37 */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImmByte, DstAcc | SrcImm, 0, 0,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
 	/* 0x38 - 0x3F */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
-	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
-	0, 0,
+	D(ByteOp | DstMem | SrcReg | ModRM), D(DstMem | SrcReg | ModRM),
+	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	N, N,
 	/* 0x40 - 0x4F */
-	X16(DstReg),
+	X16(D(DstReg)),
 	/* 0x50 - 0x57 */
-	X8(SrcReg | Stack),
+	X8(D(SrcReg | Stack)),
 	/* 0x58 - 0x5F */
-	X8(DstReg | Stack),
+	X8(D(DstReg | Stack)),
 	/* 0x60 - 0x67 */
-	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
-	0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
-	0, 0, 0, 0,
+	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
+	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
+	N, N, N, N,
 	/* 0x68 - 0x6F */
-	SrcImm | Mov | Stack, 0, SrcImmByte | Mov | Stack, 0,
-	DstDI | ByteOp | Mov | String, DstDI | Mov | String, /* insb, insw/insd */
-	SrcSI | ByteOp | ImplicitOps | String, SrcSI | ImplicitOps | String, /* outsb, outsw/outsd */
+	D(SrcImm | Mov | Stack), N, D(SrcImmByte | Mov | Stack), N,
+	D(DstDI | ByteOp | Mov | String), D(DstDI | Mov | String), /* insb, insw/insd */
+	D(SrcSI | ByteOp | ImplicitOps | String), D(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
-	X16(SrcImmByte),
+	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
-	ByteOp | DstMem | SrcImm | ModRM | Group | Group1,
-	DstMem | SrcImm | ModRM | Group | Group1,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Group | Group1,
-	DstMem | SrcImmByte | ModRM | Group | Group1,
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
+	D(ByteOp | DstMem | SrcImm | ModRM | Group | Group1),
+	D(DstMem | SrcImm | ModRM | Group | Group1),
+	D(ByteOp | DstMem | SrcImm | ModRM | No64 | Group | Group1),
+	D(DstMem | SrcImmByte | ModRM | Group | Group1),
+	D(ByteOp | DstMem | SrcReg | ModRM), D(DstMem | SrcReg | ModRM),
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
 	/* 0x88 - 0x8F */
-	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
-	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstMem | SrcNone | ModRM | Mov, ModRM | DstReg,
-	ImplicitOps | SrcMem16 | ModRM, Group | Group1A,
+	D(ByteOp | DstMem | SrcReg | ModRM | Mov), D(DstMem | SrcReg | ModRM | Mov),
+	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem | ModRM | Mov),
+	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | DstReg),
+	D(ImplicitOps | SrcMem16 | ModRM), D(Group | Group1A),
 	/* 0x90 - 0x97 */
-	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
+	D(DstReg), D(DstReg), D(DstReg), D(DstReg),	D(DstReg), D(DstReg), D(DstReg), D(DstReg),
 	/* 0x98 - 0x9F */
-	0, 0, SrcImmFAddr | No64, 0,
-	ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
+	N, N, D(SrcImmFAddr | No64), N,
+	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
-	ByteOp | DstAcc | SrcMem | Mov | MemAbs, DstAcc | SrcMem | Mov | MemAbs,
-	ByteOp | DstMem | SrcAcc | Mov | MemAbs, DstMem | SrcAcc | Mov | MemAbs,
-	ByteOp | SrcSI | DstDI | Mov | String, SrcSI | DstDI | Mov | String,
-	ByteOp | SrcSI | DstDI | String, SrcSI | DstDI | String,
+	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
+	D(ByteOp | DstMem | SrcAcc | Mov | MemAbs), D(DstMem | SrcAcc | Mov | MemAbs),
+	D(ByteOp | SrcSI | DstDI | Mov | String), D(SrcSI | DstDI | Mov | String),
+	D(ByteOp | SrcSI | DstDI | String), D(SrcSI | DstDI | String),
 	/* 0xA8 - 0xAF */
-	DstAcc | SrcImmByte | ByteOp, DstAcc | SrcImm, ByteOp | DstDI | Mov | String, DstDI | Mov | String,
-	ByteOp | SrcSI | DstAcc | Mov | String, SrcSI | DstAcc | Mov | String,
-	ByteOp | DstDI | String, DstDI | String,
+	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm), D(ByteOp | DstDI | Mov | String), D(DstDI | Mov | String),
+	D(ByteOp | SrcSI | DstAcc | Mov | String), D(SrcSI | DstAcc | Mov | String),
+	D(ByteOp | DstDI | String), D(DstDI | String),
 	/* 0xB0 - 0xB7 */
-	X8(ByteOp | DstReg | SrcImm | Mov),
+	X8(D(ByteOp | DstReg | SrcImm | Mov)),
 	/* 0xB8 - 0xBF */
-	X8(DstReg | SrcImm | Mov),
+	X8(D(DstReg | SrcImm | Mov)),
 	/* 0xC0 - 0xC7 */
-	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
-	0, ImplicitOps | Stack, 0, 0,
-	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
+	D(ByteOp | DstMem | SrcImm | ModRM), D(DstMem | SrcImmByte | ModRM),
+	N, D(ImplicitOps | Stack), N, N,
+	D(ByteOp | DstMem | SrcImm | ModRM | Mov), D(DstMem | SrcImm | ModRM | Mov),
 	/* 0xC8 - 0xCF */
-	0, 0, 0, ImplicitOps | Stack,
-	ImplicitOps, SrcImmByte, ImplicitOps | No64, ImplicitOps,
+	N, N, N, D(ImplicitOps | Stack),
+	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
 	/* 0xD0 - 0xD7 */
-	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
-	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
-	0, 0, 0, 0,
+	D(ByteOp | DstMem | SrcImplicit | ModRM), D(DstMem | SrcImplicit | ModRM),
+	D(ByteOp | DstMem | SrcImplicit | ModRM), D(DstMem | SrcImplicit | ModRM),
+	N, N, N, N,
 	/* 0xD8 - 0xDF */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
-	0, 0, 0, 0,
-	ByteOp | SrcImmUByte | DstAcc, SrcImmUByte | DstAcc,
-	ByteOp | SrcImmUByte | DstAcc, SrcImmUByte | DstAcc,
+	N, N, N, N,
+	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
+	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
 	/* 0xE8 - 0xEF */
-	SrcImm | Stack, SrcImm | ImplicitOps,
-	SrcImmFAddr | No64, SrcImmByte | ImplicitOps,
-	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
-	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
+	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
+	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
+	D(SrcNone | ByteOp | DstAcc), D(SrcNone | DstAcc),
+	D(SrcNone | ByteOp | DstAcc), D(SrcNone | DstAcc),
 	/* 0xF0 - 0xF7 */
-	0, 0, 0, 0,
-	ImplicitOps | Priv, ImplicitOps, ByteOp | Group | Group3, Group | Group3,
+	N, N, N, N,
+	D(ImplicitOps | Priv), D(ImplicitOps), D(ByteOp | Group | Group3), D(Group | Group3),
 	/* 0xF8 - 0xFF */
-	ImplicitOps, 0, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
+	D(ImplicitOps), N, D(ImplicitOps), D(ImplicitOps),
+	D(ImplicitOps), D(ImplicitOps), D(Group | Group4), D(Group | Group5),
 };
 
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	0, Group | GroupDual | Group7, 0, 0,
-	0, ImplicitOps, ImplicitOps | Priv, 0,
-	ImplicitOps | Priv, ImplicitOps | Priv, 0, 0,
-	0, ImplicitOps | ModRM, 0, 0,
+	N, D(Group | GroupDual | Group7), N, N,
+	N, D(ImplicitOps), D(ImplicitOps | Priv), N,
+	D(ImplicitOps | Priv), D(ImplicitOps | Priv), N, N,
+	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
-	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
-	ModRM | ImplicitOps | Priv, ModRM | Priv,
-	ModRM | ImplicitOps | Priv, ModRM | Priv,
-	0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
+	D(ModRM | ImplicitOps | Priv), D(ModRM | Priv),
+	D(ModRM | ImplicitOps | Priv), D(ModRM | Priv),
+	N, N, N, N,
+	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
-	ImplicitOps | Priv, 0, ImplicitOps | Priv, 0,
-	ImplicitOps, ImplicitOps | Priv, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
+	D(ImplicitOps | Priv), N, D(ImplicitOps | Priv), N,
+	D(ImplicitOps), D(ImplicitOps | Priv), N, N,
+	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
-	X16(DstReg | SrcMem | ModRM | Mov),
+	X16(D(DstReg | SrcMem | ModRM | Mov)),
 	/* 0x50 - 0x5F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0x60 - 0x6F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0x70 - 0x7F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0x80 - 0x8F */
-	X16(SrcImm),
+	X16(D(SrcImm)),
 	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xA0 - 0xA7 */
-	ImplicitOps | Stack, ImplicitOps | Stack,
-	0, DstMem | SrcReg | ModRM | BitOp,
-	DstMem | SrcReg | Src2ImmByte | ModRM,
-	DstMem | SrcReg | Src2CL | ModRM, 0, 0,
+	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
+	N, D(DstMem | SrcReg | ModRM | BitOp),
+	D(DstMem | SrcReg | Src2ImmByte | ModRM),
+	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
-	ImplicitOps | Stack, ImplicitOps | Stack,
-	0, DstMem | SrcReg | ModRM | BitOp | Lock,
-	DstMem | SrcReg | Src2ImmByte | ModRM,
-	DstMem | SrcReg | Src2CL | ModRM,
-	ModRM, 0,
+	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
+	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	D(DstMem | SrcReg | Src2ImmByte | ModRM),
+	D(DstMem | SrcReg | Src2CL | ModRM),
+	D(ModRM), N,
 	/* 0xB0 - 0xB7 */
-	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
-	0, DstMem | SrcReg | ModRM | BitOp | Lock,
-	0, 0, ByteOp | DstReg | SrcMem | ModRM | Mov,
-	    DstReg | SrcMem16 | ModRM | Mov,
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
+	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
-	0, 0,
-	Group | Group8, DstMem | SrcReg | ModRM | BitOp | Lock,
-	0, 0, ByteOp | DstReg | SrcMem | ModRM | Mov,
-	    DstReg | SrcMem16 | ModRM | Mov,
+	N, N,
+	D(Group | Group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
+	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
-	0, 0, 0, DstMem | SrcReg | ModRM | Mov,
-	0, 0, 0, Group | GroupDual | Group9,
-	0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, D(DstMem | SrcReg | ModRM | Mov),
+	N, N, N, D(Group | GroupDual | Group9),
+	N, N, N, N, N, N, N, N,
 	/* 0xD0 - 0xDF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xEF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
 };
 
 static struct opcode group_table[] = {
 	[Group1*8] =
-	X7(Lock), 0,
+	X7(D(Lock)), N,
 	[Group1A*8] =
-	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
+	D(DstMem | SrcNone | ModRM | Mov | Stack), N, N, N, N, N, N, N,
 	[Group3*8] =
-	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
-	DstMem | SrcNone | ModRM | Lock, DstMem | SrcNone | ModRM | Lock,
-	X4(Undefined),
+	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
+	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
+	X4(D(Undefined)),
 	[Group4*8] =
-	ByteOp | DstMem | SrcNone | ModRM | Lock, ByteOp | DstMem | SrcNone | ModRM | Lock,
-	0, 0, 0, 0, 0, 0,
+	D(ByteOp | DstMem | SrcNone | ModRM | Lock), D(ByteOp | DstMem | SrcNone | ModRM | Lock),
+	N, N, N, N, N, N,
 	[Group5*8] =
-	DstMem | SrcNone | ModRM | Lock, DstMem | SrcNone | ModRM | Lock,
-	SrcMem | ModRM | Stack, 0,
-	SrcMem | ModRM | Stack, SrcMemFAddr | ModRM | ImplicitOps,
-	SrcMem | ModRM | Stack, 0,
+	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
+	D(SrcMem | ModRM | Stack), N,
+	D(SrcMem | ModRM | Stack), D(SrcMemFAddr | ModRM | ImplicitOps),
+	D(SrcMem | ModRM | Stack), N,
 	[Group7*8] =
-	0, 0, ModRM | SrcMem | Priv, ModRM | SrcMem | Priv,
-	SrcNone | ModRM | DstMem | Mov, 0,
-	SrcMem16 | ModRM | Mov | Priv, SrcMem | ModRM | ByteOp | Priv,
+	N, N, D(ModRM | SrcMem | Priv), D(ModRM | SrcMem | Priv),
+	D(SrcNone | ModRM | DstMem | Mov), N,
+	D(SrcMem16 | ModRM | Mov | Priv), D(SrcMem | ModRM | ByteOp | Priv),
 	[Group8*8] =
-	0, 0, 0, 0,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock, DstMem | SrcImmByte | ModRM | Lock,
+	N, N, N, N,
+	D(DstMem | SrcImmByte | ModRM), D(DstMem | SrcImmByte | ModRM | Lock),
+	D(DstMem | SrcImmByte | ModRM | Lock), D(DstMem | SrcImmByte | ModRM | Lock),
 	[Group9*8] =
-	0, DstMem64 | ModRM | Lock, 0, 0, 0, 0, 0, 0,
+	N, D(DstMem64 | ModRM | Lock), N, N, N, N, N, N,
 };
 
 static struct opcode group2_table[] = {
 	[Group7*8] =
-	SrcNone | ModRM | Priv, 0, 0, SrcNone | ModRM | Priv,
-	SrcNone | ModRM | DstMem | Mov, 0,
-	SrcMem16 | ModRM | Mov | Priv, 0,
+	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
+	D(SrcNone | ModRM | DstMem | Mov), N,
+	D(SrcMem16 | ModRM | Mov | Priv), N,
 	[Group9*8] =
-	0, 0, 0, 0, 0, 0, 0, 0,
+	N, N, N, N, N, N, N, N,
 };
+
+#undef D
+#undef N
 
 /* EFLAGS bit definitions. */
 #define EFLG_ID (1<<21)
