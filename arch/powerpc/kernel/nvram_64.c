@@ -247,61 +247,54 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
-static int __init nvram_remove_os_partition(void)
+/**
+ * nvram_remove_partition - Remove one or more partitions in nvram
+ * @name: name of the partition to remove, or NULL for a
+ *        signature only match
+ * @sig: signature of the partition(s) to remove
+ */
+
+static int __init nvram_remove_partition(const char *name, int sig)
 {
-	struct list_head *i;
-	struct list_head *j;
-	struct nvram_partition * part;
-	struct nvram_partition * cur_part;
+	struct nvram_partition *part, *prev, *tmp;
 	int rc;
 
-	list_for_each(i, &nvram_part->partition) {
-		part = list_entry(i, struct nvram_partition, partition);
-		if (part->header.signature != NVRAM_SIG_OS)
+	list_for_each_entry(part, &nvram_part->partition, partition) {
+		if (part->header.signature != sig)
 			continue;
-		
-		/* Make os partition a free partition */
+		if (name && strncmp(name, part->header.name, 12))
+			continue;
+
+		/* Make partition a free partition */
 		part->header.signature = NVRAM_SIG_FREE;
 		sprintf(part->header.name, "wwwwwwwwwwww");
 		part->header.checksum = nvram_checksum(&part->header);
-
-		/* Merge contiguous free partitions backwards */
-		list_for_each_prev(j, &part->partition) {
-			cur_part = list_entry(j, struct nvram_partition, partition);
-			if (cur_part == nvram_part || cur_part->header.signature != NVRAM_SIG_FREE) {
-				break;
-			}
-			
-			part->header.length += cur_part->header.length;
-			part->header.checksum = nvram_checksum(&part->header);
-			part->index = cur_part->index;
-
-			list_del(&cur_part->partition);
-			kfree(cur_part);
-			j = &part->partition; /* fixup our loop */
-		}
-		
-		/* Merge contiguous free partitions forwards */
-		list_for_each(j, &part->partition) {
-			cur_part = list_entry(j, struct nvram_partition, partition);
-			if (cur_part == nvram_part || cur_part->header.signature != NVRAM_SIG_FREE) {
-				break;
-			}
-
-			part->header.length += cur_part->header.length;
-			part->header.checksum = nvram_checksum(&part->header);
-
-			list_del(&cur_part->partition);
-			kfree(cur_part);
-			j = &part->partition; /* fixup our loop */
-		}
-		
 		rc = nvram_write_header(part);
 		if (rc <= 0) {
-			printk(KERN_ERR "nvram_remove_os_partition: nvram_write failed (%d)\n", rc);
+			printk(KERN_ERR "nvram_remove_partition: nvram_write failed (%d)\n", rc);
 			return rc;
 		}
+	}
 
+	/* Merge contiguous ones */
+	prev = NULL;
+	list_for_each_entry_safe(part, tmp, &nvram_part->partition, partition) {
+		if (part->header.signature != NVRAM_SIG_FREE) {
+			prev = NULL;
+			continue;
+		}
+		if (prev) {
+			prev->header.length += part->header.length;
+			prev->header.checksum = nvram_checksum(&part->header);
+			rc = nvram_write_header(part);
+			if (rc <= 0) {
+				printk(KERN_ERR "nvram_remove_partition: nvram_write failed (%d)\n", rc);
+				return rc;
+			}
+			list_del(&part->partition);
+			kfree(part);
+		} else
+			prev = part;
 	}
 	
 	return 0;
@@ -484,17 +477,19 @@ static int __init nvram_setup_partition(void)
 						NVRAM_BLOCK_LEN) - sizeof(struct err_log_info);
 			return 0;
 		}
+
+		/* Found one but it's too small, remove it */
+		nvram_remove_partition("ppc64,linux", NVRAM_SIG_OS);
 	}
 	
 	/* try creating a partition with the free space we have */
 	rc = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
 				       NVRAM_MAX_REQ, NVRAM_MIN_REQ);
 	if (rc < 0) {
-		/* need to free up some space */
-		rc = nvram_remove_os_partition();
-		if (rc)
-			return rc;	
-		/* create a partition in this new space */
+		/* need to free up some space, remove any "OS" partition */
+		nvram_remove_partition(NULL, NVRAM_SIG_OS);
+	
+		/* Try again */
 		rc = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
 					    NVRAM_MAX_REQ, NVRAM_MIN_REQ);
 		if (rc < 0) {
