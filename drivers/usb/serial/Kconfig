@@ -467,6 +467,11 @@ config USB_MDM6600_CDMA_MODEM
           To compile this driver as a module, choose M here: the
           module will be called mdm6600_modem.  If unsure, choose N.
 
+config USB_SERIAL_MDM6600
+	tristate "USB MDM6600 modem"
+	help
+	  Say Y here if you want to use a Qualcomm MDM6600 modem over USB.
+
 config USB_SERIAL_MOTO_FLASH_MODEM
 	tristate "USB Motorola modem flash driver"
 	---help---

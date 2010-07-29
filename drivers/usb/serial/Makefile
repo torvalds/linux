@@ -40,6 +40,7 @@ obj-$(CONFIG_USB_SERIAL_MOS7720)		+= mos7720.o
 obj-$(CONFIG_USB_SERIAL_MOS7840)		+= mos7840.o
 obj-$(CONFIG_USB_SERIAL_MOTOROLA)		+= moto_modem.o
 obj-$(CONFIG_USB_MDM6600_CDMA_MODEM)            += mdm6600_modem.o
+obj-$(CONFIG_USB_SERIAL_MDM6600)		+= mdm6600.o
 obj-$(CONFIG_USB_SERIAL_MOTO_FLASH_MODEM)	+= moto_flashmdm.o
 obj-$(CONFIG_USB_SERIAL_NAVMAN)			+= navman.o
 obj-$(CONFIG_USB_SERIAL_OMNINET)		+= omninet.o
