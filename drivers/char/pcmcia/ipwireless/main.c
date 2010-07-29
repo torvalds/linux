@@ -32,7 +32,6 @@
 #include <pcmcia/device_id.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/cs.h>
 
 static struct pcmcia_device_id ipw_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x02f2, 0x0100),
@@ -172,7 +171,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	if (ret != 0)
 		return ret;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 
@@ -210,8 +209,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	 * Do the RequestConfiguration last, because it enables interrupts.
 	 * Then we don't get any interrupts before we're ready for them.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
-
+	ret = pcmcia_enable_device(link);
 	if (ret != 0)
 		goto exit;
 

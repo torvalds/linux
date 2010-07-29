@@ -8,7 +8,6 @@
 #include <linux/errno.h>	/* error codes */
 #include <linux/slab.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -143,7 +142,7 @@ static int ixj_config(struct pcmcia_device * link)
 	if (pcmcia_loop_config(link, ixj_config_check, &dflt))
 		goto failed;
 
-	if (pcmcia_request_configuration(link, &link->conf))
+	if (pcmcia_enable_device(link))
 		goto failed;
 
 	/*

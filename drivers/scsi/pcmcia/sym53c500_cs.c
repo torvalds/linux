@@ -71,7 +71,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
@@ -721,7 +720,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -861,7 +860,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->priv = info;
 	link->resource[0]->end = 16;
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 
 	return SYM53C500_config(link);
 } /* SYM53C500_attach */

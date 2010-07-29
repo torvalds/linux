@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -132,8 +131,6 @@ static int __devinit sedlbauer_probe(struct pcmcia_device *link)
     link->resource[0]->end = 8;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
-    link->conf.Attributes = 0;
-
     return sedlbauer_config(link);
 } /* sedlbauer_attach */
 
@@ -175,7 +172,7 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->config_flags |= CONF_ENABLE_SPKR;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
@@ -192,7 +189,7 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -247,7 +244,7 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -256,8 +253,7 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
 	   link->config_index);
     if (link->vpp)
 	printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq);
+    printk(", irq %d", link->irq);
     if (link->resource[0])
 	printk(" & %pR", link->resource[0]);
     if (link->resource[1])

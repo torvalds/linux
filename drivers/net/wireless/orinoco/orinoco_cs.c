@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -117,13 +116,6 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	card->p_dev = link;
 	link->priv = priv;
 
-	/* General socket configuration defaults can go here.  In this
-	 * client, we assume very little, and rely on the CIS for
-	 * almost everything.  In most clients, many details (i.e.,
-	 * number, sizes, and attributes of IO windows) are fixed by
-	 * the nature of the device, and can be hard-wired here. */
-	link->conf.Attributes = 0;
-
 	return orinoco_cs_config(link);
 }				/* orinoco_cs_attach */
 
@@ -187,7 +179,7 @@ static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 			dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -266,7 +258,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 

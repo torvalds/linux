@@ -27,7 +27,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -109,7 +108,7 @@ static int __devinit teles_probe(struct pcmcia_device *link)
     link->resource[0]->end = 96;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     return teles_cs_config(link);
 } /* teles_attach */
@@ -185,15 +184,14 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
     if (!link->irq)
         goto cs_failed;
 
-    i = pcmcia_request_configuration(link, &link->conf);
+    i = pcmcia_enable_device(link);
     if (i != 0)
       goto cs_failed;
 
     /* Finally, report what we've done */
     dev_info(&link->dev, "index 0x%02x:",
 	    link->config_index);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq);
+    printk(", irq %d", link->irq);
     if (link->resource[0])
 	printk(" & %pR", link->resource[0]);
     if (link->resource[1])

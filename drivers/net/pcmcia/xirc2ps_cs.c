@@ -82,7 +82,6 @@
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -529,7 +528,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
     link->config_index = 1;
 
     /* Fill in card specific entries */
@@ -811,9 +810,6 @@ xirc2ps_config(struct pcmcia_device * link)
     if (local->modem) {
 	int pass;
 
-	if (do_sound)
-	    link->conf.Attributes |= CONF_ENABLE_SPKR;
-
 	link->resource[1]->end = 8;
 	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
@@ -863,7 +859,11 @@ xirc2ps_config(struct pcmcia_device * link)
      * This actually configures the PCMCIA socket -- setting up
      * the I/O windows and the interrupt mapping.
      */
-    if ((err=pcmcia_request_configuration(link, &link->conf)))
+    link->config_flags |= CONF_ENABLE_IRQ;
+    if (do_sound)
+	    link->config_flags |= CONF_ENABLE_SPKR;
+
+    if ((err = pcmcia_enable_device(link)))
 	goto config_error;
 
     if (local->dingo) {

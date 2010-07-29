@@ -43,7 +43,6 @@
 #include <linux/arcdevice.h>
 #include <linux/com20020.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -160,7 +159,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
 
     p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
     p_dev->resource[0]->end = 16;
-    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->config_flags |= CONF_ENABLE_IRQ;
 
     info->dev = dev;
     p_dev->priv = info;
@@ -281,7 +280,7 @@ static int com20020_config(struct pcmcia_device *link)
 
     dev->irq = link->irq;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 

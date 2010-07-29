@@ -24,8 +24,10 @@
 
 #ifdef __KERNEL__
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <pcmcia/ss.h>
 #include <asm/atomic.h>
+
 
 /*
  * PCMCIA device drivers (16-bit cards only; 32-bit cards require CardBus
@@ -88,18 +90,16 @@ struct pcmcia_device {
 
 	struct list_head	socket_device_list;
 
-	/* deprecated, will be cleaned up soon */
-	config_req_t		conf;
-
 	/* device setup */
 	unsigned int		irq;
 	struct resource		*resource[PCMCIA_NUM_RESOURCES];
 	unsigned int		vpp;
 
-	unsigned int		io_lines; /* number of I/O lines */
+	unsigned int		config_flags;	/* CONF_ENABLE_ flags below */
 	unsigned int		config_base;
 	unsigned int		config_index;
 	unsigned int		config_regs;	/* PRESENT_ flags below */
+	unsigned int		io_lines;	/* number of I/O lines */
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -207,8 +207,7 @@ pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
 int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 				irq_handler_t handler);
 
-int pcmcia_request_configuration(struct pcmcia_device *p_dev,
-				 config_req_t *req);
+int pcmcia_enable_device(struct pcmcia_device *p_dev);
 
 int pcmcia_request_window(struct pcmcia_device *p_dev, struct resource *res,
 			unsigned int speed);
@@ -264,6 +263,12 @@ static inline int pcmcia_io_cfg_data_width(unsigned int flags)
 #define PRESENT_IOBASE_2	0x080
 #define PRESENT_IOBASE_3	0x100
 #define PRESENT_IOSIZE		0x200
+
+/* flags to be passed to pcmcia_enable_device() */
+#define CONF_ENABLE_IRQ         0x01
+#define CONF_ENABLE_SPKR        0x02
+#define CONF_ENABLE_PULSE_IRQ   0x04
+#define CONF_ENABLE_ESR         0x08
 
 #endif /* __KERNEL__ */
 

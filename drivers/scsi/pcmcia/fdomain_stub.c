@@ -46,7 +46,6 @@
 #include <scsi/scsi_host.h>
 #include "fdomain.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -85,7 +84,7 @@ static int fdomain_probe(struct pcmcia_device *link)
 	link->priv = info;
 	link->resource[0]->end = 0x10;
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	link->config_regs = PRESENT_OPTION;
 
 	return fdomain_config(link);
@@ -131,7 +130,7 @@ static int fdomain_config(struct pcmcia_device *link)
 
     if (!link->irq)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 

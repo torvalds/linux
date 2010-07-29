@@ -87,7 +87,6 @@ earlier 3Com products.
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -280,7 +279,7 @@ static int tc574_probe(struct pcmcia_device *link)
 	spin_lock_init(&lp->window_lock);
 	link->resource[0]->end = 32;
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	link->config_index = 1;
 
 	dev->netdev_ops = &el3_netdev_ops;
@@ -351,7 +350,7 @@ static int tc574_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 

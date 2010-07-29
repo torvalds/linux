@@ -20,7 +20,6 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -159,7 +158,7 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 			dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* we need an interrupt */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -195,7 +194,7 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -226,8 +225,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	local->p_dev = link;
 	link->priv = local;
-
-	link->conf.Attributes = 0;
 
 	return sl811_cs_config(link);
 }

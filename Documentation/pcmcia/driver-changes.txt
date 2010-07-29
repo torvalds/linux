@@ -1,4 +1,10 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
+   pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
+   as it mirrors pcmcia_disable_device(). Configuration settings are now
+   stored in struct pcmcia_device, e.g. in the fields config_flags,
+   config_index, config_base, vpp.
+
 * pcmcia_request_window changes (as of 2.6.36)
    Instead of win_req_t, drivers are now requested to fill out
    struct pcmcia_device *p_dev->resource[2,3,4,5] for up to four ioport

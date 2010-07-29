@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include "yenta_socket.h"
 #include "i82365.h"

@@ -33,14 +33,9 @@
 typedef struct config_t {
 	struct kref	ref;
 	unsigned int	state;
-	unsigned int	Attributes;
 
 	struct resource io[MAX_IO_WIN]; /* io ports */
 	struct resource mem[MAX_WIN];   /* mem areas */
-
-	struct {
-		u_int	Attributes;
-	} irq;
 } config_t;
 
 

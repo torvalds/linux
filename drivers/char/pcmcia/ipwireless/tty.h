@@ -21,7 +21,6 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 

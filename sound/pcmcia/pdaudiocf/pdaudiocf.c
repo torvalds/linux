@@ -142,7 +142,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->resource[0]->end = 16;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
+	link->config_flags = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 	link->config_index = 1;
 	link->config_regs = PRESENT_OPTION;
 
@@ -217,6 +217,7 @@ static int pdacf_config(struct pcmcia_device *link)
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
 	link->config_index = 0x5;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 
 	ret = pcmcia_request_io(link);
 	if (ret)
@@ -226,7 +227,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 

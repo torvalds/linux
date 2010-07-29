@@ -49,7 +49,6 @@
 #include <linux/ioport.h>
 #include <linux/crc32.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -252,7 +251,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     dev->netdev_ops = &fjn_netdev_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
@@ -431,7 +430,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     ret = pcmcia_request_irq(link, fjn_interrupt);
     if (ret)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 

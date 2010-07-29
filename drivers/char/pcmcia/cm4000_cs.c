@@ -34,7 +34,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -1767,7 +1766,7 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 	if (pcmcia_loop_config(link, cm4000_config_check, NULL))
 		goto cs_release;
 
-	if (pcmcia_request_configuration(link, &link->conf))
+	if (pcmcia_enable_device(link))
 		goto cs_release;
 
 	dev = link->priv;

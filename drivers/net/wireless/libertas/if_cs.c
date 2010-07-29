@@ -28,7 +28,6 @@
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -806,7 +805,7 @@ static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 	p_dev->resource[0]->end = cfg->io.win[0].len;
 
 	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	if (cfg->io.nwin != 1) {
@@ -835,13 +834,10 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	card->p_dev = p_dev;
 	p_dev->priv = card;
 
-	p_dev->conf.Attributes = 0;
-
 	if (pcmcia_loop_config(p_dev, if_cs_ioprobe, NULL)) {
 		lbs_pr_err("error in pcmcia_loop_config\n");
 		goto out1;
 	}
-
 
 	/*
 	 * Allocate an interrupt line.  Note that this does not assign
@@ -865,9 +861,9 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	ret = pcmcia_request_configuration(p_dev, &p_dev->conf);
+	ret = pcmcia_enable_device(p_dev);
 	if (ret) {
-		lbs_pr_err("error in pcmcia_request_configuration\n");
+		lbs_pr_err("error in pcmcia_enable_device\n");
 		goto out2;
 	}
 

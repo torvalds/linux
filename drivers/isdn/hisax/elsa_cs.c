@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -129,8 +128,6 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
     link->resource[0]->end = 8;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-
     return elsa_cs_config(link);
 } /* elsa_cs_attach */
 
@@ -205,15 +202,14 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
     if (!link->irq)
 	goto failed;
 
-    i = pcmcia_request_configuration(link, &link->conf);
+    i = pcmcia_enable_device(link);
     if (i != 0)
 	goto failed;
 
     /* Finally, report what we've done */
     dev_info(&link->dev, "index 0x%02x: ",
 	    link->config_index);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq);
+    printk(", irq %d", link->irq);
     if (link->resource[0])
 	printk(" & %pR", link->resource[0]);
     if (link->resource[1])

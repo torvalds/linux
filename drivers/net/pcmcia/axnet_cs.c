@@ -39,7 +39,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -166,7 +165,7 @@ static int axnet_probe(struct pcmcia_device *link)
     info = PRIV(dev);
     info->p_dev = link;
     link->priv = dev;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     dev->netdev_ops = &axnet_netdev_ops;
 
@@ -332,11 +331,12 @@ static int axnet_config(struct pcmcia_device *link)
 
     if (!link->irq)
 	    goto failed;
-    
+
+    link->config_flags |= CONF_ENABLE_IRQ;
     if (resource_size(link->resource[1]) == 8)
-	link->conf.Attributes |= CONF_ENABLE_SPKR;
+	link->config_flags |= CONF_ENABLE_SPKR;
     
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 

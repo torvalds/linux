@@ -48,7 +48,6 @@
 #include <scsi/scsi_host.h>
 #include "../qlogicfas408.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
@@ -158,7 +157,7 @@ static int qlogic_probe(struct pcmcia_device *link)
 	link->priv = info;
 	link->resource[0]->end = 16;
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	link->config_regs = PRESENT_OPTION;
 
 	return qlogic_config(link);
@@ -208,7 +207,7 @@ static int qlogic_config(struct pcmcia_device * link)
 	if (!link->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -263,7 +262,7 @@ static int qlogic_resume(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 
-	pcmcia_request_configuration(link, &link->conf);
+	pcmcia_enable_device(link);
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {

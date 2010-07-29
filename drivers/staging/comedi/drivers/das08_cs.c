@@ -48,7 +48,6 @@ Command support does not exist, but could be added for this board.
 #include "das08.h"
 
 /* pcmcia includes */
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -162,15 +161,6 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-
 	cur_dev = link;
 
 	das08_pcmcia_config(link);
@@ -211,7 +201,7 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -263,14 +253,13 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
 	/* Finally, report what we've done */
 	dev_info(&link->dev, "index 0x%02x", link->config_index);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq);
+	printk(", irq %u", link->irq);
 	if (link->resource[0])
 		printk(", io %pR", link->resource[0]);
 	if (link->resource[1])

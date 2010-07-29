@@ -26,7 +26,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
@@ -1178,7 +1177,7 @@ static int pcmcia_dev_resume(struct device *dev)
 
 	if (p_dev->device_no == p_dev->func) {
 		dev_dbg(dev, "requesting configuration\n");
-		ret = pcmcia_request_configuration(p_dev, &p_dev->conf);
+		ret = pcmcia_enable_device(p_dev);
 		if (ret)
 			goto out;
 	}

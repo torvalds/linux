@@ -29,7 +29,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -547,10 +546,10 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;
 
-	fail_rc = pcmcia_request_configuration(link, &link->conf);
+	fail_rc = pcmcia_enable_device(link);
 	if (fail_rc != 0) {
 		dev_printk(KERN_INFO, &link->dev,
-			   "pcmcia_request_configuration failed 0x%x\n",
+			   "pcmcia_enable_device failed 0x%x\n",
 			   fail_rc);
 		goto cs_release;
 	}

@@ -12,7 +12,6 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -484,7 +483,7 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->config_flags |= CONF_ENABLE_SPKR;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
@@ -510,7 +509,7 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 		p_dev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	PDEBUG(DEBUG_EXTRA, "IO window settings: cfg->io.nwin=%d "
@@ -590,7 +589,7 @@ static int prism2_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed_unlock;
 
@@ -605,8 +604,7 @@ static int prism2_config(struct pcmcia_device *link)
 	if (link->vpp)
 		printk(", Vpp %d.%d", link->vpp / 10,
 		       link->vpp % 10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq);
+	printk(", irq %d", link->irq);
 	if (link->resource[0])
 		printk(" & %pR", link->resource[0]);
 	if (link->resource[1])

@@ -32,7 +32,6 @@
 #include <linux/timer.h>
 #include <linux/netdevice.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -96,15 +95,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 
 	dev_dbg(&p_dev->dev, "airo_attach()\n");
 
-	/*
-	  General socket configuration defaults can go here.  In this
-	  client, we assume very little, and rely on the CIS for almost
-	  everything.  In most clients, many details (i.e., number, sizes,
-	  and attributes of IO windows) are fixed by the nature of the
-	  device, and can be hard-wired here.
-	*/
-	p_dev->conf.Attributes = 0;
-
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
@@ -158,7 +148,7 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->config_flags |= CONF_ENABLE_SPKR;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
@@ -167,7 +157,7 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -229,7 +219,7 @@ static int airo_config(struct pcmcia_device *link)
 	  the I/O windows and the interrupt mapping, and putting the
 	  card and host interface into "Memory and IO" mode.
 	*/
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 	((local_info_t *)link->priv)->eth_dev =

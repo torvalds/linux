@@ -49,7 +49,6 @@
 #include <scsi/scsi_host.h>
 #include "aha152x.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -102,7 +101,7 @@ static int aha152x_probe(struct pcmcia_device *link)
 
     link->resource[0]->end = 0x20;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
     link->config_regs = PRESENT_OPTION;
 
     return aha152x_config_cs(link);
@@ -159,7 +158,7 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
     

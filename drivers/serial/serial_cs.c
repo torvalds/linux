@@ -45,7 +45,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -184,7 +183,7 @@ static void quirk_config_socket(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 
 	if (info->multi)
-		link->conf.Attributes |= CONF_ENABLE_ESR;
+		link->config_flags |= CONF_ENABLE_ESR;
 }
 
 static const struct serial_quirk quirks[] = {
@@ -333,9 +332,9 @@ static int serial_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	if (do_sound)
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
+		link->config_flags |= CONF_ENABLE_SPKR;
 
 	return serial_config(link);
 }
@@ -503,7 +502,7 @@ found_port:
 	if (info->quirk && info->quirk->config)
 		info->quirk->config(link);
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		return -1;
 	return setup_serial(link, info, link->resource[0]->start, link->irq);
@@ -579,7 +578,7 @@ static int multi_config(struct pcmcia_device *link)
 	if (info->quirk && info->quirk->config)
 		info->quirk->config(link);
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		return -ENODEV;
 

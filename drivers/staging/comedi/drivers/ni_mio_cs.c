@@ -48,7 +48,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -265,7 +264,7 @@ static int cs_attach(struct pcmcia_device *link)
 {
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	link->resource[0]->end = 16;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 
 	cur_dev = link;
 
@@ -336,7 +335,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	if (!link->irq)
 		dev_info(&link->dev, "no IRQ available\n");
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 }
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)

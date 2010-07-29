@@ -16,7 +16,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -568,7 +567,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	dev->pcmcia_map.map_priv_2 = (unsigned long)link->resource[2];
 
 	dev->vpp = (vpp) ? vpp : link->socket->socket.Vpp;
-	link->conf.Attributes = 0;
 	if(setvpp == 2) {
 		link->vpp = dev->vpp;
 	} else {
@@ -577,7 +575,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 	link->config_index = 0;
 	DEBUG(2, "Setting Configuration");
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret != 0) {
 		if (dev->win_base) {
 			iounmap(dev->win_base);
@@ -717,8 +715,6 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 
 	dev->p_dev = link;
 	link->priv = dev;
-
-	link->conf.Attributes = 0;
 
 	return pcmciamtd_config(link);
 }

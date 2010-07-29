@@ -26,7 +26,6 @@
 #include <linux/ssb/ssb.h>
 #include <linux/slab.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -72,7 +71,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 
 	err = -ENODEV;
 
-	dev->conf.Attributes = CONF_ENABLE_IRQ;
+	dev->config_flags |= CONF_ENABLE_IRQ;
 
 	dev->resource[2]->flags |=  WIN_ENABLE | WIN_DATA_WIDTH_16 |
 			 WIN_USE_WAIT;
@@ -89,7 +88,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	if (!dev->irq)
 		goto err_disable;
 
-	res = pcmcia_request_configuration(dev, &dev->conf);
+	res = pcmcia_enable_device(dev);
 	if (res != 0)
 		goto err_disable;
 

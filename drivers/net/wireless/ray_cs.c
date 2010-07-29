@@ -46,7 +46,6 @@
 #include <linux/ethtool.h>
 #include <linux/ieee80211.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -318,7 +317,7 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
-	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+	p_dev->config_flags |= CONF_ENABLE_IRQ;
 	p_dev->config_index = 1;
 
 	p_dev->priv = dev;
@@ -413,7 +412,7 @@ static int ray_config(struct pcmcia_device *link)
 	/* This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 

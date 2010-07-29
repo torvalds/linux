@@ -70,7 +70,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -550,8 +549,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Initialize the struct pcmcia_device structure */
 
-    link->conf.Attributes = 0;
-
     ret = mgslpc_config(link);
     if (ret)
 	    return ret;
@@ -593,14 +590,14 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (ret != 0)
 	    goto failed;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
     link->config_index = 8;
     link->config_regs = PRESENT_OPTION;
 
     ret = pcmcia_request_irq(link, mgslpc_isr);
     if (ret)
 	    goto failed;
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -609,8 +606,7 @@ static int mgslpc_config(struct pcmcia_device *link)
 
     dev_info(&link->dev, "index 0x%02x:",
 	    link->config_index);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq);
+    printk(", irq %d", link->irq);
     if (link->resource[0])
 	    printk(", io %pR", link->resource[0]);
     printk("\n");

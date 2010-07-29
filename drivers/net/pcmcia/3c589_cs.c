@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -216,7 +215,7 @@ static int tc589_probe(struct pcmcia_device *link)
     link->resource[0]->end = 16;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
     link->config_index = 1;
 
     dev->netdev_ops = &el3_netdev_ops;
@@ -293,7 +292,7 @@ static int tc589_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 

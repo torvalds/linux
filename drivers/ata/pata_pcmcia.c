@@ -34,7 +34,6 @@
 #include <linux/ata.h>
 #include <linux/libata.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
@@ -249,7 +248,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	/* Set up attributes in order to probe card and get resources */
 	pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-	pdev->conf.Attributes = CONF_ENABLE_IRQ;
+	pdev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */
@@ -275,7 +274,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	if (!pdev->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(pdev, &pdev->conf);
+	ret = pcmcia_enable_device(pdev);
 	if (ret)
 		goto failed;
 

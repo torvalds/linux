@@ -44,7 +44,6 @@
 #include <linux/jiffies.h>
 #include <linux/firmware.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -326,7 +325,7 @@ static int smc91c92_probe(struct pcmcia_device *link)
     spin_lock_init(&smc->lock);
     link->resource[0]->end = 16;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     /* The SMC91c92-specific entries in the device structure. */
     dev->netdev_ops = &smc_netdev_ops;
@@ -444,7 +443,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     unsigned int offset;
     int i;
 
-    link->conf.Attributes |= CONF_ENABLE_SPKR;
+    link->config_flags |= CONF_ENABLE_SPKR;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;
 
@@ -637,7 +636,7 @@ static int osi_config(struct pcmcia_device *link)
     static const unsigned int com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
     int i, j;
 
-    link->conf.Attributes |= CONF_ENABLE_SPKR;
+    link->config_flags |= CONF_ENABLE_SPKR;
     link->resource[0]->end = 64;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;
@@ -862,7 +861,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     i = pcmcia_request_irq(link, smc_interrupt);
     if (i)
 	    goto config_failed;
-    i = pcmcia_request_configuration(link, &link->conf);
+    i = pcmcia_enable_device(link);
     if (i)
 	    goto config_failed;
 

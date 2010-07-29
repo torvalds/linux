@@ -20,7 +20,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -79,7 +78,7 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
     /* General socket configuration */
-    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->config_flags |= CONF_ENABLE_IRQ;
     p_dev->config_index = 1;
     p_dev->config_regs = PRESENT_OPTION;
 
@@ -149,7 +148,7 @@ static int avmcs_config(struct pcmcia_device *link)
 	/*
          * configure the PCMCIA socket
 	  */
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0) {
 	    pcmcia_disable_device(link);
 	    break;

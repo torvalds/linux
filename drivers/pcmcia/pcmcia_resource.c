@@ -26,7 +26,6 @@
 #include <asm/irq.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -230,7 +229,7 @@ EXPORT_SYMBOL(pcmcia_map_mem_page);
  * pcmcia_fixup_iowidth() - reduce io width to 8bit
  *
  * pcmcia_fixup_iowidth() allows a PCMCIA device driver to reduce the
- * IO width to 8bit after having called pcmcia_request_configuration()
+ * IO width to 8bit after having called pcmcia_enable_device()
  * previously.
  */
 int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev)
@@ -278,7 +277,7 @@ EXPORT_SYMBOL(pcmcia_fixup_iowidth);
  * pcmcia_fixup_vpp() - set Vpp to a new voltage level
  *
  * pcmcia_fixup_vpp() allows a PCMCIA device driver to set Vpp to
- * a new voltage level between calls to pcmcia_request_configuration()
+ * a new voltage level between calls to pcmcia_enable_device()
  * and pcmcia_disable_device().
  */
 int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp)
@@ -432,18 +431,21 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 } /* pcmcia_release_window */
 EXPORT_SYMBOL(pcmcia_release_window);
 
-
-int pcmcia_request_configuration(struct pcmcia_device *p_dev,
-				 config_req_t *req)
+/**
+ * pcmcia_enable_device() - set up and activate a PCMCIA device
+ *
+ */
+int pcmcia_enable_device(struct pcmcia_device *p_dev)
 {
 	int i;
-	u_int base;
+	unsigned int base;
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
 	pccard_io_map iomap;
 	unsigned char status = 0;
 	unsigned char ext_status = 0;
 	unsigned char option = 0;
+	unsigned int flags = p_dev->config_flags;
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
@@ -466,23 +468,20 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	}
 
 	/* Pick memory or I/O card, DMA mode, interrupt */
-	c->Attributes = req->Attributes;
 	if (p_dev->_io)
 		s->socket.flags |= SS_IOCARD;
-	if (req->Attributes & CONF_ENABLE_DMA)
-		s->socket.flags |= SS_DMA_MODE;
-	if (req->Attributes & CONF_ENABLE_SPKR) {
+	if (flags & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;
 		status = CCSR_AUDIO_ENA;
 		if (!(p_dev->config_regs & PRESENT_STATUS))
 			dev_warn(&p_dev->dev, "speaker requested, but "
 					      "PRESENT_STATUS not set!\n");
 	}
-	if (req->Attributes & CONF_ENABLE_IRQ)
+	if (flags & CONF_ENABLE_IRQ)
 		s->socket.io_irq = s->pcmcia_irq;
 	else
 		s->socket.io_irq = 0;
-	if (req->Attributes & CONF_ENABLE_ESR) {
+	if (flags & CONF_ENABLE_ESR) {
 		p_dev->config_regs |= PRESENT_EXT_STATUS;
 		ext_status = ESR_REQ_ATTN_ENA;
 	}
@@ -510,8 +509,8 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 			if (p_dev->config_regs & PRESENT_IOBASE_0)
 				option |= COR_ADDR_DECODE;
 		}
-		if ((req->Attributes & CONF_ENABLE_IRQ) &&
-			!(req->Attributes & CONF_ENABLE_PULSE_IRQ))
+		if ((flags & CONF_ENABLE_IRQ) &&
+			!(flags & CONF_ENABLE_PULSE_IRQ))
 			option |= COR_LEVEL_REQ;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &option);
 		mdelay(40);
@@ -560,8 +559,8 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	p_dev->_locked = 1;
 	mutex_unlock(&s->ops_mutex);
 	return 0;
-} /* pcmcia_request_configuration */
-EXPORT_SYMBOL(pcmcia_request_configuration);
+} /* pcmcia_enable_device */
+EXPORT_SYMBOL(pcmcia_enable_device);
 
 
 /**

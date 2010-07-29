@@ -83,7 +83,6 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -147,7 +146,7 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 
 	link->resource[0]->end  = HCF_NUM_IO_PORTS;
 	link->resource[0]->flags= IO_DATA_PATH_WIDTH_16;
-	link->conf.Attributes   = CONF_ENABLE_IRQ;
+	link->config_flags     |= CONF_ENABLE_IRQ;
 	link->config_index      = 5;
 	link->config_regs       = PRESENT_OPTION;
 
@@ -301,7 +300,7 @@ void wl_adapter_insert(struct pcmcia_device *link)
 	dev     = link->priv;
 
 	/* Do we need to allocate an interrupt? */
-	link->conf.Attributes |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	link->io_lines = 6;
 
 	ret = pcmcia_request_io(link);
@@ -312,7 +311,7 @@ void wl_adapter_insert(struct pcmcia_device *link)
 	if (ret != 0)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret != 0)
 		goto failed;
 

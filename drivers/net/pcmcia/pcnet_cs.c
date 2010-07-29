@@ -42,7 +42,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -260,7 +259,7 @@ static int pcnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ;
 
     dev->netdev_ops = &pcnet_netdev_ops;
 
@@ -560,13 +559,13 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 		return NULL;
 
 	if (resource_size(link->resource[1]) == 8)
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
+		link->config_flags |= CONF_ENABLE_SPKR;
 
 	if ((link->manf_id == MANFID_IBM) &&
 	    (link->card_id == PRODID_IBM_HOME_AND_AWAY))
 		link->config_index |= 0x10;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		return NULL;
 
