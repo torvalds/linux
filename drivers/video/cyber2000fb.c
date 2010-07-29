@@ -388,6 +388,7 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		pseudo_val |= convert_bitfield(red, &var->red);
 		pseudo_val |= convert_bitfield(green, &var->green);
 		pseudo_val |= convert_bitfield(blue, &var->blue);
+		ret = 0;
 		break;
 	}
 
