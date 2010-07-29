@@ -115,6 +115,44 @@ struct opcode {
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 
+static struct opcode group_table[] = {
+	[Group1*8] =
+	X7(D(Lock)), N,
+	[Group1A*8] =
+	D(DstMem | SrcNone | ModRM | Mov | Stack), N, N, N, N, N, N, N,
+	[Group3*8] =
+	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
+	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
+	X4(D(Undefined)),
+	[Group4*8] =
+	D(ByteOp | DstMem | SrcNone | ModRM | Lock), D(ByteOp | DstMem | SrcNone | ModRM | Lock),
+	N, N, N, N, N, N,
+	[Group5*8] =
+	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
+	D(SrcMem | ModRM | Stack), N,
+	D(SrcMem | ModRM | Stack), D(SrcMemFAddr | ModRM | ImplicitOps),
+	D(SrcMem | ModRM | Stack), N,
+	[Group7*8] =
+	N, N, D(ModRM | SrcMem | Priv), D(ModRM | SrcMem | Priv),
+	D(SrcNone | ModRM | DstMem | Mov), N,
+	D(SrcMem16 | ModRM | Mov | Priv), D(SrcMem | ModRM | ByteOp | Priv),
+	[Group8*8] =
+	N, N, N, N,
+	D(DstMem | SrcImmByte | ModRM), D(DstMem | SrcImmByte | ModRM | Lock),
+	D(DstMem | SrcImmByte | ModRM | Lock), D(DstMem | SrcImmByte | ModRM | Lock),
+	[Group9*8] =
+	N, D(DstMem64 | ModRM | Lock), N, N, N, N, N, N,
+};
+
+static struct opcode group2_table[] = {
+	[Group7*8] =
+	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
+	D(SrcNone | ModRM | DstMem | Mov), N,
+	D(SrcMem16 | ModRM | Mov | Priv), N,
+	[Group9*8] =
+	N, N, N, N, N, N, N, N,
+};
+
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
@@ -289,44 +327,6 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
-};
-
-static struct opcode group_table[] = {
-	[Group1*8] =
-	X7(D(Lock)), N,
-	[Group1A*8] =
-	D(DstMem | SrcNone | ModRM | Mov | Stack), N, N, N, N, N, N, N,
-	[Group3*8] =
-	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
-	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	X4(D(Undefined)),
-	[Group4*8] =
-	D(ByteOp | DstMem | SrcNone | ModRM | Lock), D(ByteOp | DstMem | SrcNone | ModRM | Lock),
-	N, N, N, N, N, N,
-	[Group5*8] =
-	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	D(SrcMem | ModRM | Stack), N,
-	D(SrcMem | ModRM | Stack), D(SrcMemFAddr | ModRM | ImplicitOps),
-	D(SrcMem | ModRM | Stack), N,
-	[Group7*8] =
-	N, N, D(ModRM | SrcMem | Priv), D(ModRM | SrcMem | Priv),
-	D(SrcNone | ModRM | DstMem | Mov), N,
-	D(SrcMem16 | ModRM | Mov | Priv), D(SrcMem | ModRM | ByteOp | Priv),
-	[Group8*8] =
-	N, N, N, N,
-	D(DstMem | SrcImmByte | ModRM), D(DstMem | SrcImmByte | ModRM | Lock),
-	D(DstMem | SrcImmByte | ModRM | Lock), D(DstMem | SrcImmByte | ModRM | Lock),
-	[Group9*8] =
-	N, D(DstMem64 | ModRM | Lock), N, N, N, N, N, N,
-};
-
-static struct opcode group2_table[] = {
-	[Group7*8] =
-	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
-	D(SrcNone | ModRM | DstMem | Mov), N,
-	D(SrcMem16 | ModRM | Mov | Priv), N,
-	[Group9*8] =
-	N, N, N, N, N, N, N, N,
 };
 
 #undef D
