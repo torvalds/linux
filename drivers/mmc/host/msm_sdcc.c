@@ -160,18 +160,7 @@ msmsdcc_stop_data(struct msmsdcc_host *host)
 
 uint32_t msmsdcc_fifo_addr(struct msmsdcc_host *host)
 {
-	switch (host->pdev_id) {
-	case 1:
-		return MSM_SDC1_PHYS + MMCIFIFO;
-	case 2:
-		return MSM_SDC2_PHYS + MMCIFIFO;
-	case 3:
-		return MSM_SDC3_PHYS + MMCIFIFO;
-	case 4:
-		return MSM_SDC4_PHYS + MMCIFIFO;
-	}
-	BUG();
-	return 0;
+	return host->memres->start + MMCIFIFO;
 }
 
 static inline void
