@@ -481,6 +481,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		scsi_handle_queue_full(scmd->device);
 		/* fall through */
 	case BUSY:
+		return NEEDS_RETRY;
 	default:
 		return FAILED;
 	}
