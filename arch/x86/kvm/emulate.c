@@ -105,7 +105,7 @@
 #define X16(x) X8(x), X8(x)
 
 enum {
-	NoGrp, Group1A, Group3, Group4, Group5, Group7, Group8, Group9,
+	NoGrp, Group3, Group4, Group5, Group7, Group8, Group9,
 };
 
 struct opcode {
@@ -130,9 +130,11 @@ static struct opcode group1[] = {
 	X7(D(Lock)), N
 };
 
-static struct opcode group_table[] = {
-	[Group1A*8] =
+static struct opcode group1A[] = {
 	D(DstMem | SrcNone | ModRM | Mov | Stack), N, N, N, N, N, N, N,
+};
+
+static struct opcode group_table[] = {
 	[Group3*8] =
 	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
 	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
@@ -231,7 +233,7 @@ static struct opcode opcode_table[256] = {
 	D(ByteOp | DstMem | SrcReg | ModRM | Mov), D(DstMem | SrcReg | ModRM | Mov),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem | ModRM | Mov),
 	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | DstReg),
-	D(ImplicitOps | SrcMem16 | ModRM), D(Group | Group1A),
+	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
 	/* 0x90 - 0x97 */
 	D(DstReg), D(DstReg), D(DstReg), D(DstReg),	D(DstReg), D(DstReg), D(DstReg), D(DstReg),
 	/* 0x98 - 0x9F */
