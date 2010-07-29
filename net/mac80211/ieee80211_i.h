@@ -870,6 +870,11 @@ struct ieee80211_local {
 		struct dentry *keys;
 	} debugfs;
 #endif
+
+	/* dummy netdev for use w/ NAPI */
+	struct net_device napi_dev;
+
+	struct napi_struct napi;
 };
 
 static inline struct ieee80211_sub_if_data *

@@ -187,6 +187,8 @@ static int ieee80211_open(struct net_device *dev)
 		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
+		if (local->ops->napi_poll)
+			napi_enable(&local->napi);
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
@@ -519,6 +521,8 @@ static int ieee80211_stop(struct net_device *dev)
 	ieee80211_recalc_ps(local, -1);
 
 	if (local->open_count == 0) {
+		if (local->ops->napi_poll)
+			napi_disable(&local->napi);
 		ieee80211_clear_tx_pending(local);
 		ieee80211_stop_device(local);
 

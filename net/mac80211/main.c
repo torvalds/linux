@@ -390,6 +390,30 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 }
 #endif
 
+static int ieee80211_napi_poll(struct napi_struct *napi, int budget)
+{
+	struct ieee80211_local *local =
+		container_of(napi, struct ieee80211_local, napi);
+
+	return local->ops->napi_poll(&local->hw, budget);
+}
+
+void ieee80211_napi_schedule(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	napi_schedule(&local->napi);
+}
+EXPORT_SYMBOL(ieee80211_napi_schedule);
+
+void ieee80211_napi_complete(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	napi_complete(&local->napi);
+}
+EXPORT_SYMBOL(ieee80211_napi_complete);
+
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
@@ -493,6 +517,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
+
+	/* init dummy netdev for use w/ NAPI */
+	init_dummy_netdev(&local->napi_dev);
 
 	return local_to_hw(local);
 }
@@ -682,6 +709,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result)
 		goto fail_ifa;
 #endif
+
+	netif_napi_add(&local->napi_dev, &local->napi, ieee80211_napi_poll,
+			local->hw.napi_weight);
 
 	return 0;
 

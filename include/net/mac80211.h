@@ -1102,6 +1102,10 @@ enum ieee80211_hw_flags {
  *
  * @max_rates: maximum number of alternate rate retry stages
  * @max_rate_tries: maximum number of tries for each stage
+ *
+ * @napi_weight: weight used for NAPI polling.  You must specify an
+ *	appropriate value here if a napi_poll operation is provided
+ *	by your driver.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1113,6 +1117,7 @@ struct ieee80211_hw {
 	int channel_change_time;
 	int vif_data_size;
 	int sta_data_size;
+	int napi_weight;
 	u16 queues;
 	u16 max_listen_interval;
 	s8 max_signal;
@@ -1687,6 +1692,8 @@ enum ieee80211_ampdu_mlme_action {
  *	switch operation for CSAs received from the AP may implement this
  *	callback. They must then call ieee80211_chswitch_done() to indicate
  *	completion of the channel switch.
+ *
+ * @napi_poll: Poll Rx queue for incoming data frames.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1752,6 +1759,7 @@ struct ieee80211_ops {
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
+	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
 };
 
 /**
@@ -1896,6 +1904,22 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
  * @hw: the hardware to restart
  */
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
+
+/** ieee80211_napi_schedule - schedule NAPI poll
+ *
+ * Use this function to schedule NAPI polling on a device.
+ *
+ * @hw: the hardware to start polling
+ */
+void ieee80211_napi_schedule(struct ieee80211_hw *hw);
+
+/** ieee80211_napi_complete - complete NAPI polling
+ *
+ * Use this function to finish NAPI polling on a device.
+ *
+ * @hw: the hardware to stop polling
+ */
+void ieee80211_napi_complete(struct ieee80211_hw *hw);
 
 /**
  * ieee80211_rx - receive frame
