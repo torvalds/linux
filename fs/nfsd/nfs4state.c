@@ -2779,6 +2779,9 @@ __be32 nfs4_check_openmode(struct nfs4_stateid *stp, int flags)
 {
         __be32 status = nfserr_openmode;
 
+	/* For lock stateid's, we test the parent open, not the lock: */
+	if (stp->st_openstp)
+		stp = stp->st_openstp;
 	if ((flags & WR_STATE) && (!access_permit_write(stp->st_access_bmap)))
                 goto out;
 	if ((flags & RD_STATE) && (!access_permit_read(stp->st_access_bmap)))
@@ -3466,7 +3469,6 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	stp->st_stateid.si_fileid = fp->fi_id;
 	stp->st_stateid.si_generation = 0;
 	stp->st_vfs_file = open_stp->st_vfs_file; /* FIXME refcount?? */
-	stp->st_access_bmap = open_stp->st_access_bmap;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
 	stp->st_openstp = open_stp;
 
