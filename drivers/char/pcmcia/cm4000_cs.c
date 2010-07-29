@@ -1767,8 +1767,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 	if (pcmcia_loop_config(link, cm4000_config_check, NULL))
 		goto cs_release;
 
-	link->conf.IntType = 00000002;
-
 	if (pcmcia_request_configuration(link, &link->conf))
 		goto cs_release;
 
@@ -1829,7 +1827,6 @@ static int cm4000_probe(struct pcmcia_device *link)
 
 	dev->p_dev = link;
 	link->priv = dev;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
 	init_waitqueue_head(&dev->devq);

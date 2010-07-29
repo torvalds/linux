@@ -34,7 +34,6 @@ typedef struct config_t {
 	struct kref	ref;
 	unsigned int	state;
 	unsigned int	Attributes;
-	unsigned int	IntType;
 	unsigned int	ConfigBase;
 	unsigned char	Option;
 	unsigned int	CardValues;

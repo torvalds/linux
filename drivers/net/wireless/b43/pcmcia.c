@@ -73,7 +73,6 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	err = -ENODEV;
 
 	dev->conf.Attributes = CONF_ENABLE_IRQ;
-	dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	dev->resource[2]->flags |=  WIN_ENABLE | WIN_DATA_WIDTH_16 |
 			 WIN_USE_WAIT;

@@ -337,8 +337,6 @@ static int serial_probe(struct pcmcia_device *link)
 	if (do_sound)
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
 
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	return serial_config(link);
 }
 

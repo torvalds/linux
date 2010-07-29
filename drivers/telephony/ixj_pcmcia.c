@@ -34,7 +34,6 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 	/* Create new ixj device */
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 	p_dev->priv = kzalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!p_dev->priv) {
 		return -ENOMEM;

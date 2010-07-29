@@ -153,7 +153,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[0]->end = 4;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
     info->dev = dev;

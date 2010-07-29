@@ -575,7 +575,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		link->vpp = 0;
 	}
 
-	link->conf.IntType = INT_MEMORY;
 	link->conf.ConfigIndex = 0;
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
@@ -720,7 +719,6 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	link->priv = dev;
 
 	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY;
 
 	return pcmciamtd_config(link);
 }

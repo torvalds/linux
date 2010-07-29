@@ -104,7 +104,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 	  device, and can be hard-wired here.
 	*/
 	p_dev->conf.Attributes = 0;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);

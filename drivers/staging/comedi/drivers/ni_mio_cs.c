@@ -266,7 +266,6 @@ static int cs_attach(struct pcmcia_device *link)
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	link->resource[0]->end = 16;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	cur_dev = link;
 

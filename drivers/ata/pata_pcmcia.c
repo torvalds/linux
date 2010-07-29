@@ -250,7 +250,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	pdev->conf.Attributes = CONF_ENABLE_IRQ;
-	pdev->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */

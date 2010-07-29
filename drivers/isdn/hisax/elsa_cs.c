@@ -130,7 +130,6 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     return elsa_cs_config(link);
 } /* elsa_cs_attach */

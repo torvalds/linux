@@ -590,7 +590,6 @@ static int btuart_probe(struct pcmcia_device *link)
 	link->resource[0]->end = 8;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	return btuart_config(link);
 }

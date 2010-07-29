@@ -866,7 +866,6 @@ static int bluecard_probe(struct pcmcia_device *link)
 	link->priv = info;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	return bluecard_config(link);
 }

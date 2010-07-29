@@ -143,7 +143,6 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	link->resource[0]->end = 16;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
 

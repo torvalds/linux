@@ -836,7 +836,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	p_dev->priv = card;
 
 	p_dev->conf.Attributes = 0;
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	if (pcmcia_loop_config(p_dev, if_cs_ioprobe, NULL)) {
 		lbs_pr_err("error in pcmcia_loop_config\n");

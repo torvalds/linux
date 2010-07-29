@@ -1039,7 +1039,6 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	   device, and can be hard-wired here.
 	 */
 	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	daqp_cs_config(link);
 

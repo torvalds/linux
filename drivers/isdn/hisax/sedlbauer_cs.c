@@ -133,7 +133,6 @@ static int __devinit sedlbauer_probe(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
     link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     return sedlbauer_config(link);
 } /* sedlbauer_attach */

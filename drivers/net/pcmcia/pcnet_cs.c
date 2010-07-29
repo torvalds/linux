@@ -261,7 +261,6 @@ static int pcnet_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     dev->netdev_ops = &pcnet_netdev_ops;
 

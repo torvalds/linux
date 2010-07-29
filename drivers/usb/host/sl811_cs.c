@@ -228,7 +228,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 	link->priv = local;
 
 	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	return sl811_cs_config(link);
 }

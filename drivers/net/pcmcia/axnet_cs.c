@@ -167,7 +167,6 @@ static int axnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     dev->netdev_ops = &axnet_netdev_ops;
 

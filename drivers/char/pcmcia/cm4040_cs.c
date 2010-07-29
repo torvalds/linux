@@ -547,8 +547,6 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;
 
-	link->conf.IntType = 00000002;
-
 	fail_rc = pcmcia_request_configuration(link, &link->conf);
 	if (fail_rc != 0) {
 		dev_printk(KERN_INFO, &link->dev,
@@ -599,7 +597,6 @@ static int reader_probe(struct pcmcia_device *link)
 	link->priv = dev;
 	dev->p_dev = link;
 
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
 	init_waitqueue_head(&dev->devq);

@@ -551,7 +551,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
     /* Initialize the struct pcmcia_device structure */
 
     link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     ret = mgslpc_config(link);
     if (ret)
@@ -595,7 +594,6 @@ static int mgslpc_config(struct pcmcia_device *link)
 	    goto failed;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 8;
     link->conf.Present = PRESENT_OPTION;
 

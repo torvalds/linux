@@ -1563,7 +1563,6 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 
 	/* General socket configuration */
 	link->conf.Attributes	 = CONF_ENABLE_IRQ;
-	link->conf.IntType	 = INT_MEMORY_AND_IO;
 
 	ret = nsp_cs_config(link);
 

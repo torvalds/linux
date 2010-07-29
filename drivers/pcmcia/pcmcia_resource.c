@@ -447,11 +447,6 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 
-	if (req->IntType & INT_CARDBUS) {
-		dev_dbg(&p_dev->dev, "IntType may not be INT_CARDBUS\n");
-		return -EINVAL;
-	}
-
 	mutex_lock(&s->ops_mutex);
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
@@ -470,12 +465,9 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	}
 
 	/* Pick memory or I/O card, DMA mode, interrupt */
-	c->IntType = req->IntType;
 	c->Attributes = req->Attributes;
-	if (req->IntType & INT_MEMORY_AND_IO)
+	if (p_dev->_io)
 		s->socket.flags |= SS_IOCARD;
-	if (req->IntType & INT_ZOOMED_VIDEO)
-		s->socket.flags |= SS_ZVCARD | SS_IOCARD;
 	if (req->Attributes & CONF_ENABLE_DMA)
 		s->socket.flags |= SS_DMA_MODE;
 	if (req->Attributes & CONF_ENABLE_SPKR) {

@@ -185,7 +185,6 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	 * number, sizes, and attributes of IO windows) are fixed by
 	 * the nature of the device, and can be hard-wired here. */
 	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	return spectrum_cs_config(link);
 }				/* spectrum_cs_attach */

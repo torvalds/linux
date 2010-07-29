@@ -694,7 +694,6 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 
 	/* Initialize the pcmcia_device structure */
 	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	cur_dev = link;
 

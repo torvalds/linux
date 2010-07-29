@@ -437,7 +437,6 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 	int ret;
 
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	ret = prism2_config(p_dev);
 	if (ret) {

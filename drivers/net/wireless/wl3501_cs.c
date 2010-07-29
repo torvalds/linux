@@ -1889,7 +1889,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 
 	/* General socket configuration */
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
-	p_dev->conf.IntType	= INT_MEMORY_AND_IO;
 	p_dev->conf.ConfigIndex	= 1;
 
 	dev = alloc_etherdev(sizeof(struct wl3501_card));

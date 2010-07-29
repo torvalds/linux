@@ -173,7 +173,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		return ret;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 

@@ -161,7 +161,6 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
     p_dev->resource[0]->end = 16;
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
-    p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
     info->dev = dev;
     p_dev->priv = info;

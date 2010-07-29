@@ -148,7 +148,6 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 	link->resource[0]->end  = HCF_NUM_IO_PORTS;
 	link->resource[0]->flags= IO_DATA_PATH_WIDTH_16;
 	link->conf.Attributes   = CONF_ENABLE_IRQ;
-	link->conf.IntType      = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex  = 5;
 	link->conf.Present      = PRESENT_OPTION;
 

@@ -22,7 +22,6 @@
 /* For RequestConfiguration */
 typedef struct config_req_t {
     u_int	Attributes;
-    u_int	IntType;
     u_int	ConfigBase;
     u_char	ConfigIndex;
     u_int	Present;
@@ -35,12 +34,6 @@ typedef struct config_req_t {
 #define CONF_ENABLE_PULSE_IRQ	0x08
 #define CONF_ENABLE_ESR		0x10
 #define CONF_VALID_CLIENT	0x100
-
-/* IntType field */
-#define INT_MEMORY		0x01
-#define INT_MEMORY_AND_IO	0x02
-#define INT_CARDBUS		0x04
-#define INT_ZOOMED_VIDEO	0x08
 
 /* Configuration registers present */
 #define PRESENT_OPTION		0x001
