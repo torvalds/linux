@@ -25,6 +25,7 @@
 #include <linux/fsl_devices.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
+#include <mach/dma.h>
 
 static struct resource i2c_resource1[] = {
 	[0] = {
@@ -418,4 +419,54 @@ struct platform_device tegra_ehci3_device = {
 	},
 	.resource = tegra_usb3_resources,
 	.num_resources = ARRAY_SIZE(tegra_usb3_resources),
+};
+
+static struct resource i2s_resource1[] = {
+	[0] = {
+		.start	= INT_I2S1,
+		.end	= INT_I2S1,
+		.flags	= IORESOURCE_IRQ
+	},
+	[1] = {
+		.start	= TEGRA_DMA_REQ_SEL_I2S_1,
+		.end	= TEGRA_DMA_REQ_SEL_I2S_1,
+		.flags	= IORESOURCE_DMA
+	},
+	[2] = {
+		.start	= TEGRA_I2S1_BASE,
+		.end	= TEGRA_I2S1_BASE + TEGRA_I2S1_SIZE - 1,
+		.flags	= IORESOURCE_MEM
+	}
+};
+
+static struct resource i2s_resource2[] = {
+	[0] = {
+		.start	= INT_I2S2,
+		.end	= INT_I2S2,
+		.flags	= IORESOURCE_IRQ
+	},
+	[1] = {
+		.start	= TEGRA_DMA_REQ_SEL_I2S_2,
+		.end	= TEGRA_DMA_REQ_SEL_I2S_2,
+		.flags	= IORESOURCE_DMA
+	},
+	[2] = {
+		.start	= TEGRA_I2S2_BASE,
+		.end	= TEGRA_I2S2_BASE + TEGRA_I2S2_SIZE - 1,
+		.flags	= IORESOURCE_MEM
+	}
+};
+
+struct platform_device tegra_i2s_device1 = {
+	.name		= "i2s",
+	.id		= 0,
+	.resource	= i2s_resource1,
+	.num_resources	= ARRAY_SIZE(i2s_resource1),
+};
+
+struct platform_device tegra_i2s_device2 = {
+	.name		= "i2s",
+	.id		= 1,
+	.resource	= i2s_resource2,
+	.num_resources	= ARRAY_SIZE(i2s_resource2),
 };
