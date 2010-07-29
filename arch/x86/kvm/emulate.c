@@ -110,10 +110,21 @@ enum {
 
 struct opcode {
 	u32 flags;
+	union {
+		struct opcode *group;
+		struct group_dual *gdual;
+	} u;
+};
+
+struct group_dual {
+	struct opcode mod012[8];
+	struct opcode mod3[8];
 };
 
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
+#define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
+#define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 
 static struct opcode group_table[] = {
 	[Group1*8] =
@@ -331,6 +342,8 @@ static struct opcode twobyte_table[256] = {
 
 #undef D
 #undef N
+#undef G
+#undef GD
 
 /* EFLAGS bit definitions. */
 #define EFLG_ID (1<<21)
@@ -930,8 +943,8 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes, group, dual;
-
+	int def_op_bytes, def_ad_bytes, group, dual, goffset;
+	struct opcode opcode, *g_mod012, *g_mod3;
 
 	/* we cannot decode insn before we complete previous rep insn */
 	WARN_ON(ctxt->restart);
@@ -1018,15 +1031,16 @@ done_prefixes:
 			c->op_bytes = 8;	/* REX.W */
 
 	/* Opcode byte(s). */
-	c->d = opcode_table[c->b].flags;
-	if (c->d == 0) {
+	opcode = opcode_table[c->b];
+	if (opcode.flags == 0) {
 		/* Two-byte opcode? */
 		if (c->b == 0x0f) {
 			c->twobyte = 1;
 			c->b = insn_fetch(u8, 1, c->eip);
-			c->d = twobyte_table[c->b].flags;
+			opcode = twobyte_table[c->b];
 		}
 	}
+	c->d = opcode.flags;
 
 	if (c->d & Group) {
 		group = c->d & GroupMask;
@@ -1034,12 +1048,27 @@ done_prefixes:
 		c->modrm = insn_fetch(u8, 1, c->eip);
 		--c->eip;
 
-		group = (group << 3) + ((c->modrm >> 3) & 7);
+		if (group) {
+			g_mod012 = g_mod3 = &group_table[group * 8];
+			if (c->d & GroupDual)
+				g_mod3 = &group2_table[group * 8];
+		} else {
+			if (c->d & GroupDual) {
+				g_mod012 = opcode.u.gdual->mod012;
+				g_mod3 = opcode.u.gdual->mod3;
+			} else
+				g_mod012 = g_mod3 = opcode.u.group;
+		}
+
 		c->d &= ~(Group | GroupDual | GroupMask);
-		if (dual && (c->modrm >> 6) == 3)
-			c->d |= group2_table[group].flags;
+
+		goffset = (c->modrm >> 3) & 7;
+
+		if ((c->modrm >> 6) == 3)
+			opcode = g_mod3[goffset];
 		else
-			c->d |= group_table[group].flags;
+			opcode = g_mod012[goffset];
+		c->d |= opcode.flags;
 	}
 
 	/* Unrecognised? */
