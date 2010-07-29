@@ -42,9 +42,11 @@
 
 #define HPTEG_CACHE_NUM			(1 << 15)
 #define HPTEG_HASH_BITS_PTE		13
+#define HPTEG_HASH_BITS_PTE_LONG	12
 #define HPTEG_HASH_BITS_VPTE		13
 #define HPTEG_HASH_BITS_VPTE_LONG	5
 #define HPTEG_HASH_NUM_PTE		(1 << HPTEG_HASH_BITS_PTE)
+#define HPTEG_HASH_NUM_PTE_LONG		(1 << HPTEG_HASH_BITS_PTE_LONG)
 #define HPTEG_HASH_NUM_VPTE		(1 << HPTEG_HASH_BITS_VPTE)
 #define HPTEG_HASH_NUM_VPTE_LONG	(1 << HPTEG_HASH_BITS_VPTE_LONG)
 
@@ -163,6 +165,7 @@ struct kvmppc_mmu {
 
 struct hpte_cache {
 	struct hlist_node list_pte;
+	struct hlist_node list_pte_long;
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
 	struct rcu_head rcu_head;
@@ -293,6 +296,7 @@ struct kvm_vcpu_arch {
 
 #ifdef CONFIG_PPC_BOOK3S
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
+	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
 	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
 	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
 	int hpte_cache_count;
