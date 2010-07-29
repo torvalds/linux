@@ -162,8 +162,8 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 
 void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
 {
-	vcpu->arch.srr0 = kvmppc_get_pc(vcpu);
-	vcpu->arch.srr1 = vcpu->arch.shared->msr | flags;
+	vcpu->arch.shared->srr0 = kvmppc_get_pc(vcpu);
+	vcpu->arch.shared->srr1 = vcpu->arch.shared->msr | flags;
 	kvmppc_set_pc(vcpu, to_book3s(vcpu)->hior + vec);
 	vcpu->arch.mmu.reset_msr(vcpu);
 }
@@ -1059,8 +1059,8 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->lr = kvmppc_get_lr(vcpu);
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
-	regs->srr0 = vcpu->arch.srr0;
-	regs->srr1 = vcpu->arch.srr1;
+	regs->srr0 = vcpu->arch.shared->srr0;
+	regs->srr1 = vcpu->arch.shared->srr1;
 	regs->pid = vcpu->arch.pid;
 	regs->sprg0 = vcpu->arch.sprg0;
 	regs->sprg1 = vcpu->arch.sprg1;
@@ -1086,8 +1086,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvmppc_set_lr(vcpu, regs->lr);
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
-	vcpu->arch.srr0 = regs->srr0;
-	vcpu->arch.srr1 = regs->srr1;
+	vcpu->arch.shared->srr0 = regs->srr0;
+	vcpu->arch.shared->srr1 = regs->srr1;
 	vcpu->arch.sprg0 = regs->sprg0;
 	vcpu->arch.sprg1 = regs->sprg1;
 	vcpu->arch.sprg2 = regs->sprg2;

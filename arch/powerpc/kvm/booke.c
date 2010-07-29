@@ -64,7 +64,8 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 
 	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.pc, vcpu->arch.shared->msr);
 	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.lr, vcpu->arch.ctr);
-	printk("srr0: %08lx srr1: %08lx\n", vcpu->arch.srr0, vcpu->arch.srr1);
+	printk("srr0: %08llx srr1: %08llx\n", vcpu->arch.shared->srr0,
+					    vcpu->arch.shared->srr1);
 
 	printk("exceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
@@ -189,8 +190,8 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	}
 
 	if (allowed) {
-		vcpu->arch.srr0 = vcpu->arch.pc;
-		vcpu->arch.srr1 = vcpu->arch.shared->msr;
+		vcpu->arch.shared->srr0 = vcpu->arch.pc;
+		vcpu->arch.shared->srr1 = vcpu->arch.shared->msr;
 		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
 		if (update_esr == true)
 			vcpu->arch.esr = vcpu->arch.queued_esr;
@@ -491,8 +492,8 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->lr = vcpu->arch.lr;
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
-	regs->srr0 = vcpu->arch.srr0;
-	regs->srr1 = vcpu->arch.srr1;
+	regs->srr0 = vcpu->arch.shared->srr0;
+	regs->srr1 = vcpu->arch.shared->srr1;
 	regs->pid = vcpu->arch.pid;
 	regs->sprg0 = vcpu->arch.sprg0;
 	regs->sprg1 = vcpu->arch.sprg1;
@@ -518,8 +519,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.lr = regs->lr;
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
-	vcpu->arch.srr0 = regs->srr0;
-	vcpu->arch.srr1 = regs->srr1;
+	vcpu->arch.shared->srr0 = regs->srr0;
+	vcpu->arch.shared->srr1 = regs->srr1;
 	vcpu->arch.sprg0 = regs->sprg0;
 	vcpu->arch.sprg1 = regs->sprg1;
 	vcpu->arch.sprg2 = regs->sprg2;

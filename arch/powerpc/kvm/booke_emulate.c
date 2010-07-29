@@ -31,8 +31,8 @@
 
 static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.srr0;
-	kvmppc_set_msr(vcpu, vcpu->arch.srr1);
+	vcpu->arch.pc = vcpu->arch.shared->srr0;
+	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
 }
 
 int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,

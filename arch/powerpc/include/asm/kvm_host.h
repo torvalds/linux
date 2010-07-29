@@ -225,8 +225,6 @@ struct kvm_vcpu_arch {
 	ulong sprg5;
 	ulong sprg6;
 	ulong sprg7;
-	ulong srr0;
-	ulong srr1;
 	ulong csrr0;
 	ulong csrr1;
 	ulong dsrr0;

@@ -242,9 +242,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 			switch (sprn) {
 			case SPRN_SRR0:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr0); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr0);
+				break;
 			case SPRN_SRR1:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr1); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr1);
+				break;
 			case SPRN_PVR:
 				kvmppc_set_gpr(vcpu, rt, vcpu->arch.pvr); break;
 			case SPRN_PIR:
@@ -320,9 +322,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rs = get_rs(inst);
 			switch (sprn) {
 			case SPRN_SRR0:
-				vcpu->arch.srr0 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->srr0 = kvmppc_get_gpr(vcpu, rs);
+				break;
 			case SPRN_SRR1:
-				vcpu->arch.srr1 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->srr1 = kvmppc_get_gpr(vcpu, rs);
+				break;
 
 			/* XXX We need to context-switch the timebase for
 			 * watchdog and FIT. */

@@ -73,8 +73,8 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		switch (get_xop(inst)) {
 		case OP_19_XOP_RFID:
 		case OP_19_XOP_RFI:
-			kvmppc_set_pc(vcpu, vcpu->arch.srr0);
-			kvmppc_set_msr(vcpu, vcpu->arch.srr1);
+			kvmppc_set_pc(vcpu, vcpu->arch.shared->srr0);
+			kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
 			*advance = 0;
 			break;
 
