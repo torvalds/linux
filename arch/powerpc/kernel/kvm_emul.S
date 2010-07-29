@@ -34,3 +34,33 @@ kvm_hypercall_start:
 	blr
 
 #define KVM_MAGIC_PAGE		(-4096)
+
+#ifdef CONFIG_64BIT
+#define LL64(reg, offs, reg2)	ld	reg, (offs)(reg2)
+#define STL64(reg, offs, reg2)	std	reg, (offs)(reg2)
+#else
+#define LL64(reg, offs, reg2)	lwz	reg, (offs + 4)(reg2)
+#define STL64(reg, offs, reg2)	stw	reg, (offs + 4)(reg2)
+#endif
+
+#define SCRATCH_SAVE							\
+	/* Enable critical section. We are critical if			\
+	   shared->critical == r1 */					\
+	STL64(r1, KVM_MAGIC_PAGE + KVM_MAGIC_CRITICAL, 0);		\
+									\
+	/* Save state */						\
+	PPC_STL	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH1)(0);		\
+	PPC_STL	r30, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH2)(0);		\
+	mfcr	r31;							\
+	stw	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH3)(0);
+
+#define SCRATCH_RESTORE							\
+	/* Restore state */						\
+	PPC_LL	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH1)(0);		\
+	lwz	r30, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH3)(0);		\
+	mtcr	r30;							\
+	PPC_LL	r30, (KVM_MAGIC_PAGE + KVM_MAGIC_SCRATCH2)(0);		\
+									\
+	/* Disable critical section. We are critical if			\
+	   shared->critical == r1 and r2 is always != r1 */		\
+	STL64(r2, KVM_MAGIC_PAGE + KVM_MAGIC_CRITICAL, 0);
