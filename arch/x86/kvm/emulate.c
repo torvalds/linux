@@ -82,7 +82,6 @@
 #define Stack       (1<<13)     /* Stack instruction (push/pop) */
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
-#define GroupMask   0x0f        /* Group number stored in bits 0:3 */
 /* Misc flags */
 #define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
@@ -103,10 +102,6 @@
 #define X7(x) X4(x), X3(x)
 #define X8(x) X4(x), X4(x)
 #define X16(x) X8(x), X8(x)
-
-enum {
-	NoGrp,
-};
 
 struct opcode {
 	u32 flags;
@@ -173,12 +168,6 @@ static struct group_dual group9 = { {
 }, {
 	N, N, N, N, N, N, N, N,
 } };
-
-static struct opcode group_table[] = {
-};
-
-static struct opcode group2_table[] = {
-};
 
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
@@ -959,7 +948,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes, group, dual, goffset;
+	int def_op_bytes, def_ad_bytes, dual, goffset;
 	struct opcode opcode, *g_mod012, *g_mod3;
 
 	/* we cannot decode insn before we complete previous rep insn */
@@ -1059,24 +1048,17 @@ done_prefixes:
 	c->d = opcode.flags;
 
 	if (c->d & Group) {
-		group = c->d & GroupMask;
 		dual = c->d & GroupDual;
 		c->modrm = insn_fetch(u8, 1, c->eip);
 		--c->eip;
 
-		if (group) {
-			g_mod012 = g_mod3 = &group_table[group * 8];
-			if (c->d & GroupDual)
-				g_mod3 = &group2_table[group * 8];
-		} else {
-			if (c->d & GroupDual) {
-				g_mod012 = opcode.u.gdual->mod012;
-				g_mod3 = opcode.u.gdual->mod3;
-			} else
-				g_mod012 = g_mod3 = opcode.u.group;
-		}
+		if (c->d & GroupDual) {
+			g_mod012 = opcode.u.gdual->mod012;
+			g_mod3 = opcode.u.gdual->mod3;
+		} else
+			g_mod012 = g_mod3 = opcode.u.group;
 
-		c->d &= ~(Group | GroupDual | GroupMask);
+		c->d &= ~(Group | GroupDual);
 
 		goffset = (c->modrm >> 3) & 7;
 
