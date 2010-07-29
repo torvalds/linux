@@ -429,6 +429,7 @@ static int accy_ioctl(unsigned int cmd, unsigned long arg)
 		if (copy_from_user((void *) &read_data, (void *) arg,
 				   sizeof(read_data)))
 			return -EFAULT;
+		read_data.dock_id[CPCAP_WHISPER_ID_SIZE - 1] = '\0';
 		retval = cpcap_accy_whisper(misc_cpcap, read_data.cmd,
 					    read_data.dock_id);
 	break;

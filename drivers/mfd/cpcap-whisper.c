@@ -63,13 +63,16 @@ enum cpcap_det_state {
 	SAMPLE_2,
 	IDENTIFY,
 	IDENTIFY_WHISPER,
+	USB,
 	WHISPER,
+	WHISPER_SMART,
 };
 
 enum cpcap_accy {
 	CPCAP_ACCY_USB,
 	CPCAP_ACCY_USB_HOST,
 	CPCAP_ACCY_WHISPER,
+	CPCAP_ACCY_WHISPER_SMART,
 	CPCAP_ACCY_NONE,
 
 	/* Used while debouncing the accessory. */
@@ -236,6 +239,15 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 					     CPCAP_BIT_VBUSPD);
 		break;
 
+	case CPCAP_ACCY_WHISPER_SMART:
+		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
+					     CPCAP_BIT_VBUSPD);
+		gpio_set_value(data->pdata->data_gpio, 1);
+		if (data->otg)
+			blocking_notifier_call_chain(&data->otg->notifier,
+						     USB_EVENT_ID, NULL);
+		break;
+
 	case CPCAP_ACCY_UNKNOWN:
 		gpio_set_value(data->pdata->pwr_gpio, 0);
 		gpio_set_value(data->pdata->data_gpio, 0);
@@ -269,7 +281,8 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 	return retval;
 }
 
-static const char *accy_names[4] = {"USB", "USB host", "whisper", "none"};
+static const char *accy_names[5] = {"USB", "USB host", "whisper",
+				    "whisper_smart", "none"};
 
 static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 {
@@ -380,11 +393,14 @@ static void whisper_det_work(struct work_struct *work)
 
 		if ((data->sense == SENSE_USB_CLIENT) ||
 		    (data->sense == SENSE_USB_FLASH) ||
-		    (data->sense == SENSE_FACTORY) ||
-		    (data->sense == SENSE_WHISPER_SMART)) {
+		    (data->sense == SENSE_FACTORY)) {
 			whisper_notify(data, CPCAP_ACCY_USB);
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
+
+			/* Special handling of USB undetect. */
+			data->state = USB;
 		} else if (data->sense == SENSE_USB_HOST) {
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
@@ -396,6 +412,14 @@ static void whisper_det_work(struct work_struct *work)
 			data->state = IDENTIFY_WHISPER;
 			schedule_delayed_work(&data->work,
 					      msecs_to_jiffies(47));
+		} else if (data->sense == SENSE_WHISPER_SMART) {
+			whisper_notify(data, CPCAP_ACCY_WHISPER_SMART);
+
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
+
+			/* Special handling of Whisper Smart accessories. */
+			data->state = WHISPER_SMART;
 		} else {
 			whisper_notify(data, CPCAP_ACCY_NONE);
 
@@ -427,6 +451,25 @@ static void whisper_det_work(struct work_struct *work)
 		}
 		break;
 
+	case USB:
+		get_sense(data);
+
+		/* Check if Smart Whisper accessory fully inserted. */
+		if (data->sense == SENSE_WHISPER_SMART) {
+			data->state = WHISPER_SMART;
+
+			whisper_notify(data, CPCAP_ACCY_NONE);
+			whisper_notify(data, CPCAP_ACCY_WHISPER_SMART);
+
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
+		} else {
+			data->state = CONFIG;
+			schedule_delayed_work(&data->work, 0);
+		}
+
+		break;
+
 	case WHISPER:
 		get_sense(data);
 
@@ -442,6 +485,23 @@ static void whisper_det_work(struct work_struct *work)
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
+		}
+		break;
+
+	case WHISPER_SMART:
+		get_sense(data);
+
+		/* The removal of a Whisper Smart accessory can only be detected
+		 * when VBUS disappears.
+		 */
+		if (!(data->sense & CPCAP_BIT_VBUSVLD_S)) {
+			data->state = CONFIG;
+			schedule_delayed_work(&data->work, 0);
+		} else {
+			if (!(data->sense & CPCAP_BIT_ID_GROUND_S))
+				pr_info("%s: ID no longer ground\n", __func__);
+
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
 		}
 		break;
 
@@ -497,6 +557,14 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
 		switch_set_state(&di->dsdev, dock);
 
 		whisper_audio_check(di);
+	} else if (di->state == WHISPER_SMART) {
+		/* Report dock type to system. */
+		dock = (cmd & CPCAP_WHISPER_ACCY_MASK) >>
+			CPCAP_WHISPER_ACCY_SHFT;
+		if (dock && (strlen(dock_id) < CPCAP_WHISPER_ID_SIZE))
+			strncpy(di->dock_id, dock_id, CPCAP_WHISPER_ID_SIZE);
+		switch_set_state(&di->dsdev, dock);
+		retval = 0;
 	}
 
 	return retval;
