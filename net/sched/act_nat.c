@@ -240,7 +240,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			iph->saddr = new_addr;
 
 		inet_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
-					 1);
+					 0);
 		break;
 	}
 	default:
