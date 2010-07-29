@@ -943,8 +943,9 @@ done:
 }
 
 int
-x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+x86_decode_insn(struct x86_emulate_ctxt *ctxt)
 {
+	struct x86_emulate_ops *ops = ctxt->ops;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
@@ -2586,10 +2587,10 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 }
 
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 struct x86_emulate_ops *ops,
 			 u16 tss_selector, int reason,
 			 bool has_error_code, u32 error_code)
 {
+	struct x86_emulate_ops *ops = ctxt->ops;
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
@@ -2619,8 +2620,9 @@ static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned long base,
 }
 
 int
-x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 {
+	struct x86_emulate_ops *ops = ctxt->ops;
 	u64 msr_data;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;

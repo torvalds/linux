@@ -208,6 +208,8 @@ struct decode_cache {
 };
 
 struct x86_emulate_ctxt {
+	struct x86_emulate_ops *ops;
+
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
 
@@ -249,12 +251,9 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
-		    struct x86_emulate_ops *ops);
-int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
-		     struct x86_emulate_ops *ops);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt);
+int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 struct x86_emulate_ops *ops,
 			 u16 tss_selector, int reason,
 			 bool has_error_code, u32 error_code);
 

@@ -3998,7 +3998,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		vcpu->arch.emulate_ctxt.interruptibility = 0;
 		vcpu->arch.emulate_ctxt.exception = -1;
 
-		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+		r = x86_decode_insn(&vcpu->arch.emulate_ctxt);
 		trace_kvm_emulate_insn_start(vcpu);
 
 		/* Only allow emulation of specific instructions on #UD
@@ -4048,7 +4048,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 
 restart:
-	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt);
 
 	if (r) { /* emulation failed */
 		if (reexecute_instruction(vcpu, cr2))
@@ -5067,7 +5067,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	memset(c, 0, sizeof(struct decode_cache));
 	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 
-	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt, &emulate_ops,
+	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt,
 				   tss_selector, reason, has_error_code,
 				   error_code);
 
@@ -5424,6 +5424,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	BUG_ON(vcpu->kvm == NULL);
 	kvm = vcpu->kvm;
 
+	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 	if (!irqchip_in_kernel(kvm) || kvm_vcpu_is_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
