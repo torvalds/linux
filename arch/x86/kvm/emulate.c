@@ -106,6 +106,7 @@
 struct opcode {
 	u32 flags;
 	union {
+		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		struct opcode *group;
 		struct group_dual *gdual;
 	} u;
@@ -120,6 +121,7 @@ struct group_dual {
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
+#define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 
 static struct opcode group1[] = {
 	X7(D(Lock)), N
@@ -349,6 +351,7 @@ static struct opcode twobyte_table[256] = {
 #undef N
 #undef G
 #undef GD
+#undef I
 
 /* EFLAGS bit definitions. */
 #define EFLG_ID (1<<21)
@@ -1069,6 +1072,8 @@ done_prefixes:
 			opcode = g_mod012[goffset];
 		c->d |= opcode.flags;
 	}
+
+	c->execute = opcode.u.execute;
 
 	/* Unrecognised? */
 	if (c->d == 0 || (c->d & Undefined)) {
@@ -2704,6 +2709,13 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	c->dst.orig_val = c->dst.val;
 
 special_insn:
+
+	if (c->execute) {
+		rc = c->execute(ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		goto writeback;
+	}
 
 	if (c->twobyte)
 		goto twobyte_insn;

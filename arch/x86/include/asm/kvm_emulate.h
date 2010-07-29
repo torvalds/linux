@@ -190,6 +190,7 @@ struct decode_cache {
 	bool has_seg_override;
 	u8 seg_override;
 	unsigned int d;
+	int (*execute)(struct x86_emulate_ctxt *ctxt);
 	unsigned long regs[NR_VCPU_REGS];
 	unsigned long eip;
 	/* modrm */
