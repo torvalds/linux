@@ -40,6 +40,76 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
+/* UE Status Low CSR */
+static char *ue_status_low_desc[] = {
+	"CEV",
+	"CTX",
+	"DBUF",
+	"ERX",
+	"Host",
+	"MPU",
+	"NDMA",
+	"PTC ",
+	"RDMA ",
+	"RXF ",
+	"RXIPS ",
+	"RXULP0 ",
+	"RXULP1 ",
+	"RXULP2 ",
+	"TIM ",
+	"TPOST ",
+	"TPRE ",
+	"TXIPS ",
+	"TXULP0 ",
+	"TXULP1 ",
+	"UC ",
+	"WDMA ",
+	"TXULP2 ",
+	"HOST1 ",
+	"P0_OB_LINK ",
+	"P1_OB_LINK ",
+	"HOST_GPIO ",
+	"MBOX ",
+	"AXGMAC0",
+	"AXGMAC1",
+	"JTAG",
+	"MPU_INTPEND"
+};
+/* UE Status High CSR */
+static char *ue_status_hi_desc[] = {
+	"LPCMEMHOST",
+	"MGMT_MAC",
+	"PCS0ONLINE",
+	"MPU_IRAM",
+	"PCS1ONLINE",
+	"PCTL0",
+	"PCTL1",
+	"PMEM",
+	"RR",
+	"TXPB",
+	"RXPP",
+	"XAUI",
+	"TXP",
+	"ARM",
+	"IPC",
+	"HOST2",
+	"HOST3",
+	"HOST4",
+	"HOST5",
+	"HOST6",
+	"HOST7",
+	"HOST8",
+	"HOST9",
+	"NETC"
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown"
+};
 
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
@@ -1673,6 +1743,59 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	return 1;
 }
 
+static inline bool be_detect_ue(struct be_adapter *adapter)
+{
+	u32 online0 = 0, online1 = 0;
+
+	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE0, &online0);
+
+	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE1, &online1);
+
+	if (!online0 || !online1) {
+		adapter->ue_detected = true;
+		dev_err(&adapter->pdev->dev,
+			"UE Detected!! online0=%d online1=%d\n",
+			online0, online1);
+		return true;
+	}
+
+	return false;
+}
+
+void be_dump_ue(struct be_adapter *adapter)
+{
+	u32 ue_status_lo, ue_status_hi, ue_status_lo_mask, ue_status_hi_mask;
+	u32 i;
+
+	pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_LOW, &ue_status_lo);
+	pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_HIGH, &ue_status_hi);
+	pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_LOW_MASK, &ue_status_lo_mask);
+	pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_HI_MASK, &ue_status_hi_mask);
+
+	ue_status_lo = (ue_status_lo & (~ue_status_lo_mask));
+	ue_status_hi = (ue_status_hi & (~ue_status_hi_mask));
+
+	if (ue_status_lo) {
+		for (i = 0; ue_status_lo; ue_status_lo >>= 1, i++) {
+			if (ue_status_lo & 1)
+				dev_err(&adapter->pdev->dev,
+				"UE: %s bit set\n", ue_status_low_desc[i]);
+		}
+	}
+	if (ue_status_hi) {
+		for (i = 0; ue_status_hi; ue_status_hi >>= 1, i++) {
+			if (ue_status_hi & 1)
+				dev_err(&adapter->pdev->dev,
+				"UE: %s bit set\n", ue_status_hi_desc[i]);
+		}
+	}
+
+}
+
 static void be_worker(struct work_struct *work)
 {
 	struct be_adapter *adapter =
@@ -1689,6 +1812,10 @@ static void be_worker(struct work_struct *work)
 	if (adapter->rx_post_starved) {
 		adapter->rx_post_starved = false;
 		be_post_rx_frags(adapter);
+	}
+	if (!adapter->ue_detected) {
+		if (be_detect_ue(adapter))
+			be_dump_ue(adapter);
 	}
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));

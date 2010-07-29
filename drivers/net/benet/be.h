@@ -288,6 +288,7 @@ struct be_adapter {
 	u32 function_mode;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
+	bool ue_detected;
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
