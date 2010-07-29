@@ -62,6 +62,8 @@
 #define KVM_INST_MTSPR_DAR	0x7c1303a6
 #define KVM_INST_MTSPR_DSISR	0x7c1203a6
 
+#define KVM_INST_TLBSYNC	0x7c00046c
+
 static bool kvm_patching_worked = true;
 
 static inline void kvm_patch_ins(u32 *inst, u32 new_inst)
@@ -96,6 +98,11 @@ static void kvm_patch_ins_std(u32 *inst, long addr, u32 rt)
 static void kvm_patch_ins_stw(u32 *inst, long addr, u32 rt)
 {
 	kvm_patch_ins(inst, KVM_INST_STW | rt | (addr & 0x0000fffc));
+}
+
+static void kvm_patch_ins_nop(u32 *inst)
+{
+	kvm_patch_ins(inst, KVM_INST_NOP);
 }
 
 static void kvm_map_magic_page(void *data)
@@ -165,6 +172,11 @@ static void kvm_check_ins(u32 *inst)
 		break;
 	case KVM_INST_MTSPR_DSISR:
 		kvm_patch_ins_stw(inst, magic_var(dsisr), inst_rt);
+		break;
+
+	/* Nops */
+	case KVM_INST_TLBSYNC:
+		kvm_patch_ins_nop(inst);
 		break;
 	}
 
