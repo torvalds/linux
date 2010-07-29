@@ -456,6 +456,7 @@ static int event__process_kernel_mmap(event_t *self,
 			goto out_problem;
 
 		map->dso->short_name = name;
+		map->dso->sname_alloc = 1;
 		map->end = map->start + self->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (self->mmap.filename +

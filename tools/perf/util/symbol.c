@@ -224,7 +224,9 @@ void dso__delete(struct dso *self)
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&self->symbols[i]);
-	if (self->long_name != self->name)
+	if (self->sname_alloc)
+		free((char *)self->short_name);
+	if (self->lname_alloc)
 		free(self->long_name);
 	free(self);
 }
@@ -1530,6 +1532,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *self,
 			if (long_name == NULL)
 				goto failure;
 			dso__set_long_name(map->dso, long_name);
+			map->dso->lname_alloc = 1;
 			dso__kernel_module_get_build_id(map->dso, "");
 		}
 	}
