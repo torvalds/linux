@@ -95,10 +95,10 @@
 #define Src2One     (3<<29)
 #define Src2Mask    (7<<29)
 
-#define X2(x) (x), (x)
-#define X3(x) X2(x), (x)
+#define X2(x) x, x
+#define X3(x) X2(x), x
 #define X4(x) X2(x), X2(x)
-#define X5(x) X4(x), (x)
+#define X5(x) X4(x), x
 #define X6(x) X4(x), X2(x)
 #define X7(x) X4(x), X3(x)
 #define X8(x) X4(x), X4(x)
