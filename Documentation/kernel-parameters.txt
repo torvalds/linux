@@ -93,6 +93,7 @@ parameter is applicable:
 			Documentation/scsi/.
 	SECURITY Different security models are enabled.
 	SELINUX SELinux support is enabled.
+	APPARMOR AppArmor support is enabled.
 	SERIAL	Serial support is enabled.
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
@@ -2311,6 +2312,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via kernel config option.
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
+
+	apparmor=	[APPARMOR] Disable or enable AppArmor at boot time
+			Format: { "0" | "1" }
+			See security/apparmor/Kconfig help text
+			0 -- disable.
+			1 -- enable.
+			Default value is set via kernel config option.
 
 	serialnumber	[BUGS=X86-32]
 
