@@ -80,6 +80,8 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 #endif
 	if (page) {
 		present = PageUptodate(page);
+		if (present)
+			present |= (PageReadaheadUnused(page) << 7);
 		page_cache_release(page);
 	}
 

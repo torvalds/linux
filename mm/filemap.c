@@ -1322,6 +1322,9 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
 	if (size > count)
 		size = count;
 
+	if (PageReadaheadUnused(page))
+		ClearPageReadaheadUnused(page);
+
 	/*
 	 * Faults on the destination of a read are common, so do it before
 	 * taking the kmap.
