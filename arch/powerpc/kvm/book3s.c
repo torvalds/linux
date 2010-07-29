@@ -947,10 +947,10 @@ program_interrupt:
 		break;
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
-		// XXX make user settable
 		if (vcpu->arch.osi_enabled &&
 		    (((u32)kvmppc_get_gpr(vcpu, 3)) == OSI_SC_MAGIC_R3) &&
 		    (((u32)kvmppc_get_gpr(vcpu, 4)) == OSI_SC_MAGIC_R4)) {
+			/* MOL hypercalls */
 			u64 *gprs = run->osi.gprs;
 			int i;
 
@@ -959,8 +959,13 @@ program_interrupt:
 				gprs[i] = kvmppc_get_gpr(vcpu, i);
 			vcpu->arch.osi_needed = 1;
 			r = RESUME_HOST_NV;
-
+		} else if (!(vcpu->arch.shared->msr & MSR_PR) &&
+		    (((u32)kvmppc_get_gpr(vcpu, 0)) == KVM_SC_MAGIC_R0)) {
+			/* KVM PV hypercalls */
+			kvmppc_set_gpr(vcpu, 3, kvmppc_kvm_pv(vcpu));
+			r = RESUME_GUEST;
 		} else {
+			/* Guest syscalls */
 			vcpu->stat.syscall_exits++;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			r = RESUME_GUEST;

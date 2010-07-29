@@ -338,7 +338,15 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_SYSCALL:
-		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SYSCALL);
+		if (!(vcpu->arch.shared->msr & MSR_PR) &&
+		    (((u32)kvmppc_get_gpr(vcpu, 0)) == KVM_SC_MAGIC_R0)) {
+			/* KVM PV hypercalls */
+			kvmppc_set_gpr(vcpu, 3, kvmppc_kvm_pv(vcpu));
+			r = RESUME_GUEST;
+		} else {
+			/* Guest syscalls */
+			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SYSCALL);
+		}
 		kvmppc_account_exit(vcpu, SYSCALL_EXITS);
 		r = RESUME_GUEST;
 		break;

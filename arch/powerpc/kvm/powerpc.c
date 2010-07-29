@@ -42,6 +42,38 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 	       !!(v->arch.pending_exceptions);
 }
 
+int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
+{
+	int nr = kvmppc_get_gpr(vcpu, 11);
+	int r;
+	unsigned long __maybe_unused param1 = kvmppc_get_gpr(vcpu, 3);
+	unsigned long __maybe_unused param2 = kvmppc_get_gpr(vcpu, 4);
+	unsigned long __maybe_unused param3 = kvmppc_get_gpr(vcpu, 5);
+	unsigned long __maybe_unused param4 = kvmppc_get_gpr(vcpu, 6);
+	unsigned long r2 = 0;
+
+	if (!(vcpu->arch.shared->msr & MSR_SF)) {
+		/* 32 bit mode */
+		param1 &= 0xffffffff;
+		param2 &= 0xffffffff;
+		param3 &= 0xffffffff;
+		param4 &= 0xffffffff;
+	}
+
+	switch (nr) {
+	case HC_VENDOR_KVM | KVM_HC_FEATURES:
+		r = HC_EV_SUCCESS;
+
+		/* Second return value is in r4 */
+		kvmppc_set_gpr(vcpu, 4, r2);
+		break;
+	default:
+		r = HC_EV_UNIMPLEMENTED;
+		break;
+	}
+
+	return r;
+}
 
 int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {

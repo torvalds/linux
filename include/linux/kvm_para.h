@@ -17,6 +17,7 @@
 
 #define KVM_HC_VAPIC_POLL_IRQ		1
 #define KVM_HC_MMU_OP			2
+#define KVM_HC_FEATURES			3
 
 /*
  * hypercalls use architecture specific

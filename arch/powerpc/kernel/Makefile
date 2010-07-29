@@ -127,6 +127,8 @@ ifneq ($(CONFIG_XMON)$(CONFIG_KEXEC),)
 obj-y				+= ppc_save_regs.o
 endif
 
+obj-$(CONFIG_KVM_GUEST)		+= kvm.o
+
 # Disable GCOV in odd or sensitive code
 GCOV_PROFILE_prom_init.o := n
 GCOV_PROFILE_ftrace.o := n
