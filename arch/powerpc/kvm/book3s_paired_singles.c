@@ -173,7 +173,7 @@ static void kvmppc_inject_pf(struct kvm_vcpu *vcpu, ulong eaddr, bool is_store)
 	/* Page Fault */
 	dsisr = kvmppc_set_field(0, 33, 33, 1);
 	if (is_store)
-		to_book3s(vcpu)->dsisr = kvmppc_set_field(dsisr, 38, 38, 1);
+		shared->dsisr = kvmppc_set_field(dsisr, 38, 38, 1);
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
 }
 

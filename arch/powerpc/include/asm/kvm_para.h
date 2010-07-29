@@ -24,6 +24,7 @@
 
 struct kvm_vcpu_arch_shared {
 	__u64 msr;
+	__u32 dsisr;
 };
 
 #ifdef __KERNEL__

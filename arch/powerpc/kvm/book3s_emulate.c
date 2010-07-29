@@ -221,7 +221,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				else if (r == -EPERM)
 					dsisr |= DSISR_PROTFAULT;
 
-				to_book3s(vcpu)->dsisr = dsisr;
+				vcpu->arch.shared->dsisr = dsisr;
 				to_svcpu(vcpu)->fault_dsisr = dsisr;
 
 				kvmppc_book3s_queue_irqprio(vcpu,
@@ -327,7 +327,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		to_book3s(vcpu)->sdr1 = spr_val;
 		break;
 	case SPRN_DSISR:
-		to_book3s(vcpu)->dsisr = spr_val;
+		vcpu->arch.shared->dsisr = spr_val;
 		break;
 	case SPRN_DAR:
 		vcpu->arch.dear = spr_val;
@@ -440,7 +440,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->sdr1);
 		break;
 	case SPRN_DSISR:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->dsisr);
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->dsisr);
 		break;
 	case SPRN_DAR:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dear);

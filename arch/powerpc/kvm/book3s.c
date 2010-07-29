@@ -595,15 +595,16 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (page_found == -ENOENT) {
 		/* Page not found in guest PTE entries */
 		vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
-		to_book3s(vcpu)->dsisr = to_svcpu(vcpu)->fault_dsisr;
+		vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
 		vcpu->arch.shared->msr |=
 			(to_svcpu(vcpu)->shadow_srr1 & 0x00000000f8000000ULL);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EPERM) {
 		/* Storage protection */
 		vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
-		to_book3s(vcpu)->dsisr = to_svcpu(vcpu)->fault_dsisr & ~DSISR_NOHPTE;
-		to_book3s(vcpu)->dsisr |= DSISR_PROTFAULT;
+		vcpu->arch.shared->dsisr =
+			to_svcpu(vcpu)->fault_dsisr & ~DSISR_NOHPTE;
+		vcpu->arch.shared->dsisr |= DSISR_PROTFAULT;
 		vcpu->arch.shared->msr |=
 			(to_svcpu(vcpu)->shadow_srr1 & 0x00000000f8000000ULL);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
@@ -867,7 +868,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
 		} else {
 			vcpu->arch.dear = dar;
-			to_book3s(vcpu)->dsisr = to_svcpu(vcpu)->fault_dsisr;
+			vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.dear, ~0xFFFUL);
 			r = RESUME_GUEST;
@@ -994,7 +995,7 @@ program_interrupt:
 	}
 	case BOOK3S_INTERRUPT_ALIGNMENT:
 		if (kvmppc_read_inst(vcpu) == EMULATE_DONE) {
-			to_book3s(vcpu)->dsisr = kvmppc_alignment_dsisr(vcpu,
+			vcpu->arch.shared->dsisr = kvmppc_alignment_dsisr(vcpu,
 				kvmppc_get_last_inst(vcpu));
 			vcpu->arch.dear = kvmppc_alignment_dar(vcpu,
 				kvmppc_get_last_inst(vcpu));
