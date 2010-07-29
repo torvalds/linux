@@ -218,6 +218,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph)))
 			goto drop;
 
+		icmph = (void *)(skb_network_header(skb) + ihl);
 		iph = (void *)(icmph + 1);
 		if (egress)
 			addr = iph->daddr;
