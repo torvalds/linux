@@ -48,6 +48,9 @@
 #define HPTEG_HASH_NUM_VPTE		(1 << HPTEG_HASH_BITS_VPTE)
 #define HPTEG_HASH_NUM_VPTE_LONG	(1 << HPTEG_HASH_BITS_VPTE_LONG)
 
+/* Physical Address Mask - allowed range of real mode RAM access */
+#define KVM_PAM			0x0fffffffffffffffULL
+
 struct kvm;
 struct kvm_run;
 struct kvm_vcpu;

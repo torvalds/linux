@@ -465,7 +465,7 @@ static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
 		r = vcpu->arch.mmu.xlate(vcpu, eaddr, pte, data);
 	} else {
 		pte->eaddr = eaddr;
-		pte->raddr = eaddr & 0xffffffff;
+		pte->raddr = eaddr & KVM_PAM;
 		pte->vpage = VSID_REAL | eaddr >> 12;
 		pte->may_read = true;
 		pte->may_write = true;
@@ -579,7 +579,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.may_execute = true;
 		pte.may_read = true;
 		pte.may_write = true;
-		pte.raddr = eaddr & 0xffffffff;
+		pte.raddr = eaddr & KVM_PAM;
 		pte.eaddr = eaddr;
 		pte.vpage = eaddr >> 12;
 	}
