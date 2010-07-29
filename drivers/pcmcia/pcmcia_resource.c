@@ -226,92 +226,90 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, struct resource *res,
 EXPORT_SYMBOL(pcmcia_map_mem_page);
 
 
-/** pcmcia_modify_configuration
+/**
+ * pcmcia_fixup_iowidth() - reduce io width to 8bit
  *
- * Modify a locked socket configuration
+ * pcmcia_fixup_iowidth() allows a PCMCIA device driver to reduce the
+ * IO width to 8bit after having called pcmcia_request_configuration()
+ * previously.
  */
-int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
-				modconf_t *mod)
+int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev)
 {
-	struct pcmcia_socket *s;
-	config_t *c;
-	int ret;
-
-	s = p_dev->socket;
+	struct pcmcia_socket *s = p_dev->socket;
+	pccard_io_map io_off = { 0, 0, 0, 0, 1 };
+	pccard_io_map io_on;
+	int i, ret = 0;
 
 	mutex_lock(&s->ops_mutex);
-	c = p_dev->function_config;
 
-	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&p_dev->dev, "No card present\n");
-		ret = -ENODEV;
-		goto unlock;
-	}
-	if (!(c->state & CONFIG_LOCKED)) {
-		dev_dbg(&p_dev->dev, "Configuration isnt't locked\n");
+	dev_dbg(&p_dev->dev, "fixup iowidth to 8bit\n");
+
+	if (!(s->state & SOCKET_PRESENT) ||
+		!(p_dev->function_config->state & CONFIG_LOCKED)) {
+		dev_dbg(&p_dev->dev, "No card? Config not locked?\n");
 		ret = -EACCES;
 		goto unlock;
 	}
 
-	if (mod->Attributes & (CONF_IRQ_CHANGE_VALID | CONF_VCC_CHANGE_VALID)) {
-		dev_dbg(&p_dev->dev,
-			"changing Vcc or IRQ is not allowed at this time\n");
-		ret = -EINVAL;
-		goto unlock;
+	io_on.speed = io_speed;
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		if (!s->io[i].res)
+			continue;
+		io_off.map = i;
+		io_on.map = i;
+
+		io_on.flags = MAP_ACTIVE | IO_DATA_PATH_WIDTH_8;
+		io_on.start = s->io[i].res->start;
+		io_on.stop = s->io[i].res->end;
+
+		s->ops->set_io_map(s, &io_off);
+		mdelay(40);
+		s->ops->set_io_map(s, &io_on);
 	}
-
-	/* We only allow changing Vpp1 and Vpp2 to the same value */
-	if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
-	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
-		if (mod->Vpp1 != mod->Vpp2) {
-			dev_dbg(&p_dev->dev,
-				"Vpp1 and Vpp2 must be the same\n");
-			ret = -EINVAL;
-			goto unlock;
-		}
-		s->socket.Vpp = mod->Vpp1;
-		if (s->ops->set_socket(s, &s->socket)) {
-			dev_printk(KERN_WARNING, &p_dev->dev,
-				   "Unable to set VPP\n");
-			ret = -EIO;
-			goto unlock;
-		}
-	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
-		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
-		dev_dbg(&p_dev->dev,
-			"changing Vcc is not allowed at this time\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (mod->Attributes & CONF_IO_CHANGE_WIDTH) {
-		pccard_io_map io_off = { 0, 0, 0, 0, 1 };
-		pccard_io_map io_on;
-		int i;
-
-		io_on.speed = io_speed;
-		for (i = 0; i < MAX_IO_WIN; i++) {
-			if (!s->io[i].res)
-				continue;
-			io_off.map = i;
-			io_on.map = i;
-
-			io_on.flags = MAP_ACTIVE | IO_DATA_PATH_WIDTH_8;
-			io_on.start = s->io[i].res->start;
-			io_on.stop = s->io[i].res->end;
-
-			s->ops->set_io_map(s, &io_off);
-			mdelay(40);
-			s->ops->set_io_map(s, &io_on);
-		}
-	}
-	ret = 0;
 unlock:
 	mutex_unlock(&s->ops_mutex);
 
 	return ret;
-} /* modify_configuration */
-EXPORT_SYMBOL(pcmcia_modify_configuration);
+}
+EXPORT_SYMBOL(pcmcia_fixup_iowidth);
+
+
+/**
+ * pcmcia_fixup_vpp() - set Vpp to a new voltage level
+ *
+ * pcmcia_fixup_vpp() allows a PCMCIA device driver to set Vpp to
+ * a new voltage level between calls to pcmcia_request_configuration()
+ * and pcmcia_disable_device().
+ */
+int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp)
+{
+	struct pcmcia_socket *s = p_dev->socket;
+	int ret = 0;
+
+	mutex_lock(&s->ops_mutex);
+
+	dev_dbg(&p_dev->dev, "fixup Vpp to %d\n", new_vpp);
+
+	if (!(s->state & SOCKET_PRESENT) ||
+		!(p_dev->function_config->state & CONFIG_LOCKED)) {
+		dev_dbg(&p_dev->dev, "No card? Config not locked?\n");
+		ret = -EACCES;
+		goto unlock;
+	}
+
+	s->socket.Vpp = new_vpp;
+	if (s->ops->set_socket(s, &s->socket)) {
+		dev_warn(&p_dev->dev, "Unable to set VPP\n");
+		ret = -EIO;
+		goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&s->ops_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(pcmcia_fixup_vpp);
 
 
 int pcmcia_release_configuration(struct pcmcia_device *p_dev)

@@ -316,15 +316,9 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 {
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	struct pcmcia_device *link = dev->p_dev;
-	modconf_t mod;
-	int ret;
-
-	mod.Attributes = CONF_VPP1_CHANGE_VALID | CONF_VPP2_CHANGE_VALID;
-	mod.Vcc = 0;
-	mod.Vpp1 = mod.Vpp2 = on ? dev->vpp : 0;
 
 	DEBUG(2, "dev = %p on = %d vpp = %d\n", dev, on, dev->vpp);
-	ret = pcmcia_modify_configuration(link, &mod);
+	pcmcia_fixup_vpp(link, on ? dev->vpp : 0);
 }
 
 

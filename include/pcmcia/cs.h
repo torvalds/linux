@@ -19,19 +19,6 @@
 #include <linux/interrupt.h>
 #endif
 
-/* ModifyConfiguration */
-typedef struct modconf_t {
-    u_int	Attributes;
-    u_int	Vcc, Vpp1, Vpp2;
-} modconf_t;
-
-/* Attributes for ModifyConfiguration */
-#define CONF_IRQ_CHANGE_VALID	0x0100
-#define CONF_VCC_CHANGE_VALID	0x0200
-#define CONF_VPP1_CHANGE_VALID	0x0400
-#define CONF_VPP2_CHANGE_VALID	0x0800
-#define CONF_IO_CHANGE_WIDTH	0x1000
-
 /* For RequestConfiguration */
 typedef struct config_req_t {
     u_int	Attributes;

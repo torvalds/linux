@@ -212,7 +212,9 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res);
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, struct resource *res,
 			unsigned int offset);
 
-int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
+int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp);
+int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev);
+
 void pcmcia_disable_device(struct pcmcia_device *p_dev);
 
 /* IO ports */
