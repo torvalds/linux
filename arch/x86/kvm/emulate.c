@@ -108,7 +108,11 @@ enum {
 	Group1, Group1A, Group3, Group4, Group5, Group7, Group8, Group9,
 };
 
-static u32 opcode_table[256] = {
+struct opcode {
+	u32 flags;
+};
+
+static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -222,7 +226,7 @@ static u32 opcode_table[256] = {
 	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
 };
 
-static u32 twobyte_table[256] = {
+static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	0, Group | GroupDual | Group7, 0, 0,
 	0, ImplicitOps, ImplicitOps | Priv, 0,
@@ -284,7 +288,7 @@ static u32 twobyte_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static u32 group_table[] = {
+static struct opcode group_table[] = {
 	[Group1*8] =
 	X7(Lock), 0,
 	[Group1A*8] =
@@ -313,7 +317,7 @@ static u32 group_table[] = {
 	0, DstMem64 | ModRM | Lock, 0, 0, 0, 0, 0, 0,
 };
 
-static u32 group2_table[] = {
+static struct opcode group2_table[] = {
 	[Group7*8] =
 	SrcNone | ModRM | Priv, 0, 0, SrcNone | ModRM | Priv,
 	SrcNone | ModRM | DstMem | Mov, 0,
@@ -1008,13 +1012,13 @@ done_prefixes:
 			c->op_bytes = 8;	/* REX.W */
 
 	/* Opcode byte(s). */
-	c->d = opcode_table[c->b];
+	c->d = opcode_table[c->b].flags;
 	if (c->d == 0) {
 		/* Two-byte opcode? */
 		if (c->b == 0x0f) {
 			c->twobyte = 1;
 			c->b = insn_fetch(u8, 1, c->eip);
-			c->d = twobyte_table[c->b];
+			c->d = twobyte_table[c->b].flags;
 		}
 	}
 
@@ -1027,9 +1031,9 @@ done_prefixes:
 		group = (group << 3) + ((c->modrm >> 3) & 7);
 		c->d &= ~(Group | GroupDual | GroupMask);
 		if (dual && (c->modrm >> 6) == 3)
-			c->d |= group2_table[group];
+			c->d |= group2_table[group].flags;
 		else
-			c->d |= group_table[group];
+			c->d |= group_table[group].flags;
 	}
 
 	/* Unrecognised? */
