@@ -20,6 +20,11 @@
 #ifndef __POWERPC_KVM_PARA_H__
 #define __POWERPC_KVM_PARA_H__
 
+#include <linux/types.h>
+
+struct kvm_vcpu_arch_shared {
+};
+
 #ifdef __KERNEL__
 
 static inline int kvm_para_available(void)

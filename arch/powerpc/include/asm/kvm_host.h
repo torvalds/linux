@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <linux/kvm_para.h>
 #include <asm/kvm_asm.h>
 
 #define KVM_MAX_VCPUS 1
@@ -290,6 +291,7 @@ struct kvm_vcpu_arch {
 	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
+	struct kvm_vcpu_arch_shared *shared;
 
 #ifdef CONFIG_PPC_BOOK3S
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];

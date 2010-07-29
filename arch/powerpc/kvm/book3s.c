@@ -1242,6 +1242,10 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_shadow_vcpu;
 
+	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+	if (!vcpu->arch.shared)
+		goto uninit_vcpu;
+
 	vcpu->arch.host_retip = kvm_return_point;
 	vcpu->arch.host_msr = mfmsr();
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -1268,10 +1272,12 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	err = kvmppc_mmu_init(vcpu);
 	if (err < 0)
-		goto free_shadow_vcpu;
+		goto uninit_vcpu;
 
 	return vcpu;
 
+uninit_vcpu:
+	kvm_vcpu_uninit(vcpu);
 free_shadow_vcpu:
 	kfree(vcpu_book3s->shadow_vcpu);
 free_vcpu:
@@ -1284,6 +1290,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 
+	free_page((unsigned long)vcpu->arch.shared);
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu_book3s->shadow_vcpu);
 	vfree(vcpu_book3s);
