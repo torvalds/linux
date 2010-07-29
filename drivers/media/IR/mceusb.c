@@ -228,7 +228,6 @@ static struct usb_device_id std_tx_mask_list[] = {
 /* data structure for each usb transceiver */
 struct mceusb_dev {
 	/* ir-core bits */
-	struct ir_input_dev *irdev;
 	struct ir_dev_props *props;
 	struct ir_raw_event rawir;
 
@@ -739,7 +738,7 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 
 	if (ir->send_flags == RECV_FLAG_IN_PROGRESS) {
 		ir->send_flags = SEND_FLAG_COMPLETE;
-		dev_dbg(&ir->irdev->dev, "setup answer received %d bytes\n",
+		dev_dbg(ir->dev, "setup answer received %d bytes\n",
 			buf_len);
 	}
 
@@ -861,7 +860,6 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 {
 	struct input_dev *idev;
 	struct ir_dev_props *props;
-	struct ir_input_dev *irdev;
 	struct device *dev = ir->dev;
 	int ret = -ENODEV;
 
@@ -876,12 +874,6 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	if (!props) {
 		dev_err(dev, "remote ir dev props allocation failed\n");
 		goto props_alloc_failed;
-	}
-
-	irdev = kzalloc(sizeof(struct ir_input_dev), GFP_KERNEL);
-	if (!irdev) {
-		dev_err(dev, "remote ir input dev allocation failed\n");
-		goto ir_dev_alloc_failed;
 	}
 
 	snprintf(ir->name, sizeof(ir->name), "Media Center Ed. eHome "
@@ -902,9 +894,6 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	props->tx_ir = mceusb_tx_ir;
 
 	ir->props = props;
-	ir->irdev = irdev;
-
-	input_set_drvdata(idev, irdev);
 
 	ret = ir_input_register(idev, RC_MAP_RC6_MCE, props, DRIVER_NAME);
 	if (ret < 0) {
@@ -915,8 +904,6 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	return idev;
 
 irdev_failed:
-	kfree(irdev);
-ir_dev_alloc_failed:
 	kfree(props);
 props_alloc_failed:
 	input_free_device(idev);
