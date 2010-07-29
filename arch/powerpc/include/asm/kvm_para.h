@@ -23,6 +23,7 @@
 #include <linux/types.h>
 
 struct kvm_vcpu_arch_shared {
+	__u64 dar;
 	__u64 msr;
 	__u32 dsisr;
 };

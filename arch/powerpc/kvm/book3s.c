@@ -594,14 +594,14 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (page_found == -ENOENT) {
 		/* Page not found in guest PTE entries */
-		vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
+		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
 		vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
 		vcpu->arch.shared->msr |=
 			(to_svcpu(vcpu)->shadow_srr1 & 0x00000000f8000000ULL);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EPERM) {
 		/* Storage protection */
-		vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
+		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
 		vcpu->arch.shared->dsisr =
 			to_svcpu(vcpu)->fault_dsisr & ~DSISR_NOHPTE;
 		vcpu->arch.shared->dsisr |= DSISR_PROTFAULT;
@@ -610,7 +610,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EINVAL) {
 		/* Page not found in guest SLB */
-		vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
+		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
 	} else if (!is_mmio &&
 		   kvmppc_visible_gfn(vcpu, pte.raddr >> PAGE_SHIFT)) {
@@ -867,17 +867,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (to_svcpu(vcpu)->fault_dsisr & DSISR_NOHPTE) {
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
 		} else {
-			vcpu->arch.dear = dar;
+			vcpu->arch.shared->dar = dar;
 			vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
-			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.dear, ~0xFFFUL);
+			kvmppc_mmu_pte_flush(vcpu, dar, ~0xFFFUL);
 			r = RESUME_GUEST;
 		}
 		break;
 	}
 	case BOOK3S_INTERRUPT_DATA_SEGMENT:
 		if (kvmppc_mmu_map_segment(vcpu, kvmppc_get_fault_dar(vcpu)) < 0) {
-			vcpu->arch.dear = kvmppc_get_fault_dar(vcpu);
+			vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
 			kvmppc_book3s_queue_irqprio(vcpu,
 				BOOK3S_INTERRUPT_DATA_SEGMENT);
 		}
@@ -997,7 +997,7 @@ program_interrupt:
 		if (kvmppc_read_inst(vcpu) == EMULATE_DONE) {
 			vcpu->arch.shared->dsisr = kvmppc_alignment_dsisr(vcpu,
 				kvmppc_get_last_inst(vcpu));
-			vcpu->arch.dear = kvmppc_alignment_dar(vcpu,
+			vcpu->arch.shared->dar = kvmppc_alignment_dar(vcpu,
 				kvmppc_get_last_inst(vcpu));
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		}

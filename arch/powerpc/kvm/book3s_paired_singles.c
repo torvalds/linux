@@ -169,7 +169,7 @@ static void kvmppc_inject_pf(struct kvm_vcpu *vcpu, ulong eaddr, bool is_store)
 
 	shared->msr = kvmppc_set_field(shared->msr, 33, 36, 0);
 	shared->msr = kvmppc_set_field(shared->msr, 42, 47, 0);
-	vcpu->arch.dear = eaddr;
+	shared->dar = eaddr;
 	/* Page Fault */
 	dsisr = kvmppc_set_field(0, 33, 33, 1);
 	if (is_store)

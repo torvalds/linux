@@ -195,7 +195,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		if (update_esr == true)
 			vcpu->arch.esr = vcpu->arch.queued_esr;
 		if (update_dear == true)
-			vcpu->arch.dear = vcpu->arch.queued_dear;
+			vcpu->arch.shared->dar = vcpu->arch.queued_dear;
 		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
 
 		clear_bit(priority, &vcpu->arch.pending_exceptions);
