@@ -1728,18 +1728,17 @@ unlock:
 int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 {
 	struct net_bridge_port *port;
-	int err = -ENOENT;
+	int err = 0;
 
 	spin_lock(&br->multicast_lock);
-	if (!netif_running(br->dev))
-		goto unlock;
-
-	err = 0;
 	if (br->multicast_disabled == !val)
 		goto unlock;
 
 	br->multicast_disabled = !val;
 	if (br->multicast_disabled)
+		goto unlock;
+
+	if (!netif_running(br->dev))
 		goto unlock;
 
 	if (br->mdb) {
