@@ -45,6 +45,8 @@ struct kvm_vcpu_arch_shared {
 #define HC_EV_SUCCESS		0
 #define HC_EV_UNIMPLEMENTED	12
 
+#define KVM_FEATURE_MAGIC_PAGE	1
+
 #ifdef __KERNEL__
 
 #ifdef CONFIG_KVM_GUEST

@@ -61,8 +61,19 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	}
 
 	switch (nr) {
+	case HC_VENDOR_KVM | KVM_HC_PPC_MAP_MAGIC_PAGE:
+	{
+		vcpu->arch.magic_page_pa = param1;
+		vcpu->arch.magic_page_ea = param2;
+
+		r = HC_EV_SUCCESS;
+		break;
+	}
 	case HC_VENDOR_KVM | KVM_HC_FEATURES:
 		r = HC_EV_SUCCESS;
+#if defined(CONFIG_PPC_BOOK3S) /* XXX Missing magic page on BookE */
+		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
+#endif
 
 		/* Second return value is in r4 */
 		kvmppc_set_gpr(vcpu, 4, r2);
