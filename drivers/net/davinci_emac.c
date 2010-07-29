@@ -564,9 +564,11 @@ static void emac_dump_regs(struct emac_priv *priv)
 
 	/* Print important registers in EMAC */
 	dev_info(emac_dev, "EMAC Basic registers\n");
-	dev_info(emac_dev, "EMAC: EWCTL: %08X, EWINTTCNT: %08X\n",
-		emac_ctrl_read(EMAC_CTRL_EWCTL),
-		emac_ctrl_read(EMAC_CTRL_EWINTTCNT));
+	if (priv->version == EMAC_VERSION_1) {
+		dev_info(emac_dev, "EMAC: EWCTL: %08X, EWINTTCNT: %08X\n",
+			emac_ctrl_read(EMAC_CTRL_EWCTL),
+			emac_ctrl_read(EMAC_CTRL_EWINTTCNT));
+	}
 	dev_info(emac_dev, "EMAC: TXID: %08X %s, RXID: %08X %s\n",
 		emac_read(EMAC_TXIDVER),
 		((emac_read(EMAC_TXCONTROL)) ? "enabled" : "disabled"),
