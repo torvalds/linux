@@ -2440,6 +2440,7 @@ static void kdb_sysinfo(struct sysinfo *val)
  */
 static int kdb_summary(int argc, const char **argv)
 {
+	struct timespec now;
 	struct kdb_tm tm;
 	struct sysinfo val;
 
@@ -2454,7 +2455,8 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 	kdb_printf("ccversion  %s\n", __stringify(CCVERSION));
 
-	kdb_gmtime(&xtime, &tm);
+	now = __current_kernel_time();
+	kdb_gmtime(&now, &tm);
 	kdb_printf("date       %04d-%02d-%02d %02d:%02d:%02d "
 		   "tz_minuteswest %d\n",
 		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
