@@ -160,7 +160,7 @@ static unsigned int trout_sdslot_status(struct device *dev)
 			| MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 \
 			| MMC_VDD_28_29 | MMC_VDD_29_30
 
-static struct mmc_platform_data trout_sdslot_data = {
+static struct msm_mmc_platform_data trout_sdslot_data = {
 	.ocr_mask	= TROUT_MMC_VDD,
 	.status		= trout_sdslot_status,
 	.translate_vdd	= trout_sdslot_switchvdd,
