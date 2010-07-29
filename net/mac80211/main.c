@@ -99,11 +99,13 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	int ret = 0;
 	int power;
 	enum nl80211_channel_type channel_type;
+	u32 offchannel_flag;
 
 	might_sleep();
 
 	scan_chan = local->scan_channel;
 
+	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (scan_chan) {
 		chan = scan_chan;
 		channel_type = NL80211_CHAN_NO_HT;
@@ -117,8 +119,9 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		channel_type = local->_oper_channel_type;
 		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
 	}
+	offchannel_flag ^= local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
-	if (chan != local->hw.conf.channel ||
+	if (offchannel_flag || chan != local->hw.conf.channel ||
 	    channel_type != local->hw.conf.channel_type) {
 		local->hw.conf.channel = chan;
 		local->hw.conf.channel_type = channel_type;
