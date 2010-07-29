@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/input.h>
-#include <acpi/acpi_drivers.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/rfkill.h>
