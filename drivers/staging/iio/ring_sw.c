@@ -478,7 +478,7 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 
 	  /* Guaranteed to be aligned with 8 byte boundary */
 	if (st->indio_dev->scan_timestamp)
-		*(s64 *)(((u32)data + len
+		*(s64 *)(((phys_addr_t)data + len
 				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
 			= st->last_timestamp;
 	  st->indio_dev->ring->access.store_to(st->indio_dev->ring,
