@@ -42,6 +42,7 @@
 #include <mach/sdhci.h>
 #include <mach/gpio.h>
 #include <mach/clk.h>
+#include <mach/usb_phy.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -184,36 +185,20 @@ static struct platform_device hs_uarte = {
 };
 
 /* OTG gadget device */
-static u64 tegra_gadget_dmamask = DMA_BIT_MASK(32);
-
-static struct resource tegra_gadget_resources[] = {
-	[0] = {
-		.start	= TEGRA_USB_BASE,
-		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= INT_USB,
-		.end	= INT_USB,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct tegra_utmip_config udc_phy_config = {
+	.hssync_start_delay = 0,
+	.idle_wait_delay = 17,
+	.elastic_limit = 16,
+	.term_range_adj = 6,
+	.xcvr_setup = 15,
+	.xcvr_lsfslew = 1,
+	.xcvr_lsrslew = 1,
 };
 
-static struct fsl_usb2_platform_data tegra_gadget_pdata = {
+static struct fsl_usb2_platform_data tegra_udc_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
-};
-
-static struct platform_device tegra_gadget = {
-	.name = "fsl-tegra-udc",
-	.id   = -1,
-	.dev  = {
-		.dma_mask		= &tegra_gadget_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data = &tegra_gadget_pdata,
-	},
-	.resource = tegra_gadget_resources,
-	.num_resources = ARRAY_SIZE(tegra_gadget_resources),
+	.phy_config	= &udc_phy_config,
 };
 
 /* OTG transceiver */
@@ -235,81 +220,6 @@ static struct platform_device cpcap_otg = {
 	.id   = -1,
 	.resource = cpcap_otg_resources,
 	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
-};
-
-/* USB host devices */
-static u64 tegra_hcd_dmamask = DMA_BIT_MASK(32);
-
-static struct resource tegra_hcd_resources[][2] = {
-	[0] = {
-		[0] = {
-			.flags = IORESOURCE_MEM,
-			.start = TEGRA_USB_BASE,
-			.end = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
-		},
-		[1] = {
-			.flags = IORESOURCE_IRQ,
-			.start = INT_USB,
-			.end = INT_USB,
-		},
-	},
-	[1] = {
-		[0] = {
-			.flags = IORESOURCE_MEM,
-			.start = TEGRA_USB2_BASE,
-			.end = TEGRA_USB2_BASE + TEGRA_USB2_SIZE - 1,
-		},
-		[1] = {
-			.flags = IORESOURCE_IRQ,
-			.start = INT_USB2,
-			.end = INT_USB2,
-		},
-	},
-	[2] = {
-		[0] = {
-			.flags = IORESOURCE_MEM,
-			.start = TEGRA_USB3_BASE,
-			.end = TEGRA_USB3_BASE + TEGRA_USB3_SIZE - 1,
-		},
-		[1] = {
-			.flags = IORESOURCE_IRQ,
-			.start = INT_USB3,
-			.end = INT_USB3,
-		},
-	},
-};
-
-static struct platform_device tegra_hcd[] = {
-	[0] = {
-		.name = "tegra-ehci",
-		.id = 0,
-		.dev = {
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_hcd_dmamask,
-		},
-		.resource = tegra_hcd_resources[0],
-		.num_resources = ARRAY_SIZE(tegra_hcd_resources[0]),
-	},
-	[1] = {
-		.name = "tegra-ehci",
-		.id = 1,
-		.dev = {
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_hcd_dmamask,
-		},
-		.resource = tegra_hcd_resources[1],
-		.num_resources = ARRAY_SIZE(tegra_hcd_resources[1]),
-	},
-	[2] = {
-		.name = "tegra-ehci",
-		.id = 2,
-		.dev = {
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_hcd_dmamask,
-		},
-		.resource = tegra_hcd_resources[2],
-		.num_resources = ARRAY_SIZE(tegra_hcd_resources[2]),
-	},
 };
 
 static char *usb_functions[] = { "mtp" };
@@ -377,6 +287,27 @@ static struct android_usb_platform_data andusb_plat_factory = {
 
 static struct platform_device usbnet_device = {
 	.name = "usbnet",
+};
+
+static struct tegra_utmip_config host_phy_config[] = {
+	[0] = {
+		.hssync_start_delay = 0,
+		.idle_wait_delay = 17,
+		.elastic_limit = 16,
+		.term_range_adj = 6,
+		.xcvr_setup = 15,
+		.xcvr_lsfslew = 2,
+		.xcvr_lsrslew = 2,
+	},
+	[2] = {
+		.hssync_start_delay = 0,
+		.idle_wait_delay = 17,
+		.elastic_limit = 16,
+		.term_range_adj = 6,
+		.xcvr_setup = 8,
+		.xcvr_lsfslew = 2,
+		.xcvr_lsrslew = 2,
+	},
 };
 
 /* bq24617 charger */
@@ -496,9 +427,6 @@ static struct platform_device ram_console_device = {
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&cpcap_otg,
-	&tegra_gadget,
-	&tegra_hcd[0],
-	&tegra_hcd[2],
 	&bq24617_device,
 	&bcm4329_rfkill,
 	&hs_uarta,
@@ -627,9 +555,17 @@ static int __init mot_usb_serial_num_setup(char *options)
 }
 __setup("androidboot.serialno=", mot_usb_serial_num_setup);
 
-static void stingray_gadget_init(void)
+static void stingray_usb_init(void)
 {
 	struct android_usb_platform_data *platform_data;
+
+	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
+	tegra_ehci1_device.dev.platform_data = &host_phy_config[0];
+	tegra_ehci3_device.dev.platform_data = &host_phy_config[2];
+
+	platform_device_register(&tegra_udc_device);
+	platform_device_register(&tegra_ehci1_device);
+	platform_device_register(&tegra_ehci3_device);
 
 	if (powerup_reason & PU_REASON_FACTORY_CABLE)
 	{
@@ -804,8 +740,7 @@ static void __init tegra_stingray_init(void)
 	stingray_sensors_init();
 	stingray_wlan_init();
 	stingray_gps_init();
-	stingray_gadget_init();
-
+	stingray_usb_init();
 }
 
 MACHINE_START(STINGRAY, "stingray")
