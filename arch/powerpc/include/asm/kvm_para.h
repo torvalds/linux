@@ -23,6 +23,10 @@
 #include <linux/types.h>
 
 struct kvm_vcpu_arch_shared {
+	__u64 sprg0;
+	__u64 sprg1;
+	__u64 sprg2;
+	__u64 sprg3;
 	__u64 srr0;
 	__u64 srr1;
 	__u64 dar;

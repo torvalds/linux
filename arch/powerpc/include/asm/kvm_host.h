@@ -217,10 +217,6 @@ struct kvm_vcpu_arch {
 	ulong guest_owned_ext;
 #endif
 	u32 mmucr;
-	ulong sprg0;
-	ulong sprg1;
-	ulong sprg2;
-	ulong sprg3;
 	ulong sprg4;
 	ulong sprg5;
 	ulong sprg6;
