@@ -1958,57 +1958,6 @@
 #define                     TRUN6  0x40000000 /* Timer 6 Slave Enable Status */
 #define                     TRUN7  0x80000000 /* Timer 7 Slave Enable Status */
 
-/* Bit masks for CNT_CONFIG */
-
-#define                      CNTE  0x1        /* Counter Enable */
-#define                      DEBE  0x2        /* Debounce Enable */
-#define                    CDGINV  0x10       /* CDG Pin Polarity Invert */
-#define                    CUDINV  0x20       /* CUD Pin Polarity Invert */
-#define                    CZMINV  0x40       /* CZM Pin Polarity Invert */
-#define                   CNTMODE  0x700      /* Counter Operating Mode */
-#define                      ZMZC  0x800      /* CZM Zeroes Counter Enable */
-#define                   BNDMODE  0x3000     /* Boundary register Mode */
-#define                    INPDIS  0x8000     /* CUG and CDG Input Disable */
-
-/* Bit masks for CNT_IMASK */
-
-#define                      ICIE  0x1        /* Illegal Gray/Binary Code Interrupt Enable */
-#define                      UCIE  0x2        /* Up count Interrupt Enable */
-#define                      DCIE  0x4        /* Down count Interrupt Enable */
-#define                    MINCIE  0x8        /* Min Count Interrupt Enable */
-#define                    MAXCIE  0x10       /* Max Count Interrupt Enable */
-#define                   COV31IE  0x20       /* Bit 31 Overflow Interrupt Enable */
-#define                   COV15IE  0x40       /* Bit 15 Overflow Interrupt Enable */
-#define                   CZEROIE  0x80       /* Count to Zero Interrupt Enable */
-#define                     CZMIE  0x100      /* CZM Pin Interrupt Enable */
-#define                    CZMEIE  0x200      /* CZM Error Interrupt Enable */
-#define                    CZMZIE  0x400      /* CZM Zeroes Counter Interrupt Enable */
-
-/* Bit masks for CNT_STATUS */
-
-#define                      ICII  0x1        /* Illegal Gray/Binary Code Interrupt Identifier */
-#define                      UCII  0x2        /* Up count Interrupt Identifier */
-#define                      DCII  0x4        /* Down count Interrupt Identifier */
-#define                    MINCII  0x8        /* Min Count Interrupt Identifier */
-#define                    MAXCII  0x10       /* Max Count Interrupt Identifier */
-#define                   COV31II  0x20       /* Bit 31 Overflow Interrupt Identifier */
-#define                   COV15II  0x40       /* Bit 15 Overflow Interrupt Identifier */
-#define                   CZEROII  0x80       /* Count to Zero Interrupt Identifier */
-#define                     CZMII  0x100      /* CZM Pin Interrupt Identifier */
-#define                    CZMEII  0x200      /* CZM Error Interrupt Identifier */
-#define                    CZMZII  0x400      /* CZM Zeroes Counter Interrupt Identifier */
-
-/* Bit masks for CNT_COMMAND */
-
-#define                    W1LCNT  0xf        /* Load Counter Register */
-#define                    W1LMIN  0xf0       /* Load Min Register */
-#define                    W1LMAX  0xf00      /* Load Max Register */
-#define                  W1ZMONCE  0x1000     /* Enable CZM Clear Counter Once */
-
-/* Bit masks for CNT_DEBOUNCE */
-
-#define                 DPRESCALE  0xf        /* Load Counter Register */
-
 /* Bit masks for SECURE_SYSSWT */
 
 #define                   EMUDABL  0x1        /* Emulation Disable. */
@@ -2411,33 +2360,6 @@
 #define BCODE_FULLBOOT  0x0010  /* always perform full boot */
 #define BCODE_QUICKBOOT 0x0020  /* always perform quick boot */
 #define BCODE_NOBOOT    0x0030  /* always perform full boot */
-
-/* CNT_COMMAND bit field options */
-
-#define W1LCNT_ZERO   0x0001   /* write 1 to load CNT_COUNTER with zero */
-#define W1LCNT_MIN    0x0004   /* write 1 to load CNT_COUNTER from CNT_MIN */
-#define W1LCNT_MAX    0x0008   /* write 1 to load CNT_COUNTER from CNT_MAX */
-
-#define W1LMIN_ZERO   0x0010   /* write 1 to load CNT_MIN with zero */
-#define W1LMIN_CNT    0x0020   /* write 1 to load CNT_MIN from CNT_COUNTER */
-#define W1LMIN_MAX    0x0080   /* write 1 to load CNT_MIN from CNT_MAX */
-
-#define W1LMAX_ZERO   0x0100   /* write 1 to load CNT_MAX with zero */
-#define W1LMAX_CNT    0x0200   /* write 1 to load CNT_MAX from CNT_COUNTER */
-#define W1LMAX_MIN    0x0400   /* write 1 to load CNT_MAX from CNT_MIN */
-
-/* CNT_CONFIG bit field options */
-
-#define CNTMODE_QUADENC  0x0000  /* quadrature encoder mode */
-#define CNTMODE_BINENC   0x0100  /* binary encoder mode */
-#define CNTMODE_UDCNT    0x0200  /* up/down counter mode */
-#define CNTMODE_DIRCNT   0x0400  /* direction counter mode */
-#define CNTMODE_DIRTMR   0x0500  /* direction timer mode */
-
-#define BNDMODE_COMP     0x0000  /* boundary compare mode */
-#define BNDMODE_ZERO     0x1000  /* boundary compare and zero mode */
-#define BNDMODE_CAPT     0x2000  /* boundary capture mode */
-#define BNDMODE_AEXT     0x3000  /* boundary auto-extend mode */
 
 /* TMODE in TIMERx_CONFIG bit field options */
 
