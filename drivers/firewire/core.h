@@ -90,6 +90,8 @@ struct fw_card_driver {
 	int (*start_iso)(struct fw_iso_context *ctx,
 			 s32 cycle, u32 sync, u32 tags);
 
+	int (*set_iso_channels)(struct fw_iso_context *ctx, u64 *channels);
+
 	int (*queue_iso)(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
 			 struct fw_iso_buffer *buffer,

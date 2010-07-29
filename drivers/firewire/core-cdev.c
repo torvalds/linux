@@ -193,6 +193,11 @@ struct iso_interrupt_event {
 	struct fw_cdev_event_iso_interrupt interrupt;
 };
 
+struct iso_interrupt_mc_event {
+	struct event event;
+	struct fw_cdev_event_iso_interrupt_mc interrupt;
+};
+
 struct iso_resource_event {
 	struct event event;
 	struct fw_cdev_event_iso_resource iso_resource;
@@ -415,6 +420,7 @@ union ioctl_arg {
 	struct fw_cdev_get_cycle_timer2		get_cycle_timer2;
 	struct fw_cdev_send_phy_packet		send_phy_packet;
 	struct fw_cdev_receive_phy_packets	receive_phy_packets;
+	struct fw_cdev_set_iso_channels		set_iso_channels;
 };
 
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
@@ -932,26 +938,54 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 		    sizeof(e->interrupt) + header_length, NULL, 0);
 }
 
+static void iso_mc_callback(struct fw_iso_context *context,
+			    dma_addr_t completed, void *data)
+{
+	struct client *client = data;
+	struct iso_interrupt_mc_event *e;
+
+	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	if (e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
+		return;
+	}
+	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
+	e->interrupt.closure   = client->iso_closure;
+	e->interrupt.completed = fw_iso_buffer_lookup(&client->buffer,
+						      completed);
+	queue_event(client, &e->event, &e->interrupt,
+		    sizeof(e->interrupt), NULL, 0);
+}
+
 static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_create_iso_context *a = &arg->create_iso_context;
 	struct fw_iso_context *context;
+	fw_iso_callback_t cb;
 
 	BUILD_BUG_ON(FW_CDEV_ISO_CONTEXT_TRANSMIT != FW_ISO_CONTEXT_TRANSMIT ||
-		     FW_CDEV_ISO_CONTEXT_RECEIVE  != FW_ISO_CONTEXT_RECEIVE);
-
-	if (a->channel > 63)
-		return -EINVAL;
+		     FW_CDEV_ISO_CONTEXT_RECEIVE  != FW_ISO_CONTEXT_RECEIVE  ||
+		     FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL !=
+					FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL);
 
 	switch (a->type) {
-	case FW_ISO_CONTEXT_RECEIVE:
-		if (a->header_size < 4 || (a->header_size & 3))
+	case FW_ISO_CONTEXT_TRANSMIT:
+		if (a->speed > SCODE_3200 || a->channel > 63)
 			return -EINVAL;
+
+		cb = iso_callback;
 		break;
 
-	case FW_ISO_CONTEXT_TRANSMIT:
-		if (a->speed > SCODE_3200)
+	case FW_ISO_CONTEXT_RECEIVE:
+		if (a->header_size < 4 || (a->header_size & 3) ||
+		    a->channel > 63)
 			return -EINVAL;
+
+		cb = iso_callback;
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		cb = (fw_iso_callback_t)iso_mc_callback;
 		break;
 
 	default:
@@ -959,8 +993,7 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	}
 
 	context = fw_iso_context_create(client->device->card, a->type,
-					a->channel, a->speed, a->header_size,
-					iso_callback, client);
+			a->channel, a->speed, a->header_size, cb, client);
 	if (IS_ERR(context))
 		return PTR_ERR(context);
 
@@ -980,6 +1013,17 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	return 0;
 }
 
+static int ioctl_set_iso_channels(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_set_iso_channels *a = &arg->set_iso_channels;
+	struct fw_iso_context *ctx = client->iso_context;
+
+	if (ctx == NULL || a->handle != 0)
+		return -EINVAL;
+
+	return fw_iso_context_set_channels(ctx, &a->channels);
+}
+
 /* Macros for decoding the iso packet control header. */
 #define GET_PAYLOAD_LENGTH(v)	((v) & 0xffff)
 #define GET_INTERRUPT(v)	(((v) >> 16) & 0x01)
@@ -993,7 +1037,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 	struct fw_cdev_queue_iso *a = &arg->queue_iso;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
 	struct fw_iso_context *ctx = client->iso_context;
-	unsigned long payload, buffer_end, transmit_header_bytes;
+	unsigned long payload, buffer_end, transmit_header_bytes = 0;
 	u32 control;
 	int count;
 	struct {
@@ -1013,7 +1057,6 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 	 * use the indirect payload, the iso buffer need not be mapped
 	 * and the a->data pointer is ignored.
 	 */
-
 	payload = (unsigned long)a->data - client->vm_start;
 	buffer_end = client->buffer.page_count << PAGE_SHIFT;
 	if (a->data == 0 || client->buffer.pages == NULL ||
@@ -1022,8 +1065,10 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		buffer_end = 0;
 	}
 
-	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(a->packets);
+	if (ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL && payload & 3)
+		return -EINVAL;
 
+	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(a->packets);
 	if (!access_ok(VERIFY_READ, p, a->size))
 		return -EFAULT;
 
@@ -1039,19 +1084,24 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		u.packet.sy = GET_SY(control);
 		u.packet.header_length = GET_HEADER_LENGTH(control);
 
-		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
-			if (u.packet.header_length % 4 != 0)
+		switch (ctx->type) {
+		case FW_ISO_CONTEXT_TRANSMIT:
+			if (u.packet.header_length & 3)
 				return -EINVAL;
 			transmit_header_bytes = u.packet.header_length;
-		} else {
-			/*
-			 * We require that header_length is a multiple of
-			 * the fixed header size, ctx->header_size.
-			 */
+			break;
+
+		case FW_ISO_CONTEXT_RECEIVE:
 			if (u.packet.header_length == 0 ||
 			    u.packet.header_length % ctx->header_size != 0)
 				return -EINVAL;
-			transmit_header_bytes = 0;
+			break;
+
+		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+			if (u.packet.payload_length == 0 ||
+			    u.packet.payload_length & 3)
+				return -EINVAL;
+			break;
 		}
 
 		next = (struct fw_cdev_iso_packet __user *)
@@ -1534,6 +1584,7 @@ static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x14] = ioctl_get_cycle_timer2,
 	[0x15] = ioctl_send_phy_packet,
 	[0x16] = ioctl_receive_phy_packets,
+	[0x17] = ioctl_set_iso_channels,
 };
 
 static int dispatch_ioctl(struct client *client,

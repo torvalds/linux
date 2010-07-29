@@ -25,17 +25,18 @@
 #include <linux/types.h>
 #include <linux/firewire-constants.h>
 
-#define FW_CDEV_EVENT_BUS_RESET			0x00
-#define FW_CDEV_EVENT_RESPONSE			0x01
-#define FW_CDEV_EVENT_REQUEST			0x02
-#define FW_CDEV_EVENT_ISO_INTERRUPT		0x03
-#define FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED	0x04
-#define FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED	0x05
+#define FW_CDEV_EVENT_BUS_RESET				0x00
+#define FW_CDEV_EVENT_RESPONSE				0x01
+#define FW_CDEV_EVENT_REQUEST				0x02
+#define FW_CDEV_EVENT_ISO_INTERRUPT			0x03
+#define FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED		0x04
+#define FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED		0x05
 
 /* available since kernel version 2.6.36 */
-#define FW_CDEV_EVENT_REQUEST2			0x06
-#define FW_CDEV_EVENT_PHY_PACKET_SENT		0x07
-#define FW_CDEV_EVENT_PHY_PACKET_RECEIVED	0x08
+#define FW_CDEV_EVENT_REQUEST2				0x06
+#define FW_CDEV_EVENT_PHY_PACKET_SENT			0x07
+#define FW_CDEV_EVENT_PHY_PACKET_RECEIVED		0x08
+#define FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL	0x09
 
 /**
  * struct fw_cdev_event_common - Common part of all fw_cdev_event_ types
@@ -218,35 +219,41 @@ struct fw_cdev_event_request2 {
  * This event is sent when the controller has completed an &fw_cdev_iso_packet
  * with the %FW_CDEV_ISO_INTERRUPT bit set.
  *
- * Isochronous transmit events:
+ * Isochronous transmit events (context type %FW_CDEV_ISO_CONTEXT_TRANSMIT):
  *
- * In version 1 of the ABI, &header_length is 0.  In version 3 and some
- * implementations of version 2 of the ABI, &header_length is a multiple of 4
- * and &header contains timestamps of all packets up until the interrupt packet.
- * The format of the timestamps is as described below for isochronous reception.
+ * In version 3 and some implementations of version 2 of the ABI, &header_length
+ * is a multiple of 4 and &header contains timestamps of all packets up until
+ * the interrupt packet.  The format of the timestamps is as described below for
+ * isochronous reception.  In version 1 of the ABI, &header_length was 0.
  *
- * Isochronous receive events:
+ * Isochronous receive events (context type %FW_CDEV_ISO_CONTEXT_RECEIVE):
  *
  * The headers stripped of all packets up until and including the interrupt
  * packet are returned in the @header field.  The amount of header data per
  * packet is as specified at iso context creation by
  * &fw_cdev_create_iso_context.header_size.
  *
- * In version 1 of this ABI, header data consisted of the 1394 isochronous
- * packet header, followed by quadlets from the packet payload if
- * &fw_cdev_create_iso_context.header_size > 4.
+ * Hence, _interrupt.header_length / _context.header_size is the number of
+ * packets received in this interrupt event.  The client can now iterate
+ * through the mmap()'ed DMA buffer according to this number of packets and
+ * to the buffer sizes as the client specified in &fw_cdev_queue_iso.
  *
- * In version 2 of this ABI, header data consist of the 1394 isochronous
- * packet header, followed by a timestamp quadlet if
- * &fw_cdev_create_iso_context.header_size > 4, followed by quadlets from the
- * packet payload if &fw_cdev_create_iso_context.header_size > 8.
+ * Since version 2 of this ABI, the portion for each packet in _interrupt.header
+ * consists of the 1394 isochronous packet header, followed by a timestamp
+ * quadlet if &fw_cdev_create_iso_context.header_size > 4, followed by quadlets
+ * from the packet payload if &fw_cdev_create_iso_context.header_size > 8.
  *
+ * Format of 1394 iso packet header:  16 bits data_length, 2 bits tag, 6 bits
+ * channel, 4 bits tcode, 4 bits sy, in big endian byte order.
+ * data_length is the actual received size of the packet without the four
+ * 1394 iso packet header bytes.
+ *
+ * Format of timestamp:  16 bits invalid, 3 bits cycleSeconds, 13 bits
+ * cycleCount, in big endian byte order.
+ *
+ * In version 1 of the ABI, no timestamp quadlet was inserted; instead, payload
+ * data followed directly after the 1394 is header if header_size > 4.
  * Behaviour of ver. 1 of this ABI is no longer available since ABI ver. 2.
- *
- * Format of 1394 iso packet header: 16 bits len, 2 bits tag, 6 bits channel,
- * 4 bits tcode, 4 bits sy, in big endian byte order.  Format of timestamp:
- * 16 bits invalid, 3 bits cycleSeconds, 13 bits cycleCount, in big endian byte
- * order.
  */
 struct fw_cdev_event_iso_interrupt {
 	__u64 closure;
@@ -254,6 +261,43 @@ struct fw_cdev_event_iso_interrupt {
 	__u32 cycle;
 	__u32 header_length;
 	__u32 header[0];
+};
+
+/**
+ * struct fw_cdev_event_iso_interrupt_mc - An iso buffer chunk was completed
+ * @closure:	See &fw_cdev_event_common;
+ *		set by %FW_CDEV_CREATE_ISO_CONTEXT ioctl
+ * @type:	%FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL
+ * @completed:	Offset into the receive buffer; data before this offest is valid
+ *
+ * This event is sent in multichannel contexts (context type
+ * %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL) for &fw_cdev_iso_packet buffer
+ * chunks that have the %FW_CDEV_ISO_INTERRUPT bit set.  Whether this happens
+ * when a packet is completed and/or when a buffer chunk is completed depends
+ * on the hardware implementation.
+ *
+ * The buffer is continuously filled with the following data, per packet:
+ *  - the 1394 iso packet header as described at &fw_cdev_event_iso_interrupt,
+ *    but in little endian byte order,
+ *  - packet payload (as many bytes as specified in the data_length field of
+ *    the 1394 iso packet header) in big endian byte order,
+ *  - 0...3 padding bytes as needed to align the following trailer quadlet,
+ *  - trailer quadlet, containing the reception timestamp as described at
+ *    &fw_cdev_event_iso_interrupt, but in little endian byte order.
+ *
+ * Hence the per-packet size is data_length (rounded up to a multiple of 4) + 8.
+ * When processing the data, stop before a packet that would cross the
+ * @completed offset.
+ *
+ * A packet near the end of a buffer chunk will typically spill over into the
+ * next queued buffer chunk.  It is the responsibility of the client to check
+ * for this condition, assemble a broken-up packet from its parts, and not to
+ * re-queue any buffer chunks in which as yet unread packet parts reside.
+ */
+struct fw_cdev_event_iso_interrupt_mc {
+	__u64 closure;
+	__u32 type;
+	__u32 completed;
 };
 
 /**
@@ -311,16 +355,18 @@ struct fw_cdev_event_phy_packet {
 
 /**
  * union fw_cdev_event - Convenience union of fw_cdev_event_ types
- * @common:        Valid for all types
- * @bus_reset:     Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
- * @response:      Valid if @common.type == %FW_CDEV_EVENT_RESPONSE
- * @request:       Valid if @common.type == %FW_CDEV_EVENT_REQUEST
- * @request2:      Valid if @common.type == %FW_CDEV_EVENT_REQUEST2
- * @iso_interrupt: Valid if @common.type == %FW_CDEV_EVENT_ISO_INTERRUPT
- * @iso_resource:  Valid if @common.type ==
+ * @common:		Valid for all types
+ * @bus_reset:		Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
+ * @response:		Valid if @common.type == %FW_CDEV_EVENT_RESPONSE
+ * @request:		Valid if @common.type == %FW_CDEV_EVENT_REQUEST
+ * @request2:		Valid if @common.type == %FW_CDEV_EVENT_REQUEST2
+ * @iso_interrupt:	Valid if @common.type == %FW_CDEV_EVENT_ISO_INTERRUPT
+ * @iso_interrupt_mc:	Valid if @common.type ==
+ *				%FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL
+ * @iso_resource:	Valid if @common.type ==
  *				%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
  *				%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
- * @phy_packet:    Valid if @common.type ==
+ * @phy_packet:		Valid if @common.type ==
  *				%FW_CDEV_EVENT_PHY_PACKET_SENT or
  *				%FW_CDEV_EVENT_PHY_PACKET_RECEIVED
  *
@@ -337,10 +383,11 @@ union fw_cdev_event {
 	struct fw_cdev_event_bus_reset		bus_reset;
 	struct fw_cdev_event_response		response;
 	struct fw_cdev_event_request		request;
-	struct fw_cdev_event_request2		request2;     /* added in 2.6.36 */
+	struct fw_cdev_event_request2		request2;		/* added in 2.6.36 */
 	struct fw_cdev_event_iso_interrupt	iso_interrupt;
-	struct fw_cdev_event_iso_resource	iso_resource; /* added in 2.6.30 */
-	struct fw_cdev_event_phy_packet		phy_packet;   /* added in 2.6.36 */
+	struct fw_cdev_event_iso_interrupt_mc	iso_interrupt_mc;	/* added in 2.6.36 */
+	struct fw_cdev_event_iso_resource	iso_resource;		/* added in 2.6.30 */
+	struct fw_cdev_event_phy_packet		phy_packet;		/* added in 2.6.36 */
 };
 
 /* available since kernel version 2.6.22 */
@@ -375,6 +422,7 @@ union fw_cdev_event {
 /* available since kernel version 2.6.36 */
 #define FW_CDEV_IOC_SEND_PHY_PACKET    _IOWR('#', 0x15, struct fw_cdev_send_phy_packet)
 #define FW_CDEV_IOC_RECEIVE_PHY_PACKETS _IOW('#', 0x16, struct fw_cdev_receive_phy_packets)
+#define FW_CDEV_IOC_SET_ISO_CHANNELS    _IOW('#', 0x17, struct fw_cdev_set_iso_channels)
 
 /*
  * ABI version history
@@ -391,10 +439,13 @@ union fw_cdev_event {
  *               - shared use and auto-response for FCP registers
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
- *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2, %FW_CDEV_EVENT_PHY_PACKET_*
+ *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2, %FW_CDEV_EVENT_PHY_PACKET_*,
+ *                 and &fw_cdev_allocate.region_end
  *               - implemented &fw_cdev_event_bus_reset.bm_node_id
  *               - added %FW_CDEV_IOC_SEND_PHY_PACKET, _RECEIVE_PHY_PACKETS
- *               - added &fw_cdev_allocate.region_end
+ *               - added %FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL,
+ *                 %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL, and
+ *                 %FW_CDEV_IOC_SET_ISO_CHANNELS
  */
 #define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 
@@ -597,34 +648,43 @@ struct fw_cdev_remove_descriptor {
 	__u32 handle;
 };
 
-#define FW_CDEV_ISO_CONTEXT_TRANSMIT	0
-#define FW_CDEV_ISO_CONTEXT_RECEIVE	1
+#define FW_CDEV_ISO_CONTEXT_TRANSMIT			0
+#define FW_CDEV_ISO_CONTEXT_RECEIVE			1
+#define FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL	2 /* added in 2.6.36 */
 
 /**
- * struct fw_cdev_create_iso_context - Create a context for isochronous IO
- * @type:	%FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE
- * @header_size: Header size to strip for receive contexts
- * @channel:	Channel to bind to
- * @speed:	Speed for transmit contexts
- * @closure:	To be returned in &fw_cdev_event_iso_interrupt
+ * struct fw_cdev_create_iso_context - Create a context for isochronous I/O
+ * @type:	%FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE or
+ *		%FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL
+ * @header_size: Header size to strip in single-channel reception
+ * @channel:	Channel to bind to in single-channel reception or transmission
+ * @speed:	Transmission speed
+ * @closure:	To be returned in &fw_cdev_event_iso_interrupt or
+ *		&fw_cdev_event_iso_interrupt_multichannel
  * @handle:	Handle to context, written back by kernel
  *
  * Prior to sending or receiving isochronous I/O, a context must be created.
  * The context records information about the transmit or receive configuration
  * and typically maps to an underlying hardware resource.  A context is set up
  * for either sending or receiving.  It is bound to a specific isochronous
- * channel.
+ * @channel.
+ *
+ * In case of multichannel reception, @header_size and @channel are ignored
+ * and the channels are selected by %FW_CDEV_IOC_SET_ISO_CHANNELS.
+ *
+ * For %FW_CDEV_ISO_CONTEXT_RECEIVE contexts, @header_size must be at least 4
+ * and must be a multiple of 4.  It is ignored in other context types.
+ *
+ * @speed is ignored in receive context types.
  *
  * If a context was successfully created, the kernel writes back a handle to the
  * context, which must be passed in for subsequent operations on that context.
  *
- * For receive contexts, @header_size must be at least 4 and must be a multiple
- * of 4.
- *
- * Note that the effect of a @header_size > 4 depends on
- * &fw_cdev_get_info.version, as documented at &fw_cdev_event_iso_interrupt.
- *
+ * Limitations:
  * No more than one iso context can be created per fd.
+ * The total number of contexts that all userspace and kernelspace drivers can
+ * create on a card at a time is a hardware limit, typically 4 or 8 contexts per
+ * direction, and of them at most one multichannel receive context.
  */
 struct fw_cdev_create_iso_context {
 	__u32 type;
@@ -632,6 +692,22 @@ struct fw_cdev_create_iso_context {
 	__u32 channel;
 	__u32 speed;
 	__u64 closure;
+	__u32 handle;
+};
+
+/**
+ * struct fw_cdev_set_iso_channels - Select channels in multichannel reception
+ * @channels:	Bitmask of channels to listen to
+ * @handle:	Handle of the mutichannel receive context
+ *
+ * @channels is the bitwise or of 1ULL << n for each channel n to listen to.
+ *
+ * The ioctl fails with errno %EBUSY if there is already another receive context
+ * on a channel in @channels.  In that case, the bitmask of all unoccupied
+ * channels is returned in @channels.
+ */
+struct fw_cdev_set_iso_channels {
+	__u64 channels;
 	__u32 handle;
 };
 
@@ -645,42 +721,72 @@ struct fw_cdev_create_iso_context {
 
 /**
  * struct fw_cdev_iso_packet - Isochronous packet
- * @control:	Contains the header length (8 uppermost bits), the sy field
- *		(4 bits), the tag field (2 bits), a sync flag (1 bit),
- *		a skip flag (1 bit), an interrupt flag (1 bit), and the
+ * @control:	Contains the header length (8 uppermost bits),
+ *		the sy field (4 bits), the tag field (2 bits), a sync flag
+ *		or a skip flag (1 bit), an interrupt flag (1 bit), and the
  *		payload length (16 lowermost bits)
- * @header:	Header and payload
+ * @header:	Header and payload in case of a transmit context.
  *
  * &struct fw_cdev_iso_packet is used to describe isochronous packet queues.
- *
  * Use the FW_CDEV_ISO_ macros to fill in @control.
+ * The @header array is empty in case of receive contexts.
  *
- * For transmit packets, the header length must be a multiple of 4 and specifies
- * the numbers of bytes in @header that will be prepended to the packet's
- * payload; these bytes are copied into the kernel and will not be accessed
- * after the ioctl has returned.  The sy and tag fields are copied to the iso
- * packet header (these fields are specified by IEEE 1394a and IEC 61883-1).
- * The skip flag specifies that no packet is to be sent in a frame; when using
- * this, all other fields except the interrupt flag must be zero.
+ * Context type %FW_CDEV_ISO_CONTEXT_TRANSMIT:
  *
- * For receive packets, the header length must be a multiple of the context's
- * header size; if the header length is larger than the context's header size,
- * multiple packets are queued for this entry.  The sy and tag fields are
- * ignored.  If the sync flag is set, the context drops all packets until
- * a packet with a matching sy field is received (the sync value to wait for is
- * specified in the &fw_cdev_start_iso structure).  The payload length defines
- * how many payload bytes can be received for one packet (in addition to payload
- * quadlets that have been defined as headers and are stripped and returned in
- * the &fw_cdev_event_iso_interrupt structure).  If more bytes are received, the
- * additional bytes are dropped.  If less bytes are received, the remaining
- * bytes in this part of the payload buffer will not be written to, not even by
- * the next packet, i.e., packets received in consecutive frames will not
- * necessarily be consecutive in memory.  If an entry has queued multiple
- * packets, the payload length is divided equally among them.
+ * @control.HEADER_LENGTH must be a multiple of 4.  It specifies the numbers of
+ * bytes in @header that will be prepended to the packet's payload.  These bytes
+ * are copied into the kernel and will not be accessed after the ioctl has
+ * returned.
  *
- * When a packet with the interrupt flag set has been completed, the
+ * The @control.SY and TAG fields are copied to the iso packet header.  These
+ * fields are specified by IEEE 1394a and IEC 61883-1.
+ *
+ * The @control.SKIP flag specifies that no packet is to be sent in a frame.
+ * When using this, all other fields except @control.INTERRUPT must be zero.
+ *
+ * When a packet with the @control.INTERRUPT flag set has been completed, an
+ * &fw_cdev_event_iso_interrupt event will be sent.
+ *
+ * Context type %FW_CDEV_ISO_CONTEXT_RECEIVE:
+ *
+ * @control.HEADER_LENGTH must be a multiple of the context's header_size.
+ * If the HEADER_LENGTH is larger than the context's header_size, multiple
+ * packets are queued for this entry.
+ *
+ * The @control.SY and TAG fields are ignored.
+ *
+ * If the @control.SYNC flag is set, the context drops all packets until a
+ * packet with a sy field is received which matches &fw_cdev_start_iso.sync.
+ *
+ * @control.PAYLOAD_LENGTH defines how many payload bytes can be received for
+ * one packet (in addition to payload quadlets that have been defined as headers
+ * and are stripped and returned in the &fw_cdev_event_iso_interrupt structure).
+ * If more bytes are received, the additional bytes are dropped.  If less bytes
+ * are received, the remaining bytes in this part of the payload buffer will not
+ * be written to, not even by the next packet.  I.e., packets received in
+ * consecutive frames will not necessarily be consecutive in memory.  If an
+ * entry has queued multiple packets, the PAYLOAD_LENGTH is divided equally
+ * among them.
+ *
+ * When a packet with the @control.INTERRUPT flag set has been completed, an
  * &fw_cdev_event_iso_interrupt event will be sent.  An entry that has queued
  * multiple receive packets is completed when its last packet is completed.
+ *
+ * Context type %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+ *
+ * Here, &fw_cdev_iso_packet would be more aptly named _iso_buffer_chunk since
+ * it specifies a chunk of the mmap()'ed buffer, while the number and alignment
+ * of packets to be placed into the buffer chunk is not known beforehand.
+ *
+ * @control.PAYLOAD_LENGTH is the size of the buffer chunk and specifies room
+ * for header, payload, padding, and trailer bytes of one or more packets.
+ * It must be a multiple of 4.
+ *
+ * @control.HEADER_LENGTH, TAG and SY are ignored.  SYNC is treated as described
+ * for single-channel reception.
+ *
+ * When a buffer chunk with the @control.INTERRUPT flag set has been filled
+ * entirely, an &fw_cdev_event_iso_interrupt_mc event will be sent.
  */
 struct fw_cdev_iso_packet {
 	__u32 control;
@@ -689,9 +795,9 @@ struct fw_cdev_iso_packet {
 
 /**
  * struct fw_cdev_queue_iso - Queue isochronous packets for I/O
- * @packets:	Userspace pointer to packet data
+ * @packets:	Userspace pointer to an array of &fw_cdev_iso_packet
  * @data:	Pointer into mmap()'ed payload buffer
- * @size:	Size of packet data in bytes
+ * @size:	Size of the @packets array, in bytes
  * @handle:	Isochronous context handle
  *
  * Queue a number of isochronous packets for reception or transmission.
@@ -704,6 +810,9 @@ struct fw_cdev_iso_packet {
  * The kernel may or may not queue all packets, but will write back updated
  * values of the @packets, @data and @size fields, so the ioctl can be
  * resubmitted easily.
+ *
+ * In case of a multichannel receive context, @data must be quadlet-aligned
+ * relative to the buffer start.
  */
 struct fw_cdev_queue_iso {
 	__u64 packets;

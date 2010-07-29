@@ -190,11 +190,13 @@ struct fw_ohci {
 	struct context at_request_ctx;
 	struct context at_response_ctx;
 
-	u32 it_context_mask;
+	u32 it_context_mask;     /* unoccupied IT contexts */
 	struct iso_context *it_context_list;
-	u64 ir_context_channels;
-	u32 ir_context_mask;
+	u64 ir_context_channels; /* unoccupied channels */
+	u32 ir_context_mask;     /* unoccupied IR contexts */
 	struct iso_context *ir_context_list;
+	u64 mc_channels; /* channels in use by the multichannel IR context */
+	bool mc_allocated;
 
 	__be32    *config_rom;
 	dma_addr_t config_rom_bus;
@@ -2197,10 +2199,9 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	__le32 *ir_header;
 	void *p;
 
-	for (pd = d; pd <= last; pd++) {
+	for (pd = d; pd <= last; pd++)
 		if (pd->transfer_status)
 			break;
-	}
 	if (pd > last)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
@@ -2210,12 +2211,34 @@ static int handle_ir_packet_per_buffer(struct context *context,
 
 	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) p;
-		ctx->base.callback(&ctx->base,
-				   le32_to_cpu(ir_header[0]) & 0xffff,
-				   ctx->header_length, ctx->header,
-				   ctx->base.callback_data);
+		ctx->base.callback.sc(&ctx->base,
+				      le32_to_cpu(ir_header[0]) & 0xffff,
+				      ctx->header_length, ctx->header,
+				      ctx->base.callback_data);
 		ctx->header_length = 0;
 	}
+
+	return 1;
+}
+
+/* d == last because each descriptor block is only a single descriptor. */
+static int handle_ir_buffer_fill(struct context *context,
+				 struct descriptor *d,
+				 struct descriptor *last)
+{
+	struct iso_context *ctx =
+		container_of(context, struct iso_context, context);
+
+	if (!last->transfer_status)
+		/* Descriptor(s) not done yet, stop iteration */
+		return 0;
+
+	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS)
+		ctx->base.callback.mc(&ctx->base,
+				      le32_to_cpu(last->data_address) +
+				      le16_to_cpu(last->req_count) -
+				      le16_to_cpu(last->res_count),
+				      ctx->base.callback_data);
 
 	return 1;
 }
@@ -2245,63 +2268,99 @@ static int handle_it_packet(struct context *context,
 		ctx->header_length += 4;
 	}
 	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
-		ctx->base.callback(&ctx->base, le16_to_cpu(last->res_count),
-				   ctx->header_length, ctx->header,
-				   ctx->base.callback_data);
+		ctx->base.callback.sc(&ctx->base, le16_to_cpu(last->res_count),
+				      ctx->header_length, ctx->header,
+				      ctx->base.callback_data);
 		ctx->header_length = 0;
 	}
 	return 1;
+}
+
+static void set_multichannel_mask(struct fw_ohci *ohci, u64 channels)
+{
+	u32 hi = channels >> 32, lo = channels;
+
+	reg_write(ohci, OHCI1394_IRMultiChanMaskHiClear, ~hi);
+	reg_write(ohci, OHCI1394_IRMultiChanMaskLoClear, ~lo);
+	reg_write(ohci, OHCI1394_IRMultiChanMaskHiSet, hi);
+	reg_write(ohci, OHCI1394_IRMultiChanMaskLoSet, lo);
+	mmiowb();
+	ohci->mc_channels = channels;
 }
 
 static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 				int type, int channel, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	struct iso_context *ctx, *list;
-	descriptor_callback_t callback;
-	u64 *channels, dont_care = ~0ULL;
-	u32 *mask, regs;
+	struct iso_context *uninitialized_var(ctx);
+	descriptor_callback_t uninitialized_var(callback);
+	u64 *uninitialized_var(channels);
+	u32 *uninitialized_var(mask), uninitialized_var(regs);
 	unsigned long flags;
-	int index, ret = -ENOMEM;
-
-	if (type == FW_ISO_CONTEXT_TRANSMIT) {
-		channels = &dont_care;
-		mask = &ohci->it_context_mask;
-		list = ohci->it_context_list;
-		callback = handle_it_packet;
-	} else {
-		channels = &ohci->ir_context_channels;
-		mask = &ohci->ir_context_mask;
-		list = ohci->ir_context_list;
-		callback = handle_ir_packet_per_buffer;
-	}
+	int index, ret = -EBUSY;
 
 	spin_lock_irqsave(&ohci->lock, flags);
-	index = *channels & 1ULL << channel ? ffs(*mask) - 1 : -1;
-	if (index >= 0) {
-		*channels &= ~(1ULL << channel);
-		*mask &= ~(1 << index);
+
+	switch (type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
+		mask     = &ohci->it_context_mask;
+		callback = handle_it_packet;
+		index    = ffs(*mask) - 1;
+		if (index >= 0) {
+			*mask &= ~(1 << index);
+			regs = OHCI1394_IsoXmitContextBase(index);
+			ctx  = &ohci->it_context_list[index];
+		}
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE:
+		channels = &ohci->ir_context_channels;
+		mask     = &ohci->ir_context_mask;
+		callback = handle_ir_packet_per_buffer;
+		index    = *channels & 1ULL << channel ? ffs(*mask) - 1 : -1;
+		if (index >= 0) {
+			*channels &= ~(1ULL << channel);
+			*mask     &= ~(1 << index);
+			regs = OHCI1394_IsoRcvContextBase(index);
+			ctx  = &ohci->ir_context_list[index];
+		}
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		mask     = &ohci->ir_context_mask;
+		callback = handle_ir_buffer_fill;
+		index    = !ohci->mc_allocated ? ffs(*mask) - 1 : -1;
+		if (index >= 0) {
+			ohci->mc_allocated = true;
+			*mask &= ~(1 << index);
+			regs = OHCI1394_IsoRcvContextBase(index);
+			ctx  = &ohci->ir_context_list[index];
+		}
+		break;
+
+	default:
+		index = -1;
+		ret = -ENOSYS;
 	}
+
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	if (index < 0)
-		return ERR_PTR(-EBUSY);
+		return ERR_PTR(ret);
 
-	if (type == FW_ISO_CONTEXT_TRANSMIT)
-		regs = OHCI1394_IsoXmitContextBase(index);
-	else
-		regs = OHCI1394_IsoRcvContextBase(index);
-
-	ctx = &list[index];
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->header_length = 0;
 	ctx->header = (void *) __get_free_page(GFP_KERNEL);
-	if (ctx->header == NULL)
+	if (ctx->header == NULL) {
+		ret = -ENOMEM;
 		goto out;
-
+	}
 	ret = context_init(&ctx->context, ohci, regs, callback);
 	if (ret < 0)
 		goto out_with_header;
+
+	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+		set_multichannel_mask(ohci, 0);
 
 	return &ctx->base;
 
@@ -2309,8 +2368,18 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	free_page((unsigned long)ctx->header);
  out:
 	spin_lock_irqsave(&ohci->lock, flags);
-	*channels |= 1ULL << channel;
+
+	switch (type) {
+	case FW_ISO_CONTEXT_RECEIVE:
+		*channels |= 1ULL << channel;
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		ohci->mc_allocated = false;
+		break;
+	}
 	*mask |= 1 << index;
+
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	return ERR_PTR(ret);
@@ -2321,10 +2390,11 @@ static int ohci_start_iso(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
-	u32 control, match;
+	u32 control = IR_CONTEXT_ISOCH_HEADER, match;
 	int index;
 
-	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
+	switch (ctx->base.type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
 		index = ctx - ohci->it_context_list;
 		match = 0;
 		if (cycle >= 0)
@@ -2334,9 +2404,13 @@ static int ohci_start_iso(struct fw_iso_context *base,
 		reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, 1 << index);
 		context_run(&ctx->context, match);
-	} else {
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		control |= IR_CONTEXT_BUFFER_FILL|IR_CONTEXT_MULTI_CHANNEL_MODE;
+		/* fall through */
+	case FW_ISO_CONTEXT_RECEIVE:
 		index = ctx - ohci->ir_context_list;
-		control = IR_CONTEXT_ISOCH_HEADER;
 		match = (tags << 28) | (sync << 8) | ctx->base.channel;
 		if (cycle >= 0) {
 			match |= (cycle & 0x07fff) << 12;
@@ -2347,6 +2421,7 @@ static int ohci_start_iso(struct fw_iso_context *base,
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, CONTEXT_MATCH(ctx->context.regs), match);
 		context_run(&ctx->context, control);
+		break;
 	}
 
 	return 0;
@@ -2358,12 +2433,17 @@ static int ohci_stop_iso(struct fw_iso_context *base)
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	int index;
 
-	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
+	switch (ctx->base.type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
 		index = ctx - ohci->it_context_list;
 		reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 1 << index);
-	} else {
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE:
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
 		index = ctx - ohci->ir_context_list;
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 1 << index);
+		break;
 	}
 	flush_writes(ohci);
 	context_stop(&ctx->context);
@@ -2384,24 +2464,65 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 
 	spin_lock_irqsave(&ohci->lock, flags);
 
-	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
+	switch (base->type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
 		index = ctx - ohci->it_context_list;
 		ohci->it_context_mask |= 1 << index;
-	} else {
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE:
 		index = ctx - ohci->ir_context_list;
 		ohci->ir_context_mask |= 1 << index;
 		ohci->ir_context_channels |= 1ULL << base->channel;
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		index = ctx - ohci->ir_context_list;
+		ohci->ir_context_mask |= 1 << index;
+		ohci->ir_context_channels |= ohci->mc_channels;
+		ohci->mc_channels = 0;
+		ohci->mc_allocated = false;
+		break;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }
 
-static int ohci_queue_iso_transmit(struct fw_iso_context *base,
-				   struct fw_iso_packet *packet,
-				   struct fw_iso_buffer *buffer,
-				   unsigned long payload)
+static int ohci_set_iso_channels(struct fw_iso_context *base, u64 *channels)
 {
-	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct fw_ohci *ohci = fw_ohci(base->card);
+	unsigned long flags;
+	int ret;
+
+	switch (base->type) {
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+
+		spin_lock_irqsave(&ohci->lock, flags);
+
+		/* Don't allow multichannel to grab other contexts' channels. */
+		if (~ohci->ir_context_channels & ~ohci->mc_channels & *channels) {
+			*channels = ohci->ir_context_channels;
+			ret = -EBUSY;
+		} else {
+			set_multichannel_mask(ohci, *channels);
+			ret = 0;
+		}
+
+		spin_unlock_irqrestore(&ohci->lock, flags);
+
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int queue_iso_transmit(struct iso_context *ctx,
+			      struct fw_iso_packet *packet,
+			      struct fw_iso_buffer *buffer,
+			      unsigned long payload)
+{
 	struct descriptor *d, *last, *pd;
 	struct fw_iso_packet *p;
 	__le32 *header;
@@ -2497,14 +2618,12 @@ static int ohci_queue_iso_transmit(struct fw_iso_context *base,
 	return 0;
 }
 
-static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
-					struct fw_iso_packet *packet,
-					struct fw_iso_buffer *buffer,
-					unsigned long payload)
+static int queue_iso_packet_per_buffer(struct iso_context *ctx,
+				       struct fw_iso_packet *packet,
+				       struct fw_iso_buffer *buffer,
+				       unsigned long payload)
 {
-	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d, *pd;
-	struct fw_iso_packet *p = packet;
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, rest;
 	int i, j, length;
@@ -2514,14 +2633,14 @@ static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 	 * The OHCI controller puts the isochronous header and trailer in the
 	 * buffer, so we need at least 8 bytes.
 	 */
-	packet_count = p->header_length / ctx->base.header_size;
+	packet_count = packet->header_length / ctx->base.header_size;
 	header_size  = max(ctx->base.header_size, (size_t)8);
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
 	page     = payload >> PAGE_SHIFT;
 	offset   = payload & ~PAGE_MASK;
-	payload_per_buffer = p->payload_length / packet_count;
+	payload_per_buffer = packet->payload_length / packet_count;
 
 	for (i = 0; i < packet_count; i++) {
 		/* d points to the header descriptor */
@@ -2533,7 +2652,7 @@ static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 
 		d->control      = cpu_to_le16(DESCRIPTOR_STATUS |
 					      DESCRIPTOR_INPUT_MORE);
-		if (p->skip && i == 0)
+		if (packet->skip && i == 0)
 			d->control |= cpu_to_le16(DESCRIPTOR_WAIT);
 		d->req_count    = cpu_to_le16(header_size);
 		d->res_count    = d->req_count;
@@ -2566,10 +2685,62 @@ static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 		pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_INPUT_LAST |
 					  DESCRIPTOR_BRANCH_ALWAYS);
-		if (p->interrupt && i == packet_count - 1)
+		if (packet->interrupt && i == packet_count - 1)
 			pd->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
 
 		context_append(&ctx->context, d, z, header_z);
+	}
+
+	return 0;
+}
+
+static int queue_iso_buffer_fill(struct iso_context *ctx,
+				 struct fw_iso_packet *packet,
+				 struct fw_iso_buffer *buffer,
+				 unsigned long payload)
+{
+	struct descriptor *d;
+	dma_addr_t d_bus, page_bus;
+	int page, offset, rest, z, i, length;
+
+	page   = payload >> PAGE_SHIFT;
+	offset = payload & ~PAGE_MASK;
+	rest   = packet->payload_length;
+
+	/* We need one descriptor for each page in the buffer. */
+	z = DIV_ROUND_UP(offset + rest, PAGE_SIZE);
+
+	if (WARN_ON(offset & 3 || rest & 3 || page + z > buffer->page_count))
+		return -EFAULT;
+
+	for (i = 0; i < z; i++) {
+		d = context_get_descriptors(&ctx->context, 1, &d_bus);
+		if (d == NULL)
+			return -ENOMEM;
+
+		d->control = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
+					 DESCRIPTOR_BRANCH_ALWAYS);
+		if (packet->skip && i == 0)
+			d->control |= cpu_to_le16(DESCRIPTOR_WAIT);
+		if (packet->interrupt && i == z - 1)
+			d->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
+
+		if (offset + rest < PAGE_SIZE)
+			length = rest;
+		else
+			length = PAGE_SIZE - offset;
+		d->req_count = cpu_to_le16(length);
+		d->res_count = d->req_count;
+		d->transfer_status = 0;
+
+		page_bus = page_private(buffer->pages[page]);
+		d->data_address = cpu_to_le32(page_bus + offset);
+
+		rest -= length;
+		offset = 0;
+		page++;
+
+		context_append(&ctx->context, d, 1, 0);
 	}
 
 	return 0;
@@ -2582,14 +2753,20 @@ static int ohci_queue_iso(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	unsigned long flags;
-	int ret;
+	int ret = -ENOSYS;
 
 	spin_lock_irqsave(&ctx->context.ohci->lock, flags);
-	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
-		ret = ohci_queue_iso_transmit(base, packet, buffer, payload);
-	else
-		ret = ohci_queue_iso_receive_packet_per_buffer(base, packet,
-							buffer, payload);
+	switch (base->type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
+		ret = queue_iso_transmit(ctx, packet, buffer, payload);
+		break;
+	case FW_ISO_CONTEXT_RECEIVE:
+		ret = queue_iso_packet_per_buffer(ctx, packet, buffer, payload);
+		break;
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		ret = queue_iso_buffer_fill(ctx, packet, buffer, payload);
+		break;
+	}
 	spin_unlock_irqrestore(&ctx->context.ohci->lock, flags);
 
 	return ret;
@@ -2609,6 +2786,7 @@ static const struct fw_card_driver ohci_driver = {
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
+	.set_iso_channels	= ohci_set_iso_channels,
 	.queue_iso		= ohci_queue_iso,
 	.start_iso		= ohci_start_iso,
 	.stop_iso		= ohci_stop_iso,

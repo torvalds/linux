@@ -372,17 +372,19 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc);
  * scatter-gather streaming (e.g. assembling video frame automatically).
  */
 struct fw_iso_packet {
-	u16 payload_length;	/* Length of indirect payload. */
-	u32 interrupt:1;	/* Generate interrupt on this packet */
-	u32 skip:1;		/* Set to not send packet at all. */
-	u32 tag:2;
-	u32 sy:4;
-	u32 header_length:8;	/* Length of immediate header. */
-	u32 header[0];
+	u16 payload_length;	/* Length of indirect payload		*/
+	u32 interrupt:1;	/* Generate interrupt on this packet	*/
+	u32 skip:1;		/* tx: Set to not send packet at all	*/
+				/* rx: Sync bit, wait for matching sy	*/
+	u32 tag:2;		/* tx: Tag in packet header		*/
+	u32 sy:4;		/* tx: Sy in packet header		*/
+	u32 header_length:8;	/* Length of immediate header		*/
+	u32 header[0];		/* tx: Top of 1394 isoch. data_block	*/
 };
 
-#define FW_ISO_CONTEXT_TRANSMIT	0
-#define FW_ISO_CONTEXT_RECEIVE	1
+#define FW_ISO_CONTEXT_TRANSMIT			0
+#define FW_ISO_CONTEXT_RECEIVE			1
+#define FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL	2
 
 #define FW_ISO_CONTEXT_MATCH_TAG0	 1
 #define FW_ISO_CONTEXT_MATCH_TAG1	 2
@@ -406,24 +408,31 @@ struct fw_iso_buffer {
 int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 		       int page_count, enum dma_data_direction direction);
 void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
+size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed);
 
 struct fw_iso_context;
 typedef void (*fw_iso_callback_t)(struct fw_iso_context *context,
 				  u32 cycle, size_t header_length,
 				  void *header, void *data);
+typedef void (*fw_iso_mc_callback_t)(struct fw_iso_context *context,
+				     dma_addr_t completed, void *data);
 struct fw_iso_context {
 	struct fw_card *card;
 	int type;
 	int channel;
 	int speed;
 	size_t header_size;
-	fw_iso_callback_t callback;
+	union {
+		fw_iso_callback_t sc;
+		fw_iso_mc_callback_t mc;
+	} callback;
 	void *callback_data;
 };
 
 struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 		int type, int channel, int speed, size_t header_size,
 		fw_iso_callback_t callback, void *callback_data);
+int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels);
 int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
 			 struct fw_iso_buffer *buffer,
