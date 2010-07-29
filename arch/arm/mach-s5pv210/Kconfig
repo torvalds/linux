@@ -74,7 +74,6 @@ config MACH_SMDKV210
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_TS
 	select S3C_DEV_WDT
-	select HAVE_S3C2410_WATCHDOG
 	help
 	  Machine support for Samsung SMDKV210
 
@@ -83,7 +82,6 @@ config MACH_SMDKC110
 	select CPU_S5PV210
 	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_WDT
-	select HAVE_S3C2410_WATCHDOG
 	help
 	  Machine support for Samsung SMDKC110
 	  S5PC110(MCP) is one of package option of S5PV210

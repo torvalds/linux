@@ -665,6 +665,7 @@ config ARCH_S3C64XX
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
 	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S3C64XX series based systems
 
@@ -673,6 +674,7 @@ config ARCH_S5P6440
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select HAVE_S3C2410_WATCHDOG
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
@@ -685,6 +687,7 @@ config ARCH_S5P6442
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5P6442 CPU based systems
 
@@ -697,6 +700,7 @@ config ARCH_S5PC100
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PC100 series based systems
 
@@ -709,6 +713,7 @@ config ARCH_S5PV210
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
