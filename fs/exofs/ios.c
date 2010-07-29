@@ -392,20 +392,19 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 }
 
 static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
-			      struct _striping_info *si, unsigned first_comp)
+			      struct _striping_info *si)
 {
 	unsigned stripe_unit = ios->layout->stripe_unit;
 	unsigned mirrors_p1 = ios->layout->mirrors_p1;
 	unsigned devs_in_group = ios->layout->group_width * mirrors_p1;
 	unsigned dev = si->dev;
 	unsigned first_dev = dev - (dev % devs_in_group);
-	unsigned comp = first_comp + (dev - first_dev);
 	unsigned max_comp = ios->numdevs ? ios->numdevs - mirrors_p1 : 0;
 	unsigned cur_pg = ios->pages_consumed;
 	int ret = 0;
 
 	while (length) {
-		struct exofs_per_dev_state *per_dev = &ios->per_dev[comp];
+		struct exofs_per_dev_state *per_dev = &ios->per_dev[dev];
 		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
@@ -424,11 +423,8 @@ static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
 				cur_len = stripe_unit;
 			}
 
-			if (max_comp < comp)
-				max_comp = comp;
-
-			dev += mirrors_p1;
-			dev = (dev % devs_in_group) + first_dev;
+			if (max_comp < dev)
+				max_comp = dev;
 		} else {
 			cur_len = stripe_unit;
 		}
@@ -440,8 +436,8 @@ static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
 		if (unlikely(ret))
 			goto out;
 
-		comp += mirrors_p1;
-		comp = (comp % devs_in_group) + first_comp;
+		dev += mirrors_p1;
+		dev = (dev % devs_in_group) + first_dev;
 
 		length -= cur_len;
 	}
@@ -457,7 +453,6 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 	struct _striping_info si;
 	unsigned devs_in_group = ios->layout->group_width *
 				 ios->layout->mirrors_p1;
-	unsigned first_comp = 0;
 	int ret = 0;
 
 	_calc_stripe_info(ios, ios->offset, &si);
@@ -482,7 +477,7 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 		if (length < si.group_length)
 			si.group_length = length;
 
-		ret = _prepare_one_group(ios, si.group_length, &si, first_comp);
+		ret = _prepare_one_group(ios, si.group_length, &si);
 		if (unlikely(ret))
 			goto out;
 
@@ -496,9 +491,6 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 
 		si.dev = (si.dev - (si.dev % devs_in_group)) + devs_in_group;
 		si.dev %= ios->layout->s_numdevs;
-
-		first_comp += devs_in_group;
-		first_comp %= ios->layout->s_numdevs;
 	}
 
 out:
