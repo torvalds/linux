@@ -615,7 +615,7 @@ static int lis3l02dq_thresh_handler_th(struct iio_dev *indio_dev,
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
 	/* Stash the timestamp somewhere convenient for the bh */
-	h->last_timestamp = timestamp;
+	st->thresh_timestamp = timestamp;
 	schedule_work(&st->work_thresh);
 
 	return 0;
@@ -640,32 +640,32 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_Z_HIGH,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_Z_LOW,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_Y_HIGH,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_Y_LOW,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_X_HIGH,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
 		iio_push_event(st->help.indio_dev, 0,
 			       IIO_EVENT_CODE_ACCEL_X_LOW,
-			       st->help.last_timestamp);
+			       st->thresh_timestamp);
 	/* reenable the irq */
 	enable_irq(st->us->irq);
 	/* Ack and allow for new interrupts */
