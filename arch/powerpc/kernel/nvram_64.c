@@ -320,7 +320,7 @@ static int __init nvram_create_partition(const char *name, int sig,
 	struct nvram_partition *part;
 	struct nvram_partition *new_part;
 	struct nvram_partition *free_part = NULL;
-	int seq_init[2] = { 0, 0 };
+	static char nv_init_vals[16];
 	loff_t tmp_index;
 	long size = 0;
 	int rc;
@@ -379,14 +379,15 @@ static int __init nvram_create_partition(const char *name, int sig,
 		return rc;
 	}
 
-	/* make sure and initialize to zero the sequence number and the error
-	   type logged */
-	tmp_index = new_part->index + NVRAM_HEADER_LEN;
-	rc = ppc_md.nvram_write((char *)&seq_init, sizeof(seq_init), &tmp_index);
-	if (rc <= 0) {
-		printk(KERN_ERR "nvram_create_os_partition: nvram_write "
-		       "failed (%d)\n", rc);
-		return rc;
+	/* Clear the partition */
+	for (tmp_index = new_part->index + NVRAM_HEADER_LEN;
+	     tmp_index <  ((size - 1) * NVRAM_BLOCK_LEN);
+	     tmp_index += NVRAM_BLOCK_LEN) {
+		rc = ppc_md.nvram_write(nv_init_vals, NVRAM_BLOCK_LEN, &tmp_index);
+		if (rc <= 0) {
+			pr_err("nvram_create_partition: nvram_write failed (%d)\n", rc);
+			return rc;
+		}
 	}
 	
 	nvram_error_log_index = new_part->index + NVRAM_HEADER_LEN;
