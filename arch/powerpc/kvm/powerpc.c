@@ -191,6 +191,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_UNSET_IRQ:
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_PPC_OSI:
+	case KVM_CAP_PPC_GET_PVINFO:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -578,16 +579,53 @@ out:
 	return r;
 }
 
+static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
+{
+	u32 inst_lis = 0x3c000000;
+	u32 inst_ori = 0x60000000;
+	u32 inst_nop = 0x60000000;
+	u32 inst_sc = 0x44000002;
+	u32 inst_imm_mask = 0xffff;
+
+	/*
+	 * The hypercall to get into KVM from within guest context is as
+	 * follows:
+	 *
+	 *    lis r0, r0, KVM_SC_MAGIC_R0@h
+	 *    ori r0, KVM_SC_MAGIC_R0@l
+	 *    sc
+	 *    nop
+	 */
+	pvinfo->hcall[0] = inst_lis | ((KVM_SC_MAGIC_R0 >> 16) & inst_imm_mask);
+	pvinfo->hcall[1] = inst_ori | (KVM_SC_MAGIC_R0 & inst_imm_mask);
+	pvinfo->hcall[2] = inst_sc;
+	pvinfo->hcall[3] = inst_nop;
+
+	return 0;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
 	long r;
 
 	switch (ioctl) {
+	case KVM_PPC_GET_PVINFO: {
+		struct kvm_ppc_pvinfo pvinfo;
+		r = kvm_vm_ioctl_get_pvinfo(&pvinfo);
+		if (copy_to_user(argp, &pvinfo, sizeof(pvinfo))) {
+			r = -EFAULT;
+			goto out;
+		}
+
+		break;
+	}
 	default:
 		r = -ENOTTY;
 	}
 
+out:
 	return r;
 }
 

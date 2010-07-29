@@ -1032,6 +1032,29 @@ are defined as follows:
    eax, ebx, ecx, edx: the values returned by the cpuid instruction for
          this function/index combination
 
+4.46 KVM_PPC_GET_PVINFO
+
+Capability: KVM_CAP_PPC_GET_PVINFO
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_pvinfo (out)
+Returns: 0 on success, !0 on error
+
+struct kvm_ppc_pvinfo {
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
+This ioctl fetches PV specific information that need to be passed to the guest
+using the device tree or other means from vm context.
+
+For now the only implemented piece of information distributed here is an array
+of 4 instructions that make up a hypercall.
+
+If any additional field gets added to this structure later on, a bit for that
+additional piece of information will be set in the flags bitmap.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
