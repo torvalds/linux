@@ -33,10 +33,7 @@ struct dcb_i2c_entry;
 struct nouveau_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
-	union {
-		struct i2c_algo_bit_data bit;
-		struct i2c_algo_dp_aux_data dp;
-	} algo;
+	struct i2c_algo_bit_data bit;
 	unsigned rd;
 	unsigned wr;
 	unsigned data;
@@ -49,7 +46,6 @@ bool nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr);
 int nouveau_i2c_identify(struct drm_device *dev, const char *what,
 			 struct i2c_board_info *info, int index);
 
-int nouveau_dp_i2c_aux_ch(struct i2c_adapter *, int mode, uint8_t write_byte,
-			  uint8_t *read_byte);
+extern const struct i2c_algorithm nouveau_dp_i2c_algo;
 
 #endif /* __NOUVEAU_I2C_H__ */

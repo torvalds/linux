@@ -572,47 +572,64 @@ out:
 	return ret ? ret : (stat & NV50_AUXCH_STAT_REPLY);
 }
 
-int
-nouveau_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
-		      uint8_t write_byte, uint8_t *read_byte)
+static int
+nouveau_dp_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	struct nouveau_i2c_chan *auxch = (struct nouveau_i2c_chan *)adapter;
+	struct nouveau_i2c_chan *auxch = (struct nouveau_i2c_chan *)adap;
 	struct drm_device *dev = auxch->dev;
-	int ret = 0, cmd, addr = algo_data->address;
-	uint8_t *buf;
+	struct i2c_msg *msg = msgs;
+	int ret, mcnt = num;
 
-	if (mode == MODE_I2C_READ) {
-		cmd = AUX_I2C_READ;
-		buf = read_byte;
-	} else {
-		cmd = (mode & MODE_I2C_READ) ? AUX_I2C_READ : AUX_I2C_WRITE;
-		buf = &write_byte;
-	}
+	while (mcnt--) {
+		u8 remaining = msg->len;
+		u8 *ptr = msg->buf;
 
-	if (!(mode & MODE_I2C_STOP))
-		cmd |= AUX_I2C_MOT;
+		while (remaining) {
+			u8 cnt = (remaining > 16) ? 16 : remaining;
+			u8 cmd;
 
-	if (mode & MODE_I2C_START)
-		return 1;
+			if (msg->flags & I2C_M_RD)
+				cmd = AUX_I2C_READ;
+			else
+				cmd = AUX_I2C_WRITE;
 
-	for (;;) {
-		ret = nouveau_dp_auxch(auxch, cmd, addr, buf, 1);
-		if (ret < 0)
-			return ret;
+			if (mcnt || remaining > 16)
+				cmd |= AUX_I2C_MOT;
 
-		switch (ret & NV50_AUXCH_STAT_REPLY_I2C) {
-		case NV50_AUXCH_STAT_REPLY_I2C_ACK:
-			return 1;
-		case NV50_AUXCH_STAT_REPLY_I2C_NACK:
-			return -EREMOTEIO;
-		case NV50_AUXCH_STAT_REPLY_I2C_DEFER:
-			udelay(100);
-			break;
-		default:
-			NV_ERROR(dev, "invalid auxch status: 0x%08x\n", ret);
-			return -EREMOTEIO;
+			ret = nouveau_dp_auxch(auxch, cmd, msg->addr, ptr, cnt);
+			if (ret < 0)
+				return ret;
+
+			switch (ret & NV50_AUXCH_STAT_REPLY_I2C) {
+			case NV50_AUXCH_STAT_REPLY_I2C_ACK:
+				break;
+			case NV50_AUXCH_STAT_REPLY_I2C_NACK:
+				return -EREMOTEIO;
+			case NV50_AUXCH_STAT_REPLY_I2C_DEFER:
+				udelay(100);
+				continue;
+			default:
+				NV_ERROR(dev, "bad auxch reply: 0x%08x\n", ret);
+				return -EREMOTEIO;
+			}
+
+			ptr += cnt;
+			remaining -= cnt;
 		}
+
+		msg++;
 	}
+
+	return num;
 }
 
+static u32
+nouveau_dp_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+const struct i2c_algorithm nouveau_dp_i2c_algo = {
+	.master_xfer = nouveau_dp_i2c_xfer,
+	.functionality = nouveau_dp_i2c_func
+};

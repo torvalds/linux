@@ -174,26 +174,26 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 
 	switch (entry->port_type) {
 	case 0:
-		i2c->algo.bit.setsda = nv04_i2c_setsda;
-		i2c->algo.bit.setscl = nv04_i2c_setscl;
-		i2c->algo.bit.getsda = nv04_i2c_getsda;
-		i2c->algo.bit.getscl = nv04_i2c_getscl;
+		i2c->bit.setsda = nv04_i2c_setsda;
+		i2c->bit.setscl = nv04_i2c_setscl;
+		i2c->bit.getsda = nv04_i2c_getsda;
+		i2c->bit.getscl = nv04_i2c_getscl;
 		i2c->rd = entry->read;
 		i2c->wr = entry->write;
 		break;
 	case 4:
-		i2c->algo.bit.setsda = nv4e_i2c_setsda;
-		i2c->algo.bit.setscl = nv4e_i2c_setscl;
-		i2c->algo.bit.getsda = nv4e_i2c_getsda;
-		i2c->algo.bit.getscl = nv4e_i2c_getscl;
+		i2c->bit.setsda = nv4e_i2c_setsda;
+		i2c->bit.setscl = nv4e_i2c_setscl;
+		i2c->bit.getsda = nv4e_i2c_getsda;
+		i2c->bit.getscl = nv4e_i2c_getscl;
 		i2c->rd = 0x600800 + entry->read;
 		i2c->wr = 0x600800 + entry->write;
 		break;
 	case 5:
-		i2c->algo.bit.setsda = nv50_i2c_setsda;
-		i2c->algo.bit.setscl = nv50_i2c_setscl;
-		i2c->algo.bit.getsda = nv50_i2c_getsda;
-		i2c->algo.bit.getscl = nv50_i2c_getscl;
+		i2c->bit.setsda = nv50_i2c_setsda;
+		i2c->bit.setscl = nv50_i2c_setscl;
+		i2c->bit.getsda = nv50_i2c_getsda;
+		i2c->bit.getscl = nv50_i2c_getscl;
 		i2c->rd = nv50_i2c_port[entry->read];
 		i2c->wr = i2c->rd;
 		break;
@@ -216,17 +216,14 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	i2c_set_adapdata(&i2c->adapter, i2c);
 
 	if (entry->port_type < 6) {
-		i2c->adapter.algo_data = &i2c->algo.bit;
-		i2c->algo.bit.udelay = 40;
-		i2c->algo.bit.timeout = usecs_to_jiffies(5000);
-		i2c->algo.bit.data = i2c;
+		i2c->adapter.algo_data = &i2c->bit;
+		i2c->bit.udelay = 40;
+		i2c->bit.timeout = usecs_to_jiffies(5000);
+		i2c->bit.data = i2c;
 		ret = i2c_bit_add_bus(&i2c->adapter);
 	} else {
-		i2c->adapter.algo_data = &i2c->algo.dp;
-		i2c->algo.dp.running = false;
-		i2c->algo.dp.address = 0;
-		i2c->algo.dp.aux_ch = nouveau_dp_i2c_aux_ch;
-		ret = i2c_dp_aux_add_bus(&i2c->adapter);
+		i2c->adapter.algo = &nouveau_dp_i2c_algo;
+		ret = i2c_add_adapter(&i2c->adapter);
 	}
 
 	if (ret) {
