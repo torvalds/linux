@@ -63,6 +63,7 @@
 #define KVM_INST_MTSPR_DSISR	0x7c1203a6
 
 #define KVM_INST_TLBSYNC	0x7c00046c
+#define KVM_INST_MTMSRD_L1	0x7c010164
 
 static bool kvm_patching_worked = true;
 static char kvm_tmp[1024 * 1024];
@@ -138,6 +139,43 @@ static u32 *kvm_alloc(int len)
 	return p;
 }
 
+extern u32 kvm_emulate_mtmsrd_branch_offs;
+extern u32 kvm_emulate_mtmsrd_reg_offs;
+extern u32 kvm_emulate_mtmsrd_len;
+extern u32 kvm_emulate_mtmsrd[];
+
+static void kvm_patch_ins_mtmsrd(u32 *inst, u32 rt)
+{
+	u32 *p;
+	int distance_start;
+	int distance_end;
+	ulong next_inst;
+
+	p = kvm_alloc(kvm_emulate_mtmsrd_len * 4);
+	if (!p)
+		return;
+
+	/* Find out where we are and put everything there */
+	distance_start = (ulong)p - (ulong)inst;
+	next_inst = ((ulong)inst + 4);
+	distance_end = next_inst - (ulong)&p[kvm_emulate_mtmsrd_branch_offs];
+
+	/* Make sure we only write valid b instructions */
+	if (distance_start > KVM_INST_B_MAX) {
+		kvm_patching_worked = false;
+		return;
+	}
+
+	/* Modify the chunk to fit the invocation */
+	memcpy(p, kvm_emulate_mtmsrd, kvm_emulate_mtmsrd_len * 4);
+	p[kvm_emulate_mtmsrd_branch_offs] |= distance_end & KVM_INST_B_MASK;
+	p[kvm_emulate_mtmsrd_reg_offs] |= rt;
+	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_mtmsrd_len * 4);
+
+	/* Patch the invocation */
+	kvm_patch_ins_b(inst, distance_start);
+}
+
 static void kvm_map_magic_page(void *data)
 {
 	kvm_hypercall2(KVM_HC_PPC_MAP_MAGIC_PAGE,
@@ -210,6 +248,13 @@ static void kvm_check_ins(u32 *inst)
 	/* Nops */
 	case KVM_INST_TLBSYNC:
 		kvm_patch_ins_nop(inst);
+		break;
+
+	/* Rewrites */
+	case KVM_INST_MTMSRD_L1:
+		/* We use r30 and r31 during the hook */
+		if (get_rt(inst_rt) < 30)
+			kvm_patch_ins_mtmsrd(inst, inst_rt);
 		break;
 	}
 

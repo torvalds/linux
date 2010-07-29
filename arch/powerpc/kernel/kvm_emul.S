@@ -64,3 +64,59 @@ kvm_hypercall_start:
 	/* Disable critical section. We are critical if			\
 	   shared->critical == r1 and r2 is always != r1 */		\
 	STL64(r2, KVM_MAGIC_PAGE + KVM_MAGIC_CRITICAL, 0);
+
+.global kvm_emulate_mtmsrd
+kvm_emulate_mtmsrd:
+
+	SCRATCH_SAVE
+
+	/* Put MSR & ~(MSR_EE|MSR_RI) in r31 */
+	LL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+	lis	r30, (~(MSR_EE | MSR_RI))@h
+	ori	r30, r30, (~(MSR_EE | MSR_RI))@l
+	and	r31, r31, r30
+
+	/* OR the register's (MSR_EE|MSR_RI) on MSR */
+kvm_emulate_mtmsrd_reg:
+	andi.	r30, r0, (MSR_EE|MSR_RI)
+	or	r31, r31, r30
+
+	/* Put MSR back into magic page */
+	STL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
+	/* Check if we have to fetch an interrupt */
+	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
+	cmpwi	r31, 0
+	beq+	no_check
+
+	/* Check if we may trigger an interrupt */
+	andi.	r30, r30, MSR_EE
+	beq	no_check
+
+	SCRATCH_RESTORE
+
+	/* Nag hypervisor */
+	tlbsync
+
+	b	kvm_emulate_mtmsrd_branch
+
+no_check:
+
+	SCRATCH_RESTORE
+
+	/* Go back to caller */
+kvm_emulate_mtmsrd_branch:
+	b	.
+kvm_emulate_mtmsrd_end:
+
+.global kvm_emulate_mtmsrd_branch_offs
+kvm_emulate_mtmsrd_branch_offs:
+	.long (kvm_emulate_mtmsrd_branch - kvm_emulate_mtmsrd) / 4
+
+.global kvm_emulate_mtmsrd_reg_offs
+kvm_emulate_mtmsrd_reg_offs:
+	.long (kvm_emulate_mtmsrd_reg - kvm_emulate_mtmsrd) / 4
+
+.global kvm_emulate_mtmsrd_len
+kvm_emulate_mtmsrd_len:
+	.long (kvm_emulate_mtmsrd_end - kvm_emulate_mtmsrd) / 4
