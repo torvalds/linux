@@ -3109,9 +3109,7 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv);
 
-	iwl_setup_rxon_timing(priv, vif);
-	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-			      sizeof(priv->rxon_timing), &priv->rxon_timing);
+	ret = iwl_send_rxon_timing(priv, vif);
 	if (ret)
 		IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
@@ -3347,9 +3345,7 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		iwlcore_commit_rxon(priv);
 
 		/* RXON Timing */
-		iwl_setup_rxon_timing(priv, vif);
-		ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-				sizeof(priv->rxon_timing), &priv->rxon_timing);
+		ret = iwl_send_rxon_timing(priv, vif);
 		if (ret)
 			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");

@@ -491,17 +491,19 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 	return new_val;
 }
 
-void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
+int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	u64 tsf;
 	s32 interval_tm, rem;
-	unsigned long flags;
 	struct ieee80211_conf *conf = NULL;
 	u16 beacon_int;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	lockdep_assert_held(&priv->mutex);
+
+	memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
+
 	priv->rxon_timing.timestamp = cpu_to_le64(priv->timestamp);
 	priv->rxon_timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
@@ -524,14 +526,16 @@ void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rem = do_div(tsf, interval_tm);
 	priv->rxon_timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
 	IWL_DEBUG_ASSOC(priv,
 			"beacon interval %d beacon timer %d beacon tim %d\n",
 			le16_to_cpu(priv->rxon_timing.beacon_interval),
 			le32_to_cpu(priv->rxon_timing.beacon_init_val),
 			le16_to_cpu(priv->rxon_timing.atim_window));
+
+	return iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
+				sizeof(priv->rxon_timing), &priv->rxon_timing);
 }
-EXPORT_SYMBOL(iwl_setup_rxon_timing);
+EXPORT_SYMBOL(iwl_send_rxon_timing);
 
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 {
