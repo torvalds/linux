@@ -17,11 +17,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
-#include <linux/of_fdt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/proc_fs.h>
-#include <linux/platform_device.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
 
@@ -49,41 +44,9 @@ extern void pci_create_OF_bus_map(void);
 extern u64 of_translate_dma_address(struct device_node *dev,
 				    const u32 *in_addr);
 
-/* Extract an address from a device, returns the region size and
- * the address space flags too. The PCI version uses a BAR number
- * instead of an absolute index
- */
-extern const u32 *of_get_address(struct device_node *dev, int index,
-			   u64 *size, unsigned int *flags);
-#ifdef CONFIG_PCI
-extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
-			       u64 *size, unsigned int *flags);
-#else
-static inline const u32 *of_get_pci_address(struct device_node *dev,
-		int bar_no, u64 *size, unsigned int *flags)
-{
-	return NULL;
-}
-#endif /* CONFIG_PCI */
-
-#ifdef CONFIG_PCI
-extern int of_pci_address_to_resource(struct device_node *dev, int bar,
-				      struct resource *r);
-#else
-static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
-		struct resource *r)
-{
-	return -ENOSYS;
-}
-#endif /* CONFIG_PCI */
-
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
-#else
-static inline unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	return (unsigned long)-1;
-}
+#define pci_address_to_pio pci_address_to_pio
 #endif	/* CONFIG_PCI */
 
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
@@ -122,9 +85,19 @@ static inline int of_node_to_nid(struct device_node *device) { return 0; }
  * resolving using the OF tree walking.
  */
 struct pci_dev;
+struct of_irq;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
 
 extern void of_instantiate_rtc(void);
+
+/* These includes are put at the bottom because they may contain things
+ * that are overridden by this file.  Ideally they shouldn't be included
+ * by this file, but there are a bunch of .c files that currently depend
+ * on it.  Eventually they will be cleaned up. */
+#include <linux/of_fdt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

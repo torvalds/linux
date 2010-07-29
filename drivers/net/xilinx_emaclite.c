@@ -20,7 +20,7 @@
 #include <linux/skbuff.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_mdio.h>

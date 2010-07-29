@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
