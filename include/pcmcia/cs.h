@@ -24,7 +24,7 @@ typedef struct config_req_t {
     u_int	Attributes;
     u_int	IntType;
     u_int	ConfigBase;
-    u_char	Status, Pin, Copy, ExtStatus;
+    u_char	Status, ExtStatus;
     u_char	ConfigIndex;
     u_int	Present;
 } config_req_t;

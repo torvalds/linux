@@ -489,8 +489,14 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	base = c->ConfigBase = req->ConfigBase;
 	c->CardValues = req->Present;
 	if (req->Present & PRESENT_COPY) {
-		c->Copy = req->Copy;
-		pcmcia_write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &c->Copy);
+		u16 tmp = 0;
+		dev_dbg(&p_dev->dev, "clearing CISREG_SCR\n");
+		pcmcia_write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &tmp);
+	}
+	if (req->Present & PRESENT_PIN_REPLACE) {
+		u16 tmp = 0;
+		dev_dbg(&p_dev->dev, "clearing CISREG_PRR\n");
+		pcmcia_write_cis_mem(s, 1, (base + CISREG_PRR)>>1, 1, &tmp);
 	}
 	if (req->Present & PRESENT_OPTION) {
 		if (s->functions == 1) {
@@ -510,10 +516,6 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	if (req->Present & PRESENT_STATUS) {
 		c->Status = req->Status;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &c->Status);
-	}
-	if (req->Present & PRESENT_PIN_REPLACE) {
-		c->Pin = req->Pin;
-		pcmcia_write_cis_mem(s, 1, (base + CISREG_PRR)>>1, 1, &c->Pin);
 	}
 	if (req->Present & PRESENT_EXT_STATUS) {
 		c->ExtStatus = req->ExtStatus;
