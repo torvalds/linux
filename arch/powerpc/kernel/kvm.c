@@ -30,6 +30,9 @@
 #include <asm/cacheflush.h>
 #include <asm/disassemble.h>
 
+#define KVM_MAGIC_PAGE		(-4096L)
+#define magic_var(x) KVM_MAGIC_PAGE + offsetof(struct kvm_vcpu_arch_shared, x)
+
 unsigned long kvm_hypercall(unsigned long *in,
 			    unsigned long *out,
 			    unsigned long nr)

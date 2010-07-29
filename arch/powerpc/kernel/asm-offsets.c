@@ -465,6 +465,21 @@ int main(void)
 	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
 #endif /* CONFIG_PPC_BOOK3S */
 #endif
+
+#ifdef CONFIG_KVM_GUEST
+	DEFINE(KVM_MAGIC_SCRATCH1, offsetof(struct kvm_vcpu_arch_shared,
+					    scratch1));
+	DEFINE(KVM_MAGIC_SCRATCH2, offsetof(struct kvm_vcpu_arch_shared,
+					    scratch2));
+	DEFINE(KVM_MAGIC_SCRATCH3, offsetof(struct kvm_vcpu_arch_shared,
+					    scratch3));
+	DEFINE(KVM_MAGIC_INT, offsetof(struct kvm_vcpu_arch_shared,
+				       int_pending));
+	DEFINE(KVM_MAGIC_MSR, offsetof(struct kvm_vcpu_arch_shared, msr));
+	DEFINE(KVM_MAGIC_CRITICAL, offsetof(struct kvm_vcpu_arch_shared,
+					    critical));
+#endif
+
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
