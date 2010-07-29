@@ -335,7 +335,7 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
 	if (status == 0) {
-		dev_warn(&i2c_dev->dev, "irq status 0 %08x\n",
+		dev_warn(i2c_dev->dev, "irq status 0 %08x\n",
 			i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS));
 		return IRQ_HANDLED;
 	}
