@@ -207,6 +207,7 @@
         .interleave = interl,                       	\
         .mux_reg = RK2818_IOMUX_##reg##_CON,          \
         .mode = mux_mode,                               \
+        .premode = mux_mode,                            \
         .flags = bflags,				\
 },
 
@@ -214,6 +215,7 @@ struct mux_config {
 	char *name;
 	const unsigned int offset;
 	unsigned int mode;
+	unsigned int premode;
 	const unsigned int mux_reg;
 	const unsigned int interleave;
 	unsigned int flags;
@@ -221,7 +223,7 @@ struct mux_config {
 
 extern int rk2818_iomux_init(void);
 extern void rk2818_mux_api_set(char *name, unsigned int mode);
-extern unsigned int rk2818_mux_api_get(char *name);
+extern void rk2818_mux_api_mode_resume(char *name);
 
 #endif
 

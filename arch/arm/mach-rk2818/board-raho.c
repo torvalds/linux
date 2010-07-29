@@ -393,12 +393,10 @@ static void spi_xpt2046_cs_control(u32 command)
 {
 	if(command == 3)	
 	    {
-	    printk("spi_xpt2046_cs_control cs \n");
 	    gpio_direction_output(RK2818_PIN_PF5, GPIO_LOW);
 	    }
 	if(command == 0)
 	    {
-	    printk("spi_xpt2046_cs_control decs \n");
 	    gpio_direction_output(RK2818_PIN_PF5, GPIO_HIGH);
 	    }
 }
@@ -584,11 +582,13 @@ void lcd_set_iomux(u8 enable)
     else
     {
          gpio_free(RK2818_PIN_PH6); 
-         rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 1);
+         //rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 1);
+         rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE4);   
          gpio_free(RK2818_PIN_PE5); 
-         rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 0);
+         //rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 0);
+         rk2818_mux_api_mode_resume(GPIOE_I2C0_SEL_NAME);
     }
     return ;
 pin_err:

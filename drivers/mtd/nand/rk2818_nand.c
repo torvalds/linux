@@ -788,7 +788,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 	int err = 0;
 	pNANDC pRK28NC;
 	u_char  maf_id,dev_id,ext_id3,ext_id4;
-	u32 iomux_mode0,iomux_mode1,iomux_mode2,iomux_mode3,iomux_mode4;
     struct nand_chip *chip;
     
 #ifdef CONFIG_MTD_PARTITIONS
@@ -884,12 +883,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 		this->options |= NAND_BUSWIDTH_16;
 		this->ecc.layout = &nand_hw_eccoob_16;
 	}
-      //保持IO MUX原始值
-      iomux_mode0=rk2818_mux_api_get(GPIOA5_FLASHCS1_SEL_NAME);
-      iomux_mode1=rk2818_mux_api_get(GPIOA6_FLASHCS2_SEL_NAME);
-      iomux_mode2=rk2818_mux_api_get(GPIOA7_FLASHCS3_SEL_NAME);
-      iomux_mode3=rk2818_mux_api_get(GPIOE_SPI1_FLASH_SEL1_NAME);
-      iomux_mode4=rk2818_mux_api_get(GPIOE_SPI1_FLASH_SEL_NAME);
       // iomux flash  cs1~cs7
       rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
       rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
@@ -911,16 +904,16 @@ static int rk2818_nand_probe(struct platform_device *pdev)
     switch(chip->numchips)
     {
         case 1:
-            rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, iomux_mode0);
+            rk2818_mux_api_mode_resume(GPIOA5_FLASHCS1_SEL_NAME);
         case 2:
-            rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, iomux_mode1);
+            rk2818_mux_api_mode_resume(GPIOA6_FLASHCS2_SEL_NAME);
         case 3:
-            rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, iomux_mode2);
+            rk2818_mux_api_mode_resume(GPIOA7_FLASHCS3_SEL_NAME);
         case 4:
-            rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, iomux_mode3);  
+            rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL1_NAME);
         case 5:
         case 6:
-            rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, iomux_mode4); 
+            rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL_NAME);
         case 7:
         case 8:
             break;

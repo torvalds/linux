@@ -560,11 +560,13 @@ void lcd_set_iomux(u8 enable)
     else
     {
          gpio_free(RK2818_PIN_PA4); 
-         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+         //rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+         rk2818_mux_api_mode_resume(CXGPIO_HSADC_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
-         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
+         //rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
+         rk2818_mux_api_mode_resume(GPIOE_U1IR_I2C1_NAME);
     }
     return ;
 pin_err:
