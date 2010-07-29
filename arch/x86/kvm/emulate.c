@@ -46,15 +46,15 @@
  */
 
 /* Operand sizes: 8-bit operands or specified/overridden size. */
-#define ByteOp      (1<<16)	/* 8-bit operands. */
+#define ByteOp      (1<<0)	/* 8-bit operands. */
 /* Destination operand type. */
-#define ImplicitOps (1<<17)	/* Implicit in opcode. No generic decode. */
-#define DstReg      (2<<17)	/* Register operand. */
-#define DstMem      (3<<17)	/* Memory operand. */
-#define DstAcc      (4<<17)	/* Destination Accumulator */
-#define DstDI       (5<<17)	/* Destination is in ES:(E)DI */
-#define DstMem64    (6<<17)	/* 64bit memory operand */
-#define DstMask     (7<<17)
+#define ImplicitOps (1<<1)	/* Implicit in opcode. No generic decode. */
+#define DstReg      (2<<1)	/* Register operand. */
+#define DstMem      (3<<1)	/* Memory operand. */
+#define DstAcc      (4<<1)	/* Destination Accumulator */
+#define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
+#define DstMem64    (6<<1)	/* 64bit memory operand */
+#define DstMask     (7<<1)
 /* Source operand type. */
 #define SrcNone     (0<<4)	/* No source operand. */
 #define SrcImplicit (0<<4)	/* Source operand is implicit in the opcode. */
