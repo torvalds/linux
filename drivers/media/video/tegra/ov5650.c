@@ -397,10 +397,6 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 
 static int ov5650_set_frame_length(struct ov5650_info *info, u32 frame_length)
 {
-	pr_info("%s: exposure->frame_length %u\n", __func__, frame_length);
-
-	/* XXX check errors here */
-	/* update frame length*/
 	ov5650_write_reg(info->i2c_client, 0x380e, (frame_length >> 8) & 0xff);
 	ov5650_write_reg(info->i2c_client, 0x380f, frame_length & 0xff);
 
@@ -409,8 +405,6 @@ static int ov5650_set_frame_length(struct ov5650_info *info, u32 frame_length)
 
 static int ov5650_set_coarse_time(struct ov5650_info *info, u32 coarse_time)
 {
-	pr_info("%s: exposure->coarse_time %u\n", __func__, coarse_time);
-	/* update coarse time */
 	ov5650_write_reg(info->i2c_client, 0x3212, 0x01);
 	ov5650_write_reg(info->i2c_client, 0x3500,
 			 (coarse_time >> 12) & 0xff);
@@ -426,9 +420,6 @@ static int ov5650_set_coarse_time(struct ov5650_info *info, u32 coarse_time)
 
 static int ov5650_set_gain(struct ov5650_info *info, u16 gain)
 {
-	pr_info("%s: gain %u\n", __func__, gain);
-
-	/* update frame length*/
 	ov5650_write_reg(info->i2c_client, 0x350b, gain);
 
 	return 0;
@@ -449,7 +440,6 @@ static int ov5650_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct ov5650_info *info = file->private_data;
-	pr_info("%s\n", __func__);
 
 	switch (cmd) {
 	case OV5650_IOCTL_SET_MODE:
