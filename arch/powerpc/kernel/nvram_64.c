@@ -34,10 +34,10 @@
 
 #undef DEBUG_NVRAM
 
-#define NVRAM_HEADER_LEN 16 /* sizeof(struct nvram_header) */
-#define NVRAM_BLOCK_LEN 16
-#define NVRAM_MAX_REQ (2080/NVRAM_BLOCK_LEN)
-#define NVRAM_MIN_REQ (1056/NVRAM_BLOCK_LEN)
+#define NVRAM_HEADER_LEN	sizeof(struct nvram_header)
+#define NVRAM_BLOCK_LEN		NVRAM_HEADER_LEN
+#define NVRAM_MAX_REQ		2079
+#define NVRAM_MIN_REQ		1055
 
 /* If change this size, then change the size of NVNAME_LEN */
 struct nvram_header {
@@ -311,7 +311,7 @@ static int __init nvram_remove_os_partition(void)
  * nvram_create_partition - Create a partition in nvram
  * @name: name of the partition to create
  * @sig: signature of the partition to create
- * @req_size: size to allocate preferrably
+ * @req_size: size of data to allocate in bytes
  * @min_size: minimum acceptable size (0 means req_size)
  */
 static int __init nvram_create_partition(const char *name, int sig,
@@ -325,11 +325,19 @@ static int __init nvram_create_partition(const char *name, int sig,
 	long size = 0;
 	int rc;
 
+	/* Convert sizes from bytes to blocks */
+	req_size = _ALIGN_UP(req_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
+	min_size = _ALIGN_UP(min_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
+
 	/* If no minimum size specified, make it the same as the
 	 * requested size
 	 */
 	if (min_size == 0)
 		min_size = req_size;
+
+	/* Now add one block to each for the header */
+	req_size += 1;
+	min_size += 1;
 
 	/* Find a free partition that will give us the maximum needed size 
 	   If can't find one that will give us the minimum size needed */
@@ -450,7 +458,7 @@ static int __init nvram_setup_partition(void)
 		if (strcmp(part->header.name, "ppc64,linux"))
 			continue;
 
-		if (part->header.length >= NVRAM_MIN_REQ) {
+		if ((part->header.length - 1) * NVRAM_BLOCK_LEN >= NVRAM_MIN_REQ) {
 			/* found our partition */
 			nvram_error_log_index = part->index + NVRAM_HEADER_LEN;
 			nvram_error_log_size = ((part->header.length - 1) *
