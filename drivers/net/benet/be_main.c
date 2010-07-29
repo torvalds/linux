@@ -1717,10 +1717,11 @@ static void be_msix_enable(struct be_adapter *adapter)
 
 static void be_sriov_enable(struct be_adapter *adapter)
 {
-#ifdef CONFIG_PCI_IOV
-	int status;
 	be_check_sriov_fn_type(adapter);
+#ifdef CONFIG_PCI_IOV
 	if (be_physfn(adapter) && num_vfs) {
+		int status;
+
 		status = pci_enable_sriov(adapter->pdev, num_vfs);
 		adapter->sriov_enabled = status ? false : true;
 	}
