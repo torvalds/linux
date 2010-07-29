@@ -973,6 +973,7 @@ int xen_set_callback_via(uint64_t via)
 }
 EXPORT_SYMBOL_GPL(xen_set_callback_via);
 
+#ifdef CONFIG_XEN_PVHVM
 /* Vector callbacks are better than PCI interrupts to receive event
  * channel notifications because we can receive vector callbacks on any
  * vcpu and we don't need PCI support or APIC interactions. */
@@ -996,6 +997,9 @@ void xen_callback_vector(void)
 			alloc_intr_gate(XEN_HVM_EVTCHN_CALLBACK, xen_hvm_callback_vector);
 	}
 }
+#else
+void xen_callback_vector(void) {}
+#endif
 
 void __init xen_init_IRQ(void)
 {

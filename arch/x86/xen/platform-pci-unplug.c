@@ -32,6 +32,7 @@
 /* store the value of xen_emul_unplug after the unplug is done */
 int xen_platform_pci_unplug;
 EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
+#ifdef CONFIG_XEN_PVHVM
 static int xen_emul_unplug;
 
 static int __init check_platform_magic(void)
@@ -133,3 +134,4 @@ static int __init parse_xen_emul_unplug(char *arg)
 	return 0;
 }
 early_param("xen_emul_unplug", parse_xen_emul_unplug);
+#endif

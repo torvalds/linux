@@ -1942,6 +1942,7 @@ void __init xen_init_mmu_ops(void)
 	pv_mmu_ops = xen_mmu_ops;
 }
 
+#ifdef CONFIG_XEN_PVHVM
 static void xen_hvm_exit_mmap(struct mm_struct *mm)
 {
 	struct xen_hvm_pagetable_dying a;
@@ -1973,6 +1974,7 @@ void __init xen_hvm_init_mmu_ops(void)
 	if (is_pagetable_dying_supported())
 		pv_mmu_ops.exit_mmap = xen_hvm_exit_mmap;
 }
+#endif
 
 #ifdef CONFIG_XEN_DEBUG_FS
 
