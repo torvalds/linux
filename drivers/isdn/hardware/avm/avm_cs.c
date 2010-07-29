@@ -80,8 +80,8 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
 
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
-    p_dev->conf.ConfigIndex = 1;
-    p_dev->conf.Present = PRESENT_OPTION;
+    p_dev->config_index = 1;
+    p_dev->config_regs = PRESENT_OPTION;
 
     return avmcs_config(p_dev);
 } /* avmcs_attach */

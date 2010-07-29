@@ -227,8 +227,7 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		pdev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-
-		pdev->conf.ConfigIndex = cfg->index;
+		pdev->config_index = cfg->index;
 		pdev->resource[0]->start = io->win[0].base;
 		if (!(io->flags & CISTPL_IO_16BIT)) {
 			pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;

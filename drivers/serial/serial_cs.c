@@ -495,7 +495,7 @@ static int simple_config(struct pcmcia_device *link)
 
 found_port:
 	if (info->multi && (info->manfid == MANFID_3COM))
-		link->conf.ConfigIndex &= ~(0x08);
+		link->config_index &= ~(0x08);
 
 	/*
 	 * Apply any configuration quirks.
@@ -591,8 +591,8 @@ static int multi_config(struct pcmcia_device *link)
 				info->prodid == PRODID_POSSIO_GCC)) {
 		int err;
 
-		if (link->conf.ConfigIndex == 1 ||
-		    link->conf.ConfigIndex == 3) {
+		if (link->config_index == 1 ||
+		    link->config_index == 3) {
 			err = setup_serial(link, info, base2,
 					link->irq);
 			base2 = link->resource[0]->start;;

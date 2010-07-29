@@ -97,6 +97,9 @@ struct pcmcia_device {
 	unsigned int		vpp;
 
 	unsigned int		io_lines; /* number of I/O lines */
+	unsigned int		config_base;
+	unsigned int		config_index;
+	unsigned int		config_regs;	/* PRESENT_ flags below */
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -250,6 +253,17 @@ static inline int pcmcia_io_cfg_data_width(unsigned int flags)
 					0x0c -> 2
 					0x10 -> 3 */
 
+/* config_reg{ister}s present for this PCMCIA device */
+#define PRESENT_OPTION		0x001
+#define PRESENT_STATUS		0x002
+#define PRESENT_PIN_REPLACE	0x004
+#define PRESENT_COPY		0x008
+#define PRESENT_EXT_STATUS	0x010
+#define PRESENT_IOBASE_0	0x020
+#define PRESENT_IOBASE_1	0x040
+#define PRESENT_IOBASE_2	0x080
+#define PRESENT_IOBASE_3	0x100
+#define PRESENT_IOSIZE		0x200
 
 #endif /* __KERNEL__ */
 

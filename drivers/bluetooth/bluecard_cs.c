@@ -885,7 +885,7 @@ static int bluecard_config(struct pcmcia_device *link)
 	bluecard_info_t *info = link->priv;
 	int i, n;
 
-	link->conf.ConfigIndex = 0x20;
+	link->config_index = 0x20;
 
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 	link->resource[0]->end = 64;

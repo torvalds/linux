@@ -86,7 +86,7 @@ static int fdomain_probe(struct pcmcia_device *link)
 	link->resource[0]->end = 0x10;
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_regs = PRESENT_OPTION;
 
 	return fdomain_config(link);
 } /* fdomain_attach */

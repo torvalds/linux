@@ -594,8 +594,8 @@ static int mgslpc_config(struct pcmcia_device *link)
 	    goto failed;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.ConfigIndex = 8;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_index = 8;
+    link->config_regs = PRESENT_OPTION;
 
     ret = pcmcia_request_irq(link, mgslpc_isr);
     if (ret)
@@ -608,7 +608,7 @@ static int mgslpc_config(struct pcmcia_device *link)
     info->irq_level = link->irq;
 
     dev_info(&link->dev, "index 0x%02x:",
-	    link->conf.ConfigIndex);
+	    link->config_index);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	    printk(", irq %d", link->irq);
     if (link->resource[0])

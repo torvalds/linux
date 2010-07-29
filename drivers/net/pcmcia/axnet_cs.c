@@ -230,7 +230,7 @@ static int get_prom(struct pcmcia_device *link)
     };
 
     /* Not much of a test, but the alternatives are messy */
-    if (link->conf.ConfigBase != 0x03c0)
+    if (link->config_base != 0x03c0)
 	return 0;
 
     axnet_reset_8390(dev);
@@ -297,7 +297,7 @@ static int axnet_configcheck(struct pcmcia_device *p_dev,
 	if (cfg->index == 0 || cfg->io.nwin == 0)
 		return -ENODEV;
 
-	p_dev->conf.ConfigIndex = 0x05;
+	p_dev->config_index = 0x05;
 	/* For multifunction cards, by convention, we configure the
 	   network function with window 0, and serial with window 1 */
 	if (io->nwin > 1) {
@@ -325,7 +325,7 @@ static int axnet_config(struct pcmcia_device *link)
     dev_dbg(&link->dev, "axnet_config(0x%p)\n", link);
 
     /* don't trust the CIS on this; Linksys got it wrong */
-    link->conf.Present = 0x63;
+    link->config_regs = 0x63;
     ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
     if (ret != 0)
 	goto failed;

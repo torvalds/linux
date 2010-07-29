@@ -461,8 +461,8 @@ static int nmclan_probe(struct pcmcia_device *link)
     link->resource[0]->end = 32;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_index = 1;
+    link->config_regs = PRESENT_OPTION;
 
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 

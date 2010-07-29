@@ -143,8 +143,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	link->resource[0]->end = 16;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
-	link->conf.ConfigIndex = 1;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_index = 1;
+	link->config_regs = PRESENT_OPTION;
 
 	return pdacf_config(link);
 }
@@ -216,7 +216,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	int ret;
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
-	link->conf.ConfigIndex = 0x5;
+	link->config_index = 0x5;
 
 	ret = pcmcia_request_io(link);
 	if (ret)

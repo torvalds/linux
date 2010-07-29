@@ -420,7 +420,7 @@ static hw_info_t *get_ax88190(struct pcmcia_device *link)
     int i, j;
 
     /* Not much of a test, but the alternatives are messy */
-    if (link->conf.ConfigBase != 0x03c0)
+    if (link->config_base != 0x03c0)
 	return NULL;
 
     outb_p(0x01, ioaddr + EN0_DCFG);	/* Set word-wide access. */
@@ -564,7 +564,7 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 
 	if ((link->manf_id == MANFID_IBM) &&
 	    (link->card_id == PRODID_IBM_HOME_AND_AWAY))
-		link->conf.ConfigIndex |= 0x10;
+		link->config_index |= 0x10;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if (ret)
@@ -581,7 +581,7 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	} else
 		dev->if_port = 0;
 
-	if ((link->conf.ConfigBase == 0x03c0) &&
+	if ((link->config_base == 0x03c0) &&
 	    (link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
 		dev_info(&link->dev,
 			"this is an AX88190 card - use axnet_cs instead.\n");

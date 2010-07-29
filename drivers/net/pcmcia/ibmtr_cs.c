@@ -153,7 +153,7 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[0]->end = 4;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_regs = PRESENT_OPTION;
 
     info->dev = dev;
 
@@ -212,8 +212,8 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "ibmtr_config\n");
 
-    link->conf.ConfigIndex = 0x61;
     link->io_lines = 16;
+    link->config_index = 0x61;
 
     /* Determine if this is PRIMARY or ALTERNATE. */
 

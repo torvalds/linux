@@ -163,8 +163,8 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	link->resource[0]->end = 16;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.ConfigIndex = 1;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_index = 1;
+	link->config_regs = PRESENT_OPTION;
 
 	*chip_ret = vxp;
 	return 0;

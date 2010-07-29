@@ -276,13 +276,13 @@ static int pcmcia_device_probe(struct device *dev)
 	ret = pccard_read_tuple(p_dev->socket, p_dev->func, CISTPL_CONFIG,
 				&cis_config);
 	if (!ret) {
-		p_dev->conf.ConfigBase = cis_config.base;
-		p_dev->conf.Present = cis_config.rmask[0];
+		p_dev->config_base = cis_config.base;
+		p_dev->config_regs = cis_config.rmask[0];
 	} else {
 		dev_printk(KERN_INFO, dev,
 			   "pcmcia: could not parse base and rmask0 of CIS\n");
-		p_dev->conf.ConfigBase = 0;
-		p_dev->conf.Present = 0;
+		p_dev->config_base = 0;
+		p_dev->config_regs = 0;
 	}
 
 	ret = p_drv->probe(p_dev);

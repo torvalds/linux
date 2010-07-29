@@ -22,9 +22,6 @@
 /* For RequestConfiguration */
 typedef struct config_req_t {
     u_int	Attributes;
-    u_int	ConfigBase;
-    u_char	ConfigIndex;
-    u_int	Present;
 } config_req_t;
 
 /* Attributes for RequestConfiguration */
@@ -34,17 +31,5 @@ typedef struct config_req_t {
 #define CONF_ENABLE_PULSE_IRQ	0x08
 #define CONF_ENABLE_ESR		0x10
 #define CONF_VALID_CLIENT	0x100
-
-/* Configuration registers present */
-#define PRESENT_OPTION		0x001
-#define PRESENT_STATUS		0x002
-#define PRESENT_PIN_REPLACE	0x004
-#define PRESENT_COPY		0x008
-#define PRESENT_EXT_STATUS	0x010
-#define PRESENT_IOBASE_0	0x020
-#define PRESENT_IOBASE_1	0x040
-#define PRESENT_IOBASE_2	0x080
-#define PRESENT_IOBASE_3	0x100
-#define PRESENT_IOSIZE		0x200
 
 #endif /* _LINUX_CS_H */

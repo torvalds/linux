@@ -168,7 +168,7 @@ static int pcmcia_access_config(struct pcmcia_device *p_dev,
 		return -EACCES;
 	}
 
-	addr = (c->ConfigBase + where) >> 1;
+	addr = (p_dev->config_base + where) >> 1;
 
 	ret = accessf(s, 1, addr, 1, val);
 
@@ -443,6 +443,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	pccard_io_map iomap;
 	unsigned char status = 0;
 	unsigned char ext_status = 0;
+	unsigned char option = 0;
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
@@ -473,7 +474,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	if (req->Attributes & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;
 		status = CCSR_AUDIO_ENA;
-		if (!(req->Present & PRESENT_STATUS))
+		if (!(p_dev->config_regs & PRESENT_STATUS))
 			dev_warn(&p_dev->dev, "speaker requested, but "
 					      "PRESENT_STATUS not set!\n");
 	}
@@ -482,54 +483,53 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	else
 		s->socket.io_irq = 0;
 	if (req->Attributes & CONF_ENABLE_ESR) {
-		req->Present |= PRESENT_EXT_STATUS;
+		p_dev->config_regs |= PRESENT_EXT_STATUS;
 		ext_status = ESR_REQ_ATTN_ENA;
 	}
 	s->ops->set_socket(s, &s->socket);
 	s->lock_count++;
 
 	/* Set up CIS configuration registers */
-	base = c->ConfigBase = req->ConfigBase;
-	c->CardValues = req->Present;
-	if (req->Present & PRESENT_COPY) {
+	base = p_dev->config_base;
+	if (p_dev->config_regs & PRESENT_COPY) {
 		u16 tmp = 0;
 		dev_dbg(&p_dev->dev, "clearing CISREG_SCR\n");
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &tmp);
 	}
-	if (req->Present & PRESENT_PIN_REPLACE) {
+	if (p_dev->config_regs & PRESENT_PIN_REPLACE) {
 		u16 tmp = 0;
 		dev_dbg(&p_dev->dev, "clearing CISREG_PRR\n");
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_PRR)>>1, 1, &tmp);
 	}
-	if (req->Present & PRESENT_OPTION) {
+	if (p_dev->config_regs & PRESENT_OPTION) {
 		if (s->functions == 1) {
-			c->Option = req->ConfigIndex & COR_CONFIG_MASK;
+			option = p_dev->config_index & COR_CONFIG_MASK;
 		} else {
-			c->Option = req->ConfigIndex & COR_MFC_CONFIG_MASK;
-			c->Option |= COR_FUNC_ENA|COR_IREQ_ENA;
-			if (req->Present & PRESENT_IOBASE_0)
-				c->Option |= COR_ADDR_DECODE;
+			option = p_dev->config_index & COR_MFC_CONFIG_MASK;
+			option |= COR_FUNC_ENA|COR_IREQ_ENA;
+			if (p_dev->config_regs & PRESENT_IOBASE_0)
+				option |= COR_ADDR_DECODE;
 		}
 		if ((req->Attributes & CONF_ENABLE_IRQ) &&
 			!(req->Attributes & CONF_ENABLE_PULSE_IRQ))
-			c->Option |= COR_LEVEL_REQ;
-		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
+			option |= COR_LEVEL_REQ;
+		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &option);
 		mdelay(40);
 	}
-	if (req->Present & PRESENT_STATUS)
+	if (p_dev->config_regs & PRESENT_STATUS)
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &status);
 
-	if (req->Present & PRESENT_EXT_STATUS)
+	if (p_dev->config_regs & PRESENT_EXT_STATUS)
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1,
 					&ext_status);
 
-	if (req->Present & PRESENT_IOBASE_0) {
+	if (p_dev->config_regs & PRESENT_IOBASE_0) {
 		u8 b = c->io[0].start & 0xff;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);
 		b = (c->io[0].start >> 8) & 0xff;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &b);
 	}
-	if (req->Present & PRESENT_IOSIZE) {
+	if (p_dev->config_regs & PRESENT_IOSIZE) {
 		u8 b = resource_size(&c->io[0]) + resource_size(&c->io[1]) - 1;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &b);
 	}

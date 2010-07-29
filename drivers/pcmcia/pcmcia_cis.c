@@ -151,7 +151,7 @@ static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 	struct pcmcia_cfg_mem *cfg_mem = priv;
 
 	/* default values */
-	cfg_mem->p_dev->conf.ConfigIndex = cfg->index;
+	cfg_mem->p_dev->config_index = cfg->index;
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 		cfg_mem->dflt = *cfg;
 

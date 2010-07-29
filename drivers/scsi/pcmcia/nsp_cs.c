@@ -1745,7 +1745,7 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "nsp_cs: index 0x%02x: ",
-	       link->conf.ConfigIndex);
+	       link->config_index);
 	if (link->vpp) {
 		printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
 	}

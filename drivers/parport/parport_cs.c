@@ -144,7 +144,7 @@ static int parport_config_check(struct pcmcia_device *p_dev,
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
 		if (epp_mode)
-			p_dev->conf.ConfigIndex |= FORCE_EPP_MODE;
+			p_dev->config_index |= FORCE_EPP_MODE;
 		p_dev->resource[0]->start = io->win[0].base;
 		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin == 2) {

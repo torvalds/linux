@@ -411,9 +411,9 @@ static int mhz_3288_power(struct pcmcia_device *link)
     mdelay(200);
 
     /* Now read and write the COR... */
-    tmp = readb(smc->base + link->conf.ConfigBase + CISREG_COR);
+    tmp = readb(smc->base + link->config_base + CISREG_COR);
     udelay(5);
-    writeb(tmp, smc->base + link->conf.ConfigBase + CISREG_COR);
+    writeb(tmp, smc->base + link->config_base + CISREG_COR);
 
     return 0;
 }
@@ -464,7 +464,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     smc->base = ioremap(link->resource[2]->start,
 		    resource_size(link->resource[2]));
-    offset = (smc->manfid == MANFID_MOTOROLA) ? link->conf.ConfigBase : 0;
+    offset = (smc->manfid == MANFID_MOTOROLA) ? link->config_base : 0;
     i = pcmcia_map_mem_page(link, link->resource[2], offset);
     if ((i == 0) &&
 	(smc->manfid == MANFID_MEGAHERTZ) &&
@@ -643,8 +643,8 @@ static int osi_config(struct pcmcia_device *link)
     link->resource[1]->end = 8;
 
     /* Enable Hard Decode, LAN, Modem */
-    link->conf.ConfigIndex = 0x23;
     link->io_lines = 16;
+    link->config_index = 0x23;
 
     for (i = j = 0; j < 4; j++) {
 	link->resource[1]->start = com[j];
@@ -654,7 +654,7 @@ static int osi_config(struct pcmcia_device *link)
     }
     if (i != 0) {
 	/* Fallback: turn off hard decode */
-	link->conf.ConfigIndex = 0x03;
+	link->config_index = 0x03;
 	link->resource[1]->end = 0;
 	i = pcmcia_request_io(link);
     }

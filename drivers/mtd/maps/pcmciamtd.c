@@ -575,7 +575,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		link->vpp = 0;
 	}
 
-	link->conf.ConfigIndex = 0;
+	link->config_index = 0;
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if (ret != 0) {

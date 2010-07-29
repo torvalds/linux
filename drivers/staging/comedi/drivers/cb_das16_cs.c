@@ -772,7 +772,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		goto failed;
 
 	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->config_index);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq);
 	if (link->resource[0])

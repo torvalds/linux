@@ -312,7 +312,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
 	ret = pcmcia_request_io(link);
 	if (ret == 0) {
 	    /* calculate ConfigIndex value */
-	    link->conf.ConfigIndex = 
+	    link->config_index =
 		((link->resource[0]->start & 0x0f0) >> 3) | 0x22;
 	    return ret;
 	}
@@ -361,28 +361,28 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		link->card_id == PRODID_TDK_NP9610 ||
 		link->card_id == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
-		link->conf.ConfigBase = 0x800;
-		link->conf.ConfigIndex = 0x47;
+		link->config_base = 0x800;
+		link->config_index = 0x47;
 		link->resource[1]->end = 8;
 	    }
 	    break;
 	case MANFID_NEC:
 	    cardtype = NEC; /* MultiFunction Card */
-	    link->conf.ConfigBase = 0x800;
-	    link->conf.ConfigIndex = 0x47;
+	    link->config_base = 0x800;
+	    link->config_index = 0x47;
 	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_KME:
 	    cardtype = KME; /* MultiFunction Card */
-	    link->conf.ConfigBase = 0x800;
-	    link->conf.ConfigIndex = 0x47;
+	    link->config_base = 0x800;
+	    link->config_index = 0x47;
 	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_CONTEC:
 	    cardtype = CONTEC;
 	    break;
 	case MANFID_FUJITSU:
-	    if (link->conf.ConfigBase == 0x0fe0)
+	    if (link->config_base == 0x0fe0)
 		cardtype = MBH10302;
 	    else if (link->card_id == PRODID_FUJITSU_MBH10302) 
                 /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
@@ -402,10 +402,10 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	case MANFID_FUJITSU:
 	    if (link->card_id == PRODID_FUJITSU_MBH10304) {
 		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
-	        link->conf.ConfigIndex = 0x20;
+		link->config_index = 0x20;
 	    } else {
 		cardtype = MBH10302;    /* NextCom NC5310, etc. */
-		link->conf.ConfigIndex = 1;
+		link->config_index = 1;
 	    }
 	    break;
 	case MANFID_UNGERMANN:
@@ -413,7 +413,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    break;
 	default:
 	    cardtype = MBH10302;
-	    link->conf.ConfigIndex = 1;
+	    link->config_index = 1;
 	}
     }
 

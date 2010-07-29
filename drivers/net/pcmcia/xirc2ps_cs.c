@@ -530,7 +530,7 @@ xirc2ps_probe(struct pcmcia_device *link)
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.ConfigIndex = 1;
+    link->config_index = 1;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;

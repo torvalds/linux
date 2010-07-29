@@ -601,7 +601,7 @@ static int prism2_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev_info, link->conf.ConfigIndex);
+	       dev_info, link->config_index);
 	if (link->vpp)
 		printk(", Vpp %d.%d", link->vpp / 10,
 		       link->vpp % 10);

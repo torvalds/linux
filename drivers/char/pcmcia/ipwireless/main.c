@@ -92,7 +92,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 
 	/* 0x40 causes it to generate level mode interrupts. */
 	/* 0x04 enables IREQ pin. */
-	p_dev->conf.ConfigIndex = cfg->index | 0x44;
+	p_dev->config_index = cfg->index | 0x44;
 	p_dev->io_lines = 16;
 	ret = pcmcia_request_io(p_dev);
 	if (ret)
