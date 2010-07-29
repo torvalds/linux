@@ -10,6 +10,7 @@ obj-y                                   += delay.o
 obj-y                                   += powergate.o
 obj-y					+= suspend.o
 obj-y					+= fuse.o
+obj-y					+= tegra_i2s_audio.o
 obj-$(CONFIG_FIQ)                       += fiq.o
 obj-y                                   += usb_phy.o
 
