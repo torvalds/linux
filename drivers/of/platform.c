@@ -74,8 +74,22 @@ static void platform_driver_shutdown_shim(struct platform_device *pdev)
  */
 int of_register_platform_driver(struct of_platform_driver *drv)
 {
+	char *of_name;
+
 	/* setup of_platform_driver to platform_driver adaptors */
 	drv->platform_driver.driver = drv->driver;
+
+	/* Prefix the driver name with 'of:' to avoid namespace collisions
+	 * and bogus matches.  There are some drivers in the tree that
+	 * register both an of_platform_driver and a platform_driver with
+	 * the same name.  This is a temporary measure until they are all
+	 * cleaned up --gcl July 29, 2010 */
+	of_name = kmalloc(strlen(drv->driver.name) + 5, GFP_KERNEL);
+	if (!of_name)
+		return -ENOMEM;
+	sprintf(of_name, "of:%s", drv->driver.name);
+	drv->platform_driver.driver.name = of_name;
+
 	if (drv->probe)
 		drv->platform_driver.probe = platform_driver_probe_shim;
 	drv->platform_driver.remove = drv->remove;
@@ -91,6 +105,8 @@ EXPORT_SYMBOL(of_register_platform_driver);
 void of_unregister_platform_driver(struct of_platform_driver *drv)
 {
 	platform_driver_unregister(&drv->platform_driver);
+	kfree(drv->platform_driver.driver.name);
+	drv->platform_driver.driver.name = NULL;
 }
 EXPORT_SYMBOL(of_unregister_platform_driver);
 
