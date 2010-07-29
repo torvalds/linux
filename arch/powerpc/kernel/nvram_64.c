@@ -34,6 +34,25 @@
 
 #undef DEBUG_NVRAM
 
+#define NVRAM_HEADER_LEN 16 /* sizeof(struct nvram_header) */
+#define NVRAM_BLOCK_LEN 16
+#define NVRAM_MAX_REQ (2080/NVRAM_BLOCK_LEN)
+#define NVRAM_MIN_REQ (1056/NVRAM_BLOCK_LEN)
+
+/* If change this size, then change the size of NVNAME_LEN */
+struct nvram_header {
+	unsigned char signature;
+	unsigned char checksum;
+	unsigned short length;
+	char name[12];
+};
+
+struct nvram_partition {
+	struct list_head partition;
+	struct nvram_header header;
+	unsigned int index;
+};
+
 static struct nvram_partition * nvram_part;
 static long nvram_error_log_index = -1;
 static long nvram_error_log_size = 0;
@@ -432,7 +451,7 @@ static int __init nvram_setup_partition(void)
 	}
 	
 	/* try creating a partition with the free space we have */
-	rc = nvram_create_os_partition();
+	rc = nvram_create_partition("ppc64,linux", );
 	if (!rc) {
 		return 0;
 	}

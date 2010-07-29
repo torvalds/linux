@@ -27,6 +27,8 @@ static int nvram_fetch, nvram_store;
 static char nvram_buf[NVRW_CNT];	/* assume this is in the first 4GB */
 static DEFINE_SPINLOCK(nvram_lock);
 
+/* Max bytes to read/write in one go */
+#define NVRW_CNT 0x20
 
 static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
 {

@@ -10,31 +10,7 @@
 #ifndef _ASM_POWERPC_NVRAM_H
 #define _ASM_POWERPC_NVRAM_H
 
-#include <linux/errno.h>
-
-#define NVRW_CNT 0x20
-#define NVRAM_HEADER_LEN 16 /* sizeof(struct nvram_header) */
-#define NVRAM_BLOCK_LEN 16
-#define NVRAM_MAX_REQ (2080/NVRAM_BLOCK_LEN)
-#define NVRAM_MIN_REQ (1056/NVRAM_BLOCK_LEN)
-
-#define NVRAM_AS0  0x74
-#define NVRAM_AS1  0x75
-#define NVRAM_DATA 0x77
-
-
-/* RTC Offsets */
-
-#define MOTO_RTC_SECONDS	0x1FF9
-#define MOTO_RTC_MINUTES	0x1FFA
-#define MOTO_RTC_HOURS		0x1FFB
-#define MOTO_RTC_DAY_OF_WEEK	0x1FFC
-#define MOTO_RTC_DAY_OF_MONTH	0x1FFD
-#define MOTO_RTC_MONTH		0x1FFE
-#define MOTO_RTC_YEAR		0x1FFF
-#define MOTO_RTC_CONTROLA       0x1FF8
-#define MOTO_RTC_CONTROLB       0x1FF9
-
+/* Signatures for nvram partitions */
 #define NVRAM_SIG_SP	0x02	/* support processor */
 #define NVRAM_SIG_OF	0x50	/* open firmware config */
 #define NVRAM_SIG_FW	0x51	/* general firmware */
@@ -49,24 +25,10 @@
 #define NVRAM_SIG_OS	0xa0	/* OS defined */
 #define NVRAM_SIG_PANIC	0xa1	/* Apple OSX "panic" */
 
-/* If change this size, then change the size of NVNAME_LEN */
-struct nvram_header {
-	unsigned char signature;
-	unsigned char checksum;
-	unsigned short length;
-	char name[12];
-};
-
 #ifdef __KERNEL__
 
+#include <linux/errno.h>
 #include <linux/list.h>
-
-struct nvram_partition {
-	struct list_head partition;
-	struct nvram_header header;
-	unsigned int index;
-};
-
 
 extern int nvram_write_error_log(char * buff, int length,
 					 unsigned int err_type, unsigned int err_seq);
