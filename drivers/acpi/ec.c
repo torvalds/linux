@@ -818,6 +818,12 @@ static int acpi_ec_add(struct acpi_device *device)
 	if (!first_ec)
 		first_ec = ec;
 	device->driver_data = ec;
+
+	WARN(!request_region(ec->data_addr, 1, "EC data"),
+	     "Could not request EC data io port 0x%lx", ec->data_addr);
+	WARN(!request_region(ec->command_addr, 1, "EC cmd"),
+	     "Could not request EC cmd io port 0x%lx", ec->command_addr);
+
 	pr_info(PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
 			  ec->gpe, ec->command_addr, ec->data_addr);
 
@@ -844,6 +850,8 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 		kfree(handler);
 	}
 	mutex_unlock(&ec->lock);
+	release_region(ec->data_addr, 1);
+	release_region(ec->command_addr, 1);
 	device->driver_data = NULL;
 	if (ec == first_ec)
 		first_ec = NULL;
@@ -864,18 +872,10 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 	 * the second address region returned is the status/command
 	 * port.
 	 */
-	if (ec->data_addr == 0) {
+	if (ec->data_addr == 0)
 		ec->data_addr = resource->data.io.minimum;
-		WARN(!request_region(ec->data_addr, 1, "EC data"),
-		     "Could not request EC data io port %lu",
-		     ec->data_addr);
-	}
-	else if (ec->command_addr == 0) {
+	else if (ec->command_addr == 0)
 		ec->command_addr = resource->data.io.minimum;
-		WARN(!request_region(ec->command_addr, 1, "EC command"),
-		     "Could not request EC command io port %lu",
-		     ec->command_addr);
-	}
 	else
 		return AE_CTRL_TERMINATE;
 
