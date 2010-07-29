@@ -24,6 +24,7 @@
 #include <linux/of.h>
 
 struct kvm_vcpu_arch_shared {
+	__u64 critical;		/* Guest may not get interrupts if == r1 */
 	__u64 sprg0;
 	__u64 sprg1;
 	__u64 sprg2;
