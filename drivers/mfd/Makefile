@@ -84,6 +84,7 @@ cpcap-objs			:= cpcap-core.o \
 				   cpcap-whisper.o \
 				   cpcap-adc.o \
 				   cpcap-uc.o \
-				   cpcap-3mm5.o
+				   cpcap-3mm5.o \
+				   cpcap-audio.o
 
 obj-$(CONFIG_MFD_CPCAP)		+= cpcap.o
