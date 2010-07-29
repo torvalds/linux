@@ -198,8 +198,8 @@
 
 /* DMAC0 Registers */
 
-#define                      DMAC0_TCPER  0xffc00b0c   /* DMA Controller 0 Traffic Control Periods Register */
-#define                      DMAC0_TCCNT  0xffc00b10   /* DMA Controller 0 Current Counts Register */
+#define                     DMAC0_TC_PER  0xffc00b0c   /* DMA Controller 0 Traffic Control Periods Register */
+#define                     DMAC0_TC_CNT  0xffc00b10   /* DMA Controller 0 Current Counts Register */
 
 /* DMA Channel 0 Registers */
 
@@ -688,8 +688,8 @@
 
 /* DMAC1 Registers */
 
-#define                      DMAC1_TCPER  0xffc01b0c   /* DMA Controller 1 Traffic Control Periods Register */
-#define                      DMAC1_TCCNT  0xffc01b10   /* DMA Controller 1 Current Counts Register */
+#define                     DMAC1_TC_PER  0xffc01b0c   /* DMA Controller 1 Traffic Control Periods Register */
+#define                     DMAC1_TC_CNT  0xffc01b10   /* DMA Controller 1 Current Counts Register */
 
 /* DMA Channel 12 Registers */
 
