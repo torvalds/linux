@@ -30,9 +30,11 @@
 #define DIDT		0x0020
 #define DODT		0x0024
 #define MUTE_ST		0x0028
-#define REG_END		MUTE_ST
+#define OUT_SEL		0x0030
+#define REG_END		OUT_SEL
 
-
+#define A_MST_CTLR	0x0180
+#define B_MST_CTLR	0x01A0
 #define CPU_INT_ST	0x01F4
 #define CPU_IEMSK	0x01F8
 #define CPU_IMSK	0x01FC
@@ -43,7 +45,7 @@
 #define CLK_RST		0x0210
 #define SOFT_RST	0x0214
 #define FIFO_SZ		0x0218
-#define MREG_START	CPU_INT_ST
+#define MREG_START	A_MST_CTLR
 #define MREG_END	FIFO_SZ
 
 /* DO_FMT */
@@ -54,6 +56,7 @@
 #define CR_I2S		(0x3 << 4)
 #define CR_TDM		(0x4 << 4)
 #define CR_TDM_D	(0x5 << 4)
+#define CR_SPDIF	0x00100120
 
 /* DOFF_CTL */
 /* DIFF_CTL */
@@ -68,6 +71,10 @@
 /* CKG1 */
 #define ACKMD_MASK	0x00007000
 #define BPFMD_MASK	0x00000700
+
+/* A/B MST_CTLR */
+#define BP	(1 << 4)	/* Fix the signal of Biphase output */
+#define SE	(1 << 0)	/* Fix the master clock */
 
 /* CLK_RST */
 #define B_CLK		0x00000010
@@ -113,6 +120,8 @@ struct fsi_priv {
 	int period_len;
 	int buffer_len;
 	int periods;
+
+	u32 mst_ctrl;
 };
 
 struct fsi_core {
@@ -395,6 +404,29 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 /************************************************************************
 
 
+		SPDIF master clock function
+
+These functions are used later FSI2
+************************************************************************/
+static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 val = BP | SE;
+
+	if (master->core->ver < 2) {
+		pr_err("fsi: register access err (%s)\n", __func__);
+		return;
+	}
+
+	if (enable)
+		fsi_master_mask_set(master, fsi->mst_ctrl, val, val);
+	else
+		fsi_master_mask_set(master, fsi->mst_ctrl, val, 0);
+}
+
+/************************************************************************
+
+
 		ctrl function
 
 
@@ -671,6 +703,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	u32 flags = fsi_get_info_flags(fsi);
+	struct fsi_master *master = fsi_get_master(fsi);
 	u32 fmt;
 	u32 reg;
 	u32 data;
@@ -731,6 +764,16 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
 		data = CR_TDM_D | (fsi->chan - 1);
+		break;
+	case SH_FSI_FMT_SPDIF:
+		if (master->core->ver < 2) {
+			dev_err(dai->dev, "This FSI can not use SPDIF\n");
+			return -EINVAL;
+		}
+		data = CR_SPDIF;
+		fsi->chan = 2;
+		fsi_spdif_clk_ctrl(fsi, 1);
+		fsi_reg_mask_set(fsi, OUT_SEL, 0x0010, 0x0010);
 		break;
 	default:
 		dev_err(dai->dev, "unknown format.\n");
@@ -1071,14 +1114,21 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
+	/* master setting */
 	master->irq		= irq;
 	master->info		= pdev->dev.platform_data;
-	master->fsia.base	= master->base;
-	master->fsia.master	= master;
-	master->fsib.base	= master->base + 0x40;
-	master->fsib.master	= master;
 	master->core		= (struct fsi_core *)id_entry->driver_data;
 	spin_lock_init(&master->lock);
+
+	/* FSI A setting */
+	master->fsia.base	= master->base;
+	master->fsia.master	= master;
+	master->fsia.mst_ctrl	= A_MST_CTLR;
+
+	/* FSI B setting */
+	master->fsib.base	= master->base + 0x40;
+	master->fsib.master	= master;
+	master->fsib.mst_ctrl	= B_MST_CTLR;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
