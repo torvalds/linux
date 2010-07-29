@@ -37,6 +37,7 @@ struct kvm_vcpu_arch_shared {
 	__u64 dar;
 	__u64 msr;
 	__u32 dsisr;
+	__u32 int_pending;	/* Tells the guest if we have an interrupt */
 };
 
 #define KVM_SC_MAGIC_R0		0x4b564d21 /* "KVM!" */

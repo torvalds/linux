@@ -337,6 +337,7 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
+	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
 
 #ifdef EXIT_DEBUG
@@ -356,6 +357,12 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 					 BITS_PER_BYTE * sizeof(*pending),
 					 priority + 1);
 	}
+
+	/* Tell the guest about our interrupt status */
+	if (*pending)
+		vcpu->arch.shared->int_pending = 1;
+	else if (old_pending)
+		vcpu->arch.shared->int_pending = 0;
 }
 
 void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
