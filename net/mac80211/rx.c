@@ -2615,28 +2615,37 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (WARN_ON(!local->started))
 		goto drop;
 
-	if (status->flag & RX_FLAG_HT) {
+	if (likely(!(status->flag & RX_FLAG_FAILED_PLCP_CRC))) {
 		/*
-		 * rate_idx is MCS index, which can be [0-76] as documented on:
-		 *
-		 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
-		 *
-		 * Anything else would be some sort of driver or hardware error.
-		 * The driver should catch hardware errors.
+		 * Validate the rate, unless a PLCP error means that
+		 * we probably can't have a valid rate here anyway.
 		 */
-		if (WARN((status->rate_idx < 0 ||
-			 status->rate_idx > 76),
-			 "Rate marked as an HT rate but passed "
-			 "status->rate_idx is not "
-			 "an MCS index [0-76]: %d (0x%02x)\n",
-			 status->rate_idx,
-			 status->rate_idx))
-			goto drop;
-	} else {
-		if (WARN_ON(status->rate_idx < 0 ||
-			    status->rate_idx >= sband->n_bitrates))
-			goto drop;
-		rate = &sband->bitrates[status->rate_idx];
+
+		if (status->flag & RX_FLAG_HT) {
+			/*
+			 * rate_idx is MCS index, which can be [0-76]
+			 * as documented on:
+			 *
+			 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
+			 *
+			 * Anything else would be some sort of driver or
+			 * hardware error. The driver should catch hardware
+			 * errors.
+			 */
+			if (WARN((status->rate_idx < 0 ||
+				 status->rate_idx > 76),
+				 "Rate marked as an HT rate but passed "
+				 "status->rate_idx is not "
+				 "an MCS index [0-76]: %d (0x%02x)\n",
+				 status->rate_idx,
+				 status->rate_idx))
+				goto drop;
+		} else {
+			if (WARN_ON(status->rate_idx < 0 ||
+				    status->rate_idx >= sband->n_bitrates))
+				goto drop;
+			rate = &sband->bitrates[status->rate_idx];
+		}
 	}
 
 	/*
