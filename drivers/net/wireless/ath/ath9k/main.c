@@ -226,9 +226,10 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		caldata = &aphy->caldata;
 
 	ath_print(common, ATH_DBG_CONFIG,
-		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
+		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d fastcc: %d\n",
 		  sc->sc_ah->curchan->channel,
-		  channel->center_freq, conf_is_ht40(conf));
+		  channel->center_freq, conf_is_ht40(conf),
+		  fastcc);
 
 	spin_lock_bh(&sc->sc_resetlock);
 
