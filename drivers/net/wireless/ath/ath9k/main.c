@@ -183,11 +183,13 @@ static void ath_start_ani(struct ath_common *common)
 int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan)
 {
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	bool fastcc = true, stopped;
 	struct ieee80211_channel *channel = hw->conf.channel;
+	struct ath9k_hw_cal_data *caldata = NULL;
 	int r;
 
 	if (sc->sc_flags & SC_OP_INVALID)
@@ -220,6 +222,9 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (!stopped || !(sc->sc_flags & SC_OP_OFFCHANNEL))
 		fastcc = false;
 
+	if (!(sc->sc_flags & SC_OP_OFFCHANNEL))
+		caldata = &aphy->caldata;
+
 	ath_print(common, ATH_DBG_CONFIG,
 		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
 		  sc->sc_ah->curchan->channel,
@@ -227,7 +232,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	spin_lock_bh(&sc->sc_resetlock);
 
-	r = ath9k_hw_reset(ah, hchan, fastcc);
+	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -263,9 +268,10 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 static void ath_paprd_activate(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!ah->curchan->paprd_done)
+	if (!caldata || !caldata->paprd_done)
 		return;
 
 	ath9k_ps_wakeup(sc);
@@ -274,7 +280,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
 			continue;
 
-		ar9003_paprd_populate_single_table(ah, ah->curchan, chain);
+		ar9003_paprd_populate_single_table(ah, caldata, chain);
 	}
 
 	ar9003_paprd_enable(ah, true);
@@ -292,12 +298,16 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int band = hw->conf.channel->band;
 	struct ieee80211_supported_band *sband = &sc->sbands[band];
 	struct ath_tx_control txctl;
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int qnum, ftype;
 	int chain_ok = 0;
 	int chain;
 	int len = 1800;
 	int time_left;
 	int i;
+
+	if (!caldata)
+		return;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
@@ -353,7 +363,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		if (!ar9003_paprd_is_done(ah))
 			break;
 
-		if (ar9003_paprd_create_curve(ah, ah->curchan, chain) != 0)
+		if (ar9003_paprd_create_curve(ah, caldata, chain) != 0)
 			break;
 
 		chain_ok = 1;
@@ -361,7 +371,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	kfree_skb(skb);
 
 	if (chain_ok) {
-		ah->curchan->paprd_done = true;
+		caldata->paprd_done = true;
 		ath_paprd_activate(sc);
 	}
 
@@ -470,8 +480,8 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) {
-		if (!sc->sc_ah->curchan->paprd_done)
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->caldata) {
+		if (!ah->caldata->paprd_done)
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		else
 			ath_paprd_activate(sc);
@@ -829,7 +839,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		ah->curchan = ath_get_curchannel(sc, sc->hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, ah->curchan, false);
+	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -889,7 +899,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		ah->curchan = ath_get_curchannel(sc, hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, ah->curchan, false);
+	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -922,7 +932,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath_flushrecv(sc);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
+	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 	if (r)
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d\n", r);
@@ -1097,7 +1107,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, init_channel, false);
+	r = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d "

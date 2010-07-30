@@ -346,19 +346,24 @@ enum ath9k_int {
 	 CHANNEL_HT40PLUS |			\
 	 CHANNEL_HT40MINUS)
 
-struct ath9k_channel {
-	struct ieee80211_channel *chan;
+struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
-	u32 chanmode;
 	int32_t CalValid;
-	bool oneTimeCalsDone;
 	int8_t iCoff;
 	int8_t qCoff;
 	int16_t rawNoiseFloor;
 	bool paprd_done;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
+	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+};
+
+struct ath9k_channel {
+	struct ieee80211_channel *chan;
+	u16 channel;
+	u32 channelFlags;
+	u32 chanmode;
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
@@ -669,7 +674,7 @@ struct ath_hw {
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
 
-	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_hw_cal_data *caldata;
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
@@ -863,7 +868,7 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		   bool bChannelChange);
+		   struct ath9k_hw_cal_data *caldata, bool bChannelChange);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
@@ -958,9 +963,10 @@ void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
 void ar9003_paprd_enable(struct ath_hw *ah, bool val);
 void ar9003_paprd_populate_single_table(struct ath_hw *ah,
-					struct ath9k_channel *chan, int chain);
-int ar9003_paprd_create_curve(struct ath_hw *ah, struct ath9k_channel *chan,
-			      int chain);
+					struct ath9k_hw_cal_data *caldata,
+					int chain);
+int ar9003_paprd_create_curve(struct ath_hw *ah,
+			      struct ath9k_hw_cal_data *caldata, int chain);
 int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);

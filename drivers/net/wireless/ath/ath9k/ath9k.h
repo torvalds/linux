@@ -609,6 +609,7 @@ struct ath_softc {
 struct ath_wiphy {
 	struct ath_softc *sc; /* shared for all virtual wiphys */
 	struct ieee80211_hw *hw;
+	struct ath9k_hw_cal_data caldata;
 	enum ath_wiphy_state {
 		ATH_WIPHY_INACTIVE,
 		ATH_WIPHY_ACTIVE,

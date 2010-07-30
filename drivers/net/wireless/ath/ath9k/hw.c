@@ -610,7 +610,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
-	ath9k_init_nfcal_hist_buffer(ah);
 	ah->bb_watchdog_timeout_ms = 25;
 
 	common->state = ATH_HW_INITIALIZED;
@@ -1183,9 +1182,6 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 
-	if (!chan->oneTimeCalsDone)
-		chan->oneTimeCalsDone = true;
-
 	return true;
 }
 
@@ -1218,7 +1214,7 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 EXPORT_SYMBOL(ath9k_hw_check_alive);
 
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		    bool bChannelChange)
+		   struct ath9k_hw_cal_data *caldata, bool bChannelChange)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 saveLedState;
@@ -1243,8 +1239,18 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
-	if (curchan && !ah->chip_fullsleep)
+	if (curchan && !ah->chip_fullsleep && ah->caldata)
 		ath9k_hw_getnf(ah, curchan);
+
+	ah->caldata = caldata;
+	if (caldata &&
+	    (chan->channel != caldata->channel ||
+	     (chan->channelFlags & ~CHANNEL_CW_INT) !=
+	     (caldata->channelFlags & ~CHANNEL_CW_INT))) {
+		/* Operating channel changed, reset channel calibration data */
+		memset(caldata, 0, sizeof(*caldata));
+		ath9k_init_nfcal_hist_buffer(ah, chan);
+	}
 
 	if (bChannelChange &&
 	    (ah->chip_fullsleep != true) &&

@@ -577,10 +577,11 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 }
 
 void ar9003_paprd_populate_single_table(struct ath_hw *ah,
-					struct ath9k_channel *chan, int chain)
+					struct ath9k_hw_cal_data *caldata,
+					int chain)
 {
-	u32 *paprd_table_val = chan->pa_table[chain];
-	u32 small_signal_gain = chan->small_signal_gain[chain];
+	u32 *paprd_table_val = caldata->pa_table[chain];
+	u32 small_signal_gain = caldata->small_signal_gain[chain];
 	u32 training_power;
 	u32 reg = 0;
 	int i;
@@ -654,17 +655,17 @@ int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 }
 EXPORT_SYMBOL(ar9003_paprd_setup_gain_table);
 
-int ar9003_paprd_create_curve(struct ath_hw *ah, struct ath9k_channel *chan,
-			      int chain)
+int ar9003_paprd_create_curve(struct ath_hw *ah,
+			      struct ath9k_hw_cal_data *caldata, int chain)
 {
-	u16 *small_signal_gain = &chan->small_signal_gain[chain];
-	u32 *pa_table = chan->pa_table[chain];
+	u16 *small_signal_gain = &caldata->small_signal_gain[chain];
+	u32 *pa_table = caldata->pa_table[chain];
 	u32 *data_L, *data_U;
 	int i, status = 0;
 	u32 *buf;
 	u32 reg;
 
-	memset(chan->pa_table[chain], 0, sizeof(chan->pa_table[chain]));
+	memset(caldata->pa_table[chain], 0, sizeof(caldata->pa_table[chain]));
 
 	buf = kmalloc(2 * 48 * sizeof(u32), GFP_ATOMIC);
 	if (!buf)
