@@ -18657,7 +18657,7 @@ static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t dac)
 {
 	int i, num;
-	hda_nid_t srcs[4];
+	hda_nid_t srcs[HDA_MAX_CONNECTIONS];
 
 	alc_set_pin_output(codec, nid, pin_type);
 	/* need the manual connection? */
