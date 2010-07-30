@@ -986,12 +986,12 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_err("%s: cannot read %s ELF file.\n", __func__, name);
+		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		pr_err("%s: cannot get elf header.\n", __func__);
+		pr_debug("%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
@@ -1709,30 +1709,6 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 			     const char *vmlinux, symbol_filter_t filter)
 {
 	int err = -1, fd;
-
-	if (self->has_build_id) {
-		u8 build_id[BUILD_ID_SIZE];
-
-		if (filename__read_build_id(vmlinux, build_id,
-					    sizeof(build_id)) < 0) {
-			pr_debug("No build_id in %s, ignoring it\n", vmlinux);
-			return -1;
-		}
-		if (!dso__build_id_equal(self, build_id)) {
-			char expected_build_id[BUILD_ID_SIZE * 2 + 1],
-			     vmlinux_build_id[BUILD_ID_SIZE * 2 + 1];
-
-			build_id__sprintf(self->build_id,
-					  sizeof(self->build_id),
-					  expected_build_id);
-			build_id__sprintf(build_id, sizeof(build_id),
-					  vmlinux_build_id);
-			pr_debug("build_id in %s is %s while expected is %s, "
-				 "ignoring it\n", vmlinux, vmlinux_build_id,
-				 expected_build_id);
-			return -1;
-		}
-	}
 
 	fd = open(vmlinux, O_RDONLY);
 	if (fd < 0)
