@@ -1184,7 +1184,6 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
-	xhci_set_hc_event_deq(xhci);
 
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */
@@ -1924,7 +1923,6 @@ cleanup:
 		 */
 		if (trb_comp_code == COMP_MISSED_INT || !ep->skip) {
 			inc_deq(xhci, xhci->event_ring, true);
-			xhci_set_hc_event_deq(xhci);
 		}
 
 		if (ret) {
@@ -2022,11 +2020,10 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 		return;
 	}
 
-	if (update_ptrs) {
-		/* Update SW and HC event ring dequeue pointer */
+	if (update_ptrs)
+		/* Update SW event ring dequeue pointer */
 		inc_deq(xhci, xhci->event_ring, true);
-		xhci_set_hc_event_deq(xhci);
-	}
+
 	/* Are there more items on the event ring? */
 	xhci_handle_event(xhci);
 }
@@ -2042,6 +2039,8 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	u32 status, irq_pending;
 	union xhci_trb *trb;
 	u64 temp_64;
+	union xhci_trb *event_ring_deq;
+	dma_addr_t deq;
 
 	spin_lock(&xhci->lock);
 	trb = xhci->event_ring->dequeue;
@@ -2090,18 +2089,43 @@ hw_died:
 	irq_pending |= 0x3;
 	xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
 
-	if (xhci->xhc_state & XHCI_STATE_DYING)
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
 		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
 				"Shouldn't IRQs be disabled?\n");
-	else
-		/* FIXME this should be a delayed service routine
-		 * that clears the EHB.
+		/* Clear the event handler busy flag (RW1C);
+		 * the event ring should be empty.
 		 */
-		xhci_handle_event(xhci);
+		temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+		xhci_write_64(xhci, temp_64 | ERST_EHB,
+				&xhci->ir_set->erst_dequeue);
+		spin_unlock(&xhci->lock);
+
+		return IRQ_HANDLED;
+	}
+
+	event_ring_deq = xhci->event_ring->dequeue;
+	/* FIXME this should be a delayed service routine
+	 * that clears the EHB.
+	 */
+	xhci_handle_event(xhci);
+
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	/* If necessary, update the HW's version of the event ring deq ptr. */
+	if (event_ring_deq != xhci->event_ring->dequeue) {
+		deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
+				xhci->event_ring->dequeue);
+		if (deq == 0)
+			xhci_warn(xhci, "WARN something wrong with SW event "
+					"ring dequeue ptr.\n");
+		/* Update HC event ring dequeue pointer */
+		temp_64 &= ERST_PTR_MASK;
+		temp_64 |= ((u64) deq & (u64) ~ERST_PTR_MASK);
+	}
 
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
+	temp_64 |= ERST_EHB;
+	xhci_write_64(xhci, temp_64, &xhci->ir_set->erst_dequeue);
+
 	spin_unlock(&xhci->lock);
 
 	return IRQ_HANDLED;
