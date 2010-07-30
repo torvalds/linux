@@ -438,17 +438,28 @@ struct v4l2_subdev {
 	/* can be used to group similar subdevs, value is driver-specific */
 	u32 grp_id;
 	/* pointer to private data */
-	void *priv;
+	void *dev_priv;
+	void *host_priv;
 };
 
 static inline void v4l2_set_subdevdata(struct v4l2_subdev *sd, void *p)
 {
-	sd->priv = p;
+	sd->dev_priv = p;
 }
 
 static inline void *v4l2_get_subdevdata(const struct v4l2_subdev *sd)
 {
-	return sd->priv;
+	return sd->dev_priv;
+}
+
+static inline void v4l2_set_subdev_hostdata(struct v4l2_subdev *sd, void *p)
+{
+	sd->host_priv = p;
+}
+
+static inline void *v4l2_get_subdev_hostdata(const struct v4l2_subdev *sd)
+{
+	return sd->host_priv;
 }
 
 static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
@@ -462,7 +473,8 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
 	sd->flags = 0;
 	sd->name[0] = '\0';
 	sd->grp_id = 0;
-	sd->priv = NULL;
+	sd->dev_priv = NULL;
+	sd->host_priv = NULL;
 }
 
 /* Call an ops of a v4l2_subdev, doing the right checks against
