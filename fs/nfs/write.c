@@ -1379,7 +1379,7 @@ static const struct rpc_call_ops nfs_commit_ops = {
 	.rpc_release = nfs_commit_release,
 };
 
-static int nfs_commit_inode(struct inode *inode, int how)
+int nfs_commit_inode(struct inode *inode, int how)
 {
 	LIST_HEAD(head);
 	int may_wait = how & FLUSH_SYNC;
@@ -1443,7 +1443,7 @@ out_mark_dirty:
 	return ret;
 }
 #else
-static int nfs_commit_inode(struct inode *inode, int how)
+int nfs_commit_inode(struct inode *inode, int how)
 {
 	return 0;
 }
