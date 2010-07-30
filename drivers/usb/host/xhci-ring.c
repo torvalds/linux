@@ -2030,6 +2030,109 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 	/* Are there more items on the event ring? */
 	xhci_handle_event(xhci);
 }
+/*
+ * Called in interrupt context when there might be work
+ * queued on the event ring
+ *
+ * xhci->lock must be held by caller.
+ */
+static void xhci_work(struct xhci_hcd *xhci)
+{
+	u32 temp;
+	u64 temp_64;
+
+	/*
+	 * Clear the op reg interrupt status first,
+	 * so we can receive interrupts from other MSI-X interrupters.
+	 * Write 1 to clear the interrupt status.
+	 */
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	temp |= STS_EINT;
+	xhci_writel(xhci, temp, &xhci->op_regs->status);
+	/* FIXME when MSI-X is supported and there are multiple vectors */
+	/* Clear the MSI-X event interrupt status */
+
+	/* Acknowledge the interrupt */
+	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	temp |= 0x3;
+	xhci_writel(xhci, temp, &xhci->ir_set->irq_pending);
+
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
+				"Shouldn't IRQs be disabled?\n");
+	else
+		/* FIXME this should be a delayed service routine
+		 * that clears the EHB.
+		 */
+		xhci_handle_event(xhci);
+
+	/* Clear the event handler busy flag (RW1C); event ring is empty. */
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
+	/* Flush posted writes -- FIXME is this necessary? */
+	xhci_readl(xhci, &xhci->ir_set->irq_pending);
+}
+
+/*
+ * xHCI spec says we can get an interrupt, and if the HC has an error condition,
+ * we might get bad data out of the event ring.  Section 4.10.2.7 has a list of
+ * indicators of an event TRB error, but we check the status *first* to be safe.
+ */
+irqreturn_t xhci_irq(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	u32 temp, temp2;
+	union xhci_trb *trb;
+
+	spin_lock(&xhci->lock);
+	trb = xhci->event_ring->dequeue;
+	/* Check if the xHC generated the interrupt, or the irq is shared */
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	temp2 = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	if (temp == 0xffffffff && temp2 == 0xffffffff)
+		goto hw_died;
+
+	if (!(temp & STS_EINT) && !ER_IRQ_PENDING(temp2)) {
+		spin_unlock(&xhci->lock);
+		xhci_warn(xhci, "Spurious interrupt.\n");
+		return IRQ_NONE;
+	}
+	xhci_dbg(xhci, "op reg status = %08x\n", temp);
+	xhci_dbg(xhci, "ir set irq_pending = %08x\n", temp2);
+	xhci_dbg(xhci, "Event ring dequeue ptr:\n");
+	xhci_dbg(xhci, "@%llx %08x %08x %08x %08x\n",
+			(unsigned long long)
+			xhci_trb_virt_to_dma(xhci->event_ring->deq_seg, trb),
+			lower_32_bits(trb->link.segment_ptr),
+			upper_32_bits(trb->link.segment_ptr),
+			(unsigned int) trb->link.intr_target,
+			(unsigned int) trb->link.control);
+
+	if (temp & STS_FATAL) {
+		xhci_warn(xhci, "WARNING: Host System Error\n");
+		xhci_halt(xhci);
+hw_died:
+		xhci_to_hcd(xhci)->state = HC_STATE_HALT;
+		spin_unlock(&xhci->lock);
+		return -ESHUTDOWN;
+	}
+
+	xhci_work(xhci);
+	spin_unlock(&xhci->lock);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
+{
+	irqreturn_t ret;
+
+	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+
+	ret = xhci_irq(hcd);
+
+	return ret;
+}
 
 /****		Endpoint Ring Operations	****/
 
