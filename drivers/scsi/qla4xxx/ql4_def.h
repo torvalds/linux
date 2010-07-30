@@ -380,6 +380,7 @@ struct scsi_qla_host {
 #define AF_MSI_ENABLED			16 /* 0x00010000 */
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */
 #define AF_MBOX_COMMAND_NOPOLL		18 /* 0x00040000 */
+#define AF_FW_RECOVERY			19 /* 0x00080000 */
 
 
 	unsigned long dpc_flags;

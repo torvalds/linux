@@ -39,6 +39,15 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			      "pointer\n", ha->host_no, __func__));
 		return status;
 	}
+
+	if (is_qla8022(ha) &&
+	    test_bit(AF_FW_RECOVERY, &ha->flags)) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: prematurely "
+		    "completing mbx cmd as firmware recovery detected\n",
+		    ha->host_no, __func__));
+		return status;
+	}
+
 	/* Mailbox code active */
 	wait_count = MBOX_TOV * 100;
 
@@ -196,6 +205,14 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 
 	/* Check for mailbox timeout. */
 	if (!test_bit(AF_MBOX_COMMAND_DONE, &ha->flags)) {
+		if (is_qla8022(ha) &&
+		    test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+			    "scsi%ld: %s: prematurely completing mbx cmd as "
+			    "firmware recovery detected\n",
+			    ha->host_no, __func__));
+			goto mbox_exit;
+		}
 		DEBUG2(printk("scsi%ld: Mailbox Cmd 0x%08X timed out ...,"
 			      " Scheduling Adapter Reset\n", ha->host_no,
 			      mbx_cmd[0]));
@@ -244,6 +261,28 @@ mbox_exit:
 	clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
 
 	return status;
+}
+
+void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha)
+{
+	set_bit(AF_FW_RECOVERY, &ha->flags);
+	ql4_printk(KERN_INFO, ha, "scsi%ld: %s: set FW RECOVERY!\n",
+	    ha->host_no, __func__);
+
+	if (test_bit(AF_MBOX_COMMAND, &ha->flags)) {
+		if (test_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags)) {
+			complete(&ha->mbx_intr_comp);
+			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: Due to fw "
+			    "recovery, doing premature completion of "
+			    "mbx cmd\n", ha->host_no, __func__);
+
+		} else {
+			set_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
+			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: Due to fw "
+			    "recovery, doing premature completion of "
+			    "polling mbx cmd\n", ha->host_no, __func__);
+		}
+	}
 }
 
 static uint8_t

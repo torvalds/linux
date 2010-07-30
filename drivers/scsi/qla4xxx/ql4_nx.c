@@ -2105,6 +2105,9 @@ qla4_8xxx_isp_reset(struct scsi_qla_host *ha)
 	qla4_8xxx_clear_rst_ready(ha);
 	qla4_8xxx_idc_unlock(ha);
 
+	if (rval == QLA_SUCCESS)
+		clear_bit(AF_FW_RECOVERY, &ha->flags);
+
 	return rval;
 }
 

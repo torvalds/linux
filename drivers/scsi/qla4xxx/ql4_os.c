@@ -663,6 +663,7 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 			ha->seconds_since_last_heartbeat = 0;
 			halt_status = qla4_8xxx_rd_32(ha,
 			    QLA82XX_PEG_HALT_STATUS1);
+
 			/* Since we cannot change dev_state in interrupt
 			 * context, set appropriate DPC flag then wakeup
 			 * DPC */
@@ -674,6 +675,7 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 			}
 			qla4xxx_wake_dpc(ha);
+			qla4xxx_mailbox_premature_completion(ha);
 		}
 	}
 	ha->fw_heartbeat_counter = fw_heartbeat_counter;
@@ -699,6 +701,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 			    ha->host_no, __func__);
 			set_bit(DPC_RESET_HA, &ha->dpc_flags);
 			qla4xxx_wake_dpc(ha);
+			qla4xxx_mailbox_premature_completion(ha);
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 		    !test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
 			printk("scsi%ld: %s: HW State: NEED QUIES!\n",
