@@ -206,7 +206,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 err4:
 	if (dpi_use_dsi_pll(dssdev))
-		dsi_pll_uninit();
+		dsi_pll_uninit(true);
 err3:
 	if (dpi_use_dsi_pll(dssdev))
 		dss_clk_disable(DSS_CLK_SYSCK);
@@ -227,7 +227,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	if (dpi_use_dsi_pll(dssdev)) {
 		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-		dsi_pll_uninit();
+		dsi_pll_uninit(true);
 		dss_clk_disable(DSS_CLK_SYSCK);
 	}
 

@@ -246,6 +246,7 @@ static struct
 
 	struct dsi_clock_info current_cinfo;
 
+	bool vdds_dsi_enabled;
 	struct regulator *vdds_dsi_reg;
 
 	struct {
@@ -1445,9 +1446,12 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 	enable_clocks(1);
 	dsi_enable_pll_clock(1);
 
-	r = regulator_enable(dsi.vdds_dsi_reg);
-	if (r)
-		goto err0;
+	if (!dsi.vdds_dsi_enabled) {
+		r = regulator_enable(dsi.vdds_dsi_reg);
+		if (r)
+			goto err0;
+		dsi.vdds_dsi_enabled = true;
+	}
 
 	/* XXX PLL does not come out of reset without this... */
 	dispc_pck_free_enable(1);
@@ -1481,21 +1485,28 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 
 	return 0;
 err1:
-	regulator_disable(dsi.vdds_dsi_reg);
+	if (dsi.vdds_dsi_enabled) {
+		regulator_disable(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_enabled = false;
+	}
 err0:
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);
 	return r;
 }
 
-void dsi_pll_uninit(void)
+void dsi_pll_uninit(bool disconnect_lanes)
 {
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);
 
 	dsi.pll_locked = 0;
 	dsi_pll_power(DSI_PLL_POWER_OFF);
-	regulator_disable(dsi.vdds_dsi_reg);
+	if (disconnect_lanes) {
+		WARN_ON(!dsi.vdds_dsi_enabled);
+		regulator_disable(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_enabled = false;
+	}
 	DSSDBG("PLL uninit done\n");
 }
 
@@ -3642,12 +3653,13 @@ err2:
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
 err1:
-	dsi_pll_uninit();
+	dsi_pll_uninit(true);
 err0:
 	return r;
 }
 
-static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
+static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
+		bool disconnect_lanes)
 {
 	if (!dsi.ulps_enabled)
 		dsi_enter_ulps();
@@ -3662,7 +3674,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dsi_complexio_uninit();
-	dsi_pll_uninit();
+	dsi_pll_uninit(disconnect_lanes);
 }
 
 static int dsi_core_init(void)
@@ -3731,7 +3743,8 @@ err0:
 }
 EXPORT_SYMBOL(omapdss_dsi_display_enable);
 
-void omapdss_dsi_display_disable(struct omap_dss_device *dssdev)
+void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
+		bool disconnect_lanes)
 {
 	DSSDBG("dsi_display_disable\n");
 
@@ -3741,7 +3754,7 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev)
 
 	dsi_display_uninit_dispc(dssdev);
 
-	dsi_display_uninit_dsi(dssdev);
+	dsi_display_uninit_dsi(dssdev, disconnect_lanes);
 
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);

@@ -294,7 +294,7 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 		struct dispc_clock_info *dispc_cinfo);
 int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 		bool enable_hsdiv);
-void dsi_pll_uninit(void);
+void dsi_pll_uninit(bool disconnect_lanes);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high);
