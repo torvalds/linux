@@ -347,7 +347,7 @@ static int __init clk_init(void)
 
 	return 0;
 }
-arch_initcall(clk_init);
+core_initcall(clk_init);
 
 /*
  * CLCD support.
