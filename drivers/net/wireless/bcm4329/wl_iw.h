@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.18 2010/06/03 02:27:14 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.24 2010/07/27 20:46:02 Exp $
  */
 
 
@@ -41,6 +41,10 @@
 #define GET_ACTIVE_ASSOC_DWELL  	"ACTIVE="
 #define GET_PASSIVE_ASSOC_DWELL  	"PASSIVE="
 #define GET_HOME_DWELL  		"HOME="
+#define GET_SCAN_TYPE			"TYPE="
+
+#define BAND_GET_CMD				"GETBAND"
+#define BAND_SET_CMD				"SETBAND"
 
 #define	WL_IW_RSSI_MINVAL	-200
 #define	WL_IW_RSSI_NO_SIGNAL	-91
@@ -102,7 +106,7 @@ typedef struct wl_iw {
 #define WLC_IW_BSS_INFO_MAXLEN 				\
 	(WLC_IW_SS_CACHE_MAXLEN - WLC_IW_SS_CACHE_CTRL_FIELD_MAXLEN)
 
-typedef struct wl_iw_ss_cache{
+typedef struct wl_iw_ss_cache {
 	uint32 buflen;
 	uint32 version;
 	uint32 count;
@@ -191,4 +195,40 @@ extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 	iwe_stream_add_point(stream, ends, iwe, extra)
 #endif
 
-#endif
+#if defined(CSCAN)
+
+typedef struct cscan_tlv {
+	char prefix;
+	char version;
+	char subver;
+	char reserved;
+} cscan_tlv_t;
+
+#define CSCAN_COMMAND				"CSCAN "
+#define CSCAN_TLV_PREFIX 			'S'
+#define CSCAN_TLV_VERSION			1
+#define CSCAN_TLV_SUBVERSION			0
+#define CSCAN_TLV_TYPE_SSID_IE			'S'
+#define CSCAN_TLV_TYPE_CHANNEL_IE		'C'
+#define CSCAN_TLV_TYPE_NPROBE_IE		'N'
+#define CSCAN_TLV_TYPE_ACTIVE_IE		'A'
+#define CSCAN_TLV_TYPE_PASSIVE_IE		'P'
+#define CSCAN_TLV_TYPE_HOME_IE			'H'
+#define CSCAN_TLV_TYPE_STYPE_IE			'T'
+
+extern int wl_iw_parse_channel_list_tlv(char** list_str, uint16* channel_list, \
+					int channel_num, int *bytes_left);
+
+extern int wl_iw_parse_data_tlv(char** list_str, void  *dst, int dst_size, \
+					const char token, int input_size, int *bytes_left);
+
+extern int wl_iw_parse_ssid_list_tlv(char** list_str, wlc_ssid_t* ssid, \
+					int max, int *bytes_left);
+
+extern int wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max);
+
+extern int wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num);
+
+#endif 
+
+#endif 

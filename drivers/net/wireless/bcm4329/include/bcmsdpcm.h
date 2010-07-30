@@ -2,7 +2,7 @@
  * Broadcom SDIO/PCMCIA
  * Software-specific definitions shared between device and host side
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdpcm.h,v 1.1.2.3 2009/04/09 18:52:06 Exp $
+ * $Id: bcmsdpcm.h,v 1.1.2.4 2010/07/02 01:15:46 Exp $
  */
 
 #ifndef	_bcmsdpcm_h_
@@ -241,7 +241,7 @@ typedef volatile struct {
  * Shared structure between dongle and the host
  * The structure contains pointers to trap or assert information shared with the host
  */
-#define SDPCM_SHARED_VERSION       0x0001
+#define SDPCM_SHARED_VERSION       0x0002
 #define SDPCM_SHARED_VERSION_MASK  0x00FF
 #define SDPCM_SHARED_ASSERT_BUILT  0x0100
 #define SDPCM_SHARED_ASSERT        0x0200
@@ -255,6 +255,7 @@ typedef struct {
 	uint32  assert_line;
 	uint32	console_addr;		/* Address of hndrte_cons_t */
 	uint32  msgtrace_addr;
+	uint8   tag[32];
 } sdpcm_shared_t;
 
 extern sdpcm_shared_t sdpcm_shared;

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.125 2010/06/04 02:52:15 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.126 2010/06/15 23:38:39 Exp $
  */
 
 #include <typedefs.h>
@@ -4694,6 +4694,8 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = FALSE;
+				dhd_os_wd_timer(bus->dhd,dhd_watchdog_ms);
+			} else {
 				dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 			}
 		}
