@@ -156,7 +156,7 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 		ath9k_hw_loadnf(ah, ah->curchan);
 
 		/* start NF calibration, without updating BB NF register */
-		ath9k_hw_start_nfcal(ah);
+		ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -761,6 +761,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
+
+	ath9k_hw_start_nfcal(ah, true);
 
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;

@@ -721,7 +721,7 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 		 */
 		ath9k_hw_loadnf(ah, ah->curchan);
 
-		ath9k_hw_start_nfcal(ah);
+		ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -869,8 +869,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	ar9002_hw_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
-	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) | AR_PHY_AGC_CONTROL_NF);
+	ath9k_hw_start_nfcal(ah, true);
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 

@@ -158,12 +158,18 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_reset_calvalid);
 
-void ath9k_hw_start_nfcal(struct ath_hw *ah)
+void ath9k_hw_start_nfcal(struct ath_hw *ah, bool update)
 {
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_ENABLE_NF);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+
+	if (update)
+		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+	else
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 }
 

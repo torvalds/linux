@@ -1256,7 +1256,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
-			ath9k_hw_start_nfcal(ah);
+			ath9k_hw_start_nfcal(ah, true);
 			return 0;
 		}
 	}
@@ -1461,11 +1461,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (ah->btcoex_hw.enabled)
 		ath9k_hw_btcoex_enable(ah);
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		ath9k_hw_loadnf(ah, curchan);
-		ath9k_hw_start_nfcal(ah);
+	if (AR_SREV_9300_20_OR_LATER(ah))
 		ar9003_hw_bb_watchdog_config(ah);
-	}
 
 	return 0;
 }
