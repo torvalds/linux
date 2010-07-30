@@ -257,6 +257,29 @@ static int lbs_add_supported_rates_tlv(u8 *tlv)
 	return sizeof(rate_tlv->header) + i;
 }
 
+/* Add common rates from a TLV and return the new end of the TLV */
+static u8 *
+add_ie_rates(u8 *tlv, const u8 *ie, int *nrates)
+{
+	int hw, ap, ap_max = ie[1];
+	u8 hw_rate;
+
+	/* Advance past IE header */
+	ie += 2;
+
+	lbs_deb_hex(LBS_DEB_ASSOC, "AP IE Rates", (u8 *) ie, ap_max);
+
+	for (hw = 0; hw < ARRAY_SIZE(lbs_rates); hw++) {
+		hw_rate = lbs_rates[hw].bitrate / 5;
+		for (ap = 0; ap < ap_max; ap++) {
+			if (hw_rate == (ie[ap] & 0x7f)) {
+				*tlv++ = ie[ap];
+				*nrates = *nrates + 1;
+			}
+		}
+	}
+	return tlv;
+}
 
 /*
  * Adds a TLV with all rates the hardware *and* BSS supports.
@@ -264,8 +287,11 @@ static int lbs_add_supported_rates_tlv(u8 *tlv)
 static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 {
 	struct mrvl_ie_rates_param_set *rate_tlv = (void *)tlv;
-	const u8 *rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
-	int n;
+	const u8 *rates_eid, *ext_rates_eid;
+	int n = 0;
+
+	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
+	ext_rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_EXT_SUPP_RATES);
 
 	/*
 	 * 01 00                   TLV_TYPE_RATES
@@ -275,26 +301,21 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 	rate_tlv->header.type = cpu_to_le16(TLV_TYPE_RATES);
 	tlv += sizeof(rate_tlv->header);
 
-	if (!rates_eid) {
+	/* Add basic rates */
+	if (rates_eid) {
+		tlv = add_ie_rates(tlv, rates_eid, &n);
+
+		/* Add extended rates, if any */
+		if (ext_rates_eid)
+			tlv = add_ie_rates(tlv, ext_rates_eid, &n);
+	} else {
+		lbs_deb_assoc("assoc: bss had no basic rate IE\n");
 		/* Fallback: add basic 802.11b rates */
 		*tlv++ = 0x82;
 		*tlv++ = 0x84;
 		*tlv++ = 0x8b;
 		*tlv++ = 0x96;
 		n = 4;
-	} else {
-		int hw, ap;
-		u8 ap_max = rates_eid[1];
-		n = 0;
-		for (hw = 0; hw < ARRAY_SIZE(lbs_rates); hw++) {
-			u8 hw_rate = lbs_rates[hw].bitrate / 5;
-			for (ap = 0; ap < ap_max; ap++) {
-				if (hw_rate == (rates_eid[ap+2] & 0x7f)) {
-					*tlv++ = rates_eid[ap+2];
-					n++;
-				}
-			}
-		}
 	}
 
 	rate_tlv->header.len = cpu_to_le16(n);
@@ -1008,6 +1029,7 @@ static int lbs_associate(struct lbs_private *priv,
 	int status;
 	int ret;
 	u8 *pos = &(cmd->iebuf[0]);
+	u8 *tmp;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -1052,7 +1074,9 @@ static int lbs_associate(struct lbs_private *priv,
 	pos += lbs_add_cf_param_tlv(pos);
 
 	/* add rates TLV */
+	tmp = pos + 4; /* skip Marvell IE header */
 	pos += lbs_add_common_rates_tlv(pos, bss);
+	lbs_deb_hex(LBS_DEB_ASSOC, "Common Rates", tmp, pos - tmp);
 
 	/* add auth type TLV */
 	if (priv->fwrelease >= 0x09000000)
