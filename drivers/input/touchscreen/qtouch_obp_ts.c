@@ -1311,7 +1311,9 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 
 	return 0;
 
+#ifndef IGNORE_CHECKSUM_MISMATCH
 err_bad_checksum:
+#endif
 err_no_checksum:
 err_missing_objs:
 err_no_msg_proc:
