@@ -511,8 +511,6 @@ static void dlm_lockres_release(struct kref *kref)
 
 	atomic_dec(&dlm->res_cur_count);
 
-	dlm_put(dlm);
-
 	if (!hlist_unhashed(&res->hash_node) ||
 	    !list_empty(&res->granted) ||
 	    !list_empty(&res->converting) ||
@@ -585,8 +583,6 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	res->migration_pending = 0;
 	res->inflight_locks = 0;
 
-	/* put in dlm_lockres_release */
-	dlm_grab(dlm);
 	res->dlm = dlm;
 
 	kref_init(&res->refs);
