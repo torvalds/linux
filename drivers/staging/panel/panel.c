@@ -2124,12 +2124,18 @@ static void panel_attach(struct parport *port)
 				       NULL,
 				       /*PARPORT_DEV_EXCL */
 				       0, (void *)&pprt);
+	if (pprt == NULL) {
+		pr_err("panel_attach(): port->number=%d parport=%d, "
+		       "parport_register_device() failed\n",
+		       port->number, parport);
+		return;
+	}
 
 	if (parport_claim(pprt)) {
 		printk(KERN_ERR
 		       "Panel: could not claim access to parport%d. "
 		       "Aborting.\n", parport);
-		return;
+		goto err_unreg_device;
 	}
 
 	/* must init LCD first, just in case an IRQ from the keypad is
@@ -2137,13 +2143,23 @@ static void panel_attach(struct parport *port)
 	 */
 	if (lcd_enabled) {
 		lcd_init();
-		misc_register(&lcd_dev);
+		if (misc_register(&lcd_dev))
+			goto err_unreg_device;
 	}
 
 	if (keypad_enabled) {
 		keypad_init();
-		misc_register(&keypad_dev);
+		if (misc_register(&keypad_dev))
+			goto err_lcd_unreg;
 	}
+	return;
+
+err_lcd_unreg:
+	if (lcd_enabled)
+		misc_deregister(&lcd_dev);
+err_unreg_device:
+	parport_unregister_device(pprt);
+	pprt = NULL;
 }
 
 static void panel_detach(struct parport *port)
