@@ -188,6 +188,13 @@ config PL330_DMA
 	  You need to provide platform specific settings via
 	  platform_data for a dma-pl330 device.
 
+config PCH_DMA
+	tristate "Topcliff PCH DMA support"
+	depends on PCI && X86
+	select DMA_ENGINE
+	help
+	  Enable support for the Topcliff PCH DMA engine.
+
 config DMA_ENGINE
 	bool
 
