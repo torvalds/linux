@@ -308,7 +308,6 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 			DEBUG2(printk("scsi%ld: %s: unable to get firmware "
 				      "state\n", ha->host_no, __func__));
 			break;
-
 		}
 
 		if (ha->firmware_state & FW_STATE_ERROR) {
@@ -444,6 +443,10 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
+
+	if (is_aer_supported(ha) &&
+	    test_bit(AF_PCI_CHANNEL_IO_PERM_FAILURE, &ha->flags))
+		return status;
 
 	/* For 82xx, stop firmware before initializing because if BIOS
 	 * has previously initialized firmware, then driver's initialize

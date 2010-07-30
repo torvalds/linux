@@ -1418,7 +1418,7 @@ static int qla4_8xxx_rcvpeg_ready(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-static inline void
+inline void
 qla4_8xxx_set_drv_active(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;
@@ -1441,11 +1441,15 @@ qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha)
 static inline int
 qla4_8xxx_need_reset(struct scsi_qla_host *ha)
 {
-	uint32_t drv_state;
+	uint32_t drv_state, drv_active;
 	int rval;
 
+	drv_active = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
 	drv_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 	rval = drv_state & (1 << (ha->func_num * 4));
+	if ((test_bit(AF_EEH_BUSY, &ha->flags)) && drv_active)
+		rval = 1;
+
 	return rval;
 }
 

@@ -36,6 +36,24 @@
 #include "ql4_dbg.h"
 #include "ql4_nx.h"
 
+#if defined(CONFIG_PCIEAER)
+#include <linux/aer.h>
+#else
+/* AER releated */
+static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+#endif
+
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4010
 #define PCI_DEVICE_ID_QLOGIC_ISP4010	0x4010
 #endif
@@ -381,7 +399,8 @@ struct scsi_qla_host {
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */
 #define AF_MBOX_COMMAND_NOPOLL		18 /* 0x00040000 */
 #define AF_FW_RECOVERY			19 /* 0x00080000 */
-
+#define AF_EEH_BUSY			20 /* 0x00100000 */
+#define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 
 	unsigned long dpc_flags;
 
@@ -613,6 +632,15 @@ static inline int is_qla4032(struct scsi_qla_host *ha)
 }
 
 static inline int is_qla8022(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
+}
+
+/* Note: Currently AER/EEH is now supported only for 8022 cards
+ * This function needs to be updated when AER/EEH is enabled
+ * for other cards.
+ */
+static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
 }
