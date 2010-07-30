@@ -36,7 +36,7 @@
 #define DBG(x...)
 #endif
 
-#define SPI_GPIO_TEST 1
+#define SPI_GPIO_TEST 0
 #define HIGH_SPI_TEST 1
 spinlock_t		gpio_lock;
 spinlock_t		gpio_state_lock;
