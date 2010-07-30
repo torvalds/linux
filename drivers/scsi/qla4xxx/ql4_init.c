@@ -445,6 +445,12 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
 
+	/* For 82xx, stop firmware before initializing because if BIOS
+	 * has previously initialized firmware, then driver's initialize
+	 * firmware will fail. */
+	if (is_qla8022(ha))
+		qla4_8xxx_stop_firmware(ha);
+
 	ql4_printk(KERN_INFO, ha, "Initializing firmware..\n");
 	if (qla4xxx_initialize_fw_cb(ha) == QLA_ERROR) {
 		DEBUG2(printk("scsi%ld: %s: Failed to initialize firmware "
