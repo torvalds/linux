@@ -278,9 +278,9 @@ BOOL BSSbUpdateToBSSList(void *hDeviceContext,
 
 BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
 		       PBYTE abyDstAddr,
-		       PUINT puNodeIndex);
+		       unsigned int *puNodeIndex);
 
-void BSSvCreateOneNode(void *hDeviceContext, PUINT puNodeIndex);
+void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex);
 
 void BSSvUpdateAPNode(void *hDeviceContext,
 		      PWORD pwCapInfo,

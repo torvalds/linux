@@ -80,7 +80,7 @@ static
 void
 s_vGetDASA(
       PBYTE pbyRxBufferAddr,
-     PUINT pcbHeaderSize,
+     unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     );
 
@@ -92,7 +92,7 @@ s_vProcessRxMACHeader (
       unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-     PUINT pcbHeadSize
+     unsigned int *pcbHeadSize
     );
 
 static BOOL s_bAPModeRxCtl(
@@ -167,7 +167,7 @@ s_vProcessRxMACHeader (
       unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-     PUINT pcbHeadSize
+     unsigned int *pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
@@ -261,7 +261,7 @@ static
 void
 s_vGetDASA (
       PBYTE pbyRxBufferAddr,
-     PUINT pcbHeaderSize,
+     unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     )
 {

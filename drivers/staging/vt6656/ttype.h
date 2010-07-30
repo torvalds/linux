@@ -64,7 +64,6 @@ typedef unsigned long   ULONG_PTR;      // 32-bit
 typedef unsigned long   DWORD_PTR;      // 32-bit
 
 // boolean pointer
-typedef unsigned int *   PUINT;
 
 typedef BYTE *           PBYTE;
 
