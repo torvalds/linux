@@ -13164,6 +13164,8 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 		dac = 0x03;
 		break;
 	default:
+		snd_printd(KERN_WARNING "hda_codec: "
+			   "ignoring pin 0x%x as unknown\n", nid);
 		return 0;
 	}
 	if (spec->multiout.dac_nids[0] != dac &&
