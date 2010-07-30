@@ -7380,6 +7380,8 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
         RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
+	if (dev == NULL)
+		return -ENOMEM;
 
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
@@ -7417,7 +7419,8 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto fail;
 	RT_TRACE(COMP_INIT, "dev name=======> %s\n",dev->name);
 	rtl8192_proc_init_one(dev);
 
