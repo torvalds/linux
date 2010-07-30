@@ -1964,7 +1964,7 @@ cleanup:
  * This function handles all OS-owned events on the event ring.  It may drop
  * xhci->lock between event processing (e.g. to pass up port status changes).
  */
-void xhci_handle_event(struct xhci_hcd *xhci)
+static void xhci_handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
 	int update_ptrs = 1;
