@@ -11,6 +11,7 @@
 #define HAVE_LONG_LONG __GLIBC_HAVE_LONG_LONG
 #endif
 #include <slang.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <newt.h>
 #include <sys/ttydefaults.h>
@@ -891,6 +892,13 @@ static struct newtPercentTreeColors {
 	"blue",	     "lightgray",
 };
 
+static void newt_suspend(void *d __used)
+{
+	newtSuspend();
+	raise(SIGTSTP);
+	newtResume();
+}
+
 void setup_browser(void)
 {
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
@@ -904,6 +912,7 @@ void setup_browser(void)
 	use_browser = 1;
 	newtInit();
 	newtCls();
+	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__puts(" ");
 	sltt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
 	sltt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
