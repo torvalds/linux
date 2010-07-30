@@ -239,6 +239,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 		return;
 
 	ath9k_ps_wakeup(sc);
+	ar9003_paprd_enable(ah, false);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
 			continue;
