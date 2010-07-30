@@ -46,8 +46,7 @@ static char gpio_name[] = "etrax gpio";
 static wait_queue_head_t *gpio_wq;
 #endif
 
-static int gpio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static int gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t gpio_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
@@ -505,8 +504,7 @@ static int
 gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
 
 static int
-gpio_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+gpio_ioctl_unlocked(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long val;
@@ -684,6 +682,18 @@ gpio_ioctl(struct inode *inode, struct file *file,
 }
 
 static int
+gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+       long ret;
+
+       lock_kernel();
+       ret = gpio_ioctl_unlocked(file, cmd, arg);
+       unlock_kernel();
+
+       return ret;
+}
+
+static int
 gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 {
 	unsigned char green;
@@ -713,12 +723,12 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations gpio_fops = {
-	.owner       = THIS_MODULE,
-	.poll        = gpio_poll,
-	.ioctl       = gpio_ioctl,
-	.write       = gpio_write,
-	.open        = gpio_open,
-	.release     = gpio_release,
+	.owner          = THIS_MODULE,
+	.poll           = gpio_poll,
+	.unlocked_ioctl = gpio_ioctl,
+	.write          = gpio_write,
+	.open           = gpio_open,
+	.release        = gpio_release,
 };
 
 static void ioif_watcher(const unsigned int gpio_in_available,

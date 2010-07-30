@@ -580,8 +580,7 @@ i2c_release(struct inode *inode, struct file *filp)
  */
 
 static int
-i2c_ioctl(struct inode *inode, struct file *file,
-	  unsigned int cmd, unsigned long arg)
+i2c_ioctl_unlocked(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	if(_IOC_TYPE(cmd) != ETRAXI2C_IOCTYPE) {
 		return -EINVAL;
@@ -617,11 +616,22 @@ i2c_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long i2c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	lock_kernel();
+	ret = i2c_ioctl_unlocked(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static const struct file_operations i2c_fops = {
-	.owner    = THIS_MODULE,
-	.ioctl    = i2c_ioctl,
-	.open     = i2c_open,
-	.release  = i2c_release,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl	= i2c_ioctl,
+	.open		= i2c_open,
+	.release	= i2c_release,
 };
 
 int __init
