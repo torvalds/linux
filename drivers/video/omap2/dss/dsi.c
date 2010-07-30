@@ -244,6 +244,8 @@ static struct
 	void __iomem	*base;
 	int irq;
 
+	void (*dsi_mux_pads)(bool enable);
+
 	struct dsi_clock_info current_cinfo;
 
 	bool vdds_dsi_enabled;
@@ -2035,6 +2037,9 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 
 	DSSDBGF();
 
+	if (dsi.dsi_mux_pads)
+		dsi.dsi_mux_pads(true);
+
 	dsi_enable_scp_clk();
 
 	/* A dummy read using the SCP interface to any DSIPHY register is
@@ -2122,6 +2127,8 @@ err_cio_pwr:
 		dsi_cio_disable_lane_override();
 err_scp_clk_dom:
 	dsi_disable_scp_clk();
+	if (dsi.dsi_mux_pads)
+		dsi.dsi_mux_pads(false);
 	return r;
 }
 
@@ -2129,6 +2136,8 @@ static void dsi_cio_uninit(void)
 {
 	dsi_cio_power(DSI_COMPLEXIO_POWER_OFF);
 	dsi_disable_scp_clk();
+	if (dsi.dsi_mux_pads)
+		dsi.dsi_mux_pads(false);
 }
 
 static int _dsi_wait_reset(void)
@@ -3993,9 +4002,15 @@ static void dsi_calc_clock_param_ranges(void)
 
 static int dsi_init(struct platform_device *pdev)
 {
+	struct omap_display_platform_data *dss_plat_data;
+	struct omap_dss_board_info *board_info;
 	u32 rev;
 	int r, i;
 	struct resource *dsi_mem;
+
+	dss_plat_data = pdev->dev.platform_data;
+	board_info = dss_plat_data->board_data;
+	dsi.dsi_mux_pads = board_info->dsi_mux_pads;
 
 	spin_lock_init(&dsi.irq_lock);
 	spin_lock_init(&dsi.errors_lock);
