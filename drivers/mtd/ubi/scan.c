@@ -964,7 +964,7 @@ static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 		}
 	}
 
-	if (si->corr_peb_count >= 0)
+	if (si->corr_peb_count > 0)
 		ubi_msg("corrupted PEBs will be formatted");
 	return 0;
 }
