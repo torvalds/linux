@@ -108,6 +108,7 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	unsigned int speed;
 	unsigned int channel = 0 ;
 	unsigned int result;
+	int ret = 0;
 	
 	slaveaddr = pmsg->addr<<1;
 	len = pmsg->len;	
@@ -155,6 +156,7 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 			spin_lock(&port->i2c.i2c_lock);
 			port->i2c.interrupt &= INT_I2C_READ_MASK;
 			spin_unlock(&port->i2c.i2c_lock);
+			ret = pmsg->len;
 			break;
 		}
 		else
@@ -162,7 +164,7 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	}
 	//for(i = 0;i<len;i++)
 		//printk("pmsg->buf[%d] = 0x%x \n",i,pmsg->buf[i]);	
-	return pmsg->len;
+	return ret>0 ? ret:-1;
 	
 }
 
@@ -174,6 +176,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	unsigned int slaveaddr;
 	unsigned int speed;
 	unsigned int channel = 0;
+	int ret = 0;
 	
 	slaveaddr = pmsg->addr;
 	len = pmsg->len;	
@@ -217,6 +220,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 				spin_lock(&port->i2c.i2c_lock);
 				port->i2c.interrupt &= INT_I2C_WRITE_MASK;
 				spin_unlock(&port->i2c.i2c_lock);
+				ret =  pmsg->len;
 				break;
 			}
 			else
@@ -227,6 +231,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		else if(i==len-1 &&  pmsg->read_type == I2C_NO_STOP)
 		{					
 			spi_out(port,reg,pmsg->buf[i],SEL_I2C);
+			ret =  pmsg->len;
 		}
 		else
 		{			
@@ -235,7 +240,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	}	
 	
 	
-	return pmsg->len;
+	return ret>0? ret:-1;
 	
 	
 }
@@ -274,7 +279,7 @@ int spi_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	{
 		//i2c->msg_idx = i;
 		ret = spi_xfer_msg(adapter,&msgs[i],(i == (num - 1)));	
-		if(ret == 0)
+		if(ret <= 0)
 		{
 			num = ret;
 			printk("spi_xfer_msg error .ret = %d\n",ret);
@@ -512,7 +517,6 @@ int spi_i2c_unregister(struct spi_fpga_port *port)
 {
 	return 0;
 }
-
 
 MODULE_DESCRIPTION("Driver for spi2i2c.");
 MODULE_AUTHOR("swj <swj@rock-chips.com>");
