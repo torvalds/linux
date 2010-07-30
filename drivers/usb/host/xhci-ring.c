@@ -419,6 +419,50 @@ static struct xhci_segment *find_trb_seg(
 	return cur_seg;
 }
 
+
+static struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		unsigned int stream_id)
+{
+	struct xhci_virt_ep *ep;
+
+	ep = &xhci->devs[slot_id]->eps[ep_index];
+	/* Common case: no streams */
+	if (!(ep->ep_state & EP_HAS_STREAMS))
+		return ep->ring;
+
+	if (stream_id == 0) {
+		xhci_warn(xhci,
+				"WARN: Slot ID %u, ep index %u has streams, "
+				"but URB has no stream ID.\n",
+				slot_id, ep_index);
+		return NULL;
+	}
+
+	if (stream_id < ep->stream_info->num_streams)
+		return ep->stream_info->stream_rings[stream_id];
+
+	xhci_warn(xhci,
+			"WARN: Slot ID %u, ep index %u has "
+			"stream IDs 1 to %u allocated, "
+			"but stream ID %u is requested.\n",
+			slot_id, ep_index,
+			ep->stream_info->num_streams - 1,
+			stream_id);
+	return NULL;
+}
+
+/* Get the right ring for the given URB.
+ * If the endpoint supports streams, boundary check the URB's stream ID.
+ * If the endpoint doesn't support streams, return the singular endpoint ring.
+ */
+static struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
+		struct urb *urb)
+{
+	return xhci_triad_to_transfer_ring(xhci, urb->dev->slot_id,
+		xhci_get_endpoint_index(&urb->ep->desc), urb->stream_id);
+}
+
 /*
  * Move the xHC's endpoint ring dequeue pointer past cur_td.
  * Record the new state of the xHC's endpoint ring dequeue segment,
