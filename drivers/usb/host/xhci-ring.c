@@ -2014,7 +2014,7 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 irqreturn_t xhci_irq(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	u32 status, irq_pending;
+	u32 status;
 	union xhci_trb *trb;
 	u64 temp_64;
 	union xhci_trb *event_ring_deq;
@@ -2024,17 +2024,15 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	trb = xhci->event_ring->dequeue;
 	/* Check if the xHC generated the interrupt, or the irq is shared */
 	status = xhci_readl(xhci, &xhci->op_regs->status);
-	irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	if (status == 0xffffffff && irq_pending == 0xffffffff)
+	if (status == 0xffffffff)
 		goto hw_died;
 
-	if (!(status & STS_EINT) && !ER_IRQ_PENDING(irq_pending)) {
+	if (!(status & STS_EINT)) {
 		spin_unlock(&xhci->lock);
 		xhci_warn(xhci, "Spurious interrupt.\n");
 		return IRQ_NONE;
 	}
 	xhci_dbg(xhci, "op reg status = %08x\n", status);
-	xhci_dbg(xhci, "ir set irq_pending = %08x\n", irq_pending);
 	xhci_dbg(xhci, "Event ring dequeue ptr:\n");
 	xhci_dbg(xhci, "@%llx %08x %08x %08x %08x\n",
 			(unsigned long long)
@@ -2063,9 +2061,13 @@ hw_died:
 	/* FIXME when MSI-X is supported and there are multiple vectors */
 	/* Clear the MSI-X event interrupt status */
 
-	/* Acknowledge the interrupt */
-	irq_pending |= 0x3;
-	xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
+	if (hcd->irq != -1) {
+		u32 irq_pending;
+		/* Acknowledge the PCI interrupt */
+		irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+		irq_pending |= 0x3;
+		xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
+	}
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
 		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
