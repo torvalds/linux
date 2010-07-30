@@ -80,7 +80,7 @@ static int tps6586x_ldo_list_voltage(struct regulator_dev *rdev,
 {
 	struct tps6586x_regulator *info = rdev_get_drvdata(rdev);
 
-	return info->voltages[selector];
+	return info->voltages[selector] * 1000;
 }
 
 
@@ -137,7 +137,7 @@ static int tps6586x_ldo_get_voltage(struct regulator_dev *rdev)
 	if (val > ri->desc.n_voltages)
 		BUG();
 
-	return ri->voltages[val];
+	return ri->voltages[val] * 1000;
 }
 
 static int tps6586x_dvm_set_voltage(struct regulator_dev *rdev,
@@ -217,6 +217,13 @@ static int tps6586x_ldo4_voltages[] = {
 	2300, 2325, 2350, 2375, 2400, 2425, 2450, 2475,
 };
 
+static int tps6586x_sm2_voltages[] = {
+	3000, 3050, 3100, 3150, 3200, 3250, 3300, 3350,
+	3400, 3450, 3500, 3550, 3600, 3650, 3700, 3750,
+	3800, 3850, 3900, 3950, 4000, 4050, 4100, 4150,
+	4200, 4250, 4300, 4350, 4400, 4450, 4500, 4550,
+};
+
 static int tps6586x_dvm_voltages[] = {
 	 725,  750,  775,  800,  825,  850,  875,  900,
 	 925,  950,  975, 1000, 1025, 1050, 1075, 1100,
@@ -265,7 +272,7 @@ static struct tps6586x_regulator tps6586x_regulator[] = {
 	TPS6586X_LDO(LDO_9, ldo, SUPPLYV6, 3, 3, ENE, 7, ENE, 7),
 	TPS6586X_LDO(LDO_RTC, ldo, SUPPLYV4, 3, 3, ENE, 7, ENE, 7),
 	TPS6586X_LDO(LDO_1, dvm, SUPPLYV1, 0, 5, ENC, 1, END, 1),
-	TPS6586X_LDO(SM_2, dvm, SUPPLYV2, 0, 5, ENC, 1, END, 1),
+	TPS6586X_LDO(SM_2, sm2, SUPPLYV2, 0, 5, ENC, 1, END, 1),
 
 	TPS6586X_DVM(LDO_2, dvm, LDO2BV1, 0, 5, ENA, 3, ENB, 3, VCC2, 6),
 	TPS6586X_DVM(LDO_4, ldo4, LDO4V1, 0, 5, ENC, 3, END, 3, VCC1, 6),
