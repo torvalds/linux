@@ -64,7 +64,9 @@ __be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_open(struct svc_rqst *, struct svc_fh *, int,
 				int, struct file **);
 void		nfsd_close(struct file *);
-__be32 		nfsd_read(struct svc_rqst *, struct svc_fh *, struct file *,
+__be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
+				loff_t, struct kvec *, int, unsigned long *);
+__be32 		nfsd_read_file(struct svc_rqst *, struct svc_fh *, struct file *,
 				loff_t, struct kvec *, int, unsigned long *);
 __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *,struct file *,
 				loff_t, struct kvec *,int, unsigned long *, int *);
