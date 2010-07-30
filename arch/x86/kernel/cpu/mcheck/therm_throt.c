@@ -37,12 +37,17 @@
 /*
  * Current thermal throttling state:
  */
-struct thermal_state {
+struct _thermal_state {
 	bool			is_throttled;
 
 	u64			next_check;
 	unsigned long		throttle_count;
 	unsigned long		last_throttle_count;
+};
+
+struct thermal_state {
+	struct _thermal_state core;
+	struct _thermal_state package;
 };
 
 static DEFINE_PER_CPU(struct thermal_state, thermal_state);
@@ -53,11 +58,13 @@ static u32 lvtthmr_init __read_mostly;
 
 #ifdef CONFIG_SYSFS
 #define define_therm_throt_sysdev_one_ro(_name)				\
-	static SYSDEV_ATTR(_name, 0444, therm_throt_sysdev_show_##_name, NULL)
+	static SYSDEV_ATTR(_name, 0444,					\
+			   therm_throt_sysdev_show_##_name,		\
+				   NULL)				\
 
-#define define_therm_throt_sysdev_show_func(name)			\
+#define define_therm_throt_sysdev_show_func(level, name)		\
 									\
-static ssize_t therm_throt_sysdev_show_##name(				\
+static ssize_t therm_throt_sysdev_show_##level##_##name(		\
 			struct sys_device *dev,				\
 			struct sysdev_attribute *attr,			\
 			char *buf)					\
@@ -66,21 +73,24 @@ static ssize_t therm_throt_sysdev_show_##name(				\
 	ssize_t ret;							\
 									\
 	preempt_disable();	/* CPU hotplug */			\
-	if (cpu_online(cpu))						\
+	if (cpu_online(cpu)) {						\
 		ret = sprintf(buf, "%lu\n",				\
-			      per_cpu(thermal_state, cpu).name);	\
-	else								\
+			      per_cpu(thermal_state, cpu).level.name);	\
+	} else								\
 		ret = 0;						\
 	preempt_enable();						\
 									\
 	return ret;							\
 }
 
-define_therm_throt_sysdev_show_func(throttle_count);
-define_therm_throt_sysdev_one_ro(throttle_count);
+define_therm_throt_sysdev_show_func(core, throttle_count);
+define_therm_throt_sysdev_one_ro(core_throttle_count);
+
+define_therm_throt_sysdev_show_func(package, throttle_count);
+define_therm_throt_sysdev_one_ro(package_throttle_count);
 
 static struct attribute *thermal_throttle_attrs[] = {
-	&attr_throttle_count.attr,
+	&attr_core_throttle_count.attr,
 	NULL
 };
 
@@ -106,16 +116,21 @@ static struct attribute_group thermal_throttle_attr_group = {
  *          1 : Event should be logged further, and a message has been
  *              printed to the syslog.
  */
-static int therm_throt_process(bool is_throttled)
+#define CORE_LEVEL	0
+#define PACKAGE_LEVEL	1
+static int therm_throt_process(bool is_throttled, int level)
 {
-	struct thermal_state *state;
+	struct _thermal_state *state;
 	unsigned int this_cpu;
 	bool was_throttled;
 	u64 now;
 
 	this_cpu = smp_processor_id();
 	now = get_jiffies_64();
-	state = &per_cpu(thermal_state, this_cpu);
+	if (level == CORE_LEVEL)
+		state = &per_cpu(thermal_state, this_cpu).core;
+	else
+		state = &per_cpu(thermal_state, this_cpu).package;
 
 	was_throttled = state->is_throttled;
 	state->is_throttled = is_throttled;
@@ -132,13 +147,18 @@ static int therm_throt_process(bool is_throttled)
 
 	/* if we just entered the thermal event */
 	if (is_throttled) {
-		printk(KERN_CRIT "CPU%d: Temperature above threshold, cpu clock throttled (total events = %lu)\n", this_cpu, state->throttle_count);
+		printk(KERN_CRIT "CPU%d: %s temperature above threshold, cpu clock throttled (total events = %lu)\n",
+		      this_cpu,
+		      level == CORE_LEVEL ? "Core" : "Package",
+		      state->throttle_count);
 
 		add_taint(TAINT_MACHINE_CHECK);
 		return 1;
 	}
 	if (was_throttled) {
-		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", this_cpu);
+		printk(KERN_INFO "CPU%d: %s temperature/speed normal\n",
+		       this_cpu,
+		       level == CORE_LEVEL ? "Core" : "Package");
 		return 1;
 	}
 
@@ -149,8 +169,19 @@ static int therm_throt_process(bool is_throttled)
 /* Add/Remove thermal_throttle interface for CPU device: */
 static __cpuinit int thermal_throttle_add_dev(struct sys_device *sys_dev)
 {
-	return sysfs_create_group(&sys_dev->kobj,
-				  &thermal_throttle_attr_group);
+	int err;
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+
+	err = sysfs_create_group(&sys_dev->kobj, &thermal_throttle_attr_group);
+	if (err)
+		return err;
+
+	if (cpu_has(c, X86_FEATURE_PTS))
+		err = sysfs_add_file_to_group(&sys_dev->kobj,
+					      &attr_package_throttle_count.attr,
+					      thermal_throttle_attr_group.name);
+
+	return err;
 }
 
 static __cpuinit void thermal_throttle_remove_dev(struct sys_device *sys_dev)
@@ -230,10 +261,25 @@ device_initcall(thermal_throttle_init_device);
 static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	if (therm_throt_process((msr_val & THERM_STATUS_PROCHOT) != 0))
+	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT,
+				CORE_LEVEL) != 0)
 		mce_log_therm_throt_event(msr_val);
+
+	if (cpu_has(c, X86_FEATURE_PTS)) {
+		rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
+		if (therm_throt_process(msr_val & PACKAGE_THERM_STATUS_PROCHOT,
+					PACKAGE_LEVEL) != 0)
+			/*
+			 * Set up the most significant bit to notify mce log
+			 * that this thermal event is a package level event.
+			 * This is a temp solution. May be changed in the future
+			 * with mce log infrasture.
+			 */
+			mce_log_therm_throt_event(((__u64)1 << 63) | msr_val);
+	}
 }
 
 static void unexpected_thermal_interrupt(void)
@@ -337,6 +383,13 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
 	wrmsr(MSR_IA32_THERM_INTERRUPT,
 		l | (THERM_INT_LOW_ENABLE | THERM_INT_HIGH_ENABLE), h);
+
+	if (cpu_has(c, X86_FEATURE_PTS)) {
+		rdmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
+		wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
+			l | (PACKAGE_THERM_INT_LOW_ENABLE
+		  | PACKAGE_THERM_INT_HIGH_ENABLE), h);
+	}
 
 	smp_thermal_vector = intel_thermal_interrupt;
 
