@@ -137,6 +137,9 @@
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
 
+#define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
+						/* recovery timeout */
+
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -249,7 +252,6 @@ struct ddb_entry {
 	uint32_t default_time2wait; /* Default Min time between
 				     * relogins (+aens) */
 
-	atomic_t port_down_timer; /* Device connection timer */
 	atomic_t retry_relogin_timer; /* Min Time between relogins
 				       * (4000 only) */
 	atomic_t relogin_timer;	/* Max Time to wait for relogin to complete */
@@ -474,7 +476,6 @@ struct scsi_qla_host {
 	uint32_t timer_active;
 
 	/* Recovery Timers */
-	uint32_t port_down_retry_count;
 	uint32_t discovery_wait;
 	atomic_t check_relogin_timeouts;
 	uint32_t retry_reset_ha_cnt;

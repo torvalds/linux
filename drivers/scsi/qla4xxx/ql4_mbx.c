@@ -361,7 +361,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
 	/* Save Command Line Paramater info */
-	ha->port_down_retry_count = le16_to_cpu(init_fw_cb->conn_ka_timeout);
 	ha->discovery_wait = ql4xdiscoverywait;
 
 	if (ha->acb_version == ACB_SUPPORTED) {

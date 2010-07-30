@@ -163,10 +163,10 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 	if (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE) {
 		atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
 
-		DEBUG2(printk("scsi%ld: %s: ddb [%d] port down retry count "
+		DEBUG2(printk("scsi%ld: %s: ddb [%d] session recovery timeout "
 			      "of (%d) secs exhausted, marking device DEAD.\n",
 			      ha->host_no, __func__, ddb_entry->fw_ddb_index,
-			      ha->port_down_retry_count));
+			      QL4_SESS_RECOVERY_TMO));
 
 		qla4xxx_wake_dpc(ha);
 	}
@@ -298,7 +298,8 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 {
 	int err;
 
-	ddb_entry->sess->recovery_tmo = ddb_entry->ha->port_down_retry_count;
+	ddb_entry->sess->recovery_tmo = QL4_SESS_RECOVERY_TMO;
+
 	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
 	if (err) {
 		DEBUG2(printk(KERN_ERR "Could not add session.\n"));
