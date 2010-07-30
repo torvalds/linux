@@ -171,14 +171,14 @@ static void ds2781_parse_data(u8 *raw, struct battery_status *s)
 
 	s->voltage_uV = n * 9760;
 
-	/* Get Current: Unit= 1.5625uV x Rsnsp(67)=104.68 */
+	/* Get Current: Unit= 1.5625uV x Rsnsp */
 	n = ((raw[DS2781_REG_CURR_MSB]) << 8) |
 		raw[DS2781_REG_CURR_LSB];
-	s->current_uA = ((n * 15625) / 10000) * 67;
+	s->current_uA = ((n * 15625) / 10000) * raw[DS2781_REG_RSNSP];
 
 	n = ((raw[DS2781_REG_AVG_CURR_MSB]) << 8) |
 		raw[DS2781_REG_AVG_CURR_LSB];
-	s->current_avg_uA = ((n * 15625) / 10000) * 67;
+	s->current_avg_uA = ((n * 15625) / 10000) * raw[DS2781_REG_RSNSP];
 
 	/* Get Temperature:
 	 * Unit=0.125 degree C,therefore, give up LSB ,
