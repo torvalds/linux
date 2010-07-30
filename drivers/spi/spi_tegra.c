@@ -165,6 +165,8 @@ struct spi_tegra_data {
 	struct tegra_dma_channel *rx_dma;
 	u32			*rx_bb;
 	dma_addr_t		rx_bb_phys;
+	bool			is_suspended;
+	unsigned long		save_slink_cmd;
 };
 
 
@@ -450,9 +452,15 @@ static int spi_tegra_transfer(struct spi_device *spi, struct spi_message *m)
 			return -EINVAL;
 	}
 
+	spin_lock_irqsave(&tspi->lock, flags);
+
+	if (WARN_ON(tspi->is_suspended)) {
+		spin_unlock_irqrestore(&tspi->lock, flags);
+		return -EBUSY;
+	}
+
 	m->state = spi;
 
-	spin_lock_irqsave(&tspi->lock, flags);
 	was_empty = list_empty(&tspi->queue);
 	list_add_tail(&m->queue, &tspi->queue);
 
@@ -600,6 +608,50 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int spi_tegra_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct spi_master	*master;
+	struct spi_tegra_data	*tspi;
+	unsigned long		flags;
+	unsigned                limit = 500;
+
+	master = dev_get_drvdata(&pdev->dev);
+	tspi = spi_master_get_devdata(master);
+	spin_lock_irqsave(&tspi->lock, flags);
+	tspi->is_suspended = true;
+	WARN_ON(!list_empty(&tspi->queue));
+
+	while (!list_empty(&tspi->queue) && limit--) {
+		spin_unlock_irqrestore(&tspi->lock, flags);
+		msleep(10);
+		spin_lock_irqsave(&tspi->lock, flags);
+	}
+
+	tspi->save_slink_cmd = spi_tegra_readl(tspi, SLINK_COMMAND);
+	spin_unlock_irqrestore(&tspi->lock, flags);
+	return 0;
+}
+
+static int spi_tegra_resume(struct platform_device *pdev)
+{
+	struct spi_master	*master;
+	struct spi_tegra_data	*tspi;
+	unsigned long		flags;
+
+	master = dev_get_drvdata(&pdev->dev);
+	tspi = spi_master_get_devdata(master);
+	spin_lock_irqsave(&tspi->lock, flags);
+	clk_enable(tspi->clk);
+	spi_tegra_writel(tspi, tspi->save_slink_cmd, SLINK_COMMAND);
+	clk_disable(tspi->clk);
+	tspi->cur_speed = 0;
+	tspi->is_suspended = false;
+	spin_unlock_irqrestore(&tspi->lock, flags);
+	return 0;
+}
+#endif
+
 MODULE_ALIAS("platform:spi_tegra");
 
 static struct platform_driver spi_tegra_driver = {
@@ -608,6 +660,10 @@ static struct platform_driver spi_tegra_driver = {
 		.owner =	THIS_MODULE,
 	},
 	.remove =	__devexit_p(spi_tegra_remove),
+#ifdef CONFIG_PM
+	.suspend =	spi_tegra_suspend,
+	.resume  =	spi_tegra_resume,
+#endif
 };
 
 static int __init spi_tegra_init(void)
