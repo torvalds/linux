@@ -92,19 +92,27 @@ int __dlm_lockres_has_locks(struct dlm_lock_resource *res)
  * truly ready to be freed. */
 int __dlm_lockres_unused(struct dlm_lock_resource *res)
 {
-	if (!__dlm_lockres_has_locks(res) &&
-	    (list_empty(&res->dirty) && !(res->state & DLM_LOCK_RES_DIRTY))) {
-		/* try not to scan the bitmap unless the first two
-		 * conditions are already true */
-		int bit = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
-		if (bit >= O2NM_MAX_NODES) {
-			/* since the bit for dlm->node_num is not
-			 * set, inflight_locks better be zero */
-			BUG_ON(res->inflight_locks != 0);
-			return 1;
-		}
-	}
-	return 0;
+	int bit;
+
+	if (__dlm_lockres_has_locks(res))
+		return 0;
+
+	if (!list_empty(&res->dirty) || res->state & DLM_LOCK_RES_DIRTY)
+		return 0;
+
+	if (res->state & DLM_LOCK_RES_RECOVERING)
+		return 0;
+
+	bit = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
+	if (bit < O2NM_MAX_NODES)
+		return 0;
+
+	/*
+	 * since the bit for dlm->node_num is not set, inflight_locks better
+	 * be zero
+	 */
+	BUG_ON(res->inflight_locks != 0);
+	return 1;
 }
 
 
