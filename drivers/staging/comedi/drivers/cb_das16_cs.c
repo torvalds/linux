@@ -712,7 +712,6 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	if (cfg->index == 0)

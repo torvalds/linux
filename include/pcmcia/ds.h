@@ -177,7 +177,6 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
 						 cistpl_cftable_entry_t *cf,
 						 cistpl_cftable_entry_t *dflt,
-						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data);
 
@@ -269,6 +268,12 @@ static inline int pcmcia_io_cfg_data_width(unsigned int flags)
 #define CONF_ENABLE_SPKR        0x02
 #define CONF_ENABLE_PULSE_IRQ   0x04
 #define CONF_ENABLE_ESR         0x08
+
+/* flags used by pcmcia_loop_config() autoconfiguration */
+#define CONF_AUTO_CHECK_VCC	0x10 /* check for matching Vcc? */
+#define CONF_AUTO_SET_VPP	0x20 /* set Vpp? */
+#define CONF_AUTO_AUDIO		0x40 /* enable audio line? */
+
 
 #endif /* __KERNEL__ */
 

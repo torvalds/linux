@@ -472,7 +472,6 @@ static void prism2_detach(struct pcmcia_device *link)
 static int prism2_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
 			       void *priv_data)
 {
 	if (cfg->index == 0)
@@ -480,28 +479,6 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 
 	PDEBUG(DEBUG_EXTRA, "Checking CFTABLE_ENTRY 0x%02X "
 	       "(default 0x%02X)\n", cfg->index, dflt->index);
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->config_flags |= CONF_ENABLE_SPKR;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc mismatch - skipping"
-			       " this entry\n");
-			return -ENODEV;
-		}
-	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc (default) mismatch "
-			       "- skipping this entry\n");
-			return -ENODEV;
-		}
-	}
 
 	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
 		p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
@@ -553,6 +530,10 @@ static int prism2_config(struct pcmcia_device *link)
 	}
 
 	/* Look for an appropriate configuration table entry in the CIS */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO |
+		CONF_AUTO_CHECK_VCC;
+	if (ignore_cis_vcc)
+		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
 	if (ret) {
 		if (!ignore_cis_vcc)

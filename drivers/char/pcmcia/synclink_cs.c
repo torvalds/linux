@@ -564,7 +564,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 			  cistpl_cftable_entry_t *cfg,
 			  cistpl_cftable_entry_t *dflt,
-			  unsigned int vcc,
 			  void *priv_data)
 {
 	if (!cfg->io.nwin)

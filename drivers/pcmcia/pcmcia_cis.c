@@ -131,7 +131,6 @@ struct pcmcia_cfg_mem {
 	int (*conf_check) (struct pcmcia_device *p_dev,
 			   cistpl_cftable_entry_t *cfg,
 			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
 			   void *priv_data);
 	cisparse_t parse;
 	cistpl_cftable_entry_t dflt;
@@ -146,16 +145,46 @@ struct pcmcia_cfg_mem {
  */
 static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 {
-	cistpl_cftable_entry_t *cfg = &parse->cftable_entry;
 	struct pcmcia_cfg_mem *cfg_mem = priv;
+	struct pcmcia_device *p_dev = cfg_mem->p_dev;
+	cistpl_cftable_entry_t *cfg = &parse->cftable_entry;
+	cistpl_cftable_entry_t *dflt = &cfg_mem->dflt;
+	unsigned int flags = p_dev->config_flags;
+	unsigned int vcc = p_dev->socket->socket.Vcc;
+
+	dev_dbg(&p_dev->dev, "testing configuration %x, autoconf %x\n",
+		cfg->index, flags);
 
 	/* default values */
 	cfg_mem->p_dev->config_index = cfg->index;
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 		cfg_mem->dflt = *cfg;
 
+	/* check for matching Vcc? */
+	if (flags & CONF_AUTO_CHECK_VCC) {
+		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		}
+	}
+
+	/* set Vpp? */
+	if (flags & CONF_AUTO_SET_VPP) {
+		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
+			p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+			p_dev->vpp =
+				dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	}
+
+	/* enable audio? */
+	if ((flags & CONF_AUTO_AUDIO) && (cfg->flags & CISTPL_CFTABLE_AUDIO))
+		p_dev->config_flags |= CONF_ENABLE_SPKR;
+
 	return cfg_mem->conf_check(cfg_mem->p_dev, cfg, &cfg_mem->dflt,
-				   cfg_mem->p_dev->socket->socket.Vcc,
 				   cfg_mem->priv_data);
 }
 
@@ -176,7 +205,6 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
 						 cistpl_cftable_entry_t *cfg,
 						 cistpl_cftable_entry_t *dflt,
-						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data)
 {

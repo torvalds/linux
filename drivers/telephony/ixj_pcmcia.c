@@ -112,7 +112,6 @@ failed:
 static int ixj_config_check(struct pcmcia_device *p_dev,
 			    cistpl_cftable_entry_t *cfg,
 			    cistpl_cftable_entry_t *dflt,
-			    unsigned int vcc,
 			    void *priv_data)
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {

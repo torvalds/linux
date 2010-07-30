@@ -99,6 +99,7 @@ static int ide_probe(struct pcmcia_device *link)
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
 
     return ide_config(link);
 } /* ide_attach */
@@ -195,33 +196,15 @@ out_release:
 
 struct pcmcia_config_check {
 	unsigned long ctl_base;
-	int skip_vcc;
 	int is_kme;
 };
 
 static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 				   cistpl_cftable_entry_t *cfg,
 				   cistpl_cftable_entry_t *dflt,
-				   unsigned int vcc,
 				   void *priv_data)
 {
 	struct pcmcia_config_check *stk = priv_data;
-
-	/* Check for matching Vcc, unless we're desperate */
-	if (!stk->skip_vcc) {
-		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		}
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
@@ -271,10 +254,10 @@ static int ide_config(struct pcmcia_device *link)
     if (!stk)
 	    goto err_mem;
     stk->is_kme = is_kme;
-    stk->skip_vcc = io_base = ctl_base = 0;
+    io_base = ctl_base = 0;
 
     if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
-	    stk->skip_vcc = 1;
+	    link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
 		    goto failed; /* No suitable config found */
     }

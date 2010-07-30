@@ -263,18 +263,10 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	if (cfg->index == 0)
 		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->config_flags |= CONF_ENABLE_SPKR;
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -306,6 +298,9 @@ static void labpc_config(struct pcmcia_device *link)
 	int ret;
 
 	dev_dbg(&link->dev, "labpc_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
+		CONF_AUTO_AUDIO;
 
 	ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, NULL);
 	if (ret) {

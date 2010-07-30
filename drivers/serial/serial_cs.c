@@ -427,15 +427,10 @@ static int pfc_config(struct pcmcia_device *p_dev)
 static int simple_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cf,
 			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
 			       void *priv_data)
 {
 	static const int size_table[2] = { 8, 16 };
 	int *try = priv_data;
-
-	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->vpp =
-			cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	p_dev->io_lines = ((*try & 0x1) == 0) ?
 			16 : cf->io.flags & CISTPL_IO_LINES_MASK;
@@ -452,7 +447,6 @@ static int simple_config_check(struct pcmcia_device *p_dev,
 static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 					cistpl_cftable_entry_t *cf,
 					cistpl_cftable_entry_t *dflt,
-					unsigned int vcc,
 					void *priv_data)
 {
 	static const unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -479,6 +473,7 @@ static int simple_config(struct pcmcia_device *link)
 
 	/* First pass: look for a config entry that looks normal.
 	 * Two tries: without IO aliases, then with aliases */
+	link->config_flags |= CONF_AUTO_SET_VPP;
 	for (try = 0; try < 4; try++)
 		if (!pcmcia_loop_config(link, simple_config_check, &try))
 			goto found_port;
@@ -511,7 +506,6 @@ found_port:
 static int multi_config_check(struct pcmcia_device *p_dev,
 			      cistpl_cftable_entry_t *cf,
 			      cistpl_cftable_entry_t *dflt,
-			      unsigned int vcc,
 			      void *priv_data)
 {
 	int *base2 = priv_data;
@@ -532,7 +526,6 @@ static int multi_config_check(struct pcmcia_device *p_dev,
 static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 				       cistpl_cftable_entry_t *cf,
 				       cistpl_cftable_entry_t *dflt,
-				       unsigned int vcc,
 				       void *priv_data)
 {
 	int *base2 = priv_data;
@@ -621,7 +614,6 @@ static int multi_config(struct pcmcia_device *link)
 static int serial_check_for_multi(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cf,
 				  cistpl_cftable_entry_t *dflt,
-				  unsigned int vcc,
 				  void *priv_data)
 {
 	struct serial_info *info = p_dev->priv;

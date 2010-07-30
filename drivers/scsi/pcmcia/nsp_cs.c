@@ -1597,7 +1597,6 @@ static void nsp_cs_detach(struct pcmcia_device *link)
 static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
 			       void *priv_data)
 {
 	nsp_hw_data		*data = priv_data;
@@ -1605,77 +1604,49 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 	if (cfg->index == 0)
 		return -ENODEV;
 
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->config_flags |= CONF_ENABLE_SPKR;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
-			return -ENODEV;
-		else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
-				return -ENODEV;
+	/* IO window settings */
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+					pcmcia_io_cfg_data_width(io->flags);
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
-
-		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM)) {
-			p_dev->vpp =
-				cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		} else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM)) {
-			p_dev->vpp =
-				dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		}
-
-		/* Do we need to allocate an interrupt? */
-		p_dev->config_flags |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-		if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-			p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-			p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-			p_dev->resource[0]->flags |=
-				pcmcia_io_cfg_data_width(io->flags);
-			p_dev->resource[0]->start = io->win[0].base;
-			p_dev->resource[0]->end = io->win[0].len;
-			if (io->nwin > 1) {
-				p_dev->resource[1]->flags =
-					p_dev->resource[0]->flags;
-				p_dev->resource[1]->start = io->win[1].base;
-				p_dev->resource[1]->end = io->win[1].len;
-			}
-			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(p_dev) != 0)
-				goto next_entry;
-		}
-
-		if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-			cistpl_mem_t	*mem =
-				(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-			p_dev->resource[2]->flags |= (WIN_DATA_WIDTH_16 |
-						WIN_MEMORY_TYPE_CM |
-						WIN_ENABLE);
-			p_dev->resource[2]->start = mem->win[0].host_addr;
-			p_dev->resource[2]->end = mem->win[0].len;
-			if (p_dev->resource[2]->end < 0x1000)
-				p_dev->resource[2]->end = 0x1000;
-			if (pcmcia_request_window(p_dev, p_dev->resource[2],
-							0) != 0)
-				goto next_entry;
-			if (pcmcia_map_mem_page(p_dev, p_dev->resource[2],
-					mem->win[0].card_addr) != 0)
-				goto next_entry;
-
-			data->MmioAddress = (unsigned long)
-				ioremap_nocache(p_dev->resource[2]->start,
-					resource_size(p_dev->resource[2]));
-			data->MmioLength  = resource_size(p_dev->resource[2]);
-		}
-		/* If we got this far, we're cool! */
-		return 0;
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(p_dev) != 0)
+			goto next_entry;
 	}
+
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t	*mem =
+			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
+		p_dev->resource[2]->flags |= (WIN_DATA_WIDTH_16 |
+					WIN_MEMORY_TYPE_CM |
+					WIN_ENABLE);
+		p_dev->resource[2]->start = mem->win[0].host_addr;
+		p_dev->resource[2]->end = mem->win[0].len;
+		if (p_dev->resource[2]->end < 0x1000)
+			p_dev->resource[2]->end = 0x1000;
+		if (pcmcia_request_window(p_dev, p_dev->resource[2], 0) != 0)
+			goto next_entry;
+		if (pcmcia_map_mem_page(p_dev, p_dev->resource[2],
+						mem->win[0].card_addr) != 0)
+			goto next_entry;
+
+		data->MmioAddress = (unsigned long)
+			ioremap_nocache(p_dev->resource[2]->start,
+					resource_size(p_dev->resource[2]));
+		data->MmioLength  = resource_size(p_dev->resource[2]);
+	}
+	/* If we got this far, we're cool! */
+	return 0;
 
 next_entry:
 	nsp_dbg(NSP_DEBUG_INIT, "next");
@@ -1691,6 +1662,9 @@ static int nsp_cs_config(struct pcmcia_device *link)
 	nsp_hw_data      *data = &nsp_data_base;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_CHECK_VCC |
+		CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO;
 
 	ret = pcmcia_loop_config(link, nsp_cs_config_check, data);
 	if (ret)

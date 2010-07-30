@@ -157,24 +157,10 @@ static int card_present(void *arg)
 static int atmel_config_check(struct pcmcia_device *p_dev,
 			      cistpl_cftable_entry_t *cfg,
 			      cistpl_cftable_entry_t *dflt,
-			      unsigned int vcc,
 			      void *priv_data)
 {
 	if (cfg->index == 0)
 		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->config_flags |= CONF_ENABLE_SPKR;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
-
-	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -206,6 +192,9 @@ static int atmel_config(struct pcmcia_device *link)
 	did = dev_get_drvdata(&link->dev);
 
 	dev_dbg(&link->dev, "atmel_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
+		CONF_AUTO_AUDIO;
 
 	/*
 	  In this loop, we scan the CIS for configuration table entries,

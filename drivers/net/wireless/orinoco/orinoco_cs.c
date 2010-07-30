@@ -145,38 +145,10 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 				   cistpl_cftable_entry_t *cfg,
 				   cistpl_cftable_entry_t *dflt,
-				   unsigned int vcc,
 				   void *priv_data)
 {
 	if (cfg->index == 0)
 		goto next_entry;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/* Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
-			      __func__, vcc,
-			      cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
-			if (!ignore_cis_vcc)
-				goto next_entry;
-		}
-	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
-			      __func__, vcc,
-			      dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
-			if (!ignore_cis_vcc)
-				goto next_entry;
-		}
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->vpp =
-			cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->vpp =
-			dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	/* Do we need to allocate an interrupt? */
 	p_dev->config_flags |= CONF_ENABLE_IRQ;
@@ -230,6 +202,9 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
+	if (ignore_cis_vcc)
+		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, orinoco_cs_config_check, NULL);
 	if (ret) {
 		if (!ignore_cis_vcc)

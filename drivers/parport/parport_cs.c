@@ -136,7 +136,6 @@ static void parport_detach(struct pcmcia_device *link)
 static int parport_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {

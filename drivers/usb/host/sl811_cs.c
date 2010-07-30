@@ -134,31 +134,10 @@ static void sl811_cs_release(struct pcmcia_device * link)
 static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 				 cistpl_cftable_entry_t *cfg,
 				 cistpl_cftable_entry_t *dflt,
-				 unsigned int vcc,
 				 void *priv_data)
 {
 	if (cfg->index == 0)
 		return -ENODEV;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000 != vcc)
-			return -ENODEV;
-	} else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (dflt->vcc.param[CISTPL_POWER_VNOM]/10000 != vcc)
-			return -ENODEV;
-		}
-
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->vpp =
-			cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->vpp =
-			dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
-
-	/* we need an interrupt */
-	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -183,6 +162,9 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	int			ret;
 
 	dev_dbg(&link->dev, "sl811_cs_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ |	CONF_AUTO_SET_VPP |
+		CONF_AUTO_CHECK_VCC;
 
 	if (pcmcia_loop_config(link, sl811_cs_config_check, NULL))
 		goto failed;

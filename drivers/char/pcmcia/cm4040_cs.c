@@ -518,7 +518,6 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 static int cm4040_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
 			       void *priv_data)
 {
 	int rc;

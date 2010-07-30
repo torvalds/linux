@@ -78,7 +78,6 @@ static void signalled_reboot_callback(void *callback_data)
 static int ipwireless_probe(struct pcmcia_device *p_dev,
 			    cistpl_cftable_entry_t *cfg,
 			    cistpl_cftable_entry_t *dflt,
-			    unsigned int vcc,
 			    void *priv_data)
 {
 	struct ipw_dev *ipw = priv_data;

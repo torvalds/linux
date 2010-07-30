@@ -668,7 +668,6 @@ static int
 xirc2ps_config_modem(struct pcmcia_device *p_dev,
 		     cistpl_cftable_entry_t *cf,
 		     cistpl_cftable_entry_t *dflt,
-		     unsigned int vcc,
 		     void *priv_data)
 {
 	unsigned int ioaddr;
@@ -688,7 +687,6 @@ static int
 xirc2ps_config_check(struct pcmcia_device *p_dev,
 		     cistpl_cftable_entry_t *cf,
 		     cistpl_cftable_entry_t *dflt,
-		     unsigned int vcc,
 		     void *priv_data)
 {
 	int *pass = priv_data;
@@ -826,7 +824,8 @@ xirc2ps_config(struct pcmcia_device * link)
 	     * the Mako if (on the first pass) the COR bit 5 is set.
 	     */
 	    for (pass=0; pass < 2; pass++)
-		    if (!pcmcia_loop_config(link, xirc2ps_config_check, &pass))
+		    if (!pcmcia_loop_config(link, xirc2ps_config_check,
+						    &pass))
 			    goto port_found;
 	    /* if special option:
 	     * try to configure as Ethernet only.

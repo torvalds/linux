@@ -124,7 +124,6 @@ static void aha152x_detach(struct pcmcia_device *link)
 static int aha152x_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	p_dev->io_lines = 10;

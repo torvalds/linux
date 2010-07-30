@@ -284,18 +284,10 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	if (cfg->index == 0)
 		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO)
-		p_dev->config_flags |= CONF_ENABLE_SPKR;
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->config_flags |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
@@ -328,6 +320,8 @@ static void dio24_config(struct pcmcia_device *link)
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
 
 	dev_dbg(&link->dev, "dio24_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO;
 
 	ret = pcmcia_loop_config(link, dio24_pcmcia_config_loop, NULL);
 	if (ret) {

@@ -797,7 +797,6 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 			 cistpl_cftable_entry_t *cfg,
 			 cistpl_cftable_entry_t *dflt,
-			 unsigned int vcc,
 			 void *priv_data)
 {
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;

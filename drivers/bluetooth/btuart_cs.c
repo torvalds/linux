@@ -588,7 +588,7 @@ static int btuart_probe(struct pcmcia_device *link)
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 	link->resource[0]->end = 8;
 
-	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP;
 
 	return btuart_config(link);
 }
@@ -605,15 +605,11 @@ static void btuart_detach(struct pcmcia_device *link)
 static int btuart_check_config(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cf,
 			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
 			       void *priv_data)
 {
 	int *try = priv_data;
-
 	p_dev->io_lines = (try == 0) ? 16 : cf->io.flags & CISTPL_IO_LINES_MASK;
 
-	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
 	    (cf->io.win[0].base != 0)) {
 		p_dev->resource[0]->start = cf->io.win[0].base;
@@ -626,7 +622,6 @@ static int btuart_check_config(struct pcmcia_device *p_dev,
 static int btuart_check_config_notpicky(struct pcmcia_device *p_dev,
 					cistpl_cftable_entry_t *cf,
 					cistpl_cftable_entry_t *dflt,
-					unsigned int vcc,
 					void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };

@@ -420,7 +420,6 @@ static int mhz_3288_power(struct pcmcia_device *link)
 static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cf,
 				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
 	int k;
@@ -590,7 +589,6 @@ static int mot_setup(struct pcmcia_device *link)
 static int smc_configcheck(struct pcmcia_device *p_dev,
 			   cistpl_cftable_entry_t *cf,
 			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
 			   void *priv_data)
 {
 	p_dev->resource[0]->start = cf->io.win[0].base;
