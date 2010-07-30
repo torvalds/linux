@@ -124,9 +124,35 @@ out_delete:
 	return NULL;
 }
 
+static void perf_session__delete_dead_threads(struct perf_session *self)
+{
+	struct thread *n, *t;
+
+	list_for_each_entry_safe(t, n, &self->dead_threads, node) {
+		list_del(&t->node);
+		thread__delete(t);
+	}
+}
+
+static void perf_session__delete_threads(struct perf_session *self)
+{
+	struct rb_node *nd = rb_first(&self->threads);
+
+	while (nd) {
+		struct thread *t = rb_entry(nd, struct thread, rb_node);
+
+		rb_erase(&t->rb_node, &self->threads);
+		nd = rb_next(nd);
+		thread__delete(t);
+	}
+}
+
 void perf_session__delete(struct perf_session *self)
 {
 	perf_header__exit(&self->header);
+	perf_session__delete_dead_threads(self);
+	perf_session__delete_threads(self);
+	machine__exit(&self->host_machine);
 	close(self->fd);
 	free(self);
 }

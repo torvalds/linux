@@ -539,6 +539,32 @@ int machine__init(struct machine *self, const char *root_dir, pid_t pid)
 	return self->root_dir == NULL ? -ENOMEM : 0;
 }
 
+static void dsos__delete(struct list_head *self)
+{
+	struct dso *pos, *n;
+
+	list_for_each_entry_safe(pos, n, self, node) {
+		list_del(&pos->node);
+		dso__delete(pos);
+	}
+}
+
+void machine__exit(struct machine *self)
+{
+	struct kmap *kmap = map__kmap(self->vmlinux_maps[MAP__FUNCTION]);
+
+	if (kmap->ref_reloc_sym) {
+		free((char *)kmap->ref_reloc_sym->name);
+		free(kmap->ref_reloc_sym);
+	}
+
+	map_groups__exit(&self->kmaps);
+	dsos__delete(&self->user_dsos);
+	dsos__delete(&self->kernel_dsos);
+	free(self->root_dir);
+	self->root_dir = NULL;
+}
+
 struct machine *machines__add(struct rb_root *self, pid_t pid,
 			      const char *root_dir)
 {

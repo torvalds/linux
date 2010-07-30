@@ -219,6 +219,7 @@ int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
 int machines__create_guest_kernel_maps(struct rb_root *self);
 
 int symbol__init(void);
+void symbol__exit(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
 size_t machine__fprintf_vmlinux_path(struct machine *self, FILE *fp);

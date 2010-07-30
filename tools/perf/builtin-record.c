@@ -440,6 +440,7 @@ static void atexit_header(void)
 		process_buildids();
 		perf_header__write(&session->header, output, true);
 		perf_session__delete(session);
+		symbol__exit();
 	}
 }
 
@@ -871,7 +872,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	} else {
 		all_tids=malloc(sizeof(pid_t));
 		if (!all_tids)
-			return -ENOMEM;
+			goto out_symbol_exit;
 
 		all_tids[0] = target_tid;
 		thread_num = 1;
@@ -918,5 +919,7 @@ out_free_fd:
 	}
 	free(all_tids);
 	all_tids = NULL;
+out_symbol_exit:
+	symbol__exit();
 	return err;
 }

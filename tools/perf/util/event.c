@@ -515,12 +515,13 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 	if (machine == NULL)
 		goto out_problem;
 	thread = perf_session__findnew(session, self->mmap.pid);
+	if (thread == NULL)
+		goto out_problem;
 	map = map__new(&machine->user_dsos, self->mmap.start,
 			self->mmap.len, self->mmap.pgoff,
 			self->mmap.pid, self->mmap.filename,
 			MAP__FUNCTION);
-
-	if (thread == NULL || map == NULL)
+	if (map == NULL)
 		goto out_problem;
 
 	thread__insert_map(thread, map);

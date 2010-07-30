@@ -2245,6 +2245,15 @@ out_free_comm_list:
 	return -1;
 }
 
+void symbol__exit(void)
+{
+	strlist__delete(symbol_conf.sym_list);
+	strlist__delete(symbol_conf.dso_list);
+	strlist__delete(symbol_conf.comm_list);
+	vmlinux_path__exit();
+	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
+}
+
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid)
 {
 	struct machine *machine = machines__findnew(self, pid);
