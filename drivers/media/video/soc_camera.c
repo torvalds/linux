@@ -902,7 +902,7 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 	if (!subdev)
 		goto ei2cnd;
 
-	client = subdev->priv;
+	client = v4l2_get_subdevdata(subdev);
 
 	/* Use to_i2c_client(dev) to recover the i2c client */
 	dev_set_drvdata(&icd->dev, &client->dev);

@@ -308,7 +308,7 @@ static unsigned long ov9640_query_bus_param(struct soc_camera_device *icd)
 /* Get status of additional camera capabilities */
 static int ov9640_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
 					struct ov9640_priv, subdev);
 
@@ -326,7 +326,7 @@ static int ov9640_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 /* Set status of additional camera capabilities */
 static int ov9640_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
 					struct ov9640_priv, subdev);
 
@@ -360,7 +360,7 @@ static int ov9640_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int ov9640_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
 					struct ov9640_priv, subdev);
 
@@ -374,7 +374,7 @@ static int ov9640_g_chip_ident(struct v4l2_subdev *sd,
 static int ov9640_get_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 	u8 val;
 
@@ -395,7 +395,7 @@ static int ov9640_get_register(struct v4l2_subdev *sd,
 static int ov9640_set_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->reg & ~0xff || reg->val & ~0xff)
 		return -EINVAL;
@@ -558,7 +558,7 @@ static int ov9640_prog_dflt(struct i2c_client *client)
 static int ov9640_s_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_reg_alt alts = {0};
 	enum v4l2_colorspace cspace;
 	enum v4l2_mbus_pixelcode code = mf->code;
