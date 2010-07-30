@@ -1117,7 +1117,7 @@ static int lbs_associate(struct lbs_private *priv,
 	lbs_deb_hex(LBS_DEB_ASSOC, "Common Rates", tmp, pos - tmp);
 
 	/* add auth type TLV */
-	if (priv->fwrelease >= 0x09000000)
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) >= 9)
 		pos += lbs_add_auth_type_tlv(pos, sme->auth_type);
 
 	/* add WPA/WPA2 TLV */
@@ -1128,6 +1128,9 @@ static int lbs_associate(struct lbs_private *priv,
 		(u16)(pos - (u8 *) &cmd->iebuf);
 	cmd->hdr.size = cpu_to_le16(len);
 
+	lbs_deb_hex(LBS_DEB_ASSOC, "ASSOC_CMD", (u8 *) cmd,
+			le16_to_cpu(cmd->hdr.size));
+
 	/* store for later use */
 	memcpy(priv->assoc_bss, bss->bssid, ETH_ALEN);
 
@@ -1135,14 +1138,28 @@ static int lbs_associate(struct lbs_private *priv,
 	if (ret)
 		goto done;
 
-
 	/* generate connect message to cfg80211 */
 
 	resp = (void *) cmd; /* recast for easier field access */
 	status = le16_to_cpu(resp->statuscode);
 
-	/* Convert statis code of old firmware */
-	if (priv->fwrelease < 0x09000000)
+	/* Older FW versions map the IEEE 802.11 Status Code in the association
+	 * response to the following values returned in resp->statuscode:
+	 *
+	 *    IEEE Status Code                Marvell Status Code
+	 *    0                       ->      0x0000 ASSOC_RESULT_SUCCESS
+	 *    13                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    14                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    15                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    16                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    others                  ->      0x0003 ASSOC_RESULT_REFUSED
+	 *
+	 * Other response codes:
+	 *    0x0001 -> ASSOC_RESULT_INVALID_PARAMETERS (unused)
+	 *    0x0002 -> ASSOC_RESULT_TIMEOUT (internal timer expired waiting for
+	 *                                    association response from the AP)
+	 */
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8) {
 		switch (status) {
 		case 0:
 			break;
@@ -1164,11 +1181,16 @@ static int lbs_associate(struct lbs_private *priv,
 			break;
 		default:
 			lbs_deb_assoc("association failure %d\n", status);
-			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			/* v5 OLPC firmware does return the AP status code if
+			 * it's not one of the values above.  Let that through.
+			 */
+			break;
+		}
 	}
 
-	lbs_deb_assoc("status %d, capability 0x%04x\n", status,
-		      le16_to_cpu(resp->capability));
+	lbs_deb_assoc("status %d, statuscode 0x%04x, capability 0x%04x, "
+		      "aid 0x%04x\n", status, le16_to_cpu(resp->statuscode),
+		      le16_to_cpu(resp->capability), le16_to_cpu(resp->aid));
 
 	resp_ie_len = le16_to_cpu(resp->hdr.size)
 		- sizeof(resp->hdr)
@@ -1187,7 +1209,6 @@ static int lbs_associate(struct lbs_private *priv,
 		if (!priv->tx_pending_len)
 			netif_tx_wake_all_queues(priv->dev);
 	}
-
 
 done:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
