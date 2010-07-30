@@ -327,7 +327,6 @@ extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
 extern int schedule_on_each_cpu(work_func_t func);
 extern int keventd_up(void);
 
-extern void init_workqueues(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
 extern int flush_work(struct work_struct *work);
