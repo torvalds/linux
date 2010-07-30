@@ -611,11 +611,23 @@ static int conexant_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int conexant_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	snd_hda_shutup_pins(codec);
+	return 0;
+}
+#endif
+
 static struct hda_codec_ops conexant_patch_ops = {
 	.build_controls = conexant_build_controls,
 	.build_pcms = conexant_build_pcms,
 	.init = conexant_init,
 	.free = conexant_free,
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	.suspend = conexant_suspend,
+#endif
+	.reboot_notify = snd_hda_shutup_pins,
 };
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
