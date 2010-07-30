@@ -100,6 +100,7 @@ struct smb_vol {
 	bool noautotune:1;
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	bool fsc:1;	/* enable fscache */
+	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -1342,6 +1343,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
 		} else if (strnicmp(data, "fsc", 3) == 0) {
 			vol->fsc = true;
+		} else if (strnicmp(data, "mfsymlinks", 10) == 0) {
+			vol->mfsymlinks = true;
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
@@ -2553,6 +2556,14 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
+	}
+	if (pvolume_info->mfsymlinks) {
+		if (pvolume_info->sfu_emul) {
+			cERROR(1,  "mount option mfsymlinks ignored if sfu "
+				   "mount option is used");
+		} else {
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MF_SYMLINKS;
+		}
 	}
 
 	if ((pvolume_info->cifs_acl) && (pvolume_info->dynperm))
