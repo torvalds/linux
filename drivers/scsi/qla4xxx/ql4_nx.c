@@ -2145,7 +2145,8 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 		goto exit_validate_mac82;
 	}
 
-	if (mbox_sts[4] < sizeof(*sys_info)) {
+	/* Make sure we receive the minimum required data to cache internally */
+	if (mbox_sts[4] < offsetof(struct mbx_sys_info, reserved)) {
 		DEBUG2(printk("scsi%ld: %s: GET_SYS_INFO data receive"
 		    " error (%x)\n", ha->host_no, __func__, mbox_sts[4]));
 		goto exit_validate_mac82;
