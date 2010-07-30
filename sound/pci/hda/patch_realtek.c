@@ -847,9 +847,13 @@ static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 
 	if (auto_pin_type <= AUTO_PIN_FRONT_MIC) {
 		unsigned int pincap;
+		unsigned int oldval;
+		oldval = snd_hda_codec_read(codec, nid, 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		pincap = snd_hda_query_pin_caps(codec, nid);
 		pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
-		if (pincap & AC_PINCAP_VREF_80)
+		/* if the default pin setup is vref50, we give it priority */
+		if ((pincap & AC_PINCAP_VREF_80) && oldval != PIN_VREF50)
 			val = PIN_VREF80;
 		else if (pincap & AC_PINCAP_VREF_50)
 			val = PIN_VREF50;
@@ -10406,7 +10410,8 @@ static struct alc_config_preset alc882_presets[] = {
  * Pin config fixes
  */
 enum {
-	PINFIX_ABIT_AW9D_MAX
+	PINFIX_ABIT_AW9D_MAX,
+	PINFIX_PB_M5210,
 };
 
 static struct alc_pincfg alc882_abit_aw9d_pinfix[] = {
@@ -10416,13 +10421,22 @@ static struct alc_pincfg alc882_abit_aw9d_pinfix[] = {
 	{ }
 };
 
+static const struct hda_verb pb_m5210_verbs[] = {
+	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+	{}
+};
+
 static const struct alc_fixup alc882_fixups[] = {
 	[PINFIX_ABIT_AW9D_MAX] = {
 		.pins = alc882_abit_aw9d_pinfix
 	},
+	[PINFIX_PB_M5210] = {
+		.verbs = pb_m5210_verbs
+	},
 };
 
 static struct snd_pci_quirk alc882_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", PINFIX_PB_M5210),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", PINFIX_ABIT_AW9D_MAX),
 	{}
 };
