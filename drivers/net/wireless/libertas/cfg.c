@@ -465,7 +465,15 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	bsssize = get_unaligned_le16(&scanresp->bssdescriptsize);
-	nr_sets = le16_to_cpu(resp->size);
+	nr_sets = le16_to_cpu(scanresp->nr_sets);
+
+	lbs_deb_scan("scan response: %d BSSs (%d bytes); resp size %d bytes\n",
+			nr_sets, bsssize, le16_to_cpu(resp->size));
+
+	if (nr_sets == 0) {
+		ret = 0;
+		goto done;
+	}
 
 	/*
 	 * The general layout of the scan response is described in chapter
