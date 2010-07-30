@@ -12,6 +12,7 @@
 #include "event.h"
 #include "symbol.h"
 #include <linux/kernel.h>
+#include "debug.h"
 
 static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
 {
@@ -34,10 +35,27 @@ static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
 	return 0;
 }
 
+static int event__exit_del_thread(event_t *self, struct perf_session *session)
+{
+	struct thread *thread = perf_session__findnew(session, self->fork.tid);
+
+	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
+		    self->fork.ppid, self->fork.ptid);
+
+	if (thread) {
+		rb_erase(&thread->rb_node, &session->threads);
+		session->last_match = NULL;
+		thread__delete(thread);
+	}
+
+	return 0;
+}
+
 struct perf_event_ops build_id__mark_dso_hit_ops = {
 	.sample	= build_id__mark_dso_hit,
 	.mmap	= event__process_mmap,
 	.fork	= event__process_task,
+	.exit	= event__exit_del_thread,
 };
 
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)

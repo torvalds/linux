@@ -127,6 +127,7 @@ size_t __map_groups__fprintf_maps(struct map_groups *self,
 void maps__insert(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
 void map_groups__init(struct map_groups *self);
+void map_groups__exit(struct map_groups *self);
 int map_groups__clone(struct map_groups *self,
 		      struct map_groups *parent, enum map_type type);
 size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp);
