@@ -3737,10 +3737,8 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl3945_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
-	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
-	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
-	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
-	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
+
+	iwl_setup_scan_deferred_work(priv);
 
 	iwl3945_hw_setup_deferred_work(priv);
 

@@ -378,7 +378,7 @@ void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->start_internal_scan);
 }
 
-void iwl_bg_start_internal_scan(struct work_struct *work)
+static void iwl_bg_start_internal_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, start_internal_scan);
@@ -418,9 +418,8 @@ void iwl_bg_start_internal_scan(struct work_struct *work)
  unlock:
 	mutex_unlock(&priv->mutex);
 }
-EXPORT_SYMBOL(iwl_bg_start_internal_scan);
 
-void iwl_bg_scan_check(struct work_struct *data)
+static void iwl_bg_scan_check(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, scan_check.work);
@@ -439,7 +438,6 @@ void iwl_bg_scan_check(struct work_struct *data)
 	}
 	mutex_unlock(&priv->mutex);
 }
-EXPORT_SYMBOL(iwl_bg_scan_check);
 
 /**
  * iwl_fill_probe_req - fill in all required fields and IE for probe request
@@ -489,7 +487,7 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 }
 EXPORT_SYMBOL(iwl_fill_probe_req);
 
-void iwl_bg_abort_scan(struct work_struct *work)
+static void iwl_bg_abort_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
@@ -504,9 +502,8 @@ void iwl_bg_abort_scan(struct work_struct *work)
 		iwl_send_scan_abort(priv);
 	mutex_unlock(&priv->mutex);
 }
-EXPORT_SYMBOL(iwl_bg_abort_scan);
 
-void iwl_bg_scan_completed(struct work_struct *work)
+static void iwl_bg_scan_completed(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
@@ -555,7 +552,6 @@ void iwl_bg_scan_completed(struct work_struct *work)
 	if (!internal)
 		ieee80211_scan_completed(priv->hw, false);
 }
-EXPORT_SYMBOL(iwl_bg_scan_completed);
 
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 {
