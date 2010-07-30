@@ -75,22 +75,18 @@ static void signalled_reboot_callback(void *callback_data)
 	schedule_work(&ipw->work_reboot);
 }
 
-static int ipwireless_probe(struct pcmcia_device *p_dev,
-			    cistpl_cftable_entry_t *cfg,
-			    cistpl_cftable_entry_t *dflt,
-			    void *priv_data)
+static int ipwireless_probe(struct pcmcia_device *p_dev, void *priv_data)
 {
 	struct ipw_dev *ipw = priv_data;
 	struct resource *io_resource;
 	int ret;
 
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
 
 	/* 0x40 causes it to generate level mode interrupts. */
 	/* 0x04 enables IREQ pin. */
-	p_dev->config_index = cfg->index | 0x44;
+	p_dev->config_index |= 0x44;
 	p_dev->io_lines = 16;
 	ret = pcmcia_request_io(p_dev);
 	if (ret)
@@ -100,26 +96,18 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 				resource_size(p_dev->resource[0]),
 				IPWIRELESS_PCCARD_NAME);
 
-	if (cfg->mem.nwin == 0)
-		return 0;
-
 	p_dev->resource[2]->flags |=
 		WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM | WIN_ENABLE;
-	p_dev->resource[2]->start = cfg->mem.win[0].host_addr;
-	p_dev->resource[2]->end = cfg->mem.win[0].len;
-	if (p_dev->resource[2]->end < 0x1000)
-		p_dev->resource[2]->end = 0x1000;
 
 	ret = pcmcia_request_window(p_dev, p_dev->resource[2], 0);
 	if (ret != 0)
 		goto exit1;
 
-	ret = pcmcia_map_mem_page(p_dev, p_dev->resource[2],
-				cfg->mem.win[0].card_addr);
+	ret = pcmcia_map_mem_page(p_dev, p_dev->resource[2], p_dev->card_addr);
 	if (ret != 0)
 		goto exit2;
 
-	ipw->is_v2_card = cfg->mem.win[0].len == 0x100;
+	ipw->is_v2_card = resource_size(p_dev->resource[2]) == 0x100;
 
 	ipw->attr_memory = ioremap(p_dev->resource[2]->start,
 				resource_size(p_dev->resource[2]));
@@ -165,12 +153,12 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	int ret = 0;
 
 	ipw->is_v2_card = 0;
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_AUTO_SET_IOMEM |
+		CONF_ENABLE_IRQ;
 
 	ret = pcmcia_loop_config(link, ipwireless_probe, ipw);
 	if (ret != 0)
 		return ret;
-
-	link->config_flags |= CONF_ENABLE_IRQ;
 
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 

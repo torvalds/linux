@@ -131,28 +131,12 @@ static void sl811_cs_release(struct pcmcia_device * link)
 	platform_device_unregister(&platform_dev);
 }
 
-static int sl811_cs_config_check(struct pcmcia_device *p_dev,
-				 cistpl_cftable_entry_t *cfg,
-				 cistpl_cftable_entry_t *dflt,
-				 void *priv_data)
+static int sl811_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-
-		p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-
-		return pcmcia_request_io(p_dev);
-	}
-	pcmcia_disable_device(p_dev);
-	return -ENODEV;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -164,7 +148,7 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "sl811_cs_config\n");
 
 	link->config_flags |= CONF_ENABLE_IRQ |	CONF_AUTO_SET_VPP |
-		CONF_AUTO_CHECK_VCC;
+		CONF_AUTO_CHECK_VCC | CONF_AUTO_SET_IO;
 
 	if (pcmcia_loop_config(link, sl811_cs_config_check, NULL))
 		goto failed;

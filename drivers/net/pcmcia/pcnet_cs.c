@@ -259,7 +259,7 @@ static int pcnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
 
-    link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     dev->netdev_ops = &pcnet_netdev_ops;
 
@@ -500,42 +500,22 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static int pcnet_confcheck(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   void *priv_data)
+static int pcnet_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *priv = priv_data;
 	int try = (*priv & 0x1);
-	int i;
-	cistpl_io_t *io = &cfg->io;
 
-	if (cfg->index == 0 || cfg->io.nwin == 0)
+	*priv &= (p_dev->resource[2]->end >= 0x4000) ? 0x10 : ~0x10;
+
+	if (p_dev->config_index == 0)
 		return -EINVAL;
 
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-		i = (io->win[1].len > io->win[0].len);
-		p_dev->resource[1]->start = io->win[1-i].base;
-		p_dev->resource[1]->end = io->win[1-i].len;
-	} else {
-		i = p_dev->resource[1]->end = 0;
-	}
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
+		return -EINVAL;
 
-	*priv &= ((cfg->mem.nwin == 1) &&
-		  (cfg->mem.win[0].len >= 0x4000)) ? 0x10 : ~0x10;
-
-	p_dev->resource[0]->start = io->win[i].base;
-	p_dev->resource[0]->end = io->win[i].len;
-	if (!try)
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-	else
+	if (try)
 		p_dev->io_lines = 16;
-	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
-		return try_io_port(p_dev);
-
-	return -EINVAL;
+	return try_io_port(p_dev);
 }
 
 static hw_info_t *pcnet_try_config(struct pcmcia_device *link,

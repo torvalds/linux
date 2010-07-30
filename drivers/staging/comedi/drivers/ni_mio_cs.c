@@ -262,10 +262,6 @@ static struct pcmcia_device *cur_dev = NULL;
 
 static int cs_attach(struct pcmcia_device *link)
 {
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-	link->resource[0]->end = 16;
-	link->config_flags |= CONF_ENABLE_IRQ;
-
 	cur_dev = link;
 
 	mio_cs_config(link);
@@ -299,15 +295,12 @@ static int mio_cs_resume(struct pcmcia_device *link)
 }
 
 
-static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				void *priv_data)
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int base, ret;
 
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
 		p_dev->resource[0]->start = base;
@@ -324,6 +317,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {

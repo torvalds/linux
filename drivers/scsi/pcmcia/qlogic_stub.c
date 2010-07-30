@@ -155,9 +155,7 @@ static int qlogic_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	info->p_dev = link;
 	link->priv = info;
-	link->resource[0]->end = 16;
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 	link->config_regs = PRESENT_OPTION;
 
 	return qlogic_config(link);
@@ -176,14 +174,11 @@ static void qlogic_detach(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static int qlogic_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       void *priv_data)
+static int qlogic_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	p_dev->io_lines = 10;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
 	if (p_dev->resource[0]->start == 0)
 		return -ENODEV;

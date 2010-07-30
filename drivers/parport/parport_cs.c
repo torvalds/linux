@@ -100,9 +100,7 @@ static int parport_probe(struct pcmcia_device *link)
     link->priv = info;
     info->p_dev = link;
 
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     return parport_config(link);
 } /* parport_attach */
@@ -133,27 +131,14 @@ static void parport_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static int parport_config_check(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				void *priv_data)
+static int parport_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		if (epp_mode)
-			p_dev->config_index |= FORCE_EPP_MODE;
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin == 2) {
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-		if (pcmcia_request_io(p_dev) != 0)
-			return -ENODEV;
-		return 0;
-	}
-	return -ENODEV;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int parport_config(struct pcmcia_device *link)
@@ -163,6 +148,9 @@ static int parport_config(struct pcmcia_device *link)
     int ret;
 
     dev_dbg(&link->dev, "parport_config\n");
+
+    if (epp_mode)
+	    link->config_index |= FORCE_EPP_MODE;
 
     ret = pcmcia_loop_config(link, parport_config_check, NULL);
     if (ret)

@@ -1,4 +1,16 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_loop_config() and autoconfiguration (as of 2.6.36)
+   If struct pcmcia_device *p_dev->config_flags is set accordingly,
+   pcmcia_loop_config() now sets up certain configuration values
+   automatically, though the driver may still override the settings
+   in the callback function. The following autoconfiguration options
+   are provided at the moment:
+	CONF_AUTO_CHECK_VCC : check for matching Vcc
+	CONF_AUTO_SET_VPP   : set Vpp
+	CONF_AUTO_AUDIO     : auto-enable audio line, if required
+	CONF_AUTO_SET_IO    : set ioport resources (->resource[0,1])
+	CONF_AUTO_SET_IOMEM : set first iomem resource (->resource[2])
+
 * pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
    pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
    as it mirrors pcmcia_disable_device(). Configuration settings are now

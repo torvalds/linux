@@ -118,16 +118,6 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
 
     local->cardnr = -1;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
-    link->resource[0]->end = 8;
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-
     return elsa_cs_config(link);
 } /* elsa_cs_attach */
 
@@ -160,18 +150,17 @@ static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cf,
-			       cistpl_cftable_entry_t *dflt,
-			       void *priv_data)
+static int elsa_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int j;
 
 	p_dev->io_lines = 3;
+	p_dev->resource[0]->end = 8;
+	p_dev->resource[0]->flags &= IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
+	if ((p_dev->resource[0]->end) && p_dev->resource[0]->start) {
 		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-		p_dev->resource[0]->start = cf->io.win[0].base;
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {
@@ -193,6 +182,8 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "elsa_config(0x%p)\n", link);
     dev = link->priv;
+
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     i = pcmcia_loop_config(link, elsa_cs_configcheck, NULL);
     if (i != 0)

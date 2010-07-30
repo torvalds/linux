@@ -93,6 +93,7 @@ struct pcmcia_device {
 	/* device setup */
 	unsigned int		irq;
 	struct resource		*resource[PCMCIA_NUM_RESOURCES];
+	resource_size_t		card_addr;	/* for the 1st IOMEM resource */
 	unsigned int		vpp;
 
 	unsigned int		config_flags;	/* CONF_ENABLE_ flags below */
@@ -175,8 +176,6 @@ int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
 /* loop CIS entries for valid configuration */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
-						 cistpl_cftable_entry_t *cf,
-						 cistpl_cftable_entry_t *dflt,
 						 void *priv_data),
 		       void *priv_data);
 
@@ -225,16 +224,6 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev);
 #define IO_DATA_PATH_WIDTH_16	0x08
 #define IO_DATA_PATH_WIDTH_AUTO	0x10
 
-/* convert flag found in cfgtable to data path width parameter */
-static inline int pcmcia_io_cfg_data_width(unsigned int flags)
-{
-	if (!(flags & CISTPL_IO_8BIT))
-		return IO_DATA_PATH_WIDTH_16;
-	if (!(flags & CISTPL_IO_16BIT))
-		return IO_DATA_PATH_WIDTH_8;
-	return IO_DATA_PATH_WIDTH_AUTO;
-}
-
 /* IO memory */
 #define WIN_MEMORY_TYPE_CM	0x00 /* default */
 #define WIN_MEMORY_TYPE_AM	0x20 /* MAP_ATTRIB */
@@ -264,16 +253,17 @@ static inline int pcmcia_io_cfg_data_width(unsigned int flags)
 #define PRESENT_IOSIZE		0x200
 
 /* flags to be passed to pcmcia_enable_device() */
-#define CONF_ENABLE_IRQ         0x01
-#define CONF_ENABLE_SPKR        0x02
-#define CONF_ENABLE_PULSE_IRQ   0x04
-#define CONF_ENABLE_ESR         0x08
+#define CONF_ENABLE_IRQ         0x0001
+#define CONF_ENABLE_SPKR        0x0002
+#define CONF_ENABLE_PULSE_IRQ   0x0004
+#define CONF_ENABLE_ESR         0x0008
 
 /* flags used by pcmcia_loop_config() autoconfiguration */
-#define CONF_AUTO_CHECK_VCC	0x10 /* check for matching Vcc? */
-#define CONF_AUTO_SET_VPP	0x20 /* set Vpp? */
-#define CONF_AUTO_AUDIO		0x40 /* enable audio line? */
-
+#define CONF_AUTO_CHECK_VCC	0x0100 /* check for matching Vcc? */
+#define CONF_AUTO_SET_VPP	0x0200 /* set Vpp? */
+#define CONF_AUTO_AUDIO		0x0400 /* enable audio line? */
+#define CONF_AUTO_SET_IO	0x0800 /* set ->resource[0,1] */
+#define CONF_AUTO_SET_IOMEM	0x1000 /* set ->resource[2] */
 
 #endif /* __KERNEL__ */
 

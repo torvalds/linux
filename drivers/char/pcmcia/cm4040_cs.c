@@ -515,25 +515,9 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 	return;
 }
 
-static int cm4040_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       void *priv_data)
+static int cm4040_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	int rc;
-	if (!cfg->io.nwin)
-		return -ENODEV;
-
-	/* Get the IOaddr */
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-	rc = pcmcia_request_io(p_dev);
-
-	dev_printk(KERN_INFO, &p_dev->dev,
-		   "pcmcia_request_io returned 0x%x\n", rc);
-	return rc;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -541,6 +525,8 @@ static int reader_config(struct pcmcia_device *link, int devno)
 {
 	struct reader_dev *dev;
 	int fail_rc;
+
+	link->config_flags |= CONF_AUTO_SET_IO;
 
 	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;

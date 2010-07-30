@@ -323,9 +323,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     spin_lock_init(&smc->lock);
-    link->resource[0]->end = 16;
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->config_flags |= CONF_ENABLE_IRQ;
 
     /* The SMC91c92-specific entries in the device structure. */
     dev->netdev_ops = &smc_netdev_ops;
@@ -417,18 +414,21 @@ static int mhz_3288_power(struct pcmcia_device *link)
     return 0;
 }
 
-static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cf,
-				cistpl_cftable_entry_t *dflt,
-				void *priv_data)
+static int mhz_mfc_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int k;
-	p_dev->resource[1]->start = cf->io.win[0].base;
+	p_dev->io_lines = 16;
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	for (k = 0; k < 0x400; k += 0x10) {
 		if (k & 0x80)
 			continue;
 		p_dev->resource[0]->start = k ^ 0x300;
-		p_dev->io_lines = 16;
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
@@ -442,9 +442,8 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     unsigned int offset;
     int i;
 
-    link->config_flags |= CONF_ENABLE_SPKR;
-    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->resource[1]->end = 8;
+    link->config_flags |= CONF_ENABLE_SPKR | CONF_ENABLE_IRQ |
+	    CONF_AUTO_SET_IO;
 
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
@@ -586,13 +585,12 @@ static int mot_setup(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static int smc_configcheck(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cf,
-			   cistpl_cftable_entry_t *dflt,
-			   void *priv_data)
+static int smc_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	p_dev->resource[0]->start = cf->io.win[0].base;
-	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+
 	return pcmcia_request_io(p_dev);
 }
 
@@ -601,7 +599,8 @@ static int smc_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     int i;
 
-    link->resource[0]->end = 16;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
     i = pcmcia_loop_config(link, smc_configcheck, NULL);
     if (!i)
 	    dev->base_addr = link->resource[0]->start;
@@ -634,7 +633,7 @@ static int osi_config(struct pcmcia_device *link)
     static const unsigned int com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
     int i, j;
 
-    link->config_flags |= CONF_ENABLE_SPKR;
+    link->config_flags |= CONF_ENABLE_SPKR | CONF_ENABLE_IRQ;
     link->resource[0]->end = 64;
     link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->resource[1]->end = 8;

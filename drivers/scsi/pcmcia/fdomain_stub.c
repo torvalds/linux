@@ -82,9 +82,7 @@ static int fdomain_probe(struct pcmcia_device *link)
 
 	info->p_dev = link;
 	link->priv = info;
-	link->resource[0]->end = 0x10;
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 	link->config_regs = PRESENT_OPTION;
 
 	return fdomain_config(link);
@@ -103,13 +101,12 @@ static void fdomain_detach(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static int fdomain_config_check(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				void *priv_data)
+static int fdomain_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	p_dev->io_lines = 10;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = 0x10;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	return pcmcia_request_io(p_dev);
 }
 

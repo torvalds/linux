@@ -96,10 +96,8 @@ static int ide_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = info;
 
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
-    link->config_flags |= CONF_ENABLE_IRQ;
-    link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO |
+	    CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
 
     return ide_config(link);
 } /* ide_attach */
@@ -194,52 +192,31 @@ out_release:
 
 ======================================================================*/
 
-struct pcmcia_config_check {
-	unsigned long ctl_base;
-	int is_kme;
-};
-
-static int pcmcia_check_one_config(struct pcmcia_device *pdev,
-				   cistpl_cftable_entry_t *cfg,
-				   cistpl_cftable_entry_t *dflt,
-				   void *priv_data)
+static int pcmcia_check_one_config(struct pcmcia_device *pdev, void *priv_data)
 {
-	struct pcmcia_config_check *stk = priv_data;
+	int *is_kme = priv_data;
 
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		pdev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		pdev->config_index = cfg->index;
-		pdev->resource[0]->start = io->win[0].base;
-		if (!(io->flags & CISTPL_IO_16BIT)) {
-			pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-			pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-		}
-		if (io->nwin == 2) {
-			pdev->resource[0]->end = 8;
-			pdev->resource[1]->start = io->win[1].base;
-			pdev->resource[1]->end = (stk->is_kme) ? 2 : 1;
-			if (pcmcia_request_io(pdev) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->resource[1]->start;
-		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-			pdev->resource[0]->end = io->win[0].len;
-			pdev->resource[1]->end = 0;
-			if (pcmcia_request_io(pdev) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->resource[0]->start + 0x0e;
-		} else
-			return -ENODEV;
-		/* If we've got this far, we're done */
-		return 0;
+	if (!(pdev->resource[0]->flags & IO_DATA_PATH_WIDTH_8)) {
+		pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	}
-	return -ENODEV;
+	pdev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	if (pdev->resource[1]->end) {
+		pdev->resource[0]->end = 8;
+		pdev->resource[1]->end = (*is_kme) ? 2 : 1;
+	} else {
+		if (pdev->resource[0]->end < 16)
+			return -ENODEV;
+	}
+
+	return pcmcia_request_io(pdev);
 }
 
 static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    struct pcmcia_config_check *stk = NULL;
     int ret = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     struct ide_host *host;
@@ -250,19 +227,16 @@ static int ide_config(struct pcmcia_device *link)
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
 	       (link->card_id == PRODID_KME_KXLC005_B)));
 
-    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
-    if (!stk)
-	    goto err_mem;
-    stk->is_kme = is_kme;
-    io_base = ctl_base = 0;
-
-    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
+    if (pcmcia_loop_config(link, pcmcia_check_one_config, &is_kme)) {
 	    link->config_flags &= ~CONF_AUTO_CHECK_VCC;
-	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
+	    if (pcmcia_loop_config(link, pcmcia_check_one_config, &is_kme))
 		    goto failed; /* No suitable config found */
     }
     io_base = link->resource[0]->start;
-    ctl_base = stk->ctl_base;
+    if (link->resource[1]->end)
+	    ctl_base = link->resource[1]->start;
+    else
+	    ctl_base = link->resource[0]->start + 0x0e;
 
     if (!link->irq)
 	    goto failed;
@@ -294,15 +268,9 @@ static int ide_config(struct pcmcia_device *link)
 	    'a' + host->ports[0]->index * 2,
 	    link->vpp / 10, link->vpp % 10);
 
-    kfree(stk);
     return 0;
 
-err_mem:
-    printk(KERN_NOTICE "ide-cs: ide_config failed memory allocation\n");
-    goto failed;
-
 failed:
-    kfree(stk);
     ide_release(link);
     return -ENODEV;
 } /* ide_config */

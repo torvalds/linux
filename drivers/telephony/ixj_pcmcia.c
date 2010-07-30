@@ -31,8 +31,6 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 {
 	dev_dbg(&p_dev->dev, "ixj_attach()\n");
 	/* Create new ixj device */
-	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	p_dev->priv = kzalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!p_dev->priv) {
 		return -ENOMEM;
@@ -109,36 +107,28 @@ failed:
 	return;
 }
 
-static int ixj_config_check(struct pcmcia_device *p_dev,
-			    cistpl_cftable_entry_t *cfg,
-			    cistpl_cftable_entry_t *dflt,
-			    void *priv_data)
+static int ixj_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		p_dev->io_lines = 3;
-		if (io->nwin == 2) {
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-		if (!pcmcia_request_io(p_dev))
-			return 0;
-	}
-	return -ENODEV;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->io_lines = 3;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int ixj_config(struct pcmcia_device * link)
 {
 	IXJ *j;
 	ixj_info_t *info;
-	cistpl_cftable_entry_t dflt = { 0 };
 
 	info = link->priv;
 	dev_dbg(&link->dev, "ixj_config\n");
 
-	if (pcmcia_loop_config(link, ixj_config_check, &dflt))
+	link->config_flags = CONF_AUTO_SET_IO;
+
+	if (pcmcia_loop_config(link, ixj_config_check, NULL))
 		goto failed;
 
 	if (pcmcia_enable_device(link))

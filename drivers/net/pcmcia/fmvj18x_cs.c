@@ -319,10 +319,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     return ret;	/* RequestIO failed */
 }
 
-static int fmvj18x_ioprobe(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   void *priv_data)
+static int fmvj18x_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
 	return 0; /* strange, but that's what the code did already before... */
 }

@@ -794,20 +794,12 @@ static void if_cs_release(struct pcmcia_device *p_dev)
  * insertion event.
  */
 
-static int if_cs_ioprobe(struct pcmcia_device *p_dev,
-			 cistpl_cftable_entry_t *cfg,
-			 cistpl_cftable_entry_t *dflt,
-			 void *priv_data)
+static int if_cs_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
 
-	/* Do we need to allocate an interrupt? */
-	p_dev->config_flags |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	if (cfg->io.nwin != 1) {
+	if (p_dev->resource[1]->end) {
 		lbs_pr_err("wrong CIS (check number of IO windows)\n");
 		return -ENODEV;
 	}
@@ -832,6 +824,8 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 	card->p_dev = p_dev;
 	p_dev->priv = card;
+
+	p_dev->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	if (pcmcia_loop_config(p_dev, if_cs_ioprobe, NULL)) {
 		lbs_pr_err("error in pcmcia_loop_config\n");

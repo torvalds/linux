@@ -284,34 +284,16 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static int axnet_configcheck(struct pcmcia_device *p_dev,
-			     cistpl_cftable_entry_t *cfg,
-			     cistpl_cftable_entry_t *dflt,
-			     void *priv_data)
+static int axnet_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	int i;
-	cistpl_io_t *io = &cfg->io;
-
-	if (cfg->index == 0 || cfg->io.nwin == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
 	p_dev->config_index = 0x05;
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-		i = (io->win[1].len > io->win[0].len);
-		p_dev->resource[1]->start = io->win[1-i].base;
-		p_dev->resource[1]->end = io->win[1-i].len;
-	} else {
-		i = p_dev->resource[1]->end = 0;
-	}
-	p_dev->resource[0]->start = io->win[i].base;
-	p_dev->resource[0]->end = io->win[i].len;
-	p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
-		return try_io_port(p_dev);
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
+		return -ENODEV;
 
-	return -ENODEV;
+	return try_io_port(p_dev);
 }
 
 static int axnet_config(struct pcmcia_device *link)
@@ -324,6 +306,7 @@ static int axnet_config(struct pcmcia_device *link)
 
     /* don't trust the CIS on this; Linksys got it wrong */
     link->config_regs = 0x63;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
     ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
     if (ret != 0)
 	goto failed;
@@ -331,7 +314,6 @@ static int axnet_config(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
 
-    link->config_flags |= CONF_ENABLE_IRQ;
     if (resource_size(link->resource[1]) == 8)
 	link->config_flags |= CONF_ENABLE_SPKR;
     

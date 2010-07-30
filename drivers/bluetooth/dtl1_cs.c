@@ -571,10 +571,7 @@ static int dtl1_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	link->resource[0]->end = 8;
-
-	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	return dtl1_config(link);
 }
@@ -589,17 +586,14 @@ static void dtl1_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int dtl1_confcheck(struct pcmcia_device *p_dev,
-			  cistpl_cftable_entry_t *cf,
-			  cistpl_cftable_entry_t *dflt,
-			  void *priv_data)
+static int dtl1_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if ((cf->io.nwin != 1) || (cf->io.win[0].len <= 8))
+	if ((p_dev->resource[1]->end) || (p_dev->resource[1]->end < 8))
 		return -ENODEV;
 
-	p_dev->resource[0]->start = cf->io.win[0].base;
-	p_dev->resource[0]->end = cf->io.win[0].len;	/*yo */
-	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
 	return pcmcia_request_io(p_dev);
 }
 

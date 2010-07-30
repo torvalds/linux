@@ -105,10 +105,7 @@ static int __devinit teles_probe(struct pcmcia_device *link)
       and attributes of IO windows) are fixed by the nature of the
       device, and can be hard-wired here.
     */
-    link->resource[0]->end = 96;
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-
-    link->config_flags |= CONF_ENABLE_IRQ;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     return teles_cs_config(link);
 } /* teles_attach */
@@ -142,18 +139,17 @@ static void __devexit teles_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static int teles_cs_configcheck(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cf,
-				cistpl_cftable_entry_t *dflt,
-				void *priv_data)
+static int teles_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int j;
 
 	p_dev->io_lines = 5;
+	p_dev->resource[0]->end = 96;
+	p_dev->resource[0]->flags &= IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
+	if ((p_dev->resource[0]->end) && p_dev->resource[0]->start) {
 		printk(KERN_INFO "(teles_cs: looks like the 96 model)\n");
-		p_dev->resource[0]->start = cf->io.win[0].base;
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {

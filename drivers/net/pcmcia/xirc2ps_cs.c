@@ -528,7 +528,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     /* General socket configuration */
-    link->config_flags |= CONF_ENABLE_IRQ;
     link->config_index = 1;
 
     /* Fill in card specific entries */
@@ -665,42 +664,53 @@ has_ce2_string(struct pcmcia_device * p_dev)
 }
 
 static int
-xirc2ps_config_modem(struct pcmcia_device *p_dev,
-		     cistpl_cftable_entry_t *cf,
-		     cistpl_cftable_entry_t *dflt,
-		     void *priv_data)
+xirc2ps_config_modem(struct pcmcia_device *p_dev, void *priv_data)
 {
 	unsigned int ioaddr;
 
-	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
-		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			p_dev->resource[1]->start = cf->io.win[0].base;
-			p_dev->resource[0]->start = ioaddr;
-			if (!pcmcia_request_io(p_dev))
-				return 0;
-		}
+	if ((p_dev->resource[0]->start & 0xf) == 8)
+		return -ENODEV;
+
+	p_dev->resource[0]->end = 16;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->io_lines = 10;
+
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
+		p_dev->resource[0]->start = ioaddr;
+		if (!pcmcia_request_io(p_dev))
+			return 0;
 	}
 	return -ENODEV;
 }
 
 static int
-xirc2ps_config_check(struct pcmcia_device *p_dev,
-		     cistpl_cftable_entry_t *cf,
-		     cistpl_cftable_entry_t *dflt,
-		     void *priv_data)
+xirc2ps_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *pass = priv_data;
+	resource_size_t tmp = p_dev->resource[1]->start;
 
-	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
-		p_dev->resource[1]->start = cf->io.win[0].base;
-		p_dev->resource[0]->start = p_dev->resource[1]->start
-			+ (*pass ? (cf->index & 0x20 ? -24:8)
-			   : (cf->index & 0x20 ?   8:-24));
-		if (!pcmcia_request_io(p_dev))
-			return 0;
-	}
-	return -ENODEV;
+	tmp += (*pass ? (p_dev->config_index & 0x20 ? -24 : 8)
+		: (p_dev->config_index & 0x20 ?   8 : -24));
 
+	if ((p_dev->resource[0]->start & 0xf) == 8)
+		return -ENODEV;
+
+	p_dev->resource[0]->end = 18;
+	p_dev->resource[1]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	p_dev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->io_lines = 10;
+
+	p_dev->resource[1]->start = p_dev->resource[0]->start;
+	p_dev->resource[0]->start = tmp;
+	return pcmcia_request_io(p_dev);
 }
 
 
@@ -803,21 +813,16 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto failure;
     }
 
-    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-    link->io_lines = 10;
     if (local->modem) {
 	int pass;
+	link->config_flags |= CONF_AUTO_SET_IO;
 
-	link->resource[1]->end = 8;
-	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
 	    /* Take the Modem IO port from the CIS and scan for a free
 	     * Ethernet port */
-	    link->resource[0]->end = 16; /* no Mako stuff anymore */
 	    if (!pcmcia_loop_config(link, xirc2ps_config_modem, NULL))
 		    goto port_found;
 	} else {
-	    link->resource[0]->end = 18;
 	    /* We do 2 passes here: The first one uses the regular mapping and
 	     * the second tries again, thereby considering that the 32 ports are
 	     * mirrored every 32 bytes. Actually we use a mirrored port for
@@ -833,7 +838,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
+	link->io_lines = 10;
 	link->resource[0]->end = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->resource[0]->start = ioaddr;
 	    if (!(err = pcmcia_request_io(link)))

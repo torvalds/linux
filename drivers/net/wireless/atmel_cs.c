@@ -154,31 +154,11 @@ static int card_present(void *arg)
 	return 0;
 }
 
-static int atmel_config_check(struct pcmcia_device *p_dev,
-			      cistpl_cftable_entry_t *cfg,
-			      cistpl_cftable_entry_t *dflt,
-			      void *priv_data)
+static int atmel_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-					pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-	}
-
-	/* This reserves IO space but doesn't actually enable it */
 	return pcmcia_request_io(p_dev);
 }
 
@@ -194,7 +174,7 @@ static int atmel_config(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "atmel_config\n");
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
-		CONF_AUTO_AUDIO;
+		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
