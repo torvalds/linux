@@ -337,11 +337,6 @@ static void ring_ep_doorbell(struct xhci_hcd *xhci,
 		field = xhci_readl(xhci, db_addr) & DB_MASK;
 		field |= EPI_TO_DB(ep_index) | STREAM_ID_TO_DB(stream_id);
 		xhci_writel(xhci, field, db_addr);
-		/* Flush PCI posted writes - FIXME Matthew Wilcox says this
-		 * isn't time-critical and we shouldn't make the CPU wait for
-		 * the flush.
-		 */
-		xhci_readl(xhci, db_addr);
 	}
 }
 
