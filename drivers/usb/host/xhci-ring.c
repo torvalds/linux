@@ -2039,25 +2039,25 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 irqreturn_t xhci_irq(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	u32 temp, temp2;
+	u32 status, irq_pending;
 	union xhci_trb *trb;
 	u64 temp_64;
 
 	spin_lock(&xhci->lock);
 	trb = xhci->event_ring->dequeue;
 	/* Check if the xHC generated the interrupt, or the irq is shared */
-	temp = xhci_readl(xhci, &xhci->op_regs->status);
-	temp2 = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	if (temp == 0xffffffff && temp2 == 0xffffffff)
+	status = xhci_readl(xhci, &xhci->op_regs->status);
+	irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	if (status == 0xffffffff && irq_pending == 0xffffffff)
 		goto hw_died;
 
-	if (!(temp & STS_EINT) && !ER_IRQ_PENDING(temp2)) {
+	if (!(status & STS_EINT) && !ER_IRQ_PENDING(irq_pending)) {
 		spin_unlock(&xhci->lock);
 		xhci_warn(xhci, "Spurious interrupt.\n");
 		return IRQ_NONE;
 	}
-	xhci_dbg(xhci, "op reg status = %08x\n", temp);
-	xhci_dbg(xhci, "ir set irq_pending = %08x\n", temp2);
+	xhci_dbg(xhci, "op reg status = %08x\n", status);
+	xhci_dbg(xhci, "ir set irq_pending = %08x\n", irq_pending);
 	xhci_dbg(xhci, "Event ring dequeue ptr:\n");
 	xhci_dbg(xhci, "@%llx %08x %08x %08x %08x\n",
 			(unsigned long long)
@@ -2067,7 +2067,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 			(unsigned int) trb->link.intr_target,
 			(unsigned int) trb->link.control);
 
-	if (temp & STS_FATAL) {
+	if (status & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
 hw_died:
@@ -2081,15 +2081,14 @@ hw_died:
 	 * so we can receive interrupts from other MSI-X interrupters.
 	 * Write 1 to clear the interrupt status.
 	 */
-	temp |= STS_EINT;
-	xhci_writel(xhci, temp, &xhci->op_regs->status);
+	status |= STS_EINT;
+	xhci_writel(xhci, status, &xhci->op_regs->status);
 	/* FIXME when MSI-X is supported and there are multiple vectors */
 	/* Clear the MSI-X event interrupt status */
 
 	/* Acknowledge the interrupt */
-	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	temp |= 0x3;
-	xhci_writel(xhci, temp, &xhci->ir_set->irq_pending);
+	irq_pending |= 0x3;
+	xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
 
 	if (xhci->xhc_state & XHCI_STATE_DYING)
 		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
@@ -2103,8 +2102,6 @@ hw_died:
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
 	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
-	/* Flush posted writes -- FIXME is this necessary? */
-	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	spin_unlock(&xhci->lock);
 
 	return IRQ_HANDLED;
