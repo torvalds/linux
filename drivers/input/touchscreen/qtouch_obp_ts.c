@@ -1442,11 +1442,6 @@ touch_to_normal_mode:
 		pr_err("%s:Cannot read info block %i\n", __func__, err);
 		goto err_return;
 	}
-	err = qtouch_ts_register_input(ts);
-	if (err != 0) {
-		pr_err("%s: Registering input failed %i\n", __func__, err);
-		goto err_return;
-	}
 	err = qtouch_ts_prep_msg_proc(ts);
 	if (err != 0) {
 		pr_err("%s: setting message proc failed %i\n", __func__, err);
