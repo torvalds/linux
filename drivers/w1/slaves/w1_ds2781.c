@@ -184,6 +184,11 @@ static struct w1_family_ops w1_ds2781_fops = {
 	.remove_slave = w1_ds2781_remove_slave,
 };
 
+static struct w1_family w1_ds2780_family = {
+	.fid = W1_FAMILY_DS2780,
+	.fops = &w1_ds2781_fops,
+};
+
 static struct w1_family w1_ds2781_family = {
 	.fid = W1_FAMILY_DS2781,
 	.fops = &w1_ds2781_fops,
@@ -192,11 +197,13 @@ static struct w1_family w1_ds2781_family = {
 static int __init w1_ds2781_init(void)
 {
 	idr_init(&bat_idr);
+	w1_register_family(&w1_ds2780_family);
 	return w1_register_family(&w1_ds2781_family);
 }
 
 static void __exit w1_ds2781_exit(void)
 {
+	w1_unregister_family(&w1_ds2780_family);
 	w1_unregister_family(&w1_ds2781_family);
 	idr_destroy(&bat_idr);
 }
