@@ -2030,48 +2030,6 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 	/* Are there more items on the event ring? */
 	xhci_handle_event(xhci);
 }
-/*
- * Called in interrupt context when there might be work
- * queued on the event ring
- *
- * xhci->lock must be held by caller.
- */
-static void xhci_work(struct xhci_hcd *xhci)
-{
-	u32 temp;
-	u64 temp_64;
-
-	/*
-	 * Clear the op reg interrupt status first,
-	 * so we can receive interrupts from other MSI-X interrupters.
-	 * Write 1 to clear the interrupt status.
-	 */
-	temp = xhci_readl(xhci, &xhci->op_regs->status);
-	temp |= STS_EINT;
-	xhci_writel(xhci, temp, &xhci->op_regs->status);
-	/* FIXME when MSI-X is supported and there are multiple vectors */
-	/* Clear the MSI-X event interrupt status */
-
-	/* Acknowledge the interrupt */
-	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	temp |= 0x3;
-	xhci_writel(xhci, temp, &xhci->ir_set->irq_pending);
-
-	if (xhci->xhc_state & XHCI_STATE_DYING)
-		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
-				"Shouldn't IRQs be disabled?\n");
-	else
-		/* FIXME this should be a delayed service routine
-		 * that clears the EHB.
-		 */
-		xhci_handle_event(xhci);
-
-	/* Clear the event handler busy flag (RW1C); event ring is empty. */
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
-	/* Flush posted writes -- FIXME is this necessary? */
-	xhci_readl(xhci, &xhci->ir_set->irq_pending);
-}
 
 /*
  * xHCI spec says we can get an interrupt, and if the HC has an error condition,
@@ -2083,6 +2041,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	u32 temp, temp2;
 	union xhci_trb *trb;
+	u64 temp_64;
 
 	spin_lock(&xhci->lock);
 	trb = xhci->event_ring->dequeue;
@@ -2117,7 +2076,35 @@ hw_died:
 		return -ESHUTDOWN;
 	}
 
-	xhci_work(xhci);
+	/*
+	 * Clear the op reg interrupt status first,
+	 * so we can receive interrupts from other MSI-X interrupters.
+	 * Write 1 to clear the interrupt status.
+	 */
+	temp |= STS_EINT;
+	xhci_writel(xhci, temp, &xhci->op_regs->status);
+	/* FIXME when MSI-X is supported and there are multiple vectors */
+	/* Clear the MSI-X event interrupt status */
+
+	/* Acknowledge the interrupt */
+	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	temp |= 0x3;
+	xhci_writel(xhci, temp, &xhci->ir_set->irq_pending);
+
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
+				"Shouldn't IRQs be disabled?\n");
+	else
+		/* FIXME this should be a delayed service routine
+		 * that clears the EHB.
+		 */
+		xhci_handle_event(xhci);
+
+	/* Clear the event handler busy flag (RW1C); event ring is empty. */
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
+	/* Flush posted writes -- FIXME is this necessary? */
+	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	spin_unlock(&xhci->lock);
 
 	return IRQ_HANDLED;
