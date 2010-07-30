@@ -225,7 +225,7 @@ NvError nvrm_power_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void 
     switch( function ) {
     case 9:
         err_ = NvRmPowerVoltageControl_dispatch_( InBuffer, InSize, OutBuffer, OutSize, Ctx );
-        break; 
+        break;
     case 8:
         err_ = NvRmPowerModuleClockControl_dispatch_( InBuffer, InSize, OutBuffer, OutSize, Ctx );
         break;

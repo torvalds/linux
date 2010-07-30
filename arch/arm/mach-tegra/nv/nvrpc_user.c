@@ -27,7 +27,7 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <mach/nvrm_linux.h>
-#include "linux/nvrpc_ioctl.h"
+#include <mach/nvrpc.h>
 #include "nvcommon.h"
 #include "nvassert.h"
 #include "nvos.h"
@@ -102,15 +102,17 @@ static struct miscdevice nvrpc_dev =
 
 static DEFINE_MUTEX(nvrpc_device_lock);
 
+static NvBool s_init_done = NV_FALSE;
+NvRmDeviceHandle s_hRmGlobal = NULL;
+
 int nvrpc_open(struct inode *inode, struct file *file)
 {
 	NvError e = NvSuccess;
-	static NvBool init_done = NV_FALSE;
 
 	mutex_lock(&nvrpc_device_lock);
-	if (init_done == NV_FALSE) {
-		e = NvRmTransportInit(NULL);
-		init_done = NV_TRUE;
+	if (s_init_done == NV_FALSE) {
+		e = NvRmTransportInit(s_hRmGlobal);
+		s_init_done = NV_TRUE;
 	}
 	mutex_unlock(&nvrpc_device_lock);
 
@@ -138,6 +140,13 @@ static int nvrpc_make_error_code(NvError e)
 	}
 	return error;
 }
+
+NvRmTransportHandle g_hTransportAvp = NULL;
+NvRmTransportHandle g_hTransportCpu = NULL;
+NvOsSemaphoreHandle g_hTransportAvpSem = NULL;
+NvOsSemaphoreHandle g_hTransportCpuSem = NULL;
+int g_hTransportAvpIsConnected = 0;
+int g_hTransportCpuIsConnected = 0;
 
 static int nvrpc_ioctl_open(struct file *filp,
 			    unsigned int cmd, void __user *arg)
@@ -175,12 +184,29 @@ static int nvrpc_ioctl_open(struct file *filp,
 		if (e != NvSuccess)
 			goto fail;
 	}
-	op.ret_val = NvRmTransportOpen(NULL, p_name, recv_sem,
+	printk(KERN_ERR "%s: NvRmTransportOpen\n", __func__);
+	op.ret_val = NvRmTransportOpen(s_hRmGlobal, p_name, recv_sem,
 				       (void *)&op.transport_handle);
 	error = copy_to_user(arg, &op, sizeof(op));
+	if (p_name && ! strcmp(p_name, "RPC_CPU_PORT")) {
+	    if (g_hTransportCpu) {
+		    panic("%s: g_hTransportCpu=%p is already assigned.\n", __func__, g_hTransportCpu);
+	    }
+	    g_hTransportCpu = (NvRmTransportHandle)op.transport_handle;
+	    g_hTransportCpuSem = (NvOsSemaphoreHandle) op.sem;
+	    printk(KERN_ERR "%s: g_hTransportCpu=%p\n", __func__, g_hTransportCpu);
+	}
+	if (p_name && ! strcmp(p_name, "RPC_AVP_PORT")) {
+	    if (g_hTransportAvp) {
+		    panic("%s: g_hTransportAvp=%p is already assigned.\n", __func__, g_hTransportAvp);
+	    }
+	    g_hTransportAvp = (NvRmTransportHandle)op.transport_handle;
+	    g_hTransportAvpSem = (NvOsSemaphoreHandle) op.sem;
+	    printk(KERN_ERR "%s: g_hTransportAvp=%p\n", __func__, g_hTransportAvp);
+	}
 
 fail:
-	nvrpc_stack_kfree(port_name, p_name);
+	nvrpc_stack_kfree((char*)port_name, p_name);
 	if (recv_sem)
 		NvOsSemaphoreDestroy(recv_sem);
 	if (e != NvSuccess)
@@ -217,7 +243,7 @@ static int nvrpc_ioctl_get_port_name(struct file *filp,
 	}
 
 fail:
-	nvrpc_stack_kfree(port_name, p_name);
+	nvrpc_stack_kfree((NvS8*)port_name, p_name);
 	return error;
 }
 
@@ -262,13 +288,27 @@ static int nvrpc_ioctl_connect(struct file *filp,
 	NvError e = NvSuccess;
 	int error;
 	struct nvrpc_handle_param op;
+	NvU8 port_name[NVRPC_MAX_LOCAL_STACK];
 
 	error = copy_from_user(&op, arg, sizeof(op));
 	if (error)
 		goto fail;
+
+	NvRmTransportGetPortName((void *)op.handle,
+				 port_name, sizeof(port_name));
+	printk(KERN_INFO "%s: port_name=%s\n", __func__, port_name);
+
+
 	op.ret_val = NvRmTransportConnect(
 		(void *)op.handle, op.param);
 	error = copy_to_user(arg, &op, sizeof(op));
+
+	if (! strcmp(port_name, "RPC_AVP_PORT")) {
+	    g_hTransportAvpIsConnected = 1;
+	}
+	if (! strcmp(port_name, "RPC_CPU_PORT")) {
+	    g_hTransportCpuIsConnected = 1;
+	}
 
 fail:
 	if (e != NvSuccess)
@@ -612,6 +652,18 @@ static long nvrpc_unlocked_ioctl(struct file *file,
 static int __init nvrpc_init(void)
 {
 	int ret = 0;
+
+	NvRmDeviceHandle handle;
+	NvRmInit(&handle);
+
+	if (s_init_done == NV_FALSE) {
+		NvError e;
+
+		printk(KERN_INFO "%s: NvRmTransportInit\n", __func__);
+		e = NvRmOpen(&s_hRmGlobal, 0);
+		e = NvRmTransportInit(s_hRmGlobal);
+		s_init_done = NV_TRUE;
+	}
 
 	ret = misc_register(&nvrpc_dev);
 	if (ret) {

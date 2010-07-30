@@ -578,30 +578,10 @@ static void InboxFullIsr(void *args)
     }
 }
 
-static irqreturn_t transport_ist(int irq, void *data)
-{
-    InboxFullIsr(data);
-    enable_irq(irq);
-    return IRQ_HANDLED;
-}
-
 static irqreturn_t transport_isr(int irq, void *data)
 {
-    disable_irq_nosync(irq);
-    return IRQ_WAKE_THREAD;
-}
-
-
-/**
- * Handle the outbox empty interrupt.
- */
-
-static void
-NvRmPrivProcIdGetProcessorInfo(
-    NvRmDeviceHandle hDevice,
-    NvRmModuleID *pProcModuleId)
-{
-    *pProcModuleId = NvRmModuleID_Cpu;
+    InboxFullIsr(data);
+    return IRQ_HANDLED;
 }
 
 /**
@@ -620,15 +600,14 @@ RegisterTransportInterrupt(NvRmDeviceHandle hDevice)
     
     IrqList = INT_SHR_SEM_INBOX_IBF;
 
-    set_irq_flags(IrqList, IRQF_VALID | IRQF_NOAUTOEN);
-    ret = request_threaded_irq(IrqList, transport_isr, transport_ist, 0,
-			       "nvrm_transport", hDevice);
+    set_irq_flags(IrqList, IRQF_VALID);
+    ret = request_irq(IrqList, transport_isr, 0,
+                      "nvrm_transport", hDevice);
     if (ret) {
       printk("%s failed %d\n", __func__, ret);
       return NvError_BadParameter;
     }
     s_TransportInterruptHandle = IrqList;
-    enable_irq(IrqList);
     return NvSuccess;
 }
 
