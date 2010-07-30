@@ -664,6 +664,40 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
+/* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
+static int soc_camera_querymenu(struct file *file, void *priv,
+                                struct v4l2_querymenu *qm)
+{
+    struct soc_camera_file *icf = file->private_data;
+    struct soc_camera_device *icd = icf->icd;
+    struct v4l2_queryctrl qctrl;
+    int i,j;
+    
+    qctrl.id = qm->id;
+
+    if (soc_camera_queryctrl(file,priv, &qctrl) == 0) {
+        for (i = 0; i < icd->ops->num_menus; i++) {
+            if (qm->id == icd->ops->menus[i].id) {
+                for (j=0; j<=(qctrl.maximum - qctrl.minimum); j++) {
+                
+                    if (qm->index == icd->ops->menus[i].index) {
+                        snprintf(qm->name, sizeof(qm->name), icd->ops->menus[i].name);
+                        qm->reserved = 0;
+
+                        return 0;
+                    } else {
+                        i++;
+                        if ( i >= icd->ops->num_menus)
+                            return -EINVAL;    
+                    }                    
+                }                
+            }
+        }
+    }
+    
+    return -EINVAL;
+}
+
 static int soc_camera_g_ctrl(struct file *file, void *priv,
 			     struct v4l2_control *ctrl)
 {
@@ -703,6 +737,64 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 
 	return v4l2_subdev_call(sd, core, s_ctrl, ctrl);
 }
+
+
+ /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_try_ext_ctrl(struct file *file, void *priv,
+                             struct v4l2_ext_controls *ctrl)
+{
+    struct soc_camera_file *icf = file->private_data;
+    struct soc_camera_device *icd = icf->icd;
+    const struct v4l2_queryctrl *qctrl;   
+    int i;
+    
+    WARN_ON(priv != file->private_data);
+
+    if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+        return -EINVAL;
+
+    for (i=0; i<ctrl->count; i++) {     
+        qctrl = soc_camera_find_qctrl(icd->ops, ctrl->controls[i].id);
+        if (!qctrl)
+            return -EINVAL;
+
+        if ((ctrl->controls[i].value < qctrl->minimum) ||(ctrl->controls[i].value > qctrl->minimum))
+            return -ERANGE;
+    }
+    
+    return 0;
+}
+ /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_g_ext_ctrl(struct file *file, void *priv,
+                             struct v4l2_ext_controls *ctrl)
+{
+    struct soc_camera_file *icf = file->private_data;
+    struct soc_camera_device *icd = icf->icd;
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+    
+    WARN_ON(priv != file->private_data);
+
+    if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+        return -EINVAL;
+    
+    return v4l2_subdev_call(sd, core, g_ext_ctrls, ctrl);    
+}
+ /* ddl@rock-chips.com : Add ioctrl -VIDIOC_XXX_ext_ctrl for soc-camera */
+static int soc_camera_s_ext_ctrl(struct file *file, void *priv,
+                             struct v4l2_ext_controls *ctrl)
+{
+    struct soc_camera_file *icf = file->private_data;
+    struct soc_camera_device *icd = icf->icd;
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+    
+    WARN_ON(priv != file->private_data);
+
+    if (ctrl->ctrl_class != V4L2_CTRL_CLASS_CAMERA)
+        return -EINVAL;
+    
+    return v4l2_subdev_call(sd, core, s_ext_ctrls, ctrl);    
+}
+
 
 static int soc_camera_cropcap(struct file *file, void *fh,
 			      struct v4l2_cropcap *a)
@@ -1241,8 +1333,13 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_streamon	 = soc_camera_streamon,
 	.vidioc_streamoff	 = soc_camera_streamoff,
 	.vidioc_queryctrl	 = soc_camera_queryctrl,
+	 .vidioc_querymenu	 = soc_camera_querymenu,                            /* ddl@rock-chips.com:   Add ioctrl - vidioc_querymenu for soc-camera */
 	.vidioc_g_ctrl		 = soc_camera_g_ctrl,
 	.vidioc_s_ctrl		 = soc_camera_s_ctrl,
+	.vidioc_g_ext_ctrls    = soc_camera_g_ext_ctrl,                                 /* ddl@rock-chips.com:   Add ioctrl - vidioc_g_ext_ctrls for soc-camera */
+	.vidioc_s_ext_ctrls    = soc_camera_s_ext_ctrl,                                 /* ddl@rock-chips.com:   Add ioctrl - vidioc_s_ext_ctrls for soc-camera */
+	.vidioc_try_ext_ctrls    = soc_camera_try_ext_ctrl,                         /* ddl@rock-chips.com:   Add ioctrl - vidioc_try_ext_ctrls for soc-camera */
+
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,

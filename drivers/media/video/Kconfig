@@ -865,6 +865,23 @@ config SOC_CAMERA_OV772X
 	help
 	  This is a ov772x camera driver
 
+config SOC_CAMERA_OV2655
+	tristate "ov2655 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov2655 camera driver
+
+config SOC_CAMERA_OV3640
+	tristate "ov3640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov3640 camera driver
+	  
+config SOC_CAMERA_OV5642
+	tristate "ov5642 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov5642 camera driver	 	     
 config MX1_VIDEO
 	bool
 
@@ -908,6 +925,14 @@ config VIDEO_OMAP2
 	select VIDEOBUF_DMA_SG
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
+
+
+config VIDEO_RK2818
+	tristate "RK2818 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_RK2818 && SOC_CAMERA && HAS_DMA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the RK2818 Camera Sensor Interface	  
 
 #
 # USB Multimedia device configuration

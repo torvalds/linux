@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/android_pmem.h>
 #include <linux/usb/android_composite.h>
-
+#include <linux/delay.h>
 #include <mach/irqs.h>
 #include <mach/rk2818_iomap.h>
 #include "devices.h"
@@ -30,6 +30,10 @@
 #include <linux/dm9000.h>
 #include <mach/gpio.h>
 #include <mach/rk2818_nand.h>
+#include <mach/iomux.h>
+#include <mach/rk2818_camera.h>                          /* ddl@rock-chips.com : camera support */
+#include <linux/i2c.h>                                      
+#include <media/soc_camera.h>
 static struct resource resources_sdmmc0[] = {
 	{
 		.start 	= IRQ_NR_SDMMC0,
@@ -271,6 +275,48 @@ struct platform_device rk2818_device_backlight = {
            .platform_data  = &rk2818_bl_info,
         }
 };
+
+/* RK2818 Camera :  ddl@rock-chips.com  */
+#ifdef CONFIG_VIDEO_RK2818
+
+static struct resource rk2818_camera_resource[] = {
+	[0] = {
+		.start = RK2818_VIP_PHYS,
+		.end   = RK2818_VIP_PHYS + RK2818_VIP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_NR_VIP,
+		.end   = IRQ_NR_VIP,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
+
+/*platform_device : */
+struct platform_device rk2818_device_camera = {
+	.name		  = RK28_CAM_DRV_NAME,
+	.id		  = RK28_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
+	.num_resources	  = ARRAY_SIZE(rk2818_camera_resource),
+	.resource	  = rk2818_camera_resource,
+	.dev            = {
+		.dma_mask = &rockchip_device_camera_dmamask,
+		.coherent_dma_mask = 0xffffffffUL,
+		.platform_data  = &rk28_camera_platform_data,
+	}
+};
+
+/*platform_device : soc-camera need  */
+struct platform_device rk2818_soc_camera_pdrv = {
+	.name	= "soc-camera-pdrv",
+	.id	= -1,
+	.dev	= {
+		.init_name = "ov2655",
+		.platform_data = &rk2818_iclink,
+	},
+};
+#endif 
 
 //net device
 /* DM9000 */

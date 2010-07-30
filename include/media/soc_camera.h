@@ -196,9 +196,12 @@ struct soc_camera_ops {
 	int (*resume)(struct soc_camera_device *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
-	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
+	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);	
+	
 	const struct v4l2_queryctrl *controls;
+	const struct v4l2_querymenu *menus;                /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 	int num_controls;
+	int num_menus;      /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 };
 
 #define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
@@ -255,6 +258,10 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_PCLK_SAMPLE_FALLING	(1 << 13)
 #define SOCAM_DATA_ACTIVE_HIGH		(1 << 14)
 #define SOCAM_DATA_ACTIVE_LOW		(1 << 15)
+
+#define SOCAM_MCLK_24MHZ   (1<<29)                                      /* ddl@rock-chips.com : add  */ 
+#define SOCAM_MCLK_27MHZ   (1<<30)
+#define SOCAM_MCLK_48MHZ   (1<<31)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \

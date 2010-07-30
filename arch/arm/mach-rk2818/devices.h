@@ -30,6 +30,9 @@ extern struct rk2818_i2c_platform_data default_i2c1_data;
 extern struct rk2818_i2c_spi_data default_i2c2_data;
 extern struct rk2818_i2c_spi_data default_i2c3_data;
 
+extern struct soc_camera_link rk2818_iclink;                /* ddl@rock-chips.com : camera support */
+extern struct rk28camera_platform_data rk28_camera_platform_data;
+
 extern struct platform_device rk2818_device_sdmmc0;
 extern struct platform_device rk2818_device_sdmmc1;
 extern struct rk2818_sdmmc_platform_data default_sdmmc0_data;
@@ -43,6 +46,8 @@ extern struct platform_device rk2818_device_adc;
 extern struct platform_device rk2818_device_adckey;
 extern struct platform_device rk2818_device_battery;
 extern struct platform_device rk2818_device_backlight;
+extern struct platform_device rk2818_device_camera;             /* ddl@rock-chips.com : camera support */
+extern struct platform_device rk2818_soc_camera_pdrv;
 extern struct platform_device rk2818_device_dsp;
 extern struct platform_device rk2818_nand_device;
 extern struct platform_device rk2818_device_dwc_otg;
