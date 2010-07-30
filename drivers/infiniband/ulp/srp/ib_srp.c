@@ -811,6 +811,38 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 	return len;
 }
 
+static int srp_post_recv(struct srp_target_port *target)
+{
+	unsigned long flags;
+	struct srp_iu *iu;
+	struct ib_sge list;
+	struct ib_recv_wr wr, *bad_wr;
+	unsigned int next;
+	int ret;
+
+	spin_lock_irqsave(target->scsi_host->host_lock, flags);
+
+	next	 = target->rx_head & (SRP_RQ_SIZE - 1);
+	wr.wr_id = next;
+	iu	 = target->rx_ring[next];
+
+	list.addr   = iu->dma;
+	list.length = iu->size;
+	list.lkey   = target->srp_host->srp_dev->mr->lkey;
+
+	wr.next     = NULL;
+	wr.sg_list  = &list;
+	wr.num_sge  = 1;
+
+	ret = ib_post_recv(target->qp, &wr, &bad_wr);
+	if (!ret)
+		++target->rx_head;
+
+	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
+
+	return ret;
+}
+
 static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 {
 	struct srp_request *req;
@@ -868,6 +900,7 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 {
 	struct ib_device *dev;
 	struct srp_iu *iu;
+	int res;
 	u8 opcode;
 
 	iu = target->rx_ring[wc->wr_id];
@@ -904,6 +937,11 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 
 	ib_dma_sync_single_for_device(dev, iu->dma, target->max_ti_iu_len,
 				      DMA_FROM_DEVICE);
+
+	res = srp_post_recv(target);
+	if (res != 0)
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "Recv failed with error code %d\n", res);
 }
 
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
@@ -941,45 +979,6 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 
 		++target->tx_tail;
 	}
-}
-
-static int __srp_post_recv(struct srp_target_port *target)
-{
-	struct srp_iu *iu;
-	struct ib_sge list;
-	struct ib_recv_wr wr, *bad_wr;
-	unsigned int next;
-	int ret;
-
-	next 	 = target->rx_head & (SRP_RQ_SIZE - 1);
-	wr.wr_id = next;
-	iu 	 = target->rx_ring[next];
-
-	list.addr   = iu->dma;
-	list.length = iu->size;
-	list.lkey   = target->srp_host->srp_dev->mr->lkey;
-
-	wr.next     = NULL;
-	wr.sg_list  = &list;
-	wr.num_sge  = 1;
-
-	ret = ib_post_recv(target->qp, &wr, &bad_wr);
-	if (!ret)
-		++target->rx_head;
-
-	return ret;
-}
-
-static int srp_post_recv(struct srp_target_port *target)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(target->scsi_host->host_lock, flags);
-	ret = __srp_post_recv(target);
-	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
-
-	return ret;
 }
 
 /*
@@ -1089,11 +1088,6 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "Failed to map data\n");
 		goto err;
-	}
-
-	if (__srp_post_recv(target)) {
-		shost_printk(KERN_ERR, target->scsi_host, PFX "Recv failed\n");
-		goto err_unmap;
 	}
 
 	ib_dma_sync_single_for_device(dev, iu->dma, srp_max_iu_len,
@@ -1238,6 +1232,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	int attr_mask = 0;
 	int comp = 0;
 	int opcode = 0;
+	int i;
 
 	switch (event->event) {
 	case IB_CM_REQ_ERROR:
@@ -1287,7 +1282,11 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		if (target->status)
 			break;
 
-		target->status = srp_post_recv(target);
+		for (i = 0; i < SRP_RQ_SIZE; i++) {
+			target->status = srp_post_recv(target);
+			if (target->status)
+				break;
+		}
 		if (target->status)
 			break;
 
