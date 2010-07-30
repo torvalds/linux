@@ -501,6 +501,7 @@ extern int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiG
 extern int spi_free_gpio_irq(eSpiGpioPinNum_t PinNum);
 extern int spi_gpio_handle_irq(struct spi_device *spi);
 extern int spi_gpio_init(void);
+extern void spi_gpio_irq_setup(void);
 extern int spi_gpio_register(struct spi_fpga_port *port);
 extern int spi_gpio_unregister(struct spi_fpga_port *port);
 #endif

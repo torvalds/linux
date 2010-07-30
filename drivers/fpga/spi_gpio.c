@@ -26,7 +26,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <mach/rk2818_iomap.h>
-
+#include <linux/irq.h>
+#include <asm/gpio.h>
 #include <mach/spi_fpga.h>
 
 #if defined(CONFIG_SPI_GPIO_DEBUG)
@@ -35,7 +36,7 @@
 #define DBG(x...)
 #endif
 
-#define SPI_GPIO_TEST 0
+#define SPI_GPIO_TEST 1
 #define HIGH_SPI_TEST 1
 spinlock_t		gpio_lock;
 spinlock_t		gpio_state_lock;
@@ -45,6 +46,7 @@ static unsigned short int gGpio0State = 0;
 static SPI_GPIO_PDATA g_spiGpioVectorTable[SPI_GPIO_IRQ_NUM] = \
 {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}}; 
 
+/************FPGA 操作GPIO的函数实现************************/
 
 static void spi_gpio_write_reg(int reg, int PinNum, int set)
 {
@@ -111,7 +113,7 @@ int spi_gpio_int_sel(eSpiGpioPinNum_t PinNum,eSpiGpioTypeSel_t type)
 {
 	int reg = get_gpio_addr(PinNum);
 	//struct spi_fpga_port *port = pFpgaPort;
-	
+	DBG("%s:PinNum=%d,type=%d\n",__FUNCTION__,PinNum,type);
 	if(ICE_SEL_GPIO0 == reg)
 	{
 		reg |= ICE_SEL_GPIO0_TYPE;
@@ -313,7 +315,7 @@ int spi_gpio_enable_int(eSpiGpioPinNum_t PinNum)
 		reg |= ICE_SEL_GPIO0_INT_EN;
 		if((state & (1 << PinNum )) == 0)
 		{
-			printk("Fail to enable int because it is gpio pin!\n");
+			printk("%s:Fail to enable int because it is gpio pin!\n",__FUNCTION__);
 			return -1;
 		}
 		DBG("%s,PinNum=%d,IntEn=%d\n",__FUNCTION__,PinNum,SPI_GPIO_INT_ENABLE);		
@@ -344,7 +346,7 @@ int spi_gpio_disable_int(eSpiGpioPinNum_t PinNum)
 
 		if((state & (1 << PinNum )) == 0)
 		{
-			printk("Fail to enable int because it is gpio pin!\n");
+			printk("%s:Fail to enable int because it is gpio pin!\n",__FUNCTION__);
 			return -1;
 		}
 	
@@ -376,7 +378,7 @@ int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntType_t IntType)
 
 		if((state & (1 << PinNum )) == 0)
 		{
-			printk("Fail to enable int because it is gpio pin!\n");
+			printk("%s:Fail to enable int because it is gpio pin!\n",__FUNCTION__);
 			return -1;
 		}
 	
@@ -450,7 +452,7 @@ int spi_free_gpio_irq(eSpiGpioPinNum_t PinNum)
 	return 0;
 }
 	
-
+#if 0
 int spi_gpio_handle_irq(struct spi_device *spi)
 {
 	int gpio_iir, i;
@@ -481,6 +483,35 @@ int spi_gpio_handle_irq(struct spi_device *spi)
 	return  0;
 
 }
+#else
+int spi_gpio_handle_irq(struct spi_device *spi)
+{
+	int gpio_iir, i;
+	int state;
+	int irq;
+	spin_lock(&gpio_state_lock);
+	state = gGpio0State;
+	spin_unlock(&gpio_state_lock);
+
+	gpio_iir = spi_gpio_read_iir() & 0xffff;	
+	if(gpio_iir == 0xffff)
+		return -1;
+
+	DBG("gpio_iir=0x%x\n",gpio_iir);
+	for(i=0; i<SPI_GPIO_IRQ_NUM; i++)
+	{
+		if(((gpio_iir & (1 << i)) == 0) && ((state & (1 << i)) != 0))
+		{
+			irq = gpio_to_irq(i);
+			generic_handle_irq(irq);
+			printk("%s:pin=%d,irq=%d\n",__FUNCTION__,i,irq);
+		}			
+	}	
+
+	return  0;
+
+}
+#endif
 
 #if SPI_GPIO_TEST
 static irqreturn_t spi_gpio_int_test_0(int irq, void *dev)
@@ -532,7 +563,7 @@ void spi_gpio_work_handler(struct work_struct *work)
 	}
 
 #elif (FPGA_TYPE == ICE_CC196)
-
+#if 0
 	for(i=16;i<81;i++)
 	{
 		spi_gpio_set_pinlevel(i, TestGpioPinLevel);
@@ -549,6 +580,28 @@ void spi_gpio_work_handler(struct work_struct *work)
 	}
 
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
+#else
+	for(i=4;i<81;i++)
+	{
+		gpio_direction_output(FPGA_PIN_PA0+i,TestGpioPinLevel);
+		ret = gpio_direction_input(FPGA_PIN_PA0+i);
+		if (ret) {
+			printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,FPGA_PIN_PA0+i);
+		}
+		ret = gpio_get_value (FPGA_PIN_PA0+i);
+		if(ret != TestGpioPinLevel)
+		{
+			#if SPI_FPGA_TEST_DEBUG
+			spi_test_wrong_handle();
+			#endif
+			printk("err:%s:PinNum=%d,set_pinlevel=%d but get_pinlevel=%d\n",__FUNCTION__,i,TestGpioPinLevel,ret);	
+		}
+	}
+
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
+#endif
+
+	
 
 #endif
 
@@ -565,7 +618,7 @@ static void spi_testgpio_timer(unsigned long data)
 
 #endif
 
-int spi_gpio_init(void)
+int spi_gpio_init_first(void)
 {
 	int i,ret;
 	struct spi_fpga_port *port = pFpgaPort;
@@ -749,9 +802,8 @@ int spi_gpio_init(void)
 	spi_gpio_set_pindirection(SPI_GPIO_P4_08, SPI_GPIO_OUT);
 	
 #endif
-
 #if SPI_GPIO_TEST
-
+#if 0
 	for(i=0;i<81;i++)
 	{
 		if(i<4)
@@ -793,8 +845,7 @@ int spi_gpio_init(void)
 
 	}
 #endif
-
-
+#endif
 #endif
 
 	return 0;
@@ -830,8 +881,318 @@ int spi_gpio_unregister(struct spi_fpga_port *port)
 	return 0;
 }
 
+#if 1
+
+/************抽象GPIO接口函数实现部分************************/
+static int spi_gpiolib_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
+	if(pinnum < 16)
+	spi_gpio_int_sel(pinnum,SPI_GPIO0_IS_GPIO);
+	return spi_gpio_set_pindirection(pinnum, SPI_GPIO_IN);
+}
+
+static int spi_gpiolib_direction_output(struct gpio_chip *chip, unsigned offset, int val)
+{
+	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	if(pinnum < 16)
+	spi_gpio_int_sel(pinnum,SPI_GPIO0_IS_GPIO);
+	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
+	if(GPIO_HIGH == val)
+	spi_gpio_set_pinlevel(pinnum,SPI_GPIO_HIGH);
+	else
+	spi_gpio_set_pinlevel(pinnum,SPI_GPIO_LOW);
+	return spi_gpio_set_pindirection(pinnum, SPI_GPIO_OUT);
+}
+
+static int spi_gpiolib_get_pinlevel(struct gpio_chip *chip, unsigned int offset)
+{
+	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
+	return spi_gpio_get_pinlevel(pinnum);
+}
+
+static void spi_gpiolib_set_pinlevel(struct gpio_chip *chip, unsigned int offset, int val)
+{
+	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
+	if(GPIO_HIGH == val)
+	spi_gpio_set_pinlevel(pinnum,SPI_GPIO_HIGH);
+	else
+	spi_gpio_set_pinlevel(pinnum,SPI_GPIO_LOW);
+}
+
+static int spi_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, unsigned val)
+{
+	return 0;	//FPGA do not support pull up or down
+}
+
+static void spi_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
+{
+	//to do	
+}
+
+static int spi_gpiolib_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	if(offset < CONFIG_EXPANDED_GPIO_IRQ_NUM)
+	return offset + NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ;
+	else
+	return -EINVAL;
+}
+
+struct fpga_gpio_bank {
+	unsigned short id;			//GPIO寄存器组的ID识别号
+	unsigned long offset;		//GPIO0或GPIO1的基地址
+	struct clk *clock;		/* associated clock */
+};
+
+struct fpga_gpio_chip {
+	struct gpio_chip	chip;
+	struct fpga_gpio_chip	*next;		/* Bank sharing same clock */
+	struct fpga_gpio_bank	*bank;		/* Bank definition */
+	void __iomem		*regbase;	/* Base of register bank */
+};
+
+#define SPI_GPIO_CHIP_DEF(name, base_gpio, nr_gpio)			\
+	{								\
+		.chip = {						\
+			.label		  = name,			\
+			.direction_input  = spi_gpiolib_direction_input, \
+			.direction_output = spi_gpiolib_direction_output, \
+			.get		  = spi_gpiolib_get_pinlevel,		\
+			.set		  = spi_gpiolib_set_pinlevel,		\
+			.pull_updown  = spi_gpiolib_pull_updown,         \
+			.dbg_show	  = spi_gpiolib_dbg_show,	\
+			.to_irq       = spi_gpiolib_to_irq,     \
+			.base		  = base_gpio,			\
+			.ngpio		  = nr_gpio,			\
+		},							\
+	}
+
+static struct fpga_gpio_chip spi_gpio_chip[] = {
+	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+0*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+1*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+2*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+3*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+4*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+5*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+6*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+7*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+8*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+9*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+10*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+11*NUM_GROUP, NUM_GROUP),
+};
+
+
+static void spi_gpio_irq_enable(unsigned irq)
+{
+	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	DBG("%s:line=%d,gpio=%d\n",__FUNCTION__,__LINE__,gpio);
+	if(gpio < 16)
+	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
+	else
+	{
+		printk("err:%s:pin %d don't support gpio irq!\n",__FUNCTION__,gpio);
+		return;
+	}
+	spi_gpio_enable_int(gpio);	
+}
+
+static void spi_gpio_irq_disable(unsigned irq)
+{
+	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	DBG("%s:line=%d,gpio=%d\n",__FUNCTION__,__LINE__,gpio);
+	if(gpio < 16)
+	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
+	else
+	{
+		printk("err:%s:pin %d don't support gpio irq!\n",__FUNCTION__,gpio);
+		return;
+	}
+	spi_gpio_disable_int(gpio);
+
+}
+
+
+static void spi_gpio_irq_mask(unsigned int irq)
+{
+	//FPGA do not support irq mask
+}
+
+static void spi_gpio_irq_unmask(unsigned int irq)
+{
+	//FPGA do not support irq unmask
+}
+
+static int spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
+{
+	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	int int_type = 0;
+	DBG("%s:line=%d,type=%d\n",__FUNCTION__,__LINE__,type);
+	if(gpio < 16)
+	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
+	else
+	{
+		printk("err:%s:pin %d don't support gpio irq!\n",__FUNCTION__,gpio);
+		return -1;
+	}
+	switch(type)
+	{
+		case GPIOEdgelFalling:
+			int_type = SPI_GPIO_EDGE_FALLING;
+			break;
+		case GPIOEdgelRising:
+			int_type = SPI_GPIO_EDGE_RISING;
+			break;
+		default:
+			printk("err:%s:FPGA don't support this intterupt type!\n",__FUNCTION__);	
+			break;
+	}
+	spi_gpio_set_int_trigger(gpio, int_type);
+	return 0;
+}
+
+static int spi_gpio_irq_set_wake(unsigned irq, unsigned state)
+{
+	//unsigned int pin = irq_to_gpio(irq);
+	set_irq_wake(irq, state);
+	return 0;
+}
+
+static struct irq_chip spi_gpio_irq_chip = {
+	.name		= "SPI_GPIO_IRQ",
+	.enable 		= spi_gpio_irq_enable,
+	.disable		= spi_gpio_irq_disable,
+	.mask		= spi_gpio_irq_mask,
+	.unmask		= spi_gpio_irq_unmask,
+	.set_type		= spi_gpio_irq_set_type,
+	.set_wake	= spi_gpio_irq_set_wake,
+};
+
+void spi_gpio_test_gpio_irq_init(void)
+{
+#if SPI_GPIO_TEST
+	struct spi_fpga_port *port = pFpgaPort;
+	int i,gpio,ret;
+
+	for(i=0;i<81;i++)
+	{
+		gpio = FPGA_PIN_PA0+i;
+		ret = gpio_request(gpio, NULL);
+		if (ret) {
+			printk("%s:failed to request GPIO[%d]\n",__FUNCTION__,gpio);
+		}
+	}
+#if 1
+	for(i=0;i<4;i++)
+	{
+		gpio = FPGA_PIN_PA0+i;
+		
+		switch(i)
+		{
+			case 0:
+			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_0,IRQF_TRIGGER_FALLING,NULL,port);
+			if(ret)
+			{
+				printk("unable to request GPIO[%d] irq\n",gpio);
+				gpio_free(gpio);
+			}	
+			break;
+
+			case 1:
+			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_1,IRQF_TRIGGER_FALLING,NULL,port);
+			if(ret)
+			{
+				printk("unable to request GPIO[%d] irq\n",gpio);
+				gpio_free(gpio);
+			}	
+			break;
+
+			case 2:
+			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_2,IRQF_TRIGGER_FALLING,NULL,port);
+			if(ret)
+			{
+				printk("unable to request GPIO[%d] irq\n",gpio);
+				gpio_free(gpio);
+			}	
+			break;
+
+			case 3:
+			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_3,IRQF_TRIGGER_FALLING,NULL,port);
+			if(ret)
+			{
+				printk("unable to request GPIO[%d] irq\n",gpio);
+				gpio_free(gpio);
+			}	
+			break;
+			
+			default:
+			break;
+		}
+	
+	}
+#endif
+
+#endif
+
+}
+
+int spi_gpio_banks;
+static struct lock_class_key gpio_lock_class;
+int spi_gpio_init(void)
+{
+	unsigned		i;
+	struct fpga_gpio_chip *fpga_gpio_chip;
+	spi_gpio_banks = 12;	
+	spi_gpio_init_first();
+	for (i = 0; i < 12; i++) 
+	{	
+		fpga_gpio_chip = &spi_gpio_chip[i];
+		gpiochip_add(&fpga_gpio_chip->chip);
+	}
+
+	return 0;
+}
+
+/*
+ * Called from the processor-specific init to enable GPIO interrupt support.
+ */
+void spi_gpio_irq_setup(void)
+{
+	unsigned	int	i,j, pin;
+	struct fpga_gpio_chip *this;
+	
+	this = spi_gpio_chip;
+	pin = NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ;
+
+	for(i=0;i<2;i++)
+	{
+		for (j = 0; j < 8; j++) 
+		{
+			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
+			/*
+			 * Can use the "simple" and not "edge" handler since it's
+			 * shorter, and the AIC handles interrupts sanely.
+			 */
+			set_irq_chip(pin+j, &spi_gpio_irq_chip);
+			set_irq_handler(pin+j, handle_simple_irq);
+			set_irq_flags(pin+j, IRQF_VALID);
+			//set_irq_chip_data(pin+j, this);
+			//set_irq_chained_handler(pin+j, spi_fpga_irq);
+		}
+
+		this += 4; 
+		pin += 8;
+	}
+	printk("%s: %d gpio irqs in %d banks\n", __FUNCTION__, pin-GPIOS_EXPANDER_BASE, spi_gpio_banks);
+#if SPI_GPIO_TEST
+	spi_gpio_test_gpio_irq_init();
+#endif
+}
+#endif
+
 MODULE_DESCRIPTION("Driver for spi2gpio.");
 MODULE_AUTHOR("luowei <lw@rock-chips.com>");
 MODULE_LICENSE("GPL");
-
-
