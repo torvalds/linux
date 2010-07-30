@@ -720,7 +720,6 @@ static struct rgbLUT palLUT_table[] = {
 
 static void set_crt_output_path(int set_iga);
 static void dvi_patch_skew_dvp0(void);
-static void dvi_patch_skew_dvp1(void);
 static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
@@ -910,21 +909,6 @@ static void dvi_patch_skew_dvp0(void)
 	}
 }
 
-static void dvi_patch_skew_dvp1(void)
-{
-	switch (viaparinfo->chip_info->gfx_chip_name) {
-	case UNICHROME_CX700:
-		{
-			break;
-		}
-
-	default:
-		{
-			break;
-		}
-	}
-}
-
 static void dvi_patch_skew_dvp_low(void)
 {
 	switch (viaparinfo->chip_info->gfx_chip_name) {
@@ -992,7 +976,6 @@ static void set_dvi_output_path(int set_iga, int output_interface)
 		}
 
 		viafb_write_reg_mask(SR1E, VIASR, 0x30, BIT4 + BIT5);
-		dvi_patch_skew_dvp1();
 		break;
 	case INTERFACE_DFP_HIGH:
 		if (viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266) {
