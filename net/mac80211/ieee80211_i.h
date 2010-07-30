@@ -634,7 +634,6 @@ struct ieee80211_local {
 	/*
 	 * work stuff, potentially off-channel (in the future)
 	 */
-	struct mutex work_mtx;
 	struct list_head work_list;
 	struct timer_list work_timer;
 	struct work_struct work_work;
@@ -746,9 +745,10 @@ struct ieee80211_local {
 	 */
 	struct mutex key_mtx;
 
+	/* mutex for scan and work locking */
+	struct mutex mtx;
 
 	/* Scanning and BSS list */
-	struct mutex scan_mtx;
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;

@@ -1751,7 +1751,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_local *local = sdata->local;
 		struct ieee80211_work *wk;
 
-		mutex_lock(&local->work_mtx);
+		mutex_lock(&local->mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
 			if (wk->sdata != sdata)
 				continue;
@@ -1783,7 +1783,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			free_work(wk);
 			break;
 		}
-		mutex_unlock(&local->work_mtx);
+		mutex_unlock(&local->mtx);
 
 		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 	}
@@ -2275,7 +2275,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 		mutex_unlock(&ifmgd->mtx);
 
-		mutex_lock(&local->work_mtx);
+		mutex_lock(&local->mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
 			if (wk->sdata != sdata)
 				continue;
@@ -2294,7 +2294,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			free_work(wk);
 			break;
 		}
-		mutex_unlock(&local->work_mtx);
+		mutex_unlock(&local->mtx);
 
 		/*
 		 * If somebody requests authentication and we haven't
