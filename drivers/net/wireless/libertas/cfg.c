@@ -524,20 +524,31 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 
 	pos = scanresp->bssdesc_and_tlvbuffer;
 
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_RSP", scanresp->bssdesc_and_tlvbuffer,
+			scanresp->bssdescriptsize);
+
 	tsfdesc = pos + bsssize;
 	tsfsize = 4 + 8 * scanresp->nr_sets;
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_TSF", (u8 *) tsfdesc, tsfsize);
 
 	/* Validity check: we expect a Marvell-Local TLV */
 	i = get_unaligned_le16(tsfdesc);
 	tsfdesc += 2;
-	if (i != TLV_TYPE_TSFTIMESTAMP)
+	if (i != TLV_TYPE_TSFTIMESTAMP) {
+		lbs_deb_scan("scan response: invalid TSF Timestamp %d\n", i);
 		goto done;
+	}
+
 	/* Validity check: the TLV holds TSF values with 8 bytes each, so
 	 * the size in the TLV must match the nr_sets value */
 	i = get_unaligned_le16(tsfdesc);
 	tsfdesc += 2;
-	if (i / 8 != scanresp->nr_sets)
+	if (i / 8 != scanresp->nr_sets) {
+		lbs_deb_scan("scan response: invalid number of TSF timestamp "
+			     "sets (expected %d got %d)\n", scanresp->nr_sets,
+			     i / 8);
 		goto done;
+	}
 
 	for (i = 0; i < scanresp->nr_sets; i++) {
 		const u8 *bssid;
@@ -579,8 +590,11 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			id = *pos++;
 			elen = *pos++;
 			left -= 2;
-			if (elen > left || elen == 0)
+			if (elen > left || elen == 0) {
+				lbs_deb_scan("scan response: invalid IE fmt\n");
 				goto done;
+			}
+
 			if (id == WLAN_EID_DS_PARAMS)
 				chan_no = *pos;
 			if (id == WLAN_EID_SSID) {
@@ -611,7 +625,9 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
-		}
+		} else
+			lbs_deb_scan("scan response: missing BSS channel IE\n");
+
 		tsfdesc += 8;
 	}
 	ret = 0;
