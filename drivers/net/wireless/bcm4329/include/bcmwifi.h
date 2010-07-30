@@ -42,7 +42,7 @@ typedef uint16 chanspec_t;
 #define CH_5MHZ_APART			1
 #define CH_MAX_2G_CHANNEL		14	
 #define WLC_MAX_2G_CHANNEL		CH_MAX_2G_CHANNEL 
-#define	MAXCHANNEL			224
+#define	MAXCHANNEL		224	
 
 #define WL_CHANSPEC_CHAN_MASK		0x00ff
 #define WL_CHANSPEC_CHAN_SHIFT		0
@@ -118,7 +118,7 @@ typedef uint16 chanspec_t;
 				  (LOWER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
 				  (UPPER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))))
 
-#define CHSPEC2WLC_BAND(chspec) (CHSPEC_IS5G((chspec)) ? WLC_BAND_5G : WLC_BAND_2G)
+#define CHSPEC2WLC_BAND(chspec) (CHSPEC_IS5G((chspec))? WLC_BAND_5G: WLC_BAND_2G)
 
 #define CHANSPEC_STR_LEN    8
 

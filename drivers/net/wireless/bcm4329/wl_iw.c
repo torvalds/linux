@@ -937,7 +937,7 @@ wl_iw_set_band(
 {
 	int error = -1;
 	char *p = extra;
-	char band;
+	uint band;
 
 	if (g_onoff == G_WLAN_SET_ON) {
 

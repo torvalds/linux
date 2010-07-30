@@ -40,9 +40,7 @@
 
 #include <sdio.h>	/* sdio spec */
 
-/* Defines number of access retries to configuration registers */
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
-
 const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 
 

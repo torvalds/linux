@@ -1327,12 +1327,12 @@ typedef struct wl_pfn_param {
 } wl_pfn_param_t;
 
 typedef struct wl_pfn {
-	wlc_ssid_t		ssid;
-	int32			bss_type;
-	int32			infra;
-	int32			auth;
-	uint32			wpa_auth;
-	int32			wsec;
+	wlc_ssid_t		ssid;			
+	int32			bss_type;		
+	int32			infra;			
+	int32			auth;			
+	uint32			wpa_auth;		
+	int32			wsec;			
 #ifdef WLPFN_AUTO_CONNECT
 	union {
 		wl_wsec_key_t	sec_key;		

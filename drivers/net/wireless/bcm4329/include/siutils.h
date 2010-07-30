@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h,v 13.197.4.2.4.3.8.14 2010/03/19 18:31:43 Exp $
+ * $Id: siutils.h,v 13.197.4.2.4.3.8.16 2010/06/23 21:36:05 Exp $
  */
 
 

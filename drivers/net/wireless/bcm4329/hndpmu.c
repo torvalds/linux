@@ -2,7 +2,7 @@
  * Misc utility routines for accessing PMU corerev specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.c,v 1.95.2.17.4.11.2.50 2009/10/26 14:45:51 Exp $
+ * $Id: hndpmu.c,v 1.95.2.17.4.11.2.63 2010/07/21 13:55:09 Exp $
  */
 
 #include <typedefs.h>

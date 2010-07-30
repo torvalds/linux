@@ -1,7 +1,7 @@
 /*
  * Linux OS Independent Layer
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.h,v 13.131.30.5 2009/10/27 04:42:45 Exp $
+ * $Id: linux_osl.h,v 13.131.30.8 2010/04/26 05:42:18 Exp $
  */
 
 
@@ -319,5 +319,4 @@ extern int osl_error(int bcmerror);
 
 
 #define OSL_SYSUPTIME()		((uint32)jiffies * (1000 / HZ))
-
 #endif	

@@ -1,27 +1,15 @@
 /*
- * SD-SPI Protocol Conversion - BCMSDH->SPI Translation Layer
+ * SD-SPI Protocol Conversion - BCMSDH->gSPI Translation Layer
  *
- * Copyright (C) 1999-2010, Broadcom Corporation
+ * Copyright (C) 2010, Broadcom Corporation
+ * All Rights Reserved.
  * 
- *      Unless you and Broadcom execute a separate written software license
- * agreement governing use of this software, this software is licensed to you
- * under the terms of the GNU General Public License version 2 (the "GPL"),
- * available at http://www.broadcom.com/licenses/GPLv2.php, with the
- * following added to such license:
- * 
- *      As a special exception, the copyright holders of this software give you
- * permission to link this software with independent modules, and to copy and
- * distribute the resulting executable under terms of your choice, provided that
- * you also meet, for each linked independent module, the terms and conditions of
- * the license of that module.  An independent module is a module which is not
- * derived from this software.  The special exception does not apply to any
- * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
+ * This is UNPUBLISHED PROPRIETARY SOURCE CODE of Broadcom Corporation;
+ * the contents of this file may not be disclosed to third parties, copied
+ * or duplicated in any form, in whole or in part, without the prior
+ * written permission of Broadcom Corporation.
  *
- * $Id: bcmsdspi.h,v 13.8.10.2 2008/06/30 21:09:40 Exp $
+ * $Id: bcmspibrcm.h,v 1.4.4.1.4.3.6.1 2008/09/27 17:03:25 Exp $
  */
 
 /* global msglevel for debug messages - bitvals come from sdiovar.h */
@@ -40,13 +28,16 @@
 		printf("!!!ASSERT fail: file %s lines %d", __FILE__, __LINE__); \
 	} while (0)
 
-#define BLOCK_SIZE_4318 64
-#define BLOCK_SIZE_4328 512
+#define BLOCK_SIZE_F1		64
+#define BLOCK_SIZE_F2 		2048
+#define BLOCK_SIZE_F3 		2048
 
 /* internal return code */
 #define SUCCESS	0
 #undef ERROR
 #define ERROR	1
+#define ERROR_UF	2
+#define ERROR_OF	3
 
 /* private bus modes */
 #define SDIOH_MODE_SPI		0
@@ -55,13 +46,13 @@
 #define USE_MULTIBLOCK		0x4
 
 struct sdioh_info {
-	uint cfg_bar;                   	/* pci cfg address for bar */
-	uint32 caps;                    	/* cached value of capabilities reg */
-	uint		bar0;			/* BAR0 for PCI Device */
+	uint 		cfg_bar;		/* pci cfg address for bar */
+	uint32		caps;			/* cached value of capabilities reg */
+	void		*bar0;			/* BAR0 for PCI Device */
 	osl_t 		*osh;			/* osh handler */
 	void		*controller;	/* Pointer to SPI Controller's private data struct */
 
-	uint		lockcount; 		/* nest count of sdspi_lock() calls */
+	uint		lockcount; 		/* nest count of spi_lock() calls */
 	bool		client_intr_enabled;	/* interrupt connnected flag */
 	bool		intr_handler_valid;	/* client driver interrupt handler valid */
 	sdioh_cb_fn_t	intr_handler;		/* registered interrupt handler */
@@ -84,39 +75,40 @@ struct sdioh_info {
 	bool 		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
 						/*  Must be on for sd_multiblock to be effective */
 	bool 		use_client_ints;	/* If this is false, make sure to restore */
-	bool		got_hcint;		/* Host Controller interrupt. */
 						/*  polling hack in wl_linux.c:wl_timer() */
 	int 		adapter_slot;		/* Maybe dealing with multiple slots/controllers */
 	int 		sd_mode;		/* SD1/SD4/SPI */
-	int 		client_block_size[SDIOD_MAX_IOFUNCS];		/* Blocksize */
-	uint32 		data_xfer_count;	/* Current register transfer size */
-	uint32		cmd53_wr_data;		/* Used to pass CMD53 write data */
-	uint32		card_response;		/* Used to pass back response status byte */
-	uint32		card_rsp_data;		/* Used to pass back response data word */
+	int 		client_block_size[SPI_MAX_IOFUNCS];		/* Blocksize */
+	uint32 		data_xfer_count;	/* Current transfer */
 	uint16 		card_rca;		/* Current Address */
 	uint8 		num_funcs;		/* Supported funcs on client */
+	uint32 		card_dstatus;		/* 32bit device status */
 	uint32 		com_cis_ptr;
-	uint32 		func_cis_ptr[SDIOD_MAX_IOFUNCS];
+	uint32 		func_cis_ptr[SPI_MAX_IOFUNCS];
 	void		*dma_buf;
 	ulong		dma_phys;
 	int 		r_cnt;			/* rx count */
 	int 		t_cnt;			/* tx_count */
+	uint32		wordlen;			/* host processor 16/32bits */
+	uint32		prev_fun;
+	uint32		chip;
+	uint32		chiprev;
+	bool		resp_delay_all;
+	bool		dwordmode;
+
+	struct spierrstats_t spierrstats;
 };
 
 /************************************************************
- * Internal interfaces: per-port references into bcmsdspi.c
+ * Internal interfaces: per-port references into bcmspibrcm.c
  */
 
 /* Global message bits */
 extern uint sd_msglevel;
 
 /**************************************************************
- * Internal interfaces: bcmsdspi.c references to per-port code
+ * Internal interfaces: bcmspibrcm.c references to per-port code
  */
-
-/* Register mapping routines */
-extern uint32 *spi_reg_map(osl_t *osh, uintptr addr, int size);
-extern void spi_reg_unmap(osl_t *osh, uintptr addr, int size);
 
 /* Interrupt (de)registration routines */
 extern int spi_register_irq(sdioh_info_t *sd, uint irq);
@@ -129,3 +121,14 @@ extern void spi_unlock(sdioh_info_t *sd);
 /* Allocate/init/free per-OS private data */
 extern int spi_osinit(sdioh_info_t *sd);
 extern void spi_osfree(sdioh_info_t *sd);
+
+#define SPI_RW_FLAG_M			BITFIELD_MASK(1)	/* Bit [31] - R/W Command Bit */
+#define SPI_RW_FLAG_S			31
+#define SPI_ACCESS_M			BITFIELD_MASK(1)	/* Bit [30] - Fixed/Incr Access */
+#define SPI_ACCESS_S			30
+#define SPI_FUNCTION_M			BITFIELD_MASK(2)	/* Bit [29:28] - Function Number */
+#define SPI_FUNCTION_S			28
+#define SPI_REG_ADDR_M			BITFIELD_MASK(17)	/* Bit [27:11] - Address */
+#define SPI_REG_ADDR_S			11
+#define SPI_LEN_M			BITFIELD_MASK(11)	/* Bit [10:0] - Packet length */
+#define SPI_LEN_S			0
