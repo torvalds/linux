@@ -816,6 +816,13 @@ do_rest:
 			if (cpumask_test_cpu(cpu, cpu_callin_mask))
 				break;	/* It has booted */
 			udelay(100);
+			/*
+			 * Allow other tasks to run while we wait for the
+			 * AP to come online. This also gives a chance
+			 * for the MTRR work(triggered by the AP coming online)
+			 * to be completed in the stop machine context.
+			 */
+			schedule();
 		}
 
 		if (cpumask_test_cpu(cpu, cpu_callin_mask))
