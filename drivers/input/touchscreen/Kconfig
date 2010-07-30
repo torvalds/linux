@@ -98,6 +98,20 @@ config TOUCHSCREEN_BITSY
 	  To compile this driver as a module, choose M here: the
 	  module will be called h3600_ts_input.
 
+config TOUCHSCREEN_CY8CTMG110
+	tristate "cy8ctmg110 touchscreen"
+	depends on I2C
+	depends on GPIOLIB
+
+	help
+	  Say Y here if you have a cy8ctmg110 capacitive touchscreen on
+	  an AAVA device.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cy8ctmg110_ts.
+
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
