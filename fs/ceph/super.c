@@ -102,12 +102,21 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 
-static int ceph_syncfs(struct super_block *sb, int wait)
+static int ceph_sync_fs(struct super_block *sb, int wait)
 {
-	dout("sync_fs %d\n", wait);
+	struct ceph_client *client = ceph_sb_to_client(sb);
+
+	if (!wait) {
+		dout("sync_fs (non-blocking)\n");
+		ceph_flush_dirty_caps(&client->mdsc);
+		dout("sync_fs (non-blocking) done\n");
+		return 0;
+	}
+
+	dout("sync_fs (blocking)\n");
 	ceph_osdc_sync(&ceph_sb_to_client(sb)->osdc);
 	ceph_mdsc_sync(&ceph_sb_to_client(sb)->mdsc);
-	dout("sync_fs %d done\n", wait);
+	dout("sync_fs (blocking) done\n");
 	return 0;
 }
 
@@ -278,7 +287,7 @@ static const struct super_operations ceph_super_ops = {
 	.alloc_inode	= ceph_alloc_inode,
 	.destroy_inode	= ceph_destroy_inode,
 	.write_inode    = ceph_write_inode,
-	.sync_fs        = ceph_syncfs,
+	.sync_fs        = ceph_sync_fs,
 	.put_super	= ceph_put_super,
 	.show_options   = ceph_show_options,
 	.statfs		= ceph_statfs,
