@@ -216,6 +216,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 	struct saa7164_user_buffer *ubuf;
 	struct list_head *c, *n;
 	int wp, rp, i = 0;
+	u8 *p;
 
 	port->last_svc_msecs_diff = port->last_svc_msecs;
 	port->last_svc_msecs = jiffies_to_msecs(jiffies);
@@ -262,6 +263,20 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			break;
 		}
 
+		p = (u8 *)buf->cpu;
+		if (	(*(p + buf->actual_size + 0) != 0xff) ||
+			(*(p + buf->actual_size + 1) != 0xff) ||
+			(*(p + buf->actual_size + 2) != 0xff) ||
+			(*(p + buf->actual_size + 3) != 0xff) ||
+			(*(p + buf->actual_size + 0x10) != 0xff) ||
+			(*(p + buf->actual_size + 0x11) != 0xff) ||
+			(*(p + buf->actual_size + 0x12) != 0xff) ||
+			(*(p + buf->actual_size + 0x13) != 0xff) )
+		{
+			printk(KERN_ERR "buf %p failed guard check\n", buf);
+			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
+		}
+
 		if (buf->idx == rp) {
 			/* Found the buffer, deal with it */
 			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
@@ -278,9 +293,12 @@ static void saa7164_work_enchandler(struct work_struct *w)
 				ubuf = list_first_entry(&port->list_buf_free.list,
 					struct saa7164_user_buffer, list);
 
-				if (ubuf->actual_size == buf->actual_size)
+				if (ubuf->actual_size == buf->actual_size) {
 					memcpy(ubuf->data, buf->cpu,
 						ubuf->actual_size);
+				} else {
+					printk(KERN_ERR "buf %p actual fails match\n", buf);
+				}
 
 				/* Requeue the buffer on the free list */
 				ubuf->pos = 0;
@@ -297,7 +315,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			/* Ensure offset into buffer remains 0, fill buffer
 			 * with known bad data. */
 			saa7164_buffer_zero_offsets(port, rp);
-			memset(buf->cpu, 0xDE, buf->pci_size);
+			memset(buf->cpu, 0xff, buf->pci_size);
 
 			break;
 		}

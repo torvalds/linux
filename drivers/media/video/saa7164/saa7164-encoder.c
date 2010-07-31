@@ -1038,14 +1038,18 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	saa7164_histogram_update(&port->read_interval,
 		port->last_read_msecs_diff);
 
-	if (*pos)
+	if (*pos) {
+		printk(KERN_ERR "%s() ESPIPE\n", __func__);
 		return -ESPIPE;
+	}
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 
-			if (saa7164_encoder_initialize(port) < 0)
+			if (saa7164_encoder_initialize(port) < 0) {
+				printk(KERN_ERR "%s() EINVAL\n", __func__);
 				return -EINVAL;
+			}
 
 			saa7164_encoder_start_streaming(port);
 			msleep(200);
@@ -1056,6 +1060,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	if ((file->f_flags & O_NONBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_enc_next_buf(port))) {
+				printk(KERN_ERR "%s() ERESTARTSYS\n", __func__);
 				return -ERESTARTSYS;
 		}
 	}
@@ -1077,8 +1082,10 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 
 		if (copy_to_user(buffer, p, cnt)) {
 			printk(KERN_ERR "%s() copy_to_user failed\n", __func__);
-			if (!ret)
+			if (!ret) {
+				printk(KERN_ERR "%s() EFAULT\n", __func__);
 				ret = -EFAULT;
+			}
 			goto err;
 		}
 
@@ -1086,6 +1093,10 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 		count -= cnt;
 		buffer += cnt;
 		ret += cnt;
+
+		if (ubuf->pos > ubuf->actual_size) {
+			printk(KERN_ERR "read() pos > actual, huh?\n");
+		}
 
 		if (ubuf->pos == ubuf->actual_size) {
 
@@ -1109,8 +1120,10 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 		}
 	}
 err:
-	if (!ret && !ubuf)
+	if (!ret && !ubuf) {
+		printk(KERN_ERR "%s() EAGAIN\n", __func__);
 		ret = -EAGAIN;
+	}
 
 	return ret;
 }
