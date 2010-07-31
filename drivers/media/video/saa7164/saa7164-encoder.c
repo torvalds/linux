@@ -76,15 +76,131 @@ static void saa7164_encoder_configure(struct saa7164_port *port)
 	saa7164_api_set_audio_std(port);
 }
 
-/* One time configuration at registration time */
-static int saa7164_encoder_initialize(struct saa7164_port *port)
+static int saa7164_encoder_buffers_dealloc(struct saa7164_port *port)
+{
+	struct list_head *c, *n, *p, *q, *l, *v;
+	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf;
+	struct saa7164_user_buffer *ubuf;
+
+	/* Remove any allocated buffers */
+	mutex_lock(&port->dmaqueue_lock);
+
+	dprintk(DBGLVL_ENC, "%s(port=%d) dmaqueue\n", __func__, port->nr);
+	list_for_each_safe(c, n, &port->dmaqueue.list) {
+		buf = list_entry(c, struct saa7164_buffer, list);
+		list_del(c);
+		saa7164_buffer_dealloc(buf);
+	}
+
+	dprintk(DBGLVL_ENC, "%s(port=%d) used\n", __func__, port->nr);
+	list_for_each_safe(p, q, &port->list_buf_used.list) {
+		ubuf = list_entry(p, struct saa7164_user_buffer, list);
+		list_del(p);
+		saa7164_buffer_dealloc_user(ubuf);
+	}
+
+	dprintk(DBGLVL_ENC, "%s(port=%d) free\n", __func__, port->nr);
+	list_for_each_safe(l, v, &port->list_buf_free.list) {
+		ubuf = list_entry(l, struct saa7164_user_buffer, list);
+		list_del(l);
+		saa7164_buffer_dealloc_user(ubuf);
+	}
+
+	mutex_unlock(&port->dmaqueue_lock);
+	dprintk(DBGLVL_ENC, "%s(port=%d) done\n", __func__, port->nr);
+
+	return 0;
+}
+
+/* Dynamic buffer switch at encoder start time */
+static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf;
+	struct saa7164_user_buffer *ubuf;
+	tmHWStreamParameters_t *params = &port->hw_streamingparams;
+	int result = -ENODEV, i;
+	int len = 0;
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
-	saa7164_encoder_configure(port);
+	if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
+		dprintk(DBGLVL_ENC, "%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_PS\n", __func__);
+		params->samplesperline = 128;
+		params->numberoflines = 256;
+		params->pitch = 128;
+		params->numpagetables = 2 +
+			((SAA7164_PS_NUMBER_OF_LINES * 128) / PAGE_SIZE);
+	} else
+	if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS) {
+		dprintk(DBGLVL_ENC, "%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_TS\n", __func__);
+		params->samplesperline = 188;
+		params->numberoflines = 312;
+		params->pitch = 188;
+		params->numpagetables = 2 +
+			((SAA7164_TS_NUMBER_OF_LINES * 188) / PAGE_SIZE);
+	} else
+		BUG();
 
+	/* Init and establish defaults */
+	params->bitspersample = 8;
+	params->linethreshold = 0;
+	params->pagetablelistvirt = 0;
+	params->pagetablelistphys = 0;
+	params->numpagetableentries = port->hwcfg.buffercount;
+
+	/* Allocate the PCI resources, buffers (hard) */
+	for (i = 0; i < port->hwcfg.buffercount; i++) {
+		buf = saa7164_buffer_alloc(port,
+			params->numberoflines *
+			params->pitch);
+
+		if (!buf) {
+			printk(KERN_ERR "%s() failed "
+			       "(errno = %d), unable to allocate buffer\n",
+				__func__, result);
+			result = -ENOMEM;
+			goto failed;
+		} else {
+
+			mutex_lock(&port->dmaqueue_lock);
+			list_add_tail(&buf->list, &port->dmaqueue.list);
+			mutex_unlock(&port->dmaqueue_lock);
+
+		}
+	}
+
+	/* Allocate some kenrel kernel buffers for copying
+	 * to userpsace.
+	 */
+	len = params->numberoflines * params->pitch;
+
+	if (encoder_buffers < 16)
+		encoder_buffers = 16;
+	if (encoder_buffers > 512)
+		encoder_buffers = 512;
+
+	for (i = 0; i < encoder_buffers; i++) {
+
+		ubuf = saa7164_buffer_alloc_user(dev, len);
+		if (ubuf) {
+			mutex_lock(&port->dmaqueue_lock);
+			list_add_tail(&ubuf->list, &port->list_buf_free.list);
+			mutex_unlock(&port->dmaqueue_lock);
+		}
+
+	}
+
+	result = 0;
+
+failed:
+	return result;
+}
+
+static int saa7164_encoder_initialize(struct saa7164_port *port)
+{
+	saa7164_encoder_configure(port);
 	return 0;
 }
 
@@ -835,6 +951,7 @@ static int saa7164_encoder_stop_streaming(struct saa7164_port *port)
 	dprintk(DBGLVL_ENC, "%s(port=%d) Hardware stopped\n", __func__,
 		port->nr);
 
+	/* Reset the state of any allocated buffer resources */
 	mutex_lock(&port->dmaqueue_lock);
 
 	/* Reset the hard and soft buffer state */
@@ -851,6 +968,10 @@ static int saa7164_encoder_stop_streaming(struct saa7164_port *port)
 	}
 
 	mutex_unlock(&port->dmaqueue_lock);
+
+	/* Free any allocated resources */
+	saa7164_encoder_buffers_dealloc(port);
+
 	dprintk(DBGLVL_ENC, "%s(port=%d) Released\n", __func__, port->nr);
 
 	return ret;
@@ -863,10 +984,19 @@ static int saa7164_encoder_start_streaming(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s(port=%d)\n", __func__, port->nr);
 
+	port->done_first_interrupt = 0;
+
+	/* allocate all of the PCIe DMA buffer resources on the fly,
+	 * allowing switching between TS and PS payloads without
+	 * requiring a complete driver reload.
+	 */
+	saa7164_encoder_buffers_alloc(port);
+
 	/* Configure the encoder with any cache values */
 	saa7164_api_set_encoder(port);
 	saa7164_api_get_encoder(port);
 
+	/* Place the empty buffers on the hardware */
 	saa7164_buffer_cfg_port(port);
 
 	/* Acquire the hardware */
@@ -1005,27 +1135,29 @@ static int fops_release(struct file *file)
 
 struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 {
-	struct saa7164_user_buffer *buf = 0;
+	struct saa7164_user_buffer *ubuf = 0;
 	struct saa7164_dev *dev = port->dev;
 	u32 crc;
 
 	mutex_lock(&port->dmaqueue_lock);
 	if (!list_empty(&port->list_buf_used.list)) {
-		buf = list_first_entry(&port->list_buf_used.list,
+		ubuf = list_first_entry(&port->list_buf_used.list,
 			struct saa7164_user_buffer, list);
 
-		crc = crc32(0, buf->data, buf->actual_size);
-		if (crc != buf->crc) {
-			printk(KERN_ERR "%s() buf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
-				buf, buf->crc, crc);
+		if (crc_checking) {
+			crc = crc32(0, ubuf->data, ubuf->actual_size);
+			if (crc != ubuf->crc) {
+				printk(KERN_ERR "%s() ubuf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
+					ubuf, ubuf->crc, crc);
+			}
 		}
 
 	}
 	mutex_unlock(&port->dmaqueue_lock);
 
-	dprintk(DBGLVL_ENC, "%s() returns %p\n", __func__, buf);
+	dprintk(DBGLVL_ENC, "%s() returns %p\n", __func__, ubuf);
 
-	return buf;
+	return ubuf;
 }
 
 static ssize_t fops_read(struct file *file, char __user *buffer,
@@ -1292,10 +1424,7 @@ static struct video_device *saa7164_encoder_alloc(
 int saa7164_encoder_register(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf;
-	struct saa7164_user_buffer *ubuf;
-	int result = -ENODEV, i;
-	int len = 0;
+	int result = -ENODEV;
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
@@ -1309,64 +1438,6 @@ int saa7164_encoder_register(struct saa7164_port *port)
 			__func__, result);
 		result = -ENOMEM;
 		goto failed;
-	}
-
-	/* Init and establish defaults */
-	/* TODO: Check the umber of lines for PS */
-	port->hw_streamingparams.bitspersample = 8;
-	port->hw_streamingparams.samplesperline = 128;
-	port->hw_streamingparams.numberoflines = 256;
-
-	port->hw_streamingparams.pitch = 128;
-	port->hw_streamingparams.linethreshold = 0;
-	port->hw_streamingparams.pagetablelistvirt = 0;
-	port->hw_streamingparams.pagetablelistphys = 0;
-	port->hw_streamingparams.numpagetables = 2 +
-		((SAA7164_PS_NUMBER_OF_LINES * 128) / PAGE_SIZE);
-
-	port->hw_streamingparams.numpagetableentries = port->hwcfg.buffercount;
-
-	/* Allocate the PCI resources, buffers (hard) */
-	for (i = 0; i < port->hwcfg.buffercount; i++) {
-		buf = saa7164_buffer_alloc(port,
-			port->hw_streamingparams.numberoflines *
-			port->hw_streamingparams.pitch);
-
-		if (!buf) {
-			printk(KERN_ERR "%s() failed "
-			       "(errno = %d), unable to allocate buffer\n",
-				__func__, result);
-			result = -ENOMEM;
-			goto failed;
-		} else {
-
-			mutex_lock(&port->dmaqueue_lock);
-			list_add_tail(&buf->list, &port->dmaqueue.list);
-			mutex_unlock(&port->dmaqueue_lock);
-
-		}
-	}
-
-	/* Allocate some kenrel kernel buffers for copying
-	 * to userpsace.
-	 */
-	len = port->hw_streamingparams.numberoflines *
-		port->hw_streamingparams.pitch;
-
-	if (encoder_buffers < 16)
-		encoder_buffers = 16;
-	if (encoder_buffers > 512)
-		encoder_buffers = 512;
-
-	for (i = 0; i < encoder_buffers; i++) {
-
-		ubuf = saa7164_buffer_alloc_user(dev, len);
-		if (ubuf) {
-			mutex_lock(&port->dmaqueue_lock);
-			list_add_tail(&ubuf->list, &port->list_buf_free.list);
-			mutex_unlock(&port->dmaqueue_lock);
-		}
-
 	}
 
 	/* Establish encoder defaults here */
@@ -1446,9 +1517,6 @@ failed:
 void saa7164_encoder_unregister(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf;
-	struct saa7164_user_buffer *ubuf;
-	struct list_head *c, *n, *p, *q, *l, *v;
 
 	dprintk(DBGLVL_ENC, "%s(port=%d)\n", __func__, port->nr);
 
@@ -1464,31 +1532,6 @@ void saa7164_encoder_unregister(struct saa7164_port *port)
 		port->v4l_device = NULL;
 	}
 
-	/* Remove any allocated buffers */
-	mutex_lock(&port->dmaqueue_lock);
-
-	dprintk(DBGLVL_ENC, "%s(port=%d) dmaqueue\n", __func__, port->nr);
-	list_for_each_safe(c, n, &port->dmaqueue.list) {
-		buf = list_entry(c, struct saa7164_buffer, list);
-		list_del(c);
-		saa7164_buffer_dealloc(buf);
-	}
-
-	dprintk(DBGLVL_ENC, "%s(port=%d) used\n", __func__, port->nr);
-	list_for_each_safe(p, q, &port->list_buf_used.list) {
-		ubuf = list_entry(p, struct saa7164_user_buffer, list);
-		list_del(p);
-		saa7164_buffer_dealloc_user(ubuf);
-	}
-
-	dprintk(DBGLVL_ENC, "%s(port=%d) free\n", __func__, port->nr);
-	list_for_each_safe(l, v, &port->list_buf_free.list) {
-		ubuf = list_entry(l, struct saa7164_user_buffer, list);
-		list_del(l);
-		saa7164_buffer_dealloc_user(ubuf);
-	}
-
-	mutex_unlock(&port->dmaqueue_lock);
 	dprintk(DBGLVL_ENC, "%s(port=%d) done\n", __func__, port->nr);
 }
 

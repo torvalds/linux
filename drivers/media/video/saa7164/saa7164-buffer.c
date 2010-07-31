@@ -134,18 +134,19 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	buf->crc = crc32(0, buf->cpu, buf->actual_size);
 	memset_io(buf->pt_cpu, 0xff, buf->pt_size);
 
-	dprintk(DBGLVL_BUF, "%s()   allocated buffer @ 0x%p\n",
-		__func__, buf);
+	dprintk(DBGLVL_BUF, "%s()   allocated buffer @ 0x%p (%d pageptrs)\n",
+		__func__, buf, params->numpagetables);
 	dprintk(DBGLVL_BUF, "  pci_cpu @ 0x%p    dma @ 0x%08lx len = 0x%x\n",
 		buf->cpu, (long)buf->dma, buf->pci_size);
 	dprintk(DBGLVL_BUF, "   pt_cpu @ 0x%p pt_dma @ 0x%08lx len = 0x%x\n",
 		buf->pt_cpu, (long)buf->pt_dma, buf->pt_size);
 
 	/* Format the Page Table Entries to point into the data buffer */
-//	for (i = 0 ; i < SAA7164_PT_ENTRIES; i++) {
-	for (i = 0 ; i < 10; i++) {
+	for (i = 0 ; i < params->numpagetables; i++) {
 
 		*(buf->pt_cpu + i) = buf->dma + (i * 0x1000); /* TODO */
+		dprintk(DBGLVL_BUF, "    pt[%02d] = 0x%p -> 0x%llx\n",
+			i, buf->pt_cpu, (u64)*(buf->pt_cpu));
 
 	}
 

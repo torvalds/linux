@@ -389,6 +389,7 @@ struct saa7164_port {
 	u32 a_cc_errors;
 	u8 last_v_cc;
 	u8 last_a_cc;
+	u32 done_first_interrupt;
 };
 
 struct saa7164_dev {
@@ -545,6 +546,8 @@ int saa7164_encoder_register(struct saa7164_port *port);
 void saa7164_encoder_unregister(struct saa7164_port *port);
 
 /* ----------------------------------------------------------- */
+
+extern unsigned int crc_checking;
 
 extern unsigned int saa_debug;
 #define dprintk(level, fmt, arg...)\

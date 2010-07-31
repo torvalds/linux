@@ -65,6 +65,14 @@ unsigned int print_histogram = 64;
 module_param(print_histogram, int, 0644);
 MODULE_PARM_DESC(print_histogram, "print histogram values once");
 
+unsigned int crc_checking = 1;
+module_param(crc_checking, int, 0644);
+MODULE_PARM_DESC(crc_checking, "enable crc sanity checking on buffers");
+
+unsigned int guard_checking = 1;
+module_param(guard_checking, int, 0644);
+MODULE_PARM_DESC(guard_checking, "enable dma sanity checking for buffer overruns");
+
 static unsigned int saa7164_devcount;
 
 static DEFINE_MUTEX(devlist);
@@ -101,17 +109,24 @@ static void saa7164_pack_verifier(struct saa7164_buffer *buf)
 
 	for (i = 0; i < buf->actual_size; i += 2048) {
 
-		if ( (*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) || (*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA) )
+		if ( (*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) ||
+			(*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA) ) {
 			printk(KERN_ERR "No pack at 0x%x\n", i);
+//			saa7164_dumphex16FF(buf->port->dev, (p + i), 32);
+		}
 	}
 }
+
+#define FIXED_VIDEO_PID 0xf1
+#define FIXED_AUDIO_PID 0xf2
 
 static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 {
 	struct saa7164_port *port = buf->port;
 	u32 i;
-	u8 tmp, cc, a;
-	u8 *bufcpu = (u8 *)buf->cpu;
+	u8 cc, a;
+	u16 pid;
+	u8 __iomem *bufcpu = (u8 *)buf->cpu;
 
 	port->sync_errors = 0;
 	port->v_cc_errors = 0;
@@ -121,23 +136,25 @@ static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 		if (*(bufcpu + i) != 0x47)
 			port->sync_errors++;
 
-		/* Query pid lower 8 bits */
-		tmp = *(bufcpu + i + 2);
+		/* TODO: Query pid lower 8 bits, ignoring upper bits intensionally */
+		pid = ((*(bufcpu + i + 1) & 0x1f) << 8) | *(bufcpu + i + 2);
 		cc = *(bufcpu + i + 3) & 0x0f;
 
-		if (tmp == 0xf1) {
+		if (pid == FIXED_VIDEO_PID) {
 			a = ((port->last_v_cc + 1) & 0x0f);
 			if (a != cc) {
-				printk(KERN_ERR "video cc last = %x current = %x i = %d\n", port->last_v_cc, cc, i);
+				printk(KERN_ERR "video cc last = %x current = %x i = %d\n",
+					port->last_v_cc, cc, i);
 				port->v_cc_errors++;
 			}
 
 			port->last_v_cc = cc;
 		} else
-		if (tmp == 0xf2) {
+		if (pid == FIXED_AUDIO_PID) {
 			a = ((port->last_a_cc + 1) & 0x0f);
 			if (a != cc) {
-				printk(KERN_ERR "audio cc last = %x current = %x i = %d\n", port->last_a_cc, cc, i);
+				printk(KERN_ERR "audio cc last = %x current = %x i = %d\n",
+					port->last_a_cc, cc, i);
 				port->a_cc_errors++;
 			}
 
@@ -246,6 +263,7 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 	struct saa7164_user_buffer *ubuf = 0;
 	struct list_head *c, *n;
 	int i = 0;
+	u8 __iomem *p;
 
 	mutex_lock(&port->dmaqueue_lock);
 	list_for_each_safe(c, n, &port->dmaqueue.list) {
@@ -260,12 +278,33 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 		if (buf->idx == bufnr) {
 
 			/* Found the buffer, deal with it */
-			dprintk(DBGLVL_IRQ, "%s() rp: %d\n", __func__, bufnr);
+			dprintk(DBGLVL_IRQ, "%s() bufnr: %d\n", __func__, bufnr);
+
+			if (crc_checking) {
+				/* Throw a new checksum on the dma buffer */
+				buf->crc = crc32(0, buf->cpu, buf->actual_size);
+			}
+
+			if (guard_checking) {
+				p = (u8 *)buf->cpu;
+				if ( (*(p + buf->actual_size + 0) != 0xff) ||
+					(*(p + buf->actual_size + 1) != 0xff) ||
+					(*(p + buf->actual_size + 2) != 0xff) ||
+					(*(p + buf->actual_size + 3) != 0xff) ||
+					(*(p + buf->actual_size + 0x10) != 0xff) ||
+					(*(p + buf->actual_size + 0x11) != 0xff) ||
+					(*(p + buf->actual_size + 0x12) != 0xff) ||
+					(*(p + buf->actual_size + 0x13) != 0xff) ) {
+						printk(KERN_ERR "%s() buf %p guard buffer breach\n",
+							__func__, buf);
+//						saa7164_dumphex16FF(dev, (p + buf->actual_size) - 32 , 64);
+				}
+			}
 
 			/* Validate the incoming buffer content */
 			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
 				saa7164_ts_verifier(buf);
-			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+			else if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
 				saa7164_pack_verifier(buf);
 
 			/* find a free user buffer and clone to it */
@@ -280,8 +319,10 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 					memcpy_fromio(ubuf->data, buf->cpu,
 						ubuf->actual_size);
 
-					/* Throw a new checksum on the read buffer */
-					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
+					if (crc_checking) {
+						/* Throw a new checksum on the read buffer */
+						ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
+					}
 
 					/* Requeue the buffer on the free list */
 					ubuf->pos = 0;
@@ -304,6 +345,10 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 			 * in time. */
 			saa7164_buffer_zero_offsets(port, bufnr);
 			memset_io(buf->cpu, 0xff, buf->pci_size);
+			if (crc_checking) {
+				/* Throw yet aanother new checksum on the dma buffer */
+				buf->crc = crc32(0, buf->cpu, buf->actual_size);
+			}
 
 			break;
 		}
@@ -352,17 +397,22 @@ static void saa7164_work_enchandler(struct work_struct *w)
 
 	/* Most current complete buffer */
 	if (wp == 0)
-		mcb = 7;
+		mcb = (port->hwcfg.buffercount - 1);
 	else
 		mcb = wp - 1;
 
 	while (1) {
-		rp = (port->last_svc_rp + 1) % 8;
+		if (port->done_first_interrupt == 0) {
+			port->done_first_interrupt++;
+			rp = mcb;
+		} else
+			rp = (port->last_svc_rp + 1) % 8;
 
-		if ((rp < 0) || (rp > 7)) {
+		if ((rp < 0) || (rp > (port->hwcfg.buffercount - 1))) {
 			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 			break;
 		}
+
 		saa7164_work_enchandler_helper(port, rp);
 		port->last_svc_rp = rp;
 		cnt++;
@@ -371,6 +421,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			break;
 	}
 
+	/* TODO: Convert this into a /proc/saa7164 style readable file */
 	if (print_histogram == port->nr) {
 		saa7164_histogram_print(port, &port->irq_interval);
 		saa7164_histogram_print(port, &port->svc_interval);
@@ -438,7 +489,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 
 	/* Find the previous buffer to the current write point */
 	if (wp == 0)
-		rp = 7;
+		rp = (port->hwcfg.buffercount - 1);
 	else
 		rp = wp - 1;
 
