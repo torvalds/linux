@@ -446,9 +446,7 @@ out:
 	nfs41_sequence_free_slot(res);
 	return 1;
 out_retry:
-	rpc_restart_call(task);
-	/* FIXME: rpc_restart_call() should be made to return success/fail */
-	if (task->tk_action == NULL)
+	if (!rpc_restart_call(task))
 		goto out;
 	rpc_delay(task, NFS4_POLL_RETRY_MAX);
 	return 0;
