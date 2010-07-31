@@ -110,8 +110,12 @@ static inline int ir_input_register(struct input_dev *dev,
 		return -EINVAL;
 
 	ir_codes = get_rc_map(map_name);
-	if (!ir_codes)
-		return -EINVAL;
+	if (!ir_codes) {
+		ir_codes = get_rc_map(RC_MAP_EMPTY);
+
+		if (!ir_codes)
+			return -EINVAL;
+	}
 
 	rc = __ir_input_register(dev, ir_codes, props, driver_name);
 	if (rc < 0)

@@ -126,7 +126,8 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_init(void);
 
-
+int ir_rcmap_init(void);
+void ir_rcmap_cleanup(void);
 /*
  * Decoder initialization code
  *
