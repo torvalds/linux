@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -86,6 +86,7 @@
 #define DBGLVL_BUS 128
 #define DBGLVL_IRQ 256
 #define DBGLVL_BUF 512
+#define DBGLVL_ENC 1024
 
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,
