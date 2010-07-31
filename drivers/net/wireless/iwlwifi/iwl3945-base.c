@@ -814,9 +814,9 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl3945_beacon_notif *beacon = &(pkt->u.beacon_status);
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u8 rate = beacon->beacon_notify_hdr.rate;
 
 	IWL_DEBUG_RX(priv, "beacon status %x retries %d iss %d "
@@ -827,6 +827,8 @@ static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
 #endif
+
+	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
@@ -3803,6 +3805,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.hw_scan = iwl_mac_hw_scan,
 	.sta_add = iwl3945_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)

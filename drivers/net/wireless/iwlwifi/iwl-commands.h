@@ -2919,6 +2919,11 @@ struct iwl_scancomplete_notification {
  *
  *****************************************************************************/
 
+enum iwl_ibss_manager {
+	IWL_NOT_IBSS_MANAGER = 0,
+	IWL_IBSS_MANAGER = 1,
+};
+
 /*
  * BEACON_NOTIFICATION = 0x90 (notification only, not a command)
  */

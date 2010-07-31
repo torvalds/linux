@@ -1109,6 +1109,9 @@ struct iwl_priv {
 	u32 ucode_beacon_time;
 	int missed_beacon_threshold;
 
+	/* track IBSS manager (last beacon) status */
+	u32 ibss_manager;
+
 	/* storing the jiffies when the plcp error rate is received */
 	unsigned long plcp_jiffies;
 

@@ -764,10 +764,10 @@ static void iwl_bg_ucode_trace(unsigned long data)
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl4965_beacon_notif *beacon =
 		(struct iwl4965_beacon_notif *)pkt->u.raw;
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	IWL_DEBUG_RX(priv, "beacon status %x retries %d iss %d "
@@ -778,6 +778,8 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
 #endif
+
+	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
@@ -3881,6 +3883,7 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.sta_remove = iwl_mac_sta_remove,
 	.channel_switch = iwl_mac_channel_switch,
 	.flush = iwl_mac_flush,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static void iwl_hw_detect(struct iwl_priv *priv)

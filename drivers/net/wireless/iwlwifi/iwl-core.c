@@ -1666,6 +1666,14 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 }
 EXPORT_SYMBOL(iwl_mac_conf_tx);
 
+int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	return priv->ibss_manager == IWL_IBSS_MANAGER;
+}
+EXPORT_SYMBOL_GPL(iwl_mac_tx_last_beacon);
+
 static void iwl_ht_conf(struct iwl_priv *priv,
 			struct ieee80211_vif *vif)
 {
