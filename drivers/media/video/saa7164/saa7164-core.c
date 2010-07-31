@@ -142,14 +142,38 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 
 	/* 200 - 2000ms x 100ms  */
 	for (i = 0; i < 15; i++) {
-		hg->counter1[48 + i].val = 200 + (i * 100);
+		hg->counter1[48 + i].val = 200 + (i * 200);
 	}
 
-	/* Catch all massive value (1hr) */
+	/* Catch all massive value (2secs) */
+	hg->counter1[55].val = 2000;
+
+	/* Catch all massive value (4secs) */
+	hg->counter1[56].val = 4000;
+
+	/* Catch all massive value (8secs) */
+	hg->counter1[57].val = 8000;
+
+	/* Catch all massive value (15secs) */
+	hg->counter1[58].val = 15000;
+
+	/* Catch all massive value (30secs) */
+	hg->counter1[59].val = 30000;
+
+	/* Catch all massive value (60secs) */
+	hg->counter1[60].val = 60000;
+
+	/* Catch all massive value (5mins) */
+	hg->counter1[61].val = 300000;
+
+	/* Catch all massive value (15mins) */
+	hg->counter1[62].val = 900000;
+
+	/* Catch all massive values (1hr) */
 	hg->counter1[63].val = 3600000;
 }
 
-static void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val)
+void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val)
 {
 	int i;
 	for (i = 0; i < 64; i++ ) {
@@ -168,7 +192,7 @@ static void saa7164_histogram_print(struct saa7164_port *port,
 	u32 entries = 0;
 	int i;
 
-	printk(KERN_ERR "Histogram named %s\n", hg->name);
+	printk(KERN_ERR "Histogram named %s (ms, count, last_update_jiffy)\n", hg->name);
 	for (i = 0; i < 64; i++ ) {
 		if (hg->counter1[i].count == 0)
 			continue;
@@ -285,6 +309,8 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		saa7164_histogram_print(port, &port->irq_interval);
 		saa7164_histogram_print(port, &port->svc_interval);
 		saa7164_histogram_print(port, &port->irq_svc_interval);
+		saa7164_histogram_print(port, &port->read_interval);
+		saa7164_histogram_print(port, &port->poll_interval);
 		print_histogram = 64 + port->nr;
 	}
 }
@@ -731,6 +757,10 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	saa7164_histogram_reset(&port->svc_interval, "deferred intervals");
 	saa7164_histogram_reset(&port->irq_svc_interval,
 		"irq to deferred intervals");
+	saa7164_histogram_reset(&port->read_interval,
+		"encoder read() intervals");
+	saa7164_histogram_reset(&port->poll_interval,
+		"encoder poll() intervals");
 
 	return 0;
 }
@@ -1016,6 +1046,10 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 		&dev->ports[ SAA7164_PORT_ENC1 ].svc_interval);
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].irq_svc_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
+		&dev->ports[ SAA7164_PORT_ENC1 ].read_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
+		&dev->ports[ SAA7164_PORT_ENC1 ].poll_interval);
 
 	saa7164_shutdown(dev);
 

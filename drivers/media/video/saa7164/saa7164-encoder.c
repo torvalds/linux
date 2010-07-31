@@ -1030,6 +1030,14 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	int rem, cnt;
 	u8 *p;
 
+	port->last_read_msecs_diff = port->last_read_msecs;
+	port->last_read_msecs = jiffies_to_msecs(jiffies);
+	port->last_read_msecs_diff = port->last_read_msecs -
+		port->last_read_msecs_diff;
+
+	saa7164_histogram_update(&port->read_interval,
+		port->last_read_msecs_diff);
+
 	if (*pos)
 		return -ESPIPE;
 
@@ -1113,6 +1121,14 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	struct saa7164_port *port = fh->port;
 	struct saa7164_user_buffer *ubuf;
 	unsigned int mask = 0;
+
+	port->last_poll_msecs_diff = port->last_poll_msecs;
+	port->last_poll_msecs = jiffies_to_msecs(jiffies);
+	port->last_poll_msecs_diff = port->last_poll_msecs -
+		port->last_poll_msecs_diff;
+
+	saa7164_histogram_update(&port->poll_interval,
+		port->last_poll_msecs_diff);
 
 	if (!video_is_registered(port->v4l_device)) {
 		return -EIO;

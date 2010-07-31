@@ -328,10 +328,14 @@ struct saa7164_port {
 	u32 last_irq_wp, last_svc_wp;
 	u32 last_irq_rp, last_svc_rp;
 	u64 last_irq_svc_msecs_diff;
+	u64 last_read_msecs, last_read_msecs_diff;
+	u64 last_poll_msecs, last_poll_msecs_diff;
 
 	struct saa7164_histogram irq_interval;
 	struct saa7164_histogram svc_interval;
 	struct saa7164_histogram irq_svc_interval;
+	struct saa7164_histogram read_interval;
+	struct saa7164_histogram poll_interval;
 
 	/* --- DVB Transport Specific --- */
 	struct saa7164_dvb dvb;
@@ -441,6 +445,7 @@ void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr);
 void saa7164_dumphex16(struct saa7164_dev *dev, u8 *buf, int len);
 void saa7164_getfirmwarestatus(struct saa7164_dev *dev);
 u32 saa7164_getcurrentfirmwareversion(struct saa7164_dev *dev);
+void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val);
 
 /* ----------------------------------------------------------- */
 /* saa7164-fw.c                                                */
