@@ -54,7 +54,7 @@ static int if_usb_reset_device(struct if_usb_card *cardp);
 /**
  *  if_usb_wrike_bulk_callback -  call back to handle URB status
  *
- *  @param urb 		pointer to urb structure
+ *  @param urb		pointer to urb structure
  */
 static void if_usb_write_bulk_callback(struct urb *urb)
 {
@@ -187,7 +187,7 @@ static int if_usb_probe(struct usb_interface *intf,
 
 			lbtf_deb_usbd(&udev->dev, "out_endpoint = %d\n", cardp->ep_out);
 			lbtf_deb_usbd(&udev->dev, "Bulk out size is %d\n",
-			              cardp->ep_out_size);
+				cardp->ep_out_size);
 		}
 	}
 	if (!cardp->ep_out_size || !cardp->ep_in_size) {
@@ -367,7 +367,7 @@ EXPORT_SYMBOL_GPL(if_usb_reset_device);
 /**
  *  usb_tx_block - transfer data to the device
  *
- *  @priv 	pointer to struct lbtf_private
+ *  @priv	pointer to struct lbtf_private
  *  @payload	pointer to payload data
  *  @nb		data length
  *  @data	non-zero for data, zero for commands
@@ -689,7 +689,7 @@ static void if_usb_receive(struct urb *urb)
 	}
 	default:
 		lbtf_deb_usbd(&cardp->udev->dev,
-		         "libertastf: unknown command type 0x%X\n", recvtype);
+			"libertastf: unknown command type 0x%X\n", recvtype);
 		kfree_skb(skb);
 		break;
 	}
