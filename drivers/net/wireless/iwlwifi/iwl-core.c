@@ -183,14 +183,6 @@ out:
 }
 EXPORT_SYMBOL(iwl_alloc_all);
 
-void iwl_hw_detect(struct iwl_priv *priv)
-{
-	priv->hw_rev = _iwl_read32(priv, CSR_HW_REV);
-	priv->hw_wa_rev = _iwl_read32(priv, CSR_HW_REV_WA_REG);
-	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
-}
-EXPORT_SYMBOL(iwl_hw_detect);
-
 /*
  * QoS  support
 */
