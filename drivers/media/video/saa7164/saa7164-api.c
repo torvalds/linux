@@ -24,7 +24,7 @@
 
 #include "saa7164.h"
 
-int saa7164_api_collect_debug(struct saa7164_dev *dev, struct seq_file *m)
+int saa7164_api_collect_debug(struct saa7164_dev *dev)
 {
 	tmComResDebugGetData_t d;
 	u8 more = 255;
@@ -45,8 +45,7 @@ int saa7164_api_collect_debug(struct saa7164_dev *dev, struct seq_file *m)
 		if (d.dwResult != SAA_OK)
 			break;
 
-		seq_printf(m, "%s", d.ucDebugData);
-
+		printk(KERN_INFO "saa7164[%d]-FWMSG: %s", dev->nr, d.ucDebugData);
 	}
 
 	return 0;

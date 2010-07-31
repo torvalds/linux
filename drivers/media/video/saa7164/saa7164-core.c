@@ -1112,15 +1112,51 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 		dev = list_entry(list, struct saa7164_dev, devlist);
 		seq_printf(m, "%s = %p\n", dev->name, dev);
 
-		if (dev->board != SAA7164_BOARD_UNKNOWN) {
-			seq_printf(m, "Firmware messages ----->\n");
-			saa7164_api_collect_debug(dev, m);
-			seq_printf(m, "<---- Firmware messages\n");
-		}
-
 		/* Lock the bus from any other access */
 		b = &dev->bus;
 		mutex_lock(&b->lock);
+
+		seq_printf(m, " .m_pdwSetWritePos = 0x%x (0x%08x)\n",
+			b->m_dwSetReadPos, saa7164_readl(b->m_dwSetReadPos));
+
+		seq_printf(m, " .m_pdwSetReadPos  = 0x%x (0x%08x)\n",
+			b->m_dwSetWritePos, saa7164_readl(b->m_dwSetWritePos));
+
+		seq_printf(m, " .m_pdwGetWritePos = 0x%x (0x%08x)\n",
+			b->m_dwGetReadPos, saa7164_readl(b->m_dwGetReadPos));
+
+		seq_printf(m, " .m_pdwGetReadPos  = 0x%x (0x%08x)\n",
+			b->m_dwGetWritePos, saa7164_readl(b->m_dwGetWritePos));
+		c = 0;
+		seq_printf(m, "\n  Set Ring:\n");
+		seq_printf(m, "\n addr  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
+		for (i = 0; i < b->m_dwSizeSetRing; i++) {
+			if (c == 0)
+				seq_printf(m, " %04x:", i);
+
+			seq_printf(m, " %02x", *(b->m_pdwSetRing + i));
+
+			if (++c == 16) {
+				seq_printf(m, "\n");
+				c = 0;
+			}
+		}
+
+		c = 0;
+		seq_printf(m, "\n  Get Ring:\n");
+		seq_printf(m, "\n addr  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
+		for (i = 0; i < b->m_dwSizeGetRing; i++) {
+			if (c == 0)
+				seq_printf(m, " %04x:", i);
+
+			seq_printf(m, " %02x", *(b->m_pdwGetRing + i));
+
+			if (++c == 16) {
+				seq_printf(m, "\n");
+				c = 0;
+			}
+		}
+
 		mutex_unlock(&b->lock);
 
 	}
@@ -1151,6 +1187,31 @@ static int saa7164_proc_create(void)
 	return 0;
 }
 #endif
+
+static int saa7164_thread_function(void *data)
+{
+	struct saa7164_dev *dev = data;
+
+	dprintk(DBGLVL_THR, "thread started\n");
+
+	set_freezable();
+
+	while (1) {
+		msleep_interruptible(100);
+		if (kthread_should_stop())
+			break;
+		try_to_freeze();
+
+		dprintk(DBGLVL_THR, "thread running\n");
+
+		/* Dump the firmware debug message to console */
+		saa7164_api_collect_debug(dev);
+
+	}
+
+	dprintk(DBGLVL_THR, "thread exiting\n");
+	return 0;
+}
 
 static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 				     const struct pci_device_id *pci_id)
@@ -1313,6 +1374,14 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		}
 		saa7164_api_set_debug(dev, fw_debug);
 
+		if (fw_debug) {
+			dev->kthread = kthread_run(saa7164_thread_function, dev,
+				"saa7164 debug");
+			if (!dev->kthread)
+				printk(KERN_ERR "%s() Failed to create "
+					"debug kernel thread\n", __func__);
+		}
+
 	} /* != BOARD_UNKNOWN */
 	else
 		printk(KERN_ERR "%s() Unsupported board detected, "
@@ -1340,8 +1409,13 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
 
-	if (dev->board != SAA7164_BOARD_UNKNOWN)
+	if (dev->board != SAA7164_BOARD_UNKNOWN) {
+		if (fw_debug && dev->kthread) {
+			kthread_stop(dev->kthread);
+			dev->kthread = NULL;
+		}
 		saa7164_api_set_debug(dev, 0x00);
+	}
 
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);

@@ -51,6 +51,8 @@
 #include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/crc32.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
@@ -109,6 +111,7 @@
 #define DBGLVL_BUF 512
 #define DBGLVL_ENC 1024
 #define DBGLVL_VBI 2048
+#define DBGLVL_THR 4096
 
 #define SAA7164_NORMS ( V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 )
 
@@ -471,6 +474,11 @@ struct saa7164_dev {
 	/* Deferred command/api interrupts handling */
 	struct work_struct workcmd;
 
+	/* A kernel thread to monitor the firmware log, used
+	 * only in debug mode.
+	 */
+	struct task_struct *kthread;
+
 };
 
 extern struct list_head saa7164_devlist;
@@ -542,7 +550,7 @@ int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect);
 int saa7164_api_get_videomux(struct saa7164_port *port);
 int saa7164_api_set_vbi_format(struct saa7164_port *port);
 int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level);
-int saa7164_api_collect_debug(struct saa7164_dev *dev, struct seq_file *m);
+int saa7164_api_collect_debug(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */
