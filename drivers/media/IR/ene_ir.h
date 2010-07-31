@@ -1,5 +1,5 @@
 /*
- * driver for ENE KB3926 B/C/D CIR (also known as ENE0100/ENE0200/ENE0201)
+ * driver for ENE KB3926 B/C/D CIR (also known as ENE0XXX)
  *
  * Copyright (C) 2010 Maxim Levitsky <maximlevitsky@gmail.com>
  *
@@ -19,8 +19,7 @@
  * USA
  */
 #include <linux/spinlock.h>
-#include <media/lirc.h>
-#include <media/lirc_dev.h>
+
 
 /* hardware address */
 #define ENE_STATUS		0	/* hardware status - unused */
@@ -88,7 +87,7 @@
 #define ENE_CIR_CONF1		0xFEC0
 #define ENE_CIR_CONF1_TX_CLEAR	0x01	/* clear that on revC */
 					/* while transmitting */
-#define ENE_CIR_CONF1_RX_ON	0x07	/* normal reciever enabled */
+#define ENE_CIR_CONF1_RX_ON	0x07	/* normal receiver enabled */
 #define ENE_CIR_CONF1_LEARN1	0x08	/* enabled on learning mode */
 #define ENE_CIR_CONF1_TX_ON	0x30	/* enabled on transmit */
 #define ENE_CIR_CONF1_TX_CARR	0x80	/* send TX carrier or not */
@@ -112,7 +111,7 @@
 /* Unknown TX setting - TX sample period ??? */
 #define ENE_TX_UNK1		0xFECB	/* set to 0x63 */
 
-/* Current recieved carrier period */
+/* Current received carrier period */
 #define ENE_RX_CARRIER		0xFECC	/* RX period (500 ns) */
 #define ENE_RX_CARRIER_VALID	0x80	/* Register content valid */
 
@@ -124,6 +123,9 @@
 
 /* Hardware versions */
 #define ENE_HW_VERSION		0xFF00	/* hardware revision */
+#define ENE_PLLFRH		0xFF16
+#define ENE_PLLFRL		0xFF17
+
 #define ENE_HW_UNK		0xFF1D
 #define ENE_HW_UNK_CLR		0x04
 #define ENE_HW_VER_MAJOR	0xFF1E	/* chip version */
@@ -162,8 +164,7 @@
 
 /******************************************************************************/
 
-#define ENE_DRIVER_NAME		"enecir"
-#define ENE_TXBUF_SIZE (500 * sizeof(int))	/* 500 samples (arbitary) */
+#define ENE_DRIVER_NAME		"ene_ir"
 
 #define ENE_IRQ_RX		1
 #define ENE_IRQ_TX		2
@@ -188,7 +189,8 @@
 
 struct ene_device {
 	struct pnp_dev *pnp_dev;
-	struct lirc_driver *lirc_driver;
+	struct input_dev *idev;
+	struct ir_dev_props *props;
 	int in_use;
 
 	/* hw IO settings */
@@ -198,43 +200,36 @@ struct ene_device {
 
 	/* HW features */
 	int hw_revision;			/* hardware revision */
-	int hw_learning_and_tx_capable;		/* learning capable */
-	int hw_gpio40_learning;			/* gpio40 is learning */
-	int hw_fan_as_normal_input;		/* fan input is used as */
+	bool hw_learning_and_tx_capable;	/* learning capable */
+	bool hw_gpio40_learning;		/* gpio40 is learning */
+	bool hw_fan_as_normal_input;		/* fan input is used as */
 						/* regular input */
 	/* HW state*/
 	int rx_pointer;				/* hw pointer to rx buffer */
-	int rx_fan_input_inuse;			/* is fan input in use for rx*/
+	bool rx_fan_input_inuse;		/* is fan input in use for rx*/
 	int tx_reg;				/* current reg used for TX */
 	u8  saved_conf1;			/* saved FEC0 reg */
-	int learning_enabled;			/* learning input enabled */
-
-	/* RX sample handling */
-	int rx_sample;				/* current recieved sample */
-	int rx_sample_pulse;			/* recieved sample is pulse */
-	int rx_idle;				/* idle mode for RX activated */
-	struct timeval rx_gap_start;		/* time of start of idle */
-	int rx_timeout;				/* time in ms of RX timeout */
-	int rx_send_timeout_packet;		/* do we send RX timeout */
-	int rx_timeout_sent;			/* we sent the timeout packet */
-	int rx_carrier_sense;			/* sense carrier */
 
 	/* TX sample handling */
 	unsigned int tx_sample;			/* current sample for TX */
-	int tx_sample_pulse;			/* current sample is pulse */
+	bool tx_sample_pulse;			/* current sample is pulse */
 
 	/* TX buffer */
-	int tx_buffer[ENE_TXBUF_SIZE];		/* input samples buffer*/
+	int *tx_buffer;				/* input samples buffer*/
 	int tx_pos;				/* position in that bufer */
 	int tx_len;				/* current len of tx buffer */
-	int tx_underway;			/* TX is under way*/
 	int tx_done;				/* done transmitting */
 						/* one more sample pending*/
 	struct completion tx_complete;		/* TX completion */
 	struct timer_list tx_sim_timer;
 
-	/*TX settings */
+	/* TX settings */
 	int tx_period;
 	int tx_duty_cycle;
 	int transmitter_mask;
+
+	/* RX settings */
+	bool learning_enabled;			/* learning input enabled */
+	bool carrier_detect_enabled;		/* carrier detect enabled */
+	int rx_period_adjust;
 };
