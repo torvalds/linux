@@ -865,6 +865,7 @@ static int saa7164_encoder_start_streaming(struct saa7164_port *port)
 
 	/* Configure the encoder with any cache values */
 	saa7164_api_set_encoder(port);
+	saa7164_api_get_encoder(port);
 
 	saa7164_buffer_cfg_port(port);
 
@@ -1006,11 +1007,19 @@ struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 {
 	struct saa7164_user_buffer *buf = 0;
 	struct saa7164_dev *dev = port->dev;
+	u32 crc;
 
 	mutex_lock(&port->dmaqueue_lock);
 	if (!list_empty(&port->list_buf_used.list)) {
 		buf = list_first_entry(&port->list_buf_used.list,
 			struct saa7164_user_buffer, list);
+
+		crc = crc32(0, buf->data, buf->actual_size);
+		if (crc != buf->crc) {
+			printk(KERN_ERR "%s() buf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
+				buf, buf->crc, crc);
+		}
+
 	}
 	mutex_unlock(&port->dmaqueue_lock);
 

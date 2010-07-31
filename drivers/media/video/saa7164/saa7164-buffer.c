@@ -113,6 +113,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	buf->flags = SAA7164_BUFFER_FREE;
 	buf->pos = 0;
 	buf->actual_size = params->pitch * params->numberoflines;
+	buf->crc = 0;
 	/* TODO: arg len is being ignored */
 	buf->pci_size = SAA7164_PT_ENTRIES * 0x1000;
 	buf->pt_size = (SAA7164_PT_ENTRIES * sizeof(u64)) + 0x1000;
@@ -129,8 +130,9 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 		goto fail2;
 
 	/* init the buffers to a known pattern, easier during debugging */
-	memset(buf->cpu, 0xff, buf->pci_size);
-	memset(buf->pt_cpu, 0xff, buf->pt_size);
+	memset_io(buf->cpu, 0xff, buf->pci_size);
+	buf->crc = crc32(0, buf->cpu, buf->actual_size);
+	memset_io(buf->pt_cpu, 0xff, buf->pt_size);
 
 	dprintk(DBGLVL_BUF, "%s()   allocated buffer @ 0x%p\n",
 		__func__, buf);
@@ -296,6 +298,7 @@ struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev, u
 
 	buf->actual_size = len;
 	buf->pos = 0;
+	buf->crc = 0;
 
 	dprintk(DBGLVL_BUF, "%s()   allocated user buffer @ 0x%p\n",
 		__func__, buf);

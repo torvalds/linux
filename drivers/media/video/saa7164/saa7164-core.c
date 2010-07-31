@@ -72,6 +72,28 @@ LIST_HEAD(saa7164_devlist);
 
 #define INT_SIZE 16
 
+void saa7164_dumphex16FF(struct saa7164_dev *dev, u8 *buf, int len)
+{
+	int i;
+	u8 tmp[16];
+	memset(&tmp[0], 0xff, sizeof(tmp));
+
+	printk(KERN_INFO "--------------------> "
+		"00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
+
+	for (i = 0; i < len; i += 16) {
+		if (memcmp(&tmp, buf + i, sizeof(tmp)) != 0) {
+			printk(KERN_INFO "         [0x%08x] "
+				"%02x %02x %02x %02x %02x %02x %02x %02x "
+				"%02x %02x %02x %02x %02x %02x %02x %02x\n", i,
+			*(buf+i+0), *(buf+i+1), *(buf+i+2), *(buf+i+3),
+			*(buf+i+4), *(buf+i+5), *(buf+i+6), *(buf+i+7),
+			*(buf+i+8), *(buf+i+9), *(buf+i+10), *(buf+i+11),
+			*(buf+i+12), *(buf+i+13), *(buf+i+14), *(buf+i+15));
+		}
+	}
+}
+
 static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 {
 	struct saa7164_port *port = buf->port;
@@ -216,6 +238,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 	struct saa7164_user_buffer *ubuf;
 	struct list_head *c, *n;
 	int wp, rp, i = 0;
+	u32 crc, ok = 0;
 	u8 *p;
 
 	port->last_svc_msecs_diff = port->last_svc_msecs;
@@ -277,10 +300,19 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
 		}
 
+		if (buf->idx == wp) {
+			/* Ignore this, it's being updated currently by the dma engine */
+		} else
 		if (buf->idx == rp) {
+
+			crc = crc32(0, buf->cpu, buf->actual_size);
+			if (crc != port->shadow_crc[rp])
+				printk(KERN_ERR "%s crc didn't match shadow was 0x%x now 0x%x\n",
+					__func__, port->shadow_crc[rp], crc);
+
 			/* Found the buffer, deal with it */
-			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
-				__func__, wp, rp);
+			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d crc32: 0x%x\n",
+				__func__, wp, rp, buf->crc);
 
 			/* Validate the incoming buffer content */
 			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
@@ -293,9 +325,23 @@ static void saa7164_work_enchandler(struct work_struct *w)
 				ubuf = list_first_entry(&port->list_buf_free.list,
 					struct saa7164_user_buffer, list);
 
-				if (ubuf->actual_size == buf->actual_size) {
-					memcpy(ubuf->data, buf->cpu,
-						ubuf->actual_size);
+				if (ubuf->actual_size >= buf->actual_size) {
+					memcpy(ubuf->data, port->shadow_buf[rp], 312 * 188);
+
+					/* Throw a new checksum on the read buffer */
+					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
+
+					if ((crc == port->shadow_crc[rp]) && (crc == ubuf->crc))
+						ok = 1;
+					else
+						ok = 0;
+
+					if (ok == 0)
+						printk(KERN_ERR
+							"rp: %d dmacrc: 0x%08x shadcrc: 0x%08x ubufcrc: 0x%08x %s\n",
+							rp, buf->crc, port->shadow_crc[rp], ubuf->crc,
+							ok ? "crcgood" : "crcbad");
+
 				} else {
 					printk(KERN_ERR "buf %p actual fails match\n", buf);
 				}
@@ -315,9 +361,21 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			/* Ensure offset into buffer remains 0, fill buffer
 			 * with known bad data. */
 			saa7164_buffer_zero_offsets(port, rp);
-			memset(buf->cpu, 0xff, buf->pci_size);
+			memset_io(buf->cpu, 0xff, buf->pci_size);
+			buf->crc = crc32(0, buf->cpu, buf->actual_size);
 
-			break;
+//			break;
+		} else {
+			/* Validate all other checksums, on previous buffers - they should never change */
+			crc = crc32(0, buf->cpu, buf->actual_size);
+			if (crc != buf->crc) {
+				printk(KERN_ERR "buf[%d].crc became invalid, was 0x%x became 0x%x rp: %d wp: %d\n",
+					buf->idx, buf->crc, crc, rp, wp);
+				//saa7164_dumphex16FF(dev, (u8 *)buf->cpu, buf->actual_size);
+				saa7164_dumphex16FF(dev, (u8 *)buf->cpu, 256);
+				buf->crc = crc;
+			}
+
 		}
 
 	}
@@ -332,7 +390,6 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		print_histogram = 64 + port->nr;
 	}
 }
-
 static void saa7164_work_cmdhandler(struct work_struct *w)
 {
 	struct saa7164_dev *dev = container_of(w, struct saa7164_dev, workcmd);
@@ -354,7 +411,11 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	int wp, rp;
+	struct saa7164_buffer *buf;
+	struct saa7164_user_buffer *ubuf;
+	struct list_head *c, *n;
+	int wp, rp, i = 0;
+	u8 *p;
 
 	/* Find the current write point from the hardware */
 	wp = saa7164_readl(port->bufcounter);
@@ -400,7 +461,48 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 		port->last_irq_wp,
 		port->last_irq_rp
 		);
+	/* Find the used buffer, shadow copy it before we've
+	 * acked the interrupt.
+	 */
+//	mutex_lock(&port->dmaqueue_lock);
+	list_for_each_safe(c, n, &port->dmaqueue.list) {
 
+		buf = list_entry(c, struct saa7164_buffer, list);
+		if (i++ > port->hwcfg.buffercount) {
+			printk(KERN_ERR "%s() illegal i count %d\n",
+				__func__, i);
+			break;
+		}
+
+		p = (u8 *)buf->cpu;
+		if (	(*(p + buf->actual_size + 0) != 0xff) ||
+			(*(p + buf->actual_size + 1) != 0xff) ||
+			(*(p + buf->actual_size + 2) != 0xff) ||
+			(*(p + buf->actual_size + 3) != 0xff) ||
+			(*(p + buf->actual_size + 0x10) != 0xff) ||
+			(*(p + buf->actual_size + 0x11) != 0xff) ||
+			(*(p + buf->actual_size + 0x12) != 0xff) ||
+			(*(p + buf->actual_size + 0x13) != 0xff) )
+		{
+			printk(KERN_ERR "buf %p failed guard check\n", buf);
+			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
+		}
+
+		if (buf->idx == rp) {
+
+			memcpy_fromio(port->shadow_buf[rp], buf->cpu, 312 * 188);
+			port->shadow_crc[rp] = crc32(0, port->shadow_buf[rp], 312 * 188);
+
+			buf->crc = crc32(0, buf->cpu, 312 * 188);
+
+			if (port->shadow_crc[rp] != buf->crc)
+				printk(KERN_ERR "%s() crc check failed 0x%x vs 0x%x\n",
+					__func__, port->shadow_crc[rp], buf->crc);
+			break;
+		}
+
+	}
+//	mutex_unlock(&port->dmaqueue_lock);
 	schedule_work(&port->workenc);
 
 	return 0;
@@ -693,10 +795,10 @@ static void saa7164_dump_busdesc(struct saa7164_dev *dev)
  */
 static void saa7164_get_descriptors(struct saa7164_dev *dev)
 {
-	memcpy(&dev->hwdesc, dev->bmmio, sizeof(tmComResHWDescr_t));
-	memcpy(&dev->intfdesc, dev->bmmio + sizeof(tmComResHWDescr_t),
+	memcpy_fromio(&dev->hwdesc, dev->bmmio, sizeof(tmComResHWDescr_t));
+	memcpy_fromio(&dev->intfdesc, dev->bmmio + sizeof(tmComResHWDescr_t),
 		sizeof(tmComResInterfaceDescr_t));
-	memcpy(&dev->busdesc, dev->bmmio + dev->intfdesc.BARLocation,
+	memcpy_fromio(&dev->busdesc, dev->bmmio + dev->intfdesc.BARLocation,
 		sizeof(tmComResBusDescr_t));
 
 	if (dev->hwdesc.bLength != sizeof(tmComResHWDescr_t)) {
@@ -742,6 +844,7 @@ static int get_resources(struct saa7164_dev *dev)
 static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 {
 	struct saa7164_port *port = 0;
+	int i;
 
 	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
 		BUG();
@@ -779,6 +882,18 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 		"encoder read() intervals");
 	saa7164_histogram_reset(&port->poll_interval,
 		"encoder poll() intervals");
+
+	if (port->type == SAA7164_MPEG_ENCODER) {
+		for (i = 0; i < 8; i ++) {
+			port->shadow_buf[i] = kzalloc(312 * 188, GFP_KERNEL);
+			if (port->shadow_buf[i] == 0)
+				printk(KERN_ERR "%s() shadow_buf ENOMEM\n", __func__);
+			else {
+				memset(port->shadow_buf[i], 0xff, 312 * 188);
+				port->shadow_crc[i] = crc32(0, port->shadow_buf[i], 312 * 188);
+			}
+		}
+	}
 
 	return 0;
 }
@@ -1057,6 +1172,8 @@ static void saa7164_shutdown(struct saa7164_dev *dev)
 static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
+	struct saa7164_port *port;
+	int i;
 
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);
@@ -1070,6 +1187,22 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 		&dev->ports[ SAA7164_PORT_ENC1 ].poll_interval);
 
 	saa7164_shutdown(dev);
+
+	port = &dev->ports[ SAA7164_PORT_ENC1 ];
+	if (port->type == SAA7164_MPEG_ENCODER) {
+		for (i = 0; i < 8; i ++) {
+			kfree(port->shadow_buf[i]);
+			port->shadow_buf[i] = 0;
+		}
+	}
+	port = &dev->ports[ SAA7164_PORT_ENC2 ];
+	if (port->type == SAA7164_MPEG_ENCODER) {
+		for (i = 0; i < 8; i ++) {
+			kfree(port->shadow_buf[i]);
+			port->shadow_buf[i] = 0;
+		}
+	}
+
 
 	if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB)
 		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS1 ]);

@@ -50,6 +50,7 @@
 #include <linux/kdev_t.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
+#include <linux/crc32.h>
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
@@ -194,6 +195,8 @@ struct saa7164_user_buffer {
 	u8  *data;
 	u32 pos;
 	u32 actual_size;
+
+	u32 crc;
 };
 
 struct saa7164_fw_status {
@@ -282,12 +285,13 @@ struct saa7164_buffer {
 
 	/* A block of page align PCI memory */
 	u32 pci_size;	/* PCI allocation size in bytes */
-	u64 *cpu;	/* Virtual address */
+	u64 __iomem *cpu;	/* Virtual address */
 	dma_addr_t dma;	/* Physical address */
+	u32 crc;	/* Checksum for the entire buffer data */
 
 	/* A page table that splits the block into a number of entries */
 	u32 pt_size;		/* PCI allocation size in bytes */
-	u64 *pt_cpu;		/* Virtual address */
+	u64 __iomem *pt_cpu;		/* Virtual address */
 	dma_addr_t pt_dma;	/* Physical address */
 
 	/* Encoder fops */
@@ -386,6 +390,9 @@ struct saa7164_port {
 	u32 a_cc_errors;
 	u8 last_v_cc;
 	u8 last_a_cc;
+
+	u8 *shadow_buf[8];
+	u32 shadow_crc[8];
 };
 
 struct saa7164_dev {
@@ -535,7 +542,6 @@ extern struct saa7164_user_buffer *saa7164_buffer_alloc_user(
 	struct saa7164_dev *dev, u32 len);
 extern void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf);
 extern int saa7164_buffer_zero_offsets(struct saa7164_port *port, int i);
-
 
 /* ----------------------------------------------------------- */
 /* saa7164-encoder.c                                            */
