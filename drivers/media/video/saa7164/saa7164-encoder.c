@@ -45,6 +45,7 @@ static const u32 saa7164_v4l2_ctrls[] = {
 	V4L2_CID_MPEG_VIDEO_ASPECT,
 	V4L2_CID_MPEG_STREAM_TYPE,
 	V4L2_CID_MPEG_AUDIO_MUTE,
+	V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 	V4L2_CID_MPEG_VIDEO_BITRATE,
 	0
 };
@@ -379,6 +380,9 @@ static int saa7164_get_ctrl(struct saa7164_port *port,
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		ctrl->value = params->ctl_aspect;
 		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		ctrl->value = params->bitrate_mode;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -436,6 +440,11 @@ static int saa7164_try_ctrl(struct v4l2_ext_control *ctrl, int ac3)
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		if ((ctrl->value >= 0) &&
 			(ctrl->value <= 255))
+			ret = 0;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		if ((ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ||
+			(ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR))
 			ret = 0;
 		break;
 	default:
@@ -496,6 +505,9 @@ static int saa7164_set_ctrl(struct saa7164_port *port,
 				ret);
 			ret = -EIO;
 		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		params->bitrate_mode = ctrl->value;
 		break;
 	default:
 		return -EINVAL;
@@ -667,6 +679,10 @@ static int fill_queryctrl(struct saa7164_encoder_params *params,
 			1, V4L2_MPEG_VIDEO_ASPECT_4x3);
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		return v4l2_ctrl_query_fill(c, 1, 255, 1, 15);
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		return v4l2_ctrl_query_fill(c,
+			V4L2_MPEG_VIDEO_BITRATE_MODE_VBR, V4L2_MPEG_VIDEO_BITRATE_MODE_CBR,
+			1, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 	default:
 		return -EINVAL;
 	}
@@ -1287,6 +1303,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	port->ctl_saturation = 62;
 	port->ctl_sharpness = 8;
 	port->encoder_params.bitrate = ENCODER_DEF_BITRATE;
+	port->encoder_params.bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR;
 	port->encoder_params.stream_type = V4L2_MPEG_STREAM_TYPE_MPEG2_PS;
 	port->encoder_params.ctl_mute = 0;
 	port->encoder_params.ctl_aspect = V4L2_MPEG_VIDEO_ASPECT_4x3;

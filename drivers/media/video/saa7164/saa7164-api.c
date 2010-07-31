@@ -59,7 +59,10 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
 	/* Establish video bitrates */
-	vb.ucVideoBitRateMode = 0;
+	if (port->encoder_params.bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
+		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_CONSTANT;
+	else
+		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_VARIABLE_PEAK;
 	vb.dwVideoBitRate = port->encoder_params.bitrate;
 	vb.dwVideoBitRatePeak = vb.dwVideoBitRate;
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,

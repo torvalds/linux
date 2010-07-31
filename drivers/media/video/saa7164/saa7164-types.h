@@ -311,6 +311,9 @@ typedef struct
 } __attribute__((packed)) tmComResProcDescrHeader_t;
 
 /* Video bitrate control message */
+#define EU_VIDEO_BIT_RATE_MODE_CONSTANT		(0)
+#define EU_VIDEO_BIT_RATE_MODE_VARIABLE_AVERAGE (1)
+#define EU_VIDEO_BIT_RATE_MODE_VARIABLE_PEAK	(2)
 typedef struct
 {
 	u8	ucVideoBitRateMode;
