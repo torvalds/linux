@@ -606,7 +606,7 @@ rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 		task->tk_msg.rpc_argp = msg->rpc_argp;
 		task->tk_msg.rpc_resp = msg->rpc_resp;
 		/* Bind the user cred */
-		rpcauth_bindcred(task, msg->rpc_cred, task->tk_flags);
+		task->tk_status = rpcauth_bindcred(task, msg->rpc_cred, task->tk_flags);
 	}
 }
 
