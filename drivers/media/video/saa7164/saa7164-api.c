@@ -26,9 +26,9 @@
 
 int saa7164_api_get_load_info(struct saa7164_dev *dev, tmFwInfoStruct_t *i)
 {
-	int ret, debug;
+	int ret;
 
-	if (!(debug & DBGLVL_CPU))
+	if (!(saa_debug & DBGLVL_CPU))
 		return 0;
 
 	dprintk(DBGLVL_API, "%s()\n", __func__);

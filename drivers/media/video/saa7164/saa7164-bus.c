@@ -83,7 +83,7 @@ void saa7164_bus_dump(struct saa7164_dev *dev)
 void saa7164_bus_verify(struct saa7164_dev *dev)
 {
 	tmComResBusInfo_t *b = &dev->bus;
-	int bug = 0, debug;
+	int bug = 0;
 
 	if (saa7164_readl(b->m_dwSetReadPos) > b->m_dwSizeSetRing)
 		bug++;
@@ -98,9 +98,9 @@ void saa7164_bus_verify(struct saa7164_dev *dev)
 		bug++;
 
 	if (bug) {
-		debug = 0xffff; /* Ensure we get the bus dump */
+		saa_debug = 0xffff; /* Ensure we get the bus dump */
 		saa7164_bus_dump(dev);
-		debug = 1024; /* Ensure we get the bus dump */
+		saa_debug = 1024; /* Ensure we get the bus dump */
 		BUG();
 	}
 }
