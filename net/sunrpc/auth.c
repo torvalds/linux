@@ -19,6 +19,15 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
+#define RPC_CREDCACHE_DEFAULT_HASHBITS	(4)
+struct rpc_cred_cache {
+	struct hlist_head	*hashtable;
+	unsigned int		hashbits;
+	spinlock_t		lock;
+};
+
+static unsigned int auth_hashbits = RPC_CREDCACHE_DEFAULT_HASHBITS;
+
 static DEFINE_SPINLOCK(rpc_authflavor_lock);
 static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	&authnull_ops,		/* AUTH_NULL */
@@ -28,6 +37,42 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
+
+#define MAX_HASHTABLE_BITS (10) 
+static int param_set_hashtbl_sz(const char *val, struct kernel_param *kp)
+{
+	unsigned long num;
+	unsigned int nbits;
+	int ret;
+
+	if (!val)
+		goto out_inval;
+	ret = strict_strtoul(val, 0, &num);
+	if (ret == -EINVAL)
+		goto out_inval;
+	nbits = fls(num);
+	if (num > (1U << nbits))
+		nbits++;
+	if (nbits > MAX_HASHTABLE_BITS || nbits < 2)
+		goto out_inval;
+	*(unsigned int *)kp->arg = nbits;
+	return 0;
+out_inval:
+	return -EINVAL;
+}
+
+static int param_get_hashtbl_sz(char *buffer, struct kernel_param *kp)
+{
+	unsigned int nbits;
+
+	nbits = *(unsigned int *)kp->arg;
+	return sprintf(buffer, "%u", 1U << nbits);
+}
+
+#define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);
+
+module_param_named(auth_hashtable_size, auth_hashbits, hashtbl_sz, 0644);
+MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
@@ -146,18 +191,22 @@ rpcauth_init_credcache(struct rpc_auth *auth)
 {
 	struct rpc_cred_cache *new;
 	unsigned int hashsize;
-	int i;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
-	new->hashbits = RPC_CREDCACHE_HASHBITS;
+		goto out_nocache;
+	new->hashbits = auth_hashbits;
 	hashsize = 1U << new->hashbits;
-	for (i = 0; i < hashsize; i++)
-		INIT_HLIST_HEAD(&new->hashtable[i]);
+	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
+	if (!new->hashtable)
+		goto out_nohashtbl;
 	spin_lock_init(&new->lock);
 	auth->au_credcache = new;
 	return 0;
+out_nohashtbl:
+	kfree(new);
+out_nocache:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
 
@@ -220,6 +269,7 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 	if (cache) {
 		auth->au_credcache = NULL;
 		rpcauth_clear_credcache(cache);
+		kfree(cache->hashtable);
 		kfree(cache);
 	}
 }

@@ -61,14 +61,7 @@ struct rpc_cred {
 /*
  * Client authentication handle
  */
-#define RPC_CREDCACHE_HASHBITS	4
-#define RPC_CREDCACHE_NR	(1 << RPC_CREDCACHE_HASHBITS)
-struct rpc_cred_cache {
-	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
-	unsigned int		hashbits;
-	spinlock_t		lock;
-};
-
+struct rpc_cred_cache;
 struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
