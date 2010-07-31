@@ -446,3 +446,15 @@ typedef struct
 	u8	ucDebugData[256];
 } __attribute__((packed)) tmComResDebugGetData_t;
 
+typedef struct
+{
+	u32	status;
+	u32	mode;
+	u32	devicespec;
+	u32	deviceinst;
+	u32	CPULoad;
+	u32	RemainHeap;
+	u32	CPUClock;
+	u32	RAMSpeed;
+} __attribute__((packed)) tmFwInfoStruct_t;
+

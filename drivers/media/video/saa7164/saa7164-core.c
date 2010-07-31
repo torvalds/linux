@@ -1191,6 +1191,8 @@ static int saa7164_proc_create(void)
 static int saa7164_thread_function(void *data)
 {
 	struct saa7164_dev *dev = data;
+	tmFwInfoStruct_t fwinfo;
+	u64 last_poll_time = 0;
 
 	dprintk(DBGLVL_THR, "thread started\n");
 
@@ -1205,7 +1207,15 @@ static int saa7164_thread_function(void *data)
 		dprintk(DBGLVL_THR, "thread running\n");
 
 		/* Dump the firmware debug message to console */
+		/* Polling this costs us 1-2% of the arm CPU */
+		/* convert this into a respnde to interrupt 0x7a */
 		saa7164_api_collect_debug(dev);
+
+		/* Monitor CPU load every 1 second */
+		if ((last_poll_time + 1000 /* ms */) < jiffies_to_msecs(jiffies)) {
+			saa7164_api_get_load_info(dev, &fwinfo);
+			last_poll_time = jiffies_to_msecs(jiffies);
+		}
 
 	}
 

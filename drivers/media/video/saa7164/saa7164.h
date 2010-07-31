@@ -112,6 +112,7 @@
 #define DBGLVL_ENC 1024
 #define DBGLVL_VBI 2048
 #define DBGLVL_THR 4096
+#define DBGLVL_CPU 8192
 
 #define SAA7164_NORMS ( V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 )
 
@@ -551,6 +552,7 @@ int saa7164_api_get_videomux(struct saa7164_port *port);
 int saa7164_api_set_vbi_format(struct saa7164_port *port);
 int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level);
 int saa7164_api_collect_debug(struct saa7164_dev *dev);
+int saa7164_api_get_load_info(struct saa7164_dev *dev, tmFwInfoStruct_t *i);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */
