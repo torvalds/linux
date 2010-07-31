@@ -406,14 +406,6 @@ void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task
 EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
 
 /*
- * Wake up the specified task
- */
-static void rpc_wake_up_task(struct rpc_task *task)
-{
-	rpc_wake_up_queued_task(task->tk_waitqueue, task);
-}
-
-/*
  * Wake up the next task on a priority queue.
  */
 static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queue)
@@ -600,7 +592,15 @@ void rpc_exit_task(struct rpc_task *task)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(rpc_exit_task);
+
+void rpc_exit(struct rpc_task *task, int status)
+{
+	task->tk_status = status;
+	task->tk_action = rpc_exit_task;
+	if (RPC_IS_QUEUED(task))
+		rpc_wake_up_queued_task(task->tk_waitqueue, task);
+}
+EXPORT_SYMBOL_GPL(rpc_exit);
 
 void rpc_release_calldata(const struct rpc_call_ops *ops, void *calldata)
 {
@@ -690,7 +690,6 @@ static void __rpc_execute(struct rpc_task *task)
 			dprintk("RPC: %5u got signal\n", task->tk_pid);
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
-			rpc_wake_up_task(task);
 		}
 		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
@@ -950,7 +949,6 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
 			rovr->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(rovr, -EIO);
-			rpc_wake_up_task(rovr);
 		}
 	}
 	spin_unlock(&clnt->cl_lock);
