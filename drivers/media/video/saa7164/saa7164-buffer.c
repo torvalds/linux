@@ -180,6 +180,20 @@ int saa7164_buffer_dealloc(struct saa7164_buffer *buf)
 	return SAA_OK;
 }
 
+int saa7164_buffer_zero_offsets(struct saa7164_port *port, int i)
+{
+	struct saa7164_dev *dev = port->dev;
+
+	if ((i < 0) || (i >= port->hwcfg.buffercount))
+		return -EINVAL;
+
+	dprintk(DBGLVL_BUF, "%s(idx = %d)\n", __func__, i);
+
+	saa7164_writel(port->bufoffset + (sizeof(u32) * i), 0);
+
+	return 0;
+}
+
 /* Write a buffer into the hardware */
 int saa7164_buffer_activate(struct saa7164_buffer *buf, int i)
 {

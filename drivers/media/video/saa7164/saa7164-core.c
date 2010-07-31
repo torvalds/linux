@@ -68,6 +68,57 @@ LIST_HEAD(saa7164_devlist);
 
 #define INT_SIZE 16
 
+static void saa7164_ts_verifier(struct saa7164_buffer *buf)
+{
+	struct saa7164_port *port = buf->port;
+	struct saa7164_dev *dev = port->dev;
+	u32 i;
+	u8 tmp, cc, a;
+	u8 *bufcpu = (u8 *)buf->cpu;
+
+	port->sync_errors = 0;
+	port->v_cc_errors = 0;
+	port->a_cc_errors = 0;
+
+	for (i = 0; i < buf->actual_size; i += 188) {
+		if (*(bufcpu + i) != 0x47)
+			port->sync_errors++;
+
+		/* Query pid lower 8 bits */
+		tmp = *(bufcpu + i + 2);
+		cc = *(bufcpu + i + 3) & 0x0f;
+
+		if (tmp == 0xf1) {
+			a = ((port->last_v_cc + 1) & 0x0f);
+			if (a != cc) {
+				printk(KERN_ERR "video cc last = %x current = %x i = %d\n", port->last_v_cc, cc, i);
+				port->v_cc_errors++;
+			}
+
+			port->last_v_cc = cc;
+		} else
+		if (tmp == 0xf2) {
+			a = ((port->last_a_cc + 1) & 0x0f);
+			if (a != cc) {
+				printk(KERN_ERR "audio cc last = %x current = %x i = %d\n", port->last_a_cc, cc, i);
+				port->a_cc_errors++;
+			}
+
+			port->last_a_cc = cc;
+		}
+
+	}
+
+	if (port->v_cc_errors)
+		printk(KERN_ERR "video pid cc, %d errors\n", port->v_cc_errors);
+
+	if (port->a_cc_errors)
+		printk(KERN_ERR "audio pid cc, %d errors\n", port->a_cc_errors);
+
+	if (port->sync_errors)
+		printk(KERN_ERR "sync_errors = %d\n", port->sync_errors);
+}
+
 static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 {
 	int i;
@@ -188,7 +239,10 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
 				__func__, wp, rp);
 
-			/* */
+			/* Validate the incoming buffer content */
+			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
+				saa7164_ts_verifier(buf);
+
 			/* find a free user buffer and clone to it */
 			if (!list_empty(&port->list_buf_free.list)) {
 
@@ -211,6 +265,11 @@ static void saa7164_work_enchandler(struct work_struct *w)
 
 			} else
 				printk(KERN_ERR "encirq no free buffers\n");
+
+			/* Ensure offset into buffer remains 0, fill buffer
+			 * with known bad data. */
+			saa7164_buffer_zero_offsets(port, rp);
+			memset(buf->cpu, 0xDE, buf->pci_size);
 
 			break;
 		}

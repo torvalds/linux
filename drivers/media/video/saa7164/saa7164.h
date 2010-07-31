@@ -375,6 +375,13 @@ struct saa7164_port {
 	struct saa7164_buffer list_buf_used;
 	struct saa7164_buffer list_buf_free;
 	wait_queue_head_t wait_read;
+
+	/* Debug */
+	u32 sync_errors;
+	u32 v_cc_errors;
+	u32 a_cc_errors;
+	u8 last_v_cc;
+	u8 last_a_cc;
 };
 
 struct saa7164_dev {
@@ -521,6 +528,7 @@ extern int saa7164_buffer_cfg_port(struct saa7164_port *port);
 extern struct saa7164_user_buffer *saa7164_buffer_alloc_user(
 	struct saa7164_dev *dev, u32 len);
 extern void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf);
+extern int saa7164_buffer_zero_offsets(struct saa7164_port *port, int i);
 
 
 /* ----------------------------------------------------------- */
