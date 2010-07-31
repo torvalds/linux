@@ -399,15 +399,73 @@ int conf_read(const char *name)
 	return 0;
 }
 
+/* Write a S_STRING */
+static void conf_write_string(bool headerfile, const char *name,
+                              const char *str, FILE *out)
+{
+	int l;
+	if (headerfile)
+		fprintf(out, "#define CONFIG_%s \"", name);
+	else
+		fprintf(out, "CONFIG_%s=\"", name);
+
+	while (1) {
+		l = strcspn(str, "\"\\");
+		if (l) {
+			fwrite(str, l, 1, out);
+			str += l;
+		}
+		if (!*str)
+			break;
+		fprintf(out, "\\%c", *str++);
+	}
+	fputs("\"\n", out);
+}
+
+static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
+                              FILE *out, bool write_no)
+{
+	const char *str;
+
+	switch (type) {
+	case S_BOOLEAN:
+	case S_TRISTATE:
+		switch (sym_get_tristate_value(sym)) {
+		case no:
+			if (write_no)
+				fprintf(out, "# CONFIG_%s is not set\n", sym->name);
+			break;
+		case mod:
+			fprintf(out, "CONFIG_%s=m\n", sym->name);
+			break;
+		case yes:
+			fprintf(out, "CONFIG_%s=y\n", sym->name);
+			break;
+		}
+		break;
+	case S_STRING:
+		conf_write_string(false, sym->name, sym_get_string_value(sym), out);
+		break;
+	case S_HEX:
+	case S_INT:
+		str = sym_get_string_value(sym);
+		fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
+		break;
+	case S_OTHER:
+	case S_UNKNOWN:
+		break;
+	}
+}
+
 int conf_write(const char *name)
 {
 	FILE *out;
 	struct symbol *sym;
 	struct menu *menu;
 	const char *basename;
-	char dirname[128], tmpname[128], newname[128];
-	int type, l;
 	const char *str;
+	char dirname[128], tmpname[128], newname[128];
+	enum symbol_type type;
 	time_t now;
 	int use_timestamp = 1;
 	char *env;
@@ -487,50 +545,11 @@ int conf_write(const char *name)
 				if (modules_sym->curr.tri == no)
 					type = S_BOOLEAN;
 			}
-			switch (type) {
-			case S_BOOLEAN:
-			case S_TRISTATE:
-				switch (sym_get_tristate_value(sym)) {
-				case no:
-					fprintf(out, "# CONFIG_%s is not set\n", sym->name);
-					break;
-				case mod:
-					fprintf(out, "CONFIG_%s=m\n", sym->name);
-					break;
-				case yes:
-					fprintf(out, "CONFIG_%s=y\n", sym->name);
-					break;
-				}
-				break;
-			case S_STRING:
-				str = sym_get_string_value(sym);
-				fprintf(out, "CONFIG_%s=\"", sym->name);
-				while (1) {
-					l = strcspn(str, "\"\\");
-					if (l) {
-						fwrite(str, l, 1, out);
-						str += l;
-					}
-					if (!*str)
-						break;
-					fprintf(out, "\\%c", *str++);
-				}
-				fputs("\"\n", out);
-				break;
-			case S_HEX:
-				str = sym_get_string_value(sym);
-				if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-					fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
-					break;
-				}
-			case S_INT:
-				str = sym_get_string_value(sym);
-				fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
-				break;
-			}
+			/* Write config symbol to file */
+			conf_write_symbol(sym, type, out, true);
 		}
 
-	next:
+next:
 		if (menu->list) {
 			menu = menu->list;
 			continue;
@@ -682,7 +701,7 @@ int conf_write_autoconf(void)
 	const char *name;
 	FILE *out, *tristate, *out_h;
 	time_t now;
-	int i, l;
+	int i;
 
 	sym_clear_all_valid();
 
@@ -732,6 +751,11 @@ int conf_write_autoconf(void)
 		sym_calc_value(sym);
 		if (!(sym->flags & SYMBOL_WRITE) || !sym->name)
 			continue;
+
+		/* write symbol to config file */
+		conf_write_symbol(sym, sym->type, out, false);
+
+		/* update autoconf and tristate files */
 		switch (sym->type) {
 		case S_BOOLEAN:
 		case S_TRISTATE:
@@ -739,12 +763,10 @@ int conf_write_autoconf(void)
 			case no:
 				break;
 			case mod:
-				fprintf(out, "CONFIG_%s=m\n", sym->name);
 				fprintf(tristate, "CONFIG_%s=M\n", sym->name);
 				fprintf(out_h, "#define CONFIG_%s_MODULE 1\n", sym->name);
 				break;
 			case yes:
-				fprintf(out, "CONFIG_%s=y\n", sym->name);
 				if (sym->type == S_TRISTATE)
 					fprintf(tristate, "CONFIG_%s=Y\n",
 							sym->name);
@@ -753,35 +775,16 @@ int conf_write_autoconf(void)
 			}
 			break;
 		case S_STRING:
-			str = sym_get_string_value(sym);
-			fprintf(out, "CONFIG_%s=\"", sym->name);
-			fprintf(out_h, "#define CONFIG_%s \"", sym->name);
-			while (1) {
-				l = strcspn(str, "\"\\");
-				if (l) {
-					fwrite(str, l, 1, out);
-					fwrite(str, l, 1, out_h);
-					str += l;
-				}
-				if (!*str)
-					break;
-				fprintf(out, "\\%c", *str);
-				fprintf(out_h, "\\%c", *str);
-				str++;
-			}
-			fputs("\"\n", out);
-			fputs("\"\n", out_h);
+			conf_write_string(true, sym->name, sym_get_string_value(sym), out_h);
 			break;
 		case S_HEX:
 			str = sym_get_string_value(sym);
 			if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-				fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
 				fprintf(out_h, "#define CONFIG_%s 0x%s\n", sym->name, str);
 				break;
 			}
 		case S_INT:
 			str = sym_get_string_value(sym);
-			fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
 			fprintf(out_h, "#define CONFIG_%s %s\n", sym->name, str);
 			break;
 		default:
