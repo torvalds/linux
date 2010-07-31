@@ -160,9 +160,8 @@ static void wl1271_spi_init(struct wl1271 *wl)
 	spi_message_add_tail(&t, &m);
 
 	spi_sync(wl_to_spi(wl), &m);
-	kfree(cmd);
-
 	wl1271_dump(DEBUG_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
+	kfree(cmd);
 }
 
 #define WL1271_BUSY_WORD_TIMEOUT 1000
