@@ -988,9 +988,6 @@ out:
 
 int saa7164_vbi_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct saa7164_vbi_fh *fh = priv;
-	struct saa7164_port *port = fh->port;
-
 	/* ntsc */
 	f->fmt.vbi.samples_per_line = 1600;
 	f->fmt.vbi.samples_per_line = 1440;
