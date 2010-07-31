@@ -241,7 +241,6 @@ int saa7164_buffer_cfg_port(struct saa7164_port *port)
 
 	dprintk(DBGLVL_BUF, "%s(port=%d)\n", __func__, port->nr);
 
-	port->counter = 0;
 	saa7164_writel(port->bufcounter, 0);
 	saa7164_writel(port->pitch, params->pitch);
 	saa7164_writel(port->bufsize, params->pitch * params->numberoflines);

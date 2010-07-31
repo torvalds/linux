@@ -378,8 +378,6 @@ struct saa7164_port {
 	struct saa7164_encoder_params encoder_params;
 	struct video_device *v4l_device;
 	atomic_t v4l_reader_count;
-//	spinlock_t slock;
-//	struct mutex fops_lock;
 
 	struct saa7164_buffer list_buf_used;
 	struct saa7164_buffer list_buf_free;
@@ -391,12 +389,6 @@ struct saa7164_port {
 	u32 a_cc_errors;
 	u8 last_v_cc;
 	u8 last_a_cc;
-
-	u8 *shadow_buf[8];
-	u32 shadow_crc[8];
-
-	u32 counter;
-	u32 read_counter;
 };
 
 struct saa7164_dev {

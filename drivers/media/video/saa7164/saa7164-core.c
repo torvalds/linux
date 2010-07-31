@@ -363,10 +363,6 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 			break;
 		}
-
-		/* Process a buffer */
-		if (port->nr == SAA7164_PORT_ENC1)
-			printk(KERN_ERR "Port enc1 processing buffer %d\n", rp);
 		saa7164_work_enchandler_helper(port, rp);
 		port->last_svc_rp = rp;
 		cnt++;
@@ -375,15 +371,13 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			break;
 	}
 
-	if (port->nr == SAA7164_PORT_ENC1)
-		printk(KERN_ERR "Enc1 processed %d buffers for port %p\n", cnt, port);
-
 	if (print_histogram == port->nr) {
 		saa7164_histogram_print(port, &port->irq_interval);
 		saa7164_histogram_print(port, &port->svc_interval);
 		saa7164_histogram_print(port, &port->irq_svc_interval);
 		saa7164_histogram_print(port, &port->read_interval);
 		saa7164_histogram_print(port, &port->poll_interval);
+		/* TODO: fix this to preserve any previous state */
 		print_histogram = 64 + port->nr;
 	}
 }
@@ -766,7 +760,6 @@ static int get_resources(struct saa7164_dev *dev)
 static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 {
 	struct saa7164_port *port = 0;
-	int i;
 
 	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
 		BUG();
@@ -804,18 +797,6 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 		"encoder read() intervals");
 	saa7164_histogram_reset(&port->poll_interval,
 		"encoder poll() intervals");
-
-	if (port->type == SAA7164_MPEG_ENCODER) {
-		for (i = 0; i < 8; i ++) {
-			port->shadow_buf[i] = kzalloc(256 * 128, GFP_KERNEL);
-			if (port->shadow_buf[i] == 0)
-				printk(KERN_ERR "%s() shadow_buf ENOMEM\n", __func__);
-			else {
-				memset(port->shadow_buf[i], 0xff, 256 * 128);
-				port->shadow_crc[i] = crc32(0, port->shadow_buf[i], 256 * 128);
-			}
-		}
-	}
 
 	return 0;
 }
@@ -1094,8 +1075,6 @@ static void saa7164_shutdown(struct saa7164_dev *dev)
 static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
-	struct saa7164_port *port;
-	int i;
 
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);
@@ -1109,22 +1088,6 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 		&dev->ports[ SAA7164_PORT_ENC1 ].poll_interval);
 
 	saa7164_shutdown(dev);
-
-	port = &dev->ports[ SAA7164_PORT_ENC1 ];
-	if (port->type == SAA7164_MPEG_ENCODER) {
-		for (i = 0; i < 8; i ++) {
-			kfree(port->shadow_buf[i]);
-			port->shadow_buf[i] = 0;
-		}
-	}
-	port = &dev->ports[ SAA7164_PORT_ENC2 ];
-	if (port->type == SAA7164_MPEG_ENCODER) {
-		for (i = 0; i < 8; i ++) {
-			kfree(port->shadow_buf[i]);
-			port->shadow_buf[i] = 0;
-		}
-	}
-
 
 	if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB)
 		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS1 ]);
