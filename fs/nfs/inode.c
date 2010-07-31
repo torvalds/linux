@@ -413,10 +413,8 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		filemap_write_and_wait(inode->i_mapping);
+	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	}
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)

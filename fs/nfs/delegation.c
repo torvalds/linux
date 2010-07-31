@@ -268,14 +268,6 @@ out:
 	return status;
 }
 
-/* Sync all data to disk upon delegation return */
-static void nfs_msync_inode(struct inode *inode)
-{
-	filemap_fdatawrite(inode->i_mapping);
-	nfs_wb_all(inode);
-	filemap_fdatawait(inode->i_mapping);
-}
-
 /*
  * Basic procedure for returning a delegation to the server
  */
@@ -367,7 +359,7 @@ int nfs_inode_return_delegation(struct inode *inode)
 		delegation = nfs_detach_delegation_locked(nfsi, NULL, clp);
 		spin_unlock(&clp->cl_lock);
 		if (delegation != NULL) {
-			nfs_msync_inode(inode);
+			nfs_wb_all(inode);
 			err = __nfs_inode_return_delegation(inode, delegation, 1);
 		}
 	}
