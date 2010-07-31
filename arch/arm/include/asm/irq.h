@@ -7,6 +7,8 @@
 #define irq_canonicalize(i)	(i)
 #endif
 
+#define NR_IRQS_LEGACY	16
+
 /*
  * Use this value to indicate lack of interrupt
  * capability

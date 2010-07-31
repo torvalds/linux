@@ -22,6 +22,7 @@
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
 #include <asm/unistd.h>
+#include <asm/tls.h>
 
 #include "entry-header.S"
 
@@ -735,12 +736,7 @@ ENTRY(__switch_to)
 #ifdef CONFIG_MMU
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
-#if defined(CONFIG_HAS_TLS_REG)
-	mcr	p15, 0, r3, c13, c0, 3		@ set TLS register
-#elif !defined(CONFIG_TLS_REG_EMUL)
-	mov	r4, #0xffff0fff
-	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
-#endif
+	set_tls	r3, r4, r5
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
@@ -1005,17 +1001,12 @@ kuser_cmpxchg_fixup:
  */
 
 __kuser_get_tls:				@ 0xffff0fe0
-
-#if !defined(CONFIG_HAS_TLS_REG) && !defined(CONFIG_TLS_REG_EMUL)
-	ldr	r0, [pc, #(16 - 8)]		@ TLS stored at 0xffff0ff0
-#else
-	mrc	p15, 0, r0, c13, c0, 3		@ read TLS register
-#endif
+	ldr	r0, [pc, #(16 - 8)]	@ read TLS, set in kuser_get_tls_init
 	usr_ret	lr
-
-	.rep	5
-	.word	0			@ pad up to __kuser_helper_version
-	.endr
+	mrc	p15, 0, r0, c13, c0, 3	@ 0xffff0fe8 hardware TLS code
+	.rep	4
+	.word	0			@ 0xffff0ff0 software TLS value, then
+	.endr				@ pad up to __kuser_helper_version
 
 /*
  * Reference declaration:

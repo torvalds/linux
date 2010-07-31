@@ -34,7 +34,6 @@ void __init eseries_fixup(struct machine_desc *desc,
 {
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	if (machine_is_e800())
 		mi->bank[0].size = (128*1024*1024);
 	else

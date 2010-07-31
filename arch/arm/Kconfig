@@ -10,6 +10,7 @@ config ARM
 	default y
 	select HAVE_AOUT
 	select HAVE_IDE
+	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	select GENERIC_ATOMIC64 if (!CPU_32v6K)
@@ -24,6 +25,7 @@ config ARM
 	select HAVE_KERNEL_LZMA
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -704,7 +706,6 @@ config ARCH_SHARK
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
 	select CPU_ARM922T
-	select ARCH_DISCONTIGMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_USES_GETTIMEOFFSET
 	help
@@ -1016,11 +1017,6 @@ endmenu
 
 source "arch/arm/common/Kconfig"
 
-config FORCE_MAX_ZONEORDER
-	int
-	depends on SA1111
-	default "9"
-
 menu "Bus support"
 
 config ARM_AMBA
@@ -1157,9 +1153,10 @@ config HOTPLUG_CPU
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || ARCH_U8500)
+		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
+		ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
 	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500)
+	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || ARCH_U8500)
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1226,10 +1223,6 @@ config OABI_COMPAT
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
 
-# Discontigmem is deprecated
-config ARCH_DISCONTIGMEM_ENABLE
-	bool
-
 config ARCH_SPARSEMEM_ENABLE
 	bool
 
@@ -1237,13 +1230,7 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
-
-config NODES_SHIFT
-	int
-	default "4" if ARCH_LH7A40X
-	default "2"
-	depends on NEED_MULTIPLE_NODES
+	def_bool ARCH_SPARSEMEM_ENABLE
 
 config HIGHMEM
 	bool "High Memory Support (EXPERIMENTAL)"
@@ -1275,7 +1262,35 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on EXPERIMENTAL
+	help
+	  This enables support for sparse irqs. This is useful in general
+	  as most CPUs have a fairly sparse array of IRQ vectors, which
+	  the irq_desc then maps directly on to. Systems with a high
+	  number of off-chip IRQs will want to treat this as
+	  experimental until they have been independently verified.
+
+	  If you don't know what to do here, say N.
+
 source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order" if ARCH_SHMOBILE
+	range 11 64 if ARCH_SHMOBILE
+	default "9" if SA1111
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config LEDS
 	bool "Timer and CPU usage LEDs"
