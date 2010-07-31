@@ -82,10 +82,10 @@ typedef struct {
 	u32	m_dwSizeSetRing;
 	u8	*m_pdwGetRing;
 	u32	m_dwSizeGetRing;
-	u32	*m_pdwSetWritePos;
-	u32	*m_pdwSetReadPos;
-	u32	*m_pdwGetWritePos;
-	u32	*m_pdwGetReadPos;
+	u32	m_dwSetWritePos;
+	u32	m_dwSetReadPos;
+	u32	m_dwGetWritePos;
+	u32	m_dwGetReadPos;
 
 	/* All access is protected */
 	struct mutex lock;

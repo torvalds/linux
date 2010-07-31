@@ -43,17 +43,11 @@ int saa7164_bus_setup(struct saa7164_dev *dev)
 
 	b->m_dwSizeGetRing	= SAA_DEVICE_BUFFERBLOCKSIZE;
 
-	b->m_pdwSetWritePos	= (u32 *)((u8 *)(dev->bmmio +
-		((u32)dev->intfdesc.BARLocation) + (2 * sizeof(u64))));
+	b->m_dwSetWritePos	= ((u32)dev->intfdesc.BARLocation) + (2 * sizeof(u64));
+	b->m_dwSetReadPos	= b->m_dwSetWritePos + (1 * sizeof(u32));
 
-	b->m_pdwSetReadPos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		1 * sizeof(u32));
-
-	b->m_pdwGetWritePos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		2 * sizeof(u32));
-
-	b->m_pdwGetReadPos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		3 * sizeof(u32));
+	b->m_dwGetWritePos	= b->m_dwSetWritePos + (2 * sizeof(u32));
+	b->m_dwGetReadPos	= b->m_dwSetWritePos + (3 * sizeof(u32));
 
 	return 0;
 }
@@ -71,17 +65,44 @@ void saa7164_bus_dump(struct saa7164_dev *dev)
 	dprintk(DBGLVL_BUS, " .m_pdwGetRing     = 0x%p\n", b->m_pdwGetRing);
 	dprintk(DBGLVL_BUS, " .m_dwSizeGetRing  = 0x%x\n", b->m_dwSizeGetRing);
 
-	dprintk(DBGLVL_BUS, " .m_pdwSetWritePos = 0x%p (0x%08x)\n",
-		b->m_pdwSetWritePos, *b->m_pdwSetWritePos);
+	dprintk(DBGLVL_BUS, " .m_dwSetReadPos   = 0x%x (0x%08x)\n",
+		b->m_dwSetReadPos, saa7164_readl(b->m_dwSetReadPos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwSetReadPos  = 0x%p (0x%08x)\n",
-		b->m_pdwSetReadPos, *b->m_pdwSetReadPos);
+	dprintk(DBGLVL_BUS, " .m_dwSetWritePos  = 0x%x (0x%08x)\n",
+		b->m_dwSetWritePos, saa7164_readl(b->m_dwSetWritePos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwGetWritePos = 0x%p (0x%08x)\n",
-		b->m_pdwGetWritePos, *b->m_pdwGetWritePos);
+	dprintk(DBGLVL_BUS, " .m_dwGetReadPos   = 0x%x (0x%08x)\n",
+		b->m_dwGetReadPos, saa7164_readl(b->m_dwGetReadPos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwGetReadPos  = 0x%p (0x%08x)\n",
-		b->m_pdwGetReadPos, *b->m_pdwGetReadPos);
+	dprintk(DBGLVL_BUS, " .m_dwGetWritePos  = 0x%x (0x%08x)\n",
+		b->m_dwGetWritePos, saa7164_readl(b->m_dwGetWritePos));
+
+}
+
+/* Intensionally throw a BUG() if the state of the message bus looks corrupt */
+void saa7164_bus_verify(struct saa7164_dev *dev)
+{
+	tmComResBusInfo_t *b = &dev->bus;
+	int bug = 0, debug;
+
+	if (saa7164_readl(b->m_dwSetReadPos) > b->m_dwSizeSetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwSetWritePos) > b->m_dwSizeSetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwGetReadPos) > b->m_dwSizeGetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwGetWritePos) > b->m_dwSizeGetRing)
+		bug++;
+
+	if (bug) {
+		debug = 0xffff; /* Ensure we get the bus dump */
+		saa7164_bus_dump(dev);
+		debug = 1024; /* Ensure we get the bus dump */
+		BUG();
+	}
 }
 
 void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
@@ -111,7 +132,7 @@ void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
 int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 {
 	tmComResBusInfo_t *bus = &dev->bus;
-	u32 bytes_to_write, read_distance, timeout, curr_srp, curr_swp;
+	u32 bytes_to_write, free_write_space, timeout, curr_srp, curr_swp;
 	u32 new_swp, space_rem;
 	int ret = SAA_ERR_BAD_PARAMETER;
 
@@ -121,6 +142,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 	}
 
 	dprintk(DBGLVL_BUS, "%s()\n", __func__);
+	saa7164_bus_verify(dev);
 
 	msg->size = cpu_to_le16(msg->size);
 	msg->command = cpu_to_le16(msg->command);
@@ -141,30 +163,30 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 	mutex_lock(&bus->lock);
 
 	bytes_to_write = sizeof(*msg) + msg->size;
-	read_distance = 0;
+	free_write_space = 0;
 	timeout = SAA_BUS_TIMEOUT;
-	curr_srp = le32_to_cpu(*bus->m_pdwSetReadPos);
-	curr_swp = le32_to_cpu(*bus->m_pdwSetWritePos);
+	curr_srp = le32_to_cpu(saa7164_readl(bus->m_dwSetReadPos));
+	curr_swp = le32_to_cpu(saa7164_readl(bus->m_dwSetWritePos));
 
 	/* Deal with ring wrapping issues */
 	if (curr_srp > curr_swp)
-		/* The ring has not wrapped yet */
-		read_distance = curr_srp - curr_swp;
-	else
 		/* Deal with the wrapped ring */
-		read_distance = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
+		free_write_space = curr_srp - curr_swp;
+	else
+		/* The ring has not wrapped yet */
+		free_write_space = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
 
 	dprintk(DBGLVL_BUS, "%s() bytes_to_write = %d\n", __func__,
 		bytes_to_write);
 
-	dprintk(DBGLVL_BUS, "%s() read_distance = %d\n", __func__,
-		read_distance);
+	dprintk(DBGLVL_BUS, "%s() free_write_space = %d\n", __func__,
+		free_write_space);
 
 	dprintk(DBGLVL_BUS, "%s() curr_srp = %x\n", __func__, curr_srp);
 	dprintk(DBGLVL_BUS, "%s() curr_swp = %x\n", __func__, curr_swp);
 
 	/* Process the msg and write the content onto the bus */
-	while (bytes_to_write >= read_distance) {
+	while (bytes_to_write >= free_write_space) {
 
 		if (timeout-- == 0) {
 			printk(KERN_ERR "%s() bus timeout\n", __func__);
@@ -177,15 +199,15 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 		mdelay(1);
 
 		/* Check the space usage again */
-		curr_srp = le32_to_cpu(*bus->m_pdwSetReadPos);
+		curr_srp = le32_to_cpu(saa7164_readl(bus->m_dwSetReadPos));
 
 		/* Deal with ring wrapping issues */
 		if (curr_srp > curr_swp)
-			/* Read didn't wrap around the buffer */
-			read_distance = curr_srp - curr_swp;
-		else
 			/* Deal with the wrapped ring */
-			read_distance = (curr_srp + bus->m_dwSizeSetRing) -
+			free_write_space = curr_srp - curr_swp;
+		else
+			/* Read didn't wrap around the buffer */
+			free_write_space = (curr_srp + bus->m_dwSizeSetRing) -
 				curr_swp;
 
 	}
@@ -217,28 +239,28 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 			dprintk(DBGLVL_BUS, "%s() tr4\n", __func__);
 
 			/* Split the msg into pieces as the ring wraps */
-			memcpy_toio(bus->m_pdwSetRing + curr_swp, msg, space_rem);
-			memcpy_toio(bus->m_pdwSetRing, (u8 *)msg + space_rem,
+			memcpy(bus->m_pdwSetRing + curr_swp, msg, space_rem);
+			memcpy(bus->m_pdwSetRing, (u8 *)msg + space_rem,
 				sizeof(*msg) - space_rem);
 
-			memcpy_toio(bus->m_pdwSetRing + sizeof(*msg) - space_rem,
+			memcpy(bus->m_pdwSetRing + sizeof(*msg) - space_rem,
 				buf, msg->size);
 
 		} else if (space_rem == sizeof(*msg)) {
 			dprintk(DBGLVL_BUS, "%s() tr5\n", __func__);
 
 			/* Additional data at the beginning of the ring */
-			memcpy_toio(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
-			memcpy_toio(bus->m_pdwSetRing, buf, msg->size);
+			memcpy(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
+			memcpy(bus->m_pdwSetRing, buf, msg->size);
 
 		} else {
 			/* Additional data wraps around the ring */
-			memcpy_toio(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
+			memcpy(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
 			if (msg->size > 0) {
-				memcpy_toio(bus->m_pdwSetRing + curr_swp +
+				memcpy(bus->m_pdwSetRing + curr_swp +
 					sizeof(*msg), buf, space_rem -
 					sizeof(*msg));
-				memcpy_toio(bus->m_pdwSetRing, (u8 *)buf +
+				memcpy(bus->m_pdwSetRing, (u8 *)buf +
 					space_rem - sizeof(*msg),
 					bytes_to_write - space_rem);
 			}
@@ -250,23 +272,21 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 		dprintk(DBGLVL_BUS, "%s() tr6\n", __func__);
 
 		/* The ring buffer doesn't wrap, two simple copies */
-		memcpy_toio(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
-		memcpy_toio(bus->m_pdwSetRing + curr_swp + sizeof(*msg), buf,
+		memcpy(bus->m_pdwSetRing + curr_swp, msg, sizeof(*msg));
+		memcpy(bus->m_pdwSetRing + curr_swp + sizeof(*msg), buf,
 			msg->size);
 	}
 
 	dprintk(DBGLVL_BUS, "%s() new_swp = %x\n", __func__, new_swp);
 
-	/* TODO: Convert all of the direct PCI writes into
-	 * saa7164_writel/b calls for consistency.
-	 */
-
 	/* Update the bus write position */
-	*bus->m_pdwSetWritePos = cpu_to_le32(new_swp);
+	saa7164_writel(bus->m_dwSetWritePos, cpu_to_le32(new_swp));
 	ret = SAA_OK;
 
 out:
+	saa7164_bus_dump(dev);
 	mutex_unlock(&bus->lock);
+	saa7164_bus_verify(dev);
 	return ret;
 }
 
@@ -288,6 +308,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 	tmComResInfo_t msg_tmp;
 	int ret = SAA_ERR_BAD_PARAMETER;
 
+	saa7164_bus_verify(dev);
 	if (msg == 0)
 		return ret;
 
@@ -309,11 +330,10 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 	/* Peek the bus to see if a msg exists, if it's not what we're expecting
 	 * then return cleanly else read the message from the bus.
 	 */
-	curr_gwp = le32_to_cpu(*bus->m_pdwGetWritePos);
-	curr_grp = le32_to_cpu(*bus->m_pdwGetReadPos);
+	curr_gwp = le32_to_cpu(saa7164_readl(bus->m_dwGetWritePos));
+	curr_grp = le32_to_cpu(saa7164_readl(bus->m_dwGetReadPos));
 
 	if (curr_gwp == curr_grp) {
-		dprintk(DBGLVL_BUS, "%s() No message on the bus\n", __func__);
 		ret = SAA_ERR_EMPTY;
 		goto out;
 	}
@@ -343,19 +363,19 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 		new_grp -= bus->m_dwSizeGetRing;
 		space_rem = bus->m_dwSizeGetRing - curr_grp;
 
-		memcpy_fromio(&msg_tmp, bus->m_pdwGetRing + curr_grp, space_rem);
-		memcpy_fromio((u8 *)&msg_tmp + space_rem, bus->m_pdwGetRing,
+		memcpy(&msg_tmp, bus->m_pdwGetRing + curr_grp, space_rem);
+		memcpy((u8 *)&msg_tmp + space_rem, bus->m_pdwGetRing,
 			bytes_to_read - space_rem);
 
 	} else {
 		/* No wrapping */
-		memcpy_fromio(&msg_tmp, bus->m_pdwGetRing + curr_grp, bytes_to_read);
+		memcpy(&msg_tmp, bus->m_pdwGetRing + curr_grp, bytes_to_read);
 	}
 
 	/* No need to update the read positions, because this was a peek */
 	/* If the caller specifically want to peek, return */
 	if (peekonly) {
-		memcpy_fromio(msg, &msg_tmp, sizeof(*msg));
+		memcpy(msg, &msg_tmp, sizeof(*msg));
 		goto peekout;
 	}
 
@@ -401,24 +421,24 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 
 		if (space_rem < sizeof(*msg)) {
 			/* msg wraps around the ring */
-			memcpy_fromio(msg, bus->m_pdwGetRing + curr_grp, space_rem);
-			memcpy_fromio((u8 *)msg + space_rem, bus->m_pdwGetRing,
+			memcpy(msg, bus->m_pdwGetRing + curr_grp, space_rem);
+			memcpy((u8 *)msg + space_rem, bus->m_pdwGetRing,
 				sizeof(*msg) - space_rem);
 			if (buf)
-				memcpy_fromio(buf, bus->m_pdwGetRing + sizeof(*msg) -
+				memcpy(buf, bus->m_pdwGetRing + sizeof(*msg) -
 					space_rem, buf_size);
 
 		} else if (space_rem == sizeof(*msg)) {
-			memcpy_fromio(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
+			memcpy(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
 			if (buf)
 				memcpy(buf, bus->m_pdwGetRing, buf_size);
 		} else {
 			/* Additional data wraps around the ring */
-			memcpy_fromio(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
+			memcpy(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
 			if (buf) {
-				memcpy_fromio(buf, bus->m_pdwGetRing + curr_grp +
+				memcpy(buf, bus->m_pdwGetRing + curr_grp +
 					sizeof(*msg), space_rem - sizeof(*msg));
-				memcpy_fromio(buf + space_rem - sizeof(*msg),
+				memcpy(buf + space_rem - sizeof(*msg),
 					bus->m_pdwGetRing, bytes_to_read -
 					space_rem);
 			}
@@ -427,14 +447,14 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 
 	} else {
 		/* No wrapping */
-		memcpy_fromio(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
+		memcpy(msg, bus->m_pdwGetRing + curr_grp, sizeof(*msg));
 		if (buf)
-			memcpy_fromio(buf, bus->m_pdwGetRing + curr_grp + sizeof(*msg),
+			memcpy(buf, bus->m_pdwGetRing + curr_grp + sizeof(*msg),
 				buf_size);
 	}
 
 	/* Update the read positions, adjusting the ring */
-	*bus->m_pdwGetReadPos = cpu_to_le32(new_grp);
+	saa7164_writel(bus->m_dwGetReadPos, cpu_to_le32(new_grp));
 
 peekout:
 	msg->size = le16_to_cpu(msg->size);
@@ -443,6 +463,7 @@ peekout:
 	ret = SAA_OK;
 out:
 	mutex_unlock(&bus->lock);
+	saa7164_bus_verify(dev);
 	return ret;
 }
 
