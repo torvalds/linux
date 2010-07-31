@@ -376,25 +376,6 @@ retry:
 	return 0;
 }
 
-/**
- * check_pattern - check if buffer contains only a certain byte pattern.
- * @buf: buffer to check
- * @patt: the pattern to check
- * @size: buffer size in bytes
- *
- * This function returns %1 in there are only @patt bytes in @buf, and %0 if
- * something else was also found.
- */
-static int check_pattern(const void *buf, uint8_t patt, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i++)
-		if (((const uint8_t *)buf)[i] != patt)
-			return 0;
-	return 1;
-}
-
 /* Patterns to write to a physical eraseblock when torturing it */
 static uint8_t patterns[] = {0xa5, 0x5a, 0x0};
 
@@ -426,7 +407,7 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 		if (err)
 			goto out;
 
-		err = check_pattern(ubi->peb_buf1, 0xFF, ubi->peb_size);
+		err = ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->peb_size);
 		if (err == 0) {
 			ubi_err("erased PEB %d, but a non-0xFF byte found",
 				pnum);
@@ -445,7 +426,8 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 		if (err)
 			goto out;
 
-		err = check_pattern(ubi->peb_buf1, patterns[i], ubi->peb_size);
+		err = ubi_check_pattern(ubi->peb_buf1, patterns[i],
+					ubi->peb_size);
 		if (err == 0) {
 			ubi_err("pattern %x checking failed for PEB %d",
 				patterns[i], pnum);
@@ -752,7 +734,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		 * 0xFF. If yes, this physical eraseblock is assumed to be
 		 * empty.
 		 */
-		if (check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
+		if (ubi_check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly empty */
 			if (verbose)
 				ubi_warn("no EC header found at PEB %d, "
@@ -1009,7 +991,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		if (read_err == -EBADMSG)
 			return UBI_IO_BAD_HDR_EBADMSG;
 
-		if (check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
+		if (ubi_check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
 			if (verbose)
 				ubi_warn("no VID header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
@@ -1363,7 +1345,7 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 		goto error;
 	}
 
-	err = check_pattern(ubi->dbg_peb_buf, 0xFF, len);
+	err = ubi_check_pattern(ubi->dbg_peb_buf, 0xFF, len);
 	if (err == 0) {
 		ubi_err("flash region at PEB %d:%d, length %d does not "
 			"contain all 0xFF bytes", pnum, offset, len);
