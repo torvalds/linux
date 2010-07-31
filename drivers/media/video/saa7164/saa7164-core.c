@@ -94,10 +94,21 @@ void saa7164_dumphex16FF(struct saa7164_dev *dev, u8 *buf, int len)
 	}
 }
 
+static void saa7164_pack_verifier(struct saa7164_buffer *buf)
+{
+	u8 *p = (u8 *)buf->cpu;
+	int i;
+
+	for (i = 0; i < buf->actual_size; i += 2048) {
+
+		if ( (*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) || (*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA) )
+			printk(KERN_ERR "No pack at 0x%x\n", i);
+	}
+}
+
 static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 {
 	struct saa7164_port *port = buf->port;
-	struct saa7164_dev *dev = port->dev;
 	u32 i;
 	u8 tmp, cc, a;
 	u8 *bufcpu = (u8 *)buf->cpu;
@@ -210,7 +221,6 @@ void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val)
 static void saa7164_histogram_print(struct saa7164_port *port,
 	struct saa7164_histogram *hg)
 {
-	struct saa7164_dev *dev = port->dev;
 	u32 entries = 0;
 	int i;
 
@@ -296,7 +306,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			(*(p + buf->actual_size + 0x12) != 0xff) ||
 			(*(p + buf->actual_size + 0x13) != 0xff) )
 		{
-			printk(KERN_ERR "buf %p failed guard check\n", buf);
+			printk(KERN_ERR "%s() buf %p failed guard check\n", __func__, buf);
 			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
 		}
 
@@ -317,6 +327,8 @@ static void saa7164_work_enchandler(struct work_struct *w)
 			/* Validate the incoming buffer content */
 			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
 				saa7164_ts_verifier(buf);
+			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+				saa7164_pack_verifier(buf);
 
 			/* find a free user buffer and clone to it */
 			if (!list_empty(&port->list_buf_free.list)) {
@@ -325,8 +337,9 @@ static void saa7164_work_enchandler(struct work_struct *w)
 				ubuf = list_first_entry(&port->list_buf_free.list,
 					struct saa7164_user_buffer, list);
 
-				if (ubuf->actual_size >= buf->actual_size) {
-					memcpy(ubuf->data, port->shadow_buf[rp], 312 * 188);
+				if (buf->actual_size <= ubuf->actual_size) {
+
+					memcpy_fromio(ubuf->data, buf->cpu, ubuf->actual_size);
 
 					/* Throw a new checksum on the read buffer */
 					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
@@ -342,29 +355,30 @@ static void saa7164_work_enchandler(struct work_struct *w)
 							rp, buf->crc, port->shadow_crc[rp], ubuf->crc,
 							ok ? "crcgood" : "crcbad");
 
+					/* Requeue the buffer on the free list */
+					ubuf->pos = 0;
+
+					list_move_tail(&ubuf->list,
+						&port->list_buf_used.list);
+
+					/* Flag any userland waiters */
+					wake_up_interruptible(&port->wait_read);
+
 				} else {
-					printk(KERN_ERR "buf %p actual fails match\n", buf);
+					printk(KERN_ERR "buf %p bufsize fails match\n", buf);
 				}
-
-				/* Requeue the buffer on the free list */
-				ubuf->pos = 0;
-
-				list_move_tail(&ubuf->list,
-					&port->list_buf_used.list);
-
-				/* Flag any userland waiters */
-				wake_up_interruptible(&port->wait_read);
 
 			} else
 				printk(KERN_ERR "encirq no free buffers, increase param encoder_buffers\n");
 
 			/* Ensure offset into buffer remains 0, fill buffer
-			 * with known bad data. */
+			 * with known bad data. We check for this data at a later point
+			 * in time. */
 			saa7164_buffer_zero_offsets(port, rp);
 			memset_io(buf->cpu, 0xff, buf->pci_size);
 			buf->crc = crc32(0, buf->cpu, buf->actual_size);
 
-//			break;
+			break;
 		} else {
 			/* Validate all other checksums, on previous buffers - they should never change */
 			crc = crc32(0, buf->cpu, buf->actual_size);
@@ -412,7 +426,6 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_buffer *buf;
-	struct saa7164_user_buffer *ubuf;
 	struct list_head *c, *n;
 	int wp, rp, i = 0;
 	u8 *p;
@@ -490,10 +503,11 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 
 		if (buf->idx == rp) {
 
-			memcpy_fromio(port->shadow_buf[rp], buf->cpu, 312 * 188);
-			port->shadow_crc[rp] = crc32(0, port->shadow_buf[rp], 312 * 188);
+			memcpy_fromio(port->shadow_buf[rp], buf->cpu, buf->actual_size);
 
-			buf->crc = crc32(0, buf->cpu, 312 * 188);
+			port->shadow_crc[rp] = crc32(0, port->shadow_buf[rp], buf->actual_size);
+
+			buf->crc = crc32(0, buf->cpu, buf->actual_size);
 
 			if (port->shadow_crc[rp] != buf->crc)
 				printk(KERN_ERR "%s() crc check failed 0x%x vs 0x%x\n",
@@ -885,12 +899,12 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 
 	if (port->type == SAA7164_MPEG_ENCODER) {
 		for (i = 0; i < 8; i ++) {
-			port->shadow_buf[i] = kzalloc(312 * 188, GFP_KERNEL);
+			port->shadow_buf[i] = kzalloc(256 * 128, GFP_KERNEL);
 			if (port->shadow_buf[i] == 0)
 				printk(KERN_ERR "%s() shadow_buf ENOMEM\n", __func__);
 			else {
-				memset(port->shadow_buf[i], 0xff, 312 * 188);
-				port->shadow_crc[i] = crc32(0, port->shadow_buf[i], 312 * 188);
+				memset(port->shadow_buf[i], 0xff, 256 * 128);
+				port->shadow_crc[i] = crc32(0, port->shadow_buf[i], 256 * 128);
 			}
 		}
 	}

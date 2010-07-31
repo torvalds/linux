@@ -1314,16 +1314,15 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	/* Init and establish defaults */
 	/* TODO: Check the umber of lines for PS */
 	port->hw_streamingparams.bitspersample = 8;
-	port->hw_streamingparams.samplesperline = 188;
-	port->hw_streamingparams.numberoflines =
-		(SAA7164_TS_NUMBER_OF_LINES * 188) / 188;
+	port->hw_streamingparams.samplesperline = 128;
+	port->hw_streamingparams.numberoflines = 256;
 
-	port->hw_streamingparams.pitch = 188;
+	port->hw_streamingparams.pitch = 128;
 	port->hw_streamingparams.linethreshold = 0;
 	port->hw_streamingparams.pagetablelistvirt = 0;
 	port->hw_streamingparams.pagetablelistphys = 0;
 	port->hw_streamingparams.numpagetables = 2 +
-		((SAA7164_TS_NUMBER_OF_LINES * 188) / PAGE_SIZE);
+		((SAA7164_PS_NUMBER_OF_LINES * 128) / PAGE_SIZE);
 
 	port->hw_streamingparams.numpagetableentries = port->hwcfg.buffercount;
 

@@ -85,6 +85,7 @@
 
 #define SAA7164_MAX_UNITS		8
 #define SAA7164_TS_NUMBER_OF_LINES	312
+#define SAA7164_PS_NUMBER_OF_LINES	256
 #define SAA7164_PT_ENTRIES		16 /* (312 * 188) / 4096 */
 #define SAA7164_MAX_ENCODER_BUFFERS	64 /* max 5secs of latency at 6Mbps */
 
@@ -393,6 +394,8 @@ struct saa7164_port {
 
 	u8 *shadow_buf[8];
 	u32 shadow_crc[8];
+
+	u32 dvd_pack_offset;
 };
 
 struct saa7164_dev {

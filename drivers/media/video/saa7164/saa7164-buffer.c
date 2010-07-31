@@ -142,7 +142,8 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 		buf->pt_cpu, (long)buf->pt_dma, buf->pt_size);
 
 	/* Format the Page Table Entries to point into the data buffer */
-	for (i = 0 ; i < SAA7164_PT_ENTRIES; i++) {
+//	for (i = 0 ; i < SAA7164_PT_ENTRIES; i++) {
+	for (i = 0 ; i < 10; i++) {
 
 		*(buf->pt_cpu + i) = buf->dma + (i * 0x1000); /* TODO */
 
