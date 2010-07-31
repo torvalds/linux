@@ -32,7 +32,7 @@ struct ir_raw_handler {
 
 struct ir_raw_event_ctrl {
 	struct list_head		list;		/* to keep track of raw clients */
-	struct work_struct		rx_work;	/* for the rx decoding workqueue */
+	struct task_struct		*thread;
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */

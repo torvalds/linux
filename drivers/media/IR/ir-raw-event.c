@@ -12,9 +12,10 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/freezer.h>
 #include "ir-core-priv.h"
 
 /* Define the max number of pulse/space transitions to buffer */
@@ -33,20 +34,30 @@ static u64 available_protocols;
 static struct work_struct wq_load;
 #endif
 
-static void ir_raw_event_work(struct work_struct *work)
+static int ir_raw_event_thread(void *data)
 {
 	struct ir_raw_event ev;
 	struct ir_raw_handler *handler;
-	struct ir_raw_event_ctrl *raw =
-		container_of(work, struct ir_raw_event_ctrl, rx_work);
+	struct ir_raw_event_ctrl *raw = (struct ir_raw_event_ctrl *)data;
 
-	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev)) {
+	while (!kthread_should_stop()) {
+		try_to_freeze();
+
 		mutex_lock(&ir_raw_handler_lock);
-		list_for_each_entry(handler, &ir_raw_handler_list, list)
-			handler->decode(raw->input_dev, ev);
+
+		while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev)) {
+			list_for_each_entry(handler, &ir_raw_handler_list, list)
+				handler->decode(raw->input_dev, ev);
+			raw->prev_ev = ev;
+		}
+
 		mutex_unlock(&ir_raw_handler_lock);
-		raw->prev_ev = ev;
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
 	}
+
+	return 0;
 }
 
 /**
@@ -141,7 +152,7 @@ void ir_raw_event_handle(struct input_dev *input_dev)
 	if (!ir->raw)
 		return;
 
-	schedule_work(&ir->raw->rx_work);
+	wake_up_process(ir->raw->thread);
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
@@ -170,7 +181,7 @@ int ir_raw_event_register(struct input_dev *input_dev)
 		return -ENOMEM;
 
 	ir->raw->input_dev = input_dev;
-	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
+
 	ir->raw->enabled_protocols = ~0;
 	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
 			 GFP_KERNEL);
@@ -178,6 +189,15 @@ int ir_raw_event_register(struct input_dev *input_dev)
 		kfree(ir->raw);
 		ir->raw = NULL;
 		return rc;
+	}
+
+	ir->raw->thread = kthread_run(ir_raw_event_thread, ir->raw,
+			"rc%u",  (unsigned int)ir->devno);
+
+	if (IS_ERR(ir->raw->thread)) {
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return PTR_ERR(ir->raw->thread);
 	}
 
 	mutex_lock(&ir_raw_handler_lock);
@@ -198,7 +218,7 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 	if (!ir->raw)
 		return;
 
-	cancel_work_sync(&ir->raw->rx_work);
+	kthread_stop(ir->raw->thread);
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&ir->raw->list);
