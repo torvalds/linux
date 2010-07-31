@@ -82,9 +82,10 @@ u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
  * -bus/c running buffer. */
 int saa7164_irq_dequeue(struct saa7164_dev *dev)
 {
-	int ret = SAA_OK;
+	int ret = SAA_OK, i = 0;
 	u32 timeout;
 	wait_queue_head_t *q = 0;
+	u8 tmp[512];
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
 
 	/* While any outstand message on the bus exists... */
@@ -109,8 +110,22 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 			printk(KERN_ERR
 				"%s() found timed out command on the bus\n",
 					__func__);
+
+			/* Clean the bus */
+			ret = saa7164_bus_get(dev, &tRsp, &tmp, 0);
+			printk(KERN_ERR "%s() ret = %x\n", __func__, ret);
+			if (ret == SAA_ERR_EMPTY)
+				/* Someone else already fetched the response */
+				return SAA_OK;
+
+			if (ret != SAA_OK)
+				return ret;
 		}
-	} while (0);
+
+		/* It's unlikely to have more than 4 or 5 pending messages, ensure we exit
+		 * at some point regardles.
+		 */
+	} while (i++ < 32);
 
 	return ret;
 }
