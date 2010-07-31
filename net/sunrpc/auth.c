@@ -587,14 +587,27 @@ static struct shrinker rpc_cred_shrinker = {
 	.seeks = DEFAULT_SEEKS,
 };
 
-void __init rpcauth_init_module(void)
+int __init rpcauth_init_module(void)
 {
-	rpc_init_authunix();
-	rpc_init_generic_auth();
+	int err;
+
+	err = rpc_init_authunix();
+	if (err < 0)
+		goto out1;
+	err = rpc_init_generic_auth();
+	if (err < 0)
+		goto out2;
 	register_shrinker(&rpc_cred_shrinker);
+	return 0;
+out2:
+	rpc_destroy_authunix();
+out1:
+	return err;
 }
 
 void __exit rpcauth_remove_module(void)
 {
+	rpc_destroy_authunix();
+	rpc_destroy_generic_auth();
 	unregister_shrinker(&rpc_cred_shrinker);
 }
