@@ -1121,48 +1121,6 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 		/* Lock the bus from any other access */
 		b = &dev->bus;
 		mutex_lock(&b->lock);
-
-		seq_printf(m, " .m_pdwSetWritePos = 0x%x (0x%08x)\n",
-			b->m_dwSetReadPos, saa7164_readl(b->m_dwSetReadPos));
-
-		seq_printf(m, " .m_pdwSetReadPos  = 0x%x (0x%08x)\n",
-			b->m_dwSetWritePos, saa7164_readl(b->m_dwSetWritePos));
-
-		seq_printf(m, " .m_pdwGetWritePos = 0x%x (0x%08x)\n",
-			b->m_dwGetReadPos, saa7164_readl(b->m_dwGetReadPos));
-
-		seq_printf(m, " .m_pdwGetReadPos  = 0x%x (0x%08x)\n",
-			b->m_dwGetWritePos, saa7164_readl(b->m_dwGetWritePos));
-		c = 0;
-		seq_printf(m, "\n  Set Ring:\n");
-		seq_printf(m, "\n addr  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
-		for (i = 0; i < b->m_dwSizeSetRing; i++) {
-			if (c == 0)
-				seq_printf(m, " %04x:", i);
-
-			seq_printf(m, " %02x", *(b->m_pdwSetRing + i));
-
-			if (++c == 16) {
-				seq_printf(m, "\n");
-				c = 0;
-			}
-		}
-
-		c = 0;
-		seq_printf(m, "\n  Get Ring:\n");
-		seq_printf(m, "\n addr  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
-		for (i = 0; i < b->m_dwSizeGetRing; i++) {
-			if (c == 0)
-				seq_printf(m, " %04x:", i);
-
-			seq_printf(m, " %02x", *(b->m_pdwGetRing + i));
-
-			if (++c == 16) {
-				seq_printf(m, "\n");
-				c = 0;
-			}
-		}
-
 		mutex_unlock(&b->lock);
 
 	}
