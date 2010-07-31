@@ -386,7 +386,7 @@ static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 /* keys for the enclosed remote control */
-static struct dvb_usb_rc_key ir_codes_az6027_table[] = {
+static struct ir_scancode ir_codes_az6027_table[] = {
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },
 };

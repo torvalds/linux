@@ -37,7 +37,7 @@ static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_pr
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_a800_table[] = {
+static struct ir_scancode ir_codes_a800_table[] = {
 	{ 0x0201, KEY_PROG1 },       /* SOURCE */
 	{ 0x0200, KEY_POWER },       /* POWER */
 	{ 0x0205, KEY_1 },           /* 1 */

@@ -144,7 +144,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	for (i = 0; i < d->props.rc_key_map_size; i++)
 		if (rc5_data(&d->props.rc_key_map[i]) == rc_state[1]) {
-			*event = d->props.rc_key_map[i].event;
+			*event = d->props.rc_key_map[i].keycode;
 
 			switch(rc_state[0]) {
 			case 0x80:
@@ -589,7 +589,7 @@ static struct m920x_inits pinnacle310e_init[] = {
 };
 
 /* ir keymaps */
-static struct dvb_usb_rc_key ir_codes_megasky_table [] = {
+static struct ir_scancode ir_codes_megasky_table[] = {
 	{ 0x0012, KEY_POWER },
 	{ 0x001e, KEY_CYCLEWINDOWS }, /* min/max */
 	{ 0x0002, KEY_CHANNELUP },
@@ -608,7 +608,7 @@ static struct dvb_usb_rc_key ir_codes_megasky_table [] = {
 	{ 0x000e, KEY_COFFEE }, /* "MTS" */
 };
 
-static struct dvb_usb_rc_key ir_codes_tvwalkertwin_table [] = {
+static struct ir_scancode ir_codes_tvwalkertwin_table[] = {
 	{ 0x0001, KEY_ZOOM }, /* Full Screen */
 	{ 0x0002, KEY_CAMERA }, /* snapshot */
 	{ 0x0003, KEY_MUTE },
@@ -628,7 +628,7 @@ static struct dvb_usb_rc_key ir_codes_tvwalkertwin_table [] = {
 	{ 0x001e, KEY_VOLUMEUP },
 };
 
-static struct dvb_usb_rc_key ir_codes_pinnacle310e_table[] = {
+static struct ir_scancode ir_codes_pinnacle310e_table[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },

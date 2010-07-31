@@ -13,13 +13,13 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	int i;
 
 	/* See if we can match the raw key code. */
 	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (keymap[i].scan == scancode) {
-			*keycode = keymap[i].event;
+		if (keymap[i].scancode == scancode) {
+			*keycode = keymap[i].keycode;
 			return 0;
 		}
 
@@ -29,8 +29,8 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 	 * to work
 	 */
 	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (keymap[i].event == KEY_RESERVED ||
-		    keymap[i].event == KEY_UNKNOWN) {
+		if (keymap[i].keycode == KEY_RESERVED ||
+		    keymap[i].keycode == KEY_UNKNOWN) {
 			*keycode = KEY_RESERVED;
 			return 0;
 		}
@@ -43,22 +43,22 @@ static int dvb_usb_setkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	int i;
 
 	/* Search if it is replacing an existing keycode */
 	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (keymap[i].scan == scancode) {
-			keymap[i].event = keycode;
+		if (keymap[i].scancode == scancode) {
+			keymap[i].keycode = keycode;
 			return 0;
 		}
 
 	/* Search if is there a clean entry. If so, use it */
 	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (keymap[i].event == KEY_RESERVED ||
-		    keymap[i].event == KEY_UNKNOWN) {
-			keymap[i].scan = scancode;
-			keymap[i].event = keycode;
+		if (keymap[i].keycode == KEY_RESERVED ||
+		    keymap[i].keycode == KEY_UNKNOWN) {
+			keymap[i].scancode = scancode;
+			keymap[i].keycode = keycode;
 			return 0;
 		}
 
@@ -184,8 +184,8 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	deb_rc("key map size: %d\n", d->props.rc_key_map_size);
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		deb_rc("setting bit for event %d item %d\n",
-			d->props.rc_key_map[i].event, i);
-		set_bit(d->props.rc_key_map[i].event, input_dev->keybit);
+			d->props.rc_key_map[i].keycode, i);
+		set_bit(d->props.rc_key_map[i].keycode, input_dev->keybit);
 	}
 
 	/* Start the remote-control polling. */
@@ -234,7 +234,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 		u8 keybuf[5], u32 *event, int *state)
 {
 	int i;
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 	switch (keybuf[0]) {
@@ -250,7 +250,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 			for (i = 0; i < d->props.rc_key_map_size; i++)
 				if (rc5_custom(&keymap[i]) == keybuf[1] &&
 					rc5_data(&keymap[i]) == keybuf[3]) {
-					*event = keymap[i].event;
+					*event = keymap[i].keycode;
 					*state = REMOTE_KEY_PRESSED;
 					return 0;
 				}

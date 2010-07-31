@@ -331,7 +331,7 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_opera1_table[] = {
+static struct ir_scancode ir_codes_opera1_table[] = {
 	{0x5fa0, KEY_1},
 	{0x51af, KEY_2},
 	{0x5da2, KEY_3},
@@ -407,9 +407,9 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 		for (i = 0; i < ARRAY_SIZE(ir_codes_opera1_table); i++) {
 			if (rc5_scan(&ir_codes_opera1_table[i]) == (send_key & 0xffff)) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = ir_codes_opera1_table[i].event;
+				*event = ir_codes_opera1_table[i].keycode;
 				opst->last_key_pressed =
-					ir_codes_opera1_table[i].event;
+					ir_codes_opera1_table[i].keycode;
 				break;
 			}
 			opst->last_key_pressed = 0;

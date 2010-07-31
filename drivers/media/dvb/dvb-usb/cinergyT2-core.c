@@ -84,7 +84,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_cinergyt2_table[] = {
+static struct ir_scancode ir_codes_cinergyt2_table[] = {
 	{ 0x0401, KEY_POWER },
 	{ 0x0402, KEY_1 },
 	{ 0x0403, KEY_2 },

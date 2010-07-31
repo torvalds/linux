@@ -477,7 +477,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[4];
 	int i;
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	struct dib0700_state *st = d->priv;
 
 	*event = 0;
@@ -521,9 +521,9 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			if (rc5_custom(&keymap[i]) == key[3-2] &&
 			    rc5_data(&keymap[i]) == key[3-3]) {
 				st->rc_counter = 0;
-				*event = keymap[i].event;
+				*event = keymap[i].keycode;
 				*state = REMOTE_KEY_PRESSED;
-				d->last_event = keymap[i].event;
+				d->last_event = keymap[i].keycode;
 				return 0;
 			}
 		}
@@ -534,7 +534,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		for (i = 0; i < d->props.rc_key_map_size; i++) {
 			if (rc5_custom(&keymap[i]) == key[3-2] &&
 			    rc5_data(&keymap[i]) == key[3-3]) {
-				if (d->last_event == keymap[i].event &&
+				if (d->last_event == keymap[i].keycode &&
 					key[3-1] == st->rc_toggle) {
 					st->rc_counter++;
 					/* prevents unwanted double hits */
@@ -547,10 +547,10 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					return 0;
 				}
 				st->rc_counter = 0;
-				*event = keymap[i].event;
+				*event = keymap[i].keycode;
 				*state = REMOTE_KEY_PRESSED;
 				st->rc_toggle = key[3-1];
-				d->last_event = keymap[i].event;
+				d->last_event = keymap[i].keycode;
 				return 0;
 			}
 		}
@@ -562,7 +562,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_dib0700_table[] = {
+static struct ir_scancode ir_codes_dib0700_table[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x0700, KEY_MUTE },
 	{ 0x0701, KEY_MENU }, /* Pinnacle logo */

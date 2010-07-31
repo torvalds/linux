@@ -161,7 +161,7 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_digitv_table[] = {
+static struct ir_scancode ir_codes_digitv_table[] = {
 	{ 0x5f55, KEY_0 },
 	{ 0x6f55, KEY_1 },
 	{ 0x9f55, KEY_2 },
@@ -240,7 +240,7 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		  for (i = 0; i < d->props.rc_key_map_size; i++) {
 			if (rc5_custom(&d->props.rc_key_map[i]) == key[1] &&
 			    rc5_data(&d->props.rc_key_map[i]) == key[2]) {
-				*event = d->props.rc_key_map[i].event;
+				*event = d->props.rc_key_map[i].keycode;
 				*state = REMOTE_KEY_PRESSED;
 				return 0;
 			}

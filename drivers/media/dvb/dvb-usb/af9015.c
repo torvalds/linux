@@ -735,7 +735,7 @@ error:
 
 struct af9015_setup {
 	unsigned int id;
-	struct dvb_usb_rc_key *rc_key_map;
+	struct ir_scancode *rc_key_map;
 	unsigned int rc_key_map_size;
 	u8 *ir_table;
 	unsigned int ir_table_size;
@@ -1063,7 +1063,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[8];
 	struct req_t req = {GET_IR_CODE, 0, 0, 0, 0, sizeof(buf), buf};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	int i, ret;
 
 	memset(buf, 0, sizeof(buf));
@@ -1078,7 +1078,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
 		    rc5_data(&keymap[i]) == buf[2]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 			break;
 		}

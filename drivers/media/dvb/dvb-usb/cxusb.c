@@ -385,7 +385,7 @@ static int cxusb_d680_dmb_streaming_ctrl(
 
 static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	u8 ircode[4];
 	int i;
 
@@ -397,7 +397,7 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[2] &&
 		    rc5_data(&keymap[i]) == ircode[3]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -410,7 +410,7 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 				    int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	u8 ircode[4];
 	int i;
 	struct i2c_msg msg = { .addr = 0x6b, .flags = I2C_M_RD,
@@ -425,7 +425,7 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[1] &&
 		    rc5_data(&keymap[i]) == ircode[2]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -438,7 +438,7 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 		int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	u8 ircode[2];
 	int i;
 
@@ -451,7 +451,7 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -461,7 +461,7 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_dvico_mce_table[] = {
+static struct ir_scancode ir_codes_dvico_mce_table[] = {
 	{ 0xfe02, KEY_TV },
 	{ 0xfe0e, KEY_MP3 },
 	{ 0xfe1a, KEY_DVD },
@@ -509,7 +509,7 @@ static struct dvb_usb_rc_key ir_codes_dvico_mce_table[] = {
 	{ 0xfe4e, KEY_POWER },
 };
 
-static struct dvb_usb_rc_key ir_codes_dvico_portable_table[] = {
+static struct ir_scancode ir_codes_dvico_portable_table[] = {
 	{ 0xfc02, KEY_SETUP },       /* Profile */
 	{ 0xfc43, KEY_POWER2 },
 	{ 0xfc06, KEY_EPG },
@@ -548,7 +548,7 @@ static struct dvb_usb_rc_key ir_codes_dvico_portable_table[] = {
 	{ 0xfc00, KEY_UNKNOWN },    /* HD */
 };
 
-static struct dvb_usb_rc_key ir_codes_d680_dmb_table[] = {
+static struct ir_scancode ir_codes_d680_dmb_table[] = {
 	{ 0x0038, KEY_UNKNOWN },	/* TV/AV */
 	{ 0x080c, KEY_ZOOM },
 	{ 0x0800, KEY_0 },

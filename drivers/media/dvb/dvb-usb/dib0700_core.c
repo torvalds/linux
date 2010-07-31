@@ -491,7 +491,7 @@ struct dib0700_rc_response {
 static void dib0700_rc_urb_completion(struct urb *purb)
 {
 	struct dvb_usb_device *d = purb->context;
-	struct dvb_usb_rc_key *keymap;
+	struct ir_scancode *keymap;
 	struct dib0700_state *st;
 	struct dib0700_rc_response poll_reply;
 	u8 *buf;
@@ -574,7 +574,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
 		    rc5_data(&keymap[i]) == poll_reply.data) {
-			event = keymap[i].event;
+			event = keymap[i].keycode;
 			found = 1;
 			break;
 		}
@@ -590,9 +590,9 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	if (poll_reply.data_state == 1) {
 		/* New key hit */
 		st->rc_counter = 0;
-		event = keymap[i].event;
+		event = keymap[i].keycode;
 		state = REMOTE_KEY_PRESSED;
-		d->last_event = keymap[i].event;
+		d->last_event = keymap[i].keycode;
 	} else if (poll_reply.data_state == 2) {
 		/* Key repeated */
 		st->rc_counter++;

@@ -174,7 +174,7 @@ static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 /* keys for the enclosed remote control */
-static struct dvb_usb_rc_key ir_codes_vp702x_table[] = {
+static struct ir_scancode ir_codes_vp702x_table[] = {
 	{ 0x0001, KEY_1 },
 	{ 0x0002, KEY_2 },
 };
@@ -200,7 +200,7 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < ARRAY_SIZE(ir_codes_vp702x_table); i++)
 		if (rc5_custom(&ir_codes_vp702x_table[i]) == key[1]) {
 			*state = REMOTE_KEY_PRESSED;
-			*event = ir_codes_vp702x_table[i].event;
+			*event = ir_codes_vp702x_table[i].keycode;
 			break;
 		}
 	return 0;

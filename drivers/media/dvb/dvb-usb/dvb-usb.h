@@ -14,6 +14,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
+#include <media/rc-map.h>
 
 #include "dvb_frontend.h"
 #include "dvb_demux.h"
@@ -74,30 +75,19 @@ struct dvb_usb_device_description {
 	struct usb_device_id *warm_ids[DVB_USB_ID_MAX_NUM];
 };
 
-/**
- * struct dvb_usb_rc_key - a remote control key and its input-event
- * @custom: the vendor/custom part of the key
- * @data: the actual key part
- * @event: the input event assigned to key identified by custom and data
- */
-struct dvb_usb_rc_key {
-	u16 scan;
-	u32 event;
-};
-
-static inline u8 rc5_custom(struct dvb_usb_rc_key *key)
+static inline u8 rc5_custom(struct ir_scancode *key)
 {
-	return (key->scan >> 8) & 0xff;
+	return (key->scancode >> 8) & 0xff;
 }
 
-static inline u8 rc5_data(struct dvb_usb_rc_key *key)
+static inline u8 rc5_data(struct ir_scancode *key)
 {
-	return key->scan & 0xff;
+	return key->scancode & 0xff;
 }
 
-static inline u8 rc5_scan(struct dvb_usb_rc_key *key)
+static inline u8 rc5_scan(struct ir_scancode *key)
 {
-	return key->scan & 0xffff;
+	return key->scancode & 0xffff;
 }
 
 struct dvb_usb_device;
@@ -185,7 +175,7 @@ struct dvb_usb_adapter_properties {
  * @identify_state: called to determine the state (cold or warm), when it
  *  is not distinguishable by the USB IDs.
  *
- * @rc_key_map: a hard-wired array of struct dvb_usb_rc_key (NULL to disable
+ * @rc_key_map: a hard-wired array of struct ir_scancode (NULL to disable
  *  remote control handling).
  * @rc_key_map_size: number of items in @rc_key_map.
  * @rc_query: called to query an event event.
@@ -237,7 +227,7 @@ struct dvb_usb_device_properties {
 #define REMOTE_NO_KEY_PRESSED      0x00
 #define REMOTE_KEY_PRESSED         0x01
 #define REMOTE_KEY_REPEAT          0x02
-	struct dvb_usb_rc_key  *rc_key_map;
+	struct ir_scancode  *rc_key_map;
 	int rc_key_map_size;
 	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
 	int rc_interval;

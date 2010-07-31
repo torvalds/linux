@@ -21,7 +21,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define deb_ee(args...) dprintk(debug,0x02,args)
 
 /* Hauppauge NOVA-T USB2 keys */
-static struct dvb_usb_rc_key ir_codes_haupp_table [] = {
+static struct ir_scancode ir_codes_haupp_table[] = {
 	{ 0x1e00, KEY_0 },
 	{ 0x1e01, KEY_1 },
 	{ 0x1e02, KEY_2 },
@@ -98,7 +98,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					deb_rc("c: %x, d: %x\n", rc5_data(&ir_codes_haupp_table[i]),
 								 rc5_custom(&ir_codes_haupp_table[i]));
 
-					*event = ir_codes_haupp_table[i].event;
+					*event = ir_codes_haupp_table[i].keycode;
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
 						if (st->last_repeat_count++ < 2)

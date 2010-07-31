@@ -377,7 +377,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	u8 ircode[2];
 	int i, ret;
 
@@ -391,7 +391,7 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 			return 0;
 		}
@@ -399,7 +399,7 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_anysee_table[] = {
+static struct ir_scancode ir_codes_anysee_table[] = {
 	{ 0x0100, KEY_0 },
 	{ 0x0101, KEY_1 },
 	{ 0x0102, KEY_2 },

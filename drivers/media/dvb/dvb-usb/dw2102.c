@@ -74,7 +74,7 @@
 		"on firmware-problems."
 
 struct ir_codes_dvb_usb_table_table {
-	struct dvb_usb_rc_key *rc_keys;
+	struct ir_scancode *rc_keys;
 	int rc_keys_size;
 };
 
@@ -948,7 +948,7 @@ static int dw3101_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key ir_codes_dw210x_table[] = {
+static struct ir_scancode ir_codes_dw210x_table[] = {
 	{ 0xf80a, KEY_Q },		/*power*/
 	{ 0xf80c, KEY_M },		/*mute*/
 	{ 0xf811, KEY_1 },
@@ -982,7 +982,7 @@ static struct dvb_usb_rc_key ir_codes_dw210x_table[] = {
 	{ 0xf81b, KEY_B },		/*recall*/
 };
 
-static struct dvb_usb_rc_key ir_codes_tevii_table[] = {
+static struct ir_scancode ir_codes_tevii_table[] = {
 	{ 0xf80a, KEY_POWER },
 	{ 0xf80c, KEY_MUTE },
 	{ 0xf811, KEY_1 },
@@ -1032,7 +1032,7 @@ static struct dvb_usb_rc_key ir_codes_tevii_table[] = {
 	{ 0xf858, KEY_SWITCHVIDEOMODE },
 };
 
-static struct dvb_usb_rc_key ir_codes_tbs_table[] = {
+static struct ir_scancode ir_codes_tbs_table[] = {
 	{ 0xf884, KEY_POWER },
 	{ 0xf894, KEY_MUTE },
 	{ 0xf887, KEY_1 },
@@ -1075,7 +1075,7 @@ static struct ir_codes_dvb_usb_table_table keys_tables[] = {
 
 static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc_key_map;
 	int keymap_size = d->props.rc_key_map_size;
 	u8 key[2];
 	struct i2c_msg msg = {
@@ -1096,7 +1096,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		for (i = 0; i < keymap_size ; i++) {
 			if (rc5_data(&keymap[i]) == msg.buf[0]) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = keymap[i].event;
+				*event = keymap[i].keycode;
 				break;
 			}
 
