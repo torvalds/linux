@@ -303,13 +303,17 @@ do_state_recovery:
 }
 
 
-static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
+static void do_renew_lease(struct nfs_client *clp, unsigned long timestamp)
 {
-	struct nfs_client *clp = server->nfs_client;
 	spin_lock(&clp->cl_lock);
 	if (time_before(clp->cl_last_renewal,timestamp))
 		clp->cl_last_renewal = timestamp;
 	spin_unlock(&clp->cl_lock);
+}
+
+static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
+{
+	do_renew_lease(server->nfs_client, timestamp);
 }
 
 #if defined(CONFIG_NFS_V4_1)
@@ -419,10 +423,7 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		++slot->seq_nr;
 		timestamp = res->sr_renewal_time;
 		clp = res->sr_session->clp;
-		spin_lock(&clp->cl_lock);
-		if (time_before(clp->cl_last_renewal, timestamp))
-			clp->cl_last_renewal = timestamp;
-		spin_unlock(&clp->cl_lock);
+		do_renew_lease(clp, timestamp);
 		/* Check sequence flags */
 		if (atomic_read(&clp->cl_count) > 1)
 			nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
@@ -3219,10 +3220,7 @@ static void nfs4_renew_done(struct rpc_task *task, void *calldata)
 			nfs4_schedule_state_recovery(clp);
 		return;
 	}
-	spin_lock(&clp->cl_lock);
-	if (time_before(clp->cl_last_renewal,timestamp))
-		clp->cl_last_renewal = timestamp;
-	spin_unlock(&clp->cl_lock);
+	do_renew_lease(clp, timestamp);
 }
 
 static const struct rpc_call_ops nfs4_renew_ops = {
@@ -3263,10 +3261,7 @@ int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
 	if (status < 0)
 		return status;
-	spin_lock(&clp->cl_lock);
-	if (time_before(clp->cl_last_renewal,now))
-		clp->cl_last_renewal = now;
-	spin_unlock(&clp->cl_lock);
+	do_renew_lease(clp, now);
 	return 0;
 }
 
