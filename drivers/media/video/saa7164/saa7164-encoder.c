@@ -207,7 +207,7 @@ static int saa7164_encoder_initialize(struct saa7164_port *port)
 /* -- V4L2 --------------------------------------------------------- */
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	unsigned int i;
@@ -259,7 +259,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -275,7 +275,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -295,7 +295,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 static int vidioc_g_tuner(struct file *file, void *priv,
 	struct v4l2_tuner *t)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -323,7 +323,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 	struct v4l2_frequency *f)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 
 	f->type = V4L2_TUNER_ANALOG_TV;
@@ -335,7 +335,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 	struct v4l2_frequency *f)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_port *tsport;
@@ -385,7 +385,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 	struct v4l2_control *ctl)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -421,7 +421,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 	struct v4l2_control *ctl)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	int ret = 0;
@@ -520,7 +520,7 @@ static int saa7164_get_ctrl(struct saa7164_port *port,
 static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 	struct v4l2_ext_controls *ctrls)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	int i, err = 0;
 
@@ -669,7 +669,7 @@ static int saa7164_set_ctrl(struct saa7164_port *port,
 static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 	struct v4l2_ext_controls *ctrls)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	int i, err = 0;
 
@@ -698,7 +698,7 @@ static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 static int vidioc_querycap(struct file *file, void  *priv,
 	struct v4l2_capability *cap)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -734,7 +734,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -755,7 +755,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -772,7 +772,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -846,7 +846,7 @@ static int fill_queryctrl(struct saa7164_encoder_params *params,
 static int vidioc_queryctrl(struct file *file, void *priv,
 	struct v4l2_queryctrl *c)
 {
-	struct saa7164_fh *fh = priv;
+	struct saa7164_encoder_fh *fh = priv;
 	struct saa7164_port *port = fh->port;
 	int i, next;
 	u32 id = c->id;
@@ -1061,7 +1061,7 @@ static int fops_open(struct file *file)
 	struct saa7164_port *port = NULL;
 	struct saa7164_port *portc = NULL;
 	struct saa7164_port *portd = NULL;
-	struct saa7164_fh *fh;
+	struct saa7164_encoder_fh *fh;
 	struct list_head *list;
 	int minor = video_devdata(file)->minor;
 
@@ -1113,7 +1113,7 @@ static int fops_open(struct file *file)
 
 static int fops_release(struct file *file)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
@@ -1163,7 +1163,7 @@ struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 static ssize_t fops_read(struct file *file, char __user *buffer,
 	size_t count, loff_t *pos)
 {
-	struct saa7164_fh *fh = file->private_data;
+	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_user_buffer *ubuf = NULL;
 	struct saa7164_dev *dev = port->dev;
@@ -1271,7 +1271,7 @@ err:
 
 static unsigned int fops_poll(struct file *file, poll_table *wait)
 {
-	struct saa7164_fh *fh = (struct saa7164_fh *)file->private_data;
+	struct saa7164_encoder_fh *fh = (struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_user_buffer *ubuf;
 	unsigned int mask = 0;
@@ -1327,7 +1327,7 @@ static const struct v4l2_file_operations mpeg_fops = {
 int saa7164_g_chip_ident(struct file *file, void *fh,
 	struct v4l2_dbg_chip_ident *chip)
 {
-	struct saa7164_port *port = ((struct saa7164_fh *)fh)->port;
+	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
@@ -1337,7 +1337,7 @@ int saa7164_g_chip_ident(struct file *file, void *fh,
 int saa7164_g_register(struct file *file, void *fh,
 	struct v4l2_dbg_register *reg)
 {
-	struct saa7164_port *port = ((struct saa7164_fh *)fh)->port;
+	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
@@ -1350,7 +1350,7 @@ int saa7164_g_register(struct file *file, void *fh,
 int saa7164_s_register(struct file *file, void *fh,
 	struct v4l2_dbg_register *reg)
 {
-	struct saa7164_port *port = ((struct saa7164_fh *)fh)->port;
+	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 

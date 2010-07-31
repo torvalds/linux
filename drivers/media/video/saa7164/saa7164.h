@@ -171,7 +171,7 @@ struct saa7164_subid {
 	u32     card;
 };
 
-struct saa7164_fh {
+struct saa7164_encoder_fh {
 	struct saa7164_port *port;
 	u32 freq;
 	u32 tuner_type;
