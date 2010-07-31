@@ -64,7 +64,7 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 	else
 		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_VARIABLE_PEAK;
 	vb.dwVideoBitRate = port->encoder_params.bitrate;
-	vb.dwVideoBitRatePeak = vb.dwVideoBitRate;
+	vb.dwVideoBitRatePeak = port->encoder_params.bitrate_peak;
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
 		EU_VIDEO_BIT_RATE_CONTROL, sizeof(tmComResEncVideoBitRate_t), &vb);
 	if (ret != SAA_OK)

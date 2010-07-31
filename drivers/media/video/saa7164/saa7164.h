@@ -255,6 +255,7 @@ struct saa7164_encoder_params {
 	u32 width;
 	u32 is_50hz;
 	u32 bitrate; /* bps */
+	u32 bitrate_peak; /* bps */
 	u32 bitrate_mode;
 	u32 stream_type; /* V4L2_MPEG_STREAM_TYPE_MPEG2_TS */
 
