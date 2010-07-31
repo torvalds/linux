@@ -246,17 +246,8 @@ static inline void rpc_task_set_debuginfo(struct rpc_task *task)
 
 static void rpc_set_active(struct rpc_task *task)
 {
-	struct rpc_clnt *clnt;
-	if (test_and_set_bit(RPC_TASK_ACTIVE, &task->tk_runstate) != 0)
-		return;
 	rpc_task_set_debuginfo(task);
-	/* Add to global list of all tasks */
-	clnt = task->tk_client;
-	if (clnt != NULL) {
-		spin_lock(&clnt->cl_lock);
-		list_add_tail(&task->tk_task, &clnt->cl_tasks);
-		spin_unlock(&clnt->cl_lock);
-	}
+	set_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 }
 
 /*
@@ -319,11 +310,6 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
 			task->tk_pid, rpc_qname(q), jiffies);
 
-	if (!RPC_IS_ASYNC(task) && !RPC_IS_ACTIVATED(task)) {
-		printk(KERN_ERR "RPC: Inactive synchronous task put to sleep!\n");
-		return;
-	}
-
 	__rpc_add_wait_queue(q, task);
 
 	BUG_ON(task->tk_callback != NULL);
@@ -334,8 +320,8 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 				rpc_action action)
 {
-	/* Mark the task as being activated if so needed */
-	rpc_set_active(task);
+	/* We shouldn't ever put an inactive task to sleep */
+	BUG_ON(!RPC_IS_ACTIVATED(task));
 
 	/*
 	 * Protect the queue operations.
@@ -807,25 +793,8 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = task_setup_data->workqueue;
 
-	task->tk_client = task_setup_data->rpc_client;
-	if (task->tk_client != NULL) {
-		kref_get(&task->tk_client->cl_kref);
-		if (task->tk_client->cl_softrtry)
-			task->tk_flags |= RPC_TASK_SOFT;
-	}
-
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
-
-	if (task_setup_data->rpc_message != NULL) {
-		task->tk_msg.rpc_proc = task_setup_data->rpc_message->rpc_proc;
-		task->tk_msg.rpc_argp = task_setup_data->rpc_message->rpc_argp;
-		task->tk_msg.rpc_resp = task_setup_data->rpc_message->rpc_resp;
-		/* Bind the user cred */
-		rpcauth_bindcred(task, task_setup_data->rpc_message->rpc_cred, task_setup_data->flags);
-		if (task->tk_action == NULL)
-			rpc_call_start(task);
-	}
 
 	/* starting timestamp */
 	task->tk_start = ktime_get();
@@ -896,10 +865,7 @@ void rpc_put_task(struct rpc_task *task)
 		xprt_release(task);
 	if (task->tk_msg.rpc_cred)
 		rpcauth_unbindcred(task);
-	if (task->tk_client) {
-		rpc_release_client(task->tk_client);
-		task->tk_client = NULL;
-	}
+	rpc_task_release_client(task);
 	if (task->tk_workqueue != NULL) {
 		INIT_WORK(&task->u.tk_work, rpc_async_release);
 		queue_work(task->tk_workqueue, &task->u.tk_work);
@@ -912,13 +878,6 @@ static void rpc_release_task(struct rpc_task *task)
 {
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
-	if (!list_empty(&task->tk_task)) {
-		struct rpc_clnt *clnt = task->tk_client;
-		/* Remove from client task list */
-		spin_lock(&clnt->cl_lock);
-		list_del(&task->tk_task);
-		spin_unlock(&clnt->cl_lock);
-	}
 	BUG_ON (RPC_IS_QUEUED(task));
 
 	/* Wake up anyone who is waiting for task completion */
@@ -926,34 +885,6 @@ static void rpc_release_task(struct rpc_task *task)
 
 	rpc_put_task(task);
 }
-
-/*
- * Kill all tasks for the given client.
- * XXX: kill their descendants as well?
- */
-void rpc_killall_tasks(struct rpc_clnt *clnt)
-{
-	struct rpc_task	*rovr;
-
-
-	if (list_empty(&clnt->cl_tasks))
-		return;
-	dprintk("RPC:       killing all tasks for client %p\n", clnt);
-	/*
-	 * Spin lock all_tasks to prevent changes...
-	 */
-	spin_lock(&clnt->cl_lock);
-	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
-		if (! RPC_IS_ACTIVATED(rovr))
-			continue;
-		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
-			rovr->tk_flags |= RPC_TASK_KILLED;
-			rpc_exit(rovr, -EIO);
-		}
-	}
-	spin_unlock(&clnt->cl_lock);
-}
-EXPORT_SYMBOL_GPL(rpc_killall_tasks);
 
 int rpciod_up(void)
 {

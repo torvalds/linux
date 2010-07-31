@@ -131,6 +131,7 @@ struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
+void		rpc_task_release_client(struct rpc_task *);
 
 int		rpcb_register(u32, u32, int, unsigned short);
 int		rpcb_v4_register(const u32 program, const u32 version,

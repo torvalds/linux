@@ -414,6 +414,35 @@ out_no_clnt:
 EXPORT_SYMBOL_GPL(rpc_clone_client);
 
 /*
+ * Kill all tasks for the given client.
+ * XXX: kill their descendants as well?
+ */
+void rpc_killall_tasks(struct rpc_clnt *clnt)
+{
+	struct rpc_task	*rovr;
+
+
+	if (list_empty(&clnt->cl_tasks))
+		return;
+	dprintk("RPC:       killing all tasks for client %p\n", clnt);
+	/*
+	 * Spin lock all_tasks to prevent changes...
+	 */
+	spin_lock(&clnt->cl_lock);
+	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
+		if (!RPC_IS_ACTIVATED(rovr))
+			continue;
+		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
+			rovr->tk_flags |= RPC_TASK_KILLED;
+			rpc_exit(rovr, -EIO);
+			rpc_wake_up_queued_task(rovr->tk_waitqueue, rovr);
+		}
+	}
+	spin_unlock(&clnt->cl_lock);
+}
+EXPORT_SYMBOL_GPL(rpc_killall_tasks);
+
+/*
  * Properly shut down an RPC client, terminating all outstanding
  * requests.
  */
@@ -538,6 +567,49 @@ out:
 }
 EXPORT_SYMBOL_GPL(rpc_bind_new_program);
 
+void rpc_task_release_client(struct rpc_task *task)
+{
+	struct rpc_clnt *clnt = task->tk_client;
+
+	if (clnt != NULL) {
+		/* Remove from client task list */
+		spin_lock(&clnt->cl_lock);
+		list_del(&task->tk_task);
+		spin_unlock(&clnt->cl_lock);
+		task->tk_client = NULL;
+
+		rpc_release_client(clnt);
+	}
+}
+
+static
+void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
+{
+	if (clnt != NULL) {
+		rpc_task_release_client(task);
+		task->tk_client = clnt;
+		kref_get(&clnt->cl_kref);
+		if (clnt->cl_softrtry)
+			task->tk_flags |= RPC_TASK_SOFT;
+		/* Add to the client's list of all tasks */
+		spin_lock(&clnt->cl_lock);
+		list_add_tail(&task->tk_task, &clnt->cl_tasks);
+		spin_unlock(&clnt->cl_lock);
+	}
+}
+
+static void
+rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
+{
+	if (msg != NULL) {
+		task->tk_msg.rpc_proc = msg->rpc_proc;
+		task->tk_msg.rpc_argp = msg->rpc_argp;
+		task->tk_msg.rpc_resp = msg->rpc_resp;
+		/* Bind the user cred */
+		rpcauth_bindcred(task, msg->rpc_cred, task->tk_flags);
+	}
+}
+
 /*
  * Default callback for async RPC calls
  */
@@ -561,6 +633,18 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 	task = rpc_new_task(task_setup_data);
 	if (IS_ERR(task))
 		goto out;
+
+	rpc_task_set_client(task, task_setup_data->rpc_client);
+	rpc_task_set_rpc_message(task, task_setup_data->rpc_message);
+
+	if (task->tk_status != 0) {
+		int ret = task->tk_status;
+		rpc_put_task(task);
+		return ERR_PTR(ret);
+	}
+
+	if (task->tk_action == NULL)
+		rpc_call_start(task);
 
 	atomic_inc(&task->tk_count);
 	rpc_execute(task);
