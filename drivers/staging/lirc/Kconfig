@@ -18,14 +18,6 @@ config LIRC_BT829
 	help
 	  Driver for the IR interface on BT829-based hardware
 
-config LIRC_ENE0100
-	tristate "ENE KB3924/ENE0100 CIR Port Reciever"
-	depends on LIRC_STAGING && PNP
-	help
-	  This is a driver for CIR port handled by ENE KB3924 embedded
-	  controller found on some notebooks.
-	  It appears on PNP list as ENE0100.
-
 config LIRC_I2C
 	tristate "I2C Based IR Receivers"
 	depends on LIRC_STAGING && I2C
