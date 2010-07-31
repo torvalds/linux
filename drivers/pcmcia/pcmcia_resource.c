@@ -857,8 +857,10 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev)
 {
 	pcmcia_release_configuration(p_dev);
 	pcmcia_release_io(p_dev, &p_dev->io);
-	if (p_dev->_irq)
+	if (p_dev->_irq) {
 		free_irq(p_dev->irq, p_dev->priv);
+		p_dev->_irq = 0;
+	}
 	if (p_dev->win)
 		pcmcia_release_window(p_dev, p_dev->win);
 }

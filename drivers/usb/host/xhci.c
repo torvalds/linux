@@ -2134,6 +2134,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* If this is a Set Address to an unconfigured device, setup ep 0 */
 	if (!udev->config)
 		xhci_setup_addressable_virt_dev(xhci, udev);
+	else
+		xhci_copy_ep0_dequeue_into_input_ctx(xhci, udev);
 	/* Otherwise, assume the core has the device configured how it wants */
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);

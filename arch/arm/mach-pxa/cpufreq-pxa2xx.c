@@ -256,13 +256,9 @@ static void init_sdram_rows(void)
 
 static u32 mdrefr_dri(unsigned int freq)
 {
-	u32 dri = 0;
+	u32 interval = freq * SDRAM_TREF / sdram_rows;
 
-	if (cpu_is_pxa25x())
-		dri = ((freq * SDRAM_TREF) / (sdram_rows * 32));
-	if (cpu_is_pxa27x())
-		dri = ((freq * SDRAM_TREF) / (sdram_rows - 31)) / 32;
-	return dri;
+	return (interval - (cpu_is_pxa27x() ? 31 : 0)) / 32;
 }
 
 /* find a valid frequency point */

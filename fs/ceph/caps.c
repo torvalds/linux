@@ -627,7 +627,7 @@ retry:
 	if (fmode >= 0)
 		__ceph_get_fmode(ci, fmode);
 	spin_unlock(&inode->i_lock);
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
@@ -1181,7 +1181,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	}
 
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 
 	return delayed;
 }
@@ -2153,7 +2153,7 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 	else if (flushsnaps)
 		ceph_flush_snaps(ci);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 	if (put)
 		iput(inode);
 }
@@ -2229,7 +2229,7 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 		iput(inode);
 	} else if (complete_capsnap) {
 		ceph_flush_snaps(ci);
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 	}
 	if (drop_capsnap)
 		iput(inode);
@@ -2405,7 +2405,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	if (queue_invalidate)
 		ceph_queue_invalidate(inode);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 
 	if (check_caps == 1)
 		ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_AUTHONLY,
@@ -2460,7 +2460,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 					 struct ceph_inode_info,
 					 i_flushing_item)->vfs_inode);
 		mdsc->num_cap_flushing--;
-		wake_up(&mdsc->cap_flushing_wq);
+		wake_up_all(&mdsc->cap_flushing_wq);
 		dout(" inode %p now !flushing\n", inode);
 
 		if (ci->i_dirty_caps == 0) {
@@ -2472,7 +2472,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 		}
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 
 out:
 	spin_unlock(&inode->i_lock);
@@ -2984,6 +2984,7 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 		memcpy(*p, dentry->d_name.name, dentry->d_name.len);
 		*p += dentry->d_name.len;
 		rel->dname_seq = cpu_to_le32(di->lease_seq);
+		__ceph_mdsc_drop_dentry_lease(dentry);
 	}
 	spin_unlock(&dentry->d_lock);
 	return ret;

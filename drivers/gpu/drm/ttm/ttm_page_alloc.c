@@ -40,11 +40,13 @@
 #include <linux/slab.h>
 
 #include <asm/atomic.h>
-#include <asm/agp.h>
 
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
 
+#ifdef TTM_HAS_AGP
+#include <asm/agp.h>
+#endif
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		16
@@ -392,7 +394,7 @@ static int ttm_pool_get_num_unused_pages(void)
 /**
  * Callback for mm to request pool to reduce number of page held.
  */
-static int ttm_pool_mm_shrink(int shrink_pages, gfp_t gfp_mask)
+static int ttm_pool_mm_shrink(struct shrinker *shrink, int shrink_pages, gfp_t gfp_mask)
 {
 	static atomic_t start_pool = ATOMIC_INIT(0);
 	unsigned i;

@@ -345,7 +345,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 
 out:
 	mutex_unlock(&monc->mutex);
-	wake_up(&client->auth_wq);
+	wake_up_all(&client->auth_wq);
 }
 
 /*
@@ -462,7 +462,7 @@ static void handle_statfs_reply(struct ceph_mon_client *monc,
 	}
 	mutex_unlock(&monc->mutex);
 	if (req) {
-		complete(&req->completion);
+		complete_all(&req->completion);
 		put_generic_request(req);
 	}
 	return;
@@ -718,7 +718,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 				     monc->m_auth->front_max);
 	if (ret < 0) {
 		monc->client->auth_err = ret;
-		wake_up(&monc->client->auth_wq);
+		wake_up_all(&monc->client->auth_wq);
 	} else if (ret > 0) {
 		__send_prepared_auth_request(monc, ret);
 	} else if (!was_auth && monc->auth->ops->is_authenticated(monc->auth)) {
