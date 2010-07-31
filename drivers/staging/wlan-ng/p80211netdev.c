@@ -560,7 +560,7 @@ static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 {
 	int result = 0;
-	p80211ioctl_req_t *req = (p80211ioctl_req_t *) ifr;
+	struct p80211ioctl_req *req = (struct p80211ioctl_req *) ifr;
 	wlandevice_t *wlandev = dev->ml_priv;
 	u8 *msgbuf;
 
