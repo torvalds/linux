@@ -1329,7 +1329,6 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		saa7164_gpio_setup(dev);
 		saa7164_card_setup(dev);
 
-
 		/* Parse the dynamic device configuration, find various
 		 * media endpoints (MPEG, WMV, PS, TS) and cache their
 		 * configuration details into the driver, so we can

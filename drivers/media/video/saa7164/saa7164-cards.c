@@ -465,8 +465,6 @@ void saa7164_card_list(struct saa7164_dev *dev)
 
 void saa7164_gpio_setup(struct saa7164_dev *dev)
 {
-
-
 	switch (dev->board) {
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
@@ -490,7 +488,6 @@ void saa7164_gpio_setup(struct saa7164_dev *dev)
 		saa7164_api_set_gpiobit(dev, PCIEBRIDGE_UNITID, 3);
 		break;
 	}
-
 }
 
 static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)

@@ -142,6 +142,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 	}
 
 	dprintk(DBGLVL_BUS, "%s()\n", __func__);
+
 	saa7164_bus_verify(dev);
 
 	msg->size = cpu_to_le16(msg->size);
@@ -309,6 +310,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 	int ret = SAA_ERR_BAD_PARAMETER;
 
 	saa7164_bus_verify(dev);
+
 	if (msg == 0)
 		return ret;
 

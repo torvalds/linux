@@ -436,11 +436,13 @@ int saa7164_api_set_videomux(struct saa7164_port *port)
 		SU_INPUT_SELECT_CONTROL, sizeof(u8), &port->mux_input);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+
 	/* Audio Mux */
 	ret = saa7164_cmd_send(port->dev, port->audfeat.sourceid, SET_CUR,
 		SU_INPUT_SELECT_CONTROL, sizeof(u8), &inputs[ port->mux_input - 1 ]);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+
 	/* Audio UnMute */
 	ret = saa7164_api_audio_mute(port, 0);
 	if (ret != SAA_OK)
@@ -794,7 +796,6 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 	return saa7164_api_i2c_read(&dev->i2c_bus[0], 0xa0 >> 1, sizeof(reg),
 		&reg[0], 128, buf);
 }
-
 
 int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
 	struct saa7164_port *port)
@@ -1459,7 +1460,6 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	return ret == SAA_OK ? 0 : -EIO;
 }
 
-
 int saa7164_api_modify_gpio(struct saa7164_dev *dev, u8 unitid,
 	u8 pin, u8 state)
 {
@@ -1495,6 +1495,4 @@ int saa7164_api_clear_gpiobit(struct saa7164_dev *dev, u8 unitid,
 {
 	return saa7164_api_modify_gpio(dev, unitid, pin, 0);
 }
-
-
 

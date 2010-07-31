@@ -314,9 +314,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 	struct v4l2_tuner *t)
 {
-
 	/* Update the A/V core */
-
 	return 0;
 }
 

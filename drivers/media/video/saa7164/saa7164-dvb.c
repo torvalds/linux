@@ -531,8 +531,6 @@ int saa7164_dvb_register(struct saa7164_port *port)
 		return -1;
 	}
 
-	/* Put the analog decoder in standby to keep it quiet */
-
 	/* register everything */
 	ret = dvb_register(port);
 	if (ret < 0) {
