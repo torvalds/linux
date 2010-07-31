@@ -57,7 +57,7 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
-	default y if SMP && !LOCAL_TIMERS
+	default y if SMP
 
 config HAVE_TCM
 	bool
@@ -1263,16 +1263,13 @@ config HW_PERF_EVENTS
 	  disabled, perf events will use software events only.
 
 config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on EXPERIMENTAL
+	def_bool n
 	help
 	  This enables support for sparse irqs. This is useful in general
 	  as most CPUs have a fairly sparse array of IRQ vectors, which
 	  the irq_desc then maps directly on to. Systems with a high
 	  number of off-chip IRQs will want to treat this as
 	  experimental until they have been independently verified.
-
-	  If you don't know what to do here, say N.
 
 source "mm/Kconfig"
 
