@@ -14,7 +14,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
-#include <media/rc-map.h>
+#include <media/ir-core.h>
 
 #include "dvb_frontend.h"
 #include "dvb_demux.h"
@@ -177,6 +177,34 @@ struct dvb_rc_legacy {
 };
 
 /**
+ * struct dvb_rc properties of remote controller, using rc-core
+ * @rc_codes: name of rc codes table
+ * @rc_query: called to query an event event.
+ * @rc_interval: time in ms between two queries.
+ * @rc_props: remote controller properties
+ * @bulk_mode: device supports bulk mode for RC (disable polling mode)
+ */
+struct dvb_rc {
+	char *rc_codes;
+	char *module_name;
+	int (*rc_query) (struct dvb_usb_device *d);
+	int rc_interval;
+	struct ir_dev_props rc_props;
+	bool bulk_mode;				/* uses bulk mode */
+};
+
+/**
+ * enum dvb_usb_mode - Specifies if it is using a legacy driver or a new one
+ *		       based on rc-core
+ * This is initialized/used only inside dvb-usb-remote.c.
+ * It shouldn't be set by the drivers.
+ */
+enum dvb_usb_mode {
+	DVB_RC_LEGACY,
+	DVB_RC_CORE,
+};
+
+/**
  * struct dvb_usb_device_properties - properties of a dvb-usb-device
  * @usb_ctrl: which USB device-side controller is in use. Needed for firmware
  *  download.
@@ -238,8 +266,10 @@ struct dvb_usb_device_properties {
 	int (*identify_state)   (struct usb_device *, struct dvb_usb_device_properties *,
 			struct dvb_usb_device_description **, int *);
 
-	union {
+	struct {
+		enum dvb_usb_mode mode;	/* Drivers shouldn't touch on it */
 		struct dvb_rc_legacy legacy;
+		struct dvb_rc core;
 	} rc;
 
 	struct i2c_algorithm *i2c_algo;
