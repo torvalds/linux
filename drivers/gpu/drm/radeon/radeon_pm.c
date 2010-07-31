@@ -333,6 +333,7 @@ static ssize_t radeon_get_pm_profile(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			(cp == PM_PROFILE_AUTO) ? "auto" :
 			(cp == PM_PROFILE_LOW) ? "low" :
+			(cp == PM_PROFILE_MID) ? "mid" :
 			(cp == PM_PROFILE_HIGH) ? "high" : "default");
 }
 
