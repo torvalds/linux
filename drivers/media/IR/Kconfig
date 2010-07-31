@@ -1,7 +1,9 @@
-config IR_CORE
-	tristate
+menuconfig IR_CORE
+	tristate "Infrared remote controller adapters"
 	depends on INPUT
 	default INPUT
+
+if IR_CORE
 
 config VIDEO_IR
 	tristate
@@ -16,7 +18,7 @@ config LIRC
 	   Enable this option to build the Linux Infrared Remote
 	   Control (LIRC) core device interface driver. The LIRC
 	   interface passes raw IR to and from userspace, where the
-	   LIRC daemon handles protocol decoding for IR reception ann
+	   LIRC daemon handles protocol decoding for IR reception and
 	   encoding for IR transmitting (aka "blasting").
 
 source "drivers/media/IR/keymaps/Kconfig"
@@ -115,3 +117,5 @@ config IR_STREAMZAP
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called streamzap.
+
+endif #IR_CORE
