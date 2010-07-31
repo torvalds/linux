@@ -79,6 +79,7 @@ struct ir_raw_event_ctrl {
 	struct lirc_codec {
 		struct ir_input_dev *ir_dev;
 		struct lirc_driver *drv;
+		int carrier_low;
 	} lirc;
 };
 

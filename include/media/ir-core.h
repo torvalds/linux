@@ -44,6 +44,8 @@ enum rc_driver_type {
  * @timeout: optional time after which device stops sending data
  * @min_timeout: minimum timeout supported by device
  * @max_timeout: maximum timeout supported by device
+ * @rx_resolution : resolution (in ns) of input sampler
+ * @tx_resolution: resolution (in ns) of output sampler
  * @priv: driver-specific data, to be used on the callbacks
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
@@ -52,9 +54,12 @@ enum rc_driver_type {
  *	is opened.
  * @s_tx_mask: set transmitter mask (for devices with multiple tx outputs)
  * @s_tx_carrier: set transmit carrier frequency
+ * @s_tx_duty_cycle: set transmit duty cycle (0% - 100%)
+ * @s_rx_carrier: inform driver about carrier it is expected to handle
  * @tx_ir: transmit IR
  * @s_idle: optional: enable/disable hardware idle mode, upon which,
- *	device doesn't interrupt host untill it sees IR data
+	device doesn't interrupt host until it sees IR pulses
+ * @s_learning_mode: enable wide band receiver used for learning
  */
 struct ir_dev_props {
 	enum rc_driver_type	driver_type;
@@ -65,6 +70,8 @@ struct ir_dev_props {
 	u32			min_timeout;
 	u32			max_timeout;
 
+	u32			rx_resolution;
+	u32			tx_resolution;
 
 	void			*priv;
 	int			(*change_protocol)(void *priv, u64 ir_type);
@@ -72,8 +79,11 @@ struct ir_dev_props {
 	void			(*close)(void *priv);
 	int			(*s_tx_mask)(void *priv, u32 mask);
 	int			(*s_tx_carrier)(void *priv, u32 carrier);
+	int			(*s_tx_duty_cycle)(void *priv, u32 duty_cycle);
+	int			(*s_rx_carrier_range)(void *priv, u32 min, u32 max);
 	int			(*tx_ir)(void *priv, int *txbuf, u32 n);
 	void			(*s_idle)(void *priv, int enable);
+	int			(*s_learning_mode)(void *priv, int enable);
 };
 
 struct ir_input_dev {
