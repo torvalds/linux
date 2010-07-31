@@ -32,6 +32,7 @@
 static int ir_lirc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
+	int sample;
 
 	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_LIRC))
 		return 0;
@@ -39,18 +40,21 @@ static int ir_lirc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	if (!ir_dev->raw->lirc.drv || !ir_dev->raw->lirc.drv->rbuf)
 		return -EINVAL;
 
+	if (IS_RESET(ev))
+		return 0;
+
 	IR_dprintk(2, "LIRC data transfer started (%uus %s)\n",
 		   TO_US(ev.duration), TO_STR(ev.pulse));
 
-	ir_dev->raw->lirc.lircdata += ev.duration / 1000;
+
+	sample = ev.duration / 1000;
 	if (ev.pulse)
-		ir_dev->raw->lirc.lircdata |= PULSE_BIT;
+		sample |= PULSE_BIT;
 
 	lirc_buffer_write(ir_dev->raw->lirc.drv->rbuf,
-			  (unsigned char *) &ir_dev->raw->lirc.lircdata);
+			  (unsigned char *) &sample);
 	wake_up(&ir_dev->raw->lirc.drv->rbuf->wait_poll);
 
-	ir_dev->raw->lirc.lircdata = 0;
 
 	return 0;
 }
@@ -224,8 +228,6 @@ static int ir_lirc_register(struct input_dev *input_dev)
 
 	ir_dev->raw->lirc.drv = drv;
 	ir_dev->raw->lirc.ir_dev = ir_dev;
-	ir_dev->raw->lirc.lircdata = PULSE_MASK;
-
 	return 0;
 
 lirc_register_failed:
