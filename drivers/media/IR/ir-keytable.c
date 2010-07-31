@@ -428,7 +428,7 @@ static void ir_close(struct input_dev *input_dev)
  */
 int __ir_input_register(struct input_dev *input_dev,
 		      const struct ir_scancode_table *rc_tab,
-		      const struct ir_dev_props *props,
+		      struct ir_dev_props *props,
 		      const char *driver_name)
 {
 	struct ir_input_dev *ir_dev;
