@@ -48,17 +48,25 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
+#include <linux/version.h>
+#include <linux/mutex.h>
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
+#include <linux/smp_lock.h>
+#include <dvb_demux.h>
+#include <dvb_frontend.h>
+#include <dvb_net.h>
+#include <dvbdev.h>
+#include <dmxdev.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-chip-ident.h>
 
 #include "saa7164-reg.h"
 #include "saa7164-types.h"
-
-#include <linux/version.h>
-#include <linux/mutex.h>
 
 #define SAA7164_MAXBOARDS 8
 
@@ -77,6 +85,14 @@
 #define SAA7164_MAX_UNITS		8
 #define SAA7164_TS_NUMBER_OF_LINES	312
 #define SAA7164_PT_ENTRIES		16 /* (312 * 188) / 4096 */
+#define SAA7164_MAX_ENCODER_BUFFERS	16
+
+/* Port related defines */
+#define SAA7164_PORT_TS1	(0)
+#define SAA7164_PORT_TS2	(SAA7164_PORT_TS1 + 1)
+#define SAA7164_PORT_ENC1	(SAA7164_PORT_TS2 + 1)
+#define SAA7164_PORT_ENC2	(SAA7164_PORT_ENC1 + 1)
+#define SAA7164_MAX_PORTS	(SAA7164_PORT_ENC2 + 1)
 
 #define DBGLVL_FW    4
 #define DBGLVL_DVB   8
@@ -87,6 +103,8 @@
 #define DBGLVL_IRQ 256
 #define DBGLVL_BUF 512
 #define DBGLVL_ENC 1024
+
+#define SAA7164_NORMS ( V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 )
 
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,
@@ -136,7 +154,7 @@ struct saa7164_unit {
 
 struct saa7164_board {
 	char	*name;
-	enum port_t porta, portb;
+	enum port_t porta, portb, portc, portd;
 	enum {
 		SAA7164_CHIP_UNDEFINED = 0,
 		SAA7164_CHIP_REV2,
@@ -149,6 +167,22 @@ struct saa7164_subid {
 	u16     subvendor;
 	u16     subdevice;
 	u32     card;
+};
+
+struct saa7164_fh {
+	struct saa7164_port *port;
+	u32 freq;
+	u32 tuner_type;
+	atomic_t v4l_reading;
+};
+
+struct saa7164_user_buffer {
+	struct list_head list;
+
+	/* Attributes */
+	u8  *data;
+	u32 pos;
+	u32 actual_size;
 };
 
 struct saa7164_fw_status {
@@ -191,6 +225,30 @@ struct saa7164_i2c {
 	struct i2c_algo_bit_data	i2c_algo;
 	struct i2c_client		i2c_client;
 	u32				i2c_rc;
+};
+
+struct saa7164_ctrl {
+	struct v4l2_queryctrl v;
+};
+
+struct saa7164_tvnorm {
+	char		*name;
+	v4l2_std_id	id;
+//	u32		cxiformat;
+//	u32		cxoformat;
+};
+
+struct saa7164_encoder_params {
+	struct saa7164_tvnorm encodernorm;
+	u32 height;
+	u32 width;
+	u32 is_50hz;
+	u32 bitrate; /* bps */
+	u32 stream_type; /* V4L2_MPEG_STREAM_TYPE_MPEG2_TS */
+
+	u32 audio_sampling_freq;
+	u32 ctl_mute;
+	u32 ctl_aspect;
 };
 
 struct saa7164_port;
@@ -254,7 +312,42 @@ struct saa7164_port {
 	struct saa7164_dvb dvb;
 
 	/* --- Encoder/V4L related attributes --- */
+	/* Encoder */
+	/* Defaults established in saa7164-encoder.c */
+	struct saa7164_tvnorm encodernorm;
+	u32 height;
+	u32 width;
+	u32 freq;
+	u32 ts_packet_size;
+	u32 ts_packet_count;
+	u8 mux_input;
+	u8 encoder_profile;
+	u8 video_format;
+	u8 audio_format;
+	u8 video_resolution;
+	u16 ctl_brightness;
+	u16 ctl_contrast;
+	u16 ctl_hue;
+	u16 ctl_saturation;
+	u16 ctl_sharpness;
+	s8 ctl_volume;
 
+	tmComResAFeatureDescrHeader_t audfeat;
+	tmComResEncoderDescrHeader_t encunit;
+	tmComResProcDescrHeader_t vidproc;
+	tmComResExtDevDescrHeader_t ifunit;
+	tmComResTunerDescrHeader_t tunerunit;
+
+	/* V4L */
+	struct saa7164_encoder_params encoder_params;
+	struct video_device *v4l_device;
+	atomic_t v4l_reader_count;
+//	spinlock_t slock;
+//	struct mutex fops_lock;
+
+	struct saa7164_buffer list_buf_used;
+	struct saa7164_buffer list_buf_free;
+	wait_queue_head_t wait_read;
 };
 
 struct saa7164_dev {
@@ -297,7 +390,7 @@ struct saa7164_dev {
 	struct saa7164_i2c i2c_bus[3];
 
 	/* Transport related */
-	struct saa7164_port ts1, ts2;
+	struct saa7164_port ports[ SAA7164_MAX_PORTS ];
 
 	/* Deferred command/api interrupts handling */
 	struct work_struct workcmd;
@@ -355,6 +448,19 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen);
 int saa7164_api_set_gpiobit(struct saa7164_dev *dev, u8 unitid, u8 pin);
 int saa7164_api_clear_gpiobit(struct saa7164_dev *dev, u8 unitid, u8 pin);
 int saa7164_api_transition_port(struct saa7164_port *port, u8 mode);
+int saa7164_api_initialize_dif(struct saa7164_port *port);
+int saa7164_api_configure_dif(struct saa7164_port *port, u32 std);
+int saa7164_api_set_encoder(struct saa7164_port *port);
+int saa7164_api_get_encoder(struct saa7164_port *port);
+int saa7164_api_set_aspect_ratio(struct saa7164_port *port);
+int saa7164_api_set_usercontrol(struct saa7164_port *port, u8 ctl);
+int saa7164_api_get_usercontrol(struct saa7164_port *port, u8 ctl);
+int saa7164_api_set_videomux(struct saa7164_port *port);
+int saa7164_api_audio_mute(struct saa7164_port *port, int mute);
+int saa7164_api_set_audio_volume(struct saa7164_port *port, s8 level);
+int saa7164_api_set_audio_std(struct saa7164_port *port);
+int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect);
+int saa7164_api_get_videomux(struct saa7164_port *port);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */
@@ -385,6 +491,15 @@ extern int saa7164_buffer_dealloc(struct saa7164_buffer *buf);
 extern void saa7164_buffer_display(struct saa7164_buffer *buf);
 extern int saa7164_buffer_activate(struct saa7164_buffer *buf, int i);
 extern int saa7164_buffer_cfg_port(struct saa7164_port *port);
+extern struct saa7164_user_buffer *saa7164_buffer_alloc_user(
+	struct saa7164_dev *dev, u32 len);
+extern void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf);
+
+
+/* ----------------------------------------------------------- */
+/* saa7164-encoder.c                                            */
+int saa7164_encoder_register(struct saa7164_port *port);
+void saa7164_encoder_unregister(struct saa7164_port *port);
 
 /* ----------------------------------------------------------- */
 

@@ -265,3 +265,41 @@ int saa7164_buffer_cfg_port(struct saa7164_port *port)
 	return 0;
 }
 
+struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev, u32 len)
+{
+	struct saa7164_user_buffer *buf;
+
+	buf = kzalloc(sizeof(struct saa7164_user_buffer), GFP_KERNEL);
+	if (buf == 0)
+		return 0;
+
+	buf->data = kzalloc(len, GFP_KERNEL);
+
+	if (buf->data == 0) {
+		kfree(buf);
+		return 0;
+	}
+
+	buf->actual_size = len;
+	buf->pos = 0;
+
+	dprintk(DBGLVL_BUF, "%s()   allocated user buffer @ 0x%p\n",
+		__func__, buf);
+
+	return buf;
+}
+
+void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf)
+{
+	if (!buf)
+		return;
+
+	if (buf->data) {
+		kfree(buf->data);
+		buf->data = 0;
+	}
+
+	if (buf)
+		kfree(buf);
+}
+

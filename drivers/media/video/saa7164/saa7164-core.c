@@ -82,6 +82,69 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 
 }
 
+static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
+{
+	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf;
+	struct saa7164_user_buffer *ubuf;
+	struct list_head *c, *n;
+	int wp, i = 0, rp;
+
+	/* Find the current write point from the hardware */
+	wp = saa7164_readl(port->bufcounter);
+	if (wp > (port->hwcfg.buffercount - 1))
+		BUG();
+
+	/* Find the previous buffer to the current write point */
+	if (wp == 0)
+		rp = 7;
+	else
+		rp = wp - 1;
+
+	/* Lookup the WP in the buffer list */
+	/* TODO: turn this into a worker thread */
+	list_for_each_safe(c, n, &port->dmaqueue.list) {
+		buf = list_entry(c, struct saa7164_buffer, list);
+		if (i++ > port->hwcfg.buffercount)
+			BUG();
+
+		if (buf->idx == rp) {
+			/* Found the buffer, deal with it */
+			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
+				__func__, wp, rp);
+
+			/* */
+			/* find a free user buffer and clone to it */
+			if (!list_empty(&port->list_buf_free.list)) {
+
+				/* Pull the first buffer from the used list */
+				ubuf = list_first_entry(&port->list_buf_free.list,
+					struct saa7164_user_buffer, list);
+
+				if (ubuf->actual_size == buf->actual_size)
+					memcpy(ubuf->data, buf->cpu, ubuf->actual_size);
+
+				/* Requeue the buffer on the free list */
+				ubuf->pos = 0;
+
+
+//				mutex_lock(&port->dmaqueue_lock);
+				list_move_tail(&ubuf->list, &port->list_buf_used.list);
+//				mutex_unlock(&port->dmaqueue_lock);
+
+				/* Flag any userland waiters */
+				wake_up_interruptible(&port->wait_read);
+
+			} else
+				printk(KERN_ERR "encirq no free buffers\n");
+
+			break;
+		}
+
+	}
+	return 0;
+}
+
 static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
@@ -123,6 +186,11 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 static irqreturn_t saa7164_irq(int irq, void *dev_id)
 {
 	struct saa7164_dev *dev = dev_id;
+	struct saa7164_port *porta = &dev->ports[ SAA7164_PORT_TS1 ];
+	struct saa7164_port *portb = &dev->ports[ SAA7164_PORT_TS2 ];
+	struct saa7164_port *portc = &dev->ports[ SAA7164_PORT_ENC1 ];
+	struct saa7164_port *portd = &dev->ports[ SAA7164_PORT_ENC2 ];
+
 	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
 
@@ -168,17 +236,25 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 				if (intid == dev->intfdesc.bInterruptId) {
 					/* A response to an cmd/api call */
 					schedule_work(&dev->workcmd);
-				} else if (intid ==
-					dev->ts1.hwcfg.interruptid) {
+				} else if (intid == porta->hwcfg.interruptid) {
 
 					/* Transport path 1 */
-					saa7164_irq_ts(&dev->ts1);
+					saa7164_irq_ts(porta);
 
-				} else if (intid ==
-					dev->ts2.hwcfg.interruptid) {
+				} else if (intid == portb->hwcfg.interruptid) {
 
 					/* Transport path 2 */
-					saa7164_irq_ts(&dev->ts2);
+					saa7164_irq_ts(portb);
+
+				} else if (intid == portc->hwcfg.interruptid) {
+
+					/* Encoder path 1 */
+					saa7164_irq_encoder(portc);
+
+				} else if (intid == portd->hwcfg.interruptid) {
+
+					/* Encoder path 1 */
+					saa7164_irq_encoder(portd);
 
 				} else {
 					/* Find the function */
@@ -402,6 +478,37 @@ static int get_resources(struct saa7164_dev *dev)
 	return -EBUSY;
 }
 
+static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
+{
+	struct saa7164_port *port = 0;
+
+	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
+		BUG();
+
+	port = &dev->ports[ portnr ];
+
+	port->dev = dev;
+	port->nr = portnr;
+
+	if ((portnr == SAA7164_PORT_TS1) || (portnr == SAA7164_PORT_TS2))
+		port->type = SAA7164_MPEG_DVB;
+	else
+	if ((portnr == SAA7164_PORT_ENC1) || (portnr == SAA7164_PORT_ENC2))
+		port->type = SAA7164_MPEG_ENCODER;
+	else
+		BUG();
+
+	/* Init all the critical resources */
+	mutex_init(&port->dvb.lock);
+	INIT_LIST_HEAD(&port->dmaqueue.list);
+	mutex_init(&port->dmaqueue_lock);
+
+	INIT_LIST_HEAD(&port->list_buf_used.list);
+	INIT_LIST_HEAD(&port->list_buf_free.list);
+	init_waitqueue_head(&port->wait_read);
+	return 0;
+}
+
 static int saa7164_dev_setup(struct saa7164_dev *dev)
 {
 	int i;
@@ -443,21 +550,11 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	dev->i2c_bus[2].dev = dev;
 	dev->i2c_bus[2].nr = 2;
 
-	/* Transport port A Defaults / setup */
-	dev->ts1.dev = dev;
-	dev->ts1.nr = 0;
-	dev->ts1.type = SAA7164_MPEG_UNDEFINED;
-	mutex_init(&dev->ts1.dvb.lock);
-	INIT_LIST_HEAD(&dev->ts1.dmaqueue.list);
-	mutex_init(&dev->ts1.dmaqueue_lock);
-
-	/* Transport port B Defaults / setup */
-	dev->ts2.dev = dev;
-	dev->ts2.nr = 1;
-	dev->ts2.type = SAA7164_MPEG_UNDEFINED;
-	mutex_init(&dev->ts2.dvb.lock);
-	INIT_LIST_HEAD(&dev->ts2.dmaqueue.list);
-	mutex_init(&dev->ts2.dmaqueue_lock);
+	/* Transport + Encoder ports 1, 2, 3, 4 - Defaults / setup */
+	saa7164_port_init(dev, SAA7164_PORT_TS1);
+	saa7164_port_init(dev, SAA7164_PORT_TS2);
+	saa7164_port_init(dev, SAA7164_PORT_ENC1);
+	saa7164_port_init(dev, SAA7164_PORT_ENC2);
 
 	if (get_resources(dev) < 0) {
 		printk(KERN_ERR "CORE %s No more PCIe resources for "
@@ -631,7 +728,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 
 		/* Begin to create the video sub-systems and register funcs */
 		if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB) {
-			if (saa7164_dvb_register(&dev->ts1) < 0) {
+			if (saa7164_dvb_register(&dev->ports[ SAA7164_PORT_TS1 ]) < 0) {
 				printk(KERN_ERR "%s() Failed to register "
 					"dvb adapters on porta\n",
 					__func__);
@@ -639,10 +736,24 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		}
 
 		if (saa7164_boards[dev->board].portb == SAA7164_MPEG_DVB) {
-			if (saa7164_dvb_register(&dev->ts2) < 0) {
+			if (saa7164_dvb_register(&dev->ports[ SAA7164_PORT_TS2 ]) < 0) {
 				printk(KERN_ERR"%s() Failed to register "
 					"dvb adapters on portb\n",
 					__func__);
+			}
+		}
+
+		if (saa7164_boards[dev->board].portc == SAA7164_MPEG_ENCODER) {
+			if (saa7164_encoder_register(&dev->ports[ SAA7164_PORT_ENC1 ]) < 0) {
+				printk(KERN_ERR"%s() Failed to register "
+					"mpeg encoder\n", __func__);
+			}
+		}
+
+		if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER) {
+			if (saa7164_encoder_register(&dev->ports[ SAA7164_PORT_ENC2 ]) < 0) {
+				printk(KERN_ERR"%s() Failed to register "
+					"mpeg encoder\n", __func__);
 			}
 		}
 
@@ -676,10 +787,16 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 	saa7164_shutdown(dev);
 
 	if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB)
-		saa7164_dvb_unregister(&dev->ts1);
+		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS1 ]);
 
 	if (saa7164_boards[dev->board].portb == SAA7164_MPEG_DVB)
-		saa7164_dvb_unregister(&dev->ts2);
+		saa7164_dvb_unregister(&dev->ports[ SAA7164_PORT_TS2 ]);
+
+	if (saa7164_boards[dev->board].portc == SAA7164_MPEG_ENCODER)
+		saa7164_encoder_unregister(&dev->ports[ SAA7164_PORT_ENC1 ]);
+
+	if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER)
+		saa7164_encoder_unregister(&dev->ports[ SAA7164_PORT_ENC2 ]);
 
 	saa7164_i2c_unregister(&dev->i2c_bus[0]);
 	saa7164_i2c_unregister(&dev->i2c_bus[1]);
