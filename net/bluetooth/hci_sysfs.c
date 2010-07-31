@@ -439,12 +439,11 @@ static const struct file_operations inquiry_cache_fops = {
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct bdaddr_list *blacklist = &hdev->blacklist;
 	struct list_head *l;
 
 	hci_dev_lock_bh(hdev);
 
-	list_for_each(l, &blacklist->list) {
+	list_for_each(l, &hdev->blacklist) {
 		struct bdaddr_list *b;
 		bdaddr_t bdaddr;
 
