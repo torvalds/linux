@@ -163,14 +163,21 @@ static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 
 	}
 
-	if (port->v_cc_errors)
+	/* Only report errors if we've been through this function atleast
+	 * once already and the cached cc values are primed. First time through
+	 * always generates errors.
+	 */
+	if (port->v_cc_errors && (port->done_first_interrupt > 1))
 		printk(KERN_ERR "video pid cc, %d errors\n", port->v_cc_errors);
 
-	if (port->a_cc_errors)
+	if (port->a_cc_errors && (port->done_first_interrupt > 1))
 		printk(KERN_ERR "audio pid cc, %d errors\n", port->a_cc_errors);
 
-	if (port->sync_errors)
+	if (port->sync_errors && (port->done_first_interrupt > 1))
 		printk(KERN_ERR "sync_errors = %d\n", port->sync_errors);
+
+	if (port->done_first_interrupt == 1)
+		port->done_first_interrupt++;
 }
 
 static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
