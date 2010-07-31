@@ -140,7 +140,7 @@ static __be32 *
 unx_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
-	struct unx_cred	*cred = container_of(task->tk_msg.rpc_cred, struct unx_cred, uc_base);
+	struct unx_cred	*cred = container_of(task->tk_rqstp->rq_cred, struct unx_cred, uc_base);
 	__be32		*base, *hold;
 	int		i;
 
@@ -173,7 +173,7 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 static int
 unx_refresh(struct rpc_task *task)
 {
-	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_rqstp->rq_cred->cr_flags);
 	return 0;
 }
 
@@ -196,7 +196,7 @@ unx_validate(struct rpc_task *task, __be32 *p)
 		printk("RPC: giant verf size: %u\n", size);
 		return NULL;
 	}
-	task->tk_msg.rpc_cred->cr_auth->au_rslack = (size >> 2) + 2;
+	task->tk_rqstp->rq_cred->cr_auth->au_rslack = (size >> 2) + 2;
 	p += (size >> 2);
 
 	return p;

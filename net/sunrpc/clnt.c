@@ -605,8 +605,8 @@ rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 		task->tk_msg.rpc_proc = msg->rpc_proc;
 		task->tk_msg.rpc_argp = msg->rpc_argp;
 		task->tk_msg.rpc_resp = msg->rpc_resp;
-		/* Bind the user cred */
-		task->tk_status = rpcauth_bindcred(task, msg->rpc_cred, task->tk_flags);
+		if (msg->rpc_cred != NULL)
+			task->tk_msg.rpc_cred = get_rpccred(msg->rpc_cred);
 	}
 }
 
@@ -909,11 +909,6 @@ call_reserve(struct rpc_task *task)
 {
 	dprint_status(task);
 
-	if (!rpcauth_uptodatecred(task)) {
-		task->tk_action = call_refresh;
-		return;
-	}
-
 	task->tk_status  = 0;
 	task->tk_action  = call_reserveresult;
 	xprt_reserve(task);
@@ -977,7 +972,7 @@ call_reserveresult(struct rpc_task *task)
 static void
 call_allocate(struct rpc_task *task)
 {
-	unsigned int slack = task->tk_msg.rpc_cred->cr_auth->au_cslack;
+	unsigned int slack = task->tk_client->cl_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
@@ -985,7 +980,7 @@ call_allocate(struct rpc_task *task)
 	dprint_status(task);
 
 	task->tk_status = 0;
-	task->tk_action = call_bind;
+	task->tk_action = call_refresh;
 
 	if (req->rq_buffer)
 		return;
@@ -1020,6 +1015,47 @@ call_allocate(struct rpc_task *task)
 	}
 
 	rpc_exit(task, -ERESTARTSYS);
+}
+
+/*
+ * 2a.	Bind and/or refresh the credentials
+ */
+static void
+call_refresh(struct rpc_task *task)
+{
+	dprint_status(task);
+
+	task->tk_action = call_refreshresult;
+	task->tk_status = 0;
+	task->tk_client->cl_stats->rpcauthrefresh++;
+	rpcauth_refreshcred(task);
+}
+
+/*
+ * 2b.	Process the results of a credential refresh
+ */
+static void
+call_refreshresult(struct rpc_task *task)
+{
+	int status = task->tk_status;
+
+	dprint_status(task);
+
+	task->tk_status = 0;
+	task->tk_action = call_bind;
+	if (status >= 0 && rpcauth_uptodatecred(task))
+		return;
+	switch (status) {
+	case -EACCES:
+		rpc_exit(task, -EACCES);
+		return;
+	case -ENOMEM:
+		rpc_exit(task, -ENOMEM);
+		return;
+	case -ETIMEDOUT:
+		rpc_delay(task, 3*HZ);
+	}
+	task->tk_action = call_refresh;
 }
 
 static inline int
@@ -1555,43 +1591,6 @@ out_retry:
 			xprt_conditional_disconnect(task->tk_xprt,
 					req->rq_connect_cookie);
 	}
-}
-
-/*
- * 8.	Refresh the credentials if rejected by the server
- */
-static void
-call_refresh(struct rpc_task *task)
-{
-	dprint_status(task);
-
-	task->tk_action = call_refreshresult;
-	task->tk_status = 0;
-	task->tk_client->cl_stats->rpcauthrefresh++;
-	rpcauth_refreshcred(task);
-}
-
-/*
- * 8a.	Process the results of a credential refresh
- */
-static void
-call_refreshresult(struct rpc_task *task)
-{
-	int status = task->tk_status;
-
-	dprint_status(task);
-
-	task->tk_status = 0;
-	task->tk_action = call_reserve;
-	if (status >= 0 && rpcauth_uptodatecred(task))
-		return;
-	if (status == -EACCES) {
-		rpc_exit(task, -EACCES);
-		return;
-	}
-	task->tk_action = call_refresh;
-	if (status != -ETIMEDOUT)
-		rpc_delay(task, 3*HZ);
 }
 
 static __be32 *

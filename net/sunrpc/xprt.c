@@ -1032,6 +1032,8 @@ void xprt_release(struct rpc_task *task)
 	spin_unlock_bh(&xprt->transport_lock);
 	if (req->rq_buffer)
 		xprt->ops->buf_free(req->rq_buffer);
+	if (req->rq_cred != NULL)
+		put_rpccred(req->rq_cred);
 	task->tk_rqstp = NULL;
 	if (req->rq_release_snd_buf)
 		req->rq_release_snd_buf(req);

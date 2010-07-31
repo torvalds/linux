@@ -758,7 +758,7 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 				struct compound_hdr *hdr)
 {
 	__be32 *p;
-	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth *auth = req->rq_cred->cr_auth;
 
 	/* initialize running count of expected bytes in reply.
 	 * NOTE: the replied tag SHOULD be the same is the one sent,

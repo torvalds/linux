@@ -864,7 +864,7 @@ void rpc_put_task(struct rpc_task *task)
 	if (task->tk_rqstp)
 		xprt_release(task);
 	if (task->tk_msg.rpc_cred)
-		rpcauth_unbindcred(task);
+		put_rpccred(task->tk_msg.rpc_cred);
 	rpc_task_release_client(task);
 	if (task->tk_workqueue != NULL) {
 		INIT_WORK(&task->u.tk_work, rpc_async_release);
