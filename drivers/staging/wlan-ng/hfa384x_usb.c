@@ -2707,7 +2707,7 @@ int hfa384x_drvr_stop(hfa384x_t *hw)
 ----------------------------------------------------------------*/
 int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 			 union p80211_hdr *p80211_hdr,
-			 p80211_metawep_t *p80211_wep)
+			 struct p80211_metawep *p80211_wep)
 {
 	int usbpktlen = sizeof(hfa384x_tx_frame_t);
 	int result;
@@ -3473,7 +3473,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) skb->data;
 	hfa384x_t *hw = wlandev->priv;
 	int hdrlen;
-	p80211_rxmeta_t *rxmeta;
+	struct p80211_rxmeta *rxmeta;
 	u16 data_len;
 	u16 fc;
 
@@ -3590,14 +3590,14 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	datalen = le16_to_cpu(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
-	skblen = sizeof(p80211_caphdr_t) + hdrlen + datalen + WLAN_CRC_LEN;
+	skblen = sizeof(struct p80211_caphdr) + hdrlen + datalen + WLAN_CRC_LEN;
 
 	/* sanity check the length */
 	if (skblen >
-	    (sizeof(p80211_caphdr_t) +
+	    (sizeof(struct p80211_caphdr) +
 	     WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)) {
 		pr_debug("overlen frm: len=%zd\n",
-			 skblen - sizeof(p80211_caphdr_t));
+			 skblen - sizeof(struct p80211_caphdr));
 	}
 
 	skb = dev_alloc_skb(skblen);
@@ -3611,13 +3611,13 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	/* only prepend the prism header if in the right mode */
 	if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
 	    (hw->sniffhdr != 0)) {
-		p80211_caphdr_t *caphdr;
+		struct p80211_caphdr *caphdr;
 		/* The NEW header format! */
-		datap = skb_put(skb, sizeof(p80211_caphdr_t));
-		caphdr = (p80211_caphdr_t *) datap;
+		datap = skb_put(skb, sizeof(struct p80211_caphdr));
+		caphdr = (struct p80211_caphdr *) datap;
 
 		caphdr->version = htonl(P80211CAPTURE_VERSION);
-		caphdr->length = htonl(sizeof(p80211_caphdr_t));
+		caphdr->length = htonl(sizeof(struct p80211_caphdr));
 		caphdr->mactime = __cpu_to_be64(rxdesc->time) * 1000;
 		caphdr->hosttime = __cpu_to_be64(jiffies);
 		caphdr->phytype = htonl(4);	/* dss_dot11_b */

@@ -351,7 +351,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	int txresult = -1;
 	wlandevice_t *wlandev = netdev->ml_priv;
 	union p80211_hdr p80211_hdr;
-	p80211_metawep_t p80211_wep;
+	struct p80211_metawep p80211_wep;
 
 	if (skb == NULL)
 		return NETDEV_TX_OK;
@@ -362,7 +362,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	memset(&p80211_hdr, 0, sizeof(union p80211_hdr));
-	memset(&p80211_wep, 0, sizeof(p80211_metawep_t));
+	memset(&p80211_wep, 0, sizeof(struct p80211_metawep));
 
 	if (netif_queue_stopped(netdev)) {
 		pr_debug("called when queue stopped.\n");

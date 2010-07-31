@@ -131,7 +131,7 @@ static int prism2sta_close(wlandevice_t *wlandev);
 static void prism2sta_reset(wlandevice_t *wlandev);
 static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 			     union p80211_hdr *p80211_hdr,
-			     p80211_metawep_t *p80211_wep);
+			     struct p80211_metawep *p80211_wep);
 static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg);
 static int prism2sta_getcardinfo(wlandevice_t *wlandev);
 static int prism2sta_globalsetup(wlandevice_t *wlandev);
@@ -269,7 +269,7 @@ static void prism2sta_reset(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 			     union p80211_hdr *p80211_hdr,
-			     p80211_metawep_t *p80211_wep)
+			     struct p80211_metawep *p80211_wep)
 {
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
 	int result;

@@ -185,7 +185,7 @@ typedef struct wlandevice {
 	void (*reset) (struct wlandevice *wlandev);
 	int (*txframe) (struct wlandevice *wlandev, struct sk_buff *skb,
 			union p80211_hdr *p80211_hdr,
-			p80211_metawep_t *p80211_wep);
+			struct p80211_metawep *p80211_wep);
 	int (*mlmerequest) (struct wlandevice *wlandev, p80211msg_t *msg);
 	int (*set_multicast_list) (struct wlandevice *wlandev,
 				   netdevice_t *dev);
