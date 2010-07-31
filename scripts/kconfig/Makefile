@@ -90,10 +90,13 @@ PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
 allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
 
-PHONY += listnewconfig oldnoconfig defconfig
+PHONY += listnewconfig oldnoconfig savedefconfig defconfig
 
 listnewconfig oldnoconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
+
+savedefconfig: $(obj)/conf
+	$< --$@=defconfig $(Kconfig)
 
 defconfig: $(obj)/conf
 ifeq ($(KBUILD_DEFCONFIG),)
@@ -118,6 +121,7 @@ help:
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
 	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
+	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
 	@echo  '  allmodconfig	  - New config selecting modules when possible'

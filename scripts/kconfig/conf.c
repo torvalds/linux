@@ -30,6 +30,7 @@ enum input_mode {
 	alldefconfig,
 	randconfig,
 	defconfig,
+	savedefconfig,
 	listnewconfig,
 	oldnoconfig,
 } input_mode = oldaskconfig;
@@ -444,6 +445,7 @@ static struct option long_opts[] = {
 	{"oldconfig",       no_argument,       NULL, oldconfig},
 	{"silentoldconfig", no_argument,       NULL, silentoldconfig},
 	{"defconfig",       optional_argument, NULL, defconfig},
+	{"savedefconfig",   required_argument, NULL, savedefconfig},
 	{"allnoconfig",     no_argument,       NULL, allnoconfig},
 	{"allyesconfig",    no_argument,       NULL, allyesconfig},
 	{"allmodconfig",    no_argument,       NULL, allmodconfig},
@@ -471,6 +473,7 @@ int main(int ac, char **av)
 			sync_kconfig = 1;
 			break;
 		case defconfig:
+		case savedefconfig:
 			defconfig_file = optarg;
 			break;
 		case randconfig:
@@ -525,6 +528,9 @@ int main(int ac, char **av)
 				"***\n"), defconfig_file);
 			exit(1);
 		}
+		break;
+	case savedefconfig:
+		conf_read(NULL);
 		break;
 	case silentoldconfig:
 	case oldaskconfig:
@@ -591,6 +597,8 @@ int main(int ac, char **av)
 	case defconfig:
 		conf_set_all_new_symbols(def_default);
 		break;
+	case savedefconfig:
+		break;
 	case oldconfig:
 	case oldaskconfig:
 		rootEntry = &rootmenu;
@@ -620,6 +628,12 @@ int main(int ac, char **av)
 		}
 		if (conf_write_autoconf()) {
 			fprintf(stderr, _("\n*** Error during update of the kernel configuration.\n\n"));
+			return 1;
+		}
+	} else if (input_mode == savedefconfig) {
+		if (conf_write_defconfig(defconfig_file)) {
+			fprintf(stderr, _("n*** Error while saving defconfig to: %s\n\n"),
+			        defconfig_file);
 			return 1;
 		}
 	} else if (input_mode != listnewconfig) {
