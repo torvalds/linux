@@ -541,6 +541,8 @@ int saa7164_api_set_audio_std(struct saa7164_port *port);
 int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect);
 int saa7164_api_get_videomux(struct saa7164_port *port);
 int saa7164_api_set_vbi_format(struct saa7164_port *port);
+int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level);
+int saa7164_api_collect_debug(struct saa7164_dev *dev, struct seq_file *m);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */

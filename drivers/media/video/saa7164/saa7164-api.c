@@ -24,13 +24,69 @@
 
 #include "saa7164.h"
 
+int saa7164_api_collect_debug(struct saa7164_dev *dev, struct seq_file *m)
+{
+	tmComResDebugGetData_t d;
+	u8 more = 255;
+	int ret;
+
+	dprintk(DBGLVL_API, "%s()\n", __func__);
+
+	while (more--) {
+
+		memset(&d, 0, sizeof(d));
+
+		ret = saa7164_cmd_send(dev, 0, GET_CUR,
+			GET_DEBUG_DATA_CONTROL, sizeof(d), &d);
+		if (ret != SAA_OK) {
+			printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+		}
+
+		if (d.dwResult != SAA_OK)
+			break;
+
+		seq_printf(m, "%s", d.ucDebugData);
+
+	}
+
+	return 0;
+}
+
+int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level)
+{
+	tmComResDebugSetLevel_t lvl;
+	int ret;
+
+	dprintk(DBGLVL_API, "%s(level=%d)\n", __func__, level);
+
+	/* Retrieve current state */
+	ret = saa7164_cmd_send(dev, 0, GET_CUR,
+		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
+	if (ret != SAA_OK) {
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+	}
+	dprintk(DBGLVL_API, "%s() Was %d\n", __func__, lvl.dwDebugLevel);
+
+	lvl.dwDebugLevel = level;
+
+	/* set new state */
+	ret = saa7164_cmd_send(dev, 0, SET_CUR,
+		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
+	if (ret != SAA_OK) {
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+	}
+
+	return ret;
+}
+
 int saa7164_api_set_vbi_format(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
 	tmComResProbeCommit_t fmt, rsp;
 	int ret;
 
-	dprintk(DBGLVL_API, "%s(nr=%d)\n", __func__, port->nr);
+	dprintk(DBGLVL_API, "%s(nr=%d, unitid=0x%x)\n", __func__,
+		port->nr, port->hwcfg.unitid);
 
 	fmt.bmHint = 0;
 	fmt.bFormatIndex = 1;
@@ -50,6 +106,8 @@ int saa7164_api_set_vbi_format(struct saa7164_port *port)
 	} else {
 		/* Compare requested vs received, should be same */
 		if (memcmp(&fmt, &rsp, sizeof(rsp)) == 0) {
+			dprintk(DBGLVL_API, "SET/PROBE Verified\n");
+
 			/* Ask the device to select the negotiated format */
 			ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid,
 				SET_CUR, SAA_COMMIT_CONTROL, sizeof(fmt), &fmt);
@@ -63,9 +121,11 @@ int saa7164_api_set_vbi_format(struct saa7164_port *port)
 				printk(KERN_ERR "%s() GET commit error, ret = 0x%x\n",
 					__func__, ret);
 
-			if (memcmp(&fmt, &rsp, sizeof(rsp)) != 0)
+			if (memcmp(&fmt, &rsp, sizeof(rsp)) != 0) {
 				printk(KERN_ERR "%s() memcmp error, ret = 0x%x\n",
 					__func__, ret);
+			} else
+				dprintk(DBGLVL_API, "SET/COMMIT Verified\n");
 
 			dprintk(DBGLVL_API, "rsp.bmHint = 0x%x\n", rsp.bmHint);
 			dprintk(DBGLVL_API, "rsp.bFormatIndex = 0x%x\n", rsp.bFormatIndex);
@@ -723,6 +783,25 @@ int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
 	dprintk(DBGLVL_API, "    EndLine       = %d\n", fmt->EndLine);
 	dprintk(DBGLVL_API, "    FieldRate     = %d\n", fmt->FieldRate);
 	dprintk(DBGLVL_API, "    bNumLines     = %d\n", fmt->bNumLines);
+
+	/* Cache the hardware configuration in the port */
+
+	port->bufcounter = port->hwcfg.BARLocation;
+	port->pitch = port->hwcfg.BARLocation + (2 * sizeof(u32));
+	port->bufsize = port->hwcfg.BARLocation + (3 * sizeof(u32));
+	port->bufoffset = port->hwcfg.BARLocation + (4 * sizeof(u32));
+	port->bufptr32l = port->hwcfg.BARLocation +
+		(4 * sizeof(u32)) +
+		(sizeof(u32) * port->hwcfg.buffercount) + sizeof(u32);
+	port->bufptr32h = port->hwcfg.BARLocation +
+		(4 * sizeof(u32)) +
+		(sizeof(u32) * port->hwcfg.buffercount);
+	port->bufptr64 = port->hwcfg.BARLocation +
+		(4 * sizeof(u32)) +
+		(sizeof(u32) * port->hwcfg.buffercount);
+	dprintk(DBGLVL_API, "   = port->hwcfg.BARLocation = 0x%x\n",
+		port->hwcfg.BARLocation);
+
 	dprintk(DBGLVL_API, "   = VS_FORMAT_VBI (becomes dev->en[%d])\n",
 		port->nr);
 

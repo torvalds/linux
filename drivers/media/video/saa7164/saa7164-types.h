@@ -434,3 +434,15 @@ typedef struct
 	u8	bFormatIndex;
 	u8	bFrameIndex;
 } __attribute__((packed)) tmComResProbeCommit_t;
+
+typedef struct
+{
+	u32	dwDebugLevel;
+} __attribute__((packed)) tmComResDebugSetLevel_t;
+
+typedef struct
+{
+	u32	dwResult;
+	u8	ucDebugData[256];
+} __attribute__((packed)) tmComResDebugGetData_t;
+

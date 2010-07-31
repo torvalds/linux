@@ -30,6 +30,9 @@
 #include <linux/delay.h>
 #include <asm/div64.h>
 
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#endif
 #include "saa7164.h"
 
 MODULE_DESCRIPTION("Driver for NXP SAA7164 based TV cards");
@@ -48,6 +51,10 @@ MODULE_LICENSE("GPL");
 unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
+
+unsigned int fw_debug = 2;
+module_param(fw_debug, int, 0644);
+MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
@@ -1067,6 +1074,63 @@ static void saa7164_dev_unregister(struct saa7164_dev *dev)
 	return;
 }
 
+#ifdef CONFIG_PROC_FS
+static int saa7164_proc_show(struct seq_file *m, void *v)
+{
+	struct saa7164_dev *dev;
+	tmComResBusInfo_t *b;
+	struct list_head *list;
+	int i, c;
+
+	if (saa7164_devcount == 0)
+		return 0;
+
+	list_for_each(list, &saa7164_devlist) {
+		dev = list_entry(list, struct saa7164_dev, devlist);
+		seq_printf(m, "%s = %p\n", dev->name, dev);
+
+		if (dev->board != SAA7164_BOARD_UNKNOWN) {
+			seq_printf(m, "Firmware messages ----->\n");
+			saa7164_api_collect_debug(dev, m);
+			seq_printf(m, "<---- Firmware messages\n");
+		}
+
+		/* Lock the bus from any other access */
+		b = &dev->bus;
+		mutex_lock(&b->lock);
+
+
+		mutex_unlock(&b->lock);
+
+	}
+
+	return 0;
+}
+
+static int saa7164_proc_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, saa7164_proc_show, NULL);
+}
+
+static struct file_operations saa7164_proc_fops = {
+	.open		= saa7164_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int saa7164_proc_create(void)
+{
+	struct proc_dir_entry *pe;
+
+	pe = proc_create("saa7164", S_IRUGO, NULL, &saa7164_proc_fops);
+	if (!pe)
+		return -ENOMEM;
+
+	return 0;
+}
+#endif
+
 static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 				     const struct pci_device_id *pci_id)
 {
@@ -1226,7 +1290,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 					"vbi device\n", __func__);
 			}
 		}
-
+		saa7164_api_set_debug(dev, fw_debug);
 
 	} /* != BOARD_UNKNOWN */
 	else
@@ -1254,6 +1318,9 @@ static void saa7164_shutdown(struct saa7164_dev *dev)
 static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
+
+	if (dev->board != SAA7164_BOARD_UNKNOWN)
+		saa7164_api_set_debug(dev, 0x00);
 
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);
@@ -1334,11 +1401,18 @@ static struct pci_driver saa7164_pci_driver = {
 static int __init saa7164_init(void)
 {
 	printk(KERN_INFO "saa7164 driver loaded\n");
+
+#ifdef CONFIG_PROC_FS
+	saa7164_proc_create();
+#endif
 	return pci_register_driver(&saa7164_pci_driver);
 }
 
 static void __exit saa7164_fini(void)
 {
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("saa7164", NULL);
+#endif
 	pci_unregister_driver(&saa7164_pci_driver);
 }
 
