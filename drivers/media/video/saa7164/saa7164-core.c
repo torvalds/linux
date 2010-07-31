@@ -339,7 +339,8 @@ static void saa7164_work_enchandler(struct work_struct *w)
 
 				if (buf->actual_size <= ubuf->actual_size) {
 
-					memcpy_fromio(ubuf->data, buf->cpu, ubuf->actual_size);
+					memcpy_fromio(ubuf->data, port->shadow_buf[rp],
+						ubuf->actual_size);
 
 					/* Throw a new checksum on the read buffer */
 					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);

@@ -63,6 +63,12 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
+	/* Resolution */
+	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
+		EU_PROFILE_CONTROL, sizeof(u8), &port->encoder_profile);
+	if (ret != SAA_OK)
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+
 	/* Establish video bitrates */
 	if (port->encoder_params.bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_CONSTANT;
@@ -107,6 +113,11 @@ int saa7164_api_get_encoder(struct saa7164_port *port)
 
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, GET_CUR,
 		EU_PROFILE_CONTROL, sizeof(u8), &port->encoder_profile);
+	if (ret != SAA_OK)
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+
+	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, GET_CUR,
+		EU_VIDEO_RESOLUTION_CONTROL, sizeof(u8), &port->video_resolution);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
