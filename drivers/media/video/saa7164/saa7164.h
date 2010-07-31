@@ -91,6 +91,7 @@
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,
 	SAA7164_MPEG_DVB,
+	SAA7164_MPEG_ENCODER,
 };
 
 enum saa7164_i2c_bus_nr {
@@ -192,14 +193,15 @@ struct saa7164_i2c {
 	u32				i2c_rc;
 };
 
-struct saa7164_tsport;
+struct saa7164_port;
 
 struct saa7164_buffer {
 	struct list_head list;
 
-	u32 nr;
+	/* Note of which h/w buffer list index position we occupy */
+	int idx;
 
-	struct saa7164_tsport *port;
+	struct saa7164_port *port;
 
 	/* Hardware Specific */
 	/* PCI Memory allocations */
@@ -214,17 +216,21 @@ struct saa7164_buffer {
 	u32 pt_size;		/* PCI allocation size in bytes */
 	u64 *pt_cpu;		/* Virtual address */
 	dma_addr_t pt_dma;	/* Physical address */
+
+	/* Encoder fops */
+	u32 pos;
+	u32 actual_size;
 };
 
-struct saa7164_tsport {
+struct saa7164_port {
 
 	struct saa7164_dev *dev;
-	int nr;
 	enum port_t type;
+	int nr;
 
-	struct saa7164_dvb dvb;
+	/* --- Generic port attributes --- */
 
-	/* HW related stream parameters */
+	/* HW stream parameters */
 	tmHWStreamParameters_t hw_streamingparams;
 
 	/* DMA configuration values, is seeded during initialization */
@@ -240,10 +246,14 @@ struct saa7164_tsport {
 	u64 bufptr64;
 
 	u32 numpte;	/* Number of entries in array, only valid in head */
+
 	struct mutex dmaqueue_lock;
-	struct mutex dummy_dmaqueue_lock;
 	struct saa7164_buffer dmaqueue;
-	struct saa7164_buffer dummy_dmaqueue;
+
+	/* --- DVB Transport Specific --- */
+	struct saa7164_dvb dvb;
+
+	/* --- Encoder/V4L related attributes --- */
 
 };
 
@@ -287,7 +297,7 @@ struct saa7164_dev {
 	struct saa7164_i2c i2c_bus[3];
 
 	/* Transport related */
-	struct saa7164_tsport ts1, ts2;
+	struct saa7164_port ts1, ts2;
 
 	/* Deferred command/api interrupts handling */
 	struct work_struct workcmd;
@@ -344,7 +354,7 @@ int saa7164_api_dif_write(struct saa7164_i2c *bus, u8 addr,
 int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen);
 int saa7164_api_set_gpiobit(struct saa7164_dev *dev, u8 unitid, u8 pin);
 int saa7164_api_clear_gpiobit(struct saa7164_dev *dev, u8 unitid, u8 pin);
-int saa7164_api_transition_port(struct saa7164_tsport *port, u8 mode);
+int saa7164_api_transition_port(struct saa7164_port *port, u8 mode);
 
 /* ----------------------------------------------------------- */
 /* saa7164-cards.c                                             */
@@ -364,15 +374,17 @@ extern char *saa7164_unitid_name(struct saa7164_dev *dev, u8 unitid);
 
 /* ----------------------------------------------------------- */
 /* saa7164-dvb.c                                               */
-extern int saa7164_dvb_register(struct saa7164_tsport *port);
-extern int saa7164_dvb_unregister(struct saa7164_tsport *port);
+extern int saa7164_dvb_register(struct saa7164_port *port);
+extern int saa7164_dvb_unregister(struct saa7164_port *port);
 
 /* ----------------------------------------------------------- */
 /* saa7164-buffer.c                                            */
-extern struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_tsport *port,
-	u32 len);
-extern int saa7164_buffer_dealloc(struct saa7164_tsport *port,
-	struct saa7164_buffer *buf);
+extern struct saa7164_buffer *saa7164_buffer_alloc(
+	struct saa7164_port *port, u32 len);
+extern int saa7164_buffer_dealloc(struct saa7164_buffer *buf);
+extern void saa7164_buffer_display(struct saa7164_buffer *buf);
+extern int saa7164_buffer_activate(struct saa7164_buffer *buf, int i);
+extern int saa7164_buffer_cfg_port(struct saa7164_port *port);
 
 /* ----------------------------------------------------------- */
 

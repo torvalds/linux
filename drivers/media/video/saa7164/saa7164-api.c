@@ -24,7 +24,7 @@
 
 #include "saa7164.h"
 
-int saa7164_api_transition_port(struct saa7164_tsport *port, u8 mode)
+int saa7164_api_transition_port(struct saa7164_port *port, u8 mode)
 {
 	int ret;
 
@@ -63,7 +63,7 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 
 
 int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
-	struct saa7164_tsport *port,
+	struct saa7164_port *port,
 	tmComResTSFormatDescrHeader_t *tsfmt)
 {
 	dprintk(DBGLVL_API, "    bFormatIndex = 0x%x\n", tsfmt->bFormatIndex);
@@ -98,7 +98,7 @@ int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
 
 int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 {
-	struct saa7164_tsport *port = 0;
+	struct saa7164_port *port = 0;
 	u32 idx, next_offset;
 	int i;
 	tmComResDescrHeader_t *hdr, *t;

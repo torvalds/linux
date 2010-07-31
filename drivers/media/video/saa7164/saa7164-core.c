@@ -74,7 +74,7 @@ static void saa7164_work_cmdhandler(struct work_struct *w)
 
 static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 {
-	struct saa7164_tsport *port = buf->port;
+	struct saa7164_port *port = buf->port;
 
 	/* Feed the transport payload into the kernel demux */
 	dvb_dmx_swfilter_packets(&port->dvb.demux, (u8 *)buf->cpu,
@@ -82,7 +82,7 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 
 }
 
-static irqreturn_t saa7164_irq_ts(struct saa7164_tsport *port)
+static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_buffer *buf;
@@ -107,7 +107,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_tsport *port)
 		if (i++ > port->hwcfg.buffercount)
 			BUG();
 
-		if (buf->nr == rp) {
+		if (buf->idx == rp) {
 			/* Found the buffer, deal with it */
 			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
 				__func__, wp, rp);
@@ -446,20 +446,18 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	/* Transport port A Defaults / setup */
 	dev->ts1.dev = dev;
 	dev->ts1.nr = 0;
+	dev->ts1.type = SAA7164_MPEG_UNDEFINED;
 	mutex_init(&dev->ts1.dvb.lock);
 	INIT_LIST_HEAD(&dev->ts1.dmaqueue.list);
-	INIT_LIST_HEAD(&dev->ts1.dummy_dmaqueue.list);
 	mutex_init(&dev->ts1.dmaqueue_lock);
-	mutex_init(&dev->ts1.dummy_dmaqueue_lock);
 
 	/* Transport port B Defaults / setup */
 	dev->ts2.dev = dev;
 	dev->ts2.nr = 1;
+	dev->ts2.type = SAA7164_MPEG_UNDEFINED;
 	mutex_init(&dev->ts2.dvb.lock);
 	INIT_LIST_HEAD(&dev->ts2.dmaqueue.list);
-	INIT_LIST_HEAD(&dev->ts2.dummy_dmaqueue.list);
 	mutex_init(&dev->ts2.dmaqueue_lock);
-	mutex_init(&dev->ts2.dummy_dmaqueue_lock);
 
 	if (get_resources(dev) < 0) {
 		printk(KERN_ERR "CORE %s No more PCIe resources for "
