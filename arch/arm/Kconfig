@@ -303,6 +303,7 @@ config ARCH_CNS3XXX
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select ARM_GIC
+	select PCI_DOMAINS if PCI
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
@@ -469,6 +470,19 @@ config ARCH_LOKI
 	help
 	  Support for the Marvell Loki (88RC8480) SoC.
 
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select ARM_AMBA
+	select USB_ARCH_HAS_OHCI
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for the NXP LPC32XX family of processors
+
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
@@ -573,6 +587,7 @@ config ARCH_MSM
 	bool "Qualcomm MSM"
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
 	  apps processor of the MSM/QSD and depends on a shared memory
@@ -831,6 +846,8 @@ source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
 
+source "arch/arm/mach-lpc32xx/Kconfig"
+
 source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
@@ -1041,7 +1058,7 @@ config ISA_DMA_API
 	bool
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE || ARCH_CNS3XXX
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -1372,6 +1389,24 @@ config UACCESS_WITH_MEMCPY
 	  However, if the CPU data cache is using a write-allocate mode,
 	  this option is unlikely to provide any performance gain.
 
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+	  This feature requires gcc version 4.2 or above.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
+
 endmenu
 
 menu "Boot options"
@@ -1481,6 +1516,105 @@ config ATAGS_PROC
 	help
 	  Should the atags used to boot the kernel be exported in an "atags"
 	  file in procfs. Useful with kexec.
+
+config AUTO_ZRELADDR
+	bool "Auto calculation of the decompressed kernel image address"
+	depends on !ZBOOT_ROM && !ARCH_U300
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. If AUTO_ZRELADDR is selected, the address
+	  will be determined at run-time by masking the current IP with
+	  0xf8000000. This assumes the zImage being placed in the first 128MB
+	  from start of memory.
+
+config ZRELADDR
+	hex "Physical address of the decompressed kernel image"
+	depends on !AUTO_ZRELADDR
+	default 0x00008000 if ARCH_BCMRING ||\
+		ARCH_CNS3XXX ||\
+		ARCH_DOVE ||\
+		ARCH_EBSA110 ||\
+		ARCH_FOOTBRIDGE ||\
+		ARCH_INTEGRATOR ||\
+		ARCH_IOP13XX ||\
+		ARCH_IOP33X ||\
+		ARCH_IXP2000 ||\
+		ARCH_IXP23XX ||\
+		ARCH_IXP4XX ||\
+		ARCH_KIRKWOOD ||\
+		ARCH_KS8695 ||\
+		ARCH_LOKI ||\
+		ARCH_MMP ||\
+		ARCH_MV78XX0 ||\
+		ARCH_NOMADIK ||\
+		ARCH_NUC93X ||\
+		ARCH_NS9XXX ||\
+		ARCH_ORION5X ||\
+		ARCH_SPEAR3XX ||\
+		ARCH_SPEAR6XX ||\
+		ARCH_U8500 ||\
+		ARCH_VERSATILE ||\
+		ARCH_W90X900
+	default 0x08008000 if ARCH_MX1 ||\
+		ARCH_SHARK
+	default 0x10008000 if ARCH_MSM ||\
+		ARCH_OMAP1 ||\
+		ARCH_RPC
+	default 0x20008000 if ARCH_S5P6440 ||\
+		ARCH_S5P6442 ||\
+		ARCH_S5PC100 ||\
+		ARCH_S5PV210
+	default 0x30008000 if ARCH_S3C2410 ||\
+		ARCH_S3C2400 ||\
+		ARCH_S3C2412 ||\
+		ARCH_S3C2416 ||\
+		ARCH_S3C2440 ||\
+		ARCH_S3C2443
+	default 0x40008000 if ARCH_STMP378X ||\
+		ARCH_STMP37XX ||\
+		ARCH_SH7372 ||\
+		ARCH_SH7377
+	default 0x50008000 if ARCH_S3C64XX ||\
+		ARCH_SH7367
+	default 0x60008000 if ARCH_VEXPRESS
+	default 0x80008000 if ARCH_MX25 ||\
+		ARCH_MX3 ||\
+		ARCH_NETX ||\
+		ARCH_OMAP2PLUS ||\
+		ARCH_PNX4008
+	default 0x90008000 if ARCH_MX5 ||\
+		ARCH_MX91231
+	default 0xa0008000 if ARCH_IOP32X ||\
+		ARCH_PXA ||\
+		MACH_MX27
+	default 0xc0008000 if ARCH_LH7A40X ||\
+		MACH_MX21
+	default 0xf0008000 if ARCH_AAEC2000 ||\
+		ARCH_L7200
+	default 0xc0028000 if ARCH_CLPS711X
+	default 0x70008000 if ARCH_AT91 && (ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
+	default 0x20008000 if ARCH_AT91 && !(ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
+	default 0xc0008000 if ARCH_DAVINCI && ARCH_DAVINCI_DA8XX
+	default 0x80008000 if ARCH_DAVINCI && !ARCH_DAVINCI_DA8XX
+	default 0x00008000 if ARCH_EP93XX && EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	default 0xc0008000 if ARCH_EP93XX && EP93XX_SDCE0_PHYS_OFFSET
+	default 0xd0008000 if ARCH_EP93XX && EP93XX_SDCE1_PHYS_OFFSET
+	default 0xe0008000 if ARCH_EP93XX && EP93XX_SDCE2_PHYS_OFFSET
+	default 0xf0008000 if ARCH_EP93XX && EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	default 0x00008000 if ARCH_GEMINI && GEMINI_MEM_SWAP
+	default 0x10008000 if ARCH_GEMINI && !GEMINI_MEM_SWAP
+	default 0x70008000 if ARCH_REALVIEW && REALVIEW_HIGH_PHYS_OFFSET
+	default 0x00008000 if ARCH_REALVIEW && !REALVIEW_HIGH_PHYS_OFFSET
+	default 0xc0208000 if ARCH_SA1100 && SA1111
+	default 0xc0008000 if ARCH_SA1100 && !SA1111
+	default 0x30108000 if ARCH_S3C2410 && PM_H1940
+	default 0x28E08000 if ARCH_U300 && MACH_U300_SINGLE_RAM
+	default 0x48008000 if ARCH_U300 && !MACH_U300_SINGLE_RAM
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. ZRELADDR has to be specified when the
+	  assumption of AUTO_ZRELADDR is not valid, or when ZBOOT_ROM is
+	  selected.
 
 endmenu
 
