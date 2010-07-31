@@ -1265,7 +1265,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	int ret = 0;
@@ -1277,6 +1277,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	else if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 		   tbl->action > IWL_LEGACY_SWITCH_SISO)
 		tbl->action = IWL_LEGACY_SWITCH_SISO;
+	start_action = tbl->action;
 	for (; ;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1403,7 +1404,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
@@ -1414,6 +1415,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 		/* stay in SISO */
 		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1541,7 +1543,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
@@ -1553,6 +1555,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1682,7 +1685,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	int ret;
@@ -1694,6 +1697,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
