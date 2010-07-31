@@ -90,9 +90,9 @@ PHONY += allnoconfig allyesconfig allmodconfig randconfig
 allnoconfig allyesconfig allmodconfig randconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
 
-PHONY += nonint_oldconfig oldnoconfig defconfig
+PHONY += listnewconfig oldnoconfig defconfig
 
-nonint_oldconfig oldnoconfig: $(obj)/conf
+listnewconfig oldnoconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
 
 defconfig: $(obj)/conf
@@ -122,8 +122,7 @@ help:
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
-	@echo  '  nonint_oldconfig - Checks the current configuration and fails if an option is '
-	@echo  '                    not set'
+	@echo  '  listnewconfig   - List new options'
 	@echo  '  oldnoconfig     - Same as silentoldconfig but set new symbols to n (unset)'
 
 # lxdialog stuff

@@ -17,10 +17,6 @@
 #define LKC_DIRECT_LINK
 #include "lkc.h"
 
-/* Return codes */
-#define EUNSETOPT	2	/* if -B and -b are used and unset config
-				 * options were found */
-
 static void conf(struct menu *menu);
 static void check_conf(struct menu *menu);
 
@@ -33,7 +29,7 @@ enum input_mode {
 	allmodconfig,
 	randconfig,
 	defconfig,
-	nonint_oldconfig,
+	listnewconfig,
 	oldnoconfig,
 } input_mode = oldaskconfig;
 
@@ -45,7 +41,6 @@ static int sync_kconfig;
 static int conf_cnt;
 static char line[128];
 static struct menu *rootEntry;
-static int unset_variables;
 
 static void print_help(struct menu *menu)
 {
@@ -366,7 +361,7 @@ static void conf(struct menu *menu)
 		switch (prop->type) {
 		case P_MENU:
 			if ((input_mode == silentoldconfig ||
-			     input_mode == nonint_oldconfig ||
+			     input_mode == listnewconfig ||
 			     input_mode == oldnoconfig) &&
 			    rootEntry != menu) {
 				check_conf(menu);
@@ -426,16 +421,9 @@ static void check_conf(struct menu *menu)
 	if (sym && !sym_has_value(sym)) {
 		if (sym_is_changable(sym) ||
 		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
-			if (input_mode == nonint_oldconfig ||
-			    input_mode == oldnoconfig) {
-				if (input_mode == nonint_oldconfig &&
-				    sym->name && !sym_is_choice_value(sym)) {
-					if (!unset_variables)
-						fprintf(stderr, "The following"
-						  " variables are not set:\n");
-					fprintf(stderr, "CONFIG_%s\n",
-							sym->name);
-					unset_variables++;
+			if (input_mode == listnewconfig) {
+				if (sym->name && !sym_is_choice_value(sym)) {
+					printf("CONFIG_%s\n", sym->name);
 				}
 			} else {
 				if (!conf_cnt++)
@@ -459,7 +447,7 @@ static struct option long_opts[] = {
 	{"allyesconfig",    no_argument,       NULL, allyesconfig},
 	{"allmodconfig",    no_argument,       NULL, allmodconfig},
 	{"randconfig",      no_argument,       NULL, randconfig},
-	{"nonint_oldconfig",       no_argument, NULL, nonint_oldconfig},
+	{"listnewconfig",   no_argument,       NULL, listnewconfig},
 	{"oldnoconfig",     no_argument,       NULL, oldnoconfig},
 	{NULL, 0, NULL, 0}
 };
@@ -539,7 +527,7 @@ int main(int ac, char **av)
 	case silentoldconfig:
 	case oldaskconfig:
 	case oldconfig:
-	case nonint_oldconfig:
+	case listnewconfig:
 	case oldnoconfig:
 		conf_read(NULL);
 		break;
@@ -602,7 +590,7 @@ int main(int ac, char **av)
 		conf(&rootmenu);
 		input_mode = silentoldconfig;
 		/* fall through */
-	case nonint_oldconfig:
+	case listnewconfig:
 	case oldnoconfig:
 	case silentoldconfig:
 		/* Update until a loop caused no more changes */
@@ -610,7 +598,7 @@ int main(int ac, char **av)
 			conf_cnt = 0;
 			check_conf(&rootmenu);
 		} while (conf_cnt &&
-			 (input_mode != nonint_oldconfig &&
+			 (input_mode != listnewconfig &&
 			  input_mode != oldnoconfig));
 		break;
 	}
@@ -627,11 +615,11 @@ int main(int ac, char **av)
 			fprintf(stderr, _("\n*** Error during update of the kernel configuration.\n\n"));
 			return 1;
 		}
-	} else if (!unset_variables || input_mode != nonint_oldconfig) {
+	} else if (input_mode != listnewconfig) {
 		if (conf_write(NULL)) {
 			fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
 			exit(1);
 		}
 	}
-	return unset_variables ? EUNSETOPT : 0;
+	return 0;
 }
