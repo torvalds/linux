@@ -57,12 +57,174 @@ static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
+unsigned int print_histogram = 64;
+module_param(print_histogram, int, 0644);
+MODULE_PARM_DESC(debug, "print histogram values once");
+
 static unsigned int saa7164_devcount;
 
 static DEFINE_MUTEX(devlist);
 LIST_HEAD(saa7164_devlist);
 
 #define INT_SIZE 16
+
+static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
+{
+	int i;
+
+	memset(hg, 0, sizeof(struct saa7164_histogram));
+	strcpy(hg->name, name);
+
+	/* First 30ms x 1ms */
+	for (i = 0; i < 30; i++) {
+		hg->counter1[0 + i].val = i;
+	}
+
+	/* 30 - 200ms x 10ms  */
+	for (i = 0; i < 18; i++) {
+		hg->counter1[30 + i].val = 30 + (i * 10);
+	}
+
+	/* 200 - 2000ms x 100ms  */
+	for (i = 0; i < 15; i++) {
+		hg->counter1[48 + i].val = 200 + (i * 100);
+	}
+
+	/* Catch all massive value (1hr) */
+	hg->counter1[63].val = 3600000;
+}
+
+static void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val)
+{
+	int i;
+	for (i = 0; i < 64; i++ ) {
+		if (val <= hg->counter1[i].val) {
+			hg->counter1[i].count++;
+			hg->counter1[i].update_time = jiffies;
+			break;
+		}
+	}
+}
+
+static void saa7164_histogram_print(struct saa7164_port *port,
+	struct saa7164_histogram *hg)
+{
+	struct saa7164_dev *dev = port->dev;
+	u32 entries = 0;
+	int i;
+
+	printk(KERN_ERR "Histogram named %s\n", hg->name);
+	for (i = 0; i < 64; i++ ) {
+		if (hg->counter1[i].count == 0)
+			continue;
+
+		printk(KERN_ERR " %4d %12d %Ld\n",
+			hg->counter1[i].val,
+			hg->counter1[i].count,
+			hg->counter1[i].update_time);
+
+		entries++;
+	}
+	printk(KERN_ERR "Total: %d\n", entries);
+}
+
+static void saa7164_work_enchandler(struct work_struct *w)
+{
+	struct saa7164_port *port =
+		container_of(w, struct saa7164_port, workenc);
+	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf;
+	struct saa7164_user_buffer *ubuf;
+	struct list_head *c, *n;
+	int wp, rp, i = 0;
+
+	port->last_svc_msecs_diff = port->last_svc_msecs;
+	port->last_svc_msecs = jiffies_to_msecs(jiffies);
+	port->last_svc_wp = saa7164_readl(port->bufcounter);
+	port->last_svc_rp = port->last_irq_rp;
+	wp = port->last_svc_wp;
+	rp = port->last_svc_rp;
+
+
+	port->last_svc_msecs_diff = port->last_svc_msecs -
+		port->last_svc_msecs_diff;
+
+	saa7164_histogram_update(&port->svc_interval,
+		port->last_svc_msecs_diff);
+
+	port->last_irq_svc_msecs_diff = port->last_svc_msecs -
+		port->last_irq_msecs;
+
+	saa7164_histogram_update(&port->irq_svc_interval,
+		port->last_irq_svc_msecs_diff);
+
+	dprintk(DBGLVL_IRQ,
+		"%s() %Ldms elapsed irq->deferred %Ldms wp: %d rp: %d\n",
+		__func__,
+		port->last_svc_msecs_diff,
+		port->last_irq_svc_msecs_diff,
+		port->last_svc_wp,
+		port->last_svc_rp
+		);
+
+	if ((rp < 0) || (rp > 7)) {
+		printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
+		return;
+	}
+
+	mutex_lock(&port->dmaqueue_lock);
+
+	list_for_each_safe(c, n, &port->dmaqueue.list) {
+
+		buf = list_entry(c, struct saa7164_buffer, list);
+		if (i++ > port->hwcfg.buffercount) {
+			printk(KERN_ERR "%s() illegal i count %d\n",
+				__func__, i);
+			break;
+		}
+
+		if (buf->idx == rp) {
+			/* Found the buffer, deal with it */
+			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
+				__func__, wp, rp);
+
+			/* */
+			/* find a free user buffer and clone to it */
+			if (!list_empty(&port->list_buf_free.list)) {
+
+				/* Pull the first buffer from the used list */
+				ubuf = list_first_entry(&port->list_buf_free.list,
+					struct saa7164_user_buffer, list);
+
+				if (ubuf->actual_size == buf->actual_size)
+					memcpy(ubuf->data, buf->cpu,
+						ubuf->actual_size);
+
+				/* Requeue the buffer on the free list */
+				ubuf->pos = 0;
+
+				list_move_tail(&ubuf->list,
+					&port->list_buf_used.list);
+
+				/* Flag any userland waiters */
+				wake_up_interruptible(&port->wait_read);
+
+			} else
+				printk(KERN_ERR "encirq no free buffers\n");
+
+			break;
+		}
+
+	}
+	mutex_unlock(&port->dmaqueue_lock);
+
+	if (print_histogram == port->nr) {
+		saa7164_histogram_print(port, &port->irq_interval);
+		saa7164_histogram_print(port, &port->svc_interval);
+		saa7164_histogram_print(port, &port->irq_svc_interval);
+		print_histogram = 64 + port->nr;
+	}
+}
 
 static void saa7164_work_cmdhandler(struct work_struct *w)
 {
@@ -85,15 +247,14 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf;
-	struct saa7164_user_buffer *ubuf;
-	struct list_head *c, *n;
-	int wp, i = 0, rp;
+	int wp, rp;
 
 	/* Find the current write point from the hardware */
 	wp = saa7164_readl(port->bufcounter);
-	if (wp > (port->hwcfg.buffercount - 1))
-		BUG();
+	if (wp > (port->hwcfg.buffercount - 1)) {
+		printk(KERN_ERR "%s() illegal buf count %d\n", __func__, wp);
+		return 0;
+	}
 
 	/* Find the previous buffer to the current write point */
 	if (wp == 0)
@@ -101,47 +262,35 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 	else
 		rp = wp - 1;
 
-	/* Lookup the WP in the buffer list */
-	/* TODO: turn this into a worker thread */
-	list_for_each_safe(c, n, &port->dmaqueue.list) {
-		buf = list_entry(c, struct saa7164_buffer, list);
-		if (i++ > port->hwcfg.buffercount)
-			BUG();
-
-		if (buf->idx == rp) {
-			/* Found the buffer, deal with it */
-			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d\n",
-				__func__, wp, rp);
-
-			/* */
-			/* find a free user buffer and clone to it */
-			if (!list_empty(&port->list_buf_free.list)) {
-
-				/* Pull the first buffer from the used list */
-				ubuf = list_first_entry(&port->list_buf_free.list,
-					struct saa7164_user_buffer, list);
-
-				if (ubuf->actual_size == buf->actual_size)
-					memcpy(ubuf->data, buf->cpu, ubuf->actual_size);
-
-				/* Requeue the buffer on the free list */
-				ubuf->pos = 0;
-
-
-//				mutex_lock(&port->dmaqueue_lock);
-				list_move_tail(&ubuf->list, &port->list_buf_used.list);
-//				mutex_unlock(&port->dmaqueue_lock);
-
-				/* Flag any userland waiters */
-				wake_up_interruptible(&port->wait_read);
-
-			} else
-				printk(KERN_ERR "encirq no free buffers\n");
-
-			break;
-		}
-
+	if ((rp < 0) || (rp > 7)) {
+		printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
+		return 0;
 	}
+
+	/* Sore old time */
+	port->last_irq_msecs_diff = port->last_irq_msecs;
+
+	/* Collect new stats */
+	port->last_irq_msecs = jiffies_to_msecs(jiffies);
+	port->last_irq_wp = wp;
+	port->last_irq_rp = rp;
+
+	/* Calculate stats */
+	port->last_irq_msecs_diff = port->last_irq_msecs -
+		port->last_irq_msecs_diff;
+
+	saa7164_histogram_update(&port->irq_interval,
+		port->last_irq_msecs_diff);
+
+	dprintk(DBGLVL_IRQ, "%s() %Ldms elapsed wp: %d rp: %d\n",
+		__func__,
+		port->last_irq_msecs_diff,
+		port->last_irq_wp,
+		port->last_irq_rp
+		);
+
+	schedule_work(&port->workenc);
+
 	return 0;
 }
 
@@ -506,6 +655,15 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	INIT_LIST_HEAD(&port->list_buf_used.list);
 	INIT_LIST_HEAD(&port->list_buf_free.list);
 	init_waitqueue_head(&port->wait_read);
+
+	/* We need a deferred interrupt handler for cmd handling */
+	INIT_WORK(&port->workenc, saa7164_work_enchandler);
+
+	saa7164_histogram_reset(&port->irq_interval, "irq intervals");
+	saa7164_histogram_reset(&port->svc_interval, "deferred intervals");
+	saa7164_histogram_reset(&port->irq_svc_interval,
+		"irq to deferred intervals");
+
 	return 0;
 }
 
@@ -783,6 +941,13 @@ static void saa7164_shutdown(struct saa7164_dev *dev)
 static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
+
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
+		&dev->ports[ SAA7164_PORT_ENC1 ].irq_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
+		&dev->ports[ SAA7164_PORT_ENC1 ].svc_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
+		&dev->ports[ SAA7164_PORT_ENC1 ].irq_svc_interval);
 
 	saa7164_shutdown(dev);
 

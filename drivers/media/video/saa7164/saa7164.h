@@ -176,6 +176,17 @@ struct saa7164_fh {
 	atomic_t v4l_reading;
 };
 
+struct saa7164_histogram_bucket {
+	u32 val;
+	u32 count;
+	u64 update_time;
+};
+
+struct saa7164_histogram {
+	char name[32];
+	struct saa7164_histogram_bucket counter1[64];
+};
+
 struct saa7164_user_buffer {
 	struct list_head list;
 
@@ -308,6 +319,16 @@ struct saa7164_port {
 	struct mutex dmaqueue_lock;
 	struct saa7164_buffer dmaqueue;
 
+	u64 last_irq_msecs, last_svc_msecs;
+	u64 last_irq_msecs_diff, last_svc_msecs_diff;
+	u32 last_irq_wp, last_svc_wp;
+	u32 last_irq_rp, last_svc_rp;
+	u64 last_irq_svc_msecs_diff;
+
+	struct saa7164_histogram irq_interval;
+	struct saa7164_histogram svc_interval;
+	struct saa7164_histogram irq_svc_interval;
+
 	/* --- DVB Transport Specific --- */
 	struct saa7164_dvb dvb;
 
@@ -337,6 +358,8 @@ struct saa7164_port {
 	tmComResProcDescrHeader_t vidproc;
 	tmComResExtDevDescrHeader_t ifunit;
 	tmComResTunerDescrHeader_t tunerunit;
+
+	struct work_struct workenc;
 
 	/* V4L */
 	struct saa7164_encoder_params encoder_params;
