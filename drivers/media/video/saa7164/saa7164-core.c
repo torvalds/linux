@@ -49,9 +49,13 @@ unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
+unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
+module_param(encoder_buffers, int, 0644);
+MODULE_PARM_DESC(encoder_buffers, "Total buffers in read queue 16-512 def:64");
+
 unsigned int waitsecs = 10;
 module_param(waitsecs, int, 0644);
-MODULE_PARM_DESC(debug, "timeout on firmware messages");
+MODULE_PARM_DESC(waitsecs, "timeout on firmware messages");
 
 static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
@@ -59,7 +63,7 @@ MODULE_PARM_DESC(card, "card type");
 
 unsigned int print_histogram = 64;
 module_param(print_histogram, int, 0644);
-MODULE_PARM_DESC(debug, "print histogram values once");
+MODULE_PARM_DESC(print_histogram, "print histogram values once");
 
 static unsigned int saa7164_devcount;
 
@@ -264,7 +268,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 				wake_up_interruptible(&port->wait_read);
 
 			} else
-				printk(KERN_ERR "encirq no free buffers\n");
+				printk(KERN_ERR "encirq no free buffers, increase param encoder_buffers\n");
 
 			/* Ensure offset into buffer remains 0, fill buffer
 			 * with known bad data. */

@@ -85,7 +85,7 @@
 #define SAA7164_MAX_UNITS		8
 #define SAA7164_TS_NUMBER_OF_LINES	312
 #define SAA7164_PT_ENTRIES		16 /* (312 * 188) / 4096 */
-#define SAA7164_MAX_ENCODER_BUFFERS	16
+#define SAA7164_MAX_ENCODER_BUFFERS	64 /* max 5secs of latency at 6Mbps */
 
 /* Port related defines */
 #define SAA7164_PORT_TS1	(0)
@@ -433,6 +433,7 @@ struct saa7164_dev {
 
 extern struct list_head saa7164_devlist;
 extern unsigned int waitsecs;
+extern unsigned int encoder_buffers;
 
 /* ----------------------------------------------------------- */
 /* saa7164-core.c                                              */

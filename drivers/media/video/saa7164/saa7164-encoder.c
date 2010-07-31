@@ -1316,7 +1316,12 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	len = port->hw_streamingparams.numberoflines *
 		port->hw_streamingparams.pitch;
 
-	for (i = 0; i < SAA7164_MAX_ENCODER_BUFFERS; i++) {
+	if (encoder_buffers < 16)
+		encoder_buffers = 16;
+	if (encoder_buffers > 512)
+		encoder_buffers = 512;
+
+	for (i = 0; i < encoder_buffers; i++) {
 
 		ubuf = saa7164_buffer_alloc_user(dev, len);
 		if (ubuf) {
