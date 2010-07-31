@@ -45,6 +45,8 @@ struct ir_raw_event_ctrl {
 		int state;
 		unsigned count;
 		u32 bits;
+		bool is_nec_x;
+		bool necx_repeat;
 	} nec;
 	struct rc5_dec {
 		int state;
