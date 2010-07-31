@@ -395,7 +395,8 @@ struct saa7164_port {
 	u8 *shadow_buf[8];
 	u32 shadow_crc[8];
 
-	u32 dvd_pack_offset;
+	u32 counter;
+	u32 read_counter;
 };
 
 struct saa7164_dev {

@@ -316,9 +316,9 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		if (buf->idx == rp) {
 
 			crc = crc32(0, buf->cpu, buf->actual_size);
-			if (crc != port->shadow_crc[rp])
-				printk(KERN_ERR "%s crc didn't match shadow was 0x%x now 0x%x\n",
-					__func__, port->shadow_crc[rp], crc);
+//			if (crc != port->shadow_crc[rp])
+//				printk(KERN_ERR "%s crc didn't match shadow was 0x%x now 0x%x\n",
+//					__func__, port->shadow_crc[rp], crc);
 
 			/* Found the buffer, deal with it */
 			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d crc32: 0x%x\n",
@@ -349,12 +349,6 @@ static void saa7164_work_enchandler(struct work_struct *w)
 						ok = 1;
 					else
 						ok = 0;
-
-					if (ok == 0)
-						printk(KERN_ERR
-							"rp: %d dmacrc: 0x%08x shadcrc: 0x%08x ubufcrc: 0x%08x %s\n",
-							rp, buf->crc, port->shadow_crc[rp], ubuf->crc,
-							ok ? "crcgood" : "crcbad");
 
 					/* Requeue the buffer on the free list */
 					ubuf->pos = 0;
@@ -430,6 +424,7 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 	struct list_head *c, *n;
 	int wp, rp, i = 0;
 	u8 *p;
+	u32 *up, j;
 
 	/* Find the current write point from the hardware */
 	wp = saa7164_readl(port->bufcounter);
@@ -437,6 +432,8 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 		printk(KERN_ERR "%s() illegal buf count %d\n", __func__, wp);
 		return 0;
 	}
+
+	printk(KERN_ERR "port %p wp = %d\n", port, wp);
 
 	/* Find the previous buffer to the current write point */
 	if (wp == 0)
@@ -447,6 +444,11 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 	if ((rp < 0) || (rp > 7)) {
 		printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 		return 0;
+	}
+
+	if (rp == port->last_irq_rp) {
+		printk(KERN_ERR "%s() Duplicate rp = %d port %p\n",
+			__func__, rp, port);
 	}
 
 	if (rp != ((port->last_irq_rp + 1) % 8)) {
@@ -503,16 +505,17 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 		}
 
 		if (buf->idx == rp) {
-
-			memcpy_fromio(port->shadow_buf[rp], buf->cpu, buf->actual_size);
-
+			up = (u32 *)port->shadow_buf[rp];
+			for (j = 0 ; j < (buf->actual_size / sizeof(u32)); j++) {
+				*(up + j) = (rp << 28) | port->counter++;
+			}
 			port->shadow_crc[rp] = crc32(0, port->shadow_buf[rp], buf->actual_size);
 
 			buf->crc = crc32(0, buf->cpu, buf->actual_size);
 
-			if (port->shadow_crc[rp] != buf->crc)
-				printk(KERN_ERR "%s() crc check failed 0x%x vs 0x%x\n",
-					__func__, port->shadow_crc[rp], buf->crc);
+//			if (port->shadow_crc[rp] != buf->crc)
+//				printk(KERN_ERR "%s() crc check failed 0x%x vs 0x%x\n",
+//					__func__, port->shadow_crc[rp], buf->crc);
 			break;
 		}
 

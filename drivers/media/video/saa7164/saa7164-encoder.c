@@ -1008,6 +1008,7 @@ struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 	struct saa7164_user_buffer *buf = 0;
 	struct saa7164_dev *dev = port->dev;
 	u32 crc;
+	u32 *d;
 
 	mutex_lock(&port->dmaqueue_lock);
 	if (!list_empty(&port->list_buf_used.list)) {
@@ -1019,6 +1020,13 @@ struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 			printk(KERN_ERR "%s() buf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
 				buf, buf->crc, crc);
 		}
+
+		d = (u32 *)buf->data;
+
+		if ((*d & 0xffffff) > (port->read_counter + 0x2000))
+			printk(KERN_ERR "%s() *d 0x%x port %p\n", __func__, *d, port);
+
+		port->read_counter = *d;
 
 	}
 	mutex_unlock(&port->dmaqueue_lock);
