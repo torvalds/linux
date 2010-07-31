@@ -1331,7 +1331,14 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	tid = ba_resp->tid;
 	agg = &priv->stations[sta_id].tid[tid].agg;
 	if (unlikely(agg->txq_id != scd_flow)) {
-		IWL_ERR(priv, "BA scd_flow %d does not match txq_id %d\n",
+		/*
+		 * FIXME: this is a uCode bug which need to be addressed,
+		 * log the information and return for now!
+		 * since it is possible happen very often and in order
+		 * not to fill the syslog, don't enable the logging by default
+		 */
+		IWL_DEBUG_TX_REPLY(priv,
+			"BA scd_flow %d does not match txq_id %d\n",
 			scd_flow, agg->txq_id);
 		return;
 	}
