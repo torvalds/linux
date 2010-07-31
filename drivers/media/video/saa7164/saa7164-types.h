@@ -285,3 +285,117 @@ typedef struct {
 	u8	guidStrideFormat[16];
 } __attribute__((packed)) tmComResTSFormatDescrHeader_t;
 
+/* Encoder related structures */
+
+/* A/V Mux Selector */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype;
+	u8	unitid;
+	u8	nrinpins;
+	u8	sourceid;
+} __attribute__((packed)) tmComResSelDescrHeader_t;
+
+/* A/V Audio processor definitions */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype;
+	u8	unitid;
+	u8	sourceid;
+	u16	wreserved;
+	u8	controlsize;
+} __attribute__((packed)) tmComResProcDescrHeader_t;
+
+/* Video bitrate control message */
+typedef struct
+{
+	u8	ucVideoBitRateMode;
+	u32	dwVideoBitRate;
+	u32	dwVideoBitRatePeak;
+} __attribute__((packed)) tmComResEncVideoBitRate_t;
+
+/* Video Encoder Aspect Ratio message */
+typedef struct
+{
+	u8	width;
+	u8	height;
+} __attribute__((packed)) tmComResEncVideoInputAspectRatio_t;
+
+/* Encoder processor definition */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype;
+	u8	unitid;
+	u8	vsourceid;
+	u8	asourceid;
+	u8	iunit;
+	u32	dwmControlCap;
+	u32	dwmProfileCap;
+	u32	dwmVidFormatCap;
+	u8	bmVidBitrateCap;
+	u16	wmVidResolutionsCap;
+	u16	wmVidFrmRateCap;
+	u32	dwmAudFormatCap;
+	u8	bmAudBitrateCap;
+} __attribute__((packed)) tmComResEncoderDescrHeader_t;
+
+/* Audio processor definition */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype;
+	u8	unitid;
+	u8	sourceid;
+	u8	controlsize;
+} __attribute__((packed)) tmComResAFeatureDescrHeader_t;
+
+/* Audio control messages */
+typedef struct
+{
+	u8	ucDecoderLevel;
+	u8	ucDecoderFM_Level;
+	u8	ucMonoLevel;
+	u8	ucNICAM_Level;
+	u8	ucSAP_Level;
+	u8	ucADC_Level;
+} __attribute__((packed)) tmComResAudioDefaults_t;
+
+/* Audio bitrate control message */
+typedef struct
+{
+	u8	ucAudioBitRateMode;
+	u32	dwAudioBitRate;
+	u32	dwAudioBitRatePeak;
+} __attribute__((packed)) tmComResEncAudioBitRate_t;
+
+/* Tuner / AV Decoder messages */
+typedef struct
+{
+	u8	std;
+	u32	country;
+} __attribute__((packed)) tmComResTunerStandard_t;
+
+typedef struct
+{
+	u8	mode;
+} __attribute__((packed)) tmComResTunerStandardAuto_t;
+
+/* EEPROM definition for PS stream types */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype;
+	u8	bFormatIndex;
+	u16	wPacketLength;
+	u16	wPackLength;
+	u8	bPackDataType;
+} __attribute__((packed)) tmComResPSFormatDescrHeader_t;
+

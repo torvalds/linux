@@ -162,5 +162,50 @@
 #define SAA_DMASTATE_PAUSE	0x02
 #define SAA_DMASTATE_RUN	0x03
 
-/* Hardware registers */
+/* A/V Mux Input Selector */
+#define SU_INPUT_SELECT_CONTROL 0x01
+
+/* Encoder Profiles */
+#define EU_PROFILE_PS_DVD	0x06
+#define EU_PROFILE_TS_HQ	0x09
+#define EU_VIDEO_FORMAT_MPEG_2	0x02
+
+/* Tuner */
+#define TU_AUDIO_MODE_CONTROL  0x17
+
+/* Video Formats */
+#define TU_STANDARD_CONTROL		0x00
+#define TU_STANDARD_AUTO_CONTROL	0x01
+#define TU_STANDARD_NONE		0x00
+#define TU_STANDARD_NTSC_M		0x01
+#define TU_STANDARD_PAL_I		0x08
+#define TU_STANDARD_MANUAL		0x00
+#define TU_STANDARD_AUTO		0x01
+
+/* Video Controls */
+#define PU_BRIGHTNESS_CONTROL	0x02
+#define PU_CONTRAST_CONTROL	0x03
+#define PU_HUE_CONTROL		0x06
+#define PU_SATURATION_CONTROL	0x07
+#define PU_SHARPNESS_CONTROL	0x08
+
+/* Audio Controls */
+#define MUTE_CONTROL		0x01
+#define VOLUME_CONTROL		0x02
+#define AUDIO_DEFAULT_CONTROL	0x0D
+
+/* Default Volume Levels */
+#define TMHW_LEV_ADJ_DECLEV_DEFAULT     0x00
+#define TMHW_LEV_ADJ_MONOLEV_DEFAULT    0x00
+#define TMHW_LEV_ADJ_NICLEV_DEFAULT     0x00
+#define TMHW_LEV_ADJ_SAPLEV_DEFAULT     0x00
+#define TMHW_LEV_ADJ_ADCLEV_DEFAULT     0x00
+
+/* Encoder Related Commands */
+#define EU_PROFILE_CONTROL		0x00
+#define EU_VIDEO_FORMAT_CONTROL		0x01
+#define EU_VIDEO_BIT_RATE_CONTROL	0x02
+#define EU_VIDEO_INPUT_ASPECT_CONTROL	0x0A
+#define EU_AUDIO_FORMAT_CONTROL		0x0C
+#define EU_AUDIO_BIT_RATE_CONTROL	0x0D
 
