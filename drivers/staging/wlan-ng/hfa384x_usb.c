@@ -2706,7 +2706,7 @@ int hfa384x_drvr_stop(hfa384x_t *hw)
 *	interrupt
 ----------------------------------------------------------------*/
 int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
-			 p80211_hdr_t *p80211_hdr,
+			 union p80211_hdr *p80211_hdr,
 			 p80211_metawep_t *p80211_wep)
 {
 	int usbpktlen = sizeof(hfa384x_tx_frame_t);
@@ -2752,7 +2752,7 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 
 	/* copy the header over to the txdesc */
 	memcpy(&(hw->txbuff.txfrm.desc.frame_control), p80211_hdr,
-	       sizeof(p80211_hdr_t));
+	       sizeof(union p80211_hdr));
 
 	/* if we're using host WEP, increase size by IV+ICV */
 	if (p80211_wep->data) {

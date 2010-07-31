@@ -103,7 +103,7 @@ static u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
 int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
-			struct sk_buff *skb, p80211_hdr_t *p80211_hdr,
+			struct sk_buff *skb, union p80211_hdr *p80211_hdr,
 			p80211_metawep_t *p80211_wep)
 {
 
@@ -280,7 +280,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	unsigned int payload_offset;
 	u8 daddr[WLAN_ETHADDR_LEN];
 	u8 saddr[WLAN_ETHADDR_LEN];
-	p80211_hdr_t *w_hdr;
+	union p80211_hdr *w_hdr;
 	wlan_ethhdr_t *e_hdr;
 	wlan_llc_t *e_llc;
 	wlan_snap_t *e_snap;
@@ -290,7 +290,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	payload_length = skb->len - WLAN_HDR_A3_LEN - WLAN_CRC_LEN;
 	payload_offset = WLAN_HDR_A3_LEN;
 
-	w_hdr = (p80211_hdr_t *) skb->data;
+	w_hdr = (union p80211_hdr *) skb->data;
 
 	/* setup some vars for convenience */
 	fc = le16_to_cpu(w_hdr->a3.fc);

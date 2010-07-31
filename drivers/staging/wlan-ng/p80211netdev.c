@@ -264,7 +264,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	wlandevice_t *wlandev = (wlandevice_t *) arg;
 	struct sk_buff *skb = NULL;
 	netdevice_t *dev = wlandev->netdev;
-	p80211_hdr_a3_t *hdr;
+	struct p80211_hdr_a3 *hdr;
 	u16 fc;
 
 	/* Let's empty our our queue */
@@ -288,7 +288,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				netif_rx_ni(skb);
 				continue;
 			} else {
-				hdr = (p80211_hdr_a3_t *) skb->data;
+				hdr = (struct p80211_hdr_a3 *) skb->data;
 				fc = le16_to_cpu(hdr->fc);
 				if (p80211_rx_typedrop(wlandev, fc)) {
 					dev_kfree_skb(skb);
@@ -350,7 +350,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	int result = 0;
 	int txresult = -1;
 	wlandevice_t *wlandev = netdev->ml_priv;
-	p80211_hdr_t p80211_hdr;
+	union p80211_hdr p80211_hdr;
 	p80211_metawep_t p80211_wep;
 
 	if (skb == NULL)
@@ -361,7 +361,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		goto failed;
 	}
 
-	memset(&p80211_hdr, 0, sizeof(p80211_hdr_t));
+	memset(&p80211_hdr, 0, sizeof(union p80211_hdr));
 	memset(&p80211_wep, 0, sizeof(p80211_metawep_t));
 
 	if (netif_queue_stopped(netdev)) {
@@ -401,8 +401,8 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 			goto failed;
 		}
 		/* move the header over */
-		memcpy(&p80211_hdr, skb->data, sizeof(p80211_hdr_t));
-		skb_pull(skb, sizeof(p80211_hdr_t));
+		memcpy(&p80211_hdr, skb->data, sizeof(union p80211_hdr));
+		skb_pull(skb, sizeof(union p80211_hdr));
 	} else {
 		if (skb_ether_to_p80211
 		    (wlandev, wlandev->ethconv, skb, &p80211_hdr,
