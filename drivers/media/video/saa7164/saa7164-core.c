@@ -239,25 +239,88 @@ static void saa7164_histogram_print(struct saa7164_port *port,
 	printk(KERN_ERR "Total: %d\n", entries);
 }
 
+static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
+{
+	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf = 0;
+	struct saa7164_user_buffer *ubuf = 0;
+	struct list_head *c, *n;
+	int i = 0;
+
+	mutex_lock(&port->dmaqueue_lock);
+	list_for_each_safe(c, n, &port->dmaqueue.list) {
+
+		buf = list_entry(c, struct saa7164_buffer, list);
+		if (i++ > port->hwcfg.buffercount) {
+			printk(KERN_ERR "%s() illegal i count %d\n",
+				__func__, i);
+			break;
+		}
+
+		if (buf->idx == bufnr) {
+
+			/* Found the buffer, deal with it */
+			dprintk(DBGLVL_IRQ, "%s() rp: %d\n", __func__, bufnr);
+
+			/* Validate the incoming buffer content */
+			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
+				saa7164_ts_verifier(buf);
+			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+				saa7164_pack_verifier(buf);
+
+			/* find a free user buffer and clone to it */
+			if (!list_empty(&port->list_buf_free.list)) {
+
+				/* Pull the first buffer from the used list */
+				ubuf = list_first_entry(&port->list_buf_free.list,
+					struct saa7164_user_buffer, list);
+
+				if (buf->actual_size <= ubuf->actual_size) {
+
+					memcpy_fromio(ubuf->data, buf->cpu,
+						ubuf->actual_size);
+
+					/* Throw a new checksum on the read buffer */
+					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
+
+					/* Requeue the buffer on the free list */
+					ubuf->pos = 0;
+
+					list_move_tail(&ubuf->list,
+						&port->list_buf_used.list);
+
+					/* Flag any userland waiters */
+					wake_up_interruptible(&port->wait_read);
+
+				} else {
+					printk(KERN_ERR "buf %p bufsize fails match\n", buf);
+				}
+
+			} else
+				printk(KERN_ERR "encirq no free buffers, increase param encoder_buffers\n");
+
+			/* Ensure offset into buffer remains 0, fill buffer
+			 * with known bad data. We check for this data at a later point
+			 * in time. */
+			saa7164_buffer_zero_offsets(port, bufnr);
+			memset_io(buf->cpu, 0xff, buf->pci_size);
+
+			break;
+		}
+	}
+	mutex_unlock(&port->dmaqueue_lock);
+}
+
 static void saa7164_work_enchandler(struct work_struct *w)
 {
 	struct saa7164_port *port =
 		container_of(w, struct saa7164_port, workenc);
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf;
-	struct saa7164_user_buffer *ubuf;
-	struct list_head *c, *n;
-	int wp, rp, i = 0;
-	u32 crc, ok = 0;
-	u8 *p;
+
+	u32 wp, mcb, rp, cnt = 0;
 
 	port->last_svc_msecs_diff = port->last_svc_msecs;
 	port->last_svc_msecs = jiffies_to_msecs(jiffies);
-	port->last_svc_wp = saa7164_readl(port->bufcounter);
-	port->last_svc_rp = port->last_irq_rp;
-	wp = port->last_svc_wp;
-	rp = port->last_svc_rp;
-
 
 	port->last_svc_msecs_diff = port->last_svc_msecs -
 		port->last_svc_msecs_diff;
@@ -280,115 +343,40 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		port->last_svc_rp
 		);
 
-	if ((rp < 0) || (rp > 7)) {
-		printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
+	/* Current write position */
+	wp = saa7164_readl(port->bufcounter);
+	if (wp > (port->hwcfg.buffercount - 1)) {
+		printk(KERN_ERR "%s() illegal buf count %d\n", __func__, wp);
 		return;
 	}
 
-	mutex_lock(&port->dmaqueue_lock);
+	/* Most current complete buffer */
+	if (wp == 0)
+		mcb = 7;
+	else
+		mcb = wp - 1;
 
-	list_for_each_safe(c, n, &port->dmaqueue.list) {
+	while (1) {
+		rp = (port->last_svc_rp + 1) % 8;
 
-		buf = list_entry(c, struct saa7164_buffer, list);
-		if (i++ > port->hwcfg.buffercount) {
-			printk(KERN_ERR "%s() illegal i count %d\n",
-				__func__, i);
+		if ((rp < 0) || (rp > 7)) {
+			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 			break;
 		}
 
-		p = (u8 *)buf->cpu;
-		if (	(*(p + buf->actual_size + 0) != 0xff) ||
-			(*(p + buf->actual_size + 1) != 0xff) ||
-			(*(p + buf->actual_size + 2) != 0xff) ||
-			(*(p + buf->actual_size + 3) != 0xff) ||
-			(*(p + buf->actual_size + 0x10) != 0xff) ||
-			(*(p + buf->actual_size + 0x11) != 0xff) ||
-			(*(p + buf->actual_size + 0x12) != 0xff) ||
-			(*(p + buf->actual_size + 0x13) != 0xff) )
-		{
-			printk(KERN_ERR "%s() buf %p failed guard check\n", __func__, buf);
-			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
-		}
+		/* Process a buffer */
+		if (port->nr == SAA7164_PORT_ENC1)
+			printk(KERN_ERR "Port enc1 processing buffer %d\n", rp);
+		saa7164_work_enchandler_helper(port, rp);
+		port->last_svc_rp = rp;
+		cnt++;
 
-		if (buf->idx == wp) {
-			/* Ignore this, it's being updated currently by the dma engine */
-		} else
-		if (buf->idx == rp) {
-
-			crc = crc32(0, buf->cpu, buf->actual_size);
-//			if (crc != port->shadow_crc[rp])
-//				printk(KERN_ERR "%s crc didn't match shadow was 0x%x now 0x%x\n",
-//					__func__, port->shadow_crc[rp], crc);
-
-			/* Found the buffer, deal with it */
-			dprintk(DBGLVL_IRQ, "%s() wp: %d processing: %d crc32: 0x%x\n",
-				__func__, wp, rp, buf->crc);
-
-			/* Validate the incoming buffer content */
-			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
-				saa7164_ts_verifier(buf);
-			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
-				saa7164_pack_verifier(buf);
-
-			/* find a free user buffer and clone to it */
-			if (!list_empty(&port->list_buf_free.list)) {
-
-				/* Pull the first buffer from the used list */
-				ubuf = list_first_entry(&port->list_buf_free.list,
-					struct saa7164_user_buffer, list);
-
-				if (buf->actual_size <= ubuf->actual_size) {
-
-					memcpy_fromio(ubuf->data, port->shadow_buf[rp],
-						ubuf->actual_size);
-
-					/* Throw a new checksum on the read buffer */
-					ubuf->crc = crc32(0, ubuf->data, ubuf->actual_size);
-
-					if ((crc == port->shadow_crc[rp]) && (crc == ubuf->crc))
-						ok = 1;
-					else
-						ok = 0;
-
-					/* Requeue the buffer on the free list */
-					ubuf->pos = 0;
-
-					list_move_tail(&ubuf->list,
-						&port->list_buf_used.list);
-
-					/* Flag any userland waiters */
-					wake_up_interruptible(&port->wait_read);
-
-				} else {
-					printk(KERN_ERR "buf %p bufsize fails match\n", buf);
-				}
-
-			} else
-				printk(KERN_ERR "encirq no free buffers, increase param encoder_buffers\n");
-
-			/* Ensure offset into buffer remains 0, fill buffer
-			 * with known bad data. We check for this data at a later point
-			 * in time. */
-			saa7164_buffer_zero_offsets(port, rp);
-			memset_io(buf->cpu, 0xff, buf->pci_size);
-			buf->crc = crc32(0, buf->cpu, buf->actual_size);
-
+		if (rp == mcb)
 			break;
-		} else {
-			/* Validate all other checksums, on previous buffers - they should never change */
-			crc = crc32(0, buf->cpu, buf->actual_size);
-			if (crc != buf->crc) {
-				printk(KERN_ERR "buf[%d].crc became invalid, was 0x%x became 0x%x rp: %d wp: %d\n",
-					buf->idx, buf->crc, crc, rp, wp);
-				//saa7164_dumphex16FF(dev, (u8 *)buf->cpu, buf->actual_size);
-				saa7164_dumphex16FF(dev, (u8 *)buf->cpu, 256);
-				buf->crc = crc;
-			}
-
-		}
-
 	}
-	mutex_unlock(&port->dmaqueue_lock);
+
+	if (port->nr == SAA7164_PORT_ENC1)
+		printk(KERN_ERR "Enc1 processed %d buffers for port %p\n", cnt, port);
 
 	if (print_histogram == port->nr) {
 		saa7164_histogram_print(port, &port->irq_interval);
@@ -399,6 +387,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		print_histogram = 64 + port->nr;
 	}
 }
+
 static void saa7164_work_cmdhandler(struct work_struct *w)
 {
 	struct saa7164_dev *dev = container_of(w, struct saa7164_dev, workcmd);
@@ -420,49 +409,12 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	struct saa7164_buffer *buf;
-	struct list_head *c, *n;
-	int wp, rp, i = 0;
-	u8 *p;
-	u32 *up, j;
-
-	/* Find the current write point from the hardware */
-	wp = saa7164_readl(port->bufcounter);
-	if (wp > (port->hwcfg.buffercount - 1)) {
-		printk(KERN_ERR "%s() illegal buf count %d\n", __func__, wp);
-		return 0;
-	}
-
-	printk(KERN_ERR "port %p wp = %d\n", port, wp);
-
-	/* Find the previous buffer to the current write point */
-	if (wp == 0)
-		rp = 7;
-	else
-		rp = wp - 1;
-
-	if ((rp < 0) || (rp > 7)) {
-		printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
-		return 0;
-	}
-
-	if (rp == port->last_irq_rp) {
-		printk(KERN_ERR "%s() Duplicate rp = %d port %p\n",
-			__func__, rp, port);
-	}
-
-	if (rp != ((port->last_irq_rp + 1) % 8)) {
-		printk(KERN_ERR "%s() Multiple bufs on interrupt, port %p\n",
-			__func__, port);
-	}
 
 	/* Store old time */
 	port->last_irq_msecs_diff = port->last_irq_msecs;
 
 	/* Collect new stats */
 	port->last_irq_msecs = jiffies_to_msecs(jiffies);
-	port->last_irq_wp = wp;
-	port->last_irq_rp = rp;
 
 	/* Calculate stats */
 	port->last_irq_msecs_diff = port->last_irq_msecs -
@@ -471,58 +423,10 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 	saa7164_histogram_update(&port->irq_interval,
 		port->last_irq_msecs_diff);
 
-	dprintk(DBGLVL_IRQ, "%s() %Ldms elapsed wp: %d rp: %d\n",
-		__func__,
-		port->last_irq_msecs_diff,
-		port->last_irq_wp,
-		port->last_irq_rp
-		);
-	/* Find the used buffer, shadow copy it before we've
-	 * acked the interrupt.
-	 */
-//	mutex_lock(&port->dmaqueue_lock);
-	list_for_each_safe(c, n, &port->dmaqueue.list) {
+	dprintk(DBGLVL_IRQ, "%s() %Ldms elapsed\n", __func__,
+		port->last_irq_msecs_diff);
 
-		buf = list_entry(c, struct saa7164_buffer, list);
-		if (i++ > port->hwcfg.buffercount) {
-			printk(KERN_ERR "%s() illegal i count %d\n",
-				__func__, i);
-			break;
-		}
-
-		p = (u8 *)buf->cpu;
-		if (	(*(p + buf->actual_size + 0) != 0xff) ||
-			(*(p + buf->actual_size + 1) != 0xff) ||
-			(*(p + buf->actual_size + 2) != 0xff) ||
-			(*(p + buf->actual_size + 3) != 0xff) ||
-			(*(p + buf->actual_size + 0x10) != 0xff) ||
-			(*(p + buf->actual_size + 0x11) != 0xff) ||
-			(*(p + buf->actual_size + 0x12) != 0xff) ||
-			(*(p + buf->actual_size + 0x13) != 0xff) )
-		{
-			printk(KERN_ERR "buf %p failed guard check\n", buf);
-			saa7164_dumphex16(dev, p + buf->actual_size - 32, 64);
-		}
-
-		if (buf->idx == rp) {
-			up = (u32 *)port->shadow_buf[rp];
-			for (j = 0 ; j < (buf->actual_size / sizeof(u32)); j++) {
-				*(up + j) = (rp << 28) | port->counter++;
-			}
-			port->shadow_crc[rp] = crc32(0, port->shadow_buf[rp], buf->actual_size);
-
-			buf->crc = crc32(0, buf->cpu, buf->actual_size);
-
-//			if (port->shadow_crc[rp] != buf->crc)
-//				printk(KERN_ERR "%s() crc check failed 0x%x vs 0x%x\n",
-//					__func__, port->shadow_crc[rp], buf->crc);
-			break;
-		}
-
-	}
-//	mutex_unlock(&port->dmaqueue_lock);
 	schedule_work(&port->workenc);
-
 	return 0;
 }
 

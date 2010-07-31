@@ -330,8 +330,8 @@ struct saa7164_port {
 
 	u64 last_irq_msecs, last_svc_msecs;
 	u64 last_irq_msecs_diff, last_svc_msecs_diff;
-	u32 last_irq_wp, last_svc_wp;
-	u32 last_irq_rp, last_svc_rp;
+	u32 last_svc_wp;
+	u32 last_svc_rp;
 	u64 last_irq_svc_msecs_diff;
 	u64 last_read_msecs, last_read_msecs_diff;
 	u64 last_poll_msecs, last_poll_msecs_diff;
