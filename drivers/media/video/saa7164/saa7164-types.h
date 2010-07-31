@@ -325,6 +325,18 @@ typedef struct
 	u8	height;
 } __attribute__((packed)) tmComResEncVideoInputAspectRatio_t;
 
+/* Video Encoder GOP IBP message */
+/* 1. IPPPPPPPPPPPPPP */
+/* 2. IBPBPBPBPBPBPBP */
+/* 3. IBBPBBPBBPBBP   */
+#define SAA7164_ENCODER_DEFAULT_GOP_DIST ( 1)
+#define SAA7164_ENCODER_DEFAULT_GOP_SIZE (15)
+typedef struct
+{
+	u8	ucGOPSize;	/* GOP Size 12, 15 */
+	u8	ucRefFrameDist; /* Reference Frame Distance */
+} __attribute__((packed)) tmComResEncVideoGopStructure_t;
+
 /* Encoder processor definition */
 typedef struct
 {

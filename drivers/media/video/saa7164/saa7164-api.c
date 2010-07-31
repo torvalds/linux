@@ -24,6 +24,25 @@
 
 #include "saa7164.h"
 
+int saa7164_api_set_gop_size(struct saa7164_port *port)
+{
+	struct saa7164_dev *dev = port->dev;
+	tmComResEncVideoGopStructure_t gs;
+	int ret;
+
+	dprintk(DBGLVL_ENC, "%s()\n", __func__);
+
+	gs.ucRefFrameDist = SAA7164_ENCODER_DEFAULT_GOP_DIST;
+	gs.ucGOPSize = SAA7164_ENCODER_DEFAULT_GOP_SIZE;
+	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
+		EU_VIDEO_GOP_STRUCTURE_CONTROL,
+		sizeof(gs), &gs);
+	if (ret != SAA_OK)
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+
+	return ret;
+}
+
 int saa7164_api_set_encoder(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
@@ -31,7 +50,8 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 	tmComResEncAudioBitRate_t ab;
 	int ret;
 
-	dprintk(DBGLVL_ENC, "%s() unitid=0x%x\n", __func__, port->hwcfg.sourceid);
+	dprintk(DBGLVL_ENC, "%s() unitid=0x%x\n", __func__,
+		port->hwcfg.sourceid);
 
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
 		EU_PROFILE_CONTROL, sizeof(u8), &port->encoder_profile);
@@ -57,6 +77,7 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
 	saa7164_api_set_aspect_ratio(port);
+	saa7164_api_set_gop_size(port);
 
 	return ret;
 }
