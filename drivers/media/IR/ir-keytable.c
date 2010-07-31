@@ -339,6 +339,8 @@ void ir_repeat(struct input_dev *dev)
 
 	spin_lock_irqsave(&ir->keylock, flags);
 
+	input_event(dev, EV_MSC, MSC_SCAN, ir->last_scancode);
+
 	if (!ir->keypressed)
 		goto out;
 
@@ -370,6 +372,8 @@ void ir_keydown(struct input_dev *dev, int scancode, u8 toggle)
 
 	spin_lock_irqsave(&ir->keylock, flags);
 
+	input_event(dev, EV_MSC, MSC_SCAN, scancode);
+
 	/* Repeat event? */
 	if (ir->keypressed &&
 	    ir->last_scancode == scancode &&
@@ -383,8 +387,10 @@ void ir_keydown(struct input_dev *dev, int scancode, u8 toggle)
 	ir->last_toggle = toggle;
 	ir->last_keycode = keycode;
 
+
 	if (keycode == KEY_RESERVED)
 		goto out;
+
 
 	/* Register a keypress */
 	ir->keypressed = true;
@@ -480,6 +486,8 @@ int __ir_input_register(struct input_dev *input_dev,
 
 	set_bit(EV_KEY, input_dev->evbit);
 	set_bit(EV_REP, input_dev->evbit);
+	set_bit(EV_MSC, input_dev->evbit);
+	set_bit(MSC_SCAN, input_dev->mscbit);
 
 	if (ir_setkeytable(input_dev, &ir_dev->rc_tab, rc_tab)) {
 		rc = -ENOMEM;
