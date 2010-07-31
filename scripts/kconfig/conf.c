@@ -34,7 +34,7 @@ enum input_mode {
 	randconfig,
 	defconfig,
 	nonint_oldconfig,
-	loose_nonint_oldconfig,
+	oldnoconfig,
 } input_mode = oldaskconfig;
 
 char *defconfig_file;
@@ -367,7 +367,7 @@ static void conf(struct menu *menu)
 		case P_MENU:
 			if ((input_mode == silentoldconfig ||
 			     input_mode == nonint_oldconfig ||
-			     input_mode == loose_nonint_oldconfig) &&
+			     input_mode == oldnoconfig) &&
 			    rootEntry != menu) {
 				check_conf(menu);
 				return;
@@ -427,7 +427,7 @@ static void check_conf(struct menu *menu)
 		if (sym_is_changable(sym) ||
 		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
 			if (input_mode == nonint_oldconfig ||
-			    input_mode == loose_nonint_oldconfig) {
+			    input_mode == oldnoconfig) {
 				if (input_mode == nonint_oldconfig &&
 				    sym->name && !sym_is_choice_value(sym)) {
 					if (!unset_variables)
@@ -460,7 +460,7 @@ static struct option long_opts[] = {
 	{"allmodconfig",    no_argument,       NULL, allmodconfig},
 	{"randconfig",      no_argument,       NULL, randconfig},
 	{"nonint_oldconfig",       no_argument, NULL, nonint_oldconfig},
-	{"loose_nonint_oldconfig", no_argument, NULL, loose_nonint_oldconfig},
+	{"oldnoconfig",     no_argument,       NULL, oldnoconfig},
 	{NULL, 0, NULL, 0}
 };
 
@@ -540,7 +540,7 @@ int main(int ac, char **av)
 	case oldaskconfig:
 	case oldconfig:
 	case nonint_oldconfig:
-	case loose_nonint_oldconfig:
+	case oldnoconfig:
 		conf_read(NULL);
 		break;
 	case allnoconfig:
@@ -603,7 +603,7 @@ int main(int ac, char **av)
 		input_mode = silentoldconfig;
 		/* fall through */
 	case nonint_oldconfig:
-	case loose_nonint_oldconfig:
+	case oldnoconfig:
 	case silentoldconfig:
 		/* Update until a loop caused no more changes */
 		do {
@@ -611,7 +611,7 @@ int main(int ac, char **av)
 			check_conf(&rootmenu);
 		} while (conf_cnt &&
 			 (input_mode != nonint_oldconfig &&
-			  input_mode != loose_nonint_oldconfig));
+			  input_mode != oldnoconfig));
 		break;
 	}
 
