@@ -237,10 +237,10 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	/* if something is inside the buffer, simulate key press */
 	if (key[1] != 0)
 	{
-		  for (i = 0; i < d->props.rc_key_map_size; i++) {
-			if (rc5_custom(&d->props.rc_key_map[i]) == key[1] &&
-			    rc5_data(&d->props.rc_key_map[i]) == key[2]) {
-				*event = d->props.rc_key_map[i].keycode;
+		  for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
+			if (rc5_custom(&d->props.rc.legacy.rc_key_map[i]) == key[1] &&
+			    rc5_data(&d->props.rc.legacy.rc_key_map[i]) == key[2]) {
+				*event = d->props.rc.legacy.rc_key_map[i].keycode;
 				*state = REMOTE_KEY_PRESSED;
 				return 0;
 			}
@@ -310,10 +310,12 @@ static struct dvb_usb_device_properties digitv_properties = {
 	},
 	.identify_state   = digitv_identify_state,
 
-	.rc_interval      = 1000,
-	.rc_key_map       = ir_codes_digitv_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_digitv_table),
-	.rc_query         = digitv_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 1000,
+		.rc_key_map       = ir_codes_digitv_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_digitv_table),
+		.rc_query         = digitv_rc_query,
+	},
 
 	.i2c_algo         = &digitv_i2c_algo,
 

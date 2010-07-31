@@ -847,8 +847,8 @@ static void af9015_set_remote_config(struct usb_device *udev,
 	}
 
 	if (table) {
-		props->rc_key_map = table->rc_key_map;
-		props->rc_key_map_size = table->rc_key_map_size;
+		props->rc.legacy.rc_key_map = table->rc_key_map;
+		props->rc.legacy.rc_key_map_size = table->rc_key_map_size;
 		af9015_config.ir_table = table->ir_table;
 		af9015_config.ir_table_size = table->ir_table_size;
 	}
@@ -878,8 +878,8 @@ static int af9015_read_config(struct usb_device *udev)
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED) {
-			af9015_properties[i].rc_key_map = NULL;
-			af9015_properties[i].rc_key_map_size  = 0;
+			af9015_properties[i].rc.legacy.rc_key_map = NULL;
+			af9015_properties[i].rc.legacy.rc_key_map_size  = 0;
 		} else
 			af9015_set_remote_config(udev, &af9015_properties[i]);
 	}
@@ -1063,7 +1063,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[8];
 	struct req_t req = {GET_IR_CODE, 0, 0, 0, 0, sizeof(buf), buf};
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	int i, ret;
 
 	memset(buf, 0, sizeof(buf));
@@ -1075,7 +1075,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
 		    rc5_data(&keymap[i]) == buf[2]) {
 			*event = keymap[i].keycode;
@@ -1354,8 +1354,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1461,8 +1463,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1568,8 +1572,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 

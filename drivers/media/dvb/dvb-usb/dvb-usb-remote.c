@@ -13,11 +13,11 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	int i;
 
 	/* See if we can match the raw key code. */
-	for (i = 0; i < d->props.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
 		if (keymap[i].scancode == scancode) {
 			*keycode = keymap[i].keycode;
 			return 0;
@@ -28,7 +28,7 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 	 * otherwise, input core won't let dvb_usb_setkeycode
 	 * to work
 	 */
-	for (i = 0; i < d->props.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
 		if (keymap[i].keycode == KEY_RESERVED ||
 		    keymap[i].keycode == KEY_UNKNOWN) {
 			*keycode = KEY_RESERVED;
@@ -43,18 +43,18 @@ static int dvb_usb_setkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	int i;
 
 	/* Search if it is replacing an existing keycode */
-	for (i = 0; i < d->props.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
 		if (keymap[i].scancode == scancode) {
 			keymap[i].keycode = keycode;
 			return 0;
 		}
 
 	/* Search if is there a clean entry. If so, use it */
-	for (i = 0; i < d->props.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
 		if (keymap[i].keycode == KEY_RESERVED ||
 		    keymap[i].keycode == KEY_UNKNOWN) {
 			keymap[i].scancode = scancode;
@@ -92,7 +92,7 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	if (dvb_usb_disable_rc_polling)
 		return;
 
-	if (d->props.rc_query(d,&event,&state)) {
+	if (d->props.rc.legacy.rc_query(d,&event,&state)) {
 		err("error while querying for an remote control event.");
 		goto schedule;
 	}
@@ -151,7 +151,7 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 */
 
 schedule:
-	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc_interval));
+	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc.legacy.rc_interval));
 }
 
 int dvb_usb_remote_init(struct dvb_usb_device *d)
@@ -160,8 +160,8 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	int i;
 	int err;
 
-	if (d->props.rc_key_map == NULL ||
-		d->props.rc_query == NULL ||
+	if (d->props.rc.legacy.rc_key_map == NULL ||
+		d->props.rc.legacy.rc_query == NULL ||
 		dvb_usb_disable_rc_polling)
 		return 0;
 
@@ -181,20 +181,20 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	input_dev->setkeycode = dvb_usb_setkeycode;
 
 	/* set the bits for the keys */
-	deb_rc("key map size: %d\n", d->props.rc_key_map_size);
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	deb_rc("key map size: %d\n", d->props.rc.legacy.rc_key_map_size);
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		deb_rc("setting bit for event %d item %d\n",
-			d->props.rc_key_map[i].keycode, i);
-		set_bit(d->props.rc_key_map[i].keycode, input_dev->keybit);
+			d->props.rc.legacy.rc_key_map[i].keycode, i);
+		set_bit(d->props.rc.legacy.rc_key_map[i].keycode, input_dev->keybit);
 	}
 
 	/* Start the remote-control polling. */
-	if (d->props.rc_interval < 40)
-		d->props.rc_interval = 100; /* default */
+	if (d->props.rc.legacy.rc_interval < 40)
+		d->props.rc.legacy.rc_interval = 100; /* default */
 
 	/* setting these two values to non-zero, we have to manage key repeats */
-	input_dev->rep[REP_PERIOD] = d->props.rc_interval;
-	input_dev->rep[REP_DELAY]  = d->props.rc_interval + 150;
+	input_dev->rep[REP_PERIOD] = d->props.rc.legacy.rc_interval;
+	input_dev->rep[REP_DELAY]  = d->props.rc.legacy.rc_interval + 150;
 
 	input_set_drvdata(input_dev, d);
 
@@ -208,8 +208,8 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 
 	INIT_DELAYED_WORK(&d->rc_query_work, dvb_usb_read_remote_control);
 
-	info("schedule remote query interval to %d msecs.", d->props.rc_interval);
-	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc_interval));
+	info("schedule remote query interval to %d msecs.", d->props.rc.legacy.rc_interval);
+	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc.legacy.rc_interval));
 
 	d->state |= DVB_USB_STATE_REMOTE;
 
@@ -234,7 +234,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 		u8 keybuf[5], u32 *event, int *state)
 {
 	int i;
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 	switch (keybuf[0]) {
@@ -247,7 +247,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 				break;
 			}
 			/* See if we can match the raw key code. */
-			for (i = 0; i < d->props.rc_key_map_size; i++)
+			for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
 				if (rc5_custom(&keymap[i]) == keybuf[1] &&
 					rc5_data(&keymap[i]) == keybuf[3]) {
 					*event = keymap[i].keycode;

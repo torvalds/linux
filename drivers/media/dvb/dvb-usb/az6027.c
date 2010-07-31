@@ -1125,10 +1125,13 @@ static struct dvb_usb_device_properties az6027_properties = {
 	.power_ctrl       = az6027_power_ctrl,
 	.read_mac_address = az6027_read_mac_addr,
  */
-	.rc_key_map       = ir_codes_az6027_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_az6027_table),
-	.rc_interval      = 400,
-	.rc_query         = az6027_rc_query,
+	.rc.legacy = {
+		.rc_key_map       = ir_codes_az6027_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_az6027_table),
+		.rc_interval      = 400,
+		.rc_query         = az6027_rc_query,
+	},
+
 	.i2c_algo         = &az6027_i2c_algo,
 
 	.num_device_descs = 5,

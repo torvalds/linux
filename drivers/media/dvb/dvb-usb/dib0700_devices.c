@@ -477,7 +477,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[4];
 	int i;
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	struct dib0700_state *st = d->priv;
 
 	*event = 0;
@@ -517,7 +517,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			}
 			return 0;
 		}
-		for (i=0;i<d->props.rc_key_map_size; i++) {
+		for (i=0;i<d->props.rc.legacy.rc_key_map_size; i++) {
 			if (rc5_custom(&keymap[i]) == key[3-2] &&
 			    rc5_data(&keymap[i]) == key[3-3]) {
 				st->rc_counter = 0;
@@ -531,7 +531,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	}
 	default: {
 		/* RC-5 protocol changes toggle bit on new keypress */
-		for (i = 0; i < d->props.rc_key_map_size; i++) {
+		for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 			if (rc5_custom(&keymap[i]) == key[3-2] &&
 			    rc5_data(&keymap[i]) == key[3-3]) {
 				if (d->last_event == keymap[i].keycode &&
@@ -2168,10 +2168,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2197,10 +2199,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2251,11 +2255,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2288,10 +2293,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2358,11 +2365,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2397,11 +2405,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2463,10 +2472,13 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2525,10 +2537,13 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2554,10 +2569,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2615,10 +2632,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2653,11 +2672,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 2,
 		.adapter = {
@@ -2697,10 +2717,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2728,10 +2750,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.legacy = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_key_map       = ir_codes_dib0700_table,
+			.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
+			.rc_query         = dib0700_rc_query
+		},
 	},
 };
 

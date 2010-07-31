@@ -146,10 +146,12 @@ static struct dvb_usb_device_properties a800_properties = {
 	.power_ctrl       = a800_power_ctrl,
 	.identify_state   = a800_identify_state,
 
-	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = ir_codes_a800_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_a800_table),
-	.rc_query         = a800_rc_query,
+	.rc.legacy = {
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = ir_codes_a800_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_a800_table),
+		.rc_query         = a800_rc_query,
+	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
 

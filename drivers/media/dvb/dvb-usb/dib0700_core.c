@@ -510,7 +510,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		return;
 	}
 
-	keymap = d->props.rc_key_map;
+	keymap = d->props.rc.legacy.rc_key_map;
 	st = d->priv;
 	buf = (u8 *)purb->transfer_buffer;
 
@@ -571,7 +571,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 poll_reply.system, poll_reply.data, poll_reply.not_data);
 
 	/* Find the key in the map */
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
 		    rc5_data(&keymap[i]) == poll_reply.data) {
 			event = keymap[i].keycode;
@@ -640,7 +640,7 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 	int ret;
 	int i;
 
-	if (d->props.rc_key_map == NULL)
+	if (d->props.rc.legacy.rc_key_map == NULL)
 		return 0;
 
 	/* Set the IR mode */

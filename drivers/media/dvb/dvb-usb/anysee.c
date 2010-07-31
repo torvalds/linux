@@ -377,7 +377,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};
-	struct ir_scancode *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[2];
 	int i, ret;
 
@@ -388,7 +388,7 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
 			*event = keymap[i].keycode;
@@ -520,10 +520,12 @@ static struct dvb_usb_device_properties anysee_properties = {
 		}
 	},
 
-	.rc_key_map       = ir_codes_anysee_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_anysee_table),
-	.rc_query         = anysee_rc_query,
-	.rc_interval      = 200,  /* windows driver uses 500ms */
+	.rc.legacy = {
+		.rc_key_map       = ir_codes_anysee_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_anysee_table),
+		.rc_query         = anysee_rc_query,
+		.rc_interval      = 200,  /* windows driver uses 500ms */
+	},
 
 	.i2c_algo         = &anysee_i2c_algo,
 

@@ -259,10 +259,12 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.power_ctrl       = vp7045_power_ctrl,
 	.read_mac_address = vp7045_read_mac_addr,
 
-	.rc_interval      = 400,
-	.rc_key_map       = ir_codes_vp7045_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_vp7045_table),
-	.rc_query         = vp7045_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 400,
+		.rc_key_map       = ir_codes_vp7045_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_vp7045_table),
+		.rc_query         = vp7045_rc_query,
+	},
 
 	.num_device_descs = 2,
 	.devices = {

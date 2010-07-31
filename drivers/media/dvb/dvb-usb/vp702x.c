@@ -283,10 +283,12 @@ static struct dvb_usb_device_properties vp702x_properties = {
 	},
 	.read_mac_address = vp702x_read_mac_addr,
 
-	.rc_key_map       = ir_codes_vp702x_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_vp702x_table),
-	.rc_interval      = 400,
-	.rc_query         = vp702x_rc_query,
+	.rc.legacy = {
+		.rc_key_map       = ir_codes_vp702x_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_vp702x_table),
+		.rc_interval      = 400,
+		.rc_query         = vp702x_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {

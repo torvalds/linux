@@ -498,10 +498,12 @@ static struct dvb_usb_device_properties opera1_properties = {
 	.power_ctrl = opera1_power_ctrl,
 	.i2c_algo = &opera1_i2c_algo,
 
-	.rc_key_map = ir_codes_opera1_table,
-	.rc_key_map_size = ARRAY_SIZE(ir_codes_opera1_table),
-	.rc_interval = 200,
-	.rc_query = opera1_rc_query,
+	.rc.legacy = {
+		.rc_key_map = ir_codes_opera1_table,
+		.rc_key_map_size = ARRAY_SIZE(ir_codes_opera1_table),
+		.rc_interval = 200,
+		.rc_query = opera1_rc_query,
+	},
 	.read_mac_address = opera1_read_mac_address,
 	.generic_bulk_ctrl_endpoint = 0x00,
 	/* parameter for the MPEG2-data transfer */

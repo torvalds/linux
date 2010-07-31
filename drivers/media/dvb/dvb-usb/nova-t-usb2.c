@@ -195,10 +195,12 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.power_ctrl       = dibusb2_0_power_ctrl,
 	.read_mac_address = nova_t_read_mac_address,
 
-	.rc_interval      = 100,
-	.rc_key_map       = ir_codes_haupp_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_haupp_table),
-	.rc_query         = nova_t_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_haupp_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_haupp_table),
+		.rc_query         = nova_t_rc_query,
+	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
 

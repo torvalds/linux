@@ -158,6 +158,25 @@ struct dvb_usb_adapter_properties {
 };
 
 /**
+ * struct dvb_rc_legacy - old properties of remote controller
+ * @rc_key_map: a hard-wired array of struct ir_scancode (NULL to disable
+ *  remote control handling).
+ * @rc_key_map_size: number of items in @rc_key_map.
+ * @rc_query: called to query an event event.
+ * @rc_interval: time in ms between two queries.
+ */
+struct dvb_rc_legacy {
+/* remote control properties */
+#define REMOTE_NO_KEY_PRESSED      0x00
+#define REMOTE_KEY_PRESSED         0x01
+#define REMOTE_KEY_REPEAT          0x02
+	struct ir_scancode  *rc_key_map;
+	int rc_key_map_size;
+	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
+	int rc_interval;
+};
+
+/**
  * struct dvb_usb_device_properties - properties of a dvb-usb-device
  * @usb_ctrl: which USB device-side controller is in use. Needed for firmware
  *  download.
@@ -175,11 +194,7 @@ struct dvb_usb_adapter_properties {
  * @identify_state: called to determine the state (cold or warm), when it
  *  is not distinguishable by the USB IDs.
  *
- * @rc_key_map: a hard-wired array of struct ir_scancode (NULL to disable
- *  remote control handling).
- * @rc_key_map_size: number of items in @rc_key_map.
- * @rc_query: called to query an event event.
- * @rc_interval: time in ms between two queries.
+ * @rc: remote controller properties
  *
  * @i2c_algo: i2c_algorithm if the device has I2CoverUSB.
  *
@@ -223,14 +238,9 @@ struct dvb_usb_device_properties {
 	int (*identify_state)   (struct usb_device *, struct dvb_usb_device_properties *,
 			struct dvb_usb_device_description **, int *);
 
-/* remote control properties */
-#define REMOTE_NO_KEY_PRESSED      0x00
-#define REMOTE_KEY_PRESSED         0x01
-#define REMOTE_KEY_REPEAT          0x02
-	struct ir_scancode  *rc_key_map;
-	int rc_key_map_size;
-	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
-	int rc_interval;
+	union {
+		struct dvb_rc_legacy legacy;
+	} rc;
 
 	struct i2c_algorithm *i2c_algo;
 
