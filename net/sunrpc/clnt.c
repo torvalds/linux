@@ -756,12 +756,13 @@ EXPORT_SYMBOL_GPL(rpc_force_rebind);
  * Restart an (async) RPC call from the call_prepare state.
  * Usually called from within the exit handler.
  */
-void
+int
 rpc_restart_call_prepare(struct rpc_task *task)
 {
 	if (RPC_ASSASSINATED(task))
-		return;
+		return 0;
 	task->tk_action = rpc_prepare_task;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
 
@@ -769,13 +770,13 @@ EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
  * Restart an (async) RPC call. Usually called from within the
  * exit handler.
  */
-void
+int
 rpc_restart_call(struct rpc_task *task)
 {
 	if (RPC_ASSASSINATED(task))
-		return;
-
+		return 0;
 	task->tk_action = call_start;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
 
