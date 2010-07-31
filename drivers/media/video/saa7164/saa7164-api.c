@@ -33,7 +33,7 @@ int saa7164_api_set_gop_size(struct saa7164_port *port)
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
 	gs.ucRefFrameDist = port->encoder_params.refdist;
-	gs.ucGOPSize = SAA7164_ENCODER_DEFAULT_GOP_SIZE;
+	gs.ucGOPSize = port->encoder_params.gop_size;
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
 		EU_VIDEO_GOP_STRUCTURE_CONTROL,
 		sizeof(gs), &gs);

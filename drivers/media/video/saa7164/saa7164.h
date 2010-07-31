@@ -263,6 +263,7 @@ struct saa7164_encoder_params {
 	u32 ctl_mute;
 	u32 ctl_aspect;
 	u32 refdist;
+	u32 gop_size;
 };
 
 struct saa7164_port;
