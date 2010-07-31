@@ -47,6 +47,7 @@
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
+#include "iwl-agn-tt.h"
 
 struct iwl_tx_queue;
 

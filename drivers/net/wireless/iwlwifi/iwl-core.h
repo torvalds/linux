@@ -136,6 +136,12 @@ struct iwl_temp_ops {
 	void (*set_calib_version)(struct iwl_priv *priv);
 };
 
+struct iwl_tt_ops {
+	bool (*lower_power_detection)(struct iwl_priv *priv);
+	u8 (*tt_power_mode)(struct iwl_priv *priv);
+	bool (*ct_kill_check)(struct iwl_priv *priv);
+};
+
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -212,6 +218,9 @@ struct iwl_lib_ops {
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
 	struct iwl_debugfs_ops debugfs_ops;
+
+	/* thermal throttling */
+	struct iwl_tt_ops tt_ops;
 };
 
 struct iwl_led_ops {
@@ -693,7 +702,6 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 	return iwl_is_ready(priv);
 }
 
-extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);

@@ -422,6 +422,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int len;
 	u32 idx;
 	u16 fix_size;
+	bool is_ct_kill = false;
 
 	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
@@ -443,9 +444,11 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERR(priv, "No space in command queue\n");
-		if (iwl_within_ct_kill_margin(priv))
-			iwl_tt_enter_ct_kill(priv);
-		else {
+		if (priv->cfg->ops->lib->tt_ops.ct_kill_check) {
+			is_ct_kill =
+				priv->cfg->ops->lib->tt_ops.ct_kill_check(priv);
+		}
+		if (!is_ct_kill) {
 			IWL_ERR(priv, "Restarting adapter due to queue full\n");
 			queue_work(priv->workqueue, &priv->restart);
 		}
