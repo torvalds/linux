@@ -319,11 +319,13 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 				}
 			}
 
-			/* Validate the incoming buffer content */
-			if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
-				saa7164_ts_verifier(buf);
-			else if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
-				saa7164_pack_verifier(buf);
+			if ((port->nr != SAA7164_PORT_VBI1) && (port->nr != SAA7164_PORT_VBI2)) {
+				/* Validate the incoming buffer content */
+				if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
+					saa7164_ts_verifier(buf);
+				else if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+					saa7164_pack_verifier(buf);
+			}
 
 			/* find a free user buffer and clone to it */
 			if (!list_empty(&port->list_buf_free.list)) {
@@ -494,6 +496,27 @@ static void saa7164_work_vbihandler(struct work_struct *w)
 		mcb = (port->hwcfg.buffercount - 1);
 	else
 		mcb = wp - 1;
+
+	while (1) {
+		if (port->done_first_interrupt == 0) {
+			port->done_first_interrupt++;
+			rp = mcb;
+		} else
+			rp = (port->last_svc_rp + 1) % 8;
+
+		if ((rp < 0) || (rp > (port->hwcfg.buffercount - 1))) {
+			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
+			break;
+		}
+
+		saa7164_work_enchandler_helper(port, rp);
+		port->last_svc_rp = rp;
+		cnt++;
+
+		if (rp == mcb)
+			break;
+	}
+
 	/* TODO: Convert this into a /proc/saa7164 style readable file */
 	if (print_histogram == port->nr) {
 		saa7164_histogram_print(port, &port->irq_interval);
