@@ -145,12 +145,15 @@ int
 rpcauth_init_credcache(struct rpc_auth *auth)
 {
 	struct rpc_cred_cache *new;
+	unsigned int hashsize;
 	int i;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
-	for (i = 0; i < RPC_CREDCACHE_NR; i++)
+	new->hashbits = RPC_CREDCACHE_HASHBITS;
+	hashsize = 1U << new->hashbits;
+	for (i = 0; i < hashsize; i++)
 		INIT_HLIST_HEAD(&new->hashtable[i]);
 	spin_lock_init(&new->lock);
 	auth->au_credcache = new;
@@ -183,11 +186,12 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 	LIST_HEAD(free);
 	struct hlist_head *head;
 	struct rpc_cred	*cred;
+	unsigned int hashsize = 1U << cache->hashbits;
 	int		i;
 
 	spin_lock(&rpc_credcache_lock);
 	spin_lock(&cache->lock);
-	for (i = 0; i < RPC_CREDCACHE_NR; i++) {
+	for (i = 0; i < hashsize; i++) {
 		head = &cache->hashtable[i];
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
@@ -297,7 +301,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 			*entry, *new;
 	unsigned int nr;
 
-	nr = hash_long(acred->uid, RPC_CREDCACHE_HASHBITS);
+	nr = hash_long(acred->uid, cache->hashbits);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {

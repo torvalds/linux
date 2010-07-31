@@ -65,6 +65,7 @@ struct rpc_cred {
 #define RPC_CREDCACHE_NR	(1 << RPC_CREDCACHE_HASHBITS)
 struct rpc_cred_cache {
 	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
+	unsigned int		hashbits;
 	spinlock_t		lock;
 };
 
