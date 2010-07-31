@@ -628,7 +628,8 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		usb_interface_index, alt);
 		/*To workaround error number=-71 on EP0 for videograbber,
 		 need add following codes.*/
-		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
+		    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
 			return -1;
 	}
 
@@ -1327,7 +1328,8 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	/* init hardware */
 	/* Note : with out calling set power mode function,
 	afe can not be set up correctly */
-	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
+	    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2) {
 		errCode = cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);
 		if (errCode < 0) {
@@ -1427,7 +1429,8 @@ int cx231xx_dev_init(struct cx231xx *dev)
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 
 	/* set the I2C master port to 3 on channel 1 */
-	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
+	    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
 		errCode = cx231xx_enable_i2c_for_tuner(dev, I2C_3);
 
 	return errCode;

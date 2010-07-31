@@ -2256,7 +2256,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 		dev->height = norm_maxh(dev);
 
 		/* Power up in Analog TV mode */
-		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
+		    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
 			cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);
 		else
@@ -2296,7 +2297,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		/* Set the required alternate setting  VBI interface works in
 		   Bulk mode only */
-		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
+		    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
 			cx231xx_set_alt_setting(dev, INDEX_VANC, 0);
 
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops,
@@ -2371,7 +2373,8 @@ static int cx231xx_v4l2_close(struct file *filp)
 
 	/*To workaround error number=-71 on EP0 for VideoGrabber,
 		 need exclude following.*/
-	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
+	    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
 		if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 			videobuf_stop(&fh->vb_vidq);
 			videobuf_mmap_free(&fh->vb_vidq);

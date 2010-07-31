@@ -378,11 +378,29 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = 0,
 		} },
 	},
-
-
-
-
-
+	[CX231XX_BOARD_HAUPPAUGE_USBLIVE2] = {
+		.name = "Hauppauge USB Live 2",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -410,6 +428,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xb140),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
+	{USB_DEVICE(0x2040, 0xc200),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
 	{},
 };
 
@@ -688,7 +708,8 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 
 	/*To workaround error number=-71 on EP0 for VideoGrabber,
 		 need set alt here.*/
-	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
+	    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2) {
 		cx231xx_set_alt_setting(dev, INDEX_VIDEO, 3);
 		cx231xx_set_alt_setting(dev, INDEX_VANC, 1);
 	}
