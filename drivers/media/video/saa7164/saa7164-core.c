@@ -267,7 +267,12 @@ static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
 		return 0;
 	}
 
-	/* Sore old time */
+	if (rp != ((port->last_irq_rp + 1) % 8)) {
+		printk(KERN_ERR "%s() Multiple bufs on interrupt, port %p\n",
+			__func__, port);
+	}
+
+	/* Store old time */
 	port->last_irq_msecs_diff = port->last_irq_msecs;
 
 	/* Collect new stats */
