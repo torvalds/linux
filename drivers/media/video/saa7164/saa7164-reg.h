@@ -156,6 +156,8 @@
 #define EXU_INTERRUPT_CONTROL		0x03
 
 /* State Transition and args */
+#define SAA_PROBE_CONTROL	0x01
+#define SAA_COMMIT_CONTROL	0x02
 #define SAA_STATE_CONTROL	0x03
 #define SAA_DMASTATE_STOP	0x00
 #define SAA_DMASTATE_ACQUIRE	0x01

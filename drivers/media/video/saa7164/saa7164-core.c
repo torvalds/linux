@@ -53,6 +53,10 @@ unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
 MODULE_PARM_DESC(encoder_buffers, "Total buffers in read queue 16-512 def:64");
 
+unsigned int vbi_buffers = SAA7164_MAX_VBI_BUFFERS;
+module_param(vbi_buffers, int, 0644);
+MODULE_PARM_DESC(vbi_buffers, "Total buffers in read queue 16-512 def:64");
+
 unsigned int waitsecs = 10;
 module_param(waitsecs, int, 0644);
 MODULE_PARM_DESC(waitsecs, "timeout on firmware messages");
@@ -440,6 +444,61 @@ static void saa7164_work_enchandler(struct work_struct *w)
 	}
 }
 
+static void saa7164_work_vbihandler(struct work_struct *w)
+{
+	struct saa7164_port *port =
+		container_of(w, struct saa7164_port, workenc);
+	struct saa7164_dev *dev = port->dev;
+
+	u32 wp, mcb, rp, cnt = 0;
+
+	port->last_svc_msecs_diff = port->last_svc_msecs;
+	port->last_svc_msecs = jiffies_to_msecs(jiffies);
+	port->last_svc_msecs_diff = port->last_svc_msecs -
+		port->last_svc_msecs_diff;
+
+	saa7164_histogram_update(&port->svc_interval,
+		port->last_svc_msecs_diff);
+
+	port->last_irq_svc_msecs_diff = port->last_svc_msecs -
+		port->last_irq_msecs;
+
+	saa7164_histogram_update(&port->irq_svc_interval,
+		port->last_irq_svc_msecs_diff);
+
+	dprintk(DBGLVL_IRQ,
+		"%s() %Ldms elapsed irq->deferred %Ldms wp: %d rp: %d\n",
+		__func__,
+		port->last_svc_msecs_diff,
+		port->last_irq_svc_msecs_diff,
+		port->last_svc_wp,
+		port->last_svc_rp
+		);
+
+	/* Current write position */
+	wp = saa7164_readl(port->bufcounter);
+	if (wp > (port->hwcfg.buffercount - 1)) {
+		printk(KERN_ERR "%s() illegal buf count %d\n", __func__, wp);
+		return;
+	}
+
+	/* Most current complete buffer */
+	if (wp == 0)
+		mcb = (port->hwcfg.buffercount - 1);
+	else
+		mcb = wp - 1;
+	/* TODO: Convert this into a /proc/saa7164 style readable file */
+	if (print_histogram == port->nr) {
+		saa7164_histogram_print(port, &port->irq_interval);
+		saa7164_histogram_print(port, &port->svc_interval);
+		saa7164_histogram_print(port, &port->irq_svc_interval);
+		saa7164_histogram_print(port, &port->read_interval);
+		saa7164_histogram_print(port, &port->poll_interval);
+		/* TODO: fix this to preserve any previous state */
+		print_histogram = 64 + port->nr;
+	}
+}
+
 static void saa7164_work_cmdhandler(struct work_struct *w)
 {
 	struct saa7164_dev *dev = container_of(w, struct saa7164_dev, workcmd);
@@ -456,6 +515,31 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 	dvb_dmx_swfilter_packets(&port->dvb.demux, (u8 *)buf->cpu,
 		SAA7164_TS_NUMBER_OF_LINES);
 
+}
+
+static irqreturn_t saa7164_irq_vbi(struct saa7164_port *port)
+{
+	struct saa7164_dev *dev = port->dev;
+
+	/* Store old time */
+	port->last_irq_msecs_diff = port->last_irq_msecs;
+
+	/* Collect new stats */
+	port->last_irq_msecs = jiffies_to_msecs(jiffies);
+
+	/* Calculate stats */
+	port->last_irq_msecs_diff = port->last_irq_msecs -
+		port->last_irq_msecs_diff;
+
+	saa7164_histogram_update(&port->irq_interval,
+		port->last_irq_msecs_diff);
+
+	dprintk(DBGLVL_IRQ, "%s() %Ldms elapsed\n", __func__,
+		port->last_irq_msecs_diff);
+
+	/* Tis calls the vbi irq handler */
+	schedule_work(&port->workenc);
+	return 0;
 }
 
 static irqreturn_t saa7164_irq_encoder(struct saa7164_port *port)
@@ -527,6 +611,8 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 	struct saa7164_port *portb = &dev->ports[ SAA7164_PORT_TS2 ];
 	struct saa7164_port *portc = &dev->ports[ SAA7164_PORT_ENC1 ];
 	struct saa7164_port *portd = &dev->ports[ SAA7164_PORT_ENC2 ];
+	struct saa7164_port *porte = &dev->ports[ SAA7164_PORT_VBI1 ];
+	struct saa7164_port *portf = &dev->ports[ SAA7164_PORT_VBI2 ];
 
 	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
@@ -590,8 +676,18 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 
 				} else if (intid == portd->hwcfg.interruptid) {
 
-					/* Encoder path 1 */
+					/* Encoder path 2 */
 					saa7164_irq_encoder(portd);
+
+				} else if (intid == porte->hwcfg.interruptid) {
+
+					/* VBI path 1 */
+					saa7164_irq_vbi(porte);
+
+				} else if (intid == portf->hwcfg.interruptid) {
+
+					/* VBI path 2 */
+					saa7164_irq_vbi(portf);
 
 				} else {
 					/* Find the function */
@@ -830,9 +926,19 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	if ((portnr == SAA7164_PORT_TS1) || (portnr == SAA7164_PORT_TS2))
 		port->type = SAA7164_MPEG_DVB;
 	else
-	if ((portnr == SAA7164_PORT_ENC1) || (portnr == SAA7164_PORT_ENC2))
+	if ((portnr == SAA7164_PORT_ENC1) || (portnr == SAA7164_PORT_ENC2)) {
 		port->type = SAA7164_MPEG_ENCODER;
+
+		/* We need a deferred interrupt handler for cmd handling */
+		INIT_WORK(&port->workenc, saa7164_work_enchandler);
+	}
 	else
+	if ((portnr == SAA7164_PORT_VBI1) || (portnr == SAA7164_PORT_VBI2)) {
+		port->type = SAA7164_MPEG_VBI;
+
+		/* We need a deferred interrupt handler for cmd handling */
+		INIT_WORK(&port->workenc, saa7164_work_vbihandler);
+	} else
 		BUG();
 
 	/* Init all the critical resources */
@@ -844,17 +950,15 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	INIT_LIST_HEAD(&port->list_buf_free.list);
 	init_waitqueue_head(&port->wait_read);
 
-	/* We need a deferred interrupt handler for cmd handling */
-	INIT_WORK(&port->workenc, saa7164_work_enchandler);
 
 	saa7164_histogram_reset(&port->irq_interval, "irq intervals");
 	saa7164_histogram_reset(&port->svc_interval, "deferred intervals");
 	saa7164_histogram_reset(&port->irq_svc_interval,
 		"irq to deferred intervals");
 	saa7164_histogram_reset(&port->read_interval,
-		"encoder read() intervals");
+		"encoder/vbi read() intervals");
 	saa7164_histogram_reset(&port->poll_interval,
-		"encoder poll() intervals");
+		"encoder/vbi poll() intervals");
 
 	return 0;
 }
@@ -905,6 +1009,8 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	saa7164_port_init(dev, SAA7164_PORT_TS2);
 	saa7164_port_init(dev, SAA7164_PORT_ENC1);
 	saa7164_port_init(dev, SAA7164_PORT_ENC2);
+	saa7164_port_init(dev, SAA7164_PORT_VBI1);
+	saa7164_port_init(dev, SAA7164_PORT_VBI2);
 
 	if (get_resources(dev) < 0) {
 		printk(KERN_ERR "CORE %s No more PCIe resources for "
@@ -1107,6 +1213,21 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 			}
 		}
 
+		if (saa7164_boards[dev->board].porte == SAA7164_MPEG_VBI) {
+			if (saa7164_vbi_register(&dev->ports[ SAA7164_PORT_VBI1 ]) < 0) {
+				printk(KERN_ERR"%s() Failed to register "
+					"vbi device\n", __func__);
+			}
+		}
+
+		if (saa7164_boards[dev->board].portf == SAA7164_MPEG_VBI) {
+			if (saa7164_vbi_register(&dev->ports[ SAA7164_PORT_VBI2 ]) < 0) {
+				printk(KERN_ERR"%s() Failed to register "
+					"vbi device\n", __func__);
+			}
+		}
+
+
 	} /* != BOARD_UNKNOWN */
 	else
 		printk(KERN_ERR "%s() Unsupported board detected, "
@@ -1144,6 +1265,10 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 		&dev->ports[ SAA7164_PORT_ENC1 ].read_interval);
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
 		&dev->ports[ SAA7164_PORT_ENC1 ].poll_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_VBI1 ],
+		&dev->ports[ SAA7164_PORT_VBI1 ].read_interval);
+	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_VBI2 ],
+		&dev->ports[ SAA7164_PORT_VBI2 ].poll_interval);
 
 	saa7164_shutdown(dev);
 
@@ -1158,6 +1283,12 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 
 	if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER)
 		saa7164_encoder_unregister(&dev->ports[ SAA7164_PORT_ENC2 ]);
+
+	if (saa7164_boards[dev->board].porte == SAA7164_MPEG_VBI)
+		saa7164_vbi_unregister(&dev->ports[ SAA7164_PORT_VBI1 ]);
+
+	if (saa7164_boards[dev->board].portf == SAA7164_MPEG_VBI)
+		saa7164_vbi_unregister(&dev->ports[ SAA7164_PORT_VBI2 ]);
 
 	saa7164_i2c_unregister(&dev->i2c_bus[0]);
 	saa7164_i2c_unregister(&dev->i2c_bus[1]);

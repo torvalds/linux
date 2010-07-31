@@ -24,6 +24,62 @@
 
 #include "saa7164.h"
 
+int saa7164_api_set_vbi_format(struct saa7164_port *port)
+{
+	struct saa7164_dev *dev = port->dev;
+	tmComResProbeCommit_t fmt, rsp;
+	int ret;
+
+	dprintk(DBGLVL_API, "%s(nr=%d)\n", __func__, port->nr);
+
+	fmt.bmHint = 0;
+	fmt.bFormatIndex = 1;
+	fmt.bFrameIndex = 1;
+
+	/* Probe, see if it can support this format */
+	ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid,
+		SET_CUR, SAA_PROBE_CONTROL, sizeof(fmt), &fmt);
+	if (ret != SAA_OK)
+		printk(KERN_ERR "%s() set error, ret = 0x%x\n", __func__, ret);
+
+	/* See of the format change was successful */
+	ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid,
+		GET_CUR, SAA_PROBE_CONTROL, sizeof(rsp), &rsp);
+	if (ret != SAA_OK) {
+		printk(KERN_ERR "%s() get error, ret = 0x%x\n", __func__, ret);
+	} else {
+		/* Compare requested vs received, should be same */
+		if (memcmp(&fmt, &rsp, sizeof(rsp)) == 0) {
+			/* Ask the device to select the negotiated format */
+			ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid,
+				SET_CUR, SAA_COMMIT_CONTROL, sizeof(fmt), &fmt);
+			if (ret != SAA_OK)
+				printk(KERN_ERR "%s() commit error, ret = 0x%x\n",
+					__func__, ret);
+
+			ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid,
+				GET_CUR, SAA_COMMIT_CONTROL, sizeof(rsp), &rsp);
+			if (ret != SAA_OK)
+				printk(KERN_ERR "%s() GET commit error, ret = 0x%x\n",
+					__func__, ret);
+
+			if (memcmp(&fmt, &rsp, sizeof(rsp)) != 0)
+				printk(KERN_ERR "%s() memcmp error, ret = 0x%x\n",
+					__func__, ret);
+
+			dprintk(DBGLVL_API, "rsp.bmHint = 0x%x\n", rsp.bmHint);
+			dprintk(DBGLVL_API, "rsp.bFormatIndex = 0x%x\n", rsp.bFormatIndex);
+			dprintk(DBGLVL_API, "rsp.bFrameIndex = 0x%x\n", rsp.bFrameIndex);
+		} else
+			printk(KERN_ERR "%s() compare failed\n", __func__);
+	}
+
+	if (ret == SAA_OK)
+		dprintk(DBGLVL_API, "%s(nr=%d) Success\n", __func__, port->nr);
+
+	return ret;
+}
+
 int saa7164_api_set_gop_size(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
@@ -463,7 +519,8 @@ int saa7164_api_set_dif(struct saa7164_port *port, u8 reg, u8 val)
 	int ret;
 	u8 mas;
 
-	dprintk(DBGLVL_API, "%s()\n", __func__);
+	dprintk(DBGLVL_API, "%s(nr=%d type=%d val=%x)\n", __func__,
+		port->nr, port->type, val);
 
 	if (port->nr == 0)
 		mas = 0xd0;
@@ -516,7 +573,7 @@ int saa7164_api_configure_dif(struct saa7164_port *port, u32 std)
 	int ret = 0;
 	u8 agc_disable;
 
-	dprintk(DBGLVL_API, "%s(%p, 0x%x)\n", __func__, port, std);
+	dprintk(DBGLVL_API, "%s(nr=%d, 0x%x)\n", __func__, port->nr, std);
 
 	if (std & V4L2_STD_NTSC) {
 		dprintk(DBGLVL_API, " NTSC\n");
@@ -580,6 +637,9 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 	int ret = -EINVAL;
 	u32 std = 0;
 
+	dprintk(DBGLVL_API, "%s(nr=%d type=%d)\n", __func__,
+		port->nr, port->type);
+
 	if (port->type == SAA7164_MPEG_ENCODER) {
 		/* Pick any analog standard to init the diff.
 		 * we'll come back during encoder_init'
@@ -589,6 +649,13 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 	} else
 	if (port->type == SAA7164_MPEG_DVB) {
 		if (port->nr == SAA7164_PORT_TS1)
+			p = &dev->ports[ SAA7164_PORT_ENC1 ];
+		else
+			p = &dev->ports[ SAA7164_PORT_ENC2 ];
+	} else
+	if (port->type == SAA7164_MPEG_VBI) {
+		std = V4L2_STD_NTSC;
+		if (port->nr == SAA7164_PORT_VBI1)
 			p = &dev->ports[ SAA7164_PORT_ENC1 ];
 		else
 			p = &dev->ports[ SAA7164_PORT_ENC2 ];
@@ -603,12 +670,18 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 
 int saa7164_api_transition_port(struct saa7164_port *port, u8 mode)
 {
+	struct saa7164_dev *dev = port->dev;
+
 	int ret;
+
+	dprintk(DBGLVL_API, "%s(nr=%d unitid=0x%x,%d)\n",
+		__func__, port->nr, port->hwcfg.unitid, mode);
 
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.unitid, SET_CUR,
 		SAA_STATE_CONTROL, sizeof(mode), &mode);
 	if (ret != SAA_OK)
-		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+		printk(KERN_ERR "%s(portnr %d unitid 0x%x) error, ret = 0x%x\n",
+			__func__, port->nr, port->hwcfg.unitid, ret);
 
 	return ret;
 }
@@ -638,6 +711,23 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 		&reg[0], 128, buf);
 }
 
+
+int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
+	struct saa7164_port *port)
+{
+	tmComResVBIFormatDescrHeader_t *fmt = &port->vbi_fmt_ntsc;
+
+	dprintk(DBGLVL_API, "    bFormatIndex  = 0x%x\n", fmt->bFormatIndex);
+	dprintk(DBGLVL_API, "    VideoStandard = 0x%x\n", fmt->VideoStandard);
+	dprintk(DBGLVL_API, "    StartLine     = %d\n", fmt->StartLine);
+	dprintk(DBGLVL_API, "    EndLine       = %d\n", fmt->EndLine);
+	dprintk(DBGLVL_API, "    FieldRate     = %d\n", fmt->FieldRate);
+	dprintk(DBGLVL_API, "    bNumLines     = %d\n", fmt->bNumLines);
+	dprintk(DBGLVL_API, "   = VS_FORMAT_VBI (becomes dev->en[%d])\n",
+		port->nr);
+
+	return 0;
+}
 
 int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
 	struct saa7164_port *port,
@@ -710,6 +800,7 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 {
 	struct saa7164_port *tsport = 0;
 	struct saa7164_port *encport = 0;
+	struct saa7164_port *vbiport = 0;
 	u32 idx, next_offset;
 	int i;
 	tmComResDescrHeader_t *hdr, *t;
@@ -724,6 +815,7 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 	tmComResProcDescrHeader_t *pdh;
 	tmComResAFeatureDescrHeader_t *afd;
 	tmComResEncoderDescrHeader_t *edh;
+	tmComResVBIFormatDescrHeader_t *vbifmt;
 	u32 currpath = 0;
 
 	dprintk(DBGLVL_API,
@@ -881,8 +973,17 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 						encport, psfmt);
 					break;
 				case VS_FORMAT_VBI:
-					dprintk(DBGLVL_API,
-						"   = VS_FORMAT_VBI\n");
+					vbifmt =
+					(tmComResVBIFormatDescrHeader_t *)t;
+					if (currpath == 1)
+						vbiport = &dev->ports[ SAA7164_PORT_VBI1 ];
+					else
+						vbiport = &dev->ports[ SAA7164_PORT_VBI2 ];
+					memcpy(&vbiport->hwcfg, vcoutputtermhdr,
+						sizeof(*vcoutputtermhdr));
+					memcpy(&vbiport->vbi_fmt_ntsc, vbifmt, sizeof(*vbifmt));
+					saa7164_api_configure_port_vbi(dev,
+						vbiport);
 					break;
 				case VS_FORMAT_RDS:
 					dprintk(DBGLVL_API,

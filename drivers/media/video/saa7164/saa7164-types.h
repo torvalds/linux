@@ -414,3 +414,23 @@ typedef struct
 	u8	bPackDataType;
 } __attribute__((packed)) tmComResPSFormatDescrHeader_t;
 
+/* VBI control structure */
+typedef struct
+{
+	u8	len;
+	u8	type;
+	u8	subtype; /* VS_FORMAT_VBI */
+	u8	bFormatIndex;
+	u32	VideoStandard; /* See KS_AnalogVideoStandard, NTSC = 1 */
+	u8	StartLine; /* NTSC Start = 10 */
+	u8	EndLine; /* NTSC = 21 */
+	u8	FieldRate; /* 60 for NTSC */
+	u8	bNumLines; /* Unsed - scheduled for removal */
+} __attribute__((packed)) tmComResVBIFormatDescrHeader_t;
+
+typedef struct
+{
+	u16	bmHint;
+	u8	bFormatIndex;
+	u8	bFrameIndex;
+} __attribute__((packed)) tmComResProbeCommit_t;
