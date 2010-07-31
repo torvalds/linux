@@ -91,6 +91,85 @@ CIFSParseMFSymlink(const u8 *buf,
 	return 0;
 }
 
+bool
+CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
+{
+	if (!(fattr->cf_mode & S_IFREG))
+		/* it's not a symlink */
+		return false;
+
+	if (fattr->cf_eof != CIFS_MF_SYMLINK_FILE_SIZE)
+		/* it's not a symlink */
+		return false;
+
+	return true;
+}
+
+int
+CIFSCheckMFSymlink(struct cifs_fattr *fattr,
+		   const unsigned char *path,
+		   struct cifs_sb_info *cifs_sb, int xid)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid = 0;
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	u8 *buf;
+	char *pbuf;
+	unsigned int bytes_read = 0;
+	int buf_type = CIFS_NO_BUFFER;
+	unsigned int link_len = 0;
+	FILE_ALL_INFO file_info;
+
+	if (!CIFSCouldBeMFSymlink(fattr))
+		/* it's not a symlink */
+		return 0;
+
+	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
+			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
+			 cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != 0)
+		return rc;
+
+	if (file_info.EndOfFile != CIFS_MF_SYMLINK_FILE_SIZE) {
+		CIFSSMBClose(xid, pTcon, netfid);
+		/* it's not a symlink */
+		return 0;
+	}
+
+	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	pbuf = buf;
+
+	rc = CIFSSMBRead(xid, pTcon, netfid,
+			 CIFS_MF_SYMLINK_FILE_SIZE /* length */,
+			 0 /* offset */,
+			 &bytes_read, &pbuf, &buf_type);
+	CIFSSMBClose(xid, pTcon, netfid);
+	if (rc != 0) {
+		kfree(buf);
+		return rc;
+	}
+
+	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, NULL);
+	kfree(buf);
+	if (rc == -EINVAL)
+		/* it's not a symlink */
+		return 0;
+	if (rc != 0)
+		return rc;
+
+	/* it is a symlink */
+	fattr->cf_eof = link_len;
+	fattr->cf_mode &= ~S_IFMT;
+	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
+	fattr->cf_dtype = DT_LNK;
+	return 0;
+}
+
 int
 cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	      struct dentry *direntry)
