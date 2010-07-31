@@ -53,6 +53,11 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 	dprintk(DBGLVL_ENC, "%s() unitid=0x%x\n", __func__,
 		port->hwcfg.sourceid);
 
+	if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+		port->encoder_profile = EU_PROFILE_PS_DVD;
+	else
+		port->encoder_profile = EU_PROFILE_TS_HQ;
+
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
 		EU_PROFILE_CONTROL, sizeof(u8), &port->encoder_profile);
 	if (ret != SAA_OK)

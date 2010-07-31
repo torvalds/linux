@@ -43,6 +43,7 @@ static const u32 saa7164_v4l2_ctrls[] = {
 	V4L2_CID_AUDIO_VOLUME,
 	V4L2_CID_SHARPNESS,
 	V4L2_CID_MPEG_VIDEO_ASPECT,
+	V4L2_CID_MPEG_VIDEO_GOP_SIZE,
 	V4L2_CID_MPEG_STREAM_TYPE,
 	V4L2_CID_MPEG_AUDIO_MUTE,
 	V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
@@ -432,7 +433,8 @@ static int saa7164_try_ctrl(struct v4l2_ext_control *ctrl, int ac3)
 			ret = 0;
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
-		if (ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_PS)
+		if ((ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_PS) ||
+			(ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_TS))
 			ret = 0;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MUTE:
@@ -694,8 +696,8 @@ static int fill_queryctrl(struct saa7164_encoder_params *params,
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(c,
 			V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
-			V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
-			0, V4L2_MPEG_STREAM_TYPE_MPEG2_PS);
+			V4L2_MPEG_STREAM_TYPE_MPEG2_TS,
+			1, V4L2_MPEG_STREAM_TYPE_MPEG2_PS);
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		return v4l2_ctrl_query_fill(c,
 			V4L2_MPEG_VIDEO_ASPECT_1x1,
@@ -1324,7 +1326,6 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	port->encodernorm = saa7164_tvnorms[0];
 	port->width = 720;
 	port->mux_input = 1; /* Composite */
-	port->encoder_profile = EU_PROFILE_PS_DVD;
 	port->video_format = EU_VIDEO_FORMAT_MPEG_2;
 	port->audio_format = 0;
 	port->video_resolution = 0;
