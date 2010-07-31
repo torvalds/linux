@@ -261,6 +261,7 @@ struct saa7164_encoder_params {
 	u32 audio_sampling_freq;
 	u32 ctl_mute;
 	u32 ctl_aspect;
+	u32 refdist;
 };
 
 struct saa7164_port;
