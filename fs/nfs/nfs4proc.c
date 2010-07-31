@@ -1275,8 +1275,6 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 	struct nfs4_opendata *data = calldata;
 
 	data->rpc_status = task->tk_status;
-	if (RPC_ASSASSINATED(task))
-		return;
 	if (data->rpc_status == 0) {
 		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
 				sizeof(data->o_res.stateid.data));
@@ -1408,8 +1406,6 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 	if (!nfs4_sequence_done(task, &data->o_res.seq_res))
 		return;
 
-	if (RPC_ASSASSINATED(task))
-		return;
 	if (task->tk_status == 0) {
 		switch (data->o_res.f_attr->mode & S_IFMT) {
 			case S_IFREG:
@@ -1859,8 +1855,6 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
-		return;
-	if (RPC_ASSASSINATED(task))
 		return;
         /* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
@@ -3907,8 +3901,6 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
-	if (RPC_ASSASSINATED(task))
-		return;
 	switch (task->tk_status) {
 		case 0:
 			memcpy(calldata->lsp->ls_stateid.data,
@@ -4119,8 +4111,6 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		return;
 
 	data->rpc_status = task->tk_status;
-	if (RPC_ASSASSINATED(task))
-		goto out;
 	if (data->arg.new_lock_owner != 0) {
 		if (data->rpc_status == 0)
 			nfs_confirm_seqid(&data->lsp->ls_seqid, 0);
