@@ -2210,8 +2210,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x10 - 0x1F */
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
-	D(ModRM | ImplicitOps | Priv), D(ModRM | Priv),
-	D(ModRM | ImplicitOps | Priv), D(ModRM | Priv),
+	D(ModRM | ImplicitOps | Priv | Op3264), D(ModRM | Priv | Op3264),
+	D(ModRM | ImplicitOps | Priv | Op3264), D(ModRM | Priv | Op3264),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
