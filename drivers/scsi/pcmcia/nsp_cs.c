@@ -1687,21 +1687,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	info->host = host;
 
-	/* Finally, report what we've done */
-	printk(KERN_INFO "nsp_cs: index 0x%02x: ",
-	       link->config_index);
-	if (link->vpp) {
-		printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
-	}
-	printk(", irq %d", link->irq);
-	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	if (link->resource[2])
-		printk(", mem %pR", link->resource[2]);
-	printk("\n");
-
 	return 0;
 
  cs_failed:

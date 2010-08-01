@@ -162,9 +162,6 @@ static int __devinit avma1cs_config(struct pcmcia_device *link)
 	return -ENODEV;
     }
 
-    printk(KERN_NOTICE "avma1_cs: checking at i/o %#x, irq %d\n",
-		(unsigned int) link->resource[0]->start, link->irq);
-
     icard.para[0] = link->irq;
     icard.para[1] = link->resource[0]->start;
     icard.protocol = isdnprot;

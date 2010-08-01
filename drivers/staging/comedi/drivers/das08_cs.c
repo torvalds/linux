@@ -235,15 +235,6 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->config_index);
-	printk(", irq %u", link->irq);
-	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	printk("\n");
-
 	return;
 
 failed:

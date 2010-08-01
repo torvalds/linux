@@ -277,6 +277,8 @@ static int pcmcia_device_probe(struct device *dev)
 	if (!ret) {
 		p_dev->config_base = cis_config.base;
 		p_dev->config_regs = cis_config.rmask[0];
+		dev_dbg(dev, "base %x, regs %x", p_dev->config_base,
+			p_dev->config_regs);
 	} else {
 		dev_printk(KERN_INFO, dev,
 			   "pcmcia: could not parse base and rmask0 of CIS\n");
@@ -290,6 +292,11 @@ static int pcmcia_device_probe(struct device *dev)
 			   p_drv->drv.name, ret);
 		goto put_module;
 	}
+	dev_dbg(dev, "%s bound: Vpp %d.%d, idx %x, IRQ %d", p_drv->drv.name,
+		p_dev->vpp/10, p_dev->vpp%10, p_dev->config_index, p_dev->irq);
+	dev_dbg(dev, "resources: ioport %pR %pR iomem %pR %pR %pR",
+		p_dev->resource[0], p_dev->resource[1], p_dev->resource[2],
+		p_dev->resource[3], p_dev->resource[4]);
 
 	mutex_lock(&s->ops_mutex);
 	if ((s->pcmcia_pfc) &&

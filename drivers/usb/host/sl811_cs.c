@@ -164,14 +164,6 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev_info(&link->dev, "index 0x%02x: ",
-		link->config_index);
-	if (link->vpp)
-		printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
-	printk(", irq %d", link->irq);
-	printk(", io %pR", link->resource[0]);
-	printk("\n");
-
 	if (sl811_hc_init(parent, link->resource[0]->start, link->irq)
 			< 0) {
 failed:

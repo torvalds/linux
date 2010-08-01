@@ -544,19 +544,6 @@ static int prism2_config(struct pcmcia_device *link)
 
 	spin_unlock_irqrestore(&local->irq_init_lock, flags);
 
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev_info, link->config_index);
-	if (link->vpp)
-		printk(", Vpp %d.%d", link->vpp / 10,
-		       link->vpp % 10);
-	printk(", irq %d", link->irq);
-	if (link->resource[0])
-		printk(" & %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	printk("\n");
-
 	local->shutdown = 0;
 
 	sandisk_enable_wireless(dev);
@@ -568,7 +555,7 @@ static int prism2_config(struct pcmcia_device *link)
 	return ret;
 
  failed_unlock:
-	 spin_unlock_irqrestore(&local->irq_init_lock, flags);
+	spin_unlock_irqrestore(&local->irq_init_lock, flags);
  failed:
 	kfree(hw_priv);
 	prism2_release((u_long)link);

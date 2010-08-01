@@ -205,18 +205,6 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    /* Finally, report what we've done */
-    dev_info(&link->dev, "index 0x%02x:",
-	   link->config_index);
-    if (link->vpp)
-	printk(", Vpp %d.%d", link->vpp/10, link->vpp%10);
-    printk(", irq %d", link->irq);
-    if (link->resource[0])
-	printk(" & %pR", link->resource[0]);
-    if (link->resource[1])
-	printk(" & %pR", link->resource[1]);
-    printk("\n");
-
     icard.para[0] = link->irq;
     icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
