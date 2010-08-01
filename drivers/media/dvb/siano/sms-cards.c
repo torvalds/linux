@@ -67,6 +67,7 @@ static struct sms_board sms_boards[] = {
 		.board_cfg.leds_power = 26,
 		.board_cfg.led0 = 27,
 		.board_cfg.led1 = 28,
+		.board_cfg.ir = 9,
 		.led_power = 26,
 		.led_lo    = 27,
 		.led_hi    = 28,
