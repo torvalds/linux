@@ -17,7 +17,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode dib0700_table[] = {
+static struct ir_scancode dib0700_rc5_table[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x0700, KEY_MUTE },
 	{ 0x0701, KEY_MENU }, /* Pinnacle logo */
@@ -209,10 +209,10 @@ static struct ir_scancode dib0700_table[] = {
 	{ 0x1d3d, KEY_POWER },
 };
 
-static struct rc_keymap dib0700_map = {
+static struct rc_keymap dib0700_rc5_map = {
 	.map = {
-		.scan    = dib0700_table,
-		.size    = ARRAY_SIZE(dib0700_table),
+		.scan    = dib0700_rc5_table,
+		.size    = ARRAY_SIZE(dib0700_rc5_table),
 		.ir_type = IR_TYPE_RC5,
 		.name    = RC_MAP_DIB0700_RC5_TABLE,
 	}
@@ -220,12 +220,12 @@ static struct rc_keymap dib0700_map = {
 
 static int __init init_rc_map(void)
 {
-	return ir_register_map(&dib0700_map);
+	return ir_register_map(&dib0700_rc5_map);
 }
 
 static void __exit exit_rc_map(void)
 {
-	ir_unregister_map(&dib0700_map);
+	ir_unregister_map(&dib0700_rc5_map);
 }
 
 module_init(init_rc_map)
