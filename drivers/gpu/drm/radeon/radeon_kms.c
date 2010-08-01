@@ -112,7 +112,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	info = data;
 	value_ptr = (uint32_t *)((unsigned long)info->value);
-	value = *value_ptr;
+	if (DRM_COPY_FROM_USER(&value, value_ptr, sizeof(value)))
+		return -EFAULT;
+
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
 		value = dev->pci_device;
