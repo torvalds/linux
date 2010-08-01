@@ -360,13 +360,8 @@ struct v4l2_subdev_sensor_ops {
  */
 
 enum v4l2_subdev_ir_mode {
-	V4L2_SUBDEV_IR_MODE_PULSE_WIDTH, /* space & mark widths in nanosecs */
+	V4L2_SUBDEV_IR_MODE_PULSE_WIDTH, /* uses struct ir_raw_event records */
 };
-
-/* Data format of data read or written for V4L2_SUBDEV_IR_MODE_PULSE_WIDTH */
-#define V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS	0x7fffffff
-#define V4L2_SUBDEV_IR_PULSE_LEVEL_MASK		0x80000000
-#define V4L2_SUBDEV_IR_PULSE_RX_SEQ_END		0xffffffff
 
 struct v4l2_subdev_ir_parameters {
 	/* Either Rx or Tx */

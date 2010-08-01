@@ -886,10 +886,10 @@ static int cx25840_ir_tx_write(struct v4l2_subdev *sd, u8 *buf, size_t count,
 	 */
 	for (i = 0; i < n; ) {
 		for (j = 0; j < FIFO_TX_DEPTH / 2 && i < n; j++) {
-			mark = ns_pulse[i] & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK;
+			mark = ns_pulse[i] & LEVEL_MASK;
 			fifo_pulse[j] = ns_to_pulse_width_count(
 					 ns_pulse[i] &
-					       ~V4L2_SUBDEV_IR_PULSE_LEVEL_MASK,
+					       ~LEVEL_MASK,
 					 ir_state->txclk_divider);
 			if (mark)
 				fifo_pulse[j] &= FIFO_RXTX_LVL;
