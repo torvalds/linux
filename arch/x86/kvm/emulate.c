@@ -2153,7 +2153,7 @@ static struct opcode opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	D(ByteOp | DstMem | SrcReg | ModRM | Mov), D(DstMem | SrcReg | ModRM | Mov),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem | ModRM | Mov),
-	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | DstReg),
+	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | SrcMem | NoAccess | DstReg),
 	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
 	/* 0x90 - 0x97 */
 	X8(D(SrcAcc | DstReg)),
@@ -2895,7 +2895,7 @@ special_insn:
 		c->dst.val = ops->get_segment_selector(c->modrm_reg, ctxt->vcpu);
 		break;
 	case 0x8d: /* lea r16/r32, m */
-		c->dst.val = c->modrm_ea;
+		c->dst.val = c->src.addr.mem;
 		break;
 	case 0x8e: { /* mov seg, r/m16 */
 		uint16_t sel;
