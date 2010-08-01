@@ -26,6 +26,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/ir-core.h>
 
 #include "cx23885.h"
 
@@ -113,8 +114,18 @@ MODULE_PARM_DESC(ir_888_debug, "enable debug messages [CX23888 IR controller]");
 #define CX23888_VIDCLK_FREQ	108000000 /* 108 MHz, BT.656 */
 #define CX23888_IR_REFCLK_FREQ	(CX23888_VIDCLK_FREQ / 2)
 
-#define CX23888_IR_RX_KFIFO_SIZE	(512 * sizeof(u32))
-#define CX23888_IR_TX_KFIFO_SIZE	(512 * sizeof(u32))
+/*
+ * We use this union internally for convenience, but callers to tx_write
+ * and rx_read will be expecting records of type struct ir_raw_event.
+ * Always ensure the size of this union is dictated by struct ir_raw_event.
+ */
+union cx23888_ir_fifo_rec {
+	u32 hw_fifo_data;
+	struct ir_raw_event ir_core_data;
+};
+
+#define CX23888_IR_RX_KFIFO_SIZE    (256 * sizeof(union cx23888_ir_fifo_rec))
+#define CX23888_IR_TX_KFIFO_SIZE    (256 * sizeof(union cx23888_ir_fifo_rec))
 
 struct cx23888_ir_state {
 	struct v4l2_subdev sd;
@@ -458,8 +469,8 @@ static u32 txclk_tx_s_max_pulse_width(struct cx23885_dev *dev, u32 ns,
 {
 	u64 pulse_clocks;
 
-	if (ns > V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS)
-		ns = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
+	if (ns > IR_MAX_DURATION)
+		ns = IR_MAX_DURATION;
 	pulse_clocks = ns_to_pulse_clocks(ns);
 	*divider = pulse_clocks_to_clock_divider(pulse_clocks);
 	cx23888_ir_write4(dev, CX23888_IR_TXCLK_REG, *divider);
@@ -471,8 +482,8 @@ static u32 rxclk_rx_s_max_pulse_width(struct cx23885_dev *dev, u32 ns,
 {
 	u64 pulse_clocks;
 
-	if (ns > V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS)
-		ns = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
+	if (ns > IR_MAX_DURATION)
+		ns = IR_MAX_DURATION;
 	pulse_clocks = ns_to_pulse_clocks(ns);
 	*divider = pulse_clocks_to_clock_divider(pulse_clocks);
 	cx23888_ir_write4(dev, CX23888_IR_RXCLK_REG, *divider);
@@ -535,8 +546,8 @@ static int cx23888_ir_irq_handler(struct v4l2_subdev *sd, u32 status,
 	u32 irqen = cx23888_ir_read4(dev, CX23888_IR_IRQEN_REG);
 	u32 stats = cx23888_ir_read4(dev, CX23888_IR_STATS_REG);
 
-	u32 rx_data[FIFO_RX_DEPTH];
-	int i, j, k;
+	union cx23888_ir_fifo_rec rx_data[FIFO_RX_DEPTH];
+	unsigned int i, j, k;
 	u32 events, v;
 	int tsr, rsr, rto, ror, tse, rse, rte, roe, kror;
 
@@ -597,11 +608,12 @@ static int cx23888_ir_irq_handler(struct v4l2_subdev *sd, u32 status,
 			for (j = 0;
 			     (v & FIFO_RX_NDV) && j < FIFO_RX_DEPTH; j++) {
 				v = cx23888_ir_read4(dev, CX23888_IR_FIFO_REG);
-				rx_data[i++] = v & ~FIFO_RX_NDV;
+				rx_data[i].hw_fifo_data = v & ~FIFO_RX_NDV;
+				i++;
 			}
 			if (i == 0)
 				break;
-			j = i * sizeof(u32);
+			j = i * sizeof(union cx23888_ir_fifo_rec);
 			k = kfifo_in_locked(&state->rx_kfifo,
 				      (unsigned char *) rx_data, j,
 				      &state->rx_kfifo_lock);
@@ -660,10 +672,11 @@ static int cx23888_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 	u16 divider = (u16) atomic_read(&state->rxclk_divider);
 
 	unsigned int i, n;
-	u32 *p;
-	u32 u, v;
+	union cx23888_ir_fifo_rec *p;
+	unsigned u, v;
 
-	n = count / sizeof(u32) * sizeof(u32);
+	n = count / sizeof(union cx23888_ir_fifo_rec)
+		* sizeof(union cx23888_ir_fifo_rec);
 	if (n == 0) {
 		*num = 0;
 		return 0;
@@ -671,28 +684,28 @@ static int cx23888_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 
 	n = kfifo_out_locked(&state->rx_kfifo, buf, n, &state->rx_kfifo_lock);
 
-	n /= sizeof(u32);
-	*num = n * sizeof(u32);
+	n /= sizeof(union cx23888_ir_fifo_rec);
+	*num = n * sizeof(union cx23888_ir_fifo_rec);
 
-	for (p = (u32 *) buf, i = 0; i < n; p++, i++) {
+	for (p = (union cx23888_ir_fifo_rec *) buf, i = 0; i < n; p++, i++) {
 
-		if ((*p & FIFO_RXTX_RTO) == FIFO_RXTX_RTO) {
+		if ((p->hw_fifo_data & FIFO_RXTX_RTO) == FIFO_RXTX_RTO) {
 			/* Assume RTO was because of no IR light input */
 			u = 0;
 			v4l2_dbg(2, ir_888_debug, sd, "rx read: end of rx\n");
 		} else {
-			u = (*p & FIFO_RXTX_LVL)
-					  ? V4L2_SUBDEV_IR_PULSE_LEVEL_MASK : 0;
+			u = (p->hw_fifo_data & FIFO_RXTX_LVL) ? 1 : 0;
 			if (invert)
-				u = u ? 0 : V4L2_SUBDEV_IR_PULSE_LEVEL_MASK;
+				u = u ? 0 : 1;
 		}
 
-		v = (u32) pulse_width_count_to_ns((u16) (*p & FIFO_RXTX),
-						  divider);
-		if (v >= V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS)
-			v = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS - 1;
+		v = (unsigned) pulse_width_count_to_ns(
+				  (u16) (p->hw_fifo_data & FIFO_RXTX), divider);
+		if (v > IR_MAX_DURATION)
+			v = IR_MAX_DURATION;
 
-		*p = u | v;
+		p->ir_core_data.pulse = u;
+		p->ir_core_data.duration = v;
 
 		v4l2_dbg(2, ir_888_debug, sd, "rx read: %10u ns  %s\n",
 			 v, u ? "mark" : "space");
@@ -751,7 +764,8 @@ static int cx23888_ir_rx_s_parameters(struct v4l2_subdev *sd,
 
 	o->mode = p->mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH;
 
-	o->bytes_per_data_element = p->bytes_per_data_element = sizeof(u32);
+	o->bytes_per_data_element = p->bytes_per_data_element
+				  = sizeof(union cx23888_ir_fifo_rec);
 
 	/* Before we tweak the hardware, we have to disable the receiver */
 	irqenable_rx(dev, 0);
@@ -878,7 +892,8 @@ static int cx23888_ir_tx_s_parameters(struct v4l2_subdev *sd,
 
 	o->mode = p->mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH;
 
-	o->bytes_per_data_element = p->bytes_per_data_element = sizeof(u32);
+	o->bytes_per_data_element = p->bytes_per_data_element
+				  = sizeof(union cx23888_ir_fifo_rec);
 
 	/* Before we tweak the hardware, we have to disable the transmitter */
 	irqenable_tx(dev, 0);
@@ -1149,7 +1164,7 @@ static const struct v4l2_subdev_ops cx23888_ir_controller_ops = {
 };
 
 static const struct v4l2_subdev_ir_parameters default_rx_params = {
-	.bytes_per_data_element = sizeof(u32),
+	.bytes_per_data_element = sizeof(union cx23888_ir_fifo_rec),
 	.mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH,
 
 	.enable = false,
@@ -1168,7 +1183,7 @@ static const struct v4l2_subdev_ir_parameters default_rx_params = {
 };
 
 static const struct v4l2_subdev_ir_parameters default_tx_params = {
-	.bytes_per_data_element = sizeof(u32),
+	.bytes_per_data_element = sizeof(union cx23888_ir_fifo_rec),
 	.mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH,
 
 	.enable = false,

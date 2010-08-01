@@ -44,34 +44,26 @@
 
 #define MODULE_NAME "cx23885"
 
-static void convert_measurement(u32 x, struct ir_raw_event *y)
-{
-	y->pulse = (x & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK) ? true : false;
-	y->duration = x & V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
-}
-
 static void cx23885_input_process_measurements(struct cx23885_dev *dev,
 					       bool overrun)
 {
 	struct cx23885_kernel_ir *kernel_ir = dev->kernel_ir;
-	struct ir_raw_event kernel_ir_event;
 
-	u32 sd_ir_data[64];
 	ssize_t num;
 	int count, i;
 	bool handle = false;
+	struct ir_raw_event ir_core_event[64];
 
 	do {
 		num = 0;
-		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) sd_ir_data,
-				 sizeof(sd_ir_data), &num);
+		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) ir_core_event,
+				 sizeof(ir_core_event), &num);
 
-		count = num / sizeof(u32);
+		count = num / sizeof(struct ir_raw_event);
 
 		for (i = 0; i < count; i++) {
-			convert_measurement(sd_ir_data[i], &kernel_ir_event);
 			ir_raw_event_store(kernel_ir->inp_dev,
-					   &kernel_ir_event);
+					   &ir_core_event[i]);
 			handle = true;
 		}
 	} while (num != 0);
