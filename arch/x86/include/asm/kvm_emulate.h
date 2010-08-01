@@ -156,7 +156,10 @@ struct operand {
 		unsigned long orig_val;
 		u64 orig_val64;
 	};
-	unsigned long *ptr;
+	union {
+		unsigned long *reg;
+		unsigned long mem;
+	} addr;
 	union {
 		unsigned long val;
 		u64 val64;
