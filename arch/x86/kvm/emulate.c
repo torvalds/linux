@@ -597,7 +597,6 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	c->modrm_reg |= (c->modrm & 0x38) >> 3;
 	c->modrm_rm |= (c->modrm & 0x07);
 	c->modrm_ea = 0;
-	c->use_modrm_ea = 1;
 	c->modrm_seg = VCPU_SREG_DS;
 
 	if (c->modrm_mod == 3) {
