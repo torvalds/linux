@@ -203,9 +203,6 @@ struct decode_cache {
 	u8 modrm_rm;
 	u8 modrm_seg;
 	bool rip_relative;
-	unsigned long modrm_ea;
-	void *modrm_ptr;
-	unsigned long modrm_val;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
