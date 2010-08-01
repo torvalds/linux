@@ -13,10 +13,6 @@ int dvb_usb_dib0700_debug;
 module_param_named(debug,dvb_usb_dib0700_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,2=fw,4=fwdata,8=data (or-able))." DVB_USB_DEBUG_STATUS);
 
-int dvb_usb_dib0700_ir_proto = 1;
-module_param(dvb_usb_dib0700_ir_proto, int, 0644);
-MODULE_PARM_DESC(dvb_usb_dib0700_ir_proto, "set ir protocol (0=NEC, 1=RC5 (default), 2=RC6).");
-
 static int nb_packet_buffer_size = 21;
 module_param(nb_packet_buffer_size, int, 0644);
 MODULE_PARM_DESC(nb_packet_buffer_size,
@@ -475,6 +471,39 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
+int dib0700_change_protocol(void *priv, u64 ir_type)
+{
+	struct dvb_usb_device *d = priv;
+	struct dib0700_state *st = d->priv;
+	u8 rc_setup[3] = { REQUEST_SET_RC, 0, 0 };
+	int new_proto, ret;
+
+	/* Set the IR mode */
+	if (ir_type == IR_TYPE_RC5)
+		new_proto = 1;
+	else if (ir_type == IR_TYPE_NEC)
+		new_proto = 0;
+	else if (ir_type == IR_TYPE_RC6) {
+		if (st->fw_version < 0x10200)
+			return -EINVAL;
+
+		new_proto = 2;
+	} else
+		return -EINVAL;
+
+	rc_setup[1] = new_proto;
+
+	ret = dib0700_ctrl_wr(d, rc_setup, sizeof(rc_setup));
+	if (ret < 0) {
+		err("ir protocol setup failed");
+		return ret;
+	}
+
+	d->props.rc.core.protocol = new_proto;
+
+	return ret;
+}
+
 /* Number of keypresses to ignore before start repeating */
 #define RC_REPEAT_DELAY_V1_20 10
 
@@ -524,9 +553,8 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	deb_data("IR raw %02X %02X %02X %02X %02X %02X (len %d)\n", buf[0],
 		 buf[1], buf[2], buf[3], buf[4], buf[5], purb->actual_length);
 
-	switch (dvb_usb_dib0700_ir_proto) {
-	case 0:
-		/* NEC Protocol */
+	switch (d->props.rc.core.protocol) {
+	case IR_TYPE_NEC:
 		poll_reply.data_state = 0;
 		poll_reply.system     = buf[2];
 		poll_reply.data       = buf[4];
@@ -543,6 +571,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		break;
 	default:
 		/* RC5 Protocol */
+		/* TODO: need to check the mapping for RC6 */
 		poll_reply.report_id  = buf[0];
 		poll_reply.data_state = buf[1];
 		poll_reply.system     = (buf[2] << 8) | buf[3];
@@ -580,18 +609,10 @@ resubmit:
 int dib0700_rc_setup(struct dvb_usb_device *d)
 {
 	struct dib0700_state *st = d->priv;
-	u8 rc_setup[3] = { REQUEST_SET_RC, dvb_usb_dib0700_ir_proto, 0 };
 	struct urb *purb;
 	int ret;
-	int i;
 
-	/* Set the IR mode */
-	i = dib0700_ctrl_wr(d, rc_setup, sizeof(rc_setup));
-	if (i < 0) {
-		err("ir protocol setup failed");
-		return i;
-	}
-
+	/* Poll-based. Don't initialize bulk mode */
 	if (st->fw_version < 0x10200)
 		return 0;
 

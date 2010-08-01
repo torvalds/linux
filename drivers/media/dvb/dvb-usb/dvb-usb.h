@@ -179,6 +179,7 @@ struct dvb_rc_legacy {
 /**
  * struct dvb_rc properties of remote controller, using rc-core
  * @rc_codes: name of rc codes table
+ * @protocol: type of protocol(s) currently used by the driver
  * @rc_query: called to query an event event.
  * @rc_interval: time in ms between two queries.
  * @rc_props: remote controller properties
@@ -186,6 +187,7 @@ struct dvb_rc_legacy {
  */
 struct dvb_rc {
 	char *rc_codes;
+	u64 protocol;
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
