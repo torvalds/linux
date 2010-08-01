@@ -271,6 +271,19 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 	return __next_gcwq_cpu(cpu, mask, !(wq->flags & WQ_UNBOUND) ? 1 : 2);
 }
 
+/*
+ * CPU iterators
+ *
+ * An extra gcwq is defined for an invalid cpu number
+ * (WORK_CPU_UNBOUND) to host workqueues which are not bound to any
+ * specific CPU.  The following iterators are similar to
+ * for_each_*_cpu() iterators but also considers the unbound gcwq.
+ *
+ * for_each_gcwq_cpu()		: possible CPUs + WORK_CPU_UNBOUND
+ * for_each_online_gcwq_cpu()	: online CPUs + WORK_CPU_UNBOUND
+ * for_each_cwq_cpu()		: possible CPUs for bound workqueues,
+ *				  WORK_CPU_UNBOUND for unbound workqueues
+ */
 #define for_each_gcwq_cpu(cpu)						\
 	for ((cpu) = __next_gcwq_cpu(-1, cpu_possible_mask, 3);		\
 	     (cpu) < WORK_CPU_NONE;					\
