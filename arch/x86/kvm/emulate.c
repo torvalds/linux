@@ -593,6 +593,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	c->modrm_rm |= (c->modrm & 0x07);
 	c->modrm_ea = 0;
 	c->use_modrm_ea = 1;
+	c->modrm_seg = VCPU_SREG_DS;
 
 	if (c->modrm_mod == 3) {
 		c->modrm_ptr = decode_register(c->modrm_rm,
@@ -649,8 +650,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		}
 		if (c->modrm_rm == 2 || c->modrm_rm == 3 ||
 		    (c->modrm_rm == 6 && c->modrm_mod != 0))
-			if (!c->has_seg_override)
-				set_seg_override(c, VCPU_SREG_SS);
+			c->modrm_seg = VCPU_SREG_SS;
 		c->modrm_ea = (u16)c->modrm_ea;
 	} else {
 		/* 32/64-bit ModR/M decode. */
@@ -2405,9 +2405,11 @@ done_prefixes:
 		c->op_bytes = 8;
 
 	/* ModRM and SIB bytes. */
-	if (c->d & ModRM)
+	if (c->d & ModRM) {
 		rc = decode_modrm(ctxt, ops);
-	else if (c->d & MemAbs)
+		if (!c->has_seg_override)
+			set_seg_override(c, c->modrm_seg);
+	} else if (c->d & MemAbs)
 		rc = decode_abs(ctxt, ops);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
