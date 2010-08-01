@@ -677,15 +677,17 @@ static int cx25840_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 	*num = n * sizeof(u32);
 
 	for (p = (u32 *) buf, i = 0; i < n; p++, i++) {
-		if ((*p & FIFO_RXTX_RTO) == FIFO_RXTX_RTO) {
-			*p = V4L2_SUBDEV_IR_PULSE_RX_SEQ_END;
-			v4l2_dbg(2, ir_debug, sd, "rx read: end of rx\n");
-			continue;
-		}
 
-		u = (*p & FIFO_RXTX_LVL) ? V4L2_SUBDEV_IR_PULSE_LEVEL_MASK : 0;
-		if (invert)
-			u = u ? 0 : V4L2_SUBDEV_IR_PULSE_LEVEL_MASK;
+		if ((*p & FIFO_RXTX_RTO) == FIFO_RXTX_RTO) {
+			/* Assume RTO was because of no IR light input */
+			u = 0;
+			v4l2_dbg(2, ir_debug, sd, "rx read: end of rx\n");
+		} else {
+			u = (*p & FIFO_RXTX_LVL)
+					  ? V4L2_SUBDEV_IR_PULSE_LEVEL_MASK : 0;
+			if (invert)
+				u = u ? 0 : V4L2_SUBDEV_IR_PULSE_LEVEL_MASK;
+		}
 
 		v = (u32) pulse_width_count_to_ns((u16) (*p & FIFO_RXTX),
 						  divider);

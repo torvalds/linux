@@ -46,12 +46,6 @@
 
 static void convert_measurement(u32 x, struct ir_raw_event *y)
 {
-	if (x == V4L2_SUBDEV_IR_PULSE_RX_SEQ_END) {
-		y->pulse = false;
-		y->duration = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
-		return;
-	}
-
 	y->pulse = (x & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK) ? true : false;
 	y->duration = x & V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
 }
