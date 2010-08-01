@@ -42,6 +42,7 @@ struct v4l2_ctrl_handler;
 struct v4l2_event_subscription;
 struct v4l2_fh;
 struct v4l2_subdev;
+struct v4l2_subdev_fh;
 struct tuner_setup;
 
 /* decode_vbi_line */
@@ -431,10 +432,16 @@ struct v4l2_subdev_ops {
  *
  * unregistered: called when this subdev is unregistered. When called the
  *	v4l2_dev field is still set to the correct v4l2_device.
+ *
+ * open: called when the subdev device node is opened by an application.
+ *
+ * close: called when the subdev device node is closed.
  */
 struct v4l2_subdev_internal_ops {
 	int (*registered)(struct v4l2_subdev *sd);
 	void (*unregistered)(struct v4l2_subdev *sd);
+	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
+	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
