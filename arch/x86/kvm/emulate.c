@@ -83,6 +83,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 /* Misc flags */
+#define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
 #define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
 #define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
@@ -2067,7 +2068,8 @@ static struct opcode group5[] = {
 static struct group_dual group7 = { {
 	N, N, D(ModRM | SrcMem | Priv), D(ModRM | SrcMem | Priv),
 	D(SrcNone | ModRM | DstMem | Mov), N,
-	D(SrcMem16 | ModRM | Mov | Priv), D(SrcMem | ModRM | ByteOp | Priv),
+	D(SrcMem16 | ModRM | Mov | Priv),
+	D(SrcMem | ModRM | ByteOp | Priv | NoAccess),
 }, {
 	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
 	D(SrcNone | ModRM | DstMem | Mov), N,
@@ -2456,7 +2458,7 @@ done_prefixes:
 		c->src.bytes = (c->d & ByteOp) ? 1 :
 							   c->op_bytes;
 		/* Don't fetch the address for invlpg: it could be unmapped. */
-		if (c->twobyte && c->b == 0x01 && c->modrm_reg == 7)
+		if (c->d & NoAccess)
 			break;
 	srcmem_common:
 		/*
