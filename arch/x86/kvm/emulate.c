@@ -3211,7 +3211,7 @@ twobyte_insn:
 			c->dst.val = ops->get_cr(0, ctxt->vcpu);
 			break;
 		case 6: /* lmsw */
-			ops->set_cr(0, (ops->get_cr(0, ctxt->vcpu) & ~0x0ful) |
+			ops->set_cr(0, (ops->get_cr(0, ctxt->vcpu) & ~0x0eul) |
 				    (c->src.val & 0x0f), ctxt->vcpu);
 			c->dst.type = OP_NONE;
 			break;
