@@ -2646,10 +2646,10 @@ static int ing_filter(struct sk_buff *skb)
 	int result = TC_ACT_OK;
 	struct Qdisc *q;
 
-	if (MAX_RED_LOOP < ttl++) {
-		printk(KERN_WARNING
-		       "Redir loop detected Dropping packet (%d->%d)\n",
-		       skb->skb_iif, dev->ifindex);
+	if (unlikely(MAX_RED_LOOP < ttl++)) {
+		if (net_ratelimit())
+			pr_warning( "Redir loop detected Dropping packet (%d->%d)\n",
+			       skb->skb_iif, dev->ifindex);
 		return TC_ACT_SHOT;
 	}
 
