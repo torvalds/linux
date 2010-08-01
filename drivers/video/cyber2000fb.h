@@ -480,15 +480,6 @@ struct cyberpro_info {
 	 * is within this structure.
 	 */
 	struct cfb_info *info;
-
-	/*
-	 * Use these to enable the BM or TV registers.  In an SMP
-	 * environment, these two function pointers should only be
-	 * called from the module_init() or module_exit()
-	 * functions.
-	 */
-	void (*enable_extregs)(struct cfb_info *);
-	void (*disable_extregs)(struct cfb_info *);
 };
 
 #define ID_IGA_1682		0

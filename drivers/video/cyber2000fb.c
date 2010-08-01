@@ -1144,8 +1144,6 @@ int cyber2000fb_attach(struct cyberpro_info *info, int idx)
 		info->irq             = int_cfb_info->irq;
 		info->fb	      = int_cfb_info->fb.screen_base;
 		info->fb_size	      = int_cfb_info->fb.fix.smem_len;
-		info->enable_extregs  = cyber2000fb_enable_extregs;
-		info->disable_extregs = cyber2000fb_disable_extregs;
 		info->info	      = int_cfb_info;
 
 		strlcpy(info->dev_name, int_cfb_info->fb.fix.id,
