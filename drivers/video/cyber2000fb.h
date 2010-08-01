@@ -464,13 +464,14 @@ static void debug_printf(char *fmt, ...)
 struct cfb_info;
 
 struct cyberpro_info {
-	struct pci_dev	*dev;
+	struct device	*dev;
 	struct i2c_adapter *i2c;
 	unsigned char	__iomem *regs;
 	char		__iomem *fb;
 	char		dev_name[32];
 	unsigned int	fb_size;
 	unsigned int	chip_id;
+	unsigned int	irq;
 
 	/*
 	 * The following is a pointer to be passed into the

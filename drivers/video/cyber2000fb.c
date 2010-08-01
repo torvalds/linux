@@ -63,10 +63,10 @@ struct cfb_info {
 	struct fb_info		fb;
 	struct display_switch	*dispsw;
 	struct display		*display;
-	struct pci_dev		*dev;
 	unsigned char		__iomem *region;
 	unsigned char		__iomem *regs;
 	u_int			id;
+	u_int			irq;
 	int			func_use_count;
 	u_long			ref_ps;
 
@@ -1134,13 +1134,14 @@ EXPORT_SYMBOL(cyber2000fb_get_fb_var);
 int cyber2000fb_attach(struct cyberpro_info *info, int idx)
 {
 	if (int_cfb_info != NULL) {
-		info->dev	      = int_cfb_info->dev;
+		info->dev	      = int_cfb_info->fb.device;
 #ifdef CONFIG_FB_CYBER2000_I2C
 		info->i2c	      = &int_cfb_info->i2c_adapter;
 #else
 		info->i2c	      = NULL;
 #endif
 		info->regs	      = int_cfb_info->regs;
+		info->irq             = int_cfb_info->irq;
 		info->fb	      = int_cfb_info->fb.screen_base;
 		info->fb_size	      = int_cfb_info->fb.fix.smem_len;
 		info->enable_extregs  = cyber2000fb_enable_extregs;
@@ -1245,7 +1246,7 @@ static int __devinit cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
 	cfb->ddc_adapter.owner		= THIS_MODULE;
 	cfb->ddc_adapter.class		= I2C_CLASS_DDC;
 	cfb->ddc_adapter.algo_data	= &cfb->ddc_algo;
-	cfb->ddc_adapter.dev.parent	= &cfb->dev->dev;
+	cfb->ddc_adapter.dev.parent	= cfb->fb.device;
 	cfb->ddc_algo.setsda		= cyber2000fb_ddc_setsda;
 	cfb->ddc_algo.setscl		= cyber2000fb_ddc_setscl;
 	cfb->ddc_algo.getsda		= cyber2000fb_ddc_getsda;
@@ -1319,7 +1320,7 @@ static int __devinit cyber2000fb_i2c_register(struct cfb_info *cfb)
 		sizeof(cfb->i2c_adapter.name));
 	cfb->i2c_adapter.owner = THIS_MODULE;
 	cfb->i2c_adapter.algo_data = &cfb->i2c_algo;
-	cfb->i2c_adapter.dev.parent = &cfb->dev->dev;
+	cfb->i2c_adapter.dev.parent = cfb->fb.device;
 	cfb->i2c_algo.setsda = cyber2000fb_i2c_setsda;
 	cfb->i2c_algo.setscl = cyber2000fb_i2c_setscl;
 	cfb->i2c_algo.getsda = cyber2000fb_i2c_getsda;
@@ -1607,9 +1608,6 @@ static int __devinit cyberpro_common_probe(struct cfb_info *cfb)
 		cfb->fb.var.xres, cfb->fb.var.yres,
 		h_sync / 1000, h_sync % 1000, v_sync);
 
-	if (cfb->dev)
-		cfb->fb.device = &cfb->dev->dev;
-
 	err = cyber2000fb_i2c_register(cfb);
 	if (err)
 		goto failed;
@@ -1669,12 +1667,13 @@ static int __devinit cyberpro_vl_probe(void)
 	if (!cfb)
 		goto failed_release;
 
-	cfb->dev = NULL;
+	cfb->irq = -1;
 	cfb->region = ioremap(FB_START, FB_SIZE);
 	if (!cfb->region)
 		goto failed_ioremap;
 
 	cfb->regs = cfb->region + MMIO_OFFSET;
+	cfb->fb.device = NULL;
 	cfb->fb.fix.mmio_start = FB_START + MMIO_OFFSET;
 	cfb->fb.fix.smem_start = FB_START;
 
@@ -1812,12 +1811,13 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto failed_regions;
 
-	cfb->dev = dev;
+	cfb->irq = dev->irq;
 	cfb->region = pci_ioremap_bar(dev, 0);
 	if (!cfb->region)
 		goto failed_ioremap;
 
 	cfb->regs = cfb->region + MMIO_OFFSET;
+	cfb->fb.device = &dev->dev;
 	cfb->fb.fix.mmio_start = pci_resource_start(dev, 0) + MMIO_OFFSET;
 	cfb->fb.fix.smem_start = pci_resource_start(dev, 0);
 
