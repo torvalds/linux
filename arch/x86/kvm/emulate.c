@@ -83,6 +83,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 /* Misc flags */
+#define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
 #define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
@@ -2405,6 +2406,13 @@ done_prefixes:
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))
 		c->op_bytes = 8;
+
+	if (c->d & Op3264) {
+		if (mode == X86EMUL_MODE_PROT64)
+			c->op_bytes = 8;
+		else
+			c->op_bytes = 4;
+	}
 
 	/* ModRM and SIB bytes. */
 	if (c->d & ModRM) {
