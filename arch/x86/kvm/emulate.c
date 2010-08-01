@@ -539,6 +539,24 @@ static int test_cc(unsigned int condition, unsigned int flags)
 	return (!!rc ^ (condition & 1));
 }
 
+static void fetch_register_operand(struct operand *op)
+{
+	switch (op->bytes) {
+	case 1:
+		op->val = *(u8 *)op->addr.reg;
+		break;
+	case 2:
+		op->val = *(u16 *)op->addr.reg;
+		break;
+	case 4:
+		op->val = *(u32 *)op->addr.reg;
+		break;
+	case 8:
+		op->val = *(u64 *)op->addr.reg;
+		break;
+	}
+}
+
 static void decode_register_operand(struct operand *op,
 				    struct decode_cache *c,
 				    int inhibit_bytereg)
@@ -551,23 +569,12 @@ static void decode_register_operand(struct operand *op,
 	op->type = OP_REG;
 	if ((c->d & ByteOp) && !inhibit_bytereg) {
 		op->addr.reg = decode_register(reg, c->regs, highbyte_regs);
-		op->val = *(u8 *)op->addr.reg;
 		op->bytes = 1;
 	} else {
 		op->addr.reg = decode_register(reg, c->regs, 0);
 		op->bytes = c->op_bytes;
-		switch (op->bytes) {
-		case 2:
-			op->val = *(u16 *)op->addr.reg;
-			break;
-		case 4:
-			op->val = *(u32 *)op->addr.reg;
-			break;
-		case 8:
-			op->val = *(u64 *) op->addr.reg;
-			break;
-		}
 	}
+	fetch_register_operand(op);
 	op->orig_val = op->val;
 }
 
@@ -2507,20 +2514,7 @@ done_prefixes:
 		c->src.type = OP_REG;
 		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->src.addr.reg = &c->regs[VCPU_REGS_RAX];
-		switch (c->src.bytes) {
-			case 1:
-				c->src.val = *(u8 *)c->src.addr.reg;
-				break;
-			case 2:
-				c->src.val = *(u16 *)c->src.addr.reg;
-				break;
-			case 4:
-				c->src.val = *(u32 *)c->src.addr.reg;
-				break;
-			case 8:
-				c->src.val = *(u64 *)c->src.addr.reg;
-				break;
-		}
+		fetch_register_operand(&c->src);
 		break;
 	case SrcOne:
 		c->src.bytes = 1;
@@ -2606,20 +2600,7 @@ done_prefixes:
 		c->dst.type = OP_REG;
 		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->dst.addr.reg = &c->regs[VCPU_REGS_RAX];
-		switch (c->dst.bytes) {
-			case 1:
-				c->dst.val = *(u8 *)c->dst.addr.reg;
-				break;
-			case 2:
-				c->dst.val = *(u16 *)c->dst.addr.reg;
-				break;
-			case 4:
-				c->dst.val = *(u32 *)c->dst.addr.reg;
-				break;
-			case 8:
-				c->dst.val = *(u64 *)c->dst.addr.reg;
-				break;
-		}
+		fetch_register_operand(&c->dst);
 		c->dst.orig_val = c->dst.val;
 		break;
 	case DstDI:
