@@ -538,14 +538,12 @@ EXPORT_SYMBOL(fw_card_add);
  * as all IO to the card will be handled (and failed) by the dummy driver
  * instead of calling into the module.  Only functions for iso context
  * shutdown still need to be provided by the card driver.
+ *
+ * .read/write_csr() should never be called anymore after the dummy driver
+ * was bound since they are only used within request handler context.
+ * .set_config_rom() is never called since the card is taken out of card_list
+ * before switching to the dummy driver.
  */
-
-static int dummy_enable(struct fw_card *card,
-			const __be32 *config_rom, size_t length)
-{
-	BUG();
-	return -1;
-}
 
 static int dummy_read_phy_reg(struct fw_card *card, int address)
 {
@@ -556,17 +554,6 @@ static int dummy_update_phy_reg(struct fw_card *card, int address,
 				int clear_bits, int set_bits)
 {
 	return -ENODEV;
-}
-
-static int dummy_set_config_rom(struct fw_card *card,
-				const __be32 *config_rom, size_t length)
-{
-	/*
-	 * We take the card out of card_list before setting the dummy
-	 * driver, so this should never get called.
-	 */
-	BUG();
-	return -1;
 }
 
 static void dummy_send_request(struct fw_card *card, struct fw_packet *packet)
@@ -590,15 +577,40 @@ static int dummy_enable_phys_dma(struct fw_card *card,
 	return -ENODEV;
 }
 
+static struct fw_iso_context *dummy_allocate_iso_context(struct fw_card *card,
+				int type, int channel, size_t header_size)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static int dummy_start_iso(struct fw_iso_context *ctx,
+			   s32 cycle, u32 sync, u32 tags)
+{
+	return -ENODEV;
+}
+
+static int dummy_set_iso_channels(struct fw_iso_context *ctx, u64 *channels)
+{
+	return -ENODEV;
+}
+
+static int dummy_queue_iso(struct fw_iso_context *ctx, struct fw_iso_packet *p,
+			   struct fw_iso_buffer *buffer, unsigned long payload)
+{
+	return -ENODEV;
+}
+
 static const struct fw_card_driver dummy_driver_template = {
-	.enable          = dummy_enable,
-	.read_phy_reg    = dummy_read_phy_reg,
-	.update_phy_reg  = dummy_update_phy_reg,
-	.set_config_rom  = dummy_set_config_rom,
-	.send_request    = dummy_send_request,
-	.cancel_packet   = dummy_cancel_packet,
-	.send_response   = dummy_send_response,
-	.enable_phys_dma = dummy_enable_phys_dma,
+	.read_phy_reg		= dummy_read_phy_reg,
+	.update_phy_reg		= dummy_update_phy_reg,
+	.send_request		= dummy_send_request,
+	.send_response		= dummy_send_response,
+	.cancel_packet		= dummy_cancel_packet,
+	.enable_phys_dma	= dummy_enable_phys_dma,
+	.allocate_iso_context	= dummy_allocate_iso_context,
+	.start_iso		= dummy_start_iso,
+	.set_iso_channels	= dummy_set_iso_channels,
+	.queue_iso		= dummy_queue_iso,
 };
 
 void fw_card_release(struct kref *kref)
