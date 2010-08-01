@@ -176,7 +176,7 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned
     pTxPacket->cbMPDULen = sizeof(WLAN_FRAME_TPCREP);
     pTxPacket->cbPayloadLen = sizeof(WLAN_FRAME_TPCREP) - WLAN_HDR_ADDR3_LEN;
     if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
-        return (FALSE);
+        return (false);
     return (true);
 //    return (CARDbSendPacket(pMgmt->pAdapter, pFrame, PKT_TYPE_802_11_MNG, sizeof(WLAN_FRAME_TPCREP)));
 
@@ -218,7 +218,7 @@ IEEE11hbMgrRxAction (
     // decode the frame
     uLength = ((PSRxMgmtPacket)pRxPacket)->cbMPDULen;
     if (uLength > WLAN_A3FR_MAXLEN) {
-        return (FALSE);
+        return (false);
     }
 
 
@@ -297,7 +297,7 @@ BOOL IEEE11hbMSRRepTx (
     pTxPacket->cbMPDULen = uLength;
     pTxPacket->cbPayloadLen = uLength - WLAN_HDR_ADDR3_LEN;
     if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
-        return (FALSE);
+        return (false);
     return (true);
 //    return (CARDbSendPacket(pMgmt->pAdapter, pMSRRep, PKT_TYPE_802_11_MNG, uLength));
 

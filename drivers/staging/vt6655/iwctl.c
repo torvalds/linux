@@ -751,7 +751,7 @@ int iwctl_giwap(struct net_device *dev,
 
     memcpy(wrq->sa_data, pMgmt->abyCurrBSSID, 6);
    //2008-0410,<Modify> by Einsn Liu
-    if ((pDevice->bLinkPass == FALSE) && (pMgmt->eCurrMode != WMAC_MODE_ESS_AP))
+    if ((pDevice->bLinkPass == false) && (pMgmt->eCurrMode != WMAC_MODE_ESS_AP))
         memset(wrq->sa_data, 0, 6);
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -834,7 +834,7 @@ int iwctl_siwessid(struct net_device *dev,
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWESSID \n");
- pDevice->fWPA_Authened = FALSE;
+ pDevice->fWPA_Authened = false;
 if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
         // In scanning..
      printk("SIOCSIWESSID(??)-->In scanning...\n");
@@ -1044,7 +1044,7 @@ int iwctl_siwrate(struct net_device *dev,
 
 	}
 	else {
-        pDevice->bFixRate = FALSE;
+        pDevice->bFixRate = false;
         pDevice->uConnectionRate = 13;
 	printk("auto rate:connection_rate is 13\n");
      }
@@ -1377,7 +1377,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 		}else if(index>0){
 	//when the length is 0 the request only changes the default transmit key index
 	//check the new key has a non zero lenget
-	if(pDevice->bEncryptionEnable==FALSE)
+	if(pDevice->bEncryptionEnable==false)
 	{
 		rc = -EINVAL;
         	return rc;
@@ -1396,10 +1396,10 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 
 }else {//disable the key
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable WEP function\n");
-	if(pDevice->bEncryptionEnable==FALSE)
+	if(pDevice->bEncryptionEnable==false)
 		return 0;
-	pMgmt->bShareKeyAlgorithm = FALSE;
-        pDevice->bEncryptionEnable = FALSE;
+	pMgmt->bShareKeyAlgorithm = false;
+        pDevice->bEncryptionEnable = false;
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
             spin_lock_irq(&pDevice->lock);
@@ -1479,8 +1479,8 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 	if(wrq->flags & IW_ENCODE_DISABLED){
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable WEP function\n");
-		pMgmt->bShareKeyAlgorithm = FALSE;
-        pDevice->bEncryptionEnable = FALSE;
+		pMgmt->bShareKeyAlgorithm = false;
+        pDevice->bEncryptionEnable = false;
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
             spin_lock_irq(&pDevice->lock);
@@ -1497,7 +1497,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 	}
 	if(wrq->flags & IW_ENCODE_OPEN) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & Open System\n");
-		pMgmt->bShareKeyAlgorithm = FALSE;
+		pMgmt->bShareKeyAlgorithm = false;
 	}
 	return rc;
 }
@@ -1763,7 +1763,7 @@ int iwctl_siwauth(struct net_device *dev,
 		wpa_version = wrq->value;
 		if(wrq->value == IW_AUTH_WPA_VERSION_DISABLED) {
 		       PRINT_K("iwctl_siwauth:set WPADEV to disable at 1??????\n");
-			//pDevice->bWPADevEnable = FALSE;
+			//pDevice->bWPADevEnable = false;
 		}
 		else if(wrq->value == IW_AUTH_WPA_VERSION_WPA) {
                           PRINT_K("iwctl_siwauth:set WPADEV to WPA1******\n");
@@ -1818,7 +1818,7 @@ int iwctl_siwauth(struct net_device *dev,
 		break;
 	case IW_AUTH_80211_AUTH_ALG:
 		if(wrq->value==IW_AUTH_ALG_OPEN_SYSTEM){
-			pMgmt->bShareKeyAlgorithm=FALSE;
+			pMgmt->bShareKeyAlgorithm=false;
 		}else if(wrq->value==IW_AUTH_ALG_SHARED_KEY){
 			pMgmt->bShareKeyAlgorithm=true;
 		}
@@ -1833,13 +1833,13 @@ int iwctl_siwauth(struct net_device *dev,
 		break;
 	case IW_AUTH_PRIVACY_INVOKED:
 		pDevice->bEncryptionEnable = !!wrq->value;
-		if(pDevice->bEncryptionEnable == FALSE){
+		if(pDevice->bEncryptionEnable == false){
 			wpa_version = 0;
 			pairwise = 0;
 			pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-			pMgmt->bShareKeyAlgorithm = FALSE;
-			pMgmt->eAuthenMode = FALSE;
-			//pDevice->bWPADevEnable = FALSE;
+			pMgmt->bShareKeyAlgorithm = false;
+			pMgmt->eAuthenMode = false;
+			//pDevice->bWPADevEnable = false;
 		}
 
 		break;
@@ -1852,9 +1852,9 @@ int iwctl_siwauth(struct net_device *dev,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise = %d\n",pairwise);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->eEncryptionStatus = %d\n",pDevice->eEncryptionStatus);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->eAuthenMode  = %d\n",pMgmt->eAuthenMode);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->bShareKeyAlgorithm = %s\n",pMgmt->bShareKeyAlgorithm?"true":"FALSE");
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bEncryptionEnable = %s\n",pDevice->bEncryptionEnable?"true":"FALSE");
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bWPADevEnable = %s\n",pDevice->bWPADevEnable?"true":"FALSE");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->bShareKeyAlgorithm = %s\n",pMgmt->bShareKeyAlgorithm?"true":"false");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bEncryptionEnable = %s\n",pDevice->bEncryptionEnable?"true":"false");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bWPADevEnable = %s\n",pDevice->bWPADevEnable?"true":"false");
 */
    return ret;
 }

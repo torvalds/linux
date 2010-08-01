@@ -891,7 +891,7 @@ inline static BOOL device_get_ip(PSDevice pInfo) {
             return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 

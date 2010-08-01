@@ -39,10 +39,6 @@
 
 typedef int             BOOL;
 
-#if !defined(FALSE)
-#define FALSE           0
-#endif
-
 //2007-0809-01<Add>by MikeLiu
 #ifndef  update_BssList
 #define update_BssList

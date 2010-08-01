@@ -335,8 +335,8 @@ device_receive_frame (
     PQWORD          pqwTSFTime;
     unsigned short *pwFrameSize;
     unsigned char *pbyFrame;
-    BOOL            bDeFragRx = FALSE;
-    BOOL            bIsWEP = FALSE;
+    BOOL            bDeFragRx = false;
+    BOOL            bIsWEP = false;
     unsigned int cbHeaderOffset;
     unsigned int FrameSize;
     unsigned short wEtherType = 0;
@@ -344,7 +344,7 @@ device_receive_frame (
     int             iDANodeIndex = -1;
     unsigned int ii;
     unsigned int cbIVOffset;
-    BOOL            bExtIV = FALSE;
+    BOOL            bExtIV = false;
     unsigned char *pbyRxSts;
     unsigned char *pbyRxRate;
     unsigned char *pbySQ;
@@ -358,7 +358,7 @@ device_receive_frame (
     long            ldBm = 0;
     long            ldBmThreshold = 0;
     PS802_11Header pMACHeader;
- BOOL            bRxeapol_key = FALSE;
+ BOOL            bRxeapol_key = false;
 
 //    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- device_receive_frame---\n");
 
@@ -379,7 +379,7 @@ device_receive_frame (
     if ((FrameSize > 2364)||(FrameSize <= 32)) {
         // Frame Size error drop this packet.
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 1 \n");
-        return FALSE;
+        return false;
     }
 
     pbyRxSts = (unsigned char *) (skb->data);
@@ -397,7 +397,7 @@ device_receive_frame (
     if ((FrameSize > 2346)|(FrameSize < 14)) { // Max: 2312Payload + 30HD +4CRC
                                                // Min: 14 bytes ACK
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 2 \n");
-        return FALSE;
+        return false;
     }
 //PLICE_DEBUG->
 #if 1
@@ -440,13 +440,13 @@ device_receive_frame (
             ii--;
         }
         pDevice->dwRPIs[ii] += dwDuration;
-        return FALSE;
+        return false;
     }
 
     if (!is_multicast_ether_addr(pbyFrame)) {
         if (WCTLbIsDuplicate(&(pDevice->sDupRxCache), (PS802_11Header) (skb->data + 4))) {
             pDevice->s802_11Counter.FrameDuplicateCount++;
-            return FALSE;
+            return false;
         }
     }
 
@@ -456,7 +456,7 @@ device_receive_frame (
 
     // filter packet send from myself
     if (!compare_ether_addr((unsigned char *)&(pDevice->sRxEthHeader.abySrcAddr[0]), pDevice->abyCurrentNetAddr))
-        return FALSE;
+        return false;
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
         if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
@@ -471,13 +471,13 @@ device_receive_frame (
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
         if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex) == true) {
-            return FALSE;
+            return false;
         }
     }
 
 
     if (IS_FC_WEP(pbyFrame)) {
-        BOOL     bRxDecryOK = FALSE;
+        BOOL     bRxDecryOK = false;
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"rx WEP pkt\n");
         bIsWEP = true;
@@ -532,11 +532,11 @@ device_receive_frame (
 //                      pDevice->s802_11Counter.WEPICVErrorCount.QuadPart++;
                     }
                 }
-                return FALSE;
+                return false;
             }
         } else {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WEP Func Fail\n");
-            return FALSE;
+            return false;
         }
         if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_CCMP))
             FrameSize -= 8;         // Message Integrity Code
@@ -564,13 +564,13 @@ device_receive_frame (
 
         }
         else {
-            return FALSE;
+            return false;
         }
     }
 
 
 // Management & Control frame Handle
-    if ((IS_TYPE_DATA((skb->data+4))) == FALSE) {
+    if ((IS_TYPE_DATA((skb->data+4))) == false) {
         // Handle Control & Manage Frame
 
         if (IS_TYPE_MGMT((skb->data+4))) {
@@ -635,7 +635,7 @@ device_receive_frame (
         else {
             // Control Frame
         };
-        return FALSE;
+        return false;
     }
     else {
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -647,12 +647,12 @@ device_receive_frame (
                         pDevice->dev->name);
                     }
                 }
-                return FALSE;
+                return false;
             }
         }
         else {
             // discard DATA packet while not associate || BSSID error
-            if ((pDevice->bLinkPass == FALSE) ||
+            if ((pDevice->bLinkPass == false) ||
                 !(*pbyRsr & RSR_BSSIDOK)) {
                 if (bDeFragRx) {
                     if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
@@ -660,7 +660,7 @@ device_receive_frame (
                         pDevice->dev->name);
                     }
                 }
-                return FALSE;
+                return false;
             }
    //mike add:station mode check eapol-key challenge--->
    	  {
@@ -697,7 +697,7 @@ device_receive_frame (
         }
         else {
             if (pDevice->pMgmt->bInTIMWake == true) {
-                pDevice->pMgmt->bInTIMWake = FALSE;
+                pDevice->pMgmt->bInTIMWake = false;
             }
         }
     };
@@ -766,7 +766,7 @@ device_receive_frame (
 }
         // check if 802.1x authorized
         if (!(pMgmt->sNodeDBTable[iSANodeIndex].dwFlags & WLAN_STA_AUTHORIZED))
-            return FALSE;
+            return false;
     }
 
 
@@ -826,7 +826,7 @@ device_receive_frame (
             if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) || (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
                 (pDevice->bRxMICFail == true)) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC comparison is fail!\n");
-                pDevice->bRxMICFail = FALSE;
+                pDevice->bRxMICFail = false;
                 //pDevice->s802_11Counter.TKIPLocalMICFailures.QuadPart++;
                 pDevice->s802_11Counter.TKIPLocalMICFailures++;
                 if (bDeFragRx) {
@@ -886,7 +886,7 @@ device_receive_frame (
                      pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
                  };
 
-                return FALSE;
+                return false;
 
             }
         }
@@ -930,7 +930,7 @@ device_receive_frame (
                                 pDevice->dev->name);
                         }
                     }
-                    return FALSE;
+                    return false;
                 }
             }
         }
@@ -949,7 +949,7 @@ device_receive_frame (
 
     // Null data, framesize = 14
     if (FrameSize < 15)
-        return FALSE;
+        return false;
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
         if (s_bAPModeRxData(pDevice,
@@ -958,7 +958,7 @@ device_receive_frame (
                             cbHeaderOffset,
                             iSANodeIndex,
                             iDANodeIndex
-                            ) == FALSE) {
+                            ) == false) {
 
             if (bDeFragRx) {
                 if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
@@ -966,10 +966,10 @@ device_receive_frame (
                     pDevice->dev->name);
                 }
             }
-            return FALSE;
+            return false;
         }
 
-//        if(pDevice->bRxMICFail == FALSE) {
+//        if(pDevice->bRxMICFail == false) {
 //           for (ii =0; ii < 100; ii++)
 //                printk(" %02x", *(skb->data + ii));
 //           printk("\n");
@@ -996,7 +996,7 @@ device_receive_frame (
                     pDevice->dev->name);
                 }
             }
-			return FALSE;
+			return false;
 		}
 	}
 */
@@ -1011,7 +1011,7 @@ device_receive_frame (
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc more frag bufs\n",
                 pDevice->dev->name);
         }
-        return FALSE;
+        return false;
     }
 
     return true;
@@ -1074,7 +1074,7 @@ static BOOL s_bAPModeRxCtl (
                         // check Data PS state
                         // if PW bit off, send out all PS bufferring packets.
                         if (!IS_FC_POWERMGT(pbyFrame)) {
-                            pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
+                            pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = false;
                             pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
                             bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 2\n");
@@ -1090,7 +1090,7 @@ static BOOL s_bAPModeRxCtl (
                    else {
                       // clear all pending PS frame.
                       if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
-                          pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
+                          pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = false;
                           pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
                           bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                          DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 3\n");
@@ -1138,7 +1138,7 @@ static BOOL s_bAPModeRxCtl (
             }
         }
     }
-    return FALSE;
+    return false;
 
 }
 
@@ -1221,7 +1221,7 @@ static BOOL s_bHandleRxEncryption (
         } else if (pDevice->bLinkPass == true) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
-        return FALSE;
+        return false;
     }
     if (byDecMode != pKey->byCipherSuite) {
         if (byDecMode == KEY_CTL_WEP) {
@@ -1230,7 +1230,7 @@ static BOOL s_bHandleRxEncryption (
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
         *pKeyOut = NULL;
-        return FALSE;
+        return false;
     }
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
@@ -1336,7 +1336,7 @@ static BOOL s_bHostWepRxEncryption (
         } else if (pDevice->bLinkPass == true) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
-        return FALSE;
+        return false;
     }
 
     if (byDecMode == KEY_CTL_WEP) {
@@ -1344,7 +1344,7 @@ static BOOL s_bHostWepRxEncryption (
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP \n");
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
             (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true) ||
-            (bOnFly == FALSE)) {
+            (bOnFly == false)) {
             // Software WEP
             // 1. 3253A
             // 2. WEP 256
@@ -1377,7 +1377,7 @@ static BOOL s_bHostWepRxEncryption (
 
         if (byDecMode == KEY_CTL_TKIP) {
 
-            if ((pDevice->byLocalID <= REV_ID_VT3253_A1) || (bOnFly == FALSE)) {
+            if ((pDevice->byLocalID <= REV_ID_VT3253_A1) || (bOnFly == false)) {
                 // Software TKIP
                 // 1. 3253 A
                 // 2. NotOnFly
@@ -1397,7 +1397,7 @@ static BOOL s_bHostWepRxEncryption (
         }
 
         if (byDecMode == KEY_CTL_CCMP) {
-            if (bOnFly == FALSE) {
+            if (bOnFly == false) {
                 // Software CCMP
                 // NotOnFly
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"soft KEY_CTL_CCMP\n");
@@ -1429,8 +1429,8 @@ static BOOL s_bAPModeRxData (
     )
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    BOOL                bRelayAndForward = FALSE;
-    BOOL                bRelayOnly = FALSE;
+    BOOL                bRelayAndForward = false;
+    BOOL                bRelayOnly = false;
     unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     unsigned short wAID;
 
@@ -1438,7 +1438,7 @@ static BOOL s_bAPModeRxData (
     struct sk_buff* skbcpy = NULL;
 
     if (FrameSize > CB_MAX_BUF_SIZE)
-        return FALSE;
+        return false;
     // check DA
     if(is_multicast_ether_addr((unsigned char *)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
@@ -1499,11 +1499,11 @@ static BOOL s_bAPModeRxData (
         }
 
         if (bRelayOnly)
-            return FALSE;
+            return false;
     }
     // none associate, don't forward
     if (pDevice->uAssocCount == 0)
-        return FALSE;
+        return false;
 
     return true;
 }

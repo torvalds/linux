@@ -319,7 +319,7 @@ VNTWIFIvSetAuthenticationMode (
         (eAuthMode == WMAC_AUTH_AUTO)) {
         pMgmt->bShareKeyAlgorithm = true;
     } else {
-        pMgmt->bShareKeyAlgorithm = FALSE;
+        pMgmt->bShareKeyAlgorithm = false;
     }
 }
 
@@ -352,7 +352,7 @@ VNTWIFIvSetEncryptionMode (
         (eEncryptionMode == WMAC_ENCRYPTION_AESEnabled) ) {
         pMgmt->bPrivacyInvoked = true;
     } else {
-        pMgmt->bPrivacyInvoked = FALSE;
+        pMgmt->bPrivacyInvoked = false;
     }
 }
 
@@ -371,7 +371,7 @@ VNTWIFIbConfigPhyMode (
         if (CARDbSetPhyParameter(pMgmt->pAdapter, ePhyType, 0, 0, NULL, NULL)==true) {
             pMgmt->eCurrentPHYMode = ePhyType;
         } else {
-            return(FALSE);
+            return(false);
         }
     }
     pMgmt->eConfigPHYMode = ePhyType;
@@ -505,7 +505,7 @@ VNTWIFIvUpdateNodeTxCounter(
 
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
-        if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex) == FALSE) {
+        if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex) == false) {
             return;
         }
     }
@@ -628,7 +628,7 @@ VNTWIFIbInit(
     pMgmt = (PSMgmtObject)kmalloc(sizeof(SMgmtObject), (int)GFP_ATOMIC);
     if (pMgmt == NULL) {
         *pMgmtHandler = NULL;
-        return FALSE;
+        return false;
     }
 
     memset(pMgmt, 0, sizeof(SMgmtObject));
@@ -648,8 +648,8 @@ VNTWIFIbInit(
     pMgmt->uCmdDequeueIdx = 0;
     pMgmt->uCmdEnqueueIdx = 0;
     pMgmt->eCommandState = WLAN_CMD_STATE_IDLE;
-    pMgmt->bCmdStop = FALSE;
-    pMgmt->bCmdRunning = FALSE;
+    pMgmt->bCmdStop = false;
+    pMgmt->bCmdRunning = false;
 
     *pMgmtHandler = pMgmt;
     return true;
@@ -668,7 +668,7 @@ VNTWIFIbSetPMKIDCache (
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
     if (ulCount > MAX_PMKID_CACHE) {
-        return (FALSE);
+        return (false);
     }
     pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
     memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
@@ -779,7 +779,7 @@ VNTWIFIbChannelSwitch(
 
     //spin_lock_irq(&pDevice->lock);
     pMgmt->uCurrChannel = byNewChannel;
-    pMgmt->bSwitchChannel = FALSE;
+    pMgmt->bSwitchChannel = false;
     //spin_unlock_irq(&pDevice->lock);
     return true;
 }

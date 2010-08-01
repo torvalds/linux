@@ -79,7 +79,7 @@ WPA2_ClearRSN (
 {
     int ii;
 
-    pBSSNode->bWPA2Valid = FALSE;
+    pBSSNode->bWPA2Valid = false;
 
     pBSSNode->byCSSGK = WLAN_11i_CSS_CCMP;
     for (ii=0; ii < 4; ii ++)
@@ -88,7 +88,7 @@ WPA2_ClearRSN (
     for (ii=0; ii < 4; ii ++)
         pBSSNode->abyAKMSSAuthType[ii] = WLAN_11i_AKMSS_802_1X;
     pBSSNode->wAKMSSAuthCount = 1;
-    pBSSNode->sRSNCapObj.bRSNCapExist = FALSE;
+    pBSSNode->sRSNCapObj.bRSNCapExist = false;
     pBSSNode->sRSNCapObj.wRSNCap = 0;
 }
 
@@ -116,7 +116,7 @@ WPA2vParseRSN (
     int                 i, j;
     unsigned short m = 0, n = 0;
     unsigned char *pbyOUI;
-    BOOL                bUseGK = FALSE;
+    BOOL                bUseGK = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
 

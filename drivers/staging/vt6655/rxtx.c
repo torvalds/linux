@@ -603,7 +603,7 @@ s_uGetDataDuration (
         break;
     }
 
-	ASSERT(FALSE);
+	ASSERT(false);
 	return 0;
 }
 
@@ -1156,7 +1156,7 @@ s_vGenerateTxParameter (
 {
     unsigned int cbMACHdLen = WLAN_HDR_ADDR3_LEN; //24
     unsigned short wFifoCtl;
-    BOOL bDisCRC = FALSE;
+    BOOL bDisCRC = false;
     unsigned char byFBOption = AUTO_FB_NONE;
 //    unsigned short wCurrentRate = pDevice->wCurrentRate;
 
@@ -1340,7 +1340,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     unsigned long *pdwMIC_L;
     unsigned long *pdwMIC_R;
     unsigned long dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
-    BOOL           bMIC2Frag = FALSE;
+    BOOL           bMIC2Frag = false;
     unsigned int uMICFragLen = 0;
     unsigned int uMACfragNum = 1;
     unsigned int uPadding = 0;
@@ -1362,7 +1362,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     unsigned short wTxBufSize;   // FFinfo size
     unsigned int uTotalCopyLength = 0;
     unsigned char byFBOption = AUTO_FB_NONE;
-    BOOL           bIsWEP256 = FALSE;
+    BOOL           bIsWEP256 = false;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 
@@ -1373,7 +1373,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
         (pDevice->eOPMode == OP_MODE_AP)) {
 
 	if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
-		bNeedACK = FALSE;
+		bNeedACK = false;
         else
             bNeedACK = true;
         bIsAdhoc = true;
@@ -1381,7 +1381,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     else {
         // MSDUs in Infra mode always need ACK
         bNeedACK = true;
-        bIsAdhoc = FALSE;
+        bIsAdhoc = false;
     }
 
     if (pDevice->bLongHeader)
@@ -1418,11 +1418,11 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 
     cbFrameSize = cbMACHdLen + cbIVlen + (cbFrameBodySize + cbMIClen) + cbICVlen + cbFCSlen;
 
-    if ((bNeedACK == FALSE) ||
+    if ((bNeedACK == false) ||
         (cbFrameSize < pDevice->wRTSThreshold) ||
         ((cbFrameSize >= pDevice->wFragmentationThreshold) && (pDevice->wFragmentationThreshold <= pDevice->wRTSThreshold))
         ) {
-        bRTS = FALSE;
+        bRTS = false;
     }
     else {
         bRTS = true;
@@ -1549,7 +1549,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     pbyPayloadHead = (unsigned char *)(pbyMacHdr + cbMACHdLen + uPadding + cbIVlen);
     pbyIVHead = (unsigned char *)(pbyMacHdr + cbMACHdLen + uPadding);
 
-    if ((cbFrameSize > pDevice->wFragmentationThreshold) && (bNeedACK == true) && (bIsWEP256 == FALSE)) {
+    if ((cbFrameSize > pDevice->wFragmentationThreshold) && (bNeedACK == true) && (bIsWEP256 == false)) {
         // Fragmentation
         // FragThreshold = Fragment size(Hdr+(IV)+fragment payload+(MIC)+(ICV)+FCS)
         cbFragmentSize = pDevice->wFragmentationThreshold;
@@ -1718,7 +1718,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
                 memcpy(pbyBuffer, (void *)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
-                if (bMIC2Frag == FALSE) {
+                if (bMIC2Frag == false) {
 
                     memcpy((pbyBuffer + uLength),
                              (pPacket + 14 + uTotalCopyLength),
@@ -1732,7 +1732,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"LAST: uMICFragLen:%d, cbLastFragPayloadSize:%d, uTmpLen:%d\n",
                                    uMICFragLen, cbLastFragPayloadSize, uTmpLen);
 
-                    if (bMIC2Frag == FALSE) {
+                    if (bMIC2Frag == false) {
                         if (uTmpLen != 0)
                             MIC_vAppend((pbyBuffer + uLength), uTmpLen);
                         pdwMIC_L = (unsigned long *)(pbyBuffer + uLength + uTmpLen);
@@ -2020,7 +2020,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
             if (pDevice->bTxMICFail == true) {
                 *pdwMIC_L = 0;
                 *pdwMIC_R = 0;
-                pDevice->bTxMICFail = FALSE;
+                pDevice->bTxMICFail = false;
             }
 
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"uLength: %d, %d\n", uLength, cbFrameBodySize);
@@ -2089,7 +2089,7 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
         if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
-            bNeedACK = FALSE;
+            bNeedACK = false;
             pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
         }
         else {
@@ -2102,7 +2102,7 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
         // MSDUs in Infra mode always need ACK
         bNeedACK = true;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-        bIsAdhoc = FALSE;
+        bIsAdhoc = false;
     }
 
 
@@ -2159,7 +2159,7 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
     }
 
     //Set FRAGCTL_WEPTYP
-    pDevice->bAES = FALSE;
+    pDevice->bAES = false;
 
     //Set FRAGCTL_WEPTYP
     if (pDevice->byLocalID > REV_ID_VT3253_A1) {
@@ -2315,7 +2315,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     unsigned int cbHeaderSize;
     unsigned int cbFrameBodySize;
     BOOL            bNeedACK;
-    BOOL            bIsPSPOLL = FALSE;
+    BOOL            bIsPSPOLL = false;
     PSTxBufHead     pTxBufHead;
     unsigned int cbFrameSize;
     unsigned int cbIVlen = 0;
@@ -2389,7 +2389,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
 
     if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])))
-        bNeedACK = FALSE;
+        bNeedACK = false;
     else {
         bNeedACK = true;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
@@ -2403,7 +2403,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         //pDevice->byPreambleType = PREAMBLE_LONG;
         // probe-response don't retry
         //if ((pPacket->p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_MGMT_PROBE_RSP) {
-        //     bNeedACK = FALSE;
+        //     bNeedACK = false;
         //     pTxBufHead->wFIFOCtl  &= (~FIFOCTL_NEEDACK);
         //}
     }
@@ -2423,7 +2423,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     // Notes:
     // Although spec says MMPDU can be fragmented; In most case,
     // no one will send a MMPDU under fragmentation. With RTS may occur.
-    pDevice->bAES = FALSE;  //Set FRAGCTL_WEPTYP
+    pDevice->bAES = false;  //Set FRAGCTL_WEPTYP
 
     if (WLAN_GET_FC_ISWEP(pPacket->p80211Header->sA4.wFrameCtl) != 0) {
         if (pDevice->eEncryptionStatus == Ndis802_11Encryption1Enabled) {
@@ -2527,7 +2527,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
                 (pDevice->bLinkPass == true)) {
                 pbyBSSID = pDevice->abyBSSID;
                 // get pairwise key
-                if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == FALSE) {
+                if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == false) {
                     // get group key
                     if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == true) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Get GTK.\n");
@@ -2540,13 +2540,13 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
             }
             // get group key
             pbyBSSID = pDevice->abyBroadcastAddr;
-            if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == FALSE) {
+            if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
                 pTransmitKey = NULL;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KEY is NULL. OP Mode[%d]\n", pDevice->eOPMode);
             } else {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Get GTK.\n");
             }
-        } while(FALSE);
+        } while(false);
         //Fill TXKEY
         s_vFillTxKey(pDevice, (unsigned char *)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
                      (unsigned char *)pMACHeader, (unsigned short)cbFrameBodySize, NULL);
@@ -2592,7 +2592,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         // Disable PS
         MACbPSWakeup(pDevice->PortOffset);
     }
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
 
     wmb();
     pFrstTD->m_td0TD0.f1Owner = OWNED_BY_NIC;
@@ -2656,12 +2656,12 @@ CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     //Set packet type & Get Duration
     if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
         pTxDataHead->wDuration = cpu_to_le16((unsigned short)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameSize, byPktType,
-                                                          wCurrentRate, FALSE, 0, 0, 1, AUTO_FB_NONE));
+                                                          wCurrentRate, false, 0, 0, 1, AUTO_FB_NONE));
     }
     else if (byPktType == PK_TYPE_11B) {//0000 0001 0000 0000
         pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
         pTxDataHead->wDuration = cpu_to_le16((unsigned short)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameSize, byPktType,
-                                                          wCurrentRate, FALSE, 0, 0, 1, AUTO_FB_NONE));
+                                                          wCurrentRate, false, 0, 0, 1, AUTO_FB_NONE));
     }
 
     BBvCaculateParameter(pDevice, cbFrameSize, wCurrentRate, byPktType,
@@ -2723,7 +2723,7 @@ cbGetFragCount (
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
         if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
-            bNeedACK = FALSE;
+            bNeedACK = false;
         else
             bNeedACK = true;
     }
@@ -2799,7 +2799,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     unsigned int cbHeaderSize;
     unsigned int cbFrameBodySize;
     BOOL            bNeedACK;
-    BOOL            bIsPSPOLL = FALSE;
+    BOOL            bIsPSPOLL = false;
     PSTxBufHead     pTxBufHead;
     unsigned int cbFrameSize;
     unsigned int cbIVlen = 0;
@@ -2822,7 +2822,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     unsigned short wCurrentRate = RATE_1M;
     PUWLAN_80211HDR  p80211Header;
     unsigned int uNodeIndex = 0;
-    BOOL            bNodeExist = FALSE;
+    BOOL            bNodeExist = false;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
     unsigned char *pbyIVHead;
@@ -2898,7 +2898,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 
     if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
-        bNeedACK = FALSE;
+        bNeedACK = false;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
             bNodeExist = true;
@@ -2922,7 +2922,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
         // probe-response don't retry
         //if ((p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_MGMT_PROBE_RSP) {
-        //     bNeedACK = FALSE;
+        //     bNeedACK = false;
         //     pTxBufHead->wFIFOCtl  &= (~FIFOCTL_NEEDACK);
         //}
     }
@@ -2959,7 +2959,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     // Notes:
     // Although spec says MMPDU can be fragmented; In most case,
     // no one will send a MMPDU under fragmentation. With RTS may occur.
-    pDevice->bAES = FALSE;  //Set FRAGCTL_WEPTYP
+    pDevice->bAES = false;  //Set FRAGCTL_WEPTYP
 
 
     if (WLAN_GET_FC_ISWEP(p80211Header->sA4.wFrameCtl) != 0) {
@@ -3108,7 +3108,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
             if (pDevice->bTxMICFail == true) {
                 *pdwMIC_L = 0;
                 *pdwMIC_R = 0;
-                pDevice->bTxMICFail = FALSE;
+                pDevice->bTxMICFail = false;
             }
 
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"uLength: %d, %d\n", uLength, cbFrameBodySize);
@@ -3166,7 +3166,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
         // Disable PS
         MACbPSWakeup(pDevice->PortOffset);
     }
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
 
     wmb();
     pFrstTD->m_td0TD0.f1Owner = OWNED_BY_NIC;

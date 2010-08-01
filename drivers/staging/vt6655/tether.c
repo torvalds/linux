@@ -93,7 +93,7 @@ unsigned char ETHbyGetHashIndexByCrc32 (unsigned char *pbyMultiAddr)
  *  Out:
  *      none
  *
- * Return Value: true if ok; FALSE if error.
+ * Return Value: true if ok; false if error.
  *
  */
 BOOL ETHbIsBufferCrc32Ok (unsigned char *pbyBuffer, unsigned int cbFrameLength)
@@ -102,7 +102,7 @@ BOOL ETHbIsBufferCrc32Ok (unsigned char *pbyBuffer, unsigned int cbFrameLength)
 
     dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
     if (cpu_to_le32(*((unsigned long *)(pbyBuffer + cbFrameLength - 4))) != dwCRC) {
-        return FALSE;
+        return false;
     }
     return true;
 }

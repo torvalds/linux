@@ -105,11 +105,11 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             vMgrTimerInit(pDevice);
             MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
             add_timer(&pMgmt->sTimerSecondCallback);
-            pDevice->bMACSuspend = FALSE;
+            pDevice->bMACSuspend = false;
         }
         spin_lock_irq(&pDevice->lock);
         if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
-            BSSvClearBSSList((void *)pDevice, FALSE);
+            BSSvClearBSSList((void *)pDevice, false);
         else
             BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
@@ -180,7 +180,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             vMgrTimerInit(pDevice);
             MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
             add_timer(&pMgmt->sTimerSecondCallback);
-            pDevice->bMACSuspend = FALSE;
+            pDevice->bMACSuspend = false;
         }
 
         if (copy_from_user(&sJoinCmd, pReq->data, sizeof(SCmdBSSJoin))) {
@@ -216,7 +216,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Share Key \n");
         }
         else {
-            pMgmt->bShareKeyAlgorithm = FALSE;
+            pMgmt->bShareKeyAlgorithm = false;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Open System \n");
         }
 	    pDevice->uChannel = sJoinCmd.uChannel;
@@ -236,7 +236,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			break;
 		};
 	    if (sWEPCmd.bEnableWep != true) {
-            pDevice->bEncryptionEnable = FALSE;
+            pDevice->bEncryptionEnable = false;
             pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
             MACvDisableDefaultKey(pDevice->PortOffset);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable. \n");
@@ -295,7 +295,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Link Success ! \n");
         }
         else {
-            sLinkStatus.bLink = FALSE;
+            sLinkStatus.bLink = false;
         }
         if (copy_to_user(pReq->data, &sLinkStatus, sizeof(SCmdLinkStatus))) {
 			result = -EFAULT;
@@ -356,7 +356,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		        pList->sBSSIDList[ii].bWEPOn = true;
                 }
                 else {
-    		        pList->sBSSIDList[ii].bWEPOn = FALSE;
+    		        pList->sBSSIDList[ii].bWEPOn = false;
     		    }
     		    ii ++;
     		    if (ii >= pList->uItem)
@@ -391,15 +391,15 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         netif_stop_queue(pDevice->dev);
 
         spin_lock_irq(&pDevice->lock);
-        if (pDevice->bRadioOff == FALSE) {
+        if (pDevice->bRadioOff == false) {
             CARDbRadioPowerOff(pDevice);
         }
-        pDevice->bLinkPass = FALSE;
+        pDevice->bLinkPass = false;
         memset(pMgmt->abyCurrBSSID, 0, 6);
         pMgmt->eCurrState = WMAC_STATE_IDLE;
         del_timer(&pDevice->sTimerCommand);
         del_timer(&pMgmt->sTimerSecondCallback);
-        pDevice->bCmdRunning = FALSE;
+        pDevice->bCmdRunning = false;
         pDevice->bMACSuspend = true;
         MACvIntDisable(pDevice->PortOffset);
         spin_unlock_irq(&pDevice->lock);
@@ -416,7 +416,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             vMgrTimerInit(pDevice);
             MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
             add_timer(&pMgmt->sTimerSecondCallback);
-            pDevice->bMACSuspend = FALSE;
+            pDevice->bMACSuspend = false;
         }
         break;
 
@@ -462,7 +462,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable 802.1x\n");
         }
         else {
-            pDevice->bEnable8021x = FALSE;
+            pDevice->bEnable8021x = false;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable 802.1x\n");
         }
 
@@ -482,7 +482,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HostWEP\n");
         }
         else {
-            pDevice->bEnableHostWEP = FALSE;
+            pDevice->bEnableHostWEP = false;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HostWEP\n");
         }
 
@@ -502,7 +502,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         }
         else {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "close wpadev\n");
-	   pDevice->bWPADEVUp = FALSE;
+	   pDevice->bWPADEVUp = false;
         }
 
         break;
@@ -559,7 +559,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Share Key \n");
         }
         else {
-            pMgmt->bShareKeyAlgorithm = FALSE;
+            pMgmt->bShareKeyAlgorithm = false;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Open System \n");
         }
         memcpy(pMgmt->abyIBSSSuppRates, abySuppRates, 6);
@@ -672,8 +672,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 	    wpa_Result.proto = 0;
 	    wpa_Result.key_mgmt = 0;
 	    wpa_Result.eap_type = 0;
-	    wpa_Result.authenticated = FALSE;
-	      pDevice->fWPA_Authened = FALSE;
+	    wpa_Result.authenticated = false;
+	      pDevice->fWPA_Authened = false;
         if (copy_from_user(&wpa_Result, pReq->data, sizeof(wpa_Result))) {
             result = -EFAULT;
 			break;
@@ -700,7 +700,7 @@ if(wpa_Result.authenticated==true) {
 	//printk("wpa-->proto=%d\n",wpa_Result.proto);
 	//printk("wpa-->key-mgmt=%d\n",wpa_Result.key_mgmt);
 	//printk("wpa-->eap_type=%d\n",wpa_Result.eap_type);
-	//printk("wpa-->authenticated is %s\n",(wpa_Result.authenticated==true)?"true":"FALSE");
+	//printk("wpa-->authenticated is %s\n",(wpa_Result.authenticated==true)?"true":"false");
 
 	pReq->wResult = 0;
         break;

@@ -83,9 +83,9 @@ WPA_ClearRSN (
     pBSSList->wAuthCount = 0;
     pBSSList->byDefaultK_as_PK = 0;
     pBSSList->byReplayIdx = 0;
-    pBSSList->sRSNCapObj.bRSNCapExist = FALSE;
+    pBSSList->sRSNCapObj.bRSNCapExist = false;
     pBSSList->sRSNCapObj.wRSNCap = 0;
-    pBSSList->bWPAValid = FALSE;
+    pBSSList->bWPAValid = false;
 }
 
 
@@ -247,14 +247,14 @@ WPA_SearchRSN (
     int ii;
     unsigned char byPKType = WPA_NONE;
 
-    if (pBSSList->bWPAValid == FALSE)
-        return FALSE;
+    if (pBSSList->bWPAValid == false)
+        return false;
 
     switch(byCmd) {
     case 0:
 
         if (byEncrypt != pBSSList->byGKType)
-            return FALSE;
+            return false;
 
         if (pBSSList->wPKCount > 0) {
             for (ii = 0; ii < pBSSList->wPKCount; ii ++) {
@@ -268,7 +268,7 @@ WPA_SearchRSN (
                      byPKType = WPA_WEP104;
             }
             if (byEncrypt != byPKType)
-                return FALSE;
+                return false;
         }
         return true;
 //        if (pBSSList->wAuthCount > 0)
@@ -280,7 +280,7 @@ WPA_SearchRSN (
     default:
         break;
     }
-    return FALSE;
+    return false;
 }
 
 /*+
@@ -303,7 +303,7 @@ WPAb_Is_RSN (
     )
 {
     if (pRSN == NULL)
-        return FALSE;
+        return false;
 
     if ((pRSN->len >= 6) && // oui1(4)+ver(2)
         (pRSN->byElementID == WLAN_EID_RSN_WPA) &&  !memcmp(pRSN->abyOUI, abyOUI01, 4) &&
@@ -311,6 +311,6 @@ WPAb_Is_RSN (
         return true;
     }
     else
-        return FALSE;
+        return false;
 }
 

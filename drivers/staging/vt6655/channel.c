@@ -37,7 +37,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 static SChannelTblElement sChannelTbl[CARD_MAX_CHANNEL_TBL + 1] =
 {
-  {0,   0,    FALSE,    0},
+  {0,   0,    false,    0},
   {1,   2412, true,     0},
   {2,   2417, true,     0},
   {3,   2422, true,     0},
@@ -366,7 +366,7 @@ static struct
  *              16  = 4.9G channel 184
  *              .....
  *  Output: true if the specified 5GHz band is allowed to be used,
- *          FALSE otherwise.
+ *          false otherwise.
  * 4.9G => Ch 183, 184, 185, 187, 188, 189, 192, 196 (Value:15 ~ 22)
  *
  * 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
@@ -377,14 +377,14 @@ BOOL is_channel_valid(unsigned int ChannelIndex)
 {
 	BOOL    bValid;
 
-	bValid = FALSE;
+	bValid = false;
 	/*
 	 * If Channel Index is invalid, return invalid
 	 */
 	if ((ChannelIndex > CB_MAX_CHANNEL) ||
 		(ChannelIndex == 0))
 	{
-		bValid = FALSE;
+		bValid = false;
 		goto exit;
 	}
 
@@ -410,7 +410,7 @@ exit:
 BOOL channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTable)
 {
 	if (uCountryCodeIdx >= CCODE_MAX)
-		return (FALSE);
+		return (false);
 
 	memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
 
@@ -420,11 +420,11 @@ BOOL channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTab
 void init_channel_table(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	BOOL        bMultiBand = FALSE;
+	BOOL        bMultiBand = false;
 	unsigned int ii;
 
 	for(ii = 1 ; ii<=CARD_MAX_CHANNEL_TBL ; ii++) {
-		sChannelTbl[ii].bValid = FALSE;
+		sChannelTbl[ii].bValid = false;
 	}
 
 	switch (pDevice->byRFType) {
@@ -434,7 +434,7 @@ void init_channel_table(void *pDeviceHandler)
 		case RF_UW2451 :
 		case RF_VT3226 :
 			//printk("chester-false\n");
-			bMultiBand = FALSE;
+			bMultiBand = false;
 			break;
 		case RF_AIROHA7230 :
 		case RF_UW2452 :
@@ -522,7 +522,7 @@ unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIn
  * @pDeviceHandler: The adapter to be set
  * @uConnectionChannel: Channel to be set
  *
- * Return Value: true if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 BOOL set_channel (void *pDeviceHandler, unsigned int uConnectionChannel)
@@ -535,8 +535,8 @@ BOOL set_channel (void *pDeviceHandler, unsigned int uConnectionChannel)
 		return bResult;
 	}
 
-	if (sChannelTbl[uConnectionChannel].bValid == FALSE) {
-		return (FALSE);
+	if (sChannelTbl[uConnectionChannel].bValid == false) {
+		return (false);
 	}
 
 	if ((uConnectionChannel > CB_MAX_CHANNEL_24G) &&
@@ -619,13 +619,13 @@ void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
 	if (ePHYType == PHY_TYPE_11A) {
 		pDevice->bCountryInfo5G = true;
 		for(ii = CB_MAX_CHANNEL_24G + 1 ; ii <= CARD_MAX_CHANNEL_TBL ; ii++) {
-			sChannelTbl[ii].bValid = FALSE;
+			sChannelTbl[ii].bValid = false;
 		}
 		step = 4;
 	} else {
 		pDevice->bCountryInfo24G = true;
 		for(ii = 1 ; ii <= CB_MAX_CHANNEL_24G ; ii++) {
-			sChannelTbl[ii].bValid = FALSE;
+			sChannelTbl[ii].bValid = false;
 		}
 		step = 1;
 	}
@@ -750,7 +750,7 @@ BOOL get_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
 {
 
 	if (uChannelIndex > CB_MAX_CHANNEL) {
-		return FALSE;
+		return false;
 	}
 	*pbyChannelNumber = sChannelTbl[uChannelIndex].byChannelNumber;
 	*pbyMap = sChannelTbl[uChannelIndex].byMAP;

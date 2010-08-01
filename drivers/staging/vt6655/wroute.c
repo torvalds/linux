@@ -60,9 +60,9 @@ static int          msglevel                =MSG_LEVEL_INFO;
  *      pDevice             -
  *      pbySkbData          - rx packet skb data
  *  Out:
- *      true, FALSE
+ *      true, false
  *
- * Return Value: true if packet duplicate; otherwise FALSE
+ * Return Value: true if packet duplicate; otherwise false
  *
  */
 BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDataLen, unsigned int uNodeIndex)
@@ -72,7 +72,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
     unsigned int cbFrameBodySize;
     unsigned int uMACfragNum;
     unsigned char byPktType;
-    BOOL            bNeedEncryption = FALSE;
+    BOOL            bNeedEncryption = false;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
     unsigned int cbHeaderSize;
@@ -84,7 +84,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
 
     if (AVAIL_TD(pDevice, TYPE_AC0DMA)<=0) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
-        return FALSE;
+        return false;
     }
 
     pHeadTD = pDevice->apCurrTD[TYPE_AC0DMA];
@@ -104,7 +104,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
 
         // get group key
         pbyBSSID = pDevice->abyBroadcastAddr;
-        if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == FALSE) {
+        if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
             pTransmitKey = NULL;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
         } else {
@@ -130,7 +130,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
     uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
 
     if (uMACfragNum > AVAIL_TD(pDevice,TYPE_AC0DMA)) {
-        return FALSE;
+        return false;
     }
     byPktType = (unsigned char)pDevice->byPacketType;
 
@@ -172,7 +172,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
         MACbPSWakeup(pDevice->PortOffset);
     }
 
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
 
     pLastTD = pHeadTD;
     for (ii = 0; ii < uMACfragNum; ii++) {

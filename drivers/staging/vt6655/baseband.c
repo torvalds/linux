@@ -1862,7 +1862,7 @@ BBvCaculateParameter (
     BOOL bCCK = pDevice->bCCK;
 
     cbBitCount = cbFrameLength * 8;
-    bExtBit = FALSE;
+    bExtBit = false;
 
     switch (wRate) {
     case RATE_1M :
@@ -1879,7 +1879,7 @@ BBvCaculateParameter (
         break;
 
     case RATE_5M :
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = (cbBitCount * 10) / 55;
         cbTmp = (cbUsCount * 55) / 10;
@@ -1893,7 +1893,7 @@ BBvCaculateParameter (
 
     case RATE_11M :
 
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = cbBitCount / 11;
         cbTmp = cbUsCount * 11;
@@ -2012,7 +2012,7 @@ BBvCaculateParameter (
  *  Out:
  *      pbyData     - data read
  *
- * Return Value: true if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData)
@@ -2038,7 +2038,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x30);
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
-        return FALSE;
+        return false;
     }
     return true;
 }
@@ -2055,7 +2055,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  *  Out:
  *      none
  *
- * Return Value: true if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData)
@@ -2080,7 +2080,7 @@ BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x31);
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
-        return FALSE;
+        return false;
     }
     return true;
 }
@@ -2097,7 +2097,7 @@ BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  *  Out:
  *      none
  *
- * Return Value: true if all TestBits are set; FALSE otherwise.
+ * Return Value: true if all TestBits are set; false otherwise.
  *
  */
 BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
@@ -2120,7 +2120,7 @@ BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  *  Out:
  *      none
  *
- * Return Value: true if all TestBits are clear; FALSE otherwise.
+ * Return Value: true if all TestBits are clear; false otherwise.
  *
  */
 BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
@@ -2142,7 +2142,7 @@ BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  *  Out:
  *      none
  *
- * Return Value: true if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 
@@ -2294,7 +2294,7 @@ BOOL BBbVT3253Init (PSDevice pDevice)
     //}} RobertYu
     } else {
     	// No VGA Table now
-    	pDevice->bUpdateBBVGA = FALSE;
+    	pDevice->bUpdateBBVGA = false;
         pDevice->abyBBVGA[0] = 0x1C;
     }
 

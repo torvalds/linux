@@ -260,7 +260,7 @@ unsigned char *pbyIV;
 unsigned char *pbyPayload;
 unsigned short wHLen = 22;
 unsigned short wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;//8 is IV, 8 is MIC, 4 is CRC
-BOOL            bA4 = FALSE;
+BOOL            bA4 = false;
 unsigned char byTmp;
 unsigned short wCnt;
 int             ii,jj,kk;
@@ -396,7 +396,7 @@ int             ii,jj,kk;
     if ( !memcmp(abyMIC,abyTmp,8) ) {
         return true;
     } else {
-        return FALSE;
+        return false;
     }
 
 }

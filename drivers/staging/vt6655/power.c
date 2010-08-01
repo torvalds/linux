@@ -161,12 +161,12 @@ PSvDisablePowerSaving(
     // set always listen beacon
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
 
-    pDevice->bEnablePSMode = FALSE;
+    pDevice->bEnablePSMode = false;
 
     if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
         PSbSendNullPacket(pDevice);
     }
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
     return;
 }
 
@@ -178,7 +178,7 @@ PSvDisablePowerSaving(
  *
  * Return Value:
  *    true, if power down success
- *    FALSE, if fail
+ *    false, if fail
 -*/
 
 
@@ -200,12 +200,12 @@ PSbConsiderPowerDown(
     if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
         // check if in TIM wake period
         if (pMgmt->bInTIMWake)
-            return FALSE;
+            return false;
     }
 
     // check scan state
     if (pDevice->bCmdRunning)
-        return FALSE;
+        return false;
 
     // Froce PSEN on
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
@@ -213,20 +213,20 @@ PSbConsiderPowerDown(
     // check if all TD are empty,
     for (uIdx = 0; uIdx < TYPE_MAXTD; uIdx ++) {
         if (pDevice->iTDUsed[uIdx] != 0)
-            return FALSE;
+            return false;
     }
 
     // check if rx isr is clear
     if (bCheckRxDMA &&
         ((pDevice->dwIsr& ISR_RXDMA0) != 0) &&
         ((pDevice->dwIsr & ISR_RXDMA1) != 0)){
-        return FALSE;
+        return false;
     };
 
     if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
         if (bCheckCountToWakeUp &&
            (pMgmt->wCountToWakeUp == 0 || pMgmt->wCountToWakeUp == 1)) {
-             return FALSE;
+             return false;
         }
     }
 
@@ -307,23 +307,23 @@ PSbSendNullPacket(
     unsigned int uIdx;
 
 
-    if (pDevice->bLinkPass == FALSE) {
-        return FALSE;
+    if (pDevice->bLinkPass == false) {
+        return false;
     }
     #ifdef TxInSleep
-     if ((pDevice->bEnablePSMode == FALSE) &&
-	  (pDevice->fTxDataInSleep == FALSE)){
-        return FALSE;
+     if ((pDevice->bEnablePSMode == false) &&
+	  (pDevice->fTxDataInSleep == false)){
+        return false;
     }
 #else
-    if (pDevice->bEnablePSMode == FALSE) {
-        return FALSE;
+    if (pDevice->bEnablePSMode == false) {
+        return false;
     }
 #endif
     if (pDevice->bEnablePSMode) {
         for (uIdx = 0; uIdx < TYPE_MAXTD; uIdx ++) {
             if (pDevice->iTDUsed[uIdx] != 0)
-                return FALSE;
+                return false;
         }
     }
 
@@ -361,7 +361,7 @@ PSbSendNullPacket(
     // send the frame
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
-        return FALSE;
+        return false;
     }
     else {
 
@@ -390,7 +390,7 @@ PSbIsNextTBTTWakeUp(
 
     PSDevice         pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    BOOL                bWakeUp = FALSE;
+    BOOL                bWakeUp = false;
 
     if (pMgmt->wListenInterval >= 2) {
         if (pMgmt->wCountToWakeUp == 0) {

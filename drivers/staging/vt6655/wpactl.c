@@ -219,9 +219,9 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "param->u.wpa_key.alg_name = %d \n", param->u.wpa_key.alg_name);
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-        pDevice->bEncryptionEnable = FALSE;
+        pDevice->bEncryptionEnable = false;
         pDevice->byKeyIndex = 0;
-        pDevice->bTransmitKey = FALSE;
+        pDevice->bTransmitKey = false;
         KeyvRemoveAllWEPKey(&(pDevice->sKey), pDevice->PortOffset);
         for (uu=0; uu<MAX_KEY_TABLE; uu++) {
             MACvDisableKeyEntry(pDevice->PortOffset, uu);
@@ -465,7 +465,7 @@ static int wpa_set_wpa(PSDevice pDevice,
 	int ret = 0;
 
     pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
-    pMgmt->bShareKeyAlgorithm = FALSE;
+    pMgmt->bShareKeyAlgorithm = false;
 
     return ret;
 }
@@ -641,7 +641,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
            if((pMgmt->sBSSList[jj].bActive!=true) ||
 
-                ((pMgmt->sBSSList[jj].uRSSI>pMgmt->sBSSList[jj+1].uRSSI) &&(pMgmt->sBSSList[jj+1].bActive!=FALSE))) {
+                ((pMgmt->sBSSList[jj].uRSSI>pMgmt->sBSSList[jj+1].uRSSI) &&(pMgmt->sBSSList[jj+1].bActive!=false))) {
 
                  memcpy(ptempBSS,&pMgmt->sBSSList[jj],sizeof(KnownBSS));
 
@@ -755,7 +755,7 @@ static int wpa_set_associate(PSDevice pDevice,
     unsigned char abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     unsigned char abyWPAIE[64];
     int ret = 0;
-    BOOL bWepEnabled=FALSE;
+    BOOL bWepEnabled=false;
 
 	// set key type & algorithm
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise_suite = %d\n", param->u.wpa_associate.pairwise_suite);
@@ -840,7 +840,7 @@ else
           if(!bWepEnabled)  pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 	else pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
             //pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
-            //pMgmt->bShareKeyAlgorithm = FALSE; //20080717-06,<Modify> by chester//Fix Open mode, WEP encrytion
+            //pMgmt->bShareKeyAlgorithm = false; //20080717-06,<Modify> by chester//Fix Open mode, WEP encrytion
            }
 //mike save old encryption status
 	pDevice->eOldEncryptionStatus = pDevice->eEncryptionStatus;
@@ -848,12 +848,12 @@ else
     if (pDevice->eEncryptionStatus !=  Ndis802_11EncryptionDisabled)
         pDevice->bEncryptionEnable = true;
     else
-        pDevice->bEncryptionEnable = FALSE;
+        pDevice->bEncryptionEnable = false;
 if (!((pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) ||
       ((pMgmt->eAuthenMode == WMAC_AUTH_OPEN) && (bWepEnabled==true))) )  //DavidWang  //20080717-06,<Modify> by chester//Not to initial WEP
     KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
     spin_lock_irq(&pDevice->lock);
-    pDevice->bLinkPass = FALSE;
+    pDevice->bLinkPass = false;
     memset(pMgmt->abyCurrBSSID, 0, 6);
     pMgmt->eCurrState = WMAC_STATE_IDLE;
     netif_stop_queue(pDevice->dev);
@@ -922,7 +922,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	case VIAWGET_SET_KEY:
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_KEY \n");
 	    spin_lock_irq(&pDevice->lock);
-        ret = wpa_set_keys(pDevice, param, FALSE);
+        ret = wpa_set_keys(pDevice, param, false);
         spin_unlock_irq(&pDevice->lock);
 		break;
 

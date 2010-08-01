@@ -154,9 +154,9 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
 	}
 	kfree(pDevice->apdev);
 	pDevice->apdev = NULL;
-    pDevice->bEnable8021x = FALSE;
-    pDevice->bEnableHostWEP = FALSE;
-    pDevice->bEncryptionEnable = FALSE;
+    pDevice->bEnable8021x = false;
+    pDevice->bEnableHostWEP = false;
+    pDevice->bEncryptionEnable = false;
 
 //4.2007-0118-03,<Add> by EinsnLiu
 //execute some clear work
@@ -255,7 +255,7 @@ static int hostap_add_sta(PSDevice pDevice,
     pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
 // TODO listenInterval
 //    pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = 1;
-    pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = FALSE;
+    pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = false;
     pMgmt->sNodeDBTable[uNodeIndex].bySuppRate = param->u.add_sta.tx_supp_rates;
 
     // set max tx rate
@@ -328,7 +328,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
  *      pDevice   -
  *      param     -
  *  Out:
- *      true, FALSE
+ *      true, false
  *
  * Return Value:
  *
@@ -479,7 +479,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	int     ret = 0;
 	int     iNodeIndex = -1;
 	int     ii;
-	BOOL    bKeyTableFull = FALSE;
+	BOOL    bKeyTableFull = false;
 	unsigned short wKeyCtl = 0;
 
 
@@ -509,7 +509,7 @@ static int hostap_set_encryption(PSDevice pDevice,
         iNodeIndex = 0;
 
 	} else {
-	    if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &iNodeIndex) == FALSE) {
+	    if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &iNodeIndex) == false) {
 	        param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ADDR;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " HOSTAP_CRYPT_ERR_UNKNOWN_ADDR\n");
 	        return -EINVAL;
@@ -524,10 +524,10 @@ static int hostap_set_encryption(PSDevice pDevice,
             if (KeybRemoveKey(&(pDevice->sKey),
                                 param->sta_addr,
                                 pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex,
-                                pDevice->PortOffset) == FALSE) {
+                                pDevice->PortOffset) == false) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybRemoveKey fail \n");
             }
-            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
         }
         pMgmt->sNodeDBTable[iNodeIndex].byKeyIndex = 0;
         pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = 0;
@@ -562,7 +562,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 
 	if (param->u.crypt.alg == WPA_ALG_WEP) {
 
-        if ((pDevice->bEnable8021x == FALSE) || (iNodeIndex == 0)) {
+        if ((pDevice->bEnable8021x == false) || (iNodeIndex == 0)) {
             KeybSetDefaultKey(&(pDevice->sKey),
                                 dwKeyIndex & ~(BIT30 | USE_KEYRSC),
                                 param->u.crypt.key_len,
@@ -589,7 +589,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 
             } else {
                 // Key Table Full
-                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
                 bKeyTableFull = true;
             }
         }
@@ -658,7 +658,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 
         } else {
             // Key Table Full
-            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
             bKeyTableFull = true;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Key Table Full\n");
         }
@@ -727,7 +727,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
         iNodeIndex = 0;
 	} else {
-	    if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &iNodeIndex) == FALSE) {
+	    if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &iNodeIndex) == false) {
 	        param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ADDR;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: HOSTAP_CRYPT_ERR_UNKNOWN_ADDR\n");
 	        return -EINVAL;
