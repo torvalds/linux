@@ -98,11 +98,11 @@ typedef struct _WLAN_FRAME_TPCREP {
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
+static bool s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
 		unsigned int uLength)
 {
     size_t    uNumOfEIDs = 0;
-    BOOL    bResult = true;
+    bool bResult = true;
 
     if (uLength <= WLAN_A3FR_MAXLEN) {
         memcpy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
@@ -118,7 +118,7 @@ static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
 }
 
 
-static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned char byRate, unsigned char byRSSI)
+static bool s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned char byRate, unsigned char byRSSI)
 {
     PWLAN_FRAME_TPCREP  pFrame;
     PSTxMgmtPacket      pTxPacket = NULL;
@@ -203,7 +203,7 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned
  * Return Value: None.
  *
 -*/
-BOOL
+bool
 IEEE11hbMgrRxAction (
     void *pMgmtHandle,
     void *pRxPacket
@@ -266,7 +266,7 @@ IEEE11hbMgrRxAction (
 }
 
 
-BOOL IEEE11hbMSRRepTx (
+bool IEEE11hbMSRRepTx (
     void *pMgmtHandle
     )
 {

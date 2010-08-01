@@ -64,7 +64,7 @@ typedef unsigned long long   NDIS_802_11_KEY_RSC;
 
 int wpa_set_wpadev(PSDevice pDevice, int val);
 int wpa_ioctl(PSDevice pDevice, struct iw_point *p);
-int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel);
+int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel);
 
 #endif // __WPACL_H__
 

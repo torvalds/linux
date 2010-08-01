@@ -140,7 +140,7 @@ void MACvReadAllRegs (unsigned long dwIoBase, unsigned char *pbyMacRegs)
  * Return Value: true if all test bits On; otherwise false
  *
  */
-BOOL MACbIsRegBitsOn (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
+bool MACbIsRegBitsOn (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
 {
     unsigned char byData;
 
@@ -163,7 +163,7 @@ BOOL MACbIsRegBitsOn (unsigned long dwIoBase, unsigned char byRegOfs, unsigned c
  * Return Value: true if all test bits Off; otherwise false
  *
  */
-BOOL MACbIsRegBitsOff (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
+bool MACbIsRegBitsOff (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
 {
     unsigned char byData;
 
@@ -184,7 +184,7 @@ BOOL MACbIsRegBitsOff (unsigned long dwIoBase, unsigned char byRegOfs, unsigned 
  * Return Value: true if interrupt is disable; otherwise false
  *
  */
-BOOL MACbIsIntDisable (unsigned long dwIoBase)
+bool MACbIsIntDisable (unsigned long dwIoBase)
 {
     unsigned long dwData;
 
@@ -559,7 +559,7 @@ void MACvSetLoopbackMode (unsigned long dwIoBase, unsigned char byLoopbackMode)
  * Return Value: true if in Loopback mode; otherwise false
  *
  */
-BOOL MACbIsInLoopbackMode (unsigned long dwIoBase)
+bool MACbIsInLoopbackMode (unsigned long dwIoBase)
 {
     unsigned char byOrgValue;
 
@@ -728,7 +728,7 @@ void MACvRestoreContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
  * Return Value: true if all values are the same; otherwise false
  *
  */
-BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
+bool MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
 {
     unsigned long dwData;
 
@@ -773,7 +773,7 @@ BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
  * Return Value: true if Reset Success; otherwise false
  *
  */
-BOOL MACbSoftwareReset (unsigned long dwIoBase)
+bool MACbSoftwareReset (unsigned long dwIoBase)
 {
     unsigned char byData;
     unsigned short ww;
@@ -806,10 +806,10 @@ BOOL MACbSoftwareReset (unsigned long dwIoBase)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
+bool MACbSafeSoftwareReset (unsigned long dwIoBase)
 {
     unsigned char abyTmpRegData[MAC_MAX_CONTEXT_SIZE_PAGE0+MAC_MAX_CONTEXT_SIZE_PAGE1];
-    BOOL    bRetVal;
+    bool bRetVal;
 
     // PATCH....
     // save some important register's value, then do
@@ -839,7 +839,7 @@ BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL MACbSafeRxOff (unsigned long dwIoBase)
+bool MACbSafeRxOff (unsigned long dwIoBase)
 {
     unsigned short ww;
     unsigned long dwData;
@@ -900,7 +900,7 @@ BOOL MACbSafeRxOff (unsigned long dwIoBase)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL MACbSafeTxOff (unsigned long dwIoBase)
+bool MACbSafeTxOff (unsigned long dwIoBase)
 {
     unsigned short ww;
     unsigned long dwData;
@@ -964,7 +964,7 @@ BOOL MACbSafeTxOff (unsigned long dwIoBase)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL MACbSafeStop (unsigned long dwIoBase)
+bool MACbSafeStop (unsigned long dwIoBase)
 {
     MACvRegBitsOff(dwIoBase, MAC_REG_TCR, TCR_AUTOBCNTX);
 
@@ -999,7 +999,7 @@ BOOL MACbSafeStop (unsigned long dwIoBase)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL MACbShutdown (unsigned long dwIoBase)
+bool MACbShutdown (unsigned long dwIoBase)
 {
     // disable MAC IMR
     MACvIntDisable(dwIoBase);
@@ -1319,7 +1319,7 @@ void MACvSetMISCFifo (unsigned long dwIoBase, unsigned short wOffset, unsigned l
 }
 
 
-BOOL MACbTxDMAOff (unsigned long dwIoBase, unsigned int idx)
+bool MACbTxDMAOff (unsigned long dwIoBase, unsigned int idx)
 {
 unsigned char byData;
 unsigned int ww = 0;
@@ -1391,7 +1391,7 @@ void MACvEnableBusSusEn (unsigned long dwIoBase)
     }
 }
 
-BOOL MACbFlushSYNCFifo (unsigned long dwIoBase)
+bool MACbFlushSYNCFifo (unsigned long dwIoBase)
 {
     unsigned char byOrgValue;
     unsigned int ww;
@@ -1415,7 +1415,7 @@ BOOL MACbFlushSYNCFifo (unsigned long dwIoBase)
     return true;
 }
 
-BOOL MACbPSWakeup (unsigned long dwIoBase)
+bool MACbPSWakeup (unsigned long dwIoBase)
 {
     unsigned char byOrgValue;
     unsigned int ww;

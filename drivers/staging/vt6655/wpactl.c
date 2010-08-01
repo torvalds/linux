@@ -199,7 +199,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
  *
  */
 
- int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
+ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 {
     struct viawget_wpa_param *param=ctx;
     PSMgmtObject pMgmt = pDevice->pMgmt;
@@ -755,7 +755,7 @@ static int wpa_set_associate(PSDevice pDevice,
     unsigned char abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     unsigned char abyWPAIE[64];
     int ret = 0;
-    BOOL bWepEnabled=false;
+    bool bWepEnabled=false;
 
 	// set key type & algorithm
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise_suite = %d\n", param->u.wpa_associate.pairwise_suite);

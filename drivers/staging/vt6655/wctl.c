@@ -66,7 +66,7 @@
  *
  */
 
-BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
+bool WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
 {
     unsigned int uIndex;
     unsigned int ii;
@@ -175,7 +175,7 @@ unsigned int ii;
  * Return Value: true if it is valid fragment packet and we have resource to defragment; otherwise false
  *
  */
-BOOL WCTLbHandleFragment (PSDevice pDevice, PS802_11Header pMACHeader, unsigned int cbFrameLength, BOOL bWEP, BOOL bExtIV)
+bool WCTLbHandleFragment (PSDevice pDevice, PS802_11Header pMACHeader, unsigned int cbFrameLength, bool bWEP, bool bExtIV)
 {
 unsigned int uHeaderSize;
 

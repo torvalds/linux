@@ -284,7 +284,7 @@ if(pDevice->bLinkPass==false) pCurrBSS->bSelected = false;
 void
 BSSvClearBSSList(
     void *hDeviceContext,
-    BOOL bKeepCurrBSSID
+    bool bKeepCurrBSSID
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -367,7 +367,7 @@ BSSpAddrIsInBSSList(
  *
 -*/
 
-BOOL
+bool
 BSSbInsertToBSSList (
     void *hDeviceContext,
     unsigned char *abyBSSIDAddr,
@@ -394,7 +394,7 @@ BSSbInsertToBSSList (
     PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
     PKnownBSS       pBSSList = NULL;
     unsigned int ii;
-    BOOL            bParsingQuiet = false;
+    bool bParsingQuiet = false;
     PWLAN_IE_QUIET  pQuiet = NULL;
 
 
@@ -492,7 +492,7 @@ BSSbInsertToBSSList (
     if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || (pBSSList->bWPA2Valid == true)) {
 
         PSKeyItem  pTransmitKey = NULL;
-        BOOL       bIs802_1x = false;
+        bool bIs802_1x = false;
 
         for (ii = 0; ii < pBSSList->wAKMSSAuthCount; ii ++) {
             if (pBSSList->abyAKMSSAuthType[ii] == WLAN_11i_AKMSS_802_1X) {
@@ -583,14 +583,14 @@ BSSbInsertToBSSList (
 -*/
 // TODO: input structure modify
 
-BOOL
+bool
 BSSbUpdateToBSSList (
     void *hDeviceContext,
     QWORD qwTimestamp,
     unsigned short wBeaconInterval,
     unsigned short wCapInfo,
     unsigned char byCurrChannel,
-    BOOL bChannelHit,
+    bool bChannelHit,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
     PWLAN_IE_SUPP_RATES pExtSuppRates,
@@ -610,7 +610,7 @@ BSSbUpdateToBSSList (
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
     long            ldBm;
-    BOOL            bParsingQuiet = false;
+    bool bParsingQuiet = false;
     PWLAN_IE_QUIET  pQuiet = NULL;
 
 
@@ -761,7 +761,7 @@ BSSbUpdateToBSSList (
  *
 -*/
 
-BOOL
+bool
 BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
 		unsigned int *puNodeIndex)
 {
@@ -1001,7 +1001,7 @@ BSSvAddMulticastNode(
 -*/
  //2008-4-14 <add> by chester for led issue
  #ifdef FOR_LED_ON_NOTEBOOK
-BOOL cc=false;
+bool cc=false;
 unsigned int status;
 #endif
 void

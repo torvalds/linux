@@ -136,13 +136,13 @@ typedef struct tagSSromReg {
 /*---------------------  Export Functions  --------------------------*/
 
 unsigned char SROMbyReadEmbedded(unsigned long dwIoBase, unsigned char byContntOffset);
-BOOL SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData);
+bool SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData);
 
 void SROMvRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byBits);
 void SROMvRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byBits);
 
-BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
-BOOL SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
+bool SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
+bool SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits);
 
 void SROMvReadAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs);
 void SROMvWriteAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs);
@@ -152,6 +152,6 @@ void SROMvWriteEtherAddress(unsigned long dwIoBase, unsigned char *pbyEtherAddre
 
 void SROMvReadSubSysVenId(unsigned long dwIoBase, unsigned long *pdwSubSysVenId);
 
-BOOL SROMbAutoLoad (unsigned long dwIoBase);
+bool SROMbAutoLoad (unsigned long dwIoBase);
 
 #endif // __EEPROM_H__

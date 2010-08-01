@@ -125,7 +125,7 @@ unsigned char SROMbyReadEmbedded(unsigned long dwIoBase, unsigned char byContntO
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData)
+bool SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData)
 {
     unsigned short wDelay, wNoACK;
     unsigned char byWait;
@@ -222,7 +222,7 @@ void SROMvRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsig
  * Return Value: true if all test bits on; otherwise false
  *
  */
-BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
+bool SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
 {
     unsigned char byOrgData;
 
@@ -245,7 +245,7 @@ BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsi
  * Return Value: true if all test bits off; otherwise false
  *
  */
-BOOL SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
+bool SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
 {
     unsigned char byOrgData;
 
@@ -389,7 +389,7 @@ void SROMvReadSubSysVenId(unsigned long dwIoBase, unsigned long *pdwSubSysVenId)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL SROMbAutoLoad(unsigned long dwIoBase)
+bool SROMbAutoLoad(unsigned long dwIoBase)
 {
     unsigned char byWait;
     int     ii;

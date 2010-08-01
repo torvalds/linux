@@ -474,10 +474,10 @@ const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL s_bAL7230Init (unsigned long dwIoBase)
+bool s_bAL7230Init (unsigned long dwIoBase)
 {
     int     ii;
-    BOOL    bResult;
+    bool bResult;
 
     bResult = true;
 
@@ -517,9 +517,9 @@ BOOL s_bAL7230Init (unsigned long dwIoBase)
 }
 
 // Need to Pull PLLON low when writing channel registers through 3-wire interface
-BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
+bool s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
-    BOOL    bResult;
+    bool bResult;
 
     bResult = true;
 
@@ -622,7 +622,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
+bool IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
 {
     unsigned short ww;
     unsigned long dwValue;
@@ -684,10 +684,10 @@ BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL RFbAL2230Init (unsigned long dwIoBase)
+bool RFbAL2230Init (unsigned long dwIoBase)
 {
     int     ii;
-    BOOL    bResult;
+    bool bResult;
 
     bResult = true;
 
@@ -734,9 +734,9 @@ MACvTimer0MicroSDelay(dwIoBase, 30); //delay 30 us
     return bResult;
 }
 
-BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
+bool RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
-    BOOL    bResult;
+    bool bResult;
 
     bResult = true;
 
@@ -807,11 +807,11 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL RFbInit (
+bool RFbInit (
     PSDevice  pDevice
     )
 {
-BOOL    bResult = true;
+bool bResult = true;
     switch (pDevice->byRFType) {
         case RF_AIROHA :
         case RF_AL2230S:
@@ -845,11 +845,11 @@ BOOL    bResult = true;
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL RFbShutDown (
+bool RFbShutDown (
     PSDevice  pDevice
     )
 {
-BOOL    bResult = true;
+bool bResult = true;
 
     switch (pDevice->byRFType) {
         case RF_AIROHA7230 :
@@ -875,9 +875,9 @@ BOOL    bResult = true;
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL RFbSelectChannel (unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel (unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
 {
-BOOL    bResult = true;
+bool bResult = true;
     switch (byRFType) {
 
         case RF_AIROHA :
@@ -911,7 +911,7 @@ BOOL    bResult = true;
  * Return Value: None.
  *
  */
-BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel)
 {
     int   ii;
     unsigned char byInitCount = 0;
@@ -996,13 +996,13 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsign
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL RFbSetPower (
+bool RFbSetPower (
     PSDevice  pDevice,
     unsigned int uRATE,
     unsigned int uCH
     )
 {
-BOOL    bResult = true;
+bool bResult = true;
 unsigned char byPwr = 0;
 unsigned char byDec = 0;
 unsigned char byPwrdBm = 0;
@@ -1135,13 +1135,13 @@ unsigned char byPwrdBm = 0;
  *
  */
 
-BOOL RFbRawSetPower (
+bool RFbRawSetPower (
     PSDevice  pDevice,
     unsigned char byPwr,
     unsigned int uRATE
     )
 {
-BOOL    bResult = true;
+bool bResult = true;
 unsigned long dwMax7230Pwr = 0;
 
     if (byPwr >=  pDevice->byMaxPwrLevel) {
@@ -1232,9 +1232,9 @@ RFvRSSITodBm (
 
 // Post processing for the 11b/g and 11a.
 // for save time on changing Reg2,3,5,7,10,12,15
-BOOL RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
+bool RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
 {
-    BOOL    bResult;
+    bool bResult;
 
     bResult = true;
 

@@ -97,9 +97,9 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader);
-BOOL WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader,
-		unsigned int cbFrameLength, BOOL bWEP, BOOL bExtIV);
+bool WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader);
+bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader,
+		unsigned int cbFrameLength, bool bWEP, bool bExtIV);
 unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
 unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
 

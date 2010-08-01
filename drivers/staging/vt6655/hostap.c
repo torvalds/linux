@@ -479,7 +479,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	int     ret = 0;
 	int     iNodeIndex = -1;
 	int     ii;
-	BOOL    bKeyTableFull = false;
+	bool bKeyTableFull = false;
 	unsigned short wKeyCtl = 0;
 
 

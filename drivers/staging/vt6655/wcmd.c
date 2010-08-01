@@ -86,7 +86,7 @@ s_MgrMakeProbeRequest(
 
 
 static
-BOOL
+bool
 s_bCommandComplete (
     PSDevice pDevice
     );
@@ -117,7 +117,7 @@ vAdHocBeaconStop(PSDevice  pDevice)
 {
 
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    BOOL            bStop;
+    bool bStop;
 
     /*
      * temporarily stop Beacon packet for AdHoc Server
@@ -897,15 +897,15 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
 
 
 static
-BOOL
+bool
 s_bCommandComplete (
     PSDevice pDevice
     )
 {
     PWLAN_IE_SSID pSSID;
-    BOOL          bRadioCmd = false;
+    bool bRadioCmd = false;
     //unsigned short wDeAuthenReason = 0;
-    BOOL          bForceSCAN = true;
+    bool bForceSCAN = true;
     PSMgmtObject  pMgmt = pDevice->pMgmt;
 
 
@@ -980,7 +980,7 @@ s_bCommandComplete (
 
 
 
-BOOL bScheduleCommand (
+bool bScheduleCommand (
     void *hDeviceContext,
     CMD_CODE    eCommand,
     unsigned char *pbyItem0
@@ -1061,7 +1061,7 @@ BOOL bScheduleCommand (
  * Return Value: true if success; otherwise false
  *
  */
-BOOL bClearBSSID_SCAN (
+bool bClearBSSID_SCAN (
     void *hDeviceContext
     )
 {

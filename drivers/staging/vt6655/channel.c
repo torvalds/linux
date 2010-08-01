@@ -373,9 +373,9 @@ static struct
  * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 (Value 23 ~ 56)
  */
 
-BOOL is_channel_valid(unsigned int ChannelIndex)
+bool is_channel_valid(unsigned int ChannelIndex)
 {
-	BOOL    bValid;
+	bool bValid;
 
 	bValid = false;
 	/*
@@ -407,7 +407,7 @@ exit:
  *                          0x000000000000000F means channel 1,2,..15 are supported
  */
 
-BOOL channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTable)
+bool channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTable)
 {
 	if (uCountryCodeIdx >= CCODE_MAX)
 		return (false);
@@ -420,7 +420,7 @@ BOOL channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTab
 void init_channel_table(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	BOOL        bMultiBand = false;
+	bool bMultiBand = false;
 	unsigned int ii;
 
 	for(ii = 1 ; ii<=CARD_MAX_CHANNEL_TBL ; ii++) {
@@ -525,10 +525,10 @@ unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIn
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL set_channel (void *pDeviceHandler, unsigned int uConnectionChannel)
+bool set_channel (void *pDeviceHandler, unsigned int uConnectionChannel)
 {
 	PSDevice pDevice = (PSDevice) pDeviceHandler;
-	BOOL bResult = true;
+	bool bResult = true;
 
 
 	if (pDevice->byCurrentCh == uConnectionChannel) {
@@ -745,7 +745,7 @@ void set_country_IE(void *pDeviceHandler, void *pIE)
 	pIECountry->len += 3;
 }
 
-BOOL get_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
+bool get_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
 		unsigned char *pbyChannelNumber, unsigned char *pbyMap)
 {
 

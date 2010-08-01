@@ -294,9 +294,9 @@ DEFINE_PCI_DEVICE_TABLE(vt6655_pci_id_table) = {
 
 
 static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
-static BOOL vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
+static bool vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
 static void device_free_info(PSDevice pDevice);
-static BOOL device_get_pci_info(PSDevice, struct pci_dev* pcid);
+static bool device_get_pci_info(PSDevice, struct pci_dev* pcid);
 static void device_print_info(PSDevice pDevice);
 static struct net_device_stats *device_get_stats(struct net_device *dev);
 static void device_init_diversity_timer(PSDevice pDevice);
@@ -327,12 +327,12 @@ static void device_init_td1_ring(PSDevice pDevice);
 
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 //2008-0714<Add>by Mike Liu
-static BOOL device_release_WPADEV(PSDevice pDevice);
+static bool device_release_WPADEV(PSDevice pDevice);
 
 static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
 static int  device_rx_srv(PSDevice pDevice, unsigned int uIdx);
 static int  device_tx_srv(PSDevice pDevice, unsigned int uIdx);
-static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pDesc);
+static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pDesc);
 static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType);
 static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc);
 static void device_free_td0_ring(PSDevice pDevice);
@@ -386,7 +386,7 @@ device_set_int_opt(int *opt, int val, int min, int max, int def,char* name,char*
 }
 
 static void
-device_set_bool_opt(unsigned int *opt, int val,BOOL def,u32 flag, char* name,char* devname) {
+device_set_bool_opt(unsigned int *opt, int val,bool def,u32 flag, char* name,char* devname) {
     (*opt)&=(~flag);
     if (val==-1)
         *opt|=(def ? flag : 0);
@@ -870,7 +870,7 @@ static void device_init_diversity_timer(PSDevice pDevice) {
 }
 
 
-static BOOL device_release_WPADEV(PSDevice pDevice)
+static bool device_release_WPADEV(PSDevice pDevice)
 {
   viawget_wpa_header *wpahdr;
   int ii=0;
@@ -919,7 +919,7 @@ static const struct net_device_ops device_netdev_ops = {
 static int __devinit
 vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 {
-    static BOOL bFirst = true;
+    static bool bFirst = true;
     struct net_device*  dev = NULL;
     PCHIP_INFO  pChip_info = (PCHIP_INFO)ent->driver_data;
     PSDevice    pDevice;
@@ -1123,7 +1123,7 @@ static void device_print_info(PSDevice pDevice)
 
 }
 
-static BOOL __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
+static bool __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     PCHIP_INFO pChip_info) {
 
     PSDevice p;
@@ -1151,7 +1151,7 @@ static BOOL __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     return true;
 }
 
-static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
+static bool device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
 
     u16 pci_cmd;
     u8  b;
@@ -1266,7 +1266,7 @@ device_release_WPADEV(pDevice);
     }
 }
 
-static BOOL device_init_rings(PSDevice pDevice) {
+static bool device_init_rings(PSDevice pDevice) {
     void*   vir_pool;
 
 
@@ -1624,7 +1624,7 @@ static int device_rx_srv(PSDevice pDevice, unsigned int uIdx) {
 }
 
 
-static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
+static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 
     PDEVICE_RD_INFO pRDInfo=pRD->pRDInfo;
 
@@ -1651,7 +1651,7 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 
 
 
-BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
+bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
@@ -1666,7 +1666,7 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 
 static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
     PSTxDesc                 pTD;
-    BOOL                     bFull=false;
+    bool bFull=false;
     int                      works = 0;
     unsigned char byTsr0;
     unsigned char byTsr1;
@@ -2118,13 +2118,13 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
 
 
 
-BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex) {
+bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex) {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
     unsigned int cbFrameBodySize;
     unsigned int uMACfragNum;
     unsigned char byPktType;
-    BOOL            bNeedEncryption = false;
+    bool bNeedEncryption = false;
     PSKeyItem       pTransmitKey = NULL;
     unsigned int cbHeaderSize;
     unsigned int ii;
@@ -2279,14 +2279,14 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     unsigned int cbFrameBodySize;
     unsigned char byPktType;
     unsigned int cbHeaderSize;
-    BOOL            bNeedEncryption = false;
+    bool bNeedEncryption = false;
     PSKeyItem       pTransmitKey = NULL;
     SKeyItem        STempKey;
     unsigned int ii;
-    BOOL            bTKIP_UseGTK = false;
-    BOOL            bNeedDeAuth = false;
+    bool bTKIP_UseGTK = false;
+    bool bNeedDeAuth = false;
     unsigned char *pbyBSSID;
-    BOOL            bNodeExist = false;
+    bool bNodeExist = false;
 
 
 
@@ -2638,7 +2638,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
     unsigned char Packet_Type;           //802.1x Authentication
     unsigned char Descriptor_type;
     unsigned short Key_info;
-BOOL            bTxeapol_key = false;
+bool bTxeapol_key = false;
     Protocol_Version = skb->data[ETH_HLEN];
     Packet_Type = skb->data[ETH_HLEN+1];
     Descriptor_type = skb->data[ETH_HLEN+1+1+2];
@@ -2996,7 +2996,7 @@ static int Config_FileGetParameter(unsigned char *string,
  return true;
 }
 
-int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter) {
+int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter) {
     unsigned char *config_path = CONFIG_PATH;
     unsigned char *buffer = NULL;
     unsigned char tmpbuffer[20];

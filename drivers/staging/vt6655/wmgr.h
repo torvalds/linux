@@ -280,7 +280,7 @@ typedef struct tagSMgmtObject
     unsigned short wCurrAID;
     unsigned short wCurrATIMWindow;
     unsigned short wCurrBeaconPeriod;
-    BOOL                    bIsDS;
+    bool bIsDS;
     unsigned char byERPContext;
 
     CMD_STATE               eCommandState;
@@ -301,7 +301,7 @@ typedef struct tagSMgmtObject
     unsigned short wWPAIELen;
 
     unsigned int	uAssocCount;
-    BOOL                    bMoreData;
+    bool bMoreData;
 
     // Scan state vars
     WMAC_SCAN_STATE         eScanState;
@@ -317,13 +317,13 @@ typedef struct tagSMgmtObject
     // Privacy
     WMAC_AUTHENTICATION_MODE eAuthenMode;
     WMAC_ENCRYPTION_MODE    eEncryptionMode;
-    BOOL                    bShareKeyAlgorithm;
+    bool bShareKeyAlgorithm;
     unsigned char abyChallenge[WLAN_CHALLENGE_LEN];
-    BOOL                    bPrivacyInvoked;
+    bool bPrivacyInvoked;
 
     // Received beacon state vars
-    BOOL                    bInTIM;
-    BOOL                    bMulticastTIM;
+    bool bInTIM;
+    bool bMulticastTIM;
     unsigned char byDTIMCount;
     unsigned char byDTIMPeriod;
 
@@ -331,10 +331,10 @@ typedef struct tagSMgmtObject
     WMAC_POWER_MODE         ePSMode;
     unsigned short wListenInterval;
     unsigned short wCountToWakeUp;
-    BOOL                    bInTIMWake;
+    bool bInTIMWake;
     unsigned char *pbyPSPacketPool;
     unsigned char byPSPacketPool[sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN];
-    BOOL                    bRxBeaconInTBTTWake;
+    bool bRxBeaconInTBTTWake;
     unsigned char abyPSTxMap[MAX_NODE_NUM + 1];
 
     // management command related
@@ -366,7 +366,7 @@ typedef struct tagSMgmtObject
 
     // WPA2 PMKID Cache
     SPMKIDCache             gsPMKIDCache;
-    BOOL                    bRoaming;
+    bool bRoaming;
 
     // rate fall back vars
 
@@ -377,8 +377,8 @@ typedef struct tagSMgmtObject
 
 
     // for 802.11h
-    BOOL                    b11hEnable;
-    BOOL                    bSwitchChannel;
+    bool b11hEnable;
+    bool bSwitchChannel;
     unsigned char byNewChannel;
     PWLAN_IE_MEASURE_REP    pCurrMeasureEIDRep;
     unsigned int	uLengthOfRepEIDs;
@@ -480,14 +480,14 @@ vMgrDeAuthenBeginSta(
     PCMD_STATUS pStatus
     );
 
-BOOL
+bool
 bMgrPrepareBeaconToSend(
     void *hDeviceContext,
     PSMgmtObject pMgmt
     );
 
 
-BOOL
+bool
 bAdd_PMKID_Candidate (
     void *hDeviceContext,
     unsigned char *pbyBSSID,

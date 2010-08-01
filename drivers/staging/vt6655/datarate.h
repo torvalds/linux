@@ -59,7 +59,7 @@ RATEvParseMaxRate(
     void *pDeviceHandler,
     PWLAN_IE_SUPP_RATES pItemRates,
     PWLAN_IE_SUPP_RATES pItemExtRates,
-    BOOL bUpdateBasicRate,
+    bool bUpdateBasicRate,
     unsigned short *pwMaxBasicRate,
     unsigned short *pwMaxSuppRate,
     unsigned short *pwSuppRate,

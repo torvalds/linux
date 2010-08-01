@@ -76,10 +76,10 @@ typedef enum tagCMD_STATUS {
 typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
     unsigned char abyCmdDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    BOOL     bNeedRadioOFF;
+    bool bNeedRadioOFF;
     unsigned short wDeAuthenReason;
-    BOOL     bRadioCmd;
-    BOOL     bForceSCAN;
+    bool bRadioCmd;
+    bool bForceSCAN;
 } CMD_ITEM, *PCMD_ITEM;
 
 // Command state
@@ -119,11 +119,11 @@ vCommandTimer (
     void *hDeviceContext
     );
 
-BOOL bClearBSSID_SCAN(
+bool bClearBSSID_SCAN(
     void *hDeviceContext
     );
 
-BOOL
+bool
 bScheduleCommand(
     void *hDeviceContext,
     CMD_CODE    eCommand,

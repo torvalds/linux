@@ -195,7 +195,7 @@ VNTWIFIvSetEncryptionMode (
     );
 
 
-BOOL
+bool
 VNTWIFIbConfigPhyMode(
     void *pMgmtHandle,
     CARD_PHY_TYPE ePhyType
@@ -224,7 +224,7 @@ void
 VNTWIFIvUpdateNodeTxCounter(
     void *pMgmtHandle,
     unsigned char *pbyDestAddress,
-    BOOL     bTxOk,
+    bool bTxOk,
     unsigned short wRate,
     unsigned char *pbyTxFailCount
     );
@@ -240,7 +240,7 @@ VNTWIFIvGetTxRate(
     unsigned char *pbyOFDMBasicRate
     );
 /*
-BOOL
+bool
 VNTWIFIbInit(
     void *pAdapterHandler,
     void **pMgmtHandler
@@ -250,20 +250,20 @@ VNTWIFIbInit(
 unsigned char
 VNTWIFIbyGetKeyCypher(
     void *pMgmtHandle,
-    BOOL     bGroupKey
+    bool bGroupKey
     );
 
 
 
 
-BOOL
+bool
 VNTWIFIbSetPMKIDCache (
     void *pMgmtObject,
     unsigned long ulCount,
     void *pPMKIDInfo
     );
 
-BOOL
+bool
 VNTWIFIbCommandRunning (
     void *pMgmtObject
     );
@@ -277,13 +277,13 @@ VNTWIFIwGetMaxSupportRate(
 void
 VNTWIFIvSet11h (
     void *pMgmtObject,
-    BOOL  b11hEnable
+    bool b11hEnable
     );
 
-BOOL
+bool
 VNTWIFIbMeasureReport(
     void *pMgmtObject,
-    BOOL  bEndOfReport,
+    bool bEndOfReport,
     void *pvMeasureEID,
     unsigned char byReportMode,
     unsigned char byBasicMap,
@@ -291,13 +291,13 @@ VNTWIFIbMeasureReport(
     unsigned char *pbyRPIs
     );
 
-BOOL
+bool
 VNTWIFIbChannelSwitch(
     void *pMgmtObject,
     unsigned char byNewChannel
     );
 /*
-BOOL
+bool
 VNTWIFIbRadarPresent(
     void *pMgmtObject,
     unsigned char byChannel

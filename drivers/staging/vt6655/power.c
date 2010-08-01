@@ -182,11 +182,11 @@ PSvDisablePowerSaving(
 -*/
 
 
-BOOL
+bool
 PSbConsiderPowerDown(
     void *hDeviceContext,
-    BOOL bCheckRxDMA,
-    BOOL bCheckCountToWakeUp
+    bool bCheckRxDMA,
+    bool bCheckCountToWakeUp
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -296,7 +296,7 @@ PSvSendPSPOLL(
  *    None.
  *
 -*/
-BOOL
+bool
 PSbSendNullPacket(
     void *hDeviceContext
     )
@@ -382,7 +382,7 @@ PSbSendNullPacket(
  *
 -*/
 
-BOOL
+bool
 PSbIsNextTBTTWakeUp(
     void *hDeviceContext
     )
@@ -390,7 +390,7 @@ PSbIsNextTBTTWakeUp(
 
     PSDevice         pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    BOOL                bWakeUp = false;
+    bool bWakeUp = false;
 
     if (pMgmt->wListenInterval >= 2) {
         if (pMgmt->wCountToWakeUp == 0) {

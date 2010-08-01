@@ -369,7 +369,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
  *
  */
 /*
-BOOL CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength)
+bool CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     if (ePktType == PKT_TYPE_802_11_MNG) {
@@ -397,7 +397,7 @@ BOOL CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktTyp
  * Return Value: true if short preamble; otherwise false
  *
  */
-BOOL CARDbIsShortPreamble (void *pDeviceHandler)
+bool CARDbIsShortPreamble (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     if (pDevice->byPreambleType == 0) {
@@ -418,7 +418,7 @@ BOOL CARDbIsShortPreamble (void *pDeviceHandler)
  * Return Value: true if short slot time; otherwise false
  *
  */
-BOOL CARDbIsShorSlotTime (void *pDeviceHandler)
+bool CARDbIsShorSlotTime (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     return(pDevice->bShortSlotTime);
@@ -437,7 +437,7 @@ BOOL CARDbIsShorSlotTime (void *pDeviceHandler)
  * Return Value: None.
  *
  */
-BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
+bool CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     unsigned char byCWMaxMin = 0;
@@ -624,7 +624,7 @@ BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigne
  * Return Value: none
  *
  */
-BOOL CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
+bool CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     QWORD       qwTSFOffset;
@@ -659,7 +659,7 @@ BOOL CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTi
  * Return Value: true if succeed; otherwise false
  *
  */
-BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
+bool CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     unsigned int uBeaconInterval = 0;
@@ -713,7 +713,7 @@ BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
  * Return Value: true if all data packet complete; otherwise false.
  *
  */
-BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
+bool CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -771,7 +771,7 @@ BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
  * Return Value: true if success; false if failed.
  *
  */
-BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
+bool CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -813,7 +813,7 @@ BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
  * Return Value: true if success; false if failed.
  *
  */
-BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode)
+bool CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -882,7 +882,7 @@ BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
  * Return Value: true if succeed; otherwise false
  *
  */
-BOOL CARDbSetTxDataRate(
+bool CARDbSetTxDataRate(
     void *pDeviceHandler,
     unsigned short wDataRate
     )
@@ -907,7 +907,7 @@ BOOL CARDbSetTxDataRate(
  * Return Value: true if power down success; otherwise false
  *
 -*/
-BOOL
+bool
 CARDbPowerDown(
     void *pDeviceHandler
     )
@@ -946,10 +946,10 @@ CARDbPowerDown(
  * Return Value: true if success; otherwise false
  *
  */
-BOOL CARDbRadioPowerOff (void *pDeviceHandler)
+bool CARDbRadioPowerOff (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = true;
+    bool bResult = true;
 
     if (pDevice->bRadioOff == true)
         return true;
@@ -995,10 +995,10 @@ MACvRegBitsOn(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET);  //LED issue
  * Return Value: true if success; otherwise false
  *
  */
-BOOL CARDbRadioPowerOn (void *pDeviceHandler)
+bool CARDbRadioPowerOn (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = true;
+    bool bResult = true;
 printk("chester power on\n");
     if (pDevice->bRadioControlOff == true){
 if (pDevice->bHWRadioOff == true) printk("chester bHWRadioOff\n");
@@ -1039,7 +1039,7 @@ MACvRegBitsOff(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET); //LED issue
 
 
 
-BOOL CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID)
+bool CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1064,11 +1064,11 @@ BOOL CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID)
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 CARDbAdd_PMKID_Candidate (
     void *pDeviceHandler,
     unsigned char *pbyBSSID,
-    BOOL             bRSNCapExist,
+    bool bRSNCapExist,
     unsigned short wRSNCap
     )
 {
@@ -1139,7 +1139,7 @@ CARDpGetCurrentAddress (
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 CARDbStartMeasure (
     void *pDeviceHandler,
     void *pvMeasureEIDs,
@@ -1150,7 +1150,7 @@ CARDbStartMeasure (
     PWLAN_IE_MEASURE_REQ    pEID = (PWLAN_IE_MEASURE_REQ) pvMeasureEIDs;
     QWORD                   qwCurrTSF;
     QWORD                   qwStartTSF;
-    BOOL                    bExpired = true;
+    bool bExpired = true;
     unsigned short wDuration = 0;
 
     if ((pEID == NULL) ||
@@ -1266,7 +1266,7 @@ CARDbStartMeasure (
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 CARDbChannelSwitch (
     void *pDeviceHandler,
     unsigned char byMode,
@@ -1275,7 +1275,7 @@ CARDbChannelSwitch (
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = true;
+    bool bResult = true;
 
     if (byCount == 0) {
         bResult = set_channel(pDevice, byNewChannel);
@@ -1309,10 +1309,10 @@ CARDbChannelSwitch (
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 CARDbSetQuiet (
     void *pDeviceHandler,
-    BOOL             bResetQuiet,
+    bool bResetQuiet,
     unsigned char byQuietCount,
     unsigned char byQuietPeriod,
     unsigned short wQuietDuration,
@@ -1365,7 +1365,7 @@ CARDbSetQuiet (
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 CARDbStartQuiet (
     void *pDeviceHandler
     )
@@ -1946,7 +1946,7 @@ void CARDvUpdateBasicTopRate (void *pDeviceHandler)
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL CARDbAddBasicRate (void *pDeviceHandler, unsigned short wRateIdx)
+bool CARDbAddBasicRate (void *pDeviceHandler, unsigned short wRateIdx)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     unsigned short wRate = (unsigned short)(1<<wRateIdx);
@@ -1959,7 +1959,7 @@ BOOL CARDbAddBasicRate (void *pDeviceHandler, unsigned short wRateIdx)
     return(true);
 }
 
-BOOL CARDbIsOFDMinBasicRate (void *pDeviceHandler)
+bool CARDbIsOFDMinBasicRate (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     int ii;
@@ -2028,7 +2028,7 @@ void CARDvSetLoopbackMode (unsigned long dwIoBase, unsigned short wLoopbackMode)
  * Return Value: none
  *
  */
-BOOL CARDbSoftwareReset (void *pDeviceHandler)
+bool CARDbSoftwareReset (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
 
@@ -2092,7 +2092,7 @@ QWORD CARDqGetTSFOffset (unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
  * Return Value: true if success; otherwise false
  *
  */
-BOOL CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
+bool CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
 {
     unsigned short ww;
     unsigned char byData;

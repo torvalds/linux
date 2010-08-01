@@ -85,10 +85,10 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 
 static void
 s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
-		unsigned int cbPacketSize, BOOL bIsWEP, BOOL bExtIV,
+		unsigned int cbPacketSize, bool bIsWEP, bool bExtIV,
 		unsigned int *pcbHeadSize);
 
-static BOOL s_bAPModeRxCtl(
+static bool s_bAPModeRxCtl(
     PSDevice pDevice,
     unsigned char *pbyFrame,
     int      iSANodeIndex
@@ -96,7 +96,7 @@ static BOOL s_bAPModeRxCtl(
 
 
 
-static BOOL s_bAPModeRxData (
+static bool s_bAPModeRxData (
     PSDevice pDevice,
     struct sk_buff* skb,
     unsigned int FrameSize,
@@ -106,28 +106,28 @@ static BOOL s_bAPModeRxData (
     );
 
 
-static BOOL s_bHandleRxEncryption(
+static bool s_bHandleRxEncryption(
     PSDevice     pDevice,
     unsigned char *pbyFrame,
     unsigned int FrameSize,
     unsigned char *pbyRsr,
     unsigned char *pbyNewRsr,
     PSKeyItem   *pKeyOut,
-    int *       pbExtIV,
+    bool *pbExtIV,
     unsigned short *pwRxTSC15_0,
     unsigned long *pdwRxTSC47_16
     );
 
-static BOOL s_bHostWepRxEncryption(
+static bool s_bHostWepRxEncryption(
 
     PSDevice     pDevice,
     unsigned char *pbyFrame,
     unsigned int FrameSize,
     unsigned char *pbyRsr,
-    BOOL         bOnFly,
+    bool bOnFly,
     PSKeyItem    pKey,
     unsigned char *pbyNewRsr,
-    int *       pbExtIV,
+    bool *pbExtIV,
     unsigned short *pwRxTSC15_0,
     unsigned long *pdwRxTSC47_16
 
@@ -154,7 +154,7 @@ static BOOL s_bHostWepRxEncryption(
 -*/
 static void
 s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
-		unsigned int cbPacketSize, BOOL bIsWEP, BOOL bExtIV,
+		unsigned int cbPacketSize, bool bIsWEP, bool bExtIV,
 		unsigned int *pcbHeadSize)
 {
     unsigned char *pbyRxBuffer;
@@ -313,7 +313,7 @@ void	MngWorkItem(void *Context)
 
 
 
-BOOL
+bool
 device_receive_frame (
     PSDevice pDevice,
     PSRxDesc pCurrRD
@@ -335,8 +335,8 @@ device_receive_frame (
     PQWORD          pqwTSFTime;
     unsigned short *pwFrameSize;
     unsigned char *pbyFrame;
-    BOOL            bDeFragRx = false;
-    BOOL            bIsWEP = false;
+    bool bDeFragRx = false;
+    bool bIsWEP = false;
     unsigned int cbHeaderOffset;
     unsigned int FrameSize;
     unsigned short wEtherType = 0;
@@ -344,7 +344,7 @@ device_receive_frame (
     int             iDANodeIndex = -1;
     unsigned int ii;
     unsigned int cbIVOffset;
-    BOOL            bExtIV = false;
+    bool bExtIV = false;
     unsigned char *pbyRxSts;
     unsigned char *pbyRxRate;
     unsigned char *pbySQ;
@@ -358,7 +358,7 @@ device_receive_frame (
     long            ldBm = 0;
     long            ldBmThreshold = 0;
     PS802_11Header pMACHeader;
- BOOL            bRxeapol_key = false;
+ bool bRxeapol_key = false;
 
 //    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- device_receive_frame---\n");
 
@@ -477,7 +477,7 @@ device_receive_frame (
 
 
     if (IS_FC_WEP(pbyFrame)) {
-        BOOL     bRxDecryOK = false;
+        bool bRxDecryOK = false;
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"rx WEP pkt\n");
         bIsWEP = true;
@@ -1018,7 +1018,7 @@ device_receive_frame (
 }
 
 
-static BOOL s_bAPModeRxCtl (
+static bool s_bAPModeRxCtl (
     PSDevice pDevice,
     unsigned char *pbyFrame,
     int      iSANodeIndex
@@ -1142,14 +1142,14 @@ static BOOL s_bAPModeRxCtl (
 
 }
 
-static BOOL s_bHandleRxEncryption (
+static bool s_bHandleRxEncryption (
     PSDevice     pDevice,
     unsigned char *pbyFrame,
     unsigned int FrameSize,
     unsigned char *pbyRsr,
     unsigned char *pbyNewRsr,
     PSKeyItem   *pKeyOut,
-    int *       pbExtIV,
+    bool *pbExtIV,
     unsigned short *pwRxTSC15_0,
     unsigned long *pdwRxTSC47_16
     )
@@ -1288,15 +1288,15 @@ static BOOL s_bHandleRxEncryption (
 }
 
 
-static BOOL s_bHostWepRxEncryption (
+static bool s_bHostWepRxEncryption (
     PSDevice     pDevice,
     unsigned char *pbyFrame,
     unsigned int FrameSize,
     unsigned char *pbyRsr,
-    BOOL         bOnFly,
+    bool bOnFly,
     PSKeyItem    pKey,
     unsigned char *pbyNewRsr,
-    int *       pbExtIV,
+    bool *pbExtIV,
     unsigned short *pwRxTSC15_0,
     unsigned long *pdwRxTSC47_16
     )
@@ -1419,7 +1419,7 @@ static BOOL s_bHostWepRxEncryption (
 
 
 
-static BOOL s_bAPModeRxData (
+static bool s_bAPModeRxData (
     PSDevice pDevice,
     struct sk_buff* skb,
     unsigned int FrameSize,
@@ -1429,8 +1429,8 @@ static BOOL s_bAPModeRxData (
     )
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    BOOL                bRelayAndForward = false;
-    BOOL                bRelayOnly = false;
+    bool bRelayAndForward = false;
+    bool bRelayOnly = false;
     unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     unsigned short wAID;
 

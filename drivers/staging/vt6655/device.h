@@ -279,7 +279,7 @@ typedef struct tagSPMKIDCandidateEvent {
 #define MAX_QUIET_COUNT     8
 
 typedef struct tagSQuietControl {
-    BOOL        bEnable;
+    bool bEnable;
     unsigned long dwStartTime;
     unsigned char byPeriod;
     unsigned short wDuration;
@@ -326,7 +326,7 @@ typedef struct tagSDeFragControlBlock
     struct sk_buff* skb;
     unsigned char *pbyRxBuffer;
     unsigned int cbFrameLength;
-    BOOL            bInUse;
+    bool bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
 
 
@@ -480,10 +480,10 @@ typedef struct __device_info {
 
     unsigned char byMaxPwrLevel;
     unsigned char byZoneType;
-    BOOL                        bZoneRegExist;
+    bool bZoneRegExist;
    unsigned char byOriginalZonetype;
     unsigned char abyMacContext[MAC_MAX_CONTEXT_REG];
-    BOOL                        bLinkPass;          // link status: OK or fail
+    bool bLinkPass;          // link status: OK or fail
     unsigned char abyCurrentNetAddr[ETH_ALEN];
 
     // Adapter statistics
@@ -505,7 +505,7 @@ typedef struct __device_info {
     unsigned char byAntennaCount;
     unsigned char byRxAntennaMode;
     unsigned char byTxAntennaMode;
-    BOOL                        bTxRxAntInv;
+    bool bTxRxAntInv;
 
     unsigned char *pbyTmpBuff;
     unsigned int	uSIFS;    //Current SIFS
@@ -544,7 +544,7 @@ typedef struct __device_info {
     unsigned char byLongRetryLimit;
     CARD_OP_MODE                eOPMode;
     unsigned char byOpMode;
-    BOOL                        bBSSIDFilter;
+    bool bBSSIDFilter;
     unsigned short wMaxTransmitMSDULifetime;
     unsigned char abyBSSID[ETH_ALEN];
     unsigned char abyDesireBSSID[ETH_ALEN];
@@ -556,51 +556,51 @@ typedef struct __device_info {
 
     unsigned long dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
 
-    BOOL                        bCCK;
-    BOOL                        bEncryptionEnable;
-    BOOL                        bLongHeader;
-    BOOL                        bShortSlotTime;
-    BOOL                        bProtectMode;
-    BOOL                        bNonERPPresent;
-    BOOL                        bBarkerPreambleMd;
+    bool bCCK;
+    bool bEncryptionEnable;
+    bool bLongHeader;
+    bool bShortSlotTime;
+    bool bProtectMode;
+    bool bNonERPPresent;
+    bool bBarkerPreambleMd;
 
     unsigned char byERPFlag;
     unsigned short wUseProtectCntDown;
 
-    BOOL                        bRadioControlOff;
-    BOOL                        bRadioOff;
-    BOOL                    bEnablePSMode;
+    bool bRadioControlOff;
+    bool bRadioOff;
+    bool bEnablePSMode;
     unsigned short wListenInterval;
-    BOOL                    bPWBitOn;
+    bool bPWBitOn;
     WMAC_POWER_MODE         ePSMode;
 
 
     // GPIO Radio Control
     unsigned char byRadioCtl;
     unsigned char byGPIO;
-    BOOL                    bHWRadioOff;
-    BOOL                    bPrvActive4RadioOFF;
-    BOOL                    bGPIOBlockRead;
+    bool bHWRadioOff;
+    bool bPrvActive4RadioOFF;
+    bool bGPIOBlockRead;
 
     // Beacon releated
     unsigned short wSeqCounter;
     unsigned short wBCNBufLen;
-    BOOL                    bBeaconBufReady;
-    BOOL                    bBeaconSent;
-    BOOL                    bIsBeaconBufReadySet;
+    bool bBeaconBufReady;
+    bool bBeaconSent;
+    bool bIsBeaconBufReadySet;
     unsigned int	cbBeaconBufReadySetCnt;
-    BOOL                    bFixRate;
+    bool bFixRate;
     unsigned char byCurrentCh;
     unsigned int	uScanTime;
 
     CMD_STATE               eCommandState;
 
     CMD_CODE                eCommand;
-    BOOL                    bBeaconTx;
+    bool bBeaconTx;
 
-    BOOL                    bStopBeacon;
-    BOOL                    bStopDataPkt;
-    BOOL                    bStopTx0Pkt;
+    bool bStopBeacon;
+    bool bStopDataPkt;
+    bool bStopTx0Pkt;
     unsigned int	uAutoReConnectTime;
 
     // 802.11 counter
@@ -609,18 +609,18 @@ typedef struct __device_info {
     unsigned int	uCmdDequeueIdx;
     unsigned int	uCmdEnqueueIdx;
     unsigned int	cbFreeCmdQueue;
-    BOOL                    bCmdRunning;
-    BOOL                    bCmdClear;
+    bool bCmdRunning;
+    bool bCmdClear;
 
 
 
-    BOOL                    bRoaming;
+    bool bRoaming;
     //WOW
     unsigned char abyIPAddr[4];
 
     unsigned long ulTxPower;
     NDIS_802_11_WEP_STATUS  eEncryptionStatus;
-    BOOL                    bTransmitKey;
+    bool bTransmitKey;
 //2007-0925-01<Add>by MikeLiu
 //mike add :save old Encryption
     NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
@@ -637,31 +637,31 @@ typedef struct __device_info {
     unsigned int	uKeyLength;
     unsigned char abyKey[WLAN_WEP232_KEYLEN];
 
-    BOOL                    bAES;
+    bool bAES;
     unsigned char byCntMeasure;
 
     // for AP mode
     unsigned int	uAssocCount;
-    BOOL                    bMoreData;
+    bool bMoreData;
 
     // QoS
-    BOOL                    bGrpAckPolicy;
+    bool bGrpAckPolicy;
 
     // for OID_802_11_ASSOCIATION_INFORMATION
-    BOOL                    bAssocInfoSet;
+    bool bAssocInfoSet;
 
 
     unsigned char byAutoFBCtrl;
 
-    BOOL                    bTxMICFail;
-    BOOL                    bRxMICFail;
+    bool bTxMICFail;
+    bool bRxMICFail;
 
 
     unsigned int	uRATEIdx;
 
 
     // For Update BaseBand VGA Gain Offset
-    BOOL                    bUpdateBBVGA;
+    bool bUpdateBBVGA;
     unsigned int	uBBVGADiffCount;
     unsigned char byBBVGANew;
     unsigned char byBBVGACurrent;
@@ -672,7 +672,7 @@ typedef struct __device_info {
     unsigned char byBBPreEDIndex;
 
 
-    BOOL                    bRadioCmd;
+    bool bRadioCmd;
     unsigned long dwDiagRefCount;
 
     // For FOE Tuning
@@ -713,12 +713,12 @@ typedef struct __device_info {
 #ifdef TxInSleep
      struct timer_list       sTimerTxData;
      unsigned long nTxDataTimeCout;
-     BOOL  fTxDataInSleep;
-     BOOL  IsTxDataTrigger;
+     bool fTxDataInSleep;
+     bool IsTxDataTrigger;
 #endif
 
 #ifdef WPA_SM_Transtatus
-    BOOL  fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??
+    bool fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??
 #endif
     unsigned char byReAssocCount;   //mike add:re-association retry times!
     unsigned char byLinkWaitCount;
@@ -726,8 +726,8 @@ typedef struct __device_info {
 
     unsigned char abyNodeName[17];
 
-    BOOL                    bDiversityRegCtlON;
-    BOOL                    bDiversityEnable;
+    bool bDiversityRegCtlON;
+    bool bDiversityEnable;
     unsigned long ulDiversityNValue;
     unsigned long ulDiversityMValue;
     unsigned char byTMax;
@@ -763,12 +763,12 @@ typedef struct __device_info {
 
 
     // for 802.11h
-    BOOL                    b11hEnable;
+    bool b11hEnable;
     unsigned char abyCountryCode[3];
     // for 802.11h DFS
     unsigned int	uNumOfMeasureEIDs;
     PWLAN_IE_MEASURE_REQ    pCurrMeasureEID;
-    BOOL                    bMeasureInProgress;
+    bool bMeasureInProgress;
     unsigned char byOrgChannel;
     unsigned char byOrgRCR;
     unsigned long dwOrgMAR0;
@@ -777,50 +777,50 @@ typedef struct __device_info {
     unsigned char byCCAFraction;
     unsigned char abyRPIs[8];
     unsigned long dwRPIs[8];
-    BOOL                    bChannelSwitch;
+    bool bChannelSwitch;
     unsigned char byNewChannel;
     unsigned char byChannelSwitchCount;
-    BOOL                    bQuietEnable;
-    BOOL                    bEnableFirstQuiet;
+    bool bQuietEnable;
+    bool bEnableFirstQuiet;
     unsigned char byQuietStartCount;
     unsigned int	uQuietEnqueue;
     unsigned long dwCurrentQuietEndTime;
     SQuietControl           sQuiet[MAX_QUIET_COUNT];
     // for 802.11h TPC
-    BOOL                    bCountryInfo5G;
-    BOOL                    bCountryInfo24G;
+    bool bCountryInfo5G;
+    bool bCountryInfo24G;
 
     unsigned short wBeaconInterval;
 
     //WPA supplicant deamon
 	struct net_device       *wpadev;
-	BOOL                    bWPADEVUp;
+	bool bWPADEVUp;
     struct sk_buff          *skb;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 /*
-        BOOL                 bwextstep0;
-        BOOL                 bwextstep1;
-        BOOL                 bwextstep2;
-        BOOL                 bwextstep3;
+        bool bwextstep0;
+        bool bwextstep1;
+        bool bwextstep2;
+        bool bwextstep3;
         */
         unsigned int	bwextcount;
-        BOOL                 bWPASuppWextEnabled;
+        bool bWPASuppWextEnabled;
 #endif
 
     //--
 #ifdef HOSTAP
     // user space daemon: hostapd, is used for HOSTAP
-	BOOL                    bEnableHostapd;
-	BOOL                    bEnable8021x;
-	BOOL                    bEnableHostWEP;
+	bool bEnableHostapd;
+	bool bEnable8021x;
+	bool bEnableHostWEP;
 	struct net_device       *apdev;
 	int (*tx_80211)(struct sk_buff *skb, struct net_device *dev);
 #endif
     unsigned int	uChannel;
-    BOOL                    bMACSuspend;
+    bool bMACSuspend;
 
 	struct iw_statistics	wstats;		// wireless stats
-    BOOL                    bCommit;
+    bool bCommit;
 
 } DEVICE_INFO, *PSDevice;
 
@@ -880,7 +880,7 @@ void	InitRxManagementQueue(PSDevice   pDevice);
 
 
 
-inline static BOOL device_get_ip(PSDevice pInfo) {
+inline static bool device_get_ip(PSDevice pInfo) {
     struct in_device* in_dev=(struct in_device*) pInfo->dev->ip_ptr;
     struct in_ifaddr* ifa;
 
@@ -920,9 +920,9 @@ static inline PDEVICE_TD_INFO alloc_td_info(void) {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex);
-BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
-int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter);
+bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex);
+bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
+int Config_FileOperation(PSDevice pDevice, bool fwrite, unsigned char *Parameter);
 #endif
 
 

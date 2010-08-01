@@ -90,13 +90,13 @@ typedef enum _NDIS_802_11_NETWORK_TYPE
 
 
 typedef struct tagSERPObject {
-    BOOL    bERPExist;
+    bool bERPExist;
     unsigned char byERP;
 }ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
-    BOOL    bRSNCapExist;
+    bool bRSNCapExist;
     unsigned short wRSNCap;
 }SRSNCapObject, *PSRSNCapObject;
 
@@ -104,7 +104,7 @@ typedef struct tagSRSNCapObject {
 #pragma pack(1)
 typedef struct tagKnownBSS {
     // BSS info
-    BOOL            bActive;
+    bool bActive;
     unsigned char abyBSSID[WLAN_BSSID_LEN];
     unsigned int	uChannel;
     unsigned char abySuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -122,10 +122,10 @@ typedef struct tagKnownBSS {
     long            ldBmAverage[RSSI_STAT_COUNT];
     long            ldBmAverRange;
     //For any BSSID selection improvment
-    BOOL            bSelected;
+    bool bSelected;
 
     //++ WPA informations
-    BOOL            bWPAValid;
+    bool bWPAValid;
     unsigned char byGKType;
     unsigned char abyPKType[4];
     unsigned short wPKCount;
@@ -136,7 +136,7 @@ typedef struct tagKnownBSS {
     //--
 
     //++ WPA2 informations
-    BOOL            bWPA2Valid;
+    bool bWPA2Valid;
     unsigned char byCSSGK;
     unsigned short wCSSPKCount;
     unsigned char abyCSSPK[4];
@@ -181,14 +181,14 @@ typedef enum tagNODE_STATE {
 // STA node info
 typedef struct tagKnownNodeDB {
     // STA info
-    BOOL            bActive;
+    bool bActive;
     unsigned char abyMACAddr[WLAN_ADDR_LEN];
     unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     unsigned short wTxDataRate;
-    BOOL            bShortPreamble;
-    BOOL            bERPExist;
-    BOOL            bShortSlotTime;
+    bool bShortPreamble;
+    bool bERPExist;
+    bool bShortSlotTime;
     unsigned int	uInActiveCount;
     unsigned short wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
     unsigned short wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
@@ -202,15 +202,15 @@ typedef struct tagKnownNodeDB {
     unsigned short wListenInterval;
     unsigned short wAID;
     NODE_STATE      eNodeState;
-    BOOL            bPSEnable;
-    BOOL            bRxPSPoll;
+    bool bPSEnable;
+    bool bRxPSPoll;
     unsigned char byAuthSequence;
     unsigned long ulLastRxJiffer;
     unsigned char bySuppRate;
     unsigned long dwFlags;
     unsigned short wEnQueueCnt;
 
-    BOOL            bOnFly;
+    bool bOnFly;
     unsigned long long       KeyRSC;
     unsigned char byKeyIndex;
     unsigned long dwKeyIndex;
@@ -221,7 +221,7 @@ typedef struct tagKnownNodeDB {
     unsigned char abyWepKey[WLAN_WEPMAX_KEYLEN];
     //
     // Auto rate fallback vars
-    BOOL            bIsInFallback;
+    bool bIsInFallback;
     unsigned int	uAverageRSSI;
     unsigned int	uRateRecoveryTimeout;
     unsigned int	uRatePollTimeout;
@@ -260,10 +260,10 @@ BSSpAddrIsInBSSList(
 void
 BSSvClearBSSList(
     void *hDeviceContext,
-    BOOL bKeepCurrBSSID
+    bool bKeepCurrBSSID
     );
 
-BOOL
+bool
 BSSbInsertToBSSList(
     void *hDeviceContext,
     unsigned char *abyBSSIDAddr,
@@ -285,14 +285,14 @@ BSSbInsertToBSSList(
     );
 
 
-BOOL
+bool
 BSSbUpdateToBSSList(
     void *hDeviceContext,
     QWORD qwTimestamp,
     unsigned short wBeaconInterval,
     unsigned short wCapInfo,
     unsigned char byCurrChannel,
-    BOOL bChannelHit,
+    bool bChannelHit,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
     PWLAN_IE_SUPP_RATES pExtSuppRates,
@@ -308,7 +308,7 @@ BSSbUpdateToBSSList(
     );
 
 
-BOOL
+bool
 BSSDBbIsSTAInNodeDB(void *hDeviceContext, unsigned char *abyDstAddr,
 		unsigned int *puNodeIndex);
 

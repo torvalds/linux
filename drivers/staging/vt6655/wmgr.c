@@ -94,7 +94,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 //2008-8-4 <add> by chester
-static BOOL ChannelExceedZoneType(
+static bool ChannelExceedZoneType(
     PSDevice pDevice,
     unsigned char byCurrChannel
     );
@@ -141,7 +141,7 @@ s_vMgrRxAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bReAssocType
+    bool bReAssocType
     );
 
 static
@@ -226,7 +226,7 @@ s_vMgrRxBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bInScan
+    bool bInScan
     );
 
 static
@@ -317,7 +317,7 @@ s_vMgrSynchBSS (
     );
 
 
-static BOOL
+static bool
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
@@ -996,7 +996,7 @@ s_vMgrRxAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bReAssocType
+    bool bReAssocType
     )
 {
     WLAN_FR_ASSOCRESP   sFrame;
@@ -1826,13 +1826,13 @@ s_vMgrRxDeauthentication(
  *               True:exceed;
  *                False:normal case
 -*/
-static BOOL
+static bool
 ChannelExceedZoneType(
     PSDevice pDevice,
     unsigned char byCurrChannel
     )
 {
-  BOOL exceed=false;
+  bool exceed=false;
 
   switch(pDevice->byZoneType) {
   	case 0x00:                  //USA:1~11
@@ -1869,20 +1869,20 @@ s_vMgrRxBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bInScan
+    bool bInScan
     )
 {
 
     PKnownBSS           pBSSList;
     WLAN_FR_BEACON      sFrame;
     QWORD               qwTSFOffset;
-    BOOL                bIsBSSIDEqual = false;
-    BOOL                bIsSSIDEqual = false;
-    BOOL                bTSFLargeDiff = false;
-    BOOL                bTSFOffsetPostive = false;
-    BOOL                bUpdateTSF = false;
-    BOOL                bIsAPBeacon = false;
-    BOOL                bIsChannelEqual = false;
+    bool bIsBSSIDEqual = false;
+    bool bIsSSIDEqual = false;
+    bool bTSFLargeDiff = false;
+    bool bTSFOffsetPostive = false;
+    bool bUpdateTSF = false;
+    bool bIsAPBeacon = false;
+    bool bIsChannelEqual = false;
     unsigned int uLocateByteIndex;
     unsigned char byTIMBitOn = 0;
     unsigned short wAIDNumber = 0;
@@ -1894,8 +1894,8 @@ s_vMgrRxBeacon(
     unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
-    BOOL                bChannelHit = false;
-    BOOL                bUpdatePhyParameter = false;
+    bool bChannelHit = false;
+    bool bUpdatePhyParameter = false;
     unsigned char byIEChannel = 0;
 
 
@@ -2803,7 +2803,7 @@ vMgrJoinBSSBegin(
             // Add current BSS to Candidate list
             // This should only works for WPA2 BSS, and WPA2 BSS check must be done before.
             if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2) {
-                BOOL bResult = bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
+                bool bResult = bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate: 1(%d)\n", bResult);
                 if (bResult == false) {
                     vFlush_PMKID_Candidate((void *)pDevice);
@@ -3155,8 +3155,8 @@ s_vMgrFormatTIM(
     unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     unsigned char byMap;
     unsigned int ii, jj;
-    BOOL        bStartFound = false;
-    BOOL        bMulticast = false;
+    bool bStartFound = false;
+    bool bMulticast = false;
     unsigned short wStartIndex = 0;
     unsigned short wEndIndex = 0;
 
@@ -4326,7 +4326,7 @@ s_vMgrRxProbeResponse(
     unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
     unsigned char byIEChannel = 0;
-    BOOL                bChannelHit = true;
+    bool bChannelHit = true;
 
 
     memset(&sFrame, 0, sizeof(WLAN_FR_PROBERESP));
@@ -4543,7 +4543,7 @@ vMgrRxManagePacket(
      )
 {
     PSDevice    pDevice = (PSDevice)hDeviceContext;
-    BOOL        bInScan = false;
+    bool bInScan = false;
     unsigned int uNodeIndex = 0;
     NODE_STATE  eNodeState = 0;
     CMD_STATUS  Status;
@@ -4684,7 +4684,7 @@ vMgrRxManagePacket(
  *    true if success; false if failed.
  *
 -*/
-BOOL
+bool
 bMgrPrepareBeaconToSend(
     void *hDeviceContext,
     PSMgmtObject pMgmt
@@ -4808,7 +4808,7 @@ s_vMgrLogStatus(
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 bAdd_PMKID_Candidate (
     void *hDeviceContext,
     unsigned char *pbyBSSID,
@@ -4882,7 +4882,7 @@ vFlush_PMKID_Candidate (
     memset(&pDevice->gsPMKIDCandidate, 0, sizeof(SPMKIDCandidateEvent));
 }
 
-static BOOL
+static bool
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,

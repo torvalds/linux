@@ -135,8 +135,8 @@ s_vFillRTSHead(
     unsigned char byPktType,
     void *           pvRTS,
     unsigned int	cbFrameLength,
-    BOOL             bNeedAck,
-    BOOL             bDisCRC,
+    bool bNeedAck,
+    bool bDisCRC,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate,
     unsigned char byFBOption
@@ -152,7 +152,7 @@ s_vGenerateTxParameter(
     void *           pvRTS,
     void *           pvCTS,
     unsigned int	cbFrameSize,
-    BOOL             bNeedACK,
+    bool bNeedACK,
     unsigned int	uDMAIdx,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate
@@ -173,7 +173,7 @@ static void s_vFillFragParameter(
 static unsigned int
 s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
 	unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
-	PSEthernetHeader psEthHeader, unsigned char *pPacket, BOOL bNeedEncrypt,
+	PSEthernetHeader psEthHeader, unsigned char *pPacket, bool bNeedEncrypt,
 	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum);
 
 
@@ -185,7 +185,7 @@ s_uFillDataHead (
     void *   pTxDataHead,
     unsigned int cbFrameLength,
     unsigned int uDMAIdx,
-    BOOL     bNeedAck,
+    bool bNeedAck,
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
@@ -372,7 +372,7 @@ s_uGetTxRsvTime (
     unsigned char byPktType,
     unsigned int cbFrameLength,
     unsigned short wRate,
-    BOOL     bNeedAck
+    bool bNeedAck
     )
 {
     unsigned int uDataTime, uAckTime;
@@ -446,14 +446,14 @@ s_uGetDataDuration (
     unsigned int cbFrameLength,
     unsigned char byPktType,
     unsigned short wRate,
-    BOOL     bNeedAck,
+    bool bNeedAck,
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
     unsigned char byFBOption
     )
 {
-    BOOL bLastFrag = 0;
+    bool bLastFrag = 0;
     unsigned int uAckTime =0, uNextPktTime = 0;
 
 
@@ -617,7 +617,7 @@ s_uGetRTSCTSDuration (
     unsigned int cbFrameLength,
     unsigned char byPktType,
     unsigned short wRate,
-    BOOL bNeedAck,
+    bool bNeedAck,
     unsigned char byFBOption
     )
 {
@@ -715,7 +715,7 @@ s_uFillDataHead (
     void *   pTxDataHead,
     unsigned int cbFrameLength,
     unsigned int uDMAIdx,
-    BOOL     bNeedAck,
+    bool bNeedAck,
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
@@ -846,8 +846,8 @@ s_vFillRTSHead (
     unsigned char byPktType,
     void *           pvRTS,
     unsigned int cbFrameLength,
-    BOOL             bNeedAck,
-    BOOL             bDisCRC,
+    bool bNeedAck,
+    bool bDisCRC,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate,
     unsigned char byFBOption
@@ -1041,8 +1041,8 @@ s_vFillCTSHead (
     unsigned char byPktType,
     void *   pvCTS,
     unsigned int cbFrameLength,
-    BOOL     bNeedAck,
-    BOOL     bDisCRC,
+    bool bNeedAck,
+    bool bDisCRC,
     unsigned short wCurrentRate,
     unsigned char byFBOption
     )
@@ -1148,7 +1148,7 @@ s_vGenerateTxParameter (
     void *           pvRTS,
     void *           pvCTS,
     unsigned int cbFrameSize,
-    BOOL             bNeedACK,
+    bool bNeedACK,
     unsigned int uDMAIdx,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate
@@ -1156,7 +1156,7 @@ s_vGenerateTxParameter (
 {
     unsigned int cbMACHdLen = WLAN_HDR_ADDR3_LEN; //24
     unsigned short wFifoCtl;
-    BOOL bDisCRC = false;
+    bool bDisCRC = false;
     unsigned char byFBOption = AUTO_FB_NONE;
 //    unsigned short wCurrentRate = pDevice->wCurrentRate;
 
@@ -1307,7 +1307,7 @@ s_vFillFragParameter(
 static unsigned int
 s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
 	unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
-	PSEthernetHeader psEthHeader, unsigned char *pPacket, BOOL bNeedEncrypt,
+	PSEthernetHeader psEthHeader, unsigned char *pPacket, bool bNeedEncrypt,
 	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum)
 {
     unsigned int cbMACHdLen;
@@ -1340,15 +1340,15 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     unsigned long *pdwMIC_L;
     unsigned long *pdwMIC_R;
     unsigned long dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
-    BOOL           bMIC2Frag = false;
+    bool bMIC2Frag = false;
     unsigned int uMICFragLen = 0;
     unsigned int uMACfragNum = 1;
     unsigned int uPadding = 0;
     unsigned int cbReqCount = 0;
 
-    BOOL           bNeedACK;
-    BOOL           bRTS;
-    BOOL           bIsAdhoc;
+    bool bNeedACK;
+    bool bRTS;
+    bool bIsAdhoc;
     unsigned char *pbyType;
     PSTxDesc       ptdCurr;
     PSTxBufHead    psTxBufHd = (PSTxBufHead) pbyTxBufferAddr;
@@ -1362,7 +1362,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     unsigned short wTxBufSize;   // FFinfo size
     unsigned int uTotalCopyLength = 0;
     unsigned char byFBOption = AUTO_FB_NONE;
-    BOOL           bIsWEP256 = false;
+    bool bIsWEP256 = false;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 
@@ -2070,14 +2070,14 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 
 void
 vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
-	BOOL bNeedEncrypt, unsigned int cbPayloadSize, unsigned int uDMAIdx,
+	bool bNeedEncrypt, unsigned int cbPayloadSize, unsigned int uDMAIdx,
 	PSTxDesc pHeadTD, PSEthernetHeader psEthHeader, unsigned char *pPacket,
 	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum,
 	unsigned int *pcbHeaderSize)
 {
     unsigned int wTxBufSize;       // FFinfo size
-    BOOL            bNeedACK;
-    BOOL            bIsAdhoc;
+    bool bNeedACK;
+    bool bIsAdhoc;
     unsigned short cbMacHdLen;
     PSTxBufHead     pTxBufHead = (PSTxBufHead) pbyTxBufferAddr;
 
@@ -2234,7 +2234,7 @@ vGenerateMACHeader (
     unsigned char *pbyBufferAddr,
     unsigned short wDuration,
     PSEthernetHeader psEthHeader,
-    BOOL             bNeedEncrypt,
+    bool bNeedEncrypt,
     unsigned short wFragType,
     unsigned int uDMAIdx,
     unsigned int uFragIdx
@@ -2314,8 +2314,8 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     PS802_11Header  pMACHeader;
     unsigned int cbHeaderSize;
     unsigned int cbFrameBodySize;
-    BOOL            bNeedACK;
-    BOOL            bIsPSPOLL = false;
+    bool bNeedACK;
+    bool bIsPSPOLL = false;
     PSTxBufHead     pTxBufHead;
     unsigned int cbFrameSize;
     unsigned int cbIVlen = 0;
@@ -2716,7 +2716,7 @@ cbGetFragCount (
     unsigned int cbMIClen = 0;
     unsigned int cbFCSlen = 4;
     unsigned int uMACfragNum = 1;
-    BOOL           bNeedACK;
+    bool bNeedACK;
 
 
 
@@ -2798,8 +2798,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     PS802_11Header  pMACHeader;
     unsigned int cbHeaderSize;
     unsigned int cbFrameBodySize;
-    BOOL            bNeedACK;
-    BOOL            bIsPSPOLL = false;
+    bool bNeedACK;
+    bool bIsPSPOLL = false;
     PSTxBufHead     pTxBufHead;
     unsigned int cbFrameSize;
     unsigned int cbIVlen = 0;
@@ -2822,7 +2822,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     unsigned short wCurrentRate = RATE_1M;
     PUWLAN_80211HDR  p80211Header;
     unsigned int uNodeIndex = 0;
-    BOOL            bNodeExist = false;
+    bool bNodeExist = false;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
     unsigned char *pbyIVHead;

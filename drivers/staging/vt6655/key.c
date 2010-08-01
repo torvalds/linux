@@ -131,7 +131,7 @@ void KeyvInitTable (PSKeyManagement pTable, unsigned long dwIoBase)
  * Return Value: true if found otherwise false
  *
  */
-BOOL KeybGetKey (
+bool KeybGetKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     unsigned long dwKeyIndex,
@@ -189,7 +189,7 @@ BOOL KeybGetKey (
  * Return Value: true if success otherwise false
  *
  */
-BOOL KeybSetKey (
+bool KeybSetKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     unsigned long dwKeyIndex,
@@ -362,7 +362,7 @@ BOOL KeybSetKey (
  * Return Value: true if success otherwise false
  *
  */
-BOOL KeybRemoveKey (
+bool KeybRemoveKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     unsigned long dwKeyIndex,
@@ -435,7 +435,7 @@ BOOL KeybRemoveKey (
  * Return Value: true if success otherwise false
  *
  */
-BOOL KeybRemoveAllKey (
+bool KeybRemoveAllKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     unsigned long dwIoBase
@@ -517,7 +517,7 @@ void KeyvRemoveAllWEPKey (
  * Return Value: true if found otherwise false
  *
  */
-BOOL KeybGetTransmitKey (
+bool KeybGetTransmitKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     unsigned long dwKeyType,
@@ -597,7 +597,7 @@ BOOL KeybGetTransmitKey (
  * Return Value: true if found otherwise false
  *
  */
-BOOL KeybCheckPairewiseKey (
+bool KeybCheckPairewiseKey (
     PSKeyManagement pTable,
     PSKeyItem       *pKey
     )
@@ -631,7 +631,7 @@ BOOL KeybCheckPairewiseKey (
  * Return Value: true if success otherwise false
  *
  */
-BOOL KeybSetDefaultKey (
+bool KeybSetDefaultKey (
     PSKeyManagement pTable,
     unsigned long dwKeyIndex,
     unsigned long uKeyLength,
@@ -738,7 +738,7 @@ BOOL KeybSetDefaultKey (
  * Return Value: true if success otherwise false
  *
  */
-BOOL KeybSetAllGroupKey (
+bool KeybSetAllGroupKey (
     PSKeyManagement pTable,
     unsigned long dwKeyIndex,
     unsigned long uKeyLength,

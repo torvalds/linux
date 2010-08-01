@@ -243,7 +243,7 @@ unsigned char abyRoundKey[16];
  * Return Value: MIC compare result
  *
  */
-BOOL AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned short wFrameSize)
+bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned short wFrameSize)
 {
 unsigned char abyNonce[13];
 unsigned char MIC_IV[16];
@@ -260,7 +260,7 @@ unsigned char *pbyIV;
 unsigned char *pbyPayload;
 unsigned short wHLen = 22;
 unsigned short wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;//8 is IV, 8 is MIC, 4 is CRC
-BOOL            bA4 = false;
+bool bA4 = false;
 unsigned char byTmp;
 unsigned short wCnt;
 int             ii,jj,kk;

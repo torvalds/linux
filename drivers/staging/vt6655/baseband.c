@@ -1857,9 +1857,9 @@ BBvCaculateParameter (
     unsigned int cbBitCount;
     unsigned int cbUsCount = 0;
     unsigned int cbTmp;
-    BOOL bExtBit;
+    bool bExtBit;
     unsigned char byPreambleType = pDevice->byPreambleType;
-    BOOL bCCK = pDevice->bCCK;
+    bool bCCK = pDevice->bCCK;
 
     cbBitCount = cbFrameLength * 8;
     bExtBit = false;
@@ -2015,7 +2015,7 @@ BBvCaculateParameter (
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData)
+bool BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData)
 {
     unsigned short ww;
     unsigned char byValue;
@@ -2058,7 +2058,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  * Return Value: true if succeeded; false if failed.
  *
  */
-BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData)
+bool BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData)
 {
     unsigned short ww;
     unsigned char byValue;
@@ -2100,7 +2100,7 @@ BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  * Return Value: true if all TestBits are set; false otherwise.
  *
  */
-BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
+bool BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
 {
     unsigned char byOrgData;
 
@@ -2123,7 +2123,7 @@ BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  * Return Value: true if all TestBits are clear; false otherwise.
  *
  */
-BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
+bool BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
 {
     unsigned char byOrgData;
 
@@ -2146,9 +2146,9 @@ BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  *
  */
 
-BOOL BBbVT3253Init (PSDevice pDevice)
+bool BBbVT3253Init (PSDevice pDevice)
 {
-    BOOL       bResult = true;
+    bool bResult = true;
     int        ii;
     unsigned long dwIoBase = pDevice->PortOffset;
     unsigned char byRFType = pDevice->byRFType;
