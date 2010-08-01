@@ -491,14 +491,11 @@ struct dib0700_rc_response {
 static void dib0700_rc_urb_completion(struct urb *purb)
 {
 	struct dvb_usb_device *d = purb->context;
-	struct ir_scancode *keymap;
 	struct dib0700_state *st;
 	struct dib0700_rc_response poll_reply;
 	u8 *buf;
-	int found = 0;
-	u32 event;
-	int state;
-	int i;
+	u32 keycode;
+	u8 toggle;
 
 	deb_info("%s()\n", __func__);
 	if (d == NULL)
@@ -510,7 +507,6 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		return;
 	}
 
-	keymap = d->props.rc.legacy.rc_key_map;
 	st = d->priv;
 	buf = (u8 *)purb->transfer_buffer;
 
@@ -525,21 +521,17 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		goto resubmit;
 	}
 
-	/* Set initial results in case we exit the function early */
-	event = 0;
-	state = REMOTE_NO_KEY_PRESSED;
-
 	deb_data("IR raw %02X %02X %02X %02X %02X %02X (len %d)\n", buf[0],
 		 buf[1], buf[2], buf[3], buf[4], buf[5], purb->actual_length);
 
 	switch (dvb_usb_dib0700_ir_proto) {
 	case 0:
 		/* NEC Protocol */
-		poll_reply.report_id  = 0;
-		poll_reply.data_state = 1;
+		poll_reply.data_state = 0;
 		poll_reply.system     = buf[2];
 		poll_reply.data       = buf[4];
 		poll_reply.not_data   = buf[5];
+		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
 		if ((poll_reply.system == 0x00) && (poll_reply.data == 0x00)
@@ -547,6 +539,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 			poll_reply.data_state = 2;
 			break;
 		}
+
 		break;
 	default:
 		/* RC5 Protocol */
@@ -555,6 +548,9 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		poll_reply.system     = (buf[2] << 8) | buf[3];
 		poll_reply.data       = buf[4];
 		poll_reply.not_data   = buf[5];
+
+		toggle = poll_reply.report_id;
+
 		break;
 	}
 
@@ -570,59 +566,8 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 poll_reply.report_id, poll_reply.data_state,
 		 poll_reply.system, poll_reply.data, poll_reply.not_data);
 
-	/* Find the key in the map */
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
-		    rc5_data(&keymap[i]) == poll_reply.data) {
-			event = keymap[i].keycode;
-			found = 1;
-			break;
-		}
-	}
-
-	if (found == 0) {
-		err("Unknown remote controller key: %04x %02x %02x",
-		    poll_reply.system, poll_reply.data, poll_reply.not_data);
-		d->last_event = 0;
-		goto resubmit;
-	}
-
-	if (poll_reply.data_state == 1) {
-		/* New key hit */
-		st->rc_counter = 0;
-		event = keymap[i].keycode;
-		state = REMOTE_KEY_PRESSED;
-		d->last_event = keymap[i].keycode;
-	} else if (poll_reply.data_state == 2) {
-		/* Key repeated */
-		st->rc_counter++;
-
-		/* prevents unwanted double hits */
-		if (st->rc_counter > RC_REPEAT_DELAY_V1_20) {
-			event = d->last_event;
-			state = REMOTE_KEY_PRESSED;
-			st->rc_counter = RC_REPEAT_DELAY_V1_20;
-		}
-	} else {
-		err("Unknown data state [%d]", poll_reply.data_state);
-	}
-
-	switch (state) {
-	case REMOTE_NO_KEY_PRESSED:
-		break;
-	case REMOTE_KEY_PRESSED:
-		deb_info("key pressed\n");
-		d->last_event = event;
-	case REMOTE_KEY_REPEAT:
-		deb_info("key repeated\n");
-		input_event(d->rc_input_dev, EV_KEY, event, 1);
-		input_sync(d->rc_input_dev);
-		input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
-		input_sync(d->rc_input_dev);
-		break;
-	default:
-		break;
-	}
+	keycode = poll_reply.system << 8 | poll_reply.data;
+	ir_keydown(d->rc_input_dev, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */
@@ -639,9 +584,6 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 	struct urb *purb;
 	int ret;
 	int i;
-
-	if (d->props.rc.legacy.rc_key_map == NULL)
-		return 0;
 
 	/* Set the IR mode */
 	i = dib0700_ctrl_wr(d, rc_setup, sizeof(rc_setup));
@@ -699,6 +641,12 @@ static int dib0700_probe(struct usb_interface *intf,
 
 			st->fw_version = fw_version;
 			st->nb_packet_buffer_size = (u32)nb_packet_buffer_size;
+
+			/* Disable polling mode on newer firmwares */
+			if (st->fw_version >= 0x10200)
+				dev->props.rc.core.bulk_mode = true;
+			else
+				dev->props.rc.core.bulk_mode = false;
 
 			dib0700_rc_setup(dev);
 
