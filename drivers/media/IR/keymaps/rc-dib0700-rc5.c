@@ -44,6 +44,7 @@ static struct ir_scancode dib0700_table[] = {
 	{ 0x0736, KEY_RECORD },
 	{ 0x073c, KEY_STOP },
 	{ 0x073f, KEY_CANCEL }, /* '?' key */
+
 	/* Key codes for the Terratec Cinergy DT XS Diversity, similar to cinergyT2.c */
 	{ 0xeb01, KEY_POWER },
 	{ 0xeb02, KEY_1 },
@@ -206,94 +207,14 @@ static struct ir_scancode dib0700_table[] = {
 	{ 0x1d37, KEY_RECORD },
 	{ 0x1d3b, KEY_GOTO },
 	{ 0x1d3d, KEY_POWER },
-
-	/* Key codes for the Pixelview SBTVD remote (proto NEC) */
-	{ 0x8613, KEY_MUTE },
-	{ 0x8612, KEY_POWER },
-	{ 0x8601, KEY_1 },
-	{ 0x8602, KEY_2 },
-	{ 0x8603, KEY_3 },
-	{ 0x8604, KEY_4 },
-	{ 0x8605, KEY_5 },
-	{ 0x8606, KEY_6 },
-	{ 0x8607, KEY_7 },
-	{ 0x8608, KEY_8 },
-	{ 0x8609, KEY_9 },
-	{ 0x8600, KEY_0 },
-	{ 0x860d, KEY_CHANNELUP },
-	{ 0x8619, KEY_CHANNELDOWN },
-	{ 0x8610, KEY_VOLUMEUP },
-	{ 0x860c, KEY_VOLUMEDOWN },
-
-	{ 0x860a, KEY_CAMERA },
-	{ 0x860b, KEY_ZOOM },
-	{ 0x861b, KEY_BACKSPACE },
-	{ 0x8615, KEY_ENTER },
-
-	{ 0x861d, KEY_UP },
-	{ 0x861e, KEY_DOWN },
-	{ 0x860e, KEY_LEFT },
-	{ 0x860f, KEY_RIGHT },
-
-	{ 0x8618, KEY_RECORD },
-	{ 0x861a, KEY_STOP },
-
-	/* Key codes for the EvolutePC TVWay+ remote (proto NEC) */
-	{ 0x7a00, KEY_MENU },
-	{ 0x7a01, KEY_RECORD },
-	{ 0x7a02, KEY_PLAY },
-	{ 0x7a03, KEY_STOP },
-	{ 0x7a10, KEY_CHANNELUP },
-	{ 0x7a11, KEY_CHANNELDOWN },
-	{ 0x7a12, KEY_VOLUMEUP },
-	{ 0x7a13, KEY_VOLUMEDOWN },
-	{ 0x7a40, KEY_POWER },
-	{ 0x7a41, KEY_MUTE },
-
-	/* Key codes for the Elgato EyeTV Diversity silver remote,
-	   set dvb_usb_dib0700_ir_proto=0 */
-	{ 0x4501, KEY_POWER },
-	{ 0x4502, KEY_MUTE },
-	{ 0x4503, KEY_1 },
-	{ 0x4504, KEY_2 },
-	{ 0x4505, KEY_3 },
-	{ 0x4506, KEY_4 },
-	{ 0x4507, KEY_5 },
-	{ 0x4508, KEY_6 },
-	{ 0x4509, KEY_7 },
-	{ 0x450a, KEY_8 },
-	{ 0x450b, KEY_9 },
-	{ 0x450c, KEY_LAST },
-	{ 0x450d, KEY_0 },
-	{ 0x450e, KEY_ENTER },
-	{ 0x450f, KEY_RED },
-	{ 0x4510, KEY_CHANNELUP },
-	{ 0x4511, KEY_GREEN },
-	{ 0x4512, KEY_VOLUMEDOWN },
-	{ 0x4513, KEY_OK },
-	{ 0x4514, KEY_VOLUMEUP },
-	{ 0x4515, KEY_YELLOW },
-	{ 0x4516, KEY_CHANNELDOWN },
-	{ 0x4517, KEY_BLUE },
-	{ 0x4518, KEY_LEFT }, /* Skip backwards */
-	{ 0x4519, KEY_PLAYPAUSE },
-	{ 0x451a, KEY_RIGHT }, /* Skip forward */
-	{ 0x451b, KEY_REWIND },
-	{ 0x451c, KEY_L }, /* Live */
-	{ 0x451d, KEY_FASTFORWARD },
-	{ 0x451e, KEY_STOP }, /* 'Reveal' for Teletext */
-	{ 0x451f, KEY_MENU }, /* KEY_TEXT for Teletext */
-	{ 0x4540, KEY_RECORD }, /* Font 'Size' for Teletext */
-	{ 0x4541, KEY_SCREEN }, /*  Full screen toggle, 'Hold' for Teletext */
-	{ 0x4542, KEY_SELECT }, /* Select video input, 'Select' for Teletext */
 };
 
 static struct rc_keymap dib0700_map = {
 	.map = {
 		.scan    = dib0700_table,
 		.size    = ARRAY_SIZE(dib0700_table),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_DIB0700_BIG_TABLE,
+		.ir_type = IR_TYPE_RC5,
+		.name    = RC_MAP_DIB0700_RC5_TABLE,
 	}
 };
 

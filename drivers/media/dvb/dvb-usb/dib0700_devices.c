@@ -1872,7 +1872,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -1902,7 +1902,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -1957,7 +1957,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -1994,7 +1994,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2066,7 +2066,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2106,7 +2106,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2139,7 +2139,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 7,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -2166,6 +2166,45 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[44], NULL },
 				{ NULL },
 			},
+		},
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 2,
+		.adapter = {
+			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = stk7070pd_frontend_attach0,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = stk7070pd_frontend_attach1,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
+
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}
+		},
+
+		.num_device_descs = 1,
+		.devices = {
 			{   "Elgato EyeTV Diversity",
 				{ &dib0700_usb_id_table[68], NULL },
 				{ NULL },
@@ -2174,7 +2213,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2239,7 +2278,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2271,7 +2310,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2335,7 +2374,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2375,7 +2414,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2420,7 +2459,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
@@ -2453,7 +2492,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
-			.rc_codes         = RC_MAP_DIB0700_BIG_TABLE,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
 			.module_name	  = "dib0700",
 			.rc_query         = dib0700_rc_query_old_firmware
 		},
