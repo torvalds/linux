@@ -1454,11 +1454,6 @@ out_mark_dirty:
 	return ret;
 }
 #else
-int nfs_commit_inode(struct inode *inode, int how)
-{
-	return 0;
-}
-
 static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
 {
 	return 0;
