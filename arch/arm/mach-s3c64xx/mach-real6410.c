@@ -27,6 +27,7 @@
 #include <mach/s3c6410.h>
 #include <mach/regs-srom.h>
 #include <plat/cpu.h>
+#include <plat/devs.h>
 #include <plat/regs-serial.h>
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
@@ -100,6 +101,8 @@ static struct platform_device real6410_device_eth = {
 
 static struct platform_device *real6410_devices[] __initdata = {
 	&real6410_device_eth,
+	&s3c_device_hsmmc0,
+	&s3c_device_hsmmc1,
 };
 
 static void __init real6410_map_io(void)
