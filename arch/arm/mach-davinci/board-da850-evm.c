@@ -600,6 +600,23 @@ static const short da850_evm_lcdc_pins[] = {
 	-1
 };
 
+static const short da850_evm_mii_pins[] = {
+	DA850_MII_TXEN, DA850_MII_TXCLK, DA850_MII_COL, DA850_MII_TXD_3,
+	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
+	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
+	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
+	DA850_MDIO_D,
+	-1
+};
+
+static const short da850_evm_rmii_pins[] = {
+	DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1,
+	DA850_RMII_RXER, DA850_RMII_MHZ_50_CLK, DA850_MDIO_CLK,
+	DA850_MDIO_D,
+	-1
+};
+
 static int __init da850_evm_config_emac(void)
 {
 	void __iomem *cfg_chip3_base;
@@ -617,12 +634,12 @@ static int __init da850_evm_config_emac(void)
 
 	if (rmii_en) {
 		val |= BIT(8);
-		ret = davinci_cfg_reg_list(da850_rmii_pins);
+		ret = davinci_cfg_reg_list(da850_evm_rmii_pins);
 		pr_info("EMAC: RMII PHY configured, MII PHY will not be"
 							" functional\n");
 	} else {
 		val &= ~BIT(8);
-		ret = davinci_cfg_reg_list(da850_cpgmac_pins);
+		ret = davinci_cfg_reg_list(da850_evm_mii_pins);
 		pr_info("EMAC: MII PHY configured, RMII PHY will not be"
 							" functional\n");
 	}
