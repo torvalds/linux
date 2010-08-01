@@ -2210,8 +2210,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x10 - 0x1F */
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
-	D(ModRM | DstMem | Priv | Op3264), D(ModRM | Priv | Op3264),
-	D(ModRM | SrcMem | Priv | Op3264), D(ModRM | Priv | Op3264),
+	D(ModRM | DstMem | Priv | Op3264), D(ModRM | DstMem | Priv | Op3264),
+	D(ModRM | SrcMem | Priv | Op3264), D(ModRM | SrcMem | Priv | Op3264),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
@@ -3248,8 +3248,7 @@ twobyte_insn:
 			emulate_ud(ctxt);
 			goto done;
 		}
-		ops->get_dr(c->modrm_reg, &c->regs[c->modrm_rm], ctxt->vcpu);
-		c->dst.type = OP_NONE;	/* no writeback */
+		ops->get_dr(c->modrm_reg, &c->dst.val, ctxt->vcpu);
 		break;
 	case 0x22: /* mov reg, cr */
 		if (ops->set_cr(c->modrm_reg, c->src.val, ctxt->vcpu)) {
@@ -3265,7 +3264,7 @@ twobyte_insn:
 			goto done;
 		}
 
-		if (ops->set_dr(c->modrm_reg, c->regs[c->modrm_rm] &
+		if (ops->set_dr(c->modrm_reg, c->src.val &
 				((ctxt->mode == X86EMUL_MODE_PROT64) ?
 				 ~0ULL : ~0U), ctxt->vcpu) < 0) {
 			/* #UD condition is already handled by the code above */
