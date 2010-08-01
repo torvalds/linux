@@ -2358,9 +2358,8 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt)
 done_prefixes:
 
 	/* REX prefix. */
-	if (c->rex_prefix)
-		if (c->rex_prefix & 8)
-			c->op_bytes = 8;	/* REX.W */
+	if (c->rex_prefix & 8)
+		c->op_bytes = 8;	/* REX.W */
 
 	/* Opcode byte(s). */
 	opcode = opcode_table[c->b];
