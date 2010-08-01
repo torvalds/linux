@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/input.h>
+#include <media/ir-core.h>
 
 #include "smscoreapi.h"
 #include "smsir.h"
@@ -247,6 +248,7 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 int sms_ir_init(struct smscore_device_t *coredev)
 {
 	struct input_dev *input_dev;
+	int board_id = smscore_get_board_id(coredev);
 
 	sms_log("Allocating input device");
 	input_dev = input_allocate_device();
@@ -256,8 +258,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	}
 
 	coredev->ir.input_dev = input_dev;
-	coredev->ir.ir_kb_type =
-		sms_get_board(smscore_get_board_id(coredev))->ir_kb_type;
+	coredev->ir.ir_kb_type = sms_get_board(board_id)->ir_kb_type;
 	coredev->ir.keyboard_layout_map =
 		keyboard_layout_maps[coredev->ir.ir_kb_type].
 				keyboard_layout_map;
@@ -269,11 +270,15 @@ int sms_ir_init(struct smscore_device_t *coredev)
 			coredev->ir.controller, coredev->ir.timeout);
 
 	snprintf(coredev->ir.name,
-				IR_DEV_NAME_MAX_LEN,
-				"SMS IR w/kbd type %d",
-				coredev->ir.ir_kb_type);
+				sizeof(coredev->ir.name),
+				"SMS IR (%s)",
+				sms_get_board(board_id)->name);
+
+	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
+	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
+
 	input_dev->name = coredev->ir.name;
-	input_dev->phys = coredev->ir.name;
+	input_dev->phys = coredev->ir.phys;
 	input_dev->dev.parent = coredev->device;
 
 	/* Key press events only */

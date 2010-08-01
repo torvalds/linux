@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <linux/input.h>
 
-#define IR_DEV_NAME_MAX_LEN		23 /* "SMS IR kbd type nn\0" */
+#define IR_DEV_NAME_MAX_LEN		40
 #define IR_KEYBOARD_LAYOUT_SIZE	64
 #define IR_DEFAULT_TIMEOUT		100
 
@@ -78,7 +78,8 @@ struct smscore_device_t;
 struct ir_t {
 	struct input_dev *input_dev;
 	enum ir_kb_type ir_kb_type;
-	char name[IR_DEV_NAME_MAX_LEN+1];
+	char name[IR_DEV_NAME_MAX_LEN + 1];
+	char phys[32];
 	u16 *keyboard_layout_map;
 	u32 timeout;
 	u32 controller;
