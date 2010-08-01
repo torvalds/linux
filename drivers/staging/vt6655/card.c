@@ -365,7 +365,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 /*
@@ -380,7 +380,7 @@ BOOL CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktTyp
         return TXbTD1Send(pDevice, pPacket, uLength);
     }
 
-    return (TRUE);
+    return (true);
 }
 */
 
@@ -394,7 +394,7 @@ BOOL CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktTyp
  *  Out:
  *      none
  *
- * Return Value: TRUE if short preamble; otherwise FALSE
+ * Return Value: true if short preamble; otherwise FALSE
  *
  */
 BOOL CARDbIsShortPreamble (void *pDeviceHandler)
@@ -403,7 +403,7 @@ BOOL CARDbIsShortPreamble (void *pDeviceHandler)
     if (pDevice->byPreambleType == 0) {
         return(FALSE);
     }
-    return(TRUE);
+    return(true);
 }
 
 /*
@@ -415,7 +415,7 @@ BOOL CARDbIsShortPreamble (void *pDeviceHandler)
  *  Out:
  *      none
  *
- * Return Value: TRUE if short slot time; otherwise FALSE
+ * Return Value: true if short slot time; otherwise FALSE
  *
  */
 BOOL CARDbIsShorSlotTime (void *pDeviceHandler)
@@ -587,7 +587,7 @@ BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigne
         pDevice->bySlot = bySlot;
         VNSvOutPortB(pDevice->PortOffset + MAC_REG_SLOT, pDevice->bySlot);
         if (pDevice->bySlot == C_SLOT_SHORT) {
-            pDevice->bShortSlotTime = TRUE;
+            pDevice->bShortSlotTime = true;
         } else {
             pDevice->bShortSlotTime = FALSE;
         }
@@ -605,7 +605,7 @@ BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigne
     s_vSetRSPINF(pDevice, ePHYType, pSupportRates, pExtSupportRates);
     pDevice->eCurrentPHYType = ePHYType;
     // set for NDIS OID_802_11SUPPORTED_RATES
-    return (TRUE);
+    return (true);
 }
 
 /*
@@ -641,7 +641,7 @@ BOOL CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTi
         VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST + 4, HIDWORD(qwTSFOffset));
         MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TSFSYNCEN);
     }
-    return(TRUE);
+    return(true);
 }
 
 
@@ -656,7 +656,7 @@ BOOL CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTi
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeed; otherwise FALSE
+ * Return Value: true if succeed; otherwise FALSE
  *
  */
 BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
@@ -695,7 +695,7 @@ BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 
-    return(TRUE);
+    return(true);
 }
 
 
@@ -710,7 +710,7 @@ BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, unsigned short wBeaconInterval)
  *  Out:
  *      none
  *
- * Return Value: TRUE if all data packet complete; otherwise FALSE.
+ * Return Value: true if all data packet complete; otherwise FALSE.
  *
  */
 BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
@@ -719,19 +719,19 @@ BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 
 
     if (ePktType == PKT_TYPE_802_11_ALL) {
-        pDevice->bStopBeacon = TRUE;
-        pDevice->bStopTx0Pkt = TRUE;
-        pDevice->bStopDataPkt = TRUE;
+        pDevice->bStopBeacon = true;
+        pDevice->bStopTx0Pkt = true;
+        pDevice->bStopDataPkt = true;
     } else if (ePktType == PKT_TYPE_802_11_BCN) {
-        pDevice->bStopBeacon = TRUE;
+        pDevice->bStopBeacon = true;
     } else if (ePktType == PKT_TYPE_802_11_MNG) {
-        pDevice->bStopTx0Pkt = TRUE;
+        pDevice->bStopTx0Pkt = true;
     } else if (ePktType == PKT_TYPE_802_11_DATA) {
-        pDevice->bStopDataPkt = TRUE;
+        pDevice->bStopDataPkt = true;
     }
 
-    if (pDevice->bStopBeacon == TRUE) {
-        if (pDevice->bIsBeaconBufReadySet == TRUE) {
+    if (pDevice->bStopBeacon == true) {
+        if (pDevice->bIsBeaconBufReadySet == true) {
             if (pDevice->cbBeaconBufReadySetCnt < WAIT_BEACON_TX_DOWN_TMO) {
                 pDevice->cbBeaconBufReadySetCnt ++;
                 return(FALSE);
@@ -742,19 +742,19 @@ BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
         MACvRegBitsOff(pDevice->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
     }
     // wait all TD0 complete
-    if (pDevice->bStopTx0Pkt == TRUE) {
+    if (pDevice->bStopTx0Pkt == true) {
          if (pDevice->iTDUsed[TYPE_TXDMA0] != 0){
             return(FALSE);
         }
     }
     // wait all Data TD complete
-    if (pDevice->bStopDataPkt == TRUE) {
+    if (pDevice->bStopDataPkt == true) {
         if (pDevice->iTDUsed[TYPE_AC0DMA] != 0){
             return(FALSE);
         }
     }
 
-    return(TRUE);
+    return(true);
 }
 
 
@@ -768,7 +768,7 @@ BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; FALSE if failed.
+ * Return Value: true if success; FALSE if failed.
  *
  */
 BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
@@ -789,12 +789,12 @@ BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
     }
 
     if ((pDevice->bStopBeacon == FALSE) &&
-        (pDevice->bBeaconBufReady == TRUE) &&
+        (pDevice->bBeaconBufReady == true) &&
         (pDevice->eOPMode == OP_MODE_ADHOC)) {
         MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
     }
 
-    return(TRUE);
+    return(true);
 }
 
 
@@ -810,7 +810,7 @@ BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; FALSE if failed.
+ * Return Value: true if success; FALSE if failed.
  *
  */
 BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode)
@@ -837,14 +837,14 @@ BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
     } else {
         if (is_zero_ether_addr(pDevice->abyBSSID) == FALSE) {
             MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
-            pDevice->bBSSIDFilter = TRUE;
+            pDevice->bBSSIDFilter = true;
             pDevice->byRxMode |= RCR_BSSID;
 	    }
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wmgr: rx_mode = %x\n", pDevice->byRxMode );
     }
     // Adopt BSS state in Adapter Device Object
     pDevice->eOPMode = eOPMode;
-    return(TRUE);
+    return(true);
 }
 
 
@@ -858,7 +858,7 @@ BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; FALSE if failed.
+ * Return Value: true if success; FALSE if failed.
  *
  */
 
@@ -879,7 +879,7 @@ BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeed; otherwise FALSE
+ * Return Value: true if succeed; otherwise FALSE
  *
  */
 BOOL CARDbSetTxDataRate(
@@ -890,7 +890,7 @@ BOOL CARDbSetTxDataRate(
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
     pDevice->wCurrentRate = wDataRate;
-    return(TRUE);
+    return(true);
 }
 
 /*+
@@ -904,7 +904,7 @@ BOOL CARDbSetTxDataRate(
  *  Out:
  *      none
  *
- * Return Value: TRUE if power down success; otherwise FALSE
+ * Return Value: true if power down success; otherwise FALSE
  *
 -*/
 BOOL
@@ -917,7 +917,7 @@ CARDbPowerDown(
 
     // check if already in Doze mode
     if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS))
-        return TRUE;
+        return true;
 
     // Froce PSEN on
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
@@ -931,7 +931,7 @@ CARDbPowerDown(
 
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Go to Doze ZZZZZZZZZZZZZZZ\n");
-    return TRUE;
+    return true;
 }
 
 /*
@@ -943,16 +943,16 @@ CARDbPowerDown(
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL CARDbRadioPowerOff (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = TRUE;
+    BOOL        bResult = true;
 
-    if (pDevice->bRadioOff == TRUE)
-        return TRUE;
+    if (pDevice->bRadioOff == true)
+        return true;
 
 
     switch (pDevice->byRFType) {
@@ -975,7 +975,7 @@ BOOL CARDbRadioPowerOff (void *pDeviceHandler)
 
     BBvSetDeepSleep(pDevice->PortOffset, pDevice->byLocalID);
 
-    pDevice->bRadioOff = TRUE;
+    pDevice->bRadioOff = true;
      //2007-0409-03,<Add> by chester
 printk("chester power off\n");
 MACvRegBitsOn(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET);  //LED issue
@@ -992,23 +992,23 @@ MACvRegBitsOn(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET);  //LED issue
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL CARDbRadioPowerOn (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = TRUE;
+    BOOL        bResult = true;
 printk("chester power on\n");
-    if (pDevice->bRadioControlOff == TRUE){
-if (pDevice->bHWRadioOff == TRUE) printk("chester bHWRadioOff\n");
-if (pDevice->bRadioControlOff == TRUE) printk("chester bRadioControlOff\n");
+    if (pDevice->bRadioControlOff == true){
+if (pDevice->bHWRadioOff == true) printk("chester bHWRadioOff\n");
+if (pDevice->bRadioControlOff == true) printk("chester bRadioControlOff\n");
         return FALSE;}
 
     if (pDevice->bRadioOff == FALSE)
        {
 printk("chester pbRadioOff\n");
-return TRUE;}
+return true;}
 
     BBvExitDeepSleep(pDevice->PortOffset, pDevice->byLocalID);
 
@@ -1044,7 +1044,7 @@ BOOL CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID)
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
     KeybRemoveAllKey(&(pDevice->sKey), pbyBSSID, pDevice->PortOffset);
-    return (TRUE);
+    return (true);
 }
 
 
@@ -1093,18 +1093,18 @@ CARDbAdd_PMKID_Candidate (
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
         pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
         if ( !memcmp(pCandidateList->BSSID, pbyBSSID, ETH_ALEN)) {
-            if ((bRSNCapExist == TRUE) && (wRSNCap & BIT0)) {
+            if ((bRSNCapExist == true) && (wRSNCap & BIT0)) {
                 pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
             } else {
                 pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
             }
-            return TRUE;
+            return true;
         }
     }
 
     // New Candidate
     pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[pDevice->gsPMKIDCandidate.NumCandidates];
-    if ((bRSNCapExist == TRUE) && (wRSNCap & BIT0)) {
+    if ((bRSNCapExist == true) && (wRSNCap & BIT0)) {
         pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
     } else {
         pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
@@ -1112,7 +1112,7 @@ CARDbAdd_PMKID_Candidate (
     memcpy(pCandidateList->BSSID, pbyBSSID, ETH_ALEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
-    return TRUE;
+    return true;
 }
 
 void *
@@ -1150,15 +1150,15 @@ CARDbStartMeasure (
     PWLAN_IE_MEASURE_REQ    pEID = (PWLAN_IE_MEASURE_REQ) pvMeasureEIDs;
     QWORD                   qwCurrTSF;
     QWORD                   qwStartTSF;
-    BOOL                    bExpired = TRUE;
+    BOOL                    bExpired = true;
     unsigned short wDuration = 0;
 
     if ((pEID == NULL) ||
         (uNumOfMeasureEIDs == 0)) {
-        return (TRUE);
+        return (true);
     }
     CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
-    if (pDevice->bMeasureInProgress == TRUE) {
+    if (pDevice->bMeasureInProgress == true) {
         pDevice->bMeasureInProgress = FALSE;
         VNSvOutPortB(pDevice->PortOffset + MAC_REG_RCR, pDevice->byOrgRCR);
         MACvSelectPage1(pDevice->PortOffset);
@@ -1240,7 +1240,7 @@ CARDbStartMeasure (
     } else {
         // all measure start time expired we should complete action
         VNTWIFIbMeasureReport(  pDevice->pMgmt,
-                                TRUE,
+                                true,
                                 NULL,
                                 0,
                                 pDevice->byBasicMap,
@@ -1248,7 +1248,7 @@ CARDbStartMeasure (
                                 pDevice->abyRPIs
                                 );
     }
-    return (TRUE);
+    return (true);
 }
 
 
@@ -1275,7 +1275,7 @@ CARDbChannelSwitch (
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bResult = TRUE;
+    BOOL        bResult = true;
 
     if (byCount == 0) {
         bResult = set_channel(pDevice, byNewChannel);
@@ -1287,7 +1287,7 @@ CARDbChannelSwitch (
     }
     pDevice->byChannelSwitchCount = byCount;
     pDevice->byNewChannel = byNewChannel;
-    pDevice->bChannelSwitch = TRUE;
+    pDevice->bChannelSwitch = true;
     if (byMode == 1) {
         bResult=CARDbStopTxPacket(pDevice, PKT_TYPE_802_11_ALL);
     }
@@ -1322,7 +1322,7 @@ CARDbSetQuiet (
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     unsigned int ii = 0;
 
-    if (bResetQuiet == TRUE) {
+    if (bResetQuiet == true) {
         MACvRegBitsOff(pDevice->PortOffset, MAC_REG_MSRCTL, (MSRCTL_QUIETTXCHK | MSRCTL_QUIETEN));
         for(ii=0;ii<MAX_QUIET_COUNT;ii++) {
             pDevice->sQuiet[ii].bEnable = FALSE;
@@ -1333,7 +1333,7 @@ CARDbSetQuiet (
         pDevice->byQuietStartCount = byQuietCount;
     }
     if (pDevice->sQuiet[pDevice->uQuietEnqueue].bEnable == FALSE) {
-        pDevice->sQuiet[pDevice->uQuietEnqueue].bEnable = TRUE;
+        pDevice->sQuiet[pDevice->uQuietEnqueue].bEnable = true;
         pDevice->sQuiet[pDevice->uQuietEnqueue].byPeriod = byQuietPeriod;
         pDevice->sQuiet[pDevice->uQuietEnqueue].wDuration = wQuietDuration;
         pDevice->sQuiet[pDevice->uQuietEnqueue].dwStartTime = (unsigned long) byQuietCount;
@@ -1347,7 +1347,7 @@ CARDbSetQuiet (
     } else {
         // we can not handle Quiet EID more
     }
-    return (TRUE);
+    return (true);
 }
 
 
@@ -1379,7 +1379,7 @@ CARDbStartQuiet (
     unsigned long dwDuration = 0;
 
     for(ii=0;ii<MAX_QUIET_COUNT;ii++) {
-        if ((pDevice->sQuiet[ii].bEnable == TRUE) &&
+        if ((pDevice->sQuiet[ii].bEnable == true) &&
             (dwStartTime > pDevice->sQuiet[ii].dwStartTime)) {
             dwStartTime = pDevice->sQuiet[ii].dwStartTime;
             uCurrentQuietIndex = ii;
@@ -1402,7 +1402,7 @@ CARDbStartQuiet (
                 pDevice->bEnableFirstQuiet = FALSE;
                 MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL, (MSRCTL_QUIETTXCHK | MSRCTL_QUIETEN));
             } else {
-                pDevice->bEnableFirstQuiet = TRUE;
+                pDevice->bEnableFirstQuiet = true;
             }
             MACvSelectPage0(pDevice->PortOffset);
         } else {
@@ -1426,7 +1426,7 @@ CARDbStartQuiet (
             MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL, MSRCTL_QUIETRPT);
             MACvSelectPage0(pDevice->PortOffset);
         }
-        pDevice->bQuietEnable = TRUE;
+        pDevice->bQuietEnable = true;
         pDevice->dwCurrentQuietEndTime = pDevice->sQuiet[uCurrentQuietIndex].dwStartTime;
         pDevice->dwCurrentQuietEndTime += pDevice->sQuiet[uCurrentQuietIndex].wDuration;
         if (pDevice->sQuiet[uCurrentQuietIndex].byPeriod == 0) {
@@ -1441,14 +1441,14 @@ CARDbStartQuiet (
         if (pDevice->dwCurrentQuietEndTime > 0x80010000) {
             // decreament all time to avoid wrap around
             for(ii=0;ii<MAX_QUIET_COUNT;ii++) {
-                if (pDevice->sQuiet[ii].bEnable == TRUE) {
+                if (pDevice->sQuiet[ii].bEnable == true) {
                     pDevice->sQuiet[ii].dwStartTime -= 0x80000000;
                 }
             }
             pDevice->dwCurrentQuietEndTime -= 0x80000000;
         }
     }
-    return (TRUE);
+    return (true);
 }
 
 /*
@@ -1475,11 +1475,11 @@ CARDvSetPowerConstraint (
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
     if (byChannel > CB_MAX_CHANNEL_24G) {
-        if (pDevice->bCountryInfo5G == TRUE) {
+        if (pDevice->bCountryInfo5G == true) {
             pDevice->abyLocalPwr[byChannel] = pDevice->abyRegPwr[byChannel] - byPower;
         }
     } else {
-        if (pDevice->bCountryInfo24G == TRUE) {
+        if (pDevice->bCountryInfo24G == true) {
             pDevice->abyLocalPwr[byChannel] = pDevice->abyRegPwr[byChannel] - byPower;
         }
     }
@@ -1943,7 +1943,7 @@ void CARDvUpdateBasicTopRate (void *pDeviceHandler)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL CARDbAddBasicRate (void *pDeviceHandler, unsigned short wRateIdx)
@@ -1956,7 +1956,7 @@ BOOL CARDbAddBasicRate (void *pDeviceHandler, unsigned short wRateIdx)
     //Determines the highest basic rate.
     CARDvUpdateBasicTopRate((void *)pDevice);
 
-    return(TRUE);
+    return(true);
 }
 
 BOOL CARDbIsOFDMinBasicRate (void *pDeviceHandler)
@@ -1966,7 +1966,7 @@ BOOL CARDbIsOFDMinBasicRate (void *pDeviceHandler)
 
     for (ii = RATE_54M; ii >= RATE_6M; ii --) {
         if ((pDevice->wBasicRate) & ((unsigned short)(1<<ii)))
-            return TRUE;
+            return true;
     }
     return FALSE;
 }
@@ -2036,7 +2036,7 @@ BOOL CARDbSoftwareReset (void *pDeviceHandler)
     if (!MACbSafeSoftwareReset(pDevice->PortOffset))
         return FALSE;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -2089,7 +2089,7 @@ QWORD CARDqGetTSFOffset (unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
  *  Out:
  *      qwCurrTSF       - Current TSF counter
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
@@ -2108,7 +2108,7 @@ BOOL CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
     VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR, &LODWORD(*pqwCurrTSF));
     VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR + 4, &HIDWORD(*pqwCurrTSF));
 
-    return(TRUE);
+    return(true);
 }
 
 

@@ -471,7 +471,7 @@ const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL s_bAL7230Init (unsigned long dwIoBase)
@@ -479,7 +479,7 @@ BOOL s_bAL7230Init (unsigned long dwIoBase)
     int     ii;
     BOOL    bResult;
 
-    bResult = TRUE;
+    bResult = true;
 
     //3-wire control for normal mode
     VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
@@ -521,7 +521,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
     BOOL    bResult;
 
-    bResult = TRUE;
+    bResult = true;
 
     // PLLON Off
     MACvWordRegBitsOff(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
@@ -552,7 +552,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -567,7 +567,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -585,7 +585,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -599,7 +599,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -619,7 +619,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
@@ -640,7 +640,7 @@ BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
 //        DBG_PORT80_ALWAYS(0x32);
         return FALSE;
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -654,7 +654,7 @@ BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -668,7 +668,7 @@ BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -681,7 +681,7 @@ BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL RFbAL2230Init (unsigned long dwIoBase)
@@ -689,7 +689,7 @@ BOOL RFbAL2230Init (unsigned long dwIoBase)
     int     ii;
     BOOL    bResult;
 
-    bResult = TRUE;
+    bResult = true;
 
     //3-wire control for normal mode
     VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
@@ -738,7 +738,7 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
     BOOL    bResult;
 
-    bResult = TRUE;
+    bResult = true;
 
     bResult &= IFRFbWriteEmbeded (dwIoBase, dwAL2230ChannelTable0[byChannel-1]);
     bResult &= IFRFbWriteEmbeded (dwIoBase, dwAL2230ChannelTable1[byChannel-1]);
@@ -761,7 +761,7 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -776,7 +776,7 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -790,7 +790,7 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -804,14 +804,14 @@ BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL RFbInit (
     PSDevice  pDevice
     )
 {
-BOOL    bResult = TRUE;
+BOOL    bResult = true;
     switch (pDevice->byRFType) {
         case RF_AIROHA :
         case RF_AL2230S:
@@ -823,7 +823,7 @@ BOOL    bResult = TRUE;
             bResult = s_bAL7230Init(pDevice->PortOffset);
             break;
         case RF_NOTHING :
-            bResult = TRUE;
+            bResult = true;
             break;
         default :
             bResult = FALSE;
@@ -842,21 +842,21 @@ BOOL    bResult = TRUE;
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL RFbShutDown (
     PSDevice  pDevice
     )
 {
-BOOL    bResult = TRUE;
+BOOL    bResult = true;
 
     switch (pDevice->byRFType) {
         case RF_AIROHA7230 :
             bResult = IFRFbWriteEmbeded (pDevice->PortOffset, 0x1ABAEF00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW);
             break;
         default :
-            bResult = TRUE;
+            bResult = true;
             break;
     }
     return bResult;
@@ -872,12 +872,12 @@ BOOL    bResult = TRUE;
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL RFbSelectChannel (unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
 {
-BOOL    bResult = TRUE;
+BOOL    bResult = true;
     switch (byRFType) {
 
         case RF_AIROHA :
@@ -890,7 +890,7 @@ BOOL    bResult = TRUE;
             break;
         //}} RobertYu
         case RF_NOTHING :
-            bResult = TRUE;
+            bResult = true;
             break;
         default:
             bResult = FALSE;
@@ -970,7 +970,7 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsign
         //}} RobertYu
 
         case RF_NOTHING :
-            return TRUE;
+            return true;
             break;
 
         default:
@@ -980,7 +980,7 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsign
 
     MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (unsigned long )MAKEWORD(bySleepCount, byInitCount));
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -993,7 +993,7 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsign
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL RFbSetPower (
@@ -1002,13 +1002,13 @@ BOOL RFbSetPower (
     unsigned int uCH
     )
 {
-BOOL    bResult = TRUE;
+BOOL    bResult = true;
 unsigned char byPwr = 0;
 unsigned char byDec = 0;
 unsigned char byPwrdBm = 0;
 
     if (pDevice->dwDiagRefCount != 0) {
-        return TRUE;
+        return true;
     }
     if ((uCH < 1) || (uCH > CB_MAX_CHANNEL)) {
         return FALSE;
@@ -1070,7 +1070,7 @@ unsigned char byPwrdBm = 0;
 #if 0
 
     // 802.11h TPC
-    if (pDevice->bLinkPass == TRUE) {
+    if (pDevice->bLinkPass == true) {
         // do not over local constraint
         if (byPwrdBm > pDevice->abyLocalPwr[uCH]) {
             pDevice->byCurPwrdBm = pDevice->abyLocalPwr[uCH];
@@ -1111,11 +1111,11 @@ unsigned char byPwrdBm = 0;
 
 //    if (pDevice->byLocalID <= REV_ID_VT3253_B1) {
     if (pDevice->byCurPwr == byPwr) {
-        return TRUE;
+        return true;
     }
     bResult = RFbRawSetPower(pDevice, byPwr, uRATE);
 //    }
-    if (bResult == TRUE) {
+    if (bResult == true) {
        pDevice->byCurPwr = byPwr;
     }
     return bResult;
@@ -1131,7 +1131,7 @@ unsigned char byPwrdBm = 0;
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
@@ -1141,7 +1141,7 @@ BOOL RFbRawSetPower (
     unsigned int uRATE
     )
 {
-BOOL    bResult = TRUE;
+BOOL    bResult = true;
 unsigned long dwMax7230Pwr = 0;
 
     if (byPwr >=  pDevice->byMaxPwrLevel) {
@@ -1236,7 +1236,7 @@ BOOL RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, unsigned char by
 {
     BOOL    bResult;
 
-    bResult = TRUE;
+    bResult = true;
 
     // if change between 11 b/g and 11a need to update the following register
     // Channel Index 1~14

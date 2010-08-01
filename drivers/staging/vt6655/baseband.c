@@ -1740,13 +1740,13 @@ s_vChangeAntenna (
 #endif
     if ( pDevice->dwRxAntennaSel == 0) {
         pDevice->dwRxAntennaSel=1;
-        if (pDevice->bTxRxAntInv == TRUE)
+        if (pDevice->bTxRxAntInv == true)
             BBvSetRxAntennaMode(pDevice->PortOffset, ANT_A);
         else
             BBvSetRxAntennaMode(pDevice->PortOffset, ANT_B);
     } else {
         pDevice->dwRxAntennaSel=0;
-        if (pDevice->bTxRxAntInv == TRUE)
+        if (pDevice->bTxRxAntInv == true)
             BBvSetRxAntennaMode(pDevice->PortOffset, ANT_B);
         else
             BBvSetRxAntennaMode(pDevice->PortOffset, ANT_A);
@@ -1900,7 +1900,7 @@ BBvCaculateParameter (
         if (cbTmp != cbBitCount) {
             cbUsCount ++;
             if ((cbBitCount - cbTmp) <= 3)
-                bExtBit = TRUE;
+                bExtBit = true;
         }
         if (byPreambleType == 1)
             *pbyPhySgn = 0x0b;
@@ -2012,7 +2012,7 @@ BBvCaculateParameter (
  *  Out:
  *      pbyData     - data read
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData)
@@ -2040,7 +2040,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
         return FALSE;
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -2055,7 +2055,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData)
@@ -2082,7 +2082,7 @@ BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
         return FALSE;
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -2097,7 +2097,7 @@ BOOL BBbWriteEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  *  Out:
  *      none
  *
- * Return Value: TRUE if all TestBits are set; FALSE otherwise.
+ * Return Value: true if all TestBits are set; FALSE otherwise.
  *
  */
 BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
@@ -2120,7 +2120,7 @@ BOOL BBbIsRegBitsOn (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
  *  Out:
  *      none
  *
- * Return Value: TRUE if all TestBits are clear; FALSE otherwise.
+ * Return Value: true if all TestBits are clear; FALSE otherwise.
  *
  */
 BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
@@ -2142,13 +2142,13 @@ BOOL BBbIsRegBitsOff (unsigned long dwIoBase, unsigned char byBBAddr, unsigned c
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 
 BOOL BBbVT3253Init (PSDevice pDevice)
 {
-    BOOL       bResult = TRUE;
+    BOOL       bResult = true;
     int        ii;
     unsigned long dwIoBase = pDevice->PortOffset;
     unsigned char byRFType = pDevice->byRFType;

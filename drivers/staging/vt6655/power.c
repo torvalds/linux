@@ -115,7 +115,7 @@ PSvEnablePowerSaving(
 
     // enable power saving hw function
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
-    pDevice->bEnablePSMode = TRUE;
+    pDevice->bEnablePSMode = true;
 
     if (pDevice->eOPMode == OP_MODE_ADHOC) {
 //        bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
@@ -124,7 +124,7 @@ PSvEnablePowerSaving(
     else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
         PSbSendNullPacket(pDevice);
     }
-    pDevice->bPWBitOn = TRUE;
+    pDevice->bPWBitOn = true;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
     return;
 }
@@ -177,7 +177,7 @@ PSvDisablePowerSaving(
  * Consider to power down when no more packets to tx or rx.
  *
  * Return Value:
- *    TRUE, if power down success
+ *    true, if power down success
  *    FALSE, if fail
 -*/
 
@@ -195,7 +195,7 @@ PSbConsiderPowerDown(
 
     // check if already in Doze mode
     if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS))
-        return TRUE;
+        return true;
 
     if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
         // check if in TIM wake period
@@ -233,7 +233,7 @@ PSbConsiderPowerDown(
     // no Tx, no Rx isr, now go to Doze
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
-    return TRUE;
+    return true;
 }
 
 
@@ -369,7 +369,7 @@ PSbSendNullPacket(
     }
 
 
-    return TRUE ;
+    return true ;
 }
 
 /*+
@@ -402,7 +402,7 @@ PSbIsNextTBTTWakeUp(
         if (pMgmt->wCountToWakeUp == 1) {
             // Turn on wake up to listen next beacon
             MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
-            bWakeUp = TRUE;
+            bWakeUp = true;
         }
 
     }

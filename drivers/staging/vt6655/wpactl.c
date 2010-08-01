@@ -252,7 +252,7 @@ spin_lock_irq(&pDevice->lock);
         else {
             if (param->u.wpa_key.set_tx) {
                 pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
-                pDevice->bTransmitKey = TRUE;
+                pDevice->bTransmitKey = true;
 		        dwKeyIndex |= (1 << 31);
             }
             KeybSetDefaultKey(&(pDevice->sKey),
@@ -266,7 +266,7 @@ spin_lock_irq(&pDevice->lock);
 
         }
         pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-        pDevice->bEncryptionEnable = TRUE;
+        pDevice->bEncryptionEnable = true;
         return ret;
 	}
 
@@ -362,7 +362,7 @@ spin_lock_irq(&pDevice->lock);
                             (unsigned char *)abyKey,
                             byKeyDecMode,
                             pDevice->PortOffset,
-                            pDevice->byLocalID) == TRUE) &&
+                            pDevice->byLocalID) == true) &&
             (KeybSetDefaultKey(&(pDevice->sKey),
                             dwKeyIndex,
                             param->u.wpa_key.key_len,
@@ -370,7 +370,7 @@ spin_lock_irq(&pDevice->lock);
                             (unsigned char *)abyKey,
                             byKeyDecMode,
                             pDevice->PortOffset,
-                            pDevice->byLocalID) == TRUE) ) {
+                            pDevice->byLocalID) == true) ) {
              DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
 
         } else {
@@ -403,7 +403,7 @@ spin_lock_irq(&pDevice->lock);
                        (unsigned char *)abyKey,
                         byKeyDecMode,
                         pDevice->PortOffset,
-                        pDevice->byLocalID) == TRUE) {
+                        pDevice->byLocalID) == true) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 
         } else {
@@ -423,9 +423,9 @@ spin_lock_irq(&pDevice->lock);
     } // BSSID not 0xffffffffffff
     if ((ret == 0) && ((param->u.wpa_key.set_tx) != 0)) {
         pDevice->byKeyIndex = (unsigned char)param->u.wpa_key.key_index;
-        pDevice->bTransmitKey = TRUE;
+        pDevice->bTransmitKey = true;
     }
-    pDevice->bEncryptionEnable = TRUE;
+    pDevice->bEncryptionEnable = true;
     //spin_unlock_irq(&pDevice->lock);
 
 /*
@@ -639,7 +639,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
          for(jj=0;jj<MAX_BSS_NUM-ii-1;jj++) {
 
-           if((pMgmt->sBSSList[jj].bActive!=TRUE) ||
+           if((pMgmt->sBSSList[jj].bActive!=true) ||
 
                 ((pMgmt->sBSSList[jj].uRSSI>pMgmt->sBSSList[jj+1].uRSSI) &&(pMgmt->sBSSList[jj+1].bActive!=FALSE))) {
 
@@ -817,7 +817,7 @@ else
 	case CIPHER_WEP40:
 	case CIPHER_WEP104:
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-		bWepEnabled=TRUE;
+		bWepEnabled=true;
 		break;
 	case CIPHER_NONE:
 		if (param->u.wpa_associate.group_suite == CIPHER_CCMP)
@@ -834,7 +834,7 @@ else
       if (pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) {
             pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
             //pMgmt->eAuthenMode = WMAC_AUTH_SHAREKEY;
-            pMgmt->bShareKeyAlgorithm = TRUE;
+            pMgmt->bShareKeyAlgorithm = true;
              }
      else if (pMgmt->eAuthenMode == WMAC_AUTH_OPEN) {
           if(!bWepEnabled)  pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
@@ -846,11 +846,11 @@ else
 	pDevice->eOldEncryptionStatus = pDevice->eEncryptionStatus;
 
     if (pDevice->eEncryptionStatus !=  Ndis802_11EncryptionDisabled)
-        pDevice->bEncryptionEnable = TRUE;
+        pDevice->bEncryptionEnable = true;
     else
         pDevice->bEncryptionEnable = FALSE;
 if (!((pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) ||
-      ((pMgmt->eAuthenMode == WMAC_AUTH_OPEN) && (bWepEnabled==TRUE))) )  //DavidWang  //20080717-06,<Modify> by chester//Not to initial WEP
+      ((pMgmt->eAuthenMode == WMAC_AUTH_OPEN) && (bWepEnabled==true))) )  //DavidWang  //20080717-06,<Modify> by chester//Not to initial WEP
     KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
     spin_lock_irq(&pDevice->lock);
     pDevice->bLinkPass = FALSE;

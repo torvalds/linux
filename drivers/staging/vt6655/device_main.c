@@ -396,7 +396,7 @@ device_set_bool_opt(unsigned int *opt, int val,BOOL def,u32 flag, char* name,cha
         *opt|=(def ? flag : 0);
     } else {
         DBG_PRT(MSG_LEVEL_INFO, KERN_NOTICE "%s: set parameter %s to %s\n",
-            devname,name , val ? "TRUE" : "FALSE");
+            devname,name , val ? "true" : "FALSE");
         *opt|=(val ? flag : 0);
     }
 }
@@ -452,7 +452,7 @@ device_set_options(PSDevice pDevice) {
     pDevice->b11hEnable = (pDevice->sOpts.flags & DEVICE_FLAGS_80211h_MODE) ? 1 : 0;
     pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
     pDevice->uConnectionRate = pDevice->sOpts.data_rate;
-    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = TRUE;
+    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
     pDevice->byBBType = pDevice->sOpts.bbp_type;
     pDevice->byPacketType = pDevice->byBBType;
 
@@ -460,7 +460,7 @@ device_set_options(PSDevice pDevice) {
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 	//pDevice->byAutoFBCtrl = AUTO_FB_1;
 //PLICE_DEBUG<-
-pDevice->bUpdateBBVGA = TRUE;
+pDevice->bUpdateBBVGA = true;
     pDevice->byFOETuning = 0;
     pDevice->wCTSDuration = 0;
     pDevice->byPreambleType = 0;
@@ -498,7 +498,7 @@ static void s_vCompleteCurrentMeasure (PSDevice pDevice, unsigned char byResult)
 
      if (pDevice->uNumOfMeasureEIDs == 0) {
         VNTWIFIbMeasureReport(  pDevice->pMgmt,
-                                TRUE,
+                                true,
                                 pDevice->pCurrMeasureEID,
                                 byResult,
                                 pDevice->byBasicMap,
@@ -542,7 +542,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
         // Do MACbSoftwareReset in MACvInitialize
         MACbSoftwareReset(pDevice->PortOffset);
         // force CCK
-        pDevice->bCCK = TRUE;
+        pDevice->bCCK = true;
         pDevice->bAES = FALSE;
         pDevice->bProtectMode = FALSE;      //Only used in 11g type, sync with ERP IE
         pDevice->bNonERPPresent = FALSE;
@@ -572,7 +572,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
         // Get Antena
         byValue = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ANTENNA);
         if (byValue & EEP_ANTINV)
-            pDevice->bTxRxAntInv = TRUE;
+            pDevice->bTxRxAntInv = true;
         else
             pDevice->bTxRxAntInv = FALSE;
 #ifdef	PLICE_DEBUG
@@ -597,7 +597,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
             pDevice->byTxAntennaMode = ANT_B;
             pDevice->dwTxAntennaSel = 1;
             pDevice->dwRxAntennaSel = 1;
-            if (pDevice->bTxRxAntInv == TRUE)
+            if (pDevice->bTxRxAntInv == true)
                 pDevice->byRxAntennaMode = ANT_A;
             else
                 pDevice->byRxAntennaMode = ANT_B;
@@ -607,7 +607,7 @@ byValue1 = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ANTENNA);
           if((byValue1&0x08)==0)
                 pDevice->bDiversityEnable = FALSE;//SROMbyReadEmbedded(pDevice->PortOffset, 0x50);
             else
-                pDevice->bDiversityEnable = TRUE;
+                pDevice->bDiversityEnable = true;
 #ifdef	PLICE_DEBUG
 		//printk("aux |main antenna: RxAntennaMode is %d\n",pDevice->byRxAntennaMode);
 #endif
@@ -618,13 +618,13 @@ byValue1 = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ANTENNA);
             pDevice->dwRxAntennaSel = 0;
             if (byValue & EEP_ANTENNA_AUX) {
                 pDevice->byTxAntennaMode = ANT_A;
-                if (pDevice->bTxRxAntInv == TRUE)
+                if (pDevice->bTxRxAntInv == true)
                     pDevice->byRxAntennaMode = ANT_B;
                 else
                     pDevice->byRxAntennaMode = ANT_A;
             } else {
                 pDevice->byTxAntennaMode = ANT_B;
-                if (pDevice->bTxRxAntInv == TRUE)
+                if (pDevice->bTxRxAntInv == true)
                     pDevice->byRxAntennaMode = ANT_A;
                 else
                     pDevice->byRxAntennaMode = ANT_B;
@@ -792,21 +792,21 @@ else
             MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
 //2008-4-14 <add> by chester for led issue
  #ifdef FOR_LED_ON_NOTEBOOK
-if (pDevice->byGPIO & GPIO0_DATA){pDevice->bHWRadioOff = TRUE;}
+if (pDevice->byGPIO & GPIO0_DATA){pDevice->bHWRadioOff = true;}
 if ( !(pDevice->byGPIO & GPIO0_DATA)){pDevice->bHWRadioOff = FALSE;}
 
             }
-        if ( (pDevice->bRadioControlOff == TRUE)) {
+        if ( (pDevice->bRadioControlOff == true)) {
             CARDbRadioPowerOff(pDevice);
         }
 else  CARDbRadioPowerOn(pDevice);
 #else
             if (((pDevice->byGPIO & GPIO0_DATA) && !(pDevice->byRadioCtl & EEP_RADIOCTL_INV)) ||
                 ( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV))) {
-                pDevice->bHWRadioOff = TRUE;
+                pDevice->bHWRadioOff = true;
             }
         }
-        if ((pDevice->bHWRadioOff == TRUE) || (pDevice->bRadioControlOff == TRUE)) {
+        if ((pDevice->bHWRadioOff == true) || (pDevice->bRadioControlOff == true)) {
             CARDbRadioPowerOff(pDevice);
         }
 
@@ -876,7 +876,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
   int ii=0;
  // wait_queue_head_t	Set_wait;
   //send device close to wpa_supplicnat layer
-    if (pDevice->bWPADEVUp==TRUE) {
+    if (pDevice->bWPADEVUp==true) {
                  wpahdr = (viawget_wpa_header *)pDevice->skb->data;
                  wpahdr->type = VIAWGET_DEVICECLOSE_MSG;
                  wpahdr->resp_ie_len = 0;
@@ -893,7 +893,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
  //wait release WPADEV
               //    init_waitqueue_head(&Set_wait);
               //    wait_event_timeout(Set_wait, ((pDevice->wpadev==NULL)&&(pDevice->skb == NULL)),5*HZ);    //1s wait
-              while((pDevice->bWPADEVUp==TRUE)) {
+              while((pDevice->bWPADEVUp==true)) {
 	        set_current_state(TASK_UNINTERRUPTIBLE);
                  schedule_timeout (HZ/20);          //wait 50ms
                  ii++;
@@ -901,7 +901,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
 		  break;
               }
            };
-    return TRUE;
+    return true;
 }
 
 
@@ -919,7 +919,7 @@ static const struct net_device_ops device_netdev_ops = {
 static int __devinit
 vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 {
-    static BOOL bFirst = TRUE;
+    static BOOL bFirst = true;
     struct net_device*  dev = NULL;
     PCHIP_INFO  pChip_info = (PCHIP_INFO)ent->driver_data;
     PSDevice    pDevice;
@@ -1148,7 +1148,7 @@ static BOOL __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
 
     spin_lock_init(&((*ppDevice)->lock));
 
-    return TRUE;
+    return true;
 }
 
 static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
@@ -1214,7 +1214,7 @@ static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
 		}
 	}
 #endif
-    return TRUE;
+    return true;
 }
 
 static void device_free_info(PSDevice pDevice) {
@@ -1361,7 +1361,7 @@ static BOOL device_init_rings(PSDevice pDevice) {
             pDevice->sOpts.nTxDescs[1] * PKT_BUF_SZ;
 
 
-    return TRUE;
+    return true;
 }
 
 static void device_free_rings(PSDevice pDevice) {
@@ -1646,7 +1646,7 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
     pRD->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
     pRD->buff_addr = cpu_to_le32(pRDInfo->skb_dma);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1659,7 +1659,7 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
     ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1783,7 +1783,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
         // RESERV_AC0DMA reserved for relay
 
         if (AVAIL_TD(pDevice, uIdx) < RESERV_AC0DMA) {
-            bFull = TRUE;
+            bFull = true;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " AC0DMA is Full = %d\n", pDevice->iTDUsed[uIdx]);
         }
         if (netif_queue_stopped(pDevice->dev) && (bFull==FALSE)){
@@ -1994,7 +1994,7 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call device_init_registers\n");
     pDevice->byReAssocCount = 0;
    pDevice->bWPADEVUp = FALSE;
     // Patch: if WEP key already set by iwconfig but device not yet open
-    if ((pDevice->bEncryptionEnable == TRUE) && (pDevice->bTransmitKey == TRUE)) {
+    if ((pDevice->bEncryptionEnable == true) && (pDevice->bTransmitKey == true)) {
         KeybSetDefaultKey(&(pDevice->sKey),
                             (unsigned long)(pDevice->byKeyIndex | (1 << 31)),
                             pDevice->uKeyLength,
@@ -2099,7 +2099,7 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
         return 0;
     }
 
-    if (pDevice->bStopTx0Pkt == TRUE) {
+    if (pDevice->bStopTx0Pkt == true) {
         dev_kfree_skb_irq(skb);
         spin_unlock_irq(&pDevice->lock);
         return 0;
@@ -2132,7 +2132,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 //    unsigned char byKeyIndex = 0;
 
 
-    if (pDevice->bStopTx0Pkt == TRUE) {
+    if (pDevice->bStopTx0Pkt == true) {
         dev_kfree_skb_irq(skb);
         return FALSE;
     };
@@ -2205,15 +2205,15 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
     } else if (pDevice->eCurrentPHYType == PHY_TYPE_11A) {
         byPktType = PK_TYPE_11A;
     } else {
-        if (pDevice->bProtectMode == TRUE) {
+        if (pDevice->bProtectMode == true) {
             byPktType = PK_TYPE_11GB;
         } else {
             byPktType = PK_TYPE_11GA;
         }
     }
 
-    if (pDevice->bEncryptionEnable == TRUE)
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true)
+        bNeedEncryption = true;
 
     if (pDevice->bEnableHostWEP) {
         pTransmitKey = &STempKey;
@@ -2263,7 +2263,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
     MACvTransmit0(pDevice->PortOffset);
 
 
-    return TRUE;
+    return true;
 }
 
 //TYPE_AC0DMA data tx
@@ -2312,7 +2312,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
         }
         if (is_multicast_ether_addr((unsigned char *)(skb->data))) {
             uNodeIndex = 0;
-            bNodeExist = TRUE;
+            bNodeExist = true;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
                 skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skb);
                 pMgmt->sNodeDBTable[0].wEnQueueCnt++;
@@ -2341,7 +2341,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 }else {
                     pDevice->byPreambleType = PREAMBLE_LONG;
                 }
-                bNodeExist = TRUE;
+                bNodeExist = true;
 
             }
         }
@@ -2367,8 +2367,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     }
 
 
-    if (pDevice->bEncryptionEnable == TRUE) {
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true) {
+        bNeedEncryption = true;
         // get Transmit key
         do {
             if ((pDevice->pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
@@ -2377,8 +2377,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 // get pairwise key
                 if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == FALSE) {
                     // get group key
-                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == TRUE) {
-                        bTKIP_UseGTK = TRUE;
+                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == true) {
+                        bTKIP_UseGTK = true;
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
                         break;
                     }
@@ -2395,7 +2395,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"\n");
 
                 // get pairwise key
-                if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == TRUE)
+                if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == true)
                     break;
             }
             // get group key
@@ -2408,7 +2408,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 else
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"NOT IBSS and KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
             } else {
-                bTKIP_UseGTK = TRUE;
+                bTKIP_UseGTK = true;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
             }
         } while(FALSE);
@@ -2416,7 +2416,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 
     if (pDevice->bEnableHostWEP) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"acdma0: STA index %d\n", uNodeIndex);
-        if (pDevice->bEncryptionEnable == TRUE) {
+        if (pDevice->bEncryptionEnable == true) {
             pTransmitKey = &STempKey;
             pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
             pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
@@ -2524,7 +2524,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
     } else if (pDevice->eCurrentPHYType == PHY_TYPE_11A) {
         byPktType = PK_TYPE_11A;
     } else {
-        if (pDevice->bProtectMode == TRUE) {
+        if (pDevice->bProtectMode == true) {
             byPktType = PK_TYPE_11GB;
         } else {
             byPktType = PK_TYPE_11GA;
@@ -2535,7 +2535,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
 //	printk("FIX RATE:CurrentRate is %d");
 //#endif
 
-    if (bNeedEncryption == TRUE) {
+    if (bNeedEncryption == true) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ntohs Pkt Type=%04x\n", ntohs(pDevice->sTxEthHeader.wType));
         if ((pDevice->sTxEthHeader.wType) == TYPE_PKT_802_1x) {
             bNeedEncryption = FALSE;
@@ -2545,18 +2545,18 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Don't Find TX KEY\n");
                 }
                 else {
-                    if (bTKIP_UseGTK == TRUE) {
+                    if (bTKIP_UseGTK == true) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"error: KEY is GTK!!~~\n");
                     }
                     else {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%lX]\n", pTransmitKey->dwKeyIndex);
-                        bNeedEncryption = TRUE;
+                        bNeedEncryption = true;
                     }
                 }
             }
 
             if (pDevice->byCntMeasure == 2) {
-                bNeedDeAuth = TRUE;
+                bNeedDeAuth = true;
                 pDevice->s802_11Counter.TKIPCounterMeasuresInvoked++;
             }
 
@@ -2564,7 +2564,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
                 if ((uNodeIndex != 0) &&
                     (pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex & PAIRWISE_KEY)) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%lX]\n", pTransmitKey->dwKeyIndex);
-                    bNeedEncryption = TRUE;
+                    bNeedEncryption = true;
                  }
              }
         }
@@ -2646,11 +2646,11 @@ BOOL            bTxeapol_key = FALSE;
    if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
            if(((Protocol_Version==1) ||(Protocol_Version==2)) &&
 	        (Packet_Type==3)) {  //802.1x OR eapol-key challenge frame transfer
-                        bTxeapol_key = TRUE;
+                        bTxeapol_key = true;
 		if((Descriptor_type==254)||(Descriptor_type==2)) {       //WPA or RSN
                        if(!(Key_info & BIT3) &&   //group-key challenge
 			   (Key_info & BIT8) && (Key_info & BIT9)) {    //send 2/2 key
-			  pDevice->fWPA_Authened = TRUE;
+			  pDevice->fWPA_Authened = true;
 			  if(Descriptor_type==254)
 			      printk("WPA ");
 			  else
@@ -2700,7 +2700,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
     	if ((pDevice->dwIsr & ISR_RXDMA0) &&
         (pDevice->byLocalID != REV_ID_VT3253_B0) &&
-        (pDevice->bBSSIDFilter == TRUE)) {
+        (pDevice->bBSSIDFilter == true)) {
         // update RSSI
         //BBbReadEmbeded(pDevice->PortOffset, 0x3E, &byRSSI);
         //pDevice->uCurrRSSI = byRSSI;
@@ -2749,9 +2749,9 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 VNSvInPortD(pDevice->PortOffset + MAC_REG_MAR4, &(pDevice->dwOrgMAR4));
                 MACvSelectPage0(pDevice->PortOffset);
                //xxxx
-               // WCMDbFlushCommandQueue(pDevice->pMgmt, TRUE);
-                if (set_channel(pDevice, pDevice->pCurrMeasureEID->sReq.byChannel) == TRUE) {
-                    pDevice->bMeasureInProgress = TRUE;
+               // WCMDbFlushCommandQueue(pDevice->pMgmt, true);
+                if (set_channel(pDevice, pDevice->pCurrMeasureEID->sReq.byChannel) == true) {
+                    pDevice->bMeasureInProgress = true;
                     MACvSelectPage1(pDevice->PortOffset);
                     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL, MSRCTL_READY);
                     MACvSelectPage0(pDevice->PortOffset);
@@ -2806,7 +2806,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
         }
 
         if (pDevice->dwIsr & ISR_TBTT) {
-            if (pDevice->bEnableFirstQuiet == TRUE) {
+            if (pDevice->bEnableFirstQuiet == true) {
                 pDevice->byQuietStartCount--;
                 if (pDevice->byQuietStartCount == 0) {
                     pDevice->bEnableFirstQuiet = FALSE;
@@ -2815,7 +2815,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                     MACvSelectPage0(pDevice->PortOffset);
                 }
             }
-            if ((pDevice->bChannelSwitch == TRUE) &&
+            if ((pDevice->bChannelSwitch == true) &&
                 (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)) {
                 pDevice->byChannelSwitchCount--;
                 if (pDevice->byChannelSwitchCount == 0) {
@@ -2832,7 +2832,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
             if (pDevice->eOPMode == OP_MODE_ADHOC) {
                 //pDevice->bBeaconSent = FALSE;
             } else {
-                if ((pDevice->bUpdateBBVGA) && (pDevice->bLinkPass == TRUE) && (pDevice->uCurrRSSI != 0)) {
+                if ((pDevice->bUpdateBBVGA) && (pDevice->bLinkPass == true) && (pDevice->uCurrRSSI != 0)) {
                     long            ldBm;
 
                     RFvRSSITodBm(pDevice, (unsigned char) pDevice->uCurrRSSI, &ldBm);
@@ -2895,14 +2895,14 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                     if(pMgmt->byDTIMCount == 0) {
                         // check if mutltcast tx bufferring
                         pMgmt->byDTIMCount = pMgmt->byDTIMPeriod - 1;
-                        pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
+                        pMgmt->sNodeDBTable[0].bRxPSPoll = true;
                         bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                     }
                 }
             }
-            pDevice->bBeaconSent = TRUE;
+            pDevice->bBeaconSent = true;
 
-            if (pDevice->bChannelSwitch == TRUE) {
+            if (pDevice->bChannelSwitch == true) {
                 pDevice->byChannelSwitchCount--;
                 if (pDevice->byChannelSwitchCount == 0) {
                     pDevice->bChannelSwitch = FALSE;
@@ -2993,7 +2993,7 @@ static int Config_FileGetParameter(unsigned char *string,
     source+=strlen(buf1);
 
    memcpy(dest,source,source_len-strlen(buf1));
- return TRUE;
+ return true;
 }
 
 int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter) {
@@ -3042,7 +3042,7 @@ if(filp->f_op->read(filp, buffer, 1024, &filp->f_pos)<0) {
  goto error1;
 }
 
-if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=TRUE) {
+if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=true) {
   printk("get parameter error?\n");
   result = -1;
   goto error1;
@@ -3565,7 +3565,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
            netif_stop_queue(pDevice->dev);
 	#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-	 if(pDevice->bWPASuppWextEnabled !=TRUE)
+	 if(pDevice->bWPASuppWextEnabled !=true)
 	 #endif
            bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
            bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
@@ -3708,7 +3708,7 @@ viawget_resume(struct pci_dev *pcid)
         spin_lock_irq(&pDevice->lock);
         MACvRestoreContext(pDevice->PortOffset, pDevice->abyMacContext);
         device_init_registers(pDevice, DEVICE_INIT_DXPL);
-        if (pMgmt->sNodeDBTable[0].bActive == TRUE) { // Assoc with BSS
+        if (pMgmt->sNodeDBTable[0].bActive == true) { // Assoc with BSS
             pMgmt->sNodeDBTable[0].bActive = FALSE;
             pDevice->bLinkPass = FALSE;
             if(pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {

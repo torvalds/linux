@@ -122,7 +122,7 @@ unsigned char SROMbyReadEmbedded(unsigned long dwIoBase, unsigned char byContntO
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: true if succeeded; FALSE if failed.
  *
  */
 BOOL SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byData)
@@ -160,7 +160,7 @@ BOOL SROMbWriteEmbedded(unsigned long dwIoBase, unsigned char byContntOffset, un
         return FALSE;
     }
     VNSvOutPortB(dwIoBase + MAC_REG_I2MCFG, byOrg);
-    return TRUE;
+    return true;
 }
 
 
@@ -219,7 +219,7 @@ void SROMvRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsig
  *  Out:
  *      none
  *
- * Return Value: TRUE if all test bits on; otherwise FALSE
+ * Return Value: true if all test bits on; otherwise FALSE
  *
  */
 BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
@@ -242,7 +242,7 @@ BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, unsigned char byContntOffset, unsi
  *  Out:
  *      none
  *
- * Return Value: TRUE if all test bits off; otherwise FALSE
+ * Return Value: true if all test bits off; otherwise FALSE
  *
  */
 BOOL SROMbIsRegBitsOff(unsigned long dwIoBase, unsigned char byContntOffset, unsigned char byTestBits)
@@ -386,7 +386,7 @@ void SROMvReadSubSysVenId(unsigned long dwIoBase, unsigned long *pdwSubSysVenId)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL SROMbAutoLoad(unsigned long dwIoBase)
@@ -414,7 +414,7 @@ BOOL SROMbAutoLoad(unsigned long dwIoBase)
 
     if (ii == EEP_MAX_CONTEXT_SIZE)
         return FALSE;
-    return TRUE;
+    return true;
 }
 
 

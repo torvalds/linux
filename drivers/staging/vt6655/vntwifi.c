@@ -317,7 +317,7 @@ VNTWIFIvSetAuthenticationMode (
     pMgmt->eAuthenMode = eAuthMode;
     if ((eAuthMode == WMAC_AUTH_SHAREKEY) ||
         (eAuthMode == WMAC_AUTH_AUTO)) {
-        pMgmt->bShareKeyAlgorithm = TRUE;
+        pMgmt->bShareKeyAlgorithm = true;
     } else {
         pMgmt->bShareKeyAlgorithm = FALSE;
     }
@@ -350,7 +350,7 @@ VNTWIFIvSetEncryptionMode (
     if ((eEncryptionMode == WMAC_ENCRYPTION_WEPEnabled) ||
         (eEncryptionMode == WMAC_ENCRYPTION_TKIPEnabled) ||
         (eEncryptionMode == WMAC_ENCRYPTION_AESEnabled) ) {
-        pMgmt->bPrivacyInvoked = TRUE;
+        pMgmt->bPrivacyInvoked = true;
     } else {
         pMgmt->bPrivacyInvoked = FALSE;
     }
@@ -368,14 +368,14 @@ VNTWIFIbConfigPhyMode (
 
     if ((ePhyType != PHY_TYPE_AUTO) &&
         (ePhyType != pMgmt->eCurrentPHYMode)) {
-        if (CARDbSetPhyParameter(pMgmt->pAdapter, ePhyType, 0, 0, NULL, NULL)==TRUE) {
+        if (CARDbSetPhyParameter(pMgmt->pAdapter, ePhyType, 0, 0, NULL, NULL)==true) {
             pMgmt->eCurrentPHYMode = ePhyType;
         } else {
             return(FALSE);
         }
     }
     pMgmt->eConfigPHYMode = ePhyType;
-    return(TRUE);
+    return(true);
 }
 
 
@@ -467,7 +467,7 @@ VNTWIFIvGetNextBSS (
         if (pBSS > &(pMgmt->sBSSList[MAX_BSS_NUM])) {
             return;
         }
-        if (pBSS->bActive == TRUE) {
+        if (pBSS->bActive == true) {
             *pvNextBSS = pBSS;
             return;
         }
@@ -510,7 +510,7 @@ VNTWIFIvUpdateNodeTxCounter(
         }
     }
     pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
-    if (bTxOk == TRUE) {
+    if (bTxOk == true) {
         // transmit success, TxAttempts at least plus one
         pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
         pMgmt->sNodeDBTable[uNodeIndex].uTxOk[wRate]++;
@@ -605,7 +605,7 @@ VNTWIFIbyGetKeyCypher(
 {
     PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
 
-    if (bGroupKey == TRUE) {
+    if (bGroupKey == true) {
         return (pMgmt->byCSSGK);
     } else {
         return (pMgmt->byCSSPK);
@@ -652,7 +652,7 @@ VNTWIFIbInit(
     pMgmt->bCmdRunning = FALSE;
 
     *pMgmtHandler = pMgmt;
-    return TRUE;
+    return true;
 }
 */
 
@@ -672,7 +672,7 @@ VNTWIFIbSetPMKIDCache (
     }
     pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
     memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
-    return (TRUE);
+    return (true);
 }
 
 
@@ -761,11 +761,11 @@ VNTWIFIbMeasureReport(
         pMgmt->uLengthOfRepEIDs += (2 + pMgmt->pCurrMeasureEIDRep->len);
         pMgmt->pCurrMeasureEIDRep = (PWLAN_IE_MEASURE_REP) pbyCurrentEID;
     }
-    if (bEndOfReport == TRUE) {
+    if (bEndOfReport == true) {
         IEEE11hbMSRRepTx(pMgmt);
     }
     //spin_unlock_irq(&pDevice->lock);
-    return (TRUE);
+    return (true);
 }
 
 
@@ -781,7 +781,7 @@ VNTWIFIbChannelSwitch(
     pMgmt->uCurrChannel = byNewChannel;
     pMgmt->bSwitchChannel = FALSE;
     //spin_unlock_irq(&pDevice->lock);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -794,16 +794,16 @@ VNTWIFIbRadarPresent(
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
         (byChannel == (unsigned char) pMgmt->uCurrChannel) &&
-        (pMgmt->bSwitchChannel != TRUE) &&
-        (pMgmt->b11hEnable == TRUE)) {
+        (pMgmt->bSwitchChannel != true) &&
+        (pMgmt->b11hEnable == true)) {
         if (!compare_ether_addr(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
             pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(unsigned char) pMgmt->uCurrChannel);
-            pMgmt->bSwitchChannel = TRUE;
+            pMgmt->bSwitchChannel = true;
         }
         BEACONbSendBeacon(pMgmt);
         CARDbChannelSwitch(pMgmt->pAdapter, 0, pMgmt->byNewChannel, 10);
     }
-    return TRUE;
+    return true;
 }
 */
 

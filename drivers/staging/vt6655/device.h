@@ -888,7 +888,7 @@ inline static BOOL device_get_ip(PSDevice pInfo) {
         ifa=(struct in_ifaddr*) in_dev->ifa_list;
         if (ifa!=NULL) {
             memcpy(pInfo->abyIPAddr,&ifa->ifa_address,4);
-            return TRUE;
+            return true;
         }
     }
     return FALSE;

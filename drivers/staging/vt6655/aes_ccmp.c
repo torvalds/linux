@@ -269,7 +269,7 @@ int             ii,jj,kk;
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
     if ( WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
          WLAN_GET_FC_FROMDS(*(unsigned short *)pbyFrame) ) {
-         bA4 = TRUE;
+         bA4 = true;
          pbyIV += 6;             // 6 is 802.11 address4
          wHLen += 6;
          wPayloadSize -= 6;
@@ -394,7 +394,7 @@ int             ii,jj,kk;
     //--------------------------------------------
 
     if ( !memcmp(abyMIC,abyTmp,8) ) {
-        return TRUE;
+        return true;
     } else {
         return FALSE;
     }

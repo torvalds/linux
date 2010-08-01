@@ -43,10 +43,6 @@ struct _version {
 #define FALSE   (0)
 #endif
 
-#ifndef TRUE
-#define TRUE    (!(FALSE))
-#endif
-
 #define VID_TABLE_SIZE      64
 #define MCAST_TABLE_SIZE    64
 #define MCAM_SIZE           32

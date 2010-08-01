@@ -99,7 +99,7 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	       else
 		   pDevice->scStatistic.LinkQuality = (96-pDevice->byCurrSQ)*100/76;
 	   }
-	   if(pDevice->bLinkPass !=TRUE)
+	   if(pDevice->bLinkPass !=true)
 	       pDevice->scStatistic.LinkQuality = 0;
 	  #endif
 	   if(pDevice->scStatistic.LinkQuality > 100)
@@ -426,7 +426,7 @@ int iwctl_siwfreq(struct net_device *dev,
 			  pDevice->uChannel = channel;
  			 //2007-0207-04,<Add> by EinsnLiu
 			 //Make change effect at once
-			  pDevice->bCommit = TRUE;
+			  pDevice->bCommit = true;
 		}
 	}
 
@@ -489,7 +489,7 @@ int iwctl_siwmode(struct net_device *dev,
 	    if (pMgmt->eConfigMode != WMAC_CONFIG_IBSS_STA) {
             pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;
             if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-		        pDevice->bCommit = TRUE;
+		        pDevice->bCommit = true;
    		    }
 		}
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to ad-hoc \n");
@@ -499,7 +499,7 @@ int iwctl_siwmode(struct net_device *dev,
 	    if (pMgmt->eConfigMode != WMAC_CONFIG_ESS_STA) {
             pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
             if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-		        pDevice->bCommit = TRUE;
+		        pDevice->bCommit = true;
    		    }
 		}
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure \n");
@@ -513,7 +513,7 @@ int iwctl_siwmode(struct net_device *dev,
 	    if (pMgmt->eConfigMode != WMAC_CONFIG_AP) {
             pMgmt->eConfigMode = WMAC_CONFIG_AP;
             if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-		        pDevice->bCommit = TRUE;
+		        pDevice->bCommit = true;
    		    }
 		}
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point \n");
@@ -701,7 +701,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 	else {
 		memcpy(pMgmt->abyDesireBSSID, wrq->sa_data, 6);
 		                //2008-0409-05, <Add> by Einsn Liu
-		if((pDevice->bLinkPass == TRUE) &&
+		if((pDevice->bLinkPass == true) &&
                      (memcmp(pMgmt->abyDesireBSSID, pMgmt->abyCurrBSSID, 6)== 0)){
 			return rc;
 			}
@@ -728,7 +728,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
        	}
 
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-		    pDevice->bCommit = TRUE;
+		    pDevice->bCommit = true;
    		}
 	}
 	return rc;
@@ -848,7 +848,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 	    PRINT_K("set essid to 'any' \n");
            #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
              //Unknown desired AP,so here need not associate??
-            //if(pDevice->bWPASuppWextEnabled == TRUE)  {
+            //if(pDevice->bWPASuppWextEnabled == true)  {
                   return 0;
             // }
             #endif
@@ -868,7 +868,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 	printk("set essid to %s \n",pItemSSID->abySSID);
 		//2008-0409-05, <Add> by Einsn Liu
        len=(pItemSSID->len > ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len)?pItemSSID->len:((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len;
-   if((pDevice->bLinkPass == TRUE) &&
+   if((pDevice->bLinkPass == true) &&
   	(memcmp(pItemSSID->abySSID,((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->abySSID,len)==0))
          return 0;
 
@@ -881,7 +881,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
  //Wext wil order another command of siwap to link with desired AP,
  //so here need not associate??
-  if(pDevice->bWPASuppWextEnabled == TRUE)  {
+  if(pDevice->bWPASuppWextEnabled == true)  {
         /*******search if  in hidden ssid mode ****/
         {
            PKnownBSS       pCurr = NULL;
@@ -927,7 +927,7 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 	}
 
     if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-	    pDevice->bCommit = TRUE;
+	    pDevice->bCommit = true;
 	}
 
 
@@ -1033,7 +1033,7 @@ int iwctl_siwrate(struct net_device *dev,
 		// Fixed mode
 		// One rate, fixed
 	printk("Rate Fix\n");
-		pDevice->bFixRate = TRUE;
+		pDevice->bFixRate = true;
         if ((pDevice->byBBType == BB_TYPE_11B)&& (brate > 3)) {
 	    pDevice->uConnectionRate = 3;
         }
@@ -1072,7 +1072,7 @@ int iwctl_giwrate(struct net_device *dev,
 	    int brate = 0;
 //2008-5-8 <modify> by chester
 if(pDevice->bLinkPass){
-if(pDevice->bFixRate == TRUE){
+if(pDevice->bFixRate == true){
 		if (pDevice->uConnectionRate < 13) {
 	        brate = abySupportedRates[pDevice->uConnectionRate];
 	    }else {
@@ -1108,8 +1108,8 @@ else brate =0;
 //                brate = abySupportedRates[pDevice->wCurrentRate];
 	    wrq->value = brate * 500000;
 	    // If more than one rate, set auto
-	    if (pDevice->bFixRate == TRUE)
-	        wrq->fixed = TRUE;
+	    if (pDevice->bFixRate == true)
+	        wrq->fixed = true;
     }
 
 
@@ -1370,8 +1370,8 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
         }
         pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
         pDevice->uKeyLength = wrq->length;
-        pDevice->bTransmitKey = TRUE;
-        pDevice->bEncryptionEnable = TRUE;
+        pDevice->bTransmitKey = true;
+        pDevice->bEncryptionEnable = true;
         pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 
 		}else if(index>0){
@@ -1462,8 +1462,8 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
         }
         pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
         pDevice->uKeyLength = wrq->length;
-        pDevice->bTransmitKey = TRUE;
-        pDevice->bEncryptionEnable = TRUE;
+        pDevice->bTransmitKey = true;
+        pDevice->bEncryptionEnable = true;
         pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 
 		// Do we want to just set the transmit key index ?
@@ -1493,7 +1493,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 
 	if(wrq->flags & IW_ENCODE_RESTRICTED) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & ShareKey System\n");
-		pMgmt->bShareKeyAlgorithm = TRUE;
+		pMgmt->bShareKeyAlgorithm = true;
 	}
 	if(wrq->flags & IW_ENCODE_OPEN) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & Open System\n");
@@ -1729,7 +1729,7 @@ int iwctl_giwsens(struct net_device *dev,
     long ldBm;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSENS \n");
-    if (pDevice->bLinkPass == TRUE) {
+    if (pDevice->bLinkPass == true) {
         RFvRSSITodBm(pDevice, (unsigned char)(pDevice->uCurrRSSI), &ldBm);
 	    wrq->value = ldBm;
 	}
@@ -1771,7 +1771,7 @@ int iwctl_siwauth(struct net_device *dev,
 		else {
                           PRINT_K("iwctl_siwauth:set WPADEV to WPA2******\n");
 		}
-		//pDevice->bWPASuppWextEnabled =TRUE;
+		//pDevice->bWPASuppWextEnabled =true;
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
 		pairwise = wrq->value;
@@ -1820,7 +1820,7 @@ int iwctl_siwauth(struct net_device *dev,
 		if(wrq->value==IW_AUTH_ALG_OPEN_SYSTEM){
 			pMgmt->bShareKeyAlgorithm=FALSE;
 		}else if(wrq->value==IW_AUTH_ALG_SHARED_KEY){
-			pMgmt->bShareKeyAlgorithm=TRUE;
+			pMgmt->bShareKeyAlgorithm=true;
 		}
 		break;
 	case IW_AUTH_WPA_ENABLED:
@@ -1852,9 +1852,9 @@ int iwctl_siwauth(struct net_device *dev,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise = %d\n",pairwise);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->eEncryptionStatus = %d\n",pDevice->eEncryptionStatus);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->eAuthenMode  = %d\n",pMgmt->eAuthenMode);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->bShareKeyAlgorithm = %s\n",pMgmt->bShareKeyAlgorithm?"TRUE":"FALSE");
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bEncryptionEnable = %s\n",pDevice->bEncryptionEnable?"TRUE":"FALSE");
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bWPADevEnable = %s\n",pDevice->bWPADevEnable?"TRUE":"FALSE");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->bShareKeyAlgorithm = %s\n",pMgmt->bShareKeyAlgorithm?"true":"FALSE");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bEncryptionEnable = %s\n",pDevice->bEncryptionEnable?"true":"FALSE");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bWPADevEnable = %s\n",pDevice->bWPADevEnable?"true":"FALSE");
 */
    return ret;
 }
@@ -2055,12 +2055,12 @@ if(param->u.wpa_key.alg_name == WPA_ALG_NONE) {
 if( pDevice->bwextcount == 4) {
     printk("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");
  pDevice->bwextcount=0;
-   pDevice->bWPASuppWextEnabled = TRUE;
+   pDevice->bWPASuppWextEnabled = true;
 		 }
 //******
 
 		spin_lock_irq(&pDevice->lock);
- ret = wpa_set_keys(pDevice, param, TRUE);
+ ret = wpa_set_keys(pDevice, param, true);
 		spin_unlock_irq(&pDevice->lock);
 
 error:
@@ -2099,7 +2099,7 @@ int iwctl_siwmlme(struct net_device *dev,
 		//bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (unsigned char *)&reason);
 		break;
 	case IW_MLME_DISASSOC:
-		if(pDevice->bLinkPass == TRUE){
+		if(pDevice->bLinkPass == true){
 					  printk("iwctl_siwmlme--->send DISASSOCIATE\n");
 		  //clear related flags
 		   memset(pMgmt->abyDesireBSSID, 0xFF,6);

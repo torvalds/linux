@@ -233,7 +233,7 @@ unsigned int uRateLen;
     for (ii = 0; ii < uRateLen; ii++) {
     	byRate = (unsigned char)(pItemRates->abyRates[ii]);
         if (WLAN_MGMT_IS_BASICRATE(byRate) &&
-            (bUpdateBasicRate == TRUE))  {
+            (bUpdateBasicRate == true))  {
             // Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
             CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
@@ -317,7 +317,7 @@ PSDevice        pDevice = (PSDevice) pDeviceHandler;
 unsigned short wIdxDownRate = 0;
 unsigned int ii;
 //unsigned long dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
-BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
+BOOL            bAutoRate[MAX_RATE]    = {true,true,true,true,FALSE,FALSE,true,true,true,true,true,true};
 	unsigned long dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
 	unsigned long dwThroughput = 0;
 	unsigned short wIdxUpRate = 0;
@@ -346,7 +346,7 @@ BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,T
 
     for(ii=0;ii<MAX_RATE;ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-            if (bAutoRate[ii] == TRUE) {
+            if (bAutoRate[ii] == true) {
                 wIdxUpRate = (unsigned short) ii;
             }
         } else {
@@ -372,7 +372,7 @@ BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,T
     for(ii = psNodeDBTable->wTxDataRate; ii > 0;) {
         ii--;
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
-             (bAutoRate[ii]==TRUE) ) {
+             (bAutoRate[ii]==true) ) {
             dwThroughput = dwThroughputTbl[ii];
             wIdxDownRate = (unsigned short) ii;
         }

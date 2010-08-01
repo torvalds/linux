@@ -137,7 +137,7 @@ void MACvReadAllRegs (unsigned long dwIoBase, unsigned char *pbyMacRegs)
  *  Out:
  *      none
  *
- * Return Value: TRUE if all test bits On; otherwise FALSE
+ * Return Value: true if all test bits On; otherwise FALSE
  *
  */
 BOOL MACbIsRegBitsOn (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
@@ -160,7 +160,7 @@ BOOL MACbIsRegBitsOn (unsigned long dwIoBase, unsigned char byRegOfs, unsigned c
  *  Out:
  *      none
  *
- * Return Value: TRUE if all test bits Off; otherwise FALSE
+ * Return Value: true if all test bits Off; otherwise FALSE
  *
  */
 BOOL MACbIsRegBitsOff (unsigned long dwIoBase, unsigned char byRegOfs, unsigned char byTestBits)
@@ -181,7 +181,7 @@ BOOL MACbIsRegBitsOff (unsigned long dwIoBase, unsigned char byRegOfs, unsigned 
  *  Out:
  *      none
  *
- * Return Value: TRUE if interrupt is disable; otherwise FALSE
+ * Return Value: true if interrupt is disable; otherwise FALSE
  *
  */
 BOOL MACbIsIntDisable (unsigned long dwIoBase)
@@ -192,7 +192,7 @@ BOOL MACbIsIntDisable (unsigned long dwIoBase)
     if (dwData != 0)
         return FALSE;
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -556,7 +556,7 @@ void MACvSetLoopbackMode (unsigned long dwIoBase, unsigned char byLoopbackMode)
  *  Out:
  *      none
  *
- * Return Value: TRUE if in Loopback mode; otherwise FALSE
+ * Return Value: true if in Loopback mode; otherwise FALSE
  *
  */
 BOOL MACbIsInLoopbackMode (unsigned long dwIoBase)
@@ -565,7 +565,7 @@ BOOL MACbIsInLoopbackMode (unsigned long dwIoBase)
 
     VNSvInPortB(dwIoBase + MAC_REG_TEST, &byOrgValue);
     if (byOrgValue & (TEST_LBINT | TEST_LBEXT))
-        return TRUE;
+        return true;
     return FALSE;
 }
 
@@ -725,7 +725,7 @@ void MACvRestoreContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
  *  Out:
  *      none
  *
- * Return Value: TRUE if all values are the same; otherwise FALSE
+ * Return Value: true if all values are the same; otherwise FALSE
  *
  */
 BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
@@ -733,7 +733,7 @@ BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
     unsigned long dwData;
 
     // compare MAC context to determine if this is a power lost init,
-    // return TRUE for power remaining init, return FALSE for power lost init
+    // return true for power remaining init, return FALSE for power lost init
 
     // compare CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR
     VNSvInPortD(dwIoBase + MAC_REG_TXDMAPTR0, &dwData);
@@ -757,7 +757,7 @@ BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
     }
 
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -770,7 +770,7 @@ BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
  *  Out:
  *      none
  *
- * Return Value: TRUE if Reset Success; otherwise FALSE
+ * Return Value: true if Reset Success; otherwise FALSE
  *
  */
 BOOL MACbSoftwareReset (unsigned long dwIoBase)
@@ -789,7 +789,7 @@ BOOL MACbSoftwareReset (unsigned long dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT)
         return FALSE;
-    return TRUE;
+    return true;
 
 }
 
@@ -803,7 +803,7 @@ BOOL MACbSoftwareReset (unsigned long dwIoBase)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
@@ -836,7 +836,7 @@ BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL MACbSafeRxOff (unsigned long dwIoBase)
@@ -884,7 +884,7 @@ BOOL MACbSafeRxOff (unsigned long dwIoBase)
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x12)\n");
         return(FALSE);
     }
-    return TRUE;
+    return true;
 }
 
 /*
@@ -897,7 +897,7 @@ BOOL MACbSafeRxOff (unsigned long dwIoBase)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL MACbSafeTxOff (unsigned long dwIoBase)
@@ -948,7 +948,7 @@ BOOL MACbSafeTxOff (unsigned long dwIoBase)
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x24)\n");
         return(FALSE);
     }
-    return TRUE;
+    return true;
 }
 
 /*
@@ -961,7 +961,7 @@ BOOL MACbSafeTxOff (unsigned long dwIoBase)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL MACbSafeStop (unsigned long dwIoBase)
@@ -983,7 +983,7 @@ BOOL MACbSafeStop (unsigned long dwIoBase)
 
     MACvRegBitsOff(dwIoBase, MAC_REG_HOSTCR, HOSTCR_MACEN);
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -996,7 +996,7 @@ BOOL MACbSafeStop (unsigned long dwIoBase)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: true if success; otherwise FALSE
  *
  */
 BOOL MACbShutdown (unsigned long dwIoBase)
@@ -1010,7 +1010,7 @@ BOOL MACbShutdown (unsigned long dwIoBase)
         return FALSE;
     }
     MACvSetLoopbackMode(dwIoBase, MAC_LB_NONE);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1045,7 +1045,7 @@ void MACvInitialize (unsigned long dwIoBase)
     // issue AUTOLD in EECSR to reload eeprom
     //MACvRegBitsOn(dwIoBase, MAC_REG_I2MCSR, I2MCSR_AUTOLD);
     // wait until EEPROM loading complete
-    //while (TRUE) {
+    //while (true) {
     //    u8 u8Data;
     //    VNSvInPortB(dwIoBase + MAC_REG_I2MCSR, &u8Data);
     //    if ( !(u8Data & I2MCSR_AUTOLD))
@@ -1344,7 +1344,7 @@ unsigned int ww = 0;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x29)\n");
         return FALSE;
     }
-    return TRUE;
+    return true;
 }
 
 void MACvClearBusSusInd (unsigned long dwIoBase)
@@ -1412,7 +1412,7 @@ BOOL MACbFlushSYNCFifo (unsigned long dwIoBase)
         DBG_PORT80(0x35);
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
     }
-    return TRUE;
+    return true;
 }
 
 BOOL MACbPSWakeup (unsigned long dwIoBase)
@@ -1421,7 +1421,7 @@ BOOL MACbPSWakeup (unsigned long dwIoBase)
     unsigned int ww;
     // Read PSCTL
     if (MACbIsRegBitsOff(dwIoBase, MAC_REG_PSCTL, PSCTL_PS)) {
-        return TRUE;
+        return true;
     }
     // Disable PS
     MACvRegBitsOff(dwIoBase, MAC_REG_PSCTL, PSCTL_PSEN);
@@ -1437,7 +1437,7 @@ BOOL MACbPSWakeup (unsigned long dwIoBase)
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
         return FALSE;
     }
-    return TRUE;
+    return true;
 }
 
 /*

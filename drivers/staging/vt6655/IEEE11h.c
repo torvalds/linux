@@ -102,7 +102,7 @@ static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
 		unsigned int uLength)
 {
     size_t    uNumOfEIDs = 0;
-    BOOL    bResult = TRUE;
+    BOOL    bResult = true;
 
     if (uLength <= WLAN_A3FR_MAXLEN) {
         memcpy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
@@ -177,7 +177,7 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned
     pTxPacket->cbPayloadLen = sizeof(WLAN_FRAME_TPCREP) - WLAN_HDR_ADDR3_LEN;
     if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
         return (FALSE);
-    return (TRUE);
+    return (true);
 //    return (CARDbSendPacket(pMgmt->pAdapter, pFrame, PKT_TYPE_802_11_MNG, sizeof(WLAN_FRAME_TPCREP)));
 
 }
@@ -260,9 +260,9 @@ IEEE11hbMgrRxAction (
         pAction->byCategory |= 0x80;
 
        //return (CARDbSendPacket(pMgmt->pAdapter, pAction, PKT_TYPE_802_11_MNG, uLength));
-        return (TRUE);
+        return (true);
     }
-    return (TRUE);
+    return (true);
 }
 
 
@@ -298,7 +298,7 @@ BOOL IEEE11hbMSRRepTx (
     pTxPacket->cbPayloadLen = uLength - WLAN_HDR_ADDR3_LEN;
     if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
         return (FALSE);
-    return (TRUE);
+    return (true);
 //    return (CARDbSendPacket(pMgmt->pAdapter, pMSRRep, PKT_TYPE_802_11_MNG, uLength));
 
 }

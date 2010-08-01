@@ -53,16 +53,16 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*
  * Description:
- *      Relay packet.  Return TRUE if packet is copy to DMA1
+ *      Relay packet.  Return true if packet is copy to DMA1
  *
  * Parameters:
  *  In:
  *      pDevice             -
  *      pbySkbData          - rx packet skb data
  *  Out:
- *      TURE, FALSE
+ *      true, FALSE
  *
- * Return Value: TRUE if packet duplicate; otherwise FALSE
+ * Return Value: true if packet duplicate; otherwise FALSE
  *
  */
 BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDataLen, unsigned int uNodeIndex)
@@ -99,8 +99,8 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
         cbFrameBodySize += 8;
     }
 
-    if (pDevice->bEncryptionEnable == TRUE) {
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true) {
+        bNeedEncryption = true;
 
         // get group key
         pbyBSSID = pDevice->abyBroadcastAddr;
@@ -192,7 +192,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
 
     MACvTransmitAC0(pDevice->PortOffset);
 
-    return TRUE;
+    return true;
 }
 
 

@@ -124,7 +124,7 @@ WPA2vParseRSN (
 
     if (pRSN->len == 2) { // ver(2)
         if ((pRSN->byElementID == WLAN_EID_RSN) && (pRSN->wVersion == 1)) {
-            pBSSNode->bWPA2Valid = TRUE;
+            pBSSNode->bWPA2Valid = true;
         }
         return;
     }
@@ -159,7 +159,7 @@ WPA2vParseRSN (
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"802.11i CSS: %X\n", pBSSNode->byCSSGK);
 
         if (pRSN->len == 6) {
-            pBSSNode->bWPA2Valid = TRUE;
+            pBSSNode->bWPA2Valid = true;
             return;
         }
 
@@ -173,7 +173,7 @@ WPA2vParseRSN (
                 if (pRSN->len >= 8+i*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*i)
                     if ( !memcmp(pbyOUI, abyOUIGK, 4)) {
                         pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_USE_GROUP;
-                        bUseGK = TRUE;
+                        bUseGK = true;
                     } else if ( !memcmp(pbyOUI, abyOUIWEP40, 4)) {
                         // Invialid CSS, continue to parsing
                     } else if ( !memcmp(pbyOUI, abyOUITKIP, 4)) {
@@ -195,7 +195,7 @@ WPA2vParseRSN (
                     break;
             } //for
 
-            if (bUseGK == TRUE) {
+            if (bUseGK == true) {
                 if (j != 1) {
                     // invalid CSS, This should be only PK CSS.
                     return;
@@ -237,12 +237,12 @@ WPA2vParseRSN (
 
             n = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
             if (pRSN->len >= 12+4*m+4*n) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSSCnt(2)+AKMSS(4*n)+Cap(2)
-                pBSSNode->sRSNCapObj.bRSNCapExist = TRUE;
+                pBSSNode->sRSNCapObj.bRSNCapExist = true;
                 pBSSNode->sRSNCapObj.wRSNCap = *((unsigned short *) &(pRSN->abyRSN[8+4*m+4*n]));
             }
         }
         //ignore PMKID lists bcs only (Re)Assocrequest has this field
-        pBSSNode->bWPA2Valid = TRUE;
+        pBSSNode->bWPA2Valid = true;
     }
 }
 
@@ -330,7 +330,7 @@ WPA2uSetIEs(
         pRSNIEs->len +=6;
 
         // RSN Capabilites
-        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == TRUE) {
+        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == true) {
             memcpy(&pRSNIEs->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
             pRSNIEs->abyRSN[16] = 0;
@@ -339,7 +339,7 @@ WPA2uSetIEs(
         pRSNIEs->len +=2;
 
         if ((pMgmt->gsPMKIDCache.BSSIDInfoCount > 0) &&
-            (pMgmt->bRoaming == TRUE) &&
+            (pMgmt->bRoaming == true) &&
             (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
             pwPMKID = (unsigned short *)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count
