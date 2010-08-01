@@ -31,36 +31,6 @@ threads = { 0 : "idle"}
 def thread_name(pid):
 	return "%s:%d" % (threads[pid], pid)
 
-class EventHeaders:
-	def __init__(self, common_cpu, common_secs, common_nsecs,
-		     common_pid, common_comm):
-		self.cpu = common_cpu
-		self.secs = common_secs
-		self.nsecs = common_nsecs
-		self.pid = common_pid
-		self.comm = common_comm
-
-	def ts(self):
-		return (self.secs * (10 ** 9)) + self.nsecs
-
-	def ts_format(self):
-		return "%d.%d" % (self.secs, int(self.nsecs / 1000))
-
-
-def taskState(state):
-	states = {
-		0 : "R",
-		1 : "S",
-		2 : "D",
-		64: "DEAD"
-	}
-
-	if state not in states:
-		return "Unknown"
-
-	return states[state]
-
-
 class RunqueueEventUnknown:
 	@staticmethod
 	def color():
