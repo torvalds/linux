@@ -3206,7 +3206,7 @@ twobyte_insn:
 			emulate_ud(ctxt);
 			goto done;
 		case 7: /* invlpg*/
-			emulate_invlpg(ctxt->vcpu, c->modrm_ea);
+			emulate_invlpg(ctxt->vcpu, c->src.addr.mem);
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;
 			break;
