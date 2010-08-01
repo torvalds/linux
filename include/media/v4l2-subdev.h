@@ -35,6 +35,7 @@
 #define V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ	0x00000001
 
 struct v4l2_device;
+struct v4l2_ctrl_handler;
 struct v4l2_subdev;
 struct tuner_setup;
 
@@ -434,6 +435,8 @@ struct v4l2_subdev {
 	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
+	/* The control handler of this subdev. May be NULL. */
+	struct v4l2_ctrl_handler *ctrl_handler;
 	/* name must be unique */
 	char name[V4L2_SUBDEV_NAME_SIZE];
 	/* can be used to group similar subdevs, value is driver-specific */
