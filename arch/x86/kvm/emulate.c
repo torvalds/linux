@@ -2210,8 +2210,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x10 - 0x1F */
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
-	D(ModRM | ImplicitOps | Priv | Op3264), D(ModRM | Priv | Op3264),
-	D(ModRM | ImplicitOps | Priv | Op3264), D(ModRM | Priv | Op3264),
+	D(ModRM | DstMem | Priv | Op3264), D(ModRM | Priv | Op3264),
+	D(ModRM | SrcMem | Priv | Op3264), D(ModRM | Priv | Op3264),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
@@ -3240,8 +3240,7 @@ twobyte_insn:
 			emulate_ud(ctxt);
 			goto done;
 		}
-		c->regs[c->modrm_rm] = ops->get_cr(c->modrm_reg, ctxt->vcpu);
-		c->dst.type = OP_NONE;	/* no writeback */
+		c->dst.val = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		break;
 	case 0x21: /* mov from dr to reg */
 		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
@@ -3253,7 +3252,7 @@ twobyte_insn:
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
-		if (ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu)) {
+		if (ops->set_cr(c->modrm_reg, c->src.val, ctxt->vcpu)) {
 			emulate_gp(ctxt, 0);
 			goto done;
 		}
