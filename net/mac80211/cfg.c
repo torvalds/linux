@@ -150,8 +150,8 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	key = ieee80211_key_alloc(alg, key_idx, params->key_len, params->key,
 				  params->seq_len, params->seq);
-	if (!key)
-		return -ENOMEM;
+	if (IS_ERR(key))
+		return PTR_ERR(key);
 
 	mutex_lock(&sdata->local->sta_mtx);
 

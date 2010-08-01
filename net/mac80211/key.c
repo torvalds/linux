@@ -234,13 +234,13 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					  size_t seq_len, const u8 *seq)
 {
 	struct ieee80211_key *key;
-	int i, j;
+	int i, j, err;
 
 	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS);
 
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, GFP_KERNEL);
 	if (!key)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Default to software encryption; we'll later upload the
@@ -296,9 +296,10 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 		 * it does not need to be initialized for every packet.
 		 */
 		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(key_data);
-		if (!key->u.ccmp.tfm) {
+		if (IS_ERR(key->u.ccmp.tfm)) {
+			err = PTR_ERR(key->u.ccmp.tfm);
 			kfree(key);
-			return NULL;
+			key = ERR_PTR(err);
 		}
 	}
 
@@ -309,9 +310,10 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 		 */
 		key->u.aes_cmac.tfm =
 			ieee80211_aes_cmac_key_setup(key_data);
-		if (!key->u.aes_cmac.tfm) {
+		if (IS_ERR(key->u.aes_cmac.tfm)) {
+			err = PTR_ERR(key->u.aes_cmac.tfm);
 			kfree(key);
-			return NULL;
+			key = ERR_PTR(err);
 		}
 	}
 

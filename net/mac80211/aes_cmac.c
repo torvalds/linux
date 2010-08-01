@@ -119,10 +119,8 @@ struct crypto_cipher * ieee80211_aes_cmac_key_setup(const u8 key[])
 	struct crypto_cipher *tfm;
 
 	tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		return NULL;
-
-	crypto_cipher_setkey(tfm, key, AES_CMAC_KEY_LEN);
+	if (!IS_ERR(tfm))
+		crypto_cipher_setkey(tfm, key, AES_CMAC_KEY_LEN);
 
 	return tfm;
 }
