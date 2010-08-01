@@ -771,12 +771,15 @@ static int cx23888_ir_rx_s_parameters(struct v4l2_subdev *sd,
 					    &p->carrier_range_upper);
 		o->carrier_range_lower = p->carrier_range_lower;
 		o->carrier_range_upper = p->carrier_range_upper;
+
+		p->max_pulse_width =
+			(u32) pulse_width_count_to_ns(FIFO_RXTX, rxclk_divider);
 	} else {
 		p->max_pulse_width =
 			    rxclk_rx_s_max_pulse_width(dev, p->max_pulse_width,
 						       &rxclk_divider);
-		o->max_pulse_width = p->max_pulse_width;
 	}
+	o->max_pulse_width = p->max_pulse_width;
 	atomic_set(&state->rxclk_divider, rxclk_divider);
 
 	p->noise_filter_min_width =
@@ -889,12 +892,15 @@ static int cx23888_ir_tx_s_parameters(struct v4l2_subdev *sd,
 
 		p->duty_cycle = cduty_tx_s_duty_cycle(dev, p->duty_cycle);
 		o->duty_cycle = p->duty_cycle;
+
+		p->max_pulse_width =
+			(u32) pulse_width_count_to_ns(FIFO_RXTX, txclk_divider);
 	} else {
 		p->max_pulse_width =
 			    txclk_tx_s_max_pulse_width(dev, p->max_pulse_width,
 						       &txclk_divider);
-		o->max_pulse_width = p->max_pulse_width;
 	}
+	o->max_pulse_width = p->max_pulse_width;
 	atomic_set(&state->txclk_divider, txclk_divider);
 
 	p->resolution = clock_divider_to_resolution(txclk_divider);
@@ -1000,12 +1006,10 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 			  "-%1d/+%1d, %u to %u Hz\n", i, j,
 			  clock_divider_to_freq(rxclk, 16 + j),
 			  clock_divider_to_freq(rxclk, 16 - i));
-	} else {
-		v4l2_info(sd, "\tMax measurable pulse width:        %u us, "
-			  "%llu ns\n",
-			  pulse_width_count_to_us(FIFO_RXTX, rxclk),
-			  pulse_width_count_to_ns(FIFO_RXTX, rxclk));
 	}
+	v4l2_info(sd, "\tMax measurable pulse width:        %u us, %llu ns\n",
+		  pulse_width_count_to_us(FIFO_RXTX, rxclk),
+		  pulse_width_count_to_ns(FIFO_RXTX, rxclk));
 	v4l2_info(sd, "\tLow pass filter:                   %s\n",
 		  filtr ? "enabled" : "disabled");
 	if (filtr)
@@ -1047,12 +1051,10 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 			  clock_divider_to_carrier_freq(txclk));
 		v4l2_info(sd, "\tCarrier duty cycle:                %2u/16\n",
 			  cduty + 1);
-	} else {
-		v4l2_info(sd, "\tMax pulse width:                   %u us, "
-			  "%llu ns\n",
-			  pulse_width_count_to_us(FIFO_RXTX, txclk),
-			  pulse_width_count_to_ns(FIFO_RXTX, txclk));
 	}
+	v4l2_info(sd, "\tMax pulse width:                   %u us, %llu ns\n",
+		  pulse_width_count_to_us(FIFO_RXTX, txclk),
+		  pulse_width_count_to_ns(FIFO_RXTX, txclk));
 	v4l2_info(sd, "\tBusy:                              %s\n",
 		  stats & STATS_TBY ? "yes" : "no");
 	v4l2_info(sd, "\tFIFO service requested:            %s\n",
