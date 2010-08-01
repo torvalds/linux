@@ -1122,12 +1122,6 @@ void cyber2000fb_disable_extregs(struct cfb_info *cfb)
 }
 EXPORT_SYMBOL(cyber2000fb_disable_extregs);
 
-void cyber2000fb_get_fb_var(struct cfb_info *cfb, struct fb_var_screeninfo *var)
-{
-	memcpy(var, &cfb->fb.var, sizeof(struct fb_var_screeninfo));
-}
-EXPORT_SYMBOL(cyber2000fb_get_fb_var);
-
 /*
  * Attach a capture/tv driver to the core CyberX0X0 driver.
  */

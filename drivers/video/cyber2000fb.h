@@ -487,8 +487,6 @@ struct cyberpro_info {
 #define ID_CYBERPRO_2010	2
 #define ID_CYBERPRO_5000	3
 
-struct fb_var_screeninfo;
-
 /*
  * Note! Writing to the Cyber20x0 registers from an interrupt
  * routine is definitely a bad idea atm.
@@ -497,4 +495,3 @@ int cyber2000fb_attach(struct cyberpro_info *info, int idx);
 void cyber2000fb_detach(int idx);
 void cyber2000fb_enable_extregs(struct cfb_info *cfb);
 void cyber2000fb_disable_extregs(struct cfb_info *cfb);
-void cyber2000fb_get_fb_var(struct cfb_info *cfb, struct fb_var_screeninfo *var);
