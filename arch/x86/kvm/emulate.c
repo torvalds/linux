@@ -2147,7 +2147,7 @@ static struct opcode opcode_table[256] = {
 	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | DstReg),
 	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
 	/* 0x90 - 0x97 */
-	X8(D(DstReg)),
+	X8(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
 	N, N, D(SrcImmFAddr | No64), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
@@ -2932,16 +2932,9 @@ special_insn:
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
-	case 0x90: /* nop / xchg r8,rax */
-		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX]) {
-			c->dst.type = OP_NONE;  /* nop */
-			break;
-		}
-	case 0x91 ... 0x97: /* xchg reg,rax */
-		c->src.type = OP_REG;
-		c->src.bytes = c->op_bytes;
-		c->src.addr.reg = &c->regs[VCPU_REGS_RAX];
-		c->src.val = *(c->src.addr.reg);
+	case 0x90 ... 0x97: /* nop / xchg reg, rax */
+		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
+			goto done;
 		goto xchg;
 	case 0x9c: /* pushf */
 		c->src.val =  (unsigned long) ctxt->eflags;
