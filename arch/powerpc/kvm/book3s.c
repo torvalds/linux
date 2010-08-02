@@ -145,6 +145,16 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 		   (old_msr & (MSR_PR|MSR_IR|MSR_DR))) {
 		kvmppc_mmu_flush_segments(vcpu);
 		kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
+
+		/* Preload magic page segment when in kernel mode */
+		if (!(msr & MSR_PR) && vcpu->arch.magic_page_pa) {
+			struct kvm_vcpu_arch *a = &vcpu->arch;
+
+			if (msr & MSR_DR)
+				kvmppc_mmu_map_segment(vcpu, a->magic_page_ea);
+			else
+				kvmppc_mmu_map_segment(vcpu, a->magic_page_pa);
+		}
 	}
 
 	/* Preload FPU if it's enabled */
