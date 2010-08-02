@@ -2014,6 +2014,14 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	return true;
 }
 
+static bool nested_vmcb_checks(struct vmcb *vmcb)
+{
+	if ((vmcb->control.intercept & (1ULL << INTERCEPT_VMRUN)) == 0)
+		return false;
+
+	return true;
+}
+
 static bool nested_svm_vmrun(struct vcpu_svm *svm)
 {
 	struct vmcb *nested_vmcb;
@@ -2027,6 +2035,17 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
 	if (!nested_vmcb)
 		return false;
+
+	if (!nested_vmcb_checks(nested_vmcb)) {
+		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
+		nested_vmcb->control.exit_code_hi = 0;
+		nested_vmcb->control.exit_info_1  = 0;
+		nested_vmcb->control.exit_info_2  = 0;
+
+		nested_svm_unmap(page);
+
+		return false;
+	}
 
 	trace_kvm_nested_vmrun(svm->vmcb->save.rip - 3, vmcb_gpa,
 			       nested_vmcb->save.rip,
