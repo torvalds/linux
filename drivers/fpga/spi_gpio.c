@@ -38,7 +38,7 @@
 
 #define SPI_GPIO_TEST 0
 #define HIGH_SPI_TEST 1
-#if HIGH_SPI_TEST
+#if SPI_GPIO_TEST
 #define USE_SYS_INT	  1
 #else
 #define USE_SYS_INT	  0
@@ -812,7 +812,7 @@ int spi_gpio_init_first(void)
 	
 #endif
 #if SPI_GPIO_TEST
-#if 0
+#if 1
 	for(i=0;i<81;i++)
 	{
 		if(i<4)
