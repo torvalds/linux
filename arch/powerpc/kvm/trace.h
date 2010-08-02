@@ -239,6 +239,29 @@ TRACE_EVENT(kvm_book3s_mmu_invalidate,
 		  __entry->vpage, __entry->raddr, __entry->flags)
 );
 
+TRACE_EVENT(kvm_book3s_mmu_flush,
+	TP_PROTO(const char *type, struct kvm_vcpu *vcpu, unsigned long long p1,
+		 unsigned long long p2),
+	TP_ARGS(type, vcpu, p1, p2),
+
+	TP_STRUCT__entry(
+		__field(	int,			count		)
+		__field(	unsigned long long,	p1		)
+		__field(	unsigned long long,	p2		)
+		__field(	const char *,		type		)
+	),
+
+	TP_fast_assign(
+		__entry->count		= vcpu->arch.hpte_cache_count;
+		__entry->p1		= p1;
+		__entry->p2		= p2;
+		__entry->type		= type;
+	),
+
+	TP_printk("Flush %d %sPTEs: %llx - %llx",
+		  __entry->count, __entry->type, __entry->p1, __entry->p2)
+);
+
 #endif /* CONFIG_PPC_BOOK3S */
 
 #endif /* _TRACE_KVM_H */

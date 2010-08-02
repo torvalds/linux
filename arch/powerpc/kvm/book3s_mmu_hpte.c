@@ -31,14 +31,6 @@
 
 #define PTE_SIZE	12
 
-/* #define DEBUG_MMU */
-
-#ifdef DEBUG_MMU
-#define dprintk_mmu(a, ...) printk(KERN_INFO a, __VA_ARGS__)
-#else
-#define dprintk_mmu(a, ...) do { } while(0)
-#endif
-
 static struct kmem_cache *hpte_cache;
 
 static inline u64 kvmppc_mmu_hash_pte(u64 eaddr)
@@ -186,9 +178,7 @@ static void kvmppc_mmu_pte_flush_long(struct kvm_vcpu *vcpu, ulong guest_ea)
 
 void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong guest_ea, ulong ea_mask)
 {
-	dprintk_mmu("KVM: Flushing %d Shadow PTEs: 0x%lx & 0x%lx\n",
-		    vcpu->arch.hpte_cache_count, guest_ea, ea_mask);
-
+	trace_kvm_book3s_mmu_flush("", vcpu, guest_ea, ea_mask);
 	guest_ea &= ea_mask;
 
 	switch (ea_mask) {
@@ -251,8 +241,7 @@ static void kvmppc_mmu_pte_vflush_long(struct kvm_vcpu *vcpu, u64 guest_vp)
 
 void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 guest_vp, u64 vp_mask)
 {
-	dprintk_mmu("KVM: Flushing %d Shadow vPTEs: 0x%llx & 0x%llx\n",
-		    vcpu->arch.hpte_cache_count, guest_vp, vp_mask);
+	trace_kvm_book3s_mmu_flush("v", vcpu, guest_vp, vp_mask);
 	guest_vp &= vp_mask;
 
 	switch(vp_mask) {
@@ -274,8 +263,7 @@ void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 	struct hpte_cache *pte;
 	int i;
 
-	dprintk_mmu("KVM: Flushing %d Shadow pPTEs: 0x%lx - 0x%lx\n",
-		    vcpu->arch.hpte_cache_count, pa_start, pa_end);
+	trace_kvm_book3s_mmu_flush("p", vcpu, pa_start, pa_end);
 
 	rcu_read_lock();
 
