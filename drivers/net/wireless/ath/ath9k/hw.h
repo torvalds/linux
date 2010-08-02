@@ -355,6 +355,7 @@ struct ath9k_hw_cal_data {
 	int16_t rawNoiseFloor;
 	bool paprd_done;
 	bool nfcal_pending;
+	bool nfcal_interference;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];

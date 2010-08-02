@@ -362,6 +362,7 @@ void ath_beacon_tasklet(unsigned long data)
 			ath_print(common, ATH_DBG_BSTUCK,
 				  "missed %u consecutive beacons\n",
 				  sc->beacon.bmisscnt);
+			ath9k_hw_bstuck_nfcal(ah);
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			ath_print(common, ATH_DBG_BSTUCK,
 				  "beacon is officially stuck\n");
