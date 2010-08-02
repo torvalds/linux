@@ -236,6 +236,41 @@ void v9fs_destroy_inode(struct inode *inode)
 #endif
 
 /**
+ * v9fs_get_fsgid_for_create - Helper function to get the gid for creating a
+ * new file system object. This checks the S_ISGID to determine the owning
+ * group of the new file system object.
+ */
+
+static gid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
+{
+	BUG_ON(dir_inode == NULL);
+
+	if (dir_inode->i_mode & S_ISGID) {
+		/* set_gid bit is set.*/
+		return dir_inode->i_gid;
+	}
+	return current_fsgid();
+}
+
+/**
+ * v9fs_dentry_from_dir_inode - helper function to get the dentry from
+ * dir inode.
+ *
+ */
+
+struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	spin_lock(&dcache_lock);
+	/* Directory should have only one entry. */
+	BUG_ON(S_ISDIR(inode->i_mode) && !list_is_singular(&inode->i_dentry));
+	dentry = list_entry(inode->i_dentry.next, struct dentry, d_alias);
+	spin_unlock(&dcache_lock);
+	return dentry;
+}
+
+/**
  * v9fs_get_inode - helper function to setup an inode
  * @sb: superblock
  * @mode: mode to setup inode with
@@ -1374,6 +1409,76 @@ clunk_fid:
 }
 
 /**
+ * v9fs_vfs_link_dotl - create a hardlink for dotl
+ * @old_dentry: dentry for file to link to
+ * @dir: inode destination for new link
+ * @dentry: dentry for link
+ *
+ */
+
+static int
+v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
+		struct dentry *dentry)
+{
+	int err;
+	struct p9_fid *dfid, *oldfid;
+	char *name;
+	struct v9fs_session_info *v9ses;
+	struct dentry *dir_dentry;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "dir ino: %lu, old_name: %s, new_name: %s\n",
+			dir->i_ino, old_dentry->d_name.name,
+			dentry->d_name.name);
+
+	v9ses = v9fs_inode2v9ses(dir);
+	dir_dentry = v9fs_dentry_from_dir_inode(dir);
+	dfid = v9fs_fid_lookup(dir_dentry);
+	if (IS_ERR(dfid))
+		return PTR_ERR(dfid);
+
+	oldfid = v9fs_fid_lookup(old_dentry);
+	if (IS_ERR(oldfid))
+		return PTR_ERR(oldfid);
+
+	name = (char *) dentry->d_name.name;
+
+	err = p9_client_link(dfid, oldfid, (char *)dentry->d_name.name);
+
+	if (err < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_link failed %d\n", err);
+		return err;
+	}
+
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
+		/* Get the latest stat info from server. */
+		struct p9_fid *fid;
+		struct p9_stat_dotl *st;
+
+		fid = v9fs_fid_lookup(old_dentry);
+		if (IS_ERR(fid))
+			return PTR_ERR(fid);
+
+		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+		if (IS_ERR(st))
+			return PTR_ERR(st);
+
+		v9fs_stat2inode_dotl(st, old_dentry->d_inode);
+
+		kfree(st);
+	} else {
+		/* Caching disabled. No need to get upto date stat info.
+		 * This dentry will be released immediately. So, just i_count++
+		 */
+		atomic_inc(&old_dentry->d_inode->i_count);
+	}
+
+	dentry->d_op = old_dentry->d_op;
+	d_instantiate(dentry, old_dentry->d_inode);
+
+	return err;
+}
+
+/**
  * v9fs_vfs_mknod - create a special file
  * @dir: inode destination for new link
  * @dentry: dentry for file
@@ -1422,7 +1527,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
 	.symlink = v9fs_vfs_symlink,
-	.link = v9fs_vfs_link,
+	.link = v9fs_vfs_link_dotl,
 	.unlink = v9fs_vfs_unlink,
 	.mkdir = v9fs_vfs_mkdir,
 	.rmdir = v9fs_vfs_rmdir,
