@@ -418,8 +418,8 @@ struct rk2818_spi_chip spi_xpt2046_info = {
  *****************************************************************************************/
 #if 1
  
-#define RK2818_CAM_POWER_PIN    FPGA_PIN_PC5//SPI_GPIO_P1_05
-#define RK2818_CAM_RESET_PIN    FPGA_PIN_PD6//SPI_GPIO_P1_14    
+#define RK2818_CAM_POWER_PIN    FPGA_PIO1_05//SPI_GPIO_P1_05
+#define RK2818_CAM_RESET_PIN    FPGA_PIO1_14//SPI_GPIO_P1_14    
 
 static int rk28_sensor_init(void);
 static int rk28_sensor_deinit(void);
