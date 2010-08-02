@@ -182,8 +182,6 @@
 #define SERIAL_ENABLE_EN	(1<<0)
 
 /* General defines to pacify gcc */
-#define PCIO_BASE 		(0)	/* for inb, outb and friends */
-#define PCIO_VIRT		PCIO_BASE
 
 #define __ASM_ARCH_HARDWARE_INCMACH_H
 #include "boards.h"

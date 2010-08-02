@@ -14,11 +14,6 @@
 #define __ASM_ARCH_HARDWARE_H
 
 /*
- * We requires absolute addresses.
- */
-#define PCIO_BASE		0
-
-/*
  * Workarounds for at least 2 errata so far require this.
  * The mapping is set in mach-pxa/generic.c.
  */
