@@ -975,7 +975,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	save->dr7 = 0x400;
-	save->rflags = 2;
+	kvm_set_rflags(&svm->vcpu, 2);
 	save->rip = 0x0000fff0;
 	svm->vcpu.arch.regs[VCPU_REGS_RIP] = save->rip;
 
@@ -2127,7 +2127,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.cr3    = kvm_read_cr3(&svm->vcpu);
 	nested_vmcb->save.cr2    = vmcb->save.cr2;
 	nested_vmcb->save.cr4    = svm->vcpu.arch.cr4;
-	nested_vmcb->save.rflags = vmcb->save.rflags;
+	nested_vmcb->save.rflags = kvm_get_rflags(&svm->vcpu);
 	nested_vmcb->save.rip    = vmcb->save.rip;
 	nested_vmcb->save.rsp    = vmcb->save.rsp;
 	nested_vmcb->save.rax    = vmcb->save.rax;
@@ -2184,7 +2184,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vmcb->save.ds = hsave->save.ds;
 	svm->vmcb->save.gdtr = hsave->save.gdtr;
 	svm->vmcb->save.idtr = hsave->save.idtr;
-	svm->vmcb->save.rflags = hsave->save.rflags;
+	kvm_set_rflags(&svm->vcpu, hsave->save.rflags);
 	svm_set_efer(&svm->vcpu, hsave->save.efer);
 	svm_set_cr0(&svm->vcpu, hsave->save.cr0 | X86_CR0_PE);
 	svm_set_cr4(&svm->vcpu, hsave->save.cr4);
@@ -2312,7 +2312,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	hsave->save.efer   = svm->vcpu.arch.efer;
 	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
 	hsave->save.cr4    = svm->vcpu.arch.cr4;
-	hsave->save.rflags = vmcb->save.rflags;
+	hsave->save.rflags = kvm_get_rflags(&svm->vcpu);
 	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
 	hsave->save.rsp    = vmcb->save.rsp;
 	hsave->save.rax    = vmcb->save.rax;
@@ -2323,7 +2323,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 
 	copy_vmcb_control_area(hsave, vmcb);
 
-	if (svm->vmcb->save.rflags & X86_EFLAGS_IF)
+	if (kvm_get_rflags(&svm->vcpu) & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
 	else
 		svm->vcpu.arch.hflags &= ~HF_HIF_MASK;
@@ -2341,7 +2341,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->vmcb->save.ds = nested_vmcb->save.ds;
 	svm->vmcb->save.gdtr = nested_vmcb->save.gdtr;
 	svm->vmcb->save.idtr = nested_vmcb->save.idtr;
-	svm->vmcb->save.rflags = nested_vmcb->save.rflags;
+	kvm_set_rflags(&svm->vcpu, nested_vmcb->save.rflags);
 	svm_set_efer(&svm->vcpu, nested_vmcb->save.efer);
 	svm_set_cr0(&svm->vcpu, nested_vmcb->save.cr0);
 	svm_set_cr4(&svm->vcpu, nested_vmcb->save.cr4);
@@ -3384,7 +3384,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
 		return 0;
 
-	ret = !!(vmcb->save.rflags & X86_EFLAGS_IF);
+	ret = !!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
 
 	if (is_guest_mode(vcpu))
 		return ret && !(svm->vcpu.arch.hflags & HF_VINTR_MASK);

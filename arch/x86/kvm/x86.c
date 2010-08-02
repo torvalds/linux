@@ -4310,7 +4310,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
 	vcpu->arch.emulate_ctxt.vcpu = vcpu;
-	vcpu->arch.emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
+	vcpu->arch.emulate_ctxt.eflags = kvm_get_rflags(vcpu);
 	vcpu->arch.emulate_ctxt.eip = kvm_rip_read(vcpu);
 	vcpu->arch.emulate_ctxt.mode =
 		(!is_protmode(vcpu)) ? X86EMUL_MODE_REAL :
@@ -4340,7 +4340,7 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq)
 	vcpu->arch.emulate_ctxt.eip = c->eip;
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
-	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 
 	if (irq == NMI_VECTOR)
 		vcpu->arch.nmi_pending = false;
@@ -4473,7 +4473,7 @@ restart:
 		r = EMULATE_DONE;
 
 	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
-	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
@@ -5592,7 +5592,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
-	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return EMULATE_DONE;
 }
