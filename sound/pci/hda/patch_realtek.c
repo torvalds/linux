@@ -13216,7 +13216,7 @@ static int alc268_auto_create_multi_out_ctls(struct alc_spec *spec,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 		if (err < 0)
 			return err;
-	} else {
+	} else if (nid) {
 		err = alc268_new_analog_output(spec, nid, "Speaker", 0);
 		if (err < 0)
 			return err;
