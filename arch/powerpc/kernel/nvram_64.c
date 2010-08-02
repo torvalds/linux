@@ -429,6 +429,28 @@ static int nvram_get_partition_size(loff_t data_index)
 }
 
 
+/**
+ * nvram_find_partition - Find an nvram partition by signature and name
+ * @name: Name of the partition or NULL for any name
+ * @sig: Signature to test against
+ * @out_size: if non-NULL, returns the size of the data part of the partition
+ */
+loff_t nvram_find_partition(const char *name, int sig, int *out_size)
+{
+	struct nvram_partition *p;
+
+	list_for_each_entry(p, &nvram_part->partition, partition) {
+		if (p->header.signature == sig &&
+		    (!name || !strncmp(p->header.name, name, 12))) {
+			if (out_size)
+				*out_size = (p->header.length - 1) *
+					NVRAM_BLOCK_LEN;
+			return p->index + NVRAM_HEADER_LEN;
+		}
+	}
+	return 0;
+}
+
 /* nvram_setup_partition
  *
  * This will setup the partition we need for buffering the
