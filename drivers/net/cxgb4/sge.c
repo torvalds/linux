@@ -1593,14 +1593,15 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 
 	if (csum_ok && (pi->rx_offload & RX_CSO) &&
 	    (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
-		if (!pkt->ip_frag)
+		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else {
+			rxq->stats.rx_cso++;
+		} else if (pkt->l2info & htonl(RXF_IP)) {
 			__sum16 c = (__force __sum16)pkt->csum;
 			skb->csum = csum_unfold(c);
 			skb->ip_summed = CHECKSUM_COMPLETE;
+			rxq->stats.rx_cso++;
 		}
-		rxq->stats.rx_cso++;
 	} else
 		skb->ip_summed = CHECKSUM_NONE;
 

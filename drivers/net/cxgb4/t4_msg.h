@@ -529,6 +529,8 @@ struct cpl_rx_pkt {
 	__be32 l2info;
 #define RXF_UDP (1 << 22)
 #define RXF_TCP (1 << 23)
+#define RXF_IP  (1 << 24)
+#define RXF_IP6 (1 << 25)
 	__be16 hdr_len;
 	__be16 err_vec;
 };
