@@ -40,19 +40,23 @@ enum family_type {
 	FAMILY_8600VZB,
 	FAMILY_1500VZE,
 	FAMILY_1500VZF,
+	FAMILY_8700,
 	FAMILIES
 };
 
 /* Register maps for each ASIC */
 extern const struct register_map calliope_register_map;
 extern const struct register_map cronus_register_map;
+extern const struct register_map gaia_register_map;
 extern const struct register_map zeus_register_map;
 
 extern struct resource dvr_cronus_resources[];
+extern struct resource dvr_gaia_resources[];
 extern struct resource dvr_zeus_resources[];
 extern struct resource non_dvr_calliope_resources[];
 extern struct resource non_dvr_cronus_resources[];
 extern struct resource non_dvr_cronuslite_resources[];
+extern struct resource non_dvr_gaia_resources[];
 extern struct resource non_dvr_vz_calliope_resources[];
 extern struct resource non_dvr_vze_calliope_resources[];
 extern struct resource non_dvr_vzf_calliope_resources[];

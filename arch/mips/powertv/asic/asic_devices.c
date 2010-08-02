@@ -1,7 +1,6 @@
 /*
- *                   ASIC Device List Intialization
  *
- * Description:  Defines the platform resources for the SA settop.
+ * Description:  Defines the platform resources for Gaia-based settops.
  *
  * Copyright (C) 2005-2009 Scientific-Atlanta, Inc.
  *
@@ -18,11 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
- *
- * Description:  Defines the platform resources for the SA settop.
  *
  * NOTE: The bootloader allocates persistent memory at an address which is
  * 16 MiB below the end of the highest address in KSEG0. All fixed
@@ -289,6 +283,9 @@ static __init noinline void platform_set_family(void)
 	case BOOTLDRFAMILY('F', '1'):
 		platform_family = FAMILY_1500VZF;
 		break;
+	case BOOTLDRFAMILY('8', '7'):
+		platform_family = FAMILY_8700;
+		break;
 	default:
 		platform_family = -1;
 	}
@@ -524,6 +521,15 @@ void __init configure_platform(void)
 
 		pr_info("Platform: 8600/Vz Class B - CRONUS, "
 			"DVR_CAPABLE\n");
+		break;
+
+	case FAMILY_8700:
+		platform_features = FFS_CAPABLE | PCIE_CAPABLE;
+		asic = ASIC_GAIA;
+		set_register_map(GAIA_IO_BASE, &gaia_register_map);
+		gp_resources = dvr_gaia_resources;
+
+		pr_info("Platform: 8700 - GAIA, DVR_CAPABLE\n");
 		break;
 
 	default:
