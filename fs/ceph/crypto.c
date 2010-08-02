@@ -75,7 +75,7 @@ static struct crypto_blkcipher *ceph_crypto_alloc_cipher(void)
 	return crypto_alloc_blkcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);
 }
 
-static const u8 *aes_iv = "cephsageyudagreg";
+static const u8 *aes_iv = (u8 *)CEPH_AES_IV;
 
 static int ceph_aes_encrypt(const void *key, int key_len,
 			    void *dst, size_t *dst_len,
