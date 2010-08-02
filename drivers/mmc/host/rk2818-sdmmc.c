@@ -887,11 +887,14 @@ static int rk2818_sdmmc_get_ro(struct mmc_host *mmc)
 
 static int rk2818_sdmmc_get_cd(struct mmc_host *mmc)
 {
+#if !defined(CONFIG_MACH_RAHO)
 	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
 	u32 cdetect = readl(host->regs + SDMMC_CDETECT);
 	
 	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
-
+#else
+    return 1; //raho板子没接cd引脚，故这里默认都认为有卡存在。该情况下，只能在关机的情况下插拔卡才有效
+#endif
 }
 
 static void rk2818_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
