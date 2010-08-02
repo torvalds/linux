@@ -548,6 +548,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 		case Opt_osdkeepalivetimeout:
 			args->osd_keepalive_timeout = intval;
 			break;
+		case Opt_osd_idle_ttl:
+			args->osd_idle_ttl = intval;
+			break;
 		case Opt_mount_timeout:
 			args->mount_timeout = intval;
 			break;
