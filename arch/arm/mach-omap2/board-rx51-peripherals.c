@@ -361,6 +361,7 @@ static struct regulator_init_data rx51_vaux1 = {
 		.name			= "V28",
 		.min_uV			= 2800000,
 		.max_uV			= 2800000,
+		.always_on		= true, /* due battery cover sensor */
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
