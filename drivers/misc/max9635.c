@@ -376,7 +376,7 @@ static const struct file_operations max9635_misc_fops = {
 
 static struct miscdevice max9635_misc_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = FOPS_MAX9635_NAME,
+	.name = MAX9635_NAME,
 	.fops = &max9635_misc_fops,
 };
 #ifdef DEBUG
@@ -531,7 +531,7 @@ static int max9635_probe(struct i2c_client *client,
 		goto error_input_allocate_failed;
 	}
 
-	als_data->idev->name = "als";
+	als_data->idev->name = "max9635_als";
 	input_set_capability(als_data->idev, EV_MSC, MSC_RAW);
 	input_set_capability(als_data->idev, EV_LED, LED_MISC);
 
@@ -629,6 +629,7 @@ static int max9635_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (max9635_debug)
 		pr_info("%s: Suspending\n", __func__);
 
+	disable_irq_nosync(als_data->client->irq);
 	cancel_delayed_work_sync(&als_data->working_queue);
 
 	if (atomic_read(&als_data->enabled) == 1)

@@ -19,9 +19,7 @@
 #ifndef _LINUX_MAX9635_H__
 #define _LINUX_MAX9635_H__
 
-#define MAX9635_NAME "MAX9635_als"
-#define FOPS_MAX9635_NAME "MAX9635"
-
+#define MAX9635_NAME "max9635"
 
 #ifdef __KERNEL__
 
