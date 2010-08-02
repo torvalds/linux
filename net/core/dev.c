@@ -1488,6 +1488,7 @@ static inline void net_timestamp_check(struct sk_buff *skb)
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	skb_orphan(skb);
+	nf_reset(skb);
 
 	if (!(dev->flags & IFF_UP) ||
 	    (skb->len > (dev->mtu + dev->hard_header_len))) {
