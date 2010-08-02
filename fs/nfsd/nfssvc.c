@@ -204,6 +204,9 @@ static bool nfsd_up = false;
 static int nfsd_startup(unsigned short port, int nrservs)
 {
 	int ret;
+
+	if (nfsd_up)
+		return 0;
 	/*
 	 * Readahead param cache - will no-op if it already exists.
 	 * (Note therefore results will be suboptimal if number of
@@ -217,7 +220,7 @@ static int nfsd_startup(unsigned short port, int nrservs)
 		goto out_racache;
 	ret = lockd_up();
 	if (ret)
-		return ret;
+		goto out_racache;
 	ret = nfs4_state_start();
 	if (ret)
 		goto out_lockd;
@@ -420,7 +423,7 @@ int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
-	bool	first_thread;
+	bool	nfsd_up_before;
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
@@ -432,29 +435,28 @@ nfsd_svc(unsigned short port, int nrservs)
 	if (nrservs == 0 && nfsd_serv == NULL)
 		goto out;
 
-	first_thread = (nfsd_serv->sv_nrthreads == 0) && (nrservs != 0);
-
-	if (first_thread) {
-		error = nfsd_startup(port, nrservs);
-		if (error)
-			goto out;
-	}
 	error = nfsd_create_serv();
 	if (error)
-		goto out_shutdown;
-	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
+		goto out;
+
+	nfsd_up_before = nfsd_up;
+
+	error = nfsd_startup(port, nrservs);
 	if (error)
 		goto out_destroy;
+	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
+	if (error)
+		goto out_shutdown;
 	/* We are holding a reference to nfsd_serv which
 	 * we don't want to count in the return value,
 	 * so subtract 1
 	 */
 	error = nfsd_serv->sv_nrthreads - 1;
+out_shutdown:
+	if (error < 0 && !nfsd_up_before)
+		nfsd_shutdown();
 out_destroy:
 	svc_destroy(nfsd_serv);		/* Release server */
-out_shutdown:
-	if (error < 0 && first_thread)
-		nfsd_shutdown();
 out:
 	mutex_unlock(&nfsd_mutex);
 	return error;
