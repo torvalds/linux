@@ -1485,17 +1485,16 @@ s_bPacketToWirelessUsb(
         bNeedACK = FALSE;
         pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
     } else { //if (pDevice->dwDiagRefCount != 0) {
-        if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-            (pDevice->eOPMode == OP_MODE_AP)) {
-	    if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-		is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
-                bNeedACK = FALSE;
-                pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
-            }
-            else {
-                bNeedACK = TRUE;
-                pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-            }
+	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
+	    (pDevice->eOPMode == OP_MODE_AP)) {
+		if (is_multicast_ether_addr(psEthHeader->abyDstAddr)) {
+			bNeedACK = FALSE;
+			pTxBufHead->wFIFOCtl =
+				pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
+		} else {
+			bNeedACK = TRUE;
+			pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
+		}
         }
         else {
             // MSDUs in Infra mode always need ACK
@@ -2030,9 +2029,7 @@ CMD_STATUS csMgmt_xmit(
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
-
-    if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
-	is_broadcast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(pPacket->p80211Header->sA3.abyAddr1)) {
         bNeedACK = FALSE;
     }
     else {
@@ -2439,9 +2436,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
-
-    if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0])) ||
-	is_broadcast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(p80211Header->sA3.abyAddr1)) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
@@ -2965,7 +2960,7 @@ nsDMA_tx_packet(
     else {
         if (pDevice->eOPMode == OP_MODE_ADHOC) {
             // Adhoc Tx rate decided from node DB
-	    if (is_multicast_ether_addr(&(pDevice->sTxEthHeader.abyDstAddr[0]))) {
+	    if (is_multicast_ether_addr(pDevice->sTxEthHeader.abyDstAddr)) {
                 // Multicast use highest data rate
                 pDevice->wCurrentRate = pMgmt->sNodeDBTable[0].wTxDataRate;
                 // preamble type
