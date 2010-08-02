@@ -145,7 +145,7 @@ static int init_ring_common(struct drm_device *dev,
 	obj_priv = to_intel_bo(ring->gem_object);
 
 	/* Stop the ring if it's running. */
-	I915_WRITE(ring->regs.ctl, 0);
+	I915_WRITE_CTL(ring, 0);
 	I915_WRITE_HEAD(ring, 0);
 	ring->set_tail(dev, ring, 0);
 
@@ -158,7 +158,7 @@ static int init_ring_common(struct drm_device *dev,
 		DRM_ERROR("%s head not reset to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
-				I915_READ(ring->regs.ctl),
+				I915_READ_CTL(ring),
 				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
@@ -168,13 +168,13 @@ static int init_ring_common(struct drm_device *dev,
 		DRM_ERROR("%s head forced to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
-				I915_READ(ring->regs.ctl),
+				I915_READ_CTL(ring),
 				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
 	}
 
-	I915_WRITE(ring->regs.ctl,
+	I915_WRITE_CTL(ring,
 			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_NO_REPORT | RING_VALID);
 
@@ -184,7 +184,7 @@ static int init_ring_common(struct drm_device *dev,
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
-				I915_READ(ring->regs.ctl),
+				I915_READ_CTL(ring),
 				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
@@ -765,9 +765,6 @@ void intel_fill_struct(struct drm_device *dev,
 static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.id			= RING_RENDER,
-	.regs                   = {
-		.ctl = PRB0_CTL,
-	},
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
@@ -799,9 +796,6 @@ static const struct intel_ring_buffer render_ring = {
 static const struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
 	.id			= RING_BSD,
-	.regs			= {
-		.ctl = BSD_RING_CTL,
-	},
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
@@ -900,9 +894,6 @@ gen6_bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 static const struct intel_ring_buffer gen6_bsd_ring = {
        .name			= "gen6 bsd ring",
        .id			= RING_BSD,
-       .regs			= {
-               .ctl    = GEN6_BSD_RING_CTL,
-       },
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
        .alignment		= PAGE_SIZE,

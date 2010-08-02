@@ -13,6 +13,8 @@ struct  intel_hw_status_page {
 #define I915_WRITE_START(ring, val) I915_WRITE(RING_START(ring->mmio_base), val)
 #define I915_READ_HEAD(ring) I915_READ(RING_HEAD(ring->mmio_base))
 #define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD(ring->mmio_base), val)
+#define I915_READ_CTL(ring) I915_READ(RING_CTL(ring->mmio_base))
+#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
 
 struct drm_i915_gem_execbuffer2;
 struct  intel_ring_buffer {
@@ -21,9 +23,6 @@ struct  intel_ring_buffer {
 		RING_RENDER = 0x1,
 		RING_BSD = 0x2,
 	} id;
-	struct		ring_regs {
-			u32 ctl;
-	} regs;
 	u32		mmio_base;
 	unsigned long	size;
 	unsigned int	alignment;
