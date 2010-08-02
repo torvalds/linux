@@ -21,6 +21,8 @@ int mc13783_reg_write(struct mc13783 *mc13783, unsigned int offset, u32 val);
 int mc13783_reg_rmw(struct mc13783 *mc13783, unsigned int offset,
 		u32 mask, u32 val);
 
+int mc13783_get_flags(struct mc13783 *mc13783);
+
 int mc13783_irq_request(struct mc13783 *mc13783, int irq,
 		irq_handler_t handler, const char *name, void *dev);
 int mc13783_irq_request_nounmask(struct mc13783 *mc13783, int irq,

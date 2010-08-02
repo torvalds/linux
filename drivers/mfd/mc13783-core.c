@@ -226,6 +226,12 @@ int mc13783_reg_rmw(struct mc13783 *mc13783, unsigned int offset,
 }
 EXPORT_SYMBOL(mc13783_reg_rmw);
 
+int mc13783_get_flags(struct mc13783 *mc13783)
+{
+	return mc13783->flags;
+}
+EXPORT_SYMBOL(mc13783_get_flags);
+
 int mc13783_irq_mask(struct mc13783 *mc13783, int irq)
 {
 	int ret;
