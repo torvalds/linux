@@ -601,13 +601,13 @@ struct transaction_s
 	 * Number of outstanding updates running on this transaction
 	 * [t_handle_lock]
 	 */
-	int			t_updates;
+	atomic_t		t_updates;
 
 	/*
 	 * Number of buffers reserved for use by all handles in this transaction
 	 * handle but not yet modified. [t_handle_lock]
 	 */
-	int			t_outstanding_credits;
+	atomic_t		t_outstanding_credits;
 
 	/*
 	 * Forward and backward links for the circular list of all transactions
@@ -1258,8 +1258,8 @@ static inline int jbd_space_needed(journal_t *journal)
 {
 	int nblocks = journal->j_max_transaction_buffers;
 	if (journal->j_committing_transaction)
-		nblocks += journal->j_committing_transaction->
-					t_outstanding_credits;
+		nblocks += atomic_read(&journal->j_committing_transaction->
+				       t_outstanding_credits);
 	return nblocks;
 }
 

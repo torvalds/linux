@@ -55,6 +55,8 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	transaction->t_tid = journal->j_transaction_sequence++;
 	transaction->t_expires = jiffies + journal->j_commit_interval;
 	spin_lock_init(&transaction->t_handle_lock);
+	atomic_set(&transaction->t_updates, 0);
+	atomic_set(&transaction->t_outstanding_credits, 0);
 	INIT_LIST_HEAD(&transaction->t_inode_list);
 	INIT_LIST_HEAD(&transaction->t_private_list);
 
@@ -177,7 +179,7 @@ repeat_locked:
 	 * checkpoint to free some more log space.
 	 */
 	spin_lock(&transaction->t_handle_lock);
-	needed = transaction->t_outstanding_credits + nblocks;
+	needed = atomic_read(&transaction->t_outstanding_credits) + nblocks;
 
 	if (needed > journal->j_max_transaction_buffers) {
 		/*
@@ -240,11 +242,12 @@ repeat_locked:
 	}
 
 	handle->h_transaction = transaction;
-	transaction->t_outstanding_credits += nblocks;
-	transaction->t_updates++;
+	atomic_add(nblocks, &transaction->t_outstanding_credits);
+	atomic_inc(&transaction->t_updates);
 	transaction->t_handle_count++;
 	jbd_debug(4, "Handle %p given %d credits (total %d, free %d)\n",
-		  handle, nblocks, transaction->t_outstanding_credits,
+		  handle, nblocks,
+		  atomic_read(&transaction->t_outstanding_credits),
 		  __jbd2_log_space_left(journal));
 	spin_unlock(&transaction->t_handle_lock);
 	spin_unlock(&journal->j_state_lock);
@@ -369,7 +372,7 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 	}
 
 	spin_lock(&transaction->t_handle_lock);
-	wanted = transaction->t_outstanding_credits + nblocks;
+	wanted = atomic_read(&transaction->t_outstanding_credits) + nblocks;
 
 	if (wanted > journal->j_max_transaction_buffers) {
 		jbd_debug(3, "denied handle %p %d blocks: "
@@ -384,7 +387,7 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 	}
 
 	handle->h_buffer_credits += nblocks;
-	transaction->t_outstanding_credits += nblocks;
+	atomic_add(nblocks, &transaction->t_outstanding_credits);
 	result = 0;
 
 	jbd_debug(3, "extended handle %p by %d\n", handle, nblocks);
@@ -426,15 +429,14 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 	 * First unlink the handle from its current transaction, and start the
 	 * commit on that.
 	 */
-	J_ASSERT(transaction->t_updates > 0);
+	J_ASSERT(atomic_read(&transaction->t_updates) > 0);
 	J_ASSERT(journal_current_handle() == handle);
 
 	spin_lock(&journal->j_state_lock);
 	spin_lock(&transaction->t_handle_lock);
-	transaction->t_outstanding_credits -= handle->h_buffer_credits;
-	transaction->t_updates--;
-
-	if (!transaction->t_updates)
+	atomic_sub(handle->h_buffer_credits,
+		   &transaction->t_outstanding_credits);
+	if (atomic_dec_and_test(&transaction->t_updates))
 		wake_up(&journal->j_wait_updates);
 	spin_unlock(&transaction->t_handle_lock);
 
@@ -481,7 +483,7 @@ void jbd2_journal_lock_updates(journal_t *journal)
 			break;
 
 		spin_lock(&transaction->t_handle_lock);
-		if (!transaction->t_updates) {
+		if (!atomic_read(&transaction->t_updates)) {
 			spin_unlock(&transaction->t_handle_lock);
 			break;
 		}
@@ -1258,7 +1260,8 @@ int jbd2_journal_stop(handle_t *handle)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
-	int err;
+	int err, wait_for_commit = 0;
+	tid_t tid;
 	pid_t pid;
 
 	J_ASSERT(journal_current_handle() == handle);
@@ -1266,7 +1269,7 @@ int jbd2_journal_stop(handle_t *handle)
 	if (is_handle_aborted(handle))
 		err = -EIO;
 	else {
-		J_ASSERT(transaction->t_updates > 0);
+		J_ASSERT(atomic_read(&transaction->t_updates) > 0);
 		err = 0;
 	}
 
@@ -1334,14 +1337,8 @@ int jbd2_journal_stop(handle_t *handle)
 	if (handle->h_sync)
 		transaction->t_synchronous_commit = 1;
 	current->journal_info = NULL;
-	spin_lock(&transaction->t_handle_lock);
-	transaction->t_outstanding_credits -= handle->h_buffer_credits;
-	transaction->t_updates--;
-	if (!transaction->t_updates) {
-		wake_up(&journal->j_wait_updates);
-		if (journal->j_barrier_count)
-			wake_up(&journal->j_wait_transaction_locked);
-	}
+	atomic_sub(handle->h_buffer_credits,
+		   &transaction->t_outstanding_credits);
 
 	/*
 	 * If the handle is marked SYNC, we need to set another commit
@@ -1350,15 +1347,13 @@ int jbd2_journal_stop(handle_t *handle)
 	 * transaction is too old now.
 	 */
 	if (handle->h_sync ||
-			transaction->t_outstanding_credits >
-				journal->j_max_transaction_buffers ||
-			time_after_eq(jiffies, transaction->t_expires)) {
+	    (atomic_read(&transaction->t_outstanding_credits) >
+	     journal->j_max_transaction_buffers) ||
+	    time_after_eq(jiffies, transaction->t_expires)) {
 		/* Do this even for aborted journals: an abort still
 		 * completes the commit thread, it just doesn't write
 		 * anything to disk. */
-		tid_t tid = transaction->t_tid;
 
-		spin_unlock(&transaction->t_handle_lock);
 		jbd_debug(2, "transaction too old, requesting commit for "
 					"handle %p\n", handle);
 		/* This is non-blocking */
@@ -1369,10 +1364,24 @@ int jbd2_journal_stop(handle_t *handle)
 		 * to wait for the commit to complete.
 		 */
 		if (handle->h_sync && !(current->flags & PF_MEMALLOC))
-			err = jbd2_log_wait_commit(journal, tid);
-	} else {
-		spin_unlock(&transaction->t_handle_lock);
+			wait_for_commit = 1;
 	}
+
+	/*
+	 * Once we drop t_updates, if it goes to zero the transaction
+	 * could start commiting on us and eventually disappear.  So
+	 * once we do this, we must not dereference transaction
+	 * pointer again.
+	 */
+	tid = transaction->t_tid;
+	if (atomic_dec_and_test(&transaction->t_updates)) {
+		wake_up(&journal->j_wait_updates);
+		if (journal->j_barrier_count)
+			wake_up(&journal->j_wait_transaction_locked);
+	}
+
+	if (wait_for_commit)
+		err = jbd2_log_wait_commit(journal, tid);
 
 	lock_map_release(&handle->h_lockdep_map);
 

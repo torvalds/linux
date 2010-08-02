@@ -417,12 +417,12 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 					      stats.run.rs_locked);
 
 	spin_lock(&commit_transaction->t_handle_lock);
-	while (commit_transaction->t_updates) {
+	while (atomic_read(&commit_transaction->t_updates)) {
 		DEFINE_WAIT(wait);
 
 		prepare_to_wait(&journal->j_wait_updates, &wait,
 					TASK_UNINTERRUPTIBLE);
-		if (commit_transaction->t_updates) {
+		if (atomic_read(&commit_transaction->t_updates)) {
 			spin_unlock(&commit_transaction->t_handle_lock);
 			spin_unlock(&journal->j_state_lock);
 			schedule();
@@ -433,7 +433,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	}
 	spin_unlock(&commit_transaction->t_handle_lock);
 
-	J_ASSERT (commit_transaction->t_outstanding_credits <=
+	J_ASSERT (atomic_read(&commit_transaction->t_outstanding_credits) <=
 			journal->j_max_transaction_buffers);
 
 	/*
@@ -527,11 +527,12 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	stats.run.rs_logging = jiffies;
 	stats.run.rs_flushing = jbd2_time_diff(stats.run.rs_flushing,
 					       stats.run.rs_logging);
-	stats.run.rs_blocks = commit_transaction->t_outstanding_credits;
+	stats.run.rs_blocks =
+		atomic_read(&commit_transaction->t_outstanding_credits);
 	stats.run.rs_blocks_logged = 0;
 
 	J_ASSERT(commit_transaction->t_nr_buffers <=
-		 commit_transaction->t_outstanding_credits);
+		 atomic_read(&commit_transaction->t_outstanding_credits));
 
 	err = 0;
 	descriptor = NULL;
@@ -616,7 +617,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 * the free space in the log, but this counter is changed
 		 * by jbd2_journal_next_log_block() also.
 		 */
-		commit_transaction->t_outstanding_credits--;
+		atomic_dec(&commit_transaction->t_outstanding_credits);
 
 		/* Bump b_count to prevent truncate from stumbling over
                    the shadowed buffer!  @@@ This can go if we ever get
