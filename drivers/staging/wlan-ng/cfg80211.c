@@ -621,8 +621,8 @@ int prism2_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 }
 
 
-int prism2_set_tx_power(struct wiphy *wiphy, enum tx_power_setting type,
-			int dbm)
+int prism2_set_tx_power(struct wiphy *wiphy, enum nl80211_tx_power_setting type,
+			int mbm)
 {
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
 	wlandevice_t *wlandev = priv->wlandev;
@@ -630,10 +630,10 @@ int prism2_set_tx_power(struct wiphy *wiphy, enum tx_power_setting type,
 	int result;
 	int err = 0;
 
-	if (type == TX_POWER_AUTOMATIC)
+	if (type == NL80211_TX_POWER_AUTOMATIC)
 		data = 30;
 	else
-		data = dbm;
+		data = MBM_TO_DBM(mbm);
 
 	result = prism2_domibset_uint32(wlandev,
 		DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
