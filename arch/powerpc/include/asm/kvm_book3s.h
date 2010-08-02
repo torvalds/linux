@@ -38,15 +38,6 @@ struct kvmppc_slb {
 	bool class	: 1;
 };
 
-struct kvmppc_sr {
-	u32 raw;
-	u32 vsid;
-	bool Ks		: 1;
-	bool Kp		: 1;
-	bool nx		: 1;
-	bool valid	: 1;
-};
-
 struct kvmppc_bat {
 	u64 raw;
 	u32 bepi;
@@ -79,7 +70,7 @@ struct kvmppc_vcpu_book3s {
 		u64 vsid;
 	} slb_shadow[64];
 	u8 slb_shadow_max;
-	struct kvmppc_sr sr[16];
+	u32 sr[16];
 	struct kvmppc_bat ibat[8];
 	struct kvmppc_bat dbat[8];
 	u64 hid[6];

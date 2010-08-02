@@ -1162,8 +1162,8 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		}
 	} else {
 		for (i = 0; i < 16; i++) {
-			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i].raw;
-			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i].raw;
+			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i];
+			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i];
 		}
 		for (i = 0; i < 8; i++) {
 			sregs->u.s.ppc32.ibat[i] = vcpu3s->ibat[i].raw;
