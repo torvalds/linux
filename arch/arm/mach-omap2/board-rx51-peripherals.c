@@ -32,6 +32,8 @@
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
 
+#include <sound/tlv320aic3x.h>
+
 #include "mux.h"
 #include "hsmmc.h"
 
@@ -707,6 +709,10 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vio			= &rx51_vio,
 };
 
+static struct aic3x_pdata rx51_aic3x_data __initdata = {
+	.gpio_reset		= 60,
+};
+
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 	{
 		I2C_BOARD_INFO("twl5030", 0x48),
@@ -719,6 +725,7 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+		.platform_data = &rx51_aic3x_data,
 	},
 };
 
