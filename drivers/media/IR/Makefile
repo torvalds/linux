@@ -16,3 +16,4 @@ obj-$(CONFIG_IR_LIRC_CODEC) += ir-lirc-codec.o
 # stand-alone IR receivers/transmitters
 obj-$(CONFIG_IR_IMON) += imon.o
 obj-$(CONFIG_IR_MCEUSB) += mceusb.o
+obj-$(CONFIG_IR_STREAMZAP) += streamzap.o

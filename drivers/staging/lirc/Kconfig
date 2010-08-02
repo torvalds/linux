@@ -90,12 +90,6 @@ config LIRC_SIR
 	help
 	  Driver for the SIR IrDA port
 
-config LIRC_STREAMZAP
-	tristate "Streamzap PC Receiver"
-	depends on LIRC_STAGING && USB
-	help
-	  Driver for the Streamzap PC Receiver
-
 config LIRC_TTUSBIR
 	tristate "Technotrend USB IR Receiver"
 	depends on LIRC_STAGING && USB
