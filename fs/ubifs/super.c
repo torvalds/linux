@@ -1320,7 +1320,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			 */
 			err = ubifs_leb_unmap(c, c->gc_lnum);
 			if (err)
-				return err;
+				goto out_orphans;
 		}
 
 		err = dbg_check_lprops(c);
