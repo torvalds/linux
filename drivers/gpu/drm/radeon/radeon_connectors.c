@@ -214,7 +214,7 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 
-		DRM_DEBUG("Adding native panel mode %s\n", mode->name);
+		DRM_DEBUG_KMS("Adding native panel mode %s\n", mode->name);
 	} else if (native_mode->hdisplay != 0 &&
 		   native_mode->vdisplay != 0) {
 		/* mac laptops without an edid */
@@ -226,7 +226,7 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		 */
 		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
-		DRM_DEBUG("Adding cvt approximation of native panel mode %s\n", mode->name);
+		DRM_DEBUG_KMS("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
 	return mode;
 }
@@ -522,7 +522,7 @@ static int radeon_lvds_set_property(struct drm_connector *connector,
 	struct radeon_encoder *radeon_encoder;
 	enum radeon_rmx_type rmx_type;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	if (property != dev->mode_config.scaling_mode_property)
 		return 0;
 

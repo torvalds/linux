@@ -141,7 +141,7 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 	/* only one clock mode per power state */
 	rdev->pm.requested_clock_mode_index = 0;
 
-	DRM_DEBUG("Requested: e: %d m: %d p: %d\n",
+	DRM_DEBUG_DRIVER("Requested: e: %d m: %d p: %d\n",
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
 		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
@@ -276,7 +276,7 @@ void r100_pm_misc(struct radeon_device *rdev)
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
 				      ps->pcie_lanes);
-		DRM_DEBUG("Setting: p: %d\n", ps->pcie_lanes);
+		DRM_DEBUG_DRIVER("Setting: p: %d\n", ps->pcie_lanes);
 	}
 }
 
@@ -849,7 +849,7 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 	const char *fw_name = NULL;
 	int err;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
 	err = IS_ERR(pdev);
@@ -2642,7 +2642,7 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 		flags |= pitch / 8;
 
 
-	DRM_DEBUG("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
+	DRM_DEBUG_KMS("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
 	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
 	WREG32(RADEON_SURFACE0_LOWER_BOUND + surf_index, offset);
 	WREG32(RADEON_SURFACE0_UPPER_BOUND + surf_index, offset + obj_size - 1);
@@ -3038,7 +3038,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		}
 #endif
 
-		DRM_DEBUG("GRPH_BUFFER_CNTL from to %x\n",
+		DRM_DEBUG_KMS("GRPH_BUFFER_CNTL from to %x\n",
 			  /* 	  (unsigned int)info->SavedReg->grph_buffer_cntl, */
 			  (unsigned int)RREG32(RADEON_GRPH_BUFFER_CNTL));
 	}
@@ -3134,7 +3134,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 			WREG32(RS400_DISP1_REQ_CNTL1, 0x28FBC3AC);
 		}
 
-		DRM_DEBUG("GRPH2_BUFFER_CNTL from to %x\n",
+		DRM_DEBUG_KMS("GRPH2_BUFFER_CNTL from to %x\n",
 			  (unsigned int)RREG32(RADEON_GRPH2_BUFFER_CNTL));
 	}
 }

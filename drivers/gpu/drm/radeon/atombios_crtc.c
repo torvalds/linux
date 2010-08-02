@@ -818,7 +818,7 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -957,7 +957,7 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 

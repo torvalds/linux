@@ -141,7 +141,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			}
 		}
 		if (!found) {
-			DRM_DEBUG("unknown crtc id %d\n", value);
+			DRM_DEBUG_KMS("unknown crtc id %d\n", value);
 			return -EINVAL;
 		}
 		break;
@@ -156,12 +156,12 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		else if (rdev->family >= CHIP_R600)
 			value = rdev->config.r600.tile_config;
 		else {
-			DRM_DEBUG("tiling config is r6xx+ only!\n");
+			DRM_DEBUG_KMS("tiling config is r6xx+ only!\n");
 			return -EINVAL;
 		}
 		break;
 	default:
-		DRM_DEBUG("Invalid request %d\n", info->request);
+		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
 	if (DRM_COPY_TO_USER(value_ptr, &value, sizeof(uint32_t))) {

@@ -42,7 +42,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_device *rdev = dev->dev_private;
 	int i;
 
-	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -75,7 +75,7 @@ static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_device *rdev = dev->dev_private;
 	int i;
 
-	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -469,7 +469,7 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	uint32_t post_div;
 	u32 pll_out_min, pll_out_max;
 
-	DRM_DEBUG("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
+	DRM_DEBUG_KMS("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
 	if (pll->flags & RADEON_PLL_IS_LCD) {
@@ -805,7 +805,7 @@ done:
 	*ref_div_p = ref_div;
 	*post_div_p = post_div;
 
-	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
+	DRM_DEBUG_KMS("%u %d.%d, %d, %d\n", *dot_clock_p, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
 }
 
 void radeon_compute_pll(struct radeon_pll *pll,

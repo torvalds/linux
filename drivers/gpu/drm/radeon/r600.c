@@ -271,7 +271,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 		}
 	}
 
-	DRM_DEBUG("Requested: e: %d m: %d p: %d\n",
+	DRM_DEBUG_DRIVER("Requested: e: %d m: %d p: %d\n",
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
 		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
@@ -586,7 +586,7 @@ void r600_pm_misc(struct radeon_device *rdev)
 		if (voltage->voltage != rdev->pm.current_vddc) {
 			radeon_atom_set_voltage(rdev, voltage->voltage);
 			rdev->pm.current_vddc = voltage->voltage;
-			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+			DRM_DEBUG_DRIVER("Setting: v: %d\n", voltage->voltage);
 		}
 	}
 }
