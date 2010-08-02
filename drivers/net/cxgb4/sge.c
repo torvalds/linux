@@ -931,23 +931,23 @@ out_free:	dev_kfree_skb(skb);
 
 	ssi = skb_shinfo(skb);
 	if (ssi->gso_size) {
-		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+		struct cpl_tx_pkt_lso *lso = (void *)wr;
 		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 
 		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
 				       FW_WR_IMMDLEN(sizeof(*lso)));
-		lso->lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
-				      LSO_FIRST_SLICE | LSO_LAST_SLICE |
-				      LSO_IPV6(v6) |
-				      LSO_ETHHDR_LEN(eth_xtra_len / 4) |
-				      LSO_IPHDR_LEN(l3hdr_len / 4) |
-				      LSO_TCPHDR_LEN(tcp_hdr(skb)->doff));
-		lso->ipid_ofst = htons(0);
-		lso->mss = htons(ssi->gso_size);
-		lso->seqno_offset = htonl(0);
-		lso->len = htonl(skb->len);
+		lso->c.lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
+					LSO_FIRST_SLICE | LSO_LAST_SLICE |
+					LSO_IPV6(v6) |
+					LSO_ETHHDR_LEN(eth_xtra_len / 4) |
+					LSO_IPHDR_LEN(l3hdr_len / 4) |
+					LSO_TCPHDR_LEN(tcp_hdr(skb)->doff));
+		lso->c.ipid_ofst = htons(0);
+		lso->c.mss = htons(ssi->gso_size);
+		lso->c.seqno_offset = htonl(0);
+		lso->c.len = htonl(skb->len);
 		cpl = (void *)(lso + 1);
 		cntrl = TXPKT_CSUM_TYPE(v6 ? TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
 			TXPKT_IPHDR_LEN(l3hdr_len) |
