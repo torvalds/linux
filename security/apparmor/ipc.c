@@ -100,7 +100,7 @@ int aa_ptrace(struct task_struct *tracer, struct task_struct *tracee,
 
 	if (!unconfined(tracer_p)) {
 		/* lcred released below */
-		struct cred *lcred = get_task_cred(tracee);
+		const struct cred *lcred = get_task_cred(tracee);
 		struct aa_profile *tracee_p = aa_cred_profile(lcred);
 
 		error = aa_may_ptrace(tracer, tracer_p, tracee_p, mode);

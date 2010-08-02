@@ -62,7 +62,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 				     struct aa_profile *to_profile)
 {
 	struct task_struct *tracer;
-	struct cred *cred = NULL;
+	const struct cred *cred = NULL;
 	struct aa_profile *tracerp = NULL;
 	int error = 0;
 
