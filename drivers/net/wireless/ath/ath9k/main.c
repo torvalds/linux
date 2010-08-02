@@ -396,7 +396,12 @@ void ath_ani_calibrate(unsigned long data)
 	bool shortcal = false;
 	bool aniflag = false;
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
-	u32 cal_interval, short_cal_interval;
+	u32 cal_interval, short_cal_interval, long_cal_interval;
+
+	if (ah->caldata && ah->caldata->nfcal_interference)
+		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
+	else
+		long_cal_interval = ATH_LONG_CALINTERVAL;
 
 	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
 		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
@@ -408,7 +413,7 @@ void ath_ani_calibrate(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	/* Long calibration runs independently of short calibration. */
-	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
+	if ((timestamp - common->ani.longcal_timer) >= long_cal_interval) {
 		longcal = true;
 		ath_print(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
 		common->ani.longcal_timer = timestamp;
