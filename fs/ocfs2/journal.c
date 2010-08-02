@@ -301,7 +301,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 {
 	int status = 0;
 	unsigned int flushed;
-	unsigned long old_id;
 	struct ocfs2_journal *journal = NULL;
 
 	mlog_entry_void();
@@ -326,7 +325,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 		goto finally;
 	}
 
-	old_id = ocfs2_inc_trans_id(journal);
+	ocfs2_inc_trans_id(journal);
 
 	flushed = atomic_read(&journal->j_num_trans);
 	atomic_set(&journal->j_num_trans, 0);
