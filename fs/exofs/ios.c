@@ -305,8 +305,6 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 struct _striping_info {
 	u64 obj_offset;
 	u64 group_length;
-	u64 total_group_length;
-	u64 Major;
 	unsigned dev;
 	unsigned unit_off;
 };
@@ -343,8 +341,6 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 				  (M * group_depth * stripe_unit);
 
 	si->group_length = T - H;
-	si->total_group_length = T;
-	si->Major = M;
 }
 
 static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
@@ -450,17 +446,15 @@ out:
 static int _prepare_for_striping(struct exofs_io_state *ios)
 {
 	u64 length = ios->length;
+	u64 offset = ios->offset;
 	struct _striping_info si;
-	unsigned devs_in_group = ios->layout->group_width *
-				 ios->layout->mirrors_p1;
 	int ret = 0;
-
-	_calc_stripe_info(ios, ios->offset, &si);
 
 	if (!ios->pages) {
 		if (ios->kern_buff) {
 			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
 
+			_calc_stripe_info(ios, ios->offset, &si);
 			per_dev->offset = si.obj_offset;
 			per_dev->dev = si.dev;
 
@@ -474,6 +468,8 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 	}
 
 	while (length) {
+		_calc_stripe_info(ios, offset, &si);
+
 		if (length < si.group_length)
 			si.group_length = length;
 
@@ -481,16 +477,8 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 		if (unlikely(ret))
 			goto out;
 
+		offset += si.group_length;
 		length -= si.group_length;
-
-		si.group_length = si.total_group_length;
-		si.unit_off = 0;
-		++si.Major;
-		si.obj_offset = si.Major * ios->layout->stripe_unit *
-						ios->layout->group_depth;
-
-		si.dev = (si.dev - (si.dev % devs_in_group)) + devs_in_group;
-		si.dev %= ios->layout->s_numdevs;
 	}
 
 out:
