@@ -132,26 +132,26 @@ static void ghes_fini(struct ghes *ghes)
 }
 
 enum {
-	GHES_SER_NO = 0x0,
-	GHES_SER_CORRECTED = 0x1,
-	GHES_SER_RECOVERABLE = 0x2,
-	GHES_SER_PANIC = 0x3,
+	GHES_SEV_NO = 0x0,
+	GHES_SEV_CORRECTED = 0x1,
+	GHES_SEV_RECOVERABLE = 0x2,
+	GHES_SEV_PANIC = 0x3,
 };
 
 static inline int ghes_severity(int severity)
 {
 	switch (severity) {
-	case CPER_SER_INFORMATIONAL:
-		return GHES_SER_NO;
-	case CPER_SER_CORRECTED:
-		return GHES_SER_CORRECTED;
-	case CPER_SER_RECOVERABLE:
-		return GHES_SER_RECOVERABLE;
-	case CPER_SER_FATAL:
-		return GHES_SER_PANIC;
+	case CPER_SEV_INFORMATIONAL:
+		return GHES_SEV_NO;
+	case CPER_SEV_CORRECTED:
+		return GHES_SEV_CORRECTED;
+	case CPER_SEV_RECOVERABLE:
+		return GHES_SEV_RECOVERABLE;
+	case CPER_SEV_FATAL:
+		return GHES_SEV_PANIC;
 	default:
 		/* Unkown, go panic */
-		return GHES_SER_PANIC;
+		return GHES_SEV_PANIC;
 	}
 }
 
@@ -237,16 +237,16 @@ static void ghes_clear_estatus(struct ghes *ghes)
 
 static void ghes_do_proc(struct ghes *ghes)
 {
-	int ser, processed = 0;
+	int sev, processed = 0;
 	struct acpi_hest_generic_data *gdata;
 
-	ser = ghes_severity(ghes->estatus->error_severity);
+	sev = ghes_severity(ghes->estatus->error_severity);
 	apei_estatus_for_each_section(ghes->estatus, gdata) {
 #ifdef CONFIG_X86_MCE
 		if (!uuid_le_cmp(*(uuid_le *)gdata->section_type,
 				 CPER_SEC_PLATFORM_MEM)) {
 			apei_mce_report_mem_error(
-				ser == GHES_SER_CORRECTED,
+				sev == GHES_SEV_CORRECTED,
 				(struct cper_sec_mem_err *)(gdata+1));
 			processed = 1;
 		}
