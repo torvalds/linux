@@ -36,7 +36,7 @@
 #define DBG(x...)
 #endif
 
-#define SPI_GPIO_TEST 1
+#define SPI_GPIO_TEST 0
 #define HIGH_SPI_TEST 1
 #define USE_SYS_INT	  1
 
