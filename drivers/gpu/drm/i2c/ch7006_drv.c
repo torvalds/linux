@@ -33,7 +33,7 @@ static void ch7006_encoder_set_config(struct drm_encoder *encoder,
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 
-	priv->params = params;
+	priv->params = *(struct ch7006_encoder_params *)params;
 }
 
 static void ch7006_encoder_destroy(struct drm_encoder *encoder)
@@ -114,7 +114,7 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
-	struct ch7006_encoder_params *params = priv->params;
+	struct ch7006_encoder_params *params = &priv->params;
 	struct ch7006_state *state = &priv->state;
 	uint8_t *regs = state->regs;
 	struct ch7006_mode *mode = priv->mode;
@@ -428,6 +428,22 @@ static int ch7006_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int ch7006_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	ch7006_dbg(client, "\n");
+
+	return 0;
+}
+
+static int ch7006_resume(struct i2c_client *client)
+{
+	ch7006_dbg(client, "\n");
+
+	ch7006_write(client, 0x3d, 0x0);
+
+	return 0;
+}
+
 static int ch7006_encoder_init(struct i2c_client *client,
 			       struct drm_device *dev,
 			       struct drm_encoder_slave *encoder)
@@ -487,6 +503,8 @@ static struct drm_i2c_encoder_driver ch7006_driver = {
 	.i2c_driver = {
 		.probe = ch7006_probe,
 		.remove = ch7006_remove,
+		.suspend = ch7006_suspend,
+		.resume = ch7006_resume,
 
 		.driver = {
 			.name = "ch7006",

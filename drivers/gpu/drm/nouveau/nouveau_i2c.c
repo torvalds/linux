@@ -278,3 +278,45 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	return i2c->chan;
 }
 
+bool
+nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr)
+{
+	uint8_t buf[] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.len = 1,
+			.buf = buf,
+		},
+		{
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = buf,
+		}
+	};
+
+	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
+}
+
+int
+nouveau_i2c_identify(struct drm_device *dev, const char *what,
+		     struct i2c_board_info *info, int index)
+{
+	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, index);
+	int i;
+
+	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, index);
+
+	for (i = 0; info[i].addr; i++) {
+		if (nouveau_probe_i2c_addr(i2c, info[i].addr)) {
+			NV_INFO(dev, "Detected %s: %s\n", what, info[i].type);
+			return i;
+		}
+	}
+
+	NV_DEBUG(dev, "No devices found.\n");
+
+	return -ENODEV;
+}
