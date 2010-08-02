@@ -569,6 +569,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 		struct perf_sample_data data;
 
 		perf_sample_data_init(&data, 0);
+		data.period = event->hw.last_period;
 
 		if (perf_event_overflow(event, nmi, &data, regs)) {
 			/*
