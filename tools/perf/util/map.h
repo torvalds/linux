@@ -29,7 +29,8 @@ struct map {
 	};
 	u64			start;
 	u64			end;
-	enum map_type		type;
+	u8 /* enum map_type */	type;
+	bool			referenced;
 	u32			priv;
 	u64			pgoff;
 

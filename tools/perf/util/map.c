@@ -29,6 +29,7 @@ void map__init(struct map *self, enum map_type type,
 	self->unmap_ip = map__unmap_ip;
 	RB_CLEAR_NODE(&self->rb_node);
 	self->groups   = NULL;
+	self->referenced = false;
 }
 
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
@@ -387,6 +388,7 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 {
 	struct rb_root *root = &self->maps[map->type];
 	struct rb_node *next = rb_first(root);
+	int err = 0;
 
 	while (next) {
 		struct map *pos = rb_entry(next, struct map, rb_node);
@@ -403,20 +405,16 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 
 		rb_erase(&pos->rb_node, root);
 		/*
-		 * We may have references to this map, for instance in some
-		 * hist_entry instances, so just move them to a separate
-		 * list.
-		 */
-		list_add_tail(&pos->node, &self->removed_maps[map->type]);
-		/*
 		 * Now check if we need to create new maps for areas not
 		 * overlapped by the new map:
 		 */
 		if (map->start > pos->start) {
 			struct map *before = map__clone(pos);
 
-			if (before == NULL)
-				return -ENOMEM;
+			if (before == NULL) {
+				err = -ENOMEM;
+				goto move_map;
+			}
 
 			before->end = map->start - 1;
 			map_groups__insert(self, before);
@@ -427,14 +425,27 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 		if (map->end < pos->end) {
 			struct map *after = map__clone(pos);
 
-			if (after == NULL)
-				return -ENOMEM;
+			if (after == NULL) {
+				err = -ENOMEM;
+				goto move_map;
+			}
 
 			after->start = map->end + 1;
 			map_groups__insert(self, after);
 			if (verbose >= 2)
 				map__fprintf(after, fp);
 		}
+move_map:
+		/*
+		 * If we have references, just move them to a separate list.
+		 */
+		if (pos->referenced)
+			list_add_tail(&pos->node, &self->removed_maps[map->type]);
+		else
+			map__delete(pos);
+
+		if (err)
+			return err;
 	}
 
 	return 0;
