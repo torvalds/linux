@@ -1258,7 +1258,6 @@ static void ether1394_iso(struct hpsb_iso *iso)
 	char *buf;
 	struct eth1394_host_info *hi;
 	struct net_device *dev;
-	struct eth1394_priv *priv;
 	unsigned int len;
 	u32 specifier_id;
 	u16 source_id;
@@ -1287,8 +1286,6 @@ static void ether1394_iso(struct hpsb_iso *iso)
 		specifier_id = (be32_to_cpu(data[0]) & 0xffff) << 8 |
 			       (be32_to_cpu(data[1]) & 0xff000000) >> 24;
 		source_id = be32_to_cpu(data[0]) >> 16;
-
-		priv = netdev_priv(dev);
 
 		if (info->channel != (iso->host->csr.broadcast_channel & 0x3f)
 		    || specifier_id != ETHER1394_GASP_SPECIFIER_ID) {

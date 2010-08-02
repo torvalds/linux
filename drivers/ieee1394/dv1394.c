@@ -172,7 +172,7 @@ static DEFINE_SPINLOCK(dv1394_cards_lock);
 
 static inline struct video_card* file_to_video_card(struct file *file)
 {
-	return (struct video_card*) file->private_data;
+	return file->private_data;
 }
 
 /*** FRAME METHODS *********************************************************/
@@ -610,7 +610,7 @@ static void frame_prepare(struct video_card *video, unsigned int this_frame)
 	} else {
 
 		u32 transmit_sec, transmit_cyc;
-		u32 ts_cyc, ts_off;
+		u32 ts_cyc;
 
 		/* DMA is stopped, so this is the very first frame */
 		video->active_frame = this_frame;
@@ -636,7 +636,6 @@ static void frame_prepare(struct video_card *video, unsigned int this_frame)
 		transmit_sec += transmit_cyc/8000;
 		transmit_cyc %= 8000;
 
-		ts_off = ct_off;
 		ts_cyc = transmit_cyc + 3;
 		ts_cyc %= 8000;
 
@@ -1784,7 +1783,7 @@ static int dv1394_open(struct inode *inode, struct file *file)
 	struct video_card *video = NULL;
 
 	if (file->private_data) {
-		video = (struct video_card*) file->private_data;
+		video = file->private_data;
 
 	} else {
 		/* look up the card by ID */
@@ -2004,7 +2003,7 @@ static void ir_tasklet_func(unsigned long data)
 
 		int sof=0; /* start-of-frame flag */
 		struct frame *f;
-		u16 packet_length, packet_time;
+		u16 packet_length;
 		int i, dbc=0;
 		struct DMA_descriptor_block *block = NULL;
 		u16 xferstatus;
@@ -2024,11 +2023,6 @@ static void ir_tasklet_func(unsigned long data)
 						sizeof(struct packet));
 
 			packet_length = le16_to_cpu(p->data_length);
-			packet_time   = le16_to_cpu(p->timestamp);
-
-			irq_printk("received packet %02d, timestamp=%04x, length=%04x, sof=%02x%02x\n", video->current_packet,
-				   packet_time, packet_length,
-				   p->data[0], p->data[1]);
 
 			/* get the descriptor based on packet_buffer cursor */
 			f = video->frames[video->current_packet / MAX_PACKETS];
@@ -2320,16 +2314,12 @@ static void dv1394_add_host(struct hpsb_host *host)
 
 static void dv1394_host_reset(struct hpsb_host *host)
 {
-	struct ti_ohci *ohci;
 	struct video_card *video = NULL, *tmp_vid;
 	unsigned long flags;
 
 	/* We only work with the OHCI-1394 driver */
 	if (strcmp(host->driver->name, OHCI1394_DRIVER_NAME))
 		return;
-
-	ohci = (struct ti_ohci *)host->hostdata;
-
 
 	/* find the corresponding video_cards */
 	spin_lock_irqsave(&dv1394_cards_lock, flags);

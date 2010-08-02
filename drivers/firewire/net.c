@@ -806,8 +806,8 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 
 static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,
 		int tcode, int destination, int source, int generation,
-		int speed, unsigned long long offset, void *payload,
-		size_t length, void *callback_data)
+		unsigned long long offset, void *payload, size_t length,
+		void *callback_data)
 {
 	struct fwnet_device *dev = callback_data;
 	int rcode;
