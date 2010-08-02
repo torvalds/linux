@@ -435,7 +435,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	if (!skb_make_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
 
-	inside = (void *)skb->data + ip_hdrlen(skb);
+	inside = (void *)skb->data + hdrlen;
 
 	/* We're actually going to mangle it beyond trivial checksum
 	   adjustment, so make sure the current checksum is correct. */
@@ -465,12 +465,10 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l4proto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
 
-	if (!nf_ct_get_tuple(skb,
-			     ip_hdrlen(skb) + sizeof(struct icmphdr),
-			     (ip_hdrlen(skb) +
+	if (!nf_ct_get_tuple(skb, hdrlen + sizeof(struct icmphdr),
+			     (hdrlen +
 			      sizeof(struct icmphdr) + inside->ip.ihl * 4),
-			     (u_int16_t)AF_INET,
-			     inside->ip.protocol,
+			     (u_int16_t)AF_INET, inside->ip.protocol,
 			     &inner, l3proto, l4proto))
 		return 0;
 
@@ -479,15 +477,13 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	   pass all hooks (locally-generated ICMP).  Consider incoming
 	   packet: PREROUTING (DST manip), routing produces ICMP, goes
 	   through POSTROUTING (which must correct the DST manip). */
-	if (!manip_pkt(inside->ip.protocol, skb,
-		       ip_hdrlen(skb) + sizeof(inside->icmp),
-		       &ct->tuplehash[!dir].tuple,
-		       !manip))
+	if (!manip_pkt(inside->ip.protocol, skb, hdrlen + sizeof(inside->icmp),
+		       &ct->tuplehash[!dir].tuple, !manip))
 		return 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		/* Reloading "inside" here since manip_pkt inner. */
-		inside = (void *)skb->data + ip_hdrlen(skb);
+		inside = (void *)skb->data + hdrlen;
 		inside->icmp.checksum = 0;
 		inside->icmp.checksum =
 			csum_fold(skb_checksum(skb, hdrlen,
