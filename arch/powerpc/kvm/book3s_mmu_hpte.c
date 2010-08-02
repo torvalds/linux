@@ -21,6 +21,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
+#include "trace.h"
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -65,6 +66,8 @@ static inline u64 kvmppc_mmu_hash_vpte_long(u64 vpage)
 void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	u64 index;
+
+	trace_kvm_book3s_mmu_map(pte);
 
 	spin_lock(&vcpu->arch.mmu_lock);
 
