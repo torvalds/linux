@@ -299,6 +299,20 @@ static u64 __xchg_spte(u64 *sptep, u64 new_spte)
 #endif
 }
 
+static bool spte_has_volatile_bits(u64 spte)
+{
+	if (!shadow_accessed_mask)
+		return false;
+
+	if (!is_shadow_present_pte(spte))
+		return false;
+
+	if (spte & shadow_accessed_mask)
+		return false;
+
+	return true;
+}
+
 static void update_spte(u64 *sptep, u64 new_spte)
 {
 	u64 old_spte;
@@ -679,14 +693,14 @@ static void set_spte_track_bits(u64 *sptep, u64 new_spte)
 	pfn_t pfn;
 	u64 old_spte = *sptep;
 
-	if (!shadow_accessed_mask || !is_shadow_present_pte(old_spte) ||
-	      old_spte & shadow_accessed_mask) {
+	if (!spte_has_volatile_bits(old_spte))
 		__set_spte(sptep, new_spte);
-	} else
+	else
 		old_spte = __xchg_spte(sptep, new_spte);
 
 	if (!is_rmap_spte(old_spte))
 		return;
+
 	pfn = spte_to_pfn(old_spte);
 	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
