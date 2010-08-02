@@ -445,7 +445,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 
 	/* clk_get_rate() needs an enabled clock */
 	clk_enable(p->clk);
-	p->rate = clk_get_rate(p->clk) / (p->width == 16) ? 512 : 8;
+	p->rate = clk_get_rate(p->clk) / ((p->width == 16) ? 512 : 8);
 	clk_disable(p->clk);
 
 	/* TODO: calculate good shift from rate and counter bit width */
