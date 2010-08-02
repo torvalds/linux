@@ -240,7 +240,7 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 	else if((ret | ICE_INT_TYPE_GPIO) == ICE_INT_TYPE_GPIO)
 	{
 #if defined(CONFIG_SPI_GPIO)
-		printk("%s:ICE_INT_TYPE_GPIO ret=0x%x\n",__FUNCTION__,ret);
+		DBG("%s:ICE_INT_TYPE_GPIO ret=0x%x\n",__FUNCTION__,ret);
 		spi_gpio_handle_irq(spi);
 #endif
 	}

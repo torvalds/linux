@@ -36,13 +36,10 @@
 #define DBG(x...)
 #endif
 
-#define SPI_GPIO_TEST 0
+#define SPI_GPIO_TEST 1
 #define HIGH_SPI_TEST 1
-#if SPI_GPIO_TEST
 #define USE_SYS_INT	  1
-#else
-#define USE_SYS_INT	  0
-#endif
+
 spinlock_t		gpio_lock;
 spinlock_t		gpio_state_lock;
 spinlock_t		gpio_irq_lock;
@@ -592,10 +589,10 @@ void spi_gpio_work_handler(struct work_struct *work)
 	for(i=4;i<81;i++)
 	{
 		gpio_direction_output(GPIOS_EXPANDER_BASE+i,TestGpioPinLevel);
-		ret = gpio_direction_input(GPIOS_EXPANDER_BASE+i);
-		if (ret) {
-			printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,GPIOS_EXPANDER_BASE+i);
-		}
+		//ret = gpio_direction_input(GPIOS_EXPANDER_BASE+i);
+		//if (ret) {
+		//	printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,GPIOS_EXPANDER_BASE+i);
+		//}
 		udelay(1);
 		ret = gpio_get_value (GPIOS_EXPANDER_BASE+i);
 		if(ret != TestGpioPinLevel)
@@ -652,24 +649,13 @@ int spi_gpio_init_first(void)
 		spi_gpio_set_pinlevel(i, SPI_GPIO_LOW);
 		spi_gpio_set_pindirection(i, SPI_GPIO_OUT);	
 	}
-/*	
-	for(i=6; i<16; i++)
-	{
-		DBG("i=%d\n\n",i);
-		spi_gpio_int_sel(i,SPI_GPIO0_IS_INT);
-		spi_gpio_set_int_trigger(i,SPI_GPIO_EDGE_FALLING);
-		spi_gpio_disable_int(i);	
-	}	
-*/	
+
 	for(i=16; i<32; i++)
 	{
 		spi_gpio_set_pinlevel(i, SPI_GPIO_LOW);
 		spi_gpio_set_pindirection(i, SPI_GPIO_OUT);
 	}
-	
-	//spi_out(port, (ICE_SEL_GPIO1 | ICE_SEL_GPIO_DATA), 0, SEL_GPIO);//all gpio is zero
-	//spi_out(port, (ICE_SEL_GPIO1 | ICE_SEL_GPIO_DIR), 0, SEL_GPIO);//all gpio is input
-	
+		
 #elif (FPGA_TYPE == ICE_CC196)
 
 #if 0
@@ -812,7 +798,7 @@ int spi_gpio_init_first(void)
 	
 #endif
 #if SPI_GPIO_TEST
-#if 1
+#if (USE_SYS_INT == 0)
 	for(i=0;i<81;i++)
 	{
 		if(i<4)
@@ -1088,7 +1074,7 @@ void spi_gpio_test_gpio_irq_init(void)
 			printk("%s:failed to request GPIO[%d]\n",__FUNCTION__,gpio);
 		}
 	}
-#if 1
+#if USE_SYS_INT
 	for(i=0;i<4;i++)
 	{
 		gpio = GPIOS_EXPANDER_BASE+i;
