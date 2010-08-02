@@ -2107,6 +2107,36 @@ int __machine__create_kernel_maps(struct machine *self, struct dso *kernel)
 	return 0;
 }
 
+void machine__destroy_kernel_maps(struct machine *self)
+{
+	enum map_type type;
+
+	for (type = 0; type < MAP__NR_TYPES; ++type) {
+		struct kmap *kmap;
+
+		if (self->vmlinux_maps[type] == NULL)
+			continue;
+
+		kmap = map__kmap(self->vmlinux_maps[type]);
+		map_groups__remove(&self->kmaps, self->vmlinux_maps[type]);
+		if (kmap->ref_reloc_sym) {
+			/*
+			 * ref_reloc_sym is shared among all maps, so free just
+			 * on one of them.
+			 */
+			if (type == MAP__FUNCTION) {
+				free((char *)kmap->ref_reloc_sym->name);
+				kmap->ref_reloc_sym->name = NULL;
+				free(kmap->ref_reloc_sym);
+			}
+			kmap->ref_reloc_sym = NULL;
+		}
+
+		map__delete(self->vmlinux_maps[type]);
+		self->vmlinux_maps[type] = NULL;
+	}
+}
+
 int machine__create_kernel_maps(struct machine *self)
 {
 	struct dso *kernel = machine__create_kernel(self);
@@ -2349,6 +2379,19 @@ failure:
 	}
 
 	return ret;
+}
+
+void machines__destroy_guest_kernel_maps(struct rb_root *self)
+{
+	struct rb_node *next = rb_first(self);
+
+	while (next) {
+		struct machine *pos = rb_entry(next, struct machine, rb_node);
+
+		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, self);
+		machine__delete(pos);
+	}
 }
 
 int machine__load_kallsyms(struct machine *self, const char *filename,

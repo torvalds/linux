@@ -506,6 +506,11 @@ void maps__insert(struct rb_root *maps, struct map *map)
 	rb_insert_color(&map->rb_node, maps);
 }
 
+void maps__remove(struct rb_root *self, struct map *map)
+{
+	rb_erase(&map->rb_node, self);
+}
+
 struct map *maps__find(struct rb_root *maps, u64 ip)
 {
 	struct rb_node **p = &maps->rb_node;
@@ -551,18 +556,17 @@ static void dsos__delete(struct list_head *self)
 
 void machine__exit(struct machine *self)
 {
-	struct kmap *kmap = map__kmap(self->vmlinux_maps[MAP__FUNCTION]);
-
-	if (kmap->ref_reloc_sym) {
-		free((char *)kmap->ref_reloc_sym->name);
-		free(kmap->ref_reloc_sym);
-	}
-
 	map_groups__exit(&self->kmaps);
 	dsos__delete(&self->user_dsos);
 	dsos__delete(&self->kernel_dsos);
 	free(self->root_dir);
 	self->root_dir = NULL;
+}
+
+void machine__delete(struct machine *self)
+{
+	machine__exit(self);
+	free(self);
 }
 
 struct machine *machines__add(struct rb_root *self, pid_t pid,

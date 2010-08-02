@@ -212,11 +212,13 @@ int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start));
 
+void machine__destroy_kernel_maps(struct machine *self);
 int __machine__create_kernel_maps(struct machine *self, struct dso *kernel);
 int machine__create_kernel_maps(struct machine *self);
 
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
 int machines__create_guest_kernel_maps(struct rb_root *self);
+void machines__destroy_guest_kernel_maps(struct rb_root *self);
 
 int symbol__init(void);
 void symbol__exit(void);
