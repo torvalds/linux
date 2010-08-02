@@ -117,20 +117,20 @@ static inline u8 uart_readb(struct tegra_uart_port *t, unsigned long reg)
 	return val;
 }
 
-static inline u8 uart_writeb(struct tegra_uart_port *t, u8 val,
+static inline void uart_writeb(struct tegra_uart_port *t, u8 val,
 	unsigned long reg)
 {
 	dev_vdbg(t->uport.dev, "%s: %p %03lx %02x\n",
 		__func__, t->uport.membase, reg << t->uport.regshift, val);
-	return writeb(val, t->uport.membase + (reg << t->uport.regshift));
+	writeb(val, t->uport.membase + (reg << t->uport.regshift));
 }
 
-static inline u8 uart_writel(struct tegra_uart_port *t, u32 val,
+static inline void uart_writel(struct tegra_uart_port *t, u32 val,
 	unsigned long reg)
 {
 	dev_vdbg(t->uport.dev, "%s: %p %03lx %08x\n",
 		__func__, t->uport.membase, reg << t->uport.regshift, val);
-	return writel(val, t->uport.membase + (reg << t->uport.regshift));
+	writel(val, t->uport.membase + (reg << t->uport.regshift));
 }
 
 static void tegra_set_baudrate(struct tegra_uart_port *t, unsigned int baud);
