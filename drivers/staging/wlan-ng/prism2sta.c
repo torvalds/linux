@@ -366,9 +366,9 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		break;		/* ignore me. */
 	case DIDmsg_lnxreq_ifstate:
 		{
-			p80211msg_lnxreq_ifstate_t *ifstatemsg;
+			struct p80211msg_lnxreq_ifstate *ifstatemsg;
 			pr_debug("Received mlme ifstate request\n");
-			ifstatemsg = (p80211msg_lnxreq_ifstate_t *) msg;
+			ifstatemsg = (struct p80211msg_lnxreq_ifstate *) msg;
 			result =
 			    prism2sta_ifstate(wlandev,
 					      ifstatemsg->ifstate.data);
@@ -387,11 +387,11 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
 	case DIDmsg_lnxreq_commsquality:{
-			p80211msg_lnxreq_commsquality_t *qualmsg;
+			struct p80211msg_lnxreq_commsquality *qualmsg;
 
 			pr_debug("Received commsquality request\n");
 
-			qualmsg = (p80211msg_lnxreq_commsquality_t *) msg;
+			qualmsg = (struct p80211msg_lnxreq_commsquality *) msg;
 
 			qualmsg->link.status =
 			    P80211ENUM_msgitem_status_data_ok;
@@ -1987,8 +1987,9 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	hfa384x_t *hw = container_of(data, struct hfa384x, commsqual_bh);
 	wlandevice_t *wlandev = hw->wlandev;
 	hfa384x_bytestr32_t ssid;
-	p80211msg_dot11req_mibget_t msg;
-	p80211item_uint32_t *mibitem = (p80211item_uint32_t *) &msg.mibattribute.data;
+	struct p80211msg_dot11req_mibget msg;
+	p80211item_uint32_t *mibitem = (p80211item_uint32_t *)
+						&msg.mibattribute.data;
 	int result = 0;
 
 	if (hw->wlandev->hwremoved)
@@ -2020,7 +2021,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	/* Get the signal rate */
 	msg.msgcode = DIDmsg_dot11req_mibget;
 	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
-	result = p80211req_dorequest(wlandev, (u8 *) & msg);
+	result = p80211req_dorequest(wlandev, (u8 *) &msg);
 
 	if (result) {
 		pr_debug("get signal rate failed, result = %d\n",

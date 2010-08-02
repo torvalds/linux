@@ -239,7 +239,7 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 {
 	signed int result = 0;
-	p80211msg_dot11req_mibget_t getmsg;
+	struct p80211msg_dot11req_mibget getmsg;
 	p80211itemd_t *item;
 	u32 *data;
 
@@ -766,7 +766,7 @@ int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
-	p80211msg_p2req_readpda_t msg;
+	struct p80211msg_p2req_readpda msg;
 
 	/* set up the msg */
 	msg.msgcode = DIDmsg_p2req_readpda;
@@ -981,8 +981,8 @@ int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;
-	p80211msg_p2req_ramdl_state_t rstatemsg;
-	p80211msg_p2req_ramdl_write_t rwritemsg;
+	struct p80211msg_p2req_ramdl_state rstatemsg;
+	struct p80211msg_p2req_ramdl_write rwritemsg;
 	p80211msg_t *msgp;
 	u32 resultcode;
 	int i;

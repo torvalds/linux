@@ -607,7 +607,8 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 		result = -ENOMEM;
 	}
 bail:
-	return result;		/* If allocate,copyfrom or copyto fails, return errno */
+	/* If allocate,copyfrom or copyto fails, return errno */
+	return result;
 }
 
 /*----------------------------------------------------------------
@@ -638,7 +639,7 @@ bail:
 static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 {
 	struct sockaddr *new_addr = addr;
-	p80211msg_dot11req_mibset_t dot11req;
+	struct p80211msg_dot11req_mibset dot11req;
 	p80211item_unk392_t *mibattr;
 	p80211item_pstr6_t *macaddr;
 	p80211item_uint32_t *resultcode;
@@ -654,9 +655,9 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode = &dot11req.resultcode;
 
 	/* Set up a dot11req_mibset */
-	memset(&dot11req, 0, sizeof(p80211msg_dot11req_mibset_t));
+	memset(&dot11req, 0, sizeof(struct p80211msg_dot11req_mibset));
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
-	dot11req.msglen = sizeof(p80211msg_dot11req_mibset_t);
+	dot11req.msglen = sizeof(struct p80211msg_dot11req_mibset);
 	memcpy(dot11req.devname,
 	       ((wlandevice_t *) dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
 

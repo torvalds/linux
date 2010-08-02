@@ -72,7 +72,7 @@ static int prism2_result2err(int prism2_result)
 
 static int prism2_domibset_uint32(wlandevice_t *wlandev, u32 did, u32 data)
 {
-	p80211msg_dot11req_mibset_t msg;
+	struct p80211msg_dot11req_mibset msg;
 	p80211item_uint32_t *mibitem = (p80211item_uint32_t *) &msg.mibattribute.data;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
@@ -85,7 +85,7 @@ static int prism2_domibset_uint32(wlandevice_t *wlandev, u32 did, u32 data)
 static int prism2_domibset_pstr32(wlandevice_t *wlandev,
 				  u32 did, u8 len, u8 *data)
 {
-	p80211msg_dot11req_mibset_t msg;
+	struct p80211msg_dot11req_mibset msg;
 	p80211item_pstr32_t *mibitem = (p80211item_pstr32_t *) &msg.mibattribute.data;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
@@ -294,7 +294,7 @@ int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 		       u8 *mac, struct station_info *sinfo)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211msg_lnxreq_commsquality_t quality;
+	struct p80211msg_lnxreq_commsquality quality;
 	int result;
 
 	memset(sinfo, 0, sizeof(*sinfo));
@@ -329,8 +329,8 @@ int prism2_scan(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211msg_dot11req_scan_t msg1;
-	p80211msg_dot11req_scan_results_t msg2;
+	struct p80211msg_dot11req_scan msg1;
+	struct p80211msg_dot11req_scan_results msg2;
 	int result;
 	int err = 0;
 	int numbss = 0;
@@ -351,7 +351,7 @@ int prism2_scan(struct wiphy *wiphy, struct net_device *dev,
 
 	priv->scan_request = request;
 
-	memset(&msg1, 0x00, sizeof(p80211msg_dot11req_scan_t));
+	memset(&msg1, 0x00, sizeof(struct p80211msg_dot11req_scan));
 	msg1.msgcode = DIDmsg_dot11req_scan;
 	msg1.bsstype.data = P80211ENUM_bsstype_any;
 
@@ -468,7 +468,7 @@ int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 	struct ieee80211_channel *channel = sme->channel;
-	p80211msg_lnxreq_autojoin_t msg_join;
+	struct p80211msg_lnxreq_autojoin msg_join;
 	u32 did;
 	int length = sme->ssid_len;
 	int chan = -1;
@@ -589,7 +589,7 @@ int prism2_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		      u16 reason_code)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211msg_lnxreq_autojoin_t msg_join;
+	struct p80211msg_lnxreq_autojoin msg_join;
 	int result;
 	int err = 0;
 
@@ -652,7 +652,7 @@ int prism2_get_tx_power(struct wiphy *wiphy, int *dbm)
 {
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
 	wlandevice_t *wlandev = priv->wlandev;
-	p80211msg_dot11req_mibget_t msg;
+	struct p80211msg_dot11req_mibget msg;
 	p80211item_uint32_t *mibitem = (p80211item_uint32_t *) &msg.mibattribute.data;
 	int result;
 	int err = 0;
