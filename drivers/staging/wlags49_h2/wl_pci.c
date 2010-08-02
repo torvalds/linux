@@ -117,9 +117,13 @@ enum hermes_pci_versions {
 };
 
 static struct pci_device_id wl_pci_tbl[] __devinitdata = {
-	{ WL_LKM_PCI_VENDOR_ID, WL_LKM_PCI_DEVICE_ID_0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
-    { WL_LKM_PCI_VENDOR_ID, WL_LKM_PCI_DEVICE_ID_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
-    { WL_LKM_PCI_VENDOR_ID, WL_LKM_PCI_DEVICE_ID_2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
+	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_0,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
+	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_1,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
+	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_2,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
+
 	{ }			/* Terminating entry */
 };
 
