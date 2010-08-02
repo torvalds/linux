@@ -307,24 +307,42 @@ static bool spte_has_volatile_bits(u64 spte)
 	if (!is_shadow_present_pte(spte))
 		return false;
 
-	if (spte & shadow_accessed_mask)
+	if ((spte & shadow_accessed_mask) &&
+	      (!is_writable_pte(spte) || (spte & shadow_dirty_mask)))
 		return false;
 
 	return true;
 }
 
+static bool spte_is_bit_cleared(u64 old_spte, u64 new_spte, u64 bit_mask)
+{
+	return (old_spte & bit_mask) && !(new_spte & bit_mask);
+}
+
 static void update_spte(u64 *sptep, u64 new_spte)
 {
-	u64 old_spte;
+	u64 mask, old_spte = *sptep;
 
-	if (!shadow_accessed_mask || (new_spte & shadow_accessed_mask) ||
-	      !is_rmap_spte(*sptep))
+	WARN_ON(!is_rmap_spte(new_spte));
+
+	new_spte |= old_spte & shadow_dirty_mask;
+
+	mask = shadow_accessed_mask;
+	if (is_writable_pte(old_spte))
+		mask |= shadow_dirty_mask;
+
+	if (!spte_has_volatile_bits(old_spte) || (new_spte & mask) == mask)
 		__set_spte(sptep, new_spte);
-	else {
+	else
 		old_spte = __xchg_spte(sptep, new_spte);
-		if (old_spte & shadow_accessed_mask)
-			kvm_set_pfn_accessed(spte_to_pfn(old_spte));
-	}
+
+	if (!shadow_accessed_mask)
+		return;
+
+	if (spte_is_bit_cleared(old_spte, new_spte, shadow_accessed_mask))
+		kvm_set_pfn_accessed(spte_to_pfn(old_spte));
+	if (spte_is_bit_cleared(old_spte, new_spte, shadow_dirty_mask))
+		kvm_set_pfn_dirty(spte_to_pfn(old_spte));
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -704,7 +722,7 @@ static void set_spte_track_bits(u64 *sptep, u64 new_spte)
 	pfn = spte_to_pfn(old_spte);
 	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
-	if (is_writable_pte(old_spte))
+	if (!shadow_dirty_mask || (old_spte & shadow_dirty_mask))
 		kvm_set_pfn_dirty(pfn);
 }
 
@@ -758,13 +776,6 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 			write_protected = 1;
 		}
 		spte = rmap_next(kvm, rmapp, spte);
-	}
-	if (write_protected) {
-		pfn_t pfn;
-
-		spte = rmap_next(kvm, rmapp, NULL);
-		pfn = spte_to_pfn(*spte);
-		kvm_set_pfn_dirty(pfn);
 	}
 
 	/* check for huge page mappings */
@@ -1938,7 +1949,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	 * whether the guest actually used the pte (in order to detect
 	 * demand paging).
 	 */
-	spte = shadow_base_present_pte | shadow_dirty_mask;
+	spte = shadow_base_present_pte;
 	if (!speculative)
 		spte |= shadow_accessed_mask;
 	if (!dirty)
@@ -1999,8 +2010,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		mark_page_dirty(vcpu->kvm, gfn);
 
 set_pte:
-	if (is_writable_pte(*sptep) && !is_writable_pte(spte))
-		kvm_set_pfn_dirty(pfn);
 	update_spte(sptep, spte);
 done:
 	return ret;
