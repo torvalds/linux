@@ -131,27 +131,24 @@ _resume_userspace:
 system_call:
 	;; Stack-frame similar to the irq heads, which is reversed in
 	;; ret_from_sys_call.
-	subq	12, $sp		; Skip EXS, EDA.
-	move	$erp, [$sp]
-	subq	4, $sp
-	move	$srp, [$sp]
-	subq	4, $sp
-	move	$ccs, [$sp]
-	subq	4, $sp
-	ei			; Allow IRQs while handling system call
-	move	$spc, [$sp]
-	subq	4, $sp
-	move	$mof, [$sp]
-	subq	4, $sp
-	move	$srs, [$sp]
-	subq	4, $sp
-	move.d	$acr, [$sp]
-	subq	14*4, $sp	; Make room for R0-R13.
-	movem	$r13, [$sp]	; Push R0-R13
-	subq	4, $sp
-	move.d	$r10, [$sp]	; Push orig_r10.
 
-; Set S-bit when kernel debugging to keep hardware breakpoints active.
+	sub.d	92, $sp		; Skip EXS and EDA.
+	movem	$r13, [$sp]
+	move.d	$sp, $r8
+	addq	14*4, $r8
+	move.d	$acr, $r0
+	move	$srs, $r1
+	move	$mof, $r2
+	move	$spc, $r3
+	move	$ccs, $r4
+	move	$srp, $r5
+	move	$erp, $r6
+	subq	4, $sp
+	movem	$r6, [$r8]
+	ei			; Enable interrupts while processing syscalls.
+	move.d	$r10, [$sp]
+
+	; Set S-bit when kernel debugging to keep hardware breakpoints active.
 #ifdef CONFIG_ETRAX_KGDB
 	move $ccs, $r0
 	or.d (1<<9), $r0
