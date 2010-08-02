@@ -36,7 +36,7 @@
 #define DBG(x...)
 #endif
 
-#define SPI_GPIO_TEST 0
+#define SPI_GPIO_TEST 1
 #define HIGH_SPI_TEST 1
 spinlock_t		gpio_lock;
 spinlock_t		gpio_state_lock;
@@ -489,6 +489,7 @@ int spi_gpio_handle_irq(struct spi_device *spi)
 	int gpio_iir, i;
 	int state;
 	int irq;
+	struct irq_desc *desc;
 	spin_lock(&gpio_state_lock);
 	state = gGpio0State;
 	spin_unlock(&gpio_state_lock);
@@ -497,13 +498,15 @@ int spi_gpio_handle_irq(struct spi_device *spi)
 	if(gpio_iir == 0xffff)
 		return -1;
 
-	DBG("gpio_iir=0x%x\n",gpio_iir);
+	printk("%s:gpio_iir=%d\n",__FUNCTION__,gpio_iir);
 	for(i=0; i<SPI_GPIO_IRQ_NUM; i++)
 	{
 		if(((gpio_iir & (1 << i)) == 0) && ((state & (1 << i)) != 0))
 		{
-			irq = gpio_to_irq(i);
-			generic_handle_irq(irq);
+			irq = i + GPIOS_EXPANDER_BASE;
+			desc = irq_to_desc(irq);
+			if(desc->action->handler)
+			desc->action->handler(irq,desc->action->dev_id);
 			printk("%s:pin=%d,irq=%d\n",__FUNCTION__,i,irq);
 		}			
 	}	
@@ -583,12 +586,13 @@ void spi_gpio_work_handler(struct work_struct *work)
 #else
 	for(i=4;i<81;i++)
 	{
-		gpio_direction_output(FPGA_PIN_PA0+i,TestGpioPinLevel);
-		ret = gpio_direction_input(FPGA_PIN_PA0+i);
+		gpio_direction_output(GPIOS_EXPANDER_BASE+i,TestGpioPinLevel);
+		ret = gpio_direction_input(GPIOS_EXPANDER_BASE+i);
 		if (ret) {
-			printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,FPGA_PIN_PA0+i);
+			printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,GPIOS_EXPANDER_BASE+i);
 		}
-		ret = gpio_get_value (FPGA_PIN_PA0+i);
+		udelay(1);
+		ret = gpio_get_value (GPIOS_EXPANDER_BASE+i);
 		if(ret != TestGpioPinLevel)
 		{
 			#if SPI_FPGA_TEST_DEBUG
@@ -610,7 +614,7 @@ void spi_gpio_work_handler(struct work_struct *work)
 static void spi_testgpio_timer(unsigned long data)
 {
 	struct spi_fpga_port *port = (struct spi_fpga_port *)data;
-	port->gpio.gpio_timer.expires  = jiffies + msecs_to_jiffies(2000);
+	port->gpio.gpio_timer.expires  = jiffies + msecs_to_jiffies(1000);
 	add_timer(&port->gpio.gpio_timer);
 	//schedule_work(&port->gpio.spi_gpio_work);
 	queue_work(port->gpio.spi_gpio_workqueue, &port->gpio.spi_gpio_work);
@@ -752,7 +756,7 @@ int spi_gpio_init_first(void)
 	spi_gpio_set_pindirection(SPI_GPIO_P1_08, SPI_GPIO_OUT);
 	spi_gpio_set_pinlevel(SPI_GPIO_P1_09, SPI_GPIO_LOW);		//LCD_DISP_ON output
 	spi_gpio_set_pindirection(SPI_GPIO_P1_09, SPI_GPIO_OUT);
-	spi_gpio_set_pinlevel(SPI_GPIO_P1_10, SPI_GPIO_LOW);		//WM_PWR_EN output
+	spi_gpio_set_pinlevel(SPI_GPIO_P1_10, SPI_GPIO_HIGH);		//WM_PWR_EN output
 	spi_gpio_set_pindirection(SPI_GPIO_P1_10, SPI_GPIO_OUT);
 	spi_gpio_set_pindirection(SPI_GPIO_P1_11, SPI_GPIO_IN);		//HARD1,input
 	
@@ -971,25 +975,19 @@ struct fpga_gpio_chip {
 	}
 
 static struct fpga_gpio_chip spi_gpio_chip[] = {
-	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+0*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+1*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+2*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+3*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+4*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+5*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+6*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+7*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+8*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+9*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+10*NUM_GROUP, NUM_GROUP),
-	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+11*NUM_GROUP, NUM_GROUP),
+	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+0*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+1*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+2*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+3*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+4*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+5*NUM_GROUP*2, NUM_GROUP<<1),
 };
 
 
 static void spi_gpio_irq_enable(unsigned irq)
 {
 	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
-	DBG("%s:line=%d,gpio=%d\n",__FUNCTION__,__LINE__,gpio);
+	printk("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
 	else
@@ -1003,7 +1001,7 @@ static void spi_gpio_irq_enable(unsigned irq)
 static void spi_gpio_irq_disable(unsigned irq)
 {
 	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
-	DBG("%s:line=%d,gpio=%d\n",__FUNCTION__,__LINE__,gpio);
+	printk("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
 	else
@@ -1030,7 +1028,7 @@ static int spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 {
 	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
 	int int_type = 0;
-	DBG("%s:line=%d,type=%d\n",__FUNCTION__,__LINE__,type);
+	printk("%s:line=%d,irq=%d,type=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,type,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
 	else
@@ -1075,11 +1073,11 @@ void spi_gpio_test_gpio_irq_init(void)
 {
 #if SPI_GPIO_TEST
 	struct spi_fpga_port *port = pFpgaPort;
-	int i,gpio,ret;
+	int i,gpio,ret,irq;
 
 	for(i=0;i<81;i++)
 	{
-		gpio = FPGA_PIN_PA0+i;
+		gpio = GPIOS_EXPANDER_BASE+i;
 		ret = gpio_request(gpio, NULL);
 		if (ret) {
 			printk("%s:failed to request GPIO[%d]\n",__FUNCTION__,gpio);
@@ -1088,42 +1086,43 @@ void spi_gpio_test_gpio_irq_init(void)
 #if 1
 	for(i=0;i<4;i++)
 	{
-		gpio = FPGA_PIN_PA0+i;
-		
+		gpio = GPIOS_EXPANDER_BASE+i;
+		irq = gpio_to_irq(gpio);
+		printk("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 		switch(i)
 		{
 			case 0:
-			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_0,IRQF_TRIGGER_FALLING,NULL,port);
+			ret = request_irq(irq ,spi_gpio_int_test_0,IRQF_TRIGGER_FALLING,NULL,port);
 			if(ret)
 			{
-				printk("unable to request GPIO[%d] irq\n",gpio);
+				printk("%s:unable to request GPIO[%d] irq\n",__FUNCTION__,gpio);
 				gpio_free(gpio);
 			}	
 			break;
 
 			case 1:
-			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_1,IRQF_TRIGGER_FALLING,NULL,port);
+			ret = request_irq(irq ,spi_gpio_int_test_1,IRQF_TRIGGER_FALLING,NULL,port);
 			if(ret)
 			{
-				printk("unable to request GPIO[%d] irq\n",gpio);
+				printk("%s:unable to request GPIO[%d] irq\n",__FUNCTION__,gpio);
 				gpio_free(gpio);
 			}	
 			break;
 
 			case 2:
-			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_2,IRQF_TRIGGER_FALLING,NULL,port);
+			ret = request_irq(irq ,spi_gpio_int_test_2,IRQF_TRIGGER_FALLING,NULL,port);
 			if(ret)
 			{
-				printk("unable to request GPIO[%d] irq\n",gpio);
+				printk("%s:unable to request GPIO[%d] irq\n",__FUNCTION__,gpio);
 				gpio_free(gpio);
 			}	
 			break;
 
-			case 3:
-			ret = request_irq(gpio_to_irq(gpio),spi_gpio_int_test_3,IRQF_TRIGGER_FALLING,NULL,port);
+			case 9:
+			ret = request_irq(irq ,spi_gpio_int_test_3,IRQF_TRIGGER_FALLING,NULL,port);
 			if(ret)
 			{
-				printk("unable to request GPIO[%d] irq\n",gpio);
+				printk("%s:unable to request GPIO[%d] irq\n",__FUNCTION__,gpio);
 				gpio_free(gpio);
 			}	
 			break;
@@ -1141,56 +1140,57 @@ void spi_gpio_test_gpio_irq_init(void)
 
 int spi_gpio_banks;
 static struct lock_class_key gpio_lock_class;
-int spi_gpio_init(void)
-{
-	unsigned		i;
-	struct fpga_gpio_chip *fpga_gpio_chip;
-	spi_gpio_banks = 12;	
-	spi_gpio_init_first();
-	for (i = 0; i < 12; i++) 
-	{	
-		fpga_gpio_chip = &spi_gpio_chip[i];
-		gpiochip_add(&fpga_gpio_chip->chip);
-	}
-
-	return 0;
-}
 
 /*
  * Called from the processor-specific init to enable GPIO interrupt support.
  */
 void spi_gpio_irq_setup(void)
 {
-	unsigned	int	i,j, pin;
+	unsigned	int	j, pin;
 	struct fpga_gpio_chip *this;
 	
 	this = spi_gpio_chip;
 	pin = NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ;
 
-	for(i=0;i<2;i++)
+	for (j = 0; j < 16; j++) 
 	{
-		for (j = 0; j < 8; j++) 
-		{
-			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
-			/*
-			 * Can use the "simple" and not "edge" handler since it's
-			 * shorter, and the AIC handles interrupts sanely.
-			 */
-			set_irq_chip(pin+j, &spi_gpio_irq_chip);
-			set_irq_handler(pin+j, handle_simple_irq);
-			set_irq_flags(pin+j, IRQF_VALID);
-			//set_irq_chip_data(pin+j, this);
-			//set_irq_chained_handler(pin+j, spi_fpga_irq);
-		}
-
-		this += 4; 
-		pin += 8;
+		lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
+		/*
+		 * Can use the "simple" and not "edge" handler since it's
+		 * shorter, and the AIC handles interrupts sanely.
+		 */
+		set_irq_chip(pin+j, &spi_gpio_irq_chip);
+		//set_irq_handler(pin+j, handle_simple_irq);
+		set_irq_flags(pin+j, IRQF_VALID);
 	}
+
+	//set_irq_chip_data(pin+j, this);
+	//set_irq_chained_handler(pin+j, spi_fpga_irq);
+
 	printk("%s: %d gpio irqs in %d banks\n", __FUNCTION__, pin-GPIOS_EXPANDER_BASE, spi_gpio_banks);
 #if SPI_GPIO_TEST
 	spi_gpio_test_gpio_irq_init();
 #endif
 }
+
+
+int spi_gpio_init(void)
+{
+	unsigned		i;
+	struct fpga_gpio_chip *fpga_gpio_chip;
+	spi_gpio_banks = 6;	
+	spi_gpio_init_first();
+	for (i = 0; i < 6; i++) 
+	{	
+		fpga_gpio_chip = &spi_gpio_chip[i];
+		gpiochip_add(&fpga_gpio_chip->chip);
+	}
+
+	spi_gpio_irq_setup();
+	
+	return 0;
+}
+
 #endif
 
 MODULE_DESCRIPTION("Driver for spi2gpio.");
