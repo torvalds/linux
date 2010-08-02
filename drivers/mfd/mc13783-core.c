@@ -11,9 +11,31 @@
  */
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/mutex.h>
+#include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/mc13783-private.h>
+#include <linux/mfd/mc13783.h>
+
+struct mc13783 {
+	struct spi_device *spidev;
+	struct mutex lock;
+	int irq;
+	int flags;
+
+	irq_handler_t irqhandler[MC13783_NUM_IRQ];
+	void *irqdata[MC13783_NUM_IRQ];
+
+	/* XXX these should go as platformdata to the regulator subdevice */
+	struct mc13783_regulator_init_data *regulators;
+	int num_regulators;
+};
+
+#define MC13783_REG_REVISION			 7
+#define MC13783_REG_ADC_0			43
+#define MC13783_REG_ADC_1			44
+#define MC13783_REG_ADC_2			45
 
 #define MC13783_IRQSTAT0	0
 #define MC13783_IRQSTAT0_ADCDONEI	(1 << 0)
