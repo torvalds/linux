@@ -2698,6 +2698,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	u64 size, max_size;
 	u64 tid;
 	void *snaptrace;
+	size_t snaptrace_len;
+	void *flock;
+	u32 flock_len;
 	int open_target_sessions = 0;
 
 	dout("handle_caps from mds%d\n", mds);
@@ -2707,7 +2710,6 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	if (msg->front.iov_len < sizeof(*h))
 		goto bad;
 	h = msg->front.iov_base;
-	snaptrace = h + 1;
 	op = le32_to_cpu(h->op);
 	vino.ino = le64_to_cpu(h->ino);
 	vino.snap = CEPH_NOSNAP;
@@ -2716,6 +2718,21 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	mseq = le32_to_cpu(h->migrate_seq);
 	size = le64_to_cpu(h->size);
 	max_size = le64_to_cpu(h->max_size);
+
+	snaptrace = h + 1;
+	snaptrace_len = le32_to_cpu(h->snap_trace_len);
+
+	if (le16_to_cpu(msg->hdr.version) >= 2) {
+		void *p, *end;
+
+		p = snaptrace + snaptrace_len;
+		end = msg->front.iov_base + msg->front.iov_len;
+		ceph_decode_32_safe(&p, end, flock_len, bad);
+		flock = p;
+	} else {
+		flock = NULL;
+		flock_len = 0;
+	}
 
 	mutex_lock(&session->s_mutex);
 	session->s_seq++;
@@ -2755,7 +2772,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
-				  snaptrace, le32_to_cpu(h->snap_trace_len));
+				  snaptrace, snaptrace_len);
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY,
 				session);
 		goto done_unlocked;
