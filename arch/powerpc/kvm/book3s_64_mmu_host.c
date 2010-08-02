@@ -20,7 +20,6 @@
  */
 
 #include <linux/kvm_host.h>
-#include <linux/hash.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -44,8 +43,16 @@ void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
  * a hash, so we don't waste cycles on looping */
 static u16 kvmppc_sid_hash(struct kvm_vcpu *vcpu, u64 gvsid)
 {
-	return hash_64(gvsid, SID_MAP_BITS);
+	return (u16)(((gvsid >> (SID_MAP_BITS * 7)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 6)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 5)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 4)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 3)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 2)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 1)) & SID_MAP_MASK) ^
+		     ((gvsid >> (SID_MAP_BITS * 0)) & SID_MAP_MASK));
 }
+
 
 static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 {
