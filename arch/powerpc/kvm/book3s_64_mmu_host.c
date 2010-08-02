@@ -28,18 +28,12 @@
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/hw_irq.h>
+#include "trace.h"
 
 #define PTE_SIZE 12
 #define VSID_ALL 0
 
-/* #define DEBUG_MMU */
 /* #define DEBUG_SLB */
-
-#ifdef DEBUG_MMU
-#define dprintk_mmu(a, ...) printk(KERN_INFO a, __VA_ARGS__)
-#else
-#define dprintk_mmu(a, ...) do { } while(0)
-#endif
 
 #ifdef DEBUG_SLB
 #define dprintk_slb(a, ...) printk(KERN_INFO a, __VA_ARGS__)
@@ -156,10 +150,7 @@ map_again:
 	} else {
 		struct hpte_cache *pte = kvmppc_mmu_hpte_cache_next(vcpu);
 
-		dprintk_mmu("KVM: %c%c Map 0x%lx: [%lx] 0x%lx (0x%llx) -> %lx\n",
-			    ((rflags & HPTE_R_PP) == 3) ? '-' : 'w',
-			    (rflags & HPTE_R_N) ? '-' : 'x',
-			    orig_pte->eaddr, hpteg, va, orig_pte->vpage, hpaddr);
+		trace_kvm_book3s_64_mmu_map(rflags, hpteg, va, hpaddr, orig_pte);
 
 		/* The ppc_md code may give us a secondary entry even though we
 		   asked for a primary. Fix up. */

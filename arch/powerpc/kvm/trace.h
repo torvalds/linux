@@ -147,6 +147,40 @@ TRACE_EVENT(kvm_book3s_reenter,
 	TP_printk("reentry r=%d | pc=0x%lx", __entry->r, __entry->pc)
 );
 
+#ifdef CONFIG_PPC_BOOK3S_64
+
+TRACE_EVENT(kvm_book3s_64_mmu_map,
+	TP_PROTO(int rflags, ulong hpteg, ulong va, pfn_t hpaddr,
+		 struct kvmppc_pte *orig_pte),
+	TP_ARGS(rflags, hpteg, va, hpaddr, orig_pte),
+
+	TP_STRUCT__entry(
+		__field(	unsigned char,		flag_w		)
+		__field(	unsigned char,		flag_x		)
+		__field(	unsigned long,		eaddr		)
+		__field(	unsigned long,		hpteg		)
+		__field(	unsigned long,		va		)
+		__field(	unsigned long long,	vpage		)
+		__field(	unsigned long,		hpaddr		)
+	),
+
+	TP_fast_assign(
+		__entry->flag_w	= ((rflags & HPTE_R_PP) == 3) ? '-' : 'w';
+		__entry->flag_x	= (rflags & HPTE_R_N) ? '-' : 'x';
+		__entry->eaddr	= orig_pte->eaddr;
+		__entry->hpteg	= hpteg;
+		__entry->va	= va;
+		__entry->vpage	= orig_pte->vpage;
+		__entry->hpaddr	= hpaddr;
+	),
+
+	TP_printk("KVM: %c%c Map 0x%lx: [%lx] 0x%lx (0x%llx) -> %lx",
+		  __entry->flag_w, __entry->flag_x, __entry->eaddr,
+		  __entry->hpteg, __entry->va, __entry->vpage, __entry->hpaddr)
+);
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 #endif /* CONFIG_PPC_BOOK3S */
 
 #endif /* _TRACE_KVM_H */
