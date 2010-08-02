@@ -348,40 +348,40 @@ _syscall_trace_entry:
 
 	.type	resume,@function
 resume:
-	subq	4, $sp
-	move	$srp, [$sp]		; Keep old/new PC on the stack.
+	subq	4, $sp			; Make space for srp.
+
 	add.d	$r12, $r10		; R10 = current tasks tss.
 	addoq	+THREAD_ccs, $r10, $acr
+	move	$srp, [$sp]		; Keep old/new PC on the stack.
 	move	$ccs, [$acr]		; Save IRQ enable state.
 	di
 
 	addoq	+THREAD_usp, $r10, $acr
+	subq	10*4, $sp		; Make room for R9.
 	move	$usp, [$acr]		; Save user-mode stackpointer.
 
 	;; See copy_thread for the reason why register R9 is saved.
-	subq	10*4, $sp
 	movem	$r9, [$sp]		; Save non-scratch registers and R9.
 
 	addoq	+THREAD_ksp, $r10, $acr
+	move.d	$sp, $r10		; Return last running task in R10.
 	move.d	$sp, [$acr]		; Save kernel SP for old task.
 
-	move.d	$sp, $r10		; Return last running task in R10.
 	and.d   -8192, $r10		; Get thread_info from stackpointer.
 	addoq	+TI_task, $r10, $acr
-	move.d	[$acr], $r10		; Get task.
 	add.d	$r12, $r11		; Find the new tasks tss.
+	move.d	[$acr], $r10		; Get task.
 	addoq	+THREAD_ksp, $r11, $acr
 	move.d	[$acr], $sp		; Switch to new stackframe.
+	addoq	+THREAD_usp, $r11, $acr
 	movem	[$sp+], $r9		; Restore non-scratch registers and R9.
 
-	addoq	+THREAD_usp, $r11, $acr
 	move	[$acr], $usp		; Restore user-mode stackpointer.
 
 	addoq	+THREAD_ccs, $r11, $acr
+	move.d	[$sp+], $r11
+	jump	$r11			; Restore PC.
 	move	[$acr], $ccs		; Restore IRQ enable status.
-	move.d	[$sp+], $acr
-	jump	$acr			; Restore PC.
-	nop
 	.size	resume, . - resume
 
 nmi_interrupt:
