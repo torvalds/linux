@@ -81,9 +81,9 @@ void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	else
 		off = *rover;
 
-	for (i = 0; i < range_size; i++, off++) {
+	for (i = 0; ; ++off) {
 		*portptr = htons(min + off % range_size);
-		if (nf_nat_used_tuple(tuple, ct))
+		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
 			continue;
 		if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
 			*rover = off;
