@@ -33,14 +33,6 @@
 #define PTE_SIZE 12
 #define VSID_ALL 0
 
-/* #define DEBUG_SLB */
-
-#ifdef DEBUG_SLB
-#define dprintk_slb(a, ...) printk(KERN_INFO a, __VA_ARGS__)
-#else
-#define dprintk_slb(a, ...) do { } while(0)
-#endif
-
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	ppc_md.hpte_invalidate(pte->slot, pte->host_va,
@@ -66,20 +58,17 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 	sid_map_mask = kvmppc_sid_hash(vcpu, gvsid);
 	map = &to_book3s(vcpu)->sid_map[sid_map_mask];
 	if (map->valid && (map->guest_vsid == gvsid)) {
-		dprintk_slb("SLB: Searching: 0x%llx -> 0x%llx\n",
-			    gvsid, map->host_vsid);
+		trace_kvm_book3s_slb_found(gvsid, map->host_vsid);
 		return map;
 	}
 
 	map = &to_book3s(vcpu)->sid_map[SID_MAP_MASK - sid_map_mask];
 	if (map->valid && (map->guest_vsid == gvsid)) {
-		dprintk_slb("SLB: Searching 0x%llx -> 0x%llx\n",
-			    gvsid, map->host_vsid);
+		trace_kvm_book3s_slb_found(gvsid, map->host_vsid);
 		return map;
 	}
 
-	dprintk_slb("SLB: Searching %d/%d: 0x%llx -> not found\n",
-		    sid_map_mask, SID_MAP_MASK - sid_map_mask, gvsid);
+	trace_kvm_book3s_slb_fail(sid_map_mask, gvsid);
 	return NULL;
 }
 
@@ -205,8 +194,7 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 	map->guest_vsid = gvsid;
 	map->valid = true;
 
-	dprintk_slb("SLB: New mapping at %d: 0x%llx -> 0x%llx\n",
-		    sid_map_mask, gvsid, map->host_vsid);
+	trace_kvm_book3s_slb_map(sid_map_mask, gvsid, map->host_vsid);
 
 	return map;
 }
@@ -278,7 +266,7 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 	to_svcpu(vcpu)->slb[slb_index].esid = slb_esid;
 	to_svcpu(vcpu)->slb[slb_index].vsid = slb_vsid;
 
-	dprintk_slb("slbmte %#llx, %#llx\n", slb_vsid, slb_esid);
+	trace_kvm_book3s_slbmte(slb_vsid, slb_esid);
 
 	return 0;
 }

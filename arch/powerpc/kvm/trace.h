@@ -262,6 +262,79 @@ TRACE_EVENT(kvm_book3s_mmu_flush,
 		  __entry->count, __entry->type, __entry->p1, __entry->p2)
 );
 
+TRACE_EVENT(kvm_book3s_slb_found,
+	TP_PROTO(unsigned long long gvsid, unsigned long long hvsid),
+	TP_ARGS(gvsid, hvsid),
+
+	TP_STRUCT__entry(
+		__field(	unsigned long long,	gvsid		)
+		__field(	unsigned long long,	hvsid		)
+	),
+
+	TP_fast_assign(
+		__entry->gvsid		= gvsid;
+		__entry->hvsid		= hvsid;
+	),
+
+	TP_printk("%llx -> %llx", __entry->gvsid, __entry->hvsid)
+);
+
+TRACE_EVENT(kvm_book3s_slb_fail,
+	TP_PROTO(u16 sid_map_mask, unsigned long long gvsid),
+	TP_ARGS(sid_map_mask, gvsid),
+
+	TP_STRUCT__entry(
+		__field(	unsigned short,		sid_map_mask	)
+		__field(	unsigned long long,	gvsid		)
+	),
+
+	TP_fast_assign(
+		__entry->sid_map_mask	= sid_map_mask;
+		__entry->gvsid		= gvsid;
+	),
+
+	TP_printk("%x/%x: %llx", __entry->sid_map_mask,
+		  SID_MAP_MASK - __entry->sid_map_mask, __entry->gvsid)
+);
+
+TRACE_EVENT(kvm_book3s_slb_map,
+	TP_PROTO(u16 sid_map_mask, unsigned long long gvsid,
+		 unsigned long long hvsid),
+	TP_ARGS(sid_map_mask, gvsid, hvsid),
+
+	TP_STRUCT__entry(
+		__field(	unsigned short,		sid_map_mask	)
+		__field(	unsigned long long,	guest_vsid	)
+		__field(	unsigned long long,	host_vsid	)
+	),
+
+	TP_fast_assign(
+		__entry->sid_map_mask	= sid_map_mask;
+		__entry->guest_vsid	= gvsid;
+		__entry->host_vsid	= hvsid;
+	),
+
+	TP_printk("%x: %llx -> %llx", __entry->sid_map_mask,
+		  __entry->guest_vsid, __entry->host_vsid)
+);
+
+TRACE_EVENT(kvm_book3s_slbmte,
+	TP_PROTO(u64 slb_vsid, u64 slb_esid),
+	TP_ARGS(slb_vsid, slb_esid),
+
+	TP_STRUCT__entry(
+		__field(	u64,	slb_vsid	)
+		__field(	u64,	slb_esid	)
+	),
+
+	TP_fast_assign(
+		__entry->slb_vsid	= slb_vsid;
+		__entry->slb_esid	= slb_esid;
+	),
+
+	TP_printk("%llx, %llx", __entry->slb_vsid, __entry->slb_esid)
+);
+
 #endif /* CONFIG_PPC_BOOK3S */
 
 #endif /* _TRACE_KVM_H */
