@@ -983,7 +983,7 @@ int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	int result = 0;
 	struct p80211msg_p2req_ramdl_state rstatemsg;
 	struct p80211msg_p2req_ramdl_write rwritemsg;
-	p80211msg_t *msgp;
+	struct p80211msg *msgp;
 	u32 resultcode;
 	int i;
 	int j;
@@ -1029,7 +1029,7 @@ int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	rstatemsg.enable.data = P80211ENUM_truth_true;
 	rstatemsg.exeaddr.data = startaddr;
 
-	msgp = (p80211msg_t *) &rstatemsg;
+	msgp = (struct p80211msg *) &rstatemsg;
 	result = prism2mgmt_ramdl_state(wlandev, msgp);
 	if (result) {
 		printk(KERN_ERR
@@ -1070,7 +1070,7 @@ int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 			    ("Sending xxxdl_write message addr=%06x len=%d.\n",
 			     currdaddr, currlen);
 
-			msgp = (p80211msg_t *) &rwritemsg;
+			msgp = (struct p80211msg *) &rwritemsg;
 			result = prism2mgmt_ramdl_write(wlandev, msgp);
 
 			/* Check the results */
@@ -1097,7 +1097,7 @@ int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	rstatemsg.enable.data = P80211ENUM_truth_false;
 	rstatemsg.exeaddr.data = 0;
 
-	msgp = (p80211msg_t *) &rstatemsg;
+	msgp = (struct p80211msg *) &rstatemsg;
 	result = prism2mgmt_ramdl_state(wlandev, msgp);
 	if (result) {
 		printk(KERN_ERR

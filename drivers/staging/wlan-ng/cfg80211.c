@@ -311,7 +311,7 @@ int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (wlandev->mlmerequest == NULL)
 		return -EOPNOTSUPP;
 
-	result = wlandev->mlmerequest(wlandev, (p80211msg_t *) &quality);
+	result = wlandev->mlmerequest(wlandev, (struct p80211msg *) &quality);
 
 
 	if (result == 0) {
