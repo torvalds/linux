@@ -693,6 +693,10 @@ bool radeon_combios_sideport_present(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	u16 igp_info;
 
+	/* sideport is AMD only */
+	if (rdev->family == CHIP_RS400)
+		return false;
+
 	igp_info = combios_get_table_offset(dev, COMBIOS_INTEGRATED_SYSTEM_INFO_TABLE);
 
 	if (igp_info) {
