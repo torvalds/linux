@@ -1543,8 +1543,8 @@ static void tg3_phy_start(struct tg3 *tp)
 
 	phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
 
-	if (tp->link_config.phy_is_low_power) {
-		tp->link_config.phy_is_low_power = 0;
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
+		tp->phy_flags &= ~TG3_PHYFLG_IS_LOW_POWER;
 		phydev->speed = tp->link_config.orig_speed;
 		phydev->duplex = tp->link_config.orig_duplex;
 		phydev->autoneg = tp->link_config.orig_autoneg;
@@ -2559,13 +2559,13 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 	if (tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB) {
 		do_low_power = false;
 		if ((tp->tg3_flags3 & TG3_FLG3_PHY_CONNECTED) &&
-		    !tp->link_config.phy_is_low_power) {
+		    !(tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
 			struct phy_device *phydev;
 			u32 phyid, advertising;
 
 			phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
 
-			tp->link_config.phy_is_low_power = 1;
+			tp->phy_flags |= TG3_PHYFLG_IS_LOW_POWER;
 
 			tp->link_config.orig_speed = phydev->speed;
 			tp->link_config.orig_duplex = phydev->duplex;
@@ -2604,8 +2604,8 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 	} else {
 		do_low_power = true;
 
-		if (tp->link_config.phy_is_low_power == 0) {
-			tp->link_config.phy_is_low_power = 1;
+		if (!(tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
+			tp->phy_flags |= TG3_PHYFLG_IS_LOW_POWER;
 			tp->link_config.orig_speed = tp->link_config.speed;
 			tp->link_config.orig_duplex = tp->link_config.duplex;
 			tp->link_config.orig_autoneg = tp->link_config.autoneg;
@@ -2836,7 +2836,7 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 	u32 new_adv;
 	int i;
 
-	if (tp->link_config.phy_is_low_power) {
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
 		/* Entering low power mode.  Disable gigabit and
 		 * 100baseT advertisements.
 		 */
@@ -3237,7 +3237,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	}
 
 relink:
-	if (current_link_up == 0 || tp->link_config.phy_is_low_power) {
+	if (current_link_up == 0 || (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
 		u32 tmp;
 
 		tg3_phy_copper_begin(tp);
@@ -8320,8 +8320,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	if (!(tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB)) {
-		if (tp->link_config.phy_is_low_power) {
-			tp->link_config.phy_is_low_power = 0;
+		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
+			tp->phy_flags &= ~TG3_PHYFLG_IS_LOW_POWER;
 			tp->link_config.speed = tp->link_config.orig_speed;
 			tp->link_config.duplex = tp->link_config.orig_duplex;
 			tp->link_config.autoneg = tp->link_config.orig_autoneg;
@@ -9368,7 +9368,7 @@ static void tg3_get_regs(struct net_device *dev,
 
 	memset(p, 0, TG3_REGDUMP_LEN);
 
-	if (tp->link_config.phy_is_low_power)
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 		return;
 
 	tg3_full_lock(tp, 0);
@@ -9447,7 +9447,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (tp->tg3_flags3 & TG3_FLG3_NO_NVRAM)
 		return -EINVAL;
 
-	if (tp->link_config.phy_is_low_power)
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 		return -EAGAIN;
 
 	offset = eeprom->offset;
@@ -9509,7 +9509,7 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	u8 *buf;
 	__be32 start, end;
 
-	if (tp->link_config.phy_is_low_power)
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 		return -EAGAIN;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_NO_NVRAM) ||
@@ -10849,7 +10849,7 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (tp->link_config.phy_is_low_power)
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 		tg3_set_power_state(tp, PCI_D0);
 
 	memset(data, 0, sizeof(u64) * TG3_NUM_TEST);
@@ -10917,7 +10917,7 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		if (irq_sync && !err2)
 			tg3_phy_start(tp);
 	}
-	if (tp->link_config.phy_is_low_power)
+	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 		tg3_set_power_state(tp, PCI_D3hot);
 
 }
@@ -10947,7 +10947,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		if (tp->link_config.phy_is_low_power)
+		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
@@ -10963,7 +10963,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		if (tp->link_config.phy_is_low_power)
+		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
@@ -14109,7 +14109,6 @@ static void __devinit tg3_init_link_config(struct tg3 *tp)
 	tp->link_config.autoneg = AUTONEG_ENABLE;
 	tp->link_config.active_speed = SPEED_INVALID;
 	tp->link_config.active_duplex = DUPLEX_INVALID;
-	tp->link_config.phy_is_low_power = 0;
 	tp->link_config.orig_speed = SPEED_INVALID;
 	tp->link_config.orig_duplex = DUPLEX_INVALID;
 	tp->link_config.orig_autoneg = AUTONEG_INVALID;

@@ -2534,7 +2534,6 @@ struct tg3_link_config {
 	/* When we go in and out of low power mode we need
 	 * to swap with this state.
 	 */
-	int				phy_is_low_power;
 	u16				orig_speed;
 	u8				orig_duplex;
 	u8				orig_autoneg;
@@ -2964,6 +2963,9 @@ struct tg3 {
 	 (X) == TG3_PHY_ID_BCM5718C || (X) == TG3_PHY_ID_BCM5718S || \
 	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM5719C || \
 	 (X) == TG3_PHY_ID_BCM8002)
+
+	u32				phy_flags;
+#define TG3_PHYFLG_IS_LOW_POWER		0x00000001
 
 	u32				led_ctrl;
 	u32				phy_otp;
