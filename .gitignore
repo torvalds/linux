@@ -55,6 +55,7 @@ include/linux/version.h
 include/linux/utsrelease.h
 include/linux/bounds.h
 include/generated
+include/asm-arm/mach-types.h
 
 # stgit generated dirs
 patches-*
