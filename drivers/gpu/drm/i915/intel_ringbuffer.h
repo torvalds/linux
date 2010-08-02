@@ -7,6 +7,9 @@ struct  intel_hw_status_page {
 	struct		drm_gem_object *obj;
 };
 
+#define I915_READ_TAIL(ring) I915_READ(RING_TAIL(ring->mmio_base))
+#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL(ring->mmio_base), val)
+
 struct drm_i915_gem_execbuffer2;
 struct  intel_ring_buffer {
 	const char	*name;
@@ -17,7 +20,6 @@ struct  intel_ring_buffer {
 	struct		ring_regs {
 			u32 ctl;
 			u32 head;
-			u32 tail;
 			u32 start;
 	} regs;
 	u32		mmio_base;
@@ -47,10 +49,9 @@ struct  intel_ring_buffer {
 
 	unsigned int	(*get_head)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
-	unsigned int	(*get_tail)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
 	void		(*set_tail)(struct drm_device *dev,
-			u32 value);
+				    struct intel_ring_buffer *ring,
+				    u32 value);
 	unsigned int	(*get_active_head)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
 	void		(*flush)(struct drm_device *dev,

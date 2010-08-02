@@ -126,17 +126,12 @@ static unsigned int render_ring_get_head(struct drm_device *dev,
 	return I915_READ(PRB0_HEAD) & HEAD_ADDR;
 }
 
-static unsigned int render_ring_get_tail(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
+static void ring_set_tail(struct drm_device *dev,
+			  struct intel_ring_buffer *ring,
+			  u32 value)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(PRB0_TAIL) & TAIL_ADDR;
-}
-
-static inline void render_ring_set_tail(struct drm_device *dev, u32 value)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(PRB0_TAIL, value);
+	I915_WRITE_TAIL(ring, ring->tail);
 }
 
 static unsigned int render_ring_get_active_head(struct drm_device *dev,
@@ -159,7 +154,7 @@ static int init_ring_common(struct drm_device *dev,
 	/* Stop the ring if it's running. */
 	I915_WRITE(ring->regs.ctl, 0);
 	I915_WRITE(ring->regs.head, 0);
-	ring->set_tail(dev, 0);
+	ring->set_tail(dev, ring, 0);
 
 	/* Initialize the ring. */
 	I915_WRITE(ring->regs.start, obj_priv->gtt_offset);
@@ -172,7 +167,7 @@ static int init_ring_common(struct drm_device *dev,
 				ring->name,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
-				I915_READ(ring->regs.tail),
+				I915_READ_TAIL(ring),
 				I915_READ(ring->regs.start));
 
 		I915_WRITE(ring->regs.head, 0);
@@ -182,7 +177,7 @@ static int init_ring_common(struct drm_device *dev,
 				ring->name,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
-				I915_READ(ring->regs.tail),
+				I915_READ_TAIL(ring),
 				I915_READ(ring->regs.start));
 	}
 
@@ -198,7 +193,7 @@ static int init_ring_common(struct drm_device *dev,
 				ring->name,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
-				I915_READ(ring->regs.tail),
+				I915_READ_TAIL(ring),
 				I915_READ(ring->regs.start));
 		return -EIO;
 	}
@@ -207,7 +202,7 @@ static int init_ring_common(struct drm_device *dev,
 		i915_kernel_lost_context(dev);
 	else {
 		ring->head = ring->get_head(dev, ring);
-		ring->tail = ring->get_tail(dev, ring);
+		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->size;
@@ -391,19 +386,6 @@ static inline unsigned int bsd_ring_get_head(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	return I915_READ(BSD_RING_HEAD) & HEAD_ADDR;
-}
-
-static inline unsigned int bsd_ring_get_tail(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(BSD_RING_TAIL) & TAIL_ADDR;
-}
-
-static inline void bsd_ring_set_tail(struct drm_device *dev, u32 value)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(BSD_RING_TAIL, value);
 }
 
 static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
@@ -620,6 +602,7 @@ err:
 int intel_init_ring_buffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_gem_object *obj;
 	int ret;
@@ -668,7 +651,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 		i915_kernel_lost_context(dev);
 	else {
 		ring->head = ring->get_head(dev, ring);
-		ring->tail = ring->get_tail(dev, ring);
+		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->size;
@@ -774,7 +757,7 @@ void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
 	ring->tail &= ring->size - 1;
-	ring->set_tail(dev, ring->tail);
+	ring->set_tail(dev, ring, ring->tail);
 }
 
 void intel_fill_struct(struct drm_device *dev,
@@ -798,7 +781,6 @@ static const struct intel_ring_buffer render_ring = {
 	.regs                   = {
 		.ctl = PRB0_CTL,
 		.head = PRB0_HEAD,
-		.tail = PRB0_TAIL,
 		.start = PRB0_START
 	},
 	.mmio_base		= RENDER_RING_BASE,
@@ -816,8 +798,7 @@ static const struct intel_ring_buffer render_ring = {
 	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
 	.get_head		= render_ring_get_head,
-	.get_tail		= render_ring_get_tail,
-	.set_tail		= render_ring_set_tail,
+	.set_tail		= ring_set_tail,
 	.get_active_head	= render_ring_get_active_head,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
@@ -837,7 +818,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.regs			= {
 		.ctl = BSD_RING_CTL,
 		.head = BSD_RING_HEAD,
-		.tail = BSD_RING_TAIL,
 		.start = BSD_RING_START
 	},
 	.mmio_base		= BSD_RING_BASE,
@@ -855,8 +835,7 @@ static const struct intel_ring_buffer bsd_ring = {
 	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
 	.get_head		= bsd_ring_get_head,
-	.get_tail		= bsd_ring_get_tail,
-	.set_tail		= bsd_ring_set_tail,
+	.set_tail		= ring_set_tail,
 	.get_active_head	= bsd_ring_get_active_head,
 	.flush			= bsd_ring_flush,
 	.add_request		= bsd_ring_add_request,
@@ -884,15 +863,9 @@ static inline unsigned int gen6_bsd_ring_get_head(struct drm_device *dev,
        return I915_READ(GEN6_BSD_RING_HEAD) & HEAD_ADDR;
 }
 
-static inline unsigned int gen6_bsd_ring_get_tail(struct drm_device *dev,
-                                       struct intel_ring_buffer *ring)
-{
-       drm_i915_private_t *dev_priv = dev->dev_private;
-       return I915_READ(GEN6_BSD_RING_TAIL) & TAIL_ADDR;
-}
-
 static inline void gen6_bsd_ring_set_tail(struct drm_device *dev,
-                               u32 value)
+					  struct intel_ring_buffer *ring,
+					  u32 value)
 {
        drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -907,7 +880,7 @@ static inline void gen6_bsd_ring_set_tail(struct drm_device *dev,
                        50))
                DRM_ERROR("timed out waiting for IDLE Indicator\n");
 
-       I915_WRITE(GEN6_BSD_RING_TAIL, value);
+       I915_WRITE_TAIL(ring, value);
        I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
@@ -956,7 +929,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .regs			= {
                .ctl    = GEN6_BSD_RING_CTL,
                .head   = GEN6_BSD_RING_HEAD,
-               .tail   = GEN6_BSD_RING_TAIL,
                .start  = GEN6_BSD_RING_START
        },
        .mmio_base		= GEN6_BSD_RING_BASE,
@@ -974,7 +946,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
        .get_head		= gen6_bsd_ring_get_head,
-       .get_tail		= gen6_bsd_ring_get_tail,
        .set_tail		= gen6_bsd_ring_set_tail,
        .get_active_head		= gen6_bsd_ring_get_active_head,
        .flush			= gen6_bsd_ring_flush,
