@@ -348,6 +348,7 @@ struct e1000_adapter {
 	u32 test_icr;
 
 	u32 msg_enable;
+	unsigned int num_vectors;
 	struct msix_entry *msix_entries;
 	int int_mode;
 	u32 eiac_mask;
