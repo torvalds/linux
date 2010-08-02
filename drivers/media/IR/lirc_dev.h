@@ -216,8 +216,7 @@ void *lirc_get_pdata(struct file *file);
 int lirc_dev_fop_open(struct inode *inode, struct file *file);
 int lirc_dev_fop_close(struct inode *inode, struct file *file);
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait);
-int lirc_dev_fop_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg);
+long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 ssize_t lirc_dev_fop_read(struct file *file, char *buffer, size_t length,
 			  loff_t *ppos);
 ssize_t lirc_dev_fop_write(struct file *file, const char *buffer, size_t length,

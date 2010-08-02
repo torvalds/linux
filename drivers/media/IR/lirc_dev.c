@@ -160,7 +160,7 @@ static struct file_operations fops = {
 	.read		= lirc_dev_fop_read,
 	.write		= lirc_dev_fop_write,
 	.poll		= lirc_dev_fop_poll,
-	.ioctl		= lirc_dev_fop_ioctl,
+	.unlocked_ioctl	= lirc_dev_fop_ioctl,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
 };
@@ -242,9 +242,9 @@ int lirc_register_driver(struct lirc_driver *d)
 		goto out;
 	} else if (!d->rbuf) {
 		if (!(d->fops && d->fops->read && d->fops->poll &&
-		      d->fops->ioctl)) {
+		      d->fops->unlocked_ioctl)) {
 			dev_err(d->dev, "lirc_dev: lirc_register_driver: "
-				"neither read, poll nor ioctl can be NULL!\n");
+				"neither read, poll nor unlocked_ioctl can be NULL!\n");
 			err = -EBADRQC;
 			goto out;
 		}
@@ -425,6 +425,7 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		retval = -ENODEV;
 		goto error;
 	}
+	file->private_data = ir;
 
 	dev_dbg(ir->d.dev, LOGHEAD "open called\n", ir->d.name, ir->d.minor);
 
@@ -516,12 +517,11 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 }
 EXPORT_SYMBOL(lirc_dev_fop_poll);
 
-int lirc_dev_fop_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long mode;
 	int result = 0;
-	struct irctl *ir = irctls[iminor(inode)];
+	struct irctl *ir = file->private_data;
 
 	dev_dbg(ir->d.dev, LOGHEAD "ioctl called (0x%x)\n",
 		ir->d.name, ir->d.minor, cmd);

@@ -97,8 +97,7 @@ out:
 	return ret;
 }
 
-static int ir_lirc_ioctl(struct inode *node, struct file *filep,
-			 unsigned int cmd, unsigned long arg)
+static long ir_lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct lirc_codec *lirc;
 	struct ir_input_dev *ir_dev;
@@ -154,7 +153,7 @@ static int ir_lirc_ioctl(struct inode *node, struct file *filep,
 		break;
 
 	default:
-		return lirc_dev_fop_ioctl(node, filep, cmd, arg);
+		return lirc_dev_fop_ioctl(filep, cmd, arg);
 	}
 
 	return ret;
@@ -173,7 +172,7 @@ static void ir_lirc_close(void *data)
 static struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
-	.ioctl		= ir_lirc_ioctl,
+	.unlocked_ioctl	= ir_lirc_ioctl,
 	.read		= lirc_dev_fop_read,
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,
