@@ -1444,7 +1444,7 @@ static void pl_intr_handler(struct adapter *adap)
 		t4_fatal_err(adap);
 }
 
-#define PF_INTR_MASK (PFSW | PFCIM)
+#define PF_INTR_MASK (PFSW)
 #define GLBL_INTR_MASK (CIM | MPS | PL | PCIE | MC | EDC0 | \
 		EDC1 | LE | TP | MA | PM_TX | PM_RX | ULP_RX | \
 		CPL_SWITCH | SGE | ULP_TX)
