@@ -786,8 +786,6 @@ struct fb_tile_ops {
 #define FBINFO_MISC_USEREVENT          0x10000 /* event request
 						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
-#define FBINFO_MISC_FIRMWARE           0x40000 /* a replaceable firmware
-						  inited framebuffer */
 
 /* A driver may set this flag to indicate that it does want a set_par to be
  * called every time when fbcon_switch is executed. The advantage is that with
@@ -801,6 +799,8 @@ struct fb_tile_ops {
  */
 #define FBINFO_MISC_ALWAYS_SETPAR   0x40000
 
+/* where the fb is a firmware driver, and can be replaced with a proper one */
+#define FBINFO_MISC_FIRMWARE        0x80000
 /*
  * Host and GPU endianness differ.
  */
@@ -873,6 +873,8 @@ struct fb_info {
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 	struct apertures_struct *a = kzalloc(sizeof(struct apertures_struct)
 			+ max_num * sizeof(struct aperture), GFP_KERNEL);
+	if (!a)
+		return NULL;
 	a->count = max_num;
 	return a;
 }

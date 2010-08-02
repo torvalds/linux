@@ -714,6 +714,14 @@ static int zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *act)
 	if (zfcp_erp_adapter_strategy_open_fsf_xport(act) == ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
 
+	if (mempool_resize(act->adapter->pool.status_read_data,
+			   act->adapter->stat_read_buf_num, GFP_KERNEL))
+		return ZFCP_ERP_FAILED;
+
+	if (mempool_resize(act->adapter->pool.status_read_req,
+			   act->adapter->stat_read_buf_num, GFP_KERNEL))
+		return ZFCP_ERP_FAILED;
+
 	atomic_set(&act->adapter->stat_miss, act->adapter->stat_read_buf_num);
 	if (zfcp_status_read_refill(act->adapter))
 		return ZFCP_ERP_FAILED;

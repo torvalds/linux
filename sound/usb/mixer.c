@@ -1107,6 +1107,19 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		}
 		break;
 
+	case USB_ID(0x046d, 0x0809):
+	case USB_ID(0x046d, 0x0991):
+	/* Most audio usb devices lie about volume resolution.
+	 * Most Logitech webcams have res = 384.
+	 * Proboly there is some logitech magic behind this number --fishor
+	 */
+		if (!strcmp(kctl->id.name, "Mic Capture Volume")) {
+			snd_printk(KERN_INFO
+				"set resolution quirk: cval->res = 384\n");
+			cval->res = 384;
+		}
+		break;
+
 	}
 
 	snd_printdd(KERN_INFO "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",

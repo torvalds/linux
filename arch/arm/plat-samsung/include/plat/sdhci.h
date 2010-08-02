@@ -166,8 +166,10 @@ static inline void s3c6410_default_sdhci2(void) { }
 #else
 static inline void s3c6410_default_sdhci0(void) { }
 static inline void s3c6410_default_sdhci1(void) { }
+static inline void s3c6410_default_sdhci2(void) { }
 static inline void s3c6400_default_sdhci0(void) { }
 static inline void s3c6400_default_sdhci1(void) { }
+static inline void s3c6400_default_sdhci2(void) { }
 
 #endif /* CONFIG_S3C64XX_SETUP_SDHCI */
 
@@ -239,7 +241,7 @@ static inline void s5pv210_default_sdhci0(void)
 	s3c_hsmmc0_def_platdata.cfg_card = s5pv210_setup_sdhci_cfg_card;
 }
 #else
-static inline void s5pc100_default_sdhci0(void) { }
+static inline void s5pv210_default_sdhci0(void) { }
 #endif /* CONFIG_S3C_DEV_HSMMC */
 
 #ifdef CONFIG_S3C_DEV_HSMMC1

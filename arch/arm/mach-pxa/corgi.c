@@ -446,7 +446,7 @@ static struct platform_device corgiled_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
+	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
 	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
 	.gpio_power		= CORGI_GPIO_SD_PWR,
 };

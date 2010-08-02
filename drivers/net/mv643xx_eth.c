@@ -289,6 +289,7 @@ struct mv643xx_eth_shared_private {
 	unsigned int t_clk;
 	int extended_rx_coal_limit;
 	int tx_bw_control;
+	int tx_csum_limit;
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -776,13 +777,16 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	l4i_chk = 0;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int hdr_len;
 		int tag_bytes;
 
 		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
 		       skb->protocol != htons(ETH_P_8021Q));
 
-		tag_bytes = (void *)ip_hdr(skb) - (void *)skb->data - ETH_HLEN;
-		if (unlikely(tag_bytes & ~12)) {
+		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		tag_bytes = hdr_len - ETH_HLEN;
+		if (skb->len - hdr_len > mp->shared->tx_csum_limit ||
+		    unlikely(tag_bytes & ~12)) {
 			if (skb_checksum_help(skb) == 0)
 				goto no_csum;
 			kfree_skb(skb);
@@ -2666,6 +2670,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Detect hardware parameters.
 	 */
 	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+	msp->tx_csum_limit = pd->tx_csum_limit ? pd->tx_csum_limit : 9 * 1024;
 	infer_hw_params(msp);
 
 	platform_set_drvdata(pdev, msp);

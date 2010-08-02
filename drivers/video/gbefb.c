@@ -91,10 +91,10 @@ static uint32_t pseudo_palette[16];
 static uint32_t gbe_cmap[256];
 static int gbe_turned_on; /* 0 turned off, 1 turned on */
 
-static char *mode_option __initdata = NULL;
+static char *mode_option __devinitdata = NULL;
 
 /* default CRT mode */
-static struct fb_var_screeninfo default_var_CRT __initdata = {
+static struct fb_var_screeninfo default_var_CRT __devinitdata = {
 	/* 640x480, 60 Hz, Non-Interlaced (25.175 MHz dotclock) */
 	.xres		= 640,
 	.yres		= 480,
@@ -125,7 +125,7 @@ static struct fb_var_screeninfo default_var_CRT __initdata = {
 };
 
 /* default LCD mode */
-static struct fb_var_screeninfo default_var_LCD __initdata = {
+static struct fb_var_screeninfo default_var_LCD __devinitdata = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -157,7 +157,7 @@ static struct fb_var_screeninfo default_var_LCD __initdata = {
 
 /* default modedb mode */
 /* 640x480, 60 Hz, Non-Interlaced (25.172 MHz dotclock) */
-static struct fb_videomode default_mode_CRT __initdata = {
+static struct fb_videomode default_mode_CRT __devinitdata = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -172,7 +172,7 @@ static struct fb_videomode default_mode_CRT __initdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 /* 1600x1024 SGI flatpanel 1600sw */
-static struct fb_videomode default_mode_LCD __initdata = {
+static struct fb_videomode default_mode_LCD __devinitdata = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -186,8 +186,8 @@ static struct fb_videomode default_mode_LCD __initdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_videomode *default_mode __initdata = &default_mode_CRT;
-static struct fb_var_screeninfo *default_var __initdata = &default_var_CRT;
+static struct fb_videomode *default_mode __devinitdata = &default_mode_CRT;
+static struct fb_var_screeninfo *default_var __devinitdata = &default_var_CRT;
 
 static int flat_panel_enabled = 0;
 
@@ -1098,7 +1098,7 @@ static void gbefb_create_sysfs(struct device *dev)
  * Initialization
  */
 
-static int __init gbefb_setup(char *options)
+static int __devinit gbefb_setup(char *options)
 {
 	char *this_opt;
 

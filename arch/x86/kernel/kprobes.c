@@ -640,8 +640,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	/* Skip cs, ip, orig_ax and gs. */	\
 	"	subl $16, %esp\n"	\
 	"	pushl %fs\n"		\
-	"	pushl %ds\n"		\
 	"	pushl %es\n"		\
+	"	pushl %ds\n"		\
 	"	pushl %eax\n"		\
 	"	pushl %ebp\n"		\
 	"	pushl %edi\n"		\

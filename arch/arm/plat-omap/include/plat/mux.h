@@ -173,6 +173,10 @@ enum omap7xx_index {
 	SPI_7XX_4,
 	SPI_7XX_5,
 	SPI_7XX_6,
+
+	/* UART */
+	UART_7XX_1,
+	UART_7XX_2,
 };
 
 enum omap1xxx_index {

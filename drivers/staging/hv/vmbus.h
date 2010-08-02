@@ -74,4 +74,6 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx);
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx);
 void vmbus_get_interface(struct vmbus_channel_interface *interface);
 
+extern struct completion hv_channel_ready;
+
 #endif /* _VMBUS_H_ */

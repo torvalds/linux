@@ -1062,6 +1062,10 @@ struct bnx2x {
 
 	/* used to synchronize stats collecting */
 	int			stats_state;
+
+	/* used for synchronization of concurrent threads statistics handling */
+	spinlock_t		stats_lock;
+
 	/* used by dmae command loader */
 	struct dmae_command	stats_dmae;
 	int			executer_idx;
