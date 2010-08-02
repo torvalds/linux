@@ -25,6 +25,8 @@
 #include <plat/control.h>
 #include <plat/cpu.h>
 
+#include <mach/id.h>
+
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;
 
@@ -101,6 +103,14 @@ static struct omap_id omap_ids[] __initdata = {
 
 static void __iomem *tap_base;
 static u16 tap_prod_id;
+
+void omap_get_die_id(struct omap_die_id *odi)
+{
+	odi->id_0 = read_tap_reg(OMAP_TAP_DIE_ID_0);
+	odi->id_1 = read_tap_reg(OMAP_TAP_DIE_ID_1);
+	odi->id_2 = read_tap_reg(OMAP_TAP_DIE_ID_2);
+	odi->id_3 = read_tap_reg(OMAP_TAP_DIE_ID_3);
+}
 
 static void __init omap24xx_check_revision(void)
 {
