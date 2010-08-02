@@ -70,7 +70,7 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 		else
 			read_count = attr_size;
 		read_count = p9_client_read(attr_fid, ((char *)buffer)+offset,
-					0, offset, read_count);
+					NULL, offset, read_count);
 		if (read_count < 0) {
 			/* error in xattr read */
 			retval = read_count;
@@ -132,7 +132,7 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		else
 			write_count = value_len;
 		write_count = p9_client_write(fid, ((char *)value)+offset,
-					0, offset, write_count);
+					NULL, offset, write_count);
 		if (write_count < 0) {
 			/* error in xattr write */
 			retval = write_count;
