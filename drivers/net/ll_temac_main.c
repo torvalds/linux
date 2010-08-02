@@ -964,7 +964,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
 	if (!np) {
 		dev_err(&op->dev, "could not find DMA node\n");
-		goto nodev;
+		goto err_iounmap;
 	}
 
 	/* Setup the DMA register accesses, could be DCR or memory mapped */
@@ -978,7 +978,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 			dev_dbg(&op->dev, "MEM base: %p\n", lp->sdma_regs);
 		} else {
 			dev_err(&op->dev, "unable to map DMA registers\n");
-			goto nodev;
+			goto err_iounmap;
 		}
 	}
 
@@ -987,7 +987,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		rc = -ENOMEM;
-		goto nodev;
+		goto err_iounmap_2;
 	}
 
 	of_node_put(np); /* Finished with the DMA node; drop the reference */
@@ -997,7 +997,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	if ((!addr) || (size != 6)) {
 		dev_err(&op->dev, "could not find MAC address\n");
 		rc = -ENODEV;
-		goto nodev;
+		goto err_iounmap_2;
 	}
 	temac_set_mac_address(ndev, (void *)addr);
 
@@ -1013,7 +1013,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	rc = sysfs_create_group(&lp->dev->kobj, &temac_attr_group);
 	if (rc) {
 		dev_err(lp->dev, "Error creating sysfs files\n");
-		goto nodev;
+		goto err_iounmap_2;
 	}
 
 	rc = register_netdev(lp->ndev);
@@ -1026,6 +1026,11 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 
  err_register_ndev:
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
+ err_iounmap_2:
+	if (lp->sdma_regs)
+		iounmap(lp->sdma_regs);
+ err_iounmap:
+	iounmap(lp->regs);
  nodev:
 	free_netdev(ndev);
 	ndev = NULL;
@@ -1044,6 +1049,9 @@ static int __devexit temac_of_remove(struct of_device *op)
 		of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 	dev_set_drvdata(&op->dev, NULL);
+	iounmap(lp->regs);
+	if (lp->sdma_regs)
+		iounmap(lp->sdma_regs);
 	free_netdev(ndev);
 	return 0;
 }

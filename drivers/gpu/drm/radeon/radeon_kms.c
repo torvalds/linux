@@ -49,7 +49,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct radeon_device *rdev;
-	int r;
+	int r, acpi_status;
 
 	rdev = kzalloc(sizeof(struct radeon_device), GFP_KERNEL);
 	if (rdev == NULL) {
@@ -77,6 +77,12 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
+
+	/* Call ACPI methods */
+	acpi_status = radeon_acpi_init(rdev);
+	if (acpi_status)
+		dev_err(&dev->pdev->dev, "Error during ACPI methods call\n");
+
 	/* Again modeset_init should fail only on fatal error
 	 * otherwise it should provide enough functionalities
 	 * for shadowfb to run
@@ -128,7 +134,8 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		for (i = 0, found = 0; i < rdev->num_crtc; i++) {
 			crtc = (struct drm_crtc *)minfo->crtcs[i];
 			if (crtc && crtc->base.id == value) {
-				value = i;
+				struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+				value = radeon_crtc->crtc_id;
 				found = 1;
 				break;
 			}
@@ -140,6 +147,18 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_ACCEL_WORKING2:
 		value = rdev->accel_working;
+		break;
+	case RADEON_INFO_TILING_CONFIG:
+		if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.tile_config;
+		else if (rdev->family >= CHIP_RV770)
+			value = rdev->config.rv770.tile_config;
+		else if (rdev->family >= CHIP_R600)
+			value = rdev->config.r600.tile_config;
+		else {
+			DRM_DEBUG("tiling config is r6xx+ only!\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);

@@ -4517,9 +4517,9 @@ vxge_starter(void)
 	char version[32];
 	snprintf(version, 32, "%s", DRV_VERSION);
 
-	printk(KERN_CRIT "%s: Copyright(c) 2002-2009 Neterion Inc\n",
+	printk(KERN_INFO "%s: Copyright(c) 2002-2009 Neterion Inc\n",
 		VXGE_DRIVER_NAME);
-	printk(KERN_CRIT "%s: Driver version: %s\n",
+	printk(KERN_INFO "%s: Driver version: %s\n",
 			VXGE_DRIVER_NAME, version);
 
 	verify_bandwidth();

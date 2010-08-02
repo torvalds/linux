@@ -27,6 +27,8 @@
 #include <linux/acpi.h>
 #endif
 #include <linux/power_supply.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200
@@ -423,6 +425,82 @@ fail:
 static DEVICE_ATTR(power_profile, S_IRUGO | S_IWUSR, radeon_get_pm_profile, radeon_set_pm_profile);
 static DEVICE_ATTR(power_method, S_IRUGO | S_IWUSR, radeon_get_pm_method, radeon_set_pm_method);
 
+static ssize_t radeon_hwmon_show_temp(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	u32 temp;
+
+	switch (rdev->pm.int_thermal_type) {
+	case THERMAL_TYPE_RV6XX:
+		temp = rv6xx_get_temp(rdev);
+		break;
+	case THERMAL_TYPE_RV770:
+		temp = rv770_get_temp(rdev);
+		break;
+	case THERMAL_TYPE_EVERGREEN:
+		temp = evergreen_get_temp(rdev);
+		break;
+	default:
+		temp = 0;
+		break;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
+}
+
+static ssize_t radeon_hwmon_show_name(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "radeon\n");
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, radeon_hwmon_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(name, S_IRUGO, radeon_hwmon_show_name, NULL, 0);
+
+static struct attribute *hwmon_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_name.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group hwmon_attrgroup = {
+	.attrs = hwmon_attributes,
+};
+
+static void radeon_hwmon_init(struct radeon_device *rdev)
+{
+	int err;
+
+	rdev->pm.int_hwmon_dev = NULL;
+
+	switch (rdev->pm.int_thermal_type) {
+	case THERMAL_TYPE_RV6XX:
+	case THERMAL_TYPE_RV770:
+	case THERMAL_TYPE_EVERGREEN:
+		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
+		dev_set_drvdata(rdev->pm.int_hwmon_dev, rdev->ddev);
+		err = sysfs_create_group(&rdev->pm.int_hwmon_dev->kobj,
+					 &hwmon_attrgroup);
+		if (err)
+			DRM_ERROR("Unable to create hwmon sysfs file: %d\n", err);
+		break;
+	default:
+		break;
+	}
+}
+
+static void radeon_hwmon_fini(struct radeon_device *rdev)
+{
+	if (rdev->pm.int_hwmon_dev) {
+		sysfs_remove_group(&rdev->pm.int_hwmon_dev->kobj, &hwmon_attrgroup);
+		hwmon_device_unregister(rdev->pm.int_hwmon_dev);
+	}
+}
+
 void radeon_pm_suspend(struct radeon_device *rdev)
 {
 	bool flush_wq = false;
@@ -470,6 +548,7 @@ int radeon_pm_init(struct radeon_device *rdev)
 	rdev->pm.dynpm_can_downclock = true;
 	rdev->pm.current_sclk = rdev->clock.default_sclk;
 	rdev->pm.current_mclk = rdev->clock.default_mclk;
+	rdev->pm.int_thermal_type = THERMAL_TYPE_NONE;
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios)
@@ -480,6 +559,8 @@ int radeon_pm_init(struct radeon_device *rdev)
 		radeon_pm_init_profile(rdev);
 	}
 
+	/* set up the internal thermal sensor if applicable */
+	radeon_hwmon_init(rdev);
 	if (rdev->pm.num_power_states > 1) {
 		/* where's the best place to put these? */
 		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
@@ -535,6 +616,7 @@ void radeon_pm_fini(struct radeon_device *rdev)
 #endif
 	}
 
+	radeon_hwmon_fini(rdev);
 	if (rdev->pm.i2c_bus)
 		radeon_i2c_destroy(rdev->pm.i2c_bus);
 }

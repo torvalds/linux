@@ -64,7 +64,7 @@ tl0_irq6:	TRAP_IRQ(smp_call_function_single_client, 6)
 tl0_irq6:	BTRAP(0x46)
 #endif
 tl0_irq7:	TRAP_IRQ(deferred_pcr_work_irq, 7)
-#ifdef CONFIG_KGDB
+#if defined(CONFIG_KGDB) && defined(CONFIG_SMP)
 tl0_irq8:	TRAP_IRQ(smp_kgdb_capture_client, 8)
 #else
 tl0_irq8:	BTRAP(0x48)

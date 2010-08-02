@@ -30,7 +30,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -141,10 +141,10 @@ void __init check_for_initrd(void)
 		goto disable;
 	}
 
-	if (unlikely(end > lmb_end_of_DRAM())) {
+	if (unlikely(end > memblock_end_of_DRAM())) {
 		pr_err("initrd extends beyond end of memory "
 		       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-		       end, (unsigned long)lmb_end_of_DRAM());
+		       end, (unsigned long)memblock_end_of_DRAM());
 		goto disable;
 	}
 
@@ -161,7 +161,7 @@ void __init check_for_initrd(void)
 	initrd_start = (unsigned long)__va(__pa(start));
 	initrd_end = initrd_start + INITRD_SIZE;
 
-	lmb_reserve(__pa(initrd_start), INITRD_SIZE);
+	memblock_reserve(__pa(initrd_start), INITRD_SIZE);
 
 	return;
 

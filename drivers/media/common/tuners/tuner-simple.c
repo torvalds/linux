@@ -524,6 +524,7 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 		buffer[3] = 0x39;
 		break;
 	case TUNER_PHILIPS_FQ1216LME_MK3:
+	case TUNER_PHILIPS_FQ1236_MK5:
 		tuner_err("This tuner doesn't have FM\n");
 		/* Set the low band for sanity, since it covers 88-108 MHz */
 		buffer[3] = 0x01;

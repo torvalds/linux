@@ -233,7 +233,7 @@ static int __devinit w90x900ts_probe(struct platform_device *pdev)
 	w90p910_ts->state = TS_IDLE;
 	spin_lock_init(&w90p910_ts->lock);
 	setup_timer(&w90p910_ts->timer, w90p910_check_pen_up,
-		    (unsigned long)&w90p910_ts);
+		    (unsigned long)w90p910_ts);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

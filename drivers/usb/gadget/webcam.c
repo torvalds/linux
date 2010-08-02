@@ -28,10 +28,10 @@
 #include "config.c"
 #include "epautoconf.c"
 
-#include "f_uvc.c"
 #include "uvc_queue.c"
-#include "uvc_v4l2.c"
 #include "uvc_video.c"
+#include "uvc_v4l2.c"
+#include "f_uvc.c"
 
 /* --------------------------------------------------------------------------
  * Device descriptor

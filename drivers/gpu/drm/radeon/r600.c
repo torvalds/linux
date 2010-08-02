@@ -92,6 +92,21 @@ void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+u32 rv6xx_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
+		ASIC_T_SHIFT;
+	u32 actual_temp = 0;
+
+	if ((temp >> 7) & 1)
+		actual_temp = 0;
+	else
+		actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 {
 	int i;
@@ -869,7 +884,17 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* flush hdp cache so updates hit vram */
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+		u32 tmp;
+
+		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
+		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+		 */
+		WREG32(HDP_DEBUG1, 0);
+		tmp = readl((void __iomem *)ptr);
+	} else
+		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 
 	WREG32(VM_CONTEXT0_INVALIDATION_LOW_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_INVALIDATION_HIGH_ADDR, (rdev->mc.gtt_end - 1) >> 12);
@@ -1179,6 +1204,7 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 		if (rdev->flags & RADEON_IS_IGP)
 			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
 		radeon_vram_location(rdev, &rdev->mc, base);
+		rdev->mc.gtt_base_align = 0;
 		radeon_gtt_location(rdev, mc);
 	}
 }
@@ -1608,7 +1634,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 							 r600_count_pipe_bits((cc_rb_backend_disable &
 									       R6XX_MAX_BACKENDS_MASK) >> 16)),
 							(cc_rb_backend_disable >> 16));
-
+	rdev->config.r600.tile_config = tiling_config;
 	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
@@ -3511,5 +3537,15 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
  */
 void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 {
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
+	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+	 */
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+		u32 tmp;
+
+		WREG32(HDP_DEBUG1, 0);
+		tmp = readl((void __iomem *)ptr);
+	} else
+		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }

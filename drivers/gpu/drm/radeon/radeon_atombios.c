@@ -280,6 +280,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* ASUS HD 3600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x9598) &&
+	    (dev->pdev->subsystem_vendor == 0x1043) &&
+	    (dev->pdev->subsystem_device == 0x01e4)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
+		}
+	}
+
 	/* ASUS HD 3450 board lists the DVI port as HDMI */
 	if ((dev->pdev->device == 0x95C5) &&
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
@@ -1029,8 +1038,15 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 				      data_offset);
 		switch (crev) {
 		case 1:
-			if (igp_info->info.ucMemoryType & 0xf0)
-				return true;
+			/* AMD IGPS */
+			if ((rdev->family == CHIP_RS690) ||
+			    (rdev->family == CHIP_RS740)) {
+				if (igp_info->info.ulBootUpMemoryClock)
+					return true;
+			} else {
+				if (igp_info->info.ucMemoryType & 0xf0)
+					return true;
+			}
 			break;
 		case 2:
 			if (igp_info->info_2.ucMemoryType & 0x0f)
@@ -1773,14 +1789,22 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			}
 
 			/* add the i2c bus for thermal/fan chip */
-			/* no support for internal controller yet */
 			if (controller->ucType > 0) {
-				if ((controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN)) {
+				if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 					DRM_INFO("Internal thermal controller %s fan control\n",
 						 (controller->ucFanParameters &
 						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV770;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 				} else if ((controller->ucType ==
 					    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 					   (controller->ucType ==

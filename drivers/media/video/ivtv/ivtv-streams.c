@@ -912,6 +912,9 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
 	ivtv_flush_queues(s);
 
+	/* decoder needs time to settle */
+	ivtv_msleep_timeout(40, 0);
+
 	/* decrement decoding */
 	atomic_dec(&itv->decoding);
 

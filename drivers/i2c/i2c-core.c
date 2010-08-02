@@ -1428,13 +1428,12 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	if (!(adapter->class & driver->class))
 		goto exit_free;
 
-	/* Stop here if we can't use SMBUS_QUICK */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_QUICK)) {
+	/* Stop here if the bus doesn't support probing */
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE)) {
 		if (address_list[0] == I2C_CLIENT_END)
 			goto exit_free;
 
-		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
-			 "can't probe for chips\n");
+		dev_warn(&adapter->dev, "Probing not supported\n");
 		err = -EOPNOTSUPP;
 		goto exit_free;
 	}

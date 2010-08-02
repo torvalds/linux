@@ -1594,8 +1594,8 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 
 	/* Try to instantiate a bundle */
 	err = xfrm_tmpl_resolve(pols, num_pols, fl, xfrm, family);
-	if (err < 0) {
-		if (err != -EAGAIN)
+	if (err <= 0) {
+		if (err != 0 && err != -EAGAIN)
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTPOLERROR);
 		return ERR_PTR(err);
 	}
@@ -1676,6 +1676,13 @@ xfrm_bundle_lookup(struct net *net, struct flowi *fl, u16 family, u8 dir,
 			goto error;
 		if (oldflo == NULL)
 			goto make_dummy_bundle;
+		dst_hold(&xdst->u.dst);
+		return oldflo;
+	} else if (new_xdst == NULL) {
+		num_xfrms = 0;
+		if (oldflo == NULL)
+			goto make_dummy_bundle;
+		xdst->num_xfrms = 0;
 		dst_hold(&xdst->u.dst);
 		return oldflo;
 	}
@@ -1760,6 +1767,10 @@ restart:
 				xfrm_pols_put(pols, num_pols);
 				err = PTR_ERR(xdst);
 				goto dropdst;
+			} else if (xdst == NULL) {
+				num_xfrms = 0;
+				drop_pols = num_pols;
+				goto no_transform;
 			}
 
 			spin_lock_bh(&xfrm_policy_sk_bundle_lock);

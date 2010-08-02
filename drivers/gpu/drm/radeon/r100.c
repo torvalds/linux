@@ -1230,7 +1230,6 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
 	reg = CP_PACKET0_GET_REG(header);
-	mutex_lock(&p->rdev->ddev->mode_config.mutex);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
@@ -1264,7 +1263,6 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 		ib[h_idx + 3] |= RADEON_ENG_DISPLAY_SELECT_CRTC1;
 	}
 out:
-	mutex_unlock(&p->rdev->ddev->mode_config.mutex);
 	return r;
 }
 
@@ -2354,6 +2352,7 @@ void r100_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP)
 		base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
 	radeon_vram_location(rdev, &rdev->mc, base);
+	rdev->mc.gtt_base_align = 0;
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -2365,11 +2364,10 @@ void r100_mc_init(struct radeon_device *rdev)
  */
 void r100_pll_errata_after_index(struct radeon_device *rdev)
 {
-	if (!(rdev->pll_errata & CHIP_ERRATA_PLL_DUMMYREADS)) {
-		return;
+	if (rdev->pll_errata & CHIP_ERRATA_PLL_DUMMYREADS) {
+		(void)RREG32(RADEON_CLOCK_CNTL_DATA);
+		(void)RREG32(RADEON_CRTC_GEN_CNTL);
 	}
-	(void)RREG32(RADEON_CLOCK_CNTL_DATA);
-	(void)RREG32(RADEON_CRTC_GEN_CNTL);
 }
 
 static void r100_pll_errata_after_data(struct radeon_device *rdev)
@@ -3810,6 +3808,31 @@ void r100_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
+/*
+ * Due to how kexec works, it can leave the hw fully initialised when it
+ * boots the new kernel. However doing our init sequence with the CP and
+ * WB stuff setup causes GPU hangs on the RN50 at least. So at startup
+ * do some quick sanity checks and restore sane values to avoid this
+ * problem.
+ */
+void r100_restore_sanity(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	tmp = RREG32(RADEON_CP_CSQ_CNTL);
+	if (tmp) {
+		WREG32(RADEON_CP_CSQ_CNTL, 0);
+	}
+	tmp = RREG32(RADEON_CP_RB_CNTL);
+	if (tmp) {
+		WREG32(RADEON_CP_RB_CNTL, 0);
+	}
+	tmp = RREG32(RADEON_SCRATCH_UMSK);
+	if (tmp) {
+		WREG32(RADEON_SCRATCH_UMSK, 0);
+	}
+}
+
 int r100_init(struct radeon_device *rdev)
 {
 	int r;
@@ -3822,6 +3845,8 @@ int r100_init(struct radeon_device *rdev)
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	/* sanity check some register to avoid hangs like after kexec */
+	r100_restore_sanity(rdev);
 	/* TODO: disable VGA need to use VGA request */
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {

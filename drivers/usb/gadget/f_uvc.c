@@ -28,7 +28,7 @@
 
 #include "uvc.h"
 
-unsigned int uvc_trace_param;
+unsigned int uvc_gadget_trace_param;
 
 /* --------------------------------------------------------------------------
  * Function descriptors
@@ -656,6 +656,6 @@ error:
 	return ret;
 }
 
-module_param_named(trace, uvc_trace_param, uint, S_IRUGO|S_IWUSR);
+module_param_named(trace, uvc_gadget_trace_param, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(trace, "Trace level bitmask");
 

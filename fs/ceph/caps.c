@@ -244,8 +244,14 @@ static struct ceph_cap *get_cap(struct ceph_cap_reservation *ctx)
 	struct ceph_cap *cap = NULL;
 
 	/* temporary, until we do something about cap import/export */
-	if (!ctx)
-		return kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
+	if (!ctx) {
+		cap = kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
+		if (cap) {
+			caps_use_count++;
+			caps_total_count++;
+		}
+		return cap;
+	}
 
 	spin_lock(&caps_list_lock);
 	dout("get_cap ctx=%p (%d) %d = %d used + %d resv + %d avail\n",
@@ -2886,18 +2892,19 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_cap *cap;
 	struct ceph_mds_request_release *rel = *p;
+	int used, dirty;
 	int ret = 0;
-	int used = 0;
 
 	spin_lock(&inode->i_lock);
 	used = __ceph_caps_used(ci);
+	dirty = __ceph_caps_dirty(ci);
 
-	dout("encode_inode_release %p mds%d used %s drop %s unless %s\n", inode,
-	     mds, ceph_cap_string(used), ceph_cap_string(drop),
+	dout("encode_inode_release %p mds%d used|dirty %s drop %s unless %s\n",
+	     inode, mds, ceph_cap_string(used|dirty), ceph_cap_string(drop),
 	     ceph_cap_string(unless));
 
-	/* only drop unused caps */
-	drop &= ~used;
+	/* only drop unused, clean caps */
+	drop &= ~(used | dirty);
 
 	cap = __get_cap_for_mds(ci, mds);
 	if (cap && __cap_is_valid(cap)) {

@@ -2941,9 +2941,8 @@ static void combios_write_ram_size(struct drm_device *dev)
 		if (rev < 3) {
 			mem_cntl = RBIOS32(offset + 1);
 			mem_size = RBIOS16(offset + 5);
-			if (((rdev->flags & RADEON_FAMILY_MASK) < CHIP_R200) &&
-			    ((dev->pdev->device != 0x515e)
-			     && (dev->pdev->device != 0x5969)))
+			if ((rdev->family < CHIP_R200) &&
+			    !ASIC_IS_RN50(rdev))
 				WREG32(RADEON_MEM_CNTL, mem_cntl);
 		}
 	}
@@ -2954,10 +2953,8 @@ static void combios_write_ram_size(struct drm_device *dev)
 		if (offset) {
 			rev = RBIOS8(offset - 1);
 			if (rev < 1) {
-				if (((rdev->flags & RADEON_FAMILY_MASK) <
-				     CHIP_R200)
-				    && ((dev->pdev->device != 0x515e)
-					&& (dev->pdev->device != 0x5969))) {
+				if ((rdev->family < CHIP_R200)
+				    && !ASIC_IS_RN50(rdev)) {
 					int ram = 0;
 					int mem_addr_mapping = 0;
 
@@ -3048,6 +3045,14 @@ void radeon_combios_asic_init(struct drm_device *dev)
 	if (rdev->family == CHIP_RS480 &&
 	    rdev->pdev->subsystem_vendor == 0x103c &&
 	    rdev->pdev->subsystem_device == 0x308b)
+		return;
+
+	/* quirk for rs4xx HP dv5000 laptop to make it resume
+	 * - it hangs on resume inside the dynclk 1 table.
+	 */
+	if (rdev->family == CHIP_RS480 &&
+	    rdev->pdev->subsystem_vendor == 0x103c &&
+	    rdev->pdev->subsystem_device == 0x30a4)
 		return;
 
 	/* DYN CLK 1 */
