@@ -271,6 +271,29 @@ struct ip_vs_conn *ip_vs_conn_in_get
 	return cp;
 }
 
+struct ip_vs_conn *
+ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+			struct ip_vs_protocol *pp,
+			const struct ip_vs_iphdr *iph,
+			unsigned int proto_off, int inverse)
+{
+	__be16 _ports[2], *pptr;
+
+	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	if (pptr == NULL)
+		return NULL;
+
+	if (likely(!inverse))
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->saddr, pptr[0],
+					 &iph->daddr, pptr[1]);
+	else
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->daddr, pptr[1],
+					 &iph->saddr, pptr[0]);
+}
+EXPORT_SYMBOL_GPL(ip_vs_conn_in_get_proto);
+
 /* Get reference to connection template */
 struct ip_vs_conn *ip_vs_ct_in_get
 (int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
@@ -356,6 +379,28 @@ struct ip_vs_conn *ip_vs_conn_out_get
 	return ret;
 }
 
+struct ip_vs_conn *
+ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
+			 struct ip_vs_protocol *pp,
+			 const struct ip_vs_iphdr *iph,
+			 unsigned int proto_off, int inverse)
+{
+	__be16 _ports[2], *pptr;
+
+	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	if (pptr == NULL)
+		return NULL;
+
+	if (likely(!inverse))
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->saddr, pptr[0],
+					  &iph->daddr, pptr[1]);
+	else
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->daddr, pptr[1],
+					  &iph->saddr, pptr[0]);
+}
+EXPORT_SYMBOL_GPL(ip_vs_conn_out_get_proto);
 
 /*
  *      Put back the conn and restart its timer with its timeout
