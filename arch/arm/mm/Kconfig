@@ -808,6 +808,29 @@ config ARM_L1_CACHE_SHIFT
 	default 6 if ARM_L1_CACHE_SHIFT_6
 	default 5
 
+config ARM_ATTRIB_ALLOCATOR
+	bool "Support custom cache attribute allocations in low memory"
+	select ARCH_LOWMEM_IN_PTES if (CPU_V7)
+	depends on MMU && !CPU_CACHE_VIVT
+	help
+	  Historically, the kernel has only reserved a small region
+	  of physical memory for uncached access, and relied on
+	  explicit cache maintenance for ensuring coherency between
+	  the CPU and DMA.
+
+	  However, many recent systems support mapping discontiguous
+	  physical pages into contiguous DMA addresses (so-called
+	  system MMUs). For some DMA clients (notably graphics and
+	  multimedia engines), performing explict cache maintenance
+	  between CPU and DMA mappings can be prohibitively expensive,
+	  and since ARMv7, mapping the same physical page with different
+	  cache attributes is disallowed and has unpredictable behavior.
+
+	  Say 'Y' here to include page allocation support with explicit
+	  cache attributes; on ARMv7 systems this will also force the
+	  kernel's page tables to be mapped using page tables rather
+	  than sections.
+
 config ARM_DMA_MEM_BUFFERABLE
 	bool "Use non-cacheable memory for DMA" if CPU_V6 && !CPU_V7
 	depends on !(MACH_REALVIEW_PB1176 || REALVIEW_EB_ARM11MP || \
