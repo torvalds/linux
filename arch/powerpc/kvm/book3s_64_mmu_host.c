@@ -30,7 +30,6 @@
 #include "trace.h"
 
 #define PTE_SIZE 12
-#define VSID_ALL 0
 
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
