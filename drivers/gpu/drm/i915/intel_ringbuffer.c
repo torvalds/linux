@@ -768,15 +768,6 @@ static const struct intel_ring_buffer render_ring = {
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
-	.virtual_start		= NULL,
-	.dev			= NULL,
-	.gem_object		= NULL,
-	.head			= 0,
-	.tail			= 0,
-	.space			= 0,
-	.user_irq_refcount	= 0,
-	.irq_gem_seqno		= 0,
-	.waiting_gem_seqno	= 0,
 	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
 	.set_tail		= ring_set_tail,
@@ -787,8 +778,6 @@ static const struct intel_ring_buffer render_ring = {
 	.user_irq_get		= render_ring_get_user_irq,
 	.user_irq_put		= render_ring_put_user_irq,
 	.dispatch_gem_execbuffer = render_ring_dispatch_gem_execbuffer,
-	.status_page		= {NULL, 0, NULL},
-	.map			= {0,}
 };
 
 /* ring buffer for bit-stream decoder */
@@ -799,15 +788,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
-	.virtual_start		= NULL,
-	.dev			= NULL,
-	.gem_object		= NULL,
-	.head			= 0,
-	.tail			= 0,
-	.space			= 0,
-	.user_irq_refcount	= 0,
-	.irq_gem_seqno		= 0,
-	.waiting_gem_seqno	= 0,
 	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
 	.set_tail		= ring_set_tail,
@@ -818,8 +798,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.user_irq_get		= bsd_ring_get_user_irq,
 	.user_irq_put		= bsd_ring_put_user_irq,
 	.dispatch_gem_execbuffer = bsd_ring_dispatch_gem_execbuffer,
-	.status_page		= {NULL, 0, NULL},
-	.map			= {0,}
 };
 
 
@@ -897,15 +875,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
        .alignment		= PAGE_SIZE,
-       .virtual_start		= NULL,
-       .dev			= NULL,
-       .gem_object		= NULL,
-       .head			= 0,
-       .tail			= 0,
-       .space			= 0,
-       .user_irq_refcount	= 0,
-       .irq_gem_seqno		= 0,
-       .waiting_gem_seqno	= 0,
        .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
        .set_tail		= gen6_bsd_ring_set_tail,
@@ -916,8 +885,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .user_irq_get		= bsd_ring_get_user_irq,
        .user_irq_put		= bsd_ring_put_user_irq,
        .dispatch_gem_execbuffer	= gen6_bsd_ring_dispatch_gem_execbuffer,
-       .status_page		= {NULL, 0, NULL},
-       .map			= {0,}
 };
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
