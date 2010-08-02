@@ -720,9 +720,10 @@ static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 		/* Conversion to new PCI API :
 		 * Pages are always aligned and zeroed, no need to it ourself.
 		 * Doc says should be OK for EISA bus as well - Jean II */
-		if ((lp->page_vaddr_algn = pci_alloc_consistent(lp->pci_dev, MAX_RINGSIZE, &page_baddr)) == NULL) {
+		lp->page_vaddr_algn = pci_alloc_consistent(lp->pci_dev, MAX_RINGSIZE, &page_baddr);
+		if (!lp->page_vaddr_algn) {
 			err = -ENOMEM;
-			goto out2;
+			goto out_mem_ptr;
 		}
 		lp->whatever_offset = ((u_long) page_baddr) - ((u_long) lp->page_vaddr_algn);
 
@@ -798,6 +799,7 @@ out3:
 		pci_free_consistent(lp->pci_dev, MAX_RINGSIZE + 0x0f,
 				    lp->page_vaddr_algn,
 				    virt_to_whatever(dev, lp->page_vaddr_algn));
+out_mem_ptr:
 	if (mem_ptr_virt)
 		iounmap(mem_ptr_virt);
 out2:
