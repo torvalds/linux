@@ -26,7 +26,7 @@ if IP_VS
 
 config	IP_VS_IPV6
 	bool "IPv6 support for IPVS"
-	depends on EXPERIMENTAL && (IPV6 = y || IP_VS = IPV6)
+	depends on IPV6 = y || IP_VS = IPV6
 	---help---
 	  Add IPv6 support to IPVS. This is incomplete and might be dangerous.
 
