@@ -122,11 +122,7 @@ static struct omap_smc91x_platform_data board_smc91x_data = {
 
 static void __init board_smc91x_init(void)
 {
-	if (omap_rev() > OMAP3430_REV_ES1_0)
-		board_smc91x_data.gpio_irq = 6;
-	else
-		board_smc91x_data.gpio_irq = 29;
-
+	omap_mux_init_gpio(149, OMAP_PIN_INPUT);
 	gpmc_smc91x_init(&board_smc91x_data);
 }
 
