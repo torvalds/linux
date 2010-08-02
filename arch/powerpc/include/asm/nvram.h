@@ -30,13 +30,14 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 
+#ifdef CONFIG_PPC_PSERIES
 extern int nvram_write_error_log(char * buff, int length,
 					 unsigned int err_type, unsigned int err_seq);
 extern int nvram_read_error_log(char * buff, int length,
 					 unsigned int * err_type, unsigned int *err_seq);
 extern int nvram_clear_error_log(void);
-
 extern int pSeries_nvram_init(void);
+#endif /* CONFIG_PPC_PSERIES */
 
 #ifdef CONFIG_MMIO_NVRAM
 extern int mmio_nvram_init(void);
@@ -46,6 +47,13 @@ static inline int mmio_nvram_init(void)
 	return -ENODEV;
 }
 #endif
+
+extern int __init nvram_scan_partitions(void);
+extern loff_t nvram_create_partition(const char *name, int sig,
+				     int req_size, int min_size);
+extern int nvram_remove_partition(const char *name, int sig);
+extern int nvram_get_partition_size(loff_t data_index);
+extern loff_t nvram_find_partition(const char *name, int sig, int *out_size);
 
 #endif /* __KERNEL__ */
 
