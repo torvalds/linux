@@ -459,8 +459,6 @@ nouveau_mem_init(struct drm_device *dev)
 		return ret;
 	}
 
-	INIT_LIST_HEAD(&dev_priv->ttm.bo_list);
-	spin_lock_init(&dev_priv->ttm.bo_list_lock);
 	spin_lock_init(&dev_priv->tile.lock);
 
 	dev_priv->fb_available_size = dev_priv->vram_size;

@@ -51,9 +51,6 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	if (nvbo->tile)
 		nv10_mem_expire_tiling(dev, nvbo->tile, NULL);
 
-	spin_lock(&dev_priv->ttm.bo_list_lock);
-	list_del(&nvbo->head);
-	spin_unlock(&dev_priv->ttm.bo_list_lock);
 	kfree(nvbo);
 }
 
@@ -166,9 +163,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	}
 	nvbo->channel = NULL;
 
-	spin_lock(&dev_priv->ttm.bo_list_lock);
-	list_add_tail(&nvbo->head, &dev_priv->ttm.bo_list);
-	spin_unlock(&dev_priv->ttm.bo_list_lock);
 	*pnvbo = nvbo;
 	return 0;
 }
