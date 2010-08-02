@@ -25,7 +25,6 @@ struct  intel_ring_buffer {
 	} id;
 	u32		mmio_base;
 	unsigned long	size;
-	unsigned int	alignment;
 	void		*virtual_start;
 	struct		drm_device *dev;
 	struct		drm_gem_object *gem_object;

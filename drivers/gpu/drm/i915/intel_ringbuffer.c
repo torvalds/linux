@@ -610,7 +610,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->gem_object = obj;
 
-	ret = i915_gem_object_pin(obj, ring->alignment);
+	ret = i915_gem_object_pin(obj, PAGE_SIZE);
 	if (ret)
 		goto err_unref;
 
@@ -767,7 +767,6 @@ static const struct intel_ring_buffer render_ring = {
 	.id			= RING_RENDER,
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
-	.alignment		= PAGE_SIZE,
 	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
 	.set_tail		= ring_set_tail,
@@ -787,7 +786,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.id			= RING_BSD,
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
-	.alignment		= PAGE_SIZE,
 	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
 	.set_tail		= ring_set_tail,
@@ -874,7 +872,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .id			= RING_BSD,
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
-       .alignment		= PAGE_SIZE,
        .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
        .set_tail		= gen6_bsd_ring_set_tail,
