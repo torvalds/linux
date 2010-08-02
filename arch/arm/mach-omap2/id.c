@@ -179,6 +179,8 @@ static void __init omap3_check_features(void)
 	OMAP3_CHECK_FEATURE(status, ISP);
 	if (cpu_is_omap3630())
 		omap3_features |= OMAP3_HAS_192MHZ_CLK;
+	if (!cpu_is_omap3505() && !cpu_is_omap3517())
+		omap3_features |= OMAP3_HAS_IO_WAKEUP;
 
 	/*
 	 * TODO: Get additional info (where applicable)
