@@ -92,10 +92,6 @@ static void free_pte_rcu(struct rcu_head *head)
 
 static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
-	/* pte already invalidated? */
-	if (hlist_unhashed(&pte->list_pte))
-		return;
-
 	trace_kvm_book3s_mmu_invalidate(pte);
 
 	/* Different for 32 and 64 bit */
@@ -103,17 +99,23 @@ static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 
 	spin_lock(&vcpu->arch.mmu_lock);
 
+	/* pte already invalidated in between? */
+	if (hlist_unhashed(&pte->list_pte)) {
+		spin_unlock(&vcpu->arch.mmu_lock);
+		return;
+	}
+
 	hlist_del_init_rcu(&pte->list_pte);
 	hlist_del_init_rcu(&pte->list_pte_long);
 	hlist_del_init_rcu(&pte->list_vpte);
 	hlist_del_init_rcu(&pte->list_vpte_long);
 
-	spin_unlock(&vcpu->arch.mmu_lock);
-
 	if (pte->pte.may_write)
 		kvm_release_pfn_dirty(pte->pfn);
 	else
 		kvm_release_pfn_clean(pte->pfn);
+
+	spin_unlock(&vcpu->arch.mmu_lock);
 
 	vcpu->arch.hpte_cache_count--;
 	call_rcu(&pte->rcu_head, free_pte_rcu);
