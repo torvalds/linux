@@ -465,6 +465,7 @@ struct cfb_info;
 
 struct cyberpro_info {
 	struct pci_dev	*dev;
+	struct i2c_adapter *i2c;
 	unsigned char	__iomem *regs;
 	char		__iomem *fb;
 	char		dev_name[32];
