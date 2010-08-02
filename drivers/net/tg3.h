@@ -2161,6 +2161,8 @@
 /* APE shared memory.  Accessible through BAR1 */
 #define TG3_APE_FW_STATUS		0x400c
 #define  APE_FW_STATUS_READY		 0x00000100
+#define TG3_APE_FW_FEATURES		0x4010
+#define  TG3_APE_FW_FEATURE_NCSI	 0x00000002
 #define TG3_APE_FW_VERSION		0x4018
 #define  APE_FW_VERSION_MAJMSK		 0xff000000
 #define  APE_FW_VERSION_MAJSFT		 24
