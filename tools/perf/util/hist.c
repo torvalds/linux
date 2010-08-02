@@ -1050,13 +1050,17 @@ static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
 		 * Parse hexa addresses followed by ':'
 		 */
 		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':' || tmp == tmp2)
+		if (*tmp2 != ':' || tmp == tmp2 || tmp2[1] == '\0')
 			line_ip = -1;
 	}
 
 	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(self->ms.map, sym->start);
+		u64 start = map__rip_2objdump(self->ms.map, sym->start),
+		    end = map__rip_2objdump(self->ms.map, sym->end);
+
 		offset = line_ip - start;
+		if (offset < 0 || (u64)line_ip > end)
+			offset = -1;
 	}
 
 	objdump_line = objdump_line__new(offset, line);

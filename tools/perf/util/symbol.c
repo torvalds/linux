@@ -1525,6 +1525,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *self,
 {
 	struct dirent *dent;
 	DIR *dir = opendir(dir_name);
+	int ret = 0;
 
 	if (!dir) {
 		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
@@ -1547,8 +1548,9 @@ static int map_groups__set_modules_path_dir(struct map_groups *self,
 
 			snprintf(path, sizeof(path), "%s/%s",
 				 dir_name, dent->d_name);
-			if (map_groups__set_modules_path_dir(self, path) < 0)
-				goto failure;
+			ret = map_groups__set_modules_path_dir(self, path);
+			if (ret < 0)
+				goto out;
 		} else {
 			char *dot = strrchr(dent->d_name, '.'),
 			     dso_name[PATH_MAX];
@@ -1569,18 +1571,19 @@ static int map_groups__set_modules_path_dir(struct map_groups *self,
 				 dir_name, dent->d_name);
 
 			long_name = strdup(path);
-			if (long_name == NULL)
-				goto failure;
+			if (long_name == NULL) {
+				ret = -1;
+				goto out;
+			}
 			dso__set_long_name(map->dso, long_name);
 			map->dso->lname_alloc = 1;
 			dso__kernel_module_get_build_id(map->dso, "");
 		}
 	}
 
-	return 0;
-failure:
+out:
 	closedir(dir);
-	return -1;
+	return ret;
 }
 
 static char *get_kernel_version(const char *root_dir)

@@ -831,12 +831,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		/* remove any? */
 		while (rbp && pgid_cmp(rb_entry(rbp, struct ceph_pg_mapping,
 						node)->pgid, pgid) <= 0) {
-			struct rb_node *cur = rbp;
+			struct ceph_pg_mapping *cur =
+				rb_entry(rbp, struct ceph_pg_mapping, node);
+			
 			rbp = rb_next(rbp);
-			dout(" removed pg_temp %llx\n",
-			     *(u64 *)&rb_entry(cur, struct ceph_pg_mapping,
-					       node)->pgid);
-			rb_erase(cur, &map->pg_temp);
+			dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
+			rb_erase(&cur->node, &map->pg_temp);
+			kfree(cur);
 		}
 
 		if (pglen) {
@@ -852,19 +853,22 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			for (j = 0; j < pglen; j++)
 				pg->osds[j] = ceph_decode_32(p);
 			err = __insert_pg_mapping(pg, &map->pg_temp);
-			if (err)
+			if (err) {
+				kfree(pg);
 				goto bad;
+			}
 			dout(" added pg_temp %llx len %d\n", *(u64 *)&pgid,
 			     pglen);
 		}
 	}
 	while (rbp) {
-		struct rb_node *cur = rbp;
+		struct ceph_pg_mapping *cur =
+			rb_entry(rbp, struct ceph_pg_mapping, node);
+
 		rbp = rb_next(rbp);
-		dout(" removed pg_temp %llx\n",
-		     *(u64 *)&rb_entry(cur, struct ceph_pg_mapping,
-				       node)->pgid);
-		rb_erase(cur, &map->pg_temp);
+		dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
+		rb_erase(&cur->node, &map->pg_temp);
+		kfree(cur);
 	}
 
 	/* ignore the rest */

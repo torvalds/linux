@@ -1216,17 +1216,20 @@ static int intel_i915_get_gtt_size(void)
 
 		/* G33's GTT size defined in gmch_ctrl */
 		pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
-		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
-		case G33_PGETBL_SIZE_1M:
+		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+		case I830_GMCH_GMS_STOLEN_512:
+			size = 512;
+			break;
+		case I830_GMCH_GMS_STOLEN_1024:
 			size = 1024;
 			break;
-		case G33_PGETBL_SIZE_2M:
-			size = 2048;
+		case I830_GMCH_GMS_STOLEN_8192:
+			size = 8*1024;
 			break;
 		default:
 			dev_info(&agp_bridge->dev->dev,
 				 "unknown page table size 0x%x, assuming 512KB\n",
-				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
+				(gmch_ctrl & I830_GMCH_GMS_MASK));
 			size = 512;
 		}
 	} else {

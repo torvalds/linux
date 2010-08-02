@@ -647,3 +647,10 @@ Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ----------------------------
 
+What:	The acpi_sleep=s4_nonvs command line option
+When:	2.6.37
+Files:	arch/x86/kernel/acpi/sleep.c
+Why:	superseded by acpi_sleep=nonvs
+Who:	Rafael J. Wysocki <rjw@sisk.pl>
+
+----------------------------

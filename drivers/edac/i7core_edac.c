@@ -1300,7 +1300,7 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 		if (devno == 0)
 			return -ENODEV;
 
-		i7core_printk(KERN_ERR,
+		i7core_printk(KERN_INFO,
 			"Device not found: dev %02x.%d PCI ID %04x:%04x\n",
 			dev_descr->dev, dev_descr->func,
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
