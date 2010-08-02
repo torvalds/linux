@@ -157,7 +157,7 @@ static int init_ring_common(struct drm_device *dev,
 	ring->set_tail(dev, ring, 0);
 
 	/* Initialize the ring. */
-	I915_WRITE(ring->regs.start, obj_priv->gtt_offset);
+	I915_WRITE_START(ring, obj_priv->gtt_offset);
 	head = ring->get_head(dev, ring);
 
 	/* G45 ring initialization fails to reset head to zero */
@@ -168,7 +168,7 @@ static int init_ring_common(struct drm_device *dev,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
 				I915_READ_TAIL(ring),
-				I915_READ(ring->regs.start));
+				I915_READ_START(ring));
 
 		I915_WRITE(ring->regs.head, 0);
 
@@ -178,7 +178,7 @@ static int init_ring_common(struct drm_device *dev,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
 				I915_READ_TAIL(ring),
-				I915_READ(ring->regs.start));
+				I915_READ_START(ring));
 	}
 
 	I915_WRITE(ring->regs.ctl,
@@ -194,7 +194,7 @@ static int init_ring_common(struct drm_device *dev,
 				I915_READ(ring->regs.ctl),
 				I915_READ(ring->regs.head),
 				I915_READ_TAIL(ring),
-				I915_READ(ring->regs.start));
+				I915_READ_START(ring));
 		return -EIO;
 	}
 
@@ -781,7 +781,6 @@ static const struct intel_ring_buffer render_ring = {
 	.regs                   = {
 		.ctl = PRB0_CTL,
 		.head = PRB0_HEAD,
-		.start = PRB0_START
 	},
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
@@ -818,7 +817,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.regs			= {
 		.ctl = BSD_RING_CTL,
 		.head = BSD_RING_HEAD,
-		.start = BSD_RING_START
 	},
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
@@ -929,7 +927,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .regs			= {
                .ctl    = GEN6_BSD_RING_CTL,
                .head   = GEN6_BSD_RING_HEAD,
-               .start  = GEN6_BSD_RING_START
        },
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
