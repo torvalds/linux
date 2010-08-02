@@ -57,6 +57,9 @@ extern __wsum csum_partial_copy_generic(const void *src, void *dst,
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 extern __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 				      int len, __wsum sum, int *err_ptr);
+#define HAVE_CSUM_COPY_USER
+extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
+				    int len, __wsum sum, int *err_ptr);
 #else
 /*
  * the same as csum_partial, but copies from src to dst while it

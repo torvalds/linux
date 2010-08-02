@@ -63,3 +63,40 @@ out:
 	return (__force __wsum)csum;
 }
 EXPORT_SYMBOL(csum_and_copy_from_user);
+
+__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
+			     __wsum sum, int *err_ptr)
+{
+	unsigned int csum;
+
+	might_sleep();
+
+	*err_ptr = 0;
+
+	if (!len) {
+		csum = 0;
+		goto out;
+	}
+
+	if (unlikely((len < 0) || !access_ok(VERIFY_WRITE, dst, len))) {
+		*err_ptr = -EFAULT;
+		csum = -1; /* invalid checksum */
+		goto out;
+	}
+
+	csum = csum_partial_copy_generic(src, (void __force *)dst,
+					 len, sum, NULL, err_ptr);
+
+	if (unlikely(*err_ptr)) {
+		csum = csum_partial(src, len, sum);
+
+		if (copy_to_user(dst, src, len)) {
+			*err_ptr = -EFAULT;
+			csum = -1; /* invalid checksum */
+		}
+	}
+
+out:
+	return (__force __wsum)csum;
+}
+EXPORT_SYMBOL(csum_and_copy_to_user);
