@@ -1003,9 +1003,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",journal_checksum");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
-	if (!test_opt(sb, DELALLOC))
+	if (!test_opt(sb, DELALLOC) &&
+	    !(def_mount_opts & EXT4_DEFM_NODELALLOC))
 		seq_puts(seq, ",nodelalloc");
-
 
 	if (sbi->s_stripe)
 		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
@@ -1030,7 +1030,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, NO_AUTO_DA_ALLOC))
 		seq_puts(seq, ",noauto_da_alloc");
 
-	if (test_opt(sb, DISCARD))
+	if (test_opt(sb, DISCARD) && !(def_mount_opts & EXT4_DEFM_DISCARD))
 		seq_puts(seq, ",discard");
 
 	if (test_opt(sb, NOLOAD))
@@ -1038,6 +1038,10 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	if (test_opt(sb, DIOREAD_NOLOCK))
 		seq_puts(seq, ",dioread_nolock");
+
+	if (test_opt(sb, BLOCK_VALIDITY) &&
+	    !(def_mount_opts & EXT4_DEFM_BLOCK_VALIDITY))
+		seq_puts(seq, ",block_validity");
 
 	ext4_show_quota_options(seq, sb);
 
@@ -2655,6 +2659,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		set_opt(sbi->s_mount_opt, ERRORS_CONT);
 	else
 		set_opt(sbi->s_mount_opt, ERRORS_RO);
+	if (def_mount_opts & EXT4_DEFM_BLOCK_VALIDITY)
+		set_opt(sbi->s_mount_opt, BLOCK_VALIDITY);
+	if (def_mount_opts & EXT4_DEFM_DISCARD)
+		set_opt(sbi->s_mount_opt, DISCARD);
 
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
@@ -2662,15 +2670,23 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
 	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
 
-	set_opt(sbi->s_mount_opt, BARRIER);
+	if ((def_mount_opts & EXT4_DEFM_NOBARRIER) == 0)
+		set_opt(sbi->s_mount_opt, BARRIER);
 
 	/*
 	 * enable delayed allocation by default
 	 * Use -o nodelalloc to turn it off
 	 */
-	if (!IS_EXT3_SB(sb))
+	if (!IS_EXT3_SB(sb) &&
+	    ((def_mount_opts & EXT4_DEFM_NODELALLOC) == 0))
 		set_opt(sbi->s_mount_opt, DELALLOC);
 
+	if (!parse_options((char *) sbi->s_es->s_mount_opts, sb,
+			   &journal_devnum, &journal_ioprio, NULL, 0)) {
+		ext4_msg(sb, KERN_WARNING,
+			 "failed to parse options in superblock: %s",
+			 sbi->s_es->s_mount_opts);
+	}
 	if (!parse_options((char *) data, sb, &journal_devnum,
 			   &journal_ioprio, NULL, 0))
 		goto failed_mount;
@@ -3141,7 +3157,8 @@ no_journal:
 		descr = "out journal";
 
 	ext4_msg(sb, KERN_INFO, "mounted filesystem with%s. "
-		"Opts: %s", descr, orig_data);
+		 "Opts: %s%s%s", descr, sbi->s_es->s_mount_opts,
+		 *sbi->s_es->s_mount_opts ? "; " : "", orig_data);
 
 	init_timer(&sbi->s_err_report);
 	sbi->s_err_report.function = print_daily_error_info;
