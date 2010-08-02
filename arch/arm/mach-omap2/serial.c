@@ -37,6 +37,8 @@
 #define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
+#define UART_ERRATA_FIFO_FULL_ABORT	(0x1 << 0)
+
 /*
  * NOTE: By default the serial timeout is disabled as it causes lost characters
  * over the serial ports. This means that the UART clocks will stay on until
@@ -64,6 +66,7 @@ struct omap_uart_state {
 	struct list_head node;
 	struct platform_device pdev;
 
+	u32 errata;
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 	int context_valid;
 
@@ -756,11 +759,13 @@ void __init omap_serial_init_port(int port)
 	 * omap3xxx: Never read empty UART fifo on UARTs
 	 * with IP rev >=0x52
 	 */
-	if (cpu_is_omap44xx()) {
-		uart->p->serial_in = serial_in_override;
-		uart->p->serial_out = serial_out_override;
-	} else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
-			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV) {
+	if (cpu_is_omap44xx())
+		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
+	else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
+			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
+		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
+
+	if (uart->errata & UART_ERRATA_FIFO_FULL_ABORT) {
 		uart->p->serial_in = serial_in_override;
 		uart->p->serial_out = serial_out_override;
 	}
