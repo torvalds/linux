@@ -1742,7 +1742,7 @@ static int tg3_wait_macro_done(struct tg3 *tp)
 	while (limit--) {
 		u32 tmp32;
 
-		if (!tg3_readphy(tp, 0x16, &tmp32)) {
+		if (!tg3_readphy(tp, MII_TG3_DSP_CONTROL, &tmp32)) {
 			if ((tmp32 & 0x1000) == 0)
 				break;
 		}
@@ -1768,13 +1768,13 @@ static int tg3_phy_write_and_check_testpat(struct tg3 *tp, int *resetp)
 
 		tg3_writephy(tp, MII_TG3_DSP_ADDRESS,
 			     (chan * 0x2000) | 0x0200);
-		tg3_writephy(tp, 0x16, 0x0002);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0002);
 
 		for (i = 0; i < 6; i++)
 			tg3_writephy(tp, MII_TG3_DSP_RW_PORT,
 				     test_pat[chan][i]);
 
-		tg3_writephy(tp, 0x16, 0x0202);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0202);
 		if (tg3_wait_macro_done(tp)) {
 			*resetp = 1;
 			return -EBUSY;
@@ -1782,13 +1782,13 @@ static int tg3_phy_write_and_check_testpat(struct tg3 *tp, int *resetp)
 
 		tg3_writephy(tp, MII_TG3_DSP_ADDRESS,
 			     (chan * 0x2000) | 0x0200);
-		tg3_writephy(tp, 0x16, 0x0082);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0082);
 		if (tg3_wait_macro_done(tp)) {
 			*resetp = 1;
 			return -EBUSY;
 		}
 
-		tg3_writephy(tp, 0x16, 0x0802);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0802);
 		if (tg3_wait_macro_done(tp)) {
 			*resetp = 1;
 			return -EBUSY;
@@ -1828,10 +1828,10 @@ static int tg3_phy_reset_chanpat(struct tg3 *tp)
 
 		tg3_writephy(tp, MII_TG3_DSP_ADDRESS,
 			     (chan * 0x2000) | 0x0200);
-		tg3_writephy(tp, 0x16, 0x0002);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0002);
 		for (i = 0; i < 6; i++)
 			tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x000);
-		tg3_writephy(tp, 0x16, 0x0202);
+		tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0202);
 		if (tg3_wait_macro_done(tp))
 			return -EBUSY;
 	}
@@ -1891,7 +1891,7 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 	tg3_phydsp_write(tp, 0x8005, 0x0000);
 
 	tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x8200);
-	tg3_writephy(tp, 0x16, 0x0000);
+	tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0000);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
@@ -2002,8 +2002,8 @@ out:
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0400);
 	}
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_5704_A0_BUG) {
-		tg3_writephy(tp, 0x1c, 0x8d68);
-		tg3_writephy(tp, 0x1c, 0x8d68);
+		tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x8d68);
+		tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x8d68);
 	}
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_BER_BUG) {
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
@@ -3134,9 +3134,9 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		   tp->pci_chip_rev_id == CHIPREV_ID_5701_B0) {
 		/* 5701 {A0,B0} CRC bug workaround */
 		tg3_writephy(tp, 0x15, 0x0a75);
-		tg3_writephy(tp, 0x1c, 0x8c68);
-		tg3_writephy(tp, 0x1c, 0x8d68);
-		tg3_writephy(tp, 0x1c, 0x8c68);
+		tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x8c68);
+		tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x8d68);
+		tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x8c68);
 	}
 
 	/* Clear pending interrupts... */
@@ -4249,13 +4249,14 @@ static void tg3_serdes_parallel_detect(struct tg3 *tp)
 			u32 phy1, phy2;
 
 			/* Select shadow register 0x1f */
-			tg3_writephy(tp, 0x1c, 0x7c00);
-			tg3_readphy(tp, 0x1c, &phy1);
+			tg3_writephy(tp, MII_TG3_MISC_SHDW, 0x7c00);
+			tg3_readphy(tp, MII_TG3_MISC_SHDW, &phy1);
 
 			/* Select expansion interrupt status register */
-			tg3_writephy(tp, 0x17, 0x0f01);
-			tg3_readphy(tp, 0x15, &phy2);
-			tg3_readphy(tp, 0x15, &phy2);
+			tg3_writephy(tp, MII_TG3_DSP_ADDRESS,
+					 MII_TG3_DSP_EXP1_INT_STAT);
+			tg3_readphy(tp, MII_TG3_DSP_RW_PORT, &phy2);
+			tg3_readphy(tp, MII_TG3_DSP_RW_PORT, &phy2);
 
 			if ((phy1 & 0x10) && !(phy2 & 0x20)) {
 				/* We have signal detect and not receiving
@@ -4275,8 +4276,9 @@ static void tg3_serdes_parallel_detect(struct tg3 *tp)
 		u32 phy2;
 
 		/* Select expansion interrupt status register */
-		tg3_writephy(tp, 0x17, 0x0f01);
-		tg3_readphy(tp, 0x15, &phy2);
+		tg3_writephy(tp, MII_TG3_DSP_ADDRESS,
+				 MII_TG3_DSP_EXP1_INT_STAT);
+		tg3_readphy(tp, MII_TG3_DSP_RW_PORT, &phy2);
 		if (phy2 & 0x20) {
 			u32 bmcr;
 
@@ -8337,7 +8339,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			if (!tg3_readphy(tp, MII_TG3_TEST1, &tmp)) {
 				tg3_writephy(tp, MII_TG3_TEST1,
 					     tmp | MII_TG3_TEST1_CRC_EN);
-				tg3_readphy(tp, 0x14, &tmp);
+				tg3_readphy(tp, MII_TG3_RXR_COUNTERS, &tmp);
 			}
 		}
 	}
@@ -9076,7 +9078,7 @@ static u64 calc_crc_errors(struct tg3 *tp)
 		if (!tg3_readphy(tp, MII_TG3_TEST1, &val)) {
 			tg3_writephy(tp, MII_TG3_TEST1,
 				     val | MII_TG3_TEST1_CRC_EN);
-			tg3_readphy(tp, 0x14, &val);
+			tg3_readphy(tp, MII_TG3_RXR_COUNTERS, &val);
 		} else
 			val = 0;
 		spin_unlock_bh(&tp->lock);

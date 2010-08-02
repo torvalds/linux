@@ -2057,8 +2057,9 @@
 #define MII_TG3_EXT_STAT		0x11 /* Extended status register */
 #define  MII_TG3_EXT_STAT_LPASS		0x0100
 
+#define MII_TG3_RXR_COUNTERS		0x14 /* Local/Remote Receiver Counts */
 #define MII_TG3_DSP_RW_PORT		0x15 /* DSP coefficient read/write port */
-
+#define MII_TG3_DSP_CONTROL		0x16 /* DSP control register */
 #define MII_TG3_DSP_ADDRESS		0x17 /* DSP address register */
 
 #define MII_TG3_DSP_TAP1		0x0001
@@ -2066,6 +2067,7 @@
 #define MII_TG3_DSP_AADJ1CH0		0x001f
 #define MII_TG3_DSP_AADJ1CH3		0x601f
 #define  MII_TG3_DSP_AADJ1CH3_ADCCKADJ	0x0002
+#define MII_TG3_DSP_EXP1_INT_STAT	0x0f01
 #define MII_TG3_DSP_EXP8		0x0f08
 #define  MII_TG3_DSP_EXP8_REJ2MHz	0x0001
 #define  MII_TG3_DSP_EXP8_AEDW		0x0200
