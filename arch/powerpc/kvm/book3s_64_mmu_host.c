@@ -65,14 +65,14 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 
 	sid_map_mask = kvmppc_sid_hash(vcpu, gvsid);
 	map = &to_book3s(vcpu)->sid_map[sid_map_mask];
-	if (map->guest_vsid == gvsid) {
+	if (map->valid && (map->guest_vsid == gvsid)) {
 		dprintk_slb("SLB: Searching: 0x%llx -> 0x%llx\n",
 			    gvsid, map->host_vsid);
 		return map;
 	}
 
 	map = &to_book3s(vcpu)->sid_map[SID_MAP_MASK - sid_map_mask];
-	if (map->guest_vsid == gvsid) {
+	if (map->valid && (map->guest_vsid == gvsid)) {
 		dprintk_slb("SLB: Searching 0x%llx -> 0x%llx\n",
 			    gvsid, map->host_vsid);
 		return map;
