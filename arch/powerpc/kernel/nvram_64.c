@@ -469,9 +469,8 @@ loff_t nvram_find_partition(const char *name, int sig, int *out_size)
  */
 static int __init nvram_setup_partition(void)
 {
-	struct list_head * p;
-	struct nvram_partition * part;
-	int rc;
+	loff_t p;
+	int size;
 
 	/* For now, we don't do any of this on pmac, until I
 	 * have figured out if it's worth killing some unused stuffs
@@ -481,48 +480,42 @@ static int __init nvram_setup_partition(void)
 	if (machine_is(powermac))
 		return -ENOSPC;
 
-	/* see if we have an OS partition that meets our needs.
-	   will try getting the max we need.  If not we'll delete
-	   partitions and try again. */
-	list_for_each(p, &nvram_part->partition) {
-		part = list_entry(p, struct nvram_partition, partition);
-		if (part->header.signature != NVRAM_SIG_OS)
-			continue;
+	p = nvram_find_partition("ppc64,linux", NVRAM_SIG_OS, &size);
 
-		if (strcmp(part->header.name, "ppc64,linux"))
-			continue;
-
-		if ((part->header.length - 1) * NVRAM_BLOCK_LEN >= NVRAM_MIN_REQ) {
-			/* found our partition */
-			nvram_error_log_index = part->index + NVRAM_HEADER_LEN;
-			nvram_error_log_size = ((part->header.length - 1) *
-						NVRAM_BLOCK_LEN) - sizeof(struct err_log_info);
-			return 0;
-		}
-
-		/* Found one but it's too small, remove it */
+	/* Found one but too small, remove it */
+	if (p && size < NVRAM_MIN_REQ) {
+		pr_info("nvram: Found too small ppc64,linux partition"
+			",removing it...");
 		nvram_remove_partition("ppc64,linux", NVRAM_SIG_OS);
+		p = 0;
 	}
-	
-	/* try creating a partition with the free space we have */
-	rc = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
-				       NVRAM_MAX_REQ, NVRAM_MIN_REQ);
-	if (rc < 0) {
-		/* need to free up some space, remove any "OS" partition */
-		nvram_remove_partition(NULL, NVRAM_SIG_OS);
-	
-		/* Try again */
-		rc = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
-					    NVRAM_MAX_REQ, NVRAM_MIN_REQ);
-		if (rc < 0) {
-			pr_err("nvram_create_partition: Could not find"
-			       " enough space in NVRAM for partition\n");
-			return rc;
+
+	/* Create one if we didn't find */
+	if (!p) {
+		p = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
+					   NVRAM_MAX_REQ, NVRAM_MIN_REQ);
+		/* No room for it, try to get rid of any OS partition
+		 * and try again
+		 */
+		if (p == -ENOSPC) {
+			pr_info("nvram: No room to create ppc64,linux"
+				" partition, deleting all OS partitions...");
+			nvram_remove_partition(NULL, NVRAM_SIG_OS);
+			p = nvram_create_partition("ppc64,linux", NVRAM_SIG_OS,
+						   NVRAM_MAX_REQ, NVRAM_MIN_REQ);
 		}
 	}
+
+	if (p <= 0) {
+		pr_err("nvram: Failed to find or create ppc64,linux"
+		       " partition, err %d\n", (int)p);
+		return 0;
+	}
+
+	nvram_error_log_index = p;
+	nvram_error_log_size = nvram_get_partition_size(p) -
+		sizeof(struct err_log_info);
 	
-	nvram_error_log_index = rc;	
-	nvram_error_log_size = nvram_get_partition_size(rc) - sizeof(struct err_log_info);	
 	return 0;
 }
 
