@@ -104,8 +104,7 @@ static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 	if (hlist_unhashed(&pte->list_pte))
 		return;
 
-	dprintk_mmu("KVM: Flushing SPT: 0x%lx (0x%llx) -> 0x%llx\n",
-		    pte->pte.eaddr, pte->pte.vpage, pte->host_va);
+	trace_kvm_book3s_mmu_invalidate(pte);
 
 	/* Different for 32 and 64 bit */
 	kvmppc_mmu_invalidate_pte(vcpu, pte);

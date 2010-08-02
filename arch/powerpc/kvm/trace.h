@@ -210,6 +210,35 @@ TRACE_EVENT(kvm_book3s_mmu_map,
 		  __entry->vpage, __entry->raddr, __entry->flags)
 );
 
+TRACE_EVENT(kvm_book3s_mmu_invalidate,
+	TP_PROTO(struct hpte_cache *pte),
+	TP_ARGS(pte),
+
+	TP_STRUCT__entry(
+		__field(	u64,		host_va		)
+		__field(	u64,		pfn		)
+		__field(	ulong,		eaddr		)
+		__field(	u64,		vpage		)
+		__field(	ulong,		raddr		)
+		__field(	int,		flags		)
+	),
+
+	TP_fast_assign(
+		__entry->host_va	= pte->host_va;
+		__entry->pfn		= pte->pfn;
+		__entry->eaddr		= pte->pte.eaddr;
+		__entry->vpage		= pte->pte.vpage;
+		__entry->raddr		= pte->pte.raddr;
+		__entry->flags		= (pte->pte.may_read ? 0x4 : 0) |
+					  (pte->pte.may_write ? 0x2 : 0) |
+					  (pte->pte.may_execute ? 0x1 : 0);
+	),
+
+	TP_printk("Flush: hva=%llx pfn=%llx ea=%lx vp=%llx ra=%lx [%x]",
+		  __entry->host_va, __entry->pfn, __entry->eaddr,
+		  __entry->vpage, __entry->raddr, __entry->flags)
+);
+
 #endif /* CONFIG_PPC_BOOK3S */
 
 #endif /* _TRACE_KVM_H */
