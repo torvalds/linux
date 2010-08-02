@@ -13,9 +13,9 @@ extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 #ifndef CONFIG_DMI
 static inline void pci_create_firmware_label_files(struct pci_dev *pdev)
-{ return 0; }
+{ return; }
 static inline void pci_remove_firmware_label_files(struct pci_dev *pdev)
-{ return 0; }
+{ return; }
 #else
 extern void pci_create_firmware_label_files(struct pci_dev *pdev);
 extern void pci_remove_firmware_label_files(struct pci_dev *pdev);
