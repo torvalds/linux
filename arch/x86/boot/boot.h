@@ -200,21 +200,7 @@ static inline int memcmp_gs(const void *s1, addr_t s2, size_t len)
 	return diff;
 }
 
-static inline int isdigit(int ch)
-{
-	return (ch >= '0') && (ch <= '9');
-}
-
-static inline int isxdigit(int ch)
-{
-	if (isdigit(ch))
-		return true;
-
-	if ((ch >= 'a') && (ch <= 'f'))
-		return true;
-
-	return (ch >= 'A') && (ch <= 'F');
-}
+#include "isdigit.h"
 
 /* Heap -- available for dynamic lists. */
 extern char _end[];
@@ -300,8 +286,18 @@ struct biosregs {
 void intcall(u8 int_no, const struct biosregs *ireg, struct biosregs *oreg);
 
 /* cmdline.c */
-int cmdline_find_option(const char *option, char *buffer, int bufsize);
-int cmdline_find_option_bool(const char *option);
+int __cmdline_find_option(u32 cmdline_ptr, const char *option, char *buffer, int bufsize);
+int __cmdline_find_option_bool(u32 cmdline_ptr, const char *option);
+static inline int cmdline_find_option(const char *option, char *buffer, int bufsize)
+{
+	return __cmdline_find_option(boot_params.hdr.cmd_line_ptr, option, buffer, bufsize);
+}
+
+static inline int cmdline_find_option_bool(const char *option)
+{
+	return __cmdline_find_option_bool(boot_params.hdr.cmd_line_ptr, option);
+}
+
 
 /* cpu.c, cpucheck.c */
 struct cpu_features {
@@ -312,6 +308,10 @@ struct cpu_features {
 extern struct cpu_features cpu;
 int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr);
 int validate_cpu(void);
+
+/* early_serial_console.c */
+extern int early_serial_base;
+void console_init(void);
 
 /* edd.c */
 void query_edd(void);
@@ -348,7 +348,6 @@ unsigned int atou(const char *s);
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base);
 
 /* tty.c */
-void console_init(void);
 void puts(const char *);
 void putchar(int);
 int getchar(void);
