@@ -1,22 +1,6 @@
 TODO:
 
-1. A per-device/tty port context required to support multiple devices
-on same platform.
-Plan: Each BT, FM and GPS device would be a platform-device with its platform-data
-mentioning which of the ST device it wants to attach itself onto.
-
-There by each of the ST device which is also a platform device upon receiving
-a st_register() would know whether the registration from BT/FM or GPS was intended for it.
-
-2. Improve upon the way requirement of line discipline is communicated to
-user-space, The current user-space application which open/installs ldisc
-as and when required can be found at,
-http://dev.omapzoom.org/pub/scm/jsistla/L23-btfm.git
-branch: UIM
-
-3. Re-view/Re-work on the locking.
-
-4. Step up and maintain this driver to ensure that it continues
+1. Step up and maintain this driver to ensure that it continues
 to work.  Having the hardware for this is pretty much a
 requirement.  If this does not happen, the will be removed in
 the 2.6.35 kernel release.
