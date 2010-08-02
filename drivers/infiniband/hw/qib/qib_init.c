@@ -1059,7 +1059,7 @@ static int __init qlogic_ib_init(void)
 		goto bail_dev;
 	}
 
-	qib_cq_wq = create_workqueue("qib_cq");
+	qib_cq_wq = create_singlethread_workqueue("qib_cq");
 	if (!qib_cq_wq) {
 		ret = -ENOMEM;
 		goto bail_wq;
@@ -1289,8 +1289,18 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 
 	if (qib_mini_init || initfail || ret) {
 		qib_stop_timers(dd);
+		flush_scheduled_work();
 		for (pidx = 0; pidx < dd->num_pports; ++pidx)
 			dd->f_quiet_serdes(dd->pport + pidx);
+		if (qib_mini_init)
+			goto bail;
+		if (!j) {
+			(void) qibfs_remove(dd);
+			qib_device_remove(dd);
+		}
+		if (!ret)
+			qib_unregister_ib_device(dd);
+		qib_postinit_cleanup(dd);
 		if (initfail)
 			ret = initfail;
 		goto bail;
@@ -1472,6 +1482,9 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 		dma_addr_t pa = rcd->rcvegrbuf_phys[chunk];
 		unsigned i;
 
+		/* clear for security and sanity on each use */
+		memset(rcd->rcvegrbuf[chunk], 0, size);
+
 		for (i = 0; e < egrcnt && i < egrperchunk; e++, i++) {
 			dd->f_put_tid(dd, e + egroff +
 					  (u64 __iomem *)
@@ -1499,6 +1512,12 @@ bail:
 	return -ENOMEM;
 }
 
+/*
+ * Note: Changes to this routine should be mirrored
+ * for the diagnostics routine qib_remap_ioaddr32().
+ * There is also related code for VL15 buffers in qib_init_7322_variables().
+ * The teardown code that unmaps is in qib_pcie_ddcleanup()
+ */
 int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 {
 	u64 __iomem *qib_kregbase = NULL;

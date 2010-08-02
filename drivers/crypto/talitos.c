@@ -1183,10 +1183,14 @@ static size_t sg_copy_end_to_buffer(struct scatterlist *sgl, unsigned int nents,
 				/* Copy part of this segment */
 				ignore = skip - offset;
 				len = miter.length - ignore;
+				if (boffset + len > buflen)
+					len = buflen - boffset;
 				memcpy(buf + boffset, miter.addr + ignore, len);
 			} else {
-				/* Copy all of this segment */
+				/* Copy all of this segment (up to buflen) */
 				len = miter.length;
+				if (boffset + len > buflen)
+					len = buflen - boffset;
 				memcpy(buf + boffset, miter.addr, len);
 			}
 			boffset += len;

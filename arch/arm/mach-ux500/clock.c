@@ -131,7 +131,7 @@ EXPORT_SYMBOL(clk_disable);
  */
 static unsigned long clk_mtu_get_rate(struct clk *clk)
 {
-	void __iomem *addr = __io_address(U8500_PRCMU_BASE)
+	void __iomem *addr = __io_address(UX500_PRCMU_BASE)
 		+ PRCM_TCR;
 	u32 tcr = readl(addr);
 	int mtu = (int) clk->data;

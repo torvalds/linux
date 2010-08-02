@@ -554,7 +554,7 @@ static int opiocgetnext(unsigned int cmd, void __user *argp)
 static int openprom_bsd_ioctl(struct file * file,
 			      unsigned int cmd, unsigned long arg)
 {
-	DATA *data = (DATA *) file->private_data;
+	DATA *data = file->private_data;
 	void __user *argp = (void __user *)arg;
 	int err;
 
@@ -601,7 +601,7 @@ static int openprom_bsd_ioctl(struct file * file,
 static long openprom_ioctl(struct file * file,
 			   unsigned int cmd, unsigned long arg)
 {
-	DATA *data = (DATA *) file->private_data;
+	DATA *data = file->private_data;
 
 	switch (cmd) {
 	case OPROMGETOPT:

@@ -568,6 +568,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		if (ev > CEPH_PG_POOL_VERSION) {
 			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
 				   ev, CEPH_PG_POOL_VERSION);
+			kfree(pi);
 			goto bad;
 		}
 		__decode_pool(p, pi);
@@ -707,6 +708,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		newcrush = crush_decode(*p, min(*p+len, end));
 		if (IS_ERR(newcrush))
 			return ERR_CAST(newcrush);
+		*p += len;
 	}
 
 	/* new flags? */

@@ -57,7 +57,9 @@ void rs400_gart_adjust_size(struct radeon_device *rdev)
 	}
 	if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480) {
 		/* FIXME: RS400 & RS480 seems to have issue with GART size
-		 * if 4G of system memory (needs more testing) */
+		 * if 4G of system memory (needs more testing)
+		 */
+		/* XXX is this still an issue with proper alignment? */
 		rdev->mc.gtt_size = 32 * 1024 * 1024;
 		DRM_ERROR("Forcing to 32M GART size (because of ASIC bug ?)\n");
 	}
@@ -263,6 +265,7 @@ void rs400_mc_init(struct radeon_device *rdev)
 	r100_vram_init_sizes(rdev);
 	base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
 	radeon_vram_location(rdev, &rdev->mc, base);
+	rdev->mc.gtt_base_align = rdev->mc.gtt_size - 1;
 	radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 }

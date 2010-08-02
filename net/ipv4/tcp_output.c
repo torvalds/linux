@@ -2208,6 +2208,9 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	int mib_idx;
 	int fwd_rexmitting = 0;
 
+	if (!tp->packets_out)
+		return;
+
 	if (!tp->lost_out)
 		tp->retransmit_high = tp->snd_una;
 

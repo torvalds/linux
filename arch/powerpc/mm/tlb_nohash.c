@@ -34,7 +34,7 @@
 #include <linux/pagemap.h>
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
@@ -426,7 +426,7 @@ static void __early_init_mmu(int boot_cpu)
 	/* Set the global containing the top of the linear mapping
 	 * for use by the TLB miss code
 	 */
-	linear_map_top = lmb_end_of_DRAM();
+	linear_map_top = memblock_end_of_DRAM();
 
 	/* A sync won't hurt us after mucking around with
 	 * the MMU configuration

@@ -1168,6 +1168,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	int interrupts, nr_serviced = 0, i;
 	struct ei_device *ei_local;
     	int handled = 0;
+	unsigned long flags;
 
 	e8390_base = dev->base_addr;
 	ei_local = netdev_priv(dev);
@@ -1176,7 +1177,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	 *	Protect the irq test too.
 	 */
 	 
-	spin_lock(&ei_local->page_lock);
+	spin_lock_irqsave(&ei_local->page_lock, flags);
 
 	if (ei_local->irqlock) 
 	{
@@ -1188,7 +1189,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 			   dev->name, inb_p(e8390_base + EN0_ISR),
 			   inb_p(e8390_base + EN0_IMR));
 #endif
-		spin_unlock(&ei_local->page_lock);
+		spin_unlock_irqrestore(&ei_local->page_lock, flags);
 		return IRQ_NONE;
 	}
     
@@ -1261,7 +1262,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	ei_local->irqlock = 0;
 	outb_p(ENISR_ALL, e8390_base + EN0_IMR);
 
-	spin_unlock(&ei_local->page_lock);
+	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	return IRQ_RETVAL(handled);
 }
 
