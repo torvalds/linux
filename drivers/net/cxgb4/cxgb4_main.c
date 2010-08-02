@@ -1808,12 +1808,14 @@ static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return err;
 }
 
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+
 static int set_tso(struct net_device *dev, u32 value)
 {
 	if (value)
-		dev->features |= NETIF_F_TSO | NETIF_F_TSO6;
+		dev->features |= TSO_FLAGS;
 	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+		dev->features &= ~TSO_FLAGS;
 	return 0;
 }
 
@@ -3539,7 +3541,7 @@ static void free_some_resources(struct adapter *adapter)
 		t4_fw_bye(adapter, 0);
 }
 
-#define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |\
+#define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
 static int __devinit init_one(struct pci_dev *pdev,
@@ -3645,7 +3647,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+		netdev->features |= NETIF_F_SG | TSO_FLAGS;
 		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 		netdev->features |= NETIF_F_GRO | NETIF_F_RXHASH | highdma;
 		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
