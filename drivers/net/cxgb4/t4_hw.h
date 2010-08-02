@@ -135,5 +135,5 @@ struct rsp_ctrl {
 
 #define QINTR_CNT_EN       0x1
 #define QINTR_TIMER_IDX(x) ((x) << 1)
-#define QINTR_TIMER_IDX_GET(x) (((x) << 1) & 0x7)
+#define QINTR_TIMER_IDX_GET(x) (((x) >> 1) & 0x7)
 #endif /* __T4_HW_H */
