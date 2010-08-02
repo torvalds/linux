@@ -1302,8 +1302,8 @@ static int emac_net_tx_complete(struct emac_priv *priv,
 	struct net_device *ndev = priv->ndev;
 	u32 cnt;
 
-	if (unlikely(num_tokens && netif_queue_stopped(dev)))
-		netif_start_queue(dev);
+	if (unlikely(num_tokens && netif_queue_stopped(ndev)))
+		netif_start_queue(ndev);
 	for (cnt = 0; cnt < num_tokens; cnt++) {
 		struct sk_buff *skb = (struct sk_buff *)net_data_tokens[cnt];
 		if (skb == NULL)
