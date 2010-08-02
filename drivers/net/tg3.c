@@ -8864,7 +8864,7 @@ static void tg3_ints_fini(struct tg3 *tp)
 	else if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
 		pci_disable_msi(tp->pdev);
 	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI_OR_MSIX;
-	tp->tg3_flags3 &= ~TG3_FLG3_ENABLE_RSS;
+	tp->tg3_flags3 &= ~(TG3_FLG3_ENABLE_RSS | TG3_FLG3_ENABLE_TSS);
 }
 
 static int tg3_open(struct net_device *dev)
