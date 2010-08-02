@@ -38,6 +38,11 @@
 
 #define SPI_GPIO_TEST 0
 #define HIGH_SPI_TEST 1
+#if HIGH_SPI_TEST
+#define USE_SYS_INT	  1
+#else
+#define USE_SYS_INT	  0
+#endif
 spinlock_t		gpio_lock;
 spinlock_t		gpio_state_lock;
 spinlock_t		gpio_irq_lock;
@@ -452,7 +457,7 @@ int spi_free_gpio_irq(eSpiGpioPinNum_t PinNum)
 	return 0;
 }
 	
-#if 0
+#if (USE_SYS_INT ==0)
 int spi_gpio_handle_irq(struct spi_device *spi)
 {
 	int gpio_iir, i;
