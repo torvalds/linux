@@ -1341,6 +1341,12 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
         if (pdev->subsystem_vendor == PCI_VENDOR_ID_LMC) {
 		pr_err(PFX "skipping LMC card\n");
 		return -ENODEV;
+	} else if (pdev->subsystem_vendor == PCI_VENDOR_ID_SBE &&
+		   (pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_T3E3 ||
+		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0 ||
+		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P1)) {
+		pr_err(PFX "skipping SBE T3E3 port\n");
+		return -ENODEV;
 	}
 
 	/*
