@@ -427,7 +427,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	}
 }
 
-static void usb_async_callback(struct urb *urb, struct pt_regs *regs)
+static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
 {
 	struct mceusb_dev *ir;
 	int len;
@@ -476,7 +476,7 @@ static void mce_request_packet(struct mceusb_dev *ir,
 		/* outbound data */
 		usb_fill_int_urb(async_urb, ir->usbdev,
 			usb_sndintpipe(ir->usbdev, ep->bEndpointAddress),
-			async_buf, size, (usb_complete_t) usb_async_callback,
+			async_buf, size, (usb_complete_t)mce_async_callback,
 			ir, ep->bInterval);
 		memcpy(async_buf, data, size);
 
@@ -919,7 +919,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep = NULL;
 	struct usb_endpoint_descriptor *ep_in = NULL;
 	struct usb_endpoint_descriptor *ep_out = NULL;
-	struct usb_host_config *config;
 	struct mceusb_dev *ir = NULL;
 	int pipe, maxp, i;
 	char buf[63], name[128] = "";
@@ -929,7 +928,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	dev_dbg(&intf->dev, ": %s called\n", __func__);
 
-	config = dev->actconfig;
 	idesc  = intf->cur_altsetting;
 
 	is_gen3 = usb_match_id(intf, gen3_list) ? 1 : 0;
