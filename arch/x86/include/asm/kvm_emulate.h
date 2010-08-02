@@ -224,6 +224,7 @@ struct x86_emulate_ctxt {
 	int interruptibility;
 
 	bool restart; /* restart string instruction after writeback */
+	bool perm_ok; /* do not check permissions if true */
 
 	int exception; /* exception that happens during emulation or -1 */
 	u32 error_code; /* error code for exception */

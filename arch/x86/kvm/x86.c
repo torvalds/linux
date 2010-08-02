@@ -3997,6 +3997,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 		vcpu->arch.emulate_ctxt.interruptibility = 0;
 		vcpu->arch.emulate_ctxt.exception = -1;
+		vcpu->arch.emulate_ctxt.perm_ok = false;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt);
 		trace_kvm_emulate_insn_start(vcpu);
