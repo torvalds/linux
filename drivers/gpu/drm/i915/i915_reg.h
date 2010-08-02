@@ -288,6 +288,14 @@
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
 #define PRB0_CTL	0x0203c
+#define RENDER_RING_BASE	0x02000
+#define BSD_RING_BASE		0x04000
+#define GEN6_BSD_RING_BASE	0x12000
+#define RING_TAIL(base)		(base)+0x30
+#define RING_HEAD(base)		(base)+0x34
+#define RING_START(base)	(base)+0x38
+#define RING_CTL(base)		(base)+0x3c
+#define RING_HWS_PGA(base)	(base)+0x80
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000

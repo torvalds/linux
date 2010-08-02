@@ -801,6 +801,7 @@ static const struct intel_ring_buffer render_ring = {
 		.tail = PRB0_TAIL,
 		.start = PRB0_START
 	},
+	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
 	.virtual_start		= NULL,
@@ -839,6 +840,7 @@ static const struct intel_ring_buffer bsd_ring = {
 		.tail = BSD_RING_TAIL,
 		.start = BSD_RING_START
 	},
+	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
 	.virtual_start		= NULL,
@@ -957,6 +959,7 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
                .tail   = GEN6_BSD_RING_TAIL,
                .start  = GEN6_BSD_RING_START
        },
+       .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
        .alignment		= PAGE_SIZE,
        .virtual_start		= NULL,
