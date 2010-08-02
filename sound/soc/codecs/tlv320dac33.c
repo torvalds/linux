@@ -49,8 +49,6 @@
 
 #define NSAMPLE_MAX		5700
 
-#define LATENCY_TIME_MS		20
-
 #define MODE7_LTHR		10
 #define MODE7_UTHR		(DAC33_BUFFER_SIZE_SAMPLES - 10)
 
@@ -61,6 +59,9 @@
 
 #define US_TO_SAMPLES(rate, us) \
 	(rate / (1000000 / us))
+
+#define UTHR_FROM_PERIOD_SIZE(samples, playrate, burstrate) \
+	((samples * 5000) / ((burstrate * 5000) / (burstrate - playrate)))
 
 static void dac33_calculate_times(struct snd_pcm_substream *substream);
 static int dac33_prepare_chip(struct snd_pcm_substream *substream);
@@ -107,6 +108,10 @@ struct tlv320dac33_priv {
 					 * this */
 	enum dac33_fifo_modes fifo_mode;/* FIFO mode selection */
 	unsigned int nsample;		/* burst read amount from host */
+	int mode1_latency;		/* latency caused by the i2c writes in
+					 * us */
+	int auto_fifo_config; 		/* Configure the FIFO based on the
+					 * period size */
 	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
 	unsigned int burst_rate;	/* Interface speed in Burst modes */
 
@@ -538,13 +543,16 @@ static const struct snd_kcontrol_new dac33_snd_controls[] = {
 		 DAC33_LINEL_TO_LLO_VOL, DAC33_LINER_TO_RLO_VOL, 0, 127, 1),
 };
 
-static const struct snd_kcontrol_new dac33_nsample_snd_controls[] = {
-	SOC_SINGLE_EXT("nSample", 0, 0, 5900, 0,
-		 dac33_get_nsample, dac33_set_nsample),
-	SOC_SINGLE_EXT("UTHR", 0, 0, MODE7_UTHR, 0,
-		 dac33_get_uthr, dac33_set_uthr),
+static const struct snd_kcontrol_new dac33_mode_snd_controls[] = {
 	SOC_ENUM_EXT("FIFO Mode", dac33_fifo_mode_enum,
 		 dac33_get_fifo_mode, dac33_set_fifo_mode),
+};
+
+static const struct snd_kcontrol_new dac33_fifo_snd_controls[] = {
+	SOC_SINGLE_EXT("nSample", 0, 0, 5900, 0,
+		dac33_get_nsample, dac33_set_nsample),
+	SOC_SINGLE_EXT("UTHR", 0, 0, MODE7_UTHR, 0,
+		 dac33_get_uthr, dac33_set_uthr),
 };
 
 /* Analog bypass */
@@ -649,7 +657,7 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
 		dac33_write16(codec, DAC33_NSAMPLE_MSB,
-			DAC33_THRREG(dac33->nsample + dac33->alarm_threshold));
+			DAC33_THRREG(dac33->nsample));
 
 		/* Take the timestamps */
 		spin_lock_irq(&dac33->lock);
@@ -798,6 +806,10 @@ static void dac33_shutdown(struct snd_pcm_substream *substream,
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	dac33->substream = NULL;
+
+	/* Reset the nSample restrictions */
+	dac33->nsample_min = 0;
+	dac33->nsample_max = NSAMPLE_MAX;
 }
 
 static int dac33_hw_params(struct snd_pcm_substream *substream,
@@ -1040,54 +1052,68 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+	unsigned int period_size = substream->runtime->period_size;
+	unsigned int rate = substream->runtime->rate;
 	unsigned int nsample_limit;
 
 	/* In bypass mode we don't need to calculate */
 	if (!dac33->fifo_mode)
 		return;
 
-	/* Number of samples (16bit, stereo) in one period */
-	dac33->nsample_min = snd_pcm_lib_period_bytes(substream) / 4;
-
-	/* Number of samples (16bit, stereo) in ALSA buffer */
-	dac33->nsample_max = snd_pcm_lib_buffer_bytes(substream) / 4;
-	/* Subtract one period from the total */
-	dac33->nsample_max -= dac33->nsample_min;
-
-	/* Number of samples for LATENCY_TIME_MS / 2 */
-	dac33->alarm_threshold = substream->runtime->rate /
-				 (1000 / (LATENCY_TIME_MS / 2));
-
-	/* Find and fix up the lowest nsmaple limit */
-	nsample_limit = substream->runtime->rate / (1000 / LATENCY_TIME_MS);
-
-	if (dac33->nsample_min < nsample_limit)
-		dac33->nsample_min = nsample_limit;
-
-	if (dac33->nsample < dac33->nsample_min)
-		dac33->nsample = dac33->nsample_min;
-
-	/*
-	 * Find and fix up the highest nsmaple limit
-	 * In order to not overflow the DAC33 buffer substract the
-	 * alarm_threshold value from the size of the DAC33 buffer
-	 */
-	nsample_limit = DAC33_BUFFER_SIZE_SAMPLES - dac33->alarm_threshold;
-
-	if (dac33->nsample_max > nsample_limit)
-		dac33->nsample_max = nsample_limit;
-
-	if (dac33->nsample > dac33->nsample_max)
-		dac33->nsample = dac33->nsample_max;
-
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
+		/* Number of samples under i2c latency */
+		dac33->alarm_threshold = US_TO_SAMPLES(rate,
+						dac33->mode1_latency);
+		if (dac33->auto_fifo_config) {
+			if (period_size <= dac33->alarm_threshold)
+				/*
+				 * Configure nSamaple to number of periods,
+				 * which covers the latency requironment.
+				 */
+				dac33->nsample = period_size *
+				       ((dac33->alarm_threshold / period_size) +
+				       (dac33->alarm_threshold % period_size ?
+				       1 : 0));
+			else
+				dac33->nsample = period_size;
+		} else {
+			/* nSample time shall not be shorter than i2c latency */
+			dac33->nsample_min = dac33->alarm_threshold;
+			/*
+			 * nSample should not be bigger than alsa buffer minus
+			 * size of one period to avoid overruns
+			 */
+			dac33->nsample_max = substream->runtime->buffer_size -
+						period_size;
+			nsample_limit = DAC33_BUFFER_SIZE_SAMPLES -
+					dac33->alarm_threshold;
+			if (dac33->nsample_max > nsample_limit)
+				dac33->nsample_max = nsample_limit;
+
+			/* Correct the nSample if it is outside of the ranges */
+			if (dac33->nsample < dac33->nsample_min)
+				dac33->nsample = dac33->nsample_min;
+			if (dac33->nsample > dac33->nsample_max)
+				dac33->nsample = dac33->nsample_max;
+		}
+
 		dac33->mode1_us_burst = SAMPLES_TO_US(dac33->burst_rate,
 						      dac33->nsample);
 		dac33->t_stamp1 = 0;
 		dac33->t_stamp2 = 0;
 		break;
 	case DAC33_FIFO_MODE7:
+		if (dac33->auto_fifo_config) {
+			dac33->uthr = UTHR_FROM_PERIOD_SIZE(
+					period_size,
+					rate,
+					dac33->burst_rate) + 9;
+			if (dac33->uthr > MODE7_UTHR)
+				dac33->uthr = MODE7_UTHR;
+			if (dac33->uthr < (MODE7_LTHR + 10))
+				dac33->uthr = (MODE7_LTHR + 10);
+		}
 		dac33->mode7_us_to_lthr =
 				SAMPLES_TO_US(substream->runtime->rate,
 					dac33->uthr - MODE7_LTHR + 1);
@@ -1385,10 +1411,15 @@ static int dac33_soc_probe(struct platform_device *pdev)
 
 	snd_soc_add_controls(codec, dac33_snd_controls,
 			     ARRAY_SIZE(dac33_snd_controls));
-	/* Only add the nSample controls, if we have valid IRQ number */
-	if (dac33->irq >= 0)
-		snd_soc_add_controls(codec, dac33_nsample_snd_controls,
-				     ARRAY_SIZE(dac33_nsample_snd_controls));
+	/* Only add the FIFO controls, if we have valid IRQ number */
+	if (dac33->irq >= 0) {
+		snd_soc_add_controls(codec, dac33_mode_snd_controls,
+				     ARRAY_SIZE(dac33_mode_snd_controls));
+		/* FIFO usage controls only, if autoio config is not selected */
+		if (!dac33->auto_fifo_config)
+			snd_soc_add_controls(codec, dac33_fifo_snd_controls,
+					ARRAY_SIZE(dac33_fifo_snd_controls));
+	}
 
 	dac33_add_widgets(codec);
 
@@ -1519,6 +1550,10 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	/* Pre calculate the burst rate */
 	dac33->burst_rate = BURST_BASEFREQ_HZ / dac33->burst_bclkdiv / 32;
 	dac33->keep_bclk = pdata->keep_bclk;
+	dac33->auto_fifo_config = pdata->auto_fifo_config;
+	dac33->mode1_latency = pdata->mode1_latency;
+	if (!dac33->mode1_latency)
+		dac33->mode1_latency = 10000; /* 10ms */
 	dac33->irq = client->irq;
 	dac33->nsample = NSAMPLE_MAX;
 	dac33->nsample_max = NSAMPLE_MAX;

@@ -155,13 +155,23 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	struct omap_pcm_dma_data *dma_data;
 	int dma_op_mode = omap_mcbsp_get_dma_op_mode(mcbsp_data->bus_id);
 	int words;
 
+	dma_data = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+
 	/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 	if (dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
-		/* The FIFO size depends on the McBSP word configuration */
-		words = snd_pcm_lib_period_bytes(substream) /
+		/*
+		 * Configure McBSP threshold based on either:
+		 * packet_size, when the sDMA is in packet mode, or
+		 * based on the period size.
+		 */
+		if (dma_data->packet_size)
+			words = dma_data->packet_size;
+		else
+			words = snd_pcm_lib_period_bytes(substream) /
 							(mcbsp_data->wlen / 8);
 	else
 		words = 1;
@@ -192,31 +202,6 @@ static int omap_mcbsp_hwrule_min_buffersize(struct snd_pcm_hw_params *params,
 	return snd_interval_refine(buffer_size, &frames);
 }
 
-static int omap_mcbsp_hwrule_max_periodsize(struct snd_pcm_hw_params *params,
-				    struct snd_pcm_hw_rule *rule)
-{
-	struct snd_interval *period_size = hw_param_interval(params,
-					SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
-	struct snd_interval *channels = hw_param_interval(params,
-					SNDRV_PCM_HW_PARAM_CHANNELS);
-	struct snd_pcm_substream *substream = rule->private;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
-	struct snd_interval frames;
-	int size;
-
-	snd_interval_any(&frames);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		size = omap_mcbsp_get_max_tx_threshold(mcbsp_data->bus_id);
-	else
-		size = omap_mcbsp_get_max_rx_threshold(mcbsp_data->bus_id);
-
-	frames.max = size / channels->min;
-	frames.integer = 1;
-	return snd_interval_refine(period_size, &frames);
-}
-
 static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
@@ -245,10 +230,8 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	 * 4 channels: size is 128 / 4 = 32 frames (4 * 32 words)
 	 */
 	if (cpu_is_omap343x()) {
-		int dma_op_mode = omap_mcbsp_get_dma_op_mode(bus_id);
-
 		/*
-		* The first rule is for the buffer size, we should not allow
+		* Rule for the buffer size. We should not allow
 		* smaller buffer than the FIFO size to avoid underruns
 		*/
 		snd_pcm_hw_rule_add(substream->runtime, 0,
@@ -257,17 +240,9 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 				    mcbsp_data,
 				    SNDRV_PCM_HW_PARAM_BUFFER_SIZE, -1);
 
-		/*
-		 * In case of threshold mode, the rule will ensure, that the
-		 * period size is not bigger than the maximum allowed threshold
-		 * value.
-		 */
-		if (dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
-			snd_pcm_hw_rule_add(substream->runtime, 0,
-					    SNDRV_PCM_HW_PARAM_CHANNELS,
-					    omap_mcbsp_hwrule_max_periodsize,
-					    substream,
-					    SNDRV_PCM_HW_PARAM_PERIOD_SIZE, -1);
+		/* Make sure, that the period size is always even */
+		snd_pcm_hw_constraint_step(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 	}
 
 	return err;
@@ -348,11 +323,14 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
-	int dma, bus_id = mcbsp_data->bus_id, id = cpu_dai->id;
+	struct omap_pcm_dma_data *dma_data;
+	int dma, bus_id = mcbsp_data->bus_id;
 	int wlen, channels, wpf, sync_mode = OMAP_DMA_SYNC_ELEMENT;
+	int pkt_size = 0;
 	unsigned long port;
 	unsigned int format, div, framesize, master;
 
+	dma_data = &omap_mcbsp_dai_dma_params[cpu_dai->id][substream->stream];
 	if (cpu_class_is_omap1()) {
 		dma = omap1_dma_reqs[bus_id][substream->stream];
 		port = omap1_mcbsp_port[bus_id][substream->stream];
@@ -365,35 +343,74 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	} else if (cpu_is_omap343x()) {
 		dma = omap24xx_dma_reqs[bus_id][substream->stream];
 		port = omap34xx_mcbsp_port[bus_id][substream->stream];
-		omap_mcbsp_dai_dma_params[id][substream->stream].set_threshold =
-						omap_mcbsp_set_threshold;
-		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
-		if (omap_mcbsp_get_dma_op_mode(bus_id) ==
-						MCBSP_DMA_MODE_THRESHOLD)
-			sync_mode = OMAP_DMA_SYNC_FRAME;
 	} else {
 		return -ENODEV;
 	}
-	omap_mcbsp_dai_dma_params[id][substream->stream].name =
-		substream->stream ? "Audio Capture" : "Audio Playback";
-	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
-	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
-	omap_mcbsp_dai_dma_params[id][substream->stream].sync_mode = sync_mode;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
-			 OMAP_DMA_DATA_TYPE_S16;
+		dma_data->data_type = OMAP_DMA_DATA_TYPE_S16;
+		wlen = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
-			 OMAP_DMA_DATA_TYPE_S32;
+		dma_data->data_type = OMAP_DMA_DATA_TYPE_S32;
+		wlen = 32;
 		break;
 	default:
 		return -EINVAL;
 	}
+	if (cpu_is_omap343x()) {
+		dma_data->set_threshold = omap_mcbsp_set_threshold;
+		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
+		if (omap_mcbsp_get_dma_op_mode(bus_id) ==
+						MCBSP_DMA_MODE_THRESHOLD) {
+			int period_words, max_thrsh;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
-		&omap_mcbsp_dai_dma_params[id][substream->stream]);
+			period_words = params_period_bytes(params) / (wlen / 8);
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+				max_thrsh = omap_mcbsp_get_max_tx_threshold(
+							    mcbsp_data->bus_id);
+			else
+				max_thrsh = omap_mcbsp_get_max_rx_threshold(
+							    mcbsp_data->bus_id);
+			/*
+			 * If the period contains less or equal number of words,
+			 * we are using the original threshold mode setup:
+			 * McBSP threshold = sDMA frame size = period_size
+			 * Otherwise we switch to sDMA packet mode:
+			 * McBSP threshold = sDMA packet size
+			 * sDMA frame size = period size
+			 */
+			if (period_words > max_thrsh) {
+				int divider = 0;
+
+				/*
+				 * Look for the biggest threshold value, which
+				 * divides the period size evenly.
+				 */
+				divider = period_words / max_thrsh;
+				if (period_words % max_thrsh)
+					divider++;
+				while (period_words % divider &&
+					divider < period_words)
+					divider++;
+				if (divider == period_words)
+					return -EINVAL;
+
+				pkt_size = period_words / divider;
+				sync_mode = OMAP_DMA_SYNC_PACKET;
+			} else {
+				sync_mode = OMAP_DMA_SYNC_FRAME;
+			}
+		}
+	}
+
+	dma_data->name = substream->stream ? "Audio Capture" : "Audio Playback";
+	dma_data->dma_req = dma;
+	dma_data->port_addr = port;
+	dma_data->sync_mode = sync_mode;
+	dma_data->packet_size = pkt_size;
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	if (mcbsp_data->configured) {
 		/* McBSP already configured by another stream */
@@ -419,7 +436,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		/* Set word lengths */
-		wlen = 16;
 		regs->rcr2	|= RWDLEN2(OMAP_MCBSP_WORD_16);
 		regs->rcr1	|= RWDLEN1(OMAP_MCBSP_WORD_16);
 		regs->xcr2	|= XWDLEN2(OMAP_MCBSP_WORD_16);
@@ -427,7 +443,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		/* Set word lengths */
-		wlen = 32;
 		regs->rcr2	|= RWDLEN2(OMAP_MCBSP_WORD_32);
 		regs->rcr1	|= RWDLEN1(OMAP_MCBSP_WORD_32);
 		regs->xcr2	|= XWDLEN2(OMAP_MCBSP_WORD_32);

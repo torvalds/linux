@@ -1432,11 +1432,9 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	   TX2 Left/Right: either analog Left/Right or Digimic1 */
 	SND_SOC_DAPM_MUX_E("TX1 Capture Route", SND_SOC_NOPM, 0, 0,
 		&twl4030_dapm_micpathtx1_control, micpath_event,
-		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD|
 		SND_SOC_DAPM_POST_REG),
 	SND_SOC_DAPM_MUX_E("TX2 Capture Route", SND_SOC_NOPM, 0, 0,
 		&twl4030_dapm_micpathtx2_control, micpath_event,
-		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD|
 		SND_SOC_DAPM_POST_REG),
 
 	/* Analog input mixers for the capture amplifiers */
