@@ -297,6 +297,8 @@ enum {
 	CEPH_MDS_OP_RMXATTR    = 0x01106,
 	CEPH_MDS_OP_SETLAYOUT  = 0x01107,
 	CEPH_MDS_OP_SETATTR    = 0x01108,
+	CEPH_MDS_OP_SETFILELOCK= 0x01109,
+	CEPH_MDS_OP_GETFILELOCK= 0x00110,
 
 	CEPH_MDS_OP_MKNOD      = 0x01201,
 	CEPH_MDS_OP_LINK       = 0x01202,
@@ -367,6 +369,15 @@ union ceph_mds_request_args {
 	struct {
 		struct ceph_file_layout layout;
 	} __attribute__ ((packed)) setlayout;
+	struct {
+		__u8 rule; /* currently fcntl or flock */
+		__u8 type; /* shared, exclusive, remove*/
+		__le64 pid; /* process id requesting the lock */
+		__le64 pid_namespace;
+		__le64 start; /* initial location to lock */
+		__le64 length; /* num bytes to lock from start */
+		__u8 wait; /* will caller wait for lock to become available? */
+	} __attribute__ ((packed)) filelock_change;
 } __attribute__ ((packed));
 
 #define CEPH_MDS_FLAG_REPLAY        1  /* this is a replayed op */
@@ -461,6 +472,23 @@ struct ceph_mds_reply_dirfrag {
 	__le32 dist[];
 } __attribute__ ((packed));
 
+#define CEPH_LOCK_FCNTL    1
+#define CEPH_LOCK_FLOCK    2
+
+#define CEPH_LOCK_SHARED   1
+#define CEPH_LOCK_EXCL     2
+#define CEPH_LOCK_UNLOCK   4
+
+struct ceph_filelock {
+	__le64 start;/* file offset to start lock at */
+	__le64 length; /* num bytes to lock; 0 for all following start */
+	__le64 client; /* which client holds the lock */
+	__le64 pid; /* process id holding the lock on the client */
+	__le64 pid_namespace;
+	__u8 type; /* shared lock, exclusive lock, or unlock */
+} __attribute__ ((packed));
+
+
 /* file access modes */
 #define CEPH_FILE_MODE_PIN        0
 #define CEPH_FILE_MODE_RD         1
@@ -489,9 +517,10 @@ int ceph_flags_to_mode(int flags);
 #define CEPH_CAP_SAUTH      2
 #define CEPH_CAP_SLINK      4
 #define CEPH_CAP_SXATTR     6
-#define CEPH_CAP_SFILE      8   /* goes at the end (uses >2 cap bits) */
+#define CEPH_CAP_SFILE      8
+#define CEPH_CAP_SFLOCK    20 
 
-#define CEPH_CAP_BITS       16
+#define CEPH_CAP_BITS       22
 
 /* composed values */
 #define CEPH_CAP_AUTH_SHARED  (CEPH_CAP_GSHARED  << CEPH_CAP_SAUTH)
@@ -509,6 +538,9 @@ int ceph_flags_to_mode(int flags);
 #define CEPH_CAP_FILE_BUFFER   (CEPH_CAP_GBUFFER   << CEPH_CAP_SFILE)
 #define CEPH_CAP_FILE_WREXTEND (CEPH_CAP_GWREXTEND << CEPH_CAP_SFILE)
 #define CEPH_CAP_FILE_LAZYIO   (CEPH_CAP_GLAZYIO   << CEPH_CAP_SFILE)
+#define CEPH_CAP_FLOCK_SHARED  (CEPH_CAP_GSHARED   << CEPH_CAP_SFLOCK)
+#define CEPH_CAP_FLOCK_EXCL    (CEPH_CAP_GEXCL     << CEPH_CAP_SFLOCK)
+
 
 /* cap masks (for getattr) */
 #define CEPH_STAT_CAP_INODE    CEPH_CAP_PIN
