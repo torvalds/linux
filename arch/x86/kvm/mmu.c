@@ -309,7 +309,7 @@ static void update_spte(u64 *sptep, u64 new_spte)
 	else {
 		old_spte = __xchg_spte(sptep, new_spte);
 		if (old_spte & shadow_accessed_mask)
-			mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
+			kvm_set_pfn_accessed(spte_to_pfn(old_spte));
 	}
 }
 
