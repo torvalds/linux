@@ -871,6 +871,18 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
+void hash_failure_debug(unsigned long ea, unsigned long access,
+			unsigned long vsid, unsigned long trap,
+			int ssize, int psize, unsigned long pte)
+{
+	if (!printk_ratelimit())
+		return;
+	pr_info("mm: Hashing failure ! EA=0x%lx access=0x%lx current=%s\n",
+		ea, access, current->comm);
+	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d psize=%d pte=0x%lx\n",
+		trap, vsid, ssize, psize, pte);
+}
+
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -955,6 +967,17 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		return 1;
 	}
 
+	/* Add _PAGE_PRESENT to the required access perm */
+	access |= _PAGE_PRESENT;
+
+	/* Pre-check access permissions (will be re-checked atomically
+	 * in __hash_page_XX but this pre-check is a fast path
+	 */
+	if (access & ~pte_val(*ptep)) {
+		DBG_LOW(" no access !\n");
+		return 1;
+	}
+
 #ifdef CONFIG_HUGETLB_PAGE
 	if (hugeshift)
 		return __hash_page_huge(ea, access, vsid, ptep, trap, local,
@@ -967,14 +990,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	DBG_LOW(" i-pte: %016lx %016lx\n", pte_val(*ptep),
 		pte_val(*(ptep + PTRS_PER_PTE)));
 #endif
-	/* Pre-check access permissions (will be re-checked atomically
-	 * in __hash_page_XX but this pre-check is a fast path
-	 */
-	if (access & ~pte_val(*ptep)) {
-		DBG_LOW(" no access !\n");
-		return 1;
-	}
-
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
@@ -1033,6 +1048,12 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 					    local, ssize, spp);
 	}
 
+	/* Dump some info in case of hash insertion failure, they should
+	 * never happen so it is really useful to know if/when they do
+	 */
+	if (rc == -1)
+		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
+				   pte_val(*ptep));
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
 #else
@@ -1051,8 +1072,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	void *pgdir;
 	pte_t *ptep;
 	unsigned long flags;
-	int local = 0;
-	int ssize;
+	int rc, ssize, local = 0;
 
 	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
 
@@ -1098,11 +1118,18 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	/* Hash it in */
 #ifdef CONFIG_PPC_HAS_HASH_64K
 	if (mm->context.user_psize == MMU_PAGE_64K)
-		__hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
+		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
-		__hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
-			       subpage_protection(pgdir, ea));
+		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
+				    subpage_protection(pgdir, ea));
+
+	/* Dump some info in case of hash insertion failure, they should
+	 * never happen so it is really useful to know if/when they do
+	 */
+	if (rc == -1)
+		hash_failure_debug(ea, access, vsid, trap, ssize,
+				   mm->context.user_psize, pte_val(*ptep));
 
 	local_irq_restore(flags);
 }

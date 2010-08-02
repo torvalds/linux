@@ -398,15 +398,15 @@ static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 }
 
 /*
- * Retreive and validate the ibm,memblock-size property for drconf memory
+ * Retreive and validate the ibm,lmb-size property for drconf memory
  * from the device tree.
  */
-static u64 of_get_memblock_size(struct device_node *memory)
+static u64 of_get_lmb_size(struct device_node *memory)
 {
 	const u32 *prop;
 	u32 len;
 
-	prop = of_get_property(memory, "ibm,memblock-size", &len);
+	prop = of_get_property(memory, "ibm,lmb-size", &len);
 	if (!prop || len < sizeof(unsigned int))
 		return 0;
 
@@ -562,7 +562,7 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 static inline int __init read_usm_ranges(const u32 **usm)
 {
 	/*
-	 * For each memblock in ibm,dynamic-memory a corresponding
+	 * For each lmb in ibm,dynamic-memory a corresponding
 	 * entry in linux,drconf-usable-memory property contains
 	 * a counter followed by that many (base, size) duple.
 	 * read the counter from linux,drconf-usable-memory
@@ -578,7 +578,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 {
 	const u32 *dm, *usm;
 	unsigned int n, rc, ranges, is_kexec_kdump = 0;
-	unsigned long memblock_size, base, size, sz;
+	unsigned long lmb_size, base, size, sz;
 	int nid;
 	struct assoc_arrays aa;
 
@@ -586,8 +586,8 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	if (!n)
 		return;
 
-	memblock_size = of_get_memblock_size(memory);
-	if (!memblock_size)
+	lmb_size = of_get_lmb_size(memory);
+	if (!lmb_size)
 		return;
 
 	rc = of_get_assoc_arrays(memory, &aa);
@@ -611,7 +611,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 			continue;
 
 		base = drmem.base_addr;
-		size = memblock_size;
+		size = lmb_size;
 		ranges = 1;
 
 		if (is_kexec_kdump) {
@@ -1072,7 +1072,7 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 {
 	const u32 *dm;
 	unsigned int drconf_cell_cnt, rc;
-	unsigned long memblock_size;
+	unsigned long lmb_size;
 	struct assoc_arrays aa;
 	int nid = -1;
 
@@ -1080,8 +1080,8 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 	if (!drconf_cell_cnt)
 		return -1;
 
-	memblock_size = of_get_memblock_size(memory);
-	if (!memblock_size)
+	lmb_size = of_get_lmb_size(memory);
+	if (!lmb_size)
 		return -1;
 
 	rc = of_get_assoc_arrays(memory, &aa);
@@ -1100,7 +1100,7 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 			continue;
 
 		if ((scn_addr < drmem.base_addr)
-		    || (scn_addr >= (drmem.base_addr + memblock_size)))
+		    || (scn_addr >= (drmem.base_addr + lmb_size)))
 			continue;
 
 		nid = of_drconf_to_nid_single(&drmem, &aa);

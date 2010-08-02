@@ -862,8 +862,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int max_n;
 	bool found;
-	/* approximately equals target * 0.00488 */
-	int err_most = (target >> 8) + (target >> 10);
+	/* approximately equals target * 0.00585 */
+	int err_most = (target >> 8) + (target >> 9);
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -1180,8 +1180,12 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	struct drm_framebuffer *fb = crtc->fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj_priv;
+	struct drm_crtc *tmp_crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane;
+	int crtcs_enabled = 0;
+
+	DRM_DEBUG_KMS("\n");
 
 	if (!i915_powersave)
 		return;
@@ -1199,10 +1203,21 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	 * If FBC is already on, we just have to verify that we can
 	 * keep it that way...
 	 * Need to disable if:
+	 *   - more than one pipe is active
 	 *   - changing FBC params (stride, fence, mode)
 	 *   - new fb is too large to fit in compressed buffer
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
+	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
+		if (tmp_crtc->enabled)
+			crtcs_enabled++;
+	}
+	DRM_DEBUG_KMS("%d pipes active\n", crtcs_enabled);
+	if (crtcs_enabled > 1) {
+		DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+		goto out_disable;
+	}
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 				"compression\n");
@@ -1255,7 +1270,7 @@ out_disable:
 	}
 }
 
-static int
+int
 intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -2255,6 +2270,11 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			intel_wait_for_vblank(dev);
 		}
 
+		/* Don't disable pipe A or pipe A PLLs if needed */
+		if (pipeconf_reg == PIPEACONF &&
+		    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+			goto skip_pipe_off;
+
 		/* Next, disable display pipes */
 		temp = I915_READ(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
@@ -2270,7 +2290,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 			I915_READ(dpll_reg);
 		}
-
+	skip_pipe_off:
 		/* Wait for the clocks to turn off. */
 		udelay(150);
 		break;
@@ -2356,8 +2376,6 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 		if (mode->clock * 3 > 27000 * 4)
 			return MODE_CLOCK_HIGH;
 	}
-
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	return true;
 }
 
@@ -3736,6 +3754,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			if (dev_priv->lvds_dither) {
 				if (HAS_PCH_SPLIT(dev)) {
 					pipeconf |= PIPE_ENABLE_DITHER;
+					pipeconf &= ~PIPE_DITHER_TYPE_MASK;
 					pipeconf |= PIPE_DITHER_TYPE_ST01;
 				} else
 					lvds |= LVDS_ENABLE_DITHER;
@@ -4412,7 +4431,8 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 		DRM_DEBUG_DRIVER("upclocking LVDS\n");
 
 		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
+			   PANEL_UNLOCK_REGS);
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -4455,7 +4475,8 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		DRM_DEBUG_DRIVER("downclocking LVDS\n");
 
 		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
+			   PANEL_UNLOCK_REGS);
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -4695,7 +4716,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_gem_object *obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
-	unsigned long flags;
+	unsigned long flags, offset;
 	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int ret, pipesrc;
 	u32 flip_mask;
@@ -4762,19 +4783,23 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		while (I915_READ(ISR) & flip_mask)
 			;
 
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = obj_priv->gtt_offset;
+	offset += (crtc->y * fb->pitch) + (crtc->x * (fb->bits_per_pixel) / 8);
+
 	BEGIN_LP_RING(4);
 	if (IS_I965G(dev)) {
 		OUT_RING(MI_DISPLAY_FLIP |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch);
-		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
+		OUT_RING(offset | obj_priv->tiling_mode);
 		pipesrc = I915_READ(pipesrc_reg); 
 		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
 		OUT_RING(MI_DISPLAY_FLIP_I915 |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch);
-		OUT_RING(obj_priv->gtt_offset);
+		OUT_RING(offset);
 		OUT_RING(MI_NOOP);
 	}
 	ADVANCE_LP_RING();
@@ -5506,6 +5531,66 @@ static void intel_init_display(struct drm_device *dev)
 	}
 }
 
+/*
+ * Some BIOSes insist on assuming the GPU's pipe A is enabled at suspend,
+ * resume, or other times.  This quirk makes sure that's the case for
+ * affected systems.
+ */
+static void quirk_pipea_force (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
+	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+}
+
+struct intel_quirk {
+	int device;
+	int subsystem_vendor;
+	int subsystem_device;
+	void (*hook)(struct drm_device *dev);
+};
+
+struct intel_quirk intel_quirks[] = {
+	/* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
+	{ 0x2a42, 0x103c, 0x30eb, quirk_pipea_force },
+	/* HP Mini needs pipe A force quirk (LP: #322104) */
+	{ 0x27ae,0x103c, 0x361a, quirk_pipea_force },
+
+	/* Thinkpad R31 needs pipe A force quirk */
+	{ 0x3577, 0x1014, 0x0505, quirk_pipea_force },
+	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
+	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
+
+	/* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
+	{ 0x3577,  0x1014, 0x0513, quirk_pipea_force },
+	/* ThinkPad X40 needs pipe A force quirk */
+
+	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
+	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
+
+	/* 855 & before need to leave pipe A & dpll A up */
+	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+};
+
+static void intel_init_quirks(struct drm_device *dev)
+{
+	struct pci_dev *d = dev->pdev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
+		struct intel_quirk *q = &intel_quirks[i];
+
+		if (d->device == q->device &&
+		    (d->subsystem_vendor == q->subsystem_vendor ||
+		     q->subsystem_vendor == PCI_ANY_ID) &&
+		    (d->subsystem_device == q->subsystem_device ||
+		     q->subsystem_device == PCI_ANY_ID))
+			q->hook(dev);
+	}
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5517,6 +5602,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
+
+	intel_init_quirks(dev);
 
 	intel_init_display(dev);
 

@@ -336,6 +336,7 @@ static struct of_device_id mpc85xx_pci_err_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_pci_err_of_match);
 
 static struct of_platform_driver mpc85xx_pci_err_driver = {
 	.probe = mpc85xx_pci_err_probe,
@@ -650,6 +651,7 @@ static struct of_device_id mpc85xx_l2_err_of_match[] = {
 	{ .compatible = "fsl,p2020-l2-cache-controller", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_l2_err_of_match);
 
 static struct of_platform_driver mpc85xx_l2_err_driver = {
 	.probe = mpc85xx_l2_err_probe,
@@ -1126,6 +1128,7 @@ static struct of_device_id mpc85xx_mc_err_of_match[] = {
 	{ .compatible = "fsl,p2020-memory-controller", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
 static struct of_platform_driver mpc85xx_mc_err_driver = {
 	.probe = mpc85xx_mc_err_probe,

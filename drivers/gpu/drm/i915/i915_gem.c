@@ -3647,6 +3647,7 @@ i915_gem_wait_for_pending_flip(struct drm_device *dev,
 	return ret;
 }
 
+
 int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv,
@@ -3794,7 +3795,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				unsigned long long total_size = 0;
 				int num_fences = 0;
 				for (i = 0; i < args->buffer_count; i++) {
-					obj_priv = object_list[i]->driver_private;
+					obj_priv = to_intel_bo(object_list[i]);
 
 					total_size += object_list[i]->size;
 					num_fences +=

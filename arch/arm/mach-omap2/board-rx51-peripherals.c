@@ -220,10 +220,10 @@ static int board_keymap[] = {
 	KEY(4, 4, KEY_LEFTCTRL),
 	KEY(4, 5, KEY_RIGHTALT),
 	KEY(4, 6, KEY_LEFTSHIFT),
-	KEY(4, 8, KEY_10),
+	KEY(4, 8, KEY_F10),
 
 	KEY(5, 0, KEY_Y),
-	KEY(5, 8, KEY_11),
+	KEY(5, 8, KEY_F11),
 
 	KEY(6, 0, KEY_U),
 
