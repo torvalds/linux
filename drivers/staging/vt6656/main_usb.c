@@ -366,7 +366,7 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
     BYTE            byAntenna;
     unsigned int            ii;
     CMD_CARD_INIT   sInitCmd;
-    NTSTATUS        ntStatus = STATUS_SUCCESS;
+    int ntStatus = STATUS_SUCCESS;
     RSP_CARD_INIT   sInitRsp;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     BYTE            byTmp;

@@ -1519,7 +1519,7 @@ static BOOL s_bAPModeRxData (
 void RXvWorkItem(void *Context)
 {
     PSDevice pDevice = (PSDevice) Context;
-    NTSTATUS        ntStatus;
+    int ntStatus;
     PRCB            pRCB=NULL;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");

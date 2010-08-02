@@ -259,7 +259,6 @@ typedef enum _VIA_PKT_TYPE
 //++ NDIS related
 
 #define NDIS_STATUS     int
-#define NTSTATUS        int
 
 typedef enum __DEVICE_NDIS_STATUS {
     STATUS_SUCCESS = 0,

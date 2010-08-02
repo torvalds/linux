@@ -107,10 +107,7 @@ s_nsControlInUsbIoCompleteWrite(
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-NTSTATUS
-PIPEnsControlOutAsyn(
+int PIPEnsControlOutAsyn(
      PSDevice     pDevice,
      BYTE         byRequest,
      WORD         wValue,
@@ -119,8 +116,7 @@ PIPEnsControlOutAsyn(
      PBYTE        pbyBuffer
     )
 {
-    NTSTATUS                ntStatus;
-
+	int ntStatus;
 
     if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
         return STATUS_FAILURE;
@@ -156,12 +152,7 @@ PIPEnsControlOutAsyn(
     return ntStatus;
 }
 
-
-
-
-
-NTSTATUS
-PIPEnsControlOut(
+int PIPEnsControlOut(
      PSDevice     pDevice,
      BYTE         byRequest,
      WORD         wValue,
@@ -170,9 +161,8 @@ PIPEnsControlOut(
      PBYTE        pbyBuffer
     )
 {
-    NTSTATUS            ntStatus = 0;
+	int ntStatus = 0;
     int ii;
-
 
     if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
         return STATUS_FAILURE;
@@ -219,11 +209,7 @@ PIPEnsControlOut(
     return STATUS_SUCCESS;
 }
 
-
-
-
-NTSTATUS
-PIPEnsControlIn(
+int PIPEnsControlIn(
      PSDevice     pDevice,
      BYTE         byRequest,
      WORD         wValue,
@@ -232,7 +218,7 @@ PIPEnsControlIn(
        PBYTE   pbyBuffer
     )
 {
-    NTSTATUS            ntStatus = 0;
+	int ntStatus = 0;
     int ii;
 
     if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
@@ -360,13 +346,9 @@ s_nsControlInUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-NTSTATUS
-PIPEnsInterruptRead(
-     PSDevice pDevice
-    )
+int PIPEnsInterruptRead(PSDevice pDevice)
 {
-    NTSTATUS            ntStatus = STATUS_FAILURE;
-
+    int ntStatus = STATUS_FAILURE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartInterruptUsbRead()\n");
 
@@ -423,8 +405,7 @@ s_nsInterruptUsbIoCompleteRead(
 
 {
     PSDevice        pDevice;
-    NTSTATUS        ntStatus;
-
+    int ntStatus;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptUsbIoCompleteRead\n");
     //
@@ -503,13 +484,9 @@ s_nsInterruptUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-NTSTATUS
-PIPEnsBulkInUsbRead(
-     PSDevice pDevice,
-     PRCB     pRCB
-    )
+int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB)
 {
-    NTSTATUS            ntStatus= 0;
+	int ntStatus = 0;
     struct urb          *pUrb;
 
 
@@ -579,9 +556,7 @@ s_nsBulkInUsbIoCompleteRead(
     unsigned long   bytesRead;
     BOOL    bIndicateReceive = FALSE;
     BOOL    bReAllocSkb = FALSE;
-    NTSTATUS    status;
-
-
+    int status;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
     status = urb->status;
@@ -649,7 +624,7 @@ PIPEnsSendBulkOut(
       PUSB_SEND_CONTEXT pContext
     )
 {
-    NTSTATUS            status;
+    int status;
     struct urb          *pUrb;
 
 
@@ -730,7 +705,7 @@ s_nsBulkOutIoCompleteWrite(
     )
 {
     PSDevice            pDevice;
-    NTSTATUS            status;
+    int status;
     CONTEXT_TYPE        ContextType;
     unsigned long               ulBufLen;
     PUSB_SEND_CONTEXT   pContext;

@@ -2729,14 +2729,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
  * Return Value: NULL
  */
 
-
-
-NTSTATUS
-nsDMA_tx_packet(
-      PSDevice pDevice,
-      unsigned int    uDMAIdx,
-      struct sk_buff *skb
-    )
+int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     unsigned int BytesToWrite = 0, uHeaderLen = 0;

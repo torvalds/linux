@@ -878,7 +878,7 @@ void vRunCommand(void *hDeviceContext)
        //         CARDbRadioPowerOff(pDevice);
        //2008-09-09<Add> BY Mike:Hot Key for Radio On/Off
        {
-        NTSTATUS        ntStatus = STATUS_SUCCESS;
+	       int ntStatus = STATUS_SUCCESS;
         BYTE            byTmp;
 
         ntStatus = CONTROLnsRequestIn(pDevice,

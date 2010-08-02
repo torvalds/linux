@@ -583,10 +583,7 @@ STAvClear802_11Counter(PSDot11Counters p802_11Counter)
  *
  */
 
-void
-STAvUpdateUSBCounter(PSUSBCounter pUsbCounter,
-                     NTSTATUS ntStatus
-                     )
+void STAvUpdateUSBCounter(PSUSBCounter pUsbCounter, int ntStatus)
 {
 
 //    if ( ntStatus == USBD_STATUS_CRC ) {
@@ -594,5 +591,3 @@ STAvUpdateUSBCounter(PSUSBCounter pUsbCounter,
 //    }
 
 }
-
-
