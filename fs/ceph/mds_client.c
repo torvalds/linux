@@ -3,6 +3,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 #include "mds_client.h"
 #include "mon_client.h"
@@ -2335,7 +2336,22 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	}
 	spin_unlock(&inode->i_lock);
 
-	err = ceph_pagelist_append(pagelist, &rec, reclen);
+	if (recon_state->flock) {
+		int num_fcntl_locks, num_flock_locks;
+
+		lock_kernel();
+		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+		rec.v2.flock_len = (2*sizeof(u32) +
+				    (num_fcntl_locks+num_flock_locks) *
+				    sizeof(struct ceph_filelock));
+
+		err = ceph_pagelist_append(pagelist, &rec, reclen);
+		if (!err)
+			err = ceph_encode_locks(inode, pagelist,
+						num_fcntl_locks,
+						num_flock_locks);
+		unlock_kernel();
+	}
 
 out:
 	kfree(path);

@@ -892,6 +892,14 @@ extern void ceph_debugfs_cleanup(void);
 extern int ceph_debugfs_client_init(struct ceph_client *client);
 extern void ceph_debugfs_client_cleanup(struct ceph_client *client);
 
+/* locks.c */
+extern int ceph_lock(struct file *file, int cmd, struct file_lock *fl);
+extern int ceph_flock(struct file *file, int cmd, struct file_lock *fl);
+extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);
+extern int ceph_encode_locks(struct inode *i, struct ceph_pagelist *p,
+			     int p_locks, int f_locks);
+extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
+
 static inline struct inode *get_dentry_parent_inode(struct dentry *dentry)
 {
 	if (dentry && dentry->d_parent)
