@@ -31,6 +31,9 @@
 #include <mach/gpio.h>
 
 #include "wm8994.h"
+#include <linux/miscdevice.h>
+#include <linux/circ_buf.h>
+#include <mach/spi_fpga.h>
 
 
 #if 1
@@ -40,7 +43,6 @@
 #endif
 
 #define WM8994_DELAY 50
-//#define WM8994_TEST
 
 struct i2c_client *wm8994_client;
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate);
@@ -140,7 +142,7 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 		return 0;
 	}
 
-	printk("%s---line->%d:Codec read error!\n",__FUNCTION__,__LINE__);
+	printk("%s---line->%d:Codec read error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,*value);
 
 	return -EIO;
 }
@@ -153,7 +155,7 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 	if (reg_send_data(wm8994_client,&regs,&values,400000)>=0)
 		return 0;
 
-	printk("%s---line->%d:Codec write error!\n",__FUNCTION__,__LINE__);
+	printk("%s---line->%d:Codec write error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,value);
 
 	return -EIO;
 }
@@ -172,21 +174,26 @@ void  AP_to_headset(void)
 	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x200, 0x0001);
+//MCLK=12MHz
+//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
+
+	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
 	wm8994_write(0x220, 0x0000);
 	wm8994_write(0x221, 0x0700);
 	wm8994_write(0x222, 0x3126);
 	wm8994_write(0x223, 0x0100);
-
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
-  	wm8994_write(0x302, 0x4000);  // master = 0x4000  slave= 0x0000
-	wm8994_write(0x303, 0x0040);  // master  0x0050 lrck 40.98kHz bclk 2.15MHz
-	wm8994_write(0x305, 0x0083);  // master  0x0035 lrck 40.98kHz bclk 2.15MHz
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 #endif
-	wm8994_write(0x220, 0x0004);  
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+
+	wm8994_write(0x220, 0x0004); 
 	mdelay(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
+	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
   	wm8994_write(0x300, 0x4010);  // i2s 16 bits
   
 	wm8994_write(0x01,  0x0303); 
@@ -221,21 +228,26 @@ void  AP_to_speakers(void)
 	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x200, 0x0001);
+//MCLK=12MHz
+//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
+
+	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
 	wm8994_write(0x220, 0x0000);
 	wm8994_write(0x221, 0x0700);
 	wm8994_write(0x222, 0x3126);
 	wm8994_write(0x223, 0x0100);
-
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
-  	wm8994_write(0x302, 0x4000);  // master = 0x4000  slave= 0x0000
-	wm8994_write(0x303, 0x0040);  // master  0x0050 lrck 40.98kHz bclk 2.15MHz
-	wm8994_write(0x305, 0x0083);  // master  0x0035 lrck 40.98kHz bclk 2.15MHz
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 #endif
-	wm8994_write(0x220, 0x0004);  
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+
+	wm8994_write(0x220, 0x0004); 
 	mdelay(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
+	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
   	wm8994_write(0x300, 0xC010);  // i2s 16 bits
   
 	wm8994_write(0x01,  0x3003); 
@@ -271,19 +283,26 @@ void  recorder(void)
 
 	wm8994_write(0x01,   0x0013);
 	mdelay(WM8994_DELAY);
-	wm8994_write(0x221,  0x0D00);
-	wm8994_write(0x222,  0x3300);
-	wm8994_write(0x223,  0x00E0);
+//MCLK=12MHz
+//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
 
+	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
+	wm8994_write(0x220, 0x0000);
+	wm8994_write(0x221, 0x0700);
+	wm8994_write(0x222, 0x3126);
+	wm8994_write(0x223, 0x0100);
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302,  0x4000);  //master = 0x4000  slave= 0x0000
-	wm8994_write(0x303,  0x0090);  //master  0x0090 lrck1 8kHz bclk1 515KHz
-	wm8994_write(0x305,  0x00F0);  //master  0x00F0 lrck1 8kHz bclk1 515KHz
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 #endif
+	wm8994_write(0x210, 0x0083); // SR=48KHz
 
-	wm8994_write(0x220,  0x0004);
+	wm8994_write(0x220, 0x0004); 
 	mdelay(WM8994_DELAY);
-	wm8994_write(0x220,  0x0005);
+	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
+	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
 
 	wm8994_write(0x02,   0x6110);
 	wm8994_write(0x04,   0x0303);
@@ -758,21 +777,26 @@ void  mainMIC_to_baseband_to_speakers_with_music(void)
 	wm8994_write(0x01,  0x3013);
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x200, 0x0001);
+//MCLK=12MHz
+//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
+
+	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
 	wm8994_write(0x220, 0x0000);
 	wm8994_write(0x221, 0x0700);
 	wm8994_write(0x222, 0x3126);
 	wm8994_write(0x223, 0x0100);
-
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
-  	wm8994_write(0x302, 0x4000);  // master = 0x4000  slave= 0x0000
-	wm8994_write(0x303, 0x0040);  // master  0x0050 lrck 40.98kHz bclk 2.15MHz
-	wm8994_write(0x305, 0x0083);  // master  0x0035 lrck 40.98kHz bclk 2.15MHz
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 #endif
-	wm8994_write(0x220, 0x0004);  
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+
+	wm8994_write(0x220, 0x0004); 
 	mdelay(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
+	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
   	wm8994_write(0x300, 0xC010);  // i2s 16 bits
 	
 	wm8994_write(0x01,  0x3013); 
@@ -1710,9 +1734,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	{
 		/* Speaker*/
 		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
-#ifndef WM8994_TEST
 		    AP_to_speakers();
-#endif
 		    break;
 		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
 		    mainMIC_to_baseband_to_speakers();
@@ -2507,21 +2529,6 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 	int ret;
 	u16 reg;
 
-#ifdef WM8994_TEST
-	/*************text----------cjq**************/
-
-	DBG("%s::%d-- WM8994 test begin\n",__FUNCTION__,__LINE__);
-
-	//AP_to_headset();
-	//AP_to_speakers();
-	//handsetMIC_to_baseband_to_headset();
-	//recorder_and_AP_to_speakers();
-	mainMIC_to_baseband_to_speakers();
-
-	DBG("%s::%d-- WM8994 test end",__FUNCTION__,__LINE__);
-
-#endif
-
 	if (wm8994_codec) {
 		dev_err(codec->dev, "Another WM8994 is registered\n");
 		ret = -EINVAL;
@@ -2556,13 +2563,11 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 		dev_err(codec->dev, "Failed to issue reset\n");
 		goto err;
 	}
-#if 1
 		/*disable speaker */
 		gpio_request(RK2818_PIN_PF7, "WM8994");	
 		rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
 		gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
-		
-#endif
+
 	/* set the update bits (we always update left then right) */
 	reg = snd_soc_read(codec, WM8994_RADC);
 	snd_soc_write(codec, WM8994_RADC, reg | 0x100);
@@ -2701,6 +2706,7 @@ int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short
 	msg.len = 4;
 	msg.flags = client->flags;
 	msg.scl_rate = scl_rate;
+	msg.read_type = I2C_NORMAL;
     
 	ret = i2c_transfer(adap, &msg, 1);
 
@@ -2718,12 +2724,14 @@ int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short
 	msgs[0].flags = client->flags;
 	msgs[0].len = 2;
 	msgs[0].scl_rate = scl_rate;
+	msgs[0].read_type = I2C_NO_STOP;
 
 	msgs[1].addr = client->addr;
 	msgs[1].buf = (char *)buf;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = 2;
 	msgs[1].scl_rate = scl_rate;
+	msgs[1].read_type = I2C_NO_STOP;
 
 	ret = i2c_transfer(adap, msgs, 2);
 
@@ -2821,4 +2829,3 @@ module_exit(wm8994_exit);
 MODULE_DESCRIPTION("ASoC WM8994 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
-

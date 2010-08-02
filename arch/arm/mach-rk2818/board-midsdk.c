@@ -356,13 +356,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.platform_data=&rk2818_pca9554_data.gpio_base,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_WM8994)
-	{
-		.type    		= "wm8994",
-		.addr           = 0x1a,
-		.flags			= 0,
-	},
-#endif
 #if defined (CONFIG_PMIC_LP8725)
 	{
 		.type    		= "lp8725",
@@ -377,7 +370,13 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 };
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
-	
+#if defined (CONFIG_SND_SOC_WM8994)
+	{
+		.type    		= "wm8994",
+		.addr           = 0x1a,
+		.flags			= 0,
+	},
+#endif
 };	
 
 /*****************************************************************************************
