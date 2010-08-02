@@ -98,6 +98,57 @@ TRACE_EVENT(kvm_gtlb_write,
 		__entry->word1, __entry->word2)
 );
 
+
+/*************************************************************************
+ *                         Book3S trace points                           *
+ *************************************************************************/
+
+#ifdef CONFIG_PPC_BOOK3S
+
+TRACE_EVENT(kvm_book3s_exit,
+	TP_PROTO(unsigned int exit_nr, struct kvm_vcpu *vcpu),
+	TP_ARGS(exit_nr, vcpu),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	exit_nr		)
+		__field(	unsigned long,	pc		)
+		__field(	unsigned long,	msr		)
+		__field(	unsigned long,	dar		)
+		__field(	unsigned long,	srr1		)
+	),
+
+	TP_fast_assign(
+		__entry->exit_nr	= exit_nr;
+		__entry->pc		= kvmppc_get_pc(vcpu);
+		__entry->dar		= kvmppc_get_fault_dar(vcpu);
+		__entry->msr		= vcpu->arch.shared->msr;
+		__entry->srr1		= to_svcpu(vcpu)->shadow_srr1;
+	),
+
+	TP_printk("exit=0x%x | pc=0x%lx | msr=0x%lx | dar=0x%lx | srr1=0x%lx",
+		  __entry->exit_nr, __entry->pc, __entry->msr, __entry->dar,
+		  __entry->srr1)
+);
+
+TRACE_EVENT(kvm_book3s_reenter,
+	TP_PROTO(int r, struct kvm_vcpu *vcpu),
+	TP_ARGS(r, vcpu),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	r		)
+		__field(	unsigned long,	pc		)
+	),
+
+	TP_fast_assign(
+		__entry->r		= r;
+		__entry->pc		= kvmppc_get_pc(vcpu);
+	),
+
+	TP_printk("reentry r=%d | pc=0x%lx", __entry->r, __entry->pc)
+);
+
+#endif /* CONFIG_PPC_BOOK3S */
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */

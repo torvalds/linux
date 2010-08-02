@@ -17,6 +17,7 @@
 #include <linux/kvm_host.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include "trace.h"
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -35,7 +36,6 @@
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 /* #define EXIT_DEBUG */
-/* #define EXIT_DEBUG_SIMPLE */
 /* #define DEBUG_EXT */
 
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
@@ -104,14 +104,6 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	kvmppc_giveup_ext(vcpu, MSR_VEC);
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
 }
-
-#if defined(EXIT_DEBUG)
-static u32 kvmppc_get_dec(struct kvm_vcpu *vcpu)
-{
-	u64 jd = mftb() - vcpu->arch.dec_jiffies;
-	return vcpu->arch.dec - jd;
-}
-#endif
 
 static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 {
@@ -850,16 +842,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
-#ifdef EXIT_DEBUG
-	printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | dar=0x%lx | dec=0x%x | msr=0x%lx\n",
-		exit_nr, kvmppc_get_pc(vcpu), kvmppc_get_fault_dar(vcpu),
-		kvmppc_get_dec(vcpu), to_svcpu(vcpu)->shadow_srr1);
-#elif defined (EXIT_DEBUG_SIMPLE)
-	if ((exit_nr != 0x900) && (exit_nr != 0x500))
-		printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | dar=0x%lx | msr=0x%lx\n",
-			exit_nr, kvmppc_get_pc(vcpu), kvmppc_get_fault_dar(vcpu),
-			vcpu->arch.shared->msr);
-#endif
+
+	trace_kvm_book3s_exit(exit_nr, vcpu);
 	kvm_resched(vcpu);
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
@@ -1091,9 +1075,7 @@ program_interrupt:
 		}
 	}
 
-#ifdef EXIT_DEBUG
-	printk(KERN_EMERG "KVM exit: vcpu=0x%p pc=0x%lx r=0x%x\n", vcpu, kvmppc_get_pc(vcpu), r);
-#endif
+	trace_kvm_book3s_reenter(r, vcpu);
 
 	return r;
 }
