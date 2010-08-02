@@ -119,13 +119,6 @@ render_ring_flush(struct drm_device *dev,
 	}
 }
 
-static unsigned int render_ring_get_head(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(PRB0_HEAD) & HEAD_ADDR;
-}
-
 static void ring_set_tail(struct drm_device *dev,
 			  struct intel_ring_buffer *ring,
 			  u32 value)
@@ -153,12 +146,12 @@ static int init_ring_common(struct drm_device *dev,
 
 	/* Stop the ring if it's running. */
 	I915_WRITE(ring->regs.ctl, 0);
-	I915_WRITE(ring->regs.head, 0);
+	I915_WRITE_HEAD(ring, 0);
 	ring->set_tail(dev, ring, 0);
 
 	/* Initialize the ring. */
 	I915_WRITE_START(ring, obj_priv->gtt_offset);
-	head = ring->get_head(dev, ring);
+	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 
 	/* G45 ring initialization fails to reset head to zero */
 	if (head != 0) {
@@ -166,17 +159,17 @@ static int init_ring_common(struct drm_device *dev,
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
 				I915_READ(ring->regs.ctl),
-				I915_READ(ring->regs.head),
+				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
 
-		I915_WRITE(ring->regs.head, 0);
+		I915_WRITE_HEAD(ring, 0);
 
 		DRM_ERROR("%s head forced to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
 				I915_READ(ring->regs.ctl),
-				I915_READ(ring->regs.head),
+				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
 	}
@@ -185,14 +178,14 @@ static int init_ring_common(struct drm_device *dev,
 			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_NO_REPORT | RING_VALID);
 
-	head = I915_READ(ring->regs.head) & HEAD_ADDR;
+	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 	/* If the head is still not zero, the ring is dead */
 	if (head != 0) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
 				I915_READ(ring->regs.ctl),
-				I915_READ(ring->regs.head),
+				I915_READ_HEAD(ring),
 				I915_READ_TAIL(ring),
 				I915_READ_START(ring));
 		return -EIO;
@@ -201,7 +194,7 @@ static int init_ring_common(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kernel_lost_context(dev);
 	else {
-		ring->head = ring->get_head(dev, ring);
+		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
 		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
@@ -379,13 +372,6 @@ bsd_ring_flush(struct drm_device *dev,
 	intel_ring_emit(dev, ring, MI_FLUSH);
 	intel_ring_emit(dev, ring, MI_NOOP);
 	intel_ring_advance(dev, ring);
-}
-
-static inline unsigned int bsd_ring_get_head(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(BSD_RING_HEAD) & HEAD_ADDR;
 }
 
 static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
@@ -650,7 +636,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kernel_lost_context(dev);
 	else {
-		ring->head = ring->get_head(dev, ring);
+		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
 		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
@@ -716,11 +702,12 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring, int n)
 {
 	unsigned long end;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
 	do {
-		ring->head = ring->get_head(dev, ring);
+		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->size;
@@ -780,7 +767,6 @@ static const struct intel_ring_buffer render_ring = {
 	.id			= RING_RENDER,
 	.regs                   = {
 		.ctl = PRB0_CTL,
-		.head = PRB0_HEAD,
 	},
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
@@ -796,7 +782,6 @@ static const struct intel_ring_buffer render_ring = {
 	.waiting_gem_seqno	= 0,
 	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
-	.get_head		= render_ring_get_head,
 	.set_tail		= ring_set_tail,
 	.get_active_head	= render_ring_get_active_head,
 	.flush			= render_ring_flush,
@@ -816,7 +801,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.id			= RING_BSD,
 	.regs			= {
 		.ctl = BSD_RING_CTL,
-		.head = BSD_RING_HEAD,
 	},
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
@@ -832,7 +816,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.waiting_gem_seqno	= 0,
 	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
-	.get_head		= bsd_ring_get_head,
 	.set_tail		= ring_set_tail,
 	.get_active_head	= bsd_ring_get_active_head,
 	.flush			= bsd_ring_flush,
@@ -852,13 +835,6 @@ static void gen6_bsd_setup_status_page(struct drm_device *dev,
        drm_i915_private_t *dev_priv = dev->dev_private;
        I915_WRITE(GEN6_BSD_HWS_PGA, ring->status_page.gfx_addr);
        I915_READ(GEN6_BSD_HWS_PGA);
-}
-
-static inline unsigned int gen6_bsd_ring_get_head(struct drm_device *dev,
-                                       struct intel_ring_buffer *ring)
-{
-       drm_i915_private_t *dev_priv = dev->dev_private;
-       return I915_READ(GEN6_BSD_RING_HEAD) & HEAD_ADDR;
 }
 
 static inline void gen6_bsd_ring_set_tail(struct drm_device *dev,
@@ -926,7 +902,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .id			= RING_BSD,
        .regs			= {
                .ctl    = GEN6_BSD_RING_CTL,
-               .head   = GEN6_BSD_RING_HEAD,
        },
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
@@ -942,7 +917,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .waiting_gem_seqno	= 0,
        .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
-       .get_head		= gen6_bsd_ring_get_head,
        .set_tail		= gen6_bsd_ring_set_tail,
        .get_active_head		= gen6_bsd_ring_get_active_head,
        .flush			= gen6_bsd_ring_flush,
