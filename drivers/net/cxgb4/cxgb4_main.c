@@ -2897,6 +2897,21 @@ static void setup_memwin(struct adapter *adap)
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
 		     (bar0 + MEMWIN2_BASE) | BIR(0) |
 		     WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+	if (adap->vres.ocq.size) {
+		unsigned int start, sz_kb;
+
+		start = pci_resource_start(adap->pdev, 2) +
+			OCQ_WIN_OFFSET(adap->pdev, &adap->vres);
+		sz_kb = roundup_pow_of_two(adap->vres.ocq.size) >> 10;
+		t4_write_reg(adap,
+			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 3),
+			     start | BIR(1) | WINDOW(ilog2(sz_kb)));
+		t4_write_reg(adap,
+			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, 3),
+			     adap->vres.ocq.start);
+		t4_read_reg(adap,
+			    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, 3));
+	}
 }
 
 static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
@@ -2954,7 +2969,6 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	t4_write_reg(adap, TP_PIO_ADDR, TP_INGRESS_CONFIG);
 	v = t4_read_reg(adap, TP_PIO_DATA);
 	t4_write_reg(adap, TP_PIO_DATA, v & ~CSUM_HAS_PSEUDO_HDR);
-	setup_memwin(adap);
 	return 0;
 }
 
@@ -3073,13 +3087,17 @@ static int adap_init0(struct adapter *adap)
 		params[1] = FW_PARAM_PFVF(SQRQ_END);
 		params[2] = FW_PARAM_PFVF(CQ_START);
 		params[3] = FW_PARAM_PFVF(CQ_END);
-		ret = t4_query_params(adap, 0, 0, 0, 4, params, val);
+		params[4] = FW_PARAM_PFVF(OCQ_START);
+		params[5] = FW_PARAM_PFVF(OCQ_END);
+		ret = t4_query_params(adap, 0, 0, 0, 6, params, val);
 		if (ret < 0)
 			goto bye;
 		adap->vres.qp.start = val[0];
 		adap->vres.qp.size = val[1] - val[0] + 1;
 		adap->vres.cq.start = val[2];
 		adap->vres.cq.size = val[3] - val[2] + 1;
+		adap->vres.ocq.start = val[4];
+		adap->vres.ocq.size = val[5] - val[4] + 1;
 	}
 	if (c.iscsicaps) {
 		params[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -3139,6 +3157,7 @@ static int adap_init0(struct adapter *adap)
 	}
 #endif
 
+	setup_memwin(adap);
 	return 0;
 
 	/*
@@ -3221,6 +3240,7 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 		     adap->params.b_wnd);
+	setup_memwin(adap);
 	if (cxgb_up(adap))
 		return PCI_ERS_RESULT_DISCONNECT;
 	return PCI_ERS_RESULT_RECOVERED;

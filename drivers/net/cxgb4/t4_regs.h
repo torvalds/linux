@@ -232,6 +232,7 @@
 #define  WINDOW_MASK     0x000000ffU
 #define  WINDOW_SHIFT    0
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
+#define PCIE_MEM_ACCESS_OFFSET 0x306c
 
 #define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS 0x5908
 #define  RNPP 0x80000000U
