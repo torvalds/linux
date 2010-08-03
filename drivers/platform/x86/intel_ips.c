@@ -1432,6 +1432,12 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	spin_lock_init(&ips->turbo_status_lock);
 
+	ret = pci_enable_device(dev);
+	if (ret) {
+		dev_err(&dev->dev, "can't enable PCI device, aborting\n");
+		goto error_free;
+	}
+
 	if (!pci_resource_start(dev, 0)) {
 		dev_err(&dev->dev, "TBAR not assigned, aborting\n");
 		ret = -ENXIO;
@@ -1444,11 +1450,6 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto error_free;
 	}
 
-	ret = pci_enable_device(dev);
-	if (ret) {
-		dev_err(&dev->dev, "can't enable PCI device, aborting\n");
-		goto error_free;
-	}
 
 	ips->regmap = ioremap(pci_resource_start(dev, 0),
 			      pci_resource_len(dev, 0));
