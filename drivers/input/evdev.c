@@ -649,13 +649,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
 
 				t = _IOC_NR(cmd) & ABS_MAX;
-
-				abs.value = input_abs_get_val(dev, t);
-				abs.minimum = input_abs_get_min(dev, t);
-				abs.maximum = input_abs_get_max(dev, t);
-				abs.fuzz = input_abs_get_fuzz(dev, t);
-				abs.flat = input_abs_get_flat(dev, t);
-				abs.resolution = input_abs_get_res(dev, t);
+				abs = dev->absinfo[t];
 
 				if (copy_to_user(p, &abs, min_t(size_t,
 								_IOC_SIZE(cmd),
@@ -691,6 +685,9 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 								  sizeof(struct input_absinfo))))
 					return -EFAULT;
 
+				if (_IOC_SIZE(cmd) < sizeof(struct input_absinfo))
+					abs.resolution = 0;
+
 				/* We can't change number of reserved MT slots */
 				if (t == ABS_MT_SLOT)
 					return -EINVAL;
@@ -701,15 +698,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 				 * of event.
 				 */
 				spin_lock_irq(&dev->event_lock);
-
-				input_abs_set_val(dev, t, abs.value);
-				input_abs_set_min(dev, t, abs.minimum);
-				input_abs_set_max(dev, t, abs.maximum);
-				input_abs_set_fuzz(dev, t, abs.fuzz);
-				input_abs_set_flat(dev, t, abs.flat);
-				input_abs_set_res(dev, t, _IOC_SIZE(cmd) < sizeof(struct input_absinfo) ?
-								0 : abs.resolution);
-
+				dev->absinfo[t] = abs;
 				spin_unlock_irq(&dev->event_lock);
 
 				return 0;
