@@ -1043,10 +1043,7 @@ static void xen_crash_shutdown(struct pt_regs *regs)
 static int
 xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct sched_shutdown r = { .reason = SHUTDOWN_crash};
-
-	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
-		BUG();
+	xen_reboot(SHUTDOWN_crash);
 	return NOTIFY_DONE;
 }
 
