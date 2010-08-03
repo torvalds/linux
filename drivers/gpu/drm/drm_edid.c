@@ -712,6 +712,19 @@ cea_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
 }
 
 static void
+vtb_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
+{
+	unsigned int i, n = min((int)ext[0x02], 6);
+	u8 *det_base = ext + 5;
+
+	if (ext[0x01] != 1)
+		return; /* unknown version */
+
+	for (i = 0; i < n; i++)
+		cb((struct detailed_timing *)(det_base + 18 * i), closure);
+}
+
+static void
 drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 {
 	int i;
@@ -728,6 +741,9 @@ drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 		switch (*ext) {
 		case CEA_EXT:
 			cea_for_each_detailed_block(ext, cb, closure);
+			break;
+		case VTB_EXT:
+			vtb_for_each_detailed_block(ext, cb, closure);
 			break;
 		default:
 			break;
