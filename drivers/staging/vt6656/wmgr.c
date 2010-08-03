@@ -2638,8 +2638,9 @@ void vMgrJoinBSSBegin(void *hDeviceContext, PCMD_STATUS pStatus)
 
     if (WLAN_GET_CAP_INFO_ESS(cpu_to_le16(pCurr->wCapInfo))){
 
-        if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA)||(pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK)) {
-/*
+	if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA) ||
+	    (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK)) {
+		/*
             if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
                 if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == FALSE) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No match RSN info. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -4768,7 +4769,8 @@ s_bCipherMatch (
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
         (pBSSNode->bWPA2Valid == TRUE) &&
           //20080123-01,<Add> by Einsn Liu
-        ((EncStatus == Ndis802_11Encryption3Enabled)||(EncStatus == Ndis802_11Encryption2Enabled))) {
+	((EncStatus == Ndis802_11Encryption3Enabled) ||
+	 (EncStatus == Ndis802_11Encryption2Enabled))) {
         //WPA2
         // check Group Key Cipher
         if ((pBSSNode->byCSSGK == WLAN_11i_CSS_WEP40) ||

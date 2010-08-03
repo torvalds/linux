@@ -1598,7 +1598,8 @@ int iwctl_siwauth(struct net_device *dev,
 			pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
 		}else if(pairwise == IW_AUTH_CIPHER_TKIP){
 			pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-		}else if(pairwise == IW_AUTH_CIPHER_WEP40||pairwise == IW_AUTH_CIPHER_WEP104){
+		} else if (pairwise == IW_AUTH_CIPHER_WEP40 ||
+			   pairwise == IW_AUTH_CIPHER_WEP104) {
 			pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 		}else if(pairwise == IW_AUTH_CIPHER_NONE){
 			//do nothing,einsn liu

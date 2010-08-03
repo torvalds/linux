@@ -377,9 +377,9 @@ RXbBulkInProcessData (
         return FALSE;
     }
 
-    if ((BytesToIndicate > 2372)||(BytesToIndicate <= 40)) {
+    if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 2 \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
         return FALSE;
     }
 

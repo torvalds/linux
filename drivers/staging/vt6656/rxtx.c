@@ -841,8 +841,8 @@ s_uFillDataHead (
     }
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-        if((uDMAIdx==TYPE_ATIMDMA)||(uDMAIdx==TYPE_BEACONDMA)) {
-            PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
+	if ((uDMAIdx == TYPE_ATIMDMA) || (uDMAIdx == TYPE_BEACONDMA)) {
+		PSTxDataHead_ab pBuf = (PSTxDataHead_ab) pTxDataHead;
             //Get SignalField,ServiceField,Length
             BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
