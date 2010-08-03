@@ -2378,6 +2378,13 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_mov(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	c->dst.val = c->src.val;
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2489,8 +2496,8 @@ static struct opcode opcode_table[256] = {
 	G(DstMem | SrcImmByte | ModRM | Group, group1),
 	D2bv(DstMem | SrcReg | ModRM), D2bv(DstMem | SrcReg | ModRM | Lock),
 	/* 0x88 - 0x8F */
-	D2bv(DstMem | SrcReg | ModRM | Mov),
-	D2bv(DstReg | SrcMem | ModRM | Mov),
+	I2bv(DstMem | SrcReg | ModRM | Mov, em_mov),
+	I2bv(DstReg | SrcMem | ModRM | Mov, em_mov),
 	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | SrcMem | NoAccess | DstReg),
 	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
 	/* 0x90 - 0x97 */
@@ -2500,24 +2507,25 @@ static struct opcode opcode_table[256] = {
 	I(SrcImmFAddr | No64, em_call_far), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
-	D2bv(DstAcc | SrcMem | Mov | MemAbs),
-	D2bv(DstMem | SrcAcc | Mov | MemAbs),
-	D2bv(SrcSI | DstDI | Mov | String), D2bv(SrcSI | DstDI | String),
+	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
+	I2bv(DstMem | SrcAcc | Mov | MemAbs, em_mov),
+	I2bv(SrcSI | DstDI | Mov | String, em_mov),
+	D2bv(SrcSI | DstDI | String),
 	/* 0xA8 - 0xAF */
 	D2bv(DstAcc | SrcImm),
-	D2bv(SrcAcc | DstDI | Mov | String),
-	D2bv(SrcSI | DstAcc | Mov | String),
+	I2bv(SrcAcc | DstDI | Mov | String, em_mov),
+	I2bv(SrcSI | DstAcc | Mov | String, em_mov),
 	D2bv(SrcAcc | DstDI | String),
 	/* 0xB0 - 0xB7 */
-	X8(D(ByteOp | DstReg | SrcImm | Mov)),
+	X8(I(ByteOp | DstReg | SrcImm | Mov, em_mov)),
 	/* 0xB8 - 0xBF */
-	X8(D(DstReg | SrcImm | Mov)),
+	X8(I(DstReg | SrcImm | Mov, em_mov)),
 	/* 0xC0 - 0xC7 */
 	D2bv(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	D(ImplicitOps | Stack),
 	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
-	D2bv(DstMem | SrcImm | ModRM | Mov),
+	I2bv(DstMem | SrcImm | ModRM | Mov, em_mov),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
 	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
@@ -3212,8 +3220,6 @@ special_insn:
 		c->dst.val = c->src.orig_val;
 		c->lock_prefix = 1;
 		break;
-	case 0x88 ... 0x8b:	/* mov */
-		goto mov;
 	case 0x8c:  /* mov r/m, sreg */
 		if (c->modrm_reg > VCPU_SREG_GS) {
 			emulate_ud(ctxt);
@@ -3271,22 +3277,14 @@ special_insn:
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
-	case 0xa0 ... 0xa3:	/* mov */
-	case 0xa4 ... 0xa5:	/* movs */
-		goto mov;
 	case 0xa6 ... 0xa7:	/* cmps */
 		c->dst.type = OP_NONE; /* Disable writeback. */
 		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.addr.mem, c->dst.addr.mem);
 		goto cmp;
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
-	case 0xaa ... 0xab:	/* stos */
-	case 0xac ... 0xad:	/* lods */
-		goto mov;
 	case 0xae ... 0xaf:	/* scas */
 		goto cmp;
-	case 0xb0 ... 0xbf: /* mov r, imm */
-		goto mov;
 	case 0xc0 ... 0xc1:
 		emulate_grp2(ctxt);
 		break;
@@ -3304,10 +3302,6 @@ special_insn:
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_DS);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
-		break;
-	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
-	mov:
-		c->dst.val = c->src.val;
 		break;
 	case 0xcb:		/* ret far */
 		rc = emulate_ret_far(ctxt, ops);
