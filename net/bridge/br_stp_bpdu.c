@@ -131,7 +131,7 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 /*
  * Called from llc.
  *
- * NO locks, but rcu_read_lock (preempt_disabled)
+ * NO locks, but rcu_read_lock
  */
 void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		struct net_device *dev)
