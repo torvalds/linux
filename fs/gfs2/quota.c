@@ -787,15 +787,9 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		goto out;
 
 	for (x = 0; x < num_qd; x++) {
-		int alloc_required;
-
 		offset = qd2offset(qda[x]);
-		error = gfs2_write_alloc_required(ip, offset,
-						  sizeof(struct gfs2_quota),
-						  &alloc_required);
-		if (error)
-			goto out_gunlock;
-		if (alloc_required)
+		if (gfs2_write_alloc_required(ip, offset,
+					      sizeof(struct gfs2_quota)))
 			nalloc++;
 	}
 
@@ -1584,10 +1578,7 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 		goto out_i;
 
 	offset = qd2offset(qd);
-	error = gfs2_write_alloc_required(ip, offset, sizeof(struct gfs2_quota),
-					  &alloc_required);
-	if (error)
-		goto out_i;
+	alloc_required = gfs2_write_alloc_required(ip, offset, sizeof(struct gfs2_quota));
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
 		if (al == NULL)
