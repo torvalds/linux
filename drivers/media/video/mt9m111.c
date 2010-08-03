@@ -124,7 +124,7 @@
 #define reg_clear(reg, val) mt9m111_reg_clear(client, MT9M111_##reg, (val))
 
 #define MT9M111_MIN_DARK_ROWS	8
-#define MT9M111_MIN_DARK_COLS	24
+#define MT9M111_MIN_DARK_COLS	26
 #define MT9M111_MAX_HEIGHT	1024
 #define MT9M111_MAX_WIDTH	1280
 
