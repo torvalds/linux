@@ -966,8 +966,9 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 	struct rds_ib_recv_work *recv;
 
 	while (ib_poll_cq(ic->i_recv_cq, 1, &wc) > 0) {
-		rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
-			 (unsigned long long)wc.wr_id, wc.status, wc.byte_len,
+		rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
+			 (unsigned long long)wc.wr_id, wc.status,
+			 rds_ib_wc_status_str(wc.status), wc.byte_len,
 			 be32_to_cpu(wc.ex.imm_data));
 		rds_ib_stats_inc(s_ib_rx_cq_event);
 
@@ -985,10 +986,11 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 		} else {
 			/* We expect errors as the qp is drained during shutdown */
 			if (rds_conn_up(conn) || rds_conn_connecting(conn))
-				rds_ib_conn_error(conn, "recv completion on "
-						  "%pI4 had status %u, disconnecting and "
+				rds_ib_conn_error(conn, "recv completion on %pI4 had "
+						  "status %u (%s), disconnecting and "
 						  "reconnecting\n", &conn->c_faddr,
-						  wc.status);
+						  wc.status,
+						  rds_ib_wc_status_str(wc.status));
 		}
 
 		/*
