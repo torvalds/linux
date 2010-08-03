@@ -122,14 +122,14 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm__ __volatile__ (
 		"	move.d %3,%0\n"
 		"5:	move.b [%2+],$acr\n"
-		"1:	beq 2f\n"
+		"1:	beq 6f\n"
 		"	move.b $acr,[%1+]\n"
 
 		"	subq 1,%0\n"
 		"2:	bne 1b\n"
 		"	move.b [%2+],$acr\n"
 
-		"	sub.d %3,%0\n"
+		"6:	sub.d %3,%0\n"
 		"	neg.d %0,%0\n"
 		"3:\n"
 		"	.section .fixup,\"ax\"\n"
@@ -140,8 +140,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		/* The address for a fault at the first move is trivial.
 		   The address for a fault at the second move is that of
 		   the preceding branch insn, since the move insn is in
-		   its delay-slot.  That address is also a branch
-		   target.  Just so you don't get confused...  */
+		   its delay-slot.  Just so you don't get confused...  */
 		"	.previous\n"
 		"	.section __ex_table,\"a\"\n"
 		"	.dword 5b,4b\n"
