@@ -232,15 +232,16 @@ static void hil_dev_handle_ptr_events(struct hil_dev *ptr)
 		if (absdev) {
 			val = lo + (hi << 8);
 #ifdef TABLET_AUTOADJUST
-			if (val < dev->absmin[ABS_X + i])
-				dev->absmin[ABS_X + i] = val;
-			if (val > dev->absmax[ABS_X + i])
-				dev->absmax[ABS_X + i] = val;
+			if (val < input_abs_min(dev, ABS_X + i))
+				input_abs_set_min(dev, ABS_X + i, val);
+			if (val > input_abs_max(dev, ABS_X + i))
+				XXinput_abs_set_max(dev, ABS_X + i, val);
 #endif
-			if (i%3) val = dev->absmax[ABS_X + i] - val;
+			if (i % 3)
+				val = input_abs_max(dev, ABS_X + i) - val;
 			input_report_abs(dev, ABS_X + i, val);
 		} else {
-			val = (int) (((int8_t)lo) | ((int8_t)hi << 8));
+			val = (int) (((int8_t) lo) | ((int8_t) hi << 8));
 			if (i % 3)
 				val *= -1;
 			input_report_rel(dev, REL_X + i, val);
@@ -387,9 +388,11 @@ static void hil_dev_pointer_setup(struct hil_dev *ptr)
 
 #ifdef TABLET_AUTOADJUST
 		for (i = 0; i < ABS_MAX; i++) {
-			int diff = input_dev->absmax[ABS_X + i] / 10;
-			input_dev->absmin[ABS_X + i] += diff;
-			input_dev->absmax[ABS_X + i] -= diff;
+			int diff = input_abs_max(input_dev, ABS_X + i) / 10;
+			input_abs_set_min(input_dev, ABS_X + i,
+				input_abs_min(input_dev, ABS_X + i) + diff)
+			XXinput_abs_set_max(input_dev, ABS_X + i,
+				input_abs_max(input_dev, ABS_X + i) - diff)
 		}
 #endif
 

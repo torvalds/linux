@@ -650,12 +650,12 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 				t = _IOC_NR(cmd) & ABS_MAX;
 
-				abs.value = dev->abs[t];
-				abs.minimum = dev->absmin[t];
-				abs.maximum = dev->absmax[t];
-				abs.fuzz = dev->absfuzz[t];
-				abs.flat = dev->absflat[t];
-				abs.resolution = dev->absres[t];
+				abs.value = input_abs_get_val(dev, t);
+				abs.minimum = input_abs_get_min(dev, t);
+				abs.maximum = input_abs_get_max(dev, t);
+				abs.fuzz = input_abs_get_fuzz(dev, t);
+				abs.flat = input_abs_get_flat(dev, t);
+				abs.resolution = input_abs_get_res(dev, t);
 
 				if (copy_to_user(p, &abs, min_t(size_t,
 								_IOC_SIZE(cmd),
@@ -702,13 +702,13 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 				 */
 				spin_lock_irq(&dev->event_lock);
 
-				dev->abs[t] = abs.value;
-				dev->absmin[t] = abs.minimum;
-				dev->absmax[t] = abs.maximum;
-				dev->absfuzz[t] = abs.fuzz;
-				dev->absflat[t] = abs.flat;
-				dev->absres[t] = _IOC_SIZE(cmd) < sizeof(struct input_absinfo) ?
-							0 : abs.resolution;
+				input_abs_set_val(dev, t, abs.value);
+				input_abs_set_min(dev, t, abs.minimum);
+				input_abs_set_max(dev, t, abs.maximum);
+				input_abs_set_fuzz(dev, t, abs.fuzz);
+				input_abs_set_flat(dev, t, abs.flat);
+				input_abs_set_res(dev, t, _IOC_SIZE(cmd) < sizeof(struct input_absinfo) ?
+								0 : abs.resolution);
 
 				spin_unlock_irq(&dev->event_lock);
 

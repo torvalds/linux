@@ -686,10 +686,10 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
 	 * protocol.
 	 */
 	if (wacom->last_finger != finger) {
-		if (x == input->abs[ABS_X])
+		if (x == input_abs_get_val(input, ABS_X))
 			x++;
 
-		if (y == input->abs[ABS_Y])
+		if (y == input_abs_get_val(input, ABS_Y))
 			y++;
 	}
 

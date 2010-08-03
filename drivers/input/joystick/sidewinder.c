@@ -761,17 +761,21 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 		for (j = 0; (bits = sw_bit[sw->type][j]); j++) {
+			int min, max, fuzz, flat;
+
 			code = sw_abs[sw->type][j];
-			set_bit(code, input_dev->absbit);
-			input_dev->absmax[code] = (1 << bits) - 1;
-			input_dev->absmin[code] = (bits == 1) ? -1 : 0;
-			input_dev->absfuzz[code] = ((bits >> 1) >= 2) ? (1 << ((bits >> 1) - 2)) : 0;
-			if (code != ABS_THROTTLE)
-				input_dev->absflat[code] = (bits >= 5) ? (1 << (bits - 5)) : 0;
+			min = bits == 1 ? -1 : 0;
+			max = (1 << bits) - 1;
+			fuzz = (bits >> 1) >= 2 ? 1 << ((bits >> 1) - 2) : 0;
+			flat = code == ABS_THROTTLE || bits < 5 ?
+				0 : 1 << (bits - 5);
+
+			input_set_abs_params(input_dev, code,
+					     min, max, fuzz, flat);
 		}
 
 		for (j = 0; (code = sw_btn[sw->type][j]); j++)
-			set_bit(code, input_dev->keybit);
+			__set_bit(code, input_dev->keybit);
 
 		dbg("%s%s [%d-bit id %d data %d]\n", sw->name, comment, m, l, k);
 

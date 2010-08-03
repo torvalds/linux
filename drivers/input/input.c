@@ -204,8 +204,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	/* Flush pending "slot" event */
-	if (is_mt_event && dev->slot != dev->abs[ABS_MT_SLOT]) {
-		dev->abs[ABS_MT_SLOT] = dev->slot;
+	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
+		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
 		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
