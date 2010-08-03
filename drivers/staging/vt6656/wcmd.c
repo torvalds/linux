@@ -500,7 +500,7 @@ void vRunCommand(void *hDeviceContext)
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
             pMgmt->eScanState = WMAC_NO_SCANNING;
             pDevice->bStopDataPkt = FALSE;
-//2008-0409-07, <Add> by Einsn Liu
+
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	if(pMgmt->eScanType == WMAC_SCAN_PASSIVE)
 		{
@@ -876,7 +876,7 @@ void vRunCommand(void *hDeviceContext)
        //         CARDbRadioPowerOn(pDevice);
        //     else
        //         CARDbRadioPowerOff(pDevice);
-       //2008-09-09<Add> BY Mike:Hot Key for Radio On/Off
+
        {
 	       int ntStatus = STATUS_SUCCESS;
         BYTE            byTmp;

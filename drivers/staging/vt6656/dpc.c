@@ -865,7 +865,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-		//2008-0409-07, <Add> by Einsn Liu
        #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)

@@ -713,11 +713,11 @@ typedef struct __device_info {
     BOOL                    bCmdClear;
     BOOL                    bNeedRadioOFF;
 
-    BOOL                    bEnableRoaming;  //DavidWang
-    BOOL                    bIsRoaming;  //DavidWang
-    BOOL                    bFastRoaming;  //DavidWang
-    BYTE                    bSameBSSMaxNum;  //Davidwang
-    BYTE                    bSameBSSCurNum;  //DavidWang
+    BOOL                    bEnableRoaming;
+    BOOL                    bIsRoaming;
+    BOOL                    bFastRoaming;
+    BYTE                    bSameBSSMaxNum;
+    BYTE                    bSameBSSCurNum;
     BOOL                    bRoaming;
     BOOL                    b11hEable;
     unsigned long                   ulTxPower;
@@ -726,7 +726,6 @@ typedef struct __device_info {
     NDIS_802_11_WEP_STATUS  eEncryptionStatus;
     BOOL                    bTransmitKey;
 
-//2007-0925-01<Add>by MikeLiu
 //mike add :save old Encryption
     NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
 

@@ -92,7 +92,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
 /*---------------------  Static Functions  --------------------------*/
-//2008-0730-01<Add>by MikeLiu
+
 static BOOL ChannelExceedZoneType(
      PSDevice pDevice,
      BYTE byCurrChannel
@@ -997,7 +997,7 @@ s_vMgrRxAssocResponse(
                 netif_rx(pDevice->skb);
                 pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
             }
-//2008-0409-07, <Add> by Einsn Liu
+
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPASuppWextEnabled == TRUE)
 	   {
@@ -1038,7 +1038,7 @@ s_vMgrRxAssocResponse(
 
 	}
 #endif //#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-//End Add -- //2008-0409-07, <Add> by Einsn Liu
+
         }
         else {
             if (bReAssocType) {
@@ -1745,7 +1745,6 @@ s_vMgrRxDeauthentication(
     return;
 }
 
-//2008-0730-01<Add>by MikeLiu
 /*+
  *
  * Routine Description:
@@ -1868,7 +1867,6 @@ s_vMgrRxBeacon(
         }
     }
 
-//2008-0730-01<Add>by MikeLiu
 if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
       return;
 
@@ -4240,7 +4238,6 @@ s_vMgrRxProbeResponse(
     }
     //RobertYu:20050201
 
-//2008-0730-01<Add>by MikeLiu
 if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
       return;
 
@@ -4768,7 +4765,7 @@ s_bCipherMatch (
 
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
         (pBSSNode->bWPA2Valid == TRUE) &&
-          //20080123-01,<Add> by Einsn Liu
+
 	((EncStatus == Ndis802_11Encryption3Enabled) ||
 	 (EncStatus == Ndis802_11Encryption2Enabled))) {
         //WPA2

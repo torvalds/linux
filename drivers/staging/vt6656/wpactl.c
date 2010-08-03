@@ -515,7 +515,6 @@ static int wpa_set_scan(PSDevice pDevice,
 {
 	int ret = 0;
 
-//2007-0919-01<Add>by MikeLiu
 /**set ap_scan=1&&scan_ssid=1 under hidden ssid mode**/
         PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
         PWLAN_IE_SSID       pItemSSID;
@@ -695,7 +694,7 @@ static int wpa_get_scan(PSDevice pDevice,
    		    scan_buf->ssid_len = pItemSSID->len;
             scan_buf->freq = frequency_list[pBSS->uChannel-1];
             scan_buf->caps = pBSS->wCapInfo;    //DavidWang for sharemode
-//20080717-05,<Add> by James Li
+
 	        RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
 			if(-ldBm<50){
 				scan_buf->qual = 100;
@@ -710,7 +709,7 @@ static int wpa_get_scan(PSDevice pDevice,
             //scan_buf->qual =
             scan_buf->noise = 0;
             scan_buf->level = ldBm;
- //20080717-05,<Add> by James Li--End
+
             //scan_buf->maxrate =
             if (pBSS->wWPALen != 0) {
                 scan_buf->wpa_ie_len = pBSS->wWPALen;
@@ -873,7 +872,6 @@ static int wpa_set_associate(PSDevice pDevice,
     pMgmt->eCurrState = WMAC_STATE_IDLE;
     netif_stop_queue(pDevice->dev);
 
-//20080701-02,<Add> by Mike Liu
 /*******search if ap_scan=2 ,which is associating request in hidden ssid mode ****/
 {
    PKnownBSS       pCurr = NULL;

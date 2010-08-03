@@ -148,7 +148,6 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
         for (ii = 0; ii <MAX_BSS_NUM; ii++) {
             pCurrBSS = &(pMgmt->sBSSList[ii]);
 
-	//2008-0718-01<Add>by MikeLiu
 	   pCurrBSS->bSelected = FALSE;
 
             if ((pCurrBSS->bActive) &&
@@ -188,7 +187,6 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
          //   if ((pCurrBSS->bActive) &&
          //       (pCurrBSS->bSelected == FALSE)) {
 
-	//2007-0721-01<Add>by MikeLiu
 	  pCurrBSS->bSelected = FALSE;
           if (pCurrBSS->bActive) {
 
@@ -238,12 +236,12 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
                     }
                 }
 */
-//DavidWang
+
         pMgmt->pSameBSS[jj].uChannel = pCurrBSS->uChannel;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList pSelect1[%02X %02X %02X-%02X %02X %02X]\n",*pCurrBSS->abyBSSID,*(pCurrBSS->abyBSSID+1),*(pCurrBSS->abyBSSID+2),*(pCurrBSS->abyBSSID+3),*(pCurrBSS->abyBSSID+4),*(pCurrBSS->abyBSSID+5));
         jj++;
 
-//DavidWang
+
                 if (pSelect == NULL) {
                     pSelect = pCurrBSS;
                 } else {
@@ -254,9 +252,9 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
                 }
             }
         }
-//DavidWang
+
 pDevice->bSameBSSMaxNum = jj;
-//DavidWang
+
         if (pSelect != NULL) {
             pSelect->bSelected = TRUE;
                         if (pDevice->bRoaming == FALSE)  {
@@ -956,7 +954,7 @@ void BSSvSecondCallBack(void *hDeviceContext)
     unsigned int            uSleepySTACnt = 0;
     unsigned int            uNonShortSlotSTACnt = 0;
     unsigned int            uLongPreambleSTACnt = 0;
-    viawget_wpa_header *wpahdr;  //DavidWang
+    viawget_wpa_header *wpahdr;
 
     spin_lock_irq(&pDevice->lock);
 
@@ -1180,7 +1178,7 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
                 pDevice->bIsRoaming = FALSE;
 
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
-	//let wpa supplicant know AP may disconnect.//20080717-01,<Add> by James Li
+		/* let wpa supplicant know AP may disconnect */
         if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
              wpahdr = (viawget_wpa_header *)pDevice->skb->data;
              wpahdr->type = VIAWGET_DISASSOC_MSG;
