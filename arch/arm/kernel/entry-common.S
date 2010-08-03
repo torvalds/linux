@@ -94,73 +94,73 @@ ENDPROC(ret_from_fork)
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
-	stmdb sp!, {r0-r3, lr}
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
+	stmdb	sp!, {r0-r3, lr}
+	mov	r0, lr
+	sub	r0, r0, #MCOUNT_INSN_SIZE
 
 	.globl mcount_call
 mcount_call:
-	bl ftrace_stub
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+	bl	ftrace_stub
+	ldr	lr, [fp, #-4]			@ restore lr
+	ldmia	sp!, {r0-r3, pc}
 
 ENTRY(ftrace_caller)
-	stmdb sp!, {r0-r3, lr}
-	ldr r1, [fp, #-4]
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
+	stmdb	sp!, {r0-r3, lr}
+	ldr	r1, [fp, #-4]
+	mov	r0, lr
+	sub	r0, r0, #MCOUNT_INSN_SIZE
 
 	.globl ftrace_call
 ftrace_call:
-	bl ftrace_stub
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+	bl	ftrace_stub
+	ldr	lr, [fp, #-4]			@ restore lr
+	ldmia	sp!, {r0-r3, pc}
 
 #else
 
 ENTRY(__gnu_mcount_nc)
-	stmdb sp!, {r0-r3, lr}
-	ldr r0, =ftrace_trace_function
-	ldr r2, [r0]
-	adr r0, ftrace_stub
-	cmp r0, r2
-	bne gnu_trace
-	ldmia sp!, {r0-r3, ip, lr}
-	mov pc, ip
+	stmdb	sp!, {r0-r3, lr}
+	ldr	r0, =ftrace_trace_function
+	ldr	r2, [r0]
+	adr	r0, ftrace_stub
+	cmp	r0, r2
+	bne	gnu_trace
+	ldmia	sp!, {r0-r3, ip, lr}
+	mov	pc, ip
 
 gnu_trace:
-	ldr r1, [sp, #20]			@ lr of instrumented routine
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-	mov lr, pc
-	mov pc, r2
-	ldmia sp!, {r0-r3, ip, lr}
-	mov pc, ip
+	ldr	r1, [sp, #20]			@ lr of instrumented routine
+	mov	r0, lr
+	sub	r0, r0, #MCOUNT_INSN_SIZE
+	mov	lr, pc
+	mov	pc, r2
+	ldmia	sp!, {r0-r3, ip, lr}
+	mov	pc, ip
 
 ENTRY(mcount)
-	stmdb sp!, {r0-r3, lr}
-	ldr r0, =ftrace_trace_function
-	ldr r2, [r0]
-	adr r0, ftrace_stub
-	cmp r0, r2
-	bne trace
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+	stmdb	sp!, {r0-r3, lr}
+	ldr	r0, =ftrace_trace_function
+	ldr	r2, [r0]
+	adr	r0, ftrace_stub
+	cmp	r0, r2
+	bne	trace
+	ldr	lr, [fp, #-4]			@ restore lr
+	ldmia	sp!, {r0-r3, pc}
 
 trace:
-	ldr r1, [fp, #-4]			@ lr of instrumented routine
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-	mov lr, pc
-	mov pc, r2
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+	ldr	r1, [fp, #-4]			@ lr of instrumented routine
+	mov	r0, lr
+	sub	r0, r0, #MCOUNT_INSN_SIZE
+	mov	lr, pc
+	mov	pc, r2
+	ldr	lr, [fp, #-4]			@ restore lr
+	ldmia	sp!, {r0-r3, pc}
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 	.globl ftrace_stub
 ftrace_stub:
-	mov pc, lr
+	mov	pc, lr
 
 #endif /* CONFIG_FUNCTION_TRACER */
 
