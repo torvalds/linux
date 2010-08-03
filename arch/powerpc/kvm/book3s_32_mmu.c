@@ -88,9 +88,9 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid);
 
-static u32 find_sr(struct kvmppc_vcpu_book3s *vcpu_book3s, gva_t eaddr)
+static u32 find_sr(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
-	return vcpu_book3s->sr[(eaddr >> 28) & 0xf];
+	return vcpu->arch.shared->sr[(eaddr >> 28) & 0xf];
 }
 
 static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
@@ -211,7 +211,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	int i;
 	int found = 0;
 
-	sre = find_sr(vcpu_book3s, eaddr);
+	sre = find_sr(vcpu, eaddr);
 
 	dprintk_pte("SR 0x%lx: vsid=0x%x, raw=0x%x\n", eaddr >> 28,
 		    sr_vsid(sre), sre);
@@ -335,13 +335,13 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 static u32 kvmppc_mmu_book3s_32_mfsrin(struct kvm_vcpu *vcpu, u32 srnum)
 {
-	return to_book3s(vcpu)->sr[srnum];
+	return vcpu->arch.shared->sr[srnum];
 }
 
 static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 					ulong value)
 {
-	to_book3s(vcpu)->sr[srnum] = value;
+	vcpu->arch.shared->sr[srnum] = value;
 	kvmppc_mmu_map_segment(vcpu, srnum << SID_SHIFT);
 }
 
@@ -358,7 +358,7 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	u64 gvsid = esid;
 
 	if (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
-		sr = find_sr(to_book3s(vcpu), ea);
+		sr = find_sr(vcpu, ea);
 		if (sr_valid(sr))
 			gvsid = sr_vsid(sr);
 	}
