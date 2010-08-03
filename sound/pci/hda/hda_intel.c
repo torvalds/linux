@@ -1961,7 +1961,7 @@ static void azx_irq_pending_work(struct work_struct *work)
 		spin_unlock_irq(&chip->reg_lock);
 		if (!pending)
 			return;
-		cond_resched();
+		msleep(1);
 	}
 }
 
