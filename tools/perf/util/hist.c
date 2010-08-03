@@ -93,6 +93,8 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 	if (self != NULL) {
 		*self = *template;
 		self->nr_events = 1;
+		if (self->ms.map)
+			self->ms.map->referenced = true;
 		if (symbol_conf.use_callchain)
 			callchain_init(self->callchain);
 	}

@@ -79,6 +79,12 @@ int perf_session__create_kernel_maps(struct perf_session *self)
 	return ret;
 }
 
+static void perf_session__destroy_kernel_maps(struct perf_session *self)
+{
+	machine__destroy_kernel_maps(&self->host_machine);
+	machines__destroy_guest_kernel_maps(&self->machines);
+}
+
 struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
@@ -150,6 +156,7 @@ static void perf_session__delete_threads(struct perf_session *self)
 void perf_session__delete(struct perf_session *self)
 {
 	perf_header__exit(&self->header);
+	perf_session__destroy_kernel_maps(self);
 	perf_session__delete_dead_threads(self);
 	perf_session__delete_threads(self);
 	machine__exit(&self->host_machine);
@@ -159,6 +166,7 @@ void perf_session__delete(struct perf_session *self)
 
 void perf_session__remove_thread(struct perf_session *self, struct thread *th)
 {
+	self->last_match = NULL;
 	rb_erase(&th->rb_node, &self->threads);
 	/*
 	 * We may have references to this thread, for instance in some hist_entry
