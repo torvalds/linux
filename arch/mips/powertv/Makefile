@@ -26,4 +26,6 @@
 obj-y += init.o ioremap.o memory.o powertv_setup.o reset.o time.o \
 	asic/ pci/
 
+obj-$(CONFIG_USB) += powertv-usb.o
+
 EXTRA_CFLAGS += -Wall

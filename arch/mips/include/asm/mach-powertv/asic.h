@@ -20,6 +20,7 @@
 #define _ASM_MACH_POWERTV_ASIC_H
 
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <asm/mach-powertv/asic_regs.h>
 
 #define DVR_CAPABLE     (1<<0)
@@ -71,15 +72,23 @@ extern int platform_supports_ffs(void);
 extern int platform_supports_pcie(void);
 extern int platform_supports_display(void);
 extern void configure_platform(void);
-extern void platform_configure_usb_ehci(void);
-extern void platform_unconfigure_usb_ehci(void);
-extern void platform_configure_usb_ohci(void);
-extern void platform_unconfigure_usb_ohci(void);
 
 /* Platform Resources */
 #define ASIC_RESOURCE_GET_EXISTS 1
 extern struct resource *asic_resource_get(const char *name);
 extern void platform_release_memory(void *baddr, int size);
+
+/* USB configuration */
+struct usb_hcd;			/* Forward reference */
+extern void platform_configure_usb_ehci(void);
+extern void platform_unconfigure_usb_ehci(void);
+extern void platform_configure_usb_ohci(void);
+extern void platform_unconfigure_usb_ohci(void);
+
+/* Resource for ASIC registers */
+extern struct resource asic_resource;
+extern int platform_usb_devices_init(struct platform_device **echi_dev,
+	struct platform_device **ohci_dev);
 
 /* Reboot Cause */
 extern void set_reboot_cause(char code, unsigned int data, unsigned int data2);

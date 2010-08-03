@@ -101,6 +101,7 @@ static inline void register_map_virtualize(struct register_map *map)
 }
 
 extern struct register_map _asic_register_map;
+extern unsigned long asic_phy_base;
 
 /*
  * Macros to interface to registers through their ioremapped address
