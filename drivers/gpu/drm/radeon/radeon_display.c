@@ -1073,11 +1073,13 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_encoder *radeon_encoder;
 	bool first = true;
+	u32 src_v = 1, dst_v = 1;
+	u32 src_h = 1, dst_h = 1;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		radeon_encoder = to_radeon_encoder(encoder);
 		if (encoder->crtc != crtc)
 			continue;
+		radeon_encoder = to_radeon_encoder(encoder);
 		if (first) {
 			/* set scaling */
 			if (radeon_encoder->rmx_type == RMX_OFF)
@@ -1087,6 +1089,10 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				radeon_crtc->rmx_type = radeon_encoder->rmx_type;
 			else
 				radeon_crtc->rmx_type = RMX_OFF;
+			src_v = crtc->mode.vdisplay;
+			dst_v = radeon_crtc->native_mode.vdisplay;
+			src_h = crtc->mode.hdisplay;
+			dst_h = radeon_crtc->native_mode.vdisplay;
 			/* copy native mode */
 			memcpy(&radeon_crtc->native_mode,
 			       &radeon_encoder->native_mode,
@@ -1096,22 +1102,22 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
 				/* WARNING: Right now this can't happen but
 				 * in the future we need to check that scaling
-				 * are consistent accross different encoder
+				 * are consistent across different encoder
 				 * (ie all encoder can work with the same
 				 *  scaling).
 				 */
-				DRM_ERROR("Scaling not consistent accross encoder.\n");
+				DRM_ERROR("Scaling not consistent across encoder.\n");
 				return false;
 			}
 		}
 	}
 	if (radeon_crtc->rmx_type != RMX_OFF) {
 		fixed20_12 a, b;
-		a.full = dfixed_const(crtc->mode.vdisplay);
-		b.full = dfixed_const(radeon_crtc->native_mode.hdisplay);
+		a.full = dfixed_const(src_v);
+		b.full = dfixed_const(dst_v);
 		radeon_crtc->vsc.full = dfixed_div(a, b);
-		a.full = dfixed_const(crtc->mode.hdisplay);
-		b.full = dfixed_const(radeon_crtc->native_mode.vdisplay);
+		a.full = dfixed_const(src_h);
+		b.full = dfixed_const(dst_h);
 		radeon_crtc->hsc.full = dfixed_div(a, b);
 	} else {
 		radeon_crtc->vsc.full = dfixed_const(1);
