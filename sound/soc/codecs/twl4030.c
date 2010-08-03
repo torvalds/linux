@@ -577,36 +577,6 @@ static const struct snd_kcontrol_new twl4030_dapm_dbypassv_control =
 			TWL4030_REG_VSTPGA, 0, 0x29, 0,
 			twl4030_dapm_dbypassv_tlv);
 
-static int micpath_event(struct snd_soc_dapm_widget *w,
-	struct snd_kcontrol *kcontrol, int event)
-{
-	struct soc_enum *e = (struct soc_enum *)w->kcontrols->private_value;
-	unsigned char adcmicsel, micbias_ctl;
-
-	adcmicsel = twl4030_read_reg_cache(w->codec, TWL4030_REG_ADCMICSEL);
-	micbias_ctl = twl4030_read_reg_cache(w->codec, TWL4030_REG_MICBIAS_CTL);
-	/* Prepare the bits for the given TX path:
-	 * shift_l == 0: TX1 microphone path
-	 * shift_l == 2: TX2 microphone path */
-	if (e->shift_l) {
-		/* TX2 microphone path */
-		if (adcmicsel & TWL4030_TX2IN_SEL)
-			micbias_ctl |= TWL4030_MICBIAS2_CTL; /* digimic */
-		else
-			micbias_ctl &= ~TWL4030_MICBIAS2_CTL;
-	} else {
-		/* TX1 microphone path */
-		if (adcmicsel & TWL4030_TX1IN_SEL)
-			micbias_ctl |= TWL4030_MICBIAS1_CTL; /* digimic */
-		else
-			micbias_ctl &= ~TWL4030_MICBIAS1_CTL;
-	}
-
-	twl4030_write(w->codec, TWL4030_REG_MICBIAS_CTL, micbias_ctl);
-
-	return 0;
-}
-
 /*
  * Output PGA builder:
  * Handle the muting and unmuting of the given output (turning off the
@@ -1430,12 +1400,10 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	/* Analog/Digital mic path selection.
 	   TX1 Left/Right: either analog Left/Right or Digimic0
 	   TX2 Left/Right: either analog Left/Right or Digimic1 */
-	SND_SOC_DAPM_MUX_E("TX1 Capture Route", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_micpathtx1_control, micpath_event,
-		SND_SOC_DAPM_POST_REG),
-	SND_SOC_DAPM_MUX_E("TX2 Capture Route", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_micpathtx2_control, micpath_event,
-		SND_SOC_DAPM_POST_REG),
+	SND_SOC_DAPM_MUX("TX1 Capture Route", SND_SOC_NOPM, 0, 0,
+		&twl4030_dapm_micpathtx1_control),
+	SND_SOC_DAPM_MUX("TX2 Capture Route", SND_SOC_NOPM, 0, 0,
+		&twl4030_dapm_micpathtx2_control),
 
 	/* Analog input mixers for the capture amplifiers */
 	SND_SOC_DAPM_MIXER("Analog Left",
@@ -1458,6 +1426,11 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("Digimic1 Enable",
 		TWL4030_REG_ADCMICSEL, 3, 0, NULL, 0,
 		digimic_event, SND_SOC_DAPM_POST_PMU),
+
+	SND_SOC_DAPM_SUPPLY("micbias1 select", TWL4030_REG_MICBIAS_CTL, 5, 0,
+			    NULL, 0),
+	SND_SOC_DAPM_SUPPLY("micbias2 select", TWL4030_REG_MICBIAS_CTL, 6, 0,
+			    NULL, 0),
 
 	SND_SOC_DAPM_MICBIAS("Mic Bias 1", TWL4030_REG_MICBIAS_CTL, 0, 0),
 	SND_SOC_DAPM_MICBIAS("Mic Bias 2", TWL4030_REG_MICBIAS_CTL, 1, 0),
@@ -1589,6 +1562,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"Digimic0 Enable", NULL, "DIGIMIC0"},
 	{"Digimic1 Enable", NULL, "DIGIMIC1"},
+
+	{"DIGIMIC0", NULL, "micbias1 select"},
+	{"DIGIMIC1", NULL, "micbias2 select"},
 
 	/* TX1 Left capture path */
 	{"TX1 Capture Route", "Analog", "ADC Physical Left"},
