@@ -685,6 +685,33 @@ EXPORT_SYMBOL(drm_mode_find_dmt);
 typedef void detailed_cb(struct detailed_timing *timing, void *closure);
 
 static void
+cea_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
+{
+	int i, n = 0;
+	u8 rev = ext[0x01], d = ext[0x02];
+	u8 *det_base = ext + d;
+
+	switch (rev) {
+	case 0:
+		/* can't happen */
+		return;
+	case 1:
+		/* have to infer how many blocks we have, check pixel clock */
+		for (i = 0; i < 6; i++)
+			if (det_base[18*i] || det_base[18*i+1])
+				n++;
+		break;
+	default:
+		/* explicit count */
+		n = min(ext[0x03] & 0x0f, 6);
+		break;
+	}
+
+	for (i = 0; i < n; i++)
+		cb((struct detailed_timing *)(det_base + 18 * i), closure);
+}
+
+static void
 drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 {
 	int i;
@@ -696,7 +723,16 @@ drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
 		cb(&(edid->detailed_timings[i]), closure);
 
-	/* XXX extension block walk */
+	for (i = 1; i <= raw_edid[0x7e]; i++) {
+		u8 *ext = raw_edid + (i * EDID_LENGTH);
+		switch (*ext) {
+		case CEA_EXT:
+			cea_for_each_detailed_block(ext, cb, closure);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void
