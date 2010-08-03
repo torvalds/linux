@@ -47,6 +47,8 @@ struct kvm_vcpu_arch_shared {
 
 #define KVM_FEATURE_MAGIC_PAGE	1
 
+#define KVM_MAGIC_FEAT_SR	(1 << 0)
+
 #ifdef __KERNEL__
 
 #ifdef CONFIG_KVM_GUEST

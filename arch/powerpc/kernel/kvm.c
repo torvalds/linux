@@ -266,12 +266,20 @@ static void kvm_patch_ins_wrteei(u32 *inst)
 
 static void kvm_map_magic_page(void *data)
 {
-	kvm_hypercall2(KVM_HC_PPC_MAP_MAGIC_PAGE,
-		       KVM_MAGIC_PAGE,  /* Physical Address */
-		       KVM_MAGIC_PAGE); /* Effective Address */
+	u32 *features = data;
+
+	ulong in[8];
+	ulong out[8];
+
+	in[0] = KVM_MAGIC_PAGE;
+	in[1] = KVM_MAGIC_PAGE;
+
+	kvm_hypercall(in, out, HC_VENDOR_KVM | KVM_HC_PPC_MAP_MAGIC_PAGE);
+
+	*features = out[0];
 }
 
-static void kvm_check_ins(u32 *inst)
+static void kvm_check_ins(u32 *inst, u32 features)
 {
 	u32 _inst = *inst;
 	u32 inst_no_rt = _inst & ~KVM_MASK_RT;
@@ -367,9 +375,10 @@ static void kvm_use_magic_page(void)
 	u32 *p;
 	u32 *start, *end;
 	u32 tmp;
+	u32 features;
 
 	/* Tell the host to map the magic page to -4096 on all CPUs */
-	on_each_cpu(kvm_map_magic_page, NULL, 1);
+	on_each_cpu(kvm_map_magic_page, &features, 1);
 
 	/* Quick self-test to see if the mapping works */
 	if (__get_user(tmp, (u32*)KVM_MAGIC_PAGE)) {
@@ -382,7 +391,7 @@ static void kvm_use_magic_page(void)
 	end = (void*)_etext;
 
 	for (p = start; p < end; p++)
-		kvm_check_ins(p);
+		kvm_check_ins(p, features);
 
 	printk(KERN_INFO "KVM: Live patching for a fast VM %s\n",
 			 kvm_patching_worked ? "worked" : "failed");

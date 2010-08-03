@@ -66,6 +66,8 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		vcpu->arch.magic_page_pa = param1;
 		vcpu->arch.magic_page_ea = param2;
 
+		r2 = 0;
+
 		r = HC_EV_SUCCESS;
 		break;
 	}
@@ -76,12 +78,13 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 #endif
 
 		/* Second return value is in r4 */
-		kvmppc_set_gpr(vcpu, 4, r2);
 		break;
 	default:
 		r = HC_EV_UNIMPLEMENTED;
 		break;
 	}
+
+	kvmppc_set_gpr(vcpu, 4, r2);
 
 	return r;
 }
