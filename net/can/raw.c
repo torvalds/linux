@@ -650,6 +650,10 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 	err = sock_tx_timestamp(msg, sk, skb_tx(skb));
 	if (err < 0)
 		goto free_skb;
+
+	/* to be able to check the received tx sock reference in raw_rcv() */
+	skb_tx(skb)->prevent_sk_orphan = 1;
+
 	skb->dev = dev;
 	skb->sk  = sk;
 
