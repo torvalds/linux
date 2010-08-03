@@ -20,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
+#include <linux/firmware.h>
 #include "bnx2x_cmn.h"
 
 #ifdef BCM_VLAN
@@ -1206,11 +1207,26 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 	return rc;
 }
 
+static void bnx2x_release_firmware(struct bnx2x *bp)
+{
+	kfree(bp->init_ops_offsets);
+	kfree(bp->init_ops);
+	kfree(bp->init_data);
+	release_firmware(bp->firmware);
+}
+
 /* must be called with rtnl_lock */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 {
 	u32 load_code;
 	int i, rc;
+
+	/* Set init arrays */
+	rc = bnx2x_init_firmware(bp);
+	if (rc) {
+		BNX2X_ERR("Error loading firmware\n");
+		return rc;
+	}
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -1427,6 +1443,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 #endif
 	bnx2x_inc_load_cnt(bp);
 
+	bnx2x_release_firmware(bp);
+
 	return 0;
 
 #ifdef BCM_CNIC
@@ -1453,6 +1471,8 @@ load_error1:
 	for_each_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
+
+	bnx2x_release_firmware(bp);
 
 	return rc;
 }

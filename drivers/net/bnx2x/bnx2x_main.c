@@ -7254,7 +7254,7 @@ static void __devinit bnx2x_get_pcie_width_speed(struct bnx2x *bp,
 	*speed = (val & PCICFG_LINK_SPEED) >> PCICFG_LINK_SPEED_SHIFT;
 }
 
-static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
+static int bnx2x_check_firmware(struct bnx2x *bp)
 {
 	const struct firmware *firmware = bp->firmware;
 	struct bnx2x_fw_file_hdr *fw_hdr;
@@ -7365,7 +7365,7 @@ do {									\
 	     (u8 *)bp->arr, len);					\
 } while (0)
 
-static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
+int bnx2x_init_firmware(struct bnx2x *bp)
 {
 	const char *fw_file_name;
 	struct bnx2x_fw_file_hdr *fw_hdr;
@@ -7376,21 +7376,21 @@ static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 	else if (CHIP_IS_E1H(bp))
 		fw_file_name = FW_FILE_NAME_E1H;
 	else {
-		dev_err(dev, "Unsupported chip revision\n");
+		BNX2X_ERR("Unsupported chip revision\n");
 		return -EINVAL;
 	}
 
-	dev_info(dev, "Loading %s\n", fw_file_name);
+	BNX2X_DEV_INFO("Loading %s\n", fw_file_name);
 
-	rc = request_firmware(&bp->firmware, fw_file_name, dev);
+	rc = request_firmware(&bp->firmware, fw_file_name, &bp->pdev->dev);
 	if (rc) {
-		dev_err(dev, "Can't load firmware file %s\n", fw_file_name);
+		BNX2X_ERR("Can't load firmware file %s\n", fw_file_name);
 		goto request_firmware_exit;
 	}
 
 	rc = bnx2x_check_firmware(bp);
 	if (rc) {
-		dev_err(dev, "Corrupt firmware file %s\n", fw_file_name);
+		BNX2X_ERR("Corrupt firmware file %s\n", fw_file_name);
 		goto request_firmware_exit;
 	}
 
@@ -7468,13 +7468,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto init_one_exit;
 
-	/* Set init arrays */
-	rc = bnx2x_init_firmware(bp, &pdev->dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Error loading firmware\n");
-		goto init_one_exit;
-	}
-
 	rc = register_netdev(dev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
@@ -7524,11 +7517,6 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->reset_task);
-
-	kfree(bp->init_ops_offsets);
-	kfree(bp->init_ops);
-	kfree(bp->init_data);
-	release_firmware(bp->firmware);
 
 	if (bp->regview)
 		iounmap(bp->regview);

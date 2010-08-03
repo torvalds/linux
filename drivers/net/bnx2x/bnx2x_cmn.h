@@ -115,6 +115,15 @@ void bnx2x_int_enable(struct bnx2x *bp);
 void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
 
 /**
+ * Loads device firmware
+ *
+ * @param bp
+ *
+ * @return int
+ */
+int bnx2x_init_firmware(struct bnx2x *bp);
+
+/**
  * Init HW blocks according to current initialization stage:
  * COMMON, PORT or FUNCTION.
  *
