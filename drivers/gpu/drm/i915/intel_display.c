@@ -4330,15 +4330,12 @@ void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 }
 
 static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t size)
+				 u16 *blue, uint32_t start, uint32_t size)
 {
+	int end = (start + size > 256) ? 256 : start + size, i;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int i;
 
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		intel_crtc->lut_r[i] = red[i] >> 8;
 		intel_crtc->lut_g[i] = green[i] >> 8;
 		intel_crtc->lut_b[i] = blue[i] >> 8;

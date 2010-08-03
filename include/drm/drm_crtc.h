@@ -310,7 +310,7 @@ struct drm_crtc_funcs {
 
 	/* Set gamma on the CRTC */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t size);
+			  uint32_t start, uint32_t size);
 	/* Object destroy routine */
 	void (*destroy)(struct drm_crtc *crtc);
 
