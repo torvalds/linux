@@ -1552,6 +1552,18 @@ static ssize_t show_orig_dgid(struct device *dev,
 	return sprintf(buf, "%pI6\n", target->orig_dgid);
 }
 
+static ssize_t show_req_lim(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
+
+	if (target->state == SRP_TARGET_DEAD ||
+	    target->state == SRP_TARGET_REMOVED)
+		return -ENODEV;
+
+	return sprintf(buf, "%d\n", target->req_lim);
+}
+
 static ssize_t show_zero_req_lim(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -1586,6 +1598,7 @@ static DEVICE_ATTR(service_id,	    S_IRUGO, show_service_id,	   NULL);
 static DEVICE_ATTR(pkey,	    S_IRUGO, show_pkey,		   NULL);
 static DEVICE_ATTR(dgid,	    S_IRUGO, show_dgid,		   NULL);
 static DEVICE_ATTR(orig_dgid,	    S_IRUGO, show_orig_dgid,	   NULL);
+static DEVICE_ATTR(req_lim,         S_IRUGO, show_req_lim,         NULL);
 static DEVICE_ATTR(zero_req_lim,    S_IRUGO, show_zero_req_lim,	   NULL);
 static DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,   NULL);
 static DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
@@ -1597,6 +1610,7 @@ static struct device_attribute *srp_host_attrs[] = {
 	&dev_attr_pkey,
 	&dev_attr_dgid,
 	&dev_attr_orig_dgid,
+	&dev_attr_req_lim,
 	&dev_attr_zero_req_lim,
 	&dev_attr_local_ib_port,
 	&dev_attr_local_ib_device,
