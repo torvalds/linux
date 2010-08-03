@@ -704,7 +704,7 @@ static long wb_writeback(struct bdi_writeback *wb,
  * Return the next wb_writeback_work struct that hasn't been processed yet.
  */
 static struct wb_writeback_work *
-get_next_work_item(struct backing_dev_info *bdi, struct bdi_writeback *wb)
+get_next_work_item(struct backing_dev_info *bdi)
 {
 	struct wb_writeback_work *work = NULL;
 
@@ -762,7 +762,7 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 	struct wb_writeback_work *work;
 	long wrote = 0;
 
-	while ((work = get_next_work_item(bdi, wb)) != NULL) {
+	while ((work = get_next_work_item(bdi)) != NULL) {
 		/*
 		 * Override sync mode, in case we must wait for completion
 		 * because this thread is exiting now.
