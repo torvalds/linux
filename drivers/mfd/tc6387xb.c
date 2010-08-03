@@ -201,6 +201,7 @@ static int tc6387xb_probe(struct platform_device *dev)
 	if (!ret)
 		return 0;
 
+	iounmap(tc6387xb->scr);
 err_ioremap:
 	release_resource(&tc6387xb->rscr);
 err_resource:
@@ -213,12 +214,15 @@ err_no_irq:
 
 static int tc6387xb_remove(struct platform_device *dev)
 {
-	struct clk *clk32k = platform_get_drvdata(dev);
+	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
 
 	mfd_remove_devices(&dev->dev);
-	clk_disable(clk32k);
-	clk_put(clk32k);
+	iounmap(tc6387xb->scr);
+	release_resource(&tc6387xb->rscr);
+	clk_disable(tc6387xb->clk32k);
+	clk_put(tc6387xb->clk32k);
 	platform_set_drvdata(dev, NULL);
+	kfree(tc6387xb);
 
 	return 0;
 }
