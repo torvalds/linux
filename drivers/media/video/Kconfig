@@ -792,10 +792,11 @@ config SOC_CAMERA_MT9M001
 	  and colour models.
 
 config SOC_CAMERA_MT9M111
-	tristate "mt9m111 and mt9m112 support"
+	tristate "mt9m111, mt9m112 and mt9m131 support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9M111 and MT9M112 cameras from Micron
+	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
+	  Micron/Aptina
 
 config SOC_CAMERA_MT9T031
 	tristate "mt9t031 support"
