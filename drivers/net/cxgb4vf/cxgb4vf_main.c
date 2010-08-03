@@ -2462,15 +2462,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		version_printed = 1;
 	}
 
-	/*
-	 * Reserve PCI resources for the device.  If we can't get them some
-	 * other driver may have already claimed the device ...
-	 */
-	err = pci_request_regions(pdev, KBUILD_MODNAME);
-	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
-		return err;
-	}
 
 	/*
 	 * Initialize generic PCI device state.
@@ -2478,7 +2469,17 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "cannot enable PCI device\n");
-		goto err_release_regions;
+		return err;
+	}
+
+	/*
+	 * Reserve PCI resources for the device.  If we can't get them some
+	 * other driver may have already claimed the device ...
+	 */
+	err = pci_request_regions(pdev, KBUILD_MODNAME);
+	if (err) {
+		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		goto err_disable_device;
 	}
 
 	/*
@@ -2491,14 +2492,14 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		if (err) {
 			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for"
 				" coherent allocations\n");
-			goto err_disable_device;
+			goto err_release_regions;
 		}
 		pci_using_dac = 1;
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err != 0) {
 			dev_err(&pdev->dev, "no usable DMA configuration\n");
-			goto err_disable_device;
+			goto err_release_regions;
 		}
 		pci_using_dac = 0;
 	}
@@ -2514,7 +2515,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;
-		goto err_disable_device;
+		goto err_release_regions;
 	}
 	pci_set_drvdata(pdev, adapter);
 	adapter->pdev = pdev;
@@ -2750,13 +2751,13 @@ err_free_adapter:
 	kfree(adapter);
 	pci_set_drvdata(pdev, NULL);
 
-err_disable_device:
-	pci_disable_device(pdev);
-	pci_clear_master(pdev);
-
 err_release_regions:
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
+	pci_clear_master(pdev);
+
+err_disable_device:
+	pci_disable_device(pdev);
 
 err_out:
 	return err;
