@@ -39,7 +39,6 @@
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 
@@ -579,9 +578,9 @@ _xfs_buf_read(
 			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
 
 	status = xfs_buf_iorequest(bp);
-	if (!status && !(flags & XBF_ASYNC))
-		status = xfs_buf_iowait(bp);
-	return status;
+	if (status || XFS_BUF_ISERROR(bp) || (flags & XBF_ASYNC))
+		return status;
+	return xfs_buf_iowait(bp);
 }
 
 xfs_buf_t *
@@ -897,36 +896,6 @@ xfs_buf_unlock(
 	trace_xfs_buf_unlock(bp, _RET_IP_);
 }
 
-
-/*
- *	Pinning Buffer Storage in Memory
- *	Ensure that no attempt to force a buffer to disk will succeed.
- */
-void
-xfs_buf_pin(
-	xfs_buf_t		*bp)
-{
-	trace_xfs_buf_pin(bp, _RET_IP_);
-	atomic_inc(&bp->b_pin_count);
-}
-
-void
-xfs_buf_unpin(
-	xfs_buf_t		*bp)
-{
-	trace_xfs_buf_unpin(bp, _RET_IP_);
-
-	if (atomic_dec_and_test(&bp->b_pin_count))
-		wake_up_all(&bp->b_waiters);
-}
-
-int
-xfs_buf_ispin(
-	xfs_buf_t		*bp)
-{
-	return atomic_read(&bp->b_pin_count);
-}
-
 STATIC void
 xfs_buf_wait_unpin(
 	xfs_buf_t		*bp)
@@ -1018,13 +987,12 @@ xfs_bwrite(
 {
 	int			error;
 
-	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_mount = mp;
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ);
 
 	xfs_buf_delwri_dequeue(bp);
-	xfs_buf_iostrategy(bp);
+	xfs_bdstrat_cb(bp);
 
 	error = xfs_buf_iowait(bp);
 	if (error)
@@ -1040,7 +1008,6 @@ xfs_bdwrite(
 {
 	trace_xfs_buf_bdwrite(bp, _RET_IP_);
 
-	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_mount = mp;
 
 	bp->b_flags &= ~XBF_READ;
@@ -1075,7 +1042,6 @@ xfs_bioerror(
 	XFS_BUF_UNDONE(bp);
 	XFS_BUF_STALE(bp);
 
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 	xfs_biodone(bp);
 
 	return EIO;
@@ -1105,7 +1071,6 @@ xfs_bioerror_relse(
 	XFS_BUF_DONE(bp);
 	XFS_BUF_STALE(bp);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 	if (!(fl & XBF_ASYNC)) {
 		/*
 		 * Mark b_error and B_ERROR _both_.
@@ -1311,8 +1276,19 @@ submit_io:
 		if (size)
 			goto next_chunk;
 	} else {
-		bio_put(bio);
+		/*
+		 * if we get here, no pages were added to the bio. However,
+		 * we can't just error out here - if the pages are locked then
+		 * we have to unlock them otherwise we can hang on a later
+		 * access to the page.
+		 */
 		xfs_buf_ioerror(bp, EIO);
+		if (bp->b_flags & _XBF_PAGE_LOCKED) {
+			int i;
+			for (i = 0; i < bp->b_page_count; i++)
+				unlock_page(bp->b_pages[i]);
+		}
+		bio_put(bio);
 	}
 }
 
@@ -1804,7 +1780,7 @@ xfs_buf_delwri_split(
 		trace_xfs_buf_delwri_split(bp, _RET_IP_);
 		ASSERT(bp->b_flags & XBF_DELWRI);
 
-		if (!xfs_buf_ispin(bp) && !xfs_buf_cond_lock(bp)) {
+		if (!XFS_BUF_ISPINNED(bp) && !xfs_buf_cond_lock(bp)) {
 			if (!force &&
 			    time_before(jiffies, bp->b_queuetime + age)) {
 				xfs_buf_unlock(bp);
@@ -1889,7 +1865,7 @@ xfsbufd(
 			struct xfs_buf *bp;
 			bp = list_first_entry(&tmp, struct xfs_buf, b_list);
 			list_del_init(&bp->b_list);
-			xfs_buf_iostrategy(bp);
+			xfs_bdstrat_cb(bp);
 			count++;
 		}
 		if (count)
@@ -1936,7 +1912,7 @@ xfs_flush_buftarg(
 			bp->b_flags &= ~XBF_ASYNC;
 			list_add(&bp->b_list, &wait_list);
 		}
-		xfs_buf_iostrategy(bp);
+		xfs_bdstrat_cb(bp);
 	}
 
 	if (wait) {

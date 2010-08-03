@@ -55,14 +55,10 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 /*
  * Flags to xfs_log_reserve()
  *
- *	XFS_LOG_SLEEP:	 If space is not available, sleep (default)
- *	XFS_LOG_NOSLEEP: If space is not available, return error
  *	XFS_LOG_PERM_RESERV: Permanent reservation.  When writes are
  *		performed against this type of reservation, the reservation
  *		is not decreased.  Long running transactions should use this.
  */
-#define XFS_LOG_SLEEP		0x0
-#define XFS_LOG_NOSLEEP		0x1
 #define XFS_LOG_PERM_RESERV	0x2
 
 /*
@@ -104,7 +100,7 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XLOG_REG_TYPE_MAX		19
 
 typedef struct xfs_log_iovec {
-	xfs_caddr_t	i_addr;		/* beginning address of region */
+	void		*i_addr;	/* beginning address of region */
 	int		i_len;		/* length in bytes of region */
 	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
@@ -201,9 +197,4 @@ int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
 #endif
-
-
-extern int xlog_debug;		/* set to 1 to enable real log */
-
-
 #endif	/* __XFS_LOG_H__ */
