@@ -2057,6 +2057,10 @@ static int patch_cxt5051(struct hda_codec *codec)
 		break;
 	case CXT5051_LENOVO_X200:
 		spec->init_verbs[0] = cxt5051_lenovo_x200_init_verbs;
+		/* Thinkpad X301 does not have S/PDIF wired and no ability
+		   to use a docking station. */
+		if (codec->subsystem_id == 0x17aa211f)
+			spec->multiout.dig_out_nid = 0;
 		break;
 	case CXT5051_F700:
 		spec->init_verbs[0] = cxt5051_f700_init_verbs;
