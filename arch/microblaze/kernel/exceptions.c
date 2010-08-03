@@ -59,7 +59,6 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	siginfo_t info;
 
 	if (kernel_mode(regs)) {
-		debugger(regs);
 		die("Exception in kernel mode", regs, signr);
 	}
 	info.si_signo = signr;

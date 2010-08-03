@@ -69,22 +69,6 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 void die(const char *str, struct pt_regs *fp, long err);
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr);
 
-#if defined(CONFIG_KGDB)
-void (*debugger)(struct pt_regs *regs);
-int (*debugger_bpt)(struct pt_regs *regs);
-int (*debugger_sstep)(struct pt_regs *regs);
-int (*debugger_iabr_match)(struct pt_regs *regs);
-int (*debugger_dabr_match)(struct pt_regs *regs);
-void (*debugger_fault_handler)(struct pt_regs *regs);
-#else
-#define debugger(regs)			do { } while (0)
-#define debugger_bpt(regs)		0
-#define debugger_sstep(regs)		0
-#define debugger_iabr_match(regs)	0
-#define debugger_dabr_match(regs)	0
-#define debugger_fault_handler		((void (*)(struct pt_regs *))0)
-#endif
-
 #endif /*__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_MICROBLAZE_EXCEPTIONS_H */

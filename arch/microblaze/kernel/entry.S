@@ -745,11 +745,8 @@ IRQ_return: /* MS: Make global symbol for debugging */
 	nop
 
 /*
- * `Debug' trap
- *  We enter dbtrap in "BIP" (breakpoint) mode.
- *  So we exit the breakpoint mode with an 'rtbd' and proceed with the
- *  original dbtrap.
- *  however, wait to save state first
+ * Debug trap for KGDB. Enter to _debug_exception by brki r16, 0x18
+ * and call handling function with saved pt_regs
  */
 C_ENTRY(_debug_exception):
 	/* BIP bit is set on entry, no interrupts can occur */
@@ -759,18 +756,44 @@ C_ENTRY(_debug_exception):
 	nop
 	andi	r1, r1, MSR_UMS
 	bnei	r1, 1f
-	/* Kernel-mode state save.  */
+/* MS: Kernel-mode state save - kgdb */
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
-	tophys(r1,r1);
 
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
+	/* BIP bit is set on entry, no interrupts can occur */
+	addik   r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE;
 	SAVE_REGS;
+	/* save all regs to pt_reg structure */
+	swi	r0, r1, PTO+PT_R0;	/* R0 must be saved too */
+	swi	r14, r1, PTO+PT_R14	/* rewrite saved R14 value */
+	swi	r16, r1, PTO+PT_R16
+	swi	r16, r1, PTO+PT_PC; /* PC and r16 are the same */
+	swi	r17, r1, PTO+PT_R17
+	/* save special purpose registers to pt_regs */
+	mfs	r11, rear;
+	swi	r11, r1, PTO+PT_EAR;
+	mfs	r11, resr;
+	swi	r11, r1, PTO+PT_ESR;
+	mfs	r11, rfsr;
+	swi	r11, r1, PTO+PT_FSR;
 
-	swi	r1, r1, PTO + PT_MODE;
-	brid	2f;
-	nop;				/* Fill delay slot */
-1:      /* User-mode state save.  */
-	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
+	/* stack pointer is in physical address at it is decrease
+	 * by STATE_SAVE_SIZE but we need to get correct R1 value */
+	addik   r11, r1, CONFIG_KERNEL_START - CONFIG_KERNEL_BASE_ADDR + STATE_SAVE_SIZE;
+	swi	r11, r1, PTO+PT_R1
+	/* MS: r31 - current pointer isn't changed */
+	tovirt(r1,r1)
+#ifdef CONFIG_KGDB
+	addi	r5, r1, PTO /* pass pt_reg address as the first arg */
+	la	r15, r0, dbtrap_call; /* return address */
+	rtbd	r0, microblaze_kgdb_break
+	nop;
+#endif
+	/* MS: Place handler for brki from kernel space if KGDB is OFF.
+	 * It is very unlikely that another brki instruction is called. */
+	bri 0
+
+/* MS: User-mode state save - gdb */
+1:	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */
 	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */
@@ -781,36 +804,32 @@ C_ENTRY(_debug_exception):
 	swi	r17, r1, PTO+PT_R17;
 	swi	r16, r1, PTO+PT_R16;
 	swi	r16, r1, PTO+PT_PC;	/* Save LP */
-
 	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
-2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
+	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	tovirt(r1,r1)
-
 	set_vms;
 	addik	r5, r1, PTO;
 	addik	r15, r0, dbtrap_call;
-dbtrap_call: /* return point for kernel/user entry */
+dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	rtbd	r0, sw_exception
 	nop
 
-	set_bip;			/*  Ints masked for state restore*/
+	/* MS: The first instruction for the second part of the gdb/kgdb */
+	set_bip; /* Ints masked for state restore */
 	lwi	r11, r1, PTO + PT_MODE;
 	bnei	r11, 2f;
-
+/* MS: Return to user space - gdb */
 	/* Get current task ptr into r11 */
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
 
-/* Call the scheduler before returning from a syscall/trap. */
-
+	/* Call the scheduler before returning from a syscall/trap. */
 	bralid	r15, schedule;	/* Call scheduler */
 	nop;				/* delay slot */
-	/* XXX Is PT_DTRACE handling needed here? */
-	/* XXX m68knommu also checks TASK_STATE & TASK_COUNTER here.  */
 
 	/* Maybe handle a signal */
 5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
@@ -818,48 +837,37 @@ dbtrap_call: /* return point for kernel/user entry */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
-/* Handle a signal return; Pending signals should be in r18.  */
-	/* Not all registers are saved by the normal trap/interrupt entry
-	   points (for instance, call-saved registers (because the normal
-	   C-compiler calling sequence in the kernel makes sure they're
-	   preserved), and call-clobbered registers in the case of
-	   traps), but signal handlers may want to examine or change the
-	   complete register state.  Here we save anything not saved by
-	   the normal entry sequence, so that it may be safely restored
-	   (in a possibly modified form) after do_signal returns.  */
-
 	addik	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	addi  r7, r0, 0;	/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
-
 /* Finally, return to user state.  */
-1:
-	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
+1:	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
-
+	/* MS: Restore all regs */
 	RESTORE_REGS
 	lwi	r17, r1, PTO+PT_R17;
 	lwi	r16, r1, PTO+PT_R16;
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
+	addik	r1, r1, STATE_SAVE_SIZE	 /* Clean up stack space */
+	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer */
+DBTRAP_return_user: /* MS: Make global symbol for debugging */
+	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
+	nop;
 
-
-	lwi	r1, r1, PT_R1 - PT_SIZE;
-					/* Restore user stack pointer. */
-	bri	6f;
-
-/* Return to kernel state.  */
+/* MS: Return to kernel state - kgdb */
 2:	VM_OFF;
 	tophys(r1,r1);
+	/* MS: Restore all regs */
 	RESTORE_REGS
-	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
-
+	lwi	r14, r1, PTO+PT_R14;
+	lwi	r16, r1, PTO+PT_PC;
+	lwi	r17, r1, PTO+PT_R17;
+	addik	r1, r1, STATE_SAVE_SIZE; /* MS: Clean up stack space */
 	tovirt(r1,r1);
-6:
-DBTRAP_return:		/* Make global symbol for debugging */
-	rtbd	r16, 0;	/* Instructions to return from an IRQ */
+DBTRAP_return_kernel: /* MS: Make global symbol for debugging */
+	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
 	nop;
 
 
