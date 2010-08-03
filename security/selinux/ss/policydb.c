@@ -1624,11 +1624,11 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 
 static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 {
-	struct type_datum *upper, *type;
+	struct type_datum *upper;
 	struct policydb *p = datap;
 	int depth = 0;
 
-	upper = type = datum;
+	upper = datum;
 	while (upper->bounds) {
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
 			printk(KERN_ERR "SELinux: type %s: "
