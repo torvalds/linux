@@ -539,9 +539,13 @@ static int mmci_get_cd(struct mmc_host *mmc)
 	if (host->gpio_cd == -ENOSYS)
 		status = host->plat->status(mmc_dev(host->mmc));
 	else
-		status = gpio_get_value(host->gpio_cd);
+		status = !gpio_get_value(host->gpio_cd);
 
-	return !status;
+	/*
+	 * Use positive logic throughout - status is zero for no card,
+	 * non-zero for card inserted.
+	 */
+	return status;
 }
 
 static const struct mmc_host_ops mmci_ops = {

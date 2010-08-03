@@ -1028,13 +1028,12 @@ static int sa1111_remove(struct platform_device *pdev)
 	struct sa1111 *sachip = platform_get_drvdata(pdev);
 
 	if (sachip) {
-		__sa1111_remove(sachip);
-		platform_set_drvdata(pdev, NULL);
-
 #ifdef CONFIG_PM
 		kfree(sachip->saved_state);
 		sachip->saved_state = NULL;
 #endif
+		__sa1111_remove(sachip);
+		platform_set_drvdata(pdev, NULL);
 	}
 
 	return 0;

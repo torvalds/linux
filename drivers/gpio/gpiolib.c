@@ -893,10 +893,12 @@ EXPORT_SYMBOL_GPL(gpio_sysfs_set_active_low);
 void gpio_unexport(unsigned gpio)
 {
 	struct gpio_desc	*desc;
-	int			status = -EINVAL;
+	int			status = 0;
 
-	if (!gpio_is_valid(gpio))
+	if (!gpio_is_valid(gpio)) {
+		status = -EINVAL;
 		goto done;
+	}
 
 	mutex_lock(&sysfs_lock);
 
@@ -911,7 +913,6 @@ void gpio_unexport(unsigned gpio)
 			clear_bit(FLAG_EXPORT, &desc->flags);
 			put_device(dev);
 			device_unregister(dev);
-			status = 0;
 		} else
 			status = -ENODEV;
 	}

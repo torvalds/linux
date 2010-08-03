@@ -1684,8 +1684,9 @@ struct ipr_ucode_image_header {
 	if (ipr_is_device(hostrcb)) {					\
 		if ((hostrcb)->ioa_cfg->sis64) {			\
 			printk(KERN_ERR IPR_NAME ": %s: " fmt, 		\
-				ipr_format_resource_path(&hostrcb->hcam.u.error64.fd_res_path[0], \
-					&hostrcb->rp_buffer[0]),	\
+				ipr_format_res_path(hostrcb->hcam.u.error64.fd_res_path, \
+					hostrcb->rp_buffer,		\
+					sizeof(hostrcb->rp_buffer)),	\
 				__VA_ARGS__);				\
 		} else {						\
 			ipr_ra_err((hostrcb)->ioa_cfg,			\

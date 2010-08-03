@@ -41,6 +41,8 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 
+extern int intel_max_stolen; /* from AGP driver */
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -1257,7 +1259,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		drm_mm_put_block(compressed_fb);
 	}
 
-	if (!IS_GM45(dev)) {
+	if (!(IS_GM45(dev) || IS_IRONLAKE_M(dev))) {
 		compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096,
 						    4096, 0);
 		if (!compressed_llb) {
@@ -1283,8 +1285,9 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	intel_disable_fbc(dev);
 	dev_priv->compressed_fb = compressed_fb;
-
-	if (IS_GM45(dev)) {
+	if (IS_IRONLAKE_M(dev))
+		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
+	else if (IS_GM45(dev)) {
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
 	} else {
 		I915_WRITE(FBC_CFB_BASE, cfb_base);
@@ -1292,7 +1295,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		dev_priv->compressed_llb = compressed_llb;
 	}
 
-	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
+	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
 		  ll_base, size >> 20);
 }
 
@@ -1301,7 +1304,7 @@ static void i915_cleanup_compression(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	drm_mm_put_block(dev_priv->compressed_fb);
-	if (!IS_GM45(dev))
+	if (dev_priv->compressed_llb)
 		drm_mm_put_block(dev_priv->compressed_llb);
 }
 
@@ -2104,6 +2107,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = i915_probe_agp(dev, &agp_size, &prealloc_size, &prealloc_start);
 	if (ret)
 		goto out_iomapfree;
+
+	if (prealloc_size > intel_max_stolen) {
+		DRM_INFO("detected %dM stolen memory, trimming to %dM\n",
+			 prealloc_size >> 20, intel_max_stolen >> 20);
+		prealloc_size = intel_max_stolen;
+	}
 
 	dev_priv->wq = create_singlethread_workqueue("i915");
 	if (dev_priv->wq == NULL) {

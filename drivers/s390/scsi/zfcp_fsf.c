@@ -496,7 +496,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 
 	adapter->hydra_version = bottom->adapter_type;
 	adapter->timer_ticks = bottom->timer_interval;
-	adapter->stat_read_buf_num = max(bottom->status_read_buf_num, (u16)16);
+	adapter->stat_read_buf_num = max(bottom->status_read_buf_num,
+					 (u16)FSF_STATUS_READS_RECOM);
 
 	if (fc_host_permanent_port_name(shost) == -1)
 		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
@@ -718,11 +719,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 
 	zfcp_qdio_req_init(adapter->qdio, &req->qdio_req, req->req_id, sbtype,
 			   req->qtcb, sizeof(struct fsf_qtcb));
-
-	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)) {
-		zfcp_fsf_req_free(req);
-		return ERR_PTR(-EIO);
-	}
 
 	return req;
 }
@@ -981,7 +977,7 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	}
 
 	/* use single, unchained SBAL if it can hold the request */
-	if (zfcp_qdio_sg_one_sbale(sg_req) || zfcp_qdio_sg_one_sbale(sg_resp)) {
+	if (zfcp_qdio_sg_one_sbale(sg_req) && zfcp_qdio_sg_one_sbale(sg_resp)) {
 		zfcp_fsf_setup_ct_els_unchained(adapter->qdio, &req->qdio_req,
 						sg_req, sg_resp);
 		return 0;

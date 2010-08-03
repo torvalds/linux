@@ -816,9 +816,9 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
 	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG,
-	    "Sandybridge", NULL, &intel_i965_driver },
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG,
-	    "Sandybridge", NULL, &intel_i965_driver },
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ 0, 0, NULL, NULL, NULL }
 };
 

@@ -8,6 +8,7 @@
  * the Free Software Foundation.
  */
 #include <mach/hardware.h>
+#include <asm/memory.h>
 
 #include <mach/regs-board-a9m9750dev.h>
 

@@ -65,7 +65,7 @@
 #define OCMD_YUV_410_PLANAR	(0xe<<10) /* also 411 */
 #define OCMD_TVSYNCFLIP_PARITY	(0x1<<9)
 #define OCMD_TVSYNCFLIP_ENABLE	(0x1<<7)
-#define OCMD_BUF_TYPE_MASK	(Ox1<<5)
+#define OCMD_BUF_TYPE_MASK	(0x1<<5)
 #define OCMD_BUF_TYPE_FRAME	(0x0<<5)
 #define OCMD_BUF_TYPE_FIELD	(0x1<<5)
 #define OCMD_TEST_MODE		(0x1<<4)
@@ -958,7 +958,7 @@ static int check_overlay_src(struct drm_device *dev,
 	    || rec->src_width < N_HORIZ_Y_TAPS*4)
 		return -EINVAL;
 
-	/* check alingment constrains */
+	/* check alignment constraints */
 	switch (rec->flags & I915_OVERLAY_TYPE_MASK) {
 		case I915_OVERLAY_RGB:
 			/* not implemented */
@@ -990,7 +990,10 @@ static int check_overlay_src(struct drm_device *dev,
 		return -EINVAL;
 
 	/* stride checking */
-	stride_mask = 63;
+	if (IS_I830(dev) || IS_845G(dev))
+		stride_mask = 255;
+	else
+		stride_mask = 63;
 
 	if (rec->stride_Y & stride_mask || rec->stride_UV & stride_mask)
 		return -EINVAL;

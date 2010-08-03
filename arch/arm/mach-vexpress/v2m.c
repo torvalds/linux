@@ -241,7 +241,7 @@ static struct platform_device v2m_flash_device = {
 
 static unsigned int v2m_mmci_status(struct device *dev)
 {
-	return !(readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0));
+	return readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0);
 }
 
 static struct mmci_platform_data v2m_mmci_data = {
