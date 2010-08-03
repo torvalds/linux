@@ -2080,7 +2080,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	 * catastrophic.
 	 */
 	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
+		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR " Error Overflow");
 }
 
 void amd64_decode_bus_error(int node_id, struct err_regs *regs)
