@@ -89,28 +89,6 @@ static struct platform_device pda_power_device = {
 	},
 };
 
-static struct resource tegra_gart_resources[] = {
-    {
-	.name = "mc",
-	.flags = IORESOURCE_MEM,
-	.start = TEGRA_MC_BASE,
-	.end = TEGRA_MC_BASE + TEGRA_MC_SIZE - 1,
-    },
-    {
-	.name = "gart",
-	.flags = IORESOURCE_MEM,
-	.start = 0x58000000,
-	.end = 0x58000000 - 1 + 32 * 1024 * 1024,
-    }
-};
-
-static struct platform_device tegra_gart_dev = {
-    .name = "tegra_gart",
-    .id = -1,
-    .num_resources = ARRAY_SIZE(tegra_gart_resources),
-    .resource = tegra_gart_resources
-};
-
 static struct tegra_i2c_platform_data ventana_i2c1_platform_data = {
 	.adapter_nr	= 0,
 	.bus_count	= 1,
@@ -165,7 +143,7 @@ static struct platform_device *ventana_devices[] __initdata = {
 	&debug_uart,
 	&tegra_udc_device,
 	&pda_power_device,
-	&tegra_gart_dev,
+	&tegra_gart_device,
 };
 
 static int ventana_touch_reset(void)
