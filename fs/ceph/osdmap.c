@@ -855,7 +855,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 						node)->pgid, pgid) <= 0) {
 			struct ceph_pg_mapping *cur =
 				rb_entry(rbp, struct ceph_pg_mapping, node);
-			
+
 			rbp = rb_next(rbp);
 			dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
 			rb_erase(&cur->node, &map->pg_temp);

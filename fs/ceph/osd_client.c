@@ -1473,8 +1473,8 @@ static void put_osd_con(struct ceph_connection *con)
  * authentication
  */
 static int get_authorizer(struct ceph_connection *con,
-	                  void **buf, int *len, int *proto,
-	                  void **reply_buf, int *reply_len, int force_new)
+			  void **buf, int *len, int *proto,
+			  void **reply_buf, int *reply_len, int force_new)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
@@ -1494,7 +1494,7 @@ static int get_authorizer(struct ceph_connection *con,
 			&o->o_authorizer_reply_buf,
 			&o->o_authorizer_reply_buf_len);
 		if (ret)
-		return ret;
+			return ret;
 	}
 
 	*proto = ac->protocol;

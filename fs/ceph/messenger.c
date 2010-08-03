@@ -1302,8 +1302,8 @@ static void process_ack(struct ceph_connection *con)
 
 
 static int read_partial_message_section(struct ceph_connection *con,
-					struct kvec *section, unsigned int sec_len,
-					u32 *crc)
+					struct kvec *section,
+					unsigned int sec_len, u32 *crc)
 {
 	int left;
 	int ret;
@@ -1434,7 +1434,8 @@ static int read_partial_message(struct ceph_connection *con)
 
 	/* middle */
 	if (m->middle) {
-		ret = read_partial_message_section(con, &m->middle->vec, middle_len,
+		ret = read_partial_message_section(con, &m->middle->vec,
+						   middle_len,
 						   &con->in_middle_crc);
 		if (ret <= 0)
 			return ret;
@@ -1920,7 +1921,7 @@ out:
 	/*
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
-         */
+	 */
 	if (con->auth_retry && con->ops->invalidate_authorizer) {
 		dout("calling invalidate_authorizer()\n");
 		con->ops->invalidate_authorizer(con);

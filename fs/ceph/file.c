@@ -665,7 +665,7 @@ more:
 		 * throw out any page cache pages in this range. this
 		 * may block.
 		 */
-		truncate_inode_pages_range(inode->i_mapping, pos, 
+		truncate_inode_pages_range(inode->i_mapping, pos,
 					   (pos+len) | (PAGE_CACHE_SIZE-1));
 	} else {
 		pages = ceph_alloc_page_vector(num_pages, GFP_NOFS);

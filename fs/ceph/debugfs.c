@@ -291,7 +291,7 @@ static int dentry_lru_show(struct seq_file *s, void *ptr)
 	return 0;
 }
 
-#define DEFINE_SHOW_FUNC(name) 						\
+#define DEFINE_SHOW_FUNC(name)						\
 static int name##_open(struct inode *inode, struct file *file)		\
 {									\
 	struct seq_file *sf;						\
@@ -432,11 +432,12 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_caps)
 		goto out;
 
-	client->debugfs_congestion_kb = debugfs_create_file("writeback_congestion_kb",
-						   0600,
-						   client->debugfs_dir,
-						   client,
-						   &congestion_kb_fops);
+	client->debugfs_congestion_kb =
+		debugfs_create_file("writeback_congestion_kb",
+				    0600,
+				    client->debugfs_dir,
+				    client,
+				    &congestion_kb_fops);
 	if (!client->debugfs_congestion_kb)
 		goto out;
 
@@ -466,7 +467,7 @@ void ceph_debugfs_client_cleanup(struct ceph_client *client)
 	debugfs_remove(client->debugfs_dir);
 }
 
-#else  // CONFIG_DEBUG_FS
+#else  /* CONFIG_DEBUG_FS */
 
 int __init ceph_debugfs_init(void)
 {
@@ -486,4 +487,4 @@ void ceph_debugfs_client_cleanup(struct ceph_client *client)
 {
 }
 
-#endif  // CONFIG_DEBUG_FS
+#endif  /* CONFIG_DEBUG_FS */
