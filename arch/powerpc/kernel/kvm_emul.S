@@ -245,3 +245,53 @@ kvm_emulate_wrteei_ee_offs:
 .global kvm_emulate_wrteei_len
 kvm_emulate_wrteei_len:
 	.long (kvm_emulate_wrteei_end - kvm_emulate_wrteei) / 4
+
+
+.global kvm_emulate_mtsrin
+kvm_emulate_mtsrin:
+
+	SCRATCH_SAVE
+
+	LL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+	andi.	r31, r31, MSR_DR | MSR_IR
+	beq	kvm_emulate_mtsrin_reg1
+
+	SCRATCH_RESTORE
+
+kvm_emulate_mtsrin_orig_ins:
+	nop
+	b	kvm_emulate_mtsrin_branch
+
+kvm_emulate_mtsrin_reg1:
+	/* rX >> 26 */
+	rlwinm  r30,r0,6,26,29
+
+kvm_emulate_mtsrin_reg2:
+	stw	r0, (KVM_MAGIC_PAGE + KVM_MAGIC_SR)(r30)
+
+	SCRATCH_RESTORE
+
+	/* Go back to caller */
+kvm_emulate_mtsrin_branch:
+	b	.
+kvm_emulate_mtsrin_end:
+
+.global kvm_emulate_mtsrin_branch_offs
+kvm_emulate_mtsrin_branch_offs:
+	.long (kvm_emulate_mtsrin_branch - kvm_emulate_mtsrin) / 4
+
+.global kvm_emulate_mtsrin_reg1_offs
+kvm_emulate_mtsrin_reg1_offs:
+	.long (kvm_emulate_mtsrin_reg1 - kvm_emulate_mtsrin) / 4
+
+.global kvm_emulate_mtsrin_reg2_offs
+kvm_emulate_mtsrin_reg2_offs:
+	.long (kvm_emulate_mtsrin_reg2 - kvm_emulate_mtsrin) / 4
+
+.global kvm_emulate_mtsrin_orig_ins_offs
+kvm_emulate_mtsrin_orig_ins_offs:
+	.long (kvm_emulate_mtsrin_orig_ins - kvm_emulate_mtsrin) / 4
+
+.global kvm_emulate_mtsrin_len
+kvm_emulate_mtsrin_len:
+	.long (kvm_emulate_mtsrin_end - kvm_emulate_mtsrin) / 4

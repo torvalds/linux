@@ -42,6 +42,7 @@
 #define KVM_INST_B_MAX		0x01ffffff
 
 #define KVM_MASK_RT		0x03e00000
+#define KVM_MASK_RB		0x0000f800
 #define KVM_INST_MFMSR		0x7c0000a6
 #define KVM_INST_MFSPR_SPRG0	0x7c1042a6
 #define KVM_INST_MFSPR_SPRG1	0x7c1142a6
@@ -68,6 +69,8 @@
 
 #define KVM_INST_WRTEEI_0	0x7c000146
 #define KVM_INST_WRTEEI_1	0x7c008146
+
+#define KVM_INST_MTSRIN		0x7c0001e4
 
 static bool kvm_patching_worked = true;
 static char kvm_tmp[1024 * 1024];
@@ -264,6 +267,51 @@ static void kvm_patch_ins_wrteei(u32 *inst)
 
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S_32
+
+extern u32 kvm_emulate_mtsrin_branch_offs;
+extern u32 kvm_emulate_mtsrin_reg1_offs;
+extern u32 kvm_emulate_mtsrin_reg2_offs;
+extern u32 kvm_emulate_mtsrin_orig_ins_offs;
+extern u32 kvm_emulate_mtsrin_len;
+extern u32 kvm_emulate_mtsrin[];
+
+static void kvm_patch_ins_mtsrin(u32 *inst, u32 rt, u32 rb)
+{
+	u32 *p;
+	int distance_start;
+	int distance_end;
+	ulong next_inst;
+
+	p = kvm_alloc(kvm_emulate_mtsrin_len * 4);
+	if (!p)
+		return;
+
+	/* Find out where we are and put everything there */
+	distance_start = (ulong)p - (ulong)inst;
+	next_inst = ((ulong)inst + 4);
+	distance_end = next_inst - (ulong)&p[kvm_emulate_mtsrin_branch_offs];
+
+	/* Make sure we only write valid b instructions */
+	if (distance_start > KVM_INST_B_MAX) {
+		kvm_patching_worked = false;
+		return;
+	}
+
+	/* Modify the chunk to fit the invocation */
+	memcpy(p, kvm_emulate_mtsrin, kvm_emulate_mtsrin_len * 4);
+	p[kvm_emulate_mtsrin_branch_offs] |= distance_end & KVM_INST_B_MASK;
+	p[kvm_emulate_mtsrin_reg1_offs] |= (rb << 10);
+	p[kvm_emulate_mtsrin_reg2_offs] |= rt;
+	p[kvm_emulate_mtsrin_orig_ins_offs] = *inst;
+	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_mtsrin_len * 4);
+
+	/* Patch the invocation */
+	kvm_patch_ins_b(inst, distance_start);
+}
+
+#endif
+
 static void kvm_map_magic_page(void *data)
 {
 	u32 *features = data;
@@ -358,6 +406,18 @@ static void kvm_check_ins(u32 *inst, u32 features)
 		if (get_rt(inst_rt) < 30)
 			kvm_patch_ins_mtmsr(inst, inst_rt);
 		break;
+	}
+
+	switch (inst_no_rt & ~KVM_MASK_RB) {
+#ifdef CONFIG_PPC_BOOK3S_32
+	case KVM_INST_MTSRIN:
+		if (features & KVM_MAGIC_FEAT_SR) {
+			u32 inst_rb = _inst & KVM_MASK_RB;
+			kvm_patch_ins_mtsrin(inst, inst_rt, inst_rb);
+		}
+		break;
+		break;
+#endif
 	}
 
 	switch (_inst) {

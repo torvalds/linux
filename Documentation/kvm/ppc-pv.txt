@@ -160,6 +160,9 @@ mtmsr	rX		b	<special mtmsr section>
 
 mtmsrd	rX, 1		b	<special mtmsrd section>
 
+[Book3S only]
+mtsrin	rX, rY		b	<special mtsrin section>
+
 [BookE only]
 wrteei	[0|1]		b	<special wrteei section>
 
