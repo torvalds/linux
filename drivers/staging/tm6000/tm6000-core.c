@@ -702,10 +702,8 @@ void tm6000_unregister_extension(struct tm6000_ops *ops)
 	struct tm6000_core *dev = NULL;
 
 	mutex_lock(&tm6000_devlist_mutex);
-	list_for_each_entry(dev, &tm6000_devlist, devlist) {
-		if (dev)
-			ops->fini(dev);
-	}
+	list_for_each_entry(dev, &tm6000_devlist, devlist)
+		ops->fini(dev);
 
 	mutex_lock(&tm6000_extension_devlist_lock);
 	printk(KERN_INFO "tm6000: Remove (%s) extension\n", ops->name);
