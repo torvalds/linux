@@ -28,6 +28,7 @@
 #include "bitops.h"
 #include <asm/cpufeature.h>
 #include <asm/processor-flags.h>
+#include "ctype.h"
 
 /* Useful macros */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -199,8 +200,6 @@ static inline int memcmp_gs(const void *s1, addr_t s2, size_t len)
 		     : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
-
-#include "isdigit.h"
 
 /* Heap -- available for dynamic lists. */
 extern char _end[];

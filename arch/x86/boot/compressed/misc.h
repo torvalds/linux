@@ -20,6 +20,7 @@
 #include <asm/bootparam.h>
 
 #define BOOT_BOOT_H
+#include "../ctype.h"
 
 /* misc.c */
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
