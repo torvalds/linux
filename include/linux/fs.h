@@ -145,12 +145,12 @@ struct inodes_stat_t {
  *
  */
 #define RW_MASK			1
-#define RWA_MASK		2
+#define RWA_MASK		16
 
 #define READ			0
 #define WRITE			1
-#define READA			2 /* readahead  - don't block if no resources */
-#define SWRITE			3 /* for ll_rw_block() - wait for buffer lock */
+#define READA			16 /* readahead - don't block if no resources */
+#define SWRITE			17 /* for ll_rw_block(), wait for buffer lock */
 
 #define READ_SYNC		(READ | REQ_SYNC | REQ_UNPLUG)
 #define READ_META		(READ | REQ_META)
