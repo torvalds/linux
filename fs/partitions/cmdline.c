@@ -154,8 +154,8 @@ int copy_partitions_to_state(struct part_device *device,
 	int i = 0;
 	struct part *part = device->first_part;
 	while (part) {
-		sector_t from = part->from * part->sector_size / ssz;
-		sector_t size = part->size * part->sector_size / ssz;
+		sector_t from = part->from * (part->sector_size / ssz);
+		sector_t size = part->size * (part->sector_size / ssz);
 		put_named_partition(state, i+1, from, size, part->name,
 			strlen(part->name));
 		i++;
