@@ -8,6 +8,7 @@
 
 #include <linux/limits.h>
 #include <linux/ioctl.h>
+#include <linux/blk_types.h>
 
 /*
  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
@@ -117,7 +118,7 @@ struct inodes_stat_t {
  *			immediately wait on this read without caring about
  *			unplugging.
  * READA		Used for read-ahead operations. Lower priority, and the
- *			 block layer could (in theory) choose to ignore this
+ *			block layer could (in theory) choose to ignore this
  *			request if it runs into resource problems.
  * WRITE		A normal async write. Device will be plugged.
  * SWRITE		Like WRITE, but a special case for ll_rw_block() that
@@ -144,13 +145,13 @@ struct inodes_stat_t {
  *			of this IO.
  *
  */
-#define RW_MASK			1
-#define RWA_MASK		16
+#define RW_MASK			REQ_WRITE
+#define RWA_MASK		REQ_RAHEAD
 
 #define READ			0
-#define WRITE			1
-#define READA			16 /* readahead - don't block if no resources */
-#define SWRITE			17 /* for ll_rw_block(), wait for buffer lock */
+#define WRITE			RW_MASK
+#define READA			RWA_MASK
+#define SWRITE			(WRITE | READA)
 
 #define READ_SYNC		(READ | REQ_SYNC | REQ_UNPLUG)
 #define READ_META		(READ | REQ_META)
@@ -2200,7 +2201,6 @@ static inline void insert_inode_hash(struct inode *inode) {
 extern void file_move(struct file *f, struct list_head *list);
 extern void file_kill(struct file *f);
 #ifdef CONFIG_BLOCK
-struct bio;
 extern void submit_bio(int, struct bio *);
 extern int bdev_read_only(struct block_device *);
 #endif
@@ -2267,7 +2267,6 @@ static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
 #endif
 
 #ifdef CONFIG_BLOCK
-struct bio;
 typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
 			    loff_t file_offset);
 void dio_end_io(struct bio *bio, int error);
