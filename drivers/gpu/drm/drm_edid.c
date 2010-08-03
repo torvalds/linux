@@ -1655,23 +1655,8 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	connector->display_info.serration_vsync = (edid->input & DRM_EDID_INPUT_SERRATION_VSYNC) ? 1 : 0;
-	connector->display_info.sync_on_green = (edid->input & DRM_EDID_INPUT_SYNC_ON_GREEN) ? 1 : 0;
-	connector->display_info.composite_sync = (edid->input & DRM_EDID_INPUT_COMPOSITE_SYNC) ? 1 : 0;
-	connector->display_info.separate_syncs = (edid->input & DRM_EDID_INPUT_SEPARATE_SYNCS) ? 1 : 0;
-	connector->display_info.blank_to_black = (edid->input & DRM_EDID_INPUT_BLANK_TO_BLACK) ? 1 : 0;
-	connector->display_info.video_level = (edid->input & DRM_EDID_INPUT_VIDEO_LEVEL) >> 5;
-	connector->display_info.digital = (edid->input & DRM_EDID_INPUT_DIGITAL) ? 1 : 0;
 	connector->display_info.width_mm = edid->width_cm * 10;
 	connector->display_info.height_mm = edid->height_cm * 10;
-	connector->display_info.gamma = edid->gamma;
-	connector->display_info.gtf_supported = (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF) ? 1 : 0;
-	connector->display_info.standard_color = (edid->features & DRM_EDID_FEATURE_STANDARD_COLOR) ? 1 : 0;
-	connector->display_info.display_type = (edid->features & DRM_EDID_FEATURE_DISPLAY_TYPE) >> 3;
-	connector->display_info.active_off_supported = (edid->features & DRM_EDID_FEATURE_PM_ACTIVE_OFF) ? 1 : 0;
-	connector->display_info.suspend_supported = (edid->features & DRM_EDID_FEATURE_PM_SUSPEND) ? 1 : 0;
-	connector->display_info.standby_supported = (edid->features & DRM_EDID_FEATURE_PM_STANDBY) ? 1 : 0;
-	connector->display_info.gamma = edid->gamma;
 
 	return num_modes;
 }
