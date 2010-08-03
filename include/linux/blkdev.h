@@ -933,7 +933,7 @@ static inline int sb_issue_discard(struct super_block *sb,
 {
 	block <<= (sb->s_blocksize_bits - 9);
 	nr_blocks <<= (sb->s_blocksize_bits - 9);
-	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL,
+	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_NOFS,
 				   BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 }
 
