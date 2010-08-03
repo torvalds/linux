@@ -2449,6 +2449,10 @@ static struct group_dual group9 = { {
 	N, N, N, N, N, N, N, N,
 } };
 
+static struct opcode group11[] = {
+	I(DstMem | SrcImm | ModRM | Mov, em_mov), X7(D(Undefined)),
+};
+
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	D6ALU(Lock),
@@ -2525,7 +2529,7 @@ static struct opcode opcode_table[256] = {
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	D(ImplicitOps | Stack),
 	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
-	I2bv(DstMem | SrcImm | ModRM | Mov, em_mov),
+	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
 	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
