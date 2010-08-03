@@ -256,6 +256,7 @@ static int pj_resume(struct i2c_client *client)
 	}
 
 	enable_irq(touch->client->irq);
+	return 0;
 }
 
 static int pj_remove(struct i2c_client *client)
