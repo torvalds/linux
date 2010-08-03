@@ -687,6 +687,9 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 	u8 cpl_msb;
 	int index;
 
+	/* Return invalid preset if no active input is detected */
+	qpreset->preset = V4L2_DV_INVALID;
+
 	device = to_tvp7002(sd);
 
 	/* Read standards from device registers */
@@ -720,8 +723,6 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 	if (index == NUM_PRESETS) {
 		v4l2_dbg(1, debug, sd, "detection failed: lpf = %x, cpl = %x\n",
 								lpfr, cpln);
-		/* Could not detect a signal, so return the 'invalid' preset */
-		qpreset->preset = V4L2_DV_INVALID;
 		return 0;
 	}
 
