@@ -928,7 +928,8 @@ void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid);
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
-					unsigned int maxbps);
+					unsigned int maxbps,
+					unsigned short spdif_ctls);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int format);
 
