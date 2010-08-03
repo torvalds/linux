@@ -92,6 +92,47 @@ CIFSParseMFSymlink(const u8 *buf,
 }
 
 static int
+CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
+{
+	unsigned int link_len;
+	unsigned int ofs;
+	struct MD5Context md5_ctx;
+	u8 md5_hash[16];
+
+	if (buf_len != CIFS_MF_SYMLINK_FILE_SIZE)
+		return -EINVAL;
+
+	link_len = strlen(link_str);
+
+	if (link_len > CIFS_MF_SYMLINK_LINK_MAXLEN)
+		return -ENAMETOOLONG;
+
+	cifs_MD5_init(&md5_ctx);
+	cifs_MD5_update(&md5_ctx, (const u8 *)link_str, link_len);
+	cifs_MD5_final(md5_hash, &md5_ctx);
+
+	snprintf(buf, buf_len,
+		 CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
+		 link_len,
+		 CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
+
+	ofs = CIFS_MF_SYMLINK_LINK_OFFSET;
+	memcpy(buf + ofs, link_str, link_len);
+
+	ofs += link_len;
+	if (ofs < CIFS_MF_SYMLINK_FILE_SIZE) {
+		buf[ofs] = '\n';
+		ofs++;
+	}
+
+	while (ofs < CIFS_MF_SYMLINK_FILE_SIZE) {
+		buf[ofs] = ' ';
+		ofs++;
+	}
+
+	return 0;
+}
+
 CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
 		   const unsigned char *searchName, char **symlinkinfo,
 		   const struct nls_table *nls_codepage, int remap)
