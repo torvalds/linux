@@ -494,11 +494,11 @@ static struct tegra_w1_timings tegra_w1_platform_timings = {
 	.trdv = 0xf,
 	.tlow0 = 0x3c,
 	.tlow1 = 0x1,
-	.tslot = 0x77,
+	.tslot = 0x78,
 
 	.tpdl = 0x3c,
 	.tpdh = 0x1e,
-	.trstl = 0x1df,
+	.trstl = 0x1ea,
 	.trsth = 0x1df,
 
 	.rdsclk = 0x7,
