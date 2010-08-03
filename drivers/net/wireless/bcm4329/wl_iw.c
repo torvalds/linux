@@ -890,7 +890,7 @@ wl_iw_get_link_speed(
 	char *p = extra;
 	static int link_speed;
 
-	
+	net_os_wake_lock(dev);
 	if (g_onoff == G_WLAN_SET_ON) {
 		error = dev_wlc_ioctl(dev, WLC_GET_RATE, &link_speed, sizeof(link_speed));
 		link_speed *= 500000;
@@ -900,6 +900,7 @@ wl_iw_get_link_speed(
 
 	wrqu->data.length = p - extra + 1;
 
+	net_os_wake_unlock(dev);
 	return error;
 }
 
@@ -916,6 +917,8 @@ wl_iw_get_band(
 	char *p = extra;
 	static int band;
 
+	net_os_wake_lock(dev);
+
 	if (g_onoff == G_WLAN_SET_ON) {
 		error = dev_wlc_ioctl(dev, WLC_GET_BAND, &band, sizeof(band));
 
@@ -923,6 +926,8 @@ wl_iw_get_band(
 
 		wrqu->data.length = p - extra + 1;
 	}
+
+	net_os_wake_unlock(dev);
 	return error;
 }
 
@@ -938,6 +943,8 @@ wl_iw_set_band(
 	int error = -1;
 	char *p = extra;
 	uint band;
+
+	net_os_wake_lock(dev);
 
 	if (g_onoff == G_WLAN_SET_ON) {
 
@@ -962,6 +969,7 @@ wl_iw_set_band(
 
 exit:
 	wrqu->data.length = p - extra + 1;
+	net_os_wake_unlock(dev);
 	return error;
 }
 
@@ -981,12 +989,15 @@ wl_iw_get_rssi(
 	static char ssidbuf[SSID_FMT_BUF_LEN];
 	scb_val_t scb_val;
 
+	net_os_wake_lock(dev);
+
 	bzero(&scb_val, sizeof(scb_val_t));
 
 	if (g_onoff == G_WLAN_SET_ON) {
 		error = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
 		if (error) {
 			WL_ERROR(("%s: Fails %d\n", __FUNCTION__, error));
+			net_os_wake_unlock(dev);
 			return error;
 		}
 		rssi = dtoh32(scb_val.val);
@@ -1001,6 +1012,7 @@ wl_iw_get_rssi(
 	p += snprintf(p, MAX_WX_STRING, "%s rssi %d ", ssidbuf, rssi);
 	wrqu->data.length = p - extra + 1;
 
+	net_os_wake_unlock(dev);
 	return error;
 }
 
@@ -2794,6 +2806,7 @@ wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag)
 
 	return 0;
 }
+
 static int
 wl_iw_iscan_set_scan(
 	struct net_device *dev,
@@ -2804,6 +2817,7 @@ wl_iw_iscan_set_scan(
 {
 	wlc_ssid_t ssid;
 	iscan_info_t *iscan = g_iscan;
+	int ret = 0;
 
 	WL_TRACE(("%s: SIOCSIWSCAN : ISCAN\n", dev->name));
 
@@ -2812,28 +2826,32 @@ wl_iw_iscan_set_scan(
 	return -EINVAL;
 #endif
 
+	net_os_wake_lock(dev);
+
 #if defined(SOFTAP)
 	if (ap_cfg_running) {
 		WL_TRACE(("\n>%s: Not executed, reason -'SOFTAP is active'\n", __FUNCTION__));
-		return 0;
+		goto set_scan_end;
 	}
 #endif
 
 	if (g_onoff == G_WLAN_SET_OFF) {
 		WL_TRACE(("%s: driver is not up yet after START\n", __FUNCTION__));
-		return 0;
+		goto set_scan_end;
 	}
 
 	if ((!iscan) || (iscan->sysioc_pid < 0)) {
 		WL_TRACE(("%s use backup if iscan thread is not successful\n", \
 			 __FUNCTION__));
-		return wl_iw_set_scan(dev, info, wrqu, extra);
+		ret = wl_iw_set_scan(dev, info, wrqu, extra);
+		goto set_scan_end;
 	}
 
 	if (g_scan_specified_ssid) {
 		WL_TRACE(("%s Specific SCAN already running ignoring BC scan\n", \
 				__FUNCTION__));
-		return EBUSY;
+		ret = EBUSY;
+		goto set_scan_end;
 	}
 
 	memset(&ssid, 0, sizeof(ssid));
@@ -2848,7 +2866,8 @@ wl_iw_iscan_set_scan(
 			if (g_first_broadcast_scan < BROADCAST_SCAN_FIRST_RESULT_CONSUMED) {
 				WL_TRACE(("%s First ISCAN in progress : ignoring SC = %s\n", \
 					 __FUNCTION__, req->essid));
-				return -EBUSY;
+				ret = -EBUSY;
+				goto set_scan_end;
 			}
 #endif
 			ssid.SSID_len = MIN(sizeof(ssid.SSID), req->essid_len);
@@ -2856,14 +2875,15 @@ wl_iw_iscan_set_scan(
 			ssid.SSID_len = htod32(ssid.SSID_len);
 			dev_wlc_ioctl(dev, WLC_SET_PASSIVE_SCAN, &as, sizeof(as));
 			wl_iw_set_event_mask(dev);
-			return wl_iw_set_scan(dev, info, wrqu, extra);
+			ret = wl_iw_set_scan(dev, info, wrqu, extra);
+			goto set_scan_end;
 		}
 		else {
 			g_scan_specified_ssid = 0;
 
 			if (iscan->iscan_state == ISCAN_STATE_SCANING) {
 				WL_TRACE(("%s ISCAN already in progress \n", __FUNCTION__));
-				return 0;
+				goto set_scan_end;
 			}
 		}
 	}
@@ -2871,7 +2891,9 @@ wl_iw_iscan_set_scan(
 
 	wl_iw_iscan_set_scan_broadcast_prep(dev, 0);
 
-	return 0;
+set_scan_end:
+	net_os_wake_unlock(dev);
+	return ret;
 }
 #endif 
 
@@ -5171,16 +5193,18 @@ wl_iw_set_cscan(
 		__FUNCTION__, info->cmd, info->flags,
 		wrqu->data.pointer, wrqu->data.length));
 
+	net_os_wake_lock(dev);
+
 	if (g_onoff == G_WLAN_SET_OFF) {
 		WL_TRACE(("%s: driver is not up yet after START\n", __FUNCTION__));
-		return -1;
+		goto exit_proc;
 	}
 
 
 	if (wrqu->data.length < (strlen(CSCAN_COMMAND) + sizeof(cscan_tlv_t))) {
 		WL_ERROR(("%s aggument=%d  less %d\n", __FUNCTION__, \
 			wrqu->data.length, strlen(CSCAN_COMMAND) + sizeof(cscan_tlv_t)));
-		return -1;
+		goto exit_proc;
 	}
 
 #ifdef TLV_DEBUG
@@ -5305,6 +5329,7 @@ wl_iw_set_cscan(
 		res = wl_iw_combined_scan_set(dev, ssids_local, nssid, nchan);
 
 exit_proc:
+	net_os_wake_unlock(dev);
 	return res;
 }
 
