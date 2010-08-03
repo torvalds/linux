@@ -173,40 +173,48 @@ static int adp5588_gpio_direction_output(struct gpio_chip *chip,
 	return ret;
 }
 
-static int __devinit adp5588_gpio_add(struct device *dev)
+static int __devinit adp5588_build_gpiomap(struct adp5588_kpad *kpad,
+				const struct adp5588_kpad_platform_data *pdata)
 {
-	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
+	bool pin_used[MAXGPIO];
+	int n_unused = 0;
+	int i;
+
+	memset(pin_used, 0, sizeof(pin_used));
+
+	for (i = 0; i < pdata->rows; i++)
+		pin_used[i] = true;
+
+	for (i = 0; i < pdata->cols; i++)
+		pin_used[i + GPI_PIN_COL_BASE - GPI_PIN_BASE] = true;
+
+	for (i = 0; i < kpad->gpimapsize; i++)
+		pin_used[kpad->gpimap[i].pin - GPI_PIN_BASE] = true;
+
+	for (i = 0; i < MAXGPIO; i++)
+		if (!pin_used[i])
+			kpad->gpiomap[n_unused++] = i;
+
+	return n_unused;
+}
+
+static int __devinit adp5588_gpio_add(struct adp5588_kpad *kpad)
+{
+	struct device *dev = &kpad->client->dev;
 	const struct adp5588_kpad_platform_data *pdata = dev->platform_data;
 	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
 	int i, error;
 
-	if (gpio_data) {
-		int j = 0;
-		bool pin_used[MAXGPIO];
+	if (!gpio_data)
+		return 0;
 
-		for (i = 0; i < pdata->rows; i++)
-			pin_used[i] = true;
-
-		for (i = 0; i < pdata->cols; i++)
-			pin_used[i + GPI_PIN_COL_BASE - GPI_PIN_BASE] = true;
-
-		for (i = 0; i < kpad->gpimapsize; i++)
-			pin_used[kpad->gpimap[i].pin - GPI_PIN_BASE] = true;
-
-		for (i = 0; i < MAXGPIO; i++) {
-			if (!pin_used[i])
-				kpad->gpiomap[j++] = i;
-		}
-		kpad->gc.ngpio = j;
-
-		if (kpad->gc.ngpio)
-			kpad->export_gpio = true;
-	}
-
-	if (!kpad->export_gpio) {
+	kpad->gc.ngpio = adp5588_build_gpiomap(kpad, pdata);
+	if (kpad->gc.ngpio == 0) {
 		dev_info(dev, "No unused gpios left to export\n");
 		return 0;
 	}
+
+	kpad->export_gpio = true;
 
 	kpad->gc.direction_input = adp5588_gpio_direction_input;
 	kpad->gc.direction_output = adp5588_gpio_direction_output;
@@ -243,9 +251,9 @@ static int __devinit adp5588_gpio_add(struct device *dev)
 	return 0;
 }
 
-static void __devexit adp5588_gpio_remove(struct device *dev)
+static void __devexit adp5588_gpio_remove(struct adp5588_kpad *kpad)
 {
-	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
+	struct device *dev = &kpad->client->dev;
 	const struct adp5588_kpad_platform_data *pdata = dev->platform_data;
 	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
 	int error;
@@ -266,12 +274,12 @@ static void __devexit adp5588_gpio_remove(struct device *dev)
 		dev_warn(dev, "gpiochip_remove failed %d\n", error);
 }
 #else
-static inline int adp5588_gpio_add(struct device *dev)
+static inline int adp5588_gpio_add(struct adp5588_kpad *kpad)
 {
 	return 0;
 }
 
-static inline void adp5588_gpio_remove(struct device *dev)
+static inline void adp5588_gpio_remove(struct adp5588_kpad *kpad)
 {
 }
 #endif
@@ -581,7 +589,7 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	if (kpad->gpimapsize)
 		adp5588_report_switch_state(kpad);
 
-	error = adp5588_gpio_add(&client->dev);
+	error = adp5588_gpio_add(kpad);
 	if (error)
 		goto err_free_irq;
 
@@ -611,7 +619,7 @@ static int __devexit adp5588_remove(struct i2c_client *client)
 	free_irq(client->irq, kpad);
 	cancel_delayed_work_sync(&kpad->work);
 	input_unregister_device(kpad->input);
-	adp5588_gpio_remove(&client->dev);
+	adp5588_gpio_remove(kpad);
 	kfree(kpad);
 
 	return 0;
