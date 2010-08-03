@@ -27,7 +27,7 @@
 
 const struct inode_operations ceph_dir_iops;
 const struct file_operations ceph_dir_fops;
-struct dentry_operations ceph_dentry_ops;
+const struct dentry_operations ceph_dentry_ops;
 
 /*
  * Initialize ceph dentry state.
@@ -1241,16 +1241,16 @@ const struct inode_operations ceph_dir_iops = {
 	.create = ceph_create,
 };
 
-struct dentry_operations ceph_dentry_ops = {
+const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
 	.d_release = ceph_dentry_release,
 };
 
-struct dentry_operations ceph_snapdir_dentry_ops = {
+const struct dentry_operations ceph_snapdir_dentry_ops = {
 	.d_revalidate = ceph_snapdir_d_revalidate,
 	.d_release = ceph_dentry_release,
 };
 
-struct dentry_operations ceph_snap_dentry_ops = {
+const struct dentry_operations ceph_snap_dentry_ops = {
 	.d_release = ceph_dentry_release,
 };

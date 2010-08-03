@@ -861,7 +861,7 @@ extern void ceph_release_page_vector(struct page **pages, int num_pages);
 /* dir.c */
 extern const struct file_operations ceph_dir_fops;
 extern const struct inode_operations ceph_dir_iops;
-extern struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
+extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
 	ceph_snapdir_dentry_ops;
 
 extern int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry);
