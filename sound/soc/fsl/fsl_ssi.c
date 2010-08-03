@@ -619,7 +619,7 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 {
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
-	struct device_attribute *dev_attr;
+	struct device_attribute *dev_attr = NULL;
 	struct device_node *np = of_dev->dev.of_node;
 	const char *p, *sprop;
 	struct resource res;
@@ -681,18 +681,16 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	if (ret) {
 		dev_err(&of_dev->dev, "could not create sysfs %s file\n",
 			ssi_private->dev_attr.attr.name);
-		kfree(ssi_private);
-		return ret;
+		goto error;
 	}
 
 	/* Register with ASoC */
 	dev_set_drvdata(&of_dev->dev, ssi_private);
 
 	ret = snd_soc_register_dai(&of_dev->dev, &ssi_private->cpu_dai_drv);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&of_dev->dev, "failed to register DAI: %d\n", ret);
-		kfree(ssi_private);
-		return ret;
+		goto error;
 	}
 
 	/* Trigger the machine driver's probe function.  The platform driver
@@ -713,18 +711,23 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	if (IS_ERR(ssi_private->pdev)) {
 		ret = PTR_ERR(ssi_private->pdev);
 		dev_err(&of_dev->dev, "failed to register platform: %d\n", ret);
-		kfree(ssi_private);
-		return ret;
+		goto error;
 	}
 
 	return 0;
+
+error:
+	snd_soc_unregister_dai(&of_dev->dev);
+	dev_set_drvdata(&of_dev->dev, NULL);
+	if (dev_attr)
+		device_remove_file(&of_dev->dev, dev_attr);
+	irq_dispose_mapping(ssi_private->irq);
+	iounmap(ssi_private->ssi);
+	kfree(ssi_private);
+
+	return ret;
 }
 
-/**
- * fsl_ssi_destroy_dai: destroy the snd_soc_dai object
- *
- * This function undoes the operations of fsl_ssi_probe()
- */
 static int fsl_ssi_remove(struct of_device *of_dev)
 {
 	struct fsl_ssi_private *ssi_private = dev_get_drvdata(&of_dev->dev);

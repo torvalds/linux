@@ -57,7 +57,6 @@
 			  SNDRV_PCM_RATE_CONTINUOUS)
 
 struct dma_object {
-	struct list_head list;
 	struct snd_soc_platform_driver dai;
 	dma_addr_t ssi_stx_phys;
 	dma_addr_t ssi_srx_phys;
@@ -825,9 +824,6 @@ static void fsl_dma_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-/* List of DMA nodes that we've probed */
-static LIST_HEAD(dma_list);
-
 /**
  * find_ssi_node -- returns the SSI node that points to his DMA channel node
  *
@@ -915,25 +911,20 @@ static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
 
 	dma->channel = of_iomap(np, 0);
 	dma->irq = irq_of_parse_and_map(np, 0);
-	list_add(&dma->list, &dma_list);
+
+	dev_set_drvdata(&of_dev->dev, dma);
 
 	return 0;
 }
 
 static int __devexit fsl_soc_dma_remove(struct of_device *of_dev)
 {
-	struct list_head *n, *ptr;
-	struct dma_object *dma;
+	struct dma_object *dma = dev_get_drvdata(&of_dev->dev);
 
-	list_for_each_safe(ptr, n, &dma_list) {
-		dma = list_entry(ptr, struct dma_object, list);
-		list_del_init(ptr);
-
-		snd_soc_unregister_platform(&of_dev->dev);
-		iounmap(dma->channel);
-		irq_dispose_mapping(dma->irq);
-		kfree(dma);
-	}
+	snd_soc_unregister_platform(&of_dev->dev);
+	iounmap(dma->channel);
+	irq_dispose_mapping(dma->irq);
+	kfree(dma);
 
 	return 0;
 }
