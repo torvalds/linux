@@ -1325,7 +1325,7 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 	bitbang->mdc_msk = 0x01;
 	bitbang->ctrl.ops = &bb_ops;
 
-	/* MII contorller setting */
+	/* MII controller setting */
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus) {
 		ret = -ENOMEM;
