@@ -1201,7 +1201,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	buf = list_entry(pcdev->capture.next,
 			struct mx2_buffer, vb.queue);
 
-	buf->bufnum = bufnum;
+	buf->bufnum = !bufnum;
 
 	list_move_tail(pcdev->capture.next, &pcdev->active_bufs);
 
