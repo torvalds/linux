@@ -969,10 +969,6 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	mt9m111->swap_rgb_even_odd = 1;
 	mt9m111->swap_rgb_red_blue = 1;
 
-	ret = mt9m111_init(client);
-	if (ret)
-		goto ei2c;
-
 	data = reg_read(CHIP_VERSION);
 
 	switch (data) {
@@ -992,6 +988,8 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 			data);
 		goto ei2c;
 	}
+
+	ret = mt9m111_init(client);
 
 ei2c:
 	return ret;
