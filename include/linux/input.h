@@ -1469,6 +1469,36 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
 }
 
+#define INPUT_GENERATE_ABS_ACCESSORS(_suffix, _item)			\
+static inline int input_abs_get_##_suffix(struct input_dev *dev,	\
+					  unsigned int axis)		\
+{									\
+	return dev->abs##_item[axis];					\
+}									\
+									\
+static inline void input_abs_set_##_suffix(struct input_dev *dev,	\
+					   unsigned int axis, int val)	\
+{									\
+	dev->abs##_item[axis] = val;					\
+}
+
+INPUT_GENERATE_ABS_ACCESSORS(min, min)
+INPUT_GENERATE_ABS_ACCESSORS(max, max)
+INPUT_GENERATE_ABS_ACCESSORS(fuzz, fuzz)
+INPUT_GENERATE_ABS_ACCESSORS(flat, flat)
+INPUT_GENERATE_ABS_ACCESSORS(res, res)
+
+static inline int input_abs_get_val(struct input_dev *dev, unsigned int axis)
+{
+	return dev->abs[axis];
+}
+
+static inline void input_abs_set_val(struct input_dev *dev,
+				     unsigned int axis, int val)
+{
+	dev->abs[axis] = val;
+}
+
 int input_get_keycode(struct input_dev *dev,
 		      unsigned int scancode, unsigned int *keycode);
 int input_set_keycode(struct input_dev *dev,
