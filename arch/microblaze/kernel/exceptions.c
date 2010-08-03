@@ -72,7 +72,6 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 							int fsr, int addr)
 {
 #ifdef CONFIG_MMU
-	int code;
 	addr = regs->pc;
 #endif
 
@@ -144,13 +143,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 #ifdef CONFIG_MMU
 	case MICROBLAZE_PRIVILEGED_EXCEPTION:
 		pr_debug("Privileged exception\n");
-		/* "brk r0,r0" - used as debug breakpoint - old toolchain */
-		if (get_user(code, (unsigned long *)regs->pc) == 0
-			&& code == 0x980c0000) {
-			_exception(SIGTRAP, regs, TRAP_BRKPT, addr);
-		} else {
-			_exception(SIGILL, regs, ILL_PRVOPC, addr);
-		}
+		_exception(SIGILL, regs, ILL_PRVOPC, addr);
 		break;
 #endif
 	default:
