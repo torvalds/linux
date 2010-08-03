@@ -4498,13 +4498,6 @@ static int sysfs_slab_add(struct kmem_cache *s)
 
 static void sysfs_slab_remove(struct kmem_cache *s)
 {
-	if (slab_state < SYSFS)
-		/*
-		 * Sysfs has not been setup yet so no need to remove the
-		 * cache from sysfs.
-		 */
-		return;
-
 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
 	kobject_del(&s->kobj);
 	kobject_put(&s->kobj);
