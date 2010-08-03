@@ -155,7 +155,7 @@ static void __init mv88f6281gtw_ge_init(void)
 static int __init mv88f6281gtw_ge_pci_init(void)
 {
 	if (machine_is_mv88f6281gtw_ge())
-		kirkwood_pcie_init();
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }
