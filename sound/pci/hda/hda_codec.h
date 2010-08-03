@@ -224,6 +224,27 @@ enum {
 /* Input converter SDI select */
 #define AC_SDI_SELECT			(0xf<<0)
 
+/* stream format id */
+#define AC_FMT_CHAN_SHIFT		0
+#define AC_FMT_CHAN_MASK		(0x0f << 0)
+#define AC_FMT_BITS_SHIFT		4
+#define AC_FMT_BITS_MASK		(7 << 4)
+#define AC_FMT_BITS_8			(0 << 4)
+#define AC_FMT_BITS_16			(1 << 4)
+#define AC_FMT_BITS_20			(2 << 4)
+#define AC_FMT_BITS_24			(3 << 4)
+#define AC_FMT_BITS_32			(4 << 4)
+#define AC_FMT_DIV_SHIFT		8
+#define AC_FMT_DIV_MASK			(7 << 8)
+#define AC_FMT_MULT_SHIFT		11
+#define AC_FMT_MULT_MASK		(7 << 11)
+#define AC_FMT_BASE_SHIFT		14
+#define AC_FMT_BASE_48K			(0 << 14)
+#define AC_FMT_BASE_44K			(1 << 14)
+#define AC_FMT_TYPE_SHIFT		15
+#define AC_FMT_TYPE_PCM			(0 << 15)
+#define AC_FMT_TYPE_NON_PCM		(1 << 15)
+
 /* Unsolicited response control */
 #define AC_UNSOL_TAG			(0x3f<<0)
 #define AC_UNSOL_ENABLED		(1<<7)

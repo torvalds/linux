@@ -698,6 +698,10 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
+/* HBR should be Non-PCM, 8 channels */
+#define is_hbr_format(format) \
+	((format & AC_FMT_TYPE_NON_PCM) && (format & AC_FMT_CHAN_MASK) == 7)
+
 static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 			      u32 stream_tag, int format)
 {
@@ -718,8 +722,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 
 		new_pinctl = pinctl & ~AC_PINCTL_EPT;
-		/* Non-PCM, 8 channels */
-		if ((format & 0x8000) && (format & 0x0f) == 7)
+		if (is_hbr_format(format))
 			new_pinctl |= AC_PINCTL_EPT_HBR;
 		else
 			new_pinctl |= AC_PINCTL_EPT_NATIVE;
@@ -736,7 +739,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 					    new_pinctl);
 	}
 
-	if ((format & 0x8000) && (format & 0x0f) == 7 && !new_pinctl) {
+	if (is_hbr_format(format) && !new_pinctl) {
 		snd_printdd("hdmi_setup_stream: HBR is not supported\n");
 		return -EINVAL;
 	}
