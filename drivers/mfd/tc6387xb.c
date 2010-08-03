@@ -137,7 +137,7 @@ static struct mfd_cell tc6387xb_cells[] = {
 	},
 };
 
-static int tc6387xb_probe(struct platform_device *dev)
+static int __devinit tc6387xb_probe(struct platform_device *dev)
 {
 	struct tc6387xb_platform_data *pdata = dev->dev.platform_data;
 	struct resource *iomem, *rscr;
@@ -212,7 +212,7 @@ err_no_irq:
 	return ret;
 }
 
-static int tc6387xb_remove(struct platform_device *dev)
+static int __devexit tc6387xb_remove(struct platform_device *dev)
 {
 	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
 
@@ -233,7 +233,7 @@ static struct platform_driver tc6387xb_platform_driver = {
 		.name		= "tc6387xb",
 	},
 	.probe		= tc6387xb_probe,
-	.remove		= tc6387xb_remove,
+	.remove		= __devexit_p(tc6387xb_remove),
 	.suspend        = tc6387xb_suspend,
 	.resume         = tc6387xb_resume,
 };
