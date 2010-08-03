@@ -71,8 +71,15 @@ struct platform_device *__init imx_add_imx_uart_1irq(
 
 #include <mach/mxc_nand.h>
 struct imx_mxc_nand_data {
+	/*
+	 * id is traditionally 0, but -1 is more appropriate.  We use -1 for new
+	 * machines but don't change existing devices as the nand device usually
+	 * appears in the kernel command line to pass its partitioning.
+	 */
+	int id;
 	resource_size_t iobase;
 	resource_size_t iosize;
+	resource_size_t axibase;
 	resource_size_t irq;
 };
 struct platform_device *__init imx_add_mxc_nand(

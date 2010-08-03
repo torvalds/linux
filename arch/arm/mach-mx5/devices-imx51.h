@@ -21,6 +21,10 @@ extern const struct imx_imx_uart_1irq_data imx51_imx_uart_data[] __initconst;
 #define imx51_add_imx_uart(id, pdata)	\
 	imx_add_imx_uart_1irq(&imx51_imx_uart_data[id], pdata)
 
+extern const struct imx_mxc_nand_data imx51_mxc_nand_data __initconst;
+#define imx51_add_mxc_nand(pdata)	\
+	imx_add_mxc_nand(&imx51_mxc_nand_data, pdata)
+
 extern const struct imx_spi_imx_data imx51_cspi_data __initconst;
 #define imx51_add_cspi(pdata)	\
 	imx_add_spi_imx(&imx51_cspi_data, pdata)

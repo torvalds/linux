@@ -17,6 +17,15 @@
 		.irq = soc ## _INT_NFC					\
 	}
 
+#define imx_mxc_nandv3_data_entry_single(soc, _size)			\
+	{								\
+		.id = -1,						\
+		.iobase = soc ## _NFC_BASE_ADDR,			\
+		.iosize = _size,					\
+		.axibase = soc ## _NFC_AXI_BASE_ADDR,			\
+		.irq = soc ## _INT_NFC					\
+	}
+
 #ifdef CONFIG_SOC_IMX21
 const struct imx_mxc_nand_data imx21_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX21, SZ_4K);
@@ -42,12 +51,22 @@ const struct imx_mxc_nand_data imx35_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX35, SZ_8K);
 #endif
 
+#ifdef CONFIG_ARCH_MX51
+const struct imx_mxc_nand_data imx51_mxc_nand_data __initconst =
+	imx_mxc_nandv3_data_entry_single(MX51, SZ_16K);
+#endif
+
 struct platform_device *__init imx_add_mxc_nand(
 		const struct imx_mxc_nand_data *data,
 		const struct mxc_nand_platform_data *pdata)
 {
+	/* AXI has to come first, that's how the mxc_nand driver expect it */
 	struct resource res[] = {
 		{
+			.start = data->axibase,
+			.end = data->axibase + SZ_16K - 1,
+			.flags = IORESOURCE_MEM,
+		}, {
 			.start = data->iobase,
 			.end = data->iobase + data->iosize - 1,
 			.flags = IORESOURCE_MEM,
@@ -57,6 +76,8 @@ struct platform_device *__init imx_add_mxc_nand(
 			.flags = IORESOURCE_IRQ,
 		},
 	};
-	return imx_add_platform_device("mxc_nand", 0, res, ARRAY_SIZE(res),
+	return imx_add_platform_device("mxc_nand", data->id,
+			res + !data->axibase,
+			ARRAY_SIZE(res) - !data->axibase,
 			pdata, sizeof(*pdata));
 }
