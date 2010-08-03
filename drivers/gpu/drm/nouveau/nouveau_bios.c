@@ -6003,7 +6003,7 @@ static void fabricate_vga_output(struct dcb_table *dcb, int i2c, int heads)
 	entry->i2c_index = i2c;
 	entry->heads = heads;
 	entry->location = DCB_LOC_ON_CHIP;
-	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
+	entry->or = 1;
 }
 
 static void fabricate_dvi_i_output(struct dcb_table *dcb, bool twoHeads)
