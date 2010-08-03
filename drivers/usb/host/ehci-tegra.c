@@ -215,6 +215,7 @@ static void tegra_ehci_irq_work(struct work_struct *irq_work)
 			tegra_ehci_restart(hcd);
 		} else if (tegra->transceiver->state == OTG_STATE_A_SUSPEND &&
 			    tegra->host_reinited) {
+			clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 			tegra_ehci_power_down(hcd);
 			tegra->host_reinited = 0;
 		}
@@ -455,6 +456,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		tegra->transceiver = otg_get_transceiver();
 #endif
 
+	tegra->host_reinited = 1;
+
 	err = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (err != 0) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
@@ -495,8 +498,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		/* Check if we detect any device connected */
 		if (temp & TEGRA_USB_ID_PIN_STATUS)
 			tegra_ehci_power_down(hcd);
-		else
-			tegra_ehci_power_up(hcd);
 	}
 
 	return err;
@@ -522,10 +523,19 @@ static int tegra_ehci_resume(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 
+	if (tegra->transceiver) {
+		if (tegra->transceiver->state == OTG_STATE_A_HOST)
+			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		else
+			return 0;
+	}
+
 	if (!tegra->host_resumed) {
 		tegra_ehci_power_up(hcd);
 		tegra_ehci_restart(hcd);
 	}
+
+	tegra->host_reinited = 1;
 
 	return 0;
 }
@@ -536,16 +546,14 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 
 	if (tegra->transceiver) {
-		if (tegra->transceiver->state != OTG_STATE_A_HOST) {
-			/* we are not in host mode, return */
-			return 0;
-		} else {
-			tegra->host_reinited = 0;
-			ehci_halt(tegra->ehci);
+		if (tegra->transceiver->state == OTG_STATE_A_HOST)
 			/* indicate hcd flags, that hardware is not accessable now */
 			clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-		}
+		else
+			return 0;
 	}
+
+	tegra->host_reinited = 0;
 
 	if (tegra->host_resumed)
 		tegra_ehci_power_down(hcd);
