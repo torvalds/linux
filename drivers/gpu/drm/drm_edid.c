@@ -34,6 +34,10 @@
 #include "drmP.h"
 #include "drm_edid.h"
 
+#define version_greater(edid, maj, min) \
+	(((edid)->version > (maj)) || \
+	 ((edid)->version == (maj) && (edid)->revision > (min)))
+
 #define EDID_EST_TIMINGS 16
 #define EDID_STD_TIMINGS 8
 #define EDID_DETAILED_TIMINGS 4
@@ -62,6 +66,13 @@
 /* use +hsync +vsync for detailed mode */
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
 
+struct detailed_mode_closure {
+	struct drm_connector *connector;
+	struct edid *edid;
+	bool preferred;
+	u32 quirks;
+	int modes;
+};
 
 #define LEVEL_DMT	0
 #define LEVEL_GTF	1
@@ -1101,117 +1112,6 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	return mode;
 }
 
-/*
- * Detailed mode info for the EDID "established modes" data to use.
- */
-static struct drm_display_mode edid_est_modes[] = {
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
-		   968, 1056, 0, 600, 601, 605, 628, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@60Hz */
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 36000, 800, 824,
-		   896, 1024, 0, 600, 601, 603,  625, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@56Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 656,
-		   720, 840, 0, 480, 481, 484, 500, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@75Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 664,
-		   704,  832, 0, 480, 489, 491, 520, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@72Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 30240, 640, 704,
-		   768,  864, 0, 480, 483, 486, 525, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@67Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25200, 640, 656,
-		   752, 800, 0, 480, 490, 492, 525, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@60Hz */
-	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 35500, 720, 738,
-		   846, 900, 0, 400, 421, 423,  449, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 720x400@88Hz */
-	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 28320, 720, 738,
-		   846,  900, 0, 400, 412, 414, 449, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 720x400@70Hz */
-	{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 135000, 1280, 1296,
-		   1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1280x1024@75Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78800, 1024, 1040,
-		   1136, 1312, 0,  768, 769, 772, 800, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1024x768@75Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 75000, 1024, 1048,
-		   1184, 1328, 0,  768, 771, 777, 806, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 1024x768@70Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 65000, 1024, 1048,
-		   1184, 1344, 0,  768, 771, 777, 806, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 1024x768@60Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER,44900, 1024, 1032,
-		   1208, 1264, 0, 768, 768, 776, 817, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_INTERLACE) }, /* 1024x768@43Hz */
-	{ DRM_MODE("832x624", DRM_MODE_TYPE_DRIVER, 57284, 832, 864,
-		   928, 1152, 0, 624, 625, 628, 667, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 832x624@75Hz */
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 49500, 800, 816,
-		   896, 1056, 0, 600, 601, 604,  625, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@75Hz */
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 50000, 800, 856,
-		   976, 1040, 0, 600, 637, 643, 666, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@72Hz */
-	{ DRM_MODE("1152x864", DRM_MODE_TYPE_DRIVER, 108000, 1152, 1216,
-		   1344, 1600, 0,  864, 865, 868, 900, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1152x864@75Hz */
-};
-
-/**
- * add_established_modes - get est. modes from EDID and add them
- * @edid: EDID block to scan
- *
- * Each EDID block contains a bitmap of the supported "established modes" list
- * (defined above).  Tease them out and add them to the global modes list.
- */
-static int add_established_modes(struct drm_connector *connector, struct edid *edid)
-{
-	struct drm_device *dev = connector->dev;
-	unsigned long est_bits = edid->established_timings.t1 |
-		(edid->established_timings.t2 << 8) |
-		((edid->established_timings.mfg_rsvd & 0x80) << 9);
-	int i, modes = 0;
-
-	for (i = 0; i <= EDID_EST_TIMINGS; i++)
-		if (est_bits & (1<<i)) {
-			struct drm_display_mode *newmode;
-			newmode = drm_mode_duplicate(dev, &edid_est_modes[i]);
-			if (newmode) {
-				drm_mode_probed_add(connector, newmode);
-				modes++;
-			}
-		}
-
-	return modes;
-}
-
-/**
- * add_standard_modes - get std. modes from EDID and add them
- * @edid: EDID block to scan
- *
- * Standard modes can be calculated using the CVT standard.  Grab them from
- * @edid, calculate them, and add them to the list.
- */
-static int add_standard_modes(struct drm_connector *connector, struct edid *edid)
-{
-	int i, modes = 0;
-
-	for (i = 0; i < EDID_STD_TIMINGS; i++) {
-		struct drm_display_mode *newmode;
-
-		newmode = drm_mode_std(connector, edid,
-				       &edid->standard_timings[i],
-				       edid->revision);
-		if (newmode) {
-			drm_mode_probed_add(connector, newmode);
-			modes++;
-		}
-	}
-
-	return modes;
-}
-
 static bool
 mode_is_rb(struct drm_display_mode *mode)
 {
@@ -1321,54 +1221,86 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	return modes;
 }
 
-static int drm_cvt_modes(struct drm_connector *connector,
-			 struct detailed_timing *timing)
+static void
+do_inferred_modes(struct detailed_timing *timing, void *c)
 {
-	int i, j, modes = 0;
-	struct drm_display_mode *newmode;
-	struct drm_device *dev = connector->dev;
-	struct cvt_timing *cvt;
-	const int rates[] = { 60, 85, 75, 60, 50 };
-	const u8 empty[3] = { 0, 0, 0 };
+	struct detailed_mode_closure *closure = c;
+	struct detailed_non_pixel *data = &timing->data.other_data;
+	int gtf = (closure->edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
 
-	for (i = 0; i < 4; i++) {
-		int uninitialized_var(width), height;
-		cvt = &(timing->data.other_data.data.cvt[i]);
-
-		if (!memcmp(cvt->code, empty, 3))
-			continue;
-
-		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 4) + 1) * 2;
-		switch (cvt->code[1] & 0x0c) {
-		case 0x00:
-			width = height * 4 / 3;
-			break;
-		case 0x04:
-			width = height * 16 / 9;
-			break;
-		case 0x08:
-			width = height * 16 / 10;
-			break;
-		case 0x0c:
-			width = height * 15 / 9;
-			break;
-		}
-
-		for (j = 1; j < 5; j++) {
-			if (cvt->code[2] & (1 << j)) {
-				newmode = drm_cvt_mode(dev, width, height,
-						       rates[j], j == 0,
-						       false, false);
-				if (newmode) {
-					drm_mode_probed_add(connector, newmode);
-					modes++;
-				}
-			}
-		}
-	}
-
-	return modes;
+	if (gtf && data->type == EDID_DETAIL_MONITOR_RANGE)
+		closure->modes += drm_gtf_modes_for_range(closure->connector,
+							  closure->edid,
+							  timing);
 }
+
+static int
+add_inferred_modes(struct drm_connector *connector, struct edid *edid)
+{
+	struct detailed_mode_closure closure = {
+		connector, edid, 0, 0, 0
+	};
+
+	if (version_greater(edid, 1, 0))
+		drm_for_each_detailed_block((u8 *)edid, do_inferred_modes,
+					    &closure);
+
+	return closure.modes;
+}
+
+static struct drm_display_mode edid_est_modes[] = {
+	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
+		   968, 1056, 0, 600, 601, 605, 628, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@60Hz */
+	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 36000, 800, 824,
+		   896, 1024, 0, 600, 601, 603,  625, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@56Hz */
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 656,
+		   720, 840, 0, 480, 481, 484, 500, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@75Hz */
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 664,
+		   704,  832, 0, 480, 489, 491, 520, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@72Hz */
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 30240, 640, 704,
+		   768,  864, 0, 480, 483, 486, 525, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@67Hz */
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25200, 640, 656,
+		   752, 800, 0, 480, 490, 492, 525, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@60Hz */
+	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 35500, 720, 738,
+		   846, 900, 0, 400, 421, 423,  449, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 720x400@88Hz */
+	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 28320, 720, 738,
+		   846,  900, 0, 400, 412, 414, 449, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 720x400@70Hz */
+	{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 135000, 1280, 1296,
+		   1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1280x1024@75Hz */
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78800, 1024, 1040,
+		   1136, 1312, 0,  768, 769, 772, 800, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1024x768@75Hz */
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 75000, 1024, 1048,
+		   1184, 1328, 0,  768, 771, 777, 806, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 1024x768@70Hz */
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 65000, 1024, 1048,
+		   1184, 1344, 0,  768, 771, 777, 806, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 1024x768@60Hz */
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER,44900, 1024, 1032,
+		   1208, 1264, 0, 768, 768, 776, 817, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_INTERLACE) }, /* 1024x768@43Hz */
+	{ DRM_MODE("832x624", DRM_MODE_TYPE_DRIVER, 57284, 832, 864,
+		   928, 1152, 0, 624, 625, 628, 667, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 832x624@75Hz */
+	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 49500, 800, 816,
+		   896, 1056, 0, 600, 601, 604,  625, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@75Hz */
+	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 50000, 800, 856,
+		   976, 1040, 0, 600, 637, 643, 666, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@72Hz */
+	{ DRM_MODE("1152x864", DRM_MODE_TYPE_DRIVER, 108000, 1152, 1216,
+		   1344, 1600, 0,  864, 865, 868, 900, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1152x864@75Hz */
+};
 
 static const struct {
 	short w;
@@ -1458,37 +1390,63 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 	return modes;
 }
 
-static int add_detailed_modes(struct drm_connector *connector,
-			      struct detailed_timing *timing,
-			      struct edid *edid, u32 quirks, int preferred)
+static void
+do_established_modes(struct detailed_timing *timing, void *c)
 {
-	int i, modes = 0;
+	struct detailed_mode_closure *closure = c;
 	struct detailed_non_pixel *data = &timing->data.other_data;
-	int gtf = (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
-	struct drm_display_mode *newmode;
+
+	if (data->type == EDID_DETAIL_EST_TIMINGS)
+		closure->modes += drm_est3_modes(closure->connector, timing);
+}
+
+/**
+ * add_established_modes - get est. modes from EDID and add them
+ * @edid: EDID block to scan
+ *
+ * Each EDID block contains a bitmap of the supported "established modes" list
+ * (defined above).  Tease them out and add them to the global modes list.
+ */
+static int
+add_established_modes(struct drm_connector *connector, struct edid *edid)
+{
 	struct drm_device *dev = connector->dev;
+	unsigned long est_bits = edid->established_timings.t1 |
+		(edid->established_timings.t2 << 8) |
+		((edid->established_timings.mfg_rsvd & 0x80) << 9);
+	int i, modes = 0;
+	struct detailed_mode_closure closure = {
+		connector, edid, 0, 0, 0
+	};
 
-	if (timing->pixel_clock) {
-		newmode = drm_mode_detailed(dev, edid, timing, quirks);
-		if (!newmode)
-			return 0;
-
-		if (preferred)
-			newmode->type |= DRM_MODE_TYPE_PREFERRED;
-
-		drm_mode_probed_add(connector, newmode);
-		return 1;
+	for (i = 0; i <= EDID_EST_TIMINGS; i++) {
+		if (est_bits & (1<<i)) {
+			struct drm_display_mode *newmode;
+			newmode = drm_mode_duplicate(dev, &edid_est_modes[i]);
+			if (newmode) {
+				drm_mode_probed_add(connector, newmode);
+				modes++;
+			}
+		}
 	}
 
-	/* other timing types */
-	switch (data->type) {
-	case EDID_DETAIL_MONITOR_RANGE:
-		if (gtf)
-			modes += drm_gtf_modes_for_range(connector, edid,
-							 timing);
-		break;
-	case EDID_DETAIL_STD_MODES:
-		/* Six modes per detailed section */
+	if (version_greater(edid, 1, 0))
+		    drm_for_each_detailed_block((u8 *)edid,
+						do_established_modes, &closure);
+
+	return modes + closure.modes;
+}
+
+static void
+do_standard_modes(struct detailed_timing *timing, void *c)
+{
+	struct detailed_mode_closure *closure = c;
+	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct drm_connector *connector = closure->connector;
+	struct edid *edid = closure->edid;
+
+	if (data->type == EDID_DETAIL_STD_MODES) {
+		int i;
 		for (i = 0; i < 6; i++) {
 			struct std_timing *std;
 			struct drm_display_mode *newmode;
@@ -1498,108 +1456,169 @@ static int add_detailed_modes(struct drm_connector *connector,
 					       edid->revision);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
-				modes++;
+				closure->modes++;
 			}
 		}
-		break;
-	case EDID_DETAIL_CVT_3BYTE:
-		modes += drm_cvt_modes(connector, timing);
-		break;
-	case EDID_DETAIL_EST_TIMINGS:
-		modes += drm_est3_modes(connector, timing);
-		break;
-	default:
-		break;
+	}
+}
+
+/**
+ * add_standard_modes - get std. modes from EDID and add them
+ * @edid: EDID block to scan
+ *
+ * Standard modes can be calculated using the appropriate standard (DMT,
+ * GTF or CVT. Grab them from @edid and add them to the list.
+ */
+static int
+add_standard_modes(struct drm_connector *connector, struct edid *edid)
+{
+	int i, modes = 0;
+	struct detailed_mode_closure closure = {
+		connector, edid, 0, 0, 0
+	};
+
+	for (i = 0; i < EDID_STD_TIMINGS; i++) {
+		struct drm_display_mode *newmode;
+
+		newmode = drm_mode_std(connector, edid,
+				       &edid->standard_timings[i],
+				       edid->revision);
+		if (newmode) {
+			drm_mode_probed_add(connector, newmode);
+			modes++;
+		}
+	}
+
+	if (version_greater(edid, 1, 0))
+		drm_for_each_detailed_block((u8 *)edid, do_standard_modes,
+					    &closure);
+
+	/* XXX should also look for standard codes in VTB blocks */
+
+	return modes + closure.modes;
+}
+
+static int drm_cvt_modes(struct drm_connector *connector,
+			 struct detailed_timing *timing)
+{
+	int i, j, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+	struct cvt_timing *cvt;
+	const int rates[] = { 60, 85, 75, 60, 50 };
+	const u8 empty[3] = { 0, 0, 0 };
+
+	for (i = 0; i < 4; i++) {
+		int uninitialized_var(width), height;
+		cvt = &(timing->data.other_data.data.cvt[i]);
+
+		if (!memcmp(cvt->code, empty, 3))
+			continue;
+
+		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 4) + 1) * 2;
+		switch (cvt->code[1] & 0x0c) {
+		case 0x00:
+			width = height * 4 / 3;
+			break;
+		case 0x04:
+			width = height * 16 / 9;
+			break;
+		case 0x08:
+			width = height * 16 / 10;
+			break;
+		case 0x0c:
+			width = height * 15 / 9;
+			break;
+		}
+
+		for (j = 1; j < 5; j++) {
+			if (cvt->code[2] & (1 << j)) {
+				newmode = drm_cvt_mode(dev, width, height,
+						       rates[j], j == 0,
+						       false, false);
+				if (newmode) {
+					drm_mode_probed_add(connector, newmode);
+					modes++;
+				}
+			}
+		}
 	}
 
 	return modes;
 }
 
-/**
- * add_detailed_info - get detailed mode info from EDID data
+static void
+do_cvt_mode(struct detailed_timing *timing, void *c)
+{
+	struct detailed_mode_closure *closure = c;
+	struct detailed_non_pixel *data = &timing->data.other_data;
+
+	if (data->type == EDID_DETAIL_CVT_3BYTE)
+		closure->modes += drm_cvt_modes(closure->connector, timing);
+}
+
+static int
+add_cvt_modes(struct drm_connector *connector, struct edid *edid)
+{	
+	struct detailed_mode_closure closure = {
+		connector, edid, 0, 0, 0
+	};
+
+	if (version_greater(edid, 1, 2))
+		drm_for_each_detailed_block((u8 *)edid, do_cvt_mode, &closure);
+
+	/* XXX should also look for CVT codes in VTB blocks */
+
+	return closure.modes;
+}
+
+static void
+do_detailed_mode(struct detailed_timing *timing, void *c)
+{
+	struct detailed_mode_closure *closure = c;
+	struct drm_display_mode *newmode;
+
+	if (timing->pixel_clock) {
+		newmode = drm_mode_detailed(closure->connector->dev,
+					    closure->edid, timing,
+					    closure->quirks);
+		if (!newmode)
+			return;
+
+		if (closure->preferred)
+			newmode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_probed_add(closure->connector, newmode);
+		closure->modes++;
+		closure->preferred = 0;
+	}
+}
+
+/*
+ * add_detailed_modes - Add modes from detailed timings
  * @connector: attached connector
  * @edid: EDID block to scan
  * @quirks: quirks to apply
- *
- * Some of the detailed timing sections may contain mode information.  Grab
- * it and add it to the list.
  */
-static int add_detailed_info(struct drm_connector *connector,
-			     struct edid *edid, u32 quirks)
+static int
+add_detailed_modes(struct drm_connector *connector, struct edid *edid,
+		   u32 quirks)
 {
-	int i, modes = 0;
+	struct detailed_mode_closure closure = {
+		connector,
+		edid,
+		1,
+		quirks,
+		0
+	};
 
-	for (i = 0; i < EDID_DETAILED_TIMINGS; i++) {
-		struct detailed_timing *timing = &edid->detailed_timings[i];
-		int preferred = (i == 0);
+	if (closure.preferred && !version_greater(edid, 1, 3))
+		closure.preferred =
+		    (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
 
-		if (preferred && edid->version == 1 && edid->revision < 4)
-			preferred = (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
+	drm_for_each_detailed_block((u8 *)edid, do_detailed_mode, &closure);
 
-		/* In 1.0, only timings are allowed */
-		if (!timing->pixel_clock && edid->version == 1 &&
-			edid->revision == 0)
-			continue;
-
-		modes += add_detailed_modes(connector, timing, edid, quirks,
-					    preferred);
-	}
-
-	return modes;
-}
-
-/**
- * add_detailed_mode_eedid - get detailed mode info from addtional timing
- * 			EDID block
- * @connector: attached connector
- * @edid: EDID block to scan(It is only to get addtional timing EDID block)
- * @quirks: quirks to apply
- *
- * Some of the detailed timing sections may contain mode information.  Grab
- * it and add it to the list.
- */
-static int add_detailed_info_eedid(struct drm_connector *connector,
-			     struct edid *edid, u32 quirks)
-{
-	int i, modes = 0;
-	char *edid_ext = NULL;
-	struct detailed_timing *timing;
-	int start_offset, end_offset;
-
-	if (edid->version == 1 && edid->revision < 3)
-		return 0;
-	if (!edid->extensions)
-		return 0;
-
-	/* Find CEA extension */
-	for (i = 0; i < edid->extensions; i++) {
-		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
-		if (edid_ext[0] == 0x02)
-			break;
-	}
-
-	if (i == edid->extensions)
-		return 0;
-
-	/* Get the start offset of detailed timing block */
-	start_offset = edid_ext[2];
-	if (start_offset == 0) {
-		/* If the start_offset is zero, it means that neither detailed
-		 * info nor data block exist. In such case it is also
-		 * unnecessary to parse the detailed timing info.
-		 */
-		return 0;
-	}
-
-	end_offset = EDID_LENGTH;
-	end_offset -= sizeof(struct detailed_timing);
-	for (i = start_offset; i < end_offset;
-			i += sizeof(struct detailed_timing)) {
-		timing = (struct detailed_timing *)(edid_ext + i);
-		modes += add_detailed_modes(connector, timing, edid, quirks, 0);
-	}
-
-	return modes;
+	return closure.modes;
 }
 
 #define HDMI_IDENTIFIER 0x000C03
@@ -1695,14 +1714,15 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	 * - established timing codes
 	 * - modes inferred from GTF or CVT range information
 	 *
-	 * We don't quite implement this yet, but we're close.
+	 * We get this pretty much right.
 	 *
 	 * XXX order for additional mode types in extension blocks?
 	 */
-	num_modes += add_detailed_info(connector, edid, quirks);
-	num_modes += add_detailed_info_eedid(connector, edid, quirks);
+	num_modes += add_detailed_modes(connector, edid, quirks);
+	num_modes += add_cvt_modes(connector, edid);
 	num_modes += add_standard_modes(connector, edid);
 	num_modes += add_established_modes(connector, edid);
+	num_modes += add_inferred_modes(connector, edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
