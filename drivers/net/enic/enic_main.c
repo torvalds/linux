@@ -1087,10 +1087,7 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 {
 	struct vic_provinfo *vp;
 	u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
-	u8 *uuid;
 	char uuid_str[38];
-	static char *uuid_fmt = "%02X%02X%02X%02X-%02X%02X-%02X%02X-"
-		"%02X%02X-%02X%02X%02X%02X%0X%02X";
 	int err;
 
 	err = enic_vnic_dev_deinit(enic);
@@ -1121,24 +1118,14 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 			ETH_ALEN, mac);
 
 		if (enic->pp.set & ENIC_SET_INSTANCE) {
-			uuid = enic->pp.instance_uuid;
-			sprintf(uuid_str, uuid_fmt,
-				uuid[0],  uuid[1],  uuid[2],  uuid[3],
-				uuid[4],  uuid[5],  uuid[6],  uuid[7],
-				uuid[8],  uuid[9],  uuid[10], uuid[11],
-				uuid[12], uuid[13], uuid[14], uuid[15]);
+			sprintf(uuid_str, "%pUB", enic->pp.instance_uuid);
 			vic_provinfo_add_tlv(vp,
 				VIC_LINUX_PROV_TLV_CLIENT_UUID_STR,
 				sizeof(uuid_str), uuid_str);
 		}
 
 		if (enic->pp.set & ENIC_SET_HOST) {
-			uuid = enic->pp.host_uuid;
-			sprintf(uuid_str, uuid_fmt,
-				uuid[0],  uuid[1],  uuid[2],  uuid[3],
-				uuid[4],  uuid[5],  uuid[6],  uuid[7],
-				uuid[8],  uuid[9],  uuid[10], uuid[11],
-				uuid[12], uuid[13], uuid[14], uuid[15]);
+			sprintf(uuid_str, "%pUB", enic->pp.host_uuid);
 			vic_provinfo_add_tlv(vp,
 				VIC_LINUX_PROV_TLV_HOST_UUID_STR,
 				sizeof(uuid_str), uuid_str);
