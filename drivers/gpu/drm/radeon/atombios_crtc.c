@@ -44,10 +44,6 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 
 	memset(&args, 0, sizeof(args));
 
-	args.usOverscanRight = 0;
-	args.usOverscanLeft = 0;
-	args.usOverscanBottom = 0;
-	args.usOverscanTop = 0;
 	args.ucCRTC = radeon_crtc->crtc_id;
 
 	switch (radeon_crtc->rmx_type) {
@@ -56,7 +52,6 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 		args.usOverscanBottom = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
 		args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
 		args.usOverscanRight = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 		break;
 	case RMX_ASPECT:
 		a1 = mode->crtc_vdisplay * adjusted_mode->crtc_hdisplay;
@@ -69,17 +64,16 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 			args.usOverscanLeft = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
 			args.usOverscanRight = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
 		}
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 		break;
 	case RMX_FULL:
 	default:
-		args.usOverscanRight = 0;
-		args.usOverscanLeft = 0;
-		args.usOverscanBottom = 0;
-		args.usOverscanTop = 0;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		args.usOverscanRight = radeon_crtc->h_border;
+		args.usOverscanLeft = radeon_crtc->h_border;
+		args.usOverscanBottom = radeon_crtc->v_border;
+		args.usOverscanTop = radeon_crtc->v_border;
 		break;
 	}
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
 static void atombios_scaler_setup(struct drm_crtc *crtc)
@@ -282,22 +276,22 @@ atombios_set_crtc_dtd_timing(struct drm_crtc *crtc,
 	u16 misc = 0;
 
 	memset(&args, 0, sizeof(args));
-	args.usH_Size = cpu_to_le16(mode->crtc_hdisplay);
+	args.usH_Size = cpu_to_le16(mode->crtc_hdisplay - (radeon_crtc->h_border * 2));
 	args.usH_Blanking_Time =
-		cpu_to_le16(mode->crtc_hblank_end - mode->crtc_hdisplay);
-	args.usV_Size = cpu_to_le16(mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_hblank_end - mode->crtc_hdisplay + (radeon_crtc->h_border * 2));
+	args.usV_Size = cpu_to_le16(mode->crtc_vdisplay - (radeon_crtc->v_border * 2));
 	args.usV_Blanking_Time =
-	    cpu_to_le16(mode->crtc_vblank_end - mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_vblank_end - mode->crtc_vdisplay + (radeon_crtc->v_border * 2));
 	args.usH_SyncOffset =
-		cpu_to_le16(mode->crtc_hsync_start - mode->crtc_hdisplay);
+		cpu_to_le16(mode->crtc_hsync_start - mode->crtc_hdisplay + radeon_crtc->h_border);
 	args.usH_SyncWidth =
 		cpu_to_le16(mode->crtc_hsync_end - mode->crtc_hsync_start);
 	args.usV_SyncOffset =
-		cpu_to_le16(mode->crtc_vsync_start - mode->crtc_vdisplay);
+		cpu_to_le16(mode->crtc_vsync_start - mode->crtc_vdisplay + radeon_crtc->v_border);
 	args.usV_SyncWidth =
 		cpu_to_le16(mode->crtc_vsync_end - mode->crtc_vsync_start);
-	/*args.ucH_Border = mode->hborder;*/
-	/*args.ucV_Border = mode->vborder;*/
+	args.ucH_Border = radeon_crtc->h_border;
+	args.ucV_Border = radeon_crtc->v_border;
 
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		misc |= ATOM_VSYNC_POLARITY;
@@ -1176,10 +1170,8 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_enable_ss(crtc);
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_AVIVO(rdev))
 		atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
-	else if (ASIC_IS_AVIVO(rdev))
-		atombios_crtc_set_timing(crtc, adjusted_mode);
 	else {
 		atombios_crtc_set_timing(crtc, adjusted_mode);
 		if (radeon_crtc->crtc_id == 0)

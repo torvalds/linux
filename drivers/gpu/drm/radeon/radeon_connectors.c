@@ -312,6 +312,20 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		}
 	}
 
+	if (property == rdev->mode_info.underscan_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_type != val) {
+			radeon_encoder->underscan_type = val;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
 	if (property == rdev->mode_info.tv_std_property) {
 		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TVDAC);
 		if (!encoder) {
@@ -1120,6 +1134,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.underscan_property,
+					      UNDERSCAN_AUTO);
 		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
@@ -1145,6 +1162,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.underscan_property,
+					      UNDERSCAN_AUTO);
 		subpixel_order = SubPixelHorizontalRGB;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
@@ -1176,6 +1196,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.underscan_property,
+					      UNDERSCAN_AUTO);
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
