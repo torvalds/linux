@@ -492,6 +492,7 @@ static int mt9m111_g_fmt(struct v4l2_subdev *sd,
 	mf->width	= mt9m111->rect.width;
 	mf->height	= mt9m111->rect.height;
 	mf->code	= mt9m111->fmt->code;
+	mf->colorspace	= mt9m111->fmt->colorspace;
 	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
