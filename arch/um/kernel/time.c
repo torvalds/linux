@@ -104,15 +104,14 @@ static void __init setup_itimer(void)
 
 void read_persistent_clock(struct timespec *ts)
 {
-	nsecs = os_nsecs();
+	long long nsecs = os_nsecs();
+
 	set_normalized_timespec(ts, nsecs / NSEC_PER_SEC,
 				nsecs % NSEC_PER_SEC);
 }
 
 void __init time_init(void)
 {
-	long long nsecs;
-
 	timer_init();
 	late_time_init = setup_itimer;
 }
