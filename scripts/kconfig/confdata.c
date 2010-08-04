@@ -412,7 +412,7 @@ static void conf_write_string(bool headerfile, const char *name,
 	while (1) {
 		l = strcspn(str, "\"\\");
 		if (l) {
-			fwrite(str, l, 1, out);
+			xfwrite(str, l, 1, out);
 			str += l;
 		}
 		if (!*str)
