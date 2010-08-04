@@ -58,6 +58,8 @@ SECTIONS
 	___data_start = . ;
 	__Sdata = . ;
 	.data : {			/* Data */
+		CACHELINE_ALIGNED_DATA(32)
+		READ_MOSTLY_DATA(32)
 		DATA_DATA
 	}
 	__edata = . ;			/* End of data section. */
