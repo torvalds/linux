@@ -731,6 +731,8 @@ void intel_ring_begin(struct drm_device *dev,
 		intel_wrap_ring_buffer(dev, ring);
 	if (unlikely(ring->space < n))
 		intel_wait_ring_buffer(dev, ring, n);
+
+	ring->space -= n;
 }
 
 void intel_ring_emit(struct drm_device *dev,
@@ -739,13 +741,12 @@ void intel_ring_emit(struct drm_device *dev,
 	unsigned int *virt = ring->virtual_start + ring->tail;
 	*virt = data;
 	ring->tail += 4;
-	ring->tail &= ring->size - 1;
-	ring->space -= 4;
 }
 
 void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
+	ring->tail &= ring->size - 1;
 	ring->advance_ring(dev, ring);
 }
 
