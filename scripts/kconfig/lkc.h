@@ -72,6 +72,9 @@ void zconf_nextfile(const char *name);
 int zconf_lineno(void);
 char *zconf_curname(void);
 
+/* conf.c */
+void xfgets(char *str, int size, FILE *in);
+
 /* confdata.c */
 const char *conf_get_configname(void);
 const char *conf_get_autoconfig_name(void);
