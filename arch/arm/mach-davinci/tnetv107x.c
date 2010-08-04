@@ -104,7 +104,7 @@ static u32 pll_ext_freq[] = {
 };
 
 /* PSC control registers */
-static u32 psc_regs[] __initconst = { TNETV107X_PSC_BASE };
+static u32 psc_regs[] = { TNETV107X_PSC_BASE };
 
 /* Host map for interrupt controller */
 static u32 intc_host_map[] = { 0x01010000, 0x01010101, -1 };
