@@ -100,8 +100,11 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 
 	/* We always use high priority scans */
 	scan_options = WL1271_SCAN_OPT_PRIORITY_HIGH;
-	if(passive)
+
+	/* No SSIDs means that we have a forced passive scan */
+	if (passive || wl->scan.req->n_ssids == 0)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
+
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
 	cmd->params.n_ch = wl1271_get_scan_channels(wl, wl->scan.req,
