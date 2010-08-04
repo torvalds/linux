@@ -199,11 +199,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case HID_GD_MOUSE:
 		case HID_GD_POINTER:  code += 0x110; break;
 		case HID_GD_JOYSTICK:
-				      if (code <= 0xf)
-					      code += BTN_JOYSTICK;
-				      else
-					      code += BTN_TRIGGER_HAPPY;
-				      break;
+				if (code <= 0xf)
+					code += BTN_JOYSTICK;
+				else
+					code += BTN_TRIGGER_HAPPY;
+				break;
 		case HID_GD_GAMEPAD:  code += 0x130; break;
 		default:
 			switch (field->physical) {
@@ -483,7 +483,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	case HID_UP_LOGIVENDOR:
 		goto ignore;
-	
+
 	case HID_UP_PID:
 		switch (usage->hid & HID_USAGE) {
 		case 0xa4: map_key_clear(BTN_DEAD);	break;
@@ -589,9 +589,9 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			hat_dir = (value - usage->hat_min) * 8 / (usage->hat_max - usage->hat_min + 1) + 1;
 		if (hat_dir < 0 || hat_dir > 8) hat_dir = 0;
 		input_event(input, usage->type, usage->code    , hid_hat_to_axis[hat_dir].x);
-                input_event(input, usage->type, usage->code + 1, hid_hat_to_axis[hat_dir].y);
-                return;
-        }
+		input_event(input, usage->type, usage->code + 1, hid_hat_to_axis[hat_dir].y);
+		return;
+	}
 
 	if (usage->hid == (HID_UP_DIGITIZER | 0x003c)) { /* Invert */
 		*quirks = value ? (*quirks | HID_QUIRK_INVERT) : (*quirks & ~HID_QUIRK_INVERT);
