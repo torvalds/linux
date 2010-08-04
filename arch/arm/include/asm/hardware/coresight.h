@@ -21,18 +21,6 @@
 #define TRACER_RUNNING		BIT(TRACER_RUNNING_BIT)
 #define TRACER_CYCLE_ACC	BIT(TRACER_CYCLE_ACC_BIT)
 
-struct tracectx {
-	unsigned int	etb_bufsz;
-	void __iomem	*etb_regs;
-	void __iomem	*etm_regs;
-	unsigned long	flags;
-	int		ncmppairs;
-	int		etm_portsz;
-	struct device	*dev;
-	struct clk	*emu_clk;
-	struct mutex	mutex;
-};
-
 #define TRACER_TIMEOUT 10000
 
 #define etm_writel(t, v, x) \
