@@ -677,14 +677,12 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 
 		ret = ubifs_garbage_collect_leb(c, &lp);
 		if (ret < 0) {
-			if (ret == -EAGAIN || ret == -ENOSPC) {
+			if (ret == -EAGAIN) {
 				/*
-				 * These codes are not errors, so we have to
-				 * return the LEB to lprops. But if the
-				 * 'ubifs_return_leb()' function fails, its
-				 * failure code is propagated to the caller
-				 * instead of the original '-EAGAIN' or
-				 * '-ENOSPC'.
+				 * This is not error, so we have to return the
+				 * LEB to lprops. But if 'ubifs_return_leb()'
+				 * fails, its failure code is propagated to the
+				 * caller instead of the original '-EAGAIN'.
 				 */
 				err = ubifs_return_leb(c, lp.lnum);
 				if (err)
