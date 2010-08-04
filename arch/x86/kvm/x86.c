@@ -3790,6 +3790,11 @@ static void emulator_get_gdt(struct desc_ptr *dt, struct kvm_vcpu *vcpu)
 	kvm_x86_ops->get_gdt(vcpu, dt);
 }
 
+static void emulator_get_idt(struct desc_ptr *dt, struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->get_idt(vcpu, dt);
+}
+
 static unsigned long emulator_get_cached_segment_base(int seg,
 						      struct kvm_vcpu *vcpu)
 {
@@ -3883,6 +3888,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_segment_selector = emulator_set_segment_selector,
 	.get_cached_segment_base = emulator_get_cached_segment_base,
 	.get_gdt             = emulator_get_gdt,
+	.get_idt	     = emulator_get_idt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
 	.cpl                 = emulator_get_cpl,
