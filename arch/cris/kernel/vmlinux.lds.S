@@ -124,7 +124,7 @@ SECTIONS
 	__init_end = .;
 
 	__data_end = . ;		/* Move to _edata ? */
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(1, 1, 1)
 
 	. =  ALIGN (0x20);
 	_end = .;
