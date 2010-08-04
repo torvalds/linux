@@ -326,8 +326,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, unsigned long id, int irq)
 	wm8994->supplies = kzalloc(sizeof(struct regulator_bulk_data) *
 				   ARRAY_SIZE(wm8994_main_supplies),
 				   GFP_KERNEL);
-	if (!wm8994->supplies)
+	if (!wm8994->supplies) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8994_main_supplies); i++)
 		wm8994->supplies[i].supply = wm8994_main_supplies[i];
