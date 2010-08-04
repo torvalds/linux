@@ -1180,6 +1180,67 @@ static int emulate_popa(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+int emulate_int_real(struct x86_emulate_ctxt *ctxt,
+			       struct x86_emulate_ops *ops, int irq)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc = X86EMUL_CONTINUE;
+	struct desc_ptr dt;
+	gva_t cs_addr;
+	gva_t eip_addr;
+	u16 cs, eip;
+	u32 err;
+
+	/* TODO: Add limit checks */
+	c->src.val = ctxt->eflags;
+	emulate_push(ctxt, ops);
+
+	ctxt->eflags &= ~(EFLG_IF | EFLG_TF | EFLG_AC);
+
+	c->src.val = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	emulate_push(ctxt, ops);
+
+	c->src.val = c->eip;
+	emulate_push(ctxt, ops);
+
+	ops->get_idt(&dt, ctxt->vcpu);
+
+	eip_addr = dt.address + (irq << 2);
+	cs_addr = dt.address + (irq << 2) + 2;
+
+	rc = ops->read_std(cs_addr, &cs, 2, ctxt->vcpu, &err);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	rc = ops->read_std(eip_addr, &eip, 2, ctxt->vcpu, &err);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	rc = load_segment_descriptor(ctxt, ops, cs, VCPU_SREG_CS);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->eip = eip;
+
+	return rc;
+}
+
+static int emulate_int(struct x86_emulate_ctxt *ctxt,
+		       struct x86_emulate_ops *ops, int irq)
+{
+	switch(ctxt->mode) {
+	case X86EMUL_MODE_REAL:
+		return emulate_int_real(ctxt, ops, irq);
+	case X86EMUL_MODE_VM86:
+	case X86EMUL_MODE_PROT16:
+	case X86EMUL_MODE_PROT32:
+	case X86EMUL_MODE_PROT64:
+	default:
+		/* Protected mode interrupts unimplemented yet */
+		return X86EMUL_UNHANDLEABLE;
+	}
+}
+
 static int emulate_iret_real(struct x86_emulate_ctxt *ctxt,
 			     struct x86_emulate_ops *ops)
 {
@@ -2616,6 +2677,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = c->dst.type;
+	int irq; /* Used for int 3, int, and into */
 
 	ctxt->decode.mem_read.pos = 0;
 
@@ -2959,6 +3021,22 @@ special_insn:
 		rc = emulate_ret_far(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
+		break;
+	case 0xcc:		/* int3 */
+		irq = 3;
+		goto do_interrupt;
+	case 0xcd:		/* int n */
+		irq = c->src.val;
+	do_interrupt:
+		rc = emulate_int(ctxt, ops, irq);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
+	case 0xce:		/* into */
+		if (ctxt->eflags & EFLG_OF) {
+			irq = 4;
+			goto do_interrupt;
+		}
 		break;
 	case 0xcf:		/* iret */
 		rc = emulate_iret(ctxt, ops);
