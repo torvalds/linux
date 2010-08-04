@@ -86,6 +86,16 @@ SECTIONS
 	}
 	SECURITY_INIT
 
+	/* .exit.text is discarded at runtime, not link time,
+	 * to deal with references from __bug_table
+	 */
+	.exit.text : {
+		EXIT_TEXT
+	}
+	.exit.data : {
+		EXIT_DATA
+	}
+
 #ifdef CONFIG_ETRAX_ARCH_V10
 #ifdef CONFIG_BLK_DEV_INITRD
 	.init.ramfs : {
