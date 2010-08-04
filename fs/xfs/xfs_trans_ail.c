@@ -24,7 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"

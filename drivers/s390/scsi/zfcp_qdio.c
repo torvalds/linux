@@ -251,7 +251,8 @@ static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
 	struct zfcp_qdio_queue *req_q = &qdio->req_q;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (atomic_read(&req_q->count))
+	if (atomic_read(&req_q->count) ||
+	    !(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return 1;
 	spin_unlock_bh(&qdio->req_q_lock);
 	return 0;
@@ -274,8 +275,13 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 	spin_unlock_bh(&qdio->req_q_lock);
 	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
 			       zfcp_qdio_sbal_check(qdio), 5 * HZ);
+
+	if (!(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
+		return -EIO;
+
 	if (ret > 0)
 		return 0;
+
 	if (!ret) {
 		atomic_inc(&qdio->req_q_full);
 		/* assume hanging outbound queue, try queue recovery */
@@ -374,6 +380,8 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 	spin_lock_bh(&qdio->req_q_lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 	spin_unlock_bh(&qdio->req_q_lock);
+
+	wake_up(&qdio->req_q_wq);
 
 	qdio_shutdown(qdio->adapter->ccw_device,
 		      QDIO_FLAG_CLEANUP_USING_CLEAR);

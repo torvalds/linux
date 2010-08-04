@@ -24,14 +24,10 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -626,8 +622,7 @@ xfs_fs_log_dummy(
 	ip = mp->m_rootip;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
+	xfs_trans_ijoin(tp, ip);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);

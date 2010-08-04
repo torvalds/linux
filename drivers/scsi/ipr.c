@@ -1129,20 +1129,22 @@ static int ipr_is_same_device(struct ipr_resource_entry *res,
 }
 
 /**
- * ipr_format_resource_path - Format the resource path for printing.
+ * ipr_format_res_path - Format the resource path for printing.
  * @res_path:	resource path
  * @buf:	buffer
  *
  * Return value:
  * 	pointer to buffer
  **/
-static char *ipr_format_resource_path(u8 *res_path, char *buffer)
+static char *ipr_format_res_path(u8 *res_path, char *buffer, int len)
 {
 	int i;
+	char *p = buffer;
 
-	sprintf(buffer, "%02X", res_path[0]);
-	for (i=1; res_path[i] != 0xff; i++)
-		sprintf(buffer, "%s-%02X", buffer, res_path[i]);
+	res_path[0] = '\0';
+	p += snprintf(p, buffer + len - p, "%02X", res_path[0]);
+	for (i = 1; res_path[i] != 0xff && ((i * 3) < len); i++)
+		p += snprintf(p, buffer + len - p, "-%02X", res_path[i]);
 
 	return buffer;
 }
@@ -1187,7 +1189,8 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 
 		if (res->sdev && new_path)
 			sdev_printk(KERN_INFO, res->sdev, "Resource path: %s\n",
-				    ipr_format_resource_path(&res->res_path[0], &buffer[0]));
+				    ipr_format_res_path(res->res_path, buffer,
+							sizeof(buffer)));
 	} else {
 		res->flags = cfgtew->u.cfgte->flags;
 		if (res->flags & IPR_IS_IOA_RESOURCE)
@@ -1573,7 +1576,8 @@ static void ipr_log_sis64_config_error(struct ipr_ioa_cfg *ioa_cfg,
 		ipr_err_separator;
 
 		ipr_err("Device %d : %s", i + 1,
-			 ipr_format_resource_path(&dev_entry->res_path[0], &buffer[0]));
+			 ipr_format_res_path(dev_entry->res_path, buffer,
+					     sizeof(buffer)));
 		ipr_log_ext_vpd(&dev_entry->vpd);
 
 		ipr_err("-----New Device Information-----\n");
@@ -1919,13 +1923,14 @@ static void ipr_log64_fabric_path(struct ipr_hostrcb *hostrcb,
 
 			ipr_hcam_err(hostrcb, "%s %s: Resource Path=%s\n",
 				     path_active_desc[i].desc, path_state_desc[j].desc,
-				     ipr_format_resource_path(&fabric->res_path[0], &buffer[0]));
+				     ipr_format_res_path(fabric->res_path, buffer,
+							 sizeof(buffer)));
 			return;
 		}
 	}
 
 	ipr_err("Path state=%02X Resource Path=%s\n", path_state,
-		ipr_format_resource_path(&fabric->res_path[0], &buffer[0]));
+		ipr_format_res_path(fabric->res_path, buffer, sizeof(buffer)));
 }
 
 static const struct {
@@ -2066,7 +2071,8 @@ static void ipr_log64_path_elem(struct ipr_hostrcb *hostrcb,
 
 			ipr_hcam_err(hostrcb, "%s %s: Resource Path=%s, Link rate=%s, WWN=%08X%08X\n",
 				     path_status_desc[j].desc, path_type_desc[i].desc,
-				     ipr_format_resource_path(&cfg->res_path[0], &buffer[0]),
+				     ipr_format_res_path(cfg->res_path, buffer,
+							 sizeof(buffer)),
 				     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
 				     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
 			return;
@@ -2074,7 +2080,7 @@ static void ipr_log64_path_elem(struct ipr_hostrcb *hostrcb,
 	}
 	ipr_hcam_err(hostrcb, "Path element=%02X: Resource Path=%s, Link rate=%s "
 		     "WWN=%08X%08X\n", cfg->type_status,
-		     ipr_format_resource_path(&cfg->res_path[0], &buffer[0]),
+		     ipr_format_res_path(cfg->res_path, buffer, sizeof(buffer)),
 		     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
 		     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
 }
@@ -2139,7 +2145,7 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	ipr_err("RAID %s Array Configuration: %s\n",
 		error->protection_level,
-		ipr_format_resource_path(&error->last_res_path[0], &buffer[0]));
+		ipr_format_res_path(error->last_res_path, buffer, sizeof(buffer)));
 
 	ipr_err_separator;
 
@@ -2160,9 +2166,11 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 		ipr_err("Array Member %d:\n", i);
 		ipr_log_ext_vpd(&array_entry->vpd);
 		ipr_err("Current Location: %s",
-			 ipr_format_resource_path(&array_entry->res_path[0], &buffer[0]));
+			 ipr_format_res_path(array_entry->res_path, buffer,
+					     sizeof(buffer)));
 		ipr_err("Expected Location: %s",
-			 ipr_format_resource_path(&array_entry->expected_res_path[0], &buffer[0]));
+			 ipr_format_res_path(array_entry->expected_res_path,
+					     buffer, sizeof(buffer)));
 
 		ipr_err_separator;
 	}
@@ -4079,7 +4087,8 @@ static struct device_attribute ipr_adapter_handle_attr = {
 };
 
 /**
- * ipr_show_resource_path - Show the resource path for this device.
+ * ipr_show_resource_path - Show the resource path or the resource address for
+ *			    this device.
  * @dev:	device struct
  * @buf:	buffer
  *
@@ -4097,9 +4106,14 @@ static ssize_t ipr_show_resource_path(struct device *dev, struct device_attribut
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
-	if (res)
+	if (res && ioa_cfg->sis64)
 		len = snprintf(buf, PAGE_SIZE, "%s\n",
-			       ipr_format_resource_path(&res->res_path[0], &buffer[0]));
+			       ipr_format_res_path(res->res_path, buffer,
+						   sizeof(buffer)));
+	else if (res)
+		len = snprintf(buf, PAGE_SIZE, "%d:%d:%d:%d\n", ioa_cfg->host->host_no,
+			       res->bus, res->target, res->lun);
+
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return len;
 }
@@ -4351,7 +4365,8 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 			scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
 		if (ioa_cfg->sis64)
 			sdev_printk(KERN_INFO, sdev, "Resource path: %s\n",
-			            ipr_format_resource_path(&res->res_path[0], &buffer[0]));
+				    ipr_format_res_path(res->res_path, buffer,
+							sizeof(buffer)));
 		return 0;
 	}
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);

@@ -45,6 +45,7 @@
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
+#include "xattr.h"
 
 static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 
@@ -77,9 +78,10 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
 	sb->s_blocksize = 1 << sb->s_blocksize_bits;
 	sb->s_magic = V9FS_MAGIC;
-	if (v9fs_proto_dotl(v9ses))
+	if (v9fs_proto_dotl(v9ses)) {
 		sb->s_op = &v9fs_super_ops_dotl;
-	else
+		sb->s_xattr = v9fs_xattr_handlers;
+	} else
 		sb->s_op = &v9fs_super_ops;
 	sb->s_bdi = &v9ses->bdi;
 
@@ -107,7 +109,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	struct p9_wstat *st = NULL;
 	int mode = S_IRWXUGO | S_ISVTX;
 	struct p9_fid *fid;
 	int retval = 0;
@@ -124,16 +125,10 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		goto close_session;
 	}
 
-	st = p9_client_stat(fid);
-	if (IS_ERR(st)) {
-		retval = PTR_ERR(st);
-		goto clunk_fid;
-	}
-
 	sb = sget(fs_type, NULL, v9fs_set_super, v9ses);
 	if (IS_ERR(sb)) {
 		retval = PTR_ERR(sb);
-		goto free_stat;
+		goto clunk_fid;
 	}
 	v9fs_fill_super(sb, v9ses, flags, data);
 
@@ -151,21 +146,37 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	sb->s_root = root;
-	root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
 
-	v9fs_stat2inode(st, root->d_inode, sb);
+	if (v9fs_proto_dotl(v9ses)) {
+		struct p9_stat_dotl *st = NULL;
+		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+		if (IS_ERR(st)) {
+			retval = PTR_ERR(st);
+			goto clunk_fid;
+		}
+
+		v9fs_stat2inode_dotl(st, root->d_inode);
+		kfree(st);
+	} else {
+		struct p9_wstat *st = NULL;
+		st = p9_client_stat(fid);
+		if (IS_ERR(st)) {
+			retval = PTR_ERR(st);
+			goto clunk_fid;
+		}
+
+		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
+		v9fs_stat2inode(st, root->d_inode, sb);
+
+		p9stat_free(st);
+		kfree(st);
+	}
 
 	v9fs_fid_add(root, fid);
-	p9stat_free(st);
-	kfree(st);
 
 P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
-
-free_stat:
-	p9stat_free(st);
-	kfree(st);
 
 clunk_fid:
 	p9_client_clunk(fid);
@@ -176,8 +187,6 @@ close_session:
 	return retval;
 
 release_sb:
-	p9stat_free(st);
-	kfree(st);
 	deactivate_locked_super(sb);
 	return retval;
 }
@@ -278,4 +287,5 @@ struct file_system_type v9fs_fs_type = {
 	.get_sb = v9fs_get_sb,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };

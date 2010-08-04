@@ -342,6 +342,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			/* advance table_gfn when emulating 1gb pages with 4k */
 			if (delta == 0)
 				table_gfn += PT_INDEX(addr, level);
+			access &= gw->pte_access;
 		} else {
 			direct = 0;
 			table_gfn = gw->table_gfn[level - 2];

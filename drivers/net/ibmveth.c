@@ -677,7 +677,7 @@ static int ibmveth_close(struct net_device *netdev)
 	if (!adapter->pool_config)
 		netif_stop_queue(netdev);
 
-	free_irq(netdev->irq, netdev);
+	h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
 
 	do {
 		lpar_rc = h_free_logical_lan(adapter->vdev->unit_address);
@@ -688,6 +688,8 @@ static int ibmveth_close(struct net_device *netdev)
 		ibmveth_error_printk("h_free_logical_lan failed with %lx, continuing with close\n",
 				     lpar_rc);
 	}
+
+	free_irq(netdev->irq, netdev);
 
 	adapter->rx_no_buffer = *(u64*)(((char*)adapter->buffer_list_addr) + 4096 - 8);
 

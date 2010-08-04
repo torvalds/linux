@@ -18,10 +18,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -37,12 +33,11 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lite.h>
 #include <mach/mmc.h>
-#include <mach/spi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 /*
@@ -76,7 +71,7 @@ static unsigned int litekit_db_board_pins[] __initdata = {
 };
 
 /* UART */
-static struct imxuart_platform_data uart_pdata __initdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -161,7 +156,7 @@ static int spi_internal_chipselect[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master spi0_pdata = {
+static const struct spi_imx_master spi0_pdata __initconst = {
 	.chipselect	= spi_internal_chipselect,
 	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
 };
@@ -201,9 +196,9 @@ void __init mx31lite_db_init(void)
 	mxc_iomux_setup_multiple_pins(litekit_db_board_pins,
 					ARRAY_SIZE(litekit_db_board_pins),
 					"development board pins");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
-	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
+	imx31_add_spi_imx0(&spi0_pdata);
 	platform_device_register(&litekit_led_device);
 	mxc_register_device(&imx_wdt_device0, NULL);
 	mxc_register_device(&imx_rtc_device0, NULL);

@@ -2,7 +2,6 @@
 #define __ASM_MACH_IRQS_H
 
 #define NR_IRQS         512
-#define NR_IRQS_LEGACY  8
 
 /* INTCA */
 #define evt2irq(evt)		(((evt) >> 5) - 16)

@@ -31,7 +31,7 @@
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -98,7 +98,7 @@ static void __init move_device_tree(void)
 
 	if ((memory_limit && (start + size) > memory_limit) ||
 			overlaps_crashkernel(start, size)) {
-		p = __va(lmb_alloc_base(size, PAGE_SIZE, lmb.rmo_size));
+		p = __va(memblock_alloc_base(size, PAGE_SIZE, memblock.rmo_size));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = (struct boot_param_header *)p;
 		DBG("Moved device tree to 0x%p\n", p);
@@ -411,13 +411,13 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
 	__be32 *dm, *ls, *usm;
 	unsigned long l, n, flags;
-	u64 base, size, lmb_size;
+	u64 base, size, memblock_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
 	ls = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
 	if (ls == NULL || l < dt_root_size_cells * sizeof(__be32))
 		return 0;
-	lmb_size = dt_mem_next_cell(dt_root_size_cells, &ls);
+	memblock_size = dt_mem_next_cell(dt_root_size_cells, &ls);
 
 	dm = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
 	if (dm == NULL || l < sizeof(__be32))
@@ -442,11 +442,11 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 		   or if the block is not assigned to this partition (0x8) */
 		if ((flags & 0x80) || !(flags & 0x8))
 			continue;
-		size = lmb_size;
+		size = memblock_size;
 		rngs = 1;
 		if (is_kexec_kdump) {
 			/*
-			 * For each lmb in ibm,dynamic-memory, a corresponding
+			 * For each memblock in ibm,dynamic-memory, a corresponding
 			 * entry in linux,drconf-usable-memory property contains
 			 * a counter 'p' followed by 'p' (base, size) duple.
 			 * Now read the counter from
@@ -469,10 +469,10 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 				if ((base + size) > 0x80000000ul)
 					size = 0x80000000ul - base;
 			}
-			lmb_add(base, size);
+			memblock_add(base, size);
 		} while (--rngs);
 	}
-	lmb_dump_all();
+	memblock_dump_all();
 	return 0;
 }
 #else
@@ -501,14 +501,14 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	}
 #endif
 
-	lmb_add(base, size);
+	memblock_add(base, size);
 
 	memstart_addr = min((u64)memstart_addr, base);
 }
 
 u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return lmb_alloc(size, align);
+	return memblock_alloc(size, align);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -534,12 +534,12 @@ static void __init early_reserve_mem(void)
 	/* before we do anything, lets reserve the dt blob */
 	self_base = __pa((unsigned long)initial_boot_params);
 	self_size = initial_boot_params->totalsize;
-	lmb_reserve(self_base, self_size);
+	memblock_reserve(self_base, self_size);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* then reserve the initrd, if any */
 	if (initrd_start && (initrd_end > initrd_start))
-		lmb_reserve(__pa(initrd_start), initrd_end - initrd_start);
+		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_PPC32
@@ -560,7 +560,7 @@ static void __init early_reserve_mem(void)
 			if (base_32 == self_base && size_32 == self_size)
 				continue;
 			DBG("reserving: %x -> %x\n", base_32, size_32);
-			lmb_reserve(base_32, size_32);
+			memblock_reserve(base_32, size_32);
 		}
 		return;
 	}
@@ -571,7 +571,7 @@ static void __init early_reserve_mem(void)
 		if (size == 0)
 			break;
 		DBG("reserving: %llx -> %llx\n", base, size);
-		lmb_reserve(base, size);
+		memblock_reserve(base, size);
 	}
 }
 
@@ -594,7 +594,7 @@ static inline unsigned long phyp_dump_calculate_reserve_size(void)
 		return phyp_dump_info->reserve_bootvar;
 
 	/* divide by 20 to get 5% of value */
-	tmp = lmb_end_of_DRAM();
+	tmp = memblock_end_of_DRAM();
 	do_div(tmp, 20);
 
 	/* round it down in multiples of 256 */
@@ -633,11 +633,11 @@ static void __init phyp_dump_reserve_mem(void)
 	if (phyp_dump_info->phyp_dump_is_active) {
 		/* Reserve *everything* above RMR.Area freed by userland tools*/
 		base = variable_reserve_size;
-		size = lmb_end_of_DRAM() - base;
+		size = memblock_end_of_DRAM() - base;
 
 		/* XXX crashed_ram_end is wrong, since it may be beyond
 		 * the memory_limit, it will need to be adjusted. */
-		lmb_reserve(base, size);
+		memblock_reserve(base, size);
 
 		phyp_dump_info->init_reserve_start = base;
 		phyp_dump_info->init_reserve_size = size;
@@ -645,8 +645,8 @@ static void __init phyp_dump_reserve_mem(void)
 		size = phyp_dump_info->cpu_state_size +
 			phyp_dump_info->hpte_region_size +
 			variable_reserve_size;
-		base = lmb_end_of_DRAM() - size;
-		lmb_reserve(base, size);
+		base = memblock_end_of_DRAM() - size;
+		memblock_reserve(base, size);
 		phyp_dump_info->init_reserve_start = base;
 		phyp_dump_info->init_reserve_size = size;
 	}
@@ -681,8 +681,8 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
 
-	/* Scan memory nodes and rebuild LMBs */
-	lmb_init();
+	/* Scan memory nodes and rebuild MEMBLOCKs */
+	memblock_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
@@ -690,11 +690,11 @@ void __init early_init_devtree(void *params)
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
-	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
-	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+	/* Reserve MEMBLOCK regions used by kernel, initrd, dt, etc... */
+	memblock_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
 	/* If relocatable, reserve first 32k for interrupt vectors etc. */
 	if (PHYSICAL_START > MEMORY_START)
-		lmb_reserve(MEMORY_START, 0x8000);
+		memblock_reserve(MEMORY_START, 0x8000);
 	reserve_kdump_trampoline();
 	reserve_crashkernel();
 	early_reserve_mem();
@@ -706,17 +706,17 @@ void __init early_init_devtree(void *params)
 
 		/* Ensure that total memory size is page-aligned, because
 		 * otherwise mark_bootmem() gets upset. */
-		lmb_analyze();
-		memsize = lmb_phys_mem_size();
+		memblock_analyze();
+		memsize = memblock_phys_mem_size();
 		if ((memsize & PAGE_MASK) != memsize)
 			limit = memsize & PAGE_MASK;
 	}
-	lmb_enforce_memory_limit(limit);
+	memblock_enforce_memory_limit(limit);
 
-	lmb_analyze();
-	lmb_dump_all();
+	memblock_analyze();
+	memblock_dump_all();
 
-	DBG("Phys. mem: %llx\n", lmb_phys_mem_size());
+	DBG("Phys. mem: %llx\n", memblock_phys_mem_size());
 
 	/* We may need to relocate the flat tree, do it now.
 	 * FIXME .. and the initrd too? */

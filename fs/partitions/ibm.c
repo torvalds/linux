@@ -74,6 +74,7 @@ int ibm_partition(struct parsed_partitions *state)
 	} *label;
 	unsigned char *data;
 	Sector sect;
+	sector_t labelsect;
 
 	res = 0;
 	blocksize = bdev_logical_block_size(bdev);
@@ -98,10 +99,19 @@ int ibm_partition(struct parsed_partitions *state)
 		goto out_freeall;
 
 	/*
+	 * Special case for FBA disks: label sector does not depend on
+	 * blocksize.
+	 */
+	if ((info->cu_type == 0x6310 && info->dev_type == 0x9336) ||
+	    (info->cu_type == 0x3880 && info->dev_type == 0x3370))
+		labelsect = info->label_block;
+	else
+		labelsect = info->label_block * (blocksize >> 9);
+
+	/*
 	 * Get volume label, extract name and type.
 	 */
-	data = read_part_sector(state, info->label_block*(blocksize/512),
-				&sect);
+	data = read_part_sector(state, labelsect, &sect);
 	if (data == NULL)
 		goto out_readerr;
 

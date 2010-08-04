@@ -144,6 +144,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	sprintf(dp, ";uid=0x%x", sesInfo->linux_uid);
 
 	dp = description + strlen(description);
+	sprintf(dp, ";creduid=0x%x", sesInfo->cred_uid);
+
+	dp = description + strlen(description);
 	sprintf(dp, ";user=%s", sesInfo->userName);
 
 	dp = description + strlen(description);

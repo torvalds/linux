@@ -631,9 +631,14 @@ int hist_entry__fprintf(struct hist_entry *self, struct hists *pair_hists,
 			u64 session_total)
 {
 	char bf[512];
-	hist_entry__snprintf(self, bf, sizeof(bf), pair_hists,
-			     show_displacement, displacement,
-			     true, session_total);
+	int ret;
+
+	ret = hist_entry__snprintf(self, bf, sizeof(bf), pair_hists,
+				   show_displacement, displacement,
+				   true, session_total);
+	if (!ret)
+		return 0;
+
 	return fprintf(fp, "%s\n", bf);
 }
 
@@ -762,6 +767,7 @@ size_t hists__fprintf(struct hists *self, struct hists *pair,
 print_entries:
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		int cnt;
 
 		if (show_displacement) {
 			if (h->pair != NULL)
@@ -771,8 +777,13 @@ print_entries:
 				displacement = 0;
 			++position;
 		}
-		ret += hist_entry__fprintf(h, pair, show_displacement,
-					   displacement, fp, self->stats.total_period);
+		cnt = hist_entry__fprintf(h, pair, show_displacement,
+					  displacement, fp, self->stats.total_period);
+		/* Ignore those that didn't match the parent filter */
+		if (!cnt)
+			continue;
+
+		ret += cnt;
 
 		if (symbol_conf.use_callchain)
 			ret += hist_entry__fprintf_callchain(h, fp, self->stats.total_period);
@@ -965,13 +976,17 @@ static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
 		 * Parse hexa addresses followed by ':'
 		 */
 		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':' || tmp == tmp2)
+		if (*tmp2 != ':' || tmp == tmp2 || tmp2[1] == '\0')
 			line_ip = -1;
 	}
 
 	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(self->ms.map, sym->start);
+		u64 start = map__rip_2objdump(self->ms.map, sym->start),
+		    end = map__rip_2objdump(self->ms.map, sym->end);
+
 		offset = line_ip - start;
+		if (offset < 0 || (u64)line_ip > end)
+			offset = -1;
 	}
 
 	objdump_line = objdump_line__new(offset, line);
