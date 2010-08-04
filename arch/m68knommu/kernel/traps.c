@@ -360,16 +360,3 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	else
 		__show_stack(task, stack);
 }
-
-#ifdef CONFIG_M68KFPU_EMU
-asmlinkage void fpemu_signal(int signal, int code, void *addr)
-{
-	siginfo_t info;
-
-	info.si_signo = signal;
-	info.si_errno = 0;
-	info.si_code = code;
-	info.si_addr = addr;
-	force_sig_info(signal, &info, current);
-}
-#endif

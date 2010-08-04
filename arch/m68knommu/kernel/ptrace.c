@@ -134,14 +134,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					tmp >>= 16;
 			} else if (addr >= 21 && addr < 49) {
 				tmp = child->thread.fp[addr - 21];
-#ifdef CONFIG_M68KFPU_EMU
-				/* Convert internal fpu reg representation
-				 * into long double format
-				 */
-				if (FPU_IS_EMU && (addr < 45) && !(addr % 3))
-					tmp = ((tmp & 0xffff0000) << 15) |
-					      ((tmp & 0x0000ffff) << 16);
-#endif
 			} else if (addr == 49) {
 				tmp = child->mm->start_code;
 			} else if (addr == 50) {
@@ -175,16 +167,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			}
 			if (addr >= 21 && addr < 48)
 			{
-#ifdef CONFIG_M68KFPU_EMU
-				/* Convert long double format
-				 * into internal fpu reg representation
-				 */
-				if (FPU_IS_EMU && (addr < 45) && !(addr % 3)) {
-					data = (unsigned long)data << 15;
-					data = (data & 0xffff0000) |
-					       ((data & 0x0000ffff) >> 1);
-				}
-#endif
 				child->thread.fp[addr - 21] = data;
 				ret = 0;
 			}
