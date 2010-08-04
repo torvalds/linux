@@ -326,14 +326,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	}
 	r = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, new_mem);
 out_cleanup:
-	if (tmp_mem.mm_node) {
-		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
-
-		spin_lock(&glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&glob->lru_lock);
-		return r;
-	}
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
 }
 
@@ -372,14 +365,7 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 		goto out_cleanup;
 	}
 out_cleanup:
-	if (tmp_mem.mm_node) {
-		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
-
-		spin_lock(&glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&glob->lru_lock);
-		return r;
-	}
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
 }
 

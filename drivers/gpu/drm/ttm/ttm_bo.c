@@ -475,11 +475,8 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 			list_del_init(&bo->ddestroy);
 			++put_count;
 		}
-		if (bo->mem.mm_node) {
-			drm_mm_put_block(bo->mem.mm_node);
-			bo->mem.mm_node = NULL;
-		}
 		spin_unlock(&glob->lru_lock);
+		ttm_bo_mem_put(bo, &bo->mem);
 
 		atomic_set(&bo->reserved, 0);
 
@@ -621,7 +618,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 			bool no_wait_reserve, bool no_wait_gpu)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
 	struct ttm_mem_reg evict_mem;
 	struct ttm_placement placement;
 	int ret = 0;
@@ -667,12 +663,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			printk(KERN_ERR TTM_PFX "Buffer eviction failed\n");
-		spin_lock(&glob->lru_lock);
-		if (evict_mem.mm_node) {
-			drm_mm_put_block(evict_mem.mm_node);
-			evict_mem.mm_node = NULL;
-		}
-		spin_unlock(&glob->lru_lock);
+		ttm_bo_mem_put(bo, &evict_mem);
 		goto out;
 	}
 	bo->evicted = true;
@@ -768,6 +759,19 @@ static int ttm_bo_man_get_node(struct ttm_buffer_object *bo,
 	} while (*node == NULL);
 	return 0;
 }
+
+void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
+{
+	struct ttm_bo_global *glob = bo->glob;
+
+	if (mem->mm_node) {
+		spin_lock(&glob->lru_lock);
+		drm_mm_put_block(mem->mm_node);
+		spin_unlock(&glob->lru_lock);
+		mem->mm_node = NULL;
+	}
+}
+EXPORT_SYMBOL(ttm_bo_mem_put);
 
 /**
  * Repeatedly evict memory from the LRU for @mem_type until we create enough
