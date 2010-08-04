@@ -2901,10 +2901,10 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 			 * dropped transactions.
 			 */
 			pm_qos_update_request(
-				adapter->netdev->pm_qos_req, 55);
+				&adapter->netdev->pm_qos_req, 55);
 		} else {
 			pm_qos_update_request(
-				adapter->netdev->pm_qos_req,
+				&adapter->netdev->pm_qos_req,
 				PM_QOS_DEFAULT_VALUE);
 		}
 	}
@@ -3196,9 +3196,9 @@ int e1000e_up(struct e1000_adapter *adapter)
 
 	/* DMA latency requirement to workaround early-receive/jumbo issue */
 	if (adapter->flags & FLAG_HAS_ERT)
-		adapter->netdev->pm_qos_req =
-			pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
-				       PM_QOS_DEFAULT_VALUE);
+		pm_qos_add_request(&adapter->netdev->pm_qos_req,
+				   PM_QOS_CPU_DMA_LATENCY,
+				   PM_QOS_DEFAULT_VALUE);
 
 	/* hardware has been reset, we need to reload some things */
 	e1000_configure(adapter);
@@ -3263,11 +3263,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 	e1000_clean_tx_ring(adapter);
 	e1000_clean_rx_ring(adapter);
 
-	if (adapter->flags & FLAG_HAS_ERT) {
-		pm_qos_remove_request(
-			      adapter->netdev->pm_qos_req);
-		adapter->netdev->pm_qos_req = NULL;
-	}
+	if (adapter->flags & FLAG_HAS_ERT)
+		pm_qos_remove_request(&adapter->netdev->pm_qos_req);
 
 	/*
 	 * TODO: for power management, we could drop the link and
