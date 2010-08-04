@@ -281,6 +281,8 @@ struct iwl_mod_params {
  * @need_dc_calib: need to perform init dc calibration
  * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
+ * @ampdu_factor: Maximum A-MPDU length factor
+ * @ampdu_density: Minimum A-MPDU spacing
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -352,6 +354,8 @@ struct iwl_cfg {
 	const bool need_dc_calib;
 	const bool bt_statistics;
 	u16 agg_time_limit;
+	u8 ampdu_factor;
+	u8 ampdu_density;
 };
 
 /***************************

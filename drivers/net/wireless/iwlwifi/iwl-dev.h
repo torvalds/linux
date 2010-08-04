@@ -435,7 +435,13 @@ union iwl_ht_rate_supp {
 	};
 };
 
-#define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
+#define CFG_HT_RX_AMPDU_FACTOR_8K   (0x0)
+#define CFG_HT_RX_AMPDU_FACTOR_16K  (0x1)
+#define CFG_HT_RX_AMPDU_FACTOR_32K  (0x2)
+#define CFG_HT_RX_AMPDU_FACTOR_64K  (0x3)
+#define CFG_HT_RX_AMPDU_FACTOR_DEF  CFG_HT_RX_AMPDU_FACTOR_64K
+#define CFG_HT_RX_AMPDU_FACTOR_MAX  CFG_HT_RX_AMPDU_FACTOR_64K
+#define CFG_HT_RX_AMPDU_FACTOR_MIN  CFG_HT_RX_AMPDU_FACTOR_8K
 
 /*
  * Maximal MPDU density for TX aggregation
@@ -444,8 +450,13 @@ union iwl_ht_rate_supp {
  * 6 - 8us density
  * 7 - 16us density
  */
+#define CFG_HT_MPDU_DENSITY_2USEC   (0x4)
 #define CFG_HT_MPDU_DENSITY_4USEC   (0x5)
+#define CFG_HT_MPDU_DENSITY_8USEC   (0x6)
+#define CFG_HT_MPDU_DENSITY_16USEC  (0x7)
 #define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_4USEC
+#define CFG_HT_MPDU_DENSITY_MAX CFG_HT_MPDU_DENSITY_16USEC
+#define CFG_HT_MPDU_DENSITY_MIN     (0x1)
 
 struct iwl_ht_config {
 	/* self configuration data */
