@@ -4365,22 +4365,34 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	/* Update the active list for the hardware's current position.
-	 * Otherwise this only updates on a delayed timer or when irqs are
-	 * actually unmasked, and our working set ends up being larger than
-	 * required.
-	 */
-	i915_gem_retire_requests(dev);
 
-	obj_priv = to_intel_bo(obj);
-	/* Don't count being on the flushing list against the object being
-	 * done.  Otherwise, a buffer left on the flushing list but not getting
-	 * flushed (because nobody's flushing that domain) won't ever return
-	 * unbusy and get reused by libdrm's bo cache.  The other expected
-	 * consumer of this interface, OpenGL's occlusion queries, also specs
-	 * that the objects get unbusy "eventually" without any interference.
+	/* Count all active objects as busy, even if they are currently not used
+	 * by the gpu. Users of this interface expect objects to eventually
+	 * become non-busy without any further actions, therefore emit any
+	 * necessary flushes here.
 	 */
-	args->busy = obj_priv->active && obj_priv->last_rendering_seqno != 0;
+	obj_priv = to_intel_bo(obj);
+	args->busy = obj_priv->active;
+	if (args->busy) {
+		/* Unconditionally flush objects, even when the gpu still uses this
+		 * object. Userspace calling this function indicates that it wants to
+		 * use this buffer rather sooner than later, so issuing the required
+		 * flush earlier is beneficial.
+		 */
+		if (obj->write_domain) {
+			i915_gem_flush(dev, 0, obj->write_domain);
+			(void)i915_add_request(dev, file_priv, obj->write_domain, obj_priv->ring);
+		}
+
+		/* Update the active list for the hardware's current position.
+		 * Otherwise this only updates on a delayed timer or when irqs
+		 * are actually unmasked, and our working set ends up being
+		 * larger than required.
+		 */
+		i915_gem_retire_requests_ring(dev, obj_priv->ring);
+
+		args->busy = obj_priv->active;
+	}
 
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
