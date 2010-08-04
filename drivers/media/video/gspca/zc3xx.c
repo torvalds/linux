@@ -6773,8 +6773,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 
 	cam = &gspca_dev->cam;
-/*fixme:test*/
-	gspca_dev->nbalt--;
 	switch (mode_tb[sd->sensor]) {
 	case 0:
 		cam->cam_mode = sif_mode;
