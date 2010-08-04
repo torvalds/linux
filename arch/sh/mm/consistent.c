@@ -38,11 +38,12 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 	void *ret, *ret_nocache;
 	int order = get_order(size);
 
+	gfp |= __GFP_ZERO;
+
 	ret = (void *)__get_free_pages(gfp, order);
 	if (!ret)
 		return NULL;
 
-	memset(ret, 0, size);
 	/*
 	 * Pages from the page allocator may have data present in
 	 * cache. So flush the cache before using uncached memory.
