@@ -2928,6 +2928,7 @@
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)
 #define  TRANS_DP_HSYNC_ACTIVE_LOW	0
+#define  TRANS_DP_SYNC_MASK	(3<<3)
 
 /* SNB eDP training params */
 /* SNB A-stepping */
