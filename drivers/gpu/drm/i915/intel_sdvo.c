@@ -161,6 +161,7 @@ struct intel_sdvo_connector {
 	struct drm_property *flicker_filter_2d;
 	struct drm_property *tv_chroma_filter;
 	struct drm_property *tv_luma_filter;
+	struct drm_property *dot_crawl;
 
 	/* add the property for the SDVO-TV/LVDS */
 	struct drm_property *brightness;
@@ -182,6 +183,7 @@ struct intel_sdvo_connector {
 	u32	cur_flicker_filter_2d,		max_flicker_filter_2d;
 	u32	cur_tv_chroma_filter,	max_tv_chroma_filter;
 	u32	cur_tv_luma_filter,	max_tv_luma_filter;
+	u32	cur_dot_crawl,	max_dot_crawl;
 };
 
 static struct intel_sdvo *enc_to_intel_sdvo(struct drm_encoder *encoder)
@@ -1751,6 +1753,8 @@ intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
 		drm_property_destroy(dev, intel_sdvo_connector->tv_luma_filter);
 	if (intel_sdvo_connector->tv_chroma_filter)
 		drm_property_destroy(dev, intel_sdvo_connector->tv_chroma_filter);
+	if (intel_sdvo_connector->dot_crawl)
+		drm_property_destroy(dev, intel_sdvo_connector->dot_crawl);
 	if (intel_sdvo_connector->brightness)
 		drm_property_destroy(dev, intel_sdvo_connector->brightness);
 }
@@ -1867,6 +1871,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		CHECK_PROPERTY(flicker_filter_adaptive, FLICKER_FILTER_ADAPTIVE)
 		CHECK_PROPERTY(tv_chroma_filter, TV_CHROMA_FILTER)
 		CHECK_PROPERTY(tv_luma_filter, TV_LUMA_FILTER)
+		CHECK_PROPERTY(dot_crawl, DOT_CRAWL)
 	}
 
 	return -EINVAL; /* unknown property */
@@ -2438,6 +2443,25 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 	ENHANCEMENT(flicker_filter_2d, FLICKER_FILTER_2D);
 	ENHANCEMENT(tv_chroma_filter, TV_CHROMA_FILTER);
 	ENHANCEMENT(tv_luma_filter, TV_LUMA_FILTER);
+
+	if (enhancements.dot_crawl) {
+		if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_DOT_CRAWL, &response, 2))
+			return false;
+
+		intel_sdvo_connector->max_dot_crawl = 1;
+		intel_sdvo_connector->cur_dot_crawl = response & 0x1;
+		intel_sdvo_connector->dot_crawl =
+			drm_property_create(dev, DRM_MODE_PROP_RANGE, "dot_crawl", 2);
+		if (!intel_sdvo_connector->dot_crawl)
+			return false;
+
+		intel_sdvo_connector->dot_crawl->values[0] = 0;
+		intel_sdvo_connector->dot_crawl->values[1] = 1;
+		drm_connector_attach_property(connector,
+					      intel_sdvo_connector->dot_crawl,
+					      intel_sdvo_connector->cur_dot_crawl);
+		DRM_DEBUG_KMS("dot crawl: current %d\n", response);
+	}
 
 	return true;
 }
