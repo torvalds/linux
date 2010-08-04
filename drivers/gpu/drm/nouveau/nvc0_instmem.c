@@ -141,12 +141,34 @@ nvc0_instmem_flush(struct drm_device *dev)
 int
 nvc0_instmem_suspend(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i;
+
+	dev_priv->susres.ramin_copy = vmalloc(65536);
+	if (!dev_priv->susres.ramin_copy)
+		return -ENOMEM;
+
+	for (i = 0x700000; i < 0x710000; i += 4)
+		dev_priv->susres.ramin_copy[i/4] = nv_rd32(dev, i);
 	return 0;
 }
 
 void
 nvc0_instmem_resume(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u64 chan;
+	int i;
+
+	chan = dev_priv->vram_size - dev_priv->ramin_rsvd_vram;
+	nv_wr32(dev, 0x001700, chan >> 16);
+
+	for (i = 0x700000; i < 0x710000; i += 4)
+		nv_wr32(dev, i, dev_priv->susres.ramin_copy[i/4]);
+	vfree(dev_priv->susres.ramin_copy);
+	dev_priv->susres.ramin_copy = NULL;
+
+	nv_wr32(dev, 0x001714, 0xc0000000 | (chan >> 12));
 }
 
 int
