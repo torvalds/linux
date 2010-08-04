@@ -4561,7 +4561,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 					  bios->display.script_table_ptr,
 					  table[2], table[3], table[0] >= 0x21);
 	if (!otable) {
-		NV_ERROR(dev, "Couldn't find matching output script table\n");
+		NV_DEBUG_KMS(dev, "failed to match any output table\n");
 		return 1;
 	}
 
@@ -4618,7 +4618,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		if (script)
 			script = clkcmptable(bios, script, pxclk);
 		if (!script) {
-			NV_ERROR(dev, "clock script 0 not found\n");
+			NV_DEBUG_KMS(dev, "clock script 0 not found\n");
 			return 1;
 		}
 
