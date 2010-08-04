@@ -338,8 +338,6 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	writel(0x3f, op_reg_base + EHCI_USBSTS);
 
 	iounmap(base);
-
-	return;
 }
 
 /*

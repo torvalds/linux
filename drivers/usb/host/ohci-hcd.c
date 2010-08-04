@@ -370,7 +370,6 @@ sanitize:
 	}
 	ep->hcpriv = NULL;
 	spin_unlock_irqrestore (&ohci->lock, flags);
-	return;
 }
 
 static int ohci_get_frame (struct usb_hcd *hcd)

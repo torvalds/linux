@@ -284,7 +284,6 @@ static void ep0_reset(struct langwell_udc *dev)
 	}
 
 	VDBG(dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -1486,7 +1485,6 @@ static void langwell_udc_start(struct langwell_udc *dev)
 	writel(usbcmd, &dev->op_regs->usbcmd);
 
 	DBG(dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -1509,7 +1507,6 @@ static void langwell_udc_stop(struct langwell_udc *dev)
 	writel(usbcmd, &dev->op_regs->usbcmd);
 
 	DBG(dev, "<--- %s()\n", __func__);
-	return;
 }
 
 

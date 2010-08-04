@@ -916,8 +916,6 @@ void rndis_deregister (int configNr)
 
 	if (configNr >= RNDIS_MAX_CONFIGS) return;
 	rndis_per_dev_params [configNr].used = 0;
-
-	return;
 }
 
 int rndis_set_param_dev(u8 configNr, struct net_device *dev, u16 *cdc_filter)

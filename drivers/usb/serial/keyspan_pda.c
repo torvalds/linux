@@ -292,7 +292,6 @@ static void keyspan_pda_rx_unthrottle(struct tty_struct *tty)
 	port->interrupt_in_urb->dev = port->serial->dev;
 	if (usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL))
 		dbg(" usb_submit_urb(read urb) failed");
-	return;
 }
 
 

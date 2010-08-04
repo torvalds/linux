@@ -456,7 +456,6 @@ static void ftdi_elan_cancel_targets(struct usb_ftdi *ftdi)
 static void ftdi_elan_kick_command_queue(struct usb_ftdi *ftdi)
 {
         ftdi_command_queue_work(ftdi, 0);
-        return;
 }
 
 static void ftdi_elan_command_work(struct work_struct *work)
@@ -483,7 +482,6 @@ static void ftdi_elan_command_work(struct work_struct *work)
 static void ftdi_elan_kick_respond_queue(struct usb_ftdi *ftdi)
 {
         ftdi_respond_queue_work(ftdi, 0);
-        return;
 }
 
 static void ftdi_elan_respond_work(struct work_struct *work)
