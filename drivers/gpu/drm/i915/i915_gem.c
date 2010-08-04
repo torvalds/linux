@@ -4198,6 +4198,10 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 		if (alignment == 0)
 			alignment = i915_gem_get_gtt_alignment(obj);
 		if (obj_priv->gtt_offset & (alignment - 1)) {
+			WARN(obj_priv->pin_count,
+			     "bo is already pinned with incorrect alignment:"
+			     " offset=%x, req.alignment=%x\n",
+			     obj_priv->gtt_offset, alignment);
 			ret = i915_gem_object_unbind(obj);
 			if (ret)
 				return ret;
