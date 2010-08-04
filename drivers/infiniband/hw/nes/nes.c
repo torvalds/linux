@@ -1099,7 +1099,7 @@ static ssize_t nes_show_wqm_quanta(struct device_driver *ddp, char *buf)
 		i++;
 	}
 
-	return  snprintf(buf, PAGE_SIZE, "0x%X\n", wqm_quanta);
+	return  snprintf(buf, PAGE_SIZE, "0x%X\n", wqm_quanta_value);
 }
 
 
