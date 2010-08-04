@@ -572,6 +572,8 @@ static void ieee80211_release_reorder_frames(struct ieee80211_hw *hw,
  * frames that have not yet been received are assumed to be lost and the skb
  * can be released for processing. This may also release other skb's from the
  * reorder buffer if there are no additional gaps between the frames.
+ *
+ * Callers must hold tid_agg_rx->reorder_lock.
  */
 #define HT_RX_REORDER_BUF_TIMEOUT (HZ / 10)
 
@@ -579,7 +581,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 					  struct tid_ampdu_rx *tid_agg_rx,
 					  struct sk_buff_head *frames)
 {
-	int index;
+	int index, j;
 
 	/* release the buffer until next missing frame */
 	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
@@ -590,7 +592,6 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 		 * No buffers ready to be released, but check whether any
 		 * frames in the reorder buffer have timed out.
 		 */
-		int j;
 		int skipped = 1;
 		for (j = (index + 1) % tid_agg_rx->buf_size; j != index;
 		     j = (j + 1) % tid_agg_rx->buf_size) {
@@ -600,7 +601,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 			}
 			if (!time_after(jiffies, tid_agg_rx->reorder_time[j] +
 					HT_RX_REORDER_BUF_TIMEOUT))
-				break;
+				goto set_release_timer;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 			if (net_ratelimit())
@@ -624,6 +625,25 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 		index =	seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
 							tid_agg_rx->buf_size;
 	}
+
+	if (tid_agg_rx->stored_mpdu_num) {
+		j = index = seq_sub(tid_agg_rx->head_seq_num,
+				    tid_agg_rx->ssn) % tid_agg_rx->buf_size;
+
+		for (; j != (index - 1) % tid_agg_rx->buf_size;
+		     j = (j + 1) % tid_agg_rx->buf_size) {
+			if (tid_agg_rx->reorder_buf[j])
+				break;
+		}
+
+ set_release_timer:
+
+		mod_timer(&tid_agg_rx->reorder_timer,
+			  tid_agg_rx->reorder_time[j] +
+			  HT_RX_REORDER_BUF_TIMEOUT);
+	} else {
+		del_timer(&tid_agg_rx->reorder_timer);
+	}
 }
 
 /*
@@ -641,14 +661,16 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	u16 mpdu_seq_num = (sc & IEEE80211_SCTL_SEQ) >> 4;
 	u16 head_seq_num, buf_size;
 	int index;
+	bool ret = true;
 
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
 
+	spin_lock(&tid_agg_rx->reorder_lock);
 	/* frame with out of date sequence number */
 	if (seq_less(mpdu_seq_num, head_seq_num)) {
 		dev_kfree_skb(skb);
-		return true;
+		goto out;
 	}
 
 	/*
@@ -669,7 +691,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	/* check if we already stored this frame */
 	if (tid_agg_rx->reorder_buf[index]) {
 		dev_kfree_skb(skb);
-		return true;
+		goto out;
 	}
 
 	/*
@@ -679,7 +701,8 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	if (mpdu_seq_num == tid_agg_rx->head_seq_num &&
 	    tid_agg_rx->stored_mpdu_num == 0) {
 		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
-		return false;
+		ret = false;
+		goto out;
 	}
 
 	/* put the frame in the reordering buffer */
@@ -688,7 +711,9 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	tid_agg_rx->stored_mpdu_num++;
 	ieee80211_sta_reorder_release(hw, tid_agg_rx, frames);
 
-	return true;
+ out:
+	spin_unlock(&tid_agg_rx->reorder_lock);
+	return ret;
 }
 
 /*
@@ -2385,6 +2410,37 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 	ieee80211_rx_handlers_result(rx, res);
 
 #undef CALL_RXH
+}
+
+/*
+ * This function makes calls into the RX path. Therefore the
+ * caller must hold the sta_info->lock and everything has to
+ * be under rcu_read_lock protection as well.
+ */
+void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
+{
+	struct sk_buff_head frames;
+	struct ieee80211_rx_data rx = { };
+
+	__skb_queue_head_init(&frames);
+
+	/* construct rx struct */
+	rx.sta = sta;
+	rx.sdata = sta->sdata;
+	rx.local = sta->local;
+	rx.queue = tid;
+	rx.flags |= IEEE80211_RX_RA_MATCH;
+
+	if (unlikely(test_bit(SCAN_HW_SCANNING, &sta->local->scanning) ||
+		     test_bit(SCAN_OFF_CHANNEL, &sta->local->scanning)))
+		rx.flags |= IEEE80211_RX_IN_SCAN;
+
+	spin_lock(&sta->ampdu_mlme.tid_rx[tid]->reorder_lock);
+	ieee80211_sta_reorder_release(&sta->local->hw,
+		sta->ampdu_mlme.tid_rx[tid], &frames);
+	spin_unlock(&sta->ampdu_mlme.tid_rx[tid]->reorder_lock);
+
+	ieee80211_rx_handlers(&rx, &frames);
 }
 
 /* main receive path */
