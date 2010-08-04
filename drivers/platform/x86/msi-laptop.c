@@ -434,7 +434,7 @@ static int dmi_check_cb(const struct dmi_system_id *id)
 {
 	printk(KERN_INFO "msi-laptop: Identified laptop model '%s'.\n",
 	       id->ident);
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata msi_dmi_table[] = {
@@ -562,15 +562,15 @@ static int rfkill_threeg_set(void *data, bool blocked)
 	return 0;
 }
 
-static struct rfkill_ops rfkill_bluetooth_ops = {
+static const struct rfkill_ops rfkill_bluetooth_ops = {
 	.set_block = rfkill_bluetooth_set
 };
 
-static struct rfkill_ops rfkill_wlan_ops = {
+static const struct rfkill_ops rfkill_wlan_ops = {
 	.set_block = rfkill_wlan_set
 };
 
-static struct rfkill_ops rfkill_threeg_ops = {
+static const struct rfkill_ops rfkill_threeg_ops = {
 	.set_block = rfkill_threeg_set
 };
 

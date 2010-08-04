@@ -40,15 +40,12 @@
  *      Initial publish
  */
 
-#define DEBUG 1
-
-#include "rar_register.h"
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/rar_register.h>
 
 /* === Lincroft Message Bus Interface === */
 #define LNC_MCR_OFFSET		0xD0	/* Message Control Register */
@@ -154,7 +151,6 @@ static struct rar_device *_rar_to_device(int rar, int *off)
 	}
 	return NULL;
 }
-
 
 /**
  *	rar_to_device		-	return the device handling this RAR
@@ -496,7 +492,7 @@ EXPORT_SYMBOL(rar_lock);
  *	a driver that do require a valid RAR address. One of those
  *	steps would be to call rar_get_address()
  *
- *	This function return 0 on success an error code on failure.
+ *	This function return 0 on success or an error code on failure.
  */
 int register_rar(int num, int (*callback)(unsigned long data),
 							unsigned long data)

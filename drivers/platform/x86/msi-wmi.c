@@ -57,7 +57,7 @@ static struct key_entry msi_wmi_keymap[] = {
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
 
-struct backlight_device *backlight;
+static struct backlight_device *backlight;
 
 static int backlight_map[] = { 0x00, 0x33, 0x66, 0x99, 0xCC, 0xFF };
 
