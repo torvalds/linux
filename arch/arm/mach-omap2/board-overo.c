@@ -484,17 +484,11 @@ static void __init overo_init(void)
 					"OVERO_GPIO_USBH_CPEN\n");
 }
 
-static void __init overo_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OVERO, "Gumstix Overo")
 	.phys_io	= 0x48000000,
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= overo_map_io,
+	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= overo_init_irq,
 	.init_machine	= overo_init,

@@ -708,12 +708,6 @@ static void __init cm_t35_init_irq(void)
 	omap_gpio_init();
 }
 
-static void __init cm_t35_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for CM-T35 ethernet */
 	OMAP3_MUX(GPMC_NCS5, OMAP_MUX_MODE0),
@@ -836,7 +830,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.phys_io	= 0x48000000,
 	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= cm_t35_map_io,
+	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= cm_t35_init_irq,
 	.init_machine	= cm_t35_init,

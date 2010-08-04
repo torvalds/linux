@@ -406,17 +406,11 @@ static void __init omap_ldp_init(void)
 	ldp_vmmc1_supply.dev = mmc[0].dev;
 }
 
-static void __init omap_ldp_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.phys_io	= 0x48000000,
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap_ldp_map_io,
+	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_ldp_init_irq,
 	.init_machine	= omap_ldp_init,

@@ -66,12 +66,6 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
-static void __init omap_sdp_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 static struct omap_board_config_kernel sdp_config[] __initdata = {
 };
 
@@ -107,7 +101,7 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.phys_io	= 0x48000000,
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap_sdp_map_io,
+	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_sdp_init_irq,
 	.init_machine	= omap_sdp_init,

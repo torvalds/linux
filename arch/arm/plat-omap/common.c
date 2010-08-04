@@ -324,6 +324,12 @@ void __init omap2_set_globals_3xxx(void)
 {
 	__omap2_set_globals(&omap3_globals);
 }
+
+void __init omap3_map_io(void)
+{
+	omap2_set_globals_3xxx();
+	omap34xx_map_common_io();
+}
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4)

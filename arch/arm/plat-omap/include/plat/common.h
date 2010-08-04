@@ -68,6 +68,8 @@ void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
 void omap2_set_globals_uart(struct omap_globals *);
 
+void omap3_map_io(void);
+
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true
