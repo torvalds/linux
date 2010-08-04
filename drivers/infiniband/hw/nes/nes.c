@@ -661,23 +661,21 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nes_notifiers_registered++;
 
 	/* Initialize network devices */
-		if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL) {
-			goto bail7;
-		}
+	if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL)
+		goto bail7;
 
-		/* Register network device */
-		ret = register_netdev(netdev);
-		if (ret) {
-			printk(KERN_ERR PFX "Unable to register netdev, ret = %d\n", ret);
-			nes_netdev_destroy(netdev);
-			goto bail7;
-		}
+	/* Register network device */
+	ret = register_netdev(netdev);
+	if (ret) {
+		printk(KERN_ERR PFX "Unable to register netdev, ret = %d\n", ret);
+		nes_netdev_destroy(netdev);
+		goto bail7;
+	}
 
-		nes_print_macaddr(netdev);
+	nes_print_macaddr(netdev);
 
-		nesdev->netdev_count++;
-		nesdev->nesadapter->netdev_count++;
-
+	nesdev->netdev_count++;
+	nesdev->nesadapter->netdev_count++;
 
 	printk(KERN_ERR PFX "%s: NetEffect RNIC driver successfully loaded.\n",
 			pci_name(pcidev));
