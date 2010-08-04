@@ -2931,6 +2931,12 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
 	end = offset + (new_len << OCFS2_SB(sb)->s_clustersize_bits);
+	/*
+	 * We only duplicate pages until we reach the page contains i_size - 1.
+	 * So trim 'end' to i_size.
+	 */
+	if (end > i_size_read(context->inode))
+		end = i_size_read(context->inode);
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
@@ -4165,6 +4171,12 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 	int ret;
 	struct inode *inode = old_dentry->d_inode;
 	struct buffer_head *new_bh = NULL;
+
+	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
+		ret = -EINVAL;
+		mlog_errno(ret);
+		goto out;
+	}
 
 	ret = filemap_fdatawrite(inode->i_mapping);
 	if (ret) {

@@ -12,7 +12,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/types.h>
 #include <asm/page.h>

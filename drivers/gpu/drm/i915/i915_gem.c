@@ -2241,6 +2241,7 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 		page = read_cache_page_gfp(mapping, i,
 					   GFP_HIGHUSER |
 					   __GFP_COLD |
+					   __GFP_RECLAIMABLE |
 					   gfpmask);
 		if (IS_ERR(page))
 			goto err_pages;
@@ -4741,6 +4742,16 @@ i915_gem_load(struct drm_device *dev)
 	list_add(&dev_priv->mm.shrink_list, &shrink_list);
 	spin_unlock(&shrink_list_lock);
 
+	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
+	if (IS_GEN3(dev)) {
+		u32 tmp = I915_READ(MI_ARB_STATE);
+		if (!(tmp & MI_ARB_C3_LP_WRITE_ENABLE)) {
+			/* arb state is a masked write, so set bit + bit in mask */
+			tmp = MI_ARB_C3_LP_WRITE_ENABLE | (MI_ARB_C3_LP_WRITE_ENABLE << MI_ARB_MASK_SHIFT);
+			I915_WRITE(MI_ARB_STATE, tmp);
+		}
+	}
+
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		dev_priv->fence_reg_start = 3;
@@ -4977,7 +4988,7 @@ i915_gpu_is_active(struct drm_device *dev)
 }
 
 static int
-i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
+i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	drm_i915_private_t *dev_priv, *next_dev;
 	struct drm_i915_gem_object *obj_priv, *next_obj;

@@ -33,7 +33,7 @@
 #include <linux/serial_8250.h>
 #include <linux/debugfs.h>
 #include <linux/percpu.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/paca.h>

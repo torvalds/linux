@@ -9,7 +9,7 @@
 
 #include <linux/threads.h>
 #include <linux/module.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/firmware.h>
 #include <asm/lppaca.h>
@@ -127,7 +127,7 @@ void __init allocate_pacas(void)
 	 * the first segment. On iSeries they must be within the area mapped
 	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
 	 */
-	limit = min(0x10000000ULL, lmb.rmo_size);
+	limit = min(0x10000000ULL, memblock.rmo_size);
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		limit = min(limit, HvPagesToMap * HVPAGESIZE);
 
@@ -138,7 +138,7 @@ void __init allocate_pacas(void)
 
 	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
 
-	paca = __va(lmb_alloc_base(paca_size, PAGE_SIZE, limit));
+	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
 	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
@@ -158,7 +158,7 @@ void __init free_unused_pacas(void)
 	if (new_size >= paca_size)
 		return;
 
-	lmb_free(__pa(paca) + new_size, paca_size - new_size);
+	memblock_free(__pa(paca) + new_size, paca_size - new_size);
 
 	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
 		paca_size - new_size);

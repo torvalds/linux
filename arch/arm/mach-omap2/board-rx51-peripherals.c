@@ -175,6 +175,10 @@ static void __init rx51_add_gpio_keys(void)
 #endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
 static int board_keymap[] = {
+	/*
+	 * Note that KEY(x, 8, KEY_XXX) entries represent "entrire row
+	 * connected to the ground" matrix state.
+	 */
 	KEY(0, 0, KEY_Q),
 	KEY(0, 1, KEY_O),
 	KEY(0, 2, KEY_P),
@@ -182,6 +186,7 @@ static int board_keymap[] = {
 	KEY(0, 4, KEY_BACKSPACE),
 	KEY(0, 6, KEY_A),
 	KEY(0, 7, KEY_S),
+
 	KEY(1, 0, KEY_W),
 	KEY(1, 1, KEY_D),
 	KEY(1, 2, KEY_F),
@@ -190,6 +195,7 @@ static int board_keymap[] = {
 	KEY(1, 5, KEY_J),
 	KEY(1, 6, KEY_K),
 	KEY(1, 7, KEY_L),
+
 	KEY(2, 0, KEY_E),
 	KEY(2, 1, KEY_DOT),
 	KEY(2, 2, KEY_UP),
@@ -197,6 +203,8 @@ static int board_keymap[] = {
 	KEY(2, 5, KEY_Z),
 	KEY(2, 6, KEY_X),
 	KEY(2, 7, KEY_C),
+	KEY(2, 8, KEY_F9),
+
 	KEY(3, 0, KEY_R),
 	KEY(3, 1, KEY_V),
 	KEY(3, 2, KEY_B),
@@ -205,20 +213,23 @@ static int board_keymap[] = {
 	KEY(3, 5, KEY_SPACE),
 	KEY(3, 6, KEY_SPACE),
 	KEY(3, 7, KEY_LEFT),
+
 	KEY(4, 0, KEY_T),
 	KEY(4, 1, KEY_DOWN),
 	KEY(4, 2, KEY_RIGHT),
 	KEY(4, 4, KEY_LEFTCTRL),
 	KEY(4, 5, KEY_RIGHTALT),
 	KEY(4, 6, KEY_LEFTSHIFT),
+	KEY(4, 8, KEY_10),
+
 	KEY(5, 0, KEY_Y),
+	KEY(5, 8, KEY_11),
+
 	KEY(6, 0, KEY_U),
+
 	KEY(7, 0, KEY_I),
 	KEY(7, 1, KEY_F7),
 	KEY(7, 2, KEY_F8),
-	KEY(0xff, 2, KEY_F9),
-	KEY(0xff, 4, KEY_F10),
-	KEY(0xff, 5, KEY_F11),
 };
 
 static struct matrix_keymap_data board_map_data = {
