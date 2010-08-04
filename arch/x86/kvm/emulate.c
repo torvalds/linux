@@ -2235,7 +2235,8 @@ static struct opcode opcode_table[256] = {
 	D(ByteOp | SrcSI | DstDI | Mov | String), D(SrcSI | DstDI | Mov | String),
 	D(ByteOp | SrcSI | DstDI | String), D(SrcSI | DstDI | String),
 	/* 0xA8 - 0xAF */
-	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm), D(ByteOp | DstDI | Mov | String), D(DstDI | Mov | String),
+	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm),
+	D(ByteOp | SrcAcc | DstDI | Mov | String), D(SrcAcc | DstDI | Mov | String),
 	D(ByteOp | SrcSI | DstAcc | Mov | String), D(SrcSI | DstAcc | Mov | String),
 	D(ByteOp | DstDI | String), D(DstDI | String),
 	/* 0xB0 - 0xB7 */
@@ -2996,8 +2997,6 @@ special_insn:
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
 	case 0xaa ... 0xab:	/* stos */
-		c->dst.val = c->regs[VCPU_REGS_RAX];
-		break;
 	case 0xac ... 0xad:	/* lods */
 		goto mov;
 	case 0xae ... 0xaf:	/* scas */
