@@ -5166,6 +5166,19 @@ static void fixup_automic_adc(struct hda_codec *codec)
 	spec->auto_mic = 0; /* disable auto-mic to be sure */
 }
 
+/* select or unmute the given capsrc route */
+static void select_or_unmute_capsrc(struct hda_codec *codec, hda_nid_t cap,
+				    int idx)
+{
+	if (get_wcaps_type(get_wcaps(codec, cap)) == AC_WID_AUD_MIX) {
+		snd_hda_codec_amp_stereo(codec, cap, HDA_INPUT, idx,
+					 HDA_AMP_MUTE, 0);
+	} else {
+		snd_hda_codec_write_cache(codec, cap, 0,
+					  AC_VERB_SET_CONNECT_SEL, idx);
+	}
+}
+
 /* set the default connection to that pin */
 static int init_capsrc_for_pin(struct hda_codec *codec, hda_nid_t pin)
 {
@@ -5180,14 +5193,7 @@ static int init_capsrc_for_pin(struct hda_codec *codec, hda_nid_t pin)
 		idx = get_connection_index(codec, cap, pin);
 		if (idx < 0)
 			continue;
-		/* select or unmute this route */
-		if (get_wcaps_type(get_wcaps(codec, cap)) == AC_WID_AUD_MIX) {
-			snd_hda_codec_amp_stereo(codec, cap, HDA_INPUT, idx,
-						 HDA_AMP_MUTE, 0);
-		} else {
-			snd_hda_codec_write_cache(codec, cap, 0,
-					  AC_VERB_SET_CONNECT_SEL, idx);
-		}
+		select_or_unmute_capsrc(codec, cap, idx);
 		return i; /* return the found index */
 	}
 	return -1; /* not found */
@@ -14364,9 +14370,8 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	/* set default input source */
 	if (!spec->dual_adc_switch)
-		snd_hda_codec_write_cache(codec, spec->capsrc_nids[0],
-				  0, AC_VERB_SET_CONNECT_SEL,
-				  spec->input_mux->items[0].index);
+		select_or_unmute_capsrc(codec, spec->capsrc_nids[0],
+					spec->input_mux->items[0].index);
 
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
