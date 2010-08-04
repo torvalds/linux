@@ -231,7 +231,7 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 
 	sinfo->nskt = nr;
 
-	/* Initiliaze processor specific parameters */
+	/* Initialize processor specific parameters */
 	for (i = 0; i < nr; i++) {
 		skt = &sinfo->skt[i];
 

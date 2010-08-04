@@ -1224,7 +1224,7 @@ static void ap_crypt_init(struct ap_data *ap)
 
 
 /* Generate challenge data for shared key authentication. IEEE 802.11 specifies
- * that WEP algorithm is used for generating challange. This should be unique,
+ * that WEP algorithm is used for generating challenge. This should be unique,
  * but otherwise there is not really need for randomness etc. Initialize WEP
  * with pseudo random key and then use increasing IV to get unique challenge
  * streams.

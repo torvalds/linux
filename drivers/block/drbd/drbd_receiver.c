@@ -1087,7 +1087,7 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 			} else {
 				epoch->flags = 0;
 				atomic_set(&epoch->epoch_size, 0);
-				/* atomic_set(&epoch->active, 0); is alrady zero */
+				/* atomic_set(&epoch->active, 0); is already zero */
 				if (rv == FE_STILL_LIVE)
 					rv = FE_RECYCLED;
 			}

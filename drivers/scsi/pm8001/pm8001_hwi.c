@@ -1082,7 +1082,7 @@ static void pm8001_hw_chip_rst(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_iounmap - which maped when initilized.
+ * pm8001_chip_iounmap - which maped when initialized.
  * @pm8001_ha: our hba card information
  */
 static void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha)
@@ -4152,7 +4152,7 @@ static int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_chip_ssp_tm_req - built the task managment command.
+ * pm8001_chip_ssp_tm_req - built the task management command.
  * @pm8001_ha: our hba card information.
  * @ccb: the ccb information.
  * @tmf: task management function.

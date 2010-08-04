@@ -50,7 +50,7 @@
  *
  * ROADMAP
  *
- * i2400m_dev_initalize()       Called by i2400m_dev_start()
+ * i2400m_dev_initialize()       Called by i2400m_dev_start()
  *   i2400m_set_init_config()
  *   i2400m_cmd_get_state()
  * i2400m_dev_shutdown()        Called by i2400m_dev_stop()

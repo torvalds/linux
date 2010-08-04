@@ -805,7 +805,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
-			/* Twice sequencial need status 0xff->0x9e->0x9d */
+			/* Twice sequential need status 0xff->0x9e->0x9d */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
 
@@ -877,7 +877,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
-			/* Twice sequencial need status 0xff->0x9e->0x9d */
+			/* Twice sequential need status 0xff->0x9e->0x9d */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
 			spca504A_acknowledged_command(gspca_dev, 0x24,

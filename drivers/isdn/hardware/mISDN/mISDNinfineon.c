@@ -1139,7 +1139,7 @@ inf_remove(struct pci_dev *pdev)
 	if (card)
 		release_card(card);
 	else
-		pr_debug("%s: drvdata allready removed\n", __func__);
+		pr_debug("%s: drvdata already removed\n", __func__);
 }
 
 static struct pci_driver infineon_driver = {

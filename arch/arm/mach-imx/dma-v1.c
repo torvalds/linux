@@ -310,7 +310,7 @@ imx_dma_setup_sg(int channel,
 	imxdma->resbytes = dma_length;
 
 	if (!sg || !sgcount) {
-		printk(KERN_ERR "imxdma%d: imx_dma_setup_sg epty sg list\n",
+		printk(KERN_ERR "imxdma%d: imx_dma_setup_sg empty sg list\n",
 		       channel);
 		return -EINVAL;
 	}
@@ -759,7 +759,6 @@ EXPORT_SYMBOL(imx_dma_free);
  * @channel: i.MX DMA channel number
  * @name: the driver/caller own non-%NULL identification
  *
- * This function tries to find a free channel in the specified priority group
  * This function tries to find a free channel in the specified priority group
  * if the priority cannot be achieved it tries to look for free channel
  * in the higher and then even lower priority groups.

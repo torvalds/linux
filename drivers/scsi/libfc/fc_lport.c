@@ -32,11 +32,11 @@
  * invalid SID. We also need to ensure that states don't change unexpectedly
  * while processing another state.
  *
- * HEIRARCHY
+ * HIERARCHY
  *
- * The following heirarchy defines the locking rules. A greater lock
+ * The following hierarchy defines the locking rules. A greater lock
  * may be held before acquiring a lesser lock, but a lesser lock should never
- * be held while attempting to acquire a greater lock. Here is the heirarchy-
+ * be held while attempting to acquire a greater lock. Here is the hierarchy-
  *
  * lport > disc, lport > rport, disc > rport
  *

@@ -187,7 +187,7 @@ apply a patch.
 If you do not know where you want to start, but you want to look for
 some task to start doing to join into the kernel development community,
 go to the Linux Kernel Janitor's project:
-	http://janitor.kernelnewbies.org/
+	http://kernelnewbies.org/KernelJanitors	
 It is a great place to start.  It describes a list of relatively simple
 problems that need to be cleaned up and fixed within the Linux kernel
 source tree.  Working with the developers in charge of this project, you
@@ -315,7 +315,7 @@ process is tracked with the tool patchwork.  Patchwork offers a web
 interface which shows patch postings, any comments on a patch or
 revisions to it, and maintainers can mark patches as under review,
 accepted, or rejected.  Most of these patchwork sites are listed at
-http://patchwork.kernel.org/ or http://patchwork.ozlabs.org/.
+http://patchwork.kernel.org/.
 
 2.6.x -next kernel tree for integration tests
 ---------------------------------------------
@@ -595,7 +595,7 @@ start exactly where you are now.
 
 ----------
 Thanks to Paolo Ciarrocchi who allowed the "Development Process"
-(http://linux.tar.bz/articles/2.6-development_process) section
+(http://lwn.net/Articles/94386/) section
 to be based on text he had written, and to Randy Dunlap and Gerrit
 Huizenga for some of the list of things you should and should not say.
 Also thanks to Pat Mochel, Hanna Linder, Randy Dunlap, Kay Sievers,

@@ -4845,7 +4845,7 @@ static int register_test(struct slgt_info *info)
 {
 	static unsigned short patterns[] =
 		{0x0000, 0xffff, 0xaaaa, 0x5555, 0x6969, 0x9696};
-	static unsigned int count = sizeof(patterns)/sizeof(patterns[0]);
+	static unsigned int count = ARRAY_SIZE(patterns);
 	unsigned int i;
 	int rc = 0;
 

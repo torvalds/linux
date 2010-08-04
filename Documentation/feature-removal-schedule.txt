@@ -93,7 +93,7 @@ Why:	Broken design for runtime control over driver power states, confusing
 	inputs.  This framework was never widely used, and most attempts to
 	use it were broken.  Drivers should instead be exposing domain-specific
 	interfaces either to kernel or to userspace.
-Who:	Pavel Machek <pavel@suse.cz>
+Who:	Pavel Machek <pavel@ucw.cz>
 
 ---------------------------
 

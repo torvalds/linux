@@ -46,7 +46,7 @@ struct mpc8610_hpcd_data {
 };
 
 /**
- * mpc8610_hpcd_machine_probe: initalize the board
+ * mpc8610_hpcd_machine_probe: initialize the board
  *
  * This function is called when platform_device_add() is called.  It is used
  * to initialize the board-specific hardware.

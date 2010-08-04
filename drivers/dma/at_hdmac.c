@@ -69,7 +69,7 @@ static struct at_desc *atc_first_queued(struct at_dma_chan *atchan)
 }
 
 /**
- * atc_alloc_descriptor - allocate and return an initilized descriptor
+ * atc_alloc_descriptor - allocate and return an initialized descriptor
  * @chan: the channel to allocate descriptors for
  * @gfp_flags: GFP allocation flags
  *

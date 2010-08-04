@@ -10,7 +10,7 @@
  * Description:
  *   DMA engine driver for Freescale MPC8540 DMA controller, which is
  *   also fit for MPC8560, MPC8555, MPC8548, MPC8641, and etc.
- *   The support for MPC8349 DMA contorller is also added.
+ *   The support for MPC8349 DMA controller is also added.
  *
  * This driver instructs the DMA controller to issue the PCI Read Multiple
  * command for PCI read operations, instead of using the default PCI Read Line

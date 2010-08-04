@@ -1221,7 +1221,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		inode_set_bytes(inode,
 				to_real_used_space(inode, inode->i_blocks,
 						   SD_V2_SIZE));
-		/* read persistent inode attributes from sd and initalise
+		/* read persistent inode attributes from sd and initialise
 		   generic inode flags from them */
 		REISERFS_I(inode)->i_attrs = sd_v2_attrs(sd);
 		sd_attrs_to_i_attrs(sd_v2_attrs(sd), inode);

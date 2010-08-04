@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Pavel Machek <pavel@suse.cz>
+ * Copyright 2008 Pavel Machek <pavel@ucw.cz>
  *
  * Distribute under GPLv2.
  *

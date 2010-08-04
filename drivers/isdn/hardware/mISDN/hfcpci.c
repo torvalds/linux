@@ -1773,7 +1773,7 @@ init_card(struct hfc_pci *hc)
 		inithfcpci(hc);
 		/*
 		 * Finally enable IRQ output
-		 * this is only allowed, if an IRQ routine is allready
+		 * this is only allowed, if an IRQ routine is already
 		 * established for this HFC, so don't do that earlier
 		 */
 		enable_hwirq(hc);

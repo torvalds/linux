@@ -2472,7 +2472,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->slot_recovery_generations);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
-	 * allocate osb->journal at the start of ocfs2_initalize_osb(),
+	 * allocate osb->journal at the start of ocfs2_initialize_osb(),
 	 * we free it here.
 	 */
 	kfree(osb->journal);

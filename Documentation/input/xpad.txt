@@ -150,7 +150,7 @@ the basic functionality.
 
 1. http://euc.jp/periphs/xbox-controller.ja.html (ITO Takayuki)
 2. http://xpad.xbox-scene.com/
-3. http://www.xboxhackz.com/Hackz-Reference.htm
+3. http://www.markosweb.com/www/xboxhackz.com/ 
 
 4. /proc/bus/usb/devices - dump from InterAct PowerPad Pro (Germany):
 

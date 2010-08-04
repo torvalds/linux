@@ -1285,7 +1285,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     about this driver.  Note that it has been discontinued, but the 
     Voyetra Turtle Beach knowledge base entry for it is still available
     at
-	http://www.turtlebeach.com/site/kb_ftp/790.asp
+	http://www.turtlebeach.com
 
   Module snd-msnd-pinnacle
   ------------------------

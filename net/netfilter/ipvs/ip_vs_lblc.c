@@ -11,7 +11,7 @@
  * Changes:
  *     Martin Hamilton         :    fixed the terrible locking bugs
  *                                   *lock(tbl->lock) ==> *lock(&tbl->lock)
- *     Wensong Zhang           :    fixed the uninitilized tbl->lock bug
+ *     Wensong Zhang           :    fixed the uninitialized tbl->lock bug
  *     Wensong Zhang           :    added doing full expiration check to
  *                                   collect stale entries of 24+ hours when
  *                                   no partial expire check in a half hour

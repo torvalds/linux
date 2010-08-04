@@ -92,7 +92,7 @@ static void ide_disk_release(struct device *dev)
 
 /*
  * On HPA drives the capacity needs to be
- * reinitilized on resume otherwise the disk
+ * reinitialized on resume otherwise the disk
  * can not be used and a hard reset is required
  */
 static void ide_gd_resume(ide_drive_t *drive)

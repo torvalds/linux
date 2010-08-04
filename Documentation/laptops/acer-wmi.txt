@@ -173,7 +173,7 @@ Credits
 *******
 
 Olaf Tauber, who did the real hard work when he developed acerhk
-http://www.informatik.hu-berlin.de/~tauber/acerhk
+http://www.cakey.de/acerhk/
 All the authors of laptop ACPI modules in the kernel, whose work
 was an inspiration in the early days of acer_acpi
 Mathieu Segaud, who solved the problem with having to modprobe the driver

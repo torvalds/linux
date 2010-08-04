@@ -2531,5 +2531,5 @@ Special Thanks
 ==============
 Special thanks to Neale Ferguson who maintains a much
 prettier HTML version of this page at
-http://penguinvm.princeton.edu/notes.html#Debug390
+http://linuxvm.org/penguinvm/
 Bob Grainger Stefan Bader & others for reporting bugs

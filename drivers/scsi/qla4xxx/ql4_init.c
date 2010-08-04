@@ -214,7 +214,7 @@ exit_get_sys_info_no_free:
  **/
 static int qla4xxx_init_local_data(struct scsi_qla_host *ha)
 {
-	/* Initilize aen queue */
+	/* Initialize aen queue */
 	ha->aen_q_count = MAX_AEN_ENTRIES;
 
 	return qla4xxx_get_firmware_status(ha);

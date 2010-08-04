@@ -8,62 +8,6 @@
 
   Table of Contents
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   1. Introduction
 
      1.1 How is User Mode Linux Different?
@@ -277,8 +221,7 @@
 
   1. Download the latest UML patch from
 
-     the download page <http://user-mode-linux.sourceforge.net/dl-
-     sf.html>
+     the download page <http://user-mode-linux.sourceforge.net/
 
      In this example, the file is uml-patch-2.4.0-prerelease.bz2.
 
@@ -438,7 +381,7 @@
   as modules, especially filesystems and network protocols and filters,
   so most symbols which need to be exported probably already are.
   However, if you do find symbols that need exporting, let  us
-  <http://user-mode-linux.sourceforge.net/contacts.html>  know, and
+  <http://user-mode-linux.sourceforge.net/>  know, and
   they'll be "taken care of".
 
 
@@ -498,8 +441,8 @@
 
   You will need a filesystem to boot UML from.  There are a number
   available for download from  here  <http://user-mode-
-  linux.sourceforge.net/dl-sf.html> .  There are also  several tools
-  <http://user-mode-linux.sourceforge.net/fs_making.html>  which can be
+  linux.sourceforge.net/> .  There are also  several tools
+  <http://user-mode-linux.sourceforge.net/>  which can be
   used to generate UML-compatible filesystem images from media.
   The kernel will boot up and present you with a login prompt.
 
@@ -1236,7 +1179,7 @@
 
 
   Harald's original README is here <http://user-mode-linux.source-
-  forge.net/text/mcast.txt>  and explains these in detail, as well as
+  forge.net/>  and explains these in detail, as well as
   some other issues.
 
 
@@ -1311,7 +1254,7 @@
   kernel.
 
   These were pointed out by Tim Robinson <timro at trkr dot net> in
-  <http://www.geocrawler.com/lists/3/SourceForge/597/0/> name="this uml-
+  <http://www.geocrawler.com/> name="this uml-
   user post"> .
 
 
@@ -2038,7 +1981,7 @@
 
   uml_moo is installed with the UML deb and RPM.  If you didn't install
   UML from one of those packages, you can also get it from the UML
-  utilities <http://user-mode-linux.sourceforge.net/dl-sf.html#UML
+  utilities <http://user-mode-linux.sourceforge.net/
   utilities>  tar file in tools/moo.
 
 
@@ -4599,7 +4542,7 @@
 
   Michael Jennings <mikejen at hevanet.com>  sent in some material which
   is now gracing the top of the  index  page <http://user-mode-
-  linux.sourceforge.net/index.html>  of this site.
+  linux.sourceforge.net/>  of this site.
 
   SGI <http://www.sgi.com>  (and more specifically Ralf Baechle <ralf at
   uni-koblenz.de> ) gave me an account on oss.sgi.com

@@ -9,15 +9,15 @@ Supported chips:
   * Analog Devices ADM1027
     Prefix: 'adm1027'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADM1027,00.html
+    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADM1027
   * Analog Devices ADT7463
     Prefix: 'adt7463'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADT7463,00.html
+    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7463
   * SMSC EMC6D100, SMSC EMC6D101
     Prefix: 'emc6d100'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.smsc.com/main/tools/discontinued/6d100.pdf
+    Datasheet: http://www.smsc.com/media/Downloads_Public/discontinued/6d100.pdf 
   * SMSC EMC6D102
     Prefix: 'emc6d102'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e

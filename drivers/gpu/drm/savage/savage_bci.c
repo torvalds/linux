@@ -552,7 +552,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 
 /*
- * Initalize mappings. On Savage4 and SavageIX the alignment
+ * Initialize mappings. On Savage4 and SavageIX the alignment
  * and size of the aperture is not suitable for automatic MTRR setup
  * in drm_addmap. Therefore we add them manually before the maps are
  * initialized, and tear them down on last close.

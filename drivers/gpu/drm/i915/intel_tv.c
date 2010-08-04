@@ -1424,7 +1424,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 	int j, count = 0;
 	u64 tmp;
 
-	for (j = 0; j < sizeof(input_res_table) / sizeof(input_res_table[0]);
+	for (j = 0; j < ARRAY_SIZE(input_res_table);
 	     j++) {
 		struct input_res *input = &input_res_table[j];
 		unsigned int hactive_s = input->w;

@@ -60,7 +60,7 @@
 #define SDRC_DLLA_CTRL_V	OMAP34XX_SDRC_REGADDR(SDRC_DLLA_CTRL)
 
         .text
-/* Function to aquire the semaphore in scratchpad */
+/* Function to acquire the semaphore in scratchpad */
 ENTRY(lock_scratchpad_sem)
 	stmfd	sp!, {lr}	@ save registers on stack
 wait_sem:
