@@ -20,6 +20,7 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/memblock.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
@@ -633,6 +634,12 @@ static void __init treo_lcd_power_init(void)
 	treo_lcd_screen.pxafb_lcd_power = treo_lcd_power;
 }
 
+static void __init treo_reserve(void)
+{
+	memblock_reserve(0xa0000000, 0x1000);
+	memblock_reserve(0xa2000000, 0x1000);
+}
+
 static void __init treo_init(void)
 {
 	pxa_set_ffuart_info(NULL);
@@ -668,6 +675,7 @@ MACHINE_START(TREO680, "Palm Treo 680")
 	.io_pg_offst    = io_p2v(0x40000000),
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = treo680_init,
@@ -691,6 +699,7 @@ MACHINE_START(CENTRO, "Palm Centro 685")
 	.io_pg_offst    = io_p2v(0x40000000),
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
        .init_machine   = centro_init,

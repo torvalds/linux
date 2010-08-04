@@ -1023,13 +1023,12 @@ static int get_transition_latency(struct powernow_k8_data *data)
 	}
 	if (max_latency == 0) {
 		/*
-		 * Fam 11h always returns 0 as transition latency.
-		 * This is intended and means "very fast". While cpufreq core
-		 * and governors currently can handle that gracefully, better
-		 * set it to 1 to avoid problems in the future.
-		 * For all others it's a BIOS bug.
+		 * Fam 11h and later may return 0 as transition latency. This
+		 * is intended and means "very fast". While cpufreq core and
+		 * governors currently can handle that gracefully, better set it
+		 * to 1 to avoid problems in the future.
 		 */
-		if (boot_cpu_data.x86 != 0x11)
+		if (boot_cpu_data.x86 < 0x11)
 			printk(KERN_ERR FW_WARN PFX "Invalid zero transition "
 				"latency\n");
 		max_latency = 1;

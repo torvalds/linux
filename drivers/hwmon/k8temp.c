@@ -180,11 +180,13 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 		}
 
 		if ((model >= 0x69) &&
-		    !(model == 0xc1 || model == 0x6c || model == 0x7c)) {
+		    !(model == 0xc1 || model == 0x6c || model == 0x7c ||
+		      model == 0x6b || model == 0x6f || model == 0x7f)) {
 			/*
-			 * RevG desktop CPUs (i.e. no socket S1G1 parts)
-			 * need additional offset, otherwise reported
-			 * temperature is below ambient temperature
+			 * RevG desktop CPUs (i.e. no socket S1G1 or
+			 * ASB1 parts) need additional offset,
+			 * otherwise reported temperature is below
+			 * ambient temperature
 			 */
 			data->temp_offset = 21000;
 		}

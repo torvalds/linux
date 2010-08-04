@@ -24,7 +24,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_trans_priv.h"
 #include "xfs_extfree_item.h"
@@ -33,18 +32,19 @@
 kmem_zone_t	*xfs_efi_zone;
 kmem_zone_t	*xfs_efd_zone;
 
-STATIC void	xfs_efi_item_unlock(xfs_efi_log_item_t *);
+static inline struct xfs_efi_log_item *EFI_ITEM(struct xfs_log_item *lip)
+{
+	return container_of(lip, struct xfs_efi_log_item, efi_item);
+}
 
 void
-xfs_efi_item_free(xfs_efi_log_item_t *efip)
+xfs_efi_item_free(
+	struct xfs_efi_log_item	*efip)
 {
-	int nexts = efip->efi_format.efi_nextents;
-
-	if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
+	if (efip->efi_format.efi_nextents > XFS_EFI_MAX_FAST_EXTENTS)
 		kmem_free(efip);
-	} else {
+	else
 		kmem_zone_free(xfs_efi_zone, efip);
-	}
 }
 
 /*
@@ -52,9 +52,9 @@ xfs_efi_item_free(xfs_efi_log_item_t *efip)
  * We only need 1 iovec for an efi item.  It just logs the efi_log_format
  * structure.
  */
-/*ARGSUSED*/
 STATIC uint
-xfs_efi_item_size(xfs_efi_log_item_t *efip)
+xfs_efi_item_size(
+	struct xfs_log_item	*lip)
 {
 	return 1;
 }
@@ -67,10 +67,12 @@ xfs_efi_item_size(xfs_efi_log_item_t *efip)
  * slots in the efi item have been filled.
  */
 STATIC void
-xfs_efi_item_format(xfs_efi_log_item_t	*efip,
-		    xfs_log_iovec_t	*log_vector)
+xfs_efi_item_format(
+	struct xfs_log_item	*lip,
+	struct xfs_log_iovec	*log_vector)
 {
-	uint	size;
+	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
+	uint			size;
 
 	ASSERT(efip->efi_next_extent == efip->efi_format.efi_nextents);
 
@@ -80,7 +82,7 @@ xfs_efi_item_format(xfs_efi_log_item_t	*efip,
 	size += (efip->efi_format.efi_nextents - 1) * sizeof(xfs_extent_t);
 	efip->efi_format.efi_size = 1;
 
-	log_vector->i_addr = (xfs_caddr_t)&(efip->efi_format);
+	log_vector->i_addr = &efip->efi_format;
 	log_vector->i_len = size;
 	log_vector->i_type = XLOG_REG_TYPE_EFI_FORMAT;
 	ASSERT(size >= sizeof(xfs_efi_log_format_t));
@@ -90,13 +92,11 @@ xfs_efi_item_format(xfs_efi_log_item_t	*efip,
 /*
  * Pinning has no meaning for an efi item, so just return.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_pin(xfs_efi_log_item_t *efip)
+xfs_efi_item_pin(
+	struct xfs_log_item	*lip)
 {
-	return;
 }
-
 
 /*
  * While EFIs cannot really be pinned, the unpin operation is the
@@ -104,46 +104,21 @@ xfs_efi_item_pin(xfs_efi_log_item_t *efip)
  * Here we coordinate with xfs_efi_cancel() to determine who gets to
  * free the EFI.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_unpin(xfs_efi_log_item_t *efip)
+xfs_efi_item_unpin(
+	struct xfs_log_item	*lip,
+	int			remove)
 {
-	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
+	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
+	struct xfs_ail		*ailp = lip->li_ailp;
 
 	spin_lock(&ailp->xa_lock);
 	if (efip->efi_flags & XFS_EFI_CANCELED) {
-		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, (xfs_log_item_t *)efip);
-		xfs_efi_item_free(efip);
-	} else {
-		efip->efi_flags |= XFS_EFI_COMMITTED;
-		spin_unlock(&ailp->xa_lock);
-	}
-}
-
-/*
- * like unpin only we have to also clear the xaction descriptor
- * pointing the log item if we free the item.  This routine duplicates
- * unpin because efi_flags is protected by the AIL lock.  Freeing
- * the descriptor and then calling unpin would force us to drop the AIL
- * lock which would open up a race condition.
- */
-STATIC void
-xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
-{
-	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
-	xfs_log_item_desc_t	*lidp;
-
-	spin_lock(&ailp->xa_lock);
-	if (efip->efi_flags & XFS_EFI_CANCELED) {
-		/*
-		 * free the xaction descriptor pointing to this item
-		 */
-		lidp = xfs_trans_find_item(tp, (xfs_log_item_t *) efip);
-		xfs_trans_free_item(tp, lidp);
+		if (remove)
+			xfs_trans_del_item(lip);
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, (xfs_log_item_t *)efip);
+		xfs_trans_ail_delete(ailp, lip);
 		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
@@ -158,9 +133,9 @@ xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
  * XFS_ITEM_PINNED so that the caller will eventually flush the log.
  * This should help in getting the EFI out of the AIL.
  */
-/*ARGSUSED*/
 STATIC uint
-xfs_efi_item_trylock(xfs_efi_log_item_t *efip)
+xfs_efi_item_trylock(
+	struct xfs_log_item	*lip)
 {
 	return XFS_ITEM_PINNED;
 }
@@ -168,13 +143,12 @@ xfs_efi_item_trylock(xfs_efi_log_item_t *efip)
 /*
  * Efi items have no locking, so just return.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_unlock(xfs_efi_log_item_t *efip)
+xfs_efi_item_unlock(
+	struct xfs_log_item	*lip)
 {
-	if (efip->efi_item.li_flags & XFS_LI_ABORTED)
-		xfs_efi_item_free(efip);
-	return;
+	if (lip->li_flags & XFS_LI_ABORTED)
+		xfs_efi_item_free(EFI_ITEM(lip));
 }
 
 /*
@@ -183,9 +157,10 @@ xfs_efi_item_unlock(xfs_efi_log_item_t *efip)
  * flag is not paid any attention here.  Checking for that is delayed
  * until the EFI is unpinned.
  */
-/*ARGSUSED*/
 STATIC xfs_lsn_t
-xfs_efi_item_committed(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
+xfs_efi_item_committed(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
 {
 	return lsn;
 }
@@ -195,11 +170,10 @@ xfs_efi_item_committed(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
  * stuck waiting for all of its corresponding efd items to be
  * committed to disk.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_push(xfs_efi_log_item_t *efip)
+xfs_efi_item_push(
+	struct xfs_log_item	*lip)
 {
-	return;
 }
 
 /*
@@ -209,61 +183,55 @@ xfs_efi_item_push(xfs_efi_log_item_t *efip)
  * example, for inodes, the inode is locked throughout the extent freeing
  * so the dependency should be recorded there.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_committing(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
+xfs_efi_item_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
 {
-	return;
 }
 
 /*
  * This is the ops vector shared by all efi log items.
  */
 static struct xfs_item_ops xfs_efi_item_ops = {
-	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efi_item_size,
-	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
-					xfs_efi_item_format,
-	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efi_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efi_item_unpin,
-	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t *))
-					xfs_efi_item_unpin_remove,
-	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efi_item_trylock,
-	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_efi_item_unlock,
-	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_efi_item_committed,
-	.iop_push	= (void(*)(xfs_log_item_t*))xfs_efi_item_push,
-	.iop_pushbuf	= NULL,
-	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_efi_item_committing
+	.iop_size	= xfs_efi_item_size,
+	.iop_format	= xfs_efi_item_format,
+	.iop_pin	= xfs_efi_item_pin,
+	.iop_unpin	= xfs_efi_item_unpin,
+	.iop_trylock	= xfs_efi_item_trylock,
+	.iop_unlock	= xfs_efi_item_unlock,
+	.iop_committed	= xfs_efi_item_committed,
+	.iop_push	= xfs_efi_item_push,
+	.iop_committing = xfs_efi_item_committing
 };
 
 
 /*
  * Allocate and initialize an efi item with the given number of extents.
  */
-xfs_efi_log_item_t *
-xfs_efi_init(xfs_mount_t	*mp,
-	     uint		nextents)
+struct xfs_efi_log_item *
+xfs_efi_init(
+	struct xfs_mount	*mp,
+	uint			nextents)
 
 {
-	xfs_efi_log_item_t	*efip;
+	struct xfs_efi_log_item	*efip;
 	uint			size;
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_EFI_MAX_FAST_EXTENTS) {
 		size = (uint)(sizeof(xfs_efi_log_item_t) +
 			((nextents - 1) * sizeof(xfs_extent_t)));
-		efip = (xfs_efi_log_item_t*)kmem_zalloc(size, KM_SLEEP);
+		efip = kmem_zalloc(size, KM_SLEEP);
 	} else {
-		efip = (xfs_efi_log_item_t*)kmem_zone_zalloc(xfs_efi_zone,
-							     KM_SLEEP);
+		efip = kmem_zone_zalloc(xfs_efi_zone, KM_SLEEP);
 	}
 
 	xfs_log_item_init(mp, &efip->efi_item, XFS_LI_EFI, &xfs_efi_item_ops);
 	efip->efi_format.efi_nextents = nextents;
 	efip->efi_format.efi_id = (__psint_t)(void*)efip;
 
-	return (efip);
+	return efip;
 }
 
 /*
@@ -276,7 +244,7 @@ xfs_efi_init(xfs_mount_t	*mp,
 int
 xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 {
-	xfs_efi_log_format_t *src_efi_fmt = (xfs_efi_log_format_t *)buf->i_addr;
+	xfs_efi_log_format_t *src_efi_fmt = buf->i_addr;
 	uint i;
 	uint len = sizeof(xfs_efi_log_format_t) + 
 		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_t);  
@@ -289,8 +257,7 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 		memcpy((char *)dst_efi_fmt, (char*)src_efi_fmt, len);
 		return 0;
 	} else if (buf->i_len == len32) {
-		xfs_efi_log_format_32_t *src_efi_fmt_32 =
-			(xfs_efi_log_format_32_t *)buf->i_addr;
+		xfs_efi_log_format_32_t *src_efi_fmt_32 = buf->i_addr;
 
 		dst_efi_fmt->efi_type     = src_efi_fmt_32->efi_type;
 		dst_efi_fmt->efi_size     = src_efi_fmt_32->efi_size;
@@ -304,8 +271,7 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 		}
 		return 0;
 	} else if (buf->i_len == len64) {
-		xfs_efi_log_format_64_t *src_efi_fmt_64 =
-			(xfs_efi_log_format_64_t *)buf->i_addr;
+		xfs_efi_log_format_64_t *src_efi_fmt_64 = buf->i_addr;
 
 		dst_efi_fmt->efi_type     = src_efi_fmt_64->efi_type;
 		dst_efi_fmt->efi_size     = src_efi_fmt_64->efi_size;
@@ -356,16 +322,18 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 	}
 }
 
-STATIC void
-xfs_efd_item_free(xfs_efd_log_item_t *efdp)
+static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)
 {
-	int nexts = efdp->efd_format.efd_nextents;
+	return container_of(lip, struct xfs_efd_log_item, efd_item);
+}
 
-	if (nexts > XFS_EFD_MAX_FAST_EXTENTS) {
+STATIC void
+xfs_efd_item_free(struct xfs_efd_log_item *efdp)
+{
+	if (efdp->efd_format.efd_nextents > XFS_EFD_MAX_FAST_EXTENTS)
 		kmem_free(efdp);
-	} else {
+	else
 		kmem_zone_free(xfs_efd_zone, efdp);
-	}
 }
 
 /*
@@ -373,9 +341,9 @@ xfs_efd_item_free(xfs_efd_log_item_t *efdp)
  * We only need 1 iovec for an efd item.  It just logs the efd_log_format
  * structure.
  */
-/*ARGSUSED*/
 STATIC uint
-xfs_efd_item_size(xfs_efd_log_item_t *efdp)
+xfs_efd_item_size(
+	struct xfs_log_item	*lip)
 {
 	return 1;
 }
@@ -388,10 +356,12 @@ xfs_efd_item_size(xfs_efd_log_item_t *efdp)
  * slots in the efd item have been filled.
  */
 STATIC void
-xfs_efd_item_format(xfs_efd_log_item_t	*efdp,
-		    xfs_log_iovec_t	*log_vector)
+xfs_efd_item_format(
+	struct xfs_log_item	*lip,
+	struct xfs_log_iovec	*log_vector)
 {
-	uint	size;
+	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
+	uint			size;
 
 	ASSERT(efdp->efd_next_extent == efdp->efd_format.efd_nextents);
 
@@ -401,48 +371,38 @@ xfs_efd_item_format(xfs_efd_log_item_t	*efdp,
 	size += (efdp->efd_format.efd_nextents - 1) * sizeof(xfs_extent_t);
 	efdp->efd_format.efd_size = 1;
 
-	log_vector->i_addr = (xfs_caddr_t)&(efdp->efd_format);
+	log_vector->i_addr = &efdp->efd_format;
 	log_vector->i_len = size;
 	log_vector->i_type = XLOG_REG_TYPE_EFD_FORMAT;
 	ASSERT(size >= sizeof(xfs_efd_log_format_t));
 }
 
-
 /*
  * Pinning has no meaning for an efd item, so just return.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efd_item_pin(xfs_efd_log_item_t *efdp)
+xfs_efd_item_pin(
+	struct xfs_log_item	*lip)
 {
-	return;
 }
-
 
 /*
  * Since pinning has no meaning for an efd item, unpinning does
  * not either.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efd_item_unpin(xfs_efd_log_item_t *efdp)
+xfs_efd_item_unpin(
+	struct xfs_log_item	*lip,
+	int			remove)
 {
-	return;
-}
-
-/*ARGSUSED*/
-STATIC void
-xfs_efd_item_unpin_remove(xfs_efd_log_item_t *efdp, xfs_trans_t *tp)
-{
-	return;
 }
 
 /*
  * Efd items have no locking, so just return success.
  */
-/*ARGSUSED*/
 STATIC uint
-xfs_efd_item_trylock(xfs_efd_log_item_t *efdp)
+xfs_efd_item_trylock(
+	struct xfs_log_item	*lip)
 {
 	return XFS_ITEM_LOCKED;
 }
@@ -451,13 +411,12 @@ xfs_efd_item_trylock(xfs_efd_log_item_t *efdp)
  * Efd items have no locking or pushing, so return failure
  * so that the caller doesn't bother with us.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efd_item_unlock(xfs_efd_log_item_t *efdp)
+xfs_efd_item_unlock(
+	struct xfs_log_item	*lip)
 {
-	if (efdp->efd_item.li_flags & XFS_LI_ABORTED)
-		xfs_efd_item_free(efdp);
-	return;
+	if (lip->li_flags & XFS_LI_ABORTED)
+		xfs_efd_item_free(EFD_ITEM(lip));
 }
 
 /*
@@ -467,15 +426,18 @@ xfs_efd_item_unlock(xfs_efd_log_item_t *efdp)
  * return -1 to keep the transaction code from further referencing
  * this item.
  */
-/*ARGSUSED*/
 STATIC xfs_lsn_t
-xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
+xfs_efd_item_committed(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
 {
+	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
+
 	/*
 	 * If we got a log I/O error, it's always the case that the LR with the
 	 * EFI got unpinned and freed before the EFD got aborted.
 	 */
-	if ((efdp->efd_item.li_flags & XFS_LI_ABORTED) == 0)
+	if (!(lip->li_flags & XFS_LI_ABORTED))
 		xfs_efi_release(efdp->efd_efip, efdp->efd_format.efd_nextents);
 
 	xfs_efd_item_free(efdp);
@@ -486,11 +448,10 @@ xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
  * There isn't much you can do to push on an efd item.  It is simply
  * stuck waiting for the log to be flushed to disk.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efd_item_push(xfs_efd_log_item_t *efdp)
+xfs_efd_item_push(
+	struct xfs_log_item	*lip)
 {
-	return;
 }
 
 /*
@@ -500,55 +461,48 @@ xfs_efd_item_push(xfs_efd_log_item_t *efdp)
  * example, for inodes, the inode is locked throughout the extent freeing
  * so the dependency should be recorded there.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efd_item_committing(xfs_efd_log_item_t *efip, xfs_lsn_t lsn)
+xfs_efd_item_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
 {
-	return;
 }
 
 /*
  * This is the ops vector shared by all efd log items.
  */
 static struct xfs_item_ops xfs_efd_item_ops = {
-	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efd_item_size,
-	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
-					xfs_efd_item_format,
-	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efd_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efd_item_unpin,
-	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
-					xfs_efd_item_unpin_remove,
-	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efd_item_trylock,
-	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_efd_item_unlock,
-	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_efd_item_committed,
-	.iop_push	= (void(*)(xfs_log_item_t*))xfs_efd_item_push,
-	.iop_pushbuf	= NULL,
-	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_efd_item_committing
+	.iop_size	= xfs_efd_item_size,
+	.iop_format	= xfs_efd_item_format,
+	.iop_pin	= xfs_efd_item_pin,
+	.iop_unpin	= xfs_efd_item_unpin,
+	.iop_trylock	= xfs_efd_item_trylock,
+	.iop_unlock	= xfs_efd_item_unlock,
+	.iop_committed	= xfs_efd_item_committed,
+	.iop_push	= xfs_efd_item_push,
+	.iop_committing = xfs_efd_item_committing
 };
-
 
 /*
  * Allocate and initialize an efd item with the given number of extents.
  */
-xfs_efd_log_item_t *
-xfs_efd_init(xfs_mount_t	*mp,
-	     xfs_efi_log_item_t	*efip,
-	     uint		nextents)
+struct xfs_efd_log_item *
+xfs_efd_init(
+	struct xfs_mount	*mp,
+	struct xfs_efi_log_item	*efip,
+	uint			nextents)
 
 {
-	xfs_efd_log_item_t	*efdp;
+	struct xfs_efd_log_item	*efdp;
 	uint			size;
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
 		size = (uint)(sizeof(xfs_efd_log_item_t) +
 			((nextents - 1) * sizeof(xfs_extent_t)));
-		efdp = (xfs_efd_log_item_t*)kmem_zalloc(size, KM_SLEEP);
+		efdp = kmem_zalloc(size, KM_SLEEP);
 	} else {
-		efdp = (xfs_efd_log_item_t*)kmem_zone_zalloc(xfs_efd_zone,
-							     KM_SLEEP);
+		efdp = kmem_zone_zalloc(xfs_efd_zone, KM_SLEEP);
 	}
 
 	xfs_log_item_init(mp, &efdp->efd_item, XFS_LI_EFD, &xfs_efd_item_ops);
@@ -556,5 +510,5 @@ xfs_efd_init(xfs_mount_t	*mp,
 	efdp->efd_format.efd_nextents = nextents;
 	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
 
-	return (efdp);
+	return efdp;
 }

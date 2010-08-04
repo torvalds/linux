@@ -2,7 +2,7 @@ config CEPH_FS
         tristate "Ceph distributed file system (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select LIBCRC32C
-	select CONFIG_CRYPTO_AES
+	select CRYPTO_AES
 	help
 	  Choose Y or M here to include support for mounting the
 	  experimental Ceph distributed file system.  Ceph is an extremely

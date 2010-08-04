@@ -194,6 +194,6 @@ err_timer:
 
 module_init(cs5535_mfgpt_init);
 
-MODULE_AUTHOR("Andres Salomon <dilinger@collabora.co.uk>");
+MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
 MODULE_DESCRIPTION("CS5535/CS5536 MFGPT clock event driver");
 MODULE_LICENSE("GPL");

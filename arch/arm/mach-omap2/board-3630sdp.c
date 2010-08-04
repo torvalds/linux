@@ -108,6 +108,7 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_sdp_init_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap_timer,

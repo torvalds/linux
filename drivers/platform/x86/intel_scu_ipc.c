@@ -489,7 +489,7 @@ int intel_scu_ipc_simple_command(int cmd, int sub)
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
-	ipc_command(cmd << 12 | sub);
+	ipc_command(sub << 12 | cmd);
 	err = busy_loop();
 	mutex_unlock(&ipclock);
 	return err;
@@ -501,9 +501,9 @@ EXPORT_SYMBOL(intel_scu_ipc_simple_command);
  *	@cmd: command
  *	@sub: sub type
  *	@in: input data
- *	@inlen: input length
+ *	@inlen: input length in dwords
  *	@out: output data
- *	@outlein: output length
+ *	@outlein: output length in dwords
  *
  *	Issue a command to the SCU which involves data transfers. Do the
  *	data copies under the lock but leave it for the caller to interpret
@@ -524,7 +524,7 @@ int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 	for (i = 0; i < inlen; i++)
 		ipc_data_writel(*in++, 4 * i);
 
-	ipc_command((cmd << 12) | sub | (inlen << 18));
+	ipc_command((sub << 12) | cmd | (inlen << 18));
 	err = busy_loop();
 
 	for (i = 0; i < outlen; i++)
@@ -556,6 +556,10 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data)
 	u32 cmd = 0;
 
 	mutex_lock(&ipclock);
+	if (ipcdev.pdev == NULL) {
+		mutex_unlock(&ipclock);
+		return -ENODEV;
+	}
 	cmd = (addr >> 24) & 0xFF;
 	if (cmd == IPC_I2C_READ) {
 		writel(addr, ipcdev.i2c_base + IPC_I2C_CNTRL_ADDR);

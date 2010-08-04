@@ -294,7 +294,7 @@ void __init_or_cpufreq s5p6442_setup_clocks(void)
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON), pll_4502);
 	epll = s5p_get_pll45xx(xtal, __raw_readl(S5P_EPLL_CON), pll_4500);
 
-	printk(KERN_INFO "S5P6440: PLL settings, A=%ld, M=%ld, E=%ld",
+	printk(KERN_INFO "S5P6442: PLL settings, A=%ld, M=%ld, E=%ld",
 			apll, mpll, epll);
 
 	clk_fout_apll.rate = apll;

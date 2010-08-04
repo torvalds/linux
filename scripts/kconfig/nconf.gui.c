@@ -226,7 +226,7 @@ void fill_window(WINDOW *win, const char *text)
 		int len = get_line_length(line);
 		strncpy(tmp, line, min(len, x));
 		tmp[len] = '\0';
-		mvwprintw(win, i, 0, tmp);
+		mvwprintw(win, i, 0, "%s", tmp);
 	}
 }
 

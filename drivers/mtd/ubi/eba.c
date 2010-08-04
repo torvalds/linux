@@ -418,7 +418,8 @@ retry:
 				 * may try to recover data. FIXME: but this is
 				 * not implemented.
 				 */
-				if (err == UBI_IO_BAD_VID_HDR) {
+				if (err == UBI_IO_BAD_HDR_READ ||
+				    err == UBI_IO_BAD_HDR) {
 					ubi_warn("corrupted VID header at PEB "
 						 "%d, LEB %d:%d", pnum, vol_id,
 						 lnum);
@@ -961,8 +962,8 @@ write_error:
  */
 static int is_error_sane(int err)
 {
-	if (err == -EIO || err == -ENOMEM || err == UBI_IO_BAD_VID_HDR ||
-	    err == -ETIMEDOUT)
+	if (err == -EIO || err == -ENOMEM || err == UBI_IO_BAD_HDR ||
+	    err == UBI_IO_BAD_HDR_READ || err == -ETIMEDOUT)
 		return 0;
 	return 1;
 }
@@ -1165,6 +1166,44 @@ out_unlock_leb:
 }
 
 /**
+ * print_rsvd_warning - warn about not having enough reserved PEBs.
+ * @ubi: UBI device description object
+ *
+ * This is a helper function for 'ubi_eba_init_scan()' which is called when UBI
+ * cannot reserve enough PEBs for bad block handling. This function makes a
+ * decision whether we have to print a warning or not. The algorithm is as
+ * follows:
+ *   o if this is a new UBI image, then just print the warning
+ *   o if this is an UBI image which has already been used for some time, print
+ *     a warning only if we can reserve less than 10% of the expected amount of
+ *     the reserved PEB.
+ *
+ * The idea is that when UBI is used, PEBs become bad, and the reserved pool
+ * of PEBs becomes smaller, which is normal and we do not want to scare users
+ * with a warning every time they attach the MTD device. This was an issue
+ * reported by real users.
+ */
+static void print_rsvd_warning(struct ubi_device *ubi,
+			       struct ubi_scan_info *si)
+{
+	/*
+	 * The 1 << 18 (256KiB) number is picked randomly, just a reasonably
+	 * large number to distinguish between newly flashed and used images.
+	 */
+	if (si->max_sqnum > (1 << 18)) {
+		int min = ubi->beb_rsvd_level / 10;
+
+		if (!min)
+			min = 1;
+		if (ubi->beb_rsvd_pebs > min)
+			return;
+	}
+
+	ubi_warn("cannot reserve enough PEBs for bad PEB handling, reserved %d,"
+		 " need %d", ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
+}
+
+/**
  * ubi_eba_init_scan - initialize the EBA sub-system using scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
@@ -1236,9 +1275,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		if (ubi->avail_pebs < ubi->beb_rsvd_level) {
 			/* No enough free physical eraseblocks */
 			ubi->beb_rsvd_pebs = ubi->avail_pebs;
-			ubi_warn("cannot reserve enough PEBs for bad PEB "
-				 "handling, reserved %d, need %d",
-				 ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
+			print_rsvd_warning(ubi, si);
 		} else
 			ubi->beb_rsvd_pebs = ubi->beb_rsvd_level;
 

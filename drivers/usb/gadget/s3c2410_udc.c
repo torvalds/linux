@@ -735,6 +735,10 @@ static void s3c2410_udc_handle_ep0_idle(struct s3c2410_udc *dev,
 	else
 		dev->ep0state = EP0_OUT_DATA_PHASE;
 
+	if (!dev->driver)
+		return;
+
+	/* deliver the request to the gadget driver */
 	ret = dev->driver->setup(&dev->gadget, crq);
 	if (ret < 0) {
 		if (dev->req_config) {

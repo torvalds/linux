@@ -29,7 +29,7 @@
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/prom.h>
 #include <asm/page.h>
@@ -49,12 +49,12 @@ void __init early_init_dt_scan_chosen_arch(unsigned long node)
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	lmb_add(base, size);
+	memblock_add(base, size);
 }
 
 u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return lmb_alloc(size, align);
+	return memblock_alloc(size, align);
 }
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -104,8 +104,8 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
 
-	/* Scan memory nodes and rebuild LMBs */
-	lmb_init();
+	/* Scan memory nodes and rebuild MEMBLOCKs */
+	memblock_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 
@@ -113,9 +113,9 @@ void __init early_init_devtree(void *params)
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
-	lmb_analyze();
+	memblock_analyze();
 
-	pr_debug("Phys. mem: %lx\n", (unsigned long) lmb_phys_mem_size());
+	pr_debug("Phys. mem: %lx\n", (unsigned long) memblock_phys_mem_size());
 
 	pr_debug(" <- early_init_devtree()\n");
 }

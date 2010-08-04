@@ -77,6 +77,7 @@ MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.io_pg_offst	= (ZOOM_UART_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_zoom_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_zoom_init_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap_timer,

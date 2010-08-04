@@ -91,10 +91,16 @@ struct ubi_scan_volume {
  * @erase: list of physical eraseblocks which have to be erased
  * @alien: list of physical eraseblocks which should not be used by UBI (e.g.,
  *         those belonging to "preserve"-compatible internal volumes)
+ * @used_peb_count: count of used PEBs
+ * @corr_peb_count: count of PEBs in the @corr list
+ * @read_err_count: count of PEBs read with error (%UBI_IO_BAD_HDR_READ was
+ *                  returned)
+ * @free_peb_count: count of PEBs in the @free list
+ * @erase_peb_count: count of PEBs in the @erase list
+ * @alien_peb_count: count of PEBs in the @alien list
  * @bad_peb_count: count of bad physical eraseblocks
  * @vols_found: number of volumes found during scanning
  * @highest_vol_id: highest volume ID
- * @alien_peb_count: count of physical eraseblocks in the @alien list
  * @is_empty: flag indicating whether the MTD device is empty or not
  * @min_ec: lowest erase counter value
  * @max_ec: highest erase counter value
@@ -102,7 +108,6 @@ struct ubi_scan_volume {
  * @mean_ec: mean erase counter value
  * @ec_sum: a temporary variable used when calculating @mean_ec
  * @ec_count: a temporary variable used when calculating @mean_ec
- * @corr_count: count of corrupted PEBs
  *
  * This data structure contains the result of scanning and may be used by other
  * UBI sub-systems to build final UBI data structures, further error-recovery
@@ -114,10 +119,15 @@ struct ubi_scan_info {
 	struct list_head free;
 	struct list_head erase;
 	struct list_head alien;
+	int used_peb_count;
+	int corr_peb_count;
+	int read_err_count;
+	int free_peb_count;
+	int erase_peb_count;
+	int alien_peb_count;
 	int bad_peb_count;
 	int vols_found;
 	int highest_vol_id;
-	int alien_peb_count;
 	int is_empty;
 	int min_ec;
 	int max_ec;
@@ -125,7 +135,6 @@ struct ubi_scan_info {
 	int mean_ec;
 	uint64_t ec_sum;
 	int ec_count;
-	int corr_count;
 };
 
 struct ubi_device;
@@ -135,7 +144,7 @@ struct ubi_vid_hdr;
  * ubi_scan_move_to_list - move a PEB from the volume tree to a list.
  *
  * @sv: volume scanning information
- * @seb: scanning eraseblock infprmation
+ * @seb: scanning eraseblock information
  * @list: the list to move to
  */
 static inline void ubi_scan_move_to_list(struct ubi_scan_volume *sv,

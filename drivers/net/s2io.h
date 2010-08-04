@@ -65,7 +65,7 @@ static int debug_level = ERR_DBG;
 
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, fmt, args...) do {			\
-	if (dbg_level >= debug_level)				\
+	if (dbg_level <= debug_level)				\
 		pr_info(fmt, ##args);				\
 	} while (0)
 
@@ -745,10 +745,6 @@ struct ring_info {
 
 	/* Buffer Address store. */
 	struct buffAdd **ba;
-
-	/* per-Ring statistics */
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
 } ____cacheline_aligned;
 
 /* Fifo specific structure */

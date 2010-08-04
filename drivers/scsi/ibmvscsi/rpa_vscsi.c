@@ -277,6 +277,12 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto reg_crq_failed;
 	}
 
+	queue->cur = 0;
+	spin_lock_init(&queue->lock);
+
+	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
+		     (unsigned long)hostdata);
+
 	if (request_irq(vdev->irq,
 			rpavscsi_handle_event,
 			0, "ibmvscsi", (void *)hostdata) != 0) {
@@ -291,15 +297,10 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto req_irq_failed;
 	}
 
-	queue->cur = 0;
-	spin_lock_init(&queue->lock);
-
-	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
-		     (unsigned long)hostdata);
-
 	return retrc;
 
       req_irq_failed:
+	tasklet_kill(&hostdata->srp_task);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));

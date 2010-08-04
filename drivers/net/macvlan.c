@@ -499,7 +499,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static void macvlan_setup(struct net_device *dev)
+void macvlan_common_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
@@ -508,6 +508,12 @@ static void macvlan_setup(struct net_device *dev)
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &macvlan_hard_header_ops,
 	dev->ethtool_ops	= &macvlan_ethtool_ops;
+}
+EXPORT_SYMBOL_GPL(macvlan_common_setup);
+
+static void macvlan_setup(struct net_device *dev)
+{
+	macvlan_common_setup(dev);
 	dev->tx_queue_len	= 0;
 }
 
@@ -705,7 +711,6 @@ int macvlan_link_register(struct rtnl_link_ops *ops)
 	/* common fields */
 	ops->priv_size		= sizeof(struct macvlan_dev);
 	ops->get_tx_queues	= macvlan_get_tx_queues;
-	ops->setup		= macvlan_setup;
 	ops->validate		= macvlan_validate;
 	ops->maxtype		= IFLA_MACVLAN_MAX;
 	ops->policy		= macvlan_policy;
@@ -719,6 +724,7 @@ EXPORT_SYMBOL_GPL(macvlan_link_register);
 
 static struct rtnl_link_ops macvlan_link_ops = {
 	.kind		= "macvlan",
+	.setup		= macvlan_setup,
 	.newlink	= macvlan_newlink,
 	.dellink	= macvlan_dellink,
 };
