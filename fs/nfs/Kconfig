@@ -61,8 +61,8 @@ config NFS_V3_ACL
 	  If unsure, say N.
 
 config NFS_V4
-	bool "NFS client support for NFS version 4 (EXPERIMENTAL)"
-	depends on NFS_FS && EXPERIMENTAL
+	bool "NFS client support for NFS version 4"
+	depends on NFS_FS
 	select RPCSEC_GSS_KRB5
 	help
 	  This option enables support for version 4 of the NFS protocol
@@ -72,7 +72,7 @@ config NFS_V4
 	  space programs which can be found in the Linux nfs-utils package,
 	  available from http://linux-nfs.org/.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config NFS_V4_1
 	bool "NFS client support for NFSv4.1 (DEVELOPER ONLY)"
