@@ -489,6 +489,7 @@ i915_error_state_free(struct drm_device *dev,
 	i915_error_object_free(error->batchbuffer[1]);
 	i915_error_object_free(error->ringbuffer);
 	kfree(error->active_bo);
+	kfree(error->overlay);
 	kfree(error);
 }
 
@@ -666,6 +667,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 
 	do_gettimeofday(&error->time);
+
+	error->overlay = intel_overlay_capture_error_state(dev);
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (dev_priv->first_error == NULL) {

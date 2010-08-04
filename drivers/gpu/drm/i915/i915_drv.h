@@ -113,6 +113,9 @@ struct intel_opregion {
 	int enabled;
 };
 
+struct intel_overlay;
+struct intel_overlay_error_state;
+
 struct drm_i915_master_private {
 	drm_local_map_t *sarea;
 	struct _drm_i915_sarea *sarea_priv;
@@ -166,6 +169,7 @@ struct drm_i915_error_state {
 		u32 purgeable:1;
 	} *active_bo;
 	u32 active_bo_count;
+	struct intel_overlay_error_state *overlay;
 };
 
 struct drm_i915_display_funcs {
@@ -185,8 +189,6 @@ struct drm_i915_display_funcs {
 	/* pll clock increase/decrease */
 	/* clock gating init */
 };
-
-struct intel_overlay;
 
 struct intel_device_info {
 	u8 is_mobile : 1;
@@ -1068,6 +1070,10 @@ extern bool intel_fbc_enabled(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch (struct drm_device *dev);
 extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
+
+/* overlay */
+extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
+extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error);
 
 /**
  * Lock test for when it's just for synchronization of ring access.
