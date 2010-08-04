@@ -44,6 +44,11 @@ static struct map_desc kirkwood_io_desc[] __initdata = {
 		.length		= KIRKWOOD_PCIE_IO_SIZE,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= KIRKWOOD_PCIE1_IO_VIRT_BASE,
+		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE1_IO_PHYS_BASE),
+		.length		= KIRKWOOD_PCIE1_IO_SIZE,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= KIRKWOOD_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
 		.length		= KIRKWOOD_REGS_SIZE,
@@ -402,7 +407,7 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (rev == 0)  /* catch all Kirkwood Z0's */
+	if (rev == 0 && dev != MV88F6282_DEV_ID) /* catch all Kirkwood Z0's */
 		mvsdio_data->clock = 100000000;
 	else
 		mvsdio_data->clock = 200000000;
@@ -847,8 +852,10 @@ int __init kirkwood_find_tclk(void)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
-					rev == MV88F6281_REV_A1))
+
+	if ((dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
+					rev == MV88F6281_REV_A1)) ||
+	    (dev == MV88F6282_DEV_ID))
 		return 200000000;
 
 	return 166666667;
@@ -891,13 +898,22 @@ static char * __init kirkwood_id(void)
 			return "MV88F6192-Z0";
 		else if (rev == MV88F6192_REV_A0)
 			return "MV88F6192-A0";
+		else if (rev == MV88F6192_REV_A1)
+			return "MV88F6192-A1";
 		else
 			return "MV88F6192-Rev-Unsupported";
 	} else if (dev == MV88F6180_DEV_ID) {
 		if (rev == MV88F6180_REV_A0)
 			return "MV88F6180-Rev-A0";
+		else if (rev == MV88F6180_REV_A1)
+			return "MV88F6180-Rev-A1";
 		else
 			return "MV88F6180-Rev-Unsupported";
+	} else if (dev == MV88F6282_DEV_ID) {
+		if (rev == MV88F6282_REV_A0)
+			return "MV88F6282-Rev-A0";
+		else
+			return "MV88F6282-Rev-Unsupported";
 	} else {
 		return "Device-Unknown";
 	}
@@ -949,12 +965,14 @@ void __init kirkwood_init(void)
 static int __init kirkwood_clock_gate(void)
 {
 	unsigned int curr = readl(CLOCK_GATING_CTRL);
+	u32 dev, rev;
 
+	kirkwood_pcie_id(&dev, &rev);
 	printk(KERN_DEBUG "Gating clock of unused units\n");
 	printk(KERN_DEBUG "before: 0x%08x\n", curr);
 
 	/* Make sure those units are accessible */
-	writel(curr | CGC_SATA0 | CGC_SATA1 | CGC_PEX0, CLOCK_GATING_CTRL);
+	writel(curr | CGC_SATA0 | CGC_SATA1 | CGC_PEX0 | CGC_PEX1, CLOCK_GATING_CTRL);
 
 	/* For SATA: first shutdown the phy */
 	if (!(kirkwood_clk_ctrl & CGC_SATA0)) {
@@ -978,6 +996,18 @@ static int __init kirkwood_clock_gate(void)
 				break;
 		writel(readl(PCIE_LINK_CTRL) & ~0x10, PCIE_LINK_CTRL);
 	}
+
+	/* For PCIe 1: first shutdown the phy */
+	if (dev == MV88F6282_DEV_ID) {
+		if (!(kirkwood_clk_ctrl & CGC_PEX1)) {
+			writel(readl(PCIE1_LINK_CTRL) | 0x10, PCIE1_LINK_CTRL);
+			while (1)
+				if (readl(PCIE1_STATUS) & 0x1)
+					break;
+			writel(readl(PCIE1_LINK_CTRL) & ~0x10, PCIE1_LINK_CTRL);
+		}
+	} else  /* keep this bit set for devices that don't have PCIe1 */
+		kirkwood_clk_ctrl |= CGC_PEX1;
 
 	/* Now gate clock the required units */
 	writel(kirkwood_clk_ctrl, CLOCK_GATING_CTRL);

@@ -90,15 +90,11 @@ ENTRY(cpu_xsc3_proc_init)
  * cpu_xsc3_proc_fin()
  */
 ENTRY(cpu_xsc3_proc_fin)
-	str	lr, [sp, #-4]!
-	mov	r0, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
-	msr	cpsr_c, r0
-	bl	xsc3_flush_kern_cache_all	@ clean caches
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...IZ...........
 	bic	r0, r0, #0x0006			@ .............CA.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldr	pc, [sp], #4
+	mov	pc, lr
 
 /*
  * cpu_xsc3_reset(loc)

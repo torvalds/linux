@@ -140,17 +140,12 @@ static void __init omap_zoom2_init(void)
 	zoom_debugboard_init();
 }
 
-static void __init omap_zoom2_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.phys_io	= ZOOM_UART_BASE,
 	.io_pg_offst	= (ZOOM_UART_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap_zoom2_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_zoom2_init_irq,
 	.init_machine	= omap_zoom2_init,
 	.timer		= &omap_timer,

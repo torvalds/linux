@@ -266,6 +266,7 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_nokia770_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_nokia770_init_irq,
 	.init_machine	= omap_nokia770_init,
 	.timer		= &omap_timer,

@@ -715,18 +715,13 @@ static void __init omap3_evm_init(void)
 	omap3_evm_display_init();
 }
 
-static void __init omap3_evm_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	/* Maintainer: Syed Mohammed Khasim - Texas Instruments */
 	.phys_io	= 0x48000000,
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_evm_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3_evm_init_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap_timer,

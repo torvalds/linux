@@ -108,6 +108,51 @@ static void gic_unmask_irq(unsigned int irq)
 	spin_unlock(&irq_controller_lock);
 }
 
+static int gic_set_type(unsigned int irq, unsigned int type)
+{
+	void __iomem *base = gic_dist_base(irq);
+	unsigned int gicirq = gic_irq(irq);
+	u32 enablemask = 1 << (gicirq % 32);
+	u32 enableoff = (gicirq / 32) * 4;
+	u32 confmask = 0x2 << ((gicirq % 16) * 2);
+	u32 confoff = (gicirq / 16) * 4;
+	bool enabled = false;
+	u32 val;
+
+	/* Interrupt configuration for SGIs can't be changed */
+	if (gicirq < 16)
+		return -EINVAL;
+
+	if (type != IRQ_TYPE_LEVEL_HIGH && type != IRQ_TYPE_EDGE_RISING)
+		return -EINVAL;
+
+	spin_lock(&irq_controller_lock);
+
+	val = readl(base + GIC_DIST_CONFIG + confoff);
+	if (type == IRQ_TYPE_LEVEL_HIGH)
+		val &= ~confmask;
+	else if (type == IRQ_TYPE_EDGE_RISING)
+		val |= confmask;
+
+	/*
+	 * As recommended by the spec, disable the interrupt before changing
+	 * the configuration
+	 */
+	if (readl(base + GIC_DIST_ENABLE_SET + enableoff) & enablemask) {
+		writel(enablemask, base + GIC_DIST_ENABLE_CLEAR + enableoff);
+		enabled = true;
+	}
+
+	writel(val, base + GIC_DIST_CONFIG + confoff);
+
+	if (enabled)
+		writel(enablemask, base + GIC_DIST_ENABLE_SET + enableoff);
+
+	spin_unlock(&irq_controller_lock);
+
+	return 0;
+}
+
 #ifdef CONFIG_SMP
 static int gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
 {
@@ -161,6 +206,7 @@ static struct irq_chip gic_chip = {
 	.ack		= gic_ack_irq,
 	.mask		= gic_mask_irq,
 	.unmask		= gic_unmask_irq,
+	.set_type	= gic_set_type,
 #ifdef CONFIG_SMP
 	.set_affinity	= gic_set_cpu,
 #endif

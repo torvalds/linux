@@ -969,6 +969,19 @@ config VIDEO_OMAP2
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
+config VIDEO_MX2_HOSTSUPPORT
+        bool
+
+config VIDEO_MX2
+	tristate "i.MX27/i.MX25 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && (MACH_MX27 || ARCH_MX25)
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEO_MX2_HOSTSUPPORT
+	---help---
+	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
+	  Interface
+
+
 #
 # USB Multimedia device configuration
 #

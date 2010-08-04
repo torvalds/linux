@@ -360,6 +360,7 @@ MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_apollon_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_apollon_init_irq,
 	.init_machine	= omap_apollon_init,
 	.timer		= &omap_timer,

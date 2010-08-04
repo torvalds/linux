@@ -380,6 +380,7 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_h4_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap_timer,

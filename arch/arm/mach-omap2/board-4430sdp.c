@@ -462,6 +462,7 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_4430sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_4430sdp_init_irq,
 	.init_machine	= omap_4430sdp_init,
 	.timer		= &omap_timer,

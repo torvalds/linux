@@ -20,7 +20,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-
 /*
  * Physical DRAM offset.
  */
@@ -72,7 +71,6 @@
  * 	node 2:  0xd0000000 - 0xd7ffffff
  * 	node 3:  0xd8000000 - 0xdfffffff
  */
-#define NODE_MEM_SIZE_BITS	24
 #define SECTION_SIZE_BITS	24
 #define MAX_PHYSMEM_BITS	32
 

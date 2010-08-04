@@ -351,6 +351,7 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_perseus2_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_perseus2_init_irq,
 	.init_machine	= omap_perseus2_init,
 	.timer		= &omap_timer,
