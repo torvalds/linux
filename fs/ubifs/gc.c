@@ -178,7 +178,8 @@ int nondata_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
 	if (typeb == UBIFS_INO_KEY)
 		return 1;
 
-	ubifs_assert(typea == UBIFS_DENT_KEY && typeb == UBIFS_DENT_KEY);
+	ubifs_assert(typea == UBIFS_DENT_KEY || typea == UBIFS_XENT_KEY);
+	ubifs_assert(typeb == UBIFS_DENT_KEY || typeb == UBIFS_XENT_KEY);
 	inuma = key_inum(c, &sa->key);
 	inumb = key_inum(c, &sb->key);
 
