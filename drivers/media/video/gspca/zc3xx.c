@@ -6572,6 +6572,24 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* define some sensors from the vendor/product */
+	sd->sensor = id->driver_info;
+
+	sd->sharpness = SHARPNESS_DEF;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->autogain = AUTOGAIN_DEF;
+	sd->lightfreq = FREQ_DEF;
+	sd->quality = QUALITY_DEF;
+
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int sensor;
 	static const u8 gamma[SENSOR_MAX] = {
@@ -6617,9 +6635,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		[SENSOR_TAS5130C_VF0250] = 1,
 	};
 
-	/* define some sensors from the vendor/product */
-	sd->sharpness = SHARPNESS_DEF;
-	sd->sensor = id->driver_info;
 	sensor = zcxx_probeSensor(gspca_dev);
 	if (sensor >= 0)
 		PDEBUG(D_PROBE, "probe sensor -> %04x", sensor);
@@ -6775,12 +6790,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(broken_vga_mode);
 		break;
 	}
-	sd->brightness = BRIGHTNESS_DEF;
-	sd->contrast = CONTRAST_DEF;
 	sd->gamma = gamma[sd->sensor];
-	sd->autogain = AUTOGAIN_DEF;
-	sd->lightfreq = FREQ_DEF;
-	sd->quality = QUALITY_DEF;
 
 	switch (sd->sensor) {
 	case SENSOR_HV7131B:
@@ -6790,15 +6800,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 
-	return gspca_dev->usb_err;
-}
-
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
-{
 	/* switch off the led */
 	reg_w(gspca_dev, 0x01, 0x0000);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
