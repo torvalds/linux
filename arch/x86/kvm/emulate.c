@@ -2627,9 +2627,6 @@ done_prefixes:
 
 	/* Decode and fetch the destination operand: register or memory. */
 	switch (c->d & DstMask) {
-	case ImplicitOps:
-		/* Special instructions do their own operand decoding. */
-		return 0;
 	case DstReg:
 		decode_register_operand(&c->dst, c,
 			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
@@ -2664,6 +2661,11 @@ done_prefixes:
 					 c->regs[VCPU_REGS_RDI]);
 		c->dst.val = 0;
 		break;
+	case ImplicitOps:
+		/* Special instructions do their own operand decoding. */
+	default:
+		c->dst.type = OP_NONE; /* Disable writeback. */
+		return 0;
 	}
 
 done:
@@ -3115,7 +3117,6 @@ special_insn:
 	case 0xf5:	/* cmc */
 		/* complement carry flag from eflags reg */
 		ctxt->eflags ^= EFLG_CF;
-		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
 		if (!emulate_grp3(ctxt, ops))
@@ -3123,16 +3124,13 @@ special_insn:
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
-		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfa: /* cli */
 		if (emulator_bad_iopl(ctxt, ops)) {
 			emulate_gp(ctxt, 0);
 			goto done;
-		} else {
+		} else
 			ctxt->eflags &= ~X86_EFLAGS_IF;
-			c->dst.type = OP_NONE;	/* Disable writeback. */
-		}
 		break;
 	case 0xfb: /* sti */
 		if (emulator_bad_iopl(ctxt, ops)) {
@@ -3141,16 +3139,13 @@ special_insn:
 		} else {
 			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
 			ctxt->eflags |= X86_EFLAGS_IF;
-			c->dst.type = OP_NONE;	/* Disable writeback. */
 		}
 		break;
 	case 0xfc: /* cld */
 		ctxt->eflags &= ~EFLG_DF;
-		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfd: /* std */
 		ctxt->eflags |= EFLG_DF;
-		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfe: /* Grp4 */
 	grp45:
@@ -3287,16 +3282,13 @@ twobyte_insn:
 		break;
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
-		c->dst.type = OP_NONE;
 		break;
 	case 0x09:		/* wbinvd */
 		kvm_emulate_wbinvd(ctxt->vcpu);
-		c->dst.type = OP_NONE;
 		break;
 	case 0x08:		/* invd */
 	case 0x0d:		/* GrpP (prefetch) */
 	case 0x18:		/* Grp16 (prefetch/nop) */
-		c->dst.type = OP_NONE;
 		break;
 	case 0x20: /* mov cr, reg */
 		switch (c->modrm_reg) {
@@ -3349,7 +3341,6 @@ twobyte_insn:
 			goto done;
 		}
 		rc = X86EMUL_CONTINUE;
-		c->dst.type = OP_NONE;
 		break;
 	case 0x32:
 		/* rdmsr */
@@ -3361,7 +3352,6 @@ twobyte_insn:
 			c->regs[VCPU_REGS_RDX] = msr_data >> 32;
 		}
 		rc = X86EMUL_CONTINUE;
-		c->dst.type = OP_NONE;
 		break;
 	case 0x34:		/* sysenter */
 		rc = emulate_sysenter(ctxt, ops);
@@ -3385,7 +3375,6 @@ twobyte_insn:
 	case 0x80 ... 0x8f: /* jnz rel, etc*/
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
-		c->dst.type = OP_NONE;
 		break;
 	case 0xa0:	  /* push fs */
 		emulate_push_sreg(ctxt, ops, VCPU_SREG_FS);
