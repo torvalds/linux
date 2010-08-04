@@ -4828,7 +4828,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		pll_lim->min_p = record[12];
 		pll_lim->max_p = record[13];
 		/* where did this go to?? */
-		if (limit_match == 0x00614100 || limit_match == 0x00614900)
+		if ((entry[0] & 0xf0) == 0x80)
 			pll_lim->refclk = 27000;
 		else
 			pll_lim->refclk = 100000;
