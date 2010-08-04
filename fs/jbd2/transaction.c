@@ -57,6 +57,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	spin_lock_init(&transaction->t_handle_lock);
 	atomic_set(&transaction->t_updates, 0);
 	atomic_set(&transaction->t_outstanding_credits, 0);
+	atomic_set(&transaction->t_handle_count, 0);
 	INIT_LIST_HEAD(&transaction->t_inode_list);
 	INIT_LIST_HEAD(&transaction->t_private_list);
 
@@ -180,8 +181,8 @@ repeat:
 	 * buffers requested by this operation, we need to stall pending a log
 	 * checkpoint to free some more log space.
 	 */
-	spin_lock(&transaction->t_handle_lock);
-	needed = atomic_read(&transaction->t_outstanding_credits) + nblocks;
+	needed = atomic_add_return(nblocks,
+				   &transaction->t_outstanding_credits);
 
 	if (needed > journal->j_max_transaction_buffers) {
 		/*
@@ -192,7 +193,7 @@ repeat:
 		DEFINE_WAIT(wait);
 
 		jbd_debug(2, "Handle %p starting new commit...\n", handle);
-		spin_unlock(&transaction->t_handle_lock);
+		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		prepare_to_wait(&journal->j_wait_transaction_locked, &wait,
 				TASK_UNINTERRUPTIBLE);
 		__jbd2_log_start_commit(journal, transaction->t_tid);
@@ -229,7 +230,7 @@ repeat:
 	 */
 	if (__jbd2_log_space_left(journal) < jbd_space_needed(journal)) {
 		jbd_debug(2, "Handle %p waiting for checkpoint...\n", handle);
-		spin_unlock(&transaction->t_handle_lock);
+		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		read_unlock(&journal->j_state_lock);
 		write_lock(&journal->j_state_lock);
 		if (__jbd2_log_space_left(journal) < jbd_space_needed(journal))
@@ -239,23 +240,33 @@ repeat:
 	}
 
 	/* OK, account for the buffers that this operation expects to
-	 * use and add the handle to the running transaction. */
-
-	if (time_after(transaction->t_start, ts)) {
+	 * use and add the handle to the running transaction. 
+	 *
+	 * In order for t_max_wait to be reliable, it must be
+	 * protected by a lock.  But doing so will mean that
+	 * start_this_handle() can not be run in parallel on SMP
+	 * systems, which limits our scalability.  So we only enable
+	 * it when debugging is enabled.  We may want to use a
+	 * separate flag, eventually, so we can enable this
+	 * independently of debugging.
+	 */
+#ifdef CONFIG_JBD2_DEBUG
+	if (jbd2_journal_enable_debug &&
+	    time_after(transaction->t_start, ts)) {
 		ts = jbd2_time_diff(ts, transaction->t_start);
+		spin_lock(&transaction->t_handle_lock);
 		if (ts > transaction->t_max_wait)
 			transaction->t_max_wait = ts;
+		spin_unlock(&transaction->t_handle_lock);
 	}
-
+#endif
 	handle->h_transaction = transaction;
-	atomic_add(nblocks, &transaction->t_outstanding_credits);
 	atomic_inc(&transaction->t_updates);
-	transaction->t_handle_count++;
+	atomic_inc(&transaction->t_handle_count);
 	jbd_debug(4, "Handle %p given %d credits (total %d, free %d)\n",
 		  handle, nblocks,
 		  atomic_read(&transaction->t_outstanding_credits),
 		  __jbd2_log_space_left(journal));
-	spin_unlock(&transaction->t_handle_lock);
 	read_unlock(&journal->j_state_lock);
 
 	lock_map_acquire(&handle->h_lockdep_map);

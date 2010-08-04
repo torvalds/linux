@@ -1004,7 +1004,8 @@ restart_loop:
 	 * File the transaction statistics
 	 */
 	stats.ts_tid = commit_transaction->t_tid;
-	stats.run.rs_handle_count = commit_transaction->t_handle_count;
+	stats.run.rs_handle_count =
+		atomic_read(&commit_transaction->t_handle_count);
 	trace_jbd2_run_stats(journal->j_fs_dev->bd_dev,
 			     commit_transaction->t_tid, &stats.run);
 
