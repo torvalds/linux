@@ -81,7 +81,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	/* Call ACPI methods */
 	acpi_status = radeon_acpi_init(rdev);
 	if (acpi_status)
-		dev_err(&dev->pdev->dev, "Error during ACPI methods call\n");
+		dev_dbg(&dev->pdev->dev, "Error during ACPI methods call\n");
 
 	/* Again modeset_init should fail only on fatal error
 	 * otherwise it should provide enough functionalities
