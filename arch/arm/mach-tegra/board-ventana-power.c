@@ -19,6 +19,9 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/gpio.h>
+#include "power.h"
+#include "wakeups-t2.h"
+#include "board.h"
 
 static struct regulator_consumer_supply tps658621_sm0_supply[] = {
 	REGULATOR_SUPPLY("vdd_core", NULL),
@@ -131,8 +134,25 @@ static struct i2c_board_info __initdata ventana_regulators[] = {
 	},
 };
 
+static struct tegra_suspend_platform_data ventana_suspend_data = {
+	.cpu_timer	= 2000,
+	.cpu_off_timer	= 0,
+	.dram_suspend	= true,
+	.core_off	= false,
+	.core_timer	= 0x7e7e,
+	.core_off_timer = 0,
+	.separate_req	= true,
+	.corereq_high	= false,
+	.sysclkreq_high	= true,
+	.wake_enb	= TEGRA_WAKE_GPIO_PV2,
+	.wake_high	= 0,
+	.wake_low	= TEGRA_WAKE_GPIO_PV2,
+	.wake_any	= 0,
+};
+
 int __init ventana_regulator_init(void)
 {
 	i2c_register_board_info(4, ventana_regulators, 1);
+	tegra_init_suspend(&ventana_suspend_data);
 	return 0;
 }
