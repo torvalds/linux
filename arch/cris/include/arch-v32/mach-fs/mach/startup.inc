@@ -1,3 +1,6 @@
+#ifndef STARTUP_INC_INCLUDED
+#define STARTUP_INC_INCLUDED
+
 #include <hwregs/asm/reg_map_asm.h>
 #include <hwregs/asm/bif_core_defs_asm.h>
 #include <hwregs/asm/gio_defs_asm.h>
@@ -75,3 +78,5 @@
 	move.d $r10, [$r11]
 #endif
 	.endm
+
+#endif
