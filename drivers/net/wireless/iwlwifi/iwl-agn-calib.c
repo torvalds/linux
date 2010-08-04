@@ -96,17 +96,16 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 			hcmd.len = priv->calib_results[i].buf_len;
 			hcmd.data = priv->calib_results[i].buf;
 			ret = iwl_send_cmd_sync(priv, &hcmd);
-			if (ret)
-				goto err;
+			if (ret) {
+				IWL_ERR(priv, "Error %d iteration %d\n",
+					ret, i);
+				break;
+			}
 		}
 	}
 
-	return 0;
-err:
-	IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_calib_results);
 
 int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
 {
@@ -121,7 +120,6 @@ int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
 	memcpy(res->buf, buf, len);
 	return 0;
 }
-EXPORT_SYMBOL(iwl_calib_set);
 
 void iwl_calib_free_results(struct iwl_priv *priv)
 {
@@ -133,7 +131,6 @@ void iwl_calib_free_results(struct iwl_priv *priv)
 		priv->calib_results[i].buf_len = 0;
 	}
 }
-EXPORT_SYMBOL(iwl_calib_free_results);
 
 /*****************************************************************************
  * RUNTIME calibrations framework
@@ -412,10 +409,50 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	return 0;
 }
 
+static void iwl_prepare_legacy_sensitivity_tbl(struct iwl_priv *priv,
+				struct iwl_sensitivity_data *data,
+				__le16 *tbl)
+{
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm);
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_mrc);
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_x1);
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_mrc_x1);
+
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_cck);
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_cck_mrc);
+
+	tbl[HD_MIN_ENERGY_CCK_DET_INDEX] =
+				cpu_to_le16((u16)data->nrg_th_cck);
+	tbl[HD_MIN_ENERGY_OFDM_DET_INDEX] =
+				cpu_to_le16((u16)data->nrg_th_ofdm);
+
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
+				cpu_to_le16(data->barker_corr_th_min);
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16(data->barker_corr_th_min_mrc);
+	tbl[HD_OFDM_ENERGY_TH_IN_INDEX] =
+				cpu_to_le16(data->nrg_th_cca);
+
+	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
+			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
+			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
+			data->nrg_th_ofdm);
+
+	IWL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
+			data->auto_corr_cck, data->auto_corr_cck_mrc,
+			data->nrg_th_cck);
+}
+
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
 static int iwl_sensitivity_write(struct iwl_priv *priv)
 {
-	struct iwl_sensitivity_cmd cmd ;
+	struct iwl_sensitivity_cmd cmd;
 	struct iwl_sensitivity_data *data = NULL;
 	struct iwl_host_cmd cmd_out = {
 		.id = SENSITIVITY_CMD,
@@ -428,40 +465,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.table[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm);
-	cmd.table[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_mrc);
-	cmd.table[HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_x1);
-	cmd.table[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_mrc_x1);
-
-	cmd.table[HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_cck);
-	cmd.table[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_cck_mrc);
-
-	cmd.table[HD_MIN_ENERGY_CCK_DET_INDEX] =
-				cpu_to_le16((u16)data->nrg_th_cck);
-	cmd.table[HD_MIN_ENERGY_OFDM_DET_INDEX] =
-				cpu_to_le16((u16)data->nrg_th_ofdm);
-
-	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
-				cpu_to_le16(data->barker_corr_th_min);
-	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16(data->barker_corr_th_min_mrc);
-	cmd.table[HD_OFDM_ENERGY_TH_IN_INDEX] =
-				cpu_to_le16(data->nrg_th_cca);
-
-	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
-			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
-			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
-			data->nrg_th_ofdm);
-
-	IWL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
-			data->auto_corr_cck, data->auto_corr_cck_mrc,
-			data->nrg_th_cck);
+	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
@@ -476,6 +480,70 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	/* Copy table for comparison next time */
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
+
+	return iwl_send_cmd(priv, &cmd_out);
+}
+
+/* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
+static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
+{
+	struct iwl_enhance_sensitivity_cmd cmd;
+	struct iwl_sensitivity_data *data = NULL;
+	struct iwl_host_cmd cmd_out = {
+		.id = SENSITIVITY_CMD,
+		.len = sizeof(struct iwl_enhance_sensitivity_cmd),
+		.flags = CMD_ASYNC,
+		.data = &cmd,
+	};
+
+	data = &(priv->sensitivity_data);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.enhance_table[0]);
+
+	cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
+		HD_INA_NON_SQUARE_DET_OFDM_DATA;
+	cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
+		HD_INA_NON_SQUARE_DET_CCK_DATA;
+	cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
+		HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_SLOPE_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+		HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+		HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
+		HD_CCK_NON_SQUARE_DET_SLOPE_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
+		HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA;
+
+	/* Update uCode's "work" table, and copy it to DSP */
+	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
+
+	/* Don't send command to uCode if nothing has changed */
+	if (!memcmp(&cmd.enhance_table[0], &(priv->sensitivity_tbl[0]),
+		    sizeof(u16)*HD_TABLE_SIZE) &&
+	    !memcmp(&cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX],
+		    &(priv->enhance_sensitivity_tbl[0]),
+		    sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES)) {
+		IWL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		return 0;
+	}
+
+	/* Copy table for comparison next time */
+	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.enhance_table[0]),
+	       sizeof(u16)*HD_TABLE_SIZE);
+	memcpy(&(priv->enhance_sensitivity_tbl[0]),
+	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
+	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
 	return iwl_send_cmd(priv, &cmd_out);
 }
@@ -530,13 +598,14 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	data->last_bad_plcp_cnt_cck = 0;
 	data->last_fa_cnt_cck = 0;
 
-	ret |= iwl_sensitivity_write(priv);
+	if (priv->enhance_sensitivity_table)
+		ret |= iwl_enhance_sensitivity_write(priv);
+	else
+		ret |= iwl_sensitivity_write(priv);
 	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
-EXPORT_SYMBOL(iwl_init_sensitivity);
 
-void iwl_sensitivity_calibration(struct iwl_priv *priv,
-				    struct iwl_notif_statistics *resp)
+void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -546,8 +615,8 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	u32 norm_fa_ofdm;
 	u32 norm_fa_cck;
 	struct iwl_sensitivity_data *data = NULL;
-	struct statistics_rx_non_phy *rx_info = &(resp->rx.general);
-	struct statistics_rx *statistics = &(resp->rx);
+	struct statistics_rx_non_phy *rx_info;
+	struct statistics_rx_phy *ofdm, *cck;
 	unsigned long flags;
 	struct statistics_general_data statis;
 
@@ -562,6 +631,16 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->cfg->bt_statistics) {
+		rx_info = &(((struct iwl_bt_notif_statistics *)resp)->
+			      rx.general.common);
+		ofdm = &(((struct iwl_bt_notif_statistics *)resp)->rx.ofdm);
+		cck = &(((struct iwl_bt_notif_statistics *)resp)->rx.cck);
+	} else {
+		rx_info = &(((struct iwl_notif_statistics *)resp)->rx.general);
+		ofdm = &(((struct iwl_notif_statistics *)resp)->rx.ofdm);
+		cck = &(((struct iwl_notif_statistics *)resp)->rx.cck);
+	}
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -570,23 +649,23 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 
 	/* Extract Statistics: */
 	rx_enable_time = le32_to_cpu(rx_info->channel_load);
-	fa_cck = le32_to_cpu(statistics->cck.false_alarm_cnt);
-	fa_ofdm = le32_to_cpu(statistics->ofdm.false_alarm_cnt);
-	bad_plcp_cck = le32_to_cpu(statistics->cck.plcp_err);
-	bad_plcp_ofdm = le32_to_cpu(statistics->ofdm.plcp_err);
+	fa_cck = le32_to_cpu(cck->false_alarm_cnt);
+	fa_ofdm = le32_to_cpu(ofdm->false_alarm_cnt);
+	bad_plcp_cck = le32_to_cpu(cck->plcp_err);
+	bad_plcp_ofdm = le32_to_cpu(ofdm->plcp_err);
 
 	statis.beacon_silence_rssi_a =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_a);
+			le32_to_cpu(rx_info->beacon_silence_rssi_a);
 	statis.beacon_silence_rssi_b =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_b);
+			le32_to_cpu(rx_info->beacon_silence_rssi_b);
 	statis.beacon_silence_rssi_c =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_c);
+			le32_to_cpu(rx_info->beacon_silence_rssi_c);
 	statis.beacon_energy_a =
-			le32_to_cpu(statistics->general.beacon_energy_a);
+			le32_to_cpu(rx_info->beacon_energy_a);
 	statis.beacon_energy_b =
-			le32_to_cpu(statistics->general.beacon_energy_b);
+			le32_to_cpu(rx_info->beacon_energy_b);
 	statis.beacon_energy_c =
-			le32_to_cpu(statistics->general.beacon_energy_c);
+			le32_to_cpu(rx_info->beacon_energy_c);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -637,9 +716,11 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 
 	iwl_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
 	iwl_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
-	iwl_sensitivity_write(priv);
+	if (priv->enhance_sensitivity_table)
+		iwl_enhance_sensitivity_write(priv);
+	else
+		iwl_sensitivity_write(priv);
 }
-EXPORT_SYMBOL(iwl_sensitivity_calibration);
 
 static inline u8 find_first_chain(u8 mask)
 {
@@ -656,8 +737,7 @@ static inline u8 find_first_chain(u8 mask)
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void iwl_chain_noise_calibration(struct iwl_priv *priv,
-				 struct iwl_notif_statistics *stat_resp)
+void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 {
 	struct iwl_chain_noise_data *data = NULL;
 
@@ -681,7 +761,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	u32 active_chains = 0;
 	u8 num_tx_chains;
 	unsigned long flags;
-	struct statistics_rx_non_phy *rx_info = &(stat_resp->rx.general);
+	struct statistics_rx_non_phy *rx_info;
 	u8 first_chain;
 
 	if (priv->disable_chain_noise_cal)
@@ -700,6 +780,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->cfg->bt_statistics) {
+		rx_info = &(((struct iwl_bt_notif_statistics *)stat_resp)->
+			      rx.general.common);
+	} else {
+		rx_info = &(((struct iwl_notif_statistics *)stat_resp)->
+			      rx.general);
+	}
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -708,8 +795,19 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	rxon_band24 = !!(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(priv->staging_rxon.channel);
-	stat_band24 = !!(stat_resp->flag & STATISTICS_REPLY_FLG_BAND_24G_MSK);
-	stat_chnum = le32_to_cpu(stat_resp->flag) >> 16;
+	if (priv->cfg->bt_statistics) {
+		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
+				 stat_resp)->flag &
+				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
+		stat_chnum = le32_to_cpu(((struct iwl_bt_notif_statistics *)
+					 stat_resp)->flag) >> 16;
+	} else {
+		stat_band24 = !!(((struct iwl_notif_statistics *)
+				 stat_resp)->flag &
+				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
+		stat_chnum = le32_to_cpu(((struct iwl_notif_statistics *)
+					 stat_resp)->flag) >> 16;
+	}
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
@@ -846,6 +944,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 		}
 	}
 
+	if (active_chains != priv->hw_params.valid_rx_ant &&
+	    active_chains != priv->chain_noise_data.active_chains)
+		IWL_DEBUG_CALIB(priv,
+				"Detected that not all antennas are connected! "
+				"Connected: %#x, valid: %#x.\n",
+				active_chains, priv->hw_params.valid_rx_ant);
+
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	priv->chain_noise_data.active_chains = active_chains;
 	IWL_DEBUG_CALIB(priv, "active_chains (bitwise) = 0x%x\n",
@@ -890,8 +995,6 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	data->state = IWL_CHAIN_NOISE_DONE;
 	iwl_power_update_mode(priv, false);
 }
-EXPORT_SYMBOL(iwl_chain_noise_calibration);
-
 
 void iwl_reset_run_time_calib(struct iwl_priv *priv)
 {
@@ -908,5 +1011,3 @@ void iwl_reset_run_time_calib(struct iwl_priv *priv)
 	 * periodically after association */
 	iwl_send_statistics_request(priv, CMD_ASYNC, true);
 }
-EXPORT_SYMBOL(iwl_reset_run_time_calib);
-

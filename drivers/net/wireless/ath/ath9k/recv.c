@@ -116,9 +116,6 @@ static void ath_opmode_init(struct ath_softc *sc)
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
-	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, common->macaddr);
-
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
 	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
@@ -295,7 +292,7 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 
 	ath_opmode_init(sc);
 
-	ath9k_hw_startpcureceive(sc->sc_ah);
+	ath9k_hw_startpcureceive(sc->sc_ah, (sc->sc_flags & SC_OP_SCANNING));
 }
 
 static void ath_edma_stop_recv(struct ath_softc *sc)
@@ -501,7 +498,7 @@ int ath_startrecv(struct ath_softc *sc)
 start_recv:
 	spin_unlock_bh(&sc->rx.rxbuflock);
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(ah);
+	ath9k_hw_startpcureceive(ah, (sc->sc_flags & SC_OP_SCANNING));
 
 	return 0;
 }
@@ -700,12 +697,16 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	bf = SKB_CB_ATHBUF(skb);
 	BUG_ON(!bf);
 
-	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				common->rx_bufsize, DMA_FROM_DEVICE);
 
 	ret = ath9k_hw_process_rxdesc_edma(ah, NULL, skb->data);
-	if (ret == -EINPROGRESS)
+	if (ret == -EINPROGRESS) {
+		/*let device gain the buffer again*/
+		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+				common->rx_bufsize, DMA_FROM_DEVICE);
 		return false;
+	}
 
 	__skb_unlink(skb, &rx_edma->rx_fifo);
 	if (ret == -EINVAL) {
@@ -814,13 +815,263 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	 * 1. accessing the frame
 	 * 2. requeueing the same buffer to h/w
 	 */
-	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 			common->rx_bufsize,
 			DMA_FROM_DEVICE);
 
 	return bf;
 }
 
+/* Assumes you've already done the endian to CPU conversion */
+static bool ath9k_rx_accept(struct ath_common *common,
+			    struct ieee80211_hdr *hdr,
+			    struct ieee80211_rx_status *rxs,
+			    struct ath_rx_status *rx_stats,
+			    bool *decrypt_error)
+{
+	struct ath_hw *ah = common->ah;
+	__le16 fc;
+	u8 rx_status_len = ah->caps.rx_status_len;
+
+	fc = hdr->frame_control;
+
+	if (!rx_stats->rs_datalen)
+		return false;
+        /*
+         * rs_status follows rs_datalen so if rs_datalen is too large
+         * we can take a hint that hardware corrupted it, so ignore
+         * those frames.
+         */
+	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len))
+		return false;
+
+	/*
+	 * rs_more indicates chained descriptors which can be used
+	 * to link buffers together for a sort of scatter-gather
+	 * operation.
+	 * reject the frame, we don't support scatter-gather yet and
+	 * the frame is probably corrupt anyway
+	 */
+	if (rx_stats->rs_more)
+		return false;
+
+	/*
+	 * The rx_stats->rs_status will not be set until the end of the
+	 * chained descriptors so it can be ignored if rs_more is set. The
+	 * rs_more will be false at the last element of the chained
+	 * descriptors.
+	 */
+	if (rx_stats->rs_status != 0) {
+		if (rx_stats->rs_status & ATH9K_RXERR_CRC)
+			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
+		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
+			return false;
+
+		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
+			*decrypt_error = true;
+		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
+			if (ieee80211_is_ctl(fc))
+				/*
+				 * Sometimes, we get invalid
+				 * MIC failures on valid control frames.
+				 * Remove these mic errors.
+				 */
+				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
+			else
+				rxs->flag |= RX_FLAG_MMIC_ERROR;
+		}
+		/*
+		 * Reject error frames with the exception of
+		 * decryption and MIC failures. For monitor mode,
+		 * we also ignore the CRC error.
+		 */
+		if (ah->opmode == NL80211_IFTYPE_MONITOR) {
+			if (rx_stats->rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
+			      ATH9K_RXERR_CRC))
+				return false;
+		} else {
+			if (rx_stats->rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+static int ath9k_process_rate(struct ath_common *common,
+			      struct ieee80211_hw *hw,
+			      struct ath_rx_status *rx_stats,
+			      struct ieee80211_rx_status *rxs)
+{
+	struct ieee80211_supported_band *sband;
+	enum ieee80211_band band;
+	unsigned int i = 0;
+
+	band = hw->conf.channel->band;
+	sband = hw->wiphy->bands[band];
+
+	if (rx_stats->rs_rate & 0x80) {
+		/* HT rate */
+		rxs->flag |= RX_FLAG_HT;
+		if (rx_stats->rs_flags & ATH9K_RX_2040)
+			rxs->flag |= RX_FLAG_40MHZ;
+		if (rx_stats->rs_flags & ATH9K_RX_GI)
+			rxs->flag |= RX_FLAG_SHORT_GI;
+		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
+		return 0;
+	}
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (sband->bitrates[i].hw_value == rx_stats->rs_rate) {
+			rxs->rate_idx = i;
+			return 0;
+		}
+		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
+			rxs->flag |= RX_FLAG_SHORTPRE;
+			rxs->rate_idx = i;
+			return 0;
+		}
+	}
+
+	/*
+	 * No valid hardware bitrate found -- we should not get here
+	 * because hardware has already validated this frame as OK.
+	 */
+	ath_print(common, ATH_DBG_XMIT, "unsupported hw bitrate detected "
+		  "0x%02x using 1 Mbit\n", rx_stats->rs_rate);
+
+	return -EINVAL;
+}
+
+static void ath9k_process_rssi(struct ath_common *common,
+			       struct ieee80211_hw *hw,
+			       struct ieee80211_hdr *hdr,
+			       struct ath_rx_status *rx_stats)
+{
+	struct ath_hw *ah = common->ah;
+	struct ieee80211_sta *sta;
+	struct ath_node *an;
+	int last_rssi = ATH_RSSI_DUMMY_MARKER;
+	__le16 fc;
+
+	fc = hdr->frame_control;
+
+	rcu_read_lock();
+	/*
+	 * XXX: use ieee80211_find_sta! This requires quite a bit of work
+	 * under the current ath9k virtual wiphy implementation as we have
+	 * no way of tying a vif to wiphy. Typically vifs are attached to
+	 * at least one sdata of a wiphy on mac80211 but with ath9k virtual
+	 * wiphy you'd have to iterate over every wiphy and each sdata.
+	 */
+	sta = ieee80211_find_sta_by_hw(hw, hdr->addr2);
+	if (sta) {
+		an = (struct ath_node *) sta->drv_priv;
+		if (rx_stats->rs_rssi != ATH9K_RSSI_BAD &&
+		   !rx_stats->rs_moreaggr)
+			ATH_RSSI_LPF(an->last_rssi, rx_stats->rs_rssi);
+		last_rssi = an->last_rssi;
+	}
+	rcu_read_unlock();
+
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
+					      ATH_RSSI_EP_MULTIPLIER);
+	if (rx_stats->rs_rssi < 0)
+		rx_stats->rs_rssi = 0;
+
+	/* Update Beacon RSSI, this is used by ANI. */
+	if (ieee80211_is_beacon(fc))
+		ah->stats.avgbrssi = rx_stats->rs_rssi;
+}
+
+/*
+ * For Decrypt or Demic errors, we only mark packet status here and always push
+ * up the frame up to let mac80211 handle the actual error case, be it no
+ * decryption key or real decryption error. This let us keep statistics there.
+ */
+static int ath9k_rx_skb_preprocess(struct ath_common *common,
+				   struct ieee80211_hw *hw,
+				   struct ieee80211_hdr *hdr,
+				   struct ath_rx_status *rx_stats,
+				   struct ieee80211_rx_status *rx_status,
+				   bool *decrypt_error)
+{
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
+
+	/*
+	 * everything but the rate is checked here, the rate check is done
+	 * separately to avoid doing two lookups for a rate for each frame.
+	 */
+	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error))
+		return -EINVAL;
+
+	ath9k_process_rssi(common, hw, hdr, rx_stats);
+
+	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
+		return -EINVAL;
+
+	rx_status->band = hw->conf.channel->band;
+	rx_status->freq = hw->conf.channel->center_freq;
+	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + rx_stats->rs_rssi;
+	rx_status->antenna = rx_stats->rs_antenna;
+	rx_status->flag |= RX_FLAG_TSFT;
+
+	return 0;
+}
+
+static void ath9k_rx_skb_postprocess(struct ath_common *common,
+				     struct sk_buff *skb,
+				     struct ath_rx_status *rx_stats,
+				     struct ieee80211_rx_status *rxs,
+				     bool decrypt_error)
+{
+	struct ath_hw *ah = common->ah;
+	struct ieee80211_hdr *hdr;
+	int hdrlen, padpos, padsize;
+	u8 keyix;
+	__le16 fc;
+
+	/* see if any padding is done by the hw and remove it */
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+	fc = hdr->frame_control;
+	padpos = ath9k_cmn_padpos(hdr->frame_control);
+
+	/* The MAC header is padded to have 32-bit boundary if the
+	 * packet payload is non-zero. The general calculation for
+	 * padsize would take into account odd header lengths:
+	 * padsize = (4 - padpos % 4) % 4; However, since only
+	 * even-length headers are used, padding can only be 0 or 2
+	 * bytes and we can optimize this a bit. In addition, we must
+	 * not try to remove padding from short control frames that do
+	 * not have payload. */
+	padsize = padpos & 3;
+	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, padpos);
+		skb_pull(skb, padsize);
+	}
+
+	keyix = rx_stats->rs_keyix;
+
+	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
+	    ieee80211_has_protected(fc)) {
+		rxs->flag |= RX_FLAG_DECRYPTED;
+	} else if (ieee80211_has_protected(fc)
+		   && !decrypt_error && skb->len >= hdrlen + 4) {
+		keyix = skb->data[hdrlen + 3] >> 6;
+
+		if (test_bit(keyix, common->keymap))
+			rxs->flag |= RX_FLAG_DECRYPTED;
+	}
+	if (ah->sw_mgmt_crypto &&
+	    (rxs->flag & RX_FLAG_DECRYPTED) &&
+	    ieee80211_is_mgmt(fc))
+		/* Use software decrypt for management frames. */
+		rxs->flag &= ~RX_FLAG_DECRYPTED;
+}
 
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
@@ -842,6 +1093,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	enum ath9k_rx_qtype qtype;
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int dma_type;
+	u8 rx_status_len = ah->caps.rx_status_len;
+	u64 tsf = 0;
+	u32 tsf_lower = 0;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -850,6 +1104,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 	qtype = hp ? ATH9K_RX_QUEUE_HP : ATH9K_RX_QUEUE_LP;
 	spin_lock_bh(&sc->rx.rxbuflock);
+
+	tsf = ath9k_hw_gettsf64(ah);
+	tsf_lower = tsf & 0xffffffff;
 
 	do {
 		/* If handling rx interrupt and flush is in progress => exit */
@@ -869,7 +1126,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (!skb)
 			continue;
 
-		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr *) (skb->data + rx_status_len);
 		rxs =  IEEE80211_SKB_RXCB(skb);
 
 		hw = ath_get_virt_hw(sc, hdr);
@@ -883,8 +1140,17 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (flush)
 			goto requeue;
 
-		retval = ath9k_cmn_rx_skb_preprocess(common, hw, skb, &rs,
-						     rxs, &decrypt_error);
+		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
+		if (rs.rs_tstamp > tsf_lower &&
+		    unlikely(rs.rs_tstamp - tsf_lower > 0x10000000))
+			rxs->mactime -= 0x100000000ULL;
+
+		if (rs.rs_tstamp < tsf_lower &&
+		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
+			rxs->mactime += 0x100000000ULL;
+
+		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
+						 rxs, &decrypt_error);
 		if (retval)
 			goto requeue;
 
@@ -908,8 +1174,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ah->caps.rx_status_len)
 			skb_pull(skb, ah->caps.rx_status_len);
 
-		ath9k_cmn_rx_skb_postprocess(common, skb, &rs,
-					     rxs, decrypt_error);
+		ath9k_rx_skb_postprocess(common, skb, &rs,
+					 rxs, decrypt_error);
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;

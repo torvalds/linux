@@ -86,26 +86,26 @@ struct bnep_setup_conn_req {
 	__u8  ctrl;
 	__u8  uuid_size;
 	__u8  service[0];
-} __attribute__((packed));
+} __packed;
 
 struct bnep_set_filter_req {
 	__u8  type;
 	__u8  ctrl;
 	__be16 len;
 	__u8  list[0];
-} __attribute__((packed));
+} __packed;
 
 struct bnep_control_rsp {
 	__u8  type;
 	__u8  ctrl;
 	__be16 resp;
-} __attribute__((packed));
+} __packed;
 
 struct bnep_ext_hdr {
 	__u8  type;
 	__u8  len;
 	__u8  data[0];
-} __attribute__((packed));
+} __packed;
 
 /* BNEP ioctl defines */
 #define BNEPCONNADD	_IOW('B', 200, int)

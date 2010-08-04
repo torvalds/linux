@@ -335,7 +335,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	cb2 = (void *)get_zeroed_page(GFP_ATOMIC);
+	cb2 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb2) {
 		ehea_error("no mem for cb2");
 		goto out;

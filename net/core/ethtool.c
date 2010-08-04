@@ -144,31 +144,13 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_flags);
 
-int ethtool_op_set_flags(struct net_device *dev, u32 data)
+int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
 {
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-	unsigned long features = dev->features;
+	if (data & ~supported)
+		return -EINVAL;
 
-	if (data & ETH_FLAG_LRO)
-		features |= NETIF_F_LRO;
-	else
-		features &= ~NETIF_F_LRO;
-
-	if (data & ETH_FLAG_NTUPLE) {
-		if (!ops->set_rx_ntuple)
-			return -EOPNOTSUPP;
-		features |= NETIF_F_NTUPLE;
-	} else {
-		/* safe to clear regardless */
-		features &= ~NETIF_F_NTUPLE;
-	}
-
-	if (data & ETH_FLAG_RXHASH)
-		features |= NETIF_F_RXHASH;
-	else
-		features &= ~NETIF_F_RXHASH;
-
-	dev->features = features;
+	dev->features = ((dev->features & ~flags_dup_features) |
+			 (data & flags_dup_features));
 	return 0;
 }
 EXPORT_SYMBOL(ethtool_op_set_flags);
@@ -392,6 +374,80 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 err_out:
 	kfree(rule_buf);
 
+	return ret;
+}
+
+static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
+						     void __user *useraddr)
+{
+	struct ethtool_rxfh_indir *indir;
+	u32 table_size;
+	size_t full_size;
+	int ret;
+
+	if (!dev->ethtool_ops->get_rxfh_indir)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&table_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(table_size)))
+		return -EFAULT;
+
+	if (table_size >
+	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
+		return -ENOMEM;
+	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
+	indir = kmalloc(full_size, GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	indir->cmd = ETHTOOL_GRXFHINDIR;
+	indir->size = table_size;
+	ret = dev->ethtool_ops->get_rxfh_indir(dev, indir);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(useraddr, indir, full_size))
+		ret = -EFAULT;
+
+out:
+	kfree(indir);
+	return ret;
+}
+
+static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
+						     void __user *useraddr)
+{
+	struct ethtool_rxfh_indir *indir;
+	u32 table_size;
+	size_t full_size;
+	int ret;
+
+	if (!dev->ethtool_ops->set_rxfh_indir)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&table_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(table_size)))
+		return -EFAULT;
+
+	if (table_size >
+	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
+		return -ENOMEM;
+	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
+	indir = kmalloc(full_size, GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	if (copy_from_user(indir, useraddr, full_size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = dev->ethtool_ops->set_rxfh_indir(dev, indir);
+
+out:
+	kfree(indir);
 	return ret;
 }
 
@@ -1562,6 +1618,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GSSET_INFO:
 		rc = ethtool_get_sset_info(dev, useraddr);
+		break;
+	case ETHTOOL_GRXFHINDIR:
+		rc = ethtool_get_rxfh_indir(dev, useraddr);
+		break;
+	case ETHTOOL_SRXFHINDIR:
+		rc = ethtool_set_rxfh_indir(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

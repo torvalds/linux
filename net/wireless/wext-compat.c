@@ -829,7 +829,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	enum tx_power_setting type;
+	enum nl80211_tx_power_setting type;
 	int dbm = 0;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
@@ -852,7 +852,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			if (data->txpower.value < 0)
 				return -EINVAL;
 			dbm = data->txpower.value;
-			type = TX_POWER_FIXED;
+			type = NL80211_TX_POWER_FIXED;
 			/* TODO: do regulatory check! */
 		} else {
 			/*
@@ -860,10 +860,10 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			 * passed in from userland.
 			 */
 			if (data->txpower.value < 0) {
-				type = TX_POWER_AUTOMATIC;
+				type = NL80211_TX_POWER_AUTOMATIC;
 			} else {
 				dbm = data->txpower.value;
-				type = TX_POWER_LIMITED;
+				type = NL80211_TX_POWER_LIMITED;
 			}
 		}
 	} else {
@@ -872,7 +872,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 		return 0;
 	}
 
-	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);
+	return rdev->ops->set_tx_power(wdev->wiphy, type, DBM_TO_MBM(dbm));
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
 
@@ -1471,6 +1471,7 @@ int cfg80211_wext_siwpmksa(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwpmksa);
 
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,

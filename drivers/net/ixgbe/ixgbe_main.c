@@ -52,7 +52,7 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
                               "Intel(R) 10 Gigabit PCI Express Network Driver";
 
-#define DRV_VERSION "2.0.62-k2"
+#define DRV_VERSION "2.0.84-k2"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static char ixgbe_copyright[] = "Copyright (c) 1999-2010 Intel Corporation.";
 
@@ -696,19 +696,19 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 		/* detected Tx unit hang */
 		union ixgbe_adv_tx_desc *tx_desc;
 		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
-		DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
-			"  Tx Queue             <%d>\n"
-			"  TDH, TDT             <%x>, <%x>\n"
-			"  next_to_use          <%x>\n"
-			"  next_to_clean        <%x>\n"
-			"tx_buffer_info[next_to_clean]\n"
-			"  time_stamp           <%lx>\n"
-			"  jiffies              <%lx>\n",
-			tx_ring->queue_index,
-			IXGBE_READ_REG(hw, tx_ring->head),
-			IXGBE_READ_REG(hw, tx_ring->tail),
-			tx_ring->next_to_use, eop,
-			tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
+		e_err(drv, "Detected Tx Unit Hang\n"
+		      "  Tx Queue             <%d>\n"
+		      "  TDH, TDT             <%x>, <%x>\n"
+		      "  next_to_use          <%x>\n"
+		      "  next_to_clean        <%x>\n"
+		      "tx_buffer_info[next_to_clean]\n"
+		      "  time_stamp           <%lx>\n"
+		      "  jiffies              <%lx>\n",
+		      tx_ring->queue_index,
+		      IXGBE_READ_REG(hw, tx_ring->head),
+		      IXGBE_READ_REG(hw, tx_ring->tail),
+		      tx_ring->next_to_use, eop,
+		      tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
 		return true;
 	}
 
@@ -812,9 +812,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (adapter->detect_tx_hung) {
 		if (ixgbe_check_tx_hang(adapter, tx_ring, i)) {
 			/* schedule immediate reset if we believe we hung */
-			DPRINTK(PROBE, INFO,
-			        "tx hang %d detected, resetting adapter\n",
-			        adapter->tx_timeout_count + 1);
+			e_info(probe, "tx hang %d detected, resetting "
+			       "adapter\n", adapter->tx_timeout_count + 1);
 			ixgbe_tx_timeout(adapter->netdev);
 		}
 	}
@@ -1653,10 +1652,10 @@ static void ixgbe_check_overtemp_task(struct work_struct *work)
 				return;
 			break;
 		}
-		DPRINTK(DRV, ERR, "Network adapter has been stopped because it "
-		        "has over heated. Restart the computer. If the problem "
-		        "persists, power off the system and replace the "
-		        "adapter\n");
+		e_crit(drv, "Network adapter has been stopped because it has "
+		       "over heated. Restart the computer. If the problem "
+		       "persists, power off the system and replace the "
+		       "adapter\n");
 		/* write to clear the interrupt */
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP0);
 	}
@@ -1668,7 +1667,7 @@ static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
 
 	if ((adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) &&
 	    (eicr & IXGBE_EICR_GPI_SDP1)) {
-		DPRINTK(PROBE, CRIT, "Fan has stopped, replace the adapter\n");
+		e_crit(probe, "Fan has stopped, replace the adapter\n");
 		/* write to clear the interrupt */
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
 	}
@@ -2154,9 +2153,8 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 		                  handler, 0, adapter->name[vector],
 		                  adapter->q_vector[vector]);
 		if (err) {
-			DPRINTK(PROBE, ERR,
-			        "request_irq failed for MSIX interrupt "
-			        "Error: %d\n", err);
+			e_err(probe, "request_irq failed for MSIX interrupt "
+			      "Error: %d\n", err);
 			goto free_queue_irqs;
 		}
 	}
@@ -2165,8 +2163,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 	err = request_irq(adapter->msix_entries[vector].vector,
 	                  ixgbe_msix_lsc, 0, adapter->name[vector], netdev);
 	if (err) {
-		DPRINTK(PROBE, ERR,
-			"request_irq for msix_lsc failed: %d\n", err);
+		e_err(probe, "request_irq for msix_lsc failed: %d\n", err);
 		goto free_queue_irqs;
 	}
 
@@ -2352,7 +2349,7 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 	}
 
 	if (err)
-		DPRINTK(PROBE, ERR, "request_irq failed, Error %d\n", err);
+		e_err(probe, "request_irq failed, Error %d\n", err);
 
 	return err;
 }
@@ -2423,7 +2420,7 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 	map_vector_to_rxq(adapter, 0, 0);
 	map_vector_to_txq(adapter, 0, 0);
 
-	DPRINTK(HW, INFO, "Legacy interrupt IVAR setup done\n");
+	e_info(hw, "Legacy interrupt IVAR setup done\n");
 }
 
 /**
@@ -2803,10 +2800,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		    /* Perform hash on these packet types */
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4
 		      | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
-		      | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
 		      | IXGBE_MRQC_RSS_FIELD_IPV6
-		      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
-		      | IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+		      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 
@@ -2995,6 +2990,48 @@ static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_write_uc_addr_list - write unicast addresses to RAR table
+ * @netdev: network interface device structure
+ *
+ * Writes unicast address list to the RAR table.
+ * Returns: -ENOMEM on failure/insufficient address space
+ *                0 on no addresses written
+ *                X on writing X addresses to the RAR table
+ **/
+static int ixgbe_write_uc_addr_list(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned int vfn = adapter->num_vfs;
+	unsigned int rar_entries = hw->mac.num_rar_entries - (vfn + 1);
+	int count = 0;
+
+	/* return ENOMEM indicating insufficient memory for addresses */
+	if (netdev_uc_count(netdev) > rar_entries)
+		return -ENOMEM;
+
+	if (!netdev_uc_empty(netdev) && rar_entries) {
+		struct netdev_hw_addr *ha;
+		/* return error if we do not support writing to RAR table */
+		if (!hw->mac.ops.set_rar)
+			return -ENOMEM;
+
+		netdev_for_each_uc_addr(ha, netdev) {
+			if (!rar_entries)
+				break;
+			hw->mac.ops.set_rar(hw, rar_entries--, ha->addr,
+					    vfn, IXGBE_RAH_AV);
+			count++;
+		}
+	}
+	/* write the addresses in reverse order to avoid write combining */
+	for (; rar_entries > 0 ; rar_entries--)
+		hw->mac.ops.clear_rar(hw, rar_entries);
+
+	return count;
+}
+
+/**
  * ixgbe_set_rx_mode - Unicast, Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -3007,38 +3044,58 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 fctrl;
+	u32 fctrl, vmolr = IXGBE_VMOLR_BAM | IXGBE_VMOLR_AUPE;
+	int count;
 
 	/* Check for Promiscuous and All Multicast modes */
 
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 
+	/* clear the bits we are changing the status of */
+	fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+
 	if (netdev->flags & IFF_PROMISC) {
 		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		vmolr |= (IXGBE_VMOLR_ROPE | IXGBE_VMOLR_MPE);
 		/* don't hardware filter vlans in promisc mode */
 		ixgbe_vlan_filter_disable(adapter);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
-			fctrl &= ~IXGBE_FCTRL_UPE;
-		} else if (!hw->addr_ctrl.uc_set_promisc) {
-			fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+			vmolr |= IXGBE_VMOLR_MPE;
+		} else {
+			/*
+			 * Write addresses to the MTA, if the attempt fails
+			 * then we should just turn on promiscous mode so
+			 * that we can at least receive multicast traffic
+			 */
+			hw->mac.ops.update_mc_addr_list(hw, netdev);
+			vmolr |= IXGBE_VMOLR_ROMPE;
 		}
 		ixgbe_vlan_filter_enable(adapter);
 		hw->addr_ctrl.user_set_promisc = false;
+		/*
+		 * Write addresses to available RAR registers, if there is not
+		 * sufficient space to store all the addresses then enable
+		 * unicast promiscous mode
+		 */
+		count = ixgbe_write_uc_addr_list(netdev);
+		if (count < 0) {
+			fctrl |= IXGBE_FCTRL_UPE;
+			vmolr |= IXGBE_VMOLR_ROPE;
+		}
+	}
+
+	if (adapter->num_vfs) {
+		ixgbe_restore_vf_multicasts(adapter);
+		vmolr |= IXGBE_READ_REG(hw, IXGBE_VMOLR(adapter->num_vfs)) &
+			 ~(IXGBE_VMOLR_MPE | IXGBE_VMOLR_ROMPE |
+			   IXGBE_VMOLR_ROPE);
+		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(adapter->num_vfs), vmolr);
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
-
-	/* reprogram secondary unicast list */
-	hw->mac.ops.update_uc_addr_list(hw, netdev);
-
-	/* reprogram multicast list */
-	hw->mac.ops.update_mc_addr_list(hw, netdev);
-
-	if (adapter->num_vfs)
-		ixgbe_restore_vf_multicasts(adapter);
 }
 
 static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
@@ -3257,8 +3314,8 @@ static inline void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 			msleep(1);
 	}
 	if (k >= IXGBE_MAX_RX_DESC_POLL) {
-		DPRINTK(DRV, ERR, "RXDCTL.ENABLE on Rx queue %d "
-		        "not set within the polling period\n", rxr);
+		e_err(drv, "RXDCTL.ENABLE on Rx queue %d not set within "
+		      "the polling period\n", rxr);
 	}
 	ixgbe_release_rx_desc(&adapter->hw, adapter->rx_ring[rxr],
 	                      (adapter->rx_ring[rxr]->count - 1));
@@ -3387,8 +3444,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 			} while (--wait_loop &&
 			         !(txdctl & IXGBE_TXDCTL_ENABLE));
 			if (!wait_loop)
-				DPRINTK(DRV, ERR, "Could not enable "
-				        "Tx Queue %d\n", j);
+				e_err(drv, "Could not enable Tx Queue %d\n", j);
 		}
 	}
 
@@ -3436,8 +3492,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
-			DPRINTK(DRV, CRIT,
-				"Fan has stopped, replace the adapter\n");
+			e_crit(drv, "Fan has stopped, replace the adapter\n");
 	}
 
 	/*
@@ -3466,7 +3521,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	} else {
 		err = ixgbe_non_sfp_link_config(hw);
 		if (err)
-			DPRINTK(PROBE, ERR, "link_config FAILED %d\n", err);
+			e_err(probe, "link_config FAILED %d\n", err);
 	}
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
@@ -3527,19 +3582,19 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	case IXGBE_ERR_SFP_NOT_PRESENT:
 		break;
 	case IXGBE_ERR_MASTER_REQUESTS_PENDING:
-		dev_err(&adapter->pdev->dev, "master disable timed out\n");
+		e_dev_err("master disable timed out\n");
 		break;
 	case IXGBE_ERR_EEPROM_VERSION:
 		/* We are running on a pre-production device, log a warning */
-		dev_warn(&adapter->pdev->dev, "This device is a pre-production "
-		         "adapter/LOM.  Please be aware there may be issues "
-		         "associated with your hardware.  If you are "
-		         "experiencing problems please contact your Intel or "
-		         "hardware representative who provided you with this "
-		         "hardware.\n");
+		e_dev_warn("This device is a pre-production adapter/LOM. "
+			   "Please be aware there may be issuesassociated with "
+			   "your hardware.  If you are experiencing problems "
+			   "please contact your Intel or hardware "
+			   "representative who provided you with this "
+			   "hardware.\n");
 		break;
 	default:
-		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
+		e_dev_err("Hardware Error: %d\n", err);
 	}
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -3920,12 +3975,12 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 		adapter->num_tx_queues = 1;
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCoE enabled with DCB\n");
+			e_info(probe, "FCoE enabled with DCB\n");
 			ixgbe_set_dcb_queues(adapter);
 		}
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCoE enabled with RSS\n");
+			e_info(probe, "FCoE enabled with RSS\n");
 			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
 			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 				ixgbe_set_fdir_queues(adapter);
@@ -4038,7 +4093,8 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		 * This just means we'll go with either a single MSI
 		 * vector or fall back to legacy interrupts.
 		 */
-		DPRINTK(HW, DEBUG, "Unable to allocate MSI-X interrupts\n");
+		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
+			     "Unable to allocate MSI-X interrupts\n");
 		adapter->flags &= ~IXGBE_FLAG_MSIX_ENABLED;
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
@@ -4435,8 +4491,9 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	if (!err) {
 		adapter->flags |= IXGBE_FLAG_MSI_ENABLED;
 	} else {
-		DPRINTK(HW, DEBUG, "Unable to allocate MSI interrupt, "
-		        "falling back to legacy.  Error: %d\n", err);
+		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
+			     "Unable to allocate MSI interrupt, "
+			     "falling back to legacy.  Error: %d\n", err);
 		/* reset err */
 		err = 0;
 	}
@@ -4557,27 +4614,25 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 
 	err = ixgbe_set_interrupt_capability(adapter);
 	if (err) {
-		DPRINTK(PROBE, ERR, "Unable to setup interrupt capabilities\n");
+		e_dev_err("Unable to setup interrupt capabilities\n");
 		goto err_set_interrupt;
 	}
 
 	err = ixgbe_alloc_q_vectors(adapter);
 	if (err) {
-		DPRINTK(PROBE, ERR, "Unable to allocate memory for queue "
-		        "vectors\n");
+		e_dev_err("Unable to allocate memory for queue vectors\n");
 		goto err_alloc_q_vectors;
 	}
 
 	err = ixgbe_alloc_queues(adapter);
 	if (err) {
-		DPRINTK(PROBE, ERR, "Unable to allocate memory for queues\n");
+		e_dev_err("Unable to allocate memory for queues\n");
 		goto err_alloc_queues;
 	}
 
-	DPRINTK(DRV, INFO, "Multiqueue %s: Rx Queue count = %u, "
-	        "Tx Queue count = %u\n",
-	        (adapter->num_rx_queues > 1) ? "Enabled" :
-	        "Disabled", adapter->num_rx_queues, adapter->num_tx_queues);
+	e_dev_info("Multiqueue %s: Rx Queue count = %u, Tx Queue count = %u\n",
+		   (adapter->num_rx_queues > 1) ? "Enabled" : "Disabled",
+		   adapter->num_rx_queues, adapter->num_tx_queues);
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
 
@@ -4648,15 +4703,13 @@ static void ixgbe_sfp_task(struct work_struct *work)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-			dev_err(&adapter->pdev->dev, "failed to initialize "
-				"because an unsupported SFP+ module type "
-				"was detected.\n"
-				"Reload the driver after installing a "
-				"supported module.\n");
+			e_dev_err("failed to initialize because an unsupported "
+				  "SFP+ module type was detected.\n");
+			e_dev_err("Reload the driver after installing a "
+				  "supported module.\n");
 			unregister_netdev(adapter->netdev);
 		} else {
-			DPRINTK(PROBE, INFO, "detected SFP+: %d\n",
-			        hw->phy.sfp_type);
+			e_info(probe, "detected SFP+: %d\n", hw->phy.sfp_type);
 		}
 		/* don't need this routine any more */
 		clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
@@ -4730,6 +4783,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
 		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
+		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
 #endif
 #endif /* IXGBE_FCOE */
 	}
@@ -4783,7 +4837,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 	/* initialize eeprom parameters */
 	if (ixgbe_init_eeprom_params_generic(hw)) {
-		dev_err(&pdev->dev, "EEPROM initialization failed\n");
+		e_dev_err("EEPROM initialization failed\n");
 		return -EIO;
 	}
 
@@ -4836,8 +4890,7 @@ int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 err:
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
-	DPRINTK(PROBE, ERR, "Unable to allocate memory for the transmit "
-	                    "descriptor ring\n");
+	e_err(probe, "Unable to allocate memory for the Tx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -4859,7 +4912,7 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_tx_resources(adapter, adapter->tx_ring[i]);
 		if (!err)
 			continue;
-		DPRINTK(PROBE, ERR, "Allocation for Tx Queue %u failed\n", i);
+		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
 		break;
 	}
 
@@ -4884,8 +4937,8 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	if (!rx_ring->rx_buffer_info)
 		rx_ring->rx_buffer_info = vmalloc(size);
 	if (!rx_ring->rx_buffer_info) {
-		DPRINTK(PROBE, ERR,
-		        "vmalloc allocation failed for the rx desc ring\n");
+		e_err(probe, "vmalloc allocation failed for the Rx "
+		      "descriptor ring\n");
 		goto alloc_failed;
 	}
 	memset(rx_ring->rx_buffer_info, 0, size);
@@ -4898,8 +4951,8 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc) {
-		DPRINTK(PROBE, ERR,
-		        "Memory allocation failed for the rx desc ring\n");
+		e_err(probe, "Memory allocation failed for the Rx "
+		      "descriptor ring\n");
 		vfree(rx_ring->rx_buffer_info);
 		goto alloc_failed;
 	}
@@ -4932,7 +4985,7 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_rx_resources(adapter, adapter->rx_ring[i]);
 		if (!err)
 			continue;
-		DPRINTK(PROBE, ERR, "Allocation for Rx Queue %u failed\n", i);
+		e_err(probe, "Allocation for Rx Queue %u failed\n", i);
 		break;
 	}
 
@@ -5031,8 +5084,7 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE))
 		return -EINVAL;
 
-	DPRINTK(PROBE, INFO, "changing MTU from %d to %d\n",
-	        netdev->mtu, new_mtu);
+	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
 
@@ -5145,8 +5197,7 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		printk(KERN_ERR "ixgbe: Cannot enable PCI device from "
-				"suspend\n");
+		e_dev_err("Cannot enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -5155,8 +5206,7 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err) {
-		printk(KERN_ERR "ixgbe: Cannot initialize interrupts for "
-		                "device\n");
+		e_dev_err("Cannot initialize interrupts for device\n");
 		return err;
 	}
 
@@ -5517,10 +5567,10 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	err = hw->phy.ops.identify_sfp(hw);
 
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to initialize because "
-			"an unsupported SFP+ module type was detected.\n"
-			"Reload the driver after installing a supported "
-			"module.\n");
+		e_dev_err("failed to initialize because an unsupported SFP+ "
+			  "module type was detected.\n");
+		e_dev_err("Reload the driver after installing a supported "
+			  "module.\n");
 		unregister_netdev(adapter->netdev);
 		return;
 	}
@@ -5549,8 +5599,8 @@ static void ixgbe_fdir_reinit_task(struct work_struct *work)
 			set_bit(__IXGBE_FDIR_INIT_DONE,
 			        &(adapter->tx_ring[i]->reinit_state));
 	} else {
-		DPRINTK(PROBE, ERR, "failed to finish FDIR re-initialization, "
-			"ignored adding FDIR ATR filters\n");
+		e_err(probe, "failed to finish FDIR re-initialization, "
+		      "ignored adding FDIR ATR filters\n");
 	}
 	/* Done FDIR Re-initialization, enable transmits */
 	netif_tx_start_all_queues(adapter->netdev);
@@ -5621,16 +5671,14 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 				flow_tx = !!(rmcs & IXGBE_RMCS_TFCE_802_3X);
 			}
 
-			printk(KERN_INFO "ixgbe: %s NIC Link is Up %s, "
-			       "Flow Control: %s\n",
-			       netdev->name,
+			e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
 			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
-			        "10 Gbps" :
-			        (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-			         "1 Gbps" : "unknown speed")),
+			       "10 Gbps" :
+			       (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
+			       "1 Gbps" : "unknown speed")),
 			       ((flow_rx && flow_tx) ? "RX/TX" :
-			        (flow_rx ? "RX" :
-			        (flow_tx ? "TX" : "None"))));
+			       (flow_rx ? "RX" :
+			       (flow_tx ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
 		} else {
@@ -5641,8 +5689,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 		adapter->link_up = false;
 		adapter->link_speed = 0;
 		if (netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "ixgbe: %s NIC Link is Down\n",
-			       netdev->name);
+			e_info(drv, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 		}
 	}
@@ -5818,9 +5865,9 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				break;
 			default:
 				if (unlikely(net_ratelimit())) {
-					DPRINTK(PROBE, WARNING,
-					 "partial checksum but proto=%x!\n",
-					 skb->protocol);
+					e_warn(probe, "partial checksum "
+					       "but proto=%x!\n",
+					       skb->protocol);
 				}
 				break;
 			}
@@ -5931,7 +5978,7 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 	return count;
 
 dma_error:
-	dev_err(&pdev->dev, "TX DMA map failed\n");
+	e_dev_err("TX DMA map failed\n");
 
 	/* clear timestamp and dma mappings for failed tx_buffer_info map */
 	tx_buffer_info->dma = 0;
@@ -6101,21 +6148,26 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int txq = smp_processor_id();
 
+#ifdef IXGBE_FCOE
+	if ((skb->protocol == htons(ETH_P_FCOE)) ||
+	    (skb->protocol == htons(ETH_P_FIP))) {
+		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+			txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+			txq += adapter->ring_feature[RING_F_FCOE].mask;
+			return txq;
+		} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			txq = adapter->fcoe.up;
+			return txq;
+		}
+	}
+#endif
+
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		while (unlikely(txq >= dev->real_num_tx_queues))
 			txq -= dev->real_num_tx_queues;
 		return txq;
 	}
 
-#ifdef IXGBE_FCOE
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    ((skb->protocol == htons(ETH_P_FCOE)) ||
-	     (skb->protocol == htons(ETH_P_FIP)))) {
-		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
-		txq += adapter->ring_feature[RING_F_FCOE].mask;
-		return txq;
-	}
-#endif
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		if (skb->priority == TC_PRIO_CONTROL)
 			txq = adapter->ring_feature[RING_F_DCB].indices-1;
@@ -6159,18 +6211,15 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-#ifdef CONFIG_IXGBE_DCB
-		/* for FCoE with DCB, we force the priority to what
-		 * was specified by the switch */
-		if ((skb->protocol == htons(ETH_P_FCOE)) ||
-		    (skb->protocol == htons(ETH_P_FIP))) {
-			tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
-				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
-			tx_flags |= ((adapter->fcoe.up << 13)
-				     << IXGBE_TX_FLAGS_VLAN_SHIFT);
-		}
-#endif
+	/* for FCoE with DCB, we force the priority to what
+	 * was specified by the switch */
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED &&
+	    (skb->protocol == htons(ETH_P_FCOE) ||
+	     skb->protocol == htons(ETH_P_FIP))) {
+		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= ((adapter->fcoe.up << 13)
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
 		/* flag for FCoE offloads */
 		if (skb->protocol == htons(ETH_P_FCOE))
 			tx_flags |= IXGBE_TX_FLAGS_FCOE;
@@ -6430,8 +6479,7 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
 	err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
 	if (err) {
-		DPRINTK(PROBE, ERR,
-			"Failed to enable PCI sriov: %d\n", err);
+		e_err(probe, "Failed to enable PCI sriov: %d\n", err);
 		goto err_novfs;
 	}
 	/* If call to enable VFs succeeded then allocate memory
@@ -6455,9 +6503,8 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 	}
 
 	/* Oh oh */
-	DPRINTK(PROBE, ERR,
-		"Unable to allocate memory for VF "
-		"Data Storage - SRIOV disabled\n");
+	e_err(probe, "Unable to allocate memory for VF Data Storage - "
+	      "SRIOV disabled\n");
 	pci_disable_sriov(adapter->pdev);
 
 err_novfs:
@@ -6514,8 +6561,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				dev_err(&pdev->dev, "No usable DMA "
-				        "configuration, aborting\n");
+				dev_err(&pdev->dev,
+					"No usable DMA configuration, aborting\n");
 				goto err_dma;
 			}
 		}
@@ -6526,7 +6573,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	                                   IORESOURCE_MEM), ixgbe_driver_name);
 	if (err) {
 		dev_err(&pdev->dev,
-		        "pci_request_selected_regions failed 0x%x\n", err);
+			"pci_request_selected_regions failed 0x%x\n", err);
 		goto err_pci_reg;
 	}
 
@@ -6637,8 +6684,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
-			DPRINTK(PROBE, CRIT,
-				"Fan has stopped, replace the adapter\n");
+			e_crit(probe, "Fan has stopped, replace the adapter\n");
 	}
 
 	/* reset_hw fills in the perm_addr as well */
@@ -6657,13 +6703,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			  round_jiffies(jiffies + (2 * HZ)));
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to initialize because "
-			"an unsupported SFP+ module type was detected.\n"
-			"Reload the driver after installing a supported "
-			"module.\n");
+		e_dev_err("failed to initialize because an unsupported SFP+ "
+			  "module type was detected.\n");
+		e_dev_err("Reload the driver after installing a supported "
+			  "module.\n");
 		goto err_sw_init;
 	} else if (err) {
-		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);
+		e_dev_err("HW Init failed: %d\n", err);
 		goto err_sw_init;
 	}
 
@@ -6707,6 +6753,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 	}
+	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
+		netdev->vlan_features |= NETIF_F_FCOE_CRC;
+		netdev->vlan_features |= NETIF_F_FSO;
+		netdev->vlan_features |= NETIF_F_FCOE_MTU;
+	}
 #endif /* IXGBE_FCOE */
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -6716,7 +6767,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* make sure the EEPROM is good */
 	if (hw->eeprom.ops.validate_checksum(hw, NULL) < 0) {
-		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
+		e_dev_err("The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -6725,7 +6776,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	memcpy(netdev->perm_addr, hw->mac.perm_addr, netdev->addr_len);
 
 	if (ixgbe_validate_mac_addr(netdev->perm_addr)) {
-		dev_err(&pdev->dev, "invalid MAC address\n");
+		e_dev_err("invalid MAC address\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -6760,7 +6811,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	hw->mac.ops.get_bus_info(hw);
 
 	/* print bus type/speed/width info */
-	dev_info(&pdev->dev, "(PCI Express:%s:%s) %pM\n",
+	e_dev_info("(PCI Express:%s:%s) %pM\n",
 	        ((hw->bus.speed == ixgbe_bus_speed_5000) ? "5.0Gb/s":
 	         (hw->bus.speed == ixgbe_bus_speed_2500) ? "2.5Gb/s":"Unknown"),
 	        ((hw->bus.width == ixgbe_bus_width_pcie_x8) ? "Width x8" :
@@ -6770,20 +6821,20 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	        netdev->dev_addr);
 	ixgbe_read_pba_num_generic(hw, &part_num);
 	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
-		dev_info(&pdev->dev, "MAC: %d, PHY: %d, SFP+: %d, PBA No: %06x-%03x\n",
-		         hw->mac.type, hw->phy.type, hw->phy.sfp_type,
-		         (part_num >> 8), (part_num & 0xff));
+		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, "
+			   "PBA No: %06x-%03x\n",
+			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
+			   (part_num >> 8), (part_num & 0xff));
 	else
-		dev_info(&pdev->dev, "MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
-		         hw->mac.type, hw->phy.type,
-		         (part_num >> 8), (part_num & 0xff));
+		e_dev_info("MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
+			   hw->mac.type, hw->phy.type,
+			   (part_num >> 8), (part_num & 0xff));
 
 	if (hw->bus.width <= ixgbe_bus_width_pcie_x4) {
-		dev_warn(&pdev->dev, "PCI-Express bandwidth available for "
-		         "this card is not sufficient for optimal "
-		         "performance.\n");
-		dev_warn(&pdev->dev, "For optimal performance a x8 "
-		         "PCI-Express slot is required.\n");
+		e_dev_warn("PCI-Express bandwidth available for this card is "
+			   "not sufficient for optimal performance.\n");
+		e_dev_warn("For optimal performance a x8 PCI-Express slot "
+			   "is required.\n");
 	}
 
 	/* save off EEPROM version number */
@@ -6794,12 +6845,12 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	if (err == IXGBE_ERR_EEPROM_VERSION) {
 		/* We are running on a pre-production device, log a warning */
-		dev_warn(&pdev->dev, "This device is a pre-production "
-		         "adapter/LOM.  Please be aware there may be issues "
-		         "associated with your hardware.  If you are "
-		         "experiencing problems please contact your Intel or "
-		         "hardware representative who provided you with this "
-		         "hardware.\n");
+		e_dev_warn("This device is a pre-production adapter/LOM. "
+			   "Please be aware there may be issues associated "
+			   "with your hardware.  If you are experiencing "
+			   "problems please contact your Intel or hardware "
+			   "representative who provided you with this "
+			   "hardware.\n");
 	}
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
@@ -6822,8 +6873,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 #endif
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		DPRINTK(PROBE, INFO, "IOV is enabled with %d VFs\n",
-			adapter->num_vfs);
+		e_info(probe, "IOV is enabled with %d VFs\n", adapter->num_vfs);
 		for (i = 0; i < adapter->num_vfs; i++)
 			ixgbe_vf_configuration(pdev, (i | 0x10000000));
 	}
@@ -6831,7 +6881,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
 
-	dev_info(&pdev->dev, "Intel(R) 10 Gigabit Network Connection\n");
+	e_dev_info("Intel(R) 10 Gigabit Network Connection\n");
 	cards_found++;
 	return 0;
 
@@ -6921,7 +6971,7 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev, pci_select_bars(pdev,
 	                             IORESOURCE_MEM));
 
-	DPRINTK(PROBE, INFO, "complete\n");
+	e_dev_info("complete\n");
 
 	free_netdev(netdev);
 
@@ -6971,8 +7021,7 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 	int err;
 
 	if (pci_enable_device_mem(pdev)) {
-		DPRINTK(PROBE, ERR,
-		        "Cannot re-enable PCI device after reset.\n");
+		e_err(probe, "Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_set_master(pdev);
@@ -6988,8 +7037,8 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 
 	err = pci_cleanup_aer_uncorrect_error_status(pdev);
 	if (err) {
-		dev_err(&pdev->dev,
-		  "pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n", err);
+		e_dev_err("pci_cleanup_aer_uncorrect_error_status "
+			  "failed 0x%0x\n", err);
 		/* non-fatal, continue */
 	}
 
@@ -7010,7 +7059,7 @@ static void ixgbe_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (ixgbe_up(adapter)) {
-			DPRINTK(PROBE, INFO, "ixgbe_up failed after reset\n");
+			e_info(probe, "ixgbe_up failed after reset\n");
 			return;
 		}
 	}
@@ -7046,10 +7095,9 @@ static struct pci_driver ixgbe_driver = {
 static int __init ixgbe_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "%s: %s - version %s\n", ixgbe_driver_name,
-	       ixgbe_driver_string, ixgbe_driver_version);
-
-	printk(KERN_INFO "%s: %s\n", ixgbe_driver_name, ixgbe_copyright);
+	pr_info("%s - version %s\n", ixgbe_driver_string,
+		   ixgbe_driver_version);
+	pr_info("%s\n", ixgbe_copyright);
 
 #ifdef CONFIG_IXGBE_DCA
 	dca_register_notify(&dca_notifier);
@@ -7088,18 +7136,17 @@ static int ixgbe_notify_dca(struct notifier_block *nb, unsigned long event,
 }
 
 #endif /* CONFIG_IXGBE_DCA */
-#ifdef DEBUG
+
 /**
- * ixgbe_get_hw_dev_name - return device name string
+ * ixgbe_get_hw_dev return device
  * used by hardware layer to print debugging information
  **/
-char *ixgbe_get_hw_dev_name(struct ixgbe_hw *hw)
+struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw)
 {
 	struct ixgbe_adapter *adapter = hw->back;
-	return adapter->netdev->name;
+	return adapter->netdev;
 }
 
-#endif
 module_exit(ixgbe_exit_module);
 
 /* ixgbe_main.c */

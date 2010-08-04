@@ -7,7 +7,8 @@
 #define IPT_LOG_IPOPT		0x04	/* Log IP options */
 #define IPT_LOG_UID		0x08	/* Log UID owning local socket */
 #define IPT_LOG_NFLOG		0x10	/* Unsupported, don't reuse */
-#define IPT_LOG_MASK		0x1f
+#define IPT_LOG_MACDECODE	0x20	/* Decode MAC header */
+#define IPT_LOG_MASK		0x2f
 
 struct ipt_log_info {
 	unsigned char level;

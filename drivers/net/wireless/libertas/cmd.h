@@ -3,6 +3,8 @@
 #ifndef _LBS_CMD_H_
 #define _LBS_CMD_H_
 
+#include <net/cfg80211.h>
+
 #include "host.h"
 #include "dev.h"
 
@@ -36,11 +38,6 @@ struct cmd_ctrl_node {
 
 #define lbs_cmd_with_response(priv, cmdnr, cmd)	\
 	lbs_cmd(priv, cmdnr, cmd, lbs_cmd_copyback, (unsigned long) (cmd))
-
-int lbs_prepare_and_send_command(struct lbs_private *priv,
-	u16 cmd_no,
-	u16 cmd_action,
-	u16 wait_option, u32 cmd_oid, void *pdata_buf);
 
 void lbs_cmd_async(struct lbs_private *priv, uint16_t command,
 	struct cmd_header *in_cmd, int in_cmd_size);
@@ -92,10 +89,6 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 				struct sleep_params *sp);
 
-void lbs_ps_sleep(struct lbs_private *priv, int wait_option);
-
-void lbs_ps_wakeup(struct lbs_private *priv, int wait_option);
-
 void lbs_ps_confirm_sleep(struct lbs_private *priv);
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
@@ -126,5 +119,21 @@ int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
 int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);
+
+int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep);
+
+int lbs_set_monitor_mode(struct lbs_private *priv, int enable);
+
+int lbs_get_rssi(struct lbs_private *priv, s8 *snr, s8 *nf);
+
+int lbs_set_11d_domain_info(struct lbs_private *priv,
+			    struct regulatory_request *request,
+			    struct ieee80211_supported_band **bands);
+
+int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value);
+
+int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value);
+
+int lbs_set_ps_mode(struct lbs_private *priv, u16 cmd_action, bool block);
 
 #endif /* _LBS_CMD_H */

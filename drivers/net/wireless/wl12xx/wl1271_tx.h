@@ -80,7 +80,7 @@ struct wl1271_tx_hw_descr {
 	/* Identifier of the remote STA in IBSS, 1 in infra-BSS */
 	u8 aid;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 enum wl1271_tx_hw_res_status {
 	TX_SUCCESS          = 0,
@@ -115,13 +115,13 @@ struct wl1271_tx_hw_res_descr {
 	u8 rate_class_index;
 	/* for 4-byte alignment. */
 	u8 spare;
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_tx_hw_res_if {
 	__le32 tx_result_fw_counter;
 	__le32 tx_result_host_counter;
 	struct wl1271_tx_hw_res_descr tx_results_queue[TX_HW_RESULT_QUEUE_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 static inline int wl1271_tx_get_queue(int queue)
 {
@@ -158,6 +158,7 @@ static inline int wl1271_tx_ac_to_tid(int ac)
 
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_complete(struct wl1271 *wl);
+void wl1271_tx_reset(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);
 u8 wl1271_rate_to_idx(struct wl1271 *wl, int rate);
 u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);

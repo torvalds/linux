@@ -1567,6 +1567,12 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 }
 
 
+static int nes_netdev_set_flags(struct net_device *netdev, u32 flags)
+{
+	return ethtool_op_set_flags(netdev, flags, ETH_FLAG_LRO);
+}
+
+
 static const struct ethtool_ops nes_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_settings = nes_netdev_get_settings,
@@ -1588,7 +1594,7 @@ static const struct ethtool_ops nes_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = ethtool_op_set_flags,
+	.set_flags = nes_netdev_set_flags,
 };
 
 

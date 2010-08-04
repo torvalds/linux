@@ -3330,10 +3330,12 @@ static struct page *niu_find_rxpage(struct rx_ring_info *rp, u64 addr,
 	for (; (p = *pp) != NULL; pp = (struct page **) &p->mapping) {
 		if (p->index == addr) {
 			*link = pp;
-			break;
+			goto found;
 		}
 	}
+	BUG();
 
+found:
 	return p;
 }
 
@@ -7920,14 +7922,7 @@ static int niu_phys_id(struct net_device *dev, u32 data)
 
 static int niu_set_flags(struct net_device *dev, u32 data)
 {
-	if (data & (ETH_FLAG_LRO | ETH_FLAG_NTUPLE))
-		return -EOPNOTSUPP;
-
-	if (data & ETH_FLAG_RXHASH)
-		dev->features |= NETIF_F_RXHASH;
-	else
-		dev->features &= ~NETIF_F_RXHASH;
-	return 0;
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_RXHASH);
 }
 
 static const struct ethtool_ops niu_ethtool_ops = {

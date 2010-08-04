@@ -74,13 +74,8 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 			h[i].currIndex = 0;
 
 		if (h[i].invalidNFcount > 0) {
-			if (nfarray[i] < AR_PHY_CCA_MIN_BAD_VALUE ||
-			    nfarray[i] > AR_PHY_CCA_MAX_HIGH_VALUE) {
-				h[i].invalidNFcount = ATH9K_NF_CAL_HIST_MAX;
-			} else {
-				h[i].invalidNFcount--;
-				h[i].privNF = nfarray[i];
-			}
+			h[i].invalidNFcount--;
+			h[i].privNF = nfarray[i];
 		} else {
 			h[i].privNF =
 				ath9k_hw_get_nf_hist_mid(h[i].nfCalBuffer);
@@ -172,6 +167,116 @@ void ath9k_hw_start_nfcal(struct ath_hw *ah)
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 }
 
+void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath9k_nfcal_hist *h;
+	unsigned i, j;
+	int32_t val;
+	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	h = ah->nfCalHist;
+
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (chainmask & (1 << i)) {
+			val = REG_READ(ah, ah->nf_regs[i]);
+			val &= 0xFFFFFE00;
+			val |= (((u32) (h[i].privNF) << 1) & 0x1ff);
+			REG_WRITE(ah, ah->nf_regs[i], val);
+		}
+	}
+
+	/*
+	 * Load software filtered NF value into baseband internal minCCApwr
+	 * variable.
+	 */
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_ENABLE_NF);
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
+
+	/*
+	 * Wait for load to complete, should be fast, a few 10s of us.
+	 * The max delay was changed from an original 250us to 10000us
+	 * since 250us often results in NF load timeout and causes deaf
+	 * condition during stress testing 12/12/2009
+	 */
+	for (j = 0; j < 1000; j++) {
+		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
+		     AR_PHY_AGC_CONTROL_NF) == 0)
+			break;
+		udelay(10);
+	}
+
+	/*
+	 * We timed out waiting for the noisefloor to load, probably due to an
+	 * in-progress rx. Simply return here and allow the load plenty of time
+	 * to complete before the next calibration interval.  We need to avoid
+	 * trying to load -50 (which happens below) while the previous load is
+	 * still in progress as this can cause rx deafness. Instead by returning
+	 * here, the baseband nf cal will just be capped by our present
+	 * noisefloor until the next calibration timer.
+	 */
+	if (j == 1000) {
+		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
+			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
+			  REG_READ(ah, AR_PHY_AGC_CONTROL));
+		return;
+	}
+
+	/*
+	 * Restore maxCCAPower register parameter again so that we're not capped
+	 * by the median we just loaded.  This will be initial (and max) value
+	 * of next noise floor calibration the baseband does.
+	 */
+	ENABLE_REGWRITE_BUFFER(ah);
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (chainmask & (1 << i)) {
+			val = REG_READ(ah, ah->nf_regs[i]);
+			val &= 0xFFFFFE00;
+			val |= (((u32) (-50) << 1) & 0x1ff);
+			REG_WRITE(ah, ah->nf_regs[i], val);
+		}
+	}
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+}
+
+
+static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_nf_limits *limit;
+	int i;
+
+	if (IS_CHAN_2GHZ(ah->curchan))
+		limit = &ah->nf_2g;
+	else
+		limit = &ah->nf_5g;
+
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (!nf[i])
+			continue;
+
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF calibrated [%s] [chain %d] is %d\n",
+			  (i >= 3 ? "ext" : "ctl"), i % 3, nf[i]);
+
+		if (nf[i] > limit->max) {
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "NF[%d] (%d) > MAX (%d), correcting to MAX",
+				  i, nf[i], limit->max);
+			nf[i] = limit->max;
+		} else if (nf[i] < limit->min) {
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "NF[%d] (%d) < MIN (%d), correcting to NOM",
+				  i, nf[i], limit->min);
+			nf[i] = limit->nominal;
+		}
+	}
+}
+
 int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		       struct ath9k_channel *chan)
 {
@@ -190,6 +295,7 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		return chan->rawNoiseFloor;
 	} else {
 		ath9k_hw_do_getnf(ah, nfarray);
+		ath9k_hw_nf_sanitize(ah, nfarray);
 		nf = nfarray[0];
 		if (ath9k_hw_get_nf_thresh(ah, c->band, &nfThresh)
 		    && nf > nfThresh) {
@@ -211,25 +317,21 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 {
+	struct ath_nf_limits *limit;
 	int i, j;
-	s16 noise_floor;
 
-	if (AR_SREV_9280(ah))
-		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
-	else if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
-	else if (AR_SREV_9287(ah))
-		noise_floor = AR_PHY_CCA_MAX_AR9287_GOOD_VALUE;
+	if (!ah->curchan || IS_CHAN_2GHZ(ah->curchan))
+		limit = &ah->nf_2g;
 	else
-		noise_floor = AR_PHY_CCA_MAX_AR5416_GOOD_VALUE;
+		limit = &ah->nf_5g;
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		ah->nfCalHist[i].currIndex = 0;
-		ah->nfCalHist[i].privNF = noise_floor;
+		ah->nfCalHist[i].privNF = limit->nominal;
 		ah->nfCalHist[i].invalidNFcount =
 			AR_PHY_CCA_FILTERWINDOW_LENGTH;
 		for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++) {
-			ah->nfCalHist[i].nfCalBuffer[j] = noise_floor;
+			ah->nfCalHist[i].nfCalBuffer[j] = limit->nominal;
 		}
 	}
 }

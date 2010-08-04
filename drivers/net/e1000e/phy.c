@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -2318,6 +2318,9 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 		break;
 	case I82577_E_PHY_ID:
 		phy_type = e1000_phy_82577;
+		break;
+	case I82579_E_PHY_ID:
+		phy_type = e1000_phy_82579;
 		break;
 	default:
 		phy_type = e1000_phy_unknown;

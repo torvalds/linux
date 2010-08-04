@@ -74,18 +74,18 @@ struct nsp_data_seg_msg {
 	__u8   msgflg;
 	__le16 dstaddr;
 	__le16 srcaddr;
-} __attribute__((packed));
+} __packed;
 
 struct nsp_data_opt_msg {
 	__le16 acknum;
 	__le16 segnum;
 	__le16 lsflgs;
-} __attribute__((packed));
+} __packed;
 
 struct nsp_data_opt_msg1 {
 	__le16 acknum;
 	__le16 segnum;
-} __attribute__((packed));
+} __packed;
 
 
 /* Acknowledgment Message (data/other data)                             */
@@ -94,13 +94,13 @@ struct nsp_data_ack_msg {
 	__le16 dstaddr;
 	__le16 srcaddr;
 	__le16 acknum;
-} __attribute__((packed));
+} __packed;
 
 /* Connect Acknowledgment Message */
 struct  nsp_conn_ack_msg {
 	__u8 msgflg;
 	__le16 dstaddr;
-} __attribute__((packed));
+} __packed;
 
 
 /* Connect Initiate/Retransmit Initiate/Connect Confirm */
@@ -117,7 +117,7 @@ struct  nsp_conn_init_msg {
 #define NSP_FC_MASK   0x0c            /* FC type mask         */
 	__u8   info;
 	__le16 segsize;
-} __attribute__((packed));
+} __packed;
 
 /* Disconnect Initiate/Disconnect Confirm */
 struct  nsp_disconn_init_msg {
@@ -125,7 +125,7 @@ struct  nsp_disconn_init_msg {
 	__le16 dstaddr;
 	__le16 srcaddr;
 	__le16 reason;
-} __attribute__((packed));
+} __packed;
 
 
 
@@ -135,7 +135,7 @@ struct  srcobj_fmt {
 	__le16 grpcode;
 	__le16 usrcode;
 	__u8   dlen;
-} __attribute__((packed));
+} __packed;
 
 /*
  * A collection of functions for manipulating the sequence

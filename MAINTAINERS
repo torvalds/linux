@@ -313,11 +313,9 @@ S:	Maintained
 F:	drivers/hwmon/adm1029.c
 
 ADM8211 WIRELESS DRIVER
-M:	Michael Wu <flamingice@sourmilk.net>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
 ADT746X FAN DRIVER
@@ -1369,7 +1367,7 @@ BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
 M:	Eilon Greenstein <eilong@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/bnx2x*
+F:	drivers/net/bnx2x/
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Matt Carlson <mcarlson@broadcom.com>
@@ -1770,6 +1768,13 @@ L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org
 S:	Supported
 F:	drivers/infiniband/hw/cxgb4/
+
+CXGB4VF ETHERNET DRIVER (CXGB4VF)
+M:	Casey Leedom <leedom@chelsio.com>
+L:	netdev@vger.kernel.org
+W:	http://www.chelsio.com
+S:	Supported
+F:	drivers/net/cxgb4vf/
 
 CYBERPRO FB DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
@@ -3686,7 +3691,7 @@ F:	include/linux/mv643xx.h
 MARVELL MWL8K WIRELESS DRIVER
 M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
@@ -3915,17 +3920,19 @@ L:	netem@lists.linux-foundation.org
 S:	Maintained
 F:	net/sched/sch_netem.c
 
-NETERION (S2IO) 10GbE DRIVER (xframe/vxge)
-M:	Ramkrishna Vepa <ram.vepa@neterion.com>
-M:	Rastapur Santosh <santosh.rastapur@neterion.com>
-M:	Sivakumar Subramani <sivakumar.subramani@neterion.com>
-M:	Sreenivasa Honnur <sreenivasa.honnur@neterion.com>
+NETERION 10GbE DRIVERS (s2io/vxge)
+M:	Ramkrishna Vepa <ramkrishna.vepa@exar.com>
+M:	Sivakumar Subramani <sivakumar.subramani@exar.com>
+M:	Sreenivasa Honnur <sreenivasa.honnur@exar.com>
+M:	Jon Mason <jon.mason@exar.com>
 L:	netdev@vger.kernel.org
 W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
 W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
 S:	Supported
 F:	Documentation/networking/s2io.txt
 F:	drivers/net/s2io*
+F:	Documentation/networking/vxge.txt
+F:	drivers/net/vxge/
 
 NETFILTER/IPTABLES/IPCHAINS
 P:	Rusty Russell
@@ -4272,10 +4279,9 @@ F:	include/scsi/osd_*
 F:	fs/exofs/
 
 P54 WIRELESS DRIVER
-M:	Michael Wu <flamingice@sourmilk.net>
+M:	Christian Lamparter <chunkeey@googlemail.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://prism54.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
+W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Maintained
 F:	drivers/net/wireless/p54/
 
@@ -4537,7 +4543,7 @@ PRISM54 WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://prism54.org
-S:	Maintained
+S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
 PROMISE DC4030 CACHING DISK CONTROLLER DRIVER
@@ -4733,9 +4739,8 @@ S:	Maintained
 F:	drivers/rapidio/
 
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
-M:	Corey Thomas <coreythomas@charter.net>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/ray*
 
 RCUTORTURE MODULE
@@ -6068,10 +6073,9 @@ F:	Documentation/video4linux/zc0301.txt
 F:	drivers/media/video/zc0301/
 
 USB ZD1201 DRIVER
-M:	Jeroen Vreeken <pe1rxq@amsat.org>
-L:	linux-usb@vger.kernel.org
+L:	linux-wireless@vger.kernel.org
 W:	http://linux-lc100020.sourceforge.net
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/zd1201.*
 
 USB ZR364XX DRIVER
@@ -6258,14 +6262,6 @@ S:	Maintained
 F:	Documentation/watchdog/
 F:	drivers/watchdog/
 F:	include/linux/watchdog.h
-
-WAVELAN NETWORK DRIVER & WIRELESS EXTENSIONS
-M:	Jean Tourrilhes <jt@hpl.hp.com>
-L:	linux-wireless@vger.kernel.org
-W:	http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/
-S:	Maintained
-F:	Documentation/networking/wavelan.txt
-F:	drivers/staging/wavelan/
 
 WD7000 SCSI DRIVER
 M:	Miroslav Zagorac <zaga@fly.cc.fer.hr>

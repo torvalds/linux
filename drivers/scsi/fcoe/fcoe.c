@@ -2653,6 +2653,7 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	u32 lfc, vlfc, mdac;
 	struct fcoe_dev_stats *devst;
 	struct fcoe_fc_els_lesb *lesb;
+	struct rtnl_link_stats64 temp;
 	struct net_device *netdev = fcoe_netdev(lport);
 
 	lfc = 0;
@@ -2669,7 +2670,7 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	lesb->lesb_link_fail = htonl(lfc);
 	lesb->lesb_vlink_fail = htonl(vlfc);
 	lesb->lesb_miss_fka = htonl(mdac);
-	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev)->rx_crc_errors);
+	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
 }
 
 /**

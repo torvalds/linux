@@ -651,7 +651,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		u8 cmd_payload[chunk_len];
-	} __attribute__((packed)) *buf;
+	} __packed *buf;
 	struct i2400m_bootrom_header ack;
 
 	d_fnstart(5, dev, "(i2400m %p chunk %p __chunk_len %zu addr 0x%08lx "
@@ -794,7 +794,7 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		u8 cmd_pl[0];
-	} __attribute__((packed)) *cmd_buf;
+	} __packed *cmd_buf;
 	size_t signature_block_offset, signature_block_size;
 
 	d_fnstart(3, dev, "offset %zu\n", offset);
@@ -1029,7 +1029,7 @@ int i2400m_read_mac_addr(struct i2400m *i2400m)
 	struct {
 		struct i2400m_bootrom_header ack;
 		u8 ack_pl[16];
-	} __attribute__((packed)) ack_buf;
+	} __packed ack_buf;
 
 	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
 	cmd = i2400m->bm_cmd_buf;
@@ -1115,7 +1115,7 @@ int i2400m_dnload_init_signed(struct i2400m *i2400m,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		struct i2400m_bcf_hdr cmd_pl;
-	} __attribute__((packed)) *cmd_buf;
+	} __packed *cmd_buf;
 	struct i2400m_bootrom_header ack;
 
 	d_fnstart(5, dev, "(i2400m %p bcf_hdr %p)\n", i2400m, bcf_hdr);

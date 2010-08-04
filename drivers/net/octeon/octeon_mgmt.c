@@ -620,7 +620,7 @@ static int octeon_mgmt_ioctl(struct net_device *netdev,
 	if (!p->phydev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(p->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(p->phydev, rq, cmd);
 }
 
 static void octeon_mgmt_adjust_link(struct net_device *netdev)
@@ -1067,7 +1067,7 @@ static const struct net_device_ops octeon_mgmt_ops = {
 #endif
 };
 
-static int __init octeon_mgmt_probe(struct platform_device *pdev)
+static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
 {
 	struct resource *res_irq;
 	struct net_device *netdev;
@@ -1124,7 +1124,7 @@ err:
 	return -ENOENT;
 }
 
-static int __exit octeon_mgmt_remove(struct platform_device *pdev)
+static int __devexit octeon_mgmt_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
 
@@ -1139,7 +1139,7 @@ static struct platform_driver octeon_mgmt_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= octeon_mgmt_probe,
-	.remove		= __exit_p(octeon_mgmt_remove),
+	.remove		= __devexit_p(octeon_mgmt_remove),
 };
 
 extern void octeon_mdiobus_force_mod_depencency(void);

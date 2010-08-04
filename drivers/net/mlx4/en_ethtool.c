@@ -387,6 +387,42 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 	param->tx_pending = mdev->profile.prof[priv->port].tx_ring_size;
 }
 
+static int mlx4_ethtool_op_set_flags(struct net_device *dev, u32 data)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int rc = 0;
+	int changed = 0;
+
+	if (data & ~ETH_FLAG_LRO)
+		return -EOPNOTSUPP;
+
+	if (data & ETH_FLAG_LRO) {
+		if (mdev->profile.num_lro == 0)
+			return -EOPNOTSUPP;
+		if (!(dev->features & NETIF_F_LRO))
+			changed = 1;
+	} else if (dev->features & NETIF_F_LRO) {
+		changed = 1;
+	}
+
+	if (changed) {
+		if (netif_running(dev)) {
+			mutex_lock(&mdev->state_lock);
+			mlx4_en_stop_port(dev);
+		}
+		dev->features ^= NETIF_F_LRO;
+		if (netif_running(dev)) {
+			rc = mlx4_en_start_port(dev);
+			if (rc)
+				en_err(priv, "Failed to restart port\n");
+			mutex_unlock(&mdev->state_lock);
+		}
+	}
+
+	return rc;
+}
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -415,7 +451,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = ethtool_op_set_flags,
+	.set_flags = mlx4_ethtool_op_set_flags,
 };
 
 

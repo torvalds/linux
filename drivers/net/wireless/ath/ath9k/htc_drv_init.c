@@ -34,6 +34,13 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 	.max_power = 20, \
 }
 
+#define CHAN5G(_freq, _idx) { \
+	.band = IEEE80211_BAND_5GHZ, \
+	.center_freq = (_freq), \
+	.hw_value = (_idx), \
+	.max_power = 20, \
+}
+
 static struct ieee80211_channel ath9k_2ghz_channels[] = {
 	CHAN2G(2412, 0), /* Channel 1 */
 	CHAN2G(2417, 1), /* Channel 2 */
@@ -49,6 +56,37 @@ static struct ieee80211_channel ath9k_2ghz_channels[] = {
 	CHAN2G(2467, 11), /* Channel 12 */
 	CHAN2G(2472, 12), /* Channel 13 */
 	CHAN2G(2484, 13), /* Channel 14 */
+};
+
+static struct ieee80211_channel ath9k_5ghz_channels[] = {
+	/* _We_ call this UNII 1 */
+	CHAN5G(5180, 14), /* Channel 36 */
+	CHAN5G(5200, 15), /* Channel 40 */
+	CHAN5G(5220, 16), /* Channel 44 */
+	CHAN5G(5240, 17), /* Channel 48 */
+	/* _We_ call this UNII 2 */
+	CHAN5G(5260, 18), /* Channel 52 */
+	CHAN5G(5280, 19), /* Channel 56 */
+	CHAN5G(5300, 20), /* Channel 60 */
+	CHAN5G(5320, 21), /* Channel 64 */
+	/* _We_ call this "Middle band" */
+	CHAN5G(5500, 22), /* Channel 100 */
+	CHAN5G(5520, 23), /* Channel 104 */
+	CHAN5G(5540, 24), /* Channel 108 */
+	CHAN5G(5560, 25), /* Channel 112 */
+	CHAN5G(5580, 26), /* Channel 116 */
+	CHAN5G(5600, 27), /* Channel 120 */
+	CHAN5G(5620, 28), /* Channel 124 */
+	CHAN5G(5640, 29), /* Channel 128 */
+	CHAN5G(5660, 30), /* Channel 132 */
+	CHAN5G(5680, 31), /* Channel 136 */
+	CHAN5G(5700, 32), /* Channel 140 */
+	/* _We_ call this UNII 3 */
+	CHAN5G(5745, 33), /* Channel 149 */
+	CHAN5G(5765, 34), /* Channel 153 */
+	CHAN5G(5785, 35), /* Channel 157 */
+	CHAN5G(5805, 36), /* Channel 161 */
+	CHAN5G(5825, 37), /* Channel 165 */
 };
 
 /* Atheros hardware rate code addition for short premble */
@@ -141,7 +179,7 @@ static inline int ath9k_htc_connect_svc(struct ath9k_htc_priv *priv,
 	return htc_connect_service(priv->htc, &req, ep_id);
 }
 
-static int ath9k_init_htc_services(struct ath9k_htc_priv *priv)
+static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 {
 	int ret;
 
@@ -199,9 +237,27 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv)
 	if (ret)
 		goto err;
 
+	/*
+	 * Setup required credits before initializing HTC.
+	 * This is a bit hacky, but, since queuing is done in
+	 * the HIF layer, shouldn't matter much.
+	 */
+
+	switch(devid) {
+	case 0x7010:
+	case 0x9018:
+		priv->htc->credits = 45;
+		break;
+	default:
+		priv->htc->credits = 33;
+	}
+
 	ret = htc_init(priv->htc);
 	if (ret)
 		goto err;
+
+	dev_info(priv->dev, "ath9k_htc: HTC initialized with %d credits\n",
+		 priv->htc->credits);
 
 	return 0;
 
@@ -398,17 +454,43 @@ static const struct ath_bus_ops ath9k_usb_bus_ops = {
 static void setup_ht_cap(struct ath9k_htc_priv *priv,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	u8 tx_streams, rx_streams;
+	int i;
+
 	ht_info->ht_supported = true;
 	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 		       IEEE80211_HT_CAP_SM_PS |
 		       IEEE80211_HT_CAP_SGI_40 |
 		       IEEE80211_HT_CAP_DSSSCCK40;
 
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+
+	ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	ht_info->mcs.rx_mask[0] = 0xff;
+
+	/* ath9k_htc supports only 1 or 2 stream devices */
+	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, 2);
+	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, 2);
+
+	ath_print(common, ATH_DBG_CONFIG,
+		  "TX streams %d, RX streams: %d\n",
+		  tx_streams, rx_streams);
+
+	if (tx_streams != rx_streams) {
+		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
+		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
+					   IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	}
+
+	for (i = 0; i < rx_streams; i++)
+		ht_info->mcs.rx_mask[i] = 0xff;
+
 	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 }
 
@@ -420,23 +502,37 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->hwq_map); i++)
 		priv->hwq_map[i] = -1;
 
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_BE)) {
+	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
+	if (priv->beaconq == -1) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup BEACON xmit queue\n");
+		goto err;
+	}
+
+	priv->cabq = ath9k_htc_cabq_setup(priv);
+	if (priv->cabq == -1) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup CAB xmit queue\n");
+		goto err;
+	}
+
+	if (!ath9k_htc_txq_setup(priv, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
 
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_BK)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_VI)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_VO)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;
@@ -468,36 +564,6 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	 */
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(priv->ah, (u16) i);
-
-	if (ath9k_hw_getcapability(priv->ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)) {
-		/*
-		 * Whether we should enable h/w TKIP MIC.
-		 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-		 * report WMM capable, so it's always safe to turn on
-		 * TKIP MIC in this case.
-		 */
-		ath9k_hw_setcapability(priv->ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-	}
-
-	/*
-	 * Check whether the separate key cache entries
-	 * are required to handle both tx+rx MIC keys.
-	 * With split mic keys the number of stations is limited
-	 * to 27 otherwise 59.
-	 */
-	if (ath9k_hw_getcapability(priv->ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(priv->ah, ATH9K_CAP_CIPHER,
-				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(priv->ah, ATH9K_CAP_TKIP_SPLIT,
-				      0, NULL))
-		common->splitmic = 1;
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
 }
 
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
@@ -512,6 +578,17 @@ static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 		priv->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
 			ARRAY_SIZE(ath9k_legacy_rates);
 	}
+
+	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes)) {
+		priv->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_channels;
+		priv->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
+		priv->sbands[IEEE80211_BAND_5GHZ].n_channels =
+			ARRAY_SIZE(ath9k_5ghz_channels);
+		priv->sbands[IEEE80211_BAND_5GHZ].bitrates =
+			ath9k_legacy_rates + 4;
+		priv->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
+			ARRAY_SIZE(ath9k_legacy_rates) - 4;
+	}
 }
 
 static void ath9k_init_misc(struct ath9k_htc_priv *priv)
@@ -524,7 +601,6 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
 		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
-	priv->op_flags |= OP_TXAGGR;
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 
@@ -556,14 +632,12 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->aggr_work.mutex);
 	mutex_init(&priv->htc_pm_lock);
 	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet, (unsigned long)priv);
-	INIT_DELAYED_WORK(&priv->ath9k_aggr_work, ath9k_htc_aggr_work);
 	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 
@@ -643,11 +717,17 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&priv->sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&priv->sbands[IEEE80211_BAND_5GHZ];
 
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+			setup_ht_cap(priv,
+				     &priv->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
@@ -747,7 +827,7 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 		goto err_free;
 	}
 
-	ret = ath9k_init_htc_services(priv);
+	ret = ath9k_init_htc_services(priv, devid);
 	if (ret)
 		goto err_init;
 
@@ -790,7 +870,8 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 	if (ret)
 		return ret;
 
-	ret = ath9k_init_htc_services(htc_handle->drv_priv);
+	ret = ath9k_init_htc_services(htc_handle->drv_priv,
+			      htc_handle->drv_priv->ah->hw_version.devid);
 	return ret;
 }
 #endif

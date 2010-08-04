@@ -71,7 +71,7 @@ static int is_valid_iface(struct net_device *net_dev)
 #endif
 
 	/* Device is being bridged */
-	/* if (net_dev->br_port != NULL)
+	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
 		return 0; */
 
 	return 1;
@@ -440,6 +440,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
 	struct net_device_stats *stats;
+	struct rtnl_link_stats64 temp;
 	int ret;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -468,7 +469,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (batman_if->if_status != IF_ACTIVE)
 		goto err_free;
 
-	stats = (struct net_device_stats *)dev_get_stats(skb->dev);
+	stats = (struct net_device_stats *)dev_get_stats(skb->dev, &temp);
 	if (stats) {
 		stats->rx_packets++;
 		stats->rx_bytes += skb->len;

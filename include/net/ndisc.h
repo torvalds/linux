@@ -82,7 +82,7 @@ struct ra_msg {
 struct nd_opt_hdr {
 	__u8		nd_opt_type;
 	__u8		nd_opt_len;
-} __attribute__((__packed__));
+} __packed;
 
 
 extern int			ndisc_init(void);

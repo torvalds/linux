@@ -97,7 +97,6 @@ static iw_stats *ray_get_wireless_stats(struct net_device *dev);
 static const struct iw_handler_def ray_handler_def;
 
 /***** Prototypes for raylink functions **************************************/
-static int asc_to_int(char a);
 static void authenticate(ray_dev_t *local);
 static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type);
 static void authenticate_timeout(u_long);
@@ -1717,24 +1716,6 @@ static void authenticate_timeout(u_long data)
 }
 
 /*===========================================================================*/
-static int asc_to_int(char a)
-{
-	if (a < '0')
-		return -1;
-	if (a <= '9')
-		return (a - '0');
-	if (a < 'A')
-		return -1;
-	if (a <= 'F')
-		return (10 + a - 'A');
-	if (a < 'a')
-		return -1;
-	if (a <= 'f')
-		return (10 + a - 'a');
-	return -1;
-}
-
-/*===========================================================================*/
 static int parse_addr(char *in_str, UCHAR *out)
 {
 	int len;
@@ -1754,14 +1735,14 @@ static int parse_addr(char *in_str, UCHAR *out)
 	i = 5;
 
 	while (j > 0) {
-		if ((k = asc_to_int(in_str[j--])) != -1)
+		if ((k = hex_to_bin(in_str[j--])) != -1)
 			out[i] = k;
 		else
 			return 0;
 
 		if (j == 0)
 			break;
-		if ((k = asc_to_int(in_str[j--])) != -1)
+		if ((k = hex_to_bin(in_str[j--])) != -1)
 			out[i] += k << 4;
 		else
 			return 0;

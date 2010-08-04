@@ -33,7 +33,7 @@
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.102.147u"
+#define DRV_VER			"2.103.175u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
@@ -220,7 +220,16 @@ struct be_rx_obj {
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
 };
 
+struct be_vf_cfg {
+	unsigned char vf_mac_addr[ETH_ALEN];
+	u32 vf_if_handle;
+	u32 vf_pmac_id;
+	u16 vf_vlan_tag;
+	u32 vf_tx_rate;
+};
+
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
+#define BE_INVALID_PMAC_ID		0xffffffff
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -276,23 +285,26 @@ struct be_adapter {
 	u32 port_num;
 	bool promiscuous;
 	bool wol;
-	u32 cap;
+	u32 function_mode;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
+	bool ue_detected;
+	bool stats_ioctl_sent;
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
+	u8 autoneg;
 	u8 generation;		/* BladeEngine ASIC generation */
 	u32 flash_status;
 	struct completion flash_compl;
 
 	bool sriov_enabled;
-	u32 vf_if_handle[BE_MAX_VF];
-	u32 vf_pmac_id[BE_MAX_VF];
+	struct be_vf_cfg vf_cfg[BE_MAX_VF];
 	u8 base_eq_id;
+	u8 is_virtfn;
 };
 
-#define be_physfn(adapter) (!adapter->pdev->is_virtfn)
+#define be_physfn(adapter) (!adapter->is_virtfn)
 
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
@@ -390,6 +402,15 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 		val = (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP);
 
 	return val;
+}
+
+static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
+{
+	u8 data;
+
+	pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
+	pci_read_config_byte(adapter->pdev, 0xFE, &data);
+	adapter->is_virtfn = (data != 0xAA);
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

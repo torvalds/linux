@@ -20,6 +20,10 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
+#define DRV_MODULE_VERSION      "1.52.53-3"
+#define DRV_MODULE_RELDATE      "2010/18/04"
+#define BNX2X_BC_VER            0x040200
+
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN			1
 #endif
@@ -32,7 +36,7 @@
 
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
-#include "cnic_if.h"
+#include "../cnic_if.h"
 #endif
 
 
@@ -45,10 +49,12 @@
 #endif
 
 #include <linux/mdio.h>
+#include <linux/pci.h>
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
 #include "bnx2x_link.h"
+#include "bnx2x_stats.h"
 
 /* error/debug prints */
 
@@ -106,6 +112,7 @@ do {								 \
 		dev_info(&bp->pdev->dev, __fmt, ##__args);	 \
 } while (0)
 
+void bnx2x_panic_dump(struct bnx2x *bp);
 
 #ifdef BNX2X_STOP_ON_ERROR
 #define bnx2x_panic() do { \
@@ -247,43 +254,6 @@ union db_prod {
 #define RX_SGE_MASK_LEN_MASK		(RX_SGE_MASK_LEN - 1)
 #define NEXT_SGE_MASK_ELEM(el)		(((el) + 1) & RX_SGE_MASK_LEN_MASK)
 
-
-struct bnx2x_eth_q_stats {
-	u32 total_bytes_received_hi;
-	u32 total_bytes_received_lo;
-	u32 total_bytes_transmitted_hi;
-	u32 total_bytes_transmitted_lo;
-	u32 total_unicast_packets_received_hi;
-	u32 total_unicast_packets_received_lo;
-	u32 total_multicast_packets_received_hi;
-	u32 total_multicast_packets_received_lo;
-	u32 total_broadcast_packets_received_hi;
-	u32 total_broadcast_packets_received_lo;
-	u32 total_unicast_packets_transmitted_hi;
-	u32 total_unicast_packets_transmitted_lo;
-	u32 total_multicast_packets_transmitted_hi;
-	u32 total_multicast_packets_transmitted_lo;
-	u32 total_broadcast_packets_transmitted_hi;
-	u32 total_broadcast_packets_transmitted_lo;
-	u32 valid_bytes_received_hi;
-	u32 valid_bytes_received_lo;
-
-	u32 error_bytes_received_hi;
-	u32 error_bytes_received_lo;
-	u32 etherstatsoverrsizepkts_hi;
-	u32 etherstatsoverrsizepkts_lo;
-	u32 no_buff_discard_hi;
-	u32 no_buff_discard_lo;
-
-	u32 driver_xoff;
-	u32 rx_err_discard_pkt;
-	u32 rx_skb_alloc_failed;
-	u32 hw_csum_err;
-};
-
-#define BNX2X_NUM_Q_STATS		13
-#define Q_STATS_OFFSET32(stat_name) \
-			(offsetof(struct bnx2x_eth_q_stats, stat_name) / 4)
 
 struct bnx2x_fastpath {
 
@@ -593,27 +563,6 @@ struct bnx2x_common {
 
 /* port */
 
-struct nig_stats {
-	u32 brb_discard;
-	u32 brb_packet;
-	u32 brb_truncate;
-	u32 flow_ctrl_discard;
-	u32 flow_ctrl_octets;
-	u32 flow_ctrl_packet;
-	u32 mng_discard;
-	u32 mng_octet_inp;
-	u32 mng_octet_out;
-	u32 mng_packet_inp;
-	u32 mng_packet_out;
-	u32 pbf_octets;
-	u32 pbf_packet;
-	u32 safc_inp;
-	u32 egress_mac_pkt0_lo;
-	u32 egress_mac_pkt0_hi;
-	u32 egress_mac_pkt1_lo;
-	u32 egress_mac_pkt1_hi;
-};
-
 struct bnx2x_port {
 	u32			pmf;
 
@@ -640,156 +589,6 @@ struct bnx2x_port {
 
 /* end of port */
 
-
-enum bnx2x_stats_event {
-	STATS_EVENT_PMF = 0,
-	STATS_EVENT_LINK_UP,
-	STATS_EVENT_UPDATE,
-	STATS_EVENT_STOP,
-	STATS_EVENT_MAX
-};
-
-enum bnx2x_stats_state {
-	STATS_STATE_DISABLED = 0,
-	STATS_STATE_ENABLED,
-	STATS_STATE_MAX
-};
-
-struct bnx2x_eth_stats {
-	u32 total_bytes_received_hi;
-	u32 total_bytes_received_lo;
-	u32 total_bytes_transmitted_hi;
-	u32 total_bytes_transmitted_lo;
-	u32 total_unicast_packets_received_hi;
-	u32 total_unicast_packets_received_lo;
-	u32 total_multicast_packets_received_hi;
-	u32 total_multicast_packets_received_lo;
-	u32 total_broadcast_packets_received_hi;
-	u32 total_broadcast_packets_received_lo;
-	u32 total_unicast_packets_transmitted_hi;
-	u32 total_unicast_packets_transmitted_lo;
-	u32 total_multicast_packets_transmitted_hi;
-	u32 total_multicast_packets_transmitted_lo;
-	u32 total_broadcast_packets_transmitted_hi;
-	u32 total_broadcast_packets_transmitted_lo;
-	u32 valid_bytes_received_hi;
-	u32 valid_bytes_received_lo;
-
-	u32 error_bytes_received_hi;
-	u32 error_bytes_received_lo;
-	u32 etherstatsoverrsizepkts_hi;
-	u32 etherstatsoverrsizepkts_lo;
-	u32 no_buff_discard_hi;
-	u32 no_buff_discard_lo;
-
-	u32 rx_stat_ifhcinbadoctets_hi;
-	u32 rx_stat_ifhcinbadoctets_lo;
-	u32 tx_stat_ifhcoutbadoctets_hi;
-	u32 tx_stat_ifhcoutbadoctets_lo;
-	u32 rx_stat_dot3statsfcserrors_hi;
-	u32 rx_stat_dot3statsfcserrors_lo;
-	u32 rx_stat_dot3statsalignmenterrors_hi;
-	u32 rx_stat_dot3statsalignmenterrors_lo;
-	u32 rx_stat_dot3statscarriersenseerrors_hi;
-	u32 rx_stat_dot3statscarriersenseerrors_lo;
-	u32 rx_stat_falsecarriererrors_hi;
-	u32 rx_stat_falsecarriererrors_lo;
-	u32 rx_stat_etherstatsundersizepkts_hi;
-	u32 rx_stat_etherstatsundersizepkts_lo;
-	u32 rx_stat_dot3statsframestoolong_hi;
-	u32 rx_stat_dot3statsframestoolong_lo;
-	u32 rx_stat_etherstatsfragments_hi;
-	u32 rx_stat_etherstatsfragments_lo;
-	u32 rx_stat_etherstatsjabbers_hi;
-	u32 rx_stat_etherstatsjabbers_lo;
-	u32 rx_stat_maccontrolframesreceived_hi;
-	u32 rx_stat_maccontrolframesreceived_lo;
-	u32 rx_stat_bmac_xpf_hi;
-	u32 rx_stat_bmac_xpf_lo;
-	u32 rx_stat_bmac_xcf_hi;
-	u32 rx_stat_bmac_xcf_lo;
-	u32 rx_stat_xoffstateentered_hi;
-	u32 rx_stat_xoffstateentered_lo;
-	u32 rx_stat_xonpauseframesreceived_hi;
-	u32 rx_stat_xonpauseframesreceived_lo;
-	u32 rx_stat_xoffpauseframesreceived_hi;
-	u32 rx_stat_xoffpauseframesreceived_lo;
-	u32 tx_stat_outxonsent_hi;
-	u32 tx_stat_outxonsent_lo;
-	u32 tx_stat_outxoffsent_hi;
-	u32 tx_stat_outxoffsent_lo;
-	u32 tx_stat_flowcontroldone_hi;
-	u32 tx_stat_flowcontroldone_lo;
-	u32 tx_stat_etherstatscollisions_hi;
-	u32 tx_stat_etherstatscollisions_lo;
-	u32 tx_stat_dot3statssinglecollisionframes_hi;
-	u32 tx_stat_dot3statssinglecollisionframes_lo;
-	u32 tx_stat_dot3statsmultiplecollisionframes_hi;
-	u32 tx_stat_dot3statsmultiplecollisionframes_lo;
-	u32 tx_stat_dot3statsdeferredtransmissions_hi;
-	u32 tx_stat_dot3statsdeferredtransmissions_lo;
-	u32 tx_stat_dot3statsexcessivecollisions_hi;
-	u32 tx_stat_dot3statsexcessivecollisions_lo;
-	u32 tx_stat_dot3statslatecollisions_hi;
-	u32 tx_stat_dot3statslatecollisions_lo;
-	u32 tx_stat_etherstatspkts64octets_hi;
-	u32 tx_stat_etherstatspkts64octets_lo;
-	u32 tx_stat_etherstatspkts65octetsto127octets_hi;
-	u32 tx_stat_etherstatspkts65octetsto127octets_lo;
-	u32 tx_stat_etherstatspkts128octetsto255octets_hi;
-	u32 tx_stat_etherstatspkts128octetsto255octets_lo;
-	u32 tx_stat_etherstatspkts256octetsto511octets_hi;
-	u32 tx_stat_etherstatspkts256octetsto511octets_lo;
-	u32 tx_stat_etherstatspkts512octetsto1023octets_hi;
-	u32 tx_stat_etherstatspkts512octetsto1023octets_lo;
-	u32 tx_stat_etherstatspkts1024octetsto1522octets_hi;
-	u32 tx_stat_etherstatspkts1024octetsto1522octets_lo;
-	u32 tx_stat_etherstatspktsover1522octets_hi;
-	u32 tx_stat_etherstatspktsover1522octets_lo;
-	u32 tx_stat_bmac_2047_hi;
-	u32 tx_stat_bmac_2047_lo;
-	u32 tx_stat_bmac_4095_hi;
-	u32 tx_stat_bmac_4095_lo;
-	u32 tx_stat_bmac_9216_hi;
-	u32 tx_stat_bmac_9216_lo;
-	u32 tx_stat_bmac_16383_hi;
-	u32 tx_stat_bmac_16383_lo;
-	u32 tx_stat_dot3statsinternalmactransmiterrors_hi;
-	u32 tx_stat_dot3statsinternalmactransmiterrors_lo;
-	u32 tx_stat_bmac_ufl_hi;
-	u32 tx_stat_bmac_ufl_lo;
-
-	u32 pause_frames_received_hi;
-	u32 pause_frames_received_lo;
-	u32 pause_frames_sent_hi;
-	u32 pause_frames_sent_lo;
-
-	u32 etherstatspkts1024octetsto1522octets_hi;
-	u32 etherstatspkts1024octetsto1522octets_lo;
-	u32 etherstatspktsover1522octets_hi;
-	u32 etherstatspktsover1522octets_lo;
-
-	u32 brb_drop_hi;
-	u32 brb_drop_lo;
-	u32 brb_truncate_hi;
-	u32 brb_truncate_lo;
-
-	u32 mac_filter_discard;
-	u32 xxoverflow_discard;
-	u32 brb_truncate_discard;
-	u32 mac_discard;
-
-	u32 driver_xoff;
-	u32 rx_err_discard_pkt;
-	u32 rx_skb_alloc_failed;
-	u32 hw_csum_err;
-
-	u32 nig_timer_max;
-};
-
-#define BNX2X_NUM_STATS			43
-#define STATS_OFFSET32(stat_name) \
-			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 
 #ifdef BCM_CNIC
@@ -1006,6 +805,8 @@ struct bnx2x {
 
 	int			multi_mode;
 	int			num_queues;
+	int			disable_tpa;
+	int			int_mode;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -1134,6 +935,10 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command);
 void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
 void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
 			       u32 addr, u32 len);
+void bnx2x_calc_fc_adv(struct bnx2x *bp);
+int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
+		  u32 data_hi, u32 data_lo, int common);
+void bnx2x_update_coalesce(struct bnx2x *bp);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
@@ -1375,6 +1180,18 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
+#ifdef BNX2X_MAIN
+#define BNX2X_EXTERN
+#else
+#define BNX2X_EXTERN extern
+#endif
+
+BNX2X_EXTERN int load_count[3]; /* 0-common, 1-port0, 2-port1 */
+
 /* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
+
+extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
+
+void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx);
 
 #endif /* bnx2x.h */

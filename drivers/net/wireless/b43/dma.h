@@ -67,7 +67,7 @@
 struct b43_dmadesc32 {
 	__le32 control;
 	__le32 address;
-} __attribute__ ((__packed__));
+} __packed;
 #define B43_DMA32_DCTL_BYTECNT		0x00001FFF
 #define B43_DMA32_DCTL_ADDREXT_MASK		0x00030000
 #define B43_DMA32_DCTL_ADDREXT_SHIFT	16
@@ -140,7 +140,7 @@ struct b43_dmadesc64 {
 	__le32 control1;
 	__le32 address_low;
 	__le32 address_high;
-} __attribute__ ((__packed__));
+} __packed;
 #define B43_DMA64_DCTL0_DTABLEEND		0x10000000
 #define B43_DMA64_DCTL0_IRQ			0x20000000
 #define B43_DMA64_DCTL0_FRAMEEND		0x40000000
@@ -153,8 +153,8 @@ struct b43_dmadesc_generic {
 	union {
 		struct b43_dmadesc32 dma32;
 		struct b43_dmadesc64 dma64;
-	} __attribute__ ((__packed__));
-} __attribute__ ((__packed__));
+	} __packed;
+} __packed;
 
 /* Misc DMA constants */
 #define B43_DMA_RINGMEMSIZE		PAGE_SIZE

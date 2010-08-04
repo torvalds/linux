@@ -2532,7 +2532,7 @@ static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!netif_running(dev) || !sc->phy_dev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(sc->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(sc->phy_dev, rq, cmd);
 }
 
 static int sbmac_close(struct net_device *dev)

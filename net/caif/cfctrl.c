@@ -19,7 +19,7 @@
 #ifdef CAIF_NO_LOOP
 static int handle_loop(struct cfctrl *ctrl,
 			      int cmd, struct cfpkt *pkt){
-	return CAIF_FAILURE;
+	return -1;
 }
 #else
 static int handle_loop(struct cfctrl *ctrl,
@@ -43,7 +43,7 @@ struct cflayer *cfctrl_create(void)
 	memset(&dev_info, 0, sizeof(dev_info));
 	dev_info.id = 0xff;
 	memset(this, 0, sizeof(*this));
-	cfsrvl_init(&this->serv, 0, &dev_info);
+	cfsrvl_init(&this->serv, 0, &dev_info, false);
 	atomic_set(&this->req_seq_no, 1);
 	atomic_set(&this->rsp_seq_no, 1);
 	this->serv.layer.receive = cfctrl_recv;
@@ -395,7 +395,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	cmd = cmdrsp & CFCTRL_CMD_MASK;
 	if (cmd != CFCTRL_CMD_LINK_ERR
 	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)) {
-		if (handle_loop(cfctrl, cmd, pkt) == CAIF_FAILURE)
+		if (handle_loop(cfctrl, cmd, pkt) != 0)
 			cmdrsp |= CFCTRL_ERR_BIT;
 	}
 
@@ -647,6 +647,6 @@ found:
 	default:
 		break;
 	}
-	return CAIF_SUCCESS;
+	return 0;
 }
 #endif

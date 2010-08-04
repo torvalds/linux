@@ -165,8 +165,8 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (rt != NULL) {
-		mtu = dst_mtu(&rt->u.dst);
-		dst_release(&rt->u.dst);
+		mtu = dst_mtu(&rt->dst);
+		dst_release(&rt->dst);
 	}
 	return mtu;
 }
@@ -220,15 +220,13 @@ tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 }
 #endif
 
-#define TH_SYN 0x02
-
 /* Must specify -p tcp --syn */
 static inline bool find_syn_match(const struct xt_entry_match *m)
 {
 	const struct xt_tcp *tcpinfo = (const struct xt_tcp *)m->data;
 
 	if (strcmp(m->u.kernel.match->name, "tcp") == 0 &&
-	    tcpinfo->flg_cmp & TH_SYN &&
+	    tcpinfo->flg_cmp & TCPHDR_SYN &&
 	    !(tcpinfo->invflags & XT_TCP_INV_FLAGS))
 		return true;
 

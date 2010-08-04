@@ -493,6 +493,32 @@ The user can also use poll() to check if a buffer is available:
     pfd.events = POLLOUT;
     retval = poll(&pfd, 1, timeout);
 
+-------------------------------------------------------------------------------
++ PACKET_TIMESTAMP
+-------------------------------------------------------------------------------
+
+The PACKET_TIMESTAMP setting determines the source of the timestamp in
+the packet meta information.  If your NIC is capable of timestamping
+packets in hardware, you can request those hardware timestamps to used.
+Note: you may need to enable the generation of hardware timestamps with
+SIOCSHWTSTAMP.
+
+PACKET_TIMESTAMP accepts the same integer bit field as
+SO_TIMESTAMPING.  However, only the SOF_TIMESTAMPING_SYS_HARDWARE
+and SOF_TIMESTAMPING_RAW_HARDWARE values are recognized by
+PACKET_TIMESTAMP.  SOF_TIMESTAMPING_SYS_HARDWARE takes precedence over
+SOF_TIMESTAMPING_RAW_HARDWARE if both bits are set.
+
+    int req = 0;
+    req |= SOF_TIMESTAMPING_SYS_HARDWARE;
+    setsockopt(fd, SOL_PACKET, PACKET_TIMESTAMP, (void *) &req, sizeof(req))
+
+If PACKET_TIMESTAMP is not set, a software timestamp generated inside
+the networking stack is used (the behavior before this setting was added).
+
+See include/linux/net_tstamp.h and Documentation/networking/timestamping
+for more information on hardware timestamps.
+
 --------------------------------------------------------------------------------
 + THANKS
 --------------------------------------------------------------------------------

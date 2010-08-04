@@ -67,20 +67,12 @@ static struct platform_device *reg_pdev;
 const struct ieee80211_regdomain *cfg80211_regdomain;
 
 /*
- * We use this as a place for the rd structure built from the
- * last parsed country IE to rest until CRDA gets back to us with
- * what it thinks should apply for the same country
- */
-static const struct ieee80211_regdomain *country_ie_regdomain;
-
-/*
  * Protects static reg.c components:
  *     - cfg80211_world_regdom
  *     - cfg80211_regdom
- *     - country_ie_regdomain
  *     - last_request
  */
-DEFINE_MUTEX(reg_mutex);
+static DEFINE_MUTEX(reg_mutex);
 #define assert_reg_lock() WARN_ON(!mutex_is_locked(&reg_mutex))
 
 /* Used to queue up regulatory hints */
@@ -273,25 +265,6 @@ static bool is_user_regdom_saved(void)
 		return false;
 
 	return true;
-}
-
-/**
- * country_ie_integrity_changes - tells us if the country IE has changed
- * @checksum: checksum of country IE of fields we are interested in
- *
- * If the country IE has not changed you can ignore it safely. This is
- * useful to determine if two devices are seeing two different country IEs
- * even on the same alpha2. Note that this will return false if no IE has
- * been set on the wireless core yet.
- */
-static bool country_ie_integrity_changes(u32 checksum)
-{
-	/* If no IE has been set then the checksum doesn't change */
-	if (unlikely(!last_request->country_ie_checksum))
-		return false;
-	if (unlikely(last_request->country_ie_checksum != checksum))
-		return true;
-	return false;
 }
 
 static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
@@ -504,471 +477,6 @@ static bool freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
 	return false;
 #undef ONE_GHZ_IN_KHZ
 }
-
-/*
- * This is a work around for sanity checking ieee80211_channel_to_frequency()'s
- * work. ieee80211_channel_to_frequency() can for example currently provide a
- * 2 GHz channel when in fact a 5 GHz channel was desired. An example would be
- * an AP providing channel 8 on a country IE triplet when it sent this on the
- * 5 GHz band, that channel is designed to be channel 8 on 5 GHz, not a 2 GHz
- * channel.
- *
- * This can be removed once ieee80211_channel_to_frequency() takes in a band.
- */
-static bool chan_in_band(int chan, enum ieee80211_band band)
-{
-	int center_freq = ieee80211_channel_to_frequency(chan);
-
-	switch (band) {
-	case IEEE80211_BAND_2GHZ:
-		if (center_freq <= 2484)
-			return true;
-		return false;
-	case IEEE80211_BAND_5GHZ:
-		if (center_freq >= 5005)
-			return true;
-		return false;
-	default:
-		return false;
-	}
-}
-
-/*
- * Some APs may send a country IE triplet for each channel they
- * support and while this is completely overkill and silly we still
- * need to support it. We avoid making a single rule for each channel
- * though and to help us with this we use this helper to find the
- * actual subband end channel. These type of country IE triplet
- * scenerios are handled then, all yielding two regulaotry rules from
- * parsing a country IE:
- *
- * [1]
- * [2]
- * [36]
- * [40]
- *
- * [1]
- * [2-4]
- * [5-12]
- * [36]
- * [40-44]
- *
- * [1-4]
- * [5-7]
- * [36-44]
- * [48-64]
- *
- * [36-36]
- * [40-40]
- * [44-44]
- * [48-48]
- * [52-52]
- * [56-56]
- * [60-60]
- * [64-64]
- * [100-100]
- * [104-104]
- * [108-108]
- * [112-112]
- * [116-116]
- * [120-120]
- * [124-124]
- * [128-128]
- * [132-132]
- * [136-136]
- * [140-140]
- *
- * Returns 0 if the IE has been found to be invalid in the middle
- * somewhere.
- */
-static int max_subband_chan(enum ieee80211_band band,
-			    int orig_cur_chan,
-			    int orig_end_channel,
-			    s8 orig_max_power,
-			    u8 **country_ie,
-			    u8 *country_ie_len)
-{
-	u8 *triplets_start = *country_ie;
-	u8 len_at_triplet = *country_ie_len;
-	int end_subband_chan = orig_end_channel;
-
-	/*
-	 * We'll deal with padding for the caller unless
-	 * its not immediate and we don't process any channels
-	 */
-	if (*country_ie_len == 1) {
-		*country_ie += 1;
-		*country_ie_len -= 1;
-		return orig_end_channel;
-	}
-
-	/* Move to the next triplet and then start search */
-	*country_ie += 3;
-	*country_ie_len -= 3;
-
-	if (!chan_in_band(orig_cur_chan, band))
-		return 0;
-
-	while (*country_ie_len >= 3) {
-		int end_channel = 0;
-		struct ieee80211_country_ie_triplet *triplet =
-			(struct ieee80211_country_ie_triplet *) *country_ie;
-		int cur_channel = 0, next_expected_chan;
-
-		/* means last triplet is completely unrelated to this one */
-		if (triplet->ext.reg_extension_id >=
-				IEEE80211_COUNTRY_EXTENSION_ID) {
-			*country_ie -= 3;
-			*country_ie_len += 3;
-			break;
-		}
-
-		if (triplet->chans.first_channel == 0) {
-			*country_ie += 1;
-			*country_ie_len -= 1;
-			if (*country_ie_len != 0)
-				return 0;
-			break;
-		}
-
-		if (triplet->chans.num_channels == 0)
-			return 0;
-
-		/* Monitonically increasing channel order */
-		if (triplet->chans.first_channel <= end_subband_chan)
-			return 0;
-
-		if (!chan_in_band(triplet->chans.first_channel, band))
-			return 0;
-
-		/* 2 GHz */
-		if (triplet->chans.first_channel <= 14) {
-			end_channel = triplet->chans.first_channel +
-				triplet->chans.num_channels - 1;
-		}
-		else {
-			end_channel =  triplet->chans.first_channel +
-				(4 * (triplet->chans.num_channels - 1));
-		}
-
-		if (!chan_in_band(end_channel, band))
-			return 0;
-
-		if (orig_max_power != triplet->chans.max_power) {
-			*country_ie -= 3;
-			*country_ie_len += 3;
-			break;
-		}
-
-		cur_channel = triplet->chans.first_channel;
-
-		/* The key is finding the right next expected channel */
-		if (band == IEEE80211_BAND_2GHZ)
-			next_expected_chan = end_subband_chan + 1;
-		 else
-			next_expected_chan = end_subband_chan + 4;
-
-		if (cur_channel != next_expected_chan) {
-			*country_ie -= 3;
-			*country_ie_len += 3;
-			break;
-		}
-
-		end_subband_chan = end_channel;
-
-		/* Move to the next one */
-		*country_ie += 3;
-		*country_ie_len -= 3;
-
-		/*
-		 * Padding needs to be dealt with if we processed
-		 * some channels.
-		 */
-		if (*country_ie_len == 1) {
-			*country_ie += 1;
-			*country_ie_len -= 1;
-			break;
-		}
-
-		/* If seen, the IE is invalid */
-		if (*country_ie_len == 2)
-			return 0;
-	}
-
-	if (end_subband_chan == orig_end_channel) {
-		*country_ie = triplets_start;
-		*country_ie_len = len_at_triplet;
-		return orig_end_channel;
-	}
-
-	return end_subband_chan;
-}
-
-/*
- * Converts a country IE to a regulatory domain. A regulatory domain
- * structure has a lot of information which the IE doesn't yet have,
- * so for the other values we use upper max values as we will intersect
- * with our userspace regulatory agent to get lower bounds.
- */
-static struct ieee80211_regdomain *country_ie_2_rd(
-				enum ieee80211_band band,
-				u8 *country_ie,
-				u8 country_ie_len,
-				u32 *checksum)
-{
-	struct ieee80211_regdomain *rd = NULL;
-	unsigned int i = 0;
-	char alpha2[2];
-	u32 flags = 0;
-	u32 num_rules = 0, size_of_regd = 0;
-	u8 *triplets_start = NULL;
-	u8 len_at_triplet = 0;
-	/* the last channel we have registered in a subband (triplet) */
-	int last_sub_max_channel = 0;
-
-	*checksum = 0xDEADBEEF;
-
-	/* Country IE requirements */
-	BUG_ON(country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN ||
-		country_ie_len & 0x01);
-
-	alpha2[0] = country_ie[0];
-	alpha2[1] = country_ie[1];
-
-	/*
-	 * Third octet can be:
-	 *    'I' - Indoor
-	 *    'O' - Outdoor
-	 *
-	 *  anything else we assume is no restrictions
-	 */
-	if (country_ie[2] == 'I')
-		flags = NL80211_RRF_NO_OUTDOOR;
-	else if (country_ie[2] == 'O')
-		flags = NL80211_RRF_NO_INDOOR;
-
-	country_ie += 3;
-	country_ie_len -= 3;
-
-	triplets_start = country_ie;
-	len_at_triplet = country_ie_len;
-
-	*checksum ^= ((flags ^ alpha2[0] ^ alpha2[1]) << 8);
-
-	/*
-	 * We need to build a reg rule for each triplet, but first we must
-	 * calculate the number of reg rules we will need. We will need one
-	 * for each channel subband
-	 */
-	while (country_ie_len >= 3) {
-		int end_channel = 0;
-		struct ieee80211_country_ie_triplet *triplet =
-			(struct ieee80211_country_ie_triplet *) country_ie;
-		int cur_sub_max_channel = 0, cur_channel = 0;
-
-		if (triplet->ext.reg_extension_id >=
-				IEEE80211_COUNTRY_EXTENSION_ID) {
-			country_ie += 3;
-			country_ie_len -= 3;
-			continue;
-		}
-
-		/*
-		 * APs can add padding to make length divisible
-		 * by two, required by the spec.
-		 */
-		if (triplet->chans.first_channel == 0) {
-			country_ie++;
-			country_ie_len--;
-			/* This is expected to be at the very end only */
-			if (country_ie_len != 0)
-				return NULL;
-			break;
-		}
-
-		if (triplet->chans.num_channels == 0)
-			return NULL;
-
-		if (!chan_in_band(triplet->chans.first_channel, band))
-			return NULL;
-
-		/* 2 GHz */
-		if (band == IEEE80211_BAND_2GHZ)
-			end_channel = triplet->chans.first_channel +
-				triplet->chans.num_channels - 1;
-		else
-			/*
-			 * 5 GHz -- For example in country IEs if the first
-			 * channel given is 36 and the number of channels is 4
-			 * then the individual channel numbers defined for the
-			 * 5 GHz PHY by these parameters are: 36, 40, 44, and 48
-			 * and not 36, 37, 38, 39.
-			 *
-			 * See: http://tinyurl.com/11d-clarification
-			 */
-			end_channel =  triplet->chans.first_channel +
-				(4 * (triplet->chans.num_channels - 1));
-
-		cur_channel = triplet->chans.first_channel;
-
-		/*
-		 * Enhancement for APs that send a triplet for every channel
-		 * or for whatever reason sends triplets with multiple channels
-		 * separated when in fact they should be together.
-		 */
-		end_channel = max_subband_chan(band,
-					       cur_channel,
-					       end_channel,
-					       triplet->chans.max_power,
-					       &country_ie,
-					       &country_ie_len);
-		if (!end_channel)
-			return NULL;
-
-		if (!chan_in_band(end_channel, band))
-			return NULL;
-
-		cur_sub_max_channel = end_channel;
-
-		/* Basic sanity check */
-		if (cur_sub_max_channel < cur_channel)
-			return NULL;
-
-		/*
-		 * Do not allow overlapping channels. Also channels
-		 * passed in each subband must be monotonically
-		 * increasing
-		 */
-		if (last_sub_max_channel) {
-			if (cur_channel <= last_sub_max_channel)
-				return NULL;
-			if (cur_sub_max_channel <= last_sub_max_channel)
-				return NULL;
-		}
-
-		/*
-		 * When dot11RegulatoryClassesRequired is supported
-		 * we can throw ext triplets as part of this soup,
-		 * for now we don't care when those change as we
-		 * don't support them
-		 */
-		*checksum ^= ((cur_channel ^ cur_sub_max_channel) << 8) |
-		  ((cur_sub_max_channel ^ cur_sub_max_channel) << 16) |
-		  ((triplet->chans.max_power ^ cur_sub_max_channel) << 24);
-
-		last_sub_max_channel = cur_sub_max_channel;
-
-		num_rules++;
-
-		if (country_ie_len >= 3) {
-			country_ie += 3;
-			country_ie_len -= 3;
-		}
-
-		/*
-		 * Note: this is not a IEEE requirement but
-		 * simply a memory requirement
-		 */
-		if (num_rules > NL80211_MAX_SUPP_REG_RULES)
-			return NULL;
-	}
-
-	country_ie = triplets_start;
-	country_ie_len = len_at_triplet;
-
-	size_of_regd = sizeof(struct ieee80211_regdomain) +
-		(num_rules * sizeof(struct ieee80211_reg_rule));
-
-	rd = kzalloc(size_of_regd, GFP_KERNEL);
-	if (!rd)
-		return NULL;
-
-	rd->n_reg_rules = num_rules;
-	rd->alpha2[0] = alpha2[0];
-	rd->alpha2[1] = alpha2[1];
-
-	/* This time around we fill in the rd */
-	while (country_ie_len >= 3) {
-		int end_channel = 0;
-		struct ieee80211_country_ie_triplet *triplet =
-			(struct ieee80211_country_ie_triplet *) country_ie;
-		struct ieee80211_reg_rule *reg_rule = NULL;
-		struct ieee80211_freq_range *freq_range = NULL;
-		struct ieee80211_power_rule *power_rule = NULL;
-
-		/*
-		 * Must parse if dot11RegulatoryClassesRequired is true,
-		 * we don't support this yet
-		 */
-		if (triplet->ext.reg_extension_id >=
-				IEEE80211_COUNTRY_EXTENSION_ID) {
-			country_ie += 3;
-			country_ie_len -= 3;
-			continue;
-		}
-
-		if (triplet->chans.first_channel == 0) {
-			country_ie++;
-			country_ie_len--;
-			break;
-		}
-
-		reg_rule = &rd->reg_rules[i];
-		freq_range = &reg_rule->freq_range;
-		power_rule = &reg_rule->power_rule;
-
-		reg_rule->flags = flags;
-
-		/* 2 GHz */
-		if (band == IEEE80211_BAND_2GHZ)
-			end_channel = triplet->chans.first_channel +
-				triplet->chans.num_channels -1;
-		else
-			end_channel =  triplet->chans.first_channel +
-				(4 * (triplet->chans.num_channels - 1));
-
-		end_channel = max_subband_chan(band,
-					       triplet->chans.first_channel,
-					       end_channel,
-					       triplet->chans.max_power,
-					       &country_ie,
-					       &country_ie_len);
-
-		/*
-		 * The +10 is since the regulatory domain expects
-		 * the actual band edge, not the center of freq for
-		 * its start and end freqs, assuming 20 MHz bandwidth on
-		 * the channels passed
-		 */
-		freq_range->start_freq_khz =
-			MHZ_TO_KHZ(ieee80211_channel_to_frequency(
-				triplet->chans.first_channel) - 10);
-		freq_range->end_freq_khz =
-			MHZ_TO_KHZ(ieee80211_channel_to_frequency(
-				end_channel) + 10);
-
-		/*
-		 * These are large arbitrary values we use to intersect later.
-		 * Increment this if we ever support >= 40 MHz channels
-		 * in IEEE 802.11
-		 */
-		freq_range->max_bandwidth_khz = MHZ_TO_KHZ(40);
-		power_rule->max_antenna_gain = DBI_TO_MBI(100);
-		power_rule->max_eirp = DBM_TO_MBM(triplet->chans.max_power);
-
-		i++;
-
-		if (country_ie_len >= 3) {
-			country_ie += 3;
-			country_ie_len -= 3;
-		}
-
-		BUG_ON(i > NL80211_MAX_SUPP_REG_RULES);
-	}
-
-	return rd;
-}
-
 
 /*
  * Helper for regdom_intersect(), this does the real
@@ -1191,7 +699,6 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(freq_reg_info);
 
 int freq_reg_info(struct wiphy *wiphy,
 		  u32 center_freq,
@@ -1205,6 +712,7 @@ int freq_reg_info(struct wiphy *wiphy,
 				  reg_rule,
 				  NULL);
 }
+EXPORT_SYMBOL(freq_reg_info);
 
 /*
  * Note that right now we assume the desired channel bandwidth
@@ -1243,41 +751,8 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 			  desired_bw_khz,
 			  &reg_rule);
 
-	if (r) {
-		/*
-		 * This means no regulatory rule was found in the country IE
-		 * with a frequency range on the center_freq's band, since
-		 * IEEE-802.11 allows for a country IE to have a subset of the
-		 * regulatory information provided in a country we ignore
-		 * disabling the channel unless at least one reg rule was
-		 * found on the center_freq's band. For details see this
-		 * clarification:
-		 *
-		 * http://tinyurl.com/11d-clarification
-		 */
-		if (r == -ERANGE &&
-		    last_request->initiator ==
-		    NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-			REG_DBG_PRINT("cfg80211: Leaving channel %d MHz "
-				"intact on %s - no rule found in band on "
-				"Country IE\n",
-			chan->center_freq, wiphy_name(wiphy));
-		} else {
-		/*
-		 * In this case we know the country IE has at least one reg rule
-		 * for the band so we respect its band definitions
-		 */
-			if (last_request->initiator ==
-			    NL80211_REGDOM_SET_BY_COUNTRY_IE)
-				REG_DBG_PRINT("cfg80211: Disabling "
-					"channel %d MHz on %s due to "
-					"Country IE\n",
-					chan->center_freq, wiphy_name(wiphy));
-			flags |= IEEE80211_CHAN_DISABLED;
-			chan->flags = flags;
-		}
+	if (r)
 		return;
-	}
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
@@ -1831,6 +1306,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	int r = 0;
 	struct wiphy *wiphy = NULL;
+	enum nl80211_reg_initiator initiator = reg_request->initiator;
 
 	BUG_ON(!reg_request->alpha2);
 
@@ -1850,7 +1326,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	/* This is required so that the orig_* parameters are saved */
 	if (r == -EALREADY && wiphy &&
 	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
-		wiphy_update_regulatory(wiphy, reg_request->initiator);
+		wiphy_update_regulatory(wiphy, initiator);
 out:
 	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
@@ -2008,35 +1484,6 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 }
 EXPORT_SYMBOL(regulatory_hint);
 
-/* Caller must hold reg_mutex */
-static bool reg_same_country_ie_hint(struct wiphy *wiphy,
-			u32 country_ie_checksum)
-{
-	struct wiphy *request_wiphy;
-
-	assert_reg_lock();
-
-	if (unlikely(last_request->initiator !=
-	    NL80211_REGDOM_SET_BY_COUNTRY_IE))
-		return false;
-
-	request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
-
-	if (!request_wiphy)
-		return false;
-
-	if (likely(request_wiphy != wiphy))
-		return !country_ie_integrity_changes(country_ie_checksum);
-	/*
-	 * We should not have let these through at this point, they
-	 * should have been picked up earlier by the first alpha2 check
-	 * on the device
-	 */
-	if (WARN_ON(!country_ie_integrity_changes(country_ie_checksum)))
-		return true;
-	return false;
-}
-
 /*
  * We hold wdev_lock() here so we cannot hold cfg80211_mutex() and
  * therefore cannot iterate over the rdev list here.
@@ -2046,9 +1493,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 			 u8 *country_ie,
 			 u8 country_ie_len)
 {
-	struct ieee80211_regdomain *rd = NULL;
 	char alpha2[2];
-	u32 checksum = 0;
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
@@ -2062,14 +1507,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 		goto out;
 
 	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
-		goto out;
-
-	/*
-	 * Pending country IE processing, this can happen after we
-	 * call CRDA and wait for a response if a beacon was received before
-	 * we were able to process the last regulatory_hint_11d() call
-	 */
-	if (country_ie_regdomain)
 		goto out;
 
 	alpha2[0] = country_ie[0];
@@ -2090,39 +1527,14 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	    wiphy_idx_valid(last_request->wiphy_idx)))
 		goto out;
 
-	rd = country_ie_2_rd(band, country_ie, country_ie_len, &checksum);
-	if (!rd) {
-		REG_DBG_PRINT("cfg80211: Ignoring bogus country IE\n");
-		goto out;
-	}
-
-	/*
-	 * This will not happen right now but we leave it here for the
-	 * the future when we want to add suspend/resume support and having
-	 * the user move to another country after doing so, or having the user
-	 * move to another AP. Right now we just trust the first AP.
-	 *
-	 * If we hit this before we add this support we want to be informed of
-	 * it as it would indicate a mistake in the current design
-	 */
-	if (WARN_ON(reg_same_country_ie_hint(wiphy, checksum)))
-		goto free_rd_out;
-
 	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
 	if (!request)
-		goto free_rd_out;
-
-	/*
-	 * We keep this around for when CRDA comes back with a response so
-	 * we can intersect with that
-	 */
-	country_ie_regdomain = rd;
+		goto out;
 
 	request->wiphy_idx = get_wiphy_idx(wiphy);
-	request->alpha2[0] = rd->alpha2[0];
-	request->alpha2[1] = rd->alpha2[1];
+	request->alpha2[0] = alpha2[0];
+	request->alpha2[1] = alpha2[1];
 	request->initiator = NL80211_REGDOM_SET_BY_COUNTRY_IE;
-	request->country_ie_checksum = checksum;
 	request->country_ie_env = env;
 
 	mutex_unlock(&reg_mutex);
@@ -2131,8 +1543,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 
 	return;
 
-free_rd_out:
-	kfree(rd);
 out:
 	mutex_unlock(&reg_mutex);
 }
@@ -2383,33 +1793,6 @@ static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 	print_rd_rules(rd);
 }
 
-#ifdef CONFIG_CFG80211_REG_DEBUG
-static void reg_country_ie_process_debug(
-	const struct ieee80211_regdomain *rd,
-	const struct ieee80211_regdomain *country_ie_regdomain,
-	const struct ieee80211_regdomain *intersected_rd)
-{
-	printk(KERN_DEBUG "cfg80211: Received country IE:\n");
-	print_regdomain_info(country_ie_regdomain);
-	printk(KERN_DEBUG "cfg80211: CRDA thinks this should applied:\n");
-	print_regdomain_info(rd);
-	if (intersected_rd) {
-		printk(KERN_DEBUG "cfg80211: We intersect both of these "
-			"and get:\n");
-		print_regdomain_info(intersected_rd);
-		return;
-	}
-	printk(KERN_DEBUG "cfg80211: Intersection between both failed\n");
-}
-#else
-static inline void reg_country_ie_process_debug(
-	const struct ieee80211_regdomain *rd,
-	const struct ieee80211_regdomain *country_ie_regdomain,
-	const struct ieee80211_regdomain *intersected_rd)
-{
-}
-#endif
-
 /* Takes ownership of rd only if it doesn't fail */
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
@@ -2521,34 +1904,6 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return 0;
 	}
 
-	/*
-	 * Country IE requests are handled a bit differently, we intersect
-	 * the country IE rd with what CRDA believes that country should have
-	 */
-
-	/*
-	 * Userspace could have sent two replies with only
-	 * one kernel request. By the second reply we would have
-	 * already processed and consumed the country_ie_regdomain.
-	 */
-	if (!country_ie_regdomain)
-		return -EALREADY;
-	BUG_ON(rd == country_ie_regdomain);
-
-	/*
-	 * Intersect what CRDA returned and our what we
-	 * had built from the Country IE received
-	 */
-
-	intersected_rd = regdom_intersect(rd, country_ie_regdomain);
-
-	reg_country_ie_process_debug(rd,
-				     country_ie_regdomain,
-				     intersected_rd);
-
-	kfree(country_ie_regdomain);
-	country_ie_regdomain = NULL;
-
 	if (!intersected_rd)
 		return -EINVAL;
 
@@ -2630,7 +1985,7 @@ out:
 	mutex_unlock(&reg_mutex);
 }
 
-int regulatory_init(void)
+int __init regulatory_init(void)
 {
 	int err = 0;
 
@@ -2676,7 +2031,7 @@ int regulatory_init(void)
 	return 0;
 }
 
-void regulatory_exit(void)
+void /* __init_or_exit */ regulatory_exit(void)
 {
 	struct regulatory_request *reg_request, *tmp;
 	struct reg_beacon *reg_beacon, *btmp;
@@ -2687,9 +2042,6 @@ void regulatory_exit(void)
 	mutex_lock(&reg_mutex);
 
 	reset_regdomains();
-
-	kfree(country_ie_regdomain);
-	country_ie_regdomain = NULL;
 
 	kfree(last_request);
 

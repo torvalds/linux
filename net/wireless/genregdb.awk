@@ -21,6 +21,7 @@ BEGIN {
 	print ""
 	print "#include <linux/nl80211.h>"
 	print "#include <net/cfg80211.h>"
+	print "#include \"regdb.h\""
 	print ""
 	regdb = "const struct ieee80211_regdomain *reg_regdb[] = {\n"
 }

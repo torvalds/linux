@@ -58,7 +58,7 @@ static struct proto macvtap_proto = {
  * only has one tap, the interface numbers assure that the
  * device nodes are unique.
  */
-static unsigned int macvtap_major;
+static dev_t macvtap_major;
 #define MACVTAP_NUM_DEVS 65536
 static struct class *macvtap_class;
 static struct cdev macvtap_cdev;

@@ -113,26 +113,6 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u16 offset, void *buffer,
 				  const u16 buffer_length, const int timeout)
 {
-	int status;
-
-	mutex_lock(&rt2x00dev->csr_mutex);
-
-	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
-						requesttype, offset, buffer,
-						buffer_length, timeout);
-
-	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
-
-int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
-					const u8 request, const u8 requesttype,
-					const u16 offset, const void *buffer,
-					const u16 buffer_length,
-					const int timeout)
-{
 	int status = 0;
 	unsigned char *tb;
 	u16 off, len, bsize;
@@ -157,7 +137,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_large_buff);
+EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int offset,
@@ -216,48 +196,28 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	rt2x00lib_txdone(entry, &txdesc);
 }
 
-int rt2x00usb_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc)
+static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	u32 length;
 
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(entry->skb, entry->queue->desc_size);
-	memset(entry->skb->data, 0, entry->queue->desc_size);
+	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags)) {
+		/*
+		 * USB devices cannot blindly pass the skb->len as the
+		 * length of the data to usb_fill_bulk_urb. Pass the skb
+		 * to the driver to determine what the length should be.
+		 */
+		length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
-	/*
-	 * USB devices cannot blindly pass the skb->len as the
-	 * length of the data to usb_fill_bulk_urb. Pass the skb
-	 * to the driver to determine what the length should be.
-	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
+		usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+				  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
+				  entry->skb->data, length,
+				  rt2x00usb_interrupt_txdone, entry);
 
-	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-			  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
-			  entry->skb->data, length,
-			  rt2x00usb_interrupt_txdone, entry);
-
-	/*
-	 * Make sure the skb->data pointer points to the frame, not the
-	 * descriptor.
-	 */
-	skb_pull(entry->skb, entry->queue->desc_size);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_write_tx_data);
-
-static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
-{
-	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
-
-	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
 		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	}
 }
 
 void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
@@ -331,6 +291,56 @@ void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
+
+static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
+{
+	struct queue_entry_priv_usb *entry_priv;
+	unsigned short threshold = queue->threshold;
+
+	WARNING(queue->rt2x00dev, "TX queue %d timed out, invoke reset", queue->qid);
+
+	/*
+	 * Temporarily disable the TX queue, this will force mac80211
+	 * to use the other queues until this queue has been restored.
+	 *
+	 * Set the queue threshold to the queue limit. This prevents the
+	 * queue from being enabled during the txdone handler.
+	 */
+	queue->threshold = queue->limit;
+	ieee80211_stop_queue(queue->rt2x00dev->hw, queue->qid);
+
+	/*
+	 * Reset all currently uploaded TX frames.
+	 */
+	while (!rt2x00queue_empty(queue)) {
+		entry_priv = rt2x00queue_get_entry(queue, Q_INDEX_DONE)->priv_data;
+		usb_kill_urb(entry_priv->urb);
+
+		/*
+		 * We need a short delay here to wait for
+		 * the URB to be canceled and invoked the tx_done handler.
+		 */
+		udelay(200);
+	}
+
+	/*
+	 * The queue has been reset, and mac80211 is allowed to use the
+	 * queue again.
+	 */
+	queue->threshold = threshold;
+	ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
+}
+
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		if (rt2x00queue_timeout(queue))
+			rt2x00usb_watchdog_reset_tx(queue);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
 
 /*
  * RX data handlers.
