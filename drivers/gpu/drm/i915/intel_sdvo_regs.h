@@ -312,7 +312,7 @@ struct intel_sdvo_set_target_input_args {
 # define SDVO_CLOCK_RATE_MULT_4X				(1 << 3)
 
 #define SDVO_CMD_GET_SUPPORTED_TV_FORMATS		0x27
-/** 5 bytes of bit flags for TV formats shared by all TV format functions */
+/** 6 bytes of bit flags for TV formats shared by all TV format functions */
 struct intel_sdvo_tv_format {
     unsigned int ntsc_m:1;
     unsigned int ntsc_j:1;
