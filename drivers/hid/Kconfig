@@ -423,10 +423,11 @@ config SMARTJOYPLUS_FF
 	enable force feedback support for it.
 
 config HID_TOPSEED
-	tristate "TopSeed Cyberlink remote control support"
+	tristate "TopSeed Cyberlink, BTC Emprex, Conceptronic remote control support"
 	depends on USB_HID
 	---help---
-	Say Y if you have a TopSeed Cyberlink or BTC Emprex remote control.
+	Say Y if you have a TopSeed Cyberlink or BTC Emprex or Conceptronic
+	CLLRCMCE remote control.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
