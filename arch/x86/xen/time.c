@@ -20,6 +20,7 @@
 #include <asm/xen/hypercall.h>
 
 #include <xen/events.h>
+#include <xen/features.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 
@@ -156,7 +157,7 @@ static void do_stolen_accounting(void)
 }
 
 /* Get the TSC speed from Xen */
-unsigned long xen_tsc_khz(void)
+static unsigned long xen_tsc_khz(void)
 {
 	struct pvclock_vcpu_time_info *info =
 		&HYPERVISOR_shared_info->vcpu_info[0].time;
@@ -191,7 +192,7 @@ static void xen_read_wallclock(struct timespec *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-unsigned long xen_get_wallclock(void)
+static unsigned long xen_get_wallclock(void)
 {
 	struct timespec ts;
 
@@ -199,7 +200,7 @@ unsigned long xen_get_wallclock(void)
 	return ts.tv_sec;
 }
 
-int xen_set_wallclock(unsigned long now)
+static int xen_set_wallclock(unsigned long now)
 {
 	/* do nothing for domU */
 	return -1;
@@ -434,7 +435,11 @@ void xen_timer_resume(void)
 	}
 }
 
-__init void xen_time_init(void)
+static const struct pv_time_ops xen_time_ops __initdata = {
+	.sched_clock = xen_clocksource_read,
+};
+
+static __init void xen_time_init(void)
 {
 	int cpu = smp_processor_id();
 	struct timespec tp;
@@ -458,3 +463,47 @@ __init void xen_time_init(void)
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
 }
+
+__init void xen_init_time_ops(void)
+{
+	pv_time_ops = xen_time_ops;
+
+	x86_init.timers.timer_init = xen_time_init;
+	x86_init.timers.setup_percpu_clockev = x86_init_noop;
+	x86_cpuinit.setup_percpu_clockev = x86_init_noop;
+
+	x86_platform.calibrate_tsc = xen_tsc_khz;
+	x86_platform.get_wallclock = xen_get_wallclock;
+	x86_platform.set_wallclock = xen_set_wallclock;
+}
+
+#ifdef CONFIG_XEN_PVHVM
+static void xen_hvm_setup_cpu_clockevents(void)
+{
+	int cpu = smp_processor_id();
+	xen_setup_runstate_info(cpu);
+	xen_setup_timer(cpu);
+	xen_setup_cpu_clockevents();
+}
+
+__init void xen_hvm_init_time_ops(void)
+{
+	/* vector callback is needed otherwise we cannot receive interrupts
+	 * on cpu > 0 */
+	if (!xen_have_vector_callback && num_present_cpus() > 1)
+		return;
+	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
+		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
+				"disable pv timer\n");
+		return;
+	}
+
+	pv_time_ops = xen_time_ops;
+	x86_init.timers.setup_percpu_clockev = xen_time_init;
+	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;
+
+	x86_platform.calibrate_tsc = xen_tsc_khz;
+	x86_platform.get_wallclock = xen_get_wallclock;
+	x86_platform.set_wallclock = xen_set_wallclock;
+}
+#endif
