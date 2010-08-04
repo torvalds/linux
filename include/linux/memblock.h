@@ -64,29 +64,6 @@ extern int memblock_find(struct memblock_region *res);
 
 extern void memblock_dump_all(void);
 
-/* Obsolete accessors */
-static inline u64
-memblock_size_bytes(struct memblock_type *type, unsigned long region_nr)
-{
-	return type->regions[region_nr].size;
-}
-static inline u64
-memblock_size_pages(struct memblock_type *type, unsigned long region_nr)
-{
-	return memblock_size_bytes(type, region_nr) >> PAGE_SHIFT;
-}
-static inline u64
-memblock_start_pfn(struct memblock_type *type, unsigned long region_nr)
-{
-	return type->regions[region_nr].base >> PAGE_SHIFT;
-}
-static inline u64
-memblock_end_pfn(struct memblock_type *type, unsigned long region_nr)
-{
-	return memblock_start_pfn(type, region_nr) +
-	       memblock_size_pages(type, region_nr);
-}
-
 /*
  * pfn conversion functions
  *
