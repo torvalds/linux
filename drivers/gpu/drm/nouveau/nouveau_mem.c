@@ -320,7 +320,8 @@ nouveau_mem_detect(struct drm_device *dev)
 	if (dev_priv->card_type < NV_50) {
 		dev_priv->vram_size  = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size &= NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-	} else {
+	} else
+	if (dev_priv->card_type < NV_C0) {
 		dev_priv->vram_size = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 		dev_priv->vram_size &= 0xffffffff00ll;
@@ -328,6 +329,9 @@ nouveau_mem_detect(struct drm_device *dev)
 			dev_priv->vram_sys_base = nv_rd32(dev, 0x100e10);
 			dev_priv->vram_sys_base <<= 12;
 		}
+	} else {
+		dev_priv->vram_size  = nv_rd32(dev, 0x10f20c) << 20;
+		dev_priv->vram_size *= nv_rd32(dev, 0x121c74);
 	}
 
 	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
