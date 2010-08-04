@@ -2595,7 +2595,7 @@ init_configure_preinit(struct nvbios *bios, uint16_t offset,
 	/* no iexec->execute check by design */
 
 	uint32_t straps = bios_rd32(bios, NV_PEXTDEV_BOOT_0);
-	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
+	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & 0x40) >> 6;
 
 	if (bios->major_version > 2)
 		return 0;
