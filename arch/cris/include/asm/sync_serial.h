@@ -19,6 +19,7 @@
 #define SSP_OPOLARITY  _IOR('S', 4, unsigned int)
 #define SSP_SPI        _IOR('S', 5, unsigned int)
 #define SSP_INBUFCHUNK _IOR('S', 6, unsigned int)
+#define SSP_INPUT      _IOR('S', 7, unsigned int)
 
 /* Values for SSP_SPEED */
 #define SSP150        0
@@ -37,6 +38,7 @@
 #define SSP921600    13
 #define SSP3125000   14
 #define CODEC        15
+#define CODEC_f32768 16
 
 #define FREQ_4MHz   0
 #define FREQ_2MHz   1
@@ -46,9 +48,14 @@
 #define FREQ_128kHz 5
 #define FREQ_64kHz  6
 #define FREQ_32kHz  7
+/* FREQ_* with values where bit (value & 0x10) is set are */
+/* used for CODEC_f32768 */
+#define FREQ_4096kHz 16 /* CODEC_f32768 */
 
 /* Used by application to set CODEC divider, word rate and frame rate */
-#define CODEC_VAL(freq, clk_per_sync, sync_per_frame) (CODEC | (freq << 8) | (clk_per_sync << 16) | (sync_per_frame << 28))
+#define CODEC_VAL(freq, clk_per_sync, sync_per_frame) \
+	((CODEC + ((freq & 0x10) >> 4)) | (freq << 8) | \
+		   (clk_per_sync << 16) | (sync_per_frame << 28))
 
 /* Used by driver to extract speed */
 #define GET_SPEED(x) (x & 0xff)
@@ -68,6 +75,7 @@
 #define NORMAL_SYNC                1
 #define EARLY_SYNC                 2
 #define SECOND_WORD_SYNC     0x40000
+#define LATE_SYNC            0x80000
 
 #define BIT_SYNC                   4
 #define WORD_SYNC                  8
@@ -103,5 +111,22 @@
 
 /* Values for SSP_INBUFCHUNK */
 /* plain integer with the size of DMA chunks */
+
+/* To ensure that the timestamps are aligned with the data being read
+ * the read length MUST be a multiple of the length of the DMA buffers.
+ *
+ * Use a multiple of SSP_INPUT_CHUNK_SIZE defined below.
+ */
+#define SSP_INPUT_CHUNK_SIZE  256
+
+/* Request struct to pass through the ioctl interface to read
+ * data with timestamps.
+ */
+struct ssp_request {
+	char __user *buf;	/* Where to put the data. */
+	size_t len;		/* Size of buf. MUST be a multiple of */
+				/* SSP_INPUT_CHUNK_SIZE! */
+	struct timespec ts;	/* The time the data was sampled. */
+};
 
 #endif
