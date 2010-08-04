@@ -154,7 +154,7 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
-	bool cursor_visble;
+	bool cursor_visble, cursor_on;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)

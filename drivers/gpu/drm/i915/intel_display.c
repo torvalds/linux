@@ -2470,9 +2470,6 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 /**
  * Sets the power management mode of the pipe and plane.
- *
- * This code should probably grow support for turning the cursor off and back
- * on appropriately at the same time as we're turning the pipe off/on.
  */
 static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
@@ -2486,6 +2483,9 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	dev_priv->display.dpms(crtc, mode);
 
 	intel_crtc->dpms_mode = mode;
+
+	intel_crtc->cursor_on = mode == DRM_MODE_DPMS_ON;
+	intel_crtc_update_cursor(crtc);
 
 	if (!dev->primary->master)
 		return;
@@ -4242,7 +4242,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc)
 
 	pos = 0;
 
-	if (crtc->fb) {
+	if (intel_crtc->cursor_on && crtc->fb) {
 		base = intel_crtc->cursor_addr;
 		if (x > (int) crtc->fb->width)
 			base = 0;
