@@ -285,6 +285,9 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 	int num_pipe;
+	u32 flush_rings;
+#define FLUSH_RENDER_RING	0x1
+#define FLUSH_BSD_RING		0x2
 
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 75 /* in jiffies */
