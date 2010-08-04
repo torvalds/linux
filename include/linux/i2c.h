@@ -34,6 +34,7 @@
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
 #include <linux/mutex.h>
+#include <linux/of.h>		/* for struct device_node */
 
 extern struct bus_type i2c_bus_type;
 
@@ -53,6 +54,7 @@ struct i2c_board_info;
  * on a bus (or read from them). Apart from two basic transfer functions to
  * transmit one message at a time, a more complex version can be used to
  * transmit an arbitrary number of messages without interruption.
+ * @count must be be less than 64k since msg.len is u16.
  */
 extern int i2c_master_send(struct i2c_client *client, const char *buf,
 			   int count);
@@ -152,6 +154,13 @@ struct i2c_driver {
 	int (*suspend)(struct i2c_client *, pm_message_t mesg);
 	int (*resume)(struct i2c_client *);
 
+	/* Alert callback, for example for the SMBus alert protocol.
+	 * The format and meaning of the data value depends on the protocol.
+	 * For the SMBus alert protocol, there is a single bit of data passed
+	 * as the alert response's low bit ("event flag").
+	 */
+	void (*alert)(struct i2c_client *, unsigned int data);
+
 	/* a ioctl like command that can be used to perform specific functions
 	 * with the device.
 	 */
@@ -243,6 +252,9 @@ struct i2c_board_info {
 	unsigned short	addr;
 	void		*platform_data;
 	struct dev_archdata	*archdata;
+#ifdef CONFIG_OF
+	struct device_node *of_node;
+#endif
 	int		irq;
 };
 
@@ -347,6 +359,8 @@ struct i2c_adapter {
 	int nr;
 	char name[48];
 	struct completion dev_released;
+
+	struct list_head userspace_clients;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 

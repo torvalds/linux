@@ -58,6 +58,7 @@ struct sysfs_dirent {
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
 
+	const void		*s_ns; /* namespace tag */
 	union {
 		struct sysfs_elem_dir		s_dir;
 		struct sysfs_elem_symlink	s_symlink;
@@ -66,8 +67,8 @@ struct sysfs_dirent {
 	};
 
 	unsigned int		s_flags;
+	unsigned short		s_mode;
 	ino_t			s_ino;
-	umode_t			s_mode;
 	struct sysfs_inode_attrs *s_iattr;
 };
 
@@ -79,21 +80,38 @@ struct sysfs_dirent {
 #define SYSFS_KOBJ_BIN_ATTR		0x0004
 #define SYSFS_KOBJ_LINK			0x0008
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
+#define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
 
-#define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
-#define SYSFS_FLAG_REMOVED		0x0200
+/* identify any namespace tag on sysfs_dirents */
+#define SYSFS_NS_TYPE_MASK		0xff00
+#define SYSFS_NS_TYPE_SHIFT		8
+
+#define SYSFS_FLAG_MASK			~(SYSFS_NS_TYPE_MASK|SYSFS_TYPE_MASK)
+#define SYSFS_FLAG_REMOVED		0x020000
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
 
+/*
+ * Return any namespace tags on this dirent.
+ * enum kobj_ns_type is defined in linux/kobject.h
+ */
+static inline enum kobj_ns_type sysfs_ns_type(struct sysfs_dirent *sd)
+{
+	return (sd->s_flags & SYSFS_NS_TYPE_MASK) >> SYSFS_NS_TYPE_SHIFT;
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define sysfs_dirent_init_lockdep(sd)				\
 do {								\
-	static struct lock_class_key __key;			\
+	struct attribute *attr = sd->s_attr.attr;		\
+	struct lock_class_key *key = attr->key;			\
+	if (!key)						\
+		key = &attr->skey;				\
 								\
-	lockdep_init_map(&sd->dep_map, "s_active", &__key, 0);	\
+	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
 } while(0)
 #else
 #define sysfs_dirent_init_lockdep(sd) do {} while(0)
@@ -110,8 +128,17 @@ struct sysfs_addrm_cxt {
 /*
  * mount.c
  */
+
+/*
+ * Each sb is associated with a set of namespace tags (i.e.
+ * the network namespace of the task which mounted this sysfs
+ * instance).
+ */
+struct sysfs_super_info {
+	const void *ns[KOBJ_NS_TYPES];
+};
+#define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
 extern struct sysfs_dirent sysfs_root;
-extern struct super_block *sysfs_sb;
 extern struct kmem_cache *sysfs_dir_cachep;
 
 /*
@@ -124,8 +151,8 @@ extern const struct file_operations sysfs_dir_operations;
 extern const struct inode_operations sysfs_dir_inode_operations;
 
 struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd);
-struct sysfs_dirent *sysfs_get_active_two(struct sysfs_dirent *sd);
-void sysfs_put_active_two(struct sysfs_dirent *sd);
+struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
+void sysfs_put_active(struct sysfs_dirent *sd);
 void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 		       struct sysfs_dirent *parent_sd);
 int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
@@ -134,8 +161,10 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
 void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
 struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
+				       const void *ns,
 				       const unsigned char *name);
 struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
+				      const void *ns,
 				      const unsigned char *name);
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
 
@@ -146,7 +175,7 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
 int sysfs_rename(struct sysfs_dirent *sd,
-	struct sysfs_dirent *new_parent_sd, const char *new_name);
+	struct sysfs_dirent *new_parent_sd, const void *ns, const char *new_name);
 
 static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
@@ -168,7 +197,7 @@ static inline void __sysfs_put(struct sysfs_dirent *sd)
 /*
  * inode.c
  */
-struct inode *sysfs_get_inode(struct sysfs_dirent *sd);
+struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
 void sysfs_delete_inode(struct inode *inode);
 int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr);
 int sysfs_permission(struct inode *inode, int mask);
@@ -176,7 +205,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags);
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name);
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name);
 int sysfs_inode_init(void);
 
 /*

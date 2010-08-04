@@ -20,6 +20,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include <trace/events/kvm.h>
 
 #include <asm/msidef.h>

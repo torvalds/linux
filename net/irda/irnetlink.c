@@ -15,6 +15,7 @@
 
 #include <linux/socket.h>
 #include <linux/irda.h>
+#include <linux/gfp.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/irda/irda.h>
@@ -124,7 +125,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static struct nla_policy irda_nl_policy[IRDA_NL_ATTR_MAX + 1] = {
+static const struct nla_policy irda_nl_policy[IRDA_NL_ATTR_MAX + 1] = {
 	[IRDA_NL_ATTR_IFNAME] = { .type = NLA_NUL_STRING,
 				  .len = IFNAMSIZ-1 },
 	[IRDA_NL_ATTR_MODE] = { .type = NLA_U32 },

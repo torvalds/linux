@@ -76,70 +76,70 @@ const BYTE acbyRxRate[MAX_RATE] =
 
 /*---------------------  Static Functions  --------------------------*/
 
-static BYTE s_byGetRateIdx(IN BYTE byRate);
+static BYTE s_byGetRateIdx(BYTE byRate);
 
 
 static
-VOID
+void
 s_vGetDASA(
-    IN  PBYTE pbyRxBufferAddr,
-    OUT PUINT pcbHeaderSize,
-    OUT PSEthernetHeader psEthHeader
+    PBYTE pbyRxBufferAddr,
+    PUINT pcbHeaderSize,
+    PSEthernetHeader psEthHeader
     );
 
 static
-VOID
+void
 s_vProcessRxMACHeader (
-    IN  PSDevice pDevice,
-    IN  PBYTE pbyRxBufferAddr,
-    IN  UINT cbPacketSize,
-    IN  BOOL bIsWEP,
-    IN  BOOL bExtIV,
-    OUT PUINT pcbHeadSize
+    PSDevice pDevice,
+    PBYTE pbyRxBufferAddr,
+    UINT cbPacketSize,
+    BOOL bIsWEP,
+    BOOL bExtIV,
+    PUINT pcbHeadSize
     );
 
 static BOOL s_bAPModeRxCtl(
-    IN PSDevice pDevice,
-    IN PBYTE    pbyFrame,
-    IN INT      iSANodeIndex
+    PSDevice pDevice,
+    PBYTE    pbyFrame,
+    INT      iSANodeIndex
     );
 
 
 
 static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN struct sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
+    PSDevice pDevice,
+    struct sk_buff* skb,
+    UINT     FrameSize,
+    UINT     cbHeaderOffset,
+    INT      iSANodeIndex,
+    INT      iDANodeIndex
     );
 
 
 static BOOL s_bHandleRxEncryption(
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    OUT PBYTE       pbyNewRsr,
-    OUT PSKeyItem   *pKeyOut,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    PBYTE       pbyNewRsr,
+    PSKeyItem   *pKeyOut,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+    PWORD       pwRxTSC15_0,
+    PDWORD      pdwRxTSC47_16
     );
 
 static BOOL s_bHostWepRxEncryption(
 
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    IN BOOL         bOnFly,
-    IN PSKeyItem    pKey,
-    OUT PBYTE       pbyNewRsr,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    BOOL         bOnFly,
+    PSKeyItem    pKey,
+    PBYTE       pbyNewRsr,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+    PWORD       pwRxTSC15_0,
+    PDWORD      pdwRxTSC47_16
 
     );
 
@@ -163,14 +163,14 @@ static BOOL s_bHostWepRxEncryption(
  *
 -*/
 static
-VOID
+void
 s_vProcessRxMACHeader (
-    IN  PSDevice pDevice,
-    IN  PBYTE pbyRxBufferAddr,
-    IN  UINT cbPacketSize,
-    IN  BOOL bIsWEP,
-    IN  BOOL bExtIV,
-    OUT PUINT pcbHeadSize
+    PSDevice pDevice,
+    PBYTE pbyRxBufferAddr,
+    UINT cbPacketSize,
+    BOOL bIsWEP,
+    BOOL bExtIV,
+    PUINT pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
@@ -236,11 +236,11 @@ s_vProcessRxMACHeader (
         }
     }
 
-    cbHeaderSize -= (U_ETHER_ADDR_LEN * 2);
+    cbHeaderSize -= (ETH_ALEN * 2);
     pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for(ii=0;ii<ETH_ALEN;ii++)
         *pbyRxBuffer++ = pDevice->sRxEthHeader.abyDstAddr[ii];
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for(ii=0;ii<ETH_ALEN;ii++)
         *pbyRxBuffer++ = pDevice->sRxEthHeader.abySrcAddr[ii];
 
     *pcbHeadSize = cbHeaderSize;
@@ -249,7 +249,7 @@ s_vProcessRxMACHeader (
 
 
 
-static BYTE s_byGetRateIdx (IN BYTE byRate)
+static BYTE s_byGetRateIdx (BYTE byRate)
 {
     BYTE    byRateIdx;
 
@@ -262,11 +262,11 @@ static BYTE s_byGetRateIdx (IN BYTE byRate)
 
 
 static
-VOID
+void
 s_vGetDASA (
-    IN  PBYTE pbyRxBufferAddr,
-    OUT PUINT pcbHeaderSize,
-    OUT PSEthernetHeader psEthHeader
+    PBYTE pbyRxBufferAddr,
+    PUINT pcbHeaderSize,
+    PSEthernetHeader psEthHeader
     )
 {
     UINT            cbHeaderSize = 0;
@@ -277,14 +277,14 @@ s_vGetDASA (
 
     if ((pMACHeader->wFrameCtl & FC_TODS) == 0) {
         if (pMACHeader->wFrameCtl & FC_FROMDS) {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
+            for(ii=0;ii<ETH_ALEN;ii++) {
                 psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
                 psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr3[ii];
             }
         }
         else {
             // IBSS mode
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
+            for(ii=0;ii<ETH_ALEN;ii++) {
                 psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
                 psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
             }
@@ -293,14 +293,14 @@ s_vGetDASA (
     else {
         // Is AP mode..
         if (pMACHeader->wFrameCtl & FC_FROMDS) {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
+            for(ii=0;ii<ETH_ALEN;ii++) {
                 psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr3[ii];
                 psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr4[ii];
                 cbHeaderSize += 6;
             }
         }
         else {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
+            for(ii=0;ii<ETH_ALEN;ii++) {
                 psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr3[ii];
                 psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
             }
@@ -314,7 +314,7 @@ s_vGetDASA (
 
 //PLICE_DEBUG ->
 
-VOID	MngWorkItem(PVOID Context)
+void	MngWorkItem(void *Context)
 {
 	PSRxMgmtPacket			pRxMgmtPacket;
 	PSDevice	pDevice =  (PSDevice) Context;
@@ -335,8 +335,8 @@ VOID	MngWorkItem(PVOID Context)
 
 BOOL
 device_receive_frame (
-    IN  PSDevice pDevice,
-    IN  PSRxDesc pCurrRD
+    PSDevice pDevice,
+    PSRxDesc pCurrRD
     )
 {
 
@@ -569,7 +569,7 @@ device_receive_frame (
     // RX OK
     //
     //remove the CRC length
-    FrameSize -= U_CRC_LEN;
+    FrameSize -= ETH_FCS_LEN;
 
     if (( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI))) && // unicast address
         (IS_FRAGMENT_PKT((skb->data+4)))
@@ -631,13 +631,13 @@ device_receive_frame (
 		tasklet_schedule(&pDevice->RxMngWorkItem);
 #else
 //printk("RxMan\n");
-	vMgrRxManagePacket((HANDLE)pDevice, pDevice->pMgmt, pRxPacket);
+	vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
            //tasklet_schedule(&pDevice->RxMngWorkItem);
 #endif
 
 #endif
 //PLICE_DEBUG<-
-			//vMgrRxManagePacket((HANDLE)pDevice, pDevice->pMgmt, pRxPacket);
+			//vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
             // hostap Deamon handle 802.11 management
             if (pDevice->bEnableHostapd) {
 	            skb->dev = pDevice->apdev;
@@ -1039,9 +1039,9 @@ device_receive_frame (
 
 
 static BOOL s_bAPModeRxCtl (
-    IN PSDevice pDevice,
-    IN PBYTE    pbyFrame,
-    IN INT      iSANodeIndex
+    PSDevice pDevice,
+    PBYTE    pbyFrame,
+    INT      iSANodeIndex
     )
 {
     PS802_11Header      p802_11Header;
@@ -1087,7 +1087,7 @@ static BOOL s_bAPModeRxCtl (
                     // delcare received ps-poll event
                     if (IS_CTL_PSPOLL(pbyFrame)) {
                         pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                        bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 1\n");
                     }
                     else {
@@ -1096,7 +1096,7 @@ static BOOL s_bAPModeRxCtl (
                         if (!IS_FC_POWERMGT(pbyFrame)) {
                             pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                             pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                            bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 2\n");
                         }
                     }
@@ -1112,7 +1112,7 @@ static BOOL s_bAPModeRxCtl (
                       if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
                           pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                           pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                          bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                          bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                          DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 3\n");
 
                       }
@@ -1163,15 +1163,15 @@ static BOOL s_bAPModeRxCtl (
 }
 
 static BOOL s_bHandleRxEncryption (
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    OUT PBYTE       pbyNewRsr,
-    OUT PSKeyItem   *pKeyOut,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    PBYTE       pbyNewRsr,
+    PSKeyItem   *pKeyOut,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+    PWORD       pwRxTSC15_0,
+    PDWORD      pdwRxTSC47_16
     )
 {
     UINT            PayloadLen = FrameSize;
@@ -1309,16 +1309,16 @@ static BOOL s_bHandleRxEncryption (
 
 
 static BOOL s_bHostWepRxEncryption (
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    IN BOOL         bOnFly,
-    IN PSKeyItem    pKey,
-    OUT PBYTE       pbyNewRsr,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    BOOL         bOnFly,
+    PSKeyItem    pKey,
+    PBYTE       pbyNewRsr,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+    PWORD       pwRxTSC15_0,
+    PDWORD      pdwRxTSC47_16
     )
 {
     UINT            PayloadLen = FrameSize;
@@ -1440,12 +1440,12 @@ static BOOL s_bHostWepRxEncryption (
 
 
 static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN struct sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
+    PSDevice pDevice,
+    struct sk_buff* skb,
+    UINT     FrameSize,
+    UINT     cbHeaderOffset,
+    INT      iSANodeIndex,
+    INT      iDANodeIndex
     )
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;

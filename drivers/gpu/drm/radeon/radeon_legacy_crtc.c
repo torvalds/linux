@@ -26,7 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
-#include "radeon_fixed.h"
+#include <drm/drm_fixed.h>
 #include "radeon.h"
 #include "atom.h"
 
@@ -314,6 +314,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
+		radeon_crtc->enabled = true;
+		/* adjust pm to dpms changes BEFORE enabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		if (radeon_crtc->crtc_id)
 			WREG32_P(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_EN, ~(RADEON_CRTC2_EN | mask));
 		else {
@@ -335,6 +338,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 										    RADEON_CRTC_DISP_REQ_EN_B));
 			WREG32_P(RADEON_CRTC_EXT_CNTL, mask, ~mask);
 		}
+		radeon_crtc->enabled = false;
+		/* adjust pm to dpms changes AFTER disabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		break;
 	}
 }
@@ -403,7 +409,7 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* if scanout was in GTT this really wouldn't work */
 	/* crtc offset is from display base addr not FB location */
-	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_location;
+	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_start;
 
 	base -= radeon_crtc->legacy_display_base_addr;
 
@@ -582,29 +588,6 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				   ? RADEON_CRTC_V_SYNC_POL
 				   : 0));
 
-	/* TODO -> Dell Server */
-	if (0) {
-		uint32_t disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
-		uint32_t tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
-		uint32_t dac2_cntl = RREG32(RADEON_DAC_CNTL2);
-		uint32_t crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
-
-		dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
-		dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-
-		/* For CRT on DAC2, don't turn it on if BIOS didn't
-		   enable it, even it's detected.
-		*/
-		disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
-		tv_dac_cntl &= ~((1<<2) | (3<<8) | (7<<24) | (0xff<<16));
-		tv_dac_cntl |= (0x03 | (2<<8) | (0x58<<16));
-
-		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
-		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
-		WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
-	}
-
 	if (radeon_crtc->crtc_id) {
 		uint32_t crtc2_gen_cntl;
 		uint32_t disp2_merge_cntl;
@@ -625,6 +608,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				   | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				      ? RADEON_CRTC2_INTERLACE_EN
 				      : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc2_gen_cntl |= RADEON_CRTC2_EN;
 
 		disp2_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
 		disp2_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
@@ -652,6 +639,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				 | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				    ? RADEON_CRTC_INTERLACE_EN
 				    : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc_gen_cntl |= RADEON_CRTC_EN;
 
 		crtc_ext_cntl = RREG32(RADEON_CRTC_EXT_CNTL);
 		crtc_ext_cntl |= (RADEON_XCRT_CNT_EN |
@@ -726,6 +717,10 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		pll = &rdev->clock.p1pll;
 
 	pll->flags = RADEON_PLL_LEGACY;
+	if (radeon_new_pll == 1)
+		pll->algo = PLL_ALGO_NEW;
+	else
+		pll->algo = PLL_ALGO_LEGACY;
 
 	if (mode->clock > 200000) /* range limits??? */
 		pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
@@ -977,6 +972,12 @@ static bool radeon_crtc_mode_fixup(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	/* adjust pm to upcoming mode change */
+	radeon_pm_compute_clocks(rdev);
+
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	return true;

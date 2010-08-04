@@ -30,6 +30,7 @@
 #include <acpi/button.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc.h"
@@ -56,7 +57,7 @@ static void intel_lvds_set_backlight(struct drm_device *dev, int level)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 blc_pwm_ctl, reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_CPU_CTL;
 	else
 		reg = BLC_PWM_CTL;
@@ -74,7 +75,7 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_PCH_CTL2;
 	else
 		reg = BLC_PWM_CTL;
@@ -89,17 +90,22 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status, ctl_reg, status_reg;
+	u32 pp_status, ctl_reg, status_reg, lvds_reg;
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
 		status_reg = PCH_PP_STATUS;
+		lvds_reg = PCH_LVDS;
 	} else {
 		ctl_reg = PP_CONTROL;
 		status_reg = PP_STATUS;
+		lvds_reg = LVDS;
 	}
 
 	if (on) {
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
+
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
 			   POWER_TARGET_ON);
 		do {
@@ -115,6 +121,9 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 		do {
 			pp_status = I915_READ(status_reg);
 		} while (pp_status & PP_ON);
+
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
 	}
 }
 
@@ -128,75 +137,6 @@ static void intel_lvds_dpms(struct drm_encoder *encoder, int mode)
 		intel_lvds_set_power(dev, false);
 
 	/* XXX: We never power down the LVDS pairs. */
-}
-
-static void intel_lvds_save(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
-	u32 pwm_ctl_reg;
-
-	if (IS_IRONLAKE(dev)) {
-		pp_on_reg = PCH_PP_ON_DELAYS;
-		pp_off_reg = PCH_PP_OFF_DELAYS;
-		pp_ctl_reg = PCH_PP_CONTROL;
-		pp_div_reg = PCH_PP_DIVISOR;
-		pwm_ctl_reg = BLC_PWM_CPU_CTL;
-	} else {
-		pp_on_reg = PP_ON_DELAYS;
-		pp_off_reg = PP_OFF_DELAYS;
-		pp_ctl_reg = PP_CONTROL;
-		pp_div_reg = PP_DIVISOR;
-		pwm_ctl_reg = BLC_PWM_CTL;
-	}
-
-	dev_priv->savePP_ON = I915_READ(pp_on_reg);
-	dev_priv->savePP_OFF = I915_READ(pp_off_reg);
-	dev_priv->savePP_CONTROL = I915_READ(pp_ctl_reg);
-	dev_priv->savePP_DIVISOR = I915_READ(pp_div_reg);
-	dev_priv->saveBLC_PWM_CTL = I915_READ(pwm_ctl_reg);
-	dev_priv->backlight_duty_cycle = (dev_priv->saveBLC_PWM_CTL &
-				       BACKLIGHT_DUTY_CYCLE_MASK);
-
-	/*
-	 * If the light is off at server startup, just make it full brightness
-	 */
-	if (dev_priv->backlight_duty_cycle == 0)
-		dev_priv->backlight_duty_cycle =
-			intel_lvds_get_max_backlight(dev);
-}
-
-static void intel_lvds_restore(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
-	u32 pwm_ctl_reg;
-
-	if (IS_IRONLAKE(dev)) {
-		pp_on_reg = PCH_PP_ON_DELAYS;
-		pp_off_reg = PCH_PP_OFF_DELAYS;
-		pp_ctl_reg = PCH_PP_CONTROL;
-		pp_div_reg = PCH_PP_DIVISOR;
-		pwm_ctl_reg = BLC_PWM_CPU_CTL;
-	} else {
-		pp_on_reg = PP_ON_DELAYS;
-		pp_off_reg = PP_OFF_DELAYS;
-		pp_ctl_reg = PP_CONTROL;
-		pp_div_reg = PP_DIVISOR;
-		pwm_ctl_reg = BLC_PWM_CTL;
-	}
-
-	I915_WRITE(pwm_ctl_reg, dev_priv->saveBLC_PWM_CTL);
-	I915_WRITE(pp_on_reg, dev_priv->savePP_ON);
-	I915_WRITE(pp_off_reg, dev_priv->savePP_OFF);
-	I915_WRITE(pp_div_reg, dev_priv->savePP_DIVISOR);
-	I915_WRITE(pp_ctl_reg, dev_priv->savePP_CONTROL);
-	if (dev_priv->savePP_CONTROL & POWER_TARGET_ON)
-		intel_lvds_set_power(dev, true);
-	else
-		intel_lvds_set_power(dev, false);
 }
 
 static int intel_lvds_mode_valid(struct drm_connector *connector,
@@ -230,8 +170,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct drm_encoder *tmp_encoder;
-	struct intel_output *intel_output = enc_to_intel_output(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0;
 	int left_border = 0, right_border = 0, top_border = 0;
 	int bottom_border = 0;
@@ -297,7 +237,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	/* full screen scale for now */
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		goto out;
 
 	/* 965+ wants fuzzy fitting */
@@ -327,7 +267,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	if (!IS_IRONLAKE(dev)) {
+	if (!HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(BCLRPAT_A, 0);
 		I915_WRITE(BCLRPAT_B, 0);
 	}
@@ -548,7 +488,7 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_CPU_CTL;
 	else
 		reg = BLC_PWM_CTL;
@@ -578,8 +518,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output = enc_to_intel_output(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 
 	/*
 	 * The LVDS pin pair will already have been turned on in the
@@ -587,7 +527,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * settings.
 	 */
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		return;
 
 	/*
@@ -599,39 +539,6 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
 }
 
-/* Some lid devices report incorrect lid status, assume they're connected */
-static const struct dmi_system_id bad_lid_status[] = {
-	{
-		.ident = "Compaq nx9020",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_BOARD_NAME, "3084"),
-		},
-	},
-	{
-		.ident = "Samsung SX20S",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Phoenix Technologies LTD"),
-			DMI_MATCH(DMI_BOARD_NAME, "SX20S"),
-		},
-	},
-	{
-		.ident = "Aspire One",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
-		},
-	},
-	{
-		.ident = "PC-81005",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "MALATA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "PC-81005"),
-		},
-	},
-	{ }
-};
-
 /**
  * Detect the LVDS connection.
  *
@@ -641,10 +548,14 @@ static const struct dmi_system_id bad_lid_status[] = {
  */
 static enum drm_connector_status intel_lvds_detect(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
 
-	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
-		status = connector_status_disconnected;
+	/* ACPI lid methods were generally unreliable in this generation, so
+	 * don't even bother.
+	 */
+	if (IS_GEN2(dev) || IS_GEN3(dev))
+		return connector_status_connected;
 
 	return status;
 }
@@ -655,14 +566,17 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output = to_intel_output(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	ret = intel_ddc_get_modes(intel_output);
+	if (dev_priv->lvds_edid_good) {
+		ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	/* Didn't get an EDID, so
 	 * Set wide sync ranges so we get all modes
@@ -684,6 +598,26 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 
 	return 0;
 }
+
+static int intel_no_modeset_on_lid_dmi_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG_KMS("Skipping forced modeset for %s\n", id->ident);
+	return 1;
+}
+
+/* The GPU hangs up on these systems if modeset is performed on LID open */
+static const struct dmi_system_id intel_no_modeset_on_lid[] = {
+	{
+		.callback = intel_no_modeset_on_lid_dmi_callback,
+		.ident = "Toshiba Tecra A11",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TECRA A11"),
+		},
+	},
+
+	{ }	/* terminating entry */
+};
 
 /*
  * Lid events. Note the use of 'modeset_on_lid':
@@ -708,6 +642,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 */
 	if (connector)
 		connector->status = connector->funcs->detect(connector);
+	/* Don't force modeset on machines where it causes a GPU lockup */
+	if (dmi_check_system(intel_no_modeset_on_lid))
+		return NOTIFY_OK;
 	if (!acpi_lid_open()) {
 		dev_priv->modeset_on_lid = 1;
 		return NOTIFY_OK;
@@ -735,11 +672,8 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 static void intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output = to_intel_output(connector);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (intel_output->ddc_bus)
-		intel_i2c_destroy(intel_output->ddc_bus);
 	if (dev_priv->lid_notifier.notifier_call)
 		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
 	drm_sysfs_connector_remove(connector);
@@ -752,13 +686,14 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   uint64_t value)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output =
-			to_intel_output(connector);
 
 	if (property == dev->mode_config.scaling_mode_property &&
 				connector->encoder) {
 		struct drm_crtc *crtc = connector->encoder->crtc;
-		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+		struct drm_encoder *encoder = connector->encoder;
+		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+		struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
+
 		if (value == DRM_MODE_SCALE_NONE) {
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return 0;
@@ -792,13 +727,11 @@ static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
 	.get_modes = intel_lvds_get_modes,
 	.mode_valid = intel_lvds_mode_valid,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_lvds_save,
-	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_lvds_set_property,
@@ -808,7 +741,12 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 
 static void intel_lvds_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
@@ -876,6 +814,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.ident = "Aopen i945GTt-VFA",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Clientron U800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "U800"),
 		},
 	},
 
@@ -988,7 +934,8 @@ static int lvds_is_present_in_vbt(struct drm_device *dev)
 void intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output;
+	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
@@ -1006,7 +953,7 @@ void intel_lvds_init(struct drm_device *dev)
 		return;
 	}
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
 		if (dev_priv->edp_support) {
@@ -1016,43 +963,51 @@ void intel_lvds_init(struct drm_device *dev)
 		gpio = PCH_GPIOC;
 	}
 
-	intel_output = kzalloc(sizeof(struct intel_output) +
+	intel_encoder = kzalloc(sizeof(struct intel_encoder) +
 				sizeof(struct intel_lvds_priv), GFP_KERNEL);
-	if (!intel_output) {
+	if (!intel_encoder) {
 		return;
 	}
 
-	connector = &intel_output->base;
-	encoder = &intel_output->enc;
-	drm_connector_init(dev, &intel_output->base, &intel_lvds_connector_funcs,
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
+	connector = &intel_connector->base;
+	encoder = &intel_encoder->enc;
+	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
-	drm_encoder_init(dev, &intel_output->enc, &intel_lvds_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->enc, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
-	intel_output->type = INTEL_OUTPUT_LVDS;
+	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->enc);
+	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
-	intel_output->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
-	intel_output->crtc_mask = (1 << 1);
+	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
+	intel_encoder->crtc_mask = (1 << 1);
+	if (IS_I965G(dev))
+		intel_encoder->crtc_mask |= (1 << 0);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	lvds_priv = (struct intel_lvds_priv *)(intel_output + 1);
-	intel_output->dev_priv = lvds_priv;
+	lvds_priv = (struct intel_lvds_priv *)(intel_encoder + 1);
+	intel_encoder->dev_priv = lvds_priv;
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
 	/*
 	 * the initial panel fitting mode will be FULL_SCREEN.
 	 */
 
-	drm_connector_attach_property(&intel_output->base,
+	drm_connector_attach_property(&intel_connector->base,
 				      dev->mode_config.scaling_mode_property,
-				      DRM_MODE_SCALE_FULLSCREEN);
-	lvds_priv->fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
+				      DRM_MODE_SCALE_ASPECT);
+	lvds_priv->fitting_mode = DRM_MODE_SCALE_ASPECT;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC
@@ -1064,8 +1019,8 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Set up the DDC bus. */
-	intel_output->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
-	if (!intel_output->ddc_bus) {
+	intel_encoder->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
+	if (!intel_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");
 		goto failed;
@@ -1075,7 +1030,10 @@ void intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	intel_ddc_get_modes(intel_output);
+	dev_priv->lvds_edid_good = true;
+
+	if (!intel_ddc_get_modes(connector, intel_encoder->ddc_bus))
+		dev_priv->lvds_edid_good = false;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		mutex_lock(&dev->mode_config.mutex);
@@ -1109,7 +1067,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		goto failed;
 
 	lvds = I915_READ(LVDS);
@@ -1130,7 +1088,7 @@ void intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
 		/* make sure PWM is enabled */
 		pwm = I915_READ(BLC_PWM_CPU_CTL2);
@@ -1153,9 +1111,10 @@ out:
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
-	if (intel_output->ddc_bus)
-		intel_i2c_destroy(intel_output->ddc_bus);
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
-	kfree(intel_output);
+	kfree(intel_encoder);
+	kfree(intel_connector);
 }

@@ -35,8 +35,8 @@ efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
 efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
-extern void efx_stop_queue(struct efx_nic *efx);
-extern void efx_wake_queue(struct efx_nic *efx);
+extern void efx_stop_queue(struct efx_channel *channel);
+extern void efx_wake_queue(struct efx_channel *channel);
 #define EFX_TXQ_SIZE 1024
 #define EFX_TXQ_MASK (EFX_TXQ_SIZE - 1)
 
@@ -79,8 +79,6 @@ extern int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok);
 
 /* Global */
 extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
-extern void efx_suspend(struct efx_nic *efx);
-extern void efx_resume(struct efx_nic *efx);
 extern void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs,
 				    int rx_usecs, bool rx_adaptive);
 extern int efx_request_power(struct efx_nic *efx, int mw, const char *name);

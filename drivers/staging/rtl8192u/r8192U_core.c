@@ -70,6 +70,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8192U_dm.h"
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
+#include <linux/slab.h>
 // FIXME: check if 2.6.7 is ok
 
 #ifdef CONFIG_RTL8192_PM
@@ -104,7 +105,7 @@ u32 rt_global_debug_component = \
 #define TOTAL_CAM_ENTRY 32
 #define CAM_CONTENT_COUNT 8
 
-static struct usb_device_id rtl8192_usb_id_tbl[] = {
+static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	/* Realtek */
 	{USB_DEVICE(0x0bda, 0x8192)},
 	{USB_DEVICE(0x0bda, 0x8709)},
@@ -120,6 +121,8 @@ static struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* LG */
+	{USB_DEVICE(0x043e, 0x7a01)},
 	{}
 };
 
@@ -2215,7 +2218,8 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->rx_urb = (struct urb**) kmalloc (sizeof(struct urb*) * (MAX_RX_URB+1), GFP_KERNEL);
+	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB+1),
+				GFP_KERNEL);
 
 #ifndef JACKSON_NEW_RX
 	for(i=0;i<(MAX_RX_URB+1);i++){
@@ -2249,11 +2253,10 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 #endif
 
 	memset(priv->rx_urb, 0, sizeof(struct urb*) * MAX_RX_URB);
-	priv->pp_rxskb = (struct sk_buff **)kmalloc(sizeof(struct sk_buff *) * MAX_RX_URB, GFP_KERNEL);
+	priv->pp_rxskb = kcalloc(MAX_RX_URB, sizeof(struct sk_buff *),
+				 GFP_KERNEL);
 	if (priv->pp_rxskb == NULL)
 		goto destroy;
-
-	memset(priv->pp_rxskb, 0, sizeof(struct sk_buff*) * MAX_RX_URB);
 
 	goto _middle;
 
@@ -2719,7 +2722,7 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we shoud wait for FPGA
+#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
 	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
 #endif
 	priv->ieee80211->mode = wireless_mode;
@@ -2838,7 +2841,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		(priv->EarlyRxThreshold == 7 ? RCR_ONLYERLPKT:0);
 
 	priv->AcmControl = 0;
-	priv->pFirmware = (rt_firmware*)kmalloc(sizeof(rt_firmware), GFP_KERNEL);
+	priv->pFirmware = kmalloc(sizeof(rt_firmware), GFP_KERNEL);
 	if (priv->pFirmware)
 	memset(priv->pFirmware, 0, sizeof(rt_firmware));
 
@@ -2976,7 +2979,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
 		//should I set IDR0 here?
 	}
-	RT_TRACE(COMP_EPROM, "MAC addr:"MAC_FMT"\n", MAC_ARG(dev->dev_addr));
+	RT_TRACE(COMP_EPROM, "MAC addr:%pM\n", dev->dev_addr);
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE; //default 1T2R
 	priv->rf_chip = RF_8256;
 
@@ -4414,7 +4417,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	     goto out;
 	}
 
-     ipw = (struct ieee_param *)kmalloc(p->length, GFP_KERNEL);
+     ipw = kmalloc(p->length, GFP_KERNEL);
      if (ipw == NULL){
 	     ret = -ENOMEM;
 	     goto out;
@@ -6037,7 +6040,7 @@ void setKey(	struct net_device *dev,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr"MAC_FMT"\n", dev,EntryNo, KeyIndex, KeyType, MAC_ARG(MacAddr));
+	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);

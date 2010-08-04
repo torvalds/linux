@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define AC97C_ICA		0x10
 #define AC97C_CBRHR		0x30

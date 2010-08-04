@@ -79,12 +79,21 @@ extern ktrace_t *xfs_filestreams_trace_buf;
  * the cache that reference per-ag array elements that have since been
  * reallocated.
  */
+/*
+ * xfs_filestream_peek_ag is only used in tracing code
+ */
 static inline int
 xfs_filestream_peek_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
 {
-	return atomic_read(&mp->m_perag[agno].pagf_fstrms);
+	struct xfs_perag *pag;
+	int		ret;
+
+	pag = xfs_perag_get(mp, agno);
+	ret = atomic_read(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+	return ret;
 }
 
 static inline int
@@ -92,7 +101,13 @@ xfs_filestream_get_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
 {
-	return atomic_inc_return(&mp->m_perag[agno].pagf_fstrms);
+	struct xfs_perag *pag;
+	int		ret;
+
+	pag = xfs_perag_get(mp, agno);
+	ret = atomic_inc_return(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+	return ret;
 }
 
 static inline int
@@ -100,7 +115,13 @@ xfs_filestream_put_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
 {
-	return atomic_dec_return(&mp->m_perag[agno].pagf_fstrms);
+	struct xfs_perag *pag;
+	int		ret;
+
+	pag = xfs_perag_get(mp, agno);
+	ret = atomic_dec_return(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+	return ret;
 }
 
 /* allocation selection flags */
@@ -114,7 +135,6 @@ int xfs_filestream_init(void);
 void xfs_filestream_uninit(void);
 int xfs_filestream_mount(struct xfs_mount *mp);
 void xfs_filestream_unmount(struct xfs_mount *mp);
-void xfs_filestream_flush(struct xfs_mount *mp);
 xfs_agnumber_t xfs_filestream_lookup_ag(struct xfs_inode *ip);
 int xfs_filestream_associate(struct xfs_inode *dip, struct xfs_inode *ip);
 void xfs_filestream_deassociate(struct xfs_inode *ip);

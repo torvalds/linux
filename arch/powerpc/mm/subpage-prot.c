@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>

@@ -109,36 +109,36 @@ typedef enum tagCMD_STATE {
 
 
 /*---------------------  Export Functions  --------------------------*/
-VOID
+void
 vResetCommandTimer(
-    IN HANDLE      hDeviceContext
+    void *hDeviceContext
     );
 
-VOID
+void
 vCommandTimer (
-    IN  HANDLE hDeviceContext
+    void *hDeviceContext
     );
 
 BOOL bClearBSSID_SCAN(
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     );
 
 BOOL
 bScheduleCommand(
-    IN HANDLE      hDeviceContext,
-    IN CMD_CODE    eCommand,
-    IN PBYTE       pbyItem0
+    void *hDeviceContext,
+    CMD_CODE    eCommand,
+    PBYTE       pbyItem0
     );
 
-VOID
+void
 vCommandTimerWait(
-    IN HANDLE      hDeviceContext,
-    IN UINT MSecond
+    void *hDeviceContext,
+    UINT MSecond
     );
 #ifdef TxInSleep
-VOID
+void
 BSSvSecondTxData(
-    IN  HANDLE      hDeviceContext
+    void *hDeviceContext
     );
 #endif
 

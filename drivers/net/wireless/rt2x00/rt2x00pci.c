@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00pci.h"
@@ -40,6 +41,9 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   u32 *reg)
 {
 	unsigned int i;
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return 0;
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2x00pci_register_read(rt2x00dev, offset, reg);
@@ -59,11 +63,10 @@ EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 /*
  * TX data handlers.
  */
-int rt2x00pci_write_tx_data(struct queue_entry *entry)
+int rt2x00pci_write_tx_data(struct queue_entry *entry,
+			    struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	struct skb_frame_desc *skbdesc;
 
 	/*
 	 * This should not happen, we already checked the entry
@@ -77,13 +80,6 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry)
 		      entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	skbdesc->desc = entry_priv->desc;
-	skbdesc->desc_len = entry->queue->desc_size;
 
 	return 0;
 }
@@ -210,7 +206,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free irq line.
 	 */
-	free_irq(to_pci_dev(rt2x00dev->dev)->irq, rt2x00dev);
+	free_irq(rt2x00dev->irq, rt2x00dev);
 
 	/*
 	 * Free DMA
@@ -269,7 +265,6 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
-	u16 chip;
 
 	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
 	if (retval) {
@@ -311,12 +306,6 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	rt2x00dev->name = pci_name(pci_dev);
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
-
-	/*
-	 * Determine RT chipset by reading PCI header.
-	 */
-	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &chip);
-	rt2x00_set_chip_rt(rt2x00dev, chip);
 
 	retval = rt2x00pci_alloc_reg(rt2x00dev);
 	if (retval)

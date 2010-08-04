@@ -650,6 +650,7 @@ static struct console ks8695_console = {
 
 static int __init ks8695_console_init(void)
 {
+	add_preferred_console(SERIAL_KS8695_DEVNAME, 0, NULL);
 	register_console(&ks8695_console);
 	return 0;
 }

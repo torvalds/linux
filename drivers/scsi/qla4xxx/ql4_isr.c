@@ -97,7 +97,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 
 	/* Place command on done queue. */
 	if (srb->req_sense_len == 0) {
-		qla4xxx_srb_compl(ha, srb);
+		kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 		ha->status_srb = NULL;
 	}
 }
@@ -329,7 +329,7 @@ status_entry_exit:
 	/* complete the request, if not waiting for status_continuation pkt */
 	srb->cc_stat = sts_entry->completionStatus;
 	if (ha->status_srb == NULL)
-		qla4xxx_srb_compl(ha, srb);
+		kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 }
 
 /**
@@ -393,7 +393,7 @@ static void qla4xxx_process_response_queue(struct scsi_qla_host * ha)
 			/* ETRY normally by sending it back with
 			 * DID_BUS_BUSY */
 			srb->cmd->result = DID_BUS_BUSY << 16;
-			qla4xxx_srb_compl(ha, srb);
+			kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 			break;
 
 		case ET_CONTINUE:
@@ -498,15 +498,22 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_LINK_UP:
-			DEBUG2(printk("scsi%ld: AEN %04x Adapter LINK UP\n",
-				      ha->host_no, mbox_status));
 			set_bit(AF_LINK_UP, &ha->flags);
+			if (test_bit(AF_INIT_DONE, &ha->flags))
+				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
+
+			DEBUG2(printk(KERN_INFO "scsi%ld: AEN %04x Adapter"
+					" LINK UP\n", ha->host_no,
+					mbox_status));
 			break;
 
 		case MBOX_ASTS_LINK_DOWN:
-			DEBUG2(printk("scsi%ld: AEN %04x Adapter LINK DOWN\n",
-				      ha->host_no, mbox_status));
 			clear_bit(AF_LINK_UP, &ha->flags);
+			set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
+
+			DEBUG2(printk(KERN_INFO "scsi%ld: AEN %04x Adapter"
+					" LINK DOWN\n", ha->host_no,
+					mbox_status));
 			break;
 
 		case MBOX_ASTS_HEARTBEAT:
@@ -831,7 +838,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 				qla4xxx_reinitialize_ddb_list(ha);
 			} else if (mbox_sts[1] == 1) {	/* Specific device. */
 				qla4xxx_process_ddb_changed(ha, mbox_sts[2],
-							    mbox_sts[3]);
+						mbox_sts[3], mbox_sts[4]);
 			}
 			break;
 		}

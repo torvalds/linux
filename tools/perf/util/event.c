@@ -7,9 +7,25 @@
 #include "strlist.h"
 #include "thread.h"
 
+const char *event__name[] = {
+	[0]			 = "TOTAL",
+	[PERF_RECORD_MMAP]	 = "MMAP",
+	[PERF_RECORD_LOST]	 = "LOST",
+	[PERF_RECORD_COMM]	 = "COMM",
+	[PERF_RECORD_EXIT]	 = "EXIT",
+	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
+	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
+	[PERF_RECORD_FORK]	 = "FORK",
+	[PERF_RECORD_READ]	 = "READ",
+	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
+};
+
 static pid_t event__synthesize_comm(pid_t pid, int full,
-				    int (*process)(event_t *event,
-						   struct perf_session *session),
+				    event__handler_t process,
 				    struct perf_session *session)
 {
 	event_t ev;
@@ -91,8 +107,7 @@ out_failure:
 }
 
 static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
-					 int (*process)(event_t *event,
-							struct perf_session *session),
+					 event__handler_t process,
 					 struct perf_session *session)
 {
 	char filename[PATH_MAX];
@@ -112,7 +127,14 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
 		event_t ev = {
-			.header = { .type = PERF_RECORD_MMAP },
+			.header = {
+				.type = PERF_RECORD_MMAP,
+				/*
+				 * Just like the kernel, see __perf_event_mmap
+				 * in kernel/perf_event.c
+				 */
+				.misc = PERF_RECORD_MISC_USER,
+			 },
 		};
 		int n;
 		size_t size;
@@ -129,6 +151,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 			continue;
 		pbf += n + 3;
 		if (*pbf == 'x') { /* vm_exec */
+			u64 vm_pgoff;
 			char *execname = strchr(bf, '/');
 
 			/* Catch VDSO */
@@ -137,6 +160,14 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 
 			if (execname == NULL)
 				continue;
+
+			pbf += 3;
+			n = hex2u64(pbf, &vm_pgoff);
+			/* pgoff is in bytes, not pages */
+			if (n >= 0)
+				ev.mmap.pgoff = vm_pgoff << getpagesize();
+			else
+				ev.mmap.pgoff = 0;
 
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
@@ -156,9 +187,51 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	return 0;
 }
 
-int event__synthesize_thread(pid_t pid,
-			     int (*process)(event_t *event,
-					    struct perf_session *session),
+int event__synthesize_modules(event__handler_t process,
+			      struct perf_session *session,
+			      struct machine *machine)
+{
+	struct rb_node *nd;
+	struct map_groups *kmaps = &machine->kmaps;
+	u16 misc;
+
+	/*
+	 * kernel uses 0 for user space maps, see kernel/perf_event.c
+	 * __perf_event_mmap
+	 */
+	if (machine__is_host(machine))
+		misc = PERF_RECORD_MISC_KERNEL;
+	else
+		misc = PERF_RECORD_MISC_GUEST_KERNEL;
+
+	for (nd = rb_first(&kmaps->maps[MAP__FUNCTION]);
+	     nd; nd = rb_next(nd)) {
+		event_t ev;
+		size_t size;
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+
+		if (pos->dso->kernel)
+			continue;
+
+		size = ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
+		memset(&ev, 0, sizeof(ev));
+		ev.mmap.header.misc = misc;
+		ev.mmap.header.type = PERF_RECORD_MMAP;
+		ev.mmap.header.size = (sizeof(ev.mmap) -
+				        (sizeof(ev.mmap.filename) - size));
+		ev.mmap.start = pos->start;
+		ev.mmap.len   = pos->end - pos->start;
+		ev.mmap.pid   = machine->pid;
+
+		memcpy(ev.mmap.filename, pos->dso->long_name,
+		       pos->dso->long_name_len + 1);
+		process(&ev, session);
+	}
+
+	return 0;
+}
+
+int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session)
 {
 	pid_t tgid = event__synthesize_comm(pid, 1, process, session);
@@ -167,8 +240,7 @@ int event__synthesize_thread(pid_t pid,
 	return event__synthesize_mmap_events(pid, tgid, process, session);
 }
 
-void event__synthesize_threads(int (*process)(event_t *event,
-					      struct perf_session *session),
+void event__synthesize_threads(event__handler_t process,
 			       struct perf_session *session)
 {
 	DIR *proc;
@@ -187,6 +259,85 @@ void event__synthesize_threads(int (*process)(event_t *event,
 	}
 
 	closedir(proc);
+}
+
+struct process_symbol_args {
+	const char *name;
+	u64	   start;
+};
+
+static int find_symbol_cb(void *arg, const char *name, char type, u64 start)
+{
+	struct process_symbol_args *args = arg;
+
+	/*
+	 * Must be a function or at least an alias, as in PARISC64, where "_text" is
+	 * an 'A' to the same address as "_stext".
+	 */
+	if (!(symbol_type__is_a(type, MAP__FUNCTION) ||
+	      type == 'A') || strcmp(name, args->name))
+		return 0;
+
+	args->start = start;
+	return 1;
+}
+
+int event__synthesize_kernel_mmap(event__handler_t process,
+				  struct perf_session *session,
+				  struct machine *machine,
+				  const char *symbol_name)
+{
+	size_t size;
+	const char *filename, *mmap_name;
+	char path[PATH_MAX];
+	char name_buff[PATH_MAX];
+	struct map *map;
+
+	event_t ev = {
+		.header = {
+			.type = PERF_RECORD_MMAP,
+		},
+	};
+	/*
+	 * We should get this from /sys/kernel/sections/.text, but till that is
+	 * available use this, and after it is use this as a fallback for older
+	 * kernels.
+	 */
+	struct process_symbol_args args = { .name = symbol_name, };
+
+	mmap_name = machine__mmap_name(machine, name_buff, sizeof(name_buff));
+	if (machine__is_host(machine)) {
+		/*
+		 * kernel uses PERF_RECORD_MISC_USER for user space maps,
+		 * see kernel/perf_event.c __perf_event_mmap
+		 */
+		ev.header.misc = PERF_RECORD_MISC_KERNEL;
+		filename = "/proc/kallsyms";
+	} else {
+		ev.header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
+		if (machine__is_default_guest(machine))
+			filename = (char *) symbol_conf.default_guest_kallsyms;
+		else {
+			sprintf(path, "%s/proc/kallsyms", machine->root_dir);
+			filename = path;
+		}
+	}
+
+	if (kallsyms__parse(filename, &args, find_symbol_cb) <= 0)
+		return -ENOENT;
+
+	map = machine->vmlinux_maps[MAP__FUNCTION];
+	size = snprintf(ev.mmap.filename, sizeof(ev.mmap.filename),
+			"%s%s", mmap_name, symbol_name) + 1;
+	size = ALIGN(size, sizeof(u64));
+	ev.mmap.header.size = (sizeof(ev.mmap) -
+			(sizeof(ev.mmap.filename) - size));
+	ev.mmap.pgoff = args.start;
+	ev.mmap.start = map->start;
+	ev.mmap.len   = map->end - ev.mmap.start;
+	ev.mmap.pid   = machine->pid;
+
+	return process(&ev, session);
 }
 
 static void thread__comm_adjust(struct thread *self)
@@ -219,9 +370,9 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 
 int event__process_comm(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->comm.pid);
+	struct thread *thread = perf_session__findnew(session, self->comm.tid);
 
-	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
+	dump_printf(": %s:%d\n", self->comm.comm, self->comm.tid);
 
 	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
@@ -234,46 +385,163 @@ int event__process_comm(event_t *self, struct perf_session *session)
 int event__process_lost(event_t *self, struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
-	session->events_stats.lost += self->lost.lost;
+	session->hists.stats.total_lost += self->lost.lost;
 	return 0;
+}
+
+static void event_set_kernel_mmap_len(struct map **maps, event_t *self)
+{
+	maps[MAP__FUNCTION]->start = self->mmap.start;
+	maps[MAP__FUNCTION]->end   = self->mmap.start + self->mmap.len;
+	/*
+	 * Be a bit paranoid here, some perf.data file came with
+	 * a zero sized synthesized MMAP event for the kernel.
+	 */
+	if (maps[MAP__FUNCTION]->end == 0)
+		maps[MAP__FUNCTION]->end = ~0UL;
+}
+
+static int event__process_kernel_mmap(event_t *self,
+			struct perf_session *session)
+{
+	struct map *map;
+	char kmmap_prefix[PATH_MAX];
+	struct machine *machine;
+	enum dso_kernel_type kernel_type;
+	bool is_kernel_mmap;
+
+	machine = perf_session__findnew_machine(session, self->mmap.pid);
+	if (!machine) {
+		pr_err("Can't find id %d's machine\n", self->mmap.pid);
+		goto out_problem;
+	}
+
+	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
+	if (machine__is_host(machine))
+		kernel_type = DSO_TYPE_KERNEL;
+	else
+		kernel_type = DSO_TYPE_GUEST_KERNEL;
+
+	is_kernel_mmap = memcmp(self->mmap.filename,
+				kmmap_prefix,
+				strlen(kmmap_prefix)) == 0;
+	if (self->mmap.filename[0] == '/' ||
+	    (!is_kernel_mmap && self->mmap.filename[0] == '[')) {
+
+		char short_module_name[1024];
+		char *name, *dot;
+
+		if (self->mmap.filename[0] == '/') {
+			name = strrchr(self->mmap.filename, '/');
+			if (name == NULL)
+				goto out_problem;
+
+			++name; /* skip / */
+			dot = strrchr(name, '.');
+			if (dot == NULL)
+				goto out_problem;
+			snprintf(short_module_name, sizeof(short_module_name),
+					"[%.*s]", (int)(dot - name), name);
+			strxfrchar(short_module_name, '-', '_');
+		} else
+			strcpy(short_module_name, self->mmap.filename);
+
+		map = machine__new_module(machine, self->mmap.start,
+					  self->mmap.filename);
+		if (map == NULL)
+			goto out_problem;
+
+		name = strdup(short_module_name);
+		if (name == NULL)
+			goto out_problem;
+
+		map->dso->short_name = name;
+		map->end = map->start + self->mmap.len;
+	} else if (is_kernel_mmap) {
+		const char *symbol_name = (self->mmap.filename +
+				strlen(kmmap_prefix));
+		/*
+		 * Should be there already, from the build-id table in
+		 * the header.
+		 */
+		struct dso *kernel = __dsos__findnew(&machine->kernel_dsos,
+						     kmmap_prefix);
+		if (kernel == NULL)
+			goto out_problem;
+
+		kernel->kernel = kernel_type;
+		if (__machine__create_kernel_maps(machine, kernel) < 0)
+			goto out_problem;
+
+		event_set_kernel_mmap_len(machine->vmlinux_maps, self);
+		perf_session__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps,
+							 symbol_name,
+							 self->mmap.pgoff);
+		if (machine__is_default_guest(machine)) {
+			/*
+			 * preload dso of guest kernel and modules
+			 */
+			dso__load(kernel, machine->vmlinux_maps[MAP__FUNCTION],
+				  NULL);
+		}
+	}
+	return 0;
+out_problem:
+	return -1;
 }
 
 int event__process_mmap(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->mmap.pid);
-	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
-				   session->cwd, session->cwdlen);
+	struct machine *machine;
+	struct thread *thread;
+	struct map *map;
+	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	int ret = 0;
 
-	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
-		    self->mmap.pid, self->mmap.tid,
-		    (void *)(long)self->mmap.start,
-		    (void *)(long)self->mmap.len,
-		    (void *)(long)self->mmap.pgoff,
-		    self->mmap.filename);
+	dump_printf(" %d/%d: [%#Lx(%#Lx) @ %#Lx]: %s\n",
+			self->mmap.pid, self->mmap.tid, self->mmap.start,
+			self->mmap.len, self->mmap.pgoff, self->mmap.filename);
+
+	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    cpumode == PERF_RECORD_MISC_KERNEL) {
+		ret = event__process_kernel_mmap(self, session);
+		if (ret < 0)
+			goto out_problem;
+		return 0;
+	}
+
+	machine = perf_session__find_host_machine(session);
+	if (machine == NULL)
+		goto out_problem;
+	thread = perf_session__findnew(session, self->mmap.pid);
+	map = map__new(&machine->user_dsos, self->mmap.start,
+			self->mmap.len, self->mmap.pgoff,
+			self->mmap.pid, self->mmap.filename,
+			MAP__FUNCTION, session->cwd, session->cwdlen);
 
 	if (thread == NULL || map == NULL)
-		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
-	else
-		thread__insert_map(thread, map);
+		goto out_problem;
 
+	thread__insert_map(thread, map);
+	return 0;
+
+out_problem:
+	dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
 	return 0;
 }
 
 int event__process_task(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->fork.pid);
-	struct thread *parent = perf_session__findnew(session, self->fork.ppid);
+	struct thread *thread = perf_session__findnew(session, self->fork.tid);
+	struct thread *parent = perf_session__findnew(session, self->fork.ptid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
-	/*
-	 * A thread clone will have the same PID for both parent and child.
-	 */
-	if (thread == parent)
-		return 0;
 
-	if (self->header.type == PERF_RECORD_EXIT)
+	if (self->header.type == PERF_RECORD_EXIT) {
+		perf_session__remove_thread(session, thread);
 		return 0;
+	}
 
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent) < 0) {
@@ -284,26 +552,58 @@ int event__process_task(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-void thread__find_addr_location(struct thread *self,
-				struct perf_session *session, u8 cpumode,
-				enum map_type type, u64 addr,
-				struct addr_location *al,
-				symbol_filter_t filter)
+void thread__find_addr_map(struct thread *self,
+			   struct perf_session *session, u8 cpumode,
+			   enum map_type type, pid_t pid, u64 addr,
+			   struct addr_location *al)
 {
 	struct map_groups *mg = &self->mg;
+	struct machine *machine = NULL;
 
 	al->thread = self;
 	al->addr = addr;
+	al->cpumode = cpumode;
+	al->filtered = false;
 
-	if (cpumode & PERF_RECORD_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
-		mg = &session->kmaps;
-	} else if (cpumode & PERF_RECORD_MISC_USER)
+		machine = perf_session__find_host_machine(session);
+		if (machine == NULL) {
+			al->map = NULL;
+			return;
+		}
+		mg = &machine->kmaps;
+	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
-	else {
-		al->level = 'H';
+		machine = perf_session__find_host_machine(session);
+	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
+		al->level = 'g';
+		machine = perf_session__find_machine(session, pid);
+		if (machine == NULL) {
+			al->map = NULL;
+			return;
+		}
+		mg = &machine->kmaps;
+	} else {
+		/*
+		 * 'u' means guest os user space.
+		 * TODO: We don't support guest user space. Might support late.
+		 */
+		if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest)
+			al->level = 'u';
+		else
+			al->level = 'H';
 		al->map = NULL;
-		al->sym = NULL;
+
+		if ((cpumode == PERF_RECORD_MISC_GUEST_USER ||
+			cpumode == PERF_RECORD_MISC_GUEST_KERNEL) &&
+			!perf_guest)
+			al->filtered = true;
+		if ((cpumode == PERF_RECORD_MISC_USER ||
+			cpumode == PERF_RECORD_MISC_KERNEL) &&
+			!perf_host)
+			al->filtered = true;
+
 		return;
 	}
 try_again:
@@ -318,15 +618,27 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
-		if ((long long)al->addr < 0 && mg != &session->kmaps) {
-			mg = &session->kmaps;
+		if ((long long)al->addr < 0 &&
+		    cpumode == PERF_RECORD_MISC_KERNEL &&
+		    machine && mg != &machine->kmaps) {
+			mg = &machine->kmaps;
 			goto try_again;
 		}
-		al->sym = NULL;
-	} else {
+	} else
 		al->addr = al->map->map_ip(al->map, al->addr);
-		al->sym = map__find_symbol(al->map, session, al->addr, filter);
-	}
+}
+
+void thread__find_addr_location(struct thread *self,
+				struct perf_session *session, u8 cpumode,
+				enum map_type type, pid_t pid, u64 addr,
+				struct addr_location *al,
+				symbol_filter_t filter)
+{
+	thread__find_addr_map(self, session, cpumode, type, pid, addr, al);
+	if (al->map != NULL)
+		al->sym = map__find_symbol(al->map, al->addr, filter);
+	else
+		al->sym = NULL;
 }
 
 static void dso__calc_col_width(struct dso *self)
@@ -334,8 +646,10 @@ static void dso__calc_col_width(struct dso *self)
 	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 	    (!symbol_conf.dso_list ||
 	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
-		unsigned int slen = strlen(self->name);
-		if (slen > dsos__col_width)
+		u16 slen = self->short_name_len;
+		if (verbose)
+			slen = self->long_name_len;
+		if (dsos__col_width < slen)
 			dsos__col_width = slen;
 	}
 
@@ -356,31 +670,55 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		goto out_filtered;
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	/*
+	 * Have we already created the kernel maps for the host machine?
+	 *
+	 * This should have happened earlier, when we processed the kernel MMAP
+	 * events, but for older perf.data files there was no such thing, so do
+	 * it now.
+	 */
+	if (cpumode == PERF_RECORD_MISC_KERNEL &&
+	    session->host_machine.vmlinux_maps[MAP__FUNCTION] == NULL)
+		machine__create_kernel_maps(&session->host_machine);
 
-	thread__find_addr_location(thread, session, cpumode, MAP__FUNCTION,
-				   self->ip.ip, al, filter);
+	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
+			      self->ip.pid, self->ip.ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
-	/*
-	 * We have to do this here as we may have a dso with no symbol hit that
-	 * has a name longer than the ones with symbols sampled.
-	 */
-	if (al->map && !sort_dso.elide && !al->map->dso->slen_calculated)
-		dso__calc_col_width(al->map->dso);
+	al->sym = NULL;
 
-	if (symbol_conf.dso_list &&
-	    (!al->map || !al->map->dso ||
-	     !(strlist__has_entry(symbol_conf.dso_list, al->map->dso->short_name) ||
-	       (al->map->dso->short_name != al->map->dso->long_name &&
-		strlist__has_entry(symbol_conf.dso_list, al->map->dso->long_name)))))
-		goto out_filtered;
+	if (al->map) {
+		if (symbol_conf.dso_list &&
+		    (!al->map || !al->map->dso ||
+		     !(strlist__has_entry(symbol_conf.dso_list,
+					  al->map->dso->short_name) ||
+		       (al->map->dso->short_name != al->map->dso->long_name &&
+			strlist__has_entry(symbol_conf.dso_list,
+					   al->map->dso->long_name)))))
+			goto out_filtered;
+		/*
+		 * We have to do this here as we may have a dso with no symbol
+		 * hit that has a name longer than the ones with symbols
+		 * sampled.
+		 */
+		if (!sort_dso.elide && !al->map->dso->slen_calculated)
+			dso__calc_col_width(al->map->dso);
+
+		al->sym = map__find_symbol(al->map, al->addr, filter);
+	} else {
+		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
+
+		if (dsos__col_width < unresolved_col_width &&
+		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+		    !symbol_conf.dso_list)
+			dsos__col_width = unresolved_col_width;
+	}
 
 	if (symbol_conf.sym_list && al->sym &&
 	    !strlist__has_entry(symbol_conf.sym_list, al->sym->name))
 		goto out_filtered;
 
-	al->filtered = false;
 	return 0;
 
 out_filtered:
@@ -414,6 +752,7 @@ int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
 		array++;
 	}
 
+	data->id = -1ULL;
 	if (type & PERF_SAMPLE_ID) {
 		data->id = *array;
 		array++;

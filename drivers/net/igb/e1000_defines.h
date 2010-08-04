@@ -313,12 +313,6 @@
 #define E1000_PBA_34K 0x0022
 #define E1000_PBA_64K 0x0040    /* 64KB */
 
-#define IFS_MAX       80
-#define IFS_MIN       40
-#define IFS_RATIO     4
-#define IFS_STEP      10
-#define MIN_NUM_XMITS 1000
-
 /* SW Semaphore Register */
 #define E1000_SWSM_SMBI         0x00000001 /* Driver Semaphore bit */
 #define E1000_SWSM_SWESMBI      0x00000002 /* FW Semaphore bit */
@@ -481,6 +475,7 @@
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
+#define MII_CR_POWER_DOWN       0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
 #define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
 #define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */
@@ -615,11 +610,7 @@
 #define IGP_LED3_MODE           0x07000000
 
 /* PCI/PCI-X/PCI-EX Config space */
-#define PCIE_LINK_STATUS             0x12
 #define PCIE_DEVICE_CONTROL2         0x28
-
-#define PCIE_LINK_WIDTH_MASK         0x3F0
-#define PCIE_LINK_WIDTH_SHIFT        4
 #define PCIE_DEVICE_CONTROL2_16ms    0x0005
 
 #define PHY_REVISION_MASK      0xFFFFFFF0
@@ -634,6 +625,7 @@
 #define M88E1111_I_PHY_ID    0x01410CC0
 #define IGP03E1000_E_PHY_ID  0x02A80390
 #define I82580_I_PHY_ID      0x015403A0
+#define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */

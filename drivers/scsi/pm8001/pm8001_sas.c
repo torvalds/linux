@@ -38,6 +38,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include "pm8001_sas.h"
 
 /**
@@ -600,7 +601,7 @@ static void pm8001_free_dev(struct pm8001_device *pm8001_dev)
   * by the command "OPC_INB_REG_DEV", after that the HBA will assign a
   * device ID(according to device's sas address) and returned it to LLDD. From
   * now on, we communicate with HBA FW with the device ID which HBA assigned
-  * rather than sas address. it is the neccessary step for our HBA but it is
+  * rather than sas address. it is the necessary step for our HBA but it is
   * the optional for other HBA driver.
   */
 static int pm8001_dev_found_notify(struct domain_device *dev)
@@ -884,11 +885,13 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 	u32 tag;
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
-	u32 device_id = pm8001_dev->device_id;
+
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	pm8001_tag_alloc(pm8001_ha, &tag);
 	if (pm8001_dev) {
+		u32 device_id = pm8001_dev->device_id;
+
 		PM8001_DISC_DBG(pm8001_ha,
 			pm8001_printk("found dev[%d:%x] is gone.\n",
 			pm8001_dev->device_id, pm8001_dev->dev_type));

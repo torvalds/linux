@@ -3,13 +3,14 @@
  *
  * Registration and callback for the s390 common I/O layer.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include "zfcp_ext.h"
+#include "zfcp_reqlist.h"
 
 #define ZFCP_MODEL_PRIV 0x4
 
@@ -122,12 +123,10 @@ static void zfcp_ccw_remove(struct ccw_device *cdev)
 	zfcp_ccw_adapter_put(adapter); /* put from zfcp_ccw_adapter_by_cdev */
 
 	list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
-		zfcp_device_unregister(&unit->sysfs_device,
-				       &zfcp_sysfs_unit_attrs);
+		zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list)
-		zfcp_device_unregister(&port->sysfs_device,
-				       &zfcp_sysfs_port_attrs);
+		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
 
 	zfcp_adapter_unregister(adapter);
 }
@@ -162,7 +161,7 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	}
 
 	/* initialize request counter */
-	BUG_ON(!zfcp_reqlist_isempty(adapter));
+	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
 	adapter->req_no = 0;
 
 	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,

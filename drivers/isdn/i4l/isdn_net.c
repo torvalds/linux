@@ -23,6 +23,7 @@
  */
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/dst.h>
 #include <net/pkt_sched.h>

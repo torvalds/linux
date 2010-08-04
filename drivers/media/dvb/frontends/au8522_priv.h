@@ -34,9 +34,14 @@
 #include "au8522.h"
 #include "tuner-i2c.h"
 
+#define AU8522_ANALOG_MODE 0
+#define AU8522_DIGITAL_MODE 1
+
 struct au8522_state {
 	struct i2c_client *c;
 	struct i2c_adapter *i2c;
+
+	u8 operational_mode;
 
 	/* Used for sharing of the state between analog and digital mode */
 	struct tuner_i2c_props i2c_props;

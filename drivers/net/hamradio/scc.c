@@ -158,7 +158,6 @@
 #include <linux/in.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -1630,7 +1629,6 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 	skb->protocol = ax25_type_trans(skb, scc->dev);
 	
 	netif_rx(skb);
-	return;
 }
 
 /* ----> transmit frame <---- */

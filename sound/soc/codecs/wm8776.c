@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -92,7 +93,6 @@ SOC_DAPM_SINGLE("Bypass Switch", WM8776_OUTMUX, 2, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget wm8776_dapm_widgets[] = {
-SND_SOC_DAPM_INPUT("AUX"),
 SND_SOC_DAPM_INPUT("AUX"),
 
 SND_SOC_DAPM_INPUT("AIN1"),
@@ -226,7 +226,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8776_priv *wm8776 = codec->private_data;
+	struct wm8776_priv *wm8776 = snd_soc_codec_get_drvdata(codec);
 	int iface_reg, iface;
 	int ratio_shift, master;
 	int i;
@@ -303,7 +303,7 @@ static int wm8776_set_sysclk(struct snd_soc_dai *dai,
 			     int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8776_priv *wm8776 = codec->private_data;
+	struct wm8776_priv *wm8776 = snd_soc_codec_get_drvdata(codec);
 
 	BUG_ON(dai->id >= ARRAY_SIZE(wm8776->sysclk));
 
@@ -406,6 +406,8 @@ static int wm8776_resume(struct platform_device *pdev)
 
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(wm8776_reg); i++) {
+		if (cache[i] == wm8776_reg[i])
+			continue;
 		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
 		data[1] = cache[i] & 0x00ff;
 		codec->hw_write(codec->control_data, data, 2);
@@ -488,7 +490,7 @@ static int wm8776_register(struct wm8776_priv *wm8776,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8776;
+	snd_soc_codec_set_drvdata(codec, wm8776);
 	codec->name = "WM8776";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

@@ -21,7 +21,7 @@ static int pfc_divisors[] = { 1, 8, 1,10,12,16, 1, 1 };
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate *= pfc_divisors[(ctrl_inl(FRQCR) >> 28) & 0x000f];
+	clk->rate *= pfc_divisors[(__raw_readl(FRQCR) >> 28) & 0x000f];
 }
 
 static struct clk_ops sh7770_master_clk_ops = {
@@ -30,7 +30,7 @@ static struct clk_ops sh7770_master_clk_ops = {
 
 static unsigned long module_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> 28) & 0x000f);
+	int idx = ((__raw_readl(FRQCR) >> 28) & 0x000f);
 	return clk->parent->rate / pfc_divisors[idx];
 }
 
@@ -40,7 +40,7 @@ static struct clk_ops sh7770_module_clk_ops = {
 
 static unsigned long bus_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inl(FRQCR) & 0x000f);
+	int idx = (__raw_readl(FRQCR) & 0x000f);
 	return clk->parent->rate / bfc_divisors[idx];
 }
 
@@ -50,7 +50,7 @@ static struct clk_ops sh7770_bus_clk_ops = {
 
 static unsigned long cpu_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> 24) & 0x000f);
+	int idx = ((__raw_readl(FRQCR) >> 24) & 0x000f);
 	return clk->parent->rate / ifc_divisors[idx];
 }
 

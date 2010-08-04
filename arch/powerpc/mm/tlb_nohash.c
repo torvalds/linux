@@ -34,7 +34,7 @@
 #include <linux/pagemap.h>
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
@@ -150,7 +150,7 @@ EXPORT_SYMBOL(local_flush_tlb_page);
  */
 #ifdef CONFIG_SMP
 
-static DEFINE_SPINLOCK(tlbivax_lock);
+static DEFINE_RAW_SPINLOCK(tlbivax_lock);
 
 static int mm_is_core_local(struct mm_struct *mm)
 {
@@ -232,10 +232,10 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 		if (mmu_has_feature(MMU_FTR_USE_TLBIVAX_BCAST)) {
 			int lock = mmu_has_feature(MMU_FTR_LOCK_BCAST_INVAL);
 			if (lock)
-				spin_lock(&tlbivax_lock);
+				raw_spin_lock(&tlbivax_lock);
 			_tlbivax_bcast(vmaddr, pid, tsize, ind);
 			if (lock)
-				spin_unlock(&tlbivax_lock);
+				raw_spin_unlock(&tlbivax_lock);
 			goto bail;
 		} else {
 			struct tlb_flush_param p = {
@@ -426,7 +426,7 @@ static void __early_init_mmu(int boot_cpu)
 	/* Set the global containing the top of the linear mapping
 	 * for use by the TLB miss code
 	 */
-	linear_map_top = lmb_end_of_DRAM();
+	linear_map_top = memblock_end_of_DRAM();
 
 	/* A sync won't hurt us after mucking around with
 	 * the MMU configuration

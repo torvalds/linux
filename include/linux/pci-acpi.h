@@ -11,6 +11,13 @@
 #include <linux/acpi.h>
 
 #ifdef CONFIG_ACPI
+extern acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
+						 struct pci_bus *pci_bus);
+extern acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev);
+extern acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
+					     struct pci_dev *pci_dev);
+extern acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev);
+
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
 	struct pci_bus *pbus = pdev->bus;

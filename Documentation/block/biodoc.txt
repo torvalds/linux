@@ -1162,8 +1162,8 @@ where a driver received a request ala this before:
 
 As mentioned, there is no virtual mapping of a bio. For DMA, this is
 not a problem as the driver probably never will need a virtual mapping.
-Instead it needs a bus mapping (pci_map_page for a single segment or
-use blk_rq_map_sg for scatter gather) to be able to ship it to the driver. For
+Instead it needs a bus mapping (dma_map_page for a single segment or
+use dma_map_sg for scatter gather) to be able to ship it to the driver. For
 PIO drivers (or drivers that need to revert to PIO transfer once in a
 while (IDE for example)), where the CPU is doing the actual data
 transfer a virtual mapping is needed. If the driver supports highmem I/O,

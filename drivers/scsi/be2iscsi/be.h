@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,10 @@
 #define FW_VER_LEN	32
 #define MCC_Q_LEN	128
 #define MCC_CQ_LEN	256
+#define MAX_MCC_CMD	16
+/* BladeEngine Generation numbers */
+#define BE_GEN2 2
+#define BE_GEN3 3
 
 struct be_dma_mem {
 	void *va;
@@ -55,6 +59,11 @@ static inline void index_inc(u16 *index, u16 limit)
 static inline void *queue_head_node(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->head * q->entry_size;
+}
+
+static inline void *queue_get_wrb(struct be_queue_info *q, unsigned int wrb_num)
+{
+	return q->dma_mem.va + wrb_num * q->entry_size;
 }
 
 static inline void *queue_tail_node(struct be_queue_info *q)
@@ -104,15 +113,19 @@ struct be_ctrl_info {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	/* MCC Async callback */
-	void (*async_cb) (void *adapter, bool link_up);
-	void *adapter_ctxt;
+	wait_queue_head_t mcc_wait[MAX_MCC_CMD + 1];
+	unsigned int mcc_tag[MAX_MCC_CMD];
+	unsigned int mcc_numtag[MAX_MCC_CMD + 1];
+	unsigned short mcc_alloc_index;
+	unsigned short mcc_free_index;
+	unsigned int mcc_tag_available;
 };
 
 #include "be_cmds.h"
 
 #define PAGE_SHIFT_4K 12
 #define PAGE_SIZE_4K (1 << PAGE_SHIFT_4K)
+#define mcc_timeout		120000 /* 5s timeout */
 
 /* Returns number of pages spanned by the data starting at the given addr */
 #define PAGES_4K_SPANNED(_address, size) 				\

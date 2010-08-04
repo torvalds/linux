@@ -98,7 +98,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	int iobase;
 	struct comedi_subdevice *s;
 
-	printk("comedi%d: aio_iiro_16: ", dev->minor);
+	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
 
 	dev->board_name = thisboard->name;
 
@@ -140,7 +140,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 
 static int aio_iiro_16_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: aio_iiro_16: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: aio_iiro_16: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, AIO_IIRO_16_SIZE);

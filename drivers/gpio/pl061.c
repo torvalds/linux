@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
+#include <linux/slab.h>
 
 #define GPIODIR 0x400
 #define GPIOIS  0x404
@@ -90,6 +91,12 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 	gpiodir = readb(chip->base + GPIODIR);
 	gpiodir |= 1 << offset;
 	writeb(gpiodir, chip->base + GPIODIR);
+
+	/*
+	 * gpio value is set again, because pl061 doesn't allow to set value of
+	 * a gpio pin before configuring it in OUT mode.
+	 */
+	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
@@ -157,7 +164,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
 
-	if (offset < 0 || offset > PL061_GPIO_NR)
+	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->irq_lock, flags);
@@ -182,7 +189,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 		gpioibe &= ~(1 << offset);
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			gpioiev |= 1 << offset;
-		else
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			gpioiev &= ~(1 << offset);
 	}
 	writeb(gpioibe, chip->base + GPIOIBE);
@@ -203,7 +210,7 @@ static struct irq_chip pl061_irqchip = {
 
 static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct list_head *chip_list = get_irq_chip_data(irq);
+	struct list_head *chip_list = get_irq_data(irq);
 	struct list_head *ptr;
 	struct pl061_gpio *chip;
 
@@ -219,7 +226,7 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (pending == 0)
 			continue;
 
-		for_each_bit(offset, &pending, PL061_GPIO_NR)
+		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
 			generic_handle_irq(pl061_to_irq(&chip->gc, offset));
 	}
 	desc->chip->unmask(irq);
@@ -296,9 +303,9 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 			goto iounmap;
 		}
 		INIT_LIST_HEAD(chip_list);
-		set_irq_chip_data(irq, chip_list);
+		set_irq_data(irq, chip_list);
 	} else
-		chip_list = get_irq_chip_data(irq);
+		chip_list = get_irq_data(irq);
 	list_add(&chip->list, chip_list);
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {

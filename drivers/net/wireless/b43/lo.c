@@ -34,6 +34,7 @@
 
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 
 static struct b43_lo_calib *b43_find_lo_calib(struct b43_txpower_lo_control *lo,

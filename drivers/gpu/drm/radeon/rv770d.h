@@ -343,4 +343,6 @@
 
 #define	WAIT_UNTIL					0x8040
 
+#define	SRBM_STATUS				        0x0E50
+
 #endif

@@ -39,6 +39,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/of_spi.h>
+#include <linux/slab.h>
 
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
@@ -63,28 +64,6 @@ struct mpc8xxx_spi_reg {
 	__be32 command;
 	__be32 transmit;
 	__be32 receive;
-};
-
-/* SPI Parameter RAM */
-struct spi_pram {
-	__be16	rbase;	/* Rx Buffer descriptor base address */
-	__be16	tbase;	/* Tx Buffer descriptor base address */
-	u8	rfcr;	/* Rx function code */
-	u8	tfcr;	/* Tx function code */
-	__be16	mrblr;	/* Max receive buffer length */
-	__be32	rstate;	/* Internal */
-	__be32	rdp;	/* Internal */
-	__be16	rbptr;	/* Internal */
-	__be16	rbc;	/* Internal */
-	__be32	rxtmp;	/* Internal */
-	__be32	tstate;	/* Internal */
-	__be32	tdp;	/* Internal */
-	__be16	tbptr;	/* Internal */
-	__be16	tbc;	/* Internal */
-	__be32	txtmp;	/* Internal */
-	__be32	res;	/* Tx temp. */
-	__be16  rpbase;	/* Relocation pointer (CPM1 only) */
-	__be16	res1;	/* Reserved */
 };
 
 /* SPI Controller mode register definitions */
@@ -240,7 +219,6 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 
 	/* Turn off SPI unit prior changing mode */
 	mpc8xxx_spi_write_reg(mode, cs->hw_mode & ~SPMODE_ENABLE);
-	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 
 	/* When in CPM mode, we need to reinit tx and rx. */
 	if (mspi->flags & SPI_CPM_MODE) {
@@ -257,7 +235,7 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 			}
 		}
 	}
-
+	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 	local_irq_restore(flags);
 }
 
@@ -286,11 +264,75 @@ static void mpc8xxx_spi_chipselect(struct spi_device *spi, int value)
 	}
 }
 
+static int
+mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
+			   struct spi_device *spi,
+			   struct mpc8xxx_spi *mpc8xxx_spi,
+			   int bits_per_word)
+{
+	cs->rx_shift = 0;
+	cs->tx_shift = 0;
+	if (bits_per_word <= 8) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u8;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u8;
+		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
+			cs->rx_shift = 16;
+			cs->tx_shift = 24;
+		}
+	} else if (bits_per_word <= 16) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u16;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u16;
+		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
+			cs->rx_shift = 16;
+			cs->tx_shift = 16;
+		}
+	} else if (bits_per_word <= 32) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
+	} else
+		return -EINVAL;
+
+	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE &&
+	    spi->mode & SPI_LSB_FIRST) {
+		cs->tx_shift = 0;
+		if (bits_per_word <= 8)
+			cs->rx_shift = 8;
+		else
+			cs->rx_shift = 0;
+	}
+	mpc8xxx_spi->rx_shift = cs->rx_shift;
+	mpc8xxx_spi->tx_shift = cs->tx_shift;
+	mpc8xxx_spi->get_rx = cs->get_rx;
+	mpc8xxx_spi->get_tx = cs->get_tx;
+
+	return bits_per_word;
+}
+
+static int
+mspi_apply_qe_mode_quirks(struct spi_mpc8xxx_cs *cs,
+			  struct spi_device *spi,
+			  int bits_per_word)
+{
+	/* QE uses Little Endian for words > 8
+	 * so transform all words > 8 into 8 bits
+	 * Unfortnatly that doesn't work for LSB so
+	 * reject these for now */
+	/* Note: 32 bits word, LSB works iff
+	 * tfcr/rfcr is set to CPMFCR_GBL */
+	if (spi->mode & SPI_LSB_FIRST &&
+	    bits_per_word > 8)
+		return -EINVAL;
+	if (bits_per_word > 8)
+		return 8; /* pretend its 8 bits */
+	return bits_per_word;
+}
+
 static
 int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
-	u8 bits_per_word, pm;
+	int bits_per_word;
+	u8 pm;
 	u32 hz;
 	struct spi_mpc8xxx_cs	*cs = spi->controller_state;
 
@@ -316,41 +358,16 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (!hz)
 		hz = spi->max_speed_hz;
 
-	cs->rx_shift = 0;
-	cs->tx_shift = 0;
-	if (bits_per_word <= 8) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u8;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u8;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 24;
-		}
-	} else if (bits_per_word <= 16) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u16;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u16;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 16;
-		}
-	} else if (bits_per_word <= 32) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
-	} else
-		return -EINVAL;
+	if (!(mpc8xxx_spi->flags & SPI_CPM_MODE))
+		bits_per_word = mspi_apply_cpu_mode_quirks(cs, spi,
+							   mpc8xxx_spi,
+							   bits_per_word);
+	else if (mpc8xxx_spi->flags & SPI_QE)
+		bits_per_word = mspi_apply_qe_mode_quirks(cs, spi,
+							  bits_per_word);
 
-	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE &&
-			spi->mode & SPI_LSB_FIRST) {
-		cs->tx_shift = 0;
-		if (bits_per_word <= 8)
-			cs->rx_shift = 8;
-		else
-			cs->rx_shift = 0;
-	}
-
-	mpc8xxx_spi->rx_shift = cs->rx_shift;
-	mpc8xxx_spi->tx_shift = cs->tx_shift;
-	mpc8xxx_spi->get_rx = cs->get_rx;
-	mpc8xxx_spi->get_tx = cs->get_tx;
+	if (bits_per_word < 0)
+		return bits_per_word;
 
 	if (bits_per_word == 32)
 		bits_per_word = 0;
@@ -365,7 +382,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	if ((mpc8xxx_spi->spibrg / hz) > 64) {
 		cs->hw_mode |= SPMODE_DIV16;
-		pm = mpc8xxx_spi->spibrg / (hz * 64);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 64) + 1;
 
 		WARN_ONCE(pm > 16, "%s: Requested speed is too low: %d Hz. "
 			  "Will use %d Hz instead.\n", dev_name(&spi->dev),
@@ -373,7 +390,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		if (pm > 16)
 			pm = 16;
 	} else
-		pm = mpc8xxx_spi->spibrg / (hz * 4);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 4) + 1;
 	if (pm)
 		pm--;
 
@@ -437,7 +454,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map tx dma\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (t->tx_buf) {
 		mspi->tx_dma = t->tx_dma;
 	}
 
@@ -448,7 +465,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map rx dma\n");
 			goto err_rx_dma;
 		}
-	} else {
+	} else if (t->rx_buf) {
 		mspi->rx_dma = t->rx_dma;
 	}
 
@@ -476,7 +493,7 @@ static void mpc8xxx_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
 
 	if (mspi->map_tx_dma)
 		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	if (mspi->map_tx_dma)
+	if (mspi->map_rx_dma)
 		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
 	mspi->xfer_in_progress = NULL;
 }
@@ -639,7 +656,7 @@ static int mpc8xxx_spi_setup(struct spi_device *spi)
 	}
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
-	hw_mode = cs->hw_mode; /* Save orginal settings */
+	hw_mode = cs->hw_mode; /* Save original settings */
 	cs->hw_mode = mpc8xxx_spi_read_reg(&mpc8xxx_spi->base->mode);
 	/* mask out bits we are going to set */
 	cs->hw_mode &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH
@@ -796,7 +813,7 @@ static void mpc8xxx_spi_free_dummy_rx(void)
 static unsigned long mpc8xxx_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
 	unsigned long spi_base_ofs;
@@ -850,7 +867,7 @@ static unsigned long mpc8xxx_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 static int mpc8xxx_spi_cpm_init(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
 	unsigned long pram_ofs;
@@ -1122,7 +1139,7 @@ static void mpc8xxx_spi_cs_control(struct spi_device *spi, bool on)
 
 static int of_mpc8xxx_spi_get_chipselects(struct device *dev)
 {
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	struct fsl_spi_platform_data *pdata = dev->platform_data;
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	unsigned int ngpios;
@@ -1223,7 +1240,7 @@ static int __devinit of_mpc8xxx_spi_probe(struct of_device *ofdev,
 					  const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mpc8xxx_spi_probe_info *pinfo;
 	struct fsl_spi_platform_data *pdata;
 	struct spi_master *master;
@@ -1311,8 +1328,11 @@ static const struct of_device_id of_mpc8xxx_spi_match[] = {
 MODULE_DEVICE_TABLE(of, of_mpc8xxx_spi_match);
 
 static struct of_platform_driver of_mpc8xxx_spi_driver = {
-	.name		= "mpc8xxx_spi",
-	.match_table	= of_mpc8xxx_spi_match,
+	.driver = {
+		.name = "mpc8xxx_spi",
+		.owner = THIS_MODULE,
+		.of_match_table = of_mpc8xxx_spi_match,
+	},
 	.probe		= of_mpc8xxx_spi_probe,
 	.remove		= __devexit_p(of_mpc8xxx_spi_remove),
 };
@@ -1328,7 +1348,7 @@ static struct of_platform_driver of_mpc8xxx_spi_driver = {
 static int __devinit plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
-	unsigned int irq;
+	int irq;
 	struct spi_master *master;
 
 	if (!pdev->dev.platform_data)
@@ -1339,7 +1359,7 @@ static int __devinit plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq <= 0)
 		return -EINVAL;
 
 	master = mpc8xxx_spi_probe(&pdev->dev, mem, irq);

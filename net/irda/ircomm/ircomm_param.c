@@ -28,6 +28,7 @@
  *
  ********************************************************************/
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
@@ -474,7 +475,7 @@ static int ircomm_param_dce(void *instance, irda_param_t *param, int get)
 	/* Check if any of the settings have changed */
 	if (dce & 0x0f) {
 		if (dce & IRCOMM_DELTA_CTS) {
-			IRDA_DEBUG(2, "%s(), CTS \n", __func__ );
+			IRDA_DEBUG(2, "%s(), CTS\n", __func__ );
 		}
 	}
 

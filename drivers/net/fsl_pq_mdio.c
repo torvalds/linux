@@ -205,8 +205,6 @@ static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
 static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct device_node *np)
 {
 	struct gfar __iomem *enet_regs;
-	u32 __iomem *ioremap_tbipa;
-	u64 addr, size;
 
 	/*
 	 * This is mildly evil, but so is our hardware for doing this.
@@ -220,9 +218,7 @@ static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct devi
 		return &enet_regs->tbipa;
 	} else if (of_device_is_compatible(np, "fsl,etsec2-mdio") ||
 			of_device_is_compatible(np, "fsl,etsec2-tbi")) {
-		addr = of_translate_address(np, of_get_address(np, 1, &size, NULL));
-		ioremap_tbipa = ioremap(addr, size);
-		return ioremap_tbipa;
+		return of_iomap(np, 1);
 	} else
 		return NULL;
 }
@@ -271,7 +267,7 @@ static int get_ucc_id_for_range(u64 start, u64 end, u32 *ucc_id)
 static int fsl_pq_mdio_probe(struct of_device *ofdev,
 		const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct fsl_pq_mdio __iomem *regs = NULL;
@@ -279,16 +275,19 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	u32 __iomem *tbipa;
 	struct mii_bus *new_bus;
 	int tbiaddr = -1;
+	const u32 *addrp;
 	u64 addr = 0, size = 0;
-	int err = 0;
+	int err;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	new_bus = mdiobus_alloc();
-	if (NULL == new_bus)
+	if (!new_bus) {
+		err = -ENOMEM;
 		goto err_free_priv;
+	}
 
 	new_bus->name = "Freescale PowerQUICC MII Bus",
 	new_bus->read = &fsl_pq_mdio_read,
@@ -297,8 +296,19 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	new_bus->priv = priv;
 	fsl_pq_mdio_bus_name(new_bus->id, np);
 
+	addrp = of_get_address(np, 0, &size, NULL);
+	if (!addrp) {
+		err = -EINVAL;
+		goto err_free_bus;
+	}
+
 	/* Set the PHY base address */
-	addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
+	addr = of_translate_address(np, addrp);
+	if (addr == OF_BAD_ADDR) {
+		err = -EINVAL;
+		goto err_free_bus;
+	}
+
 	map = ioremap(addr, size);
 	if (!map) {
 		err = -ENOMEM;
@@ -461,10 +471,13 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
 static struct of_platform_driver fsl_pq_mdio_driver = {
-	.name = "fsl-pq_mdio",
+	.driver = {
+		.name = "fsl-pq_mdio",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_pq_mdio_match,
+	},
 	.probe = fsl_pq_mdio_probe,
 	.remove = fsl_pq_mdio_remove,
-	.match_table = fsl_pq_mdio_match,
 };
 
 int __init fsl_pq_mdio_init(void)

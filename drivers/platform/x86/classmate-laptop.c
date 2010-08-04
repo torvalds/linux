@@ -19,10 +19,12 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
+#include <linux/rfkill.h>
 
 MODULE_LICENSE("GPL");
 
@@ -33,6 +35,11 @@ struct cmpc_accel {
 
 #define CMPC_ACCEL_SENSITIVITY_DEFAULT		5
 
+
+#define CMPC_ACCEL_HID		"ACCE0000"
+#define CMPC_TABLET_HID		"TBLT0000"
+#define CMPC_IPML_HID	"IPML200"
+#define CMPC_KEYS_HID		"FnBT0000"
 
 /*
  * Generic input device code.
@@ -282,10 +289,9 @@ static int cmpc_accel_remove(struct acpi_device *acpi, int type)
 }
 
 static const struct acpi_device_id cmpc_accel_device_ids[] = {
-	{"ACCE0000", 0},
+	{CMPC_ACCEL_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_accel_device_ids);
 
 static struct acpi_driver cmpc_accel_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -366,10 +372,9 @@ static int cmpc_tablet_resume(struct acpi_device *acpi)
 }
 
 static const struct acpi_device_id cmpc_tablet_device_ids[] = {
-	{"TBLT0000", 0},
+	{CMPC_TABLET_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_tablet_device_ids);
 
 static struct acpi_driver cmpc_tablet_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -452,45 +457,173 @@ static int cmpc_bl_update_status(struct backlight_device *bd)
 		return -1;
 }
 
-static struct backlight_ops cmpc_bl_ops = {
+static const struct backlight_ops cmpc_bl_ops = {
 	.get_brightness = cmpc_bl_get_brightness,
 	.update_status = cmpc_bl_update_status
 };
 
-static int cmpc_bl_add(struct acpi_device *acpi)
-{
-	struct backlight_device *bd;
+/*
+ * RFKILL code.
+ */
 
-	bd = backlight_device_register("cmpc_bl", &acpi->dev,
-				       acpi->handle, &cmpc_bl_ops);
-	bd->props.max_brightness = 7;
-	dev_set_drvdata(&acpi->dev, bd);
+static acpi_status cmpc_get_rfkill_wlan(acpi_handle handle,
+					unsigned long long *value)
+{
+	union acpi_object param;
+	struct acpi_object_list input;
+	unsigned long long output;
+	acpi_status status;
+
+	param.type = ACPI_TYPE_INTEGER;
+	param.integer.value = 0xC1;
+	input.count = 1;
+	input.pointer = &param;
+	status = acpi_evaluate_integer(handle, "GRDI", &input, &output);
+	if (ACPI_SUCCESS(status))
+		*value = output;
+	return status;
+}
+
+static acpi_status cmpc_set_rfkill_wlan(acpi_handle handle,
+					unsigned long long value)
+{
+	union acpi_object param[2];
+	struct acpi_object_list input;
+	acpi_status status;
+	unsigned long long output;
+
+	param[0].type = ACPI_TYPE_INTEGER;
+	param[0].integer.value = 0xC1;
+	param[1].type = ACPI_TYPE_INTEGER;
+	param[1].integer.value = value;
+	input.count = 2;
+	input.pointer = param;
+	status = acpi_evaluate_integer(handle, "GWRI", &input, &output);
+	return status;
+}
+
+static void cmpc_rfkill_query(struct rfkill *rfkill, void *data)
+{
+	acpi_status status;
+	acpi_handle handle;
+	unsigned long long state;
+	bool blocked;
+
+	handle = data;
+	status = cmpc_get_rfkill_wlan(handle, &state);
+	if (ACPI_SUCCESS(status)) {
+		blocked = state & 1 ? false : true;
+		rfkill_set_sw_state(rfkill, blocked);
+	}
+}
+
+static int cmpc_rfkill_block(void *data, bool blocked)
+{
+	acpi_status status;
+	acpi_handle handle;
+	unsigned long long state;
+
+	handle = data;
+	status = cmpc_get_rfkill_wlan(handle, &state);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	if (blocked)
+		state &= ~1;
+	else
+		state |= 1;
+	status = cmpc_set_rfkill_wlan(handle, state);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
 	return 0;
 }
 
-static int cmpc_bl_remove(struct acpi_device *acpi, int type)
-{
-	struct backlight_device *bd;
+static const struct rfkill_ops cmpc_rfkill_ops = {
+	.query = cmpc_rfkill_query,
+	.set_block = cmpc_rfkill_block,
+};
 
-	bd = dev_get_drvdata(&acpi->dev);
-	backlight_device_unregister(bd);
+/*
+ * Common backlight and rfkill code.
+ */
+
+struct ipml200_dev {
+	struct backlight_device *bd;
+	struct rfkill *rf;
+};
+
+static int cmpc_ipml_add(struct acpi_device *acpi)
+{
+	int retval;
+	struct ipml200_dev *ipml;
+	struct backlight_properties props;
+
+	ipml = kmalloc(sizeof(*ipml), GFP_KERNEL);
+	if (ipml == NULL)
+		return -ENOMEM;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 7;
+	ipml->bd = backlight_device_register("cmpc_bl", &acpi->dev,
+					     acpi->handle, &cmpc_bl_ops,
+					     &props);
+	if (IS_ERR(ipml->bd)) {
+		retval = PTR_ERR(ipml->bd);
+		goto out_bd;
+	}
+
+	ipml->rf = rfkill_alloc("cmpc_rfkill", &acpi->dev, RFKILL_TYPE_WLAN,
+				&cmpc_rfkill_ops, acpi->handle);
+	/* rfkill_alloc may fail if RFKILL is disabled. We should still work
+	 * anyway. */
+	if (!IS_ERR(ipml->rf)) {
+		retval = rfkill_register(ipml->rf);
+		if (retval) {
+			rfkill_destroy(ipml->rf);
+			ipml->rf = NULL;
+		}
+	} else {
+		ipml->rf = NULL;
+	}
+
+	dev_set_drvdata(&acpi->dev, ipml);
+	return 0;
+
+out_bd:
+	kfree(ipml);
+	return retval;
+}
+
+static int cmpc_ipml_remove(struct acpi_device *acpi, int type)
+{
+	struct ipml200_dev *ipml;
+
+	ipml = dev_get_drvdata(&acpi->dev);
+
+	backlight_device_unregister(ipml->bd);
+
+	if (ipml->rf) {
+		rfkill_unregister(ipml->rf);
+		rfkill_destroy(ipml->rf);
+	}
+
+	kfree(ipml);
+
 	return 0;
 }
 
-static const struct acpi_device_id cmpc_device_ids[] = {
-	{"IPML200", 0},
+static const struct acpi_device_id cmpc_ipml_device_ids[] = {
+	{CMPC_IPML_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_device_ids);
 
-static struct acpi_driver cmpc_bl_acpi_driver = {
+static struct acpi_driver cmpc_ipml_acpi_driver = {
 	.owner = THIS_MODULE,
 	.name = "cmpc",
 	.class = "cmpc",
-	.ids = cmpc_device_ids,
+	.ids = cmpc_ipml_device_ids,
 	.ops = {
-		.add = cmpc_bl_add,
-		.remove = cmpc_bl_remove
+		.add = cmpc_ipml_add,
+		.remove = cmpc_ipml_remove
 	}
 };
 
@@ -505,6 +638,10 @@ static int cmpc_keys_codes[] = {
 	KEY_BRIGHTNESSDOWN,
 	KEY_BRIGHTNESSUP,
 	KEY_VENDOR,
+	KEY_UNKNOWN,
+	KEY_CAMERA,
+	KEY_BACK,
+	KEY_FORWARD,
 	KEY_MAX
 };
 
@@ -540,10 +677,9 @@ static int cmpc_keys_remove(struct acpi_device *acpi, int type)
 }
 
 static const struct acpi_device_id cmpc_keys_device_ids[] = {
-	{"FnBT0000", 0},
+	{CMPC_KEYS_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_keys_device_ids);
 
 static struct acpi_driver cmpc_keys_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -570,7 +706,7 @@ static int cmpc_init(void)
 	if (r)
 		goto failed_keys;
 
-	r = acpi_bus_register_driver(&cmpc_bl_acpi_driver);
+	r = acpi_bus_register_driver(&cmpc_ipml_acpi_driver);
 	if (r)
 		goto failed_bl;
 
@@ -588,7 +724,7 @@ failed_accel:
 	acpi_bus_unregister_driver(&cmpc_tablet_acpi_driver);
 
 failed_tablet:
-	acpi_bus_unregister_driver(&cmpc_bl_acpi_driver);
+	acpi_bus_unregister_driver(&cmpc_ipml_acpi_driver);
 
 failed_bl:
 	acpi_bus_unregister_driver(&cmpc_keys_acpi_driver);
@@ -601,9 +737,19 @@ static void cmpc_exit(void)
 {
 	acpi_bus_unregister_driver(&cmpc_accel_acpi_driver);
 	acpi_bus_unregister_driver(&cmpc_tablet_acpi_driver);
-	acpi_bus_unregister_driver(&cmpc_bl_acpi_driver);
+	acpi_bus_unregister_driver(&cmpc_ipml_acpi_driver);
 	acpi_bus_unregister_driver(&cmpc_keys_acpi_driver);
 }
 
 module_init(cmpc_init);
 module_exit(cmpc_exit);
+
+static const struct acpi_device_id cmpc_device_ids[] = {
+	{CMPC_ACCEL_HID, 0},
+	{CMPC_TABLET_HID, 0},
+	{CMPC_IPML_HID, 0},
+	{CMPC_KEYS_HID, 0},
+	{"", 0}
+};
+
+MODULE_DEVICE_TABLE(acpi, cmpc_device_ids);

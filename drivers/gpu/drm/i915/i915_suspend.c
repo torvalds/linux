@@ -600,14 +600,16 @@ void i915_save_display(struct drm_device *dev)
 	}
 	/* FIXME: save TV & SDVO state */
 
-	/* FBC state */
-	if (IS_GM45(dev)) {
-		dev_priv->saveDPFC_CB_BASE = I915_READ(DPFC_CB_BASE);
-	} else {
-		dev_priv->saveFBC_CFB_BASE = I915_READ(FBC_CFB_BASE);
-		dev_priv->saveFBC_LL_BASE = I915_READ(FBC_LL_BASE);
-		dev_priv->saveFBC_CONTROL2 = I915_READ(FBC_CONTROL2);
-		dev_priv->saveFBC_CONTROL = I915_READ(FBC_CONTROL);
+	/* Only save FBC state on the platform that supports FBC */
+	if (I915_HAS_FBC(dev)) {
+		if (IS_GM45(dev)) {
+			dev_priv->saveDPFC_CB_BASE = I915_READ(DPFC_CB_BASE);
+		} else {
+			dev_priv->saveFBC_CFB_BASE = I915_READ(FBC_CFB_BASE);
+			dev_priv->saveFBC_LL_BASE = I915_READ(FBC_LL_BASE);
+			dev_priv->saveFBC_CONTROL2 = I915_READ(FBC_CONTROL2);
+			dev_priv->saveFBC_CONTROL = I915_READ(FBC_CONTROL);
+		}
 	}
 
 	/* VGA state */
@@ -682,6 +684,8 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->savePP_CONTROL);
+		I915_WRITE(MCHBAR_RENDER_STANDBY,
+			   dev_priv->saveMCHBAR_RENDER_STANDBY);
 	} else {
 		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->savePFIT_PGM_RATIOS);
 		I915_WRITE(BLC_PWM_CTL, dev_priv->saveBLC_PWM_CTL);
@@ -700,18 +704,19 @@ void i915_restore_display(struct drm_device *dev)
 	}
 	/* FIXME: restore TV & SDVO state */
 
-	/* FBC info */
-	if (IS_GM45(dev)) {
-		g4x_disable_fbc(dev);
-		I915_WRITE(DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
-	} else {
-		i8xx_disable_fbc(dev);
-		I915_WRITE(FBC_CFB_BASE, dev_priv->saveFBC_CFB_BASE);
-		I915_WRITE(FBC_LL_BASE, dev_priv->saveFBC_LL_BASE);
-		I915_WRITE(FBC_CONTROL2, dev_priv->saveFBC_CONTROL2);
-		I915_WRITE(FBC_CONTROL, dev_priv->saveFBC_CONTROL);
+	/* only restore FBC info on the platform that supports FBC*/
+	if (I915_HAS_FBC(dev)) {
+		if (IS_GM45(dev)) {
+			g4x_disable_fbc(dev);
+			I915_WRITE(DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
+		} else {
+			i8xx_disable_fbc(dev);
+			I915_WRITE(FBC_CFB_BASE, dev_priv->saveFBC_CFB_BASE);
+			I915_WRITE(FBC_LL_BASE, dev_priv->saveFBC_LL_BASE);
+			I915_WRITE(FBC_CONTROL2, dev_priv->saveFBC_CONTROL2);
+			I915_WRITE(FBC_CONTROL, dev_priv->saveFBC_CONTROL);
+		}
 	}
-
 	/* VGA state */
 	if (IS_IRONLAKE(dev))
 		I915_WRITE(CPU_VGACNTRL, dev_priv->saveVGACNTRL);
@@ -745,10 +750,15 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveGTIMR = I915_READ(GTIMR);
 		dev_priv->saveFDI_RXA_IMR = I915_READ(FDI_RXA_IMR);
 		dev_priv->saveFDI_RXB_IMR = I915_READ(FDI_RXB_IMR);
+		dev_priv->saveMCHBAR_RENDER_STANDBY =
+			I915_READ(MCHBAR_RENDER_STANDBY);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
+
+	if (IS_IRONLAKE_M(dev))
+		ironlake_disable_drps(dev);
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
@@ -819,6 +829,9 @@ int i915_restore_state(struct drm_device *dev)
 
 	/* Clock gating state */
 	intel_init_clock_gating(dev);
+
+	if (IS_IRONLAKE_M(dev))
+		ironlake_enable_drps(dev);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

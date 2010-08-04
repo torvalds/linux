@@ -847,7 +847,8 @@ static int set_tvaudio(struct cx88_core *core)
 {
 	v4l2_std_id norm = core->tvnorm;
 
-	if (CX88_VMUX_TELEVISION != INPUT(core->input).type)
+	if (CX88_VMUX_TELEVISION != INPUT(core->input).type &&
+	    CX88_VMUX_CABLE != INPUT(core->input).type)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm) {

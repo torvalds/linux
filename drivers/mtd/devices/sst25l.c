@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include <linux/mtd/mtd.h>
@@ -72,15 +73,25 @@ static struct flash_info __initdata sst25l_flash_info[] = {
 
 static int sst25l_status(struct sst25l_flash *flash, int *status)
 {
-	unsigned char command, response;
+	struct spi_message m;
+	struct spi_transfer t;
+	unsigned char cmd_resp[2];
 	int err;
 
-	command = SST25L_CMD_RDSR;
-	err = spi_write_then_read(flash->spi, &command, 1, &response, 1);
+	spi_message_init(&m);
+	memset(&t, 0, sizeof(struct spi_transfer));
+
+	cmd_resp[0] = SST25L_CMD_RDSR;
+	cmd_resp[1] = 0xff;
+	t.tx_buf = cmd_resp;
+	t.rx_buf = cmd_resp;
+	t.len = sizeof(cmd_resp);
+	spi_message_add_tail(&t, &m);
+	err = spi_sync(flash->spi, &m);
 	if (err < 0)
 		return err;
 
-	*status = response;
+	*status = cmd_resp[1];
 	return 0;
 }
 
@@ -327,33 +338,32 @@ out:
 static struct flash_info *__init sst25l_match_device(struct spi_device *spi)
 {
 	struct flash_info *flash_info = NULL;
-	unsigned char command[4], response;
+	struct spi_message m;
+	struct spi_transfer t;
+	unsigned char cmd_resp[6];
 	int i, err;
 	uint16_t id;
 
-	command[0] = SST25L_CMD_READ_ID;
-	command[1] = 0;
-	command[2] = 0;
-	command[3] = 0;
-	err = spi_write_then_read(spi, command, sizeof(command), &response, 1);
+	spi_message_init(&m);
+	memset(&t, 0, sizeof(struct spi_transfer));
+
+	cmd_resp[0] = SST25L_CMD_READ_ID;
+	cmd_resp[1] = 0;
+	cmd_resp[2] = 0;
+	cmd_resp[3] = 0;
+	cmd_resp[4] = 0xff;
+	cmd_resp[5] = 0xff;
+	t.tx_buf = cmd_resp;
+	t.rx_buf = cmd_resp;
+	t.len = sizeof(cmd_resp);
+	spi_message_add_tail(&t, &m);
+	err = spi_sync(spi, &m);
 	if (err < 0) {
-		dev_err(&spi->dev, "error reading device id msb\n");
+		dev_err(&spi->dev, "error reading device id\n");
 		return NULL;
 	}
 
-	id = response << 8;
-
-	command[0] = SST25L_CMD_READ_ID;
-	command[1] = 0;
-	command[2] = 0;
-	command[3] = 1;
-	err = spi_write_then_read(spi, command, sizeof(command), &response, 1);
-	if (err < 0) {
-		dev_err(&spi->dev, "error reading device id lsb\n");
-		return NULL;
-	}
-
-	id |= response;
+	id = (cmd_resp[4] << 8) | cmd_resp[5];
 
 	for (i = 0; i < ARRAY_SIZE(sst25l_flash_info); i++)
 		if (sst25l_flash_info[i].device_id == id)
@@ -409,17 +419,6 @@ static int __init sst25l_probe(struct spi_device *spi)
 	      (long long)flash->mtd.size, (long long)(flash->mtd.size >> 20),
 	      flash->mtd.erasesize, flash->mtd.erasesize / 1024,
 	      flash->mtd.numeraseregions);
-
-	if (flash->mtd.numeraseregions)
-		for (i = 0; i < flash->mtd.numeraseregions; i++)
-			DEBUG(MTD_DEBUG_LEVEL2,
-			      "mtd.eraseregions[%d] = { .offset = 0x%llx, "
-			      ".erasesize = 0x%.8x (%uKiB), "
-			      ".numblocks = %d }\n",
-			      i, (long long)flash->mtd.eraseregions[i].offset,
-			      flash->mtd.eraseregions[i].erasesize,
-			      flash->mtd.eraseregions[i].erasesize / 1024,
-			      flash->mtd.eraseregions[i].numblocks);
 
 	if (mtd_has_partitions()) {
 		struct mtd_partition *parts = NULL;

@@ -28,7 +28,7 @@ static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-static unsigned int i2c_scan = 0;
+static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
@@ -159,9 +159,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	return msg->len;
 
-      eio:
+eio:
 	retval = -EIO;
-      err:
+err:
 	if (i2c_debug)
 		printk(KERN_ERR " ERR: %d\n", retval);
 	return retval;
@@ -223,9 +223,9 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	}
 
 	return msg->len;
-      eio:
+eio:
 	retval = -EIO;
-      err:
+err:
 	if (i2c_debug)
 		printk(KERN_ERR " ERR: %d\n", retval);
 	return retval;
@@ -266,7 +266,7 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 	}
 	return num;
 
-      err:
+err:
 	return retval;
 }
 
@@ -319,7 +319,7 @@ int cx25821_i2c_register(struct cx25821_i2c *bus)
 
 	bus->i2c_client.adapter = &bus->i2c_adap;
 
-	//set up the I2c
+	/* set up the I2c */
 	bus->i2c_client.addr = (0x88 >> 1);
 
 	return bus->i2c_rc;

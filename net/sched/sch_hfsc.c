@@ -617,7 +617,6 @@ rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u64 x, u64 y)
 	rtsc->y = y;
 	rtsc->dx = dx;
 	rtsc->dy = dy;
-	return;
 }
 
 static void
@@ -1155,7 +1154,7 @@ static struct hfsc_class *
 hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
-	struct hfsc_class *cl;
+	struct hfsc_class *head, *cl;
 	struct tcf_result res;
 	struct tcf_proto *tcf;
 	int result;
@@ -1166,6 +1165,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			return cl;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
+	head = &q->root;
 	tcf = q->root.filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -1180,6 +1180,8 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		if ((cl = (struct hfsc_class *)res.class) == NULL) {
 			if ((cl = hfsc_find_class(res.classid, sch)) == NULL)
 				break; /* filter selected invalid classid */
+			if (cl->level >= head->level)
+				break; /* filter may only point downwards */
 		}
 
 		if (cl->level == 0)
@@ -1187,6 +1189,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 
 		/* apply inner filter chain */
 		tcf = cl->filter_list;
+		head = cl;
 	}
 
 	/* classification failed, try default class */

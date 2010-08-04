@@ -6,8 +6,8 @@ Supported adapters:
 	http://www.ali.com.tw/eng/support/datasheet_request.php
 
 Authors:
-	Frodo Looijaard <frodol@dds.nl>, 
-	Philip Edelbrock <phil@netroedge.com>, 
+	Frodo Looijaard <frodol@dds.nl>,
+	Philip Edelbrock <phil@netroedge.com>,
 	Mark D. Studebaker <mdsxyz123@yahoo.com>
 
 Module Parameters
@@ -40,10 +40,10 @@ M1541 and M1543C South Bridges.
 The M1543C is a South bridge for desktop systems.
 The M1541 is a South bridge for portable systems.
 They are part of the following ALI chipsets:
-   
- * "Aladdin Pro 2" includes the M1621 Slot 1 North bridge with AGP and 
+
+ * "Aladdin Pro 2" includes the M1621 Slot 1 North bridge with AGP and
  		100MHz CPU Front Side bus
- * "Aladdin V" includes the M1541 Socket 7 North bridge with AGP and 100MHz 
+ * "Aladdin V" includes the M1541 Socket 7 North bridge with AGP and 100MHz
  		CPU Front Side bus
    Some Aladdin V motherboards:
 	Asus P5A
@@ -77,7 +77,7 @@ output of lspci will show something similar to the following:
 ** then run lspci.
 ** If you see the 1533 and 5229 devices but NOT the 7101 device,
 ** then you must enable ACPI, the PMU, SMB, or something similar
-** in the BIOS. 
+** in the BIOS.
 ** The driver won't work if it can't find the M7101 device.
 
 The SMB controller is part of the M7101 device, which is an ACPI-compliant
@@ -87,8 +87,8 @@ The whole M7101 device has to be enabled for the SMB to work. You can't
 just enable the SMB alone. The SMB and the ACPI have separate I/O spaces.
 We make sure that the SMB is enabled. We leave the ACPI alone.
 
-Features 
--------- 
+Features
+--------
 
 This driver controls the SMB Host only. The SMB Slave
 controller on the M15X3 is not enabled. This driver does not use

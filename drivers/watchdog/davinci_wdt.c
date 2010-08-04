@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 
@@ -142,7 +143,7 @@ davinci_wdt_write(struct file *file, const char *data, size_t len,
 	return len;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_KEEPALIVEPING,
 	.identity = "DaVinci Watchdog",
 };

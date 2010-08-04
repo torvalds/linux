@@ -25,10 +25,7 @@
 #define FIXED(X)        ((s32)((X) * 32768.0))
 #define DEG2RAD(X)      0.017453 * (X)
 
-/****************** LOCAL TYPE DEFINITION SECTION ***************************/
-typedef s32         fixed; /* 16.16 fixed-point */
-
-static const fixed Angles[]=
+static const s32 Angles[] =
 {
     FIXED(DEG2RAD(45.0)),    FIXED(DEG2RAD(26.565)),  FIXED(DEG2RAD(14.0362)),
     FIXED(DEG2RAD(7.12502)), FIXED(DEG2RAD(3.57633)), FIXED(DEG2RAD(1.78991)),
@@ -300,7 +297,7 @@ u32 _sqrt(u32 sqsum)
 /****************************************************************************/
 void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 {
-    fixed       X, Y, TargetAngle, CurrAngle;
+    s32 X, Y, TargetAngle, CurrAngle;
     unsigned    Step;
 
     X=FIXED(AG_CONST);      // AG_CONST * cos(0)
@@ -310,7 +307,7 @@ void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 
     for (Step=0; Step < 12; Step++)
     {
-        fixed NewX;
+	s32 NewX;
 
         if(TargetAngle > CurrAngle)
         {

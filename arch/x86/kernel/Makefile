@@ -47,8 +47,6 @@ obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline.o
 obj-y				+= process.o
 obj-y				+= i387.o xsave.o
 obj-y				+= ptrace.o
-obj-$(CONFIG_X86_DS)		+= ds.o
-obj-$(CONFIG_X86_DS_SELFTEST)		+= ds_selftest.o
 obj-$(CONFIG_X86_32)		+= tls.o
 obj-$(CONFIG_IA32_EMULATION)	+= tls.o
 obj-y				+= step.o
@@ -87,6 +85,7 @@ obj-$(CONFIG_VM86)		+= vm86_32.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
+obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
 
 obj-$(CONFIG_K8_NB)		+= k8.o
 obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o

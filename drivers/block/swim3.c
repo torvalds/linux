@@ -1004,7 +1004,7 @@ static const struct block_device_operations floppy_fops = {
 
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim = mdev->ofdev.node;
+	struct device_node *swim = mdev->ofdev.dev.of_node;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
@@ -1159,8 +1159,10 @@ static struct of_device_id swim3_match[] =
 
 static struct macio_driver swim3_driver =
 {
-	.name 		= "swim3",
-	.match_table	= swim3_match,
+	.driver = {
+		.name 		= "swim3",
+		.of_match_table	= swim3_match,
+	},
 	.probe		= swim3_attach,
 #if 0
 	.suspend	= swim3_suspend,

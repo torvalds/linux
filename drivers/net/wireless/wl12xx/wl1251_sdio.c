@@ -20,20 +20,14 @@
  * Copyright (C) 2009 Bob Copeland (me@bobcopeland.com)
  */
 #include <linux/module.h>
-#include <linux/crc7.h>
 #include <linux/mod_devicetable.h>
-#include <linux/irq.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/platform_device.h>
+#include <linux/spi/wl12xx.h>
+#include <linux/irq.h>
 
 #include "wl1251.h"
-#include "wl12xx_80211.h"
-#include "wl1251_reg.h"
-#include "wl1251_ps.h"
-#include "wl1251_io.h"
-#include "wl1251_tx.h"
-#include "wl1251_debugfs.h"
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x104c
@@ -42,6 +36,8 @@
 #ifndef SDIO_DEVICE_ID_TI_WL1251
 #define SDIO_DEVICE_ID_TI_WL1251	0x9066
 #endif
+
+static struct wl12xx_platform_data *wl12xx_board_data;
 
 static struct sdio_func *wl_to_func(struct wl1251 *wl)
 {
@@ -65,7 +61,8 @@ static const struct sdio_device_id wl1251_devices[] = {
 MODULE_DEVICE_TABLE(sdio, wl1251_devices);
 
 
-void wl1251_sdio_read(struct wl1251 *wl, int addr, void *buf, size_t len)
+static void wl1251_sdio_read(struct wl1251 *wl, int addr,
+			     void *buf, size_t len)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
@@ -77,7 +74,8 @@ void wl1251_sdio_read(struct wl1251 *wl, int addr, void *buf, size_t len)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_write(struct wl1251 *wl, int addr, void *buf, size_t len)
+static void wl1251_sdio_write(struct wl1251 *wl, int addr,
+			      void *buf, size_t len)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
@@ -89,7 +87,33 @@ void wl1251_sdio_write(struct wl1251 *wl, int addr, void *buf, size_t len)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_reset(struct wl1251 *wl)
+static void wl1251_sdio_read_elp(struct wl1251 *wl, int addr, u32 *val)
+{
+	int ret = 0;
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	*val = sdio_readb(func, addr, &ret);
+	sdio_release_host(func);
+
+	if (ret)
+		wl1251_error("sdio_readb failed (%d)", ret);
+}
+
+static void wl1251_sdio_write_elp(struct wl1251 *wl, int addr, u32 val)
+{
+	int ret = 0;
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	sdio_writeb(func, val, addr, &ret);
+	sdio_release_host(func);
+
+	if (ret)
+		wl1251_error("sdio_writeb failed (%d)", ret);
+}
+
+static void wl1251_sdio_reset(struct wl1251 *wl)
 {
 }
 
@@ -111,19 +135,64 @@ static void wl1251_sdio_disable_irq(struct wl1251 *wl)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_set_power(bool enable)
+/* Interrupts when using dedicated WLAN_IRQ pin */
+static irqreturn_t wl1251_line_irq(int irq, void *cookie)
+{
+	struct wl1251 *wl = cookie;
+
+	ieee80211_queue_work(wl->hw, &wl->irq_work);
+
+	return IRQ_HANDLED;
+}
+
+static void wl1251_enable_line_irq(struct wl1251 *wl)
+{
+	return enable_irq(wl->irq);
+}
+
+static void wl1251_disable_line_irq(struct wl1251 *wl)
+{
+	return disable_irq(wl->irq);
+}
+
+static void wl1251_sdio_set_power(bool enable)
 {
 }
 
-struct wl1251_if_operations wl1251_sdio_ops = {
+static struct wl1251_if_operations wl1251_sdio_ops = {
 	.read = wl1251_sdio_read,
 	.write = wl1251_sdio_write,
+	.write_elp = wl1251_sdio_write_elp,
+	.read_elp = wl1251_sdio_read_elp,
 	.reset = wl1251_sdio_reset,
-	.enable_irq = wl1251_sdio_enable_irq,
-	.disable_irq = wl1251_sdio_disable_irq,
 };
 
-int wl1251_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
+static int wl1251_platform_probe(struct platform_device *pdev)
+{
+	if (pdev->id != -1) {
+		wl1251_error("can only handle single device");
+		return -ENODEV;
+	}
+
+	wl12xx_board_data = pdev->dev.platform_data;
+	return 0;
+}
+
+/*
+ * Dummy platform_driver for passing platform_data to this driver,
+ * until we have a way to pass this through SDIO subsystem or
+ * some other way.
+ */
+static struct platform_driver wl1251_platform_driver = {
+	.driver = {
+		.name	= "wl1251_data",
+		.owner	= THIS_MODULE,
+	},
+	.probe	= wl1251_platform_probe,
+};
+
+static int wl1251_sdio_probe(struct sdio_func *func,
+			     const struct sdio_device_id *id)
 {
 	int ret;
 	struct wl1251 *wl;
@@ -141,25 +210,56 @@ int wl1251_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		goto release;
 
 	sdio_set_block_size(func, 512);
+	sdio_release_host(func);
 
 	SET_IEEE80211_DEV(hw, &func->dev);
 	wl->if_priv = func;
 	wl->if_ops = &wl1251_sdio_ops;
 	wl->set_power = wl1251_sdio_set_power;
 
-	sdio_release_host(func);
+	if (wl12xx_board_data != NULL) {
+		wl->set_power = wl12xx_board_data->set_power;
+		wl->irq = wl12xx_board_data->irq;
+		wl->use_eeprom = wl12xx_board_data->use_eeprom;
+	}
+
+	if (wl->irq) {
+		ret = request_irq(wl->irq, wl1251_line_irq, 0, "wl1251", wl);
+		if (ret < 0) {
+			wl1251_error("request_irq() failed: %d", ret);
+			goto disable;
+		}
+
+		set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
+		disable_irq(wl->irq);
+
+		wl1251_sdio_ops.enable_irq = wl1251_enable_line_irq;
+		wl1251_sdio_ops.disable_irq = wl1251_disable_line_irq;
+
+		wl1251_info("using dedicated interrupt line");
+	} else {
+		wl1251_sdio_ops.enable_irq = wl1251_sdio_enable_irq;
+		wl1251_sdio_ops.disable_irq = wl1251_sdio_disable_irq;
+
+		wl1251_info("using SDIO interrupt");
+	}
+
 	ret = wl1251_init_ieee80211(wl);
 	if (ret)
-		goto disable;
+		goto out_free_irq;
 
 	sdio_set_drvdata(func, wl);
 	return ret;
 
+out_free_irq:
+	if (wl->irq)
+		free_irq(wl->irq, wl);
 disable:
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 release:
 	sdio_release_host(func);
+	wl1251_free_hw(wl);
 	return ret;
 }
 
@@ -167,6 +267,8 @@ static void __devexit wl1251_sdio_remove(struct sdio_func *func)
 {
 	struct wl1251 *wl = sdio_get_drvdata(func);
 
+	if (wl->irq)
+		free_irq(wl->irq, wl);
 	wl1251_free_hw(wl);
 
 	sdio_claim_host(func);
@@ -186,6 +288,12 @@ static int __init wl1251_sdio_init(void)
 {
 	int err;
 
+	err = platform_driver_register(&wl1251_platform_driver);
+	if (err) {
+		wl1251_error("failed to register platform driver: %d", err);
+		return err;
+	}
+
 	err = sdio_register_driver(&wl1251_sdio_driver);
 	if (err)
 		wl1251_error("failed to register sdio driver: %d", err);
@@ -195,6 +303,7 @@ static int __init wl1251_sdio_init(void)
 static void __exit wl1251_sdio_exit(void)
 {
 	sdio_unregister_driver(&wl1251_sdio_driver);
+	platform_driver_unregister(&wl1251_platform_driver);
 	wl1251_notice("unloaded");
 }
 

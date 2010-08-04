@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include "vxpocket.h"
 #include <pcmcia/ciscode.h>
@@ -161,10 +162,6 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.NumPorts1 = 16;
 
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-
-	link->irq.Handler = &snd_vx_irq_handler;
-
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
@@ -214,7 +211,6 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 static int vxpocket_config(struct pcmcia_device *link)
 {
 	struct vx_core *chip = link->priv;
-	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 	int ret;
 
 	snd_printdd(KERN_DEBUG "vxpocket_config called\n");
@@ -234,7 +230,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_exclusive_irq(link, snd_vx_irq_handler);
 	if (ret)
 		goto failed;
 
@@ -245,10 +241,9 @@ static int vxpocket_config(struct pcmcia_device *link)
 	chip->dev = &link->dev;
 	snd_card_set_dev(chip->card, chip->dev);
 
-	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
+	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq) < 0)
 		goto failed;
 
-	link->dev_node = &vxp->node;
 	return 0;
 
 failed:

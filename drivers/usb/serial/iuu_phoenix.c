@@ -43,7 +43,7 @@ static int debug;
 #define DRIVER_VERSION "v0.11"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(IUU_USB_VENDOR_ID, IUU_USB_PRODUCT_ID)},
 	{}			/* Terminating entry */
 };
@@ -1044,34 +1044,6 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (buf == NULL)
 		return -ENOMEM;
 
-	/* fixup the endpoint buffer size */
-	kfree(port->bulk_out_buffer);
-	port->bulk_out_buffer = kmalloc(512, GFP_KERNEL);
-	port->bulk_out_size = 512;
-	kfree(port->bulk_in_buffer);
-	port->bulk_in_buffer = kmalloc(512, GFP_KERNEL);
-	port->bulk_in_size = 512;
-
-	if (!port->bulk_out_buffer || !port->bulk_in_buffer) {
-		kfree(port->bulk_out_buffer);
-		kfree(port->bulk_in_buffer);
-		kfree(buf);
-		return -ENOMEM;
-	}
-
-	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
-			  usb_sndbulkpipe(port->serial->dev,
-					  port->bulk_out_endpointAddress),
-			  port->bulk_out_buffer, 512,
-			  NULL, NULL);
-
-
-	usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-			  usb_rcvbulkpipe(port->serial->dev,
-					  port->bulk_in_endpointAddress),
-			  port->bulk_in_buffer, 512,
-			  NULL, NULL);
-
 	priv->poll = 0;
 
 	/* initialize writebuf */
@@ -1277,6 +1249,8 @@ static struct usb_serial_driver iuu_device = {
 		   },
 	.id_table = id_table,
 	.num_ports = 1,
+	.bulk_in_size = 512,
+	.bulk_out_size = 512,
 	.port_probe = iuu_create_sysfs_attrs,
 	.port_remove = iuu_remove_sysfs_attrs,
 	.open = iuu_open,

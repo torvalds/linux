@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/pm.h>
 #include <linux/ptrace.h>
+#include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/tick.h>
 #include <linux/uaccess.h>

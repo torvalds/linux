@@ -126,7 +126,7 @@ o  Tboot then applies an (optional) user-defined launch policy to
 o  Tboot adjusts the e820 table provided by the bootloader to reserve
    its own location in memory as well as to reserve certain other
    TXT-related regions.
-o  As part of it's launch, tboot DMA protects all of RAM (using the
+o  As part of its launch, tboot DMA protects all of RAM (using the
    VT-d PMRs).  Thus, the kernel must be booted with 'intel_iommu=on'
    in order to remove this blanket protection and use VT-d's
    page-level protection.
@@ -161,13 +161,15 @@ o  In order to put a system into any of the sleep states after a TXT
       has been restored, it will restore the TPM PCRs and then
       transfer control back to the kernel's S3 resume vector.
       In order to preserve system integrity across S3, the kernel
-      provides tboot with a set of memory ranges (kernel
-      code/data/bss, S3 resume code, and AP trampoline) that tboot
-      will calculate a MAC (message authentication code) over and then
-      seal with the TPM.  On resume and once the measured environment
-      has been re-established, tboot will re-calculate the MAC and
-      verify it against the sealed value.  Tboot's policy determines
-      what happens if the verification fails.
+      provides tboot with a set of memory ranges (RAM and RESERVED_KERN
+      in the e820 table, but not any memory that BIOS might alter over
+      the S3 transition) that tboot will calculate a MAC (message
+      authentication code) over and then seal with the TPM. On resume
+      and once the measured environment has been re-established, tboot
+      will re-calculate the MAC and verify it against the sealed value.
+      Tboot's policy determines what happens if the verification fails.
+      Note that the c/s 194 of tboot which has the new MAC code supports
+      this.
 
 That's pretty much it for TXT support.
 

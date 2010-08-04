@@ -511,7 +511,7 @@ static void __dlm_print_nodes(struct dlm_ctxt *dlm)
 
 	assert_spin_locked(&dlm->spinlock);
 
-	printk(KERN_INFO "ocfs2_dlm: Nodes in domain (\"%s\"): ", dlm->name);
+	printk(KERN_NOTICE "o2dlm: Nodes in domain %s: ", dlm->name);
 
 	while ((node = find_next_bit(dlm->domain_map, O2NM_MAX_NODES,
 				     node + 1)) < O2NM_MAX_NODES) {
@@ -534,7 +534,7 @@ static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	node = exit_msg->node_idx;
 
-	printk(KERN_INFO "ocfs2_dlm: Node %u leaves domain %s\n", node, dlm->name);
+	printk(KERN_NOTICE "o2dlm: Node %u leaves domain %s\n", node, dlm->name);
 
 	spin_lock(&dlm->spinlock);
 	clear_bit(node, dlm->domain_map);
@@ -565,7 +565,9 @@ static int dlm_send_one_domain_exit(struct dlm_ctxt *dlm,
 	status = o2net_send_message(DLM_EXIT_DOMAIN_MSG, dlm->key,
 				    &leave_msg, sizeof(leave_msg), node,
 				    NULL);
-
+	if (status < 0)
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_EXIT_DOMAIN_MSG, dlm->key, node);
 	mlog(0, "status return %d from o2net_send_message\n", status);
 
 	return status;
@@ -816,7 +818,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	/* Once the dlm ctxt is marked as leaving then we don't want
-	 * to be put in someone's domain map. 
+	 * to be put in someone's domain map.
 	 * Also, explicitly disallow joining at certain troublesome
 	 * times (ie. during recovery). */
 	if (dlm && dlm->dlm_state != DLM_CTXT_LEAVING) {
@@ -904,7 +906,7 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
 		set_bit(assert->node_idx, dlm->domain_map);
 		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
 
-		printk(KERN_INFO "ocfs2_dlm: Node %u joins domain %s\n",
+		printk(KERN_NOTICE "o2dlm: Node %u joins domain %s\n",
 		       assert->node_idx, dlm->name);
 		__dlm_print_nodes(dlm);
 
@@ -962,7 +964,9 @@ static int dlm_send_one_join_cancel(struct dlm_ctxt *dlm,
 				    &cancel_msg, sizeof(cancel_msg), node,
 				    NULL);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_CANCEL_JOIN_MSG, DLM_MOD_KEY,
+		     node);
 		goto bail;
 	}
 
@@ -1029,10 +1033,11 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	byte_copymap(join_msg.node_map, dlm->live_nodes_map, O2NM_MAX_NODES);
 
 	status = o2net_send_message(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY, &join_msg,
-				    sizeof(join_msg), node,
-				    &join_resp);
+				    sizeof(join_msg), node, &join_resp);
 	if (status < 0 && status != -ENOPROTOOPT) {
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_QUERY_JOIN_MSG, DLM_MOD_KEY,
+		     node);
 		goto bail;
 	}
 	dlm_query_join_wire_to_packet(join_resp, &packet);
@@ -1103,7 +1108,9 @@ static int dlm_send_one_join_assert(struct dlm_ctxt *dlm,
 				    &assert_msg, sizeof(assert_msg), node,
 				    NULL);
 	if (status < 0)
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
+		     node);
 
 	return status;
 }
@@ -1516,7 +1523,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	dlm->name = kmalloc(strlen(domain) + 1, GFP_KERNEL);
+	dlm->name = kstrdup(domain, GFP_KERNEL);
 	if (dlm->name == NULL) {
 		mlog_errno(-ENOMEM);
 		kfree(dlm);
@@ -1550,7 +1557,6 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(dlm_master_hash(dlm, i));
 
-	strcpy(dlm->name, domain);
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
@@ -1665,7 +1671,7 @@ struct dlm_ctxt * dlm_register_domain(const char *domain,
 	struct dlm_ctxt *dlm = NULL;
 	struct dlm_ctxt *new_ctxt = NULL;
 
-	if (strlen(domain) > O2NM_MAX_NAME_LEN) {
+	if (strlen(domain) >= O2NM_MAX_NAME_LEN) {
 		ret = -ENAMETOOLONG;
 		mlog(ML_ERROR, "domain name length too long\n");
 		goto leave;
@@ -1703,6 +1709,7 @@ retry:
 		}
 
 		if (dlm_protocol_compare(&dlm->fs_locking_proto, fs_proto)) {
+			spin_unlock(&dlm_domain_lock);
 			mlog(ML_ERROR,
 			     "Requested locking protocol version is not "
 			     "compatible with already registered domain "

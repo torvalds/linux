@@ -21,6 +21,17 @@ config SND_USB_AUDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-audio.
 
+config SND_USB_UA101
+	tristate "Edirol UA-101/UA-1000 driver"
+	select SND_PCM
+	select SND_RAWMIDI
+	help
+	  Say Y here to include support for the Edirol UA-101 and UA-1000
+	  audio/MIDI interfaces.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-ua101.
+
 config SND_USB_USX2Y
 	tristate "Tascam US-122, US-224 and US-428 USB driver"
 	depends on X86 || PPC || ALPHA
@@ -53,6 +64,7 @@ config SND_USB_CAIAQ
 	    * Native Instruments Audio 8 DJ
 	    * Native Instruments Guitar Rig Session I/O
 	    * Native Instruments Guitar Rig mobile
+	    * Native Instruments Traktor Kontrol X1
 
 	   To compile this driver as a module, choose M here: the module
 	   will be called snd-usb-caiaq.

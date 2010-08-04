@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
@@ -685,16 +684,7 @@ static struct pccard_operations pcc_operations = {
 	.set_mem_map		= pcc_set_mem_map,
 };
 
-static int cfc_drv_pcmcia_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
 
-static int cfc_drv_pcmcia_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
 /*====================================================================*/
 
 static struct platform_driver pcc_driver = {
@@ -702,8 +692,6 @@ static struct platform_driver pcc_driver = {
 		.name		= "cfc",
 		.owner		= THIS_MODULE,
 	},
-	.suspend 	= cfc_drv_pcmcia_suspend,
-	.resume 	= cfc_drv_pcmcia_resume,
 };
 
 static struct platform_device pcc_device = {
@@ -764,7 +752,7 @@ static int __init init_m32r_pcc(void)
 	for (i = 0 ; i < pcc_sockets ; i++) {
 		socket[i].socket.dev.parent = &pcc_device.dev;
 		socket[i].socket.ops = &pcc_operations;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_static_ops;
 		socket[i].socket.owner = THIS_MODULE;
 		socket[i].number = i;
 		ret = pcmcia_register_socket(&socket[i].socket);

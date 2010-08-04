@@ -101,3 +101,16 @@ Description:
 
 		CAUTION: Using it will cause your machine's real-time (CMOS)
 		clock to be set to a random invalid time after a resume.
+
+What:		/sys/power/pm_async
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/pm_async file controls the switch allowing the
+		user space to enable or disable asynchronous suspend and resume
+		of devices.  If enabled, this feature will cause some device
+		drivers' suspend and resume callbacks to be executed in parallel
+		with each other and with the main suspend thread.  It is enabled
+		if this file contains "1", which is the default.  It may be
+		disabled by writing "0" to this file, in which case all devices
+		will be suspended and resumed synchronously.

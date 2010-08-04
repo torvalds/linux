@@ -85,9 +85,9 @@ static struct keyboard_layout_map_t keyboard_layout_maps[] = {
 		{ } /* Terminating entry */
 };
 
-u32 ir_pos;
-u32	ir_word;
-u32 ir_toggle;
+static u32 ir_pos;
+static u32 ir_word;
+static u32 ir_toggle;
 
 #define RC5_PUSH_BIT(dst, bit, pos)	\
 	{ dst <<= 1; dst |= bit; pos++; }

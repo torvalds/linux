@@ -43,6 +43,13 @@
 #include "ieee80211/ieee80211.h"
 
 #include "r8192S_firmware.h"
+#include "r8192SU_led.h"
+
+/* EEPROM defs for use with linux/eeprom_93cx6.h */
+#define RTL819X_EEPROM_CMD_READ		(1 << 0)
+#define RTL819X_EEPROM_CMD_WRITE	(1 << 1)
+#define RTL819X_EEPROM_CMD_CK		(1 << 2)
+#define RTL819X_EEPROM_CMD_CS		(1 << 3)
 
 //#define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
@@ -735,11 +742,6 @@ typedef enum _RTL8192SUSB_LOOPBACK{
 #define RSVD_FW_QUEUE_PAGE_CMD_SHIFT	0x08
 #define RSVD_FW_QUEUE_PAGE_BCN_SHIFT	0x00
 #define RSVD_FW_QUEUE_PAGE_PUB_SHIFT	0x08
-//=================================================================
-//=================================================================
-
-#define EPROM_93c46 0
-#define EPROM_93c56 1
 
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
@@ -1066,19 +1068,6 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_PRONET = 13,
 }RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
-//================================================================================
-// LED customization.
-//================================================================================
-
-typedef	enum _LED_STRATEGY_8190{
-	SW_LED_MODE0, // SW control 1 LED via GPIO0. It is default option.
-	SW_LED_MODE1, // SW control for PCI Express
-	SW_LED_MODE2, // SW control for Cameo.
-	SW_LED_MODE3, // SW contorl for RunTop.
-	SW_LED_MODE4, // SW control for Netcore
-	HW_LED, // HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes)
-}LED_STRATEGY_8190, *PLED_STRATEGY_8190;
-
 typedef enum _RESET_TYPE {
 	RESET_TYPE_NORESET = 0x00,
 	RESET_TYPE_NORMAL = 0x01,
@@ -1123,15 +1112,14 @@ typedef struct r8192_priv
 {
 	struct rtl819x_ops* ops;
 	struct usb_device *udev;
-	//added for maintain info from eeprom
-	short epromtype;
+	/* added for maintain info from eeprom */
 	u16 eeprom_vid;
 	u16 eeprom_pid;
 	u8  eeprom_CustomerID;
 	u8  eeprom_SubCustomerID;
 	u8  eeprom_ChannelPlan;
 	RT_CUSTOMER_ID CustomerID;
-	LED_STRATEGY_8190	LedStrategy;
+	LED_STRATEGY_819xUsb	LedStrategy;
 	u8  txqueue_to_outpipemap[9];
 	u8  RtOutPipes[16];
 	u8  RtInPipes[16];
@@ -1258,7 +1246,6 @@ typedef struct r8192_priv
 	u8 Rf_Mode; //add for Firmware RF -R/W switch
 	prt_firmware		pFirmware;
 	rtl819xUsb_loopback_e	LoopbackMode;
-	firmware_source_e	firmware_source;
 	bool usb_error;
 
 	u16 EEPROMTxPowerDiff;
@@ -1502,8 +1489,17 @@ typedef struct r8192_priv
 	u8 MinSpaceCfg;
 
 	u16 rf_pathmap;
-//#endif
 
+	/* added for led control */
+	PLED_819xUsb			pLed;
+	LED_819xUsb			SwLed0;
+	LED_819xUsb			SwLed1;
+        u8                              bRegUseLed;
+	struct work_struct		BlinkWorkItem; 
+	/* added for led control */
+	u16				FwCmdIOMap;
+	u32				FwCmdIOParam;
+	u8				DMFlag; 
 
 
 

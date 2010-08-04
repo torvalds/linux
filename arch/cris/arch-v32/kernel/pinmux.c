@@ -54,7 +54,7 @@ crisv32_pinmux_alloc(int port, int first_pin, int last_pin, enum pin_mode mode)
 
 	crisv32_pinmux_init();
 
-	if (port > PORTS)
+	if (port > PORTS || port < 0)
 		return -EINVAL;
 
 	spin_lock_irqsave(&pinmux_lock, flags);
@@ -197,7 +197,7 @@ crisv32_pinmux_dealloc(int port, int first_pin, int last_pin)
 
 	crisv32_pinmux_init();
 
-	if (port > PORTS)
+	if (port > PORTS || port < 0)
 		return -EINVAL;
 
 	spin_lock_irqsave(&pinmux_lock, flags);

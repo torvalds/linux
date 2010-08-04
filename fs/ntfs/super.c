@@ -31,6 +31,7 @@
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
 #include <linux/smp_lock.h>
+#include <linux/bitmap.h>
 
 #include "sysctl.h"
 #include "logfile.h"
@@ -39,6 +40,7 @@
 #include "dir.h"
 #include "debug.h"
 #include "index.h"
+#include "inode.h"
 #include "aops.h"
 #include "layout.h"
 #include "malloc.h"
@@ -2457,7 +2459,6 @@ static void ntfs_put_super(struct super_block *sb)
 static s64 get_nr_free_clusters(ntfs_volume *vol)
 {
 	s64 nr_free = vol->nr_clusters;
-	u32 *kaddr;
 	struct address_space *mapping = vol->lcnbmp_ino->i_mapping;
 	struct page *page;
 	pgoff_t index, max_index;
@@ -2476,7 +2477,8 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	ntfs_debug("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
 			max_index, PAGE_CACHE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
-		unsigned int i;
+		unsigned long *kaddr;
+
 		/*
 		 * Read the page from page cache, getting it from backing store
 		 * if necessary, and increment the use count.
@@ -2489,16 +2491,16 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = (u32*)kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page, KM_USER0);
 		/*
-		 * For each 4 bytes, subtract the number of set bits. If this
+		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
 		 * it just means we do a little extra work but it won't affect
 		 * the result as all out of range bytes are set to zero by
 		 * ntfs_readpage().
 		 */
-	  	for (i = 0; i < PAGE_CACHE_SIZE / 4; i++)
-			nr_free -= (s64)hweight32(kaddr[i]);
+		nr_free -= bitmap_weight(kaddr,
+					PAGE_CACHE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr, KM_USER0);
 		page_cache_release(page);
 	}
@@ -2537,7 +2539,6 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		s64 nr_free, const pgoff_t max_index)
 {
-	u32 *kaddr;
 	struct address_space *mapping = vol->mftbmp_ino->i_mapping;
 	struct page *page;
 	pgoff_t index;
@@ -2547,7 +2548,8 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	ntfs_debug("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
 			"0x%lx.", max_index, PAGE_CACHE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
-		unsigned int i;
+		unsigned long *kaddr;
+
 		/*
 		 * Read the page from page cache, getting it from backing store
 		 * if necessary, and increment the use count.
@@ -2560,16 +2562,16 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = (u32*)kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page, KM_USER0);
 		/*
-		 * For each 4 bytes, subtract the number of set bits. If this
+		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
 		 * it just means we do a little extra work but it won't affect
 		 * the result as all out of range bytes are set to zero by
 		 * ntfs_readpage().
 		 */
-	  	for (i = 0; i < PAGE_CACHE_SIZE / 4; i++)
-			nr_free -= (s64)hweight32(kaddr[i]);
+		nr_free -= bitmap_weight(kaddr,
+					PAGE_CACHE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr, KM_USER0);
 		page_cache_release(page);
 	}
@@ -2661,6 +2663,13 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	sfs->f_namelen	   = NTFS_MAX_NAME_LEN;
 	return 0;
 }
+
+#ifdef NTFS_RW
+static int ntfs_write_inode(struct inode *vi, struct writeback_control *wbc)
+{
+	return __ntfs_write_inode(vi, wbc->sync_mode == WB_SYNC_ALL);
+}
+#endif
 
 /**
  * The complete super operations.

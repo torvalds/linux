@@ -25,6 +25,8 @@ enum mx31moboard_boards {
 	MX31NOBOARD	= 0,
 	MX31DEVBOARD	= 1,
 	MX31MARXBOT	= 2,
+	MX31SMARTBOT	= 3,
+	MX31EYEBOT	= 4,
 };
 
 /*
@@ -34,6 +36,7 @@ enum mx31moboard_boards {
 
 extern void mx31moboard_devboard_init(void);
 extern void mx31moboard_marxbot_init(void);
+extern void mx31moboard_smartbot_init(int board);
 
 #endif
 

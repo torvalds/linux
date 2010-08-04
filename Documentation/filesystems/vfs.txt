@@ -72,7 +72,7 @@ structure (this is the kernel-side implementation of file
 descriptors). The freshly allocated file structure is initialized with
 a pointer to the dentry and a set of file operation member functions.
 These are taken from the inode data. The open() file method is then
-called so the specific filesystem implementation can do it's work. You
+called so the specific filesystem implementation can do its work. You
 can see that this is another switch performed by the VFS. The file
 structure is placed into the file descriptor table for the process.
 
@@ -401,10 +401,15 @@ otherwise noted.
   	started might not be in the page cache at the end of the
   	walk).
 
-  truncate: called by the VFS to change the size of a file.  The
+  truncate: Deprecated. This will not be called if ->setsize is defined.
+	Called by the VFS to change the size of a file.  The
  	i_size field of the inode is set to the desired size by the
  	VFS before this method is called.  This method is called by
  	the truncate(2) system call and related functionality.
+
+	Note: ->truncate and vmtruncate are deprecated. Do not add new
+	instances/calls of these. Filesystems should be converted to do their
+	truncate sequence via ->setattr().
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -729,7 +734,7 @@ struct file_operations {
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, struct dentry *, int datasync);
+	int (*fsync) (struct file *, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);

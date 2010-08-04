@@ -242,7 +242,7 @@ void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-	u32 color = rect->color, dx = rect->dx, width = rect->width, rotation = 0;
+	u32 color, dx = rect->dx, width = rect->width, rotation = 0;
 
 	if (par->asleep)
 		return;
@@ -253,8 +253,11 @@ void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return;
 	}
 
-	color |= (rect->color << 8);
-	color |= (rect->color << 16);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
+		color = ((u32 *)(info->pseudo_palette))[rect->color];
+	else
+		color = rect->color;
 
 	if (info->var.bits_per_pixel == 24) {
 		/* In 24 bpp, the engine is in 8 bpp - this requires that all */

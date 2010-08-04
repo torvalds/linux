@@ -56,25 +56,7 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO80_nCS_4,	/* SCOOP #1 */
 
 	/* LCD - 16bpp Active TFT */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* PC Card */
 	GPIO48_nPOE,
@@ -104,6 +86,7 @@ static unsigned long spitz_pin_config[] __initdata = {
 
 	/* GPIOs */
 	GPIO9_GPIO,	/* SPITZ_GPIO_nSD_DETECT */
+	GPIO16_GPIO,	/* SPITZ_GPIO_SYNC */
 	GPIO81_GPIO,	/* SPITZ_GPIO_nSD_WP */
 	GPIO41_GPIO,	/* SPITZ_GPIO_USB_CONNECT */
 	GPIO37_GPIO,	/* SPITZ_GPIO_USB_HOST */
@@ -137,7 +120,8 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
 
-	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,	/* SPITZ_GPIO_KEY_INT */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_FALL,	/* SPITZ_GPIO_RESET */
 };
 
 /*
@@ -381,7 +365,7 @@ static struct gpio_keys_button spitz_gpio_keys[] = {
 		.type	= EV_PWR,
 		.code	= KEY_SUSPEND,
 		.gpio	= SPITZ_GPIO_ON_KEY,
-		.desc	= "On/Off",
+		.desc	= "On Off",
 		.wakeup	= 1,
 	},
 	/* Two buttons detecting the lid state */
@@ -555,6 +539,7 @@ static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 }
 
 static struct pxamci_platform_data spitz_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower 		= spitz_mci_setpower,
 	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
@@ -775,7 +760,6 @@ static void __init common_init(void)
 	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
@@ -834,6 +818,9 @@ static struct i2c_board_info akita_i2c_board_info[] = {
 		.type		= "max7310",
 		.addr		= 0x18,
 		.platform_data	= &akita_ioexp,
+	}, {
+		.type		= "wm8750",
+		.addr		= 0x1b,
 	},
 };
 

@@ -171,8 +171,8 @@ config INPUT_ADBHID
 	  If unsure, say Y.
 
 config MAC_EMUMOUSEBTN
-	bool "Support for mouse button 2+3 emulation"
-	select INPUT
+	tristate "Support for mouse button 2+3 emulation"
+	depends on SYSCTL && INPUT
 	help
 	  This provides generic support for emulating the 2nd and 3rd mouse
 	  button with keypresses.  If you say Y here, the emulation is still
@@ -183,6 +183,9 @@ config MAC_EMUMOUSEBTN
 	  /proc/sys/dev/mac_hid/mouse_button3_keycode
 
 	  If you have an Apple machine with a 1-button mouse, say Y here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mac_hid.
 
 config THERM_WINDTUNNEL
 	tristate "Support for thermal management on Windtunnel G4s"

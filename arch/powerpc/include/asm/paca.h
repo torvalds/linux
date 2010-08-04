@@ -14,11 +14,17 @@
 #define _ASM_POWERPC_PACA_H
 #ifdef __KERNEL__
 
+#ifdef CONFIG_PPC64
+
+#include <linux/init.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/exception-64e.h>
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include <asm/kvm_book3s_asm.h>
+#endif
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -76,6 +82,7 @@ struct paca_struct {
 	s16 hw_cpu_id;			/* Physical processor number */
 	u8 cpu_start;			/* At startup, processor spins until */
 					/* this becomes non-zero. */
+	u8 kexec_state;		/* set when kexec down has irqs off */
 #ifdef CONFIG_PPC_STD_MMU_64
 	struct slb_shadow *slb_shadow_ptr;
 
@@ -130,18 +137,25 @@ struct paca_struct {
 	u64 startpurr;			/* PURR/TB value snapshot */
 	u64 startspurr;			/* SPURR value snapshot */
 
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	struct  {
-		u64     esid;
-		u64     vsid;
-	} kvm_slb[64];			/* guest SLB */
-	u8 kvm_slb_max;			/* highest used guest slb entry */
-	u8 kvm_in_guest;		/* are we inside the guest? */
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
+	/* We use this to store guest state in */
+	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 #endif
 };
 
-extern struct paca_struct paca[];
-extern void initialise_pacas(void);
+extern struct paca_struct *paca;
+extern __initdata struct paca_struct boot_paca;
+extern void initialise_paca(struct paca_struct *new_paca, int cpu);
+
+extern void allocate_pacas(void);
+extern void free_unused_pacas(void);
+
+#else /* CONFIG_PPC64 */
+
+static inline void allocate_pacas(void) { };
+static inline void free_unused_pacas(void) { };
+
+#endif /* CONFIG_PPC64 */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */

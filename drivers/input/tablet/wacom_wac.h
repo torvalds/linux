@@ -9,17 +9,18 @@
 #ifndef WACOM_WAC_H
 #define WACOM_WAC_H
 
+#include <linux/types.h>
+
 /* maximum packet length for USB devices */
 #define WACOM_PKGLEN_MAX	32
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
 #define WACOM_PKGLEN_GRAPHIRE	 8
-#define WACOM_PKGLEN_BBFUN 	 9
-#define WACOM_PKGLEN_INTUOS 	10
-#define WACOM_PKGLEN_PENABLED	 8
+#define WACOM_PKGLEN_BBFUN	 9
+#define WACOM_PKGLEN_INTUOS	10
 #define WACOM_PKGLEN_TPC1FG	 5
-#define WACOM_PKGLEN_TPC2FG 	14
+#define WACOM_PKGLEN_TPC2FG	14
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -49,6 +50,7 @@ enum {
 	INTUOS4S,
 	INTUOS4,
 	INTUOS4L,
+	WACOM_21UX2,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_MO,
@@ -58,7 +60,7 @@ enum {
 };
 
 struct wacom_features {
-	char *name;
+	const char *name;
 	int pktlen;
 	int x_max;
 	int y_max;
@@ -72,12 +74,20 @@ struct wacom_features {
 	unsigned char unitExpo;
 };
 
+struct wacom_shared {
+	bool stylus_in_proximity;
+};
+
 struct wacom_wac {
+	char name[64];
 	unsigned char *data;
-        int tool[2];
-        int id[2];
-        __u32 serial[2];
-	struct wacom_features *features;
+	int tool[3];
+	int id[3];
+	__u32 serial[2];
+	int last_finger;
+	struct wacom_features features;
+	struct wacom_shared *shared;
+	struct input_dev *input;
 };
 
 #endif

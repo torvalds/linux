@@ -53,10 +53,10 @@
 
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.3.7"
+#define REL_VERSION "8.3.8"
 #define API_VERSION 88
 #define PRO_VERSION_MIN 86
-#define PRO_VERSION_MAX 91
+#define PRO_VERSION_MAX 94
 
 
 enum drbd_io_error_p {
@@ -139,6 +139,7 @@ enum drbd_ret_codes {
 	ERR_DATA_NOT_CURRENT	= 150,
 	ERR_CONNECTED		= 151, /* DRBD 8.3 only */
 	ERR_PERM		= 152,
+	ERR_NEED_APV_93		= 153,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE

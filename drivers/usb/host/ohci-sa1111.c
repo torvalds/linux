@@ -31,8 +31,8 @@ static void sa1111_start_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst = 0;
 
-	printk(KERN_DEBUG __FILE__
-	       ": starting SA-1111 OHCI USB Controller\n");
+	printk(KERN_DEBUG "%s: starting SA-1111 OHCI USB Controller\n",
+	       __FILE__);
 
 #ifdef CONFIG_SA1100_BADGE4
 	if (machine_is_badge4()) {
@@ -65,8 +65,8 @@ static void sa1111_start_hc(struct sa1111_dev *dev)
 static void sa1111_stop_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst;
-	printk(KERN_DEBUG __FILE__
-	       ": stopping SA-1111 OHCI USB Controller\n");
+	printk(KERN_DEBUG "%s: stopping SA-1111 OHCI USB Controller\n",
+	       __FILE__);
 
 	/*
 	 * Put the USB host controller into reset.

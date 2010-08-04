@@ -31,6 +31,7 @@
 #include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
@@ -40,7 +41,6 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -72,7 +72,7 @@ MODULE_PARM_DESC(tx_descriptors, "number of descriptors used " \
 
 char spider_net_driver_name[] = "spidernet";
 
-static struct pci_device_id spider_net_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(spider_net_pci_tbl) = {
 	{ PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SPIDER_NET,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ 0, }
@@ -474,7 +474,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
  * spider_net_enable_rxchtails - sets RX dmac chain tail addresses
  * @card: card structure
  *
- * spider_net_enable_rxchtails sets the RX DMAC chain tail adresses in the
+ * spider_net_enable_rxchtails sets the RX DMAC chain tail addresses in the
  * chip by writing to the appropriate register. DMA is enabled in
  * spider_net_enable_rxdmac.
  */
@@ -625,7 +625,7 @@ spider_net_get_multicast_hash(struct net_device *netdev, __u8 *addr)
 static void
 spider_net_set_multi(struct net_device *netdev)
 {
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u8 hash;
 	int i;
 	u32 reg;
@@ -646,8 +646,8 @@ spider_net_set_multi(struct net_device *netdev)
 	hash = spider_net_get_multicast_hash(netdev, netdev->broadcast); */
 	set_bit(0xfd, bitmask);
 
-	for (mc = netdev->mc_list; mc; mc = mc->next) {
-		hash = spider_net_get_multicast_hash(netdev, mc->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash = spider_net_get_multicast_hash(netdev, ha->addr);
 		set_bit(hash, bitmask);
 	}
 
@@ -1820,7 +1820,7 @@ spider_net_enable_card(struct spider_net_card *card)
 
 	spider_net_write_reg(card, SPIDER_NET_ECMODE, SPIDER_NET_ECMODE_VALUE);
 
-	/* set chain tail adress for RX chains and
+	/* set chain tail address for RX chains and
 	 * enable DMA */
 	spider_net_enable_rxchtails(card);
 	spider_net_enable_rxdmac(card);
@@ -2095,8 +2095,6 @@ static void spider_net_link_phy(unsigned long data)
 		card->netdev->name, phy->speed,
 		phy->duplex == 1 ? "Full" : "Half",
 		phy->autoneg == 1 ? "" : "no ");
-
-	return;
 }
 
 /**

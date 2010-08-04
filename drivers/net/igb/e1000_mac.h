@@ -67,8 +67,6 @@ void igb_mta_set(struct e1000_hw *hw, u32 hash_value);
 void igb_put_hw_semaphore(struct e1000_hw *hw);
 void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
 s32  igb_check_alt_mac_addr(struct e1000_hw *hw);
-void igb_reset_adaptive(struct e1000_hw *hw);
-void igb_update_adaptive(struct e1000_hw *hw);
 
 bool igb_enable_mng_pass_thru(struct e1000_hw *hw);
 

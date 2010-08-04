@@ -31,6 +31,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 
 #include <pcmcia/ss.h>
 
@@ -184,7 +185,7 @@ static int __devinit electra_cf_probe(struct of_device *ofdev,
 				      const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct electra_cf_socket   *cf;
 	struct resource mem, io;
 	int status;
@@ -347,7 +348,7 @@ static int __devexit electra_cf_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id electra_cf_match[] = {
+static const struct of_device_id electra_cf_match[] = {
 	{
 		.compatible   = "electra-cf",
 	},
@@ -356,8 +357,11 @@ static struct of_device_id electra_cf_match[] = {
 MODULE_DEVICE_TABLE(of, electra_cf_match);
 
 static struct of_platform_driver electra_cf_driver = {
-	.name	   = (char *)driver_name,
-	.match_table    = electra_cf_match,
+	.driver = {
+		.name = (char *)driver_name,
+		.owner = THIS_MODULE,
+		.of_match_table = electra_cf_match,
+	},
 	.probe	  = electra_cf_probe,
 	.remove   = electra_cf_remove,
 };

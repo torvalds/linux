@@ -1,3 +1,28 @@
+/*
+ * IEEE 1394 constants.
+ *
+ * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 #ifndef _LINUX_FIREWIRE_CONSTANTS_H
 #define _LINUX_FIREWIRE_CONSTANTS_H
 
@@ -21,7 +46,7 @@
 #define EXTCODE_WRAP_ADD		0x6
 #define EXTCODE_VENDOR_DEPENDENT	0x7
 
-/* Juju specific tcodes */
+/* Linux firewire-core (Juju) specific tcodes */
 #define TCODE_LOCK_MASK_SWAP		(0x10 | EXTCODE_MASK_SWAP)
 #define TCODE_LOCK_COMPARE_SWAP		(0x10 | EXTCODE_COMPARE_SWAP)
 #define TCODE_LOCK_FETCH_ADD		(0x10 | EXTCODE_FETCH_ADD)
@@ -36,7 +61,7 @@
 #define RCODE_TYPE_ERROR		0x6
 #define RCODE_ADDRESS_ERROR		0x7
 
-/* Juju specific rcodes */
+/* Linux firewire-core (Juju) specific rcodes */
 #define RCODE_SEND_ERROR		0x10
 #define RCODE_CANCELLED			0x11
 #define RCODE_BUSY			0x12

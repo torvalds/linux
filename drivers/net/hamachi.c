@@ -153,7 +153,6 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -860,7 +859,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 	for (i = 10000; i >= 0; i--)
 		if ((readw(ioaddr + MII_Status) & 1) == 0)
 			break;
-	return;
 }
 
 
@@ -1226,8 +1224,6 @@ static void hamachi_init_ring(struct net_device *dev)
 	}
 	/* Mark the last entry of the ring */
 	hmp->tx_ring[TX_RING_SIZE-1].status_n_length |= cpu_to_le32(DescEndRing);
-
-	return;
 }
 
 
@@ -1854,17 +1850,18 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		writew(0x000F, ioaddr + AddrMode);
-	} else if ((dev->mc_count > 63)  ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > 63) || (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		writew(0x000B, ioaddr + AddrMode);
-	} else if (dev->mc_count > 0) { /* Must use the CAM filter. */
-		struct dev_mc_list *mclist;
-		int i;
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-			 i++, mclist = mclist->next) {
-			writel(*(u32*)(mclist->dmi_addr), ioaddr + 0x100 + i*8);
-			writel(0x20000 | (*(u16*)&mclist->dmi_addr[4]),
+	} else if (!netdev_mc_empty(dev)) { /* Must use the CAM filter. */
+		struct netdev_hw_addr *ha;
+		int i = 0;
+
+		netdev_for_each_mc_addr(ha, dev) {
+			writel(*(u32 *)(ha->addr), ioaddr + 0x100 + i*8);
+			writel(0x20000 | (*(u16 *)&ha->addr[4]),
 				   ioaddr + 0x104 + i*8);
+			i++;
 		}
 		/* Clear remaining entries. */
 		for (; i < 64; i++)
@@ -1990,7 +1987,7 @@ static void __devexit hamachi_remove_one (struct pci_dev *pdev)
 	}
 }
 
-static struct pci_device_id hamachi_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(hamachi_pci_tbl) = {
 	{ 0x1318, 0x0911, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

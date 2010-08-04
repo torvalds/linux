@@ -49,7 +49,7 @@ set_render_target(drm_radeon_private_t *dev_priv, int format, int w, int h, u64 
 	RING_LOCALS;
 	DRM_DEBUG("\n");
 
-	h = (h + 7) & ~7;
+	h = ALIGN(h, 8);
 	if (h < 8)
 		h = 8;
 
@@ -538,9 +538,12 @@ int
 r600_prepare_blit_copy(struct drm_device *dev, struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
+	int ret;
 	DRM_DEBUG("\n");
 
-	r600_nomm_get_vb(dev);
+	ret = r600_nomm_get_vb(dev);
+	if (ret)
+		return ret;
 
 	dev_priv->blit_vb->file_priv = file_priv;
 

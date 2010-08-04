@@ -137,10 +137,34 @@ static int zorro_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static int zorro_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+#ifdef CONFIG_HOTPLUG
+	struct zorro_dev *z;
+
+	if (!dev)
+		return -ENODEV;
+
+	z = to_zorro_dev(dev);
+	if (!z)
+		return -ENODEV;
+
+	if (add_uevent_var(env, "ZORRO_ID=%08X", z->id) ||
+	    add_uevent_var(env, "ZORRO_SLOT_NAME=%s", dev_name(dev)) ||
+	    add_uevent_var(env, "ZORRO_SLOT_ADDR=%04X", z->slotaddr) ||
+	    add_uevent_var(env, "MODALIAS=" ZORRO_DEVICE_MODALIAS_FMT, z->id))
+		return -ENOMEM;
+
+	return 0;
+#else /* !CONFIG_HOTPLUG */
+	return -ENODEV;
+#endif /* !CONFIG_HOTPLUG */
+}
 
 struct bus_type zorro_bus_type = {
 	.name	= "zorro",
 	.match	= zorro_bus_match,
+	.uevent	= zorro_uevent,
 	.probe	= zorro_device_probe,
 	.remove	= zorro_device_remove,
 };

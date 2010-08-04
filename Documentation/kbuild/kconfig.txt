@@ -96,7 +96,7 @@ Environment variables for 'silentoldconfig'
 KCONFIG_NOSILENTUPDATE
 --------------------------------------------------
 If this variable has a non-blank value, it prevents silent kernel
-config udpates (requires explicit updates).
+config updates (requires explicit updates).
 
 KCONFIG_AUTOCONFIG
 --------------------------------------------------

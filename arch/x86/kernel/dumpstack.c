@@ -224,11 +224,6 @@ unsigned __kprobes long oops_begin(void)
 	int cpu;
 	unsigned long flags;
 
-	/* notify the hw-branch tracer so it may disable tracing and
-	   add the last trace to the trace buffer -
-	   the earlier this happens, the more useful the trace. */
-	trace_hw_branch_oops();
-
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */

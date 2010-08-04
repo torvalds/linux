@@ -394,7 +394,6 @@ static int atl1e_phy_setup_autoneg_adv(struct atl1e_hw *hw)
 int atl1e_phy_commit(struct atl1e_hw *hw)
 {
 	struct atl1e_adapter *adapter = hw->adapter;
-	struct pci_dev *pdev = adapter->pdev;
 	int ret_val;
 	u16 phy_data;
 
@@ -415,12 +414,12 @@ int atl1e_phy_commit(struct atl1e_hw *hw)
 		}
 
 		if (0 != (val & (MDIO_START | MDIO_BUSY))) {
-			dev_err(&pdev->dev,
-				"pcie linkdown at least for 25ms\n");
+			netdev_err(adapter->netdev,
+				   "pcie linkdown at least for 25ms\n");
 			return ret_val;
 		}
 
-		dev_err(&pdev->dev, "pcie linkup after %d ms\n", i);
+		netdev_err(adapter->netdev, "pcie linkup after %d ms\n", i);
 	}
 	return 0;
 }
@@ -428,7 +427,6 @@ int atl1e_phy_commit(struct atl1e_hw *hw)
 int atl1e_phy_init(struct atl1e_hw *hw)
 {
 	struct atl1e_adapter *adapter = hw->adapter;
-	struct pci_dev *pdev = adapter->pdev;
 	s32 ret_val;
 	u16 phy_val;
 
@@ -492,20 +490,22 @@ int atl1e_phy_init(struct atl1e_hw *hw)
 	/*Enable PHY LinkChange Interrupt */
 	ret_val = atl1e_write_phy_reg(hw, MII_INT_CTRL, 0xC00);
 	if (ret_val) {
-		dev_err(&pdev->dev, "Error enable PHY linkChange Interrupt\n");
+		netdev_err(adapter->netdev,
+			   "Error enable PHY linkChange Interrupt\n");
 		return ret_val;
 	}
 	/* setup AutoNeg parameters */
 	ret_val = atl1e_phy_setup_autoneg_adv(hw);
 	if (ret_val) {
-		dev_err(&pdev->dev, "Error Setting up Auto-Negotiation\n");
+		netdev_err(adapter->netdev,
+			   "Error Setting up Auto-Negotiation\n");
 		return ret_val;
 	}
 	/* SW.Reset & En-Auto-Neg to restart Auto-Neg*/
-	dev_dbg(&pdev->dev, "Restarting Auto-Neg");
+	netdev_dbg(adapter->netdev, "Restarting Auto-Negotiation\n");
 	ret_val = atl1e_phy_commit(hw);
 	if (ret_val) {
-		dev_err(&pdev->dev, "Error Resetting the phy");
+		netdev_err(adapter->netdev, "Error resetting the phy\n");
 		return ret_val;
 	}
 
@@ -559,9 +559,8 @@ int atl1e_reset_hw(struct atl1e_hw *hw)
 	}
 
 	if (timeout >= AT_HW_MAX_IDLE_DELAY) {
-		dev_err(&pdev->dev,
-			"MAC state machine cann't be idle since"
-			" disabled for 10ms second\n");
+		netdev_err(adapter->netdev,
+			   "MAC state machine can't be idle since disabled for 10ms second\n");
 		return AT_ERR_TIMEOUT;
 	}
 

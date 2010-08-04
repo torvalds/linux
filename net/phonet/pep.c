@@ -23,6 +23,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -354,6 +355,9 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		queue = &pn->ctrlreq_queue;
 		goto queue;
 
+	case PNS_PIPE_ALIGNED_DATA:
+		__skb_pull(skb, 1);
+		/* fall through */
 	case PNS_PIPE_DATA:
 		__skb_pull(skb, 3); /* Pipe data header */
 		if (!pn_flow_safe(pn->rx_fc)) {
@@ -441,6 +445,7 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	struct sockaddr_pn dst;
 	u16 peer_type;
 	u8 pipe_handle, enabled, n_sb;
+	u8 aligned = 0;
 
 	if (!pskb_pull(skb, sizeof(*hdr) + 4))
 		return -EINVAL;
@@ -479,6 +484,9 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 				return -EINVAL;
 			peer_type = (peer_type & 0xff00) | data[0];
 			break;
+		case PN_PIPE_SB_ALIGNED_DATA:
+			aligned = data[0] != 0;
+			break;
 		}
 		n_sb--;
 	}
@@ -510,6 +518,7 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	newpn->rx_credits = 0;
 	newpn->rx_fc = newpn->tx_fc = PN_LEGACY_FLOW_CONTROL;
 	newpn->init_enable = enabled;
+	newpn->aligned = aligned;
 
 	BUG_ON(!skb_queue_empty(&newsk->sk_receive_queue));
 	skb_queue_head(&newsk->sk_receive_queue, skb);
@@ -617,6 +626,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	struct pep_sock *pn = pep_sk(sk);
 	int ifindex = 0;
 
+	sock_hold(sk); /* keep a reference after sk_common_release() */
 	sk_common_release(sk);
 
 	lock_sock(sk);
@@ -635,6 +645,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 
 	if (ifindex)
 		gprs_detach(sk);
+	sock_put(sk);
 }
 
 static int pep_wait_connreq(struct sock *sk, int noblock)
@@ -655,12 +666,12 @@ static int pep_wait_connreq(struct sock *sk, int noblock)
 		if (signal_pending(tsk))
 			return sock_intr_errno(timeo);
 
-		prepare_to_wait_exclusive(&sk->sk_socket->wait, &wait,
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 						TASK_INTERRUPTIBLE);
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
 		lock_sock(sk);
-		finish_wait(&sk->sk_socket->wait, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 	}
 
 	return 0;
@@ -687,6 +698,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp)
 		newsk = NULL;
 		goto out;
 	}
+	kfree_skb(oskb);
 
 	sock_hold(sk);
 	pep_sk(newsk)->listener = sk;
@@ -829,11 +841,15 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 		return -ENOBUFS;
 	}
 
-	skb_push(skb, 3);
+	skb_push(skb, 3 + pn->aligned);
 	skb_reset_transport_header(skb);
 	ph = pnp_hdr(skb);
 	ph->utid = 0;
-	ph->message_id = PNS_PIPE_DATA;
+	if (pn->aligned) {
+		ph->message_id = PNS_PIPE_ALIGNED_DATA;
+		ph->data[0] = 0; /* padding */
+	} else
+		ph->message_id = PNS_PIPE_DATA;
 	ph->pipe_handle = pn->pipe_handle;
 
 	return pn_skb_send(sk, skb, &pipe_srv);
@@ -848,7 +864,9 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int flags = msg->msg_flags;
 	int err, done;
 
-	if (msg->msg_flags & MSG_OOB || !(msg->msg_flags & MSG_EOR))
+	if ((msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|
+				MSG_CMSG_COMPAT)) ||
+			!(msg->msg_flags & MSG_EOR))
 		return -EOPNOTSUPP;
 
 	skb = sock_alloc_send_skb(sk, MAX_PNPIPE_HEADER + len,
@@ -895,10 +913,10 @@ disabled:
 			goto out;
 		}
 
-		prepare_to_wait(&sk->sk_socket->wait, &wait,
+		prepare_to_wait(sk_sleep(sk), &wait,
 				TASK_INTERRUPTIBLE);
 		done = sk_wait_event(sk, &timeo, atomic_read(&pn->tx_credits));
-		finish_wait(&sk->sk_socket->wait, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 
 		if (sk->sk_state != TCP_ESTABLISHED)
 			goto disabled;
@@ -926,6 +944,9 @@ int pep_write(struct sock *sk, struct sk_buff *skb)
 {
 	struct sk_buff *rskb, *fs;
 	int flen = 0;
+
+	if (pep_sk(sk)->aligned)
+		return pipe_skb_send(sk, skb);
 
 	rskb = alloc_skb(MAX_PNPIPE_HEADER, GFP_ATOMIC);
 	if (!rskb) {
@@ -966,6 +987,10 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct sk_buff *skb;
 	int err;
 
+	if (flags & ~(MSG_OOB|MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_WAITALL|
+			MSG_NOSIGNAL|MSG_CMSG_COMPAT))
+		return -EOPNOTSUPP;
+
 	if (unlikely(1 << sk->sk_state & (TCPF_LISTEN | TCPF_CLOSE)))
 		return -ENOTCONN;
 
@@ -973,6 +998,8 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 		/* Dequeue and acknowledge control request */
 		struct pep_sock *pn = pep_sk(sk);
 
+		if (flags & MSG_PEEK)
+			return -EOPNOTSUPP;
 		skb = skb_dequeue(&pn->ctrlreq_queue);
 		if (skb) {
 			pep_ctrlreq_error(sk, skb, PN_PIPE_NO_ERROR,
@@ -1019,12 +1046,12 @@ static void pep_sock_unhash(struct sock *sk)
 	lock_sock(sk);
 	if ((1 << sk->sk_state) & ~(TCPF_CLOSE|TCPF_LISTEN)) {
 		skparent = pn->listener;
-		sk_del_node_init(sk);
 		release_sock(sk);
 
-		sk = skparent;
 		pn = pep_sk(skparent);
-		lock_sock(sk);
+		lock_sock(skparent);
+		sk_del_node_init(sk);
+		sk = skparent;
 	}
 	/* Unhash a listening sock only when it is closed
 	 * and all of its active connected pipes are closed. */

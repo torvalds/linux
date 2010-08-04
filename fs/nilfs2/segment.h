@@ -30,7 +30,7 @@
 #include "sb.h"
 
 /**
- * struct nilfs_recovery_info - Recovery infomation
+ * struct nilfs_recovery_info - Recovery information
  * @ri_need_recovery: Recovery status
  * @ri_super_root: Block number of the last super root
  * @ri_ri_cno: Number of the last checkpoint
@@ -71,7 +71,7 @@ struct nilfs_recovery_info {
  */
 struct nilfs_cstage {
 	int			scnt;
-	unsigned 		flags;
+	unsigned		flags;
 	struct nilfs_inode_info *dirty_file_ptr;
 	struct nilfs_inode_info *gc_inode_ptr;
 };
@@ -100,7 +100,6 @@ struct nilfs_segsum_pointer {
  * @sc_write_logs: List of segment buffers to hold logs under writing
  * @sc_segbuf_nblocks: Number of available blocks in segment buffers.
  * @sc_curseg: Current segment buffer
- * @sc_super_root: Pointer to the super root buffer
  * @sc_stage: Collection stage
  * @sc_finfo_ptr: pointer to the current finfo struct in the segment summary
  * @sc_binfo_ptr: pointer to the current binfo struct in the segment summary
@@ -116,6 +115,7 @@ struct nilfs_segsum_pointer {
  * @sc_wait_daemon: Daemon wait queue
  * @sc_wait_task: Start/end wait queue to control segctord task
  * @sc_seq_request: Request counter
+ * @sc_seq_accept: Accepted request count
  * @sc_seq_done: Completion counter
  * @sc_sync: Request of explicit sync operation
  * @sc_interval: Timeout value of background construction
@@ -147,7 +147,6 @@ struct nilfs_sc_info {
 	struct list_head	sc_write_logs;
 	unsigned long		sc_segbuf_nblocks;
 	struct nilfs_segment_buffer *sc_curseg;
-	struct buffer_head     *sc_super_root;
 
 	struct nilfs_cstage	sc_stage;
 
@@ -169,6 +168,7 @@ struct nilfs_sc_info {
 	wait_queue_head_t	sc_wait_task;
 
 	__u32			sc_seq_request;
+	__u32			sc_seq_accepted;
 	__u32			sc_seq_done;
 
 	int			sc_sync;
@@ -177,7 +177,7 @@ struct nilfs_sc_info {
 	unsigned long		sc_lseg_stime;	/* in 1/HZ seconds */
 	unsigned long		sc_watermark;
 
-	struct timer_list      *sc_timer;
+	struct timer_list	sc_timer;
 	struct task_struct     *sc_task;
 };
 
@@ -217,10 +217,10 @@ enum {
  */
 #define NILFS_SC_DEFAULT_WATERMARK  3600
 
+/* super.c */
+extern struct kmem_cache *nilfs_transaction_cachep;
 
 /* segment.c */
-extern int nilfs_init_transaction_cache(void);
-extern void nilfs_destroy_transaction_cache(void);
 extern void nilfs_relax_pressure_in_lock(struct super_block *);
 
 extern int nilfs_construct_segment(struct super_block *);

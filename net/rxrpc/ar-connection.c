@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/crypto.h>

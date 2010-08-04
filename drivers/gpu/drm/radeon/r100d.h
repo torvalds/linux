@@ -74,6 +74,134 @@
 #define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
 
 /* Registers */
+#define R_0000F0_RBBM_SOFT_RESET                     0x0000F0
+#define   S_0000F0_SOFT_RESET_CP(x)                    (((x) & 0x1) << 0)
+#define   G_0000F0_SOFT_RESET_CP(x)                    (((x) >> 0) & 0x1)
+#define   C_0000F0_SOFT_RESET_CP                       0xFFFFFFFE
+#define   S_0000F0_SOFT_RESET_HI(x)                    (((x) & 0x1) << 1)
+#define   G_0000F0_SOFT_RESET_HI(x)                    (((x) >> 1) & 0x1)
+#define   C_0000F0_SOFT_RESET_HI                       0xFFFFFFFD
+#define   S_0000F0_SOFT_RESET_SE(x)                    (((x) & 0x1) << 2)
+#define   G_0000F0_SOFT_RESET_SE(x)                    (((x) >> 2) & 0x1)
+#define   C_0000F0_SOFT_RESET_SE                       0xFFFFFFFB
+#define   S_0000F0_SOFT_RESET_RE(x)                    (((x) & 0x1) << 3)
+#define   G_0000F0_SOFT_RESET_RE(x)                    (((x) >> 3) & 0x1)
+#define   C_0000F0_SOFT_RESET_RE                       0xFFFFFFF7
+#define   S_0000F0_SOFT_RESET_PP(x)                    (((x) & 0x1) << 4)
+#define   G_0000F0_SOFT_RESET_PP(x)                    (((x) >> 4) & 0x1)
+#define   C_0000F0_SOFT_RESET_PP                       0xFFFFFFEF
+#define   S_0000F0_SOFT_RESET_E2(x)                    (((x) & 0x1) << 5)
+#define   G_0000F0_SOFT_RESET_E2(x)                    (((x) >> 5) & 0x1)
+#define   C_0000F0_SOFT_RESET_E2                       0xFFFFFFDF
+#define   S_0000F0_SOFT_RESET_RB(x)                    (((x) & 0x1) << 6)
+#define   G_0000F0_SOFT_RESET_RB(x)                    (((x) >> 6) & 0x1)
+#define   C_0000F0_SOFT_RESET_RB                       0xFFFFFFBF
+#define   S_0000F0_SOFT_RESET_HDP(x)                   (((x) & 0x1) << 7)
+#define   G_0000F0_SOFT_RESET_HDP(x)                   (((x) >> 7) & 0x1)
+#define   C_0000F0_SOFT_RESET_HDP                      0xFFFFFF7F
+#define   S_0000F0_SOFT_RESET_MC(x)                    (((x) & 0x1) << 8)
+#define   G_0000F0_SOFT_RESET_MC(x)                    (((x) >> 8) & 0x1)
+#define   C_0000F0_SOFT_RESET_MC                       0xFFFFFEFF
+#define   S_0000F0_SOFT_RESET_AIC(x)                   (((x) & 0x1) << 9)
+#define   G_0000F0_SOFT_RESET_AIC(x)                   (((x) >> 9) & 0x1)
+#define   C_0000F0_SOFT_RESET_AIC                      0xFFFFFDFF
+#define   S_0000F0_SOFT_RESET_VIP(x)                   (((x) & 0x1) << 10)
+#define   G_0000F0_SOFT_RESET_VIP(x)                   (((x) >> 10) & 0x1)
+#define   C_0000F0_SOFT_RESET_VIP                      0xFFFFFBFF
+#define   S_0000F0_SOFT_RESET_DISP(x)                  (((x) & 0x1) << 11)
+#define   G_0000F0_SOFT_RESET_DISP(x)                  (((x) >> 11) & 0x1)
+#define   C_0000F0_SOFT_RESET_DISP                     0xFFFFF7FF
+#define   S_0000F0_SOFT_RESET_CG(x)                    (((x) & 0x1) << 12)
+#define   G_0000F0_SOFT_RESET_CG(x)                    (((x) >> 12) & 0x1)
+#define   C_0000F0_SOFT_RESET_CG                       0xFFFFEFFF
+#define R_000030_BUS_CNTL                            0x000030
+#define   S_000030_BUS_DBL_RESYNC(x)                   (((x) & 0x1) << 0)
+#define   G_000030_BUS_DBL_RESYNC(x)                   (((x) >> 0) & 0x1)
+#define   C_000030_BUS_DBL_RESYNC                      0xFFFFFFFE
+#define   S_000030_BUS_MSTR_RESET(x)                   (((x) & 0x1) << 1)
+#define   G_000030_BUS_MSTR_RESET(x)                   (((x) >> 1) & 0x1)
+#define   C_000030_BUS_MSTR_RESET                      0xFFFFFFFD
+#define   S_000030_BUS_FLUSH_BUF(x)                    (((x) & 0x1) << 2)
+#define   G_000030_BUS_FLUSH_BUF(x)                    (((x) >> 2) & 0x1)
+#define   C_000030_BUS_FLUSH_BUF                       0xFFFFFFFB
+#define   S_000030_BUS_STOP_REQ_DIS(x)                 (((x) & 0x1) << 3)
+#define   G_000030_BUS_STOP_REQ_DIS(x)                 (((x) >> 3) & 0x1)
+#define   C_000030_BUS_STOP_REQ_DIS                    0xFFFFFFF7
+#define   S_000030_BUS_PM4_READ_COMBINE_EN(x)          (((x) & 0x1) << 4)
+#define   G_000030_BUS_PM4_READ_COMBINE_EN(x)          (((x) >> 4) & 0x1)
+#define   C_000030_BUS_PM4_READ_COMBINE_EN             0xFFFFFFEF
+#define   S_000030_BUS_WRT_COMBINE_EN(x)               (((x) & 0x1) << 5)
+#define   G_000030_BUS_WRT_COMBINE_EN(x)               (((x) >> 5) & 0x1)
+#define   C_000030_BUS_WRT_COMBINE_EN                  0xFFFFFFDF
+#define   S_000030_BUS_MASTER_DIS(x)                   (((x) & 0x1) << 6)
+#define   G_000030_BUS_MASTER_DIS(x)                   (((x) >> 6) & 0x1)
+#define   C_000030_BUS_MASTER_DIS                      0xFFFFFFBF
+#define   S_000030_BIOS_ROM_WRT_EN(x)                  (((x) & 0x1) << 7)
+#define   G_000030_BIOS_ROM_WRT_EN(x)                  (((x) >> 7) & 0x1)
+#define   C_000030_BIOS_ROM_WRT_EN                     0xFFFFFF7F
+#define   S_000030_BM_DAC_CRIPPLE(x)                   (((x) & 0x1) << 8)
+#define   G_000030_BM_DAC_CRIPPLE(x)                   (((x) >> 8) & 0x1)
+#define   C_000030_BM_DAC_CRIPPLE                      0xFFFFFEFF
+#define   S_000030_BUS_NON_PM4_READ_COMBINE_EN(x)      (((x) & 0x1) << 9)
+#define   G_000030_BUS_NON_PM4_READ_COMBINE_EN(x)      (((x) >> 9) & 0x1)
+#define   C_000030_BUS_NON_PM4_READ_COMBINE_EN         0xFFFFFDFF
+#define   S_000030_BUS_XFERD_DISCARD_EN(x)             (((x) & 0x1) << 10)
+#define   G_000030_BUS_XFERD_DISCARD_EN(x)             (((x) >> 10) & 0x1)
+#define   C_000030_BUS_XFERD_DISCARD_EN                0xFFFFFBFF
+#define   S_000030_BUS_SGL_READ_DISABLE(x)             (((x) & 0x1) << 11)
+#define   G_000030_BUS_SGL_READ_DISABLE(x)             (((x) >> 11) & 0x1)
+#define   C_000030_BUS_SGL_READ_DISABLE                0xFFFFF7FF
+#define   S_000030_BIOS_DIS_ROM(x)                     (((x) & 0x1) << 12)
+#define   G_000030_BIOS_DIS_ROM(x)                     (((x) >> 12) & 0x1)
+#define   C_000030_BIOS_DIS_ROM                        0xFFFFEFFF
+#define   S_000030_BUS_PCI_READ_RETRY_EN(x)            (((x) & 0x1) << 13)
+#define   G_000030_BUS_PCI_READ_RETRY_EN(x)            (((x) >> 13) & 0x1)
+#define   C_000030_BUS_PCI_READ_RETRY_EN               0xFFFFDFFF
+#define   S_000030_BUS_AGP_AD_STEPPING_EN(x)           (((x) & 0x1) << 14)
+#define   G_000030_BUS_AGP_AD_STEPPING_EN(x)           (((x) >> 14) & 0x1)
+#define   C_000030_BUS_AGP_AD_STEPPING_EN              0xFFFFBFFF
+#define   S_000030_BUS_PCI_WRT_RETRY_EN(x)             (((x) & 0x1) << 15)
+#define   G_000030_BUS_PCI_WRT_RETRY_EN(x)             (((x) >> 15) & 0x1)
+#define   C_000030_BUS_PCI_WRT_RETRY_EN                0xFFFF7FFF
+#define   S_000030_BUS_RETRY_WS(x)                     (((x) & 0xF) << 16)
+#define   G_000030_BUS_RETRY_WS(x)                     (((x) >> 16) & 0xF)
+#define   C_000030_BUS_RETRY_WS                        0xFFF0FFFF
+#define   S_000030_BUS_MSTR_RD_MULT(x)                 (((x) & 0x1) << 20)
+#define   G_000030_BUS_MSTR_RD_MULT(x)                 (((x) >> 20) & 0x1)
+#define   C_000030_BUS_MSTR_RD_MULT                    0xFFEFFFFF
+#define   S_000030_BUS_MSTR_RD_LINE(x)                 (((x) & 0x1) << 21)
+#define   G_000030_BUS_MSTR_RD_LINE(x)                 (((x) >> 21) & 0x1)
+#define   C_000030_BUS_MSTR_RD_LINE                    0xFFDFFFFF
+#define   S_000030_BUS_SUSPEND(x)                      (((x) & 0x1) << 22)
+#define   G_000030_BUS_SUSPEND(x)                      (((x) >> 22) & 0x1)
+#define   C_000030_BUS_SUSPEND                         0xFFBFFFFF
+#define   S_000030_LAT_16X(x)                          (((x) & 0x1) << 23)
+#define   G_000030_LAT_16X(x)                          (((x) >> 23) & 0x1)
+#define   C_000030_LAT_16X                             0xFF7FFFFF
+#define   S_000030_BUS_RD_DISCARD_EN(x)                (((x) & 0x1) << 24)
+#define   G_000030_BUS_RD_DISCARD_EN(x)                (((x) >> 24) & 0x1)
+#define   C_000030_BUS_RD_DISCARD_EN                   0xFEFFFFFF
+#define   S_000030_ENFRCWRDY(x)                        (((x) & 0x1) << 25)
+#define   G_000030_ENFRCWRDY(x)                        (((x) >> 25) & 0x1)
+#define   C_000030_ENFRCWRDY                           0xFDFFFFFF
+#define   S_000030_BUS_MSTR_WS(x)                      (((x) & 0x1) << 26)
+#define   G_000030_BUS_MSTR_WS(x)                      (((x) >> 26) & 0x1)
+#define   C_000030_BUS_MSTR_WS                         0xFBFFFFFF
+#define   S_000030_BUS_PARKING_DIS(x)                  (((x) & 0x1) << 27)
+#define   G_000030_BUS_PARKING_DIS(x)                  (((x) >> 27) & 0x1)
+#define   C_000030_BUS_PARKING_DIS                     0xF7FFFFFF
+#define   S_000030_BUS_MSTR_DISCONNECT_EN(x)           (((x) & 0x1) << 28)
+#define   G_000030_BUS_MSTR_DISCONNECT_EN(x)           (((x) >> 28) & 0x1)
+#define   C_000030_BUS_MSTR_DISCONNECT_EN              0xEFFFFFFF
+#define   S_000030_SERR_EN(x)                          (((x) & 0x1) << 29)
+#define   G_000030_SERR_EN(x)                          (((x) >> 29) & 0x1)
+#define   C_000030_SERR_EN                             0xDFFFFFFF
+#define   S_000030_BUS_READ_BURST(x)                   (((x) & 0x1) << 30)
+#define   G_000030_BUS_READ_BURST(x)                   (((x) >> 30) & 0x1)
+#define   C_000030_BUS_READ_BURST                      0xBFFFFFFF
+#define   S_000030_BUS_RDY_READ_DLY(x)                 (((x) & 0x1) << 31)
+#define   G_000030_BUS_RDY_READ_DLY(x)                 (((x) >> 31) & 0x1)
+#define   C_000030_BUS_RDY_READ_DLY                    0x7FFFFFFF
 #define R_000040_GEN_INT_CNTL                        0x000040
 #define   S_000040_CRTC_VBLANK(x)                      (((x) & 0x1) << 0)
 #define   G_000040_CRTC_VBLANK(x)                      (((x) >> 0) & 0x1)
@@ -710,5 +838,41 @@
 #define   G_00000D_FORCE_RB(x)                         (((x) >> 28) & 0x1)
 #define   C_00000D_FORCE_RB                            0xEFFFFFFF
 
+/* PLL regs */
+#define SCLK_CNTL                                      0xd
+#define   FORCE_HDP                                    (1 << 17)
+#define CLK_PWRMGT_CNTL                                0x14
+#define   GLOBAL_PMAN_EN                               (1 << 10)
+#define   DISP_PM                                      (1 << 20)
+#define PLL_PWRMGT_CNTL                                0x15
+#define   MPLL_TURNOFF                                 (1 << 0)
+#define   SPLL_TURNOFF                                 (1 << 1)
+#define   PPLL_TURNOFF                                 (1 << 2)
+#define   P2PLL_TURNOFF                                (1 << 3)
+#define   TVPLL_TURNOFF                                (1 << 4)
+#define   MOBILE_SU                                    (1 << 16)
+#define   SU_SCLK_USE_BCLK                             (1 << 17)
+#define SCLK_CNTL2                                     0x1e
+#define   REDUCED_SPEED_SCLK_MODE                      (1 << 16)
+#define   REDUCED_SPEED_SCLK_SEL(x)                    ((x) << 17)
+#define MCLK_MISC                                      0x1f
+#define   EN_MCLK_TRISTATE_IN_SUSPEND                  (1 << 18)
+#define SCLK_MORE_CNTL                                 0x35
+#define   REDUCED_SPEED_SCLK_EN                        (1 << 16)
+#define   IO_CG_VOLTAGE_DROP                           (1 << 17)
+#define   VOLTAGE_DELAY_SEL(x)                         ((x) << 20)
+#define   VOLTAGE_DROP_SYNC                            (1 << 19)
+
+/* mmreg */
+#define DISP_PWR_MAN                                   0xd08
+#define   DISP_D3_GRPH_RST                             (1 << 18)
+#define   DISP_D3_SUBPIC_RST                           (1 << 19)
+#define   DISP_D3_OV0_RST                              (1 << 20)
+#define   DISP_D1D2_GRPH_RST                           (1 << 21)
+#define   DISP_D1D2_SUBPIC_RST                         (1 << 22)
+#define   DISP_D1D2_OV0_RST                            (1 << 23)
+#define   DISP_DVO_ENABLE_RST                          (1 << 24)
+#define   TV_ENABLE_RST                                (1 << 25)
+#define   AUTO_PWRUP_EN                                (1 << 26)
 
 #endif

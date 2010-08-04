@@ -121,32 +121,35 @@ void account_system_vtime(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
-void vtime_start_cpu(void)
+void vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
 	__u64 idle_time, expires;
 
+	if (idle->idle_enter == 0ULL)
+		return;
+
 	/* Account time spent with enabled wait psw loaded as idle time. */
-	idle_time = S390_lowcore.int_clock - idle->idle_enter;
+	idle_time = int_clock - idle->idle_enter;
 	account_idle_time(idle_time);
 	S390_lowcore.steal_timer +=
 		idle->idle_enter - S390_lowcore.last_update_clock;
-	S390_lowcore.last_update_clock = S390_lowcore.int_clock;
+	S390_lowcore.last_update_clock = int_clock;
 
 	/* Account system time spent going idle. */
 	S390_lowcore.system_timer += S390_lowcore.last_update_timer - vq->idle;
-	S390_lowcore.last_update_timer = S390_lowcore.async_enter_timer;
+	S390_lowcore.last_update_timer = enter_timer;
 
 	/* Restart vtime CPU timer */
 	if (vq->do_spt) {
 		/* Program old expire value but first save progress. */
-		expires = vq->idle - S390_lowcore.async_enter_timer;
+		expires = vq->idle - enter_timer;
 		expires += get_vtimer();
 		set_vtimer(expires);
 	} else {
 		/* Don't account the CPU timer delta while the cpu was idle. */
-		vq->elapsed -= vq->idle - S390_lowcore.async_enter_timer;
+		vq->elapsed -= vq->idle - enter_timer;
 	}
 
 	idle->sequence++;

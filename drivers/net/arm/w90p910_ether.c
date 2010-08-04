@@ -18,6 +18,7 @@
 #include <linux/ethtool.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #define DRV_MODULE_NAME		"w90p910-emc"
 #define DRV_MODULE_VERSION	"0.1"
@@ -482,7 +483,7 @@ static void w90p910_reset_mac(struct net_device *dev)
 
 	w90p910_init_desc(dev);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	ether->cur_tx = 0x0;
 	ether->finish_tx = 0x0;
 	ether->cur_rx = 0x0;
@@ -496,7 +497,7 @@ static void w90p910_reset_mac(struct net_device *dev)
 	w90p910_trigger_tx(dev);
 	w90p910_trigger_rx(dev);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
@@ -633,8 +634,6 @@ static int w90p910_send_frame(struct net_device *dev,
 
 	txbd = &ether->tdesc->desclist[ether->cur_tx];
 
-	dev->trans_start = jiffies;
-
 	if (txbd->mode & TX_OWEN_DMA)
 		netif_stop_queue(dev);
 
@@ -743,7 +742,6 @@ static void netdev_rx(struct net_device *dev)
 				return;
 			}
 
-			skb->dev = dev;
 			skb_reserve(skb, 2);
 			skb_put(skb, length);
 			skb_copy_to_linear_data(skb, data, length);
@@ -858,10 +856,10 @@ static void w90p910_ether_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC)
 		rx_mode = CAMCMR_AUP | CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
-	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_list)
-			rx_mode = CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
-		else
-				rx_mode = CAMCMR_ECMP | CAMCMR_ABP;
+	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
+		rx_mode = CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
+	else
+		rx_mode = CAMCMR_ECMP | CAMCMR_ABP;
 	__raw_writel(rx_mode, ether->reg + REG_CAMCMR);
 }
 

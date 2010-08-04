@@ -253,7 +253,11 @@ nv40_graph_init(struct drm_device *dev)
 
 	if (!dev_priv->engine.graph.ctxprog) {
 		struct nouveau_grctx ctx = {};
-		uint32_t cp[256];
+		uint32_t *cp;
+
+		cp = kmalloc(sizeof(*cp) * 256, GFP_KERNEL);
+		if (!cp)
+			return -ENOMEM;
 
 		ctx.dev = dev;
 		ctx.mode = NOUVEAU_GRCTX_PROG;
@@ -265,6 +269,8 @@ nv40_graph_init(struct drm_device *dev)
 		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
 		for (i = 0; i < ctx.ctxprog_len; i++)
 			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
+
+		kfree(cp);
 	}
 
 	/* No context present currently */
@@ -334,6 +340,27 @@ nv40_graph_init(struct drm_device *dev)
 
 	nv_wr32(dev, 0x400b38, 0x2ffff800);
 	nv_wr32(dev, 0x400b3c, 0x00006000);
+
+	/* Tiling related stuff. */
+	switch (dev_priv->chipset) {
+	case 0x44:
+	case 0x4a:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b500);
+		break;
+	case 0x46:
+		nv_wr32(dev, 0x400bc4, 0x0000e024);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b520);
+		break;
+	case 0x4c:
+	case 0x4e:
+	case 0x67:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b540);
+		break;
+	default:
+		break;
+	}
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)

@@ -990,7 +990,8 @@ int	rc = HCF_ERR_INCOMP_FW;
 			ifbp->IFB_CntlOpt |= DMA_ENABLED;
 			HCFASSERT( NT_ASSERT, NEVER_TESTED )
 			// make the entire rx descriptor chain DMA-owned, so the DMA engine can (re-)use it.
-			if ( ( p = ifbp->IFB_FirstDesc[DMA_RX] ) != NULL ) {   //;? Think this over again in the light of the new chaining strategy
+			p = ifbp->IFB_FirstDesc[DMA_RX];
+			if (p != NULL) {   //;? Think this over again in the light of the new chaining strategy
 				if ( 1 ) 	{ //begin alternative
 					HCFASSERT( NT_ASSERT, NEVER_TESTED )
 					put_frame_lst( ifbp, ifbp->IFB_FirstDesc[DMA_RX], DMA_RX );
@@ -2087,7 +2088,8 @@ wci_bufp	pt;					//pointer with the "right" type, just to help ease writing macr
 			OPW( HREG_AUX_OFFSET, (hcf_16)(PLUG_DATA_OFFSET & 0x7E) );
 			io_port = ifbp->IFB_IOBase + HREG_AUX_DATA;		//to prevent side effects of the MSF-defined macro
 			p = ltvp->val;					//destination char pointer (in LTV record)
-			if ( ( i = len - 1 ) > 0 ) {
+			i = len - 1;
+			if (i > 0 ) {
 				pt = (wci_bufp)p;	//just to help ease writing macros with embedded assembly
 				IN_PORT_STRING_8_16( io_port, pt, i ); //space used by T: -1
 			}
@@ -2674,7 +2676,8 @@ hcf_16		fid = 0;
 
 #if (HCF_EXT) & HCF_EXT_TX_CONT				// Continuous transmit test
 	if ( tx_cntl == HFS_TX_CNTL_TX_CONT ) {
-	 	if ( ( fid = get_fid( ifbp ) ) != 0 ) {
+	 	fid = get_fid(ifbp);
+	 	if (fid != 0 ) {
 											//setup BAP to begin of TxFS
 			(void)setup_bap( ifbp, fid, 0, IO_OUT );
 											//copy all the fragments in a transparent fashion
@@ -2700,7 +2703,8 @@ hcf_16		fid = 0;
 #if (HCF_TYPE) & HCF_TYPE_WPA
 	tx_cntl |= ifbp->IFB_MICTxCntl;
 #endif // HCF_TYPE_WPA
-	if ( (fid = ifbp->IFB_TxFID) == 0 && ( fid = get_fid( ifbp ) ) != 0 ) 		/* 4 */
+	fid = ifbp->IFB_TxFID;
+	if (fid == 0 && ( fid = get_fid( ifbp ) ) != 0 ) 		/* 4 */
 			/* skip the next compound statement if:
 			   - pre-put message or
 			   - no fid available (which should never occur if the MSF adheres to the WCI)
@@ -4860,7 +4864,8 @@ PROT_CNT_INI
 int	rc;
 
 	HCFTRACE( ifbp, HCF_TRACE_STRIO );
-	if ( ( rc = ifbp->IFB_DefunctStat ) == HCF_SUCCESS ) {										/*2*/
+	rc = ifbp->IFB_DefunctStat;
+	if (rc == HCF_SUCCESS) {										/*2*/
 		OPW( HREG_SELECT_1, fid );																/*4*/
 		OPW( HREG_OFFSET_1, offset );
 		if ( type == IO_IN ) {

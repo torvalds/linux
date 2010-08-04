@@ -9,6 +9,7 @@
 #include <net/genetlink.h>
 #include <linux/dlm.h>
 #include <linux/dlm_netlink.h>
+#include <linux/gfp.h>
 
 #include "dlm_internal.h"
 

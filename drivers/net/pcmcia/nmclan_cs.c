@@ -363,7 +363,6 @@ typedef struct _mace_statistics {
 
 typedef struct _mace_private {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     struct net_device_stats linux_stats; /* Linux statistics counters */
     mace_statistics mace_stats; /* MACE chip statistics counters */
 
@@ -463,8 +462,6 @@ static int nmclan_probe(struct pcmcia_device *link)
     link->io.NumPorts1 = 32;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 5;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = mace_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
@@ -493,8 +490,7 @@ static void nmclan_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "nmclan_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     nmclan_release(link);
 
@@ -652,14 +648,14 @@ static int nmclan_config(struct pcmcia_device *link)
   ret = pcmcia_request_io(link, &link->io);
   if (ret)
 	  goto failed;
-  ret = pcmcia_request_irq(link, &link->irq);
+  ret = pcmcia_request_exclusive_irq(link, mace_interrupt);
   if (ret)
 	  goto failed;
   ret = pcmcia_request_configuration(link, &link->conf);
   if (ret)
 	  goto failed;
 
-  dev->irq = link->irq.AssignedIRQ;
+  dev->irq = link->irq;
   dev->base_addr = link->io.BasePort1;
 
   ioaddr = dev->base_addr;
@@ -698,17 +694,13 @@ static int nmclan_config(struct pcmcia_device *link)
   else
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
-  link->dev_node = &lp->node;
   SET_NETDEV_DEV(dev, &link->dev);
 
   i = register_netdev(dev);
   if (i != 0) {
     printk(KERN_NOTICE "nmclan_cs: register_netdev() failed\n");
-    link->dev_node = NULL;
     goto failed;
   }
-
-  strcpy(lp->node.dev_name, dev->name);
 
   printk(KERN_INFO "%s: nmclan: port %#3lx, irq %d, %s port,"
 	 " hw_addr %pM\n",
@@ -903,7 +895,7 @@ static void mace_tx_timeout(struct net_device *dev)
 #else /* #if RESET_ON_TIMEOUT */
   printk("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */
-  dev->trans_start = jiffies;
+  dev->trans_start = jiffies; /* prevent tx timeout */
   netif_wake_queue(dev);
 }
 
@@ -944,8 +936,6 @@ static netdev_tx_t mace_start_xmit(struct sk_buff *skb,
       /* Odd byte transfer */
       outb(skb->data[skb->len-1], ioaddr + AM2150_XMT);
     }
-
-    dev->trans_start = jiffies;
 
 #if MULTI_TX
     if (lp->tx_free_frames > 0)
@@ -1315,8 +1305,6 @@ static void update_stats(unsigned int ioaddr, struct net_device *dev)
   lp->linux_stats.tx_fifo_errors = lp->mace_stats.uflo;
   lp->linux_stats.tx_heartbeat_errors = lp->mace_stats.cerr;
   /* lp->linux_stats.tx_window_errors; */
-
-  return;
 } /* update_stats */
 
 /* ----------------------------------------------------------------------------
@@ -1475,14 +1463,13 @@ static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
   int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
-  int i;
-  struct dev_mc_list *dmi = dev->mc_list;
+  struct netdev_hw_addr *ha;
 
 #ifdef PCMCIA_DEBUG
   {
     static int old;
-    if (dev->mc_count != old) {
-      old = dev->mc_count;
+    if (netdev_mc_count(dev) != old) {
+      old = netdev_mc_count(dev);
       pr_debug("%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
@@ -1490,15 +1477,14 @@ static void set_multicast_list(struct net_device *dev)
 #endif
 
   /* Set multicast_num_addrs. */
-  lp->multicast_num_addrs = dev->mc_count;
+  lp->multicast_num_addrs = netdev_mc_count(dev);
 
   /* Set multicast_ladrf. */
   if (num_addrs > 0) {
     /* Calculate multicast logical address filter */
     memset(lp->multicast_ladrf, 0, MACE_LADRF_LEN);
-    for (i = 0; i < dev->mc_count; i++) {
-      memcpy(adr, dmi->dmi_addr, ETHER_ADDR_LEN);
-      dmi = dmi->next;
+    netdev_for_each_mc_addr(ha, dev) {
+      memcpy(adr, ha->addr, ETHER_ADDR_LEN);
       BuildLAF(lp->multicast_ladrf, adr);
     }
   }
@@ -1537,15 +1523,15 @@ static void set_multicast_list(struct net_device *dev)
 #ifdef PCMCIA_DEBUG
   {
     static int old;
-    if (dev->mc_count != old) {
-      old = dev->mc_count;
+    if (netdev_mc_count(dev) != old) {
+      old = netdev_mc_count(dev);
       pr_debug("%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
   }
 #endif
 
-  lp->multicast_num_addrs = dev->mc_count;
+  lp->multicast_num_addrs = netdev_mc_count(dev);
   restore_multicast_list(dev);
 
 } /* set_multicast_list */

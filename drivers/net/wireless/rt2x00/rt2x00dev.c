@@ -25,6 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
@@ -385,9 +386,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
-	/* Trim buffer to correct size */
-	skb_trim(entry->skb, rxdesc.size);
-
 	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
@@ -397,17 +395,22 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Hardware might have stripped the IV/EIV/ICV data,
 	 * in that case it is possible that the data was
-	 * provided seperately (through hardware descriptor)
+	 * provided separately (through hardware descriptor)
 	 * in which case we should reinsert the data into the frame.
 	 */
 	if ((rxdesc.dev_flags & RXDONE_CRYPTO_IV) &&
 	    (rxdesc.flags & RX_FLAG_IV_STRIPPED))
 		rt2x00crypto_rx_insert_iv(entry->skb, header_length,
 					  &rxdesc);
-	else if (rxdesc.dev_flags & RXDONE_L2PAD)
+	else if (header_length &&
+		 (rxdesc.size > header_length) &&
+		 (rxdesc.dev_flags & RXDONE_L2PAD))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
 	else
 		rt2x00queue_align_payload(entry->skb, header_length);
+
+	/* Trim buffer to correct size */
+	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Check if the frame was received using HT. In that case,
@@ -432,7 +435,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->rate_idx = rate_idx;
 	rx_status->signal = rxdesc.rssi;
-	rx_status->noise = rxdesc.noise;
 	rx_status->flag = rxdesc.flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
@@ -852,6 +854,11 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_WDS);
 
 	/*
+	 * Initialize configuration work.
+	 */
+	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
+
+	/*
 	 * Let the driver probe the device to detect the capabilities.
 	 */
 	retval = rt2x00dev->ops->lib->probe_hw(rt2x00dev);
@@ -859,11 +866,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		ERROR(rt2x00dev, "Failed to allocate device.\n");
 		goto exit;
 	}
-
-	/*
-	 * Initialize configuration work.
-	 */
-	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 
 	/*
 	 * Allocate queue array.

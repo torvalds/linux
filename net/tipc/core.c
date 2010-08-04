@@ -49,8 +49,6 @@
 #include "config.h"
 
 
-#define TIPC_MOD_VER "1.6.4"
-
 #ifndef CONFIG_TIPC_ZONES
 #define CONFIG_TIPC_ZONES 3
 #endif
@@ -101,6 +99,30 @@ int tipc_remote_management;
 int tipc_get_mode(void)
 {
 	return tipc_mode;
+}
+
+/**
+ * buf_acquire - creates a TIPC message buffer
+ * @size: message size (including TIPC header)
+ *
+ * Returns a new buffer with data pointers set to the specified size.
+ *
+ * NOTE: Headroom is reserved to allow prepending of a data link header.
+ *       There may also be unrequested tailroom present at the buffer's end.
+ */
+
+struct sk_buff *buf_acquire(u32 size)
+{
+	struct sk_buff *skb;
+	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
+
+	skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+	if (skb) {
+		skb_reserve(skb, BUF_HEADROOM);
+		skb_put(skb, size);
+		skb->next = NULL;
+	}
+	return skb;
 }
 
 /**
@@ -189,11 +211,11 @@ static int __init tipc_init(void)
 	tipc_remote_management = 1;
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
-	tipc_max_ports = delimit(CONFIG_TIPC_PORTS, 127, 65536);
-	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 255);
-	tipc_max_clusters = delimit(CONFIG_TIPC_CLUSTERS, 1, 1);
-	tipc_max_nodes = delimit(CONFIG_TIPC_NODES, 8, 2047);
-	tipc_max_slaves = delimit(CONFIG_TIPC_SLAVE_NODES, 0, 2047);
+	tipc_max_ports = CONFIG_TIPC_PORTS;
+	tipc_max_zones = CONFIG_TIPC_ZONES;
+	tipc_max_clusters = CONFIG_TIPC_CLUSTERS;
+	tipc_max_nodes = CONFIG_TIPC_NODES;
+	tipc_max_slaves = CONFIG_TIPC_SLAVE_NODES;
 	tipc_net_id = 4711;
 
 	if ((res = tipc_core_start()))

@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/i2c.h>
@@ -631,7 +632,6 @@ errout_reg:
 	rtc_device_unregister(rx8025->rtc);
 
 errout_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(rx8025);
 
 errout:
@@ -655,7 +655,6 @@ static int __devexit rx8025_remove(struct i2c_client *client)
 
 	rx8025_sysfs_unregister(&client->dev);
 	rtc_device_unregister(rx8025->rtc);
-	i2c_set_clientdata(client, NULL);
 	kfree(rx8025);
 	return 0;
 }

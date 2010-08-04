@@ -53,12 +53,13 @@
 #define     DEV_CONNECT_DVI     0x01
 #define     DEV_CONNECT_HDMI    0x02
 
-struct VideoModeTable *viafb_get_cea_mode_tbl_pointer(int Index);
 int viafb_dvi_sense(void);
 void viafb_dvi_disable(void);
 void viafb_dvi_enable(void);
 int viafb_tmds_trasmitter_identify(void);
-void viafb_init_dvi_size(void);
-void viafb_dvi_set_mode(int video_index, int mode_bpp, int set_iga);
+void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
+	struct tmds_setting_information *tmds_setting);
+void viafb_dvi_set_mode(struct VideoModeTable *videoMode, int mode_bpp,
+	int set_iga);
 
 #endif /* __DVI_H__ */

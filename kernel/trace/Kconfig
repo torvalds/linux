@@ -27,9 +27,7 @@ config HAVE_FUNCTION_GRAPH_TRACER
 config HAVE_FUNCTION_GRAPH_FP_TEST
 	bool
 	help
-	 An arch may pass in a unique value (frame pointer) to both the
-	 entering and exiting of a function. On exit, the value is compared
-	 and if it does not match, then it will panic the kernel.
+	  See Documentation/trace/ftrace-design.txt
 
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool
@@ -45,9 +43,6 @@ config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
 	  See Documentation/trace/ftrace-design.txt
-
-config HAVE_HW_BRANCH_TRACER
-	bool
 
 config HAVE_SYSCALL_TRACEPOINTS
 	bool
@@ -330,15 +325,6 @@ config BRANCH_TRACER
 
 	  Say N if unsure.
 
-config POWER_TRACER
-	bool "Trace power consumption behavior"
-	depends on X86
-	select GENERIC_TRACER
-	help
-	  This tracer helps developers to analyze and optimize the kernel's
-	  power management decisions, specifically the C-state and P-state
-	  behavior.
-
 config KSYM_TRACER
 	bool "Trace read and write access on kernel memory locations"
 	depends on HAVE_HW_BREAKPOINT
@@ -384,14 +370,6 @@ config STACK_TRACER
 	  sysctl kernel.stack_tracer_enabled
 
 	  Say N if unsure.
-
-config HW_BRANCH_TRACER
-	depends on HAVE_HW_BRANCH_TRACER
-	bool "Trace hw branches"
-	select GENERIC_TRACER
-	help
-	  This tracer records all branches on the system in a circular
-	  buffer, giving access to the last N branches for each cpu.
 
 config KMEMTRACE
 	bool "Trace SLAB allocations"
@@ -451,7 +429,7 @@ config BLK_DEV_IO_TRACE
 
 config KPROBE_EVENT
 	depends on KPROBES
-	depends on X86
+	depends on HAVE_REGS_AND_STACK_ACCESS_API
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
 	default y

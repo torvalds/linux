@@ -30,8 +30,8 @@
 
 ******************************************************************************/
 #include <linux/wireless.h>
-#include <linux/version.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "ieee80211.h"
@@ -289,10 +289,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN(
 				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
+				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
-				MAC_ARG(network->bssid),
+				network->bssid,
 				(jiffies - network->last_scanned) / (HZ / 100));
 	}
 
@@ -379,11 +379,10 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kmalloc(sizeof(struct ieee80211_crypt_data),
+		new_crypt = kzalloc(sizeof(struct ieee80211_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
 		if (!new_crypt->ops) {
 			request_module("ieee80211_crypt_wep");
@@ -718,7 +717,7 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 	} else
 		idx = ieee->tx_keyidx;
 
-	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
+	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) &&
 	    ext->alg != IW_ENCODE_ALG_WEP)
 		if (idx != 0 || ieee->iw_mode != IW_MODE_INFRA)
 			return -EINVAL;
@@ -848,10 +847,9 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;

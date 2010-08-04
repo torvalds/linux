@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.33-rc3
-# Wed Jan  6 09:24:39 2010
+# Linux kernel version: 2.6.34-rc5
+# Mon Apr 19 23:17:03 2010
 #
 # CONFIG_PPC64 is not set
 
@@ -97,14 +97,8 @@ CONFIG_RCU_FANOUT=32
 CONFIG_IKCONFIG=y
 CONFIG_IKCONFIG_PROC=y
 CONFIG_LOG_BUF_SHIFT=14
-CONFIG_GROUP_SCHED=y
-# CONFIG_FAIR_GROUP_SCHED is not set
-# CONFIG_RT_GROUP_SCHED is not set
-CONFIG_USER_SCHED=y
-# CONFIG_CGROUP_SCHED is not set
 # CONFIG_CGROUPS is not set
-CONFIG_SYSFS_DEPRECATED=y
-CONFIG_SYSFS_DEPRECATED_V2=y
+# CONFIG_SYSFS_DEPRECATED_V2 is not set
 # CONFIG_RELAY is not set
 # CONFIG_NAMESPACES is not set
 CONFIG_BLK_DEV_INITRD=y
@@ -112,6 +106,7 @@ CONFIG_INITRAMFS_SOURCE=""
 CONFIG_RD_GZIP=y
 # CONFIG_RD_BZIP2 is not set
 # CONFIG_RD_LZMA is not set
+# CONFIG_RD_LZO is not set
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SYSCTL=y
 CONFIG_ANON_INODES=y
@@ -320,6 +315,7 @@ CONFIG_ISA_DMA_API=y
 # Bus options
 #
 CONFIG_ZONE_DMA=y
+# CONFIG_NEED_DMA_MAP_STATE is not set
 CONFIG_GENERIC_ISA_DMA=y
 CONFIG_PPC_INDIRECT_PCI=y
 CONFIG_FSL_SOC=y
@@ -335,7 +331,6 @@ CONFIG_PCIEAER=y
 # CONFIG_PCIEASPM is not set
 CONFIG_ARCH_SUPPORTS_MSI=y
 # CONFIG_PCI_MSI is not set
-# CONFIG_PCI_LEGACY is not set
 CONFIG_PCI_DEBUG=y
 # CONFIG_PCI_STUB is not set
 # CONFIG_PCI_IOV is not set
@@ -362,7 +357,6 @@ CONFIG_NET=y
 # Networking options
 #
 CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 CONFIG_XFRM=y
 CONFIG_XFRM_USER=y
@@ -571,6 +565,8 @@ CONFIG_MTD_NAND_FSL_ELBC=y
 # UBI - Unsorted block images
 #
 # CONFIG_MTD_UBI is not set
+CONFIG_OF_FLATTREE=y
+CONFIG_OF_DYNAMIC=y
 CONFIG_OF_DEVICE=y
 CONFIG_OF_I2C=y
 # CONFIG_PARPORT is not set
@@ -605,6 +601,7 @@ CONFIG_MISC_DEVICES=y
 # CONFIG_ENCLOSURE_SERVICES is not set
 # CONFIG_HP_ILO is not set
 # CONFIG_ISL29003 is not set
+# CONFIG_SENSORS_TSL2550 is not set
 # CONFIG_DS1682 is not set
 # CONFIG_C2PORT is not set
 
@@ -670,6 +667,7 @@ CONFIG_IDE_PROC_FS=y
 #
 # SCSI device support
 #
+CONFIG_SCSI_MOD=y
 # CONFIG_RAID_ATTRS is not set
 CONFIG_SCSI=y
 CONFIG_SCSI_DMA=y
@@ -792,6 +790,7 @@ CONFIG_PATA_ALI=y
 # CONFIG_PATA_IT821X is not set
 # CONFIG_PATA_IT8213 is not set
 # CONFIG_PATA_JMICRON is not set
+# CONFIG_PATA_LEGACY is not set
 # CONFIG_PATA_TRIFLEX is not set
 # CONFIG_PATA_MARVELL is not set
 # CONFIG_PATA_MPIIX is not set
@@ -970,6 +969,7 @@ CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
 # CONFIG_SERIAL_JSM is not set
 # CONFIG_SERIAL_OF_PLATFORM is not set
+# CONFIG_SERIAL_TIMBERDALE is not set
 # CONFIG_SERIAL_GRLIB_GAISLER_APBUART is not set
 CONFIG_UNIX98_PTYS=y
 # CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
@@ -1017,6 +1017,7 @@ CONFIG_I2C_HELPER_AUTO=y
 CONFIG_I2C_MPC=y
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
+# CONFIG_I2C_XILINX is not set
 
 #
 # External I2C/SMBus adapter drivers
@@ -1029,15 +1030,9 @@ CONFIG_I2C_MPC=y
 #
 # CONFIG_I2C_PCA_PLATFORM is not set
 # CONFIG_I2C_STUB is not set
-
-#
-# Miscellaneous I2C Chip support
-#
-# CONFIG_SENSORS_TSL2550 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
-# CONFIG_I2C_DEBUG_CHIP is not set
 # CONFIG_SPI is not set
 
 #
@@ -1062,18 +1057,21 @@ CONFIG_SSB_POSSIBLE=y
 # Multifunction device drivers
 #
 # CONFIG_MFD_CORE is not set
+# CONFIG_MFD_88PM860X is not set
 # CONFIG_MFD_SM501 is not set
 # CONFIG_HTC_PASIC3 is not set
 # CONFIG_TWL4030_CORE is not set
 # CONFIG_MFD_TMIO is not set
 # CONFIG_PMIC_DA903X is not set
 # CONFIG_PMIC_ADP5520 is not set
+# CONFIG_MFD_MAX8925 is not set
 # CONFIG_MFD_WM8400 is not set
 # CONFIG_MFD_WM831X is not set
 # CONFIG_MFD_WM8350_I2C is not set
+# CONFIG_MFD_WM8994 is not set
 # CONFIG_MFD_PCF50633 is not set
 # CONFIG_AB3100_CORE is not set
-# CONFIG_MFD_88PM8607 is not set
+# CONFIG_LPC_SCH is not set
 # CONFIG_REGULATOR is not set
 # CONFIG_MEDIA_SUPPORT is not set
 
@@ -1082,6 +1080,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_AGP is not set
 CONFIG_VGA_ARB=y
+CONFIG_VGA_ARB_MAX_GPUS=16
 # CONFIG_DRM is not set
 # CONFIG_VGASTATE is not set
 CONFIG_VIDEO_OUTPUT_CONTROL=y
@@ -1434,6 +1433,7 @@ CONFIG_MISC_FILESYSTEMS=y
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
 # CONFIG_JFFS2_FS is not set
+# CONFIG_LOGFS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_SQUASHFS is not set
 # CONFIG_VXFS_FS is not set
@@ -1461,6 +1461,7 @@ CONFIG_SUNRPC=y
 # CONFIG_RPCSEC_GSS_KRB5 is not set
 # CONFIG_RPCSEC_GSS_SPKM3 is not set
 # CONFIG_SMB_FS is not set
+# CONFIG_CEPH_FS is not set
 # CONFIG_CIFS is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_CODA_FS is not set

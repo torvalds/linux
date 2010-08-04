@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 
 #include <net/inet_sock.h>
@@ -311,7 +312,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 	unsigned int mask;
 	struct sock *sk = sock->sk;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	if (sk->sk_state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
@@ -835,6 +836,8 @@ verify_sock_status:
 			len = -EFAULT;
 			break;
 		}
+		if (flags & MSG_TRUNC)
+			len = skb->len;
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
 			sk_eat_skb(sk, skb, 0);
@@ -1003,12 +1006,13 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static inline int dccp_mib_init(void)
 {
-	return snmp_mib_init((void**)dccp_statistics, sizeof(struct dccp_mib));
+	return snmp_mib_init((void __percpu **)dccp_statistics,
+			     sizeof(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)
 {
-	snmp_mib_free((void**)dccp_statistics);
+	snmp_mib_free((void __percpu **)dccp_statistics);
 }
 
 static int thash_entries;
@@ -1033,7 +1037,7 @@ static int __init dccp_init(void)
 		     FIELD_SIZEOF(struct sk_buff, cb));
 	rc = percpu_counter_init(&dccp_orphan_count, 0);
 	if (rc)
-		goto out;
+		goto out_fail;
 	rc = -ENOBUFS;
 	inet_hashinfo_init(&dccp_hashinfo);
 	dccp_hashinfo.bind_bucket_cachep =
@@ -1122,8 +1126,9 @@ static int __init dccp_init(void)
 		goto out_sysctl_exit;
 
 	dccp_timestamping_init();
-out:
-	return rc;
+
+	return 0;
+
 out_sysctl_exit:
 	dccp_sysctl_exit();
 out_ackvec_exit:
@@ -1132,18 +1137,19 @@ out_free_dccp_mib:
 	dccp_mib_exit();
 out_free_dccp_bhash:
 	free_pages((unsigned long)dccp_hashinfo.bhash, bhash_order);
-	dccp_hashinfo.bhash = NULL;
 out_free_dccp_locks:
 	inet_ehash_locks_free(&dccp_hashinfo);
 out_free_dccp_ehash:
 	free_pages((unsigned long)dccp_hashinfo.ehash, ehash_order);
-	dccp_hashinfo.ehash = NULL;
 out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
-	dccp_hashinfo.bind_bucket_cachep = NULL;
 out_free_percpu:
 	percpu_counter_destroy(&dccp_orphan_count);
-	goto out;
+out_fail:
+	dccp_hashinfo.bhash = NULL;
+	dccp_hashinfo.ehash = NULL;
+	dccp_hashinfo.bind_bucket_cachep = NULL;
+	return rc;
 }
 
 static void __exit dccp_fini(void)

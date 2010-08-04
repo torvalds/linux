@@ -24,7 +24,7 @@ static irqreturn_t psw_irq_handler(int irq, void *arg)
 	unsigned int l, mask;
 	int ret = 0;
 
-	l = ctrl_inw(PA_DBSW);
+	l = __raw_readw(PA_DBSW);
 
 	/* Nothing to do if there's no state change */
 	if (psw->state) {
@@ -45,7 +45,7 @@ static irqreturn_t psw_irq_handler(int irq, void *arg)
 out:
 	/* Clear the switch IRQs */
 	l |= (0x7 << 12);
-	ctrl_outw(l, PA_DBSW);
+	__raw_writew(l, PA_DBSW);
 
 	return IRQ_RETVAL(ret);
 }

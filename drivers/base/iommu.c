@@ -80,20 +80,6 @@ void iommu_detach_device(struct iommu_domain *domain, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(iommu_detach_device);
 
-int iommu_map_range(struct iommu_domain *domain, unsigned long iova,
-		    phys_addr_t paddr, size_t size, int prot)
-{
-	return iommu_ops->map(domain, iova, paddr, size, prot);
-}
-EXPORT_SYMBOL_GPL(iommu_map_range);
-
-void iommu_unmap_range(struct iommu_domain *domain, unsigned long iova,
-		      size_t size)
-{
-	iommu_ops->unmap(domain, iova, size);
-}
-EXPORT_SYMBOL_GPL(iommu_unmap_range);
-
 phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
 			       unsigned long iova)
 {
@@ -107,3 +93,32 @@ int iommu_domain_has_cap(struct iommu_domain *domain,
 	return iommu_ops->domain_has_cap(domain, cap);
 }
 EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
+
+int iommu_map(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, int gfp_order, int prot)
+{
+	unsigned long invalid_mask;
+	size_t size;
+
+	size         = 0x1000UL << gfp_order;
+	invalid_mask = size - 1;
+
+	BUG_ON((iova | paddr) & invalid_mask);
+
+	return iommu_ops->map(domain, iova, paddr, gfp_order, prot);
+}
+EXPORT_SYMBOL_GPL(iommu_map);
+
+int iommu_unmap(struct iommu_domain *domain, unsigned long iova, int gfp_order)
+{
+	unsigned long invalid_mask;
+	size_t size;
+
+	size         = 0x1000UL << gfp_order;
+	invalid_mask = size - 1;
+
+	BUG_ON(iova & invalid_mask);
+
+	return iommu_ops->unmap(domain, iova, gfp_order);
+}
+EXPORT_SYMBOL_GPL(iommu_unmap);

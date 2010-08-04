@@ -20,7 +20,6 @@
 
 #include "udfdecl.h"
 #include <linux/fs.h>
-#include <linux/quotaops.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -31,13 +30,6 @@ void udf_free_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
-
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
-	vfs_dq_free_inode(inode);
-	vfs_dq_drop(inode);
 
 	clear_inode(inode);
 
@@ -124,15 +116,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		udf_updated_lvid(sb);
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		inode->i_gid = current_fsgid();
-	}
+
+	inode_init_owner(inode, dir, mode);
 
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =
@@ -152,15 +137,6 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		iinfo->i_crtime = current_fs_time(inode->i_sb);
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
-
-	if (vfs_dq_alloc_inode(inode)) {
-		vfs_dq_drop(inode);
-		inode->i_flags |= S_NOQUOTA;
-		inode->i_nlink = 0;
-		iput(inode);
-		*err = -EDQUOT;
-		return NULL;
-	}
 
 	*err = 0;
 	return inode;

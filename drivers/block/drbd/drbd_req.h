@@ -57,7 +57,7 @@
  *
  *  It may me handed over to the local disk subsystem.
  *  It may be completed by the local disk subsystem,
- *    either sucessfully or with io-error.
+ *    either successfully or with io-error.
  *  In case it is a READ request, and it failed locally,
  *    it may be retried remotely.
  *
@@ -91,6 +91,7 @@ enum drbd_req_event {
 	send_failed,
 	handed_over_to_network,
 	connection_lost_while_pending,
+	read_retry_remote_canceled,
 	recv_acked_by_peer,
 	write_acked_by_peer,
 	write_acked_by_peer_and_sis, /* and set_in_sync */

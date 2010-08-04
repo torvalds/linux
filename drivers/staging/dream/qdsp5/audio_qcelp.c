@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <asm/ioctls.h>
 #include <mach/msm_adsp.h>

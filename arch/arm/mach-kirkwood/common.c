@@ -305,6 +305,15 @@ void __init kirkwood_nand_init(struct mtd_partition *parts, int nr_parts,
 	platform_device_register(&kirkwood_nand_flash);
 }
 
+void __init kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts,
+				   int (*dev_ready)(struct mtd_info *))
+{
+	kirkwood_clk_ctrl |= CGC_RUNIT;
+	kirkwood_nand_data.parts = parts;
+	kirkwood_nand_data.nr_parts = nr_parts;
+	kirkwood_nand_data.dev_ready = dev_ready;
+	platform_device_register(&kirkwood_nand_flash);
+}
 
 /*****************************************************************************
  * SoC RTC
@@ -656,7 +665,7 @@ static struct platform_device kirkwood_xor00_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor00_data,
+		.platform_data		= &kirkwood_xor00_data,
 	},
 };
 
@@ -682,7 +691,7 @@ static struct platform_device kirkwood_xor01_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor01_data,
+		.platform_data		= &kirkwood_xor01_data,
 	},
 };
 
@@ -755,7 +764,7 @@ static struct platform_device kirkwood_xor10_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor10_data,
+		.platform_data		= &kirkwood_xor10_data,
 	},
 };
 
@@ -781,7 +790,7 @@ static struct platform_device kirkwood_xor11_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor11_data,
+		.platform_data		= &kirkwood_xor11_data,
 	},
 };
 

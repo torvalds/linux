@@ -2,7 +2,7 @@
  * Modifications by Kumar Gala (galak@kernel.crashing.org) to support
  * E500 Book E processors.
  *
- * Copyright 2004 Freescale Semiconductor, Inc
+ * Copyright 2004,2010 Freescale Semiconductor, Inc.
  *
  * This file contains the routines for initializing the MMU
  * on the 4xx series of chips.
@@ -56,19 +56,13 @@
 
 unsigned int tlbcam_index;
 
-#define NUM_TLBCAMS	(64)
 
 #if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
 #error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
 #endif
 
-struct tlbcam {
-	u32	MAS0;
-	u32	MAS1;
-	unsigned long	MAS2;
-	u32	MAS3;
-	u32	MAS7;
-} TLBCAM[NUM_TLBCAMS];
+#define NUM_TLBCAMS	(64)
+struct tlbcam TLBCAM[NUM_TLBCAMS];
 
 struct tlbcamrange {
 	unsigned long start;
@@ -109,19 +103,6 @@ unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 	return 0;
 }
 
-void loadcam_entry(int idx)
-{
-	mtspr(SPRN_MAS0, TLBCAM[idx].MAS0);
-	mtspr(SPRN_MAS1, TLBCAM[idx].MAS1);
-	mtspr(SPRN_MAS2, TLBCAM[idx].MAS2);
-	mtspr(SPRN_MAS3, TLBCAM[idx].MAS3);
-
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
-		mtspr(SPRN_MAS7, TLBCAM[idx].MAS7);
-
-	asm volatile("isync;tlbwe;isync" : : : "memory");
-}
-
 /*
  * Set up one of the I/D BAT (block address translation) register pairs.
  * The parameters are not checked; in particular size must be a power
@@ -152,18 +133,13 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 
 	TLBCAM[index].MAS3 = (phys & MAS3_RPN) | MAS3_SX | MAS3_SR;
 	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_SW : 0);
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
+	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
-#ifndef CONFIG_KGDB /* want user access for breakpoints */
 	if (flags & _PAGE_USER) {
 	   TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
 	   TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
 	}
-#else
-	TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
-	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
-#endif
 
 	tlbcam_addrs[index].start = virt;
 	tlbcam_addrs[index].limit = virt + size - 1;

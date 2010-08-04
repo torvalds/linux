@@ -91,6 +91,14 @@ struct ccw_device {
 	void (*handler) (struct ccw_device *, unsigned long, struct irb *);
 };
 
+/*
+ * Possible CIO actions triggered by the unit check handler.
+ */
+enum uc_todo {
+	UC_TODO_RETRY,
+	UC_TODO_RETRY_ON_NEW_PATH,
+	UC_TODO_STOP
+};
 
 /**
  * struct ccw driver - device driver for channel attached devices
@@ -107,6 +115,7 @@ struct ccw_device {
  * @freeze: callback for freezing during hibernation snapshotting
  * @thaw: undo work done in @freeze
  * @restore: callback for restoring after hibernation
+ * @uc_handler: callback for unit check handler
  * @driver: embedded device driver structure
  * @name: device driver name
  */
@@ -124,6 +133,7 @@ struct ccw_driver {
 	int (*freeze)(struct ccw_device *);
 	int (*thaw) (struct ccw_device *);
 	int (*restore)(struct ccw_device *);
+	enum uc_todo (*uc_handler) (struct ccw_device *, struct irb *);
 	struct device_driver driver;
 	char *name;
 };

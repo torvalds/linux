@@ -233,10 +233,10 @@ struct tw9910_hsync_ctrl {
 };
 
 struct tw9910_priv {
-	struct v4l2_subdev                subdev;
-	struct tw9910_video_info       *info;
-	const struct tw9910_scale_ctrl *scale;
-	u32                             revision;
+	struct v4l2_subdev		subdev;
+	struct tw9910_video_info	*info;
+	const struct tw9910_scale_ctrl	*scale;
+	u32				revision;
 };
 
 static const struct tw9910_scale_ctrl tw9910_ntsc_scales[] = {
@@ -903,7 +903,7 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 #endif
 };
 
-static int tw9910_enum_fmt(struct v4l2_subdev *sd, int index,
+static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
 	if (index)
@@ -977,7 +977,6 @@ static int tw9910_probe(struct i2c_client *client,
 	ret = tw9910_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -990,7 +989,6 @@ static int tw9910_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

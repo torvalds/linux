@@ -36,10 +36,6 @@ static inline int xen_irqs_disabled(struct pt_regs *regs)
 	return !(ia64_psr(regs)->i);
 }
 
-static inline void handle_irq(int irq, struct pt_regs *regs)
-{
-	__do_IRQ(irq);
-}
 #define irq_ctx_init(cpu)	do { } while (0)
 
 #endif /* _ASM_IA64_XEN_EVENTS_H */

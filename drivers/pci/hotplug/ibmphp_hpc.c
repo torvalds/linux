@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 #include <linux/kthread.h>
 #include "ibmphp.h"
 

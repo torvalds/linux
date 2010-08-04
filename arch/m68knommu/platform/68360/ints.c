@@ -107,7 +107,6 @@ void init_IRQ(void)
 	_ramvec[vba+CPMVEC_PIO_PC7]     = inthandler;  /* pio - pc7 */
 	_ramvec[vba+CPMVEC_PIO_PC6]     = inthandler;  /* pio - pc6 */
 	_ramvec[vba+CPMVEC_TIMER3]      = inthandler;  /* timer 3 */
-	_ramvec[vba+CPMVEC_RISCTIMER]   = inthandler;  /* reserved */
 	_ramvec[vba+CPMVEC_PIO_PC5]     = inthandler;  /* pio - pc5 */
 	_ramvec[vba+CPMVEC_PIO_PC4]     = inthandler;  /* pio - pc4 */
 	_ramvec[vba+CPMVEC_RESERVED2]   = inthandler;  /* reserved */

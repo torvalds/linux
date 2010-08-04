@@ -20,9 +20,8 @@
  *
  */
 
-#define _ATH5K_PHY
-
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "ath5k.h"
 #include "reg.h"
@@ -981,7 +980,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 
 		data0 = ath5k_hw_bitswap((data0 << 2) & 0xff, 8);
-	} else if ((c - (c % 5)) != 2 || c > 5435) {
+	} else if ((c % 5) != 2 || c > 5435) {
 		if (!(c % 20) && c >= 5120) {
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 			data2 = ath5k_hw_bitswap(3, 2);
@@ -994,7 +993,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 		} else
 			return -EINVAL;
 	} else {
-		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data0 = ath5k_hw_bitswap((10 * (c - 2 - 4800)) / 25 + 1, 8);
 		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
@@ -1022,7 +1021,7 @@ static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
 		data0 = ath5k_hw_bitswap((c - 2272), 8);
 		data2 = 0;
 	/* ? 5GHz ? */
-	} else if ((c - (c % 5)) != 2 || c > 5435) {
+	} else if ((c % 5) != 2 || c > 5435) {
 		if (!(c % 20) && c < 5120)
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 		else if (!(c % 10))
@@ -1033,7 +1032,7 @@ static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 		data2 = ath5k_hw_bitswap(1, 2);
 	} else {
-		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data0 = ath5k_hw_bitswap((10 * (c - 2 - 4800)) / 25 + 1, 8);
 		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
@@ -1104,28 +1103,6 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
   PHY calibration
 \*****************/
 
-void
-ath5k_hw_calibration_poll(struct ath5k_hw *ah)
-{
-	/* Calibration interval in jiffies */
-	unsigned long cal_intval;
-
-	cal_intval = msecs_to_jiffies(ah->ah_cal_intval * 1000);
-
-	/* Initialize timestamp if needed */
-	if (!ah->ah_cal_tstamp)
-		ah->ah_cal_tstamp = jiffies;
-
-	/* For now we always do full calibration
-	 * Mark software interrupt mask and fire software
-	 * interrupt (bit gets auto-cleared) */
-	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
-		ah->ah_cal_tstamp = jiffies;
-		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
-		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
-	}
-}
-
 static int sign_extend(int val, const int nbits)
 {
 	int order = BIT(nbits-1);
@@ -1190,7 +1167,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
  * The median of the values in the history is then loaded into the
  * hardware for its own use for RSSI and CCA measurements.
  */
-void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
+static void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 val;
@@ -1386,38 +1363,46 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 		goto done;
 
 	/* Calibration has finished, get the results and re-run */
+
+	/* work around empty results which can apparently happen on 5212 */
 	for (i = 0; i <= 10; i++) {
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
 		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
 		q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
+		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"iq_corr:%x i_pwr:%x q_pwr:%x", iq_corr, i_pwr, q_pwr);
+		if (i_pwr && q_pwr)
+			break;
 	}
 
 	i_coffd = ((i_pwr >> 1) + (q_pwr >> 1)) >> 7;
-	q_coffd = q_pwr >> 7;
 
-	/* No correction */
-	if (i_coffd == 0 || q_coffd == 0)
+	if (ah->ah_version == AR5K_AR5211)
+		q_coffd = q_pwr >> 6;
+	else
+		q_coffd = q_pwr >> 7;
+
+	/* protect against divide by 0 and loss of sign bits */
+	if (i_coffd == 0 || q_coffd < 2)
 		goto done;
 
-	i_coff = ((-iq_corr) / i_coffd);
+	i_coff = (-iq_corr) / i_coffd;
+	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
 
-	/* Boundary check */
-	if (i_coff > 31)
-		i_coff = 31;
-	if (i_coff < -32)
-		i_coff = -32;
+	if (ah->ah_version == AR5K_AR5211)
+		q_coff = (i_pwr / q_coffd) - 64;
+	else
+		q_coff = (i_pwr / q_coffd) - 128;
+	q_coff = clamp(q_coff, -16, 15); /* signed 5 bit */
 
-	q_coff = (((s32)i_pwr / q_coffd) - 128);
+	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"new I:%d Q:%d (i_coffd:%x q_coffd:%x)",
+			i_coff, q_coff, i_coffd, q_coffd);
 
-	/* Boundary check */
-	if (q_coff > 15)
-		q_coff = 15;
-	if (q_coff < -16)
-		q_coff = -16;
-
-	/* Commit new I/Q value */
-	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE |
-		((u32)q_coff) | ((u32)i_coff << AR5K_PHY_IQ_CORR_Q_I_COFF_S));
+	/* Commit new I/Q values (set enable bit last to match HAL sources) */
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_I_COFF, i_coff);
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_Q_COFF, q_coff);
+	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE);
 
 	/* Re-enable calibration -if we don't we'll commit
 	 * the same values again and again */
@@ -1767,23 +1752,13 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 * Antenna control *
 \*****************/
 
-void /*TODO:Boundary check*/
+static void /*TODO:Boundary check*/
 ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 {
 	ATH5K_TRACE(ah->ah_sc);
 
 	if (ah->ah_version != AR5K_AR5210)
 		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
-}
-
-unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (ah->ah_version != AR5K_AR5210)
-		return ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA) & 0x7;
-
-	return false; /*XXX: What do we return for 5210 ?*/
 }
 
 /*
@@ -1839,6 +1814,13 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	u8 def_ant, tx_ant, ee_mode;
 	u32 sta_id1 = 0;
 
+	/* if channel is not initialized yet we can't set the antennas
+	 * so just store the mode. it will be set on the next reset */
+	if (channel == NULL) {
+		ah->ah_ant_mode = ant_mode;
+		return;
+	}
+
 	def_ant = ah->ah_def_ant;
 
 	ATH5K_TRACE(ah->ah_sc);
@@ -1873,7 +1855,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 		break;
 	case AR5K_ANTMODE_FIXED_A:
 		def_ant = 1;
-		tx_ant = 0;
+		tx_ant = 1;
 		use_def_for_tx = true;
 		update_def_on_tx = false;
 		use_def_for_rts = true;
@@ -1882,7 +1864,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 		break;
 	case AR5K_ANTMODE_FIXED_B:
 		def_ant = 2;
-		tx_ant = 0;
+		tx_ant = 2;
 		use_def_for_tx = true;
 		update_def_on_tx = false;
 		use_def_for_rts = true;
@@ -1929,6 +1911,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	ah->ah_tx_ant = tx_ant;
 	ah->ah_ant_mode = ant_mode;
+	ah->ah_def_ant = def_ant;
 
 	sta_id1 |= use_def_for_tx ? AR5K_STA_ID1_DEFAULT_ANTENNA : 0;
 	sta_id1 |= update_def_on_tx ? AR5K_STA_ID1_DESC_ANTENNA : 0;
@@ -2169,8 +2152,6 @@ ath5k_get_chan_pcal_surrounding_piers(struct ath5k_hw *ah,
 done:
 	*pcinfo_l = &pcinfo[idx_l];
 	*pcinfo_r = &pcinfo[idx_r];
-
-	return;
 }
 
 /*
@@ -2439,19 +2420,6 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 		pcdac_tmp = pcdac_high_pwr;
 
 		edge_flag = 0x40;
-#if 0
-		/* If both min and max power limits are in lower
-		 * power curve's range, only use the low power curve.
-		 * TODO: min/max levels are related to target
-		 * power values requested from driver/user
-		 * XXX: Is this really needed ? */
-		if (min_pwr < table_max[1] &&
-		max_pwr < table_max[1]) {
-			edge_flag = 0;
-			pcdac_tmp = pcdac_low_pwr;
-			max_pwr_idx = (table_max[1] - table_min[1])/2;
-		}
-#endif
 	} else {
 		pcdac_low_pwr = ah->ah_txpower.tmpL[1]; /* Zeroed */
 		pcdac_high_pwr = ah->ah_txpower.tmpL[0];
@@ -2598,7 +2566,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 		max_idx = (pdadc_n < table_size) ? pdadc_n : table_size;
 
 		/* Fill pdadc_out table */
-		while (pdadc_0 < max_idx)
+		while (pdadc_0 < max_idx && pdadc_i < 128)
 			pdadc_out[pdadc_i++] = pdadc_tmp[pdadc_0++];
 
 		/* Need to extrapolate above this pdgain? */
@@ -3142,5 +3110,3 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 
 	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
 }
-
-#undef _ATH5K_PHY

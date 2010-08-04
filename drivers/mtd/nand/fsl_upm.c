@@ -21,6 +21,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/fsl_lbc.h>
 
 #define FSL_UPM_WAIT_RUN_PATTERN  0x1
@@ -48,7 +49,10 @@ struct fsl_upm_nand {
 	uint32_t wait_flags;
 };
 
-#define to_fsl_upm_nand(mtd) container_of(mtd, struct fsl_upm_nand, mtd)
+static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
+{
+	return container_of(mtdinfo, struct fsl_upm_nand, mtd);
+}
 
 static int fun_chip_ready(struct mtd_info *mtd)
 {
@@ -228,7 +232,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	if (!fun)
 		return -ENOMEM;
 
-	ret = of_address_to_resource(ofdev->node, 0, &io_res);
+	ret = of_address_to_resource(ofdev->dev.of_node, 0, &io_res);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't get IO base\n");
 		goto err1;
@@ -240,7 +244,8 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		goto err1;
 	}
 
-	prop = of_get_property(ofdev->node, "fsl,upm-addr-offset", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-addr-offset",
+			       &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM address offset\n");
 		ret = -EINVAL;
@@ -248,7 +253,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	}
 	fun->upm_addr_offset = *prop;
 
-	prop = of_get_property(ofdev->node, "fsl,upm-cmd-offset", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-cmd-offset", &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM command offset\n");
 		ret = -EINVAL;
@@ -256,7 +261,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	}
 	fun->upm_cmd_offset = *prop;
 
-	prop = of_get_property(ofdev->node,
+	prop = of_get_property(ofdev->dev.of_node,
 			       "fsl,upm-addr-line-cs-offsets", &size);
 	if (prop && (size / sizeof(uint32_t)) > 0) {
 		fun->mchip_count = size / sizeof(uint32_t);
@@ -272,7 +277,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 
 	for (i = 0; i < fun->mchip_count; i++) {
 		fun->rnb_gpio[i] = -1;
-		rnb_gpio = of_get_gpio(ofdev->node, i);
+		rnb_gpio = of_get_gpio(ofdev->dev.of_node, i);
 		if (rnb_gpio >= 0) {
 			ret = gpio_request(rnb_gpio, dev_name(&ofdev->dev));
 			if (ret) {
@@ -288,13 +293,13 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		}
 	}
 
-	prop = of_get_property(ofdev->node, "chip-delay", NULL);
+	prop = of_get_property(ofdev->dev.of_node, "chip-delay", NULL);
 	if (prop)
 		fun->chip_delay = *prop;
 	else
 		fun->chip_delay = 50;
 
-	prop = of_get_property(ofdev->node, "fsl,upm-wait-flags", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-wait-flags", &size);
 	if (prop && size == sizeof(uint32_t))
 		fun->wait_flags = *prop;
 	else
@@ -302,7 +307,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
 	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
-					    io_res.end - io_res.start + 1);
+					    resource_size(&io_res));
 	if (!fun->io_base) {
 		ret = -ENOMEM;
 		goto err2;
@@ -311,7 +316,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
-	ret = fun_chip_init(fun, ofdev->node, &io_res);
+	ret = fun_chip_init(fun, ofdev->dev.of_node, &io_res);
 	if (ret)
 		goto err2;
 
@@ -349,15 +354,18 @@ static int __devexit fun_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id of_fun_match[] = {
+static const struct of_device_id of_fun_match[] = {
 	{ .compatible = "fsl,upm-nand" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_fun_match);
 
 static struct of_platform_driver of_fun_driver = {
-	.name		= "fsl,upm-nand",
-	.match_table	= of_fun_match,
+	.driver = {
+		.name = "fsl,upm-nand",
+		.owner = THIS_MODULE,
+		.of_match_table = of_fun_match,
+	},
 	.probe		= fun_probe,
 	.remove		= __devexit_p(fun_remove),
 };

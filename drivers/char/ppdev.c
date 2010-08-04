@@ -64,6 +64,7 @@
 #include <linux/parport.h>
 #include <linux/ctype.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/major.h>
 #include <linux/ppdev.h>
 #include <linux/smp_lock.h>
@@ -286,11 +287,9 @@ static int register_device (int minor, struct pp_struct *pp)
 	char *name;
 	int fl;
 
-	name = kmalloc (strlen (CHRDEV) + 3, GFP_KERNEL);
+	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
 	if (name == NULL)
 		return -ENOMEM;
-
-	sprintf (name, CHRDEV "%x", minor);
 
 	port = parport_find_number (minor);
 	if (!port) {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,33 +119,6 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
-#ifdef ACPI_GPE_NOTIFY_CHECK
-		/*
-		 * GPE method wake/notify check.  Here, we want to ensure that we
-		 * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
-		 * GPE method during system runtime.  If we do, the GPE is marked
-		 * as "wake-only" and disabled.
-		 *
-		 * 1) Is the Notify() value == device_wake?
-		 * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
-		 * 3) Did the original GPE happen at system runtime?
-		 *    (versus during wake)
-		 *
-		 * If all three cases are true, this is a wake-only GPE that should
-		 * be disabled at runtime.
-		 */
-		if (value == 2) {	/* device_wake */
-			status =
-			    acpi_ev_check_for_wake_only_gpe(walk_state->
-							    gpe_event_info);
-			if (ACPI_FAILURE(status)) {
-
-				/* AE_WAKE_ONLY_GPE only error, means ignore this notify */
-
-				return_ACPI_STATUS(AE_OK)
-			}
-		}
-#endif
 
 		/*
 		 * Dispatch the notify to the appropriate handler
@@ -159,7 +132,7 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 	}
@@ -224,7 +197,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -282,7 +255,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object **operand = &walk_state->operands[0];
 	union acpi_operand_object *return_desc = NULL;
-	acpi_integer index;
+	u64 index;
 	acpi_status status = AE_OK;
 	acpi_size length;
 
@@ -441,7 +414,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Index (%X%8.8X) is beyond end of object",
+					"Index (0x%8.8X%8.8X) is beyond end of object",
 					ACPI_FORMAT_UINT64(index)));
 			goto cleanup;
 		}
@@ -464,7 +437,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -572,7 +545,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -584,7 +557,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 	 * Default is FALSE (zero)
 	 */
 	if (logical_result) {
-		return_desc->integer.value = ACPI_INTEGER_MAX;
+		return_desc->integer.value = ACPI_UINT64_MAX;
 	}
 
       cleanup:

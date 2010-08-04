@@ -38,6 +38,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 

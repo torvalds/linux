@@ -88,6 +88,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -313,7 +314,8 @@ static void znet_set_multicast_list (struct net_device *dev)
 	/* Byte D */
 	cfblk->dummy_1 = 1; 	/* set to 1 */
 	cfblk->tx_ifs_retrig = 3; /* Hmm... Disabled */
-	cfblk->mc_all = (dev->mc_list || (dev->flags&IFF_ALLMULTI));/* multicast all mode */
+	cfblk->mc_all = (!netdev_mc_empty(dev) ||
+			(dev->flags & IFF_ALLMULTI)); /* multicast all mode */
 	cfblk->rcv_mon = 0;	/* Monitor mode disabled */
 	cfblk->frag_acpt = 0;	/* Do not accept fragments */
 	cfblk->tstrttrs = 0;	/* No start transmission threshold */
@@ -585,7 +587,6 @@ static netdev_tx_t znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		}
 		spin_unlock_irqrestore (&znet->lock, flags);
 
-		dev->trans_start = jiffies;
 		netif_start_queue (dev);
 
 		if (znet_debug > 4)
@@ -800,7 +801,6 @@ static void znet_rx(struct net_device *dev)
 	/* If any worth-while packets have been received, dev_rint()
 	   has done a mark_bh(INET_BH) for us and will work on them
 	   when we get to the bottom-half routine. */
-	return;
 }
 
 /* The inverse routine to znet_open(). */

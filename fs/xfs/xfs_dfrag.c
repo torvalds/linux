@@ -45,15 +45,21 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
+
+static int xfs_swap_extents(
+	xfs_inode_t	*ip,	/* target inode */
+	xfs_inode_t	*tip,	/* tmp inode */
+	xfs_swapext_t	*sxp);
+
 /*
- * Syssgi interface for swapext
+ * ioctl interface for swapext
  */
 int
 xfs_swapext(
 	xfs_swapext_t	*sxp)
 {
 	xfs_inode_t     *ip, *tip;
-	struct file	*file, *target_file;
+	struct file	*file, *tmp_file;
 	int		error = 0;
 
 	/* Pull information for the target fd */
@@ -63,51 +69,54 @@ xfs_swapext(
 		goto out;
 	}
 
-	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
+	if (!(file->f_mode & FMODE_WRITE) ||
+	    !(file->f_mode & FMODE_READ) ||
+	    (file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_file;
 	}
 
-	target_file = fget((int)sxp->sx_fdtmp);
-	if (!target_file) {
+	tmp_file = fget((int)sxp->sx_fdtmp);
+	if (!tmp_file) {
 		error = XFS_ERROR(EINVAL);
 		goto out_put_file;
 	}
 
-	if (!(target_file->f_mode & FMODE_WRITE) ||
-	    (target_file->f_flags & O_APPEND)) {
+	if (!(tmp_file->f_mode & FMODE_WRITE) ||
+	    !(tmp_file->f_mode & FMODE_READ) ||
+	    (tmp_file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
-		goto out_put_target_file;
+		goto out_put_tmp_file;
 	}
 
 	if (IS_SWAPFILE(file->f_path.dentry->d_inode) ||
-	    IS_SWAPFILE(target_file->f_path.dentry->d_inode)) {
+	    IS_SWAPFILE(tmp_file->f_path.dentry->d_inode)) {
 		error = XFS_ERROR(EINVAL);
-		goto out_put_target_file;
+		goto out_put_tmp_file;
 	}
 
 	ip = XFS_I(file->f_path.dentry->d_inode);
-	tip = XFS_I(target_file->f_path.dentry->d_inode);
+	tip = XFS_I(tmp_file->f_path.dentry->d_inode);
 
 	if (ip->i_mount != tip->i_mount) {
 		error = XFS_ERROR(EINVAL);
-		goto out_put_target_file;
+		goto out_put_tmp_file;
 	}
 
 	if (ip->i_ino == tip->i_ino) {
 		error = XFS_ERROR(EINVAL);
-		goto out_put_target_file;
+		goto out_put_tmp_file;
 	}
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		error = XFS_ERROR(EIO);
-		goto out_put_target_file;
+		goto out_put_tmp_file;
 	}
 
 	error = xfs_swap_extents(ip, tip, sxp);
 
- out_put_target_file:
-	fput(target_file);
+ out_put_tmp_file:
+	fput(tmp_file);
  out_put_file:
 	fput(file);
  out:
@@ -171,22 +180,32 @@ xfs_swap_extents_check_format(
 	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) > tip->i_df.if_ext_max)
 		return EINVAL;
 
-	/* Check root block of temp in btree form to max in target */
+	/*
+	 * If we are in a btree format, check that the temp root block will fit
+	 * in the target and that it has enough extents to be in btree format
+	 * in the target.
+	 *
+	 * Note that we have to be careful to allow btree->extent conversions
+	 * (a common defrag case) which will occur when the temp inode is in
+	 * extent format...
+	 */
 	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(ip) &&
-	    tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip))
+	    ((XFS_IFORK_BOFF(ip) &&
+	      tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip)) ||
+	     XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <= ip->i_df.if_ext_max))
 		return EINVAL;
 
-	/* Check root block of target in btree form to max in temp */
+	/* Reciprocal target->temp btree format checks */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(tip) &&
-	    ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip))
+	    ((XFS_IFORK_BOFF(tip) &&
+	      ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip)) ||
+	     XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <= tip->i_df.if_ext_max))
 		return EINVAL;
 
 	return 0;
 }
 
-int
+static int
 xfs_swap_extents(
 	xfs_inode_t	*ip,	/* target inode */
 	xfs_inode_t	*tip,	/* tmp inode */
@@ -253,6 +272,9 @@ xfs_swap_extents(
 		error = XFS_ERROR(EFAULT);
 		goto out_unlock;
 	}
+
+	trace_xfs_swap_extent_before(ip, 0);
+	trace_xfs_swap_extent_before(tip, 1);
 
 	/* check inode formats now that data is flushed */
 	error = xfs_swap_extents_check_format(ip, tip);
@@ -421,6 +443,8 @@ xfs_swap_extents(
 
 	error = xfs_trans_commit(tp, XFS_TRANS_SWAPEXT);
 
+	trace_xfs_swap_extent_after(ip, 0);
+	trace_xfs_swap_extent_after(tip, 1);
 out:
 	kmem_free(tempifp);
 	return error;

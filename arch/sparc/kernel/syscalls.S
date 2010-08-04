@@ -110,31 +110,12 @@ sys_clone:
 
 	.globl	ret_from_syscall
 ret_from_syscall:
-	/* Clear current_thread_info()->new_child, and
-	 * check performance counter stuff too.
-	 */
+	/* Clear current_thread_info()->new_child. */
 	stb	%g0, [%g6 + TI_NEW_CHILD]
 	ldx	[%g6 + TI_FLAGS], %l0
 	call	schedule_tail
 	 mov	%g7, %o0
-	andcc	%l0, _TIF_PERFCTR, %g0
-	be,pt	%icc, 1f
-	 nop
-	ldx	[%g6 + TI_PCR], %o7
-	wr	%g0, %o7, %pcr
-
-	/* Blackbird errata workaround.  See commentary in
-	 * smp.c:smp_percpu_timer_interrupt() for more
-	 * information.
-	 */
-	ba,pt	%xcc, 99f
-	 nop
-
-	.align	64
-99:	wr	%g0, %g0, %pic
-	rd	%pic, %g0
-
-1:	ba,pt	%xcc, ret_sys_call
+	ba,pt	%xcc, ret_sys_call
 	 ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
 
 	.globl	sparc_exit

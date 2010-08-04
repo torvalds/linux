@@ -9,7 +9,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include "cb710-mmc.h"
@@ -676,7 +675,7 @@ static int cb710_mmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct mmc_host *mmc = cb710_slot_to_mmc(slot);
 	int err;
 
-	err = mmc_suspend_host(mmc, state);
+	err = mmc_suspend_host(mmc);
 	if (err)
 		return err;
 

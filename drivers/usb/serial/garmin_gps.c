@@ -210,7 +210,7 @@ static unsigned char const PRIVATE_REQ[]
 
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	/* the same device id seems to be used by all
 	   usb enabled GPS devices */
 	{ USB_DEVICE(GARMIN_VENDOR_ID, 3) },
@@ -271,7 +271,6 @@ static void send_to_tty(struct usb_serial_port *port,
 		usb_serial_debug_data(debug, &port->dev,
 					__func__, actual_length, data);
 
-		tty_buffer_request_room(tty, actual_length);
 		tty_insert_flip_string(tty, data, actual_length);
 		tty_flip_buffer_push(tty);
 	}

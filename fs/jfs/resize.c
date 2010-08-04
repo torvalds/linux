@@ -81,6 +81,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	struct inode *iplist[1];
 	struct jfs_superblock *j_sb, *j_sb2;
 	uint old_agsize;
+	int agsizechanged = 0;
 	struct buffer_head *bh, *bh2;
 
 	/* If the volume hasn't grown, get out now */
@@ -333,6 +334,9 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	if ((rc = dbExtendFS(ipbmap, XAddress, nblocks)))
 		goto error_out;
+
+	agsizechanged |= (bmp->db_agsize != old_agsize);
+
 	/*
 	 * the map now has extended to cover additional nblocks:
 	 * dn_mapsize = oldMapsize + nblocks;
@@ -432,7 +436,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 * will correctly identify the new ag);
 	 */
 	/* if new AG size the same as old AG size, done! */
-	if (bmp->db_agsize != old_agsize) {
+	if (agsizechanged) {
 		if ((rc = diExtendFS(ipimap, ipbmap)))
 			goto error_out;
 

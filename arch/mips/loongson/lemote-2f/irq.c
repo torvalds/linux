@@ -38,7 +38,7 @@ int mach_i8259_irq(void)
 	irq = -1;
 
 	if ((LOONGSON_INTISR & LOONGSON_INTEN) & LOONGSON_INT_BIT_INT0) {
-		spin_lock(&i8259A_lock);
+		raw_spin_lock(&i8259A_lock);
 		isr = inb(PIC_MASTER_CMD) &
 			~inb(PIC_MASTER_IMR) & ~(1 << PIC_CASCADE_IR);
 		if (!isr)
@@ -56,7 +56,7 @@ int mach_i8259_irq(void)
 			if (~inb(PIC_MASTER_ISR) & 0x80)
 				irq = -1;
 		}
-		spin_unlock(&i8259A_lock);
+		raw_spin_unlock(&i8259A_lock);
 	}
 
 	return irq;
@@ -79,7 +79,7 @@ void mach_irq_dispatch(unsigned int pending)
 	if (pending & CAUSEF_IP7)
 		do_IRQ(LOONGSON_TIMER_IRQ);
 	else if (pending & CAUSEF_IP6) {	/* North Bridge, Perf counter */
-#ifdef CONFIG_OPROFILE
+#if defined(CONFIG_OPROFILE) || defined(CONFIG_OPROFILE_MODULE)
 		do_IRQ(LOONGSON2_PERFCNT_IRQ);
 #endif
 		bonito_irqdispatch();

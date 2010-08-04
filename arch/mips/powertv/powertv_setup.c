@@ -25,14 +25,15 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/ctype.h>
-
 #include <linux/cpu.h>
+#include <linux/time.h>
+
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 #include <asm/dma.h>
-#include <linux/time.h>
+#include <asm/asm.h>
 #include <asm/traps.h>
 #include <asm/asm-offsets.h>
 #include "reset.h"
@@ -41,26 +42,21 @@
 
 /*
  * Macros for loading addresses and storing registers:
- * PTR_LA	Load the address into a register
- * LONG_S	Store the full width of the given register.
- * LONG_L	Load the full width of the given register
- * PTR_ADDIU	Add a constant value to a register used as a pointer
+ * LONG_L_	Stringified version of LONG_L for use in asm() statement
+ * LONG_S_	Stringified version of LONG_S for use in asm() statement
+ * PTR_LA_	Stringified version of PTR_LA for use in asm() statement
  * REG_SIZE	Number of 8-bit bytes in a full width register
  */
+#define LONG_L_		VAL(LONG_L) " "
+#define LONG_S_		VAL(LONG_S) " "
+#define PTR_LA_		VAL(PTR_LA) " "
+
 #ifdef CONFIG_64BIT
 #warning TODO: 64-bit code needs to be verified
-#define PTR_LA		"dla	"
-#define LONG_S		"sd	"
-#define LONG_L		"ld	"
-#define PTR_ADDIU	"daddiu	"
 #define REG_SIZE	"8"		/* In bytes */
 #endif
 
 #ifdef CONFIG_32BIT
-#define PTR_LA		"la	"
-#define LONG_S		"sw	"
-#define LONG_L		"lw	"
-#define PTR_ADDIU	"addiu	"
 #define REG_SIZE	"4"		/* In bytes */
 #endif
 
@@ -113,9 +109,9 @@ static int panic_handler(struct notifier_block *notifier_block,
 		 * structure. */
 		__asm__ __volatile__ (
 			".set	noat\n"
-			LONG_S		"$at, %[at]\n"
-			LONG_S		"$2, %[v0]\n"
-			LONG_S		"$3, %[v1]\n"
+			LONG_S_		"$at, %[at]\n"
+			LONG_S_		"$2, %[v0]\n"
+			LONG_S_		"$3, %[v1]\n"
 		:
 			[at] "=m" (at),
 			[v0] "=m" (v0),
@@ -129,54 +125,54 @@ static int panic_handler(struct notifier_block *notifier_block,
 			"move		$at, %[pt_regs]\n"
 
 			/* Argument registers */
-			LONG_S		"$4, " VAL(PT_R4) "($at)\n"
-			LONG_S		"$5, " VAL(PT_R5) "($at)\n"
-			LONG_S		"$6, " VAL(PT_R6) "($at)\n"
-			LONG_S		"$7, " VAL(PT_R7) "($at)\n"
+			LONG_S_		"$4, " VAL(PT_R4) "($at)\n"
+			LONG_S_		"$5, " VAL(PT_R5) "($at)\n"
+			LONG_S_		"$6, " VAL(PT_R6) "($at)\n"
+			LONG_S_		"$7, " VAL(PT_R7) "($at)\n"
 
 			/* Temporary regs */
-			LONG_S		"$8, " VAL(PT_R8) "($at)\n"
-			LONG_S		"$9, " VAL(PT_R9) "($at)\n"
-			LONG_S		"$10, " VAL(PT_R10) "($at)\n"
-			LONG_S		"$11, " VAL(PT_R11) "($at)\n"
-			LONG_S		"$12, " VAL(PT_R12) "($at)\n"
-			LONG_S		"$13, " VAL(PT_R13) "($at)\n"
-			LONG_S		"$14, " VAL(PT_R14) "($at)\n"
-			LONG_S		"$15, " VAL(PT_R15) "($at)\n"
+			LONG_S_		"$8, " VAL(PT_R8) "($at)\n"
+			LONG_S_		"$9, " VAL(PT_R9) "($at)\n"
+			LONG_S_		"$10, " VAL(PT_R10) "($at)\n"
+			LONG_S_		"$11, " VAL(PT_R11) "($at)\n"
+			LONG_S_		"$12, " VAL(PT_R12) "($at)\n"
+			LONG_S_		"$13, " VAL(PT_R13) "($at)\n"
+			LONG_S_		"$14, " VAL(PT_R14) "($at)\n"
+			LONG_S_		"$15, " VAL(PT_R15) "($at)\n"
 
 			/* "Saved" registers */
-			LONG_S		"$16, " VAL(PT_R16) "($at)\n"
-			LONG_S		"$17, " VAL(PT_R17) "($at)\n"
-			LONG_S		"$18, " VAL(PT_R18) "($at)\n"
-			LONG_S		"$19, " VAL(PT_R19) "($at)\n"
-			LONG_S		"$20, " VAL(PT_R20) "($at)\n"
-			LONG_S		"$21, " VAL(PT_R21) "($at)\n"
-			LONG_S		"$22, " VAL(PT_R22) "($at)\n"
-			LONG_S		"$23, " VAL(PT_R23) "($at)\n"
+			LONG_S_		"$16, " VAL(PT_R16) "($at)\n"
+			LONG_S_		"$17, " VAL(PT_R17) "($at)\n"
+			LONG_S_		"$18, " VAL(PT_R18) "($at)\n"
+			LONG_S_		"$19, " VAL(PT_R19) "($at)\n"
+			LONG_S_		"$20, " VAL(PT_R20) "($at)\n"
+			LONG_S_		"$21, " VAL(PT_R21) "($at)\n"
+			LONG_S_		"$22, " VAL(PT_R22) "($at)\n"
+			LONG_S_		"$23, " VAL(PT_R23) "($at)\n"
 
 			/* Add'l temp regs */
-			LONG_S		"$24, " VAL(PT_R24) "($at)\n"
-			LONG_S		"$25, " VAL(PT_R25) "($at)\n"
+			LONG_S_		"$24, " VAL(PT_R24) "($at)\n"
+			LONG_S_		"$25, " VAL(PT_R25) "($at)\n"
 
 			/* Kernel temp regs */
-			LONG_S		"$26, " VAL(PT_R26) "($at)\n"
-			LONG_S		"$27, " VAL(PT_R27) "($at)\n"
+			LONG_S_		"$26, " VAL(PT_R26) "($at)\n"
+			LONG_S_		"$27, " VAL(PT_R27) "($at)\n"
 
 			/* Global pointer, stack pointer, frame pointer and
 			 * return address */
-			LONG_S		"$gp, " VAL(PT_R28) "($at)\n"
-			LONG_S		"$sp, " VAL(PT_R29) "($at)\n"
-			LONG_S		"$fp, " VAL(PT_R30) "($at)\n"
-			LONG_S		"$ra, " VAL(PT_R31) "($at)\n"
+			LONG_S_		"$gp, " VAL(PT_R28) "($at)\n"
+			LONG_S_		"$sp, " VAL(PT_R29) "($at)\n"
+			LONG_S_		"$fp, " VAL(PT_R30) "($at)\n"
+			LONG_S_		"$ra, " VAL(PT_R31) "($at)\n"
 
 			/* Now we can get the $at and v0 registers back and
 			 * store them */
-			LONG_L		"$8, %[at]\n"
-			LONG_S		"$8, " VAL(PT_R1) "($at)\n"
-			LONG_L		"$8, %[v0]\n"
-			LONG_S		"$8, " VAL(PT_R2) "($at)\n"
-			LONG_L		"$8, %[v1]\n"
-			LONG_S		"$8, " VAL(PT_R3) "($at)\n"
+			LONG_L_		"$8, %[at]\n"
+			LONG_S_		"$8, " VAL(PT_R1) "($at)\n"
+			LONG_L_		"$8, %[v0]\n"
+			LONG_S_		"$8, " VAL(PT_R2) "($at)\n"
+			LONG_L_		"$8, %[v1]\n"
+			LONG_S_		"$8, " VAL(PT_R3) "($at)\n"
 		:
 		:
 			[at] "m" (at),
@@ -191,8 +187,8 @@ static int panic_handler(struct notifier_block *notifier_block,
 		__asm__ __volatile__ (
 			".set	noat\n"
 		"1:\n"
-			PTR_LA		"$at, 1b\n"
-			LONG_S		"$at, %[cp0_epc]\n"
+			PTR_LA_		"$at, 1b\n"
+			LONG_S_		"$at, %[cp0_epc]\n"
 		:
 			[cp0_epc] "=m" (my_regs.cp0_epc)
 		:

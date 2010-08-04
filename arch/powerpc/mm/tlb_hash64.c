@@ -63,15 +63,21 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	if (huge) {
 #ifdef CONFIG_HUGETLB_PAGE
 		psize = get_slice_psize(mm, addr);
+		/* Mask the address for the correct page size */
+		addr &= ~((1UL << mmu_psize_defs[psize].shift) - 1);
 #else
 		BUG();
 		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */
 #endif
-	} else
+	} else {
 		psize = pte_pagesize_index(mm, addr, pte);
+		/* Mask the address for the standard page size.  If we
+		 * have a 64k page kernel, but the hardware does not
+		 * support 64k pages, this might be different from the
+		 * hardware page size encoded in the slice table. */
+		addr &= PAGE_MASK;
+	}
 
-	/* Mask the address for the correct page size */
-	addr &= ~((1UL << mmu_psize_defs[psize].shift) - 1);
 
 	/* Build full vaddr */
 	if (!is_kernel_addr(addr)) {

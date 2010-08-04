@@ -93,10 +93,9 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct parsed_dcb *dcb = dev_priv->vbios->dcb;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
-	uint16_t connector[16] = { 0 };
 	int i, ret;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -154,52 +153,10 @@ nv04_display_create(struct drm_device *dev)
 
 		if (ret)
 			continue;
-
-		connector[dcbent->connector] |= (1 << dcbent->type);
 	}
 
-	for (i = 0; i < dcb->entries; i++) {
-		struct dcb_entry *dcbent = &dcb->entry[i];
-		uint16_t encoders;
-		int type;
-
-		encoders = connector[dcbent->connector];
-		if (!(encoders & (1 << dcbent->type)))
-			continue;
-		connector[dcbent->connector] = 0;
-
-		switch (dcbent->type) {
-		case OUTPUT_ANALOG:
-			if (!MULTIPLE_ENCODERS(encoders))
-				type = DRM_MODE_CONNECTOR_VGA;
-			else
-				type = DRM_MODE_CONNECTOR_DVII;
-			break;
-		case OUTPUT_TMDS:
-			if (!MULTIPLE_ENCODERS(encoders))
-				type = DRM_MODE_CONNECTOR_DVID;
-			else
-				type = DRM_MODE_CONNECTOR_DVII;
-			break;
-		case OUTPUT_LVDS:
-			type = DRM_MODE_CONNECTOR_LVDS;
-#if 0
-			/* don't create i2c adapter when lvds ddc not allowed */
-			if (dcbent->lvdsconf.use_straps_for_mode ||
-			    dev_priv->vbios->fp_no_ddc)
-				i2c_index = 0xf;
-#endif
-			break;
-		case OUTPUT_TV:
-			type = DRM_MODE_CONNECTOR_TV;
-			break;
-		default:
-			type = DRM_MODE_CONNECTOR_Unknown;
-			continue;
-		}
-
-		nouveau_connector_create(dev, dcbent->connector, type);
-	}
+	for (i = 0; i < dcb->connector.entries; i++)
+		nouveau_connector_create(dev, &dcb->connector.entry[i]);
 
 	/* Save previous state */
 	NVLockVgaCrtcs(dev, false);

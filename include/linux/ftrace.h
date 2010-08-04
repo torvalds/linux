@@ -82,9 +82,13 @@ void clear_ftrace_function(void);
 extern void ftrace_stub(unsigned long a0, unsigned long a1);
 
 #else /* !CONFIG_FUNCTION_TRACER */
-# define register_ftrace_function(ops) do { } while (0)
-# define unregister_ftrace_function(ops) do { } while (0)
-# define clear_ftrace_function(ops) do { } while (0)
+/*
+ * (un)register_ftrace_function must be a macro since the ops parameter
+ * must not be evaluated.
+ */
+#define register_ftrace_function(ops) ({ 0; })
+#define unregister_ftrace_function(ops) ({ 0; })
+static inline void clear_ftrace_function(void) { }
 static inline void ftrace_kill(void) { }
 static inline void ftrace_stop(void) { }
 static inline void ftrace_start(void) { }
@@ -134,6 +138,8 @@ extern void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 
+extern int ftrace_text_reserved(void *start, void *end);
+
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
@@ -141,7 +147,6 @@ enum {
 	FTRACE_FL_ENABLED	= (1 << 3),
 	FTRACE_FL_NOTRACE	= (1 << 4),
 	FTRACE_FL_CONVERTED	= (1 << 5),
-	FTRACE_FL_FROZEN	= (1 << 6),
 };
 
 struct dyn_ftrace {
@@ -236,11 +241,13 @@ extern int skip_trace(unsigned long ip);
 extern void ftrace_disable_daemon(void);
 extern void ftrace_enable_daemon(void);
 #else
-# define skip_trace(ip)				({ 0; })
-# define ftrace_force_update()			({ 0; })
-# define ftrace_set_filter(buf, len, reset)	do { } while (0)
-# define ftrace_disable_daemon()		do { } while (0)
-# define ftrace_enable_daemon()			do { } while (0)
+static inline int skip_trace(unsigned long ip) { return 0; }
+static inline int ftrace_force_update(void) { return 0; }
+static inline void ftrace_set_filter(unsigned char *buf, int len, int reset)
+{
+}
+static inline void ftrace_disable_daemon(void) { }
+static inline void ftrace_enable_daemon(void) { }
 static inline void ftrace_release_mod(struct module *mod) {}
 static inline int register_ftrace_command(struct ftrace_func_command *cmd)
 {
@@ -249,6 +256,10 @@ static inline int register_ftrace_command(struct ftrace_func_command *cmd)
 static inline int unregister_ftrace_command(char *cmd_name)
 {
 	return -EINVAL;
+}
+static inline int ftrace_text_reserved(void *start, void *end)
+{
+	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
@@ -309,16 +320,16 @@ static inline void __ftrace_enabled_restore(int enabled)
   extern void time_hardirqs_on(unsigned long a0, unsigned long a1);
   extern void time_hardirqs_off(unsigned long a0, unsigned long a1);
 #else
-# define time_hardirqs_on(a0, a1)		do { } while (0)
-# define time_hardirqs_off(a0, a1)		do { } while (0)
+  static inline void time_hardirqs_on(unsigned long a0, unsigned long a1) { }
+  static inline void time_hardirqs_off(unsigned long a0, unsigned long a1) { }
 #endif
 
 #ifdef CONFIG_PREEMPT_TRACER
   extern void trace_preempt_on(unsigned long a0, unsigned long a1);
   extern void trace_preempt_off(unsigned long a0, unsigned long a1);
 #else
-# define trace_preempt_on(a0, a1)		do { } while (0)
-# define trace_preempt_off(a0, a1)		do { } while (0)
+  static inline void trace_preempt_on(unsigned long a0, unsigned long a1) { }
+  static inline void trace_preempt_off(unsigned long a0, unsigned long a1) { }
 #endif
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
@@ -346,6 +357,10 @@ struct ftrace_graph_ret {
 	unsigned long overrun;
 	int depth;
 };
+
+/* Type of the callback handlers for tracing function graph*/
+typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
+typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
@@ -395,10 +410,6 @@ extern char __irqentry_text_end[];
 
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
-/* Type of the callback handlers for tracing function graph*/
-typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
-typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
-
 extern int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 				trace_func_graph_ent_t entryfunc);
 
@@ -435,6 +446,13 @@ static inline void unpause_graph_tracing(void)
 
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
+
+static inline int register_ftrace_graph(trace_func_graph_ret_t retfunc,
+			  trace_func_graph_ent_t entryfunc)
+{
+	return -1;
+}
+static inline void unregister_ftrace_graph(void) { }
 
 static inline int task_curr_ret_stack(struct task_struct *tsk)
 {
@@ -487,7 +505,9 @@ static inline int test_tsk_trace_graph(struct task_struct *tsk)
 	return tsk->trace & TSK_TRACE_FL_GRAPH;
 }
 
-extern int ftrace_dump_on_oops;
+enum ftrace_dump_mode;
+
+extern enum ftrace_dump_mode ftrace_dump_on_oops;
 
 #ifdef CONFIG_PREEMPT
 #define INIT_TRACE_RECURSION		.trace_recursion = 0,
@@ -499,16 +519,10 @@ extern int ftrace_dump_on_oops;
 #define INIT_TRACE_RECURSION
 #endif
 
-#ifdef CONFIG_HW_BRANCH_TRACER
+#ifdef CONFIG_FTRACE_SYSCALLS
 
-void trace_hw_branch(u64 from, u64 to);
-void trace_hw_branch_oops(void);
+unsigned long arch_syscall_addr(int nr);
 
-#else /* CONFIG_HW_BRANCH_TRACER */
-
-static inline void trace_hw_branch(u64 from, u64 to) {}
-static inline void trace_hw_branch_oops(void) {}
-
-#endif /* CONFIG_HW_BRANCH_TRACER */
+#endif /* CONFIG_FTRACE_SYSCALLS */
 
 #endif /* _LINUX_FTRACE_H */

@@ -243,7 +243,7 @@ int dvb_usb_device_init(struct usb_interface *intf,
 		d = kzalloc(sizeof(struct dvb_usb_device),GFP_KERNEL);
 	if (d == NULL) {
 		err("no memory for 'struct dvb_usb_device'");
-		return ret;
+		return -ENOMEM;
 	}
 
 	d->udev = udev;

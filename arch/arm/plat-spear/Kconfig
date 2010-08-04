@@ -1,0 +1,31 @@
+#
+# SPEAr Platform configuration file
+#
+
+if PLAT_SPEAR
+
+choice
+	prompt "ST SPEAr Family"
+	default ARCH_SPEAR3XX
+
+config ARCH_SPEAR3XX
+	bool "SPEAr3XX"
+	select ARM_VIC
+	select CPU_ARM926T
+	help
+	  Supports for ARM's SPEAR3XX family
+
+config ARCH_SPEAR6XX
+	bool "SPEAr6XX"
+	select ARM_VIC
+	select CPU_ARM926T
+	help
+	  Supports for ARM's SPEAR6XX family
+
+endchoice
+
+# Adding SPEAr machine specific configuration files
+source "arch/arm/mach-spear3xx/Kconfig"
+source "arch/arm/mach-spear6xx/Kconfig"
+
+endif

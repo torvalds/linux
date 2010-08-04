@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 
 struct gameport {
 
@@ -46,7 +47,6 @@ struct gameport {
 	struct mutex drv_mutex;		/* protects serio->drv so attributes can pin driver */
 
 	struct device dev;
-	unsigned int registered;	/* port has been fully registered with driver core */
 
 	struct list_head node;
 };

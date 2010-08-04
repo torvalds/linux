@@ -69,6 +69,9 @@ config EDAC_MM_EDAC
 	  occurred so that a particular failing memory module can be
 	  replaced.  If unsure, select 'Y'.
 
+config EDAC_MCE
+	bool
+
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h, F11h"
 	depends on EDAC_MM_EDAC && K8_NB && X86_64 && PCI && EDAC_DECODE_MCE
@@ -166,6 +169,16 @@ config EDAC_I5400
 	  Support for error detection and correction the Intel
 	  i5400 MCH chipset (Seaburg).
 
+config EDAC_I7CORE
+	tristate "Intel i7 Core (Nehalem) processors"
+	depends on EDAC_MM_EDAC && PCI && X86
+	select EDAC_MCE
+	help
+	  Support for error detection and correction the Intel
+	  i7 Core (Nehalem) Integrated Memory Controller that exists on
+	  newer processors like i7 Core, i7 Core Extreme, Xeon 35xx
+	  and Xeon 55xx processors.
+
 config EDAC_I82860
 	tristate "Intel 82860"
 	depends on EDAC_MM_EDAC && PCI && X86_32
@@ -196,7 +209,7 @@ config EDAC_I5100
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
-	depends on EDAC_MM_EDAC && FSL_SOC && (PPC_83xx || MPC85xx)
+	depends on EDAC_MM_EDAC && FSL_SOC && (PPC_83xx || PPC_85xx)
 	help
 	  Support for error detection and correction on the Freescale
 	  MPC8349, MPC8560, MPC8540, MPC8548

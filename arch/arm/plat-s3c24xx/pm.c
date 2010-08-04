@@ -43,6 +43,7 @@
 
 #include <asm/mach/time.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/pm.h>
 
 #define PFX "s3c24xx-pm: "
@@ -90,22 +91,22 @@ static void s3c_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 {
 	unsigned long irqstate;
 	unsigned long pinstate;
-	int irq = s3c2410_gpio_getirq(pin);
+	int irq = gpio_to_irq(pin);
 
 	if (irqoffs < 4)
 		irqstate = s3c_irqwake_intmask & (1L<<irqoffs);
 	else
 		irqstate = s3c_irqwake_eintmask & (1L<<irqoffs);
 
-	pinstate = s3c2410_gpio_getcfg(pin);
+	pinstate = s3c_gpio_getcfg(pin);
 
 	if (!irqstate) {
 		if (pinstate == S3C2410_GPIO_IRQ)
-			S3C_PMDBG("Leaving IRQ %d (pin %d) enabled\n", irq, pin);
+			S3C_PMDBG("Leaving IRQ %d (pin %d) as is\n", irq, pin);
 	} else {
 		if (pinstate == S3C2410_GPIO_IRQ) {
 			S3C_PMDBG("Disabling IRQ %d (pin %d)\n", irq, pin);
-			s3c2410_gpio_cfgpin(pin, S3C2410_GPIO_INPUT);
+			s3c_gpio_cfgpin(pin, S3C2410_GPIO_INPUT);
 		}
 	}
 }

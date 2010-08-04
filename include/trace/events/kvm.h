@@ -5,7 +5,6 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
-#define TRACE_INCLUDE_FILE kvm
 
 #if defined(__KVM_HAVE_IOAPIC)
 TRACE_EVENT(kvm_set_irq,
@@ -143,6 +142,47 @@ TRACE_EVENT(kvm_mmio,
 	TP_printk("mmio %s len %u gpa 0x%llx val 0x%llx",
 		  __print_symbolic(__entry->type, kvm_trace_symbol_mmio),
 		  __entry->len, __entry->gpa, __entry->val)
+);
+
+#define kvm_fpu_load_symbol	\
+	{0, "unload"},		\
+	{1, "load"}
+
+TRACE_EVENT(kvm_fpu,
+	TP_PROTO(int load),
+	TP_ARGS(load),
+
+	TP_STRUCT__entry(
+		__field(	u32,	        load		)
+	),
+
+	TP_fast_assign(
+		__entry->load		= load;
+	),
+
+	TP_printk("%s", __print_symbolic(__entry->load, kvm_fpu_load_symbol))
+);
+
+TRACE_EVENT(kvm_age_page,
+	TP_PROTO(ulong hva, struct kvm_memory_slot *slot, int ref),
+	TP_ARGS(hva, slot, ref),
+
+	TP_STRUCT__entry(
+		__field(	u64,	hva		)
+		__field(	u64,	gfn		)
+		__field(	u8,	referenced	)
+	),
+
+	TP_fast_assign(
+		__entry->hva		= hva;
+		__entry->gfn		=
+		  slot->base_gfn + ((hva - slot->userspace_addr) >> PAGE_SHIFT);
+		__entry->referenced	= ref;
+	),
+
+	TP_printk("hva %llx gfn %llx %s",
+		  __entry->hva, __entry->gfn,
+		  __entry->referenced ? "YOUNG" : "OLD")
 );
 
 #endif /* _TRACE_KVM_MAIN_H */

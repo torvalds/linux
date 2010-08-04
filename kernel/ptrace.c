@@ -14,7 +14,6 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/ptrace.h>
 #include <linux/security.h>
 #include <linux/signal.h>
@@ -22,6 +21,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/regset.h>
 
 
 /*
@@ -75,7 +75,6 @@ void __ptrace_unlink(struct task_struct *child)
 	child->parent = child->real_parent;
 	list_del_init(&child->ptrace_entry);
 
-	arch_ptrace_untrace(child);
 	if (task_is_traced(child))
 		ptrace_untrace(child);
 }
@@ -511,6 +510,47 @@ static int ptrace_resume(struct task_struct *child, long request, long data)
 	return 0;
 }
 
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+
+static const struct user_regset *
+find_regset(const struct user_regset_view *view, unsigned int type)
+{
+	const struct user_regset *regset;
+	int n;
+
+	for (n = 0; n < view->n; ++n) {
+		regset = view->regsets + n;
+		if (regset->core_note_type == type)
+			return regset;
+	}
+
+	return NULL;
+}
+
+static int ptrace_regset(struct task_struct *task, int req, unsigned int type,
+			 struct iovec *kiov)
+{
+	const struct user_regset_view *view = task_user_regset_view(task);
+	const struct user_regset *regset = find_regset(view, type);
+	int regset_no;
+
+	if (!regset || (kiov->iov_len % regset->size) != 0)
+		return -EINVAL;
+
+	regset_no = regset - view->regsets;
+	kiov->iov_len = min(kiov->iov_len,
+			    (__kernel_size_t) (regset->n * regset->size));
+
+	if (req == PTRACE_GETREGSET)
+		return copy_regset_to_user(task, view, regset_no, 0,
+					   kiov->iov_len, kiov->iov_base);
+	else
+		return copy_regset_from_user(task, view, regset_no, 0,
+					     kiov->iov_len, kiov->iov_base);
+}
+
+#endif
+
 int ptrace_request(struct task_struct *child, long request,
 		   long addr, long data)
 {
@@ -554,6 +594,32 @@ int ptrace_request(struct task_struct *child, long request,
 		ret = ptrace_detach(child, data);
 		break;
 
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+	case PTRACE_GETFDPIC: {
+		struct mm_struct *mm = get_task_mm(child);
+		unsigned long tmp = 0;
+
+		ret = -ESRCH;
+		if (!mm)
+			break;
+
+		switch (addr) {
+		case PTRACE_GETFDPIC_EXEC:
+			tmp = mm->context.exec_fdpic_loadmap;
+			break;
+		case PTRACE_GETFDPIC_INTERP:
+			tmp = mm->context.interp_fdpic_loadmap;
+			break;
+		default:
+			break;
+		}
+		mmput(mm);
+
+		ret = put_user(tmp, (unsigned long __user *) data);
+		break;
+	}
+#endif
+
 #ifdef PTRACE_SINGLESTEP
 	case PTRACE_SINGLESTEP:
 #endif
@@ -573,6 +639,26 @@ int ptrace_request(struct task_struct *child, long request,
 			return 0;
 		return ptrace_resume(child, request, SIGKILL);
 
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET:
+	{
+		struct iovec kiov;
+		struct iovec __user *uiov = (struct iovec __user *) data;
+
+		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+			return -EFAULT;
+
+		if (__get_user(kiov.iov_base, &uiov->iov_base) ||
+		    __get_user(kiov.iov_len, &uiov->iov_len))
+			return -EFAULT;
+
+		ret = ptrace_regset(child, request, addr, &kiov);
+		if (!ret)
+			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+		break;
+	}
+#endif
 	default:
 		break;
 	}
@@ -604,10 +690,6 @@ SYSCALL_DEFINE4(ptrace, long, request, long, pid, long, addr, long, data)
 	struct task_struct *child;
 	long ret;
 
-	/*
-	 * This lock_kernel fixes a subtle race with suid exec
-	 */
-	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
 		if (!ret)
@@ -641,7 +723,6 @@ SYSCALL_DEFINE4(ptrace, long, request, long, pid, long, addr, long, data)
  out_put_task_struct:
 	put_task_struct(child);
  out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -711,6 +792,32 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 		else
 			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET:
+	{
+		struct iovec kiov;
+		struct compat_iovec __user *uiov =
+			(struct compat_iovec __user *) datap;
+		compat_uptr_t ptr;
+		compat_size_t len;
+
+		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+			return -EFAULT;
+
+		if (__get_user(ptr, &uiov->iov_base) ||
+		    __get_user(len, &uiov->iov_len))
+			return -EFAULT;
+
+		kiov.iov_base = compat_ptr(ptr);
+		kiov.iov_len = len;
+
+		ret = ptrace_regset(child, request, addr, &kiov);
+		if (!ret)
+			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+		break;
+	}
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -725,10 +832,6 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 	struct task_struct *child;
 	long ret;
 
-	/*
-	 * This lock_kernel fixes a subtle race with suid exec
-	 */
-	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
 		goto out;
@@ -758,7 +861,6 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
  out_put_task_struct:
 	put_task_struct(child);
  out:
-	unlock_kernel();
 	return ret;
 }
 #endif	/* CONFIG_COMPAT */

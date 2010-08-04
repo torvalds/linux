@@ -60,6 +60,7 @@ from http://www.comedi.org
 
 #define ME_DRIVER_NAME		"me_daq"
 
+#define PCI_VENDOR_ID_MEILHAUS	0x1402
 #define ME2000_DEVICE_ID	0x2000
 #define ME2600_DEVICE_ID	0x2600
 

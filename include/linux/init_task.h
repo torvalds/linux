@@ -16,7 +16,7 @@ extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
 #define INIT_SIGNALS(sig) {						\
-	.count		= ATOMIC_INIT(1), 				\
+	.nr_threads	= 1,						\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
 	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
@@ -32,18 +32,10 @@ extern struct fs_struct init_fs;
 }
 
 extern struct nsproxy init_nsproxy;
-#define INIT_NSPROXY(nsproxy) {						\
-	.pid_ns		= &init_pid_ns,					\
-	.count		= ATOMIC_INIT(1),				\
-	.uts_ns		= &init_uts_ns,					\
-	.mnt_ns		= NULL,						\
-	INIT_NET_NS(net_ns)                                             \
-	INIT_IPC_NS(ipc_ns)						\
-}
 
 #define INIT_SIGHAND(sighand) {						\
 	.count		= ATOMIC_INIT(1), 				\
-	.action		= { { { .sa_handler = NULL, } }, },		\
+	.action		= { { { .sa_handler = SIG_DFL, } }, },		\
 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
 }
@@ -53,11 +45,10 @@ extern struct group_info init_groups;
 #define INIT_STRUCT_PID {						\
 	.count 		= ATOMIC_INIT(1),				\
 	.tasks		= {						\
-		{ .first = &init_task.pids[PIDTYPE_PID].node },		\
-		{ .first = &init_task.pids[PIDTYPE_PGID].node },	\
-		{ .first = &init_task.pids[PIDTYPE_SID].node },		\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
 	},								\
-	.rcu		= RCU_HEAD_INIT,				\
 	.level		= 0,						\
 	.numbers	= { {						\
 		.nr		= 0,					\
@@ -70,7 +61,7 @@ extern struct group_info init_groups;
 {								\
 	.node = {						\
 		.next = NULL,					\
-		.pprev = &init_struct_pid.tasks[type].first,	\
+		.pprev = NULL,					\
 	},							\
 	.pid = &init_struct_pid,				\
 }
@@ -172,6 +163,7 @@ extern struct cred init_cred;
 		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),		\
 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
 	},								\
+	.thread_group	= LIST_HEAD_INIT(tsk.thread_group),		\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
 	INIT_IDS							\
 	INIT_PERF_EVENTS(tsk)						\

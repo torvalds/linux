@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/rslib.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #include <linux/mtd/mtd.h>

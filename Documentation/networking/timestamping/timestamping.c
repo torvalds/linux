@@ -41,9 +41,9 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 
-#include "asm/types.h"
-#include "linux/net_tstamp.h"
-#include "linux/errqueue.h"
+#include <asm/types.h>
+#include <linux/net_tstamp.h>
+#include <linux/errqueue.h>
 
 #ifndef SO_TIMESTAMPING
 # define SO_TIMESTAMPING         37
@@ -164,7 +164,7 @@ static void printpacket(struct msghdr *msg, int res,
 
 	gettimeofday(&now, 0);
 
-	printf("%ld.%06ld: received %s data, %d bytes from %s, %d bytes control messages\n",
+	printf("%ld.%06ld: received %s data, %d bytes from %s, %zu bytes control messages\n",
 	       (long)now.tv_sec, (long)now.tv_usec,
 	       (recvmsg_flags & MSG_ERRQUEUE) ? "error" : "regular",
 	       res,
@@ -173,7 +173,7 @@ static void printpacket(struct msghdr *msg, int res,
 	for (cmsg = CMSG_FIRSTHDR(msg);
 	     cmsg;
 	     cmsg = CMSG_NXTHDR(msg, cmsg)) {
-		printf("   cmsg len %d: ", cmsg->cmsg_len);
+		printf("   cmsg len %zu: ", cmsg->cmsg_len);
 		switch (cmsg->cmsg_level) {
 		case SOL_SOCKET:
 			printf("SOL_SOCKET ");
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
 	}
 
 	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (socket < 0)
+	if (sock < 0)
 		bail("socket");
 
 	memset(&device, 0, sizeof(device));

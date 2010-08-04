@@ -48,8 +48,8 @@ Passing a zero for an option is the same as leaving it unspecified.
 
 SUBDEVICES
 
-                    PC218E         PC212E      PC215E/PCI215
-                 -------------  -------------  -------------
+		    PC218E         PC212E      PC215E/PCI215
+		 -------------  -------------  -------------
   Subdevices           7              6              5
    0                 CTR-X1         PPI-X          PPI-X
    1                 CTR-X2         CTR-Y1         PPI-Y
@@ -59,8 +59,8 @@ SUBDEVICES
    5                 CTR-Z2       INTERRUPT
    6               INTERRUPT
 
-                    PC214E      PC272E/PCI272
-                 -------------  -------------
+		    PC214E      PC272E/PCI272
+		 -------------  -------------
   Subdevices           4              4
    0                 PPI-X          PPI-X
    1                 PPI-Y          PPI-Y
@@ -96,8 +96,8 @@ instructions are supported:
     0 to 7 as follows:
 
       0.  CLK n, the counter channel's dedicated CLK input from the SK1
-        connector.  (N.B. for other values, the counter channel's CLKn
-        pin on the SK1 connector is an output!)
+	connector.  (N.B. for other values, the counter channel's CLKn
+	pin on the SK1 connector is an output!)
       1.  Internal 10 MHz clock.
       2.  Internal 1 MHz clock.
       3.  Internal 100 kHz clock.
@@ -105,8 +105,8 @@ instructions are supported:
       5.  Internal 1 kHz clock.
       6.  OUT n-1, the output of counter channel n-1 (see note 1 below).
       7.  Ext Clock, the counter chip's dedicated Ext Clock input from
-        the SK1 connector.  This pin is shared by all three counter
-        channels on the chip.
+	the SK1 connector.  This pin is shared by all three counter
+	channels on the chip.
 
   INSN_CONFIG_GET_CLOCK_SRC.  Returns the counter channel's current
     clock source in data[1].  For internal clock sources, data[2] is set
@@ -120,10 +120,10 @@ instructions are supported:
       0.  VCC (internal +5V d.c.), i.e. gate permanently enabled.
       1.  GND (internal 0V d.c.), i.e. gate permanently disabled.
       2.  GAT n, the counter channel's dedicated GAT input from the SK1
-        connector.  (N.B. for other values, the counter channel's GATn
-        pin on the SK1 connector is an output!)
+	connector.  (N.B. for other values, the counter channel's GATn
+	pin on the SK1 connector is an output!)
       3.  /OUT n-2, the inverted output of counter channel n-2 (see note
-        2 below).
+	2 below).
       4.  Reserved.
       5.  Reserved.
       6.  Reserved.
@@ -153,8 +153,8 @@ below.
 
 INTERRUPT SOURCES
 
-                    PC218E         PC212E      PC215E/PCI215
-                 -------------  -------------  -------------
+		    PC218E         PC212E      PC215E/PCI215
+		 -------------  -------------  -------------
   Sources              6              6              6
    0              CTR-X1-OUT      PPI-X-C0       PPI-X-C0
    1              CTR-X2-OUT      PPI-X-C3       PPI-X-C3
@@ -163,8 +163,8 @@ INTERRUPT SOURCES
    4              CTR-Z1-OUT     CTR-Z1-OUT     CTR-Z1-OUT
    5              CTR-Z2-OUT     CTR-Z2-OUT     CTR-Z2-OUT
 
-                    PC214E      PC272E/PCI272
-                 -------------  -------------
+		    PC214E      PC272E/PCI272
+		 -------------  -------------
   Sources              1              6
    0               JUMPER-J5      PPI-X-C0
    1                              PPI-X-C3
@@ -206,6 +206,7 @@ order they appear in the channel list.
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -217,7 +218,7 @@ order they appear in the channel list.
 #define DIO200_DRIVER_NAME	"amplc_dio200"
 
 /* PCI IDs */
-/* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
+#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
 #define PCI_DEVICE_ID_INVALID 0xffff
@@ -435,11 +436,13 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
  * Useful for shorthand access to the particular board structure
  */
 #define thisboard ((const struct dio200_board *)dev->board_ptr)
-#define thislayout (&dio200_layouts[((struct dio200_board *)dev->board_ptr)->layout])
+#define thislayout (&dio200_layouts[((struct dio200_board *) \
+		    dev->board_ptr)->layout])
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+ */
 struct dio200_private {
 #ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev;	/* PCI device */
@@ -457,6 +460,7 @@ struct dio200_subdev_8254 {
 	int has_clk_gat_sce;
 	unsigned clock_src[3];	/* Current clock sources */
 	unsigned gate_src[3];	/* Current gate sources */
+	spinlock_t spinlock;
 };
 
 struct dio200_subdev_intr {
@@ -603,9 +607,8 @@ static void dio200_stop_intr(struct comedi_device *dev,
 
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
-	if (subpriv->has_int_sce) {
+	if (subpriv->has_int_sce)
 		outb(0, subpriv->iobase);
-	}
 }
 
 /*
@@ -629,16 +632,14 @@ static int dio200_start_intr(struct comedi_device *dev,
 		/* Determine interrupt sources to enable. */
 		isn_bits = 0;
 		if (cmd->chanlist) {
-			for (n = 0; n < cmd->chanlist_len; n++) {
+			for (n = 0; n < cmd->chanlist_len; n++)
 				isn_bits |= (1U << CR_CHAN(cmd->chanlist[n]));
-			}
 		}
 		isn_bits &= subpriv->valid_isns;
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
-		if (subpriv->has_int_sce) {
+		if (subpriv->has_int_sce)
 			outb(isn_bits, subpriv->iobase);
-		}
 	}
 
 	return retval;
@@ -661,15 +662,14 @@ dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv = s->private;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	s->async->inttrig = 0;
-	if (subpriv->active) {
+	s->async->inttrig = NULL;
+	if (subpriv->active)
 		event = dio200_start_intr(dev, s);
-	}
+
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 1;
 }
@@ -726,9 +726,8 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		 * Reenable them NOW to minimize the time they are disabled.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		if (subpriv->has_int_sce) {
+		if (subpriv->has_int_sce)
 			outb(cur_enabled, subpriv->iobase);
-		}
 
 		if (subpriv->active) {
 			/*
@@ -747,9 +746,8 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 				len = s->async->cmd.chanlist_len;
 				for (n = 0; n < len; n++) {
 					ch = CR_CHAN(s->async->cmd.chanlist[n]);
-					if (triggered & (1U << ch)) {
+					if (triggered & (1U << ch))
 						val |= (1U << n);
-					}
 				}
 				/* Write the scan to the buffer. */
 				if (comedi_buf_put(s->async, val)) {
@@ -781,9 +779,8 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events) {
+	if (oldevents != s->async->events)
 		comedi_event(dev, s);
-	}
 
 	return (triggered != 0);
 }
@@ -798,9 +795,9 @@ static int dio200_subdev_intr_cancel(struct comedi_device *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	if (subpriv->active) {
+	if (subpriv->active)
 		dio200_stop_intr(dev, s);
-	}
+
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
@@ -846,7 +843,8 @@ dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+		   compatible */
 
 	/* these tests are true if more than one _src bit is set */
 	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
@@ -952,9 +950,8 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 0;
 }
@@ -980,9 +977,8 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
 
-	if (has_int_sce) {
+	if (has_int_sce)
 		outb(0, subpriv->iobase);	/* Disable interrupt sources. */
-	}
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
@@ -1013,10 +1009,7 @@ dio200_subdev_intr_cleanup(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
-
-	if (subpriv) {
-		kfree(subpriv);
-	}
+	kfree(subpriv);
 }
 
 /*
@@ -1027,9 +1020,8 @@ static irqreturn_t dio200_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	int handled;
 
-	if (!dev->attached) {
+	if (!dev->attached)
 		return IRQ_NONE;
-	}
 
 	if (devpriv->intr_sd >= 0) {
 		handled = dio200_handle_read_intr(dev,
@@ -1051,8 +1043,11 @@ dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	data[0] = i8254_read(subpriv->iobase, 0, chan);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1066,8 +1061,11 @@ dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	i8254_write(subpriv->iobase, 0, chan, data[0]);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1160,14 +1158,16 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
-	int ret;
+	int ret = 0;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
 		data[1] = i8254_status(subpriv->iobase, 0, chan);
@@ -1175,30 +1175,35 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_set_gate_src(subpriv, chan, data[2]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		ret = dio200_get_gate_src(subpriv, chan);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[2] = ret;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		ret = dio200_set_clock_src(subpriv, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
 		ret = dio200_get_clock_src(subpriv, chan, &data[2]);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[1] = ret;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	return insn->n;
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	return ret < 0 ? ret : insn->n;
 }
 
 /*
@@ -1231,6 +1236,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	s->insn_write = dio200_subdev_8254_write;
 	s->insn_config = dio200_subdev_8254_config;
 
+	spin_lock_init(&subpriv->spinlock);
 	subpriv->iobase = offset + iobase;
 	subpriv->has_clk_gat_sce = has_clk_gat_sce;
 	if (has_clk_gat_sce) {
@@ -1266,10 +1272,7 @@ dio200_subdev_8254_cleanup(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
-
-	if (subpriv) {
-		kfree(subpriv);
-	}
+	kfree(subpriv);
 }
 
 /*
@@ -1348,9 +1351,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	{
 		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
 	}
 	dev->iobase = iobase;
 
@@ -1371,17 +1373,17 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			ret = dio200_subdev_8254_init(dev, s, iobase,
 						      layout->sdinfo[n],
 						      layout->has_clk_gat_sce);
-			if (ret < 0) {
+			if (ret < 0)
 				return ret;
-			}
+
 			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
-			ret = subdev_8255_init(dev, s, 0,
+			ret = subdev_8255_init(dev, s, NULL,
 					       iobase + layout->sdinfo[n]);
-			if (ret < 0) {
+			if (ret < 0)
 				return ret;
-			}
+
 			break;
 		case sd_intr:
 			/* 'INTERRUPT' subdevice */
@@ -1392,9 +1394,9 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 							      layout->sdinfo[n],
 							      layout->
 							      has_int_sce);
-				if (ret < 0) {
+				if (ret < 0)
 					return ret;
-				}
+
 				devpriv->intr_sd = n;
 			} else {
 				s->type = COMEDI_SUBD_UNUSED;
@@ -1407,9 +1409,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	sdx = devpriv->intr_sd;
-	if (sdx >= 0 && sdx < dev->n_subdevices) {
+	if (sdx >= 0 && sdx < dev->n_subdevices)
 		dev->read_subdev = &dev->subdevices[sdx];
-	}
 
 	dev->board_name = thisboard->name;
 
@@ -1434,11 +1435,10 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk("(pci %s) ", pci_name(pci_dev));
 #endif
 	}
-	if (irq) {
+	if (irq)
 		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
-	} else {
+	else
 		printk("(no irq) ");
-	}
 
 	printk("attached\n");
 
@@ -1461,9 +1461,8 @@ static int dio200_detach(struct comedi_device *dev)
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
 	       DIO200_DRIVER_NAME);
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 	if (dev->subdevices) {
 		layout = thislayout;
 		for (n = 0; n < dev->n_subdevices; n++) {
@@ -1486,22 +1485,19 @@ static int dio200_detach(struct comedi_device *dev)
 	if (devpriv) {
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		} else
 #endif
 		{
-			if (dev->iobase) {
+			if (dev->iobase)
 				release_region(dev->iobase, DIO200_IO_SIZE);
-			}
 		}
 	}
-	if (dev->board_name) {
+	if (dev->board_name)
 		printk(KERN_INFO "comedi%d: %s removed\n",
 		       dev->minor, dev->board_name);
-	}
 
 	return 0;
 }

@@ -2,15 +2,18 @@
 # Makefile for the kernel pcmcia subsystem (c/o David Hinds)
 #
 
-pcmcia_core-y					+= cs.o cistpl.o rsrc_mgr.o socket_sysfs.o
+pcmcia_core-y					+= cs.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o
 
-pcmcia-y					+= ds.o pcmcia_resource.o
+pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o pcmcia_cis.o
 pcmcia-$(CONFIG_PCMCIA_IOCTL)			+= pcmcia_ioctl.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 
-obj-$(CONFIG_PCCARD_NONSTATIC)			+= rsrc_nonstatic.o
+pcmcia_rsrc-y					+= rsrc_mgr.o
+pcmcia_rsrc-$(CONFIG_PCCARD_NONSTATIC)		+= rsrc_nonstatic.o
+pcmcia_rsrc-$(CONFIG_PCCARD_IODYN)		+= rsrc_iodyn.o
+obj-$(CONFIG_PCCARD)				+= pcmcia_rsrc.o
 
 
 # socket drivers
@@ -35,18 +38,10 @@ obj-$(CONFIG_OMAP_CF)				+= omap_cf.o
 obj-$(CONFIG_BFIN_CFPCMCIA)			+= bfin_cf_pcmcia.o
 obj-$(CONFIG_AT91_CF)				+= at91_cf.o
 obj-$(CONFIG_ELECTRA_CF)			+= electra_cf.o
+obj-$(CONFIG_PCMCIA_ALCHEMY_DEVBOARD)		+= db1xxx_ss.o
 
 au1x00_ss-y					+= au1000_generic.o
 au1x00_ss-$(CONFIG_MIPS_PB1000)			+= au1000_pb1x00.o
-au1x00_ss-$(CONFIG_MIPS_PB1100)			+= au1000_pb1x00.o
-au1x00_ss-$(CONFIG_MIPS_PB1200)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_PB1500)			+= au1000_pb1x00.o
-au1x00_ss-$(CONFIG_MIPS_DB1000)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_DB1100)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_DB1200)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_DB1500)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_DB1550)			+= au1000_db1x00.o
-au1x00_ss-$(CONFIG_MIPS_XXS1500)		+= au1000_xxs1500.o
 
 sa1111_cs-y					+= sa1111_generic.o
 sa1111_cs-$(CONFIG_ASSABET_NEPONSET)		+= sa1100_neponset.o
@@ -74,5 +69,8 @@ pxa2xx-obj-$(CONFIG_MACH_PALMTC)		+= pxa2xx_palmtc.o
 pxa2xx-obj-$(CONFIG_MACH_PALMLD)		+= pxa2xx_palmld.o
 pxa2xx-obj-$(CONFIG_MACH_E740)			+= pxa2xx_e740.o
 pxa2xx-obj-$(CONFIG_MACH_STARGATE2)		+= pxa2xx_stargate2.o
+pxa2xx-obj-$(CONFIG_MACH_VPAC270)		+= pxa2xx_vpac270.o
 
 obj-$(CONFIG_PCMCIA_PXA2XX)			+= pxa2xx_base.o $(pxa2xx-obj-y)
+
+obj-$(CONFIG_PCMCIA_XXS1500)			+= xxs1500_ss.o

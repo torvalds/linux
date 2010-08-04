@@ -40,13 +40,12 @@
 #include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <plat/i2c.h>
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
 #include <mach/sharpsl.h>
-#include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
+#include <plat/i2c.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
@@ -91,26 +90,7 @@ static unsigned long poodle_pin_config[] __initdata = {
 	GPIO35_FFUART_CTS,
 
 	/* LCD */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* PC Card */
 	GPIO48_nPOE,
@@ -193,11 +173,18 @@ static struct resource locomo_resources[] = {
 	},
 };
 
+static struct locomo_platform_data locomo_info = {
+	.irq_base	= IRQ_BOARD_START,
+};
+
 struct platform_device poodle_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(locomo_resources),
 	.resource	= locomo_resources,
+	.dev		= {
+		.platform_data	= &locomo_info,
+	},
 };
 
 EXPORT_SYMBOL(poodle_locomo_device);
@@ -289,6 +276,7 @@ static void poodle_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data poodle_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 			= poodle_mci_init,
 	.setpower 		= poodle_mci_setpower,
@@ -462,7 +450,6 @@ static void __init poodle_init(void)
 	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_set_udc_info(&udc_info);
-	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

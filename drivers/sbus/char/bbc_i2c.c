@@ -97,7 +97,7 @@ struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct of_device *
 	client->bp = bp;
 	client->op = op;
 
-	reg = of_get_property(op->node, "reg", NULL);
+	reg = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!reg) {
 		kfree(client);
 		return NULL;
@@ -327,7 +327,7 @@ static struct bbc_i2c_bus * __init attach_one_i2c(struct of_device *op, int inde
 	spin_lock_init(&bp->lock);
 
 	entry = 0;
-	for (dp = op->node->child;
+	for (dp = op->dev.of_node->child;
 	     dp && entry < 8;
 	     dp = dp->sibling, entry++) {
 		struct of_device *child_op;
@@ -414,8 +414,11 @@ static const struct of_device_id bbc_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, bbc_i2c_match);
 
 static struct of_platform_driver bbc_i2c_driver = {
-	.name		= "bbc_i2c",
-	.match_table	= bbc_i2c_match,
+	.driver = {
+		.name = "bbc_i2c",
+		.owner = THIS_MODULE,
+		.of_match_table = bbc_i2c_match,
+	},
 	.probe		= bbc_i2c_probe,
 	.remove		= __devexit_p(bbc_i2c_remove),
 };

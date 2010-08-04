@@ -65,16 +65,16 @@ static void clcdfb_disable(struct clcd_fb *fb)
 	if (fb->board->disable)
 		fb->board->disable(fb);
 
-	val = readl(fb->regs + CLCD_CNTL);
+	val = readl(fb->regs + fb->off_cntl);
 	if (val & CNTL_LCDPWR) {
 		val &= ~CNTL_LCDPWR;
-		writel(val, fb->regs + CLCD_CNTL);
+		writel(val, fb->regs + fb->off_cntl);
 
 		clcdfb_sleep(20);
 	}
 	if (val & CNTL_LCDEN) {
 		val &= ~CNTL_LCDEN;
-		writel(val, fb->regs + CLCD_CNTL);
+		writel(val, fb->regs + fb->off_cntl);
 	}
 
 	/*
@@ -94,7 +94,7 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	 * Bring up by first enabling..
 	 */
 	cntl |= CNTL_LCDEN;
-	writel(cntl, fb->regs + CLCD_CNTL);
+	writel(cntl, fb->regs + fb->off_cntl);
 
 	clcdfb_sleep(20);
 
@@ -102,7 +102,7 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	 * and now apply power.
 	 */
 	cntl |= CNTL_LCDPWR;
-	writel(cntl, fb->regs + CLCD_CNTL);
+	writel(cntl, fb->regs + fb->off_cntl);
 
 	/*
 	 * finally, enable the interface.
@@ -233,7 +233,7 @@ static int clcdfb_set_par(struct fb_info *info)
 		readl(fb->regs + CLCD_TIM0), readl(fb->regs + CLCD_TIM1),
 		readl(fb->regs + CLCD_TIM2), readl(fb->regs + CLCD_TIM3),
 		readl(fb->regs + CLCD_UBAS), readl(fb->regs + CLCD_LBAS),
-		readl(fb->regs + CLCD_IENB), readl(fb->regs + CLCD_CNTL));
+		readl(fb->regs + fb->off_ienb), readl(fb->regs + fb->off_cntl));
 #endif
 
 	return 0;
@@ -345,6 +345,23 @@ static int clcdfb_register(struct clcd_fb *fb)
 {
 	int ret;
 
+	/*
+	 * ARM PL111 always has IENB at 0x1c; it's only PL110
+	 * which is reversed on some platforms.
+	 */
+	if (amba_manf(fb->dev) == 0x41 && amba_part(fb->dev) == 0x111) {
+		fb->off_ienb = CLCD_PL111_IENB;
+		fb->off_cntl = CLCD_PL111_CNTL;
+	} else {
+#ifdef CONFIG_ARCH_VERSATILE
+		fb->off_ienb = CLCD_PL111_IENB;
+		fb->off_cntl = CLCD_PL111_CNTL;
+#else
+		fb->off_ienb = CLCD_PL110_IENB;
+		fb->off_cntl = CLCD_PL110_CNTL;
+#endif
+	}
+
 	fb->clk = clk_get(&fb->dev->dev, NULL);
 	if (IS_ERR(fb->clk)) {
 		ret = PTR_ERR(fb->clk);
@@ -416,7 +433,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	/*
 	 * Ensure interrupts are disabled.
 	 */
-	writel(0, fb->regs + CLCD_IENB);
+	writel(0, fb->regs + fb->off_ienb);
 
 	fb_set_var(&fb->fb, &fb->fb.var);
 

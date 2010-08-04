@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>

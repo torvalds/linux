@@ -65,110 +65,344 @@ enum {
 	CONF_HW_RATE_INDEX_MAX     = CONF_HW_RATE_INDEX_54MBPS,
 };
 
+enum {
+	CONF_HW_RXTX_RATE_MCS7 = 0,
+	CONF_HW_RXTX_RATE_MCS6,
+	CONF_HW_RXTX_RATE_MCS5,
+	CONF_HW_RXTX_RATE_MCS4,
+	CONF_HW_RXTX_RATE_MCS3,
+	CONF_HW_RXTX_RATE_MCS2,
+	CONF_HW_RXTX_RATE_MCS1,
+	CONF_HW_RXTX_RATE_MCS0,
+	CONF_HW_RXTX_RATE_54,
+	CONF_HW_RXTX_RATE_48,
+	CONF_HW_RXTX_RATE_36,
+	CONF_HW_RXTX_RATE_24,
+	CONF_HW_RXTX_RATE_22,
+	CONF_HW_RXTX_RATE_18,
+	CONF_HW_RXTX_RATE_12,
+	CONF_HW_RXTX_RATE_11,
+	CONF_HW_RXTX_RATE_9,
+	CONF_HW_RXTX_RATE_6,
+	CONF_HW_RXTX_RATE_5_5,
+	CONF_HW_RXTX_RATE_2,
+	CONF_HW_RXTX_RATE_1,
+	CONF_HW_RXTX_RATE_MAX,
+	CONF_HW_RXTX_RATE_UNSUPPORTED = 0xff
+};
+
+enum {
+	CONF_SG_DISABLE = 0,
+	CONF_SG_PROTECTIVE,
+	CONF_SG_OPPORTUNISTIC
+};
+
+enum {
+	/*
+	 * PER threshold in PPM of the BT voice
+	 *
+	 * Range: 0 - 10000000
+	 */
+	CONF_SG_BT_PER_THRESHOLD = 0,
+
+	/*
+	 * Number of consequent RX_ACTIVE activities to override BT voice
+	 * frames to ensure WLAN connection
+	 *
+	 * Range: 0 - 100
+	 */
+	CONF_SG_HV3_MAX_OVERRIDE,
+
+	/*
+	 * Defines the PER threshold of the BT voice
+	 *
+	 * Range: 0 - 65000
+	 */
+	CONF_SG_BT_NFS_SAMPLE_INTERVAL,
+
+	/*
+	 * Defines the load ratio of BT
+	 *
+	 * Range: 0 - 100 (%)
+	 */
+	CONF_SG_BT_LOAD_RATIO,
+
+	/*
+	 * Defines whether the SG will force WLAN host to enter/exit PSM
+	 *
+	 * Range: 1 - SG can force, 0 - host handles PSM
+	 */
+	CONF_SG_AUTO_PS_MODE,
+
+	/*
+	 * Compensation percentage of probe requests when scan initiated
+	 * during BT voice/ACL link.
+	 *
+	 * Range: 0 - 255 (%)
+	 */
+	CONF_SG_AUTO_SCAN_PROBE_REQ,
+
+	/*
+	 * Compensation percentage of probe requests when active scan initiated
+	 * during BT voice
+	 *
+	 * Range: 0 - 255 (%)
+	 */
+	CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3,
+
+	/*
+	 * Defines antenna configuration (single/dual antenna)
+	 *
+	 * Range: 0 - single antenna, 1 - dual antenna
+	 */
+	CONF_SG_ANTENNA_CONFIGURATION,
+
+	/*
+	 * The threshold (percent) of max consequtive beacon misses before
+	 * increasing priority of beacon reception.
+	 *
+	 * Range: 0 - 100 (%)
+	 */
+	CONF_SG_BEACON_MISS_PERCENT,
+
+	/*
+	 * The rate threshold below which receiving a data frame from the AP
+	 * will increase the priority of the data frame above BT traffic.
+	 *
+	 * Range: 0,2, 5(=5.5), 6, 9, 11, 12, 18, 24, 36, 48, 54
+	 */
+	CONF_SG_RATE_ADAPT_THRESH,
+
+	/*
+	 * Not used currently.
+	 *
+	 * Range: 0
+	 */
+	CONF_SG_RATE_ADAPT_SNR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN PSM / BT master basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_BT_ACL_MASTER_MIN_BR,
+	CONF_SG_WLAN_PS_BT_ACL_MASTER_MAX_BR,
+
+	/*
+	 * The time after it expires no new WLAN trigger frame is trasmitted
+	 * in WLAN PSM / BT master basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_MAX_BT_ACL_MASTER_BR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN PSM / BT slave basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_BT_ACL_SLAVE_MIN_BR,
+	CONF_SG_WLAN_PS_BT_ACL_SLAVE_MAX_BR,
+
+	/*
+	 * The time after it expires no new WLAN trigger frame is trasmitted
+	 * in WLAN PSM / BT slave basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_MAX_BT_ACL_SLAVE_BR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN PSM / BT master EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_BT_ACL_MASTER_MIN_EDR,
+	CONF_SG_WLAN_PS_BT_ACL_MASTER_MAX_EDR,
+
+	/*
+	 * The time after it expires no new WLAN trigger frame is trasmitted
+	 * in WLAN PSM / BT master EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_MAX_BT_ACL_MASTER_EDR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN PSM / BT slave EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_BT_ACL_SLAVE_MIN_EDR,
+	CONF_SG_WLAN_PS_BT_ACL_SLAVE_MAX_EDR,
+
+	/*
+	 * The time after it expires no new WLAN trigger frame is trasmitted
+	 * in WLAN PSM / BT slave EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_PS_MAX_BT_ACL_SLAVE_EDR,
+
+	/*
+	 * RX guard time before the beginning of a new BT voice frame during
+	 * which no new WLAN trigger frame is transmitted.
+	 *
+	 * Range: 0 - 100000 (us)
+	 */
+	CONF_SG_RXT,
+
+	/*
+	 * TX guard time before the beginning of a new BT voice frame during
+	 * which no new WLAN frame is transmitted.
+	 *
+	 * Range: 0 - 100000 (us)
+	 */
+
+	CONF_SG_TXT,
+
+	/*
+	 * Enable adaptive RXT/TXT algorithm. If disabled, the host values
+	 * will be utilized.
+	 *
+	 * Range: 0 - disable, 1 - enable
+	 */
+	CONF_SG_ADAPTIVE_RXT_TXT,
+
+	/*
+	 * The used WLAN legacy service period during active BT ACL link
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_PS_POLL_TIMEOUT,
+
+	/*
+	 * The used WLAN UPSD service period during active BT ACL link
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_UPSD_TIMEOUT,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN Active / BT master EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_BT_ACL_MASTER_MIN_EDR,
+	CONF_SG_WLAN_ACTIVE_BT_ACL_MASTER_MAX_EDR,
+
+	/*
+	 * The maximum time WLAN can gain the antenna for
+	 * in WLAN Active / BT master EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_MAX_BT_ACL_MASTER_EDR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN Active / BT slave EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_BT_ACL_SLAVE_MIN_EDR,
+	CONF_SG_WLAN_ACTIVE_BT_ACL_SLAVE_MAX_EDR,
+
+	/*
+	 * The maximum time WLAN can gain the antenna for
+	 * in WLAN Active / BT slave EDR
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_MAX_BT_ACL_SLAVE_EDR,
+
+	/*
+	 * Configure the min and max time BT gains the antenna
+	 * in WLAN Active / BT basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_BT_ACL_MIN_BR,
+	CONF_SG_WLAN_ACTIVE_BT_ACL_MAX_BR,
+
+	/*
+	 * The maximum time WLAN can gain the antenna for
+	 * in WLAN Active / BT basic rate
+	 *
+	 * Range: 0 - 255 (ms)
+	 */
+	CONF_SG_WLAN_ACTIVE_MAX_BT_ACL_BR,
+
+	/*
+	 * Compensation percentage of WLAN passive scan window if initiated
+	 * during BT voice
+	 *
+	 * Range: 0 - 1000 (%)
+	 */
+	CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_HV3,
+
+	/*
+	 * Compensation percentage of WLAN passive scan window if initiated
+	 * during BT A2DP
+	 *
+	 * Range: 0 - 1000 (%)
+	 */
+	CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_A2DP,
+
+	/*
+	 * Fixed time ensured for BT traffic to gain the antenna during WLAN
+	 * passive scan.
+	 *
+	 * Range: 0 - 1000 ms
+	 */
+	CONF_SG_PASSIVE_SCAN_A2DP_BT_TIME,
+
+	/*
+	 * Fixed time ensured for WLAN traffic to gain the antenna during WLAN
+	 * passive scan.
+	 *
+	 * Range: 0 - 1000 ms
+	 */
+	CONF_SG_PASSIVE_SCAN_A2DP_WLAN_TIME,
+
+	/*
+	 * Number of consequent BT voice frames not interrupted by WLAN
+	 *
+	 * Range: 0 - 100
+	 */
+	CONF_SG_HV3_MAX_SERVED,
+
+	/*
+	 * Protection time of the DHCP procedure.
+	 *
+	 * Range: 0 - 100000 (ms)
+	 */
+	CONF_SG_DHCP_TIME,
+
+	/*
+	 * Compensation percentage of WLAN active scan window if initiated
+	 * during BT A2DP
+	 *
+	 * Range: 0 - 1000 (%)
+	 */
+	CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_A2DP,
+	CONF_SG_TEMP_PARAM_1,
+	CONF_SG_TEMP_PARAM_2,
+	CONF_SG_TEMP_PARAM_3,
+	CONF_SG_TEMP_PARAM_4,
+	CONF_SG_TEMP_PARAM_5,
+	CONF_SG_PARAMS_MAX,
+	CONF_SG_PARAMS_ALL = 0xff
+};
+
 struct conf_sg_settings {
-	/*
-	 * Defines the PER threshold in PPM of the BT voice of which reaching
-	 * this value will trigger raising the priority of the BT voice by
-	 * the BT IP until next NFS sample interval time as defined in
-	 * nfs_sample_interval.
-	 *
-	 * Unit: PER value in PPM (parts per million)
-	 * #Error_packets / #Total_packets
-
-	 * Range: u32
-	 */
-	u32 per_threshold;
-
-	/*
-	 * This value is an absolute time in micro-seconds to limit the
-	 * maximum scan duration compensation while in SG
-	 */
-	u32 max_scan_compensation_time;
-
-	/* Defines the PER threshold of the BT voice of which reaching this
-	 * value will trigger raising the priority of the BT voice until next
-	 * NFS sample interval time as defined in sample_interval.
-	 *
-	 * Unit: msec
-	 * Range: 1-65000
-	 */
-	u16 nfs_sample_interval;
-
-	/*
-	 * Defines the load ratio for the BT.
-	 * The WLAN ratio is: 100 - load_ratio
-	 *
-	 * Unit: Percent
-	 * Range: 0-100
-	 */
-	u8 load_ratio;
-
-	/*
-	 * true - Co-ex is allowed to enter/exit P.S automatically and
-	 *        transparently to the host
-	 *
-	 * false - Co-ex is disallowed to enter/exit P.S and will trigger an
-	 *         event to the host to notify for the need to enter/exit P.S
-	 *         due to BT change state
-	 *
-	 */
-	u8 auto_ps_mode;
-
-	/*
-	 * This parameter defines the compensation percentage of num of probe
-	 * requests in case scan is initiated during BT voice/BT ACL
-	 * guaranteed link.
-	 *
-	 * Unit: Percent
-	 * Range: 0-255 (0 - No compensation)
-	 */
-	u8 probe_req_compensation;
-
-	/*
-	 * This parameter defines the compensation percentage of scan window
-	 * size in case scan is initiated during BT voice/BT ACL Guaranteed
-	 * link.
-	 *
-	 * Unit: Percent
-	 * Range: 0-255 (0 - No compensation)
-	 */
-	u8 scan_window_compensation;
-
-	/*
-	 * Defines the antenna configuration.
-	 *
-	 * Range: 0 - Single Antenna; 1 - Dual Antenna
-	 */
-	u8 antenna_config;
-
-	/*
-	 * The percent out of the Max consecutive beacon miss roaming trigger
-	 * which is the threshold for raising the priority of beacon
-	 * reception.
-	 *
-	 * Range: 1-100
-	 * N = MaxConsecutiveBeaconMiss
-	 * P = coexMaxConsecutiveBeaconMissPrecent
-	 * Threshold = MIN( N-1, round(N * P / 100))
-	 */
-	u8 beacon_miss_threshold;
-
-	/*
-	 * The RX rate threshold below which rate adaptation is assumed to be
-	 * occurring at the AP which will raise priority for ACTIVE_RX and RX
-	 * SP.
-	 *
-	 * Range: HW_BIT_RATE_*
-	 */
-	u32 rate_adaptation_threshold;
-
-	/*
-	 * The SNR above which the RX rate threshold indicating AP rate
-	 * adaptation is valid
-	 *
-	 * Range: -128 - 127
-	 */
-	s8 rate_adaptation_snr;
+	u32 params[CONF_SG_PARAMS_MAX];
+	u8 state;
 };
 
 enum conf_rx_queue_type {
@@ -258,7 +492,8 @@ struct conf_rx_settings {
 #define CONF_TX_MAX_RATE_CLASSES       8
 
 #define CONF_TX_RATE_MASK_UNSPECIFIED  0
-#define CONF_TX_RATE_MASK_ALL          0x1eff
+#define CONF_TX_RATE_MASK_BASIC        (CONF_HW_BIT_RATE_1MBPS | \
+					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 struct conf_tx_rate_class {
@@ -439,6 +674,19 @@ struct conf_tx_settings {
 	 */
 	u16 tx_compl_threshold;
 
+	/*
+	 * The rate used for control messages and scanning on the 2.4GHz band
+	 *
+	 * Range: CONF_HW_BIT_RATE_* bit mask
+	 */
+	u32 basic_rate;
+
+	/*
+	 * The rate used for control messages and scanning on the 5GHz band
+	 *
+	 * Range: CONF_HW_BIT_RATE_* bit mask
+	 */
+	u32 basic_rate_5;
 };
 
 enum {
@@ -506,65 +754,6 @@ enum {
 	CONF_TRIG_EVENT_DIR_LOW = 0,
 	CONF_TRIG_EVENT_DIR_HIGH,
 	CONF_TRIG_EVENT_DIR_BIDIR
-};
-
-
-struct conf_sig_trigger {
-	/*
-	 * The RSSI / SNR threshold value.
-	 *
-	 * FIXME: what is the range?
-	 */
-	s16 threshold;
-
-	/*
-	 * Minimum delay between two trigger events for this trigger in ms.
-	 *
-	 * Range: 0 - 60000
-	 */
-	u16 pacing;
-
-	/*
-	 * The measurement data source for this trigger.
-	 *
-	 * Range: CONF_TRIG_METRIC_*
-	 */
-	u8 metric;
-
-	/*
-	 * The trigger type of this trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_TYPE_*
-	 */
-	u8 type;
-
-	/*
-	 * The direction of the trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_DIR_*
-	 */
-	u8 direction;
-
-	/*
-	 * Hysteresis range of the trigger around the threshold (in dB)
-	 *
-	 * Range: u8
-	 */
-	u8 hysteresis;
-
-	/*
-	 * Index of the trigger rule.
-	 *
-	 * Range: 0 - CONF_MAX_RSSI_SNR_TRIGGERS-1
-	 */
-	u8 index;
-
-	/*
-	 * Enable / disable this rule (to use for clearing rules.)
-	 *
-	 * Range: 1 - Enabled, 2 - Not enabled
-	 */
-	u8 enable;
 };
 
 struct conf_sig_weights {
@@ -685,12 +874,6 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
-	 * Configuration of signal (rssi/snr) triggers.
-	 */
-	u8 sig_trigger_count;
-	struct conf_sig_trigger sig_trigger[CONF_MAX_RSSI_SNR_TRIGGERS];
-
-	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
@@ -720,31 +903,22 @@ struct conf_conn_settings {
 	 * Range 0 - 255
 	 */
 	u8 psm_entry_retries;
-};
-
-#define CONF_SR_ERR_TBL_MAX_VALUES   14
-
-struct conf_mart_reflex_err_table {
-	/*
-	 * Length of the error table values table.
-	 *
-	 * Range: 0 - CONF_SR_ERR_TBL_MAX_VALUES
-	 */
-	u8 len;
 
 	/*
-	 * Smart Reflex error table upper limit.
 	 *
-	 * Range: s8
+	 * Specifies the interval of the connection keep-alive null-func
+	 * frame in ms.
+	 *
+	 * Range: 1000 - 3600000
 	 */
-	s8 upper_limit;
+	u32 keep_alive_interval;
 
 	/*
-	 * Smart Reflex error table values.
+	 * Maximum listen interval supported by the driver in units of beacons.
 	 *
-	 * Range: s8
+	 * Range: u16
 	 */
-	s8 values[CONF_SR_ERR_TBL_MAX_VALUES];
+	u8 max_listen_interval;
 };
 
 enum {
@@ -759,64 +933,6 @@ enum single_dual_band_enum {
 	CONF_DUAL_BAND
 };
 
-struct conf_general_parms {
-	/*
-	 * RF Reference Clock type / speed
-	 *
-	 * Range: CONF_REF_CLK_*
-	 */
-	u8 ref_clk;
-
-	/*
-	 * Settling time of the reference clock after boot.
-	 *
-	 * Range: u8
-	 */
-	u8 settling_time;
-
-	/*
-	 * Flag defining whether clock is valid on wakeup.
-	 *
-	 * Range: 0 - not valid on wakeup, 1 - valid on wakeup
-	 */
-	u8 clk_valid_on_wakeup;
-
-	/*
-	 * DC-to-DC mode.
-	 *
-	 * Range: Unknown
-	 */
-	u8 dc2dcmode;
-
-	/*
-	 * Flag defining whether used as single or dual-band.
-	 *
-	 * Range: CONF_SINGLE_BAND, CONF_DUAL_BAND
-	 */
-	u8 single_dual_band;
-
-	/*
-	 * TX bip fem autodetect flag.
-	 *
-	 * Range: Unknown
-	 */
-	u8 tx_bip_fem_autodetect;
-
-	/*
-	 * TX bip gem manufacturer.
-	 *
-	 * Range: Unknown
-	 */
-	u8 tx_bip_fem_manufacturer;
-
-	/*
-	 * Settings flags.
-	 *
-	 * Range: Unknown
-	 */
-	u8 settings;
-};
-
 #define CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE 15
 #define CONF_NUMBER_OF_SUB_BANDS_5  7
 #define CONF_NUMBER_OF_RATE_GROUPS  6
@@ -825,87 +941,80 @@ struct conf_general_parms {
 
 struct conf_radio_parms {
 	/*
-	 * Static radio parameters for 2.4GHz
+	 * FEM parameter set to use
 	 *
-	 * Range: unknown
+	 * Range: 0 or 1
 	 */
-	u8 rx_trace_loss;
-	u8 tx_trace_loss;
-	s8 rx_rssi_and_proc_compens[CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE];
-
-	/*
-	 * Static radio parameters for 5GHz
-	 *
-	 * Range: unknown
-	 */
-	u8 rx_trace_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	u8 tx_trace_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8 rx_rssi_and_proc_compens_5[CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE];
-
-	/*
-	 * Dynamic radio parameters for 2.4GHz
-	 *
-	 * Range: unknown
-	 */
-	s16 tx_ref_pd_voltage;
-	s8  tx_ref_power;
-	s8  tx_offset_db;
-
-	s8  tx_rate_limits_normal[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  tx_rate_limits_degraded[CONF_NUMBER_OF_RATE_GROUPS];
-
-	s8  tx_channel_limits_11b[CONF_NUMBER_OF_CHANNELS_2_4];
-	s8  tx_channel_limits_ofdm[CONF_NUMBER_OF_CHANNELS_2_4];
-	s8  tx_pdv_rate_offsets[CONF_NUMBER_OF_RATE_GROUPS];
-
-	u8  tx_ibias[CONF_NUMBER_OF_RATE_GROUPS];
-	u8  rx_fem_insertion_loss;
-
-	/*
-	 * Dynamic radio parameters for 5GHz
-	 *
-	 * Range: unknown
-	 */
-	s16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
-
-	s8  tx_rate_limits_normal_5[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  tx_rate_limits_degraded_5[CONF_NUMBER_OF_RATE_GROUPS];
-
-	s8  tx_channel_limits_ofdm_5[CONF_NUMBER_OF_CHANNELS_5];
-	s8  tx_pdv_rate_offsets_5[CONF_NUMBER_OF_RATE_GROUPS];
-
-	/* FIXME: this is inconsistent with the types for 2.4GHz */
-	s8  tx_ibias_5[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  rx_fem_insertion_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u8 fem;
 };
 
-#define CONF_SR_ERR_TBL_COUNT        3
-
 struct conf_init_settings {
-	/*
-	 * Configure Smart Reflex error table values.
-	 */
-	struct conf_mart_reflex_err_table sr_err_tbl[CONF_SR_ERR_TBL_COUNT];
-
-	/*
-	 * Smart Reflex enable flag.
-	 *
-	 * Range: 1 - Smart Reflex enabled, 0 - Smart Reflex disabled
-	 */
-	u8 sr_enable;
-
-	/*
-	 * Configure general parameters.
-	 */
-	struct conf_general_parms genparam;
-
 	/*
 	 * Configure radio parameters.
 	 */
 	struct conf_radio_parms radioparam;
 
+};
+
+struct conf_itrim_settings {
+	/* enable dco itrim */
+	u8 enable;
+
+	/* moderation timeout in microsecs from the last TX */
+	u32 timeout;
+};
+
+struct conf_pm_config_settings {
+	/*
+	 * Host clock settling time
+	 *
+	 * Range: 0 - 30000 us
+	 */
+	u32 host_clk_settling_time;
+
+	/*
+	 * Host fast wakeup support
+	 *
+	 * Range: true, false
+	 */
+	bool host_fast_wakeup_support;
+};
+
+struct conf_roam_trigger_settings {
+	/*
+	 * The minimum interval between two trigger events.
+	 *
+	 * Range: 0 - 60000 ms
+	 */
+	u16 trigger_pacing;
+
+	/*
+	 * The weight for rssi/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_beacon;
+
+	/*
+	 * The weight for rssi/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_data;
+
+	/*
+	 * The weight for snr/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_beacon;
+
+	/*
+	 * The weight for snr/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_data;
 };
 
 struct conf_drv_settings {
@@ -914,6 +1023,9 @@ struct conf_drv_settings {
 	struct conf_tx_settings tx;
 	struct conf_conn_settings conn;
 	struct conf_init_settings init;
+	struct conf_itrim_settings itrim;
+	struct conf_pm_config_settings pm_config;
+	struct conf_roam_trigger_settings roam_trigger;
 };
 
 #endif

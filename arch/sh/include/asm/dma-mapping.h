@@ -89,8 +89,6 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
 
-	WARN_ON(irqs_disabled());	/* for portability */
-
 	if (dma_release_from_coherent(dev, get_order(size), vaddr))
 		return;
 

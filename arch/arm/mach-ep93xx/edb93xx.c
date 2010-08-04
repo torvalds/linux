@@ -74,7 +74,7 @@ static void __init edb93xx_register_flash(void)
 	}
 }
 
-static struct ep93xx_eth_data edb93xx_eth_data = {
+static struct ep93xx_eth_data __initdata edb93xx_eth_data = {
 	.phy_id		= 1,
 };
 
@@ -82,7 +82,7 @@ static struct ep93xx_eth_data edb93xx_eth_data = {
 /*************************************************************************
  * EDB93xx i2c peripheral handling
  *************************************************************************/
-static struct i2c_gpio_platform_data edb93xx_i2c_gpio_data = {
+static struct i2c_gpio_platform_data __initdata edb93xx_i2c_gpio_data = {
 	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
 	.sda_is_open_drain	= 0,
 	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
@@ -118,12 +118,33 @@ static void __init edb93xx_register_i2c(void)
 	}
 }
 
+
+/*************************************************************************
+ * EDB93xx pwm
+ *************************************************************************/
+static void __init edb93xx_register_pwm(void)
+{
+	if (machine_is_edb9301() ||
+	    machine_is_edb9302() || machine_is_edb9302a()) {
+		/* EP9301 and EP9302 only have pwm.1 (EGPIO14) */
+		ep93xx_register_pwm(0, 1);
+	} else if (machine_is_edb9307() || machine_is_edb9307a()) {
+		/* EP9307 only has pwm.0 (PWMOUT) */
+		ep93xx_register_pwm(1, 0);
+	} else {
+		/* EP9312 and EP9315 have both */
+		ep93xx_register_pwm(1, 1);
+	}
+}
+
+
 static void __init edb93xx_init_machine(void)
 {
 	ep93xx_init_devices();
 	edb93xx_register_flash();
 	ep93xx_register_eth(&edb93xx_eth_data, 1);
 	edb93xx_register_i2c();
+	edb93xx_register_pwm();
 }
 
 

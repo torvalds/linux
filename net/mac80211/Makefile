@@ -6,10 +6,10 @@ mac80211-y := \
 	sta_info.o \
 	wep.o \
 	wpa.o \
-	scan.o \
+	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
 	ibss.o \
-	mlme.o \
+	mlme.o work.o \
 	iface.o \
 	rate.o \
 	michael.o \
@@ -23,7 +23,8 @@ mac80211-y := \
 	key.o \
 	util.o \
 	wme.o \
-	event.o
+	event.o \
+	chan.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \

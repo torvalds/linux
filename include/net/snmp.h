@@ -32,7 +32,7 @@
  *  - name of entries.
  */
 struct snmp_mib {
-	char *name;
+	const char *name;
 	int entry;
 };
 
@@ -52,26 +52,11 @@ struct snmp_mib {
  * count on the 20Gb/s + networks people expect in a few years time!
  */
 
-/* 
- * The rule for padding: 
- * Best is power of two because then the right structure can be found by a 
- * simple shift. The structure should be always cache line aligned.
- * gcc needs n=alignto(cachelinesize, popcnt(sizeof(bla_mib))) shift/add 
- * instructions to emulate multiply in case it is not power-of-two. 
- * Currently n is always <=3 for all sizes so simple cache line alignment 
- * is enough. 
- * 
- * The best solution would be a global CPU local area , especially on 64 
- * and 128byte cacheline machine it makes a *lot* of sense -AK
- */ 
-
-#define __SNMP_MIB_ALIGN__	____cacheline_aligned
-
 /* IPstats */
 #define IPSTATS_MIB_MAX	__IPSTATS_MIB_MAX
 struct ipstats_mib {
 	unsigned long	mibs[IPSTATS_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 /* ICMP */
 #define ICMP_MIB_DUMMY	__ICMP_MIB_MAX
@@ -79,36 +64,36 @@ struct ipstats_mib {
 
 struct icmp_mib {
 	unsigned long	mibs[ICMP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 #define ICMPMSG_MIB_MAX	__ICMPMSG_MIB_MAX
 struct icmpmsg_mib {
 	unsigned long	mibs[ICMPMSG_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 /* ICMP6 (IPv6-ICMP) */
 #define ICMP6_MIB_MAX	__ICMP6_MIB_MAX
 struct icmpv6_mib {
 	unsigned long	mibs[ICMP6_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 #define ICMP6MSG_MIB_MAX  __ICMP6MSG_MIB_MAX
 struct icmpv6msg_mib {
 	unsigned long	mibs[ICMP6MSG_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 
 /* TCP */
 #define TCP_MIB_MAX	__TCP_MIB_MAX
 struct tcp_mib {
 	unsigned long	mibs[TCP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 /* UDP */
 #define UDP_MIB_MAX	__UDP_MIB_MAX
 struct udp_mib {
 	unsigned long	mibs[UDP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 /* Linux */
 #define LINUX_MIB_MAX	__LINUX_MIB_MAX
@@ -129,9 +114,9 @@ struct linux_xfrm_mib {
  * nonlocked_atomic_inc() primitives -AK
  */ 
 #define DEFINE_SNMP_STAT(type, name)	\
-	__typeof__(type) *name[2]
+	__typeof__(type) __percpu *name[2]
 #define DECLARE_SNMP_STAT(type, name)	\
-	extern __typeof__(type) *name[2]
+	extern __typeof__(type) __percpu *name[2]
 
 #define SNMP_STAT_BHPTR(name)	(name[0])
 #define SNMP_STAT_USRPTR(name)	(name[1])
@@ -148,9 +133,15 @@ struct linux_xfrm_mib {
 			__this_cpu_add(mib[0]->mibs[field], addend)
 #define SNMP_ADD_STATS_USER(mib, field, addend)	\
 			this_cpu_add(mib[1]->mibs[field], addend)
+#define SNMP_ADD_STATS(mib, field, addend)	\
+			this_cpu_add(mib[!in_softirq()]->mibs[field], addend)
+/*
+ * Use "__typeof__(*mib[0]) *ptr" instead of "__typeof__(mib[0]) ptr"
+ * to make @ptr a non-percpu pointer.
+ */
 #define SNMP_UPD_PO_STATS(mib, basefield, addend)	\
 	do { \
-		__typeof__(mib[0]) ptr; \
+		__typeof__(*mib[0]) *ptr; \
 		preempt_disable(); \
 		ptr = this_cpu_ptr((mib)[!in_softirq()]); \
 		ptr->mibs[basefield##PKTS]++; \
@@ -159,7 +150,7 @@ struct linux_xfrm_mib {
 	} while (0)
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \
-		__typeof__(mib[0]) ptr = \
+		__typeof__(*mib[0]) *ptr = \
 			__this_cpu_ptr((mib)[!in_softirq()]); \
 		ptr->mibs[basefield##PKTS]++; \
 		ptr->mibs[basefield##OCTETS] += addend;\

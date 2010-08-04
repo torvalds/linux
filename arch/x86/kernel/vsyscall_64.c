@@ -301,7 +301,8 @@ static int __init vsyscall_init(void)
 	register_sysctl_table(kernel_root_table2);
 #endif
 	on_each_cpu(cpu_vsyscall_init, NULL, 1);
-	hotcpu_notifier(cpu_vsyscall_notifier, 0);
+	/* notifier priority > KVM */
+	hotcpu_notifier(cpu_vsyscall_notifier, 30);
 	return 0;
 }
 

@@ -808,7 +808,7 @@ BOOL RFbAL2230SelectChannel (DWORD_PTR dwIoBase, BYTE byChannel)
  *
  */
 BOOL RFbInit (
-    IN  PSDevice  pDevice
+    PSDevice  pDevice
     )
 {
 BOOL    bResult = TRUE;
@@ -846,7 +846,7 @@ BOOL    bResult = TRUE;
  *
  */
 BOOL RFbShutDown (
-    IN  PSDevice  pDevice
+    PSDevice  pDevice
     )
 {
 BOOL    bResult = TRUE;
@@ -997,9 +997,9 @@ BOOL RFvWriteWakeProgSyn (DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel)
  *
  */
 BOOL RFbSetPower (
-    IN  PSDevice  pDevice,
-    IN  UINT      uRATE,
-    IN  UINT      uCH
+    PSDevice  pDevice,
+    UINT      uRATE,
+    UINT      uCH
     )
 {
 BOOL    bResult = TRUE;
@@ -1136,9 +1136,9 @@ BYTE    byPwrdBm = 0;
  */
 
 BOOL RFbRawSetPower (
-    IN  PSDevice  pDevice,
-    IN  BYTE      byPwr,
-    IN  UINT      uRATE
+    PSDevice  pDevice,
+    BYTE      byPwr,
+    UINT      uRATE
     )
 {
 BOOL    bResult = TRUE;
@@ -1201,10 +1201,10 @@ DWORD   dwMax7230Pwr = 0;
  * Return Value: none
  *
 -*/
-VOID
+void
 RFvRSSITodBm (
-    IN  PSDevice pDevice,
-    IN  BYTE     byCurrRSSI,
+    PSDevice pDevice,
+    BYTE     byCurrRSSI,
     long *    pldBm
     )
 {

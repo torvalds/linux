@@ -38,6 +38,7 @@
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/bitops.h>
 #include <linux/dmi.h>
 
@@ -46,7 +47,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 
-#include "../core/hcd.h"
 #include "uhci-hcd.h"
 #include "pci-quirks.h"
 
@@ -735,6 +735,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 		uhci_hc_died(uhci);
 	uhci_scan_schedule(uhci);
 	spin_unlock_irq(&uhci->lock);
+	synchronize_irq(hcd->irq);
 
 	del_timer_sync(&uhci->fsbr_timer);
 	release_uhci(uhci);

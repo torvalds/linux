@@ -33,9 +33,12 @@
  * These hooks are not yet available in ppp_generic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/capability.h>
@@ -132,7 +135,7 @@ static void pppoatm_unassign_vcc(struct atm_vcc *atmvcc)
 static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
-	pr_debug("pppoatm push\n");
+	pr_debug("\n");
 	if (skb == NULL) {			/* VCC was closed */
 		pr_debug("removing ATMPPP VCC %p\n", pvcc);
 		pppoatm_unassign_vcc(atmvcc);
@@ -165,17 +168,17 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			pvcc->chan.mtu += LLC_LEN;
 			break;
 		}
-		pr_debug("Couldn't autodetect yet "
-		    "(skb: %02X %02X %02X %02X %02X %02X)\n",
-		    skb->data[0], skb->data[1], skb->data[2],
-		    skb->data[3], skb->data[4], skb->data[5]);
+		pr_debug("Couldn't autodetect yet (skb: %02X %02X %02X %02X %02X %02X)\n",
+			 skb->data[0], skb->data[1], skb->data[2],
+			 skb->data[3], skb->data[4], skb->data[5]);
 		goto error;
 	case e_vc:
 		break;
 	}
 	ppp_input(&pvcc->chan, skb);
 	return;
-    error:
+
+error:
 	kfree_skb(skb);
 	ppp_input_error(&pvcc->chan, 0);
 }
@@ -194,7 +197,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = chan_to_pvcc(chan);
 	ATM_SKB(skb)->vcc = pvcc->atmvcc;
-	pr_debug("pppoatm_send (skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
+	pr_debug("(skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
 	if (skb->data[0] == '\0' && (pvcc->flags & SC_COMP_PROT))
 		(void) skb_pull(skb, 1);
 	switch (pvcc->encaps) {		/* LLC encapsulation needed */
@@ -208,7 +211,8 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 				goto nospace;
 			}
 			kfree_skb(skb);
-			if ((skb = n) == NULL)
+			skb = n;
+			if (skb == NULL)
 				return DROP_PACKET;
 		} else if (!atm_may_send(pvcc->atmvcc, skb->truesize))
 			goto nospace;
@@ -226,11 +230,11 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 
 	atomic_add(skb->truesize, &sk_atm(ATM_SKB(skb)->vcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = ATM_SKB(skb)->vcc->atm_options;
-	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, ATM_SKB(skb)->vcc,
-	    ATM_SKB(skb)->vcc->dev);
+	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n",
+		 skb, ATM_SKB(skb)->vcc, ATM_SKB(skb)->vcc->dev);
 	return ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
 	    ? DROP_PACKET : 1;
-    nospace:
+nospace:
 	/*
 	 * We don't have space to send this SKB now, but we might have
 	 * already applied SC_COMP_PROT compression, so may need to undo
@@ -289,7 +293,8 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	    (be.encaps == e_vc ? 0 : LLC_LEN);
 	pvcc->wakeup_tasklet = tasklet_proto;
 	pvcc->wakeup_tasklet.data = (unsigned long) &pvcc->chan;
-	if ((err = ppp_register_channel(&pvcc->chan)) != 0) {
+	err = ppp_register_channel(&pvcc->chan);
+	if (err != 0) {
 		kfree(pvcc);
 		return err;
 	}

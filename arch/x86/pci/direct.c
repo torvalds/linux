@@ -27,7 +27,7 @@ static int pci_conf1_read(unsigned int seg, unsigned int bus,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	outl(PCI_CONF1_ADDRESS(bus, devfn, reg), 0xCF8);
 
@@ -43,7 +43,7 @@ static int pci_conf1_read(unsigned int seg, unsigned int bus,
 		break;
 	}
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }
@@ -56,7 +56,7 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
 	if ((bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	outl(PCI_CONF1_ADDRESS(bus, devfn, reg), 0xCF8);
 
@@ -72,7 +72,7 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
 		break;
 	}
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }
@@ -108,7 +108,7 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 	if (dev & 0x10) 
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	outb((u8)(0xF0 | (fn << 1)), 0xCF8);
 	outb((u8)bus, 0xCFA);
@@ -127,7 +127,7 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 
 	outb(0, 0xCF8);
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }
@@ -147,7 +147,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 	if (dev & 0x10) 
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	outb((u8)(0xF0 | (fn << 1)), 0xCF8);
 	outb((u8)bus, 0xCFA);
@@ -166,7 +166,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 
 	outb(0, 0xCF8);    
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }

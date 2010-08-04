@@ -21,6 +21,7 @@
  * option) any later version.
  *
  */
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <asm/io.h>
@@ -102,7 +103,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 	/* Check if we need to attach to a RGMII */
 	if (input < 0 || !rgmii_valid_mode(mode)) {
 		printk(KERN_ERR "%s: unsupported settings !\n",
-		       ofdev->node->full_name);
+		       ofdev->dev.of_node->full_name);
 		return -ENODEV;
 	}
 
@@ -112,7 +113,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
 	printk(KERN_NOTICE "%s: input %d in %s mode\n",
-	       ofdev->node->full_name, input, rgmii_mode_name(mode));
+	       ofdev->dev.of_node->full_name, input, rgmii_mode_name(mode));
 
 	++dev->users;
 
@@ -230,7 +231,7 @@ void *rgmii_dump_regs(struct of_device *ofdev, void *buf)
 static int __devinit rgmii_probe(struct of_device *ofdev,
 				 const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct rgmii_instance *dev;
 	struct resource regs;
 	int rc;
@@ -263,11 +264,11 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	}
 
 	/* Check for RGMII flags */
-	if (of_get_property(ofdev->node, "has-mdio", NULL))
+	if (of_get_property(ofdev->dev.of_node, "has-mdio", NULL))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	/* CAB lacks the right properties, fix this up */
-	if (of_device_is_compatible(ofdev->node, "ibm,rgmii-axon"))
+	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,rgmii-axon"))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	DBG2(dev, " Boot FER = 0x%08x, SSR = 0x%08x\n",
@@ -278,7 +279,7 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 
 	printk(KERN_INFO
 	       "RGMII %s initialized with%s MDIO support\n",
-	       ofdev->node->full_name,
+	       ofdev->dev.of_node->full_name,
 	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();
@@ -318,9 +319,11 @@ static struct of_device_id rgmii_match[] =
 };
 
 static struct of_platform_driver rgmii_driver = {
-	.name = "emac-rgmii",
-	.match_table = rgmii_match,
-
+	.driver = {
+		.name = "emac-rgmii",
+		.owner = THIS_MODULE,
+		.of_match_table = rgmii_match,
+	},
 	.probe = rgmii_probe,
 	.remove = rgmii_remove,
 };

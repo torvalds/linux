@@ -296,7 +296,7 @@ static inline u8 dccp_ndp_len(const u64 ndp)
 {
 	if (likely(ndp <= 0xFF))
 		return 1;
-	return likely(ndp <= USHORT_MAX) ? 2 : (ndp <= UINT_MAX ? 4 : 6);
+	return likely(ndp <= USHRT_MAX) ? 2 : (ndp <= UINT_MAX ? 4 : 6);
 }
 
 int dccp_insert_option(struct sock *sk, struct sk_buff *skb,

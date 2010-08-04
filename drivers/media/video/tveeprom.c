@@ -267,6 +267,21 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,                 "Xceive XC4000"},
 	{ TUNER_ABSENT,                 "Dibcom 7070"},
 	{ TUNER_PHILIPS_TDA8290,        "NXP 18271C2"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	/* 160-169 */
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_PHILIPS_FQ1236_MK5,	"TCL M30WTP-4N-E"},
+	{ TUNER_ABSENT,			"unknown"},
 };
 
 /* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are
@@ -680,10 +695,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	tveeprom_info("Hauppauge model %d, rev %s, serial# %d\n",
 		tvee->model, tvee->rev_str, tvee->serial_number);
 	if (tvee->has_MAC_address == 1)
-		tveeprom_info("MAC address is %02X-%02X-%02X-%02X-%02X-%02X\n",
-			tvee->MAC_address[0], tvee->MAC_address[1],
-			tvee->MAC_address[2], tvee->MAC_address[3],
-			tvee->MAC_address[4], tvee->MAC_address[5]);
+		tveeprom_info("MAC address is %pM\n", tvee->MAC_address);
 	tveeprom_info("tuner model is %s (idx %d, type %d)\n",
 		t_name1, tuner1, tvee->tuner_type);
 	tveeprom_info("TV standards%s%s%s%s%s%s%s%s (eeprom 0x%02x)\n",

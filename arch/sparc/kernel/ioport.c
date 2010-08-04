@@ -290,7 +290,7 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
-	res->name = op->node->name;
+	res->name = op->dev.of_node->name;
 
 	return (void *)(unsigned long)res->start;
 
@@ -675,17 +675,6 @@ int dma_supported(struct device *dev, u64 mask)
 	return 0;
 }
 EXPORT_SYMBOL(dma_supported);
-
-int dma_set_mask(struct device *dev, u64 dma_mask)
-{
-#ifdef CONFIG_PCI
-	if (dev->bus == &pci_bus_type)
-		return pci_set_dma_mask(to_pci_dev(dev), dma_mask);
-#endif
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(dma_set_mask);
-
 
 #ifdef CONFIG_PROC_FS
 

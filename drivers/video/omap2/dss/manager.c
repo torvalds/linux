@@ -23,6 +23,7 @@
 #define DSS_SUBSYS_NAME "MANAGER"
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -341,7 +342,7 @@ static ssize_t manager_attr_store(struct kobject *kobj, struct attribute *attr,
 	return manager_attr->store(manager, buf, size);
 }
 
-static struct sysfs_ops manager_sysfs_ops = {
+static const struct sysfs_ops manager_sysfs_ops = {
 	.show = manager_attr_show,
 	.store = manager_attr_store,
 };
@@ -501,6 +502,19 @@ static int omap_dss_unset_device(struct omap_overlay_manager *mgr)
 	return 0;
 }
 
+static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
+{
+	unsigned long timeout = msecs_to_jiffies(500);
+	u32 irq;
+
+	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC)
+		irq = DISPC_IRQ_EVSYNC_ODD;
+	else
+		irq = DISPC_IRQ_VSYNC;
+
+	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
+}
+
 static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
@@ -509,17 +523,18 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	u32 irq;
 	int r;
 	int i;
+	struct omap_dss_device *dssdev = mgr->device;
 
-	if (!mgr->device)
+	if (!dssdev)
 		return 0;
 
-	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
 		irq = DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
 		channel = OMAP_DSS_CHANNEL_DIGIT;
 	} else {
-		if (mgr->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
+		if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 			enum omap_dss_update_mode mode;
-			mode = mgr->device->get_update_mode(mgr->device);
+			mode = dssdev->driver->get_update_mode(dssdev);
 			if (mode != OMAP_DSS_UPDATE_AUTO)
 				return 0;
 
@@ -592,7 +607,7 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	} else {
 		if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 			enum omap_dss_update_mode mode;
-			mode = dssdev->get_update_mode(dssdev);
+			mode = dssdev->driver->get_update_mode(dssdev);
 			if (mode != OMAP_DSS_UPDATE_AUTO)
 				return 0;
 
@@ -828,6 +843,7 @@ static void configure_manager(enum omap_channel channel)
 
 	c = &dss_cache.manager_cache[channel];
 
+	dispc_set_default_color(channel, c->default_color);
 	dispc_set_trans_key(channel, c->trans_key_type, c->trans_key);
 	dispc_enable_trans_key(channel, c->trans_enabled);
 	dispc_enable_alpha_blending(channel, c->alpha_enabled);
@@ -925,6 +941,22 @@ static int configure_dispc(void)
 	return r;
 }
 
+/* Make the coordinates even. There are some strange problems with OMAP and
+ * partial DSI update when the update widths are odd. */
+static void make_even(u16 *x, u16 *w)
+{
+	u16 x1, x2;
+
+	x1 = *x;
+	x2 = *x + *w;
+
+	x1 &= ~1;
+	x2 = ALIGN(x2, 2);
+
+	*x = x1;
+	*w = x2 - x1;
+}
+
 /* Configure dispc for partial update. Return possibly modified update
  * area */
 void dss_setup_partial_planes(struct omap_dss_device *dssdev,
@@ -952,6 +984,8 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 		DSSDBG("no manager\n");
 		return;
 	}
+
+	make_even(&x, &w);
 
 	spin_lock_irqsave(&dss_cache.lock, flags);
 
@@ -1014,6 +1048,8 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 		w = x2 - x1;
 		h = y2 - y1;
 
+		make_even(&x, &w);
+
 		DSSDBG("changing upd area due to ovl(%d) scaling %d,%d %dx%d\n",
 				i, x, y, w, h);
 	}
@@ -1064,7 +1100,7 @@ void dss_start_update(struct omap_dss_device *dssdev)
 		mc->shadow_dirty = false;
 	}
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask)
@@ -1196,7 +1232,8 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		oc->manual_update =
 			dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE &&
-			dssdev->get_update_mode(dssdev) != OMAP_DSS_UPDATE_AUTO;
+			dssdev->driver->get_update_mode(dssdev) !=
+				OMAP_DSS_UPDATE_AUTO;
 
 		++num_planes_enabled;
 	}
@@ -1237,7 +1274,8 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		mc->manual_update =
 			dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE &&
-			dssdev->get_update_mode(dssdev) != OMAP_DSS_UPDATE_AUTO;
+			dssdev->driver->get_update_mode(dssdev) !=
+				OMAP_DSS_UPDATE_AUTO;
 	}
 
 	/* XXX TODO: Try to get fifomerge working. The problem is that it
@@ -1351,6 +1389,18 @@ static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
 	*info = mgr->info;
 }
 
+static int dss_mgr_enable(struct omap_overlay_manager *mgr)
+{
+	dispc_enable_channel(mgr->id, 1);
+	return 0;
+}
+
+static int dss_mgr_disable(struct omap_overlay_manager *mgr)
+{
+	dispc_enable_channel(mgr->id, 0);
+	return 0;
+}
+
 static void omap_dss_add_overlay_manager(struct omap_overlay_manager *manager)
 {
 	++num_managers;
@@ -1394,6 +1444,10 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->set_manager_info = &omap_dss_mgr_set_info;
 		mgr->get_manager_info = &omap_dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
+		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
+
+		mgr->enable = &dss_mgr_enable;
+		mgr->disable = &dss_mgr_disable;
 
 		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
 

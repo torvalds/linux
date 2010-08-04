@@ -24,8 +24,9 @@
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/ctype.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 
 #include <asm/prom.h>
 
@@ -722,7 +723,7 @@ static void os_area_queue_work(void)
  * flash to a high address in the boot memory region and then puts that RAM
  * address and the byte count into the repository for retrieval by the guest.
  * We copy the data we want into a static variable and allow the memory setup
- * by the HV to be claimed by the lmb manager.
+ * by the HV to be claimed by the memblock manager.
  *
  * The os area mirror will not be available to a second stage kernel, and
  * the header verify will fail.  In this case, the saved_params values will

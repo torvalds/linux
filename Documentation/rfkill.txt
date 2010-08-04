@@ -99,37 +99,15 @@ system. Also, it is possible to switch all rfkill drivers (or all drivers of
 a specified type) into a state which also updates the default state for
 hotplugged devices.
 
-After an application opens /dev/rfkill, it can read the current state of
-all devices, and afterwards can poll the descriptor for hotplug or state
-change events.
+After an application opens /dev/rfkill, it can read the current state of all
+devices. Changes can be either obtained by either polling the descriptor for
+hotplug or state change events or by listening for uevents emitted by the
+rfkill core framework.
 
-Applications must ignore operations (the "op" field) they do not handle,
-this allows the API to be extended in the future.
+Additionally, each rfkill device is registered in sysfs and emits uevents.
 
-Additionally, each rfkill device is registered in sysfs and there has the
-following attributes:
-
-	name: Name assigned by driver to this key (interface or driver name).
-	type: Driver type string ("wlan", "bluetooth", etc).
-	persistent: Whether the soft blocked state is initialised from
-	            non-volatile storage at startup.
-	state: Current state of the transmitter
-		0: RFKILL_STATE_SOFT_BLOCKED
-			transmitter is turned off by software
-		1: RFKILL_STATE_UNBLOCKED
-			transmitter is (potentially) active
-		2: RFKILL_STATE_HARD_BLOCKED
-			transmitter is forced off by something outside of
-			the driver's control.
-	       This file is deprecated because it can only properly show
-	       three of the four possible states, soft-and-hard-blocked is
-	       missing.
-	claim: 0: Kernel handles events
-	       This file is deprecated because there no longer is a way to
-	       claim just control over a single rfkill instance.
-
-rfkill devices also issue uevents (with an action of "change"), with the
-following environment variables set:
+rfkill devices issue uevents (with an action of "change"), with the following
+environment variables set:
 
 RFKILL_NAME
 RFKILL_STATE
@@ -137,3 +115,7 @@ RFKILL_TYPE
 
 The contents of these variables corresponds to the "name", "state" and
 "type" sysfs files explained above.
+
+
+For further details consult Documentation/ABI/stable/dev-rfkill and
+Documentation/ABI/stable/sysfs-class-rfkill.

@@ -174,7 +174,7 @@ static unsigned int sc1200_qc_issue(struct ata_queued_cmd *qc)
 		    	sc1200_set_dmamode(ap, adev);
 	}
 
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 /**
@@ -209,7 +209,7 @@ static struct scsi_host_template sc1200_sht = {
 
 static struct ata_port_operations sc1200_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.qc_prep 	= ata_sff_dumb_qc_prep,
+	.qc_prep 	= ata_bmdma_dumb_qc_prep,
 	.qc_issue	= sc1200_qc_issue,
 	.qc_defer	= sc1200_qc_defer,
 	.cable_detect	= ata_cable_40wire,
@@ -237,7 +237,7 @@ static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	return ata_pci_sff_init_one(dev, ppi, &sc1200_sht, NULL);
+	return ata_pci_bmdma_init_one(dev, ppi, &sc1200_sht, NULL, 0);
 }
 
 static const struct pci_device_id sc1200[] = {

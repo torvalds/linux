@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -311,7 +311,7 @@ acpi_ns_search_and_enter(u32 target_name,
 
 	if (!node || !target_name || !return_node) {
 		ACPI_ERROR((AE_INFO,
-			    "Null parameter: Node %p Name %X ReturnNode %p",
+			    "Null parameter: Node %p Name 0x%X ReturnNode %p",
 			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}

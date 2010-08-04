@@ -9,6 +9,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mcp23s08.h>
+#include <linux/slab.h>
 
 
 /* Registers are all 8 bits wide.

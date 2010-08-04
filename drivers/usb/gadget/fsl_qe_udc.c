@@ -2400,7 +2400,7 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
 static struct qe_udc __devinit *qe_udc_config(struct of_device *ofdev)
 {
 	struct qe_udc *udc;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	unsigned int tmp_addr = 0;
 	struct usb_device_para __iomem *usbpram;
 	unsigned int i;
@@ -2525,7 +2525,7 @@ static void qe_udc_release(struct device *dev)
 static int __devinit qe_udc_probe(struct of_device *ofdev,
 			const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct qe_ep *ep;
 	unsigned int ret = 0;
 	unsigned int i;
@@ -2749,7 +2749,7 @@ static int __devexit qe_udc_remove(struct of_device *ofdev)
 }
 
 /*-------------------------------------------------------------------------*/
-static struct of_device_id __devinitdata qe_udc_match[] = {
+static const struct of_device_id qe_udc_match[] __devinitconst = {
 	{
 		.compatible = "fsl,mpc8323-qe-usb",
 		.data = (void *)PORT_QE,
@@ -2768,8 +2768,11 @@ static struct of_device_id __devinitdata qe_udc_match[] = {
 MODULE_DEVICE_TABLE(of, qe_udc_match);
 
 static struct of_platform_driver udc_driver = {
-	.name           = (char *)driver_name,
-	.match_table    = qe_udc_match,
+	.driver = {
+		.name = (char *)driver_name,
+		.owner = THIS_MODULE,
+		.of_match_table = qe_udc_match,
+	},
 	.probe          = qe_udc_probe,
 	.remove         = __devexit_p(qe_udc_remove),
 #ifdef CONFIG_PM

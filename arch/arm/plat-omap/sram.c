@@ -53,7 +53,7 @@
 #define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
 #define OMAP4_SRAM_PUB_VA	(OMAP4_SRAM_VA + 0x4000)
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 #define SRAM_BOOTLOADER_SZ	0x00
 #else
 #define SRAM_BOOTLOADER_SZ	0x80
@@ -437,6 +437,20 @@ static inline int omap34xx_sram_init(void)
 }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP4
+int __init omap44xx_sram_init(void)
+{
+	printk(KERN_ERR "FIXME: %s not implemented\n", __func__);
+
+	return -ENODEV;
+}
+#else
+static inline int omap44xx_sram_init(void)
+{
+	return 0;
+}
+#endif
+
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
@@ -451,7 +465,7 @@ int __init omap_sram_init(void)
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();
 	else if (cpu_is_omap44xx())
-		omap34xx_sram_init(); /* FIXME: */
+		omap44xx_sram_init();
 
 	return 0;
 }

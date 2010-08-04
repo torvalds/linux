@@ -5,7 +5,7 @@
  * Author: Yanhua, yanh@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
- * Author: Wu zhangjin, wuzj@lemote.com
+ * Author: Wu zhangjin, wuzhangjin@gmail.com
  *
  * Reference: AMD Geode(TM) CS5536 Companion Device Data Book
  *

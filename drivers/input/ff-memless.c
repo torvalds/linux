@@ -25,6 +25,7 @@
 
 #define debug(format, arg...) pr_debug("ff-memless: " format "\n", ## arg)
 
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

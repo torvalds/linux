@@ -39,13 +39,6 @@ struct sysrq_key_op {
 
 #ifdef CONFIG_MAGIC_SYSRQ
 
-extern int sysrq_on(void);
-
-/*
- * Do not use this one directly:
- */
-extern int __sysrq_enabled;
-
 /* Generic SysRq interface -- you may call it from any device driver, supplying
  * ASCII code of the key, pointer to registers and kbd/tty structs (if they
  * are available -- else NULL's).
@@ -57,22 +50,23 @@ int register_sysrq_key(int key, struct sysrq_key_op *op);
 int unregister_sysrq_key(int key, struct sysrq_key_op *op);
 struct sysrq_key_op *__sysrq_get_key_op(int key);
 
+int sysrq_toggle_support(int enable_mask);
+
 #else
 
-static inline int sysrq_on(void)
-{
-	return 0;
-}
-static inline int __reterr(void)
-{
-	return -EINVAL;
-}
 static inline void handle_sysrq(int key, struct tty_struct *tty)
 {
 }
 
-#define register_sysrq_key(ig,nore) __reterr()
-#define unregister_sysrq_key(ig,nore) __reterr()
+static inline int register_sysrq_key(int key, struct sysrq_key_op *op)
+{
+	return -EINVAL;
+}
+
+static inline int unregister_sysrq_key(int key, struct sysrq_key_op *op)
+{
+	return -EINVAL;
+}
 
 #endif
 

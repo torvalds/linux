@@ -22,7 +22,10 @@
 #include <linux/io.h>
 #include <linux/bug.h>
 #include <linux/param.h>
+#include <linux/pci.h>
 #include <linux/cache.h>
+#include <linux/of_platform.h>
+#include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
@@ -54,12 +57,9 @@ void __init setup_arch(char **cmdline_p)
 
 	microblaze_cache_init();
 
-	enable_dcache();
-
-	invalidate_icache();
-	enable_icache();
-
 	setup_memory();
+
+	xilinx_pci_init();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
 	printk(KERN_NOTICE "Self modified code enable\n");
@@ -91,6 +91,12 @@ inline unsigned get_romfs_len(unsigned *addr)
 	return 0;
 }
 #endif	/* CONFIG_MTD_UCLINUX_EBSS */
+
+#if defined(CONFIG_EARLY_PRINTK) && defined(CONFIG_SERIAL_UARTLITE_CONSOLE)
+#define eprintk early_printk
+#else
+#define eprintk printk
+#endif
 
 void __init machine_early_init(const char *cmdline, unsigned int ram,
 		unsigned int fdt, unsigned int msr)
@@ -139,32 +145,32 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	setup_early_printk(NULL);
 #endif
 
-	early_printk("Ramdisk addr 0x%08x, ", ram);
+	eprintk("Ramdisk addr 0x%08x, ", ram);
 	if (fdt)
-		early_printk("FDT at 0x%08x\n", fdt);
+		eprintk("FDT at 0x%08x\n", fdt);
 	else
-		early_printk("Compiled-in FDT at 0x%08x\n",
+		eprintk("Compiled-in FDT at 0x%08x\n",
 					(unsigned int)_fdt_start);
 
 #ifdef CONFIG_MTD_UCLINUX
-	early_printk("Found romfs @ 0x%08x (0x%08x)\n",
+	eprintk("Found romfs @ 0x%08x (0x%08x)\n",
 			romfs_base, romfs_size);
-	early_printk("#### klimit %p ####\n", old_klimit);
+	eprintk("#### klimit %p ####\n", old_klimit);
 	BUG_ON(romfs_size < 0); /* What else can we do? */
 
-	early_printk("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
+	eprintk("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
 			romfs_size, romfs_base, (unsigned)&_ebss);
 
-	early_printk("New klimit: 0x%08x\n", (unsigned)klimit);
+	eprintk("New klimit: 0x%08x\n", (unsigned)klimit);
 #endif
 
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 	if (msr)
-		early_printk("!!!Your kernel has setup MSR instruction but "
+		eprintk("!!!Your kernel has setup MSR instruction but "
 				"CPU don't have it %d\n", msr);
 #else
 	if (!msr)
-		early_printk("!!!Your kernel not setup MSR instruction but "
+		eprintk("!!!Your kernel not setup MSR instruction but "
 				"CPU have it %d\n", msr);
 #endif
 
@@ -187,3 +193,37 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 #endif
+
+static int dflt_bus_notify(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	/* We are only intereted in device addition */
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	set_dma_ops(dev, &dma_direct_ops);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dflt_plat_bus_notifier = {
+	.notifier_call = dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static struct notifier_block dflt_of_bus_notifier = {
+	.notifier_call = dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static int __init setup_bus_notifier(void)
+{
+	bus_register_notifier(&platform_bus_type, &dflt_plat_bus_notifier);
+	bus_register_notifier(&of_platform_bus_type, &dflt_of_bus_notifier);
+
+	return 0;
+}
+
+arch_initcall(setup_bus_notifier);

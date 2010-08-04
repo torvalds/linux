@@ -13,6 +13,8 @@
 #include <linux/file.h>
 #include <linux/ctype.h>
 #include <linux/netdevice.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 
@@ -223,7 +225,6 @@ static const struct bin_table bin_net_ipv4_route_table[] = {
 	{ CTL_INT,	NET_IPV4_ROUTE_MTU_EXPIRES,		"mtu_expires" },
 	{ CTL_INT,	NET_IPV4_ROUTE_MIN_PMTU,		"min_pmtu" },
 	{ CTL_INT,	NET_IPV4_ROUTE_MIN_ADVMSS,		"min_adv_mss" },
-	{ CTL_INT,	NET_IPV4_ROUTE_SECRET_INTERVAL,		"secret_interval" },
 	{}
 };
 
@@ -1124,11 +1125,6 @@ out:
 	return result;
 }
 
-static unsigned hex_value(int ch)
-{
-	return isdigit(ch) ? ch - '0' : ((ch | 0x20) - 'a') + 10;
-}
-
 static ssize_t bin_uuid(struct file *file,
 	void __user *oldval, size_t oldlen, void __user *newval, size_t newlen)
 {
@@ -1156,7 +1152,8 @@ static ssize_t bin_uuid(struct file *file,
 			if (!isxdigit(str[0]) || !isxdigit(str[1]))
 				goto out;
 
-			uuid[i] = (hex_value(str[0]) << 4) | hex_value(str[1]);
+			uuid[i] = (hex_to_bin(str[0]) << 4) |
+					hex_to_bin(str[1]);
 			str += 2;
 			if (*str == '-')
 				str++;
@@ -1331,7 +1328,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	ssize_t result;
 	char *pathname;
 	int flags;
-	int acc_mode, fmode;
+	int acc_mode;
 
 	pathname = sysctl_getname(name, nlen, &table);
 	result = PTR_ERR(pathname);
@@ -1342,15 +1339,12 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (oldval && oldlen && newval && newlen) {
 		flags = O_RDWR;
 		acc_mode = MAY_READ | MAY_WRITE;
-		fmode = FMODE_READ | FMODE_WRITE;
 	} else if (newval && newlen) {
 		flags = O_WRONLY;
 		acc_mode = MAY_WRITE;
-		fmode = FMODE_WRITE;
 	} else if (oldval && oldlen) {
 		flags = O_RDONLY;
 		acc_mode = MAY_READ;
-		fmode = FMODE_READ;
 	} else {
 		result = 0;
 		goto out_putname;
@@ -1361,7 +1355,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (result)
 		goto out_putname;
 
-	result = may_open(&nd.path, acc_mode, fmode);
+	result = may_open(&nd.path, acc_mode, flags);
 	if (result)
 		goto out_putpath;
 

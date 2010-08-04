@@ -52,7 +52,7 @@
 static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t __iomem *fecp = fec->fecp;
+	struct fec __iomem *fecp = fec->fecp;
 	int i, ret = -1;
 
 	BUG_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
@@ -75,7 +75,7 @@ static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, u16 val)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t __iomem *fecp = fec->fecp;
+	struct fec __iomem *fecp = fec->fecp;
 	int i;
 
 	/* this must never happen */
@@ -124,7 +124,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->write = &fs_enet_fec_mii_write;
 	new_bus->reset = &fs_enet_fec_mii_reset;
 
-	ret = of_address_to_resource(ofdev->node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (ret)
 		goto out_res;
 
@@ -135,7 +135,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 		goto out_fec;
 
 	if (get_bus_freq) {
-		clock = get_bus_freq(ofdev->node);
+		clock = get_bus_freq(ofdev->dev.of_node);
 		if (!clock) {
 			/* Use maximum divider if clock is unknown */
 			dev_warn(&ofdev->dev, "could not determine IPS clock\n");
@@ -172,7 +172,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
 		goto out_free_irqs;
 
@@ -222,8 +222,11 @@ static struct of_device_id fs_enet_mdio_fec_match[] = {
 MODULE_DEVICE_TABLE(of, fs_enet_mdio_fec_match);
 
 static struct of_platform_driver fs_enet_fec_mdio_driver = {
-	.name = "fsl-fec-mdio",
-	.match_table = fs_enet_mdio_fec_match,
+	.driver = {
+		.name = "fsl-fec-mdio",
+		.owner = THIS_MODULE,
+		.of_match_table = fs_enet_mdio_fec_match,
+	},
 	.probe = fs_enet_mdio_probe,
 	.remove = fs_enet_mdio_remove,
 };

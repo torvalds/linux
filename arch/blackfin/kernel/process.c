@@ -11,6 +11,7 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
 #include <linux/fs.h>
@@ -96,13 +97,6 @@ void cpu_idle(void)
 		schedule();
 		preempt_disable();
 	}
-}
-
-/* Fill in the fpu structure for a core dump.  */
-
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpregs)
-{
-	return 1;
 }
 
 /*

@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/sigcontext.h>
 #include <asm/processor.h>
@@ -101,13 +102,36 @@ void __cpuinit fpu_init(void)
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */
-	if (cpu_has_xsave)
-		current_thread_info()->status = TS_XSAVE;
-	else
-		current_thread_info()->status = 0;
+	current_thread_info()->status = 0;
 	clear_used_math();
 }
 #endif	/* CONFIG_X86_64 */
+
+static void fpu_finit(struct fpu *fpu)
+{
+#ifdef CONFIG_X86_32
+	if (!HAVE_HWFP) {
+		finit_soft_fpu(&fpu->state->soft);
+		return;
+	}
+#endif
+
+	if (cpu_has_fxsr) {
+		struct i387_fxsave_struct *fx = &fpu->state->fxsave;
+
+		memset(fx, 0, xstate_size);
+		fx->cwd = 0x37f;
+		if (cpu_has_xmm)
+			fx->mxcsr = MXCSR_DEFAULT;
+	} else {
+		struct i387_fsave_struct *fp = &fpu->state->fsave;
+		memset(fp, 0, xstate_size);
+		fp->cwd = 0xffff037fu;
+		fp->swd = 0xffff0000u;
+		fp->twd = 0xffffffffu;
+		fp->fos = 0xffff0000u;
+	}
+}
 
 /*
  * The _current_ task is using the FPU for the first time
@@ -117,6 +141,8 @@ void __cpuinit fpu_init(void)
  */
 int init_fpu(struct task_struct *tsk)
 {
+	int ret;
+
 	if (tsk_used_math(tsk)) {
 		if (HAVE_HWFP && tsk == current)
 			unlazy_fpu(tsk);
@@ -126,44 +152,21 @@ int init_fpu(struct task_struct *tsk)
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	if (!tsk->thread.xstate) {
-		tsk->thread.xstate = kmem_cache_alloc(task_xstate_cachep,
-						      GFP_KERNEL);
-		if (!tsk->thread.xstate)
-			return -ENOMEM;
-	}
+	ret = fpu_alloc(&tsk->thread.fpu);
+	if (ret)
+		return ret;
 
-#ifdef CONFIG_X86_32
-	if (!HAVE_HWFP) {
-		memset(tsk->thread.xstate, 0, xstate_size);
-		finit_task(tsk);
-		set_stopped_child_used_math(tsk);
-		return 0;
-	}
-#endif
+	fpu_finit(&tsk->thread.fpu);
 
-	if (cpu_has_fxsr) {
-		struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
-
-		memset(fx, 0, xstate_size);
-		fx->cwd = 0x37f;
-		if (cpu_has_xmm)
-			fx->mxcsr = MXCSR_DEFAULT;
-	} else {
-		struct i387_fsave_struct *fp = &tsk->thread.xstate->fsave;
-		memset(fp, 0, xstate_size);
-		fp->cwd = 0xffff037fu;
-		fp->swd = 0xffff0000u;
-		fp->twd = 0xffffffffu;
-		fp->fos = 0xffff0000u;
-	}
-	/*
-	 * Only the device not available exception or ptrace can call init_fpu.
-	 */
 	set_stopped_child_used_math(tsk);
 	return 0;
 }
 
+/*
+ * The xstateregs_active() routine is the same as the fpregs_active() routine,
+ * as the "regset->n" for the xstate regset will be updated based on the feature
+ * capabilites supported by the xsave.
+ */
 int fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	return tsk_used_math(target) ? regset->n : 0;
@@ -188,7 +191,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		return ret;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.xstate->fxsave, 0, -1);
+				   &target->thread.fpu.state->fxsave, 0, -1);
 }
 
 int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
@@ -204,22 +207,82 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	set_stopped_child_used_math(target);
-
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.xstate->fxsave, 0, -1);
+				 &target->thread.fpu.state->fxsave, 0, -1);
 
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
-	target->thread.xstate->fxsave.mxcsr &= mxcsr_feature_mask;
+	target->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
 
 	/*
 	 * update the header bits in the xsave header, indicating the
 	 * presence of FP and SSE state.
 	 */
 	if (cpu_has_xsave)
-		target->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+		target->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+
+	return ret;
+}
+
+int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
+		unsigned int pos, unsigned int count,
+		void *kbuf, void __user *ubuf)
+{
+	int ret;
+
+	if (!cpu_has_xsave)
+		return -ENODEV;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	/*
+	 * Copy the 48bytes defined by the software first into the xstate
+	 * memory layout in the thread struct, so that we can copy the entire
+	 * xstateregs to the user using one user_regset_copyout().
+	 */
+	memcpy(&target->thread.fpu.state->fxsave.sw_reserved,
+	       xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
+
+	/*
+	 * Copy the xstate memory layout.
+	 */
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.state->xsave, 0, -1);
+	return ret;
+}
+
+int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
+		  unsigned int pos, unsigned int count,
+		  const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct xsave_hdr_struct *xsave_hdr;
+
+	if (!cpu_has_xsave)
+		return -ENODEV;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &target->thread.fpu.state->xsave, 0, -1);
+
+	/*
+	 * mxcsr reserved bits must be masked to zero for security reasons.
+	 */
+	target->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
+
+	xsave_hdr = &target->thread.fpu.state->xsave.xsave_hdr;
+
+	xsave_hdr->xstate_bv &= pcntxt_mask;
+	/*
+	 * These bits must be zero.
+	 */
+	xsave_hdr->reserved1[0] = xsave_hdr->reserved1[1] = 0;
 
 	return ret;
 }
@@ -299,7 +362,7 @@ static inline u32 twd_fxsr_to_i387(struct i387_fxsave_struct *fxsave)
 static void
 convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 {
-	struct i387_fxsave_struct *fxsave = &tsk->thread.xstate->fxsave;
+	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state->fxsave;
 	struct _fpreg *to = (struct _fpreg *) &env->st_space[0];
 	struct _fpxreg *from = (struct _fpxreg *) &fxsave->st_space[0];
 	int i;
@@ -339,7 +402,7 @@ static void convert_to_fxsr(struct task_struct *tsk,
 			    const struct user_i387_ia32_struct *env)
 
 {
-	struct i387_fxsave_struct *fxsave = &tsk->thread.xstate->fxsave;
+	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state->fxsave;
 	struct _fpreg *from = (struct _fpreg *) &env->st_space[0];
 	struct _fpxreg *to = (struct _fpxreg *) &fxsave->st_space[0];
 	int i;
@@ -379,7 +442,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	if (!cpu_has_fxsr) {
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					   &target->thread.xstate->fsave, 0,
+					   &target->thread.fpu.state->fsave, 0,
 					   -1);
 	}
 
@@ -404,14 +467,12 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	set_stopped_child_used_math(target);
-
 	if (!HAVE_HWFP)
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
 	if (!cpu_has_fxsr) {
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.xstate->fsave, 0, -1);
+					  &target->thread.fpu.state->fsave, 0, -1);
 	}
 
 	if (pos > 0 || count < sizeof(env))
@@ -426,7 +487,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP.
 	 */
 	if (cpu_has_xsave)
-		target->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
+		target->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
 	return ret;
 }
 
@@ -437,7 +498,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 static inline int save_i387_fsave(struct _fpstate_ia32 __user *buf)
 {
 	struct task_struct *tsk = current;
-	struct i387_fsave_struct *fp = &tsk->thread.xstate->fsave;
+	struct i387_fsave_struct *fp = &tsk->thread.fpu.state->fsave;
 
 	fp->status = fp->swd;
 	if (__copy_to_user(buf, fp, sizeof(struct i387_fsave_struct)))
@@ -448,7 +509,7 @@ static inline int save_i387_fsave(struct _fpstate_ia32 __user *buf)
 static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
 {
 	struct task_struct *tsk = current;
-	struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
+	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
 	struct user_i387_ia32_struct env;
 	int err = 0;
 
@@ -483,7 +544,7 @@ static int save_i387_xsave(void __user *buf)
 	 * header as well as change any contents in the memory layout.
 	 * xrestore as part of sigreturn will capture all the changes.
 	 */
-	tsk->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+	tsk->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
 
 	if (save_i387_fxsave(fx) < 0)
 		return -1;
@@ -535,7 +596,7 @@ static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
 {
 	struct task_struct *tsk = current;
 
-	return __copy_from_user(&tsk->thread.xstate->fsave, buf,
+	return __copy_from_user(&tsk->thread.fpu.state->fsave, buf,
 				sizeof(struct i387_fsave_struct));
 }
 
@@ -546,10 +607,10 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf,
 	struct user_i387_ia32_struct env;
 	int err;
 
-	err = __copy_from_user(&tsk->thread.xstate->fxsave, &buf->_fxsr_env[0],
+	err = __copy_from_user(&tsk->thread.fpu.state->fxsave, &buf->_fxsr_env[0],
 			       size);
 	/* mxcsr reserved bits must be masked to zero for security reasons */
-	tsk->thread.xstate->fxsave.mxcsr &= mxcsr_feature_mask;
+	tsk->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
 	if (err || __copy_from_user(&env, buf, sizeof(env)))
 		return 1;
 	convert_to_fxsr(tsk, &env);
@@ -565,7 +626,7 @@ static int restore_i387_xsave(void __user *buf)
 	struct i387_fxsave_struct __user *fx =
 		(struct i387_fxsave_struct __user *) &fx_user->_fxsr_env[0];
 	struct xsave_hdr_struct *xsave_hdr =
-				&current->thread.xstate->xsave.xsave_hdr;
+				&current->thread.fpu.state->xsave.xsave_hdr;
 	u64 mask;
 	int err;
 

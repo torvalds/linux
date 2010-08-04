@@ -24,6 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/err.h>
 #include <linux/mtd/mtd.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #define PRINT_PREF KERN_INFO "mtd_subpagetest: "
@@ -353,12 +354,11 @@ static int scan_for_bad_eraseblocks(void)
 {
 	int i, bad = 0;
 
-	bbt = kmalloc(ebcnt, GFP_KERNEL);
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
 	if (!bbt) {
 		printk(PRINT_PREF "error: cannot allocate memory\n");
 		return -ENOMEM;
 	}
-	memset(bbt, 0 , ebcnt);
 
 	printk(PRINT_PREF "scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {

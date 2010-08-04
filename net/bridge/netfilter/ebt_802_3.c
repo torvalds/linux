@@ -13,7 +13,7 @@
 #include <linux/netfilter_bridge/ebt_802_3.h>
 
 static bool
-ebt_802_3_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_802_3_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_802_3_info *info = par->matchinfo;
 	const struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
@@ -36,14 +36,14 @@ ebt_802_3_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_802_3_mt_check(const struct xt_mtchk_param *par)
+static int ebt_802_3_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_802_3_info *info = par->matchinfo;
 
 	if (info->bitmask & ~EBT_802_3_MASK || info->invflags & ~EBT_802_3_MASK)
-		return false;
+		return -EINVAL;
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ebt_802_3_mt_reg __read_mostly = {
@@ -52,7 +52,7 @@ static struct xt_match ebt_802_3_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_802_3_mt,
 	.checkentry	= ebt_802_3_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_802_3_info)),
+	.matchsize	= sizeof(struct ebt_802_3_info),
 	.me		= THIS_MODULE,
 };
 

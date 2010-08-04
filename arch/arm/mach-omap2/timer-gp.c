@@ -85,8 +85,6 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_PERIODIC:
 		period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / HZ;
 		period -= 1;
-		if (cpu_is_omap44xx())
-			period = 0xff;	/* FIXME: */
 		omap_dm_timer_set_load_start(gptimer, 1, 0xffffffff - period);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -150,9 +148,6 @@ static void __init omap2_gp_clockevent_init(void)
 		     "timer-gp: omap_dm_timer_set_source() failed\n");
 
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer));
-	if (cpu_is_omap44xx())
-		/* Assuming 32kHz clk is driving GPT1 */
-		tick_rate = 32768;	/* FIXME: */
 
 	pr_info("OMAP clockevent source: GPTIMER%d at %u Hz\n",
 		gptimer_id, tick_rate);

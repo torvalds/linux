@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -19,14 +19,14 @@
  *
  */
 
+#include <linux/device.h>
+#include <linux/slab.h>
 #include "main.h"
 #include "device.h"
-#include "log.h"
 #include "send.h"
 #include "types.h"
 #include "hash.h"
-
-#include "compat.h"
+#include "hard-interface.h"
 
 static struct class *batman_class;
 
@@ -44,10 +44,7 @@ static struct device_client *device_client_hash[256];
 
 void bat_device_init(void)
 {
-	int i;
-
-	for (i = 0; i < 256; i++)
-		device_client_hash[i] = NULL;
+	memset(device_client_hash, 0, sizeof(device_client_hash));
 }
 
 int bat_device_setup(void)
@@ -60,7 +57,8 @@ int bat_device_setup(void)
 	/* register our device - kernel assigns a free major number */
 	tmp_major = register_chrdev(0, DRIVER_DEVICE, &fops);
 	if (tmp_major < 0) {
-		debug_log(LOG_TYPE_WARN, "Registering the character device failed with %d\n",
+		printk(KERN_ERR "batman-adv:"
+		       "Registering the character device failed with %d\n",
 			  tmp_major);
 		return 0;
 	}
@@ -68,7 +66,8 @@ int bat_device_setup(void)
 	batman_class = class_create(THIS_MODULE, "batman-adv");
 
 	if (IS_ERR(batman_class)) {
-		debug_log(LOG_TYPE_WARN, "Could not register class 'batman-adv' \n");
+		printk(KERN_ERR "batman-adv:"
+		       "Could not register class 'batman-adv'\n");
 		return 0;
 	}
 
@@ -103,15 +102,17 @@ int bat_device_open(struct inode *inode, struct file *file)
 	if (!device_client)
 		return -ENOMEM;
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < ARRAY_SIZE(device_client_hash); i++) {
 		if (!device_client_hash[i]) {
 			device_client_hash[i] = device_client;
 			break;
 		}
 	}
 
-	if (device_client_hash[i] != device_client) {
-		debug_log(LOG_TYPE_WARN, "Error - can't add another packet client: maximum number of clients reached \n");
+	if (i == ARRAY_SIZE(device_client_hash)) {
+		printk(KERN_ERR "batman-adv:"
+		       "Error - can't add another packet client: "
+		       "maximum number of clients reached\n");
 		kfree(device_client);
 		return -EXFULL;
 	}
@@ -119,7 +120,7 @@ int bat_device_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&device_client->queue_list);
 	device_client->queue_len = 0;
 	device_client->index = i;
-	device_client->lock = __SPIN_LOCK_UNLOCKED(device_client->lock);
+	spin_lock_init(&device_client->lock);
 	init_waitqueue_head(&device_client->queue_wait);
 
 	file->private_data = device_client;
@@ -134,8 +135,9 @@ int bat_device_release(struct inode *inode, struct file *file)
 		(struct device_client *)file->private_data;
 	struct device_packet *device_packet;
 	struct list_head *list_pos, *list_pos_tmp;
+	unsigned long flags;
 
-	spin_lock(&device_client->lock);
+	spin_lock_irqsave(&device_client->lock, flags);
 
 	/* for all packets in the queue ... */
 	list_for_each_safe(list_pos, list_pos_tmp, &device_client->queue_list) {
@@ -147,7 +149,7 @@ int bat_device_release(struct inode *inode, struct file *file)
 	}
 
 	device_client_hash[device_client->index] = NULL;
-	spin_unlock(&device_client->lock);
+	spin_unlock_irqrestore(&device_client->lock, flags);
 
 	kfree(device_client);
 	dec_module_count();
@@ -162,6 +164,7 @@ ssize_t bat_device_read(struct file *file, char __user *buf, size_t count,
 		(struct device_client *)file->private_data;
 	struct device_packet *device_packet;
 	int error;
+	unsigned long flags;
 
 	if ((file->f_flags & O_NONBLOCK) && (device_client->queue_len == 0))
 		return -EAGAIN;
@@ -178,14 +181,14 @@ ssize_t bat_device_read(struct file *file, char __user *buf, size_t count,
 	if (error)
 		return error;
 
-	spin_lock(&device_client->lock);
+	spin_lock_irqsave(&device_client->lock, flags);
 
 	device_packet = list_first_entry(&device_client->queue_list,
 					 struct device_packet, list);
 	list_del(&device_packet->list);
 	device_client->queue_len--;
 
-	spin_unlock(&device_client->lock);
+	spin_unlock_irqrestore(&device_client->lock, flags);
 
 	error = __copy_to_user(buf, &device_packet->icmp_packet,
 			       sizeof(struct icmp_packet));
@@ -193,7 +196,7 @@ ssize_t bat_device_read(struct file *file, char __user *buf, size_t count,
 	kfree(device_packet);
 
 	if (error)
-		return error;
+		return -EFAULT;
 
 	return sizeof(struct icmp_packet);
 }
@@ -206,9 +209,13 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	struct icmp_packet icmp_packet;
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
+	uint8_t dstaddr[ETH_ALEN];
+	unsigned long flags;
 
 	if (len < sizeof(struct icmp_packet)) {
-		debug_log(LOG_TYPE_NOTICE, "Error - can't send packet from char device: invalid packet size\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"invalid packet size\n");
 		return -EINVAL;
 	}
 
@@ -219,12 +226,16 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 		return -EFAULT;
 
 	if (icmp_packet.packet_type != BAT_ICMP) {
-		debug_log(LOG_TYPE_NOTICE, "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"got bogus packet type (expected: BAT_ICMP)\n");
 		return -EINVAL;
 	}
 
 	if (icmp_packet.msg_type != ECHO_REQUEST) {
-		debug_log(LOG_TYPE_NOTICE, "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"got bogus message type (expected: ECHO_REQUEST)\n");
 		return -EINVAL;
 	}
 
@@ -240,7 +251,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto dst_unreach;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)hash_find(orig_hash, icmp_packet.dst));
 
 	if (!orig_node)
@@ -249,10 +260,16 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (!orig_node->router)
 		goto unlock;
 
-	batman_if = orig_node->batman_if;
+	batman_if = orig_node->router->if_incoming;
+	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (!batman_if)
-		goto unlock;
+		goto dst_unreach;
+
+	if (batman_if->if_status != IF_ACTIVE)
+		goto dst_unreach;
 
 	memcpy(icmp_packet.orig,
 	       batman_if->net_dev->dev_addr,
@@ -260,13 +277,12 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 
 	send_raw_packet((unsigned char *)&icmp_packet,
 			sizeof(struct icmp_packet),
-			batman_if, orig_node->router->addr);
+			batman_if, dstaddr);
 
-	spin_unlock(&orig_hash_lock);
 	goto out;
 
 unlock:
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 dst_unreach:
 	icmp_packet.msg_type = DESTINATION_UNREACHABLE;
 	bat_device_add_packet(device_client, &icmp_packet);
@@ -291,8 +307,9 @@ void bat_device_add_packet(struct device_client *device_client,
 			   struct icmp_packet *icmp_packet)
 {
 	struct device_packet *device_packet;
+	unsigned long flags;
 
-	device_packet = kmalloc(sizeof(struct device_packet), GFP_KERNEL);
+	device_packet = kmalloc(sizeof(struct device_packet), GFP_ATOMIC);
 
 	if (!device_packet)
 		return;
@@ -301,12 +318,12 @@ void bat_device_add_packet(struct device_client *device_client,
 	memcpy(&device_packet->icmp_packet, icmp_packet,
 	       sizeof(struct icmp_packet));
 
-	spin_lock(&device_client->lock);
+	spin_lock_irqsave(&device_client->lock, flags);
 
 	/* while waiting for the lock the device_client could have been
 	 * deleted */
 	if (!device_client_hash[icmp_packet->uid]) {
-		spin_unlock(&device_client->lock);
+		spin_unlock_irqrestore(&device_client->lock, flags);
 		kfree(device_packet);
 		return;
 	}
@@ -323,7 +340,7 @@ void bat_device_add_packet(struct device_client *device_client,
 		device_client->queue_len--;
 	}
 
-	spin_unlock(&device_client->lock);
+	spin_unlock_irqrestore(&device_client->lock, flags);
 
 	wake_up(&device_client->queue_wait);
 }

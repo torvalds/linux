@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>

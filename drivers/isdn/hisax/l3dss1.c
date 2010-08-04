@@ -23,6 +23,7 @@
 #include "isdnl3.h"
 #include "l3dss1.h"
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 extern char *HiSax_getrev(const char *revision);
 static const char *dss1_revision = "$Revision: 2.32.2.3 $";

@@ -48,7 +48,7 @@ struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
 #define ARCMSR_MAX_OUTSTANDING_CMD						256
 #define ARCMSR_MAX_FREECCB_NUM							320
-#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2008/02/27"
+#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2008/11/03"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
 #define ARCMSR_MAX_XFER_SECTORS_B						4096
@@ -110,6 +110,8 @@ struct CMD_MESSAGE_FIELD
 #define FUNCTION_SAY_HELLO			0x0807
 #define FUNCTION_SAY_GOODBYE			0x0808
 #define FUNCTION_FLUSH_ADAPTER_CACHE		0x0809
+#define FUNCTION_GET_FIRMWARE_STATUS			0x080A
+#define FUNCTION_HARDWARE_RESET			0x080B
 /* ARECA IO CONTROL CODE*/
 #define ARCMSR_MESSAGE_READ_RQBUFFER       \
 	ARECA_SATA_RAID | FUNCTION_READ_RQBUFFER
@@ -133,6 +135,7 @@ struct CMD_MESSAGE_FIELD
 #define ARCMSR_MESSAGE_RETURNCODE_OK              0x00000001
 #define ARCMSR_MESSAGE_RETURNCODE_ERROR           0x00000006
 #define ARCMSR_MESSAGE_RETURNCODE_3F              0x0000003F
+#define ARCMSR_MESSAGE_RETURNCODE_BUS_HANG_ON	0x00000088
 /*
 *************************************************************
 **   structure for holding DMA address data
@@ -341,13 +344,13 @@ struct MessageUnit_B
 	uint32_t	done_qbuffer[ARCMSR_MAX_HBB_POSTQUEUE];
 	uint32_t	postq_index;
 	uint32_t	doneq_index;
-	void		__iomem *drv2iop_doorbell_reg;
-	void		__iomem *drv2iop_doorbell_mask_reg;
-	void		__iomem *iop2drv_doorbell_reg;
-	void		__iomem *iop2drv_doorbell_mask_reg;
-	void		__iomem *msgcode_rwbuffer_reg;
-	void		__iomem *ioctl_wbuffer_reg;
-	void		__iomem *ioctl_rbuffer_reg;
+	uint32_t		__iomem *drv2iop_doorbell_reg;
+	uint32_t		__iomem *drv2iop_doorbell_mask_reg;
+	uint32_t		__iomem *iop2drv_doorbell_reg;
+	uint32_t		__iomem *iop2drv_doorbell_mask_reg;
+	uint32_t		__iomem *msgcode_rwbuffer_reg;
+	uint32_t		__iomem *ioctl_wbuffer_reg;
+	uint32_t		__iomem *ioctl_rbuffer_reg;
 };
 
 /*
@@ -375,6 +378,7 @@ struct AdapterControlBlock
 	/* message unit ATU inbound base address0 */
 
 	uint32_t			acb_flags;
+	uint8_t                   		adapter_index;
 	#define ACB_F_SCSISTOPADAPTER         	0x0001
 	#define ACB_F_MSG_STOP_BGRB     	0x0002
 	/* stop RAID background rebuild */
@@ -390,7 +394,7 @@ struct AdapterControlBlock
 	#define ACB_F_BUS_RESET               	0x0080
 	#define ACB_F_IOP_INITED              	0x0100
 	/* iop init */
-
+	#define ACB_F_FIRMWARE_TRAP           		0x0400
 	struct CommandControlBlock *			pccb_pool[ARCMSR_MAX_FREECCB_NUM];
 	/* used for memory free */
 	struct list_head		ccb_free_list;
@@ -423,12 +427,19 @@ struct AdapterControlBlock
 #define ARECA_RAID_GOOD               0xaa
 	uint32_t			num_resets;
 	uint32_t			num_aborts;
+	uint32_t			signature;
 	uint32_t			firm_request_len;
 	uint32_t			firm_numbers_queue;
 	uint32_t			firm_sdram_size;
 	uint32_t			firm_hd_channels;
 	char				firm_model[12];
 	char				firm_version[20];
+	char			device_map[20];			/*21,84-99*/
+	struct work_struct 		arcmsr_do_message_isr_bh;
+	struct timer_list		eternal_timer;
+	unsigned short		fw_state;
+	atomic_t 			rq_map_token;
+	int			ante_token_value;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************

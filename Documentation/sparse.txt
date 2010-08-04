@@ -54,12 +54,12 @@ Getting sparse
 ~~~~~~~~~~~~~~
 
 You can get latest released versions from the Sparse homepage at
-http://www.kernel.org/pub/linux/kernel/people/josh/sparse/
+https://sparse.wiki.kernel.org/index.php/Main_Page
 
 Alternatively, you can get snapshots of the latest development version
 of sparse using git to clone..
 
-        git://git.kernel.org/pub/scm/linux/kernel/git/josh/sparse.git
+        git://git.kernel.org/pub/scm/devel/sparse/sparse.git
 
 DaveJ has hourly generated tarballs of the git tree available at..
 

@@ -156,8 +156,8 @@ extern void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head);
 extern int radeon_bo_list_reserve(struct list_head *head);
 extern void radeon_bo_list_unreserve(struct list_head *head);
-extern int radeon_bo_list_validate(struct list_head *head, void *fence);
-extern void radeon_bo_list_unvalidate(struct list_head *head, void *fence);
+extern int radeon_bo_list_validate(struct list_head *head);
+extern void radeon_bo_list_fence(struct list_head *head, void *fence);
 extern int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
 				struct vm_area_struct *vma);
 extern int radeon_bo_set_tiling_flags(struct radeon_bo *bo,
@@ -168,6 +168,6 @@ extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop);
 extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 					struct ttm_mem_reg *mem);
-extern void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 #endif

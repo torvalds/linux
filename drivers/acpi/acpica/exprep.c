@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -275,7 +275,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	default:
 		/* Invalid field access type */
 
-		ACPI_ERROR((AE_INFO, "Unknown field access type %X", access));
+		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
 		return_UINT32(0);
 	}
 
@@ -430,7 +430,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		type = acpi_ns_get_type(info->region_node);
 		if (type != ACPI_TYPE_REGION) {
 			ACPI_ERROR((AE_INFO,
-				    "Needed Region, found type %X (%s)",
+				    "Needed Region, found type 0x%X (%s)",
 				    type, acpi_ut_get_type_name(type)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -467,6 +467,23 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		/* An additional reference for the container */
 
 		acpi_ut_add_reference(obj_desc->field.region_obj);
+
+		/* allow full data read from EC address space */
+		if (obj_desc->field.region_obj->region.space_id ==
+			ACPI_ADR_SPACE_EC) {
+			if (obj_desc->common_field.bit_length > 8) {
+				unsigned width =
+					ACPI_ROUND_BITS_UP_TO_BYTES(
+					obj_desc->common_field.bit_length);
+				// access_bit_width is u8, don't overflow it
+				if (width > 8)
+					width = 8;
+				obj_desc->common_field.access_byte_width =
+							width;
+				obj_desc->common_field.access_bit_width =
+							8 * width;
+			}
+		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 				  "RegionField: BitOff %X, Off %X, Gran %X, Region %p\n",

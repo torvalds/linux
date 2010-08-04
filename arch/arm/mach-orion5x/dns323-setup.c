@@ -34,7 +34,8 @@
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
 #define DNS323_GPIO_LED_LEFT_AMBER	2
 #define DNS323_GPIO_SYSTEM_UP		3
-#define DNS323_GPIO_LED_POWER		5
+#define DNS323_GPIO_LED_POWER1		4
+#define DNS323_GPIO_LED_POWER2		5
 #define DNS323_GPIO_OVERTEMP		6
 #define DNS323_GPIO_RTC			7
 #define DNS323_GPIO_POWER_OFF		8
@@ -237,11 +238,33 @@ error_fail:
  * GPIO LEDs (simple - doesn't use hardware blinking support)
  */
 
+#define ORION_BLINK_HALF_PERIOD 100 /* ms */
+
+static int dns323_gpio_blink_set(unsigned gpio, int state,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+
+	if (delay_on && delay_off && !*delay_on && !*delay_off)
+		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
+
+	switch(state) {
+	case GPIO_LED_NO_BLINK_LOW:
+	case GPIO_LED_NO_BLINK_HIGH:
+		orion_gpio_set_blink(gpio, 0);
+		gpio_set_value(gpio, state);
+		break;
+	case GPIO_LED_BLINK:
+		orion_gpio_set_blink(gpio, 1);
+	}
+	return 0;
+}
+
 static struct gpio_led dns323_leds[] = {
 	{
 		.name = "power:blue",
-		.gpio = DNS323_GPIO_LED_POWER,
-		.default_state = LEDS_GPIO_DEFSTATE_ON,
+		.gpio = DNS323_GPIO_LED_POWER2,
+		.default_trigger = "timer",
+		.active_low = 1,
 	}, {
 		.name = "right:amber",
 		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
@@ -256,6 +279,7 @@ static struct gpio_led dns323_leds[] = {
 static struct gpio_led_platform_data dns323_led_data = {
 	.num_leds	= ARRAY_SIZE(dns323_leds),
 	.leds		= dns323_leds,
+	.gpio_blink_set = dns323_gpio_blink_set,
 };
 
 static struct platform_device dns323_gpio_leds = {
@@ -411,6 +435,15 @@ static void __init dns323_init(void)
 	 */
 	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 	platform_device_register(&dns323_nor_flash);
+
+	/* The 5181 power LED is active low and requires
+	 * DNS323_GPIO_LED_POWER1 to also be low.
+	 */
+	if (dns323_dev_id() == MV88F5181_DEV_ID) {
+		dns323_leds[0].active_low = 1;
+		gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
+		gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
+	}
 
 	platform_device_register(&dns323_gpio_leds);
 

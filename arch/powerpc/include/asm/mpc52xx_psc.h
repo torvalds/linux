@@ -25,7 +25,11 @@
 #include <asm/types.h>
 
 /* Max number of PSCs */
+#ifdef CONFIG_PPC_MPC512x
+#define MPC52xx_PSC_MAXNUM     12
+#else
 #define MPC52xx_PSC_MAXNUM	6
+#endif
 
 /* Programmable Serial Controller (PSC) status register bits */
 #define MPC52xx_PSC_SR_UNEX_RX	0x0001
@@ -244,6 +248,7 @@ struct mpc52xx_psc_fifo {
 	u16		tflwfptr;	/* PSC + 0x9e */
 };
 
+#define MPC512x_PSC_FIFO_EOF		0x100
 #define MPC512x_PSC_FIFO_RESET_SLICE	0x80
 #define MPC512x_PSC_FIFO_ENABLE_SLICE	0x01
 #define MPC512x_PSC_FIFO_ENABLE_DMA	0x04

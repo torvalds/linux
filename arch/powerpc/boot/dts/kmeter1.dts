@@ -490,7 +490,7 @@
 			compatible = "cfi-flash";
 			/*
 			 * The Intel P30 chip has 2 non-identical chips on
-			 * one die, so we need to define 2 seperate regions
+			 * one die, so we need to define 2 separate regions
 			 * that are scanned by physmap_of independantly.
 			 */
 			reg = <0 0x00000000 0x02000000

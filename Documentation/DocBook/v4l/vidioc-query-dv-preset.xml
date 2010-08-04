@@ -53,8 +53,10 @@ input</refpurpose>
 automatically, similar to sensing the video standard. To do so, applications
 call <constant> VIDIOC_QUERY_DV_PRESET</constant> with a pointer to a
 &v4l2-dv-preset; type. Once the hardware detects a preset, that preset is
-returned in the preset field of &v4l2-dv-preset;. When detection is not
-possible or fails, the value V4L2_DV_INVALID is returned.</para>
+returned in the preset field of &v4l2-dv-preset;. If the preset could not be
+detected because there was no signal, or the signal was unreliable, or the
+signal did not map to a supported preset, then the value V4L2_DV_INVALID is
+returned.</para>
   </refsect1>
 
   <refsect1>

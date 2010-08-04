@@ -44,7 +44,6 @@ struct snd_es1688 {
 	unsigned char pad;
 	unsigned int dma_size;
 
-	struct snd_card *card;
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *playback_substream;
 	struct snd_pcm_substream *capture_substream;
@@ -108,14 +107,16 @@ struct snd_es1688 {
 void snd_es1688_mixer_write(struct snd_es1688 *chip, unsigned char reg, unsigned char data);
 
 int snd_es1688_create(struct snd_card *card,
+		      struct snd_es1688 *chip,
 		      unsigned long port,
 		      unsigned long mpu_port,
 		      int irq,
 		      int mpu_irq,
 		      int dma8,
-		      unsigned short hardware,
-		      struct snd_es1688 ** rchip);
-int snd_es1688_pcm(struct snd_es1688 *chip, int device, struct snd_pcm ** rpcm);
-int snd_es1688_mixer(struct snd_es1688 *chip);
+		      unsigned short hardware);
+int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device,
+		   struct snd_pcm **rpcm);
+int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip);
+int snd_es1688_reset(struct snd_es1688 *chip);
 
 #endif /* __SOUND_ES1688_H */

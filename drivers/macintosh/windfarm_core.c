@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
@@ -209,6 +210,7 @@ int wf_register_control(struct wf_control *new_ct)
 	kref_init(&new_ct->ref);
 	list_add(&new_ct->link, &wf_controls);
 
+	sysfs_attr_init(&new_ct->attr.attr);
 	new_ct->attr.attr.name = new_ct->name;
 	new_ct->attr.attr.mode = 0644;
 	new_ct->attr.show = wf_show_control;
@@ -321,6 +323,7 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 	kref_init(&new_sr->ref);
 	list_add(&new_sr->link, &wf_sensors);
 
+	sysfs_attr_init(&new_sr->attr.attr);
 	new_sr->attr.attr.name = new_sr->name;
 	new_sr->attr.attr.mode = 0444;
 	new_sr->attr.show = wf_show_sensor;
@@ -468,9 +471,9 @@ static int __init windfarm_core_init(void)
 	DBG("wf: core loaded\n");
 
 	/* Don't register on old machines that use therm_pm72 for now */
-	if (machine_is_compatible("PowerMac7,2") ||
-	    machine_is_compatible("PowerMac7,3") ||
-	    machine_is_compatible("RackMac3,1"))
+	if (of_machine_is_compatible("PowerMac7,2") ||
+	    of_machine_is_compatible("PowerMac7,3") ||
+	    of_machine_is_compatible("RackMac3,1"))
 		return -ENODEV;
 	platform_device_register(&wf_platform_device);
 	return 0;

@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/rtnetlink.h>
 
 #define EFX_DRIVER_NAME "sfc_mtd"

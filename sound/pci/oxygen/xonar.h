@@ -35,6 +35,8 @@ int get_xonar_pcm179x_model(struct oxygen *chip,
 			    const struct pci_device_id *id);
 int get_xonar_cs43xx_model(struct oxygen *chip,
 			   const struct pci_device_id *id);
+int get_xonar_wm87x6_model(struct oxygen *chip,
+			   const struct pci_device_id *id);
 
 /* HDMI helper functions */
 

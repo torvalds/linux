@@ -46,6 +46,7 @@
 #include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -65,12 +66,9 @@ enum {
 };
 
 /*
- * Our lifetime rules for these structs are the following: each time a
- * device special file is opened, we look up the corresponding struct
- * ib_umad_port by minor in the umad_port[] table while holding the
- * port_lock.  If this lookup succeeds, we take a reference on the
- * ib_umad_port's struct ib_umad_device while still holding the
- * port_lock; if the lookup fails, we fail the open().  We drop these
+ * Our lifetime rules for these structs are the following:
+ * device special file is opened, we take a reference on the
+ * ib_umad_port's struct ib_umad_device. We drop these
  * references in the corresponding close().
  *
  * In addition to references coming from open character devices, there
@@ -78,19 +76,14 @@ enum {
  * module's reference taken when allocating the ib_umad_device in
  * ib_umad_add_one().
  *
- * When destroying an ib_umad_device, we clear all of its
- * ib_umad_ports from umad_port[] while holding port_lock before
- * dropping the module's reference to the ib_umad_device.  This is
- * always safe because any open() calls will either succeed and obtain
- * a reference before we clear the umad_port[] entries, or fail after
- * we clear the umad_port[] entries.
+ * When destroying an ib_umad_device, we drop the module's reference.
  */
 
 struct ib_umad_port {
-	struct cdev           *cdev;
+	struct cdev           cdev;
 	struct device	      *dev;
 
-	struct cdev           *sm_cdev;
+	struct cdev           sm_cdev;
 	struct device	      *sm_dev;
 	struct semaphore       sm_sem;
 
@@ -136,7 +129,6 @@ static struct class *umad_class;
 static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 
 static DEFINE_SPINLOCK(port_lock);
-static struct ib_umad_port *umad_port[IB_UMAD_MAX_PORTS];
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
@@ -496,8 +488,8 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		ah_attr.ah_flags = IB_AH_GRH;
 		memcpy(ah_attr.grh.dgid.raw, packet->mad.hdr.gid, 16);
 		ah_attr.grh.sgid_index	   = packet->mad.hdr.gid_index;
-		ah_attr.grh.flow_label 	   = be32_to_cpu(packet->mad.hdr.flow_label);
-		ah_attr.grh.hop_limit  	   = packet->mad.hdr.hop_limit;
+		ah_attr.grh.flow_label	   = be32_to_cpu(packet->mad.hdr.flow_label);
+		ah_attr.grh.hop_limit	   = packet->mad.hdr.hop_limit;
 		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
 	}
 
@@ -528,9 +520,9 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		goto err_ah;
 	}
 
-	packet->msg->ah 	= ah;
+	packet->msg->ah		= ah;
 	packet->msg->timeout_ms = packet->mad.hdr.timeout_ms;
-	packet->msg->retries 	= packet->mad.hdr.retries;
+	packet->msg->retries	= packet->mad.hdr.retries;
 	packet->msg->context[0] = packet;
 
 	/* Copy MAD header.  Any RMPP header is already in place. */
@@ -779,29 +771,22 @@ static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
 /*
  * ib_umad_open() does not need the BKL:
  *
- *  - umad_port[] accesses are protected by port_lock, the
- *    ib_umad_port structures are properly reference counted, and
+ *  - the ib_umad_port structures are properly reference counted, and
  *    everything else is purely local to the file being created, so
  *    races against other open calls are not a problem;
  *  - the ioctl method does not affect any global state outside of the
  *    file structure being operated on;
- *  - the port is added to umad_port[] as the last part of module
- *    initialization so the open method will either immediately run
- *    -ENXIO, or all required initialization will be done.
  */
 static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
-	int ret = 0;
+	int ret;
 
-	spin_lock(&port_lock);
-	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE];
+	port = container_of(inode->i_cdev, struct ib_umad_port, cdev);
 	if (port)
 		kref_get(&port->umad_dev->ref);
-	spin_unlock(&port_lock);
-
-	if (!port)
+	else
 		return -ENXIO;
 
 	mutex_lock(&port->file_mutex);
@@ -828,6 +813,8 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 
 	list_add_tail(&file->port_list, &port->file_list);
+
+	ret = nonseekable_open(inode, filp);
 
 out:
 	mutex_unlock(&port->file_mutex);
@@ -872,16 +859,17 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations umad_fops = {
-	.owner 	 	= THIS_MODULE,
-	.read 	 	= ib_umad_read,
-	.write 	 	= ib_umad_write,
-	.poll 	 	= ib_umad_poll,
+	.owner		= THIS_MODULE,
+	.read		= ib_umad_read,
+	.write		= ib_umad_write,
+	.poll		= ib_umad_poll,
 	.unlocked_ioctl = ib_umad_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl 	= ib_umad_compat_ioctl,
+	.compat_ioctl	= ib_umad_compat_ioctl,
 #endif
-	.open 	 	= ib_umad_open,
-	.release 	= ib_umad_close
+	.open		= ib_umad_open,
+	.release	= ib_umad_close,
+	.llseek		= no_llseek,
 };
 
 static int ib_umad_sm_open(struct inode *inode, struct file *filp)
@@ -892,13 +880,10 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 	};
 	int ret;
 
-	spin_lock(&port_lock);
-	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE - IB_UMAD_MAX_PORTS];
+	port = container_of(inode->i_cdev, struct ib_umad_port, sm_cdev);
 	if (port)
 		kref_get(&port->umad_dev->ref);
-	spin_unlock(&port_lock);
-
-	if (!port)
+	else
 		return -ENXIO;
 
 	if (filp->f_flags & O_NONBLOCK) {
@@ -921,7 +906,7 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = port;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 
 fail:
 	kref_put(&port->umad_dev->ref, ib_umad_release_dev);
@@ -949,9 +934,10 @@ static int ib_umad_sm_close(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations umad_sm_fops = {
-	.owner 	 = THIS_MODULE,
-	.open 	 = ib_umad_sm_open,
-	.release = ib_umad_sm_close
+	.owner	 = THIS_MODULE,
+	.open	 = ib_umad_sm_open,
+	.release = ib_umad_sm_close,
+	.llseek	 = no_llseek,
 };
 
 static struct ib_client umad_client = {
@@ -984,22 +970,54 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_MAD_ABI_VERSION));
+
+static dev_t overflow_maj;
+static DECLARE_BITMAP(overflow_map, IB_UMAD_MAX_PORTS);
+static int find_overflow_devnum(void)
 {
-	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
+	int ret;
+
+	if (!overflow_maj) {
+		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UMAD_MAX_PORTS * 2,
+					  "infiniband_mad");
+		if (ret) {
+			printk(KERN_ERR "user_mad: couldn't register dynamic device number\n");
+			return ret;
+		}
+	}
+
+	ret = find_first_zero_bit(overflow_map, IB_UMAD_MAX_PORTS);
+	if (ret >= IB_UMAD_MAX_PORTS)
+		return -1;
+
+	return ret;
 }
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
 static int ib_umad_init_port(struct ib_device *device, int port_num,
 			     struct ib_umad_port *port)
 {
+	int devnum;
+	dev_t base;
+
 	spin_lock(&port_lock);
-	port->dev_num = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
-	if (port->dev_num >= IB_UMAD_MAX_PORTS) {
+	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
+	if (devnum >= IB_UMAD_MAX_PORTS) {
 		spin_unlock(&port_lock);
-		return -1;
+		devnum = find_overflow_devnum();
+		if (devnum < 0)
+			return -1;
+
+		spin_lock(&port_lock);
+		port->dev_num = devnum + IB_UMAD_MAX_PORTS;
+		base = devnum + overflow_maj;
+		set_bit(devnum, overflow_map);
+	} else {
+		port->dev_num = devnum;
+		base = devnum + base_dev;
+		set_bit(devnum, dev_map);
 	}
-	set_bit(port->dev_num, dev_map);
 	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
@@ -1008,17 +1026,14 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	mutex_init(&port->file_mutex);
 	INIT_LIST_HEAD(&port->file_list);
 
-	port->cdev = cdev_alloc();
-	if (!port->cdev)
-		return -1;
-	port->cdev->owner = THIS_MODULE;
-	port->cdev->ops   = &umad_fops;
-	kobject_set_name(&port->cdev->kobj, "umad%d", port->dev_num);
-	if (cdev_add(port->cdev, base_dev + port->dev_num, 1))
+	cdev_init(&port->cdev, &umad_fops);
+	port->cdev.owner = THIS_MODULE;
+	kobject_set_name(&port->cdev.kobj, "umad%d", port->dev_num);
+	if (cdev_add(&port->cdev, base, 1))
 		goto err_cdev;
 
 	port->dev = device_create(umad_class, device->dma_device,
-				  port->cdev->dev, port,
+				  port->cdev.dev, port,
 				  "umad%d", port->dev_num);
 	if (IS_ERR(port->dev))
 		goto err_cdev;
@@ -1028,17 +1043,15 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (device_create_file(port->dev, &dev_attr_port))
 		goto err_dev;
 
-	port->sm_cdev = cdev_alloc();
-	if (!port->sm_cdev)
-		goto err_dev;
-	port->sm_cdev->owner = THIS_MODULE;
-	port->sm_cdev->ops   = &umad_sm_fops;
-	kobject_set_name(&port->sm_cdev->kobj, "issm%d", port->dev_num);
-	if (cdev_add(port->sm_cdev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
+	base += IB_UMAD_MAX_PORTS;
+	cdev_init(&port->sm_cdev, &umad_sm_fops);
+	port->sm_cdev.owner = THIS_MODULE;
+	kobject_set_name(&port->sm_cdev.kobj, "issm%d", port->dev_num);
+	if (cdev_add(&port->sm_cdev, base, 1))
 		goto err_sm_cdev;
 
 	port->sm_dev = device_create(umad_class, device->dma_device,
-				     port->sm_cdev->dev, port,
+				     port->sm_cdev.dev, port,
 				     "issm%d", port->dev_num);
 	if (IS_ERR(port->sm_dev))
 		goto err_sm_cdev;
@@ -1048,24 +1061,23 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (device_create_file(port->sm_dev, &dev_attr_port))
 		goto err_sm_dev;
 
-	spin_lock(&port_lock);
-	umad_port[port->dev_num] = port;
-	spin_unlock(&port_lock);
-
 	return 0;
 
 err_sm_dev:
-	device_destroy(umad_class, port->sm_cdev->dev);
+	device_destroy(umad_class, port->sm_cdev.dev);
 
 err_sm_cdev:
-	cdev_del(port->sm_cdev);
+	cdev_del(&port->sm_cdev);
 
 err_dev:
-	device_destroy(umad_class, port->cdev->dev);
+	device_destroy(umad_class, port->cdev.dev);
 
 err_cdev:
-	cdev_del(port->cdev);
-	clear_bit(port->dev_num, dev_map);
+	cdev_del(&port->cdev);
+	if (port->dev_num < IB_UMAD_MAX_PORTS)
+		clear_bit(devnum, dev_map);
+	else
+		clear_bit(devnum, overflow_map);
 
 	return -1;
 }
@@ -1079,15 +1091,11 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	dev_set_drvdata(port->dev,    NULL);
 	dev_set_drvdata(port->sm_dev, NULL);
 
-	device_destroy(umad_class, port->cdev->dev);
-	device_destroy(umad_class, port->sm_cdev->dev);
+	device_destroy(umad_class, port->cdev.dev);
+	device_destroy(umad_class, port->sm_cdev.dev);
 
-	cdev_del(port->cdev);
-	cdev_del(port->sm_cdev);
-
-	spin_lock(&port_lock);
-	umad_port[port->dev_num] = NULL;
-	spin_unlock(&port_lock);
+	cdev_del(&port->cdev);
+	cdev_del(&port->sm_cdev);
 
 	mutex_lock(&port->file_mutex);
 
@@ -1106,7 +1114,10 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 
 	mutex_unlock(&port->file_mutex);
 
-	clear_bit(port->dev_num, dev_map);
+	if (port->dev_num < IB_UMAD_MAX_PORTS)
+		clear_bit(port->dev_num, dev_map);
+	else
+		clear_bit(port->dev_num - IB_UMAD_MAX_PORTS, overflow_map);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
@@ -1185,7 +1196,7 @@ static int __init ib_umad_init(void)
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(umad_class, &class_attr_abi_version);
+	ret = class_create_file(umad_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "user_mad: couldn't create abi_version attribute\n");
 		goto out_class;
@@ -1214,6 +1225,8 @@ static void __exit ib_umad_cleanup(void)
 	ib_unregister_client(&umad_client);
 	class_destroy(umad_class);
 	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
+	if (overflow_maj)
+		unregister_chrdev_region(overflow_maj, IB_UMAD_MAX_PORTS * 2);
 }
 
 module_init(ib_umad_init);

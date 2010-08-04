@@ -472,20 +472,25 @@ static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 
 /* Number of keypresses to ignore before start repeating */
 #define RC_REPEAT_DELAY 6
-#define RC_REPEAT_DELAY_V1_20 10
 
-
-
-/* Used by firmware versions < 1.20 (deprecated) */
-static int dib0700_rc_query_legacy(struct dvb_usb_device *d, u32 *event,
-				   int *state)
+static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[4];
 	int i;
 	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	struct dib0700_state *st = d->priv;
+
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
+
+	if (st->fw_version >= 0x10200) {
+		/* For 1.20 firmware , We need to keep the RC polling
+		   callback so we can reuse the input device setup in
+		   dvb-usb-remote.c.  However, the actual work is being done
+		   in the bulk URB completion handler. */
+		return 0;
+	}
+
 	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
 	if (i<=0) {
 		err("RC Query Failed");
@@ -557,150 +562,7 @@ static int dib0700_rc_query_legacy(struct dvb_usb_device *d, u32 *event,
 	return 0;
 }
 
-/* This is the structure of the RC response packet starting in firmware 1.20 */
-struct dib0700_rc_response {
-	u8 report_id;
-	u8 data_state;
-	u16 system;
-	u8 data;
-	u8 not_data;
-};
-
-/* This supports the new IR response format for firmware v1.20 */
-static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
-				  int *state)
-{
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
-	struct dib0700_state *st = d->priv;
-	struct dib0700_rc_response poll_reply;
-	u8 buf[6];
-	int i;
-	int status;
-	int actlen;
-	int found = 0;
-
-	/* Set initial results in case we exit the function early */
-	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
-
-	/* Firmware v1.20 provides RC data via bulk endpoint 1 */
-	status = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev, 1), buf,
-			      sizeof(buf), &actlen, 50);
-	if (status < 0) {
-		/* No data available (meaning no key press) */
-		return 0;
-	}
-
-
-	switch (dvb_usb_dib0700_ir_proto) {
-	case 0:
-		poll_reply.report_id  = 0;
-		poll_reply.data_state = 1;
-		poll_reply.system     = buf[2];
-		poll_reply.data       = buf[4];
-		poll_reply.not_data   = buf[5];
-
-		/* NEC protocol sends repeat code as 0 0 0 FF */
-		if ((poll_reply.system == 0x00) && (poll_reply.data == 0x00)
-		    && (poll_reply.not_data == 0xff)) {
-			poll_reply.data_state = 2;
-			break;
-		}
-		break;
-	default:
-	if (actlen != sizeof(buf)) {
-		/* We didn't get back the 6 byte message we expected */
-		err("Unexpected RC response size [%d]", actlen);
-		return -1;
-	}
-
-	poll_reply.report_id  = buf[0];
-	poll_reply.data_state = buf[1];
-		poll_reply.system     = (buf[2] << 8) | buf[3];
-	poll_reply.data       = buf[4];
-	poll_reply.not_data   = buf[5];
-
-		break;
-	}
-
-	if ((poll_reply.data + poll_reply.not_data) != 0xff) {
-		/* Key failed integrity check */
-		err("key failed integrity check: %04x %02x %02x",
-		    poll_reply.system,
-		    poll_reply.data, poll_reply.not_data);
-		return -1;
-	}
-
-
-	/* Find the key in the map */
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
-			rc5_data(&keymap[i]) == poll_reply.data) {
-			*event = keymap[i].event;
-			found = 1;
-			break;
-		}
-	}
-
-	if (found == 0) {
-		err("Unknown remote controller key: %04x %02x %02x",
-			poll_reply.system,
-			poll_reply.data, poll_reply.not_data);
-		d->last_event = 0;
-		return 0;
-	}
-
-	if (poll_reply.data_state == 1) {
-		/* New key hit */
-		st->rc_counter = 0;
-		*event = keymap[i].event;
-		*state = REMOTE_KEY_PRESSED;
-		d->last_event = keymap[i].event;
-	} else if (poll_reply.data_state == 2) {
-		/* Key repeated */
-		st->rc_counter++;
-
-		/* prevents unwanted double hits */
-		if (st->rc_counter > RC_REPEAT_DELAY_V1_20) {
-			*event = d->last_event;
-			*state = REMOTE_KEY_PRESSED;
-			st->rc_counter = RC_REPEAT_DELAY_V1_20;
-		}
-	} else {
-		err("Unknown data state [%d]", poll_reply.data_state);
-	}
-
-	return 0;
-}
-
-static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
-{
-	struct dib0700_state *st = d->priv;
-
-	/* Because some people may have improperly named firmware files,
-	   let's figure out whether to use the new firmware call or the legacy
-	   call based on the firmware version embedded in the file */
-	if (st->rc_func_version == 0) {
-		u32 hwver, romver, ramver, fwtype;
-		int ret = dib0700_get_version(d, &hwver, &romver, &ramver,
-					      &fwtype);
-		if (ret < 0) {
-			err("Could not determine version info");
-			return -1;
-		}
-		if (ramver < 0x10200)
-			st->rc_func_version = 1;
-		else
-			st->rc_func_version = 2;
-	}
-
-	if (st->rc_func_version == 2)
-		return dib0700_rc_query_v1_20(d, event, state);
-	else
-		return dib0700_rc_query_legacy(d, event, state);
-}
-
-static struct dvb_usb_rc_key dib0700_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_dib0700_table[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x0700, KEY_MUTE },
 	{ 0x0701, KEY_MENU }, /* Pinnacle logo */
@@ -932,6 +794,43 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x7a13, KEY_VOLUMEDOWN },
 	{ 0x7a40, KEY_POWER },
 	{ 0x7a41, KEY_MUTE },
+
+	/* Key codes for the Elgato EyeTV Diversity silver remote,
+	   set dvb_usb_dib0700_ir_proto=0 */
+	{ 0x4501, KEY_POWER },
+	{ 0x4502, KEY_MUTE },
+	{ 0x4503, KEY_1 },
+	{ 0x4504, KEY_2 },
+	{ 0x4505, KEY_3 },
+	{ 0x4506, KEY_4 },
+	{ 0x4507, KEY_5 },
+	{ 0x4508, KEY_6 },
+	{ 0x4509, KEY_7 },
+	{ 0x450a, KEY_8 },
+	{ 0x450b, KEY_9 },
+	{ 0x450c, KEY_LAST },
+	{ 0x450d, KEY_0 },
+	{ 0x450e, KEY_ENTER },
+	{ 0x450f, KEY_RED },
+	{ 0x4510, KEY_CHANNELUP },
+	{ 0x4511, KEY_GREEN },
+	{ 0x4512, KEY_VOLUMEDOWN },
+	{ 0x4513, KEY_OK },
+	{ 0x4514, KEY_VOLUMEUP },
+	{ 0x4515, KEY_YELLOW },
+	{ 0x4516, KEY_CHANNELDOWN },
+	{ 0x4517, KEY_BLUE },
+	{ 0x4518, KEY_LEFT }, /* Skip backwards */
+	{ 0x4519, KEY_PLAYPAUSE },
+	{ 0x451a, KEY_RIGHT }, /* Skip forward */
+	{ 0x451b, KEY_REWIND },
+	{ 0x451c, KEY_L }, /* Live */
+	{ 0x451d, KEY_FASTFORWARD },
+	{ 0x451e, KEY_STOP }, /* 'Reveal' for Teletext */
+	{ 0x451f, KEY_MENU }, /* KEY_TEXT for Teletext */
+	{ 0x4540, KEY_RECORD }, /* Font 'Size' for Teletext */
+	{ 0x4541, KEY_SCREEN }, /*  Full screen toggle, 'Hold' for Teletext */
+	{ 0x4542, KEY_SELECT }, /* Select video input, 'Select' for Teletext */
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -2187,6 +2086,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 /* 65 */{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK8096GP) },
+	{ USB_DEVICE(USB_VID_ELGATO,    USB_PID_ELGATO_EYETV_DIVERSITY) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -2269,8 +2169,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2298,8 +2198,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2352,8 +2252,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2389,8 +2289,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2459,8 +2359,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2498,8 +2398,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2531,7 +2431,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 6,
+		.num_device_descs = 7,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -2557,11 +2457,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{  "Sony PlayTV",
 				{ &dib0700_usb_id_table[44], NULL },
 				{ NULL },
-			}
+			},
+			{   "Elgato EyeTV Diversity",
+				{ &dib0700_usb_id_table[68], NULL },
+				{ NULL },
+			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2622,8 +2526,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2651,8 +2555,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2712,8 +2616,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2750,8 +2654,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2794,8 +2698,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2825,8 +2729,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	},
 };

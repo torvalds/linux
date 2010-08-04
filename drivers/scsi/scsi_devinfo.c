@@ -6,6 +6,7 @@
 #include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_devinfo.h>

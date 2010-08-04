@@ -29,6 +29,19 @@
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
 
+/** enum p9_proto_versions - 9P protocol versions
+ * @p9_proto_legacy: 9P Legacy mode, pre-9P2000.u
+ * @p9_proto_2000u: 9P2000.u extension
+ * @p9_proto_2000L: 9P2000.L extension
+ */
+
+enum p9_proto_versions{
+	p9_proto_legacy = 0,
+	p9_proto_2000u = 1,
+	p9_proto_2000L = 2,
+};
+
+
 /**
  * enum p9_trans_status - different states of underlying transports
  * @Connected: transport is connected and healthy
@@ -41,6 +54,7 @@
 
 enum p9_trans_status {
 	Connected,
+	BeginDisconnect,
 	Disconnected,
 	Hung,
 };
@@ -111,6 +125,7 @@ struct p9_req_t {
  * @lock: protect @fidlist
  * @msize: maximum data size negotiated by protocol
  * @dotu: extension flags negotiated by protocol
+ * @proto_version: 9P protocol version to use
  * @trans_mod: module API instantiated with this client
  * @trans: tranport instance state and API
  * @conn: connection state information used by trans_fd
@@ -137,7 +152,7 @@ struct p9_req_t {
 struct p9_client {
 	spinlock_t lock; /* protect client structure */
 	int msize;
-	unsigned char dotu;
+	unsigned char proto_version;
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
 	void *trans;
@@ -180,10 +195,13 @@ struct p9_fid {
 	struct list_head dlist;	/* list of all fids attached to a dentry */
 };
 
+int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb);
+int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid, char *name);
 int p9_client_version(struct p9_client *);
 struct p9_client *p9_client_create(const char *dev_name, char *options);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
+void p9_client_begin_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 					char *uname, u32 n_uname, char *aname);
 struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,
@@ -209,5 +227,7 @@ int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
 int p9stat_read(char *, int, struct p9_wstat *, int);
 void p9stat_free(struct p9_wstat *);
 
+int p9_is_proto_dotu(struct p9_client *clnt);
+int p9_is_proto_dotl(struct p9_client *clnt);
 
 #endif /* NET_9P_CLIENT_H */

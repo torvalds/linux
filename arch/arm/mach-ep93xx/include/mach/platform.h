@@ -6,9 +6,11 @@
 
 struct i2c_gpio_platform_data;
 struct i2c_board_info;
+struct spi_board_info;
 struct platform_device;
 struct ep93xxfb_mach_info;
 struct ep93xx_keypad_platform_data;
+struct ep93xx_spi_info;
 
 struct ep93xx_eth_data
 {
@@ -33,9 +35,19 @@ static inline void ep93xx_devcfg_clear_bits(unsigned int bits)
 	ep93xx_devcfg_set_clear(0x00, bits);
 }
 
+#define EP93XX_CHIP_REV_D0	3
+#define EP93XX_CHIP_REV_D1	4
+#define EP93XX_CHIP_REV_E0	5
+#define EP93XX_CHIP_REV_E1	6
+#define EP93XX_CHIP_REV_E2	7
+
+unsigned int ep93xx_chip_revision(void);
+
 void ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr);
 void ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 			 struct i2c_board_info *devices, int num);
+void ep93xx_register_spi(struct ep93xx_spi_info *info,
+			 struct spi_board_info *devices, int num);
 void ep93xx_register_fb(struct ep93xxfb_mach_info *data);
 void ep93xx_register_pwm(int pwm0, int pwm1);
 int ep93xx_pwm_acquire_gpio(struct platform_device *pdev);

@@ -56,6 +56,7 @@
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include "xonar.h"
+#include "cm9780.h"
 #include "cs4398.h"
 #include "cs4362a.h"
 
@@ -171,6 +172,8 @@ static void xonar_d1_init(struct oxygen *chip)
 			  GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
 			    GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
+
+	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
 
 	xonar_init_cs53x1(chip);
 	xonar_enable_output(chip);

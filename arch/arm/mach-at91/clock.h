@@ -22,7 +22,7 @@ struct clk {
 	struct clk	*parent;
 	u32		pmc_mask;
 	void		(*mode)(struct clk *, int);
-	unsigned	id:2;		/* PCK0..3, or 32k/main/a/b */
+	unsigned	id:3;		/* PCK0..4, or 32k/main/a/b */
 	unsigned	type;		/* clock type */
 	u16		users;
 };

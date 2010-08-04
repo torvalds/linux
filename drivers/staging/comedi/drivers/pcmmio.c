@@ -77,6 +77,7 @@ Configuration Options:
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 #include "pcm_common.h"
 #include <linux/pci.h>		/* for PCI devices */
@@ -550,7 +551,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (irq[0]) {
 		printk("irq: %u ", irq[0]);
-		if (irq[1] && thisboard->dio_num_asics == 2)
+		if (thisboard->dio_num_asics == 2 && irq[1])
 			printk("second ASIC irq: %u ", irq[1]);
 	} else {
 		printk("(IRQ mode disabled) ");

@@ -46,7 +46,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID TKIPvMixKey(
+void TKIPvMixKey(
     PBYTE   pbyTKey,
     PBYTE   pbyTA,
     WORD    wTSC15_0,

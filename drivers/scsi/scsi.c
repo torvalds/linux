@@ -67,6 +67,9 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/scsi.h>
+
 static void scsi_done(struct scsi_cmnd *cmd);
 
 /*
@@ -747,10 +750,12 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 		cmd->result = (DID_NO_CONNECT << 16);
 		scsi_done(cmd);
 	} else {
+		trace_scsi_dispatch_cmd_start(cmd);
 		rtn = host->hostt->queuecommand(cmd, scsi_done);
 	}
 	spin_unlock_irqrestore(host->host_lock, flags);
 	if (rtn) {
+		trace_scsi_dispatch_cmd_error(cmd, rtn);
 		if (rtn != SCSI_MLQUEUE_DEVICE_BUSY &&
 		    rtn != SCSI_MLQUEUE_TARGET_BUSY)
 			rtn = SCSI_MLQUEUE_HOST_BUSY;
@@ -781,6 +786,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
  */
 static void scsi_done(struct scsi_cmnd *cmd)
 {
+	trace_scsi_dispatch_cmd_done(cmd);
 	blk_complete_request(cmd->request);
 }
 
@@ -1018,6 +1024,8 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
  * scsi_get_vpd_page - Get Vital Product Data from a SCSI device
  * @sdev: The device to ask
  * @page: Which Vital Product Data to return
+ * @buf: where to store the VPD
+ * @buf_len: number of bytes in the VPD buffer area
  *
  * SCSI devices may optionally supply Vital Product Data.  Each 'page'
  * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
@@ -1026,55 +1034,39 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
  * responsible for calling kfree() on this pointer when it is no longer
  * needed.  If we cannot retrieve the VPD page this routine returns %NULL.
  */
-unsigned char *scsi_get_vpd_page(struct scsi_device *sdev, u8 page)
+int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
+		      int buf_len)
 {
 	int i, result;
-	unsigned int len;
-	const unsigned int init_vpd_len = 255;
-	unsigned char *buf = kmalloc(init_vpd_len, GFP_KERNEL);
-
-	if (!buf)
-		return NULL;
 
 	/* Ask for all the pages supported by this device */
-	result = scsi_vpd_inquiry(sdev, buf, 0, init_vpd_len);
+	result = scsi_vpd_inquiry(sdev, buf, 0, buf_len);
 	if (result)
 		goto fail;
 
 	/* If the user actually wanted this page, we can skip the rest */
 	if (page == 0)
-		return buf;
+		return -EINVAL;
 
-	for (i = 0; i < buf[3]; i++)
+	for (i = 0; i < min((int)buf[3], buf_len - 4); i++)
 		if (buf[i + 4] == page)
 			goto found;
+
+	if (i < buf[3] && i > buf_len)
+		/* ran off the end of the buffer, give us benefit of doubt */
+		goto found;
 	/* The device claims it doesn't support the requested page */
 	goto fail;
 
  found:
-	result = scsi_vpd_inquiry(sdev, buf, page, 255);
+	result = scsi_vpd_inquiry(sdev, buf, page, buf_len);
 	if (result)
 		goto fail;
 
-	/*
-	 * Some pages are longer than 255 bytes.  The actual length of
-	 * the page is returned in the header.
-	 */
-	len = ((buf[2] << 8) | buf[3]) + 4;
-	if (len <= init_vpd_len)
-		return buf;
-
-	kfree(buf);
-	buf = kmalloc(len, GFP_KERNEL);
-	result = scsi_vpd_inquiry(sdev, buf, page, len);
-	if (result)
-		goto fail;
-
-	return buf;
+	return 0;
 
  fail:
-	kfree(buf);
-	return NULL;
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
 

@@ -55,7 +55,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -94,7 +93,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 *	Potentially blocks the caller, so it's a good idea to
 *	not call this function from an interrupt context.
 ----------------------------------------------------------------*/
-int p80211req_dorequest(wlandevice_t * wlandev, u8 * msgbuf)
+int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 {
 	int result = 0;
 	p80211msg_t *msg = (p80211msg_t *) msgbuf;
@@ -108,7 +107,8 @@ int p80211req_dorequest(wlandevice_t * wlandev, u8 * msgbuf)
 	}
 
 	/* Check Permissions */
-	if (!capable(CAP_NET_ADMIN) && (msg->msgcode != DIDmsg_dot11req_mibget)) {
+	if (!capable(CAP_NET_ADMIN) &&
+	(msg->msgcode != DIDmsg_dot11req_mibget)) {
 		printk(KERN_ERR
 		       "%s: only dot11req_mibget allowed for non-root.\n",
 		       wlandev->name);
@@ -129,7 +129,7 @@ int p80211req_dorequest(wlandevice_t * wlandev, u8 * msgbuf)
 		wlandev->mlmerequest(wlandev, msg);
 
 	clear_bit(1, &(wlandev->request_pending));
-	return result;		/* if result==0, msg->status still may contain an err */
+	return result;	/* if result==0, msg->status still may contain an err */
 }
 
 /*----------------------------------------------------------------

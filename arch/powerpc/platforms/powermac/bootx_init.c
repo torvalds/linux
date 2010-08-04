@@ -539,7 +539,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 		if (model
 		    && (strcmp(model, "iMac,1") == 0
 			|| strcmp(model, "PowerMac1,1") == 0)) {
-			bootx_printf("iMac,1 detected, shutting down USB \n");
+			bootx_printf("iMac,1 detected, shutting down USB\n");
 			out_le32((unsigned __iomem *)0x80880008, 1);	/* XXX */
 		}
 	}
@@ -554,7 +554,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	} else
 		space = bi->totalParamsSize;
 
-	bootx_printf("Total space used by parameters & ramdisk: 0x%x \n", space);
+	bootx_printf("Total space used by parameters & ramdisk: 0x%x\n", space);
 
 	/* New BootX will have flushed all TLBs and enters kernel with
 	 * MMU switched OFF, so this should not be useful anymore.

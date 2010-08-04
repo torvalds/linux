@@ -142,8 +142,7 @@ void __init bcmring_amba_init(void)
 
 	chipcHw_busInterfaceClockEnable(bus_clock);
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

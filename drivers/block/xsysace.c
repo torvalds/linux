@@ -1198,10 +1198,10 @@ ace_of_probe(struct of_device *op, const struct of_device_id *match)
 	dev_dbg(&op->dev, "ace_of_probe(%p, %p)\n", op, match);
 
 	/* device id */
-	id = of_get_property(op->node, "port-number", NULL);
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	/* physaddr */
-	rc = of_address_to_resource(op->node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
@@ -1209,11 +1209,11 @@ ace_of_probe(struct of_device *op, const struct of_device_id *match)
 	physaddr = res.start;
 
 	/* irq */
-	irq = irq_of_parse_and_map(op->node, 0);
+	irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 	/* bus width */
 	bus_width = ACE_BUS_WIDTH_16;
-	if (of_find_property(op->node, "8-bit", NULL))
+	if (of_find_property(op->dev.of_node, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
 
 	/* Call the bus-independant setup code */
@@ -1227,7 +1227,7 @@ static int __devexit ace_of_remove(struct of_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id ace_of_match[] __devinitdata = {
+static const struct of_device_id ace_of_match[] __devinitconst = {
 	{ .compatible = "xlnx,opb-sysace-1.00.b", },
 	{ .compatible = "xlnx,opb-sysace-1.00.c", },
 	{ .compatible = "xlnx,xps-sysace-1.00.a", },
@@ -1237,13 +1237,12 @@ static struct of_device_id ace_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, ace_of_match);
 
 static struct of_platform_driver ace_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "xsysace",
-	.match_table = ace_of_match,
 	.probe = ace_of_probe,
 	.remove = __devexit_p(ace_of_remove),
 	.driver = {
 		.name = "xsysace",
+		.owner = THIS_MODULE,
+		.of_match_table = ace_of_match,
 	},
 };
 

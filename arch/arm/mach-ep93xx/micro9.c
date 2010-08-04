@@ -28,7 +28,7 @@
  *
  * Micro9-High has up to 64MB of 32-bit flash on CS1
  * Micro9-Mid has up to 64MB of either 32-bit or 16-bit flash on CS1
- * Micro9-Lite uses a seperate MTD map driver for flash support
+ * Micro9-Lite uses a separate MTD map driver for flash support
  * Micro9-Slim has up to 64MB of either 32-bit or 16-bit flash on CS1
  *************************************************************************/
 static struct physmap_flash_data micro9_flash_data;
@@ -80,7 +80,7 @@ static void __init micro9_register_flash(void)
 /*************************************************************************
  * Micro9 Ethernet
  *************************************************************************/
-static struct ep93xx_eth_data micro9_eth_data = {
+static struct ep93xx_eth_data __initdata micro9_eth_data = {
 	.phy_id		= 0x1f,
 };
 

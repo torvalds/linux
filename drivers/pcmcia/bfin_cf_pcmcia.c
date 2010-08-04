@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -112,7 +113,7 @@ static int bfin_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 
 	if (bfin_cf_present(cf->cd_pfx)) {
 		*sp = SS_READY | SS_DETECT | SS_POWERON | SS_3VCARD;
-		s->irq.AssignedIRQ = 0;
+		s->pcmcia_irq = 0;
 		s->pci_irq = cf->irq;
 
 	} else
@@ -205,7 +206,7 @@ static int __devinit bfin_cf_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Blackfin CompactFlash/PCMCIA Socket Driver\n");
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq <= 0)
 		return -EINVAL;
 
 	cd_pfx = platform_get_irq(pdev, 1);	/*Card Detect GPIO PIN */
@@ -300,16 +301,6 @@ static int __devexit bfin_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int bfin_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int bfin_cf_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-
 static struct platform_driver bfin_cf_driver = {
 	.driver = {
 		   .name = (char *)driver_name,
@@ -317,8 +308,6 @@ static struct platform_driver bfin_cf_driver = {
 		   },
 	.probe = bfin_cf_probe,
 	.remove = __devexit_p(bfin_cf_remove),
-	.suspend = bfin_cf_suspend,
-	.resume = bfin_cf_resume,
 };
 
 static int __init bfin_cf_init(void)

@@ -102,7 +102,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/eisa.h>
 #include <linux/pci.h>
@@ -210,7 +209,7 @@ MODULE_DEVICE_TABLE(eisa, hp100_eisa_tbl);
 #endif
 
 #ifdef CONFIG_PCI
-static struct pci_device_id hp100_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(hp100_pci_tbl) = {
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585A, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585B, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2970A, PCI_ANY_ID, PCI_ANY_ID,},
@@ -1103,7 +1102,7 @@ static int hp100_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_start_queue(dev);
 
 	lp->lan_type = hp100_sense_lan(dev);
@@ -1511,7 +1510,7 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 		printk("hp100: %s: start_xmit_bm: No TX PDL available.\n", dev->name);
 #endif
 		/* not waited long enough since last tx? */
-		if (time_before(jiffies, dev->trans_start + HZ))
+		if (time_before(jiffies, dev_trans_start(dev) + HZ))
 			goto drop;
 
 		if (hp100_check_lan(dev))
@@ -1548,7 +1547,6 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 			}
 		}
 
-		dev->trans_start = jiffies;
 		goto drop;
 	}
 
@@ -1586,7 +1584,6 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	/* Update statistics */
 	lp->stats.tx_packets++;
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 
@@ -1664,7 +1661,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 		printk("hp100: %s: start_xmit: tx free mem = 0x%x\n", dev->name, i);
 #endif
 		/* not waited long enough since last failed tx try? */
-		if (time_before(jiffies, dev->trans_start + HZ)) {
+		if (time_before(jiffies, dev_trans_start(dev) + HZ)) {
 #ifdef HP100_DEBUG
 			printk("hp100: %s: trans_start timing problem\n",
 			       dev->name);
@@ -1702,7 +1699,6 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 				mdelay(1);
 			}
 		}
-		dev->trans_start = jiffies;
 		goto drop;
 	}
 
@@ -1746,7 +1742,6 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 
 	lp->stats.tx_packets++;
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	hp100_ints_on();
 	spin_unlock_irqrestore(&lp->lock, flags);
 
@@ -2090,7 +2085,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		lp->mac2_mode = HP100_MAC2MODE6;	/* promiscuous mode = get all good */
 		lp->mac1_mode = HP100_MAC1MODE6;	/* packets on the net */
 		memset(&lp->hash_bytes, 0xff, 8);
-	} else if (dev->mc_count || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI)) {
 		lp->mac2_mode = HP100_MAC2MODE5;	/* multicast mode = get packets for */
 		lp->mac1_mode = HP100_MAC1MODE5;	/* me, broadcasts and all multicasts */
 #ifdef HP100_MULTICAST_FILTER	/* doesn't work!!! */
@@ -2098,22 +2093,23 @@ static void hp100_set_multicast_list(struct net_device *dev)
 			/* set hash filter to receive all multicast packets */
 			memset(&lp->hash_bytes, 0xff, 8);
 		} else {
-			int i, j, idx;
+			int i, idx;
 			u_char *addrs;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 
 			memset(&lp->hash_bytes, 0x00, 8);
 #ifdef HP100_DEBUG
-			printk("hp100: %s: computing hash filter - mc_count = %i\n", dev->name, dev->mc_count);
+			printk("hp100: %s: computing hash filter - mc_count = %i\n",
+			       dev->name, netdev_mc_count(dev));
 #endif
-			for (i = 0, dmi = dev->mc_list; i < dev->mc_count; i++, dmi = dmi->next) {
-				addrs = dmi->dmi_addr;
+			netdev_for_each_mc_addr(ha, dev) {
+				addrs = ha->addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
 					printk("hp100: %s: multicast = %pM, ",
 						     dev->name, addrs);
 #endif
-					for (j = idx = 0; j < 6; j++) {
+					for (i = idx = 0; i < 6; i++) {
 						idx ^= *addrs++ & 0x3f;
 						printk(":%02x:", idx);
 					}

@@ -247,6 +247,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 					 struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
+	struct pci_slot *slot;
 	struct of_device *op;
 	struct pci_dev *dev;
 	const char *type;
@@ -260,7 +261,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
 	sd->host_controller = pbm;
-	sd->prom_node = node;
 	sd->op = op = of_find_device_by_node(node);
 	sd->numa_node = pbm->numa_node;
 
@@ -284,8 +284,14 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
 	dev->dev.bus = &pci_bus_type;
+	dev->dev.of_node = node;
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
+	set_pcie_port_type(dev);
+
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
 
 	dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
 	dev->device = of_getintprop_default(node, "device-id", 0xffff);
@@ -322,6 +328,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
+	dev->dma_mask = 0xffffffff;
 
 	if (!strcmp(node->name, "pci")) {
 		/* a PCI-PCI bridge */
@@ -646,7 +653,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 	struct device_node *dp;
 
 	pdev = to_pci_dev(dev);
-	dp = pdev->dev.archdata.prom_node;
+	dp = pdev->dev.of_node;
 
 	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
 }
@@ -676,7 +683,7 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 					    struct device *parent)
 {
-	struct device_node *node = pbm->op->node;
+	struct device_node *node = pbm->op->dev.of_node;
 	struct pci_bus *bus;
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
@@ -715,9 +722,10 @@ void pcibios_update_irq(struct pci_dev *pdev, int irq)
 {
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
+	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -1014,7 +1022,7 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 
 struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 {
-	return pdev->dev.archdata.prom_node;
+	return pdev->dev.of_node;
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
 
@@ -1087,3 +1095,76 @@ static int __init pcibios_init(void)
 	return 0;
 }
 subsys_initcall(pcibios_init);
+
+#ifdef CONFIG_SYSFS
+static void __devinit pci_bus_slot_names(struct device_node *node,
+					 struct pci_bus *bus)
+{
+	const struct pci_slot_names {
+		u32	slot_mask;
+		char	names[0];
+	} *prop;
+	const char *sp;
+	int len, i;
+	u32 mask;
+
+	prop = of_get_property(node, "slot-names", &len);
+	if (!prop)
+		return;
+
+	mask = prop->slot_mask;
+	sp = prop->names;
+
+	if (ofpci_verbose)
+		printk("PCI: Making slots for [%s] mask[0x%02x]\n",
+		       node->full_name, mask);
+
+	i = 0;
+	while (mask) {
+		struct pci_slot *pci_slot;
+		u32 this_bit = 1 << i;
+
+		if (!(mask & this_bit)) {
+			i++;
+			continue;
+		}
+
+		if (ofpci_verbose)
+			printk("PCI: Making slot [%s]\n", sp);
+
+		pci_slot = pci_create_slot(bus, i, sp, NULL);
+		if (IS_ERR(pci_slot))
+			printk(KERN_ERR "PCI: pci_create_slot returned %ld\n",
+			       PTR_ERR(pci_slot));
+
+		sp += strlen(sp) + 1;
+		mask &= ~this_bit;
+		i++;
+	}
+}
+
+static int __init of_pci_slot_init(void)
+{
+	struct pci_bus *pbus = NULL;
+
+	while ((pbus = pci_find_next_bus(pbus)) != NULL) {
+		struct device_node *node;
+
+		if (pbus->self) {
+			/* PCI->PCI bridge */
+			node = pbus->self->dev.of_node;
+		} else {
+			struct pci_pbm_info *pbm = pbus->sysdata;
+
+			/* Host PCI controller */
+			node = pbm->op->dev.of_node;
+		}
+
+		pci_bus_slot_names(node, pbus);
+	}
+
+	return 0;
+}
+
+module_init(of_pci_slot_init);
+#endif

@@ -4,7 +4,7 @@
 #include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include "util.h"
+#include "event.h"
 #include "symbol.h"
 
 enum chain_mode {
@@ -33,13 +33,14 @@ typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_node *,
 
 struct callchain_param {
 	enum chain_mode 	mode;
+	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
 };
 
 struct callchain_list {
 	u64			ip;
-	struct symbol		*sym;
+	struct map_symbol	ms;
 	struct list_head	list;
 };
 
@@ -48,6 +49,9 @@ static inline void callchain_init(struct callchain_node *node)
 	INIT_LIST_HEAD(&node->brothers);
 	INIT_LIST_HEAD(&node->children);
 	INIT_LIST_HEAD(&node->val);
+
+	node->parent = NULL;
+	node->hit = 0;
 }
 
 static inline u64 cumul_hits(struct callchain_node *node)
@@ -56,6 +60,8 @@ static inline u64 cumul_hits(struct callchain_node *node)
 }
 
 int register_callchain_param(struct callchain_param *param);
-void append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		  struct symbol **syms);
+int append_chain(struct callchain_node *root, struct ip_callchain *chain,
+		 struct map_symbol *syms, u64 period);
+
+bool ip_callchain__valid(struct ip_callchain *chain, event_t *event);
 #endif	/* __PERF_CALLCHAIN_H */

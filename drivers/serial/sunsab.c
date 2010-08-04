@@ -474,7 +474,7 @@ static void sunsab_stop_rx(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 
-	up->interrupt_mask0 |= SAB82532_ISR0_TCD;
+	up->interrupt_mask0 |= SAB82532_IMR0_TCD;
 	writeb(up->interrupt_mask1, &up->regs->w.imr0);
 }
 
@@ -883,7 +883,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
 
-	sunserial_console_termios(con, to_of_device(up->port.dev)->node);
+	sunserial_console_termios(con, to_of_device(up->port.dev)->dev.of_node);
 
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
@@ -1026,11 +1026,11 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 	if (err)
 		goto out1;
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
 				&sunsab_reg, up[0].port.line,
 				false);
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
 				&sunsab_reg, up[1].port.line,
 				false);
 
@@ -1093,8 +1093,11 @@ static const struct of_device_id sab_match[] = {
 MODULE_DEVICE_TABLE(of, sab_match);
 
 static struct of_platform_driver sab_driver = {
-	.name		= "sab",
-	.match_table	= sab_match,
+	.driver = {
+		.name = "sab",
+		.owner = THIS_MODULE,
+		.of_match_table = sab_match,
+	},
 	.probe		= sab_probe,
 	.remove		= __devexit_p(sab_remove),
 };

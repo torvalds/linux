@@ -201,7 +201,7 @@ static long mixcomwd_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	int status;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
 		.identity = "MixCOM watchdog",

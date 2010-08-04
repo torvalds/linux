@@ -5,7 +5,6 @@
 #include <linux/ctype.h>
 #include <linux/pnp.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>

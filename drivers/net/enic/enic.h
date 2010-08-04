@@ -33,8 +33,8 @@
 #include "vnic_rss.h"
 
 #define DRV_NAME		"enic"
-#define DRV_DESCRIPTION		"Cisco 10G Ethernet Driver"
-#define DRV_VERSION		"1.1.0.100"
+#define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
+#define DRV_VERSION		"1.3.1.1-pp"
 #define DRV_COPYRIGHT		"Copyright 2008-2009 Cisco Systems, Inc"
 #define PFX			DRV_NAME ": "
 
@@ -74,6 +74,20 @@ struct enic_msix_entry {
 	void *devid;
 };
 
+#define ENIC_SET_APPLIED		(1 << 0)
+#define ENIC_SET_REQUEST		(1 << 1)
+#define ENIC_SET_NAME			(1 << 2)
+#define ENIC_SET_INSTANCE		(1 << 3)
+#define ENIC_SET_HOST			(1 << 4)
+
+struct enic_port_profile {
+	u32 set;
+	u8 request;
+	char name[PORT_PROFILE_MAX];
+	u8 instance_uuid[PORT_UUID_MAX];
+	u8 host_uuid[PORT_UUID_MAX];
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -89,9 +103,13 @@ struct enic {
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
+	unsigned int flags;
 	unsigned int mc_count;
 	int csum_rx_enabled;
 	u32 port_mtu;
+	u32 rx_coalesce_usecs;
+	u32 tx_coalesce_usecs;
+	struct enic_port_profile pp;
 
 	/* work queue cache line section */
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];

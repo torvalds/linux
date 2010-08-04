@@ -20,6 +20,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "em28xx.h"
@@ -466,6 +467,7 @@ static int dvb_init(struct em28xx *dev)
 	}
 	dev->dvb = dvb;
 
+	mutex_lock(&dev->lock);
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
@@ -502,7 +504,10 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+	case EM2882_BOARD_DIKOM_DK300:
+	case EM2882_BOARD_KWORLD_VS_DVBT:
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_xc3028_no_i2c_gate,
 					   &dev->i2c_adap);
@@ -586,15 +591,16 @@ static int dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	em28xx_info("Successfully loaded em28xx-dvb\n");
-	return 0;
+ret:
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
+	mutex_unlock(&dev->lock);
+	return result;
 
 out_free:
-	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;
-	return result;
+	goto ret;
 }
 
 static int dvb_fini(struct em28xx *dev)
@@ -606,6 +612,7 @@ static int dvb_fini(struct em28xx *dev)
 
 	if (dev->dvb) {
 		unregister_dvb(dev->dvb);
+		kfree(dev->dvb);
 		dev->dvb = NULL;
 	}
 

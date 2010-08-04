@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/mtd.h>
@@ -34,6 +35,7 @@
 #include <mach/regs-serial.h>
 #include <mach/nuc900_spi.h>
 #include <mach/map.h>
+#include <mach/fb.h>
 
 #include "cpu.h"
 
@@ -380,6 +382,74 @@ struct platform_device nuc900_device_kpi = {
 	.resource	= nuc900_kpi_resource,
 };
 
+#ifdef CONFIG_FB_NUC900
+
+static struct resource nuc900_lcd_resource[] = {
+	[0] = {
+		.start = W90X900_PA_LCD,
+		.end   = W90X900_PA_LCD + W90X900_SZ_LCD - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LCD,
+		.end   = IRQ_LCD,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 nuc900_device_lcd_dmamask = -1;
+struct platform_device nuc900_device_lcd = {
+	.name             = "nuc900-lcd",
+	.id               = -1,
+	.num_resources    = ARRAY_SIZE(nuc900_lcd_resource),
+	.resource         = nuc900_lcd_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_lcd_dmamask,
+		.coherent_dma_mask      = -1,
+	}
+};
+
+void  nuc900_fb_set_platdata(struct nuc900fb_mach_info *pd)
+{
+	struct nuc900fb_mach_info *npd;
+
+	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	if (npd) {
+		memcpy(npd, pd, sizeof(*npd));
+		nuc900_device_lcd.dev.platform_data = npd;
+	} else {
+		printk(KERN_ERR "no memory for LCD platform data\n");
+	}
+}
+#endif
+
+/* AUDIO controller*/
+static u64 nuc900_device_audio_dmamask = -1;
+static struct resource nuc900_ac97_resource[] = {
+	[0] = {
+		.start = W90X900_PA_ACTL,
+		.end   = W90X900_PA_ACTL + W90X900_SZ_ACTL - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_ACTL,
+		.end   = IRQ_ACTL,
+		.flags = IORESOURCE_IRQ,
+	}
+
+};
+
+struct platform_device nuc900_device_audio = {
+	.name		= "nuc900-audio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(nuc900_ac97_resource),
+	.resource	= nuc900_ac97_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_audio_dmamask,
+		.coherent_dma_mask      = -1,
+	}
+};
+
 /*Here should be your evb resourse,such as LCD*/
 
 static struct platform_device *nuc900_public_dev[] __initdata = {
@@ -391,6 +461,7 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 	&nuc900_device_emc,
 	&nuc900_device_spi,
 	&nuc900_device_wdt,
+	&nuc900_device_audio,
 };
 
 /* Provide adding specific CPU platform devices API */

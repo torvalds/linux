@@ -1824,7 +1824,7 @@ static int dv1394_open(struct inode *inode, struct file *file)
 	       "and will not be available in the new firewire driver stack. "
 	       "Try libraw1394 based programs instead.\n", current->comm);
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 
@@ -2153,17 +2153,18 @@ static struct cdev dv1394_cdev;
 static const struct file_operations dv1394_fops=
 {
 	.owner =	THIS_MODULE,
-	.poll =         dv1394_poll,
+	.poll =		dv1394_poll,
 	.unlocked_ioctl = dv1394_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = dv1394_compat_ioctl,
 #endif
 	.mmap =		dv1394_mmap,
 	.open =		dv1394_open,
-	.write =        dv1394_write,
-	.read =         dv1394_read,
+	.write =	dv1394_write,
+	.read =		dv1394_read,
 	.release =	dv1394_release,
-	.fasync =       dv1394_fasync,
+	.fasync =	dv1394_fasync,
+	.llseek =	no_llseek,
 };
 
 

@@ -31,7 +31,7 @@
 #define PMLCA_FCM0	0x08000000	/* Freeze when PMM==0 */
 #define PMLCA_CE	0x04000000	/* Condition Enable */
 
-#define PMLCA_EVENT_MASK 0x007f0000	/* Event field */
+#define PMLCA_EVENT_MASK 0x00ff0000	/* Event field */
 #define PMLCA_EVENT_SHIFT	16
 
 #define PMRN_PMLCB0	0x110	/* PM Local Control B0 */

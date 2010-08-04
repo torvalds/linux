@@ -53,17 +53,15 @@ static int __ref pciehp_add_bridge(struct pci_dev *dev)
 		busnr = pci_scan_bridge(parent, dev, busnr, pass);
 	if (!dev->subordinate)
 		return -1;
-	pci_bus_size_bridges(dev->subordinate);
-	pci_bus_assign_resources(parent);
-	pci_enable_bridges(parent);
-	pci_bus_add_devices(parent);
+
 	return 0;
 }
 
 int pciehp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
-	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
+	struct pci_dev *bridge = p_slot->ctrl->pcie->port;
+	struct pci_bus *parent = bridge->subordinate;
 	int num, fn;
 	struct controller *ctrl = p_slot->ctrl;
 
@@ -86,22 +84,29 @@ int pciehp_configure_device(struct slot *p_slot)
 		dev = pci_get_slot(parent, PCI_DEVFN(0, fn));
 		if (!dev)
 			continue;
-		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			ctrl_err(ctrl, "Cannot hot-add display device %s\n",
-				 pci_name(dev));
-			pci_dev_put(dev);
-			continue;
-		}
 		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
 				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
 			pciehp_add_bridge(dev);
+		}
+		pci_dev_put(dev);
+	}
+
+	pci_assign_unassigned_bridge_resources(bridge);
+
+	for (fn = 0; fn < 8; fn++) {
+		dev = pci_get_slot(parent, PCI_DEVFN(0, fn));
+		if (!dev)
+			continue;
+		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+			pci_dev_put(dev);
+			continue;
 		}
 		pci_configure_slot(dev);
 		pci_dev_put(dev);
 	}
 
-	pci_bus_assign_resources(parent);
 	pci_bus_add_devices(parent);
+
 	return 0;
 }
 
@@ -122,15 +127,9 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 		presence = 0;
 
 	for (j = 0; j < 8; j++) {
-		struct pci_dev* temp = pci_get_slot(parent, PCI_DEVFN(0, j));
+		struct pci_dev *temp = pci_get_slot(parent, PCI_DEVFN(0, j));
 		if (!temp)
 			continue;
-		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			ctrl_err(ctrl, "Cannot remove display device %s\n",
-				 pci_name(temp));
-			pci_dev_put(temp);
-			continue;
-		}
 		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE && presence) {
 			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
 			if (bctl & PCI_BRIDGE_CTL_VGA) {
@@ -138,7 +137,8 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 					 "Cannot remove display device %s\n",
 					 pci_name(temp));
 				pci_dev_put(temp);
-				continue;
+				rc = EINVAL;
+				break;
 			}
 		}
 		pci_remove_bus_device(temp);

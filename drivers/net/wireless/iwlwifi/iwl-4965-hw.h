@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,26 +80,6 @@
  * All block-ack aggregation queues should map to Tx DMA/FIFO channel 7.
  */
 #define IWL49_FIRST_AMPDU_QUEUE	7
-
-/* Time constants */
-#define SHORT_SLOT_TIME 9
-#define LONG_SLOT_TIME 20
-
-/* RSSI to dBm */
-#define IWL49_RSSI_OFFSET	44
-
-
-/* PCI registers */
-#define PCI_CFG_RETRY_TIMEOUT	0x041
-
-/* PCI register values */
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
-#define IWL_NUM_SCAN_RATES         (2)
-
-#define IWL_DEFAULT_TX_RETRY  15
-
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
@@ -392,10 +372,6 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  * 11) Read gain table entries for DSP and radio gain, place into appropriate
  *     location(s) in command (struct iwl4965_txpowertable_cmd).
  */
-
-/* Limit range of txpower output target to be between these values */
-#define IWL_TX_POWER_TARGET_POWER_MIN       (0)	/* 0 dBm = 1 milliwatt */
-#define IWL_TX_POWER_TARGET_POWER_MAX      (16)	/* 16 dBm */
 
 /**
  * When MIMO is used (2 transmitters operating simultaneously), driver should

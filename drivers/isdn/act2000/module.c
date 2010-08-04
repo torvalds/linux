@@ -16,6 +16,7 @@
 #include "act2000_isa.h"
 #include "capi.h"
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 static unsigned short act2000_isa_ports[] =

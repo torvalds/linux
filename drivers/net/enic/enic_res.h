@@ -131,7 +131,6 @@ static inline void enic_queue_rq_desc(struct vnic_rq *rq,
 struct enic;
 
 int enic_get_vnic_config(struct enic *);
-void enic_add_station_addr(struct enic *enic);
 void enic_add_multicast_addr(struct enic *enic, u8 *addr);
 void enic_del_multicast_addr(struct enic *enic, u8 *addr);
 void enic_add_vlan(struct enic *enic, u16 vlanid);

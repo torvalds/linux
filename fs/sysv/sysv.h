@@ -142,7 +142,7 @@ extern int __sysv_write_begin(struct file *file, struct address_space *mapping,
 
 /* inode.c */
 extern struct inode *sysv_iget(struct super_block *, unsigned int);
-extern int sysv_write_inode(struct inode *, int);
+extern int sysv_write_inode(struct inode *, struct writeback_control *wbc);
 extern int sysv_sync_inode(struct inode *);
 extern void sysv_set_inode(struct inode *, dev_t);
 extern int sysv_getattr(struct vfsmount *, struct dentry *, struct kstat *);

@@ -13,6 +13,22 @@ menuconfig DMADEVICES
 	  DMA Device drivers supported by the configured arch, it may
 	  be empty in some cases.
 
+config DMADEVICES_DEBUG
+        bool "DMA Engine debugging"
+        depends on DMADEVICES != n
+        help
+          This is an option for use by developers; most people should
+          say N here.  This enables DMA engine core and driver debugging.
+
+config DMADEVICES_VDEBUG
+        bool "DMA Engine verbose debugging"
+        depends on DMADEVICES_DEBUG != n
+        help
+          This is an option for use by developers; most people should
+          say N here.  This enables deeper (more verbose) debugging of
+          the DMA engine core and drivers.
+
+
 if DMADEVICES
 
 comment "DMA Devices"
@@ -69,6 +85,13 @@ config FSL_DMA
 	  The Elo is the DMA controller on some 82xx and 83xx parts, and the
 	  Elo Plus is the DMA controller on 85xx and 86xx parts.
 
+config MPC512X_DMA
+	tristate "Freescale MPC512x built-in DMA engine support"
+	depends on PPC_MPC512x
+	select DMA_ENGINE
+	---help---
+	  Enable support for the Freescale MPC512x built-in DMA engine.
+
 config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
@@ -118,6 +141,13 @@ config COH901318
 	help
 	  Enable support for ST-Ericsson COH 901 318 DMA.
 
+config STE_DMA40
+	bool "ST-Ericsson DMA40 support"
+	depends on ARCH_U8500
+	select DMA_ENGINE
+	help
+	  Support for ST-Ericsson DMA40 controller
+
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
 	depends on 440SPe || 440SP
@@ -126,8 +156,24 @@ config AMCC_PPC440SPE_ADMA
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
+config TIMB_DMA
+	tristate "Timberdale FPGA DMA support"
+	depends on MFD_TIMBERDALE || HAS_IOMEM
+	select DMA_ENGINE
+	help
+	  Enable support for the Timberdale FPGA DMA engine.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
+
+config PL330_DMA
+	tristate "DMA API Driver for PL330"
+	select DMA_ENGINE
+	depends on PL330
+	help
+	  Select if your platform has one or more PL330 DMACs.
+	  You need to provide platform specific settings via
+	  platform_data for a dma-pl330 device.
 
 config DMA_ENGINE
 	bool

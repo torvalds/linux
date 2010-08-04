@@ -223,8 +223,8 @@ touched by the driver - it should use the ccwgroup device's driver_data for its
 private data.
 
 To implement a ccwgroup driver, please refer to include/asm/ccwgroup.h. Keep in
-mind that most drivers will need to implement both a ccwgroup and a ccw driver
-(unless you have a meta ccw driver, like cu3088 for lcs and ctc).
+mind that most drivers will need to implement both a ccwgroup and a ccw
+driver.
 
 
 2. Channel paths

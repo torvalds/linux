@@ -36,14 +36,35 @@ ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
 EXPORT_SYMBOL(panic_notifier_list);
 
-static long no_blink(long time)
-{
-	return 0;
-}
-
 /* Returns how long it waited in ms */
 long (*panic_blink)(long time);
 EXPORT_SYMBOL(panic_blink);
+
+static void panic_blink_one_second(void)
+{
+	static long i = 0, end;
+
+	if (panic_blink) {
+		end = i + MSEC_PER_SEC;
+
+		while (i < end) {
+			i += panic_blink(i);
+			mdelay(1);
+			i++;
+		}
+	} else {
+		/*
+		 * When running under a hypervisor a small mdelay may get
+		 * rounded up to the hypervisor timeslice. For example, with
+		 * a 1ms in 10ms hypervisor timeslice we might inflate a
+		 * mdelay(1) loop by 10x.
+		 *
+		 * If we have nothing to blink, spin on 1 second calls to
+		 * mdelay to avoid this.
+		 */
+		mdelay(MSEC_PER_SEC);
+	}
+}
 
 /**
  *	panic - halt the system
@@ -66,6 +87,7 @@ NORET_TYPE void panic(const char * fmt, ...)
 	 */
 	preempt_disable();
 
+	console_verbose();
 	bust_spinlocks(1);
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
@@ -95,9 +117,6 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 	bust_spinlocks(0);
 
-	if (!panic_blink)
-		panic_blink = no_blink;
-
 	if (panic_timeout > 0) {
 		/*
 		 * Delay timeout seconds before rebooting the machine.
@@ -105,11 +124,9 @@ NORET_TYPE void panic(const char * fmt, ...)
 		 */
 		printk(KERN_EMERG "Rebooting in %d seconds..", panic_timeout);
 
-		for (i = 0; i < panic_timeout*1000; ) {
+		for (i = 0; i < panic_timeout; i++) {
 			touch_nmi_watchdog();
-			i += panic_blink(i);
-			mdelay(1);
-			i++;
+			panic_blink_one_second();
 		}
 		/*
 		 * This will not be a clean reboot, with everything
@@ -135,11 +152,9 @@ NORET_TYPE void panic(const char * fmt, ...)
 	}
 #endif
 	local_irq_enable();
-	for (i = 0; ; ) {
+	while (1) {
 		touch_softlockup_watchdog();
-		i += panic_blink(i);
-		mdelay(1);
-		i++;
+		panic_blink_one_second();
 	}
 }
 
@@ -164,6 +179,7 @@ static const struct tnt tnts[] = {
 	{ TAINT_OVERRIDDEN_ACPI_TABLE,	'A', ' ' },
 	{ TAINT_WARN,			'W', ' ' },
 	{ TAINT_CRAP,			'C', ' ' },
+	{ TAINT_FIRMWARE_WORKAROUND,	'I', ' ' },
 };
 
 /**
@@ -180,6 +196,7 @@ static const struct tnt tnts[] = {
  *  'A' - ACPI table overridden.
  *  'W' - Taint on warning.
  *  'C' - modules from drivers/staging are loaded.
+ *  'I' - Working around severe firmware bug.
  *
  *	The string is overwritten by the next call to print_tainted().
  */
@@ -351,7 +368,8 @@ struct slowpath_args {
 	va_list args;
 };
 
-static void warn_slowpath_common(const char *file, int line, void *caller, struct slowpath_args *args)
+static void warn_slowpath_common(const char *file, int line, void *caller,
+				 unsigned taint, struct slowpath_args *args)
 {
 	const char *board;
 
@@ -367,7 +385,7 @@ static void warn_slowpath_common(const char *file, int line, void *caller, struc
 	print_modules();
 	dump_stack();
 	print_oops_end_marker();
-	add_taint(TAINT_WARN);
+	add_taint(taint);
 }
 
 void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
@@ -376,14 +394,29 @@ void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
 
 	args.fmt = fmt;
 	va_start(args.args, fmt);
-	warn_slowpath_common(file, line, __builtin_return_address(0), &args);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     TAINT_WARN, &args);
 	va_end(args.args);
 }
 EXPORT_SYMBOL(warn_slowpath_fmt);
 
+void warn_slowpath_fmt_taint(const char *file, int line,
+			     unsigned taint, const char *fmt, ...)
+{
+	struct slowpath_args args;
+
+	args.fmt = fmt;
+	va_start(args.args, fmt);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     taint, &args);
+	va_end(args.args);
+}
+EXPORT_SYMBOL(warn_slowpath_fmt_taint);
+
 void warn_slowpath_null(const char *file, int line)
 {
-	warn_slowpath_common(file, line, __builtin_return_address(0), NULL);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     TAINT_WARN, NULL);
 }
 EXPORT_SYMBOL(warn_slowpath_null);
 #endif

@@ -33,6 +33,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/bug.h>
+#include <asm/kvm_book3s_asm.h>
 
 /* 601 only have IBAT; cr0.eq is set on 601 when using this macro */
 #define LOAD_BAT(n, reg, RA, RB)	\
@@ -303,6 +304,7 @@ __secondary_hold_acknowledge:
  */
 #define EXCEPTION(n, label, hdlr, xfer)		\
 	. = n;					\
+	DO_KVM n;				\
 label:						\
 	EXCEPTION_PROLOG;			\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;	\
@@ -358,6 +360,7 @@ i##n:								\
  *	-- paulus.
  */
 	. = 0x200
+	DO_KVM  0x200
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfcr	r10
@@ -381,6 +384,7 @@ i##n:								\
 
 /* Data access exception. */
 	. = 0x300
+	DO_KVM  0x300
 DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
@@ -397,6 +401,7 @@ DataAccess:
 
 /* Instruction access exception. */
 	. = 0x400
+	DO_KVM  0x400
 InstructionAccess:
 	EXCEPTION_PROLOG
 	andis.	r0,r9,0x4000		/* no pte found? */
@@ -413,6 +418,7 @@ InstructionAccess:
 
 /* Alignment exception */
 	. = 0x600
+	DO_KVM  0x600
 Alignment:
 	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_DAR
@@ -427,6 +433,7 @@ Alignment:
 
 /* Floating-point unavailable */
 	. = 0x800
+	DO_KVM  0x800
 FPUnavailable:
 BEGIN_FTR_SECTION
 /*
@@ -450,6 +457,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 
 /* System call */
 	. = 0xc00
+	DO_KVM  0xc00
 SystemCall:
 	EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
@@ -467,9 +475,11 @@ SystemCall:
  * by executing an altivec instruction.
  */
 	. = 0xf00
+	DO_KVM  0xf00
 	b	PerformanceMonitor
 
 	. = 0xf20
+	DO_KVM  0xf20
 	b	AltiVecUnavailable
 
 /*
@@ -881,6 +891,10 @@ __secondary_start:
 	SYNC
 	RFI
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
+#include "../kvm/book3s_rmhandlers.S"
+#endif
 
 /*
  * Those generic dummy functions are kept for CPUs not

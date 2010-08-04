@@ -53,7 +53,7 @@ static void hp6x0_apm_get_power_status(struct apm_power_info *info)
 	info->ac_line_status = (battery > HP680_BATTERY_AC_ON) ?
 			 APM_AC_ONLINE : APM_AC_OFFLINE;
 
-	pgdr = ctrl_inb(PGDR);
+	pgdr = __raw_readb(PGDR);
 	if (pgdr & PGDR_MAIN_BATTERY_OUT) {
 		info->battery_status	= APM_BATTERY_STATUS_NOT_PRESENT;
 		info->battery_flag	= 0x80;

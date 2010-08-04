@@ -398,7 +398,7 @@ exit:
  * guaranteed that all the free functions for all the elements have finished
  * executing and the reaper is not running.
  */
-void
+static void
 xfs_mru_cache_flush(
 	xfs_mru_cache_t		*mru)
 {

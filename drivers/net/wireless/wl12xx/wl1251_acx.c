@@ -1,6 +1,7 @@
 #include "wl1251_acx.h"
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/crc7.h>
 
 #include "wl1251.h"
@@ -969,6 +970,75 @@ int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim)
 				   acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1251_warning("failed to set tbtt and dtim: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifs, u16 txop)
+{
+	struct wl1251_acx_ac_cfg *acx;
+	int ret = 0;
+
+	wl1251_debug(DEBUG_ACX, "acx ac cfg %d cw_ming %d cw_max %d "
+		     "aifs %d txop %d", ac, cw_min, cw_max, aifs, txop);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->ac = ac;
+	acx->cw_min = cw_min;
+	acx->cw_max = cw_max;
+	acx->aifsn = aifs;
+	acx->txop_limit = txop;
+
+	ret = wl1251_cmd_configure(wl, ACX_AC_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("acx ac cfg failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1251_acx_tid_cfg(struct wl1251 *wl, u8 queue,
+		       enum wl1251_acx_channel_type type,
+		       u8 tsid, enum wl1251_acx_ps_scheme ps_scheme,
+		       enum wl1251_acx_ack_policy ack_policy)
+{
+	struct wl1251_acx_tid_cfg *acx;
+	int ret = 0;
+
+	wl1251_debug(DEBUG_ACX, "acx tid cfg %d type %d tsid %d "
+		     "ps_scheme %d ack_policy %d", queue, type, tsid,
+		     ps_scheme, ack_policy);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->queue = queue;
+	acx->type = type;
+	acx->tsid = tsid;
+	acx->ps_scheme = ps_scheme;
+	acx->ack_policy = ack_policy;
+
+	ret = wl1251_cmd_configure(wl, ACX_TID_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("acx tid cfg failed: %d", ret);
 		goto out;
 	}
 

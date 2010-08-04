@@ -137,6 +137,19 @@ cflags-$(CONFIG_CPU_LOONGSON2E) += \
 	$(call cc-option,-march=loongson2e,-march=r4600)
 cflags-$(CONFIG_CPU_LOONGSON2F) += \
 	$(call cc-option,-march=loongson2f,-march=r4600)
+# enable the workarounds for loongson2f
+ifdef CONFIG_CPU_LOONGSON2F_WORKAROUNDS
+  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-nop,),)
+    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-nop)
+  else
+    cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-nop
+  endif
+  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-jump,),)
+    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-jump)
+  else
+    cflags-$(CONFIG_CPU_JUMP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-jump
+  endif
+endif
 
 cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips32 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
 			-Wa,-mips32 -Wa,--trap
@@ -185,6 +198,15 @@ libs-$(CONFIG_ARC)		+= arch/mips/fw/arc/
 libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
 libs-$(CONFIG_SNIPROM)		+= arch/mips/fw/sni/
 libs-y				+= arch/mips/fw/lib/
+
+#
+# Kernel compression
+#
+ifdef SYS_SUPPORTS_ZBOOT
+COMPRESSION_FNAME		= vmlinuz
+else
+COMPRESSION_FNAME		= vmlinux
+endif
 
 #
 # Board-dependent options and extra files
@@ -334,11 +356,11 @@ load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
 #
 # Loongson family
 #
-core-$(CONFIG_MACH_LOONGSON) +=arch/mips/loongson/
+core-$(CONFIG_MACH_LOONGSON) += arch/mips/loongson/
 cflags-$(CONFIG_MACH_LOONGSON) += -I$(srctree)/arch/mips/include/asm/mach-loongson \
                     -mno-branch-likely
-load-$(CONFIG_LEMOTE_FULOONG2E) +=0xffffffff80100000
-load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
+load-$(CONFIG_LEMOTE_FULOONG2E) += 0xffffffff80100000
+load-$(CONFIG_LEMOTE_MACH2F) += 0xffffffff80200000
 
 #
 # MIPS Malta board
@@ -346,7 +368,7 @@ load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mti-malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -I$(srctree)/arch/mips/include/asm/mach-malta
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_MALTA)	:= vmlinuz.bin
+all-$(CONFIG_MIPS_MALTA)	:= $(COMPRESSION_FNAME).bin
 
 #
 # MIPS SIM
@@ -596,7 +618,7 @@ load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 else
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80030000
 endif
-all-$(CONFIG_SNI_RM)		:= vmlinuz.ecoff
+all-$(CONFIG_SNI_RM)		:= $(COMPRESSION_FNAME).ecoff
 
 #
 # Common TXx9

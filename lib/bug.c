@@ -165,7 +165,7 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 			       (void *)bugaddr);
 
 		show_regs(regs);
-		add_taint(TAINT_WARN);
+		add_taint(BUG_GET_TAINT(bug));
 		return BUG_TRAP_TYPE_WARN;
 	}
 

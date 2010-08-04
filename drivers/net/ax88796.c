@@ -25,6 +25,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/slab.h>
 
 #include <net/ax88796.h>
 
@@ -302,7 +303,6 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 /* definitions for accessing MII/EEPROM interface */
@@ -921,7 +921,7 @@ static int ax_probe(struct platform_device *pdev)
  		size = (res->end - res->start) + 1;
 
 		ax->mem2 = request_mem_region(res->start, size, pdev->name);
-		if (ax->mem == NULL) {
+		if (ax->mem2 == NULL) {
 			dev_err(&pdev->dev, "cannot reserve registers\n");
 			ret = -ENXIO;
 			goto exit_mem1;

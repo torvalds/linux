@@ -187,10 +187,10 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
 
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
-			    struct ieee80211_if_init_conf *conf)
+			    struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, QID_BEACON);
 	struct queue_entry *entry = NULL;
 	unsigned int i;
@@ -203,7 +203,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	    !test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
 		return -ENODEV;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 		/*
 		 * We don't support mixed combinations of
@@ -263,7 +263,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * increase interface count and start initialization.
 	 */
 
-	if (conf->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP)
 		rt2x00dev->intf_ap_count++;
 	else
 		rt2x00dev->intf_sta_count++;
@@ -273,16 +273,16 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
-	if (conf->type == NL80211_IFTYPE_AP)
-		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
-	memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
+	if (vif->type == NL80211_IFTYPE_AP)
+		memcpy(&intf->bssid, vif->addr, ETH_ALEN);
+	memcpy(&intf->mac, vif->addr, ETH_ALEN);
 
 	/*
 	 * The MAC adddress must be configured after the device
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, intf->mac, NULL);
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, intf->mac, NULL);
 
 	/*
 	 * Some filters depend on the current working mode. We can force
@@ -296,10 +296,10 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 EXPORT_SYMBOL_GPL(rt2x00mac_add_interface);
 
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf)
+				struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	/*
 	 * Don't allow interfaces to be remove while
@@ -307,11 +307,11 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	 * no interface is present.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
-	    (conf->type == NL80211_IFTYPE_AP && !rt2x00dev->intf_ap_count) ||
-	    (conf->type != NL80211_IFTYPE_AP && !rt2x00dev->intf_sta_count))
+	    (vif->type == NL80211_IFTYPE_AP && !rt2x00dev->intf_ap_count) ||
+	    (vif->type != NL80211_IFTYPE_AP && !rt2x00dev->intf_sta_count))
 		return;
 
-	if (conf->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP)
 		rt2x00dev->intf_ap_count--;
 	else
 		rt2x00dev->intf_sta_count--;
@@ -554,22 +554,6 @@ int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_get_stats);
-
-int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
-			   struct ieee80211_tx_queue_stats *stats)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	unsigned int i;
-
-	for (i = 0; i < rt2x00dev->ops->tx_queues; i++) {
-		stats[i].len = rt2x00dev->tx[i].length;
-		stats[i].limit = rt2x00dev->tx[i].limit;
-		stats[i].count = rt2x00dev->tx[i].count;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00mac_get_tx_stats);
 
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,

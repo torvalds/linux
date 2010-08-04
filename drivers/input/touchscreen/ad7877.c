@@ -46,7 +46,7 @@
 #include <linux/spi/ad7877.h>
 #include <asm/irq.h>
 
-#define	TS_PEN_UP_TIMEOUT	msecs_to_jiffies(50)
+#define	TS_PEN_UP_TIMEOUT	msecs_to_jiffies(100)
 
 #define MAX_SPI_FREQ_HZ			20000000
 #define	MAX_12BIT			((1<<12)-1)
@@ -156,9 +156,14 @@ struct ser_req {
 	u16			reset;
 	u16			ref_on;
 	u16			command;
-	u16			sample;
 	struct spi_message	msg;
 	struct spi_transfer	xfer[6];
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u16 sample ____cacheline_aligned;
 };
 
 struct ad7877 {
@@ -182,8 +187,6 @@ struct ad7877 {
 	u8			averaging;
 	u8			pen_down_acc_interval;
 
-	u16			conversion_data[AD7877_NR_SENSE];
-
 	struct spi_transfer	xfer[AD7877_NR_SENSE + 2];
 	struct spi_message	msg;
 
@@ -195,6 +198,12 @@ struct ad7877 {
 	spinlock_t		lock;
 	struct timer_list	timer;		/* P: lock */
 	unsigned		pending:1;	/* P: lock */
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u16 conversion_data[AD7877_NR_SENSE] ____cacheline_aligned;
 };
 
 static int gpio3;
@@ -668,6 +677,13 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	if (spi->max_speed_hz > MAX_SPI_FREQ_HZ) {
 		dev_dbg(&spi->dev, "SPI CLK %d Hz?\n",spi->max_speed_hz);
 		return -EINVAL;
+	}
+
+	spi->bits_per_word = 16;
+	err = spi_setup(spi);
+	if (err) {
+		dev_dbg(&spi->dev, "spi master doesn't support 16 bits/word\n");
+		return err;
 	}
 
 	ts = kzalloc(sizeof(struct ad7877), GFP_KERNEL);

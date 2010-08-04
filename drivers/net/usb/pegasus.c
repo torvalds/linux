@@ -132,9 +132,10 @@ static void ctrl_callback(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:
-		if (netif_msg_drv(pegasus) && printk_ratelimit())
-			dev_dbg(&pegasus->intf->dev, "%s, status %d\n",
-				__func__, status);
+		if (net_ratelimit())
+			netif_dbg(pegasus, drv, pegasus->net,
+				  "%s, status %d\n", __func__, status);
+		break;
 	}
 	pegasus->flags &= ~ETH_REGS_CHANGED;
 	wake_up(&pegasus->ctrl_wait);
@@ -149,9 +150,8 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer) {
-		if (netif_msg_drv(pegasus))
-			dev_warn(&pegasus->intf->dev, "out of memory in %s\n",
-					__func__);
+		netif_warn(pegasus, drv, pegasus->net,
+			   "out of memory in %s\n", __func__);
 		return -ENOMEM;
 	}
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
@@ -181,9 +181,9 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 		set_current_state(TASK_RUNNING);
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus) && printk_ratelimit())
-			dev_err(&pegasus->intf->dev, "%s, status %d\n",
-					__func__, ret);
+		if (net_ratelimit())
+			netif_err(pegasus, drv, pegasus->net,
+				  "%s, status %d\n", __func__, ret);
 		goto out;
 	}
 
@@ -203,14 +203,12 @@ static int set_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 	char *buffer;
 	DECLARE_WAITQUEUE(wait, current);
 
-	buffer = kmalloc(size, GFP_KERNEL);
+	buffer = kmemdup(data, size, GFP_KERNEL);
 	if (!buffer) {
-		if (netif_msg_drv(pegasus))
-			dev_warn(&pegasus->intf->dev, "out of memory in %s\n",
-					__func__);
+		netif_warn(pegasus, drv, pegasus->net,
+			   "out of memory in %s\n", __func__);
 		return -ENOMEM;
 	}
-	memcpy(buffer, data, size);
 
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -237,9 +235,8 @@ static int set_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus))
-			dev_err(&pegasus->intf->dev, "%s, status %d\n",
-					__func__, ret);
+		netif_err(pegasus, drv, pegasus->net,
+			  "%s, status %d\n", __func__, ret);
 		goto out;
 	}
 
@@ -257,14 +254,12 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	char *tmp;
 	DECLARE_WAITQUEUE(wait, current);
 
-	tmp = kmalloc(1, GFP_KERNEL);
+	tmp = kmemdup(&data, 1, GFP_KERNEL);
 	if (!tmp) {
-		if (netif_msg_drv(pegasus))
-			dev_warn(&pegasus->intf->dev, "out of memory in %s\n",
-					__func__);
+		netif_warn(pegasus, drv, pegasus->net,
+			   "out of memory in %s\n", __func__);
 		return -ENOMEM;
 	}
-	memcpy(tmp, &data, 1);
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (pegasus->flags & ETH_REGS_CHANGED)
@@ -290,9 +285,9 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus) && printk_ratelimit())
-			dev_err(&pegasus->intf->dev, "%s, status %d\n",
-					__func__, ret);
+		if (net_ratelimit())
+			netif_err(pegasus, drv, pegasus->net,
+				  "%s, status %d\n", __func__, ret);
 		goto out;
 	}
 
@@ -323,9 +318,8 @@ static int update_eth_regs_async(pegasus_t * pegasus)
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus))
-			dev_err(&pegasus->intf->dev, "%s, status %d\n",
-					__func__, ret);
+		netif_err(pegasus, drv, pegasus->net,
+			  "%s, status %d\n", __func__, ret);
 	}
 
 	return ret;
@@ -349,14 +343,16 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 		if (data[0] & PHY_DONE)
 			break;
 	}
-	if (i < REG_TIMEOUT) {
-		ret = get_registers(pegasus, PhyData, 2, &regdi);
-		*regd = le16_to_cpu(regdi);
-		return ret;
-	}
+
+	if (i >= REG_TIMEOUT)
+		goto fail;
+
+	ret = get_registers(pegasus, PhyData, 2, &regdi);
+	*regd = le16_to_cpu(regdi);
+	return ret;
+
 fail:
-	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "%s failed\n", __func__);
+	netif_warn(pegasus, drv, pegasus->net, "%s failed\n", __func__);
 
 	return ret;
 }
@@ -388,12 +384,14 @@ static int write_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 regd)
 		if (data[0] & PHY_DONE)
 			break;
 	}
-	if (i < REG_TIMEOUT)
-		return ret;
+
+	if (i >= REG_TIMEOUT)
+		goto fail;
+
+	return ret;
 
 fail:
-	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "%s failed\n", __func__);
+	netif_warn(pegasus, drv, pegasus->net, "%s failed\n", __func__);
 	return -ETIMEDOUT;
 }
 
@@ -422,15 +420,15 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 		if (ret == -ESHUTDOWN)
 			goto fail;
 	}
-	if (i < REG_TIMEOUT) {
-		ret = get_registers(pegasus, EpromData, 2, &retdatai);
-		*retdata = le16_to_cpu(retdatai);
-		return ret;
-	}
+	if (i >= REG_TIMEOUT)
+		goto fail;
+
+	ret = get_registers(pegasus, EpromData, 2, &retdatai);
+	*retdata = le16_to_cpu(retdatai);
+	return ret;
 
 fail:
-	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "%s failed\n", __func__);
+	netif_warn(pegasus, drv, pegasus->net, "%s failed\n", __func__);
 	return -ETIMEDOUT;
 }
 
@@ -475,11 +473,13 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 			break;
 	}
 	disable_eprom_write(pegasus);
-	if (i < REG_TIMEOUT)
-		return ret;
+	if (i >= REG_TIMEOUT)
+		goto fail;
+
+	return ret;
+
 fail:
-	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "%s failed\n", __func__);
+	netif_warn(pegasus, drv, pegasus->net, "%s failed\n", __func__);
 	return -ETIMEDOUT;
 }
 #endif				/* PEGASUS_WRITE_EEPROM */
@@ -642,25 +642,20 @@ static void read_bulk_callback(struct urb *urb)
 	case 0:
 		break;
 	case -ETIME:
-		if (netif_msg_rx_err(pegasus))
-			pr_debug("%s: reset MAC\n", net->name);
+		netif_dbg(pegasus, rx_err, net, "reset MAC\n");
 		pegasus->flags &= ~PEGASUS_RX_BUSY;
 		break;
 	case -EPIPE:		/* stall, or disconnect from TT */
 		/* FIXME schedule work to clear the halt */
-		if (netif_msg_rx_err(pegasus))
-			printk(KERN_WARNING "%s: no rx stall recovery\n",
-					net->name);
+		netif_warn(pegasus, rx_err, net, "no rx stall recovery\n");
 		return;
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-		if (netif_msg_ifdown(pegasus))
-			pr_debug("%s: rx unlink, %d\n", net->name, status);
+		netif_dbg(pegasus, ifdown, net, "rx unlink, %d\n", status);
 		return;
 	default:
-		if (netif_msg_rx_err(pegasus))
-			pr_debug("%s: RX status %d\n", net->name, status);
+		netif_dbg(pegasus, rx_err, net, "RX status %d\n", status);
 		goto goon;
 	}
 
@@ -669,9 +664,8 @@ static void read_bulk_callback(struct urb *urb)
 
 	rx_status = buf[count - 2];
 	if (rx_status & 0x1e) {
-		if (netif_msg_rx_err(pegasus))
-			pr_debug("%s: RX packet error %x\n",
-					net->name, rx_status);
+		netif_dbg(pegasus, rx_err, net,
+			  "RX packet error %x\n", rx_status);
 		pegasus->stats.rx_errors++;
 		if (rx_status & 0x06)	// long or runt
 			pegasus->stats.rx_length_errors++;
@@ -758,9 +752,7 @@ static void rx_fixup(unsigned long data)
 		pegasus->rx_skb = pull_skb(pegasus);
 	}
 	if (pegasus->rx_skb == NULL) {
-		if (netif_msg_rx_err(pegasus))
-			printk(KERN_WARNING "%s: low on memory\n",
-					pegasus->net->name);
+		netif_warn(pegasus, rx_err, pegasus->net, "low on memory\n");
 		tasklet_schedule(&pegasus->rx_tl);
 		goto done;
 	}
@@ -800,25 +792,21 @@ static void write_bulk_callback(struct urb *urb)
 	case -EPIPE:
 		/* FIXME schedule_work() to clear the tx halt */
 		netif_stop_queue(net);
-		if (netif_msg_tx_err(pegasus))
-			printk(KERN_WARNING "%s: no tx stall recovery\n",
-					net->name);
+		netif_warn(pegasus, tx_err, net, "no tx stall recovery\n");
 		return;
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-		if (netif_msg_ifdown(pegasus))
-			pr_debug("%s: tx unlink, %d\n", net->name, status);
+		netif_dbg(pegasus, ifdown, net, "tx unlink, %d\n", status);
 		return;
 	default:
-		if (netif_msg_tx_err(pegasus))
-			pr_info("%s: TX status %d\n", net->name, status);
+		netif_info(pegasus, tx_err, net, "TX status %d\n", status);
 		/* FALL THROUGH */
 	case 0:
 		break;
 	}
 
-	net->trans_start = jiffies;
+	net->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(net);
 }
 
@@ -843,9 +831,7 @@ static void intr_callback(struct urb *urb)
 		/* some Pegasus-I products report LOTS of data
 		 * toggle errors... avoid log spamming
 		 */
-		if (netif_msg_timer(pegasus))
-			pr_debug("%s: intr status %d\n", net->name,
-					status);
+		netif_dbg(pegasus, timer, net, "intr status %d\n", status);
 	}
 
 	if (urb->actual_length >= 6) {
@@ -875,16 +861,15 @@ static void intr_callback(struct urb *urb)
 	res = usb_submit_urb(urb, GFP_ATOMIC);
 	if (res == -ENODEV)
 		netif_device_detach(pegasus->net);
-	if (res && netif_msg_timer(pegasus))
-		printk(KERN_ERR "%s: can't resubmit interrupt urb, %d\n",
-				net->name, res);
+	if (res)
+		netif_err(pegasus, timer, net,
+			  "can't resubmit interrupt urb, %d\n", res);
 }
 
 static void pegasus_tx_timeout(struct net_device *net)
 {
 	pegasus_t *pegasus = netdev_priv(net);
-	if (netif_msg_timer(pegasus))
-		printk(KERN_WARNING "%s: tx timeout\n", net->name);
+	netif_warn(pegasus, timer, net, "tx timeout\n");
 	usb_unlink_urb(pegasus->tx_urb);
 	pegasus->stats.tx_errors++;
 }
@@ -906,9 +891,7 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 			  pegasus->tx_buff, count,
 			  write_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->tx_urb, GFP_ATOMIC))) {
-		if (netif_msg_tx_err(pegasus))
-			printk(KERN_WARNING "%s: fail tx, %d\n",
-					net->name, res);
+		netif_warn(pegasus, tx_err, net, "fail tx, %d\n", res);
 		switch (res) {
 		case -EPIPE:		/* stall, or disconnect from TT */
 			/* cleanup should already have been scheduled */
@@ -924,7 +907,6 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 	} else {
 		pegasus->stats.tx_packets++;
 		pegasus->stats.tx_bytes += skb->len;
-		net->trans_start = jiffies;
 	}
 	dev_kfree_skb(skb);
 
@@ -952,10 +934,9 @@ static inline void get_interrupt_interval(pegasus_t * pegasus)
 	interval = data >> 8;
 	if (pegasus->usb->speed != USB_SPEED_HIGH) {
 		if (interval < 0x80) {
-			if (netif_msg_timer(pegasus))
-				dev_info(&pegasus->intf->dev, "intr interval "
-					"changed from %ums to %ums\n",
-					interval, 0x80);
+			netif_info(pegasus, timer, pegasus->net,
+				   "intr interval changed from %ums to %ums\n",
+				   interval, 0x80);
 			interval = 0x80;
 			data = (data & 0x00FF) | ((u16)interval << 8);
 #ifdef PEGASUS_WRITE_EEPROM
@@ -1046,8 +1027,7 @@ static int pegasus_open(struct net_device *net)
 	if ((res = usb_submit_urb(pegasus->rx_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_ifup(pegasus))
-			pr_debug("%s: failed rx_urb, %d", net->name, res);
+		netif_dbg(pegasus, ifup, net, "failed rx_urb, %d\n", res);
 		goto exit;
 	}
 
@@ -1058,15 +1038,13 @@ static int pegasus_open(struct net_device *net)
 	if ((res = usb_submit_urb(pegasus->intr_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_ifup(pegasus))
-			pr_debug("%s: failed intr_urb, %d\n", net->name, res);
+		netif_dbg(pegasus, ifup, net, "failed intr_urb, %d\n", res);
 		usb_kill_urb(pegasus->rx_urb);
 		goto exit;
 	}
 	if ((res = enable_net_traffic(net, pegasus->usb))) {
-		if (netif_msg_ifup(pegasus))
-			pr_debug("%s: can't enable_net_traffic() - %d\n",
-					net->name, res);
+		netif_dbg(pegasus, ifup, net,
+			  "can't enable_net_traffic() - %d\n", res);
 		res = -EIO;
 		usb_kill_urb(pegasus->rx_urb);
 		usb_kill_urb(pegasus->intr_urb);
@@ -1075,8 +1053,7 @@ static int pegasus_open(struct net_device *net)
 	}
 	set_carrier(net);
 	netif_start_queue(net);
-	if (netif_msg_ifup(pegasus))
-		pr_debug("%s: open\n", net->name);
+	netif_dbg(pegasus, ifup, net, "open\n");
 	res = 0;
 exit:
 	return res;
@@ -1230,13 +1207,11 @@ static void pegasus_set_multicast(struct net_device *net)
 
 	if (net->flags & IFF_PROMISC) {
 		pegasus->eth_regs[EthCtrl2] |= RX_PROMISCUOUS;
-		if (netif_msg_link(pegasus))
-			pr_info("%s: Promiscuous mode enabled.\n", net->name);
-	} else if (net->mc_count || (net->flags & IFF_ALLMULTI)) {
+		netif_info(pegasus, link, net, "Promiscuous mode enabled\n");
+	} else if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI)) {
 		pegasus->eth_regs[EthCtrl0] |= RX_MULTICAST;
 		pegasus->eth_regs[EthCtrl2] &= ~RX_PROMISCUOUS;
-		if (netif_msg_link(pegasus))
-			pr_debug("%s: set allmulti\n", net->name);
+		netif_dbg(pegasus, link, net, "set allmulti\n");
 	} else {
 		pegasus->eth_regs[EthCtrl0] &= ~RX_MULTICAST;
 		pegasus->eth_regs[EthCtrl2] &= ~RX_PROMISCUOUS;

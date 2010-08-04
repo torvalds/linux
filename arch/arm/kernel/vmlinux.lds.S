@@ -43,10 +43,6 @@ SECTIONS
 
 		INIT_SETUP(16)
 
-		__early_begin = .;
-			*(.early_param.init)
-		__early_end = .;
-
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL

@@ -82,17 +82,10 @@
    in the build. */
 #ifdef WIRELESS_EXT
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-#define IWE_STREAM_ADD_EVENT(info, buf, end, iwe, len) \
-    iwe_stream_add_event(buf, end, iwe, len)
-#define IWE_STREAM_ADD_POINT(info, buf, end, iwe, msg) \
-    iwe_stream_add_point(buf, end, iwe, msg)
-#else
 #define IWE_STREAM_ADD_EVENT(info, buf, end, iwe, len) \
     iwe_stream_add_event(info, buf, end, iwe, len)
 #define IWE_STREAM_ADD_POINT(info, buf, end, iwe, msg) \
     iwe_stream_add_point(info, buf, end, iwe, msg)
-#endif
 
 
 
@@ -3940,7 +3933,7 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 	   MLME-MICHAELMICFAILURE.indication(keyid=# broadcast/unicast addr=addr2)
    */
 
-	/* NOTE: Format of MAC address (using colons to seperate bytes) may cause
+	/* NOTE: Format of MAC address (using colons to separate bytes) may cause
 			 a problem in future versions of the supplicant, if they ever
 			 actually parse these parameters */
 #if DBG

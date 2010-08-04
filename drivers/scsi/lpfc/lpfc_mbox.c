@@ -21,6 +21,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 
 #include <scsi/scsi_device.h>
@@ -1215,7 +1216,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	phba->pcb->feature = FEATURE_INITIAL_SLI2;
 
 	/* Setup Mailbox pointers */
-	phba->pcb->mailBoxSize = sizeof(MAILBOX_t);
+	phba->pcb->mailBoxSize = sizeof(MAILBOX_t) + MAILBOX_EXT_SIZE;
 	offset = (uint8_t *)phba->mbox - (uint8_t *)phba->slim2p.virt;
 	pdma_addr = phba->slim2p.phys + offset;
 	phba->pcb->mbAddrHigh = putPaddrHigh(pdma_addr);
@@ -1271,28 +1272,41 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 *
 	 */
 
-	if (phba->sli_rev == 3) {
-		phba->host_gp = &mb_slim->us.s3.host[0];
-		phba->hbq_put = &mb_slim->us.s3.hbq_put[0];
-	} else {
-		phba->host_gp = &mb_slim->us.s2.host[0];
+	if (phba->cfg_hostmem_hgp && phba->sli_rev != 3) {
+		phba->host_gp = &phba->mbox->us.s2.host[0];
 		phba->hbq_put = NULL;
-	}
+		offset = (uint8_t *)&phba->mbox->us.s2.host -
+			(uint8_t *)phba->slim2p.virt;
+		pdma_addr = phba->slim2p.phys + offset;
+		phba->pcb->hgpAddrHigh = putPaddrHigh(pdma_addr);
+		phba->pcb->hgpAddrLow = putPaddrLow(pdma_addr);
+	} else {
+		/* Always Host Group Pointer is in SLIM */
+		mb->un.varCfgPort.hps = 1;
 
-	/* mask off BAR0's flag bits 0 - 3 */
-	phba->pcb->hgpAddrLow = (bar_low & PCI_BASE_ADDRESS_MEM_MASK) +
-		(void __iomem *)phba->host_gp -
-		(void __iomem *)phba->MBslimaddr;
-	if (bar_low & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		phba->pcb->hgpAddrHigh = bar_high;
-	else
-		phba->pcb->hgpAddrHigh = 0;
-	/* write HGP data to SLIM at the required longword offset */
-	memset(&hgp, 0, sizeof(struct lpfc_hgp));
+		if (phba->sli_rev == 3) {
+			phba->host_gp = &mb_slim->us.s3.host[0];
+			phba->hbq_put = &mb_slim->us.s3.hbq_put[0];
+		} else {
+			phba->host_gp = &mb_slim->us.s2.host[0];
+			phba->hbq_put = NULL;
+		}
 
-	for (i=0; i < phba->sli.num_rings; i++) {
-		lpfc_memcpy_to_slim(phba->host_gp + i, &hgp,
+		/* mask off BAR0's flag bits 0 - 3 */
+		phba->pcb->hgpAddrLow = (bar_low & PCI_BASE_ADDRESS_MEM_MASK) +
+			(void __iomem *)phba->host_gp -
+			(void __iomem *)phba->MBslimaddr;
+		if (bar_low & PCI_BASE_ADDRESS_MEM_TYPE_64)
+			phba->pcb->hgpAddrHigh = bar_high;
+		else
+			phba->pcb->hgpAddrHigh = 0;
+		/* write HGP data to SLIM at the required longword offset */
+		memset(&hgp, 0, sizeof(struct lpfc_hgp));
+
+		for (i = 0; i < phba->sli.num_rings; i++) {
+			lpfc_memcpy_to_slim(phba->host_gp + i, &hgp,
 				    sizeof(*phba->host_gp));
+		}
 	}
 
 	/* Setup Port Group offset */
@@ -1597,7 +1611,7 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	for (sgentry = 0; sgentry < sgecount; sgentry++) {
 		lpfc_sli4_mbx_sge_get(mbox, sgentry, &sge);
 		phyaddr = getPaddr(sge.pa_hi, sge.pa_lo);
-		dma_free_coherent(&phba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 				  mbox->sge_array->addr[sgentry], phyaddr);
 	}
 	/* Free the sge address array memory */
@@ -1655,7 +1669,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	}
 
 	/* Setup for the none-embedded mbox command */
-	pcount = (PAGE_ALIGN(length))/PAGE_SIZE;
+	pcount = (PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
 	/* Allocate record for keeping SGE virtual addresses */
@@ -1670,24 +1684,24 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	for (pagen = 0, alloc_len = 0; pagen < pcount; pagen++) {
 		/* The DMA memory is always allocated in the length of a
 		 * page even though the last SGE might not fill up to a
-		 * page, this is used as a priori size of PAGE_SIZE for
+		 * page, this is used as a priori size of SLI4_PAGE_SIZE for
 		 * the later DMA memory free.
 		 */
-		viraddr = dma_alloc_coherent(&phba->pcidev->dev, PAGE_SIZE,
+		viraddr = dma_alloc_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 					     &phyaddr, GFP_KERNEL);
 		/* In case of malloc fails, proceed with whatever we have */
 		if (!viraddr)
 			break;
-		memset(viraddr, 0, PAGE_SIZE);
+		memset(viraddr, 0, SLI4_PAGE_SIZE);
 		mbox->sge_array->addr[pagen] = viraddr;
 		/* Keep the first page for later sub-header construction */
 		if (pagen == 0)
 			cfg_shdr = (union lpfc_sli4_cfg_shdr *)viraddr;
 		resid_len = length - alloc_len;
-		if (resid_len > PAGE_SIZE) {
+		if (resid_len > SLI4_PAGE_SIZE) {
 			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
-					      PAGE_SIZE);
-			alloc_len += PAGE_SIZE;
+					      SLI4_PAGE_SIZE);
+			alloc_len += SLI4_PAGE_SIZE;
 		} else {
 			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
 					      resid_len);
@@ -1707,7 +1721,8 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				alloc_len - sizeof(union  lpfc_sli4_cfg_shdr);
 	}
 	/* The sub-header is in DMA memory, which needs endian converstion */
-	lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
+	if (cfg_shdr)
+		lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
 			      sizeof(union  lpfc_sli4_cfg_shdr));
 
 	return alloc_len;
@@ -1744,6 +1759,65 @@ lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		return 0;
 	cfg_shdr = (union lpfc_sli4_cfg_shdr *)mbox->sge_array->addr[0];
 	return bf_get(lpfc_mbox_hdr_opcode, &cfg_shdr->request);
+}
+
+/**
+ * lpfc_sli4_mbx_read_fcf_rec - Allocate and construct read fcf mbox cmd
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_index: index to fcf table.
+ *
+ * This routine routine allocates and constructs non-embedded mailbox command
+ * for reading a FCF table entry refered by @fcf_index.
+ *
+ * Return: pointer to the mailbox command constructed if successful, otherwise
+ * NULL.
+ **/
+int
+lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *phba,
+			   struct lpfcMboxq *mboxq,
+			   uint16_t fcf_index)
+{
+	void *virt_addr;
+	dma_addr_t phys_addr;
+	uint8_t *bytep;
+	struct lpfc_mbx_sge sge;
+	uint32_t alloc_len, req_len;
+	struct lpfc_mbx_read_fcf_tbl *read_fcf;
+
+	if (!mboxq)
+		return -ENOMEM;
+
+	req_len = sizeof(struct fcf_record) +
+		  sizeof(union lpfc_sli4_cfg_shdr) + 2 * sizeof(uint32_t);
+
+	/* Set up READ_FCF SLI4_CONFIG mailbox-ioctl command */
+	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+			LPFC_MBOX_OPCODE_FCOE_READ_FCF_TABLE, req_len,
+			LPFC_SLI4_MBX_NEMBED);
+
+	if (alloc_len < req_len) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"0291 Allocated DMA memory size (x%x) is "
+				"less than the requested DMA memory "
+				"size (x%x)\n", alloc_len, req_len);
+		return -ENOMEM;
+	}
+
+	/* Get the first SGE entry from the non-embedded DMA memory. This
+	 * routine only uses a single SGE.
+	 */
+	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
+	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
+	virt_addr = mboxq->sge_array->addr[0];
+	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
+
+	/* Set up command fields */
+	bf_set(lpfc_mbx_read_fcf_tbl_indx, &read_fcf->u.request, fcf_index);
+	/* Perform necessary endian conversion */
+	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
+	lpfc_sli_pcimem_bcopy(bytep, bytep, sizeof(uint32_t));
+
+	return 0;
 }
 
 /**
@@ -1825,6 +1899,8 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	memcpy(reg_vfi->wwn, &vport->fc_portname, sizeof(struct lpfc_name));
 	reg_vfi->wwn[0] = cpu_to_le32(reg_vfi->wwn[0]);
 	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
+	reg_vfi->e_d_tov = vport->phba->fc_edtov;
+	reg_vfi->r_a_tov = vport->phba->fc_ratov;
 	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
 	reg_vfi->bde.addrLow = putPaddrLow(phys);
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
@@ -1946,13 +2022,14 @@ lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_rq_id2, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_rq_id3, reg_fcfi, REG_FCF_INVALID_QID);
-	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi, phba->fcf.fcf_indx);
+	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi,
+	       phba->fcf.current_rec.fcf_indx);
 	/* reg_fcf addr mode is bit wise inverted value of fcf addr_mode */
-	bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
-		(~phba->fcf.addr_mode) & 0x3);
-	if (phba->fcf.fcf_flag & FCF_VALID_VLAN) {
+	bf_set(lpfc_reg_fcfi_mam, reg_fcfi, (~phba->fcf.addr_mode) & 0x3);
+	if (phba->fcf.current_rec.vlan_id != 0xFFFF) {
 		bf_set(lpfc_reg_fcfi_vv, reg_fcfi, 1);
-		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi, phba->fcf.vlan_id);
+		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi,
+		       phba->fcf.current_rec.vlan_id);
 	}
 }
 
@@ -1991,4 +2068,42 @@ lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
 	bf_set(lpfc_resume_rpi_index, resume_rpi, ndlp->nlp_rpi);
 	bf_set(lpfc_resume_rpi_ii, resume_rpi, RESUME_INDEX_RPI);
 	resume_rpi->event_tag = ndlp->phba->fc_eventTag;
+}
+
+/**
+ * lpfc_supported_pages - Initialize the PORT_CAPABILITIES supported pages
+ *                        mailbox command.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * The PORT_CAPABILITIES supported pages mailbox command is issued to
+ * retrieve the particular feature pages supported by the port.
+ **/
+void
+lpfc_supported_pages(struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_supp_pages *supp_pages;
+
+	memset(mbox, 0, sizeof(*mbox));
+	supp_pages = &mbox->u.mqe.un.supp_pages;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
+	bf_set(cpn, supp_pages, LPFC_SUPP_PAGES);
+}
+
+/**
+ * lpfc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params
+ *                    mailbox command.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * The PORT_CAPABILITIES SLI4 parameters mailbox command is issued to
+ * retrieve the particular SLI4 features supported by the port.
+ **/
+void
+lpfc_sli4_params(struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_sli4_params *sli4_params;
+
+	memset(mbox, 0, sizeof(*mbox));
+	sli4_params = &mbox->u.mqe.un.sli4_params;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
+	bf_set(cpn, sli4_params, LPFC_SLI4_PARAMETERS);
 }

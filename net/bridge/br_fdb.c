@@ -20,6 +20,7 @@
 #include <linux/etherdevice.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/unaligned.h>
 #include "br_private.h"
@@ -127,7 +128,7 @@ void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
 	unsigned long delay = hold_time(br);
-	unsigned long next_timer = jiffies + br->forward_delay;
+	unsigned long next_timer = jiffies + br->ageing_time;
 	int i;
 
 	spin_lock_bh(&br->hash_lock);
@@ -148,9 +149,7 @@ void br_fdb_cleanup(unsigned long _data)
 	}
 	spin_unlock_bh(&br->hash_lock);
 
-	/* Add HZ/4 to ensure we round the jiffies upwards to be after the next
-	 * timer, otherwise we might round down and will have no-op run. */
-	mod_timer(&br->gc_timer, round_jiffies(next_timer + HZ/4));
+	mod_timer(&br->gc_timer, round_jiffies_up(next_timer));
 }
 
 /* Completely flush all dynamic entries in forwarding database.*/
@@ -352,8 +351,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		 */
 		if (fdb->is_local)
 			return 0;
-
-		printk(KERN_WARNING "%s adding interface with same address "
+		br_warn(br, "adding interface %s with same address "
 		       "as a received packet\n",
 		       source->dev->name);
 		fdb_delete(fdb);
@@ -396,9 +394,9 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		/* attempt to update an entry for a local interface */
 		if (unlikely(fdb->is_local)) {
 			if (net_ratelimit())
-				printk(KERN_WARNING "%s: received packet with "
-				       "own address as source address\n",
-				       source->dev->name);
+				br_warn(br, "received packet on %s with "
+					"own address as source address\n",
+					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
 			fdb->dst = source;

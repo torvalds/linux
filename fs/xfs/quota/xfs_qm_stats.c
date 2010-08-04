@@ -55,7 +55,7 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 			ndquot,
 			xfs_Gqm? atomic_read(&xfs_Gqm->qm_totaldquots) : 0,
 			xfs_Gqm? xfs_Gqm->qm_dqfree_ratio : 0,
-			xfs_Gqm? xfs_Gqm->qm_dqfreelist.qh_nelems : 0);
+			xfs_Gqm? xfs_Gqm->qm_dqfrlist_cnt : 0);
 	return 0;
 }
 

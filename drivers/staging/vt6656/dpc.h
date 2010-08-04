@@ -41,30 +41,21 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
-RXvWorkItem(
-    PVOID Context
-    );
+void RXvWorkItem(void *Context);
 
-VOID
-RXvMngWorkItem(
-    PVOID Context
-    );
+void RXvMngWorkItem(void *Context);
 
-VOID
+void
 RXvFreeRCB(
-    IN PRCB pRCB,
-    IN BOOL bReAllocSkb
+     PRCB pRCB,
+     BOOL bReAllocSkb
     );
 
 BOOL
 RXbBulkInProcessData(
-    IN PSDevice         pDevice,
-    IN PRCB             pRCB,
-    IN ULONG            BytesToIndicate
+     PSDevice         pDevice,
+     PRCB             pRCB,
+     unsigned long            BytesToIndicate
     );
 
-#endif // __RXTX_H__
-
-
-
+#endif /* __RXTX_H__ */

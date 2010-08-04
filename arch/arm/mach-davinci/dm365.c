@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach/map.h>
 
@@ -32,6 +33,8 @@
 #include <mach/common.h>
 #include <mach/asp.h>
 #include <mach/keyscan.h>
+#include <mach/spi.h>
+
 
 #include "clock.h"
 #include "mux.h"
@@ -403,7 +406,7 @@ static struct clk mjcp_clk = {
 	.lpsc		= DM365_LPSC_MJCP,
 };
 
-static struct davinci_clk dm365_clks[] = {
+static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "pll1", &pll1_clk),
 	CLK(NULL, "pll1_aux", &pll1_aux_clk),
@@ -455,7 +458,7 @@ static struct davinci_clk dm365_clks[] = {
 	CLK(NULL, "timer3", &timer3_clk),
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
-	CLK("voice_codec", NULL, &voicecodec_clk),
+	CLK("davinci_voicecodec", NULL, &voicecodec_clk),
 	CLK("davinci-asp.0", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
@@ -464,11 +467,6 @@ static struct davinci_clk dm365_clks[] = {
 
 /*----------------------------------------------------------------------*/
 
-#define PINMUX0		0x00
-#define PINMUX1		0x04
-#define PINMUX2		0x08
-#define PINMUX3		0x0c
-#define PINMUX4		0x10
 #define INTMUX		0x18
 #define EVTMUX		0x1c
 
@@ -487,11 +485,14 @@ MUX_CFG(DM365,	SD1_DATA0,	4,   22,    3,	  1,	 false)
 MUX_CFG(DM365,	I2C_SDA,	3,   23,    3,	  2,	 false)
 MUX_CFG(DM365,	I2C_SCL,	3,   21,    3,	  2,	 false)
 
-MUX_CFG(DM365,	AEMIF_AR,	2,   0,     3,	  1,	 false)
+MUX_CFG(DM365,	AEMIF_AR_A14,	2,   0,     3,	  1,	 false)
+MUX_CFG(DM365,	AEMIF_AR_BA0,	2,   0,     3,	  2,	 false)
 MUX_CFG(DM365,	AEMIF_A3,	2,   2,     3,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_A7,	2,   4,     3,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_D15_8,	2,   6,     1,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_CE0,	2,   7,     1,	  0,	 false)
+MUX_CFG(DM365,	AEMIF_CE1,	2,   8,     1,    0,     false)
+MUX_CFG(DM365,	AEMIF_WE_OE,	2,   9,     1,    0,     false)
 
 MUX_CFG(DM365,	MCBSP0_BDX,	0,   23,    1,	  1,	 false)
 MUX_CFG(DM365,	MCBSP0_X,	0,   22,    1,	  1,	 false)
@@ -570,9 +571,17 @@ MUX_CFG(DM365,	SPI4_SDO,	4,   16,    3,    1,	 false)
 MUX_CFG(DM365,	SPI4_SDENA0,	4,   20,    3,    1,	 false)
 MUX_CFG(DM365,	SPI4_SDENA1,	4,   16,    3,    2,	 false)
 
+MUX_CFG(DM365,	CLKOUT0,	4,   20,    3,    3,     false)
+MUX_CFG(DM365,	CLKOUT1,	4,   16,    3,    3,     false)
+MUX_CFG(DM365,	CLKOUT2,	4,   8,     3,    3,     false)
+
 MUX_CFG(DM365,	GPIO20,		3,   21,    3,    0,	 false)
+MUX_CFG(DM365,	GPIO30,		4,   6,     3,	  0,	 false)
+MUX_CFG(DM365,	GPIO31,		4,   8,     3,	  0,	 false)
+MUX_CFG(DM365,	GPIO32,		4,   10,    3,	  0,	 false)
 MUX_CFG(DM365,	GPIO33,		4,   12,    3,	  0,	 false)
 MUX_CFG(DM365,	GPIO40,		4,   26,    3,	  0,	 false)
+MUX_CFG(DM365,	GPIO64_57,	2,   6,     1,	  0,	 false)
 
 MUX_CFG(DM365,	VOUT_FIELD,	1,   18,    3,	  1,	 false)
 MUX_CFG(DM365,	VOUT_FIELD_G81,	1,   18,    3,	  0,	 false)
@@ -606,8 +615,77 @@ INT_CFG(DM365,  INT_NSF_DISABLE,     25,    1,    0,     false)
 
 EVT_CFG(DM365,	EVT2_ASP_TX,         0,     1,    0,     false)
 EVT_CFG(DM365,	EVT3_ASP_RX,         1,     1,    0,     false)
+EVT_CFG(DM365,	EVT2_VC_TX,          0,     1,    1,     false)
+EVT_CFG(DM365,	EVT3_VC_RX,          1,     1,    1,     false)
 #endif
 };
+
+static u64 dm365_spi0_dma_mask = DMA_BIT_MASK(32);
+
+static struct davinci_spi_platform_data dm365_spi0_pdata = {
+	.version 	= SPI_VERSION_1,
+	.num_chipselect = 2,
+	.clk_internal	= 1,
+	.cs_hold	= 1,
+	.intr_level	= 0,
+	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
+	.c2tdelay	= 0,
+	.t2cdelay	= 0,
+};
+
+static struct resource dm365_spi0_resources[] = {
+	{
+		.start = 0x01c66000,
+		.end   = 0x01c667ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_DM365_SPIINT0_0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = 17,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = 16,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = EVENTQ_3,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_spi0_device = {
+	.name = "spi_davinci",
+	.id = 0,
+	.dev = {
+		.dma_mask = &dm365_spi0_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &dm365_spi0_pdata,
+	},
+	.num_resources = ARRAY_SIZE(dm365_spi0_resources),
+	.resource = dm365_spi0_resources,
+};
+
+void __init dm365_init_spi0(unsigned chipselect_mask,
+		struct spi_board_info *info, unsigned len)
+{
+	davinci_cfg_reg(DM365_SPI0_SCLK);
+	davinci_cfg_reg(DM365_SPI0_SDI);
+	davinci_cfg_reg(DM365_SPI0_SDO);
+
+	/* not all slaves will be wired up */
+	if (chipselect_mask & BIT(0))
+		davinci_cfg_reg(DM365_SPI0_SDENA0);
+	if (chipselect_mask & BIT(1))
+		davinci_cfg_reg(DM365_SPI0_SDENA1);
+
+	spi_register_board_info(info, len);
+
+	platform_device_register(&dm365_spi0_device);
+}
 
 static struct emac_platform_data dm365_emac_pdata = {
 	.ctrl_reg_offset	= DM365_EMAC_CNTRL_OFFSET,
@@ -686,7 +764,6 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_MMCINT]			= 7,
 	[IRQ_DM365_MMCINT1]		= 7,
 	[IRQ_DM365_PWMINT3]		= 7,
-	[IRQ_DDRINT]			= 4,
 	[IRQ_AEMIFINT]			= 2,
 	[IRQ_DM365_SDIOINT1]		= 2,
 	[IRQ_TINT0_TINT12]		= 7,
@@ -754,7 +831,7 @@ static struct edma_soc_info dm365_edma_info[] = {
 		.n_cc			= 1,
 		.queue_tc_mapping	= dm365_queue_tc_mapping,
 		.queue_priority_mapping	= dm365_queue_priority_mapping,
-		.default_queue		= EVENTQ_2,
+		.default_queue		= EVENTQ_3,
 	},
 };
 
@@ -835,6 +912,31 @@ static struct platform_device dm365_asp_device = {
 	.resource	= dm365_asp_resources,
 };
 
+static struct resource dm365_vc_resources[] = {
+	{
+		.start	= DAVINCI_DM365_VC_BASE,
+		.end	= DAVINCI_DM365_VC_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_VC_TX,
+		.end	= DAVINCI_DMA_VC_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_VC_RX,
+		.end	= DAVINCI_DMA_VC_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_vc_device = {
+	.name		= "davinci_voicecodec",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm365_vc_resources),
+	.resource	= dm365_vc_resources,
+};
+
 static struct resource dm365_rtc_resources[] = {
 	{
 		.start = DM365_RTC_BASE,
@@ -910,11 +1012,9 @@ static struct davinci_id dm365_ids[] = {
 	},
 };
 
-static void __iomem *dm365_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm365_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
-struct davinci_timer_info dm365_timer_info = {
+static struct davinci_timer_info dm365_timer_info = {
 	.timers		= davinci_timer_instance,
 	.clockevent_id	= T0_BOT,
 	.clocksource_id	= T0_TOP,
@@ -953,21 +1053,22 @@ static struct platform_device dm365_serial_device = {
 static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.io_desc		= dm365_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm365_io_desc),
-	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm365_ids,
 	.ids_num		= ARRAY_SIZE(dm365_ids),
 	.cpu_clks		= dm365_clks,
 	.psc_bases		= dm365_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm365_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
 	.pinmux_pins		= dm365_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm365_pins),
-	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_base		= DAVINCI_ARM_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
 	.intc_irq_prios		= dm365_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm365_timer_info,
-	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM365_GPIO0,
 	.gpio_unbanked		= 8,	/* really 16 ... skip muxed GPIOs */
@@ -975,6 +1076,7 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.emac_pdata		= &dm365_emac_pdata,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
+	.reset_device		= &davinci_wdt_device,
 };
 
 void __init dm365_init_asp(struct snd_platform_data *pdata)
@@ -989,6 +1091,14 @@ void __init dm365_init_asp(struct snd_platform_data *pdata)
 	davinci_cfg_reg(DM365_EVT3_ASP_RX);
 	dm365_asp_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_asp_device);
+}
+
+void __init dm365_init_vc(struct snd_platform_data *pdata)
+{
+	davinci_cfg_reg(DM365_EVT2_VC_TX);
+	davinci_cfg_reg(DM365_EVT3_VC_RX);
+	dm365_vc_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_vc_device);
 }
 
 void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
@@ -1008,6 +1118,97 @@ void __init dm365_init(void)
 	davinci_common_init(&davinci_soc_info_dm365);
 }
 
+static struct resource dm365_vpss_resources[] = {
+	{
+		/* VPSS ISP5 Base address */
+		.name           = "isp5",
+		.start          = 0x01c70000,
+		.end            = 0x01c70000 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		/* VPSS CLK Base address */
+		.name           = "vpss",
+		.start          = 0x01c70200,
+		.end            = 0x01c70200 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm365_vpss_device = {
+       .name                   = "vpss",
+       .id                     = -1,
+       .dev.platform_data      = "dm365_vpss",
+       .num_resources          = ARRAY_SIZE(dm365_vpss_resources),
+       .resource               = dm365_vpss_resources,
+};
+
+static struct resource vpfe_resources[] = {
+	{
+		.start          = IRQ_VDINT0,
+		.end            = IRQ_VDINT0,
+		.flags          = IORESOURCE_IRQ,
+	},
+	{
+		.start          = IRQ_VDINT1,
+		.end            = IRQ_VDINT1,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device vpfe_capture_dev = {
+	.name           = CAPTURE_DRV_NAME,
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(vpfe_resources),
+	.resource       = vpfe_resources,
+	.dev = {
+		.dma_mask               = &vpfe_capture_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+};
+
+static void dm365_isif_setup_pinmux(void)
+{
+	davinci_cfg_reg(DM365_VIN_CAM_WEN);
+	davinci_cfg_reg(DM365_VIN_CAM_VD);
+	davinci_cfg_reg(DM365_VIN_CAM_HD);
+	davinci_cfg_reg(DM365_VIN_YIN4_7_EN);
+	davinci_cfg_reg(DM365_VIN_YIN0_3_EN);
+}
+
+static struct resource isif_resource[] = {
+	/* ISIF Base address */
+	{
+		.start          = 0x01c71000,
+		.end            = 0x01c71000 + 0x1ff,
+		.flags          = IORESOURCE_MEM,
+	},
+	/* ISIF Linearization table 0 */
+	{
+		.start          = 0x1C7C000,
+		.end            = 0x1C7C000 + 0x2ff,
+		.flags          = IORESOURCE_MEM,
+	},
+	/* ISIF Linearization table 1 */
+	{
+		.start          = 0x1C7C400,
+		.end            = 0x1C7C400 + 0x2ff,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+static struct platform_device dm365_isif_dev = {
+	.name           = "isif",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(isif_resource),
+	.resource       = isif_resource,
+	.dev = {
+		.dma_mask               = &vpfe_capture_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+		.platform_data		= dm365_isif_setup_pinmux,
+	},
+};
+
 static int __init dm365_init_devices(void)
 {
 	if (!cpu_is_davinci_dm365())
@@ -1016,7 +1217,16 @@ static int __init dm365_init_devices(void)
 	davinci_cfg_reg(DM365_INT_EDMA_CC);
 	platform_device_register(&dm365_edma_device);
 	platform_device_register(&dm365_emac_device);
-
+	/* Add isif clock alias */
+	clk_add_alias("master", dm365_isif_dev.name, "vpss_master", NULL);
+	platform_device_register(&dm365_vpss_device);
+	platform_device_register(&dm365_isif_dev);
+	platform_device_register(&vpfe_capture_dev);
 	return 0;
 }
 postcore_initcall(dm365_init_devices);
+
+void dm365_set_vpfe_config(struct vpfe_config *cfg)
+{
+       vpfe_capture_dev.dev.platform_data = cfg;
+}

@@ -120,7 +120,7 @@ struct detailed_non_pixel {
 		struct detailed_data_string str;
 		struct detailed_data_monitor_range range;
 		struct detailed_data_wpindex color;
-		struct std_timing timings[5];
+		struct std_timing timings[6];
 		struct cvt_timing cvt[4];
 	} data;
 } __attribute__((packed));

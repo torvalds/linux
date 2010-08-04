@@ -94,7 +94,7 @@ enum {
 	PCI_ID_LAST
 };
 
-static struct pci_device_id pcxhr_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(pcxhr_ids) = {
 	{ 0x10b5, 0x9656, 0x1369, 0xb001, 0, 0, PCI_ID_VX882HR, },
 	{ 0x10b5, 0x9656, 0x1369, 0xb101, 0, 0, PCI_ID_PCX882HR, },
 	{ 0x10b5, 0x9656, 0x1369, 0xb201, 0, 0, PCI_ID_VX881HR, },

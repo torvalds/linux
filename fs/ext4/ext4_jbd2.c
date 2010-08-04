@@ -125,14 +125,14 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 			ext4_journal_abort_handle(where, __func__, bh,
 						  handle, err);
 	} else {
-		if (inode && bh)
+		if (inode)
 			mark_buffer_dirty_inode(bh, inode);
 		else
 			mark_buffer_dirty(bh);
 		if (inode && inode_needs_sync(inode)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {
-				ext4_error(inode->i_sb, __func__,
+				ext4_error(inode->i_sb,
 					   "IO error syncing inode, "
 					   "inode=%lu, block=%llu",
 					   inode->i_ino,

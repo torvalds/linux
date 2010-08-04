@@ -77,7 +77,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 		    && (agpmem->bound + (agpmem->pages << PAGE_SHIFT)) >=
 		    (offset + size))
 			break;
-	if (!agpmem)
+	if (&agpmem->head == &dev->agp->memory)
 		return NULL;
 
 	/*

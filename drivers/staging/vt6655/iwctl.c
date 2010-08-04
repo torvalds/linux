@@ -190,7 +190,7 @@ if(pDevice->byReAssocCount > 0) {   //reject scan when re-associating!
 }
 
 	spin_lock_irq(&pDevice->lock);
-	 BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+	 BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
 //mike add: active scan OR passive scan OR desire_ssid scan
  if(wrq->length == sizeof(struct iw_scan_req)) {
@@ -208,7 +208,7 @@ if(pDevice->byReAssocCount > 0) {   //reject scan when re-associating!
 	  pMgmt->eScanType = WMAC_SCAN_PASSIVE;
          PRINT_K("SIOCSIWSCAN:[desired_ssid=%s,len=%d]\n",((PWLAN_IE_SSID)abyScanSSID)->abySSID,
 		 	                                                                                ((PWLAN_IE_SSID)abyScanSSID)->len);
-	bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
 	spin_unlock_irq(&pDevice->lock);
 
 	return 0;
@@ -223,7 +223,7 @@ if(pDevice->byReAssocCount > 0) {   //reject scan when re-associating!
 
 	 pMgmt->eScanType = WMAC_SCAN_PASSIVE;
           //printk("SIOCSIWSCAN:WLAN_CMD_BSSID_SCAN\n");
-	bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 	spin_unlock_irq(&pDevice->lock);
 
 	return 0;
@@ -699,7 +699,6 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 	if (wrq->sa_family != ARPHRD_ETHER)
 		rc = -EINVAL;
 	else {
-		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 		memcpy(pMgmt->abyDesireBSSID, wrq->sa_data, 6);
 		                //2008-0409-05, <Add> by Einsn Liu
 		if((pDevice->bLinkPass == TRUE) &&
@@ -889,7 +888,6 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
            BYTE                   abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	  UINT            ii , uSameBssidNum=0;
 
-	  memset(abyTmpDesireSSID,0,sizeof(abyTmpDesireSSID));
 	  memcpy(abyTmpDesireSSID,pMgmt->abyDesireSSID,sizeof(abyTmpDesireSSID));
             pCurr = BSSpSearchBSSList(pDevice,
                                       NULL,
@@ -899,10 +897,10 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 
             if (pCurr == NULL){
                PRINT_K("SIOCSIWESSID:hidden ssid site survey before associate.......\n");
-	      vResetCommandTimer((HANDLE) pDevice);
+	      vResetCommandTimer((void *) pDevice);
 	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-               bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-	      bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
+               bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+	      bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
           }
 	 else {  //mike:to find out if that desired SSID is a hidden-ssid AP ,
                      //         by means of judging if there are two same BSSID exist in list ?
@@ -914,10 +912,10 @@ if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
                   }
 	     if(uSameBssidNum >= 2) {  //hit: desired AP is in hidden ssid mode!!!
                  printk("SIOCSIWESSID:hidden ssid directly associate.......\n");
-	        vResetCommandTimer((HANDLE) pDevice);
+	        vResetCommandTimer((void *) pDevice);
 	        pMgmt->eScanType = WMAC_SCAN_PASSIVE;          //this scan type,you'll submit scan result!
-	        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-	        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
+	        bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+	        bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
 	     }
 	 }
         }
@@ -1472,7 +1470,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 		if ( index < 4 ) {
 		    pDevice->byKeyIndex = index;
 		}
-		else if(!wrq->flags & IW_ENCODE_MODE) {
+		else if(!(wrq->flags & IW_ENCODE_MODE)) {
 				rc = -EINVAL;
 				return rc;
 	    }
@@ -1662,11 +1660,11 @@ int iwctl_siwpower(struct net_device *dev,
 	}
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
          pDevice->ePSMode = WMAC_POWER_FAST;
-         PSvEnablePowerSaving((HANDLE)pDevice, pMgmt->wListenInterval);
+         PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
 
 	} else if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_PERIOD) {
 	     pDevice->ePSMode = WMAC_POWER_FAST;
-         PSvEnablePowerSaving((HANDLE)pDevice, pMgmt->wListenInterval);
+         PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
 	}
 	switch (wrq->flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
@@ -1702,7 +1700,8 @@ int iwctl_giwpower(struct net_device *dev,
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWPOWER \n");
 
 
-	if ((wrq->disabled = (mode == WMAC_POWER_CAM)))
+	wrq->disabled = (mode == WMAC_POWER_CAM);
+	if (wrq->disabled)
 	    return 0;
 
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
@@ -2097,7 +2096,7 @@ int iwctl_siwmlme(struct net_device *dev,
 	switch(mlme->cmd){
 	case IW_MLME_DEAUTH:
 		//this command seems to be not complete,please test it --einsnliu
-		//bScheduleCommand((HANDLE) pDevice, WLAN_CMD_DEAUTH, (PBYTE)&reason);
+		//bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (PBYTE)&reason);
 		break;
 	case IW_MLME_DISASSOC:
 		if(pDevice->bLinkPass == TRUE){
@@ -2105,7 +2104,7 @@ int iwctl_siwmlme(struct net_device *dev,
 		  //clear related flags
 		   memset(pMgmt->abyDesireBSSID, 0xFF,6);
 		KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
-			bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+			bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
 		}
 		break;
 	default:

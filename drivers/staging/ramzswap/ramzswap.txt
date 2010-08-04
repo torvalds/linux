@@ -5,9 +5,9 @@ Project home: http://compcache.googlecode.com/
 
 * Introduction
 
-It creates RAM based block devices which can be used (only) as swap disks.
-Pages swapped to these devices are compressed and stored in memory itself.
-See project home for use cases, performance numbers and a lot more.
+The ramzswap module creates RAM based block devices which can (only) be used as
+swap disks. Pages swapped to these devices are compressed and stored in memory
+itself. See project home for use cases, performance numbers and a lot more.
 
 Individual ramzswap devices are configured and initialized using rzscontrol
 userspace utility as shown in examples below. See rzscontrol man page for more

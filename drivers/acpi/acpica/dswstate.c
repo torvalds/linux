@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,7 +179,7 @@ acpi_ds_result_push(union acpi_operand_object * object,
 
 	if (!object) {
 		ACPI_ERROR((AE_INFO,
-			    "Null Object! Obj=%p State=%p Num=%X",
+			    "Null Object! Obj=%p State=%p Num=%u",
 			    object, walk_state, walk_state->result_count));
 		return (AE_BAD_PARAMETER);
 	}
@@ -223,7 +223,7 @@ static acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *walk_state)
 
 	if (((u32) walk_state->result_size + ACPI_RESULTS_FRAME_OBJ_NUM) >
 	    ACPI_RESULTS_OBJ_NUM_MAX) {
-		ACPI_ERROR((AE_INFO, "Result stack overflow: State=%p Num=%X",
+		ACPI_ERROR((AE_INFO, "Result stack overflow: State=%p Num=%u",
 			    walk_state, walk_state->result_size));
 		return (AE_STACK_OVERFLOW);
 	}
@@ -314,7 +314,7 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state * walk_state)
 
 	if (walk_state->num_operands >= ACPI_OBJ_NUM_OPERANDS) {
 		ACPI_ERROR((AE_INFO,
-			    "Object stack overflow! Obj=%p State=%p #Ops=%X",
+			    "Object stack overflow! Obj=%p State=%p #Ops=%u",
 			    object, walk_state, walk_state->num_operands));
 		return (AE_STACK_OVERFLOW);
 	}
@@ -365,7 +365,7 @@ acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state * walk_state)
 
 		if (walk_state->num_operands == 0) {
 			ACPI_ERROR((AE_INFO,
-				    "Object stack underflow! Count=%X State=%p #Ops=%X",
+				    "Object stack underflow! Count=%X State=%p #Ops=%u",
 				    pop_count, walk_state,
 				    walk_state->num_operands));
 			return (AE_STACK_UNDERFLOW);
@@ -377,7 +377,7 @@ acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state * walk_state)
 		walk_state->operands[walk_state->num_operands] = NULL;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%u\n",
 			  pop_count, walk_state, walk_state->num_operands));
 
 	return (AE_OK);

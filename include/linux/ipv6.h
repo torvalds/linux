@@ -21,6 +21,10 @@ struct in6_pktinfo {
 	int		ipi6_ifindex;
 };
 
+struct ip6_mtuinfo {
+	struct sockaddr_in6	ip6m_addr;
+	__u32			ip6m_mtu;
+};
 
 struct in6_ifreq {
 	struct in6_addr	ifr6_addr;
@@ -250,9 +254,11 @@ struct inet6_skb_parm {
 
 #define IP6SKB_XFRM_TRANSFORMED	1
 #define IP6SKB_FORWARDED	2
+#define IP6SKB_REROUTED		4
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
+#define IP6CBMTU(skb)	((struct ip6_mtuinfo *)((skb)->cb))
 
 static inline int inet6_iif(const struct sk_buff *skb)
 {
@@ -334,21 +340,25 @@ struct ipv6_pinfo {
 				dstopts:1,
 				odstopts:1,
                                 rxflow:1,
-				rxtclass:1;
+				rxtclass:1,
+				rxpmtu:1;
 		} bits;
 		__u16		all;
 	} rxopt;
 
 	/* sockopt flags */
-	__u8			recverr:1,
+	__u16			recverr:1,
 	                        sndflow:1,
 				pmtudisc:2,
 				ipv6only:1,
-				srcprefs:3;	/* 001: prefer temporary address
+				srcprefs:3,	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
+				dontfrag:1;
+	__u8			min_hopcount;
 	__u8			tclass;
+	__u8			padding;
 
 	__u32			dst_cookie;
 
@@ -358,6 +368,7 @@ struct ipv6_pinfo {
 
 	struct ipv6_txoptions	*opt;
 	struct sk_buff		*pktoptions;
+	struct sk_buff		*rxpmtu;
 	struct {
 		struct ipv6_txoptions *opt;
 		u8 hop_limit;
@@ -372,6 +383,7 @@ struct raw6_sock {
 	__u32			checksum;	/* perform checksum */
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
+	__u32			ip6mr_table;
 	/* ipv6_pinfo has to be the last member of raw6_sock, see inet6_sk_generic */
 	struct ipv6_pinfo	inet6;
 };

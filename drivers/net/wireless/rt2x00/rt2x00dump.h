@@ -62,11 +62,14 @@
  *	the tx event which has either succeeded or failed. A frame
  *	with this type should also have been reported with as a
  *	%DUMP_FRAME_TX frame.
+ * @DUMP_FRAME_BEACON: This beacon frame is queued for transmission to the
+ *	hardware.
  */
 enum rt2x00_dump_type {
 	DUMP_FRAME_RXDONE = 1,
 	DUMP_FRAME_TX = 2,
 	DUMP_FRAME_TXDONE = 3,
+	DUMP_FRAME_BEACON = 4,
 };
 
 /**

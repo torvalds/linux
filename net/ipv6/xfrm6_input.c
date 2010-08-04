@@ -42,7 +42,7 @@ int xfrm6_transport_finish(struct sk_buff *skb, int async)
 	ipv6_hdr(skb)->payload_len = htons(skb->len);
 	__skb_push(skb, skb->data - skb_network_header(skb));
 
-	NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
+	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		ip6_rcv_finish);
 	return -1;
 }
@@ -101,7 +101,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			break;
 		}
 
-		x = xfrm_state_lookup_byaddr(net, dst, src, proto, AF_INET6);
+		x = xfrm_state_lookup_byaddr(net, skb->mark, dst, src, proto, AF_INET6);
 		if (!x)
 			continue;
 

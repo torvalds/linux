@@ -92,7 +92,7 @@ static struct platform_device otom_device_nor = {
 /* Standard OTOM devices */
 
 static struct platform_device *otom11_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,

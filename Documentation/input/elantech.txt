@@ -333,14 +333,14 @@ byte 0:
 byte 1:
 
    bit   7   6   5   4   3   2   1   0
-        x15 x14 x13 x12 x11 x10 x9  x8
+         .   .   .   .   .  x10 x9  x8
 
 byte 2:
 
    bit   7   6   5   4   3   2   1   0
         x7  x6  x5  x4  x4  x2  x1  x0
 
-         x15..x0 = absolute x value (horizontal)
+         x10..x0 = absolute x value (horizontal)
 
 byte 3:
 
@@ -350,14 +350,14 @@ byte 3:
 byte 4:
 
    bit   7   6   5   4   3   2   1   0
-        y15 y14 y13 y12 y11 y10 y8  y8
+         .   .   .   .   .   .  y9  y8
 
 byte 5:
 
    bit   7   6   5   4   3   2   1   0
         y7  y6  y5  y4  y3  y2  y1  y0
 
-         y15..y0 = absolute y value (vertical)
+         y9..y0 = absolute y value (vertical)
 
 
 4.2.2 Two finger touch

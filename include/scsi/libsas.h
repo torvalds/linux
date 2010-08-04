@@ -36,6 +36,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_sas.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 struct block_device;
 

@@ -19,6 +19,7 @@
 #include <linux/serio.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -243,17 +244,17 @@ static int __devinit xps2_of_probe(struct of_device *ofdev,
 	int error;
 
 	dev_info(dev, "Device Tree Probing \'%s\'\n",
-			ofdev->node->name);
+			ofdev->dev.of_node->name);
 
 	/* Get iospace for the device */
-	error = of_address_to_resource(ofdev->node, 0, &r_mem);
+	error = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
 	if (error) {
 		dev_err(dev, "invalid address\n");
 		return error;
 	}
 
 	/* Get IRQ for the device */
-	if (of_irq_to_resource(ofdev->node, 0, &r_irq) == NO_IRQ) {
+	if (of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq) == NO_IRQ) {
 		dev_err(dev, "no IRQ found\n");
 		return -ENODEV;
 	}
@@ -270,7 +271,7 @@ static int __devinit xps2_of_probe(struct of_device *ofdev,
 	drvdata->irq = r_irq.start;
 
 	phys_addr = r_mem.start;
-	remap_size = r_mem.end - r_mem.start + 1;
+	remap_size = resource_size(&r_mem);
 	if (!request_mem_region(phys_addr, remap_size, DRIVER_NAME)) {
 		dev_err(dev, "Couldn't lock memory region at 0x%08llX\n",
 			(unsigned long long)phys_addr);
@@ -341,10 +342,10 @@ static int __devexit xps2_of_remove(struct of_device *of_dev)
 	iounmap(drvdata->base_address);
 
 	/* Get iospace of the device */
-	if (of_address_to_resource(of_dev->node, 0, &r_mem))
+	if (of_address_to_resource(of_dev->dev.of_node, 0, &r_mem))
 		dev_err(dev, "invalid address\n");
 	else
-		release_mem_region(r_mem.start, r_mem.end - r_mem.start + 1);
+		release_mem_region(r_mem.start, resource_size(&r_mem));
 
 	kfree(drvdata);
 
@@ -354,15 +355,18 @@ static int __devexit xps2_of_remove(struct of_device *of_dev)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id xps2_of_match[] __devinitdata = {
+static const struct of_device_id xps2_of_match[] __devinitconst = {
 	{ .compatible = "xlnx,xps-ps2-1.00.a", },
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, xps2_of_match);
 
 static struct of_platform_driver xps2_of_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= xps2_of_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xps2_of_match,
+	},
 	.probe		= xps2_of_probe,
 	.remove		= __devexit_p(xps2_of_remove),
 };

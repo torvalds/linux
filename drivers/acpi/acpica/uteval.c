@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -307,7 +307,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 				  prefix_node, path, AE_TYPE);
 
 		ACPI_ERROR((AE_INFO,
-			    "Type returned from %s was incorrect: %s, expected Btypes: %X",
+			    "Type returned from %s was incorrect: %s, expected Btypes: 0x%X",
 			    path,
 			    acpi_ut_get_object_type_name(info->return_object),
 			    expected_return_btypes));
@@ -348,7 +348,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 acpi_status
 acpi_ut_evaluate_numeric_object(char *object_name,
 				struct acpi_namespace_node *device_node,
-				acpi_integer *value)
+				u64 *value)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;

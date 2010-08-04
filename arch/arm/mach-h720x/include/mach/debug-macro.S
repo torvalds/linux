@@ -11,10 +11,12 @@
  *
 */
 
-		.equ    io_virt, IO_BASE
-		.equ    io_phys, IO_START
+#include <mach/hardware.h>
 
-		.macro  addruart,rx
+		.equ    io_virt, IO_VIRT
+		.equ    io_phys, IO_PHYS
+
+		.macro  addruart, rx, tmp
 		mrc     p15, 0, \rx, c1, c0
 		tst     \rx, #1  	       @ MMU enabled?
 		moveq   \rx, #io_phys	       @ physical base address

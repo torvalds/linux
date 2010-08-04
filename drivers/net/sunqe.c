@@ -602,7 +602,6 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	qep->tx_new = NEXT_TX(entry);
 
 	/* Get it going. */
-	dev->trans_start = jiffies;
 	sbus_writel(CREG_CTRL_TWAKEUP, qep->qcregs + CREG_CTRL);
 
 	dev->stats.tx_packets++;
@@ -627,7 +626,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void qe_set_multicast(struct net_device *dev)
 {
 	struct sunqe *qep = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	u8 new_mconfig = qep->mconfig;
 	char *addrs;
 	int i;
@@ -636,7 +635,7 @@ static void qe_set_multicast(struct net_device *dev)
 	/* Lock out others. */
 	netif_stop_queue(dev);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		sbus_writeb(MREGS_IACONFIG_ACHNGE | MREGS_IACONFIG_LARESET,
 			    qep->mregs + MREGS_IACONFIG);
 		while ((sbus_readb(qep->mregs + MREGS_IACONFIG) & MREGS_IACONFIG_ACHNGE) != 0)
@@ -650,12 +649,9 @@ static void qe_set_multicast(struct net_device *dev)
 		u16 hash_table[4];
 		u8 *hbytes = (unsigned char *) &hash_table[0];
 
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < dev->mc_count; i++) {
-			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -699,7 +695,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->version, "3.0");
 
 	op = qep->op;
-	regs = of_get_property(op->node, "reg", NULL);
+	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (regs)
 		sprintf(info->bus_info, "SBUS:%d", regs->which_io);
 
@@ -803,7 +799,7 @@ static struct sunqec * __devinit get_qec(struct of_device *child)
 			if (qec_global_reset(qecp->gregs))
 				goto fail;
 
-			qecp->qec_bursts = qec_get_burst(op->node);
+			qecp->qec_bursts = qec_get_burst(op->dev.of_node);
 
 			qec_init_once(qecp, op);
 
@@ -861,7 +857,7 @@ static int __devinit qec_ether_init(struct of_device *op)
 
 	res = -ENODEV;
 
-	i = of_getintprop_default(op->node, "channel#", -1);
+	i = of_getintprop_default(op->dev.of_node, "channel#", -1);
 	if (i == -1)
 		goto fail;
 	qe->channel = i;
@@ -981,8 +977,11 @@ static const struct of_device_id qec_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, qec_sbus_match);
 
 static struct of_platform_driver qec_sbus_driver = {
-	.name		= "qec",
-	.match_table	= qec_sbus_match,
+	.driver = {
+		.name = "qec",
+		.owner = THIS_MODULE,
+		.of_match_table = qec_sbus_match,
+	},
 	.probe		= qec_sbus_probe,
 	.remove		= __devexit_p(qec_sbus_remove),
 };

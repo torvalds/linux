@@ -5,6 +5,7 @@
  */
 
 #include <linux/ata.h>
+#include <linux/slab.h>
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/skbuff.h>

@@ -75,18 +75,17 @@ struct ixgb_adapter;
 #include "ixgb_ee.h"
 #include "ixgb_ids.h"
 
-#ifdef _DEBUG_DRIVER_
-#define IXGB_DBG(args...) printk(KERN_DEBUG "ixgb: " args)
-#else
-#define IXGB_DBG(args...)
-#endif
-
 #define PFX "ixgb: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args))
 
+#ifdef _DEBUG_DRIVER_
+#define IXGB_DBG(fmt, args...) printk(KERN_DEBUG PFX fmt, ##args)
+#else
+#define IXGB_DBG(fmt, args...)				\
+do {							\
+	if (0)						\
+		printk(KERN_DEBUG PFX fmt, ##args);	\
+} while (0)
+#endif
 
 /* TX/RX descriptor defines */
 #define DEFAULT_TXD      256

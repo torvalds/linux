@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
@@ -98,7 +99,7 @@ static int tunnel6_rcv(struct sk_buff *skb)
 		if (!handler->handler(skb))
 			return 0;
 
-	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, skb->dev);
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 
 drop:
 	kfree_skb(skb);
@@ -116,7 +117,7 @@ static int tunnel46_rcv(struct sk_buff *skb)
 		if (!handler->handler(skb))
 			return 0;
 
-	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, skb->dev);
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 
 drop:
 	kfree_skb(skb);

@@ -17,6 +17,7 @@
 
 #include "hisax.h"
 #include "isdnl2.h"
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/random.h>
 

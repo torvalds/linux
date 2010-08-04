@@ -30,7 +30,7 @@ Supported chips:
 	   bank1_types=1,1,0,0,0,0,0,2,0,0,0,0,2,0,0,1
 	   You may also need to specify the fan_sensors option for these boards
 	   fan_sensors=5
-	2) There is a seperate abituguru3 driver for these motherboards,
+	2) There is a separate abituguru3 driver for these motherboards,
 	   the abituguru (without the 3 !) driver will not work on these
 	   motherboards (and visa versa)!
 

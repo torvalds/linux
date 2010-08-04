@@ -130,3 +130,11 @@ static void __exit bcm63xx_phy_exit(void)
 
 module_init(bcm63xx_phy_init);
 module_exit(bcm63xx_phy_exit);
+
+static struct mdio_device_id bcm63xx_tbl[] = {
+	{ 0x00406000, 0xfffffc00 },
+	{ 0x002bdc00, 0xfffffc00 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, bcm63xx_tbl);

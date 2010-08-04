@@ -168,7 +168,7 @@ static int spider_set_irq_type(unsigned int virq, unsigned int type)
 }
 
 static struct irq_chip spider_pic = {
-	.name = " SPIDER   ",
+	.name = "SPIDER",
 	.unmask = spider_unmask_irq,
 	.mask = spider_mask_irq,
 	.ack = spider_ack_irq,

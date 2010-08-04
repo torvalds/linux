@@ -35,33 +35,32 @@ static int control_info(struct snd_kcontrol *kcontrol,
 	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 	int is_intval = pos & CNT_INTVAL;
-	unsigned int id = dev->chip.usb_id;
+	int maxval = 63;
 
 	uinfo->count = 1;
 	pos &= ~CNT_INTVAL;
 
-	if (id == USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ)
-		&& (pos == 0)) {
-		/* current input mode of A8DJ */
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = 2;
-		return 0;
-	}
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
+		if (pos == 0) {
+			/* current input mode of A8DJ and A4DJ */
+			uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+			uinfo->value.integer.min = 0;
+			uinfo->value.integer.max = 2;
+			return 0;
+		}
+		break;
 
-	if (id == USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ)
-		&& (pos == 0)) {
-		/* current input mode of A4DJ */
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = 1;
-		return 0;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		maxval = 127;
+		break;
 	}
 
 	if (is_intval) {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = 64;
+		uinfo->value.integer.max = maxval;
 	} else {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 		uinfo->value.integer.min = 0;
@@ -77,14 +76,6 @@ static int control_get(struct snd_kcontrol *kcontrol,
 	struct snd_usb_audio *chip = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
-
-	if (dev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ)) {
-		/* A4DJ has only one control */
-		/* do not expose hardware input mode 0 */
-		ucontrol->value.integer.value[0] = dev->control_state[0] - 1;
-		return 0;
-	}
 
 	if (pos & CNT_INTVAL)
 		ucontrol->value.integer.value[0]
@@ -102,21 +93,16 @@ static int control_put(struct snd_kcontrol *kcontrol,
 	struct snd_usb_audio *chip = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
+	unsigned char cmd = EP1_CMD_WRITE_IO;
 
 	if (dev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ)) {
-		/* A4DJ has only one control */
-		/* do not expose hardware input mode 0 */
-		dev->control_state[0] = ucontrol->value.integer.value[0] + 1;
-		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
-				dev->control_state, sizeof(dev->control_state));
-		return 1;
-	}
+		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1))
+		cmd = EP1_CMD_DIMM_LEDS;
 
 	if (pos & CNT_INTVAL) {
 		dev->control_state[pos & ~CNT_INTVAL]
 			= ucontrol->value.integer.value[0];
-		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
+		snd_usb_caiaq_send_command(dev, cmd,
 				dev->control_state, sizeof(dev->control_state));
 	} else {
 		if (ucontrol->value.integer.value[0])
@@ -124,7 +110,7 @@ static int control_put(struct snd_kcontrol *kcontrol,
 		else
 			dev->control_state[pos / 8] &= ~(1 << (pos % 8));
 
-		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
+		snd_usb_caiaq_send_command(dev, cmd,
 				dev->control_state, sizeof(dev->control_state));
 	}
 
@@ -273,6 +259,43 @@ static struct caiaq_controller a4dj_controller[] = {
 	{ "Current input mode",	0 | CNT_INTVAL 	}
 };
 
+static struct caiaq_controller kontrolx1_controller[] = {
+	{ "LED FX A: ON",		7 | CNT_INTVAL	},
+	{ "LED FX A: 1",		6 | CNT_INTVAL	},
+	{ "LED FX A: 2",		5 | CNT_INTVAL	},
+	{ "LED FX A: 3",		4 | CNT_INTVAL	},
+	{ "LED FX B: ON",		3 | CNT_INTVAL	},
+	{ "LED FX B: 1",		2 | CNT_INTVAL	},
+	{ "LED FX B: 2",		1 | CNT_INTVAL	},
+	{ "LED FX B: 3",		0 | CNT_INTVAL	},
+
+	{ "LED Hotcue",			28 | CNT_INTVAL	},
+	{ "LED Shift (white)",		29 | CNT_INTVAL	},
+	{ "LED Shift (green)",		30 | CNT_INTVAL	},
+
+	{ "LED Deck A: FX1",		24 | CNT_INTVAL	},
+	{ "LED Deck A: FX2",		25 | CNT_INTVAL	},
+	{ "LED Deck A: IN",		17 | CNT_INTVAL	},
+	{ "LED Deck A: OUT",		16 | CNT_INTVAL	},
+	{ "LED Deck A: < BEAT",		19 | CNT_INTVAL	},
+	{ "LED Deck A: BEAT >",		18 | CNT_INTVAL	},
+	{ "LED Deck A: CUE/ABS",	21 | CNT_INTVAL	},
+	{ "LED Deck A: CUP/REL",	20 | CNT_INTVAL	},
+	{ "LED Deck A: PLAY",		23 | CNT_INTVAL	},
+	{ "LED Deck A: SYNC",		22 | CNT_INTVAL	},
+
+	{ "LED Deck B: FX1",		26 | CNT_INTVAL	},
+	{ "LED Deck B: FX2",		27 | CNT_INTVAL	},
+	{ "LED Deck B: IN",		15 | CNT_INTVAL	},
+	{ "LED Deck B: OUT",		14 | CNT_INTVAL	},
+	{ "LED Deck B: < BEAT",		13 | CNT_INTVAL	},
+	{ "LED Deck B: BEAT >",		12 | CNT_INTVAL	},
+	{ "LED Deck B: CUE/ABS",	11 | CNT_INTVAL	},
+	{ "LED Deck B: CUP/REL",	10 | CNT_INTVAL	},
+	{ "LED Deck B: PLAY",		9  | CNT_INTVAL	},
+	{ "LED Deck B: SYNC",		8  | CNT_INTVAL	},
+};
+
 static int __devinit add_controls(struct caiaq_controller *c, int num,
 				  struct snd_usb_caiaqdev *dev)
 {
@@ -321,9 +344,15 @@ int __devinit snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
 		ret = add_controls(a8dj_controller,
 			ARRAY_SIZE(a8dj_controller), dev);
 		break;
+
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 		ret = add_controls(a4dj_controller,
 			ARRAY_SIZE(a4dj_controller), dev);
+		break;
+
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		ret = add_controls(kontrolx1_controller,
+			ARRAY_SIZE(kontrolx1_controller), dev);
 		break;
 	}
 

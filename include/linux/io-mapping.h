@@ -19,6 +19,7 @@
 #define _LINUX_IO_MAPPING_H
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/iomap.h>

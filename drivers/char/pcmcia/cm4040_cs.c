@@ -72,7 +72,6 @@ static struct class *cmx_class;
 
 struct reader_dev {
 	struct pcmcia_device	*p_dev;
-	dev_node_t		node;
 	wait_queue_head_t	devq;
 	wait_queue_head_t	poll_wait;
 	wait_queue_head_t	read_wait;
@@ -568,10 +567,6 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	}
 
 	dev = link->priv;
-	sprintf(dev->node.dev_name, DEVICE_NAME "%d", devno);
-	dev->node.major = major;
-	dev->node.minor = devno;
-	dev->node.next = &dev->node;
 
 	DEBUGP(2, dev, "device " DEVICE_NAME "%d at 0x%.4x-0x%.4x\n", devno,
 	      link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1);

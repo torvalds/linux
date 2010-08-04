@@ -326,7 +326,7 @@ static int btsdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 	}
 
-	hdev->type = HCI_SDIO;
+	hdev->bus = HCI_SDIO;
 	hdev->driver_data = data;
 
 	data->hdev = hdev;

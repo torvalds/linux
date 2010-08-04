@@ -28,29 +28,28 @@
 #define XLOG_RHASH(tid)	\
 	((((__uint32_t)tid)>>XLOG_RHASH_SHIFT) & (XLOG_RHASH_SIZE-1))
 
-#define XLOG_MAX_REGIONS_IN_ITEM   (XFS_MAX_BLOCKSIZE / XFS_BLI_CHUNK / 2 + 1)
+#define XLOG_MAX_REGIONS_IN_ITEM   (XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK / 2 + 1)
 
 
 /*
  * item headers are in ri_buf[0].  Additional buffers follow.
  */
 typedef struct xlog_recover_item {
-	struct xlog_recover_item *ri_next;
-	struct xlog_recover_item *ri_prev;
-	int			 ri_type;
-	int			 ri_cnt;	/* count of regions found */
-	int			 ri_total;	/* total regions */
-	xfs_log_iovec_t		 *ri_buf;	/* ptr to regions buffer */
+	struct list_head	ri_list;
+	int			ri_type;
+	int			ri_cnt;	/* count of regions found */
+	int			ri_total;	/* total regions */
+	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
 } xlog_recover_item_t;
 
 struct xlog_tid;
 typedef struct xlog_recover {
-	struct xlog_recover *r_next;
-	xlog_tid_t	    r_log_tid;		/* log's transaction id */
-	xfs_trans_header_t  r_theader;		/* trans header for partial */
-	int		    r_state;		/* not needed */
-	xfs_lsn_t	    r_lsn;		/* xact lsn */
-	xlog_recover_item_t *r_itemq;		/* q for items */
+	struct hlist_node	r_list;
+	xlog_tid_t		r_log_tid;	/* log's transaction id */
+	xfs_trans_header_t	r_theader;	/* trans header for partial */
+	int			r_state;	/* not needed */
+	xfs_lsn_t		r_lsn;		/* xact lsn */
+	struct list_head	r_itemq;	/* q for items */
 } xlog_recover_t;
 
 #define ITEM_TYPE(i)	(*(ushort *)(i)->ri_buf[0].i_addr)

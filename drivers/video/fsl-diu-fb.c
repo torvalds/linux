@@ -1421,7 +1421,7 @@ static ssize_t show_monitor(struct device *device,
 static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mfb_info *mfbi;
 	phys_addr_t dummy_ad_addr;
 	int ret, i, error = 0;
@@ -1536,6 +1536,7 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 		goto error;
 	}
 
+	sysfs_attr_init(&machine_data->dev_attr.attr);
 	machine_data->dev_attr.attr.name = "monitor";
 	machine_data->dev_attr.attr.mode = S_IRUGO|S_IWUSR;
 	machine_data->dev_attr.show = show_monitor;
@@ -1633,6 +1634,11 @@ static int __init fsl_diu_setup(char *options)
 #endif
 
 static struct of_device_id fsl_diu_match[] = {
+#ifdef CONFIG_PPC_MPC512x
+	{
+		.compatible = "fsl,mpc5121-diu",
+	},
+#endif
 	{
 		.compatible = "fsl,diu",
 	},
@@ -1641,9 +1647,11 @@ static struct of_device_id fsl_diu_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_diu_match);
 
 static struct of_platform_driver fsl_diu_driver = {
-	.owner  	= THIS_MODULE,
-	.name   	= "fsl_diu",
-	.match_table    = fsl_diu_match,
+	.driver = {
+		.name = "fsl_diu",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_diu_match,
+	},
 	.probe  	= fsl_diu_probe,
 	.remove 	= fsl_diu_remove,
 	.suspend	= fsl_diu_suspend,

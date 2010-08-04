@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.07
+ *    mpi2_init.h Version:  02.00.08
  *
  *  Version History
  *  ---------------
@@ -27,6 +27,10 @@
  *                      Query Asynchronous Event.
  *                      Defined two new bits in the SlotStatus field of the SCSI
  *                      Enclosure Processor Request and Reply.
+ *  10-28-09  02.00.08  Added defines for decoding the ResponseInfo bytes for
+ *                      both SCSI IO Error Reply and SCSI Task Management Reply.
+ *                      Added ResponseInfo field to MPI2_SCSI_TASK_MANAGE_REPLY.
+ *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
  *  --------------------------------------------------------------------------
  */
 
@@ -254,6 +258,11 @@ typedef struct _MPI2_SCSI_IO_REPLY
 #define MPI2_SCSI_STATE_AUTOSENSE_FAILED        (0x02)
 #define MPI2_SCSI_STATE_AUTOSENSE_VALID         (0x01)
 
+/* masks and shifts for the ResponseInfo field */
+
+#define MPI2_SCSI_RI_MASK_REASONCODE            (0x000000FF)
+#define MPI2_SCSI_RI_SHIFT_REASONCODE           (0)
+
 #define MPI2_SCSI_TASKTAG_UNKNOWN               (0xFFFF)
 
 
@@ -327,6 +336,7 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY
     U16                     IOCStatus;                      /* 0x0E */
     U32                     IOCLogInfo;                     /* 0x10 */
     U32                     TerminationCount;               /* 0x14 */
+    U32                     ResponseInfo;                   /* 0x18 */
 } MPI2_SCSI_TASK_MANAGE_REPLY,
   MPI2_POINTER PTR_MPI2_SCSI_TASK_MANAGE_REPLY,
   Mpi2SCSITaskManagementReply_t, MPI2_POINTER pMpi2SCSIManagementReply_t;
@@ -339,7 +349,19 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY
 #define MPI2_SCSITASKMGMT_RSP_TM_FAILED                 (0x05)
 #define MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED              (0x08)
 #define MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN            (0x09)
+#define MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG         (0x0A)
 #define MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC          (0x80)
+
+/* masks and shifts for the ResponseInfo field */
+
+#define MPI2_SCSITASKMGMT_RI_MASK_REASONCODE            (0x000000FF)
+#define MPI2_SCSITASKMGMT_RI_SHIFT_REASONCODE           (0)
+#define MPI2_SCSITASKMGMT_RI_MASK_ARI2                  (0x0000FF00)
+#define MPI2_SCSITASKMGMT_RI_SHIFT_ARI2                 (8)
+#define MPI2_SCSITASKMGMT_RI_MASK_ARI1                  (0x00FF0000)
+#define MPI2_SCSITASKMGMT_RI_SHIFT_ARI1                 (16)
+#define MPI2_SCSITASKMGMT_RI_MASK_ARI0                  (0xFF000000)
+#define MPI2_SCSITASKMGMT_RI_SHIFT_ARI0                 (24)
 
 
 /****************************************************************************

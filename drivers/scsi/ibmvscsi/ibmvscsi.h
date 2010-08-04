@@ -120,6 +120,7 @@ struct ibmvscsi_ops {
 				  struct ibmvscsi_host_data *hostdata);
 	int (*send_crq)(struct ibmvscsi_host_data *hostdata,
 		       u64 word1, u64 word2);
+	int (*resume) (struct ibmvscsi_host_data *hostdata);
 };
 
 extern struct ibmvscsi_ops iseriesvscsi_ops;

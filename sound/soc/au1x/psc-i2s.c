@@ -18,6 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -299,7 +300,7 @@ struct snd_soc_dai au1xpsc_i2s_dai = {
 };
 EXPORT_SYMBOL(au1xpsc_i2s_dai);
 
-static int __init au1xpsc_i2s_drvprobe(struct platform_device *pdev)
+static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
 	struct resource *r;
 	unsigned long sel;

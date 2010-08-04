@@ -463,7 +463,7 @@ static void ether3_setmulticastlist(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		/* promiscuous mode */
 		priv(dev)->regs.config1 |= CFG1_RECVPROMISC;
-	} else if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
+	} else if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev)) {
 		priv(dev)->regs.config1 |= CFG1_RECVSPECBRMULTI;
 	} else
 		priv(dev)->regs.config1 |= CFG1_RECVSPECBROAD;
@@ -529,7 +529,6 @@ ether3_sendpacket(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;	/* unable to queue */
 	}
 
-	dev->trans_start = jiffies;
 	ptr		 = 0x600 * priv(dev)->tx_head;
 	priv(dev)->tx_head = next_ptr;
 	next_ptr	*= 0x600;

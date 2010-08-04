@@ -610,7 +610,6 @@ struct wl3501_card {
 	struct iw_statistics		wstats;
 	struct iw_spy_data		spy_data;
 	struct iw_public_data		wireless_data;
-	struct dev_node_t		node;
 	struct pcmcia_device		*p_dev;
 };
 #endif

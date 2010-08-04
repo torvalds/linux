@@ -585,27 +585,6 @@ int afs_writepages(struct address_space *mapping,
 }
 
 /*
- * write an inode back
- */
-int afs_write_inode(struct inode *inode, int sync)
-{
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	int ret;
-
-	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
-
-	ret = 0;
-	if (sync) {
-		ret = filemap_fdatawait(inode->i_mapping);
-		if (ret < 0)
-			__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-	}
-
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
  * completion of write to server
  */
 void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
@@ -701,7 +680,6 @@ int afs_writeback_all(struct afs_vnode *vnode)
 {
 	struct address_space *mapping = vnode->vfs_inode.i_mapping;
 	struct writeback_control wbc = {
-		.bdi		= mapping->backing_dev_info,
 		.sync_mode	= WB_SYNC_ALL,
 		.nr_to_write	= LONG_MAX,
 		.range_cyclic	= 1,
@@ -722,8 +700,9 @@ int afs_writeback_all(struct afs_vnode *vnode)
  * - the return status from this call provides a reliable indication of
  *   whether any write errors occurred for this process.
  */
-int afs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int afs_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct afs_writeback *wb, *xwb;
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	int ret;

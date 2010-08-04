@@ -180,8 +180,8 @@ enum bfa_status {
 	BFA_STATUS_IM_ADAPT_ALREADY_IN_TEAM = 114, /*  Given adapter is part
 						    * of another team */
 	BFA_STATUS_IM_ADAPT_HAS_VLANS = 115, /*  Adapter has VLANs configured.
-					      * Delete all VLANs before
-					      * creating team */
+					      * Delete all VLANs to become
+					      * part of the team */
 	BFA_STATUS_IM_PVID_MISMATCH = 116, /*  Mismatching PVIDs configured
 					    * for adapters */
 	BFA_STATUS_IM_LINK_SPEED_MISMATCH = 117, /*  Mismatching link speeds
@@ -213,7 +213,7 @@ enum bfa_status {
 					     * loaded */
 	BFA_STATUS_CARD_TYPE_MISMATCH = 131, /*  Card type mismatch */
 	BFA_STATUS_BAD_ASICBLK = 132, /*  Bad ASIC block */
-	BFA_STATUS_NO_DRIVER = 133, /*  Storage/Ethernet driver not loaded */
+	BFA_STATUS_NO_DRIVER = 133, /*  Brocade adapter/driver not installed or loaded */
 	BFA_STATUS_INVALID_MAC = 134, /*  Invalid mac address */
 	BFA_STATUS_IM_NO_VLAN = 135, /*  No VLANs configured on the adapter */
 	BFA_STATUS_IM_ETH_LB_FAILED = 136, /*  Ethernet loopback test failed */
@@ -223,13 +223,12 @@ enum bfa_status {
 	BFA_STATUS_IM_PVID_NON_ZERO = 140, /*  Port VLAN ID (PVID) is Set to
 					    * Non-Zero Value */
 	BFA_STATUS_IM_INETCFG_LOCK_FAILED = 141, /*  Acquiring Network
-						  * Subsytem Lock Failed.Please
+						  * Subsystem Lock Failed.Please
 						  * try after some time */
-	BFA_STATUS_IM_GET_INETCFG_FAILED = 142, /*  Acquiring Network Subsytem
+	BFA_STATUS_IM_GET_INETCFG_FAILED = 142, /*  Acquiring Network Subsystem
 						 * handle Failed. Please try
 						 * after some time */
-	BFA_STATUS_IM_NOT_BOUND = 143, /*  Brocade 10G Ethernet Service is not
-					* Enabled on this port */
+	BFA_STATUS_IM_NOT_BOUND = 143, /*  IM driver is not active */
 	BFA_STATUS_INSUFFICIENT_PERMS = 144, /*  User doesn't have sufficient
 					      * permissions to execute the BCU
 					      * application */
@@ -242,6 +241,14 @@ enum bfa_status {
 					  * failed */
 	BFA_STATUS_IM_UNBIND_FAILED = 149, /* ! < IM Driver unbind operation
 					    * failed */
+	BFA_STATUS_IM_PORT_IN_TEAM = 150, /*  Port is already part of the
+					   * team */
+	BFA_STATUS_IM_VLAN_NOT_FOUND = 151, /*  VLAN ID doesn't exists */
+	BFA_STATUS_IM_TEAM_NOT_FOUND = 152, /*  Teaming configuration doesn't
+					     * exists */
+	BFA_STATUS_IM_TEAM_CFG_NOT_ALLOWED = 153, /*  Given settings are not
+						* allowed for the current
+						* Teaming mode */
 	BFA_STATUS_MAX_VAL		/*  Unknown error code */
 };
 #define bfa_status_t enum bfa_status

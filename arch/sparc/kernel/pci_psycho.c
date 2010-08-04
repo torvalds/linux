@@ -285,7 +285,7 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 #define  PSYCHO_ECCCTRL_CE	 0x2000000000000000UL /* Enable CE INterrupts */
 static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->op->node);
+	struct of_device *op = of_find_device_by_node(pbm->op->dev.of_node);
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
 	int err;
@@ -507,7 +507,7 @@ static int __devinit psycho_probe(struct of_device *op,
 				  const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *pr_regs;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	int is_pbm_a, err;
@@ -602,8 +602,11 @@ static struct of_device_id __initdata psycho_match[] = {
 };
 
 static struct of_platform_driver psycho_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= psycho_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = psycho_match,
+	},
 	.probe		= psycho_probe,
 };
 

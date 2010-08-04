@@ -189,7 +189,7 @@ enum {
 #define DCCP_MIB_MAX	__DCCP_MIB_MAX
 struct dccp_mib {
 	unsigned long	mibs[DCCP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 #define DCCP_INC_STATS(field)	    SNMP_INC_STATS(dccp_statistics, field)
@@ -223,7 +223,7 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
 }
 
-extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+extern void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 
 extern int  dccp_retransmit_skb(struct sock *sk);
 

@@ -24,8 +24,9 @@ static struct usb_device_id usb_prism_tbl[] = {
 	 (0x066b, 0x2213, "Linksys WUSB12v1.1 11Mbps WLAN USB Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x067c, 0x1022, "Siemens SpeedStream 1022 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x049f, 0x0033,
-			  "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
+	{PRISM_USB_DEVICE
+	 (0x049f, 0x0033,
+	 "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x0411, 0x0016, "Melco WLI-USB-S11 11Mbps WLAN Adapter")},
 	{PRISM_USB_DEVICE
@@ -55,7 +56,6 @@ static struct usb_device_id usb_prism_tbl[] = {
 	 (0x04f1, 0x3009, "JVC MP-XP7250 Builtin USB WLAN Adapter")},
 	{PRISM_USB_DEVICE(0x0846, 0x4110, "NetGear MA111")},
 	{PRISM_USB_DEVICE(0x03f3, 0x0020, "Adaptec AWN-8020 USB WLAN Adapter")},
-/*      {PRISM_USB_DEVICE(0x0ace, 0x1201, "ZyDAS ZD1201 Wireless USB Adapter")}, */
 	{PRISM_USB_DEVICE(0x2821, 0x3300, "ASUS-WL140 Wireless USB Adapter")},
 	{PRISM_USB_DEVICE(0x2001, 0x3700, "DWL-122 Wireless USB Adapter")},
 	{PRISM_USB_DEVICE
@@ -285,11 +285,76 @@ exit:
 	usb_set_intfdata(interface, NULL);
 }
 
+#ifdef CONFIG_PM
+static int prism2sta_suspend(struct usb_interface *interface,
+				pm_message_t message)
+{
+	hfa384x_t *hw = NULL;
+	wlandevice_t *wlandev;
+	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	if (!wlandev)
+		return -ENODEV;
+
+	hw = wlandev->priv;
+	if (!hw)
+		return -ENODEV;
+
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
+
+	usb_kill_urb(&hw->rx_urb);
+	usb_kill_urb(&hw->tx_urb);
+	usb_kill_urb(&hw->ctlx_urb);
+
+	return 0;
+}
+
+static int prism2sta_resume(struct usb_interface *interface)
+{
+	int result = 0;
+	hfa384x_t *hw = NULL;
+	wlandevice_t *wlandev;
+	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	if (!wlandev)
+		return -ENODEV;
+
+	hw = wlandev->priv;
+	if (!hw)
+		return -ENODEV;
+
+	/* Do a chip-level reset on the MAC */
+	if (prism2_doreset) {
+		result = hfa384x_corereset(hw,
+					   prism2_reset_holdtime,
+					   prism2_reset_settletime, 0);
+		if (result != 0) {
+			unregister_wlandev(wlandev);
+			hfa384x_destroy(hw);
+			printk(KERN_ERR
+			       "%s: hfa384x_corereset() failed.\n", dev_info);
+			kfree(wlandev);
+			kfree(hw);
+			wlandev = NULL;
+			return -ENODEV;
+		}
+	}
+
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_enable);
+
+	return 0;
+}
+#else
+#define prism2sta_suspend NULL
+#define prism2sta_resume NULL
+#endif /* CONFIG_PM */
+
 static struct usb_driver prism2_usb_driver = {
 	.name = "prism2_usb",
 	.probe = prism2sta_probe_usb,
 	.disconnect = prism2sta_disconnect_usb,
 	.id_table = usb_prism_tbl,
+	.suspend = prism2sta_suspend,
+	.resume = prism2sta_resume,
+	.reset_resume = prism2sta_resume,
 	/* fops, minor? */
 };
 

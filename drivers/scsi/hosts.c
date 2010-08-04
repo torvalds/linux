@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -215,12 +216,16 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
 	shost->dma_dev = dma_dev;
 
+	device_enable_async_suspend(&shost->shost_gendev);
+
 	error = device_add(&shost->shost_gendev);
 	if (error)
 		goto out;
 
 	scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
+
+	device_enable_async_suspend(&shost->shost_dev);
 
 	error = device_add(&shost->shost_dev);
 	if (error)

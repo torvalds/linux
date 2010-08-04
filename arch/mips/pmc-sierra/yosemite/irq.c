@@ -37,7 +37,6 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/timex.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/bitops.h>
 #include <asm/bootinfo.h>

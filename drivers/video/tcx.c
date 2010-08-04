@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -366,7 +365,7 @@ static void tcx_unmap_regs(struct of_device *op, struct fb_info *info,
 static int __devinit tcx_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct tcx_par *par;
 	int linebytes, i, err;
@@ -513,8 +512,11 @@ static const struct of_device_id tcx_match[] = {
 MODULE_DEVICE_TABLE(of, tcx_match);
 
 static struct of_platform_driver tcx_driver = {
-	.name		= "tcx",
-	.match_table	= tcx_match,
+	.driver = {
+		.name = "tcx",
+		.owner = THIS_MODULE,
+		.of_match_table = tcx_match,
+	},
 	.probe		= tcx_probe,
 	.remove		= __devexit_p(tcx_remove),
 };

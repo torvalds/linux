@@ -41,6 +41,7 @@
 #define MAX_MAX3100 4
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>

@@ -221,8 +221,8 @@ branches.  These different branches are:
   - main 2.6.x kernel tree
   - 2.6.x.y -stable kernel tree
   - 2.6.x -git kernel patches
-  - 2.6.x -mm kernel patches
   - subsystem specific kernel trees and patches
+  - the 2.6.x -next kernel tree for integration tests
 
 2.6.x kernel tree
 -----------------
@@ -232,9 +232,9 @@ process is as follows:
   - As soon as a new kernel is released a two weeks window is open,
     during this period of time maintainers can submit big diffs to
     Linus, usually the patches that have already been included in the
-    -mm kernel for a few weeks.  The preferred way to submit big changes
+    -next kernel for a few weeks.  The preferred way to submit big changes
     is using git (the kernel's source management tool, more information
-    can be found at http://git.or.cz/) but plain patches are also just
+    can be found at http://git-scm.com/) but plain patches are also just
     fine.
   - After two weeks a -rc1 kernel is released it is now possible to push
     only patches that do not include new features that could affect the
@@ -293,84 +293,43 @@ daily and represent the current state of Linus' tree.  They are more
 experimental than -rc kernels since they are generated automatically
 without even a cursory glance to see if they are sane.
 
-2.6.x -mm kernel patches
-------------------------
-These are experimental kernel patches released by Andrew Morton.  Andrew
-takes all of the different subsystem kernel trees and patches and mushes
-them together, along with a lot of patches that have been plucked from
-the linux-kernel mailing list.  This tree serves as a proving ground for
-new features and patches.  Once a patch has proved its worth in -mm for
-a while Andrew or the subsystem maintainer pushes it on to Linus for
-inclusion in mainline.
-
-It is heavily encouraged that all new patches get tested in the -mm tree
-before they are sent to Linus for inclusion in the main kernel tree.  Code
-which does not make an appearance in -mm before the opening of the merge
-window will prove hard to merge into the mainline.
-
-These kernels are not appropriate for use on systems that are supposed
-to be stable and they are more risky to run than any of the other
-branches.
-
-If you wish to help out with the kernel development process, please test
-and use these kernel releases and provide feedback to the linux-kernel
-mailing list if you have any problems, and if everything works properly.
-
-In addition to all the other experimental patches, these kernels usually
-also contain any changes in the mainline -git kernels available at the
-time of release.
-
-The -mm kernels are not released on a fixed schedule, but usually a few
--mm kernels are released in between each -rc kernel (1 to 3 is common).
-
 Subsystem Specific kernel trees and patches
 -------------------------------------------
-A number of the different kernel subsystem developers expose their
-development trees so that others can see what is happening in the
-different areas of the kernel.  These trees are pulled into the -mm
-kernel releases as described above.
+The maintainers of the various kernel subsystems --- and also many
+kernel subsystem developers --- expose their current state of
+development in source repositories.  That way, others can see what is
+happening in the different areas of the kernel.  In areas where
+development is rapid, a developer may be asked to base his submissions
+onto such a subsystem kernel tree so that conflicts between the
+submission and other already ongoing work are avoided.
 
-Here is a list of some of the different kernel trees available:
-  git trees:
-    - Kbuild development tree, Sam Ravnborg <sam@ravnborg.org>
-	git.kernel.org:/pub/scm/linux/kernel/git/sam/kbuild.git
+Most of these repositories are git trees, but there are also other SCMs
+in use, or patch queues being published as quilt series.  Addresses of
+these subsystem repositories are listed in the MAINTAINERS file.  Many
+of them can be browsed at http://git.kernel.org/.
 
-    - ACPI development tree, Len Brown <len.brown@intel.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
+Before a proposed patch is committed to such a subsystem tree, it is
+subject to review which primarily happens on mailing lists (see the
+respective section below).  For several kernel subsystems, this review
+process is tracked with the tool patchwork.  Patchwork offers a web
+interface which shows patch postings, any comments on a patch or
+revisions to it, and maintainers can mark patches as under review,
+accepted, or rejected.  Most of these patchwork sites are listed at
+http://patchwork.kernel.org/ or http://patchwork.ozlabs.org/.
 
-    - Block development tree, Jens Axboe <jens.axboe@oracle.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/axboe/linux-2.6-block.git
+2.6.x -next kernel tree for integration tests
+---------------------------------------------
+Before updates from subsystem trees are merged into the mainline 2.6.x
+tree, they need to be integration-tested.  For this purpose, a special
+testing repository exists into which virtually all subsystem trees are
+pulled on an almost daily basis:
+	http://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
+	http://linux.f-seidel.de/linux-next/pmwiki/
 
-    - DRM development tree, Dave Airlie <airlied@linux.ie>
-	git.kernel.org:/pub/scm/linux/kernel/git/airlied/drm-2.6.git
+This way, the -next kernel gives a summary outlook onto what will be
+expected to go into the mainline kernel at the next merge period.
+Adventurous testers are very welcome to runtime-test the -next kernel.
 
-    - ia64 development tree, Tony Luck <tony.luck@intel.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/aegl/linux-2.6.git
-
-    - infiniband, Roland Dreier <rolandd@cisco.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
-
-    - libata, Jeff Garzik <jgarzik@pobox.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
-
-    - network drivers, Jeff Garzik <jgarzik@pobox.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/jgarzik/netdev-2.6.git
-
-    - pcmcia, Dominik Brodowski <linux@dominikbrodowski.net>
-	git.kernel.org:/pub/scm/linux/kernel/git/brodo/pcmcia-2.6.git
-
-    - SCSI, James Bottomley <James.Bottomley@hansenpartnership.com>
-	git.kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
-
-    - x86, Ingo Molnar <mingo@elte.hu>
-	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
-
-  quilt trees:
-    - USB, Driver Core, and I2C, Greg Kroah-Hartman <gregkh@suse.de>
-	kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
-
-  Other kernel trees can be found listed at http://git.kernel.org/ and in
-  the MAINTAINERS file.
 
 Bug Reporting
 -------------

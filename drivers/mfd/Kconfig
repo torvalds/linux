@@ -2,12 +2,28 @@
 # Multifunction miscellaneous devices
 #
 
-menu "Multifunction device drivers"
+menuconfig MFD_SUPPORT
+	bool "Multifunction device drivers"
 	depends on HAS_IOMEM
+	default y
+	help
+	  Configure MFD device drivers.
+
+if MFD_SUPPORT
 
 config MFD_CORE
 	tristate
 	default n
+
+config MFD_88PM860X
+	bool "Support Marvell 88PM8606/88PM8607"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM8606/88PM8607 Power Management IC.
+	  This includes the I2C driver and the core APIs _only_, you have to
+	  select individual components like voltage regulators, RTC and
+	  battery-charger under the corresponding menus.
 
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"
@@ -37,11 +53,16 @@ config MFD_ASIC3
 
 config MFD_SH_MOBILE_SDHI
 	bool "Support for SuperH Mobile SDHI"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	select MFD_CORE
+	select TMIO_MMC_DMA
 	 ---help---
 	  This driver supports the SDHI hardware block found in many
 	  SuperH Mobile SoCs.
+
+config MFD_DAVINCI_VOICECODEC
+	tristate
+	select MFD_CORE
 
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
@@ -68,6 +89,15 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config HTC_I2CPLD
+	bool "HTC I2C PLD chip support"
+	depends on I2C=y && GPIOLIB
+	help
+	  If you say yes here you get support for the supposed CPLD
+	  found on omap850 HTC devices like the HTC Wizard and HTC Herald.
+	  This device provides input and output GPIOs through an I2C
+	  interface to one or more sub-chips.
+
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
 	depends on AC97_BUS
@@ -92,9 +122,21 @@ config TPS65010
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65010.
 
+config TPS6507X
+	tristate "TPS6507x Power Management / Touch Screen chips"
+	select MFD_CORE
+	depends on I2C
+	help
+	  If you say yes here you get support for the TPS6507x series of
+	  Power Management / Touch Screen chips.  These include voltage
+	  regulators, lithium ion/polymer battery charging, touch screen
+	  and other features that are often used in portable devices.
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6507x.
+
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
-	depends on I2C=y && ARCH_OMAP24XX
+	depends on I2C=y && ARCH_OMAP2
 	help
 	  If you say yes here you get support for the Texas Instruments
 	  TWL92330/Menelaus Power Management chip. This include voltage
@@ -135,9 +177,25 @@ config TWL4030_CODEC
 	select MFD_CORE
 	default n
 
+config MFD_TC35892
+	bool "Support Toshiba TC35892"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  Support for the Toshiba TC35892 I/O Expander.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config MFD_TMIO
 	bool
 	default n
+
+config TMIO_MMC_DMA
+	bool
+	select DMA_ENGINE
+	select DMADEVICES
 
 config MFD_T7L66XB
 	bool "Support Toshiba T7L66XB"
@@ -184,6 +242,16 @@ config PMIC_ADP5520
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
 
+config MFD_MAX8925
+	bool "Maxim Semiconductor MAX8925 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8925. This is
+	  a Power Management IC. This driver provies common support for
+	  accessing the device, additional drivers must be enabled in order
+	  to use the functionality of the device.
+
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
@@ -197,7 +265,7 @@ config MFD_WM8400
 config MFD_WM831X
 	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
 	select MFD_CORE
-	depends on I2C=y
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
 	  This driver provides common support for accessing the device,
@@ -205,7 +273,8 @@ config MFD_WM831X
 	  functionality of the device.
 
 config MFD_WM8350
-	tristate
+	bool
+	depends on GENERIC_HARDIRQS
 
 config MFD_WM8350_CONFIG_MODE_0
 	bool
@@ -256,15 +325,27 @@ config MFD_WM8352_CONFIG_MODE_3
 	depends on MFD_WM8350
 
 config MFD_WM8350_I2C
-	tristate "Support Wolfson Microelectronics WM8350 with I2C"
+	bool "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
-	depends on I2C
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8350 is an integrated audio and power management
 	  subsystem with watchdog and RTC functionality for embedded
 	  systems.  This option enables core support for the WM8350 with
 	  I2C as the control interface.  Additional options must be
 	  selected to enable support for the functionality of the chip.
+
+config MFD_WM8994
+	bool "Support Wolfson Microelectronics WM8994"
+	select MFD_CORE
+	depends on I2C=y && GENERIC_HARDIRQS
+	help
+	  The WM8994 is a highly integrated hi-fi CODEC designed for
+	  smartphone applicatiosn.  As well as audio functionality it
+	  has on board GPIO and regulator functionality which is
+	  supported via the relevant subsystems.  This driver provides
+	  core support for the WM8994, in order to use the actual
+	  functionaltiy of the device other drivers must be enabled.
 
 config MFD_PCF50633
 	tristate "Support for NXP PCF50633"
@@ -299,9 +380,19 @@ config PCF50633_GPIO
 	 Say yes here if you want to include support GPIO for pins on
 	 the PCF50633 chip.
 
+config ABX500_CORE
+	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
+	default y if ARCH_U300
+	help
+	  Say yes here if you have the ABX500 Mixed Signal IC family
+	  chips. This core driver expose register access functions.
+	  Functionality specific drivers using these functions can
+	  remain unchanged when IC changes. Binding of the functions to
+	  actual register access is done by the IC core driver.
+
 config AB3100_CORE
-	tristate "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C
+	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
+	depends on I2C=y && ABX500_CORE
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core
@@ -329,26 +420,69 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
-config MFD_88PM8607
-	bool "Support Marvell 88PM8607"
-	depends on I2C=y
+config AB8500_CORE
+	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
+	depends on SPI=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  This supports for Marvell 88PM8607 Power Management IC. This includes
-	  the I2C driver and the core APIs _only_, you have to select
-	  individual components like voltage regulators, RTC and
-	  battery-charger under the corresponding menus.
-
-config AB4500_CORE
-	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
-	depends on SPI
-	help
-	  Select this option to enable access to AB4500 power management
+	  Select this option to enable access to AB8500 power management
 	  chip. This connects to U8500 on the SSP/SPI bus and exports
 	  read/write functions for the devices to get access to this chip.
 	  This chip embeds various other multimedia funtionalities as well.
 
-endmenu
+config AB3550_CORE
+        bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
+	select MFD_CORE
+	depends on I2C=y && GENERIC_HARDIRQS && ABX500_CORE
+	help
+	  Select this to enable the AB3550 Mixed Signal IC core
+	  functionality. This connects to a AB3550 on the I2C bus
+	  and expose a number of symbols needed for dependent devices
+	  to read and write registers and subscribe to events from
+	  this multi-functional IC. This is needed to use other features
+	  of the AB3550 such as battery-backed RTC, charging control,
+	  LEDs, vibrator, system power and temperature, power management
+	  and ALSA sound.
+
+config MFD_TIMBERDALE
+	tristate "Support for the Timberdale FPGA"
+	select MFD_CORE
+	depends on PCI && GPIOLIB
+	---help---
+	This is the core driver for the timberdale FPGA. This device is a
+	multifunction device which exposes numerous platform devices.
+
+	The timberdale FPGA can be found on the Intel Atom development board
+	for in-vehicle infontainment, called Russellville.
+
+config LPC_SCH
+	tristate "Intel SCH LPC"
+	depends on PCI
+	select MFD_CORE
+	help
+	  LPC bridge function of the Intel SCH provides support for
+	  System Management Bus and General Purpose I/O.
+
+config MFD_RDC321X
+	tristate "Support for RDC-R321x southbridge"
+	select MFD_CORE
+	depends on PCI
+	help
+	  Say yes here if you want to have support for the RDC R-321x SoC
+	  southbridge which provides access to GPIOs and Watchdog using the
+	  southbridge PCI device configuration space.
+
+config MFD_JANZ_CMODIO
+	tristate "Support for Janz CMOD-IO PCI MODULbus Carrier Board"
+	select MFD_CORE
+	depends on PCI
+	help
+	  This is the core driver for the Janz CMOD-IO PCI MODULbus
+	  carrier board. This device is a PCI to MODULbus bridge which may
+	  host many different types of MODULbus daughterboards, including
+	  CAN and GPIO controllers.
+
+endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

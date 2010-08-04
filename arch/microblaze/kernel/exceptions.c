@@ -121,7 +121,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		}
 		printk(KERN_WARNING "Divide by zero exception " \
 							"in kernel mode.\n");
-		die("Divide by exception", regs, SIGBUS);
+		die("Divide by zero exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_FPU_EXCEPTION:
 		pr_debug(KERN_WARNING "FPU exception\n");

@@ -63,6 +63,8 @@ Configuration options:
 #define DPRINTK(fmt, args...)
 #endif
 
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+
 /* hardware types of the cards */
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
@@ -84,9 +86,9 @@ Configuration options:
 #define PCI171x_DAREF	14	/* W:   D/A reference control */
 #define PCI171x_DI	16	/* R:   digi inputs */
 #define PCI171x_DO	16	/* R:   digi inputs */
-#define PCI171x_CNT0	24	/* R/W: 8254 couter 0 */
-#define PCI171x_CNT1	26	/* R/W: 8254 couter 1 */
-#define PCI171x_CNT2	28	/* R/W: 8254 couter 2 */
+#define PCI171x_CNT0	24	/* R/W: 8254 counter 0 */
+#define PCI171x_CNT1	26	/* R/W: 8254 counter 1 */
+#define PCI171x_CNT2	28	/* R/W: 8254 counter 2 */
 #define PCI171x_CNTCTRL	30	/* W:   8254 counter control */
 
 /* upper bits from status register (PCI171x_STATUS) (lower is same woth control reg) */
@@ -657,9 +659,9 @@ static void interrupt_pci1710_every_sample(void *d)
 #endif
 		++s->async->cur_chan;
 
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		if (s->async->cur_chan >= devpriv->ai_n_chan)
 			s->async->cur_chan = 0;
-		}
+
 
 		if (s->async->cur_chan == 0) {	/*  one scan done */
 			devpriv->ai_act_scan++;
@@ -724,6 +726,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 			devpriv->ai_act_scan++;
 		}
 	}
+	s->async->cur_chan = j;
 	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
@@ -862,12 +865,12 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		devpriv->ai_eos = 0;
 	}
 
-	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1)) {
+	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1))
 		devpriv->neverending_ai = 1;
-	} /* well, user want neverending */
-	else {
+	/* well, user want neverending */
+	else
 		devpriv->neverending_ai = 0;
-	}
+
 	switch (mode) {
 	case 1:
 	case 2:
@@ -934,7 +937,8 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	int tmp;
+	unsigned int divisor1 = 0, divisor2 = 0;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG
@@ -1034,14 +1038,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > this_board->n_aichan) {
-		cmd->chanlist_len = this_board->n_aichan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -1116,11 +1112,11 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scans = cmd->stop_arg;
-	} else {
+	else
 		devpriv->ai_scans = 0;
-	}
+
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
@@ -1230,6 +1226,12 @@ static void setup_channel_list(struct comedi_device *dev,
 		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
 			devpriv->act_chanlist[i]);
 	}
+#ifdef PCI171x_PARANOIDCHECK
+	for ( ; i < n_chan; i++) { /* store remainder of channel list */
+		devpriv->act_chanlist[i] =
+		    (CR_CHAN(chanlist[i]) << 12) & 0xf000;
+	}
+#endif
 
 	devpriv->ai_et_MuxVal =
 	    CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
@@ -1594,9 +1596,9 @@ static int pci1710_detach(struct comedi_device *dev)
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->pcidev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-			}
+
 			pci_dev_put(devpriv->pcidev);
 		}
 	}

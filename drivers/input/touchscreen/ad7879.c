@@ -812,10 +812,8 @@ static int __devinit ad7879_probe(struct i2c_client *client,
 	ts->bus = client;
 
 	error = ad7879_construct(client, ts);
-	if (error) {
-		i2c_set_clientdata(client, NULL);
+	if (error)
 		kfree(ts);
-	}
 
 	return error;
 }
@@ -825,7 +823,6 @@ static int __devexit ad7879_remove(struct i2c_client *client)
 	struct ad7879 *ts = dev_get_drvdata(&client->dev);
 
 	ad7879_destroy(client, ts);
-	i2c_set_clientdata(client, NULL);
 	kfree(ts);
 
 	return 0;

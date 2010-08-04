@@ -3591,7 +3591,8 @@ int scull_read_procmem(char *buf, char **start, off_t offset, int len, int *eof,
 
     len=0;
 
-	if ( ( lp = ((struct net_device *)data)->priv ) == NULL ) {
+	lp = ((struct net_device *)data)->priv;
+	if (lp == NULL) {
         len += sprintf(buf+len,"No wl_private in scull_read_procmem\n" );
 	} else if ( lp->wlags49_type == 0 ){
    	    ifbp = &lp->hcfCtx;
@@ -3792,7 +3793,7 @@ static int write_int(struct file *file, const char *buffer, unsigned long count,
 	}
 	if  (count > 0 ) {
 		proc_number[count] = 0;
-		nr = wl_atoi( proc_number );
+		nr = simple_strtoul(proc_number , NULL, 0);
  		*(unsigned int *)data = nr;
 		if ( nr & 0x8000 ) {	//;?kludgy but it is unclear to me were else to place this
 #if DBG

@@ -21,16 +21,17 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <plat/led.h>
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/dma.h>
@@ -104,9 +105,9 @@ static struct mtd_partition palmtt_partitions[] = {
 	}
 };
 
-static struct flash_platform_data palmtt_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data palmtt_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= palmtt_partitions,
 	.nr_parts	= ARRAY_SIZE(palmtt_partitions),
 };
@@ -118,7 +119,7 @@ static struct resource palmtt_flash_resource = {
 };
 
 static struct platform_device palmtt_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &palmtt_flash_data,

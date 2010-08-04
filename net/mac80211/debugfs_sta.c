@@ -39,12 +39,19 @@ static const struct file_operations sta_ ##name## _ops = {		\
 	.open = mac80211_open_file_generic,				\
 }
 
+#define STA_OPS_RW(name)						\
+static const struct file_operations sta_ ##name## _ops = {		\
+	.read = sta_##name##_read,					\
+	.write = sta_##name##_write,					\
+	.open = mac80211_open_file_generic,				\
+}
+
 #define STA_FILE(name, field, format)					\
 		STA_READ_##format(name, field)				\
 		STA_OPS(name)
 
 STA_FILE(aid, sta.aid, D);
-STA_FILE(dev, sdata->dev->name, S);
+STA_FILE(dev, sdata->name, S);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
 STA_FILE(rx_bytes, rx_bytes, LU);
@@ -57,7 +64,6 @@ STA_FILE(tx_filtered, tx_filtered_count, LU);
 STA_FILE(tx_retry_failed, tx_retry_failed, LU);
 STA_FILE(tx_retry_count, tx_retry_count, LU);
 STA_FILE(last_signal, last_signal, D);
-STA_FILE(last_noise, last_noise, D);
 STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
@@ -120,47 +126,110 @@ STA_OPS(last_seq_ctrl);
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
-	char buf[30 + STA_TID_NUM * 70], *p = buf;
+	char buf[71 + STA_TID_NUM * 40], *p = buf;
 	int i;
 	struct sta_info *sta = file->private_data;
 
 	spin_lock_bh(&sta->lock);
-	p += scnprintf(p, sizeof(buf)+buf-p, "next dialog_token is %#02x\n",
+	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
+	p += scnprintf(p, sizeof(buf) + buf - p,
+		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tSSN\tpending\n");
 	for (i = 0; i < STA_TID_NUM; i++) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "TID %02d:", i);
-		p += scnprintf(p, sizeof(buf)+buf-p, " RX=%x",
-				sta->ampdu_mlme.tid_state_rx[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/DTKN=%#.2x",
-				sta->ampdu_mlme.tid_state_rx[i] ?
+		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
+				sta->ampdu_mlme.tid_active_rx[i]);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
+				sta->ampdu_mlme.tid_active_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/SSN=%#.3x",
-				sta->ampdu_mlme.tid_state_rx[i] ?
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
+				sta->ampdu_mlme.tid_active_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
-		p += scnprintf(p, sizeof(buf)+buf-p, " TX=%x",
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
 				sta->ampdu_mlme.tid_state_tx[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/DTKN=%#.2x",
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/SSN=%#.3x",
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->ssn : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/pending=%03d",
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%03d",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				skb_queue_len(&sta->ampdu_mlme.tid_tx[i]->pending) : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
+		p += scnprintf(p, sizeof(buf) + buf - p, "\n");
 	}
 	spin_unlock_bh(&sta->lock);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
-STA_OPS(agg_status);
+
+static ssize_t sta_agg_status_write(struct file *file, const char __user *userbuf,
+				    size_t count, loff_t *ppos)
+{
+	char _buf[12], *buf = _buf;
+	struct sta_info *sta = file->private_data;
+	bool start, tx;
+	unsigned long tid;
+	int ret;
+
+	if (count > sizeof(_buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[sizeof(_buf) - 1] = '\0';
+
+	if (strncmp(buf, "tx ", 3) == 0) {
+		buf += 3;
+		tx = true;
+	} else if (strncmp(buf, "rx ", 3) == 0) {
+		buf += 3;
+		tx = false;
+	} else
+		return -EINVAL;
+
+	if (strncmp(buf, "start ", 6) == 0) {
+		buf += 6;
+		start = true;
+		if (!tx)
+			return -EINVAL;
+	} else if (strncmp(buf, "stop ", 5) == 0) {
+		buf += 5;
+		start = false;
+	} else
+		return -EINVAL;
+
+	tid = simple_strtoul(buf, NULL, 0);
+
+	if (tid >= STA_TID_NUM)
+		return -EINVAL;
+
+	if (tx) {
+		if (start)
+			ret = ieee80211_start_tx_ba_session(&sta->sta, tid);
+		else
+			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid,
+							   WLAN_BACK_RECIPIENT);
+	} else {
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT, 3);
+		ret = 0;
+	}
+
+	return ret ?: count;
+}
+STA_OPS_RW(agg_status);
 
 static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
-	char buf[200], *p = buf;
+#define PRINT_HT_CAP(_cond, _str) \
+	do { \
+	if (_cond) \
+			p += scnprintf(p, sizeof(buf)+buf-p, "\t" _str "\n"); \
+	} while (0)
+	char buf[512], *p = buf;
 	int i;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
@@ -168,15 +237,64 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
 			htc->ht_supported ? "" : "not ");
 	if (htc->ht_supported) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.2x\n", htc->cap);
+		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
+
+		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDPC");
+		PRINT_HT_CAP((htc->cap & BIT(1)), "HT20/HT40");
+		PRINT_HT_CAP(!(htc->cap & BIT(1)), "HT20");
+
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 0, "Static SM Power Save");
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 1, "Dynamic SM Power Save");
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 3, "SM Power Save disabled");
+
+		PRINT_HT_CAP((htc->cap & BIT(4)), "RX Greenfield");
+		PRINT_HT_CAP((htc->cap & BIT(5)), "RX HT20 SGI");
+		PRINT_HT_CAP((htc->cap & BIT(6)), "RX HT40 SGI");
+		PRINT_HT_CAP((htc->cap & BIT(7)), "TX STBC");
+
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 0, "No RX STBC");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 1, "RX STBC 1-stream");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 2, "RX STBC 2-streams");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 3, "RX STBC 3-streams");
+
+		PRINT_HT_CAP((htc->cap & BIT(10)), "HT Delayed Block Ack");
+
+		PRINT_HT_CAP((htc->cap & BIT(11)), "Max AMSDU length: "
+			     "3839 bytes");
+		PRINT_HT_CAP(!(htc->cap & BIT(11)), "Max AMSDU length: "
+			     "7935 bytes");
+
+		/*
+		 * For beacons and probe response this would mean the BSS
+		 * does or does not allow the usage of DSSS/CCK HT40.
+		 * Otherwise it means the STA does or does not use
+		 * DSSS/CCK HT40.
+		 */
+		PRINT_HT_CAP((htc->cap & BIT(12)), "DSSS/CCK HT40");
+		PRINT_HT_CAP(!(htc->cap & BIT(12)), "No DSSS/CCK HT40");
+
+		/* BIT(13) is reserved */
+
+		PRINT_HT_CAP((htc->cap & BIT(14)), "40 MHz Intolerant");
+
+		PRINT_HT_CAP((htc->cap & BIT(15)), "L-SIG TXOP protection");
+
 		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
 				htc->ampdu_factor, htc->ampdu_density);
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
+
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p, " %.2x",
 					htc->mcs.rx_mask[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "\nMCS rx highest: %d\n",
-				le16_to_cpu(htc->mcs.rx_highest));
+		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
+
+		/* If not set this is meaningless */
+		if (le16_to_cpu(htc->mcs.rx_highest)) {
+			p += scnprintf(p, sizeof(buf)+buf-p,
+				       "MCS rx highest: %d Mbps\n",
+				       le16_to_cpu(htc->mcs.rx_highest));
+		}
+
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS tx params: %x\n",
 				htc->mcs.tx_params);
 	}
@@ -233,7 +351,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(tx_retry_failed);
 	DEBUGFS_ADD(tx_retry_count);
 	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(last_noise);
 	DEBUGFS_ADD(wep_weak_iv_count);
 	DEBUGFS_ADD(ht_capa);
 }

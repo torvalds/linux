@@ -1,0 +1,79 @@
+What:		/sys/devices/.../power/
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../power directory contains attributes
+		allowing the user space to check and modify some power
+		management related properties of given device.
+
+What:		/sys/devices/.../power/wakeup
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../power/wakeup attribute allows the user
+		space to check if the device is enabled to wake up the system
+		from sleep states, such as the memory sleep state (suspend to
+		RAM) and hibernation (suspend to disk), and to enable or disable
+		it to do that as desired.
+
+		Some devices support "wakeup" events, which are hardware signals
+		used to activate the system from a sleep state.  Such devices
+		have one of the following two values for the sysfs power/wakeup
+		file:
+
+		+ "enabled\n" to issue the events;
+		+ "disabled\n" not to do so;
+
+		In that cases the user space can change the setting represented
+		by the contents of this file by writing either "enabled", or
+		"disabled" to it.
+
+		For the devices that are not capable of generating system wakeup
+		events this file contains "\n".  In that cases the user space
+		cannot modify the contents of this file and the device cannot be
+		enabled to wake up the system.
+
+What:		/sys/devices/.../power/control
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../power/control attribute allows the user
+		space to control the run-time power management of the device.
+
+		All devices have one of the following two values for the
+		power/control file:
+
+		+ "auto\n" to allow the device to be power managed at run time;
+		+ "on\n" to prevent the device from being power managed;
+
+		The default for all devices is "auto", which means that they may
+		be subject to automatic power management, depending on their
+		drivers.  Changing this attribute to "on" prevents the driver
+		from power managing the device at run time.  Doing that while
+		the device is suspended causes it to be woken up.
+
+What:		/sys/devices/.../power/async
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../async attribute allows the user space to
+		enable or diasble the device's suspend and resume callbacks to
+		be executed asynchronously (ie. in separate threads, in parallel
+		with the main suspend/resume thread) during system-wide power
+		transitions (eg. suspend to RAM, hibernation).
+
+		All devices have one of the following two values for the
+		power/async file:
+
+		+ "enabled\n" to permit the asynchronous suspend/resume;
+		+ "disabled\n" to forbid it;
+
+		The value of this attribute may be changed by writing either
+		"enabled", or "disabled" to it.
+
+		It generally is unsafe to permit the asynchronous suspend/resume
+		of a device unless it is certain that all of the PM dependencies
+		of the device are known to the PM core.  However, for some
+		devices this attribute is set to "enabled" by bus type code or
+		device drivers and in that cases it should be safe to leave the
+		default value.

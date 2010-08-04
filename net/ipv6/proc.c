@@ -59,7 +59,7 @@ static const struct file_operations sockstat6_seq_fops = {
 	.release = single_release_net,
 };
 
-static struct snmp_mib snmp6_ipstats_list[] = {
+static const struct snmp_mib snmp6_ipstats_list[] = {
 /* ipv6 mib according to RFC 2465 */
 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INPKTS),
 	SNMP_MIB_ITEM("Ip6InHdrErrors", IPSTATS_MIB_INHDRERRORS),
@@ -92,11 +92,12 @@ static struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp6_icmp6_list[] = {
+static const struct snmp_mib snmp6_icmp6_list[] = {
 /* icmpv6 mib according to RFC 2466 */
 	SNMP_MIB_ITEM("Icmp6InMsgs", ICMP6_MIB_INMSGS),
 	SNMP_MIB_ITEM("Icmp6InErrors", ICMP6_MIB_INERRORS),
 	SNMP_MIB_ITEM("Icmp6OutMsgs", ICMP6_MIB_OUTMSGS),
+	SNMP_MIB_ITEM("Icmp6OutErrors", ICMP6_MIB_OUTERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -120,7 +121,7 @@ static const char *const icmp6type2name[256] = {
 };
 
 
-static struct snmp_mib snmp6_udp6_list[] = {
+static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("Udp6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("Udp6InErrors", UDP_MIB_INERRORS),
@@ -128,7 +129,7 @@ static struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp6_udplite6_list[] = {
+static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("UdpLite6InErrors", UDP_MIB_INERRORS),
@@ -136,7 +137,7 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
+static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void __percpu **mib)
 {
 	char name[32];
 	int i;
@@ -167,11 +168,10 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 			i & 0x100 ?  "Out" : "In", i & 0xff);
 		seq_printf(seq, "%-32s\t%lu\n", name, val);
 	}
-	return;
 }
 
-static inline void
-snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
+static void snmp6_seq_show_item(struct seq_file *seq, void __percpu **mib,
+				const struct snmp_mib *itemlist)
 {
 	int i;
 	for (i=0; itemlist[i].name; i++)
@@ -183,14 +183,15 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = (struct net *)seq->private;
 
-	snmp6_seq_show_item(seq, (void **)net->mib.ipv6_statistics,
+	snmp6_seq_show_item(seq, (void __percpu **)net->mib.ipv6_statistics,
 			    snmp6_ipstats_list);
-	snmp6_seq_show_item(seq, (void **)net->mib.icmpv6_statistics,
+	snmp6_seq_show_item(seq, (void __percpu **)net->mib.icmpv6_statistics,
 			    snmp6_icmp6_list);
-	snmp6_seq_show_icmpv6msg(seq, (void **)net->mib.icmpv6msg_statistics);
-	snmp6_seq_show_item(seq, (void **)net->mib.udp_stats_in6,
+	snmp6_seq_show_icmpv6msg(seq,
+			    (void __percpu **)net->mib.icmpv6msg_statistics);
+	snmp6_seq_show_item(seq, (void __percpu **)net->mib.udp_stats_in6,
 			    snmp6_udp6_list);
-	snmp6_seq_show_item(seq, (void **)net->mib.udplite_stats_in6,
+	snmp6_seq_show_item(seq, (void __percpu **)net->mib.udplite_stats_in6,
 			    snmp6_udplite6_list);
 	return 0;
 }
@@ -213,9 +214,11 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 	struct inet6_dev *idev = (struct inet6_dev *)seq->private;
 
 	seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
-	snmp6_seq_show_item(seq, (void **)idev->stats.ipv6, snmp6_ipstats_list);
-	snmp6_seq_show_item(seq, (void **)idev->stats.icmpv6, snmp6_icmp6_list);
-	snmp6_seq_show_icmpv6msg(seq, (void **)idev->stats.icmpv6msg);
+	snmp6_seq_show_item(seq, (void __percpu **)idev->stats.ipv6,
+			    snmp6_ipstats_list);
+	snmp6_seq_show_item(seq, (void __percpu **)idev->stats.icmpv6,
+			    snmp6_icmp6_list);
+	snmp6_seq_show_icmpv6msg(seq, (void __percpu **)idev->stats.icmpv6msg);
 	return 0;
 }
 
@@ -259,7 +262,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 	struct net *net = dev_net(idev->dev);
 	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
-	if (!idev || !idev->stats.proc_dir_entry)
+	if (!idev->stats.proc_dir_entry)
 		return -EINVAL;
 	remove_proc_entry(idev->stats.proc_dir_entry->name,
 			  net->mib.proc_net_devsnmp6);
@@ -267,7 +270,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 	return 0;
 }
 
-static int ipv6_proc_init_net(struct net *net)
+static int __net_init ipv6_proc_init_net(struct net *net)
 {
 	if (!proc_net_fops_create(net, "sockstat6", S_IRUGO,
 			&sockstat6_seq_fops))
@@ -288,7 +291,7 @@ proc_dev_snmp6_fail:
 	return -ENOMEM;
 }
 
-static void ipv6_proc_exit_net(struct net *net)
+static void __net_exit ipv6_proc_exit_net(struct net *net)
 {
 	proc_net_remove(net, "sockstat6");
 	proc_net_remove(net, "dev_snmp6");

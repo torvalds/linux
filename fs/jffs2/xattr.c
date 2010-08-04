@@ -626,7 +626,7 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 
 static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* success of check_xattr_ref_inode() means taht inode (ic) dose not have
+	/* success of check_xattr_ref_inode() means that inode (ic) dose not have
 	 * duplicate name/value pairs. If duplicate name/value pair would be found,
 	 * one will be removed.
 	 */
@@ -904,7 +904,7 @@ struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
  * do_jffs2_setxattr(inode, xprefix, xname, buffer, size, flags)
  *   is an implementation of setxattr handler on jffs2.
  * -------------------------------------------------- */
-struct xattr_handler *jffs2_xattr_handlers[] = {
+const struct xattr_handler *jffs2_xattr_handlers[] = {
 	&jffs2_user_xattr_handler,
 #ifdef CONFIG_JFFS2_FS_SECURITY
 	&jffs2_security_xattr_handler,
@@ -917,8 +917,8 @@ struct xattr_handler *jffs2_xattr_handlers[] = {
 	NULL
 };
 
-static struct xattr_handler *xprefix_to_handler(int xprefix) {
-	struct xattr_handler *ret;
+static const struct xattr_handler *xprefix_to_handler(int xprefix) {
+	const struct xattr_handler *ret;
 
 	switch (xprefix) {
 	case JFFS2_XPREFIX_USER:
@@ -955,7 +955,7 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
-	struct xattr_handler *xhandle;
+	const struct xattr_handler *xhandle;
 	ssize_t len, rc;
 	int retry = 0;
 

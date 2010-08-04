@@ -550,6 +550,11 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		    strncmp(symname, "_rest32gpr_", sizeof("_rest32gpr_") - 1) == 0 ||
 		    strncmp(symname, "_save32gpr_", sizeof("_save32gpr_") - 1) == 0)
 			return 1;
+	if (info->hdr->e_machine == EM_PPC64)
+		/* Special register function linked on all modules during final link of .ko */
+		if (strncmp(symname, "_restgpr0_", sizeof("_restgpr0_") - 1) == 0 ||
+		    strncmp(symname, "_savegpr0_", sizeof("_savegpr0_") - 1) == 0)
+			return 1;
 	/* Do not ignore this symbol */
 	return 0;
 }
@@ -1392,7 +1397,7 @@ static unsigned int *reloc_location(struct elf_info *elf,
 	int section = shndx2secindex(sechdr->sh_info);
 
 	return (void *)elf->hdr + sechdrs[section].sh_offset +
-		(r->r_offset - sechdrs[section].sh_addr);
+		r->r_offset - sechdrs[section].sh_addr;
 }
 
 static int addend_386_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)

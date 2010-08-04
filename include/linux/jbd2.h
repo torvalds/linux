@@ -30,6 +30,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #endif
 
 #define journal_oom_retry 1
@@ -69,15 +70,8 @@ extern u8 jbd2_journal_enable_debug;
 #define jbd_debug(f, a...)	/**/
 #endif
 
-static inline void *jbd2_alloc(size_t size, gfp_t flags)
-{
-	return (void *)__get_free_pages(flags, get_order(size));
-}
-
-static inline void jbd2_free(void *ptr, size_t size)
-{
-	free_pages((unsigned long)ptr, get_order(size));
-};
+extern void *jbd2_alloc(size_t size, gfp_t flags);
+extern void jbd2_free(void *ptr, size_t size);
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
 
@@ -284,19 +278,8 @@ typedef struct journal_superblock_s
 
 #define J_ASSERT(assert)	BUG_ON(!(assert))
 
-#if defined(CONFIG_BUFFER_DEBUG)
-void buffer_assertion_failure(struct buffer_head *bh);
-#define J_ASSERT_BH(bh, expr)						\
-	do {								\
-		if (!(expr))						\
-			buffer_assertion_failure(bh);			\
-		J_ASSERT(expr);						\
-	} while (0)
-#define J_ASSERT_JH(jh, expr)	J_ASSERT_BH(jh2bh(jh), expr)
-#else
 #define J_ASSERT_BH(bh, expr)	J_ASSERT(expr)
 #define J_ASSERT_JH(jh, expr)	J_ASSERT(expr)
-#endif
 
 #if defined(JBD2_PARANOID_IOFAIL)
 #define J_EXPECT(expr, why...)		J_ASSERT(expr)
@@ -1043,11 +1026,12 @@ void __jbd2_journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 struct jbd2_buffer_trigger_type {
 	/*
-	 * Fired just before a buffer is written to the journal.
-	 * mapped_data is a mapped buffer that is the frozen data for
-	 * commit.
+	 * Fired a the moment data to write to the journal are known to be
+	 * stable - so either at the moment b_frozen_data is created or just
+	 * before a buffer is written to the journal.  mapped_data is a mapped
+	 * buffer that is the frozen data for commit.
 	 */
-	void (*t_commit)(struct jbd2_buffer_trigger_type *type,
+	void (*t_frozen)(struct jbd2_buffer_trigger_type *type,
 			 struct buffer_head *bh, void *mapped_data,
 			 size_t size);
 
@@ -1059,7 +1043,7 @@ struct jbd2_buffer_trigger_type {
 			struct buffer_head *bh);
 };
 
-extern void jbd2_buffer_commit_trigger(struct journal_head *jh,
+extern void jbd2_buffer_frozen_trigger(struct journal_head *jh,
 				       void *mapped_data,
 				       struct jbd2_buffer_trigger_type *triggers);
 extern void jbd2_buffer_abort_trigger(struct journal_head *jh,

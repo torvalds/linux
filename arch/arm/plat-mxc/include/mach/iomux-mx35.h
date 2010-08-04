@@ -1,5 +1,5 @@
 /*
- * Copyright (C, NO_PAD_CTRL) 2009 by Jan Weitzel Phytec Messtechnik GmbH <armlinux@phytec.de>
+ * Copyright (C) 2009 by Jan Weitzel Phytec Messtechnik GmbH <armlinux@phytec.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -671,7 +671,7 @@
 #define MX35_PAD_LD8__SDMA_SDMA_DEBUG_PC_8			IOMUX_PAD(0x634, 0x1d0, 6, 0x0,   0, NO_PAD_CTRL)
 
 #define MX35_PAD_LD9__IPU_DISPB_DAT_9				IOMUX_PAD(0x638, 0x1d4, 0, 0x0,   0, NO_PAD_CTRL)
-#define MX35_PAD_LD9__GPIO2_9					IOMUX_PAD(0x638, 0x1d4, 5, 0x8e4  0, NO_PAD_CTRL)
+#define MX35_PAD_LD9__GPIO2_9					IOMUX_PAD(0x638, 0x1d4, 5, 0x8e4, 0, NO_PAD_CTRL)
 #define MX35_PAD_LD9__SDMA_SDMA_DEBUG_PC_9			IOMUX_PAD(0x638, 0x1d4, 6, 0x0,   0, NO_PAD_CTRL)
 
 #define MX35_PAD_LD10__IPU_DISPB_DAT_10				IOMUX_PAD(0x63c, 0x1d8, 0, 0x0,   0, NO_PAD_CTRL)

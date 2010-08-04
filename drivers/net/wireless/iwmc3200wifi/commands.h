@@ -488,6 +488,7 @@ int iwm_umac_set_config_var(struct iwm_priv *iwm, u16 key,
 			    void *payload, u16 payload_size);
 int iwm_send_umac_config(struct iwm_priv *iwm, __le32 reset_flags);
 int iwm_send_mlme_profile(struct iwm_priv *iwm);
+int __iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);

@@ -19,12 +19,12 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/stat.h>
-#include <linux/ext2_fs.h>
 #include <linux/kd.h>
 #include <asm/ioctls.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/pipe_fs_i.h>
 #include <net/netlabel.h>
@@ -157,12 +157,12 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
  *
  * Returns 0 on success, error code otherwise.
  */
-static int smack_syslog(int type)
+static int smack_syslog(int type, bool from_file)
 {
 	int rc;
 	char *sp = current_security();
 
-	rc = cap_syslog(type);
+	rc = cap_syslog(type, from_file);
 	if (rc != 0)
 		return rc;
 
@@ -387,7 +387,7 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
 	struct smk_audit_info ad;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
-	smk_ad_setfield_u_fs_path_dentry(&ad, mnt->mnt_mountpoint);
+	smk_ad_setfield_u_fs_path_dentry(&ad, mnt->mnt_root);
 	smk_ad_setfield_u_fs_path_mnt(&ad, mnt);
 
 	sbp = mnt->mnt_sb->s_security;
@@ -1115,15 +1115,6 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 {
 	new->security = old->security;
 	return 0;
-}
-
-/**
- * smack_cred_commit - commit new credentials
- * @new: the new credentials
- * @old: the original credentials
- */
-static void smack_cred_commit(struct cred *new, const struct cred *old)
-{
 }
 
 /**
@@ -3120,7 +3111,6 @@ struct security_operations smack_ops = {
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
-	.cred_commit =			smack_cred_commit,
 	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,

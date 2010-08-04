@@ -73,6 +73,7 @@ struct Qdisc {
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue	qstats;
+	struct rcu_head     rcu_head;
 };
 
 struct Qdisc_class_ops {
@@ -312,12 +313,24 @@ extern void qdisc_calculate_pkt_len(struct sk_buff *skb,
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);
 
-/* Reset all TX qdiscs of a device.  */
+/* Reset all TX qdiscs greater then index of a device.  */
+static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
+{
+	struct Qdisc *qdisc;
+
+	for (; i < dev->num_tx_queues; i++) {
+		qdisc = netdev_get_tx_queue(dev, i)->qdisc;
+		if (qdisc) {
+			spin_lock_bh(qdisc_lock(qdisc));
+			qdisc_reset(qdisc);
+			spin_unlock_bh(qdisc_lock(qdisc));
+		}
+	}
+}
+
 static inline void qdisc_reset_all_tx(struct net_device *dev)
 {
-	unsigned int i;
-	for (i = 0; i < dev->num_tx_queues; i++)
-		qdisc_reset(netdev_get_tx_queue(dev, i)->qdisc);
+	qdisc_reset_all_tx_gt(dev, 0);
 }
 
 /* Are all TX queues of the device empty?  */
@@ -425,6 +438,25 @@ static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
 static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
 {
 	return __qdisc_dequeue_head(sch, &sch->q);
+}
+
+static inline unsigned int __qdisc_queue_drop_head(struct Qdisc *sch,
+					      struct sk_buff_head *list)
+{
+	struct sk_buff *skb = __qdisc_dequeue_head(sch, list);
+
+	if (likely(skb != NULL)) {
+		unsigned int len = qdisc_pkt_len(skb);
+		kfree_skb(skb);
+		return len;
+	}
+
+	return 0;
+}
+
+static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch)
+{
+	return __qdisc_queue_drop_head(sch, &sch->q);
 }
 
 static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,

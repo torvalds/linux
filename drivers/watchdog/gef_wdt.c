@@ -1,9 +1,9 @@
 /*
- * GE Fanuc watchdog userspace interface
+ * GE watchdog userspace interface
  *
- * Author:  Martyn Welch <martyn.welch@gefanuc.com>
+ * Author:  Martyn Welch <martyn.welch@ge.com>
  *
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -161,11 +161,11 @@ static long gef_wdt_ioctl(struct file *file, unsigned int cmd,
 	int timeout;
 	int options;
 	void __user *argp = (void __user *)arg;
-	static struct watchdog_info info = {
+	static const struct watchdog_info info = {
 		.options =	WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 				WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,
-		.identity = "GE Fanuc watchdog",
+		.identity = "GE watchdog",
 	};
 
 	switch (cmd) {
@@ -273,7 +273,7 @@ static int __devinit gef_wdt_probe(struct of_device *dev,
 		bus_clk = freq;
 
 	/* Map devices registers into memory */
-	gef_wdt_regs = of_iomap(dev->node, 0);
+	gef_wdt_regs = of_iomap(dev->dev.of_node, 0);
 	if (gef_wdt_regs == NULL)
 		return -ENOMEM;
 
@@ -303,15 +303,17 @@ static const struct of_device_id gef_wdt_ids[] = {
 };
 
 static struct of_platform_driver gef_wdt_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "gef_wdt",
-	.match_table	= gef_wdt_ids,
+	.driver = {
+		.name = "gef_wdt",
+		.owner = THIS_MODULE,
+		.of_match_table = gef_wdt_ids,
+	},
 	.probe		= gef_wdt_probe,
 };
 
 static int __init gef_wdt_init(void)
 {
-	printk(KERN_INFO "GE Fanuc watchdog driver\n");
+	printk(KERN_INFO "GE watchdog driver\n");
 	return of_register_platform_driver(&gef_wdt_driver);
 }
 
@@ -323,8 +325,8 @@ static void __exit gef_wdt_exit(void)
 module_init(gef_wdt_init);
 module_exit(gef_wdt_exit);
 
-MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com>");
-MODULE_DESCRIPTION("GE Fanuc watchdog driver");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com>");
+MODULE_DESCRIPTION("GE watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform: gef_wdt");

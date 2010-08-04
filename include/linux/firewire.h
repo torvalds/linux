@@ -55,22 +55,21 @@
 #define CSR_DESCRIPTOR		0x01
 #define CSR_VENDOR		0x03
 #define CSR_HARDWARE_VERSION	0x04
-#define CSR_NODE_CAPABILITIES	0x0c
 #define CSR_UNIT		0x11
 #define CSR_SPECIFIER_ID	0x12
 #define CSR_VERSION		0x13
 #define CSR_DEPENDENT_INFO	0x14
 #define CSR_MODEL		0x17
-#define CSR_INSTANCE		0x18
 #define CSR_DIRECTORY_ID	0x20
 
 struct fw_csr_iterator {
-	u32 *p;
-	u32 *end;
+	const u32 *p;
+	const u32 *end;
 };
 
-void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 *p);
+void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
+int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 
 extern struct bus_type fw_bus_type;
 
@@ -88,7 +87,6 @@ struct fw_card {
 	int current_tlabel;
 	u64 tlabel_mask;
 	struct list_head transaction_list;
-	struct timer_list flush_timer;
 	unsigned long reset_jiffies;
 
 	unsigned long long guid;
@@ -162,7 +160,7 @@ struct fw_device {
 	struct mutex client_list_mutex;
 	struct list_head client_list;
 
-	u32 *config_rom;
+	const u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
 	unsigned is_local:1;
@@ -204,7 +202,7 @@ int fw_device_enable_phys_dma(struct fw_device *device);
  */
 struct fw_unit {
 	struct device device;
-	u32 *directory;
+	const u32 *directory;
 	struct fw_attribute_group attribute_group;
 };
 
@@ -289,6 +287,8 @@ struct fw_transaction {
 	int tlabel;
 	int timestamp;
 	struct list_head link;
+	struct fw_card *card;
+	struct timer_list split_timeout_timer;
 
 	struct fw_packet packet;
 

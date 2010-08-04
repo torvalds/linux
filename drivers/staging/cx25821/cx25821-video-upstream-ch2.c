@@ -31,6 +31,7 @@
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
@@ -768,8 +769,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 
 	if (dev->input_filename_ch2) {
 		str_length = strlen(dev->input_filename_ch2);
-		dev->_filename_ch2 =
-		    (char *)kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_filename_ch2 = kmalloc(str_length + 1, GFP_KERNEL);
 
 		if (!dev->_filename_ch2)
 			goto error;
@@ -778,8 +778,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 		       str_length + 1);
 	} else {
 		str_length = strlen(dev->_defaultname_ch2);
-		dev->_filename_ch2 =
-		    (char *)kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_filename_ch2 = kmalloc(str_length + 1, GFP_KERNEL);
 
 		if (!dev->_filename_ch2)
 			goto error;

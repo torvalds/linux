@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -276,7 +275,7 @@ static int __devinit bw2_do_default_mode(struct bw2_par *par,
 
 static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct bw2_par *par;
 	int linebytes, err;
@@ -377,8 +376,11 @@ static const struct of_device_id bw2_match[] = {
 MODULE_DEVICE_TABLE(of, bw2_match);
 
 static struct of_platform_driver bw2_driver = {
-	.name		= "bw2",
-	.match_table	= bw2_match,
+	.driver = {
+		.name = "bw2",
+		.owner = THIS_MODULE,
+		.of_match_table = bw2_match,
+	},
 	.probe		= bw2_probe,
 	.remove		= __devexit_p(bw2_remove),
 };

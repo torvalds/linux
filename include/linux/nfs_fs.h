@@ -33,9 +33,6 @@
 #define FLUSH_STABLE		4	/* commit to stable storage */
 #define FLUSH_LOWPRI		8	/* low priority background flush */
 #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
-#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
-#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
-#define FLUSH_NOWRITEPAGE	128	/* Don't call writepage() */
 
 #ifdef __KERNEL__
 
@@ -166,6 +163,7 @@ struct nfs_inode {
 	struct radix_tree_root	nfs_page_tree;
 
 	unsigned long		npages;
+	unsigned long		ncommit;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
@@ -211,6 +209,7 @@ struct nfs_inode {
 #define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
 #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
+#define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -349,7 +348,6 @@ extern int nfs_attribute_timeout(struct inode *inode);
 extern int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode);
 extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
 extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
-extern int nfs_revalidate_mapping_nolock(struct inode *inode, struct address_space *mapping);
 extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
@@ -357,6 +355,20 @@ extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
+
+extern struct nfs_fattr *nfs_alloc_fattr(void);
+
+static inline void nfs_free_fattr(const struct nfs_fattr *fattr)
+{
+	kfree(fattr);
+}
+
+extern struct nfs_fh *nfs_alloc_fhandle(void);
+
+static inline void nfs_free_fhandle(const struct nfs_fh *fh)
+{
+	kfree(fh);
+}
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
@@ -477,9 +489,7 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
 extern int nfs_wb_all(struct inode *inode);
-extern int nfs_wb_nocommit(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)

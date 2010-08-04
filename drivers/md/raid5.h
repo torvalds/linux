@@ -405,7 +405,7 @@ struct raid5_private_data {
 					      * lists and performing address
 					      * conversions
 					      */
-	} *percpu;
+	} __percpu *percpu;
 	size_t			scribble_len; /* size of scribble region must be
 					       * associated with conf to handle
 					       * cpu hotplug while reshaping

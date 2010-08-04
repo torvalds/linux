@@ -30,7 +30,7 @@
 #define IOCTL_GET_DRV_VERSION	2
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ .idVendor = 0x10D2, .match_flags = USB_DEVICE_ID_MATCH_VENDOR, },
 	{ },
 };
@@ -74,10 +74,12 @@ static int lcd_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor, r;
 
+	lock_kernel();
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&lcd_driver, subminor);
 	if (!interface) {
+		unlock_kernel();
 		err ("USBLCD: %s - error, can't find device for minor %d",
 		     __func__, subminor);
 		return -ENODEV;
@@ -87,6 +89,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&open_disc_mutex);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -98,11 +101,13 @@ static int lcd_open(struct inode *inode, struct file *file)
 	r = usb_autopm_get_interface(interface);
 	if (r < 0) {
 		kref_put(&dev->kref, lcd_delete);
+		unlock_kernel();
 		return r;
 	}
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
+	unlock_kernel();
 
 	return 0;
 }
@@ -200,8 +205,8 @@ static void lcd_write_bulk_callback(struct urb *urb)
 	}
 
 	/* free up our allocated buffer */
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	up(&dev->limit_sem);
 }
 
@@ -229,7 +234,7 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 		goto err_no_buf;
 	}
 	
-	buf = usb_buffer_alloc(dev->udev, count, GFP_KERNEL, &urb->transfer_dma);
+	buf = usb_alloc_coherent(dev->udev, count, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
 		retval = -ENOMEM;
 		goto error;
@@ -263,7 +268,7 @@ exit:
 error_unanchor:
 	usb_unanchor_urb(urb);
 error:
-	usb_buffer_free(dev->udev, count, buf, urb->transfer_dma);
+	usb_free_coherent(dev->udev, count, buf, urb->transfer_dma);
 	usb_free_urb(urb);
 err_no_buf:
 	up(&dev->limit_sem);

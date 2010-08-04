@@ -25,9 +25,7 @@
 
 #include "mux.h"
 
-int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
-			  struct i2c_board_info const *info,
-			  unsigned len)
+void __init omap2_i2c_mux_pins(int bus_id)
 {
 	if (cpu_is_omap24xx()) {
 		const int omap24xx_pins[][2] = {
@@ -51,6 +49,4 @@ int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
 		sprintf(mux_name, "i2c%i_sda.i2c%i_sda", bus_id, bus_id);
 		omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
 	}
-
-	return omap_plat_register_i2c_bus(bus_id, clkrate, info, len);
 }

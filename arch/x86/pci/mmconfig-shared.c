@@ -16,6 +16,7 @@
 #include <linux/sfi_acpi.h>
 #include <linux/bitmap.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 #include <asm/acpi.h>
@@ -303,22 +304,17 @@ static void __init pci_mmcfg_check_end_bus_number(void)
 {
 	struct pci_mmcfg_region *cfg, *cfgx;
 
-	/* last one*/
-	cfg = list_entry(pci_mmcfg_list.prev, typeof(*cfg), list);
-	if (cfg)
-		if (cfg->end_bus < cfg->start_bus)
-			cfg->end_bus = 255;
-
-	if (list_is_singular(&pci_mmcfg_list))
-		return;
-
-	/* don't overlap please */
+	/* Fixup overlaps */
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (cfg->end_bus < cfg->start_bus)
 			cfg->end_bus = 255;
 
+		/* Don't access the list head ! */
+		if (cfg->list.next == &pci_mmcfg_list)
+			break;
+
 		cfgx = list_entry(cfg->list.next, typeof(*cfg), list);
-		if (cfg != cfgx && cfg->end_bus >= cfgx->start_bus)
+		if (cfg->end_bus >= cfgx->start_bus)
 			cfg->end_bus = cfgx->start_bus - 1;
 	}
 }
@@ -487,16 +483,17 @@ static void __init pci_mmcfg_reject_broken(int early)
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		int valid = 0;
 
-		if (!early && !acpi_disabled)
+		if (!early && !acpi_disabled) {
 			valid = is_mmconf_reserved(is_acpi_reserved, cfg, 0);
 
-		if (valid)
-			continue;
-
-		if (!early)
-			printk(KERN_ERR FW_BUG PREFIX
-			       "MMCONFIG at %pR not reserved in "
-			       "ACPI motherboard resources\n", &cfg->res);
+			if (valid)
+				continue;
+			else
+				printk(KERN_ERR FW_BUG PREFIX
+				       "MMCONFIG at %pR not reserved in "
+				       "ACPI motherboard resources\n",
+				       &cfg->res);
+		}
 
 		/* Don't try to do this check unless configuration
 		   type 1 is available. how about type 2 ?*/

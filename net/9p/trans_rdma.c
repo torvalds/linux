@@ -40,6 +40,7 @@
 #include <linux/file.h>
 #include <linux/parser.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -166,7 +167,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
-	char *options;
+	char *options, *tmp_options;
 	int ret;
 
 	opts->port = P9_PORT;
@@ -177,12 +178,13 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	if (!params)
 		return 0;
 
-	options = kstrdup(params, GFP_KERNEL);
-	if (!options) {
+	tmp_options = kstrdup(params, GFP_KERNEL);
+	if (!tmp_options) {
 		P9_DPRINTK(P9_DEBUG_ERROR,
 			   "failed to allocate copy of option string\n");
 		return -ENOMEM;
 	}
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -216,7 +218,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	}
 	/* RQ must be at least as large as the SQ */
 	opts->rq_depth = max(opts->rq_depth, opts->sq_depth);
-	kfree(options);
+	kfree(tmp_options);
 	return 0;
 }
 
@@ -306,7 +308,6 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 		   req, err, status);
 	rdma->state = P9_RDMA_FLUSHING;
 	client->status = Disconnected;
-	return;
 }
 
 static void

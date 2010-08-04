@@ -31,6 +31,7 @@
 #include <linux/ip.h>
 #include <linux/atalk.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/route.h>
 #include <asm/uaccess.h>
 

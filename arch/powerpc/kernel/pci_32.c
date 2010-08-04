@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>

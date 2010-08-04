@@ -127,8 +127,7 @@ static inline int getmiso(const struct spi_device *spi)
  */
 #define spidelay(nsecs)	do {} while (0)
 
-#define	EXPAND_BITBANG_TXRX
-#include <linux/spi/spi_bitbang.h>
+#include "spi_bitbang_txrx.h"
 
 /*
  * These functions can leverage inline expansion of GPIO calls to shrink

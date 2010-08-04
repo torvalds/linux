@@ -81,7 +81,7 @@ static int do_op_one_page(unsigned long addr, int len, int is_write,
 
 	current->thread.fault_catcher = NULL;
 
-	kunmap_atomic(page, KM_UML_USERCOPY);
+	kunmap_atomic((void *)addr, KM_UML_USERCOPY);
 
 	return n;
 }

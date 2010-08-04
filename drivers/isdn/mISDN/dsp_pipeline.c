@@ -25,6 +25,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/mISDNif.h>

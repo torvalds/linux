@@ -11,6 +11,7 @@ header-y += sigcontext32.h
 header-y += ucontext.h
 header-y += processor-flags.h
 header-y += hw_breakpoint.h
+header-y += hyperv.h
 
 unifdef-y += e820.h
 unifdef-y += ist.h

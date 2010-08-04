@@ -50,6 +50,7 @@
 #include <linux/debugfs.h>
 #include <linux/random.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "rc80211_minstrel.h"
@@ -541,7 +542,7 @@ minstrel_free(void *priv)
 	kfree(priv);
 }
 
-static struct rate_control_ops mac80211_minstrel = {
+struct rate_control_ops mac80211_minstrel = {
 	.name = "minstrel",
 	.tx_status = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,

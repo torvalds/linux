@@ -117,7 +117,6 @@ struct snd_pdacf {
 	
 	/* pcmcia stuff */
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 };
 
 static inline void pdacf_reg_write(struct snd_pdacf *chip, unsigned char reg, unsigned short val)

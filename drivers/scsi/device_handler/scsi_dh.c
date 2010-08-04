@@ -21,6 +21,7 @@
  *               Mike Anderson <andmike@linux.vnet.ibm.com>
  */
 
+#include <linux/slab.h>
 #include <scsi/scsi_dh.h>
 #include "../scsi_priv.h"
 

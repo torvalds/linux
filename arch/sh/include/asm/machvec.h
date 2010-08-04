@@ -19,6 +19,10 @@ struct sh_machine_vector {
 	const char *mv_name;
 	int mv_nr_irqs;
 
+	int (*mv_irq_demux)(int irq);
+	void (*mv_init_irq)(void);
+
+#ifdef CONFIG_HAS_IOPORT
 	u8 (*mv_inb)(unsigned long);
 	u16 (*mv_inw)(unsigned long);
 	u32 (*mv_inl)(unsigned long);
@@ -40,15 +44,14 @@ struct sh_machine_vector {
 	void (*mv_outsw)(unsigned long, const void *src, unsigned long count);
 	void (*mv_outsl)(unsigned long, const void *src, unsigned long count);
 
-	int (*mv_irq_demux)(int irq);
-
-	void (*mv_init_irq)(void);
-
 	void __iomem *(*mv_ioport_map)(unsigned long port, unsigned int size);
 	void (*mv_ioport_unmap)(void __iomem *);
+#endif
 
 	int (*mv_clk_init)(void);
 	int (*mv_mode_pins)(void);
+
+	void (*mv_mem_init)(void);
 };
 
 extern struct sh_machine_vector sh_mv;

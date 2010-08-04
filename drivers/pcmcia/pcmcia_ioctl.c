@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <linux/workqueue.h>
@@ -62,16 +63,15 @@ static struct pcmcia_device *get_pcmcia_device(struct pcmcia_socket *s,
 						unsigned int function)
 {
 	struct pcmcia_device *p_dev = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
 		if (p_dev->func == function) {
-			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+			mutex_unlock(&s->ops_mutex);
 			return pcmcia_get_dev(p_dev);
 		}
 	}
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 	return NULL;
 }
 
@@ -169,7 +169,6 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 {
 	struct pcmcia_socket *s;
 	int ret = -ENOSYS;
-	unsigned long flags;
 
 	down_read(&pcmcia_socket_list_rwsem);
 	list_for_each_entry(s, &pcmcia_socket_list, socket_list) {
@@ -182,14 +181,13 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 
 			/* you can't use the old interface if the new
 			 * one was used before */
-			spin_lock_irqsave(&s->lock, flags);
+			mutex_lock(&s->ops_mutex);
 			if ((s->resource_setup_new) &&
 			    !(s->resource_setup_old)) {
-				spin_unlock_irqrestore(&s->lock, flags);
+				mutex_unlock(&s->ops_mutex);
 				continue;
 			} else if (!(s->resource_setup_old))
 				s->resource_setup_old = 1;
-			spin_unlock_irqrestore(&s->lock, flags);
 
 			switch (adj->Resource) {
 			case RES_MEMORY_RANGE:
@@ -208,10 +206,9 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 				 * last call to adjust_resource_info, we
 				 * always need to assume this is the latest
 				 * one... */
-				spin_lock_irqsave(&s->lock, flags);
 				s->resource_setup_done = 1;
-				spin_unlock_irqrestore(&s->lock, flags);
 			}
+			mutex_unlock(&s->ops_mutex);
 		}
 	}
 	up_read(&pcmcia_socket_list_rwsem);
@@ -304,7 +301,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 		u_char reg;
 		if (c->CardValues & PRESENT_PIN_REPLACE) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
 			status->CardState |=
@@ -318,7 +317,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 			status->CardState |= CS_EVENT_READY_CHANGE;
 		}
 		if (c->CardValues & PRESENT_EXT_STATUS) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
 		}
@@ -354,7 +355,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 		if (s->state & SOCKET_CARDBUS_CONFIG) {
 			config->Attributes = CONF_VALID_CLIENT;
 			config->IntType = INT_CARDBUS;
-			config->AssignedIRQ = s->irq.AssignedIRQ;
+			config->AssignedIRQ = s->pcmcia_irq;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
 			if (s->io[0].res) {
@@ -394,7 +395,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 	config->ExtStatus = c->ExtStatus;
 	config->Present = config->CardValues = c->CardValues;
 	config->IRQAttributes = c->irq.Attributes;
-	config->AssignedIRQ = s->irq.AssignedIRQ;
+	config->AssignedIRQ = s->pcmcia_irq;
 	config->BasePort1 = c->io.BasePort1;
 	config->NumPorts1 = c->io.NumPorts1;
 	config->Attributes1 = c->io.Attributes1;
@@ -470,7 +471,6 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 	struct pcmcia_driver *p_drv;
 	struct pcmcia_device *p_dev;
 	int ret = 0;
-	unsigned long flags;
 
 	s = pcmcia_get_socket(s);
 	if (!s)
@@ -490,7 +490,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 		goto err_put_driver;
 	}
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
 		if (p_dev->func == bind_info->function) {
 			if ((p_dev->dev.driver == &p_drv->drv)) {
@@ -499,7 +499,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 					 * registered, and it was registered
 					 * by userspace before, we need to
 					 * return the "instance". */
-					spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+					mutex_unlock(&s->ops_mutex);
 					bind_info->instance = p_dev;
 					ret = -EBUSY;
 					goto err_put_module;
@@ -507,7 +507,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 					/* the correct driver managed to bind
 					 * itself magically to the correct
 					 * device. */
-					spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+					mutex_unlock(&s->ops_mutex);
 					p_dev->cardmgr = p_drv;
 					ret = 0;
 					goto err_put_module;
@@ -516,12 +516,12 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 				/* there's already a device available where
 				 * no device has been bound to yet. So we don't
 				 * need to register a device! */
-				spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+				mutex_unlock(&s->ops_mutex);
 				goto rescan;
 			}
 		}
 	}
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	p_dev = pcmcia_device_add(s, bind_info->function);
 	if (!p_dev) {
@@ -575,10 +575,8 @@ static struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s)
 
 static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int first)
 {
-	dev_node_t *node;
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
-	unsigned long flags;
 	int ret = 0;
 
 #ifdef CONFIG_CARDBUS
@@ -617,7 +615,7 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 	}
 #endif
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
 		if (p_dev->func == bind_info->function) {
 			p_dev = pcmcia_get_dev(p_dev);
@@ -626,11 +624,11 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 			goto found;
 		}
 	}
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 	return -ENODEV;
 
  found:
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	p_drv = to_pcmcia_drv(p_dev->dev.driver);
 	if (p_drv && !p_dev->_locked) {
@@ -638,21 +636,13 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 		goto err_put;
 	}
 
-	if (first)
-		node = p_dev->dev_node;
-	else
-		for (node = p_dev->dev_node; node; node = node->next)
-			if (node == bind_info->next)
-				break;
-	if (!node) {
+	if (!first) {
 		ret = -ENODEV;
 		goto err_put;
 	}
 
-	strlcpy(bind_info->name, node->dev_name, DEV_NAME_LEN);
-	bind_info->major = node->major;
-	bind_info->minor = node->minor;
-	bind_info->next = node->next;
+	strlcpy(bind_info->name, dev_name(&p_dev->dev), DEV_NAME_LEN);
+	bind_info->next = NULL;
 
  err_put:
 	pcmcia_put_dev(p_dev);
@@ -716,7 +706,7 @@ static int ds_open(struct inode *inode, struct file *file)
 	    warning_printed = 1;
     }
 
-    if (s->pcmcia_state.present)
+    if (atomic_read(&s->present))
 	queue_event(user, CS_EVENT_CARD_INSERTION);
 out:
     unlock_kernel();
@@ -775,9 +765,6 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 	return -EIO;
 
     s = user->socket;
-    if (s->pcmcia_state.dead)
-	return -EIO;
-
     ret = wait_event_interruptible(s->queue, !queue_empty(user));
     if (ret == 0)
 	ret = put_user(get_queued_event(user), (int __user *)buf) ? -EFAULT : 4;
@@ -826,8 +813,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
 
 /*====================================================================*/
 
-static int ds_ioctl(struct inode *inode, struct file *file,
-		    u_int cmd, u_long arg)
+static int ds_ioctl(struct file *file, u_int cmd, u_long arg)
 {
     struct pcmcia_socket *s;
     void __user *uarg = (char __user *)arg;
@@ -843,8 +829,6 @@ static int ds_ioctl(struct inode *inode, struct file *file,
 	return -EIO;
 
     s = user->socket;
-    if (s->pcmcia_state.dead)
-	return -EIO;
 
     size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
     if (size > sizeof(ds_ioctl_arg_t))
@@ -931,16 +915,16 @@ static int ds_ioctl(struct inode *inode, struct file *file,
 	ret = pccard_validate_cis(s, &buf->cisinfo.Chains);
 	break;
     case DS_SUSPEND_CARD:
-	ret = pcmcia_suspend_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_SUSPEND);
 	break;
     case DS_RESUME_CARD:
-	ret = pcmcia_resume_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_RESUME);
 	break;
     case DS_EJECT_CARD:
-	err = pcmcia_eject_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_EJECT);
 	break;
     case DS_INSERT_CARD:
-	err = pcmcia_insert_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_INSERT);
 	break;
     case DS_ACCESS_CONFIGURATION_REGISTER:
 	if ((buf->conf_reg.Action == CS_WRITE) && !capable(CAP_SYS_ADMIN)) {
@@ -1036,13 +1020,25 @@ free_out:
     return err;
 } /* ds_ioctl */
 
+static long ds_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ds_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 /*====================================================================*/
 
 static const struct file_operations ds_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds_open,
 	.release	= ds_release,
-	.ioctl		= ds_ioctl,
+	.unlocked_ioctl	= ds_unlocked_ioctl,
 	.read		= ds_read,
 	.write		= ds_write,
 	.poll		= ds_poll,

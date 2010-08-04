@@ -44,6 +44,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /*
  * This macro is used to define some register default values.
@@ -101,13 +102,21 @@
 /*
  * SSP Control Register 0  - SSP_CR0
  */
-#define SSP_CR0_MASK_DSS	(0x1FUL << 0)
-#define SSP_CR0_MASK_HALFDUP	(0x1UL << 5)
+#define SSP_CR0_MASK_DSS	(0x0FUL << 0)
+#define SSP_CR0_MASK_FRF	(0x3UL << 4)
 #define SSP_CR0_MASK_SPO	(0x1UL << 6)
 #define SSP_CR0_MASK_SPH	(0x1UL << 7)
 #define SSP_CR0_MASK_SCR	(0xFFUL << 8)
-#define SSP_CR0_MASK_CSS	(0x1FUL << 16)
-#define SSP_CR0_MASK_FRF	(0x3UL << 21)
+
+/*
+ * The ST version of this block moves som bits
+ * in SSP_CR0 and extends it to 32 bits
+ */
+#define SSP_CR0_MASK_DSS_ST	(0x1FUL << 0)
+#define SSP_CR0_MASK_HALFDUP_ST	(0x1UL << 5)
+#define SSP_CR0_MASK_CSS_ST	(0x1FUL << 16)
+#define SSP_CR0_MASK_FRF_ST	(0x3UL << 21)
+
 
 /*
  * SSP Control Register 0  - SSP_CR1
@@ -116,16 +125,18 @@
 #define SSP_CR1_MASK_SSE	(0x1UL << 1)
 #define SSP_CR1_MASK_MS		(0x1UL << 2)
 #define SSP_CR1_MASK_SOD	(0x1UL << 3)
-#define SSP_CR1_MASK_RENDN	(0x1UL << 4)
-#define SSP_CR1_MASK_TENDN	(0x1UL << 5)
-#define SSP_CR1_MASK_MWAIT	(0x1UL << 6)
-#define SSP_CR1_MASK_RXIFLSEL	(0x7UL << 7)
-#define SSP_CR1_MASK_TXIFLSEL	(0x7UL << 10)
 
 /*
- * SSP Data Register - SSP_DR
+ * The ST version of this block adds some bits
+ * in SSP_CR1
  */
-#define SSP_DR_MASK_DATA	0xFFFFFFFF
+#define SSP_CR1_MASK_RENDN_ST	(0x1UL << 4)
+#define SSP_CR1_MASK_TENDN_ST	(0x1UL << 5)
+#define SSP_CR1_MASK_MWAIT_ST	(0x1UL << 6)
+#define SSP_CR1_MASK_RXIFLSEL_ST (0x7UL << 7)
+#define SSP_CR1_MASK_TXIFLSEL_ST (0x7UL << 10)
+/* This one is only in the PL023 variant */
+#define SSP_CR1_MASK_FBCLKDEL_ST (0x7UL << 13)
 
 /*
  * SSP Status Register - SSP_SR
@@ -133,7 +144,7 @@
 #define SSP_SR_MASK_TFE		(0x1UL << 0) /* Transmit FIFO empty */
 #define SSP_SR_MASK_TNF		(0x1UL << 1) /* Transmit FIFO not full */
 #define SSP_SR_MASK_RNE		(0x1UL << 2) /* Receive FIFO not empty */
-#define SSP_SR_MASK_RFF 	(0x1UL << 3) /* Receive FIFO full */
+#define SSP_SR_MASK_RFF		(0x1UL << 3) /* Receive FIFO full */
 #define SSP_SR_MASK_BSY		(0x1UL << 4) /* Busy Flag */
 
 /*
@@ -226,7 +237,7 @@
 /*
  * SSP Test Data Register - SSP_TDR
  */
-#define TDR_MASK_TESTDATA 		(0xFFFFFFFF)
+#define TDR_MASK_TESTDATA		(0xFFFFFFFF)
 
 /*
  * Message State
@@ -234,33 +245,33 @@
  * hold a single state value, that's why all this
  * (void *) casting is done here.
  */
-#define STATE_START                     ((void *) 0)
-#define STATE_RUNNING                   ((void *) 1)
-#define STATE_DONE                      ((void *) 2)
-#define STATE_ERROR                     ((void *) -1)
+#define STATE_START			((void *) 0)
+#define STATE_RUNNING			((void *) 1)
+#define STATE_DONE			((void *) 2)
+#define STATE_ERROR			((void *) -1)
 
 /*
  * Queue State
  */
-#define QUEUE_RUNNING                   (0)
-#define QUEUE_STOPPED                   (1)
+#define QUEUE_RUNNING			(0)
+#define QUEUE_STOPPED			(1)
 /*
  * SSP State - Whether Enabled or Disabled
  */
-#define SSP_DISABLED 			(0)
-#define SSP_ENABLED 			(1)
+#define SSP_DISABLED			(0)
+#define SSP_ENABLED			(1)
 
 /*
  * SSP DMA State - Whether DMA Enabled or Disabled
  */
-#define SSP_DMA_DISABLED 		(0)
-#define SSP_DMA_ENABLED 		(1)
+#define SSP_DMA_DISABLED		(0)
+#define SSP_DMA_ENABLED			(1)
 
 /*
  * SSP Clock Defaults
  */
-#define NMDK_SSP_DEFAULT_CLKRATE 0x2
-#define NMDK_SSP_DEFAULT_PRESCALE 0x40
+#define SSP_DEFAULT_CLKRATE 0x2
+#define SSP_DEFAULT_PRESCALE 0x40
 
 /*
  * SSP Clock Parameter ranges
@@ -306,16 +317,22 @@ enum ssp_writing {
  * @fifodepth: depth of FIFOs (both)
  * @max_bpw: maximum number of bits per word
  * @unidir: supports unidirection transfers
+ * @extended_cr: 32 bit wide control register 0 with extra
+ * features and extra features in CR1 as found in the ST variants
+ * @pl023: supports a subset of the ST extensions called "PL023"
  */
 struct vendor_data {
 	int fifodepth;
 	int max_bpw;
 	bool unidir;
+	bool extended_cr;
+	bool pl023;
 };
 
 /**
  * struct pl022 - This is the private SSP driver data structure
  * @adev: AMBA device model hookup
+ * @vendor: Vendor data for the IP block
  * @phybase: The physical memory where the SSP device resides
  * @virtbase: The virtual memory where the SSP is mapped
  * @master: SPI framework hookup
@@ -363,11 +380,13 @@ struct pl022 {
 	void				*rx_end;
 	enum ssp_reading		read;
 	enum ssp_writing		write;
+	u32				exp_fifo_level;
 };
 
 /**
  * struct chip_data - To maintain runtime state of SSP for each client chip
- * @cr0: Value of control register CR0 of SSP
+ * @cr0: Value of control register CR0 of SSP - on later ST variants this
+ *       register is 32 bits wide rather than just 16
  * @cr1: Value of control register CR1 of SSP
  * @dmacr: Value of DMA control Register of SSP
  * @cpsr: Value of Clock prescale register
@@ -382,7 +401,7 @@ struct pl022 {
  * This would be set according to the current message that would be served
  */
 struct chip_data {
-	u16 cr0;
+	u32 cr0;
 	u16 cr1;
 	u16 dmacr;
 	u16 cpsr;
@@ -501,6 +520,9 @@ static int flush(struct pl022 *pl022)
 		while (readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_RNE)
 			readw(SSP_DR(pl022->virtbase));
 	} while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_BSY) && limit--);
+
+	pl022->exp_fifo_level = 0;
+
 	return limit;
 }
 
@@ -512,7 +534,10 @@ static void restore_state(struct pl022 *pl022)
 {
 	struct chip_data *chip = pl022->cur_chip;
 
-	writew(chip->cr0, SSP_CR0(pl022->virtbase));
+	if (pl022->vendor->extended_cr)
+		writel(chip->cr0, SSP_CR0(pl022->virtbase));
+	else
+		writew(chip->cr0, SSP_CR0(pl022->virtbase));
 	writew(chip->cr1, SSP_CR1(pl022->virtbase));
 	writew(chip->dmacr, SSP_DMACR(pl022->virtbase));
 	writew(chip->cpsr, SSP_CPSR(pl022->virtbase));
@@ -520,38 +545,70 @@ static void restore_state(struct pl022 *pl022)
 	writew(CLEAR_ALL_INTERRUPTS, SSP_ICR(pl022->virtbase));
 }
 
-/**
- * load_ssp_default_config - Load default configuration for SSP
- * @pl022: SSP driver private data structure
- */
-
 /*
  * Default SSP Register Values
  */
 #define DEFAULT_SSP_REG_CR0 ( \
 	GEN_MASK_BITS(SSP_DATA_BITS_12, SSP_CR0_MASK_DSS, 0)	| \
-	GEN_MASK_BITS(SSP_MICROWIRE_CHANNEL_FULL_DUPLEX, SSP_CR0_MASK_HALFDUP, 5) | \
+	GEN_MASK_BITS(SSP_INTERFACE_MOTOROLA_SPI, SSP_CR0_MASK_FRF, 4) | \
 	GEN_MASK_BITS(SSP_CLK_POL_IDLE_LOW, SSP_CR0_MASK_SPO, 6) | \
 	GEN_MASK_BITS(SSP_CLK_SECOND_EDGE, SSP_CR0_MASK_SPH, 7) | \
-	GEN_MASK_BITS(NMDK_SSP_DEFAULT_CLKRATE, SSP_CR0_MASK_SCR, 8) | \
-	GEN_MASK_BITS(SSP_BITS_8, SSP_CR0_MASK_CSS, 16)	| \
-	GEN_MASK_BITS(SSP_INTERFACE_MOTOROLA_SPI, SSP_CR0_MASK_FRF, 21) \
+	GEN_MASK_BITS(SSP_DEFAULT_CLKRATE, SSP_CR0_MASK_SCR, 8) \
+)
+
+/* ST versions have slightly different bit layout */
+#define DEFAULT_SSP_REG_CR0_ST ( \
+	GEN_MASK_BITS(SSP_DATA_BITS_12, SSP_CR0_MASK_DSS_ST, 0)	| \
+	GEN_MASK_BITS(SSP_MICROWIRE_CHANNEL_FULL_DUPLEX, SSP_CR0_MASK_HALFDUP_ST, 5) | \
+	GEN_MASK_BITS(SSP_CLK_POL_IDLE_LOW, SSP_CR0_MASK_SPO, 6) | \
+	GEN_MASK_BITS(SSP_CLK_SECOND_EDGE, SSP_CR0_MASK_SPH, 7) | \
+	GEN_MASK_BITS(SSP_DEFAULT_CLKRATE, SSP_CR0_MASK_SCR, 8) | \
+	GEN_MASK_BITS(SSP_BITS_8, SSP_CR0_MASK_CSS_ST, 16)	| \
+	GEN_MASK_BITS(SSP_INTERFACE_MOTOROLA_SPI, SSP_CR0_MASK_FRF_ST, 21) \
+)
+
+/* The PL023 version is slightly different again */
+#define DEFAULT_SSP_REG_CR0_ST_PL023 ( \
+	GEN_MASK_BITS(SSP_DATA_BITS_12, SSP_CR0_MASK_DSS_ST, 0)	| \
+	GEN_MASK_BITS(SSP_CLK_POL_IDLE_LOW, SSP_CR0_MASK_SPO, 6) | \
+	GEN_MASK_BITS(SSP_CLK_SECOND_EDGE, SSP_CR0_MASK_SPH, 7) | \
+	GEN_MASK_BITS(SSP_DEFAULT_CLKRATE, SSP_CR0_MASK_SCR, 8) \
 )
 
 #define DEFAULT_SSP_REG_CR1 ( \
 	GEN_MASK_BITS(LOOPBACK_DISABLED, SSP_CR1_MASK_LBM, 0) | \
 	GEN_MASK_BITS(SSP_DISABLED, SSP_CR1_MASK_SSE, 1) | \
 	GEN_MASK_BITS(SSP_MASTER, SSP_CR1_MASK_MS, 2) | \
+	GEN_MASK_BITS(DO_NOT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) \
+)
+
+/* ST versions extend this register to use all 16 bits */
+#define DEFAULT_SSP_REG_CR1_ST ( \
+	DEFAULT_SSP_REG_CR1 | \
+	GEN_MASK_BITS(SSP_RX_MSB, SSP_CR1_MASK_RENDN_ST, 4) | \
+	GEN_MASK_BITS(SSP_TX_MSB, SSP_CR1_MASK_TENDN_ST, 5) | \
+	GEN_MASK_BITS(SSP_MWIRE_WAIT_ZERO, SSP_CR1_MASK_MWAIT_ST, 6) |\
+	GEN_MASK_BITS(SSP_RX_1_OR_MORE_ELEM, SSP_CR1_MASK_RXIFLSEL_ST, 7) | \
+	GEN_MASK_BITS(SSP_TX_1_OR_MORE_EMPTY_LOC, SSP_CR1_MASK_TXIFLSEL_ST, 10) \
+)
+
+/*
+ * The PL023 variant has further differences: no loopback mode, no microwire
+ * support, and a new clock feedback delay setting.
+ */
+#define DEFAULT_SSP_REG_CR1_ST_PL023 ( \
+	GEN_MASK_BITS(SSP_DISABLED, SSP_CR1_MASK_SSE, 1) | \
+	GEN_MASK_BITS(SSP_MASTER, SSP_CR1_MASK_MS, 2) | \
 	GEN_MASK_BITS(DO_NOT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) | \
-	GEN_MASK_BITS(SSP_RX_MSB, SSP_CR1_MASK_RENDN, 4) | \
-	GEN_MASK_BITS(SSP_TX_MSB, SSP_CR1_MASK_TENDN, 5) | \
-	GEN_MASK_BITS(SSP_MWIRE_WAIT_ZERO, SSP_CR1_MASK_MWAIT, 6) |\
-	GEN_MASK_BITS(SSP_RX_1_OR_MORE_ELEM, SSP_CR1_MASK_RXIFLSEL, 7) | \
-	GEN_MASK_BITS(SSP_TX_1_OR_MORE_EMPTY_LOC, SSP_CR1_MASK_TXIFLSEL, 10) \
+	GEN_MASK_BITS(SSP_RX_MSB, SSP_CR1_MASK_RENDN_ST, 4) | \
+	GEN_MASK_BITS(SSP_TX_MSB, SSP_CR1_MASK_TENDN_ST, 5) | \
+	GEN_MASK_BITS(SSP_RX_1_OR_MORE_ELEM, SSP_CR1_MASK_RXIFLSEL_ST, 7) | \
+	GEN_MASK_BITS(SSP_TX_1_OR_MORE_EMPTY_LOC, SSP_CR1_MASK_TXIFLSEL_ST, 10) | \
+	GEN_MASK_BITS(SSP_FEEDBACK_CLK_DELAY_NONE, SSP_CR1_MASK_FBCLKDEL_ST, 13) \
 )
 
 #define DEFAULT_SSP_REG_CPSR ( \
-	GEN_MASK_BITS(NMDK_SSP_DEFAULT_PRESCALE, SSP_CPSR_MASK_CPSDVSR, 0) \
+	GEN_MASK_BITS(SSP_DEFAULT_PRESCALE, SSP_CPSR_MASK_CPSDVSR, 0) \
 )
 
 #define DEFAULT_SSP_REG_DMACR (\
@@ -559,11 +616,22 @@ static void restore_state(struct pl022 *pl022)
 	GEN_MASK_BITS(SSP_DMA_DISABLED, SSP_DMACR_MASK_TXDMAE, 1) \
 )
 
-
+/**
+ * load_ssp_default_config - Load default configuration for SSP
+ * @pl022: SSP driver private data structure
+ */
 static void load_ssp_default_config(struct pl022 *pl022)
 {
-	writew(DEFAULT_SSP_REG_CR0, SSP_CR0(pl022->virtbase));
-	writew(DEFAULT_SSP_REG_CR1, SSP_CR1(pl022->virtbase));
+	if (pl022->vendor->pl023) {
+		writel(DEFAULT_SSP_REG_CR0_ST_PL023, SSP_CR0(pl022->virtbase));
+		writew(DEFAULT_SSP_REG_CR1_ST_PL023, SSP_CR1(pl022->virtbase));
+	} else if (pl022->vendor->extended_cr) {
+		writel(DEFAULT_SSP_REG_CR0_ST, SSP_CR0(pl022->virtbase));
+		writew(DEFAULT_SSP_REG_CR1_ST, SSP_CR1(pl022->virtbase));
+	} else {
+		writew(DEFAULT_SSP_REG_CR0, SSP_CR0(pl022->virtbase));
+		writew(DEFAULT_SSP_REG_CR1, SSP_CR1(pl022->virtbase));
+	}
 	writew(DEFAULT_SSP_REG_DMACR, SSP_DMACR(pl022->virtbase));
 	writew(DEFAULT_SSP_REG_CPSR, SSP_CPSR(pl022->virtbase));
 	writew(DISABLE_ALL_INTERRUPTS, SSP_IMSC(pl022->virtbase));
@@ -583,10 +651,9 @@ static void readwriter(struct pl022 *pl022)
 	 * errons in 8bit wide transfers on ARM variants (just 8 words
 	 * FIFO, means only 8x8 = 64 bits in FIFO) at least.
 	 *
-	 * FIXME: currently we have no logic to account for this.
-	 * perhaps there is even something broken in HW regarding
-	 * 8bit transfers (it doesn't fail on 16bit) so this needs
-	 * more investigation...
+	 * To prevent this issue, the TX FIFO is only filled to the
+	 * unused RX FIFO fill length, regardless of what the TX
+	 * FIFO status flag indicates.
 	 */
 	dev_dbg(&pl022->adev->dev,
 		"%s, rx: %p, rxend: %p, tx: %p, txend: %p\n",
@@ -613,11 +680,12 @@ static void readwriter(struct pl022 *pl022)
 			break;
 		}
 		pl022->rx += (pl022->cur_chip->n_bytes);
+		pl022->exp_fifo_level--;
 	}
 	/*
-	 * Write as much as you can, while keeping an eye on the RX FIFO!
+	 * Write as much as possible up to the RX FIFO size
 	 */
-	while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_TNF)
+	while ((pl022->exp_fifo_level < pl022->vendor->fifodepth)
 	       && (pl022->tx < pl022->tx_end)) {
 		switch (pl022->write) {
 		case WRITING_NULL:
@@ -634,6 +702,7 @@ static void readwriter(struct pl022 *pl022)
 			break;
 		}
 		pl022->tx += (pl022->cur_chip->n_bytes);
+		pl022->exp_fifo_level++;
 		/*
 		 * This inner reader takes care of things appearing in the RX
 		 * FIFO as we're transmitting. This will happen a lot since the
@@ -660,6 +729,7 @@ static void readwriter(struct pl022 *pl022)
 				break;
 			}
 			pl022->rx += (pl022->cur_chip->n_bytes);
+			pl022->exp_fifo_level--;
 		}
 	}
 	/*
@@ -1001,7 +1071,7 @@ static void do_polling_transfer(void *data)
 		writew((readw(SSP_CR1(pl022->virtbase)) | SSP_CR1_MASK_SSE),
 		       SSP_CR1(pl022->virtbase));
 
-		dev_dbg(&pl022->adev->dev, "POLLING TRANSFER ONGOING ... \n");
+		dev_dbg(&pl022->adev->dev, "polling transfer ongoing ...\n");
 		/* FIXME: insert a timeout so we don't hang here indefinately */
 		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end)
 			readwriter(pl022);
@@ -1141,7 +1211,6 @@ static int stop_queue(struct pl022 *pl022)
 	 * A wait_queue on the pl022->busy could be used, but then the common
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead */
-	pl022->run = QUEUE_STOPPED;
 	while (!list_empty(&pl022->queue) && pl022->busy && limit--) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		msleep(10);
@@ -1150,6 +1219,7 @@ static int stop_queue(struct pl022 *pl022)
 
 	if (!list_empty(&pl022->queue) || pl022->busy)
 		status = -EBUSY;
+	else pl022->run = QUEUE_STOPPED;
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
@@ -1273,11 +1343,21 @@ static int verify_controller_parameters(struct pl022 *pl022,
 				"Wait State is configured incorrectly\n");
 			return -EINVAL;
 		}
-		if ((chip_info->duplex != SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
-		    && (chip_info->duplex !=
-			SSP_MICROWIRE_CHANNEL_HALF_DUPLEX)) {
-			dev_err(chip_info->dev,
-				"DUPLEX is configured incorrectly\n");
+		/* Half duplex is only available in the ST Micro version */
+		if (pl022->vendor->extended_cr) {
+			if ((chip_info->duplex !=
+			     SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
+			    && (chip_info->duplex !=
+				SSP_MICROWIRE_CHANNEL_HALF_DUPLEX))
+				dev_err(chip_info->dev,
+					"Microwire duplex mode is configured incorrectly\n");
+				return -EINVAL;
+		} else {
+			if (chip_info->duplex != SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
+				dev_err(chip_info->dev,
+					"Microwire half duplex mode requested,"
+					" but this is only available in the"
+					" ST version of PL022\n");
 			return -EINVAL;
 		}
 	}
@@ -1574,22 +1654,49 @@ static int pl022_setup(struct spi_device *spi)
 
 	chip->cpsr = chip_info->clk_freq.cpsdvsr;
 
-	SSP_WRITE_BITS(chip->cr0, chip_info->data_size, SSP_CR0_MASK_DSS, 0);
-	SSP_WRITE_BITS(chip->cr0, chip_info->duplex, SSP_CR0_MASK_HALFDUP, 5);
+	/* Special setup for the ST micro extended control registers */
+	if (pl022->vendor->extended_cr) {
+		if (pl022->vendor->pl023) {
+			/* These bits are only in the PL023 */
+			SSP_WRITE_BITS(chip->cr1, chip_info->clkdelay,
+				       SSP_CR1_MASK_FBCLKDEL_ST, 13);
+		} else {
+			/* These bits are in the PL022 but not PL023 */
+			SSP_WRITE_BITS(chip->cr0, chip_info->duplex,
+				       SSP_CR0_MASK_HALFDUP_ST, 5);
+			SSP_WRITE_BITS(chip->cr0, chip_info->ctrl_len,
+				       SSP_CR0_MASK_CSS_ST, 16);
+			SSP_WRITE_BITS(chip->cr0, chip_info->iface,
+				       SSP_CR0_MASK_FRF_ST, 21);
+			SSP_WRITE_BITS(chip->cr1, chip_info->wait_state,
+				       SSP_CR1_MASK_MWAIT_ST, 6);
+		}
+		SSP_WRITE_BITS(chip->cr0, chip_info->data_size,
+			       SSP_CR0_MASK_DSS_ST, 0);
+		SSP_WRITE_BITS(chip->cr1, chip_info->endian_rx,
+			       SSP_CR1_MASK_RENDN_ST, 4);
+		SSP_WRITE_BITS(chip->cr1, chip_info->endian_tx,
+			       SSP_CR1_MASK_TENDN_ST, 5);
+		SSP_WRITE_BITS(chip->cr1, chip_info->rx_lev_trig,
+			       SSP_CR1_MASK_RXIFLSEL_ST, 7);
+		SSP_WRITE_BITS(chip->cr1, chip_info->tx_lev_trig,
+			       SSP_CR1_MASK_TXIFLSEL_ST, 10);
+	} else {
+		SSP_WRITE_BITS(chip->cr0, chip_info->data_size,
+			       SSP_CR0_MASK_DSS, 0);
+		SSP_WRITE_BITS(chip->cr0, chip_info->iface,
+			       SSP_CR0_MASK_FRF, 4);
+	}
+	/* Stuff that is common for all versions */
 	SSP_WRITE_BITS(chip->cr0, chip_info->clk_pol, SSP_CR0_MASK_SPO, 6);
 	SSP_WRITE_BITS(chip->cr0, chip_info->clk_phase, SSP_CR0_MASK_SPH, 7);
 	SSP_WRITE_BITS(chip->cr0, chip_info->clk_freq.scr, SSP_CR0_MASK_SCR, 8);
-	SSP_WRITE_BITS(chip->cr0, chip_info->ctrl_len, SSP_CR0_MASK_CSS, 16);
-	SSP_WRITE_BITS(chip->cr0, chip_info->iface, SSP_CR0_MASK_FRF, 21);
-	SSP_WRITE_BITS(chip->cr1, chip_info->lbm, SSP_CR1_MASK_LBM, 0);
+	/* Loopback is available on all versions except PL023 */
+	if (!pl022->vendor->pl023)
+		SSP_WRITE_BITS(chip->cr1, chip_info->lbm, SSP_CR1_MASK_LBM, 0);
 	SSP_WRITE_BITS(chip->cr1, SSP_DISABLED, SSP_CR1_MASK_SSE, 1);
 	SSP_WRITE_BITS(chip->cr1, chip_info->hierarchy, SSP_CR1_MASK_MS, 2);
 	SSP_WRITE_BITS(chip->cr1, chip_info->slave_tx_disable, SSP_CR1_MASK_SOD, 3);
-	SSP_WRITE_BITS(chip->cr1, chip_info->endian_rx, SSP_CR1_MASK_RENDN, 4);
-	SSP_WRITE_BITS(chip->cr1, chip_info->endian_tx, SSP_CR1_MASK_TENDN, 5);
-	SSP_WRITE_BITS(chip->cr1, chip_info->wait_state, SSP_CR1_MASK_MWAIT, 6);
-	SSP_WRITE_BITS(chip->cr1, chip_info->rx_lev_trig, SSP_CR1_MASK_RXIFLSEL, 7);
-	SSP_WRITE_BITS(chip->cr1, chip_info->tx_lev_trig, SSP_CR1_MASK_TXIFLSEL, 10);
 
 	/* Save controller_state */
 	spi_set_ctldata(spi, chip);
@@ -1802,6 +1909,8 @@ static struct vendor_data vendor_arm = {
 	.fifodepth = 8,
 	.max_bpw = 16,
 	.unidir = false,
+	.extended_cr = false,
+	.pl023 = false,
 };
 
 
@@ -1809,6 +1918,16 @@ static struct vendor_data vendor_st = {
 	.fifodepth = 32,
 	.max_bpw = 32,
 	.unidir = false,
+	.extended_cr = true,
+	.pl023 = false,
+};
+
+static struct vendor_data vendor_st_pl023 = {
+	.fifodepth = 32,
+	.max_bpw = 32,
+	.unidir = false,
+	.extended_cr = true,
+	.pl023 = true,
 };
 
 static struct amba_id pl022_ids[] = {
@@ -1829,6 +1948,18 @@ static struct amba_id pl022_ids[] = {
 		.id	= 0x01080022,
 		.mask	= 0xffffffff,
 		.data	= &vendor_st,
+	},
+	{
+		/*
+		 * ST-Ericsson derivative "PL023" (this is not
+		 * an official ARM number), this is a PL022 SSP block
+		 * stripped to SPI mode only, it has 32bit wide
+		 * and 32 locations deep TX/RX FIFO but no extended
+		 * CR0/CR1 register
+		 */
+		.id     = 0x00080023,
+		.mask   = 0xffffffff,
+		.data   = &vendor_st_pl023,
 	},
 	{ 0, 0 },
 };

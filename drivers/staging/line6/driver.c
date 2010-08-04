@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "audio.h"
@@ -33,7 +34,7 @@
 
 
 /* table of devices that work with this driver */
-static struct usb_device_id line6_id_table[] = {
+static const struct usb_device_id line6_id_table[] = {
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXT) },
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTLIVE) },
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTPRO) },
@@ -398,7 +399,7 @@ static void line6_data_received(struct urb *urb)
 static int line6_send(struct usb_line6 *line6, unsigned char *buf, size_t len)
 {
 	int retval;
-	unsigned int partial;
+	int partial;
 
 #if DO_DUMP_URB_SEND
 	line6_write_hexdump(line6, 'S', buf, len);
@@ -683,11 +684,11 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* check vendor and product id */
 	for (devtype = ARRAY_SIZE(line6_id_table) - 1; devtype--;) {
-		u16 vendor = le16_to_cpu(usbdev->descriptor.idVendor);
-		u16 product = le16_to_cpu(usbdev->descriptor.idProduct);
+		u16 idVendor = le16_to_cpu(usbdev->descriptor.idVendor);
+		u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
-		if (vendor == line6_id_table[devtype].idVendor
-		     && product == line6_id_table[devtype].idProduct)
+		if (idVendor == line6_id_table[devtype].idVendor
+		     && idProduct == line6_id_table[devtype].idProduct)
 			break;
 	}
 

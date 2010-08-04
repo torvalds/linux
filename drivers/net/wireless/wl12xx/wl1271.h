@@ -43,7 +43,7 @@ enum {
 	DEBUG_SPI	= BIT(1),
 	DEBUG_BOOT	= BIT(2),
 	DEBUG_MAILBOX	= BIT(3),
-	DEBUG_NETLINK	= BIT(4),
+	DEBUG_TESTMODE	= BIT(4),
 	DEBUG_EVENT	= BIT(5),
 	DEBUG_TX	= BIT(6),
 	DEBUG_RX	= BIT(7),
@@ -53,6 +53,9 @@ enum {
 	DEBUG_MAC80211	= BIT(11),
 	DEBUG_CMD	= BIT(12),
 	DEBUG_ACX	= BIT(13),
+	DEBUG_SDIO	= BIT(14),
+	DEBUG_FILTERS   = BIT(15),
+	DEBUG_ADHOC     = BIT(16),
 	DEBUG_ALL	= ~0,
 };
 
@@ -107,24 +110,45 @@ enum {
 				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
 				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
 
-#define WL1271_DEFAULT_BASIC_RATE_SET (CONF_TX_RATE_MASK_ALL)
-
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
+
+#define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
+#define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
+
+/* NVS data structure */
+#define WL1271_NVS_SECTION_SIZE                  468
+
+#define WL1271_NVS_GENERAL_PARAMS_SIZE            57
+#define WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_GENERAL_PARAMS_SIZE + 1)
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE         17
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_STAT_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE          65
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_DYN_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_FEM_COUNT                       2
+#define WL1271_NVS_INI_SPARE_SIZE                124
+
+struct wl1271_nvs_file {
+	/* NVS section */
+	u8 nvs[WL1271_NVS_SECTION_SIZE];
+
+	/* INI section */
+	u8 general_params[WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED];
+	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED];
+	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
+			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
+	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
+} __attribute__ ((packed));
 
 /*
  * Enable/disable 802.11a support for WL1273
  */
 #undef WL1271_80211A_ENABLED
 
-/*
- * FIXME: for the wl1271, a busy word count of 1 here will result in a more
- * optimal SPI interface. There is some SPI bug however, causing RXS time outs
- * with this mode occasionally on boot, so lets have three for now. A value of
- * three should make sure, that the chipset will always be ready, though this
- * will impact throughput and latencies slightly.
- */
-#define WL1271_BUSY_WORD_CNT 3
+#define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
 
 #define WL1271_ELP_HW_STATE_ASLEEP 0
@@ -276,6 +300,7 @@ struct wl1271_debugfs {
 
 	struct dentry *retry_count;
 	struct dentry *excessive_retries;
+	struct dentry *gpio_power;
 };
 
 #define NUM_TX_QUEUES              4
@@ -308,11 +333,27 @@ struct wl1271_scan {
 	u8 probe_requests;
 };
 
+struct wl1271_if_operations {
+	void (*read)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*write)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*reset)(struct wl1271 *wl);
+	void (*init)(struct wl1271 *wl);
+	void (*power)(struct wl1271 *wl, bool enable);
+	struct device* (*dev)(struct wl1271 *wl);
+	void (*enable_irq)(struct wl1271 *wl);
+	void (*disable_irq)(struct wl1271 *wl);
+};
+
 struct wl1271 {
+	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
-	struct spi_device *spi;
+	void *if_priv;
+
+	struct wl1271_if_operations *if_ops;
 
 	void (*set_power)(bool enable);
 	int irq;
@@ -321,6 +362,20 @@ struct wl1271 {
 
 	enum wl1271_state state;
 	struct mutex mutex;
+
+#define WL1271_FLAG_STA_RATES_CHANGED  (0)
+#define WL1271_FLAG_STA_ASSOCIATED     (1)
+#define WL1271_FLAG_JOINED             (2)
+#define WL1271_FLAG_GPIO_POWER         (3)
+#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
+#define WL1271_FLAG_SCANNING           (5)
+#define WL1271_FLAG_IN_ELP             (6)
+#define WL1271_FLAG_PSM                (7)
+#define WL1271_FLAG_PSM_REQUESTED      (8)
+#define WL1271_FLAG_IRQ_PENDING        (9)
+#define WL1271_FLAG_IRQ_RUNNING       (10)
+#define WL1271_FLAG_IDLE              (11)
+	unsigned long flags;
 
 	struct wl1271_partition_set part;
 
@@ -331,12 +386,14 @@ struct wl1271 {
 
 	u8 *fw;
 	size_t fw_len;
-	u8 *nvs;
-	size_t nvs_len;
+	struct wl1271_nvs_file *nvs;
+
+	s8 hw_pg_ver;
 
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
+	u8 set_bss_type;
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 	int channel;
@@ -346,20 +403,19 @@ struct wl1271 {
 	/* Accounting for allocated / available TX blocks on HW */
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
-	u8 tx_results_count;
+	u32 tx_results_count;
 
 	/* Transmitted TX packets counter for chipset interface */
-	int tx_packets_count;
+	u32 tx_packets_count;
 
 	/* Time-offset between host and chipset clocks */
-	int time_offset;
+	s64 time_offset;
 
 	/* Session counter for the chipset */
 	int session_counter;
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue;
-	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
 
@@ -368,8 +424,7 @@ struct wl1271 {
 
 	/* Security sequence number counters */
 	u8 tx_security_last_seq;
-	u16 tx_security_seq_16;
-	u32 tx_security_seq_32;
+	s64 tx_security_seq;
 
 	/* FW Rx counter */
 	u32 rx_counter;
@@ -387,35 +442,32 @@ struct wl1271 {
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	bool scanning;
 	struct wl1271_scan scan;
 
 	/* Our association ID */
 	u16 aid;
 
 	/* currently configured rate set */
+	u32 sta_rate_set;
 	u32 basic_rate_set;
+	u32 basic_rate;
+	u32 rate_set;
 
 	/* The current band */
 	enum ieee80211_band band;
 
+	/* Beaconing interval (needed for ad-hoc) */
+	u32 beacon_int;
+
 	/* Default key (for WEP) */
 	u32 default_key;
 
+	unsigned int filters;
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
-	/* is firmware in elp mode */
-	bool elp;
-
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
-
-	/* we can be in psm, but not in elp, we have to differentiate */
-	bool psm;
-
-	/* PSM mode requested */
-	bool psm_requested;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
@@ -423,10 +475,13 @@ struct wl1271 {
 	/* in dBm */
 	int power_level;
 
+	int rssi_thold;
+	int last_rssi_event;
+
 	struct wl1271_stats stats;
 	struct wl1271_debugfs debugfs;
 
-	u32 buffer_32;
+	__le32 buffer_32;
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
@@ -435,11 +490,10 @@ struct wl1271 {
 
 	struct ieee80211_vif *vif;
 
-	/* Used for a workaround to send disconnect before rejoining */
-	bool joined;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
+
+	bool sg_enabled;
 
 	struct list_head list;
 };
@@ -453,13 +507,17 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_DEFAULT_POWER_LEVEL 0
 
-#define WL1271_TX_QUEUE_MAX_LENGTH 20
+#define WL1271_TX_QUEUE_LOW_WATERMARK  10
+#define WL1271_TX_QUEUE_HIGH_WATERMARK 25
 
-/* WL1271 needs a 200ms sleep after power on */
+/* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
+   on in case is has been shut down shortly before */
+#define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
 
 static inline bool wl1271_11a_enabled(void)
 {
+	/* FIXME: this could be determined based on the NVS-INI file */
 #ifdef WL1271_80211A_ENABLED
 	return true;
 #else

@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 #include <linux/io.h>

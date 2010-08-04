@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -663,15 +664,15 @@ static struct urb *alloc_rx_urb(struct zd_usb *usb)
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return NULL;
-	buffer = usb_buffer_alloc(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
-		                  &urb->transfer_dma);
+	buffer = usb_alloc_coherent(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
+				    &urb->transfer_dma);
 	if (!buffer) {
 		usb_free_urb(urb);
 		return NULL;
 	}
 
 	usb_fill_bulk_urb(urb, udev, usb_rcvbulkpipe(udev, EP_DATA_IN),
-		          buffer, USB_MAX_RX_SIZE,
+			  buffer, USB_MAX_RX_SIZE,
 			  rx_urb_complete, usb);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -682,8 +683,8 @@ static void free_rx_urb(struct urb *urb)
 {
 	if (!urb)
 		return;
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-		        urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb(urb);
 }
 
@@ -1079,11 +1080,15 @@ static int eject_installer(struct usb_interface *intf)
 	int r;
 
 	/* Find bulk out endpoint */
-	endpoint = &iface_desc->endpoint[1].desc;
-	if (usb_endpoint_dir_out(endpoint) &&
-	    usb_endpoint_xfer_bulk(endpoint)) {
-		bulk_out_ep = endpoint->bEndpointAddress;
-	} else {
+	for (r = 1; r >= 0; r--) {
+		endpoint = &iface_desc->endpoint[r].desc;
+		if (usb_endpoint_dir_out(endpoint) &&
+		    usb_endpoint_xfer_bulk(endpoint)) {
+			bulk_out_ep = endpoint->bEndpointAddress;
+			break;
+		}
+	}
+	if (r == -1) {
 		dev_err(&udev->dev,
 			"zd1211rw: Could not find bulk out endpoint\n");
 		return -ENODEV;

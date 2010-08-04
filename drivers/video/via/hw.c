@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 
 static struct pll_map pll_value[] = {
@@ -62,6 +63,7 @@ static struct pll_map pll_value[] = {
 	 CX700_52_977M,	VX855_52_977M},
 	{CLK_56_250M, CLE266_PLL_56_250M, K800_PLL_56_250M,
 	 CX700_56_250M, VX855_56_250M},
+	{CLK_57_275M, 0, 0, 0, VX855_57_275M},
 	{CLK_60_466M, CLE266_PLL_60_466M, K800_PLL_60_466M,
 	 CX700_60_466M, VX855_60_466M},
 	{CLK_61_500M, CLE266_PLL_61_500M, K800_PLL_61_500M,
@@ -524,10 +526,8 @@ static void dvi_patch_skew_dvp1(void);
 static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
-static int search_mode_setting(int ModeInfoIndex);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(struct pci_dev *pdev,
-				const struct pci_device_id *pdi);
+static void init_gfx_chip_info(int chip_type);
 static void init_tmds_chip_info(void);
 static void init_lvds_chip_info(void);
 static void device_screen_off(void);
@@ -538,18 +538,6 @@ static void device_on(void);
 static void enable_second_display_channel(void);
 static void disable_second_display_channel(void);
 
-void viafb_write_reg(u8 index, u16 io_port, u8 data)
-{
-	outb(index, io_port);
-	outb(data, io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, data); */
-}
-u8 viafb_read_reg(int io_port, u8 index)
-{
-	outb(index, io_port);
-	return inb(io_port + 1);
-}
-
 void viafb_lock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, BIT7, BIT7);
@@ -559,16 +547,6 @@ void viafb_unlock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, 0, BIT7);
 	viafb_write_reg_mask(CR47, VIACR, 0, BIT0);
-}
-
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask)
-{
-	u8 tmp;
-
-	outb(index, io_port);
-	tmp = inb(io_port + 1);
-	outb((data & mask) | (tmp & (~mask)), io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, tmp); */
 }
 
 void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
@@ -647,43 +625,25 @@ void viafb_set_iga_path(void)
 	}
 }
 
-void viafb_set_primary_address(u32 addr)
+static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_address(0x%08X)\n", addr);
-	viafb_write_reg(CR0D, VIACR, addr & 0xFF);
-	viafb_write_reg(CR0C, VIACR, (addr >> 8) & 0xFF);
-	viafb_write_reg(CR34, VIACR, (addr >> 16) & 0xFF);
-	viafb_write_reg_mask(CR48, VIACR, (addr >> 24) & 0x1F, 0x1F);
+	outb(0xFF, 0x3C6); /* bit mask of palette */
+	outb(index, 0x3C8);
+	outb(red, 0x3C9);
+	outb(green, 0x3C9);
+	outb(blue, 0x3C9);
 }
 
-void viafb_set_secondary_address(u32 addr)
+void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_address(0x%08X)\n", addr);
-	/* secondary display supports only quadword aligned memory */
-	viafb_write_reg_mask(CR62, VIACR, (addr >> 2) & 0xFE, 0xFE);
-	viafb_write_reg(CR63, VIACR, (addr >> 10) & 0xFF);
-	viafb_write_reg(CR64, VIACR, (addr >> 18) & 0xFF);
-	viafb_write_reg_mask(CRA3, VIACR, (addr >> 26) & 0x07, 0x07);
+	viafb_write_reg_mask(0x1A, VIASR, 0x00, 0x01);
+	set_color_register(index, red, green, blue);
 }
 
-void viafb_set_primary_pitch(u32 pitch)
+void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_pitch(0x%08X)\n", pitch);
-	/* spec does not say that first adapter skips 3 bits but old
-	 * code did it and seems to be reasonable in analogy to 2nd adapter
-	 */
-	pitch = pitch >> 3;
-	viafb_write_reg(0x13, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x35, VIACR, (pitch >> (8 - 5)) & 0xE0, 0xE0);
-}
-
-void viafb_set_secondary_pitch(u32 pitch)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_pitch(0x%08X)\n", pitch);
-	pitch = pitch >> 3;
-	viafb_write_reg(0x66, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x67, VIACR, (pitch >> 8) & 0x03, 0x03);
-	viafb_write_reg_mask(0x71, VIACR, (pitch >> (10 - 7)) & 0x80, 0x80);
+	viafb_write_reg_mask(0x1A, VIASR, 0x01, 0x01);
+	set_color_register(index, red, green, blue);
 }
 
 void viafb_set_output_path(int device, int set_iga, int output_interface)
@@ -710,11 +670,8 @@ static void set_crt_output_path(int set_iga)
 		viafb_write_reg_mask(SR16, VIASR, 0x00, BIT6);
 		break;
 	case IGA2:
-	case IGA1_IGA2:
 		viafb_write_reg_mask(CR6A, VIACR, 0xC0, BIT6 + BIT7);
 		viafb_write_reg_mask(SR16, VIASR, 0x40, BIT6);
-		if (set_iga == IGA1_IGA2)
-			viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
 		break;
 	}
 }
@@ -904,13 +861,6 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 
 		enable_second_display_channel();
 		break;
-
-	case IGA1_IGA2:
-		viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
-		viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-
-		disable_second_display_channel();
-		break;
 	}
 
 	switch (output_interface) {
@@ -987,49 +937,6 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 	}
 }
 
-/* Search Mode Index */
-static int search_mode_setting(int ModeInfoIndex)
-{
-	int i = 0;
-
-	while ((i < NUM_TOTAL_MODETABLE) &&
-			(ModeInfoIndex != CLE266Modes[i].ModeIndex))
-		i++;
-	if (i >= NUM_TOTAL_MODETABLE)
-		i = 0;
-	return i;
-
-}
-
-struct VideoModeTable *viafb_get_modetbl_pointer(int Index)
-{
-	struct VideoModeTable *TmpTbl = NULL;
-	TmpTbl = &CLE266Modes[search_mode_setting(Index)];
-	return TmpTbl;
-}
-
-struct VideoModeTable *viafb_get_cea_mode_tbl_pointer(int Index)
-{
-	struct VideoModeTable *TmpTbl = NULL;
-	int i = 0;
-	while ((i < NUM_TOTAL_CEA_MODES) &&
-			(Index != CEA_HDMI_Modes[i].ModeIndex))
-		i++;
-	if ((i < NUM_TOTAL_CEA_MODES))
-		TmpTbl = &CEA_HDMI_Modes[i];
-	 else {
-		/*Still use general timing if don't find CEA timing */
-		i = 0;
-		while ((i < NUM_TOTAL_MODETABLE) &&
-				(Index != CLE266Modes[i].ModeIndex))
-		       i++;
-		if (i >= NUM_TOTAL_MODETABLE)
-			i = 0;
-		TmpTbl = &CLE266Modes[i];
-	}
-	return TmpTbl;
-}
-
 static void load_fix_bit_crtc_reg(void)
 {
 	/* always set to 1 */
@@ -1102,16 +1009,12 @@ void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 void viafb_write_regx(struct io_reg RegTable[], int ItemNum)
 {
 	int i;
-	unsigned char RegTemp;
 
 	/*DEBUG_MSG(KERN_INFO "Table Size : %x!!\n",ItemNum ); */
 
-	for (i = 0; i < ItemNum; i++) {
-		outb(RegTable[i].index, RegTable[i].port);
-		RegTemp = inb(RegTable[i].port + 1);
-		RegTemp = (RegTemp & (~RegTable[i].mask)) | RegTable[i].value;
-		outb(RegTemp, RegTable[i].port + 1);
-	}
+	for (i = 0; i < ItemNum; i++)
+		via_write_reg_mask(RegTable[i].port, RegTable[i].index,
+			RegTable[i].value, RegTable[i].mask);
 }
 
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
@@ -1121,15 +1024,13 @@ void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
 	struct io_register *reg = NULL;
 
 	switch (set_iga) {
-	case IGA1_IGA2:
 	case IGA1:
 		reg_value = IGA1_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
 			iga1_fetch_count_reg.reg_num;
 		reg = fetch_count_reg.iga1_fetch_count_reg.reg;
 		viafb_load_reg(reg_value, viafb_load_reg_num, reg, VIASR);
-		if (set_iga == IGA1)
-			break;
+		break;
 	case IGA2:
 		reg_value = IGA2_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
@@ -1494,12 +1395,10 @@ u32 viafb_get_clk_value(int clk)
 /* Set VCLK*/
 void viafb_set_vclock(u32 CLK, int set_iga)
 {
-	unsigned char RegTemp;
-
 	/* H.W. Reset : ON */
 	viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		/* Change D,N FOR VCLK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -1528,7 +1427,7 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 		}
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		/* Change D,N FOR LCK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -1557,19 +1456,18 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 
 	/* Reset PLL */
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		viafb_write_reg_mask(SR40, VIASR, 0x02, BIT1);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT1);
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		viafb_write_reg_mask(SR40, VIASR, 0x01, BIT0);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT0);
 	}
 
 	/* Fire! */
-	RegTemp = inb(VIARMisc);
-	outb(RegTemp | (BIT2 + BIT3), VIAWMisc);
+	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
 void viafb_load_crtc_timing(struct display_timing device_timing,
@@ -1805,46 +1703,15 @@ void viafb_load_crtc_timing(struct display_timing device_timing,
 	viafb_lock_crt();
 }
 
-void viafb_set_color_depth(int bpp_byte, int set_iga)
-{
-	if (set_iga == IGA1) {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0x22, 0x7E);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xB6, 0xFE);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xAE, 0xFE);
-			break;
-		}
-	} else {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x00, BIT6 + BIT7);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x40, BIT6 + BIT7);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0xC0, BIT6 + BIT7);
-			break;
-		}
-	}
-}
-
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
-	int mode_index, int bpp_byte, int set_iga)
+	struct VideoModeTable *video_mode, int bpp_byte, int set_iga)
 {
-	struct VideoModeTable *video_mode;
 	struct display_timing crt_reg;
 	int i;
 	int index = 0;
 	int h_addr, v_addr;
 	u32 pll_D_N;
-
-	video_mode = &CLE266Modes[search_mode_setting(mode_index)];
+	u8 polarity = 0;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
@@ -1858,8 +1725,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 	/* Mode 640x480 has border, but LCD/DFP didn't have border. */
 	/* So we would delete border. */
-	if ((viafb_LCD_ON | viafb_DVI_ON) && (mode_index == VIA_RES_640X480)
-	    && (viaparinfo->crt_setting_info->refresh_rate == 60)) {
+	if ((viafb_LCD_ON | viafb_DVI_ON)
+	    && video_mode->crtc[0].crtc.hor_addr == 640
+	    && video_mode->crtc[0].crtc.ver_addr == 480
+	    && viaparinfo->crt_setting_info->refresh_rate == 60) {
 		/* The border is 8 pixels. */
 		crt_reg.hor_blank_start = crt_reg.hor_blank_start - 8;
 
@@ -1871,20 +1740,11 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	v_addr = crt_reg.ver_addr;
 
 	/* update polarity for CRT timing */
-	if (crt_table[index].h_sync_polarity == NEGATIVE) {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) |
-			     (BIT6 + BIT7), VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT6),
-			     VIAWMisc);
-	} else {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT7),
-			     VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))), VIAWMisc);
-	}
+	if (crt_table[index].h_sync_polarity == NEGATIVE)
+		polarity |= BIT6;
+	if (crt_table[index].v_sync_polarity == NEGATIVE)
+		polarity |= BIT7;
+	via_write_misc_reg_mask(polarity, BIT6 | BIT7);
 
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
@@ -1912,19 +1772,15 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	    && (viaparinfo->chip_info->gfx_chip_name != UNICHROME_K400))
 		viafb_load_FIFO_reg(set_iga, h_addr, v_addr);
 
-	/* load SR Register About Memory and Color part */
-	viafb_set_color_depth(bpp_byte, set_iga);
-
 	pll_D_N = viafb_get_clk_value(crt_table[index].clk);
 	DEBUG_MSG(KERN_INFO "PLL=%x", pll_D_N);
 	viafb_set_vclock(pll_D_N, set_iga);
 
 }
 
-void viafb_init_chip_info(struct pci_dev *pdev,
-			  const struct pci_device_id *pdi)
+void viafb_init_chip_info(int chip_type)
 {
-	init_gfx_chip_info(pdev, pdi);
+	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
@@ -1956,9 +1812,6 @@ void viafb_update_device_setting(int hres, int vres,
 
 		viaparinfo->tmds_setting_info->h_active = hres;
 		viaparinfo->tmds_setting_info->v_active = vres;
-		viaparinfo->tmds_setting_info->bpp = bpp;
-		viaparinfo->tmds_setting_info->refresh_rate =
-			vmode_refresh;
 
 		viaparinfo->lvds_setting_info->h_active = hres;
 		viaparinfo->lvds_setting_info->v_active = vres;
@@ -1975,9 +1828,6 @@ void viafb_update_device_setting(int hres, int vres,
 		if (viaparinfo->tmds_setting_info->iga_path == IGA2) {
 			viaparinfo->tmds_setting_info->h_active = hres;
 			viaparinfo->tmds_setting_info->v_active = vres;
-			viaparinfo->tmds_setting_info->bpp = bpp;
-			viaparinfo->tmds_setting_info->refresh_rate =
-				vmode_refresh;
 		}
 
 		if (viaparinfo->lvds_setting_info->iga_path == IGA2) {
@@ -1997,12 +1847,11 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(struct pci_dev *pdev,
-			       const struct pci_device_id *pdi)
+static void init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
-	viaparinfo->chip_info->gfx_chip_name = pdi->driver_data;
+	viaparinfo->chip_info->gfx_chip_name = chip_type;
 
 	/* Check revision of CLE266 Chip */
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
@@ -2032,6 +1881,21 @@ static void init_gfx_chip_info(struct pci_dev *pdev,
 			viaparinfo->chip_info->gfx_chip_revision =
 				CX700_REVISION_700;
 		}
+	}
+
+	/* Determine which 2D engine we have */
+	switch (viaparinfo->chip_info->gfx_chip_name) {
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_M1;
+		break;
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M900:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H5;
+		break;
+	default:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H2;
+		break;
 	}
 }
 
@@ -2076,9 +1940,8 @@ static void init_tmds_chip_info(void)
 
 	DEBUG_MSG(KERN_INFO "TMDS Chip = %d\n",
 		  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
-	viaparinfo->tmds_setting_info->get_dvi_size_method =
-		GET_DVI_SIZE_BY_VGA_BIOS;
-	viafb_init_dvi_size();
+	viafb_init_dvi_size(&viaparinfo->shared->chip_info.tmds_chip_info,
+		&viaparinfo->shared->tmds_setting_info);
 }
 
 static void init_lvds_chip_info(void)
@@ -2195,28 +2058,19 @@ static void set_display_channel(void)
 	}
 }
 
-int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
-	int vmode_index1, int hor_res1, int ver_res1, int video_bpp1)
+int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
+	struct VideoModeTable *vmode_tbl1, int video_bpp1)
 {
 	int i, j;
 	int port;
 	u8 value, index, mask;
-	struct VideoModeTable *vmode_tbl;
 	struct crt_mode_table *crt_timing;
-	struct VideoModeTable *vmode_tbl1 = NULL;
 	struct crt_mode_table *crt_timing1 = NULL;
 
-	DEBUG_MSG(KERN_INFO "Set Mode!!\n");
-	DEBUG_MSG(KERN_INFO
-		  "vmode_index=%d hor_res=%d ver_res=%d video_bpp=%d\n",
-		  vmode_index, hor_res, ver_res, video_bpp);
-
 	device_screen_off();
-	vmode_tbl = &CLE266Modes[search_mode_setting(vmode_index)];
 	crt_timing = vmode_tbl->crtc;
 
 	if (viafb_SAMM_ON == 1) {
-		vmode_tbl1 = &CLE266Modes[search_mode_setting(vmode_index1)];
 		crt_timing1 = vmode_tbl1->crtc;
 	}
 
@@ -2259,26 +2113,21 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* Fill VPIT Parameters */
 	/* Write Misc Register */
-	outb(VPIT.Misc, VIAWMisc);
+	outb(VPIT.Misc, VIA_MISC_REG_WRITE);
 
 	/* Write Sequencer */
-	for (i = 1; i <= StdSR; i++) {
-		outb(i, VIASR);
-		outb(VPIT.SR[i - 1], VIASR + 1);
-	}
+	for (i = 1; i <= StdSR; i++)
+		via_write_reg(VIASR, i, VPIT.SR[i - 1]);
 
-	viafb_set_primary_address(0);
-	viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
+	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
 	viafb_set_iga_path();
 
 	/* Write CRTC */
-	viafb_fill_crtc_timing(crt_timing, vmode_index, video_bpp / 8, IGA1);
+	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
 
 	/* Write Graphic Controller */
-	for (i = 0; i < StdGR; i++) {
-		outb(i, VIAGR);
-		outb(VPIT.GR[i], VIAGR + 1);
-	}
+	for (i = 0; i < StdGR; i++)
+		via_write_reg(VIAGR, i, VPIT.GR[i]);
 
 	/* Write Attribute Controller */
 	for (i = 0; i < StdAR; i++) {
@@ -2292,65 +2141,25 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* Update Patch Register */
 
-	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-	    || (viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)) {
-		for (i = 0; i < NUM_TOTAL_PATCH_MODE; i++) {
-			if (res_patch_table[i].mode_index == vmode_index) {
-				for (j = 0;
-				     j < res_patch_table[i].table_length; j++) {
-					index =
-					    res_patch_table[i].
-					    io_reg_table[j].index;
-					port =
-					    res_patch_table[i].
-					    io_reg_table[j].port;
-					value =
-					    res_patch_table[i].
-					    io_reg_table[j].value;
-					mask =
-					    res_patch_table[i].
-					    io_reg_table[j].mask;
-					viafb_write_reg_mask(index, port, value,
-						       mask);
-				}
-			}
+	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266
+	    || viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)
+	    && vmode_tbl->crtc[0].crtc.hor_addr == 1024
+	    && vmode_tbl->crtc[0].crtc.ver_addr == 768) {
+		for (j = 0; j < res_patch_table[0].table_length; j++) {
+			index = res_patch_table[0].io_reg_table[j].index;
+			port = res_patch_table[0].io_reg_table[j].port;
+			value = res_patch_table[0].io_reg_table[j].value;
+			mask = res_patch_table[0].io_reg_table[j].mask;
+			viafb_write_reg_mask(index, port, value, mask);
 		}
 	}
 
-	if (viafb_SAMM_ON == 1) {
-		if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-		    || (viaparinfo->chip_info->gfx_chip_name ==
-		    UNICHROME_K400)) {
-			for (i = 0; i < NUM_TOTAL_PATCH_MODE; i++) {
-				if (res_patch_table[i].mode_index ==
-				    vmode_index1) {
-					for (j = 0;
-					     j <
-					     res_patch_table[i].
-					     table_length; j++) {
-						index =
-						    res_patch_table[i].
-						    io_reg_table[j].index;
-						port =
-						    res_patch_table[i].
-						    io_reg_table[j].port;
-						value =
-						    res_patch_table[i].
-						    io_reg_table[j].value;
-						mask =
-						    res_patch_table[i].
-						    io_reg_table[j].mask;
-						viafb_write_reg_mask(index,
-							port, value, mask);
-					}
-				}
-			}
-		}
-	}
-
-	viafb_set_primary_pitch(viafbinfo->fix.line_length);
-	viafb_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
+	via_set_primary_pitch(viafbinfo->fix.line_length);
+	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
+	via_set_primary_color_depth(viaparinfo->depth);
+	via_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
+		: viaparinfo->depth);
 	/* Update Refresh Rate Setting */
 
 	/* Clear On Screen */
@@ -2359,11 +2168,11 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 	if (viafb_CRT_ON) {
 		if (viafb_SAMM_ON && (viaparinfo->crt_setting_info->iga_path ==
 			IGA2)) {
-			viafb_fill_crtc_timing(crt_timing1, vmode_index1,
+			viafb_fill_crtc_timing(crt_timing1, vmode_tbl1,
 				video_bpp1 / 8,
 				viaparinfo->crt_setting_info->iga_path);
 		} else {
-			viafb_fill_crtc_timing(crt_timing, vmode_index,
+			viafb_fill_crtc_timing(crt_timing, vmode_tbl,
 				video_bpp / 8,
 				viaparinfo->crt_setting_info->iga_path);
 		}
@@ -2373,7 +2182,7 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
 		to 8 alignment (1368),there is several pixels (2 pixels)
 		on right side of screen. */
-		if (hor_res % 8) {
+		if (vmode_tbl->crtc[0].crtc.hor_addr % 8) {
 			viafb_unlock_crt();
 			viafb_write_reg(CR02, VIACR,
 				viafb_read_reg(VIACR, CR02) - 1);
@@ -2384,14 +2193,14 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 	if (viafb_DVI_ON) {
 		if (viafb_SAMM_ON &&
 			(viaparinfo->tmds_setting_info->iga_path == IGA2)) {
-			viafb_dvi_set_mode(viafb_get_mode_index
+			viafb_dvi_set_mode(viafb_get_mode
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->tmds_setting_info->
 				      v_active),
 				     video_bpp1, viaparinfo->
 				     tmds_setting_info->iga_path);
 		} else {
-			viafb_dvi_set_mode(viafb_get_mode_index
+			viafb_dvi_set_mode(viafb_get_mode
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->
 				      tmds_setting_info->v_active),
@@ -2445,8 +2254,8 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* If set mode normally, save resolution information for hot-plug . */
 	if (!viafb_hotplug) {
-		viafb_hotplug_Xres = hor_res;
-		viafb_hotplug_Yres = ver_res;
+		viafb_hotplug_Xres = vmode_tbl->crtc[0].crtc.hor_addr;
+		viafb_hotplug_Yres = vmode_tbl->crtc[0].crtc.ver_addr;
 		viafb_hotplug_bpp = video_bpp;
 		viafb_hotplug_refresh = viafb_refresh;
 
@@ -2541,108 +2350,6 @@ static void disable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
 
-int viafb_get_fb_size_from_pci(void)
-{
-	unsigned long configid, deviceid, FBSize = 0;
-	int VideoMemSize;
-	int DeviceFound = false;
-
-	for (configid = 0x80000000; configid < 0x80010800; configid += 0x100) {
-		outl(configid, (unsigned long)0xCF8);
-		deviceid = (inl((unsigned long)0xCFC) >> 16) & 0xffff;
-
-		switch (deviceid) {
-		case CLE266:
-		case KM400:
-			outl(configid + 0xE0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		case CN400_FUNCTION3:
-		case CN700_FUNCTION3:
-		case CX700_FUNCTION3:
-		case KM800_FUNCTION3:
-		case KM890_FUNCTION3:
-		case P4M890_FUNCTION3:
-		case P4M900_FUNCTION3:
-		case VX800_FUNCTION3:
-		case VX855_FUNCTION3:
-			/*case CN750_FUNCTION3: */
-			outl(configid + 0xA0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		default:
-			break;
-		}
-
-		if (DeviceFound)
-			break;
-	}
-
-	DEBUG_MSG(KERN_INFO "Device ID = %lx\n", deviceid);
-
-	FBSize = FBSize & 0x00007000;
-	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
-
-	if (viaparinfo->chip_info->gfx_chip_name < UNICHROME_CX700) {
-		switch (FBSize) {
-		case 0x00004000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	} else {
-		switch (FBSize) {
-		case 0x00001000:
-			VideoMemSize = (8 << 20);	/*8M */
-			break;
-
-		case 0x00002000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00003000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00004000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (128 << 20);	/*128M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (256 << 20);	/*256M */
-			break;
-
-		case 0x00007000:	/* Only on VX855/875 */
-			VideoMemSize = (512 << 20);	/*512M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	}
-
-	return VideoMemSize;
-}
 
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting)
@@ -2706,13 +2413,11 @@ void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 
 /*According var's xres, yres fill var's other timing information*/
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
-			  int mode_index)
+	struct VideoModeTable *vmode_tbl)
 {
-	struct VideoModeTable *vmode_tbl = NULL;
 	struct crt_mode_table *crt_timing = NULL;
 	struct display_timing crt_reg;
 	int i = 0, index = 0;
-	vmode_tbl = &CLE266Modes[search_mode_setting(mode_index)];
 	crt_timing = vmode_tbl->crtc;
 	for (i = 0; i < vmode_tbl->mode_array; i++) {
 		index = i;
@@ -2721,36 +2426,6 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	}
 
 	crt_reg = crt_timing[index].crtc;
-	switch (var->bits_per_pixel) {
-	case 8:
-		var->red.offset = 0;
-		var->green.offset = 0;
-		var->blue.offset = 0;
-		var->red.length = 6;
-		var->green.length = 6;
-		var->blue.length = 6;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->green.offset = 5;
-		var->blue.offset = 0;
-		var->red.length = 5;
-		var->green.length = 6;
-		var->blue.length = 5;
-		break;
-	case 32:
-		var->red.offset = 16;
-		var->green.offset = 8;
-		var->blue.offset = 0;
-		var->red.length = 8;
-		var->green.length = 8;
-		var->blue.length = 8;
-		break;
-	default:
-		/* never happed, put here to keep consistent */
-		break;
-	}
-
 	var->pixclock = viafb_get_pixclock(var->xres, var->yres, refresh);
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);

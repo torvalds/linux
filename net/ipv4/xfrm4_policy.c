@@ -59,27 +59,6 @@ static int xfrm4_get_saddr(struct net *net,
 	return 0;
 }
 
-static struct dst_entry *
-__xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
-{
-	struct dst_entry *dst;
-
-	read_lock_bh(&policy->lock);
-	for (dst = policy->bundles; dst; dst = dst->next) {
-		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
-		if (xdst->u.rt.fl.oif == fl->oif &&	/*XXX*/
-		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
-		    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
-		    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
-		    xfrm_bundle_ok(policy, xdst, fl, AF_INET, 0)) {
-			dst_clone(dst);
-			break;
-		}
-	}
-	read_unlock_bh(&policy->lock);
-	return dst;
-}
-
 static int xfrm4_get_tos(struct flowi *fl)
 {
 	return fl->fl4_tos;
@@ -91,11 +70,12 @@ static int xfrm4_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 	return 0;
 }
 
-static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
+			  struct flowi *fl)
 {
 	struct rtable *rt = (struct rtable *)xdst->route;
 
-	xdst->u.rt.fl = rt->fl;
+	xdst->u.rt.fl = *fl;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
@@ -128,6 +108,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
+	fl->mark = skb->mark;
+
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
@@ -258,7 +240,6 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.dst_ops =		&xfrm4_dst_ops,
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
-	.find_bundle = 		__xfrm4_find_bundle,
 	.decode_session =	_decode_session4,
 	.get_tos =		xfrm4_get_tos,
 	.init_path =		xfrm4_init_path,

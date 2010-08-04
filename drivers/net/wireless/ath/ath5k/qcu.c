@@ -408,12 +408,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			break;
 
 		case AR5K_TX_QUEUE_CAB:
+			/* XXX: use BCN_SENT_GT, if we can figure out how */
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
-				AR5K_QCU_MISC_FRSHED_BCN_SENT_GT |
+				AR5K_QCU_MISC_FRSHED_DBA_GT |
 				AR5K_QCU_MISC_CBREXP_DIS |
 				AR5K_QCU_MISC_CBREXP_BCN_DIS);
 
-			ath5k_hw_reg_write(ah, ((AR5K_TUNE_BEACON_INTERVAL -
+			ath5k_hw_reg_write(ah, ((tq->tqi_ready_time -
 				(AR5K_TUNE_SW_BEACON_RESP -
 				AR5K_TUNE_DMA_BEACON_RESP) -
 				AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF) * 1024) |
@@ -516,32 +517,21 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 }
 
 /*
- * Get slot time from DCU
- */
-unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	if (ah->ah_version == AR5K_AR5210)
-		return ath5k_hw_clocktoh(ath5k_hw_reg_read(ah,
-				AR5K_SLOT_TIME) & 0xffff, ah->ah_turbo);
-	else
-		return ath5k_hw_reg_read(ah, AR5K_DCU_GBL_IFS_SLOT) & 0xffff;
-}
-
-/*
  * Set slot time on DCU
  */
 int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time)
 {
+	u32 slot_time_clock = ath5k_hw_htoclock(ah, slot_time);
+
 	ATH5K_TRACE(ah->ah_sc);
-	if (slot_time < AR5K_SLOT_TIME_9 || slot_time > AR5K_SLOT_TIME_MAX)
+
+	if (slot_time < 6 || slot_time_clock > AR5K_SLOT_TIME_MAX)
 		return -EINVAL;
 
 	if (ah->ah_version == AR5K_AR5210)
-		ath5k_hw_reg_write(ah, ath5k_hw_htoclock(slot_time,
-				ah->ah_turbo), AR5K_SLOT_TIME);
+		ath5k_hw_reg_write(ah, slot_time_clock, AR5K_SLOT_TIME);
 	else
-		ath5k_hw_reg_write(ah, slot_time, AR5K_DCU_GBL_IFS_SLOT);
+		ath5k_hw_reg_write(ah, slot_time_clock, AR5K_DCU_GBL_IFS_SLOT);
 
 	return 0;
 }

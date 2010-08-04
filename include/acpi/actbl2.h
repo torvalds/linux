@@ -1,3 +1,46 @@
+/******************************************************************************
+ *
+ * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
+ *
+ *****************************************************************************/
+
+/*
+ * Copyright (C) 2000 - 2010, Intel Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
+ *
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
+
 #ifndef __ACTBL2_H__
 #define __ACTBL2_H__
 
@@ -26,6 +69,7 @@
 #define ACPI_SIG_IBFT           "IBFT"	/* i_sCSI Boot Firmware Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_MCFG           "MCFG"	/* PCI Memory Mapped Configuration table */
+#define ACPI_SIG_MCHI           "MCHI"	/* Management Controller Host Interface table */
 #define ACPI_SIG_SLIC           "SLIC"	/* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"	/* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"	/* Server Platform Management Interface table */
@@ -632,6 +676,32 @@ struct acpi_mcfg_allocation {
 	u8 start_bus_number;	/* Starting PCI Bus number */
 	u8 end_bus_number;	/* Final PCI Bus number */
 	u32 reserved;
+};
+
+/*******************************************************************************
+ *
+ * MCHI - Management Controller Host Interface Table
+ *        Version 1
+ *
+ * Conforms to "Management Component Transport Protocol (MCTP) Host
+ * Interface Specification", Revision 1.0.0a, October 13, 2009
+ *
+ ******************************************************************************/
+
+struct acpi_table_mchi {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 interface_type;
+	u8 protocol;
+	u64 protocol_data;
+	u8 interrupt_type;
+	u8 gpe;
+	u8 pci_device_flag;
+	u32 global_interrupt;
+	struct acpi_generic_address control_register;
+	u8 pci_segment;
+	u8 pci_bus;
+	u8 pci_device;
+	u8 pci_function;
 };
 
 /*******************************************************************************

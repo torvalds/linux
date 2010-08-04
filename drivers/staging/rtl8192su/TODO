@@ -4,7 +4,6 @@ TODO:
   - cleanup ieee80211.h
   - move rtl8192su's specific code out from ieee80211.h
   - abstract rtl819su's specific code
-  - use list_for_each_safe() in ieee80211_crypto_deinit
 - switch to use shared "librtl" instead of private ieee80211 stack
 - switch to use LIB80211
 - switch to use MAC80211

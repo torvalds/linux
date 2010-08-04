@@ -19,6 +19,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include "cifs_unicode.h"
 #include "cifs_uniupr.h"
 #include "cifspdu.h"
@@ -199,9 +200,8 @@ cifs_strtoUCS(__le16 *to, const char *from, int len,
 		/* works for 2.4.0 kernel or later */
 		charlen = codepage->char2uni(from, len, &wchar_to[i]);
 		if (charlen < 1) {
-			cERROR(1,
-			       ("strtoUCS: char2uni of %d returned %d",
-				(int)*from, charlen));
+			cERROR(1, "strtoUCS: char2uni of %d returned %d",
+				(int)*from, charlen);
 			/* A question mark */
 			to[i] = cpu_to_le16(0x003f);
 			charlen = 1;

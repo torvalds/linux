@@ -349,7 +349,7 @@ static int __init pxa25x_init(void)
 
 		reset_status = RCSR;
 
-		clks_register(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
+		clkdev_add_table(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
 
 		if ((ret = pxa_init_dma(IRQ_DMA, 16)))
 			return ret;
@@ -370,7 +370,7 @@ static int __init pxa25x_init(void)
 
 	/* Only add HWUART for PXA255/26x; PXA210/250 do not have it. */
 	if (cpu_is_pxa255())
-		clks_register(&pxa25x_hwuart_clkreg, 1);
+		clkdev_add(&pxa25x_hwuart_clkreg);
 
 	return ret;
 }

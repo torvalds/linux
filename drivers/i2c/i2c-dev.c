@@ -35,7 +35,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/jiffies.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static struct i2c_driver i2cdev_driver;
 
@@ -132,45 +132,45 @@ static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
  * needed by those system calls and by this SMBus interface.
  */
 
-static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
-                            loff_t *offset)
+static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
+		loff_t *offset)
 {
 	char *tmp;
 	int ret;
 
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
 
-	tmp = kmalloc(count,GFP_KERNEL);
-	if (tmp==NULL)
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (tmp == NULL)
 		return -ENOMEM;
 
 	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
-	ret = i2c_master_recv(client,tmp,count);
+	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
-		ret = copy_to_user(buf,tmp,count)?-EFAULT:ret;
+		ret = copy_to_user(buf, tmp, count) ? -EFAULT : ret;
 	kfree(tmp);
 	return ret;
 }
 
-static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t count,
-                             loff_t *offset)
+static ssize_t i2cdev_write(struct file *file, const char __user *buf,
+		size_t count, loff_t *offset)
 {
 	int ret;
 	char *tmp;
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
 
-	tmp = kmalloc(count,GFP_KERNEL);
-	if (tmp==NULL)
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (tmp == NULL)
 		return -ENOMEM;
-	if (copy_from_user(tmp,buf,count)) {
+	if (copy_from_user(tmp, buf, count)) {
 		kfree(tmp);
 		return -EFAULT;
 	}
@@ -178,7 +178,7 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
-	ret = i2c_master_send(client,tmp,count);
+	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);
 	return ret;
 }
@@ -369,13 +369,13 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 
 static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 	unsigned long funcs;
 
 	dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
 		cmd, arg);
 
-	switch ( cmd ) {
+	switch (cmd) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
 		/* NOTE:  devices set up to work with "new style" drivers
@@ -601,7 +601,7 @@ static void __exit i2c_dev_exit(void)
 {
 	i2c_del_driver(&i2cdev_driver);
 	class_destroy(i2c_dev_class);
-	unregister_chrdev(I2C_MAJOR,"i2c");
+	unregister_chrdev(I2C_MAJOR, "i2c");
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "

@@ -26,11 +26,6 @@
 
 /* On UML we call it this way ("old" means it's not mmap2) */
 #define sys_mmap old_mmap
-/*
- * On x86-64 sys_uname is actually sys_newuname plus a compatibility trick.
- * See arch/x86_64/kernel/sys_x86_64.c
- */
-#define sys_uname sys_uname64
 
 #define stub_clone sys_clone
 #define stub_fork sys_fork

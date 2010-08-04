@@ -74,6 +74,7 @@ struct saa711x_state {
 	int contrast;
 	int hue;
 	int sat;
+	int chroma_agc;
 	int width;
 	int height;
 	u32 ident;
@@ -104,6 +105,10 @@ static int saa711x_has_reg(const int id, const u8 reg)
 	if (id == V4L2_IDENT_SAA7111)
 		return reg < 0x20 && reg != 0x01 && reg != 0x0f &&
 		       (reg < 0x13 || reg > 0x19) && reg != 0x1d && reg != 0x1e;
+	if (id == V4L2_IDENT_SAA7111A)
+		return reg < 0x20 && reg != 0x01 && reg != 0x0f &&
+		       reg != 0x14 && reg != 0x18 && reg != 0x19 &&
+		       reg != 0x1d && reg != 0x1e;
 
 	/* common for saa7113/4/5/8 */
 	if (unlikely((reg >= 0x3b && reg <= 0x3f) || reg == 0x5c || reg == 0x5f ||
@@ -588,7 +593,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_5D_DID, 0xbd,
 	R_5E_SDID, 0x35,
 
-	R_02_INPUT_CNTL_1, 0x84,		/* input tuner -> input 4, amplifier active */
+	R_02_INPUT_CNTL_1, 0xc4, /* input tuner -> input 4, amplifier active */
 
 	R_80_GLOBAL_CNTL_1, 0x20,		/* enable task B */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,
@@ -739,6 +744,7 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct saa711x_state *state = to_state(sd);
+	u8 val;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -780,7 +786,21 @@ static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		state->hue = ctrl->value;
 		saa711x_write(sd, R_0D_CHROMA_HUE_CNTL, state->hue);
 		break;
-
+	case V4L2_CID_CHROMA_AGC:
+		val = saa711x_read(sd, R_0F_CHROMA_GAIN_CNTL);
+		state->chroma_agc = ctrl->value;
+		if (ctrl->value)
+			val &= 0x7f;
+		else
+			val |= 0x80;
+		saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, val);
+		break;
+	case V4L2_CID_CHROMA_GAIN:
+		/* Chroma gain cannot be set when AGC is enabled */
+		if (state->chroma_agc == 1)
+			return -EINVAL;
+		saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, ctrl->value | 0x80);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -804,6 +824,12 @@ static int saa711x_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_HUE:
 		ctrl->value = state->hue;
+		break;
+	case V4L2_CID_CHROMA_AGC:
+		ctrl->value = state->chroma_agc;
+		break;
+	case V4L2_CID_CHROMA_GAIN:
+		ctrl->value = saa711x_read(sd, R_0F_CHROMA_GAIN_CNTL) & 0x7f;
 		break;
 	default:
 		return -EINVAL;
@@ -954,8 +980,7 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
-	if (state->ident == V4L2_IDENT_SAA7111 ||
-	    state->ident == V4L2_IDENT_SAA7113) {
+	if (state->ident <= V4L2_IDENT_SAA7113) {
 		u8 reg = saa711x_read(sd, R_0E_CHROMA_CNTL_1) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
@@ -1066,7 +1091,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 				saa7115_cfg_vbi_off);
 }
 
-static int saa711x_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int saa711x_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *sliced)
 {
 	static u16 lcr2vbi[] = {
 		0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
@@ -1075,11 +1100,8 @@ static int saa711x_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		V4L2_SLICED_VPS, 0, 0, 0, 0,	/* 7 */
 		0, 0, 0, 0
 	};
-	struct v4l2_sliced_vbi_format *sliced = &fmt->fmt.sliced;
 	int i;
 
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
 	memset(sliced, 0, sizeof(*sliced));
 	/* done if using raw VBI */
 	if (saa711x_read(sd, R_80_GLOBAL_CNTL_1) & 0x10)
@@ -1095,20 +1117,25 @@ static int saa711x_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	return 0;
 }
 
-static int saa711x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int saa711x_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt)
 {
-	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
-		saa711x_set_lcr(sd, &fmt->fmt.sliced);
-		return 0;
-	}
-	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		saa711x_set_lcr(sd, NULL);
-		return 0;
-	}
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
+	saa711x_set_lcr(sd, NULL);
+	return 0;
+}
 
-	return saa711x_set_size(sd, fmt->fmt.pix.width, fmt->fmt.pix.height);
+static int saa711x_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt)
+{
+	saa711x_set_lcr(sd, fmt);
+	return 0;
+}
+
+static int saa711x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+{
+	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+		return -EINVAL;
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	return saa711x_set_size(sd, fmt->width, fmt->height);
 }
 
 /* Decode the sliced VBI data stream as created by the saa7115.
@@ -1206,6 +1233,10 @@ static int saa711x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
 		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
+	case V4L2_CID_CHROMA_AGC:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+	case V4L2_CID_CHROMA_GAIN:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 48);
 	default:
 		return -EINVAL;
 	}
@@ -1232,21 +1263,18 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 			     u32 input, u32 output, u32 config)
 {
 	struct saa711x_state *state = to_state(sd);
-	u8 mask = (state->ident == V4L2_IDENT_SAA7111) ? 0xf8 : 0xf0;
+	u8 mask = (state->ident <= V4L2_IDENT_SAA7111A) ? 0xf8 : 0xf0;
 
 	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
 		input, output);
 
 	/* saa7111/3 does not have these inputs */
-	if ((state->ident == V4L2_IDENT_SAA7113 ||
-	     state->ident == V4L2_IDENT_SAA7111) &&
+	if (state->ident <= V4L2_IDENT_SAA7113 &&
 	    (input == SAA7115_COMPOSITE4 ||
 	     input == SAA7115_COMPOSITE5)) {
 		return -EINVAL;
 	}
 	if (input > SAA7115_SVIDEO3)
-		return -EINVAL;
-	if (output > SAA7115_IPORT_ON)
 		return -EINVAL;
 	if (state->input == input && state->output == output)
 		return 0;
@@ -1256,7 +1284,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 	state->input = input;
 
 	/* saa7111 has slightly different input numbering */
-	if (state->ident == V4L2_IDENT_SAA7111) {
+	if (state->ident <= V4L2_IDENT_SAA7111A) {
 		if (input >= SAA7115_COMPOSITE4)
 			input -= 2;
 		/* saa7111 specific */
@@ -1292,7 +1320,7 @@ static int saa711x_s_gpio(struct v4l2_subdev *sd, u32 val)
 {
 	struct saa711x_state *state = to_state(sd);
 
-	if (state->ident != V4L2_IDENT_SAA7111)
+	if (state->ident > V4L2_IDENT_SAA7111A)
 		return -EINVAL;
 	saa711x_write(sd, 0x11, (saa711x_read(sd, 0x11) & 0x7f) |
 		(val ? 0x80 : 0));
@@ -1522,13 +1550,18 @@ static const struct v4l2_subdev_audio_ops saa711x_audio_ops = {
 static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.s_routing = saa711x_s_routing,
 	.s_crystal_freq = saa711x_s_crystal_freq,
-	.g_fmt = saa711x_g_fmt,
-	.s_fmt = saa711x_s_fmt,
-	.g_vbi_data = saa711x_g_vbi_data,
-	.decode_vbi_line = saa711x_decode_vbi_line,
+	.s_mbus_fmt = saa711x_s_mbus_fmt,
 	.s_stream = saa711x_s_stream,
 	.querystd = saa711x_querystd,
 	.g_input_status = saa711x_g_input_status,
+};
+
+static const struct v4l2_subdev_vbi_ops saa711x_vbi_ops = {
+	.g_vbi_data = saa711x_g_vbi_data,
+	.decode_vbi_line = saa711x_decode_vbi_line,
+	.g_sliced_fmt = saa711x_g_sliced_fmt,
+	.s_sliced_fmt = saa711x_s_sliced_fmt,
+	.s_raw_fmt = saa711x_s_raw_fmt,
 };
 
 static const struct v4l2_subdev_ops saa711x_ops = {
@@ -1536,6 +1569,7 @@ static const struct v4l2_subdev_ops saa711x_ops = {
 	.tuner = &saa711x_tuner_ops,
 	.audio = &saa711x_audio_ops,
 	.video = &saa711x_video_ops,
+	.vbi = &saa711x_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1593,9 +1627,14 @@ static int saa711x_probe(struct i2c_client *client,
 	state->contrast = 64;
 	state->hue = 0;
 	state->sat = 64;
+	state->chroma_agc = 1;
 	switch (chip_id) {
 	case '1':
 		state->ident = V4L2_IDENT_SAA7111;
+		if (saa711x_read(sd, R_00_CHIP_VERSION) & 0xf0) {
+			v4l_info(client, "saa7111a variant found\n");
+			state->ident = V4L2_IDENT_SAA7111A;
+		}
 		break;
 	case '3':
 		state->ident = V4L2_IDENT_SAA7113;
@@ -1612,7 +1651,7 @@ static int saa711x_probe(struct i2c_client *client,
 	default:
 		state->ident = V4L2_IDENT_SAA7111;
 		v4l2_info(sd, "WARNING: Chip is not known - Falling back to saa7111\n");
-
+		break;
 	}
 
 	state->audclk_freq = 48000;
@@ -1623,6 +1662,7 @@ static int saa711x_probe(struct i2c_client *client,
 	state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
 	switch (state->ident) {
 	case V4L2_IDENT_SAA7111:
+	case V4L2_IDENT_SAA7111A:
 		saa711x_writeregs(sd, saa7111_init);
 		break;
 	case V4L2_IDENT_SAA7113:
@@ -1632,7 +1672,7 @@ static int saa711x_probe(struct i2c_client *client,
 		state->crystal_freq = SAA7115_FREQ_32_11_MHZ;
 		saa711x_writeregs(sd, saa7115_init_auto_input);
 	}
-	if (state->ident != V4L2_IDENT_SAA7111)
+	if (state->ident > V4L2_IDENT_SAA7111A)
 		saa711x_writeregs(sd, saa7115_init_misc);
 	saa711x_set_v4lstd(sd, V4L2_STD_NTSC);
 

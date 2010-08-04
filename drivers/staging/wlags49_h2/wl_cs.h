@@ -84,10 +84,6 @@ int wl_adapter_close(struct net_device *dev);
 
 int wl_adapter_is_open(struct net_device *dev);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-void cs_error(client_handle_t handle, int func, int ret);
-#endif
-
 const char *DbgEvent( int mask );
 
 
