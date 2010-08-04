@@ -152,10 +152,12 @@ static struct resource omap2_mbox_resources[] = {
 	{
 		.start		= INT_24XX_MAIL_U0_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "dsp",
 	},
 	{
 		.start		= INT_24XX_MAIL_U3_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "iva",
 	},
 };
 static int omap2_mbox_resources_sz = ARRAY_SIZE(omap2_mbox_resources);
@@ -174,6 +176,7 @@ static struct resource omap3_mbox_resources[] = {
 	{
 		.start		= INT_24XX_MAIL_U0_MPU,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "dsp",
 	},
 };
 static int omap3_mbox_resources_sz = ARRAY_SIZE(omap3_mbox_resources);
@@ -195,6 +198,7 @@ static struct resource omap4_mbox_resources[] = {
 	{
 		.start          = OMAP44XX_IRQ_MAIL_U0,
 		.flags          = IORESOURCE_IRQ,
+		.name		= "mbox",
 	},
 };
 static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
@@ -204,7 +208,7 @@ static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
 #endif
 
 static struct platform_device mbox_device = {
-	.name		= "omap2-mailbox",
+	.name		= "omap-mailbox",
 	.id		= -1,
 };
 
