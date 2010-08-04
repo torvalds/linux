@@ -373,47 +373,53 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 		(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s *bfad = im_port->bfad;
 	struct bfa_port_cfg_s port_cfg;
+	struct bfad_pcfg_s *pcfg;
 	int status = 0, rc;
 	unsigned long flags;
 
 	memset(&port_cfg, 0, sizeof(port_cfg));
-
-	port_cfg.pwwn = wwn_to_u64((u8 *) &fc_vport->port_name);
-	port_cfg.nwwn = wwn_to_u64((u8 *) &fc_vport->node_name);
-
+	u64_to_wwn(fc_vport->node_name, (u8 *)&port_cfg.nwwn);
+	u64_to_wwn(fc_vport->port_name, (u8 *)&port_cfg.pwwn);
 	if (strlen(vname) > 0)
 		strcpy((char *)&port_cfg.sym_name, vname);
-
 	port_cfg.roles = BFA_PORT_ROLE_FCP_IM;
-	rc = bfad_vport_create(bfad, 0, &port_cfg, &fc_vport->dev);
 
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	list_for_each_entry(pcfg, &bfad->pbc_pcfg_list, list_entry) {
+		if (port_cfg.pwwn == pcfg->port_cfg.pwwn) {
+			port_cfg.preboot_vp = pcfg->port_cfg.preboot_vp;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	rc = bfad_vport_create(bfad, 0, &port_cfg, &fc_vport->dev);
 	if (rc == BFA_STATUS_OK) {
-		struct bfad_vport_s   *vport;
+		struct bfad_vport_s *vport;
 		struct bfa_fcs_vport_s *fcs_vport;
 		struct Scsi_Host *vshost;
 
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
 		fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0,
 					port_cfg.pwwn);
-		if (fcs_vport == NULL) {
-			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		if (fcs_vport == NULL)
 			return VPCERR_BAD_WWN;
-		}
 
 		fc_vport_set_state(fc_vport, FC_VPORT_ACTIVE);
 		if (disable) {
+			spin_lock_irqsave(&bfad->bfad_lock, flags);
 			bfa_fcs_vport_stop(fcs_vport);
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 			fc_vport_set_state(fc_vport, FC_VPORT_DISABLED);
 		}
-		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 		vport = fcs_vport->vport_drv;
 		vshost = vport->drv_port.im_port->shost;
-		fc_host_node_name(vshost) = wwn_to_u64((u8 *) &port_cfg.nwwn);
-		fc_host_port_name(vshost) = wwn_to_u64((u8 *) &port_cfg.pwwn);
+		fc_host_node_name(vshost) = wwn_to_u64((u8 *)&port_cfg.nwwn);
+		fc_host_port_name(vshost) = wwn_to_u64((u8 *)&port_cfg.pwwn);
 		fc_vport->dd_data = vport;
 		vport->drv_port.im_port->fc_vport = fc_vport;
-
 	} else if (rc == BFA_STATUS_INVALID_WWN)
 		return VPCERR_BAD_WWN;
 	else if (rc == BFA_STATUS_VPORT_EXISTS)
@@ -422,7 +428,7 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 		return VPCERR_NO_FABRIC_SUPP;
 	else if (rc == BFA_STATUS_VPORT_WWN_BP)
 		return VPCERR_BAD_WWN;
-	 else
+	else
 		return FC_VPORT_FAILED;
 
 	return status;
@@ -449,7 +455,7 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	port = im_port->port;
 
 	vshost = vport->drv_port.im_port->shost;
-	pwwn = wwn_to_u64((u8 *) &fc_host_port_name(vshost));
+	u64_to_wwn(fc_host_port_name(vshost), (u8 *)&pwwn);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0, pwwn);
@@ -466,6 +472,12 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	rc = bfa_fcs_vport_delete(&vport->fcs_vport);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (rc == BFA_STATUS_PBC) {
+		vport->drv_port.flags &= ~BFAD_PORT_DELETE;
+		vport->comp_del = NULL;
+		return -1;
+	}
 
 	wait_for_completion(vport->comp_del);
 
@@ -490,7 +502,7 @@ bfad_im_vport_disable(struct fc_vport *fc_vport, bool disable)
 	vport = (struct bfad_vport_s *)fc_vport->dd_data;
 	bfad = vport->drv_port.bfad;
 	vshost = vport->drv_port.im_port->shost;
-	pwwn = wwn_to_u64((u8 *) &fc_vport->port_name);
+	u64_to_wwn(fc_host_port_name(vshost), (u8 *)&pwwn);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0, pwwn);

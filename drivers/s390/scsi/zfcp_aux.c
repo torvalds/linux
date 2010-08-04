@@ -98,12 +98,10 @@ static void __init zfcp_init_device_setup(char *devstr)
 	u64 wwpn, lun;
 
 	/* duplicate devstr and keep the original for sysfs presentation*/
-	str_saved = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str_saved = kstrdup(devstr, GFP_KERNEL);
 	str = str_saved;
 	if (!str)
 		return;
-
-	strcpy(str, devstr);
 
 	token = strsep(&str, ",");
 	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
@@ -314,7 +312,7 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	}
 	retval = -EINVAL;
 
-	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
+	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan_work);
 
 	spin_lock_init(&unit->latencies.lock);
 	unit->latencies.write.channel.min = 0xFFFFFFFF;
@@ -525,6 +523,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	rwlock_init(&adapter->port_list_lock);
 	INIT_LIST_HEAD(&adapter->port_list);
+
+	INIT_LIST_HEAD(&adapter->events.list);
+	INIT_WORK(&adapter->events.work, zfcp_fc_post_event);
+	spin_lock_init(&adapter->events.list_lock);
 
 	init_waitqueue_head(&adapter->erp_ready_wq);
 	init_waitqueue_head(&adapter->erp_done_wqh);

@@ -42,6 +42,24 @@ u16	bfa_fcpim_qdepth_get(struct bfa_s *bfa);
 bfa_status_t bfa_fcpim_get_modstats(struct bfa_s *bfa,
 			struct bfa_fcpim_stats_s *modstats);
 bfa_status_t bfa_fcpim_clr_modstats(struct bfa_s *bfa);
+void bfa_fcpim_set_ioredirect(struct bfa_s *bfa, bfa_boolean_t state);
+void bfa_fcpim_update_ioredirect(struct bfa_s *bfa);
+void bfa_cb_ioredirect_state_change(void *hcb_bfad, bfa_boolean_t ioredirect);
+
+#define bfa_fcpim_ioredirect_enabled(__bfa)                             \
+	(((struct bfa_fcpim_mod_s *)(BFA_FCPIM_MOD(__bfa)))->ioredirect)
+
+#define bfa_fcpim_get_next_reqq(__bfa, __qid)                           \
+{                                                                       \
+	struct bfa_fcpim_mod_s *__fcpim = BFA_FCPIM_MOD(__bfa);         \
+	__fcpim->reqq++;                                                \
+	__fcpim->reqq &= (BFI_IOC_MAX_CQS - 1);                          \
+	*(__qid) = __fcpim->reqq;                                       \
+}
+
+#define bfa_iocfc_map_msg_to_qid(__msg, __qid)                          \
+	*(__qid) = (u8)((__msg) & (BFI_IOC_MAX_CQS - 1));
+
 
 /*
  * bfa itnim API functions
@@ -56,6 +74,7 @@ void		bfa_itnim_get_stats(struct bfa_itnim_s *itnim,
 			struct bfa_itnim_hal_stats_s *stats);
 void		bfa_itnim_clear_stats(struct bfa_itnim_s *itnim);
 
+#define bfa_itnim_get_reqq(__ioim) (((struct bfa_ioim_s *)__ioim)->itnim->reqq)
 
 /**
  * 		BFA completion callback for bfa_itnim_online().
@@ -156,4 +175,3 @@ void		bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 				  enum bfi_tskim_status tsk_status);
 
 #endif /* __BFA_FCPIM_H__ */
-

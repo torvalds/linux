@@ -377,6 +377,11 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 
 	if (rc == IOCB_SUCCESS)
 		return 0; /* done for now */
+	else if (rc == IOCB_BUSY)
+		rc = EAGAIN;
+	else
+		rc = EIO;
+
 
 	/* iocb failed so cleanup */
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
@@ -625,6 +630,10 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	lpfc_nlp_put(ndlp);
 	if (rc == IOCB_SUCCESS)
 		return 0; /* done for now */
+	else if (rc == IOCB_BUSY)
+		rc = EAGAIN;
+	else
+		rc = EIO;
 
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
 		     job->request_payload.sg_cnt, DMA_TO_DEVICE);
@@ -953,10 +962,22 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			evt_dat->immed_dat = phba->ctx_idx;
 			phba->ctx_idx = (phba->ctx_idx + 1) % 64;
+			/* Provide warning for over-run of the ct_ctx array */
+			if (phba->ct_ctx[evt_dat->immed_dat].flags &
+			    UNSOL_VALID)
+				lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
+						"2717 CT context array entry "
+						"[%d] over-run: oxid:x%x, "
+						"sid:x%x\n", phba->ctx_idx,
+						phba->ct_ctx[
+						    evt_dat->immed_dat].oxid,
+						phba->ct_ctx[
+						    evt_dat->immed_dat].SID);
 			phba->ct_ctx[evt_dat->immed_dat].oxid =
 						piocbq->iocb.ulpContext;
 			phba->ct_ctx[evt_dat->immed_dat].SID =
 				piocbq->iocb.un.rcvels.remoteID;
+			phba->ct_ctx[evt_dat->immed_dat].flags = UNSOL_VALID;
 		} else
 			evt_dat->immed_dat = piocbq->iocb.ulpContext;
 
@@ -1314,6 +1335,21 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}
+
+		/* Check if the ndlp is active */
+		if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+			rc = -IOCB_ERROR;
+			goto issue_ct_rsp_exit;
+		}
+
+		/* get a refernece count so the ndlp doesn't go away while
+		 * we respond
+		 */
+		if (!lpfc_nlp_get(ndlp)) {
+			rc = -IOCB_ERROR;
+			goto issue_ct_rsp_exit;
+		}
+
 		icmd->un.ulpWord[3] = ndlp->nlp_rpi;
 		/* The exchange is done, mark the entry as invalid */
 		phba->ct_ctx[tag].flags &= ~UNSOL_VALID;
