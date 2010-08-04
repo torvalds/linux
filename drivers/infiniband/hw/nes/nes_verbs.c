@@ -2112,13 +2112,12 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	u32 driver_key = 0;
 	u32 root_pbl_index = 0;
 	u32 cur_pbl_index = 0;
-	int err = 0, pbl_depth = 0;
+	int err = 0;
 	int ret = 0;
 	u16 pbl_count = 0;
 	u8 single_page = 1;
 	u8 stag_key = 0;
 
-	pbl_depth = 0;
 	region_length = 0;
 	vpbl.pbl_vbase = NULL;
 	root_vpbl.pbl_vbase = NULL;
@@ -2931,7 +2930,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int ret;
 	u16 original_last_aeq;
 	u8 issue_modify_qp = 0;
-	u8 issue_disconnect = 0;
 	u8 dont_wait = 0;
 
 	nes_debug(NES_DBG_MOD_QP, "QP%u: QP State=%u, cur QP State=%u,"
@@ -3083,7 +3081,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
 			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
 					nesqp->iwarp_state);
-			issue_disconnect = 1;
 		} else {
 			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
 			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",

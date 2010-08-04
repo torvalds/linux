@@ -2999,11 +2999,8 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 
 static u8 *locate_mpa(u8 *pkt, u32 aeq_info)
 {
-	u16 pkt_len;
-
 	if (aeq_info & NES_AEQE_Q2_DATA_ETHERNET) {
 		/* skip over ethernet header */
-		pkt_len = be16_to_cpu(*(u16 *)(pkt + ETH_HLEN - 2));
 		pkt += ETH_HLEN;
 
 		/* Skip over IP and TCP headers */
