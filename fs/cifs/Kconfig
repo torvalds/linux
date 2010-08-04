@@ -71,14 +71,14 @@ config CIFS_WEAK_PW_HASH
 	  If unsure, say N.
 
 config CIFS_UPCALL
-	  bool "Kerberos/SPNEGO advanced session setup"
-	  depends on CIFS && KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which accesses
-	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
-	    Kerberos tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required). If
-	    unsure, say N.
+	bool "Kerberos/SPNEGO advanced session setup"
+	depends on CIFS && KEYS
+	select DNS_RESOLVER
+	help
+	  Enables an upcall mechanism for CIFS which accesses userspace helper
+	  utilities to provide SPNEGO packaged (RFC 4178) Kerberos tickets
+	  which are needed to mount to certain secure servers (for which more
+	  secure Kerberos authentication is required). If unsure, say N.
 
 config CIFS_XATTR
         bool "CIFS extended attributes"
@@ -122,6 +122,7 @@ config CIFS_DEBUG2
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support"
 	  depends on CIFS && KEYS
+	  select DNS_RESOLVER
 	  help
 	    Distributed File System (DFS) support is used to access shares
 	    transparently in an enterprise name space, even if the share

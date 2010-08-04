@@ -45,7 +45,6 @@
 #include "cifs_fs_sb.h"
 #include <linux/mm.h>
 #include <linux/key-type.h>
-#include "dns_resolve.h"
 #include "cifs_spnego.h"
 #include "fscache.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
@@ -934,22 +933,13 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_filesystem;
 #endif
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	rc = cifs_init_dns_resolver();
-	if (rc)
-		goto out_unregister_key_type;
-#endif
 	rc = slow_work_register_user(THIS_MODULE);
 	if (rc)
-		goto out_unregister_resolver_key;
+		goto out_unregister_key_type;
 
 	return 0;
 
- out_unregister_resolver_key:
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	cifs_exit_dns_resolver();
  out_unregister_key_type:
-#endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
  out_unregister_filesystem:
@@ -976,7 +966,6 @@ exit_cifs(void)
 	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
-	cifs_exit_dns_resolver();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
