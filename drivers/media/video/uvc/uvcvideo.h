@@ -27,6 +27,8 @@
 #define UVC_CONTROL_RESTORE	(1 << 6)
 /* Control can be updated by the camera. */
 #define UVC_CONTROL_AUTO_UPDATE	(1 << 7)
+/* Control is an extension unit control. */
+#define UVC_CONTROL_EXTENSION	(1 << 8)
 
 #define UVC_CONTROL_GET_RANGE	(UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | \
 				 UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | \
@@ -40,6 +42,15 @@ struct uvc_xu_control_info {
 	__u32 flags;
 };
 
+struct uvc_menu_info {
+	__u32 value;
+	__u8 name[32];
+};
+
+struct uvc_xu_control_mapping_old {
+	__u8 reserved[64];
+};
+
 struct uvc_xu_control_mapping {
 	__u32 id;
 	__u8 name[32];
@@ -50,6 +61,11 @@ struct uvc_xu_control_mapping {
 	__u8 offset;
 	enum v4l2_ctrl_type v4l2_type;
 	__u32 data_type;
+
+	struct uvc_menu_info __user *menu_info;
+	__u32 menu_count;
+
+	__u32 reserved[4];
 };
 
 struct uvc_xu_control {
@@ -60,6 +76,7 @@ struct uvc_xu_control {
 };
 
 #define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
+#define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
 #define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
 #define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
 #define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
@@ -179,30 +196,6 @@ struct uvc_device;
 /* TODO: Put the most frequently accessed fields at the beginning of
  * structures to maximize cache efficiency.
  */
-struct uvc_streaming_control {
-	__u16 bmHint;
-	__u8  bFormatIndex;
-	__u8  bFrameIndex;
-	__u32 dwFrameInterval;
-	__u16 wKeyFrameRate;
-	__u16 wPFrameRate;
-	__u16 wCompQuality;
-	__u16 wCompWindowSize;
-	__u16 wDelay;
-	__u32 dwMaxVideoFrameSize;
-	__u32 dwMaxPayloadTransferSize;
-	__u32 dwClockFrequency;
-	__u8  bmFramingInfo;
-	__u8  bPreferedVersion;
-	__u8  bMinVersion;
-	__u8  bMaxVersion;
-};
-
-struct uvc_menu_info {
-	__u32 value;
-	__u8 name[32];
-};
-
 struct uvc_control_info {
 	struct list_head list;
 	struct list_head mappings;
@@ -250,7 +243,8 @@ struct uvc_control {
 	     modified : 1,
 	     cached : 1;
 
-	__u8 *data;
+	__u8 *uvc_data;
+	__u8 *uvc_info;
 };
 
 struct uvc_format_desc {
@@ -625,6 +619,7 @@ extern int uvc_ctrl_init_device(struct uvc_device *dev);
 extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
 extern void uvc_ctrl_init(void);
+extern void uvc_ctrl_cleanup(void);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
 extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);

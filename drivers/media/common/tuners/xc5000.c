@@ -217,6 +217,7 @@ static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 	return XC_RESULT_SUCCESS;
 }
 
+#if 0
 /* This routine is never used because the only time we read data from the
    i2c bus is when we read registers, and we want that to be an atomic i2c
    transaction in case we are on a multi-master bus */
@@ -230,6 +231,27 @@ static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 		return -EREMOTEIO;
 	}
 	return 0;
+}
+#endif
+
+static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
+{
+	u8 buf[2] = { reg >> 8, reg & 0xff };
+	u8 bval[2] = { 0, 0 };
+	struct i2c_msg msg[2] = {
+		{ .addr = priv->i2c_props.addr,
+			.flags = 0, .buf = &buf[0], .len = 2 },
+		{ .addr = priv->i2c_props.addr,
+			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
+	};
+
+	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
+		printk(KERN_WARNING "xc5000: I2C read failed\n");
+		return -EREMOTEIO;
+	}
+
+	*val = (bval[0] << 8) | bval[1];
+	return XC_RESULT_SUCCESS;
 }
 
 static void xc_wait(int wait_ms)
@@ -275,20 +297,14 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 	if (result == XC_RESULT_SUCCESS) {
 		/* wait for busy flag to clear */
 		while ((WatchDogTimer > 0) && (result == XC_RESULT_SUCCESS)) {
-			buf[0] = 0;
-			buf[1] = XREG_BUSY;
-
-			result = xc_send_i2c_data(priv, buf, 2);
+			result = xc5000_readreg(priv, XREG_BUSY, (u16 *)buf);
 			if (result == XC_RESULT_SUCCESS) {
-				result = xc_read_i2c_data(priv, buf, 2);
-				if (result == XC_RESULT_SUCCESS) {
-					if ((buf[0] == 0) && (buf[1] == 0)) {
-						/* busy flag cleared */
+				if ((buf[0] == 0) && (buf[1] == 0)) {
+					/* busy flag cleared */
 					break;
-					} else {
-						xc_wait(5); /* wait 5 ms */
-						WatchDogTimer--;
-					}
+				} else {
+					xc_wait(5); /* wait 5 ms */
+					WatchDogTimer--;
 				}
 			}
 		}
@@ -526,25 +542,6 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz, int mode)
 	return found;
 }
 
-static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
-{
-	u8 buf[2] = { reg >> 8, reg & 0xff };
-	u8 bval[2] = { 0, 0 };
-	struct i2c_msg msg[2] = {
-		{ .addr = priv->i2c_props.addr,
-			.flags = 0, .buf = &buf[0], .len = 2 },
-		{ .addr = priv->i2c_props.addr,
-			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
-	};
-
-	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
-		printk(KERN_WARNING "xc5000: I2C read failed\n");
-		return -EREMOTEIO;
-	}
-
-	*val = (bval[0] << 8) | bval[1];
-	return XC_RESULT_SUCCESS;
-}
 
 static int xc5000_fwupload(struct dvb_frontend *fe)
 {

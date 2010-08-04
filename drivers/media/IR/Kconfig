@@ -8,6 +8,17 @@ config VIDEO_IR
 	depends on IR_CORE
 	default IR_CORE
 
+config LIRC
+	tristate
+	default y
+
+	---help---
+	   Enable this option to build the Linux Infrared Remote
+	   Control (LIRC) core device interface driver. The LIRC
+	   interface passes raw IR to and from userspace, where the
+	   LIRC daemon handles protocol decoding for IR reception ann
+	   encoding for IR transmitting (aka "blasting").
+
 source "drivers/media/IR/keymaps/Kconfig"
 
 config IR_NEC_DECODER
@@ -33,6 +44,7 @@ config IR_RC5_DECODER
 config IR_RC6_DECODER
 	tristate "Enable IR raw decoder for the RC6 protocol"
 	depends on IR_CORE
+	select BITREVERSE
 	default y
 
 	---help---
@@ -42,6 +54,7 @@ config IR_RC6_DECODER
 config IR_JVC_DECODER
 	tristate "Enable IR raw decoder for the JVC protocol"
 	depends on IR_CORE
+	select BITREVERSE
 	default y
 
 	---help---
@@ -57,6 +70,16 @@ config IR_SONY_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sony protocol, and you need software decoding support.
 
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on IR_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD
@@ -68,3 +91,15 @@ config IR_IMON
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called imon.
+
+config IR_MCEUSB
+	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Windows Media Center Edition
+	   eHome Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mceusb.

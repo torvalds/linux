@@ -1107,13 +1107,14 @@ static int soc_camera_resume(struct device *dev)
 	return ret;
 }
 
-static struct bus_type soc_camera_bus_type = {
+struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
 	.suspend	= soc_camera_suspend,
 	.resume		= soc_camera_resume,
 };
+EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 
 static struct device_driver ic_drv = {
 	.name	= "camera",

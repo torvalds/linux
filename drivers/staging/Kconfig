@@ -147,5 +147,7 @@ source "drivers/staging/mrst-touchscreen/Kconfig"
 
 source "drivers/staging/msm/Kconfig"
 
+source "drivers/staging/lirc/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

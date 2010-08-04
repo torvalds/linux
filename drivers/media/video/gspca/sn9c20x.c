@@ -20,7 +20,6 @@
 
 #ifdef CONFIG_INPUT
 #include <linux/input.h>
-#include <linux/slab.h>
 #endif
 
 #include "gspca.h"
@@ -89,7 +88,7 @@ struct sd {
 	u8 hstart;
 	u8 vstart;
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 	u8 quality;
 
 	u8 flags;
@@ -2162,10 +2161,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int height = gspca_dev->height;
 	u8 fmt, scale = 0;
 
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (sd->jpeg_hdr == NULL)
-		return -ENOMEM;
-
 	jpeg_define(sd->jpeg_hdr, height, width,
 			0x21);
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -2197,8 +2192,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	configure_sensor_output(gspca_dev, mode);
-	reg_w(gspca_dev, 0x1100, sd->jpeg_hdr + JPEG_QT0_OFFSET, 64);
-	reg_w(gspca_dev, 0x1140, sd->jpeg_hdr + JPEG_QT1_OFFSET, 64);
+	reg_w(gspca_dev, 0x1100, &sd->jpeg_hdr[JPEG_QT0_OFFSET], 64);
+	reg_w(gspca_dev, 0x1140, &sd->jpeg_hdr[JPEG_QT1_OFFSET], 64);
 	reg_w(gspca_dev, 0x10fb, CLR_WIN(width, height), 5);
 	reg_w(gspca_dev, 0x1180, HW_WIN(mode, sd->hstart, sd->vstart), 6);
 	reg_w1(gspca_dev, 0x1189, scale);
@@ -2224,12 +2219,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] & ~0x02);
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	kfree(sd->jpeg_hdr);
 }
 
 static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
@@ -2397,7 +2386,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 #ifdef CONFIG_INPUT
 	.int_pkt_scan = sd_int_pkt_scan,

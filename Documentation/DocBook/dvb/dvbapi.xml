@@ -12,10 +12,12 @@
 <othername role="mi">O. C.</othername>
 <affiliation><address><email>rjkm@metzlerbros.de</email></address></affiliation>
 </author>
+</authorgroup>
+<authorgroup>
 <author>
 <firstname>Mauro</firstname>
-<surname>Chehab</surname>
 <othername role="mi">Carvalho</othername>
+<surname>Chehab</surname>
 <affiliation><address><email>mchehab@redhat.com</email></address></affiliation>
 <contrib>Ported document to Docbook XML.</contrib>
 </author>
@@ -23,12 +25,23 @@
 <copyright>
 	<year>2002</year>
 	<year>2003</year>
-	<year>2009</year>
 	<holder>Convergence GmbH</holder>
+</copyright>
+<copyright>
+	<year>2009-2010</year>
+	<holder>Mauro Carvalho Chehab</holder>
 </copyright>
 
 <revhistory>
 <!-- Put document revisions here, newest first. -->
+<revision>
+	<revnumber>2.0.3</revnumber>
+	<date>2010-07-03</date>
+	<authorinitials>mcc</authorinitials>
+	<revremark>
+		Add some frontend capabilities flags, present on kernel, but missing at the specs.
+	</revremark>
+</revision>
 <revision>
 	<revnumber>2.0.2</revnumber>
 	<date>2009-10-25</date>
@@ -63,7 +76,7 @@ Added ISDB-T test originally written by Patrick Boettcher
 
 
 <title>LINUX DVB API</title>
-<subtitle>Version 3</subtitle>
+<subtitle>Version 5.2</subtitle>
 <!-- ADD THE CHAPTERS HERE -->
   <chapter id="dvb_introdution">
     &sub-intro;

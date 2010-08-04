@@ -155,7 +155,7 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 };
 
 static enum v4l2_mbus_pixelcode ov9640_codes[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8_BE,
+	V4L2_MBUS_FMT_UYVY8_2X8,
 	V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
 	V4L2_MBUS_FMT_RGB565_2X8_LE,
 };
@@ -430,7 +430,7 @@ static void ov9640_alter_regs(enum v4l2_mbus_pixelcode code,
 {
 	switch (code) {
 	default:
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		alt->com12	= OV9640_COM12_YUV_AVG;
 		alt->com13	= OV9640_COM13_Y_DELAY_EN |
 					OV9640_COM13_YUV_DLY(0x01);
@@ -493,7 +493,7 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 	}
 
 	/* select color matrix configuration for given color encoding */
-	if (code == V4L2_MBUS_FMT_YUYV8_2X8_BE) {
+	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
 		matrix_regs	= ov9640_regs_yuv;
 		matrix_regs_len	= ARRAY_SIZE(ov9640_regs_yuv);
 	} else {
@@ -579,8 +579,8 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 		cspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		cspace = V4L2_COLORSPACE_JPEG;
 	}
 
@@ -606,8 +606,8 @@ static int ov9640_try_fmt(struct v4l2_subdev *sd,
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		mf->code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 

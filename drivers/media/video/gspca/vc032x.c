@@ -2748,11 +2748,11 @@ static const u8 poxxxx_init_common[][4] = {
 	{0xb3, 0x04, 0x15, 0xcc},
 	{0xb3, 0x20, 0x00, 0xcc},
 	{0xb3, 0x21, 0x00, 0xcc},
-	{0xb3, 0x22, 0x04, 0xcc},
+	{0xb3, 0x22, 0x04, 0xcc},	/* sensor height = 1024 */
 	{0xb3, 0x23, 0x00, 0xcc},
 	{0xb3, 0x14, 0x00, 0xcc},
 	{0xb3, 0x15, 0x00, 0xcc},
-	{0xb3, 0x16, 0x04, 0xcc},
+	{0xb3, 0x16, 0x04, 0xcc},	/* sensor width = 1280 */
 	{0xb3, 0x17, 0xff, 0xcc},
 	{0xb3, 0x2c, 0x03, 0xcc},
 	{0xb3, 0x2d, 0x56, 0xcc},
@@ -2919,7 +2919,7 @@ static const u8 poxxxx_initVGA[][4] = {
 	{0x00, 0x20, 0x11, 0xaa},
 	{0x00, 0x33, 0x38, 0xaa},
 	{0x00, 0xbb, 0x0d, 0xaa},
-	{0xb3, 0x22, 0x01, 0xcc},
+	{0xb3, 0x22, 0x01, 0xcc},	/* change to 640x480 */
 	{0xb3, 0x23, 0xe0, 0xcc},
 	{0xb3, 0x16, 0x02, 0xcc},
 	{0xb3, 0x17, 0x7f, 0xcc},
@@ -2935,7 +2935,7 @@ static const u8 poxxxx_initQVGA[][4] = {
 	{0x00, 0x20, 0x33, 0xaa},
 	{0x00, 0x33, 0x38, 0xaa},
 	{0x00, 0xbb, 0x0d, 0xaa},
-	{0xb3, 0x22, 0x00, 0xcc},
+	{0xb3, 0x22, 0x00, 0xcc},	/* change to 320x240 */
 	{0xb3, 0x23, 0xf0, 0xcc},
 	{0xb3, 0x16, 0x01, 0xcc},
 	{0xb3, 0x17, 0x3f, 0xcc},
@@ -3068,37 +3068,84 @@ static const struct sensor_info vc0323_probe_data[] = {
 };
 
 /* read 'len' bytes in gspca_dev->usb_buf */
-static void reg_r(struct gspca_dev *gspca_dev,
+static void reg_r_i(struct gspca_dev *gspca_dev,
 		  u16 req,
 		  u16 index,
 		  u16 len)
 {
-	usb_control_msg(gspca_dev->dev,
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			1,			/* value */
 			index, gspca_dev->usb_buf, len,
 			500);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "reg_r err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
+}
+static void reg_r(struct gspca_dev *gspca_dev,
+		  u16 req,
+		  u16 index,
+		  u16 len)
+{
+	reg_r_i(gspca_dev, req, index, len);
+#ifdef GSPCA_DEBUG
+	if (gspca_dev->usb_err < 0)
+		return;
+	if (len == 1)
+		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x", req, index,
+				gspca_dev->usb_buf[0]);
+	else
+		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x %02x %02x",
+				req, index,
+				gspca_dev->usb_buf[0],
+				gspca_dev->usb_buf[1],
+				gspca_dev->usb_buf[2]);
+#endif
 }
 
-static void reg_w(struct usb_device *dev,
+static void reg_w_i(struct gspca_dev *gspca_dev,
 			    u16 req,
 			    u16 value,
 			    u16 index)
 {
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0,
 			500);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "reg_w err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
+}
+static void reg_w(struct gspca_dev *gspca_dev,
+			    u16 req,
+			    u16 value,
+			    u16 index)
+{
+#ifdef GSPCA_DEBUG
+	if (gspca_dev->usb_err < 0)
+		return;
+	PDEBUG(D_USBO, "SET %02x %04x %04x", req, value, index);
+#endif
+	reg_w_i(gspca_dev, req, value, index);
 }
 
 static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 				u16 address)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	u8 ldata, mdata, hdata;
 	int retry = 50;
 
@@ -3108,8 +3155,8 @@ static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf[0]);
 		return 0;
 	}
-	reg_w(dev, 0xa0, address, 0xb33a);
-	reg_w(dev, 0xa0, 0x02, 0xb339);
+	reg_w(gspca_dev, 0xa0, address, 0xb33a);
+	reg_w(gspca_dev, 0xa0, 0x02, 0xb339);
 
 	do {
 		reg_r(gspca_dev, 0xa1, 0xb33b, 1);
@@ -3136,15 +3183,15 @@ static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int i, n;
 	u16 value;
 	const struct sensor_info *ptsensor_info;
 
 /*fixme: should also check the other sensor (back mi1320_soc, front mc501cb)*/
 	if (sd->flags & FL_SAMSUNG) {
-		reg_w(dev, 0xa0, 0x01, 0xb301);
-		reg_w(dev, 0x89, 0xf0ff, 0xffff); /* select the back sensor */
+		reg_w(gspca_dev, 0xa0, 0x01, 0xb301);
+		reg_w(gspca_dev, 0x89, 0xf0ff, 0xffff);
+						/* select the back sensor */
 	}
 
 	reg_r(gspca_dev, 0xa1, 0xbfcf, 1);
@@ -3158,13 +3205,13 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 		n = ARRAY_SIZE(vc0323_probe_data);
 	}
 	for (i = 0; i < n; i++) {
-		reg_w(dev, 0xa0, 0x02, 0xb334);
-		reg_w(dev, 0xa0, ptsensor_info->m1, 0xb300);
-		reg_w(dev, 0xa0, ptsensor_info->m2, 0xb300);
-		reg_w(dev, 0xa0, 0x01, 0xb308);
-		reg_w(dev, 0xa0, 0x0c, 0xb309);
-		reg_w(dev, 0xa0, ptsensor_info->I2cAdd, 0xb335);
-		reg_w(dev, 0xa0, ptsensor_info->op, 0xb301);
+		reg_w(gspca_dev, 0xa0, 0x02, 0xb334);
+		reg_w(gspca_dev, 0xa0, ptsensor_info->m1, 0xb300);
+		reg_w(gspca_dev, 0xa0, ptsensor_info->m2, 0xb300);
+		reg_w(gspca_dev, 0xa0, 0x01, 0xb308);
+		reg_w(gspca_dev, 0xa0, 0x0c, 0xb309);
+		reg_w(gspca_dev, 0xa0, ptsensor_info->I2cAdd, 0xb335);
+		reg_w(gspca_dev, 0xa0, ptsensor_info->op, 0xb301);
 		value = read_sensor_register(gspca_dev, ptsensor_info->IdAdd);
 		if (value == 0 && ptsensor_info->IdAdd == 0x82)
 			value = read_sensor_register(gspca_dev, 0x83);
@@ -3192,26 +3239,33 @@ static void i2c_write(struct gspca_dev *gspca_dev,
 			u8 reg, const u8 *val,
 			u8 size)		/* 1 or 2 */
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int retry;
 
-	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
+#ifdef GSPCA_DEBUG
+	if (gspca_dev->usb_err < 0)
+		return;
+	if (size == 1)
+		PDEBUG(D_USBO, "i2c_w %02x %02x", reg, *val);
+	else
+		PDEBUG(D_USBO, "i2c_w %02x %02x%02x", reg, *val, val[1]);
+#endif
+	reg_r_i(gspca_dev, 0xa1, 0xb33f, 1);
 /*fixme:should check if (!(gspca_dev->usb_buf[0] & 0x02)) error*/
-	reg_w(dev, 0xa0, size, 0xb334);
-	reg_w(dev, 0xa0, reg, 0xb33a);
-	reg_w(dev, 0xa0, val[0], 0xb336);
+	reg_w_i(gspca_dev, 0xa0, size, 0xb334);
+	reg_w_i(gspca_dev, 0xa0, reg, 0xb33a);
+	reg_w_i(gspca_dev, 0xa0, val[0], 0xb336);
 	if (size > 1)
-		reg_w(dev, 0xa0, val[1], 0xb337);
-	reg_w(dev, 0xa0, 0x01, 0xb339);
+		reg_w_i(gspca_dev, 0xa0, val[1], 0xb337);
+	reg_w_i(gspca_dev, 0xa0, 0x01, 0xb339);
 	retry = 4;
 	do {
-		reg_r(gspca_dev, 0xa1, 0xb33b, 1);
+		reg_r_i(gspca_dev, 0xa1, 0xb33b, 1);
 		if (gspca_dev->usb_buf[0] == 0)
 			break;
 		msleep(20);
 	} while (--retry > 0);
 	if (retry <= 0)
-		PDEBUG(D_ERR, "i2c_write failed");
+		PDEBUG(D_ERR, "i2c_write timeout");
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
@@ -3221,13 +3275,12 @@ static void put_tab_to_reg(struct gspca_dev *gspca_dev,
 	u16 ad = addr;
 
 	for (j = 0; j < tabsize; j++)
-		reg_w(gspca_dev->dev, 0xa0, tab[j], ad++);
+		reg_w(gspca_dev, 0xa0, tab[j], ad++);
 }
 
 static void usb_exchange(struct gspca_dev *gspca_dev,
 			const u8 data[][4])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int i = 0;
 
 	for (;;) {
@@ -3235,7 +3288,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 		default:
 			return;
 		case 0xcc:			/* normal write */
-			reg_w(dev, 0xa0, data[i][2],
+			reg_w(gspca_dev, 0xa0, data[i][2],
 					(data[i][0]) << 8 | data[i][1]);
 			break;
 		case 0xaa:			/* i2c op */
@@ -3259,7 +3312,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	int sensor;
 	static u8 npkt[] = {	/* number of packets per ISOC message */
@@ -3363,13 +3415,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (sd->sensor == SENSOR_OV7670)
 		sd->flags |= FL_HFLIP | FL_VFLIP;
 
-	if (sd->bridge == BRIDGE_VC0321) {
-		reg_r(gspca_dev, 0x8a, 0, 3);
-		reg_w(dev, 0x87, 0x00, 0x0f0f);
-
-		reg_r(gspca_dev, 0x8b, 0, 3);
-		reg_w(dev, 0x88, 0x00, 0x0202);
-	}
 	return 0;
 }
 
@@ -3378,15 +3423,21 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SENSOR_POxxxx) {
-		reg_r(gspca_dev, 0xa1, 0xb300, 1);
-		if (gspca_dev->usb_buf[0] != 0) {
-			reg_w(gspca_dev->dev, 0xa0, 0x26, 0xb300);
-			reg_w(gspca_dev->dev, 0xa0, 0x04, 0xb300);
-			reg_w(gspca_dev->dev, 0xa0, 0x00, 0xb300);
+	if (sd->bridge == BRIDGE_VC0321) {
+		reg_r(gspca_dev, 0x8a, 0, 3);
+		reg_w(gspca_dev, 0x87, 0x00, 0x0f0f);
+		reg_r(gspca_dev, 0x8b, 0, 3);
+		reg_w(gspca_dev, 0x88, 0x00, 0x0202);
+		if (sd->sensor == SENSOR_POxxxx) {
+			reg_r(gspca_dev, 0xa1, 0xb300, 1);
+			if (gspca_dev->usb_buf[0] != 0) {
+				reg_w(gspca_dev, 0xa0, 0x26, 0xb300);
+				reg_w(gspca_dev, 0xa0, 0x04, 0xb300);
+				reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
+			}
 		}
 	}
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
@@ -3516,17 +3567,17 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 /*fixme: back sensor only*/
 	if (sd->flags & FL_SAMSUNG) {
-		reg_w(gspca_dev->dev, 0x89, 0xf0ff, 0xffff);
-		reg_w(gspca_dev->dev, 0xa9, 0x8348, 0x000e);
-		reg_w(gspca_dev->dev, 0xa9, 0x0000, 0x001a);
+		reg_w(gspca_dev, 0x89, 0xf0ff, 0xffff);
+		reg_w(gspca_dev, 0xa9, 0x8348, 0x000e);
+		reg_w(gspca_dev, 0xa9, 0x0000, 0x001a);
 	}
 
 	/* Assume start use the good resolution from gspca_dev->mode */
 	if (sd->bridge == BRIDGE_VC0321) {
-		reg_w(gspca_dev->dev, 0xa0, 0xff, 0xbfec);
-		reg_w(gspca_dev->dev, 0xa0, 0xff, 0xbfed);
-		reg_w(gspca_dev->dev, 0xa0, 0xff, 0xbfee);
-		reg_w(gspca_dev->dev, 0xa0, 0xff, 0xbfef);
+		reg_w(gspca_dev, 0xa0, 0xff, 0xbfec);
+		reg_w(gspca_dev, 0xa0, 0xff, 0xbfed);
+		reg_w(gspca_dev, 0xa0, 0xff, 0xbfee);
+		reg_w(gspca_dev, 0xa0, 0xff, 0xbfef);
 		sd->image_offset = 46;
 	} else {
 		if (gspca_dev->cam.cam_mode[gspca_dev->curr_mode].pixelformat
@@ -3617,7 +3668,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			init = poxxxx_initVGA;
 		usb_exchange(gspca_dev, init);
 		reg_r(gspca_dev, 0x8c, 0x0000, 3);
-		reg_w(gspca_dev->dev, 0xa0,
+		reg_w(gspca_dev, 0xa0,
 				gspca_dev->usb_buf[2] & 1 ? 0 : 1,
 				0xb35c);
 		msleep(300);
@@ -3635,10 +3686,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		switch (sd->sensor) {
 		case SENSOR_PO1200:
 		case SENSOR_HV7131R:
-			reg_w(gspca_dev->dev, 0x89, 0x0400, 0x1415);
+			reg_w(gspca_dev, 0x89, 0x0400, 0x1415);
 			break;
 		case SENSOR_MI1310_SOC:
-			reg_w(gspca_dev->dev, 0x89, 0x058c, 0x0000);
+			reg_w(gspca_dev, 0x89, 0x058c, 0x0000);
 			break;
 		}
 		msleep(100);
@@ -3648,9 +3699,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	switch (sd->sensor) {
 	case SENSOR_OV7670:
-		reg_w(gspca_dev->dev, 0x87, 0xffff, 0xffff);
-		reg_w(gspca_dev->dev, 0x88, 0xff00, 0xf0f1);
-		reg_w(gspca_dev->dev, 0xa0, 0x0000, 0xbfff);
+		reg_w(gspca_dev, 0x87, 0xffff, 0xffff);
+		reg_w(gspca_dev, 0x88, 0xff00, 0xf0f1);
+		reg_w(gspca_dev, 0xa0, 0x0000, 0xbfff);
 		break;
 	case SENSOR_POxxxx:
 		setcolors(gspca_dev);
@@ -3659,51 +3710,49 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 		/* led on */
 		msleep(80);
-		reg_w(gspca_dev->dev, 0x89, 0xffff, 0xfdff);
+		reg_w(gspca_dev, 0x89, 0xffff, 0xfdff);
 		usb_exchange(gspca_dev, poxxxx_init_end_2);
 		break;
 	}
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
 	case SENSOR_MI1310_SOC:
-		reg_w(dev, 0x89, 0x058c, 0x00ff);
+		reg_w(gspca_dev, 0x89, 0x058c, 0x00ff);
 		break;
 	case SENSOR_POxxxx:
 		return;
 	default:
 		if (!(sd->flags & FL_SAMSUNG))
-			reg_w(dev, 0x89, 0xffff, 0xffff);
+			reg_w(gspca_dev, 0x89, 0xffff, 0xffff);
 		break;
 	}
-	reg_w(dev, 0xa0, 0x01, 0xb301);
-	reg_w(dev, 0xa0, 0x09, 0xb003);
+	reg_w(gspca_dev, 0xa0, 0x01, 0xb301);
+	reg_w(gspca_dev, 0xa0, 0x09, 0xb003);
 }
 
 /* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (!gspca_dev->present)
 		return;
 /*fixme: is this useful?*/
 	if (sd->sensor == SENSOR_MI1310_SOC)
-		reg_w(dev, 0x89, 0x058c, 0x00ff);
+		reg_w(gspca_dev, 0x89, 0x058c, 0x00ff);
 	else if (!(sd->flags & FL_SAMSUNG))
-		reg_w(dev, 0x89, 0xffff, 0xffff);
+		reg_w(gspca_dev, 0x89, 0xffff, 0xffff);
 
 	if (sd->sensor == SENSOR_POxxxx) {
-		reg_w(dev, 0xa0, 0x26, 0xb300);
-		reg_w(dev, 0xa0, 0x04, 0xb300);
-		reg_w(dev, 0xa0, 0x00, 0xb300);
+		reg_w(gspca_dev, 0xa0, 0x26, 0xb300);
+		reg_w(gspca_dev, 0xa0, 0x04, 0xb300);
+		reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
 	}
 }
 
@@ -3726,17 +3775,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	/* The vc0321 sends some additional data after sending the complete
 	 * frame, we ignore this. */
 	if (sd->bridge == BRIDGE_VC0321) {
-		struct gspca_frame *frame;
-		int l;
+		int size, l;
 
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
-		l = frame->data_end - frame->data;
-		if (len > frame->v4l2_buf.length - l)
-			len = frame->v4l2_buf.length - l;
+		l = gspca_dev->image_len;
+		size = gspca_dev->frsz;
+		if (len > size - l)
+			len = size - l;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
@@ -3748,7 +3792,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->brightness = val;
 	if (gspca_dev->streaming)
 		setbrightness(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3766,7 +3810,7 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	sd->contrast = val;
 	if (gspca_dev->streaming)
 		setcontrast(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3784,7 +3828,7 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val)
 	sd->colors = val;
 	if (gspca_dev->streaming)
 		setcolors(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3802,7 +3846,7 @@ static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
 	sd->hflip = val;
 	if (gspca_dev->streaming)
 		sethvflip(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3820,7 +3864,7 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
 	sd->vflip = val;
 	if (gspca_dev->streaming)
 		sethvflip(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3838,7 +3882,7 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 	sd->lightfreq = val;
 	if (gspca_dev->streaming)
 		setlightfreq(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
@@ -3856,7 +3900,7 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->sharpness = val;
 	if (gspca_dev->streaming)
 		setsharpness(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)

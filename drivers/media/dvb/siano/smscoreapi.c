@@ -116,9 +116,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 			return entry;
 		}
 	}
-	entry = (struct smscore_registry_entry_t *)
-			kmalloc(sizeof(struct smscore_registry_entry_t),
-				GFP_KERNEL);
+	entry = kmalloc(sizeof(struct smscore_registry_entry_t), GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
 		strcpy(entry->devpath, devpath);
