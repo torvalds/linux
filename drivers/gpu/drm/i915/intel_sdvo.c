@@ -134,6 +134,8 @@ struct intel_sdvo {
 };
 
 struct intel_sdvo_connector {
+	struct intel_connector base;
+
 	/* Mark the type of connector */
 	uint16_t output_flag;
 
@@ -178,6 +180,11 @@ struct intel_sdvo_connector {
 static struct intel_sdvo *enc_to_intel_sdvo(struct drm_encoder *encoder)
 {
 	return container_of(enc_to_intel_encoder(encoder), struct intel_sdvo, base);
+}
+
+static struct intel_sdvo_connector *to_intel_sdvo_connector(struct drm_connector *connector)
+{
+	return container_of(to_intel_connector(connector), struct intel_sdvo_connector, base);
 }
 
 static bool
@@ -1502,8 +1509,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status status = connector_status_connected;
 	struct edid *edid = NULL;
 
@@ -1543,7 +1549,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 
 	if (edid != NULL) {
 		bool is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
-		bool need_digital = !!(sdvo_connector->output_flag & SDVO_TMDS_MASK);
+		bool need_digital = !!(intel_sdvo_connector->output_flag & SDVO_TMDS_MASK);
 
 		/* DDC bus is shared, match EDID to connector type */
 		if (is_digital && need_digital)
@@ -1566,8 +1572,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 	u8 status;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status ret;
 
 	intel_sdvo_write_cmd(intel_sdvo,
@@ -1588,7 +1593,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 
 	intel_sdvo->attached_output = response;
 
-	if ((sdvo_connector->output_flag & response) == 0)
+	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
 	else if (response & SDVO_TMDS_MASK)
 		ret = intel_sdvo_hdmi_sink_detect(connector);
@@ -1784,12 +1789,11 @@ end:
 
 static int intel_sdvo_get_modes(struct drm_connector *connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 
-	if (IS_TV(sdvo_connector))
+	if (IS_TV(intel_sdvo_connector))
 		intel_sdvo_get_tv_modes(connector);
-	else if (IS_LVDS(sdvo_connector))
+	else if (IS_LVDS(intel_sdvo_connector))
 		intel_sdvo_get_lvds_modes(connector);
 	else
 		intel_sdvo_get_ddc_modes(connector);
@@ -1802,48 +1806,46 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 static
 void intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *intel_sdvo = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	struct drm_device *dev = connector->dev;
 
-	if (IS_TV(intel_sdvo)) {
-		if (intel_sdvo->left_property)
-			drm_property_destroy(dev, intel_sdvo->left_property);
-		if (intel_sdvo->right_property)
-			drm_property_destroy(dev, intel_sdvo->right_property);
-		if (intel_sdvo->top_property)
-			drm_property_destroy(dev, intel_sdvo->top_property);
-		if (intel_sdvo->bottom_property)
-			drm_property_destroy(dev, intel_sdvo->bottom_property);
-		if (intel_sdvo->hpos_property)
-			drm_property_destroy(dev, intel_sdvo->hpos_property);
-		if (intel_sdvo->vpos_property)
-			drm_property_destroy(dev, intel_sdvo->vpos_property);
-		if (intel_sdvo->saturation_property)
+	if (IS_TV(intel_sdvo_connector)) {
+		if (intel_sdvo_connector->left_property)
+			drm_property_destroy(dev, intel_sdvo_connector->left_property);
+		if (intel_sdvo_connector->right_property)
+			drm_property_destroy(dev, intel_sdvo_connector->right_property);
+		if (intel_sdvo_connector->top_property)
+			drm_property_destroy(dev, intel_sdvo_connector->top_property);
+		if (intel_sdvo_connector->bottom_property)
+			drm_property_destroy(dev, intel_sdvo_connector->bottom_property);
+		if (intel_sdvo_connector->hpos_property)
+			drm_property_destroy(dev, intel_sdvo_connector->hpos_property);
+		if (intel_sdvo_connector->vpos_property)
+			drm_property_destroy(dev, intel_sdvo_connector->vpos_property);
+		if (intel_sdvo_connector->saturation_property)
 			drm_property_destroy(dev,
-					intel_sdvo->saturation_property);
-		if (intel_sdvo->contrast_property)
+					intel_sdvo_connector->saturation_property);
+		if (intel_sdvo_connector->contrast_property)
 			drm_property_destroy(dev,
-					intel_sdvo->contrast_property);
-		if (intel_sdvo->hue_property)
-			drm_property_destroy(dev, intel_sdvo->hue_property);
+					intel_sdvo_connector->contrast_property);
+		if (intel_sdvo_connector->hue_property)
+			drm_property_destroy(dev, intel_sdvo_connector->hue_property);
 	}
-	if (IS_TV(intel_sdvo) || IS_LVDS(intel_sdvo)) {
-		if (intel_sdvo->brightness_property)
+	if (IS_TV(intel_sdvo_connector) || IS_LVDS(intel_sdvo_connector)) {
+		if (intel_sdvo_connector->brightness_property)
 			drm_property_destroy(dev,
-					intel_sdvo->brightness_property);
+					intel_sdvo_connector->brightness_property);
 	}
 	return;
 }
 
 static void intel_sdvo_destroy(struct drm_connector *connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 
-	if (sdvo_connector->tv_format_property)
+	if (intel_sdvo_connector->tv_format_property)
 		drm_property_destroy(connector->dev,
-				     sdvo_connector->tv_format_property);
+				     intel_sdvo_connector->tv_format_property);
 
 	intel_sdvo_destroy_enhance_property(connector);
 	drm_sysfs_connector_remove(connector);
@@ -1858,8 +1860,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	struct drm_crtc *crtc = encoder->crtc;
 	int ret = 0;
 	bool changed = false;
@@ -1870,101 +1871,101 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	if (ret < 0)
 		goto out;
 
-	if (property == sdvo_connector->tv_format_property) {
+	if (property == intel_sdvo_connector->tv_format_property) {
 		if (val >= TV_FORMAT_NUM) {
 			ret = -EINVAL;
 			goto out;
 		}
 		if (intel_sdvo->tv_format_name ==
-		    sdvo_connector->tv_format_supported[val])
+		    intel_sdvo_connector->tv_format_supported[val])
 			goto out;
 
-		intel_sdvo->tv_format_name = sdvo_connector->tv_format_supported[val];
+		intel_sdvo->tv_format_name = intel_sdvo_connector->tv_format_supported[val];
 		changed = true;
 	}
 
-	if (IS_TV(sdvo_connector) || IS_LVDS(sdvo_connector)) {
+	if (IS_TV(intel_sdvo_connector) || IS_LVDS(intel_sdvo_connector)) {
 		cmd = 0;
 		temp_value = val;
-		if (sdvo_connector->left_property == property) {
+		if (intel_sdvo_connector->left_property == property) {
 			drm_connector_property_set_value(connector,
-				sdvo_connector->right_property, val);
-			if (sdvo_connector->left_margin == temp_value)
+				intel_sdvo_connector->right_property, val);
+			if (intel_sdvo_connector->left_margin == temp_value)
 				goto out;
 
-			sdvo_connector->left_margin = temp_value;
-			sdvo_connector->right_margin = temp_value;
-			temp_value = sdvo_connector->max_hscan -
-					sdvo_connector->left_margin;
+			intel_sdvo_connector->left_margin = temp_value;
+			intel_sdvo_connector->right_margin = temp_value;
+			temp_value = intel_sdvo_connector->max_hscan -
+					intel_sdvo_connector->left_margin;
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
-		} else if (sdvo_connector->right_property == property) {
+		} else if (intel_sdvo_connector->right_property == property) {
 			drm_connector_property_set_value(connector,
-				sdvo_connector->left_property, val);
-			if (sdvo_connector->right_margin == temp_value)
+				intel_sdvo_connector->left_property, val);
+			if (intel_sdvo_connector->right_margin == temp_value)
 				goto out;
 
-			sdvo_connector->left_margin = temp_value;
-			sdvo_connector->right_margin = temp_value;
-			temp_value = sdvo_connector->max_hscan -
-				sdvo_connector->left_margin;
+			intel_sdvo_connector->left_margin = temp_value;
+			intel_sdvo_connector->right_margin = temp_value;
+			temp_value = intel_sdvo_connector->max_hscan -
+				intel_sdvo_connector->left_margin;
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
-		} else if (sdvo_connector->top_property == property) {
+		} else if (intel_sdvo_connector->top_property == property) {
 			drm_connector_property_set_value(connector,
-				sdvo_connector->bottom_property, val);
-			if (sdvo_connector->top_margin == temp_value)
+				intel_sdvo_connector->bottom_property, val);
+			if (intel_sdvo_connector->top_margin == temp_value)
 				goto out;
 
-			sdvo_connector->top_margin = temp_value;
-			sdvo_connector->bottom_margin = temp_value;
-			temp_value = sdvo_connector->max_vscan -
-					sdvo_connector->top_margin;
+			intel_sdvo_connector->top_margin = temp_value;
+			intel_sdvo_connector->bottom_margin = temp_value;
+			temp_value = intel_sdvo_connector->max_vscan -
+					intel_sdvo_connector->top_margin;
 			cmd = SDVO_CMD_SET_OVERSCAN_V;
-		} else if (sdvo_connector->bottom_property == property) {
+		} else if (intel_sdvo_connector->bottom_property == property) {
 			drm_connector_property_set_value(connector,
-				sdvo_connector->top_property, val);
-			if (sdvo_connector->bottom_margin == temp_value)
+				intel_sdvo_connector->top_property, val);
+			if (intel_sdvo_connector->bottom_margin == temp_value)
 				goto out;
-			sdvo_connector->top_margin = temp_value;
-			sdvo_connector->bottom_margin = temp_value;
-			temp_value = sdvo_connector->max_vscan -
-					sdvo_connector->top_margin;
+			intel_sdvo_connector->top_margin = temp_value;
+			intel_sdvo_connector->bottom_margin = temp_value;
+			temp_value = intel_sdvo_connector->max_vscan -
+					intel_sdvo_connector->top_margin;
 			cmd = SDVO_CMD_SET_OVERSCAN_V;
-		} else if (sdvo_connector->hpos_property == property) {
-			if (sdvo_connector->cur_hpos == temp_value)
+		} else if (intel_sdvo_connector->hpos_property == property) {
+			if (intel_sdvo_connector->cur_hpos == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_POSITION_H;
-			sdvo_connector->cur_hpos = temp_value;
-		} else if (sdvo_connector->vpos_property == property) {
-			if (sdvo_connector->cur_vpos == temp_value)
+			intel_sdvo_connector->cur_hpos = temp_value;
+		} else if (intel_sdvo_connector->vpos_property == property) {
+			if (intel_sdvo_connector->cur_vpos == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_POSITION_V;
-			sdvo_connector->cur_vpos = temp_value;
-		} else if (sdvo_connector->saturation_property == property) {
-			if (sdvo_connector->cur_saturation == temp_value)
+			intel_sdvo_connector->cur_vpos = temp_value;
+		} else if (intel_sdvo_connector->saturation_property == property) {
+			if (intel_sdvo_connector->cur_saturation == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_SATURATION;
-			sdvo_connector->cur_saturation = temp_value;
-		} else if (sdvo_connector->contrast_property == property) {
-			if (sdvo_connector->cur_contrast == temp_value)
+			intel_sdvo_connector->cur_saturation = temp_value;
+		} else if (intel_sdvo_connector->contrast_property == property) {
+			if (intel_sdvo_connector->cur_contrast == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_CONTRAST;
-			sdvo_connector->cur_contrast = temp_value;
-		} else if (sdvo_connector->hue_property == property) {
-			if (sdvo_connector->cur_hue == temp_value)
+			intel_sdvo_connector->cur_contrast = temp_value;
+		} else if (intel_sdvo_connector->hue_property == property) {
+			if (intel_sdvo_connector->cur_hue == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_HUE;
-			sdvo_connector->cur_hue = temp_value;
-		} else if (sdvo_connector->brightness_property == property) {
-			if (sdvo_connector->cur_brightness == temp_value)
+			intel_sdvo_connector->cur_hue = temp_value;
+		} else if (intel_sdvo_connector->brightness_property == property) {
+			if (intel_sdvo_connector->cur_brightness == temp_value)
 				goto out;
 
 			cmd = SDVO_CMD_SET_BRIGHTNESS;
-			sdvo_connector->cur_brightness = temp_value;
+			intel_sdvo_connector->cur_brightness = temp_value;
 		}
 		if (cmd) {
 			intel_sdvo_write_cmd(intel_sdvo, cmd, &temp_value, 2);
@@ -2139,24 +2140,6 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 		return 0x72;
 }
 
-static bool
-intel_sdvo_connector_alloc (struct intel_connector **ret)
-{
-	struct intel_connector *intel_connector;
-	struct intel_sdvo_connector *sdvo_connector;
-
-	*ret = kzalloc(sizeof(*intel_connector) +
-			sizeof(*sdvo_connector), GFP_KERNEL);
-	if (!*ret)
-		return false;
-
-	intel_connector = *ret;
-	sdvo_connector = (struct intel_sdvo_connector *)(intel_connector + 1);
-	intel_connector->dev_priv = sdvo_connector;
-
-	return true;
-}
-
 static void
 intel_sdvo_connector_create (struct drm_encoder *encoder,
 			     struct drm_connector *connector)
@@ -2180,21 +2163,21 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	struct drm_encoder *encoder = &intel_sdvo->base.enc;
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
-	struct intel_sdvo_connector *sdvo_connector;
+	struct intel_sdvo_connector *intel_sdvo_connector;
 
-	if (!intel_sdvo_connector_alloc(&intel_connector))
+	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
+	if (!intel_sdvo_connector)
 		return false;
-
-	sdvo_connector = intel_connector->dev_priv;
 
 	if (device == 0) {
 		intel_sdvo->controlled_output |= SDVO_OUTPUT_TMDS0;
-		sdvo_connector->output_flag = SDVO_OUTPUT_TMDS0;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_TMDS0;
 	} else if (device == 1) {
 		intel_sdvo->controlled_output |= SDVO_OUTPUT_TMDS1;
-		sdvo_connector->output_flag = SDVO_OUTPUT_TMDS1;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_TMDS1;
 	}
 
+	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
@@ -2223,18 +2206,19 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
         struct drm_encoder *encoder = &intel_sdvo->base.enc;
         struct drm_connector *connector;
         struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *sdvo_connector;
+        struct intel_sdvo_connector *intel_sdvo_connector;
 
-        if (!intel_sdvo_connector_alloc(&intel_connector))
-                return false;
+	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
+	if (!intel_sdvo_connector)
+		return false;
 
+	intel_connector = &intel_sdvo_connector->base;
         connector = &intel_connector->base;
         encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;
         connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
-        sdvo_connector = intel_connector->dev_priv;
 
         intel_sdvo->controlled_output |= type;
-        sdvo_connector->output_flag = type;
+        intel_sdvo_connector->output_flag = type;
 
         intel_sdvo->is_tv = true;
         intel_sdvo->base.needs_tv_clock = true;
@@ -2255,23 +2239,24 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
         struct drm_encoder *encoder = &intel_sdvo->base.enc;
         struct drm_connector *connector;
         struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *sdvo_connector;
+        struct intel_sdvo_connector *intel_sdvo_connector;
 
-        if (!intel_sdvo_connector_alloc(&intel_connector))
-                return false;
+	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
+	if (!intel_sdvo_connector)
+		return false;
 
+	intel_connector = &intel_sdvo_connector->base;
         connector = &intel_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
         encoder->encoder_type = DRM_MODE_ENCODER_DAC;
         connector->connector_type = DRM_MODE_CONNECTOR_VGA;
-        sdvo_connector = intel_connector->dev_priv;
 
         if (device == 0) {
                 intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB0;
-                sdvo_connector->output_flag = SDVO_OUTPUT_RGB0;
+                intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB0;
         } else if (device == 1) {
                 intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB1;
-                sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
+                intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
         }
 
         intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
@@ -2287,24 +2272,25 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
         struct drm_encoder *encoder = &intel_sdvo->base.enc;
         struct drm_connector *connector;
         struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *sdvo_connector;
+        struct intel_sdvo_connector *intel_sdvo_connector;
 
-        if (!intel_sdvo_connector_alloc(&intel_connector))
-                return false;
+	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
+	if (!intel_sdvo_connector)
+		return false;
 
-        connector = &intel_connector->base;
+	intel_connector = &intel_sdvo_connector->base;
+	connector = &intel_connector->base;
         encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
         connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
-        sdvo_connector = intel_connector->dev_priv;
 
         intel_sdvo->is_lvds = true;
 
         if (device == 0) {
                 intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS0;
-                sdvo_connector->output_flag = SDVO_OUTPUT_LVDS0;
+                intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS0;
         } else if (device == 1) {
                 intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS1;
-                sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
+                intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
         }
 
         intel_sdvo->base.clone_mask = ((1 << INTEL_ANALOG_CLONE_BIT) |
@@ -2376,8 +2362,7 @@ static void intel_sdvo_tv_create_property(struct drm_connector *connector, int t
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	struct intel_sdvo_tv_format format;
 	uint32_t format_map, i;
 	uint8_t status;
@@ -2397,28 +2382,28 @@ static void intel_sdvo_tv_create_property(struct drm_connector *connector, int t
 	if (format_map == 0)
 		return;
 
-	sdvo_connector->format_supported_num = 0;
+	intel_sdvo_connector->format_supported_num = 0;
 	for (i = 0 ; i < TV_FORMAT_NUM; i++)
 		if (format_map & (1 << i)) {
-			sdvo_connector->tv_format_supported
-			[sdvo_connector->format_supported_num++] =
+			intel_sdvo_connector->tv_format_supported
+			[intel_sdvo_connector->format_supported_num++] =
 			tv_format_names[i];
 		}
 
 
-	sdvo_connector->tv_format_property =
+	intel_sdvo_connector->tv_format_property =
 			drm_property_create(
 				connector->dev, DRM_MODE_PROP_ENUM,
-				"mode", sdvo_connector->format_supported_num);
+				"mode", intel_sdvo_connector->format_supported_num);
 
-	for (i = 0; i < sdvo_connector->format_supported_num; i++)
+	for (i = 0; i < intel_sdvo_connector->format_supported_num; i++)
 		drm_property_add_enum(
-				sdvo_connector->tv_format_property, i,
-				i, sdvo_connector->tv_format_supported[i]);
+				intel_sdvo_connector->tv_format_property, i,
+				i, intel_sdvo_connector->tv_format_supported[i]);
 
-	intel_sdvo->tv_format_name = sdvo_connector->tv_format_supported[0];
+	intel_sdvo->tv_format_name = intel_sdvo_connector->tv_format_supported[0];
 	drm_connector_attach_property(
-			connector, sdvo_connector->tv_format_property, 0);
+			connector, intel_sdvo_connector->tv_format_property, 0);
 
 }
 
@@ -2426,8 +2411,7 @@ static void intel_sdvo_create_enhance_property(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_sdvo_connector *intel_sdvo_connector = intel_connector->dev_priv;
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	struct intel_sdvo_enhancements_reply sdvo_data;
 	struct drm_device *dev = connector->dev;
 	uint8_t status;

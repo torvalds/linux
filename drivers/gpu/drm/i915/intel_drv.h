@@ -109,7 +109,6 @@ struct intel_encoder {
 
 struct intel_connector {
 	struct drm_connector base;
-	void *dev_priv;
 };
 
 struct intel_crtc;
