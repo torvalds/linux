@@ -15,7 +15,7 @@
 #include <linux/hid.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_HID_ROCCAT) || defined (CONFIG_HID_ROCCAT_MODULE)
+#if defined(CONFIG_HID_ROCCAT) || defined(CONFIG_HID_ROCCAT_MODULE)
 int roccat_connect(struct hid_device *hid);
 void roccat_disconnect(int minor);
 int roccat_report_event(int minor, u8 const *data, int len);
