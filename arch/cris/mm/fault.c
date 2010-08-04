@@ -12,6 +12,7 @@
 
 extern int find_fixup_code(struct pt_regs *);
 extern void die_if_kernel(const char *, struct pt_regs *, long);
+extern void show_registers(struct pt_regs *regs);
 
 /* debug of low-level TLB reload */
 #undef DEBUG
@@ -195,6 +196,11 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 			"address %08lx at pc %08lx\n",
 			tsk->comm, tsk->pid,
 			address, instruction_pointer(regs));
+
+		/* With DPG on, we've already dumped registers above.  */
+		DPG(if (0))
+			show_registers(regs);
+
 #ifdef CONFIG_NO_SEGFAULT_TERMINATION
 		DECLARE_WAIT_QUEUE_HEAD(wq);
 		wait_event_interruptible(wq, 0 == 1);
