@@ -39,14 +39,6 @@ config EDAC_DEBUG
 	  there're four debug levels (x=0,1,2,3 from low to high).
 	  Usually you should select 'N'.
 
-config EDAC_DEBUG_VERBOSE
-	bool "More verbose debugging"
-	depends on EDAC_DEBUG
-	help
-	  This option makes debugging information more verbose.
-	  Source file name and line number where debugging message
-	  printed will be added to debugging message.
-
  config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
 	depends on CPU_SUP_AMD && X86_MCE
