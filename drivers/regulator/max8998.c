@@ -119,7 +119,7 @@ static int max8998_list_voltage(struct regulator_dev *rdev,
 	int ldo = max8998_get_ldo(rdev);
 	int val;
 
-	if (ldo > ARRAY_SIZE(ldo_voltage_map))
+	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
 		return -EINVAL;
 
 	desc = ldo_voltage_map[ldo];
@@ -306,7 +306,7 @@ static int max8998_set_voltage(struct regulator_dev *rdev,
 	u8 val;
 	bool en_ramp = false;
 
-	if (ldo > ARRAY_SIZE(ldo_voltage_map))
+	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
 		return -EINVAL;
 
 	desc = ldo_voltage_map[ldo];
