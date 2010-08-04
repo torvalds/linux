@@ -6792,6 +6792,29 @@ static struct hda_amp_list alc260_loopbacks[] = {
 #endif
 
 /*
+ * Pin config fixes
+ */
+enum {
+	PINFIX_HP_DC5750,
+};
+
+static struct alc_pincfg alc260_hp_dc5750_pinfix[] = {
+	{ 0x11, 0x90130110 }, /* speaker */
+	{ }
+};
+
+static const struct alc_fixup alc260_fixups[] = {
+	[PINFIX_HP_DC5750] = {
+		.pins = alc260_hp_dc5750_pinfix
+	},
+};
+
+static struct snd_pci_quirk alc260_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", PINFIX_HP_DC5750),
+	{}
+};
+
+/*
  * ALC260 configurations
  */
 static const char *alc260_models[ALC260_MODEL_LAST] = {
@@ -6990,6 +7013,9 @@ static int patch_alc260(struct hda_codec *codec)
 		board_config = ALC260_AUTO;
 	}
 
+	if (board_config == ALC260_AUTO)
+		alc_pick_fixup(codec, alc260_fixup_tbl, alc260_fixups, 1);
+
 	if (board_config == ALC260_AUTO) {
 		/* automatic parse from the BIOS config */
 		err = alc260_parse_auto_config(codec);
@@ -7034,6 +7060,9 @@ static int patch_alc260(struct hda_codec *codec)
 	}
 	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
+
+	if (board_config == ALC260_AUTO)
+		alc_pick_fixup(codec, alc260_fixup_tbl, alc260_fixups, 0);
 
 	spec->vmaster_nid = 0x08;
 
