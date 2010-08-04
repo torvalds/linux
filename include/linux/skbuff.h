@@ -1379,6 +1379,11 @@ static inline int skb_network_offset(const struct sk_buff *skb)
 	return skb_network_header(skb) - skb->data;
 }
 
+static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
+{
+	return pskb_may_pull(skb, skb_network_offset(skb) + len);
+}
+
 /*
  * CPUs often take a performance hit when accessing unaligned memory
  * locations. The actual performance hit varies, it can be small if the
