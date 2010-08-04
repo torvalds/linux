@@ -774,8 +774,8 @@ out_unlock:
 out:
 	ubifs_assert(ret < 0);
 	ubifs_assert(ret != -ENOSPC && ret != -EAGAIN);
-	ubifs_ro_mode(c, ret);
 	ubifs_wbuf_sync_nolock(wbuf);
+	ubifs_ro_mode(c, ret);
 	mutex_unlock(&wbuf->io_mutex);
 	ubifs_return_leb(c, lp.lnum);
 	return ret;
