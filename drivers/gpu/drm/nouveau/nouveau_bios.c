@@ -3142,7 +3142,7 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
 	int i;
 
-	if (dev_priv->card_type != NV_50) {
+	if (dev_priv->card_type < NV_50) {
 		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
 		return 1;
 	}
