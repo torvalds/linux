@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 
 extern int find_fixup_code(struct pt_regs *);
@@ -190,14 +191,20 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	/* User mode accesses just cause a SIGSEGV */
 
 	if (user_mode(regs)) {
+		printk(KERN_NOTICE "%s (pid %d) segfaults for page "
+			"address %08lx at pc %08lx\n",
+			tsk->comm, tsk->pid,
+			address, instruction_pointer(regs));
+#ifdef CONFIG_NO_SEGFAULT_TERMINATION
+		DECLARE_WAIT_QUEUE_HEAD(wq);
+		wait_event_interruptible(wq, 0 == 1);
+#else
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
 		info.si_addr = (void *)address;
 		force_sig_info(SIGSEGV, &info, tsk);
-		printk(KERN_NOTICE "%s (pid %d) segfaults for page "
-		       "address %08lx at pc %08lx\n",
-		       tsk->comm, tsk->pid, address, instruction_pointer(regs));
+#endif
 		return;
 	}
 
