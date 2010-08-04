@@ -2251,7 +2251,7 @@ static struct opcode opcode_table[256] = {
 	N, N, N, D(ImplicitOps | Stack),
 	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
 	/* 0xD0 - 0xD7 */
-	D(ByteOp | DstMem | SrcImplicit | ModRM), D(DstMem | SrcImplicit | ModRM),
+	D(ByteOp | DstMem | SrcOne | ModRM), D(DstMem | SrcOne | ModRM),
 	D(ByteOp | DstMem | SrcImplicit | ModRM), D(DstMem | SrcImplicit | ModRM),
 	N, N, N, N,
 	/* 0xD8 - 0xDF */
@@ -3046,7 +3046,6 @@ special_insn:
 			goto done;
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
-		c->src.val = 1;
 		emulate_grp2(ctxt);
 		break;
 	case 0xd2 ... 0xd3:	/* Grp2 */
