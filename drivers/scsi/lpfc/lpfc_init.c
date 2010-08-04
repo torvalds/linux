@@ -1032,27 +1032,46 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	/* If there is no heart beat outstanding, issue a heartbeat command */
 	if (phba->cfg_enable_hba_heartbeat) {
 		if (!phba->hb_outstanding) {
-			pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
-			if (!pmboxq) {
-				mod_timer(&phba->hb_tmofunc,
-					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
-				return;
-			}
+			if ((!(psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) &&
+				(list_empty(&psli->mboxq))) {
+				pmboxq = mempool_alloc(phba->mbox_mem_pool,
+							GFP_KERNEL);
+				if (!pmboxq) {
+					mod_timer(&phba->hb_tmofunc,
+						 jiffies +
+						 HZ * LPFC_HB_MBOX_INTERVAL);
+					return;
+				}
 
-			lpfc_heart_beat(phba, pmboxq);
-			pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
-			pmboxq->vport = phba->pport;
-			retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+				lpfc_heart_beat(phba, pmboxq);
+				pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
+				pmboxq->vport = phba->pport;
+				retval = lpfc_sli_issue_mbox(phba, pmboxq,
+						MBX_NOWAIT);
 
-			if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
-				mempool_free(pmboxq, phba->mbox_mem_pool);
-				mod_timer(&phba->hb_tmofunc,
-					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
-				return;
-			}
+				if (retval != MBX_BUSY &&
+					retval != MBX_SUCCESS) {
+					mempool_free(pmboxq,
+							phba->mbox_mem_pool);
+					mod_timer(&phba->hb_tmofunc,
+						jiffies +
+						HZ * LPFC_HB_MBOX_INTERVAL);
+					return;
+				}
+				phba->skipped_hb = 0;
+				phba->hb_outstanding = 1;
+			} else if (time_before_eq(phba->last_completion_time,
+					phba->skipped_hb)) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2857 Last completion time not "
+					" updated in %d ms\n",
+					jiffies_to_msecs(jiffies
+						 - phba->last_completion_time));
+			} else
+				phba->skipped_hb = jiffies;
+
 			mod_timer(&phba->hb_tmofunc,
 				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
-			phba->hb_outstanding = 1;
 			return;
 		} else {
 			/*

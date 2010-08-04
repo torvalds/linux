@@ -2724,15 +2724,6 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 		pmboxq->context2 = ext;
 		pmboxq->in_ext_byte_len =
-			mbox_req->inExtWLen *
-			sizeof(uint32_t);
-		pmboxq->out_ext_byte_len =
-			mbox_req->outExtWLen *
-			sizeof(uint32_t);
-		pmboxq->mbox_offset_word =
-			mbox_req->mbOffset;
-		pmboxq->context2 = ext;
-		pmboxq->in_ext_byte_len =
 			mbox_req->inExtWLen * sizeof(uint32_t);
 		pmboxq->out_ext_byte_len =
 			mbox_req->outExtWLen * sizeof(uint32_t);

@@ -588,7 +588,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 							(status &
 							 HA_RXMASK));
 		}
-		if (pring->txq_cnt)
+		if ((phba->sli_rev == LPFC_SLI_REV4) && pring->txq_cnt)
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
