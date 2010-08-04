@@ -41,11 +41,17 @@
 #include <linux/acpi.h>
 
 /* Private structure for the integrated LVDS support */
-struct intel_lvds_priv {
+struct intel_lvds {
+	struct intel_encoder base;
 	int fitting_mode;
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
 };
+
+static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
+{
+	return container_of(enc_to_intel_encoder(encoder), struct intel_lvds, base);
+}
 
 /**
  * Sets the backlight level.
@@ -219,9 +225,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 	struct drm_encoder *tmp_encoder;
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 
 	/* Should never happen!! */
@@ -293,7 +298,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		I915_WRITE(BCLRPAT_B, 0);
 	}
 
-	switch (lvds_priv->fitting_mode) {
+	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
@@ -378,8 +383,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
-	lvds_priv->pfit_control = pfit_control;
-	lvds_priv->pfit_pgm_ratios = pfit_pgm_ratios;
+	intel_lvds->pfit_control = pfit_control;
+	intel_lvds->pfit_pgm_ratios = pfit_pgm_ratios;
 	dev_priv->lvds_border_bits = border;
 
 	/*
@@ -427,8 +432,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
+	struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 
 	/*
 	 * The LVDS pin pair will already have been turned on in the
@@ -444,8 +448,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
-	I915_WRITE(PFIT_PGM_RATIOS, lvds_priv->pfit_pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
+	I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
 }
 
 /**
@@ -600,18 +604,17 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				connector->encoder) {
 		struct drm_crtc *crtc = connector->encoder->crtc;
 		struct drm_encoder *encoder = connector->encoder;
-		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-		struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
+		struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 
 		if (value == DRM_MODE_SCALE_NONE) {
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return 0;
 		}
-		if (lvds_priv->fitting_mode == value) {
+		if (intel_lvds->fitting_mode == value) {
 			/* the LVDS scaling property is not changed */
 			return 0;
 		}
-		lvds_priv->fitting_mode = value;
+		intel_lvds->fitting_mode = value;
 		if (crtc && crtc->enabled) {
 			/*
 			 * If the CRTC is enabled, the display will be changed
@@ -647,19 +650,8 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.destroy = intel_lvds_destroy,
 };
 
-
-static void intel_lvds_enc_destroy(struct drm_encoder *encoder)
-{
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-
-	if (intel_encoder->ddc_bus)
-		intel_i2c_destroy(intel_encoder->ddc_bus);
-	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
-}
-
 static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
-	.destroy = intel_lvds_enc_destroy,
+	.destroy = intel_encoder_destroy,
 };
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
@@ -843,13 +835,13 @@ static int lvds_is_present_in_vbt(struct drm_device *dev)
 void intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_lvds *intel_lvds;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_crtc *crtc;
-	struct intel_lvds_priv *lvds_priv;
 	u32 lvds;
 	int pipe, gpio = GPIOC;
 
@@ -872,20 +864,20 @@ void intel_lvds_init(struct drm_device *dev)
 		gpio = PCH_GPIOC;
 	}
 
-	intel_encoder = kzalloc(sizeof(struct intel_encoder) +
-				sizeof(struct intel_lvds_priv), GFP_KERNEL);
-	if (!intel_encoder) {
+	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);
+	if (!intel_lvds) {
 		return;
 	}
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
-		kfree(intel_encoder);
+		kfree(intel_lvds);
 		return;
 	}
 
-	connector = &intel_connector->base;
+	intel_encoder = &intel_lvds->base;
 	encoder = &intel_encoder->enc;
+	connector = &intel_connector->base;
 	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
@@ -905,8 +897,6 @@ void intel_lvds_init(struct drm_device *dev)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	lvds_priv = (struct intel_lvds_priv *)(intel_encoder + 1);
-	intel_encoder->dev_priv = lvds_priv;
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
 	/*
@@ -916,7 +906,7 @@ void intel_lvds_init(struct drm_device *dev)
 	drm_connector_attach_property(&intel_connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_ASPECT);
-	lvds_priv->fitting_mode = DRM_MODE_SCALE_ASPECT;
+	intel_lvds->fitting_mode = DRM_MODE_SCALE_ASPECT;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC
@@ -1024,6 +1014,6 @@ failed:
 		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
+	kfree(intel_lvds);
 	kfree(intel_connector);
 }

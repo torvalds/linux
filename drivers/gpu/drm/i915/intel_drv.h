@@ -102,7 +102,6 @@ struct intel_encoder {
 	struct i2c_adapter *ddc_bus;
 	bool load_detect_temp;
 	bool needs_tv_clock;
-	void *dev_priv;
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
 	int clone_mask;
@@ -192,6 +191,7 @@ extern int intel_panel_fitter_pipe (struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
+extern void intel_encoder_destroy(struct drm_encoder *encoder);
 
 extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
 

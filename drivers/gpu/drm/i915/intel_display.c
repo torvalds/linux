@@ -2537,6 +2537,20 @@ void intel_encoder_commit (struct drm_encoder *encoder)
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
+void intel_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
+
+	if (intel_encoder->i2c_bus)
+		intel_i2c_destroy(intel_encoder->i2c_bus);
+
+	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
+}
+
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)

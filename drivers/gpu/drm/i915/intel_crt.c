@@ -508,17 +508,8 @@ static const struct drm_connector_helper_funcs intel_crt_connector_helper_funcs 
 	.best_encoder = intel_attached_encoder,
 };
 
-static void intel_crt_enc_destroy(struct drm_encoder *encoder)
-{
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-
-	intel_i2c_destroy(intel_encoder->ddc_bus);
-	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
-}
-
 static const struct drm_encoder_funcs intel_crt_enc_funcs = {
-	.destroy = intel_crt_enc_destroy,
+	.destroy = intel_encoder_destroy,
 };
 
 void intel_crt_init(struct drm_device *dev)
