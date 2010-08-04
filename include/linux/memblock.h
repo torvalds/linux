@@ -60,7 +60,6 @@ extern int memblock_is_memory(u64 addr);
 extern int memblock_is_region_memory(u64 base, u64 size);
 extern int __init memblock_is_reserved(u64 addr);
 extern int memblock_is_region_reserved(u64 base, u64 size);
-extern int memblock_find(struct memblock_region *res);
 
 extern void memblock_dump_all(void);
 
