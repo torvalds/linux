@@ -415,7 +415,8 @@ static int bdi_forker_thread(void *ptr)
 				break;
 			}
 
-			spin_lock_bh(&bdi->wb_lock);
+			spin_lock(&bdi->wb_lock);
+
 			/*
 			 * If there is no work to do and the bdi thread was
 			 * inactive long enough - kill it. The wb_lock is taken
@@ -432,7 +433,7 @@ static int bdi_forker_thread(void *ptr)
 				action = KILL_THREAD;
 				break;
 			}
-			spin_unlock_bh(&bdi->wb_lock);
+			spin_unlock(&bdi->wb_lock);
 		}
 		spin_unlock_bh(&bdi_lock);
 
