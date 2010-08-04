@@ -98,7 +98,7 @@ struct intel_sdvo {
 	bool is_tv;
 
 	/* This is for current tv format name */
-	char *tv_format_name;
+	int tv_format_index;
 
 	/**
 	 * This is set if we treat the device as HDMI, instead of DVI.
@@ -141,7 +141,7 @@ struct intel_sdvo_connector {
 	uint16_t output_flag;
 
 	/* This contains all current supported TV format */
-	char *tv_format_supported[TV_FORMAT_NUM];
+	u8 tv_format_supported[TV_FORMAT_NUM];
 	int   format_supported_num;
 	struct drm_property *tv_format_property;
 	struct drm_property *tv_format_name_property[TV_FORMAT_NUM];
@@ -958,13 +958,9 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo)
 {
 	struct intel_sdvo_tv_format format;
-	uint32_t format_map, i;
+	uint32_t format_map;
 
-	for (i = 0; i < TV_FORMAT_NUM; i++)
-		if (tv_format_names[i] == intel_sdvo->tv_format_name)
-			break;
-
-	format_map = 1 << i;
+	format_map = 1 << intel_sdvo->tv_format_index;
 	memset(&format, 0, sizeof(format));
 	memcpy(&format, &format_map, min(sizeof(format), sizeof(format_map)));
 
@@ -1614,11 +1610,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	/* Read the list of supported input resolutions for the selected TV
 	 * format.
 	 */
-	for (i = 0; i < TV_FORMAT_NUM; i++)
-		if (tv_format_names[i] ==  intel_sdvo->tv_format_name)
-			break;
-
-	format_map = (1 << i);
+	format_map = 1 << intel_sdvo->tv_format_index;
 	memcpy(&tv_res, &format_map,
 	       min(sizeof(format_map), sizeof(struct intel_sdvo_sdtv_resolution_request)));
 
@@ -1640,7 +1632,6 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 			if (nmode)
 				drm_mode_probed_add(connector, nmode);
 		}
-
 }
 
 static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
@@ -1768,11 +1759,11 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		if (val >= TV_FORMAT_NUM)
 			return -EINVAL;
 
-		if (intel_sdvo->tv_format_name ==
+		if (intel_sdvo->tv_format_index ==
 		    intel_sdvo_connector->tv_format_supported[val])
 			return 0;
 
-		intel_sdvo->tv_format_name = intel_sdvo_connector->tv_format_supported[val];
+		intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[val];
 		changed = true;
 	} else if (IS_TV_OR_LVDS(intel_sdvo_connector)) {
 		cmd = 0;
@@ -2271,11 +2262,8 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 
 	intel_sdvo_connector->format_supported_num = 0;
 	for (i = 0 ; i < TV_FORMAT_NUM; i++)
-		if (format_map & (1 << i)) {
-			intel_sdvo_connector->tv_format_supported
-			[intel_sdvo_connector->format_supported_num++] =
-			tv_format_names[i];
-		}
+		if (format_map & (1 << i))
+			intel_sdvo_connector->tv_format_supported[intel_sdvo_connector->format_supported_num++] = i;
 
 
 	intel_sdvo_connector->tv_format_property =
@@ -2285,9 +2273,9 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 	for (i = 0; i < intel_sdvo_connector->format_supported_num; i++)
 		drm_property_add_enum(
 				intel_sdvo_connector->tv_format_property, i,
-				i, intel_sdvo_connector->tv_format_supported[i]);
+				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
-	intel_sdvo->tv_format_name = intel_sdvo_connector->tv_format_supported[0];
+	intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[0];
 	drm_connector_attach_property(&intel_sdvo_connector->base.base,
 				      intel_sdvo_connector->tv_format_property, 0);
 	return true;
