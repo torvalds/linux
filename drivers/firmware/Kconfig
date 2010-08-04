@@ -122,8 +122,17 @@ config ISCSI_IBFT_FIND
 	  is necessary for iSCSI Boot Firmware Table Attributes module to work
 	  properly.
 
+config ISCSI_BOOT_SYSFS
+	tristate "iSCSI Boot Sysfs Interface"
+	default	n
+	help
+	  This option enables support for exposing iSCSI boot information
+	  via sysfs to userspace. If you wish to export this information,
+	  say Y. Otherwise, say N.
+
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
+	select ISCSI_BOOT_SYSFS
 	depends on ISCSI_IBFT_FIND
 	default	n
 	help
