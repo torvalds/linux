@@ -160,19 +160,20 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 adpa, temp;
 	bool ret;
+	bool turn_off_dac = false;
 
 	temp = adpa = I915_READ(PCH_ADPA);
 
-	if (HAS_PCH_CPT(dev)) {
-		/* Disable DAC before force detect */
-		I915_WRITE(PCH_ADPA, adpa & ~ADPA_DAC_ENABLE);
-		(void)I915_READ(PCH_ADPA);
-	} else {
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-		/* disable HPD first */
-		I915_WRITE(PCH_ADPA, adpa);
-		(void)I915_READ(PCH_ADPA);
-	}
+	if (HAS_PCH_SPLIT(dev))
+		turn_off_dac = true;
+
+	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+	if (turn_off_dac)
+		adpa &= ~ADPA_DAC_ENABLE;
+
+	/* disable HPD first */
+	I915_WRITE(PCH_ADPA, adpa);
+	(void)I915_READ(PCH_ADPA);
 
 	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
 			ADPA_CRT_HOTPLUG_WARMUP_10MS |
@@ -189,7 +190,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 		     1000, 1))
 		DRM_ERROR("timed out waiting for FORCE_TRIGGER");
 
-	if (HAS_PCH_CPT(dev)) {
+	if (turn_off_dac) {
 		I915_WRITE(PCH_ADPA, temp);
 		(void)I915_READ(PCH_ADPA);
 	}
