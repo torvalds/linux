@@ -1,10 +1,7 @@
 /*
- *  linux/arch/cris/mm/fault.c
+ *  arch/cris/mm/fault.c
  *
- *  Copyright (C) 2000-2006  Axis Communications AB
- *
- *  Authors:  Bjorn Wesen
- *
+ *  Copyright (C) 2000-2010  Axis Communications AB
  */
 
 #include <linux/mm.h>
@@ -108,11 +105,11 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	info.si_code = SEGV_MAPERR;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or "atomic" operation or have no
+	 * user context, we must not take the fault.
 	 */
 
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	down_read(&mm->mmap_sem);
