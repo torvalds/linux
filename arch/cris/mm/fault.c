@@ -334,8 +334,11 @@ int
 find_fixup_code(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
+	/* in case of delay slot fault (v32) */
+	unsigned long ip = (instruction_pointer(regs) & ~0x1);
 
-	if ((fixup = search_exception_tables(instruction_pointer(regs))) != 0) {
+	fixup = search_exception_tables(ip);
+	if (fixup != 0) {
 		/* Adjust the instruction pointer in the stackframe. */
 		instruction_pointer(regs) = fixup->fixup;
 		arch_fixup(regs);
