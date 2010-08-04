@@ -657,7 +657,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&sdhi1_device,
 	&usb1_host_device,
 	&fsi_device,
-	&sh_mmcif_device
+	&sh_mmcif_device,
 	&lcdc1_device,
 	&lcdc_device,
 	&hdmi_device,
