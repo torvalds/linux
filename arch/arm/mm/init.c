@@ -237,20 +237,7 @@ static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
 #ifndef CONFIG_SPARSEMEM
 int pfn_valid(unsigned long pfn)
 {
-	struct memblock_type *mem = &memblock.memory;
-	unsigned int left = 0, right = mem->cnt;
-
-	do {
-		unsigned int mid = (right + left) / 2;
-
-		if (pfn < memblock_start_pfn(mem, mid))
-			right = mid;
-		else if (pfn >= memblock_end_pfn(mem, mid))
-			left = mid + 1;
-		else
-			return 1;
-	} while (left < right);
-	return 0;
+	return memblock_is_memory(pfn << PAGE_SHIFT);
 }
 EXPORT_SYMBOL(pfn_valid);
 
