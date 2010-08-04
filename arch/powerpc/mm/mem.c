@@ -86,10 +86,10 @@ int page_is_ram(unsigned long pfn)
 	for (i=0; i < memblock.memory.cnt; i++) {
 		unsigned long base;
 
-		base = memblock.memory.region[i].base;
+		base = memblock.memory.regions[i].base;
 
 		if ((paddr >= base) &&
-			(paddr < (base + memblock.memory.region[i].size))) {
+			(paddr < (base + memblock.memory.regions[i].size))) {
 			return 1;
 		}
 	}
@@ -149,7 +149,7 @@ int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *))
 {
-	struct memblock_property res;
+	struct memblock_region res;
 	unsigned long pfn, len;
 	u64 end;
 	int ret = -1;
@@ -206,7 +206,7 @@ void __init do_init_bootmem(void)
 	/* Add active regions with valid PFNs */
 	for (i = 0; i < memblock.memory.cnt; i++) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
+		start_pfn = memblock.memory.regions[i].base >> PAGE_SHIFT;
 		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
 		add_active_range(0, start_pfn, end_pfn);
 	}
@@ -219,16 +219,16 @@ void __init do_init_bootmem(void)
 
 	/* reserve the sections we're already using */
 	for (i = 0; i < memblock.reserved.cnt; i++) {
-		unsigned long addr = memblock.reserved.region[i].base +
+		unsigned long addr = memblock.reserved.regions[i].base +
 				     memblock_size_bytes(&memblock.reserved, i) - 1;
 		if (addr < lowmem_end_addr)
-			reserve_bootmem(memblock.reserved.region[i].base,
+			reserve_bootmem(memblock.reserved.regions[i].base,
 					memblock_size_bytes(&memblock.reserved, i),
 					BOOTMEM_DEFAULT);
-		else if (memblock.reserved.region[i].base < lowmem_end_addr) {
+		else if (memblock.reserved.regions[i].base < lowmem_end_addr) {
 			unsigned long adjusted_size = lowmem_end_addr -
-				      memblock.reserved.region[i].base;
-			reserve_bootmem(memblock.reserved.region[i].base,
+				      memblock.reserved.regions[i].base;
+			reserve_bootmem(memblock.reserved.regions[i].base,
 					adjusted_size, BOOTMEM_DEFAULT);
 		}
 	}
@@ -237,7 +237,7 @@ void __init do_init_bootmem(void)
 
 	/* reserve the sections we're already using */
 	for (i = 0; i < memblock.reserved.cnt; i++)
-		reserve_bootmem(memblock.reserved.region[i].base,
+		reserve_bootmem(memblock.reserved.regions[i].base,
 				memblock_size_bytes(&memblock.reserved, i),
 				BOOTMEM_DEFAULT);
 
@@ -257,10 +257,10 @@ static int __init mark_nonram_nosave(void)
 
 	for (i = 0; i < memblock.memory.cnt - 1; i++) {
 		memblock_region_max_pfn =
-			(memblock.memory.region[i].base >> PAGE_SHIFT) +
-			(memblock.memory.region[i].size >> PAGE_SHIFT);
+			(memblock.memory.regions[i].base >> PAGE_SHIFT) +
+			(memblock.memory.regions[i].size >> PAGE_SHIFT);
 		memblock_next_region_start_pfn =
-			memblock.memory.region[i+1].base >> PAGE_SHIFT;
+			memblock.memory.regions[i+1].base >> PAGE_SHIFT;
 
 		if (memblock_region_max_pfn < memblock_next_region_start_pfn)
 			register_nosave_region(memblock_region_max_pfn,

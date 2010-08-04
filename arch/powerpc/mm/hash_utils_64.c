@@ -660,7 +660,7 @@ static void __init htab_initialize(void)
 
 	/* create bolted the linear mapping in the hash table */
 	for (i=0; i < memblock.memory.cnt; i++) {
-		base = (unsigned long)__va(memblock.memory.region[i].base);
+		base = (unsigned long)__va(memblock.memory.regions[i].base);
 		size = memblock.memory.region[i].size;
 
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",

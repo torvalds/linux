@@ -77,8 +77,8 @@ void __init setup_memory(void)
 
 	/* Find main memory where is the kernel */
 	for (i = 0; i < memblock.memory.cnt; i++) {
-		memory_start = (u32) memblock.memory.region[i].base;
-		memory_end = (u32) memblock.memory.region[i].base
+		memory_start = (u32) memblock.memory.regions[i].base;
+		memory_end = (u32) memblock.memory.regions[i].base
 				+ (u32) memblock.memory.region[i].size;
 		if ((memory_start <= (u32)_text) &&
 					((u32)_text <= memory_end)) {

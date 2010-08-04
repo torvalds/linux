@@ -173,7 +173,7 @@ static int check_fbmem_region(int region_idx, struct omapfb_mem_region *rg,
 
 static int valid_sdram(unsigned long addr, unsigned long size)
 {
-	struct memblock_property res;
+	struct memblock_region res;
 
 	res.base = addr;
 	res.size = size;

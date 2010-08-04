@@ -978,7 +978,7 @@ static void __init add_node_ranges(void)
 		unsigned long size = memblock_size_bytes(&memblock.memory, i);
 		unsigned long start, end;
 
-		start = memblock.memory.region[i].base;
+		start = memblock.memory.regions[i].base;
 		end = start + size;
 		while (start < end) {
 			unsigned long this_end;
@@ -1299,7 +1299,7 @@ static void __init bootmem_init_nonnuma(void)
 		if (!size)
 			continue;
 
-		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
+		start_pfn = memblock.memory.regions[i].base >> PAGE_SHIFT;
 		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
 		add_active_range(0, start_pfn, end_pfn);
 	}
@@ -1339,7 +1339,7 @@ static void __init trim_reserved_in_node(int nid)
 	numadbg("  trim_reserved_in_node(%d)\n", nid);
 
 	for (i = 0; i < memblock.reserved.cnt; i++) {
-		unsigned long start = memblock.reserved.region[i].base;
+		unsigned long start = memblock.reserved.regions[i].base;
 		unsigned long size = memblock_size_bytes(&memblock.reserved, i);
 		unsigned long end = start + size;
 

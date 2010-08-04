@@ -18,22 +18,22 @@
 
 #define MAX_MEMBLOCK_REGIONS 128
 
-struct memblock_property {
+struct memblock_region {
 	u64 base;
 	u64 size;
 };
 
-struct memblock_region {
+struct memblock_type {
 	unsigned long cnt;
 	u64 size;
-	struct memblock_property region[MAX_MEMBLOCK_REGIONS+1];
+	struct memblock_region regions[MAX_MEMBLOCK_REGIONS+1];
 };
 
 struct memblock {
 	unsigned long debug;
 	u64 rmo_size;
-	struct memblock_region memory;
-	struct memblock_region reserved;
+	struct memblock_type memory;
+	struct memblock_type reserved;
 };
 
 extern struct memblock memblock;
@@ -56,27 +56,27 @@ extern u64 memblock_end_of_DRAM(void);
 extern void __init memblock_enforce_memory_limit(u64 memory_limit);
 extern int __init memblock_is_reserved(u64 addr);
 extern int memblock_is_region_reserved(u64 base, u64 size);
-extern int memblock_find(struct memblock_property *res);
+extern int memblock_find(struct memblock_region *res);
 
 extern void memblock_dump_all(void);
 
 static inline u64
-memblock_size_bytes(struct memblock_region *type, unsigned long region_nr)
+memblock_size_bytes(struct memblock_type *type, unsigned long region_nr)
 {
-	return type->region[region_nr].size;
+	return type->regions[region_nr].size;
 }
 static inline u64
-memblock_size_pages(struct memblock_region *type, unsigned long region_nr)
+memblock_size_pages(struct memblock_type *type, unsigned long region_nr)
 {
 	return memblock_size_bytes(type, region_nr) >> PAGE_SHIFT;
 }
 static inline u64
-memblock_start_pfn(struct memblock_region *type, unsigned long region_nr)
+memblock_start_pfn(struct memblock_type *type, unsigned long region_nr)
 {
-	return type->region[region_nr].base >> PAGE_SHIFT;
+	return type->regions[region_nr].base >> PAGE_SHIFT;
 }
 static inline u64
-memblock_end_pfn(struct memblock_region *type, unsigned long region_nr)
+memblock_end_pfn(struct memblock_type *type, unsigned long region_nr)
 {
 	return memblock_start_pfn(type, region_nr) +
 	       memblock_size_pages(type, region_nr);

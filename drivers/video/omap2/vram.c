@@ -554,7 +554,7 @@ void __init omap_vram_reserve_sdram_memblock(void)
 	size = PAGE_ALIGN(size);
 
 	if (paddr) {
-		struct memblock_property res;
+		struct memblock_region res;
 
 		res.base = paddr;
 		res.size = size;

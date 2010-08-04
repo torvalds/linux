@@ -237,7 +237,7 @@ static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
 #ifndef CONFIG_SPARSEMEM
 int pfn_valid(unsigned long pfn)
 {
-	struct memblock_region *mem = &memblock.memory;
+	struct memblock_type *mem = &memblock.memory;
 	unsigned int left = 0, right = mem->cnt;
 
 	do {
