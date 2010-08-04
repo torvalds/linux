@@ -27,7 +27,7 @@
 
 static void __init omap_zoom_map_io(void)
 {
-	omap2_set_globals_36xx();
+	omap2_set_globals_3xxx();
 	omap34xx_map_common_io();
 }
 

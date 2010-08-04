@@ -143,7 +143,7 @@ static void __init rx51_init(void)
 
 static void __init rx51_map_io(void)
 {
-	omap2_set_globals_343x();
+	omap2_set_globals_3xxx();
 	rx51_video_mem_init();
 	omap34xx_map_common_io();
 }

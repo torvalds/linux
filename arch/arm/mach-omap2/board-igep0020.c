@@ -534,7 +534,7 @@ static void __init igep2_init(void)
 
 static void __init igep2_map_io(void)
 {
-	omap2_set_globals_343x();
+	omap2_set_globals_3xxx();
 	omap34xx_map_common_io();
 }
 

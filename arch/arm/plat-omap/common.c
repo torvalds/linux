@@ -317,17 +317,11 @@ static struct omap_globals omap3_globals = {
 	.uart1_phys	= OMAP3_UART1_BASE,
 	.uart2_phys	= OMAP3_UART2_BASE,
 	.uart3_phys	= OMAP3_UART3_BASE,
+	.uart4_phys	= OMAP3_UART4_BASE,	/* Only on 3630 */
 };
 
-void __init omap2_set_globals_343x(void)
+void __init omap2_set_globals_3xxx(void)
 {
-	__omap2_set_globals(&omap3_globals);
-}
-
-void __init omap2_set_globals_36xx(void)
-{
-	omap3_globals.uart4_phys = OMAP3_UART4_BASE;
-
 	__omap2_set_globals(&omap3_globals);
 }
 #endif
