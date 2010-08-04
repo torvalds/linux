@@ -1624,10 +1624,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (wl1271_11a_enabled())
-		ret = wl1271_scan(hw->priv, ssid, len, req);
-	else
-		ret = wl1271_scan(hw->priv, ssid, len, req);
+	ret = wl1271_scan(hw->priv, ssid, len, req);
 
 	wl1271_ps_elp_sleep(wl);
 
