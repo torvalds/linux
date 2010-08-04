@@ -359,12 +359,6 @@ void __init setup_arch(char **cmdline_p)
 		isa_type = ISA_TYPE_Q40;
 		isa_sex = 0;
 	}
-#ifdef CONFIG_GG2
-	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(GG2_ISA)) {
-		isa_type = ISA_TYPE_GG2;
-		isa_sex = 0;
-	}
-#endif
 #ifdef CONFIG_AMIGA_PCMCIA
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(PCMCIA)) {
 		isa_type = ISA_TYPE_AG;

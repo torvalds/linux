@@ -434,7 +434,7 @@ config PROC_HARDWARE
 
 config ISA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
@@ -445,7 +445,7 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 
 config ZONE_DMA
