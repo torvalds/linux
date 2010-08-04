@@ -44,7 +44,6 @@
 #include <asm/cache.h>
 #include <asm/current.h>
 #include <asm/delay.h>
-#include <asm/ia32.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/machvec.h>
@@ -391,6 +390,14 @@ smp_callin (void)
 
 	fix_b0_for_bsp();
 
+#ifdef CONFIG_NUMA
+	/*
+	 * numa_node_id() works after this.
+	 */
+	set_numa_node(cpu_to_node_map[cpuid]);
+	set_numa_mem(local_memory_node(cpu_to_node_map[cpuid]));
+#endif
+
 	ipi_call_lock_irq();
 	spin_lock(&vector_lock);
 	/* Setup the per cpu irq handling data structures */
@@ -442,10 +449,6 @@ smp_callin (void)
 	    last_cpuinfo->model != this_cpuinfo->model)
 		calibrate_delay();
 	local_cpu_data->loops_per_jiffy = loops_per_jiffy;
-
-#ifdef CONFIG_IA32_SUPPORT
-	ia32_gdt_init();
-#endif
 
 	/*
 	 * Allow the master to continue.
@@ -637,6 +640,9 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callin_map);
+#ifdef CONFIG_NUMA
+	set_numa_node(cpu_to_node_map[smp_processor_id()]);
+#endif
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 	paravirt_post_smp_prepare_boot_cpu();
 }

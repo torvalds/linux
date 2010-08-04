@@ -33,7 +33,7 @@ static ssize_t uevent_seqnum_show(struct kobject *kobj,
 }
 KERNEL_ATTR_RO(uevent_seqnum);
 
-/* uevent helper program, used during early boo */
+/* uevent helper program, used during early boot */
 static ssize_t uevent_helper_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
@@ -138,7 +138,8 @@ extern const void __start_notes __attribute__((weak));
 extern const void __stop_notes __attribute__((weak));
 #define	notes_size (&__stop_notes - &__start_notes)
 
-static ssize_t notes_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+static ssize_t notes_read(struct file *filp, struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
 	memcpy(buf, &__start_notes + off, count);
@@ -197,16 +198,8 @@ static int __init ksysfs_init(void)
 			goto group_exit;
 	}
 
-	/* create the /sys/kernel/uids/ directory */
-	error = uids_sysfs_init();
-	if (error)
-		goto notes_exit;
-
 	return 0;
 
-notes_exit:
-	if (notes_size > 0)
-		sysfs_remove_bin_file(kernel_kobj, &notes_attr);
 group_exit:
 	sysfs_remove_group(kernel_kobj, &kernel_attr_group);
 kset_exit:

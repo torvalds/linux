@@ -12,6 +12,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include "wext-compat.h"
@@ -781,16 +782,22 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return cfg80211_mgd_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
-	default:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		wdev_lock(wdev);
 		mutex_lock(&rdev->devlist_mtx);
-		err = rdev_set_freq(rdev, NULL, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
+		wdev_unlock(wdev);
 		return err;
+	default:
+		return -EOPNOTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
@@ -800,7 +807,6 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 			  struct iw_freq *freq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -808,9 +814,9 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 	default:
-		if (!rdev->channel)
+		if (!wdev->channel)
 			return -EINVAL;
-		freq->m = rdev->channel->center_freq;
+		freq->m = wdev->channel->center_freq;
 		freq->e = 6;
 		return 0;
 	}
@@ -1099,8 +1105,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	bool ps = wdev->wext.ps;
-	int timeout = wdev->wext.ps_timeout;
+	bool ps = wdev->ps;
+	int timeout = wdev->ps_timeout;
 	int err;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
@@ -1133,8 +1139,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 	if (err)
 		return err;
 
-	wdev->wext.ps = ps;
-	wdev->wext.ps_timeout = timeout;
+	wdev->ps = ps;
+	wdev->ps_timeout = timeout;
 
 	return 0;
 
@@ -1147,7 +1153,7 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
-	wrq->disabled = !wdev->wext.ps;
+	wrq->disabled = !wdev->ps;
 
 	return 0;
 }
@@ -1204,20 +1210,46 @@ int cfg80211_wext_siwrate(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_bitrate_mask mask;
+	u32 fixed, maxrate;
+	struct ieee80211_supported_band *sband;
+	int band, ridx;
+	bool match = false;
 
 	if (!rdev->ops->set_bitrate_mask)
 		return -EOPNOTSUPP;
 
-	mask.fixed = 0;
-	mask.maxrate = 0;
+	memset(&mask, 0, sizeof(mask));
+	fixed = 0;
+	maxrate = (u32)-1;
 
 	if (rate->value < 0) {
 		/* nothing */
 	} else if (rate->fixed) {
-		mask.fixed = rate->value / 1000; /* kbps */
+		fixed = rate->value / 100000;
 	} else {
-		mask.maxrate = rate->value / 1000; /* kbps */
+		maxrate = rate->value / 100000;
 	}
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wdev->wiphy->bands[band];
+		if (sband == NULL)
+			continue;
+		for (ridx = 0; ridx < sband->n_bitrates; ridx++) {
+			struct ieee80211_rate *srate = &sband->bitrates[ridx];
+			if (fixed == srate->bitrate) {
+				mask.control[band].legacy = 1 << ridx;
+				match = true;
+				break;
+			}
+			if (srate->bitrate <= maxrate) {
+				mask.control[band].legacy |= 1 << ridx;
+				match = true;
+			}
+		}
+	}
+
+	if (!match)
+		return -EINVAL;
 
 	return rdev->ops->set_bitrate_mask(wdev->wiphy, dev, NULL, &mask);
 }
@@ -1257,10 +1289,7 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	if (!(sinfo.filled & STATION_INFO_TX_BITRATE))
 		return -EOPNOTSUPP;
 
-	rate->value = 0;
-
-	if (!(sinfo.txrate.flags & RATE_INFO_FLAGS_MCS))
-		rate->value = 100000 * sinfo.txrate.legacy;
+	rate->value = 100000 * cfg80211_calculate_bitrate(&sinfo.txrate);
 
 	return 0;
 }

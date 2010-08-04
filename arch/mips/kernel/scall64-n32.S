@@ -181,7 +181,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_exit
 	PTR	compat_sys_wait4
 	PTR	sys_kill			/* 6060 */
-	PTR	sys_32_newuname
+	PTR	sys_newuname
 	PTR	sys_semget
 	PTR	sys_semop
 	PTR	sys_n32_semctl
@@ -385,7 +385,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fchmodat
 	PTR	sys_faccessat
 	PTR	compat_sys_pselect6
-	PTR	sys_ppoll			/* 6265 */
+	PTR	compat_sys_ppoll		/* 6265 */
 	PTR	sys_unshare
 	PTR	sys_splice
 	PTR	sys_sync_file_range
@@ -419,4 +419,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
 	PTR     compat_sys_recvmmsg
+	PTR     sys_getdents
 	.size	sysn32_call_table,.-sysn32_call_table

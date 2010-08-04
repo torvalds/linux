@@ -18,6 +18,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <video/edid.h>
 #include <video/uvesafb.h>
 #ifdef CONFIG_X86

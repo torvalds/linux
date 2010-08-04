@@ -5,7 +5,7 @@
  *
  *  Most of this file is
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  However, the cx23885_input_{init,fini} functions contained herein are
  *  derived from Linux kernel files linux/media/video/.../...-input.c marked as:
@@ -36,6 +36,7 @@
  */
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <media/ir-common.h>
 #include <media/v4l2-subdev.h>
 
@@ -49,6 +50,8 @@
 #define RC5_START_BITS_EXTENDED	0x2 /* Command range 64 - 127 */
 
 #define RC5_EXTENDED_COMMAND_OFFSET	64
+
+#define MODULE_NAME "cx23885"
 
 static inline unsigned int rc5_command(u32 rc5_baseband)
 {
@@ -337,7 +340,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 {
 	struct card_ir *ir;
 	struct input_dev *input_dev;
-	struct ir_scancode_table *ir_codes = NULL;
+	char *ir_codes = NULL;
 	int ir_type, ir_addr, ir_start;
 	int ret;
 
@@ -352,7 +355,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		/* Parameters for the grey Hauppauge remote for the HVR-1850 */
-		ir_codes = &ir_codes_hauppauge_new_table;
+		ir_codes = RC_MAP_HAUPPAUGE_NEW;
 		ir_type = IR_TYPE_RC5;
 		ir_addr = 0x1e; /* RC-5 system bits emitted by the remote */
 		ir_start = RC5_START_BITS_NORMAL; /* A basic RC-5 remote */
@@ -397,7 +400,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	dev->ir_input = ir;
 	cx23885_input_ir_start(dev);
 
-	ret = ir_input_register(ir->dev, ir_codes);
+	ret = ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
 	if (ret)
 		goto err_out_stop;
 

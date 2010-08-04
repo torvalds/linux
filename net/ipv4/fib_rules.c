@@ -213,7 +213,6 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 {
 	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 
-	frh->family = AF_INET;
 	frh->dst_len = rule4->dst_len;
 	frh->src_len = rule4->src_len;
 	frh->tos = rule4->tos;
@@ -234,23 +233,6 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-static u32 fib4_rule_default_pref(struct fib_rules_ops *ops)
-{
-	struct list_head *pos;
-	struct fib_rule *rule;
-
-	if (!list_empty(&ops->rules_list)) {
-		pos = ops->rules_list.next;
-		if (pos->next != &ops->rules_list) {
-			rule = list_entry(pos->next, struct fib_rule, list);
-			if (rule->pref)
-				return rule->pref - 1;
-		}
-	}
-
-	return 0;
-}
-
 static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 {
 	return nla_total_size(4) /* dst */
@@ -263,7 +245,7 @@ static void fib4_rule_flush_cache(struct fib_rules_ops *ops)
 	rt_cache_flush(ops->fro_net, -1);
 }
 
-static struct fib_rules_ops fib4_rules_ops_template = {
+static const struct fib_rules_ops __net_initdata fib4_rules_ops_template = {
 	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
@@ -272,7 +254,7 @@ static struct fib_rules_ops fib4_rules_ops_template = {
 	.configure	= fib4_rule_configure,
 	.compare	= fib4_rule_compare,
 	.fill		= fib4_rule_fill,
-	.default_pref	= fib4_rule_default_pref,
+	.default_pref	= fib_default_rule_pref,
 	.nlmsg_payload	= fib4_rule_nlmsg_payload,
 	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,

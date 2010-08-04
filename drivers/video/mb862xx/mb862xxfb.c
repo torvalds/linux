@@ -31,15 +31,6 @@
 #define CARMINE_MEM_SIZE	0x8000000
 #define DRV_NAME		"mb862xxfb"
 
-#if defined(CONFIG_LWMON5)
-static struct mb862xx_gc_mode lwmon5_gc_mode = {
-	/* Mode for Sharp LQ104V1DG61 TFT LCD Panel */
-	{ "640x480", 60, 640, 480, 40000, 48, 16, 32, 11, 96, 2, 0, 0, 0 },
-	/* 16 bits/pixel, 32MB, 100MHz, SDRAM memory mode value */
-	16, 0x2000000, GC_CCF_COT_100, 0x414fb7f2
-};
-#endif
-
 #if defined(CONFIG_SOCRATES)
 static struct mb862xx_gc_mode socrates_gc_mode = {
 	/* Mode for Prime View PM070WL4 TFT LCD Panel */
@@ -562,7 +553,7 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
 					       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device *dev = &ofdev->dev;
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
@@ -599,10 +590,6 @@ static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
 		ret = -ENXIO;
 		goto irqdisp;
 	}
-
-#if defined(CONFIG_LWMON5)
-	par->gc_mode = &lwmon5_gc_mode;
-#endif
 
 #if defined(CONFIG_SOCRATES)
 	par->gc_mode = &socrates_gc_mode;
@@ -731,9 +718,11 @@ static struct of_device_id __devinitdata of_platform_mb862xx_tbl[] = {
 };
 
 static struct of_platform_driver of_platform_mb862xxfb_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRV_NAME,
-	.match_table	= of_platform_mb862xx_tbl,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_mb862xx_tbl,
+	},
 	.probe		= of_platform_mb862xx_probe,
 	.remove		= __devexit_p(of_platform_mb862xx_remove),
 };

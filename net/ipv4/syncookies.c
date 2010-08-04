@@ -347,7 +347,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 					       { .sport = th->dest,
 						 .dport = th->source } } };
 		security_req_classify_flow(req, &fl);
-		if (ip_route_output_key(&init_net, &rt, &fl)) {
+		if (ip_route_output_key(sock_net(sk), &rt, &fl)) {
 			reqsk_free(req);
 			goto out;
 		}
@@ -358,7 +358,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 
 	tcp_select_initial_window(tcp_full_space(sk), req->mss,
 				  &req->rcv_wnd, &req->window_clamp,
-				  ireq->wscale_ok, &rcv_wscale);
+				  ireq->wscale_ok, &rcv_wscale,
+				  dst_metric(&rt->u.dst, RTAX_INITRWND));
 
 	ireq->rcv_wscale  = rcv_wscale;
 

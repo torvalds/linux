@@ -20,9 +20,11 @@
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include <linux/shmem_fs.h>
+#include <linux/ramfs.h>
 #include <linux/cred.h>
 #include <linux/sched.h>
 #include <linux/init_task.h>
+#include <linux/slab.h>
 
 static struct vfsmount *dev_mnt;
 
@@ -44,7 +46,11 @@ __setup("devtmpfs.mount=", mount_param);
 static int dev_get_sb(struct file_system_type *fs_type, int flags,
 		      const char *dev_name, void *data, struct vfsmount *mnt)
 {
+#ifdef CONFIG_TMPFS
 	return get_sb_single(fs_type, flags, data, shmem_fill_super, mnt);
+#else
+	return get_sb_single(fs_type, flags, data, ramfs_fill_super, mnt);
+#endif
 }
 
 static struct file_system_type dev_fs_type = {
@@ -301,6 +307,19 @@ int devtmpfs_delete_node(struct device *dev)
 		if (dentry->d_inode) {
 			err = vfs_getattr(nd.path.mnt, dentry, &stat);
 			if (!err && dev_mynode(dev, dentry->d_inode, &stat)) {
+				struct iattr newattrs;
+				/*
+				 * before unlinking this node, reset permissions
+				 * of possible references like hardlinks
+				 */
+				newattrs.ia_uid = 0;
+				newattrs.ia_gid = 0;
+				newattrs.ia_mode = stat.mode & ~0777;
+				newattrs.ia_valid =
+					ATTR_UID|ATTR_GID|ATTR_MODE;
+				mutex_lock(&dentry->d_inode->i_mutex);
+				notify_change(dentry, &newattrs);
+				mutex_unlock(&dentry->d_inode->i_mutex);
 				err = vfs_unlink(nd.path.dentry->d_inode,
 						 dentry);
 				if (!err || err == -ENOENT)

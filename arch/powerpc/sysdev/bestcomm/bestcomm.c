@@ -377,7 +377,7 @@ mpc52xx_bcom_probe(struct of_device *op, const struct of_device_id *match)
 	printk(KERN_INFO "DMA: MPC52xx BestComm driver\n");
 
 	/* Get the bestcomm node */
-	of_node_get(op->node);
+	of_node_get(op->dev.of_node);
 
 	/* Prepare SRAM */
 	ofn_sram = of_find_matching_node(NULL, mpc52xx_sram_ids);
@@ -406,10 +406,10 @@ mpc52xx_bcom_probe(struct of_device *op, const struct of_device_id *match)
 	}
 
 	/* Save the node */
-	bcom_eng->ofnode = op->node;
+	bcom_eng->ofnode = op->dev.of_node;
 
 	/* Get, reserve & map io */
-	if (of_address_to_resource(op->node, 0, &res_bcom)) {
+	if (of_address_to_resource(op->dev.of_node, 0, &res_bcom)) {
 		printk(KERN_ERR DRIVER_NAME ": "
 			"Can't get resource\n");
 		rv = -EINVAL;
@@ -453,7 +453,7 @@ error_sramclean:
 	kfree(bcom_eng);
 	bcom_sram_cleanup();
 error_ofput:
-	of_node_put(op->node);
+	of_node_put(op->dev.of_node);
 
 	printk(KERN_ERR "DMA: MPC52xx BestComm init failed !\n");
 
@@ -494,14 +494,12 @@ MODULE_DEVICE_TABLE(of, mpc52xx_bcom_of_match);
 
 
 static struct of_platform_driver mpc52xx_bcom_of_platform_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_bcom_of_match,
 	.probe		= mpc52xx_bcom_probe,
 	.remove		= mpc52xx_bcom_remove,
-	.driver		= {
-		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_bcom_of_match,
 	},
 };
 

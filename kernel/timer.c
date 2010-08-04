@@ -39,6 +39,7 @@
 #include <linux/kallsyms.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -318,6 +319,24 @@ unsigned long round_jiffies_up_relative(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
+/**
+ * set_timer_slack - set the allowed slack for a timer
+ * @slack_hz: the amount of time (in jiffies) allowed for rounding
+ *
+ * Set the amount of time, in jiffies, that a certain timer has
+ * in terms of slack. By setting this value, the timer subsystem
+ * will schedule the actual timer somewhere between
+ * the time mod_timer() asks for, and that time plus the slack.
+ *
+ * By setting the slack to -1, a percentage of the delay is used
+ * instead.
+ */
+void set_timer_slack(struct timer_list *timer, int slack_hz)
+{
+	timer->slack = slack_hz;
+}
+EXPORT_SYMBOL_GPL(set_timer_slack);
+
 
 static inline void set_running_timer(struct tvec_base *base,
 					struct timer_list *timer)
@@ -549,6 +568,7 @@ static void __init_timer(struct timer_list *timer,
 {
 	timer->entry.next = NULL;
 	timer->base = __raw_get_cpu_var(tvec_bases);
+	timer->slack = -1;
 #ifdef CONFIG_TIMER_STATS
 	timer->start_site = NULL;
 	timer->start_pid = -1;
@@ -714,6 +734,46 @@ int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
+/*
+ * Decide where to put the timer while taking the slack into account
+ *
+ * Algorithm:
+ *   1) calculate the maximum (absolute) time
+ *   2) calculate the highest bit where the expires and new max are different
+ *   3) use this bit to make a mask
+ *   4) use the bitmask to round down the maximum time, so that all last
+ *      bits are zeros
+ */
+static inline
+unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
+{
+	unsigned long expires_limit, mask;
+	int bit;
+
+	expires_limit = expires;
+
+	if (timer->slack >= 0) {
+		expires_limit = expires + timer->slack;
+	} else {
+		unsigned long now = jiffies;
+
+		/* No slack, if already expired else auto slack 0.4% */
+		if (time_after(expires, now))
+			expires_limit = expires + (expires - now)/256;
+	}
+	mask = expires ^ expires_limit;
+	if (mask == 0)
+		return expires;
+
+	bit = find_last_bit(&mask, BITS_PER_LONG);
+
+	mask = (1 << bit) - 1;
+
+	expires_limit = expires_limit & ~(mask);
+
+	return expires_limit;
+}
+
 /**
  * mod_timer - modify a timer's timeout
  * @timer: the timer to be modified
@@ -743,6 +803,8 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 	 */
 	if (timer_pending(timer) && timer->expires == expires)
 		return 1;
+
+	expires = apply_slack(timer, expires);
 
 	return __mod_timer(timer, expires, false, TIMER_NOT_PINNED);
 }
@@ -880,6 +942,7 @@ int try_to_del_timer_sync(struct timer_list *timer)
 	if (base->running_timer == timer)
 		goto out;
 
+	timer_stats_timer_clear_start_info(timer);
 	ret = 0;
 	if (timer_pending(timer)) {
 		detach_timer(timer, 1);
@@ -953,6 +1016,47 @@ static int cascade(struct tvec_base *base, struct tvec *tv, int index)
 	return index;
 }
 
+static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
+			  unsigned long data)
+{
+	int preempt_count = preempt_count();
+
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * It is permissible to free the timer from inside the
+	 * function that is called from it, this we need to take into
+	 * account for lockdep too. To avoid bogus "held lock freed"
+	 * warnings as well as problems when looking into
+	 * timer->lockdep_map, make a copy and use that here.
+	 */
+	struct lockdep_map lockdep_map = timer->lockdep_map;
+#endif
+	/*
+	 * Couple the lock chain with the lock chain at
+	 * del_timer_sync() by acquiring the lock_map around the fn()
+	 * call here and in del_timer_sync().
+	 */
+	lock_map_acquire(&lockdep_map);
+
+	trace_timer_expire_entry(timer);
+	fn(data);
+	trace_timer_expire_exit(timer);
+
+	lock_map_release(&lockdep_map);
+
+	if (preempt_count != preempt_count()) {
+		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n",
+			  fn, preempt_count, preempt_count());
+		/*
+		 * Restore the preempt count. That gives us a decent
+		 * chance to survive and extract information. If the
+		 * callback kept a lock held, bad luck, but not worse
+		 * than the BUG() we had.
+		 */
+		preempt_count() = preempt_count;
+	}
+}
+
 #define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 /**
@@ -996,45 +1100,7 @@ static inline void __run_timers(struct tvec_base *base)
 			detach_timer(timer, 1);
 
 			spin_unlock_irq(&base->lock);
-			{
-				int preempt_count = preempt_count();
-
-#ifdef CONFIG_LOCKDEP
-				/*
-				 * It is permissible to free the timer from
-				 * inside the function that is called from
-				 * it, this we need to take into account for
-				 * lockdep too. To avoid bogus "held lock
-				 * freed" warnings as well as problems when
-				 * looking into timer->lockdep_map, make a
-				 * copy and use that here.
-				 */
-				struct lockdep_map lockdep_map =
-					timer->lockdep_map;
-#endif
-				/*
-				 * Couple the lock chain with the lock chain at
-				 * del_timer_sync() by acquiring the lock_map
-				 * around the fn() call here and in
-				 * del_timer_sync().
-				 */
-				lock_map_acquire(&lockdep_map);
-
-				trace_timer_expire_entry(timer);
-				fn(data);
-				trace_timer_expire_exit(timer);
-
-				lock_map_release(&lockdep_map);
-
-				if (preempt_count != preempt_count()) {
-					printk(KERN_ERR "huh, entered %p "
-					       "with preempt_count %08x, exited"
-					       " with %08x?\n",
-					       fn, preempt_count,
-					       preempt_count());
-					BUG();
-				}
-			}
+			call_timer_fn(timer, fn, data);
 			spin_lock_irq(&base->lock);
 		}
 	}
@@ -1618,11 +1684,14 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
+	int err;
+
 	switch(action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		if (init_timers_cpu(cpu) < 0)
-			return NOTIFY_BAD;
+		err = init_timers_cpu(cpu);
+		if (err < 0)
+			return notifier_from_errno(err);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
@@ -1648,7 +1717,7 @@ void __init init_timers(void)
 
 	init_timer_stats();
 
-	BUG_ON(err == NOTIFY_BAD);
+	BUG_ON(err != NOTIFY_OK);
 	register_cpu_notifier(&timers_nb);
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }

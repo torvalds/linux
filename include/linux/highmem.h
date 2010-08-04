@@ -17,11 +17,17 @@ static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page
 static inline void flush_kernel_dcache_page(struct page *page)
 {
 }
+static inline void flush_kernel_vmap_range(void *vaddr, int size)
+{
+}
+static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+}
 #endif
 
 #include <asm/kmap_types.h>
 
-#if defined(CONFIG_DEBUG_HIGHMEM) && defined(CONFIG_TRACE_IRQFLAGS_SUPPORT)
+#ifdef CONFIG_DEBUG_HIGHMEM
 
 void debug_kmap_atomic(enum km_type type);
 

@@ -24,7 +24,7 @@
 #include <asm/localtimer.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
-#include <plat/common.h>
+#include <mach/omap4-common.h>
 
 /* SCU base address */
 static void __iomem *scu_base;

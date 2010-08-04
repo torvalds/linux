@@ -127,6 +127,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->tag = -1;
 	rq->ref_count = 1;
 	rq->start_time = jiffies;
+	set_start_time_ns(rq);
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -450,6 +451,7 @@ void blk_cleanup_queue(struct request_queue *q)
 	 */
 	blk_sync_queue(q);
 
+	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
@@ -464,6 +466,9 @@ EXPORT_SYMBOL(blk_cleanup_queue);
 static int blk_init_free_list(struct request_queue *q)
 {
 	struct request_list *rl = &q->rq;
+
+	if (unlikely(rl->rq_pool))
+		return 0;
 
 	rl->count[BLK_RW_SYNC] = rl->count[BLK_RW_ASYNC] = 0;
 	rl->starved[BLK_RW_SYNC] = rl->starved[BLK_RW_ASYNC] = 0;
@@ -510,6 +515,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 		return NULL;
 	}
 
+	setup_timer(&q->backing_dev_info.laptop_mode_wb_timer,
+		    laptop_mode_timer_fn, (unsigned long) q);
 	init_timer(&q->unplug_timer);
 	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
 	INIT_LIST_HEAD(&q->timeout_list);
@@ -566,16 +573,38 @@ EXPORT_SYMBOL(blk_init_queue);
 struct request_queue *
 blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 {
-	struct request_queue *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	struct request_queue *uninit_q, *q;
 
+	uninit_q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	if (!uninit_q)
+		return NULL;
+
+	q = blk_init_allocated_queue_node(uninit_q, rfn, lock, node_id);
+	if (!q)
+		blk_cleanup_queue(uninit_q);
+
+	return q;
+}
+EXPORT_SYMBOL(blk_init_queue_node);
+
+struct request_queue *
+blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
+			 spinlock_t *lock)
+{
+	return blk_init_allocated_queue_node(q, rfn, lock, -1);
+}
+EXPORT_SYMBOL(blk_init_allocated_queue);
+
+struct request_queue *
+blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
+			      spinlock_t *lock, int node_id)
+{
 	if (!q)
 		return NULL;
 
 	q->node = node_id;
-	if (blk_init_free_list(q)) {
-		kmem_cache_free(blk_requestq_cachep, q);
+	if (blk_init_free_list(q))
 		return NULL;
-	}
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
@@ -598,10 +627,9 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return q;
 	}
 
-	blk_put_queue(q);
 	return NULL;
 }
-EXPORT_SYMBOL(blk_init_queue_node);
+EXPORT_SYMBOL(blk_init_allocated_queue_node);
 
 int blk_get_queue(struct request_queue *q)
 {
@@ -1121,13 +1149,10 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	else
 		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD))
 		req->cmd_flags |= REQ_DISCARD;
-		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
-			req->cmd_flags |= REQ_SOFTBARRIER;
-	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 		req->cmd_flags |= REQ_HARDBARRIER;
-
 	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		req->cmd_flags |= REQ_RW_SYNC;
 	if (bio_rw_flagged(bio, BIO_RW_META))
@@ -1147,7 +1172,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
  */
 static inline bool queue_should_plug(struct request_queue *q)
 {
-	return !(blk_queue_nonrot(q) && blk_queue_queuing(q));
+	return !(blk_queue_nonrot(q) && blk_queue_tagged(q));
 }
 
 static int __make_request(struct request_queue *q, struct bio *bio)
@@ -1198,6 +1223,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
 		drive_stat_acct(req, 0);
+		elv_bio_merged(q, req, bio);
 		if (!attempt_back_merge(q, req))
 			elv_merged_request(q, req, el_ret);
 		goto out;
@@ -1231,6 +1257,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
 		drive_stat_acct(req, 0);
+		elv_bio_merged(q, req, bio);
 		if (!attempt_front_merge(q, req))
 			elv_merged_request(q, req, el_ret);
 		goto out;
@@ -1490,9 +1517,9 @@ end_io:
 /*
  * We only want one ->make_request_fn to be active at a time,
  * else stack usage with stacked devices could be a problem.
- * So use current->bio_{list,tail} to keep a list of requests
+ * So use current->bio_list to keep a list of requests
  * submited by a make_request_fn function.
- * current->bio_tail is also used as a flag to say if
+ * current->bio_list is also used as a flag to say if
  * generic_make_request is currently active in this task or not.
  * If it is NULL, then no make_request is active.  If it is non-NULL,
  * then a make_request is active, and new requests should be added
@@ -1500,11 +1527,11 @@ end_io:
  */
 void generic_make_request(struct bio *bio)
 {
-	if (current->bio_tail) {
+	struct bio_list bio_list_on_stack;
+
+	if (current->bio_list) {
 		/* make_request is active */
-		*(current->bio_tail) = bio;
-		bio->bi_next = NULL;
-		current->bio_tail = &bio->bi_next;
+		bio_list_add(current->bio_list, bio);
 		return;
 	}
 	/* following loop may be a bit non-obvious, and so deserves some
@@ -1512,30 +1539,27 @@ void generic_make_request(struct bio *bio)
 	 * Before entering the loop, bio->bi_next is NULL (as all callers
 	 * ensure that) so we have a list with a single bio.
 	 * We pretend that we have just taken it off a longer list, so
-	 * we assign bio_list to the next (which is NULL) and bio_tail
-	 * to &bio_list, thus initialising the bio_list of new bios to be
+	 * we assign bio_list to a pointer to the bio_list_on_stack,
+	 * thus initialising the bio_list of new bios to be
 	 * added.  __generic_make_request may indeed add some more bios
 	 * through a recursive call to generic_make_request.  If it
 	 * did, we find a non-NULL value in bio_list and re-enter the loop
 	 * from the top.  In this case we really did just take the bio
-	 * of the top of the list (no pretending) and so fixup bio_list and
-	 * bio_tail or bi_next, and call into __generic_make_request again.
+	 * of the top of the list (no pretending) and so remove it from
+	 * bio_list, and call into __generic_make_request again.
 	 *
 	 * The loop was structured like this to make only one call to
 	 * __generic_make_request (which is important as it is large and
 	 * inlined) and to keep the structure simple.
 	 */
 	BUG_ON(bio->bi_next);
+	bio_list_init(&bio_list_on_stack);
+	current->bio_list = &bio_list_on_stack;
 	do {
-		current->bio_list = bio->bi_next;
-		if (bio->bi_next == NULL)
-			current->bio_tail = &current->bio_list;
-		else
-			bio->bi_next = NULL;
 		__generic_make_request(bio);
-		bio = current->bio_list;
+		bio = bio_list_pop(current->bio_list);
 	} while (bio);
-	current->bio_tail = NULL; /* deactivate */
+	current->bio_list = NULL; /* deactivate */
 }
 EXPORT_SYMBOL(generic_make_request);
 
@@ -1559,7 +1583,7 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio)) {
+	if (bio_has_data(bio) && !(rw & (1 << BIO_RW_DISCARD))) {
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
@@ -1617,8 +1641,7 @@ int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 	 * limitation.
 	 */
 	blk_recalc_rq_segments(rq);
-	if (rq->nr_phys_segments > queue_max_phys_segments(q) ||
-	    rq->nr_phys_segments > queue_max_hw_segments(q)) {
+	if (rq->nr_phys_segments > queue_max_segments(q)) {
 		printk(KERN_ERR "%s: over max segments limit.\n", __func__);
 		return -EIO;
 	}
@@ -1861,12 +1884,7 @@ void blk_dequeue_request(struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]++;
-		/*
-		 * Mark this device as supporting hardware queuing, if
-		 * we have more IOs in flight than 4.
-		 */
-		if (!blk_queue_queuing(q) && queue_in_flight(q) > 4)
-			set_bit(QUEUE_FLAG_CQ, &q->queue_flags);
+		set_io_start_time_ns(rq);
 	}
 }
 
@@ -2109,7 +2127,7 @@ static void blk_finish_request(struct request *req, int error)
 	BUG_ON(blk_queued_rq(req));
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
-		laptop_io_completion();
+		laptop_io_completion(&req->q->backing_dev_info);
 
 	blk_delete_timer(req);
 
@@ -2528,4 +2546,3 @@ int __init blk_dev_init(void)
 
 	return 0;
 }
-

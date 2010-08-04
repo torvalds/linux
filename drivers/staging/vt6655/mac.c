@@ -103,7 +103,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
  * Return Value: none
  *
  */
-VOID MACvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyMacRegs)
+void MACvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyMacRegs)
 {
     int ii;
 
@@ -234,7 +234,7 @@ BYTE MACbyReadMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx)
  * Return Value: none
  *
  */
-VOID MACvWriteMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData)
+void MACvWriteMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData)
 {
     MACvSelectPage1(dwIoBase);
     VNSvOutPortB(dwIoBase + MAC_REG_MAR0 + uByteIdx, byData);
@@ -676,7 +676,7 @@ void MACvSaveContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
  * Return Value: none
  *
  */
-VOID MACvRestoreContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
+void MACvRestoreContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
 {
     int         ii;
 
@@ -1244,7 +1244,7 @@ void MACvSetCurrTXDescAddr (int iTxType, DWORD_PTR dwIoBase, DWORD dwCurrDescAdd
  * Return Value: none
  *
  */
-VOID MACvTimer0MicroSDelay (DWORD_PTR dwIoBase, UINT uDelay)
+void MACvTimer0MicroSDelay (DWORD_PTR dwIoBase, UINT uDelay)
 {
 BYTE byValue;
 UINT uu,ii;

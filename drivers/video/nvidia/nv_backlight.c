@@ -94,6 +94,7 @@ static struct backlight_ops nvidia_bl_ops = {
 
 void nvidia_bl_init(struct nvidia_par *par)
 {
+	struct backlight_properties props;
 	struct fb_info *info = pci_get_drvdata(par->pci_dev);
 	struct backlight_device *bd;
 	char name[12];
@@ -109,7 +110,10 @@ void nvidia_bl_init(struct nvidia_par *par)
 
 	snprintf(name, sizeof(name), "nvidiabl%d", info->node);
 
-	bd = backlight_device_register(name, info->dev, par, &nvidia_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd = backlight_device_register(name, info->dev, par, &nvidia_bl_ops,
+				       &props);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
 		printk(KERN_WARNING "nvidia: Backlight registration failed\n");
@@ -121,7 +125,6 @@ void nvidia_bl_init(struct nvidia_par *par)
 		0x158 * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd->props.brightness = bd->props.max_brightness;
 	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);

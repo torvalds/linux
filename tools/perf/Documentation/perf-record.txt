@@ -58,7 +58,7 @@ OPTIONS
 
 -f::
 --force::
-	Overwrite existing data file.
+	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::
@@ -69,8 +69,8 @@ OPTIONS
 	Output file name.
 
 -i::
---inherit::
-	Child tasks inherit counters.
+--no-inherit::
+	Child tasks do not inherit counters.
 -F::
 --freq=::
 	Profile at this frequency.
@@ -101,7 +101,7 @@ OPTIONS
 
 -R::
 --raw-samples::
-Collect raw sample records from all opened counters (typically for tracepoint counters).
+Collect raw sample records from all opened counters (default for tracepoint counters).
 
 SEE ALSO
 --------

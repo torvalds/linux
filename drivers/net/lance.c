@@ -945,7 +945,7 @@ static void lance_tx_timeout (struct net_device *dev)
 #endif
 	lance_restart (dev, 0x0043, 1);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -1010,8 +1010,6 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	/* Trigger an immediate send poll. */
 	outw(0x0000, ioaddr+LANCE_ADDR);
 	outw(0x0048, ioaddr+LANCE_DATA);
-
-	dev->trans_start = jiffies;
 
 	if ((lp->cur_tx - lp->dirty_tx) >= TX_RING_SIZE)
 		netif_stop_queue(dev);
@@ -1288,7 +1286,7 @@ static void set_multicast_list(struct net_device *dev)
 	} else {
 		short multicast_table[4];
 		int i;
-		int num_addrs=dev->mc_count;
+		int num_addrs=netdev_mc_count(dev);
 		if(dev->flags&IFF_ALLMULTI)
 			num_addrs=1;
 		/* FIXIT: We don't use the multicast table, but rely on upper-layer filtering. */

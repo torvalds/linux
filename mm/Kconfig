@@ -115,6 +115,10 @@ config SPARSEMEM_EXTREME
 config SPARSEMEM_VMEMMAP_ENABLE
 	bool
 
+config SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+	def_bool y
+	depends on SPARSEMEM && X86_64
+
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
@@ -123,6 +127,9 @@ config SPARSEMEM_VMEMMAP
 	 SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
 	 pfn_to_page and page_to_pfn operations.  This is the most
 	 efficient option when sufficient kernel resources are available.
+
+config HAVE_MEMBLOCK
+	boolean
 
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
@@ -168,6 +175,15 @@ config SPLIT_PTLOCK_CPUS
 	default "4"
 
 #
+# support for memory compaction
+config COMPACTION
+	bool "Allow for memory compaction"
+	select MIGRATION
+	depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
+	help
+	  Allows the compaction of memory for the allocation of huge pages.
+
+#
 # support for page migration
 #
 config MIGRATION
@@ -176,9 +192,11 @@ config MIGRATION
 	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
 	help
 	  Allows the migration of the physical location of pages of processes
-	  while the virtual addresses are not changed. This is useful for
-	  example on NUMA systems to put pages nearer to the processors accessing
-	  the page.
+	  while the virtual addresses are not changed. This is useful in
+	  two situations. The first is on NUMA systems to put pages nearer
+	  to the processors accessing. The second is when allocating huge
+	  pages as migration can relocate pages to satisfy a huge page
+	  allocation instead of reclaiming.
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
@@ -195,7 +213,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH || AVR32
+	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS

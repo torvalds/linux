@@ -298,11 +298,18 @@ static void restore_screen(void)
 	}
 
 	/* Restore cursor position */
+	if (saved.curx >= xs)
+		saved.curx = xs-1;
+	if (saved.cury >= ys)
+		saved.cury = ys-1;
+
 	initregs(&ireg);
 	ireg.ah = 0x02;		/* Set cursor position */
 	ireg.dh = saved.cury;
 	ireg.dl = saved.curx;
 	intcall(0x10, &ireg, NULL);
+
+	store_cursor_position();
 }
 
 void set_video(void)

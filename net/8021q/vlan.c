@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rculist.h>
 #include <net/p8022.h>
@@ -356,13 +357,13 @@ static void vlan_sync_address(struct net_device *dev,
 	 * the new address */
 	if (compare_ether_addr(vlandev->dev_addr, vlan->real_dev_addr) &&
 	    !compare_ether_addr(vlandev->dev_addr, dev->dev_addr))
-		dev_unicast_delete(dev, vlandev->dev_addr);
+		dev_uc_del(dev, vlandev->dev_addr);
 
 	/* vlan address was equal to the old address and is different from
 	 * the new address */
 	if (!compare_ether_addr(vlandev->dev_addr, vlan->real_dev_addr) &&
 	    compare_ether_addr(vlandev->dev_addr, dev->dev_addr))
-		dev_unicast_add(dev, vlandev->dev_addr);
+		dev_uc_add(dev, vlandev->dev_addr);
 
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
 }
@@ -378,6 +379,8 @@ static void vlan_transfer_features(struct net_device *dev,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
+	vlandev->real_num_tx_queues = dev->real_num_tx_queues;
+	BUG_ON(vlandev->real_num_tx_queues > vlandev->num_tx_queues);
 
 	if (old_features != vlandev->features)
 		netdev_features_change(vlandev);
@@ -530,6 +533,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		}
 		unregister_netdevice_many(&list);
 		break;
+
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 
 out:
@@ -663,7 +670,7 @@ out:
 	return err;
 }
 
-static int vlan_init_net(struct net *net)
+static int __net_init vlan_init_net(struct net *net)
 {
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	int err;
@@ -675,7 +682,7 @@ static int vlan_init_net(struct net *net)
 	return err;
 }
 
-static void vlan_exit_net(struct net *net)
+static void __net_exit vlan_exit_net(struct net *net)
 {
 	vlan_proc_cleanup(net);
 }

@@ -24,6 +24,7 @@
 #define MODULE_NAME "jeilinj"
 
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include "gspca.h"
 #include "jpeg.h"
 

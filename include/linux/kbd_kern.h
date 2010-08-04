@@ -161,7 +161,4 @@ static inline void con_schedule_flip(struct tty_struct *t)
 	schedule_delayed_work(&t->buf.work, 0);
 }
 
-/* mac_hid.c */
-extern int mac_hid_mouse_emulate_buttons(int, unsigned int, int);
-
 #endif

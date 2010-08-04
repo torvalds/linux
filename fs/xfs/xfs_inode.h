@@ -420,16 +420,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
 
 /*
- * Flags for xfs_iflush()
- */
-#define	XFS_IFLUSH_DELWRI_ELSE_SYNC	1
-#define	XFS_IFLUSH_DELWRI_ELSE_ASYNC	2
-#define	XFS_IFLUSH_SYNC			3
-#define	XFS_IFLUSH_ASYNC		4
-#define	XFS_IFLUSH_DELWRI		5
-#define	XFS_IFLUSH_ASYNC_NOBLOCK	6
-
-/*
  * Flags for xfs_itruncate_start().
  */
 #define	XFS_ITRUNC_DEFINITE	0x1
@@ -452,7 +442,7 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
  * xfs_iget.c prototypes.
  */
 int		xfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
-			 uint, uint, xfs_inode_t **, xfs_daddr_t);
+			 uint, uint, xfs_inode_t **);
 void		xfs_iput(xfs_inode_t *, uint);
 void		xfs_iput_new(xfs_inode_t *, uint);
 void		xfs_ilock(xfs_inode_t *, uint);
@@ -481,14 +471,14 @@ int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
-void		xfs_ipin(xfs_inode_t *);
-void		xfs_iunpin(xfs_inode_t *);
+void		xfs_iunpin_wait(xfs_inode_t *);
 int		xfs_iflush(xfs_inode_t *, uint);
 void		xfs_ichgtime(xfs_inode_t *, int);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
 void		xfs_synchronize_times(xfs_inode_t *);
+void		xfs_mark_inode_dirty(xfs_inode_t *);
 void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
 
 #define IHOLD(ip) \
@@ -510,7 +500,7 @@ do { \
  * Flags for xfs_iget()
  */
 #define XFS_IGET_CREATE		0x1
-#define XFS_IGET_BULKSTAT	0x2
+#define XFS_IGET_UNTRUSTED	0x2
 
 int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
 			    xfs_ino_t, struct xfs_dinode **,
@@ -519,7 +509,7 @@ int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  struct xfs_inode *, struct xfs_dinode **,
 			  struct xfs_buf **, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
-			  struct xfs_inode *, xfs_daddr_t, uint);
+			  struct xfs_inode *, uint);
 void		xfs_dinode_to_disk(struct xfs_dinode *,
 				   struct xfs_icdinode *);
 void		xfs_idestroy_fork(struct xfs_inode *, int);

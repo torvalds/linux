@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
@@ -264,7 +265,6 @@ static int __devexit max7359_remove(struct i2c_client *client)
 
 	free_irq(client->irq, keypad);
 	input_unregister_device(keypad->input_dev);
-	i2c_set_clientdata(client, NULL);
 	kfree(keypad);
 
 	return 0;

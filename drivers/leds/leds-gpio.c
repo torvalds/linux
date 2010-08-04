@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 
 #include <asm/gpio.h>
@@ -25,7 +26,8 @@ struct gpio_led_data {
 	u8 new_level;
 	u8 can_sleep;
 	u8 active_low;
-	int (*platform_gpio_blink_set)(unsigned gpio,
+	u8 blinking;
+	int (*platform_gpio_blink_set)(unsigned gpio, int state,
 			unsigned long *delay_on, unsigned long *delay_off);
 };
 
@@ -34,7 +36,13 @@ static void gpio_led_work(struct work_struct *work)
 	struct gpio_led_data	*led_dat =
 		container_of(work, struct gpio_led_data, work);
 
-	gpio_set_value_cansleep(led_dat->gpio, led_dat->new_level);
+	if (led_dat->blinking) {
+		led_dat->platform_gpio_blink_set(led_dat->gpio,
+						 led_dat->new_level,
+						 NULL, NULL);
+		led_dat->blinking = 0;
+	} else
+		gpio_set_value_cansleep(led_dat->gpio, led_dat->new_level);
 }
 
 static void gpio_led_set(struct led_classdev *led_cdev,
@@ -59,8 +67,14 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 	if (led_dat->can_sleep) {
 		led_dat->new_level = level;
 		schedule_work(&led_dat->work);
-	} else
-		gpio_set_value(led_dat->gpio, level);
+	} else {
+		if (led_dat->blinking) {
+			led_dat->platform_gpio_blink_set(led_dat->gpio, level,
+							 NULL, NULL);
+			led_dat->blinking = 0;
+		} else
+			gpio_set_value(led_dat->gpio, level);
+	}
 }
 
 static int gpio_blink_set(struct led_classdev *led_cdev,
@@ -69,12 +83,14 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 	struct gpio_led_data *led_dat =
 		container_of(led_cdev, struct gpio_led_data, cdev);
 
-	return led_dat->platform_gpio_blink_set(led_dat->gpio, delay_on, delay_off);
+	led_dat->blinking = 1;
+	return led_dat->platform_gpio_blink_set(led_dat->gpio, GPIO_LED_BLINK,
+						delay_on, delay_off);
 }
 
 static int __devinit create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
-	int (*blink_set)(unsigned, unsigned long *, unsigned long *))
+	int (*blink_set)(unsigned, int, unsigned long *, unsigned long *))
 {
 	int ret, state;
 
@@ -96,6 +112,7 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	led_dat->gpio = template->gpio;
 	led_dat->can_sleep = gpio_cansleep(template->gpio);
 	led_dat->active_low = template->active_low;
+	led_dat->blinking = 0;
 	if (blink_set) {
 		led_dat->platform_gpio_blink_set = blink_set;
 		led_dat->cdev.blink_set = gpio_blink_set;
@@ -112,7 +129,7 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	ret = gpio_direction_output(led_dat->gpio, led_dat->active_low ^ state);
 	if (ret < 0)
 		goto err;
-
+		
 	INIT_WORK(&led_dat->work, gpio_led_work);
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
@@ -210,8 +227,7 @@ struct gpio_led_of_platform_data {
 static int __devinit of_gpio_leds_probe(struct of_device *ofdev,
 					const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node, *child;
-	struct gpio_led led;
+	struct device_node *np = ofdev->dev.of_node, *child;
 	struct gpio_led_of_platform_data *pdata;
 	int count = 0, ret;
 
@@ -226,8 +242,8 @@ static int __devinit of_gpio_leds_probe(struct of_device *ofdev,
 	if (!pdata)
 		return -ENOMEM;
 
-	memset(&led, 0, sizeof(led));
 	for_each_child_of_node(np, child) {
+		struct gpio_led led = {};
 		enum of_gpio_flags flags;
 		const char *state;
 
@@ -291,8 +307,8 @@ static struct of_platform_driver of_gpio_leds_driver = {
 	.driver = {
 		.name = "of_gpio_leds",
 		.owner = THIS_MODULE,
+		.of_match_table = of_gpio_leds_match,
 	},
-	.match_table = of_gpio_leds_match,
 	.probe = of_gpio_leds_probe,
 	.remove = __devexit_p(of_gpio_leds_remove),
 };

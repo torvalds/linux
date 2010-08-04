@@ -35,10 +35,10 @@ config KEYBOARD_ADP5520
 	  be called adp5520-keys.
 
 config KEYBOARD_ADP5588
-	tristate "ADP5588 I2C QWERTY Keypad and IO Expander"
+	tristate "ADP5588/87 I2C QWERTY Keypad and IO Expander"
 	depends on I2C
 	help
-	  Say Y here if you want to use a ADP5588 attached to your
+	  Say Y here if you want to use a ADP5588/87 attached to your
 	  system I2C bus.
 
 	  To compile this driver as a module, choose M here: the
@@ -124,7 +124,7 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
-config QT2160
+config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
 	depends on I2C && EXPERIMENTAL
 	help
@@ -142,17 +142,6 @@ config KEYBOARD_BFIN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf54x-keys.
-
-config KEYBOARD_CORGI
-	tristate "Corgi keyboard"
-	depends on PXA_SHARPSL
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
-	  series of PDAs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called corgikbd.
 
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
@@ -189,6 +178,22 @@ config KEYBOARD_GPIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_keys.
+
+config KEYBOARD_TCA6416
+	tristate "TCA6416 Keypad Support"
+	depends on I2C
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA6416 IO expander
+
+	  Say Y here if your device has keys connected to
+	  TCA6416 IO expander. Your board-specific setup logic
+	  must also provide pin-mask details(of which TCA6416 pins
+	  are used for keypad).
+
+	  If enabled the complete TCA6416 device will be managed through
+	  this driver.
+
 
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
@@ -292,6 +297,15 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
+config KEYBOARD_IMX
+	tristate "IMX keypad support"
+	depends on ARCH_MXC
+	help
+	  Enable support for IMX keypad port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_keypad.
+
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
 	select SERIO
@@ -328,17 +342,6 @@ config KEYBOARD_PXA930_ROTARY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa930_rotary.
 
-config KEYBOARD_SPITZ
-	tristate "Spitz keyboard"
-	depends on PXA_SHARPSL
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
-	  SL-C3000 and Sl-C3100 series of PDAs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called spitzkbd.
-
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
 	select SERIO
@@ -363,7 +366,7 @@ config KEYBOARD_SUNKBD
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	help
 	  Say Y here if you want to use a keypad attached to the KEYSC block
 	  on SuperH processors such as sh7722 and sh7343.
@@ -400,26 +403,6 @@ config KEYBOARD_TWL4030
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called twl4030_keypad.
-
-config KEYBOARD_TOSA
-	tristate "Tosa keyboard"
-	depends on MACH_TOSA
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tosakbd.
-
-config KEYBOARD_TOSA_USE_EXT_KEYCODES
-	bool "Tosa keyboard: use extended keycodes"
-	depends on KEYBOARD_TOSA
-	help
-	  Say Y here to enable the tosa keyboard driver to generate extended
-	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
-	  by either console keyboard driver or by Kdrive keybd driver.
-
-	  Say Y only if you know, what you are doing!
 
 config KEYBOARD_XTKBD
 	tristate "XT keyboard"

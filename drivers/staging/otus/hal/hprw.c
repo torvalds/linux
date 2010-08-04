@@ -282,7 +282,6 @@ void zfIdlRsp(zdev_t* dev, u32_t* rsp, u16_t rspLen)
     else if (src == ZM_OID_FLASH_READ)
     {
         u32_t  datalen;
-        u16_t i;
 
         datalen = (rsp[0] & 255);
 

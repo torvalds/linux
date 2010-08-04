@@ -275,6 +275,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_OVERLAY           7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
 #define I915_PARAM_HAS_EXECBUF2          9
+#define I915_PARAM_HAS_BSD		 10
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -616,7 +617,9 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 num_cliprects;
 	/** This is a struct drm_clip_rect *cliprects */
 	__u64 cliprects_ptr;
-	__u64 flags; /* currently unused */
+#define I915_EXEC_RENDER                 (1<<0)
+#define I915_EXEC_BSD                    (1<<1)
+	__u64 flags;
 	__u64 rsvd1;
 	__u64 rsvd2;
 };

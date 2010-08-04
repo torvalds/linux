@@ -27,6 +27,7 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/net.h>
 #include <linux/kthread.h>

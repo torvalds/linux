@@ -62,8 +62,8 @@ u8 CipherSuiteWpaNoneAes[] = {
 u8 CipherSuiteWpaNoneAesLen =
     (sizeof(CipherSuiteWpaNoneAes) / sizeof(u8));
 
-/* The following MACRO is called after 1. starting an new IBSS, 2. succesfully JOIN an IBSS, */
-/* or 3. succesfully ASSOCIATE to a BSS, 4. successfully RE_ASSOCIATE to a BSS */
+/* The following MACRO is called after 1. starting an new IBSS, 2. successfully JOIN an IBSS, */
+/* or 3. successfully ASSOCIATE to a BSS, 4. successfully RE_ASSOCIATE to a BSS */
 /* All settings successfuly negotiated furing MLME state machines become final settings */
 /* and are copied to pAd->StaActive */
 #define COPY_SETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(_pAd)                                 \

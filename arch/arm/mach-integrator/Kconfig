@@ -11,6 +11,7 @@ config ARCH_INTEGRATOR_AP
 config ARCH_INTEGRATOR_CP
 	bool "Support Integrator/CP platform"
 	select ARCH_CINTEGRATOR
+	select ARM_TIMER_SP804
 	help
 	  Include support for the ARM(R) Integrator CP platform.
 

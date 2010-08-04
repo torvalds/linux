@@ -21,6 +21,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -263,11 +264,10 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		vhdr->h_vlan_TCI = htons(vlan_tci);
 
 		/*
-		 *  Set the protocol type. For a packet of type ETH_P_802_3 we
-		 *  put the length in here instead. It is up to the 802.2
-		 *  layer to carry protocol information.
+		 *  Set the protocol type. For a packet of type ETH_P_802_3/2 we
+		 *  put the length in here instead.
 		 */
-		if (type != ETH_P_802_3)
+		if (type != ETH_P_802_3 && type != ETH_P_802_2)
 			vhdr->h_vlan_encapsulated_proto = htons(type);
 		else
 			vhdr->h_vlan_encapsulated_proto = htons(len);
@@ -323,11 +323,11 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	}
 
 
-	skb->dev = vlan_dev_info(dev)->real_dev;
+	skb_set_dev(skb, vlan_dev_info(dev)->real_dev);
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		txq->tx_packets++;
 		txq->tx_bytes += len;
 	} else
@@ -353,13 +353,21 @@ static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		txq->tx_packets++;
 		txq->tx_bytes += len;
 	} else
 		txq->tx_dropped++;
 
 	return ret;
+}
+
+static u16 vlan_dev_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+	struct net_device *rdev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = rdev->netdev_ops;
+
+	return ops->ndo_select_queue(rdev, skb);
 }
 
 static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
@@ -462,7 +470,7 @@ static int vlan_dev_open(struct net_device *dev)
 		return -ENETDOWN;
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr)) {
-		err = dev_unicast_add(real_dev, dev->dev_addr);
+		err = dev_uc_add(real_dev, dev->dev_addr);
 		if (err < 0)
 			goto out;
 	}
@@ -491,7 +499,7 @@ clear_allmulti:
 		dev_set_allmulti(real_dev, -1);
 del_unicast:
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 out:
 	netif_carrier_off(dev);
 	return err;
@@ -506,14 +514,14 @@ static int vlan_dev_stop(struct net_device *dev)
 		vlan_gvrp_request_leave(dev);
 
 	dev_mc_unsync(real_dev, dev);
-	dev_unicast_unsync(real_dev, dev);
+	dev_uc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, -1);
 	if (dev->flags & IFF_PROMISC)
 		dev_set_promiscuity(real_dev, -1);
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 
 	netif_carrier_off(dev);
 	return 0;
@@ -532,13 +540,13 @@ static int vlan_dev_set_mac_address(struct net_device *dev, void *p)
 		goto out;
 
 	if (compare_ether_addr(addr->sa_data, real_dev->dev_addr)) {
-		err = dev_unicast_add(real_dev, addr->sa_data);
+		err = dev_uc_add(real_dev, addr->sa_data);
 		if (err < 0)
 			return err;
 	}
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 
 out:
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -655,7 +663,7 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 {
 	dev_mc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
-	dev_unicast_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
+	dev_uc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
 }
 
 /*
@@ -689,7 +697,8 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops;
+static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops,
+		    vlan_netdev_ops_sq, vlan_netdev_accel_ops_sq;
 
 static int vlan_dev_init(struct net_device *dev)
 {
@@ -699,7 +708,8 @@ static int vlan_dev_init(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	/* IFF_BROADCAST|IFF_MULTICAST; ??? */
-	dev->flags  = real_dev->flags & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI);
+	dev->flags  = real_dev->flags & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI |
+					  IFF_MASTER | IFF_SLAVE);
 	dev->iflink = real_dev->ifindex;
 	dev->state  = (real_dev->state & ((1<<__LINK_STATE_NOCARRIER) |
 					  (1<<__LINK_STATE_DORMANT))) |
@@ -723,11 +733,17 @@ static int vlan_dev_init(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
-		dev->netdev_ops         = &vlan_netdev_accel_ops;
+		if (real_dev->netdev_ops->ndo_select_queue)
+			dev->netdev_ops = &vlan_netdev_accel_ops_sq;
+		else
+			dev->netdev_ops = &vlan_netdev_accel_ops;
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
-		dev->netdev_ops         = &vlan_netdev_ops;
+		if (real_dev->netdev_ops->ndo_select_queue)
+			dev->netdev_ops = &vlan_netdev_ops_sq;
+		else
+			dev->netdev_ops = &vlan_netdev_ops;
 	}
 
 	if (is_vlan_dev(real_dev))
@@ -843,6 +859,56 @@ static const struct net_device_ops vlan_netdev_ops = {
 };
 
 static const struct net_device_ops vlan_netdev_accel_ops = {
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
+	.ndo_neigh_setup	= vlan_dev_neigh_setup,
+	.ndo_get_stats		= vlan_dev_get_stats,
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
+	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
+	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
+	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
+#endif
+};
+
+static const struct net_device_ops vlan_netdev_ops_sq = {
+	.ndo_select_queue	= vlan_dev_select_queue,
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_start_xmit =  vlan_dev_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
+	.ndo_neigh_setup	= vlan_dev_neigh_setup,
+	.ndo_get_stats		= vlan_dev_get_stats,
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
+	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
+	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
+	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
+#endif
+};
+
+static const struct net_device_ops vlan_netdev_accel_ops_sq = {
+	.ndo_select_queue	= vlan_dev_select_queue,
 	.ndo_change_mtu		= vlan_dev_change_mtu,
 	.ndo_init		= vlan_dev_init,
 	.ndo_uninit		= vlan_dev_uninit,

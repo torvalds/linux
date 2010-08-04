@@ -5,6 +5,7 @@
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -73,6 +74,7 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc);
  */
 static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 				void (*done) (struct scsi_cmnd *));
+static int qla4xxx_eh_abort(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
@@ -87,6 +89,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.proc_name		= DRIVER_NAME,
 	.queuecommand		= qla4xxx_queuecommand,
 
+	.eh_abort_handler	= qla4xxx_eh_abort,
 	.eh_device_reset_handler = qla4xxx_eh_device_reset,
 	.eh_target_reset_handler = qla4xxx_eh_target_reset,
 	.eh_host_reset_handler	= qla4xxx_eh_host_reset,
@@ -383,12 +386,12 @@ static struct srb* qla4xxx_get_new_srb(struct scsi_qla_host *ha,
 	if (!srb)
 		return srb;
 
-	atomic_set(&srb->ref_count, 1);
+	kref_init(&srb->srb_ref);
 	srb->ha = ha;
 	srb->ddb = ddb_entry;
 	srb->cmd = cmd;
 	srb->flags = 0;
-	cmd->SCp.ptr = (void *)srb;
+	CMD_SP(cmd) = (void *)srb;
 	cmd->scsi_done = done;
 
 	return srb;
@@ -402,12 +405,14 @@ static void qla4xxx_srb_free_dma(struct scsi_qla_host *ha, struct srb *srb)
 		scsi_dma_unmap(cmd);
 		srb->flags &= ~SRB_DMA_VALID;
 	}
-	cmd->SCp.ptr = NULL;
+	CMD_SP(cmd) = NULL;
 }
 
-void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb)
+void qla4xxx_srb_compl(struct kref *ref)
 {
+	struct srb *srb = container_of(ref, struct srb, srb_ref);
 	struct scsi_cmnd *cmd = srb->cmd;
+	struct scsi_qla_host *ha = srb->ha;
 
 	qla4xxx_srb_free_dma(ha, srb);
 
@@ -684,6 +689,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	     test_bit(DPC_RESET_HA_DESTROY_DDB_LIST, &ha->dpc_flags) ||
 	     test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags) ||
 	     test_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags) ||
+	     test_bit(DPC_LINK_CHANGED, &ha->dpc_flags) ||
 	     test_bit(DPC_AEN, &ha->dpc_flags)) &&
 	     ha->dpc_thread) {
 		DEBUG2(printk("scsi%ld: %s: scheduling dpc routine"
@@ -885,11 +891,10 @@ static void qla4xxx_flush_active_srbs(struct scsi_qla_host *ha)
 		srb = qla4xxx_del_from_active_array(ha, i);
 		if (srb != NULL) {
 			srb->cmd->result = DID_RESET << 16;
-			qla4xxx_srb_compl(ha, srb);
+			kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 }
 
 /**
@@ -1067,6 +1072,54 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 	/* ---- Get DHCP IP Address? --- */
 	if (test_and_clear_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags))
 		qla4xxx_get_dhcp_ip_address(ha);
+
+	/* ---- link change? --- */
+	if (test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
+		if (!test_bit(AF_LINK_UP, &ha->flags)) {
+			/* ---- link down? --- */
+			list_for_each_entry_safe(ddb_entry, dtemp,
+						 &ha->ddb_list, list) {
+				if (atomic_read(&ddb_entry->state) ==
+						DDB_STATE_ONLINE)
+					qla4xxx_mark_device_missing(ha,
+							ddb_entry);
+			}
+		} else {
+			/* ---- link up? --- *
+			 * F/W will auto login to all devices ONLY ONCE after
+			 * link up during driver initialization and runtime
+			 * fatal error recovery.  Therefore, the driver must
+			 * manually relogin to devices when recovering from
+			 * connection failures, logouts, expired KATO, etc. */
+
+			list_for_each_entry_safe(ddb_entry, dtemp,
+							&ha->ddb_list, list) {
+				if ((atomic_read(&ddb_entry->state) ==
+						 DDB_STATE_MISSING) ||
+				    (atomic_read(&ddb_entry->state) ==
+						 DDB_STATE_DEAD)) {
+					if (ddb_entry->fw_ddb_device_state ==
+					    DDB_DS_SESSION_ACTIVE) {
+						atomic_set(&ddb_entry->state,
+							   DDB_STATE_ONLINE);
+						dev_info(&ha->pdev->dev,
+						    "scsi%ld: %s: ddb[%d]"
+						    " os[%d] marked"
+						    " ONLINE\n",
+						    ha->host_no, __func__,
+						    ddb_entry->fw_ddb_index,
+						    ddb_entry->os_target_id);
+
+						iscsi_unblock_session(
+						    ddb_entry->sess);
+					} else
+						qla4xxx_relogin_device(
+						    ha, ddb_entry);
+				}
+
+			}
+		}
+	}
 
 	/* ---- relogin device? --- */
 	if (adapter_up(ha) &&
@@ -1429,12 +1482,14 @@ static void qla4xxx_slave_destroy(struct scsi_device *sdev)
 struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t index)
 {
 	struct srb *srb = NULL;
-	struct scsi_cmnd *cmd;
+	struct scsi_cmnd *cmd = NULL;
 
-	if (!(cmd = scsi_host_find_tag(ha->host, index)))
+	cmd = scsi_host_find_tag(ha->host, index);
+	if (!cmd)
 		return srb;
 
-	if (!(srb = (struct srb *)cmd->host_scribble))
+	srb = (struct srb *)CMD_SP(cmd);
+	if (!srb)
 		return srb;
 
 	/* update counters */
@@ -1442,14 +1497,15 @@ struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t in
 		ha->req_q_count += srb->iocb_cnt;
 		ha->iocb_cnt -= srb->iocb_cnt;
 		if (srb->cmd)
-			srb->cmd->host_scribble = NULL;
+			srb->cmd->host_scribble =
+				(unsigned char *)(unsigned long) MAX_SRBS;
 	}
 	return srb;
 }
 
 /**
  * qla4xxx_eh_wait_on_command - waits for command to be returned by firmware
- * @ha: actual ha whose done queue will contain the comd returned by firmware.
+ * @ha: Pointer to host adapter structure.
  * @cmd: Scsi Command to wait on.
  *
  * This routine waits for the command to be returned by the Firmware
@@ -1464,7 +1520,7 @@ static int qla4xxx_eh_wait_on_command(struct scsi_qla_host *ha,
 
 	do {
 		/* Checking to see if its returned to OS */
-		rp = (struct srb *) cmd->SCp.ptr;
+		rp = (struct srb *) CMD_SP(cmd);
 		if (rp == NULL) {
 			done++;
 			break;
@@ -1530,6 +1586,62 @@ static int qla4xxx_eh_wait_for_commands(struct scsi_qla_host *ha,
 		}
 	}
 	return status;
+}
+
+/**
+ * qla4xxx_eh_abort - callback for abort task.
+ * @cmd: Pointer to Linux's SCSI command structure
+ *
+ * This routine is called by the Linux OS to abort the specified
+ * command.
+ **/
+static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
+{
+	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
+	unsigned int id = cmd->device->id;
+	unsigned int lun = cmd->device->lun;
+	unsigned long serial = cmd->serial_number;
+	struct srb *srb = NULL;
+	int ret = SUCCESS;
+	int wait = 0;
+
+	dev_info(&ha->pdev->dev,
+	    "scsi%ld:%d:%d: Abort command issued cmd=%p, pid=%ld\n",
+	    ha->host_no, id, lun, cmd, serial);
+
+	srb = (struct srb *) CMD_SP(cmd);
+
+	if (!srb)
+		return SUCCESS;
+
+	kref_get(&srb->srb_ref);
+
+	if (qla4xxx_abort_task(ha, srb) != QLA_SUCCESS) {
+		DEBUG3(printk("scsi%ld:%d:%d: Abort_task mbx failed.\n",
+		    ha->host_no, id, lun));
+		ret = FAILED;
+	} else {
+		DEBUG3(printk("scsi%ld:%d:%d: Abort_task mbx success.\n",
+		    ha->host_no, id, lun));
+		wait = 1;
+	}
+
+	kref_put(&srb->srb_ref, qla4xxx_srb_compl);
+
+	/* Wait for command to complete */
+	if (wait) {
+		if (!qla4xxx_eh_wait_on_command(ha, cmd)) {
+			DEBUG2(printk("scsi%ld:%d:%d: Abort handler timed out\n",
+			    ha->host_no, id, lun));
+			ret = FAILED;
+		}
+	}
+
+	dev_info(&ha->pdev->dev,
+	    "scsi%ld:%d:%d: Abort command - %s\n",
+	    ha->host_no, id, lun, (ret == SUCCESS) ? "succeded" : "failed");
+
+	return ret;
 }
 
 /**

@@ -23,6 +23,7 @@
 #include <linux/icmp.h>
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -286,11 +287,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		   __be16 port, u32 info, u8 *payload)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
-
-	if (!inet->recverr)
-		return;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb)
@@ -451,7 +448,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_TTL) | (1<<IP_HDRINCL) |
 			     (1<<IP_MTU_DISCOVER) | (1<<IP_RECVERR) |
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
-			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT))) ||
+			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT) |
+			     (1<<IP_MINTTL))) ||
 	    optname == IP_MULTICAST_TTL ||
 	    optname == IP_MULTICAST_ALL ||
 	    optname == IP_MULTICAST_LOOP ||
@@ -936,6 +934,14 @@ mc_msf_out:
 		inet->transparent = !!val;
 		break;
 
+	case IP_MINTTL:
+		if (optlen < 1)
+			goto e_inval;
+		if (val < 0 || val > 255)
+			goto e_inval;
+		inet->min_ttl = val;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -947,6 +953,22 @@ e_inval:
 	release_sock(sk);
 	return -EINVAL;
 }
+
+/**
+ * ip_queue_rcv_skb - Queue an skb into sock receive queue
+ * @sk: socket
+ * @skb: buffer
+ *
+ * Queues an skb into socket receive queue. If IP_CMSG_PKTINFO option
+ * is not set, we drop skb dst entry now, while dst cache line is hot.
+ */
+int ip_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	if (!(inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO))
+		skb_dst_drop(skb);
+	return sock_queue_rcv_skb(sk, skb);
+}
+EXPORT_SYMBOL(ip_queue_rcv_skb);
 
 int ip_setsockopt(struct sock *sk, int level,
 		int optname, char __user *optval, unsigned int optlen)
@@ -1197,6 +1219,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_TRANSPARENT:
 		val = inet->transparent;
+		break;
+	case IP_MINTTL:
+		val = inet->min_ttl;
 		break;
 	default:
 		release_sock(sk);

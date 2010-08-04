@@ -30,6 +30,8 @@
 #include <linux/gpio.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
 
 #include <plat/display.h>
 
@@ -63,7 +65,11 @@
 /* #define TAAL_USE_ESD_CHECK */
 #define TAAL_ESD_CHECK_PERIOD	msecs_to_jiffies(5000)
 
+static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable);
+
 struct taal_data {
+	struct mutex lock;
+
 	struct backlight_device *bldev;
 
 	unsigned long	hw_guard_end;	/* next value of jiffies when we can
@@ -484,6 +490,7 @@ static struct attribute_group taal_attr_group = {
 
 static int taal_probe(struct omap_dss_device *dssdev)
 {
+	struct backlight_properties props;
 	struct taal_data *td;
 	struct backlight_device *bldev;
 	int r;
@@ -506,42 +513,43 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	}
 	td->dssdev = dssdev;
 
+	mutex_init(&td->lock);
+
 	td->esd_wq = create_singlethread_workqueue("taal_esd");
 	if (td->esd_wq == NULL) {
 		dev_err(&dssdev->dev, "can't create ESD workqueue\n");
 		r = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	INIT_DELAYED_WORK_DEFERRABLE(&td->esd_work, taal_esd_work);
 
 	dev_set_drvdata(&dssdev->dev, td);
 
-	dssdev->get_timings = taal_get_timings;
-	dssdev->get_resolution = taal_get_resolution;
-
 	/* if no platform set_backlight() defined, presume DSI backlight
 	 * control */
+	memset(&props, 0, sizeof(struct backlight_properties));
 	if (!dssdev->set_backlight)
 		td->use_dsi_bl = true;
 
+	if (td->use_dsi_bl)
+		props.max_brightness = 255;
+	else
+		props.max_brightness = 127;
 	bldev = backlight_device_register("taal", &dssdev->dev, dssdev,
-			&taal_bl_ops);
+					  &taal_bl_ops, &props);
 	if (IS_ERR(bldev)) {
 		r = PTR_ERR(bldev);
-		goto err1;
+		goto err2;
 	}
 
 	td->bldev = bldev;
 
 	bldev->props.fb_blank = FB_BLANK_UNBLANK;
 	bldev->props.power = FB_BLANK_UNBLANK;
-	if (td->use_dsi_bl) {
-		bldev->props.max_brightness = 255;
+	if (td->use_dsi_bl)
 		bldev->props.brightness = 255;
-	} else {
-		bldev->props.max_brightness = 127;
+	else
 		bldev->props.brightness = 127;
-	}
 
 	taal_bl_update_status(bldev);
 
@@ -621,13 +629,11 @@ static void taal_remove(struct omap_dss_device *dssdev)
 	kfree(td);
 }
 
-static int taal_enable(struct omap_dss_device *dssdev)
+static int taal_power_on(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	u8 id1, id2, id3;
 	int r;
-
-	dev_dbg(&dssdev->dev, "enable\n");
 
 	if (dssdev->platform_enable) {
 		r = dssdev->platform_enable(dssdev);
@@ -637,6 +643,16 @@ static int taal_enable(struct omap_dss_device *dssdev)
 
 	/* it seems we have to wait a bit until taal is ready */
 	msleep(5);
+
+	dsi_bus_lock();
+
+	r = omapdss_dsi_display_enable(dssdev);
+	if (r) {
+		dev_err(&dssdev->dev, "failed to enable DSI\n");
+		goto err0;
+	}
+
+	omapdss_dsi_vc_enable_hs(TCH, false);
 
 	r = taal_sleep_out(td);
 	if (r)
@@ -661,6 +677,10 @@ static int taal_enable(struct omap_dss_device *dssdev)
 
 	taal_dcs_write_0(DCS_DISPLAY_ON);
 
+	r = _taal_enable_te(dssdev, td->te_enabled);
+	if (r)
+		goto err;
+
 #ifdef TAAL_USE_ESD_CHECK
 	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
 #endif
@@ -676,19 +696,26 @@ static int taal_enable(struct omap_dss_device *dssdev)
 		td->intro_printed = true;
 	}
 
+	omapdss_dsi_vc_enable_hs(TCH, true);
+
+	dsi_bus_unlock();
+
 	return 0;
 err:
+	omapdss_dsi_display_disable(dssdev);
+err0:
+	dsi_bus_unlock();
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
 
 	return r;
 }
 
-static void taal_disable(struct omap_dss_device *dssdev)
+static void taal_power_off(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 
-	dev_dbg(&dssdev->dev, "disable\n");
+	dsi_bus_lock();
 
 	cancel_delayed_work(&td->esd_work);
 
@@ -698,41 +725,173 @@ static void taal_disable(struct omap_dss_device *dssdev)
 	/* wait a bit so that the message goes through */
 	msleep(10);
 
+	omapdss_dsi_display_disable(dssdev);
+
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
 
 	td->enabled = 0;
+
+	dsi_bus_unlock();
+}
+
+static int taal_enable(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	int r;
+
+	dev_dbg(&dssdev->dev, "enable\n");
+
+	mutex_lock(&td->lock);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	r = taal_power_on(dssdev);
+	if (r)
+		goto err;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	mutex_unlock(&td->lock);
+
+	return 0;
+err:
+	dev_dbg(&dssdev->dev, "enable failed\n");
+	mutex_unlock(&td->lock);
+	return r;
+}
+
+static void taal_disable(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+
+	dev_dbg(&dssdev->dev, "disable\n");
+
+	mutex_lock(&td->lock);
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		taal_power_off(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
+
+	mutex_unlock(&td->lock);
 }
 
 static int taal_suspend(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bldev = td->bldev;
+	int r;
 
-	bldev->props.power = FB_BLANK_POWERDOWN;
-	taal_bl_update_status(bldev);
+	dev_dbg(&dssdev->dev, "suspend\n");
+
+	mutex_lock(&td->lock);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	taal_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
+
+	mutex_unlock(&td->lock);
 
 	return 0;
+err:
+	mutex_unlock(&td->lock);
+	return r;
 }
 
 static int taal_resume(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bldev = td->bldev;
+	int r;
 
-	bldev->props.power = FB_BLANK_UNBLANK;
-	taal_bl_update_status(bldev);
+	dev_dbg(&dssdev->dev, "resume\n");
+
+	mutex_lock(&td->lock);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	r = taal_power_on(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	mutex_unlock(&td->lock);
+
+	return r;
+err:
+	mutex_unlock(&td->lock);
+	return r;
+}
+
+static void taal_framedone_cb(int err, void *data)
+{
+	struct omap_dss_device *dssdev = data;
+	dev_dbg(&dssdev->dev, "framedone, err %d\n", err);
+	dsi_bus_unlock();
+}
+
+static int taal_update(struct omap_dss_device *dssdev,
+				    u16 x, u16 y, u16 w, u16 h)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	int r;
+
+	dev_dbg(&dssdev->dev, "update %d, %d, %d x %d\n", x, y, w, h);
+
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
+
+	if (!td->enabled) {
+		r = 0;
+		goto err;
+	}
+
+	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h);
+	if (r)
+		goto err;
+
+	r = taal_set_update_window(x, y, w, h);
+	if (r)
+		goto err;
+
+	r = omap_dsi_update(dssdev, TCH, x, y, w, h,
+			taal_framedone_cb, dssdev);
+	if (r)
+		goto err;
+
+	/* note: no bus_unlock here. unlock is in framedone_cb */
+	mutex_unlock(&td->lock);
+	return 0;
+err:
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+	return r;
+}
+
+static int taal_sync(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+
+	dev_dbg(&dssdev->dev, "sync\n");
+
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+
+	dev_dbg(&dssdev->dev, "sync done\n");
 
 	return 0;
 }
 
-static void taal_setup_update(struct omap_dss_device *dssdev,
-				    u16 x, u16 y, u16 w, u16 h)
-{
-	taal_set_update_window(x, y, w, h);
-}
-
-static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
+static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
@@ -744,25 +903,41 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	else
 		r = taal_dcs_write_0(DCS_TEAR_OFF);
 
+	omapdss_dsi_enable_te(dssdev, enable);
+
+	/* XXX for some reason, DSI TE breaks if we don't wait here.
+	 * Panel bug? Needs more studying */
+	msleep(100);
+
 	return r;
 }
 
-static int taal_wait_te(struct omap_dss_device *dssdev)
+static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	long wait = msecs_to_jiffies(500);
+	int r;
 
-	if (!td->use_ext_te || !td->te_enabled)
-		return 0;
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
 
-	INIT_COMPLETION(td->te_completion);
-	wait = wait_for_completion_timeout(&td->te_completion, wait);
-	if (wait == 0) {
-		dev_err(&dssdev->dev, "timeout waiting TE\n");
-		return -ETIME;
-	}
+	r = _taal_enable_te(dssdev, enable);
 
-	return 0;
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+
+	return r;
+}
+
+static int taal_get_te(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	int r;
+
+	mutex_lock(&td->lock);
+	r = td->te_enabled;
+	mutex_unlock(&td->lock);
+
+	return r;
 }
 
 static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
@@ -772,22 +947,36 @@ static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 
 	dev_dbg(&dssdev->dev, "rotate %d\n", rotate);
 
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
+
 	if (td->enabled) {
 		r = taal_set_addr_mode(rotate, td->mirror);
-
 		if (r)
-			return r;
+			goto err;
 	}
 
 	td->rotate = rotate;
 
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
 	return 0;
+err:
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+	return r;
 }
 
 static u8 taal_get_rotate(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	return td->rotate;
+	int r;
+
+	mutex_lock(&td->lock);
+	r = td->rotate;
+	mutex_unlock(&td->lock);
+
+	return r;
 }
 
 static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
@@ -797,40 +986,63 @@ static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
 
 	dev_dbg(&dssdev->dev, "mirror %d\n", enable);
 
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
 	if (td->enabled) {
 		r = taal_set_addr_mode(td->rotate, enable);
-
 		if (r)
-			return r;
+			goto err;
 	}
 
 	td->mirror = enable;
 
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
 	return 0;
+err:
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+	return r;
 }
 
 static bool taal_get_mirror(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	return td->mirror;
+	int r;
+
+	mutex_lock(&td->lock);
+	r = td->mirror;
+	mutex_unlock(&td->lock);
+
+	return r;
 }
 
 static int taal_run_test(struct omap_dss_device *dssdev, int test_num)
 {
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	u8 id1, id2, id3;
 	int r;
 
+	mutex_lock(&td->lock);
+	dsi_bus_lock();
+
 	r = taal_dcs_read_1(DCS_GET_ID1, &id1);
 	if (r)
-		return r;
+		goto err;
 	r = taal_dcs_read_1(DCS_GET_ID2, &id2);
 	if (r)
-		return r;
+		goto err;
 	r = taal_dcs_read_1(DCS_GET_ID3, &id3);
 	if (r)
-		return r;
+		goto err;
 
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
 	return 0;
+err:
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+	return r;
 }
 
 static int taal_memory_read(struct omap_dss_device *dssdev,
@@ -841,13 +1053,23 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 	int first = 1;
 	int plen;
 	unsigned buf_used = 0;
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 
 	if (size < w * h * 3)
 		return -ENOMEM;
 
+	mutex_lock(&td->lock);
+
+	if (!td->enabled) {
+		r = -ENODEV;
+		goto err1;
+	}
+
 	size = min(w * h * 3,
 			dssdev->panel.timings.x_res *
 			dssdev->panel.timings.y_res * 3);
+
+	dsi_bus_lock();
 
 	/* plen 1 or 2 goes into short packet. until checksum error is fixed,
 	 * use short packets. plen 32 works, but bigger packets seem to cause
@@ -857,11 +1079,11 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 	else
 		plen = 2;
 
-	taal_setup_update(dssdev, x, y, w, h);
+	taal_set_update_window(x, y, w, h);
 
 	r = dsi_vc_set_max_rx_packet_size(TCH, plen);
 	if (r)
-		return r;
+		goto err2;
 
 	while (buf_used < size) {
 		u8 dcs_cmd = first ? 0x2e : 0x3e;
@@ -872,7 +1094,7 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 
 		if (r < 0) {
 			dev_err(&dssdev->dev, "read error\n");
-			goto err;
+			goto err3;
 		}
 
 		buf_used += r;
@@ -886,15 +1108,18 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 			dev_err(&dssdev->dev, "signal pending, "
 					"aborting memory read\n");
 			r = -ERESTARTSYS;
-			goto err;
+			goto err3;
 		}
 	}
 
 	r = buf_used;
 
-err:
+err3:
 	dsi_vc_set_max_rx_packet_size(TCH, 1);
-
+err2:
+	dsi_bus_unlock();
+err1:
+	mutex_unlock(&td->lock);
 	return r;
 }
 
@@ -906,8 +1131,12 @@ static void taal_esd_work(struct work_struct *work)
 	u8 state1, state2;
 	int r;
 
-	if (!td->enabled)
+	mutex_lock(&td->lock);
+
+	if (!td->enabled) {
+		mutex_unlock(&td->lock);
 		return;
+	}
 
 	dsi_bus_lock();
 
@@ -939,23 +1168,43 @@ static void taal_esd_work(struct work_struct *work)
 	}
 	/* Self-diagnostics result is also shown on TE GPIO line. We need
 	 * to re-enable TE after self diagnostics */
-	if (td->use_ext_te && td->te_enabled)
-		taal_enable_te(dssdev, true);
+	if (td->use_ext_te && td->te_enabled) {
+		r = taal_dcs_write_1(DCS_TEAR_ON, 0);
+		if (r)
+			goto err;
+	}
 
 	dsi_bus_unlock();
 
 	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
 
+	mutex_unlock(&td->lock);
 	return;
 err:
 	dev_err(&dssdev->dev, "performing LCD reset\n");
 
-	taal_disable(dssdev);
-	taal_enable(dssdev);
+	taal_power_off(dssdev);
+	taal_power_on(dssdev);
 
 	dsi_bus_unlock();
 
 	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
+
+	mutex_unlock(&td->lock);
+}
+
+static int taal_set_update_mode(struct omap_dss_device *dssdev,
+		enum omap_dss_update_mode mode)
+{
+	if (mode != OMAP_DSS_UPDATE_MANUAL)
+		return -EINVAL;
+	return 0;
+}
+
+static enum omap_dss_update_mode taal_get_update_mode(
+		struct omap_dss_device *dssdev)
+{
+	return OMAP_DSS_UPDATE_MANUAL;
 }
 
 static struct omap_dss_driver taal_driver = {
@@ -967,15 +1216,26 @@ static struct omap_dss_driver taal_driver = {
 	.suspend	= taal_suspend,
 	.resume		= taal_resume,
 
-	.setup_update	= taal_setup_update,
+	.set_update_mode = taal_set_update_mode,
+	.get_update_mode = taal_get_update_mode,
+
+	.update		= taal_update,
+	.sync		= taal_sync,
+
+	.get_resolution	= taal_get_resolution,
+	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
+
 	.enable_te	= taal_enable_te,
-	.wait_for_te	= taal_wait_te,
+	.get_te		= taal_get_te,
+
 	.set_rotate	= taal_rotate,
 	.get_rotate	= taal_get_rotate,
 	.set_mirror	= taal_mirror,
 	.get_mirror	= taal_get_mirror,
 	.run_test	= taal_run_test,
 	.memory_read	= taal_memory_read,
+
+	.get_timings	= taal_get_timings,
 
 	.driver         = {
 		.name   = "taal",

@@ -56,6 +56,7 @@
 #include <linux/security.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
+#include <linux/slab.h>
 
 /*
  * Bring the timestamps in the XFS inode uptodate.
@@ -89,6 +90,16 @@ xfs_mark_inode_dirty_sync(
 
 	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
 		mark_inode_dirty_sync(inode);
+}
+
+void
+xfs_mark_inode_dirty(
+	xfs_inode_t	*ip)
+{
+	struct inode	*inode = VFS_I(ip);
+
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+		mark_inode_dirty(inode);
 }
 
 /*
@@ -140,10 +151,10 @@ xfs_init_security(
 	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
 	void		*value;
-	char		*name;
+	unsigned char	*name;
 	int		error;
 
-	error = security_inode_init_security(inode, dir, &name,
+	error = security_inode_init_security(inode, dir, (char **)&name,
 					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
@@ -574,11 +585,20 @@ xfs_vn_fallocate(
 	bf.l_len = len;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	/* check the new inode size is valid before allocating */
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + len > i_size_read(inode)) {
+		new_size = offset + len;
+		error = inode_newsize_ok(inode, new_size);
+		if (error)
+			goto out_unlock;
+	}
+
 	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
 				       0, XFS_ATTR_NOLOCK);
-	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode))
-		new_size = offset + len;
+	if (error)
+		goto out_unlock;
 
 	/* Change file size if needed */
 	if (new_size) {
@@ -589,6 +609,7 @@ xfs_vn_fallocate(
 		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
+out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 out_error:
 	return error;
@@ -662,7 +683,10 @@ xfs_vn_fiemap(
 		bm.bmv_length = BTOBB(length);
 
 	/* We add one because in getbmap world count includes the header */
-	bm.bmv_count = fieinfo->fi_extents_max + 1;
+	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :
+					fieinfo->fi_extents_max + 1;
+	bm.bmv_count = min_t(__s32, bm.bmv_count,
+			     (PAGE_SIZE * 16 / sizeof(struct getbmapx)));
 	bm.bmv_iflags = BMV_IF_PREALLOC;
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
 		bm.bmv_iflags |= BMV_IF_ATTRFORK;

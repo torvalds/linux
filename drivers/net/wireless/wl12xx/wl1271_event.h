@@ -38,6 +38,14 @@
  */
 
 enum {
+	RSSI_SNR_TRIGGER_0_EVENT_ID              = BIT(0),
+	RSSI_SNR_TRIGGER_1_EVENT_ID              = BIT(1),
+	RSSI_SNR_TRIGGER_2_EVENT_ID              = BIT(2),
+	RSSI_SNR_TRIGGER_3_EVENT_ID              = BIT(3),
+	RSSI_SNR_TRIGGER_4_EVENT_ID              = BIT(4),
+	RSSI_SNR_TRIGGER_5_EVENT_ID              = BIT(5),
+	RSSI_SNR_TRIGGER_6_EVENT_ID              = BIT(6),
+	RSSI_SNR_TRIGGER_7_EVENT_ID              = BIT(7),
 	MEASUREMENT_START_EVENT_ID		 = BIT(8),
 	MEASUREMENT_COMPLETE_EVENT_ID		 = BIT(9),
 	SCAN_COMPLETE_EVENT_ID			 = BIT(10),
@@ -112,6 +120,6 @@ struct event_mailbox {
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
-int wl1271_event_handle(struct wl1271 *wl, u8 mbox, bool do_ack);
+int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
 
 #endif

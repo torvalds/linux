@@ -1,8 +1,8 @@
 /*
  * An I2C driver for the Epson RX8581 RTC
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Author: Martyn Welch <martyn.welch@ge.com>
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -168,7 +168,7 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
-	err = i2c_smbus_write_byte_data(client, RX8581_REG_FLAG,
+	err = i2c_smbus_write_byte_data(client, RX8581_REG_CTRL,
 		(data | RX8581_CTRL_STOP));
 	if (err < 0) {
 		dev_err(&client->dev, "Unable to write control register\n");
@@ -182,6 +182,20 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
+	/* get VLF and clear it */
+	data = i2c_smbus_read_byte_data(client, RX8581_REG_FLAG);
+	if (data < 0) {
+		dev_err(&client->dev, "Unable to read flag register\n");
+		return -EIO;
+	}
+
+	err = i2c_smbus_write_byte_data(client, RX8581_REG_FLAG,
+		(data & ~(RX8581_FLAG_VLF)));
+	if (err != 0) {
+		dev_err(&client->dev, "Unable to write flag register\n");
+		return -EIO;
+	}
+
 	/* Restart the clock */
 	data = i2c_smbus_read_byte_data(client, RX8581_REG_CTRL);
 	if (data < 0) {
@@ -189,8 +203,8 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
-	err = i2c_smbus_write_byte_data(client, RX8581_REG_FLAG,
-		(data | ~(RX8581_CTRL_STOP)));
+	err = i2c_smbus_write_byte_data(client, RX8581_REG_CTRL,
+		(data & ~(RX8581_CTRL_STOP)));
 	if (err != 0) {
 		dev_err(&client->dev, "Unable to write control register\n");
 		return -EIO;
@@ -272,7 +286,7 @@ static void __exit rx8581_exit(void)
 	i2c_del_driver(&rx8581_driver);
 }
 
-MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com>");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com>");
 MODULE_DESCRIPTION("Epson RX-8581 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

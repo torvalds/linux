@@ -2,6 +2,7 @@
 #define __KVM_X86_MMU_H
 
 #include <linux/kvm_host.h>
+#include "kvm_cache_regs.h"
 
 #define PT64_PT_BITS 9
 #define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
@@ -37,6 +38,16 @@
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
+#define PT_PDPE_LEVEL 3
+#define PT_DIRECTORY_LEVEL 2
+#define PT_PAGE_TABLE_LEVEL 1
+
+#define PFERR_PRESENT_MASK (1U << 0)
+#define PFERR_WRITE_MASK (1U << 1)
+#define PFERR_USER_MASK (1U << 2)
+#define PFERR_RSVD_MASK (1U << 3)
+#define PFERR_FETCH_MASK (1U << 4)
+
 int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4]);
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
@@ -51,30 +62,6 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 		return 0;
 
 	return kvm_mmu_load(vcpu);
-}
-
-static inline int is_long_mode(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_X86_64
-	return vcpu->arch.shadow_efer & EFER_LMA;
-#else
-	return 0;
-#endif
-}
-
-static inline int is_pae(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr4 & X86_CR4_PAE;
-}
-
-static inline int is_pse(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr4 & X86_CR4_PSE;
-}
-
-static inline int is_paging(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr0 & X86_CR0_PG;
 }
 
 static inline int is_present_gpte(unsigned long pte)

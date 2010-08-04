@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
+#include <linux/slab.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/in6.h>
@@ -380,7 +381,7 @@ static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 	}
 
 	/* Charge it to the socket. */
-	if (sock_queue_rcv_skb(sk, skb) < 0) {
+	if (ip_queue_rcv_skb(sk, skb) < 0) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -459,6 +460,9 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len);
+
+	if (np->rxpmtu && np->rxopt.bits.rxpmtu)
+		return ipv6_recv_rxpmtu(sk, msg, len);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
@@ -636,8 +640,8 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 		goto error_fault;
 
 	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
-	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
-		      dst_output);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
+		      rt->u.dst.dev, dst_output);
 	if (err > 0)
 		err = net_xmit_errno(err);
 	if (err)
@@ -732,6 +736,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int addr_len = msg->msg_namelen;
 	int hlimit = -1;
 	int tclass = -1;
+	int dontfrag = -1;
 	u16 proto;
 	int err;
 
@@ -810,7 +815,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(sock_net(sk), msg, &fl, opt, &hlimit, &tclass);
+		err = datagram_send_ctl(sock_net(sk), msg, &fl, opt, &hlimit,
+					&tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -879,6 +885,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (tclass < 0)
 		tclass = np->tclass;
 
+	if (dontfrag < 0)
+		dontfrag = np->dontfrag;
+
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;
 
@@ -889,7 +898,7 @@ back_from_confirm:
 		lock_sock(sk);
 		err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov,
 			len, 0, hlimit, tclass, opt, &fl, (struct rt6_info*)dst,
-			msg->msg_flags);
+			msg->msg_flags, dontfrag);
 
 		if (err)
 			ip6_flush_pending_frames(sk);
@@ -1275,7 +1284,7 @@ static const struct file_operations raw6_seq_fops = {
 	.release =	seq_release_net,
 };
 
-static int raw6_init_net(struct net *net)
+static int __net_init raw6_init_net(struct net *net)
 {
 	if (!proc_net_fops_create(net, "raw6", S_IRUGO, &raw6_seq_fops))
 		return -ENOMEM;
@@ -1283,7 +1292,7 @@ static int raw6_init_net(struct net *net)
 	return 0;
 }
 
-static void raw6_exit_net(struct net *net)
+static void __net_exit raw6_exit_net(struct net *net)
 {
 	proc_net_remove(net, "raw6");
 }

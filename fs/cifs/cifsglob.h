@@ -18,6 +18,7 @@
  */
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <linux/slow-work.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
@@ -86,7 +87,6 @@ enum securityEnum {
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
 /*	NTLMSSP, */ /* can use rawNTLMSSP instead of NTLMSSP via SPNEGO */
 	Kerberos,		/* Kerberos via SPNEGO */
-	MSKerberos,		/* MS Kerberos via SPNEGO */
 };
 
 enum protocolEnum {
@@ -149,6 +149,7 @@ struct TCP_Server_Info {
 	bool svlocal:1;			/* local server or remote */
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
+	bool tcp_nodelay;
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t inSend; /* requests trying to send */
@@ -183,6 +184,12 @@ struct TCP_Server_Info {
 	struct mac_key mac_signing_key;
 	char ntlmv2_hash[16];
 	unsigned long lstrp; /* when we got last response from this server */
+	u16 dialect; /* dialect index that server chose */
+	/* extended security flavors that server supports */
+	bool	sec_kerberos;		/* supports plain Kerberos */
+	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
+	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
+	bool	sec_ntlmssp;		/* supports NTLMSSP */
 };
 
 /*
@@ -204,7 +211,7 @@ struct cifsUidInfo {
 struct cifsSesInfo {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
-	struct semaphore sesSem;
+	struct mutex session_mutex;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
 #endif
@@ -388,6 +395,7 @@ struct cifsInodeInfo {
 	bool clientCanCacheRead:1;	/* read oplock */
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
+	bool invalid_mapping:1;		/* pagecache is invalid */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */
 	struct inode vfs_inode;
@@ -499,6 +507,7 @@ struct dfs_info3_param {
 #define CIFS_FATTR_DFS_REFERRAL		0x1
 #define CIFS_FATTR_DELETE_PENDING	0x2
 #define CIFS_FATTR_NEED_REVAL		0x4
+#define CIFS_FATTR_INO_COLLISION	0x8
 
 struct cifs_fattr {
 	u32		cf_flags;
@@ -714,7 +723,7 @@ GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
 GLOBAL_EXTERN unsigned int oplockEnabled;
 GLOBAL_EXTERN unsigned int experimEnabled;
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
-GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent
+GLOBAL_EXTERN unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/

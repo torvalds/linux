@@ -43,71 +43,9 @@
 /* Video Memory Size */
 #define VIDEO_MEMORY_SIZE_16M    0x1000000
 
-/* Definition Mode Index
-*/
-#define     VIA_RES_640X480                 	0
-#define     VIA_RES_800X600                 	1
-#define     VIA_RES_1024X768                	2
-#define     VIA_RES_1152X864                	3
-#define     VIA_RES_1280X1024               	4
-#define     VIA_RES_1600X1200               	5
-#define     VIA_RES_1440X1050               	6
-#define     VIA_RES_1280X768                	7
-#define     VIA_RES_1280X960                	8
-#define     VIA_RES_1920X1440               	9
-#define     VIA_RES_848X480                 	10
-#define     VIA_RES_1400X1050               	11
-#define     VIA_RES_720X480                 	12
-#define     VIA_RES_720X576                 	13
-#define     VIA_RES_1024X512                	14
-#define     VIA_RES_856X480                 	15
-#define     VIA_RES_1024X576                	16
-#define     VIA_RES_640X400                 	17
-#define     VIA_RES_1280X720                	18
-#define     VIA_RES_1920X1080               	19
-#define     VIA_RES_800X480                 	20
-#define     VIA_RES_1368X768                	21
-#define     VIA_RES_1024X600                	22
-#define     VIA_RES_1280X800                	23
-#define     VIA_RES_1680X1050               	24
-#define     VIA_RES_960X600			25
-#define     VIA_RES_1000X600               	26
-#define     VIA_RES_1088X612               	27
-#define     VIA_RES_1152X720               	28
-#define     VIA_RES_1200X720               	29
-#define     VIA_RES_1280X600               	30
-#define     VIA_RES_1360X768               	31
-#define     VIA_RES_1366X768               	32
-#define     VIA_RES_1440X900               	33
-#define     VIA_RES_1600X900               	34
-#define     VIA_RES_1600X1024              	35
-#define     VIA_RES_1792X1344              	36
-#define     VIA_RES_1856X1392              	37
-#define     VIA_RES_1920X1200              	38
-#define     VIA_RES_2048X1536              	39
-#define     VIA_RES_480X640                  	40
-
-/*Reduce Blanking*/
-#define     VIA_RES_1360X768_RB          	131
-#define     VIA_RES_1440X900_RB          	133
-#define     VIA_RES_1400X1050_RB        	111
-#define     VIA_RES_1600X900_RB          	134
-#define     VIA_RES_1680X1050_RB        	124
-#define     VIA_RES_1920X1080_RB        	119
-#define     VIA_RES_1920X1200_RB        	138
-
-#define     VIA_RES_INVALID                 	255
-
-/* standard VGA IO port
-*/
-#define VIARMisc    0x3CC
-#define VIAWMisc    0x3C2
-#define VIAStatus   0x3DA
-#define VIACR       0x3D4
-#define VIASR       0x3C4
-#define VIAGR       0x3CE
-#define VIAAR       0x3C0
-
+/*
+ * Lengths of the VPIT structure arrays.
+ */
 #define StdCR       0x19
 #define StdSR       0x04
 #define StdGR       0x09
@@ -118,7 +56,6 @@
 /* Display path */
 #define IGA1        1
 #define IGA2        2
-#define IGA1_IGA2   3
 
 /* Define Color Depth  */
 #define MODE_8BPP       1
@@ -626,6 +563,10 @@
 #define M1200X720_R60_HSP       NEGATIVE
 #define M1200X720_R60_VSP       POSITIVE
 
+/* 1200x900@60 Sync Polarity (DCON) */
+#define M1200X900_R60_HSP       NEGATIVE
+#define M1200X900_R60_VSP       NEGATIVE
+
 /* 1280x600@60 Sync Polarity (GTF Mode) */
 #define M1280x600_R60_HSP       NEGATIVE
 #define M1280x600_R60_VSP       POSITIVE
@@ -707,6 +648,7 @@
 #define CLK_52_406M     52406000
 #define CLK_52_977M     52977000
 #define CLK_56_250M     56250000
+#define CLK_57_275M     57275000
 #define CLK_60_466M     60466000
 #define CLK_61_500M     61500000
 #define CLK_65_000M     65000000
@@ -995,6 +937,7 @@
 #define VX855_52_406M     0x00580C03
 #define VX855_52_977M     0x00940C05
 #define VX855_56_250M     0x009D0C05
+#define VX855_57_275M     0x009D8C85    /* Used by XO panel */
 #define VX855_60_466M     0x00A90C05
 #define VX855_61_500M     0x00AC0C05
 #define VX855_65_000M     0x006D0C03
@@ -1121,6 +1064,7 @@
 #define RES_1600X1200_60HZ_PIXCLOCK  6172
 #define RES_1600X1200_75HZ_PIXCLOCK  4938
 #define RES_1280X720_60HZ_PIXCLOCK   13426
+#define RES_1200X900_60HZ_PIXCLOCK   17459
 #define RES_1920X1080_60HZ_PIXCLOCK  5787
 #define RES_1400X1050_60HZ_PIXCLOCK  8214
 #define RES_1400X1050_75HZ_PIXCLOCK  6410

@@ -22,7 +22,7 @@
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
 #define FTDI_4232H_PID 0x6011 /* Quad channel hi-speed device */
-#define FTDI_SIO_PID	0x8372	/* Product Id SIO application of 8U100AX  */
+#define FTDI_SIO_PID	0x8372	/* Product Id SIO application of 8U100AX */
 #define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
 
 
@@ -38,6 +38,8 @@
 /* www.candapter.com Ewert Energy Systems CANdapter device */
 #define FTDI_CANDAPTER_PID 0x9F80 /* Product Id */
 
+#define FTDI_NXTCAM_PID		0xABB8 /* NXTCam for Mindstorms NXT */
+
 /* OOCDlink by Joern Kaipf <joernk@web.de>
  * (http://www.joernonline.de/dw/doku.php?id=start&idx=projects:oocdlink) */
 #define FTDI_OOCDLINK_PID	0xbaf8	/* Amontec JTAGkey */
@@ -47,7 +49,7 @@
 #define LMI_LM3S_DEVEL_BOARD_PID	0xbcd8
 #define LMI_LM3S_EVAL_BOARD_PID		0xbcd9
 
-#define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmBH */
+#define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmbH */
 
 /* OpenDCC (www.opendcc.de) product id */
 #define FTDI_OPENDCC_PID	0xBFD8
@@ -161,22 +163,37 @@
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
  * All of these devices use FTDI's vendor ID (0x0403).
+ * Further IDs taken from ELV Windows .inf file.
  *
  * The previously included PID for the UO 100 module was incorrect.
  * In fact, that PID was for ELV's UR 100 USB-RS232 converter (0xFB58).
  *
  * Armin Laeuger originally sent the PID for the UM 100 module.
  */
+#define FTDI_ELV_USR_PID	0xE000	/* ELV Universal-Sound-Recorder */
+#define FTDI_ELV_MSM1_PID	0xE001	/* ELV Mini-Sound-Modul */
+#define FTDI_ELV_KL100_PID	0xE002	/* ELV Kfz-Leistungsmesser KL 100 */
+#define FTDI_ELV_WS550_PID	0xE004	/* WS 550 */
+#define FTDI_ELV_EC3000_PID	0xE006	/* ENERGY CONTROL 3000 USB */
+#define FTDI_ELV_WS888_PID	0xE008	/* WS 888 */
+#define FTDI_ELV_TWS550_PID	0xE009	/* Technoline WS 550 */
+#define FTDI_ELV_FEM_PID	0xE00A	/* Funk Energie Monitor */
 #define FTDI_ELV_FHZ1300PC_PID	0xE0E8	/* FHZ 1300 PC */
 #define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
 #define FTDI_ELV_HS485_PID	0xE0EA	/* USB to RS-485 adapter */
-#define FTDI_ELV_EM1010PC_PID	0xE0EF	/* Engery monitor EM 1010 PC */
+#define FTDI_ELV_UMS100_PID	0xE0EB	/* ELV USB Master-Slave Schaltsteckdose UMS 100 */
+#define FTDI_ELV_TFD128_PID	0xE0EC	/* ELV Temperatur-Feuchte-Datenlogger TFD 128 */
+#define FTDI_ELV_FM3RX_PID	0xE0ED	/* ELV Messwertuebertragung FM3 RX */
+#define FTDI_ELV_WS777_PID	0xE0EE	/* Conrad WS 777 */
+#define FTDI_ELV_EM1010PC_PID	0xE0EF	/* Energy monitor EM 1010 PC */
 #define FTDI_ELV_CSI8_PID	0xE0F0	/* Computer-Schalt-Interface (CSI 8) */
 #define FTDI_ELV_EM1000DL_PID	0xE0F1	/* PC-Datenlogger fuer Energiemonitor (EM 1000 DL) */
 #define FTDI_ELV_PCK100_PID	0xE0F2	/* PC-Kabeltester (PCK 100) */
 #define FTDI_ELV_RFP500_PID	0xE0F3	/* HF-Leistungsmesser (RFP 500) */
 #define FTDI_ELV_FS20SIG_PID	0xE0F4	/* Signalgeber (FS 20 SIG) */
+#define FTDI_ELV_UTP8_PID	0xE0F5	/* ELV UTP 8 */
 #define FTDI_ELV_WS300PC_PID	0xE0F6	/* PC-Wetterstation (WS 300 PC) */
+#define FTDI_ELV_WS444PC_PID	0xE0F7	/* Conrad WS 444 PC */
 #define FTDI_PHI_FISCO_PID      0xE40B  /* PHI Fisco USB to Serial cable */
 #define FTDI_ELV_UAD8_PID	0xF068	/* USB-AD-Wandler (UAD 8) */
 #define FTDI_ELV_UDA7_PID	0xF069	/* USB-DA-Wandler (UDA 7) */
@@ -195,8 +212,8 @@
  * drivers, or possibly the Comedi drivers in some cases. */
 #define FTDI_ELV_CLI7000_PID	0xFB59	/* Computer-Light-Interface (CLI 7000) */
 #define FTDI_ELV_PPS7330_PID	0xFB5C	/* Processor-Power-Supply (PPS 7330) */
-#define FTDI_ELV_TFM100_PID	0xFB5D	/* Temperartur-Feuchte Messgeraet (TFM 100) */
-#define FTDI_ELV_UDF77_PID	0xFB5E	/* USB DCF Funkurh (UDF 77) */
+#define FTDI_ELV_TFM100_PID	0xFB5D	/* Temperatur-Feuchte-Messgeraet (TFM 100) */
+#define FTDI_ELV_UDF77_PID	0xFB5E	/* USB DCF Funkuhr (UDF 77) */
 #define FTDI_ELV_UIO88_PID	0xFB5F	/* USB-I/O Interface (UIO 88) */
 
 /*
@@ -258,8 +275,8 @@
 /*
  * Hameg HO820 and HO870 interface (using VID 0x0403)
  */
-#define        HAMEG_HO820_PID         0xed74
-#define        HAMEG_HO870_PID         0xed71
+#define HAMEG_HO820_PID			0xed74
+#define HAMEG_HO870_PID			0xed71
 
 /*
  *  MaxStream devices	www.maxstream.net
@@ -272,14 +289,14 @@
  * and Mike Studer (K6EEP) <k6eep@hamsoftware.org>.
  * Ian Abbott <abbotti@mev.co.uk> added a few more from the driver INF file.
  */
-#define FTDI_MHAM_KW_PID 0xEEE8		/* USB-KW interface */
-#define FTDI_MHAM_YS_PID 0xEEE9		/* USB-YS interface */
-#define FTDI_MHAM_Y6_PID 0xEEEA		/* USB-Y6 interface */
-#define FTDI_MHAM_Y8_PID 0xEEEB		/* USB-Y8 interface */
-#define FTDI_MHAM_IC_PID 0xEEEC		/* USB-IC interface */
-#define FTDI_MHAM_DB9_PID 0xEEED	/* USB-DB9 interface */
-#define FTDI_MHAM_RS232_PID 0xEEEE	/* USB-RS232 interface */
-#define FTDI_MHAM_Y9_PID 0xEEEF		/* USB-Y9 interface */
+#define FTDI_MHAM_KW_PID	0xEEE8	/* USB-KW interface */
+#define FTDI_MHAM_YS_PID	0xEEE9	/* USB-YS interface */
+#define FTDI_MHAM_Y6_PID	0xEEEA	/* USB-Y6 interface */
+#define FTDI_MHAM_Y8_PID	0xEEEB	/* USB-Y8 interface */
+#define FTDI_MHAM_IC_PID	0xEEEC	/* USB-IC interface */
+#define FTDI_MHAM_DB9_PID	0xEEED	/* USB-DB9 interface */
+#define FTDI_MHAM_RS232_PID	0xEEEE	/* USB-RS232 interface */
+#define FTDI_MHAM_Y9_PID	0xEEEF	/* USB-Y9 interface */
 
 /* Domintell products  http://www.domintell.com */
 #define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
@@ -303,7 +320,7 @@
 
 /*
  * 4N-GALAXY.DE PIDs for CAN-USB, USB-RS232, USB-RS422, USB-RS485,
- * USB-TTY activ, USB-TTY passiv.  Some PIDs are used by several devices
+ * USB-TTY aktiv, USB-TTY passiv.  Some PIDs are used by several devices
  * and I'm not entirely sure which are used by which.
  */
 #define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
@@ -313,10 +330,10 @@
  * Linx Technologies product ids
  */
 #define LINX_SDMUSBQSS_PID	0xF448	/* Linx SDM-USB-QS-S */
-#define LINX_MASTERDEVEL2_PID   0xF449   /* Linx Master Development 2.0 */
-#define LINX_FUTURE_0_PID   0xF44A   /* Linx future device */
-#define LINX_FUTURE_1_PID   0xF44B   /* Linx future device */
-#define LINX_FUTURE_2_PID   0xF44C   /* Linx future device */
+#define LINX_MASTERDEVEL2_PID   0xF449	/* Linx Master Development 2.0 */
+#define LINX_FUTURE_0_PID   0xF44A	/* Linx future device */
+#define LINX_FUTURE_1_PID   0xF44B	/* Linx future device */
+#define LINX_FUTURE_2_PID   0xF44C	/* Linx future device */
 
 /*
  * Oceanic product ids
@@ -466,15 +483,22 @@
  * Blackfin gnICE JTAG
  * http://docs.blackfin.uclinux.org/doku.php?id=hw:jtag:gnice
  */
-#define ADI_VID 		0x0456
-#define ADI_GNICE_PID 		0xF000
-#define ADI_GNICEPLUS_PID 	0xF001
+#define ADI_VID			0x0456
+#define ADI_GNICE_PID		0xF000
+#define ADI_GNICEPLUS_PID	0xF001
 
 /*
  * RATOC REX-USB60F
  */
 #define RATOC_VENDOR_ID		0x0584
 #define RATOC_PRODUCT_ID_USB60F	0xb020
+
+/*
+ * Contec products (http://www.contec.com)
+ * Submitted by Daniel Sangorrin
+ */
+#define CONTEC_VID		0x06CE	/* Vendor ID */
+#define CONTEC_COM1USBH_PID	0x8311	/* COM-1(USB)H */
 
 /*
  * Definitions for B&B Electronics products.
@@ -580,13 +604,13 @@
 #define SEALEVEL_2802_7_PID	0X2872	/* SeaLINK+8/485 (2802) Port 7 */
 #define SEALEVEL_2802_8_PID	0X2882	/* SeaLINK+8/485 (2802) Port 8 */
 #define SEALEVEL_2803_1_PID	0X2813	/* SeaLINK+8 (2803) Port 1 */
-#define SEALEVEL_2803_2_PID	0X2823 	/* SeaLINK+8 (2803) Port 2 */
-#define SEALEVEL_2803_3_PID	0X2833 	/* SeaLINK+8 (2803) Port 3 */
-#define SEALEVEL_2803_4_PID	0X2843 	/* SeaLINK+8 (2803) Port 4 */
-#define SEALEVEL_2803_5_PID	0X2853 	/* SeaLINK+8 (2803) Port 5 */
-#define SEALEVEL_2803_6_PID	0X2863 	/* SeaLINK+8 (2803) Port 6 */
-#define SEALEVEL_2803_7_PID	0X2873 	/* SeaLINK+8 (2803) Port 7 */
-#define SEALEVEL_2803_8_PID	0X2883 	/* SeaLINK+8 (2803) Port 8 */
+#define SEALEVEL_2803_2_PID	0X2823	/* SeaLINK+8 (2803) Port 2 */
+#define SEALEVEL_2803_3_PID	0X2833	/* SeaLINK+8 (2803) Port 3 */
+#define SEALEVEL_2803_4_PID	0X2843	/* SeaLINK+8 (2803) Port 4 */
+#define SEALEVEL_2803_5_PID	0X2853	/* SeaLINK+8 (2803) Port 5 */
+#define SEALEVEL_2803_6_PID	0X2863	/* SeaLINK+8 (2803) Port 6 */
+#define SEALEVEL_2803_7_PID	0X2873	/* SeaLINK+8 (2803) Port 7 */
+#define SEALEVEL_2803_8_PID	0X2883	/* SeaLINK+8 (2803) Port 8 */
 
 /*
  * JETI SPECTROMETER SPECBOS 1201
@@ -625,7 +649,7 @@
 #define FALCOM_TWIST_PID	0x0001	/* Falcom Twist USB GPRS modem */
 #define FALCOM_SAMBA_PID	0x0005	/* Falcom Samba USB GPRS modem */
 
-/* Larsen and Brusgaard AltiTrack/USBtrack  */
+/* Larsen and Brusgaard AltiTrack/USBtrack */
 #define LARSENBRUSGAARD_VID		0x0FD8
 #define LB_ALTITRACK_PID		0x0001
 
@@ -670,6 +694,12 @@
  */
 #define TELLDUS_VID			0x1781	/* Vendor ID */
 #define TELLDUS_TELLSTICK_PID		0x0C30	/* RF control dongle 433 MHz using FT232RL */
+
+/*
+ * RT Systems programming cables for various ham radios
+ */
+#define RTSYSTEMS_VID			0x2100	/* Vendor ID */
+#define RTSYSTEMS_SERIAL_VX7_PID	0x9e52	/* Serial converter for VX-7 Radios using FT232RL */
 
 /*
  * Bayer Ascensia Contour blood glucose meter USB-converter cable.
@@ -954,7 +984,7 @@
 #define ALTI2_N3_PID	0x6001	/* Neptune 3 */
 
 /*
- * Dresden Elektronic Sensor Terminal Board
+ * Dresden Elektronik Sensor Terminal Board
  */
 #define DE_VID			0x1cf1 /* Vendor ID */
 #define STB_PID			0x0001 /* Sensor Terminal Board */
@@ -968,6 +998,7 @@
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
 #define PAPOUCH_QUIDO4x4_PID		0x0900	/* Quido 4/4 Module */
+#define PAPOUCH_AD4USB_PID		0x8003	/* AD4USB Measurement Module */
 
 /*
  * Marvell SheevaPlug
@@ -981,6 +1012,23 @@
  */
 #define EVOLUTION_VID		0xDEEE	/* Vendor ID */
 #define EVOLUTION_ER1_PID	0x0300	/* ER1 Control Module */
-#define EVO_8U232AM_PID	0x02FF	/* Evolution robotics RCM2 (FT232AM)*/
+#define EVO_8U232AM_PID		0x02FF	/* Evolution robotics RCM2 (FT232AM)*/
 #define EVO_HYBRID_PID		0x0302	/* Evolution robotics RCM4 PID (FT232BM)*/
 #define EVO_RCM4_PID		0x0303	/* Evolution robotics RCM4 PID */
+
+/*
+ * MJS Gadgets HD Radio / XM Radio / Sirius Radio interfaces (using VID 0x0403)
+ */
+#define MJSG_GENERIC_PID	0x9378
+#define MJSG_SR_RADIO_PID	0x9379
+#define MJSG_XM_RADIO_PID	0x937A
+#define MJSG_HD_RADIO_PID	0x937C
+
+/*
+ * Xverve Signalyzer tools (http://www.signalyzer.com/)
+ */
+#define XVERVE_SIGNALYZER_ST_PID	0xBCA0
+#define XVERVE_SIGNALYZER_SLITE_PID	0xBCA1
+#define XVERVE_SIGNALYZER_SH2_PID	0xBCA2
+#define XVERVE_SIGNALYZER_SH4_PID	0xBCA4
+

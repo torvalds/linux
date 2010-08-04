@@ -307,10 +307,17 @@ static int wm8350_rtc_update_irq_enable(struct device *dev,
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(dev);
 
+	/* Suppress duplicate changes since genirq nests enable and
+	 * disable calls. */
+	if (enabled == wm8350->rtc.update_enabled)
+		return 0;
+
 	if (enabled)
 		wm8350_unmask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 	else
 		wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
+
+	wm8350->rtc.update_enabled = enabled;
 
 	return 0;
 }
@@ -478,8 +485,8 @@ static int __devexit wm8350_rtc_remove(struct platform_device *pdev)
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_rtc *wm_rtc = &wm8350->rtc;
 
-	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC);
-	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM);
+	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM, wm8350);
 
 	rtc_device_unregister(wm_rtc->rtc);
 

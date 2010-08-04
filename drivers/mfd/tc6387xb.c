@@ -17,6 +17,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6387xb.h>
+#include <linux/slab.h>
 
 enum {
 	TC6387XB_CELL_MMC,

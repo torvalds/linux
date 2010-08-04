@@ -118,6 +118,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 
 	return simple_strtoull(cp, endp, base);
 }
+EXPORT_SYMBOL(simple_strtoll);
 
 /**
  * strict_strtoul - convert a string to an unsigned long strictly
@@ -266,7 +267,8 @@ int strict_strtoll(const char *cp, unsigned int base, long long *res)
 }
 EXPORT_SYMBOL(strict_strtoll);
 
-static int skip_atoi(const char **s)
+static noinline_for_stack
+int skip_atoi(const char **s)
 {
 	int i = 0;
 
@@ -286,7 +288,8 @@ static int skip_atoi(const char **s)
 /* Formats correctly any integer in [0,99999].
  * Outputs from one to five digits depending on input.
  * On i386 gcc 4.1.2 -O2: ~250 bytes of code. */
-static char *put_dec_trunc(char *buf, unsigned q)
+static noinline_for_stack
+char *put_dec_trunc(char *buf, unsigned q)
 {
 	unsigned d3, d2, d1, d0;
 	d1 = (q>>4) & 0xf;
@@ -323,7 +326,8 @@ static char *put_dec_trunc(char *buf, unsigned q)
 	return buf;
 }
 /* Same with if's removed. Always emits five digits */
-static char *put_dec_full(char *buf, unsigned q)
+static noinline_for_stack
+char *put_dec_full(char *buf, unsigned q)
 {
 	/* BTW, if q is in [0,9999], 8-bit ints will be enough, */
 	/* but anyway, gcc produces better code with full-sized ints */
@@ -365,7 +369,8 @@ static char *put_dec_full(char *buf, unsigned q)
 	return buf;
 }
 /* No inlining helps gcc to use registers better */
-static noinline char *put_dec(char *buf, unsigned long long num)
+static noinline_for_stack
+char *put_dec(char *buf, unsigned long long num)
 {
 	while (1) {
 		unsigned rem;
@@ -381,8 +386,8 @@ static noinline char *put_dec(char *buf, unsigned long long num)
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
 #define LEFT	16		/* left justified */
-#define SMALL	32		/* Must be 32 == 0x20 */
-#define SPECIAL	64		/* 0x */
+#define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
+#define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
@@ -408,16 +413,17 @@ enum format_type {
 };
 
 struct printf_spec {
-	enum format_type	type;
-	int			flags;		/* flags to number() */
-	int			field_width;	/* width of output field */
-	int			base;
-	int			precision;	/* # of digits/chars */
-	int			qualifier;
+	u8	type;		/* format_type enum */
+	u8	flags;		/* flags to number() */
+	u8	base;		/* number base, 8, 10 or 16 only */
+	u8	qualifier;	/* number qualifier, one of 'hHlLtzZ' */
+	s16	field_width;	/* width of output field */
+	s16	precision;	/* # of digits/chars */
 };
 
-static char *number(char *buf, char *end, unsigned long long num,
-			struct printf_spec spec)
+static noinline_for_stack
+char *number(char *buf, char *end, unsigned long long num,
+	     struct printf_spec spec)
 {
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
 	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
@@ -536,7 +542,8 @@ static char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
-static char *string(char *buf, char *end, const char *s, struct printf_spec spec)
+static noinline_for_stack
+char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 {
 	int len, i;
 
@@ -566,8 +573,9 @@ static char *string(char *buf, char *end, const char *s, struct printf_spec spec
 	return buf;
 }
 
-static char *symbol_string(char *buf, char *end, void *ptr,
-				struct printf_spec spec, char ext)
+static noinline_for_stack
+char *symbol_string(char *buf, char *end, void *ptr,
+		    struct printf_spec spec, char ext)
 {
 	unsigned long value = (unsigned long) ptr;
 #ifdef CONFIG_KALLSYMS
@@ -587,8 +595,9 @@ static char *symbol_string(char *buf, char *end, void *ptr,
 #endif
 }
 
-static char *resource_string(char *buf, char *end, struct resource *res,
-				struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *resource_string(char *buf, char *end, struct resource *res,
+		      struct printf_spec spec, const char *fmt)
 {
 #ifndef IO_RSRC_PRINTK_SIZE
 #define IO_RSRC_PRINTK_SIZE	6
@@ -597,22 +606,35 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 #ifndef MEM_RSRC_PRINTK_SIZE
 #define MEM_RSRC_PRINTK_SIZE	10
 #endif
-	struct printf_spec hex_spec = {
+	static const struct printf_spec io_spec = {
 		.base = 16,
+		.field_width = IO_RSRC_PRINTK_SIZE,
 		.precision = -1,
 		.flags = SPECIAL | SMALL | ZEROPAD,
 	};
-	struct printf_spec dec_spec = {
+	static const struct printf_spec mem_spec = {
+		.base = 16,
+		.field_width = MEM_RSRC_PRINTK_SIZE,
+		.precision = -1,
+		.flags = SPECIAL | SMALL | ZEROPAD,
+	};
+	static const struct printf_spec bus_spec = {
+		.base = 16,
+		.field_width = 2,
+		.precision = -1,
+		.flags = SMALL | ZEROPAD,
+	};
+	static const struct printf_spec dec_spec = {
 		.base = 10,
 		.precision = -1,
 		.flags = 0,
 	};
-	struct printf_spec str_spec = {
+	static const struct printf_spec str_spec = {
 		.field_width = -1,
 		.precision = 10,
 		.flags = LEFT,
 	};
-	struct printf_spec flag_spec = {
+	static const struct printf_spec flag_spec = {
 		.base = 16,
 		.precision = -1,
 		.flags = SPECIAL | SMALL,
@@ -622,47 +644,48 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 	 * 64-bit res (sizeof==8): 20 chars in dec, 18 in hex ("0x" + 16) */
 #define RSRC_BUF_SIZE		((2 * sizeof(resource_size_t)) + 4)
 #define FLAG_BUF_SIZE		(2 * sizeof(res->flags))
-#define DECODED_BUF_SIZE	sizeof("[mem - 64bit pref disabled]")
+#define DECODED_BUF_SIZE	sizeof("[mem - 64bit pref window disabled]")
 #define RAW_BUF_SIZE		sizeof("[mem - flags 0x]")
 	char sym[max(2*RSRC_BUF_SIZE + DECODED_BUF_SIZE,
 		     2*RSRC_BUF_SIZE + FLAG_BUF_SIZE + RAW_BUF_SIZE)];
 
 	char *p = sym, *pend = sym + sizeof(sym);
-	int size = -1, addr = 0;
 	int decode = (fmt[0] == 'R') ? 1 : 0;
-
-	if (res->flags & IORESOURCE_IO) {
-		size = IO_RSRC_PRINTK_SIZE;
-		addr = 1;
-	} else if (res->flags & IORESOURCE_MEM) {
-		size = MEM_RSRC_PRINTK_SIZE;
-		addr = 1;
-	}
+	const struct printf_spec *specp;
 
 	*p++ = '[';
-	if (res->flags & IORESOURCE_IO)
+	if (res->flags & IORESOURCE_IO) {
 		p = string(p, pend, "io  ", str_spec);
-	else if (res->flags & IORESOURCE_MEM)
+		specp = &io_spec;
+	} else if (res->flags & IORESOURCE_MEM) {
 		p = string(p, pend, "mem ", str_spec);
-	else if (res->flags & IORESOURCE_IRQ)
+		specp = &mem_spec;
+	} else if (res->flags & IORESOURCE_IRQ) {
 		p = string(p, pend, "irq ", str_spec);
-	else if (res->flags & IORESOURCE_DMA)
+		specp = &dec_spec;
+	} else if (res->flags & IORESOURCE_DMA) {
 		p = string(p, pend, "dma ", str_spec);
-	else {
+		specp = &dec_spec;
+	} else if (res->flags & IORESOURCE_BUS) {
+		p = string(p, pend, "bus ", str_spec);
+		specp = &bus_spec;
+	} else {
 		p = string(p, pend, "??? ", str_spec);
+		specp = &mem_spec;
 		decode = 0;
 	}
-	hex_spec.field_width = size;
-	p = number(p, pend, res->start, addr ? hex_spec : dec_spec);
+	p = number(p, pend, res->start, *specp);
 	if (res->start != res->end) {
 		*p++ = '-';
-		p = number(p, pend, res->end, addr ? hex_spec : dec_spec);
+		p = number(p, pend, res->end, *specp);
 	}
 	if (decode) {
 		if (res->flags & IORESOURCE_MEM_64)
 			p = string(p, pend, " 64bit", str_spec);
 		if (res->flags & IORESOURCE_PREFETCH)
 			p = string(p, pend, " pref", str_spec);
+		if (res->flags & IORESOURCE_WINDOW)
+			p = string(p, pend, " window", str_spec);
 		if (res->flags & IORESOURCE_DISABLED)
 			p = string(p, pend, " disabled", str_spec);
 	} else {
@@ -675,30 +698,63 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 	return string(buf, end, sym, spec);
 }
 
-static char *mac_address_string(char *buf, char *end, u8 *addr,
-				struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *mac_address_string(char *buf, char *end, u8 *addr,
+			 struct printf_spec spec, const char *fmt)
 {
 	char mac_addr[sizeof("xx:xx:xx:xx:xx:xx")];
 	char *p = mac_addr;
 	int i;
+	char separator;
+
+	if (fmt[1] == 'F') {		/* FDDI canonical format */
+		separator = '-';
+	} else {
+		separator = ':';
+	}
 
 	for (i = 0; i < 6; i++) {
 		p = pack_hex_byte(p, addr[i]);
 		if (fmt[0] == 'M' && i != 5)
-			*p++ = ':';
+			*p++ = separator;
 	}
 	*p = '\0';
 
 	return string(buf, end, mac_addr, spec);
 }
 
-static char *ip4_string(char *p, const u8 *addr, bool leading_zeros)
+static noinline_for_stack
+char *ip4_string(char *p, const u8 *addr, const char *fmt)
 {
 	int i;
+	bool leading_zeros = (fmt[0] == 'i');
+	int index;
+	int step;
 
+	switch (fmt[2]) {
+	case 'h':
+#ifdef __BIG_ENDIAN
+		index = 0;
+		step = 1;
+#else
+		index = 3;
+		step = -1;
+#endif
+		break;
+	case 'l':
+		index = 3;
+		step = -1;
+		break;
+	case 'n':
+	case 'b':
+	default:
+		index = 0;
+		step = 1;
+		break;
+	}
 	for (i = 0; i < 4; i++) {
 		char temp[3];	/* hold each IP quad in reverse order */
-		int digits = put_dec_trunc(temp, addr[i]) - temp;
+		int digits = put_dec_trunc(temp, addr[index]) - temp;
 		if (leading_zeros) {
 			if (digits < 3)
 				*p++ = '0';
@@ -710,13 +766,15 @@ static char *ip4_string(char *p, const u8 *addr, bool leading_zeros)
 			*p++ = temp[digits];
 		if (i < 3)
 			*p++ = '.';
+		index += step;
 	}
 	*p = '\0';
 
 	return p;
 }
 
-static char *ip6_compressed_string(char *p, const char *addr)
+static noinline_for_stack
+char *ip6_compressed_string(char *p, const char *addr)
 {
 	int i, j, range;
 	unsigned char zerolength[8];
@@ -789,14 +847,15 @@ static char *ip6_compressed_string(char *p, const char *addr)
 	if (useIPv4) {
 		if (needcolon)
 			*p++ = ':';
-		p = ip4_string(p, &in6.s6_addr[12], false);
+		p = ip4_string(p, &in6.s6_addr[12], "I4");
 	}
 	*p = '\0';
 
 	return p;
 }
 
-static char *ip6_string(char *p, const char *addr, const char *fmt)
+static noinline_for_stack
+char *ip6_string(char *p, const char *addr, const char *fmt)
 {
 	int i;
 
@@ -811,8 +870,9 @@ static char *ip6_string(char *p, const char *addr, const char *fmt)
 	return p;
 }
 
-static char *ip6_addr_string(char *buf, char *end, const u8 *addr,
-			     struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *ip6_addr_string(char *buf, char *end, const u8 *addr,
+		      struct printf_spec spec, const char *fmt)
 {
 	char ip6_addr[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255")];
 
@@ -824,18 +884,20 @@ static char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, ip6_addr, spec);
 }
 
-static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
-			     struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *ip4_addr_string(char *buf, char *end, const u8 *addr,
+		      struct printf_spec spec, const char *fmt)
 {
 	char ip4_addr[sizeof("255.255.255.255")];
 
-	ip4_string(ip4_addr, addr, fmt[0] == 'i');
+	ip4_string(ip4_addr, addr, fmt);
 
 	return string(buf, end, ip4_addr, spec);
 }
 
-static char *uuid_string(char *buf, char *end, const u8 *addr,
-			 struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *uuid_string(char *buf, char *end, const u8 *addr,
+		  struct printf_spec spec, const char *fmt)
 {
 	char uuid[sizeof("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")];
 	char *p = uuid;
@@ -896,12 +958,15 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  * - 'M' For a 6-byte MAC address, it prints the address in the
  *       usual colon-separated hex notation
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
+ * - 'MF' For a 6-byte MAC FDDI address, it prints the address
+ *       with a dash-separated hex notation
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
  *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
  * - 'i' [46] for 'raw' IPv4/IPv6 addresses
  *       IPv6 omits the colons (01020304...0f)
  *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
+ * - '[Ii]4[hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I6c' for IPv6 addresses printed as specified by
  *       http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
  * - 'U' For a 16 byte UUID/GUID, it prints the UUID/GUID in the form
@@ -920,8 +985,9 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
  */
-static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
-			struct printf_spec spec)
+static noinline_for_stack
+char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+	      struct printf_spec spec)
 {
 	if (!ptr)
 		return string(buf, end, "(null)", spec);
@@ -939,6 +1005,7 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return resource_string(buf, end, ptr, spec, fmt);
 	case 'M':			/* Colon separated: 00:01:02:03:04:05 */
 	case 'm':			/* Contiguous: 000102030405 */
+					/* [mM]F (FDDI, bit reversed) */
 		return mac_address_string(buf, end, ptr, spec, fmt);
 	case 'I':			/* Formatted IP supported
 					 * 4:	1.2.3.4
@@ -989,7 +1056,8 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @precision: precision of a number
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
-static int format_decode(const char *fmt, struct printf_spec *spec)
+static noinline_for_stack
+int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
 
@@ -1297,7 +1365,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 
 		case FORMAT_TYPE_NRCHARS: {
-			int qualifier = spec.qualifier;
+			u8 qualifier = spec.qualifier;
 
 			if (qualifier == 'l') {
 				long *ip = va_arg(args, long *);
@@ -1583,7 +1651,7 @@ do {									\
 
 		case FORMAT_TYPE_NRCHARS: {
 			/* skip %n 's argument */
-			int qualifier = spec.qualifier;
+			u8 qualifier = spec.qualifier;
 			void *skip_arg;
 			if (qualifier == 'l')
 				skip_arg = va_arg(args, long *);
@@ -1849,7 +1917,9 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 	char *next;
 	char digit;
 	int num = 0;
-	int qualifier, base, field_width;
+	u8 qualifier;
+	u8 base;
+	s16 field_width;
 	bool is_sign;
 
 	while (*fmt && *str) {
@@ -1927,7 +1997,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		{
 			char *s = (char *)va_arg(args, char *);
 			if (field_width == -1)
-				field_width = INT_MAX;
+				field_width = SHRT_MAX;
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 

@@ -29,14 +29,14 @@ enum help_format {
 	HELP_FORMAT_WEB,
 };
 
-static int show_all = 0;
+static bool show_all = false;
 static enum help_format help_format = HELP_FORMAT_MAN;
 static struct option builtin_help_options[] = {
 	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),
-	OPT_SET_INT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
-	OPT_SET_INT('w', "web", &help_format, "show manual in web browser",
+	OPT_SET_UINT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
+	OPT_SET_UINT('w', "web", &help_format, "show manual in web browser",
 			HELP_FORMAT_WEB),
-	OPT_SET_INT('i', "info", &help_format, "show info page",
+	OPT_SET_UINT('i', "info", &help_format, "show info page",
 			HELP_FORMAT_INFO),
 	OPT_END(),
 };
@@ -286,8 +286,7 @@ void list_common_cmds_help(void)
 
 	puts(" The most commonly used perf commands are:");
 	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
-		printf("   %s   ", common_cmds[i].name);
-		mput_char(' ', longest - strlen(common_cmds[i].name));
+		printf("   %-*s   ", longest, common_cmds[i].name);
 		puts(common_cmds[i].help);
 	}
 }
@@ -314,8 +313,6 @@ static const char *cmd_to_page(const char *perf_cmd)
 		return "perf";
 	else if (!prefixcmp(perf_cmd, "perf"))
 		return perf_cmd;
-	else if (is_perf_command(perf_cmd))
-		return prepend("perf-", perf_cmd);
 	else
 		return prepend("perf-", perf_cmd);
 }

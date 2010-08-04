@@ -7,10 +7,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <linux/gfp.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <net/dst.h>
@@ -60,30 +61,21 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	tcplen = skb->len - tcphoff;
 	tcph = (struct tcphdr *)(skb_network_header(skb) + tcphoff);
 
-	/* Since it passed flags test in tcp match, we know it is is
-	   not a fragment, and has data >= tcp header length.  SYN
-	   packets should not contain data: if they did, then we risk
-	   running over MTU, sending Frag Needed and breaking things
-	   badly. --RR */
-	if (tcplen != tcph->doff*4) {
-		if (net_ratelimit())
-			printk(KERN_ERR "xt_TCPMSS: bad length (%u bytes)\n",
-			       skb->len);
+	/* Header cannot be larger than the packet */
+	if (tcplen < tcph->doff*4)
 		return -1;
-	}
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
 		if (dst_mtu(skb_dst(skb)) <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: "
-				       "unknown or invalid path-MTU (%u)\n",
+				pr_err("unknown or invalid path-MTU (%u)\n",
 				       dst_mtu(skb_dst(skb)));
 			return -1;
 		}
 		if (in_mtu <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: unknown or "
-				       "invalid path-MTU (%u)\n", in_mtu);
+				pr_err("unknown or invalid path-MTU (%u)\n",
+				       in_mtu);
 			return -1;
 		}
 		newmss = min(dst_mtu(skb_dst(skb)), in_mtu) - minlen;
@@ -114,6 +106,12 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 			return 0;
 		}
 	}
+
+	/* There is data after the header so the option can't be added
+	   without moving it, and doing so may make the SYN packet
+	   itself too large. Accept the packet unmodified instead. */
+	if (tcplen > tcph->doff*4)
+		return 0;
 
 	/*
 	 * MSS Option not found ?! add it..
@@ -174,7 +172,7 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 }
 
 static unsigned int
-tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	__be16 newlen;
@@ -197,7 +195,7 @@ tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static unsigned int
-tcpmss_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u8 nexthdr;
@@ -237,43 +235,47 @@ static inline bool find_syn_match(const struct xt_entry_match *m)
 	return false;
 }
 
-static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
+static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
+	const struct xt_entry_match *ematch;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
+		return -EINVAL;
 	}
-	if (IPT_MATCH_ITERATE(e, find_syn_match))
-		return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return false;
+	xt_ematch_foreach(ematch, e)
+		if (find_syn_match(ematch))
+			return 0;
+	pr_info("Only works on TCP SYN packets\n");
+	return -EINVAL;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
+static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ip6t_entry *e = par->entryinfo;
+	const struct xt_entry_match *ematch;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
+		return -EINVAL;
 	}
-	if (IP6T_MATCH_ITERATE(e, find_syn_match))
-		return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return false;
+	xt_ematch_foreach(ematch, e)
+		if (find_syn_match(ematch))
+			return 0;
+	pr_info("Only works on TCP SYN packets\n");
+	return -EINVAL;
 }
 #endif
 

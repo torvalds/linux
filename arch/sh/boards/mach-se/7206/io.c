@@ -16,7 +16,7 @@
 
 static inline void delay(void)
 {
-	ctrl_inw(0x20000000);  /* P2 ROM Area */
+	__raw_readw(0x20000000);  /* P2 ROM Area */
 }
 
 /* MS7750 requires special versions of in*, out* routines, since

@@ -35,6 +35,7 @@
 #include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>
@@ -202,12 +203,6 @@ static void em28xx_copy_video(struct em28xx *dev,
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
 
-	if (p[0] != 0x88 && p[0] != 0x22) {
-		em28xx_isocdbg("frame is not complete\n");
-		len += 4;
-	} else
-		p += 4;
-
 	startread = p;
 	remain = len;
 
@@ -282,7 +277,7 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 {
 	void *startwrite, *startread;
 	int  offset;
-	int bytesperline = 720;
+	int bytesperline = dev->vbi_width;
 
 	if (dev == NULL) {
 		em28xx_isocdbg("dev is null\n");
@@ -308,14 +303,6 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
 
-	if ((p[0] == 0x33 && p[1] == 0x95) ||
-	    (p[0] == 0x88 && p[1] == 0x88)) {
-		/* Header field, advance past it */
-		p += 4;
-	} else {
-		len += 4;
-	}
-
 	startread = p;
 
 	startwrite = outp + dma_q->pos;
@@ -323,8 +310,8 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 
 	/* Make sure the bottom field populates the second half of the frame */
 	if (buf->top_field == 0) {
-		startwrite += bytesperline * 0x0c;
-		offset += bytesperline * 0x0c;
+		startwrite += bytesperline * dev->vbi_height;
+		offset += bytesperline * dev->vbi_height;
 	}
 
 	memcpy(startwrite, startread, len);
@@ -506,8 +493,15 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 
 			dma_q->pos = 0;
 		}
-		if (buf != NULL)
+		if (buf != NULL) {
+			if (p[0] != 0x88 && p[0] != 0x22) {
+				em28xx_isocdbg("frame is not complete\n");
+				len += 4;
+			} else {
+				p += 4;
+			}
 			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+		}
 	}
 	return rc;
 }
@@ -554,8 +548,7 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 				continue;
 		}
 
-		len = urb->iso_frame_desc[i].actual_length - 4;
-
+		len = urb->iso_frame_desc[i].actual_length;
 		if (urb->iso_frame_desc[i].actual_length <= 0) {
 			/* em28xx_isocdbg("packet %d is empty",i); - spammy */
 			continue;
@@ -576,10 +569,20 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			dev->vbi_read = 0;
 			em28xx_isocdbg("VBI START HEADER!!!\n");
 			dev->cur_field = p[2];
+			p += 4;
+			len -= 4;
+		} else if (p[0] == 0x88 && p[1] == 0x88 &&
+			   p[2] == 0x88 && p[3] == 0x88) {
+			/* continuation */
+			p += 4;
+			len -= 4;
+		} else if (p[0] == 0x22 && p[1] == 0x5a) {
+			/* start video */
+			p += 4;
+			len -= 4;
 		}
 
-		/* FIXME: get rid of hard-coded value */
-		vbi_size = 720 * 0x0c;
+		vbi_size = dev->vbi_width * dev->vbi_height;
 
 		if (dev->capture_type == 0) {
 			if (dev->vbi_read >= vbi_size) {
@@ -631,9 +634,6 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 		if (dev->capture_type == 1) {
 			dev->capture_type = 2;
-			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
-				       len, (p[2] & 1) ? "odd" : "even");
-
 			if (dev->progressive || !(dev->cur_field & 1)) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
@@ -652,8 +652,25 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 			dma_q->pos = 0;
 		}
-		if (buf != NULL && dev->capture_type == 2)
-			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+
+		if (buf != NULL && dev->capture_type == 2) {
+			if (len > 4 && p[0] == 0x88 && p[1] == 0x88 &&
+			    p[2] == 0x88 && p[3] == 0x88) {
+				p += 4;
+				len -= 4;
+			}
+			if (len > 4 && p[0] == 0x22 && p[1] == 0x5a) {
+				em28xx_isocdbg("Video frame %d, len=%i, %s\n",
+					       p[2], len, (p[2] & 1) ?
+					       "odd" : "even");
+				p += 4;
+				len -= 4;
+			}
+
+			if (len > 0)
+				em28xx_copy_video(dev, dma_q, buf, p, outp,
+						  len);
+		}
 	}
 	return rc;
 }
@@ -1483,6 +1500,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Tuner");
+	t->type = V4L2_TUNER_ANALOG_TV;
 
 	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
@@ -1814,7 +1832,7 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	f->fmt.sliced.service_set = 0;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
@@ -1836,7 +1854,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
@@ -1850,18 +1868,27 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1869,18 +1896,27 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1922,7 +1958,8 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		   At a minimum, it causes a crash in zvbi since it does
 		   a memcpy based on the source buffer length */
 		int result = videobuf_querybuf(&fh->vb_vbiq, b);
-		b->length = 17280;
+		b->length = dev->vbi_width * dev->vbi_height * 2;
+
 		return result;
 	}
 }

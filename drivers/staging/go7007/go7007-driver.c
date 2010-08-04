@@ -29,6 +29,7 @@
 #include <linux/firmware.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <linux/videodev2.h>
 #include <media/tuner.h>
@@ -127,6 +128,8 @@ static int go7007_load_encoder(struct go7007 *go)
 	kfree(bounce);
 	return rv;
 }
+
+MODULE_FIRMWARE("go7007fw.bin");
 
 /*
  * Boot the encoder and register the I2C adapter if requested.  Do the

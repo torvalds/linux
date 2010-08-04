@@ -79,8 +79,8 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	}
 
 	/* Use bios provided value if possible. */
-	if (dev_priv->vbios->dactestval) {
-		load_pattern = dev_priv->vbios->dactestval;
+	if (dev_priv->vbios.dactestval) {
+		load_pattern = dev_priv->vbios.dactestval;
 		NV_DEBUG_KMS(dev, "Using bios provided load_pattern of %d\n",
 			  load_pattern);
 	} else {

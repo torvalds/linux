@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 72
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.72"
+#define _NETXEN_NIC_LINUX_SUBVERSION 73
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.73"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -94,6 +94,9 @@
 
 #define ADDR_IN_WINDOW1(off)	\
 	((off > NETXEN_CRB_PCIX_HOST2) && (off < NETXEN_CRB_MAX)) ? 1 : 0
+
+#define ADDR_IN_RANGE(addr, low, high)	\
+	(((addr) < (high)) && ((addr) >= (low)))
 
 /*
  * normalize a 64MB crb address to 32MB PCI window
@@ -420,7 +423,6 @@ struct status_desc {
 } __attribute__ ((aligned(16)));
 
 /* UNIFIED ROMIMAGE *************************/
-#define NX_UNI_FW_MIN_SIZE		0x3eb000
 #define NX_UNI_DIR_SECT_PRODUCT_TBL	0x0
 #define NX_UNI_DIR_SECT_BOOTLD		0x6
 #define NX_UNI_DIR_SECT_FW		0x7
@@ -1353,6 +1355,8 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable);
 int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
 int netxen_linkevent_request(struct netxen_adapter *adapter, int enable);
 void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
+void netxen_pci_camqm_read_2M(struct netxen_adapter *, u64, u64 *);
+void netxen_pci_camqm_write_2M(struct netxen_adapter *, u64, u64);
 
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
@@ -1427,8 +1431,8 @@ static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
 
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
-int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac);
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);

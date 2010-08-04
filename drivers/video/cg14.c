@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -466,7 +465,7 @@ static void cg14_unmap_regs(struct of_device *op, struct fb_info *info,
 
 static int __devinit cg14_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct cg14_par *par;
 	int is_8mb, linebytes, i, err;
@@ -597,8 +596,11 @@ static const struct of_device_id cg14_match[] = {
 MODULE_DEVICE_TABLE(of, cg14_match);
 
 static struct of_platform_driver cg14_driver = {
-	.name		= "cg14",
-	.match_table	= cg14_match,
+	.driver = {
+		.name = "cg14",
+		.owner = THIS_MODULE,
+		.of_match_table = cg14_match,
+	},
 	.probe		= cg14_probe,
 	.remove		= __devexit_p(cg14_remove),
 };

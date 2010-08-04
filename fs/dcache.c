@@ -257,6 +257,7 @@ kill_it:
 	if (dentry)
 		goto repeat;
 }
+EXPORT_SYMBOL(dput);
 
 /**
  * d_invalidate - invalidate a dentry
@@ -314,6 +315,7 @@ int d_invalidate(struct dentry * dentry)
 	spin_unlock(&dcache_lock);
 	return 0;
 }
+EXPORT_SYMBOL(d_invalidate);
 
 /* This should be called _only_ with dcache_lock held */
 
@@ -328,6 +330,7 @@ struct dentry * dget_locked(struct dentry *dentry)
 {
 	return __dget_locked(dentry);
 }
+EXPORT_SYMBOL(dget_locked);
 
 /**
  * d_find_alias - grab a hashed alias of inode
@@ -384,6 +387,7 @@ struct dentry * d_find_alias(struct inode *inode)
 	}
 	return de;
 }
+EXPORT_SYMBOL(d_find_alias);
 
 /*
  *	Try to kill dentries associated with this inode.
@@ -408,6 +412,7 @@ restart:
 	}
 	spin_unlock(&dcache_lock);
 }
+EXPORT_SYMBOL(d_prune_aliases);
 
 /*
  * Throw away a dentry - free the inode, dput the parent.  This requires that
@@ -531,7 +536,7 @@ restart:
  */
 static void prune_dcache(int count)
 {
-	struct super_block *sb;
+	struct super_block *sb, *n;
 	int w_count;
 	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
@@ -540,13 +545,14 @@ static void prune_dcache(int count)
 	if (unused == 0 || count == 0)
 		return;
 	spin_lock(&dcache_lock);
-restart:
 	if (count >= unused)
 		prune_ratio = 1;
 	else
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_nr_dentry_unused == 0)
 			continue;
 		sb->s_count++;
@@ -584,15 +590,13 @@ restart:
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
+		/* lock was dropped, must reset next */
+		list_safe_reset_next(sb, n, s_list);
 		count -= pruned;
-		/*
-		 * restart only when sb is no longer on the list and
-		 * we have more work to do.
-		 */
-		if (__put_super_and_need_restart(sb) && count > 0) {
-			spin_unlock(&sb_lock);
-			goto restart;
-		}
+		__put_super(sb);
+		/* more work left to do? */
+		if (count <= 0)
+			break;
 	}
 	spin_unlock(&sb_lock);
 	spin_unlock(&dcache_lock);
@@ -610,6 +614,7 @@ void shrink_dcache_sb(struct super_block * sb)
 {
 	__shrink_dcache_sb(sb, NULL, 0);
 }
+EXPORT_SYMBOL(shrink_dcache_sb);
 
 /*
  * destroy a single subtree of dentries for unmount
@@ -792,6 +797,7 @@ positive:
 	spin_unlock(&dcache_lock);
 	return 1;
 }
+EXPORT_SYMBOL(have_submounts);
 
 /*
  * Search the dentry child list for the specified parent,
@@ -876,6 +882,7 @@ void shrink_dcache_parent(struct dentry * parent)
 	while ((found = select_parent(parent)) != 0)
 		__shrink_dcache_sb(sb, &found, 0);
 }
+EXPORT_SYMBOL(shrink_dcache_parent);
 
 /*
  * Scan `nr' dentries and return the number which remain.
@@ -889,7 +896,7 @@ void shrink_dcache_parent(struct dentry * parent)
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
+static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
@@ -968,6 +975,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 
 	return dentry;
 }
+EXPORT_SYMBOL(d_alloc);
 
 struct dentry *d_alloc_name(struct dentry *parent, const char *name)
 {
@@ -1012,6 +1020,7 @@ void d_instantiate(struct dentry *entry, struct inode * inode)
 	spin_unlock(&dcache_lock);
 	security_d_instantiate(entry, inode);
 }
+EXPORT_SYMBOL(d_instantiate);
 
 /**
  * d_instantiate_unique - instantiate a non-aliased dentry
@@ -1108,6 +1117,7 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 	}
 	return res;
 }
+EXPORT_SYMBOL(d_alloc_root);
 
 static inline struct hlist_head *d_hash(struct dentry *parent,
 					unsigned long hash)
@@ -1211,7 +1221,6 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
 			spin_unlock(&dcache_lock);
 			security_d_instantiate(new, inode);
-			d_rehash(dentry);
 			d_move(new, dentry);
 			iput(inode);
 		} else {
@@ -1225,6 +1234,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 		d_add(dentry, inode);
 	return new;
 }
+EXPORT_SYMBOL(d_splice_alias);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
@@ -1314,6 +1324,7 @@ err_out:
 	iput(inode);
 	return ERR_PTR(error);
 }
+EXPORT_SYMBOL(d_add_ci);
 
 /**
  * d_lookup - search for a dentry
@@ -1357,6 +1368,7 @@ struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 	} while (read_seqretry(&rename_lock, seq));
 	return dentry;
 }
+EXPORT_SYMBOL(d_lookup);
 
 struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 {
@@ -1483,6 +1495,7 @@ int d_validate(struct dentry *dentry, struct dentry *dparent)
 out:
 	return 0;
 }
+EXPORT_SYMBOL(d_validate);
 
 /*
  * When a file is deleted, we have two options:
@@ -1515,6 +1528,7 @@ void d_delete(struct dentry * dentry)
 	spin_lock(&dentry->d_lock);
 	isdir = S_ISDIR(dentry->d_inode->i_mode);
 	if (atomic_read(&dentry->d_count) == 1) {
+		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
 		dentry_iput(dentry);
 		fsnotify_nameremove(dentry, isdir);
 		return;
@@ -1528,6 +1542,7 @@ void d_delete(struct dentry * dentry)
 
 	fsnotify_nameremove(dentry, isdir);
 }
+EXPORT_SYMBOL(d_delete);
 
 static void __d_rehash(struct dentry * entry, struct hlist_head *list)
 {
@@ -1556,6 +1571,7 @@ void d_rehash(struct dentry * entry)
 	spin_unlock(&entry->d_lock);
 	spin_unlock(&dcache_lock);
 }
+EXPORT_SYMBOL(d_rehash);
 
 /*
  * When switching names, the actual string doesn't strictly have to
@@ -1702,6 +1718,7 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	d_move_locked(dentry, target);
 	spin_unlock(&dcache_lock);
 }
+EXPORT_SYMBOL(d_move);
 
 /**
  * d_ancestor - search for an ancestor
@@ -1868,6 +1885,7 @@ shouldnt_be_hashed:
 	spin_unlock(&dcache_lock);
 	BUG();
 }
+EXPORT_SYMBOL_GPL(d_materialise_unique);
 
 static int prepend(char **buffer, int *buflen, const char *str, int namelen)
 {
@@ -2005,6 +2023,7 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	path_put(&root);
 	return res;
 }
+EXPORT_SYMBOL(d_path);
 
 /*
  * Helper function for dentry_operations.d_dname() members
@@ -2171,6 +2190,30 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 	return result;
 }
 
+int path_is_under(struct path *path1, struct path *path2)
+{
+	struct vfsmount *mnt = path1->mnt;
+	struct dentry *dentry = path1->dentry;
+	int res;
+	spin_lock(&vfsmount_lock);
+	if (mnt != path2->mnt) {
+		for (;;) {
+			if (mnt->mnt_parent == mnt) {
+				spin_unlock(&vfsmount_lock);
+				return 0;
+			}
+			if (mnt->mnt_parent == path2->mnt)
+				break;
+			mnt = mnt->mnt_parent;
+		}
+		dentry = mnt->mnt_mountpoint;
+	}
+	res = is_subdir(dentry, path2->dentry);
+	spin_unlock(&vfsmount_lock);
+	return res;
+}
+EXPORT_SYMBOL(path_is_under);
+
 void d_genocide(struct dentry *root)
 {
 	struct dentry *this_parent = root;
@@ -2228,6 +2271,7 @@ ino_t find_inode_number(struct dentry *dir, struct qstr *name)
 	}
 	return ino;
 }
+EXPORT_SYMBOL(find_inode_number);
 
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
@@ -2297,6 +2341,7 @@ static void __init dcache_init(void)
 
 /* SLAB cache for __getname() consumers */
 struct kmem_cache *names_cachep __read_mostly;
+EXPORT_SYMBOL(names_cachep);
 
 EXPORT_SYMBOL(d_genocide);
 
@@ -2326,26 +2371,3 @@ void __init vfs_caches_init(unsigned long mempages)
 	bdev_cache_init();
 	chrdev_init();
 }
-
-EXPORT_SYMBOL(d_alloc);
-EXPORT_SYMBOL(d_alloc_root);
-EXPORT_SYMBOL(d_delete);
-EXPORT_SYMBOL(d_find_alias);
-EXPORT_SYMBOL(d_instantiate);
-EXPORT_SYMBOL(d_invalidate);
-EXPORT_SYMBOL(d_lookup);
-EXPORT_SYMBOL(d_move);
-EXPORT_SYMBOL_GPL(d_materialise_unique);
-EXPORT_SYMBOL(d_path);
-EXPORT_SYMBOL(d_prune_aliases);
-EXPORT_SYMBOL(d_rehash);
-EXPORT_SYMBOL(d_splice_alias);
-EXPORT_SYMBOL(d_add_ci);
-EXPORT_SYMBOL(d_validate);
-EXPORT_SYMBOL(dget_locked);
-EXPORT_SYMBOL(dput);
-EXPORT_SYMBOL(find_inode_number);
-EXPORT_SYMBOL(have_submounts);
-EXPORT_SYMBOL(names_cachep);
-EXPORT_SYMBOL(shrink_dcache_parent);
-EXPORT_SYMBOL(shrink_dcache_sb);

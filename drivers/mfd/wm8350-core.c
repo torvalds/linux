@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/bug.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -339,7 +340,6 @@ EXPORT_SYMBOL_GPL(wm8350_reg_unlock);
 int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 {
 	u16 reg, result = 0;
-	int tries = 5;
 
 	if (channel < WM8350_AUXADC_AUX1 || channel > WM8350_AUXADC_TEMP)
 		return -EINVAL;
@@ -363,12 +363,17 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	reg |= 1 << channel | WM8350_AUXADC_POLL;
 	wm8350_reg_write(wm8350, WM8350_DIGITISER_CONTROL_1, reg);
 
-	do {
-		schedule_timeout_interruptible(1);
-		reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
-	} while ((reg & WM8350_AUXADC_POLL) && --tries);
+	/* If a late IRQ left the completion signalled then consume
+	 * the completion. */
+	try_wait_for_completion(&wm8350->auxadc_done);
 
-	if (!tries)
+	/* We ignore the result of the completion and just check for a
+	 * conversion result, allowing us to soldier on if the IRQ
+	 * infrastructure is not set up for the chip. */
+	wait_for_completion_timeout(&wm8350->auxadc_done, msecs_to_jiffies(5));
+
+	reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
+	if (reg & WM8350_AUXADC_POLL)
 		dev_err(wm8350->dev, "adc chn %d read timeout\n", channel);
 	else
 		result = wm8350_reg_read(wm8350,
@@ -384,6 +389,15 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	return result & WM8350_AUXADC_DATA1_MASK;
 }
 EXPORT_SYMBOL_GPL(wm8350_read_auxadc);
+
+static irqreturn_t wm8350_auxadc_irq(int irq, void *irq_data)
+{
+	struct wm8350 *wm8350 = irq_data;
+
+	complete(&wm8350->auxadc_done);
+
+	return IRQ_HANDLED;
+}
 
 /*
  * Cache is always host endian.
@@ -682,10 +696,21 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 	}
 
 	mutex_init(&wm8350->auxadc_mutex);
+	init_completion(&wm8350->auxadc_done);
 
 	ret = wm8350_irq_init(wm8350, irq, pdata);
 	if (ret < 0)
 		goto err;
+
+	if (wm8350->irq_base) {
+		ret = request_threaded_irq(wm8350->irq_base +
+					   WM8350_IRQ_AUXADC_DATARDY,
+					   NULL, wm8350_auxadc_irq, 0,
+					   "auxadc", wm8350);
+		if (ret < 0)
+			dev_warn(wm8350->dev,
+				 "Failed to request AUXADC IRQ: %d\n", ret);
+	}
 
 	if (pdata && pdata->init) {
 		ret = pdata->init(wm8350);
@@ -735,6 +760,9 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 	platform_device_unregister(wm8350->hwmon.pdev);
 	platform_device_unregister(wm8350->gpio.pdev);
 	platform_device_unregister(wm8350->codec.pdev);
+
+	if (wm8350->irq_base)
+		free_irq(wm8350->irq_base + WM8350_IRQ_AUXADC_DATARDY, wm8350);
 
 	wm8350_irq_exit(wm8350);
 

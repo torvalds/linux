@@ -6,7 +6,7 @@
 #include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
-#include "hcd.h"
+#include <linux/usb/hcd.h>
 
 #define to_urb(d) container_of(d, struct urb, kref)
 
@@ -308,8 +308,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * will be required to set urb->ep directly and we will eliminate
 	 * urb->pipe.
 	 */
-	ep = (usb_pipein(urb->pipe) ? dev->ep_in : dev->ep_out)
-			[usb_pipeendpoint(urb->pipe)];
+	ep = usb_pipe_endpoint(dev, urb->pipe);
 	if (!ep)
 		return -ENOENT;
 
@@ -333,9 +332,12 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		is_out = usb_endpoint_dir_out(&ep->desc);
 	}
 
-	/* Cache the direction for later use */
-	urb->transfer_flags = (urb->transfer_flags & ~URB_DIR_MASK) |
-			(is_out ? URB_DIR_OUT : URB_DIR_IN);
+	/* Clear the internal flags and cache the direction for later use */
+	urb->transfer_flags &= ~(URB_DIR_MASK | URB_DMA_MAP_SINGLE |
+			URB_DMA_MAP_PAGE | URB_DMA_MAP_SG | URB_MAP_LOCAL |
+			URB_SETUP_MAP_SINGLE | URB_SETUP_MAP_LOCAL |
+			URB_DMA_SG_COMBINED);
+	urb->transfer_flags |= (is_out ? URB_DIR_OUT : URB_DIR_IN);
 
 	if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
 			dev->state < USB_STATE_CONFIGURED)
@@ -387,10 +389,17 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	{
 	unsigned int	orig_flags = urb->transfer_flags;
 	unsigned int	allowed;
+	static int pipetypes[4] = {
+		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	};
+
+	/* Check that the pipe's type matches the endpoint's type */
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+		return -EPIPE;		/* The most suitable error code :-) */
 
 	/* enforce simple/standard policy */
-	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
-			URB_NO_INTERRUPT | URB_DIR_MASK | URB_FREE_BUFFER);
+	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |
+			URB_FREE_BUFFER);
 	switch (xfertype) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)
@@ -430,7 +439,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_INT:
 		/* too small? */
 		switch (dev->speed) {
-		case USB_SPEED_VARIABLE:
+		case USB_SPEED_WIRELESS:
 			if (urb->interval < 6)
 				return -EINVAL;
 			break;
@@ -446,7 +455,8 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if (urb->interval > (1 << 15))
 				return -EINVAL;
 			max = 1 << 15;
-		case USB_SPEED_VARIABLE:
+			break;
+		case USB_SPEED_WIRELESS:
 			if (urb->interval > 16)
 				return -EINVAL;
 			break;
@@ -473,7 +483,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		default:
 			return -EINVAL;
 		}
-		if (dev->speed != USB_SPEED_VARIABLE) {
+		if (dev->speed != USB_SPEED_WIRELESS) {
 			/* Round down to a power of 2, no more than max */
 			urb->interval = min(max, 1 << ilog2(urb->interval));
 		}

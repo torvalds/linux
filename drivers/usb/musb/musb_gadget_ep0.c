@@ -351,6 +351,31 @@ __acquires(musb->lock)
 						musb->test_mode_nr =
 							MUSB_TEST_PACKET;
 						break;
+
+					case 0xc0:
+						/* TEST_FORCE_HS */
+						pr_debug("TEST_FORCE_HS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_HS;
+						break;
+					case 0xc1:
+						/* TEST_FORCE_FS */
+						pr_debug("TEST_FORCE_FS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_FS;
+						break;
+					case 0xc2:
+						/* TEST_FIFO_ACCESS */
+						pr_debug("TEST_FIFO_ACCESS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FIFO_ACCESS;
+						break;
+					case 0xc3:
+						/* TEST_FORCE_HOST */
+						pr_debug("TEST_FORCE_HOST\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_HOST;
+						break;
 					default:
 						goto stall;
 					}

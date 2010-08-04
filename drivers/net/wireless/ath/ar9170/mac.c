@@ -117,7 +117,7 @@ int ar9170_set_qos(struct ar9170 *ar)
 	ar9170_regwrite(AR9170_MAC_REG_AC1_AC0_TXOP,
 			ar->edcf[0].txop | ar->edcf[1].txop << 16);
 	ar9170_regwrite(AR9170_MAC_REG_AC3_AC2_TXOP,
-			ar->edcf[1].txop | ar->edcf[3].txop << 16);
+			ar->edcf[2].txop | ar->edcf[3].txop << 16);
 
 	ar9170_regwrite_finish();
 

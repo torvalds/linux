@@ -1,0 +1,25 @@
+# arch/arm/mach-s5p6442/Kconfig
+#
+# Copyright (c) 2010 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+# Configuration options for the S5P6442
+
+if ARCH_S5P6442
+
+config CPU_S5P6442
+	bool
+	select PLAT_S5P
+	select S3C_PL330_DMA
+	help
+	  Enable S5P6442 CPU support
+
+config MACH_SMDK6442
+	bool "SMDK6442"
+	select CPU_S5P6442
+	help
+	  Machine support for Samsung SMDK6442
+
+endif

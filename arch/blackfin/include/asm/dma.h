@@ -262,6 +262,10 @@ static inline void dma_disable_irq(unsigned int channel)
 {
 	disable_irq(dma_ch[channel].irq);
 }
+static inline void dma_disable_irq_nosync(unsigned int channel)
+{
+	disable_irq_nosync(dma_ch[channel].irq);
+}
 static inline void dma_enable_irq(unsigned int channel)
 {
 	enable_irq(dma_ch[channel].irq);

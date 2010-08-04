@@ -21,6 +21,7 @@
 #define _ASM_X86_AMD_IOMMU_TYPES_H
 
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
@@ -140,6 +141,7 @@
 
 /* constants to configure the command buffer */
 #define CMD_BUFFER_SIZE    8192
+#define CMD_BUFFER_UNINITIALIZED 1
 #define CMD_BUFFER_ENTRIES 512
 #define MMIO_CMD_SIZE_SHIFT 56
 #define MMIO_CMD_SIZE_512 (0x9ULL << MMIO_CMD_SIZE_SHIFT)
@@ -171,6 +173,40 @@
 #define PM_MAP_MASK(lvl)	(PM_ADDR_MASK & \
 				(~((1ULL << (12 + ((lvl) * 9))) - 1)))
 #define PM_ALIGNED(lvl, addr)	((PM_MAP_MASK(lvl) & (addr)) == (addr))
+
+/*
+ * Returns the page table level to use for a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_LEVEL(pagesize) \
+		((__ffs(pagesize) - 12) / 9)
+/*
+ * Returns the number of ptes to use for a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_PTE_COUNT(pagesize) \
+		(1ULL << ((__ffs(pagesize) - 12) % 9))
+
+/*
+ * Aligns a given io-virtual address to a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_ALIGN(address, pagesize) \
+		((address) & ~((pagesize) - 1))
+/*
+ * Creates an IOMMU PTE for an address an a given pagesize
+ * The PTE has no permission bits set
+ * Pagesize is expected to be a power-of-two larger than 4096
+ */
+#define PAGE_SIZE_PTE(address, pagesize)		\
+		(((address) | ((pagesize) - 1)) &	\
+		 (~(pagesize >> 1)) & PM_ADDR_MASK)
+
+/*
+ * Takes a PTE value with mode=0x07 and returns the page size it maps
+ */
+#define PTE_PAGE_SIZE(pte) \
+	(1ULL << (1 + ffz(((pte) | 0xfffULL))))
 
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
@@ -237,6 +273,7 @@ struct protection_domain {
 	struct list_head list;  /* for list of all protection domains */
 	struct list_head dev_list; /* List of all devices in this domain */
 	spinlock_t lock;	/* mostly used to lock the page table*/
+	struct mutex api_lock;	/* protect page tables in the iommu-api path */
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
 	u64 *pt_root;		/* page table root pointer */

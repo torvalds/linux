@@ -28,6 +28,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/leds.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
@@ -378,6 +379,7 @@ static int __devinit lp3944_probe(struct i2c_client *client,
 {
 	struct lp3944_platform_data *lp3944_pdata = client->dev.platform_data;
 	struct lp3944_data *data;
+	int err;
 
 	if (lp3944_pdata == NULL) {
 		dev_err(&client->dev, "no platform data\n");
@@ -400,9 +402,13 @@ static int __devinit lp3944_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	dev_info(&client->dev, "lp3944 enabled\n");
+	err = lp3944_configure(client, data, lp3944_pdata);
+	if (err < 0) {
+		kfree(data);
+		return err;
+	}
 
-	lp3944_configure(client, data, lp3944_pdata);
+	dev_info(&client->dev, "lp3944 enabled\n");
 	return 0;
 }
 
@@ -426,7 +432,6 @@ static int __devexit lp3944_remove(struct i2c_client *client)
 		}
 
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

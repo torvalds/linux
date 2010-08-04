@@ -21,6 +21,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <sound/core.h>
 #include <sound/memalloc.h>

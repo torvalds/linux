@@ -255,7 +255,7 @@ static int sgiioc4_dma_end(ide_drive_t *drive)
 	return dma_stat;
 }
 
-static void sgiioc4_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void sgiioc4_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 }
 

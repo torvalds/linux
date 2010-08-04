@@ -113,6 +113,9 @@ struct uvc_xu_control {
 #define UVC_GUID_FORMAT_YUY2 \
 	{ 'Y',  'U',  'Y',  '2', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_YUY2_ISIGHT \
+	{ 'Y',  'U',  'Y',  '2', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0x00, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_NV12 \
 	{ 'N',  'V',  '1',  '2', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
@@ -128,10 +131,12 @@ struct uvc_xu_control {
 #define UVC_GUID_FORMAT_Y800 \
 	{ 'Y',  '8',  '0',  '0', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_Y16 \
+	{ 'Y',  '1',  '6',  ' ', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_BY8 \
 	{ 'B',  'Y',  '8',  ' ', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
-
 
 /* ------------------------------------------------------------------------
  * Driver specific constants.
@@ -149,7 +154,7 @@ struct uvc_xu_control {
 #define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
-#define UVC_CTRL_STREAMING_TIMEOUT	3000
+#define UVC_CTRL_STREAMING_TIMEOUT	5000
 
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
@@ -242,7 +247,8 @@ struct uvc_control {
 			   uvc_control_info. */
 	__u8 dirty : 1,
 	     loaded : 1,
-	     modified : 1;
+	     modified : 1,
+	     cached : 1;
 
 	__u8 *data;
 };
@@ -533,6 +539,7 @@ struct uvc_driver {
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
 
+extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
 extern unsigned int uvc_timeout_param;
@@ -551,16 +558,6 @@ extern unsigned int uvc_timeout_param;
 
 #define uvc_printk(level, msg...) \
 	printk(level "uvcvideo: " msg)
-
-#define UVC_GUID_FORMAT "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" \
-			"%02x%02x%02x%02x%02x%02x"
-#define UVC_GUID_ARGS(guid) \
-	(guid)[3],  (guid)[2],  (guid)[1],  (guid)[0], \
-	(guid)[5],  (guid)[4], \
-	(guid)[7],  (guid)[6], \
-	(guid)[8],  (guid)[9], \
-	(guid)[10], (guid)[11], (guid)[12], \
-	(guid)[13], (guid)[14], (guid)[15]
 
 /* --------------------------------------------------------------------------
  * Internal functions.

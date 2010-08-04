@@ -33,12 +33,14 @@
 #include "prm.h"
 #include "sdrc.h"
 
+#define SDRC_SCRATCHPAD_SEM_V	0xfa00291c
+
 #define PM_PREPWSTST_CORE_V	OMAP34XX_PRM_REGADDR(CORE_MOD, \
 				OMAP3430_PM_PREPWSTST)
 #define PM_PREPWSTST_CORE_P	0x48306AE8
 #define PM_PREPWSTST_MPU_V	OMAP34XX_PRM_REGADDR(MPU_MOD, \
 				OMAP3430_PM_PREPWSTST)
-#define PM_PWSTCTRL_MPU_P	OMAP3430_PRM_BASE + MPU_MOD + PM_PWSTCTRL
+#define PM_PWSTCTRL_MPU_P	OMAP3430_PRM_BASE + MPU_MOD + OMAP2_PM_PWSTCTRL
 #define CM_IDLEST1_CORE_V	OMAP34XX_CM_REGADDR(CORE_MOD, CM_IDLEST1)
 #define SRAM_BASE_P		0x40200000
 #define CONTROL_STAT		0x480022F0
@@ -56,6 +58,37 @@
 #define SDRC_MANUAL_1_P		(OMAP343X_SDRC_BASE + SDRC_MANUAL_1)
 #define SDRC_DLLA_STATUS_V	OMAP34XX_SDRC_REGADDR(SDRC_DLLA_STATUS)
 #define SDRC_DLLA_CTRL_V	OMAP34XX_SDRC_REGADDR(SDRC_DLLA_CTRL)
+
+        .text
+/* Function to aquire the semaphore in scratchpad */
+ENTRY(lock_scratchpad_sem)
+	stmfd	sp!, {lr}	@ save registers on stack
+wait_sem:
+	mov	r0,#1
+	ldr	r1, sdrc_scratchpad_sem
+wait_loop:
+	ldr	r2, [r1]	@ load the lock value
+	cmp	r2, r0		@ is the lock free ?
+	beq	wait_loop	@ not free...
+	swp	r2, r0, [r1]	@ semaphore free so lock it and proceed
+	cmp	r2, r0		@ did we succeed ?
+	beq	wait_sem	@ no - try again
+	ldmfd	sp!, {pc}	@ restore regs and return
+sdrc_scratchpad_sem:
+        .word SDRC_SCRATCHPAD_SEM_V
+ENTRY(lock_scratchpad_sem_sz)
+        .word   . - lock_scratchpad_sem
+
+        .text
+/* Function to release the scratchpad semaphore */
+ENTRY(unlock_scratchpad_sem)
+	stmfd	sp!, {lr}	@ save registers on stack
+	ldr	r3, sdrc_scratchpad_sem
+	mov	r2,#0
+	str	r2,[r3]
+	ldmfd	sp!, {pc}	@ restore regs and return
+ENTRY(unlock_scratchpad_sem_sz)
+        .word   . - unlock_scratchpad_sem
 
 	.text
 /* Function call to get the restore pointer for resume from OFF */
@@ -251,6 +284,21 @@ restore:
 	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
 	.word	0xE1600071		@ call SMI monitor (smi #1)
 
+#ifdef CONFIG_OMAP3_L2_AUX_SECURE_SAVE_RESTORE
+	/* Restore L2 aux control register */
+	@ set service ID for PPA
+	mov	r0, #CONFIG_OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
+	mov	r12, r0		@ copy service ID in r12
+	mov	r1, #0		@ set task ID for ROM code in r1
+	mov	r2, #4		@ set some flags in r2, r6
+	mov	r6, #0xff
+	ldr	r4, scratchpad_base
+	ldr	r3, [r4, #0xBC]
+	adds	r3, r3, #8	@ r3 points to parameters
+	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
+	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
+	.word	0xE1600071		@ call SMI monitor (smi #1)
+#endif
 	b	logic_l1_restore
 l2_inv_api_params:
 	.word   0x1, 0x00
@@ -264,6 +312,11 @@ smi:    .word 0xE1600070		@ Call SMI monitor (smieq)
 	ldr	r0, [r3,#4]
 	mov	r12, #0x3
 	.word 0xE1600070	@ Call SMI monitor (smieq)
+	ldr	r4, scratchpad_base
+	ldr	r3, [r4,#0xBC]
+	ldr	r0, [r3,#12]
+	mov	r12, #0x2
+	.word 0xE1600070	@ Call SMI monitor (smieq)
 logic_l1_restore:
 	mov	r1, #0
 	/* Invalidate all instruction caches to PoU
@@ -272,7 +325,7 @@ logic_l1_restore:
 
 	ldr	r4, scratchpad_base
 	ldr	r3, [r4,#0xBC]
-	adds	r3, r3, #8
+	adds	r3, r3, #16
 	ldmia	r3!, {r4-r6}
 	mov	sp, r4
 	msr	spsr_cxsf, r5
@@ -391,7 +444,9 @@ save_context_wfi:
 	mov	r8, r0 /* Store SDRAM address in r8 */
 	mrc	p15, 0, r5, c1, c0, 1	@ Read Auxiliary Control Register
 	mov	r4, #0x1		@ Number of parameters for restore call
-	stmia	r8!, {r4-r5}
+	stmia	r8!, {r4-r5}		@ Push parameters for restore call
+	mrc	p15, 1, r5, c9, c0, 2	@ Read L2 AUX ctrl register
+	stmia	r8!, {r4-r5}		@ Push parameters for restore call
         /* Check what that target sleep state is:stored in r1*/
         /* 1 - Only L1 and logic lost */
         /* 2 - Only L2 lost */

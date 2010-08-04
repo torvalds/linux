@@ -17,6 +17,7 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <linux/scatterlist.h>
 
 #include <linux/leds.h>
@@ -174,20 +175,31 @@ static void sdhci_reset(struct sdhci_host *host, u8 mask)
 		sdhci_clear_set_irqs(host, SDHCI_INT_ALL_MASK, ier);
 }
 
-static void sdhci_init(struct sdhci_host *host)
+static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios);
+
+static void sdhci_init(struct sdhci_host *host, int soft)
 {
-	sdhci_reset(host, SDHCI_RESET_ALL);
+	if (soft)
+		sdhci_reset(host, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
+	else
+		sdhci_reset(host, SDHCI_RESET_ALL);
 
 	sdhci_clear_set_irqs(host, SDHCI_INT_ALL_MASK,
 		SDHCI_INT_BUS_POWER | SDHCI_INT_DATA_END_BIT |
 		SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX |
 		SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
 		SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE);
+
+	if (soft) {
+		/* force clock reconfiguration */
+		host->clock = 0;
+		sdhci_set_ios(host->mmc, &host->mmc->ios);
+	}
 }
 
 static void sdhci_reinit(struct sdhci_host *host)
 {
-	sdhci_init(host);
+	sdhci_init(host, 0);
 	sdhci_enable_card_detection(host);
 }
 
@@ -376,6 +388,20 @@ static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
 	local_irq_restore(*flags);
 }
 
+static void sdhci_set_adma_desc(u8 *desc, u32 addr, int len, unsigned cmd)
+{
+	__le32 *dataddr = (__le32 __force *)(desc + 4);
+	__le16 *cmdlen = (__le16 __force *)desc;
+
+	/* SDHCI specification says ADMA descriptors should be 4 byte
+	 * aligned, so using 16 or 32bit operations should be safe. */
+
+	cmdlen[0] = cpu_to_le16(cmd);
+	cmdlen[1] = cpu_to_le16(len);
+
+	dataddr[0] = cpu_to_le32(addr);
+}
+
 static int sdhci_adma_table_pre(struct sdhci_host *host,
 	struct mmc_data *data)
 {
@@ -443,18 +469,10 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 				sdhci_kunmap_atomic(buffer, &flags);
 			}
 
-			desc[7] = (align_addr >> 24) & 0xff;
-			desc[6] = (align_addr >> 16) & 0xff;
-			desc[5] = (align_addr >> 8) & 0xff;
-			desc[4] = (align_addr >> 0) & 0xff;
+			/* tran, valid */
+			sdhci_set_adma_desc(desc, align_addr, offset, 0x21);
 
 			BUG_ON(offset > 65536);
-
-			desc[3] = (offset >> 8) & 0xff;
-			desc[2] = (offset >> 0) & 0xff;
-
-			desc[1] = 0x00;
-			desc[0] = 0x21; /* tran, valid */
 
 			align += 4;
 			align_addr += 4;
@@ -465,19 +483,10 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 			len -= offset;
 		}
 
-		desc[7] = (addr >> 24) & 0xff;
-		desc[6] = (addr >> 16) & 0xff;
-		desc[5] = (addr >> 8) & 0xff;
-		desc[4] = (addr >> 0) & 0xff;
-
 		BUG_ON(len > 65536);
 
-		desc[3] = (len >> 8) & 0xff;
-		desc[2] = (len >> 0) & 0xff;
-
-		desc[1] = 0x00;
-		desc[0] = 0x21; /* tran, valid */
-
+		/* tran, valid */
+		sdhci_set_adma_desc(desc, addr, len, 0x21);
 		desc += 8;
 
 		/*
@@ -487,19 +496,22 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		WARN_ON((desc - host->adma_desc) > (128 * 2 + 1) * 4);
 	}
 
-	/*
-	 * Add a terminating entry.
-	 */
-	desc[7] = 0;
-	desc[6] = 0;
-	desc[5] = 0;
-	desc[4] = 0;
+	if (host->quirks & SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC) {
+		/*
+		* Mark the last descriptor as the terminating descriptor
+		*/
+		if (desc != host->adma_desc) {
+			desc -= 8;
+			desc[0] |= 0x2; /* end */
+		}
+	} else {
+		/*
+		* Add a terminating entry.
+		*/
 
-	desc[3] = 0;
-	desc[2] = 0;
-
-	desc[1] = 0x00;
-	desc[0] = 0x03; /* nop, end, valid */
+		/* nop, end, valid */
+		sdhci_set_adma_desc(desc, 0, 0, 0x3);
+	}
 
 	/*
 	 * Resync align buffer as we might have changed it.
@@ -1585,7 +1597,7 @@ int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 
 	sdhci_disable_card_detection(host);
 
-	ret = mmc_suspend_host(host->mmc, state);
+	ret = mmc_suspend_host(host->mmc);
 	if (ret)
 		return ret;
 
@@ -1610,16 +1622,13 @@ int sdhci_resume_host(struct sdhci_host *host)
 	if (ret)
 		return ret;
 
-	sdhci_init(host);
+	sdhci_init(host, (host->mmc->pm_flags & MMC_PM_KEEP_POWER));
 	mmiowb();
 
 	ret = mmc_resume_host(host->mmc);
-	if (ret)
-		return ret;
-
 	sdhci_enable_card_detection(host);
 
-	return 0;
+	return ret;
 }
 
 EXPORT_SYMBOL_GPL(sdhci_resume_host);
@@ -1745,7 +1754,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	host->max_clk =
 		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
 	host->max_clk *= 1000000;
-	if (host->max_clk == 0) {
+	if (host->max_clk == 0 || host->quirks &
+			SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN) {
 		if (!host->ops->get_max_clock) {
 			printk(KERN_ERR
 			       "%s: Hardware doesn't specify base clock "
@@ -1874,7 +1884,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (ret)
 		goto untasklet;
 
-	sdhci_init(host);
+	sdhci_init(host, 0);
 
 #ifdef CONFIG_MMC_DEBUG
 	sdhci_dumpregs(host);

@@ -34,6 +34,7 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/xilinxfb.h>
+#include <linux/slab.h>
 #include <asm/dcr.h>
 
 #define DRIVER_NAME		"xilinxfb"
@@ -422,7 +423,7 @@ xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
 	 * To check whether the core is connected directly to DCR or PLB
 	 * interface and initialize the tft_access accordingly.
 	 */
-	p = (u32 *)of_get_property(op->node, "xlnx,dcr-splb-slave-if", NULL);
+	p = (u32 *)of_get_property(op->dev.of_node, "xlnx,dcr-splb-slave-if", NULL);
 	tft_access = p ? *p : 0;
 
 	/*
@@ -431,41 +432,41 @@ xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
 	 */
 	if (tft_access) {
 		drvdata->flags |= PLB_ACCESS_FLAG;
-		rc = of_address_to_resource(op->node, 0, &res);
+		rc = of_address_to_resource(op->dev.of_node, 0, &res);
 		if (rc) {
 			dev_err(&op->dev, "invalid address\n");
 			goto err;
 		}
 	} else {
 		res.start = 0;
-		start = dcr_resource_start(op->node, 0);
-		drvdata->dcr_len = dcr_resource_len(op->node, 0);
-		drvdata->dcr_host = dcr_map(op->node, start, drvdata->dcr_len);
+		start = dcr_resource_start(op->dev.of_node, 0);
+		drvdata->dcr_len = dcr_resource_len(op->dev.of_node, 0);
+		drvdata->dcr_host = dcr_map(op->dev.of_node, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&op->dev, "invalid DCR address\n");
 			goto err;
 		}
 	}
 
-	prop = of_get_property(op->node, "phys-size", &size);
+	prop = of_get_property(op->dev.of_node, "phys-size", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.screen_width_mm = prop[0];
 		pdata.screen_height_mm = prop[1];
 	}
 
-	prop = of_get_property(op->node, "resolution", &size);
+	prop = of_get_property(op->dev.of_node, "resolution", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.xres = prop[0];
 		pdata.yres = prop[1];
 	}
 
-	prop = of_get_property(op->node, "virtual-resolution", &size);
+	prop = of_get_property(op->dev.of_node, "virtual-resolution", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.xvirt = prop[0];
 		pdata.yvirt = prop[1];
 	}
 
-	if (of_find_property(op->node, "rotate-display", NULL))
+	if (of_find_property(op->dev.of_node, "rotate-display", NULL))
 		pdata.rotate_screen = 1;
 
 	dev_set_drvdata(&op->dev, drvdata);
@@ -491,13 +492,12 @@ static struct of_device_id xilinxfb_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, xilinxfb_of_match);
 
 static struct of_platform_driver xilinxfb_of_driver = {
-	.owner = THIS_MODULE,
-	.name = DRIVER_NAME,
-	.match_table = xilinxfb_of_match,
 	.probe = xilinxfb_of_probe,
 	.remove = __devexit_p(xilinxfb_of_remove),
 	.driver = {
 		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xilinxfb_of_match,
 	},
 };
 

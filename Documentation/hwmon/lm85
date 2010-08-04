@@ -157,7 +157,7 @@ temperature configuration points:
 
 There are three PWM outputs. The LM85 datasheet suggests that the
 pwm3 output control both fan3 and fan4. Each PWM can be individually
-configured and assigned to a zone for it's control value. Each PWM can be
+configured and assigned to a zone for its control value. Each PWM can be
 configured individually according to the following options.
 
 * pwm#_auto_pwm_min - this specifies the PWM value for temp#_auto_temp_off

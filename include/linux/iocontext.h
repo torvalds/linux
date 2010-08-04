@@ -7,7 +7,6 @@
 struct cfq_queue;
 struct cfq_io_context {
 	void *key;
-	unsigned long dead_key;
 
 	struct cfq_queue *cfqq[2];
 
@@ -42,15 +41,15 @@ struct io_context {
 	unsigned short ioprio;
 	unsigned short ioprio_changed;
 
-#ifdef CONFIG_BLK_CGROUP
+#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 	unsigned short cgroup_changed;
 #endif
 
 	/*
 	 * For request batching
 	 */
-	unsigned long last_waited; /* Time last woken after wait for request */
 	int nr_batch_requests;     /* Number of requests left in the batch */
+	unsigned long last_waited; /* Time last woken after wait for request */
 
 	struct radix_tree_root radix_root;
 	struct hlist_head cic_list;

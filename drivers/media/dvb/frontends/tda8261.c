@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 #include "tda8261.h"
@@ -39,7 +40,7 @@ static int tda8261_read(struct tda8261_state *state, u8 *buf)
 {
 	const struct tda8261_config *config = state->config;
 	int err = 0;
-	struct i2c_msg msg = { .addr	= config->addr, .flags = I2C_M_RD,.buf = buf,  .len = 2 };
+	struct i2c_msg msg = { .addr	= config->addr, .flags = I2C_M_RD,.buf = buf,  .len = 1 };
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1)
 		printk("%s: read error, err=%d\n", __func__, err);

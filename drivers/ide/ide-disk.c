@@ -407,32 +407,24 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 	return 0;
 }
 
-static u64 ide_disk_set_capacity(ide_drive_t *drive, u64 capacity)
+static void ide_disk_unlock_native_capacity(ide_drive_t *drive)
 {
-	u64 set = min(capacity, drive->probed_capacity);
 	u16 *id = drive->id;
 	int lba48 = ata_id_lba48_enabled(id);
 
 	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 ||
 	    ata_id_hpa_enabled(id) == 0)
-		goto out;
+		return;
 
 	/*
 	 * according to the spec the SET MAX ADDRESS command shall be
 	 * immediately preceded by a READ NATIVE MAX ADDRESS command
 	 */
-	capacity = ide_disk_hpa_get_native_capacity(drive, lba48);
-	if (capacity == 0)
-		goto out;
+	if (!ide_disk_hpa_get_native_capacity(drive, lba48))
+		return;
 
-	set = ide_disk_hpa_set_capacity(drive, set, lba48);
-	if (set) {
-		/* needed for ->resume to disable HPA */
-		drive->dev_flags |= IDE_DFLAG_NOHPA;
-		return set;
-	}
-out:
-	return drive->capacity64;
+	if (ide_disk_hpa_set_capacity(drive, drive->probed_capacity, lba48))
+		drive->dev_flags |= IDE_DFLAG_NOHPA; /* disable HPA on resume */
 }
 
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
@@ -679,7 +671,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 		if (max_s > hwif->rqsize)
 			max_s = hwif->rqsize;
 
-		blk_queue_max_sectors(q, max_s);
+		blk_queue_max_hw_sectors(q, max_s);
 	}
 
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
@@ -783,13 +775,13 @@ static int ide_disk_set_doorlock(ide_drive_t *drive, struct gendisk *disk,
 }
 
 const struct ide_disk_ops ide_ata_disk_ops = {
-	.check		= ide_disk_check,
-	.set_capacity	= ide_disk_set_capacity,
-	.get_capacity	= ide_disk_get_capacity,
-	.setup		= ide_disk_setup,
-	.flush		= ide_disk_flush,
-	.init_media	= ide_disk_init_media,
-	.set_doorlock	= ide_disk_set_doorlock,
-	.do_request	= ide_do_rw_disk,
-	.ioctl		= ide_disk_ioctl,
+	.check			= ide_disk_check,
+	.unlock_native_capacity	= ide_disk_unlock_native_capacity,
+	.get_capacity		= ide_disk_get_capacity,
+	.setup			= ide_disk_setup,
+	.flush			= ide_disk_flush,
+	.init_media		= ide_disk_init_media,
+	.set_doorlock		= ide_disk_set_doorlock,
+	.do_request		= ide_do_rw_disk,
+	.ioctl			= ide_disk_ioctl,
 };

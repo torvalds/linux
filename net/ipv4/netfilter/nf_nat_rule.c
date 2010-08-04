@@ -7,6 +7,7 @@
  */
 
 /* Everything about the rules for NAT. */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
@@ -15,6 +16,7 @@
 #include <linux/kmod.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/route.h>
 #include <linux/bitops.h>
@@ -28,36 +30,6 @@
 			 (1 << NF_INET_POST_ROUTING) | \
 			 (1 << NF_INET_LOCAL_OUT))
 
-static const struct
-{
-	struct ipt_replace repl;
-	struct ipt_standard entries[3];
-	struct ipt_error term;
-} nat_initial_table __net_initdata = {
-	.repl = {
-		.name = "nat",
-		.valid_hooks = NAT_VALID_HOOKS,
-		.num_entries = 4,
-		.size = sizeof(struct ipt_standard) * 3 + sizeof(struct ipt_error),
-		.hook_entry = {
-			[NF_INET_PRE_ROUTING] = 0,
-			[NF_INET_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
-		},
-		.underflow = {
-			[NF_INET_PRE_ROUTING] = 0,
-			[NF_INET_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
-		},
-	},
-	.entries = {
-		IPT_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
-		IPT_STANDARD_INIT(NF_ACCEPT),	/* POST_ROUTING */
-		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
-	},
-	.term = IPT_ERROR_INIT,			/* ERROR */
-};
-
 static const struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
@@ -67,7 +39,7 @@ static const struct xt_table nat_table = {
 
 /* Source NAT */
 static unsigned int
-ipt_snat_target(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_snat_target(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -86,7 +58,7 @@ ipt_snat_target(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_dnat_target(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -103,28 +75,28 @@ ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
 	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);
 }
 
-static bool ipt_snat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_snat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("SNAT: multiple ranges no longer supported\n");
-		return false;
+		pr_info("SNAT: multiple ranges no longer supported\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
-static bool ipt_dnat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("DNAT: multiple ranges no longer supported\n");
-		return false;
+		pr_info("DNAT: multiple ranges no longer supported\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 unsigned int
@@ -186,8 +158,13 @@ static struct xt_target ipt_dnat_reg __read_mostly = {
 
 static int __net_init nf_nat_rule_net_init(struct net *net)
 {
-	net->ipv4.nat_table = ipt_register_table(net, &nat_table,
-						 &nat_initial_table.repl);
+	struct ipt_replace *repl;
+
+	repl = ipt_alloc_initial_table(&nat_table);
+	if (repl == NULL)
+		return -ENOMEM;
+	net->ipv4.nat_table = ipt_register_table(net, &nat_table, repl);
+	kfree(repl);
 	if (IS_ERR(net->ipv4.nat_table))
 		return PTR_ERR(net->ipv4.nat_table);
 	return 0;
@@ -195,7 +172,7 @@ static int __net_init nf_nat_rule_net_init(struct net *net)
 
 static void __net_exit nf_nat_rule_net_exit(struct net *net)
 {
-	ipt_unregister_table(net->ipv4.nat_table);
+	ipt_unregister_table(net, net->ipv4.nat_table);
 }
 
 static struct pernet_operations nf_nat_rule_net_ops = {

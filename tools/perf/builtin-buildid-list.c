@@ -8,6 +8,7 @@
  */
 #include "builtin.h"
 #include "perf.h"
+#include "util/build-id.h"
 #include "util/cache.h"
 #include "util/debug.h"
 #include "util/parse-options.h"
@@ -15,7 +16,8 @@
 #include "util/symbol.h"
 
 static char const *input_name = "perf.data";
-static int force;
+static bool force;
+static bool with_hits;
 
 static const char * const buildid_list_usage[] = {
 	"perf buildid-list [<options>]",
@@ -23,47 +25,30 @@ static const char * const buildid_list_usage[] = {
 };
 
 static const struct option options[] = {
+	OPT_BOOLEAN('H', "with-hits", &with_hits, "Show only DSOs with hits"),
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose"),
 	OPT_END()
 };
-
-static int perf_file_section__process_buildids(struct perf_file_section *self,
-					       int feat, int fd)
-{
-	if (feat != HEADER_BUILD_ID)
-		return 0;
-
-	if (lseek(fd, self->offset, SEEK_SET) < 0) {
-		pr_warning("Failed to lseek to %Ld offset for buildids!\n",
-			   self->offset);
-		return -1;
-	}
-
-	if (perf_header__read_build_ids(fd, self->offset, self->size)) {
-		pr_warning("Failed to read buildids!\n");
-		return -1;
-	}
-
-	return 0;
-}
 
 static int __cmd_buildid_list(void)
 {
 	int err = -1;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force);
+	session = perf_session__new(input_name, O_RDONLY, force, false);
 	if (session == NULL)
 		return -1;
 
-	err = perf_header__process_sections(&session->header, session->fd,
-				         perf_file_section__process_buildids);
-	if (err >= 0)
-		dsos__fprintf_buildid(stdout);
+	if (with_hits) {
+		symbol_conf.full_paths = true;
+		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
+	}
+
+	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
 
 	perf_session__delete(session);
 	return err;

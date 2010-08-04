@@ -72,9 +72,9 @@
 
 #include "tcp_internal.h"
 
-#define SC_NODEF_FMT "node %s (num %u) at %u.%u.%u.%u:%u"
+#define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
 #define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
-			  NIPQUAD(sc->sc_node->nd_ipv4_address),	\
+			  &sc->sc_node->nd_ipv4_address,		\
 			  ntohs(sc->sc_node->nd_ipv4_port)
 
 /*
@@ -485,7 +485,7 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	}
 
 	if (was_valid && !valid) {
-		printk(KERN_INFO "o2net: no longer connected to "
+		printk(KERN_NOTICE "o2net: no longer connected to "
 		       SC_NODEF_FMT "\n", SC_NODEF_ARGS(old_sc));
 		o2net_complete_nodes_nsw(nn);
 	}
@@ -493,7 +493,7 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	if (!was_valid && valid) {
 		o2quo_conn_up(o2net_num_from_nn(nn));
 		cancel_delayed_work(&nn->nn_connect_expired);
-		printk(KERN_INFO "o2net: %s " SC_NODEF_FMT "\n",
+		printk(KERN_NOTICE "o2net: %s " SC_NODEF_FMT "\n",
 		       o2nm_this_node() > sc->sc_node->nd_num ?
 		       		"connected to" : "accepted connection from",
 		       SC_NODEF_ARGS(sc));
@@ -583,6 +583,9 @@ static void o2net_state_change(struct sock *sk)
 			o2net_sc_queue_work(sc, &sc->sc_connect_work);
 			break;
 		default:
+			printk(KERN_INFO "o2net: connection to " SC_NODEF_FMT
+			      " shutdown, state %d\n",
+			      SC_NODEF_ARGS(sc), sk->sk_state);
 			o2net_sc_queue_work(sc, &sc->sc_shutdown_work);
 			break;
 	}
@@ -930,7 +933,7 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 			cond_resched();
 			continue;
 		}
-		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT 
+		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT
 		     " failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
 		o2net_ensure_shutdown(nn, sc, 0);
 		break;
@@ -1476,14 +1479,14 @@ static void o2net_idle_timer(unsigned long data)
 
 	do_gettimeofday(&now);
 
-	printk(KERN_INFO "o2net: connection to " SC_NODEF_FMT " has been idle for %u.%u "
+	printk(KERN_NOTICE "o2net: connection to " SC_NODEF_FMT " has been idle for %u.%u "
 	     "seconds, shutting it down.\n", SC_NODEF_ARGS(sc),
 		     o2net_idle_timeout() / 1000,
 		     o2net_idle_timeout() % 1000);
 	mlog(ML_NOTICE, "here are some times that might help debug the "
 	     "situation: (tmr %ld.%ld now %ld.%ld dr %ld.%ld adv "
 	     "%ld.%ld:%ld.%ld func (%08x:%u) %ld.%ld:%ld.%ld)\n",
-	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec, 
+	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec,
 	     now.tv_sec, (long) now.tv_usec,
 	     sc->sc_tv_data_ready.tv_sec, (long) sc->sc_tv_data_ready.tv_usec,
 	     sc->sc_tv_advance_start.tv_sec,

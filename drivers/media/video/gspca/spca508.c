@@ -45,7 +45,7 @@ struct sd {
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -1513,7 +1513,6 @@ static const struct sd_desc sd_desc = {
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0130, 0x0130), .driver_info = HamaUSBSightcam},
 	{USB_DEVICE(0x041e, 0x4018), .driver_info = CreativeVista},
-	{USB_DEVICE(0x0461, 0x0815), .driver_info = MicroInnovationIC200},
 	{USB_DEVICE(0x0733, 0x0110), .driver_info = ViewQuestVQ110},
 	{USB_DEVICE(0x0af9, 0x0010), .driver_info = HamaUSBSightcam},
 	{USB_DEVICE(0x0af9, 0x0011), .driver_info = HamaUSBSightcam2},

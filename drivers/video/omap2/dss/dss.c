@@ -68,6 +68,9 @@ static struct {
 	struct dss_clock_info cache_dss_cinfo;
 	struct dispc_clock_info cache_dispc_cinfo;
 
+	enum dss_clk_source dsi_clk_source;
+	enum dss_clk_source dispc_clk_source;
+
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 } dss;
 
@@ -220,7 +223,13 @@ void dss_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "dpll4_ck %lu\n", dpll4_ck_rate);
 
-	seq_printf(s, "dss1_alwon_fclk = %lu / %lu * 2 = %lu\n",
+	if (cpu_is_omap3630())
+		seq_printf(s, "dss1_alwon_fclk = %lu / %lu  = %lu\n",
+			dpll4_ck_rate,
+			dpll4_ck_rate / dpll4_m4_ck_rate,
+			dss_clk_get_rate(DSS_CLK_FCK1));
+	else
+		seq_printf(s, "dss1_alwon_fclk = %lu / %lu * 2 = %lu\n",
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
 			dss_clk_get_rate(DSS_CLK_FCK1));
@@ -247,23 +256,42 @@ void dss_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-void dss_select_clk_source(bool dsi, bool dispc)
+void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
-	u32 r;
-	r = dss_read_reg(DSS_CONTROL);
-	r = FLD_MOD(r, dsi, 1, 1);	/* DSI_CLK_SWITCH */
-	r = FLD_MOD(r, dispc, 0, 0);	/* DISPC_CLK_SWITCH */
-	dss_write_reg(DSS_CONTROL, r);
+	int b;
+
+	BUG_ON(clk_src != DSS_SRC_DSI1_PLL_FCLK &&
+			clk_src != DSS_SRC_DSS1_ALWON_FCLK);
+
+	b = clk_src == DSS_SRC_DSS1_ALWON_FCLK ? 0 : 1;
+
+	REG_FLD_MOD(DSS_CONTROL, b, 0, 0);	/* DISPC_CLK_SWITCH */
+
+	dss.dispc_clk_source = clk_src;
 }
 
-int dss_get_dsi_clk_source(void)
+void dss_select_dsi_clk_source(enum dss_clk_source clk_src)
 {
-	return FLD_GET(dss_read_reg(DSS_CONTROL), 1, 1);
+	int b;
+
+	BUG_ON(clk_src != DSS_SRC_DSI2_PLL_FCLK &&
+			clk_src != DSS_SRC_DSS1_ALWON_FCLK);
+
+	b = clk_src == DSS_SRC_DSS1_ALWON_FCLK ? 0 : 1;
+
+	REG_FLD_MOD(DSS_CONTROL, b, 1, 1);	/* DSI_CLK_SWITCH */
+
+	dss.dsi_clk_source = clk_src;
 }
 
-int dss_get_dispc_clk_source(void)
+enum dss_clk_source dss_get_dispc_clk_source(void)
 {
-	return FLD_GET(dss_read_reg(DSS_CONTROL), 0, 0);
+	return dss.dispc_clk_source;
+}
+
+enum dss_clk_source dss_get_dsi_clk_source(void)
+{
+	return dss.dsi_clk_source;
 }
 
 /* calculate clock rates using dividers in cinfo */
@@ -271,7 +299,8 @@ int dss_calc_clock_rates(struct dss_clock_info *cinfo)
 {
 	unsigned long prate;
 
-	if (cinfo->fck_div > 16 || cinfo->fck_div == 0)
+	if (cinfo->fck_div > (cpu_is_omap3630() ? 32 : 16) ||
+						cinfo->fck_div == 0)
 		return -EINVAL;
 
 	prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
@@ -307,7 +336,10 @@ int dss_get_clock_div(struct dss_clock_info *cinfo)
 	if (cpu_is_omap34xx()) {
 		unsigned long prate;
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
-		cinfo->fck_div = prate / (cinfo->fck / 2);
+		if (cpu_is_omap3630())
+			cinfo->fck_div = prate / (cinfo->fck);
+		else
+			cinfo->fck_div = prate / (cinfo->fck / 2);
 	} else {
 		cinfo->fck_div = 0;
 	}
@@ -380,10 +412,14 @@ retry:
 
 		goto found;
 	} else if (cpu_is_omap34xx()) {
-		for (fck_div = 16; fck_div > 0; --fck_div) {
+		for (fck_div = (cpu_is_omap3630() ? 32 : 16);
+					fck_div > 0; --fck_div) {
 			struct dispc_clock_info cur_dispc;
 
-			fck = prate / fck_div * 2;
+			if (cpu_is_omap3630())
+				fck = prate / fck_div;
+			else
+				fck = prate / fck_div * 2;
 
 			if (fck > DISPC_MAX_FCK)
 				continue;
@@ -567,6 +603,9 @@ int dss_init(bool skip_init)
 			goto fail2;
 		}
 	}
+
+	dss.dsi_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
+	dss.dispc_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
 
 	dss_save_context();
 

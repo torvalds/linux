@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9002_phy.h"
 
 static int ath9k_hw_AR9287_get_eeprom_ver(struct ath_hw *ah)
 {
@@ -44,7 +45,7 @@ static bool ath9k_hw_AR9287_fill_eeprom(struct ath_hw *ah)
 		if (!ath9k_hw_nvram_read(common,
 					 addr + eep_start_loc, eep_data)) {
 			ath_print(common, ATH_DBG_EEPROM,
-				  "Unable to read eeprom region \n");
+				  "Unable to read eeprom region\n");
 			return false;
 		}
 		eep_data++;
@@ -172,11 +173,11 @@ static u32 ath9k_hw_AR9287_get_eeprom(struct ath_hw *ah,
 	switch (param) {
 	case EEP_NFTHRESH_2:
 		return pModal->noiseFloorThreshCh[0];
-	case AR_EEPROM_MAC(0):
+	case EEP_MAC_LSW:
 		return pBase->macAddr[0] << 8 | pBase->macAddr[1];
-	case AR_EEPROM_MAC(1):
+	case EEP_MAC_MID:
 		return pBase->macAddr[2] << 8 | pBase->macAddr[3];
-	case AR_EEPROM_MAC(2):
+	case EEP_MAC_MSW:
 		return pBase->macAddr[4] << 8 | pBase->macAddr[5];
 	case EEP_REG_0:
 		return pBase->regDmn[0];
@@ -1169,7 +1170,7 @@ static u16 ath9k_hw_AR9287_get_spur_channel(struct ath_hw *ah,
 #undef EEP_MAP9287_SPURCHAN
 }
 
-const struct eeprom_ops eep_AR9287_ops = {
+const struct eeprom_ops eep_ar9287_ops = {
 	.check_eeprom		= ath9k_hw_AR9287_check_eeprom,
 	.get_eeprom		= ath9k_hw_AR9287_get_eeprom,
 	.fill_eeprom		= ath9k_hw_AR9287_fill_eeprom,

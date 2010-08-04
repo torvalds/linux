@@ -11,6 +11,8 @@
 #ifndef _ASM_X86_KVM_X86_EMULATE_H
 #define _ASM_X86_KVM_X86_EMULATE_H
 
+#include <asm/desc_defs.h>
+
 struct x86_emulate_ctxt;
 
 /*
@@ -54,13 +56,32 @@ struct x86_emulate_ctxt;
 struct x86_emulate_ops {
 	/*
 	 * read_std: Read bytes of standard (non-emulated/special) memory.
-	 *           Used for instruction fetch, stack operations, and others.
+	 *           Used for descriptor reading.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
 	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu);
+			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+
+	/*
+	 * write_std: Write bytes of standard (non-emulated/special) memory.
+	 *            Used for descriptor writing.
+	 *  @addr:  [IN ] Linear address to which to write.
+	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
+	 *  @bytes: [IN ] Number of bytes to write to memory.
+	 */
+	int (*write_std)(unsigned long addr, void *val,
+			 unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+	/*
+	 * fetch: Read bytes of standard (non-emulated/special) memory.
+	 *        Used for instruction fetch.
+	 *  @addr:  [IN ] Linear address from which to read.
+	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
+	 *  @bytes: [IN ] Number of bytes to read from memory.
+	 */
+	int (*fetch)(unsigned long addr, void *val,
+			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
 
 	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
@@ -74,7 +95,7 @@ struct x86_emulate_ops {
 			     struct kvm_vcpu *vcpu);
 
 	/*
-	 * write_emulated: Read bytes from emulated/special memory area.
+	 * write_emulated: Write bytes to emulated/special memory area.
 	 *  @addr:  [IN ] Linear address to which to write.
 	 *  @val:   [IN ] Value to write to memory (low-order bytes used as
 	 *                required).
@@ -99,6 +120,23 @@ struct x86_emulate_ops {
 				unsigned int bytes,
 				struct kvm_vcpu *vcpu);
 
+	int (*pio_in_emulated)(int size, unsigned short port, void *val,
+			       unsigned int count, struct kvm_vcpu *vcpu);
+
+	int (*pio_out_emulated)(int size, unsigned short port, const void *val,
+				unsigned int count, struct kvm_vcpu *vcpu);
+
+	bool (*get_cached_descriptor)(struct desc_struct *desc,
+				      int seg, struct kvm_vcpu *vcpu);
+	void (*set_cached_descriptor)(struct desc_struct *desc,
+				      int seg, struct kvm_vcpu *vcpu);
+	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
+	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
+	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
+	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
+	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
+	int (*cpl)(struct kvm_vcpu *vcpu);
+	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 };
 
 /* Type, address-of, and value of an instruction's operand. */
@@ -111,6 +149,12 @@ struct operand {
 struct fetch_cache {
 	u8 data[15];
 	unsigned long start;
+	unsigned long end;
+};
+
+struct read_cache {
+	u8 data[1024];
+	unsigned long pos;
 	unsigned long end;
 };
 
@@ -129,7 +173,7 @@ struct decode_cache {
 	u8 seg_override;
 	unsigned int d;
 	unsigned long regs[NR_VCPU_REGS];
-	unsigned long eip, eip_orig;
+	unsigned long eip;
 	/* modrm */
 	u8 modrm;
 	u8 modrm_mod;
@@ -141,16 +185,15 @@ struct decode_cache {
 	void *modrm_ptr;
 	unsigned long modrm_val;
 	struct fetch_cache fetch;
+	struct read_cache io_read;
 };
-
-#define X86_SHADOW_INT_MOV_SS  1
-#define X86_SHADOW_INT_STI     2
 
 struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
 
 	unsigned long eflags;
+	unsigned long eip; /* eip before instruction emulation */
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
 	u32 cs_base;
@@ -158,6 +201,7 @@ struct x86_emulate_ctxt {
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
+	bool restart; /* restart string instruction after writeback */
 	/* decode cache */
 	struct decode_cache decode;
 };
@@ -168,6 +212,7 @@ struct x86_emulate_ctxt {
 
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
+#define X86EMUL_MODE_VM86     1	/* Virtual 8086 mode.     */
 #define X86EMUL_MODE_PROT16   2	/* 16-bit protected mode. */
 #define X86EMUL_MODE_PROT32   4	/* 32-bit protected mode. */
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */
@@ -183,5 +228,9 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
 		    struct x86_emulate_ops *ops);
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
 		     struct x86_emulate_ops *ops);
+int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
+			 struct x86_emulate_ops *ops,
+			 u16 tss_selector, int reason,
+			 bool has_error_code, u32 error_code);
 
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

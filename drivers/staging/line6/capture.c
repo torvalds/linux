@@ -11,6 +11,8 @@
 
 #include "driver.h"
 
+#include <linux/slab.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

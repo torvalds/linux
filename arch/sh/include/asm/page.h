@@ -45,17 +45,17 @@
 #endif
 
 #ifndef __ASSEMBLY__
+#include <asm/uncached.h>
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
-extern unsigned long memory_start, memory_end;
+extern unsigned long memory_start, memory_end, memory_limit;
 
 static inline unsigned long
 pages_do_alias(unsigned long addr1, unsigned long addr2)
 {
 	return (addr1 ^ addr2) & shm_align_mask;
 }
-
 
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, void *from);
@@ -88,7 +88,7 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define __pte(x)	((pte_t) { (x) } )
 #else
 typedef struct { unsigned long long pte_low; } pte_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long long pgprot; } pgprot_t;
 typedef struct { unsigned long pgd; } pgd_t;
 #define pte_val(x)	((x).pte_low)
 #define __pte(x)	((pte_t) { (x) } )
@@ -127,17 +127,25 @@ typedef struct page *pgtable_t;
  * is not visible (it is part of the PMB mapping) and so needs to be
  * added or subtracted as required.
  */
-#if defined(CONFIG_PMB_FIXED)
-/* phys = virt - PAGE_OFFSET - (__MEMORY_START & 0xe0000000) */
-#define PMB_OFFSET	(PAGE_OFFSET - PXSEG(__MEMORY_START))
-#define __pa(x)	((unsigned long)(x) - PMB_OFFSET)
-#define __va(x)	((void *)((unsigned long)(x) + PMB_OFFSET))
-#elif defined(CONFIG_32BIT)
-#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET+__MEMORY_START)
-#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET-__MEMORY_START))
+#ifdef CONFIG_PMB
+#define ___pa(x)	((x)-PAGE_OFFSET+__MEMORY_START)
+#define ___va(x)	((x)+PAGE_OFFSET-__MEMORY_START)
 #else
-#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET)
-#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET))
+#define ___pa(x)	((x)-PAGE_OFFSET)
+#define ___va(x)	((x)+PAGE_OFFSET)
+#endif
+
+#ifndef __ASSEMBLY__
+#define __pa(x)		___pa((unsigned long)x)
+#define __va(x)		(void *)___va((unsigned long)x)
+#endif /* !__ASSEMBLY__ */
+
+#ifdef CONFIG_UNCACHED_MAPPING
+#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + uncached_start)
+#define CAC_ADDR(addr)		((addr) - uncached_start + PAGE_OFFSET)
+#else
+#define UNCAC_ADDR(addr)	((addr))
+#define CAC_ADDR(addr)		((addr))
 #endif
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)

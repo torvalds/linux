@@ -1,8 +1,8 @@
 /*
  * VMEbus User access driver
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Author: Martyn Welch <martyn.welch@ge.com>
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * Based on work by:
  *   Tom Armistead and Ajit Prem
@@ -28,8 +28,10 @@
 #include <linux/pagemap.h>
 #include <linux/pci.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 
 #include <asm/io.h>
@@ -129,8 +131,7 @@ static int vme_user_release(struct inode *, struct file *);
 static ssize_t vme_user_read(struct file *, char *, size_t, loff_t *);
 static ssize_t vme_user_write(struct file *, const char *, size_t, loff_t *);
 static loff_t vme_user_llseek(struct file *, loff_t, int);
-static int vme_user_ioctl(struct inode *, struct file *, unsigned int,
-	unsigned long);
+static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
 static int __init vme_user_probe(struct device *, int, int);
 static int __exit vme_user_remove(struct device *, int, int);
@@ -141,7 +142,7 @@ static struct file_operations vme_user_fops = {
         .read = vme_user_read,
         .write = vme_user_write,
         .llseek = vme_user_llseek,
-        .ioctl = vme_user_ioctl,
+        .unlocked_ioctl = vme_user_unlocked_ioctl,
 };
 
 
@@ -400,8 +401,39 @@ static ssize_t vme_user_write(struct file *file, const char *buf, size_t count,
 
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
-	printk(KERN_ERR "Llseek currently incomplete\n");
-	return -EINVAL;
+	loff_t absolute = -1;
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	size_t image_size;
+
+	down(&image[minor].sem);
+	image_size = vme_get_size(image[minor].resource);
+
+	switch (whence) {
+	case SEEK_SET:
+		absolute = off;
+		break;
+	case SEEK_CUR:
+		absolute = file->f_pos + off;
+		break;
+	case SEEK_END:
+		absolute = image_size + off;
+		break;
+	default:
+		up(&image[minor].sem);
+		return -EINVAL;
+		break;
+	}
+
+	if ((absolute < 0) || (absolute >= image_size)) {
+		up(&image[minor].sem);
+		return -EINVAL;
+	}
+
+	file->f_pos = absolute;
+
+	up(&image[minor].sem);
+
+	return absolute;
 }
 
 /*
@@ -523,6 +555,18 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	return -EINVAL;
 }
 
+static long
+vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = vme_user_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 
 /*
  * Unallocate a previously allocated buffer
@@ -574,8 +618,8 @@ static int __init vme_user_init(void)
 	 * in future revisions if that ever becomes necessary.
 	 */
 	if (bus_num > USER_BUS_MAX) {
-		printk(KERN_ERR "%s: Driver only able to handle %d PIO2 "
-			"Cards\n", driver_name, USER_BUS_MAX);
+		printk(KERN_ERR "%s: Driver only able to handle %d buses\n",
+			driver_name, USER_BUS_MAX);
 		bus_num = USER_BUS_MAX;
 	}
 
@@ -670,8 +714,12 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 	/* Request slave resources and allocate buffers (128kB wide) */
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
 		/* XXX Need to properly request attributes */
+		/* For ca91cx42 bridge there are only two slave windows
+		 * supporting A16 addressing, so we request A24 supported
+		 * by all windows.
+		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
-			VME_A16, VME_SCT);
+			VME_A24, VME_SCT);
 		if (image[i].resource == NULL) {
 			printk(KERN_WARNING "Unable to allocate slave "
 				"resource\n");
@@ -702,6 +750,14 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 			printk(KERN_WARNING "Unable to allocate master "
 				"resource\n");
 			goto err_master;
+		}
+		image[i].size_buf = PCI_BUF_SIZE;
+		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
+		if (image[i].kern_buf == NULL) {
+			printk(KERN_WARNING "Unable to allocate memory for "
+				"master window buffers\n");
+			err = -ENOMEM;
+			goto err_master_buf;
 		}
 	}
 
@@ -756,6 +812,9 @@ err_sysfs:
 
 	/* Ensure counter set correcty to unalloc all master windows */
 	i = MASTER_MAX + 1;
+err_master_buf:
+	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
+		kfree(image[i].kern_buf);
 err_master:
 	while (i > MASTER_MINOR) {
 		i--;
@@ -791,6 +850,9 @@ static int __exit vme_user_remove(struct device *dev, int cur_bus, int cur_slot)
 	}
 	class_destroy(vme_user_sysfs_class);
 
+	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
+		kfree(image[i].kern_buf);
+
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
 		vme_slave_set(image[i].resource, 0, 0, 0, 0, VME_A32, 0);
 		vme_slave_free(image[i].resource);
@@ -818,7 +880,7 @@ MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the driver is connected");
 module_param_array(bus, int, &bus_num, 0);
 
 MODULE_DESCRIPTION("VME User Space Access Driver");
-MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");
 MODULE_LICENSE("GPL");
 
 module_init(vme_user_init);

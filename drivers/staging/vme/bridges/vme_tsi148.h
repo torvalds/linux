@@ -33,6 +33,22 @@
 #define TSI148_MAX_MAILBOX		4	/* Max Mail Box registers */
 #define TSI148_MAX_SEMAPHORE		8	/* Max Semaphores */
 
+/* Structure used to hold driver specific information */
+struct tsi148_driver {
+	void *base;	/* Base Address of device registers */
+	wait_queue_head_t dma_queue[2];
+	wait_queue_head_t iack_queue;
+	void (*lm_callback[4])(int);	/* Called in interrupt handler */
+	void *crcsr_kernel;
+	dma_addr_t crcsr_bus;
+	struct vme_master_resource *flush_image;
+	struct mutex vme_rmw;		/* Only one RMW cycle at a time */
+	struct mutex vme_int;		/*
+					 * Only one VME interrupt can be
+					 * generated at a time, provide locking
+					 */
+};
+
 /*
  * Layout of a DMAC Linked-List Descriptor
  *
@@ -563,7 +579,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 /*
  *  Memory Base Address Lower Reg (CRG + $010)
  */
-#define TSI148_PCFS_MBARL_BASEL_M      (0xFFFFF<<12)	/* Base Addr Lower Mask */
+#define TSI148_PCFS_MBARL_BASEL_M      (0xFFFFF<<12) /* Base Addr Lower Mask */
 #define TSI148_PCFS_MBARL_PRE          (1<<3)	/* Prefetch */
 #define TSI148_PCFS_MBARL_MTYPE_M      (3<<1)	/* Memory Type Mask */
 #define TSI148_PCFS_MBARL_IOMEM        (1<<0)	/* I/O Space Indicator */
@@ -599,7 +615,8 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
  */
 #define TSI148_PCFS_PCIXSTAT_RSCEM     (1<<29)	/* Recieved Split Comp Error */
 #define TSI148_PCFS_PCIXSTAT_DMCRS_M   (7<<26)	/* max Cumulative Read Size */
-#define TSI148_PCFS_PCIXSTAT_DMOST_M   (7<<23)	/* max outstanding Split Trans */
+#define TSI148_PCFS_PCIXSTAT_DMOST_M   (7<<23)	/* max outstanding Split Trans
+						 */
 #define TSI148_PCFS_PCIXSTAT_DMMRC_M   (3<<21)	/* max mem read byte count */
 #define TSI148_PCFS_PCIXSTAT_DC        (1<<20)	/* Device Complexity */
 #define TSI148_PCFS_PCIXSTAT_USC       (1<<19)	/* Unexpected Split comp */
@@ -687,7 +704,8 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 
 #define TSI148_LCSR_VMCTRL_RMWEN       (1<<20)	/* RMW Enable */
 
-#define TSI148_LCSR_VMCTRL_ATO_M       (7<<16)	/* Master Access Time-out Mask */
+#define TSI148_LCSR_VMCTRL_ATO_M       (7<<16)	/* Master Access Time-out Mask
+						 */
 #define TSI148_LCSR_VMCTRL_ATO_32      (0<<16)	/* 32 us */
 #define TSI148_LCSR_VMCTRL_ATO_128     (1<<16)	/* 128 us */
 #define TSI148_LCSR_VMCTRL_ATO_512     (2<<16)	/* 512 us */
@@ -717,14 +735,16 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VMCTRL_VTON_256    (6<<8)	/* 256us */
 #define TSI148_LCSR_VMCTRL_VTON_512    (7<<8)	/* 512us */
 
-#define TSI148_LCSR_VMCTRL_VREL_M      (3<<3)	/* VMEbus Master Rel Mode Mask */
+#define TSI148_LCSR_VMCTRL_VREL_M      (3<<3)	/* VMEbus Master Rel Mode Mask
+						 */
 #define TSI148_LCSR_VMCTRL_VREL_T_D    (0<<3)	/* Time on or Done */
 #define TSI148_LCSR_VMCTRL_VREL_T_R_D  (1<<3)	/* Time on and REQ or Done */
 #define TSI148_LCSR_VMCTRL_VREL_T_B_D  (2<<3)	/* Time on and BCLR or Done */
 #define TSI148_LCSR_VMCTRL_VREL_T_D_R  (3<<3)	/* Time on or Done and REQ */
 
 #define TSI148_LCSR_VMCTRL_VFAIR       (1<<2)	/* VMEbus Master Fair Mode */
-#define TSI148_LCSR_VMCTRL_VREQL_M     (3<<0)	/* VMEbus Master Req Level Mask */
+#define TSI148_LCSR_VMCTRL_VREQL_M     (3<<0)	/* VMEbus Master Req Level Mask
+						 */
 
 /*
  *  VMEbus Control Register CRG+$238
@@ -746,7 +766,8 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VCTRL_DLT_16384    (0xB<<24)	/* 16384 VCLKS */
 #define TSI148_LCSR_VCTRL_DLT_32768    (0xC<<24)	/* 32768 VCLKS */
 
-#define TSI148_LCSR_VCTRL_NERBB        (1<<20)	/* No Early Release of Bus Busy */
+#define TSI148_LCSR_VCTRL_NERBB        (1<<20)	/* No Early Release of Bus Busy
+						 */
 
 #define TSI148_LCSR_VCTRL_SRESET       (1<<17)	/* System Reset */
 #define TSI148_LCSR_VCTRL_LRESET       (1<<16)	/* Local Reset */
@@ -757,7 +778,8 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VCTRL_ATOEN        (1<<7)	/* Arbiter Time-out Enable */
 #define TSI148_LCSR_VCTRL_ROBIN        (1<<6)	/* VMEbus Round Robin */
 
-#define TSI148_LCSR_VCTRL_GTO_M        (7<<0)	/* VMEbus Global Time-out Mask */
+#define TSI148_LCSR_VCTRL_GTO_M        (7<<0)	/* VMEbus Global Time-out Mask
+						 */
 #define TSI148_LCSR_VCTRL_GTO_8	      (0<<0)	/* 8 us */
 #define TSI148_LCSR_VCTRL_GTO_16	      (1<<0)	/* 16 us */
 #define TSI148_LCSR_VCTRL_GTO_32	      (2<<0)	/* 32 us */
@@ -778,7 +800,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VSTAT_ACFAILS      (1<<9)	/* AC fail status */
 #define TSI148_LCSR_VSTAT_SCONS        (1<<8)	/* System Cont Status */
 #define TSI148_LCSR_VSTAT_GAP          (1<<5)	/* Geographic Addr Parity */
-#define TSI148_LCSR_VSTAT_GA_M         (0x1F<<0)	/* Geographic Addr Mask */
+#define TSI148_LCSR_VSTAT_GA_M         (0x1F<<0)  /* Geographic Addr Mask */
 
 /*
  *  PCI Configuration Status Register CRG+$240
@@ -1325,7 +1347,7 @@ static const int TSI148_LCSR_INTC_MBC[4] = { TSI148_LCSR_INTC_MB0C,
  *  DMA Next Link Address Lower
  */
 #define TSI148_LCSR_DNLAL_DNLAL_M      (0x3FFFFFF<<6)	/* Address Mask */
-#define TSI148_LCSR_DNLAL_LLA          (1<<0)	/* Last Link Address Indicator */
+#define TSI148_LCSR_DNLAL_LLA          (1<<0)  /* Last Link Address Indicator */
 
 /*
  *  DMA 2eSST Broadcast Select
@@ -1355,7 +1377,7 @@ static const int TSI148_LCSR_INTC_MBC[4] = { TSI148_LCSR_INTC_MB0C,
 #define TSI148_GCSR_GCTRL_MBI0S        (1<<0)	/* Mail box 0 Int Status */
 
 #define TSI148_GCSR_GAP                (1<<5)	/* Geographic Addr Parity */
-#define TSI148_GCSR_GA_M               (0x1F<<0)	/* Geographic Address Mask */
+#define TSI148_GCSR_GA_M               (0x1F<<0)  /* Geographic Address Mask */
 
 /*
  *  CR/CSR Register Group

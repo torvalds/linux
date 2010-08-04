@@ -41,6 +41,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/crc32.h>
 #include <linux/math64.h>
 #include "ubi.h"
@@ -230,7 +231,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
  * case of success this function returns a positive value, in case of failure, a
  * negative error code is returned. The success return codes use the following
  * bits:
- *     o bit 0 is cleared: the first PEB (described by @seb) is newer then the
+ *     o bit 0 is cleared: the first PEB (described by @seb) is newer than the
  *       second PEB (described by @pnum and @vid_hdr);
  *     o bit 0 is set: the second PEB is newer;
  *     o bit 1 is cleared: no bit-flips were detected in the newer LEB;
@@ -451,7 +452,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 
 		if (cmp_res & 1) {
 			/*
-			 * This logical eraseblock is newer then the one
+			 * This logical eraseblock is newer than the one
 			 * found earlier.
 			 */
 			err = validate_vid_hdr(vid_hdr, sv, pnum);
@@ -974,11 +975,8 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 			seb->ec = si->mean_ec;
 
 	err = paranoid_check_si(ubi, si);
-	if (err) {
-		if (err > 0)
-			err = -EINVAL;
+	if (err)
 		goto out_vidh;
-	}
 
 	ubi_free_vid_hdr(ubi, vidh);
 	kfree(ech);
@@ -1086,8 +1084,8 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
  * @ubi: UBI device description object
  * @si: scanning information
  *
- * This function returns zero if the scanning information is all right, %1 if
- * not and a negative error code if an error occurred.
+ * This function returns zero if the scanning information is all right, and a
+ * negative error code if not or if an error occurred.
  */
 static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
@@ -1346,7 +1344,7 @@ bad_vid_hdr:
 
 out:
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 }
 
 #endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */

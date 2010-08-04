@@ -1,0 +1,20 @@
+#
+# SPEAr6XX Machine configuration file
+#
+
+if ARCH_SPEAR6XX
+
+choice
+	prompt "SPEAr6XX Family"
+	default MACH_SPEAR600
+
+config MACH_SPEAR600
+	bool "SPEAr600"
+	help
+	  Supports ST SPEAr600 Machine
+endchoice
+
+# Adding SPEAr6XX machine specific configuration files
+source "arch/arm/mach-spear6xx/Kconfig600"
+
+endif #ARCH_SPEAR6XX

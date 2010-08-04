@@ -75,7 +75,7 @@
 
 #define VLEV			0x00F0	/* Internal Voltage Level */
 #ifdef __ADSPBF52x__
-#define VLEV_085 		0x0040	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
+#define VLEV_085		0x0040	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
 #define VLEV_090		0x0050	/* VLEV = 0.90 V (-5% - +10% Accuracy) */
 #define VLEV_095		0x0060	/* VLEV = 0.95 V (-5% - +10% Accuracy) */
 #define VLEV_100		0x0070	/* VLEV = 1.00 V (-5% - +10% Accuracy) */
@@ -84,7 +84,7 @@
 #define VLEV_115		0x00A0	/* VLEV = 1.15 V (-5% - +10% Accuracy) */
 #define VLEV_120		0x00B0	/* VLEV = 1.20 V (-5% - +10% Accuracy) */
 #else
-#define VLEV_085 		0x0060	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
+#define VLEV_085		0x0060	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
 #define VLEV_090		0x0070	/* VLEV = 0.90 V (-5% - +10% Accuracy) */
 #define VLEV_095		0x0080	/* VLEV = 0.95 V (-5% - +10% Accuracy) */
 #define VLEV_100		0x0090	/* VLEV = 1.00 V (-5% - +10% Accuracy) */

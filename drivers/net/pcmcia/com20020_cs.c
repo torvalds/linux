@@ -122,7 +122,6 @@ static void com20020_detach(struct pcmcia_device *p_dev);
 
 typedef struct com20020_dev_t {
     struct net_device       *dev;
-    dev_node_t          node;
 } com20020_dev_t;
 
 /*======================================================================
@@ -163,7 +162,6 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     p_dev->io.NumPorts1 = 16;
     p_dev->io.IOAddrLines = 16;
-    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -196,18 +194,16 @@ static void com20020_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "com20020_detach\n");
 
-    if (link->dev_node) {
-	dev_dbg(&link->dev, "unregister...\n");
+    dev_dbg(&link->dev, "unregister...\n");
 
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
-	/*
-	 * this is necessary because we register our IRQ separately
-	 * from card services.
-	 */
-	if (dev->irq)
+    /*
+     * this is necessary because we register our IRQ separately
+     * from card services.
+     */
+    if (dev->irq)
 	    free_irq(dev->irq, dev);
-    }
 
     com20020_release(link);
 
@@ -275,15 +271,14 @@ static int com20020_config(struct pcmcia_device *link)
     dev_dbg(&link->dev, "got ioaddr %Xh\n", ioaddr);
 
     dev_dbg(&link->dev, "request IRQ %d\n",
-	    link->irq.AssignedIRQ);
-    i = pcmcia_request_irq(link, &link->irq);
-    if (i != 0)
+	    link->irq);
+    if (!link->irq)
     {
 	dev_dbg(&link->dev, "requestIRQ failed totally!\n");
 	goto failed;
     }
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
 
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
@@ -299,7 +294,6 @@ static int com20020_config(struct pcmcia_device *link)
     lp->card_name = "PCMCIA COM20020";
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
@@ -307,11 +301,8 @@ static int com20020_config(struct pcmcia_device *link)
     if (i != 0) {
 	dev_printk(KERN_NOTICE, &link->dev,
 		"com20020_cs: com20020_found() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     dev_dbg(&link->dev,KERN_INFO "%s: port %#3lx, irq %d\n",
            dev->name, dev->base_addr, dev->irq);

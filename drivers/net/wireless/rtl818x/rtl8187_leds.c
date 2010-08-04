@@ -33,7 +33,7 @@ static void led_turn_on(struct work_struct *work)
 	struct rtl8187_led *led = &priv->led_tx;
 
 	/* Don't change the LED, when the device is down. */
-	if (priv->mode == NL80211_IFTYPE_UNSPECIFIED)
+	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_UNSPECIFIED)
 		return ;
 
 	/* Skip if the LED is not registered. */
@@ -71,7 +71,7 @@ static void led_turn_off(struct work_struct *work)
 	struct rtl8187_led *led = &priv->led_tx;
 
 	/* Don't change the LED, when the device is down. */
-	if (priv->mode == NL80211_IFTYPE_UNSPECIFIED)
+	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_UNSPECIFIED)
 		return ;
 
 	/* Skip if the LED is not registered. */
@@ -241,5 +241,5 @@ void rtl8187_leds_exit(struct ieee80211_hw *dev)
 	cancel_delayed_work_sync(&priv->led_off);
 	cancel_delayed_work_sync(&priv->led_on);
 }
-#endif /* def CONFIG_RTL8187_LED */
+#endif /* def CONFIG_RTL8187_LEDS */
 

@@ -39,6 +39,7 @@
  *     i1480u_set_config():
  */
 
+#include <linux/slab.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 

@@ -91,7 +91,7 @@ late_initcall(proc_dma_init);
  */
 int request_dma(unsigned int channel, const char *device_id)
 {
-	pr_debug("request_dma() : BEGIN \n");
+	pr_debug("request_dma() : BEGIN\n");
 
 	if (device_id == NULL)
 		printk(KERN_WARNING "request_dma(%u): no device_id given\n", channel);
@@ -107,7 +107,7 @@ int request_dma(unsigned int channel, const char *device_id)
 #endif
 
 	if (atomic_cmpxchg(&dma_ch[channel].chan_status, 0, 1)) {
-		pr_debug("DMA CHANNEL IN USE  \n");
+		pr_debug("DMA CHANNEL IN USE\n");
 		return -EBUSY;
 	}
 
@@ -131,7 +131,7 @@ int request_dma(unsigned int channel, const char *device_id)
 	 * you have to request DMA, before doing any operations on
 	 * descriptor/channel
 	 */
-	pr_debug("request_dma() : END  \n");
+	pr_debug("request_dma() : END\n");
 	return 0;
 }
 EXPORT_SYMBOL(request_dma);
@@ -171,7 +171,7 @@ static void clear_dma_buffer(unsigned int channel)
 
 void free_dma(unsigned int channel)
 {
-	pr_debug("freedma() : BEGIN \n");
+	pr_debug("freedma() : BEGIN\n");
 	BUG_ON(channel >= MAX_DMA_CHANNELS ||
 			!atomic_read(&dma_ch[channel].chan_status));
 
@@ -185,7 +185,7 @@ void free_dma(unsigned int channel)
 	/* Clear the DMA Variable in the Channel */
 	atomic_set(&dma_ch[channel].chan_status, 0);
 
-	pr_debug("freedma() : END \n");
+	pr_debug("freedma() : END\n");
 }
 EXPORT_SYMBOL(free_dma);
 

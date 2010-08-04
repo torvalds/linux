@@ -1,6 +1,10 @@
 #ifndef __MV_CRYPTO_H__
 
 #define DIGEST_INITIAL_VAL_A	0xdd00
+#define DIGEST_INITIAL_VAL_B	0xdd04
+#define DIGEST_INITIAL_VAL_C	0xdd08
+#define DIGEST_INITIAL_VAL_D	0xdd0c
+#define DIGEST_INITIAL_VAL_E	0xdd10
 #define DES_CMD_REG		0xdd58
 
 #define SEC_ACCEL_CMD		0xde00
@@ -70,6 +74,10 @@ struct sec_accel_config {
 #define CFG_AES_LEN_128		(0 << 24)
 #define CFG_AES_LEN_192		(1 << 24)
 #define CFG_AES_LEN_256		(2 << 24)
+#define CFG_NOT_FRAG		(0 << 30)
+#define CFG_FIRST_FRAG		(1 << 30)
+#define CFG_LAST_FRAG		(2 << 30)
+#define CFG_MID_FRAG		(3 << 30)
 
 	u32 enc_p;
 #define ENC_P_SRC(x)		(x)
@@ -90,7 +98,11 @@ struct sec_accel_config {
 #define MAC_SRC_TOTAL_LEN(x)	((x) << 16)
 
 	u32 mac_digest;
+#define MAC_DIGEST_P(x)	(x)
+#define MAC_FRAG_LEN(x)	((x) << 16)
 	u32 mac_iv;
+#define MAC_INNER_IV_P(x)	(x)
+#define MAC_OUTER_IV_P(x)	((x) << 16)
 }__attribute__ ((packed));
 	/*
 	 * /-----------\ 0
@@ -101,19 +113,37 @@ struct sec_accel_config {
 	 * |  IV   IN  |	4 * 4
 	 * |-----------| 0x40 (inplace)
 	 * |  IV BUF   |	4 * 4
-	 * |-----------| 0x50
+	 * |-----------| 0x80
 	 * |  DATA IN  |	16 * x (max ->max_req_size)
-	 * |-----------| 0x50 (inplace operation)
+	 * |-----------| 0x80 (inplace operation)
 	 * |  DATA OUT |	16 * x (max ->max_req_size)
+	 * \-----------/ SRAM size
+	 */
+
+	/* Hashing memory map:
+	 * /-----------\ 0
+	 * | ACCEL CFG |        4 * 8
+	 * |-----------| 0x20
+	 * | Inner IV  |        5 * 4
+	 * |-----------| 0x34
+	 * | Outer IV  |        5 * 4
+	 * |-----------| 0x48
+	 * | Output BUF|        5 * 4
+	 * |-----------| 0x80
+	 * |  DATA IN  |        64 * x (max ->max_req_size)
 	 * \-----------/ SRAM size
 	 */
 #define SRAM_CONFIG		0x00
 #define SRAM_DATA_KEY_P		0x20
 #define SRAM_DATA_IV		0x40
 #define SRAM_DATA_IV_BUF	0x40
-#define SRAM_DATA_IN_START	0x50
-#define SRAM_DATA_OUT_START	0x50
+#define SRAM_DATA_IN_START	0x80
+#define SRAM_DATA_OUT_START	0x80
 
-#define SRAM_CFG_SPACE		0x50
+#define SRAM_HMAC_IV_IN		0x20
+#define SRAM_HMAC_IV_OUT	0x34
+#define SRAM_DIGEST_BUF		0x48
+
+#define SRAM_CFG_SPACE		0x80
 
 #endif

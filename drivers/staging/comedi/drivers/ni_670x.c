@@ -42,11 +42,10 @@ Commands are not supported.
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 #include "mite.h"
-
-#define PCI_VENDOR_ID_NATINST	0x1093
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
@@ -90,12 +89,9 @@ static const struct ni_670x_board ni_670x_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
-	{
-	PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	    /* { PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
-	{
-	0}
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
@@ -151,7 +147,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	printk("comedi%d: ni_670x: ", dev->minor);
+	printk(KERN_INFO "comedi%d: ni_670x: ", dev->minor);
 
 	ret = alloc_private(dev, sizeof(struct ni_670x_private));
 	if (ret < 0)
@@ -163,12 +159,12 @@ static int ni_670x_attach(struct comedi_device *dev,
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		printk("error setting up mite\n");
+		printk(KERN_WARNING "error setting up mite\n");
 		return ret;
 	}
 	dev->board_name = thisboard->name;
 	dev->irq = mite_irq(devpriv->mite);
-	printk(" %s", dev->board_name);
+	printk(KERN_INFO " %s", dev->board_name);
 
 	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
@@ -207,21 +203,22 @@ static int ni_670x_attach(struct comedi_device *dev,
 	s->insn_bits = ni_670x_dio_insn_bits;
 	s->insn_config = ni_670x_dio_insn_config;
 
-	writel(0x10, devpriv->mite->daq_io_addr + MISC_CONTROL_OFFSET);	/* Config of misc registers */
-	writel(0x00, devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);	/* Config of ao registers */
+	/* Config of misc registers */
+	writel(0x10, devpriv->mite->daq_io_addr + MISC_CONTROL_OFFSET);
+	/* Config of ao registers */
+	writel(0x00, devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);
 
-	printk("attached\n");
+	printk(KERN_INFO "attached\n");
 
 	return 1;
 }
 
 static int ni_670x_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: ni_670x: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: ni_670x: remove\n", dev->minor);
 
-	if (dev->subdevices[0].range_table_list) {
-		kfree(dev->subdevices[0].range_table_list);
-	}
+	kfree(dev->subdevices[0].range_table_list);
+
 	if (dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
 
@@ -250,8 +247,11 @@ static int ni_670x_ao_winsn(struct comedi_device *dev,
 	   vch(15)      :       30      | ich(31)       :       31      */
 
 	for (i = 0; i < insn->n; i++) {
-		writel(((chan & 15) << 1) | ((chan & 16) >> 4), devpriv->mite->daq_io_addr + AO_CHAN_OFFSET);	/* First write in channel register which channel to use */
-		writel(data[i], devpriv->mite->daq_io_addr + AO_VALUE_OFFSET);	/* write channel value */
+		/* First write in channel register which channel to use */
+		writel(((chan & 15) << 1) | ((chan & 16) >> 4),
+		       devpriv->mite->daq_io_addr + AO_CHAN_OFFSET);
+		/* write channel value */
+		writel(data[i], devpriv->mite->daq_io_addr + AO_VALUE_OFFSET);
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -344,7 +344,7 @@ static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_INFO "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }

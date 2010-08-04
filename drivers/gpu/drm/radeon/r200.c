@@ -30,7 +30,9 @@
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 
+#include "r100d.h"
 #include "r200_reg_safe.h"
 
 #include "r100_track.h"
@@ -78,6 +80,51 @@ static int r200_get_vtx_size_0(uint32_t vtx_fmt_0)
 		vtx_size += 3;
 	return vtx_size;
 }
+
+int r200_copy_dma(struct radeon_device *rdev,
+		  uint64_t src_offset,
+		  uint64_t dst_offset,
+		  unsigned num_pages,
+		  struct radeon_fence *fence)
+{
+	uint32_t size;
+	uint32_t cur_size;
+	int i, num_loops;
+	int r = 0;
+
+	/* radeon pitch is /64 */
+	size = num_pages << PAGE_SHIFT;
+	num_loops = DIV_ROUND_UP(size, 0x1FFFFF);
+	r = radeon_ring_lock(rdev, num_loops * 4 + 64);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		return r;
+	}
+	/* Must wait for 2D idle & clean before DMA or hangs might happen */
+	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(rdev, (1 << 16));
+	for (i = 0; i < num_loops; i++) {
+		cur_size = size;
+		if (cur_size > 0x1FFFFF) {
+			cur_size = 0x1FFFFF;
+		}
+		size -= cur_size;
+		radeon_ring_write(rdev, PACKET0(0x720, 2));
+		radeon_ring_write(rdev, src_offset);
+		radeon_ring_write(rdev, dst_offset);
+		radeon_ring_write(rdev, cur_size | (1 << 31) | (1 << 30));
+		src_offset += cur_size;
+		dst_offset += cur_size;
+	}
+	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(rdev, RADEON_WAIT_DMA_GUI_IDLE);
+	if (fence) {
+		r = radeon_fence_emit(rdev, fence);
+	}
+	radeon_ring_unlock_commit(rdev);
+	return r;
+}
+
 
 static int r200_get_vtx_size_1(uint32_t vtx_fmt_1)
 {
@@ -368,6 +415,8 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		/* 2D, 3D, CUBE */
 		switch (tmp) {
 		case 0:
+		case 3:
+		case 4:
 		case 5:
 		case 6:
 		case 7:
@@ -403,6 +452,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_RGB332:
 		case R200_TXFORMAT_Y8:
 			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R200_TXFORMAT_AI88:
 		case R200_TXFORMAT_ARGB1555:
@@ -414,6 +464,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_DVDU88:
 		case R200_TXFORMAT_AVYU4444:
 			track->textures[i].cpp = 2;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R200_TXFORMAT_ARGB8888:
 		case R200_TXFORMAT_RGBA8888:
@@ -421,6 +472,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_BGR111110:
 		case R200_TXFORMAT_LDVDU8888:
 			track->textures[i].cpp = 4;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R200_TXFORMAT_DXT1:
 			track->textures[i].cpp = 1;

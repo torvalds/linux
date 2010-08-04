@@ -87,17 +87,17 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
+#include <linux/string.h>
+#include <linux/slab.h>
+#include "../comedi.h"
 #include "../comedilib.h"
 #include "../comedidev.h"
-#include <linux/string.h>
 
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 #ifndef STR
 #  define STR1(x) #x
 #  define STR(x) STR1(x)
@@ -142,7 +142,7 @@ static const struct BondingBoard bondingBoards[] = {
 #define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
-	void *dev;
+	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
@@ -404,7 +404,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
-	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;;
@@ -413,11 +413,11 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
-		void *d;
+		struct comedi_device *d;
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 
-		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
+		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
 			return 0;
 		}

@@ -26,10 +26,30 @@ int mc13783_irq_request(struct mc13783 *mc13783, int irq,
 int mc13783_irq_request_nounmask(struct mc13783 *mc13783, int irq,
 		irq_handler_t handler, const char *name, void *dev);
 int mc13783_irq_free(struct mc13783 *mc13783, int irq, void *dev);
-int mc13783_ackirq(struct mc13783 *mc13783, int irq);
 
-int mc13783_mask(struct mc13783 *mc13783, int irq);
-int mc13783_unmask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_mask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_unmask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_status(struct mc13783 *mc13783, int irq,
+		int *enabled, int *pending);
+int mc13783_irq_ack(struct mc13783 *mc13783, int irq);
+
+static inline int mc13783_mask(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_mask(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_mask(mc13783, irq);
+}
+
+static inline int mc13783_unmask(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_unmask(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_unmask(mc13783, irq);
+}
+
+static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_ack(mc13783, irq);
+}
 
 #define MC13783_ADC0		43
 #define MC13783_ADC0_ADREFEN		(1 << 10)
@@ -43,6 +63,70 @@ int mc13783_unmask(struct mc13783 *mc13783, int irq);
 #define MC13783_ADC0_TSMOD_MASK		(MC13783_ADC0_TSMOD0 | \
 					MC13783_ADC0_TSMOD1 | \
 					MC13783_ADC0_TSMOD2)
+
+struct mc13783_led_platform_data {
+#define MC13783_LED_MD		0
+#define MC13783_LED_AD		1
+#define MC13783_LED_KP		2
+#define MC13783_LED_R1		3
+#define MC13783_LED_G1		4
+#define MC13783_LED_B1		5
+#define MC13783_LED_R2		6
+#define MC13783_LED_G2		7
+#define MC13783_LED_B2		8
+#define MC13783_LED_R3		9
+#define MC13783_LED_G3		10
+#define MC13783_LED_B3		11
+#define MC13783_LED_MAX MC13783_LED_B3
+	int id;
+	const char *name;
+	const char *default_trigger;
+
+/* Three or two bits current selection depending on the led */
+	char max_current;
+};
+
+struct mc13783_leds_platform_data {
+	int num_leds;
+	struct mc13783_led_platform_data *led;
+
+#define MC13783_LED_TRIODE_MD	(1 << 0)
+#define MC13783_LED_TRIODE_AD	(1 << 1)
+#define MC13783_LED_TRIODE_KP	(1 << 2)
+#define MC13783_LED_BOOST_EN	(1 << 3)
+#define MC13783_LED_TC1HALF	(1 << 4)
+#define MC13783_LED_SLEWLIMTC	(1 << 5)
+#define MC13783_LED_SLEWLIMBL	(1 << 6)
+#define MC13783_LED_TRIODE_TC1	(1 << 7)
+#define MC13783_LED_TRIODE_TC2	(1 << 8)
+#define MC13783_LED_TRIODE_TC3	(1 << 9)
+	int flags;
+
+#define MC13783_LED_AB_DISABLED		0
+#define MC13783_LED_AB_MD1		1
+#define MC13783_LED_AB_MD12		2
+#define MC13783_LED_AB_MD123		3
+#define MC13783_LED_AB_MD1234		4
+#define MC13783_LED_AB_MD1234_AD1	5
+#define MC13783_LED_AB_MD1234_AD12	6
+#define MC13783_LED_AB_MD1_AD		7
+	char abmode;
+
+#define MC13783_LED_ABREF_200MV	0
+#define MC13783_LED_ABREF_400MV	1
+#define MC13783_LED_ABREF_600MV	2
+#define MC13783_LED_ABREF_800MV	3
+	char abref;
+
+#define MC13783_LED_PERIOD_10MS		0
+#define MC13783_LED_PERIOD_100MS	1
+#define MC13783_LED_PERIOD_500MS	2
+#define MC13783_LED_PERIOD_2S		3
+	char bl_period;
+	char tc1_period;
+	char tc2_period;
+	char tc3_period;
+};
 
 /* to be cleaned up */
 struct regulator_init_data;
@@ -60,12 +144,14 @@ struct mc13783_regulator_platform_data {
 struct mc13783_platform_data {
 	int num_regulators;
 	struct mc13783_regulator_init_data *regulators;
+	struct mc13783_leds_platform_data *leds;
 
 #define MC13783_USE_TOUCHSCREEN (1 << 0)
 #define MC13783_USE_CODEC	(1 << 1)
 #define MC13783_USE_ADC		(1 << 2)
 #define MC13783_USE_RTC		(1 << 3)
 #define MC13783_USE_REGULATOR	(1 << 4)
+#define MC13783_USE_LED		(1 << 5)
 	unsigned int flags;
 };
 
@@ -108,6 +194,8 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 #define	MC13783_REGU_V2		28
 #define	MC13783_REGU_V3		29
 #define	MC13783_REGU_V4		30
+#define	MC13783_REGU_PWGT1SPI	31
+#define	MC13783_REGU_PWGT2SPI	32
 
 #define MC13783_IRQ_ADCDONE	0
 #define MC13783_IRQ_ADCBISDONE	1

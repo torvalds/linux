@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "sound_config.h"
 #include "sound_firmware.h"

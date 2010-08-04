@@ -90,12 +90,3 @@ void nuc900_subclk_enable(struct clk *clk, int enable)
 
 	__raw_writel(clken, W90X900_VA_CLKPWR + SUBCLK);
 }
-
-
-void clks_register(struct clk_lookup *clks, size_t num)
-{
-	int i;
-
-	for (i = 0; i < num; i++)
-		clkdev_add(&clks[i]);
-}

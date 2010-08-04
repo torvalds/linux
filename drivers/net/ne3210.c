@@ -255,8 +255,6 @@ static void ne3210_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	outb(0x01, ioaddr + NE3210_RESET_PORT);
 	if (ei_debug > 1) printk("reset done\n");
-
-	return;
 }
 
 /*

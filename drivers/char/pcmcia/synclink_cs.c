@@ -220,7 +220,6 @@ typedef struct _mgslpc_info {
 
 	/* PCMCIA support */
 	struct pcmcia_device	*p_dev;
-	dev_node_t	      node;
 	int		      stop;
 
 	/* SPPP/Cisco HDLC device parts */
@@ -552,10 +551,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Initialize the struct pcmcia_device structure */
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
-
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -608,9 +603,7 @@ static int mgslpc_config(struct pcmcia_device *link)
     link->conf.ConfigIndex = 8;
     link->conf.Present = PRESENT_OPTION;
 
-    link->irq.Handler     = mgslpc_isr;
-
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_irq(link, mgslpc_isr);
     if (ret)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
@@ -618,17 +611,12 @@ static int mgslpc_config(struct pcmcia_device *link)
 	    goto failed;
 
     info->io_base = link->io.BasePort1;
-    info->irq_level = link->irq.AssignedIRQ;
+    info->irq_level = link->irq;
 
-    /* add to linked list of devices */
-    sprintf(info->node.dev_name, "mgslpc0");
-    info->node.major = info->node.minor = 0;
-    link->dev_node = &info->node;
-
-    printk(KERN_INFO "%s: index 0x%02x:",
-	   info->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x:",
+	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq.AssignedIRQ);
+	    printk(", irq %d", link->irq);
     if (link->io.NumPorts1)
 	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		   link->io.BasePort1+link->io.NumPorts1-1);

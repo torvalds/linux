@@ -18,6 +18,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include "sysfs.h"
@@ -81,24 +82,23 @@ int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr * iattr)
 		if (!sd_attrs)
 			return -ENOMEM;
 		sd->s_iattr = sd_attrs;
-	} else {
-		/* attributes were changed at least once in past */
-		iattrs = &sd_attrs->ia_iattr;
+	}
+	/* attributes were changed at least once in past */
+	iattrs = &sd_attrs->ia_iattr;
 
-		if (ia_valid & ATTR_UID)
-			iattrs->ia_uid = iattr->ia_uid;
-		if (ia_valid & ATTR_GID)
-			iattrs->ia_gid = iattr->ia_gid;
-		if (ia_valid & ATTR_ATIME)
-			iattrs->ia_atime = iattr->ia_atime;
-		if (ia_valid & ATTR_MTIME)
-			iattrs->ia_mtime = iattr->ia_mtime;
-		if (ia_valid & ATTR_CTIME)
-			iattrs->ia_ctime = iattr->ia_ctime;
-		if (ia_valid & ATTR_MODE) {
-			umode_t mode = iattr->ia_mode;
-			iattrs->ia_mode = sd->s_mode = mode;
-		}
+	if (ia_valid & ATTR_UID)
+		iattrs->ia_uid = iattr->ia_uid;
+	if (ia_valid & ATTR_GID)
+		iattrs->ia_gid = iattr->ia_gid;
+	if (ia_valid & ATTR_ATIME)
+		iattrs->ia_atime = iattr->ia_atime;
+	if (ia_valid & ATTR_MTIME)
+		iattrs->ia_mtime = iattr->ia_mtime;
+	if (ia_valid & ATTR_CTIME)
+		iattrs->ia_ctime = iattr->ia_ctime;
+	if (ia_valid & ATTR_MODE) {
+		umode_t mode = iattr->ia_mode;
+		iattrs->ia_mode = sd->s_mode = mode;
 	}
 	return 0;
 }
@@ -112,20 +112,20 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (!sd)
 		return -EINVAL;
 
+	mutex_lock(&sysfs_mutex);
 	error = inode_change_ok(inode, iattr);
 	if (error)
-		return error;
+		goto out;
 
-	iattr->ia_valid &= ~ATTR_SIZE; /* ignore size changes */
-
-	error = inode_setattr(inode, iattr);
-	if (error)
-		return error;
-
-	mutex_lock(&sysfs_mutex);
 	error = sysfs_sd_setattr(sd, iattr);
-	mutex_unlock(&sysfs_mutex);
+	if (error)
+		goto out;
 
+	/* this ignores size changes */
+	generic_setattr(inode, iattr);
+
+out:
+	mutex_unlock(&sysfs_mutex);
 	return error;
 }
 
@@ -284,6 +284,7 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 
 /**
  *	sysfs_get_inode - get inode for sysfs_dirent
+ *	@sb: super block
  *	@sd: sysfs_dirent to allocate inode for
  *
  *	Get inode for @sd.  If such inode doesn't exist, a new inode
@@ -296,11 +297,11 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
  *	RETURNS:
  *	Pointer to allocated inode on success, NULL on failure.
  */
-struct inode * sysfs_get_inode(struct sysfs_dirent *sd)
+struct inode * sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
 {
 	struct inode *inode;
 
-	inode = iget_locked(sysfs_sb, sd->s_ino);
+	inode = iget_locked(sb, sd->s_ino);
 	if (inode && (inode->i_state & I_NEW))
 		sysfs_init_inode(sd, inode);
 
@@ -323,7 +324,7 @@ void sysfs_delete_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
@@ -333,7 +334,9 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	sd = sysfs_find_dirent(dir_sd, name);
+	sd = sysfs_find_dirent(dir_sd, ns, name);
+	if (sd && (sd->s_ns != ns))
+		sd = NULL;
 	if (sd)
 		sysfs_remove_one(&acxt, sd);
 

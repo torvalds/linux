@@ -62,6 +62,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/kernel.h>
@@ -88,6 +89,8 @@ int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 int sysctl_tcp_frto __read_mostly = 2;
 int sysctl_tcp_frto_response __read_mostly;
 int sysctl_tcp_nometrics_save __read_mostly;
+
+int sysctl_tcp_thin_dupack __read_mostly;
 
 int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
 int sysctl_tcp_abc __read_mostly;
@@ -2447,6 +2450,16 @@ static int tcp_time_to_recover(struct sock *sk)
 		return 1;
 	}
 
+	/* If a thin stream is detected, retransmit after first
+	 * received dupack. Employ only if SACK is supported in order
+	 * to avoid possible corner-case series of spurious retransmissions
+	 * Use only if there are no unsent data.
+	 */
+	if ((tp->thin_dupack || sysctl_tcp_thin_dupack) &&
+	    tcp_stream_is_thin(tp) && tcp_dupack_heuristics(tp) > 1 &&
+	    tcp_is_sack(tp) && !tcp_send_head(sk))
+		return 1;
+
 	return 0;
 }
 
@@ -2498,6 +2511,9 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 	int cnt, oldcnt;
 	int err;
 	unsigned int mss;
+
+	if (packets == 0)
+		return;
 
 	WARN_ON(packets > tp->packets_out);
 	if (tp->lost_skb_hint) {
@@ -2623,7 +2639,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	if (sk->sk_family == AF_INET) {
 		printk(KERN_DEBUG "Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &inet->daddr, ntohs(inet->dport),
+		       &inet->inet_daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);
@@ -2633,7 +2649,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 		struct ipv6_pinfo *np = inet6_sk(sk);
 		printk(KERN_DEBUG "Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &np->daddr, ntohs(inet->dport),
+		       &np->daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);
@@ -3694,7 +3710,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	}
 
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP))
-		dst_confirm(sk->sk_dst_cache);
+		dst_confirm(__sk_dst_get(sk));
 
 	return 1;
 
@@ -3829,12 +3845,13 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					/* 16-bit multiple */
 					opt_rx->cookie_plus = opsize;
 					*hvpp = ptr;
+					break;
 				default:
 					/* ignore option */
 					break;
-				};
+				}
 				break;
-			};
+			}
 
 			ptr += opsize-2;
 			length -= opsize;
@@ -4303,7 +4320,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		}
 
 		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
-			SOCK_DEBUG(sk, "ofo packet was already received \n");
+			SOCK_DEBUG(sk, "ofo packet was already received\n");
 			__skb_unlink(skb, &tp->out_of_order_queue);
 			__kfree_skb(skb);
 			continue;
@@ -4351,6 +4368,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq)
 		goto drop;
 
+	skb_dst_drop(skb);
 	__skb_pull(skb, th->doff * 4);
 
 	TCP_ECN_accept_cwr(tp, skb);
@@ -5783,11 +5801,9 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 				/* tcp_ack considers this ACK as duplicate
 				 * and does not calculate rtt.
-				 * Fix it at least with timestamps.
+				 * Force it here.
 				 */
-				if (tp->rx_opt.saw_tstamp &&
-				    tp->rx_opt.rcv_tsecr && !tp->srtt)
-					tcp_ack_saw_tstamp(sk, 0);
+				tcp_ack_update_rtt(sk, 0, 0);
 
 				if (tp->rx_opt.tstamp_ok)
 					tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
@@ -5819,7 +5835,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			if (tp->snd_una == tp->write_seq) {
 				tcp_set_state(sk, TCP_FIN_WAIT2);
 				sk->sk_shutdown |= SEND_SHUTDOWN;
-				dst_confirm(sk->sk_dst_cache);
+				dst_confirm(__sk_dst_get(sk));
 
 				if (!sock_flag(sk, SOCK_DEAD))
 					/* Wake up lingering close() */

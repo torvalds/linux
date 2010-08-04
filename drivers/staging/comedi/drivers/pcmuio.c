@@ -76,6 +76,7 @@ Configuration Options:
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 #include "pcm_common.h"
 

@@ -10,6 +10,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <asm/compat.h>
@@ -253,6 +254,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 }
 
 static const struct file_operations zfcp_cfdc_fops = {
+	.open = nonseekable_open,
 	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = zfcp_cfdc_dev_ioctl

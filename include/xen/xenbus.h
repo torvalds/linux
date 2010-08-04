@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>

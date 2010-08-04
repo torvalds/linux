@@ -57,4 +57,3 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	dev->irq = res;
 	return 0;
 }
-

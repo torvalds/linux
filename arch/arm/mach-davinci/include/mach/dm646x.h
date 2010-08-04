@@ -12,10 +12,11 @@
 #define __ASM_ARCH_DM646X_H
 
 #include <mach/hardware.h>
-#include <mach/emac.h>
 #include <mach/asp.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
+#include <linux/clk.h>
+#include <linux/davinci_emac.h>
 
 #define DM646X_EMAC_BASE		(0x01C80000)
 #define DM646X_EMAC_CNTRL_OFFSET	(0x0000)
@@ -24,12 +25,13 @@
 #define DM646X_EMAC_MDIO_OFFSET		(0x4000)
 #define DM646X_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
-#define DM646X_ATA_REG_BASE		(0x01C66000)
+#define DM646X_ASYNC_EMIF_CONTROL_BASE	0x20008000
+#define DM646X_ASYNC_EMIF_CS2_SPACE_BASE 0x42000000
 
 void __init dm646x_init(void);
-void __init dm646x_init_ide(void);
 void __init dm646x_init_mcasp0(struct snd_platform_data *pdata);
 void __init dm646x_init_mcasp1(struct snd_platform_data *pdata);
+void __init dm646x_board_setup_refclk(struct clk *clk);
 
 void dm646x_video_init(void);
 

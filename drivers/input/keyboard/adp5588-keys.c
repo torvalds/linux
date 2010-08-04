@@ -1,6 +1,7 @@
 /*
  * File: drivers/input/keyboard/adp5588_keys.c
- * Description:  keypad driver for ADP5588 I2C QWERTY Keypad and IO Expander
+ * Description:  keypad driver for ADP5588 and ADP5587
+ *		 I2C QWERTY Keypad and IO Expander
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2008-2009 Analog Devices Inc.
@@ -18,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 
 #include <linux/i2c/adp5588.h>
 
@@ -285,7 +287,6 @@ static int __devexit adp5588_remove(struct i2c_client *client)
 	free_irq(client->irq, kpad);
 	cancel_delayed_work_sync(&kpad->work);
 	input_unregister_device(kpad->input);
-	i2c_set_clientdata(client, NULL);
 	kfree(kpad);
 
 	return 0;
@@ -327,6 +328,7 @@ static const struct dev_pm_ops adp5588_dev_pm_ops = {
 
 static const struct i2c_device_id adp5588_id[] = {
 	{ KBUILD_MODNAME, 0 },
+	{ "adp5587-keys", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_id);
@@ -357,5 +359,5 @@ module_exit(adp5588_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("ADP5588 Keypad driver");
+MODULE_DESCRIPTION("ADP5588/87 Keypad driver");
 MODULE_ALIAS("platform:adp5588-keys");

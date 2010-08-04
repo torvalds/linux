@@ -30,7 +30,7 @@ struct unix_skb_parms {
 #endif
 };
 
-#define UNIXCB(skb) 	(*(struct unix_skb_parms*)&((skb)->cb))
+#define UNIXCB(skb) 	(*(struct unix_skb_parms *)&((skb)->cb))
 #define UNIXCREDS(skb)	(&UNIXCB((skb)).creds)
 #define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
@@ -45,20 +45,22 @@ struct unix_skb_parms {
 struct unix_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
-        struct unix_address     *addr;
-        struct dentry		*dentry;
-        struct vfsmount		*mnt;
+	struct unix_address     *addr;
+	struct dentry		*dentry;
+	struct vfsmount		*mnt;
 	struct mutex		readlock;
-        struct sock		*peer;
-        struct sock		*other;
+	struct sock		*peer;
+	struct sock		*other;
 	struct list_head	link;
-        atomic_long_t           inflight;
-        spinlock_t		lock;
+	atomic_long_t		inflight;
+	spinlock_t		lock;
 	unsigned int		gc_candidate : 1;
 	unsigned int		gc_maybe_cycle : 1;
-        wait_queue_head_t       peer_wait;
+	struct socket_wq	peer_wq;
 };
 #define unix_sk(__sk) ((struct unix_sock *)__sk)
+
+#define peer_wait peer_wq.wait
 
 #ifdef CONFIG_SYSCTL
 extern int unix_sysctl_register(struct net *net);

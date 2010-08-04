@@ -653,6 +653,10 @@ static void __init early_cmdline_parse(void)
 #else
 #define OV5_CMO			0x00
 #endif
+#define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
+
+/* Option Vector 6: IBM PAPR hints */
+#define OV6_LINUX		0x02	/* Linux is our OS */
 
 /*
  * The architecture vector has an array of PVR mask/value pairs,
@@ -665,7 +669,7 @@ static unsigned char ibm_architecture_vec[] = {
 	W(0xffffffff), W(0x0f000003),	/* all 2.06-compliant */
 	W(0xffffffff), W(0x0f000002),	/* all 2.05-compliant */
 	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
-	5 - 1,				/* 5 option vectors */
+	6 - 1,				/* 6 option vectors */
 
 	/* option vector 1: processor architectures supported */
 	3 - 2,				/* length */
@@ -697,12 +701,29 @@ static unsigned char ibm_architecture_vec[] = {
 	0,				/* don't halt */
 
 	/* option vector 5: PAPR/OF options */
-	5 - 2,				/* length */
+	13 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
 	OV5_CMO,
+	OV5_TYPE1_AFFINITY,
+	0,
+	0,
+	0,
+	/* WARNING: The offset of the "number of cores" field below
+	 * must match by the macro below. Update the definition if
+	 * the structure layout changes.
+	 */
+#define IBM_ARCH_VEC_NRCORES_OFFSET	100
+	W(NR_CPUS),			/* number of cores supported */
+
+	/* option vector 6: IBM PAPR hints */
+	4 - 2,				/* length */
+	0,
+	0,
+	OV6_LINUX,
+
 };
 
 /* Old method - ELF header with PT_NOTE sections */
@@ -792,13 +813,70 @@ static struct fake_elf {
 	}
 };
 
+static int __init prom_count_smt_threads(void)
+{
+	phandle node;
+	char type[64];
+	unsigned int plen;
+
+	/* Pick up th first CPU node we can find */
+	for (node = 0; prom_next_node(&node); ) {
+		type[0] = 0;
+		prom_getprop(node, "device_type", type, sizeof(type));
+
+		if (strcmp(type, RELOC("cpu")))
+			continue;
+		/*
+		 * There is an entry for each smt thread, each entry being
+		 * 4 bytes long.  All cpus should have the same number of
+		 * smt threads, so return after finding the first.
+		 */
+		plen = prom_getproplen(node, "ibm,ppc-interrupt-server#s");
+		if (plen == PROM_ERROR)
+			break;
+		plen >>= 2;
+		prom_debug("Found 0x%x smt threads per core\n", (unsigned long)plen);
+
+		/* Sanity check */
+		if (plen < 1 || plen > 64) {
+			prom_printf("Threads per core 0x%x out of bounds, assuming 1\n",
+				    (unsigned long)plen);
+			return 1;
+		}
+		return plen;
+	}
+	prom_debug("No threads found, assuming 1 per core\n");
+
+	return 1;
+
+}
+
+
 static void __init prom_send_capabilities(void)
 {
 	ihandle elfloader, root;
 	prom_arg_t ret;
+	u32 *cores;
 
 	root = call_prom("open", 1, 1, ADDR("/"));
 	if (root != 0) {
+		/* We need to tell the FW about the number of cores we support.
+		 *
+		 * To do that, we count the number of threads on the first core
+		 * (we assume this is the same for all cores) and use it to
+		 * divide NR_CPUS.
+		 */
+		cores = (u32 *)PTRRELOC(&ibm_architecture_vec[IBM_ARCH_VEC_NRCORES_OFFSET]);
+		if (*cores != NR_CPUS) {
+			prom_printf("WARNING ! "
+				    "ibm_architecture_vec structure inconsistent: 0x%x !\n",
+				    *cores);
+		} else {
+			*cores = DIV_ROUND_UP(NR_CPUS, prom_count_smt_threads());
+			prom_printf("Max number of cores passed to firmware: 0x%x\n",
+				    (unsigned long)*cores);
+		}
+
 		/* try calling the ibm,client-architecture-support method */
 		prom_printf("Calling ibm,client-architecture-support...");
 		if (call_prom_ret("call-method", 3, 2, &ret,

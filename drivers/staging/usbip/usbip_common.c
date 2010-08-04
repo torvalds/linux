@@ -23,6 +23,7 @@
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include "usbip_common.h"
 
 /* version information */
@@ -33,7 +34,7 @@
 /*-------------------------------------------------------------------------*/
 /* debug routines */
 
-#ifdef CONFIG_USB_DEBUG
+#ifdef CONFIG_USB_IP_DEBUG_ENABLE
 unsigned long usbip_debug_flag = 0xffffffff;
 #else
 unsigned long usbip_debug_flag;
@@ -55,10 +56,7 @@ static ssize_t show_flag(struct device *dev, struct device_attribute *attr,
 static ssize_t store_flag(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	unsigned long flag;
-
-	sscanf(buf, "%lx", &flag);
-	usbip_debug_flag = flag;
+	sscanf(buf, "%lx", &usbip_debug_flag);
 
 	return count;
 }
@@ -66,33 +64,8 @@ DEVICE_ATTR(usbip_debug, (S_IRUGO | S_IWUSR), show_flag, store_flag);
 
 static void usbip_dump_buffer(char *buff, int bufflen)
 {
-	int i;
-
-	if (bufflen > 128) {
-		for (i = 0; i < 128; i++) {
-			if (i%24 == 0)
-				printk(KERN_DEBUG "   ");
-			printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-			if (i%4 == 3)
-				printk(KERN_DEBUG "| ");
-			if (i%24 == 23)
-				printk(KERN_DEBUG "\n");
-		}
-		printk(KERN_DEBUG "... (%d byte)\n", bufflen);
-		return;
-	}
-
-	for (i = 0; i < bufflen; i++) {
-		if (i%24 == 0)
-			printk(KERN_DEBUG "   ");
-		printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-		if (i%4 == 3)
-			printk(KERN_DEBUG "| ");
-		if (i%24 == 23)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-
+	print_hex_dump(KERN_DEBUG, "usb-ip", DUMP_PREFIX_OFFSET, 16, 4,
+		       buff, bufflen, false);
 }
 
 static void usbip_dump_pipe(unsigned int p)
@@ -405,47 +378,67 @@ int usbip_thread(void *param)
 	complete_and_exit(&ut->thread_done, 0);
 }
 
+static void stop_rx_thread(struct usbip_device *ud)
+{
+	if (ud->tcp_rx.thread != NULL) {
+		send_sig(SIGKILL, ud->tcp_rx.thread, 1);
+		wait_for_completion(&ud->tcp_rx.thread_done);
+		usbip_udbg("rx_thread for ud %p has finished\n", ud);
+	}
+}
+
+static void stop_tx_thread(struct usbip_device *ud)
+{
+	if (ud->tcp_tx.thread != NULL) {
+		send_sig(SIGKILL, ud->tcp_tx.thread, 1);
+		wait_for_completion(&ud->tcp_tx.thread_done);
+		usbip_udbg("tx_thread for ud %p has finished\n", ud);
+	}
+}
+
 int usbip_start_threads(struct usbip_device *ud)
 {
 	/*
 	 * threads are invoked per one device (per one connection).
 	 */
 	struct task_struct *th;
+	int err = 0;
 
 	th = kthread_run(usbip_thread, (void *)&ud->tcp_rx, "usbip");
 	if (IS_ERR(th)) {
 		printk(KERN_WARNING
 			"Unable to start control thread\n");
-		return PTR_ERR(th);
+		err = PTR_ERR(th);
+		goto ust_exit;
 	}
+
 	th = kthread_run(usbip_thread, (void *)&ud->tcp_tx, "usbip");
 	if (IS_ERR(th)) {
 		printk(KERN_WARNING
 			"Unable to start control thread\n");
-		return PTR_ERR(th);
+		err = PTR_ERR(th);
+		goto tx_thread_err;
 	}
 
 	/* confirm threads are starting */
 	wait_for_completion(&ud->tcp_rx.thread_done);
 	wait_for_completion(&ud->tcp_tx.thread_done);
+
 	return 0;
+
+tx_thread_err:
+	stop_rx_thread(ud);
+
+ust_exit:
+	return err;
 }
 EXPORT_SYMBOL_GPL(usbip_start_threads);
 
 void usbip_stop_threads(struct usbip_device *ud)
 {
 	/* kill threads related to this sdev, if v.c. exists */
-	if (ud->tcp_rx.thread != NULL) {
-		send_sig(SIGKILL, ud->tcp_rx.thread, 1);
-		wait_for_completion(&ud->tcp_rx.thread_done);
-		usbip_udbg("rx_thread for ud %p has finished\n", ud);
-	}
-
-	if (ud->tcp_tx.thread != NULL) {
-		send_sig(SIGKILL, ud->tcp_tx.thread, 1);
-		wait_for_completion(&ud->tcp_tx.thread_done);
-		usbip_udbg("tx_thread for ud %p has finished\n", ud);
-	}
+	stop_rx_thread(ud);
+	stop_tx_thread(ud);
 }
 EXPORT_SYMBOL_GPL(usbip_stop_threads);
 
@@ -558,60 +551,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(usbip_xmit);
 
-
-/* now a usrland utility should set options. */
-#if 0
-int setquickack(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_QUICKACK,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setnodelay(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_NODELAY,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setkeepalive(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-void setreuse(struct socket *socket)
-{
-	socket->sk->sk_reuse = 1;
-}
-#endif
-
 struct socket *sockfd_to_socket(unsigned int sockfd)
 {
 	struct socket *socket;
@@ -643,7 +582,7 @@ EXPORT_SYMBOL_GPL(sockfd_to_socket);
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
 {
-	flags &= ~(URB_NO_TRANSFER_DMA_MAP|URB_NO_SETUP_DMA_MAP);
+	flags &= ~URB_NO_TRANSFER_DMA_MAP;
 	return flags;
 }
 

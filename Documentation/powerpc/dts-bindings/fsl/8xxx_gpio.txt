@@ -11,7 +11,7 @@ Required properties:
   83xx, "fsl,mpc8572-gpio" for 85xx and "fsl,mpc8610-gpio" for 86xx.
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters (currently unused).
- - interrupts : Interrupt mapping for GPIO IRQ (currently unused).
+ - interrupts : Interrupt mapping for GPIO IRQ.
  - interrupt-parent : Phandle for the interrupt controller that
    services interrupts for this device.
 - gpio-controller : Marks the port as GPIO controller.
@@ -38,3 +38,23 @@ Example of gpio-controller nodes for a MPC8347 SoC:
 
 See booting-without-of.txt for details of how to specify GPIO
 information for devices.
+
+To use GPIO pins as interrupt sources for peripherals, specify the
+GPIO controller as the interrupt parent and define GPIO number +
+trigger mode using the interrupts property, which is defined like
+this:
+
+interrupts = <number trigger>, where:
+ - number: GPIO pin (0..31)
+ - trigger: trigger mode:
+	2 = trigger on falling edge
+	3 = trigger on both edges
+
+Example of device using this is:
+
+	funkyfpga@0 {
+		compatible = "funky-fpga";
+		...
+		interrupts = <4 3>;
+		interrupt-parent = <&gpio1>;
+	};

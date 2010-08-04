@@ -32,6 +32,7 @@
  *  add RDS support
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>			/* Initdata			*/
 #include <linux/videodev2.h>		/* kernel radio structs		*/

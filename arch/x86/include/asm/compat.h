@@ -8,7 +8,8 @@
 #include <linux/sched.h>
 #include <asm/user32.h>
 
-#define COMPAT_USER_HZ	100
+#define COMPAT_USER_HZ		100
+#define COMPAT_UTS_MACHINE	"i686\0\0"
 
 typedef u32		compat_size_t;
 typedef s32		compat_ssize_t;

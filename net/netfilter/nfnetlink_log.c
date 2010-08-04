@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nfnetlink_log.h>
@@ -296,7 +297,7 @@ nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
 	n = max(inst_size, pkt_size);
 	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
-		PRINTR("nfnetlink_log: can't alloc whole buffer (%u bytes)\n",
+		pr_notice("nfnetlink_log: can't alloc whole buffer (%u bytes)\n",
 			inst_size);
 
 		if (n > pkt_size) {
@@ -305,7 +306,7 @@ nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
 
 			skb = alloc_skb(pkt_size, GFP_ATOMIC);
 			if (!skb)
-				PRINTR("nfnetlink_log: can't even alloc %u "
+				pr_err("nfnetlink_log: can't even alloc %u "
 				       "bytes\n", pkt_size);
 		}
 	}
@@ -323,7 +324,8 @@ __nfulnl_send(struct nfulnl_instance *inst)
 			  NLMSG_DONE,
 			  sizeof(struct nfgenmsg));
 
-	status = nfnetlink_unicast(inst->skb, inst->peer_pid, MSG_DONTWAIT);
+	status = nfnetlink_unicast(inst->skb, &init_net, inst->peer_pid,
+				   MSG_DONTWAIT);
 
 	inst->qlen = 0;
 	inst->skb = NULL;
@@ -767,7 +769,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			}
 
 			instance_destroy(inst);
-			goto out;
+			goto out_put;
 		default:
 			ret = -ENOTSUPP;
 			break;

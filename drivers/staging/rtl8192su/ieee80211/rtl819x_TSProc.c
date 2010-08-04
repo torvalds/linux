@@ -1,5 +1,6 @@
 #include "ieee80211.h"
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include "rtl819x_TS.h"
 
 void TsSetupTimeOut(unsigned long data)
@@ -21,7 +22,6 @@ void TsInactTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
 ********************************************************************************************************************/
-#if 1
 void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -82,8 +82,6 @@ void RxPktPendingTimeout(unsigned long data)
 			return;
 		}
 		ieee80211_indicate_packets(ieee, stats_IndicateArray, index);
-		 bPktInBuf = false;
-
 	}
 
 	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
@@ -94,7 +92,6 @@ void RxPktPendingTimeout(unsigned long data)
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
 }
-#endif
 
 /********************************************************************************************************************
  *function:  Add BA timer function
@@ -291,7 +288,7 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 
 		if(search_dir[dir] ==false )
 			continue;
 		list_for_each_entry(pRet, psearch_list, List){
-	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:"MAC_FMT", TID:%d, dir:%d\n", MAC_ARG(pRet->Addr), pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
+	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
 			if (memcmp(pRet->Addr, Addr, 6) == 0)
 				if (pRet->TSpec.f.TSInfo.field.ucTSID == TID)
 					if(pRet->TSpec.f.TSInfo.field.ucDirection == dir)
@@ -447,7 +444,7 @@ bool GetTs(
 					ResetRxTsEntry(tmp);
 				}
 
-				IEEE80211_DEBUG(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:"MAC_FMT"\n", UP, Dir, MAC_ARG(Addr));
+				IEEE80211_DEBUG(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:%pM\n", UP, Dir, Addr);
 				// Prepare TS Info releated field
 				pTSInfo->field.ucTrafficType = 0;			// Traffic type: WMM is reserved in this field
 				pTSInfo->field.ucTSID = UP;			// TSID
@@ -533,8 +530,8 @@ void RemoveTsEntry(
 void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
-	printk("===========>RemovePeerTS,"MAC_FMT"\n", MAC_ARG(Addr));
-#if 1
+
+	printk("===========>RemovePeerTS,%pM\n", Addr);
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		if (memcmp(pTS->Addr, Addr, 6) == 0)
@@ -575,13 +572,12 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 		}
 	}
-#endif
 }
 
 void RemoveAllTS(struct ieee80211_device* ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
-#if 1
+
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -609,7 +605,6 @@ void RemoveAllTS(struct ieee80211_device* ieee)
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 	}
-#endif
 }
 
 void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
@@ -617,7 +612,6 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	if(pTxTS->bAddBaReqInProgress == false)
 	{
 		pTxTS->bAddBaReqInProgress = true;
-#if 1
 		if(pTxTS->bAddBaReqDelayed)
 		{
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
@@ -628,7 +622,6 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 			IEEE80211_DEBUG(IEEE80211_DL_BA,"TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10); //set 10 ticks
 		}
-#endif
 	}
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);

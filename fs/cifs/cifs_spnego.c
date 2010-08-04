@@ -20,6 +20,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <keys/user-type.h>
 #include <linux/key-type.h>
@@ -132,9 +133,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	dp = description + strlen(description);
 
 	/* for now, only sec=krb5 and sec=mskrb5 are valid */
-	if (server->secType == Kerberos)
+	if (server->sec_kerberos)
 		sprintf(dp, ";sec=krb5");
-	else if (server->secType == MSKerberos)
+	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
 	else
 		goto out;
@@ -148,7 +149,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	dp = description + strlen(description);
 	sprintf(dp, ";pid=0x%x", current->pid);
 
-	cFYI(1, ("key description = %s", description));
+	cFYI(1, "key description = %s", description);
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
 
 #ifdef CONFIG_CIFS_DEBUG2

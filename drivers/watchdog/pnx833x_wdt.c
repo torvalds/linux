@@ -33,6 +33,8 @@
 #define PFX "pnx833x: "
 #define WATCHDOG_TIMEOUT 30		/* 30 sec Maximum timeout */
 #define WATCHDOG_COUNT_FREQUENCY 68000000U /* Watchdog counts at 68MHZ. */
+#define	PNX_WATCHDOG_TIMEOUT	(WATCHDOG_TIMEOUT * WATCHDOG_COUNT_FREQUENCY)
+#define PNX_TIMEOUT_VALUE	2040000000U
 
 /** CONFIG block */
 #define PNX833X_CONFIG                      (0x07000U)
@@ -47,20 +49,21 @@
 static int pnx833x_wdt_alive;
 
 /* Set default timeout in MHZ.*/
-static int pnx833x_wdt_timeout = (WATCHDOG_TIMEOUT * WATCHDOG_COUNT_FREQUENCY);
+static int pnx833x_wdt_timeout = PNX_WATCHDOG_TIMEOUT;
 module_param(pnx833x_wdt_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in Mhz. (68Mhz clock), default="
-			__MODULE_STRING(pnx833x_wdt_timeout) "(30 seconds).");
+			__MODULE_STRING(PNX_TIMEOUT_VALUE) "(30 seconds).");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 					__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static int start_enabled = 1;
+#define START_DEFAULT	1
+static int start_enabled = START_DEFAULT;
 module_param(start_enabled, int, 0);
 MODULE_PARM_DESC(start_enabled, "Watchdog is started on module insertion "
-				"(default=" __MODULE_STRING(start_enabled) ")");
+				"(default=" __MODULE_STRING(START_DEFAULT) ")");
 
 static void pnx833x_wdt_start(void)
 {
@@ -141,7 +144,7 @@ static long pnx833x_wdt_ioctl(struct file *file, unsigned int cmd,
 	int options, new_timeout = 0;
 	uint32_t timeout, timeout_left = 0;
 
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
 		.firmware_version = 0,
 		.identity = "Hardware Watchdog for PNX833x",

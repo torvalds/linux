@@ -35,7 +35,6 @@
 
 #include <plat/regs-serial.h>
 #include <plat/gpio-cfg.h>
-#include <plat/regs-gpio.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
@@ -44,38 +43,48 @@
 #include <plat/fb.h>
 #include <plat/iic.h>
 
-#define UCON (S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK)
-#define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)
-#define UFCON (S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE)
+/* Following are default values for UCON, ULCON and UFCON UART registers */
+#define S5PC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+				 S3C2410_UCON_RXILEVEL |	\
+				 S3C2410_UCON_TXIRQMODE |	\
+				 S3C2410_UCON_RXIRQMODE |	\
+				 S3C2410_UCON_RXFIFO_TOI |	\
+				 S3C2443_UCON_RXERR_IRQEN)
+
+#define S5PC100_ULCON_DEFAULT	S3C2410_LCON_CS8
+
+#define S5PC100_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+				 S3C2440_UFCON_RXTRIG8 |	\
+				 S3C2440_UFCON_TXTRIG16)
 
 static struct s3c2410_uartcfg smdkc100_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
-		.ucon	     = 0x3c5,
-		.ulcon	     = 0x03,
-		.ufcon	     = 0x51,
+		.ucon	     = S5PC100_UCON_DEFAULT,
+		.ulcon	     = S5PC100_ULCON_DEFAULT,
+		.ufcon	     = S5PC100_UFCON_DEFAULT,
 	},
 	[1] = {
 		.hwport	     = 1,
 		.flags	     = 0,
-		.ucon	     = 0x3c5,
-		.ulcon	     = 0x03,
-		.ufcon	     = 0x51,
+		.ucon	     = S5PC100_UCON_DEFAULT,
+		.ulcon	     = S5PC100_ULCON_DEFAULT,
+		.ufcon	     = S5PC100_UFCON_DEFAULT,
 	},
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
-		.ucon	     = 0x3c5,
-		.ulcon	     = 0x03,
-		.ufcon	     = 0x51,
+		.ucon	     = S5PC100_UCON_DEFAULT,
+		.ulcon	     = S5PC100_ULCON_DEFAULT,
+		.ufcon	     = S5PC100_UFCON_DEFAULT,
 	},
 	[3] = {
 		.hwport	     = 3,
 		.flags	     = 0,
-		.ucon	     = 0x3c5,
-		.ulcon	     = 0x03,
-		.ufcon	     = 0x51,
+		.ucon	     = S5PC100_UCON_DEFAULT,
+		.ulcon	     = S5PC100_ULCON_DEFAULT,
+		.ufcon	     = S5PC100_UFCON_DEFAULT,
 	},
 };
 
@@ -119,8 +128,7 @@ static struct platform_device smdkc100_lcd_powerdev = {
 static struct s3c_fb_pd_win smdkc100_fb_win0 = {
 	/* this is to ensure we use win0 */
 	.win_mode	= {
-		.refresh	= 70,
-		.pixclock	= (8+13+3+800)*(7+5+1+480),
+		.pixclock = 1000000000000ULL / ((8+13+3+800)*(7+5+1+480)*80),
 		.left_margin	= 8,
 		.right_margin	= 13,
 		.upper_margin	= 7,
@@ -141,8 +149,6 @@ static struct s3c_fb_platdata smdkc100_lcd_pdata __initdata = {
 	.setup_gpio	= s5pc100_fb_gpio_setup_24bpp,
 };
 
-static struct map_desc smdkc100_iodesc[] = {};
-
 static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
@@ -151,11 +157,13 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&smdkc100_lcd_powerdev,
+	&s5pc100_device_iis0,
+	&s5pc100_device_ac97,
 };
 
 static void __init smdkc100_map_io(void)
 {
-	s5pc1xx_init_io(smdkc100_iodesc, ARRAY_SIZE(smdkc100_iodesc));
+	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdkc100_uartcfgs, ARRAY_SIZE(smdkc100_uartcfgs));
 }
@@ -179,10 +187,9 @@ static void __init smdkc100_machine_init(void)
 
 MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
-	.phys_io	= S5PC100_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S5PC1XX_VA_UART) >> 18) & 0xfffc,
-	.boot_params	= S5PC100_PA_SDRAM + 0x100,
-
+	.phys_io	= S3C_PA_UART & 0xfff00000,
+	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5pc100_init_irq,
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,

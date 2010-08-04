@@ -109,7 +109,8 @@ void zfGetRxIvIcvLength(zdev_t* dev, zbuf_t* buf, u8_t vap, u16_t* pIvLen,
                 addr[2] = zmw_rx_buf_readh(dev, buf, ZM_WLAN_HEADER_A2_OFFSET+4);
 
                 /* Find STA's information */
-                if ((id = zfApFindSta(dev, addr)) != 0xffff)
+                id = zfApFindSta(dev, addr);
+                if (id != 0xffff)
                 {
                     if (wd->ap.staTable[id].encryMode == ZM_TKIP)
                     {
@@ -132,7 +133,8 @@ void zfGetRxIvIcvLength(zdev_t* dev, zbuf_t* buf, u8_t vap, u16_t* pIvLen,
                 }
             }
             /* WDS port checking */
-            if ((wdsPort = vap - 0x20) >= ZM_MAX_WDS_SUPPORT)
+            wdsPort = vap - 0x20;
+            if (wdsPort >= ZM_MAX_WDS_SUPPORT)
             {
                 wdsPort = 0;
             }
@@ -536,8 +538,7 @@ void zfProtRspSim(zdev_t* dev, zbuf_t* buf)
         zm_msg2_rx(ZM_LV_2, "ip1=", dip[1]);
 
         //ARP request to 192.168.1.15
-        if ((arpOp == 0x0100) && (dip[0] == 0xa8c0) && (dip[1] == 0x0f01));
-        {
+        if ((arpOp == 0x0100) && (dip[0] == 0xa8c0) && (dip[1] == 0x0f01)) {
             zm_msg0_rx(ZM_LV_2, "ARP");
             /* ARP response */
             zmw_rx_buf_writeh(dev, buf, 20, 0x0200);
@@ -742,8 +743,9 @@ u16_t zfiTxSend80211Mgmt(zdev_t* dev, zbuf_t* buf, u16_t port)
 
     zfwBufRemoveHead(dev, buf, 24);
 
-    if ((err = zfHpSend(dev, header, hlen, NULL, 0, NULL, 0, buf, 0,
-            ZM_EXTERNAL_ALLOC_BUF, 0, 0)) != ZM_SUCCESS)
+    err = zfHpSend(dev, header, hlen, NULL, 0, NULL, 0, buf, 0,
+		   ZM_EXTERNAL_ALLOC_BUF, 0, 0);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }
@@ -800,7 +802,8 @@ u16_t zfiTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port)
     ZM_PERFORMANCE_TX_MSDU(dev, wd->tick);
     zm_msg1_tx(ZM_LV_2, "zfiTxSendEth(), port=", port);
     /* Return error if port is disabled */
-    if ((err = zfTxPortControl(dev, buf, port)) == ZM_PORT_DISABLED)
+    err = zfTxPortControl(dev, buf, port);
+    if (err == ZM_PORT_DISABLED)
     {
         err = ZM_ERR_TX_PORT_DISABLED;
         goto zlError;
@@ -810,7 +813,8 @@ u16_t zfiTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port)
     if ((wd->wlanMode == ZM_MODE_AP) && (port < 0x20))
     {
         /* AP : Buffer frame for power saving STA */
-        if ((ret = zfApBufferPsFrame(dev, buf, port)) == 1)
+        ret = zfApBufferPsFrame(dev, buf, port);
+        if (ret == 1)
         {
             return ZM_SUCCESS;
         }
@@ -883,7 +887,6 @@ zlError:
 /************************************************************************/
 u16_t zfTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u16_t flag)
 {
-    u16_t err;
     //u16_t addrTblSize;
     //struct zsAddrTbl addrTbl;
     u16_t removeLen;
@@ -905,7 +908,6 @@ u16_t zfTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u16_t fla
     u8_t qosType, keyIdx = 0;
     u16_t fragOff;
     u16_t newFlag;
-    struct zsMicVar*  pMicKey;
     u8_t tkipFrameOffset = 0;
 
     zmw_get_wlan_dev(dev);
@@ -1122,7 +1124,8 @@ u16_t zfTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u16_t fla
             i = 0;
             while( frameLen > 0 )
             {
-                if ((frag.buf[i] = zfwBufAllocate(dev, fragLen+32)) != NULL)
+                frag.buf[i] = zfwBufAllocate(dev, fragLen+32);
+                if (frag.buf[i] != NULL)
                 {
                     frag.bufType[i] = ZM_INTERNAL_ALLOC_BUF;
                     frag.seq[i] = frag.seq[0] + i;
@@ -1279,7 +1282,8 @@ void zfCoreRecv(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
     bssid[2] = zmw_buf_readh(dev, buf, 20);
 
     /* Validate Rx frame */
-    if ((ret = zfWlanRxValidate(dev, buf)) != ZM_SUCCESS)
+    ret = zfWlanRxValidate(dev, buf);
+    if (ret != ZM_SUCCESS)
     {
         zm_msg1_rx(ZM_LV_1, "Rx invalid:", ret);
         goto zlError;
@@ -1304,7 +1308,8 @@ void zfCoreRecv(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
 #endif
 
     /* Filter Rx frame */
-    if ((ret = zfWlanRxFilter(dev, buf)) != ZM_SUCCESS)
+    ret = zfWlanRxFilter(dev, buf);
+    if (ret != ZM_SUCCESS)
     {
         zm_msg1_rx(ZM_LV_1, "Rx duplicated:", ret);
         goto zlError;
@@ -1692,8 +1697,6 @@ void zfShowTxEAPOL(zdev_t* dev, zbuf_t* buf, u16_t offset)
     u8_t   packetType, keyType, code, identifier, type, flags;
     u16_t  packetLen, keyInfo, keyLen, keyDataLen, length, Op_Code;
     u32_t  replayCounterH, replayCounterL, vendorId, VendorType;
-
-    zmw_get_wlan_dev(dev);
 
     zm_debug_msg1("EAPOL Packet size = ", zfwBufGetSize(dev, buf));
 
@@ -2091,7 +2094,8 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
         //zm_msg0_rx(ZM_LV_0, "Rx data");
         if (wd->wlanMode == ZM_MODE_AP)
         {
-            if ((ret = zfApUpdatePsBit(dev, buf, &vap, &uapsdTrig)) != ZM_SUCCESS)
+            ret = zfApUpdatePsBit(dev, buf, &vap, &uapsdTrig);
+            if (ret != ZM_SUCCESS)
             {
                 zfwBufFree(dev, buf, 0);
                 return;
@@ -2120,7 +2124,8 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
                     for (ii=0; ii<pktNum; ii++)
                     {
                         //if ((psBuf = zfQueueGet(dev, wd->ap.uapsdQ)) != NULL)
-                        if ((psBuf = zfQueueGetWithMac(dev, wd->ap.uapsdQ, src, &mb)) != NULL)
+                        psBuf = zfQueueGetWithMac(dev, wd->ap.uapsdQ, src, &mb);
+                        if (psBuf != NULL)
                         {
                             if ((ii+1) == pktNum)
                             {
@@ -2237,7 +2242,8 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
         }
         else
         {
-            if ( (buf = zfDefragment(dev, buf, &bIsDefrag, addInfo)) == NULL )
+            buf = zfDefragment(dev, buf, &bIsDefrag, addInfo);
+            if (buf == NULL)
             {
                 /* In this case, the buffer has been freed in zfDefragment */
                 return;
@@ -2437,7 +2443,6 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
                     u16_t IvOffset;
                     u8_t keyLen = 5;
                     u8_t iv[3];
-                    u8_t *wepKey;
                     u8_t keyIdx;
 
                     IvOffset = offset + ZM_SIZE_OF_WLAN_DATA_HEADER;
@@ -2842,7 +2847,8 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
                 zfwBufRemoveHead(dev, buf, 18+offset);
 #endif  // ZM_ENABLE_NATIVE_WIFI
                 #if 1
-                if ((ret = zfIntrabssForward(dev, buf, vap)) == 1)
+                ret = zfIntrabssForward(dev, buf, vap);
+                if (ret == 1)
                 {
                     /* Free Rx buffer if intra-BSS unicast frame */
                     zm_msg0_rx(ZM_LV_2, "Free intra-BSS unicast frame");
@@ -3043,7 +3049,8 @@ u16_t zfWlanRxValidate(zdev_t* dev, zbuf_t* buf)
     }
     else if ( wd->wlanMode != ZM_MODE_PSEUDO )
     {
-        if ( (ret=zfStaRxValidateFrame(dev, buf))!=ZM_SUCCESS )
+        ret = zfStaRxValidateFrame(dev, buf);
+        if (ret != ZM_SUCCESS)
         {
             //zm_debug_msg1("discard frame, code = ", ret);
             return ret;
@@ -3793,12 +3800,14 @@ void zfPushVtxq(zdev_t* dev)
         /* 2006.12.20, Serve Management queue */
         while( zfHpGetFreeTxdCount(dev) > 0 )
         {
-            if ((buf = zfGetVmmq(dev)) != 0)
+            buf = zfGetVmmq(dev);
+            if (buf != 0)
             {
                 txed = 1;
                 //zm_debug_msg2("send buf = ", buf);
-                if ((err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
-                        ZM_INTERNAL_ALLOC_BUF, 0, 0xff)) != ZM_SUCCESS)
+                err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
+			       ZM_INTERNAL_ALLOC_BUF, 0, 0xff);
+                if (err != ZM_SUCCESS)
                 {
                     zfwBufFree(dev, buf, 0);
                 }
@@ -3837,9 +3846,11 @@ void zfPushVtxq(zdev_t* dev)
         /* Service VTxQ[3] */
         for (i=0; i<4; i++)
         {
-            if ((freeTxd = zfHpGetFreeTxdCount(dev)) >= 3)
+            freeTxd = zfHpGetFreeTxdCount(dev);
+            if (freeTxd >= 3)
             {
-                if ((buf = zfGetVtxq(dev, 3)) != 0)
+                buf = zfGetVtxq(dev, 3);
+                if (buf != 0)
                 {
                     txed = 1;
                     //zm_debug_msg2("send buf = ", buf);
@@ -3856,9 +3867,11 @@ void zfPushVtxq(zdev_t* dev)
         /* Service VTxQ[2] */
         for (i=0; i<3; i++)
         {
-            if ((freeTxd = zfHpGetFreeTxdCount(dev)) >= (zfHpGetMaxTxdCount(dev)*1/4))
+            freeTxd = zfHpGetFreeTxdCount(dev);
+            if (freeTxd >= (zfHpGetMaxTxdCount(dev)*1/4))
             {
-                if ((buf = zfGetVtxq(dev, 2)) != 0)
+                buf = zfGetVtxq(dev, 2);
+                if (buf != 0)
                 {
                     txed = 1;
                     zfTxSendEth(dev, buf, 0, ZM_EXTERNAL_ALLOC_BUF, 0);
@@ -3866,7 +3879,8 @@ void zfPushVtxq(zdev_t* dev)
                 }
                 if (wd->sta.ac0PriorityHigherThanAc2 == 1)
                 {
-                    if ((buf = zfGetVtxq(dev, 0)) != 0)
+                    buf = zfGetVtxq(dev, 0);
+                    if (buf != 0)
                     {
                         txed = 1;
                         zfTxSendEth(dev, buf, 0, ZM_EXTERNAL_ALLOC_BUF, 0);
@@ -3883,9 +3897,11 @@ void zfPushVtxq(zdev_t* dev)
         /* Service VTxQ[0] */
         for (i=0; i<2; i++)
         {
-            if ((freeTxd = zfHpGetFreeTxdCount(dev)) >= (zfHpGetMaxTxdCount(dev)*2/4))
+            freeTxd = zfHpGetFreeTxdCount(dev);
+            if (freeTxd >= (zfHpGetMaxTxdCount(dev)*2/4))
             {
-                if ((buf = zfGetVtxq(dev, 0)) != 0)
+                buf = zfGetVtxq(dev, 0);
+                if (buf != 0)
                 {
                     txed = 1;
                     zfTxSendEth(dev, buf, 0, ZM_EXTERNAL_ALLOC_BUF, 0);
@@ -3900,9 +3916,11 @@ void zfPushVtxq(zdev_t* dev)
         }
 
         /* Service VTxQ[1] */
-        if ((freeTxd = zfHpGetFreeTxdCount(dev)) >= (zfHpGetMaxTxdCount(dev)*3/4))
+        freeTxd = zfHpGetFreeTxdCount(dev);
+        if (freeTxd >= (zfHpGetMaxTxdCount(dev)*3/4))
         {
-            if ((buf = zfGetVtxq(dev, 1)) != 0)
+            buf = zfGetVtxq(dev, 1);
+            if (buf != 0)
             {
                 txed = 1;
                 zfTxSendEth(dev, buf, 0, ZM_EXTERNAL_ALLOC_BUF, 0);
@@ -3989,9 +4007,10 @@ void zf80211FrameSend(zdev_t* dev, zbuf_t* buf, u16_t* header, u16_t snapLen,
     }
     wd->ledStruct.txTraffic++;
 
-    if ((err = zfHpSend(dev, header, headerLen, snap, snapLen,
+    err = zfHpSend(dev, header, headerLen, snap, snapLen,
                         tail, tailLen, buf, offset,
-                        bufType, ac, keyIdx)) != ZM_SUCCESS)
+                        bufType, ac, keyIdx);
+    if (err != ZM_SUCCESS)
     {
         if (bufType == ZM_EXTERNAL_ALLOC_BUF)
         {

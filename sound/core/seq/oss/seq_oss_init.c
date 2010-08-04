@@ -29,6 +29,7 @@
 #include "seq_oss_event.h"
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 
 /*
  * common variables

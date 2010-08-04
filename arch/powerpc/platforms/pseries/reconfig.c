@@ -15,6 +15,7 @@
 #include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 
 #include <asm/prom.h>
 #include <asm/machdep.h>

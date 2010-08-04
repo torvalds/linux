@@ -24,7 +24,7 @@
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx27.h>
 #include <mach/imxfb.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
@@ -190,8 +190,8 @@ static struct imx_fb_platform_data pcm038_fb_data = {
 
 static struct resource pcm970_sja1000_resources[] = {
 	{
-		.start   = CS4_BASE_ADDR,
-		.end     = CS4_BASE_ADDR + 0x100 - 1,
+		.start   = MX27_CS4_BASE_ADDR,
+		.end     = MX27_CS4_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
 		.start   = IRQ_GPIOE(19),
@@ -201,9 +201,9 @@ static struct resource pcm970_sja1000_resources[] = {
 };
 
 struct sja1000_platform_data pcm970_sja1000_platform_data = {
-	.clock		= 16000000 / 2,
-	.ocr		= 0x40 | 0x18,
-	.cdr		= 0x40,
+	.osc_freq	= 16000000,
+	.ocr		= OCR_TX1_PULLDOWN | OCR_TX0_PUSHPULL,
+	.cdr		= CDR_CBP,
 };
 
 static struct platform_device pcm970_sja1000 = {

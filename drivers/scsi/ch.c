@@ -23,6 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

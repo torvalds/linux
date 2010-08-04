@@ -13,7 +13,8 @@
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 
-#define QDIO_MAX_QUEUES_PER_IRQ		32
+/* only use 4 queues to save some cachelines */
+#define QDIO_MAX_QUEUES_PER_IRQ		4
 #define QDIO_MAX_BUFFERS_PER_Q		128
 #define QDIO_MAX_BUFFERS_MASK		(QDIO_MAX_BUFFERS_PER_Q - 1)
 #define QDIO_MAX_ELEMENTS_PER_BUFFER	16
@@ -320,11 +321,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 #define QDIO_ERROR_ACTIVATE_CHECK_CONDITION	0x40
 #define QDIO_ERROR_SLSB_STATE			0x80
 
-/* for qdio_initialize */
-#define QDIO_INBOUND_0COPY_SBALS		0x01
-#define QDIO_OUTBOUND_0COPY_SBALS		0x02
-#define QDIO_USE_OUTBOUND_PCIS			0x04
-
 /* for qdio_cleanup */
 #define QDIO_FLAG_CLEANUP_USING_CLEAR		0x01
 #define QDIO_FLAG_CLEANUP_USING_HALT		0x02
@@ -343,7 +339,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
  * @int_parm: interruption parameter
- * @flags: initialization flags
  * @input_sbal_addr_array:  address of no_input_qs * 128 pointers
  * @output_sbal_addr_array: address of no_output_qs * 128 pointers
  */
@@ -360,7 +355,6 @@ struct qdio_initialize {
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	unsigned long int_parm;
-	unsigned long flags;
 	void **input_sbal_addr_array;
 	void **output_sbal_addr_array;
 };
@@ -374,14 +368,12 @@ struct qdio_initialize {
 #define QDIO_FLAG_SYNC_OUTPUT		0x02
 #define QDIO_FLAG_PCI_OUT		0x10
 
-extern int qdio_initialize(struct qdio_initialize *);
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
 
 extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 		   int q_nr, unsigned int bufnr, unsigned int count);
-extern int qdio_cleanup(struct ccw_device*, int);
 extern int qdio_shutdown(struct ccw_device*, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *dev, struct qdio_ssqd_desc*);

@@ -207,6 +207,21 @@ config USB_OHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ohci-hcd.
 
+config USB_OHCI_HCD_OMAP1
+	bool "OHCI support for OMAP1/2 chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP1 || ARCH_OMAP2)
+	default y
+	---help---
+	  Enables support for the OHCI controller on OMAP1/2 chips.
+
+config USB_OHCI_HCD_OMAP3
+	bool "OHCI support for OMAP3 and later chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP3 || ARCH_OMAP4)
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  OMAP3 and later chips.
+
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
 	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
@@ -399,3 +414,14 @@ config USB_HWA_HCD
 
 	  To compile this driver a module, choose M here: the module
 	  will be called "hwa-hc".
+
+config USB_IMX21_HCD
+       tristate "iMX21 HCD support"
+       depends on USB && ARM && MACH_MX21
+       help
+         This driver enables support for the on-chip USB host in the
+         iMX21 processor.
+
+         To compile this driver as a module, choose M here: the
+         module will be called "imx21-hcd".
+

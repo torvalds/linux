@@ -193,9 +193,9 @@ out:
 			rds_tcp_stats_inc(s_tcp_sndbuf_full);
 			ret = 0;
 		} else {
-			printk(KERN_WARNING "RDS/tcp: send to %u.%u.%u.%u "
+			printk(KERN_WARNING "RDS/tcp: send to %pI4 "
 			       "returned %d, disconnecting and reconnecting\n",
-			       NIPQUAD(conn->c_faddr), ret);
+			       &conn->c_faddr, ret);
 			rds_conn_drop(conn);
 		}
 	}
@@ -240,7 +240,9 @@ void rds_tcp_write_space(struct sock *sk)
 	tc->t_last_seen_una = rds_tcp_snd_una(tc);
 	rds_send_drop_acked(conn, rds_tcp_snd_una(tc), rds_tcp_is_acked);
 
-	queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+        if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf)
+		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+
 out:
 	read_unlock(&sk->sk_callback_lock);
 

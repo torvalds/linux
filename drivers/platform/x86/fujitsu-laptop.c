@@ -66,6 +66,7 @@
 #include <linux/kfifo.h>
 #include <linux/video_output.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 #include <linux/leds.h>
 #endif
@@ -1089,10 +1090,9 @@ static int __init fujitsu_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	fujitsu = kmalloc(sizeof(struct fujitsu_t), GFP_KERNEL);
+	fujitsu = kzalloc(sizeof(struct fujitsu_t), GFP_KERNEL);
 	if (!fujitsu)
 		return -ENOMEM;
-	memset(fujitsu, 0, sizeof(struct fujitsu_t));
 	fujitsu->keycode1 = KEY_PROG1;
 	fujitsu->keycode2 = KEY_PROG2;
 	fujitsu->keycode3 = KEY_PROG3;
@@ -1126,16 +1126,20 @@ static int __init fujitsu_init(void)
 	/* Register backlight stuff */
 
 	if (!acpi_video_backlight_support()) {
-		fujitsu->bl_device =
-			backlight_device_register("fujitsu-laptop", NULL, NULL,
-						  &fujitsubl_ops);
+		struct backlight_properties props;
+
+		memset(&props, 0, sizeof(struct backlight_properties));
+		max_brightness = fujitsu->max_brightness;
+		props.max_brightness = max_brightness - 1;
+		fujitsu->bl_device = backlight_device_register("fujitsu-laptop",
+							       NULL, NULL,
+							       &fujitsubl_ops,
+							       &props);
 		if (IS_ERR(fujitsu->bl_device)) {
 			ret = PTR_ERR(fujitsu->bl_device);
 			fujitsu->bl_device = NULL;
 			goto fail_sysfs_group;
 		}
-		max_brightness = fujitsu->max_brightness;
-		fujitsu->bl_device->props.max_brightness = max_brightness - 1;
 		fujitsu->bl_device->props.brightness = fujitsu->brightness_level;
 	}
 
@@ -1145,12 +1149,11 @@ static int __init fujitsu_init(void)
 
 	/* Register hotkey driver */
 
-	fujitsu_hotkey = kmalloc(sizeof(struct fujitsu_hotkey_t), GFP_KERNEL);
+	fujitsu_hotkey = kzalloc(sizeof(struct fujitsu_hotkey_t), GFP_KERNEL);
 	if (!fujitsu_hotkey) {
 		ret = -ENOMEM;
 		goto fail_hotkey;
 	}
-	memset(fujitsu_hotkey, 0, sizeof(struct fujitsu_hotkey_t));
 
 	result = acpi_bus_register_driver(&acpi_fujitsu_hotkey_driver);
 	if (result < 0) {

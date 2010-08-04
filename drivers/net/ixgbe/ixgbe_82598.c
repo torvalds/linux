@@ -42,9 +42,9 @@ static s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
                                              ixgbe_link_speed *speed,
                                              bool *autoneg);
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
-                                               ixgbe_link_speed speed,
-                                               bool autoneg,
-                                               bool autoneg_wait_to_complete);
+                                         ixgbe_link_speed speed,
+                                         bool autoneg,
+                                         bool autoneg_wait_to_complete);
 static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
                                        u8 *eeprom_data);
 
@@ -357,12 +357,34 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 fctrl_reg;
 	u32 rmcs_reg;
 	u32 reg;
+	u32 link_speed = 0;
+	bool link_up;
 
 #ifdef CONFIG_DCB
 	if (hw->fc.requested_mode == ixgbe_fc_pfc)
 		goto out;
 
 #endif /* CONFIG_DCB */
+	/*
+	 * On 82598 having Rx FC on causes resets while doing 1G
+	 * so if it's on turn it off once we know link_speed. For
+	 * more details see 82598 Specification update.
+	 */
+	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
+	if (link_up && link_speed == IXGBE_LINK_SPEED_1GB_FULL) {
+		switch (hw->fc.requested_mode) {
+		case ixgbe_fc_full:
+			hw->fc.requested_mode = ixgbe_fc_tx_pause;
+			break;
+		case ixgbe_fc_rx_pause:
+			hw->fc.requested_mode = ixgbe_fc_none;
+			break;
+		default:
+			/* no change */
+			break;
+		}
+	}
+
 	/* Negotiate the fc mode to use */
 	ret_val = ixgbe_fc_autoneg(hw);
 	if (ret_val)
@@ -1199,7 +1221,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
-	.read			= &ixgbe_read_eeprom_generic,
+	.read			= &ixgbe_read_eerd_generic,
 	.validate_checksum	= &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
 };
@@ -1214,6 +1236,7 @@ static struct ixgbe_phy_operations phy_ops_82598 = {
 	.setup_link		= &ixgbe_setup_phy_link_generic,
 	.setup_link_speed	= &ixgbe_setup_phy_link_speed_generic,
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_82598,
+	.check_overtemp   = &ixgbe_tn_check_overtemp,
 };
 
 struct ixgbe_info ixgbe_82598_info = {

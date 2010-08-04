@@ -36,12 +36,14 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include "common.h"
 #include "regs.h"
 #include "sge_defs.h"
 #include "t3_cpl.h"
 #include "firmware_exports.h"
+#include "cxgb3_offload.h"
 
 #define USE_GTS 0
 
@@ -116,7 +118,7 @@ struct rx_sw_desc {                /* SW state per Rx descriptor */
 		struct sk_buff *skb;
 		struct fl_pg_chunk pg_chunk;
 	};
-	DECLARE_PCI_UNMAP_ADDR(dma_addr);
+	DEFINE_DMA_UNMAP_ADDR(dma_addr);
 };
 
 struct rsp_desc {		/* response queue descriptor */
@@ -196,17 +198,17 @@ static inline void refill_rspq(struct adapter *adapter,
 /**
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
- *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
+ *	Returns true if the platform needs sk_buff unmapping.  The compiler
  *	optimizes away unecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
 	/*
-	 * This structure is used to tell if the platfrom needs buffer
+	 * This structure is used to tell if the platform needs buffer
 	 * unmapping by checking if DECLARE_PCI_UNMAP_ADDR defines anything.
 	 */
 	struct dummy {
-		DECLARE_PCI_UNMAP_ADDR(addr);
+		DEFINE_DMA_UNMAP_ADDR(addr);
 	};
 
 	return sizeof(struct dummy) != 0;
@@ -361,7 +363,7 @@ static void clear_rx_desc(struct pci_dev *pdev, const struct sge_fl *q,
 		put_page(d->pg_chunk.page);
 		d->pg_chunk.page = NULL;
 	} else {
-		pci_unmap_single(pdev, pci_unmap_addr(d, dma_addr),
+		pci_unmap_single(pdev, dma_unmap_addr(d, dma_addr),
 				 q->buf_size, PCI_DMA_FROMDEVICE);
 		kfree_skb(d->skb);
 		d->skb = NULL;
@@ -417,7 +419,7 @@ static inline int add_one_rx_buf(void *va, unsigned int len,
 	if (unlikely(pci_dma_mapping_error(pdev, mapping)))
 		return -ENOMEM;
 
-	pci_unmap_addr_set(sd, dma_addr, mapping);
+	dma_unmap_addr_set(sd, dma_addr, mapping);
 
 	d->addr_lo = cpu_to_be32(mapping);
 	d->addr_hi = cpu_to_be32((u64) mapping >> 32);
@@ -480,6 +482,7 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
 	if (q->pend_cred >= q->credits / 4) {
 		q->pend_cred = 0;
+		wmb();
 		t3_write_reg(adap, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
 	}
 }
@@ -512,7 +515,7 @@ nomem:				q->alloc_failed++;
 				break;
 			}
 			mapping = sd->pg_chunk.mapping + sd->pg_chunk.offset;
-			pci_unmap_addr_set(sd, dma_addr, mapping);
+			dma_unmap_addr_set(sd, dma_addr, mapping);
 
 			add_one_rx_chunk(mapping, d, q->gen);
 			pci_dma_sync_single_for_device(adap->pdev, mapping,
@@ -788,11 +791,11 @@ static struct sk_buff *get_packet(struct adapter *adap, struct sge_fl *fl,
 		if (likely(skb != NULL)) {
 			__skb_put(skb, len);
 			pci_dma_sync_single_for_cpu(adap->pdev,
-					    pci_unmap_addr(sd, dma_addr), len,
+					    dma_unmap_addr(sd, dma_addr), len,
 					    PCI_DMA_FROMDEVICE);
 			memcpy(skb->data, sd->skb->data, len);
 			pci_dma_sync_single_for_device(adap->pdev,
-					    pci_unmap_addr(sd, dma_addr), len,
+					    dma_unmap_addr(sd, dma_addr), len,
 					    PCI_DMA_FROMDEVICE);
 		} else if (!drop_thres)
 			goto use_orig_buf;
@@ -807,7 +810,7 @@ recycle:
 		goto recycle;
 
 use_orig_buf:
-	pci_unmap_single(adap->pdev, pci_unmap_addr(sd, dma_addr),
+	pci_unmap_single(adap->pdev, dma_unmap_addr(sd, dma_addr),
 			 fl->buf_size, PCI_DMA_FROMDEVICE);
 	skb = sd->skb;
 	skb_put(skb, len);
@@ -840,7 +843,7 @@ static struct sk_buff *get_packet_pg(struct adapter *adap, struct sge_fl *fl,
 	struct sk_buff *newskb, *skb;
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
 
-	dma_addr_t dma_addr = pci_unmap_addr(sd, dma_addr);
+	dma_addr_t dma_addr = dma_unmap_addr(sd, dma_addr);
 
 	newskb = skb = q->pg_skb;
 	if (!skb && (len <= SGE_RX_COPY_THRES)) {
@@ -2079,6 +2082,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 			 struct sge_fl *fl, int len, int complete)
 {
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
+	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
 	struct skb_frag_struct *rx_frag;
@@ -2093,7 +2097,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	fl->credits--;
 
 	pci_dma_sync_single_for_cpu(adap->pdev,
-				    pci_unmap_addr(sd, dma_addr),
+				    dma_unmap_addr(sd, dma_addr),
 				    fl->buf_size - SGE_PG_RSVD,
 				    PCI_DMA_FROMDEVICE);
 
@@ -2116,11 +2120,18 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	if (!nr_frags) {
 		offset = 2 + sizeof(struct cpl_rx_pkt);
-		qs->lro_va = sd->pg_chunk.va + 2;
-	}
-	len -= offset;
+		cpl = qs->lro_va = sd->pg_chunk.va + 2;
 
-	prefetch(qs->lro_va);
+		if ((pi->rx_offload & T3_RX_CSUM) &&
+		     cpl->csum_valid && cpl->csum == htons(0xffff)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			qs->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
+		} else
+			skb->ip_summed = CHECKSUM_NONE;
+	} else
+		cpl = qs->lro_va;
+
+	len -= offset;
 
 	rx_frag += nr_frags;
 	rx_frag->page = sd->pg_chunk.page;
@@ -2136,12 +2147,8 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 		return;
 
 	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	cpl = qs->lro_va;
 
 	if (unlikely(cpl->vlan_valid)) {
-		struct net_device *dev = qs->netdev;
-		struct port_info *pi = netdev_priv(dev);
 		struct vlan_group *grp = pi->vlan_grp;
 
 		if (likely(grp != NULL)) {
@@ -2282,11 +2289,14 @@ static int process_responses(struct adapter *adap, struct sge_qset *qs,
 	while (likely(budget_left && is_new_response(r, q))) {
 		int packet_complete, eth, ethpad = 2, lro = qs->lro_enabled;
 		struct sk_buff *skb = NULL;
-		u32 len, flags = ntohl(r->flags);
-		__be32 rss_hi = *(const __be32 *)r,
-		       rss_lo = r->rss_hdr.rss_hash_val;
+		u32 len, flags;
+		__be32 rss_hi, rss_lo;
 
+		rmb();
 		eth = r->rss_hdr.opcode == CPL_RX_PKT;
+		rss_hi = *(const __be32 *)r;
+		rss_lo = r->rss_hdr.rss_hash_val;
+		flags = ntohl(r->flags);
 
 		if (unlikely(flags & F_RSPD_ASYNC_NOTIF)) {
 			skb = alloc_skb(AN_PKT_SIZE, GFP_ATOMIC);
@@ -2497,7 +2507,10 @@ static int process_pure_responses(struct adapter *adap, struct sge_qset *qs,
 			refill_rspq(adap, q, q->credits);
 			q->credits = 0;
 		}
-	} while (is_new_response(r, q) && is_pure_response(r));
+		if (!is_new_response(r, q))
+			break;
+		rmb();
+	} while (is_pure_response(r));
 
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
@@ -2531,6 +2544,7 @@ static inline int handle_responses(struct adapter *adap, struct sge_rspq *q)
 
 	if (!is_new_response(r, q))
 		return -1;
+	rmb();
 	if (is_pure_response(r) && process_pure_responses(adap, qs, r) == 0) {
 		t3_write_reg(adap, A_SG_GTS, V_RSPQ(q->cntxt_id) |
 			     V_NEWTIMER(q->holdoff_tmr) | V_NEWINDEX(q->cidx));
@@ -2829,8 +2843,13 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
 	}
 
 	if (status & (F_HIPIODRBDROPERR | F_LOPIODRBDROPERR))
-		CH_ALERT(adapter, "SGE dropped %s priority doorbell\n",
-			 status & F_HIPIODRBDROPERR ? "high" : "lo");
+		queue_work(cxgb3_wq, &adapter->db_drop_task);
+
+	if (status & (F_HIPRIORITYDBFULL | F_LOPRIORITYDBFULL))
+		queue_work(cxgb3_wq, &adapter->db_full_task);
+
+	if (status & (F_HIPRIORITYDBEMPTY | F_LOPRIORITYDBEMPTY))
+		queue_work(cxgb3_wq, &adapter->db_empty_task);
 
 	t3_write_reg(adapter, A_SG_INT_CAUSE, status);
 	if (status &  SGE_FATALERR)

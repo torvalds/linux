@@ -131,7 +131,7 @@ void platform_cpu_die(unsigned int cpu)
 	cpu_leave_lowpower();
 }
 
-int mach_cpu_disable(unsigned int cpu)
+int platform_cpu_disable(unsigned int cpu)
 {
 	/*
 	 * we don't allow CPU 0 to be shutdown (it is still too special

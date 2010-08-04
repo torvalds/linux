@@ -45,7 +45,7 @@ struct ehci_caps {
 #define HCC_CANPARK(p)		((p)&(1 << 2))  /* true: can park on async qh */
 #define HCC_PGM_FRAMELISTLEN(p) ((p)&(1 << 1))  /* true: periodic_size changes*/
 #define HCC_64BIT_ADDR(p)       ((p)&(1))       /* true: can use 64-bit addr */
-	u8		portroute [8];	 /* nibbles for routing - offset 0xC */
+	u8		portroute[8];	 /* nibbles for routing - offset 0xC */
 } __attribute__ ((packed));
 
 
@@ -92,14 +92,14 @@ struct ehci_regs {
 	/* ASYNCLISTADDR: offset 0x18 */
 	u32		async_next;	/* address of next async queue head */
 
-	u32		reserved [9];
+	u32		reserved[9];
 
 	/* CONFIGFLAG: offset 0x40 */
 	u32		configured_flag;
 #define FLAG_CF		(1<<0)		/* true: we'll support "high speed" */
 
 	/* PORTSC: offset 0x44 */
-	u32		port_status [0];	/* up to N_PORTS */
+	u32		port_status[0];	/* up to N_PORTS */
 /* 31:23 reserved */
 #define PORT_WKOC_E	(1<<22)		/* wake on overcurrent (enable) */
 #define PORT_WKDISC_E	(1<<21)		/* wake on disconnect (enable) */

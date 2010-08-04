@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -573,7 +574,7 @@ static inline int sgiseeq_reset(struct net_device *dev)
 	if (err)
 		return err;
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 
 	return 0;
@@ -592,8 +593,10 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Setup... */
 	len = skb->len;
 	if (len < ETH_ZLEN) {
-		if (skb_padto(skb, ETH_ZLEN))
+		if (skb_padto(skb, ETH_ZLEN)) {
+			spin_unlock_irqrestore(&sp->tx_lock, flags);
 			return NETDEV_TX_OK;
+		}
 		len = ETH_ZLEN;
 	}
 
@@ -635,8 +638,6 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(hregs->tx_ctrl & HPC3_ETXCTRL_ACTIVE))
 		kick_tx(dev, sp, hregs);
 
-	dev->trans_start = jiffies;
-
 	if (!TX_BUFFS_AVAIL(sp))
 		netif_stop_queue(dev);
 	spin_unlock_irqrestore(&sp->tx_lock, flags);
@@ -649,7 +650,7 @@ static void timeout(struct net_device *dev)
 	printk(KERN_NOTICE "%s: transmit timed out, resetting\n", dev->name);
 	sgiseeq_reset(dev);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -660,7 +661,7 @@ static void sgiseeq_set_multicast(struct net_device *dev)
 
 	if(dev->flags & IFF_PROMISC)
 		sp->mode = SEEQ_RCMD_RANY;
-	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count)
+	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
 		sp->mode = SEEQ_RCMD_RBMCAST;
 	else
 		sp->mode = SEEQ_RCMD_RBCAST;

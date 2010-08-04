@@ -5,6 +5,7 @@
 
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/unistd.h>
 #include "os.h"
 #include "proc_mm.h"

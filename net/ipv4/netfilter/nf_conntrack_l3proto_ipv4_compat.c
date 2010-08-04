@@ -32,7 +32,7 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < nf_conntrack_htable_size;
+	     st->bucket < net->ct.htable_size;
 	     st->bucket++) {
 		n = rcu_dereference(net->ct.hash[st->bucket].first);
 		if (!is_a_nulls(n))
@@ -50,7 +50,7 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	head = rcu_dereference(head->next);
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= nf_conntrack_htable_size)
+			if (++st->bucket >= net->ct.htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(net->ct.hash[st->bucket].first);
@@ -336,12 +336,12 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	const struct ip_conntrack_stat *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete\n");
+		seq_printf(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08x %08x %08x %08x %08x %08x %08x "
-			"%08x %08x %08x %08x %08x  %08x %08x %08x \n",
+			"%08x %08x %08x %08x %08x  %08x %08x %08x %08x\n",
 		   nr_conntracks,
 		   st->searched,
 		   st->found,
@@ -358,7 +358,8 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 
 		   st->expect_new,
 		   st->expect_create,
-		   st->expect_delete
+		   st->expect_delete,
+		   st->search_restart
 		);
 	return 0;
 }

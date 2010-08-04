@@ -1,0 +1,221 @@
+# Copyright 2008 Openmoko, Inc.
+#	Simtec Electronics, Ben Dooks <ben@simtec.co.uk>
+#
+# Licensed under GPLv2
+
+# temporary until we can eliminate all drivers using it.
+config PLAT_S3C64XX
+	bool
+	depends on ARCH_S3C64XX
+	select SAMSUNG_WAKEMASK
+	default y
+	help
+	  Base platform code for any Samsung S3C64XX device
+
+
+# Configuration options for the S3C6410 CPU
+
+config CPU_S3C6400
+	bool
+	help
+	  Enable S3C6400 CPU support
+
+config CPU_S3C6410
+	bool
+	help
+	  Enable S3C6410 CPU support
+
+config S3C64XX_DMA
+	bool "S3C64XX DMA"
+	select S3C_DMA
+
+config S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Internal configuration for default SDHCI setup for S3C6400 and
+	  S3C6410 SoCs.
+
+config S3C64XX_DEV_ONENAND1
+	bool
+	help
+	  Compile in platform device definition for OneNAND1 controller
+
+# platform specific device setup
+
+config S3C64XX_SETUP_I2C0
+	bool
+	default y
+	help
+	  Common setup code for i2c bus 0.
+
+	  Note, currently since i2c0 is always compiled, this setup helper
+	  is always compiled with it.
+
+config S3C64XX_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+config S3C64XX_SETUP_FB_24BPP
+	bool
+	help
+	  Common setup code for S3C64XX with an 24bpp RGB display helper.
+
+config S3C64XX_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for S3C64XX SDHCI GPIO configurations
+
+# S36400 Macchine support
+
+config MACH_SMDK6400
+       bool "SMDK6400"
+	select CPU_S3C6400
+	select S3C_DEV_HSMMC
+	select S3C_DEV_NAND
+	select S3C64XX_SETUP_SDHCI
+	help
+	  Machine support for the Samsung SMDK6400
+
+# S3C6410 machine support
+
+config MACH_ANW6410
+	bool "A&W6410"
+	select CPU_S3C6410
+	select S3C_DEV_FB
+	select S3C64XX_SETUP_FB_24BPP
+	help
+	  Machine support for the A&W6410
+
+config MACH_SMDK6410
+	bool "SMDK6410"
+	select CPU_S3C6410
+	select SAMSUNG_DEV_ADC
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_I2C1
+	select S3C_DEV_FB
+	select SAMSUNG_DEV_TS
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
+	select HAVE_S3C2410_WATCHDOG
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_I2C1
+	select S3C64XX_SETUP_FB_24BPP
+	help
+	  Machine support for the Samsung SMDK6410
+
+# At least some of the SMDK6410s were shipped with the card detect
+# for the MMC/SD slots connected to the same input. This means that
+# either the boards need to be altered to have channel0 to an alternate
+# configuration or that only one slot can be used.
+
+choice
+	prompt "SMDK6410 MMC/SD slot setup"
+	depends on MACH_SMDK6410
+
+config SMDK6410_SD_CH0
+	bool "Use channel 0 only"
+	depends on MACH_SMDK6410
+	help
+          Select CON7 (channel 0) as the MMC/SD slot, as
+	  at least some SMDK6410 boards come with the
+	  resistors fitted so that the card detects for
+	  channels 0 and 1 are the same.
+
+config SMDK6410_SD_CH1
+	bool "Use channel 1 only"
+	depends on MACH_SMDK6410
+	help
+          Select CON6 (channel 1) as the MMC/SD slot, as
+	  at least some SMDK6410 boards come with the
+	  resistors fitted so that the card detects for
+	  channels 0 and 1 are the same.
+
+endchoice
+
+config SMDK6410_WM1190_EV1
+	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
+	depends on MACH_SMDK6410
+	select REGULATOR
+	select REGULATOR_WM8350
+	select S3C24XX_GPIO_EXTRA64
+	select MFD_WM8350_I2C
+	select MFD_WM8350_CONFIG_MODE_0
+	select MFD_WM8350_CONFIG_MODE_3
+	select MFD_WM8352_CONFIG_MODE_0
+	help
+	  The Wolfson Microelectronics 1190-EV1 is a WM835x based PMIC
+	  and audio daughtercard for the Samsung SMDK6410 reference
+	  platform.  Enabling this option will build support for this
+	  module into the kernel.  The presence of the module will be
+	  detected at runtime so the the resulting kernel can be used
+	  with or without the 1190-EV1 fitted.
+
+config SMDK6410_WM1192_EV1
+	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
+	depends on MACH_SMDK6410
+	select REGULATOR
+	select REGULATOR_WM831X
+	select S3C24XX_GPIO_EXTRA64
+	select MFD_WM831X
+	help
+	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
+	  daughtercard for the Samsung SMDK6410 reference platform.
+	  Enabling this option will build support for this module into
+	  the kernel.  The presence of the daughtercard will be
+	  detected at runtime so the the resulting kernel can be used
+	  with or without the 1192-EV1 fitted.
+
+config MACH_NCP
+	bool "NCP"
+	select CPU_S3C6410
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC1
+	select S3C64XX_SETUP_I2C1
+	help
+          Machine support for the Samsung NCP
+
+config MACH_HMT
+	bool "Airgoo HMT"
+	select CPU_S3C6410
+	select S3C_DEV_FB
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	select S3C64XX_SETUP_FB_24BPP
+	select HAVE_PWM
+	help
+	  Machine support for the Airgoo HMT
+
+config MACH_SMARTQ
+	bool
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_FB
+	select S3C_DEV_HWMON
+	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_USB_HOST
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_FB_24BPP
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_TS
+	select HAVE_PWM
+	help
+	    Shared machine support for SmartQ 5/7
+
+config MACH_SMARTQ5
+	bool "SmartQ 5"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 5
+
+config MACH_SMARTQ7
+	bool "SmartQ 7"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 7

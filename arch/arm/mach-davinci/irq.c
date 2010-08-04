@@ -116,6 +116,11 @@ void __init davinci_irq_init(void)
 	unsigned i;
 	const u8 *davinci_def_priorities = davinci_soc_info.intc_irq_prios;
 
+	davinci_intc_type = DAVINCI_INTC_TYPE_AINTC;
+	davinci_intc_base = ioremap(davinci_soc_info.intc_base, SZ_4K);
+	if (WARN_ON(!davinci_intc_base))
+		return;
+
 	/* Clear all interrupt requests */
 	davinci_irq_writel(~0x0, FIQ_REG0_OFFSET);
 	davinci_irq_writel(~0x0, FIQ_REG1_OFFSET);
@@ -148,7 +153,7 @@ void __init davinci_irq_init(void)
 	}
 
 	/* set up genirq dispatch for ARM INTC */
-	for (i = 0; i < DAVINCI_N_AINTC_IRQ; i++) {
+	for (i = 0; i < davinci_soc_info.intc_irq_num; i++) {
 		set_irq_chip(i, &davinci_irq_chip_0);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		if (i != IRQ_TINT1_TINT34)

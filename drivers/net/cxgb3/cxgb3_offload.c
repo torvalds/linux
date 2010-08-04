@@ -31,6 +31,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/neighbour.h>
 #include <linux/notifier.h>
 #include <asm/atomic.h>
@@ -1252,7 +1253,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	struct mtutab mtutab;
 	unsigned int l2t_capacity;
 
-	t = kcalloc(1, sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
 

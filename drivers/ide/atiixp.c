@@ -42,19 +42,20 @@ static DEFINE_SPINLOCK(atiixp_lock);
 
 /**
  *	atiixp_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Set the interface PIO mode.
  */
 
-static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void atiixp_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
 	int timing_shift = (drive->dn ^ 1) * 8;
 	u32 pio_timing_data;
 	u16 pio_mode_data;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -74,21 +75,22 @@ static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 /**
  *	atiixp_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Set a ATIIXP host controller to the desired DMA mode.  This involves
  *	programming the right timing data into the PCI configuration space.
  */
 
-static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void atiixp_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
 	int timing_shift = (drive->dn ^ 1) * 8;
 	u32 tmp32;
 	u16 tmp16;
 	u16 udma_ctl = 0;
+	const u8 speed = drive->dma_mode;
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 

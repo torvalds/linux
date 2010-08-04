@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -551,7 +550,7 @@ static void leo_unmap_regs(struct of_device *op, struct fb_info *info,
 static int __devinit leo_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct leo_par *par;
 	int linebytes, err;
@@ -664,8 +663,11 @@ static const struct of_device_id leo_match[] = {
 MODULE_DEVICE_TABLE(of, leo_match);
 
 static struct of_platform_driver leo_driver = {
-	.name		= "leo",
-	.match_table	= leo_match,
+	.driver = {
+		.name = "leo",
+		.owner = THIS_MODULE,
+		.of_match_table = leo_match,
+	},
 	.probe		= leo_probe,
 	.remove		= __devexit_p(leo_remove),
 };

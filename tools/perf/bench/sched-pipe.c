@@ -93,7 +93,7 @@ int bench_sched_pipe(int argc, const char **argv,
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
-		printf("# Extecuted %d pipe operations between two tasks\n\n",
+		printf("# Executed %d pipe operations between two tasks\n\n",
 			loops);
 
 		result_usec = diff.tv_sec * 1000000;

@@ -386,7 +386,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 }
 
 /* pdev is NULL for eisa */
-static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
+static int __devinit cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
 	struct request_queue *q;
 	int j;
@@ -448,11 +448,8 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		blk_queue_bounce_limit(q, hba[i]->pci_dev->dma_mask);
 
 	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(q, SG_MAX);
+	blk_queue_max_segments(q, SG_MAX);
 
-	/* This is a driver limit and could be eliminated. */
-	blk_queue_max_phys_segments(q, SG_MAX);
-	
 	init_timer(&hba[i]->timer);
 	hba[i]->timer.expires = jiffies + IDA_TIMER;
 	hba[i]->timer.data = (unsigned long)hba[i];
@@ -506,7 +503,7 @@ Enomem4:
 	return -1;
 }
 
-static int __init cpqarray_init_one( struct pci_dev *pdev,
+static int __devinit cpqarray_init_one( struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int i;
@@ -743,7 +740,7 @@ __setup("smart2=", cpqarray_setup);
 /*
  * Find an EISA controller's signature.  Set up an hba if we find it.
  */
-static int __init cpqarray_eisa_detect(void)
+static int __devinit cpqarray_eisa_detect(void)
 {
 	int i=0, j;
 	__u32 board_id;

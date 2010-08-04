@@ -33,6 +33,7 @@
 #include "main.h"
 
 #include <linux/bitrev.h>
+#include <linux/slab.h>
 
 
 static const s8 b43_tssi2dbm_g_table[] = {

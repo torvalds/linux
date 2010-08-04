@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -422,11 +423,10 @@ static int acpi_button_add(struct acpi_device *device)
 
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */
-		acpi_set_gpe_type(device->wakeup.gpe_device,
-				  device->wakeup.gpe_number,
-				  ACPI_GPE_TYPE_WAKE_RUN);
 		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number);
+				device->wakeup.gpe_number,
+				ACPI_GPE_TYPE_RUNTIME);
+		device->wakeup.run_wake_count++;
 		device->wakeup.state.enabled = 1;
 	}
 
@@ -445,6 +445,14 @@ static int acpi_button_add(struct acpi_device *device)
 static int acpi_button_remove(struct acpi_device *device, int type)
 {
 	struct acpi_button *button = acpi_driver_data(device);
+
+	if (device->wakeup.flags.valid) {
+		acpi_disable_gpe(device->wakeup.gpe_device,
+				device->wakeup.gpe_number,
+				ACPI_GPE_TYPE_RUNTIME);
+		device->wakeup.run_wake_count--;
+		device->wakeup.state.enabled = 0;
+	}
 
 	acpi_button_remove_fs(device);
 	input_unregister_device(button->input);

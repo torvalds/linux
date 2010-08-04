@@ -161,9 +161,41 @@ struct thread_struct {
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
 #endif
-#if defined(CONFIG_4xx) || defined (CONFIG_BOOKE)
-	unsigned long	dbcr0;		/* debug control register values */
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	/*
+	 * The following help to manage the use of Debug Control Registers
+	 * om the BookE platforms.
+	 */
+	unsigned long	dbcr0;
 	unsigned long	dbcr1;
+#ifdef CONFIG_BOOKE
+	unsigned long	dbcr2;
+#endif
+	/*
+	 * The stored value of the DBSR register will be the value at the
+	 * last debug interrupt. This register can only be read from the
+	 * user (will never be written to) and has value while helping to
+	 * describe the reason for the last debug trap.  Torez
+	 */
+	unsigned long	dbsr;
+	/*
+	 * The following will contain addresses used by debug applications
+	 * to help trace and trap on particular address locations.
+	 * The bits in the Debug Control Registers above help define which
+	 * of the following registers will contain valid data and/or addresses.
+	 */
+	unsigned long	iac1;
+	unsigned long	iac2;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	unsigned long	iac3;
+	unsigned long	iac4;
+#endif
+	unsigned long	dac1;
+	unsigned long	dac2;
+#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+	unsigned long	dvc1;
+	unsigned long	dvc2;
+#endif
 #endif
 	/* FP and VSX 0-31 register set */
 	double		fpr[32][TS_FPRWIDTH];
@@ -197,6 +229,9 @@ struct thread_struct {
 	unsigned long	spefscr;	/* SPE & eFP status */
 	int		used_spe;	/* set if process has used spe */
 #endif /* CONFIG_SPE */
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
+	void*		kvm_shadow_vcpu; /* KVM internal data */
+#endif /* CONFIG_KVM_BOOK3S_32_HANDLER */
 };
 
 #define ARCH_MIN_TASKALIGN 16

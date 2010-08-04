@@ -37,7 +37,7 @@ static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_pr
 	return 0;
 }
 
-static struct dvb_usb_rc_key a800_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_a800_table[] = {
 	{ 0x0201, KEY_PROG1 },       /* SOURCE */
 	{ 0x0200, KEY_POWER },       /* POWER */
 	{ 0x0205, KEY_1 },           /* 1 */
@@ -147,8 +147,8 @@ static struct dvb_usb_device_properties a800_properties = {
 	.identify_state   = a800_identify_state,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = a800_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(a800_rc_keys),
+	.rc_key_map       = ir_codes_a800_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_a800_table),
 	.rc_query         = a800_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,

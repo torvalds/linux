@@ -57,3 +57,4 @@ extern struct platform_device nuc900_device_fmi;
 extern struct platform_device nuc900_device_kpi;
 extern struct platform_device nuc900_device_rtc;
 extern struct platform_device nuc900_device_ts;
+extern struct platform_device nuc900_device_lcd;

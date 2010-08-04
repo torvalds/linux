@@ -13,7 +13,6 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 #include "util/debugfs.h"
 
 const char perf_usage_string[] =
@@ -22,7 +21,9 @@ const char perf_usage_string[] =
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
 
+int use_browser = -1;
 static int use_pager = -1;
+
 struct pager_config {
 	const char *cmd;
 	int val;
@@ -48,7 +49,26 @@ int check_pager_config(const char *cmd)
 	return c.val;
 }
 
-static void commit_pager_choice(void) {
+static int tui_command_config(const char *var, const char *value, void *data)
+{
+	struct pager_config *c = data;
+	if (!prefixcmp(var, "tui.") && !strcmp(var + 4, c->cmd))
+		c->val = perf_config_bool(var, value);
+	return 0;
+}
+
+/* returns 0 for "no tui", 1 for "use tui", and -1 for "not specified" */
+static int check_tui_config(const char *cmd)
+{
+	struct pager_config c;
+	c.cmd = cmd;
+	c.val = -1;
+	perf_config(tui_command_config, &c);
+	return c.val;
+}
+
+static void commit_pager_choice(void)
+{
 	switch (use_pager) {
 	case 0:
 		setenv("PERF_PAGER", "cat", 1);
@@ -70,7 +90,7 @@ static void set_debugfs_path(void)
 		 "tracing/events");
 }
 
-static int handle_options(const char*** argv, int* argc, int* envchanged)
+static int handle_options(const char ***argv, int *argc, int *envchanged)
 {
 	int handled = 0;
 
@@ -109,7 +129,7 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--perf-dir")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No directory given for --perf-dir.\n" );
+				fprintf(stderr, "No directory given for --perf-dir.\n");
 				usage(perf_usage_string);
 			}
 			setenv(PERF_DIR_ENVIRONMENT, (*argv)[1], 1);
@@ -124,7 +144,7 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--work-tree")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No directory given for --work-tree.\n" );
+				fprintf(stderr, "No directory given for --work-tree.\n");
 				usage(perf_usage_string);
 			}
 			setenv(PERF_WORK_TREE_ENVIRONMENT, (*argv)[1], 1);
@@ -168,7 +188,7 @@ static int handle_alias(int *argcp, const char ***argv)
 {
 	int envchanged = 0, ret = 0, saved_errno = errno;
 	int count, option_count;
-	const char** new_argv;
+	const char **new_argv;
 	const char *alias_command;
 	char *alias_string;
 
@@ -210,11 +230,11 @@ static int handle_alias(int *argcp, const char ***argv)
 		if (!strcmp(alias_command, new_argv[0]))
 			die("recursive alias: %s", alias_command);
 
-		new_argv = realloc(new_argv, sizeof(char*) *
+		new_argv = realloc(new_argv, sizeof(char *) *
 				    (count + *argcp + 1));
 		/* insert after command name */
-		memcpy(new_argv + count, *argv + 1, sizeof(char*) * *argcp);
-		new_argv[count+*argcp] = NULL;
+		memcpy(new_argv + count, *argv + 1, sizeof(char *) * *argcp);
+		new_argv[count + *argcp] = NULL;
 
 		*argv = new_argv;
 		*argcp += count - 1;
@@ -253,6 +273,9 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (p->option & RUN_SETUP)
 		prefix = NULL; /* setup_perf_directory(); */
 
+	if (use_browser == -1)
+		use_browser = check_tui_config(p->cmd);
+
 	if (use_pager == -1 && p->option & RUN_SETUP)
 		use_pager = check_pager_config(p->cmd);
 	if (use_pager == -1 && p->option & USE_PAGER)
@@ -261,6 +284,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	set_debugfs_path();
 
 	status = p->fn(argc, argv, prefix);
+	exit_browser(status);
+
 	if (status)
 		return status & 0xff;
 
@@ -285,6 +310,7 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	static struct cmd_struct commands[] = {
+		{ "buildid-cache", cmd_buildid_cache, 0 },
 		{ "buildid-list", cmd_buildid_list, 0 },
 		{ "diff",	cmd_diff,	0 },
 		{ "help",	cmd_help,	0 },
@@ -301,6 +327,10 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "sched",	cmd_sched,	0 },
 		{ "probe",	cmd_probe,	0 },
 		{ "kmem",	cmd_kmem,	0 },
+		{ "lock",	cmd_lock,	0 },
+		{ "kvm",	cmd_kvm,	0 },
+		{ "test",	cmd_test,	0 },
+		{ "inject",	cmd_inject,	0 },
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;
@@ -388,7 +418,7 @@ static int run_argv(int *argcp, const char ***argv)
 /* mini /proc/mounts parser: searching for "^blah /mount/point debugfs" */
 static void get_debugfs_mntpt(void)
 {
-	const char *path = debugfs_find_mountpoint();
+	const char *path = debugfs_mount(NULL);
 
 	if (path)
 		strncpy(debugfs_mntpt, path, sizeof(debugfs_mntpt));
@@ -442,15 +472,15 @@ int main(int argc, const char **argv)
 
 	/*
 	 * We use PATH to find perf commands, but we prepend some higher
-	 * precidence paths: the "--exec-path" option, the PERF_EXEC_PATH
+	 * precedence paths: the "--exec-path" option, the PERF_EXEC_PATH
 	 * environment, and the $(perfexecdir) from the Makefile at build
 	 * time.
 	 */
 	setup_path();
 
 	while (1) {
-		static int done_help = 0;
-		static int was_alias = 0;
+		static int done_help;
+		static int was_alias;
 
 		was_alias = run_argv(&argc, &argv);
 		if (errno != ENOENT)

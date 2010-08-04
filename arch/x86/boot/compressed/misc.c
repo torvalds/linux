@@ -19,11 +19,6 @@
 #define _ASM_X86_DESC_H 1
 #endif
 
-#ifdef CONFIG_X86_64
-#define _LINUX_STRING_H_ 1
-#define __LINUX_BITMAP_H 1
-#endif
-
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
 #include <linux/elf.h>
@@ -131,8 +126,8 @@ static void error(char *m);
 static struct boot_params *real_mode;		/* Pointer to real-mode data */
 static int quiet;
 
-static void *memset(void *s, int c, unsigned n);
-void *memcpy(void *dest, const void *src, unsigned n);
+void *memset(void *s, int c, size_t n);
+void *memcpy(void *dest, const void *src, size_t n);
 
 static void __putstr(int, const char *);
 #define putstr(__x)  __putstr(0, __x)
@@ -185,11 +180,9 @@ static void __putstr(int error, const char *s)
 		return;
 #endif
 
-#ifdef CONFIG_X86_32
 	if (real_mode->screen_info.orig_video_mode == 0 &&
 	    lines == 0 && cols == 0)
 		return;
-#endif
 
 	x = real_mode->screen_info.orig_x;
 	y = real_mode->screen_info.orig_y;
@@ -223,7 +216,7 @@ static void __putstr(int error, const char *s)
 	outb(0xff & (pos >> 1), vidport+1);
 }
 
-static void *memset(void *s, int c, unsigned n)
+void *memset(void *s, int c, size_t n)
 {
 	int i;
 	char *ss = s;
@@ -233,7 +226,7 @@ static void *memset(void *s, int c, unsigned n)
 	return s;
 }
 
-void *memcpy(void *dest, const void *src, unsigned n)
+void *memcpy(void *dest, const void *src, size_t n)
 {
 	int i;
 	const char *s = src;

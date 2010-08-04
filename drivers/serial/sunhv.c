@@ -565,7 +565,7 @@ static int __devinit hv_probe(struct of_device *op, const struct of_device_id *m
 	if (err)
 		goto out_free_con_read_page;
 
-	sunserial_console_match(&sunhv_console, op->node,
+	sunserial_console_match(&sunhv_console, op->dev.of_node,
 				&sunhv_reg, port->line, false);
 
 	err = uart_add_one_port(&sunhv_reg, port);
@@ -630,8 +630,11 @@ static const struct of_device_id hv_match[] = {
 MODULE_DEVICE_TABLE(of, hv_match);
 
 static struct of_platform_driver hv_driver = {
-	.name		= "hv",
-	.match_table	= hv_match,
+	.driver = {
+		.name = "hv",
+		.owner = THIS_MODULE,
+		.of_match_table = hv_match,
+	},
 	.probe		= hv_probe,
 	.remove		= __devexit_p(hv_remove),
 };

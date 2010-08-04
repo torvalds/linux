@@ -102,7 +102,7 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	assert_spin_locked(&res->spinlock);
 
 	stringify_lockname(res->lockname.name, res->lockname.len,
-			   buf, sizeof(buf) - 1);
+			   buf, sizeof(buf));
 	printk("lockres: %s, owner=%u, state=%u\n",
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",

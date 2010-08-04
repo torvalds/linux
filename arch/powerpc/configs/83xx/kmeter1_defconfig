@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.33-rc3
-# Wed Jan  6 09:24:14 2010
+# Linux kernel version: 2.6.34-rc5
+# Mon Apr 19 23:16:39 2010
 #
 # CONFIG_PPC64 is not set
 
@@ -98,7 +98,6 @@ CONFIG_RCU_FANOUT=32
 # CONFIG_TREE_RCU_TRACE is not set
 # CONFIG_IKCONFIG is not set
 CONFIG_LOG_BUF_SHIFT=14
-# CONFIG_GROUP_SCHED is not set
 # CONFIG_CGROUPS is not set
 # CONFIG_SYSFS_DEPRECATED_V2 is not set
 # CONFIG_RELAY is not set
@@ -318,6 +317,7 @@ CONFIG_ISA_DMA_API=y
 # Bus options
 #
 CONFIG_ZONE_DMA=y
+# CONFIG_NEED_DMA_MAP_STATE is not set
 CONFIG_GENERIC_ISA_DMA=y
 CONFIG_FSL_SOC=y
 CONFIG_PPC_PCI_CHOICE=y
@@ -346,7 +346,6 @@ CONFIG_NET=y
 # Networking options
 #
 CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
@@ -387,6 +386,7 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_ATM is not set
 CONFIG_STP=m
 CONFIG_BRIDGE=m
+CONFIG_BRIDGE_IGMP_SNOOPING=y
 # CONFIG_NET_DSA is not set
 CONFIG_VLAN_8021Q=y
 # CONFIG_VLAN_8021Q_GVRP is not set
@@ -539,6 +539,8 @@ CONFIG_MTD_UBI_DEBUG=y
 # CONFIG_MTD_UBI_DEBUG_MSG_EBA is not set
 # CONFIG_MTD_UBI_DEBUG_MSG_WL is not set
 # CONFIG_MTD_UBI_DEBUG_MSG_IO is not set
+CONFIG_OF_FLATTREE=y
+CONFIG_OF_DYNAMIC=y
 CONFIG_OF_DEVICE=y
 CONFIG_OF_I2C=y
 CONFIG_OF_MDIO=y
@@ -563,6 +565,7 @@ CONFIG_HAVE_IDE=y
 #
 # SCSI device support
 #
+CONFIG_SCSI_MOD=y
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
 # CONFIG_SCSI_DMA is not set
@@ -690,6 +693,7 @@ CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
 # CONFIG_SERIAL_OF_PLATFORM is not set
 # CONFIG_SERIAL_QE is not set
+# CONFIG_SERIAL_TIMBERDALE is not set
 # CONFIG_SERIAL_GRLIB_GAISLER_APBUART is not set
 CONFIG_UNIX98_PTYS=y
 # CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
@@ -720,6 +724,7 @@ CONFIG_I2C_HELPER_AUTO=y
 CONFIG_I2C_MPC=y
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
+# CONFIG_I2C_XILINX is not set
 
 #
 # External I2C/SMBus adapter drivers
@@ -732,15 +737,9 @@ CONFIG_I2C_MPC=y
 #
 # CONFIG_I2C_PCA_PLATFORM is not set
 # CONFIG_I2C_STUB is not set
-
-#
-# Miscellaneous I2C Chip support
-#
-# CONFIG_SENSORS_TSL2550 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
-# CONFIG_I2C_DEBUG_CHIP is not set
 # CONFIG_SPI is not set
 
 #
@@ -765,18 +764,20 @@ CONFIG_SSB_POSSIBLE=y
 # Multifunction device drivers
 #
 # CONFIG_MFD_CORE is not set
+# CONFIG_MFD_88PM860X is not set
 # CONFIG_MFD_SM501 is not set
 # CONFIG_HTC_PASIC3 is not set
 # CONFIG_TWL4030_CORE is not set
 # CONFIG_MFD_TMIO is not set
 # CONFIG_PMIC_DA903X is not set
 # CONFIG_PMIC_ADP5520 is not set
+# CONFIG_MFD_MAX8925 is not set
 # CONFIG_MFD_WM8400 is not set
 # CONFIG_MFD_WM831X is not set
 # CONFIG_MFD_WM8350_I2C is not set
+# CONFIG_MFD_WM8994 is not set
 # CONFIG_MFD_PCF50633 is not set
 # CONFIG_AB3100_CORE is not set
-# CONFIG_MFD_88PM8607 is not set
 # CONFIG_REGULATOR is not set
 # CONFIG_MEDIA_SUPPORT is not set
 
@@ -805,8 +806,6 @@ CONFIG_SSB_POSSIBLE=y
 CONFIG_UIO=y
 # CONFIG_UIO_PDRV is not set
 # CONFIG_UIO_PDRV_GENIRQ is not set
-# CONFIG_UIO_SMX is not set
-# CONFIG_UIO_SERCOS3 is not set
 
 #
 # TI VLYNQ
@@ -887,6 +886,7 @@ CONFIG_JFFS2_ZLIB=y
 CONFIG_JFFS2_RTIME=y
 # CONFIG_JFFS2_RUBIN is not set
 # CONFIG_UBIFS_FS is not set
+# CONFIG_LOGFS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_SQUASHFS is not set
 # CONFIG_VXFS_FS is not set
@@ -911,6 +911,7 @@ CONFIG_SUNRPC=y
 # CONFIG_RPCSEC_GSS_KRB5 is not set
 # CONFIG_RPCSEC_GSS_SPKM3 is not set
 # CONFIG_SMB_FS is not set
+# CONFIG_CEPH_FS is not set
 # CONFIG_CIFS is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_CODA_FS is not set
@@ -976,6 +977,7 @@ CONFIG_DEBUG_FS=y
 CONFIG_DEBUG_BUGVERBOSE=y
 # CONFIG_DEBUG_MEMORY_INIT is not set
 # CONFIG_RCU_CPU_STALL_DETECTOR is not set
+# CONFIG_LKDTM is not set
 # CONFIG_LATENCYTOP is not set
 CONFIG_SYSCTL_SYSCALL_CHECK=y
 CONFIG_HAVE_FUNCTION_TRACER=y

@@ -54,6 +54,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/fd.h>
 #include <linux/hdreg.h>
@@ -65,6 +66,7 @@
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -1695,34 +1697,18 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(unit[drive].gendisk);
 }
 
-static int __init amiga_floppy_init(void)
+static int __init amiga_floppy_probe(struct platform_device *pdev)
 {
 	int i, ret;
 
-	if (!MACH_IS_AMIGA)
-		return -ENODEV;
-
-	if (!AMIGAHW_PRESENT(AMI_FLOPPY))
-		return -ENODEV;
-
 	if (register_blkdev(FLOPPY_MAJOR,"fd"))
 		return -EBUSY;
-
-	/*
-	 *  We request DSKPTR, DSKLEN and DSKDATA only, because the other
-	 *  floppy registers are too spreaded over the custom register space
-	 */
-	ret = -EBUSY;
-	if (!request_mem_region(CUSTOM_PHYSADDR+0x20, 8, "amiflop [Paula]")) {
-		printk("fd: cannot get floppy registers\n");
-		goto out_blkdev;
-	}
 
 	ret = -ENOMEM;
 	if ((raw_buf = (char *)amiga_chip_alloc (RAW_BUF_SIZE, "Floppy")) ==
 	    NULL) {
 		printk("fd: cannot get chip mem buffer\n");
-		goto out_memregion;
+		goto out_blkdev;
 	}
 
 	ret = -EBUSY;
@@ -1791,18 +1777,13 @@ out_irq2:
 	free_irq(IRQ_AMIGA_DSKBLK, NULL);
 out_irq:
 	amiga_chip_free(raw_buf);
-out_memregion:
-	release_mem_region(CUSTOM_PHYSADDR+0x20, 8);
 out_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR,"fd");
 	return ret;
 }
 
-module_init(amiga_floppy_init);
-#ifdef MODULE
-
 #if 0 /* not safe to unload */
-void cleanup_module(void)
+static int __exit amiga_floppy_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -1819,12 +1800,25 @@ void cleanup_module(void)
 	custom.dmacon = DMAF_DISK; /* disable DMA */
 	amiga_chip_free(raw_buf);
 	blk_cleanup_queue(floppy_queue);
-	release_mem_region(CUSTOM_PHYSADDR+0x20, 8);
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 }
 #endif
 
-#else
+static struct platform_driver amiga_floppy_driver = {
+	.driver   = {
+		.name	= "amiga-floppy",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init amiga_floppy_init(void)
+{
+	return platform_driver_probe(&amiga_floppy_driver, amiga_floppy_probe);
+}
+
+module_init(amiga_floppy_init);
+
+#ifndef MODULE
 static int __init amiga_floppy_setup (char *str)
 {
 	int n;
@@ -1839,3 +1833,5 @@ static int __init amiga_floppy_setup (char *str)
 
 __setup("floppy=", amiga_floppy_setup);
 #endif
+
+MODULE_ALIAS("platform:amiga-floppy");

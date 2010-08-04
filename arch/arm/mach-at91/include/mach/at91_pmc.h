@@ -32,6 +32,7 @@
 #define		AT91_PMC_PCK1		(1 <<  9)		/* Programmable Clock 1 */
 #define		AT91_PMC_PCK2		(1 << 10)		/* Programmable Clock 2 */
 #define		AT91_PMC_PCK3		(1 << 11)		/* Programmable Clock 3 */
+#define		AT91_PMC_PCK4		(1 << 12)		/* Programmable Clock 4 [AT572D940HF only] */
 #define		AT91_PMC_HCK0		(1 << 16)		/* AHB Clock (USB host) [AT91SAM9261 only] */
 #define		AT91_PMC_HCK1		(1 << 17)		/* AHB Clock (LCD) [AT91SAM9261 only] */
 

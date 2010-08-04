@@ -172,18 +172,20 @@ enum {
 	IG_Max
 };
 
-typedef enum _LED_CTL_MODE {
-	LED_CTL_POWER_ON	 = 1,
-	LED_CTL_LINK		 = 2,
-	LED_CTL_NO_LINK		 = 3,
-	LED_CTL_TX		 = 4,
-	LED_CTL_RX		 = 5,
-	LED_CTL_SITE_SURVEY	 = 6,
-	LED_CTL_POWER_OFF	 = 7,
-	LED_CTL_START_TO_LINK	 = 8,
-	LED_CTL_START_WPS	 = 9,
-	LED_CTL_STOP_WPS	 = 10,
+typedef enum _LED_CTL_MODE{
+	LED_CTL_POWER_ON = 1,
+	LED_CTL_LINK = 2,
+	LED_CTL_NO_LINK = 3,
+	LED_CTL_TX = 4,
+	LED_CTL_RX = 5,
+	LED_CTL_SITE_SURVEY = 6,
+	LED_CTL_POWER_OFF = 7,
+	LED_CTL_START_TO_LINK = 8,
+	LED_CTL_START_WPS = 9,
+	LED_CTL_STOP_WPS = 10,
 	LED_CTL_START_WPS_BOTTON = 11,
+	LED_CTL_STOP_WPS_FAIL = 12,
+	LED_CTL_STOP_WPS_FAIL_OVERLAP = 13,
 } LED_CTL_MODE;
 
 typedef union _frameqos {
@@ -201,7 +203,7 @@ typedef union _frameqos {
 static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)buf;
-	u16 fc = le16_to_cpu(hdr->frame_ctl);
+	u16 fc = le16_to_cpu(hdr->frame_control);
 
 	return (u8)((frameqos *)(buf +
 		(((fc & IEEE80211_FCTL_TODS) &&

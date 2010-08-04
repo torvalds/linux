@@ -202,13 +202,13 @@ static struct of_device_id ppc4xx_edac_match[] = {
 };
 
 static struct of_platform_driver ppc4xx_edac_driver = {
-	.match_table		= ppc4xx_edac_match,
 	.probe			= ppc4xx_edac_probe,
 	.remove			= ppc4xx_edac_remove,
-	.driver			= {
-		.owner	= THIS_MODULE,
-		.name	= PPC4XX_EDAC_MODULE_NAME
-	}
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = PPC4XX_EDAC_MODULE_NAME
+		.of_match_table = ppc4xx_edac_match,
+	},
 };
 
 /*
@@ -1022,7 +1022,7 @@ ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	int status = 0;
 	const u32 memcheck = (mcopt1 & SDRAM_MCOPT1_MCHK_MASK);
 	struct ppc4xx_edac_pdata *pdata = NULL;
-	const struct device_node *np = op->node;
+	const struct device_node *np = op->dev.of_node;
 
 	if (match == NULL)
 		return -EINVAL;
@@ -1113,7 +1113,7 @@ ppc4xx_edac_register_irq(struct of_device *op, struct mem_ctl_info *mci)
 	int status = 0;
 	int ded_irq, sec_irq;
 	struct ppc4xx_edac_pdata *pdata = mci->pvt_info;
-	struct device_node *np = op->node;
+	struct device_node *np = op->dev.of_node;
 
 	ded_irq = irq_of_parse_and_map(np, INTMAP_ECCDED_INDEX);
 	sec_irq = irq_of_parse_and_map(np, INTMAP_ECCSEC_INDEX);
@@ -1243,7 +1243,7 @@ ppc4xx_edac_probe(struct of_device *op, const struct of_device_id *match)
 	int status = 0;
 	u32 mcopt1, memcheck;
 	dcr_host_t dcr_host;
-	const struct device_node *np = op->node;
+	const struct device_node *np = op->dev.of_node;
 	struct mem_ctl_info *mci = NULL;
 	static int ppc4xx_edac_instance;
 

@@ -101,13 +101,17 @@ static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 	u8 *tcp_udp_csum_ok, u8 *udp, u8 *tcp, u8 *ipv4_csum_ok,
 	u8 *ipv6, u8 *ipv4, u8 *ipv4_fragment, u8 *fcs_ok)
 {
-	u16 completed_index_flags = le16_to_cpu(desc->completed_index_flags);
-	u16 q_number_rss_type_flags =
-		le16_to_cpu(desc->q_number_rss_type_flags);
-	u16 bytes_written_flags = le16_to_cpu(desc->bytes_written_flags);
+	u16 completed_index_flags;
+	u16 q_number_rss_type_flags;
+	u16 bytes_written_flags;
 
 	cq_desc_dec((struct cq_desc *)desc, type,
 		color, q_number, completed_index);
+
+	completed_index_flags = le16_to_cpu(desc->completed_index_flags);
+	q_number_rss_type_flags =
+		le16_to_cpu(desc->q_number_rss_type_flags);
+	bytes_written_flags = le16_to_cpu(desc->bytes_written_flags);
 
 	*ingress_port = (completed_index_flags &
 		CQ_ENET_RQ_DESC_FLAGS_INGRESS_PORT) ? 1 : 0;

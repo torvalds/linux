@@ -227,6 +227,7 @@ struct bitmap {
 	int allclean;
 
 	atomic_t behind_writes;
+	unsigned long behind_writes_used; /* highest actual value at runtime */
 
 	/*
 	 * the bitmap daemon - periodically wakes up and sweeps the bitmap
@@ -239,6 +240,7 @@ struct bitmap {
 	atomic_t pending_writes; /* pending writes to the bitmap file */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
+	wait_queue_head_t behind_wait;
 
 	struct sysfs_dirent *sysfs_can_clear;
 };

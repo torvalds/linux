@@ -267,8 +267,8 @@ enum xfrm_attr_type_t {
 	XFRMA_ALG_COMP,		/* struct xfrm_algo */
 	XFRMA_ENCAP,		/* struct xfrm_algo + struct xfrm_encap_tmpl */
 	XFRMA_TMPL,		/* 1 or more struct xfrm_user_tmpl */
-	XFRMA_SA,
-	XFRMA_POLICY,
+	XFRMA_SA,		/* struct xfrm_usersa_info  */
+	XFRMA_POLICY,		/*struct xfrm_userpolicy_info */
 	XFRMA_SEC_CTX,		/* struct xfrm_sec_ctx */
 	XFRMA_LTIME_VAL,
 	XFRMA_REPLAY_VAL,
@@ -276,15 +276,21 @@ enum xfrm_attr_type_t {
 	XFRMA_ETIMER_THRESH,
 	XFRMA_SRCADDR,		/* xfrm_address_t */
 	XFRMA_COADDR,		/* xfrm_address_t */
-	XFRMA_LASTUSED,
+	XFRMA_LASTUSED,		/* unsigned long  */
 	XFRMA_POLICY_TYPE,	/* struct xfrm_userpolicy_type */
 	XFRMA_MIGRATE,
 	XFRMA_ALG_AEAD,		/* struct xfrm_algo_aead */
 	XFRMA_KMADDRESS,        /* struct xfrm_user_kmaddress */
 	XFRMA_ALG_AUTH_TRUNC,	/* struct xfrm_algo_auth */
+	XFRMA_MARK,		/* struct xfrm_mark */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
+};
+
+struct xfrm_mark {
+	__u32           v; /* value */
+	__u32           m; /* mask */
 };
 
 enum xfrm_sadattr_type_t {

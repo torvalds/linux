@@ -30,7 +30,7 @@
 #include "hpusb.h"
 
 /* used throughout this file... */
-#define	N(a)	(sizeof (a) / sizeof (a[0]))
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
 
 #define HAL_MODE_11A_TURBO	HAL_MODE_108A
 #define HAL_MODE_11G_TURBO	HAL_MODE_108G
@@ -78,7 +78,7 @@ enum {
 };
 
 #define MKK5GHZ_FLAG1 (DISALLOW_ADHOC_11A_TURB | NEED_NFC | LIMIT_FRAME_4MS)
-#define MKK5GHZ_FLAG2 (DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB | NEED_NFC| LIMIT_FRAME_4MS)
+#define MKK5GHZ_FLAG2 (DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB | NEED_NFC | LIMIT_FRAME_4MS)
 
 typedef enum {
 	DFS_UNINIT_DOMAIN	= 0,	/* Uninitialized dfs domain */
@@ -272,7 +272,7 @@ static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 	/* MKK4 */
 	{MKK4_MKKB,     MKK4,		MKKA,		MKK5GHZ_FLAG2, NEED_NFC, PSCAN_MKK3 | PSCAN_MKKA | PSCAN_MKKA_G, CTRY_JAPAN10 },
 	{MKK4_MKKA1,    MKK4,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK3 | PSCAN_MKKA1 | PSCAN_MKKA1_G, CTRY_JAPAN28 },
-	{MKK4_MKKA2,    MKK4,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK3 |PSCAN_MKKA2 | PSCAN_MKKA2_G, CTRY_JAPAN11 },
+	{MKK4_MKKA2,    MKK4,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK3 | PSCAN_MKKA2 | PSCAN_MKKA2_G, CTRY_JAPAN11 },
 	{MKK4_MKKC,     MKK4,		MKKC,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK3, CTRY_JAPAN12 },
 	{MKK4_FCCA,     MKK4,		FCCA,		MKK5GHZ_FLAG1, NEED_NFC, NO_PSCAN, CTRY_JAPAN29 },
 	{MKK4_MKKA,     MKK4,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK3 | PSCAN_MKKA, CTRY_JAPAN36 },
@@ -301,7 +301,7 @@ static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 	{MKK8_MKKA2,    MKK8,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK1 | PSCAN_MKK3 | PSCAN_MKKA2 | PSCAN_MKKA2_G, CTRY_JAPAN23 },
 	{MKK8_MKKC,     MKK8,		MKKC,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKK1 | PSCAN_MKK3 , CTRY_JAPAN24 },
 
-   	/* MKK9 */
+	/* MKK9 */
 	{MKK9_MKKA,     MKK9,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, NO_PSCAN, CTRY_JAPAN34 },
 	{MKK9_FCCA,     MKK9,		FCCA,		MKK5GHZ_FLAG1, NEED_NFC, NO_PSCAN, CTRY_JAPAN37 },
 	{MKK9_MKKA1,    MKK9,		MKKA,		MKK5GHZ_FLAG1, NEED_NFC, PSCAN_MKKA1 | PSCAN_MKKA1_G, CTRY_JAPAN38 },
@@ -359,7 +359,7 @@ static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 #define	COUNTRY_CODE_MASK	0x03ff
 #define CF_INTERFERENCE		(CHANNEL_CW_INT | CHANNEL_RADAR_INT)
 #define CHANNEL_14		(2484)	/* 802.11g operation is not permitted on channel 14 */
-#define IS_11G_CH14(_ch,_cf) \
+#define IS_11G_CH14(_ch, _cf) \
 	(((_ch) == CHANNEL_14) && ((_cf) == CHANNEL_G))
 
 #define	YES	TRUE
@@ -373,183 +373,183 @@ enum {
 typedef struct {
 	HAL_CTRY_CODE	countryCode;
 	HAL_REG_DOMAIN	regDmnEnum;
-	const char*		isoName;
-	const char*		name;
+	const char		*isoName;
+	const char		*name;
 	HAL_BOOL		allow11g;
 	HAL_BOOL		allow11aTurbo;
 	HAL_BOOL		allow11gTurbo;
-    HAL_BOOL        allow11na;      /* HT-40 allowed in 5GHz? */
-    HAL_BOOL        allow11ng;      /* HT-40 allowed in 2GHz? */
+	HAL_BOOL	allow11na;      /* HT-40 allowed in 5GHz? */
+	HAL_BOOL	allow11ng;      /* HT-40 allowed in 2GHz? */
 	u16_t		outdoorChanStart;
 } COUNTRY_CODE_TO_ENUM_RD;
 
 static COUNTRY_CODE_TO_ENUM_RD allCountries[] = {
-    {CTRY_DEBUG,       NO_ENUMRD,     "DB", "DEBUG",          YES, YES, YES, YES, YES, 7000 },
-    {CTRY_DEFAULT,     DEF_REGDMN,    "NA", "NO_COUNTRY_SET", YES, YES, YES, YES, YES, 7000 },
-    {CTRY_ALBANIA,     NULL1_WORLD,   "AL", "ALBANIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ALGERIA,     NULL1_WORLD,   "DZ", "ALGERIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ARGENTINA,   APL3_WORLD,    "AR", "ARGENTINA",      YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_ARMENIA,     ETSI4_WORLD,   "AM", "ARMENIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_AUSTRALIA,   FCC6_WORLD,    "AU", "AUSTRALIA",      YES, YES, YES, YES, YES, 7000 },
-    {CTRY_AUSTRIA,     ETSI2_WORLD,   "AT", "AUSTRIA",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_AZERBAIJAN,  ETSI4_WORLD,   "AZ", "AZERBAIJAN",     YES, YES, YES, YES, YES, 7000 },
-    {CTRY_BAHRAIN,     APL6_WORLD,    "BH", "BAHRAIN",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_BELARUS,     ETSI1_WORLD,   "BY", "BELARUS",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_BELGIUM,     ETSI1_WORLD,   "BE", "BELGIUM",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_BELIZE,      APL1_ETSIC,    "BZ", "BELIZE",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_BOLIVIA,     APL1_ETSIC,    "BO", "BOLVIA",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_BRAZIL,      FCC3_WORLD,    "BR", "BRAZIL",         NO,  NO,  NO,  NO,  NO,  7000 },
-    {CTRY_BRUNEI_DARUSSALAM,APL1_WORLD,"BN", "BRUNEI DARUSSALAM", YES, YES, YES,  YES, YES, 7000 },
-    {CTRY_BULGARIA,    ETSI6_WORLD,   "BG", "BULGARIA",       YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_CANADA,      FCC6_FCCA,     "CA", "CANADA",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_CHILE,       APL6_WORLD,    "CL", "CHILE",          YES, YES, YES, YES, YES, 7000 },
-    {CTRY_CHINA,       APL1_WORLD,    "CN", "CHINA",          YES, YES, YES, YES, YES, 7000 },
-    {CTRY_COLOMBIA,    FCC1_FCCA,     "CO", "COLOMBIA",       YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_COSTA_RICA,  FCC1_WORLD,    "CR", "COSTA RICA",     YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_CROATIA,     ETSI3_WORLD,   "HR", "CROATIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_CYPRUS,      ETSI3_WORLD,   "CY", "CYPRUS",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_CZECH,       ETSI3_WORLD,   "CZ", "CZECH REPUBLIC", YES, NO, YES,  YES, YES, 7000 },
-    {CTRY_DENMARK,     ETSI1_WORLD,   "DK", "DENMARK",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_DOMINICAN_REPUBLIC,FCC1_FCCA,"DO", "DOMINICAN REPUBLIC", YES, YES, YES, YES, YES, 7000 },
-    {CTRY_ECUADOR,     FCC1_WORLD,    "EC", "ECUADOR",        YES, NO,  NO,  NO,  YES, 7000 },
-    {CTRY_EGYPT,       ETSI3_WORLD,   "EG", "EGYPT",          YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_EL_SALVADOR, FCC1_WORLD,    "SV", "EL SALVADOR",    YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ESTONIA,     ETSI1_WORLD,   "EE", "ESTONIA",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_FINLAND,     ETSI1_WORLD,   "FI", "FINLAND",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_FRANCE,      ETSI1_WORLD,   "FR", "FRANCE",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_FRANCE2,     ETSI3_WORLD,   "F2", "FRANCE_RES",     YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_GEORGIA,     ETSI4_WORLD,   "GE", "GEORGIA",        YES, YES, YES, YES, YES, 7000 },
-    {CTRY_GERMANY,     ETSI1_WORLD,   "DE", "GERMANY",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_GREECE,      ETSI1_WORLD,   "GR", "GREECE",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_GUATEMALA,   FCC1_FCCA,     "GT", "GUATEMALA",      YES, YES, YES, YES, YES, 7000 },
-    {CTRY_HONDURAS,    NULL1_WORLD,   "HN", "HONDURAS",       YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_HONG_KONG,   FCC2_WORLD,    "HK", "HONG KONG",      YES, YES, YES, YES, YES, 7000 },
-    {CTRY_HUNGARY,     ETSI4_WORLD,   "HU", "HUNGARY",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_ICELAND,     ETSI1_WORLD,   "IS", "ICELAND",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_INDIA,       APL6_WORLD,    "IN", "INDIA",          YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_INDONESIA,   APL1_WORLD,    "ID", "INDONESIA",      YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_IRAN,        APL1_WORLD,    "IR", "IRAN",           YES, YES, YES, YES, YES, 7000 },
-    {CTRY_IRELAND,     ETSI1_WORLD,   "IE", "IRELAND",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_ISRAEL,      ETSI3_WORLD,   "IL", "ISRAEL",         YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ISRAEL2,     NULL1_ETSIB,   "ISR","ISRAEL_RES",     YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ITALY,       ETSI1_WORLD,   "IT", "ITALY",          YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_JAMAICA,     ETSI1_WORLD,   "JM", "JAMAICA",        YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_JAPAN,       MKK1_MKKA,     "JP", "JAPAN",          YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN1,      MKK1_MKKB,     "J1", "JAPAN1",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN2,      MKK1_FCCA,     "J2", "JAPAN2",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN3,      MKK2_MKKA,     "J3", "JAPAN3",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN4,      MKK1_MKKA1,    "J4", "JAPAN4",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN5,      MKK1_MKKA2,    "J5", "JAPAN5",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN6,      MKK1_MKKC,     "J6", "JAPAN6",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN7,      MKK3_MKKB,     "J7", "JAPAN7",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN8,      MKK3_MKKA2,    "J8", "JAPAN8",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN9,      MKK3_MKKC,     "J9", "JAPAN9",         YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN10,     MKK4_MKKB,     "J10", "JAPAN10",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN11,     MKK4_MKKA2,    "J11", "JAPAN11",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN12,     MKK4_MKKC,     "J12", "JAPAN12",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN13,     MKK5_MKKB,     "J13", "JAPAN13",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN14,     MKK5_MKKA2,    "J14", "JAPAN14",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN15,     MKK5_MKKC,     "J15", "JAPAN15",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN16,     MKK6_MKKB,     "J16", "JAPAN16",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN17,     MKK6_MKKA2,    "J17", "JAPAN17",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN18,     MKK6_MKKC,     "J18", "JAPAN18",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN19,     MKK7_MKKB,     "J19", "JAPAN19",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN20,     MKK7_MKKA,     "J20", "JAPAN20",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN21,     MKK7_MKKC,     "J21", "JAPAN21",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN22,     MKK8_MKKB,     "J22", "JAPAN22",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN23,     MKK8_MKKA2,    "J23", "JAPAN23",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN24,     MKK8_MKKC,     "J24", "JAPAN24",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN25,     MKK3_MKKA,     "J25", "JAPAN25",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN26,     MKK3_MKKA1,    "J26", "JAPAN26",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN27,     MKK3_FCCA,     "J27", "JAPAN27",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN28,     MKK4_MKKA1,    "J28", "JAPAN28",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN29,     MKK4_FCCA,     "J29", "JAPAN29",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN30,     MKK6_MKKA1,    "J30", "JAPAN30",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN31,     MKK6_FCCA,     "J31", "JAPAN31",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN32,     MKK7_MKKA1,    "J32", "JAPAN32",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN33,     MKK7_FCCA,     "J33", "JAPAN33",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN34,     MKK9_MKKA,     "J34", "JAPAN34",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN35,     MKK10_MKKA,    "J35", "JAPAN35",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN36,     MKK4_MKKA,     "J36", "JAPAN36",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN37,     MKK9_FCCA,     "J37", "JAPAN37",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN38,     MKK9_MKKA1,    "J38", "JAPAN38",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN39,     MKK9_MKKC,     "J39", "JAPAN39",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN40,     MKK10_MKKA2,   "J40", "JAPAN40",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN41,     MKK10_FCCA,    "J41", "JAPAN41",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN42,     MKK10_MKKA1,   "J42", "JAPAN42",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN43,     MKK10_MKKC,    "J43", "JAPAN43",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN44,     MKK10_MKKA2,   "J44", "JAPAN44",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN45,     MKK11_MKKA,    "J45", "JAPAN45",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN46,     MKK11_FCCA,    "J46", "JAPAN46",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN47,     MKK11_MKKA1,   "J47", "JAPAN47",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN48,     MKK11_MKKC,    "J48", "JAPAN48",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN49,     MKK11_MKKA2,   "J49", "JAPAN49",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN50,     MKK12_MKKA,    "J50", "JAPAN50",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN51,     MKK12_FCCA,    "J51", "JAPAN51",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN52,     MKK12_MKKA1,   "J52", "JAPAN52",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN53,     MKK12_MKKC,    "J53", "JAPAN53",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JAPAN54,     MKK12_MKKA2,   "J54", "JAPAN54",       YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_JORDAN,      ETSI2_WORLD,   "JO", "JORDAN",         YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_KAZAKHSTAN,  NULL1_WORLD,   "KZ", "KAZAKHSTAN",     YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_KOREA_NORTH, APL9_WORLD,    "KP", "NORTH KOREA",    YES, NO,  NO,  YES, YES, 7000 },
-    {CTRY_KOREA_ROC,   APL9_WORLD,    "KR", "KOREA REPUBLIC", YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_KOREA_ROC2,  APL2_APLD,     "K2", "KOREA REPUBLIC2",YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_KOREA_ROC3,  APL9_WORLD,    "K3", "KOREA REPUBLIC3",YES, NO,  NO,  NO,  NO,  7000 },
-    {CTRY_KUWAIT,      NULL1_WORLD,   "KW", "KUWAIT",         YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_LATVIA,      ETSI1_WORLD,   "LV", "LATVIA",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_LEBANON,     NULL1_WORLD,   "LB", "LEBANON",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_LIECHTENSTEIN,ETSI1_WORLD,  "LI", "LIECHTENSTEIN",  YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_LITHUANIA,   ETSI1_WORLD,   "LT", "LITHUANIA",      YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_LUXEMBOURG,  ETSI1_WORLD,   "LU", "LUXEMBOURG",     YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_MACAU,       FCC2_WORLD,    "MO", "MACAU",          YES, YES, YES, YES, YES, 7000 },
-    {CTRY_MACEDONIA,   NULL1_WORLD,   "MK", "MACEDONIA",      YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_MALAYSIA,    APL8_WORLD,    "MY", "MALAYSIA",       NO,  NO,  NO,  NO,  NO,  7000 },
-    {CTRY_MALTA,       ETSI1_WORLD,   "MT", "MALTA",          YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_MEXICO,      FCC1_FCCA,     "MX", "MEXICO",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_MONACO,      ETSI4_WORLD,   "MC", "MONACO",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_MOROCCO,     NULL1_WORLD,   "MA", "MOROCCO",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_NETHERLANDS, ETSI1_WORLD,   "NL", "NETHERLANDS",    YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_NETHERLANDS_ANT, ETSI1_WORLD, "AN", "NETHERLANDS-ANTILLES", YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_NEW_ZEALAND, FCC2_ETSIC,    "NZ", "NEW ZEALAND",    YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_NORWAY,      ETSI1_WORLD,   "NO", "NORWAY",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_OMAN,        APL6_WORLD,    "OM", "OMAN",           YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_PAKISTAN,    NULL1_WORLD,   "PK", "PAKISTAN",       YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_PANAMA,      FCC1_FCCA,     "PA", "PANAMA",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_PERU,        APL1_WORLD,    "PE", "PERU",           YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_PHILIPPINES, APL1_WORLD,    "PH", "PHILIPPINES",    YES, YES, YES, YES, YES, 7000 },
-    {CTRY_POLAND,      ETSI1_WORLD,   "PL", "POLAND",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_PORTUGAL,    ETSI1_WORLD,   "PT", "PORTUGAL",       YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_PUERTO_RICO, FCC1_FCCA,     "PR", "PUERTO RICO",    YES, YES, YES, YES, YES, 7000 },
-    {CTRY_QATAR,       NULL1_WORLD,   "QA", "QATAR",          YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ROMANIA,     NULL1_WORLD,   "RO", "ROMANIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_RUSSIA,      NULL1_WORLD,   "RU", "RUSSIA",         YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_SAUDI_ARABIA,NULL1_WORLD,   "SA", "SAUDI ARABIA",   YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_SERBIA_MONT, ETSI1_WORLD,   "CS", "SERBIA & MONTENEGRO", YES, NO,  YES, YES,  YES, 7000 },
-    {CTRY_SINGAPORE,   APL6_WORLD,    "SG", "SINGAPORE",      YES, YES, YES, YES, YES, 7000 },
-    {CTRY_SLOVAKIA,    ETSI1_WORLD,   "SK", "SLOVAK REPUBLIC",YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_SLOVENIA,    ETSI1_WORLD,   "SI", "SLOVENIA",       YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_SOUTH_AFRICA,FCC3_WORLD,    "ZA", "SOUTH AFRICA",   YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_SPAIN,       ETSI1_WORLD,   "ES", "SPAIN",          YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_SRILANKA,    FCC3_WORLD,    "LK", "SRI LANKA",      YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_SWEDEN,      ETSI1_WORLD,   "SE", "SWEDEN",         YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_SWITZERLAND, ETSI1_WORLD,   "CH", "SWITZERLAND",    YES, NO,  YES, YES, YES, 7000 },
-    {CTRY_SYRIA,       NULL1_WORLD,   "SY", "SYRIA",          YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_TAIWAN,      APL3_FCCA,     "TW", "TAIWAN",         YES, YES, YES, YES, YES, 7000 },
-    {CTRY_THAILAND,    NULL1_WORLD,   "TH", "THAILAND",       YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_TRINIDAD_Y_TOBAGO,ETSI4_WORLD,"TT", "TRINIDAD & TOBAGO", YES, NO, YES, NO, YES, 7000 },
-    {CTRY_TUNISIA,     ETSI3_WORLD,   "TN", "TUNISIA",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_TURKEY,      ETSI3_WORLD,   "TR", "TURKEY",         YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_UKRAINE,     NULL1_WORLD,   "UA", "UKRAINE",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_UAE,         NULL1_WORLD,   "AE", "UNITED ARAB EMIRATES", YES, NO, YES, NO, YES, 7000 },
-    {CTRY_UNITED_KINGDOM, ETSI1_WORLD,"GB", "UNITED KINGDOM", YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_UNITED_STATES, FCC3_FCCA,   "US", "UNITED STATES",  YES, YES, YES, YES, YES, 5825 },
-    {CTRY_UNITED_STATES_FCC49, FCC4_FCCA,   "PS", "UNITED STATES (PUBLIC SAFETY)",  YES, YES, YES, YES, YES, 7000 },
-    {CTRY_URUGUAY,     FCC1_WORLD,    "UY", "URUGUAY",        YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_UZBEKISTAN,  FCC3_FCCA,     "UZ", "UZBEKISTAN",     YES, YES, YES, YES, YES, 7000 },
-    {CTRY_VENEZUELA,   APL2_ETSIC,    "VE", "VENEZUELA",      YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_VIET_NAM,    NULL1_WORLD,   "VN", "VIET NAM",       YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_YEMEN,       NULL1_WORLD,   "YE", "YEMEN",          YES, NO,  YES, NO,  YES, 7000 },
-    {CTRY_ZIMBABWE,    NULL1_WORLD,   "ZW", "ZIMBABWE",       YES, NO,  YES, NO,  YES, 7000 }
+	{CTRY_DEBUG,       NO_ENUMRD,     "DB", "DEBUG",          YES, YES, YES, YES, YES, 7000 },
+	{CTRY_DEFAULT,     DEF_REGDMN,    "NA", "NO_COUNTRY_SET", YES, YES, YES, YES, YES, 7000 },
+	{CTRY_ALBANIA,     NULL1_WORLD,   "AL", "ALBANIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ALGERIA,     NULL1_WORLD,   "DZ", "ALGERIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ARGENTINA,   APL3_WORLD,    "AR", "ARGENTINA",      YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_ARMENIA,     ETSI4_WORLD,   "AM", "ARMENIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_AUSTRALIA,   FCC6_WORLD,    "AU", "AUSTRALIA",      YES, YES, YES, YES, YES, 7000 },
+	{CTRY_AUSTRIA,     ETSI2_WORLD,   "AT", "AUSTRIA",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_AZERBAIJAN,  ETSI4_WORLD,   "AZ", "AZERBAIJAN",     YES, YES, YES, YES, YES, 7000 },
+	{CTRY_BAHRAIN,     APL6_WORLD,    "BH", "BAHRAIN",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_BELARUS,     ETSI1_WORLD,   "BY", "BELARUS",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_BELGIUM,     ETSI1_WORLD,   "BE", "BELGIUM",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_BELIZE,      APL1_ETSIC,    "BZ", "BELIZE",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_BOLIVIA,     APL1_ETSIC,    "BO", "BOLVIA",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_BRAZIL,      FCC3_WORLD,    "BR", "BRAZIL",         NO,  NO,  NO,  NO,  NO,  7000 },
+	{CTRY_BRUNEI_DARUSSALAM, APL1_WORLD, "BN", "BRUNEI DARUSSALAM", YES, YES, YES,  YES, YES, 7000 },
+	{CTRY_BULGARIA,    ETSI6_WORLD,   "BG", "BULGARIA",       YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_CANADA,      FCC6_FCCA,     "CA", "CANADA",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_CHILE,       APL6_WORLD,    "CL", "CHILE",          YES, YES, YES, YES, YES, 7000 },
+	{CTRY_CHINA,       APL1_WORLD,    "CN", "CHINA",          YES, YES, YES, YES, YES, 7000 },
+	{CTRY_COLOMBIA,    FCC1_FCCA,     "CO", "COLOMBIA",       YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_COSTA_RICA,  FCC1_WORLD,    "CR", "COSTA RICA",     YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_CROATIA,     ETSI3_WORLD,   "HR", "CROATIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_CYPRUS,      ETSI3_WORLD,   "CY", "CYPRUS",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_CZECH,       ETSI3_WORLD,   "CZ", "CZECH REPUBLIC", YES, NO, YES,  YES, YES, 7000 },
+	{CTRY_DENMARK,     ETSI1_WORLD,   "DK", "DENMARK",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_DOMINICAN_REPUBLIC, FCC1_FCCA, "DO", "DOMINICAN REPUBLIC", YES, YES, YES, YES, YES, 7000 },
+	{CTRY_ECUADOR,     FCC1_WORLD,    "EC", "ECUADOR",        YES, NO,  NO,  NO,  YES, 7000 },
+	{CTRY_EGYPT,       ETSI3_WORLD,   "EG", "EGYPT",          YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_EL_SALVADOR, FCC1_WORLD,    "SV", "EL SALVADOR",    YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ESTONIA,     ETSI1_WORLD,   "EE", "ESTONIA",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_FINLAND,     ETSI1_WORLD,   "FI", "FINLAND",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_FRANCE,      ETSI1_WORLD,   "FR", "FRANCE",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_FRANCE2,     ETSI3_WORLD,   "F2", "FRANCE_RES",     YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_GEORGIA,     ETSI4_WORLD,   "GE", "GEORGIA",        YES, YES, YES, YES, YES, 7000 },
+	{CTRY_GERMANY,     ETSI1_WORLD,   "DE", "GERMANY",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_GREECE,      ETSI1_WORLD,   "GR", "GREECE",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_GUATEMALA,   FCC1_FCCA,     "GT", "GUATEMALA",      YES, YES, YES, YES, YES, 7000 },
+	{CTRY_HONDURAS,    NULL1_WORLD,   "HN", "HONDURAS",       YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_HONG_KONG,   FCC2_WORLD,    "HK", "HONG KONG",      YES, YES, YES, YES, YES, 7000 },
+	{CTRY_HUNGARY,     ETSI4_WORLD,   "HU", "HUNGARY",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_ICELAND,     ETSI1_WORLD,   "IS", "ICELAND",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_INDIA,       APL6_WORLD,    "IN", "INDIA",          YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_INDONESIA,   APL1_WORLD,    "ID", "INDONESIA",      YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_IRAN,        APL1_WORLD,    "IR", "IRAN",           YES, YES, YES, YES, YES, 7000 },
+	{CTRY_IRELAND,     ETSI1_WORLD,   "IE", "IRELAND",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_ISRAEL,      ETSI3_WORLD,   "IL", "ISRAEL",         YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ISRAEL2,     NULL1_ETSIB,   "ISR", "ISRAEL_RES",     YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ITALY,       ETSI1_WORLD,   "IT", "ITALY",          YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_JAMAICA,     ETSI1_WORLD,   "JM", "JAMAICA",        YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_JAPAN,       MKK1_MKKA,     "JP", "JAPAN",          YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN1,      MKK1_MKKB,     "J1", "JAPAN1",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN2,      MKK1_FCCA,     "J2", "JAPAN2",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN3,      MKK2_MKKA,     "J3", "JAPAN3",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN4,      MKK1_MKKA1,    "J4", "JAPAN4",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN5,      MKK1_MKKA2,    "J5", "JAPAN5",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN6,      MKK1_MKKC,     "J6", "JAPAN6",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN7,      MKK3_MKKB,     "J7", "JAPAN7",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN8,      MKK3_MKKA2,    "J8", "JAPAN8",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN9,      MKK3_MKKC,     "J9", "JAPAN9",         YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN10,     MKK4_MKKB,     "J10", "JAPAN10",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN11,     MKK4_MKKA2,    "J11", "JAPAN11",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN12,     MKK4_MKKC,     "J12", "JAPAN12",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN13,     MKK5_MKKB,     "J13", "JAPAN13",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN14,     MKK5_MKKA2,    "J14", "JAPAN14",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN15,     MKK5_MKKC,     "J15", "JAPAN15",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN16,     MKK6_MKKB,     "J16", "JAPAN16",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN17,     MKK6_MKKA2,    "J17", "JAPAN17",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN18,     MKK6_MKKC,     "J18", "JAPAN18",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN19,     MKK7_MKKB,     "J19", "JAPAN19",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN20,     MKK7_MKKA,     "J20", "JAPAN20",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN21,     MKK7_MKKC,     "J21", "JAPAN21",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN22,     MKK8_MKKB,     "J22", "JAPAN22",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN23,     MKK8_MKKA2,    "J23", "JAPAN23",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN24,     MKK8_MKKC,     "J24", "JAPAN24",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN25,     MKK3_MKKA,     "J25", "JAPAN25",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN26,     MKK3_MKKA1,    "J26", "JAPAN26",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN27,     MKK3_FCCA,     "J27", "JAPAN27",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN28,     MKK4_MKKA1,    "J28", "JAPAN28",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN29,     MKK4_FCCA,     "J29", "JAPAN29",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN30,     MKK6_MKKA1,    "J30", "JAPAN30",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN31,     MKK6_FCCA,     "J31", "JAPAN31",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN32,     MKK7_MKKA1,    "J32", "JAPAN32",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN33,     MKK7_FCCA,     "J33", "JAPAN33",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN34,     MKK9_MKKA,     "J34", "JAPAN34",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN35,     MKK10_MKKA,    "J35", "JAPAN35",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN36,     MKK4_MKKA,     "J36", "JAPAN36",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN37,     MKK9_FCCA,     "J37", "JAPAN37",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN38,     MKK9_MKKA1,    "J38", "JAPAN38",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN39,     MKK9_MKKC,     "J39", "JAPAN39",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN40,     MKK10_MKKA2,   "J40", "JAPAN40",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN41,     MKK10_FCCA,    "J41", "JAPAN41",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN42,     MKK10_MKKA1,   "J42", "JAPAN42",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN43,     MKK10_MKKC,    "J43", "JAPAN43",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN44,     MKK10_MKKA2,   "J44", "JAPAN44",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN45,     MKK11_MKKA,    "J45", "JAPAN45",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN46,     MKK11_FCCA,    "J46", "JAPAN46",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN47,     MKK11_MKKA1,   "J47", "JAPAN47",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN48,     MKK11_MKKC,    "J48", "JAPAN48",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN49,     MKK11_MKKA2,   "J49", "JAPAN49",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN50,     MKK12_MKKA,    "J50", "JAPAN50",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN51,     MKK12_FCCA,    "J51", "JAPAN51",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN52,     MKK12_MKKA1,   "J52", "JAPAN52",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN53,     MKK12_MKKC,    "J53", "JAPAN53",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JAPAN54,     MKK12_MKKA2,   "J54", "JAPAN54",       YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_JORDAN,      ETSI2_WORLD,   "JO", "JORDAN",         YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_KAZAKHSTAN,  NULL1_WORLD,   "KZ", "KAZAKHSTAN",     YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_KOREA_NORTH, APL9_WORLD,    "KP", "NORTH KOREA",    YES, NO,  NO,  YES, YES, 7000 },
+	{CTRY_KOREA_ROC,   APL9_WORLD,    "KR", "KOREA REPUBLIC", YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_KOREA_ROC2,  APL2_APLD,     "K2", "KOREA REPUBLIC2", YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_KOREA_ROC3,  APL9_WORLD,    "K3", "KOREA REPUBLIC3", YES, NO,  NO,  NO,  NO,  7000 },
+	{CTRY_KUWAIT,      NULL1_WORLD,   "KW", "KUWAIT",         YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_LATVIA,      ETSI1_WORLD,   "LV", "LATVIA",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_LEBANON,     NULL1_WORLD,   "LB", "LEBANON",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_LIECHTENSTEIN, ETSI1_WORLD,  "LI", "LIECHTENSTEIN",  YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_LITHUANIA,   ETSI1_WORLD,   "LT", "LITHUANIA",      YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_LUXEMBOURG,  ETSI1_WORLD,   "LU", "LUXEMBOURG",     YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_MACAU,       FCC2_WORLD,    "MO", "MACAU",          YES, YES, YES, YES, YES, 7000 },
+	{CTRY_MACEDONIA,   NULL1_WORLD,   "MK", "MACEDONIA",      YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_MALAYSIA,    APL8_WORLD,    "MY", "MALAYSIA",       NO,  NO,  NO,  NO,  NO,  7000 },
+	{CTRY_MALTA,       ETSI1_WORLD,   "MT", "MALTA",          YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_MEXICO,      FCC1_FCCA,     "MX", "MEXICO",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_MONACO,      ETSI4_WORLD,   "MC", "MONACO",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_MOROCCO,     NULL1_WORLD,   "MA", "MOROCCO",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_NETHERLANDS, ETSI1_WORLD,   "NL", "NETHERLANDS",    YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_NETHERLANDS_ANT, ETSI1_WORLD, "AN", "NETHERLANDS-ANTILLES", YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_NEW_ZEALAND, FCC2_ETSIC,    "NZ", "NEW ZEALAND",    YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_NORWAY,      ETSI1_WORLD,   "NO", "NORWAY",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_OMAN,        APL6_WORLD,    "OM", "OMAN",           YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_PAKISTAN,    NULL1_WORLD,   "PK", "PAKISTAN",       YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_PANAMA,      FCC1_FCCA,     "PA", "PANAMA",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_PERU,        APL1_WORLD,    "PE", "PERU",           YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_PHILIPPINES, APL1_WORLD,    "PH", "PHILIPPINES",    YES, YES, YES, YES, YES, 7000 },
+	{CTRY_POLAND,      ETSI1_WORLD,   "PL", "POLAND",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_PORTUGAL,    ETSI1_WORLD,   "PT", "PORTUGAL",       YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_PUERTO_RICO, FCC1_FCCA,     "PR", "PUERTO RICO",    YES, YES, YES, YES, YES, 7000 },
+	{CTRY_QATAR,       NULL1_WORLD,   "QA", "QATAR",          YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ROMANIA,     NULL1_WORLD,   "RO", "ROMANIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_RUSSIA,      NULL1_WORLD,   "RU", "RUSSIA",         YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_SAUDI_ARABIA, NULL1_WORLD,  "SA", "SAUDI ARABIA",   YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_SERBIA_MONT, ETSI1_WORLD,   "CS", "SERBIA & MONTENEGRO", YES, NO,  YES, YES,  YES, 7000 },
+	{CTRY_SINGAPORE,   APL6_WORLD,    "SG", "SINGAPORE",      YES, YES, YES, YES, YES, 7000 },
+	{CTRY_SLOVAKIA,    ETSI1_WORLD,   "SK", "SLOVAK REPUBLIC", YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_SLOVENIA,    ETSI1_WORLD,   "SI", "SLOVENIA",       YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_SOUTH_AFRICA, FCC3_WORLD,   "ZA", "SOUTH AFRICA",   YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_SPAIN,       ETSI1_WORLD,   "ES", "SPAIN",          YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_SRILANKA,    FCC3_WORLD,    "LK", "SRI LANKA",      YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_SWEDEN,      ETSI1_WORLD,   "SE", "SWEDEN",         YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_SWITZERLAND, ETSI1_WORLD,   "CH", "SWITZERLAND",    YES, NO,  YES, YES, YES, 7000 },
+	{CTRY_SYRIA,       NULL1_WORLD,   "SY", "SYRIA",          YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_TAIWAN,      APL3_FCCA,     "TW", "TAIWAN",         YES, YES, YES, YES, YES, 7000 },
+	{CTRY_THAILAND,    NULL1_WORLD,   "TH", "THAILAND",       YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_TRINIDAD_Y_TOBAGO, ETSI4_WORLD, "TT", "TRINIDAD & TOBAGO", YES, NO, YES, NO, YES, 7000 },
+	{CTRY_TUNISIA,     ETSI3_WORLD,   "TN", "TUNISIA",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_TURKEY,      ETSI3_WORLD,   "TR", "TURKEY",         YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_UKRAINE,     NULL1_WORLD,   "UA", "UKRAINE",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_UAE,         NULL1_WORLD,   "AE", "UNITED ARAB EMIRATES", YES, NO, YES, NO, YES, 7000 },
+	{CTRY_UNITED_KINGDOM, ETSI1_WORLD, "GB", "UNITED KINGDOM", YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_UNITED_STATES, FCC3_FCCA,   "US", "UNITED STATES",  YES, YES, YES, YES, YES, 5825 },
+	{CTRY_UNITED_STATES_FCC49, FCC4_FCCA,   "PS", "UNITED STATES (PUBLIC SAFETY)",  YES, YES, YES, YES, YES, 7000 },
+	{CTRY_URUGUAY,     FCC1_WORLD,    "UY", "URUGUAY",        YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_UZBEKISTAN,  FCC3_FCCA,     "UZ", "UZBEKISTAN",     YES, YES, YES, YES, YES, 7000 },
+	{CTRY_VENEZUELA,   APL2_ETSIC,    "VE", "VENEZUELA",      YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_VIET_NAM,    NULL1_WORLD,   "VN", "VIET NAM",       YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_YEMEN,       NULL1_WORLD,   "YE", "YEMEN",          YES, NO,  YES, NO,  YES, 7000 },
+	{CTRY_ZIMBABWE,    NULL1_WORLD,   "ZW", "ZIMBABWE",       YES, NO,  YES, NO,  YES, 7000 }
 };
 
 typedef struct RegDmnFreqBand {
@@ -660,7 +660,7 @@ enum {
 	W1_5745_5825,
 	W1_5500_5700,
 	W2_5260_5320,
-        W2_5180_5240,
+	W2_5180_5240,
 	W2_5825_5825,
 };
 
@@ -786,45 +786,6 @@ enum {
 	WT1_5760_5800,
 };
 
-static REG_DMN_FREQ_BAND regDmn5GhzTurboFreq[] = {
-	{ 5130, 5210, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5130_5210 */
-	{ 5250, 5330, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5250_5330 */
-	{ 5370, 5490, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5370_5490 */
-	{ 5530, 5650, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5530_5650 */
-
-	{ 5150, 5190, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5150_5190 */
-	{ 5230, 5310, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5230_5310 */
-	{ 5350, 5470, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5350_5470 */
-	{ 5510, 5670, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5510_5670 */
-
-	{ 5200, 5240, 17, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5200_5240 */
-	{ 5200, 5240, 23, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5200_5240 */
-	{ 5210, 5210, 17, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5210_5210 */
-	{ 5210, 5210, 23, 0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5210_5210 */
-
-	{ 5280, 5280, 23, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5280_5280 */
-	{ 5280, 5280, 20, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T2_5280_5280 */
-	{ 5250, 5250, 17, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5250_5250 */
-	{ 5290, 5290, 20, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5290_5290 */
-	{ 5250, 5290, 20, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5250_5290 */
-	{ 5250, 5290, 23, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T2_5250_5290 */
-
-	{ 5540, 5660, 20, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5540_5660 */
-	{ 5760, 5800, 20, 0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5760_5800 */
-	{ 5760, 5800, 30, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5760_5800 */
-
-	{ 5765, 5805, 30, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5765_5805 */
-
-	/*
-	 * Below are the WWR frequencies
-	 */
-
-	{ 5210, 5250, 15, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5210_5250 */
-	{ 5290, 5290, 18, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5290_5290 */
-	{ 5540, 5660, 20, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5540_5660 */
-	{ 5760, 5800, 20, 0, 40, 40, NO_DFS, PSCAN_WWR, 0, 0},	/* WT1_5760_5800 */
-};
-
 /*
  * 2GHz 11b channel tags
  */
@@ -862,45 +823,6 @@ enum {
 	W2_2472_2472,
 	W1_2484_2484,
 	W2_2484_2484,
-};
-
-static REG_DMN_FREQ_BAND regDmn2GhzFreq[] = {
-	{ 2312, 2372, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2312_2372 */
-	{ 2312, 2372, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F2_2312_2372 */
-
-	{ 2412, 2472, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2412_2472 */
-	{ 2412, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA, 0, 0},	/* F2_2412_2472 */
-	{ 2412, 2472, 30, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F3_2412_2472 */
-
-	{ 2412, 2462, 27, 6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2412_2462 */
-	{ 2412, 2462, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA, 0, 0},	/* F2_2412_2462 */
-	{ 2432, 2442, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2432_2442 */
-
-	{ 2457, 2472, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2457_2472 */
-
-	{ 2467, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA2 | PSCAN_MKKA, 0, 0}, /* F1_2467_2472 */
-
-	{ 2484, 2484, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2484_2484 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA | PSCAN_MKKA1 | PSCAN_MKKA2, 0, 0},	/* F2_2484_2484 */
-
-	{ 2512, 2732, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2512_2732 */
-
-	/*
-	 * WWR have powers opened up to 20dBm.  Limits should often come from CTL/Max powers
-	 */
-
-	{ 2312, 2372, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2312_2372 */
-	{ 2412, 2412, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2412_2412 */
-	{ 2417, 2432, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2417_2432 */
-	{ 2437, 2442, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2437_2442 */
-	{ 2447, 2457, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2447_2457 */
-	{ 2462, 2462, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2462_2462 */
-	{ 2467, 2467, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2467_2467 */
-	{ 2467, 2467, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2467_2467 */
-	{ 2472, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2472_2472 */
-	{ 2472, 2472, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2472_2472 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2484_2484 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2484_2484 */
 };
 
 
@@ -984,16 +906,6 @@ enum {
 	T1_2512_2732
 };
 
-static REG_DMN_FREQ_BAND regDmn2Ghz11gTurboFreq[] = {
-	{ 2312, 2372, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2312_2372 */
-	{ 2437, 2437, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2437_2437 */
-	{ 2437, 2437, 20, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T2_2437_2437 */
-	{ 2437, 2437, 18, 6, 40, 40, NO_DFS, PSCAN_WWR, 0, 0}, /* T3_2437_2437 */
-	{ 2512, 2732, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2512_2732 */
-};
-
-
-
 /*
  * 2GHz 11n frequency tags
  */
@@ -1004,15 +916,6 @@ enum {
 
     NG_DEMO_ALL_CHANNELS,
 };
-
-static REG_DMN_FREQ_BAND regDmn2Ghz11ngFreq[] = {
-    { 2422, 2452, 20, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG1_2422_2452 */
-    { 2422, 2452, 27, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG2_2422_2452 */
-    { 2422, 2452, 30, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG3_2422_2452 */
-
-	{ 2312, 2732, 27, 6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG_DEMO_ALL_CHANNELS */
-};
-
 
 /*
  * 5GHz 11n frequency tags
@@ -1048,42 +951,6 @@ enum {
     NA1_5795_5795,
 
     NA_DEMO_ALL_CHANNELS,
-};
-
-static REG_DMN_FREQ_BAND regDmn5Ghz11naFreq[] = {
-    /*
-     * ToDo: This table needs to be completely populated with 5GHz 11n properties
-     */
-	{ 5190, 5230, 15,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5190_5230 */
-	{ 5190, 5230, 17,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA2_5190_5230 */
-	{ 5190, 5230, 18,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA3_5190_5230 */
-	{ 5190, 5230, 20,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA4_5190_5230 */
-	{ 5190, 5230, 23,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA5_5190_5230 */
-
-	{ 5270, 5270, 23,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5270_5270 */
-
-	{ 5270, 5310, 18,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5270_5310 */
-	{ 5270, 5310, 20,  0, 40, 40, DFS_FCC3|DFS_ETSI|DFS_MKK4, NO_PSCAN, 0, 1},  /* NA2_5270_5310 */
-	{ 5270, 5310, 23,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA3_5270_5310 */
-	{ 5270, 5310, 30,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA4_5270_5310 */
-
-	{ 5310, 5310, 17,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5310_5310 */
-
-	{ 5510, 5630, 30,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5510_5630 */
-
-	{ 5510, 5670, 20,  6, 40, 40, DFS_FCC3|DFS_ETSI|DFS_MKK4, NO_PSCAN, 0, 1},  /* NA1_5510_5670 */
-	{ 5510, 5670, 27,  0, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA2_5510_5670 */
-	{ 5510, 5670, 30,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 1},   /* NA3_5510_5670 */
-
-	{ 5755, 5795, 17,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5755_5795 */
-	{ 5755, 5795, 20,  6, 40, 40, DFS_ETSI, NO_PSCAN, 0, 0},	    /* NA2_5755_5795 */
-	{ 5755, 5795, 23,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA3_5755_5795 */
-	{ 5755, 5795, 30,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA4_5755_5795 */
-	{ 5755, 5795, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA5_5755_5795 */
-
-	{ 5795, 5795, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5795_5795 */
-
-    { 4920, 6100, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA_DEMO_ALL_CHANNELS */
 };
 
 typedef struct regDomain {
@@ -1465,8 +1332,8 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F2_2312_2372,F2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(G2_2312_2372,G2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F2_2312_2372, F2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G2_2312_2372, G2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO,
 	 BMZERO},
@@ -1475,9 +1342,9 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F1_2457_2472,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(G1_2457_2472,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F1_2457_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G1_2457_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
 
@@ -1485,9 +1352,9 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F1_2432_2442,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(G1_2432_2442,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F1_2432_2442, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G1_2432_2442, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
 
@@ -1495,9 +1362,9 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F3_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(G3_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F3_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G3_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
 
@@ -1505,10 +1372,10 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F1_2412_2462,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(G1_2412_2462,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(NG2_2422_2452,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F1_2412_2462, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G1_2412_2462, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(NG2_2422_2452, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO},
 
 	{MKKA, MKK, NO_DFS, PSCAN_MKKA | PSCAN_MKKA_G | PSCAN_MKKA1 | PSCAN_MKKA1_G | PSCAN_MKKA2 | PSCAN_MKKA2_G, DISALLOW_ADHOC_11A_TURB,
@@ -1517,36 +1384,36 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO,
 	 BM(F2_2412_2462, F1_2467_2472, F2_2484_2484, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BM(G2_2412_2462, G1_2467_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(NG1_2422_2452,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(NG1_2422_2452, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO},
 
 	{MKKC, MKK, NO_DFS, NO_PSCAN, NO_REQ,
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F2_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(G2_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(NG1_2422_2452,-1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(NG1_2422_2452, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO},
 
 	{WORLD, ETSI, NO_DFS, NO_PSCAN, NO_REQ,
 	 BMZERO,
 	 BMZERO,
 	 BMZERO,
-	 BM(F2_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(G2_2412_2472,-1,-1,-1,-1,-1,-1,-1, -1, -1, -1, -1),
-	 BM(T2_2437_2437,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-	 BM(NG1_2422_2452,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(F2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(G2_2412_2472, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(T2_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
+	 BM(NG1_2422_2452, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO},
 
 	{WOR0_WORLD, NO_CTL, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, ADHOC_PER_11D,
 	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462,W1_2472_2472,W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462,WG1_2472_2472,WG1_2417_2432,WG1_2447_2457,WG1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2472_2472, W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2472_2472, WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1562,21 +1429,21 @@ static REG_DOMAIN regDomains[] = {
 	 BMZERO},
 
 	{WOR02_WORLD, NO_CTL, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, ADHOC_PER_11D,
-	 BM(W1_5260_5320, W1_5180_5240,W1_5170_5230,W1_5745_5825,W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
+	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462, W1_2472_2472,W1_2417_2432, W1_2447_2457, W1_2467_2467, -1, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462, WG1_2472_2472,WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2472_2472, W1_2417_2432, W1_2447_2457, W1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2472_2472, WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
 
 	{EU1_WORLD, NO_CTL, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, ADHOC_PER_11D,
-	 BM(W1_5260_5320, W1_5180_5240,W1_5170_5230,W1_5745_5825,W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
+	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462, W2_2472_2472,W1_2417_2432, W1_2447_2457, W2_2467_2467, -1, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462, WG2_2472_2472,WG1_2417_2432, WG1_2447_2457, WG2_2467_2467, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W2_2472_2472, W1_2417_2432, W1_2447_2457, W2_2467_2467, -1, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG2_2472_2472, WG1_2417_2432, WG1_2447_2457, WG2_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1585,8 +1452,8 @@ static REG_DOMAIN regDomains[] = {
 	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462,W1_2472_2472,W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462,WG1_2472_2472,WG1_2417_2432,WG1_2447_2457,WG1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2472_2472, W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2472_2472, WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1595,8 +1462,8 @@ static REG_DOMAIN regDomains[] = {
 	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, W1_5500_5700, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462,W1_2472_2472,W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462,WG1_2472_2472,WG1_2417_2432,WG1_2447_2457,WG1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2472_2472, W1_2417_2432, W1_2447_2457, W1_2467_2467, W1_2484_2484, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2472_2472, WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1605,8 +1472,8 @@ static REG_DOMAIN regDomains[] = {
 	 BM(W1_5260_5320, W1_5180_5240, W1_5170_5230, W1_5745_5825, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462,W1_2472_2472,W1_2417_2432, W1_2447_2457, W1_2467_2467, -1, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462,WG1_2472_2472,WG1_2417_2432,WG1_2447_2457,WG1_2467_2467,-1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2472_2472, W1_2417_2432, W1_2447_2457, W1_2467_2467, -1, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2472_2472, WG1_2417_2432, WG1_2447_2457, WG1_2467_2467, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1615,8 +1482,8 @@ static REG_DOMAIN regDomains[] = {
 	 BM(W2_5260_5320, W2_5180_5240, F2_5745_5805, W2_5825_5825, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BM(WT1_5210_5250, WT1_5290_5290, WT1_5760_5800, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
-	 BM(W1_2412_2412,W1_2437_2442,W1_2462_2462, W1_2417_2432,W1_2447_2457,-1, -1, -1, -1, -1, -1, -1),
-	 BM(WG1_2412_2412,WG1_2437_2442,WG1_2462_2462, WG1_2417_2432,WG1_2447_2457,-1, -1, -1, -1, -1, -1, -1),
+	 BM(W1_2412_2412, W1_2437_2442, W1_2462_2462, W1_2417_2432, W1_2447_2457, -1, -1, -1, -1, -1, -1, -1),
+	 BM(WG1_2412_2412, WG1_2437_2442, WG1_2462_2462, WG1_2417_2432, WG1_2447_2457, -1, -1, -1, -1, -1, -1, -1),
 	 BM(T3_2437_2437, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 	 BMZERO,
 	 BMZERO},
@@ -1687,30 +1554,24 @@ static const struct cmode modes[] = {
 u8_t GetWmRD(u16_t regionCode, u16_t channelFlag, REG_DOMAIN *rd)
 {
 	s16_t i, found, regDmn;
-	u64_t flags=NO_REQ;
-	REG_DMN_PAIR_MAPPING *regPair=NULL;
+	u64_t flags = NO_REQ;
+	REG_DMN_PAIR_MAPPING *regPair = NULL;
 
-	for (i=0, found=0; (i<N(regDomainPairs))&&(!found); i++)
-	{
-		if (regDomainPairs[i].regDmnEnum == regionCode)
-		{
+	for (i = 0, found = 0; (i < N(regDomainPairs)) && (!found); i++) {
+		if (regDomainPairs[i].regDmnEnum == regionCode) {
 			regPair = &regDomainPairs[i];
 			found = 1;
 		}
 	}
-	if (!found)
-	{
+	if (!found) {
 		zm_debug_msg1("Failed to find reg domain pair ", regionCode);
 		return FALSE;
 	}
 
-	if (channelFlag & ZM_REG_FLAG_CHANNEL_2GHZ)
-	{
+	if (channelFlag & ZM_REG_FLAG_CHANNEL_2GHZ) {
 		regDmn = regPair->regDmn2GHz;
 		flags = regPair->flags2GHz;
-	}
-    else
-	{
+	} else {
 		regDmn = regPair->regDmn5GHz;
 		flags = regPair->flags5GHz;
 	}
@@ -1720,19 +1581,16 @@ u8_t GetWmRD(u16_t regionCode, u16_t channelFlag, REG_DOMAIN *rd)
 	 * unitary reg domain of the pair
 	 */
 
-	for (i=0;i<N(regDomains); i++)
-	{
-		if (regDomains[i].regDmnEnum == regDmn)
-		{
-			if (rd != NULL)
-			{
-				zfMemoryCopy((u8_t *)rd, (u8_t *)&regDomains[i],
-					  sizeof(REG_DOMAIN));
+	for (i = 0 ; i < N(regDomains) ; i++) {
+		if (regDomains[i].regDmnEnum == regDmn) {
+			if (rd != NULL) {
+					zfMemoryCopy((u8_t *)rd, (u8_t *)&regDomains[i],
+					sizeof(REG_DOMAIN));
 			}
 		}
 	}
 	rd->pscan &= regPair->pscanMask;
-    rd->flags = (u32_t)flags;
+	rd->flags = (u32_t)flags;
 	return TRUE;
 }
 
@@ -1743,7 +1601,7 @@ u8_t isChanBitMaskZero(u64_t *bitmask)
 {
 	u16_t i;
 
-	for (i=0; i<BMLEN; i++) {
+	for (i = 0; i < BMLEN; i++) {
 		if (bitmask[i] != 0)
 			return FALSE;
 	}
@@ -1765,384 +1623,344 @@ u8_t IS_BIT_SET(u32_t bit, u64_t *bitmask)
 }
 
 
-void zfHpGetRegulationTable(zdev_t* dev, u16_t regionCode, u16_t c_lo, u16_t c_hi)
+void zfHpGetRegulationTable(zdev_t *dev, u16_t regionCode, u16_t c_lo, u16_t c_hi)
 {
 	REG_DOMAIN rd5GHz, rd2GHz;
 	const struct cmode *cm;
-	s16_t next=0,b;
-	struct zsHpPriv* hpPriv;
+	s16_t next = 0, b;
+	struct zsHpPriv *hpPriv;
 
-    zmw_get_wlan_dev(dev);
-    hpPriv=wd->hpPrivate;
+	zmw_get_wlan_dev(dev);
+	hpPriv = wd->hpPrivate;
 
-    zmw_declare_for_critical_section();
+	zmw_declare_for_critical_section();
 
-	if (!GetWmRD(regionCode, ~ZM_REG_FLAG_CHANNEL_2GHZ, &rd5GHz))
-	{
-        zm_debug_msg1("couldn't find unitary 5GHz reg domain for Region Code ", regionCode);
+	if (!GetWmRD(regionCode, ~ZM_REG_FLAG_CHANNEL_2GHZ, &rd5GHz)) {
+		zm_debug_msg1("couldn't find unitary 5GHz reg domain for Region Code ", regionCode);
 		return;
 	}
-	if (!GetWmRD(regionCode, ZM_REG_FLAG_CHANNEL_2GHZ, &rd2GHz))
-	{
-        zm_debug_msg1("couldn't find unitary 2GHz reg domain for Region Code ", regionCode);
+	if (!GetWmRD(regionCode, ZM_REG_FLAG_CHANNEL_2GHZ, &rd2GHz)) {
+		zm_debug_msg1("couldn't find unitary 2GHz reg domain for Region Code ", regionCode);
 		return;
 	}
-    if (wd->regulationTable.regionCode == regionCode)
-    {
-        zm_debug_msg1("current region code is the same with Region Code ", regionCode);
-        return;
-    }
-    else
-    {
-        wd->regulationTable.regionCode = regionCode;
-    }
+	if (wd->regulationTable.regionCode == regionCode) {
+		zm_debug_msg1("current region code is the same with Region Code ", regionCode);
+	return;
+	} else
+		wd->regulationTable.regionCode = regionCode;
 
-    next = 0;
+	next = 0;
 
-    zmw_enter_critical_section(dev);
+	zmw_enter_critical_section(dev);
 
-	for (cm = modes; cm < &modes[N(modes)]; cm++)
-	{
+	for (cm = modes; cm < &modes[N(modes)]; cm++) {
 		u16_t c;
-		u64_t *channelBM=NULL;
-		REG_DOMAIN *rd=NULL;
-		REG_DMN_FREQ_BAND *fband=NULL,*freqs=NULL;
+		u64_t *channelBM = NULL;
+		REG_DOMAIN *rd = NULL;
+		REG_DMN_FREQ_BAND *fband = NULL, *freqs = NULL;
 
-		switch (cm->mode)
-		{
+		switch (cm->mode) {
 		case HAL_MODE_TURBO:
-		    //we don't have turbo mode so we disable it
-            //zm_debug_msg0("CWY - HAL_MODE_TURBO");
-            channelBM = NULL;
-			//rd = &rd5GHz;
-			//channelBM = rd->chan11a_turbo;
-			//freqs = &regDmn5GhzTurboFreq[0];
-			//ctl = rd->conformanceTestLimit | CTL_TURBO;
+			/* we don't have turbo mode so we disable it
+			//zm_debug_msg0("CWY - HAL_MODE_TURBO"); */
+			channelBM = NULL;
+			/* rd = &rd5GHz;
+			   channelBM = rd->chan11a_turbo;
+			   freqs = &regDmn5GhzTurboFreq[0];
+			   ctl = rd->conformanceTestLimit | CTL_TURBO; */
 			break;
 		case HAL_MODE_11A:
-		    if ((hpPriv->OpFlags & 0x1) != 0)
-		    {
-    			rd = &rd5GHz;
-    			channelBM = rd->chan11a;
-    			freqs = &regDmn5GhzFreq[0];
-    			c_lo = 4920; //from channel 184
-    			c_hi = 5825; //to   channel 165
-    			//ctl = rd->conformanceTestLimit;
-                //zm_debug_msg2("CWY - HAL_MODE_11A, channelBM = 0x", *channelBM);
-            }
-            //else
-            {
-                //channelBM = NULL;
-            }
+			if ((hpPriv->OpFlags & 0x1) != 0) {
+				rd = &rd5GHz;
+				channelBM = rd->chan11a;
+				freqs = &regDmn5GhzFreq[0];
+				c_lo = 4920; /* from channel 184 */
+				c_hi = 5825; /* to   channel 165 */
+				/* ctl = rd->conformanceTestLimit;
+				   zm_debug_msg2("CWY - HAL_MODE_11A, channelBM = 0x", *channelBM); */
+			}
+			/* else
+				channelBM = NULL;
+			*/
 			break;
 		case HAL_MODE_11B:
-		    //Disable 11B mode because it only has difference with 11G in PowerDFS Data,
-		    //and we don't use this now.
-			//zm_debug_msg0("CWY - HAL_MODE_11B");
+			/* Disable 11B mode because it only has difference with 11G in PowerDFS Data,
+			   and we don't use this now.
+			   zm_debug_msg0("CWY - HAL_MODE_11B"); */
 			channelBM = NULL;
-			//rd = &rd2GHz;
-			//channelBM = rd->chan11b;
-			//freqs = &regDmn2GhzFreq[0];
-			//ctl = rd->conformanceTestLimit | CTL_11B;
-            //zm_debug_msg2("CWY - HAL_MODE_11B, channelBM = 0x", *channelBM);
+			/* rd = &rd2GHz;
+			   channelBM = rd->chan11b;
+			   freqs = &regDmn2GhzFreq[0];
+			   ctl = rd->conformanceTestLimit | CTL_11B;
+			   zm_debug_msg2("CWY - HAL_MODE_11B, channelBM = 0x", *channelBM); */
 			break;
 		case HAL_MODE_11G:
-		    if ((hpPriv->OpFlags & 0x2) != 0)
-		    {
-    			rd = &rd2GHz;
-    			channelBM = rd->chan11g;
-    			freqs = &regDmn2Ghz11gFreq[0];
-    			c_lo = 2412; //from channel  1
-    			//c_hi = 2462; //to   channel 11
-                c_hi = 2472; //to   channel 13
-    			//ctl = rd->conformanceTestLimit | CTL_11G;
-                //zm_debug_msg2("CWY - HAL_MODE_11G, channelBM = 0x", *channelBM);
-            }
-            //else
-            {
-                //channelBM = NULL;
-            }
+			if ((hpPriv->OpFlags & 0x2) != 0) {
+				rd = &rd2GHz;
+				channelBM = rd->chan11g;
+				freqs = &regDmn2Ghz11gFreq[0];
+				c_lo = 2412;	/* from channel  1 */
+				/* c_hi = 2462;	to   channel 11 */
+				c_hi = 2472;	/* to   channel 13 */
+				/* ctl = rd->conformanceTestLimit | CTL_11G; */
+				/* zm_debug_msg2("CWY - HAL_MODE_11G, channelBM = 0x", *channelBM); */
+			}
+			/* else
+				channelBM = NULL;
+			*/
 			break;
 		case HAL_MODE_11G_TURBO:
-		    //we don't have turbo mode so we disable it
-            //zm_debug_msg0("CWY - HAL_MODE_11G_TURBO");
-            channelBM = NULL;
-			//rd = &rd2GHz;
-			//channelBM = rd->chan11g_turbo;
-			//freqs = &regDmn2Ghz11gTurboFreq[0];
-			//ctl = rd->conformanceTestLimit | CTL_108G;
+			/* we don't have turbo mode so we disable it
+			   zm_debug_msg0("CWY - HAL_MODE_11G_TURBO"); */
+			channelBM = NULL;
+			/* rd = &rd2GHz;
+			   channelBM = rd->chan11g_turbo;
+			   freqs = &regDmn2Ghz11gTurboFreq[0];
+			   ctl = rd->conformanceTestLimit | CTL_108G; */
 			break;
 		case HAL_MODE_11A_TURBO:
-		    //we don't have turbo mode so we disable it
-            //zm_debug_msg0("CWY - HAL_MODE_11A_TURBO");
-            channelBM = NULL;
-			//rd = &rd5GHz;
-			//channelBM = rd->chan11a_dyn_turbo;
-			//freqs = &regDmn5GhzTurboFreq[0];
-			//ctl = rd->conformanceTestLimit | CTL_108G;
+			/* we don't have turbo mode so we disable it
+			   zm_debug_msg0("CWY - HAL_MODE_11A_TURBO"); */
+			channelBM = NULL;
+			/* rd = &rd5GHz;
+			   channelBM = rd->chan11a_dyn_turbo;
+			   freqs = &regDmn5GhzTurboFreq[0];
+			   ctl = rd->conformanceTestLimit | CTL_108G; */
 			break;
 		default:
-            zm_debug_msg1("Unkonwn HAL mode ", cm->mode);
+			zm_debug_msg1("Unkonwn HAL mode ", cm->mode);
 			continue;
 		}
-		if (channelBM == NULL)
-		{
-		    //zm_debug_msg0("CWY - channelBM is NULL");
+
+		if (channelBM == NULL) {
+		    /* zm_debug_msg0("CWY - channelBM is NULL"); */
 		    continue;
-        }
-        if (isChanBitMaskZero(channelBM))
-        {
-	        //zm_debug_msg0("CWY - BitMask is Zero");
-	        continue;
-        }
+		}
 
-        // RAY:Is it ok??
-        if (freqs == NULL )
-        {
-            continue;
-        }
+		if (isChanBitMaskZero(channelBM)) {
+			/* zm_debug_msg0("CWY - BitMask is Zero"); */
+			continue;
+		}
 
-		for (b=0;b<64*BMLEN; b++)
-		{
-			if (IS_BIT_SET(b,channelBM))
-			{
+		/* RAY:Is it ok?? */
+		if (freqs == NULL)
+			continue;
+
+		for (b = 0 ; b < 64*BMLEN ; b++) {
+			if (IS_BIT_SET(b, channelBM)) {
 				fband = &freqs[b];
 
-				//zm_debug_msg1("CWY - lowChannel = ", fband->lowChannel);
-				//zm_debug_msg1("CWY - highChannel = ", fband->highChannel);
-				//zm_debug_msg1("CWY - channelSep = ", fband->channelSep);
-				for (c=fband->lowChannel; c <= fband->highChannel;
-				     c += fband->channelSep)
-				{
+				/* zm_debug_msg1("CWY - lowChannel = ", fband->lowChannel);
+				   zm_debug_msg1("CWY - highChannel = ", fband->highChannel);
+				   zm_debug_msg1("CWY - channelSep = ", fband->channelSep); */
+				for (c = fband->lowChannel; c <= fband->highChannel;
+				     c += fband->channelSep) {
 					ZM_HAL_CHANNEL icv;
 
-                    //Disable all DFS channel
-                    if ((hpPriv->disableDfsCh==0) || (!(fband->useDfs & rd->dfsMask)))
-                    {
-                        if( fband->channelBW < 20 )
-                        {
-                        	/**************************************************************/
-                            /*                                                            */
-                            /*   Temporary discard channel that BW < 20MHz (5 or 10MHz)   */
-                            /*   Our architecture does not implemnt it !!!                */
-                            /*                                                            */
-                            /**************************************************************/
-                            continue;
-                        }
-					if ((c >= c_lo) && (c <= c_hi))
-					{
-					    icv.channel = c;
-					    icv.channelFlags = cm->flags;
-					    icv.maxRegTxPower = fband->powerDfs;
-					    if (fband->usePassScan & rd->pscan)
-					    	icv.channelFlags |= ZM_REG_FLAG_CHANNEL_PASSIVE;
-					    else
-					    	icv.channelFlags &= ~ZM_REG_FLAG_CHANNEL_PASSIVE;
-					    if (fband->useDfs & rd->dfsMask)
-					    	icv.privFlags = ZM_REG_FLAG_CHANNEL_DFS;
-					    else
-					    	icv.privFlags = 0;
+					/* Disable all DFS channel */
+					if ((hpPriv->disableDfsCh == 0) || (!(fband->useDfs & rd->dfsMask))) {
+						if (fband->channelBW < 20) {
+							/**************************************************************/
+							/*                                                            */
+							/*   Temporary discard channel that BW < 20MHz (5 or 10MHz)   */
+							/*   Our architecture does not implemnt it !!!                */
+							/*                                                            */
+							/**************************************************************/
+							continue;
+						}
+						if ((c >= c_lo) && (c <= c_hi)) {
+							icv.channel = c;
+							icv.channelFlags = cm->flags;
+							icv.maxRegTxPower = fband->powerDfs;
+							if (fband->usePassScan & rd->pscan)
+								icv.channelFlags |= ZM_REG_FLAG_CHANNEL_PASSIVE;
+							else
+								icv.channelFlags &= ~ZM_REG_FLAG_CHANNEL_PASSIVE;
+							if (fband->useDfs & rd->dfsMask)
+								icv.privFlags = ZM_REG_FLAG_CHANNEL_DFS;
+							else
+								icv.privFlags = 0;
 
-					    /* For now disable radar for FCC3 */
-					    if (fband->useDfs & rd->dfsMask & DFS_FCC3)
-					    {
-					    	icv.privFlags &= ~ZM_REG_FLAG_CHANNEL_DFS;
-					    	icv.privFlags |= ZM_REG_FLAG_CHANNEL_DFS_CLEAR;
-					    }
+							/* For now disable radar for FCC3 */
+							if (fband->useDfs & rd->dfsMask & DFS_FCC3) {
+								icv.privFlags &= ~ZM_REG_FLAG_CHANNEL_DFS;
+								icv.privFlags |= ZM_REG_FLAG_CHANNEL_DFS_CLEAR;
+							}
 
-					    if(rd->flags & LIMIT_FRAME_4MS)
-					    	icv.privFlags |= ZM_REG_FLAG_CHANNEL_DFS_CLEAR;
+							if (rd->flags & LIMIT_FRAME_4MS)
+								icv.privFlags |= ZM_REG_FLAG_CHANNEL_DFS_CLEAR;
 
-					    icv.minTxPower = 0;
-					    icv.maxTxPower = 0;
+							icv.minTxPower = 0;
+							icv.maxTxPower = 0;
 
-        			    zm_assert(next < 60);
+							zm_assert(next < 60);
 
-					    wd->regulationTable.allowChannel[next++] = icv;
-				    }
+							wd->regulationTable.allowChannel[next++] = icv;
+						}
+					}
 				}
 			}
 		}
 	}
-	}
 	wd->regulationTable.allowChannelCnt = next;
 
-    #if 0
-    {
-        /* debug print */
-        u32_t i;
-        DbgPrint("\n-------------------------------------------\n");
-        DbgPrint("zfHpGetRegulationTable print all channel info regincode = 0x%x\n", wd->regulationTable.regionCode);
-        DbgPrint("index  channel  channelFlags   maxRegTxPower  privFlags  useDFS\n");
+	#if 0
+	{
+		/* debug print */
+		u32_t i;
+		DbgPrint("\n-------------------------------------------\n");
+		DbgPrint("zfHpGetRegulationTable print all channel info regincode = 0x%x\n", wd->regulationTable.regionCode);
+		DbgPrint("index  channel  channelFlags   maxRegTxPower  privFlags  useDFS\n");
 
-        for (i=0; i<wd->regulationTable.allowChannelCnt; i++)
-        {
-            DbgPrint("%02d       %d         %04x           %02d        %x     %x\n",
-                      i,
-                      wd->regulationTable.allowChannel[i].channel,
-                      wd->regulationTable.allowChannel[i].channelFlags,
-                      wd->regulationTable.allowChannel[i].maxRegTxPower,
-                      wd->regulationTable.allowChannel[i].privFlags,
-                      wd->regulationTable.allowChannel[i].privFlags & ZM_REG_FLAG_CHANNEL_DFS);
-        }
-    }
-    #endif
+		for (i = 0 ; i < wd->regulationTable.allowChannelCnt ; i++) {
+			DbgPrint("%02d       %d         %04x           %02d        %x     %x\n", i,
+			wd->regulationTable.allowChannel[i].channel,
+			wd->regulationTable.allowChannel[i].channelFlags,
+			wd->regulationTable.allowChannel[i].maxRegTxPower,
+			wd->regulationTable.allowChannel[i].privFlags,
+			wd->regulationTable.allowChannel[i].privFlags & ZM_REG_FLAG_CHANNEL_DFS);
+		}
+	}
+	#endif
 
-    zmw_leave_critical_section(dev);
+	zmw_leave_critical_section(dev);
 }
 
-void zfHpGetRegulationTablefromRegionCode(zdev_t* dev, u16_t regionCode)
+void zfHpGetRegulationTablefromRegionCode(zdev_t *dev, u16_t regionCode)
 {
-    u16_t c_lo = 2000, c_hi = 6000; //default channel is all enable
-    u8_t isoName[3] = {'N', 'A', 0};
+	u16_t c_lo = 2000, c_hi = 6000; /* default channel is all enable */
+	u8_t isoName[3] = {'N', 'A', 0};
 
-    zfCoreSetIsoName(dev, isoName);
+	zfCoreSetIsoName(dev, isoName);
 
-    zfHpGetRegulationTable(dev, regionCode, c_lo, c_hi);
+	zfHpGetRegulationTable(dev, regionCode, c_lo, c_hi);
 }
 
-void zfHpGetRegulationTablefromCountry(zdev_t* dev, u16_t CountryCode)
+void zfHpGetRegulationTablefromCountry(zdev_t *dev, u16_t CountryCode)
 {
-    u16_t i;
-    u16_t c_lo = 2000, c_hi = 6000; //default channel is all enable
-    u16_t RegDomain;
+	u16_t i;
+	u16_t c_lo = 2000, c_hi = 6000; /* default channel is all enable */
+	u16_t RegDomain;
 
-    zmw_get_wlan_dev(dev);
+	zmw_get_wlan_dev(dev);
 
-    zmw_declare_for_critical_section();
+	zmw_declare_for_critical_section();
 
-    for (i = 0; i < N(allCountries); i++)
-    {
-        if (CountryCode == allCountries[i].countryCode)
-        {
-            RegDomain = allCountries[i].regDmnEnum;
+	for (i = 0; i < N(allCountries); i++) {
+		if (CountryCode == allCountries[i].countryCode) {
+			RegDomain = allCountries[i].regDmnEnum;
 
-            // read the ACU country code from EEPROM
-            zfCoreSetIsoName(dev, (u8_t*)allCountries[i].isoName);
+			/* read the ACU country code from EEPROM */
+			zfCoreSetIsoName(dev, (u8_t *)allCountries[i].isoName);
 
-            //zm_debug_msg_s("CWY - Country Name = ", allCountries[i].name);
+			/* zm_debug_msg_s("CWY - Country Name = ", allCountries[i].name); */
 
-            if (wd->regulationTable.regionCode != RegDomain)
-            {
-                //zm_debug_msg0("CWY - Change regulatory table");
-
-                zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
-            }
-            return;
-        }
-    }
-    zm_debug_msg1("Invalid CountryCode = ", CountryCode);
+			if (wd->regulationTable.regionCode != RegDomain) {
+				/* zm_debug_msg0("CWY - Change regulatory table"); */
+				zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
+			}
+			return;
+		}
+	}
+	zm_debug_msg1("Invalid CountryCode = ", CountryCode);
 }
 
-u8_t zfHpGetRegulationTablefromISO(zdev_t* dev, u8_t *countryInfo, u8_t length)
+u8_t zfHpGetRegulationTablefromISO(zdev_t *dev, u8_t *countryInfo, u8_t length)
 {
-    u16_t i;
-    u16_t RegDomain;
-    u16_t c_lo = 2000, c_hi = 6000; //default channel is all enable
-    //u8_t strLen = 2;
+	u16_t i;
+	u16_t RegDomain;
+	u16_t c_lo = 2000, c_hi = 6000; /* default channel is all enable */
+	/* u8_t strLen = 2; */
 
-    zmw_get_wlan_dev(dev);
+	zmw_get_wlan_dev(dev);
 
-    zmw_declare_for_critical_section();
+	zmw_declare_for_critical_section();
 
-    if (countryInfo[4] != 0x20)
-    { // with (I)ndoor/(O)utdoor info
-        //strLen = 3;
-    }
-    //zm_debug_msg_s("Desired iso name = ", isoName);
-    for (i = 0; i < N(allCountries); i++)
-    {
-        //zm_debug_msg_s("Current iso name = ", allCountries[i].isoName);
-        if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, (u8_t *)&countryInfo[2], length-1))
-        {
-            //DbgPrint("Set current iso name = %s\n", allCountries[i].isoName);
-            //zm_debug_msg0("iso name hit!!");
+	if (countryInfo[4] != 0x20) {
+		/* with (I)ndoor/(O)utdoor info
+		strLen = 3; */
+	}
+	/* zm_debug_msg_s("Desired iso name = ", isoName); */
+	for (i = 0; i < N(allCountries); i++) {
+		/* zm_debug_msg_s("Current iso name = ", allCountries[i].isoName); */
+		if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, (u8_t *)&countryInfo[2], length-1)) {
+			/* DbgPrint("Set current iso name = %s\n", allCountries[i].isoName); */
+			/* zm_debug_msg0("iso name hit!!"); */
 
-            RegDomain = allCountries[i].regDmnEnum;
+			RegDomain = allCountries[i].regDmnEnum;
 
-            if (wd->regulationTable.regionCode != RegDomain)
-            {
-                zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
-            }
+			if (wd->regulationTable.regionCode != RegDomain)
+				zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
+			/*
+			while (index < (countryInfo[1]+2)) {
+				if (countryInfo[index] <= 14) {
+					// calculate 2.4GHz low boundary channel frequency
+					ch = countryInfo[index];
+					if ( ch == 14 )
+						c_lo = ZM_CH_G_14;
+					else
+						c_lo = ZM_CH_G_1 + (ch - 1) * 5;
+					// calculate 2.4GHz high boundary channel frequency
+					ch = countryInfo[index] + countryInfo[index + 1] - 1;
+					if ( ch == 14 )
+						c_hi = ZM_CH_G_14;
+					else
+						c_hi = ZM_CH_G_1 + (ch - 1) * 5;
+				} else {
+					// calculate 5GHz low boundary channel frequency
+					ch = countryInfo[index];
+					if ( (ch >= 184)&&(ch <= 196) )
+						c_lo = 4000 + ch*5;
+					else
+						c_lo = 5000 + ch*5;
+					// calculate 5GHz high boundary channel frequency
+					ch = countryInfo[index] + countryInfo[index + 1] - 1;
+					if ( (ch >= 184)&&(ch <= 196) )
+						c_hi = 4000 + ch*5;
+					else
+						c_hi = 5000 + ch*5;
+				}
 
-            //while (index < (countryInfo[1]+2))
-            //{
-            //  if (countryInfo[index] <= 14)
-            //  {
-            //        /* calculate 2.4GHz low boundary channel frequency */
-            //        ch = countryInfo[index];
-            //        if ( ch == 14 )
-            //            c_lo = ZM_CH_G_14;
-            //        else
-            //            c_lo = ZM_CH_G_1 + (ch - 1) * 5;
-            //        /* calculate 2.4GHz high boundary channel frequency */
-            //        ch = countryInfo[index] + countryInfo[index + 1] - 1;
-            //        if ( ch == 14 )
-            //            c_hi = ZM_CH_G_14;
-            //        else
-            //            c_hi = ZM_CH_G_1 + (ch - 1) * 5;
-            //  }
-            //  else
-            //  {
-            //        /* calculate 5GHz low boundary channel frequency */
-            //        ch = countryInfo[index];
-            //        if ( (ch >= 184)&&(ch <= 196) )
-            //            c_lo = 4000 + ch*5;
-            //        else
-            //            c_lo = 5000 + ch*5;
-            //        /* calculate 5GHz high boundary channel frequency */
-            //        ch = countryInfo[index] + countryInfo[index + 1] - 1;
-            //        if ( (ch >= 184)&&(ch <= 196) )
-            //            c_hi = 4000 + ch*5;
-            //        else
-            //            c_hi = 5000 + ch*5;
-            //  }
-            //
-            //  zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
-            //
-            //  index+=3;
-            //}
+			zfHpGetRegulationTable(dev, RegDomain, c_lo, c_hi);
 
-            return 0;
-        }
-    }
-    //zm_debug_msg_s("Invalid iso name = ", &countryInfo[2]);
-    return 1;
+			index+=3;
+			}
+			*/
+			return 0;
+		}
+	}
+	/* zm_debug_msg_s("Invalid iso name = ", &countryInfo[2]); */
+	return 1;
 }
 
-const char* zfHpGetisoNamefromregionCode(zdev_t* dev, u16_t regionCode)
+const char *zfHpGetisoNamefromregionCode(zdev_t *dev, u16_t regionCode)
 {
-    u16_t i;
+	u16_t i;
 
-    for (i = 0; i < N(allCountries); i++)
-    {
-        if (allCountries[i].regDmnEnum == regionCode)
-        {
-            return allCountries[i].isoName;
-        }
-    }
-    /* no matching item, return default */
-    return allCountries[0].isoName;
+	for (i = 0; i < N(allCountries); i++) {
+		if (allCountries[i].regDmnEnum == regionCode)
+			return allCountries[i].isoName;
+	}
+	/* no matching item, return default */
+	return allCountries[0].isoName;
 }
 
-u16_t zfHpGetRegionCodeFromIsoName(zdev_t* dev, u8_t *countryIsoName)
+u16_t zfHpGetRegionCodeFromIsoName(zdev_t *dev, u8_t *countryIsoName)
 {
-    u16_t i;
-    u16_t regionCode;
+	u16_t i;
+	u16_t regionCode;
 
-    /* if no matching item, return default */
-    regionCode = DEF_REGDMN;
+	/* if no matching item, return default */
+	regionCode = DEF_REGDMN;
 
-    for (i = 0; i < N(allCountries); i++)
-    {
-        if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, countryIsoName, 2))
-        {
-            regionCode = allCountries[i].regDmnEnum;
-            break;
-        }
-    }
+	for (i = 0; i < N(allCountries); i++) {
+		if (zfMemoryIsEqual((u8_t *)allCountries[i].isoName, countryIsoName, 2)) {
+			regionCode = allCountries[i].regDmnEnum;
+		break;
+		}
+	}
 
-    return regionCode;
+	return regionCode;
 }
 
 /************************************************************************/
@@ -2162,323 +1980,294 @@ u16_t zfHpGetRegionCodeFromIsoName(zdev_t* dev, u8_t *countryIsoName)
 /*      Chao-Wen Yang         ZyDAS Technology Corporation    2007.3    */
 /*                                                                      */
 /************************************************************************/
-u16_t zfHpDeleteAllowChannel(zdev_t* dev, u16_t freq)
+u16_t zfHpDeleteAllowChannel(zdev_t *dev, u16_t freq)
 {
-    u16_t i, bandIndex = 0;
-    u16_t dfs5GBand[][2] = {{5150, 5240}, {5260, 5350}, {5450, 5700}, {5725, 5825}};
+	u16_t i, bandIndex = 0;
+	u16_t dfs5GBand[][2] = { {5150, 5240}, {5260, 5350}, {5450, 5700}, {5725, 5825} };
 
-    zmw_get_wlan_dev(dev);
-    /* Find which band does this frequency belong */
-    for (i = 0; i < 4; i++)
-    {
-        if ((freq >= dfs5GBand[i][0]) && (freq <= dfs5GBand[i][1]))
-            bandIndex = i + 1;
-    }
+	zmw_get_wlan_dev(dev);
+	/* Find which band does this frequency belong */
+	for (i = 0; i < 4; i++) {
+		if ((freq >= dfs5GBand[i][0]) && (freq <= dfs5GBand[i][1]))
+			bandIndex = i + 1;
+	}
 
-    if (bandIndex == 0)
-    {
-        /* 2.4G, don't care */
-        return 0;
-    }
-    else
-    {
-        bandIndex--;
-    }
-    /* Set all channels in this band to passive scan */
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        if ((wd->regulationTable.allowChannel[i].channel >= dfs5GBand[bandIndex][0]) &&
-            (wd->regulationTable.allowChannel[i].channel <= dfs5GBand[bandIndex][1]))
-        {
-            /* if channel is not passive, set it to be passive and mark it */
-            if ((wd->regulationTable.allowChannel[i].channelFlags &
-                    ZM_REG_FLAG_CHANNEL_PASSIVE) == 0)
-            {
-                wd->regulationTable.allowChannel[i].channelFlags |=
-                        (ZM_REG_FLAG_CHANNEL_PASSIVE | ZM_REG_FLAG_CHANNEL_CSA);
-            }
-        }
-    }
+	if (bandIndex == 0) {
+		/* 2.4G, don't care */
+		return 0;
+	} else
+		bandIndex--;
+	/* Set all channels in this band to passive scan */
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		if ((wd->regulationTable.allowChannel[i].channel >= dfs5GBand[bandIndex][0]) &&
+			(wd->regulationTable.allowChannel[i].channel <= dfs5GBand[bandIndex][1])) {
+			/* if channel is not passive, set it to be passive and mark it */
+			if ((wd->regulationTable.allowChannel[i].channelFlags &
+				ZM_REG_FLAG_CHANNEL_PASSIVE) == 0) {
+				wd->regulationTable.allowChannel[i].channelFlags |=
+				(ZM_REG_FLAG_CHANNEL_PASSIVE | ZM_REG_FLAG_CHANNEL_CSA);
+			}
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
-u16_t zfHpAddAllowChannel(zdev_t* dev, u16_t freq)
+u16_t zfHpAddAllowChannel(zdev_t *dev, u16_t freq)
 {
-    u16_t i, j, arrayIndex;
+	u16_t i, j, arrayIndex;
 
-    zmw_get_wlan_dev(dev);
+	zmw_get_wlan_dev(dev);
 
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        if (wd->regulationTable.allowChannel[i].channel == freq)
-            break;
-    }
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		if (wd->regulationTable.allowChannel[i].channel == freq)
+			break;
+	}
 
-    if ( i == wd->regulationTable.allowChannelCnt)
-    {
-        for (j = 0; j < wd->regulationTable.allowChannelCnt; j++)
-        {
-            if (wd->regulationTable.allowChannel[j].channel > freq)
-                break;
-        }
+	if (i == wd->regulationTable.allowChannelCnt) {
+		for (j = 0; j < wd->regulationTable.allowChannelCnt; j++) {
+			if (wd->regulationTable.allowChannel[j].channel > freq)
+				break;
+		}
 
-        //zm_debug_msg1("CWY - add frequency = ", freq);
-        //zm_debug_msg1("CWY - channel array index = ", j);
+		/* zm_debug_msg1("CWY - add frequency = ", freq);
+		zm_debug_msg1("CWY - channel array index = ", j); */
 
-        arrayIndex = j;
+		arrayIndex = j;
 
-        if (arrayIndex < wd->regulationTable.allowChannelCnt)
-        {
-            for (j = wd->regulationTable.allowChannelCnt; j > arrayIndex; j--)
-                wd->regulationTable.allowChannel[j] = wd->regulationTable.allowChannel[j - 1];
-        }
-        wd->regulationTable.allowChannel[arrayIndex].channel = freq;
+		if (arrayIndex < wd->regulationTable.allowChannelCnt) {
+			for (j = wd->regulationTable.allowChannelCnt; j > arrayIndex; j--)
+				wd->regulationTable.allowChannel[j] = wd->regulationTable.allowChannel[j - 1];
+		}
+	wd->regulationTable.allowChannel[arrayIndex].channel = freq;
 
-        wd->regulationTable.allowChannelCnt++;
-    }
+	wd->regulationTable.allowChannelCnt++;
+	}
 
-    return 0;
+	return 0;
 }
 
-u16_t zfHpIsDfsChannelNCS(zdev_t* dev, u16_t freq)
+u16_t zfHpIsDfsChannelNCS(zdev_t *dev, u16_t freq)
 {
-    u8_t flag = ZM_REG_FLAG_CHANNEL_DFS;
-    u16_t i;
-    zmw_get_wlan_dev(dev);
+	u8_t flag = ZM_REG_FLAG_CHANNEL_DFS;
+	u16_t i;
+	zmw_get_wlan_dev(dev);
 
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        //DbgPrint("DFS:freq=%d, chan=%d", freq, wd->regulationTable.allowChannel[i].channel);
-        if (wd->regulationTable.allowChannel[i].channel == freq)
-        {
-            flag = wd->regulationTable.allowChannel[i].privFlags;
-            break;
-        }
-    }
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		/* DbgPrint("DFS:freq=%d, chan=%d", freq, wd->regulationTable.allowChannel[i].channel); */
+		if (wd->regulationTable.allowChannel[i].channel == freq) {
+			flag = wd->regulationTable.allowChannel[i].privFlags;
+			break; }
+	}
 
-    return (flag & (ZM_REG_FLAG_CHANNEL_DFS|ZM_REG_FLAG_CHANNEL_DFS_CLEAR));
+	return flag & (ZM_REG_FLAG_CHANNEL_DFS|ZM_REG_FLAG_CHANNEL_DFS_CLEAR);
 }
 
-u16_t zfHpIsDfsChannel(zdev_t* dev, u16_t freq)
+u16_t zfHpIsDfsChannel(zdev_t *dev, u16_t freq)
 {
-    u8_t flag = ZM_REG_FLAG_CHANNEL_DFS;
-    u16_t i;
-    zmw_get_wlan_dev(dev);
+	u8_t flag = ZM_REG_FLAG_CHANNEL_DFS;
+	u16_t i;
+	zmw_get_wlan_dev(dev);
 
-    zmw_declare_for_critical_section();
+	zmw_declare_for_critical_section();
 
-    zmw_enter_critical_section(dev);
+	zmw_enter_critical_section(dev);
 
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        //DbgPrint("DFS:freq=%d, chan=%d", freq, wd->regulationTable.allowChannel[i].channel);
-        if (wd->regulationTable.allowChannel[i].channel == freq)
-        {
-            flag = wd->regulationTable.allowChannel[i].privFlags;
-            break;
-        }
-    }
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		/* DbgPrint("DFS:freq=%d, chan=%d", freq, wd->regulationTable.allowChannel[i].channel); */
+		if (wd->regulationTable.allowChannel[i].channel == freq) {
+			flag = wd->regulationTable.allowChannel[i].privFlags;
+			break;
+		}
+	}
 
-    zmw_leave_critical_section(dev);
+	zmw_leave_critical_section(dev);
 
-    return (flag & (ZM_REG_FLAG_CHANNEL_DFS|ZM_REG_FLAG_CHANNEL_DFS_CLEAR));
+	return flag & (ZM_REG_FLAG_CHANNEL_DFS|ZM_REG_FLAG_CHANNEL_DFS_CLEAR);
 }
 
-u16_t zfHpIsAllowedChannel(zdev_t* dev, u16_t freq)
+u16_t zfHpIsAllowedChannel(zdev_t *dev, u16_t freq)
 {
-    u16_t i;
-    zmw_get_wlan_dev(dev);
+	u16_t i;
+	zmw_get_wlan_dev(dev);
 
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        if (wd->regulationTable.allowChannel[i].channel == freq)
-        {
-            return 1;
-        }
-    }
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		if (wd->regulationTable.allowChannel[i].channel == freq)
+			return 1;
+	}
 
-    return 0;
+	return 0;
 }
 
-u16_t zfHpFindFirstNonDfsChannel(zdev_t* dev, u16_t aBand)
+u16_t zfHpFindFirstNonDfsChannel(zdev_t *dev, u16_t aBand)
 {
-    u16_t chan = 2412;
-    u16_t i;
-    zmw_get_wlan_dev(dev);
+	u16_t chan = 2412;
+	u16_t i;
+	zmw_get_wlan_dev(dev);
 
-    zmw_declare_for_critical_section();
+	zmw_declare_for_critical_section();
 
-    zmw_enter_critical_section(dev);
+	zmw_enter_critical_section(dev);
 
-    for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
-    {
-        if ((wd->regulationTable.allowChannel[i].privFlags & ZM_REG_FLAG_CHANNEL_DFS) != 0)
-        {
-            if (aBand)
-            {
-                if (wd->regulationTable.allowChannel[i].channel > 3000)
-                {
-                    chan = wd->regulationTable.allowChannel[i].channel;
-                    break;
-                }
-            }
-            else
-            {
-                if (wd->regulationTable.allowChannel[i].channel < 3000)
-                {
-                    chan = wd->regulationTable.allowChannel[i].channel;
-                    break;
-                }
-            }
-        }
-    }
+	for (i = 0; i < wd->regulationTable.allowChannelCnt; i++) {
+		if ((wd->regulationTable.allowChannel[i].privFlags & ZM_REG_FLAG_CHANNEL_DFS) != 0) {
+			if (aBand) {
+				if (wd->regulationTable.allowChannel[i].channel > 3000) {
+					chan = wd->regulationTable.allowChannel[i].channel;
+					break;
+				}
+			} else {
+				if (wd->regulationTable.allowChannel[i].channel < 3000) {
+					chan = wd->regulationTable.allowChannel[i].channel;
+					break;
+				}
+			}
+		}
+	}
 
-    zmw_leave_critical_section(dev);
+	zmw_leave_critical_section(dev);
 
-    return chan;
+	return chan;
 }
 
 
 /* porting from ACU */
 /* save RegulatoryDomain in hpriv */
-u8_t zfHpGetRegulatoryDomain(zdev_t* dev)
+u8_t zfHpGetRegulatoryDomain(zdev_t *dev)
 {
-    zmw_get_wlan_dev(dev);
+	zmw_get_wlan_dev(dev);
 
-    switch (wd->regulationTable.regionCode)
-    {
-        case NO_ENUMRD:
-            return 0;
-            break;
-        case FCC1_FCCA:
-        case FCC1_WORLD:
-        case FCC4_FCCA:
-        case FCC5_FCCA:
-        case FCC2_WORLD:
-        case FCC2_ETSIC:
-        case FCC3_FCCA:
-        case FCC3_WORLD:
-        case FCC1:
-        case FCC2:
-        case FCC3:
-        case FCC4:
-        case FCC5:
-        case FCCA:
-            return 0x10;//WG_AMERICAS DOT11_REG_DOMAIN_FCC  United States
-            break;
+	switch (wd->regulationTable.regionCode) {
+	case NO_ENUMRD:
+		return 0;
+		break;
+	case FCC1_FCCA:
+	case FCC1_WORLD:
+	case FCC4_FCCA:
+	case FCC5_FCCA:
+	case FCC2_WORLD:
+	case FCC2_ETSIC:
+	case FCC3_FCCA:
+	case FCC3_WORLD:
+	case FCC1:
+	case FCC2:
+	case FCC3:
+	case FCC4:
+	case FCC5:
+	case FCCA:
+		return 0x10;/* WG_AMERICAS DOT11_REG_DOMAIN_FCC  United States */
+		break;
 
-        case FCC2_FCCA:
-            return 0x20;//DOT11_REG_DOMAIN_DOC  Canada
-            break;
+	case FCC2_FCCA:
+		return 0x20;/* DOT11_REG_DOMAIN_DOC  Canada */
+		break;
 
-        case ETSI1_WORLD:
-        case ETSI3_ETSIA:
-        case ETSI2_WORLD:
-        case ETSI3_WORLD:
-        case ETSI4_WORLD:
-        case ETSI4_ETSIC:
-        case ETSI5_WORLD:
-        case ETSI6_WORLD:
-        case ETSI_RESERVED:
-        case ETSI1:
-        case ETSI2:
-        case ETSI3:
-        case ETSI4:
-        case ETSI5:
-        case ETSI6:
-        case ETSIA:
-        case ETSIB:
-        case ETSIC:
-            return 0x30;//WG_EMEA DOT11_REG_DOMAIN_ETSI  Most of Europe
-            break;
+	case ETSI1_WORLD:
+	case ETSI3_ETSIA:
+	case ETSI2_WORLD:
+	case ETSI3_WORLD:
+	case ETSI4_WORLD:
+	case ETSI4_ETSIC:
+	case ETSI5_WORLD:
+	case ETSI6_WORLD:
+	case ETSI_RESERVED:
+	case ETSI1:
+	case ETSI2:
+	case ETSI3:
+	case ETSI4:
+	case ETSI5:
+	case ETSI6:
+	case ETSIA:
+	case ETSIB:
+	case ETSIC:
+		return 0x30;/* WG_EMEA DOT11_REG_DOMAIN_ETSI  Most of Europe */
+		break;
 
-        case MKK1_MKKA:
-        case MKK1_MKKB:
-        case MKK2_MKKA:
-        case MKK1_FCCA:
-        case MKK1_MKKA1:
-        case MKK1_MKKA2:
-        case MKK1_MKKC:
-        case MKK3_MKKB:
-        case MKK3_MKKA2:
-        case MKK3_MKKC:
-        case MKK4_MKKB:
-        case MKK4_MKKA2:
-        case MKK4_MKKC:
-        case MKK5_MKKB:
-        case MKK5_MKKA2:
-        case MKK5_MKKC:
-        case MKK6_MKKB:
-        case MKK6_MKKA2:
-        case MKK6_MKKC:
-        case MKK7_MKKB:
-        case MKK7_MKKA:
-        case MKK7_MKKC:
-        case MKK8_MKKB:
-        case MKK8_MKKA2:
-        case MKK8_MKKC:
-        case MKK6_MKKA1:
-        case MKK6_FCCA:
-        case MKK7_MKKA1:
-        case MKK7_FCCA:
-        case MKK9_FCCA:
-        case MKK9_MKKA1:
-        case MKK9_MKKC:
-        case MKK9_MKKA2:
-        case MKK10_FCCA:
-        case MKK10_MKKA1:
-        case MKK10_MKKC:
-        case MKK10_MKKA2:
-        case MKK11_MKKA:
-        case MKK11_FCCA:
-        case MKK11_MKKA1:
-        case MKK11_MKKC:
-        case MKK11_MKKA2:
-        case MKK12_MKKA:
-        case MKK12_FCCA:
-        case MKK12_MKKA1:
-        case MKK12_MKKC:
-        case MKK12_MKKA2:
-        case MKK3_MKKA:
-        case MKK3_MKKA1:
-        case MKK3_FCCA:
-        case MKK4_MKKA:
-        case MKK4_MKKA1:
-        case MKK4_FCCA:
-        case MKK9_MKKA:
-        case MKK10_MKKA:
-        case MKK1:
-        case MKK2:
-        case MKK3:
-        case MKK4:
-        case MKK5:
-        case MKK6:
-        case MKK7:
-        case MKK8:
-        case MKK9:
-        case MKK10:
-        case MKK11:
-        case MKK12:
-        case MKKA:
-        case MKKC:
-            return 0x40;//WG_JAPAN DOT11_REG_DOMAIN_MKK  Japan
-            break;
+	case MKK1_MKKA:
+	case MKK1_MKKB:
+	case MKK2_MKKA:
+	case MKK1_FCCA:
+	case MKK1_MKKA1:
+	case MKK1_MKKA2:
+	case MKK1_MKKC:
+	case MKK3_MKKB:
+	case MKK3_MKKA2:
+	case MKK3_MKKC:
+	case MKK4_MKKB:
+	case MKK4_MKKA2:
+	case MKK4_MKKC:
+	case MKK5_MKKB:
+	case MKK5_MKKA2:
+	case MKK5_MKKC:
+	case MKK6_MKKB:
+	case MKK6_MKKA2:
+	case MKK6_MKKC:
+	case MKK7_MKKB:
+	case MKK7_MKKA:
+	case MKK7_MKKC:
+	case MKK8_MKKB:
+	case MKK8_MKKA2:
+	case MKK8_MKKC:
+	case MKK6_MKKA1:
+	case MKK6_FCCA:
+	case MKK7_MKKA1:
+	case MKK7_FCCA:
+	case MKK9_FCCA:
+	case MKK9_MKKA1:
+	case MKK9_MKKC:
+	case MKK9_MKKA2:
+	case MKK10_FCCA:
+	case MKK10_MKKA1:
+	case MKK10_MKKC:
+	case MKK10_MKKA2:
+	case MKK11_MKKA:
+	case MKK11_FCCA:
+	case MKK11_MKKA1:
+	case MKK11_MKKC:
+	case MKK11_MKKA2:
+	case MKK12_MKKA:
+	case MKK12_FCCA:
+	case MKK12_MKKA1:
+	case MKK12_MKKC:
+	case MKK12_MKKA2:
+	case MKK3_MKKA:
+	case MKK3_MKKA1:
+	case MKK3_FCCA:
+	case MKK4_MKKA:
+	case MKK4_MKKA1:
+	case MKK4_FCCA:
+	case MKK9_MKKA:
+	case MKK10_MKKA:
+	case MKK1:
+	case MKK2:
+	case MKK3:
+	case MKK4:
+	case MKK5:
+	case MKK6:
+	case MKK7:
+	case MKK8:
+	case MKK9:
+	case MKK10:
+	case MKK11:
+	case MKK12:
+	case MKKA:
+	case MKKC:
+		return 0x40;/* WG_JAPAN DOT11_REG_DOMAIN_MKK  Japan */
+		break;
 
-        default:
-            break;
-    }
-    return 0xFF;// Didn't input RegDmn by mean to distinguish by customer
+	default:
+		break;
+	}
 
+	return 0xFF; /* Didn't input RegDmn by mean to distinguish by customer */
 }
 
-
-void zfHpDisableDfsChannel(zdev_t* dev, u8_t disableFlag)
+void zfHpDisableDfsChannel(zdev_t *dev, u8_t disableFlag)
 {
-    struct zsHpPriv* hpPriv;
+	struct zsHpPriv *hpPriv;
 
-    zmw_get_wlan_dev(dev);
-    hpPriv=wd->hpPrivate;
-    hpPriv->disableDfsCh = disableFlag;
-    return;
+	zmw_get_wlan_dev(dev);
+	hpPriv = wd->hpPrivate;
+	hpPriv->disableDfsCh = disableFlag;
+	return;
 }

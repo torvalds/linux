@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/in.h>
 #include <linux/in6.h>

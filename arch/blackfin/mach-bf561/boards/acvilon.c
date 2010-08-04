@@ -44,6 +44,7 @@
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -112,7 +113,7 @@ static struct resource bfin_i2c_pca_resources[] = {
 struct i2c_pca9564_pf_platform_data pca9564_platform_data = {
 	.gpio = -1,
 	.i2c_clock_speed = 330000,
-	.timeout = 10000
+	.timeout = HZ,
 };
 
 /* PCA9564 I2C Bus driver */
@@ -176,7 +177,7 @@ static struct resource smsc911x_resources[] = {
 };
 
 static struct smsc911x_platform_config smsc911x_config = {
-	.flags = SMSC911X_USE_32BIT,
+	.flags = SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
 	.phy_interface = PHY_INTERFACE_MODE_MII,

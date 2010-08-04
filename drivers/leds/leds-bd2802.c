@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/leds-bd2802.h>
+#include <linux/slab.h>
 
 
 #define LED_CTL(rgb2en, rgb1en) ((rgb2en) << 4 | ((rgb1en) << 0))
@@ -741,7 +742,6 @@ failed_unregister_dev_file:
 	for (i--; i >= 0; i--)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
 failed_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(led);
 
 	return ret;
@@ -758,7 +758,6 @@ static int __exit bd2802_remove(struct i2c_client *client)
 		bd2802_disable_adv_conf(led);
 	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
-	i2c_set_clientdata(client, NULL);
 	kfree(led);
 
 	return 0;

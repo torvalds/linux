@@ -29,6 +29,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -127,13 +128,12 @@ xfs_nfs_get_inode(
 		return ERR_PTR(-ESTALE);
 
 	/*
-	 * The XFS_IGET_BULKSTAT means that an invalid inode number is just
-	 * fine and not an indication of a corrupted filesystem.  Because
-	 * clients can send any kind of invalid file handle, e.g. after
-	 * a restore on the server we have to deal with this case gracefully.
+	 * The XFS_IGET_UNTRUSTED means that an invalid inode number is just
+	 * fine and not an indication of a corrupted filesystem as clients can
+	 * send invalid file handles and we have to handle it gracefully..
 	 */
-	error = xfs_iget(mp, NULL, ino, XFS_IGET_BULKSTAT,
-			 XFS_ILOCK_SHARED, &ip, 0);
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED,
+			 XFS_ILOCK_SHARED, &ip);
 	if (error) {
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.
@@ -215,9 +215,28 @@ xfs_fs_get_parent(
 	return d_obtain_alias(VFS_I(cip));
 }
 
+STATIC int
+xfs_fs_nfs_commit_metadata(
+	struct inode		*inode)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	int			error = 0;
+
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	if (xfs_ipincount(ip)) {
+		error = _xfs_log_force_lsn(mp, ip->i_itemp->ili_last_lsn,
+				XFS_LOG_SYNC, NULL);
+	}
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+
+	return error;
+}
+
 const struct export_operations xfs_export_operations = {
 	.encode_fh		= xfs_fs_encode_fh,
 	.fh_to_dentry		= xfs_fs_fh_to_dentry,
 	.fh_to_parent		= xfs_fs_fh_to_parent,
 	.get_parent		= xfs_fs_get_parent,
+	.commit_metadata	= xfs_fs_nfs_commit_metadata,
 };

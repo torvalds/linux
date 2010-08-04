@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9002_phy.h"
 
 static void ath9k_get_txgain_index(struct ath_hw *ah,
 		struct ath9k_channel *chan,
@@ -49,7 +50,6 @@ static void ath9k_get_txgain_index(struct ath_hw *ah,
 		i++;
 
 	*pcdacIdx = i;
-	return;
 }
 
 static void ath9k_olc_get_pdadcs(struct ath_hw *ah,
@@ -222,6 +222,12 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
+	/* Enable fixup for AR_AN_TOP2 if necessary */
+	if (AR_SREV_9280_10_OR_LATER(ah) &&
+	    (eep->baseEepHeader.version & 0xff) > 0x0a &&
+	    eep->baseEepHeader.pwdclkind == 0)
+		ah->need_an_top2_fixup = 1;
+
 	return 0;
 }
 
@@ -237,11 +243,11 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 		return pModal[0].noiseFloorThreshCh[0];
 	case EEP_NFTHRESH_2:
 		return pModal[1].noiseFloorThreshCh[0];
-	case AR_EEPROM_MAC(0):
+	case EEP_MAC_LSW:
 		return pBase->macAddr[0] << 8 | pBase->macAddr[1];
-	case AR_EEPROM_MAC(1):
+	case EEP_MAC_MID:
 		return pBase->macAddr[2] << 8 | pBase->macAddr[3];
-	case AR_EEPROM_MAC(2):
+	case EEP_MAC_MSW:
 		return pBase->macAddr[4] << 8 | pBase->macAddr[5];
 	case EEP_REG_0:
 		return pBase->regDmn[0];
@@ -267,6 +273,8 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 		return pBase->txMask;
 	case EEP_RX_MASK:
 		return pBase->rxMask;
+	case EEP_FSTCLK_5G:
+		return pBase->fastClk5g;
 	case EEP_RXGAIN_TYPE:
 		return pBase->rxGainType;
 	case EEP_TXGAIN_TYPE:
@@ -742,8 +750,6 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 		pPDADCValues[k] = pPDADCValues[k - 1];
 		k++;
 	}
-
-	return;
 }
 
 static int16_t ath9k_change_gain_boundary_setting(struct ath_hw *ah,

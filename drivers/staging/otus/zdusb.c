@@ -29,6 +29,7 @@
 #endif
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "usbdrv.h"
@@ -45,7 +46,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 static const char driver_name[] = "Otus";
 
 /* table of devices that work with this driver */
-static struct usb_device_id zd1221_ids [] = {
+static const struct usb_device_id zd1221_ids[] = {
 	{ USB_DEVICE(VENDOR_ATHR, PRODUCT_AR9170) },
         { USB_DEVICE(VENDOR_DLINK, PRODUCT_DWA160A) },
 	{ USB_DEVICE(VENDOR_NETGEAR, PRODUCT_WNDA3100) },
@@ -94,15 +95,13 @@ static int zfLnxProbe(struct usb_interface *interface,
         printk(KERN_NOTICE "USB 1.1 Host\n");
 #endif
 
-    if (!(macp = kmalloc(sizeof(struct usbdrv_private), GFP_KERNEL)))
+    macp = kzalloc(sizeof(struct usbdrv_private), GFP_KERNEL);
+    if (!macp)
     {
         printk(KERN_ERR "out of memory allocating device structure\n");
         result = -ENOMEM;
         goto fail;
     }
-
-    /* Zero the memory */
-    memset(macp, 0, sizeof(struct usbdrv_private));
 
     net = alloc_etherdev(0);
 

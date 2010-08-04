@@ -94,20 +94,21 @@ config CFG80211_DEBUGFS
 
 	  If unsure, say N.
 
-config WIRELESS_OLD_REGULATORY
-	bool "Old wireless static regulatory definitions"
+config CFG80211_INTERNAL_REGDB
+	bool "use statically compiled regulatory rules database" if EMBEDDED
 	default n
 	depends on CFG80211
 	---help---
-	  This option enables the old static regulatory information
-	  and uses it within the new framework. This option is available
-	  for historical reasons and it is advised to leave it off.
+	  This option generates an internal data structure representing
+	  the wireless regulatory rules described in net/wireless/db.txt
+	  and includes code to query that database.  This is an alternative
+	  to using CRDA for defining regulatory rules for the kernel.
 
 	  For details see:
 
 	  http://wireless.kernel.org/en/developers/Regulatory
 
-	  Say N and if you say Y, please tell us why. The default is N.
+	  Most distributions have a CRDA package.  So if unsure, say N.
 
 config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility"

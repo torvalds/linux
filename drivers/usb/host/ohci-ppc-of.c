@@ -83,7 +83,7 @@ static const struct hc_driver ohci_ppc_of_hc_driver = {
 static int __devinit
 ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ohci_hcd	*ohci;
 	struct resource res;
@@ -114,21 +114,21 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 	hcd->rsrc_len = res.end - res.start + 1;
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR __FILE__ ": request_mem_region failed\n");
+		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_rmr;
 	}
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
-		printk(KERN_ERR __FILE__ ": irq_of_parse_and_map failed\n");
+		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
-		printk(KERN_ERR __FILE__ ": ioremap failed\n");
+		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
 		rv = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -169,7 +169,7 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 			} else
 				release_mem_region(res.start, 0x4);
 		} else
-		    pr_debug(__FILE__ ": cannot get ehci offset from fdt\n");
+			pr_debug("%s: cannot get ehci offset from fdt\n", __FILE__);
 	}
 
 	iounmap(hcd->regs);
@@ -212,7 +212,7 @@ static int ohci_hcd_ppc_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ohci_hcd_ppc_of_match[] = {
+static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_BE
 	{
 		.name = "usb",
@@ -244,18 +244,13 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 
 
 static struct of_platform_driver ohci_hcd_ppc_of_driver = {
-	.name		= "ppc-of-ohci",
-	.match_table	= ohci_hcd_ppc_of_match,
 	.probe		= ohci_hcd_ppc_of_probe,
 	.remove		= ohci_hcd_ppc_of_remove,
 	.shutdown 	= ohci_hcd_ppc_of_shutdown,
-#ifdef CONFIG_PM
-	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
-	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
-#endif
-	.driver		= {
-		.name	= "ppc-of-ohci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "ppc-of-ohci",
+		.owner = THIS_MODULE,
+		.of_match_table = ohci_hcd_ppc_of_match,
 	},
 };
 

@@ -18,7 +18,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/timer.h>
 #include <linux/mdio.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -86,9 +85,13 @@ do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
 #define EFX_MAX_CHANNELS 32
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
 
-#define EFX_TX_QUEUE_OFFLOAD_CSUM	0
-#define EFX_TX_QUEUE_NO_CSUM		1
-#define EFX_TX_QUEUE_COUNT		2
+/* Checksum generation is a per-queue option in hardware, so each
+ * queue visible to the networking core is backed by two hardware TX
+ * queues. */
+#define EFX_MAX_CORE_TX_QUEUES	EFX_MAX_CHANNELS
+#define EFX_TXQ_TYPE_OFFLOAD	1
+#define EFX_TXQ_TYPES		2
+#define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CORE_TX_QUEUES)
 
 /**
  * struct efx_special_buffer - An Efx special buffer
@@ -101,9 +104,6 @@ do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
  * Special buffers are used for the event queues and the TX and RX
  * descriptor queues for each channel.  They are *not* used for the
  * actual transmit and receive buffers.
- *
- * Note that for Falcon, TX and RX descriptor queues live in host memory.
- * Allocation and freeing procedures must take this into account.
  */
 struct efx_special_buffer {
 	void *addr;
@@ -191,7 +191,7 @@ struct efx_tx_buffer {
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
-	int queue;
+	unsigned queue;
 	struct efx_channel *channel;
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
@@ -300,7 +300,7 @@ struct efx_rx_queue {
  * @dma_addr: DMA base address of the buffer
  * @len: Buffer length, in bytes
  *
- * Falcon uses these buffers for its interrupt status registers and
+ * The NIC uses these buffers for its interrupt status registers and
  * MAC stats dumps.
  */
 struct efx_buffer {
@@ -309,11 +309,6 @@ struct efx_buffer {
 	unsigned int len;
 };
 
-
-/* Flags for channel->used_flags */
-#define EFX_USED_BY_RX 1
-#define EFX_USED_BY_TX 2
-#define EFX_USED_BY_RX_TX (EFX_USED_BY_RX | EFX_USED_BY_TX)
 
 enum efx_rx_alloc_method {
 	RX_ALLOC_METHOD_AUTO = 0,
@@ -331,7 +326,6 @@ enum efx_rx_alloc_method {
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
  * @name: Name for channel and IRQ
- * @used_flags: Channel is used by net driver
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -356,12 +350,14 @@ enum efx_rx_alloc_method {
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
+ * @tx_queue: Pointer to first TX queue, or %NULL if not used for TX
+ * @tx_stop_count: Core TX queue stop count
+ * @tx_stop_lock: Core TX queue stop lock
  */
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
 	char name[IFNAMSIZ + 6];
-	int used_flags;
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
@@ -393,6 +389,9 @@ struct efx_channel {
 	struct efx_rx_buffer *rx_pkt;
 	bool rx_pkt_csummed;
 
+	struct efx_tx_queue *tx_queue;
+	atomic_t tx_stop_count;
+	spinlock_t tx_stop_lock;
 };
 
 enum efx_led_mode {
@@ -516,8 +515,9 @@ struct efx_mac_operations {
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
+ * @test_alive: Test that PHY is 'alive' (online)
  * @test_name: Get the name of a PHY-specific test/result
- * @run_tests: Run tests and record results as appropriate.
+ * @run_tests: Run tests and record results as appropriate (offline).
  *	Flags are the ethtool tests flags.
  */
 struct efx_phy_operations {
@@ -532,6 +532,7 @@ struct efx_phy_operations {
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
 	void (*set_npage_adv) (struct efx_nic *efx, u32);
+	int (*test_alive) (struct efx_nic *efx);
 	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
 	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
 };
@@ -663,8 +664,9 @@ union efx_multicast_hash {
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @next_buffer_table: First available buffer table id
- * @n_rx_queues: Number of RX queues
  * @n_channels: Number of channels in use
+ * @n_rx_channels: Number of channels used for RX (= number of RX queues)
+ * @n_tx_channels: Number of channels used for TX
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @int_error_count: Number of internal errors seen recently
@@ -672,8 +674,10 @@ union efx_multicast_hash {
  * @irq_status: Interrupt status buffer
  * @last_irq_cpu: Last CPU to handle interrupt.
  *	This register is written with the SMP processor ID whenever an
- *	interrupt is handled.  It is used by falcon_test_interrupt()
+ *	interrupt is handled.  It is used by efx_nic_test_interrupt()
  *	to verify that an interrupt has occurred.
+ * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
+ * @fatal_irq_level: IRQ level (bit number) used for serious errors
  * @spi_flash: SPI flash device
  *	This field will be %NULL if no flash device is present (or for Siena).
  * @spi_eeprom: SPI EEPROM device
@@ -693,8 +697,6 @@ union efx_multicast_hash {
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @rx_checksum_enabled: RX checksumming enabled
- * @netif_stop_count: Port stop count
- * @netif_stop_lock: Port stop lock
  * @mac_stats: MAC statistics. These include all statistics the MACs
  *	can provide.  Generic code converts these into a standard
  *	&struct net_device_stats.
@@ -721,8 +723,7 @@ union efx_multicast_hash {
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
  *
- * The @priv field of the corresponding &struct net_device points to
- * this.
+ * This is stored in the private area of the &struct net_device.
  */
 struct efx_nic {
 	char name[IFNAMSIZ];
@@ -743,13 +744,14 @@ struct efx_nic {
 	enum nic_state state;
 	enum reset_type reset_pending;
 
-	struct efx_tx_queue tx_queue[EFX_TX_QUEUE_COUNT];
+	struct efx_tx_queue tx_queue[EFX_MAX_TX_QUEUES];
 	struct efx_rx_queue rx_queue[EFX_MAX_RX_QUEUES];
 	struct efx_channel channel[EFX_MAX_CHANNELS];
 
 	unsigned next_buffer_table;
-	int n_rx_queues;
-	int n_channels;
+	unsigned n_channels;
+	unsigned n_rx_channels;
+	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
 
@@ -758,7 +760,8 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	volatile signed int last_irq_cpu;
-	unsigned long irq_zero_count;
+	unsigned irq_zero_count;
+	unsigned fatal_irq_level;
 
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
@@ -779,9 +782,6 @@ struct efx_nic {
 	bool port_initialized;
 	struct net_device *net_dev;
 	bool rx_checksum_enabled;
-
-	atomic_t netif_stop_count;
-	spinlock_t netif_stop_lock;
 
 	struct efx_mac_stats mac_stats;
 	struct efx_buffer stats_buffer;
@@ -830,7 +830,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
-	return PCI_FUNC(efx->pci_dev->devfn);
+	return efx->net_dev->dev_id;
 }
 
 /**
@@ -927,40 +927,35 @@ struct efx_nic_type {
 
 /* Iterate over all used channels */
 #define efx_for_each_channel(_channel, _efx)				\
-	for (_channel = &_efx->channel[0];				\
-	     _channel < &_efx->channel[EFX_MAX_CHANNELS];		\
-	     _channel++)						\
-		if (!_channel->used_flags)				\
-			continue;					\
-		else
+	for (_channel = &((_efx)->channel[0]);				\
+	     _channel < &((_efx)->channel[(efx)->n_channels]);		\
+	     _channel++)
 
 /* Iterate over all used TX queues */
 #define efx_for_each_tx_queue(_tx_queue, _efx)				\
-	for (_tx_queue = &_efx->tx_queue[0];				\
-	     _tx_queue < &_efx->tx_queue[EFX_TX_QUEUE_COUNT];		\
+	for (_tx_queue = &((_efx)->tx_queue[0]);			\
+	     _tx_queue < &((_efx)->tx_queue[EFX_TXQ_TYPES *		\
+					    (_efx)->n_tx_channels]);	\
 	     _tx_queue++)
 
 /* Iterate over all TX queues belonging to a channel */
 #define efx_for_each_channel_tx_queue(_tx_queue, _channel)		\
-	for (_tx_queue = &_channel->efx->tx_queue[0];			\
-	     _tx_queue < &_channel->efx->tx_queue[EFX_TX_QUEUE_COUNT];	\
-	     _tx_queue++)						\
-		if (_tx_queue->channel != _channel)			\
-			continue;					\
-		else
+	for (_tx_queue = (_channel)->tx_queue;				\
+	     _tx_queue && _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES; \
+	     _tx_queue++)
 
 /* Iterate over all used RX queues */
 #define efx_for_each_rx_queue(_rx_queue, _efx)				\
-	for (_rx_queue = &_efx->rx_queue[0];				\
-	     _rx_queue < &_efx->rx_queue[_efx->n_rx_queues];		\
+	for (_rx_queue = &((_efx)->rx_queue[0]);			\
+	     _rx_queue < &((_efx)->rx_queue[(_efx)->n_rx_channels]);	\
 	     _rx_queue++)
 
 /* Iterate over all RX queues belonging to a channel */
 #define efx_for_each_channel_rx_queue(_rx_queue, _channel)		\
-	for (_rx_queue = &_channel->efx->rx_queue[_channel->channel];	\
+	for (_rx_queue = &((_channel)->efx->rx_queue[(_channel)->channel]); \
 	     _rx_queue;							\
 	     _rx_queue = NULL)						\
-		if (_rx_queue->channel != _channel)			\
+		if (_rx_queue->channel != (_channel))			\
 			continue;					\
 		else
 
@@ -995,7 +990,7 @@ static inline void clear_bit_le(unsigned nr, unsigned char *addr)
  * that the net driver will program into the MAC as the maximum frame
  * length.
  *
- * The 10G MAC used in Falcon requires 8-byte alignment on the frame
+ * The 10G MAC requires 8-byte alignment on the frame
  * length, so we round up to the nearest 8.
  *
  * Re-clocking by the XGXS on RX can reduce an IPG to 32 bits (half an

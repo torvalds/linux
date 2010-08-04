@@ -2,7 +2,7 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -348,7 +348,7 @@ struct acx_beacon_filter_option {
  * ACXBeaconFilterEntry (not 221)
  * Byte Offset     Size (Bytes)    Definition
  * ===========     ============    ==========
- * 0				1               IE identifier
+ * 0               1               IE identifier
  * 1               1               Treatment bit mask
  *
  * ACXBeaconFilterEntry (221)
@@ -381,8 +381,8 @@ struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
 	u8 num_ie;
-	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
+	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 } __attribute__ ((packed));
 
 struct acx_conn_monit_params {
@@ -392,92 +392,27 @@ struct acx_conn_monit_params {
        __le32 bss_lose_timeout; /* number of TU's from synch fail */
 } __attribute__ ((packed));
 
-enum {
-	SG_ENABLE = 0,
-	SG_DISABLE,
-	SG_SENSE_NO_ACTIVITY,
-	SG_SENSE_ACTIVE
-};
-
 struct acx_bt_wlan_coex {
 	struct acx_header header;
 
-	/*
-	 * 0 -> PTA enabled
-	 * 1 -> PTA disabled
-	 * 2 -> sense no active mode, i.e.
-	 *      an interrupt is sent upon
-	 *      BT activity.
-	 * 3 -> PTA is switched on in response
-	 *      to the interrupt sending.
-	 */
 	u8 enable;
 	u8 pad[3];
 } __attribute__ ((packed));
 
-struct acx_smart_reflex_state {
+struct acx_bt_wlan_coex_param {
+	struct acx_header header;
+
+	__le32 params[CONF_SG_PARAMS_MAX];
+	u8 param_idx;
+	u8 padding[3];
+} __attribute__ ((packed));
+
+struct acx_dco_itrim_params {
 	struct acx_header header;
 
 	u8 enable;
 	u8 padding[3];
-} __attribute__ ((packed));
-
-struct smart_reflex_err_table {
-	u8 len;
-	s8 upper_limit;
-	s8 values[14];
-} __attribute__ ((packed));
-
-struct acx_smart_reflex_config_params {
-	struct acx_header header;
-
-	struct smart_reflex_err_table error_table[3];
-} __attribute__ ((packed));
-
-#define PTA_ANTENNA_TYPE_DEF		  (0)
-#define PTA_BT_HP_MAXTIME_DEF		  (2000)
-#define PTA_WLAN_HP_MAX_TIME_DEF	  (5000)
-#define PTA_SENSE_DISABLE_TIMER_DEF	  (1350)
-#define PTA_PROTECTIVE_RX_TIME_DEF	  (1500)
-#define PTA_PROTECTIVE_TX_TIME_DEF	  (1500)
-#define PTA_TIMEOUT_NEXT_BT_LP_PACKET_DEF (3000)
-#define PTA_SIGNALING_TYPE_DEF		  (1)
-#define PTA_AFH_LEVERAGE_ON_DEF		  (0)
-#define PTA_NUMBER_QUIET_CYCLE_DEF	  (0)
-#define PTA_MAX_NUM_CTS_DEF		  (3)
-#define PTA_NUMBER_OF_WLAN_PACKETS_DEF	  (2)
-#define PTA_NUMBER_OF_BT_PACKETS_DEF	  (2)
-#define PTA_PROTECTIVE_RX_TIME_FAST_DEF	  (1500)
-#define PTA_PROTECTIVE_TX_TIME_FAST_DEF	  (3000)
-#define PTA_CYCLE_TIME_FAST_DEF		  (8700)
-#define PTA_RX_FOR_AVALANCHE_DEF	  (5)
-#define PTA_ELP_HP_DEF			  (0)
-#define PTA_ANTI_STARVE_PERIOD_DEF	  (500)
-#define PTA_ANTI_STARVE_NUM_CYCLE_DEF	  (4)
-#define PTA_ALLOW_PA_SD_DEF		  (1)
-#define PTA_TIME_BEFORE_BEACON_DEF	  (6300)
-#define PTA_HPDM_MAX_TIME_DEF		  (1600)
-#define PTA_TIME_OUT_NEXT_WLAN_DEF	  (2550)
-#define PTA_AUTO_MODE_NO_CTS_DEF	  (0)
-#define PTA_BT_HP_RESPECTED_DEF		  (3)
-#define PTA_WLAN_RX_MIN_RATE_DEF	  (24)
-#define PTA_ACK_MODE_DEF		  (1)
-
-struct acx_bt_wlan_coex_param {
-	struct acx_header header;
-
-	__le32 per_threshold;
-	__le32 max_scan_compensation_time;
-	__le16 nfs_sample_interval;
-	u8 load_ratio;
-	u8 auto_ps_mode;
-	u8 probe_req_compensation;
-	u8 scan_window_compensation;
-	u8 antenna_config;
-	u8 beacon_miss_threshold;
-	__le32 rate_adaptation_threshold;
-	s8 rate_adaptation_snr;
-	u8 padding[3];
+	__le32 timeout;
 } __attribute__ ((packed));
 
 struct acx_energy_detection {
@@ -837,6 +772,9 @@ struct acx_rate_class {
 	u8 reserved;
 };
 
+#define ACX_TX_BASIC_RATE      0
+#define ACX_TX_AP_FULL_RATE    1
+#define ACX_TX_RATE_POLICY_CNT 2
 struct acx_rate_policy {
 	struct acx_header header;
 
@@ -877,8 +815,8 @@ struct acx_tx_config_options {
 	__le16 tx_compl_threshold;   /* number of packets */
 } __attribute__ ((packed));
 
-#define ACX_RX_MEM_BLOCKS     64
-#define ACX_TX_MIN_MEM_BLOCKS 64
+#define ACX_RX_MEM_BLOCKS     70
+#define ACX_TX_MIN_MEM_BLOCKS 40
 #define ACX_TX_DESCRIPTORS    32
 #define ACX_NUM_SSID_PROFILES 1
 
@@ -969,6 +907,91 @@ struct wl1271_acx_arp_filter {
 			       used. */
 } __attribute__((packed));
 
+struct wl1271_acx_pm_config {
+	struct acx_header header;
+
+	__le32 host_clk_settling_time;
+	u8 host_fast_wakeup_support;
+	u8 padding[3];
+} __attribute__ ((packed));
+
+struct wl1271_acx_keep_alive_mode {
+	struct acx_header header;
+
+	u8 enabled;
+	u8 padding[3];
+} __attribute__ ((packed));
+
+enum {
+	ACX_KEEP_ALIVE_NO_TX = 0,
+	ACX_KEEP_ALIVE_PERIOD_ONLY
+};
+
+enum {
+	ACX_KEEP_ALIVE_TPL_INVALID = 0,
+	ACX_KEEP_ALIVE_TPL_VALID
+};
+
+struct wl1271_acx_keep_alive_config {
+	struct acx_header header;
+
+	__le32 period;
+	u8 index;
+	u8 tpl_validation;
+	u8 trigger;
+	u8 padding;
+} __attribute__ ((packed));
+
+enum {
+	WL1271_ACX_TRIG_TYPE_LEVEL = 0,
+	WL1271_ACX_TRIG_TYPE_EDGE,
+};
+
+enum {
+	WL1271_ACX_TRIG_DIR_LOW = 0,
+	WL1271_ACX_TRIG_DIR_HIGH,
+	WL1271_ACX_TRIG_DIR_BIDIR,
+};
+
+enum {
+	WL1271_ACX_TRIG_ENABLE = 1,
+	WL1271_ACX_TRIG_DISABLE,
+};
+
+enum {
+	WL1271_ACX_TRIG_METRIC_RSSI_BEACON = 0,
+	WL1271_ACX_TRIG_METRIC_RSSI_DATA,
+	WL1271_ACX_TRIG_METRIC_SNR_BEACON,
+	WL1271_ACX_TRIG_METRIC_SNR_DATA,
+};
+
+enum {
+	WL1271_ACX_TRIG_IDX_RSSI = 0,
+	WL1271_ACX_TRIG_COUNT = 8,
+};
+
+struct wl1271_acx_rssi_snr_trigger {
+	struct acx_header header;
+
+	__le16 threshold;
+	__le16 pacing; /* 0 - 60000 ms */
+	u8 metric;
+	u8 type;
+	u8 dir;
+	u8 hysteresis;
+	u8 index;
+	u8 enable;
+	u8 padding[2];
+};
+
+struct wl1271_acx_rssi_snr_avg_weights {
+	struct acx_header header;
+
+	u8 rssi_beacon;
+	u8 rssi_data;
+	u8 snr_beacon;
+	u8 snr_data;
+};
 
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
@@ -1018,8 +1041,8 @@ enum {
 	ACX_FRAG_CFG                = 0x004F,
 	ACX_BET_ENABLE              = 0x0050,
 	ACX_RSSI_SNR_TRIGGER        = 0x0051,
-	ACX_RSSI_SNR_WEIGHTS        = 0x0051,
-	ACX_KEEP_ALIVE_MODE         = 0x0052,
+	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
+	ACX_KEEP_ALIVE_MODE         = 0x0053,
 	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
 	ACX_BA_SESSION_RESPONDER_POLICY = 0x0055,
 	ACX_BA_SESSION_INITIATOR_POLICY = 0x0056,
@@ -1027,13 +1050,13 @@ enum {
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_SMART_REFLEX_DEBUG  = 0x005A,
-	ACX_SET_SMART_REFLEX_STATE  = 0x005B,
-	ACX_SET_SMART_REFLEX_PARAMS = 0x005F,
+	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
 	DOT11_RTS_THRESHOLD         = 0x1013,
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
+	ACX_PM_CONFIG               = 0x1016,
 
 	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
 
@@ -1056,10 +1079,11 @@ int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
 				 void *mc_list, u32 mc_list_len);
 int wl1271_acx_service_period_timeout(struct wl1271 *wl);
 int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold);
+int wl1271_acx_dco_itrim_params(struct wl1271 *wl);
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
-int wl1271_acx_conn_monit_params(struct wl1271 *wl);
-int wl1271_acx_sg_enable(struct wl1271 *wl);
+int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable);
+int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable);
 int wl1271_acx_sg_cfg(struct wl1271 *wl);
 int wl1271_acx_cca_threshold(struct wl1271 *wl);
 int wl1271_acx_bcn_dtim_options(struct wl1271 *wl);
@@ -1069,9 +1093,12 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
-int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates);
-int wl1271_acx_ac_cfg(struct wl1271 *wl);
-int wl1271_acx_tid_cfg(struct wl1271 *wl);
+int wl1271_acx_rate_policies(struct wl1271 *wl);
+int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifsn, u16 txop);
+int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
+		       u8 tsid, u8 ps_scheme, u8 ack_policy,
+		       u32 apsd_conf0, u32 apsd_conf1);
 int wl1271_acx_frag_threshold(struct wl1271 *wl);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
 int wl1271_acx_mem_cfg(struct wl1271 *wl);
@@ -1081,5 +1108,11 @@ int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
 int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 			     u8 version);
+int wl1271_acx_pm_config(struct wl1271 *wl);
+int wl1271_acx_keep_alive_mode(struct wl1271 *wl, bool enable);
+int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid);
+int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
+				s16 thold, u8 hyst);
+int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

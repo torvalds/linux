@@ -20,10 +20,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/ppp_defs.h>
@@ -38,15 +40,11 @@
 #define GIG_COMPAT  {0, 4, 0, 0}
 
 #define MAX_REC_PARAMS 10	/* Max. number of params in response string */
-#define MAX_RESP_SIZE 512	/* Max. size of a response string */
+#define MAX_RESP_SIZE 511	/* Max. size of a response string */
 
 #define MAX_EVENTS 64		/* size of event queue */
 
 #define RBUFSIZE 8192
-#define SBUFSIZE 4096		/* sk_buff payload size */
-
-#define TRANSBUFSIZE 768	/* bytes per skb for transparent receive */
-#define MAX_BUF_SIZE (SBUFSIZE - 2)	/* Max. size of a data packet from LL */
 
 /* compile time options */
 #define GIG_MAJOR 0
@@ -78,9 +76,10 @@ enum debuglevel {
 	DEBUG_STREAM	  = 0x00040, /* application data stream I/O events */
 	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
 	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
+	DEBUG_EVENT	  = 0x00200, /* event processing */
 	DEBUG_DRIVER	  = 0x00400, /* driver structure */
 	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
-	DEBUG_WRITE	  = 0x01000, /* M105 data write */
+	DEBUG_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
 	DEBUG_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
 	DEBUG_MCMD	  = 0x04000, /* COMMANDS THAT ARE SENT VERY OFTEN */
 	DEBUG_INIT	  = 0x08000, /* (de)allocation+initialization of data
@@ -187,10 +186,9 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_BC		3
 #define AT_PROTO	4
 #define AT_TYPE		5
-#define AT_HLC		6
-#define AT_CLIP		7
+#define AT_CLIP		6
 /* total number */
-#define AT_NUM		8
+#define AT_NUM		7
 
 /* variables in struct at_state_t */
 #define VAR_ZSAU	0
@@ -377,8 +375,10 @@ struct bc_state {
 
 	struct at_state_t at_state;
 
-	__u16 fcs;
-	struct sk_buff *skb;
+	/* receive buffer */
+	unsigned rx_bufsize;		/* max size accepted by application */
+	struct sk_buff *rx_skb;
+	__u16 rx_fcs;
 	int inputstate;			/* see INS_XXXX */
 
 	int channel;
@@ -403,7 +403,9 @@ struct bc_state {
 		struct bas_bc_state *bas;	/* usb hardware driver (base) */
 	} hw;
 
-	void *ap;			/* LL application structure */
+	void *ap;			/* associated LL application */
+	int apconnstate;		/* LL application connection state */
+	spinlock_t aplock;
 };
 
 struct cardstate {
@@ -498,7 +500,7 @@ struct cardstate {
 	spinlock_t ev_lock;
 
 	/* current modem response */
-	unsigned char respdata[MAX_RESP_SIZE];
+	unsigned char respdata[MAX_RESP_SIZE+1];
 	unsigned cbytes;
 
 	/* private data of hardware drivers */
@@ -674,8 +676,10 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size);
  */
 
 /* Called from common.c for setting up/shutting down with the ISDN subsystem */
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid);
-void gigaset_isdn_unregister(struct cardstate *cs);
+void gigaset_isdn_regdrv(void);
+void gigaset_isdn_unregdrv(void);
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid);
+void gigaset_isdn_unregdev(struct cardstate *cs);
 
 /* Called from hardware module to indicate completion of an skb */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb);
@@ -785,8 +789,6 @@ static inline void gigaset_schedule_event(struct cardstate *cs)
 static inline void gigaset_bchannel_down(struct bc_state *bcs)
 {
 	gigaset_add_event(bcs->cs, &bcs->at_state, EV_BC_CLOSED, NULL, 0, NULL);
-
-	gig_dbg(DEBUG_CMD, "scheduling BC_CLOSED");
 	gigaset_schedule_event(bcs->cs);
 }
 
@@ -795,13 +797,26 @@ static inline void gigaset_bchannel_down(struct bc_state *bcs)
 static inline void gigaset_bchannel_up(struct bc_state *bcs)
 {
 	gigaset_add_event(bcs->cs, &bcs->at_state, EV_BC_OPEN, NULL, 0, NULL);
-
-	gig_dbg(DEBUG_CMD, "scheduling BC_OPEN");
 	gigaset_schedule_event(bcs->cs);
 }
 
-/* handling routines for sk_buff */
-/* ============================= */
+/* set up next receive skb for data mode */
+static inline struct sk_buff *gigaset_new_rx_skb(struct bc_state *bcs)
+{
+	struct cardstate *cs = bcs->cs;
+	unsigned short hw_hdr_len = cs->hw_hdr_len;
+
+	if (bcs->ignore) {
+		bcs->rx_skb = NULL;
+	} else {
+		bcs->rx_skb = dev_alloc_skb(bcs->rx_bufsize + hw_hdr_len);
+		if (bcs->rx_skb == NULL)
+			dev_warn(cs->dev, "could not allocate skb\n");
+		else
+			skb_reserve(bcs->rx_skb, hw_hdr_len);
+	}
+	return bcs->rx_skb;
+}
 
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,

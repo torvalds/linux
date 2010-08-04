@@ -12,7 +12,7 @@ struct qdisc_walker {
 	int	(*fn)(struct Qdisc *, unsigned long cl, struct qdisc_walker *);
 };
 
-#define QDISC_ALIGNTO		32
+#define QDISC_ALIGNTO		64
 #define QDISC_ALIGN(len)	(((len) + QDISC_ALIGNTO-1) & ~(QDISC_ALIGNTO-1))
 
 static inline void *qdisc_priv(struct Qdisc *q)
@@ -71,6 +71,7 @@ extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
 
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
+extern struct Qdisc_ops pfifo_head_drop_qdisc_ops;
 
 extern int fifo_set_limit(struct Qdisc *q, unsigned int limit);
 extern struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,

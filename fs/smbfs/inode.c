@@ -479,6 +479,7 @@ smb_put_super(struct super_block *sb)
 	if (server->conn_pid)
 		kill_pid(server->conn_pid, SIGTERM, 1);
 
+	bdi_destroy(&server->bdi);
 	kfree(server->ops);
 	smb_unload_nls(server);
 	sb->s_fs_info = NULL;
@@ -525,6 +526,11 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (!server)
 		goto out_no_server;
 	sb->s_fs_info = server;
+	
+	if (bdi_setup_and_register(&server->bdi, "smbfs", BDI_CAP_MAP_COPY))
+		goto out_bdi;
+
+	sb->s_bdi = &server->bdi;
 
 	server->super_block = sb;
 	server->mnt = NULL;
@@ -624,6 +630,8 @@ out_no_smbiod:
 out_bad_option:
 	kfree(mem);
 out_no_mem:
+	bdi_destroy(&server->bdi);
+out_bdi:
 	if (!server->mnt)
 		printk(KERN_ERR "smb_fill_super: allocation failure\n");
 	sb->s_fs_info = NULL;
@@ -706,7 +714,7 @@ smb_notify_change(struct dentry *dentry, struct iattr *attr)
 		error = server->ops->truncate(inode, attr->ia_size);
 		if (error)
 			goto out;
-		error = vmtruncate(inode, attr->ia_size);
+		error = simple_setsize(inode, attr->ia_size);
 		if (error)
 			goto out;
 		refresh = 1;

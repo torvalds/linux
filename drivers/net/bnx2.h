@@ -349,7 +349,7 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
-#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 32
+#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 4
 #define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
 #define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
 #define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
@@ -6347,6 +6347,8 @@ struct l2_fhdr {
 #define BNX2_MCP_SCRATCH				0x00160000
 #define BNX2_MCP_STATE_P1				 0x0016f9c8
 #define BNX2_MCP_STATE_P0				 0x0016fdc8
+#define BNX2_MCP_STATE_P1_5708				 0x001699c8
+#define BNX2_MCP_STATE_P0_5708				 0x00169dc8
 
 #define BNX2_SHM_HDR_SIGNATURE				BNX2_MCP_SCRATCH
 #define BNX2_SHM_HDR_SIGNATURE_SIG_MASK			 0xffff0000
@@ -6551,17 +6553,18 @@ struct l2_fhdr {
 
 struct sw_bd {
 	struct sk_buff		*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	struct l2_fhdr		*desc;
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct sw_pg {
 	struct page		*page;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct sw_tx_bd {
 	struct sk_buff		*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	unsigned short		is_gso;
 	unsigned short		nr_frags;
 };
@@ -6851,6 +6854,7 @@ struct bnx2 {
 	dma_addr_t		status_blk_mapping;
 
 	struct statistics_block	*stats_blk;
+	struct statistics_block	*temp_stats_blk;
 	dma_addr_t		stats_blk_mapping;
 
 	int			ctx_pages;

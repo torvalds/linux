@@ -66,7 +66,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 	tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--) {
-		/* can't move this out since we might cross LMB boundary */
+		/* can't move this out since we might cross MEMBLOCK boundary */
 		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
@@ -468,7 +468,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 
 	pr_debug("pci_dma_dev_setup_pSeries: %s\n", pci_name(dev));
 
-	dn = dev->dev.archdata.of_node;
+	dn = dev->dev.of_node;
 
 	/* If we're the direct child of a root bus, then we need to allocate
 	 * an iommu table ourselves. The bus setup code should have setup

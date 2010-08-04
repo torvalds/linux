@@ -69,9 +69,6 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 
 int __init pci_visws_init(void)
 {
-	if (!is_visws_box())
-		return -1;
-
 	pcibios_enable_irq = &pci_visws_enable_irq;
 	pcibios_disable_irq = &pci_visws_disable_irq;
 
@@ -90,5 +87,6 @@ int __init pci_visws_init(void)
 	pci_scan_bus_with_sysdata(pci_bus1);
 	pci_fixup_irqs(pci_common_swizzle, visws_map_irq);
 	pcibios_resource_survey();
-	return 0;
+	/* Request bus scan */
+	return 1;
 }

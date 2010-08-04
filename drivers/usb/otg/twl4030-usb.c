@@ -33,88 +33,16 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
-
+#include <linux/notifier.h>
+#include <linux/slab.h>
 
 /* Register defines */
 
-#define VENDOR_ID_LO			0x00
-#define VENDOR_ID_HI			0x01
-#define PRODUCT_ID_LO			0x02
-#define PRODUCT_ID_HI			0x03
-
-#define FUNC_CTRL			0x04
-#define FUNC_CTRL_SET			0x05
-#define FUNC_CTRL_CLR			0x06
-#define FUNC_CTRL_SUSPENDM		(1 << 6)
-#define FUNC_CTRL_RESET			(1 << 5)
-#define FUNC_CTRL_OPMODE_MASK		(3 << 3) /* bits 3 and 4 */
-#define FUNC_CTRL_OPMODE_NORMAL		(0 << 3)
-#define FUNC_CTRL_OPMODE_NONDRIVING	(1 << 3)
-#define FUNC_CTRL_OPMODE_DISABLE_BIT_NRZI	(2 << 3)
-#define FUNC_CTRL_TERMSELECT		(1 << 2)
-#define FUNC_CTRL_XCVRSELECT_MASK	(3 << 0) /* bits 0 and 1 */
-#define FUNC_CTRL_XCVRSELECT_HS		(0 << 0)
-#define FUNC_CTRL_XCVRSELECT_FS		(1 << 0)
-#define FUNC_CTRL_XCVRSELECT_LS		(2 << 0)
-#define FUNC_CTRL_XCVRSELECT_FS4LS	(3 << 0)
-
-#define IFC_CTRL			0x07
-#define IFC_CTRL_SET			0x08
-#define IFC_CTRL_CLR			0x09
-#define IFC_CTRL_INTERFACE_PROTECT_DISABLE	(1 << 7)
-#define IFC_CTRL_AUTORESUME		(1 << 4)
-#define IFC_CTRL_CLOCKSUSPENDM		(1 << 3)
-#define IFC_CTRL_CARKITMODE		(1 << 2)
-#define IFC_CTRL_FSLSSERIALMODE_3PIN	(1 << 1)
-
-#define TWL4030_OTG_CTRL		0x0A
-#define TWL4030_OTG_CTRL_SET		0x0B
-#define TWL4030_OTG_CTRL_CLR		0x0C
-#define TWL4030_OTG_CTRL_DRVVBUS	(1 << 5)
-#define TWL4030_OTG_CTRL_CHRGVBUS	(1 << 4)
-#define TWL4030_OTG_CTRL_DISCHRGVBUS	(1 << 3)
-#define TWL4030_OTG_CTRL_DMPULLDOWN	(1 << 2)
-#define TWL4030_OTG_CTRL_DPPULLDOWN	(1 << 1)
-#define TWL4030_OTG_CTRL_IDPULLUP	(1 << 0)
-
-#define USB_INT_EN_RISE			0x0D
-#define USB_INT_EN_RISE_SET		0x0E
-#define USB_INT_EN_RISE_CLR		0x0F
-#define USB_INT_EN_FALL			0x10
-#define USB_INT_EN_FALL_SET		0x11
-#define USB_INT_EN_FALL_CLR		0x12
-#define USB_INT_STS			0x13
-#define USB_INT_LATCH			0x14
-#define USB_INT_IDGND			(1 << 4)
-#define USB_INT_SESSEND			(1 << 3)
-#define USB_INT_SESSVALID		(1 << 2)
-#define USB_INT_VBUSVALID		(1 << 1)
-#define USB_INT_HOSTDISCONNECT		(1 << 0)
-
-#define CARKIT_CTRL			0x19
-#define CARKIT_CTRL_SET			0x1A
-#define CARKIT_CTRL_CLR			0x1B
-#define CARKIT_CTRL_MICEN		(1 << 6)
-#define CARKIT_CTRL_SPKRIGHTEN		(1 << 5)
-#define CARKIT_CTRL_SPKLEFTEN		(1 << 4)
-#define CARKIT_CTRL_RXDEN		(1 << 3)
-#define CARKIT_CTRL_TXDEN		(1 << 2)
-#define CARKIT_CTRL_IDGNDDRV		(1 << 1)
-#define CARKIT_CTRL_CARKITPWR		(1 << 0)
-#define CARKIT_PLS_CTRL			0x22
-#define CARKIT_PLS_CTRL_SET		0x23
-#define CARKIT_PLS_CTRL_CLR		0x24
-#define CARKIT_PLS_CTRL_SPKRRIGHT_BIASEN	(1 << 3)
-#define CARKIT_PLS_CTRL_SPKRLEFT_BIASEN	(1 << 2)
-#define CARKIT_PLS_CTRL_RXPLSEN		(1 << 1)
-#define CARKIT_PLS_CTRL_TXPLSEN		(1 << 0)
-
 #define MCPC_CTRL			0x30
-#define MCPC_CTRL_SET			0x31
-#define MCPC_CTRL_CLR			0x32
 #define MCPC_CTRL_RTSOL			(1 << 7)
 #define MCPC_CTRL_EXTSWR		(1 << 6)
 #define MCPC_CTRL_EXTSWC		(1 << 5)
@@ -124,8 +52,6 @@
 #define MCPC_CTRL_HS_UART		(1 << 0)
 
 #define MCPC_IO_CTRL			0x33
-#define MCPC_IO_CTRL_SET		0x34
-#define MCPC_IO_CTRL_CLR		0x35
 #define MCPC_IO_CTRL_MICBIASEN		(1 << 5)
 #define MCPC_IO_CTRL_CTS_NPU		(1 << 4)
 #define MCPC_IO_CTRL_RXD_PU		(1 << 3)
@@ -134,19 +60,13 @@
 #define MCPC_IO_CTRL_RTSTYP		(1 << 0)
 
 #define MCPC_CTRL2			0x36
-#define MCPC_CTRL2_SET			0x37
-#define MCPC_CTRL2_CLR			0x38
 #define MCPC_CTRL2_MCPC_CK_EN		(1 << 0)
 
 #define OTHER_FUNC_CTRL			0x80
-#define OTHER_FUNC_CTRL_SET		0x81
-#define OTHER_FUNC_CTRL_CLR		0x82
 #define OTHER_FUNC_CTRL_BDIS_ACON_EN	(1 << 4)
 #define OTHER_FUNC_CTRL_FIVEWIRE_MODE	(1 << 2)
 
 #define OTHER_IFC_CTRL			0x83
-#define OTHER_IFC_CTRL_SET		0x84
-#define OTHER_IFC_CTRL_CLR		0x85
 #define OTHER_IFC_CTRL_OE_INT_EN	(1 << 6)
 #define OTHER_IFC_CTRL_CEA2011_MODE	(1 << 5)
 #define OTHER_IFC_CTRL_FSLSSERIALMODE_4PIN	(1 << 4)
@@ -155,11 +75,7 @@
 #define OTHER_IFC_CTRL_ALT_INT_REROUTE	(1 << 0)
 
 #define OTHER_INT_EN_RISE		0x86
-#define OTHER_INT_EN_RISE_SET		0x87
-#define OTHER_INT_EN_RISE_CLR		0x88
 #define OTHER_INT_EN_FALL		0x89
-#define OTHER_INT_EN_FALL_SET		0x8A
-#define OTHER_INT_EN_FALL_CLR		0x8B
 #define OTHER_INT_STS			0x8C
 #define OTHER_INT_LATCH			0x8D
 #define OTHER_INT_VB_SESS_VLD		(1 << 7)
@@ -177,13 +93,9 @@
 #define ID_RES_GND			(1 << 0)
 
 #define POWER_CTRL			0xAC
-#define POWER_CTRL_SET			0xAD
-#define POWER_CTRL_CLR			0xAE
 #define POWER_CTRL_OTG_ENAB		(1 << 5)
 
 #define OTHER_IFC_CTRL2			0xAF
-#define OTHER_IFC_CTRL2_SET		0xB0
-#define OTHER_IFC_CTRL2_CLR		0xB1
 #define OTHER_IFC_CTRL2_ULPI_STP_LOW	(1 << 4)
 #define OTHER_IFC_CTRL2_ULPI_TXEN_POL	(1 << 3)
 #define OTHER_IFC_CTRL2_ULPI_4PIN_2430	(1 << 2)
@@ -192,14 +104,10 @@
 #define OTHER_IFC_CTRL2_USB_INT_OUTSEL_INT2N	(1 << 0)
 
 #define REG_CTRL_EN			0xB2
-#define REG_CTRL_EN_SET			0xB3
-#define REG_CTRL_EN_CLR			0xB4
 #define REG_CTRL_ERROR			0xB5
 #define ULPI_I2C_CONFLICT_INTEN		(1 << 0)
 
 #define OTHER_FUNC_CTRL2		0xB8
-#define OTHER_FUNC_CTRL2_SET		0xB9
-#define OTHER_FUNC_CTRL2_CLR		0xBA
 #define OTHER_FUNC_CTRL2_VBAT_TIMER_EN	(1 << 0)
 
 /* following registers do not have separate _clr and _set registers */
@@ -235,15 +143,6 @@
 /* In module TWL4030_MODULE_INTBR */
 #define PMBR1				0x0D
 #define GPIO_USB_4PIN_ULPI_2430C	(3 << 0)
-
-
-
-enum linkstat {
-	USB_LINK_UNKNOWN = 0,
-	USB_LINK_NONE,
-	USB_LINK_VBUS,
-	USB_LINK_ID,
-};
 
 struct twl4030_usb {
 	struct otg_transceiver	otg;
@@ -336,21 +235,21 @@ static inline int twl4030_usb_read(struct twl4030_usb *twl, u8 address)
 static inline int
 twl4030_usb_set_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 {
-	return twl4030_usb_write(twl, reg + 1, bits);
+	return twl4030_usb_write(twl, ULPI_SET(reg), bits);
 }
 
 static inline int
 twl4030_usb_clear_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 {
-	return twl4030_usb_write(twl, reg + 2, bits);
+	return twl4030_usb_write(twl, ULPI_CLR(reg), bits);
 }
 
 /*-------------------------------------------------------------------------*/
 
-static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
+static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
 	int	status;
-	int	linkstat = USB_LINK_UNKNOWN;
+	int	linkstat = USB_EVENT_NONE;
 
 	/*
 	 * For ID/VBUS sensing, see manual section 15.4.8 ...
@@ -368,11 +267,11 @@ static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
 		dev_err(twl->dev, "USB link status err %d\n", status);
 	else if (status & (BIT(7) | BIT(2))) {
 		if (status & BIT(2))
-			linkstat = USB_LINK_ID;
+			linkstat = USB_EVENT_ID;
 		else
-			linkstat = USB_LINK_VBUS;
+			linkstat = USB_EVENT_VBUS;
 	} else
-		linkstat = USB_LINK_NONE;
+		linkstat = USB_EVENT_NONE;
 
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
 			status, status, linkstat);
@@ -383,7 +282,7 @@ static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
 
 	spin_lock_irq(&twl->lock);
 	twl->linkstat = linkstat;
-	if (linkstat == USB_LINK_ID) {
+	if (linkstat == USB_EVENT_ID) {
 		twl->otg.default_a = true;
 		twl->otg.state = OTG_STATE_A_IDLE;
 	} else {
@@ -401,11 +300,12 @@ static void twl4030_usb_set_mode(struct twl4030_usb *twl, int mode)
 
 	switch (mode) {
 	case T2_USB_MODE_ULPI:
-		twl4030_usb_clear_bits(twl, IFC_CTRL, IFC_CTRL_CARKITMODE);
+		twl4030_usb_clear_bits(twl, ULPI_IFC_CTRL,
+					ULPI_IFC_CTRL_CARKITMODE);
 		twl4030_usb_set_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
-		twl4030_usb_clear_bits(twl, FUNC_CTRL,
-					FUNC_CTRL_XCVRSELECT_MASK |
-					FUNC_CTRL_OPMODE_MASK);
+		twl4030_usb_clear_bits(twl, ULPI_FUNC_CTRL,
+					ULPI_FUNC_CTRL_XCVRSEL_MASK |
+					ULPI_FUNC_CTRL_OPMODE_MASK);
 		break;
 	case -1:
 		/* FIXME: power on defaults */
@@ -564,7 +464,7 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 
 	spin_lock_irqsave(&twl->lock, flags);
 	ret = sprintf(buf, "%s\n",
-			(twl->linkstat == USB_LINK_VBUS) ? "on" : "off");
+			(twl->linkstat == USB_EVENT_VBUS) ? "on" : "off");
 	spin_unlock_irqrestore(&twl->lock, flags);
 
 	return ret;
@@ -576,17 +476,8 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 	struct twl4030_usb *twl = _twl;
 	int status;
 
-#ifdef CONFIG_LOCKDEP
-	/* WORKAROUND for lockdep forcing IRQF_DISABLED on us, which
-	 * we don't want and can't tolerate.  Although it might be
-	 * friendlier not to borrow this thread context...
-	 */
-	local_irq_enable();
-#endif
-
 	status = twl4030_usb_linkstat(twl);
-	if (status != USB_LINK_UNKNOWN) {
-
+	if (status >= 0) {
 		/* FIXME add a set_power() method so that B-devices can
 		 * configure the charger appropriately.  It's not always
 		 * correct to consume VBUS power, and how much current to
@@ -598,12 +489,13 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		if (status == USB_LINK_NONE)
+		if (status == USB_EVENT_NONE)
 			twl4030_phy_suspend(twl, 0);
 		else
 			twl4030_phy_resume(twl);
 
-		twl4030charger_usb_en(status == USB_LINK_VBUS);
+		blocking_notifier_call_chain(&twl->otg.notifier, status,
+				twl->otg.gadget);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
 
@@ -693,6 +585,8 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
 
+	BLOCKING_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
+
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.
 	 *
@@ -702,7 +596,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	 * need both handles, otherwise just one suffices.
 	 */
 	twl->irq_enabled = true;
-	status = request_irq(twl->irq, twl4030_usb_irq,
+	status = request_threaded_irq(twl->irq, NULL, twl4030_usb_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"twl4030_usb", twl);
 	if (status < 0) {

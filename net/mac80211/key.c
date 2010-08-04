@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -139,7 +140,7 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = drv_set_key(key->local, SET_KEY, &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 
 	if (!ret) {
 		spin_lock_bh(&todo_lock);
@@ -181,7 +182,7 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = drv_set_key(key->local, DISABLE_KEY, &sdata->vif,
+	ret = drv_set_key(key->local, DISABLE_KEY, sdata,
 			  sta, &key->conf);
 
 	if (ret)
@@ -421,7 +422,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 			 */
 
 			/* same here, the AP could be using QoS */
-			ap = sta_info_get(key->local, key->sdata->u.mgd.bssid);
+			ap = sta_info_get(key->sdata, key->sdata->u.mgd.bssid);
 			if (ap) {
 				if (test_sta_flags(ap, WLAN_STA_WME))
 					key->conf.flags |=
@@ -443,7 +444,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 	add_todo(old_key, KEY_FLAG_TODO_DELETE);
 
 	add_todo(key, KEY_FLAG_TODO_ADD_DEBUGFS);
-	if (netif_running(sdata->dev))
+	if (ieee80211_sdata_running(sdata))
 		add_todo(key, KEY_FLAG_TODO_HWACCEL_ADD);
 
 	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
@@ -509,7 +510,7 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	ASSERT_RTNL();
 
-	if (WARN_ON(!netif_running(sdata->dev)))
+	if (WARN_ON(!ieee80211_sdata_running(sdata)))
 		return;
 
 	ieee80211_todo_for_each_key(sdata, KEY_FLAG_TODO_HWACCEL_ADD);

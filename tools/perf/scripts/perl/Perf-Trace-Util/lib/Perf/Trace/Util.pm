@@ -15,6 +15,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw(
 avg nsecs nsecs_secs nsecs_nsecs nsecs_usecs print_nsecs
+clear_term
 );
 
 our $VERSION = '0.01';
@@ -44,7 +45,7 @@ sub nsecs_secs {
 sub nsecs_nsecs {
     my ($nsecs) = @_;
 
-    return $nsecs - nsecs_secs($nsecs);
+    return $nsecs % $NSECS_PER_SEC;
 }
 
 sub nsecs_str {
@@ -53,6 +54,11 @@ sub nsecs_str {
     my $str = sprintf("%5u.%09u", nsecs_secs($nsecs), nsecs_nsecs($nsecs));
 
     return $str;
+}
+
+sub clear_term
+{
+    print "\x1b[H\x1b[2J";
 }
 
 1;

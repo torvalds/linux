@@ -52,7 +52,7 @@ static inline size_t btrfs_leaf_ref_size(int nr_extents)
 
 static inline void btrfs_leaf_ref_tree_init(struct btrfs_leaf_ref_tree *tree)
 {
-	tree->root.rb_node = NULL;
+	tree->root = RB_ROOT;
 	INIT_LIST_HEAD(&tree->list);
 	spin_lock_init(&tree->lock);
 }

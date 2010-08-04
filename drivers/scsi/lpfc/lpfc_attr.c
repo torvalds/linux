@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/aer.h>
+#include <linux/gfp.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -482,6 +483,41 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_link_state_store - Transition the link_state on an HBA port
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: one or more lpfc_polling_flags values.
+ * @count: not used.
+ *
+ * Returns:
+ * -EINVAL if the buffer is not "up" or "down"
+ * return from link state change function if non-zero
+ * length of the buf on success
+ **/
+static ssize_t
+lpfc_link_state_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	int status = -EINVAL;
+
+	if ((strncmp(buf, "up", sizeof("up") - 1) == 0) &&
+			(phba->link_state == LPFC_LINK_DOWN))
+		status = phba->lpfc_hba_init_link(phba);
+	else if ((strncmp(buf, "down", sizeof("down") - 1) == 0) &&
+			(phba->link_state >= LPFC_LINK_UP))
+		status = phba->lpfc_hba_down_link(phba);
+
+	if (status == 0)
+		return strlen(buf);
+	else
+		return status;
+}
+
+/**
  * lpfc_num_discovered_ports_show - Return sum of mapped and unmapped vports
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -833,6 +869,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
+	uint32_t max_vpi;
 
 	/*
 	 * prevent udev from issuing mailbox commands until the port is
@@ -880,11 +917,17 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		if (axri)
 			*axri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config) -
 					phba->sli4_hba.max_cfg_param.xri_used;
+
+		/* Account for differences with SLI-3.  Get vpi count from
+		 * mailbox data and subtract one for max vpi value.
+		 */
+		max_vpi = (bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) > 0) ?
+			(bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) - 1) : 0;
+
 		if (mvpi)
-			*mvpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config);
+			*mvpi = max_vpi;
 		if (avpi)
-			*avpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) -
-					phba->sli4_hba.max_cfg_param.vpi_used;
+			*avpi = max_vpi - phba->sli4_hba.max_cfg_param.vpi_used;
 	} else {
 		if (mrpi)
 			*mrpi = pmb->un.varRdConfig.max_rpi;
@@ -1219,7 +1262,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
 	struct lpfc_hba   *phba = vport->phba;\
-	int val = 0;\
+	uint val = 0;\
 	val = phba->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%d\n",\
 			phba->cfg_##attr);\
@@ -1247,7 +1290,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
 	struct lpfc_hba   *phba = vport->phba;\
-	int val = 0;\
+	uint val = 0;\
 	val = phba->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%#x\n",\
 			phba->cfg_##attr);\
@@ -1274,7 +1317,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
  **/
 #define lpfc_param_init(attr, default, minval, maxval)	\
 static int \
-lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
+lpfc_##attr##_init(struct lpfc_hba *phba, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		phba->cfg_##attr = val;\
@@ -1309,7 +1352,7 @@ lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
  **/
 #define lpfc_param_set(attr, default, minval, maxval)	\
 static int \
-lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
+lpfc_##attr##_set(struct lpfc_hba *phba, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		phba->cfg_##attr = val;\
@@ -1350,7 +1393,7 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
 	struct lpfc_hba   *phba = vport->phba;\
-	int val=0;\
+	uint val = 0;\
 	if (!isdigit(buf[0]))\
 		return -EINVAL;\
 	if (sscanf(buf, "%i", &val) != 1)\
@@ -1382,7 +1425,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 { \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
-	int val = 0;\
+	uint val = 0;\
 	val = vport->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%d\n", vport->cfg_##attr);\
 }
@@ -1409,7 +1452,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 { \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
-	int val = 0;\
+	uint val = 0;\
 	val = vport->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%#x\n", vport->cfg_##attr);\
 }
@@ -1434,7 +1477,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
  **/
 #define lpfc_vport_param_init(attr, default, minval, maxval)	\
 static int \
-lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
+lpfc_##attr##_init(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		vport->cfg_##attr = val;\
@@ -1466,7 +1509,7 @@ lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
  **/
 #define lpfc_vport_param_set(attr, default, minval, maxval)	\
 static int \
-lpfc_##attr##_set(struct lpfc_vport *vport, int val) \
+lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		vport->cfg_##attr = val;\
@@ -1502,7 +1545,7 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 { \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
-	int val=0;\
+	uint val = 0;\
 	if (!isdigit(buf[0]))\
 		return -EINVAL;\
 	if (sscanf(buf, "%i", &val) != 1)\
@@ -1515,22 +1558,22 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 
 
 #define LPFC_ATTR(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_init(name, defval, minval, maxval)
 
 #define LPFC_ATTR_R(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_ATTR_RW(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1540,16 +1583,16 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
 #define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_hex_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_hex_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1559,22 +1602,22 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
 #define LPFC_VPORT_ATTR(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_init(name, defval, minval, maxval)
 
 #define LPFC_VPORT_ATTR_R(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_VPORT_ATTR_RW(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1584,16 +1627,16 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
 #define LPFC_VPORT_ATTR_HEX_R(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_hex_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_VPORT_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
-static int lpfc_##name = defval;\
-module_param(lpfc_##name, int, 0);\
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_hex_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1614,7 +1657,8 @@ static DEVICE_ATTR(programtype, S_IRUGO, lpfc_programtype_show, NULL);
 static DEVICE_ATTR(portnum, S_IRUGO, lpfc_vportnum_show, NULL);
 static DEVICE_ATTR(fwrev, S_IRUGO, lpfc_fwrev_show, NULL);
 static DEVICE_ATTR(hdw, S_IRUGO, lpfc_hdw_show, NULL);
-static DEVICE_ATTR(link_state, S_IRUGO, lpfc_link_state_show, NULL);
+static DEVICE_ATTR(link_state, S_IRUGO | S_IWUSR, lpfc_link_state_show,
+		lpfc_link_state_store);
 static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
@@ -1888,13 +1932,23 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-int lpfc_enable_npiv = 0;
+int lpfc_enable_npiv = 1;
 module_param(lpfc_enable_npiv, int, 0);
 MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
 lpfc_param_show(enable_npiv);
-lpfc_param_init(enable_npiv, 0, 0, 1);
-static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
-			 lpfc_enable_npiv_show, NULL);
+lpfc_param_init(enable_npiv, 1, 0, 1);
+static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO, lpfc_enable_npiv_show, NULL);
+
+/*
+# lpfc_suppress_link_up:  Bring link up at initialization
+#            0x0  = bring link up (issue MBX_INIT_LINK)
+#            0x1  = do NOT bring link up at initialization(MBX_INIT_LINK)
+#            0x2  = never bring up link
+# Default value is 0.
+*/
+LPFC_ATTR_R(suppress_link_up, LPFC_INITIALIZE_LINK, LPFC_INITIALIZE_LINK,
+		LPFC_DELAY_INIT_LINK_INDEFINITELY,
+		"Suppress Link Up at initialization");
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1921,8 +1975,7 @@ lpfc_nodev_tmo_show(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	int val = 0;
-	val = vport->cfg_devloss_tmo;
+
 	return snprintf(buf, PAGE_SIZE, "%d\n",	vport->cfg_devloss_tmo);
 }
 
@@ -2590,6 +2643,7 @@ static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
 
 /**
  * sysfs_drvr_stat_data_read - Read function for lpfc_drvr_stat_data attribute
+ * @filp: sysfs file
  * @kobj: Pointer to the kernel object
  * @bin_attr: Attribute object
  * @buff: Buffer pointer
@@ -2601,7 +2655,8 @@ static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
  * applications.
  **/
 static ssize_t
-sysfs_drvr_stat_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device,
@@ -3114,12 +3169,12 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 /*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
-#       0  = MSI disabled (default)
+#       0  = MSI disabled
 #       1  = MSI enabled
-#       2  = MSI-X enabled
-# Value range is [0,2]. Default value is 0.
+#       2  = MSI-X enabled (default)
+# Value range is [0,2]. Default value is 2.
 */
-LPFC_ATTR_R(use_msi, 0, 0, 2, "Use Message Signaled Interrupts (1) or "
+LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
 	    "MSI-X (2), if possible");
 
 /*
@@ -3278,6 +3333,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_prot_sg_seg_cnt,
 	&dev_attr_lpfc_aer_support,
 	&dev_attr_lpfc_aer_state_cleanup,
+	&dev_attr_lpfc_suppress_link_up,
 	NULL,
 };
 
@@ -3308,6 +3364,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 
 /**
  * sysfs_ctlreg_write - Write method for writing to ctlreg
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be written to the adapter IOREG space.
@@ -3325,7 +3382,8 @@ struct device_attribute *lpfc_vport_attrs[] = {
  * value of count, buf contents written
  **/
 static ssize_t
-sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_ctlreg_write(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
 	size_t buf_off;
@@ -3361,6 +3419,7 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * sysfs_ctlreg_read - Read method for reading from ctlreg
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: if successful contains the data from the adapter IOREG space.
@@ -3377,7 +3436,8 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
  * value of count, buf contents read
  **/
 static ssize_t
-sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_ctlreg_read(struct file *filp, struct kobject *kobj,
+		  struct bin_attribute *bin_attr,
 		  char *buf, loff_t off, size_t count)
 {
 	size_t buf_off;
@@ -3442,6 +3502,7 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
 
 /**
  * sysfs_mbox_write - Write method for writing information via mbox
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be written to sysfs mbox.
@@ -3462,7 +3523,8 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
  * count number of bytes transferred
  **/
 static ssize_t
-sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_mbox_write(struct file *filp, struct kobject *kobj,
+		 struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -3517,6 +3579,7 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * sysfs_mbox_read - Read method for reading information via mbox
+ * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
  * @bin_attr: kernel attributes passed to us.
  * @buf: contains the data to be read from sysfs mbox.
@@ -3539,7 +3602,8 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
  * count number of bytes transferred
  **/
 static ssize_t
-sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+sysfs_mbox_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -4456,7 +4520,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);
-
+	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	return;
 }
 

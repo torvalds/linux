@@ -134,10 +134,9 @@ static void reiserfs_vfs_truncate_file(struct inode *inode)
  * be removed...
  */
 
-static int reiserfs_sync_file(struct file *filp,
-			      struct dentry *dentry, int datasync)
+static int reiserfs_sync_file(struct file *filp, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int err;
 	int barrier_done;
 
@@ -147,7 +146,8 @@ static int reiserfs_sync_file(struct file *filp,
 	barrier_done = reiserfs_commit_for_inode(inode);
 	reiserfs_write_unlock(inode->i_sb);
 	if (barrier_done != 1 && reiserfs_barrier_flush(inode->i_sb))
-		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL, 
+			BLKDEV_IFL_WAIT);
 	if (barrier_done < 0)
 		return barrier_done;
 	return (err < 0) ? -EIO : 0;
@@ -289,7 +289,7 @@ const struct file_operations reiserfs_file_operations = {
 	.compat_ioctl = reiserfs_compat_ioctl,
 #endif
 	.mmap = reiserfs_file_mmap,
-	.open = generic_file_open,
+	.open = dquot_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,
 	.aio_read = generic_file_aio_read,

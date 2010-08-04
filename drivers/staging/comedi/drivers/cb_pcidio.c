@@ -283,17 +283,15 @@ static int pcidio_detach(struct comedi_device *dev)
 	printk("comedi%d: cb_pcidio: remove\n", dev->minor);
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->dio_reg_base) {
+			if (devpriv->dio_reg_base)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
 	if (dev->subdevices) {
 		int i;
-		for (i = 0; i < thisboard->n_8255; i++) {
+		for (i = 0; i < thisboard->n_8255; i++)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
-		}
 	}
 	return 0;
 }

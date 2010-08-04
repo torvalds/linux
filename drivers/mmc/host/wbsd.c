@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1818,7 +1819,7 @@ static int wbsd_suspend(struct wbsd_host *host, pm_message_t state)
 {
 	BUG_ON(host == NULL);
 
-	return mmc_suspend_host(host->mmc, state);
+	return mmc_suspend_host(host->mmc);
 }
 
 static int wbsd_resume(struct wbsd_host *host)

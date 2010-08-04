@@ -1,3 +1,5 @@
+#ifdef __ASSEMBLY__
+
 /* kfr2r09 board specific boot code:
  * converts the "partner-jet-script.txt" script into assembly
  * the assembly code is the first code to be executed in the romImage
@@ -18,3 +20,11 @@
 	.align 2
 1:	.long 0xa8000000
 2:
+
+#else /* __ASSEMBLY__ */
+
+extern inline void mmcif_update_progress(int nr)
+{
+}
+
+#endif /* __ASSEMBLY__ */

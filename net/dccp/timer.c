@@ -38,7 +38,7 @@ static int dccp_write_timeout(struct sock *sk)
 
 	if (sk->sk_state == DCCP_REQUESTING || sk->sk_state == DCCP_PARTOPEN) {
 		if (icsk->icsk_retransmits != 0)
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		retry_until = icsk->icsk_syn_retries ?
 			    : sysctl_dccp_request_retries;
 	} else {
@@ -63,7 +63,7 @@ static int dccp_write_timeout(struct sock *sk)
 			   Golden words :-).
 		   */
 
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		}
 
 		retry_until = sysctl_dccp_retries2;

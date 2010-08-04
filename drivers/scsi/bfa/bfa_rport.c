@@ -114,7 +114,7 @@ bfa_rport_sm_uninit(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_un_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -146,7 +146,7 @@ bfa_rport_sm_created(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_cr_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -183,7 +183,7 @@ bfa_rport_sm_fwcreate(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_fwc_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -224,7 +224,7 @@ bfa_rport_sm_fwcreate_qfull(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_fwc_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -296,7 +296,7 @@ bfa_rport_sm_online(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_on_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -329,7 +329,7 @@ bfa_rport_sm_fwdelete(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_fwd_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -359,7 +359,7 @@ bfa_rport_sm_fwdelete_qfull(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_fwd_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -394,7 +394,7 @@ bfa_rport_sm_offline(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_off_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -421,7 +421,7 @@ bfa_rport_sm_deleting(struct bfa_rport_s *rp, enum bfa_rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -446,7 +446,7 @@ bfa_rport_sm_deleting_qfull(struct bfa_rport_s *rp, enum bfa_rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -477,7 +477,7 @@ bfa_rport_sm_delete_pending(struct bfa_rport_s *rp,
 
 	default:
 		bfa_stats(rp, sm_delp_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -512,7 +512,7 @@ bfa_rport_sm_offline_pending(struct bfa_rport_s *rp,
 
 	default:
 		bfa_stats(rp, sm_offp_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 
@@ -550,7 +550,7 @@ bfa_rport_sm_iocdisable(struct bfa_rport_s *rp, enum bfa_rport_event event)
 
 	default:
 		bfa_stats(rp, sm_iocd_unexp);
-		bfa_assert(0);
+		bfa_sm_fault(rp->bfa, event);
 	}
 }
 

@@ -22,6 +22,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 #include <linux/interrupt.h>
 

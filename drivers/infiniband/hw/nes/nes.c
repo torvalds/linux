@@ -44,6 +44,7 @@
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -110,6 +111,7 @@ static unsigned int sysfs_idx_addr;
 
 static struct pci_device_id nes_pci_table[] = {
 	{PCI_VENDOR_ID_NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020, PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VENDOR_ID_NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020_KR, PCI_ANY_ID, PCI_ANY_ID},
 	{0}
 };
 

@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
 #include "au8522.h"
@@ -84,6 +83,14 @@ static int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct au8522_state *state = fe->demodulator_priv;
 
 	dprintk("%s(%d)\n", __func__, enable);
+
+	if (state->operational_mode == AU8522_ANALOG_MODE) {
+		/* We're being asked to manage the gate even though we're
+		   not in digital mode.  This can occur if we get switched
+		   over to analog mode before the dvb_frontend kernel thread
+		   has completely shutdown */
+		return 0;
+	}
 
 	if (enable)
 		return au8522_writereg(state, 0x106, 1);
@@ -609,6 +616,13 @@ int au8522_init(struct dvb_frontend *fe)
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
 
+	state->operational_mode = AU8522_DIGITAL_MODE;
+
+	/* Clear out any state associated with the digital side of the
+	   chip, so that when it gets powered back up it won't think
+	   that it is already tuned */
+	state->current_frequency = 0;
+
 	au8522_writereg(state, 0xa4, 1 << 5);
 
 	au8522_i2c_gate_ctrl(fe, 1);
@@ -704,6 +718,15 @@ int au8522_sleep(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
+
+	/* Only power down if the digital side is currently using the chip */
+	if (state->operational_mode == AU8522_ANALOG_MODE) {
+		/* We're not in one of the expected power modes, which means
+		   that the DVB thread is probably telling us to go to sleep
+		   even though the analog frontend has already started using
+		   the chip.  So ignore the request */
+		return 0;
+	}
 
 	/* turn off led */
 	au8522_led_ctrl(state, 0);
@@ -933,6 +956,8 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
+	state->operational_mode = AU8522_DIGITAL_MODE;
+
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &au8522_ops,
 	       sizeof(struct dvb_frontend_ops));

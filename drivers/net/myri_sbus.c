@@ -14,7 +14,6 @@ static char version[] =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -26,6 +25,7 @@ static char version[] =
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/gfp.h>
 
 #include <net/dst.h>
 #include <net/arp.h>
@@ -716,10 +716,10 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev,
 	pad[0] = MYRI_PAD_LEN;
 	pad[1] = 0xab;
 
-	/* Set the protocol type. For a packet of type ETH_P_802_3 we put the length
-	 * in here instead. It is up to the 802.2 layer to carry protocol information.
+	/* Set the protocol type. For a packet of type ETH_P_802_3/2 we put the
+	 * length in here instead.
 	 */
-	if (type != ETH_P_802_3)
+	if (type != ETH_P_802_3 && type != ETH_P_802_2)
 		eth->h_proto = htons(type);
 	else
 		eth->h_proto = htons(len);
@@ -865,7 +865,7 @@ static inline void determine_reg_space_size(struct myri_eth *mp)
 		printk("myricom: AIEEE weird cpu version %04x assuming pre4.0\n",
 		       mp->eeprom.cpuvers);
 		mp->reg_size = (3 * 128 * 1024) + 4096;
-	};
+	}
 }
 
 #ifdef DEBUG_DETECT
@@ -928,7 +928,7 @@ static const struct net_device_ops myri_ops = {
 
 static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
 	struct net_device *dev;
 	struct myri_eth *mp;
@@ -1161,8 +1161,11 @@ static const struct of_device_id myri_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
 static struct of_platform_driver myri_sbus_driver = {
-	.name		= "myri",
-	.match_table	= myri_sbus_match,
+	.driver = {
+		.name = "myri",
+		.owner = THIS_MODULE,
+		.of_match_table = myri_sbus_match,
+	},
 	.probe		= myri_sbus_probe,
 	.remove		= __devexit_p(myri_sbus_remove),
 };

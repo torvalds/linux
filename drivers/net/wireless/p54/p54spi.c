@@ -29,6 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include "p54spi.h"
 #include "p54spi_eeprom.h"

@@ -69,19 +69,15 @@ config MMC_SDHCI_PCI
 	  If unsure, say N.
 
 config MMC_RICOH_MMC
-	tristate "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
+	bool "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
 	depends on MMC_SDHCI_PCI
 	help
-	  This selects the disabler for the Ricoh MMC Controller. This
+	  This adds a pci quirk to disable Ricoh MMC Controller. This
 	  proprietary controller is unnecessary because the SDHCI driver
 	  supports MMC cards on the SD controller, but if it is not
 	  disabled, it will steal the MMC cards away - rendering them
-	  useless. It is safe to select this driver even if you don't
+	  useless. It is safe to select this even if you don't
 	  have a Ricoh based card reader.
-
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called ricoh_mmc.
 
 	  If unsure, say Y.
 
@@ -140,6 +136,18 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
+config MMC_SDHCI_SPEAR
+	tristate "SDHCI support on ST SPEAr platform"
+	depends on MMC_SDHCI && PLAT_SPEAR
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  often referrered to as the HSMMC block in some of the ST SPEAR range
+	  of SoC
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C_DMA
 	bool "DMA support on S3C SDHCI"
 	depends on MMC_SDHCI_S3C && EXPERIMENTAL
@@ -193,6 +201,7 @@ config MMC_AU1X
 
 choice
 	prompt "Atmel SD/MMC Driver"
+	depends on AVR32 || ARCH_AT91
 	default MMC_ATMELMCI if AVR32
 	help
 	  Choose which driver to use for the Atmel MCI Silicon
@@ -240,7 +249,7 @@ config MMC_IMX
 
 config MMC_MSM7X00A
 	tristate "Qualcomm MSM 7X00A SDCC Controller Support"
-	depends on MMC && ARCH_MSM
+	depends on MMC && ARCH_MSM && !ARCH_MSM7X30
 	help
 	  This provides support for the SD/MMC cell found in the
           MSM 7X00A controllers from Qualcomm.
@@ -368,7 +377,7 @@ config MMC_SDRICOH_CS
 
 config MMC_TMIO
 	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
-	depends on MFD_TMIO || MFD_ASIC3 || SUPERH
+	depends on MFD_TMIO || MFD_ASIC3 || MFD_SH_MOBILE_SDHI
 	help
 	  This provides support for the SD/MMC cell found in TC6393XB,
 	  T7L66XB and also HTC ASIC3
@@ -399,7 +408,7 @@ config MMC_VIA_SDMMC
 
 config SDH_BFIN
 	tristate "Blackfin Secure Digital Host support"
-	depends on MMC && ((BF54x && !BF544) || (BF51x && !BF512))
+	depends on (BF54x && !BF544) || (BF51x && !BF512)
 	help
 	  If you say yes here you will get support for the Blackfin on-chip
 	  Secure Digital Host interface.  This includes support for MMC and
@@ -415,3 +424,11 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 	depends on SDH_BFIN
 	help
 	  If you say yes here SD-Cards may work on the EZkit.
+
+config MMC_SH_MMCIF
+	tristate "SuperH Internal MMCIF support"
+	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
+	help
+	  This selects the MMC Host Interface controler (MMCIF).
+
+	  This driver supports MMCIF in sh7724/sh7757/sh7372.

@@ -7,3 +7,64 @@ config VIDEO_IR
 	tristate
 	depends on IR_CORE
 	default IR_CORE
+
+source "drivers/media/IR/keymaps/Kconfig"
+
+config IR_NEC_DECODER
+	tristate "Enable IR raw decoder for the NEC protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with NEC protocol, and
+	   if the IR is decoded in software
+
+config IR_RC5_DECODER
+	tristate "Enable IR raw decoder for the RC-5 protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 protocol, and
+	   if the IR is decoded in software
+
+config IR_RC6_DECODER
+	tristate "Enable IR raw decoder for the RC6 protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the RC6 protocol, and you need software decoding support.
+
+config IR_JVC_DECODER
+	tristate "Enable IR raw decoder for the JVC protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the JVC protocol, and you need software decoding support.
+
+config IR_SONY_DECODER
+	tristate "Enable IR raw decoder for the Sony protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sony protocol, and you need software decoding support.
+
+config IR_IMON
+	tristate "SoundGraph iMON Receiver and Display"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
+	   IR Receiver and/or LCD/VFD/VGA display.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called imon.

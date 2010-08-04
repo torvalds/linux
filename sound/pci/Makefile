@@ -57,6 +57,7 @@ obj-$(CONFIG_SND_VIA82XX_MODEM) += snd-via82xx-modem.o
 obj-$(CONFIG_SND) += \
 	ac97/ \
 	ali5451/ \
+	asihpi/ \
 	au88x0/ \
 	aw2/ \
 	ctxfi/ \

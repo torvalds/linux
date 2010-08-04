@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
-#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/unistd.h>
 #include <linux/sem.h>
@@ -29,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>
@@ -79,7 +79,11 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	int do_color_align;
 	unsigned long task_size;
 
-	task_size = STACK_TOP;
+#ifdef CONFIG_32BIT
+	task_size = TASK_SIZE;
+#else /* Must be CONFIG_64BIT*/
+	task_size = test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE;
+#endif
 
 	if (len > task_size)
 		return -ENOMEM;
@@ -212,48 +216,6 @@ asmlinkage int sys_execve(nabi_no_regargs struct pt_regs regs)
 	putname(filename);
 
 out:
-	return error;
-}
-
-/*
- * Compacrapability ...
- */
-SYSCALL_DEFINE1(uname, struct old_utsname __user *, name)
-{
-	if (name && !copy_to_user(name, utsname(), sizeof (*name)))
-		return 0;
-	return -EFAULT;
-}
-
-/*
- * Compacrapability ...
- */
-SYSCALL_DEFINE1(olduname, struct oldold_utsname __user *, name)
-{
-	int error;
-
-	if (!name)
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
-		return -EFAULT;
-
-	error = __copy_to_user(&name->sysname, &utsname()->sysname,
-			       __OLD_UTS_LEN);
-	error -= __put_user(0, name->sysname + __OLD_UTS_LEN);
-	error -= __copy_to_user(&name->nodename, &utsname()->nodename,
-				__OLD_UTS_LEN);
-	error -= __put_user(0, name->nodename + __OLD_UTS_LEN);
-	error -= __copy_to_user(&name->release, &utsname()->release,
-				__OLD_UTS_LEN);
-	error -= __put_user(0, name->release + __OLD_UTS_LEN);
-	error -= __copy_to_user(&name->version, &utsname()->version,
-				__OLD_UTS_LEN);
-	error -= __put_user(0, name->version + __OLD_UTS_LEN);
-	error -= __copy_to_user(&name->machine, &utsname()->machine,
-				__OLD_UTS_LEN);
-	error = __put_user(0, name->machine + __OLD_UTS_LEN);
-	error = error ? -EFAULT : 0;
-
 	return error;
 }
 
@@ -404,94 +366,6 @@ _sys_sysmips(nabi_no_regargs struct pt_regs regs)
 	}
 
 	return -EINVAL;
-}
-
-/*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
- */
-SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, int, second,
-	unsigned long, third, void __user *, ptr, long, fifth)
-{
-	int version, ret;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	switch (call) {
-	case SEMOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-		                      second, NULL);
-	case SEMTIMEDOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-				      second,
-				      (const struct timespec __user *)fifth);
-	case SEMGET:
-		return sys_semget(first, second, third);
-	case SEMCTL: {
-		union semun fourth;
-		if (!ptr)
-			return -EINVAL;
-		if (get_user(fourth.__pad, (void __user *__user *) ptr))
-			return -EFAULT;
-		return sys_semctl(first, second, third, fourth);
-	}
-
-	case MSGSND:
-		return sys_msgsnd(first, (struct msgbuf __user *) ptr,
-				  second, third);
-	case MSGRCV:
-		switch (version) {
-		case 0: {
-			struct ipc_kludge tmp;
-			if (!ptr)
-				return -EINVAL;
-
-			if (copy_from_user(&tmp,
-					   (struct ipc_kludge __user *) ptr,
-					   sizeof(tmp)))
-				return -EFAULT;
-			return sys_msgrcv(first, tmp.msgp, second,
-					  tmp.msgtyp, third);
-		}
-		default:
-			return sys_msgrcv(first,
-					  (struct msgbuf __user *) ptr,
-					  second, fifth, third);
-		}
-	case MSGGET:
-		return sys_msgget((key_t) first, second);
-	case MSGCTL:
-		return sys_msgctl(first, second,
-				  (struct msqid_ds __user *) ptr);
-
-	case SHMAT:
-		switch (version) {
-		default: {
-			unsigned long raddr;
-			ret = do_shmat(first, (char __user *) ptr, second,
-				       &raddr);
-			if (ret)
-				return ret;
-			return put_user(raddr, (unsigned long __user *) third);
-		}
-		case 1:	/* iBCS2 emulator entry point */
-			if (!segment_eq(get_fs(), get_ds()))
-				return -EINVAL;
-			return do_shmat(first, (char __user *) ptr, second,
-				        (unsigned long *) third);
-		}
-	case SHMDT:
-		return sys_shmdt((char __user *)ptr);
-	case SHMGET:
-		return sys_shmget(first, second, third);
-	case SHMCTL:
-		return sys_shmctl(first, second,
-				  (struct shmid_ds __user *) ptr);
-	default:
-		return -ENOSYS;
-	}
 }
 
 /*

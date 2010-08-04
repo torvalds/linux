@@ -277,7 +277,7 @@ static struct clk timer2_clk = {
 	.usecount = 1,              /* REVISIT: why cant' this be disabled? */
 };
 
-struct davinci_clk dm644x_clks[] = {
+static struct clk_lookup dm644x_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "pll1", &pll1_clk),
 	CLK(NULL, "pll1_sysclk1", &pll1_sysclk1),
@@ -349,9 +349,6 @@ static struct platform_device dm644x_emac_device = {
        .num_resources	= ARRAY_SIZE(dm644x_emac_resources),
        .resource	= dm644x_emac_resources,
 };
-
-#define PINMUX0		0x00
-#define PINMUX1		0x04
 
 /*
  * Device specific mux setup
@@ -479,15 +476,6 @@ static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /*----------------------------------------------------------------------*/
 
-static const s8 dma_chan_dm644x_no_event[] = {
-	 0,  1, 12, 13, 14,
-	15, 25, 30, 31, 45,
-	46, 47, 55, 56, 57,
-	58, 59, 60, 61, 62,
-	63,
-	-1
-};
-
 static const s8
 queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
@@ -511,7 +499,6 @@ static struct edma_soc_info dm644x_edma_info[] = {
 		.n_slot			= 128,
 		.n_tc			= 2,
 		.n_cc			= 1,
-		.noevent		= dma_chan_dm644x_no_event,
 		.queue_tc_mapping	= queue_tc_mapping,
 		.queue_priority_mapping	= queue_priority_mapping,
 	},
@@ -612,6 +599,11 @@ static struct resource vpfe_resources[] = {
 		.end            = IRQ_VDINT1,
 		.flags          = IORESOURCE_IRQ,
 	},
+};
+
+static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct resource dm644x_ccdc_resource[] = {
+	/* CCDC Base address */
 	{
 		.start          = 0x01c70400,
 		.end            = 0x01c70400 + 0xff,
@@ -619,7 +611,17 @@ static struct resource vpfe_resources[] = {
 	},
 };
 
-static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device dm644x_ccdc_dev = {
+	.name           = "dm644x_ccdc",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(dm644x_ccdc_resource),
+	.resource       = dm644x_ccdc_resource,
+	.dev = {
+		.dma_mask               = &vpfe_capture_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+};
+
 static struct platform_device vpfe_capture_dev = {
 	.name		= CAPTURE_DRV_NAME,
 	.id		= -1,
@@ -672,9 +674,7 @@ static struct davinci_id dm644x_ids[] = {
 	},
 };
 
-static void __iomem *dm644x_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm644x_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
 /*
  * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers
@@ -682,7 +682,7 @@ static void __iomem *dm644x_psc_bases[] = {
  * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
  * T1_TOP: Timer 1, top   :  <unused>
  */
-struct davinci_timer_info dm644x_timer_info = {
+static struct davinci_timer_info dm644x_timer_info = {
 	.timers		= davinci_timer_instance,
 	.clockevent_id	= T0_BOT,
 	.clocksource_id	= T0_TOP,
@@ -729,27 +729,29 @@ static struct platform_device dm644x_serial_device = {
 static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
-	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm644x_ids,
 	.ids_num		= ARRAY_SIZE(dm644x_ids),
 	.cpu_clks		= dm644x_clks,
 	.psc_bases		= dm644x_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm644x_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
 	.pinmux_pins		= dm644x_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm644x_pins),
-	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_base		= DAVINCI_ARM_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
 	.intc_irq_prios 	= dm644x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm644x_timer_info,
-	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 71,
 	.gpio_irq		= IRQ_GPIOBNK0,
 	.serial_dev		= &dm644x_serial_device,
 	.emac_pdata		= &dm644x_emac_pdata,
 	.sram_dma		= 0x00008000,
 	.sram_len		= SZ_16K,
+	.reset_device		= &davinci_wdt_device,
 };
 
 void __init dm644x_init_asp(struct snd_platform_data *pdata)
@@ -769,9 +771,13 @@ static int __init dm644x_init_devices(void)
 	if (!cpu_is_davinci_dm644x())
 		return 0;
 
+	/* Add ccdc clock aliases */
+	clk_add_alias("master", dm644x_ccdc_dev.name, "vpss_master", NULL);
+	clk_add_alias("slave", dm644x_ccdc_dev.name, "vpss_slave", NULL);
 	platform_device_register(&dm644x_edma_device);
 	platform_device_register(&dm644x_emac_device);
 	platform_device_register(&dm644x_vpss_device);
+	platform_device_register(&dm644x_ccdc_dev);
 	platform_device_register(&vpfe_capture_dev);
 
 	return 0;

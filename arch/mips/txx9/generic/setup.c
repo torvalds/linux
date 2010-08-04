@@ -23,6 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 #include <linux/sysdev.h>
+#include <linux/slab.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -397,11 +398,6 @@ void __init prom_free_prom_memory(void)
 const char *get_system_type(void)
 {
 	return txx9_system_type;
-}
-
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
 }
 
 const char *__init prom_getenv(const char *name)
@@ -909,7 +905,7 @@ struct txx9_sramc_sysdev {
 	void __iomem *base;
 };
 
-static ssize_t txx9_sram_read(struct kobject *kobj,
+static ssize_t txx9_sram_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t size)
 {
@@ -924,7 +920,7 @@ static ssize_t txx9_sram_read(struct kobject *kobj,
 	return size;
 }
 
-static ssize_t txx9_sram_write(struct kobject *kobj,
+static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t pos, size_t size)
 {
@@ -961,6 +957,7 @@ void __init txx9_sramc_init(struct resource *r)
 	if (!dev->base)
 		goto exit;
 	dev->dev.cls = &txx9_sramc_sysdev_class;
+	sysfs_bin_attr_init(&dev->bindata_attr);
 	dev->bindata_attr.attr.name = "bindata";
 	dev->bindata_attr.attr.mode = S_IRUSR | S_IWUSR;
 	dev->bindata_attr.read = txx9_sram_read;

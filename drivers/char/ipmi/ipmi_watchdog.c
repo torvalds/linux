@@ -659,7 +659,7 @@ static struct watchdog_info ident = {
 	.identity	= "IPMI"
 };
 
-static int ipmi_ioctl(struct inode *inode, struct file *file,
+static int ipmi_ioctl(struct file *file,
 		      unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -728,6 +728,19 @@ static int ipmi_ioctl(struct inode *inode, struct file *file,
 	default:
 		return -ENOIOCTLCMD;
 	}
+}
+
+static long ipmi_unlocked_ioctl(struct file *file,
+				unsigned int cmd,
+				unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ipmi_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static ssize_t ipmi_write(struct file *file,
@@ -880,7 +893,7 @@ static const struct file_operations ipmi_wdog_fops = {
 	.read    = ipmi_read,
 	.poll    = ipmi_poll,
 	.write   = ipmi_write,
-	.ioctl   = ipmi_ioctl,
+	.unlocked_ioctl = ipmi_unlocked_ioctl,
 	.open    = ipmi_open,
 	.release = ipmi_close,
 	.fasync  = ipmi_fasync,

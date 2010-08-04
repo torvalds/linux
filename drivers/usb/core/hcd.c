@@ -38,13 +38,12 @@
 #include <asm/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
-#include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #include "usb.h"
-#include "hcd.h"
-#include "hub.h"
 
 
 /*-------------------------------------------------------------------------*/
@@ -141,7 +140,7 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
-	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
+	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
 	0x03,       /*  __u8  iManufacturer; */
@@ -1260,6 +1259,51 @@ static void hcd_free_coherent(struct usb_bus *bus, dma_addr_t *dma_handle,
 	*dma_handle = 0;
 }
 
+static void unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
+{
+	enum dma_data_direction dir;
+
+	if (urb->transfer_flags & URB_SETUP_MAP_SINGLE)
+		dma_unmap_single(hcd->self.controller,
+				urb->setup_dma,
+				sizeof(struct usb_ctrlrequest),
+				DMA_TO_DEVICE);
+	else if (urb->transfer_flags & URB_SETUP_MAP_LOCAL)
+		hcd_free_coherent(urb->dev->bus,
+				&urb->setup_dma,
+				(void **) &urb->setup_packet,
+				sizeof(struct usb_ctrlrequest),
+				DMA_TO_DEVICE);
+
+	dir = usb_urb_dir_in(urb) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	if (urb->transfer_flags & URB_DMA_MAP_SG)
+		dma_unmap_sg(hcd->self.controller,
+				urb->sg,
+				urb->num_sgs,
+				dir);
+	else if (urb->transfer_flags & URB_DMA_MAP_PAGE)
+		dma_unmap_page(hcd->self.controller,
+				urb->transfer_dma,
+				urb->transfer_buffer_length,
+				dir);
+	else if (urb->transfer_flags & URB_DMA_MAP_SINGLE)
+		dma_unmap_single(hcd->self.controller,
+				urb->transfer_dma,
+				urb->transfer_buffer_length,
+				dir);
+	else if (urb->transfer_flags & URB_MAP_LOCAL)
+		hcd_free_coherent(urb->dev->bus,
+				&urb->transfer_dma,
+				&urb->transfer_buffer,
+				urb->transfer_buffer_length,
+				dir);
+
+	/* Make it safe to call this routine more than once */
+	urb->transfer_flags &= ~(URB_SETUP_MAP_SINGLE | URB_SETUP_MAP_LOCAL |
+			URB_DMA_MAP_SG | URB_DMA_MAP_PAGE |
+			URB_DMA_MAP_SINGLE | URB_MAP_LOCAL);
+}
+
 static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 			   gfp_t mem_flags)
 {
@@ -1271,11 +1315,8 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	 * unless it uses pio or talks to another transport,
 	 * or uses the provided scatter gather list for bulk.
 	 */
-	if (is_root_hub(urb->dev))
-		return 0;
 
-	if (usb_endpoint_xfer_control(&urb->ep->desc)
-	    && !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
+	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		if (hcd->self.uses_dma) {
 			urb->setup_dma = dma_map_single(
 					hcd->self.controller,
@@ -1285,27 +1326,64 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 			if (dma_mapping_error(hcd->self.controller,
 						urb->setup_dma))
 				return -EAGAIN;
-		} else if (hcd->driver->flags & HCD_LOCAL_MEM)
+			urb->transfer_flags |= URB_SETUP_MAP_SINGLE;
+		} else if (hcd->driver->flags & HCD_LOCAL_MEM) {
 			ret = hcd_alloc_coherent(
 					urb->dev->bus, mem_flags,
 					&urb->setup_dma,
 					(void **)&urb->setup_packet,
 					sizeof(struct usb_ctrlrequest),
 					DMA_TO_DEVICE);
+			if (ret)
+				return ret;
+			urb->transfer_flags |= URB_SETUP_MAP_LOCAL;
+		}
 	}
 
 	dir = usb_urb_dir_in(urb) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	if (ret == 0 && urb->transfer_buffer_length != 0
+	if (urb->transfer_buffer_length != 0
 	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
 		if (hcd->self.uses_dma) {
-			urb->transfer_dma = dma_map_single (
-					hcd->self.controller,
-					urb->transfer_buffer,
-					urb->transfer_buffer_length,
-					dir);
-			if (dma_mapping_error(hcd->self.controller,
+			if (urb->num_sgs) {
+				int n = dma_map_sg(
+						hcd->self.controller,
+						urb->sg,
+						urb->num_sgs,
+						dir);
+				if (n <= 0)
+					ret = -EAGAIN;
+				else
+					urb->transfer_flags |= URB_DMA_MAP_SG;
+				if (n != urb->num_sgs) {
+					urb->num_sgs = n;
+					urb->transfer_flags |=
+							URB_DMA_SG_COMBINED;
+				}
+			} else if (urb->sg) {
+				struct scatterlist *sg = urb->sg;
+				urb->transfer_dma = dma_map_page(
+						hcd->self.controller,
+						sg_page(sg),
+						sg->offset,
+						urb->transfer_buffer_length,
+						dir);
+				if (dma_mapping_error(hcd->self.controller,
 						urb->transfer_dma))
-				return -EAGAIN;
+					ret = -EAGAIN;
+				else
+					urb->transfer_flags |= URB_DMA_MAP_PAGE;
+			} else {
+				urb->transfer_dma = dma_map_single(
+						hcd->self.controller,
+						urb->transfer_buffer,
+						urb->transfer_buffer_length,
+						dir);
+				if (dma_mapping_error(hcd->self.controller,
+						urb->transfer_dma))
+					ret = -EAGAIN;
+				else
+					urb->transfer_flags |= URB_DMA_MAP_SINGLE;
+			}
 		} else if (hcd->driver->flags & HCD_LOCAL_MEM) {
 			ret = hcd_alloc_coherent(
 					urb->dev->bus, mem_flags,
@@ -1313,53 +1391,14 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 					&urb->transfer_buffer,
 					urb->transfer_buffer_length,
 					dir);
-
-			if (ret && usb_endpoint_xfer_control(&urb->ep->desc)
-			    && !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
-				hcd_free_coherent(urb->dev->bus,
-					&urb->setup_dma,
-					(void **)&urb->setup_packet,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
+			if (ret == 0)
+				urb->transfer_flags |= URB_MAP_LOCAL;
 		}
+		if (ret && (urb->transfer_flags & (URB_SETUP_MAP_SINGLE |
+				URB_SETUP_MAP_LOCAL)))
+			unmap_urb_for_dma(hcd, urb);
 	}
 	return ret;
-}
-
-static void unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
-{
-	enum dma_data_direction dir;
-
-	if (is_root_hub(urb->dev))
-		return;
-
-	if (usb_endpoint_xfer_control(&urb->ep->desc)
-	    && !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
-		if (hcd->self.uses_dma)
-			dma_unmap_single(hcd->self.controller, urb->setup_dma,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
-		else if (hcd->driver->flags & HCD_LOCAL_MEM)
-			hcd_free_coherent(urb->dev->bus, &urb->setup_dma,
-					(void **)&urb->setup_packet,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
-	}
-
-	dir = usb_urb_dir_in(urb) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	if (urb->transfer_buffer_length != 0
-	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
-		if (hcd->self.uses_dma)
-			dma_unmap_single(hcd->self.controller,
-					urb->transfer_dma,
-					urb->transfer_buffer_length,
-					dir);
-		else if (hcd->driver->flags & HCD_LOCAL_MEM)
-			hcd_free_coherent(urb->dev->bus, &urb->transfer_dma,
-					&urb->transfer_buffer,
-					urb->transfer_buffer_length,
-					dir);
-	}
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1390,21 +1429,20 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	 * URBs must be submitted in process context with interrupts
 	 * enabled.
 	 */
-	status = map_urb_for_dma(hcd, urb, mem_flags);
-	if (unlikely(status)) {
-		usbmon_urb_submit_error(&hcd->self, urb, status);
-		goto error;
+
+	if (is_root_hub(urb->dev)) {
+		status = rh_urb_enqueue(hcd, urb);
+	} else {
+		status = map_urb_for_dma(hcd, urb, mem_flags);
+		if (likely(status == 0)) {
+			status = hcd->driver->urb_enqueue(hcd, urb, mem_flags);
+			if (unlikely(status))
+				unmap_urb_for_dma(hcd, urb);
+		}
 	}
 
-	if (is_root_hub(urb->dev))
-		status = rh_urb_enqueue(hcd, urb);
-	else
-		status = hcd->driver->urb_enqueue(hcd, urb, mem_flags);
-
 	if (unlikely(status)) {
 		usbmon_urb_submit_error(&hcd->self, urb, status);
-		unmap_urb_for_dma(hcd, urb);
- error:
 		urb->hcpriv = NULL;
 		INIT_LIST_HEAD(&urb->urb_list);
 		atomic_dec(&urb->use_count);
@@ -1670,11 +1708,16 @@ int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 			}
 		}
 		for (i = 0; i < num_intfs; ++i) {
+			struct usb_host_interface *first_alt;
+			int iface_num;
+
+			first_alt = &new_config->intf_cache[i]->altsetting[0];
+			iface_num = first_alt->desc.bInterfaceNumber;
 			/* Set up endpoints for alternate interface setting 0 */
-			alt = usb_find_alt_setting(new_config, i, 0);
+			alt = usb_find_alt_setting(new_config, iface_num, 0);
 			if (!alt)
 				/* No alt setting 0? Pick the first setting. */
-				alt = &new_config->intf_cache[i]->altsetting[0];
+				alt = first_alt;
 
 			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
 				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
@@ -1769,6 +1812,75 @@ void usb_hcd_reset_endpoint(struct usb_device *udev,
 	}
 }
 
+/**
+ * usb_alloc_streams - allocate bulk endpoint stream IDs.
+ * @interface:		alternate setting that includes all endpoints.
+ * @eps:		array of endpoints that need streams.
+ * @num_eps:		number of endpoints in the array.
+ * @num_streams:	number of streams to allocate.
+ * @mem_flags:		flags hcd should use to allocate memory.
+ *
+ * Sets up a group of bulk endpoints to have num_streams stream IDs available.
+ * Drivers may queue multiple transfers to different stream IDs, which may
+ * complete in a different order than they were queued.
+ */
+int usb_alloc_streams(struct usb_interface *interface,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int num_streams, gfp_t mem_flags)
+{
+	struct usb_hcd *hcd;
+	struct usb_device *dev;
+	int i;
+
+	dev = interface_to_usbdev(interface);
+	hcd = bus_to_hcd(dev->bus);
+	if (!hcd->driver->alloc_streams || !hcd->driver->free_streams)
+		return -EINVAL;
+	if (dev->speed != USB_SPEED_SUPER)
+		return -EINVAL;
+
+	/* Streams only apply to bulk endpoints. */
+	for (i = 0; i < num_eps; i++)
+		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
+			return -EINVAL;
+
+	return hcd->driver->alloc_streams(hcd, dev, eps, num_eps,
+			num_streams, mem_flags);
+}
+EXPORT_SYMBOL_GPL(usb_alloc_streams);
+
+/**
+ * usb_free_streams - free bulk endpoint stream IDs.
+ * @interface:	alternate setting that includes all endpoints.
+ * @eps:	array of endpoints to remove streams from.
+ * @num_eps:	number of endpoints in the array.
+ * @mem_flags:	flags hcd should use to allocate memory.
+ *
+ * Reverts a group of bulk endpoints back to not using stream IDs.
+ * Can fail if we are given bad arguments, or HCD is broken.
+ */
+void usb_free_streams(struct usb_interface *interface,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		gfp_t mem_flags)
+{
+	struct usb_hcd *hcd;
+	struct usb_device *dev;
+	int i;
+
+	dev = interface_to_usbdev(interface);
+	hcd = bus_to_hcd(dev->bus);
+	if (dev->speed != USB_SPEED_SUPER)
+		return;
+
+	/* Streams only apply to bulk endpoints. */
+	for (i = 0; i < num_eps; i++)
+		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
+			return;
+
+	hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
+}
+EXPORT_SYMBOL_GPL(usb_free_streams);
+
 /* Protect against drivers that try to unlink URBs after the device
  * is gone, by waiting until all unlinks for @udev are finished.
  * Since we don't currently track URBs by device, simply wait until
@@ -1853,6 +1965,10 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	return status;
 }
 
+#endif	/* CONFIG_PM */
+
+#ifdef	CONFIG_USB_SUSPEND
+
 /* Workqueue routine for root-hub remote wakeup */
 static void hcd_resume_work(struct work_struct *work)
 {
@@ -1860,8 +1976,7 @@ static void hcd_resume_work(struct work_struct *work)
 	struct usb_device *udev = hcd->self.root_hub;
 
 	usb_lock_device(udev);
-	usb_mark_last_busy(udev);
-	usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
+	usb_remote_wakeup(udev);
 	usb_unlock_device(udev);
 }
 
@@ -1880,12 +1995,12 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered)
-		queue_work(ksuspend_usb_wq, &hcd->wakeup_work);
+		queue_work(pm_wq, &hcd->wakeup_work);
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
 
-#endif
+#endif	/* CONFIG_USB_SUSPEND */
 
 /*-------------------------------------------------------------------------*/
 
@@ -2030,7 +2145,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	init_timer(&hcd->rh_timer);
 	hcd->rh_timer.function = rh_timer_func;
 	hcd->rh_timer.data = (unsigned long) hcd;
-#ifdef CONFIG_PM
+#ifdef CONFIG_USB_SUSPEND
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif
 	mutex_init(&hcd->bandwidth_mutex);
@@ -2230,7 +2345,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_USB_SUSPEND
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 

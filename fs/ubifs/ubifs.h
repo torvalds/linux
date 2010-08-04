@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -378,7 +379,7 @@ struct ubifs_gced_idx_leb {
  * The @ui_size is a "shadow" variable for @inode->i_size and UBIFS uses
  * @ui_size instead of @inode->i_size. The reason for this is that UBIFS cannot
  * make sure @inode->i_size is always changed under @ui_mutex, because it
- * cannot call 'vmtruncate()' with @ui_mutex locked, because it would deadlock
+ * cannot call 'simple_setsize()' with @ui_mutex locked, because it would deadlock
  * with 'ubifs_writepage()' (see file.c). All the other inode fields are
  * changed under @ui_mutex, so they do not need "shadow" fields. Note, one
  * could consider to rework locking and base it on "shadow" fields.
@@ -1574,7 +1575,7 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
 int ubifs_tnc_end_commit(struct ubifs_info *c);
 
 /* shrinker.c */
-int ubifs_shrinker(int nr_to_scan, gfp_t gfp_mask);
+int ubifs_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
 
 /* commit.c */
 int ubifs_bg_thread(void *info);
@@ -1677,7 +1678,7 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c);
 int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 
 /* file.c */
-int ubifs_fsync(struct file *file, struct dentry *dentry, int datasync);
+int ubifs_fsync(struct file *file, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
 
 /* dir.c */

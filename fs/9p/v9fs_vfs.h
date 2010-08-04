@@ -40,7 +40,9 @@
 extern struct file_system_type v9fs_fs_type;
 extern const struct address_space_operations v9fs_addr_operations;
 extern const struct file_operations v9fs_file_operations;
+extern const struct file_operations v9fs_file_operations_dotl;
 extern const struct file_operations v9fs_dir_operations;
+extern const struct file_operations v9fs_dir_operations_dotl;
 extern const struct dentry_operations v9fs_dentry_operations;
 extern const struct dentry_operations v9fs_cached_dentry_operations;
 
@@ -60,3 +62,4 @@ void v9fs_dentry_release(struct dentry *);
 int v9fs_uflags2omode(int uflags, int extended);
 
 ssize_t v9fs_file_readn(struct file *, char *, char __user *, u32, u64);
+void v9fs_blank_wstat(struct p9_wstat *wstat);

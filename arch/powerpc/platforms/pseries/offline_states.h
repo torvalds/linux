@@ -9,10 +9,31 @@ enum cpu_state_vals {
 	CPU_MAX_OFFLINE_STATES
 };
 
+#ifdef CONFIG_HOTPLUG_CPU
 extern enum cpu_state_vals get_cpu_current_state(int cpu);
 extern void set_cpu_current_state(int cpu, enum cpu_state_vals state);
-extern enum cpu_state_vals get_preferred_offline_state(int cpu);
 extern void set_preferred_offline_state(int cpu, enum cpu_state_vals state);
 extern void set_default_offline_state(int cpu);
+#else
+static inline enum cpu_state_vals get_cpu_current_state(int cpu)
+{
+	return CPU_STATE_ONLINE;
+}
+
+static inline void set_cpu_current_state(int cpu, enum cpu_state_vals state)
+{
+}
+
+static inline void set_preferred_offline_state(int cpu, enum cpu_state_vals state)
+{
+}
+
+static inline void set_default_offline_state(int cpu)
+{
+}
+#endif
+
+extern enum cpu_state_vals get_preferred_offline_state(int cpu);
 extern int start_secondary(void);
+extern void start_secondary_resume(void);
 #endif

@@ -59,6 +59,7 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 #include <linux/etherdevice.h>
@@ -167,7 +168,7 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
-
+static int disable_netpoll = 1;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
@@ -430,7 +431,18 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 	}
 
 	skb->priority = 1;
-	dev_queue_xmit(skb);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
+		struct netpoll *np = bond->dev->npinfo->netpoll;
+		slave_dev->npinfo = bond->dev->npinfo;
+		np->real_dev = np->dev = skb->dev;
+		slave_dev->priv_flags |= IFF_IN_NETPOLL;
+		netpoll_send_skb(np, skb);
+		slave_dev->priv_flags &= ~IFF_IN_NETPOLL;
+		np->dev = bond->dev;
+	} else
+#endif
+		dev_queue_xmit(skb);
 
 	return 0;
 }
@@ -762,32 +774,6 @@ static int bond_check_dev_link(struct bonding *bond,
 /*----------------------------- Multicast list ------------------------------*/
 
 /*
- * Returns 0 if dmi1 and dmi2 are the same, non-0 otherwise
- */
-static inline int bond_is_dmi_same(const struct dev_mc_list *dmi1,
-				   const struct dev_mc_list *dmi2)
-{
-	return memcmp(dmi1->dmi_addr, dmi2->dmi_addr, dmi1->dmi_addrlen) == 0 &&
-			dmi1->dmi_addrlen == dmi2->dmi_addrlen;
-}
-
-/*
- * returns dmi entry if found, NULL otherwise
- */
-static struct dev_mc_list *bond_mc_list_find_dmi(struct dev_mc_list *dmi,
-						 struct dev_mc_list *mc_list)
-{
-	struct dev_mc_list *idmi;
-
-	for (idmi = mc_list; idmi; idmi = idmi->next) {
-		if (bond_is_dmi_same(dmi, idmi))
-			return idmi;
-	}
-
-	return NULL;
-}
-
-/*
  * Push the promiscuity flag down to appropriate slaves
  */
 static int bond_set_promiscuity(struct bonding *bond, int inc)
@@ -839,18 +825,18 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
  * Add a Multicast address to slaves
  * according to mode
  */
-static void bond_mc_add(struct bonding *bond, void *addr, int alen)
+static void bond_mc_add(struct bonding *bond, void *addr)
 {
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave)
-			dev_mc_add(bond->curr_active_slave->dev, addr, alen, 0);
+			dev_mc_add(bond->curr_active_slave->dev, addr);
 	} else {
 		struct slave *slave;
 		int i;
 
 		bond_for_each_slave(bond, slave, i)
-			dev_mc_add(slave->dev, addr, alen, 0);
+			dev_mc_add(slave->dev, addr);
 	}
 }
 
@@ -858,18 +844,17 @@ static void bond_mc_add(struct bonding *bond, void *addr, int alen)
  * Remove a multicast address from slave
  * according to mode
  */
-static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
+static void bond_mc_del(struct bonding *bond, void *addr)
 {
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave)
-			dev_mc_delete(bond->curr_active_slave->dev, addr,
-				      alen, 0);
+			dev_mc_del(bond->curr_active_slave->dev, addr);
 	} else {
 		struct slave *slave;
 		int i;
 		bond_for_each_slave(bond, slave, i) {
-			dev_mc_delete(slave->dev, addr, alen, 0);
+			dev_mc_del(slave->dev, addr);
 		}
 	}
 }
@@ -896,66 +881,22 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 }
 
 /*
- * Totally destroys the mc_list in bond
- */
-static void bond_mc_list_destroy(struct bonding *bond)
-{
-	struct dev_mc_list *dmi;
-
-	dmi = bond->mc_list;
-	while (dmi) {
-		bond->mc_list = dmi->next;
-		kfree(dmi);
-		dmi = bond->mc_list;
-	}
-
-	bond->mc_list = NULL;
-}
-
-/*
- * Copy all the Multicast addresses from src to the bonding device dst
- */
-static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
-			     gfp_t gfp_flag)
-{
-	struct dev_mc_list *dmi, *new_dmi;
-
-	for (dmi = mc_list; dmi; dmi = dmi->next) {
-		new_dmi = kmalloc(sizeof(struct dev_mc_list), gfp_flag);
-
-		if (!new_dmi) {
-			/* FIXME: Potential memory leak !!! */
-			return -ENOMEM;
-		}
-
-		new_dmi->next = bond->mc_list;
-		bond->mc_list = new_dmi;
-		new_dmi->dmi_addrlen = dmi->dmi_addrlen;
-		memcpy(new_dmi->dmi_addr, dmi->dmi_addr, dmi->dmi_addrlen);
-		new_dmi->dmi_users = dmi->dmi_users;
-		new_dmi->dmi_gusers = dmi->dmi_gusers;
-	}
-
-	return 0;
-}
-
-/*
  * flush all members of flush->mc_list from device dev->mc_list
  */
 static void bond_mc_list_flush(struct net_device *bond_dev,
 			       struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
-	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next)
-		dev_mc_delete(slave_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
+	netdev_for_each_mc_addr(ha, bond_dev)
+		dev_mc_del(slave_dev, ha->addr);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		/* del lacpdu mc addr from mc list */
 		u8 lacpdu_multicast[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 
-		dev_mc_delete(slave_dev, lacpdu_multicast, ETH_ALEN, 0);
+		dev_mc_del(slave_dev, lacpdu_multicast);
 	}
 }
 
@@ -969,7 +910,7 @@ static void bond_mc_list_flush(struct net_device *bond_dev,
 static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 			 struct slave *old_active)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
 	if (!USES_PRIMARY(bond->params.mode))
 		/* nothing to do -  mc list is already up-to-date on
@@ -984,9 +925,8 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(old_active->dev, -1);
 
-		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_delete(old_active->dev, dmi->dmi_addr,
-				      dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond->dev)
+			dev_mc_del(old_active->dev, ha->addr);
 	}
 
 	if (new_active) {
@@ -997,9 +937,8 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(new_active->dev, 1);
 
-		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_add(new_active->dev, dmi->dmi_addr,
-				   dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond->dev)
+			dev_mc_add(new_active->dev, ha->addr);
 		bond_resend_igmp_join_requests(bond);
 	}
 }
@@ -1235,6 +1174,11 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
+
+	/* resend IGMP joins since all were sent on curr_active_slave */
+	if (bond->params.mode == BOND_MODE_ROUNDROBIN) {
+		bond_resend_igmp_join_requests(bond);
+	}
 }
 
 /**
@@ -1324,6 +1268,61 @@ static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 	bond->slave_cnt--;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * You must hold read lock on bond->lock before calling this.
+ */
+static bool slaves_support_netpoll(struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave;
+	int i = 0;
+	bool ret = true;
+
+	bond_for_each_slave(bond, slave, i) {
+		if ((slave->dev->priv_flags & IFF_DISABLE_NETPOLL) ||
+		    !slave->dev->netdev_ops->ndo_poll_controller)
+			ret = false;
+	}
+	return i != 0 && ret;
+}
+
+static void bond_poll_controller(struct net_device *bond_dev)
+{
+	struct net_device *dev = bond_dev->npinfo->netpoll->real_dev;
+	if (dev != bond_dev)
+		netpoll_poll_dev(dev);
+}
+
+static void bond_netpoll_cleanup(struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave;
+	const struct net_device_ops *ops;
+	int i;
+
+	read_lock(&bond->lock);
+	bond_dev->npinfo = NULL;
+	bond_for_each_slave(bond, slave, i) {
+		if (slave->dev) {
+			ops = slave->dev->netdev_ops;
+			if (ops->ndo_netpoll_cleanup)
+				ops->ndo_netpoll_cleanup(slave->dev);
+			else
+				slave->dev->npinfo = NULL;
+		}
+	}
+	read_unlock(&bond->lock);
+}
+
+#else
+
+static void bond_netpoll_cleanup(struct net_device *bond_dev)
+{
+}
+
+#endif
+
 /*---------------------------------- IOCTL ----------------------------------*/
 
 static int bond_sethwaddr(struct net_device *bond_dev,
@@ -1406,7 +1405,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct slave *new_slave = NULL;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct sockaddr addr;
 	int link_reporting;
 	int old_features = bond_dev->features;
@@ -1480,14 +1479,27 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 bond_dev->name,
 				 bond_dev->type, slave_dev->type);
 
-			netdev_bonding_change(bond_dev, NETDEV_BONDING_OLDTYPE);
+			res = netdev_bonding_change(bond_dev,
+						    NETDEV_PRE_TYPE_CHANGE);
+			res = notifier_to_errno(res);
+			if (res) {
+				pr_err("%s: refused to change device type\n",
+				       bond_dev->name);
+				res = -EBUSY;
+				goto err_undo_flags;
+			}
+
+			/* Flush unicast and multicast addresses */
+			dev_uc_flush(bond_dev);
+			dev_mc_flush(bond_dev);
 
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
 			else
 				ether_setup(bond_dev);
 
-			netdev_bonding_change(bond_dev, NETDEV_BONDING_NEWTYPE);
+			netdev_bonding_change(bond_dev,
+					      NETDEV_POST_TYPE_CHANGE);
 		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err("%s ether type (%d) is different from other slaves (%d), can not enslave it.\n",
@@ -1588,9 +1600,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 		netif_addr_lock_bh(bond_dev);
 		/* upload master's mc_list to new slave */
-		for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_add(slave_dev, dmi->dmi_addr,
-				   dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond_dev)
+			dev_mc_add(slave_dev, ha->addr);
 		netif_addr_unlock_bh(bond_dev);
 	}
 
@@ -1598,7 +1609,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		/* add lacpdu mc addr to mc list */
 		u8 lacpdu_multicast[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 
-		dev_mc_add(slave_dev, lacpdu_multicast, ETH_ALEN, 0);
+		dev_mc_add(slave_dev, lacpdu_multicast);
 	}
 
 	bond_add_vlans_on_slave(bond, slave_dev);
@@ -1730,6 +1741,26 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_set_carrier(bond);
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	/*
+	 * Netpoll and bonding is broken, make sure it is not initialized
+	 * until it is fixed.
+	 */
+	if (disable_netpoll) {
+		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
+	} else {
+		if (slaves_support_netpoll(bond_dev)) {
+			bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+			if (bond_dev->npinfo)
+				slave_dev->npinfo = bond_dev->npinfo;
+		} else if (!(bond_dev->priv_flags & IFF_DISABLE_NETPOLL)) {
+			bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
+			pr_info("New slave device %s does not support netpoll\n",
+				slave_dev->name);
+			pr_info("Disabling netpoll support for %s\n", bond_dev->name);
+		}
+	}
+#endif
 	read_unlock(&bond->lock);
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
@@ -1796,6 +1827,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		return -EINVAL;
 	}
 
+	netdev_bonding_change(bond_dev, NETDEV_BONDING_DESLAVE);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -1923,6 +1955,20 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	netdev_set_master(slave_dev, NULL);
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	read_lock_bh(&bond->lock);
+
+	 /* Make sure netpoll over stays disabled until fixed. */
+	if (!disable_netpoll)
+		if (slaves_support_netpoll(bond_dev))
+				bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+	read_unlock_bh(&bond->lock);
+	if (slave_dev->netdev_ops->ndo_netpoll_cleanup)
+		slave_dev->netdev_ops->ndo_netpoll_cleanup(slave_dev);
+	else
+		slave_dev->npinfo = NULL;
+#endif
 
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
@@ -2615,6 +2661,17 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
 
+	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+		/*
+		 * When using VLANS and bonding, dev and oriv_dev may be
+		 * incorrect if the physical interface supports VLAN
+		 * acceleration.  With this change ARP validation now
+		 * works for hosts only reachable on the VLAN interface.
+		 */
+		dev = vlan_dev_real_dev(dev);
+		orig_dev = dev_get_by_index_rcu(dev_net(skb->dev),skb->skb_iif);
+	}
+
 	if (!(dev->priv_flags & IFF_BONDING) || !(dev->flags & IFF_MASTER))
 		goto out;
 
@@ -3296,7 +3353,7 @@ static void bond_remove_proc_entry(struct bonding *bond)
 /* Create the bonding directory under /proc/net, if doesn't exist yet.
  * Caller must hold rtnl_lock.
  */
-static void bond_create_proc_dir(struct bond_net *bn)
+static void __net_init bond_create_proc_dir(struct bond_net *bn)
 {
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
@@ -3309,7 +3366,7 @@ static void bond_create_proc_dir(struct bond_net *bn)
 /* Destroy the bonding directory under /proc/net, if empty.
  * Caller must hold rtnl_lock.
  */
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {
 	if (bn->proc_dir) {
 		remove_proc_entry(DRV_NAME, bn->net->proc_net);
@@ -3327,11 +3384,11 @@ static void bond_remove_proc_entry(struct bonding *bond)
 {
 }
 
-static void bond_create_proc_dir(struct bond_net *bn)
+static inline void bond_create_proc_dir(struct bond_net *bn)
 {
 }
 
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static inline void bond_destroy_proc_dir(struct bond_net *bn)
 {
 }
 
@@ -3639,7 +3696,7 @@ static int bond_open(struct net_device *bond_dev)
 		 */
 		if (bond_alb_initialize(bond, (bond->params.mode == BOND_MODE_ALB))) {
 			/* something went wrong - fail the open operation */
-			return -1;
+			return -ENOMEM;
 		}
 
 		INIT_DELAYED_WORK(&bond->alb_work, bond_alb_monitor);
@@ -3731,7 +3788,7 @@ static int bond_close(struct net_device *bond_dev)
 static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device_stats *stats = &bond->stats;
+	struct net_device_stats *stats = &bond_dev->stats;
 	struct net_device_stats local_stats;
 	struct slave *slave;
 	int i;
@@ -3889,10 +3946,24 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	return res;
 }
 
+static bool bond_addr_in_mc_list(unsigned char *addr,
+				 struct netdev_hw_addr_list *list,
+				 int addrlen)
+{
+	struct netdev_hw_addr *ha;
+
+	netdev_hw_addr_list_for_each(ha, list)
+		if (!memcmp(ha->addr, addr, addrlen))
+			return true;
+
+	return false;
+}
+
 static void bond_set_multicast_list(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
+	bool found;
 
 	/*
 	 * Do promisc before checking multicast_mode
@@ -3927,20 +3998,25 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	bond->flags = bond_dev->flags;
 
 	/* looking for addresses to add to slaves' mc list */
-	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
-		if (!bond_mc_list_find_dmi(dmi, bond->mc_list))
-			bond_mc_add(bond, dmi->dmi_addr, dmi->dmi_addrlen);
+	netdev_for_each_mc_addr(ha, bond_dev) {
+		found = bond_addr_in_mc_list(ha->addr, &bond->mc_list,
+					     bond_dev->addr_len);
+		if (!found)
+			bond_mc_add(bond, ha->addr);
 	}
 
 	/* looking for addresses to delete from slaves' list */
-	for (dmi = bond->mc_list; dmi; dmi = dmi->next) {
-		if (!bond_mc_list_find_dmi(dmi, bond_dev->mc_list))
-			bond_mc_delete(bond, dmi->dmi_addr, dmi->dmi_addrlen);
+	netdev_hw_addr_list_for_each(ha, &bond->mc_list) {
+		found = bond_addr_in_mc_list(ha->addr, &bond_dev->mc,
+					     bond_dev->addr_len);
+		if (!found)
+			bond_mc_del(bond, ha->addr);
 	}
 
 	/* save master's multicast list */
-	bond_mc_list_destroy(bond);
-	bond_mc_list_copy(bond_dev->mc_list, bond, GFP_ATOMIC);
+	__hw_addr_flush(&bond->mc_list);
+	__hw_addr_add_multiple(&bond->mc_list, &bond_dev->mc,
+			       bond_dev->addr_len, NETDEV_HW_ADDR_T_MULTICAST);
 
 	read_unlock(&bond->lock);
 }
@@ -4127,22 +4203,41 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *start_at;
 	int i, slave_no, res = 1;
+	struct iphdr *iph = ip_hdr(skb);
 
 	read_lock(&bond->lock);
 
 	if (!BOND_IS_OK(bond))
 		goto out;
-
 	/*
-	 * Concurrent TX may collide on rr_tx_counter; we accept that
-	 * as being rare enough not to justify using an atomic op here
+	 * Start with the curr_active_slave that joined the bond as the
+	 * default for sending IGMP traffic.  For failover purposes one
+	 * needs to maintain some consistency for the interface that will
+	 * send the join/membership reports.  The curr_active_slave found
+	 * will send all of this type of traffic.
 	 */
-	slave_no = bond->rr_tx_counter++ % bond->slave_cnt;
+	if ((iph->protocol == IPPROTO_IGMP) &&
+	    (skb->protocol == htons(ETH_P_IP))) {
 
-	bond_for_each_slave(bond, slave, i) {
-		slave_no--;
-		if (slave_no < 0)
-			break;
+		read_lock(&bond->curr_slave_lock);
+		slave = bond->curr_active_slave;
+		read_unlock(&bond->curr_slave_lock);
+
+		if (!slave)
+			goto out;
+	} else {
+		/*
+		 * Concurrent TX may collide on rr_tx_counter; we accept
+		 * that as being rare enough not to justify using an
+		 * atomic op here.
+		 */
+		slave_no = bond->rr_tx_counter++ % bond->slave_cnt;
+
+		bond_for_each_slave(bond, slave, i) {
+			slave_no--;
+			if (slave_no < 0)
+				break;
+		}
 	}
 
 	start_at = slave;
@@ -4413,7 +4508,19 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_vlan_rx_register	= bond_vlan_rx_register,
 	.ndo_vlan_rx_add_vid 	= bond_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bond_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_netpoll_cleanup	= bond_netpoll_cleanup,
+	.ndo_poll_controller	= bond_poll_controller,
+#endif
 };
+
+static void bond_destructor(struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	if (bond->wq)
+		destroy_workqueue(bond->wq);
+	free_netdev(bond_dev);
+}
 
 static void bond_setup(struct net_device *bond_dev)
 {
@@ -4435,7 +4542,7 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 	bond_set_mode_ops(bond, bond->params.mode);
 
-	bond_dev->destructor = free_netdev;
+	bond_dev->destructor = bond_destructor;
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -4498,6 +4605,8 @@ static void bond_uninit(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
+	bond_netpoll_cleanup(bond_dev);
+
 	/* Release the bonded slaves */
 	bond_release_all(bond_dev);
 
@@ -4507,12 +4616,7 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	bond_remove_proc_entry(bond);
 
-	if (bond->wq)
-		destroy_workqueue(bond->wq);
-
-	netif_addr_lock_bh(bond_dev);
-	bond_mc_list_destroy(bond);
-	netif_addr_unlock_bh(bond_dev);
+	__hw_addr_flush(&bond->mc_list);
 }
 
 /*------------------------- Module initialization ---------------------------*/
@@ -4643,13 +4747,13 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (num_grat_arp < 0 || num_grat_arp > 255) {
-		pr_warning("Warning: num_grat_arp (%d) not in range 0-255 so it was reset to 1 \n",
+		pr_warning("Warning: num_grat_arp (%d) not in range 0-255 so it was reset to 1\n",
 			   num_grat_arp);
 		num_grat_arp = 1;
 	}
 
 	if (num_unsol_na < 0 || num_unsol_na > 255) {
-		pr_warning("Warning: num_unsol_na (%d) not in range 0-255 so it was reset to 1 \n",
+		pr_warning("Warning: num_unsol_na (%d) not in range 0-255 so it was reset to 1\n",
 			   num_unsol_na);
 		num_unsol_na = 1;
 	}
@@ -4884,6 +4988,8 @@ static int bond_init(struct net_device *bond_dev)
 	list_add_tail(&bond->bond_list, &bn->dev_list);
 
 	bond_prepare_sysfs_group(bond);
+
+	__hw_addr_init(&bond->mc_list);
 	return 0;
 }
 
@@ -4921,8 +5027,8 @@ int bond_create(struct net *net, const char *name)
 				bond_setup);
 	if (!bond_dev) {
 		pr_err("%s: eek! can't alloc netdev!\n", name);
-		res = -ENOMEM;
-		goto out;
+		rtnl_unlock();
+		return -ENOMEM;
 	}
 
 	dev_net_set(bond_dev, net);
@@ -4931,20 +5037,19 @@ int bond_create(struct net *net, const char *name)
 	if (!name) {
 		res = dev_alloc_name(bond_dev, "bond%d");
 		if (res < 0)
-			goto out_netdev;
+			goto out;
 	}
 
 	res = register_netdevice(bond_dev);
 
 out:
 	rtnl_unlock();
+	if (res < 0)
+		bond_destructor(bond_dev);
 	return res;
-out_netdev:
-	free_netdev(bond_dev);
-	goto out;
 }
 
-static int bond_net_init(struct net *net)
+static int __net_init bond_net_init(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 
@@ -4956,7 +5061,7 @@ static int bond_net_init(struct net *net)
 	return 0;
 }
 
-static void bond_net_exit(struct net *net)
+static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 

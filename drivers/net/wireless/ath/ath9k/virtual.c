@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ath9k.h"
 
 struct ath9k_vif_iter_data {
@@ -152,7 +154,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 
 	SET_IEEE80211_PERM_ADDR(hw, addr);
 
-	ath_set_hw_capab(sc, hw);
+	ath9k_set_hw_capab(sc, hw);
 
 	error = ieee80211_register_hw(hw);
 
@@ -218,7 +220,7 @@ static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[ATH9K_WME_AC_VO]];
-	txctl.frame_type = ps ? ATH9K_INT_PAUSE : ATH9K_INT_UNPAUSE;
+	txctl.frame_type = ps ? ATH9K_IFT_PAUSE : ATH9K_IFT_UNPAUSE;
 
 	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)
 		goto exit;

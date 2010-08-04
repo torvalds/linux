@@ -123,6 +123,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 {
 	struct pci_dev *dev;
 	const char *type;
+	struct pci_slot *slot;
 
 	dev = alloc_pci_dev();
 	if (!dev)
@@ -140,6 +141,11 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 	dev->needs_freset = 0;		/* pcie fundamental reset required */
+	set_pcie_port_type(dev);
+
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
 
 	dev->vendor = get_int_prop(node, "vendor-id", 0xffff);
 	dev->device = get_int_prop(node, "device-id", 0xffff);
@@ -160,10 +166,14 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
 
+	/* Early fixups, before probing the BARs */
+	pci_fixup_device(pci_fixup_early, dev);
+
 	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
+		set_pcie_hotplug_bridge(dev);
 	} else if (!strcmp(type, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
@@ -294,12 +304,14 @@ static void __devinit __of_scan_bus(struct device_node *node,
 	int reglen, devfn;
 	struct pci_dev *dev;
 
-	pr_debug("of_scan_bus(%s) bus no %d... \n",
+	pr_debug("of_scan_bus(%s) bus no %d...\n",
 		 node->full_name, bus->number);
 
 	/* Scan direct children */
 	for_each_child_of_node(node, child) {
 		pr_debug("  * %s\n", child->full_name);
+		if (!of_device_is_available(child))
+			continue;
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;

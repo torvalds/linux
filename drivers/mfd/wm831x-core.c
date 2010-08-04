@@ -18,6 +18,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -321,8 +322,11 @@ EXPORT_SYMBOL_GPL(wm831x_set_bits);
  */
 int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 {
-	int tries = 10;
-	int ret, src;
+	int ret, src, irq_masked, timeout;
+
+	/* Are we using the interrupt? */
+	irq_masked = wm831x_reg_read(wm831x, WM831X_INTERRUPT_STATUS_1_MASK);
+	irq_masked &= WM831X_AUXADC_DATA_EINT;
 
 	mutex_lock(&wm831x->auxadc_lock);
 
@@ -342,6 +346,9 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		goto out;
 	}
 
+	/* Clear any notification from a very late arriving interrupt */
+	try_wait_for_completion(&wm831x->auxadc_done);
+
 	ret = wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL,
 			      WM831X_AUX_CVT_ENA, WM831X_AUX_CVT_ENA);
 	if (ret < 0) {
@@ -349,18 +356,46 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		goto disable;
 	}
 
-	do {
-		msleep(1);
+	if (irq_masked) {
+		/* If we're not using interrupts then poll the
+		 * interrupt status register */
+		timeout = 5;
+		while (timeout) {
+			msleep(1);
 
-		ret = wm831x_reg_read(wm831x, WM831X_AUXADC_CONTROL);
-		if (ret < 0)
-			ret = WM831X_AUX_CVT_ENA;
-	} while ((ret & WM831X_AUX_CVT_ENA) && --tries);
+			ret = wm831x_reg_read(wm831x,
+					      WM831X_INTERRUPT_STATUS_1);
+			if (ret < 0) {
+				dev_err(wm831x->dev,
+					"ISR 1 read failed: %d\n", ret);
+				goto disable;
+			}
 
-	if (ret & WM831X_AUX_CVT_ENA) {
-		dev_err(wm831x->dev, "Timed out reading AUXADC\n");
-		ret = -EBUSY;
-		goto disable;
+			/* Did it complete? */
+			if (ret & WM831X_AUXADC_DATA_EINT) {
+				wm831x_reg_write(wm831x,
+						 WM831X_INTERRUPT_STATUS_1,
+						 WM831X_AUXADC_DATA_EINT);
+				break;
+			} else {
+				dev_err(wm831x->dev,
+					"AUXADC conversion timeout\n");
+				ret = -EBUSY;
+				goto disable;
+			}
+		}
+	} else {
+		/* If we are using interrupts then wait for the
+		 * interrupt to complete.  Use an extremely long
+		 * timeout to handle situations with heavy load where
+		 * the notification of the interrupt may be delayed by
+		 * threaded IRQ handling. */
+		if (!wait_for_completion_timeout(&wm831x->auxadc_done,
+						 msecs_to_jiffies(500))) {
+			dev_err(wm831x->dev, "Timed out waiting for AUXADC\n");
+			ret = -EBUSY;
+			goto disable;
+		}
 	}
 
 	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
@@ -389,6 +424,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
+
+static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
+{
+	struct wm831x *wm831x = irq_data;
+
+	complete(&wm831x->auxadc_done);
+
+	return IRQ_HANDLED;
+}
 
 /**
  * wm831x_auxadc_read_uv: Read a voltage from the WM831x AUXADC
@@ -1411,6 +1455,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	mutex_init(&wm831x->auxadc_lock);
+	init_completion(&wm831x->auxadc_done);
 	dev_set_drvdata(wm831x->dev, wm831x);
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
@@ -1449,18 +1494,36 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		parent = WM8310;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8311:
 		parent = WM8311;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8311 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8312:
 		parent = WM8312;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8312 revision %c\n", 'A' + rev);
 		break;
 
@@ -1507,6 +1570,16 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
 		goto err;
+
+	if (wm831x->irq_base) {
+		ret = request_threaded_irq(wm831x->irq_base +
+					   WM831X_IRQ_AUXADC_DATA,
+					   NULL, wm831x_auxadc_irq, 0,
+					   "auxadc", wm831x);
+		if (ret < 0)
+			dev_err(wm831x->dev, "AUXADC IRQ request failed: %d\n",
+				ret);
+	}
 
 	/* The core device is up, instantiate the subdevices. */
 	switch (parent) {
@@ -1578,8 +1651,46 @@ static void wm831x_device_exit(struct wm831x *wm831x)
 {
 	wm831x_otp_exit(wm831x);
 	mfd_remove_devices(wm831x->dev);
+	if (wm831x->irq_base)
+		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
 	kfree(wm831x);
+}
+
+static int wm831x_device_suspend(struct wm831x *wm831x)
+{
+	int reg, mask;
+
+	/* If the charger IRQs are a wake source then make sure we ack
+	 * them even if they're not actively being used (eg, no power
+	 * driver or no IRQ line wired up) then acknowledge the
+	 * interrupts otherwise suspend won't last very long.
+	 */
+	if (wm831x->charger_irq_wake) {
+		reg = wm831x_reg_read(wm831x, WM831X_INTERRUPT_STATUS_2_MASK);
+
+		mask = WM831X_CHG_BATT_HOT_EINT |
+			WM831X_CHG_BATT_COLD_EINT |
+			WM831X_CHG_BATT_FAIL_EINT |
+			WM831X_CHG_OV_EINT | WM831X_CHG_END_EINT |
+			WM831X_CHG_TO_EINT | WM831X_CHG_MODE_EINT |
+			WM831X_CHG_START_EINT;
+
+		/* If any of the interrupts are masked read the statuses */
+		if (reg & mask)
+			reg = wm831x_reg_read(wm831x,
+					      WM831X_INTERRUPT_STATUS_2);
+
+		if (reg & mask) {
+			dev_info(wm831x->dev,
+				 "Acknowledging masked charger IRQs: %x\n",
+				 reg & mask);
+			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_2,
+					 reg & mask);
+		}
+	}
+
+	return 0;
 }
 
 static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
@@ -1656,6 +1767,13 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static int wm831x_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+{
+	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+
+	return wm831x_device_suspend(wm831x);
+}
+
 static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8310", WM8310 },
 	{ "wm8311", WM8311 },
@@ -1673,6 +1791,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
+	.suspend = wm831x_i2c_suspend,
 	.id_table = wm831x_i2c_id,
 };
 

@@ -57,6 +57,10 @@ enum {
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
 				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI))
+#define WLAN_RC_PHY_20(_phy)   ((_phy == WLAN_RC_PHY_HT_20_SS)		\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_SS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI))
 #define WLAN_RC_PHY_40(_phy)   ((_phy == WLAN_RC_PHY_HT_40_SS)		\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_SS_HGI)	\
@@ -106,8 +110,8 @@ struct ath_rate_table {
 	int rate_cnt;
 	int mcs_start;
 	struct {
-		int valid;
-		int valid_single_stream;
+		u8 valid;
+		u8 valid_single_stream;
 		u8 phy;
 		u32 ratekbps;
 		u32 user_ratekbps;
@@ -168,14 +172,13 @@ struct ath_rate_priv {
 
 #define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
 #define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
-#define ATH_TX_INFO_UPDATE_RC		(1 << 2)
 #define ATH_TX_INFO_XRETRY		(1 << 3)
 #define ATH_TX_INFO_UNDERRUN		(1 << 4)
 
 enum ath9k_internal_frame_type {
-	ATH9K_NOT_INTERNAL,
-	ATH9K_INT_PAUSE,
-	ATH9K_INT_UNPAUSE
+	ATH9K_IFT_NOT_INTERNAL,
+	ATH9K_IFT_PAUSE,
+	ATH9K_IFT_UNPAUSE
 };
 
 int ath_rate_control_register(void);

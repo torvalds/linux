@@ -328,12 +328,15 @@ config NET_CLS_FLOW
 	  module will be called cls_flow.
 
 config NET_CLS_CGROUP
-	bool "Control Group Classifier"
+	tristate "Control Group Classifier"
 	select NET_CLS
 	depends on CGROUPS
 	---help---
 	  Say Y here if you want to classify packets based on the control
 	  cgroup of their process.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_cgroup.
 
 config NET_EMATCH
 	bool "Extended Matches"
@@ -433,7 +436,7 @@ config NET_ACT_POLICE
 	  module.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called police.
+	  module will be called act_police.
 
 config NET_ACT_GACT
         tristate "Generic actions"
@@ -443,7 +446,7 @@ config NET_ACT_GACT
 	  accepting packets.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called gact.
+	  module will be called act_gact.
 
 config GACT_PROB
         bool "Probability support"
@@ -459,7 +462,7 @@ config NET_ACT_MIRRED
 	  other devices.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called mirred.
+	  module will be called act_mirred.
 
 config NET_ACT_IPT
         tristate "IPtables targets"
@@ -469,7 +472,7 @@ config NET_ACT_IPT
 	  classification.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called ipt.
+	  module will be called act_ipt.
 
 config NET_ACT_NAT
         tristate "Stateless NAT"
@@ -479,7 +482,7 @@ config NET_ACT_NAT
 	  netfilter for NAT unless you know what you are doing.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called nat.
+	  module will be called act_nat.
 
 config NET_ACT_PEDIT
         tristate "Packet Editing"
@@ -488,7 +491,7 @@ config NET_ACT_PEDIT
 	  Say Y here if you want to mangle the content of packets.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called pedit.
+	  module will be called act_pedit.
 
 config NET_ACT_SIMP
         tristate "Simple Example (Debug)"
@@ -502,7 +505,7 @@ config NET_ACT_SIMP
 	  If unsure, say N.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called simple.
+	  module will be called act_simple.
 
 config NET_ACT_SKBEDIT
         tristate "SKB Editing"
@@ -513,7 +516,7 @@ config NET_ACT_SKBEDIT
 	  If unsure, say N.
 
 	  To compile this code as a module, choose M here: the
-	  module will be called skbedit.
+	  module will be called act_skbedit.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

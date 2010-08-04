@@ -34,7 +34,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/genhd.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -165,12 +164,12 @@ unsigned long read_timer(void)
 	unsigned long t, flags;
 	int i;
 
-	spin_lock_irqsave(&i8253_lock, flags);
+	raw_spin_lock_irqsave(&i8253_lock, flags);
 	t = jiffies * 11932;
 	outb_p(0, 0x43);
 	i = inb_p(0x40);
 	i |= inb(0x40) << 8;
-	spin_unlock_irqrestore(&i8253_lock, flags);
+	raw_spin_unlock_irqrestore(&i8253_lock, flags);
 	return(t - i);
 }
 #endif
@@ -719,7 +718,7 @@ static int __init hd_init(void)
 		return -ENOMEM;
 	}
 
-	blk_queue_max_sectors(hd_queue, 255);
+	blk_queue_max_hw_sectors(hd_queue, 255);
 	init_timer(&device_timer);
 	device_timer.function = hd_times_out;
 	blk_queue_logical_block_size(hd_queue, 512);

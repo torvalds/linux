@@ -1,3 +1,19 @@
+1 Release Date    : Thur.  Oct 29, 2009 09:12:45 PST 2009 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Bo Yang
+
+2 Current Version : 00.00.04.17.1-rc1
+3 Older Version   : 00.00.04.12
+
+1.	Add the pad_0 in mfi frame structure to 0 to fix the
+	context value larger than 32bit value issue.
+
+2.	Add the logic drive list to the driver.  Driver will
+	keep the logic drive list internal after driver load.
+
+3.	driver fixed the device update issue after get the AEN
+	PD delete/ADD, LD add/delete from FW.
+
 1 Release Date    : Tues.  July 28, 2009 10:12:45 PST 2009 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Bo Yang

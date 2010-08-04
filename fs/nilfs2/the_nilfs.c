@@ -386,7 +386,7 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 
 	nilfs->ns_blocks_per_segment = le32_to_cpu(sbp->s_blocks_per_segment);
 	if (nilfs->ns_blocks_per_segment < NILFS_SEG_MIN_BLOCKS) {
-		printk(KERN_ERR "NILFS: too short segment. \n");
+		printk(KERN_ERR "NILFS: too short segment.\n");
 		return -EINVAL;
 	}
 
@@ -486,11 +486,15 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		printk(KERN_WARNING
 		       "NILFS warning: unable to read secondary superblock\n");
 
+	/*
+	 * Compare two super blocks and set 1 in swp if the secondary
+	 * super block is valid and newer.  Otherwise, set 0 in swp.
+	 */
 	valid[0] = nilfs_valid_sb(sbp[0]);
 	valid[1] = nilfs_valid_sb(sbp[1]);
-	swp = valid[1] &&
-		(!valid[0] ||
-		 le64_to_cpu(sbp[1]->s_wtime) > le64_to_cpu(sbp[0]->s_wtime));
+	swp = valid[1] && (!valid[0] ||
+			   le64_to_cpu(sbp[1]->s_last_cno) >
+			   le64_to_cpu(sbp[0]->s_last_cno));
 
 	if (valid[swp] && nilfs_sb2_bad_offset(sbp[swp], sb2off)) {
 		brelse(sbh[1]);
@@ -644,6 +648,44 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
  failed_sbh:
 	nilfs_release_super_block(nilfs);
 	goto out;
+}
+
+int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
+			    size_t nsegs)
+{
+	sector_t seg_start, seg_end;
+	sector_t start = 0, nblocks = 0;
+	unsigned int sects_per_block;
+	__u64 *sn;
+	int ret = 0;
+
+	sects_per_block = (1 << nilfs->ns_blocksize_bits) /
+		bdev_logical_block_size(nilfs->ns_bdev);
+	for (sn = segnump; sn < segnump + nsegs; sn++) {
+		nilfs_get_segment_range(nilfs, *sn, &seg_start, &seg_end);
+
+		if (!nblocks) {
+			start = seg_start;
+			nblocks = seg_end - seg_start + 1;
+		} else if (start + nblocks == seg_start) {
+			nblocks += seg_end - seg_start + 1;
+		} else {
+			ret = blkdev_issue_discard(nilfs->ns_bdev,
+						   start * sects_per_block,
+						   nblocks * sects_per_block,
+						   GFP_NOFS,
+						   BLKDEV_IFL_BARRIER);
+			if (ret < 0)
+				return ret;
+			nblocks = 0;
+		}
+	}
+	if (nblocks)
+		ret = blkdev_issue_discard(nilfs->ns_bdev,
+					   start * sects_per_block,
+					   nblocks * sects_per_block,
+					   GFP_NOFS, BLKDEV_IFL_BARRIER);
+	return ret;
 }
 
 int nilfs_count_free_blocks(struct the_nilfs *nilfs, sector_t *nblocks)

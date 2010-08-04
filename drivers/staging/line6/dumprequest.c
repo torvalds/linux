@@ -10,6 +10,9 @@
  */
 
 #include "driver.h"
+
+#include <linux/slab.h>
+
 #include "dumprequest.h"
 
 
@@ -102,10 +105,9 @@ int line6_wait_dump(struct line6_dump_request *l6dr, int nonblock)
 int line6_dumpreq_initbuf(struct line6_dump_request *l6dr, const void *buf,
 			  size_t len, int num)
 {
-	l6dr->reqbufs[num].buffer = kmalloc(len, GFP_KERNEL);
+	l6dr->reqbufs[num].buffer = kmemdup(buf, len, GFP_KERNEL);
 	if (l6dr->reqbufs[num].buffer == NULL)
 		return -ENOMEM;
-	memcpy(l6dr->reqbufs[num].buffer, buf, len);
 	l6dr->reqbufs[num].length = len;
 	return 0;
 }

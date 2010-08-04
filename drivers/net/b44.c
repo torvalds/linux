@@ -10,6 +10,8 @@
  * Distribute under GPL.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -25,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/ssb/ssb.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -34,7 +37,6 @@
 #include "b44.h"
 
 #define DRV_MODULE_NAME		"b44"
-#define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"2.0"
 
 #define B44_DEF_MSG_ENABLE	  \
@@ -102,7 +104,7 @@ MODULE_PARM_DESC(b44_debug, "B44 bitmapped debugging message enable value");
 
 
 #ifdef CONFIG_B44_PCI
-static const struct pci_device_id b44_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(b44_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401B0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401B1) },
@@ -189,11 +191,10 @@ static int b44_wait_bit(struct b44 *bp, unsigned long reg,
 		udelay(10);
 	}
 	if (i == timeout) {
-		printk(KERN_ERR PFX "%s: BUG!  Timeout waiting for bit %08x of register "
-		       "%lx to %s.\n",
-		       bp->dev->name,
-		       bit, reg,
-		       (clear ? "clear" : "set"));
+		if (net_ratelimit())
+			netdev_err(bp->dev, "BUG!  Timeout waiting for bit %08x of register %lx to %s\n",
+				   bit, reg, clear ? "clear" : "set");
+
 		return -ENODEV;
 	}
 	return 0;
@@ -333,13 +334,12 @@ static int b44_phy_reset(struct b44 *bp)
 	err = b44_readphy(bp, MII_BMCR, &val);
 	if (!err) {
 		if (val & BMCR_RESET) {
-			printk(KERN_ERR PFX "%s: PHY Reset would not complete.\n",
-			       bp->dev->name);
+			netdev_err(bp->dev, "PHY Reset would not complete\n");
 			err = -ENODEV;
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 static void __b44_set_flow_ctrl(struct b44 *bp, u32 pause_flags)
@@ -413,7 +413,7 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	}
 	return;
 error:
-	printk(KERN_WARNING PFX "PHY: cannot reset MII transceiver isolate bit.\n");
+	pr_warning("PHY: cannot reset MII transceiver isolate bit\n");
 }
 #else
 static inline void b44_wap54g10_workaround(struct b44 *bp)
@@ -506,18 +506,15 @@ static void b44_stats_update(struct b44 *bp)
 static void b44_link_report(struct b44 *bp)
 {
 	if (!netif_carrier_ok(bp->dev)) {
-		printk(KERN_INFO PFX "%s: Link is down.\n", bp->dev->name);
+		netdev_info(bp->dev, "Link is down\n");
 	} else {
-		printk(KERN_INFO PFX "%s: Link is up at %d Mbps, %s duplex.\n",
-		       bp->dev->name,
-		       (bp->flags & B44_FLAG_100_BASE_T) ? 100 : 10,
-		       (bp->flags & B44_FLAG_FULL_DUPLEX) ? "full" : "half");
+		netdev_info(bp->dev, "Link is up at %d Mbps, %s duplex\n",
+			    (bp->flags & B44_FLAG_100_BASE_T) ? 100 : 10,
+			    (bp->flags & B44_FLAG_FULL_DUPLEX) ? "full" : "half");
 
-		printk(KERN_INFO PFX "%s: Flow control is %s for TX and "
-		       "%s for RX.\n",
-		       bp->dev->name,
-		       (bp->flags & B44_FLAG_TX_PAUSE) ? "on" : "off",
-		       (bp->flags & B44_FLAG_RX_PAUSE) ? "on" : "off");
+		netdev_info(bp->dev, "Flow control is %s for TX and %s for RX\n",
+			    (bp->flags & B44_FLAG_TX_PAUSE) ? "on" : "off",
+			    (bp->flags & B44_FLAG_RX_PAUSE) ? "on" : "off");
 	}
 }
 
@@ -576,11 +573,9 @@ static void b44_check_phy(struct b44 *bp)
 		}
 
 		if (bmsr & BMSR_RFAULT)
-			printk(KERN_WARNING PFX "%s: Remote fault detected in PHY\n",
-			       bp->dev->name);
+			netdev_warn(bp->dev, "Remote fault detected in PHY\n");
 		if (bmsr & BMSR_JCD)
-			printk(KERN_WARNING PFX "%s: Jabber detected in PHY\n",
-			       bp->dev->name);
+			netdev_warn(bp->dev, "Jabber detected in PHY\n");
 	}
 }
 
@@ -815,7 +810,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			struct sk_buff *copy_skb;
 
 			b44_recycle_rx(bp, cons, bp->rx_prod);
-			copy_skb = dev_alloc_skb(len + 2);
+			copy_skb = netdev_alloc_skb(bp->dev, len + 2);
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
@@ -901,7 +896,7 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 		handled = 1;
 
 		if (unlikely(!netif_running(dev))) {
-			printk(KERN_INFO "%s: late interrupt.\n", dev->name);
+			netdev_info(dev, "late interrupt\n");
 			goto irq_ack;
 		}
 
@@ -926,8 +921,7 @@ static void b44_tx_timeout(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
 
-	printk(KERN_ERR PFX "%s: transmit timed out, resetting\n",
-	       dev->name);
+	netdev_err(dev, "transmit timed out, resetting\n");
 
 	spin_lock_irq(&bp->lock);
 
@@ -956,8 +950,7 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(bp) < 1)) {
 		netif_stop_queue(dev);
-		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
-		       dev->name);
+		netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_out;
 	}
 
@@ -1020,8 +1013,6 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
-
-	dev->trans_start = jiffies;
 
 out_unlock:
 	spin_unlock_irqrestore(&bp->lock, flags);
@@ -1333,7 +1324,7 @@ static void b44_halt(struct b44 *bp)
 	/* reset PHY */
 	b44_phy_reset(bp);
 	/* power down PHY */
-	printk(KERN_INFO PFX "%s: powering down PHY\n", bp->dev->name);
+	netdev_info(bp->dev, "powering down PHY\n");
 	bw32(bp, B44_MAC_CTRL, MAC_CTRL_PHY_PDOWN);
 	/* now reset the chip, but without enabling the MAC&PHY
 	 * part of it. This has to be done _after_ we shut down the PHY */
@@ -1524,7 +1515,7 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 
 	pwol_pattern = kzalloc(B44_PATTERN_SIZE, GFP_KERNEL);
 	if (!pwol_pattern) {
-		printk(KERN_ERR PFX "Memory not available for WOL\n");
+		pr_err("Memory not available for WOL\n");
 		return;
 	}
 
@@ -1688,13 +1679,15 @@ static struct net_device_stats *b44_get_stats(struct net_device *dev)
 
 static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
 {
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i, num_ents;
 
-	num_ents = min_t(int, dev->mc_count, B44_MCAST_TABLE_SIZE);
-	mclist = dev->mc_list;
-	for (i = 0; mclist && i < num_ents; i++, mclist = mclist->next) {
-		__b44_cam_write(bp, mclist->dmi_addr, i + 1);
+	num_ents = min_t(int, netdev_mc_count(dev), B44_MCAST_TABLE_SIZE);
+	i = 0;
+	netdev_for_each_mc_addr(ha, dev) {
+		if (i == num_ents)
+			break;
+		__b44_cam_write(bp, ha->addr, i++ + 1);
 	}
 	return i+1;
 }
@@ -1716,7 +1709,7 @@ static void __b44_set_rx_mode(struct net_device *dev)
 		__b44_set_mac_addr(bp);
 
 		if ((dev->flags & IFF_ALLMULTI) ||
-		    (dev->mc_count > B44_MCAST_TABLE_SIZE))
+		    (netdev_mc_count(dev) > B44_MCAST_TABLE_SIZE))
 			val |= RXCONFIG_ALLMULTI;
 		else
 			i = __b44_load_mcast(bp, dev);
@@ -2097,7 +2090,7 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	memcpy(bp->dev->dev_addr, addr, 6);
 
 	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){
-		printk(KERN_ERR PFX "Invalid MAC address found in EEPROM\n");
+		pr_err("Invalid MAC address found in EEPROM\n");
 		return -EINVAL;
 	}
 
@@ -2142,12 +2135,12 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	instance++;
 
 	if (b44_version_printed++ == 0)
-		printk(KERN_INFO "%s", version);
+		pr_info("%s", version);
 
 
 	dev = alloc_etherdev(sizeof(*bp));
 	if (!dev) {
-		dev_err(sdev->dev, "Etherdev alloc failed, aborting.\n");
+		dev_err(sdev->dev, "Etherdev alloc failed, aborting\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -2186,13 +2179,13 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	err = ssb_dma_set_mask(sdev, DMA_BIT_MASK(30));
 	if (err) {
 		dev_err(sdev->dev,
-			"Required 30BIT DMA mask unsupported by the system.\n");
+			"Required 30BIT DMA mask unsupported by the system\n");
 		goto err_out_powerdown;
 	}
 	err = b44_get_invariants(bp);
 	if (err) {
 		dev_err(sdev->dev,
-			"Problem fetching invariants of chip, aborting.\n");
+			"Problem fetching invariants of chip, aborting\n");
 		goto err_out_powerdown;
 	}
 
@@ -2212,7 +2205,7 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(sdev->dev, "Cannot register net device, aborting.\n");
+		dev_err(sdev->dev, "Cannot register net device, aborting\n");
 		goto err_out_powerdown;
 	}
 
@@ -2223,8 +2216,12 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	 */
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
-	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %pM\n",
-	       dev->name, dev->dev_addr);
+	/* do a phy reset to test if there is an active phy */
+	if (b44_phy_reset(bp) < 0)
+		bp->phy_addr = B44_PHY_ADDR_NO_PHY;
+
+	netdev_info(dev, "Broadcom 44xx/47xx 10/100BaseT Ethernet %pM\n",
+		    dev->dev_addr);
 
 	return 0;
 
@@ -2297,7 +2294,7 @@ static int b44_resume(struct ssb_device *sdev)
 
 	rc = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc) {
-		printk(KERN_ERR PFX "%s: request_irq failed\n", dev->name);
+		netdev_err(dev, "request_irq failed\n");
 		return rc;
 	}
 

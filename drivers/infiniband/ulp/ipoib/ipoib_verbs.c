@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ipoib.h"
 
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)

@@ -1,7 +1,7 @@
 /*
  * mcount and friends -- ftrace stuff
  *
- * Copyright (C) 2009 Analog Devices Inc.
+ * Copyright (C) 2009-2010 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -21,6 +21,15 @@
  * function will be waiting there.  mmmm pie.
  */
 ENTRY(__mcount)
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/* optional micro optimization: return if stopped */
+	p1.l = _function_trace_stop;
+	p1.h = _function_trace_stop;
+	r3 = [p1];
+	cc = r3 == 0;
+	if ! cc jump _ftrace_stub (bp);
+#endif
+
 	/* save third function arg early so we can do testing below */
 	[--sp] = r2;
 
@@ -106,9 +115,12 @@ ENTRY(_ftrace_graph_caller)
 	[--sp] = r1;
 	[--sp] = rets;
 
-	/* prepare_ftrace_return(unsigned long *parent, unsigned long self_addr) */
-	r0 = sp;
-	r1 = rets;
+	/* prepare_ftrace_return(parent, self_addr, frame_pointer) */
+	r0 = sp;	/* unsigned long *parent */
+	r1 = rets;	/* unsigned long self_addr */
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	r2 = fp;	/* unsigned long frame_pointer */
+#endif
 	r0 += 16;	/* skip the 4 local regs on stack */
 	r1 += -MCOUNT_INSN_SIZE;
 	call _prepare_ftrace_return;
@@ -127,6 +139,9 @@ ENTRY(_return_to_handler)
 	[--sp] = r1;
 
 	/* get original return address */
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	r0 = fp;	/* Blackfin is sane, so omit this */
+#endif
 	call _ftrace_return_to_handler;
 	rets = r0;
 

@@ -24,7 +24,7 @@
  */
 struct bfa_module_s *hal_mods[] = {
 	&hal_mod_sgpg,
-	&hal_mod_pport,
+	&hal_mod_fcport,
 	&hal_mod_fcxp,
 	&hal_mod_lps,
 	&hal_mod_uf,
@@ -45,7 +45,7 @@ bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
 	bfa_isr_unhandled,	/* BFI_MC_DIAG */
 	bfa_isr_unhandled,	/* BFI_MC_FLASH */
 	bfa_isr_unhandled,	/* BFI_MC_CEE */
-	bfa_pport_isr,		/* BFI_MC_PORT */
+	bfa_fcport_isr,		/* BFI_MC_FCPORT */
 	bfa_isr_unhandled,	/* BFI_MC_IOCFC */
 	bfa_isr_unhandled,	/* BFI_MC_LL */
 	bfa_uf_isr,		/* BFI_MC_UF */

@@ -92,17 +92,17 @@ enum data_queue_qid {
  * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
  * @SKBDESC_IV_STRIPPED: Frame contained a IV/EIV provided by
  *	mac80211 but was stripped for processing by the driver.
- * @SKBDESC_L2_PADDED: Payload has been padded for 4-byte alignment,
- *	the padded bytes are located between header and payload.
  * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
  *	don't try to pass it back.
+ * @SKBDESC_DESC_IN_SKB: The descriptor is at the start of the
+ *	skb, instead of in the desc field.
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
-	SKBDESC_L2_PADDED = 1 << 3,
-	SKBDESC_NOT_MAC80211 = 1 << 4,
+	SKBDESC_NOT_MAC80211 = 1 << 3,
+	SKBDESC_DESC_IN_SKB = 1 << 4,
 };
 
 /**
@@ -186,7 +186,6 @@ enum rxdone_entry_desc_flags {
  * @timestamp: RX Timestamp
  * @signal: Signal of the received frame.
  * @rssi: RSSI of the received frame.
- * @noise: Measured noise during frame reception.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
@@ -200,7 +199,6 @@ struct rxdone_entry_desc {
 	u64 timestamp;
 	int signal;
 	int rssi;
-	int noise;
 	int size;
 	int flags;
 	int dev_flags;
@@ -290,8 +288,8 @@ enum txentry_desc_flags {
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
  * @queue: Queue identification (See &enum data_queue_qid).
+ * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
- * @l2pad: Amount of padding to align 802.11 payload to 4-byte boundrary.
  * @length_high: PLCP length high word.
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
@@ -304,6 +302,7 @@ enum txentry_desc_flags {
  * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
+ * @txop: IFS value for 11n capable chips.
  * @cw_min: cwmin value.
  * @cw_max: cwmax value.
  * @cipher: Cipher type used for encryption.
@@ -316,8 +315,8 @@ struct txentry_desc {
 
 	enum data_queue_qid queue;
 
+	u16 length;
 	u16 header_length;
-	u16 l2pad;
 
 	u16 length_high;
 	u16 length_low;
@@ -333,6 +332,7 @@ struct txentry_desc {
 	short retry_limit;
 	short aifs;
 	short ifs;
+	short txop;
 	short cw_min;
 	short cw_max;
 

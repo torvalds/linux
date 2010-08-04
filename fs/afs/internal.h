@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/fscache.h>
+#include <linux/backing-dev.h>
 
 #include "afs.h"
 #include "afs_vl.h"
@@ -313,6 +314,7 @@ struct afs_volume {
 	unsigned short		rjservers;	/* number of servers discarded due to -ENOMEDIUM */
 	struct afs_server	*servers[8];	/* servers on which volume resides (ordered) */
 	struct rw_semaphore	server_sem;	/* lock for accessing current server */
+	struct backing_dev_info	bdi;
 };
 
 /*
@@ -492,6 +494,7 @@ extern const struct file_operations afs_file_operations;
 
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
+extern int afs_page_filler(void *, struct page *);
 
 /*
  * flock.c
@@ -733,12 +736,11 @@ extern int afs_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata);
 extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
-extern int afs_write_inode(struct inode *, int);
 extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
 extern ssize_t afs_file_write(struct kiocb *, const struct iovec *,
 			      unsigned long, loff_t);
 extern int afs_writeback_all(struct afs_vnode *);
-extern int afs_fsync(struct file *, struct dentry *, int);
+extern int afs_fsync(struct file *, int);
 
 
 /*****************************************************************************/

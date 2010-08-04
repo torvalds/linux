@@ -31,8 +31,8 @@ OPTIONS
 	 hexadecimal event descriptor.
 
 -i::
---inherit::
-        child tasks inherit counters
+--no-inherit::
+        child tasks do not inherit counters
 -p::
 --pid=<pid>::
         stat events on existing pid
@@ -42,6 +42,9 @@ OPTIONS
 
 -c::
         scale counter values
+
+-B::
+        print large numbers with thousands' separators according to locale
 
 EXAMPLES
 --------

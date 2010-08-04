@@ -12,6 +12,7 @@
 
 #include <linux/dccp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
@@ -348,7 +349,7 @@ static inline __sum16 dccp_v4_csum_finish(struct sk_buff *skb,
 	return csum_tcpudp_magic(src, dst, skb->len, IPPROTO_DCCP, skb->csum);
 }
 
-void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
+void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);
@@ -996,16 +997,16 @@ static struct inet_protosw dccp_v4_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-static int dccp_v4_init_net(struct net *net)
+static int __net_init dccp_v4_init_net(struct net *net)
 {
-	int err;
+	if (dccp_hashinfo.bhash == NULL)
+		return -ESOCKTNOSUPPORT;
 
-	err = inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
-				   SOCK_DCCP, IPPROTO_DCCP, net);
-	return err;
+	return inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
+				    SOCK_DCCP, IPPROTO_DCCP, net);
 }
 
-static void dccp_v4_exit_net(struct net *net)
+static void __net_exit dccp_v4_exit_net(struct net *net)
 {
 	inet_ctl_sock_destroy(net->dccp.v4_ctl_sk);
 }

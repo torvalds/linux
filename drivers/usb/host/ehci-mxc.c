@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/slab.h>
 
 #include <mach/mxc_ehci.h>
 
@@ -162,6 +163,17 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
+	/* call platform specific init function */
+	if (pdata->init) {
+		ret = pdata->init(pdev);
+		if (ret) {
+			dev_err(dev, "platform init failed\n");
+			goto err_init;
+		}
+		/* platforms need some time to settle changed IO settings */
+		mdelay(10);
+	}
+
 	/* enable clocks */
 	priv->usbclk = clk_get(dev, "usb");
 	if (IS_ERR(priv->usbclk)) {
@@ -187,30 +199,25 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	writel(pdata->portsc, hcd->regs + PORTSC_OFFSET);
 	mdelay(10);
 
-	/* setup USBCONTROL. */
-	ret = mxc_set_usbcontrol(pdev->id, pdata->flags);
+	/* setup specific usb hw */
+	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);
 	if (ret < 0)
 		goto err_init;
-
-	/* call platform specific init function */
-	if (pdata->init) {
-		ret = pdata->init(pdev);
-		if (ret) {
-			dev_err(dev, "platform init failed\n");
-			goto err_init;
-		}
-	}
-
-	/* most platforms need some time to settle changed IO settings */
-	mdelay(10);
 
 	/* Initialize the transceiver */
 	if (pdata->otg) {
 		pdata->otg->io_priv = hcd->regs + ULPI_VIEWPORT_OFFSET;
-		if (otg_init(pdata->otg) != 0)
-			dev_err(dev, "unable to init transceiver\n");
-		else if (otg_set_vbus(pdata->otg, 1) != 0)
+		ret = otg_init(pdata->otg);
+		if (ret) {
+			dev_err(dev, "unable to init transceiver, probably missing\n");
+			ret = -ENODEV;
+			goto err_add;
+		}
+		ret = otg_set_vbus(pdata->otg, 1);
+		if (ret) {
 			dev_err(dev, "unable to enable vbus on transceiver\n");
+			goto err_add;
+		}
 	}
 
 	priv->hcd = hcd;

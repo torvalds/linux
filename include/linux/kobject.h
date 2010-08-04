@@ -106,8 +106,10 @@ extern char *kobject_get_path(struct kobject *kobj, gfp_t flag);
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
-	struct sysfs_ops *sysfs_ops;
+	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
+	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
+	const void *(*namespace)(struct kobject *kobj);
 };
 
 struct kobj_uevent_env {
@@ -118,9 +120,9 @@ struct kobj_uevent_env {
 };
 
 struct kset_uevent_ops {
-	int (*filter)(struct kset *kset, struct kobject *kobj);
-	const char *(*name)(struct kset *kset, struct kobject *kobj);
-	int (*uevent)(struct kset *kset, struct kobject *kobj,
+	int (* const filter)(struct kset *kset, struct kobject *kobj);
+	const char *(* const name)(struct kset *kset, struct kobject *kobj);
+	int (* const uevent)(struct kset *kset, struct kobject *kobj,
 		      struct kobj_uevent_env *env);
 };
 
@@ -132,7 +134,43 @@ struct kobj_attribute {
 			 const char *buf, size_t count);
 };
 
-extern struct sysfs_ops kobj_sysfs_ops;
+extern const struct sysfs_ops kobj_sysfs_ops;
+
+/*
+ * Namespace types which are used to tag kobjects and sysfs entries.
+ * Network namespace will likely be the first.
+ */
+enum kobj_ns_type {
+	KOBJ_NS_TYPE_NONE = 0,
+	KOBJ_NS_TYPE_NET,
+	KOBJ_NS_TYPES
+};
+
+struct sock;
+
+/*
+ * Callbacks so sysfs can determine namespaces
+ *   @current_ns: return calling task's namespace
+ *   @netlink_ns: return namespace to which a sock belongs (right?)
+ *   @initial_ns: return the initial namespace (i.e. init_net_ns)
+ */
+struct kobj_ns_type_operations {
+	enum kobj_ns_type type;
+	const void *(*current_ns)(void);
+	const void *(*netlink_ns)(struct sock *sk);
+	const void *(*initial_ns)(void);
+};
+
+int kobj_ns_type_register(const struct kobj_ns_type_operations *ops);
+int kobj_ns_type_registered(enum kobj_ns_type type);
+const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent);
+const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj);
+
+const void *kobj_ns_current(enum kobj_ns_type type);
+const void *kobj_ns_netlink(enum kobj_ns_type type, struct sock *sk);
+const void *kobj_ns_initial(enum kobj_ns_type type);
+void kobj_ns_exit(enum kobj_ns_type type, const void *ns);
+
 
 /**
  * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
@@ -155,14 +193,14 @@ struct kset {
 	struct list_head list;
 	spinlock_t list_lock;
 	struct kobject kobj;
-	struct kset_uevent_ops *uevent_ops;
+	const struct kset_uevent_ops *uevent_ops;
 };
 
 extern void kset_init(struct kset *kset);
 extern int __must_check kset_register(struct kset *kset);
 extern void kset_unregister(struct kset *kset);
 extern struct kset * __must_check kset_create_and_add(const char *name,
-						struct kset_uevent_ops *u,
+						const struct kset_uevent_ops *u,
 						struct kobject *parent_kobj);
 
 static inline struct kset *to_kset(struct kobject *kobj)

@@ -41,6 +41,7 @@
 #include <linux/ptrace.h>
 #include <linux/elf.h>
 #include <linux/ipc.h>
+#include <linux/slab.h>
 
 #include <asm/ptrace.h>
 #include <asm/types.h>

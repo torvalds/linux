@@ -49,7 +49,6 @@
 #include <asm/ia32.h>
 #include <asm/idle.h>
 #include <asm/syscalls.h>
-#include <asm/ds.h>
 #include <asm/debugreg.h>
 
 asmlinkage extern void ret_from_fork(void);
@@ -211,12 +210,6 @@ void __show_regs(struct pt_regs *regs, int all)
 	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	show_registers(regs);
-	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
@@ -282,12 +275,12 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	set_tsk_thread_flag(p, TIF_FORK);
 
-	p->thread.fs = me->thread.fs;
-	p->thread.gs = me->thread.gs;
 	p->thread.io_bitmap_ptr = NULL;
 
 	savesegment(gs, p->thread.gsindex);
+	p->thread.gs = p->thread.gsindex ? 0 : me->thread.gs;
 	savesegment(fs, p->thread.fsindex);
+	p->thread.fs = p->thread.fsindex ? 0 : me->thread.fs;
 	savesegment(es, p->thread.es);
 	savesegment(ds, p->thread.ds);
 
@@ -319,13 +312,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		if (err)
 			goto out;
 	}
-
-	clear_tsk_thread_flag(p, TIF_DS_AREA_MSR);
-	p->thread.ds_ctx = NULL;
-
-	clear_tsk_thread_flag(p, TIF_DEBUGCTLMSR);
-	p->thread.debugctlmsr = 0;
-
 	err = 0;
 out:
 	if (err && p->thread.io_bitmap_ptr) {
@@ -402,7 +388,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* we're going to use this soon, after a few expensive things */
 	if (preload_fpu)
-		prefetch(next->xstate);
+		prefetch(next->fpu.state);
 
 	/*
 	 * Reload esp0, LDT and the page table pointer:
@@ -527,6 +513,7 @@ void set_personality_ia32(void)
 
 	/* Make sure to be in 32bit mode */
 	set_thread_flag(TIF_IA32);
+	current->personality |= force_personality32;
 
 	/* Prepare the first "return" to user space */
 	current_thread_info()->status |= TS_COMPAT;

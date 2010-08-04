@@ -53,7 +53,7 @@ const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5] = {
 static void fscache_object_slow_work_put_ref(struct slow_work *);
 static int  fscache_object_slow_work_get_ref(struct slow_work *);
 static void fscache_object_slow_work_execute(struct slow_work *);
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 static void fscache_object_slow_work_desc(struct slow_work *, struct seq_file *);
 #endif
 static void fscache_initialise_object(struct fscache_object *);
@@ -69,7 +69,7 @@ const struct slow_work_ops fscache_object_slow_work_ops = {
 	.get_ref	= fscache_object_slow_work_get_ref,
 	.put_ref	= fscache_object_slow_work_put_ref,
 	.execute	= fscache_object_slow_work_execute,
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 	.desc		= fscache_object_slow_work_desc,
 #endif
 };
@@ -364,7 +364,7 @@ static void fscache_object_slow_work_execute(struct slow_work *work)
 /*
  * describe an object for slow-work debugging
  */
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 static void fscache_object_slow_work_desc(struct slow_work *work,
 					  struct seq_file *m)
 {

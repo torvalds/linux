@@ -33,6 +33,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/mmc/card.h>

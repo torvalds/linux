@@ -86,7 +86,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <video/sstfb.h>
@@ -1102,7 +1101,7 @@ static void sst_set_vidmod_ics(struct fb_info *info, const int bpp)
  * detect dac type
  * prerequisite : write to FbiInitx enabled, video and fbi and pci fifo reset,
  * dram refresh disabled, FbiInit remaped.
- * TODO: mmh.. maybe i shoud put the "prerequisite" in the func ...
+ * TODO: mmh.. maybe i should put the "prerequisite" in the func ...
  */
 
 

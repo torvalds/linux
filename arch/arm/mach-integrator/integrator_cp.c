@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
@@ -21,14 +20,17 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/arm_timer.h>
+#include <asm/hardware/icst.h>
 
 #include <mach/cm.h>
 #include <mach/lm.h>
@@ -39,24 +41,20 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include "common.h"
-
-#define INTCP_PA_MMC_BASE		0x1c000000
-#define INTCP_PA_AACI_BASE		0x1d000000
+#include <plat/timer-sp.h>
 
 #define INTCP_PA_FLASH_BASE		0x24000000
 #define INTCP_FLASH_SIZE		SZ_32M
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE) + 0x40
+#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x40)
 #define INTCP_VA_PIC_BASE		IO_ADDRESS(INTEGRATOR_IC_BASE)
-#define INTCP_VA_SIC_BASE		IO_ADDRESS(0xca000000)
+#define INTCP_VA_SIC_BASE		IO_ADDRESS(INTEGRATOR_CP_SIC_BASE)
 
-#define INTCP_PA_ETH_BASE		0xc8000000
 #define INTCP_ETH_SIZE			0x10
 
-#define INTCP_VA_CTRL_BASE		IO_ADDRESS(0xcb000000)
+#define INTCP_VA_CTRL_BASE		IO_ADDRESS(INTEGRATOR_CP_CTL_BASE)
 #define INTCP_FLASHPROG			0x04
 #define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
 #define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
@@ -71,7 +69,9 @@
  * f1600000	16000000	UART 0
  * f1700000	17000000	UART 1
  * f1a00000	1a000000	Debug LEDs
- * f1b00000	1b000000	GPIO
+ * fc900000	c9000000	GPIO
+ * fca00000	ca000000	SIC
+ * fcb00000	cb000000	CP system control
  */
 
 static struct map_desc intcp_io_desc[] __initdata = {
@@ -116,18 +116,18 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_GPIO_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_GPIO_BASE),
+		.virtual	= IO_ADDRESS(INTEGRATOR_CP_GPIO_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(0xca000000),
-		.pfn		= __phys_to_pfn(0xca000000),
+		.virtual	= IO_ADDRESS(INTEGRATOR_CP_SIC_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CP_SIC_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(0xcb000000),
-		.pfn		= __phys_to_pfn(0xcb000000),
+		.virtual	= IO_ADDRESS(INTEGRATOR_CP_CTL_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CP_CTL_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}
@@ -266,33 +266,43 @@ static void __init intcp_init_irq(void)
 /*
  * Clock handling
  */
-#define CM_LOCK (IO_ADDRESS(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
-#define CM_AUXOSC (IO_ADDRESS(INTEGRATOR_HDR_BASE)+0x1c)
+#define CM_LOCK		(__io_address(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
+#define CM_AUXOSC	(__io_address(INTEGRATOR_HDR_BASE)+0x1c)
 
-static const struct icst525_params cp_auxvco_params = {
-	.ref		= 24000,
-	.vco_max	= 320000,
+static const struct icst_params cp_auxvco_params = {
+	.ref		= 24000000,
+	.vco_max	= ICST525_VCO_MAX_5V,
+	.vco_min	= ICST525_VCO_MIN,
 	.vd_min 	= 8,
 	.vd_max 	= 263,
 	.rd_min 	= 3,
 	.rd_max 	= 65,
+	.s2div		= icst525_s2div,
+	.idx2s		= icst525_idx2s,
 };
 
-static void cp_auxvco_set(struct clk *clk, struct icst525_vco vco)
+static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
 {
 	u32 val;
 
-	val = readl(CM_AUXOSC) & ~0x7ffff;
+	val = readl(clk->vcoreg) & ~0x7ffff;
 	val |= vco.v | (vco.r << 9) | (vco.s << 16);
 
 	writel(0xa05f, CM_LOCK);
-	writel(val, CM_AUXOSC);
+	writel(val, clk->vcoreg);
 	writel(0, CM_LOCK);
 }
 
+static const struct clk_ops cp_auxclk_ops = {
+	.round	= icst_clk_round,
+	.set	= icst_clk_set,
+	.setvco	= cp_auxvco_set,
+};
+
 static struct clk cp_auxclk = {
+	.ops	= &cp_auxclk_ops,
 	.params	= &cp_auxvco_params,
-	.setvco = cp_auxvco_set,
+	.vcoreg	= CM_AUXOSC,
 };
 
 static struct clk_lookup cp_lookups[] = {
@@ -363,8 +373,8 @@ static struct platform_device intcp_flash_device = {
 
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start	= INTCP_PA_ETH_BASE,
-		.end	= INTCP_PA_ETH_BASE + INTCP_ETH_SIZE - 1,
+		.start	= INTEGRATOR_CP_ETH_BASE,
+		.end	= INTEGRATOR_CP_ETH_BASE + INTCP_ETH_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -394,8 +404,8 @@ static struct platform_device *intcp_devs[] __initdata = {
  */
 static unsigned int mmc_status(struct device *dev)
 {
-	unsigned int status = readl(IO_ADDRESS(0xca000000) + 4);
-	writel(8, IO_ADDRESS(0xcb000000) + 8);
+	unsigned int status = readl(IO_ADDRESS(0xca000000 + 4));
+	writel(8, IO_ADDRESS(INTEGRATOR_CP_CTL_BASE + 8));
 
 	return status & 8;
 }
@@ -413,8 +423,8 @@ static struct amba_device mmc_device = {
 		.platform_data = &mmc_data,
 	},
 	.res		= {
-		.start	= INTCP_PA_MMC_BASE,
-		.end	= INTCP_PA_MMC_BASE + SZ_4K - 1,
+		.start	= INTEGRATOR_CP_MMC_BASE,
+		.end	= INTEGRATOR_CP_MMC_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	.irq		= { IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 },
@@ -426,8 +436,8 @@ static struct amba_device aaci_device = {
 		.init_name = "mb:1d",
 	},
 	.res		= {
-		.start	= INTCP_PA_AACI_BASE,
-		.end	= INTCP_PA_AACI_BASE + SZ_4K - 1,
+		.start	= INTEGRATOR_CP_AACI_BASE,
+		.end	= INTEGRATOR_CP_AACI_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	.irq		= { IRQ_CP_AACIINT, NO_IRQ },
@@ -558,9 +568,7 @@ static void __init intcp_init(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cp_lookups); i++)
-		clkdev_add(&cp_lookups[i]);
-
+	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
 	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -569,16 +577,22 @@ static void __init intcp_init(void)
 	}
 }
 
-#define TIMER_CTRL_IE	(1 << 5)			/* Interrupt Enable */
+#define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
+#define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
+#define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
 
 static void __init intcp_timer_init(void)
 {
-	integrator_time_init(1000000 / HZ, TIMER_CTRL_IE);
+	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
+
+	sp804_clocksource_init(TIMER2_VA_BASE);
+	sp804_clockevents_init(TIMER1_VA_BASE, IRQ_TIMERINT1);
 }
 
 static struct sys_timer cp_timer = {
 	.init		= intcp_timer_init,
-	.offset		= integrator_gettimeoffset,
 };
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")

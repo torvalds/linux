@@ -46,36 +46,10 @@
 
 #define PFX "hermes_dld: "
 
-/*
- * AUX port access.  To unlock the AUX port write the access keys to the
- * PARAM0-2 registers, then write HERMES_AUX_ENABLE to the HERMES_CONTROL
- * register.  Then read it and make sure it's HERMES_AUX_ENABLED.
- */
-#define HERMES_AUX_ENABLE	0x8000	/* Enable auxiliary port access */
-#define HERMES_AUX_DISABLE	0x4000	/* Disable to auxiliary port access */
-#define HERMES_AUX_ENABLED	0xC000	/* Auxiliary port is open */
-#define HERMES_AUX_DISABLED	0x0000	/* Auxiliary port is closed */
-
-#define HERMES_AUX_PW0	0xFE01
-#define HERMES_AUX_PW1	0xDC23
-#define HERMES_AUX_PW2	0xBA45
-
-/* HERMES_CMD_DOWNLD */
-#define HERMES_PROGRAM_DISABLE             (0x0000 | HERMES_CMD_DOWNLD)
-#define HERMES_PROGRAM_ENABLE_VOLATILE     (0x0100 | HERMES_CMD_DOWNLD)
-#define HERMES_PROGRAM_ENABLE_NON_VOLATILE (0x0200 | HERMES_CMD_DOWNLD)
-#define HERMES_PROGRAM_NON_VOLATILE        (0x0300 | HERMES_CMD_DOWNLD)
-
 /* End markers used in dblocks */
 #define PDI_END		0x00000000	/* End of PDA */
 #define BLOCK_END	0xFFFFFFFF	/* Last image block */
 #define TEXT_END	0x1A		/* End of text header */
-
-/* Limit the amout we try to download in a single shot.
- * Size is in bytes.
- */
-#define MAX_DL_SIZE 1024
-#define LIMIT_PROGRAM_SIZE 0
 
 /*
  * The following structures have little-endian fields denoted by
@@ -165,41 +139,6 @@ pdi_len(const struct pdi *pdi)
 	return 2 * (le16_to_cpu(pdi->len) - 1);
 }
 
-/*** Hermes AUX control ***/
-
-static inline void
-hermes_aux_setaddr(hermes_t *hw, u32 addr)
-{
-	hermes_write_reg(hw, HERMES_AUXPAGE, (u16) (addr >> 7));
-	hermes_write_reg(hw, HERMES_AUXOFFSET, (u16) (addr & 0x7F));
-}
-
-static inline int
-hermes_aux_control(hermes_t *hw, int enabled)
-{
-	int desired_state = enabled ? HERMES_AUX_ENABLED : HERMES_AUX_DISABLED;
-	int action = enabled ? HERMES_AUX_ENABLE : HERMES_AUX_DISABLE;
-	int i;
-
-	/* Already open? */
-	if (hermes_read_reg(hw, HERMES_CONTROL) == desired_state)
-		return 0;
-
-	hermes_write_reg(hw, HERMES_PARAM0, HERMES_AUX_PW0);
-	hermes_write_reg(hw, HERMES_PARAM1, HERMES_AUX_PW1);
-	hermes_write_reg(hw, HERMES_PARAM2, HERMES_AUX_PW2);
-	hermes_write_reg(hw, HERMES_CONTROL, action);
-
-	for (i = 0; i < 20; i++) {
-		udelay(10);
-		if (hermes_read_reg(hw, HERMES_CONTROL) ==
-		    desired_state)
-			return 0;
-	}
-
-	return -EBUSY;
-}
-
 /*** Plug Data Functions ***/
 
 /*
@@ -271,62 +210,7 @@ hermes_plug_pdi(hermes_t *hw, const struct pdr *first_pdr,
 		return -EINVAL;
 
 	/* do the actual plugging */
-	hermes_aux_setaddr(hw, pdr_addr(pdr));
-	hermes_write_bytes(hw, HERMES_AUXDATA, pdi->data, pdi_len(pdi));
-
-	return 0;
-}
-
-/* Read PDA from the adapter */
-int hermes_read_pda(hermes_t *hw,
-		    __le16 *pda,
-		    u32 pda_addr,
-		    u16 pda_len,
-		    int use_eeprom) /* can we get this into hw? */
-{
-	int ret;
-	u16 pda_size;
-	u16 data_len = pda_len;
-	__le16 *data = pda;
-
-	if (use_eeprom) {
-		/* PDA of spectrum symbol is in eeprom */
-
-		/* Issue command to read EEPROM */
-		ret = hermes_docmd_wait(hw, HERMES_CMD_READMIF, 0, NULL);
-		if (ret)
-			return ret;
-	} else {
-		/* wl_lkm does not include PDA size in the PDA area.
-		 * We will pad the information into pda, so other routines
-		 * don't have to be modified */
-		pda[0] = cpu_to_le16(pda_len - 2);
-			/* Includes CFG_PROD_DATA but not itself */
-		pda[1] = cpu_to_le16(0x0800); /* CFG_PROD_DATA */
-		data_len = pda_len - 4;
-		data = pda + 2;
-	}
-
-	/* Open auxiliary port */
-	ret = hermes_aux_control(hw, 1);
-	pr_debug(PFX "AUX enable returned %d\n", ret);
-	if (ret)
-		return ret;
-
-	/* read PDA from EEPROM */
-	hermes_aux_setaddr(hw, pda_addr);
-	hermes_read_words(hw, HERMES_AUXDATA, data, data_len / 2);
-
-	/* Close aux port */
-	ret = hermes_aux_control(hw, 0);
-	pr_debug(PFX "AUX disable returned %d\n", ret);
-
-	/* Check PDA length */
-	pda_size = le16_to_cpu(pda[0]);
-	pr_debug(PFX "Actual PDA length %d, Max allowed %d\n",
-		 pda_size, pda_len);
-	if (pda_size > pda_len)
-		return -EINVAL;
+	hw->ops->program(hw, pdi->data, pdr_addr(pdr), pdi_len(pdi));
 
 	return 0;
 }
@@ -389,101 +273,13 @@ hermes_blocks_length(const char *first_block, const void *end)
 
 /*** Hermes programming ***/
 
-/* About to start programming data (Hermes I)
- * offset is the entry point
- *
- * Spectrum_cs' Symbol fw does not require this
- * wl_lkm Agere fw does
- * Don't know about intersil
- */
-int hermesi_program_init(hermes_t *hw, u32 offset)
-{
-	int err;
-
-	/* Disable interrupts?*/
-	/*hw->inten = 0x0;*/
-	/*hermes_write_regn(hw, INTEN, 0);*/
-	/*hermes_set_irqmask(hw, 0);*/
-
-	/* Acknowledge any outstanding command */
-	hermes_write_regn(hw, EVACK, 0xFFFF);
-
-	/* Using doicmd_wait rather than docmd_wait */
-	err = hermes_doicmd_wait(hw,
-				 0x0100 | HERMES_CMD_INIT,
-				 0, 0, 0, NULL);
-	if (err)
-		return err;
-
-	err = hermes_doicmd_wait(hw,
-				 0x0000 | HERMES_CMD_INIT,
-				 0, 0, 0, NULL);
-	if (err)
-		return err;
-
-	err = hermes_aux_control(hw, 1);
-	pr_debug(PFX "AUX enable returned %d\n", err);
-
-	if (err)
-		return err;
-
-	pr_debug(PFX "Enabling volatile, EP 0x%08x\n", offset);
-	err = hermes_doicmd_wait(hw,
-				 HERMES_PROGRAM_ENABLE_VOLATILE,
-				 offset & 0xFFFFu,
-				 offset >> 16,
-				 0,
-				 NULL);
-	pr_debug(PFX "PROGRAM_ENABLE returned %d\n", err);
-
-	return err;
-}
-
-/* Done programming data (Hermes I)
- *
- * Spectrum_cs' Symbol fw does not require this
- * wl_lkm Agere fw does
- * Don't know about intersil
- */
-int hermesi_program_end(hermes_t *hw)
-{
-	struct hermes_response resp;
-	int rc = 0;
-	int err;
-
-	rc = hermes_docmd_wait(hw, HERMES_PROGRAM_DISABLE, 0, &resp);
-
-	pr_debug(PFX "PROGRAM_DISABLE returned %d, "
-		 "r0 0x%04x, r1 0x%04x, r2 0x%04x\n",
-		 rc, resp.resp0, resp.resp1, resp.resp2);
-
-	if ((rc == 0) &&
-	    ((resp.status & HERMES_STATUS_CMDCODE) != HERMES_CMD_DOWNLD))
-		rc = -EIO;
-
-	err = hermes_aux_control(hw, 0);
-	pr_debug(PFX "AUX disable returned %d\n", err);
-
-	/* Acknowledge any outstanding command */
-	hermes_write_regn(hw, EVACK, 0xFFFF);
-
-	/* Reinitialise, ignoring return */
-	(void) hermes_doicmd_wait(hw, 0x0000 | HERMES_CMD_INIT,
-				  0, 0, 0, NULL);
-
-	return rc ? rc : err;
-}
-
 /* Program the data blocks */
 int hermes_program(hermes_t *hw, const char *first_block, const void *end)
 {
 	const struct dblock *blk;
 	u32 blkaddr;
 	u32 blklen;
-#if LIMIT_PROGRAM_SIZE
-	u32 addr;
-	u32 len;
-#endif
+	int err = 0;
 
 	blk = (const struct dblock *) first_block;
 
@@ -498,30 +294,10 @@ int hermes_program(hermes_t *hw, const char *first_block, const void *end)
 		pr_debug(PFX "Programming block of length %d "
 			 "to address 0x%08x\n", blklen, blkaddr);
 
-#if !LIMIT_PROGRAM_SIZE
-		/* wl_lkm driver splits this into writes of 2000 bytes */
-		hermes_aux_setaddr(hw, blkaddr);
-		hermes_write_bytes(hw, HERMES_AUXDATA, blk->data,
-				   blklen);
-#else
-		len = (blklen < MAX_DL_SIZE) ? blklen : MAX_DL_SIZE;
-		addr = blkaddr;
+		err = hw->ops->program(hw, blk->data, blkaddr, blklen);
+		if (err)
+			break;
 
-		while (addr < (blkaddr + blklen)) {
-			pr_debug(PFX "Programming subblock of length %d "
-				 "to address 0x%08x. Data @ %p\n",
-				 len, addr, &blk->data[addr - blkaddr]);
-
-			hermes_aux_setaddr(hw, addr);
-			hermes_write_bytes(hw, HERMES_AUXDATA,
-					   &blk->data[addr - blkaddr],
-					   len);
-
-			addr += len;
-			len = ((blkaddr + blklen - addr) < MAX_DL_SIZE) ?
-				(blkaddr + blklen - addr) : MAX_DL_SIZE;
-		}
-#endif
 		blk = (const struct dblock *) &blk->data[blklen];
 
 		if ((void *) blk > (end - sizeof(*blk)))
@@ -530,7 +306,7 @@ int hermes_program(hermes_t *hw, const char *first_block, const void *end)
 		blkaddr = dblock_addr(blk);
 		blklen = dblock_len(blk);
 	}
-	return 0;
+	return err;
 }
 
 /*** Default plugging data for Hermes I ***/
@@ -690,9 +466,8 @@ int hermes_apply_pda_with_defaults(hermes_t *hw,
 			if ((pdi_len(pdi) == pdr_len(pdr)) &&
 			    ((void *) pdi->data + pdi_len(pdi) < pda_end)) {
 				/* do the actual plugging */
-				hermes_aux_setaddr(hw, pdr_addr(pdr));
-				hermes_write_bytes(hw, HERMES_AUXDATA,
-						   pdi->data, pdi_len(pdi));
+				hw->ops->program(hw, pdi->data, pdr_addr(pdr),
+						 pdi_len(pdi));
 			}
 		}
 

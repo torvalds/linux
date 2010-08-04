@@ -87,26 +87,7 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	GPIO105_KP_MKOUT_2,
 
 	/* LCD */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* PWM */
 	GPIO16_PWM0_OUT,
@@ -129,7 +110,7 @@ static struct pxamci_platform_data palmt5_mci_platform_data = {
 	.gpio_card_detect	= GPIO_NR_PALMT5_SD_DETECT_N,
 	.gpio_card_ro		= GPIO_NR_PALMT5_SD_READONLY,
 	.gpio_power		= GPIO_NR_PALMT5_SD_POWER,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 /******************************************************************************

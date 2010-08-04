@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.04.12-rc1"
-#define MEGASAS_RELDATE				"Sep. 17, 2009"
-#define MEGASAS_EXT_VERSION			"Thu Sep. 17 11:41:51 PST 2009"
+#define MEGASAS_VERSION			"00.00.04.17.1-rc1"
+#define MEGASAS_RELDATE			"Oct. 29, 2009"
+#define MEGASAS_EXT_VERSION		"Thu. Oct. 29, 11:41:51 PST 2009"
 
 /*
  * Device IDs
@@ -117,6 +117,7 @@
 #define MFI_CMD_STP				0x08
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
+#define MR_DCMD_LD_GET_LIST			0x03010000
 
 #define MR_DCMD_CTRL_CACHE_FLUSH		0x01101000
 #define MR_FLUSH_CTRL_CACHE			0x01
@@ -347,6 +348,32 @@ struct megasas_pd_list {
 	u16             tid;
 	u8             driveType;
 	u8             driveState;
+} __packed;
+
+ /*
+ * defines the logical drive reference structure
+ */
+union  MR_LD_REF {
+	struct {
+		u8      targetId;
+		u8      reserved;
+		u16     seqNum;
+	};
+	u32     ref;
+} __packed;
+
+/*
+ * defines the logical drive list structure
+ */
+struct MR_LD_LIST {
+	u32     ldCount;
+	u32     reserved;
+	struct {
+		union MR_LD_REF   ref;
+		u8          state;
+		u8          reserved[3];
+		u64         size;
+	} ldList[MAX_LOGICAL_DRIVES];
 } __packed;
 
 /*
@@ -636,6 +663,8 @@ struct megasas_ctrl_info {
 #define MEGASAS_MAX_LUN				8
 #define MEGASAS_MAX_LD				64
 #define MEGASAS_MAX_PD                          (MEGASAS_MAX_PD_CHANNELS * \
+						MEGASAS_MAX_DEV_PER_CHANNEL)
+#define MEGASAS_MAX_LD_IDS			(MEGASAS_MAX_LD_CHANNELS * \
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 
 #define MEGASAS_DBG_LVL				1
@@ -1187,6 +1216,7 @@ struct megasas_instance {
 	struct megasas_register_set __iomem *reg_set;
 
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
+	u8     ld_ids[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
 
 	u16 max_num_sge;

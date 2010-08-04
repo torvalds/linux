@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.33-rc3
-# Wed Jan  6 09:23:59 2010
+# Linux kernel version: 2.6.34-rc5
+# Mon Apr 19 23:16:24 2010
 #
 # CONFIG_PPC64 is not set
 
@@ -96,8 +96,7 @@ CONFIG_IKCONFIG=y
 CONFIG_IKCONFIG_PROC=y
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_CGROUPS is not set
-CONFIG_SYSFS_DEPRECATED=y
-CONFIG_SYSFS_DEPRECATED_V2=y
+# CONFIG_SYSFS_DEPRECATED_V2 is not set
 # CONFIG_RELAY is not set
 # CONFIG_NAMESPACES is not set
 # CONFIG_BLK_DEV_INITRD is not set
@@ -298,6 +297,7 @@ CONFIG_ISA_DMA_API=y
 # Bus options
 #
 CONFIG_ZONE_DMA=y
+# CONFIG_NEED_DMA_MAP_STATE is not set
 CONFIG_PPC_INDIRECT_PCI=y
 CONFIG_FSL_SOC=y
 CONFIG_PPC_PCI_CHOICE=y
@@ -308,7 +308,6 @@ CONFIG_PCI_8260=y
 # CONFIG_PCIEPORTBUS is not set
 CONFIG_ARCH_SUPPORTS_MSI=y
 # CONFIG_PCI_MSI is not set
-# CONFIG_PCI_LEGACY is not set
 # CONFIG_PCI_DEBUG is not set
 # CONFIG_PCI_STUB is not set
 # CONFIG_PCI_IOV is not set
@@ -335,7 +334,6 @@ CONFIG_NET=y
 # Networking options
 #
 CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 CONFIG_XFRM=y
 # CONFIG_XFRM_USER is not set
@@ -537,6 +535,8 @@ CONFIG_MTD_PHYSMAP_OF=y
 # UBI - Unsorted block images
 #
 # CONFIG_MTD_UBI is not set
+CONFIG_OF_FLATTREE=y
+CONFIG_OF_DYNAMIC=y
 CONFIG_OF_DEVICE=y
 CONFIG_OF_GPIO=y
 CONFIG_OF_MDIO=y
@@ -566,6 +566,7 @@ CONFIG_HAVE_IDE=y
 #
 # SCSI device support
 #
+CONFIG_SCSI_MOD=y
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
 # CONFIG_SCSI_DMA is not set
@@ -671,6 +672,8 @@ CONFIG_NETDEV_10000=y
 # CONFIG_CHELSIO_T1 is not set
 CONFIG_CHELSIO_T3_DEPENDS=y
 # CONFIG_CHELSIO_T3 is not set
+CONFIG_CHELSIO_T4_DEPENDS=y
+# CONFIG_CHELSIO_T4 is not set
 # CONFIG_ENIC is not set
 # CONFIG_IXGBE is not set
 # CONFIG_IXGB is not set
@@ -683,6 +686,7 @@ CONFIG_CHELSIO_T3_DEPENDS=y
 # CONFIG_MLX4_CORE is not set
 # CONFIG_TEHUTI is not set
 # CONFIG_BNX2X is not set
+# CONFIG_QLCNIC is not set
 # CONFIG_QLGE is not set
 # CONFIG_SFC is not set
 # CONFIG_BE2NET is not set
@@ -737,6 +741,7 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 CONFIG_SERIAL_CPM=y
 CONFIG_SERIAL_CPM_CONSOLE=y
 # CONFIG_SERIAL_JSM is not set
+# CONFIG_SERIAL_TIMBERDALE is not set
 # CONFIG_SERIAL_GRLIB_GAISLER_APBUART is not set
 CONFIG_UNIX98_PTYS=y
 # CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
@@ -765,7 +770,9 @@ CONFIG_GPIOLIB=y
 #
 # Memory mapped GPIO expanders:
 #
+# CONFIG_GPIO_IT8761E is not set
 # CONFIG_GPIO_XILINX is not set
+# CONFIG_GPIO_SCH is not set
 
 #
 # I2C GPIO expanders:
@@ -804,6 +811,8 @@ CONFIG_SSB_POSSIBLE=y
 # CONFIG_MFD_SM501 is not set
 # CONFIG_HTC_PASIC3 is not set
 # CONFIG_MFD_TMIO is not set
+# CONFIG_MFD_TIMBERDALE is not set
+# CONFIG_LPC_SCH is not set
 # CONFIG_REGULATOR is not set
 # CONFIG_MEDIA_SUPPORT is not set
 
@@ -812,6 +821,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_AGP is not set
 CONFIG_VGA_ARB=y
+CONFIG_VGA_ARB_MAX_GPUS=16
 # CONFIG_DRM is not set
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
@@ -869,6 +879,7 @@ CONFIG_AUTOFS4_FS=y
 #
 # Caches
 #
+# CONFIG_FSCACHE is not set
 
 #
 # CD-ROM/DVD Filesystems

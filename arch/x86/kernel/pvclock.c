@@ -31,7 +31,15 @@ struct pvclock_shadow_time {
 	u32 tsc_to_nsec_mul;
 	int tsc_shift;
 	u32 version;
+	u8  flags;
 };
+
+static u8 valid_flags __read_mostly = 0;
+
+void pvclock_set_flags(u8 flags)
+{
+	valid_flags = flags;
+}
 
 /*
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
@@ -91,6 +99,7 @@ static unsigned pvclock_get_time_values(struct pvclock_shadow_time *dst,
 		dst->system_timestamp  = src->system_time;
 		dst->tsc_to_nsec_mul   = src->tsc_to_system_mul;
 		dst->tsc_shift         = src->tsc_shift;
+		dst->flags             = src->flags;
 		rmb();		/* test version after fetching data */
 	} while ((src->version & 1) || (dst->version != src->version));
 
@@ -109,11 +118,14 @@ unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src)
 	return pv_tsc_khz;
 }
 
+static atomic64_t last_value = ATOMIC64_INIT(0);
+
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {
 	struct pvclock_shadow_time shadow;
 	unsigned version;
 	cycle_t ret, offset;
+	u64 last;
 
 	do {
 		version = pvclock_get_time_values(&shadow, src);
@@ -122,6 +134,31 @@ cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 		ret = shadow.system_timestamp + offset;
 		barrier();
 	} while (version != src->version);
+
+	if ((valid_flags & PVCLOCK_TSC_STABLE_BIT) &&
+		(shadow.flags & PVCLOCK_TSC_STABLE_BIT))
+		return ret;
+
+	/*
+	 * Assumption here is that last_value, a global accumulator, always goes
+	 * forward. If we are less than that, we should not be much smaller.
+	 * We assume there is an error marging we're inside, and then the correction
+	 * does not sacrifice accuracy.
+	 *
+	 * For reads: global may have changed between test and return,
+	 * but this means someone else updated poked the clock at a later time.
+	 * We just need to make sure we are not seeing a backwards event.
+	 *
+	 * For updates: last_value = ret is not enough, since two vcpus could be
+	 * updating at the same time, and one of them could be slightly behind,
+	 * making the assumption that last_value always go forward fail to hold.
+	 */
+	last = atomic64_read(&last_value);
+	do {
+		if (ret < last)
+			return last;
+		last = atomic64_cmpxchg(&last_value, last, ret);
+	} while (unlikely(last != ret));
 
 	return ret;
 }

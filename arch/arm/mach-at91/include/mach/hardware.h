@@ -32,6 +32,8 @@
 #include <mach/at91cap9.h>
 #elif defined(CONFIG_ARCH_AT91X40)
 #include <mach/at91x40.h>
+#elif defined(CONFIG_ARCH_AT572D940HF)
+#include <mach/at572d940hf.h>
 #else
 #error "Unsupported AT91 processor"
 #endif

@@ -15,7 +15,7 @@ void show_mem(void)
 	unsigned long total = 0, reserved = 0, shared = 0,
 		nonshared = 0, highmem = 0;
 
-	printk(KERN_INFO "Mem-Info:\n");
+	printk("Mem-Info:\n");
 	show_free_areas();
 
 	for_each_online_pgdat(pgdat) {
@@ -49,15 +49,15 @@ void show_mem(void)
 		pgdat_resize_unlock(pgdat, &flags);
 	}
 
-	printk(KERN_INFO "%lu pages RAM\n", total);
+	printk("%lu pages RAM\n", total);
 #ifdef CONFIG_HIGHMEM
-	printk(KERN_INFO "%lu pages HighMem\n", highmem);
+	printk("%lu pages HighMem\n", highmem);
 #endif
-	printk(KERN_INFO "%lu pages reserved\n", reserved);
-	printk(KERN_INFO "%lu pages shared\n", shared);
-	printk(KERN_INFO "%lu pages non-shared\n", nonshared);
+	printk("%lu pages reserved\n", reserved);
+	printk("%lu pages shared\n", shared);
+	printk("%lu pages non-shared\n", nonshared);
 #ifdef CONFIG_QUICKLIST
-	printk(KERN_INFO "%lu pages in pagetable cache\n",
+	printk("%lu pages in pagetable cache\n",
 		quicklist_total_size());
 #endif
 }

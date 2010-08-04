@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -252,7 +251,7 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 
 static int __devinit p9100_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct p9100_par *par;
 	int linebytes, err;
@@ -354,8 +353,11 @@ static const struct of_device_id p9100_match[] = {
 MODULE_DEVICE_TABLE(of, p9100_match);
 
 static struct of_platform_driver p9100_driver = {
-	.name		= "p9100",
-	.match_table	= p9100_match,
+	.driver = {
+		.name = "p9100",
+		.owner = THIS_MODULE,
+		.of_match_table = p9100_match,
+	},
 	.probe		= p9100_probe,
 	.remove		= __devexit_p(p9100_remove),
 };

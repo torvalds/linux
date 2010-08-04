@@ -839,7 +839,7 @@ static void irda_usb_receive(struct urb *urb)
 			/* Usually precursor to a hot-unplug on OHCI. */
 		default:
 			self->netdev->stats.rx_errors++;
-			IRDA_DEBUG(0, "%s(), RX status %d, transfer_flags 0x%04X \n", __func__, urb->status, urb->transfer_flags);
+			IRDA_DEBUG(0, "%s(), RX status %d, transfer_flags 0x%04X\n", __func__, urb->status, urb->transfer_flags);
 			break;
 		}
 		/* If we received an error, we don't want to resubmit the
@@ -1651,6 +1651,8 @@ static int irda_usb_probe(struct usb_interface *intf,
 
 	self->rx_urb = kcalloc(self->max_rx_urb, sizeof(struct urb *),
 				GFP_KERNEL);
+	if (!self->rx_urb)
+		goto err_free_net;
 
 	for (i = 0; i < self->max_rx_urb; i++) {
 		self->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
@@ -1783,6 +1785,8 @@ err_out_2:
 err_out_1:
 	for (i = 0; i < self->max_rx_urb; i++)
 		usb_free_urb(self->rx_urb[i]);
+	kfree(self->rx_urb);
+err_free_net:
 	free_netdev(net);
 err_out:
 	return ret;

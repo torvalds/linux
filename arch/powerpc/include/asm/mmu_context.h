@@ -27,6 +27,8 @@ extern int __init_new_context(void);
 extern void __destroy_context(int context_id);
 static inline void mmu_context_init(void) { }
 #else
+extern unsigned long __init_new_context(void);
+extern void __destroy_context(unsigned long context_id);
 extern void mmu_context_init(void);
 #endif
 

@@ -4,7 +4,7 @@
  *  Derived from ivtv-ioctl.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * digitizer/slicer.  Note, cx18_av_vbi() wipes the passed in
 	 * fmt->fmt.sliced under valid calling conditions
 	 */
-	if (v4l2_subdev_call(cx->sd_av, video, g_fmt, fmt))
+	if (v4l2_subdev_call(cx->sd_av, vbi, g_sliced_fmt, &fmt->fmt.sliced))
 		return -EINVAL;
 
 	/* Ensure V4L2 spec compliant output */
@@ -274,10 +274,11 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 	int w, h;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -293,9 +294,10 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
-	cx->params.width = w;
-	cx->params.height = h;
-	v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	mbus_fmt.width = cx->params.width = w;
+	mbus_fmt.height = cx->params.height = h;
+	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &mbus_fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
 
@@ -306,7 +308,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -322,7 +324,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	 * Note cx18_av_vbi_wipes out alot of the passed in fmt under valid
 	 * calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &fmt->fmt.vbi);
 	if (ret)
 		return ret;
 
@@ -341,7 +343,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	int ret;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -359,7 +361,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the
 	 * passed in fmt->fmt.sliced under valid calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_sliced_fmt, &fmt->fmt.sliced);
 	if (ret)
 		return ret;
 	/* Store our current v4l2 sliced VBI settings */
@@ -549,7 +551,7 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -601,7 +603,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -647,7 +649,7 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -675,7 +677,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -715,7 +717,7 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -775,10 +777,143 @@ static int cx18_g_sliced_vbi_cap(struct file *file, void *fh,
 	return 0;
 }
 
+static int _cx18_process_idx_data(struct cx18_buffer *buf,
+				  struct v4l2_enc_idx *idx)
+{
+	int consumed, remaining;
+	struct v4l2_enc_idx_entry *e_idx;
+	struct cx18_enc_idx_entry *e_buf;
+
+	/* Frame type lookup: 1=I, 2=P, 4=B */
+	const int mapping[8] = {
+		-1, V4L2_ENC_IDX_FRAME_I, V4L2_ENC_IDX_FRAME_P,
+		-1, V4L2_ENC_IDX_FRAME_B, -1, -1, -1
+	};
+
+	/*
+	 * Assumption here is that a buf holds an integral number of
+	 * struct cx18_enc_idx_entry objects and is properly aligned.
+	 * This is enforced by the module options on IDX buffer sizes.
+	 */
+	remaining = buf->bytesused - buf->readpos;
+	consumed = 0;
+	e_idx = &idx->entry[idx->entries];
+	e_buf = (struct cx18_enc_idx_entry *) &buf->buf[buf->readpos];
+
+	while (remaining >= sizeof(struct cx18_enc_idx_entry) &&
+	       idx->entries < V4L2_ENC_IDX_ENTRIES) {
+
+		e_idx->offset = (((u64) le32_to_cpu(e_buf->offset_high)) << 32)
+				| le32_to_cpu(e_buf->offset_low);
+
+		e_idx->pts = (((u64) (le32_to_cpu(e_buf->pts_high) & 1)) << 32)
+			     | le32_to_cpu(e_buf->pts_low);
+
+		e_idx->length = le32_to_cpu(e_buf->length);
+
+		e_idx->flags = mapping[le32_to_cpu(e_buf->flags) & 0x7];
+
+		e_idx->reserved[0] = 0;
+		e_idx->reserved[1] = 0;
+
+		idx->entries++;
+		e_idx = &idx->entry[idx->entries];
+		e_buf++;
+
+		remaining -= sizeof(struct cx18_enc_idx_entry);
+		consumed += sizeof(struct cx18_enc_idx_entry);
+	}
+
+	/* Swallow any partial entries at the end, if there are any */
+	if (remaining > 0 && remaining < sizeof(struct cx18_enc_idx_entry))
+		consumed += remaining;
+
+	buf->readpos += consumed;
+	return consumed;
+}
+
+static int cx18_process_idx_data(struct cx18_stream *s, struct cx18_mdl *mdl,
+				 struct v4l2_enc_idx *idx)
+{
+	if (s->type != CX18_ENC_STREAM_TYPE_IDX)
+		return -EINVAL;
+
+	if (mdl->curr_buf == NULL)
+		mdl->curr_buf = list_first_entry(&mdl->buf_list,
+						 struct cx18_buffer, list);
+
+	if (list_entry_is_past_end(mdl->curr_buf, &mdl->buf_list, list)) {
+		/*
+		 * For some reason we've exhausted the buffers, but the MDL
+		 * object still said some data was unread.
+		 * Fix that and bail out.
+		 */
+		mdl->readpos = mdl->bytesused;
+		return 0;
+	}
+
+	list_for_each_entry_from(mdl->curr_buf, &mdl->buf_list, list) {
+
+		/* Skip any empty buffers in the MDL */
+		if (mdl->curr_buf->readpos >= mdl->curr_buf->bytesused)
+			continue;
+
+		mdl->readpos += _cx18_process_idx_data(mdl->curr_buf, idx);
+
+		/* exit when MDL drained or request satisfied */
+		if (idx->entries >= V4L2_ENC_IDX_ENTRIES ||
+		    mdl->curr_buf->readpos < mdl->curr_buf->bytesused ||
+		    mdl->readpos >= mdl->bytesused)
+			break;
+	}
+	return 0;
+}
+
 static int cx18_g_enc_index(struct file *file, void *fh,
 				struct v4l2_enc_idx *idx)
 {
-	return -EINVAL;
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18_stream *s = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	s32 tmp;
+	struct cx18_mdl *mdl;
+
+	if (!cx18_stream_enabled(s)) /* Module options inhibited IDX stream */
+		return -EINVAL;
+
+	/* Compute the best case number of entries we can buffer */
+	tmp = s->buffers -
+			  s->bufs_per_mdl * CX18_ENC_STREAM_TYPE_IDX_FW_MDL_MIN;
+	if (tmp <= 0)
+		tmp = 1;
+	tmp = tmp * s->buf_size / sizeof(struct cx18_enc_idx_entry);
+
+	/* Fill out the header of the return structure */
+	idx->entries = 0;
+	idx->entries_cap = tmp;
+	memset(idx->reserved, 0, sizeof(idx->reserved));
+
+	/* Pull IDX MDLs and buffers from q_full and populate the entries */
+	do {
+		mdl = cx18_dequeue(s, &s->q_full);
+		if (mdl == NULL) /* No more IDX data right now */
+			break;
+
+		/* Extract the Index entry data from the MDL and buffers */
+		cx18_process_idx_data(s, mdl, idx);
+		if (mdl->readpos < mdl->bytesused) {
+			/* We finished with data remaining, push the MDL back */
+			cx18_push(s, mdl, &s->q_full);
+			break;
+		}
+
+		/* We drained this MDL, schedule it to go to the firmware */
+		cx18_enqueue(s, mdl, &s->q_free);
+
+	} while (idx->entries < V4L2_ENC_IDX_ENTRIES);
+
+	/* Tell the work handler to send free IDX MDLs to the firmware */
+	cx18_stream_load_fw_queue(s);
+	return 0;
 }
 
 static int cx18_encoder_cmd(struct file *file, void *fh,

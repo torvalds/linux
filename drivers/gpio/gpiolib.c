@@ -9,6 +9,7 @@
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 
 
 /* Optional implementation infrastructure for GPIO interfaces.
@@ -398,7 +399,7 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 			goto free_id;
 		}
 
-		pdesc->value_sd = sysfs_get_dirent(dev->kobj.sd, "value");
+		pdesc->value_sd = sysfs_get_dirent(dev->kobj.sd, NULL, "value");
 		if (!pdesc->value_sd) {
 			ret = -ENODEV;
 			goto free_id;
@@ -415,7 +416,8 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 	return 0;
 
 free_sd:
-	sysfs_put(pdesc->value_sd);
+	if (pdesc)
+		sysfs_put(pdesc->value_sd);
 free_id:
 	idr_remove(&pdesc_idr, id);
 	desc->flags &= GPIO_FLAGS_MASK;
@@ -623,7 +625,9 @@ static const struct attribute_group gpiochip_attr_group = {
  * /sys/class/gpio/unexport ... write-only
  *	integer N ... number of GPIO to unexport
  */
-static ssize_t export_store(struct class *class, const char *buf, size_t len)
+static ssize_t export_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t len)
 {
 	long	gpio;
 	int	status;
@@ -653,7 +657,9 @@ done:
 	return status ? : len;
 }
 
-static ssize_t unexport_store(struct class *class, const char *buf, size_t len)
+static ssize_t unexport_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t len)
 {
 	long	gpio;
 	int	status;
@@ -716,7 +722,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 	unsigned long		flags;
 	struct gpio_desc	*desc;
 	int			status = -EINVAL;
-	char			*ioname = NULL;
+	const char		*ioname = NULL;
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
@@ -747,7 +753,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 		struct device	*dev;
 
 		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
-				desc, ioname ? ioname : "gpio%d", gpio);
+				desc, ioname ? ioname : "gpio%u", gpio);
 		if (!IS_ERR(dev)) {
 			status = sysfs_create_group(&dev->kobj,
 						&gpio_attr_group);
@@ -887,10 +893,12 @@ EXPORT_SYMBOL_GPL(gpio_sysfs_set_active_low);
 void gpio_unexport(unsigned gpio)
 {
 	struct gpio_desc	*desc;
-	int			status = -EINVAL;
+	int			status = 0;
 
-	if (!gpio_is_valid(gpio))
+	if (!gpio_is_valid(gpio)) {
+		status = -EINVAL;
 		goto done;
+	}
 
 	mutex_lock(&sysfs_lock);
 
@@ -905,7 +913,6 @@ void gpio_unexport(unsigned gpio)
 			clear_bit(FLAG_EXPORT, &desc->flags);
 			put_device(dev);
 			device_unregister(dev);
-			status = 0;
 		} else
 			status = -ENODEV;
 	}
@@ -1100,7 +1107,7 @@ unlock:
 fail:
 	/* failures here can mean systems won't boot... */
 	if (status)
-		pr_err("gpiochip_add: gpios %d..%d (%s) not registered\n",
+		pr_err("gpiochip_add: gpios %d..%d (%s) failed to register\n",
 			chip->base, chip->base + chip->ngpio - 1,
 			chip->label ? : "generic");
 	return status;
@@ -1237,6 +1244,64 @@ void gpio_free(unsigned gpio)
 }
 EXPORT_SYMBOL_GPL(gpio_free);
 
+/**
+ * gpio_request_one - request a single GPIO with initial configuration
+ * @gpio:	the GPIO number
+ * @flags:	GPIO configuration as specified by GPIOF_*
+ * @label:	a literal description string of this GPIO
+ */
+int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
+{
+	int err;
+
+	err = gpio_request(gpio, label);
+	if (err)
+		return err;
+
+	if (flags & GPIOF_DIR_IN)
+		err = gpio_direction_input(gpio);
+	else
+		err = gpio_direction_output(gpio,
+				(flags & GPIOF_INIT_HIGH) ? 1 : 0);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(gpio_request_one);
+
+/**
+ * gpio_request_array - request multiple GPIOs in a single call
+ * @array:	array of the 'struct gpio'
+ * @num:	how many GPIOs in the array
+ */
+int gpio_request_array(struct gpio *array, size_t num)
+{
+	int i, err;
+
+	for (i = 0; i < num; i++, array++) {
+		err = gpio_request_one(array->gpio, array->flags, array->label);
+		if (err)
+			goto err_free;
+	}
+	return 0;
+
+err_free:
+	while (i--)
+		gpio_free((--array)->gpio);
+	return err;
+}
+EXPORT_SYMBOL_GPL(gpio_request_array);
+
+/**
+ * gpio_free_array - release multiple GPIOs in a single call
+ * @array:	array of the 'struct gpio'
+ * @num:	how many GPIOs in the array
+ */
+void gpio_free_array(struct gpio *array, size_t num)
+{
+	while (num--)
+		gpio_free((array++)->gpio);
+}
+EXPORT_SYMBOL_GPL(gpio_free_array);
 
 /**
  * gpiochip_is_requested - return string iff signal was requested
@@ -1383,6 +1448,49 @@ fail:
 }
 EXPORT_SYMBOL_GPL(gpio_direction_output);
 
+/**
+ * gpio_set_debounce - sets @debounce time for a @gpio
+ * @gpio: the gpio to set debounce time
+ * @debounce: debounce time is microseconds
+ */
+int gpio_set_debounce(unsigned gpio, unsigned debounce)
+{
+	unsigned long		flags;
+	struct gpio_chip	*chip;
+	struct gpio_desc	*desc = &gpio_desc[gpio];
+	int			status = -EINVAL;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	if (!gpio_is_valid(gpio))
+		goto fail;
+	chip = desc->chip;
+	if (!chip || !chip->set || !chip->set_debounce)
+		goto fail;
+	gpio -= chip->base;
+	if (gpio >= chip->ngpio)
+		goto fail;
+	status = gpio_ensure_requested(desc, gpio);
+	if (status < 0)
+		goto fail;
+
+	/* now we know the gpio is valid and chip won't vanish */
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	might_sleep_if(extra_checks && chip->can_sleep);
+
+	return chip->set_debounce(chip, gpio, debounce);
+
+fail:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+	if (status)
+		pr_debug("%s: gpio-%d status %d\n",
+			__func__, gpio, status);
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(gpio_set_debounce);
 
 /* I/O calls are only valid after configuration completed; the relevant
  * "is this a valid GPIO" error checks should already have been done.

@@ -8,6 +8,7 @@
 
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 static int qla24xx_vport_disable(struct fc_vport *, bool);
@@ -15,7 +16,7 @@ static int qla24xx_vport_disable(struct fc_vport *, bool);
 /* SYSFS attributes --------------------------------------------------------- */
 
 static ssize_t
-qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
+qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -31,7 +32,7 @@ qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
+qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			    struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
@@ -39,6 +40,12 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
+
+	if (IS_QLA82XX(ha)) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+			"Firmware dump not supported for ISP82xx\n"));
+		return count;
+	}
 
 	if (off != 0)
 		return (0);
@@ -85,7 +92,7 @@ static struct bin_attribute sysfs_fw_dump_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_nvram(struct kobject *kobj,
+qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *bin_attr,
 			 char *buf, loff_t off, size_t count)
 {
@@ -104,7 +111,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_nvram(struct kobject *kobj,
+qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
@@ -170,7 +177,7 @@ static struct bin_attribute sysfs_nvram_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_optrom(struct kobject *kobj,
+qla2x00_sysfs_read_optrom(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
@@ -186,7 +193,7 @@ qla2x00_sysfs_read_optrom(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_optrom(struct kobject *kobj,
+qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -217,7 +224,7 @@ static struct bin_attribute sysfs_optrom_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
+qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -274,6 +281,12 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 			return count;
 		}
 
+		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+				"HBA not online, failing NVRAM update.\n");
+			return -EAGAIN;
+		}
+
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Reading flash region -- 0x%x/0x%x.\n",
 		    ha->optrom_region_start, ha->optrom_region_size));
@@ -312,8 +325,8 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
-		    valid = 1;
+		else if (IS_QLA25XX(ha) || IS_QLA8XXX_TYPE(ha))
+			valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
 			    "Invalid start region 0x%x/0x%x.\n", start, size);
@@ -374,7 +387,7 @@ static struct bin_attribute sysfs_optrom_ctl_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_vpd(struct kobject *kobj,
+qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -395,7 +408,7 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_vpd(struct kobject *kobj,
+qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -448,7 +461,7 @@ static struct bin_attribute sysfs_vpd_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_sfp(struct kobject *kobj,
+qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -509,13 +522,14 @@ static struct bin_attribute sysfs_sfp_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_reset(struct kobject *kobj,
+qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
 
 	if (off != 0)
@@ -550,6 +564,20 @@ qla2x00_sysfs_write_reset(struct kobject *kobj,
 			    "MPI reset failed on (%ld).\n", vha->host_no);
 		scsi_unblock_requests(vha->host);
 		break;
+	case 0x2025e:
+		if (!IS_QLA82XX(ha) || vha != base_vha) {
+			qla_printk(KERN_INFO, ha,
+			    "FCoE ctx reset not supported for host%ld.\n",
+			    vha->host_no);
+			return count;
+		}
+
+		qla_printk(KERN_INFO, ha,
+		    "Issuing FCoE CTX reset on host%ld.\n", vha->host_no);
+		set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		qla2x00_wait_for_fcoe_ctx_reset(vha);
+		break;
 	}
 	return count;
 }
@@ -564,7 +592,7 @@ static struct bin_attribute sysfs_reset_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_edc(struct kobject *kobj,
+qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -622,7 +650,7 @@ static struct bin_attribute sysfs_edc_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_edc_status(struct kobject *kobj,
+qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -672,7 +700,7 @@ qla2x00_sysfs_write_edc_status(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_read_edc_status(struct kobject *kobj,
+qla2x00_sysfs_read_edc_status(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -702,7 +730,7 @@ static struct bin_attribute sysfs_edc_status_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_xgmac_stats(struct kobject *kobj,
+qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -754,7 +782,7 @@ static struct bin_attribute sysfs_xgmac_stats_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_dcbx_tlv(struct kobject *kobj,
+qla2x00_sysfs_read_dcbx_tlv(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -835,7 +863,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(vha->hw))
+		if (iter->is4GBp_only == 3 && !(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -859,7 +887,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(ha))
+		if (iter->is4GBp_only == 3 && !!(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -965,7 +993,8 @@ qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
 	int len = 0;
 
 	if (atomic_read(&vha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&vha->loop_state) == LOOP_DEAD)
+	    atomic_read(&vha->loop_state) == LOOP_DEAD ||
+	    vha->device_flags & DFLG_NO_CABLE)
 		len = snprintf(buf, PAGE_SIZE, "Link Down\n");
 	else if (atomic_read(&vha->loop_state) != LOOP_READY ||
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
@@ -1168,6 +1197,28 @@ qla2x00_total_isp_aborts_show(struct device *dev,
 }
 
 static ssize_t
+qla24xx_84xx_fw_version_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int rval = QLA_SUCCESS;
+	uint16_t status[2] = {0, 0};
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA84XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	if (ha->cs84xx && ha->cs84xx->op_fw_version == 0)
+		rval = qla84xx_verify_chip(vha, status);
+
+	if ((rval == QLA_SUCCESS) && (status[0] == 0))
+		return snprintf(buf, PAGE_SIZE, "%u\n",
+			(uint32_t)ha->cs84xx->op_fw_version);
+
+	return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static ssize_t
 qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
@@ -1212,7 +1263,7 @@ qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
@@ -1224,7 +1275,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1250,7 +1301,11 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 	int rval = QLA_FUNCTION_FAILED;
 	uint16_t state[5];
 
-	if (!vha->hw->flags.eeh_busy)
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
+		test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+		DEBUG2_3_11(printk("%s(%ld): isp reset in progress.\n",
+			__func__, vha->host_no));
+	else if (!vha->hw->flags.eeh_busy)
 		rval = qla2x00_get_firmware_state(vha, state);
 	if (rval != QLA_SUCCESS)
 		memset(state, -1, sizeof(state));
@@ -1281,6 +1336,8 @@ static DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
 		   qla2x00_optrom_fcode_version_show, NULL);
 static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
 		   NULL);
+static DEVICE_ATTR(84xx_fw_version, S_IRUGO, qla24xx_84xx_fw_version_show,
+		   NULL);
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
 		   NULL);
 static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
@@ -1310,6 +1367,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_optrom_efi_version,
 	&dev_attr_optrom_fcode_version,
 	&dev_attr_optrom_fw_version,
+	&dev_attr_84xx_fw_version,
 	&dev_attr_total_isp_aborts,
 	&dev_attr_mpi_version,
 	&dev_attr_phy_version,
@@ -1504,8 +1562,6 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 		fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
 			fcport->loop_id, fcport->d_id.b.domain,
 			fcport->d_id.b.area, fcport->d_id.b.al_pa);
-
-	qla2x00_abort_fcport_cmds(fcport);
 }
 
 static int
@@ -1676,6 +1732,22 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 	}
 
+	if (IS_QLA25XX(ha) && ql2xenabledif) {
+		if (ha->fw_attributes & BIT_4) {
+			vha->flags.difdix_supported = 1;
+			DEBUG18(qla_printk(KERN_INFO, ha,
+			    "Registering for DIF/DIX type 1 and 3"
+			    " protection.\n"));
+			scsi_host_set_prot(vha->host,
+			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE3_PROTECTION
+			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE3_PROTECTION);
+			scsi_host_set_guard(vha->host, SHOST_DIX_GUARD_CRC);
+		} else
+			vha->flags.difdix_supported = 0;
+	}
+
 	if (scsi_add_host_with_dma(vha->host, &fc_vport->dev,
 				   &ha->pdev->dev)) {
 		DEBUG15(printk("scsi(%ld): scsi_add_host failure for VP[%d].\n",
@@ -1838,6 +1910,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.vport_create = qla24xx_vport_create,
 	.vport_disable = qla24xx_vport_disable,
 	.vport_delete = qla24xx_vport_delete,
+	.bsg_request = qla24xx_bsg_request,
+	.bsg_timeout = qla24xx_bsg_timeout,
 };
 
 struct fc_function_template qla2xxx_transport_vport_functions = {
@@ -1878,6 +1952,8 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 	.dev_loss_tmo_callbk = qla2x00_dev_loss_tmo_callbk,
 	.terminate_rport_io = qla2x00_terminate_rport_io,
 	.get_fc_host_stats = qla2x00_get_fc_host_stats,
+	.bsg_request = qla24xx_bsg_request,
+	.bsg_timeout = qla24xx_bsg_timeout,
 };
 
 void
@@ -1892,7 +1968,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		speed = FC_PORTSPEED_10GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |

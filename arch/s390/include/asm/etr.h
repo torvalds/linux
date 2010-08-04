@@ -145,11 +145,11 @@ static inline int etr_setr(struct etr_eacr *ctrl)
 	int rc = -ENOSYS;
 
 	asm volatile(
-		"	.insn	s,0xb2160000,0(%2)\n"
+		"	.insn	s,0xb2160000,%1\n"
 		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "+d" (rc) : "m" (*ctrl), "a" (ctrl));
+		: "+d" (rc) : "Q" (*ctrl));
 	return rc;
 }
 
@@ -159,11 +159,11 @@ static inline int etr_stetr(struct etr_aib *aib)
 	int rc = -ENOSYS;
 
 	asm volatile(
-		"	.insn	s,0xb2170000,0(%2)\n"
+		"	.insn	s,0xb2170000,%1\n"
 		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "+d" (rc) : "m" (*aib), "a" (aib));
+		: "+d" (rc) : "Q" (*aib));
 	return rc;
 }
 
@@ -174,11 +174,11 @@ static inline int etr_steai(struct etr_aib *aib, unsigned int func)
 	int rc = -ENOSYS;
 
 	asm volatile(
-		"	.insn	s,0xb2b30000,0(%2)\n"
+		"	.insn	s,0xb2b30000,%1\n"
 		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "+d" (rc) : "m" (*aib), "a" (aib), "d" (reg0));
+		: "+d" (rc) : "Q" (*aib), "d" (reg0));
 	return rc;
 }
 

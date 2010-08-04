@@ -29,17 +29,9 @@
 #include <linux/interrupt.h>
 
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-pb1x00/pb1100.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>
-
-
-struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1000_GPIO_9,  IRQF_TRIGGER_LOW, 0 }, /* PCMCIA Card Fully_Inserted# */
-	{ AU1000_GPIO_10, IRQF_TRIGGER_LOW, 0 }, /* PCMCIA Card STSCHG# */
-	{ AU1000_GPIO_11, IRQF_TRIGGER_LOW, 0 }, /* PCMCIA Card IRQ# */
-	{ AU1000_GPIO_13, IRQF_TRIGGER_LOW, 0 }, /* DC_IRQ# */
-};
 
 
 const char *get_system_type(void)
@@ -47,45 +39,12 @@ const char *get_system_type(void)
 	return "Alchemy Pb1100";
 }
 
-void board_reset(void)
-{
-	/* Hit BCSR.RST_VDDI[SOFT_RESET] */
-	au_writel(0x00000000, PB1100_RST_VDDI);
-}
-
-void __init board_init_irq(void)
-{
-	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
-}
-
 void __init board_setup(void)
 {
 	volatile void __iomem *base = (volatile void __iomem *)0xac000000UL;
-	char *argptr;
 
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
-#ifdef CONFIG_FB_AU1100
-	argptr = strstr(argptr, "video=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		/* default panel */
-		/*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
-	}
-#endif
-
-#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
-	/* au1000 does not support vra, au1500 and au1100 do */
-	strcat(argptr, " au1000_audio=vra");
-	argptr = prom_getcmdline();
-#endif
+	bcsr_init(DB1000_BCSR_PHYS_ADDR,
+		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
 	/* Set AUX clock to 12 MHz * 8 = 96 MHz */
 	au_writel(8, SYS_AUXPLL);
@@ -155,3 +114,14 @@ void __init board_setup(void)
 		au_sync();
 	}
 }
+
+static int __init pb1100_init_irq(void)
+{
+	set_irq_type(AU1100_GPIO9_INT,  IRQF_TRIGGER_LOW); /* PCCD# */
+	set_irq_type(AU1100_GPIO10_INT, IRQF_TRIGGER_LOW); /* PCSTSCHG# */
+	set_irq_type(AU1100_GPIO11_INT, IRQF_TRIGGER_LOW); /* PCCard# */
+	set_irq_type(AU1100_GPIO13_INT, IRQF_TRIGGER_LOW); /* DC_IRQ# */
+
+	return 0;
+}
+arch_initcall(pb1100_init_irq);

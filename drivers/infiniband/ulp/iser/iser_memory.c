@@ -41,62 +41,6 @@
 #define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
 
 /**
- * Decrements the reference count for the
- * registered buffer & releases it
- *
- * returns 0 if released, 1 if deferred
- */
-int iser_regd_buff_release(struct iser_regd_buf *regd_buf)
-{
-	struct ib_device *dev;
-
-	if ((atomic_read(&regd_buf->ref_count) == 0) ||
-	    atomic_dec_and_test(&regd_buf->ref_count)) {
-		/* if we used the dma mr, unreg is just NOP */
-		if (regd_buf->reg.is_fmr)
-			iser_unreg_mem(&regd_buf->reg);
-
-		if (regd_buf->dma_addr) {
-			dev = regd_buf->device->ib_device;
-			ib_dma_unmap_single(dev,
-					 regd_buf->dma_addr,
-					 regd_buf->data_size,
-					 regd_buf->direction);
-		}
-		/* else this regd buf is associated with task which we */
-		/* dma_unmap_single/sg later */
-		return 0;
-	} else {
-		iser_dbg("Release deferred, regd.buff: 0x%p\n", regd_buf);
-		return 1;
-	}
-}
-
-/**
- * iser_reg_single - fills registered buffer descriptor with
- *		     registration information
- */
-void iser_reg_single(struct iser_device *device,
-		     struct iser_regd_buf *regd_buf,
-		     enum dma_data_direction direction)
-{
-	u64 dma_addr;
-
-	dma_addr = ib_dma_map_single(device->ib_device,
-				     regd_buf->virt_addr,
-				     regd_buf->data_size, direction);
-	BUG_ON(ib_dma_mapping_error(device->ib_device, dma_addr));
-
-	regd_buf->reg.lkey = device->mr->lkey;
-	regd_buf->reg.len  = regd_buf->data_size;
-	regd_buf->reg.va   = dma_addr;
-	regd_buf->reg.is_fmr = 0;
-
-	regd_buf->dma_addr  = dma_addr;
-	regd_buf->direction = direction;
-}
-
-/**
  * iser_start_rdma_unaligned_sg
  */
 static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
@@ -109,10 +53,10 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 	unsigned long  cmd_data_len = data->data_len;
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
-		mem = (void *)__get_free_pages(GFP_NOIO,
+		mem = (void *)__get_free_pages(GFP_ATOMIC,
 		      ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
-		mem = kmalloc(cmd_data_len, GFP_NOIO);
+		mem = kmalloc(cmd_data_len, GFP_ATOMIC);
 
 	if (mem == NULL) {
 		iser_err("Failed to allocate mem size %d %d for copying sglist\n",
@@ -474,9 +418,5 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 			return err;
 		}
 	}
-
-	/* take a reference on this regd buf such that it will not be released *
-	 * (eg in send dto completion) before we get the scsi response         */
-	atomic_inc(&regd_buf->ref_count);
 	return 0;
 }

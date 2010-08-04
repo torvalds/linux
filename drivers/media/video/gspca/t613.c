@@ -44,7 +44,10 @@ struct sd {
 	u8 gamma;
 	u8 sharpness;
 	u8 freq;
-	u8 whitebalance;
+	u8 red_balance; /* split balance */
+	u8 blue_balance;
+	u8 global_gain; /* aka gain */
+	u8 whitebalance; /* set default r/g/b and activate */
 	u8 mirror;
 	u8 effect;
 
@@ -52,6 +55,7 @@ struct sd {
 #define SENSOR_OM6802 0
 #define SENSOR_OTHER 1
 #define SENSOR_TAS5130A 2
+#define SENSOR_LT168G 3     /* must verify if this is the actual model */
 };
 
 /* V4L2 controls supported by the driver */
@@ -69,8 +73,17 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
+
+
 static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val);
+
 static int sd_setflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_seteffect(struct gspca_dev *gspca_dev, __s32 val);
@@ -78,7 +91,8 @@ static int sd_geteffect(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu);
 
-static struct ctrl sd_ctrls[] = {
+
+static const struct ctrl sd_ctrls[] = {
 	{
 	 {
 	  .id = V4L2_CID_BRIGHTNESS,
@@ -138,7 +152,7 @@ static struct ctrl sd_ctrls[] = {
 	 },
 	{
 	 {
-	  .id = V4L2_CID_GAIN,	/* here, i activate only the lowlight,
+	  .id = V4L2_CID_BACKLIGHT_COMPENSATION, /* Activa lowlight,
 				 * some apps dont bring up the
 				 * backligth_compensation control) */
 	  .type = V4L2_CTRL_TYPE_INTEGER,
@@ -182,7 +196,7 @@ static struct ctrl sd_ctrls[] = {
 
 	{
 	 {
-	  .id = V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+	  .id =  V4L2_CID_AUTO_WHITE_BALANCE,
 	  .type = V4L2_CTRL_TYPE_INTEGER,
 	  .name = "White Balance",
 	  .minimum = 0,
@@ -221,6 +235,48 @@ static struct ctrl sd_ctrls[] = {
 	  },
 	 .set = sd_seteffect,
 	 .get = sd_geteffect
+	},
+	{
+	 {
+	    .id      = V4L2_CID_BLUE_BALANCE,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Blue Balance",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define BLUE_BALANCE_DEF 0x20
+	    .default_value = BLUE_BALANCE_DEF,
+	 },
+	.set = sd_setblue_balance,
+	.get = sd_getblue_balance,
+	},
+	{
+	 {
+	    .id      = V4L2_CID_RED_BALANCE,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Red Balance",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define RED_BALANCE_DEF 0x20
+	    .default_value = RED_BALANCE_DEF,
+	 },
+	.set = sd_setred_balance,
+	.get = sd_getred_balance,
+	},
+	{
+	 {
+	    .id      = V4L2_CID_GAIN,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Gain",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define global_gain_DEF  0x20
+	    .default_value = global_gain_DEF,
+	 },
+	.set = sd_setglobal_gain,
+	.get = sd_getglobal_gain,
 	},
 };
 
@@ -306,6 +362,17 @@ static const u8 n4_tas5130a[] = {
 	0xbe, 0x36, 0xbf, 0xff, 0xc2, 0x88, 0xc5, 0xc8,
 	0xc6, 0xda
 };
+static const u8 n4_lt168g[] = {
+	0x66, 0x01, 0x7f, 0x00, 0x80, 0x7c, 0x81, 0x28,
+	0x83, 0x44, 0x84, 0x20, 0x86, 0x20, 0x8a, 0x70,
+	0x8b, 0x58, 0x8c, 0x88, 0x8d, 0xa0, 0x8e, 0xb3,
+	0x8f, 0x24, 0xa1, 0xb0, 0xa2, 0x38, 0xa5, 0x20,
+	0xa6, 0x4a, 0xa8, 0xe8, 0xaf, 0x38, 0xb0, 0x68,
+	0xb1, 0x44, 0xb2, 0x88, 0xbb, 0x86, 0xbd, 0x40,
+	0xbe, 0x26, 0xc1, 0x05, 0xc2, 0x88, 0xc5, 0xc0,
+	0xda, 0x8e, 0xdb, 0xca, 0xdc, 0xa8, 0xdd, 0x8c,
+	0xde, 0x44, 0xdf, 0x0c, 0xe9, 0x80
+};
 
 static const struct additional_sensor_data sensor_data[] = {
     {				/* 0: OM6802 */
@@ -379,6 +446,23 @@ static const struct additional_sensor_data sensor_data[] = {
 		{0x0c, 0x03, 0xab, 0x10, 0x81, 0x20},
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x40},
+    },
+    {				/* 3: LT168G */
+	.n3 = {0x61, 0xc2, 0x65, 0x68, 0x60, 0x00},
+	.n4 = n4_lt168g,
+	.n4sz = sizeof n4_lt168g,
+	.reg80 = 0x7c,
+	.reg8e = 0xb3,
+	.nset8 = {0xa8, 0xf0, 0xc6, 0xba, 0xc0, 0x00},
+	.data1 = {0xc0, 0x38, 0x08, 0x10, 0xc0, 0x30, 0x10, 0x40,
+		 0xb0, 0xf4},
+	.data2 = {0x40, 0x80, 0xc0, 0x50, 0xa0, 0xf0, 0x53, 0xa6,
+		 0xff},
+	.data3 = {0x40, 0x80, 0xc0, 0x50, 0xa0, 0xf0, 0x53, 0xa6,
+		 0xff},
+	.data4 = {0x66, 0x41, 0xa8, 0xf0},
+	.data5 = {0x0c, 0x03, 0xab, 0x4b, 0x81, 0x2b},
+	.stream = {0x0b, 0x04, 0x0a, 0x28},
     },
 };
 
@@ -494,6 +578,10 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		u8 *tmpbuf;
 
 		tmpbuf = kmalloc(len, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
 		memcpy(tmpbuf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -513,10 +601,15 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	int i;
 	u8 *p, *tmpbuf;
 
-	if (len * 2 <= USB_BUF_SZ)
+	if (len * 2 <= USB_BUF_SZ) {
 		p = tmpbuf = gspca_dev->usb_buf;
-	else
+	} else {
 		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
+	}
 	i = len;
 	while (--i >= 0) {
 		*p++ = reg++;
@@ -613,6 +706,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->whitebalance = WHITE_BALANCE_DEF;
 	sd->sharpness = SHARPNESS_DEF;
 	sd->effect = EFFECTS_DEF;
+	sd->red_balance = RED_BALANCE_DEF;
+	sd->blue_balance = BLUE_BALANCE_DEF;
+	sd->global_gain = global_gain_DEF;
+
 	return 0;
 }
 
@@ -664,18 +761,40 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	reg_w_ixbuf(gspca_dev, 0x90,
 		gamma_table[sd->gamma], sizeof gamma_table[0]);
 }
+static void setglobalgain(struct gspca_dev *gspca_dev)
+{
 
-static void setwhitebalance(struct gspca_dev *gspca_dev)
+	struct sd *sd = (struct sd *) gspca_dev;
+	reg_w(gspca_dev, (sd->red_balance  << 8) + 0x87);
+	reg_w(gspca_dev, (sd->blue_balance << 8) + 0x88);
+	reg_w(gspca_dev, (sd->global_gain  << 8) + 0x89);
+}
+
+/* Generic fnc for r/b balance, exposure and whitebalance */
+static void setbalance(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	u8 white_balance[8] =
-		{0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38};
+	/* on whitebalance leave defaults values */
+	if (sd->whitebalance) {
+		reg_w(gspca_dev, 0x3c80);
+	} else {
+		reg_w(gspca_dev, 0x3880);
+		/* shoud we wait here.. */
+		/* update and reset 'global gain' with webcam parameters */
+		sd->red_balance = reg_r(gspca_dev, 0x0087);
+		sd->blue_balance = reg_r(gspca_dev, 0x0088);
+		sd->global_gain = reg_r(gspca_dev, 0x0089);
+		setglobalgain(gspca_dev);
+	}
 
-	if (sd->whitebalance)
-		white_balance[7] = 0x3c;
+}
 
-	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
+
+
+static void setwhitebalance(struct gspca_dev *gspca_dev)
+{
+	setbalance(gspca_dev);
 }
 
 static void setsharpness(struct gspca_dev *gspca_dev)
@@ -715,6 +834,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case 0x0801:
 		PDEBUG(D_PROBE, "sensor tas5130a");
 		sd->sensor = SENSOR_TAS5130A;
+		break;
+	case 0x0802:
+		PDEBUG(D_PROBE, "sensor lt168g");
+		sd->sensor = SENSOR_LT168G;
 		break;
 	case 0x0803:
 		PDEBUG(D_PROBE, "sensor 'other'");
@@ -758,6 +881,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor->n3, sizeof sensor->n3);
 	reg_w_buf(gspca_dev, sensor->n4, sensor->n4sz);
 
+	if (sd->sensor == SENSOR_LT168G) {
+		test_byte = reg_r(gspca_dev, 0x80);
+		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
+		       test_byte);
+		reg_w(gspca_dev, 0x6c80);
+	}
+
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor->data1, sizeof sensor->data1);
 	reg_w_ixbuf(gspca_dev, 0xc7, sensor->data2, sizeof sensor->data2);
 	reg_w_ixbuf(gspca_dev, 0xe0, sensor->data3, sizeof sensor->data3);
@@ -781,6 +911,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor->data5, sizeof sensor->data5);
 	reg_w_buf(gspca_dev, sensor->nset8, sizeof sensor->nset8);
 	reg_w_buf(gspca_dev, sensor->stream, sizeof sensor->stream);
+
+	if (sd->sensor == SENSOR_LT168G) {
+		test_byte = reg_r(gspca_dev, 0x80);
+		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
+		       test_byte);
+		reg_w(gspca_dev, 0x6c80);
+	}
 
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor->data1, sizeof sensor->data1);
 	reg_w_ixbuf(gspca_dev, 0xc7, sensor->data2, sizeof sensor->data2);
@@ -888,6 +1025,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OM6802:
 		om6802_sensor_init(gspca_dev);
 		break;
+	case SENSOR_LT168G:
+		break;
 	case SENSOR_OTHER:
 		break;
 	default:
@@ -968,6 +1107,66 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
+
+
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->blue_balance = val;
+	if (gspca_dev->streaming)
+		reg_w(gspca_dev, (val << 8) + 0x88);
+	return 0;
+}
+
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->blue_balance;
+	return 0;
+}
+
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->red_balance = val;
+	if (gspca_dev->streaming)
+		reg_w(gspca_dev, (val << 8) + 0x87);
+
+	return 0;
+}
+
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->red_balance;
+	return 0;
+}
+
+
+
+static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->global_gain = val;
+	if (gspca_dev->streaming)
+		setglobalgain(gspca_dev);
+
+	return 0;
+}
+
+static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->global_gain;
+	return 0;
+}
+
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {

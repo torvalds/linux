@@ -18,6 +18,7 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include "ext4.h"
 
 struct ext4_system_zone {
@@ -71,9 +72,9 @@ static int add_system_zone(struct ext4_sb_info *sbi,
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = &(*n)->rb_right;
 		else {
-			if (start_blk + count > (entry->start_blk + 
+			if (start_blk + count > (entry->start_blk +
 						 entry->count))
-				entry->count = (start_blk + count - 
+				entry->count = (start_blk + count -
 						entry->start_blk);
 			new_node = *n;
 			new_entry = rb_entry(new_node, struct ext4_system_zone,
@@ -205,14 +206,14 @@ void ext4_release_system_zone(struct super_block *sb)
 		entry = rb_entry(n, struct ext4_system_zone, node);
 		kmem_cache_free(ext4_system_zone_cachep, entry);
 		if (!parent)
-			EXT4_SB(sb)->system_blks.rb_node = NULL;
+			EXT4_SB(sb)->system_blks = RB_ROOT;
 		else if (parent->rb_left == n)
 			parent->rb_left = NULL;
 		else if (parent->rb_right == n)
 			parent->rb_right = NULL;
 		n = parent;
 	}
-	EXT4_SB(sb)->system_blks.rb_node = NULL;
+	EXT4_SB(sb)->system_blks = RB_ROOT;
 }
 
 /*

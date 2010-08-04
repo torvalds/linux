@@ -78,6 +78,35 @@ int put_reg(struct task_struct *task, unsigned int regno, unsigned long data)
 	return 0;
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	unsigned long tmp;
+
+	/*
+	 * Set up SPC if not set already (in which case we have no other
+	 * choice but to trust it).
+	 */
+	if (!get_reg(child, PT_SPC)) {
+		/* In case we're stopped in a delay slot. */
+		tmp = get_reg(child, PT_ERP) & ~1;
+		put_reg(child, PT_SPC, tmp);
+	}
+	tmp = get_reg(child, PT_CCS) | SBIT_USER;
+	put_reg(child, PT_CCS, tmp);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	put_reg(child, PT_SPC, 0);
+
+	if (!get_debugreg(child->pid, PT_BP_CTRL)) {
+		unsigned long tmp;
+		/* If no h/w bp configured, disable S bit. */
+		tmp = get_reg(child, PT_CCS) & ~SBIT_USER;
+		put_reg(child, PT_CCS, tmp);
+	}
+}
+
 /*
  * Called by kernel/ptrace.c when detaching.
  *
@@ -89,8 +118,7 @@ ptrace_disable(struct task_struct *child)
 	unsigned long tmp;
 
 	/* Deconfigure SPC and S-bit. */
-	tmp = get_reg(child, PT_CCS) & ~SBIT_USER;
-	put_reg(child, PT_CCS, tmp);
+	user_disable_single_step(child);
 	put_reg(child, PT_SPC, 0);
 
 	/* Deconfigure any watchpoints associated with the child. */
@@ -168,83 +196,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			ret = 0;
 			break;
-
-		case PTRACE_SYSCALL:
-		case PTRACE_CONT:
-			ret = -EIO;
-
-			if (!valid_signal(data))
-				break;
-
-			/* Continue means no single-step. */
-			put_reg(child, PT_SPC, 0);
-
-			if (!get_debugreg(child->pid, PT_BP_CTRL)) {
-				unsigned long tmp;
-				/* If no h/w bp configured, disable S bit. */
-				tmp = get_reg(child, PT_CCS) & ~SBIT_USER;
-				put_reg(child, PT_CCS, tmp);
-			}
-
-			if (request == PTRACE_SYSCALL) {
-				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			}
-			else {
-				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			}
-
-			child->exit_code = data;
-
-			/* TODO: make sure any pending breakpoint is killed */
-			wake_up_process(child);
-			ret = 0;
-
-			break;
-
-		/* Make the child exit by sending it a sigkill. */
-		case PTRACE_KILL:
-			ret = 0;
-
-			if (child->exit_state == EXIT_ZOMBIE)
-				break;
-
-			child->exit_code = SIGKILL;
-
-			/* Deconfigure single-step and h/w bp. */
-			ptrace_disable(child);
-
-			/* TODO: make sure any pending breakpoint is killed */
-			wake_up_process(child);
-			break;
-
-		/* Set the trap flag. */
-		case PTRACE_SINGLESTEP:	{
-			unsigned long tmp;
-			ret = -EIO;
-
-			/* Set up SPC if not set already (in which case we have
-			   no other choice but to trust it). */
-			if (!get_reg(child, PT_SPC)) {
-				/* In case we're stopped in a delay slot. */
-				tmp = get_reg(child, PT_ERP) & ~1;
-				put_reg(child, PT_SPC, tmp);
-			}
-			tmp = get_reg(child, PT_CCS) | SBIT_USER;
-			put_reg(child, PT_CCS, tmp);
-
-			if (!valid_signal(data))
-				break;
-
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-			/* TODO: set some clever breakpoint mechanism... */
-
-			child->exit_code = data;
-			wake_up_process(child);
-			ret = 0;
-			break;
-
-		}
 
 		/* Get all GP registers from the child. */
 		case PTRACE_GETREGS: {

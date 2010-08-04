@@ -55,25 +55,22 @@ static struct irq_chip hd64461_irq_chip = {
 
 static void hd64461_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned short intv = ctrl_inw(HD64461_NIRR);
-	struct irq_desc *ext_desc;
+	unsigned short intv = __raw_readw(HD64461_NIRR);
 	unsigned int ext_irq = HD64461_IRQBASE;
 
 	intv &= (1 << HD64461_IRQ_NUM) - 1;
 
-	while (intv) {
-		if (intv & 1) {
-			ext_desc = irq_desc + ext_irq;
-			handle_level_irq(ext_irq, ext_desc);
-		}
-		intv >>= 1;
-		ext_irq++;
+	for (; intv; intv >>= 1, ext_irq++) {
+		if (!(intv & 1))
+			continue;
+
+		generic_handle_irq(ext_irq);
 	}
 }
 
 int __init setup_hd64461(void)
 {
-	int i;
+	int i, nid = cpu_to_node(boot_cpu_data);
 
 	if (!MACH_HD64461)
 		return 0;
@@ -90,9 +87,26 @@ int __init setup_hd64461(void)
 	__raw_writew(0xffff, HD64461_NIMR);
 
 	/*  IRQ 80 -> 95 belongs to HD64461  */
-	for (i = HD64461_IRQBASE; i < HD64461_IRQBASE + 16; i++)
+	for (i = HD64461_IRQBASE; i < HD64461_IRQBASE + 16; i++) {
+		unsigned int irq;
+
+		irq = create_irq_nr(i, nid);
+		if (unlikely(irq == 0)) {
+			pr_err("%s: failed hooking irq %d for HD64461\n",
+			       __func__, i);
+			return -EBUSY;
+		}
+
+		if (unlikely(irq != i)) {
+			pr_err("%s: got irq %d but wanted %d, bailing.\n",
+			       __func__, irq, i);
+			destroy_irq(irq);
+			return -EINVAL;
+		}
+
 		set_irq_chip_and_handler(i, &hd64461_irq_chip,
 					 handle_level_irq);
+	}
 
 	set_irq_chained_handler(CONFIG_HD64461_IRQ, hd64461_irq_demux);
 	set_irq_type(CONFIG_HD64461_IRQ, IRQ_TYPE_LEVEL_LOW);

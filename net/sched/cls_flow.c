@@ -20,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 
 #include <net/pkt_cls.h>
 #include <net/ip.h>
@@ -601,7 +602,6 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 
 static void flow_put(struct tcf_proto *tp, unsigned long f)
 {
-	return;
 }
 
 static int flow_dump(struct tcf_proto *tp, unsigned long fh,

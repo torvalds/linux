@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 
 void viafb_get_device_support_state(u32 *support_state)
@@ -238,16 +239,4 @@ void viafb_get_gamma_support_state(int bpp, unsigned int *support_state)
 		*support_state = None_Device;
 	else
 		*support_state = CRT_Device | DVI_Device | LCD_Device;
-}
-
-int viafb_input_parameter_converter(int parameter_value)
-{
-	int result;
-
-	if (parameter_value >= 1 && parameter_value <= 9)
-		result = 1 << (parameter_value - 1);
-	else
-		result = 1;
-
-	return result;
 }

@@ -38,7 +38,7 @@ static int __init br_init(void)
 
 	err = stp_proto_register(&br_stp_proto);
 	if (err < 0) {
-		printk(KERN_ERR "bridge: can't register sap for STP\n");
+		pr_err("bridge: can't register sap for STP\n");
 		return err;
 	}
 

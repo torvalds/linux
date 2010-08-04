@@ -394,6 +394,7 @@ config ATM_HE_USE_SUNI
 config ATM_SOLOS
 	tristate "Solos ADSL2+ PCI Multiport card driver"
 	depends on PCI
+	select FW_LOADER
 	help
 	  Support for the Solos multiport ADSL2+ card.
 

@@ -194,6 +194,10 @@ FTDI Single Port Serial Driver
 
   This is a single port DB-25 serial adapter.
 
+  Devices supported include:
+                -TripNav TN-200 USB GPS
+                -Navis Engineering Bureau CH-4711 USB GPS
+
   For any questions or problems with this driver, please contact Bill Ryder.
 
 
@@ -216,7 +220,7 @@ Cypress M8 CY4601 Family Serial Driver
 
     Devices supported:
 
-		-DeLorme's USB Earthmate (SiRF Star II lp arch)
+		-DeLorme's USB Earthmate GPS (SiRF Star II lp arch)
 		-Cypress HID->COM RS232 adapter
 	
 		Note: Cypress Semiconductor claims no affiliation with the
@@ -392,9 +396,10 @@ REINER SCT cyberJack pinpad/e-com USB chipcard reader
 Prolific PL2303 Driver
 
   This driver supports any device that has the PL2303 chip from Prolific
-  in it.  This includes a number of single port USB to serial
-  converters and USB GPS devices.  Devices from Aten (the UC-232) and
-  IO-Data work with this driver, as does the DCU-11 mobile-phone cable.
+  in it.  This includes a number of single port USB to serial converters,
+  more than 70% of USB GPS devices (in 2010), and some USB UPSes. Devices
+  from Aten (the UC-232) and IO-Data work with this driver, as does
+  the DCU-11 mobile-phone cable.
 
   For any questions or problems with this driver, please contact Greg
   Kroah-Hartman at greg@kroah.com
@@ -435,6 +440,22 @@ Winchiphead CH341 Driver
   For any questions or problems with this driver, please contact
   frank@kingswood-consulting.co.uk.
 
+Moschip MCS7720, MCS7715 driver
+
+  These chips are present in devices sold by various manufacturers, such as Syba
+  and Cables Unlimited.  There may be others.  The 7720 provides two serial
+  ports, and the 7715 provides one serial and one standard PC parallel port.
+  Support for the 7715's parallel port is enabled by a separate option, which
+  will not appear unless parallel port support is first enabled at the top-level
+  of the Device Drivers config menu.  Currently only compatibility mode is
+  supported on the parallel port (no ECP/EPP).
+
+  TODO:
+    - Implement ECP/EPP modes for the parallel port.
+    - Baud rates higher than 115200 are currently broken.
+    - Devices with a single serial port based on the Moschip MCS7703 may work
+      with this driver with a simple addition to the usb_device_id table.  I
+      don't have one of these devices, so I can't say for sure.
 
 Generic Serial driver
 

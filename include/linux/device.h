@@ -22,7 +22,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pm.h>
-#include <linux/semaphore.h>
 #include <asm/atomic.h>
 #include <asm/device.h>
 
@@ -34,6 +33,7 @@ struct class;
 struct class_private;
 struct bus_type;
 struct bus_type_private;
+struct device_node;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -106,7 +106,7 @@ extern int bus_unregister_notifier(struct bus_type *bus,
 
 /* All 4 notifers below get called with the target struct device *
  * as an argument. Note that those functions are likely to be called
- * with the device semaphore held in the core, so be careful.
+ * with the device lock held in the core, so be careful.
  */
 #define BUS_NOTIFY_ADD_DEVICE		0x00000001 /* device added */
 #define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device removed */
@@ -127,6 +127,10 @@ struct device_driver {
 	const char		*mod_name;	/* used for built-in modules */
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
+
+#if defined(CONFIG_OF)
+	const struct of_device_id	*of_match_table;
+#endif
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
@@ -203,6 +207,9 @@ struct class {
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
 
+	const struct kobj_ns_type_operations *ns_type;
+	const void *(*namespace)(struct device *dev);
+
 	const struct dev_pm_ops *pm;
 
 	struct class_private *p;
@@ -251,8 +258,10 @@ extern struct device *class_find_device(struct class *class,
 
 struct class_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct class *class, char *buf);
-	ssize_t (*store)(struct class *class, const char *buf, size_t count);
+	ssize_t (*show)(struct class *class, struct class_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t count);
 };
 
 #define CLASS_ATTR(_name, _mode, _show, _store)			\
@@ -262,6 +271,23 @@ extern int __must_check class_create_file(struct class *class,
 					  const struct class_attribute *attr);
 extern void class_remove_file(struct class *class,
 			      const struct class_attribute *attr);
+
+/* Simple class attribute that is just a static string */
+
+struct class_attribute_string {
+	struct class_attribute attr;
+	char *str;
+};
+
+/* Currently read-only only */
+#define _CLASS_ATTR_STRING(_name, _mode, _str) \
+	{ __ATTR(_name, _mode, show_class_attr_string, NULL), _str }
+#define CLASS_ATTR_STRING(_name, _mode, _str) \
+	struct class_attribute_string class_attr_##_name = \
+		_CLASS_ATTR_STRING(_name, _mode, _str)
+
+extern ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
+                        char *buf);
 
 struct class_interface {
 	struct list_head	node;
@@ -385,7 +411,7 @@ struct device {
 	const char		*init_name; /* initial name of the device */
 	struct device_type	*type;
 
-	struct semaphore	sem;	/* semaphore to synchronize calls to
+	struct mutex		mutex;	/* mutex to synchronize calls to
 					 * its driver.
 					 */
 
@@ -414,6 +440,9 @@ struct device {
 					     override */
 	/* arch specific additions */
 	struct dev_archdata	archdata;
+#ifdef CONFIG_OF
+	struct device_node	*of_node;
+#endif
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 
@@ -432,6 +461,10 @@ struct device {
 
 static inline const char *dev_name(const struct device *dev)
 {
+	/* Use the init name until the kobject becomes available */
+	if (dev->init_name)
+		return dev->init_name;
+
 	return kobject_name(&dev->kobj);
 }
 
@@ -470,6 +503,38 @@ static inline void dev_set_uevent_suppress(struct device *dev, int val)
 static inline int device_is_registered(struct device *dev)
 {
 	return dev->kobj.state_in_sysfs;
+}
+
+static inline void device_enable_async_suspend(struct device *dev)
+{
+	if (dev->power.status == DPM_ON)
+		dev->power.async_suspend = true;
+}
+
+static inline void device_disable_async_suspend(struct device *dev)
+{
+	if (dev->power.status == DPM_ON)
+		dev->power.async_suspend = false;
+}
+
+static inline bool device_async_suspend_enabled(struct device *dev)
+{
+	return !!dev->power.async_suspend;
+}
+
+static inline void device_lock(struct device *dev)
+{
+	mutex_lock(&dev->mutex);
+}
+
+static inline int device_trylock(struct device *dev)
+{
+	return mutex_trylock(&dev->mutex);
+}
+
+static inline void device_unlock(struct device *dev)
+{
+	mutex_unlock(&dev->mutex);
 }
 
 void driver_init(void);

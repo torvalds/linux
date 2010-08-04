@@ -5,6 +5,7 @@
  */
 
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/dm-dirty-log.h>
 #include <linux/device-mapper.h>
 #include <linux/dm-log-userspace.h>

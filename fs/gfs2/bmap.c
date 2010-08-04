@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
@@ -72,11 +71,13 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	if (!PageUptodate(page)) {
 		void *kaddr = kmap(page);
+		u64 dsize = i_size_read(inode);
+ 
+		if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
+			dsize = dibh->b_size - sizeof(struct gfs2_dinode);
 
-		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
-		       ip->i_disksize);
-		memset(kaddr + ip->i_disksize, 0,
-		       PAGE_CACHE_SIZE - ip->i_disksize);
+		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
+		memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
 		kunmap(page);
 
 		SetPageUptodate(page);
@@ -541,7 +542,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 				*ptr++ = cpu_to_be64(bn++);
 			break;
 		}
-	} while (state != ALLOC_DATA);
+	} while ((state != ALLOC_DATA) || !dblock);
 
 	ip->i_height = height;
 	gfs2_add_inode_blocks(&ip->i_inode, alloced);
@@ -1039,13 +1040,15 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 		goto out;
 
 	if (gfs2_is_stuffed(ip)) {
+		u64 dsize = size + sizeof(struct gfs2_inode);
 		ip->i_disksize = size;
 		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
-		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
+		if (dsize > dibh->b_size)
+			dsize = dibh->b_size;
+		gfs2_buffer_clear_tail(dibh, dsize);
 		error = 1;
-
 	} else {
 		if (size & (u64)(sdp->sd_sb.sb_bsize - 1))
 			error = gfs2_block_truncate_page(ip->i_inode.i_mapping);

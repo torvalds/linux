@@ -15,6 +15,7 @@
 #include <linux/version.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
@@ -539,7 +540,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		xctrl.id = ctrl->id;
 		xctrl.value = ctrl->value;
 
-		uvc_ctrl_begin(chain);
+		ret = uvc_ctrl_begin(chain);
 		if (ret < 0)
 			return ret;
 
@@ -549,6 +550,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return ret;
 		}
 		ret = uvc_ctrl_commit(chain);
+		if (ret == 0)
+			ctrl->value = xctrl.value;
 		break;
 	}
 

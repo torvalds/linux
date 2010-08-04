@@ -39,8 +39,20 @@ extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
 			unsigned int /* length */);
 extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
-#define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__func__, xid,current_fsuid()));
-#define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__func__,curr_xid,(int)rc));}
+#define GetXid()						\
+({								\
+	int __xid = (int)_GetXid();				\
+	cFYI(1, "CIFS VFS: in %s as Xid: %d with uid: %d",	\
+	     __func__, __xid, current_fsuid());			\
+	__xid;							\
+})
+
+#define FreeXid(curr_xid)					\
+do {								\
+	_FreeXid(curr_xid);					\
+	cFYI(1, "CIFS VFS: leaving %s (xid = %d) rc = %d",	\
+	     __func__, curr_xid, (int)rc);			\
+} while (0)
 extern char *build_path_from_dentry(struct dentry *);
 extern char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
@@ -73,7 +85,7 @@ extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *);
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
 extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
-			enum securityEnum *secType);
+			struct TCP_Server_Info *server);
 extern int cifs_convert_address(char *src, void *dst);
 extern int map_smb_to_linux_error(struct smb_hdr *smb, int logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
@@ -83,7 +95,6 @@ extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifsSesInfo *ses,
 				void **request_buf);
 extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
-			     const int stage,
 			     const struct nls_table *nls_cp);
 extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
@@ -95,8 +106,10 @@ extern struct cifsFileInfo *cifs_new_fileinfo(struct inode *newinode,
 				__u16 fileHandle, struct file *file,
 				struct vfsmount *mnt, unsigned int oflags);
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
-			   struct vfsmount *mnt, int mode, int oflags,
-			   __u32 *poplock, __u16 *pnetfid, int xid);
+				struct super_block *sb,
+				int mode, int oflags,
+				__u32 *poplock, __u16 *pnetfid, int xid);
+void cifs_fill_uniqueid(struct super_block *sb, struct cifs_fattr *fattr);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     FILE_UNIX_BASIC_INFO *info,
 				     struct cifs_sb_info *cifs_sb);
@@ -104,10 +117,12 @@ extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
 extern struct inode *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
 
+extern int cifs_get_file_info(struct file *filp);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
 			struct super_block *sb, int xid, const __u16 *pfid);
+extern int cifs_get_file_info_unix(struct file *filp);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
@@ -123,7 +138,9 @@ extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
-extern int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
+extern int cifs_negotiate_protocol(unsigned int xid,
+				  struct cifsSesInfo *ses);
+extern int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
 			struct nls_table *nls_info);
 extern int CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses);
 
@@ -142,6 +159,8 @@ extern int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSFindClose(const int, struct cifsTconInfo *tcon,
 			const __u16 search_handle);
 
+extern int CIFSSMBQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_ALL_INFO *pFindData);
 extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			FILE_ALL_INFO *findData,
@@ -152,6 +171,8 @@ extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
 			FILE_ALL_INFO *findData,
 			const struct nls_table *nls_codepage, int remap);
 
+extern int CIFSSMBUnixQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_UNIX_BASIC_INFO *pFindData);
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
@@ -363,13 +384,10 @@ extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 			__u32 filter, struct file *file, int multishot,
 			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
-			const unsigned char *searchName, char *EAData,
+			const unsigned char *searchName,
+			const unsigned char *ea_name, char *EAData,
 			size_t bufsize, const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern ssize_t CIFSSMBQueryEA(const int xid, struct cifsTconInfo *tcon,
-		const unsigned char *searchName, const unsigned char *ea_name,
-		unsigned char *ea_value, size_t buf_size,
-		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,
 		const char *fileName, const char *ea_name,
 		const void *ea_value, const __u16 ea_value_len,

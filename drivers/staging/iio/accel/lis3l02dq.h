@@ -179,10 +179,6 @@ int lis3l02dq_spi_read_reg_8(struct device *dev,
 int lis3l02dq_spi_write_reg_8(struct device *dev,
 			      u8 reg_address,
 			      u8 *val);
-#define LIS3L02DQ_SCAN_ACC_X 0
-#define LIS3L02DQ_SCAN_ACC_Y 1
-#define LIS3L02DQ_SCAN_ACC_Z 2
-
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer

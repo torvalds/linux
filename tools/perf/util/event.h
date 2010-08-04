@@ -1,10 +1,10 @@
 #ifndef __PERF_RECORD_H
 #define __PERF_RECORD_H
 
+#include <limits.h>
+
 #include "../perf.h"
-#include "util.h"
-#include <linux/list.h>
-#include <linux/rbtree.h>
+#include "map.h"
 
 /*
  * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
@@ -68,19 +68,52 @@ struct sample_data {
 	u64 addr;
 	u64 id;
 	u64 stream_id;
-	u32 cpu;
 	u64 period;
-	struct ip_callchain *callchain;
+	u32 cpu;
 	u32 raw_size;
 	void *raw_data;
+	struct ip_callchain *callchain;
 };
 
 #define BUILD_ID_SIZE 20
 
 struct build_id_event {
 	struct perf_event_header header;
+	pid_t			 pid;
 	u8			 build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 	char			 filename[];
+};
+
+enum perf_user_event_type { /* above any possible kernel type */
+	PERF_RECORD_HEADER_ATTR			= 64,
+	PERF_RECORD_HEADER_EVENT_TYPE		= 65,
+	PERF_RECORD_HEADER_TRACING_DATA		= 66,
+	PERF_RECORD_HEADER_BUILD_ID		= 67,
+	PERF_RECORD_FINISHED_ROUND		= 68,
+	PERF_RECORD_HEADER_MAX
+};
+
+struct attr_event {
+	struct perf_event_header header;
+	struct perf_event_attr attr;
+	u64 id[];
+};
+
+#define MAX_EVENT_NAME 64
+
+struct perf_trace_event_type {
+	u64	event_id;
+	char	name[MAX_EVENT_NAME];
+};
+
+struct event_type_event {
+	struct perf_event_header header;
+	struct perf_trace_event_type event_type;
+};
+
+struct tracing_data_event {
+	struct perf_event_header header;
+	u32 size;
 };
 
 typedef union event_union {
@@ -92,83 +125,30 @@ typedef union event_union {
 	struct lost_event		lost;
 	struct read_event		read;
 	struct sample_event		sample;
+	struct attr_event		attr;
+	struct event_type_event		event_type;
+	struct tracing_data_event	tracing_data;
+	struct build_id_event		build_id;
 } event_t;
-
-struct events_stats {
-	u64 total;
-	u64 lost;
-};
 
 void event__print_totals(void);
 
-enum map_type {
-	MAP__FUNCTION = 0,
-	MAP__VARIABLE,
-};
-
-#define MAP__NR_TYPES (MAP__VARIABLE + 1)
-
-struct map {
-	union {
-		struct rb_node	rb_node;
-		struct list_head node;
-	};
-	u64			start;
-	u64			end;
-	enum map_type		type;
-	u64			pgoff;
-	u64			(*map_ip)(struct map *, u64);
-	u64			(*unmap_ip)(struct map *, u64);
-	struct dso		*dso;
-};
-
-static inline u64 map__map_ip(struct map *map, u64 ip)
-{
-	return ip - map->start + map->pgoff;
-}
-
-static inline u64 map__unmap_ip(struct map *map, u64 ip)
-{
-	return ip + map->start - map->pgoff;
-}
-
-static inline u64 identity__map_ip(struct map *map __used, u64 ip)
-{
-	return ip;
-}
-
-struct symbol;
-
-typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
-
-void map__init(struct map *self, enum map_type type,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso);
-struct map *map__new(struct mmap_event *event, enum map_type,
-		     char *cwd, int cwdlen);
-void map__delete(struct map *self);
-struct map *map__clone(struct map *self);
-int map__overlap(struct map *l, struct map *r);
-size_t map__fprintf(struct map *self, FILE *fp);
-
 struct perf_session;
 
-int map__load(struct map *self, struct perf_session *session,
-	      symbol_filter_t filter);
-struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
-				u64 addr, symbol_filter_t filter);
-struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
-					struct perf_session *session,
-					symbol_filter_t filter);
-void map__fixup_start(struct map *self);
-void map__fixup_end(struct map *self);
+typedef int (*event__handler_t)(event_t *event, struct perf_session *session);
 
-int event__synthesize_thread(pid_t pid,
-			     int (*process)(event_t *event,
-					    struct perf_session *session),
+int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session);
-void event__synthesize_threads(int (*process)(event_t *event,
-					      struct perf_session *session),
+void event__synthesize_threads(event__handler_t process,
 			       struct perf_session *session);
+int event__synthesize_kernel_mmap(event__handler_t process,
+				struct perf_session *session,
+				struct machine *machine,
+				const char *symbol_name);
+
+int event__synthesize_modules(event__handler_t process,
+			      struct perf_session *session,
+			      struct machine *machine);
 
 int event__process_comm(event_t *self, struct perf_session *session);
 int event__process_lost(event_t *self, struct perf_session *session);
@@ -179,5 +159,7 @@ struct addr_location;
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
 			     struct addr_location *al, symbol_filter_t filter);
 int event__parse_sample(event_t *event, u64 type, struct sample_data *data);
+
+extern const char *event__name[];
 
 #endif /* __PERF_RECORD_H */

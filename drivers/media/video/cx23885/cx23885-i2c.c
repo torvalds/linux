@@ -365,7 +365,17 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list);
+		/*
+		 * We can't call i2c_new_probed_device() because it uses
+		 * quick writes for probing and the IR receiver device only
+		 * replies to reads.
+		 */
+		if (i2c_smbus_xfer(&bus->i2c_adap, addr_list[0], 0,
+				   I2C_SMBUS_READ, 0, I2C_SMBUS_QUICK,
+				   NULL) >= 0) {
+			info.addr = addr_list[0];
+			i2c_new_device(&bus->i2c_adap, &info);
+		}
 	}
 
 	return bus->i2c_rc;

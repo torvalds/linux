@@ -16,6 +16,7 @@
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/prom.h>
 
@@ -189,6 +190,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 	pdev = platform_device_alloc(MPSC_CTLR_NAME, port_number);
 	if (!pdev)
 		return -ENOMEM;
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	err = platform_device_add_resources(pdev, r, 5);
 	if (err)
@@ -302,6 +304,7 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
 	if (!pdev)
 		return -ENOMEM;
 
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	err = platform_device_add_resources(pdev, r, 1);
 	if (err)
 		goto error;

@@ -70,6 +70,8 @@ extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 
 extern void __init mnt_init(void);
 
+extern spinlock_t vfsmount_lock;
+
 /*
  * fs_struct.c
  */
@@ -85,6 +87,8 @@ extern struct file *get_empty_filp(void);
  * super.c
  */
 extern int do_remount_sb(struct super_block *, int, void *, int);
+extern void __put_super(struct super_block *sb);
+extern void put_super(struct super_block *sb);
 
 /*
  * open.c

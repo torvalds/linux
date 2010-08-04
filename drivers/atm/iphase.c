@@ -54,6 +54,7 @@
 #include <linux/uio.h>  
 #include <linux/init.h>  
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <asm/system.h>  
 #include <asm/io.h>  
 #include <asm/atomic.h>  

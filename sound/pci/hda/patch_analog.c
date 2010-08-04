@@ -71,9 +71,10 @@ struct ad198x_spec {
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
-	unsigned int jack_present :1;
-	unsigned int inv_jack_detect:1;	/* inverted jack-detection */
-	unsigned int inv_eapd:1;	/* inverted EAPD implementation */
+	unsigned int jack_present: 1;
+	unsigned int inv_jack_detect: 1;/* inverted jack-detection */
+	unsigned int inv_eapd: 1;	/* inverted EAPD implementation */
+	unsigned int analog_beep: 1;	/* analog beep input present */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -165,6 +166,12 @@ static struct snd_kcontrol_new ad_beep_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new ad_beep2_mixer[] = {
+	HDA_CODEC_VOLUME("Digital Beep Playback Volume", 0, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP("Digital Beep Playback Switch", 0, 0, HDA_OUTPUT),
+	{ } /* end */
+};
+
 #define set_beep_amp(spec, nid, idx, dir) \
 	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir)) /* mono */
 #else
@@ -174,6 +181,7 @@ static struct snd_kcontrol_new ad_beep_mixer[] = {
 static int ad198x_build_controls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	struct snd_kcontrol *kctl;
 	unsigned int i;
 	int err;
 
@@ -202,15 +210,14 @@ static int ad198x_build_controls(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 	if (spec->beep_amp) {
 		struct snd_kcontrol_new *knew;
-		for (knew = ad_beep_mixer; knew->name; knew++) {
+		knew = spec->analog_beep ? ad_beep2_mixer : ad_beep_mixer;
+		for ( ; knew->name; knew++) {
 			struct snd_kcontrol *kctl;
 			kctl = snd_ctl_new1(knew, codec);
 			if (!kctl)
 				return -ENOMEM;
 			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec,
-						get_amp_nid_(spec->beep_amp),
-						kctl);
+			err = snd_hda_ctl_add(codec, 0, kctl);
 			if (err < 0)
 				return err;
 		}
@@ -239,6 +246,27 @@ static int ad198x_build_controls(struct hda_codec *codec)
 	}
 
 	ad198x_free_kctls(codec); /* no longer needed */
+
+	/* assign Capture Source enums to NID */
+	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
+	if (!kctl)
+		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
+	for (i = 0; kctl && i < kctl->count; i++) {
+		err = snd_hda_add_nid(codec, kctl, i, spec->capsrc_nids[i]);
+		if (err < 0)
+			return err;
+	}
+
+	/* assign IEC958 enums to NID */
+	kctl = snd_hda_find_mixer_ctl(codec,
+			SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source");
+	if (kctl) {
+		err = snd_hda_add_nid(codec, kctl, 0,
+				      spec->multiout.dig_out_nid);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -421,6 +449,11 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void ad198x_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void ad198x_free_kctls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -434,6 +467,46 @@ static void ad198x_free_kctls(struct hda_codec *codec)
 	snd_array_free(&spec->kctls);
 }
 
+static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
+				hda_nid_t hp)
+{
+	struct ad198x_spec *spec = codec->spec;
+	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+}
+
+static void ad198x_power_eapd(struct hda_codec *codec)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x11d41882:
+	case 0x11d4882a:
+	case 0x11d41884:
+	case 0x11d41984:
+	case 0x11d41883:
+	case 0x11d4184a:
+	case 0x11d4194a:
+	case 0x11d4194b:
+		ad198x_power_eapd_write(codec, 0x12, 0x11);
+		break;
+	case 0x11d41981:
+	case 0x11d41983:
+		ad198x_power_eapd_write(codec, 0x05, 0x06);
+		break;
+	case 0x11d41986:
+		ad198x_power_eapd_write(codec, 0x1b, 0x1a);
+		break;
+	case 0x11d41988:
+	case 0x11d4198b:
+	case 0x11d4989a:
+	case 0x11d4989b:
+		ad198x_power_eapd_write(codec, 0x29, 0x22);
+		break;
+	}
+}
+
 static void ad198x_free(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -441,10 +514,20 @@ static void ad198x_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	ad198x_shutup(codec);
 	ad198x_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
+
+#ifdef SND_HDA_NEEDS_RESUME
+static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	ad198x_shutup(codec);
+	ad198x_power_eapd(codec);
+	return 0;
+}
+#endif
 
 static struct hda_codec_ops ad198x_patch_ops = {
 	.build_controls = ad198x_build_controls,
@@ -454,6 +537,10 @@ static struct hda_codec_ops ad198x_patch_ops = {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = ad198x_check_power_status,
 #endif
+#ifdef SND_HDA_NEEDS_RESUME
+	.suspend = ad198x_suspend,
+#endif
+	.reboot_notify = ad198x_shutup,
 };
 
 
@@ -701,6 +788,7 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "External Amplifier",
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x1b,
 		.info = ad198x_eapd_info,
 		.get = ad198x_eapd_get,
 		.put = ad198x_eapd_put,
@@ -808,6 +896,7 @@ static struct snd_kcontrol_new ad1986a_automute_master_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1986a_hp_master_sw_put,
@@ -1008,7 +1097,7 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x81cb, "ASUS M2N", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x8234, "ASUS M2N", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x10de, 0xcb84, "ASUS A8N-VM", AD1986A_3STACK),
-	SND_PCI_QUIRK(0x1179, 0xff40, "Toshiba", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1179, 0xff40, "Toshiba Satellite L40-10Q", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xb03c, "Samsung R55", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung P50", AD1986A_SAMSUNG_P50),
@@ -1612,6 +1701,7 @@ static struct snd_kcontrol_new ad1981_hp_mixers[] = {
 	HDA_BIND_VOL("Master Playback Volume", &ad1981_hp_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x05,
 		.name = "Master Playback Switch",
 		.info = ad198x_eapd_info,
 		.get = ad198x_eapd_get,
@@ -1805,6 +1895,14 @@ static int patch_ad1981(struct hda_codec *codec)
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
 		spec->input_mux = &ad1981_thinkpad_capture_source;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_TOSHIBA:
 		spec->mixers[0] = ad1981_hp_mixers;
@@ -2136,6 +2234,7 @@ static struct snd_kcontrol_new ad1988_laptop_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "External Amplifier",
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x12,
 		.info = ad198x_eapd_info,
 		.get = ad198x_eapd_get,
 		.put = ad198x_eapd_put,
@@ -2257,6 +2356,7 @@ static struct snd_kcontrol_new ad1988_spdif_out_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "IEC958 Playback Source",
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x1b,
 		.info = ad1988_spdif_playback_source_info,
 		.get = ad1988_spdif_playback_source_get,
 		.put = ad1988_spdif_playback_source_put,
@@ -2369,6 +2469,12 @@ static struct hda_verb ad1988_spdif_init_verbs[] = {
 	/* SPDIF out pin */
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x27}, /* 0dB */
 
+	{ }
+};
+
+static struct hda_verb ad1988_spdif_in_init_verbs[] = {
+	/* unmute SPDIF input pin */
+	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ }
 };
 
@@ -2589,7 +2695,7 @@ static int add_control(struct ad198x_spec *spec, int type, const char *name,
 	if (! knew->name)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | get_amp_nid_(val);
+		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
 	return 0;
 }
@@ -3107,8 +3213,11 @@ static int patch_ad1988(struct hda_codec *codec)
 				ad1988_spdif_init_verbs;
 		}
 	}
-	if (spec->dig_in_nid && codec->vendor_id < 0x11d4989a)
+	if (spec->dig_in_nid && codec->vendor_id < 0x11d4989a) {
 		spec->mixers[spec->num_mixers++] = ad1988_spdif_in_mixers;
+		spec->init_verbs[spec->num_init_verbs++] =
+			ad1988_spdif_in_init_verbs;
+	}
 
 	codec->patch_ops = ad198x_patch_ops;
 	switch (board_config) {
@@ -3380,6 +3489,8 @@ static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("Docking Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("Docking Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
@@ -3421,6 +3532,8 @@ static struct hda_verb ad1984_thinkpad_init_verbs[] = {
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* docking mic boost */
 	{0x25, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* Analog PC Beeper - allow firmware/ACPI beeps */
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3) | 0x1a},
 	/* Analog mixer - docking mic; mute as default */
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* enable EAPD bit */
@@ -3553,6 +3666,7 @@ static int patch_ad1984(struct hda_codec *codec)
 		spec->input_mux = &ad1984_thinkpad_capture_source;
 		spec->mixers[0] = ad1984_thinkpad_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1984_thinkpad_init_verbs;
+		spec->analog_beep = 1;
 		break;
 	case AD1984_DELL_DESKTOP:
 		spec->multiout.dig_out_nid = 0;
@@ -3747,6 +3861,7 @@ static struct snd_kcontrol_new ad1884a_laptop_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1884a_mobile_master_sw_put,
@@ -3775,6 +3890,7 @@ static struct snd_kcontrol_new ad1884a_mobile_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1884a_mobile_master_sw_put,
@@ -4116,6 +4232,7 @@ static struct snd_kcontrol_new ad1984a_touchsmart_mixers[] = {
 /*	HDA_CODEC_MUTE("Master Playback Switch", 0x21, 0x0, HDA_OUTPUT),*/
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.name = "Master Playback Switch",
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,

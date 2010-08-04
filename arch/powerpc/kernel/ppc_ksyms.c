@@ -101,12 +101,17 @@ EXPORT_SYMBOL(pci_dram_offset);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 
+#ifdef CONFIG_PPC_FPU
+EXPORT_SYMBOL_GPL(cvt_df);
+EXPORT_SYMBOL_GPL(cvt_fd);
+#endif
 EXPORT_SYMBOL(giveup_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 EXPORT_SYMBOL(giveup_vsx);
+EXPORT_SYMBOL_GPL(__giveup_vsx);
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 EXPORT_SYMBOL(giveup_spe);

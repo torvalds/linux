@@ -13,6 +13,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kref.h>
+#include <linux/ktime.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
@@ -65,8 +66,6 @@ struct rpc_rqst {
 	struct rpc_task *	rq_task;	/* RPC task data */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	int			rq_reply_bytes_recvd;	/* number of reply */
-							/* bytes received */
 	u32			rq_seqno;	/* gss seq no. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
@@ -77,12 +76,16 @@ struct rpc_rqst {
 	__u32 *			rq_buffer;	/* XDR encode buffer */
 	size_t			rq_callsize,
 				rq_rcvsize;
+	size_t			rq_xmit_bytes_sent;	/* total bytes sent */
+	size_t			rq_reply_bytes_recvd;	/* total reply bytes */
+							/* received */
 
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
+	ktime_t			rq_rtt;		/* round-trip time */
 	unsigned int		rq_retries;	/* # of retries */
 	unsigned int		rq_connect_cookie;
 						/* A cookie used to track the
@@ -94,7 +97,7 @@ struct rpc_rqst {
 	 */
 	u32			rq_bytes_sent;	/* Bytes we have sent */
 
-	unsigned long		rq_xtime;	/* when transmitted */
+	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
 
 #if defined(CONFIG_NFS_V4_1)
@@ -174,8 +177,7 @@ struct rpc_xprt {
 	/*
 	 * Connection of transports
 	 */
-	unsigned long		connect_timeout,
-				bind_timeout,
+	unsigned long		bind_timeout,
 				reestablish_timeout;
 	unsigned int		connect_cookie;	/* A cookie that gets bumped
 						   every time the transport
@@ -294,7 +296,6 @@ void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
 void			xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action);
 void			xprt_write_space(struct rpc_xprt *xprt);
-void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);

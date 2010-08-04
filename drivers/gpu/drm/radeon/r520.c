@@ -27,6 +27,7 @@
  */
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "r520d.h"
 
@@ -52,7 +53,6 @@ static void r520_gpu_init(struct radeon_device *rdev)
 {
 	unsigned pipe_select_current, gb_pipe_select, tmp;
 
-	r100_hdp_reset(rdev);
 	rv515_vga_render_disable(rdev);
 	/*
 	 * DST_PIPE_CONFIG		0x170C
@@ -119,19 +119,16 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 		rdev->mc.vram_width *= 2;
 }
 
-void r520_vram_info(struct radeon_device *rdev)
+void r520_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 
 	r520_vram_get_type(rdev);
-
 	r100_vram_init_sizes(rdev);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	radeon_vram_location(rdev, &rdev->mc, 0);
+	rdev->mc.gtt_base_align = 0;
+	if (!(rdev->flags & RADEON_IS_AGP))
+		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void r520_mc_program(struct radeon_device *rdev)
@@ -212,7 +209,7 @@ int r520_resume(struct radeon_device *rdev)
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
@@ -249,7 +246,7 @@ int r520_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev,
 			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
@@ -265,14 +262,15 @@ int r520_init(struct radeon_device *rdev)
 	}
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	/* Initialize power management */
-	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r520_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
+	}
+	/* initialize memory controller */
+	r520_mc_init(rdev);
 	rv515_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
@@ -294,13 +292,12 @@ int r520_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		rv515_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		rv370_pcie_gart_fini(rdev);
 		radeon_agp_fini(rdev);
-		radeon_irq_kms_fini(rdev);
 		rdev->accel_working = false;
 	}
 	return 0;

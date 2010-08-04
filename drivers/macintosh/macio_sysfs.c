@@ -9,7 +9,7 @@ field##_show (struct device *dev, struct device_attribute *attr,	\
               char *buf)						\
 {									\
 	struct macio_dev *mdev = to_macio_device (dev);			\
-	return sprintf (buf, format_string, mdev->ofdev.node->field);	\
+	return sprintf (buf, format_string, mdev->ofdev.dev.of_node->field); \
 }
 
 static ssize_t
@@ -21,7 +21,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 	int length = 0;
 
 	of = &to_macio_device (dev)->ofdev;
-	compat = of_get_property(of->node, "compatible", &cplen);
+	compat = of_get_property(of->dev.of_node, "compatible", &cplen);
 	if (!compat) {
 		*buf = '\0';
 		return 0;
@@ -58,7 +58,7 @@ static ssize_t devspec_show(struct device *dev,
 	struct of_device *ofdev;
 
 	ofdev = to_of_device(dev);
-	return sprintf(buf, "%s\n", ofdev->node->full_name);
+	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
 
 macio_config_of_attr (name, "%s\n");

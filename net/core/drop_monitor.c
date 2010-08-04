@@ -21,6 +21,7 @@
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 
@@ -171,12 +172,12 @@ out:
 	return;
 }
 
-static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
+static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb, void *location)
 {
 	trace_drop_common(skb, location);
 }
 
-static void trace_napi_poll_hit(struct napi_struct *napi)
+static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi)
 {
 	struct dm_hw_stat_delta *new_stat;
 
@@ -224,12 +225,12 @@ static int set_all_monitor_traces(int state)
 
 	switch (state) {
 	case TRACE_ON:
-		rc |= register_trace_kfree_skb(trace_kfree_skb_hit);
-		rc |= register_trace_napi_poll(trace_napi_poll_hit);
+		rc |= register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+		rc |= register_trace_napi_poll(trace_napi_poll_hit, NULL);
 		break;
 	case TRACE_OFF:
-		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit);
-		rc |= unregister_trace_napi_poll(trace_napi_poll_hit);
+		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+		rc |= unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
 
 		tracepoint_synchronize_unregister();
 
@@ -296,7 +297,6 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 
 		new_stat->dev = dev;
 		new_stat->last_rx = jiffies;
-		INIT_RCU_HEAD(&new_stat->rcu);
 		spin_lock(&trace_state_lock);
 		list_add_rcu(&new_stat->list, &hw_stats_list);
 		spin_unlock(&trace_state_lock);

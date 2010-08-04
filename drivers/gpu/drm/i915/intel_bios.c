@@ -95,6 +95,16 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
 	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
 
+	if (dvo_timing->hsync_positive)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (dvo_timing->vsync_positive)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
+
 	/* Some VBTs have bogus h/vtotal values */
 	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
 		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
@@ -247,6 +257,7 @@ static void
 parse_general_features(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct bdb_general_features *general;
 
 	/* Set sensible defaults in case we can't find the general block */
@@ -263,7 +274,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
-			else if (IS_IRONLAKE(dev_priv->dev))
+			else if (IS_IRONLAKE(dev_priv->dev) || IS_GEN6(dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 120;
 			else
@@ -365,6 +376,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->dvo_port = p_child->dvo_port;
 			p_mapping->slave_addr = p_child->slave_addr;
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
+			p_mapping->ddc_pin = p_child->ddc_pin;
 			p_mapping->initialized = 1;
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
@@ -416,8 +428,9 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
 		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp_support) {
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported,\
-				       assume 18bpp panel color depth.\n");
+			DRM_DEBUG_KMS("No eDP BDB found but eDP panel "
+				      "supported, assume 18bpp panel color "
+				      "depth.\n");
 			dev_priv->edp_bpp = 18;
 		}
 		return;

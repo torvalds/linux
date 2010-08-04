@@ -5,18 +5,36 @@
 
 # Configuration options for the S5PC100 CPU
 
+if ARCH_S5PC100
+
 config CPU_S5PC100
 	bool
-	select CPU_S5PC100_INIT
-	select CPU_S5PC100_CLOCK
+	select PLAT_S5P
+	select S5P_EXT_INT
+	select S3C_PL330_DMA
 	help
 	  Enable S5PC100 CPU support
 
+config S5PC100_SETUP_FB_24BPP
+	bool
+	help
+	  Common setup code for S5PC1XX with an 24bpp RGB display helper.
+
+config S5PC100_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
 config S5PC100_SETUP_SDHCI
-        bool
-        select S5PC1XX_SETUP_SDHCI_GPIO
-        help
-          Internal helper functions for S5PC100 based SDHCI systems
+	bool
+	select S5PC100_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S5PC100 based SDHCI systems
+
+config S5PC100_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
 
 config MACH_SMDKC100
 	bool "SMDKC100"
@@ -26,9 +44,10 @@ config MACH_SMDKC100
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
-	select S5PC1XX_SETUP_I2C0
-	select S5PC1XX_SETUP_I2C1
-	select S5PC1XX_SETUP_FB_24BPP
+	select S5PC100_SETUP_FB_24BPP
+	select S5PC100_SETUP_I2C1
 	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100
+
+endif

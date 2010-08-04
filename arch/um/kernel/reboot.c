@@ -4,6 +4,7 @@
  */
 
 #include "linux/sched.h"
+#include "linux/slab.h"
 #include "kern_util.h"
 #include "os.h"
 #include "skas.h"

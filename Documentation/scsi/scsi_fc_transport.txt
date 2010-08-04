@@ -70,7 +70,7 @@ Overview:
     up to an administrative entity controlling the vport. For example,
     if vports are to be associated with virtual machines, a XEN mgmt
     utility would be responsible for creating wwpn/wwnn's for the vport,
-    using it's own naming authority and OUI. (Note: it already does this
+    using its own naming authority and OUI. (Note: it already does this
     for virtual MAC addresses).
 
 
@@ -81,7 +81,7 @@ Device Trees and Vport Objects:
   with rports and scsi target objects underneath it. Currently the FC
   transport creates the vport object and places it under the scsi_host
   object corresponding to the physical adapter.  The LLDD will allocate
-  a new scsi_host for the vport and link it's object under the vport.
+  a new scsi_host for the vport and link its object under the vport.
   The remainder of the tree under the vports scsi_host is the same
   as the non-NPIV case. The transport is written currently to easily
   allow the parent of the vport to be something other than the scsi_host.

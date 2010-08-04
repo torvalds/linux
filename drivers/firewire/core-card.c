@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 #include <asm/atomic.h>
@@ -63,7 +62,7 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
 #define BIB_CRC(v)		((v) <<  0)
 #define BIB_CRC_LENGTH(v)	((v) << 16)
 #define BIB_INFO_LENGTH(v)	((v) << 24)
-
+#define BIB_BUS_NAME		0x31333934 /* "1394" */
 #define BIB_LINK_SPEED(v)	((v) <<  0)
 #define BIB_GENERATION(v)	((v) <<  4)
 #define BIB_MAX_ROM(v)		((v) <<  8)
@@ -73,7 +72,8 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
 #define BIB_BMC			((1) << 28)
 #define BIB_ISC			((1) << 29)
 #define BIB_CMC			((1) << 30)
-#define BIB_IMC			((1) << 31)
+#define BIB_IRMC		((1) << 31)
+#define NODE_CAPABILITIES	0x0c0083c0 /* per IEEE 1394 clause 8.3.2.6.5.2 */
 
 static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 {
@@ -91,18 +91,18 @@ static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 
 	config_rom[0] = cpu_to_be32(
 		BIB_CRC_LENGTH(4) | BIB_INFO_LENGTH(4) | BIB_CRC(0));
-	config_rom[1] = cpu_to_be32(0x31333934);
+	config_rom[1] = cpu_to_be32(BIB_BUS_NAME);
 	config_rom[2] = cpu_to_be32(
 		BIB_LINK_SPEED(card->link_speed) |
 		BIB_GENERATION(card->config_rom_generation++ % 14 + 2) |
 		BIB_MAX_ROM(2) |
 		BIB_MAX_RECEIVE(card->max_receive) |
-		BIB_BMC | BIB_ISC | BIB_CMC | BIB_IMC);
+		BIB_BMC | BIB_ISC | BIB_CMC | BIB_IRMC);
 	config_rom[3] = cpu_to_be32(card->guid >> 32);
 	config_rom[4] = cpu_to_be32(card->guid);
 
 	/* Generate root directory. */
-	config_rom[6] = cpu_to_be32(0x0c0083c0); /* node capabilities */
+	config_rom[6] = cpu_to_be32(NODE_CAPABILITIES);
 	i = 7;
 	j = 7 + descriptor_count;
 
@@ -231,7 +231,7 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 static void fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
-	struct fw_device *root_device;
+	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node;
 	unsigned long flags;
 	int root_id, new_root_id, irm_id, local_id;
@@ -239,6 +239,7 @@ static void fw_card_bm_work(struct work_struct *work)
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
+	bool irm_is_1394_1995_only;
 
 	spin_lock_irqsave(&card->lock, flags);
 
@@ -248,12 +249,18 @@ static void fw_card_bm_work(struct work_struct *work)
 	}
 
 	generation = card->generation;
+
 	root_node = card->root_node;
 	fw_node_get(root_node);
 	root_device = root_node->data;
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
+
+	irm_device = card->irm_node->data;
+	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
+			(irm_device->config_rom[2] & 0x000000f0) == 0;
+
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
@@ -276,8 +283,15 @@ static void fw_card_bm_work(struct work_struct *work)
 
 		if (!card->irm_node->link_on) {
 			new_root_id = local_id;
-			fw_notify("IRM has link off, making local node (%02x) root.\n",
-				  new_root_id);
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "IRM has link off", new_root_id);
+			goto pick_me;
+		}
+
+		if (irm_is_1394_1995_only) {
+			new_root_id = local_id;
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "IRM is not 1394a compliant", new_root_id);
 			goto pick_me;
 		}
 
@@ -316,8 +330,8 @@ static void fw_card_bm_work(struct work_struct *work)
 			 * root, and thus, IRM.
 			 */
 			new_root_id = local_id;
-			fw_notify("BM lock failed, making local node (%02x) root.\n",
-				  new_root_id);
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "BM lock failed", new_root_id);
 			goto pick_me;
 		}
 	} else if (card->bm_generation != generation) {
@@ -407,13 +421,6 @@ static void fw_card_bm_work(struct work_struct *work)
 	fw_card_put(card);
 }
 
-static void flush_timer_callback(unsigned long data)
-{
-	struct fw_card *card = (struct fw_card *)data;
-
-	fw_flush_transactions(card);
-}
-
 void fw_card_initialize(struct fw_card *card,
 			const struct fw_card_driver *driver,
 			struct device *device)
@@ -432,8 +439,6 @@ void fw_card_initialize(struct fw_card *card,
 	init_completion(&card->done);
 	INIT_LIST_HEAD(&card->transaction_list);
 	spin_lock_init(&card->lock);
-	setup_timer(&card->flush_timer,
-		    flush_timer_callback, (unsigned long)card);
 
 	card->local_node = NULL;
 
@@ -558,7 +563,6 @@ void fw_core_remove_card(struct fw_card *card)
 	wait_for_completion(&card->done);
 
 	WARN_ON(!list_empty(&card->transaction_list));
-	del_timer_sync(&card->flush_timer);
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 

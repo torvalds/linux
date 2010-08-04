@@ -701,13 +701,13 @@ static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 #endif
 };
 
-static int mt9m001_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9m001_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 
-	if ((unsigned int)index >= mt9m001->num_fmts)
+	if (index >= mt9m001->num_fmts)
 		return -EINVAL;
 
 	*code = mt9m001->fmts[index].code;
@@ -785,7 +785,6 @@ static int mt9m001_probe(struct i2c_client *client,
 	ret = mt9m001_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9m001);
 	}
 
@@ -799,7 +798,6 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9m001_video_remove(icd);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9m001);
 

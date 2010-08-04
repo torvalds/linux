@@ -264,8 +264,11 @@ static int __init physmap_init(void)
 
 	err = platform_driver_register(&physmap_flash_driver);
 #ifdef CONFIG_MTD_PHYSMAP_COMPAT
-	if (err == 0)
-		platform_device_register(&physmap_flash);
+	if (err == 0) {
+		err = platform_device_register(&physmap_flash);
+		if (err)
+			platform_driver_unregister(&physmap_flash_driver);
+	}
 #endif
 
 	return err;

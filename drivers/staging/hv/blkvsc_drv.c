@@ -25,14 +25,16 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 #include "osd.h"
 #include "logging.h"
+#include "version_info.h"
 #include "vmbus.h"
-#include "StorVscApi.h"
+#include "storvsc_api.h"
 
 
 #define BLKVSC_MINORS	64
@@ -92,7 +94,7 @@ struct blkvsc_request {
 /* Per device structure */
 struct block_device_context {
 	/* point back to our device context */
-	struct device_context *device_ctx;
+	struct vm_device *device_ctx;
 	struct kmem_cache *request_pool;
 	spinlock_t lock;
 	struct gendisk *gd;
@@ -147,13 +149,14 @@ static int blkvsc_do_flush(struct block_device_context *blkdev);
 static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev);
 static int blkvsc_do_pending_reqs(struct block_device_context *blkdev);
 
-
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
+module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
 
 /* The one and only one */
 static struct blkvsc_driver_context g_blkvsc_drv;
 
-static struct block_device_operations block_ops = {
+static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
 	.open = blkvsc_open,
 	.release = blkvsc_release,
@@ -163,7 +166,7 @@ static struct block_device_operations block_ops = {
 	.ioctl  = blkvsc_ioctl,
 };
 
-/**
+/*
  * blkvsc_drv_init -  BlkVsc driver initialization.
  */
 static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
@@ -243,7 +246,7 @@ static void blkvsc_drv_exit(void)
 	return;
 }
 
-/**
+/*
  * blkvsc_probe - Add a new device for this driver
  */
 static int blkvsc_probe(struct device *device)
@@ -254,7 +257,7 @@ static int blkvsc_probe(struct device *device)
 				(struct blkvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct block_device_context *blkdev = NULL;
@@ -286,8 +289,8 @@ static int blkvsc_probe(struct device *device)
 	/* Initialize what we can here */
 	spin_lock_init(&blkdev->lock);
 
-	ASSERT(sizeof(struct blkvsc_request_group) <=
-		sizeof(struct blkvsc_request));
+	/* ASSERT(sizeof(struct blkvsc_request_group) <= */
+	/* 	sizeof(struct blkvsc_request)); */
 
 	blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
 					sizeof(struct blkvsc_request) +
@@ -363,10 +366,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->gd->queue = blk_init_queue(blkvsc_request, &blkdev->lock);
 
 	blk_queue_max_segment_size(blkdev->gd->queue, PAGE_SIZE);
-	blk_queue_max_phys_segments(blkdev->gd->queue,
-				    MAX_MULTIPAGE_BUFFER_COUNT);
-	blk_queue_max_hw_segments(blkdev->gd->queue,
-				  MAX_MULTIPAGE_BUFFER_COUNT);
+	blk_queue_max_segments(blkdev->gd->queue, MAX_MULTIPAGE_BUFFER_COUNT);
 	blk_queue_segment_boundary(blkdev->gd->queue, PAGE_SIZE-1);
 	blk_queue_bounce_limit(blkdev->gd->queue, BLK_BOUNCE_ANY);
 	blk_queue_dma_alignment(blkdev->gd->queue, 511);
@@ -556,7 +556,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 		blkdev->device_type = UNKNOWN_DEV_TYPE;
 	}
 
-	DPRINT_DBG(BLKVSC_DRV, "device type %d \n", device_type);
+	DPRINT_DBG(BLKVSC_DRV, "device type %d\n", device_type);
 
 	blkdev->device_id_len = buf[7];
 	if (blkdev->device_id_len > 64)
@@ -734,7 +734,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	return 0;
 }
 
-/**
+/*
  * blkvsc_remove() - Callback when our device is removed
  */
 static int blkvsc_remove(struct device *device)
@@ -745,7 +745,7 @@ static int blkvsc_remove(struct device *device)
 				(struct blkvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
@@ -809,8 +809,8 @@ static int blkvsc_remove(struct device *device)
 
 static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 {
-	ASSERT(blkvsc_req->req);
-	ASSERT(blkvsc_req->sector_count <= (MAX_MULTIPAGE_BUFFER_COUNT*8));
+	/* ASSERT(blkvsc_req->req); */
+	/* ASSERT(blkvsc_req->sector_count <= (MAX_MULTIPAGE_BUFFER_COUNT*8)); */
 
 	blkvsc_req->cmd_len = 16;
 
@@ -865,7 +865,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct device_context *device_ctx = blkdev->device_ctx;
+	struct vm_device *device_ctx = blkdev->device_ctx;
 	struct driver_context *driver_ctx =
 			driver_to_driver_context(device_ctx->device.driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx =
@@ -941,7 +941,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 	int pending = 0;
 	struct blkvsc_request_group *group = NULL;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %lu \n", blkdev, req,
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %lu\n", blkdev, req,
 		  (unsigned long)blk_rq_pos(req));
 
 	/* Create a group to tie req to list of blkvsc_reqs */
@@ -1117,7 +1117,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 	unsigned long flags;
 	struct blkvsc_request *comp_req, *tmp;
 
-	ASSERT(blkvsc_req->group);
+	/* ASSERT(blkvsc_req->group); */
 
 	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s "
 		   "sect_start %lu sect_count %ld len %d group outstd %d "
@@ -1145,7 +1145,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 					 &blkvsc_req->group->blkvsc_req_list,
 					 req_entry) {
 			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
-				   "sect_start %lu sect_count %ld \n",
+				   "sect_start %lu sect_count %ld\n",
 				   comp_req,
 				   (unsigned long)comp_req->sector_start,
 				   comp_req->sector_count);
@@ -1199,7 +1199,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 					 &pend_req->group->blkvsc_req_list,
 					 req_entry) {
 			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
-				   "sect_start %lu sect_count %ld \n",
+				   "sect_start %lu sect_count %ld\n",
 				   comp_req,
 				   (unsigned long) comp_req->sector_start,
 				   comp_req->sector_count);
@@ -1214,7 +1214,10 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 					(!comp_req->request.Status ? 0 : -EIO),
 					comp_req->sector_count *
 					blkdev->sector_size);
-				ASSERT(ret != 0);
+
+				/* FIXME: shouldn't this do more than return? */
+				if (ret)
+					goto out;
 			}
 
 			kmem_cache_free(blkdev->request_pool, comp_req);
@@ -1246,6 +1249,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 		kmem_cache_free(blkdev->request_pool, pend_req);
 	}
 
+out:
 	return ret;
 }
 
@@ -1277,7 +1281,7 @@ static void blkvsc_request(struct request_queue *queue)
 	struct request *req;
 	int ret = 0;
 
-	DPRINT_DBG(BLKVSC_DRV, "- enter \n");
+	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
 	while ((req = blk_peek_request(queue)) != NULL) {
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
@@ -1486,7 +1490,7 @@ static int __init blkvsc_init(void)
 {
 	int ret;
 
-	ASSERT(sizeof(sector_t) == 8); /* Make sure CONFIG_LBD is set */
+	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
 	DPRINT_ENTER(BLKVSC_DRV);
 
@@ -1507,6 +1511,7 @@ static void __exit blkvsc_exit(void)
 }
 
 MODULE_LICENSE("GPL");
-module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_VERSION(HV_DRV_VERSION);
+MODULE_DESCRIPTION("Microsoft Hyper-V virtual block driver");
 module_init(blkvsc_init);
 module_exit(blkvsc_exit);

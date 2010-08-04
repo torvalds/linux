@@ -238,7 +238,7 @@ static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
 	if (buf) {
 		msg = buf_msg(buf);
 		memset((char *)msg, 0, size);
-		msg_init(msg, ROUTE_DISTRIBUTOR, 0, INT_H_SIZE, dest);
+		tipc_msg_init(msg, ROUTE_DISTRIBUTOR, 0, INT_H_SIZE, dest);
 	}
 	return buf;
 }

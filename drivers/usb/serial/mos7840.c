@@ -26,7 +26,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -181,7 +180,7 @@
 #define URB_TRANSFER_BUFFER_SIZE        32	/* URB Size  */
 
 
-static struct usb_device_id moschip_port_id_table[] = {
+static const struct usb_device_id moschip_port_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
@@ -198,7 +197,7 @@ static struct usb_device_id moschip_port_id_table[] = {
 	{}			/* terminating entry */
 };
 
-static __devinitdata struct usb_device_id moschip_id_table_combined[] = {
+static const struct usb_device_id moschip_id_table_combined[] __devinitconst = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
@@ -283,12 +282,19 @@ static int mos7840_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 {
 	struct usb_device *dev = port->serial->dev;
 	int ret = 0;
+	u8 *buf;
+
+	buf = kmalloc(VENDOR_READ_LENGTH, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
-			      MCS_RD_RTYPE, 0, reg, val, VENDOR_READ_LENGTH,
+			      MCS_RD_RTYPE, 0, reg, buf, VENDOR_READ_LENGTH,
 			      MOS_WDR_TIMEOUT);
+	*val = buf[0];
 	dbg("mos7840_get_reg_sync offset is %x, return val %x", reg, *val);
-	*val = (*val) & 0x00ff;
+
+	kfree(buf);
 	return ret;
 }
 
@@ -341,6 +347,11 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 	struct usb_device *dev = port->serial->dev;
 	int ret = 0;
 	__u16 Wval;
+	u8 *buf;
+
+	buf = kmalloc(VENDOR_READ_LENGTH, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	/* dbg("application number is %4x",
 	    (((__u16)port->number - (__u16)(port->serial->minor))+1)<<8); */
@@ -364,9 +375,11 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 		}
 	}
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
-			      MCS_RD_RTYPE, Wval, reg, val, VENDOR_READ_LENGTH,
+			      MCS_RD_RTYPE, Wval, reg, buf, VENDOR_READ_LENGTH,
 			      MOS_WDR_TIMEOUT);
-	*val = (*val) & 0x00ff;
+	*val = buf[0];
+
+	kfree(buf);
 	return ret;
 }
 
@@ -717,7 +730,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	mos7840_port = urb->context;
 	if (!mos7840_port) {
 		dbg("%s", "NULL mos7840_port pointer");
-		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
@@ -750,7 +762,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	if (urb->actual_length) {
 		tty = tty_port_tty_get(&mos7840_port->port->port);
 		if (tty) {
-			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			dbg(" %s ", data);
 			tty_flip_buffer_push(tty);

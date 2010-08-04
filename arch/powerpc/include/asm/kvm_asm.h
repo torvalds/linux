@@ -88,6 +88,8 @@
 
 #define BOOK3S_HFLAG_DCBZ32			0x1
 #define BOOK3S_HFLAG_SLB			0x2
+#define BOOK3S_HFLAG_PAIRED_SINGLE		0x4
+#define BOOK3S_HFLAG_NATIVE_PS			0x8
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */
@@ -96,5 +98,11 @@
 #define RESUME_GUEST_NV         RESUME_FLAG_NV
 #define RESUME_HOST             RESUME_FLAG_HOST
 #define RESUME_HOST_NV          (RESUME_FLAG_HOST|RESUME_FLAG_NV)
+
+#define KVM_GUEST_MODE_NONE	0
+#define KVM_GUEST_MODE_GUEST	1
+#define KVM_GUEST_MODE_SKIP	2
+
+#define KVM_INST_FETCH_FAILED	-1
 
 #endif /* __POWERPC_KVM_ASM_H__ */

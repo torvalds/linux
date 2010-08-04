@@ -253,6 +253,7 @@ struct cfi_bri_query {
 #define P_ID_MITSUBISHI_STD     0x0100
 #define P_ID_MITSUBISHI_EXT     0x0101
 #define P_ID_SST_PAGE           0x0102
+#define P_ID_SST_OLD            0x0701
 #define P_ID_INTEL_PERFORMANCE  0x0200
 #define P_ID_INTEL_DATA         0x0210
 #define P_ID_RESERVED           0xffff
@@ -297,7 +298,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
 	 * and 32bit devices on 16 bit busses
 	 * set the low bit of the alternating bit sequence of the address.
 	 */
-	if (((type * interleave) > bankwidth) && ((uint8_t)cmd_ofs == 0xaa))
+	if (((type * interleave) > bankwidth) && ((cmd_ofs & 0xff) == 0xaa))
 		addr |= (type >> 1)*interleave;
 
 	return  addr;
@@ -515,14 +516,25 @@ struct cfi_fixup {
 	void* param;
 };
 
-#define CFI_MFR_ANY 0xffff
-#define CFI_ID_ANY  0xffff
+#define CFI_MFR_ANY		0xFFFF
+#define CFI_ID_ANY		0xFFFF
+#define CFI_MFR_CONTINUATION	0x007F
 
-#define CFI_MFR_AMD	0x0001
-#define CFI_MFR_INTEL	0x0089
-#define CFI_MFR_ATMEL	0x001F
-#define CFI_MFR_SAMSUNG	0x00EC
-#define CFI_MFR_ST	0x0020 /* STMicroelectronics */
+#define CFI_MFR_AMD		0x0001
+#define CFI_MFR_ATMEL		0x001F
+#define CFI_MFR_EON		0x001C
+#define CFI_MFR_FUJITSU		0x0004
+#define CFI_MFR_HYUNDAI		0x00AD
+#define CFI_MFR_INTEL		0x0089
+#define CFI_MFR_MACRONIX	0x00C2
+#define CFI_MFR_NEC		0x0010
+#define CFI_MFR_PMC		0x009D
+#define CFI_MFR_SAMSUNG		0x00EC
+#define CFI_MFR_SHARP		0x00B0
+#define CFI_MFR_SST		0x00BF
+#define CFI_MFR_ST		0x0020 /* STMicroelectronics */
+#define CFI_MFR_TOSHIBA		0x0098
+#define CFI_MFR_WINBOND		0x00DA
 
 void cfi_fixup(struct mtd_info *mtd, struct cfi_fixup* fixups);
 

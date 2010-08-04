@@ -7,6 +7,8 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/memory.h>
+#include <linux/stop_machine.h>
+#include <linux/slab.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -192,7 +194,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
 }
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
-extern u8 *__smp_locks[], *__smp_locks_end[];
+extern s32 __smp_locks[], __smp_locks_end[];
 static void *text_poke_early(void *addr, const void *opcode, size_t len);
 
 /* Replace instructions with better alternatives for this CPU type.
@@ -205,7 +207,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 					 struct alt_instr *end)
 {
 	struct alt_instr *a;
-	char insnbuf[MAX_PATCH_LEN];
+	u8 insnbuf[MAX_PATCH_LEN];
 
 	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
 	for (a = start; a < end; a++) {
@@ -223,6 +225,8 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		}
 #endif
 		memcpy(insnbuf, a->replacement, a->replacementlen);
+		if (*insnbuf == 0xe8 && a->replacementlen == 5)
+		    *(s32 *)(insnbuf + 1) += a->replacement - a->instr;
 		add_nops(insnbuf + a->replacementlen,
 			 a->instrlen - a->replacementlen);
 		text_poke_early(instr, insnbuf, a->instrlen);
@@ -231,37 +235,41 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 
 #ifdef CONFIG_SMP
 
-static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
+static void alternatives_smp_lock(const s32 *start, const s32 *end,
+				  u8 *text, u8 *text_end)
 {
-	u8 **ptr;
+	const s32 *poff;
 
 	mutex_lock(&text_mutex);
-	for (ptr = start; ptr < end; ptr++) {
-		if (*ptr < text)
-			continue;
-		if (*ptr > text_end)
+	for (poff = start; poff < end; poff++) {
+		u8 *ptr = (u8 *)poff + *poff;
+
+		if (!*poff || ptr < text || ptr >= text_end)
 			continue;
 		/* turn DS segment override prefix into lock prefix */
-		text_poke(*ptr, ((unsigned char []){0xf0}), 1);
+		if (*ptr == 0x3e)
+			text_poke(ptr, ((unsigned char []){0xf0}), 1);
 	};
 	mutex_unlock(&text_mutex);
 }
 
-static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
+static void alternatives_smp_unlock(const s32 *start, const s32 *end,
+				    u8 *text, u8 *text_end)
 {
-	u8 **ptr;
+	const s32 *poff;
 
 	if (noreplace_smp)
 		return;
 
 	mutex_lock(&text_mutex);
-	for (ptr = start; ptr < end; ptr++) {
-		if (*ptr < text)
-			continue;
-		if (*ptr > text_end)
+	for (poff = start; poff < end; poff++) {
+		u8 *ptr = (u8 *)poff + *poff;
+
+		if (!*poff || ptr < text || ptr >= text_end)
 			continue;
 		/* turn lock prefix into DS segment override prefix */
-		text_poke(*ptr, ((unsigned char []){0x3E}), 1);
+		if (*ptr == 0xf0)
+			text_poke(ptr, ((unsigned char []){0x3E}), 1);
 	};
 	mutex_unlock(&text_mutex);
 }
@@ -272,8 +280,8 @@ struct smp_alt_module {
 	char		*name;
 
 	/* ptrs to lock prefixes */
-	u8		**locks;
-	u8		**locks_end;
+	const s32	*locks;
+	const s32	*locks_end;
 
 	/* .text segment, needed to avoid patching init code ;) */
 	u8		*text;
@@ -390,6 +398,27 @@ void alternatives_smp_switch(int smp)
 	mutex_unlock(&smp_alt);
 }
 
+/* Return 1 if the address range is reserved for smp-alternatives */
+int alternatives_text_reserved(void *start, void *end)
+{
+	struct smp_alt_module *mod;
+	const s32 *poff;
+	u8 *text_start = start;
+	u8 *text_end = end;
+
+	list_for_each_entry(mod, &smp_alt_modules, next) {
+		if (mod->text > text_end || mod->text_end < text_start)
+			continue;
+		for (poff = mod->locks; poff < mod->locks_end; poff++) {
+			const u8 *ptr = (const u8 *)poff + *poff;
+
+			if (text_start <= ptr && text_end > ptr)
+				return 1;
+		}
+	}
+
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PARAVIRT
@@ -552,3 +581,62 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 	local_irq_restore(flags);
 	return addr;
 }
+
+/*
+ * Cross-modifying kernel text with stop_machine().
+ * This code originally comes from immediate value.
+ */
+static atomic_t stop_machine_first;
+static int wrote_text;
+
+struct text_poke_params {
+	void *addr;
+	const void *opcode;
+	size_t len;
+};
+
+static int __kprobes stop_machine_text_poke(void *data)
+{
+	struct text_poke_params *tpp = data;
+
+	if (atomic_dec_and_test(&stop_machine_first)) {
+		text_poke(tpp->addr, tpp->opcode, tpp->len);
+		smp_wmb();	/* Make sure other cpus see that this has run */
+		wrote_text = 1;
+	} else {
+		while (!wrote_text)
+			cpu_relax();
+		smp_mb();	/* Load wrote_text before following execution */
+	}
+
+	flush_icache_range((unsigned long)tpp->addr,
+			   (unsigned long)tpp->addr + tpp->len);
+	return 0;
+}
+
+/**
+ * text_poke_smp - Update instructions on a live kernel on SMP
+ * @addr: address to modify
+ * @opcode: source of the copy
+ * @len: length to copy
+ *
+ * Modify multi-byte instruction by using stop_machine() on SMP. This allows
+ * user to poke/set multi-byte text on SMP. Only non-NMI/MCE code modifying
+ * should be allowed, since stop_machine() does _not_ protect code against
+ * NMI and MCE.
+ *
+ * Note: Must be called under get_online_cpus() and text_mutex.
+ */
+void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
+{
+	struct text_poke_params tpp;
+
+	tpp.addr = addr;
+	tpp.opcode = opcode;
+	tpp.len = len;
+	atomic_set(&stop_machine_first, 1);
+	wrote_text = 0;
+	stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
+	return addr;
+}
+

@@ -32,7 +32,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.instruction_lctlg++;
 	if ((vcpu->arch.sie_block->ipb & 0xff) != 0x2f)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	useraddr = disp2;
 	if (base2)
@@ -138,7 +138,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 		rc = __kvm_s390_vcpu_store_status(vcpu,
 						  KVM_S390_STORE_STATUS_NOADDR);
 		if (rc >= 0)
-			rc = -ENOTSUPP;
+			rc = -EOPNOTSUPP;
 	}
 
 	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
@@ -150,7 +150,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
@@ -171,9 +171,9 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 			 2*PAGE_SIZE);
 		if (rc)
 			/* user will receive sigsegv, exit to user */
-			rc = -ENOTSUPP;
+			rc = -EOPNOTSUPP;
 	} else
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 
 	if (rc)
 		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
@@ -189,7 +189,7 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 	handler = instruction_handlers[vcpu->arch.sie_block->ipa >> 8];
 	if (handler)
 		return handler(vcpu);
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int handle_prog(struct kvm_vcpu *vcpu)
@@ -206,7 +206,7 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 	rc = handle_instruction(vcpu);
 	rc2 = handle_prog(vcpu);
 
-	if (rc == -ENOTSUPP)
+	if (rc == -EOPNOTSUPP)
 		vcpu->arch.sie_block->icptcode = 0x04;
 	if (rc)
 		return rc;
@@ -231,9 +231,9 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	u8 code = vcpu->arch.sie_block->icptcode;
 
 	if (code & 3 || (code >> 2) >= ARRAY_SIZE(intercept_funcs))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	func = intercept_funcs[code >> 2];
 	if (func)
 		return func(vcpu);
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }

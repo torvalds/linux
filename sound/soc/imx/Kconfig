@@ -1,21 +1,30 @@
-config SND_MX1_MX2_SOC
-	tristate "SoC Audio for Freecale i.MX1x i.MX2x CPUs"
-	depends on ARCH_MX2 || ARCH_MX1
+config SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC
 	select SND_PCM
+	select FIQ
+	select SND_SOC_AC97_BUS
 	help
 	  Say Y or M if you want to add support for codecs attached to
-	  the MX1 or MX2 SSI interface.
+	  the i.MX SSI interface.
 
 config SND_MXC_SOC_SSI
 	tristate
 
-config SND_SOC_MX27VIS_WM8974
-	tristate "SoC Audio support for MX27 - WM8974 Visstrim_sm10 board"
-	depends on SND_MX1_MX2_SOC && MACH_MX27 && MACH_IMX27_VISSTRIM_M10
+config SND_MXC_SOC_WM1133_EV1
+	tristate "Audio on the the i.MX31ADS with WM1133-EV1 fitted"
+	depends on SND_IMX_SOC && MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
+	select SND_SOC_WM8350
 	select SND_MXC_SOC_SSI
-	select SND_SOC_WM8974
 	help
-	  Say Y if you want to add support for SoC audio on Visstrim SM10
-	  board with WM8974.
+	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
+	  PMIC board with WM8835x fitted.
 
-
+config SND_SOC_PHYCORE_AC97
+	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
+	depends on MACH_PCM043 || MACH_PCA100
+	select SND_MXC_SOC_SSI
+	select SND_SOC_WM9712
+	help
+	  Say Y if you want to add support for SoC audio on Phytec phyCORE
+	  and phyCARD boards in AC97 mode

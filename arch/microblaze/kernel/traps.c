@@ -22,13 +22,11 @@ void trap_init(void)
 	__enable_hw_exceptions();
 }
 
-static int kstack_depth_to_print = 24;
+static unsigned long kstack_depth_to_print = 24;
 
 static int __init kstack_setup(char *s)
 {
-	kstack_depth_to_print = strict_strtoul(s, 0, NULL);
-
-	return 1;
+	return !strict_strtoul(s, 0, &kstack_depth_to_print);
 }
 __setup("kstack=", kstack_setup);
 
@@ -97,37 +95,3 @@ void dump_stack(void)
 	show_stack(NULL, NULL);
 }
 EXPORT_SYMBOL(dump_stack);
-
-#ifdef CONFIG_MMU
-void __bug(const char *file, int line, void *data)
-{
-	if (data)
-		printk(KERN_CRIT "kernel BUG at %s:%d (data = %p)!\n",
-			file, line, data);
-	else
-		printk(KERN_CRIT "kernel BUG at %s:%d!\n", file, line);
-
-	machine_halt();
-}
-
-int bad_trap(int trap_num, struct pt_regs *regs)
-{
-	printk(KERN_CRIT
-		"unimplemented trap %d called at 0x%08lx, pid %d!\n",
-		trap_num, regs->pc, current->pid);
-	return -ENOSYS;
-}
-
-int debug_trap(struct pt_regs *regs)
-{
-	int i;
-	printk(KERN_CRIT "debug trap\n");
-	for (i = 0; i < 32; i++) {
-		/* printk("r%i:%08X\t",i,regs->gpr[i]); */
-		if ((i % 4) == 3)
-			printk(KERN_CRIT "\n");
-	}
-	printk(KERN_CRIT "pc:%08lX\tmsr:%08lX\n", regs->pc, regs->msr);
-	return -ENOSYS;
-}
-#endif

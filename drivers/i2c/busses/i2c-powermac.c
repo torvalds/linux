@@ -122,9 +122,14 @@ static s32 i2c_powermac_smbus_xfer(	struct i2c_adapter*	adap,
 
 	rc = pmac_i2c_xfer(bus, addrdir, subsize, subaddr, buf, len);
 	if (rc) {
-		dev_err(&adap->dev,
-			"I2C transfer at 0x%02x failed, size %d, err %d\n",
-			addrdir >> 1, size, rc);
+		if (rc == -ENXIO)
+			dev_dbg(&adap->dev,
+				"I2C transfer at 0x%02x failed, size %d, "
+				"err %d\n", addrdir >> 1, size, rc);
+		else
+			dev_err(&adap->dev,
+				"I2C transfer at 0x%02x failed, size %d, "
+				"err %d\n", addrdir >> 1, size, rc);
 		goto bail;
 	}
 
@@ -175,10 +180,16 @@ static int i2c_powermac_master_xfer(	struct i2c_adapter *adap,
 		goto bail;
 	}
 	rc = pmac_i2c_xfer(bus, addrdir, 0, 0, msgs->buf, msgs->len);
-	if (rc < 0)
-		dev_err(&adap->dev, "I2C %s 0x%02x failed, err %d\n",
-			addrdir & 1 ? "read from" : "write to", addrdir >> 1,
-			rc);
+	if (rc < 0) {
+		if (rc == -ENXIO)
+			dev_dbg(&adap->dev, "I2C %s 0x%02x failed, err %d\n",
+				addrdir & 1 ? "read from" : "write to",
+				addrdir >> 1, rc);
+		else
+			dev_err(&adap->dev, "I2C %s 0x%02x failed, err %d\n",
+				addrdir & 1 ? "read from" : "write to",
+				addrdir >> 1, rc);
+	}
  bail:
 	pmac_i2c_close(bus);
 	return rc < 0 ? rc : 1;

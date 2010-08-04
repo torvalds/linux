@@ -380,9 +380,9 @@ enum bigend_bits {
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
 
-static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
+static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 {
-	void *dma_cs_addr;
+	void __iomem *dma_cs_addr;
 	uint8_t dma_status;
 	const int timeout = 10000;
 	unsigned int i;

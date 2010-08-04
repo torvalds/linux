@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/lib80211.h>
 
 #include "assoc.h"
@@ -30,6 +31,9 @@ u8 lbs_bg_rates[MAX_RATES] =
     { 0x02, 0x04, 0x0b, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
 0x00, 0x00 };
 
+
+static int assoc_helper_wep_keys(struct lbs_private *priv,
+		struct assoc_request *assoc_req);
 
 /**
  *  @brief This function finds common rates between rates and card rates.
@@ -390,10 +394,8 @@ int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	cmd.enablehwauto = cpu_to_le16(priv->enablehwauto);
 	cmd.bitmap = lbs_rate_to_fw_bitmap(priv->cur_rate, priv->enablehwauto);
 	ret = lbs_cmd_with_response(priv, CMD_802_11_RATE_ADAPT_RATESET, &cmd);
-	if (!ret && cmd_action == CMD_ACT_GET) {
-		priv->ratebitmap = le16_to_cpu(cmd.bitmap);
+	if (!ret && cmd_action == CMD_ACT_GET)
 		priv->enablehwauto = le16_to_cpu(cmd.enablehwauto);
-	}
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
@@ -612,7 +614,7 @@ static int lbs_assoc_post(struct lbs_private *priv,
 
 	if (status_code) {
 		lbs_mac_event_disconnected(priv);
-		ret = -1;
+		ret = status_code;
 		goto done;
 	}
 
@@ -807,8 +809,7 @@ static int lbs_try_associate(struct lbs_private *priv,
 	}
 
 	/* Use short preamble only when both the BSS and firmware support it */
-	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
-	    (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
+	if (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		preamble = RADIO_PREAMBLE_SHORT;
 
 	ret = lbs_set_radio(priv, preamble, 1);
@@ -816,7 +817,24 @@ static int lbs_try_associate(struct lbs_private *priv,
 		goto out;
 
 	ret = lbs_associate(priv, assoc_req, CMD_802_11_ASSOCIATE);
+	/* If the association fails with current auth mode, let's
+	 * try by changing the auth mode
+	 */
+	if ((priv->authtype_auto) &&
+			(ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) &&
+			(assoc_req->secinfo.wep_enabled) &&
+			(priv->connect_status != LBS_CONNECTED)) {
+		if (priv->secinfo.auth_mode == IW_AUTH_ALG_OPEN_SYSTEM)
+			priv->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
+		else
+			priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
+		if (!assoc_helper_wep_keys(priv, assoc_req))
+			ret = lbs_associate(priv, assoc_req,
+						CMD_802_11_ASSOCIATE);
+	}
 
+	if (ret)
+		ret = -1;
 out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
@@ -939,8 +957,7 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	}
 
 	/* Use short preamble only when both the BSS and firmware support it */
-	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
-	    (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
+	if (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocJoin: Short preamble\n");
 		preamble = RADIO_PREAMBLE_SHORT;
 	}
@@ -1049,18 +1066,13 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
 	struct cmd_ds_802_11_ad_hoc_start cmd;
-	u8 preamble = RADIO_PREAMBLE_LONG;
+	u8 preamble = RADIO_PREAMBLE_SHORT;
 	size_t ratesize = 0;
 	u16 tmpcap = 0;
 	int ret = 0;
 	DECLARE_SSID_BUF(ssid);
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	if (priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
-		lbs_deb_join("ADHOC_START: Will use short preamble\n");
-		preamble = RADIO_PREAMBLE_SHORT;
-	}
 
 	ret = lbs_set_radio(priv, preamble, 1);
 	if (ret)
@@ -1169,11 +1181,11 @@ int lbs_adhoc_stop(struct lbs_private *priv)
 static inline int match_bss_no_security(struct lbs_802_11_security *secinfo,
 					struct bss_descriptor *match_bss)
 {
-	if (!secinfo->wep_enabled  && !secinfo->WPAenabled
-	    && !secinfo->WPA2enabled
-	    && match_bss->wpa_ie[0] != WLAN_EID_GENERIC
-	    && match_bss->rsn_ie[0] != WLAN_EID_RSN
-	    && !(match_bss->capability & WLAN_CAPABILITY_PRIVACY))
+	if (!secinfo->wep_enabled &&
+	    !secinfo->WPAenabled && !secinfo->WPA2enabled &&
+	    match_bss->wpa_ie[0] != WLAN_EID_GENERIC &&
+	    match_bss->rsn_ie[0] != WLAN_EID_RSN &&
+	    !(match_bss->capability & WLAN_CAPABILITY_PRIVACY))
 		return 1;
 	else
 		return 0;
@@ -1182,9 +1194,9 @@ static inline int match_bss_no_security(struct lbs_802_11_security *secinfo,
 static inline int match_bss_static_wep(struct lbs_802_11_security *secinfo,
 				       struct bss_descriptor *match_bss)
 {
-	if (secinfo->wep_enabled && !secinfo->WPAenabled
-	    && !secinfo->WPA2enabled
-	    && (match_bss->capability & WLAN_CAPABILITY_PRIVACY))
+	if (secinfo->wep_enabled &&
+	    !secinfo->WPAenabled && !secinfo->WPA2enabled &&
+	    (match_bss->capability & WLAN_CAPABILITY_PRIVACY))
 		return 1;
 	else
 		return 0;
@@ -1193,8 +1205,8 @@ static inline int match_bss_static_wep(struct lbs_802_11_security *secinfo,
 static inline int match_bss_wpa(struct lbs_802_11_security *secinfo,
 				struct bss_descriptor *match_bss)
 {
-	if (!secinfo->wep_enabled && secinfo->WPAenabled
-	    && (match_bss->wpa_ie[0] == WLAN_EID_GENERIC)
+	if (!secinfo->wep_enabled && secinfo->WPAenabled &&
+	    (match_bss->wpa_ie[0] == WLAN_EID_GENERIC)
 	    /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 	    && (match_bss->capability & WLAN_CAPABILITY_PRIVACY) */
 	   )
@@ -1219,11 +1231,11 @@ static inline int match_bss_wpa2(struct lbs_802_11_security *secinfo,
 static inline int match_bss_dynamic_wep(struct lbs_802_11_security *secinfo,
 					struct bss_descriptor *match_bss)
 {
-	if (!secinfo->wep_enabled && !secinfo->WPAenabled
-	    && !secinfo->WPA2enabled
-	    && (match_bss->wpa_ie[0] != WLAN_EID_GENERIC)
-	    && (match_bss->rsn_ie[0] != WLAN_EID_RSN)
-	    && (match_bss->capability & WLAN_CAPABILITY_PRIVACY))
+	if (!secinfo->wep_enabled &&
+	    !secinfo->WPAenabled && !secinfo->WPA2enabled &&
+	    (match_bss->wpa_ie[0] != WLAN_EID_GENERIC) &&
+	    (match_bss->rsn_ie[0] != WLAN_EID_RSN) &&
+	    (match_bss->capability & WLAN_CAPABILITY_PRIVACY))
 		return 1;
 	else
 		return 0;
@@ -1534,8 +1546,8 @@ static int assoc_helper_associate(struct lbs_private *priv,
 	/* If we're given and 'any' BSSID, try associating based on SSID */
 
 	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
-		if (compare_ether_addr(bssid_any, assoc_req->bssid)
-		    && compare_ether_addr(bssid_off, assoc_req->bssid)) {
+		if (compare_ether_addr(bssid_any, assoc_req->bssid) &&
+		    compare_ether_addr(bssid_off, assoc_req->bssid)) {
 			ret = assoc_helper_bssid(priv, assoc_req);
 			done = 1;
 		}
@@ -1621,11 +1633,9 @@ static int assoc_helper_channel(struct lbs_private *priv,
 		goto restore_mesh;
 	}
 
-	if (   assoc_req->secinfo.wep_enabled
-	    &&   (assoc_req->wep_keys[0].len
-	       || assoc_req->wep_keys[1].len
-	       || assoc_req->wep_keys[2].len
-	       || assoc_req->wep_keys[3].len)) {
+	if (assoc_req->secinfo.wep_enabled &&
+	    (assoc_req->wep_keys[0].len || assoc_req->wep_keys[1].len ||
+	     assoc_req->wep_keys[2].len || assoc_req->wep_keys[3].len)) {
 		/* Make sure WEP keys are re-sent to firmware */
 		set_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags);
 	}
@@ -1992,14 +2002,14 @@ void lbs_association_worker(struct work_struct *work)
 		assoc_req->secinfo.auth_mode);
 
 	/* If 'any' SSID was specified, find an SSID to associate with */
-	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)
-	    && !assoc_req->ssid_len)
+	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags) &&
+	    !assoc_req->ssid_len)
 		find_any_ssid = 1;
 
 	/* But don't use 'any' SSID if there's a valid locked BSSID to use */
 	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
-		if (compare_ether_addr(assoc_req->bssid, bssid_any)
-		    && compare_ether_addr(assoc_req->bssid, bssid_off))
+		if (compare_ether_addr(assoc_req->bssid, bssid_any) &&
+		    compare_ether_addr(assoc_req->bssid, bssid_off))
 			find_any_ssid = 0;
 	}
 
@@ -2061,13 +2071,6 @@ void lbs_association_worker(struct work_struct *work)
 			goto out;
 	}
 
-	if (   test_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags)
-	    || test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
-		ret = assoc_helper_wep_keys(priv, assoc_req);
-		if (ret)
-			goto out;
-	}
-
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		ret = assoc_helper_secinfo(priv, assoc_req);
 		if (ret)
@@ -2080,18 +2083,31 @@ void lbs_association_worker(struct work_struct *work)
 			goto out;
 	}
 
-	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)
-	    || test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
+	/*
+	 * v10 FW wants WPA keys to be set/cleared before WEP key operations,
+	 * otherwise it will fail to correctly associate to WEP networks.
+	 * Other firmware versions don't appear to care.
+	 */
+	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags) ||
+	    test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_keys(priv, assoc_req);
 		if (ret)
 			goto out;
 	}
 
+	if (test_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags) ||
+	    test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
+		ret = assoc_helper_wep_keys(priv, assoc_req);
+		if (ret)
+			goto out;
+	}
+
+
 	/* SSID/BSSID should be the _last_ config option set, because they
 	 * trigger the association attempt.
 	 */
-	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)
-	    || test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
+	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags) ||
+	    test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
 		int success = 1;
 
 		ret = assoc_helper_associate(priv, assoc_req);

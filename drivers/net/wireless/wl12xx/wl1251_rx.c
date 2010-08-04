@@ -23,6 +23,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/gfp.h>
 #include <net/mac80211.h>
 
 #include "wl1251.h"
@@ -73,12 +74,6 @@ static void wl1251_rx_status(struct wl1251 *wl,
 
 	status->signal = desc->rssi;
 
-	/*
-	 * FIXME: guessing that snr needs to be divided by two, otherwise
-	 * the values don't make any sense
-	 */
-	status->noise = desc->rssi - desc->snr / 2;
-
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 
 	status->flag |= RX_FLAG_TSFT;
@@ -126,7 +121,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
-	skb = dev_alloc_skb(length);
+	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1251_error("Couldn't allocate RX frame");
 		return;
@@ -188,6 +183,4 @@ void wl1251_rx(struct wl1251 *wl)
 
 	/* Finally, we need to ACK the RX */
 	wl1251_rx_ack(wl);
-
-	return;
 }

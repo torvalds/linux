@@ -26,6 +26,7 @@
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
+#include <linux/kdb.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -50,6 +51,7 @@
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 #include <asm/irq.h>
+#include <asm/uasm.h>
 
 extern void check_wait(void);
 extern asmlinkage void r4k_wait(void);
@@ -184,6 +186,11 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 			regs.regs[29] = task->thread.reg29;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
+#ifdef CONFIG_KGDB_KDB
+		} else if (atomic_read(&kgdb_active) != -1 &&
+			   kdb_current_regs) {
+			memcpy(&regs, kdb_current_regs, sizeof(regs));
+#endif /* CONFIG_KGDB_KDB */
 		} else {
 			prepare_frametrace(&regs);
 		}
@@ -351,12 +358,15 @@ void show_registers(const struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-void __noreturn die(const char * str, const struct pt_regs * regs)
+void __noreturn die(const char * str, struct pt_regs * regs)
 {
 	static int die_counter;
+	int sig = SIGSEGV;
 #ifdef CONFIG_MIPS_MT_SMTC
 	unsigned long dvpret = dvpe();
 #endif /* CONFIG_MIPS_MT_SMTC */
+
+	notify_die(DIE_OOPS, str, (struct pt_regs *)regs, SIGSEGV, 0, 0);
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
@@ -364,6 +374,10 @@ void __noreturn die(const char * str, const struct pt_regs * regs)
 #ifdef CONFIG_MIPS_MT_SMTC
 	mips_mt_regdump(dvpret);
 #endif /* CONFIG_MIPS_MT_SMTC */
+
+	if (notify_die(DIE_OOPS, str, regs, 0, current->thread.trap_no, SIGSEGV) == NOTIFY_STOP)
+		sig = 0;
+
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	add_taint(TAINT_DIE);
@@ -378,7 +392,7 @@ void __noreturn die(const char * str, const struct pt_regs * regs)
 		panic("Fatal exception");
 	}
 
-	do_exit(SIGSEGV);
+	do_exit(sig);
 }
 
 extern struct exception_table_entry __start___dbe_table[];
@@ -698,6 +712,11 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	siginfo_t info;
 	char b[40];
 
+#ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
+	if (kgdb_ll_trap(DIE_TRAP, str, regs, code, 0, 0) == NOTIFY_STOP)
+		return;
+#endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
+
 	if (notify_die(DIE_TRAP, str, regs, code, 0, 0) == NOTIFY_STOP)
 		return;
 
@@ -848,7 +867,7 @@ static void mt_ase_fp_affinity(void)
 				= current->cpus_allowed;
 			cpus_and(tmask, current->cpus_allowed,
 				mt_fpu_cpumask);
-			set_cpus_allowed(current, tmask);
+			set_cpus_allowed_ptr(current, &tmask);
 			set_thread_flag(TIF_FPUBOUND);
 		}
 	}
@@ -957,7 +976,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 2:
 		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
-		break;
+		return;
 
 	case 3:
 		break;
@@ -1271,21 +1290,25 @@ unsigned long ebase;
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
 
-/*
- * As a side effect of the way this is implemented we're limited
- * to interrupt handlers in the address range from
- * KSEG0 <= x < KSEG0 + 256mb on the Nevada.  Oh well ...
- */
-void *set_except_vector(int n, void *addr)
+void __init *set_except_vector(int n, void *addr)
 {
 	unsigned long handler = (unsigned long) addr;
 	unsigned long old_handler = exception_handlers[n];
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(u32 *)(ebase + 0x200) = 0x08000000 |
-					  (0x03ffffff & (handler >> 2));
-		local_flush_icache_range(ebase + 0x200, ebase + 0x204);
+		unsigned long jump_mask = ~((1 << 28) - 1);
+		u32 *buf = (u32 *)(ebase + 0x200);
+		unsigned int k0 = 26;
+		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
+			uasm_i_j(&buf, handler & ~jump_mask);
+			uasm_i_nop(&buf);
+		} else {
+			UASM_i_LA(&buf, k0, handler);
+			uasm_i_jr(&buf, k0);
+			uasm_i_nop(&buf);
+		}
+		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
 	return (void *)old_handler;
 }
@@ -1501,6 +1524,7 @@ void __cpuinit per_cpu_trap_init(void)
 			cp0_perfcount_irq = -1;
 	} else {
 		cp0_compare_irq = CP0_LEGACY_COMPARE_IRQ;
+		cp0_compare_irq_shift = cp0_compare_irq;
 		cp0_perfcount_irq = -1;
 	}
 
@@ -1551,12 +1575,7 @@ static char panic_null_cerr[] __cpuinitdata =
 void __cpuinit set_uncached_handler(unsigned long offset, void *addr,
 	unsigned long size)
 {
-#ifdef CONFIG_32BIT
-	unsigned long uncached_ebase = KSEG1ADDR(ebase);
-#endif
-#ifdef CONFIG_64BIT
-	unsigned long uncached_ebase = TO_UNCAC(ebase);
-#endif
+	unsigned long uncached_ebase = CKSEG1ADDR(ebase);
 
 	if (!addr)
 		panic(panic_null_cerr);
@@ -1593,7 +1612,7 @@ void __init trap_init(void)
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
 	} else {
-		ebase = CAC_BASE;
+		ebase = CKSEG0;
 		if (cpu_has_mips_r2)
 			ebase += (read_c0_ebase() & 0x3ffff000);
 	}

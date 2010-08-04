@@ -93,13 +93,6 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 	if (!gadget_supports_altsettings(gadget))
 		return false;
 
-	/* SA1100 can do ECM, *without* status endpoint ... but we'll
-	 * only use it in non-ECM mode for backwards compatibility
-	 * (and since we currently require a status endpoint)
-	 */
-	if (gadget_is_sa1100(gadget))
-		return false;
-
 	/* Everything else is *presumably* fine ... but this is a bit
 	 * chancy, so be **CERTAIN** there are no hardware issues with
 	 * your controller.  Add it above if it can't handle CDC.

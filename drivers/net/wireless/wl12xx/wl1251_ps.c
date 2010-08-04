@@ -26,7 +26,8 @@
 #include "wl1251_cmd.h"
 #include "wl1251_io.h"
 
-#define WL1251_WAKEUP_TIMEOUT 2000
+/* in ms */
+#define WL1251_WAKEUP_TIMEOUT 100
 
 void wl1251_elp_work(struct work_struct *work)
 {
@@ -44,7 +45,7 @@ void wl1251_elp_work(struct work_struct *work)
 		goto out;
 
 	wl1251_debug(DEBUG_PSM, "chip to elp");
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
 	wl->elp = true;
 
 out:
@@ -67,7 +68,7 @@ void wl1251_ps_elp_sleep(struct wl1251 *wl)
 
 int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 {
-	unsigned long timeout;
+	unsigned long timeout, start;
 	u32 elp_reg;
 
 	if (!wl->elp)
@@ -75,11 +76,12 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_PSM, "waking up chip from elp");
 
+	start = jiffies;
 	timeout = jiffies + msecs_to_jiffies(WL1251_WAKEUP_TIMEOUT);
 
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
+	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
 
-	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	/*
 	 * FIXME: we should wait for irq from chip but, as a temporary
@@ -91,12 +93,11 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 			return -ETIMEDOUT;
 		}
 		msleep(1);
-		elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+		elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 	}
 
 	wl1251_debug(DEBUG_PSM, "wakeup time: %u ms",
-		     jiffies_to_msecs(jiffies) -
-		     (jiffies_to_msecs(timeout) - WL1251_WAKEUP_TIMEOUT));
+		     jiffies_to_msecs(jiffies - start));
 
 	wl->elp = false;
 

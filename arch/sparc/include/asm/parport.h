@@ -113,7 +113,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 	struct parport *p;
 	int slot, err;
 
-	parent = op->node->parent;
+	parent = op->dev.of_node->parent;
 	if (!strcmp(parent->name, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
 					  op->irqs[0], PARPORT_DMA_NOFIFO,
@@ -232,8 +232,11 @@ static const struct of_device_id ecpp_match[] = {
 };
 
 static struct of_platform_driver ecpp_driver = {
-	.name			= "ecpp",
-	.match_table		= ecpp_match,
+	.driver = {
+		.name = "ecpp",
+		.owner = THIS_MODULE,
+		.of_match_table = ecpp_match,
+	},
 	.probe			= ecpp_probe,
 	.remove			= __devexit_p(ecpp_remove),
 };

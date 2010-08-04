@@ -31,6 +31,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -97,11 +98,11 @@ static int u32_classify(struct sk_buff *skb, struct tcf_proto *tp, struct tcf_re
 {
 	struct {
 		struct tc_u_knode *knode;
-		u8		  *ptr;
+		unsigned int	  off;
 	} stack[TC_U32_MAXDEPTH];
 
 	struct tc_u_hnode *ht = (struct tc_u_hnode*)tp->root;
-	u8 *ptr = skb_network_header(skb);
+	unsigned int off = skb_network_offset(skb);
 	struct tc_u_knode *n;
 	int sdepth = 0;
 	int off2 = 0;
@@ -133,8 +134,14 @@ next_knode:
 #endif
 
 		for (i = n->sel.nkeys; i>0; i--, key++) {
+			unsigned int toff;
+			__be32 *data, _data;
 
-			if ((*(__be32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
+			toff = off + key->off + (off2 & key->offmask);
+			data = skb_header_pointer(skb, toff, 4, &_data);
+			if (!data)
+				goto out;
+			if ((*data ^ key->val) & key->mask) {
 				n = n->next;
 				goto next_knode;
 			}
@@ -173,29 +180,45 @@ check_terminal:
 		if (sdepth >= TC_U32_MAXDEPTH)
 			goto deadloop;
 		stack[sdepth].knode = n;
-		stack[sdepth].ptr = ptr;
+		stack[sdepth].off = off;
 		sdepth++;
 
 		ht = n->ht_down;
 		sel = 0;
-		if (ht->divisor)
-			sel = ht->divisor&u32_hash_fold(*(__be32*)(ptr+n->sel.hoff), &n->sel,n->fshift);
+		if (ht->divisor) {
+			__be32 *data, _data;
 
+			data = skb_header_pointer(skb, off + n->sel.hoff, 4,
+						  &_data);
+			if (!data)
+				goto out;
+			sel = ht->divisor & u32_hash_fold(*data, &n->sel,
+							  n->fshift);
+		}
 		if (!(n->sel.flags&(TC_U32_VAROFFSET|TC_U32_OFFSET|TC_U32_EAT)))
 			goto next_ht;
 
 		if (n->sel.flags&(TC_U32_OFFSET|TC_U32_VAROFFSET)) {
 			off2 = n->sel.off + 3;
-			if (n->sel.flags&TC_U32_VAROFFSET)
-				off2 += ntohs(n->sel.offmask & *(__be16*)(ptr+n->sel.offoff)) >>n->sel.offshift;
+			if (n->sel.flags & TC_U32_VAROFFSET) {
+				__be16 *data, _data;
+
+				data = skb_header_pointer(skb,
+							  off + n->sel.offoff,
+							  2, &_data);
+				if (!data)
+					goto out;
+				off2 += ntohs(n->sel.offmask & *data) >>
+					n->sel.offshift;
+			}
 			off2 &= ~3;
 		}
 		if (n->sel.flags&TC_U32_EAT) {
-			ptr += off2;
+			off += off2;
 			off2 = 0;
 		}
 
-		if (ptr < skb_tail_pointer(skb))
+		if (off < skb->len)
 			goto next_ht;
 	}
 
@@ -203,14 +226,15 @@ check_terminal:
 	if (sdepth--) {
 		n = stack[sdepth].knode;
 		ht = n->ht_up;
-		ptr = stack[sdepth].ptr;
+		off = stack[sdepth].off;
 		goto check_terminal;
 	}
+out:
 	return -1;
 
 deadloop:
 	if (net_ratelimit())
-		printk("cls_u32: dead loop\n");
+		printk(KERN_WARNING "cls_u32: dead loop\n");
 	return -1;
 }
 
@@ -767,15 +791,15 @@ static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 
 static int __init init_u32(void)
 {
-	printk("u32 classifier\n");
+	pr_info("u32 classifier\n");
 #ifdef CONFIG_CLS_U32_PERF
-	printk("    Performance counters on\n");
+	pr_info("    Performance counters on\n");
 #endif
 #ifdef CONFIG_NET_CLS_IND
-	printk("    input device check on \n");
+	pr_info("    input device check on\n");
 #endif
 #ifdef CONFIG_NET_CLS_ACT
-	printk("    Actions configured \n");
+	pr_info("    Actions configured\n");
 #endif
 	return register_tcf_proto_ops(&cls_u32_ops);
 }

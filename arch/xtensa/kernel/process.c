@@ -23,7 +23,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/elf.h>
 #include <linux/init.h>
 #include <linux/prctl.h>
@@ -31,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/mqueue.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>

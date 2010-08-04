@@ -20,6 +20,7 @@
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/sort.h>
+#include <linux/slab.h>
 
 #include <net/mac80211.h>
 

@@ -59,7 +59,7 @@ void __init cmx2xx_pci_adjust_zones(int node, unsigned long *zone_size,
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	/* clear our parent irq */
-	GEDR(cmx2xx_it8152_irq_gpio) = GPIO_bit(cmx2xx_it8152_irq_gpio);
+	desc->chip->ack(irq);
 
 	it8152_irq_demux(irq, desc);
 }

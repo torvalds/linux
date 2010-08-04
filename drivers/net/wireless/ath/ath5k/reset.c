@@ -19,8 +19,6 @@
  *
  */
 
-#define _ATH5K_RESET
-
 /*****************************\
   Reset functions and helpers
 \*****************************/
@@ -33,6 +31,27 @@
 #include "reg.h"
 #include "base.h"
 #include "debug.h"
+
+/*
+ * Check if a register write has been completed
+ */
+int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
+			      bool is_set)
+{
+	int i;
+	u32 data;
+
+	for (i = AR5K_TUNE_REGISTER_TIMEOUT; i > 0; i--) {
+		data = ath5k_hw_reg_read(ah, reg);
+		if (is_set && (data & flag))
+			break;
+		else if ((data & flag) == val)
+			break;
+		udelay(15);
+	}
+
+	return (i <= 0) ? -EAGAIN : 0;
+}
 
 /**
  * ath5k_hw_write_ofdm_timings - set OFDM timings on AR5212
@@ -60,12 +79,11 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 		!(channel->hw_value & CHANNEL_OFDM));
 
 	/* Get coefficient
-	 * ALGO: coef = (5 * clock * carrier_freq) / 2)
+	 * ALGO: coef = (5 * clock / carrier_freq) / 2
 	 * we scale coef by shifting clock value by 24 for
 	 * better precision since we use integers */
 	/* TODO: Half/quarter rate */
-	clock =  ath5k_hw_htoclock(1, channel->hw_value & CHANNEL_TURBO);
-
+	clock =  (channel->hw_value & CHANNEL_TURBO) ? 80 : 40;
 	coef_scaled = ((5 * (clock << 24)) / 2) / channel->center_freq;
 
 	/* Get exponent
@@ -222,8 +240,8 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 /*
  * Sleep control
  */
-int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
-		bool set_chip, u16 sleep_duration)
+static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
+			      bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
 	u32 staid, data;
@@ -609,7 +627,6 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
 	}
-	return;
 }
 
 /* TODO: Half/Quarter rate */
@@ -852,18 +869,19 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 				AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1,
 				AR5K_INIT_CYCRSSI_THR1);
 
-	/* I/Q correction
-	 * TODO: Per channel i/q infos ? */
-	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
-		AR5K_PHY_IQ_CORR_ENABLE |
-		(ee->ee_i_cal[ee_mode] << AR5K_PHY_IQ_CORR_Q_I_COFF_S) |
-		ee->ee_q_cal[ee_mode]);
+	/* I/Q correction (set enable bit last to match HAL sources) */
+	/* TODO: Per channel i/q infos ? */
+	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0) {
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_I_COFF,
+			    ee->ee_i_cal[ee_mode]);
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_Q_COFF,
+			    ee->ee_q_cal[ee_mode]);
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE);
+	}
 
 	/* Heavy clipping -disable for now */
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_1)
 		ath5k_hw_reg_write(ah, 0, AR5K_PHY_HEAVY_CLIP_ENABLE);
-
-	return;
 }
 
 /*
@@ -1014,11 +1032,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ret = ath5k_hw_nic_wakeup(ah, channel->hw_value, false);
 	if (ret)
 		return ret;
-
-	/*
-	 * Initialize operating mode
-	 */
-	ah->ah_op_mode = op_mode;
 
 	/* PHY access enable */
 	if (ah->ah_mac_srev >= AR5K_SREV_AR5211)
@@ -1190,7 +1203,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_set_associd(ah);
 
 	/* Set PCU config */
-	ath5k_hw_set_opmode(ah);
+	ath5k_hw_set_opmode(ah, op_mode);
 
 	/* Clear any pending interrupts
 	 * PISR/SISR Not available on 5210 */
@@ -1317,6 +1330,10 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* Restore antenna mode */
 	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
 
+	/* Restore slot time and ACK timeouts */
+	if (ah->ah_coverage_class > 0)
+		ath5k_hw_set_coverage_class(ah, ah->ah_coverage_class);
+
 	/*
 	 * Configure QCUs/DCUs
 	 */
@@ -1371,16 +1388,14 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * Set clocks to 32KHz operation and use an
 	 * external 32KHz crystal when sleeping if one
 	 * exists */
-	if (ah->ah_version == AR5K_AR5212)
-			ath5k_hw_set_sleep_clock(ah, true);
+	if (ah->ah_version == AR5K_AR5212 &&
+	    op_mode != NL80211_IFTYPE_AP)
+		ath5k_hw_set_sleep_clock(ah, true);
 
 	/*
-	 * Disable beacons and reset the register
+	 * Disable beacons and reset the TSF
 	 */
-	AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE |
-			AR5K_BEACON_RESET_TSF);
-
+	AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
+	ath5k_hw_reset_tsf(ah);
 	return 0;
 }
-
-#undef _ATH5K_RESET

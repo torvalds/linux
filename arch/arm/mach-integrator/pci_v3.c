@@ -22,7 +22,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -30,6 +29,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
 #include <asm/signal.h>
 #include <asm/system.h>
@@ -390,9 +390,9 @@ static int __init pci_v3_setup_resources(struct resource **resource)
  * means I can't get additional information on the reason for the pm2fb
  * problems.  I suppose I'll just have to mind-meld with the machine. ;)
  */
-#define SC_PCI     (IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_PCIENABLE_OFFSET)
-#define SC_LBFADDR (IO_ADDRESS(INTEGRATOR_SC_BASE) + 0x20)
-#define SC_LBFCODE (IO_ADDRESS(INTEGRATOR_SC_BASE) + 0x24)
+#define SC_PCI     IO_ADDRESS(INTEGRATOR_SC_PCIENABLE)
+#define SC_LBFADDR IO_ADDRESS(INTEGRATOR_SC_BASE + 0x20)
+#define SC_LBFCODE IO_ADDRESS(INTEGRATOR_SC_BASE + 0x24)
 
 static int
 v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)

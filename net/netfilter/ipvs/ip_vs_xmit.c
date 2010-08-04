@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/tcp.h>                  /* for tcphdr */
 #include <net/ip.h>
 #include <net/tcp.h>                    /* for csum_tcpudp_magic */
@@ -269,7 +270,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -311,7 +312,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	mtu = dst_mtu(&rt->u.dst);
 	if (skb->len > mtu) {
 		dst_release(&rt->u.dst);
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
 	}
@@ -333,7 +334,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -409,7 +410,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -454,7 +455,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	mtu = dst_mtu(&rt->u.dst);
 	if (skb->len > mtu) {
 		dst_release(&rt->u.dst);
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL_PKT(0, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): frag needed for");
 		goto tx_error;
@@ -485,7 +486,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -672,7 +673,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 	if (mtu < ntohs(old_iph->payload_len) + sizeof(struct ipv6hdr)) {
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		dst_release(&rt->u.dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
@@ -784,7 +785,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -814,7 +815,7 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* MTU checking */
 	mtu = dst_mtu(&rt->u.dst);
 	if (skb->len > mtu) {
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		dst_release(&rt->u.dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
@@ -837,7 +838,7 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -911,7 +912,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
 
 	rc = NF_STOLEN;
 	goto out;
@@ -965,7 +966,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	mtu = dst_mtu(&rt->u.dst);
 	if (skb->len > mtu) {
 		dst_release(&rt->u.dst);
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
 	}
@@ -986,7 +987,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(PF_INET6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
 
 	rc = NF_STOLEN;
 	goto out;

@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -48,7 +49,7 @@ static int tcf_simp(struct sk_buff *skb, struct tc_action *a, struct tcf_result 
 	 * Example if this was the 3rd packet and the string was "hello"
 	 * then it would look like "hello_3" (without quotes)
 	 **/
-	printk("simple: %s_%d\n",
+	pr_info("simple: %s_%d\n",
 	       (char *)d->tcfd_defdata, d->tcf_bstats.packets);
 	spin_unlock(&d->tcf_lock);
 	return d->tcf_action;
@@ -204,7 +205,7 @@ static int __init simp_init_module(void)
 {
 	int ret = tcf_register_action(&act_simp_ops);
 	if (!ret)
-		printk("Simple TC action Loaded\n");
+		pr_info("Simple TC action Loaded\n");
 	return ret;
 }
 

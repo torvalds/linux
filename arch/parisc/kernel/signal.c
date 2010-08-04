@@ -468,7 +468,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	tracehook_signal_handler(sig, info, ka, regs, 0);
+	tracehook_signal_handler(sig, info, ka, regs, 
+		test_thread_flag(TIF_SINGLESTEP) ||
+		test_thread_flag(TIF_BLOCKSTEP));
 
 	return 1;
 }

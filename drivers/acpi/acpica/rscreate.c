@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,7 +182,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 	/*
 	 * Loop through the ACPI_INTERNAL_OBJECTS - Each object should be a
-	 * package that in turn contains an acpi_integer Address, a u8 Pin,
+	 * package that in turn contains an u64 Address, a u8 Pin,
 	 * a Name, and a u8 source_index.
 	 */
 	top_object_list = package_object->package.elements;
@@ -212,7 +212,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		if ((*top_object_list)->common.type != ACPI_TYPE_PACKAGE) {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X]) Need sub-package, found %s",
+				    "(PRT[%u]) Need sub-package, found %s",
 				    index,
 				    acpi_ut_get_object_type_name
 				    (*top_object_list)));
@@ -223,7 +223,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		if ((*top_object_list)->package.count != 4) {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X]) Need package of length 4, found length %d",
+				    "(PRT[%u]) Need package of length 4, found length %u",
 				    index, (*top_object_list)->package.count));
 			return_ACPI_STATUS(AE_AML_PACKAGE_LIMIT);
 		}
@@ -240,7 +240,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		obj_desc = sub_object_list[0];
 		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X].Address) Need Integer, found %s",
+				    "(PRT[%u].Address) Need Integer, found %s",
 				    index,
 				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
@@ -253,7 +253,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		obj_desc = sub_object_list[1];
 		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X].Pin) Need Integer, found %s",
+				    "(PRT[%u].Pin) Need Integer, found %s",
 				    index,
 				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
@@ -289,7 +289,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 				if (obj_desc->reference.class !=
 				    ACPI_REFCLASS_NAME) {
 					ACPI_ERROR((AE_INFO,
-						    "(PRT[%X].Source) Need name, found Reference Class %X",
+						    "(PRT[%u].Source) Need name, found Reference Class 0x%X",
 						    index,
 						    obj_desc->reference.class));
 					return_ACPI_STATUS(AE_BAD_DATA);
@@ -340,7 +340,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "(PRT[%X].Source) Need Ref/String/Integer, found %s",
+					    "(PRT[%u].Source) Need Ref/String/Integer, found %s",
 					    index,
 					    acpi_ut_get_object_type_name
 					    (obj_desc)));
@@ -358,7 +358,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		obj_desc = sub_object_list[3];
 		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X].SourceIndex) Need Integer, found %s",
+				    "(PRT[%u].SourceIndex) Need Integer, found %s",
 				    index,
 				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);

@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #if 0
 #define DEBUGP printk

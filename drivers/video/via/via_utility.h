@@ -30,6 +30,5 @@ bool viafb_lcd_get_support_expand_state(u32 xres, u32 yres);
 void viafb_set_gamma_table(int bpp, unsigned int *gamma_table);
 void viafb_get_gamma_table(unsigned int *gamma_table);
 void viafb_get_gamma_support_state(int bpp, unsigned int *support_state);
-int viafb_input_parameter_converter(int parameter_value);
 
 #endif /* __VIAUTILITY_H__ */

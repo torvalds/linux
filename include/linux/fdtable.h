@@ -57,7 +57,15 @@ struct files_struct {
 	struct file * fd_array[NR_OPEN_DEFAULT];
 };
 
-#define files_fdtable(files) (rcu_dereference((files)->fdt))
+#define rcu_dereference_check_fdtable(files, fdtfd) \
+	(rcu_dereference_check((fdtfd), \
+			       rcu_read_lock_held() || \
+			       lockdep_is_held(&(files)->file_lock) || \
+			       atomic_read(&(files)->count) == 1 || \
+			       rcu_my_thread_group_empty()))
+
+#define files_fdtable(files) \
+		(rcu_dereference_check_fdtable((files), (files)->fdt))
 
 struct file_operations;
 struct vfsmount;
@@ -78,7 +86,7 @@ static inline struct file * fcheck_files(struct files_struct *files, unsigned in
 	struct fdtable *fdt = files_fdtable(files);
 
 	if (fd < fdt->max_fds)
-		file = rcu_dereference(fdt->fd[fd]);
+		file = rcu_dereference_check_fdtable(files, fdt->fd[fd]);
 	return file;
 }
 

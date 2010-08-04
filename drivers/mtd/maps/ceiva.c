@@ -253,7 +253,7 @@ static void __exit clps_destroy_mtd(struct clps_info *clps, struct mtd_info *mtd
 
 static int __init clps_setup_flash(void)
 {
-	int nr;
+	int nr = 0;
 
 #ifdef CONFIG_ARCH_CEIVA
 	if (machine_is_ceiva()) {

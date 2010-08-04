@@ -654,7 +654,6 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			}
 		}
 		retval = NETDEV_TX_OK;
-		dev->trans_start = jiffies;
 		lp->next_tx = txbuf;
 	} else {
 		retval = NETDEV_TX_BUSY;

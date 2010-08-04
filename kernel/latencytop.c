@@ -56,7 +56,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/stacktrace.h>
 
 static DEFINE_SPINLOCK(latency_lock);

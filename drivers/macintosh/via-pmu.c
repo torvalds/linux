@@ -463,8 +463,8 @@ static int __init via_pmu_dev_init(void)
 #endif
 
 #ifdef CONFIG_PPC32
-  	if (machine_is_compatible("AAPL,3400/2400") ||
-  		machine_is_compatible("AAPL,3500")) {
+  	if (of_machine_is_compatible("AAPL,3400/2400") ||
+  		of_machine_is_compatible("AAPL,3500")) {
 		int mb = pmac_call_feature(PMAC_FTR_GET_MB_INFO,
 			NULL, PMAC_MB_INFO_MODEL, 0);
 		pmu_battery_count = 1;
@@ -472,8 +472,8 @@ static int __init via_pmu_dev_init(void)
 			pmu_batteries[0].flags |= PMU_BATT_TYPE_COMET;
 		else
 			pmu_batteries[0].flags |= PMU_BATT_TYPE_HOOPER;
-	} else if (machine_is_compatible("AAPL,PowerBook1998") ||
-		machine_is_compatible("PowerBook1,1")) {
+	} else if (of_machine_is_compatible("AAPL,PowerBook1998") ||
+		of_machine_is_compatible("PowerBook1,1")) {
 		pmu_battery_count = 2;
 		pmu_batteries[0].flags |= PMU_BATT_TYPE_SMART;
 		pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
@@ -2273,8 +2273,7 @@ static int register_pmu_pm_ops(void)
 device_initcall(register_pmu_pm_ops);
 #endif
 
-static int
-pmu_ioctl(struct inode * inode, struct file *filp,
+static int pmu_ioctl(struct file *filp,
 		     u_int cmd, u_long arg)
 {
 	__u32 __user *argp = (__u32 __user *)arg;
@@ -2337,11 +2336,23 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	return error;
 }
 
+static long pmu_unlocked_ioctl(struct file *filp,
+			       u_int cmd, u_long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = pmu_ioctl(filp, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.poll		= pmu_fpoll,
-	.ioctl		= pmu_ioctl,
+	.unlocked_ioctl	= pmu_unlocked_ioctl,
 	.open		= pmu_open,
 	.release	= pmu_release,
 };

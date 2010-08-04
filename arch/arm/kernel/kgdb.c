@@ -9,6 +9,7 @@
  * Authors:  George Davis <davis_g@mvista.com>
  *           Deepak Saxena <dsaxena@plexity.net>
  */
+#include <linux/irq.h>
 #include <linux/kgdb.h>
 #include <asm/traps.h>
 
@@ -97,6 +98,11 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 	gdb_regs[_CPSR]		= thread_regs->ARM_cpsr;
 }
 
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
+{
+	regs->ARM_pc = pc;
+}
+
 static int compiled_break;
 
 int kgdb_arch_handle_exception(int exception_vector, int signo,
@@ -157,6 +163,18 @@ static struct undef_hook kgdb_compiled_brkpt_hook = {
 	.instr_val		= KGDB_COMPILED_BREAK,
 	.fn			= kgdb_compiled_brk_fn
 };
+
+static void kgdb_call_nmi_hook(void *ignored)
+{
+       kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
+}
+
+void kgdb_roundup_cpus(unsigned long flags)
+{
+       local_irq_enable();
+       smp_call_function(kgdb_call_nmi_hook, NULL, 0);
+       local_irq_disable();
+}
 
 /**
  *	kgdb_arch_init - Perform any architecture specific initalization.

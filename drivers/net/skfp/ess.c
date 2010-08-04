@@ -557,7 +557,7 @@ static void ess_send_alc_req(struct s_smc *smc)
 
 	/*
 	 * send never allocation request where the requested payload and
-	 * overhead is zero or deallocate bandwidht when no bandwidth is
+	 * overhead is zero or deallocate bandwidth when no bandwidth is
 	 * parsed
 	 */
 	if (!smc->mib.fddiESSPayload) {

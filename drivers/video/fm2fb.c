@@ -219,6 +219,7 @@ static struct zorro_device_id fm2fb_devices[] __devinitdata = {
 	{ ZORRO_PROD_HELFRICH_RAINBOW_II },
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(zorro, fm2fb_devices);
 
 static struct zorro_driver fm2fb_driver = {
 	.name		= "fm2fb",

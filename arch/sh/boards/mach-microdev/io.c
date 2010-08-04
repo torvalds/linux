@@ -141,10 +141,10 @@ static inline void delay(void)
 #if defined(CONFIG_PCI)
 	/* System board present, just make a dummy SRAM access.  (CS0 will be
 	   mapped to PCI memory, probably good to avoid it.) */
-	ctrl_inw(0xa6800000);
+	__raw_readw(0xa6800000);
 #else
 	/* CS0 will be mapped to flash, ROM etc so safe to access it. */
-	ctrl_inw(0xa0000000);
+	__raw_readw(0xa0000000);
 #endif
 }
 

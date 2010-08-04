@@ -392,7 +392,7 @@ static int gfs2_dirent_find_space(const struct gfs2_dirent *dent,
 	unsigned totlen = be16_to_cpu(dent->de_rec_len);
 
 	if (gfs2_dirent_sentinel(dent))
-		actual = GFS2_DIRENT_SIZE(0);
+		actual = 0;
 	if (totlen - actual >= required)
 		return 1;
 	return 0;
@@ -1231,6 +1231,25 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 	return 0;
 }
 
+static void *gfs2_alloc_sort_buffer(unsigned size)
+{
+	void *ptr = NULL;
+
+	if (size < KMALLOC_MAX_SIZE)
+		ptr = kmalloc(size, GFP_NOFS | __GFP_NOWARN);
+	if (!ptr)
+		ptr = __vmalloc(size, GFP_NOFS, PAGE_KERNEL);
+	return ptr;
+}
+
+static void gfs2_free_sort_buffer(void *ptr)
+{
+	if (is_vmalloc_addr(ptr))
+		vfree(ptr);
+	else
+		kfree(ptr);
+}
+
 static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 			      filldir_t filldir, int *copied, unsigned *depth,
 			      u64 leaf_no)
@@ -1271,7 +1290,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 	 * 99 is the maximum number of entries that can fit in a single
 	 * leaf block.
 	 */
-	larr = vmalloc((leaves + entries + 99) * sizeof(void *));
+	larr = gfs2_alloc_sort_buffer((leaves + entries + 99) * sizeof(void *));
 	if (!larr)
 		goto out;
 	darr = (const struct gfs2_dirent **)(larr + leaves);
@@ -1282,7 +1301,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 	do {
 		error = get_leaf(ip, lfn, &bh);
 		if (error)
-			goto out_kfree;
+			goto out_free;
 		lf = (struct gfs2_leaf *)bh->b_data;
 		lfn = be64_to_cpu(lf->lf_next);
 		if (lf->lf_entries) {
@@ -1291,7 +1310,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 						gfs2_dirent_gather, NULL, &g);
 			error = PTR_ERR(dent);
 			if (IS_ERR(dent))
-				goto out_kfree;
+				goto out_free;
 			if (entries2 != g.offset) {
 				fs_warn(sdp, "Number of entries corrupt in dir "
 						"leaf %llu, entries2 (%u) != "
@@ -1300,7 +1319,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 					entries2, g.offset);
 					
 				error = -EIO;
-				goto out_kfree;
+				goto out_free;
 			}
 			error = 0;
 			larr[leaf++] = bh;
@@ -1312,10 +1331,10 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 	BUG_ON(entries2 != entries);
 	error = do_filldir_main(ip, offset, opaque, filldir, darr,
 				entries, copied);
-out_kfree:
+out_free:
 	for(i = 0; i < leaf; i++)
 		brelse(larr[i]);
-	vfree(larr);
+	gfs2_free_sort_buffer(larr);
 out:
 	return error;
 }
@@ -1475,7 +1494,7 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
 		inode = gfs2_inode_lookup(dir->i_sb, 
 				be16_to_cpu(dent->de_type),
 				be64_to_cpu(dent->de_inum.no_addr),
-				be64_to_cpu(dent->de_inum.no_formal_ino), 0);
+				be64_to_cpu(dent->de_inum.no_formal_ino));
 		brelse(bh);
 		return inode;
 	}

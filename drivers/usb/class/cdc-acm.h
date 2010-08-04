@@ -112,7 +112,6 @@ struct acm {
 	struct mutex mutex;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
-	struct work_struct waker;
 	wait_queue_head_t drain_wait;			/* close processing */
 	struct tasklet_struct urb_task;                 /* rx processing */
 	spinlock_t throttle_lock;			/* synchronize throtteling and read callback */
@@ -125,8 +124,8 @@ struct acm {
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
-	int combined_interfaces:1;			/* control and data collapsed */
-	int is_int_ep:1;				/* interrupt endpoints contrary to spec used */
+	unsigned int combined_interfaces:1;		/* control and data collapsed */
+	unsigned int is_int_ep:1;			/* interrupt endpoints contrary to spec used */
 	u8 bInterval;
 	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
 };
@@ -137,3 +136,4 @@ struct acm {
 #define NO_UNION_NORMAL			1
 #define SINGLE_RX_URB			2
 #define NO_CAP_LINE			4
+#define NOT_A_MODEM			8

@@ -13,6 +13,7 @@
 #ifndef __CXGB3I_ULP2_DDP_H__
 #define __CXGB3I_ULP2_DDP_H__
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 /**

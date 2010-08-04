@@ -40,7 +40,7 @@
 #include <net/sctp/sctp.h>
 #include <net/ip.h> /* for snmp_fold_field */
 
-static struct snmp_mib sctp_snmp_list[] = {
+static const struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpCurrEstab", SCTP_MIB_CURRESTAB),
 	SNMP_MIB_ITEM("SctpActiveEstabs", SCTP_MIB_ACTIVEESTABS),
 	SNMP_MIB_ITEM("SctpPassiveEstabs", SCTP_MIB_PASSIVEESTABS),
@@ -83,7 +83,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
-			   snmp_fold_field((void **)sctp_statistics,
+			   snmp_fold_field((void __percpu **)sctp_statistics,
 				      sctp_snmp_list[i].entry));
 
 	return 0;
@@ -181,7 +181,6 @@ static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void sctp_eps_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 
@@ -286,7 +285,6 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 
@@ -409,7 +407,6 @@ static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)

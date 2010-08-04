@@ -25,6 +25,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -123,7 +124,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 static int pmi_of_probe(struct of_device *dev,
 			const struct of_device_id *match)
 {
-	struct device_node *np = dev->node;
+	struct device_node *np = dev->dev.of_node;
 	int rc;
 
 	if (data) {
@@ -205,11 +206,12 @@ static int pmi_of_remove(struct of_device *dev)
 }
 
 static struct of_platform_driver pmi_of_platform_driver = {
-	.match_table	= pmi_match,
 	.probe		= pmi_of_probe,
 	.remove		= pmi_of_remove,
-	.driver		= {
-		.name	= "pmi",
+	.driver = {
+		.name = "pmi",
+		.owner = THIS_MODULE,
+		.of_match_table = pmi_match,
 	},
 };
 

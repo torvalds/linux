@@ -12,6 +12,7 @@
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
  */
 
+#include <linux/slab.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libiscsi.h>
 #include "bnx2i.h"
@@ -819,6 +820,11 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 
 	spin_lock_init(&hba->lock);
 	mutex_init(&hba->net_dev_lock);
+	init_waitqueue_head(&hba->eh_wait);
+	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type))
+		hba->hba_shutdown_tmo = 240 * HZ;
+	else	/* 5706/5708/5709 */
+		hba->hba_shutdown_tmo = 30 * HZ;
 
 	if (iscsi_host_add(shost, &hba->pcidev->dev))
 		goto free_dump_mem;
@@ -1426,8 +1432,8 @@ static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
 		if (bnx2i_conn->ep)
-			len = sprintf(buf, NIPQUAD_FMT "\n",
-				      NIPQUAD(bnx2i_conn->ep->cm_sk->dst_ip));
+			len = sprintf(buf, "%pI4\n",
+				      &bnx2i_conn->ep->cm_sk->dst_ip);
 		break;
 	default:
 		return iscsi_conn_get_param(cls_conn, param, buf);
@@ -1657,8 +1663,8 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 		 */
 		hba = bnx2i_check_route(dst_addr);
 
-	if (!hba) {
-		rc = -ENOMEM;
+	if (!hba || test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state)) {
+		rc = -EINVAL;
 		goto check_busy;
 	}
 
@@ -1803,7 +1809,7 @@ static int bnx2i_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 					       (bnx2i_ep->state ==
 						EP_STATE_CONNECT_COMPL)),
 					      msecs_to_jiffies(timeout_ms));
-	if (!rc || (bnx2i_ep->state == EP_STATE_OFLD_FAILED))
+	if (bnx2i_ep->state == EP_STATE_OFLD_FAILED)
 		rc = -1;
 
 	if (rc > 0)
@@ -1956,6 +1962,8 @@ return_bnx2i_ep:
 
 	if (!hba->ofld_conns_active)
 		bnx2i_unreg_dev_all();
+
+	wake_up_interruptible(&hba->eh_wait);
 }
 
 
@@ -1989,7 +1997,8 @@ static struct scsi_host_template bnx2i_host_template = {
 	.queuecommand		= iscsi_queuecommand,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
-	.eh_target_reset_handler = iscsi_eh_target_reset,
+	.eh_target_reset_handler = iscsi_eh_recover_target,
+	.change_queue_depth	= iscsi_change_queue_depth,
 	.can_queue		= 1024,
 	.max_sectors		= 127,
 	.cmd_per_lun		= 32,

@@ -269,7 +269,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 		/* no break is intentional here */
 	case IB_QPT_RC:
 		/* TODO: atomic not implemented */
-		wqe_p->u.nud.remote_virtual_adress =
+		wqe_p->u.nud.remote_virtual_address =
 			send_wr->wr.rdma.remote_addr;
 		wqe_p->u.nud.rkey = send_wr->wr.rdma.rkey;
 

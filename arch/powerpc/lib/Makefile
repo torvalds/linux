@@ -12,8 +12,8 @@ CFLAGS_REMOVE_code-patching.o = -pg
 CFLAGS_REMOVE_feature-fixups.o = -pg
 
 obj-y			:= string.o alloc.o \
-			   checksum_$(CONFIG_WORD_SIZE).o
-obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
+			   checksum_$(CONFIG_WORD_SIZE).o crtsavres.o
+obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \

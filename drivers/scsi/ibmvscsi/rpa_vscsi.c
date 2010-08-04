@@ -32,6 +32,7 @@
 #include <asm/iommu.h>
 #include <asm/hvcall.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include "ibmvscsi.h"
 
@@ -276,6 +277,12 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto reg_crq_failed;
 	}
 
+	queue->cur = 0;
+	spin_lock_init(&queue->lock);
+
+	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
+		     (unsigned long)hostdata);
+
 	if (request_irq(vdev->irq,
 			rpavscsi_handle_event,
 			0, "ibmvscsi", (void *)hostdata) != 0) {
@@ -290,15 +297,10 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto req_irq_failed;
 	}
 
-	queue->cur = 0;
-	spin_lock_init(&queue->lock);
-
-	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
-		     (unsigned long)hostdata);
-
 	return retrc;
 
       req_irq_failed:
+	tasklet_kill(&hostdata->srp_task);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
@@ -334,10 +336,23 @@ static int rpavscsi_reenable_crq_queue(struct crq_queue *queue,
 	return rc;
 }
 
+/**
+ * rpavscsi_resume: - resume after suspend
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ */
+static int rpavscsi_resume(struct ibmvscsi_host_data *hostdata)
+{
+	vio_disable_interrupts(to_vio_dev(hostdata->dev));
+	tasklet_schedule(&hostdata->srp_task);
+	return 0;
+}
+
 struct ibmvscsi_ops rpavscsi_ops = {
 	.init_crq_queue = rpavscsi_init_crq_queue,
 	.release_crq_queue = rpavscsi_release_crq_queue,
 	.reset_crq_queue = rpavscsi_reset_crq_queue,
 	.reenable_crq_queue = rpavscsi_reenable_crq_queue,
 	.send_crq = rpavscsi_send_crq,
+	.resume = rpavscsi_resume,
 };

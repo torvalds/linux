@@ -12,6 +12,8 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/random.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -106,15 +108,10 @@ static int siena_probe_port(struct efx_nic *efx)
 	efx->mdio.mdio_read = siena_mdio_read;
 	efx->mdio.mdio_write = siena_mdio_write;
 
-	/* Fill out MDIO structure and loopback modes */
+	/* Fill out MDIO structure, loopback modes, and initial link state */
 	rc = efx->phy_op->probe(efx);
 	if (rc != 0)
 		return rc;
-
-	/* Initial assumption */
-	efx->link_state.speed = 10000;
-	efx->link_state.fd = true;
-	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
@@ -139,7 +136,7 @@ void siena_remove_port(struct efx_nic *efx)
 
 static const struct efx_nic_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
-	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_CZ_USR_EV_CFG,
 	  EFX_OWORD32(0x000103FF, 0x00000000, 0x00000000, 0x00000000) },
 	{ FR_AZ_RX_CFG,
@@ -181,6 +178,12 @@ static int siena_test_registers(struct efx_nic *efx)
 
 static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
+	int rc;
+
+	/* Recover from a failed assertion pre-reset */
+	rc = efx_mcdi_handle_assertion(efx);
+	if (rc)
+		return rc;
 
 	if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
@@ -203,6 +206,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
 	bool already_attached = 0;
+	efx_oword_t reg;
 	int rc;
 
 	/* Allocate storage for hardware specific data */
@@ -216,6 +220,9 @@ static int siena_probe_nic(struct efx_nic *efx)
 		rc = -ENODEV;
 		goto fail1;
 	}
+
+	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
+	efx->net_dev->dev_id = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
 	efx_mcdi_init(efx);
 
@@ -272,6 +279,9 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	get_random_bytes(&nic_data->ipv6_rss_key,
+			 sizeof(nic_data->ipv6_rss_key));
+
 	return 0;
 
 fail5:
@@ -291,6 +301,7 @@ fail1:
  */
 static int siena_init_nic(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
 	efx_oword_t temp;
 	int rc;
 
@@ -316,6 +327,20 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_DESC_PUSH_EN, 0);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_INGR_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
+
+	/* Enable IPv6 RSS */
+	BUILD_BUG_ON(sizeof(nic_data->ipv6_rss_key) !=
+		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
+		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
+	memcpy(&temp, nic_data->ipv6_rss_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
+	memcpy(&temp, nic_data->ipv6_rss_key + sizeof(temp), sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
+	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
+			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
+	memcpy(&temp, nic_data->ipv6_rss_key + 2 * sizeof(temp),
+	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
 	if (efx_nic_rx_xoff_thresh >= 0 || efx_nic_rx_xon_thresh >= 0)
 		/* No MCDI operation has been defined to set thresholds */
@@ -454,8 +479,17 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 static void siena_update_nic_stats(struct efx_nic *efx)
 {
-	while (siena_try_update_nic_stats(efx) == -EAGAIN)
-		cpu_relax();
+	int retry;
+
+	/* If we're unlucky enough to read statistics wduring the DMA, wait
+	 * up to 10ms for it to finish (typically takes <500us) */
+	for (retry = 0; retry < 100; ++retry) {
+		if (siena_try_update_nic_stats(efx) == 0)
+			return;
+		udelay(100);
+	}
+
+	/* Use the old values instead */
 }
 
 static void siena_start_nic_stats(struct efx_nic *efx)
@@ -582,6 +616,7 @@ struct efx_nic_type siena_a0_nic_type = {
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
 	.test_registers = siena_test_registers,
+	.test_nvram = efx_mcdi_nvram_test_all,
 	.default_mac_ops = &efx_mcdi_mac_operations,
 
 	.revision = EFX_REV_SIENA_A0,

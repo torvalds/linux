@@ -42,7 +42,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -1158,7 +1157,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 	unsigned int i, m, hwirq;
 	pcmconf8xx_t *pcmcia;
 	int status;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 
 	pcmcia_info("%s\n", version);
 
@@ -1233,7 +1232,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 		socket[i].socket.io_offset = 0;
 		socket[i].socket.pci_irq = pcmcia_schlvl;
 		socket[i].socket.ops = &m8xx_services;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_iodyn_ops;
 		socket[i].socket.cb_dev = NULL;
 		socket[i].socket.dev.parent = &ofdev->dev;
 		socket[i].pcmcia = pcmcia;
@@ -1288,22 +1287,7 @@ static int m8xx_remove(struct of_device *ofdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int m8xx_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int m8xx_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-#else
-#define m8xx_suspend NULL
-#define m8xx_resume NULL
-#endif
-
-static struct of_device_id m8xx_pcmcia_match[] = {
+static const struct of_device_id m8xx_pcmcia_match[] = {
 	{
 	 .type = "pcmcia",
 	 .compatible = "fsl,pq-pcmcia",
@@ -1314,12 +1298,13 @@ static struct of_device_id m8xx_pcmcia_match[] = {
 MODULE_DEVICE_TABLE(of, m8xx_pcmcia_match);
 
 static struct of_platform_driver m8xx_pcmcia_driver = {
-	.name = driver_name,
-	.match_table = m8xx_pcmcia_match,
+	.driver = {
+		.name = driver_name,
+		.owner = THIS_MODULE,
+		.of_match_table = m8xx_pcmcia_match,
+	},
 	.probe = m8xx_probe,
 	.remove = m8xx_remove,
-	.suspend = m8xx_suspend,
-	.resume = m8xx_resume,
 };
 
 static int __init m8xx_init(void)

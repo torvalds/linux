@@ -11,6 +11,8 @@
 
 static char const		*script_name;
 static char const		*generate_script_lang;
+static bool			debug_ordering;
+static u64			last_timestamp;
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -44,12 +46,15 @@ static void setup_scripting(void)
 	perf_set_argv_exec_path(perf_exec_path());
 
 	setup_perl_scripting();
+	setup_python_scripting();
 
 	scripting_ops = &default_scripting_ops;
 }
 
 static int cleanup_scripting(void)
 {
+	pr_debug("\nperf trace script stopped\n");
+
 	return scripting_ops->stop_script();
 }
 
@@ -75,11 +80,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
@@ -89,6 +91,14 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	}
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
+		if (debug_ordering) {
+			if (data.time < last_timestamp) {
+				pr_err("Samples misordered, previous: %llu "
+					"this: %llu\n", last_timestamp,
+					data.time);
+			}
+			last_timestamp = data.time;
+		}
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
 		 * field, although it should be the same than this perf
@@ -99,30 +109,31 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 					     data.time, thread->comm);
 	}
 
-	session->events_stats.total += data.period;
-	return 0;
-}
-
-static int sample_type_check(struct perf_session *session)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
-
+	session->hists.stats.total_period += data.period;
 	return 0;
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.sample_type_check	= sample_type_check,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
+	.attr	= event__process_attr,
+	.event_type = event__process_event_type,
+	.tracing_data = event__process_tracing_data,
+	.build_id = event__process_build_id,
+	.ordered_samples = true,
 };
+
+extern volatile int session_done;
+
+static void sig_handler(int sig __unused)
+{
+	session_done = 1;
+}
 
 static int __cmd_trace(struct perf_session *session)
 {
+	signal(SIGINT, sig_handler);
+
 	return perf_session__process_events(session, &event_ops);
 }
 
@@ -235,9 +246,9 @@ static int parse_scriptname(const struct option *opt __used,
 	const char *script, *ext;
 	int len;
 
-	if (strcmp(str, "list") == 0) {
+	if (strcmp(str, "lang") == 0) {
 		list_available_languages();
-		return 0;
+		exit(0);
 	}
 
 	script = strchr(str, ':');
@@ -520,7 +531,7 @@ static const char * const trace_usage[] = {
 static const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('L', "Latency", &latency_format,
 		    "show latency attributes (irqs/preemption disabled, etc)"),
@@ -531,6 +542,10 @@ static const struct option options[] = {
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-trace.xx script in specified language"),
+	OPT_STRING('i', "input", &input_name, "file",
+		    "input file name"),
+	OPT_BOOLEAN('d', "debug-ordering", &debug_ordering,
+		   "check that samples time ordering is monotonic"),
 
 	OPT_END()
 };
@@ -561,6 +576,65 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		suffix = REPORT_SUFFIX;
 	}
 
+	if (!suffix && argc >= 2 && strncmp(argv[1], "-", strlen("-")) != 0) {
+		char *record_script_path, *report_script_path;
+		int live_pipe[2];
+		pid_t pid;
+
+		record_script_path = get_script_path(argv[1], RECORD_SUFFIX);
+		if (!record_script_path) {
+			fprintf(stderr, "record script not found\n");
+			return -1;
+		}
+
+		report_script_path = get_script_path(argv[1], REPORT_SUFFIX);
+		if (!report_script_path) {
+			fprintf(stderr, "report script not found\n");
+			return -1;
+		}
+
+		if (pipe(live_pipe) < 0) {
+			perror("failed to create pipe");
+			exit(-1);
+		}
+
+		pid = fork();
+		if (pid < 0) {
+			perror("failed to fork");
+			exit(-1);
+		}
+
+		if (!pid) {
+			dup2(live_pipe[1], 1);
+			close(live_pipe[0]);
+
+			__argv = malloc(5 * sizeof(const char *));
+			__argv[0] = "/bin/sh";
+			__argv[1] = record_script_path;
+			__argv[2] = "-o";
+			__argv[3] = "-";
+			__argv[4] = NULL;
+
+			execvp("/bin/sh", (char **)__argv);
+			exit(-1);
+		}
+
+		dup2(live_pipe[0], 0);
+		close(live_pipe[1]);
+
+		__argv = malloc((argc + 3) * sizeof(const char *));
+		__argv[0] = "/bin/sh";
+		__argv[1] = report_script_path;
+		for (i = 2; i < argc; i++)
+			__argv[i] = argv[i];
+		__argv[i++] = "-i";
+		__argv[i++] = "-";
+		__argv[i++] = NULL;
+
+		execvp("/bin/sh", (char **)__argv);
+		exit(-1);
+	}
+
 	if (suffix) {
 		script_path = get_script_path(argv[2], suffix);
 		if (!script_path) {
@@ -586,11 +660,16 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	if (symbol__init() < 0)
 		return -1;
-	setup_pager();
+	if (!script_name)
+		setup_pager();
 
-	session = perf_session__new(input_name, O_RDONLY, 0);
+	session = perf_session__new(input_name, O_RDONLY, 0, false);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (strcmp(input_name, "-") &&
+	    !perf_session__has_traces(session, "record -R"))
+		return -EINVAL;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
@@ -618,7 +697,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		perf_header__read(&session->header, input);
 		err = scripting_ops->generate_script("perf-trace");
 		goto out;
 	}
@@ -627,6 +705,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		err = scripting_ops->start_script(script_name, argc, argv);
 		if (err)
 			goto out;
+		pr_debug("perf trace started with script %s\n\n", script_name);
 	}
 
 	err = __cmd_trace(session);

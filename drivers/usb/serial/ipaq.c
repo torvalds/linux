@@ -56,7 +56,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include "ipaq.h"
 
 #define KP_RETRIES	100
 
@@ -64,7 +63,7 @@
  * Version Information
  */
 
-#define DRIVER_VERSION "v0.5"
+#define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "Ganesh Varadarajan <ganesh@veritas.com>"
 #define DRIVER_DESC "USB PocketPC PDA driver"
 
@@ -76,20 +75,8 @@ static int initial_wait;
 /* Function prototypes for an ipaq */
 static int  ipaq_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
-static void ipaq_close(struct usb_serial_port *port);
 static int  ipaq_calc_num_ports(struct usb_serial *serial);
 static int  ipaq_startup(struct usb_serial *serial);
-static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
-			const unsigned char *buf, int count);
-static int ipaq_write_bulk(struct usb_serial_port *port,
-				const unsigned char *buf, int count);
-static void ipaq_write_gather(struct usb_serial_port *port);
-static void ipaq_read_bulk_callback(struct urb *urb);
-static void ipaq_write_bulk_callback(struct urb *urb);
-static int ipaq_write_room(struct tty_struct *tty);
-static int ipaq_chars_in_buffer(struct tty_struct *tty);
-static void ipaq_destroy_lists(struct usb_serial_port *port);
-
 
 static struct usb_device_id ipaq_id_table [] = {
 	/* The first entry is a placeholder for the insmod-specified device */
@@ -558,7 +545,7 @@ static struct usb_driver ipaq_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
-	.no_dynamic_id = 	1,
+	.no_dynamic_id =	1,
 };
 
 
@@ -569,90 +556,23 @@ static struct usb_serial_driver ipaq_device = {
 		.name =		"ipaq",
 	},
 	.description =		"PocketPC PDA",
-	.usb_driver = 		&ipaq_driver,
+	.usb_driver =		&ipaq_driver,
 	.id_table =		ipaq_id_table,
+	.bulk_in_size =		256,
+	.bulk_out_size =	256,
 	.open =			ipaq_open,
-	.close =		ipaq_close,
 	.attach =		ipaq_startup,
 	.calc_num_ports =	ipaq_calc_num_ports,
-	.write =		ipaq_write,
-	.write_room =		ipaq_write_room,
-	.chars_in_buffer =	ipaq_chars_in_buffer,
-	.read_bulk_callback =	ipaq_read_bulk_callback,
-	.write_bulk_callback =	ipaq_write_bulk_callback,
 };
-
-static spinlock_t	write_list_lock;
-static int		bytes_in;
-static int		bytes_out;
 
 static int ipaq_open(struct tty_struct *tty,
 			struct usb_serial_port *port)
 {
 	struct usb_serial	*serial = port->serial;
-	struct ipaq_private	*priv;
-	struct ipaq_packet	*pkt;
-	int			i, result = 0;
+	int			result = 0;
 	int			retries = connect_retries;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	bytes_in = 0;
-	bytes_out = 0;
-	priv = kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
-	if (priv == NULL) {
-		dev_err(&port->dev, "%s - Out of memory\n", __func__);
-		return -ENOMEM;
-	}
-	usb_set_serial_port_data(port, priv);
-	priv->active = 0;
-	priv->queue_len = 0;
-	priv->free_len = 0;
-	INIT_LIST_HEAD(&priv->queue);
-	INIT_LIST_HEAD(&priv->freelist);
-
-	for (i = 0; i < URBDATA_QUEUE_MAX / PACKET_SIZE; i++) {
-		pkt = kmalloc(sizeof(struct ipaq_packet), GFP_KERNEL);
-		if (pkt == NULL)
-			goto enomem;
-
-		pkt->data = kmalloc(PACKET_SIZE, GFP_KERNEL);
-		if (pkt->data == NULL) {
-			kfree(pkt);
-			goto enomem;
-		}
-		pkt->len = 0;
-		pkt->written = 0;
-		INIT_LIST_HEAD(&pkt->list);
-		list_add(&pkt->list, &priv->freelist);
-		priv->free_len += PACKET_SIZE;
-	}
-
-	/*
-	 * Lose the small buffers usbserial provides. Make larger ones.
-	 */
-
-	kfree(port->bulk_in_buffer);
-	kfree(port->bulk_out_buffer);
-	/* make sure the generic serial code knows */
-	port->bulk_out_buffer = NULL;
-
-	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
-	if (port->bulk_in_buffer == NULL)
-		goto enomem;
-
-	port->bulk_out_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
-	if (port->bulk_out_buffer == NULL) {
-		/* the buffer is useless, free it */
-		kfree(port->bulk_in_buffer);
-		port->bulk_in_buffer = NULL;
-		goto enomem;
-	}
-	port->read_urb->transfer_buffer = port->bulk_in_buffer;
-	port->write_urb->transfer_buffer = port->bulk_out_buffer;
-	port->read_urb->transfer_buffer_length = URBDATA_SIZE;
-	port->bulk_out_size = port->write_urb->transfer_buffer_length
-							= URBDATA_SIZE;
 
 	msleep(1000*initial_wait);
 
@@ -663,7 +583,6 @@ static int ipaq_open(struct tty_struct *tty,
 	 * through. Since this has a reasonably high failure rate, we retry
 	 * several times.
 	 */
-
 	while (retries--) {
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0), 0x22, 0x21,
@@ -673,269 +592,14 @@ static int ipaq_open(struct tty_struct *tty,
 
 		msleep(1000);
 	}
-
 	if (!retries && result) {
-		dev_err(&port->dev, "%s - failed doing control urb, error %d\n",			__func__, result);
-		goto error;
+		dev_err(&port->dev, "%s - failed doing control urb, error %d\n",
+							__func__, result);
+		return result;
 	}
 
-	/* Start reading from the device */
-	usb_fill_bulk_urb(port->read_urb, serial->dev,
-		usb_rcvbulkpipe(serial->dev, port->bulk_in_endpointAddress),
-		port->read_urb->transfer_buffer,
-		port->read_urb->transfer_buffer_length,
-		ipaq_read_bulk_callback, port);
-
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result) {
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
-			__func__, result);
-		goto error;
-	}
-
-	return 0;
-
-enomem:
-	result = -ENOMEM;
-	dev_err(&port->dev, "%s - Out of memory\n", __func__);
-error:
-	ipaq_destroy_lists(port);
-	kfree(priv);
-	return result;
+	return usb_serial_generic_open(tty, port);
 }
-
-
-static void ipaq_close(struct usb_serial_port *port)
-{
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-
-	dbg("%s - port %d", __func__, port->number);
-
-	/*
-	 * shut down bulk read and write
-	 */
-	usb_kill_urb(port->write_urb);
-	usb_kill_urb(port->read_urb);
-	ipaq_destroy_lists(port);
-	kfree(priv);
-	usb_set_serial_port_data(port, NULL);
-
-	/* Uncomment the following line if you want to see some statistics
-	 * in your syslog */
-	/* info ("Bytes In = %d  Bytes Out = %d", bytes_in, bytes_out); */
-}
-
-static void ipaq_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port	*port = urb->context;
-	struct tty_struct	*tty;
-	unsigned char		*data = urb->transfer_buffer;
-	int			result;
-	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (status) {
-		dbg("%s - nonzero read bulk status received: %d",
-		    __func__, status);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-						urb->actual_length, data);
-
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length);
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
-		bytes_in += urb->actual_length;
-	}
-	tty_kref_put(tty);
-
-	/* Continue trying to always read  */
-	usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-	    usb_rcvbulkpipe(port->serial->dev, port->bulk_in_endpointAddress),
-	    port->read_urb->transfer_buffer,
-	    port->read_urb->transfer_buffer_length,
-	    ipaq_read_bulk_callback, port);
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
-	return;
-}
-
-static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
-			const unsigned char *buf, int count)
-{
-	const unsigned char	*current_position = buf;
-	int			bytes_sent = 0;
-	int			transfer_size;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	while (count > 0) {
-		transfer_size = min(count, PACKET_SIZE);
-		if (ipaq_write_bulk(port, current_position, transfer_size))
-			break;
-		current_position += transfer_size;
-		bytes_sent += transfer_size;
-		count -= transfer_size;
-		bytes_out += transfer_size;
-	}
-
-	return bytes_sent;
-}
-
-static int ipaq_write_bulk(struct usb_serial_port *port,
-					const unsigned char *buf, int count)
-{
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-	struct ipaq_packet	*pkt = NULL;
-	int			result = 0;
-	unsigned long		flags;
-
-	if (priv->free_len <= 0) {
-		dbg("%s - we're stuffed", __func__);
-		return -EAGAIN;
-	}
-
-	spin_lock_irqsave(&write_list_lock, flags);
-	if (!list_empty(&priv->freelist)) {
-		pkt = list_entry(priv->freelist.next, struct ipaq_packet, list);
-		list_del(&pkt->list);
-		priv->free_len -= PACKET_SIZE;
-	}
-	spin_unlock_irqrestore(&write_list_lock, flags);
-	if (pkt == NULL) {
-		dbg("%s - we're stuffed", __func__);
-		return -EAGAIN;
-	}
-
-	memcpy(pkt->data, buf, count);
-	usb_serial_debug_data(debug, &port->dev, __func__, count, pkt->data);
-
-	pkt->len = count;
-	pkt->written = 0;
-	spin_lock_irqsave(&write_list_lock, flags);
-	list_add_tail(&pkt->list, &priv->queue);
-	priv->queue_len += count;
-	if (priv->active == 0) {
-		priv->active = 1;
-		ipaq_write_gather(port);
-		spin_unlock_irqrestore(&write_list_lock, flags);
-		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d\n",
-				__func__, result);
-	} else {
-		spin_unlock_irqrestore(&write_list_lock, flags);
-	}
-	return result;
-}
-
-static void ipaq_write_gather(struct usb_serial_port *port)
-{
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-	struct usb_serial	*serial = port->serial;
-	int			count, room;
-	struct ipaq_packet	*pkt, *tmp;
-	struct urb		*urb = port->write_urb;
-
-	room = URBDATA_SIZE;
-	list_for_each_entry_safe(pkt, tmp, &priv->queue, list) {
-		count = min(room, (int)(pkt->len - pkt->written));
-		memcpy(urb->transfer_buffer + (URBDATA_SIZE - room),
-		       pkt->data + pkt->written, count);
-		room -= count;
-		pkt->written += count;
-		priv->queue_len -= count;
-		if (pkt->written == pkt->len) {
-			list_move(&pkt->list, &priv->freelist);
-			priv->free_len += PACKET_SIZE;
-		}
-		if (room == 0)
-			break;
-	}
-
-	count = URBDATA_SIZE - room;
-	usb_fill_bulk_urb(port->write_urb, serial->dev,
-		usb_sndbulkpipe(serial->dev, port->bulk_out_endpointAddress),
-		port->write_urb->transfer_buffer, count,
-		ipaq_write_bulk_callback, port);
-	return;
-}
-
-static void ipaq_write_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port	*port = urb->context;
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-	unsigned long		flags;
-	int			result;
-	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (status) {
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
-		return;
-	}
-
-	spin_lock_irqsave(&write_list_lock, flags);
-	if (!list_empty(&priv->queue)) {
-		ipaq_write_gather(port);
-		spin_unlock_irqrestore(&write_list_lock, flags);
-		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d\n",
-				__func__, result);
-	} else {
-		priv->active = 0;
-		spin_unlock_irqrestore(&write_list_lock, flags);
-	}
-
-	usb_serial_port_softint(port);
-}
-
-static int ipaq_write_room(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-
-	dbg("%s - freelen %d", __func__, priv->free_len);
-	return priv->free_len;
-}
-
-static int ipaq_chars_in_buffer(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-
-	dbg("%s - queuelen %d", __func__, priv->queue_len);
-	return priv->queue_len;
-}
-
-static void ipaq_destroy_lists(struct usb_serial_port *port)
-{
-	struct ipaq_private	*priv = usb_get_serial_port_data(port);
-	struct ipaq_packet	*pkt, *tmp;
-
-	list_for_each_entry_safe(pkt, tmp, &priv->queue, list) {
-		kfree(pkt->data);
-		kfree(pkt);
-	}
-	list_for_each_entry_safe(pkt, tmp, &priv->freelist, list) {
-		kfree(pkt->data);
-		kfree(pkt);
-	}
-}
-
 
 static int ipaq_calc_num_ports(struct usb_serial *serial)
 {
@@ -995,7 +659,6 @@ static int ipaq_startup(struct usb_serial *serial)
 static int __init ipaq_init(void)
 {
 	int retval;
-	spin_lock_init(&write_list_lock);
 	retval = usb_serial_register(&ipaq_device);
 	if (retval)
 		goto failed_usb_serial_register;
@@ -1015,7 +678,6 @@ failed_usb_register:
 failed_usb_serial_register:
 	return retval;
 }
-
 
 static void __exit ipaq_exit(void)
 {

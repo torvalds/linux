@@ -195,7 +195,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		 *    to work from.
 		 */
 		rlim = current->signal->rlim;
-		if (size > rlim[RLIMIT_STACK].rlim_cur / 4) {
+		if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4) {
 			put_page(page);
 			return NULL;
 		}
@@ -242,10 +242,12 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 * use STACK_TOP because that can depend on attributes which aren't
 	 * configured yet.
 	 */
+	BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
 	vma->vm_end = STACK_TOP_MAX;
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
-	vma->vm_flags = VM_STACK_FLAGS;
+	vma->vm_flags = VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	err = insert_vm_struct(mm, vma);
 	if (err)
 		goto err;
@@ -516,7 +518,8 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	/*
 	 * cover the whole range: [new_start, old_end)
 	 */
-	vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL);
+	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
+		return -ENOMEM;
 
 	/*
 	 * move the page tables downwards, on failure we rely on
@@ -547,14 +550,12 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	tlb_finish_mmu(tlb, new_end, old_end);
 
 	/*
-	 * shrink the vma to just the new range.
+	 * Shrink the vma to just the new range.  Always succeeds.
 	 */
 	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
 
 	return 0;
 }
-
-#define EXTRA_STACK_VM_PAGES	20	/* random */
 
 /*
  * Finalizes the stack vm_area_struct. The flags and permissions are updated,
@@ -571,10 +572,13 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	struct vm_area_struct *prev = NULL;
 	unsigned long vm_flags;
 	unsigned long stack_base;
+	unsigned long stack_size;
+	unsigned long stack_expand;
+	unsigned long rlim_stack;
 
 #ifdef CONFIG_STACK_GROWSUP
 	/* Limit stack size to 1GB */
-	stack_base = current->signal->rlim[RLIMIT_STACK].rlim_max;
+	stack_base = rlimit_max(RLIMIT_STACK);
 	if (stack_base > (1 << 30))
 		stack_base = 1 << 30;
 
@@ -613,6 +617,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	else if (executable_stack == EXSTACK_DISABLE_X)
 		vm_flags &= ~VM_EXEC;
 	vm_flags |= mm->def_flags;
+	vm_flags |= VM_STACK_INCOMPLETE_SETUP;
 
 	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
 			vm_flags);
@@ -627,10 +632,26 @@ int setup_arg_pages(struct linux_binprm *bprm,
 			goto out_unlock;
 	}
 
+	/* mprotect_fixup is overkill to remove the temporary stack flags */
+	vma->vm_flags &= ~VM_STACK_INCOMPLETE_SETUP;
+
+	stack_expand = 131072UL; /* randomly 32*4k (or 2*64k) pages */
+	stack_size = vma->vm_end - vma->vm_start;
+	/*
+	 * Align this down to a page boundary as expand_stack
+	 * will align it up.
+	 */
+	rlim_stack = rlimit(RLIMIT_STACK) & PAGE_MASK;
 #ifdef CONFIG_STACK_GROWSUP
-	stack_base = vma->vm_end + EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_start + rlim_stack;
+	else
+		stack_base = vma->vm_end + stack_expand;
 #else
-	stack_base = vma->vm_start - EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_end - rlim_stack;
+	else
+		stack_base = vma->vm_start - stack_expand;
 #endif
 	ret = expand_stack(vma, stack_base);
 	if (ret)
@@ -702,6 +723,7 @@ static int exec_mmap(struct mm_struct *mm)
 	/* Notify parent that we're no longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
+	sync_mm_rss(tsk, old_mm);
 	mm_release(tsk, old_mm);
 
 	if (old_mm) {
@@ -746,7 +768,6 @@ static int de_thread(struct task_struct *tsk)
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *oldsighand = tsk->sighand;
 	spinlock_t *lock = &oldsighand->siglock;
-	int count;
 
 	if (thread_group_empty(tsk))
 		goto no_thread_group;
@@ -763,13 +784,13 @@ static int de_thread(struct task_struct *tsk)
 		spin_unlock_irq(lock);
 		return -EAGAIN;
 	}
-	sig->group_exit_task = tsk;
-	zap_other_threads(tsk);
 
-	/* Account for the thread group leader hanging around: */
-	count = thread_group_leader(tsk) ? 1 : 2;
-	sig->notify_count = count;
-	while (atomic_read(&sig->count) > count) {
+	sig->group_exit_task = tsk;
+	sig->notify_count = zap_other_threads(tsk);
+	if (!thread_group_leader(tsk))
+		sig->notify_count--;
+
+	while (sig->notify_count) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(lock);
 		schedule();
@@ -961,6 +982,11 @@ int flush_old_exec(struct linux_binprm * bprm)
 		goto out;
 
 	bprm->mm = NULL;		/* We're using it now */
+
+	current->flags &= ~PF_RANDOMIZE;
+	flush_thread();
+	current->personality &= ~bprm->per_clear;
+
 	return 0;
 
 out:
@@ -997,9 +1023,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 	tcomm[i] = '\0';
 	set_task_comm(current, tcomm);
 
-	current->flags &= ~PF_RANDOMIZE;
-	flush_thread();
-
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
 	 * some architectures like powerpc
@@ -1014,8 +1037,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 		   bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) {
 		set_dumpable(current->mm, suid_dumpable);
 	}
-
-	current->personality &= ~bprm->per_clear;
 
 	/*
 	 * Flush performance counters when crossing a
@@ -1370,8 +1391,6 @@ int do_execve(char * filename,
 	if (retval < 0)
 		goto out;
 
-	current->stack_start = current->mm->start_stack;
-
 	/* execve succeeded */
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
@@ -1516,7 +1535,7 @@ static int format_corename(char *corename, long signr)
 			/* core limit size */
 			case 'c':
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%lu", current->signal->rlim[RLIMIT_CORE].rlim_cur);
+					      "%lu", rlimit(RLIMIT_CORE));
 				if (rc > out_end - out_ptr)
 					goto out;
 				out_ptr += rc;
@@ -1544,12 +1563,13 @@ out:
 	return ispipe;
 }
 
-static int zap_process(struct task_struct *start)
+static int zap_process(struct task_struct *start, int exit_code)
 {
 	struct task_struct *t;
 	int nr = 0;
 
 	start->signal->flags = SIGNAL_GROUP_EXIT;
+	start->signal->group_exit_code = exit_code;
 	start->signal->group_stop_count = 0;
 
 	t = start;
@@ -1574,8 +1594,7 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	spin_lock_irq(&tsk->sighand->siglock);
 	if (!signal_group_exit(tsk->signal)) {
 		mm->core_state = core_state;
-		tsk->signal->group_exit_code = exit_code;
-		nr = zap_process(tsk);
+		nr = zap_process(tsk, exit_code);
 	}
 	spin_unlock_irq(&tsk->sighand->siglock);
 	if (unlikely(nr < 0))
@@ -1624,7 +1643,7 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 			if (p->mm) {
 				if (unlikely(p->mm == mm)) {
 					lock_task_sighand(p, &flags);
-					nr += zap_process(p);
+					nr += zap_process(p, exit_code);
 					unlock_task_sighand(p, &flags);
 				}
 				break;
@@ -1642,12 +1661,15 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	struct completion *vfork_done;
-	int core_waiters;
+	int core_waiters = -EBUSY;
 
 	init_completion(&core_state->startup);
 	core_state->dumper.task = tsk;
 	core_state->dumper.next = NULL;
-	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
+
+	down_write(&mm->mmap_sem);
+	if (!mm->core_state)
+		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
 	if (unlikely(core_waiters < 0))
@@ -1731,12 +1753,17 @@ void set_dumpable(struct mm_struct *mm, int value)
 	}
 }
 
-int get_dumpable(struct mm_struct *mm)
+static int __get_dumpable(unsigned long mm_flags)
 {
 	int ret;
 
-	ret = mm->flags & 0x3;
+	ret = mm_flags & MMF_DUMPABLE_MASK;
 	return (ret >= 2) ? 2 : ret;
+}
+
+int get_dumpable(struct mm_struct *mm)
+{
+	return __get_dumpable(mm->flags);
 }
 
 static void wait_for_dump_helpers(struct file *file)
@@ -1762,26 +1789,72 @@ static void wait_for_dump_helpers(struct file *file)
 }
 
 
+/*
+ * uhm_pipe_setup
+ * helper function to customize the process used
+ * to collect the core in userspace.  Specifically
+ * it sets up a pipe and installs it as fd 0 (stdin)
+ * for the process.  Returns 0 on success, or
+ * PTR_ERR on failure.
+ * Note that it also sets the core limit to 1.  This
+ * is a special value that we use to trap recursive
+ * core dumps
+ */
+static int umh_pipe_setup(struct subprocess_info *info)
+{
+	struct file *rp, *wp;
+	struct fdtable *fdt;
+	struct coredump_params *cp = (struct coredump_params *)info->data;
+	struct files_struct *cf = current->files;
+
+	wp = create_write_pipe(0);
+	if (IS_ERR(wp))
+		return PTR_ERR(wp);
+
+	rp = create_read_pipe(wp, 0);
+	if (IS_ERR(rp)) {
+		free_write_pipe(wp);
+		return PTR_ERR(rp);
+	}
+
+	cp->file = wp;
+
+	sys_close(0);
+	fd_install(0, rp);
+	spin_lock(&cf->file_lock);
+	fdt = files_fdtable(cf);
+	FD_SET(0, fdt->open_fds);
+	FD_CLR(0, fdt->close_on_exec);
+	spin_unlock(&cf->file_lock);
+
+	/* and disallow core files too */
+	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
+
+	return 0;
+}
+
 void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 {
 	struct core_state core_state;
 	char corename[CORENAME_MAX_SIZE + 1];
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
-	struct inode * inode;
 	const struct cred *old_cred;
 	struct cred *cred;
 	int retval = 0;
 	int flag = 0;
-	int ispipe = 0;
-	char **helper_argv = NULL;
-	int helper_argc = 0;
-	int dump_count = 0;
+	int ispipe;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.signr = signr,
 		.regs = regs,
-		.limit = current->signal->rlim[RLIMIT_CORE].rlim_cur,
+		.limit = rlimit(RLIMIT_CORE),
+		/*
+		 * We must use the same mm->flags while dumping core to avoid
+		 * inconsistency of bit flags, since this flag is not protected
+		 * by any locks.
+		 */
+		.mm_flags = mm->flags,
 	};
 
 	audit_core_dumps(signr);
@@ -1789,38 +1862,26 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
+	if (!__get_dumpable(cprm.mm_flags))
+		goto fail;
 
 	cred = prepare_creds();
-	if (!cred) {
-		retval = -ENOMEM;
+	if (!cred)
 		goto fail;
-	}
-
-	down_write(&mm->mmap_sem);
-	/*
-	 * If another thread got here first, or we are not dumpable, bail out.
-	 */
-	if (mm->core_state || !get_dumpable(mm)) {
-		up_write(&mm->mmap_sem);
-		put_cred(cred);
-		goto fail;
-	}
-
 	/*
 	 *	We cannot trust fsuid as being the "true" uid of the
 	 *	process nor do we know its entire history. We only know it
 	 *	was tainted so we dump it as root in mode 2.
 	 */
-	if (get_dumpable(mm) == 2) {	/* Setuid core dump mode */
+	if (__get_dumpable(cprm.mm_flags) == 2) {
+		/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
 		cred->fsuid = 0;	/* Dump root private */
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
-	if (retval < 0) {
-		put_cred(cred);
-		goto fail;
-	}
+	if (retval < 0)
+		goto fail_creds;
 
 	old_cred = override_creds(cred);
 
@@ -1838,19 +1899,19 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	ispipe = format_corename(corename, signr);
 	unlock_kernel();
 
-	if ((!ispipe) && (cprm.limit < binfmt->min_coredump))
-		goto fail_unlock;
-
  	if (ispipe) {
-		if (cprm.limit == 0) {
+		int dump_count;
+		char **helper_argv;
+
+		if (cprm.limit == 1) {
 			/*
 			 * Normally core limits are irrelevant to pipes, since
 			 * we're not writing to the file system, but we use
-			 * cprm.limit of 0 here as a speacial value. Any
-			 * non-zero limit gets set to RLIM_INFINITY below, but
+			 * cprm.limit of 1 here as a speacial value. Any
+			 * non-1 limit gets set to RLIM_INFINITY below, but
 			 * a limit of 0 skips the dump.  This is a consistent
 			 * way to catch recursive crashes.  We can still crash
-			 * if the core_pattern binary sets RLIM_CORE =  !0
+			 * if the core_pattern binary sets RLIM_CORE =  !1
 			 * but it runs as root, and can do lots of stupid things
 			 * Note that we use task_tgid_vnr here to grab the pid
 			 * of the process group leader.  That way we get the
@@ -1858,11 +1919,12 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			 * core_pattern process dies.
 			 */
 			printk(KERN_WARNING
-				"Process %d(%s) has RLIMIT_CORE set to 0\n",
+				"Process %d(%s) has RLIMIT_CORE set to 1\n",
 				task_tgid_vnr(current), current->comm);
 			printk(KERN_WARNING "Aborting core\n");
 			goto fail_unlock;
 		}
+		cprm.limit = RLIM_INFINITY;
 
 		dump_count = atomic_inc_return(&core_dump_count);
 		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
@@ -1872,70 +1934,74 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			goto fail_dropcount;
 		}
 
-		helper_argv = argv_split(GFP_KERNEL, corename+1, &helper_argc);
+		helper_argv = argv_split(GFP_KERNEL, corename+1, NULL);
 		if (!helper_argv) {
 			printk(KERN_WARNING "%s failed to allocate memory\n",
 			       __func__);
 			goto fail_dropcount;
 		}
 
-		cprm.limit = RLIM_INFINITY;
-
-		/* SIGPIPE can happen, but it's just never processed */
-		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
-				&cprm.file)) {
+		retval = call_usermodehelper_fns(helper_argv[0], helper_argv,
+					NULL, UMH_WAIT_EXEC, umh_pipe_setup,
+					NULL, &cprm);
+		argv_free(helper_argv);
+		if (retval) {
  			printk(KERN_INFO "Core dump to %s pipe failed\n",
 			       corename);
-			goto fail_dropcount;
+			goto close_fail;
  		}
- 	} else
+	} else {
+		struct inode *inode;
+
+		if (cprm.limit < binfmt->min_coredump)
+			goto fail_unlock;
+
 		cprm.file = filp_open(corename,
 				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag,
 				 0600);
-	if (IS_ERR(cprm.file))
-		goto fail_dropcount;
-	inode = cprm.file->f_path.dentry->d_inode;
-	if (inode->i_nlink > 1)
-		goto close_fail;	/* multiple links - don't dump */
-	if (!ispipe && d_unhashed(cprm.file->f_path.dentry))
-		goto close_fail;
+		if (IS_ERR(cprm.file))
+			goto fail_unlock;
 
-	/* AK: actually i see no reason to not allow this for named pipes etc.,
-	   but keep the previous behaviour for now. */
-	if (!ispipe && !S_ISREG(inode->i_mode))
-		goto close_fail;
-	/*
-	 * Dont allow local users get cute and trick others to coredump
-	 * into their pre-created files:
-	 */
-	if (inode->i_uid != current_fsuid())
-		goto close_fail;
-	if (!cprm.file->f_op)
-		goto close_fail;
-	if (!cprm.file->f_op->write)
-		goto close_fail;
-	if (!ispipe &&
-	    do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file) != 0)
-		goto close_fail;
+		inode = cprm.file->f_path.dentry->d_inode;
+		if (inode->i_nlink > 1)
+			goto close_fail;
+		if (d_unhashed(cprm.file->f_path.dentry))
+			goto close_fail;
+		/*
+		 * AK: actually i see no reason to not allow this for named
+		 * pipes etc, but keep the previous behaviour for now.
+		 */
+		if (!S_ISREG(inode->i_mode))
+			goto close_fail;
+		/*
+		 * Dont allow local users get cute and trick others to coredump
+		 * into their pre-created files.
+		 */
+		if (inode->i_uid != current_fsuid())
+			goto close_fail;
+		if (!cprm.file->f_op || !cprm.file->f_op->write)
+			goto close_fail;
+		if (do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file))
+			goto close_fail;
+	}
 
 	retval = binfmt->core_dump(&cprm);
-
 	if (retval)
 		current->signal->group_exit_code |= 0x80;
-close_fail:
+
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
-	filp_close(cprm.file, NULL);
+close_fail:
+	if (cprm.file)
+		filp_close(cprm.file, NULL);
 fail_dropcount:
-	if (dump_count)
+	if (ispipe)
 		atomic_dec(&core_dump_count);
 fail_unlock:
-	if (helper_argv)
-		argv_free(helper_argv);
-
-	revert_creds(old_cred);
-	put_cred(cred);
 	coredump_finish(mm);
+	revert_creds(old_cred);
+fail_creds:
+	put_cred(cred);
 fail:
 	return;
 }

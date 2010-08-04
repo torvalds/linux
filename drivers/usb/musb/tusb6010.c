@@ -1091,7 +1091,7 @@ err:
 	return -ENODEV;
 }
 
-int __init musb_platform_init(struct musb *musb)
+int __init musb_platform_init(struct musb *musb, void *board_data)
 {
 	struct platform_device	*pdev;
 	struct resource		*mem;
@@ -1118,7 +1118,7 @@ int __init musb_platform_init(struct musb *musb)
 	}
 	musb->sync = mem->start;
 
-	sync = ioremap(mem->start, mem->end - mem->start + 1);
+	sync = ioremap(mem->start, resource_size(mem));
 	if (!sync) {
 		pr_debug("ioremap for sync failed\n");
 		ret = -ENOMEM;

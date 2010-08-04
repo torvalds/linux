@@ -208,6 +208,8 @@ enum e1e_registers {
 
 	E1000_KMRNCTRLSTA = 0x00034, /* MAC-PHY interface - RW */
 	E1000_MANC2H    = 0x05860, /* Management Control To Host - RW */
+	E1000_MDEF_BASE = 0x05890, /* Management Decision Filters */
+#define E1000_MDEF(_n)   (E1000_MDEF_BASE + ((_n) * 4))
 	E1000_SW_FW_SYNC = 0x05B5C, /* Software-Firmware Synchronization - RW */
 	E1000_GCR	= 0x05B00, /* PCI-Ex Control */
 	E1000_GCR2      = 0x05B64, /* PCI-Ex Control #2 */
@@ -380,6 +382,7 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
 #define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
+#define E1000_DEV_ID_ICH10_D_BM_V		0x1525
 #define E1000_DEV_ID_PCH_M_HV_LM		0x10EA
 #define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
@@ -388,6 +391,9 @@ enum e1e_registers {
 #define E1000_REVISION_4 4
 
 #define E1000_FUNC_1 1
+
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
 
 enum e1000_mac_type {
 	e1000_82571,
@@ -746,16 +752,18 @@ struct e1000_mac_operations {
 	void (*clear_hw_cntrs)(struct e1000_hw *);
 	void (*clear_vfta)(struct e1000_hw *);
 	s32  (*get_bus_info)(struct e1000_hw *);
+	void (*set_lan_id)(struct e1000_hw *);
 	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*led_on)(struct e1000_hw *);
 	s32  (*led_off)(struct e1000_hw *);
-	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32, u32, u32);
+	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32);
 	s32  (*reset_hw)(struct e1000_hw *);
 	s32  (*init_hw)(struct e1000_hw *);
 	s32  (*setup_link)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
 /* Function pointers for the PHY. */
@@ -814,11 +822,16 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
+
+	/* Maximum size of the MTA register table in all supported adapters */
+	#define MAX_MTA_REG 128
+	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
 	u8  forced_speed_duplex;
 
 	bool adaptive_ifs;
+	bool has_fwsm;
 	bool arc_subsystem_valid;
 	bool autoneg;
 	bool autoneg_failed;
@@ -889,6 +902,7 @@ struct e1000_fc_info {
 	u32 high_water;          /* Flow control high-water mark */
 	u32 low_water;           /* Flow control low-water mark */
 	u16 pause_time;          /* Flow control pause timer */
+	u16 refresh_time;        /* Flow control refresh timer */
 	bool send_xon;           /* Flow control send XON */
 	bool strict_ieee;        /* Strict IEEE mode */
 	enum e1000_fc_mode current_mode; /* FC mode in effect */
@@ -897,7 +911,6 @@ struct e1000_fc_info {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
-	bool alt_mac_addr_is_present;
 	u32 smb_counter;
 };
 

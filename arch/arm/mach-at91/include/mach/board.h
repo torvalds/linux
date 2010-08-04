@@ -39,6 +39,7 @@
 #include <linux/usb/atmel_usba_udc.h>
 #include <linux/atmel-mci.h>
 #include <sound/atmel-ac97c.h>
+#include <linux/serial.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -87,7 +88,7 @@ struct at91_eth_data {
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
 #if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9) \
-	|| defined(CONFIG_ARCH_AT91SAM9G45)
+	|| defined(CONFIG_ARCH_AT91SAM9G45) || defined(CONFIG_ARCH_AT572D940HF)
 #define eth_platform_data	at91_eth_data
 #endif
 
@@ -143,9 +144,10 @@ extern struct platform_device *atmel_default_console_device;
 extern void __init __deprecated at91_init_serial(struct at91_uart_config *config);
 
 struct atmel_uart_data {
-	short		use_dma_tx;	/* use transmit DMA? */
-	short		use_dma_rx;	/* use receive DMA? */
-	void __iomem	*regs;		/* virtual base address, if any */
+	short			use_dma_tx;	/* use transmit DMA? */
+	short			use_dma_rx;	/* use receive DMA? */
+	void __iomem		*regs;		/* virt. base address, if any */
+	struct serial_rs485	rs485;		/* rs485 settings */
 };
 extern void __init at91_add_device_serial(void);
 
@@ -204,6 +206,9 @@ extern void __init at91_add_device_can(struct at91_can_data *data);
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
+
+ /* AT572D940HF DSP */
+extern void __init at91_add_device_mAgic(void);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);

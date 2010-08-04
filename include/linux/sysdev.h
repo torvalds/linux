@@ -27,10 +27,12 @@
 
 
 struct sys_device;
+struct sysdev_class_attribute;
 
 struct sysdev_class {
 	const char *name;
 	struct list_head	drivers;
+	struct sysdev_class_attribute **attrs;
 
 	/* Default operations for these types of devices */
 	int	(*shutdown)(struct sys_device *);
@@ -41,8 +43,10 @@ struct sysdev_class {
 
 struct sysdev_class_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct sysdev_class *, char *);
-	ssize_t (*store)(struct sysdev_class *, const char *, size_t);
+	ssize_t (*show)(struct sysdev_class *, struct sysdev_class_attribute *,
+			char *);
+	ssize_t (*store)(struct sysdev_class *, struct sysdev_class_attribute *,
+			 const char *, size_t);
 };
 
 #define _SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
@@ -118,6 +122,19 @@ struct sysdev_attribute {
 
 extern int sysdev_create_file(struct sys_device *, struct sysdev_attribute *);
 extern void sysdev_remove_file(struct sys_device *, struct sysdev_attribute *);
+
+/* Create/remove NULL terminated attribute list */
+static inline int
+sysdev_create_files(struct sys_device *d, struct sysdev_attribute **a)
+{
+	return sysfs_create_files(&d->kobj, (const struct attribute **)a);
+}
+
+static inline void
+sysdev_remove_files(struct sys_device *d, struct sysdev_attribute **a)
+{
+	return sysfs_remove_files(&d->kobj, (const struct attribute **)a);
+}
 
 struct sysdev_ext_attribute {
 	struct sysdev_attribute attr;

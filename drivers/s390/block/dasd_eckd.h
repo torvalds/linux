@@ -426,7 +426,6 @@ struct alias_pav_group {
 	struct dasd_device *next;
 };
 
-
 struct dasd_eckd_private {
 	struct dasd_eckd_characteristics rdc_data;
 	u8 *conf_data;
@@ -463,4 +462,5 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *, struct irb *);
 void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
 void dasd_alias_lcu_setup_complete(struct dasd_device *);
 void dasd_alias_wait_for_lcu_setup(struct dasd_device *);
+int dasd_alias_update_add_device(struct dasd_device *);
 #endif				/* DASD_ECKD_H */

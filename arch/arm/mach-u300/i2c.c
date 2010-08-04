@@ -9,7 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 #include <linux/regulator/machine.h>
 #include <linux/amba/bus.h>
 #include <mach/irqs.h>
@@ -46,6 +46,7 @@
 /* BUCK SLEEP 0xAC: 1.05V, Not used, SLEEP_A and B, Not used */
 #define BUCK_SLEEP_SETTING	0xAC
 
+#ifdef CONFIG_AB3100_CORE
 static struct regulator_consumer_supply supply_ldo_c[] = {
 	{
 		.dev_name = "ab3100-codec",
@@ -253,14 +254,68 @@ static struct ab3100_platform_data ab3100_plf_data = {
 		LDO_D_SETTING,
 	},
 };
+#endif
+
+#ifdef CONFIG_AB3550_CORE
+static struct abx500_init_settings ab3550_init_settings[] = {
+	{
+		.bank = 0,
+		.reg = AB3550_IMR1,
+		.setting = 0xff
+	},
+	{
+		.bank = 0,
+		.reg = AB3550_IMR2,
+		.setting = 0xff
+	},
+	{
+		.bank = 0,
+		.reg = AB3550_IMR3,
+		.setting = 0xff
+	},
+	{
+		.bank = 0,
+		.reg = AB3550_IMR4,
+		.setting = 0xff
+	},
+	{
+		.bank = 0,
+		.reg = AB3550_IMR5,
+		/* The two most significant bits are not used */
+		.setting = 0x3f
+	},
+};
+
+static struct ab3550_platform_data ab3550_plf_data = {
+	.irq = {
+		.base = IRQ_AB3550_BASE,
+		.count = (IRQ_AB3550_END - IRQ_AB3550_BASE + 1),
+	},
+	.dev_data = {
+	},
+	.init_settings = ab3550_init_settings,
+	.init_settings_sz = ARRAY_SIZE(ab3550_init_settings),
+};
+#endif
 
 static struct i2c_board_info __initdata bus0_i2c_board_info[] = {
+#if defined(CONFIG_AB3550_CORE)
+	{
+		.type = "ab3550",
+		.addr = 0x4A,
+		.irq = IRQ_U300_IRQ0_EXT,
+		.platform_data = &ab3550_plf_data,
+	},
+#elif defined(CONFIG_AB3100_CORE)
 	{
 		.type = "ab3100",
 		.addr = 0x48,
 		.irq = IRQ_U300_IRQ0_EXT,
 		.platform_data = &ab3100_plf_data,
 	},
+#else
+	{ },
+#endif
 };
 
 static struct i2c_board_info __initdata bus1_i2c_board_info[] = {

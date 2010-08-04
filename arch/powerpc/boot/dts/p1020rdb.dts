@@ -19,6 +19,9 @@
 	aliases {
 		serial0 = &serial0;
 		serial1 = &serial1;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
 		pci0 = &pci0;
 		pci1 = &pci1;
 	};
@@ -346,6 +349,122 @@
 			};
 		};
 
+		mdio@24000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,etsec2-mdio";
+			reg = <0x24000 0x1000 0xb0030 0x4>;
+
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
+				interrupts = <3 1>;
+				reg = <0x0>;
+			};
+
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
+				interrupts = <2 1>;
+				reg = <0x1>;
+			};
+		};
+
+		mdio@25000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,etsec2-tbi";
+			reg = <0x25000 0x1000 0xb1030 0x4>;
+
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet0: ethernet@b0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+			fixed-link = <1 1 1000 0 0>;
+			phy-connection-type = "rgmii-id";
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb0000 0x1000>;
+				interrupts = <29 2 30 2 34 2>;
+			};
+
+			queue-group@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb4000 0x1000>;
+				interrupts = <17 2 18 2 24 2>;
+			};
+		};
+
+		enet1: ethernet@b1000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy0>;
+			tbi-handle = <&tbi0>;
+			phy-connection-type = "sgmii";
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb1000 0x1000>;
+				interrupts = <35 2 36 2 40 2>;
+			};
+
+			queue-group@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb5000 0x1000>;
+				interrupts = <51 2 52 2 67 2>;
+			};
+		};
+
+		enet2: ethernet@b2000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb2000 0x1000>;
+				interrupts = <31 2 32 2 33 2>;
+			};
+
+			queue-group@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb6000 0x1000>;
+				interrupts = <25 2 26 2 27 2>;
+			};
+		};
+
 		usb@22000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -356,6 +475,11 @@
 			phy_type = "ulpi";
 		};
 
+		/* USB2 is shared with localbus, so it must be disabled
+		   by default. We can't put 'status = "disabled";' here
+		   since U-Boot doesn't clear the status property when
+		   it enables USB2. OTOH, U-Boot does create a new node
+		   when there isn't any. So, just comment it out.
 		usb@23000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -365,6 +489,7 @@
 			interrupts = <46 0x2>;
 			phy_type = "ulpi";
 		};
+		*/
 
 		sdhci@2e000 {
 			compatible = "fsl,p1020-esdhc", "fsl,esdhc";

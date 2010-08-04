@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/virtio_ring.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/paravirt.h>
 #include <asm/lguest_hcall.h>
@@ -177,7 +178,7 @@ static void set_status(struct virtio_device *vdev, u8 status)
 
 	/* We set the status. */
 	to_lgdev(vdev)->desc->status = status;
-	kvm_hypercall1(LHCALL_NOTIFY, (max_pfn << PAGE_SHIFT) + offset);
+	hcall(LHCALL_NOTIFY, (max_pfn << PAGE_SHIFT) + offset, 0, 0, 0);
 }
 
 static void lg_set_status(struct virtio_device *vdev, u8 status)
@@ -228,7 +229,7 @@ static void lg_notify(struct virtqueue *vq)
 	 */
 	struct lguest_vq_info *lvq = vq->priv;
 
-	kvm_hypercall1(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT);
+	hcall(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT, 0, 0, 0);
 }
 
 /* An extern declaration inside a C file is bad form.  Don't do it. */

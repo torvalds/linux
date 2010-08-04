@@ -159,16 +159,7 @@
 #define CH7017_BANG_LIMIT_CONTROL	0x7f
 
 struct ch7017_priv {
-	uint8_t save_hapi;
-	uint8_t save_vali;
-	uint8_t save_valo;
-	uint8_t save_ailo;
-	uint8_t save_lvds_pll_vco;
-	uint8_t save_feedback_div;
-	uint8_t save_lvds_control_2;
-	uint8_t save_outputs_enable;
-	uint8_t save_lvds_power_down;
-	uint8_t save_power_management;
+	uint8_t dummy;
 };
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo);
@@ -401,39 +392,6 @@ do {							\
 	DUMP(CH7017_LVDS_POWER_DOWN);
 }
 
-static void ch7017_save(struct intel_dvo_device *dvo)
-{
-	struct ch7017_priv *priv = dvo->dev_priv;
-
-	ch7017_read(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, &priv->save_hapi);
-	ch7017_read(dvo, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, &priv->save_valo);
-	ch7017_read(dvo, CH7017_ACTIVE_INPUT_LINE_OUTPUT, &priv->save_ailo);
-	ch7017_read(dvo, CH7017_LVDS_PLL_VCO_CONTROL, &priv->save_lvds_pll_vco);
-	ch7017_read(dvo, CH7017_LVDS_PLL_FEEDBACK_DIV, &priv->save_feedback_div);
-	ch7017_read(dvo, CH7017_LVDS_CONTROL_2, &priv->save_lvds_control_2);
-	ch7017_read(dvo, CH7017_OUTPUTS_ENABLE, &priv->save_outputs_enable);
-	ch7017_read(dvo, CH7017_LVDS_POWER_DOWN, &priv->save_lvds_power_down);
-	ch7017_read(dvo, CH7017_POWER_MANAGEMENT, &priv->save_power_management);
-}
-
-static void ch7017_restore(struct intel_dvo_device *dvo)
-{
-	struct ch7017_priv *priv = dvo->dev_priv;
-
-	/* Power down before changing mode */
-	ch7017_dpms(dvo, DRM_MODE_DPMS_OFF);
-
-	ch7017_write(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, priv->save_hapi);
-	ch7017_write(dvo, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, priv->save_valo);
-	ch7017_write(dvo, CH7017_ACTIVE_INPUT_LINE_OUTPUT, priv->save_ailo);
-	ch7017_write(dvo, CH7017_LVDS_PLL_VCO_CONTROL, priv->save_lvds_pll_vco);
-	ch7017_write(dvo, CH7017_LVDS_PLL_FEEDBACK_DIV, priv->save_feedback_div);
-	ch7017_write(dvo, CH7017_LVDS_CONTROL_2, priv->save_lvds_control_2);
-	ch7017_write(dvo, CH7017_OUTPUTS_ENABLE, priv->save_outputs_enable);
-	ch7017_write(dvo, CH7017_LVDS_POWER_DOWN, priv->save_lvds_power_down);
-	ch7017_write(dvo, CH7017_POWER_MANAGEMENT, priv->save_power_management);
-}
-
 static void ch7017_destroy(struct intel_dvo_device *dvo)
 {
 	struct ch7017_priv *priv = dvo->dev_priv;
@@ -451,7 +409,5 @@ struct intel_dvo_dev_ops ch7017_ops = {
 	.mode_set = ch7017_mode_set,
 	.dpms = ch7017_dpms,
 	.dump_regs = ch7017_dump_regs,
-	.save = ch7017_save,
-	.restore = ch7017_restore,
 	.destroy = ch7017_destroy,
 };

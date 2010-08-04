@@ -39,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <asm/page.h>
 #include <linux/swap.h>
 #include <linux/highmem.h>
@@ -340,10 +341,6 @@ static void __init platform_configure_usb(void)
 
 	switch (asic) {
 	case ASIC_ZEUS:
-		fs_update(0x0000, 0x11, 0x02, 0);
-		bcm1_usb2_ctl = 0x803;
-		break;
-
 	case ASIC_CRONUS:
 	case ASIC_CRONUSLITE:
 		fs_update(0x0000, 0x11, 0x02, 0);
@@ -475,6 +472,9 @@ void __init configure_platform(void)
 		 * it*/
 		platform_features = FFS_CAPABLE | DISPLAY_CAPABLE;
 
+		/* Cronus and Cronus Lite have the same register map */
+		set_register_map(CRONUS_IO_BASE, &cronus_register_map);
+
 		/* ASIC version will determine if this is a real CronusLite or
 		 * Castrati(Cronus) */
 		chipversion  = asic_read(chipver3) << 24;
@@ -487,8 +487,6 @@ void __init configure_platform(void)
 		else
 			asic = ASIC_CRONUSLITE;
 
-		/* Cronus and Cronus Lite have the same register map */
-		set_register_map(CRONUS_IO_BASE, &cronus_register_map);
 		gp_resources = non_dvr_cronuslite_resources;
 		pr_info("Platform: 4600 - %s, NON_DVR_CAPABLE, "
 			"chipversion=0x%08X\n",

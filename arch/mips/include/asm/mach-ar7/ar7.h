@@ -50,7 +50,7 @@
 #define UR8_REGS_WDT	(AR7_REGS_BASE + 0x0b00)
 #define UR8_REGS_UART1	(AR7_REGS_BASE + 0x0f00)
 
-#define AR7_RESET_PEREPHERIAL	0x0
+#define AR7_RESET_PERIPHERAL	0x0
 #define AR7_RESET_SOFTWARE	0x4
 #define AR7_RESET_STATUS	0x8
 
@@ -105,26 +105,9 @@ static inline u8 ar7_chip_rev(void)
 	return (readl((void *)KSEG1ADDR(AR7_REGS_GPIO + 0x14)) >> 16) & 0xff;
 }
 
-static inline int ar7_cpu_freq(void)
-{
-	return ar7_cpu_clock;
-}
-
-static inline int ar7_bus_freq(void)
-{
-	return ar7_bus_clock;
-}
-
-static inline int ar7_vbus_freq(void)
-{
-	return ar7_bus_clock / 2;
-}
-#define ar7_cpmac_freq ar7_vbus_freq
-
-static inline int ar7_dsp_freq(void)
-{
-	return ar7_dsp_clock;
-}
+struct clk {
+	unsigned int	rate;
+};
 
 static inline int ar7_has_high_cpmac(void)
 {
@@ -145,7 +128,7 @@ static inline int ar7_has_high_cpmac(void)
 static inline void ar7_device_enable(u32 bit)
 {
 	void *reset_reg =
-		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PEREPHERIAL);
+		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PERIPHERAL);
 	writel(readl(reset_reg) | (1 << bit), reset_reg);
 	msleep(20);
 }
@@ -153,7 +136,7 @@ static inline void ar7_device_enable(u32 bit)
 static inline void ar7_device_disable(u32 bit)
 {
 	void *reset_reg =
-		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PEREPHERIAL);
+		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PERIPHERAL);
 	writel(readl(reset_reg) & ~(1 << bit), reset_reg);
 	msleep(20);
 }

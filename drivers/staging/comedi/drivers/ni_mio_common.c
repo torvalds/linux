@@ -3795,7 +3795,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 #endif
 	int retval = 0;
 	unsigned i;
-	const unsigned timeout = 100;
+	const unsigned timeout = 1000;
 
 	s->async->inttrig = NULL;
 

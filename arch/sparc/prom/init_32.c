@@ -75,5 +75,4 @@ void __init prom_init(struct linux_romvec *rp)
 	       romvec->pv_romvers, prom_rev);
 
 	/* Initialization successful. */
-	return;
 }

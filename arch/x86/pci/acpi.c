@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <asm/numa.h>
 #include <asm/pci_x86.h>
 
@@ -15,19 +16,94 @@ struct pci_root_info {
 	int busnum;
 };
 
+static bool pci_use_crs = true;
+
+static int __init set_use_crs(const struct dmi_system_id *id)
+{
+	pci_use_crs = true;
+	return 0;
+}
+
+static const struct dmi_system_id pci_use_crs_table[] __initconst = {
+	/* http://bugzilla.kernel.org/show_bug.cgi?id=14183 */
+	{
+		.callback = set_use_crs,
+		.ident = "IBM System x3800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
+		},
+	},
+	{}
+};
+
+void __init pci_acpi_crs_quirks(void)
+{
+	int year;
+
+	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008)
+		pci_use_crs = false;
+
+	dmi_check_system(pci_use_crs_table);
+
+	/*
+	 * If the user specifies "pci=use_crs" or "pci=nocrs" explicitly, that
+	 * takes precedence over anything we figured out above.
+	 */
+	if (pci_probe & PCI_ROOT_NO_CRS)
+		pci_use_crs = false;
+	else if (pci_probe & PCI_USE__CRS)
+		pci_use_crs = true;
+
+	printk(KERN_INFO "PCI: %s host bridge windows from ACPI; "
+	       "if necessary, use \"pci=%s\" and report a bug\n",
+	       pci_use_crs ? "Using" : "Ignoring",
+	       pci_use_crs ? "nocrs" : "use_crs");
+}
+
 static acpi_status
 resource_to_addr(struct acpi_resource *resource,
 			struct acpi_resource_address64 *addr)
 {
 	acpi_status status;
+	struct acpi_resource_memory24 *memory24;
+	struct acpi_resource_memory32 *memory32;
+	struct acpi_resource_fixed_memory32 *fixed_memory32;
 
-	status = acpi_resource_to_address64(resource, addr);
-	if (ACPI_SUCCESS(status) &&
-	    (addr->resource_type == ACPI_MEMORY_RANGE ||
-	    addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address_length > 0 &&
-	    addr->producer_consumer == ACPI_PRODUCER) {
+	memset(addr, 0, sizeof(*addr));
+	switch (resource->type) {
+	case ACPI_RESOURCE_TYPE_MEMORY24:
+		memory24 = &resource->data.memory24;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = memory24->minimum;
+		addr->address_length = memory24->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
 		return AE_OK;
+	case ACPI_RESOURCE_TYPE_MEMORY32:
+		memory32 = &resource->data.memory32;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = memory32->minimum;
+		addr->address_length = memory32->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
+		return AE_OK;
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		fixed_memory32 = &resource->data.fixed_memory32;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = fixed_memory32->address;
+		addr->address_length = fixed_memory32->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
+		return AE_OK;
+	case ACPI_RESOURCE_TYPE_ADDRESS16:
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+		status = acpi_resource_to_address64(resource, addr);
+		if (ACPI_SUCCESS(status) &&
+		    (addr->resource_type == ACPI_MEMORY_RANGE ||
+		    addr->resource_type == ACPI_IO_RANGE) &&
+		    addr->address_length > 0) {
+			return AE_OK;
+		}
+		break;
 	}
 	return AE_ERROR;
 }
@@ -45,44 +121,6 @@ count_resource(struct acpi_resource *acpi_res, void *data)
 	return AE_OK;
 }
 
-static int
-bus_has_transparent_bridge(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		u16 class = dev->class >> 8;
-
-		if (class == PCI_CLASS_BRIDGE_PCI && dev->transparent)
-			return true;
-	}
-	return false;
-}
-
-static void
-align_resource(struct acpi_device *bridge, struct resource *res)
-{
-	int align = (res->flags & IORESOURCE_MEM) ? 16 : 4;
-
-	/*
-	 * Host bridge windows are not BARs, but the decoders on the PCI side
-	 * that claim this address space have starting alignment and length
-	 * constraints, so fix any obvious BIOS goofs.
-	 */
-	if (!IS_ALIGNED(res->start, align)) {
-		dev_printk(KERN_DEBUG, &bridge->dev,
-			   "host bridge window %pR invalid; "
-			   "aligning start to %d-byte boundary\n", res, align);
-		res->start &= ~(align - 1);
-	}
-	if (!IS_ALIGNED(res->end + 1, align)) {
-		dev_printk(KERN_DEBUG, &bridge->dev,
-			   "host bridge window %pR invalid; "
-			   "aligning end to %d-byte boundary\n", res, align);
-		res->end = ALIGN(res->end, align) - 1;
-	}
-}
-
 static acpi_status
 setup_resource(struct acpi_resource *acpi_res, void *data)
 {
@@ -91,12 +129,8 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags;
-	struct resource *root;
-	int max_root_bus_resources = PCI_BUS_NUM_RESOURCES;
+	struct resource *root, *conflict;
 	u64 start, end;
-
-	if (bus_has_transparent_bridge(info->bus))
-		max_root_bus_resources -= 3;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -114,16 +148,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 
 	start = addr.minimum + addr.translation_offset;
-	end = start + addr.address_length - 1;
-	if (info->res_num >= max_root_bus_resources) {
-		if (pci_probe & PCI_USE__CRS)
-			printk(KERN_WARNING "PCI: Failed to allocate "
-			       "0x%lx-0x%lx from %s for %s due to _CRS "
-			       "returning more than %d resource descriptors\n",
-			       (unsigned long) start, (unsigned long) end,
-			       root->name, info->name, max_root_bus_resources);
-		return AE_OK;
-	}
+	end = addr.maximum + addr.translation_offset;
 
 	res = &info->res[info->res_num];
 	res->name = info->name;
@@ -131,19 +156,21 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	res->child = NULL;
-	align_resource(info->bridge, res);
 
-	if (!(pci_probe & PCI_USE__CRS)) {
+	if (!pci_use_crs) {
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
 			   "host bridge window %pR (ignored)\n", res);
 		return AE_OK;
 	}
 
-	if (insert_resource(root, res)) {
+	conflict = insert_resource_conflict(root, res);
+	if (conflict) {
 		dev_err(&info->bridge->dev,
-			"can't allocate host bridge window %pR\n", res);
+			"address space collision: host bridge window %pR "
+			"conflicts with %s %pR\n",
+			res, conflict->name, conflict);
 	} else {
-		info->bus->resource[info->res_num] = res;
+		pci_bus_add_resource(info->bus, res, 0);
 		info->res_num++;
 		if (addr.translation_offset)
 			dev_info(&info->bridge->dev, "host bridge window %pR "
@@ -164,10 +191,8 @@ get_current_resources(struct acpi_device *device, int busnum,
 	struct pci_root_info info;
 	size_t size;
 
-	if (!(pci_probe & PCI_USE__CRS))
-		dev_info(&device->dev,
-			 "ignoring host bridge windows from ACPI; "
-			 "boot with \"pci=use_crs\" to use them\n");
+	if (pci_use_crs)
+		pci_bus_remove_resources(bus);
 
 	info.bridge = device;
 	info.bus = bus;
@@ -182,10 +207,9 @@ get_current_resources(struct acpi_device *device, int busnum,
 	if (!info.res)
 		goto res_alloc_fail;
 
-	info.name = kmalloc(16, GFP_KERNEL);
+	info.name = kasprintf(GFP_KERNEL, "PCI Bus %04x:%02x", domain, busnum);
 	if (!info.name)
 		goto name_alloc_fail;
-	sprintf(info.name, "PCI Bus %04x:%02x", domain, busnum);
 
 	info.res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
@@ -199,8 +223,11 @@ res_alloc_fail:
 	return;
 }
 
-struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int domain, int busnum)
+struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 {
+	struct acpi_device *device = root->device;
+	int domain = root->segment;
+	int busnum = root->secondary.start;
 	struct pci_bus *bus;
 	struct pci_sysdata *sd;
 	int node;
@@ -282,17 +309,14 @@ int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
 
-	if (pcibios_scanned)
-		return 0;
-
 	if (acpi_noirq)
-		return 0;
+		return -ENODEV;
 
 	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
 	acpi_irq_penalty_init();
-	pcibios_scanned++;
 	pcibios_enable_irq = acpi_pci_irq_enable;
 	pcibios_disable_irq = acpi_pci_irq_disable;
+	x86_init.pci.init_irq = x86_init_noop;
 
 	if (pci_routeirq) {
 		/*

@@ -93,22 +93,24 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
-	struct resource *root;
-	int err;
+	struct resource *root, *conflict;
 
 	root = pci_find_parent_resource(dev, res);
 	if (!root) {
-		dev_err(&dev->dev, "no compatible bridge window for %pR\n",
-			res);
+		dev_info(&dev->dev, "no compatible bridge window for %pR\n",
+			 res);
 		return -EINVAL;
 	}
 
-	err = request_resource(root, res);
-	if (err)
-		dev_err(&dev->dev,
-			"address space collision: %pR already in use\n", res);
+	conflict = request_resource_conflict(root, res);
+	if (conflict) {
+		dev_info(&dev->dev,
+			 "address space collision: %pR conflicts with %s %pR\n",
+			 res, conflict->name, conflict);
+		return -EBUSY;
+	}
 
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(pci_claim_resource);
 
@@ -152,6 +154,38 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 		 */
 		ret = pci_bus_alloc_resource(bus, res, size, align, min, 0,
 					     pcibios_align_resource, dev);
+	}
+
+	if (ret < 0 && dev->fw_addr[resno]) {
+		struct resource *root, *conflict;
+		resource_size_t start, end;
+
+		/*
+		 * If we failed to assign anything, let's try the address
+		 * where firmware left it.  That at least has a chance of
+		 * working, which is better than just leaving it disabled.
+		 */
+
+		if (res->flags & IORESOURCE_IO)
+			root = &ioport_resource;
+		else
+			root = &iomem_resource;
+
+		start = res->start;
+		end = res->end;
+		res->start = dev->fw_addr[resno];
+		res->end = res->start + size - 1;
+		dev_info(&dev->dev, "BAR %d: trying firmware assignment %pR\n",
+			 resno, res);
+		conflict = request_resource_conflict(root, res);
+		if (conflict) {
+			dev_info(&dev->dev,
+				 "BAR %d: %pR conflicts with %s %pR\n", resno,
+				 res, conflict->name, conflict);
+			res->start = start;
+			res->end = end;
+		} else
+			ret = 0;
 	}
 
 	if (!ret) {

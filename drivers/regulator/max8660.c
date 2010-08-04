@@ -42,6 +42,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max8660.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000
@@ -345,8 +346,8 @@ static struct regulator_desc max8660_reg[] = {
 	},
 };
 
-static int max8660_probe(struct i2c_client *client,
-			      const struct i2c_device_id *i2c_id)
+static int __devinit max8660_probe(struct i2c_client *client,
+				   const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
 	struct max8660_platform_data *pdata = client->dev.platform_data;
@@ -354,7 +355,7 @@ static int max8660_probe(struct i2c_client *client,
 	int boot_on, i, id, ret = -EINVAL;
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
-		dev_err(&client->dev, "Too much regulators found!\n");
+		dev_err(&client->dev, "Too many regulators found!\n");
 		goto out;
 	}
 
@@ -462,7 +463,7 @@ out:
 	return ret;
 }
 
-static int max8660_remove(struct i2c_client *client)
+static int __devexit max8660_remove(struct i2c_client *client)
 {
 	struct regulator_dev **rdev = i2c_get_clientdata(client);
 	int i;
@@ -471,7 +472,6 @@ static int max8660_remove(struct i2c_client *client)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
 	kfree(rdev);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }
@@ -485,9 +485,10 @@ MODULE_DEVICE_TABLE(i2c, max8660_id);
 
 static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
-	.remove = max8660_remove,
+	.remove = __devexit_p(max8660_remove),
 	.driver		= {
 		.name	= "max8660",
+		.owner	= THIS_MODULE,
 	},
 	.id_table	= max8660_id,
 };

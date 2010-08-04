@@ -77,7 +77,7 @@ static int udp_packet(struct nf_conn *ct,
 		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udp_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
-			nf_conntrack_event_cache(IPCT_STATUS, ct);
+			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else
 		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udp_timeout);
 
@@ -91,8 +91,8 @@ static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
-static int udp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
-		     enum ip_conntrack_info *ctinfo,
+static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
+		     unsigned int dataoff, enum ip_conntrack_info *ctinfo,
 		     u_int8_t pf,
 		     unsigned int hooknum)
 {

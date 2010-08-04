@@ -31,8 +31,9 @@
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
-#include <asm/hardware/icst307.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/localtimer.h>
 
@@ -45,7 +46,6 @@
 #include <mach/irqs.h>
 
 #include "core.h"
-#include "clock.h"
 
 static struct map_desc realview_pb11mp_io_desc[] __initdata = {
 	{
@@ -260,6 +260,36 @@ static struct resource realview_pb11mp_isp1761_resources[] = {
 	},
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start		= IRQ_TC11MP_PMU_CPU0,
+		.end		= IRQ_TC11MP_PMU_CPU0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start		= IRQ_TC11MP_PMU_CPU1,
+		.end		= IRQ_TC11MP_PMU_CPU1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start		= IRQ_TC11MP_PMU_CPU2,
+		.end		= IRQ_TC11MP_PMU_CPU2,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start		= IRQ_TC11MP_PMU_CPU3,
+		.end		= IRQ_TC11MP_PMU_CPU3,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= ARRAY_SIZE(pmu_resources),
+	.resource		= pmu_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	unsigned int pldctrl;
@@ -329,6 +359,7 @@ static void __init realview_pb11mp_init(void)
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
 	realview_usb_register(realview_pb11mp_isp1761_resources);
+	platform_device_register(&pmu_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
@@ -343,7 +374,7 @@ static void __init realview_pb11mp_init(void)
 
 MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_PB11MP_UART0_BASE,
+	.phys_io	= REALVIEW_PB11MP_UART0_BASE & SECTION_MASK,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PB11MP_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_fixup,

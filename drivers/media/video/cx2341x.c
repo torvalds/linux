@@ -1000,20 +1000,6 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 				  h, w);
 		if (err) return err;
 	}
-
-	if (new->width != 720 || new->height != (new->is_50hz ? 576 : 480)) {
-		/* Adjust temporal filter if necessary. The problem with the
-		   temporal filter is that it works well with full resolution
-		   capturing, but not when the capture window is scaled (the
-		   filter introduces a ghosting effect). So if the capture
-		   window is scaled, then force the filter to 0.
-
-		   For full resolution the filter really improves the video
-		   quality, especially if the original video quality is
-		   suboptimal. */
-		temporal = 0;
-	}
-
 	if (force || NEQ(stream_type)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_STREAM_TYPE, 1,
 				  mpeg_stream_type[new->stream_type]);
@@ -1127,7 +1113,6 @@ invalid:
 void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 {
 	int is_mpeg1 = p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	int temporal = p->video_temporal_filter;
 
 	/* Stream */
 	printk(KERN_INFO "%s: Stream: %s",
@@ -1193,14 +1178,11 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		    V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE),
 		p->video_spatial_filter);
 
-	if (p->width != 720 || p->height != (p->is_50hz ? 576 : 480))
-		temporal = 0;
-
 	printk(KERN_INFO "%s: Temporal Filter: %s, %d\n",
 		prefix,
 		cx2341x_menu_item(p,
 			V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE),
-		temporal);
+		p->video_temporal_filter);
 	printk(KERN_INFO
 		"%s: Median Filter:   %s, Luma [%d, %d], Chroma [%d, %d]\n",
 		prefix,

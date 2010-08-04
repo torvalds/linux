@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/types.h>
+
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
  */
@@ -53,6 +55,7 @@
  */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 #define SECONDARY_EXEC_ENABLE_EPT               0x00000002
+#define SECONDARY_EXEC_RDTSCP			0x00000008
 #define SECONDARY_EXEC_ENABLE_VPID              0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
 #define SECONDARY_EXEC_UNRESTRICTED_GUEST	0x00000080
@@ -119,6 +122,8 @@ enum vmcs_field {
 	GUEST_IA32_DEBUGCTL_HIGH        = 0x00002803,
 	GUEST_IA32_PAT			= 0x00002804,
 	GUEST_IA32_PAT_HIGH		= 0x00002805,
+	GUEST_IA32_EFER			= 0x00002806,
+	GUEST_IA32_EFER_HIGH		= 0x00002807,
 	GUEST_PDPTR0                    = 0x0000280a,
 	GUEST_PDPTR0_HIGH               = 0x0000280b,
 	GUEST_PDPTR1                    = 0x0000280c,
@@ -129,6 +134,8 @@ enum vmcs_field {
 	GUEST_PDPTR3_HIGH               = 0x00002811,
 	HOST_IA32_PAT			= 0x00002c00,
 	HOST_IA32_PAT_HIGH		= 0x00002c01,
+	HOST_IA32_EFER			= 0x00002c02,
+	HOST_IA32_EFER_HIGH		= 0x00002c03,
 	PIN_BASED_VM_EXEC_CONTROL       = 0x00004000,
 	CPU_BASED_VM_EXEC_CONTROL       = 0x00004002,
 	EXCEPTION_BITMAP                = 0x00004004,
@@ -251,6 +258,7 @@ enum vmcs_field {
 #define EXIT_REASON_MSR_READ            31
 #define EXIT_REASON_MSR_WRITE           32
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
+#define EXIT_REASON_MONITOR_INSTRUCTION 39
 #define EXIT_REASON_PAUSE_INSTRUCTION   40
 #define EXIT_REASON_MCE_DURING_VMENTRY	 41
 #define EXIT_REASON_TPR_BELOW_THRESHOLD 43
@@ -362,6 +370,7 @@ enum vmcs_field {
 #define VMX_EPTP_UC_BIT				(1ull << 8)
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
+#define VMX_EPT_1GB_PAGE_BIT			(1ull << 17)
 #define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
@@ -374,7 +383,7 @@ enum vmcs_field {
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull
-#define VMX_EPT_IGMT_BIT    			(1ull << 6)
+#define VMX_EPT_IPAT_BIT    			(1ull << 6)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 
@@ -391,6 +400,10 @@ enum vmcs_field {
 #define ASM_VMX_INVEPT		  ".byte 0x66, 0x0f, 0x38, 0x80, 0x08"
 #define ASM_VMX_INVVPID		  ".byte 0x66, 0x0f, 0x38, 0x81, 0x08"
 
-
+struct vmx_msr_entry {
+	u32 index;
+	u32 reserved;
+	u64 value;
+} __aligned(16);
 
 #endif

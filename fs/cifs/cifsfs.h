@@ -61,7 +61,8 @@ extern int cifs_mkdir(struct inode *, struct dentry *, int);
 extern int cifs_rmdir(struct inode *, struct dentry *);
 extern int cifs_rename(struct inode *, struct dentry *, struct inode *,
 		       struct dentry *);
-extern int cifs_revalidate(struct dentry *);
+extern int cifs_revalidate_file(struct file *filp);
+extern int cifs_revalidate_dentry(struct dentry *);
 extern int cifs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int cifs_setattr(struct dentry *, struct iattr *);
 
@@ -83,7 +84,7 @@ extern ssize_t cifs_user_read(struct file *file, char __user *read_data,
 extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			 size_t write_size, loff_t *poffset);
 extern int cifs_lock(struct file *, int, struct file_lock *);
-extern int cifs_fsync(struct file *, struct dentry *, int);
+extern int cifs_fsync(struct file *, int);
 extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
 extern const struct file_operations cifs_dir_ops;
@@ -113,5 +114,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
-#define CIFS_VERSION   "1.61"
+#define CIFS_VERSION   "1.64"
 #endif				/* _CIFSFS_H */

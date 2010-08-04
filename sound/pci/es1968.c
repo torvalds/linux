@@ -104,6 +104,7 @@
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/input.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -517,14 +518,9 @@ struct es1968 {
 
 	/* ALSA Stuff */
 	struct snd_ac97 *ac97;
-	struct snd_kcontrol *master_switch; /* for h/w volume control */
-	struct snd_kcontrol *master_volume;
-
 	struct snd_rawmidi *rmidi;
 
 	spinlock_t reg_lock;
-	spinlock_t ac97_lock;
-	struct tasklet_struct hwvol_tq;
 	unsigned int in_suspend;
 
 	/* Maestro Stuff */
@@ -547,11 +543,21 @@ struct es1968 {
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
+
+#ifdef CONFIG_SND_ES1968_INPUT
+	struct input_dev *input_dev;
+	char phys[64];			/* physical device path */
+#else
+	struct snd_kcontrol *master_switch; /* for h/w volume control */
+	struct snd_kcontrol *master_volume;
+	spinlock_t ac97_lock;
+	struct tasklet_struct hwvol_tq;
+#endif
 };
 
 static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id);
 
-static struct pci_device_id snd_es1968_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_es1968_ids) = {
 	/* Maestro 1 */
         { 0x1285, 0x0100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, TYPE_MAESTRO },
 	/* Maestro 2 */
@@ -632,28 +638,38 @@ static int snd_es1968_ac97_wait_poll(struct es1968 *chip)
 static void snd_es1968_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
 	struct es1968 *chip = ac97->private_data;
+#ifndef CONFIG_SND_ES1968_INPUT
 	unsigned long flags;
+#endif
 
 	snd_es1968_ac97_wait(chip);
 
 	/* Write the bus */
+#ifndef CONFIG_SND_ES1968_INPUT
 	spin_lock_irqsave(&chip->ac97_lock, flags);
+#endif
 	outw(val, chip->io_port + ESM_AC97_DATA);
 	/*msleep(1);*/
 	outb(reg, chip->io_port + ESM_AC97_INDEX);
 	/*msleep(1);*/
+#ifndef CONFIG_SND_ES1968_INPUT
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+#endif
 }
 
 static unsigned short snd_es1968_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	u16 data = 0;
 	struct es1968 *chip = ac97->private_data;
+#ifndef CONFIG_SND_ES1968_INPUT
 	unsigned long flags;
+#endif
 
 	snd_es1968_ac97_wait(chip);
 
+#ifndef CONFIG_SND_ES1968_INPUT
 	spin_lock_irqsave(&chip->ac97_lock, flags);
+#endif
 	outb(reg | 0x80, chip->io_port + ESM_AC97_INDEX);
 	/*msleep(1);*/
 
@@ -661,7 +677,9 @@ static unsigned short snd_es1968_ac97_read(struct snd_ac97 *ac97, unsigned short
 		data = inw(chip->io_port + ESM_AC97_DATA);
 		/*msleep(1);*/
 	}
+#ifndef CONFIG_SND_ES1968_INPUT
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+#endif
 
 	return data;
 }
@@ -1874,13 +1892,17 @@ static void snd_es1968_update_pcm(struct es1968 *chip, struct esschan *es)
 	}
 }
 
-/*
- */
+/* The hardware volume works by incrementing / decrementing 2 counters
+   (without wrap around) in response to volume button presses and then
+   generating an interrupt. The pair of counters is stored in bits 1-3 and 5-7
+   of a byte wide register. The meaning of bits 0 and 4 is unknown. */
 static void es1968_update_hw_volume(unsigned long private_data)
 {
 	struct es1968 *chip = (struct es1968 *) private_data;
 	int x, val;
+#ifndef CONFIG_SND_ES1968_INPUT
 	unsigned long flags;
+#endif
 
 	/* Figure out which volume control button was pushed,
 	   based on differences from the default register
@@ -1895,6 +1917,7 @@ static void es1968_update_hw_volume(unsigned long private_data)
 	if (chip->in_suspend)
 		return;
 
+#ifndef CONFIG_SND_ES1968_INPUT
 	if (! chip->master_switch || ! chip->master_volume)
 		return;
 
@@ -1937,6 +1960,35 @@ static void es1968_update_hw_volume(unsigned long private_data)
 		break;
 	}
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+#else
+	if (!chip->input_dev)
+		return;
+
+	val = 0;
+	switch (x) {
+	case 0x88:
+		/* The counters have not changed, yet we've received a HV
+		   interrupt. According to tests run by various people this
+		   happens when pressing the mute button. */
+		val = KEY_MUTE;
+		break;
+	case 0xaa:
+		/* counters increased by 1 -> volume up */
+		val = KEY_VOLUMEUP;
+		break;
+	case 0x66:
+		/* counters decreased by 1 -> volume down */
+		val = KEY_VOLUMEDOWN;
+		break;
+	}
+
+	if (val) {
+		input_report_key(chip->input_dev, val, 1);
+		input_sync(chip->input_dev);
+		input_report_key(chip->input_dev, val, 0);
+		input_sync(chip->input_dev);
+	}
+#endif
 }
 
 /*
@@ -1953,7 +2005,11 @@ static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id)
 	outw(inw(chip->io_port + 4) & 1, chip->io_port + 4);
 
 	if (event & ESM_HWVOL_IRQ)
+#ifdef CONFIG_SND_ES1968_INPUT
+		es1968_update_hw_volume((unsigned long)chip);
+#else
 		tasklet_schedule(&chip->hwvol_tq); /* we'll do this later */
+#endif
 
 	/* else ack 'em all, i imagine */
 	outb(0xFF, chip->io_port + 0x1A);
@@ -1993,7 +2049,9 @@ snd_es1968_mixer(struct es1968 *chip)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
+#ifndef CONFIG_SND_ES1968_INPUT
 	struct snd_ctl_elem_id elem_id;
+#endif
 	int err;
 	static struct snd_ac97_bus_ops ops = {
 		.write = snd_es1968_ac97_write,
@@ -2009,6 +2067,7 @@ snd_es1968_mixer(struct es1968 *chip)
 	if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97)) < 0)
 		return err;
 
+#ifndef CONFIG_SND_ES1968_INPUT
 	/* attach master switch / volumes for h/w volume control */
 	memset(&elem_id, 0, sizeof(elem_id));
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -2018,6 +2077,7 @@ snd_es1968_mixer(struct es1968 *chip)
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strcpy(elem_id.name, "Master Playback Volume");
 	chip->master_volume = snd_ctl_find_id(chip->card, &elem_id);
+#endif
 
 	return 0;
 }
@@ -2341,6 +2401,7 @@ static void snd_es1968_start_irq(struct es1968 *chip)
 	w = ESM_HIRQ_DSIE | ESM_HIRQ_HW_VOLUME;
 	if (chip->rmidi)
 		w |= ESM_HIRQ_MPU401;
+	outb(w, chip->io_port + 0x1A);
 	outw(w, chip->io_port + ESM_PORT_HOST_IRQ);
 }
 
@@ -2474,8 +2535,49 @@ static inline int snd_es1968_create_gameport(struct es1968 *chip, int dev) { ret
 static inline void snd_es1968_free_gameport(struct es1968 *chip) { }
 #endif
 
+#ifdef CONFIG_SND_ES1968_INPUT
+static int __devinit snd_es1968_input_register(struct es1968 *chip)
+{
+	struct input_dev *input_dev;
+	int err;
+
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+
+	snprintf(chip->phys, sizeof(chip->phys), "pci-%s/input0",
+		 pci_name(chip->pci));
+
+	input_dev->name = chip->card->driver;
+	input_dev->phys = chip->phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.vendor  = chip->pci->vendor;
+	input_dev->id.product = chip->pci->device;
+	input_dev->dev.parent = &chip->pci->dev;
+
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(KEY_MUTE, input_dev->keybit);
+	__set_bit(KEY_VOLUMEDOWN, input_dev->keybit);
+	__set_bit(KEY_VOLUMEUP, input_dev->keybit);
+
+	err = input_register_device(input_dev);
+	if (err) {
+		input_free_device(input_dev);
+		return err;
+	}
+
+	chip->input_dev = input_dev;
+	return 0;
+}
+#endif /* CONFIG_SND_ES1968_INPUT */
+
 static int snd_es1968_free(struct es1968 *chip)
 {
+#ifdef CONFIG_SND_ES1968_INPUT
+	if (chip->input_dev)
+		input_unregister_device(chip->input_dev);
+#endif
+
 	if (chip->io_port) {
 		if (chip->irq >= 0)
 			synchronize_irq(chip->irq);
@@ -2486,8 +2588,6 @@ static int snd_es1968_free(struct es1968 *chip)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 	snd_es1968_free_gameport(chip);
-	chip->master_switch = NULL;
-	chip->master_volume = NULL;
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);
@@ -2558,9 +2658,11 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	spin_lock_init(&chip->substream_lock);
 	INIT_LIST_HEAD(&chip->buf_list);
 	INIT_LIST_HEAD(&chip->substream_list);
-	spin_lock_init(&chip->ac97_lock);
 	mutex_init(&chip->memory_mutex);
+#ifndef CONFIG_SND_ES1968_INPUT
+	spin_lock_init(&chip->ac97_lock);
 	tasklet_init(&chip->hwvol_tq, es1968_update_hw_volume, (unsigned long)chip);
+#endif
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
@@ -2712,6 +2814,13 @@ static int __devinit snd_es1968_probe(struct pci_dev *pci,
 	}
 
 	snd_es1968_create_gameport(chip, dev);
+
+#ifdef CONFIG_SND_ES1968_INPUT
+	err = snd_es1968_input_register(chip);
+	if (err)
+		snd_printk(KERN_WARNING "Input device registration "
+			"failed with error %i", err);
+#endif
 
 	snd_es1968_start_irq(chip);
 

@@ -139,7 +139,7 @@ static int usb_set_report(struct usb_interface *intf, unsigned char type,
 /* driver registration */
 /*---------------------*/
 /* table of devices that work with this driver */
-static struct usb_device_id iowarrior_ids[] = {
+static const struct usb_device_id iowarrior_ids[] = {
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW24)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOWPV1)},
@@ -239,8 +239,8 @@ static void iowarrior_write_callback(struct urb *urb)
 		    __func__, status);
 	}
 	/* free up our allocated buffer */
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	/* tell a waiting writer the interrupt-out-pipe is available again */
 	atomic_dec(&dev->write_busy);
 	wake_up_interruptible(&dev->write_wait);
@@ -421,8 +421,8 @@ static ssize_t iowarrior_write(struct file *file,
 			dbg("%s Unable to allocate urb ", __func__);
 			goto error_no_urb;
 		}
-		buf = usb_buffer_alloc(dev->udev, dev->report_size,
-				       GFP_KERNEL, &int_out_urb->transfer_dma);
+		buf = usb_alloc_coherent(dev->udev, dev->report_size,
+					 GFP_KERNEL, &int_out_urb->transfer_dma);
 		if (!buf) {
 			retval = -ENOMEM;
 			dbg("%s Unable to allocate buffer ", __func__);
@@ -459,8 +459,8 @@ static ssize_t iowarrior_write(struct file *file,
 		break;
 	}
 error:
-	usb_buffer_free(dev->udev, dev->report_size, buf,
-			int_out_urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->report_size, buf,
+			  int_out_urb->transfer_dma);
 error_no_buffer:
 	usb_free_urb(int_out_urb);
 error_no_urb:
@@ -602,10 +602,12 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 	dbg("%s", __func__);
 
+	lock_kernel();
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
+		unlock_kernel();
 		err("%s - error, can't find device for minor %d", __func__,
 		    subminor);
 		return -ENODEV;
@@ -615,6 +617,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&iowarrior_open_disc_lock);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -641,6 +644,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 out:
 	mutex_unlock(&dev->mutex);
+	unlock_kernel();
 	return retval;
 }
 

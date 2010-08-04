@@ -28,10 +28,6 @@
 
 #define BFA_CEE_LLDP_MAX_STRING_LEN (128)
 
-
-/* FIXME: this is coming from the protocol spec. Can the host & apps share the
-   protocol .h files ?
- */
 #define BFA_CEE_LLDP_SYS_CAP_OTHER       0x0001
 #define BFA_CEE_LLDP_SYS_CAP_REPEATER    0x0002
 #define BFA_CEE_LLDP_SYS_CAP_MAC_BRIDGE  0x0004
@@ -54,7 +50,7 @@ struct bfa_cee_lldp_str_s {
 };
 
 
-/* LLDP paramters */
+/* LLDP parameters */
 struct bfa_cee_lldp_cfg_s {
 	struct bfa_cee_lldp_str_s chassis_id;
 	struct bfa_cee_lldp_str_s port_id;
@@ -94,9 +90,10 @@ struct bfa_cee_dcbx_cfg_s {
 /* CEE status */
 /* Making this to tri-state for the benefit of port list command */
 enum bfa_cee_status_e {
-    CEE_PHY_DOWN = 0,
-    CEE_PHY_UP = 1,
-    CEE_UP = 2,
+	CEE_UP = 0,
+	CEE_PHY_UP = 1,
+	CEE_LOOPBACK = 2,
+	CEE_PHY_DOWN = 3,
 };
 
 /* CEE Query */
@@ -107,7 +104,8 @@ struct bfa_cee_attr_s {
 	struct bfa_cee_dcbx_cfg_s dcbx_remote;
 	mac_t src_mac;
 	u8 link_speed;
-	u8 filler[3];
+	u8 nw_priority;
+	u8 filler[2];
 };
 
 

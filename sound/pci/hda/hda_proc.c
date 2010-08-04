@@ -61,18 +61,29 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		return "UNKNOWN Widget";
 }
 
-static void print_nid_mixers(struct snd_info_buffer *buffer,
-			     struct hda_codec *codec, hda_nid_t nid)
+static void print_nid_array(struct snd_info_buffer *buffer,
+			    struct hda_codec *codec, hda_nid_t nid,
+			    struct snd_array *array)
 {
 	int i;
-	struct hda_nid_item *items = codec->mixers.list;
+	struct hda_nid_item *items = array->list, *item;
 	struct snd_kcontrol *kctl;
-	for (i = 0; i < codec->mixers.used; i++) {
-		if (items[i].nid == nid) {
-			kctl = items[i].kctl;
+	for (i = 0; i < array->used; i++) {
+		item = &items[i];
+		if (item->nid == nid) {
+			kctl = item->kctl;
 			snd_iprintf(buffer,
 			  "  Control: name=\"%s\", index=%i, device=%i\n",
-			  kctl->id.name, kctl->id.index, kctl->id.device);
+			  kctl->id.name, kctl->id.index + item->index,
+			  kctl->id.device);
+			if (item->flags & HDA_NID_ITEM_AMP)
+				snd_iprintf(buffer,
+				  "    ControlAmp: chs=%lu, dir=%s, "
+				  "idx=%lu, ofs=%lu\n",
+				  get_amp_channels(kctl),
+				  get_amp_direction(kctl) ? "Out" : "In",
+				  get_amp_index(kctl),
+				  get_amp_offset(kctl));
 		}
 	}
 }
@@ -528,7 +539,8 @@ static void print_gpio(struct snd_info_buffer *buffer,
 			    (data & (1<<i)) ? 1 : 0,
 			    (unsol & (1<<i)) ? 1 : 0);
 	/* FIXME: add GPO and GPI pin information */
-	print_nid_mixers(buffer, codec, nid);
+	print_nid_array(buffer, codec, nid, &codec->mixers);
+	print_nid_array(buffer, codec, nid, &codec->nids);
 }
 
 static void print_codec_info(struct snd_info_entry *entry,
@@ -608,7 +620,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, " CP");
 		snd_iprintf(buffer, "\n");
 
-		print_nid_mixers(buffer, codec, nid);
+		print_nid_array(buffer, codec, nid, &codec->mixers);
+		print_nid_array(buffer, codec, nid, &codec->nids);
 		print_nid_pcms(buffer, codec, nid);
 
 		/* volume knob is a special widget that always have connection

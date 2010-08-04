@@ -21,13 +21,13 @@ unsigned int se7722_fpga_irq[SE7722_FPGA_IRQ_NR] = { 0, };
 static void disable_se7722_irq(unsigned int irq)
 {
 	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
-	ctrl_outw(ctrl_inw(IRQ01_MASK) | 1 << bit, IRQ01_MASK);
+	__raw_writew(__raw_readw(IRQ01_MASK) | 1 << bit, IRQ01_MASK);
 }
 
 static void enable_se7722_irq(unsigned int irq)
 {
 	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
-	ctrl_outw(ctrl_inw(IRQ01_MASK) & ~(1 << bit), IRQ01_MASK);
+	__raw_writew(__raw_readw(IRQ01_MASK) & ~(1 << bit), IRQ01_MASK);
 }
 
 static struct irq_chip se7722_irq_chip __read_mostly = {
@@ -39,7 +39,7 @@ static struct irq_chip se7722_irq_chip __read_mostly = {
 
 static void se7722_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned short intv = ctrl_inw(IRQ01_STS);
+	unsigned short intv = __raw_readw(IRQ01_STS);
 	unsigned int ext_irq = 0;
 
 	intv &= (1 << SE7722_FPGA_IRQ_NR) - 1;
@@ -59,8 +59,8 @@ void __init init_se7722_IRQ(void)
 {
 	int i, irq;
 
-	ctrl_outw(0, IRQ01_MASK);       /* disable all irqs */
-	ctrl_outw(0x2000, 0xb03fffec);  /* mrshpc irq enable */
+	__raw_writew(0, IRQ01_MASK);       /* disable all irqs */
+	__raw_writew(0x2000, 0xb03fffec);  /* mrshpc irq enable */
 
 	for (i = 0; i < SE7722_FPGA_IRQ_NR; i++) {
 		irq = create_irq();

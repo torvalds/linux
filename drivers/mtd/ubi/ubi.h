@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>
@@ -349,7 +350,6 @@ struct ubi_wl_entry;
  * @bgt_thread: background thread description object
  * @thread_enabled: if the background thread is enabled
  * @bgt_name: background thread name
- * @reboot_notifier: notifier to terminate background thread before rebooting
  *
  * @flash_size: underlying MTD device size (in bytes)
  * @peb_count: count of physical eraseblocks on the MTD device
@@ -435,7 +435,6 @@ struct ubi_device {
 	struct task_struct *bgt_thread;
 	int thread_enabled;
 	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
-	struct notifier_block reboot_notifier;
 
 	/* I/O sub-system's stuff */
 	long long flash_size;

@@ -11,13 +11,13 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/edac.h>
 #include <linux/smp.h>
+#include <linux/gfp.h>
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
@@ -229,7 +229,7 @@ static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
 
 	pdata->edac_idx = edac_pci_idx++;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for "
 		       "PCI err regs\n", __func__);
@@ -239,16 +239,15 @@ static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
 	/* we only need the error registers */
 	r.start += 0xe00;
 
-	if (!devm_request_mem_region(&op->dev, r.start,
-					r.end - r.start + 1, pdata->name)) {
+	if (!devm_request_mem_region(&op->dev, r.start, resource_size(&r),
+					pdata->name)) {
 		printk(KERN_ERR "%s: Error while requesting mem region\n",
 		       __func__);
 		res = -EBUSY;
 		goto err;
 	}
 
-	pdata->pci_vbase = devm_ioremap(&op->dev, r.start,
-					r.end - r.start + 1);
+	pdata->pci_vbase = devm_ioremap(&op->dev, r.start, resource_size(&r));
 	if (!pdata->pci_vbase) {
 		printk(KERN_ERR "%s: Unable to setup PCI err regs\n", __func__);
 		res = -ENOMEM;
@@ -275,7 +274,7 @@ static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_pci_isr, IRQF_DISABLED,
 				       "[EDAC] PCI err", pci);
@@ -337,17 +336,16 @@ static struct of_device_id mpc85xx_pci_err_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_pci_err_of_match);
 
 static struct of_platform_driver mpc85xx_pci_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_pci_err",
-	.match_table = mpc85xx_pci_err_of_match,
 	.probe = mpc85xx_pci_err_probe,
 	.remove = __devexit_p(mpc85xx_pci_err_remove),
 	.driver = {
-		   .name = "mpc85xx_pci_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_pci_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_pci_err_of_match,
+	},
 };
 
 #endif				/* CONFIG_PCI */
@@ -532,7 +530,7 @@ static int __devinit mpc85xx_l2_err_probe(struct of_device *op,
 	edac_dev->ctl_name = pdata->name;
 	edac_dev->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for "
 		       "L2 err regs\n", __func__);
@@ -579,7 +577,7 @@ static int __devinit mpc85xx_l2_err_probe(struct of_device *op,
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_l2_isr, IRQF_DISABLED,
 				       "[EDAC] L2 err", edac_dev);
@@ -653,30 +651,139 @@ static struct of_device_id mpc85xx_l2_err_of_match[] = {
 	{ .compatible = "fsl,p2020-l2-cache-controller", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_l2_err_of_match);
 
 static struct of_platform_driver mpc85xx_l2_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_l2_err",
-	.match_table = mpc85xx_l2_err_of_match,
 	.probe = mpc85xx_l2_err_probe,
 	.remove = mpc85xx_l2_err_remove,
 	.driver = {
-		   .name = "mpc85xx_l2_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_l2_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_l2_err_of_match,
+	},
 };
 
 /**************************** MC Err device ***************************/
+
+/*
+ * Taken from table 8-55 in the MPC8641 User's Manual and/or 9-61 in the
+ * MPC8572 User's Manual.  Each line represents a syndrome bit column as a
+ * 64-bit value, but split into an upper and lower 32-bit chunk.  The labels
+ * below correspond to Freescale's manuals.
+ */
+static unsigned int ecc_table[16] = {
+	/* MSB           LSB */
+	/* [0:31]    [32:63] */
+	0xf00fe11e, 0xc33c0ff7,	/* Syndrome bit 7 */
+	0x00ff00ff, 0x00fff0ff,
+	0x0f0f0f0f, 0x0f0fff00,
+	0x11113333, 0x7777000f,
+	0x22224444, 0x8888222f,
+	0x44448888, 0xffff4441,
+	0x8888ffff, 0x11118882,
+	0xffff1111, 0x22221114,	/* Syndrome bit 0 */
+};
+
+/*
+ * Calculate the correct ECC value for a 64-bit value specified by high:low
+ */
+static u8 calculate_ecc(u32 high, u32 low)
+{
+	u32 mask_low;
+	u32 mask_high;
+	int bit_cnt;
+	u8 ecc = 0;
+	int i;
+	int j;
+
+	for (i = 0; i < 8; i++) {
+		mask_high = ecc_table[i * 2];
+		mask_low = ecc_table[i * 2 + 1];
+		bit_cnt = 0;
+
+		for (j = 0; j < 32; j++) {
+			if ((mask_high >> j) & 1)
+				bit_cnt ^= (high >> j) & 1;
+			if ((mask_low >> j) & 1)
+				bit_cnt ^= (low >> j) & 1;
+		}
+
+		ecc |= bit_cnt << i;
+	}
+
+	return ecc;
+}
+
+/*
+ * Create the syndrome code which is generated if the data line specified by
+ * 'bit' failed.  Eg generate an 8-bit codes seen in Table 8-55 in the MPC8641
+ * User's Manual and 9-61 in the MPC8572 User's Manual.
+ */
+static u8 syndrome_from_bit(unsigned int bit) {
+	int i;
+	u8 syndrome = 0;
+
+	/*
+	 * Cycle through the upper or lower 32-bit portion of each value in
+	 * ecc_table depending on if 'bit' is in the upper or lower half of
+	 * 64-bit data.
+	 */
+	for (i = bit < 32; i < 16; i += 2)
+		syndrome |= ((ecc_table[i] >> (bit % 32)) & 1) << (i / 2);
+
+	return syndrome;
+}
+
+/*
+ * Decode data and ecc syndrome to determine what went wrong
+ * Note: This can only decode single-bit errors
+ */
+static void sbe_ecc_decode(u32 cap_high, u32 cap_low, u32 cap_ecc,
+		       int *bad_data_bit, int *bad_ecc_bit)
+{
+	int i;
+	u8 syndrome;
+
+	*bad_data_bit = -1;
+	*bad_ecc_bit = -1;
+
+	/*
+	 * Calculate the ECC of the captured data and XOR it with the captured
+	 * ECC to find an ECC syndrome value we can search for
+	 */
+	syndrome = calculate_ecc(cap_high, cap_low) ^ cap_ecc;
+
+	/* Check if a data line is stuck... */
+	for (i = 0; i < 64; i++) {
+		if (syndrome == syndrome_from_bit(i)) {
+			*bad_data_bit = i;
+			return;
+		}
+	}
+
+	/* If data is correct, check ECC bits for errors... */
+	for (i = 0; i < 8; i++) {
+		if ((syndrome >> i) & 0x1) {
+			*bad_ecc_bit = i;
+			return;
+		}
+	}
+}
 
 static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 {
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
+	u32 bus_width;
 	u32 err_detect;
 	u32 syndrome;
 	u32 err_addr;
 	u32 pfn;
 	int row_index;
+	u32 cap_high;
+	u32 cap_low;
+	int bad_data_bit;
+	int bad_ecc_bit;
 
 	err_detect = in_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT);
 	if (!err_detect)
@@ -692,6 +799,15 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 	}
 
 	syndrome = in_be32(pdata->mc_vbase + MPC85XX_MC_CAPTURE_ECC);
+
+	/* Mask off appropriate bits of syndrome based on bus width */
+	bus_width = (in_be32(pdata->mc_vbase + MPC85XX_MC_DDR_SDRAM_CFG) &
+			DSC_DBW_MASK) ? 32 : 64;
+	if (bus_width == 64)
+		syndrome &= 0xff;
+	else
+		syndrome &= 0xffff;
+
 	err_addr = in_be32(pdata->mc_vbase + MPC85XX_MC_CAPTURE_ADDRESS);
 	pfn = err_addr >> PAGE_SHIFT;
 
@@ -701,14 +817,35 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 			break;
 	}
 
-	mpc85xx_mc_printk(mci, KERN_ERR, "Capture Data High: %#8.8x\n",
-			  in_be32(pdata->mc_vbase +
-				  MPC85XX_MC_CAPTURE_DATA_HI));
-	mpc85xx_mc_printk(mci, KERN_ERR, "Capture Data Low: %#8.8x\n",
-			  in_be32(pdata->mc_vbase +
-				  MPC85XX_MC_CAPTURE_DATA_LO));
-	mpc85xx_mc_printk(mci, KERN_ERR, "syndrome: %#8.8x\n", syndrome);
-	mpc85xx_mc_printk(mci, KERN_ERR, "err addr: %#8.8x\n", err_addr);
+	cap_high = in_be32(pdata->mc_vbase + MPC85XX_MC_CAPTURE_DATA_HI);
+	cap_low = in_be32(pdata->mc_vbase + MPC85XX_MC_CAPTURE_DATA_LO);
+
+	/*
+	 * Analyze single-bit errors on 64-bit wide buses
+	 * TODO: Add support for 32-bit wide buses
+	 */
+	if ((err_detect & DDR_EDE_SBE) && (bus_width == 64)) {
+		sbe_ecc_decode(cap_high, cap_low, syndrome,
+				&bad_data_bit, &bad_ecc_bit);
+
+		if (bad_data_bit != -1)
+			mpc85xx_mc_printk(mci, KERN_ERR,
+				"Faulty Data bit: %d\n", bad_data_bit);
+		if (bad_ecc_bit != -1)
+			mpc85xx_mc_printk(mci, KERN_ERR,
+				"Faulty ECC bit: %d\n", bad_ecc_bit);
+
+		mpc85xx_mc_printk(mci, KERN_ERR,
+			"Expected Data / ECC:\t%#8.8x_%08x / %#2.2x\n",
+			cap_high ^ (1 << (bad_data_bit - 32)),
+			cap_low ^ (1 << bad_data_bit),
+			syndrome ^ (1 << bad_ecc_bit));
+	}
+
+	mpc85xx_mc_printk(mci, KERN_ERR,
+			"Captured Data / ECC:\t%#8.8x_%08x / %#2.2x\n",
+			cap_high, cap_low, syndrome);
+	mpc85xx_mc_printk(mci, KERN_ERR, "Err addr: %#8.8x\n", err_addr);
 	mpc85xx_mc_printk(mci, KERN_ERR, "PFN: %#8.8x\n", pfn);
 
 	/* we are out of range */
@@ -804,8 +941,8 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		end   <<= (24 - PAGE_SHIFT);
 		end    |= (1 << (24 - PAGE_SHIFT)) - 1;
 
-		csrow->first_page = start >> PAGE_SHIFT;
-		csrow->last_page = end >> PAGE_SHIFT;
+		csrow->first_page = start;
+		csrow->last_page = end;
 		csrow->nr_pages = end + 1 - start;
 		csrow->grain = 8;
 		csrow->mtype = mtype;
@@ -843,7 +980,7 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 	mci->ctl_name = pdata->name;
 	mci->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for MC err regs\n",
 		       __func__);
@@ -892,10 +1029,6 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 
 	mpc85xx_init_csrows(mci);
 
-#ifdef CONFIG_EDAC_DEBUG
-	edac_mc_register_mcidev_debug((struct attribute **)debug_attr);
-#endif
-
 	/* store the original error disable bits */
 	orig_ddr_err_disable =
 	    in_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DISABLE);
@@ -921,7 +1054,7 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_SBE, 0x10000);
 
 		/* register interrupts */
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_mc_isr,
 					IRQF_DISABLED | IRQF_SHARED,
@@ -989,22 +1122,22 @@ static struct of_device_id mpc85xx_mc_err_of_match[] = {
 	{ .compatible = "fsl,mpc8555-memory-controller", },
 	{ .compatible = "fsl,mpc8560-memory-controller", },
 	{ .compatible = "fsl,mpc8568-memory-controller", },
+	{ .compatible = "fsl,mpc8569-memory-controller", },
 	{ .compatible = "fsl,mpc8572-memory-controller", },
 	{ .compatible = "fsl,mpc8349-memory-controller", },
 	{ .compatible = "fsl,p2020-memory-controller", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
 static struct of_platform_driver mpc85xx_mc_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_mc_err",
-	.match_table = mpc85xx_mc_err_of_match,
 	.probe = mpc85xx_mc_err_probe,
 	.remove = mpc85xx_mc_err_remove,
 	.driver = {
-		   .name = "mpc85xx_mc_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_mc_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_mc_err_of_match,
+	},
 };
 
 #ifdef CONFIG_MPC85xx

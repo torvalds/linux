@@ -176,6 +176,6 @@ extern void hci_sock_cleanup(void);
 extern int bt_sysfs_init(void);
 extern void bt_sysfs_cleanup(void);
 
-extern struct class *bt_class;
+extern struct dentry *bt_debugfs;
 
 #endif /* __BLUETOOTH_H */

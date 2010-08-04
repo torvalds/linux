@@ -231,7 +231,7 @@ u8 eighty_ninty_three(ide_drive_t *drive)
 	u16 *id = drive->id;
 	int ivb = ide_in_drive_list(id, ivb_list);
 
-	if (hwif->cbl == ATA_CBL_PATA40_SHORT)
+	if (hwif->cbl == ATA_CBL_SATA || hwif->cbl == ATA_CBL_PATA40_SHORT)
 		return 1;
 
 	if (ivb)

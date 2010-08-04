@@ -18,6 +18,7 @@
 #include <linux/compat.h>
 #include <linux/ioctl.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -236,15 +237,12 @@ xfs_bulkstat_one_compat(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* buffer to place output in */
 	int		ubsize,		/* size of buffer */
-	void		*private_data,	/* my private data */
-	xfs_daddr_t	bno,		/* starting bno of inode cluster */
 	int		*ubused,	/* bytes used by me */
-	void		*dibuff,	/* on-disk inode buffer */
 	int		*stat)		/* BULKSTAT_RV_... */
 {
 	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
-				    xfs_bulkstat_one_fmt_compat, bno,
-				    ubused, dibuff, stat);
+				    xfs_bulkstat_one_fmt_compat,
+				    ubused, stat);
 }
 
 /* copied from xfs_ioctl.c */
@@ -297,13 +295,11 @@ xfs_compat_ioc_bulkstat(
 		int res;
 
 		error = xfs_bulkstat_one_compat(mp, inlast, bulkreq.ubuffer,
-				sizeof(compat_xfs_bstat_t),
-				NULL, 0, NULL, NULL, &res);
+				sizeof(compat_xfs_bstat_t), 0, &res);
 	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
 		error = xfs_bulkstat(mp, &inlast, &count,
-			xfs_bulkstat_one_compat, NULL,
-			sizeof(compat_xfs_bstat_t), bulkreq.ubuffer,
-			BULKSTAT_FG_QUICK, &done);
+			xfs_bulkstat_one_compat, sizeof(compat_xfs_bstat_t),
+			bulkreq.ubuffer, &done);
 	} else
 		error = XFS_ERROR(EINVAL);
 	if (error)
@@ -411,13 +407,17 @@ xfs_compat_attrmulti_by_handle(
 	compat_xfs_fsop_attrmulti_handlereq_t	am_hreq;
 	struct dentry				*dentry;
 	unsigned int				i, size;
-	char					*attr_name;
+	unsigned char				*attr_name;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
 	if (copy_from_user(&am_hreq, arg,
 			   sizeof(compat_xfs_fsop_attrmulti_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
+
+	/* overflow check */
+	if (am_hreq.opcount >= INT_MAX / sizeof(compat_xfs_attr_multiop_t))
+		return -E2BIG;
 
 	dentry = xfs_compat_handlereq_to_dentry(parfilp, &am_hreq.hreq);
 	if (IS_ERR(dentry))
@@ -440,7 +440,7 @@ xfs_compat_attrmulti_by_handle(
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
-		ops[i].am_error = strncpy_from_user(attr_name,
+		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				compat_ptr(ops[i].am_attrname),
 				MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)

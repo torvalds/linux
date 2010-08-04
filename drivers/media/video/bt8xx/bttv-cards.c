@@ -241,6 +241,10 @@ static struct CARD {
 	{ 0xa1550101, BTTV_BOARD_IVC200,        "IVC-200G" },
 	{ 0xa1550102, BTTV_BOARD_IVC200,        "IVC-200G" },
 	{ 0xa1550103, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa1550800, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550801, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550802, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550803, BTTV_BOARD_IVC200,        "IVC-200"  },
 	{ 0xa182ff00, BTTV_BOARD_IVC120,        "IVC-120G" },
 	{ 0xa182ff01, BTTV_BOARD_IVC120,        "IVC-120G" },
 	{ 0xa182ff02, BTTV_BOARD_IVC120,        "IVC-120G" },
@@ -4404,7 +4408,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 /* Tibet Systems 'Progress DVR' CS16 muxsel helper [Chris Fanning]
  *
  * The CS16 (available on eBay cheap) is a PCI board with four Fusion
- * 878A chips, a PCI bridge, an Atmel microcontroller, four sync seperator
+ * 878A chips, a PCI bridge, an Atmel microcontroller, four sync separator
  * chips, ten eight input analog multiplexors, a not chip and a few
  * other components.
  *
@@ -4426,7 +4430,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
  *
  * There is an ATMEL microcontroller with an 8031 core on board.  I have not
  * determined what function (if any) it provides.  With the microcontroller
- * and sync seperator chips a guess is that it might have to do with video
+ * and sync separator chips a guess is that it might have to do with video
  * switching and maybe some digital I/O.
  */
 static void tibetCS16_muxsel(struct bttv *btv, unsigned int input)

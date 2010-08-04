@@ -14,6 +14,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
+#include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
@@ -91,6 +92,8 @@ struct cpu_hw_events {
 
 	/* Enabled/disable state.  */
 	int			enabled;
+
+	unsigned int		group_flag;
 };
 DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = { .enabled = 1, };
 
@@ -654,6 +657,7 @@ static u64 maybe_change_configuration(struct cpu_hw_events *cpuc, u64 pcr)
 		cpuc->current_idx[i] = idx;
 
 		enc = perf_event_get_enc(cpuc->events[i]);
+		pcr &= ~mask_for_index(idx);
 		pcr |= event_encoding(enc, idx);
 	}
 out:
@@ -980,53 +984,6 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-static void event_sched_in(struct perf_event *event, int cpu)
-{
-	event->state = PERF_EVENT_STATE_ACTIVE;
-	event->oncpu = cpu;
-	event->tstamp_running += event->ctx->time - event->tstamp_stopped;
-	if (is_software_event(event))
-		event->pmu->enable(event);
-}
-
-int hw_perf_group_sched_in(struct perf_event *group_leader,
-			   struct perf_cpu_context *cpuctx,
-			   struct perf_event_context *ctx, int cpu)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct perf_event *sub;
-	int n0, n;
-
-	if (!sparc_pmu)
-		return 0;
-
-	n0 = cpuc->n_events;
-	n = collect_events(group_leader, perf_max_events - n0,
-			   &cpuc->event[n0], &cpuc->events[n0],
-			   &cpuc->current_idx[n0]);
-	if (n < 0)
-		return -EAGAIN;
-	if (check_excludes(cpuc->event, n0, n))
-		return -EINVAL;
-	if (sparc_check_constraints(cpuc->event, cpuc->events, n + n0))
-		return -EAGAIN;
-	cpuc->n_events = n0 + n;
-	cpuc->n_added += n;
-
-	cpuctx->active_oncpu += n;
-	n = 1;
-	event_sched_in(group_leader, cpu);
-	list_for_each_entry(sub, &group_leader->sibling_list, group_entry) {
-		if (sub->state != PERF_EVENT_STATE_OFF) {
-			event_sched_in(sub, cpu);
-			n++;
-		}
-	}
-	ctx->nr_active += n;
-
-	return 1;
-}
-
 static int sparc_pmu_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -1044,11 +1001,20 @@ static int sparc_pmu_enable(struct perf_event *event)
 	cpuc->events[n0] = event->hw.event_base;
 	cpuc->current_idx[n0] = PIC_NO_INDEX;
 
+	/*
+	 * If group events scheduling transaction was started,
+	 * skip the schedulability test here, it will be peformed
+	 * at commit time(->commit_txn) as a whole
+	 */
+	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+		goto nocheck;
+
 	if (check_excludes(cpuc->event, n0, 1))
 		goto out;
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n0 + 1))
 		goto out;
 
+nocheck:
 	cpuc->n_events++;
 	cpuc->n_added++;
 
@@ -1128,11 +1094,61 @@ static int __hw_perf_event_init(struct perf_event *event)
 	return 0;
 }
 
+/*
+ * Start group events scheduling transaction
+ * Set the flag to make pmu::enable() not perform the
+ * schedulability test, it will be performed at commit time
+ */
+static void sparc_pmu_start_txn(const struct pmu *pmu)
+{
+	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+
+	cpuhw->group_flag |= PERF_EVENT_TXN_STARTED;
+}
+
+/*
+ * Stop group events scheduling transaction
+ * Clear the flag and pmu::enable() will perform the
+ * schedulability test.
+ */
+static void sparc_pmu_cancel_txn(const struct pmu *pmu)
+{
+	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+
+	cpuhw->group_flag &= ~PERF_EVENT_TXN_STARTED;
+}
+
+/*
+ * Commit group events scheduling transaction
+ * Perform the group schedulability test as a whole
+ * Return 0 if success
+ */
+static int sparc_pmu_commit_txn(const struct pmu *pmu)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int n;
+
+	if (!sparc_pmu)
+		return -EINVAL;
+
+	cpuc = &__get_cpu_var(cpu_hw_events);
+	n = cpuc->n_events;
+	if (check_excludes(cpuc->event, 0, n))
+		return -EINVAL;
+	if (sparc_check_constraints(cpuc->event, cpuc->events, n))
+		return -EAGAIN;
+
+	return 0;
+}
+
 static const struct pmu pmu = {
 	.enable		= sparc_pmu_enable,
 	.disable	= sparc_pmu_disable,
 	.read		= sparc_pmu_read,
 	.unthrottle	= sparc_pmu_unthrottle,
+	.start_txn	= sparc_pmu_start_txn,
+	.cancel_txn	= sparc_pmu_cancel_txn,
+	.commit_txn	= sparc_pmu_commit_txn,
 };
 
 const struct pmu *hw_perf_event_init(struct perf_event *event)
@@ -1189,7 +1205,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1276,6 +1292,9 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 				  struct perf_callchain_entry *entry)
 {
 	unsigned long ksp, fp;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int graph = 0;
+#endif
 
 	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->tpc);
@@ -1303,6 +1322,16 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
 		callchain_store(entry, pc);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
+			int index = current->curr_ret_stack;
+			if (current->ret_stack && index >= graph) {
+				pc = current->ret_stack[index - graph].ret;
+				callchain_store(entry, pc);
+				graph++;
+			}
+		}
+#endif
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
@@ -1337,7 +1366,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->tpc);
 
-	ufp = regs->u_regs[UREG_I6];
+	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
 		struct sparc_stackf32 *usf, sf;
 		unsigned long pc;
@@ -1353,7 +1382,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 }
 
 /* Like powerpc we can't get PMU interrupts within the PMU handler,
- * so no need for seperate NMI and IRQ chains as on x86.
+ * so no need for separate NMI and IRQ chains as on x86.
  */
 static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
 

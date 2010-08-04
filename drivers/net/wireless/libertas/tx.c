@@ -147,8 +147,6 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	dev->trans_start = jiffies;
-
 	if (priv->monitormode) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
@@ -198,7 +196,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 	if (priv->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED))
+	if (priv->mesh_dev && lbs_mesh_connected(priv))
 		netif_wake_queue(priv->mesh_dev);
 }
 EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

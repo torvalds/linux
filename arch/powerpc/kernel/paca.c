@@ -9,11 +9,16 @@
 
 #include <linux/threads.h>
 #include <linux/module.h>
+#include <linux/memblock.h>
 
+#include <asm/firmware.h>
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
+#include <asm/iseries/lpar_map.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/kexec.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
@@ -70,37 +75,83 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-struct paca_struct paca[NR_CPUS];
+struct paca_struct *paca;
 EXPORT_SYMBOL(paca);
 
-void __init initialise_pacas(void)
-{
-	int cpu;
+struct paca_struct boot_paca;
 
-	/* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
-	 * of the TOC can be addressed using a single machine instruction.
-	 */
+void __init initialise_paca(struct paca_struct *new_paca, int cpu)
+{
+       /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
+	* of the TOC can be addressed using a single machine instruction.
+	*/
 	unsigned long kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL;
 
-	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		struct paca_struct *new_paca = &paca[cpu];
-
 #ifdef CONFIG_PPC_BOOK3S
-		new_paca->lppaca_ptr = &lppaca[cpu];
+	new_paca->lppaca_ptr = &lppaca[cpu];
 #else
-		new_paca->kernel_pgd = swapper_pg_dir;
+	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
-		new_paca->lock_token = 0x8000;
-		new_paca->paca_index = cpu;
-		new_paca->kernel_toc = kernel_toc;
-		new_paca->kernelbase = (unsigned long) _stext;
-		new_paca->kernel_msr = MSR_KERNEL;
-		new_paca->hw_cpu_id = 0xffff;
-		new_paca->__current = &init_task;
+	new_paca->lock_token = 0x8000;
+	new_paca->paca_index = cpu;
+	new_paca->kernel_toc = kernel_toc;
+	new_paca->kernelbase = (unsigned long) _stext;
+	new_paca->kernel_msr = MSR_KERNEL;
+	new_paca->hw_cpu_id = 0xffff;
+	new_paca->kexec_state = KEXEC_STATE_NONE;
+	new_paca->__current = &init_task;
 #ifdef CONFIG_PPC_STD_MMU_64
-		new_paca->slb_shadow_ptr = &slb_shadow[cpu];
+	new_paca->slb_shadow_ptr = &slb_shadow[cpu];
 #endif /* CONFIG_PPC_STD_MMU_64 */
+}
 
-	}
+static int __initdata paca_size;
+
+void __init allocate_pacas(void)
+{
+	int nr_cpus, cpu, limit;
+
+	/*
+	 * We can't take SLB misses on the paca, and we want to access them
+	 * in real mode, so allocate them within the RMA and also within
+	 * the first segment. On iSeries they must be within the area mapped
+	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
+	 */
+	limit = min(0x10000000ULL, memblock.rmo_size);
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		limit = min(limit, HvPagesToMap * HVPAGESIZE);
+
+	nr_cpus = NR_CPUS;
+	/* On iSeries we know we can never have more than 64 cpus */
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		nr_cpus = min(64, nr_cpus);
+
+	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
+
+	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
+	memset(paca, 0, paca_size);
+
+	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
+		paca_size, nr_cpus, paca);
+
+	/* Can't use for_each_*_cpu, as they aren't functional yet */
+	for (cpu = 0; cpu < nr_cpus; cpu++)
+		initialise_paca(&paca[cpu], cpu);
+}
+
+void __init free_unused_pacas(void)
+{
+	int new_size;
+
+	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * num_possible_cpus());
+
+	if (new_size >= paca_size)
+		return;
+
+	memblock_free(__pa(paca) + new_size, paca_size - new_size);
+
+	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
+		paca_size - new_size);
+
+	paca_size = new_size;
 }

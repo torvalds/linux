@@ -282,7 +282,8 @@ static ssize_t sel_read_mls(struct file *filp, char __user *buf,
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
 
-	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", selinux_mls_enabled);
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d",
+			   security_mls_enabled());
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
 
@@ -494,7 +495,6 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	char *scon, *tcon;
 	u32 ssid, tsid;
 	u16 tclass;
-	u32 req;
 	struct av_decision avd;
 	ssize_t length;
 
@@ -503,28 +503,26 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kzalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		return length;
 
-	tcon = kzalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
 
 	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu %x", scon, tcon, &tclass, &req) != 4)
+	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
 		goto out2;
 
-	length = security_context_to_sid(scon, strlen(scon)+1, &ssid);
+	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length < 0)
 		goto out2;
-	length = security_context_to_sid(tcon, strlen(tcon)+1, &tsid);
+	length = security_context_to_sid(tcon, strlen(tcon) + 1, &tsid);
 	if (length < 0)
 		goto out2;
 
-	length = security_compute_av_user(ssid, tsid, tclass, req, &avd);
-	if (length < 0)
-		goto out2;
+	security_compute_av_user(ssid, tsid, tclass, &avd);
 
 	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
 			  "%x %x %x %x %u %x",
@@ -552,11 +550,11 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kzalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		return length;
 
-	tcon = kzalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
 
@@ -564,10 +562,10 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
 		goto out2;
 
-	length = security_context_to_sid(scon, strlen(scon)+1, &ssid);
+	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length < 0)
 		goto out2;
-	length = security_context_to_sid(tcon, strlen(tcon)+1, &tsid);
+	length = security_context_to_sid(tcon, strlen(tcon) + 1, &tsid);
 	if (length < 0)
 		goto out2;
 
@@ -611,11 +609,11 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kzalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		return length;
 
-	tcon = kzalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
 
@@ -623,10 +621,10 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
 		goto out2;
 
-	length = security_context_to_sid(scon, strlen(scon)+1, &ssid);
+	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length < 0)
 		goto out2;
-	length = security_context_to_sid(tcon, strlen(tcon)+1, &tsid);
+	length = security_context_to_sid(tcon, strlen(tcon) + 1, &tsid);
 	if (length < 0)
 		goto out2;
 
@@ -668,11 +666,11 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	con = kzalloc(size+1, GFP_KERNEL);
+	con = kzalloc(size + 1, GFP_KERNEL);
 	if (!con)
 		return length;
 
-	user = kzalloc(size+1, GFP_KERNEL);
+	user = kzalloc(size + 1, GFP_KERNEL);
 	if (!user)
 		goto out;
 
@@ -680,7 +678,7 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	if (sscanf(buf, "%s %s", con, user) != 2)
 		goto out2;
 
-	length = security_context_to_sid(con, strlen(con)+1, &sid);
+	length = security_context_to_sid(con, strlen(con) + 1, &sid);
 	if (length < 0)
 		goto out2;
 
@@ -729,11 +727,11 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kzalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		return length;
 
-	tcon = kzalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
 
@@ -741,10 +739,10 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
 		goto out2;
 
-	length = security_context_to_sid(scon, strlen(scon)+1, &ssid);
+	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length < 0)
 		goto out2;
-	length = security_context_to_sid(tcon, strlen(tcon)+1, &tsid);
+	length = security_context_to_sid(tcon, strlen(tcon) + 1, &tsid);
 	if (length < 0)
 		goto out2;
 
@@ -979,6 +977,8 @@ static int sel_make_bools(void)
 	u32 sid;
 
 	/* remove any existing files */
+	for (i = 0; i < bool_num; i++)
+		kfree(bool_pending_names[i]);
 	kfree(bool_pending_names);
 	kfree(bool_pending_values);
 	bool_pending_names = NULL;
@@ -1401,7 +1401,7 @@ static int sel_make_perm_files(char *objclass, int classvalue,
 		}
 		inode->i_fop = &sel_perm_ops;
 		/* i+1 since perm values are 1-indexed */
-		inode->i_ino = sel_perm_to_ino(classvalue, i+1);
+		inode->i_ino = sel_perm_to_ino(classvalue, i + 1);
 		d_add(dentry, inode);
 	}
 
@@ -1489,7 +1489,7 @@ static int sel_make_classes(void)
 		goto out;
 
 	/* +2 since classes are 1-indexed */
-	last_class_ino = sel_class_to_ino(nclasses+2);
+	last_class_ino = sel_class_to_ino(nclasses + 2);
 
 	for (i = 0; i < nclasses; i++) {
 		struct dentry *class_name_dir;
@@ -1506,7 +1506,7 @@ static int sel_make_classes(void)
 			goto out1;
 
 		/* i+1 since class values are 1-indexed */
-		rc = sel_make_class_dir_entries(classes[i], i+1,
+		rc = sel_make_class_dir_entries(classes[i], i + 1,
 				class_name_dir);
 		if (rc)
 			goto out1;

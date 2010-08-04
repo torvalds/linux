@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -170,13 +171,17 @@ SOC_ENUM("Aux Mode", wm8974_auxmode),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8974_ADCBOOST,  8, 1, 0),
 SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 1),
+
+/* DAC / ADC oversampling */
+SOC_SINGLE("DAC 128x Oversampling Switch", WM8974_DAC, 8, 1, 0),
+SOC_SINGLE("ADC 128x Oversampling Switch", WM8974_ADC, 8, 1, 0),
 };
 
 /* Speaker Output Mixer */
 static const struct snd_kcontrol_new wm8974_speaker_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8974_SPKMIX, 1, 1, 0),
 SOC_DAPM_SINGLE("Aux Playback Switch", WM8974_SPKMIX, 5, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_SPKMIX, 0, 1, 1),
+SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_SPKMIX, 0, 1, 0),
 };
 
 /* Mono Output Mixer */
@@ -380,14 +385,6 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	case WM8974_MCLKDIV:
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x11f;
 		snd_soc_write(codec, WM8974_CLOCK, reg | div);
-		break;
-	case WM8974_ADCCLK:
-		reg = snd_soc_read(codec, WM8974_ADC) & 0x1f7;
-		snd_soc_write(codec, WM8974_ADC, reg | div);
-		break;
-	case WM8974_DACCLK:
-		reg = snd_soc_read(codec, WM8974_DAC) & 0x1f7;
-		snd_soc_write(codec, WM8974_DAC, reg | div);
 		break;
 	case WM8974_BCLKDIV:
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x1e3;
@@ -612,7 +609,7 @@ static int wm8974_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8974_set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 
@@ -680,7 +677,7 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8974;
+	snd_soc_codec_set_drvdata(codec, wm8974);
 	codec->name = "WM8974";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

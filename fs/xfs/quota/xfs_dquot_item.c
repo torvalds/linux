@@ -74,11 +74,11 @@ xfs_qm_dquot_logitem_format(
 
 	logvec->i_addr = (xfs_caddr_t)&logitem->qli_format;
 	logvec->i_len  = sizeof(xfs_dq_logformat_t);
-	XLOG_VEC_SET_TYPE(logvec, XLOG_REG_TYPE_QFORMAT);
+	logvec->i_type = XLOG_REG_TYPE_QFORMAT;
 	logvec++;
 	logvec->i_addr = (xfs_caddr_t)&logitem->qli_dquot->q_core;
 	logvec->i_len  = sizeof(xfs_disk_dquot_t);
-	XLOG_VEC_SET_TYPE(logvec, XLOG_REG_TYPE_DQUOT);
+	logvec->i_type = XLOG_REG_TYPE_DQUOT;
 
 	ASSERT(2 == logitem->qli_item.li_desc->lid_size);
 	logitem->qli_format.qlf_size = 2;
@@ -107,8 +107,7 @@ xfs_qm_dquot_logitem_pin(
 /* ARGSUSED */
 STATIC void
 xfs_qm_dquot_logitem_unpin(
-	xfs_dq_logitem_t *logitem,
-	int		  stale)
+	xfs_dq_logitem_t *logitem)
 {
 	xfs_dquot_t *dqp = logitem->qli_dquot;
 
@@ -123,7 +122,7 @@ xfs_qm_dquot_logitem_unpin_remove(
 	xfs_dq_logitem_t *logitem,
 	xfs_trans_t	 *tp)
 {
-	xfs_qm_dquot_logitem_unpin(logitem, 0);
+	xfs_qm_dquot_logitem_unpin(logitem);
 }
 
 /*
@@ -153,7 +152,7 @@ xfs_qm_dquot_logitem_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the dquot.
 	 */
-	error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+	error = xfs_qm_dqflush(dqp, 0);
 	if (error)
 		xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
 			"xfs_qm_dquot_logitem_push: push error %d on dqp %p",
@@ -190,7 +189,7 @@ xfs_qm_dqunpin_wait(
 	/*
 	 * Give the log a push so we don't wait here too long.
 	 */
-	xfs_log_force(dqp->q_mount, (xfs_lsn_t)0, XFS_LOG_FORCE);
+	xfs_log_force(dqp->q_mount, 0);
 	wait_event(dqp->q_pinwait, (atomic_read(&dqp->q_pincount) == 0));
 }
 
@@ -212,17 +211,9 @@ xfs_qm_dquot_logitem_pushbuf(
 	xfs_dquot_t	*dqp;
 	xfs_mount_t	*mp;
 	xfs_buf_t	*bp;
-	uint		dopush;
 
 	dqp = qip->qli_dquot;
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	/*
-	 * The qli_pushbuf_flag keeps others from
-	 * trying to duplicate our effort.
-	 */
-	ASSERT(qip->qli_pushbuf_flag != 0);
-	ASSERT(qip->qli_push_owner == current_pid());
 
 	/*
 	 * If flushlock isn't locked anymore, chances are that the
@@ -231,49 +222,20 @@ xfs_qm_dquot_logitem_pushbuf(
 	 */
 	if (completion_done(&dqp->q_flush)  ||
 	    ((qip->qli_item.li_flags & XFS_LI_IN_AIL) == 0)) {
-		qip->qli_pushbuf_flag = 0;
 		xfs_dqunlock(dqp);
 		return;
 	}
 	mp = dqp->q_mount;
 	bp = xfs_incore(mp->m_ddev_targp, qip->qli_format.qlf_blkno,
-		    XFS_QI_DQCHUNKLEN(mp),
-		    XFS_INCORE_TRYLOCK);
-	if (bp != NULL) {
-		if (XFS_BUF_ISDELAYWRITE(bp)) {
-			dopush = ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
-				  !completion_done(&dqp->q_flush));
-			qip->qli_pushbuf_flag = 0;
-			xfs_dqunlock(dqp);
-
-			if (XFS_BUF_ISPINNED(bp)) {
-				xfs_log_force(mp, (xfs_lsn_t)0,
-					      XFS_LOG_FORCE);
-			}
-			if (dopush) {
-				int	error;
-#ifdef XFSRACEDEBUG
-				delay_for_intr();
-				delay(300);
-#endif
-				error = xfs_bawrite(mp, bp);
-				if (error)
-					xfs_fs_cmn_err(CE_WARN, mp,
-	"xfs_qm_dquot_logitem_pushbuf: pushbuf error %d on qip %p, bp %p",
-							error, qip, bp);
-			} else {
-				xfs_buf_relse(bp);
-			}
-		} else {
-			qip->qli_pushbuf_flag = 0;
-			xfs_dqunlock(dqp);
-			xfs_buf_relse(bp);
-		}
-		return;
-	}
-
-	qip->qli_pushbuf_flag = 0;
+			mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
 	xfs_dqunlock(dqp);
+	if (!bp)
+		return;
+	if (XFS_BUF_ISDELAYWRITE(bp))
+		xfs_buf_delwri_promote(bp);
+	xfs_buf_relse(bp);
+	return;
+
 }
 
 /*
@@ -291,50 +253,24 @@ xfs_qm_dquot_logitem_trylock(
 	xfs_dq_logitem_t	*qip)
 {
 	xfs_dquot_t		*dqp;
-	uint			retval;
 
 	dqp = qip->qli_dquot;
 	if (atomic_read(&dqp->q_pincount) > 0)
-		return (XFS_ITEM_PINNED);
+		return XFS_ITEM_PINNED;
 
 	if (! xfs_qm_dqlock_nowait(dqp))
-		return (XFS_ITEM_LOCKED);
+		return XFS_ITEM_LOCKED;
 
-	retval = XFS_ITEM_SUCCESS;
 	if (!xfs_dqflock_nowait(dqp)) {
 		/*
-		 * The dquot is already being flushed.	It may have been
-		 * flushed delayed write, however, and we don't want to
-		 * get stuck waiting for that to complete.  So, we want to check
-		 * to see if we can lock the dquot's buffer without sleeping.
-		 * If we can and it is marked for delayed write, then we
-		 * hold it and send it out from the push routine.  We don't
-		 * want to do that now since we might sleep in the device
-		 * strategy routine.  We also don't want to grab the buffer lock
-		 * here because we'd like not to call into the buffer cache
-		 * while holding the AIL lock.
-		 * Make sure to only return PUSHBUF if we set pushbuf_flag
-		 * ourselves.  If someone else is doing it then we don't
-		 * want to go to the push routine and duplicate their efforts.
+		 * dquot has already been flushed to the backing buffer,
+		 * leave it locked, pushbuf routine will unlock it.
 		 */
-		if (qip->qli_pushbuf_flag == 0) {
-			qip->qli_pushbuf_flag = 1;
-			ASSERT(qip->qli_format.qlf_blkno == dqp->q_blkno);
-#ifdef DEBUG
-			qip->qli_push_owner = current_pid();
-#endif
-			/*
-			 * The dquot is left locked.
-			 */
-			retval = XFS_ITEM_PUSHBUF;
-		} else {
-			retval = XFS_ITEM_FLUSHING;
-			xfs_dqunlock_nonotify(dqp);
-		}
+		return XFS_ITEM_PUSHBUF;
 	}
 
 	ASSERT(qip->qli_item.li_flags & XFS_LI_IN_AIL);
-	return (retval);
+	return XFS_ITEM_SUCCESS;
 }
 
 
@@ -392,8 +328,7 @@ static struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_dquot_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))
-					xfs_qm_dquot_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
 					xfs_qm_dquot_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))
@@ -420,9 +355,8 @@ xfs_qm_dquot_logitem_init(
 	xfs_dq_logitem_t  *lp;
 	lp = &dqp->q_logitem;
 
-	lp->qli_item.li_type = XFS_LI_DQUOT;
-	lp->qli_item.li_ops = &xfs_dquot_item_ops;
-	lp->qli_item.li_mountp = dqp->q_mount;
+	xfs_log_item_init(dqp->q_mount, &lp->qli_item, XFS_LI_DQUOT,
+					&xfs_dquot_item_ops);
 	lp->qli_dquot = dqp;
 	lp->qli_format.qlf_type = XFS_LI_DQUOT;
 	lp->qli_format.qlf_id = be32_to_cpu(dqp->q_core.d_id);
@@ -467,7 +401,7 @@ xfs_qm_qoff_logitem_format(xfs_qoff_logitem_t	*qf,
 
 	log_vector->i_addr = (xfs_caddr_t)&(qf->qql_format);
 	log_vector->i_len = sizeof(xfs_qoff_logitem_t);
-	XLOG_VEC_SET_TYPE(log_vector, XLOG_REG_TYPE_QUOTAOFF);
+	log_vector->i_type = XLOG_REG_TYPE_QUOTAOFF;
 	qf->qql_format.qf_size = 1;
 }
 
@@ -489,7 +423,7 @@ xfs_qm_qoff_logitem_pin(xfs_qoff_logitem_t *qf)
  */
 /*ARGSUSED*/
 STATIC void
-xfs_qm_qoff_logitem_unpin(xfs_qoff_logitem_t *qf, int stale)
+xfs_qm_qoff_logitem_unpin(xfs_qoff_logitem_t *qf)
 {
 	return;
 }
@@ -600,8 +534,7 @@ static struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t* ,int))
-					xfs_qm_qoff_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*,xfs_trans_t*))
 					xfs_qm_qoff_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_trylock,
@@ -622,8 +555,7 @@ static struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))
-					xfs_qm_qoff_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*,xfs_trans_t*))
 					xfs_qm_qoff_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_trylock,
@@ -649,11 +581,8 @@ xfs_qm_qoff_logitem_init(
 
 	qf = (xfs_qoff_logitem_t*) kmem_zalloc(sizeof(xfs_qoff_logitem_t), KM_SLEEP);
 
-	qf->qql_item.li_type = XFS_LI_QUOTAOFF;
-	if (start)
-		qf->qql_item.li_ops = &xfs_qm_qoffend_logitem_ops;
-	else
-		qf->qql_item.li_ops = &xfs_qm_qoff_logitem_ops;
+	xfs_log_item_init(mp, &qf->qql_item, XFS_LI_QUOTAOFF, start ?
+			&xfs_qm_qoffend_logitem_ops : &xfs_qm_qoff_logitem_ops);
 	qf->qql_item.li_mountp = mp;
 	qf->qql_format.qf_type = XFS_LI_QUOTAOFF;
 	qf->qql_format.qf_flags = flags;

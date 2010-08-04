@@ -288,7 +288,7 @@ static int get_v4l2_window32(struct v4l2_window *kp, struct v4l2_window32 __user
 
 static int put_v4l2_window32(struct v4l2_window *kp, struct v4l2_window32 __user *up)
 {
-	if (copy_to_user(&up->w, &kp->w, sizeof(up->w)) ||
+	if (copy_to_user(&up->w, &kp->w, sizeof(kp->w)) ||
 		put_user(kp->field, &up->field) ||
 		put_user(kp->chromakey, &up->chromakey) ||
 		put_user(kp->clipcount, &up->clipcount))
@@ -475,6 +475,9 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 			return -EFAULT;
 	switch (kp->memory) {
 	case V4L2_MEMORY_MMAP:
+		if (get_user(kp->length, &up->length) ||
+			get_user(kp->m.offset, &up->m.offset))
+			return -EFAULT;
 		break;
 	case V4L2_MEMORY_USERPTR:
 		{
@@ -1083,6 +1086,9 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_QUERY_DV_PRESET:
 	case VIDIOC_S_DV_TIMINGS:
 	case VIDIOC_G_DV_TIMINGS:
+	case VIDIOC_DQEVENT:
+	case VIDIOC_SUBSCRIBE_EVENT:
+	case VIDIOC_UNSUBSCRIBE_EVENT:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 

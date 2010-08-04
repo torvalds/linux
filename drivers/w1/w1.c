@@ -120,7 +120,7 @@ static struct device_attribute w1_slave_attr_id =
 
 /* Default family */
 
-static ssize_t w1_default_write(struct kobject *kobj,
+static ssize_t w1_default_write(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
@@ -139,7 +139,7 @@ out_up:
 	return count;
 }
 
-static ssize_t w1_default_read(struct kobject *kobj,
+static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -986,7 +986,7 @@ int w1_process(void *data)
 	return 0;
 }
 
-static int w1_init(void)
+static int __init w1_init(void)
 {
 	int retval;
 
@@ -1034,7 +1034,7 @@ err_out_exit_init:
 	return retval;
 }
 
-static void w1_fini(void)
+static void __exit w1_fini(void)
 {
 	struct w1_master *dev;
 

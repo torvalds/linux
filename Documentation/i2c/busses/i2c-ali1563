@@ -18,7 +18,7 @@ For an overview of these chips see http://www.acerlabs.com
 The M1563 southbridge is deceptively similar to the M1533, with a few
 notable exceptions. One of those happens to be the fact they upgraded the
 i2c core to be SMBus 2.0 compliant, and happens to be almost identical to
-the i2c controller found in the Intel 801 south bridges. 
+the i2c controller found in the Intel 801 south bridges.
 
 Features
 --------

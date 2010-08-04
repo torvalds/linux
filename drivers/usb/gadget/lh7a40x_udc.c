@@ -22,6 +22,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "lh7a40x_udc.h"
 

@@ -24,10 +24,10 @@
 #include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
+#include <asm/kexec.h>
 
 	.text
 
-#ifdef CONFIG_IRQSTACKS
 _GLOBAL(call_do_softirq)
 	mflr	r0
 	std	r0,16(r1)
@@ -51,7 +51,6 @@ _GLOBAL(call_handle_irq)
 	ld	r0,16(r1)
 	mtlr	r0
 	blr
-#endif /* CONFIG_IRQSTACKS */
 
 	.section	".toc","aw"
 PPC64_CACHES:
@@ -471,6 +470,10 @@ _GLOBAL(kexec_wait)
 1:	mflr	r5
 	addi	r5,r5,kexec_flag-1b
 
+	li	r4,KEXEC_STATE_REAL_MODE
+	stb	r4,PACAKEXECSTATE(r13)
+	SYNC
+
 99:	HMT_LOW
 #ifdef CONFIG_KEXEC		/* use no memory without kexec */
 	lwz	r4,0(r5)
@@ -494,14 +497,11 @@ kexec_flag:
  * note: this is a terminal routine, it does not save lr
  *
  * get phys id from paca
- * set paca id to -1 to say we got here
  * switch to real mode
  * join other cpus in kexec_wait(phys_id)
  */
 _GLOBAL(kexec_smp_wait)
 	lhz	r3,PACAHWCPUID(r13)
-	li	r4,-1
-	sth	r4,PACAHWCPUID(r13)	/* let others know we left */
 	bl	real_mode
 	b	.kexec_wait
 

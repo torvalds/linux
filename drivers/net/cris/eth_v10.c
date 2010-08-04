@@ -18,7 +18,6 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
@@ -1109,7 +1108,7 @@ e100_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	myNextTxDesc->skb = skb;
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 
 	e100_hardware_send_packet(np, buf, skb->len);
 
@@ -1564,7 +1563,7 @@ static void
 set_multicast_list(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
-	int num_addr = dev->mc_count;
+	int num_addr = netdev_mc_count(dev);
 	unsigned long int lo_bits;
 	unsigned long int hi_bits;
 
@@ -1596,17 +1595,16 @@ set_multicast_list(struct net_device *dev)
 	} else {
 		/* MC mode, receive normal and MC packets */
 		char hash_ix;
-		struct dev_mc_list *dmi = dev->mc_list;
-		int i;
+		struct netdev_hw_addr *ha;
 		char *baddr;
 
 		lo_bits = 0x00000000ul;
 		hi_bits = 0x00000000ul;
-		for (i = 0; i < num_addr; i++) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* Calculate the hash index for the GA registers */
 
 			hash_ix = 0;
-			baddr = dmi->dmi_addr;
+			baddr = ha->addr;
 			hash_ix ^= (*baddr) & 0x3f;
 			hash_ix ^= ((*baddr) >> 6) & 0x03;
 			++baddr;
@@ -1632,7 +1630,6 @@ set_multicast_list(struct net_device *dev)
 			} else {
 				lo_bits |= (1 << hash_ix);
 			}
-			dmi = dmi->next;
 		}
 		/* Disable individual receive */
 		SETS(network_rec_config_shadow, R_NETWORK_REC_CONFIG, individual, discard);

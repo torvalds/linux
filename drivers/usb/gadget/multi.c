@@ -29,7 +29,7 @@
 #if defined USB_ETH_RNDIS
 #  undef USB_ETH_RNDIS
 #endif
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef CONFIG_USB_G_MULTI_RNDIS
 #  define USB_ETH_RNDIS y
 #endif
 
@@ -209,8 +209,6 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		return ret;
 
 	ret = fsg_add(c->cdev, c, fsg_common);
-	if (ret < 0)
-		return ret;
 	if (ret < 0)
 		return ret;
 

@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/usb.h>
 #include <linux/mISDNhw.h>
+#include <linux/slab.h>
 #include "hfcsusb.h"
 
 static const char *hfcsusb_rev = "Revision: 0.3.3 (socket), 2008-11-05";
@@ -96,8 +97,10 @@ static int write_reg(struct hfcsusb *hw, __u8 reg, __u8 val)
 			hw->name, __func__, reg, val);
 
 	spin_lock(&hw->ctrl_lock);
-	if (hw->ctrl_cnt >= HFC_CTRL_BUFSIZE)
+	if (hw->ctrl_cnt >= HFC_CTRL_BUFSIZE) {
+		spin_unlock(&hw->ctrl_lock);
 		return 1;
+	}
 	buf = &hw->ctrl_buff[hw->ctrl_in_idx];
 	buf->hfcs_reg = reg;
 	buf->reg_val = val;

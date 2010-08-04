@@ -19,7 +19,6 @@
 #define __XFS_LOG_H__
 
 /* get lsn fields */
-
 #define CYCLE_LSN(lsn) ((uint)((lsn)>>32))
 #define BLOCK_LSN(lsn) ((uint)(lsn))
 
@@ -70,14 +69,8 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
  * Flags to xfs_log_force()
  *
  *	XFS_LOG_SYNC:	Synchronous force in-core log to disk
- *	XFS_LOG_FORCE:	Start in-core log write now.
- *	XFS_LOG_URGE:	Start write within some window of time.
- *
- * Note: Either XFS_LOG_FORCE or XFS_LOG_URGE must be set.
  */
 #define XFS_LOG_SYNC		0x1
-#define XFS_LOG_FORCE		0x2
-#define XFS_LOG_URGE		0x4
 
 #endif	/* __KERNEL__ */
 
@@ -110,15 +103,20 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XLOG_REG_TYPE_TRANSHDR		19
 #define XLOG_REG_TYPE_MAX		19
 
-#define XLOG_VEC_SET_TYPE(vecp, t) ((vecp)->i_type = (t))
-
 typedef struct xfs_log_iovec {
-	xfs_caddr_t		i_addr;		/* beginning address of region */
+	xfs_caddr_t	i_addr;		/* beginning address of region */
 	int		i_len;		/* length in bytes of region */
 	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
 
-typedef void* xfs_log_ticket_t;
+struct xfs_log_vec {
+	struct xfs_log_vec	*lv_next;	/* next lv in build list */
+	int			lv_niovecs;	/* number of iovecs in lv */
+	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
+	struct xfs_log_item	*lv_item;	/* owner */
+	char			*lv_buf;	/* formatted buffer */
+	int			lv_buf_len;	/* size of formatted buffer */
+};
 
 /*
  * Structure used to pass callback function and the function's argument
@@ -134,18 +132,33 @@ typedef struct xfs_log_callback {
 #ifdef __KERNEL__
 /* Log manager interfaces */
 struct xfs_mount;
+struct xlog_in_core;
 struct xlog_ticket;
+struct xfs_log_item;
+struct xfs_item_ops;
+struct xfs_trans;
+
+void	xfs_log_item_init(struct xfs_mount	*mp,
+			struct xfs_log_item	*item,
+			int			type,
+			struct xfs_item_ops	*ops);
+
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
-		       xfs_log_ticket_t ticket,
-		       void		**iclog,
+		       struct xlog_ticket *ticket,
+		       struct xlog_in_core **iclog,
 		       uint		flags);
 int	  _xfs_log_force(struct xfs_mount *mp,
-			 xfs_lsn_t	lsn,
 			 uint		flags,
 			 int		*log_forced);
 void	  xfs_log_force(struct xfs_mount	*mp,
-			xfs_lsn_t		lsn,
 			uint			flags);
+int	  _xfs_log_force_lsn(struct xfs_mount *mp,
+			     xfs_lsn_t		lsn,
+			     uint		flags,
+			     int		*log_forced);
+void	  xfs_log_force_lsn(struct xfs_mount	*mp,
+			    xfs_lsn_t		lsn,
+			    uint		flags);
 int	  xfs_log_mount(struct xfs_mount	*mp,
 			struct xfs_buftarg	*log_target,
 			xfs_daddr_t		start_block,
@@ -154,21 +167,21 @@ int	  xfs_log_mount_finish(struct xfs_mount *mp);
 void	  xfs_log_move_tail(struct xfs_mount	*mp,
 			    xfs_lsn_t		tail_lsn);
 int	  xfs_log_notify(struct xfs_mount	*mp,
-			 void			*iclog,
+			 struct xlog_in_core	*iclog,
 			 xfs_log_callback_t	*callback_entry);
 int	  xfs_log_release_iclog(struct xfs_mount *mp,
-			 void			 *iclog_hndl);
+			 struct xlog_in_core	 *iclog);
 int	  xfs_log_reserve(struct xfs_mount *mp,
 			  int		   length,
 			  int		   count,
-			  xfs_log_ticket_t *ticket,
+			  struct xlog_ticket **ticket,
 			  __uint8_t	   clientid,
 			  uint		   flags,
 			  uint		   t_type);
 int	  xfs_log_write(struct xfs_mount *mp,
 			xfs_log_iovec_t  region[],
 			int		 nentries,
-			xfs_log_ticket_t ticket,
+			struct xlog_ticket *ticket,
 			xfs_lsn_t	 *start_lsn);
 int	  xfs_log_unmount_write(struct xfs_mount *mp);
 void      xfs_log_unmount(struct xfs_mount *mp);
@@ -177,8 +190,15 @@ int	  xfs_log_need_covered(struct xfs_mount *mp);
 
 void	  xlog_iodone(struct xfs_buf *);
 
-struct xlog_ticket * xfs_log_ticket_get(struct xlog_ticket *ticket);
+struct xlog_ticket *xfs_log_ticket_get(struct xlog_ticket *ticket);
 void	  xfs_log_ticket_put(struct xlog_ticket *ticket);
+
+xlog_tid_t xfs_log_get_trans_ident(struct xfs_trans *tp);
+
+int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
+				struct xfs_log_vec *log_vector,
+				xfs_lsn_t *commit_lsn, int flags);
+bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
 #endif
 

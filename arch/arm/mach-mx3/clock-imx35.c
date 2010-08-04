@@ -28,7 +28,7 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 
-#define CCM_BASE	IO_ADDRESS(CCM_BASE_ADDR)
+#define CCM_BASE	MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR)
 
 #define CCM_CCMR        0x00
 #define CCM_PDR0        0x04
@@ -485,15 +485,13 @@ static struct clk_lookup lookups[] = {
 
 int __init mx35_clocks_init()
 {
-	int i;
 	unsigned int ll = 0;
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	ll = (3 << 16);
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clocks except the ones we need to survive, namely:
 	 * EMI, GPIO1/2/3, GPT, IOMUX, MAX and eventually uart
@@ -504,7 +502,8 @@ int __init mx35_clocks_init()
 	__raw_writel((3 << 26) | ll, CCM_BASE + CCM_CGR2);
 	__raw_writel(0, CCM_BASE + CCM_CGR3);
 
-	mxc_timer_init(&gpt_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT);
+	mxc_timer_init(&gpt_clk,
+			MX35_IO_ADDRESS(MX35_GPT1_BASE_ADDR), MX35_INT_GPT);
 
 	return 0;
 }

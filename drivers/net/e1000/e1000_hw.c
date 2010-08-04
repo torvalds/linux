@@ -30,7 +30,7 @@
  * Shared functions for accessing and configuring the MAC
  */
 
-#include "e1000_hw.h"
+#include "e1000.h"
 
 static s32 e1000_check_downshift(struct e1000_hw *hw);
 static s32 e1000_check_polarity(struct e1000_hw *hw,
@@ -114,7 +114,7 @@ static DEFINE_SPINLOCK(e1000_eeprom_lock);
  */
 static s32 e1000_set_phy_type(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_set_phy_type");
+	e_dbg("e1000_set_phy_type");
 
 	if (hw->mac_type == e1000_undefined)
 		return -E1000_ERR_PHY_TYPE;
@@ -152,7 +152,7 @@ static void e1000_phy_init_script(struct e1000_hw *hw)
 	u32 ret_val;
 	u16 phy_saved_data;
 
-	DEBUGFUNC("e1000_phy_init_script");
+	e_dbg("e1000_phy_init_script");
 
 	if (hw->phy_init_script) {
 		msleep(20);
@@ -245,7 +245,7 @@ static void e1000_phy_init_script(struct e1000_hw *hw)
  */
 s32 e1000_set_mac_type(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_set_mac_type");
+	e_dbg("e1000_set_mac_type");
 
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82542:
@@ -354,7 +354,7 @@ void e1000_set_media_type(struct e1000_hw *hw)
 {
 	u32 status;
 
-	DEBUGFUNC("e1000_set_media_type");
+	e_dbg("e1000_set_media_type");
 
 	if (hw->mac_type != e1000_82543) {
 		/* tbi_compatibility is only valid on 82543 */
@@ -401,16 +401,16 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 	u32 led_ctrl;
 	s32 ret_val;
 
-	DEBUGFUNC("e1000_reset_hw");
+	e_dbg("e1000_reset_hw");
 
 	/* For 82542 (rev 2.0), disable MWI before issuing a device reset */
 	if (hw->mac_type == e1000_82542_rev2_0) {
-		DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
+		e_dbg("Disabling MWI on 82542 rev 2.0\n");
 		e1000_pci_clear_mwi(hw);
 	}
 
 	/* Clear interrupt mask to stop board from generating interrupts */
-	DEBUGOUT("Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	/* Disable the Transmit and Receive units.  Then delay to allow
@@ -442,7 +442,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
-	DEBUGOUT("Issuing a global reset to MAC\n");
+	e_dbg("Issuing a global reset to MAC\n");
 
 	switch (hw->mac_type) {
 	case e1000_82544:
@@ -516,7 +516,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 	}
 
 	/* Clear interrupt mask to stop board from generating interrupts */
-	DEBUGOUT("Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	/* Clear any pending interrupt events. */
@@ -549,12 +549,12 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 	u32 mta_size;
 	u32 ctrl_ext;
 
-	DEBUGFUNC("e1000_init_hw");
+	e_dbg("e1000_init_hw");
 
 	/* Initialize Identification LED */
 	ret_val = e1000_id_led_init(hw);
 	if (ret_val) {
-		DEBUGOUT("Error Initializing Identification LED\n");
+		e_dbg("Error Initializing Identification LED\n");
 		return ret_val;
 	}
 
@@ -562,14 +562,14 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 	e1000_set_media_type(hw);
 
 	/* Disabling VLAN filtering. */
-	DEBUGOUT("Initializing the IEEE VLAN\n");
+	e_dbg("Initializing the IEEE VLAN\n");
 	if (hw->mac_type < e1000_82545_rev_3)
 		ew32(VET, 0);
 	e1000_clear_vfta(hw);
 
 	/* For 82542 (rev 2.0), disable MWI and put the receiver into reset */
 	if (hw->mac_type == e1000_82542_rev2_0) {
-		DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
+		e_dbg("Disabling MWI on 82542 rev 2.0\n");
 		e1000_pci_clear_mwi(hw);
 		ew32(RCTL, E1000_RCTL_RST);
 		E1000_WRITE_FLUSH();
@@ -591,7 +591,7 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 	}
 
 	/* Zero out the Multicast HASH table */
-	DEBUGOUT("Zeroing the MTA\n");
+	e_dbg("Zeroing the MTA\n");
 	mta_size = E1000_MC_TBL_SIZE;
 	for (i = 0; i < mta_size; i++) {
 		E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
@@ -662,7 +662,7 @@ static s32 e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
 	u16 eeprom_data;
 	s32 ret_val;
 
-	DEBUGFUNC("e1000_adjust_serdes_amplitude");
+	e_dbg("e1000_adjust_serdes_amplitude");
 
 	if (hw->media_type != e1000_media_type_internal_serdes)
 		return E1000_SUCCESS;
@@ -709,7 +709,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 eeprom_data;
 
-	DEBUGFUNC("e1000_setup_link");
+	e_dbg("e1000_setup_link");
 
 	/* Read and store word 0x0F of the EEPROM. This word contains bits
 	 * that determine the hardware's default PAUSE (flow control) mode,
@@ -723,7 +723,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 		ret_val = e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
 					    1, &eeprom_data);
 		if (ret_val) {
-			DEBUGOUT("EEPROM Read Error\n");
+			e_dbg("EEPROM Read Error\n");
 			return -E1000_ERR_EEPROM;
 		}
 		if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
@@ -747,7 +747,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 
 	hw->original_fc = hw->fc;
 
-	DEBUGOUT1("After fix-ups FlowControl is now = %x\n", hw->fc);
+	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc);
 
 	/* Take the 4 bits from EEPROM word 0x0F that determine the initial
 	 * polarity value for the SW controlled pins, and setup the
@@ -760,7 +760,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 		ret_val = e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
 					    1, &eeprom_data);
 		if (ret_val) {
-			DEBUGOUT("EEPROM Read Error\n");
+			e_dbg("EEPROM Read Error\n");
 			return -E1000_ERR_EEPROM;
 		}
 		ctrl_ext = ((eeprom_data & EEPROM_WORD0F_SWPDIO_EXT) <<
@@ -777,8 +777,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 	 * control is disabled, because it does not hurt anything to
 	 * initialize these registers.
 	 */
-	DEBUGOUT
-	    ("Initializing the Flow Control address, type and timer regs\n");
+	e_dbg("Initializing the Flow Control address, type and timer regs\n");
 
 	ew32(FCT, FLOW_CONTROL_TYPE);
 	ew32(FCAH, FLOW_CONTROL_ADDRESS_HIGH);
@@ -827,7 +826,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 	u32 signal = 0;
 	s32 ret_val;
 
-	DEBUGFUNC("e1000_setup_fiber_serdes_link");
+	e_dbg("e1000_setup_fiber_serdes_link");
 
 	/* On adapters with a MAC newer than 82544, SWDP 1 will be
 	 * set when the optics detect a signal. On older adapters, it will be
@@ -893,7 +892,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_PAUSE_MASK);
 		break;
 	default:
-		DEBUGOUT("Flow control param set incorrectly\n");
+		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
 		break;
 	}
@@ -904,7 +903,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 	 * link-up status bit will be set and the flow control enable bits (RFCE
 	 * and TFCE) will be set according to their negotiated value.
 	 */
-	DEBUGOUT("Auto-negotiation enabled\n");
+	e_dbg("Auto-negotiation enabled\n");
 
 	ew32(TXCW, txcw);
 	ew32(CTRL, ctrl);
@@ -921,7 +920,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 	 */
 	if (hw->media_type == e1000_media_type_internal_serdes ||
 	    (er32(CTRL) & E1000_CTRL_SWDPIN1) == signal) {
-		DEBUGOUT("Looking for Link\n");
+		e_dbg("Looking for Link\n");
 		for (i = 0; i < (LINK_UP_TIMEOUT / 10); i++) {
 			msleep(10);
 			status = er32(STATUS);
@@ -929,7 +928,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 				break;
 		}
 		if (i == (LINK_UP_TIMEOUT / 10)) {
-			DEBUGOUT("Never got a valid link from auto-neg!!!\n");
+			e_dbg("Never got a valid link from auto-neg!!!\n");
 			hw->autoneg_failed = 1;
 			/* AutoNeg failed to achieve a link, so we'll call
 			 * e1000_check_for_link. This routine will force the link up if
@@ -938,16 +937,16 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 			 */
 			ret_val = e1000_check_for_link(hw);
 			if (ret_val) {
-				DEBUGOUT("Error while checking for link\n");
+				e_dbg("Error while checking for link\n");
 				return ret_val;
 			}
 			hw->autoneg_failed = 0;
 		} else {
 			hw->autoneg_failed = 0;
-			DEBUGOUT("Valid Link Found\n");
+			e_dbg("Valid Link Found\n");
 		}
 	} else {
-		DEBUGOUT("No Signal Detected\n");
+		e_dbg("No Signal Detected\n");
 	}
 	return E1000_SUCCESS;
 }
@@ -964,7 +963,7 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_copper_link_preconfig");
+	e_dbg("e1000_copper_link_preconfig");
 
 	ctrl = er32(CTRL);
 	/* With 82543, we need to force speed and duplex on the MAC equal to what
@@ -987,10 +986,10 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 	/* Make sure we have a valid PHY */
 	ret_val = e1000_detect_gig_phy(hw);
 	if (ret_val) {
-		DEBUGOUT("Error, did not detect valid phy.\n");
+		e_dbg("Error, did not detect valid phy.\n");
 		return ret_val;
 	}
-	DEBUGOUT1("Phy ID = %x \n", hw->phy_id);
+	e_dbg("Phy ID = %x\n", hw->phy_id);
 
 	/* Set PHY to class A mode (if necessary) */
 	ret_val = e1000_set_phy_mode(hw);
@@ -1025,14 +1024,14 @@ static s32 e1000_copper_link_igp_setup(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_copper_link_igp_setup");
+	e_dbg("e1000_copper_link_igp_setup");
 
 	if (hw->phy_reset_disable)
 		return E1000_SUCCESS;
 
 	ret_val = e1000_phy_reset(hw);
 	if (ret_val) {
-		DEBUGOUT("Error Resetting the PHY\n");
+		e_dbg("Error Resetting the PHY\n");
 		return ret_val;
 	}
 
@@ -1049,7 +1048,7 @@ static s32 e1000_copper_link_igp_setup(struct e1000_hw *hw)
 		/* disable lplu d3 during driver init */
 		ret_val = e1000_set_d3_lplu_state(hw, false);
 		if (ret_val) {
-			DEBUGOUT("Error Disabling LPLU D3\n");
+			e_dbg("Error Disabling LPLU D3\n");
 			return ret_val;
 		}
 	}
@@ -1166,7 +1165,7 @@ static s32 e1000_copper_link_mgp_setup(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_copper_link_mgp_setup");
+	e_dbg("e1000_copper_link_mgp_setup");
 
 	if (hw->phy_reset_disable)
 		return E1000_SUCCESS;
@@ -1255,7 +1254,7 @@ static s32 e1000_copper_link_mgp_setup(struct e1000_hw *hw)
 	/* SW Reset the PHY so all changes take effect */
 	ret_val = e1000_phy_reset(hw);
 	if (ret_val) {
-		DEBUGOUT("Error Resetting the PHY\n");
+		e_dbg("Error Resetting the PHY\n");
 		return ret_val;
 	}
 
@@ -1274,7 +1273,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_copper_link_autoneg");
+	e_dbg("e1000_copper_link_autoneg");
 
 	/* Perform some bounds checking on the hw->autoneg_advertised
 	 * parameter.  If this variable is zero, then set it to the default.
@@ -1287,13 +1286,13 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	if (hw->autoneg_advertised == 0)
 		hw->autoneg_advertised = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	DEBUGOUT("Reconfiguring auto-neg advertisement params\n");
+	e_dbg("Reconfiguring auto-neg advertisement params\n");
 	ret_val = e1000_phy_setup_autoneg(hw);
 	if (ret_val) {
-		DEBUGOUT("Error Setting up Auto-Negotiation\n");
+		e_dbg("Error Setting up Auto-Negotiation\n");
 		return ret_val;
 	}
-	DEBUGOUT("Restarting Auto-Neg\n");
+	e_dbg("Restarting Auto-Neg\n");
 
 	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
 	 * the Auto Neg Restart bit in the PHY control register.
@@ -1313,7 +1312,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	if (hw->wait_autoneg_complete) {
 		ret_val = e1000_wait_autoneg(hw);
 		if (ret_val) {
-			DEBUGOUT
+			e_dbg
 			    ("Error while waiting for autoneg to complete\n");
 			return ret_val;
 		}
@@ -1340,20 +1339,20 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 static s32 e1000_copper_link_postconfig(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	DEBUGFUNC("e1000_copper_link_postconfig");
+	e_dbg("e1000_copper_link_postconfig");
 
 	if (hw->mac_type >= e1000_82544) {
 		e1000_config_collision_dist(hw);
 	} else {
 		ret_val = e1000_config_mac_to_phy(hw);
 		if (ret_val) {
-			DEBUGOUT("Error configuring MAC to PHY settings\n");
+			e_dbg("Error configuring MAC to PHY settings\n");
 			return ret_val;
 		}
 	}
 	ret_val = e1000_config_fc_after_link_up(hw);
 	if (ret_val) {
-		DEBUGOUT("Error Configuring Flow Control\n");
+		e_dbg("Error Configuring Flow Control\n");
 		return ret_val;
 	}
 
@@ -1361,7 +1360,7 @@ static s32 e1000_copper_link_postconfig(struct e1000_hw *hw)
 	if (hw->phy_type == e1000_phy_igp) {
 		ret_val = e1000_config_dsp_after_link_change(hw, true);
 		if (ret_val) {
-			DEBUGOUT("Error Configuring DSP after link up\n");
+			e_dbg("Error Configuring DSP after link up\n");
 			return ret_val;
 		}
 	}
@@ -1381,7 +1380,7 @@ static s32 e1000_setup_copper_link(struct e1000_hw *hw)
 	u16 i;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_setup_copper_link");
+	e_dbg("e1000_setup_copper_link");
 
 	/* Check if it is a valid PHY and set PHY mode if necessary. */
 	ret_val = e1000_copper_link_preconfig(hw);
@@ -1407,10 +1406,10 @@ static s32 e1000_setup_copper_link(struct e1000_hw *hw)
 	} else {
 		/* PHY will be set to 10H, 10F, 100H,or 100F
 		 * depending on value from forced_speed_duplex. */
-		DEBUGOUT("Forcing speed and duplex\n");
+		e_dbg("Forcing speed and duplex\n");
 		ret_val = e1000_phy_force_speed_duplex(hw);
 		if (ret_val) {
-			DEBUGOUT("Error Forcing Speed and Duplex\n");
+			e_dbg("Error Forcing Speed and Duplex\n");
 			return ret_val;
 		}
 	}
@@ -1432,13 +1431,13 @@ static s32 e1000_setup_copper_link(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 
-			DEBUGOUT("Valid link established!!!\n");
+			e_dbg("Valid link established!!!\n");
 			return E1000_SUCCESS;
 		}
 		udelay(10);
 	}
 
-	DEBUGOUT("Unable to establish link!!!\n");
+	e_dbg("Unable to establish link!!!\n");
 	return E1000_SUCCESS;
 }
 
@@ -1454,7 +1453,7 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	u16 mii_autoneg_adv_reg;
 	u16 mii_1000t_ctrl_reg;
 
-	DEBUGFUNC("e1000_phy_setup_autoneg");
+	e_dbg("e1000_phy_setup_autoneg");
 
 	/* Read the MII Auto-Neg Advertisement Register (Address 4). */
 	ret_val = e1000_read_phy_reg(hw, PHY_AUTONEG_ADV, &mii_autoneg_adv_reg);
@@ -1481,41 +1480,41 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	mii_autoneg_adv_reg &= ~REG4_SPEED_MASK;
 	mii_1000t_ctrl_reg &= ~REG9_SPEED_MASK;
 
-	DEBUGOUT1("autoneg_advertised %x\n", hw->autoneg_advertised);
+	e_dbg("autoneg_advertised %x\n", hw->autoneg_advertised);
 
 	/* Do we want to advertise 10 Mb Half Duplex? */
 	if (hw->autoneg_advertised & ADVERTISE_10_HALF) {
-		DEBUGOUT("Advertise 10mb Half duplex\n");
+		e_dbg("Advertise 10mb Half duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_10T_HD_CAPS;
 	}
 
 	/* Do we want to advertise 10 Mb Full Duplex? */
 	if (hw->autoneg_advertised & ADVERTISE_10_FULL) {
-		DEBUGOUT("Advertise 10mb Full duplex\n");
+		e_dbg("Advertise 10mb Full duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_10T_FD_CAPS;
 	}
 
 	/* Do we want to advertise 100 Mb Half Duplex? */
 	if (hw->autoneg_advertised & ADVERTISE_100_HALF) {
-		DEBUGOUT("Advertise 100mb Half duplex\n");
+		e_dbg("Advertise 100mb Half duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_HD_CAPS;
 	}
 
 	/* Do we want to advertise 100 Mb Full Duplex? */
 	if (hw->autoneg_advertised & ADVERTISE_100_FULL) {
-		DEBUGOUT("Advertise 100mb Full duplex\n");
+		e_dbg("Advertise 100mb Full duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
 	}
 
 	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
 	if (hw->autoneg_advertised & ADVERTISE_1000_HALF) {
-		DEBUGOUT
+		e_dbg
 		    ("Advertise 1000mb Half duplex requested, request denied!\n");
 	}
 
 	/* Do we want to advertise 1000 Mb Full Duplex? */
 	if (hw->autoneg_advertised & ADVERTISE_1000_FULL) {
-		DEBUGOUT("Advertise 1000mb Full duplex\n");
+		e_dbg("Advertise 1000mb Full duplex\n");
 		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
 	}
 
@@ -1568,7 +1567,7 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
 		break;
 	default:
-		DEBUGOUT("Flow control param set incorrectly\n");
+		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -1576,7 +1575,7 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	DEBUGOUT1("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
+	e_dbg("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
 
 	ret_val = e1000_write_phy_reg(hw, PHY_1000T_CTRL, mii_1000t_ctrl_reg);
 	if (ret_val)
@@ -1600,12 +1599,12 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 	u16 phy_data;
 	u16 i;
 
-	DEBUGFUNC("e1000_phy_force_speed_duplex");
+	e_dbg("e1000_phy_force_speed_duplex");
 
 	/* Turn off Flow control if we are forcing speed and duplex. */
 	hw->fc = E1000_FC_NONE;
 
-	DEBUGOUT1("hw->fc = %d\n", hw->fc);
+	e_dbg("hw->fc = %d\n", hw->fc);
 
 	/* Read the Device Control Register. */
 	ctrl = er32(CTRL);
@@ -1634,14 +1633,14 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 		 */
 		ctrl |= E1000_CTRL_FD;
 		mii_ctrl_reg |= MII_CR_FULL_DUPLEX;
-		DEBUGOUT("Full Duplex\n");
+		e_dbg("Full Duplex\n");
 	} else {
 		/* We want to force half duplex so we CLEAR the full duplex bits in
 		 * the Device and MII Control Registers.
 		 */
 		ctrl &= ~E1000_CTRL_FD;
 		mii_ctrl_reg &= ~MII_CR_FULL_DUPLEX;
-		DEBUGOUT("Half Duplex\n");
+		e_dbg("Half Duplex\n");
 	}
 
 	/* Are we forcing 100Mbps??? */
@@ -1651,13 +1650,13 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 		ctrl |= E1000_CTRL_SPD_100;
 		mii_ctrl_reg |= MII_CR_SPEED_100;
 		mii_ctrl_reg &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_10);
-		DEBUGOUT("Forcing 100mb ");
+		e_dbg("Forcing 100mb ");
 	} else {
 		/* Set the 10Mb bit and turn off the 1000Mb and 100Mb bits. */
 		ctrl &= ~(E1000_CTRL_SPD_1000 | E1000_CTRL_SPD_100);
 		mii_ctrl_reg |= MII_CR_SPEED_10;
 		mii_ctrl_reg &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_100);
-		DEBUGOUT("Forcing 10mb ");
+		e_dbg("Forcing 10mb ");
 	}
 
 	e1000_config_collision_dist(hw);
@@ -1680,7 +1679,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		DEBUGOUT1("M88E1000 PSCR: %x \n", phy_data);
+		e_dbg("M88E1000 PSCR: %x\n", phy_data);
 
 		/* Need to reset the PHY or these changes will be ignored */
 		mii_ctrl_reg |= MII_CR_RESET;
@@ -1720,7 +1719,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 	 */
 	if (hw->wait_autoneg_complete) {
 		/* We will wait for autoneg to complete. */
-		DEBUGOUT("Waiting for forced speed/duplex link.\n");
+		e_dbg("Waiting for forced speed/duplex link.\n");
 		mii_status_reg = 0;
 
 		/* We will wait for autoneg to complete or 4.5 seconds to expire. */
@@ -1746,7 +1745,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 			/* We didn't get link.  Reset the DSP and wait again for link. */
 			ret_val = e1000_phy_reset_dsp(hw);
 			if (ret_val) {
-				DEBUGOUT("Error Resetting PHY DSP\n");
+				e_dbg("Error Resetting PHY DSP\n");
 				return ret_val;
 			}
 		}
@@ -1826,7 +1825,7 @@ void e1000_config_collision_dist(struct e1000_hw *hw)
 {
 	u32 tctl, coll_dist;
 
-	DEBUGFUNC("e1000_config_collision_dist");
+	e_dbg("e1000_config_collision_dist");
 
 	if (hw->mac_type < e1000_82543)
 		coll_dist = E1000_COLLISION_DISTANCE_82542;
@@ -1857,7 +1856,7 @@ static s32 e1000_config_mac_to_phy(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_config_mac_to_phy");
+	e_dbg("e1000_config_mac_to_phy");
 
 	/* 82544 or newer MAC, Auto Speed Detection takes care of
 	 * MAC speed/duplex configuration.*/
@@ -1913,7 +1912,7 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
 {
 	u32 ctrl;
 
-	DEBUGFUNC("e1000_force_mac_fc");
+	e_dbg("e1000_force_mac_fc");
 
 	/* Get the current configuration of the Device Control Register */
 	ctrl = er32(CTRL);
@@ -1952,7 +1951,7 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
 		ctrl |= (E1000_CTRL_TFCE | E1000_CTRL_RFCE);
 		break;
 	default:
-		DEBUGOUT("Flow control param set incorrectly\n");
+		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -1984,7 +1983,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 	u16 speed;
 	u16 duplex;
 
-	DEBUGFUNC("e1000_config_fc_after_link_up");
+	e_dbg("e1000_config_fc_after_link_up");
 
 	/* Check for the case where we have fiber media and auto-neg failed
 	 * so we had to force link.  In this case, we need to force the
@@ -1997,7 +1996,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 		&& (!hw->autoneg))) {
 		ret_val = e1000_force_mac_fc(hw);
 		if (ret_val) {
-			DEBUGOUT("Error forcing flow control settings\n");
+			e_dbg("Error forcing flow control settings\n");
 			return ret_val;
 		}
 	}
@@ -2079,10 +2078,10 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 				 */
 				if (hw->original_fc == E1000_FC_FULL) {
 					hw->fc = E1000_FC_FULL;
-					DEBUGOUT("Flow Control = FULL.\n");
+					e_dbg("Flow Control = FULL.\n");
 				} else {
 					hw->fc = E1000_FC_RX_PAUSE;
-					DEBUGOUT
+					e_dbg
 					    ("Flow Control = RX PAUSE frames only.\n");
 				}
 			}
@@ -2100,7 +2099,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR))
 			{
 				hw->fc = E1000_FC_TX_PAUSE;
-				DEBUGOUT
+				e_dbg
 				    ("Flow Control = TX PAUSE frames only.\n");
 			}
 			/* For transmitting PAUSE frames ONLY.
@@ -2117,7 +2116,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR))
 			{
 				hw->fc = E1000_FC_RX_PAUSE;
-				DEBUGOUT
+				e_dbg
 				    ("Flow Control = RX PAUSE frames only.\n");
 			}
 			/* Per the IEEE spec, at this point flow control should be
@@ -2144,10 +2143,10 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 				  hw->original_fc == E1000_FC_TX_PAUSE) ||
 				 hw->fc_strict_ieee) {
 				hw->fc = E1000_FC_NONE;
-				DEBUGOUT("Flow Control = NONE.\n");
+				e_dbg("Flow Control = NONE.\n");
 			} else {
 				hw->fc = E1000_FC_RX_PAUSE;
-				DEBUGOUT
+				e_dbg
 				    ("Flow Control = RX PAUSE frames only.\n");
 			}
 
@@ -2158,7 +2157,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			ret_val =
 			    e1000_get_speed_and_duplex(hw, &speed, &duplex);
 			if (ret_val) {
-				DEBUGOUT
+				e_dbg
 				    ("Error getting link speed and duplex\n");
 				return ret_val;
 			}
@@ -2171,12 +2170,12 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			 */
 			ret_val = e1000_force_mac_fc(hw);
 			if (ret_val) {
-				DEBUGOUT
+				e_dbg
 				    ("Error forcing flow control settings\n");
 				return ret_val;
 			}
 		} else {
-			DEBUGOUT
+			e_dbg
 			    ("Copper PHY and Auto Neg has not completed.\n");
 		}
 	}
@@ -2197,7 +2196,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 	u32 status;
 	s32 ret_val = E1000_SUCCESS;
 
-	DEBUGFUNC("e1000_check_for_serdes_link_generic");
+	e_dbg("e1000_check_for_serdes_link_generic");
 
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
@@ -2216,7 +2215,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 			hw->autoneg_failed = 1;
 			goto out;
 		}
-		DEBUGOUT("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (hw->txcw & ~E1000_TXCW_ANE));
@@ -2229,7 +2228,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 		/* Configure Flow Control after forcing link up. */
 		ret_val = e1000_config_fc_after_link_up(hw);
 		if (ret_val) {
-			DEBUGOUT("Error configuring flow control\n");
+			e_dbg("Error configuring flow control\n");
 			goto out;
 		}
 	} else if ((ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
@@ -2239,7 +2238,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		DEBUGOUT("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, hw->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -2256,11 +2255,11 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 		if (rxcw & E1000_RXCW_SYNCH) {
 			if (!(rxcw & E1000_RXCW_IV)) {
 				hw->serdes_has_link = true;
-				DEBUGOUT("SERDES: Link up - forced.\n");
+				e_dbg("SERDES: Link up - forced.\n");
 			}
 		} else {
 			hw->serdes_has_link = false;
-			DEBUGOUT("SERDES: Link down - force failed.\n");
+			e_dbg("SERDES: Link down - force failed.\n");
 		}
 	}
 
@@ -2273,20 +2272,20 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 			if (rxcw & E1000_RXCW_SYNCH) {
 				if (!(rxcw & E1000_RXCW_IV)) {
 					hw->serdes_has_link = true;
-					DEBUGOUT("SERDES: Link up - autoneg "
+					e_dbg("SERDES: Link up - autoneg "
 						 "completed successfully.\n");
 				} else {
 					hw->serdes_has_link = false;
-					DEBUGOUT("SERDES: Link down - invalid"
+					e_dbg("SERDES: Link down - invalid"
 						 "codewords detected in autoneg.\n");
 				}
 			} else {
 				hw->serdes_has_link = false;
-				DEBUGOUT("SERDES: Link down - no sync.\n");
+				e_dbg("SERDES: Link down - no sync.\n");
 			}
 		} else {
 			hw->serdes_has_link = false;
-			DEBUGOUT("SERDES: Link down - autoneg failed\n");
+			e_dbg("SERDES: Link down - autoneg failed\n");
 		}
 	}
 
@@ -2312,7 +2311,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_check_for_link");
+	e_dbg("e1000_check_for_link");
 
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
@@ -2407,7 +2406,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 		else {
 			ret_val = e1000_config_mac_to_phy(hw);
 			if (ret_val) {
-				DEBUGOUT
+				e_dbg
 				    ("Error configuring MAC to PHY settings\n");
 				return ret_val;
 			}
@@ -2419,7 +2418,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 		 */
 		ret_val = e1000_config_fc_after_link_up(hw);
 		if (ret_val) {
-			DEBUGOUT("Error configuring flow control\n");
+			e_dbg("Error configuring flow control\n");
 			return ret_val;
 		}
 
@@ -2435,7 +2434,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 			ret_val =
 			    e1000_get_speed_and_duplex(hw, &speed, &duplex);
 			if (ret_val) {
-				DEBUGOUT
+				e_dbg
 				    ("Error getting link speed and duplex\n");
 				return ret_val;
 			}
@@ -2487,30 +2486,30 @@ s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_get_speed_and_duplex");
+	e_dbg("e1000_get_speed_and_duplex");
 
 	if (hw->mac_type >= e1000_82543) {
 		status = er32(STATUS);
 		if (status & E1000_STATUS_SPEED_1000) {
 			*speed = SPEED_1000;
-			DEBUGOUT("1000 Mbs, ");
+			e_dbg("1000 Mbs, ");
 		} else if (status & E1000_STATUS_SPEED_100) {
 			*speed = SPEED_100;
-			DEBUGOUT("100 Mbs, ");
+			e_dbg("100 Mbs, ");
 		} else {
 			*speed = SPEED_10;
-			DEBUGOUT("10 Mbs, ");
+			e_dbg("10 Mbs, ");
 		}
 
 		if (status & E1000_STATUS_FD) {
 			*duplex = FULL_DUPLEX;
-			DEBUGOUT("Full Duplex\n");
+			e_dbg("Full Duplex\n");
 		} else {
 			*duplex = HALF_DUPLEX;
-			DEBUGOUT(" Half Duplex\n");
+			e_dbg(" Half Duplex\n");
 		}
 	} else {
-		DEBUGOUT("1000 Mbs, Full Duplex\n");
+		e_dbg("1000 Mbs, Full Duplex\n");
 		*speed = SPEED_1000;
 		*duplex = FULL_DUPLEX;
 	}
@@ -2554,8 +2553,8 @@ static s32 e1000_wait_autoneg(struct e1000_hw *hw)
 	u16 i;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_wait_autoneg");
-	DEBUGOUT("Waiting for Auto-Neg to complete.\n");
+	e_dbg("e1000_wait_autoneg");
+	e_dbg("Waiting for Auto-Neg to complete.\n");
 
 	/* We will wait for autoneg to complete or 4.5 seconds to expire. */
 	for (i = PHY_AUTO_NEG_TIME; i > 0; i--) {
@@ -2718,7 +2717,7 @@ s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 *phy_data)
 {
 	u32 ret_val;
 
-	DEBUGFUNC("e1000_read_phy_reg");
+	e_dbg("e1000_read_phy_reg");
 
 	if ((hw->phy_type == e1000_phy_igp) &&
 	    (reg_addr > MAX_PHY_MULTI_PAGE_REG)) {
@@ -2741,10 +2740,10 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 	u32 mdic = 0;
 	const u32 phy_addr = 1;
 
-	DEBUGFUNC("e1000_read_phy_reg_ex");
+	e_dbg("e1000_read_phy_reg_ex");
 
 	if (reg_addr > MAX_PHY_REG_ADDRESS) {
-		DEBUGOUT1("PHY Address %d is out of range\n", reg_addr);
+		e_dbg("PHY Address %d is out of range\n", reg_addr);
 		return -E1000_ERR_PARAM;
 	}
 
@@ -2767,11 +2766,11 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 				break;
 		}
 		if (!(mdic & E1000_MDIC_READY)) {
-			DEBUGOUT("MDI Read did not complete\n");
+			e_dbg("MDI Read did not complete\n");
 			return -E1000_ERR_PHY;
 		}
 		if (mdic & E1000_MDIC_ERROR) {
-			DEBUGOUT("MDI Error\n");
+			e_dbg("MDI Error\n");
 			return -E1000_ERR_PHY;
 		}
 		*phy_data = (u16) mdic;
@@ -2820,7 +2819,7 @@ s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 phy_data)
 {
 	u32 ret_val;
 
-	DEBUGFUNC("e1000_write_phy_reg");
+	e_dbg("e1000_write_phy_reg");
 
 	if ((hw->phy_type == e1000_phy_igp) &&
 	    (reg_addr > MAX_PHY_MULTI_PAGE_REG)) {
@@ -2843,10 +2842,10 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 	u32 mdic = 0;
 	const u32 phy_addr = 1;
 
-	DEBUGFUNC("e1000_write_phy_reg_ex");
+	e_dbg("e1000_write_phy_reg_ex");
 
 	if (reg_addr > MAX_PHY_REG_ADDRESS) {
-		DEBUGOUT1("PHY Address %d is out of range\n", reg_addr);
+		e_dbg("PHY Address %d is out of range\n", reg_addr);
 		return -E1000_ERR_PARAM;
 	}
 
@@ -2870,7 +2869,7 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 				break;
 		}
 		if (!(mdic & E1000_MDIC_READY)) {
-			DEBUGOUT("MDI Write did not complete\n");
+			e_dbg("MDI Write did not complete\n");
 			return -E1000_ERR_PHY;
 		}
 	} else {
@@ -2910,9 +2909,9 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 	u32 led_ctrl;
 	s32 ret_val;
 
-	DEBUGFUNC("e1000_phy_hw_reset");
+	e_dbg("e1000_phy_hw_reset");
 
-	DEBUGOUT("Resetting Phy...\n");
+	e_dbg("Resetting Phy...\n");
 
 	if (hw->mac_type > e1000_82543) {
 		/* Read the device control register and assert the E1000_CTRL_PHY_RST
@@ -2973,7 +2972,7 @@ s32 e1000_phy_reset(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_phy_reset");
+	e_dbg("e1000_phy_reset");
 
 	switch (hw->phy_type) {
 	case e1000_phy_igp:
@@ -3013,7 +3012,7 @@ static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 	u16 phy_id_high, phy_id_low;
 	bool match = false;
 
-	DEBUGFUNC("e1000_detect_gig_phy");
+	e_dbg("e1000_detect_gig_phy");
 
 	if (hw->phy_id != 0)
 		return E1000_SUCCESS;
@@ -3057,16 +3056,16 @@ static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 			match = true;
 		break;
 	default:
-		DEBUGOUT1("Invalid MAC type %d\n", hw->mac_type);
+		e_dbg("Invalid MAC type %d\n", hw->mac_type);
 		return -E1000_ERR_CONFIG;
 	}
 	phy_init_status = e1000_set_phy_type(hw);
 
 	if ((match) && (phy_init_status == E1000_SUCCESS)) {
-		DEBUGOUT1("PHY ID 0x%X detected\n", hw->phy_id);
+		e_dbg("PHY ID 0x%X detected\n", hw->phy_id);
 		return E1000_SUCCESS;
 	}
-	DEBUGOUT1("Invalid PHY ID 0x%X\n", hw->phy_id);
+	e_dbg("Invalid PHY ID 0x%X\n", hw->phy_id);
 	return -E1000_ERR_PHY;
 }
 
@@ -3079,7 +3078,7 @@ static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 static s32 e1000_phy_reset_dsp(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	DEBUGFUNC("e1000_phy_reset_dsp");
+	e_dbg("e1000_phy_reset_dsp");
 
 	do {
 		ret_val = e1000_write_phy_reg(hw, 29, 0x001d);
@@ -3111,7 +3110,7 @@ static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 	u16 phy_data, min_length, max_length, average;
 	e1000_rev_polarity polarity;
 
-	DEBUGFUNC("e1000_phy_igp_get_info");
+	e_dbg("e1000_phy_igp_get_info");
 
 	/* The downshift status is checked only once, after link is established,
 	 * and it stored in the hw->speed_downgraded parameter. */
@@ -3189,7 +3188,7 @@ static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 	u16 phy_data;
 	e1000_rev_polarity polarity;
 
-	DEBUGFUNC("e1000_phy_m88_get_info");
+	e_dbg("e1000_phy_m88_get_info");
 
 	/* The downshift status is checked only once, after link is established,
 	 * and it stored in the hw->speed_downgraded parameter. */
@@ -3261,7 +3260,7 @@ s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_phy_get_info");
+	e_dbg("e1000_phy_get_info");
 
 	phy_info->cable_length = e1000_cable_length_undefined;
 	phy_info->extended_10bt_distance = e1000_10bt_ext_dist_enable_undefined;
@@ -3273,7 +3272,7 @@ s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 	phy_info->remote_rx = e1000_1000t_rx_status_undefined;
 
 	if (hw->media_type != e1000_media_type_copper) {
-		DEBUGOUT("PHY info is only valid for copper media\n");
+		e_dbg("PHY info is only valid for copper media\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -3286,7 +3285,7 @@ s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 		return ret_val;
 
 	if ((phy_data & MII_SR_LINK_STATUS) != MII_SR_LINK_STATUS) {
-		DEBUGOUT("PHY info is only valid if link is up\n");
+		e_dbg("PHY info is only valid if link is up\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -3298,10 +3297,10 @@ s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 
 s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_validate_mdi_settings");
+	e_dbg("e1000_validate_mdi_settings");
 
 	if (!hw->autoneg && (hw->mdix == 0 || hw->mdix == 3)) {
-		DEBUGOUT("Invalid MDI setting detected\n");
+		e_dbg("Invalid MDI setting detected\n");
 		hw->mdix = 1;
 		return -E1000_ERR_CONFIG;
 	}
@@ -3322,7 +3321,7 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 	u16 eeprom_size;
 
-	DEBUGFUNC("e1000_init_eeprom_params");
+	e_dbg("e1000_init_eeprom_params");
 
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
@@ -3539,7 +3538,7 @@ static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
 	struct e1000_eeprom_info *eeprom = &hw->eeprom;
 	u32 eecd, i = 0;
 
-	DEBUGFUNC("e1000_acquire_eeprom");
+	e_dbg("e1000_acquire_eeprom");
 
 	eecd = er32(EECD);
 
@@ -3557,7 +3556,7 @@ static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
 		if (!(eecd & E1000_EECD_GNT)) {
 			eecd &= ~E1000_EECD_REQ;
 			ew32(EECD, eecd);
-			DEBUGOUT("Could not acquire EEPROM grant\n");
+			e_dbg("Could not acquire EEPROM grant\n");
 			return -E1000_ERR_EEPROM;
 		}
 	}
@@ -3639,7 +3638,7 @@ static void e1000_release_eeprom(struct e1000_hw *hw)
 {
 	u32 eecd;
 
-	DEBUGFUNC("e1000_release_eeprom");
+	e_dbg("e1000_release_eeprom");
 
 	eecd = er32(EECD);
 
@@ -3687,7 +3686,7 @@ static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 	u16 retry_count = 0;
 	u8 spi_stat_reg;
 
-	DEBUGFUNC("e1000_spi_eeprom_ready");
+	e_dbg("e1000_spi_eeprom_ready");
 
 	/* Read "Status Register" repeatedly until the LSB is cleared.  The
 	 * EEPROM will signal that the command has been completed by clearing
@@ -3712,7 +3711,7 @@ static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 	 * only 0-5mSec on 5V devices)
 	 */
 	if (retry_count >= EEPROM_MAX_RETRY_SPI) {
-		DEBUGOUT("SPI EEPROM Status error\n");
+		e_dbg("SPI EEPROM Status error\n");
 		return -E1000_ERR_EEPROM;
 	}
 
@@ -3741,7 +3740,7 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	struct e1000_eeprom_info *eeprom = &hw->eeprom;
 	u32 i = 0;
 
-	DEBUGFUNC("e1000_read_eeprom");
+	e_dbg("e1000_read_eeprom");
 
 	/* If eeprom is not yet detected, do so now */
 	if (eeprom->word_size == 0)
@@ -3752,9 +3751,8 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	 */
 	if ((offset >= eeprom->word_size)
 	    || (words > eeprom->word_size - offset) || (words == 0)) {
-		DEBUGOUT2
-		    ("\"words\" parameter out of bounds. Words = %d, size = %d\n",
-		     offset, eeprom->word_size);
+		e_dbg("\"words\" parameter out of bounds. Words = %d,"
+		      "size = %d\n", offset, eeprom->word_size);
 		return -E1000_ERR_EEPROM;
 	}
 
@@ -3832,11 +3830,11 @@ s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw)
 	u16 checksum = 0;
 	u16 i, eeprom_data;
 
-	DEBUGFUNC("e1000_validate_eeprom_checksum");
+	e_dbg("e1000_validate_eeprom_checksum");
 
 	for (i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++) {
 		if (e1000_read_eeprom(hw, i, 1, &eeprom_data) < 0) {
-			DEBUGOUT("EEPROM Read Error\n");
+			e_dbg("EEPROM Read Error\n");
 			return -E1000_ERR_EEPROM;
 		}
 		checksum += eeprom_data;
@@ -3845,7 +3843,7 @@ s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw)
 	if (checksum == (u16) EEPROM_SUM)
 		return E1000_SUCCESS;
 	else {
-		DEBUGOUT("EEPROM Checksum Invalid\n");
+		e_dbg("EEPROM Checksum Invalid\n");
 		return -E1000_ERR_EEPROM;
 	}
 }
@@ -3862,18 +3860,18 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
 	u16 checksum = 0;
 	u16 i, eeprom_data;
 
-	DEBUGFUNC("e1000_update_eeprom_checksum");
+	e_dbg("e1000_update_eeprom_checksum");
 
 	for (i = 0; i < EEPROM_CHECKSUM_REG; i++) {
 		if (e1000_read_eeprom(hw, i, 1, &eeprom_data) < 0) {
-			DEBUGOUT("EEPROM Read Error\n");
+			e_dbg("EEPROM Read Error\n");
 			return -E1000_ERR_EEPROM;
 		}
 		checksum += eeprom_data;
 	}
 	checksum = (u16) EEPROM_SUM - checksum;
 	if (e1000_write_eeprom(hw, EEPROM_CHECKSUM_REG, 1, &checksum) < 0) {
-		DEBUGOUT("EEPROM Write Error\n");
+		e_dbg("EEPROM Write Error\n");
 		return -E1000_ERR_EEPROM;
 	}
 	return E1000_SUCCESS;
@@ -3904,7 +3902,7 @@ static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	struct e1000_eeprom_info *eeprom = &hw->eeprom;
 	s32 status = 0;
 
-	DEBUGFUNC("e1000_write_eeprom");
+	e_dbg("e1000_write_eeprom");
 
 	/* If eeprom is not yet detected, do so now */
 	if (eeprom->word_size == 0)
@@ -3915,7 +3913,7 @@ static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	 */
 	if ((offset >= eeprom->word_size)
 	    || (words > eeprom->word_size - offset) || (words == 0)) {
-		DEBUGOUT("\"words\" parameter out of bounds\n");
+		e_dbg("\"words\" parameter out of bounds\n");
 		return -E1000_ERR_EEPROM;
 	}
 
@@ -3949,7 +3947,7 @@ static s32 e1000_write_eeprom_spi(struct e1000_hw *hw, u16 offset, u16 words,
 	struct e1000_eeprom_info *eeprom = &hw->eeprom;
 	u16 widx = 0;
 
-	DEBUGFUNC("e1000_write_eeprom_spi");
+	e_dbg("e1000_write_eeprom_spi");
 
 	while (widx < words) {
 		u8 write_opcode = EEPROM_WRITE_OPCODE_SPI;
@@ -4013,7 +4011,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
 	u16 words_written = 0;
 	u16 i = 0;
 
-	DEBUGFUNC("e1000_write_eeprom_microwire");
+	e_dbg("e1000_write_eeprom_microwire");
 
 	/* Send the write enable command to the EEPROM (3-bit opcode plus
 	 * 6/8-bit dummy address beginning with 11).  It's less work to include
@@ -4056,7 +4054,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
 			udelay(50);
 		}
 		if (i == 200) {
-			DEBUGOUT("EEPROM Write did not complete\n");
+			e_dbg("EEPROM Write did not complete\n");
 			return -E1000_ERR_EEPROM;
 		}
 
@@ -4092,12 +4090,12 @@ s32 e1000_read_mac_addr(struct e1000_hw *hw)
 	u16 offset;
 	u16 eeprom_data, i;
 
-	DEBUGFUNC("e1000_read_mac_addr");
+	e_dbg("e1000_read_mac_addr");
 
 	for (i = 0; i < NODE_ADDRESS_SIZE; i += 2) {
 		offset = i >> 1;
 		if (e1000_read_eeprom(hw, offset, 1, &eeprom_data) < 0) {
-			DEBUGOUT("EEPROM Read Error\n");
+			e_dbg("EEPROM Read Error\n");
 			return -E1000_ERR_EEPROM;
 		}
 		hw->perm_mac_addr[i] = (u8) (eeprom_data & 0x00FF);
@@ -4132,17 +4130,17 @@ static void e1000_init_rx_addrs(struct e1000_hw *hw)
 	u32 i;
 	u32 rar_num;
 
-	DEBUGFUNC("e1000_init_rx_addrs");
+	e_dbg("e1000_init_rx_addrs");
 
 	/* Setup the receive address. */
-	DEBUGOUT("Programming MAC Address into RAR[0]\n");
+	e_dbg("Programming MAC Address into RAR[0]\n");
 
 	e1000_rar_set(hw, hw->mac_addr, 0);
 
 	rar_num = E1000_RAR_ENTRIES;
 
 	/* Zero out the other 15 receive addresses. */
-	DEBUGOUT("Clearing RAR[1-15]\n");
+	e_dbg("Clearing RAR[1-15]\n");
 	for (i = 1; i < rar_num; i++) {
 		E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 		E1000_WRITE_FLUSH();
@@ -4290,7 +4288,7 @@ static s32 e1000_id_led_init(struct e1000_hw *hw)
 	u16 eeprom_data, i, temp;
 	const u16 led_mask = 0x0F;
 
-	DEBUGFUNC("e1000_id_led_init");
+	e_dbg("e1000_id_led_init");
 
 	if (hw->mac_type < e1000_82540) {
 		/* Nothing to do */
@@ -4303,7 +4301,7 @@ static s32 e1000_id_led_init(struct e1000_hw *hw)
 	hw->ledctl_mode2 = hw->ledctl_default;
 
 	if (e1000_read_eeprom(hw, EEPROM_ID_LED_SETTINGS, 1, &eeprom_data) < 0) {
-		DEBUGOUT("EEPROM Read Error\n");
+		e_dbg("EEPROM Read Error\n");
 		return -E1000_ERR_EEPROM;
 	}
 
@@ -4363,7 +4361,7 @@ s32 e1000_setup_led(struct e1000_hw *hw)
 	u32 ledctl;
 	s32 ret_val = E1000_SUCCESS;
 
-	DEBUGFUNC("e1000_setup_led");
+	e_dbg("e1000_setup_led");
 
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
@@ -4415,7 +4413,7 @@ s32 e1000_cleanup_led(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
-	DEBUGFUNC("e1000_cleanup_led");
+	e_dbg("e1000_cleanup_led");
 
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
@@ -4451,7 +4449,7 @@ s32 e1000_led_on(struct e1000_hw *hw)
 {
 	u32 ctrl = er32(CTRL);
 
-	DEBUGFUNC("e1000_led_on");
+	e_dbg("e1000_led_on");
 
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
@@ -4497,7 +4495,7 @@ s32 e1000_led_off(struct e1000_hw *hw)
 {
 	u32 ctrl = er32(CTRL);
 
-	DEBUGFUNC("e1000_led_off");
+	e_dbg("e1000_led_off");
 
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
@@ -4626,7 +4624,7 @@ static void e1000_clear_hw_cntrs(struct e1000_hw *hw)
  */
 void e1000_reset_adaptive(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_reset_adaptive");
+	e_dbg("e1000_reset_adaptive");
 
 	if (hw->adaptive_ifs) {
 		if (!hw->ifs_params_forced) {
@@ -4639,7 +4637,7 @@ void e1000_reset_adaptive(struct e1000_hw *hw)
 		hw->in_ifs_mode = false;
 		ew32(AIT, 0);
 	} else {
-		DEBUGOUT("Not in Adaptive IFS mode!\n");
+		e_dbg("Not in Adaptive IFS mode!\n");
 	}
 }
 
@@ -4654,7 +4652,7 @@ void e1000_reset_adaptive(struct e1000_hw *hw)
  */
 void e1000_update_adaptive(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_update_adaptive");
+	e_dbg("e1000_update_adaptive");
 
 	if (hw->adaptive_ifs) {
 		if ((hw->collision_delta *hw->ifs_ratio) > hw->tx_packet_delta) {
@@ -4679,7 +4677,7 @@ void e1000_update_adaptive(struct e1000_hw *hw)
 			}
 		}
 	} else {
-		DEBUGOUT("Not in Adaptive IFS mode!\n");
+		e_dbg("Not in Adaptive IFS mode!\n");
 	}
 }
 
@@ -4851,7 +4849,7 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
 	u16 i, phy_data;
 	u16 cable_length;
 
-	DEBUGFUNC("e1000_get_cable_length");
+	e_dbg("e1000_get_cable_length");
 
 	*min_length = *max_length = 0;
 
@@ -4968,7 +4966,7 @@ static s32 e1000_check_polarity(struct e1000_hw *hw,
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_check_polarity");
+	e_dbg("e1000_check_polarity");
 
 	if (hw->phy_type == e1000_phy_m88) {
 		/* return the Polarity bit in the Status register. */
@@ -5034,7 +5032,7 @@ static s32 e1000_check_downshift(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_check_downshift");
+	e_dbg("e1000_check_downshift");
 
 	if (hw->phy_type == e1000_phy_igp) {
 		ret_val = e1000_read_phy_reg(hw, IGP01E1000_PHY_LINK_HEALTH,
@@ -5081,7 +5079,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 	};
 	u16 min_length, max_length;
 
-	DEBUGFUNC("e1000_config_dsp_after_link_change");
+	e_dbg("e1000_config_dsp_after_link_change");
 
 	if (hw->phy_type != e1000_phy_igp)
 		return E1000_SUCCESS;
@@ -5089,7 +5087,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 	if (link_up) {
 		ret_val = e1000_get_speed_and_duplex(hw, &speed, &duplex);
 		if (ret_val) {
-			DEBUGOUT("Error getting link speed and duplex\n");
+			e_dbg("Error getting link speed and duplex\n");
 			return ret_val;
 		}
 
@@ -5289,7 +5287,7 @@ static s32 e1000_set_phy_mode(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 eeprom_data;
 
-	DEBUGFUNC("e1000_set_phy_mode");
+	e_dbg("e1000_set_phy_mode");
 
 	if ((hw->mac_type == e1000_82545_rev_3) &&
 	    (hw->media_type == e1000_media_type_copper)) {
@@ -5337,7 +5335,7 @@ static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 {
 	s32 ret_val;
 	u16 phy_data;
-	DEBUGFUNC("e1000_set_d3_lplu_state");
+	e_dbg("e1000_set_d3_lplu_state");
 
 	if (hw->phy_type != e1000_phy_igp)
 		return E1000_SUCCESS;
@@ -5440,7 +5438,7 @@ static s32 e1000_set_vco_speed(struct e1000_hw *hw)
 	u16 default_page = 0;
 	u16 phy_data;
 
-	DEBUGFUNC("e1000_set_vco_speed");
+	e_dbg("e1000_set_vco_speed");
 
 	switch (hw->mac_type) {
 	case e1000_82545_rev_3:
@@ -5613,7 +5611,7 @@ static s32 e1000_polarity_reversal_workaround(struct e1000_hw *hw)
  */
 static s32 e1000_get_auto_rd_done(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_get_auto_rd_done");
+	e_dbg("e1000_get_auto_rd_done");
 	msleep(5);
 	return E1000_SUCCESS;
 }
@@ -5628,7 +5626,7 @@ static s32 e1000_get_auto_rd_done(struct e1000_hw *hw)
  */
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
 {
-	DEBUGFUNC("e1000_get_phy_cfg_done");
+	e_dbg("e1000_get_phy_cfg_done");
 	mdelay(10);
 	return E1000_SUCCESS;
 }

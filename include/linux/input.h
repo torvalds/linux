@@ -58,10 +58,10 @@ struct input_absinfo {
 
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
-#define EVIOCGREP		_IOR('E', 0x03, int[2])			/* get repeat settings */
-#define EVIOCSREP		_IOW('E', 0x03, int[2])			/* set repeat settings */
-#define EVIOCGKEYCODE		_IOR('E', 0x04, int[2])			/* get keycode */
-#define EVIOCSKEYCODE		_IOW('E', 0x04, int[2])			/* set keycode */
+#define EVIOCGREP		_IOR('E', 0x03, unsigned int[2])	/* get repeat settings */
+#define EVIOCSREP		_IOW('E', 0x03, unsigned int[2])	/* set repeat settings */
+#define EVIOCGKEYCODE		_IOR('E', 0x04, unsigned int[2])	/* get keycode */
+#define EVIOCSKEYCODE		_IOW('E', 0x04, unsigned int[2])	/* set keycode */
 
 #define EVIOCGNAME(len)		_IOC(_IOC_READ, 'E', 0x06, len)		/* get device name */
 #define EVIOCGPHYS(len)		_IOC(_IOC_READ, 'E', 0x07, len)		/* get physical location */
@@ -376,8 +376,9 @@ struct input_absinfo {
 #define KEY_DISPLAY_OFF		245	/* display device to off state */
 
 #define KEY_WIMAX		246
+#define KEY_RFKILL		247	/* Key that controls all radios */
 
-/* Range 248 - 255 is reserved for special needs of AT keyboard driver */
+/* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
 #define BTN_0			0x100
@@ -596,6 +597,49 @@ struct input_absinfo {
 #define KEY_NUMERIC_POUND	0x20b
 
 #define KEY_CAMERA_FOCUS	0x210
+#define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
+
+#define BTN_TRIGGER_HAPPY		0x2c0
+#define BTN_TRIGGER_HAPPY1		0x2c0
+#define BTN_TRIGGER_HAPPY2		0x2c1
+#define BTN_TRIGGER_HAPPY3		0x2c2
+#define BTN_TRIGGER_HAPPY4		0x2c3
+#define BTN_TRIGGER_HAPPY5		0x2c4
+#define BTN_TRIGGER_HAPPY6		0x2c5
+#define BTN_TRIGGER_HAPPY7		0x2c6
+#define BTN_TRIGGER_HAPPY8		0x2c7
+#define BTN_TRIGGER_HAPPY9		0x2c8
+#define BTN_TRIGGER_HAPPY10		0x2c9
+#define BTN_TRIGGER_HAPPY11		0x2ca
+#define BTN_TRIGGER_HAPPY12		0x2cb
+#define BTN_TRIGGER_HAPPY13		0x2cc
+#define BTN_TRIGGER_HAPPY14		0x2cd
+#define BTN_TRIGGER_HAPPY15		0x2ce
+#define BTN_TRIGGER_HAPPY16		0x2cf
+#define BTN_TRIGGER_HAPPY17		0x2d0
+#define BTN_TRIGGER_HAPPY18		0x2d1
+#define BTN_TRIGGER_HAPPY19		0x2d2
+#define BTN_TRIGGER_HAPPY20		0x2d3
+#define BTN_TRIGGER_HAPPY21		0x2d4
+#define BTN_TRIGGER_HAPPY22		0x2d5
+#define BTN_TRIGGER_HAPPY23		0x2d6
+#define BTN_TRIGGER_HAPPY24		0x2d7
+#define BTN_TRIGGER_HAPPY25		0x2d8
+#define BTN_TRIGGER_HAPPY26		0x2d9
+#define BTN_TRIGGER_HAPPY27		0x2da
+#define BTN_TRIGGER_HAPPY28		0x2db
+#define BTN_TRIGGER_HAPPY29		0x2dc
+#define BTN_TRIGGER_HAPPY30		0x2dd
+#define BTN_TRIGGER_HAPPY31		0x2de
+#define BTN_TRIGGER_HAPPY32		0x2df
+#define BTN_TRIGGER_HAPPY33		0x2e0
+#define BTN_TRIGGER_HAPPY34		0x2e1
+#define BTN_TRIGGER_HAPPY35		0x2e2
+#define BTN_TRIGGER_HAPPY36		0x2e3
+#define BTN_TRIGGER_HAPPY37		0x2e4
+#define BTN_TRIGGER_HAPPY38		0x2e5
+#define BTN_TRIGGER_HAPPY39		0x2e6
+#define BTN_TRIGGER_HAPPY40		0x2e7
 
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
@@ -762,6 +806,7 @@ struct input_absinfo {
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
+#define BUS_SPI			0x1C
 
 /*
  * MT_TOOL types
@@ -1098,8 +1143,10 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
-	int (*setkeycode)(struct input_dev *dev, int scancode, int keycode);
-	int (*getkeycode)(struct input_dev *dev, int scancode, int *keycode);
+	int (*setkeycode)(struct input_dev *dev,
+			  unsigned int scancode, unsigned int keycode);
+	int (*getkeycode)(struct input_dev *dev,
+			  unsigned int scancode, unsigned int *keycode);
 
 	struct ff_device *ff;
 
@@ -1108,7 +1155,7 @@ struct input_dev {
 
 	int sync;
 
-	int abs[ABS_MAX + 1];
+	int abs[ABS_CNT];
 	int rep[REP_MAX + 1];
 
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
@@ -1116,11 +1163,11 @@ struct input_dev {
 	unsigned long snd[BITS_TO_LONGS(SND_CNT)];
 	unsigned long sw[BITS_TO_LONGS(SW_CNT)];
 
-	int absmax[ABS_MAX + 1];
-	int absmin[ABS_MAX + 1];
-	int absfuzz[ABS_MAX + 1];
-	int absflat[ABS_MAX + 1];
-	int absres[ABS_MAX + 1];
+	int absmax[ABS_CNT];
+	int absmin[ABS_CNT];
+	int absfuzz[ABS_CNT];
+	int absflat[ABS_CNT];
+	int absres[ABS_CNT];
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
@@ -1199,6 +1246,10 @@ struct input_handle;
  * @event: event handler. This method is being called by input core with
  *	interrupts disabled and dev->event_lock spinlock held and so
  *	it may not sleep
+ * @filter: similar to @event; separates normal event handlers from
+ *	"filters".
+ * @match: called after comparing device's id with handler's id_table
+ *	to perform fine-grained matching between device and handler
  * @connect: called when attaching a handler to an input device
  * @disconnect: disconnects a handler from input device
  * @start: starts handler for given handle. This function is called by
@@ -1210,8 +1261,6 @@ struct input_handle;
  * @name: name of the handler, to be shown in /proc/bus/input/handlers
  * @id_table: pointer to a table of input_device_ids this driver can
  *	handle
- * @blacklist: pointer to a table of input_device_ids this driver should
- *	ignore even if they match @id_table
  * @h_list: list of input handles associated with the handler
  * @node: for placing the driver onto input_handler_list
  *
@@ -1219,6 +1268,11 @@ struct input_handle;
  * are likely several handlers attached to any given input device at the
  * same time. All of them will get their copy of input event generated by
  * the device.
+ *
+ * The very same structure is used to implement input filters. Input core
+ * allows filters to run first and will not pass event to regular handlers
+ * if any of the filters indicate that the event should be filtered (by
+ * returning %true from their filter() method).
  *
  * Note that input core serializes calls to connect() and disconnect()
  * methods.
@@ -1228,6 +1282,8 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
@@ -1237,7 +1293,6 @@ struct input_handler {
 	const char *name;
 
 	const struct input_device_id *id_table;
-	const struct input_device_id *blacklist;
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1363,8 +1418,10 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
 }
 
-int input_get_keycode(struct input_dev *dev, int scancode, int *keycode);
-int input_set_keycode(struct input_dev *dev, int scancode, int keycode);
+int input_get_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int *keycode);
+int input_set_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int keycode);
 
 extern struct class input_class;
 

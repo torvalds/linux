@@ -573,7 +573,7 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 			mnt->mnt_master = old;
 			CLEAR_MNT_SHARED(mnt);
 		} else if (!(flag & CL_PRIVATE)) {
-			if ((flag & CL_PROPAGATION) || IS_MNT_SHARED(old))
+			if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(old))
 				list_add(&mnt->mnt_share, &old->mnt_share);
 			if (IS_MNT_SLAVE(old))
 				list_add(&mnt->mnt_slave, &old->mnt_slave);
@@ -628,7 +628,6 @@ repeat:
 		mnt->mnt_pinned = 0;
 		spin_unlock(&vfsmount_lock);
 		acct_auto_close_mnt(mnt);
-		security_sb_umount_close(mnt);
 		goto repeat;
 	}
 }
@@ -735,6 +734,21 @@ static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 static void m_stop(struct seq_file *m, void *v)
 {
 	up_read(&namespace_sem);
+}
+
+int mnt_had_events(struct proc_mounts *p)
+{
+	struct mnt_namespace *ns = p->ns;
+	int res = 0;
+
+	spin_lock(&vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = 1;
+	}
+	spin_unlock(&vfsmount_lock);
+
+	return res;
 }
 
 struct proc_fs_info {
@@ -1102,8 +1116,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		retval = 0;
 	}
 	spin_unlock(&vfsmount_lock);
-	if (retval)
-		security_sb_umount_busy(mnt);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
 	return retval;
@@ -1121,8 +1133,15 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 {
 	struct path path;
 	int retval;
+	int lookup_flags = 0;
 
-	retval = user_path(name, &path);
+	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+		return -EINVAL;
+
+	if (!(flags & UMOUNT_NOFOLLOW))
+		lookup_flags |= LOOKUP_FOLLOW;
+
+	retval = user_path_at(AT_FDCWD, name, lookup_flags, &path);
 	if (retval)
 		goto out;
 	retval = -EINVAL;
@@ -1244,6 +1263,21 @@ void drop_collected_mounts(struct vfsmount *mnt)
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
+}
+
+int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
+		   struct vfsmount *root)
+{
+	struct vfsmount *mnt;
+	int res = f(root, arg);
+	if (res)
+		return res;
+	list_for_each_entry(mnt, &root->mnt_list, mnt_list) {
+		res = f(mnt, arg);
+		if (res)
+			return res;
+	}
+	return 0;
 }
 
 static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
@@ -1395,20 +1429,13 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 
 	err = -ENOENT;
 	mutex_lock(&path->dentry->d_inode->i_mutex);
-	if (IS_DEADDIR(path->dentry->d_inode))
+	if (cant_mount(path->dentry))
 		goto out_unlock;
 
-	err = security_sb_check_sb(mnt, path);
-	if (err)
-		goto out_unlock;
-
-	err = -ENOENT;
 	if (!d_unlinked(path->dentry))
 		err = attach_recursive_mnt(mnt, path, NULL);
 out_unlock:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
-	if (!err)
-		security_sb_post_addmount(mnt, path);
 	return err;
 }
 
@@ -1538,14 +1565,12 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		spin_lock(&vfsmount_lock);
-		mnt_flags |= path->mnt->mnt_flags & MNT_PNODE_MASK;
+		mnt_flags |= path->mnt->mnt_flags & MNT_PROPAGATION_MASK;
 		path->mnt->mnt_flags = mnt_flags;
 		spin_unlock(&vfsmount_lock);
 	}
 	up_write(&sb->s_umount);
 	if (!err) {
-		security_sb_post_remount(path->mnt, flags, data);
-
 		spin_lock(&vfsmount_lock);
 		touch_mnt_namespace(path->mnt->mnt_ns);
 		spin_unlock(&vfsmount_lock);
@@ -1586,7 +1611,7 @@ static int do_move_mount(struct path *path, char *old_name)
 
 	err = -ENOENT;
 	mutex_lock(&path->dentry->d_inode->i_mutex);
-	if (IS_DEADDIR(path->dentry->d_inode))
+	if (cant_mount(path->dentry))
 		goto out1;
 
 	if (d_unlinked(path->dentry))
@@ -1671,7 +1696,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 {
 	int err;
 
-	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD);
+	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL);
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
@@ -2197,7 +2222,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!check_mnt(root.mnt))
 		goto out2;
 	error = -ENOENT;
-	if (IS_DEADDIR(new.dentry->d_inode))
+	if (cant_mount(old.dentry))
 		goto out2;
 	if (d_unlinked(new.dentry))
 		goto out2;
@@ -2240,7 +2265,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	spin_unlock(&vfsmount_lock);
 	chroot_fs_refs(&root, &new);
-	security_sb_post_pivotroot(&root, &new);
 	error = 0;
 	path_put(&root_parent);
 	path_put(&parent_path);
@@ -2314,17 +2338,13 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	struct vfsmount *root;
 	LIST_HEAD(umount_list);
 
-	if (!atomic_dec_and_lock(&ns->count, &vfsmount_lock))
+	if (!atomic_dec_and_test(&ns->count))
 		return;
-	root = ns->root;
-	ns->root = NULL;
-	spin_unlock(&vfsmount_lock);
 	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
-	umount_tree(root, 0, &umount_list);
+	umount_tree(ns->root, 0, &umount_list);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);

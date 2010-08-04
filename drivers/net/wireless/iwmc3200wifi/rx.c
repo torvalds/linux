@@ -44,6 +44,7 @@
 #include <linux/ieee80211.h>
 #include <linux/if_arp.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 #include "iwm.h"
@@ -342,15 +343,17 @@ static void iwm_rx_ticket_node_free(struct iwm_rx_ticket_node *ticket_node)
 static struct iwm_rx_packet *iwm_rx_packet_get(struct iwm_priv *iwm, u16 id)
 {
 	u8 id_hash = IWM_RX_ID_GET_HASH(id);
-	struct list_head *packet_list;
-	struct iwm_rx_packet *packet, *next;
+	struct iwm_rx_packet *packet;
 
-	packet_list = &iwm->rx_packets[id_hash];
-
-	list_for_each_entry_safe(packet, next, packet_list, node)
-		if (packet->id == id)
+	spin_lock(&iwm->packet_lock[id_hash]);
+	list_for_each_entry(packet, &iwm->rx_packets[id_hash], node)
+		if (packet->id == id) {
+			list_del(&packet->node);
+			spin_unlock(&iwm->packet_lock[id_hash]);
 			return packet;
+		}
 
+	spin_unlock(&iwm->packet_lock[id_hash]);
 	return NULL;
 }
 
@@ -388,18 +391,22 @@ void iwm_rx_free(struct iwm_priv *iwm)
 	struct iwm_rx_packet *packet, *np;
 	int i;
 
+	spin_lock(&iwm->ticket_lock);
 	list_for_each_entry_safe(ticket, nt, &iwm->rx_tickets, node) {
 		list_del(&ticket->node);
 		iwm_rx_ticket_node_free(ticket);
 	}
+	spin_unlock(&iwm->ticket_lock);
 
 	for (i = 0; i < IWM_RX_ID_HASH; i++) {
+		spin_lock(&iwm->packet_lock[i]);
 		list_for_each_entry_safe(packet, np, &iwm->rx_packets[i],
 					 node) {
 			list_del(&packet->node);
 			kfree_skb(packet->skb);
 			kfree(packet);
 		}
+		spin_unlock(&iwm->packet_lock[i]);
 	}
 }
 
@@ -424,10 +431,13 @@ static int iwm_ntf_rx_ticket(struct iwm_priv *iwm, u8 *buf,
 				return PTR_ERR(ticket_node);
 
 			IWM_DBG_RX(iwm, DBG, "TICKET %s(%d)\n",
-				   ticket->action ==  IWM_RX_TICKET_RELEASE ?
+				   __le16_to_cpu(ticket->action) ==
+							IWM_RX_TICKET_RELEASE ?
 				   "RELEASE" : "DROP",
 				   ticket->id);
+			spin_lock(&iwm->ticket_lock);
 			list_add_tail(&ticket_node->node, &iwm->rx_tickets);
+			spin_unlock(&iwm->ticket_lock);
 
 			/*
 			 * We received an Rx ticket, most likely there's
@@ -460,6 +470,7 @@ static int iwm_ntf_rx_packet(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_rx_packet *packet;
 	u16 id, buf_offset;
 	u32 packet_size;
+	u8 id_hash;
 
 	IWM_DBG_RX(iwm, DBG, "\n");
 
@@ -477,7 +488,10 @@ static int iwm_ntf_rx_packet(struct iwm_priv *iwm, u8 *buf,
 	if (IS_ERR(packet))
 		return PTR_ERR(packet);
 
-	list_add_tail(&packet->node, &iwm->rx_packets[IWM_RX_ID_GET_HASH(id)]);
+	id_hash = IWM_RX_ID_GET_HASH(id);
+	spin_lock(&iwm->packet_lock[id_hash]);
+	list_add_tail(&packet->node, &iwm->rx_packets[id_hash]);
+	spin_unlock(&iwm->packet_lock[id_hash]);
 
 	/* We might (unlikely) have received the packet _after_ the ticket */
 	queue_work(iwm->rx_wq, &iwm->rx_worker);
@@ -518,6 +532,8 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
 {
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+	struct ieee80211_channel *chan;
 	struct iwm_umac_notif_assoc_complete *complete =
 		(struct iwm_umac_notif_assoc_complete *)buf;
 
@@ -526,6 +542,18 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 	switch (le32_to_cpu(complete->status)) {
 	case UMAC_ASSOC_COMPLETE_SUCCESS:
+		chan = ieee80211_get_channel(wiphy,
+			ieee80211_channel_to_frequency(complete->channel));
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED) {
+			/* Associated to a unallowed channel, disassociate. */
+			__iwm_invalidate_mlme_profile(iwm);
+			IWM_WARN(iwm, "Couldn't associate with %pM due to "
+				 "channel %d is disabled. Check your local "
+				 "regulatory setting.\n",
+				 complete->bssid, complete->channel);
+			goto failure;
+		}
+
 		set_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memcpy(iwm->bssid, complete->bssid, ETH_ALEN);
 		iwm->channel = complete->channel;
@@ -562,6 +590,7 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 					GFP_KERNEL);
 		break;
 	case UMAC_ASSOC_COMPLETE_FAILURE:
+ failure:
 		clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memset(iwm->bssid, 0, ETH_ALEN);
 		iwm->channel = 0;
@@ -756,7 +785,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 			(struct iwm_umac_notif_bss_info *)buf;
 	struct ieee80211_channel *channel;
 	struct ieee80211_supported_band *band;
-	struct iwm_bss_info *bss, *next;
+	struct iwm_bss_info *bss;
 	s32 signal;
 	int freq;
 	u16 frame_len = le16_to_cpu(umac_bss->frame_len);
@@ -775,7 +804,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 	IWM_DBG_MLME(iwm, DBG, "\tRSSI: %d\n", umac_bss->rssi);
 	IWM_DBG_MLME(iwm, DBG, "\tFrame Length: %d\n", frame_len);
 
-	list_for_each_entry_safe(bss, next, &iwm->bss_list, node)
+	list_for_each_entry(bss, &iwm->bss_list, node)
 		if (bss->bss->table_idx == umac_bss->table_idx)
 			break;
 
@@ -794,7 +823,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 	}
 
 	bss->bss = kzalloc(bss_len, GFP_KERNEL);
-	if (!bss) {
+	if (!bss->bss) {
 		kfree(bss);
 		IWM_ERR(iwm, "Couldn't allocate bss\n");
 		return -ENOMEM;
@@ -842,16 +871,15 @@ static int iwm_mlme_remove_bss(struct iwm_priv *iwm, u8 *buf,
 	int i;
 
 	for (i = 0; i < le32_to_cpu(bss_rm->count); i++) {
-		table_idx = (le16_to_cpu(bss_rm->entries[i])
-			     & IWM_BSS_REMOVE_INDEX_MSK);
+		table_idx = le16_to_cpu(bss_rm->entries[i]) &
+			    IWM_BSS_REMOVE_INDEX_MSK;
 		list_for_each_entry_safe(bss, next, &iwm->bss_list, node)
 			if (bss->bss->table_idx == cpu_to_le16(table_idx)) {
 				struct ieee80211_mgmt *mgmt;
 
 				mgmt = (struct ieee80211_mgmt *)
 					(bss->bss->frame_buf);
-				IWM_DBG_MLME(iwm, ERR,
-					     "BSS removed: %pM\n",
+				IWM_DBG_MLME(iwm, ERR, "BSS removed: %pM\n",
 					     mgmt->bssid);
 				list_del(&bss->node);
 				kfree(bss->bss);
@@ -868,36 +896,35 @@ static int iwm_mlme_mgt_frame(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_umac_notif_mgt_frame *mgt_frame =
 			(struct iwm_umac_notif_mgt_frame *)buf;
 	struct ieee80211_mgmt *mgt = (struct ieee80211_mgmt *)mgt_frame->frame;
-	u8 *ie;
 
 	IWM_HEXDUMP(iwm, DBG, MLME, "MGT: ", mgt_frame->frame,
 		    le16_to_cpu(mgt_frame->len));
 
 	if (ieee80211_is_assoc_req(mgt->frame_control)) {
-		ie = mgt->u.assoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.assoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.assoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_req(mgt->frame_control)) {
-		ie = mgt->u.reassoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.reassoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.reassoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_assoc_resp(mgt->frame_control)) {
-		ie = mgt->u.assoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.assoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.assoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_resp(mgt->frame_control)) {
-		ie = mgt->u.reassoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.reassoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.reassoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
@@ -1117,7 +1144,7 @@ static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
 		return -EINVAL;
 	}
 
-	for_each_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
+	for_each_set_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
 		tid_info = &sta_info->tid_info[bit];
 
 		mutex_lock(&tid_info->mutex);
@@ -1224,26 +1251,30 @@ static int iwm_rx_handle_wifi(struct iwm_priv *iwm, u8 *buf,
 	u8 source, cmd_id;
 	u16 seq_num;
 	u32 count;
-	u8 resp;
 
 	wifi_hdr = (struct iwm_umac_wifi_in_hdr *)buf;
 	cmd_id = wifi_hdr->sw_hdr.cmd.cmd;
-
 	source = GET_VAL32(wifi_hdr->hw_hdr.cmd, UMAC_HDI_IN_CMD_SOURCE);
 	if (source >= IWM_SRC_NUM) {
 		IWM_CRIT(iwm, "invalid source %d\n", source);
 		return -EINVAL;
 	}
 
-	count = (GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_BYTE_COUNT));
+	if (cmd_id == REPLY_RX_MPDU_CMD)
+		trace_iwm_rx_packet(iwm, buf, buf_size);
+	else if ((cmd_id == UMAC_NOTIFY_OPCODE_RX_TICKET) &&
+		 (source == UMAC_HDI_IN_SOURCE_FW))
+		trace_iwm_rx_ticket(iwm, buf, buf_size);
+	else
+		trace_iwm_rx_wifi_cmd(iwm, wifi_hdr);
+
+	count = GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_BYTE_COUNT);
 	count += sizeof(struct iwm_umac_wifi_in_hdr) -
 		 sizeof(struct iwm_dev_cmd_hdr);
 	if (count > buf_size) {
 		IWM_CRIT(iwm, "count %d, buf size:%ld\n", count, buf_size);
 		return -EINVAL;
 	}
-
-	resp = GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_STATUS);
 
 	seq_num = le16_to_cpu(wifi_hdr->sw_hdr.cmd.seq_num);
 
@@ -1317,8 +1348,9 @@ static int iwm_rx_handle_nonwifi(struct iwm_priv *iwm, u8 *buf,
 {
 	u8 seq_num;
 	struct iwm_udma_in_hdr *hdr = (struct iwm_udma_in_hdr *)buf;
-	struct iwm_nonwifi_cmd *cmd, *next;
+	struct iwm_nonwifi_cmd *cmd;
 
+	trace_iwm_rx_nonwifi_cmd(iwm, buf, buf_size);
 	seq_num = GET_VAL32(hdr->cmd, UDMA_HDI_IN_CMD_NON_WIFI_HW_SEQ_NUM);
 
 	/*
@@ -1329,7 +1361,7 @@ static int iwm_rx_handle_nonwifi(struct iwm_priv *iwm, u8 *buf,
 	 * That means we only support synchronised non wifi command response
 	 * schemes.
 	 */
-	list_for_each_entry_safe(cmd, next, &iwm->nonwifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->nonwifi_pending_cmd, pending)
 		if (cmd->seq_num == seq_num) {
 			cmd->resp_received = 1;
 			cmd->buf.len = buf_size;
@@ -1534,6 +1566,33 @@ static void classify8023(struct sk_buff *skb)
 	}
 }
 
+static void iwm_rx_process_amsdu(struct iwm_priv *iwm, struct sk_buff *skb)
+{
+	struct wireless_dev *wdev = iwm_to_wdev(iwm);
+	struct net_device *ndev = iwm_to_ndev(iwm);
+	struct sk_buff_head list;
+	struct sk_buff *frame;
+
+	IWM_HEXDUMP(iwm, DBG, RX, "A-MSDU: ", skb->data, skb->len);
+
+	__skb_queue_head_init(&list);
+	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0);
+
+	while ((frame = __skb_dequeue(&list))) {
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += frame->len;
+
+		frame->protocol = eth_type_trans(frame, ndev);
+		frame->ip_summed = CHECKSUM_NONE;
+		memset(frame->cb, 0, sizeof(frame->cb));
+
+		if (netif_rx_ni(frame) == NET_RX_DROP) {
+			IWM_ERR(iwm, "Packet dropped\n");
+			ndev->stats.rx_dropped++;
+		}
+	}
+}
+
 static void iwm_rx_process_packet(struct iwm_priv *iwm,
 				  struct iwm_rx_packet *packet,
 				  struct iwm_rx_ticket_node *ticket_node)
@@ -1548,24 +1607,33 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 	switch (le16_to_cpu(ticket_node->ticket->action)) {
 	case IWM_RX_TICKET_RELEASE:
 		IWM_DBG_RX(iwm, DBG, "RELEASE packet\n");
-		classify8023(skb);
+
 		iwm_rx_adjust_packet(iwm, packet, ticket_node);
+		skb->dev = iwm_to_ndev(iwm);
+		classify8023(skb);
+
+		if (le16_to_cpu(ticket_node->ticket->flags) &
+		    IWM_RX_TICKET_AMSDU_MSK) {
+			iwm_rx_process_amsdu(iwm, skb);
+			break;
+		}
+
 		ret = ieee80211_data_to_8023(skb, ndev->dev_addr, wdev->iftype);
 		if (ret < 0) {
 			IWM_DBG_RX(iwm, DBG, "Couldn't convert 802.11 header - "
 				   "%d\n", ret);
+			kfree_skb(packet->skb);
 			break;
 		}
 
 		IWM_HEXDUMP(iwm, DBG, RX, "802.3: ", skb->data, skb->len);
 
-		skb->dev = iwm_to_ndev(iwm);
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += skb->len;
+
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb->ip_summed = CHECKSUM_NONE;
 		memset(skb->cb, 0, sizeof(skb->cb));
-
-		ndev->stats.rx_packets++;
-		ndev->stats.rx_bytes += skb->len;
 
 		if (netif_rx_ni(skb) == NET_RX_DROP) {
 			IWM_ERR(iwm, "Packet dropped\n");
@@ -1612,6 +1680,7 @@ void iwm_rx_worker(struct work_struct *work)
 	 * We stop whenever a ticket is missing its packet, as we're
 	 * supposed to send the packets in order.
 	 */
+	spin_lock(&iwm->ticket_lock);
 	list_for_each_entry_safe(ticket, next, &iwm->rx_tickets, node) {
 		struct iwm_rx_packet *packet =
 			iwm_rx_packet_get(iwm, le16_to_cpu(ticket->ticket->id));
@@ -1620,12 +1689,12 @@ void iwm_rx_worker(struct work_struct *work)
 			IWM_DBG_RX(iwm, DBG, "Skip rx_work: Wait for ticket %d "
 				   "to be handled first\n",
 				   le16_to_cpu(ticket->ticket->id));
-			return;
+			break;
 		}
 
 		list_del(&ticket->node);
-		list_del(&packet->node);
 		iwm_rx_process_packet(iwm, packet, ticket);
 	}
+	spin_unlock(&iwm->ticket_lock);
 }
 
