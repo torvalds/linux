@@ -682,9 +682,11 @@ int intel_wrap_ring_buffer(struct drm_device *dev,
 	}
 
 	virt = (unsigned int *)(ring->virtual_start + ring->tail);
-	rem /= 4;
-	while (rem--)
+	rem /= 8;
+	while (rem--) {
 		*virt++ = MI_NOOP;
+		*virt++ = MI_NOOP;
+	}
 
 	ring->tail = 0;
 	ring->space = ring->head - 8;
