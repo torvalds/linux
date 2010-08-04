@@ -1401,7 +1401,7 @@ struct iwl_rx_phy_res {
 	u8 non_cfg_phy_buf[32]; /* for various implementations of non_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
-	__le16 reserved3;
+	__le16 frame_time;	/* frame's time on the air */
 } __packed;
 
 struct iwl_rx_mpdu_res_start {
