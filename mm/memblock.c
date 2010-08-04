@@ -487,17 +487,43 @@ void __init memblock_enforce_memory_limit(u64 memory_limit)
 	}
 }
 
+static int memblock_search(struct memblock_type *type, u64 addr)
+{
+	unsigned int left = 0, right = type->cnt;
+
+	do {
+		unsigned int mid = (right + left) / 2;
+
+		if (addr < type->regions[mid].base)
+			right = mid;
+		else if (addr >= (type->regions[mid].base +
+				  type->regions[mid].size))
+			left = mid + 1;
+		else
+			return mid;
+	} while (left < right);
+	return -1;
+}
+
 int __init memblock_is_reserved(u64 addr)
 {
-	int i;
+	return memblock_search(&memblock.reserved, addr) != -1;
+}
 
-	for (i = 0; i < memblock.reserved.cnt; i++) {
-		u64 upper = memblock.reserved.regions[i].base +
-			memblock.reserved.regions[i].size - 1;
-		if ((addr >= memblock.reserved.regions[i].base) && (addr <= upper))
-			return 1;
-	}
-	return 0;
+int memblock_is_memory(u64 addr)
+{
+	return memblock_search(&memblock.memory, addr) != -1;
+}
+
+int memblock_is_region_memory(u64 base, u64 size)
+{
+	int idx = memblock_search(&memblock.reserved, base);
+
+	if (idx == -1)
+		return 0;
+	return memblock.reserved.regions[idx].base <= base &&
+		(memblock.reserved.regions[idx].base +
+		 memblock.reserved.regions[idx].size) >= (base + size);
 }
 
 int memblock_is_region_reserved(u64 base, u64 size)

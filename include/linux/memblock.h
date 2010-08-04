@@ -56,6 +56,8 @@ extern u64 __init __memblock_alloc_base(u64 size,
 extern u64 __init memblock_phys_mem_size(void);
 extern u64 memblock_end_of_DRAM(void);
 extern void __init memblock_enforce_memory_limit(u64 memory_limit);
+extern int memblock_is_memory(u64 addr);
+extern int memblock_is_region_memory(u64 base, u64 size);
 extern int __init memblock_is_reserved(u64 addr);
 extern int memblock_is_region_reserved(u64 base, u64 size);
 extern int memblock_find(struct memblock_region *res);
