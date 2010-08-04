@@ -2912,7 +2912,7 @@ special_insn:
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
-			goto done;
+			break;
 		goto xchg;
 	case 0x9c: /* pushf */
 		c->src.val =  (unsigned long) ctxt->eflags;
