@@ -20,7 +20,7 @@
 /* Please put other headers in irnet.h - Thanks */
 
 /* Generic PPP callbacks (to call us) */
-static struct ppp_channel_ops irnet_ppp_ops = {
+static const struct ppp_channel_ops irnet_ppp_ops = {
 	.start_xmit = ppp_irnet_send,
 	.ioctl = ppp_irnet_ioctl
 };
