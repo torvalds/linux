@@ -625,11 +625,18 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	struct resource res;
 	char name[64];
 
-	/* We are only interested in SSIs with a codec phandle in them, so let's
-	 * make sure this SSI has one.
+	/* SSIs that are not connected on the board should have a
+	 *      status = "disabled"
+	 * property in their device tree nodes.
 	 */
-	if (!of_get_property(np, "codec-handle", NULL))
+	if (!of_device_is_available(np))
 		return -ENODEV;
+
+	/* Check for a codec-handle property. */
+	if (!of_get_property(np, "codec-handle", NULL)) {
+		dev_err(&of_dev->dev, "missing codec-handle property\n");
+		return -ENODEV;
+	}
 
 	/* We only support the SSI in "I2S Slave" mode */
 	sprop = of_get_property(np, "fsl,mode", NULL);
