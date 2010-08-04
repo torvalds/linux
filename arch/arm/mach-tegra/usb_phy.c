@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <asm/mach-types.h>
 #include <mach/usb_phy.h>
+#include <mach/iomap.h>
 
 #define USB_PORTSC1		0x184
 #define   USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
@@ -98,6 +99,9 @@
 #define   UTMIP_FORCE_PDDR_POWERDOWN	(1 << 4)
 #define   UTMIP_XCVR_TERM_RANGE_ADJ(x)	(((x) & 0xf) << 18)
 
+static DEFINE_SPINLOCK(utmip_pad_lock);
+static int utmip_pad_count;
+
 static const int udc_freq_table[] = {
 	12000000,
 	13000000,
@@ -140,6 +144,76 @@ static struct tegra_utmip_config utmip_default[] = {
 		.xcvr_lsrslew = 2,
 	},
 };
+
+static int utmip_pad_open(struct tegra_usb_phy *phy)
+{
+	phy->pad_clk = clk_get_sys("utmip-pad", NULL);
+	if (IS_ERR(phy->pad_clk)) {
+		pr_err("%s: can't get utmip pad clock\n", __func__);
+		return -1;
+	}
+
+	if (phy->instance == 0) {
+		phy->pad_regs = phy->regs;
+	} else {
+		phy->pad_regs = ioremap(TEGRA_USB_BASE, TEGRA_USB_SIZE);
+		if (!phy->pad_regs) {
+			pr_err("%s: can't remap usb registers\n", __func__);
+			clk_put(phy->pad_clk);
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static void utmip_pad_close(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 0)
+		iounmap(phy->pad_regs);
+	clk_put(phy->pad_clk);
+}
+
+static void utmip_pad_power_on(struct tegra_usb_phy *phy)
+{
+	unsigned long val, flags;
+	void __iomem *base = phy->pad_regs;
+
+	clk_enable(phy->pad_clk);
+
+	spin_lock_irqsave(&utmip_pad_lock, flags);
+
+	if (utmip_pad_count++ == 0) {
+		val = readl(base + UTMIP_BIAS_CFG0);
+		val &= ~(UTMIP_OTGPD | UTMIP_BIASPD);
+		writel(val, base + UTMIP_BIAS_CFG0);
+	}
+
+	spin_unlock_irqrestore(&utmip_pad_lock, flags);
+}
+
+static int utmip_pad_power_off(struct tegra_usb_phy *phy)
+{
+	unsigned long val, flags;
+	void __iomem *base = phy->pad_regs;
+
+	if (!utmip_pad_count) {
+		pr_err("%s: utmip pad already powered off\n", __func__);
+		return -1;
+	}
+
+	spin_lock_irqsave(&utmip_pad_lock, flags);
+
+	if (--utmip_pad_count == 0) {
+		val = readl(base + UTMIP_BIAS_CFG0);
+		val |= UTMIP_OTGPD | UTMIP_BIASPD;
+		writel(val, base + UTMIP_BIAS_CFG0);
+	}
+
+	clk_disable(phy->pad_clk);
+
+	spin_unlock_irqrestore(&utmip_pad_lock, flags);
+	return 0;
+}
 
 static int utmi_phy_wait_stable(struct tegra_usb_phy *phy)
 {
@@ -220,6 +294,8 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 		writel(val, base + USB_SUSP_CTRL);
 	}
 
+	utmip_pad_power_on(phy);
+
 	val = readl(base + UTMIP_XCVR_CFG0);
 	val &= ~(UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
 		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0) |
@@ -229,10 +305,6 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 	val |= UTMIP_XCVR_LSFSLEW(config->xcvr_lsfslew);
 	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
 	writel(val, base + UTMIP_XCVR_CFG0);
-
-	val = readl(base + UTMIP_BIAS_CFG0);
-	val &= ~(UTMIP_OTGPD | UTMIP_BIASPD);
-	writel(val, base + UTMIP_BIAS_CFG0);
 
 	val = readl(base + UTMIP_XCVR_CFG1);
 	val &= ~(UTMIP_FORCE_PDDISC_POWERDOWN | UTMIP_FORCE_PDCHRP_POWERDOWN |
@@ -329,6 +401,8 @@ void utmi_phy_power_off(struct tegra_usb_phy *phy)
 	val |= UTMIP_FORCE_PDDISC_POWERDOWN | UTMIP_FORCE_PDCHRP_POWERDOWN |
 	       UTMIP_FORCE_PDDR_POWERDOWN;
 	writel(val, base + UTMIP_XCVR_CFG1);
+
+	utmip_pad_power_off(phy);
 }
 
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
@@ -352,7 +426,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 
 	phy->pll_u = clk_get_sys(NULL, "pll_u");
 	if (IS_ERR(phy->pll_u)) {
-		printk(KERN_ERR "Can't get pll_u clock\n");
+		pr_err("Can't get pll_u clock\n");
 		err = PTR_ERR(phy->pll_u);
 		goto err0;
 	}
@@ -363,14 +437,18 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 			break;
 	}
 	if (freq_sel == ARRAY_SIZE(udc_freq_table)) {
-		printk(KERN_ERR "invalid pll_u parent rate %ld\n", parent_rate);
+		pr_err("invalid pll_u parent rate %ld\n", parent_rate);
 		err = -EINVAL;
 		goto err1;
 	}
 
 	/* TODO usb2 ulpi */
-	if (phy->instance != 1)
+	if (phy->instance != 1) {
+		err = utmip_pad_open(phy);
+		if (err < 0)
+			goto err1;
 		utmi_phy_init(phy, freq_sel);
+	}
 
 	return phy;
 
@@ -405,6 +483,8 @@ int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 
 int tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
+	if (phy->instance != 1)
+		utmip_pad_close(phy);
 	clk_put(phy->pll_u);
 	kfree(phy);
 	return 0;

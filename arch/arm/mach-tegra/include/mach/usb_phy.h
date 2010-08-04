@@ -33,7 +33,9 @@ struct tegra_utmip_config {
 struct tegra_usb_phy {
 	int instance;
 	void __iomem *regs;
+	void __iomem *pad_regs;
 	struct clk *pll_u;
+	struct clk *pad_clk;
 	struct tegra_utmip_config *config;
 };
 
