@@ -148,6 +148,12 @@ config HID_EGALAX
 	---help---
 	Support for the eGalax dual-touch panel.
 
+config HID_ELECOM
+	tristate "ELECOM"
+	depends on BT_HIDP
+	---help---
+	Support for the ELECOM BM084 (bluetooth mouse).
+
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
 	depends on USB_HID
