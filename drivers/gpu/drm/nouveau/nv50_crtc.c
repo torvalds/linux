@@ -365,7 +365,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)
-		return -EINVAL;
+		return -ENOENT;
 	cursor = nouveau_gem_object(gem);
 
 	ret = nouveau_bo_map(cursor);
