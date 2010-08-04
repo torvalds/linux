@@ -735,14 +735,6 @@ void intel_ring_begin(struct drm_device *dev,
 	ring->space -= n;
 }
 
-void intel_ring_emit(struct drm_device *dev,
-		struct intel_ring_buffer *ring, unsigned int data)
-{
-	unsigned int *virt = ring->virtual_start + ring->tail;
-	*virt = data;
-	ring->tail += 4;
-}
-
 void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {

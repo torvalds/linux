@@ -106,8 +106,16 @@ int intel_wrap_ring_buffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring);
 void intel_ring_begin(struct drm_device *dev,
 		struct intel_ring_buffer *ring, int n);
-void intel_ring_emit(struct drm_device *dev,
-		struct intel_ring_buffer *ring, u32 data);
+
+static inline void intel_ring_emit(struct drm_device *dev,
+				   struct intel_ring_buffer *ring,
+				   unsigned int data)
+{
+	unsigned int *virt = ring->virtual_start + ring->tail;
+	*virt = data;
+	ring->tail += 4;
+}
+
 void intel_fill_struct(struct drm_device *dev,
 		struct intel_ring_buffer *ring,
 		void *data,
