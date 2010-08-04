@@ -97,12 +97,12 @@ smbiosinstance_show(struct device *dev,
 }
 
 static struct device_attribute smbios_attr_label = {
-	.attr = {.name = "label", .mode = 0444, .owner = THIS_MODULE},
+	.attr = {.name = "label", .mode = 0444},
 	.show = smbioslabel_show,
 };
 
 static struct device_attribute smbios_attr_instance = {
-	.attr = {.name = "index", .mode = 0444, .owner = THIS_MODULE},
+	.attr = {.name = "index", .mode = 0444},
 	.show = smbiosinstance_show,
 };
 
