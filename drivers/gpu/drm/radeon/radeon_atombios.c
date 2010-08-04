@@ -2064,6 +2064,11 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_PERFORMANCE;
 						break;
+					case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
+						if (misc2 & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
+							rdev->pm.power_state[state_index].type =
+								POWER_STATE_TYPE_PERFORMANCE;
+						break;
 					}
 					rdev->pm.power_state[state_index].flags = 0;
 					if (misc & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
