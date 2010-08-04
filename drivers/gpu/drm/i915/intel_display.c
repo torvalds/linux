@@ -2882,7 +2882,7 @@ struct cxsr_latency {
 	unsigned long cursor_hpll_disable;
 };
 
-static struct cxsr_latency cxsr_latency_table[] = {
+static const struct cxsr_latency cxsr_latency_table[] = {
 	{1, 0, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
 	{1, 0, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
 	{1, 0, 800, 800, 3347, 33347, 3763, 33763},    /* DDR2-800 SC */
@@ -2920,11 +2920,13 @@ static struct cxsr_latency cxsr_latency_table[] = {
 	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int is_ddr3, 
-						   int fsb, int mem)
+static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
+							 int is_ddr3,
+							 int fsb,
+							 int mem)
 {
+	const struct cxsr_latency *latency;
 	int i;
-	struct cxsr_latency *latency;
 
 	if (fsb == 0 || mem == 0)
 		return NULL;
@@ -3035,12 +3037,12 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 			  int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct cxsr_latency *latency;
 	u32 reg;
 	unsigned long wm;
-	struct cxsr_latency *latency;
 	int sr_clock;
 
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->is_ddr3, 
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->is_ddr3,
 					 dev_priv->fsb_freq, dev_priv->mem_freq);
 	if (!latency) {
 		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
