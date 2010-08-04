@@ -120,7 +120,7 @@ static ssize_t show_temp(struct device *dev,
 	int temp;
 	struct k8temp_data *data = k8temp_update_device(dev);
 
-	if (data->swap_core_select)
+	if (data->swap_core_select && (data->sensorsp & SEL_CORE))
 		core = core ? 0 : 1;
 
 	temp = TEMP_FROM_REG(data->temp[core][place]) + data->temp_offset;
@@ -180,11 +180,13 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 		}
 
 		if ((model >= 0x69) &&
-		    !(model == 0xc1 || model == 0x6c || model == 0x7c)) {
+		    !(model == 0xc1 || model == 0x6c || model == 0x7c ||
+		      model == 0x6b || model == 0x6f || model == 0x7f)) {
 			/*
-			 * RevG desktop CPUs (i.e. no socket S1G1 parts)
-			 * need additional offset, otherwise reported
-			 * temperature is below ambient temperature
+			 * RevG desktop CPUs (i.e. no socket S1G1 or
+			 * ASB1 parts) need additional offset,
+			 * otherwise reported temperature is below
+			 * ambient temperature
 			 */
 			data->temp_offset = 21000;
 		}

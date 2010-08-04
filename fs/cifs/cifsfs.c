@@ -47,6 +47,7 @@
 #include <linux/key-type.h>
 #include "dns_resolve.h"
 #include "cifs_spnego.h"
+#include "fscache.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 int cifsFYI = 0;
@@ -329,6 +330,12 @@ cifs_destroy_inode(struct inode *inode)
 }
 
 static void
+cifs_clear_inode(struct inode *inode)
+{
+	cifs_fscache_release_inode_cookie(inode);
+}
+
+static void
 cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 {
 	seq_printf(s, ",addr=");
@@ -473,14 +480,25 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+void cifs_drop_inode(struct inode *inode)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		return generic_drop_inode(inode);
+
+	return generic_delete_inode(inode);
+}
+
 static const struct super_operations cifs_super_ops = {
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
 	.destroy_inode = cifs_destroy_inode,
-/*	.drop_inode	    = generic_delete_inode,
-	.delete_inode	= cifs_delete_inode,  */  /* Do not need above two
-	functions unless later we add lazy close of inodes or unless the
+	.drop_inode	= cifs_drop_inode,
+	.clear_inode	= cifs_clear_inode,
+/*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
+	function unless later we add lazy close of inodes or unless the
 	kernel forgets to call us with the same number of releases (closes)
 	as opens */
 	.show_options = cifs_show_options,
@@ -892,6 +910,10 @@ init_cifs(void)
 		cFYI(1, "cifs_max_pending set to max of 256");
 	}
 
+	rc = cifs_fscache_register();
+	if (rc)
+		goto out;
+
 	rc = cifs_init_inodecache();
 	if (rc)
 		goto out_clean_proc;
@@ -913,7 +935,7 @@ init_cifs(void)
 		goto out_unregister_filesystem;
 #endif
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	rc = register_key_type(&key_type_dns_resolver);
+	rc = cifs_init_dns_resolver();
 	if (rc)
 		goto out_unregister_key_type;
 #endif
@@ -925,7 +947,7 @@ init_cifs(void)
 
  out_unregister_resolver_key:
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	unregister_key_type(&key_type_dns_resolver);
+	cifs_exit_dns_resolver();
  out_unregister_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
@@ -941,6 +963,8 @@ init_cifs(void)
 	cifs_destroy_inodecache();
  out_clean_proc:
 	cifs_proc_clean();
+	cifs_fscache_unregister();
+ out:
 	return rc;
 }
 
@@ -949,9 +973,10 @@ exit_cifs(void)
 {
 	cFYI(DBG2, "exit_cifs");
 	cifs_proc_clean();
+	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
-	unregister_key_type(&key_type_dns_resolver);
+	cifs_exit_dns_resolver();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);

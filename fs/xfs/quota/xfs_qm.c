@@ -23,25 +23,18 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_bmap.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
@@ -69,7 +62,7 @@ STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
-STATIC int	xfs_qm_shake(int, gfp_t);
+STATIC int	xfs_qm_shake(struct shrinker *, int, gfp_t);
 
 static struct shrinker xfs_qm_shaker = {
 	.shrink = xfs_qm_shake,
@@ -1497,7 +1490,7 @@ xfs_qm_dqiterate(
 				  maxlblkcnt - lblkno,
 				  XFS_BMAPI_METADATA,
 				  NULL,
-				  0, map, &nmaps, NULL, NULL);
+				  0, map, &nmaps, NULL);
 		xfs_iunlock(qip, XFS_ILOCK_SHARED);
 		if (error)
 			break;
@@ -1632,10 +1625,7 @@ xfs_qm_dqusage_adjust(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* not used */
 	int		ubsize,		/* not used */
-	void		*private_data,	/* not used */
-	xfs_daddr_t	bno,		/* starting block of inode cluster */
 	int		*ubused,	/* not used */
-	void		*dip,		/* on-disk inode pointer (not used) */
 	int		*res)		/* result code value */
 {
 	xfs_inode_t	*ip;
@@ -1660,7 +1650,7 @@ xfs_qm_dqusage_adjust(
 	 * the case in all other instances. It's OK that we do this because
 	 * quotacheck is done only at mount time.
 	 */
-	if ((error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip, bno))) {
+	if ((error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip))) {
 		*res = BULKSTAT_RV_NOTHING;
 		return error;
 	}
@@ -1672,7 +1662,8 @@ xfs_qm_dqusage_adjust(
 	 * making us disable quotas for the file system.
 	 */
 	if ((error = xfs_qm_dqget_noattach(ip, &udqp, &gdqp))) {
-		xfs_iput(ip, XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		IRELE(ip);
 		*res = BULKSTAT_RV_GIVEUP;
 		return error;
 	}
@@ -1685,7 +1676,8 @@ xfs_qm_dqusage_adjust(
 		 * Walk thru the extent list and count the realtime blocks.
 		 */
 		if ((error = xfs_qm_get_rtblks(ip, &rtblks))) {
-			xfs_iput(ip, XFS_ILOCK_EXCL);
+			xfs_iunlock(ip, XFS_ILOCK_EXCL);
+			IRELE(ip);
 			if (udqp)
 				xfs_qm_dqput(udqp);
 			if (gdqp)
@@ -1796,12 +1788,13 @@ xfs_qm_quotacheck(
 		 * Iterate thru all the inodes in the file system,
 		 * adjusting the corresponding dquot counters in core.
 		 */
-		if ((error = xfs_bulkstat(mp, &lastino, &count,
-				     xfs_qm_dqusage_adjust, NULL,
-				     structsz, NULL, BULKSTAT_FG_IGET, &done)))
+		error = xfs_bulkstat(mp, &lastino, &count,
+				     xfs_qm_dqusage_adjust,
+				     structsz, NULL, &done);
+		if (error)
 			break;
 
-	} while (! done);
+	} while (!done);
 
 	/*
 	 * We've made all the changes that we need to make incore.
@@ -1889,14 +1882,14 @@ xfs_qm_init_quotainos(
 		    mp->m_sb.sb_uquotino != NULLFSINO) {
 			ASSERT(mp->m_sb.sb_uquotino > 0);
 			if ((error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
-					     0, 0, &uip, 0)))
+					     0, 0, &uip)))
 				return XFS_ERROR(error);
 		}
 		if (XFS_IS_OQUOTA_ON(mp) &&
 		    mp->m_sb.sb_gquotino != NULLFSINO) {
 			ASSERT(mp->m_sb.sb_gquotino > 0);
 			if ((error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
-					     0, 0, &gip, 0))) {
+					     0, 0, &gip))) {
 				if (uip)
 					IRELE(uip);
 				return XFS_ERROR(error);
@@ -2119,7 +2112,10 @@ xfs_qm_shake_freelist(
  */
 /* ARGSUSED */
 STATIC int
-xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
+xfs_qm_shake(
+	struct shrinker	*shrink,
+	int		nr_to_scan,
+	gfp_t		gfp_mask)
 {
 	int	ndqused, nfree, n;
 

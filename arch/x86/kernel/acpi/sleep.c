@@ -157,9 +157,14 @@ static int __init acpi_sleep_setup(char *str)
 #ifdef CONFIG_HIBERNATION
 		if (strncmp(str, "s4_nohwsig", 10) == 0)
 			acpi_no_s4_hw_signature();
-		if (strncmp(str, "s4_nonvs", 8) == 0)
-			acpi_s4_no_nvs();
+		if (strncmp(str, "s4_nonvs", 8) == 0) {
+			pr_warning("ACPI: acpi_sleep=s4_nonvs is deprecated, "
+					"please use acpi_sleep=nonvs instead");
+			acpi_nvs_nosave();
+		}
 #endif
+		if (strncmp(str, "nonvs", 5) == 0)
+			acpi_nvs_nosave();
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
 		str = strchr(str, ',');

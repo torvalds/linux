@@ -297,26 +297,35 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 
 static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int validx, int *value_ret)
 {
-	unsigned char buf[14]; /* enough space for one range of 4 bytes */
+	unsigned char buf[2 + 3*sizeof(__u16)]; /* enough space for one range */
 	unsigned char *val;
-	int ret;
+	int ret, size;
 	__u8 bRequest;
 
-	bRequest = (request == UAC_GET_CUR) ?
-		UAC2_CS_CUR : UAC2_CS_RANGE;
+	if (request == UAC_GET_CUR) {
+		bRequest = UAC2_CS_CUR;
+		size = sizeof(__u16);
+	} else {
+		bRequest = UAC2_CS_RANGE;
+		size = sizeof(buf);
+	}
+
+	memset(buf, 0, sizeof(buf));
 
 	ret = snd_usb_ctl_msg(cval->mixer->chip->dev,
 			      usb_rcvctrlpipe(cval->mixer->chip->dev, 0),
 			      bRequest,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      validx, cval->mixer->ctrlif | (cval->id << 8),
-			      buf, sizeof(buf), 1000);
+			      buf, size, 1000);
 
 	if (ret < 0) {
 		snd_printk(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 			   request, validx, cval->mixer->ctrlif | (cval->id << 8), cval->val_type);
 		return ret;
 	}
+
+	/* FIXME: how should we handle multiple triplets here? */
 
 	switch (request) {
 	case UAC_GET_CUR:
@@ -1095,6 +1104,19 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 			cval->min = 6080;
 			cval->max = 8768;
 			cval->res = 192;
+		}
+		break;
+
+	case USB_ID(0x046d, 0x0809):
+	case USB_ID(0x046d, 0x0991):
+	/* Most audio usb devices lie about volume resolution.
+	 * Most Logitech webcams have res = 384.
+	 * Proboly there is some logitech magic behind this number --fishor
+	 */
+		if (!strcmp(kctl->id.name, "Mic Capture Volume")) {
+			snd_printk(KERN_INFO
+				"set resolution quirk: cval->res = 384\n");
+			cval->res = 384;
 		}
 		break;
 

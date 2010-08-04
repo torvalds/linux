@@ -136,10 +136,7 @@ static int gfs2_writeback_writepage(struct page *page,
 	if (ret <= 0)
 		return ret;
 
-	ret = mpage_writepage(page, gfs2_get_block_noalloc, wbc);
-	if (ret == -EAGAIN)
-		ret = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
-	return ret;
+	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
 }
 
 /**
@@ -637,9 +634,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	error = gfs2_write_alloc_required(ip, pos, len, &alloc_required);
-	if (error)
-		goto out_unlock;
+	alloc_required = gfs2_write_alloc_required(ip, pos, len);
 
 	if (alloc_required || gfs2_is_jdata(ip))
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);

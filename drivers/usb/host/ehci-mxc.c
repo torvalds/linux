@@ -182,7 +182,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	}
 	clk_enable(priv->usbclk);
 
-	if (!cpu_is_mx35()) {
+	if (!cpu_is_mx35() && !cpu_is_mx25()) {
 		priv->ahbclk = clk_get(dev, "usb_ahb");
 		if (IS_ERR(priv->ahbclk)) {
 			ret = PTR_ERR(priv->ahbclk);
@@ -207,10 +207,17 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	/* Initialize the transceiver */
 	if (pdata->otg) {
 		pdata->otg->io_priv = hcd->regs + ULPI_VIEWPORT_OFFSET;
-		if (otg_init(pdata->otg) != 0)
-			dev_err(dev, "unable to init transceiver\n");
-		else if (otg_set_vbus(pdata->otg, 1) != 0)
+		ret = otg_init(pdata->otg);
+		if (ret) {
+			dev_err(dev, "unable to init transceiver, probably missing\n");
+			ret = -ENODEV;
+			goto err_add;
+		}
+		ret = otg_set_vbus(pdata->otg, 1);
+		if (ret) {
 			dev_err(dev, "unable to enable vbus on transceiver\n");
+			goto err_add;
+		}
 	}
 
 	priv->hcd = hcd;

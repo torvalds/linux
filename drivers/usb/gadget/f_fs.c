@@ -136,7 +136,7 @@ struct ffs_data {
 	 * handling setup requests immidiatelly user space may be so
 	 * slow that another setup will be sent to the gadget but this
 	 * time not to us but another function and then there could be
-	 * a race.  Is taht the case? Or maybe we can use cdev->req
+	 * a race.  Is that the case? Or maybe we can use cdev->req
 	 * after all, maybe we just need some spinlock for that? */
 	struct usb_request		*ep0req;		/* P: mutex */
 	struct completion		ep0req_completion;	/* P: mutex */

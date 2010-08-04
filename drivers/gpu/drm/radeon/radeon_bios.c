@@ -48,6 +48,10 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
 
+	if (!(rdev->flags & RADEON_IS_IGP))
+		if (!radeon_card_posted(rdev))
+			return false;
+
 	rdev->bios = NULL;
 	vram_base = drm_get_resource_start(rdev->ddev, 0);
 	bios = ioremap(vram_base, size);

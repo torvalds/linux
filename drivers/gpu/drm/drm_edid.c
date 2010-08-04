@@ -864,8 +864,8 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 		mode = drm_cvt_mode(dev, 1366, 768, vrefresh_rate, 0, 0,
 				    false);
 		mode->hdisplay = 1366;
-		mode->vsync_start = mode->vsync_start - 1;
-		mode->vsync_end = mode->vsync_end - 1;
+		mode->hsync_start = mode->hsync_start - 1;
+		mode->hsync_end = mode->hsync_end - 1;
 		return mode;
 	}
 

@@ -1656,6 +1656,9 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 	return (dev->num_tx_queues > 1);
 }
 
+extern void netif_set_real_num_tx_queues(struct net_device *dev,
+					 unsigned int txq);
+
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts
  * disabled.
@@ -2329,7 +2332,7 @@ do {								\
 #endif
 
 #if defined(VERBOSE_DEBUG)
-#define netif_vdbg	netdev_dbg
+#define netif_vdbg	netif_dbg
 #else
 #define netif_vdbg(priv, type, dev, format, args...)		\
 ({								\

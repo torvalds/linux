@@ -605,13 +605,13 @@ cpu_master_loop:
 		if (dbg_kdb_mode) {
 			kgdb_connected = 1;
 			error = kdb_stub(ks);
+			kgdb_connected = 0;
 		} else {
 			error = gdb_serial_stub(ks);
 		}
 
 		if (error == DBG_PASS_EVENT) {
 			dbg_kdb_mode = !dbg_kdb_mode;
-			kgdb_connected = 0;
 		} else if (error == DBG_SWITCH_CPU_EVENT) {
 			dbg_cpu_switch(cpu, dbg_switch_cpu);
 			goto cpu_loop;

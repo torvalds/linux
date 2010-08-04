@@ -146,7 +146,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 				cvt = 1;
 			break;
 		case 'R':
-			if (!cvt)
+			if (cvt)
 				rb = 1;
 			break;
 		case 'm':
@@ -315,8 +315,9 @@ static void drm_fb_helper_on(struct fb_info *info)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int i;
+	int i, j;
 
 	/*
 	 * For each CRTC in this fb, turn the crtc on then,
@@ -332,7 +333,14 @@ static void drm_fb_helper_on(struct fb_info *info)
 
 		crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 
-
+		/* Walk the connectors & encoders on this fb turning them on */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			connector = fb_helper->connector_info[j]->connector;
+			connector->dpms = DRM_MODE_DPMS_ON;
+			drm_connector_property_set_value(connector,
+							 dev->mode_config.dpms_property,
+							 DRM_MODE_DPMS_ON);
+		}
 		/* Found a CRTC on this fb, now find encoders */
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			if (encoder->crtc == crtc) {
@@ -352,8 +360,9 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int i;
+	int i, j;
 
 	/*
 	 * For each CRTC in this fb, find all associated encoders
@@ -367,6 +376,14 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 		if (!crtc->enabled)
 			continue;
 
+		/* Walk the connectors on this fb and mark them off */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			connector = fb_helper->connector_info[j]->connector;
+			connector->dpms = dpms_mode;
+			drm_connector_property_set_value(connector,
+							 dev->mode_config.dpms_property,
+							 dpms_mode);
+		}
 		/* Found a CRTC on this fb, now find encoders */
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			if (encoder->crtc == crtc) {
@@ -1024,11 +1041,18 @@ static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_conne
 	}
 
 create_mode:
-	mode = drm_cvt_mode(fb_helper_conn->connector->dev, cmdline_mode->xres,
-			    cmdline_mode->yres,
-			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
-			    cmdline_mode->rb, cmdline_mode->interlace,
-			    cmdline_mode->margins);
+	if (cmdline_mode->cvt)
+		mode = drm_cvt_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->rb, cmdline_mode->interlace,
+				    cmdline_mode->margins);
+	else
+		mode = drm_gtf_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->interlace,
+				    cmdline_mode->margins);
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	list_add(&mode->head, &fb_helper_conn->connector->modes);
 	return mode;

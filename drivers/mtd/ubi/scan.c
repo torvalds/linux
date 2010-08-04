@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 #include <linux/crc32.h>
 #include <linux/math64.h>
+#include <linux/random.h>
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
@@ -72,16 +73,19 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 {
 	struct ubi_scan_leb *seb;
 
-	if (list == &si->free)
+	if (list == &si->free) {
 		dbg_bld("add to free: PEB %d, EC %d", pnum, ec);
-	else if (list == &si->erase)
+		si->free_peb_count += 1;
+	} else if (list == &si->erase) {
 		dbg_bld("add to erase: PEB %d, EC %d", pnum, ec);
-	else if (list == &si->corr) {
+		si->erase_peb_count += 1;
+	} else if (list == &si->corr) {
 		dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
-		si->corr_count += 1;
-	} else if (list == &si->alien)
+		si->corr_peb_count += 1;
+	} else if (list == &si->alien) {
 		dbg_bld("add to alien: PEB %d, EC %d", pnum, ec);
-	else
+		si->alien_peb_count += 1;
+	} else
 		BUG();
 
 	seb = kmalloc(sizeof(struct ubi_scan_leb), GFP_KERNEL);
@@ -517,6 +521,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	sv->leb_count += 1;
 	rb_link_node(&seb->u.rb, parent, p);
 	rb_insert_color(&seb->u.rb, &sv->root);
+	si->used_peb_count += 1;
 	return 0;
 }
 
@@ -745,18 +750,16 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		bitflips = 1;
 	else if (err == UBI_IO_PEB_EMPTY)
 		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
-	else if (err == UBI_IO_BAD_EC_HDR) {
+	else if (err == UBI_IO_BAD_HDR_READ || err == UBI_IO_BAD_HDR) {
 		/*
 		 * We have to also look at the VID header, possibly it is not
 		 * corrupted. Set %bitflips flag in order to make this PEB be
 		 * moved and EC be re-created.
 		 */
-		ec_corr = 1;
+		ec_corr = err;
 		ec = UBI_SCAN_UNKNOWN_EC;
 		bitflips = 1;
 	}
-
-	si->is_empty = 0;
 
 	if (!ec_corr) {
 		int image_seq;
@@ -813,9 +816,12 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		return err;
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
-	else if (err == UBI_IO_BAD_VID_HDR ||
+	else if (err == UBI_IO_BAD_HDR_READ || err == UBI_IO_BAD_HDR ||
 		 (err == UBI_IO_PEB_FREE && ec_corr)) {
 		/* VID header is corrupted */
+		if (err == UBI_IO_BAD_HDR_READ ||
+		    ec_corr == UBI_IO_BAD_HDR_READ)
+			si->read_err_count += 1;
 		err = add_to_list(si, pnum, ec, &si->corr);
 		if (err)
 			return err;
@@ -836,11 +842,11 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		switch (vidh->compat) {
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
-				" found, remove it", vol_id, lnum);
+				" found, will remove it", vol_id, lnum);
 			err = add_to_list(si, pnum, ec, &si->corr);
 			if (err)
 				return err;
-			break;
+			return 0;
 
 		case UBI_COMPAT_RO:
 			ubi_msg("read-only compatible internal volume %d:%d"
@@ -855,7 +861,6 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			err = add_to_list(si, pnum, ec, &si->alien);
 			if (err)
 				return err;
-			si->alien_peb_count += 1;
 			return 0;
 
 		case UBI_COMPAT_REJECT:
@@ -886,6 +891,85 @@ adjust_mean_ec:
 }
 
 /**
+ * check_what_we_have - check what PEB were found by scanning.
+ * @ubi: UBI device description object
+ * @si: scanning information
+ *
+ * This is a helper function which takes a look what PEBs were found by
+ * scanning, and decides whether the flash is empty and should be formatted and
+ * whether there are too many corrupted PEBs and we should not attach this
+ * MTD device. Returns zero if we should proceed with attaching the MTD device,
+ * and %-EINVAL if we should not.
+ */
+static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
+{
+	struct ubi_scan_leb *seb;
+	int max_corr;
+
+	max_corr = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
+	max_corr = max_corr / 20 ?: 8;
+
+	/*
+	 * Few corrupted PEBs are not a problem and may be just a result of
+	 * unclean reboots. However, many of them may indicate some problems
+	 * with the flash HW or driver.
+	 */
+	if (si->corr_peb_count >= 8) {
+		ubi_warn("%d PEBs are corrupted", si->corr_peb_count);
+		printk(KERN_WARNING "corrupted PEBs are:");
+		list_for_each_entry(seb, &si->corr, u.list)
+			printk(KERN_CONT " %d", seb->pnum);
+		printk(KERN_CONT "\n");
+
+		/*
+		 * If too many PEBs are corrupted, we refuse attaching,
+		 * otherwise, only print a warning.
+		 */
+		if (si->corr_peb_count >= max_corr) {
+			ubi_err("too many corrupted PEBs, refusing this device");
+			return -EINVAL;
+		}
+	}
+
+	if (si->free_peb_count + si->used_peb_count +
+	    si->alien_peb_count == 0) {
+		/* No UBI-formatted eraseblocks were found */
+		if (si->corr_peb_count == si->read_err_count &&
+		    si->corr_peb_count < 8) {
+			/* No or just few corrupted PEBs, and all of them had a
+			 * read error. We assume that those are bad PEBs, which
+			 * were just not marked as bad so far.
+			 *
+			 * This piece of code basically tries to distinguish
+			 * between the following 2 situations:
+			 *
+			 * 1. Flash is empty, but there are few bad PEBs, which
+			 *    are not marked as bad so far, and which were read
+			 *    with error. We want to go ahead and format this
+			 *    flash. While formating, the faulty PEBs will
+			 *    probably be marked as bad.
+			 *
+			 * 2. Flash probably contains non-UBI data and we do
+			 * not want to format it and destroy possibly needed
+			 * data (e.g., consider the case when the bootloader
+			 * MTD partition was accidentally fed to UBI).
+			 */
+			si->is_empty = 1;
+			ubi_msg("empty MTD device detected");
+			get_random_bytes(&ubi->image_seq, sizeof(ubi->image_seq));
+		} else {
+			ubi_err("MTD device possibly contains non-UBI data, "
+				"refusing it");
+			return -EINVAL;
+		}
+	}
+
+	if (si->corr_peb_count > 0)
+		ubi_msg("corrupted PEBs will be formatted");
+	return 0;
+}
+
+/**
  * ubi_scan - scan an MTD device.
  * @ubi: UBI device description object
  *
@@ -909,7 +993,6 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	INIT_LIST_HEAD(&si->erase);
 	INIT_LIST_HEAD(&si->alien);
 	si->volumes = RB_ROOT;
-	si->is_empty = 1;
 
 	err = -ENOMEM;
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
@@ -935,21 +1018,9 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	if (si->ec_count)
 		si->mean_ec = div_u64(si->ec_sum, si->ec_count);
 
-	if (si->is_empty)
-		ubi_msg("empty MTD device detected");
-
-	/*
-	 * Few corrupted PEBs are not a problem and may be just a result of
-	 * unclean reboots. However, many of them may indicate some problems
-	 * with the flash HW or driver. Print a warning in this case.
-	 */
-	if (si->corr_count >= 8 || si->corr_count >= ubi->peb_count / 4) {
-		ubi_warn("%d PEBs are corrupted", si->corr_count);
-		printk(KERN_WARNING "corrupted PEBs are:");
-		list_for_each_entry(seb, &si->corr, u.list)
-			printk(KERN_CONT " %d", seb->pnum);
-		printk(KERN_CONT "\n");
-	}
+	err = check_what_we_have(ubi, si);
+	if (err)
+		goto out_vidh;
 
 	/*
 	 * In case of unknown erase counter we use the mean erase counter

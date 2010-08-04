@@ -629,7 +629,8 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate tx desc ring\n",
 				netdev->name);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_free;
 	}
 
 	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;

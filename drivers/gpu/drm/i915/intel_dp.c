@@ -136,6 +136,12 @@ intel_dp_link_required(struct drm_device *dev,
 }
 
 static int
+intel_dp_max_data_rate(int max_link_clock, int max_lanes)
+{
+	return (max_link_clock * max_lanes * 8) / 10;
+}
+
+static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
@@ -144,8 +150,11 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_encoder));
 	int max_lanes = intel_dp_max_lane_count(intel_encoder);
 
-	if (intel_dp_link_required(connector->dev, intel_encoder, mode->clock)
-			> max_link_clock * max_lanes)
+	/* only refuse the mode on non eDP since we have seen some wierd eDP panels
+	   which are outside spec tolerances but somehow work by magic */
+	if (!IS_eDP(intel_encoder) &&
+	    (intel_dp_link_required(connector->dev, intel_encoder, mode->clock)
+	     > intel_dp_max_data_rate(max_link_clock, max_lanes)))
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -506,7 +515,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
-			int link_avail = intel_dp_link_clock(bws[clock]) * lane_count;
+			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
 
 			if (intel_dp_link_required(encoder->dev, intel_encoder, mode->clock)
 					<= link_avail) {
@@ -520,6 +529,18 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				return true;
 			}
 		}
+	}
+
+	if (IS_eDP(intel_encoder)) {
+		/* okay we failed just pick the highest */
+		dp_priv->lane_count = max_lane_count;
+		dp_priv->link_bw = bws[max_clock];
+		adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
+		DRM_DEBUG_KMS("Force picking display port link bw %02x lane "
+			      "count %d clock %d\n",
+			      dp_priv->link_bw, dp_priv->lane_count,
+			      adjusted_mode->clock);
+		return true;
 	}
 	return false;
 }
@@ -696,6 +717,51 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
+static void ironlake_edp_panel_on (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long timeout = jiffies + msecs_to_jiffies(5000);
+	u32 pp, pp_status;
+
+	pp_status = I915_READ(PCH_PP_STATUS);
+	if (pp_status & PP_ON)
+		return;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	do {
+		pp_status = I915_READ(PCH_PP_STATUS);
+	} while (((pp_status & PP_ON) == 0) && !time_after(jiffies, timeout));
+
+	if (time_after(jiffies, timeout))
+		DRM_DEBUG_KMS("panel on wait timed out: 0x%08x\n", pp_status);
+
+	pp &= ~(PANEL_UNLOCK_REGS | EDP_FORCE_VDD);
+	I915_WRITE(PCH_PP_CONTROL, pp);
+}
+
+static void ironlake_edp_panel_off (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long timeout = jiffies + msecs_to_jiffies(5000);
+	u32 pp, pp_status;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~POWER_TARGET_ON;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	do {
+		pp_status = I915_READ(PCH_PP_STATUS);
+	} while ((pp_status & PP_ON) && !time_after(jiffies, timeout));
+
+	if (time_after(jiffies, timeout))
+		DRM_DEBUG_KMS("panel off wait timed out\n");
+
+	/* Make sure VDD is enabled so DP AUX will work */
+	pp |= EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+}
+
 static void ironlake_edp_backlight_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -730,14 +796,18 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		if (dp_reg & DP_PORT_EN) {
 			intel_dp_link_down(intel_encoder, dp_priv->DP);
-			if (IS_eDP(intel_encoder))
+			if (IS_eDP(intel_encoder)) {
 				ironlake_edp_backlight_off(dev);
+				ironlake_edp_panel_off(dev);
+			}
 		}
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_link_train(intel_encoder, dp_priv->DP, dp_priv->link_configuration);
-			if (IS_eDP(intel_encoder))
+			if (IS_eDP(intel_encoder)) {
+				ironlake_edp_panel_on(dev);
 				ironlake_edp_backlight_on(dev);
+			}
 		}
 	}
 	dp_priv->dpms_mode = mode;

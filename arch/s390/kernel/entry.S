@@ -535,8 +535,16 @@ pgm_no_vtime2:
 	l	%r3,__LC_PGM_ILC	# load program interruption code
 	la	%r8,0x7f
 	nr	%r8,%r3 		# clear per-event-bit and ilc
-	be	BASED(pgm_exit)		# only per or per+check ?
-	b	BASED(pgm_do_call)
+	be	BASED(pgm_exit2)	# only per or per+check ?
+	l	%r7,BASED(.Ljump_table)
+	sll	%r8,2
+	l	%r7,0(%r8,%r7)		# load address of handler routine
+	la	%r2,SP_PTREGS(%r15)	# address of register-save area
+	basr	%r14,%r7		# branch to interrupt-handler
+pgm_exit2:
+	TRACE_IRQS_ON
+	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
+	b	BASED(sysc_return)
 
 #
 # it was a single stepped SVC that is causing all the trouble

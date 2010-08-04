@@ -500,19 +500,18 @@ int gigaset_isoc_buildframe(struct bc_state *bcs, unsigned char *in, int len)
  */
 static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
 {
-	bcs->fcs = crc_ccitt_byte(bcs->fcs, c);
-	if (unlikely(bcs->skb == NULL)) {
+	bcs->rx_fcs = crc_ccitt_byte(bcs->rx_fcs, c);
+	if (bcs->rx_skb == NULL)
 		/* skipping */
 		return;
-	}
-	if (unlikely(bcs->skb->len == SBUFSIZE)) {
+	if (bcs->rx_skb->len >= bcs->rx_bufsize) {
 		dev_warn(bcs->cs->dev, "received oversized packet discarded\n");
 		bcs->hw.bas->giants++;
-		dev_kfree_skb_any(bcs->skb);
-		bcs->skb = NULL;
+		dev_kfree_skb_any(bcs->rx_skb);
+		bcs->rx_skb = NULL;
 		return;
 	}
-	*__skb_put(bcs->skb, 1) = c;
+	*__skb_put(bcs->rx_skb, 1) = c;
 }
 
 /* hdlc_flush
@@ -521,18 +520,13 @@ static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
 static inline void hdlc_flush(struct bc_state *bcs)
 {
 	/* clear skb or allocate new if not skipping */
-	if (likely(bcs->skb != NULL))
-		skb_trim(bcs->skb, 0);
-	else if (!bcs->ignore) {
-		bcs->skb = dev_alloc_skb(SBUFSIZE + bcs->cs->hw_hdr_len);
-		if (bcs->skb)
-			skb_reserve(bcs->skb, bcs->cs->hw_hdr_len);
-		else
-			dev_err(bcs->cs->dev, "could not allocate skb\n");
-	}
+	if (bcs->rx_skb != NULL)
+		skb_trim(bcs->rx_skb, 0);
+	else
+		gigaset_new_rx_skb(bcs);
 
 	/* reset packet state */
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_fcs = PPP_INITFCS;
 }
 
 /* hdlc_done
@@ -549,7 +543,7 @@ static inline void hdlc_done(struct bc_state *bcs)
 		hdlc_flush(bcs);
 		return;
 	}
-	procskb = bcs->skb;
+	procskb = bcs->rx_skb;
 	if (procskb == NULL) {
 		/* previous error */
 		gig_dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
@@ -560,8 +554,8 @@ static inline void hdlc_done(struct bc_state *bcs)
 		bcs->hw.bas->runts++;
 		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
-	} else if (bcs->fcs != PPP_GOODFCS) {
-		dev_notice(cs->dev, "frame check error (0x%04x)\n", bcs->fcs);
+	} else if (bcs->rx_fcs != PPP_GOODFCS) {
+		dev_notice(cs->dev, "frame check error\n");
 		bcs->hw.bas->fcserrs++;
 		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
@@ -574,13 +568,8 @@ static inline void hdlc_done(struct bc_state *bcs)
 		bcs->hw.bas->goodbytes += len;
 		gigaset_skb_rcvd(bcs, procskb);
 	}
-
-	bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-	if (bcs->skb)
-		skb_reserve(bcs->skb, cs->hw_hdr_len);
-	else
-		dev_err(cs->dev, "could not allocate skb\n");
-	bcs->fcs = PPP_INITFCS;
+	gigaset_new_rx_skb(bcs);
+	bcs->rx_fcs = PPP_INITFCS;
 }
 
 /* hdlc_frag
@@ -597,8 +586,8 @@ static inline void hdlc_frag(struct bc_state *bcs, unsigned inbits)
 	dev_notice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
 	bcs->hw.bas->alignerrs++;
 	gigaset_isdn_rcv_err(bcs);
-	__skb_trim(bcs->skb, 0);
-	bcs->fcs = PPP_INITFCS;
+	__skb_trim(bcs->rx_skb, 0);
+	bcs->rx_fcs = PPP_INITFCS;
 }
 
 /* bit counts lookup table for HDLC bit unstuffing
@@ -847,7 +836,6 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 static inline void trans_receive(unsigned char *src, unsigned count,
 				 struct bc_state *bcs)
 {
-	struct cardstate *cs = bcs->cs;
 	struct sk_buff *skb;
 	int dobytes;
 	unsigned char *dst;
@@ -857,17 +845,11 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		hdlc_flush(bcs);
 		return;
 	}
-	skb = bcs->skb;
-	if (unlikely(skb == NULL)) {
-		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-		if (!skb) {
-			dev_err(cs->dev, "could not allocate skb\n");
-			return;
-		}
-		skb_reserve(skb, cs->hw_hdr_len);
-	}
+	skb = bcs->rx_skb;
+	if (skb == NULL)
+		skb = gigaset_new_rx_skb(bcs);
 	bcs->hw.bas->goodbytes += skb->len;
-	dobytes = TRANSBUFSIZE - skb->len;
+	dobytes = bcs->rx_bufsize - skb->len;
 	while (count > 0) {
 		dst = skb_put(skb, count < dobytes ? count : dobytes);
 		while (count > 0 && dobytes > 0) {
@@ -879,14 +861,10 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 			dump_bytes(DEBUG_STREAM_DUMP,
 				   "rcv data", skb->data, skb->len);
 			gigaset_skb_rcvd(bcs, skb);
-			bcs->skb = skb =
-				dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-			if (!skb) {
-				dev_err(cs->dev, "could not allocate skb\n");
+			skb = gigaset_new_rx_skb(bcs);
+			if (skb == NULL)
 				return;
-			}
-			skb_reserve(skb, cs->hw_hdr_len);
-			dobytes = TRANSBUFSIZE;
+			dobytes = bcs->rx_bufsize;
 		}
 	}
 }

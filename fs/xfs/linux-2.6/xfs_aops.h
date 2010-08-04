@@ -37,6 +37,8 @@ typedef struct xfs_ioend {
 	size_t			io_size;	/* size of the extent */
 	xfs_off_t		io_offset;	/* offset in the file */
 	struct work_struct	io_work;	/* xfsdatad work queue */
+	struct kiocb		*io_iocb;
+	int			io_result;
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;
@@ -45,6 +47,6 @@ extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
 extern void xfs_ioend_init(void);
 extern void xfs_ioend_wait(struct xfs_inode *);
 
-extern void xfs_count_page_state(struct page *, int *, int *, int *);
+extern void xfs_count_page_state(struct page *, int *, int *);
 
 #endif /* __XFS_AOPS_H__ */

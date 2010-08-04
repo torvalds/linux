@@ -1353,6 +1353,17 @@ static struct tuner_params tuner_sony_btf_pxn01z_params[] = {
 	},
 };
 
+/* ------------ TUNER_PHILIPS_FQ1236_MK5 - Philips NTSC ------------ */
+
+static struct tuner_params tuner_philips_fq1236_mk5_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_fm1236_mk3_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
+		.has_tda9887 = 1, /* TDA9885, no FM radio */
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1825,6 +1836,11 @@ struct tunertype tuners[] = {
 		.name   = "Sony BTF-Pxn01Z",
 		.params = tuner_sony_btf_pxn01z_params,
 		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_params),
+	},
+	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, no FM radio */
+		.name   = "Philips FQ1236 MK5",
+		.params = tuner_philips_fq1236_mk5_params,
+		.count  = ARRAY_SIZE(tuner_philips_fq1236_mk5_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

@@ -374,6 +374,8 @@ void sync_supers(void)
 			up_read(&sb->s_umount);
 
 			spin_lock(&sb_lock);
+			/* lock was dropped, must reset next */
+			list_safe_reset_next(sb, n, s_list);
 			__put_super(sb);
 		}
 	}
@@ -405,6 +407,8 @@ void iterate_supers(void (*f)(struct super_block *, void *), void *arg)
 		up_read(&sb->s_umount);
 
 		spin_lock(&sb_lock);
+		/* lock was dropped, must reset next */
+		list_safe_reset_next(sb, n, s_list);
 		__put_super(sb);
 	}
 	spin_unlock(&sb_lock);
@@ -585,6 +589,8 @@ static void do_emergency_remount(struct work_struct *work)
 		}
 		up_write(&sb->s_umount);
 		spin_lock(&sb_lock);
+		/* lock was dropped, must reset next */
+		list_safe_reset_next(sb, n, s_list);
 		__put_super(sb);
 	}
 	spin_unlock(&sb_lock);

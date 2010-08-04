@@ -446,7 +446,7 @@ static struct platform_device corgiled_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
+	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
 	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
 	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
@@ -715,7 +715,6 @@ static void __init fixup_corgi(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	if (machine_is_corgi())
 		mi->bank[0].size = (32*1024*1024);
 	else

@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include "omapfb.h"
 #include "dispc.h"
@@ -83,13 +84,13 @@ static inline u32 rfbi_read_reg(int idx)
 
 static int rfbi_get_clocks(void)
 {
-	rfbi.dss_ick = clk_get(&dispc.fbdev->dssdev->dev, "ick");
+	rfbi.dss_ick = clk_get(&rfbi.fbdev->dssdev->dev, "ick");
 	if (IS_ERR(rfbi.dss_ick)) {
 		dev_err(rfbi.fbdev->dev, "can't get ick\n");
 		return PTR_ERR(rfbi.dss_ick);
 	}
 
-	rfbi.dss1_fck = clk_get(&dispc.fbdev->dssdev->dev, "dss1_fck");
+	rfbi.dss1_fck = clk_get(&rfbi.fbdev->dssdev->dev, "dss1_fck");
 	if (IS_ERR(rfbi.dss1_fck)) {
 		dev_err(rfbi.fbdev->dev, "can't get dss1_fck\n");
 		clk_put(rfbi.dss_ick);

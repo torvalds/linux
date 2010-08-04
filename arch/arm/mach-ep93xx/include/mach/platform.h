@@ -43,6 +43,9 @@ static inline void ep93xx_devcfg_clear_bits(unsigned int bits)
 
 unsigned int ep93xx_chip_revision(void);
 
+void ep93xx_register_flash(unsigned int width,
+			   resource_size_t start, resource_size_t size);
+
 void ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr);
 void ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 			 struct i2c_board_info *devices, int num);

@@ -623,8 +623,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		else
 			host->buf_start = column + mtd->writesize;
 
-		if (mtd->writesize > 512)
-			command = NAND_CMD_READ0; /* only READ0 is valid */
+		command = NAND_CMD_READ0; /* only READ0 is valid */
 
 		send_cmd(host, command, false);
 		mxc_do_addr_cycle(mtd, column, page_addr);
@@ -639,31 +638,11 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_SEQIN:
-		if (column >= mtd->writesize) {
-			/*
-			 * FIXME: before send SEQIN command for write OOB,
-			 * We must read one page out.
-			 * For K9F1GXX has no READ1 command to set current HW
-			 * pointer to spare area, we must write the whole page
-			 * including OOB together.
-			 */
-			if (mtd->writesize > 512)
-				/* call ourself to read a page */
-				mxc_nand_command(mtd, NAND_CMD_READ0, 0,
-						page_addr);
+		if (column >= mtd->writesize)
+			/* call ourself to read a page */
+			mxc_nand_command(mtd, NAND_CMD_READ0, 0, page_addr);
 
-			host->buf_start = column;
-
-			/* Set program pointer to spare region */
-			if (mtd->writesize == 512)
-				send_cmd(host, NAND_CMD_READOOB, false);
-		} else {
-			host->buf_start = column;
-
-			/* Set program pointer to page start */
-			if (mtd->writesize == 512)
-				send_cmd(host, NAND_CMD_READ0, false);
-		}
+		host->buf_start = column;
 
 		send_cmd(host, command, false);
 		mxc_do_addr_cycle(mtd, column, page_addr);
@@ -853,6 +832,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	    parse_mtd_partitions(mtd, part_probes, &host->parts, 0);
 	if (nr_parts > 0)
 		add_mtd_partitions(mtd, host->parts, nr_parts);
+	else if (pdata->parts)
+		add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
 	else
 #endif
 	{

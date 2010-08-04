@@ -20,7 +20,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of_device.h>
 
 #include <asm/prom.h>
@@ -34,7 +34,7 @@
 
 void * __init prom_early_alloc(unsigned long size)
 {
-	unsigned long paddr = lmb_alloc(size, SMP_CACHE_BYTES);
+	unsigned long paddr = memblock_alloc(size, SMP_CACHE_BYTES);
 	void *ret;
 
 	if (!paddr) {

@@ -392,6 +392,17 @@ static int __gfs_do_config(struct usb_configuration *c,
 	if (unlikely(ret < 0))
 		return ret;
 
+	/* After previous do_configs there may be some invalid
+	 * pointers in c->interface array.  This happens every time
+	 * a user space function with fewer interfaces than a user
+	 * space function that was run before the new one is run.  The
+	 * compasit's set_config() assumes that if there is no more
+	 * then MAX_CONFIG_INTERFACES interfaces in a configuration
+	 * then there is a NULL pointer after the last interface in
+	 * c->interface array.  We need to make sure this is true. */
+	if (c->next_interface_id < ARRAY_SIZE(c->interface))
+		c->interface[c->next_interface_id] = NULL;
+
 	return 0;
 }
 
