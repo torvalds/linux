@@ -31,6 +31,8 @@
 #include <linux/delay.h>
 #include <linux/i2c-tegra.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -139,20 +141,61 @@ static void ventana_i2c_init(void)
 	platform_device_register(&tegra_i2c_device1);
 }
 
+#define GPIO_KEY(_id, _gpio, _iswake)		\
+	{					\
+		.code = _id,			\
+		.gpio = TEGRA_GPIO_##_gpio,	\
+		.active_low = 1,		\
+		.desc = #_id,			\
+		.type = EV_KEY,			\
+		.wakeup = _iswake,		\
+		.debounce_interval = 10,	\
+	}
+
+static struct gpio_keys_button ventana_keys[] = {
+	[0] = GPIO_KEY(KEY_MENU, PQ0, 0),
+	[1] = GPIO_KEY(KEY_HOME, PQ1, 0),
+	[2] = GPIO_KEY(KEY_BACK, PQ2, 0),
+	[3] = GPIO_KEY(KEY_VOLUMEUP, PQ3, 0),
+	[4] = GPIO_KEY(KEY_VOLUMEDOWN, PQ4, 0),
+	[5] = GPIO_KEY(KEY_POWER, PV2, 1),
+};
+
+static struct gpio_keys_platform_data ventana_keys_platform_data = {
+	.buttons	= ventana_keys,
+	.nbuttons	= ARRAY_SIZE(ventana_keys),
+};
+
+static struct platform_device ventana_keys_device = {
+	.name	= "gpio-keys",
+	.id	= 0,
+	.dev	= {
+		.platform_data	= &ventana_keys_platform_data,
+	},
+};
+
 static struct platform_device *ventana_devices[] __initdata = {
 	&debug_uart,
 	&tegra_udc_device,
 	&pda_power_device,
 	&tegra_gart_device,
+	&ventana_keys_device,
 };
 
-static int ventana_touch_reset(void)
+static void ventana_touch_reset(void)
 {
 	gpio_set_value(TEGRA_GPIO_PQ7, 1);
 	msleep(50);
 	gpio_set_value(TEGRA_GPIO_PQ7, 0);
 	msleep(50);
-	return 0;
+}
+
+static void ventana_keys_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ventana_keys); i++)
+		tegra_gpio_enable(ventana_keys[i].gpio);
 }
 
 static const struct i2c_board_info ventana_i2c_bus1_touch_info[] = {
@@ -188,6 +231,7 @@ static void __init tegra_ventana_init(void)
 	ventana_i2c_init();
 	ventana_regulator_init();
 	ventana_touch_init();
+	ventana_keys_init();
 }
 
 MACHINE_START(VENTANA, "ventana")
