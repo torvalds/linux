@@ -220,28 +220,21 @@
 #    define NV_PGRAPH_INTR_ERROR                              (1<<20)
 #define NV10_PGRAPH_CTX_CONTROL                            0x00400144
 #define NV10_PGRAPH_CTX_USER                               0x00400148
-#define NV10_PGRAPH_CTX_SWITCH1                            0x0040014C
-#define NV10_PGRAPH_CTX_SWITCH2                            0x00400150
-#define NV10_PGRAPH_CTX_SWITCH3                            0x00400154
-#define NV10_PGRAPH_CTX_SWITCH4                            0x00400158
-#define NV10_PGRAPH_CTX_SWITCH5                            0x0040015C
+#define NV10_PGRAPH_CTX_SWITCH(i)                         (0x0040014C + 0x4*(i))
 #define NV04_PGRAPH_CTX_SWITCH1                            0x00400160
-#define NV10_PGRAPH_CTX_CACHE1                             0x00400160
+#define NV10_PGRAPH_CTX_CACHE(i, j)                       (0x00400160	\
+							   + 0x4*(i) + 0x20*(j))
 #define NV04_PGRAPH_CTX_SWITCH2                            0x00400164
 #define NV04_PGRAPH_CTX_SWITCH3                            0x00400168
 #define NV04_PGRAPH_CTX_SWITCH4                            0x0040016C
 #define NV04_PGRAPH_CTX_CONTROL                            0x00400170
 #define NV04_PGRAPH_CTX_USER                               0x00400174
 #define NV04_PGRAPH_CTX_CACHE1                             0x00400180
-#define NV10_PGRAPH_CTX_CACHE2                             0x00400180
 #define NV03_PGRAPH_CTX_CONTROL                            0x00400190
 #define NV03_PGRAPH_CTX_USER                               0x00400194
 #define NV04_PGRAPH_CTX_CACHE2                             0x004001A0
-#define NV10_PGRAPH_CTX_CACHE3                             0x004001A0
 #define NV04_PGRAPH_CTX_CACHE3                             0x004001C0
-#define NV10_PGRAPH_CTX_CACHE4                             0x004001C0
 #define NV04_PGRAPH_CTX_CACHE4                             0x004001E0
-#define NV10_PGRAPH_CTX_CACHE5                             0x004001E0
 #define NV40_PGRAPH_CTXCTL_0304                            0x00400304
 #define NV40_PGRAPH_CTXCTL_0304_XFER_CTX                   0x00000001
 #define NV40_PGRAPH_CTXCTL_UCODE_STAT                      0x00400308
@@ -356,9 +349,12 @@
 #define NV04_PGRAPH_FFINTFC_ST2                            0x00400754
 #define NV10_PGRAPH_RDI_DATA                               0x00400754
 #define NV04_PGRAPH_DMA_PITCH                              0x00400760
-#define NV10_PGRAPH_FFINTFC_ST2                            0x00400764
+#define NV10_PGRAPH_FFINTFC_FIFO_PTR                       0x00400760
 #define NV04_PGRAPH_DVD_COLORFMT                           0x00400764
+#define NV10_PGRAPH_FFINTFC_ST2                            0x00400764
 #define NV04_PGRAPH_SCALED_FORMAT                          0x00400768
+#define NV10_PGRAPH_FFINTFC_ST2_DL                         0x00400768
+#define NV10_PGRAPH_FFINTFC_ST2_DH                         0x0040076c
 #define NV10_PGRAPH_DMA_PITCH                              0x00400770
 #define NV10_PGRAPH_DVD_COLORFMT                           0x00400774
 #define NV10_PGRAPH_SCALED_FORMAT                          0x00400778
