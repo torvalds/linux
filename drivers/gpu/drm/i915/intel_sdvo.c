@@ -1687,8 +1687,8 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 	return !list_empty(&connector->probed_modes);
 }
 
-static
-void intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
+static void
+intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
 {
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	struct drm_device *dev = connector->dev;
@@ -2104,6 +2104,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
         return true;
 
 err:
+	intel_sdvo_destroy_enhance_property(connector);
 	kfree(intel_sdvo_connector);
 	return false;
 }
@@ -2178,6 +2179,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	return true;
 
 err:
+	intel_sdvo_destroy_enhance_property(connector);
 	kfree(intel_sdvo_connector);
 	return false;
 }
@@ -2269,6 +2271,8 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 	intel_sdvo_connector->tv_format_property =
 			drm_property_create(dev, DRM_MODE_PROP_ENUM,
 					    "mode", intel_sdvo_connector->format_supported_num);
+	if (!intel_sdvo_connector->tv_format_property)
+		return false;
 
 	for (i = 0; i < intel_sdvo_connector->format_supported_num; i++)
 		drm_property_add_enum(
@@ -2321,14 +2325,21 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->left_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"left_margin", 2);
+			if (!intel_sdvo_connector->left_property)
+				return false;
+
 			intel_sdvo_connector->left_property->values[0] = 0;
 			intel_sdvo_connector->left_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
 						intel_sdvo_connector->left_property,
 						intel_sdvo_connector->left_margin);
+
 			intel_sdvo_connector->right_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"right_margin", 2);
+			if (!intel_sdvo_connector->right_property)
+				return false;
+
 			intel_sdvo_connector->right_property->values[0] = 0;
 			intel_sdvo_connector->right_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
@@ -2355,14 +2366,21 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->top_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"top_margin", 2);
+			if (!intel_sdvo_connector->top_property)
+				return false;
+
 			intel_sdvo_connector->top_property->values[0] = 0;
 			intel_sdvo_connector->top_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
 						intel_sdvo_connector->top_property,
 						intel_sdvo_connector->top_margin);
+
 			intel_sdvo_connector->bottom_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"bottom_margin", 2);
+			if (!intel_sdvo_connector->bottom_property)
+				return false;
+
 			intel_sdvo_connector->bottom_property->values[0] = 0;
 			intel_sdvo_connector->bottom_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
@@ -2388,6 +2406,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->hpos_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"hpos", 2);
+			if (!intel_sdvo_connector->hpos_property)
+				return false;
+
 			intel_sdvo_connector->hpos_property->values[0] = 0;
 			intel_sdvo_connector->hpos_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
@@ -2413,6 +2434,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->vpos_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"vpos", 2);
+			if (!intel_sdvo_connector->vpos_property)
+				return false;
+
 			intel_sdvo_connector->vpos_property->values[0] = 0;
 			intel_sdvo_connector->vpos_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
@@ -2438,6 +2462,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->saturation_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"saturation", 2);
+			if (!intel_sdvo_connector->saturation_property)
+				return false;
+
 			intel_sdvo_connector->saturation_property->values[0] = 0;
 			intel_sdvo_connector->saturation_property->values[1] =
 							data_value[0];
@@ -2462,6 +2489,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->contrast_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"contrast", 2);
+			if (!intel_sdvo_connector->contrast_property)
+				return false;
+
 			intel_sdvo_connector->contrast_property->values[0] = 0;
 			intel_sdvo_connector->contrast_property->values[1] = data_value[0];
 			drm_connector_attach_property(connector,
@@ -2485,6 +2515,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->hue_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"hue", 2);
+			if (!intel_sdvo_connector->hue_property)
+				return false;
+
 			intel_sdvo_connector->hue_property->values[0] = 0;
 			intel_sdvo_connector->hue_property->values[1] =
 							data_value[0];
@@ -2510,6 +2543,9 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 			intel_sdvo_connector->brightness_property =
 				drm_property_create(dev, DRM_MODE_PROP_RANGE,
 						"brightness", 2);
+			if (!intel_sdvo_connector->brightness_property)
+				return false;
+
 			intel_sdvo_connector->brightness_property->values[0] = 0;
 			intel_sdvo_connector->brightness_property->values[1] =
 							data_value[0];
