@@ -2930,13 +2930,9 @@ static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int is_ddr3,
 static void pineview_disable_cxsr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
 
 	/* deactivate cxsr */
-	reg = I915_READ(DSPFW3);
-	reg &= ~(PINEVIEW_SELF_REFRESH_EN);
-	I915_WRITE(DSPFW3, reg);
-	DRM_INFO("Big FIFO is disabled\n");
+	I915_WRITE(DSPFW3, I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN);
 }
 
 /*
@@ -3075,9 +3071,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
 
 		/* activate cxsr */
-		reg = I915_READ(DSPFW3);
-		reg |= PINEVIEW_SELF_REFRESH_EN;
-		I915_WRITE(DSPFW3, reg);
+		I915_WRITE(DSPFW3,
+			   I915_READ(DSPFW3) | PINEVIEW_SELF_REFRESH_EN);
 		DRM_DEBUG_KMS("Self-refresh is enabled\n");
 	} else {
 		pineview_disable_cxsr(dev);
