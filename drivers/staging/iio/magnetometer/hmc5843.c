@@ -220,11 +220,15 @@ static ssize_t hmc5843_set_operating_mode(struct device *dev,
 	int error;
 	mutex_lock(&data->lock);
 	error = strict_strtoul(buf, 10, &operating_mode);
-	if (error)
-		return error;
+	if (error) {
+		count = error;
+		goto exit;
+	}
 	dev_dbg(dev, "set Conversion mode to %lu\n", operating_mode);
-	if (operating_mode > MODE_SLEEP)
-			return -EINVAL;
+	if (operating_mode > MODE_SLEEP) {
+		count = -EINVAL;
+		goto exit;
+	}
 
 	status = i2c_smbus_write_byte_data(client, this_attr->address,
 					operating_mode);
@@ -437,18 +441,23 @@ static ssize_t set_range(struct device *dev,
 	int error;
 	mutex_lock(&data->lock);
 	error = strict_strtoul(buf, 10, &range);
-	if (error)
-		return error;
+	if (error) {
+		count = error;
+		goto exit;
+	}
 	dev_dbg(dev, "set range to %lu\n", range);
 
-	if (range > RANGE_6_5)
-		return -EINVAL;
+	if (range > RANGE_6_5) {
+		count = -EINVAL;
+		goto exit;
+	}
 
 	data->range = range;
 	range = range << RANGE_GAIN_OFFSET;
 	if (i2c_smbus_write_byte_data(client, this_attr->address, range))
 		count = -EINVAL;
 
+exit:
 	mutex_unlock(&data->lock);
 	return count;
 
