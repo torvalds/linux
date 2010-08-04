@@ -563,7 +563,25 @@ static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 };
 
 static struct tegra_i2c_platform_data stingray_i2c1_platform_data = {
-	.bus_clk_rate = 400000,
+	.adapter_nr   = 0,
+	.bus_count    = 1,
+	.bus_clk_rate = { 400000 },
+};
+
+static struct tegra_i2c_platform_data stingray_i2c2_platform_data = {
+	.adapter_nr   = 1,
+	.bus_count    = 1,
+};
+
+static struct tegra_i2c_platform_data stingray_i2c3_platform_data = {
+	.adapter_nr   = 2,
+	.bus_count    = 1,
+};
+
+static struct tegra_i2c_platform_data stingray_i2c4_platform_data = {
+	.adapter_nr   = 3,
+	.bus_count    = 1,
+	.is_dvc       = true,
 };
 
 static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
@@ -589,6 +607,9 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 static void stingray_i2c_init(void)
 {
 	tegra_i2c_device1.dev.platform_data = &stingray_i2c1_platform_data;
+	tegra_i2c_device2.dev.platform_data = &stingray_i2c2_platform_data;
+	tegra_i2c_device3.dev.platform_data = &stingray_i2c3_platform_data;
+	tegra_i2c_device4.dev.platform_data = &stingray_i2c4_platform_data;
 
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);
