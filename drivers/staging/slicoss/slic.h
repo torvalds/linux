@@ -515,14 +515,16 @@ struct adapter {
     (largestat) += ((newstat) - (oldstat));                              \
 }
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
+#if BITS_PER_LONG == 64
 #define   SLIC_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & \
 	0x00000000FFFFFFFF)
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)(((u64)(_addr) >> 32) & \
 	0x00000000FFFFFFFF)
-#else
-#define   SLIC_GET_ADDR_LOW(_addr)   (u32)_addr
+#elif BITS_PER_LONG == 32
+#define   SLIC_GET_ADDR_LOW(_addr)   (u32)(_addr)
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)0
+#else
+#error BITS_PER_LONG must be 32 or 64
 #endif
 
 #define FLUSH		true
