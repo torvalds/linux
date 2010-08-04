@@ -1367,21 +1367,24 @@ struct iwl4965_rx_non_cfg_phy {
 } __packed;
 
 
-#define IWL50_RX_RES_PHY_CNT 8
-#define IWL50_RX_RES_AGC_IDX     1
-#define IWL50_RX_RES_RSSI_AB_IDX 2
-#define IWL50_RX_RES_RSSI_C_IDX  3
-#define IWL50_OFDM_AGC_MSK 0xfe00
-#define IWL50_OFDM_AGC_BIT_POS 9
-#define IWL50_OFDM_RSSI_A_MSK 0x00ff
-#define IWL50_OFDM_RSSI_A_BIT_POS 0
-#define IWL50_OFDM_RSSI_B_MSK 0xff0000
-#define IWL50_OFDM_RSSI_B_BIT_POS 16
-#define IWL50_OFDM_RSSI_C_MSK 0x00ff
-#define IWL50_OFDM_RSSI_C_BIT_POS 0
+#define IWLAGN_RX_RES_PHY_CNT 8
+#define IWLAGN_RX_RES_AGC_IDX     1
+#define IWLAGN_RX_RES_RSSI_AB_IDX 2
+#define IWLAGN_RX_RES_RSSI_C_IDX  3
+#define IWLAGN_OFDM_AGC_MSK 0xfe00
+#define IWLAGN_OFDM_AGC_BIT_POS 9
+#define IWLAGN_OFDM_RSSI_INBAND_A_BITMSK 0x00ff
+#define IWLAGN_OFDM_RSSI_ALLBAND_A_BITMSK 0xff00
+#define IWLAGN_OFDM_RSSI_A_BIT_POS 0
+#define IWLAGN_OFDM_RSSI_INBAND_B_BITMSK 0xff0000
+#define IWLAGN_OFDM_RSSI_ALLBAND_B_BITMSK 0xff000000
+#define IWLAGN_OFDM_RSSI_B_BIT_POS 16
+#define IWLAGN_OFDM_RSSI_INBAND_C_BITMSK 0x00ff
+#define IWLAGN_OFDM_RSSI_ALLBAND_C_BITMSK 0xff00
+#define IWLAGN_OFDM_RSSI_C_BIT_POS 0
 
-struct iwl5000_non_cfg_phy {
-	__le32 non_cfg_phy[IWL50_RX_RES_PHY_CNT];  /* up to 8 phy entries */
+struct iwlagn_non_cfg_phy {
+	__le32 non_cfg_phy[IWLAGN_RX_RES_PHY_CNT];  /* up to 8 phy entries */
 } __packed;
 
 
