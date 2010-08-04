@@ -37,8 +37,8 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *
 	if (inode == NULL)
 		goto out_putclient;
 	nfsi = NFS_I(inode);
-	down_read(&nfsi->rwsem);
-	delegation = nfsi->delegation;
+	rcu_read_lock();
+	delegation = rcu_dereference(nfsi->delegation);
 	if (delegation == NULL || (delegation->type & FMODE_WRITE) == 0)
 		goto out_iput;
 	res->size = i_size_read(inode);
@@ -53,7 +53,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *
 		args->bitmap[1];
 	res->status = 0;
 out_iput:
-	up_read(&nfsi->rwsem);
+	rcu_read_unlock();
 	iput(inode);
 out_putclient:
 	nfs_put_client(clp);
