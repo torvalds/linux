@@ -309,21 +309,18 @@ void key_fsgid_changed(struct task_struct *tsk)
 
 /*****************************************************************************/
 /*
- * search the process keyrings for the first matching key
+ * search only my process keyrings for the first matching key
  * - we use the supplied match function to see if the description (or other
  *   feature of interest) matches
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we found only negative matching keys
  */
-key_ref_t search_process_keyrings(struct key_type *type,
-				  const void *description,
-				  key_match_func_t match,
-				  const struct cred *cred)
+key_ref_t search_my_process_keyrings(struct key_type *type,
+				     const void *description,
+				     key_match_func_t match,
+				     const struct cred *cred)
 {
-	struct request_key_auth *rka;
 	key_ref_t key_ref, ret, err;
-
-	might_sleep();
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -424,6 +421,36 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 
+	/* no key - decide on the error we're going to go for */
+	key_ref = ret ? ret : err;
+
+found:
+	return key_ref;
+}
+
+/*****************************************************************************/
+/*
+ * search the process keyrings for the first matching key
+ * - we use the supplied match function to see if the description (or other
+ *   feature of interest) matches
+ * - we return -EAGAIN if we didn't find any matching key
+ * - we return -ENOKEY if we found only negative matching keys
+ */
+key_ref_t search_process_keyrings(struct key_type *type,
+				  const void *description,
+				  key_match_func_t match,
+				  const struct cred *cred)
+{
+	struct request_key_auth *rka;
+	key_ref_t key_ref, ret = ERR_PTR(-EACCES), err;
+
+	might_sleep();
+
+	key_ref = search_my_process_keyrings(type, description, match, cred);
+	if (!IS_ERR(key_ref))
+		goto found;
+	err = key_ref;
+
 	/* if this process has an instantiation authorisation key, then we also
 	 * search the keyrings of the process mentioned there
 	 * - we don't permit access to request_key auth keys via this method
@@ -446,24 +473,19 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			if (!IS_ERR(key_ref))
 				goto found;
 
-			switch (PTR_ERR(key_ref)) {
-			case -EAGAIN: /* no key */
-				if (ret)
-					break;
-			case -ENOKEY: /* negative key */
-				ret = key_ref;
-				break;
-			default:
-				err = key_ref;
-				break;
-			}
+			ret = key_ref;
 		} else {
 			up_read(&cred->request_key_auth->sem);
 		}
 	}
 
 	/* no key - decide on the error we're going to go for */
-	key_ref = ret ? ret : err;
+	if (err == ERR_PTR(-ENOKEY) || ret == ERR_PTR(-ENOKEY))
+		key_ref = ERR_PTR(-ENOKEY);
+	else if (err == ERR_PTR(-EACCES))
+		key_ref = ret;
+	else
+		key_ref = err;
 
 found:
 	return key_ref;
@@ -474,7 +496,7 @@ found:
 /*
  * see if the key we're looking at is the target key
  */
-static int lookup_user_key_possessed(const struct key *key, const void *target)
+int lookup_user_key_possessed(const struct key *key, const void *target)
 {
 	return key == target;
 
