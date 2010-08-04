@@ -12295,12 +12295,9 @@ lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag |= FCF_DISC_INPROGRESS;
 		spin_unlock_irq(&phba->hbalock);
-		/* Reset FCF round robin index bmask for new scan */
-		if (fcf_index == LPFC_FCOE_FCF_GET_FIRST) {
-			memset(phba->fcf.fcf_rr_bmask, 0,
-			       sizeof(*phba->fcf.fcf_rr_bmask));
+		/* Reset eligible FCF count for new scan */
+		if (fcf_index == LPFC_FCOE_FCF_GET_FIRST)
 			phba->fcf.eligible_fcf_cnt = 0;
-		}
 		error = 0;
 	}
 fail_fcf_scan:

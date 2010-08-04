@@ -1852,8 +1852,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 			else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
 				/* If in fast failover, mark it's completed */
-				phba->fcf.fcf_flag &= ~(FCF_REDISC_FOV |
-							FCF_DISCOVERY);
+				phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2836 The new FCF record (x%x) "
@@ -2651,7 +2650,6 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		spin_unlock_irq(&phba->hbalock);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2778 Start FCF table scan at linkup\n");
-
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc) {
@@ -2660,6 +2658,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 			spin_unlock_irq(&phba->hbalock);
 			goto out;
 		}
+		/* Reset FCF roundrobin bmask for new discovery */
+		memset(phba->fcf.fcf_rr_bmask, 0,
+		       sizeof(*phba->fcf.fcf_rr_bmask));
 	}
 
 	return;
@@ -5097,6 +5098,7 @@ static void
 lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
@@ -5104,6 +5106,9 @@ lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			"HBA state x%x\n",
 			mboxq->u.mb.mbxStatus, vport->port_state);
 	}
+	spin_lock_irq(shost->host_lock);
+	phba->pport->fc_flag &= ~FC_VFI_REGISTERED;
+	spin_unlock_irq(shost->host_lock);
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
 }
@@ -5285,6 +5290,10 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag |= FCF_INIT_DISC;
 	spin_unlock_irq(&phba->hbalock);
+
+	/* Reset FCF roundrobin bmask for new discovery */
+	memset(phba->fcf.fcf_rr_bmask, 0, sizeof(*phba->fcf.fcf_rr_bmask));
+
 	rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba, LPFC_FCOE_FCF_GET_FIRST);
 
 	if (rc) {
