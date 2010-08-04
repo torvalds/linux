@@ -719,6 +719,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->deep_sleep_required = 0;
 	priv->wakeup_dev_required = 0;
 	init_waitqueue_head(&priv->ds_awake_q);
+	init_waitqueue_head(&priv->scan_q);
 	priv->authtype_auto = 1;
 	priv->is_host_sleep_configured = 0;
 	priv->is_host_sleep_activated = 0;
