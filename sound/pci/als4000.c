@@ -765,7 +765,7 @@ static void snd_als4000_configure(struct snd_sb *chip)
 		snd_als4k_gcr_write(chip, i, 0);
 	/* enable burst mode to prevent dropouts during high PCI bus usage */
 	snd_als4k_gcr_write(chip, ALS4K_GCR99_DMA_EMULATION_CTRL,
-		snd_als4k_gcr_read(chip, ALS4K_GCR99_DMA_EMULATION_CTRL) | 0x04);
+		(snd_als4k_gcr_read(chip, ALS4K_GCR99_DMA_EMULATION_CTRL) & ~0x07) | 0x04);
 	spin_unlock_irq(&chip->reg_lock);
 }
 
