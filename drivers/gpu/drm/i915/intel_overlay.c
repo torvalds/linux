@@ -185,7 +185,8 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 
 	if (OVERLAY_NONPHYSICAL(overlay->dev)) {
 		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-				overlay->reg_bo->gtt_offset);
+						overlay->reg_bo->gtt_offset,
+						KM_USER0);
 
 		if (!regs) {
 			DRM_ERROR("failed to map overlay regs in GTT\n");
@@ -200,7 +201,7 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 {
 	if (OVERLAY_NONPHYSICAL(overlay->dev))
-		io_mapping_unmap_atomic(overlay->virt_addr);
+		io_mapping_unmap_atomic(overlay->virt_addr, KM_USER0);
 
 	overlay->virt_addr = NULL;
 

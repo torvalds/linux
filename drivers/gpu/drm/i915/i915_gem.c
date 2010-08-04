@@ -496,10 +496,10 @@ fast_user_write(struct io_mapping *mapping,
 	char *vaddr_atomic;
 	unsigned long unwritten;
 
-	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base);
+	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base, KM_USER0);
 	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + page_offset,
 						      user_data, length);
-	io_mapping_unmap_atomic(vaddr_atomic);
+	io_mapping_unmap_atomic(vaddr_atomic, KM_USER0);
 	if (unwritten)
 		return -EFAULT;
 	return 0;
@@ -3487,7 +3487,8 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		reloc_offset = obj_priv->gtt_offset + reloc->offset;
 		reloc_page = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
 						      (reloc_offset &
-						       ~(PAGE_SIZE - 1)));
+						       ~(PAGE_SIZE - 1)),
+						      KM_USER0);
 		reloc_entry = (uint32_t __iomem *)(reloc_page +
 						   (reloc_offset & (PAGE_SIZE - 1)));
 		reloc_val = target_obj_priv->gtt_offset + reloc->delta;
@@ -3498,7 +3499,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			  readl(reloc_entry), reloc_val);
 #endif
 		writel(reloc_val, reloc_entry);
-		io_mapping_unmap_atomic(reloc_page);
+		io_mapping_unmap_atomic(reloc_page, KM_USER0);
 
 		/* The updated presumed offset for this entry will be
 		 * copied back out to the user.
