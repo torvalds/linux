@@ -586,11 +586,11 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 		}
 
 		if (status & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
-			nouveau_pgraph_intr_context_switch(dev);
-
 			status &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
 			nv_wr32(dev, NV03_PGRAPH_INTR,
 				 NV_PGRAPH_INTR_CONTEXT_SWITCH);
+
+			nouveau_pgraph_intr_context_switch(dev);
 		}
 
 		if (status) {
