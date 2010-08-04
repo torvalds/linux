@@ -32,6 +32,7 @@
 #include <asm/time.h>
 
 #include <asm/octeon/octeon.h>
+#include <asm/octeon/pci-octeon.h>
 
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 extern void cvmx_interrupt_rsl_decode(void);
@@ -609,6 +610,22 @@ void __init prom_init(void)
 	register_smp_ops(&octeon_smp_ops);
 }
 
+/* Exclude a single page from the regions obtained in plat_mem_setup. */
+static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
+{
+	if (addr > *mem && addr < *mem + *size) {
+		u64 inc = addr - *mem;
+		add_memory_region(*mem, inc, BOOT_MEM_RAM);
+		*mem += inc;
+		*size -= inc;
+	}
+
+	if (addr == *mem && *size > PAGE_SIZE) {
+		*mem += PAGE_SIZE;
+		*size -= PAGE_SIZE;
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 	uint64_t mem_alloc_size;
@@ -659,12 +676,27 @@ void __init plat_mem_setup(void)
 						CVMX_BOOTMEM_FLAG_NO_LOCKING);
 #endif
 		if (memory >= 0) {
+			u64 size = mem_alloc_size;
+
+			/*
+			 * exclude a page at the beginning and end of
+			 * the 256MB PCIe 'hole' so the kernel will not
+			 * try to allocate multi-page buffers that
+			 * span the discontinuity.
+			 */
+			memory_exclude_page(CVMX_PCIE_BAR1_PHYS_BASE,
+					    &memory, &size);
+			memory_exclude_page(CVMX_PCIE_BAR1_PHYS_BASE +
+					    CVMX_PCIE_BAR1_PHYS_SIZE,
+					    &memory, &size);
+
 			/*
 			 * This function automatically merges address
 			 * regions next to each other if they are
 			 * received in incrementing order.
 			 */
-			add_memory_region(memory, mem_alloc_size, BOOT_MEM_RAM);
+			if (size)
+				add_memory_region(memory, size, BOOT_MEM_RAM);
 			total += mem_alloc_size;
 		} else {
 			break;
