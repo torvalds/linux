@@ -764,7 +764,7 @@ struct journal_s
 	/*
 	 * Protect the various scalars in the journal
 	 */
-	spinlock_t		j_state_lock;
+	rwlock_t		j_state_lock;
 
 	/*
 	 * Number of processes waiting to create a barrier lock [j_state_lock]

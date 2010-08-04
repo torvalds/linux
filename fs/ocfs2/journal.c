@@ -760,13 +760,13 @@ void ocfs2_set_journal_params(struct ocfs2_super *osb)
 	if (osb->osb_commit_interval)
 		commit_interval = osb->osb_commit_interval;
 
-	spin_lock(&journal->j_state_lock);
+	write_lock(&journal->j_state_lock);
 	journal->j_commit_interval = commit_interval;
 	if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
 		journal->j_flags |= JBD2_BARRIER;
 	else
 		journal->j_flags &= ~JBD2_BARRIER;
-	spin_unlock(&journal->j_state_lock);
+	write_unlock(&journal->j_state_lock);
 }
 
 int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
