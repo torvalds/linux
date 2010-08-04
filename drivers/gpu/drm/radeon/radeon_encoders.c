@@ -1708,7 +1708,8 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		} else {
 			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
 			radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
-			radeon_encoder->underscan_type = UNDERSCAN_AUTO;
+			if (ASIC_IS_AVIVO(rdev))
+				radeon_encoder->underscan_type = UNDERSCAN_AUTO;
 		}
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
 		break;
@@ -1738,7 +1739,8 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		} else {
 			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
 			radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
-			radeon_encoder->underscan_type = UNDERSCAN_AUTO;
+			if (ASIC_IS_AVIVO(rdev))
+				radeon_encoder->underscan_type = UNDERSCAN_AUTO;
 		}
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
 		break;
