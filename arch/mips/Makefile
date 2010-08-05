@@ -370,18 +370,6 @@ cflags-$(CONFIG_BCM63XX)	+= -I$(srctree)/arch/mips/include/asm/mach-bcm63xx/
 load-$(CONFIG_BCM63XX)		:= 0xffffffff80010000
 
 #
-# SNI RM
-#
-core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
-cflags-$(CONFIG_SNI_RM)		+= -I$(srctree)/arch/mips/include/asm/mach-rm
-ifdef CONFIG_CPU_LITTLE_ENDIAN
-load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
-else
-load-$(CONFIG_SNI_RM)		+= 0xffffffff80030000
-endif
-all-$(CONFIG_SNI_RM)		:= $(COMPRESSION_FNAME).ecoff
-
-#
 # Common TXx9
 #
 core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/
