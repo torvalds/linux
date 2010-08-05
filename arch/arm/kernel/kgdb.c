@@ -13,54 +13,58 @@
 #include <linux/kgdb.h>
 #include <asm/traps.h>
 
-/* Make a local copy of the registers passed into the handler (bletch) */
-void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *kernel_regs)
+struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 {
-	int regno;
+	{ "r0", 4, offsetof(struct pt_regs, ARM_r0)},
+	{ "r1", 4, offsetof(struct pt_regs, ARM_r1)},
+	{ "r2", 4, offsetof(struct pt_regs, ARM_r2)},
+	{ "r3", 4, offsetof(struct pt_regs, ARM_r3)},
+	{ "r4", 4, offsetof(struct pt_regs, ARM_r4)},
+	{ "r5", 4, offsetof(struct pt_regs, ARM_r5)},
+	{ "r6", 4, offsetof(struct pt_regs, ARM_r6)},
+	{ "r7", 4, offsetof(struct pt_regs, ARM_r7)},
+	{ "r8", 4, offsetof(struct pt_regs, ARM_r8)},
+	{ "r9", 4, offsetof(struct pt_regs, ARM_r9)},
+	{ "r10", 4, offsetof(struct pt_regs, ARM_r10)},
+	{ "fp", 4, offsetof(struct pt_regs, ARM_fp)},
+	{ "ip", 4, offsetof(struct pt_regs, ARM_ip)},
+	{ "sp", 4, offsetof(struct pt_regs, ARM_sp)},
+	{ "lr", 4, offsetof(struct pt_regs, ARM_lr)},
+	{ "pc", 4, offsetof(struct pt_regs, ARM_pc)},
+	{ "f0", 12, -1 },
+	{ "f1", 12, -1 },
+	{ "f2", 12, -1 },
+	{ "f3", 12, -1 },
+	{ "f4", 12, -1 },
+	{ "f5", 12, -1 },
+	{ "f6", 12, -1 },
+	{ "f7", 12, -1 },
+	{ "fps", 4, -1 },
+	{ "cpsr", 4, offsetof(struct pt_regs, ARM_cpsr)},
+};
 
-	/* Initialize all to zero. */
-	for (regno = 0; regno < GDB_MAX_REGS; regno++)
-		gdb_regs[regno] = 0;
+char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+{
+	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+		return NULL;
 
-	gdb_regs[_R0]		= kernel_regs->ARM_r0;
-	gdb_regs[_R1]		= kernel_regs->ARM_r1;
-	gdb_regs[_R2]		= kernel_regs->ARM_r2;
-	gdb_regs[_R3]		= kernel_regs->ARM_r3;
-	gdb_regs[_R4]		= kernel_regs->ARM_r4;
-	gdb_regs[_R5]		= kernel_regs->ARM_r5;
-	gdb_regs[_R6]		= kernel_regs->ARM_r6;
-	gdb_regs[_R7]		= kernel_regs->ARM_r7;
-	gdb_regs[_R8]		= kernel_regs->ARM_r8;
-	gdb_regs[_R9]		= kernel_regs->ARM_r9;
-	gdb_regs[_R10]		= kernel_regs->ARM_r10;
-	gdb_regs[_FP]		= kernel_regs->ARM_fp;
-	gdb_regs[_IP]		= kernel_regs->ARM_ip;
-	gdb_regs[_SPT]		= kernel_regs->ARM_sp;
-	gdb_regs[_LR]		= kernel_regs->ARM_lr;
-	gdb_regs[_PC]		= kernel_regs->ARM_pc;
-	gdb_regs[_CPSR]		= kernel_regs->ARM_cpsr;
+	if (dbg_reg_def[regno].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
+		       dbg_reg_def[regno].size);
+	else
+		memset(mem, 0, dbg_reg_def[regno].size);
+	return dbg_reg_def[regno].name;
 }
 
-/* Copy local gdb registers back to kgdb regs, for later copy to kernel */
-void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *kernel_regs)
+int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 {
-	kernel_regs->ARM_r0	= gdb_regs[_R0];
-	kernel_regs->ARM_r1	= gdb_regs[_R1];
-	kernel_regs->ARM_r2	= gdb_regs[_R2];
-	kernel_regs->ARM_r3	= gdb_regs[_R3];
-	kernel_regs->ARM_r4	= gdb_regs[_R4];
-	kernel_regs->ARM_r5	= gdb_regs[_R5];
-	kernel_regs->ARM_r6	= gdb_regs[_R6];
-	kernel_regs->ARM_r7	= gdb_regs[_R7];
-	kernel_regs->ARM_r8	= gdb_regs[_R8];
-	kernel_regs->ARM_r9	= gdb_regs[_R9];
-	kernel_regs->ARM_r10	= gdb_regs[_R10];
-	kernel_regs->ARM_fp	= gdb_regs[_FP];
-	kernel_regs->ARM_ip	= gdb_regs[_IP];
-	kernel_regs->ARM_sp	= gdb_regs[_SPT];
-	kernel_regs->ARM_lr	= gdb_regs[_LR];
-	kernel_regs->ARM_pc	= gdb_regs[_PC];
-	kernel_regs->ARM_cpsr	= gdb_regs[_CPSR];
+	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+		return -EINVAL;
+
+	if (dbg_reg_def[regno].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
+		       dbg_reg_def[regno].size);
+	return 0;
 }
 
 void
