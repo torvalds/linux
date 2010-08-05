@@ -2737,9 +2737,9 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 				nesnic->sq_tail &= nesnic->sq_size-1;
 				if (sq_cqes > 128) {
 					barrier();
-				/* restart the queue if it had been stopped */
-				if (netif_queue_stopped(nesvnic->netdev))
-					netif_wake_queue(nesvnic->netdev);
+					/* restart the queue if it had been stopped */
+					if (netif_queue_stopped(nesvnic->netdev))
+						netif_wake_queue(nesvnic->netdev);
 					sq_cqes = 0;
 				}
 			} else {
