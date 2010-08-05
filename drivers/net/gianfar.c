@@ -1859,7 +1859,7 @@ static int register_grp_irqs(struct gfar_priv_grp *grp)
 				printk(KERN_ERR "%s: Can't get IRQ %d\n",
 					dev->name, grp->interruptError);
 
-				goto err_irq_fail;
+			goto err_irq_fail;
 		}
 
 		if ((err = request_irq(grp->interruptTransmit, gfar_transmit,
