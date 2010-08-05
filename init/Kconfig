@@ -388,9 +388,12 @@ config RCU_FANOUT
 	help
 	  This option controls the fanout of hierarchical implementations
 	  of RCU, allowing RCU to work efficiently on machines with
-	  large numbers of CPUs.  This value must be at least the cube
-	  root of NR_CPUS, which allows NR_CPUS up to 32,768 for 32-bit
-	  systems and up to 262,144 for 64-bit systems.
+	  large numbers of CPUs.  This value must be at least the fourth
+	  root of NR_CPUS, which allows NR_CPUS to be insanely large.
+	  The default value of RCU_FANOUT should be used for production
+	  systems, but if you are stress-testing the RCU implementation
+	  itself, small RCU_FANOUT values allow you to test large-system
+	  code paths on small(er) systems.
 
 	  Select a specific number if testing RCU itself.
 	  Take the default if unsure.
