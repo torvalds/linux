@@ -104,6 +104,7 @@
 #include <linux/io.h>
 #include <asm/system.h>
 #include <linux/uaccess.h>
+#include <linux/kdb.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -187,10 +188,15 @@ static DECLARE_WORK(console_work, console_callback);
  * fg_console is the current virtual console,
  * last_console is the last used one,
  * want_console is the console we want to switch to,
+ * saved_* variants are for save/restore around kernel debugger enter/leave
  */
 int fg_console;
 int last_console;
 int want_console = -1;
+int saved_fg_console;
+int saved_last_console;
+int saved_want_console;
+int saved_vc_mode;
 
 /*
  * For each existing display, we have a pointer to console currently visible
@@ -3412,6 +3418,78 @@ int con_is_bound(const struct consw *csw)
 	return bound;
 }
 EXPORT_SYMBOL(con_is_bound);
+
+/**
+ * con_debug_enter - prepare the console for the kernel debugger
+ * @sw: console driver
+ *
+ * Called when the console is taken over by the kernel debugger, this
+ * function needs to save the current console state, then put the console
+ * into a state suitable for the kernel debugger.
+ *
+ * RETURNS:
+ * Zero on success, nonzero if a failure occurred when trying to prepare
+ * the console for the debugger.
+ */
+int con_debug_enter(struct vc_data *vc)
+{
+	int ret = 0;
+
+	saved_fg_console = fg_console;
+	saved_last_console = last_console;
+	saved_want_console = want_console;
+	saved_vc_mode = vc->vc_mode;
+	vc->vc_mode = KD_TEXT;
+	console_blanked = 0;
+	if (vc->vc_sw->con_debug_enter)
+		ret = vc->vc_sw->con_debug_enter(vc);
+#ifdef CONFIG_KGDB_KDB
+	/* Set the initial LINES variable if it is not already set */
+	if (vc->vc_rows < 999) {
+		int linecount;
+		char lns[4];
+		const char *setargs[3] = {
+			"set",
+			"LINES",
+			lns,
+		};
+		if (kdbgetintenv(setargs[0], &linecount)) {
+			snprintf(lns, 4, "%i", vc->vc_rows);
+			kdb_set(2, setargs);
+		}
+	}
+#endif /* CONFIG_KGDB_KDB */
+	return ret;
+}
+EXPORT_SYMBOL_GPL(con_debug_enter);
+
+/**
+ * con_debug_leave - restore console state
+ * @sw: console driver
+ *
+ * Restore the console state to what it was before the kernel debugger
+ * was invoked.
+ *
+ * RETURNS:
+ * Zero on success, nonzero if a failure occurred when trying to restore
+ * the console.
+ */
+int con_debug_leave(void)
+{
+	struct vc_data *vc;
+	int ret = 0;
+
+	fg_console = saved_fg_console;
+	last_console = saved_last_console;
+	want_console = saved_want_console;
+	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
+
+	vc = vc_cons[fg_console].d;
+	if (vc->vc_sw->con_debug_leave)
+		ret = vc->vc_sw->con_debug_leave(vc);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(con_debug_leave);
 
 /**
  * register_con_driver - register console driver to console layer
