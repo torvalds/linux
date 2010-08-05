@@ -60,7 +60,6 @@ static void mtx1_reset(char *c)
 
 static void mtx1_power_off(void)
 {
-	printk(KERN_ALERT "It's now safe to remove power\n");
 	while (1)
 		asm volatile (
 		"	.set	mips32					\n"
