@@ -1,3 +1,3 @@
-lib-y := board.o
+obj-y := board.o
 
 EXTRA_CFLAGS += -Werror
