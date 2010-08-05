@@ -203,7 +203,7 @@ static void bf5xx_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 
 	if (ctrl & NAND_CLE)
 		bfin_write_NFC_CMD(cmd);
-	else
+	else if (ctrl & NAND_ALE)
 		bfin_write_NFC_ADDR(cmd);
 	SSYNC();
 }
