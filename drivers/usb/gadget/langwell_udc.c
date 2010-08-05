@@ -242,10 +242,12 @@ static void ep0_reset(struct langwell_udc *dev)
 		ep->dqh->dqh_ios = 1;
 		ep->dqh->dqh_mpl = EP0_MAX_PKT_SIZE;
 
-		/* FIXME: enable ep0-in HW zero length termination select */
+		/* enable ep0-in HW zero length termination select */
 		if (is_in(ep))
 			ep->dqh->dqh_zlt = 0;
 		ep->dqh->dqh_mult = 0;
+
+		ep->dqh->dtd_next = DTD_TERM;
 
 		/* configure ep0 control registers */
 		ep_reset(&dev->ep[0], 0, i, USB_ENDPOINT_XFER_CONTROL);
@@ -268,7 +270,7 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 	struct langwell_ep	*ep;
 	u16			max = 0;
 	unsigned long		flags;
-	int			retval = 0;
+	int			i, retval = 0;
 	unsigned char		zlt, ios = 0, mult = 0;
 
 	ep = container_of(_ep, struct langwell_ep, ep);
@@ -354,12 +356,6 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&dev->lock, flags);
 
-	/* configure endpoint capabilities in dQH */
-	ep->dqh->dqh_ios = ios;
-	ep->dqh->dqh_mpl = cpu_to_le16(max);
-	ep->dqh->dqh_zlt = zlt;
-	ep->dqh->dqh_mult = mult;
-
 	ep->ep.maxpacket = max;
 	ep->desc = desc;
 	ep->stopped = 0;
@@ -370,6 +366,15 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 
 	/* configure endpoint control registers */
 	ep_reset(ep, ep->ep_num, is_in(ep), ep->ep_type);
+
+	/* configure endpoint capabilities in dQH */
+	i = ep->ep_num * 2 + is_in(ep);
+	ep->dqh = &dev->ep_dqh[i];
+	ep->dqh->dqh_ios = ios;
+	ep->dqh->dqh_mpl = cpu_to_le16(max);
+	ep->dqh->dqh_zlt = zlt;
+	ep->dqh->dqh_mult = mult;
+	ep->dqh->dtd_next = DTD_TERM;
 
 	dev_dbg(&dev->pdev->dev, "enabled %s (ep%d%s-%s), max %04x\n",
 			_ep->name,
@@ -1430,8 +1435,6 @@ static int eps_reinit(struct langwell_udc *dev)
 
 		INIT_LIST_HEAD(&ep->queue);
 		list_add_tail(&ep->ep.ep_list, &dev->gadget.ep_list);
-
-		ep->dqh = &dev->ep_dqh[i];
 	}
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
