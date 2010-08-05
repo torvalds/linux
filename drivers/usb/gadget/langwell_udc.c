@@ -1159,11 +1159,37 @@ static int langwell_get_frame(struct usb_gadget *_gadget)
 }
 
 
+/* enter or exit PHY low power state */
+static void langwell_phy_low_power(struct langwell_udc *dev, bool flag)
+{
+	u32		devlc;
+	u8		devlc_byte2;
+	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
+
+	devlc = readl(&dev->op_regs->devlc);
+	dev_vdbg(&dev->pdev->dev, "devlc = 0x%08x\n", devlc);
+
+	if (flag)
+		devlc |= LPM_PHCD;
+	else
+		devlc &= ~LPM_PHCD;
+
+	/* FIXME: workaround for Langwell A1/A2/A3 sighting */
+	devlc_byte2 = (devlc >> 16) & 0xff;
+	writeb(devlc_byte2, (u8 *)&dev->op_regs->devlc + 2);
+
+	devlc = readl(&dev->op_regs->devlc);
+	dev_vdbg(&dev->pdev->dev,
+			"%s PHY low power suspend, devlc = 0x%08x\n",
+			flag ? "enter" : "exit", devlc);
+}
+
+
 /* tries to wake up the host connected to this gadget */
 static int langwell_wakeup(struct usb_gadget *_gadget)
 {
 	struct langwell_udc	*dev;
-	u32			portsc1, devlc;
+	u32			portsc1;
 	unsigned long		flags;
 
 	if (!_gadget)
@@ -1186,22 +1212,19 @@ static int langwell_wakeup(struct usb_gadget *_gadget)
 		return 0;
 	}
 
-	/* LPM L1 to L0, remote wakeup */
-	if (dev->lpm && dev->lpm_state == LPM_L1) {
-		portsc1 |= PORTS_SLP;
-		writel(portsc1, &dev->op_regs->portsc1);
-	}
-
-	/* force port resume */
-	if (dev->usb_state == USB_STATE_SUSPENDED) {
-		portsc1 |= PORTS_FPR;
-		writel(portsc1, &dev->op_regs->portsc1);
-	}
+	/* LPM L1 to L0 or legacy remote wakeup */
+	if (dev->lpm && dev->lpm_state == LPM_L1)
+		dev_info(&dev->pdev->dev, "LPM L1 to L0 remote wakeup\n");
+	else
+		dev_info(&dev->pdev->dev, "device remote wakeup\n");
 
 	/* exit PHY low power suspend */
-	devlc = readl(&dev->op_regs->devlc);
-	devlc &= ~LPM_PHCD;
-	writel(devlc, &dev->op_regs->devlc);
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 0);
+
+	/* force port resume */
+	portsc1 |= PORTS_FPR;
+	writel(portsc1, &dev->op_regs->portsc1);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1331,6 +1354,7 @@ static const struct usb_gadget_ops langwell_ops = {
 static int langwell_udc_reset(struct langwell_udc *dev)
 {
 	u32		usbcmd, usbmode, devlc, endpointlistaddr;
+	u8		devlc_byte0, devlc_byte2;
 	unsigned long	timeout;
 
 	if (!dev)
@@ -1375,9 +1399,17 @@ static int langwell_udc_reset(struct langwell_udc *dev)
 	/* if support USB LPM, ACK all LPM token */
 	if (dev->lpm) {
 		devlc = readl(&dev->op_regs->devlc);
+		dev_vdbg(&dev->pdev->dev, "devlc = 0x%08x\n", devlc);
+		/* FIXME: workaround for Langwell A1/A2/A3 sighting */
 		devlc &= ~LPM_STL;	/* don't STALL LPM token */
 		devlc &= ~LPM_NYT_ACK;	/* ACK LPM token */
-		writel(devlc, &dev->op_regs->devlc);
+		devlc_byte0 = devlc & 0xff;
+		devlc_byte2 = (devlc >> 16) & 0xff;
+		writeb(devlc_byte0, (u8 *)&dev->op_regs->devlc);
+		writeb(devlc_byte2, (u8 *)&dev->op_regs->devlc + 2);
+		devlc = readl(&dev->op_regs->devlc);
+		dev_vdbg(&dev->pdev->dev,
+				"ACK LPM token, devlc = 0x%08x\n", devlc);
 	}
 
 	/* fill endpointlistaddr register */
@@ -1870,6 +1902,10 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (unlikely(!driver || !driver->bind || !driver->unbind))
 		return -EINVAL;
+
+	/* exit PHY low power suspend */
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 0);
 
 	/* unbind OTG transceiver */
 	if (dev->transceiver)
@@ -2706,7 +2742,6 @@ static void handle_usb_reset(struct langwell_udc *dev)
 /* USB bus suspend/resume interrupt */
 static void handle_bus_suspend(struct langwell_udc *dev)
 {
-	u32		devlc;
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	dev->resume_state = dev->usb_state;
@@ -2747,9 +2782,8 @@ static void handle_bus_suspend(struct langwell_udc *dev)
 	}
 
 	/* enter PHY low power suspend */
-	devlc = readl(&dev->op_regs->devlc);
-	devlc |= LPM_PHCD;
-	writel(devlc, &dev->op_regs->devlc);
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 0);
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 }
@@ -2757,16 +2791,14 @@ static void handle_bus_suspend(struct langwell_udc *dev)
 
 static void handle_bus_resume(struct langwell_udc *dev)
 {
-	u32		devlc;
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	dev->usb_state = dev->resume_state;
 	dev->resume_state = 0;
 
 	/* exit PHY low power suspend */
-	devlc = readl(&dev->op_regs->devlc);
-	devlc &= ~LPM_PHCD;
-	writel(devlc, &dev->op_regs->devlc);
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 0);
 
 #ifdef	OTG_TRANSCEIVER
 	if (dev->lotg->otg.default_a == 0)
@@ -3232,7 +3264,6 @@ error:
 static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct langwell_udc	*dev = the_controller;
-	u32			devlc;
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -3251,9 +3282,8 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	/* enter PHY low power suspend */
-	devlc = readl(&dev->op_regs->devlc);
-	devlc |= LPM_PHCD;
-	writel(devlc, &dev->op_regs->devlc);
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 1);
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 	return 0;
@@ -3264,14 +3294,12 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 static int langwell_udc_resume(struct pci_dev *pdev)
 {
 	struct langwell_udc	*dev = the_controller;
-	u32			devlc;
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	/* exit PHY low power suspend */
-	devlc = readl(&dev->op_regs->devlc);
-	devlc &= ~LPM_PHCD;
-	writel(devlc, &dev->op_regs->devlc);
+	if (dev->pdev->device != 0x0829)
+		langwell_phy_low_power(dev, 0);
 
 	/* set device D0 power state */
 	pci_set_power_state(pdev, PCI_D0);
