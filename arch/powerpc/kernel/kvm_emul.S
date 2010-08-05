@@ -135,7 +135,8 @@ kvm_emulate_mtmsr:
 
 	/* Find the changed bits between old and new MSR */
 kvm_emulate_mtmsr_reg1:
-	xor	r31, r0, r31
+	ori	r30, r0, 0
+	xor	r31, r30, r31
 
 	/* Check if we need to really do mtmsr */
 	LOAD_REG_IMMEDIATE(r30, MSR_CRITICAL_BITS)
@@ -156,14 +157,17 @@ kvm_emulate_mtmsr_orig_ins:
 
 maybe_stay_in_guest:
 
+	/* Get the target register in r30 */
+kvm_emulate_mtmsr_reg2:
+	ori	r30, r0, 0
+
 	/* Check if we have to fetch an interrupt */
 	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
 	cmpwi	r31, 0
 	beq+	no_mtmsr
 
 	/* Check if we may trigger an interrupt */
-kvm_emulate_mtmsr_reg2:
-	andi.	r31, r0, MSR_EE
+	andi.	r31, r30, MSR_EE
 	beq	no_mtmsr
 
 	b	do_mtmsr
@@ -171,8 +175,7 @@ kvm_emulate_mtmsr_reg2:
 no_mtmsr:
 
 	/* Put MSR into magic page because we don't call mtmsr */
-kvm_emulate_mtmsr_reg3:
-	STL64(r0, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+	STL64(r30, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
 
 	SCRATCH_RESTORE
 
@@ -192,10 +195,6 @@ kvm_emulate_mtmsr_reg1_offs:
 .global kvm_emulate_mtmsr_reg2_offs
 kvm_emulate_mtmsr_reg2_offs:
 	.long (kvm_emulate_mtmsr_reg2 - kvm_emulate_mtmsr) / 4
-
-.global kvm_emulate_mtmsr_reg3_offs
-kvm_emulate_mtmsr_reg3_offs:
-	.long (kvm_emulate_mtmsr_reg3 - kvm_emulate_mtmsr) / 4
 
 .global kvm_emulate_mtmsr_orig_ins_offs
 kvm_emulate_mtmsr_orig_ins_offs:
