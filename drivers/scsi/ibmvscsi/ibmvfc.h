@@ -597,6 +597,7 @@ enum ibmvfc_target_action {
 	IBMVFC_TGT_ACTION_INIT,
 	IBMVFC_TGT_ACTION_INIT_WAIT,
 	IBMVFC_TGT_ACTION_DEL_RPORT,
+	IBMVFC_TGT_ACTION_DELETED_RPORT,
 };
 
 struct ibmvfc_target {

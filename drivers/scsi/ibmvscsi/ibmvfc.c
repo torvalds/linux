@@ -433,6 +433,9 @@ static void ibmvfc_set_tgt_action(struct ibmvfc_target *tgt,
 {
 	switch (tgt->action) {
 	case IBMVFC_TGT_ACTION_DEL_RPORT:
+		if (action == IBMVFC_TGT_ACTION_DELETED_RPORT)
+			tgt->action = action;
+	case IBMVFC_TGT_ACTION_DELETED_RPORT:
 		break;
 	default:
 		if (action == IBMVFC_TGT_ACTION_DEL_RPORT)
@@ -4193,10 +4196,14 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 	if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
 		tgt_dbg(tgt, "Deleting rport\n");
 		list_del(&tgt->queue);
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		fc_remote_port_delete(rport);
 		del_timer_sync(&tgt->timer);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
+		return;
+	} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DELETED_RPORT) {
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		return;
 	}
 
@@ -4297,6 +4304,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				rport = tgt->rport;
 				tgt->rport = NULL;
 				list_del(&tgt->queue);
+				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (rport)
 					fc_remote_port_delete(rport);
