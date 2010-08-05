@@ -1825,7 +1825,7 @@ static int saa7134_querycap(struct file *file, void  *priv,
 
 	if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
 		cap->capabilities &= ~V4L2_CAP_TUNER;
-		return 0;
+	return 0;
 }
 
 int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id *id)

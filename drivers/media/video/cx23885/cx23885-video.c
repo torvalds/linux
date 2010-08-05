@@ -1165,9 +1165,10 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, iname[INPUT(n)->type]);
 	if ((CX23885_VMUX_TELEVISION == INPUT(n)->type) ||
-		(CX23885_VMUX_CABLE == INPUT(n)->type))
+		(CX23885_VMUX_CABLE == INPUT(n)->type)) {
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX23885_NORMS;
+	}
 	return 0;
 }
 

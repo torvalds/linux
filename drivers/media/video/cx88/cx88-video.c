@@ -1267,9 +1267,10 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name,iname[INPUT(n).type]);
 	if ((CX88_VMUX_TELEVISION == INPUT(n).type) ||
-	    (CX88_VMUX_CABLE      == INPUT(n).type))
+	    (CX88_VMUX_CABLE      == INPUT(n).type)) {
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX88_NORMS;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(cx88_enum_input);
