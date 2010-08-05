@@ -277,12 +277,12 @@ static struct of_platform_driver d7s_driver = {
 
 static int __init d7s_init(void)
 {
-	return of_register_driver(&d7s_driver, &of_bus_type);
+	return of_register_platform_driver(&d7s_driver);
 }
 
 static void __exit d7s_exit(void)
 {
-	of_unregister_driver(&d7s_driver);
+	of_unregister_platform_driver(&d7s_driver);
 }
 
 module_init(d7s_init);

@@ -18,6 +18,8 @@ config MICROBLAZE
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
+	select OF
+	select OF_FLATTREE
 
 config SWAP
 	def_bool n
@@ -76,9 +78,6 @@ config LOCKDEP_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config DTC
-	def_bool y
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -124,18 +123,6 @@ config CMDLINE_FORCE
 	help
 	  Set this to have arguments from the default kernel command string
 	  override those passed by the boot loader.
-
-config OF
-	def_bool y
-	select OF_FLATTREE
-
-config PROC_DEVICETREE
-	bool "Support for device tree in /proc"
-	depends on PROC_FS
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware or other boot firmware. If unsure, say Y here.
 
 endmenu
 

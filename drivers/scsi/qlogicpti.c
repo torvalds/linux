@@ -729,7 +729,7 @@ static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 {
 	struct of_device *op = qpti->op;
 
-	qpti->qhost->irq = qpti->irq = op->irqs[0];
+	qpti->qhost->irq = qpti->irq = op->archdata.irqs[0];
 
 	/* We used to try various overly-clever things to
 	 * reduce the interrupt processing overhead on
@@ -1302,7 +1302,7 @@ static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_devic
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
 	 */
-	if (op->irqs[0] == 0)
+	if (op->archdata.irqs[0] == 0)
 		return -ENODEV;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct qlogicpti));
@@ -1467,12 +1467,12 @@ static struct of_platform_driver qpti_sbus_driver = {
 
 static int __init qpti_init(void)
 {
-	return of_register_driver(&qpti_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&qpti_sbus_driver);
 }
 
 static void __exit qpti_exit(void)
 {
-	of_unregister_driver(&qpti_sbus_driver);
+	of_unregister_platform_driver(&qpti_sbus_driver);
 }
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");

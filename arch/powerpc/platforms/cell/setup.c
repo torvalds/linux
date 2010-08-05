@@ -141,6 +141,18 @@ static int __devinit cell_setup_phb(struct pci_controller *phb)
 	return 0;
 }
 
+static const struct of_device_id cell_bus_ids[] __initdata = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .type = "spider", },
+	{ .type = "axon", },
+	{ .type = "plb5", },
+	{ .type = "plb4", },
+	{ .type = "opb", },
+	{ .type = "ebc", },
+	{},
+};
+
 static int __init cell_publish_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
@@ -148,7 +160,7 @@ static int __init cell_publish_devices(void)
 	int node;
 
 	/* Publish OF platform devices for southbridge IOs */
-	of_platform_bus_probe(NULL, NULL, NULL);
+	of_platform_bus_probe(NULL, cell_bus_ids, NULL);
 
 	/* On spider based blades, we need to manually create the OF
 	 * platform devices for the PCI host bridges

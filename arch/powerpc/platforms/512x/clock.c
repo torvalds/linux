@@ -678,7 +678,7 @@ static void psc_clks_init(void)
 {
 	struct device_node *np;
 	const u32 *cell_index;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
 	for_each_compatible_node(np, NULL, "fsl,mpc5121-psc") {
 		cell_index = of_get_property(np, "cell-index", NULL);

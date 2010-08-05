@@ -2247,20 +2247,20 @@ static struct of_platform_driver n2_mau_driver = {
 
 static int __init n2_init(void)
 {
-	int err = of_register_driver(&n2_crypto_driver, &of_bus_type);
+	int err = of_register_platform_driver(&n2_crypto_driver);
 
 	if (!err) {
-		err = of_register_driver(&n2_mau_driver, &of_bus_type);
+		err = of_register_platform_driver(&n2_mau_driver);
 		if (err)
-			of_unregister_driver(&n2_crypto_driver);
+			of_unregister_platform_driver(&n2_crypto_driver);
 	}
 	return err;
 }
 
 static void __exit n2_exit(void)
 {
-	of_unregister_driver(&n2_mau_driver);
-	of_unregister_driver(&n2_crypto_driver);
+	of_unregister_platform_driver(&n2_mau_driver);
+	of_unregister_platform_driver(&n2_crypto_driver);
 }
 
 module_init(n2_init);

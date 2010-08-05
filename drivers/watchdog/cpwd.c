@@ -545,7 +545,7 @@ static int __devinit cpwd_probe(struct of_device *op,
 		goto out;
 	}
 
-	p->irq = op->irqs[0];
+	p->irq = op->archdata.irqs[0];
 
 	spin_lock_init(&p->lock);
 
@@ -688,12 +688,12 @@ static struct of_platform_driver cpwd_driver = {
 
 static int __init cpwd_init(void)
 {
-	return of_register_driver(&cpwd_driver, &of_bus_type);
+	return of_register_platform_driver(&cpwd_driver);
 }
 
 static void __exit cpwd_exit(void)
 {
-	of_unregister_driver(&cpwd_driver);
+	of_unregister_platform_driver(&cpwd_driver);
 }
 
 module_init(cpwd_init);

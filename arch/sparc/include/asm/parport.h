@@ -103,7 +103,7 @@ static inline unsigned int get_dma_residue(unsigned int dmanr)
 	return ebus_dma_residue(&sparc_ebus_dmas[dmanr].info);
 }
 
-static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit ecpp_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	unsigned long base = op->resource[0].start;
 	unsigned long config = op->resource[1].start;
@@ -116,7 +116,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 	parent = op->dev.of_node->parent;
 	if (!strcmp(parent->name, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
-					  op->irqs[0], PARPORT_DMA_NOFIFO,
+					  op->archdata.irqs[0], PARPORT_DMA_NOFIFO,
 					  op->dev.parent->parent, 0);
 		if (!p)
 			return -ENOMEM;
@@ -166,7 +166,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 		       0, PTR_LPT_REG_DIR);
 
 	p = parport_pc_probe_port(base, base + 0x400,
-				  op->irqs[0],
+				  op->archdata.irqs[0],
 				  slot,
 				  op->dev.parent,
 				  0);
@@ -192,7 +192,7 @@ out_err:
 	return err;
 }
 
-static int __devexit ecpp_remove(struct of_device *op)
+static int __devexit ecpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	int slot = p->dma;
@@ -243,9 +243,7 @@ static struct of_platform_driver ecpp_driver = {
 
 static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
 {
-	of_register_driver(&ecpp_driver, &of_bus_type);
-
-	return 0;
+	return of_register_platform_driver(&ecpp_driver);
 }
 
 #endif /* !(_ASM_SPARC64_PARPORT_H */

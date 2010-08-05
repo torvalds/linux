@@ -161,14 +161,12 @@ static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 static int __devinit xgpio_of_probe(struct device_node *np)
 {
 	struct xgpio_instance *chip;
-	struct of_gpio_chip *ofchip;
 	int status = 0;
 	const u32 *tree_info;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
-	ofchip = &chip->mmchip.of_gc;
 
 	/* Update GPIO state shadow register with default value */
 	tree_info = of_get_property(np, "xlnx,dout-default", NULL);
@@ -182,21 +180,20 @@ static int __devinit xgpio_of_probe(struct device_node *np)
 		chip->gpio_dir = *tree_info;
 
 	/* Check device node and parent device node for device width */
-	ofchip->gc.ngpio = 32; /* By default assume full GPIO controller */
+	chip->mmchip.gc.ngpio = 32; /* By default assume full GPIO controller */
 	tree_info = of_get_property(np, "xlnx,gpio-width", NULL);
 	if (!tree_info)
 		tree_info = of_get_property(np->parent,
 					    "xlnx,gpio-width", NULL);
 	if (tree_info)
-		ofchip->gc.ngpio = *tree_info;
+		chip->mmchip.gc.ngpio = *tree_info;
 
 	spin_lock_init(&chip->gpio_lock);
 
-	ofchip->gpio_cells = 2;
-	ofchip->gc.direction_input = xgpio_dir_in;
-	ofchip->gc.direction_output = xgpio_dir_out;
-	ofchip->gc.get = xgpio_get;
-	ofchip->gc.set = xgpio_set;
+	chip->mmchip.gc.direction_input = xgpio_dir_in;
+	chip->mmchip.gc.direction_output = xgpio_dir_out;
+	chip->mmchip.gc.get = xgpio_get;
+	chip->mmchip.gc.set = xgpio_set;
 
 	chip->mmchip.save_regs = xgpio_save_regs;
 

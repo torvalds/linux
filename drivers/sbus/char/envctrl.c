@@ -1140,12 +1140,12 @@ static struct of_platform_driver envctrl_driver = {
 
 static int __init envctrl_init(void)
 {
-	return of_register_driver(&envctrl_driver, &of_bus_type);
+	return of_register_platform_driver(&envctrl_driver);
 }
 
 static void __exit envctrl_exit(void)
 {
-	of_unregister_driver(&envctrl_driver);
+	of_unregister_platform_driver(&envctrl_driver);
 }
 
 module_init(envctrl_init);

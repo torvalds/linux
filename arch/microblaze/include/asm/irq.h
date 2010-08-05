@@ -27,17 +27,6 @@ extern unsigned int nr_irq;
 struct pt_regs;
 extern void do_IRQ(struct pt_regs *regs);
 
-/**
- * irq_of_parse_and_map - Parse and Map an interrupt into linux virq space
- * @device: Device node of the device whose interrupt is to be mapped
- * @index: Index of the interrupt to map
- *
- * This function is a wrapper that chains of_irq_map_one() and
- * irq_create_of_mapping() to make things easier to callers
- */
-struct device_node;
-extern unsigned int irq_of_parse_and_map(struct device_node *dev, int index);
-
 /** FIXME - not implement
  * irq_dispose_mapping - Unmap an interrupt
  * @virq: linux virq number of the interrupt to unmap
@@ -61,18 +50,5 @@ struct irq_host;
  */
 extern unsigned int irq_create_mapping(struct irq_host *host,
 					irq_hw_number_t hwirq);
-
-/**
- * irq_create_of_mapping - Map a hardware interrupt into linux virq space
- * @controller: Device node of the interrupt controller
- * @inspec: Interrupt specifier from the device-tree
- * @intsize: Size of the interrupt specifier from the device-tree
- *
- * This function is identical to irq_create_mapping except that it takes
- * as input informations straight from the device-tree (typically the results
- * of the of_irq_map_*() functions.
- */
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					u32 *intspec, unsigned int intsize);
 
 #endif /* _ASM_MICROBLAZE_IRQ_H */

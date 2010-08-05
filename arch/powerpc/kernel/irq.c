@@ -53,6 +53,8 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -819,18 +821,6 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
-
-unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
-{
-	struct of_irq oirq;
-
-	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 void irq_dispose_mapping(unsigned int virq)
 {
