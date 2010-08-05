@@ -151,7 +151,6 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 			continue;
 		pbf += n + 3;
 		if (*pbf == 'x') { /* vm_exec */
-			u64 vm_pgoff;
 			char *execname = strchr(bf, '/');
 
 			/* Catch VDSO */
@@ -162,12 +161,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 				continue;
 
 			pbf += 3;
-			n = hex2u64(pbf, &vm_pgoff);
-			/* pgoff is in bytes, not pages */
-			if (n >= 0)
-				ev.mmap.pgoff = vm_pgoff << getpagesize();
-			else
-				ev.mmap.pgoff = 0;
+			n = hex2u64(pbf, &ev.mmap.pgoff);
 
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
@@ -549,6 +543,26 @@ int event__process_task(event_t *self, struct perf_session *session)
 	    thread__fork(thread, parent) < 0) {
 		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
 		return -1;
+	}
+
+	return 0;
+}
+
+int event__process(event_t *event, struct perf_session *session)
+{
+	switch (event->header.type) {
+	case PERF_RECORD_COMM:
+		event__process_comm(event, session);
+		break;
+	case PERF_RECORD_MMAP:
+		event__process_mmap(event, session);
+		break;
+	case PERF_RECORD_FORK:
+	case PERF_RECORD_EXIT:
+		event__process_task(event, session);
+		break;
+	default:
+		break;
 	}
 
 	return 0;

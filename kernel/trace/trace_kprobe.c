@@ -925,14 +925,17 @@ static int create_trace_probe(int argc, char **argv)
 			pr_info("Delete command needs an event name.\n");
 			return -EINVAL;
 		}
+		mutex_lock(&probe_lock);
 		tp = find_probe_event(event, group);
 		if (!tp) {
+			mutex_unlock(&probe_lock);
 			pr_info("Event %s/%s doesn't exist.\n", group, event);
 			return -ENOENT;
 		}
 		/* delete an event */
 		unregister_trace_probe(tp);
 		free_trace_probe(tp);
+		mutex_unlock(&probe_lock);
 		return 0;
 	}
 
