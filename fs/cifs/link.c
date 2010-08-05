@@ -133,6 +133,51 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 	return 0;
 }
 
+static int
+CIFSCreateMFSymLink(const int xid, struct cifsTconInfo *tcon,
+		    const char *fromName, const char *toName,
+		    const struct nls_table *nls_codepage, int remap)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid = 0;
+	u8 *buf;
+	unsigned int bytes_written = 0;
+
+	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	rc = CIFSFormatMFSymlink(buf, CIFS_MF_SYMLINK_FILE_SIZE, toName);
+	if (rc != 0) {
+		kfree(buf);
+		return rc;
+	}
+
+	rc = CIFSSMBOpen(xid, tcon, fromName, FILE_CREATE, GENERIC_WRITE,
+			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
+			 nls_codepage, remap);
+	if (rc != 0) {
+		kfree(buf);
+		return rc;
+	}
+
+	rc = CIFSSMBWrite(xid, tcon, netfid,
+			  CIFS_MF_SYMLINK_FILE_SIZE /* length */,
+			  0 /* offset */,
+			  &bytes_written, buf, NULL, 0);
+	CIFSSMBClose(xid, tcon, netfid);
+	kfree(buf);
+	if (rc != 0)
+		return rc;
+
+	if (bytes_written != CIFS_MF_SYMLINK_FILE_SIZE)
+		return -EIO;
+
+	return 0;
+}
+
+static int
 CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
 		   const unsigned char *searchName, char **symlinkinfo,
 		   const struct nls_table *nls_codepage, int remap)
