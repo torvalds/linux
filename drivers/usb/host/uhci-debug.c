@@ -17,7 +17,6 @@
 
 #include "uhci-hcd.h"
 
-#define uhci_debug_operations (* (const struct file_operations *) NULL)
 static struct dentry *uhci_debugfs_root;
 
 #ifdef DEBUG
@@ -558,7 +557,6 @@ static int uhci_debug_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#undef uhci_debug_operations
 static const struct file_operations uhci_debug_operations = {
 	.owner =	THIS_MODULE,
 	.open =		uhci_debug_open,
@@ -566,6 +564,7 @@ static const struct file_operations uhci_debug_operations = {
 	.read =		uhci_debug_read,
 	.release =	uhci_debug_release,
 };
+#define UHCI_DEBUG_OPS
 
 #endif	/* CONFIG_DEBUG_FS */
 

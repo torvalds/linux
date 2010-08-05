@@ -597,7 +597,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int retval = -EBUSY;
 	int i;
-	struct dentry *dentry;
+	struct dentry __maybe_unused *dentry;
 
 	hcd->uses_new_polling = 1;
 
@@ -607,18 +607,16 @@ static int uhci_start(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 	init_waitqueue_head(&uhci->waitqh);
 
-	if (DEBUG_CONFIGURED) {
-		dentry = debugfs_create_file(hcd->self.bus_name,
-				S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root,
-				uhci, &uhci_debug_operations);
-		if (!dentry) {
-			dev_err(uhci_dev(uhci), "couldn't create uhci "
-					"debugfs entry\n");
-			retval = -ENOMEM;
-			goto err_create_debug_entry;
-		}
-		uhci->dentry = dentry;
+#ifdef UHCI_DEBUG_OPS
+	dentry = debugfs_create_file(hcd->self.bus_name,
+			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root,
+			uhci, &uhci_debug_operations);
+	if (!dentry) {
+		dev_err(uhci_dev(uhci), "couldn't create uhci debugfs entry\n");
+		return -ENOMEM;
 	}
+	uhci->dentry = dentry;
+#endif
 
 	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
@@ -732,7 +730,6 @@ err_alloc_frame_cpu:
 err_alloc_frame:
 	debugfs_remove(uhci->dentry);
 
-err_create_debug_entry:
 	return retval;
 }
 

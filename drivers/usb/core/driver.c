@@ -1791,15 +1791,13 @@ static const struct dev_pm_ops usb_bus_pm_ops = {
 	.runtime_idle =		usb_runtime_idle,
 };
 
-#else
-
-#define usb_bus_pm_ops	(*(const struct dev_pm_ops *) NULL)
-
 #endif /* CONFIG_USB_SUSPEND */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",
 	.match =	usb_device_match,
 	.uevent =	usb_uevent,
+#ifdef CONFIG_USB_SUSPEND
 	.pm =		&usb_bus_pm_ops,
+#endif
 };
