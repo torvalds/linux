@@ -687,7 +687,6 @@ static void ssu100_process_read_urb(struct urb *urb)
 	tty_kref_put(tty);
 }
 
-
 static struct usb_serial_driver ssu100_device = {
 	.driver = {
 		.owner = THIS_MODULE,
@@ -709,6 +708,7 @@ static struct usb_serial_driver ssu100_device = {
 	.tiocmset            = ssu100_tiocmset,
 	.ioctl               = ssu100_ioctl,
 	.set_termios         = ssu100_set_termios,
+	.disconnect          = usb_serial_generic_disconnect,
 };
 
 static int __init ssu100_init(void)
