@@ -149,7 +149,7 @@ void __cfg80211_send_deauth(struct net_device *dev,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	const u8 *bssid = mgmt->bssid;
 	int i;
-	bool found = false;
+	bool found = false, was_current = false;
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -159,6 +159,7 @@ void __cfg80211_send_deauth(struct net_device *dev,
 		cfg80211_put_bss(&wdev->current_bss->pub);
 		wdev->current_bss = NULL;
 		found = true;
+		was_current = true;
 	} else for (i = 0; i < MAX_AUTH_BSSES; i++) {
 		if (wdev->auth_bsses[i] &&
 		    memcmp(wdev->auth_bsses[i]->pub.bssid, bssid, ETH_ALEN) == 0) {
@@ -183,7 +184,7 @@ void __cfg80211_send_deauth(struct net_device *dev,
 
 	nl80211_send_deauth(rdev, dev, buf, len, GFP_KERNEL);
 
-	if (wdev->sme_state == CFG80211_SME_CONNECTED) {
+	if (wdev->sme_state == CFG80211_SME_CONNECTED && was_current) {
 		u16 reason_code;
 		bool from_ap;
 
