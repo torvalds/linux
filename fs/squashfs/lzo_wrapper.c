@@ -40,13 +40,15 @@ struct squashfs_lzo {
 
 static void *lzo_init(struct squashfs_sb_info *msblk)
 {
+	int block_size = max_t(int, msblk->block_size, SQUASHFS_METADATA_SIZE);
+
 	struct squashfs_lzo *stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		goto failed;
-	stream->input = vmalloc(msblk->block_size);
+	stream->input = vmalloc(block_size);
 	if (stream->input == NULL)
 		goto failed;
-	stream->output = vmalloc(msblk->block_size);
+	stream->output = vmalloc(block_size);
 	if (stream->output == NULL)
 		goto failed2;
 
@@ -80,7 +82,7 @@ static int lzo_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	struct squashfs_lzo *stream = msblk->stream;
 	void *buff = stream->input;
 	int avail, i, bytes = length, res;
-	size_t out_len = msblk->block_size;
+	size_t out_len = srclength;
 
 	mutex_lock(&msblk->read_data_mutex);
 
