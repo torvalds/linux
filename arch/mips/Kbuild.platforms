@@ -7,6 +7,7 @@ platforms += bcm63xx
 platforms += cavium-octeon
 platforms += cobalt
 platforms += dec
+platforms += emma
 platforms += jazz
 platforms += lasat
 platforms += loongson
