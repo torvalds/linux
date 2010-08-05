@@ -214,7 +214,7 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 
-		DRM_DEBUG("Adding native panel mode %s\n", mode->name);
+		DRM_DEBUG_KMS("Adding native panel mode %s\n", mode->name);
 	} else if (native_mode->hdisplay != 0 &&
 		   native_mode->vdisplay != 0) {
 		/* mac laptops without an edid */
@@ -226,7 +226,7 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		 */
 		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
-		DRM_DEBUG("Adding cvt approximation of native panel mode %s\n", mode->name);
+		DRM_DEBUG_KMS("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
 	return mode;
 }
@@ -308,6 +308,20 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		new_coherent_mode = val ? true : false;
 		if (dig->coherent_mode != new_coherent_mode) {
 			dig->coherent_mode = new_coherent_mode;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
+	if (property == rdev->mode_info.underscan_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_type != val) {
+			radeon_encoder->underscan_type = val;
 			radeon_property_change_mode(&radeon_encoder->base);
 		}
 	}
@@ -522,7 +536,7 @@ static int radeon_lvds_set_property(struct drm_connector *connector,
 	struct radeon_encoder *radeon_encoder;
 	enum radeon_rmx_type rmx_type;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	if (property != dev->mode_config.scaling_mode_property)
 		return 0;
 
@@ -1082,6 +1096,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
@@ -1096,6 +1112,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_DVID:
@@ -1116,6 +1134,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		if (ASIC_IS_AVIVO(rdev))
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_property,
+						      UNDERSCAN_AUTO);
 		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
@@ -1141,6 +1163,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		if (ASIC_IS_AVIVO(rdev))
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_property,
+						      UNDERSCAN_AUTO);
 		subpixel_order = SubPixelHorizontalRGB;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
@@ -1172,6 +1198,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		if (ASIC_IS_AVIVO(rdev))
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_property,
+						      UNDERSCAN_AUTO);
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
@@ -1186,6 +1216,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_atombios_get_tv_info(rdev));
+			/* no HPD on analog connectors */
+			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1209,7 +1241,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		break;
 	}
 
-	if (hpd->hpd == RADEON_HPD_NONE) {
+	if (radeon_connector->hpd.hpd == RADEON_HPD_NONE) {
 		if (i2c_bus->valid)
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	} else
@@ -1276,6 +1308,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
@@ -1290,6 +1324,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_DVID:
@@ -1328,6 +1364,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_combios_get_tv_info(rdev));
+			/* no HPD on analog connectors */
+			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1345,7 +1383,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		break;
 	}
 
-	if (hpd->hpd == RADEON_HPD_NONE) {
+	if (radeon_connector->hpd.hpd == RADEON_HPD_NONE) {
 		if (i2c_bus->valid)
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	} else

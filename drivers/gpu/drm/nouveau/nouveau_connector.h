@@ -49,7 +49,10 @@ static inline struct nouveau_connector *nouveau_connector(
 	return container_of(con, struct nouveau_connector, base);
 }
 
-int nouveau_connector_create(struct drm_device *,
-			     struct dcb_connector_table_entry *);
+struct drm_connector *
+nouveau_connector_create(struct drm_device *, int index);
+
+void
+nouveau_connector_set_polling(struct drm_connector *);
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

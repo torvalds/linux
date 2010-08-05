@@ -65,6 +65,9 @@ struct drm_crtc_helper_funcs {
 
 	/* reload the current crtc LUT */
 	void (*load_lut)(struct drm_crtc *crtc);
+
+	/* disable crtc when not in use - more explicit than dpms off */
+	void (*disable)(struct drm_crtc *crtc);
 };
 
 struct drm_encoder_helper_funcs {

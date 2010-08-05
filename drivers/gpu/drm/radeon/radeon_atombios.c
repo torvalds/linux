@@ -723,7 +723,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 		}
 
 		if (i == ATOM_DEVICE_CV_INDEX) {
-			DRM_DEBUG("Skipping Component Video\n");
+			DRM_DEBUG_KMS("Skipping Component Video\n");
 			continue;
 		}
 
@@ -1032,21 +1032,18 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 	u8 frev, crev;
 	u16 data_offset;
 
+	/* sideport is AMD only */
+	if (rdev->family == CHIP_RS600)
+		return false;
+
 	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset)) {
 		igp_info = (union igp_info *)(mode_info->atom_context->bios +
 				      data_offset);
 		switch (crev) {
 		case 1:
-			/* AMD IGPS */
-			if ((rdev->family == CHIP_RS690) ||
-			    (rdev->family == CHIP_RS740)) {
-				if (igp_info->info.ulBootUpMemoryClock)
-					return true;
-			} else {
-				if (igp_info->info.ucMemoryType & 0xf0)
-					return true;
-			}
+			if (igp_info->info.ulBootUpMemoryClock)
+				return true;
 			break;
 		case 2:
 			if (igp_info->info_2.ucMemoryType & 0x0f)
@@ -1095,7 +1092,7 @@ bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 			    (tmds_info->asMiscInfo[i].
 			     ucPLL_VoltageSwing & 0xf) << 16;
 
-			DRM_DEBUG("TMDS PLL From ATOMBIOS %u %x\n",
+			DRM_DEBUG_KMS("TMDS PLL From ATOMBIOS %u %x\n",
 				  tmds->tmds_pll[i].freq,
 				  tmds->tmds_pll[i].value);
 
@@ -1789,14 +1786,22 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			}
 
 			/* add the i2c bus for thermal/fan chip */
-			/* no support for internal controller yet */
 			if (controller->ucType > 0) {
-				if ((controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN)) {
+				if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 					DRM_INFO("Internal thermal controller %s fan control\n",
 						 (controller->ucFanParameters &
 						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV770;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 				} else if ((controller->ucType ==
 					    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 					   (controller->ucType ==
@@ -2179,11 +2184,11 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_TV1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_TV1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("TV1 connected\n");
+			DRM_DEBUG_KMS("TV1 connected\n");
 			bios_3_scratch |= ATOM_S3_TV1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_TV1;
 		} else {
-			DRM_DEBUG("TV1 disconnected\n");
+			DRM_DEBUG_KMS("TV1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_TV1_MASK;
 			bios_3_scratch &= ~ATOM_S3_TV1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_TV1;
@@ -2192,11 +2197,11 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_CV_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_CV_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("CV connected\n");
+			DRM_DEBUG_KMS("CV connected\n");
 			bios_3_scratch |= ATOM_S3_CV_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_CV;
 		} else {
-			DRM_DEBUG("CV disconnected\n");
+			DRM_DEBUG_KMS("CV disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_CV_MASK;
 			bios_3_scratch &= ~ATOM_S3_CV_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_CV;
@@ -2205,12 +2210,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_LCD1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_LCD1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("LCD1 connected\n");
+			DRM_DEBUG_KMS("LCD1 connected\n");
 			bios_0_scratch |= ATOM_S0_LCD1;
 			bios_3_scratch |= ATOM_S3_LCD1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_LCD1;
 		} else {
-			DRM_DEBUG("LCD1 disconnected\n");
+			DRM_DEBUG_KMS("LCD1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_LCD1;
 			bios_3_scratch &= ~ATOM_S3_LCD1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_LCD1;
@@ -2219,12 +2224,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_CRT1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_CRT1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("CRT1 connected\n");
+			DRM_DEBUG_KMS("CRT1 connected\n");
 			bios_0_scratch |= ATOM_S0_CRT1_COLOR;
 			bios_3_scratch |= ATOM_S3_CRT1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_CRT1;
 		} else {
-			DRM_DEBUG("CRT1 disconnected\n");
+			DRM_DEBUG_KMS("CRT1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_CRT1_MASK;
 			bios_3_scratch &= ~ATOM_S3_CRT1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_CRT1;
@@ -2233,12 +2238,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_CRT2_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_CRT2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("CRT2 connected\n");
+			DRM_DEBUG_KMS("CRT2 connected\n");
 			bios_0_scratch |= ATOM_S0_CRT2_COLOR;
 			bios_3_scratch |= ATOM_S3_CRT2_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_CRT2;
 		} else {
-			DRM_DEBUG("CRT2 disconnected\n");
+			DRM_DEBUG_KMS("CRT2 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_CRT2_MASK;
 			bios_3_scratch &= ~ATOM_S3_CRT2_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_CRT2;
@@ -2247,12 +2252,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP1 connected\n");
+			DRM_DEBUG_KMS("DFP1 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP1;
 			bios_3_scratch |= ATOM_S3_DFP1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP1;
 		} else {
-			DRM_DEBUG("DFP1 disconnected\n");
+			DRM_DEBUG_KMS("DFP1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP1;
 			bios_3_scratch &= ~ATOM_S3_DFP1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP1;
@@ -2261,12 +2266,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP2_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP2 connected\n");
+			DRM_DEBUG_KMS("DFP2 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP2;
 			bios_3_scratch |= ATOM_S3_DFP2_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP2;
 		} else {
-			DRM_DEBUG("DFP2 disconnected\n");
+			DRM_DEBUG_KMS("DFP2 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP2;
 			bios_3_scratch &= ~ATOM_S3_DFP2_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP2;
@@ -2275,12 +2280,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP3_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP3_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP3 connected\n");
+			DRM_DEBUG_KMS("DFP3 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP3;
 			bios_3_scratch |= ATOM_S3_DFP3_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP3;
 		} else {
-			DRM_DEBUG("DFP3 disconnected\n");
+			DRM_DEBUG_KMS("DFP3 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP3;
 			bios_3_scratch &= ~ATOM_S3_DFP3_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP3;
@@ -2289,12 +2294,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP4_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP4_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP4 connected\n");
+			DRM_DEBUG_KMS("DFP4 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP4;
 			bios_3_scratch |= ATOM_S3_DFP4_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP4;
 		} else {
-			DRM_DEBUG("DFP4 disconnected\n");
+			DRM_DEBUG_KMS("DFP4 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP4;
 			bios_3_scratch &= ~ATOM_S3_DFP4_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP4;
@@ -2303,12 +2308,12 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP5_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP5_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP5 connected\n");
+			DRM_DEBUG_KMS("DFP5 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP5;
 			bios_3_scratch |= ATOM_S3_DFP5_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP5;
 		} else {
-			DRM_DEBUG("DFP5 disconnected\n");
+			DRM_DEBUG_KMS("DFP5 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP5;
 			bios_3_scratch &= ~ATOM_S3_DFP5_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP5;

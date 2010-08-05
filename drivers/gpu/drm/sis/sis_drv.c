@@ -47,9 +47,8 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->chipset = chipset;
 	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
-	if (ret) {
+	if (ret)
 		kfree(dev_priv);
-	}
 
 	return ret;
 }

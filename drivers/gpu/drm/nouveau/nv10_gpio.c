@@ -55,7 +55,7 @@ get_gpio_location(struct dcb_gpio_entry *ent, uint32_t *reg, uint32_t *shift,
 }
 
 int
-nv17_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
+nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
 {
 	struct dcb_gpio_entry *ent = nouveau_bios_gpio_entry(dev, tag);
 	uint32_t reg, shift, mask, value;
@@ -72,7 +72,7 @@ nv17_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
 }
 
 int
-nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
+nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
 {
 	struct dcb_gpio_entry *ent = nouveau_bios_gpio_entry(dev, tag);
 	uint32_t reg, shift, mask, value;

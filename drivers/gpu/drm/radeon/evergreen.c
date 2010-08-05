@@ -39,6 +39,23 @@
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+u32 evergreen_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
+		ASIC_T_SHIFT;
+	u32 actual_temp = 0;
+
+	if ((temp >> 10) & 1)
+		actual_temp = 0;
+	else if ((temp >> 9) & 1)
+		actual_temp = 255;
+	else
+		actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void evergreen_pm_misc(struct radeon_device *rdev)
 {
 	int req_ps_idx = rdev->pm.requested_power_state_index;
@@ -1115,6 +1132,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 								 rdev->config.evergreen.max_backends) &
 								EVERGREEN_MAX_BACKENDS_MASK));
 
+	rdev->config.evergreen.tile_config = gb_addr_config;
 	WREG32(GB_BACKEND_MAP, gb_backend_map);
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
@@ -1334,8 +1352,8 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	}
 	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* Setup GPU memory space */
 	/* size in MB on evergreen */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;

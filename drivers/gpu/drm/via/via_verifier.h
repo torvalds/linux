@@ -54,8 +54,8 @@ typedef struct {
 	const uint32_t *buf_start;
 } drm_via_state_t;
 
-extern int via_verify_command_stream(const uint32_t * buf, unsigned int size,
-				     struct drm_device * dev, int agp);
+extern int via_verify_command_stream(const uint32_t *buf, unsigned int size,
+				     struct drm_device *dev, int agp);
 extern int via_parse_command_stream(struct drm_device *dev, const uint32_t *buf,
 				    unsigned int size);
 

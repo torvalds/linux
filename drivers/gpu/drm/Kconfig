@@ -6,7 +6,7 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && PCI && !EMULATED_CMPXCHG && MMU
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
 	select I2C
 	select I2C_ALGOBIT
 	select SLOW_WORK
@@ -17,7 +17,7 @@ menuconfig DRM
 	  These modules provide support for synchronization, security, and
 	  DMA transfers. Please see <http://dri.sourceforge.net/> for more
 	  details.  You should also select and configure AGP
-	  (/dev/agpgart) support.
+	  (/dev/agpgart) support if it is available for your platform.
 
 config DRM_KMS_HELPER
 	tristate
@@ -61,6 +61,7 @@ config DRM_RADEON
         select DRM_KMS_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
+	select HWMON
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -130,7 +131,7 @@ endchoice
 
 config DRM_MGA
 	tristate "Matrox g200/g400"
-	depends on DRM
+	depends on DRM && PCI
 	select FW_LOADER
 	help
 	  Choose this option if you have a Matrox G200, G400 or G450 graphics
@@ -148,14 +149,14 @@ config DRM_SIS
 
 config DRM_VIA
 	tristate "Via unichrome video cards"
-	depends on DRM
+	depends on DRM && PCI
 	help
 	  Choose this option if you have a Via unichrome or compatible video
 	  chipset. If M is selected the module will be called via.
 
 config DRM_SAVAGE
 	tristate "Savage video cards"
-	depends on DRM
+	depends on DRM && PCI
 	help
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
