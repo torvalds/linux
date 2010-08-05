@@ -28,9 +28,6 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/kernel.h>
-
-#include "osdef.h"
 
 
 #ifndef XGIFB_PAN
@@ -164,16 +161,15 @@ struct video_info  xgi_video_info;
 
 /* --------------- Hardware Access Routines -------------------------- */
 
-#ifdef LINUX_KERNEL
 int
-XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
 {
-    USHORT ModeNo = modeno;
-    USHORT ModeIdIndex = 0, ClockIndex = 0;
-    USHORT RefreshRateTableIndex = 0;
+    unsigned short ModeNo = modeno;
+    unsigned short ModeIdIndex = 0, ClockIndex = 0;
+    unsigned short RefreshRateTableIndex = 0;
 
-    /*ULONG  temp = 0;*/
+    /*unsigned long  temp = 0;*/
     int    Clock;
     XGI_Pr->ROMAddr  = HwDeviceExtension->pjVirtualRomBase;
     InitTo330Pointer( HwDeviceExtension->jChipType, XGI_Pr ) ;
@@ -201,16 +197,16 @@ XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceEx
 }
 
 int
-XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 u32 *left_margin, u32 *right_margin,
 			 u32 *upper_margin, u32 *lower_margin,
 			 u32 *hsync_len, u32 *vsync_len,
 			 u32 *sync, u32 *vmode)
 {
-    USHORT ModeNo = modeno;
-    USHORT ModeIdIndex = 0, index = 0;
-    USHORT RefreshRateTableIndex = 0;
+    unsigned short ModeNo = modeno;
+    unsigned short ModeIdIndex = 0, index = 0;
+    unsigned short RefreshRateTableIndex = 0;
 
     unsigned short VRE, VBE, VRS, VBS, VDE, VT;
     unsigned short HRE, HBE, HRS, HBS, HDE, HT;
@@ -375,26 +371,13 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExt
       }
     }
 
-#if 0  /* That's bullshit, only the resolution needs to be shifted */
-    if((*vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-       *upper_margin <<= 1;
-       *lower_margin <<= 1;
-       *vsync_len <<= 1;
-    } else if((*vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE) {
-       *upper_margin >>= 1;
-       *lower_margin >>= 1;
-       *vsync_len >>= 1;
-    }
-#endif
-
     return 1;
 }
 
-#endif
 
 
 
-void XGIRegInit(VB_DEVICE_INFO *XGI_Pr, ULONG BaseAddr)
+void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
    XGI_Pr->RelIO = BaseAddr;
    XGI_Pr->P3c4 = BaseAddr + 0x14;
@@ -432,8 +415,8 @@ u32 XGIfb_get_reg3(u16 port)
 
 /* ------------ Interface for init & mode switching code ------------- */
 
-BOOLEAN
-XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+unsigned char
+XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
 	static struct pci_dev *pdev = NULL;
@@ -445,10 +428,10 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 		DPRINTK("XGIfb: Set offset 0x%lx to 0x%lx\n", offset, *value);
 
 	if (!init) {
-		init = TRUE;
+		init = 1;
 		pdev = pci_get_device(PCI_VENDOR_ID_XG, xgi_video_info.chip_id, pdev);
 		if (pdev) {
-			valid_pdev = TRUE;
+			valid_pdev = 1;
 			pci_dev_put(pdev);
 		}
 	}
@@ -456,7 +439,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	if (!valid_pdev) {
 		printk(KERN_DEBUG "XGIfb: Can't find XGI %d VGA device.\n",
 				xgi_video_info.chip_id);
-		return FALSE;
+		return 0;
 	}
 
 	if (set == 0)
@@ -464,10 +447,10 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	else
 		pci_write_config_dword(pdev, offset, (u32)(*value));
 
-	return TRUE;
+	return 1;
 }
 
-/*BOOLEAN XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+/*unsigned char XGIfb_query_north_bridge_space(struct xgi_hw_device_info *pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
 	static struct pci_dev *pdev = NULL;
@@ -475,7 +458,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	u16 nbridge_id = 0;
 
 	if (!init) {
-		init = TRUE;
+		init = 1;
 		switch (xgi_video_info.chip) {
 		case XGI_540:
 			nbridge_id = PCI_DEVICE_ID_XG_540;
@@ -502,13 +485,13 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 
 		pdev = pci_find_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
 		if (pdev)
-			valid_pdev = TRUE;
+			valid_pdev = 1;
 	}
 
 	if (!valid_pdev) {
 		printk(KERN_DEBUG "XGIfb: Can't find XGI %d North Bridge device.\n",
 				nbridge_id);
-		return FALSE;
+		return 0;
 	}
 
 	if (set == 0)
@@ -516,7 +499,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	else
 		pci_write_config_dword(pdev, offset, (u32)(*value));
 
-	return TRUE;
+	return 1;
 }
 */
 /* ------------------ Internal helper routines ----------------- */
@@ -627,7 +610,8 @@ int XGIfb_GetXG21LVDSData(void)
                 i += 25;
                 j--;
                 k++;
-        } while ( (j>0) && ( k < (sizeof(XGI21_LCDCapList)/sizeof(XGI21_LVDSCapStruct)) ) );
+	} while ((j > 0) &&
+		 (k < (sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct))));
         return 1;
     }
     return 0;
@@ -954,46 +938,52 @@ static void XGIfb_search_tvstd(const char *name)
 	}
 }
 
-static BOOLEAN XGIfb_bridgeisslave(void)
+static unsigned char XGIfb_bridgeisslave(void)
 {
    unsigned char usScratchP1_00;
 
-   if(xgi_video_info.hasVB == HASVB_NONE) return FALSE;
+   if (xgi_video_info.hasVB == HASVB_NONE)
+	   return 0;
 
    inXGIIDXREG(XGIPART1,0x00,usScratchP1_00);
-   if( (usScratchP1_00 & 0x50) == 0x10)  {
-	   return TRUE;
-   } else {
-           return FALSE;
-   }
+   if ((usScratchP1_00 & 0x50) == 0x10)
+	   return 1;
+   else
+	   return 0;
 }
 
-static BOOLEAN XGIfbcheckvretracecrt1(void)
+static unsigned char XGIfbcheckvretracecrt1(void)
 {
    unsigned char temp;
 
    inXGIIDXREG(XGICR,0x17,temp);
-   if(!(temp & 0x80)) return FALSE;
+   if (!(temp & 0x80))
+	   return 0;
 
 
    inXGIIDXREG(XGISR,0x1f,temp);
-   if(temp & 0xc0) return FALSE;
+   if (temp & 0xc0)
+	   return 0;
 
-
-   if(inXGIREG(XGIINPSTAT) & 0x08) return TRUE;
-   else 			   return FALSE;
+   if (inXGIREG(XGIINPSTAT) & 0x08)
+	   return 1;
+   else
+	   return 0;
 }
 
-static BOOLEAN XGIfbcheckvretracecrt2(void)
+static unsigned char XGIfbcheckvretracecrt2(void)
 {
    unsigned char temp;
-   if(xgi_video_info.hasVB == HASVB_NONE) return FALSE;
+   if (xgi_video_info.hasVB == HASVB_NONE)
+	   return 0;
    inXGIIDXREG(XGIPART1, 0x30, temp);
-   if(temp & 0x02) return FALSE;
-   else 	   return TRUE;
+   if (temp & 0x02)
+	   return 0;
+   else
+	   return 1;
 }
 
-static BOOLEAN XGIfb_CheckVBRetrace(void)
+static unsigned char XGIfb_CheckVBRetrace(void)
 {
    if(xgi_video_info.disp_state & DISPTYPE_DISP2) {
       if(XGIfb_bridgeisslave()) {
@@ -1350,11 +1340,7 @@ static int XGIfb_set_par(struct fb_info *info)
 //	printk("XGIfb: inside set_par\n");
         if((err = XGIfb_do_set_var(&info->var, 1, info)))
 		return err;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-	XGIfb_get_fix(&info->fix, info->currcon, info);
-#else
 	XGIfb_get_fix(&info->fix, -1, info);
-#endif
 //	printk("XGIfb:end of set_par\n");
 	return 0;
 }
@@ -1540,58 +1526,7 @@ static int XGIfb_pan_display( struct fb_var_screeninfo *var,
 }
 #endif
 
-#if 0
-static int XGIfb_mmap(struct fb_info *info, struct file *file,
-		      struct vm_area_struct *vma)
-{
-	unsigned long start;
-	unsigned long off;
-	u32 len, mmio_off;
 
-	DEBUGPRN("inside mmap");
-	if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))  return -EINVAL;
-
-	off = vma->vm_pgoff << PAGE_SHIFT;
-
-	start = (unsigned long) xgi_video_info.video_base;
-	len = PAGE_ALIGN((start & ~PAGE_MASK) + xgi_video_info.video_size);
-	start &= PAGE_MASK;
-#if 0
-	if (off >= len) {
-		off -= len;
-#endif
-	/* By Jake Page: Treat mmap request with offset beyond heapstart
-	 *               as request for mapping the mmio area
-	 */
-	#if 1
-	mmio_off = PAGE_ALIGN((start & ~PAGE_MASK) + xgi_video_info.heapstart);
-	if(off >= mmio_off) {
-		off -= mmio_off;
-		if(info->var.accel_flags) return -EINVAL;
-
-		start = (unsigned long) xgi_video_info.mmio_base;
-		len = PAGE_ALIGN((start & ~PAGE_MASK) + XGIfb_mmio_size);
-	}
-	start &= PAGE_MASK;
-	#endif
-	if((vma->vm_end - vma->vm_start + off) > len)	return -EINVAL;
-
-	off += start;
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	vma->vm_flags |= VM_IO;   /* by Jake Page; is that really needed? */
-
-#if defined(__i386__) || defined(__x86_64__)
-	if (boot_cpu_data.x86 > 3)
-		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-#endif
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT, vma->vm_end - vma->vm_start,
-				vma->vm_page_prot))
-		return -EAGAIN;
-
-        DEBUGPRN("end of mmap");
-	return 0;
-}
-#endif
 static int XGIfb_blank(int blank, struct fb_info *info)
 {
 	u8 reg;
@@ -1610,15 +1545,8 @@ static int XGIfb_blank(int blank, struct fb_info *info)
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 			    unsigned long arg)
-#else
-static int XGIfb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info)
-#endif
-
 {
 	DEBUGPRN("inside ioctl");
 	switch (cmd) {
@@ -1687,7 +1615,7 @@ static int XGIfb_ioctl(struct inode *inode, struct file *file,
 		break;
 	   case XGIFB_GET_INFO:  /* TW: New for communication with X driver */
 	        {
-			XGIfb_info *x = (XGIfb_info *)arg;
+			struct XGIfb_info *x = (struct XGIfb_info *)arg;
 
 			//x->XGIfb_id = XGIFB_ID;
 			x->XGIfb_version = VER_MAJOR;
@@ -1786,9 +1714,6 @@ static struct fb_ops XGIfb_ops = {
 	.fb_fillrect  = fbcon_XGI_fillrect,
 	.fb_copyarea  = fbcon_XGI_copyarea,
 	.fb_imageblit = cfb_imageblit,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-	.fb_cursor    = soft_cursor,
-#endif
 	.fb_sync      = fbcon_XGI_sync,
 	.fb_ioctl     =	XGIfb_ioctl,
 //	.fb_mmap      =	XGIfb_mmap,
@@ -2008,9 +1933,9 @@ static int XGIfb_has_VB(void)
 		break;
 	   default:
 		xgi_video_info.hasVB = HASVB_NONE;
-		return FALSE;
+		return 0;
 	}
-	return TRUE;
+	return 1;
 }
 
 
@@ -2664,13 +2589,7 @@ static void XGIfb_pre_setmode(void)
 static void XGIfb_post_setmode(void)
 {
 	u8 reg;
-	BOOLEAN doit = TRUE;
-#if 0	/* TW: Wrong: Is not in MMIO space, but in RAM */
-	/* Backup mode number to MMIO space */
-	if(xgi_video_info.mmio_vbase) {
-	  *(volatile u8 *)(((u8*)xgi_video_info.mmio_vbase) + 0x449) = (unsigned char)XGIfb_mode_no;
-	}
-#endif
+	unsigned char doit = 1;
 /*	outXGIIDXREG(XGISR,IND_XGI_PASSWORD,XGI_PASSWORD);
 	outXGIIDXREG(XGICR,0x13,0x00);
 	setXGIIDXREG(XGISR,0x0E,0xF0,0x01);
@@ -2678,11 +2597,11 @@ static void XGIfb_post_setmode(void)
 	if (xgi_video_info.video_bpp == 8) {
 		/* TW: We can't switch off CRT1 on LVDS/Chrontel in 8bpp Modes */
 		if ((xgi_video_info.hasVB == HASVB_LVDS) || (xgi_video_info.hasVB == HASVB_LVDS_CHRONTEL)) {
-			doit = FALSE;
+			doit = 0;
 		}
 		/* TW: We can't switch off CRT1 on 301B-DH in 8bpp Modes if using LCD */
 		if  (xgi_video_info.disp_state & DISPTYPE_LCD)  {
-	        	doit = FALSE;
+			doit = 0;
 	        }
 	}
 
@@ -2691,14 +2610,15 @@ static void XGIfb_post_setmode(void)
 		inXGIIDXREG(XGIPART1, 0x00, reg);
 
 
-		if((reg & 0x50) == 0x10) {
-			doit = FALSE;
-		}
+		if ((reg & 0x50) == 0x10)
+			doit = 0;
 
-	} else XGIfb_crt1off = 0;
+
+	} else
+		XGIfb_crt1off = 0;
 
 	inXGIIDXREG(XGICR, 0x17, reg);
-	if((XGIfb_crt1off) && (doit))
+	if ((XGIfb_crt1off) && (doit))
 		reg &= ~0x80;
 	else
 		reg |= 0x80;
@@ -2907,7 +2827,7 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 
 static unsigned char VBIOS_BUF[65535];
 
-unsigned char* attempt_map_rom(struct pci_dev *dev,void *copy_address)
+unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
 {
     u32 rom_size      = 0;
     u32 rom_address   = 0;
@@ -2962,15 +2882,9 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	XGIfb_registered = 0;
 
-	memset(&XGIhw_ext, 0, sizeof(HW_DEVICE_EXTENSION));
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3))
+	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	  fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	  if(!fb_info) return -ENOMEM;
-#else
-	  XGI_fb_info = kmalloc( sizeof(struct fb_info), GFP_KERNEL);
-	  if(!XGI_fb_info) return -ENOMEM;
-	  memset(XGI_fb_info, 0,  sizeof(struct fb_info));
-#endif
 
   	xgi_video_info.chip_id = pdev->device;
 	  pci_read_config_byte(pdev, PCI_REVISION_ID,&xgi_video_info.revision_id);
@@ -2988,14 +2902,15 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  xgi_video_info.mmio_base = pci_resource_start(pdev, 1);
 	  XGIfb_mmio_size =  pci_resource_len(pdev, 1);
 	  xgi_video_info.vga_base = pci_resource_start(pdev, 2) + 0x30;
-	  XGIhw_ext.pjIOAddress = (PUCHAR)xgi_video_info.vga_base;
+	  XGIhw_ext.pjIOAddress = (unsigned char *)xgi_video_info.vga_base;
 	  //XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30;
-	  printk("XGIfb: Relocate IO address: %lx [%08lx] \n", (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
+	  printk("XGIfb: Relocate IO address: %lx [%08lx]\n",
+		 (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
 
 	  if (pci_enable_device(pdev))
 	          return -EIO;
 
-    XGIRegInit(&XGI_Pr, (ULONG)XGIhw_ext.pjIOAddress);
+    XGIRegInit(&XGI_Pr, (unsigned long)XGIhw_ext.pjIOAddress);
 
     outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
     inXGIIDXREG(XGISR, IND_XGI_PASSWORD, reg1);
@@ -3052,7 +2967,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   case XG20:
 		   case XG21:
                    case XG27:
-                   XGIhw_ext.bIntegratedMMEnabled = TRUE;
+			   XGIhw_ext.bIntegratedMMEnabled = 1;
 			break;
 
 		   default:
@@ -3080,7 +2995,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  strcpy(XGIhw_ext.szVBIOSVer, "0.84");
 
 
-    XGIhw_ext.pSR = vmalloc(sizeof(XGI_DSReg) * SR_BUFFER_SIZE);
+    XGIhw_ext.pSR = vmalloc(sizeof(struct XGI_DSReg) * SR_BUFFER_SIZE);
 	  if (XGIhw_ext.pSR == NULL)
 	  {
 		    printk(KERN_ERR "XGIfb: Fatal error: Allocating SRReg space failed.\n");
@@ -3088,7 +3003,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  }
 	  XGIhw_ext.pSR[0].jIdx = XGIhw_ext.pSR[0].jVal = 0xFF;
 
-	  XGIhw_ext.pCR = vmalloc(sizeof(XGI_DSReg) * CR_BUFFER_SIZE);
+	  XGIhw_ext.pCR = vmalloc(sizeof(struct XGI_DSReg) * CR_BUFFER_SIZE);
 	  if (XGIhw_ext.pCR == NULL)
 	  {
 	      vfree(XGIhw_ext.pSR);
@@ -3218,7 +3133,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    xgi_video_info.disp_state = DISPTYPE_LCD;
         	    if (!XGIfb_GetXG21LVDSData()) {
 			    int m;
-			    for (m=0; m < sizeof(XGI21_LCDCapList)/sizeof(XGI21_LVDSCapStruct); m++) {
+			    for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
 				    if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
 					(XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
 						XGINew_SetReg1( XGI_Pr.P3d4 , 0x36, m) ;
@@ -3341,14 +3256,14 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	          inXGIIDXREG(XGICR,0x38,tmp);
 		      if((tmp & 0x03) == 0x03)
 		      {
-//		          XGI_Pr.XGI_UseLCDA = TRUE;
+/*		          XGI_Pr.XGI_UseLCDA = 1; */
 		      }else
 		      {
 		     //  Currently on LCDA? (Some newer BIOSes set D0 in CR35)
 		         inXGIIDXREG(XGICR,0x35,tmp);
 		         if(tmp & 0x01)
 		         {
-//		              XGI_Pr.XGI_UseLCDA = TRUE;
+/*		              XGI_Pr.XGI_UseLCDA = 1; */
 		           }else
 		           {
 		               inXGIIDXREG(XGICR,0x30,tmp);
@@ -3357,7 +3272,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		                   inXGIIDXREG(XGIPART1,0x13,tmp);
 			               if(tmp & 0x04)
 			               {
-//			                XGI_Pr.XGI_UseLCDA = TRUE;
+/*			                XGI_Pr.XGI_UseLCDA = 1; */
 			               }
 		               }
 		           }
@@ -3462,20 +3377,6 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	        }
 
-
-#if 0
-#ifdef XGIFB_PAN
-		if(XGIfb_ypan) {
-	    		default_var.yres_virtual =
-				xgi_video_info.heapstart / (default_var.xres * (default_var.bits_per_pixel >> 3));
-	    		if(default_var.yres_virtual <= default_var.yres) {
-	        		default_var.yres_virtual = default_var.yres;
-	    		}
-		}
-#endif
-#endif
-
-
 		xgi_video_info.accel = 0;
 		if(XGIfb_accel) {
 		   xgi_video_info.accel = -1;
@@ -3511,7 +3412,8 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		XGIfb_registered = 1;
 
-		printk(KERN_INFO "XGIfb: Installed XGIFB_GET_INFO ioctl (%x)\n", XGIFB_GET_INFO);
+		printk(KERN_INFO "XGIfb: Installed XGIFB_GET_INFO ioctl (%lx)\n",
+		       XGIFB_GET_INFO);
 
 /*		printk(KERN_INFO "XGIfb: 2D acceleration is %s, scrolling mode %s\n",
 		     XGIfb_accel ? "enabled" : "disabled",
@@ -3538,11 +3440,7 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	/* Unregister the framebuffer */
 //	if(xgi_video_info.registered) {
 		unregister_framebuffer(fb_info);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3))
 		framebuffer_release(fb_info);
-#else
-		kfree(fb_info);
-#endif
 //	}
 
 	pci_set_drvdata(pdev, NULL);
@@ -3558,7 +3456,6 @@ static struct pci_driver xgifb_driver = {
 
 XGIINITSTATIC int __init xgifb_init(void)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
 #ifndef MODULE
 	char *option = NULL;
 
@@ -3566,14 +3463,12 @@ XGIINITSTATIC int __init xgifb_init(void)
 		return -ENODEV;
 	XGIfb_setup(option);
 #endif
-#endif
 	return(pci_register_driver(&xgifb_driver));
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
+
 #ifndef MODULE
 module_init(xgifb_init);
-#endif
 #endif
 
 /*****************************************************/

@@ -1087,22 +1087,13 @@ BlinkTimerCallback(
 	struct net_device 	*dev = (struct net_device *)data;
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	schedule_work(&(priv->BlinkWorkItem));
-#endif
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 void BlinkWorkItemCallback(struct work_struct *work)
 {
 	struct r8192_priv *priv = container_of(work, struct r8192_priv, BlinkWorkItem);
-#else
-void BlinkWorkItemCallback(void * Context)
-{
-	struct net_device *dev = (struct net_device *)Context;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 
 	PLED_819xUsb	 pLed = priv->pLed;
 

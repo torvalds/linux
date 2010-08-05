@@ -1,7 +1,7 @@
 #define  Tap4
 
 
-XGI_MCLKDataStruct XGI330New_MCLKData[]=
+struct XGI_MCLKDataStruct XGI330New_MCLKData[] =
 {
  { 0x5c,0x23,0x01,166},
  { 0x5c,0x23,0x01,166},
@@ -13,7 +13,7 @@ XGI_MCLKDataStruct XGI330New_MCLKData[]=
  { 0x29,0x01,0x81,300}
 };
 //yilin modify for xgi20
-XGI_MCLKDataStruct XGI340New_MCLKData[]=
+struct XGI_MCLKDataStruct XGI340New_MCLKData[] =
 {
  { 0x16,0x01,0x01,166},
  { 0x19,0x02,0x01,124},
@@ -25,7 +25,7 @@ XGI_MCLKDataStruct XGI340New_MCLKData[]=
  { 0x5c,0x23,0x01,166}
 };
 
-XGI_MCLKDataStruct XGI27New_MCLKData[]=
+struct XGI_MCLKDataStruct XGI27New_MCLKData[] =
 {
  { 0x5c,0x23,0x01,166},
  { 0x19,0x02,0x01,124},
@@ -37,7 +37,7 @@ XGI_MCLKDataStruct XGI27New_MCLKData[]=
  { 0x5c,0x23,0x01,166}
 };
 
-XGI_ECLKDataStruct XGI330_ECLKData[]=
+struct XGI_ECLKDataStruct XGI330_ECLKData[] =
 {
  { 0x7c,0x08,0x01,200},
  { 0x7c,0x08,0x01,200},
@@ -49,7 +49,7 @@ XGI_ECLKDataStruct XGI330_ECLKData[]=
  { 0x29,0x01,0x81,300}
 };
 //yilin modify for xgi20
-XGI_ECLKDataStruct XGI340_ECLKData[]=
+struct XGI_ECLKDataStruct XGI340_ECLKData[] =
 {
  { 0x5c,0x23,0x01,166},
  { 0x55,0x84,0x01,123},
@@ -63,14 +63,14 @@ XGI_ECLKDataStruct XGI340_ECLKData[]=
 
 
 
-UCHAR XGI340_SR13[4][8]={
+unsigned char XGI340_SR13[4][8] = {
 {0x35,0x45,0xb1,0x00,0x00,0x00,0x00,0x00},/* SR13 */
 {0x41,0x51,0x5c,0x00,0x00,0x00,0x00,0x00},/* SR14 */
 {0x31,0x42,0x42,0x00,0x00,0x00,0x00,0x00},/* SR18 */
 {0x03,0x03,0x03,0x00,0x00,0x00,0x00,0x00}/* SR1B */
 };
 
-UCHAR XGI340_cr41[24][8]=
+unsigned char XGI340_cr41[24][8] =
 {{0x20,0x50,0x60,0x00,0x00,0x00,0x00,0x00},/* 0 CR41 */
 {0xc4,0x40,0x84,0x00,0x00,0x00,0x00,0x00},/* 1 CR8A */
 {0xc4,0x40,0x84,0x00,0x00,0x00,0x00,0x00},/* 2 CR8B */
@@ -98,7 +98,7 @@ UCHAR XGI340_cr41[24][8]=
 };
 
 
-UCHAR XGI27_cr41[24][8]=
+unsigned char XGI27_cr41[24][8] =
 {
 {0x20,0x40,0x60,0x00,0x00,0x00,0x00,0x00},/* 0 CR41 */
 {0xC4,0x40,0x84,0x00,0x00,0x00,0x00,0x00},/* 1 CR8A */
@@ -126,37 +126,7 @@ UCHAR XGI27_cr41[24][8]=
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}/* 23 CRC5 */
 };
 
-
-#if 0
-UCHAR XGI27_cr41[24][8]=
-{
-{0x20,0x60,0x60,0x00,0x00,0x00,0x00,0x00},/* 0 CR41 */
-{0x04,0x44,0x84,0x00,0x00,0x00,0x00,0x00},/* 1 CR8A */
-{0x04,0x40,0x84,0x00,0x00,0x00,0x00,0x00},/* 2 CR8B */
-{0xb5,0x03,0xa4,0x00,0x00,0x00,0x00,0x00},/* 3 CR40[7],CR99[2:0],CR45[3:0]*/
-{0xf0,0xf5,0xf0,0x00,0x00,0x00,0x00,0x00},/* 4 CR59 */
-{0xa4,0x1C,0x24,0x00,0x00,0x00,0x00,0x00},/* 5 CR68 */
-{0x77,0x77,0x44,0x00,0x00,0x00,0x00,0x00},/* 6 CR69 */
-{0x77,0x77,0x44,0x00,0x00,0x00,0x00,0x00},/* 7 CR6A */
-{0xff,0xff,0xff,0x00,0x00,0x00,0x00,0x00},/* 8 CR6D */
-{0x55,0x55,0x55,0x00,0x00,0x00,0x00,0x00},/* 9 CR80 */
-{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},/* 10 CR81 */
-{0x48,0xa8,0x48,0x00,0x00,0x00,0x00,0x00},/* 11 CR82 */
-{0x77,0x88,0x77,0x00,0x00,0x00,0x00,0x00},/* 12 CR85 */
-{0x88,0x88,0x88,0x00,0x00,0x00,0x00,0x00},/* 13 CR86 */
-{0x44,0x32,0x44,0x00,0x00,0x00,0x00,0x00},/* 14 CR90 */
-{0x44,0x33,0x44,0x00,0x00,0x00,0x00,0x00},/* 15 CR91 */
-{0x07,0x07,0x07,0x00,0x00,0x00,0x00,0x00},/* 16 CR92 */
-{0x44,0x63,0x44,0x00,0x00,0x00,0x00,0x00},/* 17 CR93 */
-{0x0A,0x14,0x0A,0x00,0x00,0x00,0x00,0x00},/* 18 CR94 */
-{0x0C,0x0B,0x0C,0x00,0x00,0x00,0x00,0x00},/* 19 CR95 */
-{0x05,0x22,0x05,0x00,0x00,0x00,0x00,0x00},/* 20 CR96 */
-{0xf0,0xf0,0xf0,0x00,0x00,0x00,0x00,0x00},/* 21 CRC3 */
-{0x03,0x00,0x02,0x00,0x00,0x00,0x00,0x00},/* 22 CRC4 */
-{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}/* 23 CRC5 */
-};
-#endif
-UCHAR XGI340_CR6B[8][4]={
+unsigned char XGI340_CR6B[8][4] = {
 {0xaa,0xaa,0xaa,0xaa},
 {0xaa,0xaa,0xaa,0xaa},
 {0xaa,0xaa,0xaa,0xaa},
@@ -167,7 +137,7 @@ UCHAR XGI340_CR6B[8][4]={
 {0x00,0x00,0x00,0x00}
 };
 
-UCHAR XGI340_CR6E[8][4]={
+unsigned char XGI340_CR6E[8][4] = {
 {0x00,0x00,0x00,0x00},
 {0x00,0x00,0x00,0x00},
 {0x00,0x00,0x00,0x00},
@@ -178,7 +148,7 @@ UCHAR XGI340_CR6E[8][4]={
 {0x00,0x00,0x00,0x00}
 };
 
-UCHAR XGI340_CR6F[8][32]={
+unsigned char XGI340_CR6F[8][32] = {
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
@@ -189,7 +159,7 @@ UCHAR XGI340_CR6F[8][32]={
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
 };
 
-UCHAR XGI340_CR89[8][2]={
+unsigned char XGI340_CR89[8][2] = {
 {0x00,0x00},
 {0x00,0x00},
 {0x00,0x00},
@@ -200,11 +170,12 @@ UCHAR XGI340_CR89[8][2]={
 {0x00,0x00}
 };
 			 /* CR47,CR48,CR49,CR4A,CR4B,CR4C,CR70,CR71,CR74,CR75,CR76,CR77 */
-UCHAR XGI340_AGPReg[12]={0x28,0x23,0x00,0x20,0x00,0x20,0x00,0x05,0xd0,0x10,0x10,0x00};
+unsigned char XGI340_AGPReg[12] = {0x28, 0x23, 0x00, 0x20, 0x00, 0x20, 0x00,
+				   0x05, 0xd0, 0x10, 0x10, 0x00};
 
-UCHAR XGI340_SR16[4]={0x03,0x83,0x03,0x83};
+unsigned char XGI340_SR16[4] = {0x03, 0x83, 0x03, 0x83};
 
-UCHAR XGI330_SR15_1[8][8]={
+unsigned char XGI330_SR15_1[8][8] = {
 {0x0,0x0,0x00,0x00,0x20,0x20,0x00,0x00},
 {0x5,0x15,0x15,0x15,0x15,0x15,0x00,0x00},
 {0xba,0xba,0xba,0xba,0xBA,0xBA,0x00,0x00},
@@ -215,7 +186,7 @@ UCHAR XGI330_SR15_1[8][8]={
 {0x0,0xa5,0xfb,0xf6,0xF6,0xF6,0x00,0x00}
 };
 
-UCHAR XGI330_cr40_1[15][8]={
+unsigned char XGI330_cr40_1[15][8] = {
 {0x66,0x40,0x40,0x28,0x24,0x24,0x00,0x00},
 {0x66,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
@@ -233,14 +204,14 @@ UCHAR XGI330_cr40_1[15][8]={
 {0x00,0xA2,0x00,0x00,0xA2,0xA2,0x00,0x00},
 };
 
-UCHAR XGI330_sr25[]={0x00,0x0};
-UCHAR XGI330_sr31=0xc0;
-UCHAR XGI330_sr32=0x11;
-UCHAR XGI330_SR33=0x00;
-UCHAR XG40_CRCF=0x13;
-UCHAR XG40_DRAMTypeDefinition=0xFF ;
+unsigned char XGI330_sr25[] = {0x00, 0x0};
+unsigned char XGI330_sr31 = 0xc0;
+unsigned char XGI330_sr32 = 0x11;
+unsigned char XGI330_SR33 = 0x00;
+unsigned char XG40_CRCF = 0x13;
+unsigned char XG40_DRAMTypeDefinition = 0xFF ;
 
-XGI_StStruct XGI330_SModeIDTable[]=
+struct XGI_StStruct XGI330_SModeIDTable[] =
 {
  {0x01,0x9208,0x01,0x00,0x10,0x00,0x00,0x01,0x00},
  {0x01,0x1210,0x14,0x01,0x00,0x01,0x00,0x01,0x00},
@@ -265,7 +236,7 @@ XGI_StStruct XGI330_SModeIDTable[]=
 };
 
 
-XGI_ExtStruct  XGI330_EModeIDTable[]=
+struct XGI_ExtStruct  XGI330_EModeIDTable[] =
 {
  {0x6a,0x2212,0x0407,0x3a81,0x0102,0x08,0x07,0x00,0x00,0x07,0x0e},
  {0x2e,0x0a1b,0x0306,0x3a57,0x0101,0x08,0x06,0x00,0x00,0x05,0x06},
@@ -337,7 +308,7 @@ XGI_ExtStruct  XGI330_EModeIDTable[]=
  {0xff,0x0000,0x0000,0x0000,0x0000,0x00,0x00,0x00,0x00,0x00,0x00}
 };
 
-XGI_StandTableStruct XGI330_StandTable[]=
+struct XGI_StandTableStruct XGI330_StandTable[] =
 {
 /* MD_0_200 */
  {
@@ -775,13 +746,13 @@ XGI_StandTableStruct XGI330_StandTable[]=
  }
 };
 
-XGI_TimingHStruct XGI_TimingH[]=
+struct XGI_TimingHStruct XGI_TimingH[] =
 {{{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}};
 
-XGI_TimingVStruct XGI_TimingV[]=
+struct XGI_TimingVStruct XGI_TimingV[] =
 {{{0x00,0x00,0x00,0x00,0x00,0x00,0x00}}};
 
-XGI_XG21CRT1Struct XGI_UpdateCRT1Table[]=
+struct XGI_XG21CRT1Struct XGI_UpdateCRT1Table[] =
 {
  {0x01,0x27,0x91,0x8f,0xc0},	/* 00 */
  {0x03,0x4f,0x83,0x8f,0xc0},	/* 01 */
@@ -802,7 +773,7 @@ XGI_XG21CRT1Struct XGI_UpdateCRT1Table[]=
  {0x59,0x27,0x91,0x8f,0xc0}	/* 16 */
 };
 
-XGI_CRT1TableStruct XGI_CRT1Table[]=
+struct XGI_CRT1TableStruct XGI_CRT1Table[] =
 {
  {{0x2d,0x28,0x90,0x2c,0x90,0x00,0x04,0x00,
     0xbf,0x1f,0x9c,0x8e,0x96,0xb9,0x30}}, /* 0x0 */
@@ -950,7 +921,7 @@ XGI_CRT1TableStruct XGI_CRT1Table[]=
     0x03,0xDE,0xC0,0x84,0xBF,0x04,0x90}}  /* 0x47 */
 };
 
-XGI330_CHTVRegDataStruct XGI_CHTVRegUNTSC[] = {
+struct XGI330_CHTVRegDataStruct XGI_CHTVRegUNTSC[] = {
                 /* Index:000h,001h,002h,004h,003h,005h,006h,007h,008h,015h,01Fh,00Ch,00Dh,00Eh,00Fh,010h */
                 {{      0x4A,0x77,0xBB,0x94,0x84,0x48,0xFE,0x50,0x04,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* 00 (640x200,640x400) */
                 {{      0x4A,0x77,0xBB,0x94,0x84,0x48,0xFE,0x50,0x04,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* 01 (640x350) */
@@ -961,7 +932,7 @@ XGI330_CHTVRegDataStruct XGI_CHTVRegUNTSC[] = {
                 {{      0xEE,0x77,0xBB,0x66,0x87,0x32,0x01,0x5A,0x04,0x00,0x80,0x1B,0xD4,0x2F,0x6F,0x00  }}/* 06 (1024x768) ;;5/6/02 */
           };
 
-XGI330_CHTVRegDataStruct XGI_CHTVRegONTSC[]= {
+struct XGI330_CHTVRegDataStruct XGI_CHTVRegONTSC[] = {
                 /* Index:000h,001h,002h,004h,003h,005h,006h,007h,008h,015h,01Fh,00Ch,00Dh,00Eh,00Fh,010h */
                 {{      0x49,0x77,0xBB,0x7B,0x84,0x34,0x00,0x50,0x04,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* 00 (640x200,640x400) */
                 {{      0x49,0x77,0xBB,0x7B,0x84,0x34,0x00,0x50,0x04,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* 01 (640x350) */
@@ -972,7 +943,7 @@ XGI330_CHTVRegDataStruct XGI_CHTVRegONTSC[]= {
                 {{      0xED,0x77,0xBB,0x66,0x8C,0x21,0x02,0x5A,0x04,0x00,0x80,0x1F,0xA0,0x7E,0x73,0x00  }}/* 06 (1024x768) ;;5/6/02 */
           };
 
-XGI330_CHTVRegDataStruct XGI_CHTVRegUPAL[]=  {
+struct XGI330_CHTVRegDataStruct XGI_CHTVRegUPAL[] = {
                 /* Index:000h,001h,002h,004h,003h,005h,006h,007h,008h,015h,01Fh,00Ch,00Dh,00Eh,00Fh,010h */
                 {{      0x41,0x7F,0xB7,0x34,0xAD,0x50,0x34,0x83,0x05,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* ; 00 (640x200,640x400) */
                 {{      0x41,0x7F,0xB7,0x80,0x85,0x50,0x00,0x83,0x05,0x00,0x80,0x00,0x00,0x00,0x00,0x01  }},/* ; 01 (640x350) */
@@ -983,7 +954,7 @@ XGI330_CHTVRegDataStruct XGI_CHTVRegUPAL[]=  {
                 {{      0xE5,0x7F,0xB7,0x1D,0xA7,0x3E,0x04,0x5A,0x05,0x00,0x80,0x20,0x3E,0xE4,0x22,0x00  }}/* ; 06 (1024x768) ;;1/12/02 */
 	  };
 
-XGI330_CHTVRegDataStruct XGI_CHTVRegOPAL[]={
+struct XGI330_CHTVRegDataStruct XGI_CHTVRegOPAL[] = {
                 /* Index:000,0x01,0x02,0x04,0x03,0x05,0x06,0x07,0x08,0x15,0x1F,0x0C,0x0D,0x0E,0x0F,0x10h */
                 {{      0x41,0x7F,0xB7,0x36,0xAD,0x50,0x34,0x83,0x05,0x00,0x80,0x00,0x00,0x00,0x00,0x01 }},/* 00 (640x200,640x400) */
                 {{      0x41,0x7F,0xB7,0x86,0x85,0x50,0x00,0x83,0x05,0x00,0x80,0x00,0x00,0x00,0x00,0x01 }},/* 01 (640x350) */
@@ -994,14 +965,14 @@ XGI330_CHTVRegDataStruct XGI_CHTVRegOPAL[]={
                 {{      0xE4,0x7F,0xB7,0x1E,0xAF,0x29,0x37,0x5A,0x05,0x00,0x80,0x25,0x8C,0xB2,0x2A,0x00 }}/* 06 (1024x768) ;;1/12/02 */
 	     };
 
-UCHAR XGI_CH7017LV1024x768[]={0x60,0x02,0x00,0x07,0x40,0xED,0xA3,
-                   			0xC8,0xC7,0xAC,0xE0,0x02};
-UCHAR XGI_CH7017LV1400x1050[]={0x60,0x03,0x11,0x00,0x40,0xE3,0xAD,
-                   			0xDB,0xF6,0xAC,0xE0,0x02};
+unsigned char XGI_CH7017LV1024x768[] = {0x60, 0x02, 0x00, 0x07, 0x40, 0xED, 0xA3,
+					0xC8, 0xC7, 0xAC, 0xE0, 0x02};
+unsigned char XGI_CH7017LV1400x1050[] = {0x60, 0x03, 0x11, 0x00, 0x40, 0xE3, 0xAD,
+					 0xDB, 0xF6, 0xAC, 0xE0, 0x02};
 
 
 /*add for new UNIVGABIOS*/
-XGI330_LCDDataStruct  XGI_StLCD1024x768Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1024x768Data[] =
 {
  {   62,  25, 800, 546,1344, 806},
  {   32,  15, 930, 546,1344, 806},
@@ -1012,7 +983,7 @@ XGI330_LCDDataStruct  XGI_StLCD1024x768Data[]=
  {    1,   1,1344, 806,1344, 806}
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1024x768Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1024x768Data[] =
 {
  {   42,  25,1536, 419,1344, 806}, /* { 12, 5, 896, 512,1344, 806}, // alan 09/12/2003 */
  {   48,  25,1536, 369,1344, 806}, /* { 12, 5, 896, 510,1344, 806}, // alan 09/12/2003 */
@@ -1029,7 +1000,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1024x768Data[]=
  {    1,   1,1344, 806,1344, 806}
 };
 
-/*XGI330_LCDDataStruct  XGI_St2LCD1024x768Data[]=
+/*struct XGI330_LCDDataStruct  XGI_St2LCD1024x768Data[] =
 {
  {   62,  25, 800, 546,1344, 806},
  {   32,  15, 930, 546,1344, 806},
@@ -1040,7 +1011,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1024x768Data[]=
  {    1,   1,1344, 806,1344, 806}
 };*/
 
-XGI330_LCDDataStruct  XGI_CetLCD1024x768Data[]=
+struct XGI330_LCDDataStruct  XGI_CetLCD1024x768Data[] =
 {
 	{         1,1,1344,806,1344,806           }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {         1,1,1344,806,1344,806           }, /* 01 (320x350,640x350) */
@@ -1051,7 +1022,7 @@ XGI330_LCDDataStruct  XGI_CetLCD1024x768Data[]=
         {         1,1,1344,806,1344,806           }  /* 06 (1024x768x60Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_StLCD1280x1024Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1280x1024Data[] =
 {
  {   22,   5, 800, 510,1650,1088},
  {   22,   5, 800, 510,1650,1088},
@@ -1063,7 +1034,7 @@ XGI330_LCDDataStruct  XGI_StLCD1280x1024Data[]=
  {    1,   1,1688,1066,1688,1066}
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1280x1024Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1280x1024Data[] =
 {
  {  211,  60,1024, 501,1688,1066},
  {  211,  60,1024, 508,1688,1066},
@@ -1075,7 +1046,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1280x1024Data[]=
  {    1,   1,1688,1066,1688,1066}
 };
 
-XGI330_LCDDataStruct  XGI_St2LCD1280x1024Data[]=
+struct XGI330_LCDDataStruct  XGI_St2LCD1280x1024Data[] =
 {
  {   22,   5, 800, 510,1650,1088},
  {   22,   5, 800, 510,1650,1088},
@@ -1087,7 +1058,7 @@ XGI330_LCDDataStruct  XGI_St2LCD1280x1024Data[]=
  {    1,   1,1688,1066,1688,1066}
 };
 
-XGI330_LCDDataStruct  XGI_CetLCD1280x1024Data[]=
+struct XGI330_LCDDataStruct  XGI_CetLCD1280x1024Data[] =
 {
 	{         1,1,1688,1066,1688,1066         }, /* 00 (320x200,320x400,640x200,640x400) */
         {         1,1,1688,1066,1688,1066         }, /* 01 (320x350,640x350) */
@@ -1100,7 +1071,7 @@ XGI330_LCDDataStruct  XGI_CetLCD1280x1024Data[]=
         {         1,1,1688,1066,1688,1066         } /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_StLCD1400x1050Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1400x1050Data[] =
 {
 	{         211,100,2100,408,1688,1066      }, /* 00 (320x200,320x400,640x200,640x400) */
         {         211,64,1536,358,1688,1066       }, /* 01 (320x350,640x350) */
@@ -1113,7 +1084,7 @@ XGI330_LCDDataStruct  XGI_StLCD1400x1050Data[]=
         {         1,1,1688,1066,1688,1066         }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1400x1050Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1400x1050Data[] =
 {
 	{         211,100,2100,408,1688,1066      }, /* 00 (320x200,320x400,640x200,640x400) */
         {         211,64,1536,358,1688,1066       }, /* 01 (320x350,640x350) */
@@ -1126,7 +1097,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1400x1050Data[]=
         {         1,1,1688,1066,1688,1066         }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1600x1200Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1600x1200Data[] =
 {
         {         4,1,1620,420,2160,1250          }, /* { 3,1,2160,425,2160,1250 }, // 00 (320x200,320x400,640x200,640x400) // alan 10/14/2003 */
         {         27,7,1920,375,2160,1250         }, /* 01 (320x350,640x350) */
@@ -1140,7 +1111,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1600x1200Data[]=
         {         1,1,2160,1250,2160,1250         }  /* 09 (1600x1200x60Hz) ;302lv */
 };
 
-XGI330_LCDDataStruct  XGI_StLCD1600x1200Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1600x1200Data[] =
 {
         {         27,4,800,500,2160,1250          },/* 00 (320x200,320x400,640x200,640x400) */
         {         27,4,800,500,2160,1250          },/* 01 (320x350,640x350) */
@@ -1154,7 +1125,7 @@ XGI330_LCDDataStruct  XGI_StLCD1600x1200Data[]=
         {         1,1,2160,1250,2160,1250         } /* 09 (1600x1200) */
 };
 
-XGI330_LCDDataStruct  XGI_CetLCD1400x1050Data[]=
+struct XGI330_LCDDataStruct  XGI_CetLCD1400x1050Data[] =
 {
 	{         1,1,1688,1066,1688,1066         }, /* 00 (320x200,320x400,640x200,640x400) */
         {         1,1,1688,1066,1688,1066         }, /* 01 (320x350,640x350) */
@@ -1167,7 +1138,7 @@ XGI330_LCDDataStruct  XGI_CetLCD1400x1050Data[]=
         {         1,1,1688,1066,1688,1066         }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_NoScalingData[]=
+struct XGI330_LCDDataStruct  XGI_NoScalingData[] =
 {
  {    1,   1, 800, 449, 800, 449},
  {    1,   1, 800, 449, 800, 449},
@@ -1179,7 +1150,7 @@ XGI330_LCDDataStruct  XGI_NoScalingData[]=
  {    1,   1,1688,1066,1688,1066}
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1024x768x75Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1024x768x75Data[] =
 {
         {42,25,1536,419,1344,806 }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {48,25,1536,369,1344,806 }, /* ; 01 (320x350,640x350) */
@@ -1190,7 +1161,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1024x768x75Data[]=
         {1,1,1312,800,1312,800   }  /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_StLCD1024x768x75Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1024x768x75Data[] =
 {
         {42,25,1536,419,1344,806 }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {48,25,1536,369,1344,806 }, /* ; 01 (320x350,640x350) */
@@ -1201,7 +1172,7 @@ XGI330_LCDDataStruct  XGI_StLCD1024x768x75Data[]=
         {1,1,1312,800,1312,800   }  /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_CetLCD1024x768x75Data[]=
+struct XGI330_LCDDataStruct  XGI_CetLCD1024x768x75Data[] =
 {
         {1,1,1312,800,1312,800}, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1,1,1312,800,1312,800}, /* ; 01 (320x350,640x350) */
@@ -1212,7 +1183,7 @@ XGI330_LCDDataStruct  XGI_CetLCD1024x768x75Data[]=
         {1,1,1312,800,1312,800} /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_ExtLCD1280x1024x75Data[]=
+struct XGI330_LCDDataStruct  XGI_ExtLCD1280x1024x75Data[] =
 {
         {211,60,1024,501,1688,1066   }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {211,60,1024,508,1688,1066   }, /* ; 01 (320x350,640x350) */
@@ -1224,7 +1195,7 @@ XGI330_LCDDataStruct  XGI_ExtLCD1280x1024x75Data[]=
         {1,1,1688,1066,1688,1066     }  /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_StLCD1280x1024x75Data[]=
+struct XGI330_LCDDataStruct  XGI_StLCD1280x1024x75Data[] =
 {
         {211,60,1024,501,1688,1066 }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {211,60,1024,508,1688,1066 }, /* ; 01 (320x350,640x350) */
@@ -1236,7 +1207,7 @@ XGI330_LCDDataStruct  XGI_StLCD1280x1024x75Data[]=
         {1,1,1688,1066,1688,1066   }  /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_CetLCD1280x1024x75Data[]=
+struct XGI330_LCDDataStruct  XGI_CetLCD1280x1024x75Data[] =
 {
         {1,1,1688,1066,1688,1066}, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1,1,1688,1066,1688,1066}, /* ; 01 (320x350,640x350) */
@@ -1248,7 +1219,7 @@ XGI330_LCDDataStruct  XGI_CetLCD1280x1024x75Data[]=
         {1,1,1688,1066,1688,1066}  /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataStruct  XGI_NoScalingDatax75[]=
+struct XGI330_LCDDataStruct  XGI_NoScalingDatax75[] =
 {
         {1,1,800,449,800,449    }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1,1,800,449,800,449    }, /* ; 01 (320x350,640x350) */
@@ -1263,7 +1234,7 @@ XGI330_LCDDataStruct  XGI_NoScalingDatax75[]=
         {1,1,1688,806,1688,806  }  /* ; 0A (1280x768x75Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768Data[] =
 {
    {  9,1057,0, 771  }, /* ; 00 (320x200,320x400,640x200,640x400) */
    {  9,1057,0, 771  }, /* ; 01 (320x350,640x350) */
@@ -1274,7 +1245,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768Data[]=
    {  9,1057,805, 770  }  /* ; 06 (1024x768x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768Data[] =
 {
         { 9,1057,737,703   }, /* ; 00 (320x200,320x400,640x200,640x400) */
         { 9,1057,686,651   }, /* ; 01 (320x350,640x350) */
@@ -1285,7 +1256,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768Data[]=
         { 9,1057,805,770   }  /* ; 06 (1024x768x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768Data[]=
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768Data[] =
 {
        	{      1152,856,622,587   }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {      1152,856,597,562   }, /* ; 01 (320x350,640x350) */
@@ -1296,7 +1267,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768Data[]=
         {      0,1048,805,770   }  /* ; 06 (1024x768x60Hz) */
 };
 
-XGI330_LCDDataDesStruct XGI_ExtLCDDLDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct XGI_ExtLCDDLDes1280x1024Data[] =
 {
         {      18,1346,981,940     },/* 00 (320x200,320x400,640x200,640x400) */
         {      18,1346,926,865     },/* 01 (320x350,640x350) */
@@ -1308,7 +1279,7 @@ XGI330_LCDDataDesStruct XGI_ExtLCDDLDes1280x1024Data[]=
         {      18,1346,1065,1024     }/* 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct XGI_StLCDDLDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct XGI_StLCDDLDes1280x1024Data[] =
 {
         {      18,1346,970,907     },/* 00 (320x200,320x400,640x200,640x400) */
         {      18,1346,917,854     },/* 01 (320x350,640x350) */
@@ -1320,7 +1291,7 @@ XGI330_LCDDataDesStruct XGI_StLCDDLDes1280x1024Data[]=
         {      18,1346,1065,1024     }/* 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024Data[] =
 {
         {      1368,1008,752,711    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1368,1008,729,688    }, /* 01 (320x350,640x350) */
@@ -1332,7 +1303,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024Data[]=
         {      18,1346,1065,1024    }  /* 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024Data[] =
 {
         {      9,1337,981,940    }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {      9,1337,926,884    }, /* ; 01 (320x350,640x350) alan, 2003/09/30 */
@@ -1344,7 +1315,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024Data[]=
         {      9,1337,1065,1024    }  /* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024Data[] =
 {
         {      9,1337,970,907    }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {      9,1337,917,854    }, /* ; 01 (320x350,640x350) */
@@ -1356,7 +1327,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024Data[]=
         {      9,1337,1065,1024    }  /* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024Data[]=
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024Data[] =
 {
         {      1368,1008,752,711    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1368,1008,729,688    }, /* 01 (320x350,640x350) */
@@ -1368,7 +1339,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024Data[]=
         {      9,1337,1065,1024    }  /* 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDLDes1400x1050Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDLDes1400x1050Data[] =
 {
         {      18,1464,0,1051    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      18,1464,0,1051    }, /* 01 (320x350,640x350) */
@@ -1381,7 +1352,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDLDes1400x1050Data[]=
         {      18,1464,0,1051    }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1400x1050Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1400x1050Data[] =
 {
         {      18,1464,0,1051    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      18,1464,0,1051    }, /* 01 (320x350,640x350) */
@@ -1394,7 +1365,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1400x1050Data[]=
         {      18,1464,0,1051    }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1400x1050Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1400x1050Data[] =
 {
         {      9,1455,0,1051     },/* 00 (320x200,320x400,640x200,640x400) */
         {      9,1455,0,1051     },/* 01 (320x350,640x350) */
@@ -1407,7 +1378,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1400x1050Data[]=
         {      9,1455,0,1051     } /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1400x1050Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1400x1050Data[] =
 {
         {      9,1455,0,1051     },/* 00 (320x200,320x400,640x200,640x400) */
         {      9,1455,0,1051     },/* 01 (320x350,640x350) */
@@ -1420,7 +1391,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1400x1050Data[]=
         {      9,1455,0,1051     } /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data[]=
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data[] =
 {
         {      1308,1068,781,766    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1308,1068,781,766    }, /* 01 (320x350,640x350) */
@@ -1433,7 +1404,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data[]=
         {      18,1464,0,1051    } /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data2[]=
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data2[] =
 {
         {      0,1448,0,1051    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      0,1448,0,1051    }, /* 01 (320x350,640x350) */
@@ -1444,7 +1415,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1400x1050Data2[]=
 
 
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1600x1200Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1600x1200Data[] =
 {
 	{      18,1682,0,1201    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      18,1682,0,1201    }, /* 01 (320x350,640x350) */
@@ -1458,7 +1429,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1600x1200Data[]=
         {      18,1682,0,1201    }  /* 09 (1600x1200x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDLDes1600x1200Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDLDes1600x1200Data[] =
 {
         {      18,1682,1150,1101    }, /* 00 (320x200,320x400,640x200,640x400) */
         {      18,1682,1083,1034    }, /* 01 (320x350,640x350) */
@@ -1472,7 +1443,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDLDes1600x1200Data[]=
         {      18,1682,0,1201    } /* 09 (1600x1200x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1600x1200Data[]=
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1600x1200Data[] =
 {
         {      9,1673,0,1201     },/* 00 (320x200,320x400,640x200,640x400) */
         {      9,1673,0,1201     },/* 01 (320x350,640x350) */
@@ -1486,7 +1457,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1600x1200Data[]=
         {      9,1673,0,1201     } /* 09 (1600x1200x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1600x1200Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1600x1200Data[] =
 {
 	{      9,1673,1150,1101     },/* 00 (320x200,320x400,640x200,640x400) */
         {      9,1673,1083,1034     },/* 01 (320x350,640x350) */
@@ -1500,7 +1471,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1600x1200Data[]=
         {      9,1673,0,1201     } /* 09 (1600x1200x60Hz) */
 };
 
-XGI330_LCDDataDesStruct2  XGI_NoScalingDesData[]=
+struct XGI330_LCDDataDesStruct2  XGI_NoScalingDesData[] =
 {
         {     9,657,448,405,96,2  }, /* 00 (320x200,320x400,640x200,640x400) */
         {     9,657,448,355,96,2  }, /* 01 (320x350,640x350) */
@@ -1515,7 +1486,7 @@ XGI330_LCDDataDesStruct2  XGI_NoScalingDesData[]=
         {     9,1337,0,771,112,6  }  /* 0A (1280x768x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768x75Data[]=		/* ;;1024x768x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768x75Data[] =		/* ;;1024x768x75Hz */
 {
         {9,1049,0,769},    /* ; 00 (320x200,320x400,640x200,640x400) */
         {9,1049,0,769},    /* ; 01 (320x350,640x350) */
@@ -1526,7 +1497,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1024x768x75Data[]=		/* ;;1024x768x75Hz */
         {9,1049,0,769}     /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768x75Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768x75Data[] =
 {
         {9,1049,0,769},    /* ; 00 (320x200,320x400,640x200,640x400) */
         {9,1049,0,769},    /* ; 01 (320x350,640x350) */
@@ -1537,7 +1508,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1024x768x75Data[]=
         {9,1049,0,769}     /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768x75Data[]=	/* ;;1024x768x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768x75Data[] =	/* ;;1024x768x75Hz */
 {
         {1152,856,622,587},     /* ; 00 (320x200,320x400,640x200,640x400) */
         {1152,856,597,562},     /* ; 01 (320x350,640x350) */
@@ -1548,7 +1519,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1024x768x75Data[]=	/* ;;1024x768x75Hz */
         {9,1049,0,769} 	   	/* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1280x1024x75Data[]=         /* ;;1280x1024x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1280x1024x75Data[] =         /* ;;1280x1024x75Hz */
 {
         {18,1314,0,1025     },/* ; 00 (320x200,320x400,640x200,640x400) */
         {18,1314,0,1025     },/* ; 01 (320x350,640x350) */
@@ -1560,7 +1531,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDLDes1280x1024x75Data[]=         /* ;;1280x10
         {18,1314,0,1025     }/* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDLDes1280x1024x75Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDLDes1280x1024x75Data[] =
 {
         {18,1314,0,1025     },/* ; 00 (320x200,320x400,640x200,640x400) */
         {18,1314,0,1025     },/* ; 01 (320x350,640x350) */
@@ -1572,7 +1543,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDLDes1280x1024x75Data[]=
         {18,1314,0,1025     }/* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024x75Data[]=	/* 1280x1024x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024x75Data[] =	/* 1280x1024x75Hz */
 {
         {1368,1008,752,711},    /* ; 00 (320x200,320x400,640x200,640x400) */
         {1368,1008,729,688},    /* ; 01 (320x350,640x350) */
@@ -1584,7 +1555,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDLDes1280x1024x75Data[]=	/* 1280x1024x75Hz */
         {18,1314,0,1025}     	  /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024x75Data[]=         /* ;;1280x1024x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024x75Data[] =         /* ;;1280x1024x75Hz */
 {
 	{9,1305,0,1025},/* ; 00 (320x200,320x400,640x200,640x400) */
         {9,1305,0,1025},/* ; 01 (320x350,640x350) */
@@ -1596,7 +1567,7 @@ XGI330_LCDDataDesStruct  XGI_ExtLCDDes1280x1024x75Data[]=         /* ;;1280x1024
         {9,1305,0,1025} /* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024x75Data[]=
+struct XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024x75Data[] =
 {
 	{9,1305,0,1025},/* ; 00 (320x200,320x400,640x200,640x400) */
         {9,1305,0,1025},/* ; 01 (320x350,640x350) */
@@ -1608,7 +1579,7 @@ XGI330_LCDDataDesStruct  XGI_StLCDDes1280x1024x75Data[]=
         {9,1305,0,1025} /* ; 07 (1280x1024x60Hz) */
 };
 
-XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024x75Data[]=	/* 1280x1024x75Hz */
+struct XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024x75Data[] =	/* 1280x1024x75Hz */
 {
         {1368,1008,752,711},    /* ; 00 (320x200,320x400,640x200,640x400) */
         {1368,1008,729,688},    /* ; 01 (320x350,640x350) */
@@ -1620,7 +1591,7 @@ XGI330_LCDDataDesStruct  XGI_CetLCDDes1280x1024x75Data[]=	/* 1280x1024x75Hz */
         {9,1305,0,1025}     	  /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataDesStruct2 XGI_NoScalingDesDatax75[]= /* Scaling LCD 75Hz */
+struct XGI330_LCDDataDesStruct2 XGI_NoScalingDesDatax75[] = /* Scaling LCD 75Hz */
 {
 	{9,657,448,405,96,2},   /* ; 00 (320x200,320x400,640x200,640x400) */
         {9,657,448,355,96,2},   /* ; 01 (320x350,640x350) */
@@ -1635,7 +1606,7 @@ XGI330_LCDDataDesStruct2 XGI_NoScalingDesDatax75[]= /* Scaling LCD 75Hz */
         {9,1337,0,771,112,6}    /* ; 0A (1280x768x60Hz) */
 };
 
-XGI330_TVDataStruct  XGI_StPALData[]=
+struct XGI330_TVDataStruct  XGI_StPALData[] =
 {
  {    1,   1, 864, 525,1270, 400, 100,   0, 760},
  {    1,   1, 864, 525,1270, 350, 100,   0, 760},
@@ -1645,7 +1616,7 @@ XGI330_TVDataStruct  XGI_StPALData[]=
  {    1,   1, 864, 525,1270, 600,  50,   0,   0}
 };
 
-XGI330_TVDataStruct  XGI_ExtPALData[]=
+struct XGI330_TVDataStruct  XGI_ExtPALData[] =
 {
  {    2,   1,1080, 463,1270, 500,  50,   0,  50},
  {   15,   7,1152, 413,1270, 500,  50,   0,  50},
@@ -1657,7 +1628,7 @@ XGI330_TVDataStruct  XGI_ExtPALData[]=
  {    3,   2,1080, 619,1270, 540, 438,   0, 438}
 };
 
-XGI330_TVDataStruct  XGI_StNTSCData[]=
+struct XGI330_TVDataStruct  XGI_StNTSCData[] =
 {
  {    1,   1, 858, 525,1270, 400,  50,   0, 760},
  {    1,   1, 858, 525,1270, 350,  50,   0, 640},
@@ -1666,7 +1637,7 @@ XGI330_TVDataStruct  XGI_StNTSCData[]=
  {    1,   1, 858, 525,1270, 480,   0,   0, 760}
 };
 
-XGI330_TVDataStruct  XGI_ExtNTSCData[]=
+struct XGI330_TVDataStruct  XGI_ExtNTSCData[] =
 {
  {    9,  5, 1001, 453,1270, 420, 171,   0, 171},
  {   12,  5,  858, 403,1270, 420, 171,   0, 171},
@@ -1679,7 +1650,7 @@ XGI330_TVDataStruct  XGI_ExtNTSCData[]=
  {    3,   2,1001, 533,1270, 420,   0,   0,   0}
 };
 
-XGI330_TVDataStruct  XGI_St1HiTVData[]=
+struct XGI330_TVDataStruct  XGI_St1HiTVData[] =
 {
     	{        1,1,892,563,690,800,0,0,0               }, /* 00 (320x200,320x400,640x200,640x400) */
         {        1,1,892,563,690,700,0,0,0               }, /* 01 (320x350,640x350) */
@@ -1689,7 +1660,7 @@ XGI330_TVDataStruct  XGI_St1HiTVData[]=
         {        8,5,1050,683,1648,960,0x150,1,0         }  /* 05 (400x300,800x600) */
 };
 
-XGI330_TVDataStruct  XGI_St2HiTVData[]=
+struct XGI330_TVDataStruct  XGI_St2HiTVData[] =
 {
         {        3,1,840,483,1648,960,0x032,0,0          }, /* 00 (320x200,320x400,640x200,640x400) */
         {        1,1,892,563,690,700,0,0,0               }, /* 01 (320x350,640x350) */
@@ -1700,7 +1671,7 @@ XGI330_TVDataStruct  XGI_St2HiTVData[]=
 
 };
 
-XGI330_TVDataStruct  XGI_ExtHiTVData[]=
+struct XGI330_TVDataStruct  XGI_ExtHiTVData[] =
 {
         {        6,1,840,563,1632,960,0,0,0              }, /* 00 (320x200,320x400,640x200,640x400) */
         {        3,1,960,563,1632,960,0,0,0              }, /* 01 (320x350,640x350) */
@@ -1716,7 +1687,7 @@ XGI330_TVDataStruct  XGI_ExtHiTVData[]=
 
 };
 
-XGI330_TVDataStruct  XGI_ExtYPbPr525iData[]=
+struct XGI330_TVDataStruct  XGI_ExtYPbPr525iData[] =
 {
  {    9,  5, 1001, 453,1270, 420, 171,   0, 171},
  {   12,  5,  858, 403,1270, 420, 171,   0, 171},
@@ -1729,7 +1700,7 @@ XGI330_TVDataStruct  XGI_ExtYPbPr525iData[]=
  {    3,   2,1001, 533,1250, 420,   0,   0,   0}
 };
 
-XGI330_TVDataStruct  XGI_StYPbPr525iData[]=
+struct XGI330_TVDataStruct  XGI_StYPbPr525iData[] =
 {
  {    1,   1, 858, 525,1270, 400,  50,   0, 760},
  {    1,   1, 858, 525,1270, 350,  50,   0, 640},
@@ -1738,7 +1709,7 @@ XGI330_TVDataStruct  XGI_StYPbPr525iData[]=
  {    1,   1, 858, 525,1270, 480,   0,   0, 760},
 };
 
-XGI330_TVDataStruct  XGI_ExtYPbPr525pData[]=
+struct XGI330_TVDataStruct  XGI_ExtYPbPr525pData[] =
 {
  {    9,  5, 1001, 453,1270, 420, 171,   0, 171},
  {   12,  5,  858, 403,1270, 420, 171,   0, 171},
@@ -1751,7 +1722,7 @@ XGI330_TVDataStruct  XGI_ExtYPbPr525pData[]=
  {    3,   2,1001, 533,1270, 420,   0,   0,   0}
  };
 
-XGI330_TVDataStruct  XGI_StYPbPr525pData[]=
+struct XGI330_TVDataStruct  XGI_StYPbPr525pData[] =
 {
  {    1,   1,1716, 525,1270, 400,  50,   0, 760},
  {    1,   1,1716, 525,1270, 350,  50,   0, 640},
@@ -1760,7 +1731,7 @@ XGI330_TVDataStruct  XGI_StYPbPr525pData[]=
  {    1,   1,1716, 525,1270, 480,   0,   0, 760},
 };
 
-XGI330_TVDataStruct  XGI_ExtYPbPr750pData[]=
+struct XGI330_TVDataStruct  XGI_ExtYPbPr750pData[] =
 {
  {    3,   1, 935, 470,1130, 680,  50,   0,   0},       /* 00 (320x200,320x400,640x200,640x400) */
  {   24,   7, 935, 420,1130, 680,  50,   0,   0},       /* 01 (320x350,640x350) */
@@ -1775,7 +1746,7 @@ XGI330_TVDataStruct  XGI_ExtYPbPr750pData[]=
  {   10,   9,1320, 830,1130, 640,  50,   0,   0}
 };
 
-XGI330_TVDataStruct  XGI_StYPbPr750pData[]=
+struct XGI330_TVDataStruct  XGI_StYPbPr750pData[] =
 {
  {    1,   1,1650, 750,1280, 400,  50,   0, 760},
  {    1,   1,1650, 750,1280, 350,  50,   0, 640},
@@ -1784,7 +1755,7 @@ XGI330_TVDataStruct  XGI_StYPbPr750pData[]=
  {    1,   1,1650, 750,1280, 480,   0,   0, 760},
 };
 
-UCHAR XGI330_NTSCTiming[] = {
+unsigned char XGI330_NTSCTiming[] = {
   0x17,0x1d,0x03,0x09,0x05,0x06,0x0c,0x0c,
   0x94,0x49,0x01,0x0a,0x06,0x0d,0x04,0x0a,
   0x06,0x14,0x0d,0x04,0x0a,0x00,0x85,0x1b,
@@ -1794,7 +1765,7 @@ UCHAR XGI330_NTSCTiming[] = {
   0x60,0x80,0x14,0x90,0x8c,0x60,0x14,0x50,
   0x00,0x40,0x44,0x00,0xdb,0x02,0x3b,0x00};
 
-UCHAR XGI330_PALTiming[] = {
+unsigned char XGI330_PALTiming[] = {
   0x21,0x5A,0x35,0x6e,0x04,0x38,0x3d,0x70,
   0x94,0x49,0x01,0x12,0x06,0x3e,0x35,0x6d,
   0x06,0x14,0x3e,0x35,0x6d,0x00,0x45,0x2b,
@@ -1804,7 +1775,7 @@ UCHAR XGI330_PALTiming[] = {
   0x60,0x80,0x14,0x90,0x8c,0x60,0x14,0x63,
   0x00,0x40,0x3e,0x00,0xe1,0x02,0x28,0x00};
 
-UCHAR XGI330_HiTVExtTiming[] =
+unsigned char XGI330_HiTVExtTiming[] =
 {
       0x2D,0x60,0x2C,0x5F,0x08,0x31,0x3A,0x64,
       0x28,0x02,0x01,0x3D,0x06,0x3E,0x35,0x6D,
@@ -1818,7 +1789,7 @@ UCHAR XGI330_HiTVExtTiming[] =
 
 };
 
-UCHAR XGI330_HiTVSt1Timing[] =
+unsigned char XGI330_HiTVSt1Timing[] =
 {
       0x32,0x65,0x2C,0x5F,0x08,0x31,0x3A,0x65,
       0x28,0x02,0x01,0x3D,0x06,0x3E,0x35,0x6D,
@@ -1831,7 +1802,7 @@ UCHAR XGI330_HiTVSt1Timing[] =
       0x0E,0x00,0xfc,0xff,0x2d,0x00
 };
 
-UCHAR XGI330_HiTVSt2Timing[] =
+unsigned char XGI330_HiTVSt2Timing[] =
 {
       0x32,0x65,0x2C,0x5F,0x08,0x31,0x3A,0x64,
       0x28,0x02,0x01,0x3D,0x06,0x3E,0x35,0x6D,
@@ -1844,7 +1815,7 @@ UCHAR XGI330_HiTVSt2Timing[] =
       0x27,0x00,0xFC,0xff,0x6a,0x00
 };
 
-UCHAR XGI330_HiTVTextTiming[] =
+unsigned char XGI330_HiTVTextTiming[] =
 {
       0x32,0x65,0x2C,0x5F,0x08,0x31,0x3A,0x65,
       0x28,0x02,0x01,0x3D,0x06,0x3E,0x35,0x6D,
@@ -1857,7 +1828,7 @@ UCHAR XGI330_HiTVTextTiming[] =
       0x11,0x00,0xFC,0xFF,0x32,0x00
 };
 
-UCHAR XGI330_YPbPr750pTiming[] =
+unsigned char XGI330_YPbPr750pTiming[] =
 {
       0x30,0x1d,0xe8,0x09,0x09,0xed,0x0c,0x0c,
       0x98,0x0a,0x01,0x0c,0x06,0x0d,0x04,0x0a,
@@ -1870,7 +1841,7 @@ UCHAR XGI330_YPbPr750pTiming[] =
       0x11,0x00,0xfc,0xff,0x32,0x00
 };
 
-UCHAR XGI330_YPbPr525pTiming[] =
+unsigned char XGI330_YPbPr525pTiming[] =
 {
       0x3E,0x11,0x06,0x09,0x0b,0x0c,0x0c,0x0c,
       0x98,0x0a,0x01,0x0d,0x06,0x0d,0x04,0x0a,
@@ -1883,7 +1854,7 @@ UCHAR XGI330_YPbPr525pTiming[] =
       0x11,0x00,0xFC,0xFF,0x32,0x00
 };
 
-UCHAR XGI330_YPbPr525iTiming[] =
+unsigned char XGI330_YPbPr525iTiming[] =
 {
       0x1B,0x21,0x03,0x09,0x05,0x06,0x0C,0x0C,
       0x94,0x49,0x01,0x0A,0x06,0x0D,0x04,0x0A,
@@ -1897,7 +1868,7 @@ UCHAR XGI330_YPbPr525iTiming[] =
 
 };
 
-UCHAR XGI330_HiTVGroup3Data[] =
+unsigned char XGI330_HiTVGroup3Data[] =
 {
       0x00,0x1A,0x22,0x63,0x62,0x22,0x08,0x5F,
       0x05,0x21,0xB2,0xB2,0x55,0x77,0x2A,0xA6,
@@ -1909,7 +1880,7 @@ UCHAR XGI330_HiTVGroup3Data[] =
       0x18,0x05,0x18,0x05,0x4C,0xA8,0x01
 };
 
-UCHAR XGI330_HiTVGroup3Simu[] =
+unsigned char XGI330_HiTVGroup3Simu[] =
 {
       0x00,0x1A,0x22,0x63,0x62,0x22,0x08,0x95,
       0xDB,0x20,0xB8,0xB8,0x55,0x47,0x2A,0xA6,
@@ -1921,7 +1892,7 @@ UCHAR XGI330_HiTVGroup3Simu[] =
       0x18,0x05,0x18,0x05,0x4C,0xA8,0x01
 };
 
-UCHAR XGI330_HiTVGroup3Text[] =
+unsigned char XGI330_HiTVGroup3Text[] =
 {
       0x00,0x1A,0x22,0x63,0x62,0x22,0x08,0xA7,
       0xF5,0x20,0xCE,0xCE,0x55,0x47,0x2A,0xA6,
@@ -1933,7 +1904,7 @@ UCHAR XGI330_HiTVGroup3Text[] =
       0x18,0x05,0x18,0x05,0x4C,0xA8,0x01
 };
 
-UCHAR XGI330_Ren525pGroup3[] =
+unsigned char XGI330_Ren525pGroup3[] =
 {
   0x00,0x14,0x15,0x25,0x55,0x15,0x0b,0x13,
   0xB1,0x41,0x62,0x62,0xFF,0xF4,0x45,0xa6,
@@ -1945,7 +1916,7 @@ UCHAR XGI330_Ren525pGroup3[] =
   0x1a,0x1F,0x25,0x2a,0x4C,0xAA,0x01
 };
 
-UCHAR XGI330_Ren750pGroup3[] =
+unsigned char XGI330_Ren750pGroup3[] =
 {
   0x00,0x14,0x15,0x25,0x55,0x15,0x0b,0x7a,
   0x54,0x41,0xE7,0xE7,0xFF,0xF4,0x45,0xa6,
@@ -1957,7 +1928,7 @@ UCHAR XGI330_Ren750pGroup3[] =
   0x18,0x1D,0x23,0x28,0x4C,0xAA,0x01
 };
 
-XGI_PanelDelayTblStruct XGI330_PanelDelayTbl[]=
+struct XGI_PanelDelayTblStruct XGI330_PanelDelayTbl[] =
 {
 {{0x00,0x00}},
 {{0x00,0x00}},
@@ -1977,7 +1948,7 @@ XGI_PanelDelayTblStruct XGI330_PanelDelayTbl[]=
 {{0x00,0x00}}
 };
 
-XGI330_LVDSDataStruct  XGI330_LVDS320x480Data_1[]=
+struct XGI330_LVDSDataStruct  XGI330_LVDS320x480Data_1[] =
 {
  {848, 433,400,525},
  {848, 389,400,525},
@@ -1990,7 +1961,7 @@ XGI330_LVDSDataStruct  XGI330_LVDS320x480Data_1[]=
  {800, 525,1000, 635}
 };
 
-XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_1[]=
+struct XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_1[] =
 {
  {848, 433,1060, 629},
  {848, 389,1060, 629},
@@ -2003,7 +1974,7 @@ XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_1[]=
  {800, 525,1000, 635}
 };
 
-XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_2[]=
+struct XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_2[] =
 {
  {1056, 628,1056, 628},
  {1056, 628,1056, 628},
@@ -2016,7 +1987,7 @@ XGI330_LVDSDataStruct  XGI330_LVDS800x600Data_2[]=
  {800, 525,1000, 635}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_1[] =
 {
  { 960 , 438 , 1344 , 806 } ,	/* 00 (320x200,320x400,640x200,640x400) */
  { 960 , 388 , 1344 , 806 } ,	/* 01 (320x350,640x350) */
@@ -2028,7 +1999,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_1[]=
 };
 
 
-XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_2[] =
 {
  {1344, 806,1344, 806},
  {1344, 806,1344, 806},
@@ -2041,7 +2012,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1024x768Data_2[]=
  {800, 525,1280, 813}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_1[] =
 {
  {1048, 442,1688, 1066},
  {1048, 392,1688, 1066},
@@ -2053,7 +2024,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_1[]=
  {1688, 1066,1688, 1066}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_2[] =
 {
  {1344, 806,1344, 806},
  {1344, 806,1344, 806},
@@ -2066,7 +2037,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x1024Data_2[]=
  {800, 525,1280, 813}
 };
 /*
-XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_1[] =
 {
  {768,438,1408,806},
  {768,388,1408,806},
@@ -2079,7 +2050,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_1[]=
  {1408,806,1408,806}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_2[] =
 {
  {1408, 806,1408, 806},
  {1408, 806,1408, 806},
@@ -2092,7 +2063,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768Data_2[]=
  {1408, 806,1408, 806}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_1[] =
 {
  {704, 438,1344, 806},
  {704, 388,1344, 806},
@@ -2105,7 +2076,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_1[]=
  {1344, 806,1344, 806}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_2[] =
 {
  {1344, 806,1344, 806},
  {1344, 806,1344, 806},
@@ -2118,7 +2089,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768NData_2[]=
  {1344, 806,1344, 806}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_1[] =
 {
  {1048,438,1688,806},
  {1048,388,1688,806},
@@ -2131,7 +2102,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_1[]=
  {1688,806,1688,806}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_2[] =
 {
  {1688,806,1688,806},
  {1688,806,1688,806},
@@ -2144,7 +2115,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1280x768SData_2[]=
  {1688,806,1688,806}
 };
 */
-XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_1[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_1[] =
 {
  {928,416,1688,1066},
  {928,366,1688,1066},
@@ -2157,7 +2128,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_1[]=
  {1688,1066,1688,1066}
 };
 
-XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_2[]=
+struct XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_2[] =
 {
  {1688,1066,1688,1066},
  {1688,1066,1688,1066},
@@ -2170,7 +2141,7 @@ XGI330_LVDSDataStruct  XGI_LVDS1400x1050Data_2[]=
  {1688,1066,1688,1066}
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1600x1200Data_1[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1600x1200Data_1[] =
 {      /* ;;[ycchen] 12/05/02 LCDHTxLCDVT=2048x1320 */
         {        1088,520,2048,1320      },/* 00 (320x200,320x400,640x200,640x400) */
         {        1088,470,2048,1320      },/* 01 (320x350,640x350) */
@@ -2184,7 +2155,7 @@ XGI330_LVDSDataStruct XGI_LVDS1600x1200Data_1[]=
         {        2048,1320,2048,1320     } /* 09 (1600x1200) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDSNoScalingData[]=
+struct XGI330_LVDSDataStruct XGI_LVDSNoScalingData[] =
 {
         {        800,449,800,449             }, /* 00 (320x200,320x400,640x200,640x400) */
         {        800,449,800,449             }, /* 01 (320x350,640x350) */
@@ -2199,7 +2170,7 @@ XGI330_LVDSDataStruct XGI_LVDSNoScalingData[]=
         {        1688,806,1688,806           }  /* 0A (1280x768x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Data_1x75[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Data_1x75[] =
 {
 	{960,438,1312,800  }, /* 00 (320x200,320x400,640x200,640x400) */
         {960,388,1312,800  }, /* 01 (320x350,640x350) */
@@ -2211,7 +2182,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Data_1x75[]=
 };
 
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Data_2x75[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Data_2x75[] =
 {
         {1312,800,1312,800}, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1312,800,1312,800}, /* ; 01 (320x350,640x350) */
@@ -2222,7 +2193,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Data_2x75[]=
         {1312,800,1312,800}, /* ; 06 (512x384,1024x768) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_1x75[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_1x75[] =
 {
         {1048,442,1688,1066  }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1048,392,1688,1066  }, /* ; 01 (320x350,640x350) */
@@ -2234,7 +2205,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_1x75[]=
         {1688,1066,1688,1066 }, /* ; 06; 07 (640x512,1280x1024) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_2x75[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_2x75[] =
 {
         {1688,1066,1688,1066 }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1688,1066,1688,1066 }, /* ; 01 (320x350,640x350) */
@@ -2246,7 +2217,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Data_2x75[]=
         {1688,1066,1688,1066 }, /* ; 06; 07 (640x512,1280x1024) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDSNoScalingDatax75[]=
+struct XGI330_LVDSDataStruct XGI_LVDSNoScalingDatax75[] =
 {
         {800,449,800,449     }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {800,449,800,449     }, /* ; 01 (320x350,640x350) */
@@ -2261,7 +2232,7 @@ XGI330_LVDSDataStruct XGI_LVDSNoScalingDatax75[]=
         {1688,806,1688,806   }, /* ; 0A (1280x768x75Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1[] =
 {
 	{      0,1048,   0, 771     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      0,1048,   0, 771     }, /* 01 (320x350,640x350) */
@@ -2272,7 +2243,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1[]=
         {      0,1048, 805, 770     }  /* 06 (1024x768x60Hz) */
 } ;
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2[] =
 {
     	{      1142, 856, 622, 587     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1142, 856, 597, 562     }, /* 01 (320x350,640x350) */
@@ -2283,7 +2254,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2[]=
         {         0,1048, 805, 771     }  /* 06 (1024x768x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3[] =
 {
     	{       320,  24, 622, 587     }, /* 00 (320x200,320x400,640x200,640x400) */
         {       320,  24, 597, 562     }, /* 01 (320x350,640x350) */
@@ -2292,7 +2263,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3[]=
         {       320,  24, 722, 687     }  /* 04 (640x480x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1[] =
 {
     	{      0,1328,    0, 1025     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      0,1328,    0, 1025     }, /* 01 (320x350,640x350) */
@@ -2305,7 +2276,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1[]=
 };
 
  /* The Display setting for DE Mode Panel */
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2[] =
 {
     	{      1368,1008,752,711     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1368,1008,729,688     }, /* 01 (320x350,640x350) */
@@ -2317,7 +2288,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2[]=
         {      0000,1328,0,1025     }  /* 07 (1280x1024x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_1[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_1[] =
 {
     	{      0,1448,0,1051     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      0,1448,0,1051     }, /* 01 (320x350,640x350) */
@@ -2330,7 +2301,7 @@ XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_1[]=
         {      0,1448,0,1051     }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_2[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_2[] =
 {
     	{      1308,1068, 781, 766     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      1308,1068, 781, 766     }, /* 01 (320x350,640x350) */
@@ -2343,7 +2314,7 @@ XGI330_LVDSDataStruct XGI_LVDS1400x1050Des_2[]=
         {      0,1448,0,1051     }  /* 08 (1400x1050x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1600x1200Des_1[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1600x1200Des_1[] =
 {
     	{      0,1664,0,1201     }, /* 00 (320x200,320x400,640x200,640x400) */
         {      0,1664,0,1201     }, /* 01 (320x350,640x350) */
@@ -2359,7 +2330,7 @@ XGI330_LVDSDataStruct XGI_LVDS1600x1200Des_1[]=
 
 
 
-XGI330_LCDDataDesStruct2  XGI_LVDSNoScalingDesData[]=
+struct XGI330_LCDDataDesStruct2  XGI_LVDSNoScalingDesData[] =
 {
     	{     0, 648, 448, 405,  96,   2   }, /* 00 (320x200,320x400,640x200,640x400) */
         {     0, 648, 448, 355,  96,   2   }, /* 01 (320x350,640x350) */
@@ -2374,7 +2345,7 @@ XGI330_LCDDataDesStruct2  XGI_LVDSNoScalingDesData[]=
         {     0,1328,0,0771, 112,   6   }  /* 0A (1280x768x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1x75[]=			/* ; 1024x768 Full-screen */
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1x75[] =			/* ; 1024x768 Full-screen */
 {
         {0,1040,0,769}, /* ; 00 (320x200,320x400,640x200,640x400) */
         {0,1040,0,769}, /* ; 01 (320x350,640x350) */
@@ -2385,7 +2356,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_1x75[]=			/* ; 1024x768 Full-screen */
         {0,1040,0,769} /* ; 06 (1024x768x75Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2x75[]= /* ; 1024x768 center-screen (Enh. Mode) */
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2x75[] = /* ; 1024x768 center-screen (Enh. Mode) */
 {
         {1142, 856,622,587 }, /* 00 (320x200,320x400,640x200,640x400) */
         {1142, 856,597,562 }, /* 01 (320x350,640x350) */
@@ -2396,7 +2367,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_2x75[]= /* ; 1024x768 center-screen (E
         {   0,1048,805,771 }  /* 06 (1024x768x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3x75[]= /* ; 1024x768 center-screen (St.Mode) */
+struct XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3x75[] = /* ; 1024x768 center-screen (St.Mode) */
 {
         {320,24,622,587  }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {320,24,597,562  }, /* ; 01 (320x350,640x350) */
@@ -2405,7 +2376,7 @@ XGI330_LVDSDataStruct XGI_LVDS1024x768Des_3x75[]= /* ; 1024x768 center-screen (S
         {320,24,722,687  } /* ; 04 (640x480x60Hz) */
 };
 
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1x75[]=
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1x75[] =
 {
         {0,1296,0,1025}, /* ; 00 (320x200,320x400,640x200,640x400) */
         {0,1296,0,1025}, /* ; 01 (320x350,640x350) */
@@ -2418,7 +2389,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_1x75[]=
 };
 
 /* The Display setting for DE Mode Panel */
-XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2x75[]=   /* [ycchen] 02/18/03 Set DE as default */
+struct XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2x75[] =   /* [ycchen] 02/18/03 Set DE as default */
 {
         {1368,976,752,711 }, /* ; 00 (320x200,320x400,640x200,640x400) */
         {1368,976,729,688 }, /* ; 01 (320x350,640x350) */
@@ -2430,7 +2401,7 @@ XGI330_LVDSDataStruct XGI_LVDS1280x1024Des_2x75[]=   /* [ycchen] 02/18/03 Set DE
         {0,1296,0,1025    } /* ; 07 (1280x1024x75Hz) */
 };
 
-XGI330_LCDDataDesStruct2 XGI_LVDSNoScalingDesDatax75[]=  /* Scaling LCD 75Hz */
+struct XGI330_LCDDataDesStruct2 XGI_LVDSNoScalingDesDatax75[] =  /* Scaling LCD 75Hz */
 {
        { 0,648,448,405,96,2  }, /* ; 00 (320x200,320x400,640x200,640x400) */
        { 0,648,448,355,96,2  }, /* ; 01 (320x350,640x350) */
@@ -2445,7 +2416,7 @@ XGI330_LCDDataDesStruct2 XGI_LVDSNoScalingDesDatax75[]=  /* Scaling LCD 75Hz */
        { 0,1328,0,771,112,6  }  /* ; 0A (1280x768x75Hz) */
 };
 
-XGI330_LVDSDataStruct  XGI330_LVDS640x480Data_1[]=
+struct XGI330_LVDSDataStruct  XGI330_LVDS640x480Data_1[] =
 {
  {800, 449, 800, 449},
  {800, 449, 800, 449},
@@ -2458,7 +2429,7 @@ XGI330_LVDSDataStruct  XGI330_LVDS640x480Data_1[]=
  {1056, 628,1056, 628}
 };
 
-XGI330_CHTVDataStruct  XGI_CHTVUNTSCData[]=
+struct XGI330_CHTVDataStruct  XGI_CHTVUNTSCData[] =
 {
  {840, 600, 840, 600},
  {840, 600, 840, 600},
@@ -2468,7 +2439,7 @@ XGI330_CHTVDataStruct  XGI_CHTVUNTSCData[]=
  {1064, 750,1064, 750}
 };
 
-XGI330_CHTVDataStruct  XGI_CHTVONTSCData[]=
+struct XGI330_CHTVDataStruct  XGI_CHTVONTSCData[] =
 {
  {840, 525, 840, 525},
  {840, 525, 840, 525},
@@ -2478,7 +2449,7 @@ XGI330_CHTVDataStruct  XGI_CHTVONTSCData[]=
  {1040, 700,1040, 700}
 };
 
-XGI330_CHTVDataStruct  XGI_CHTVUPALData[]=
+struct XGI330_CHTVDataStruct  XGI_CHTVUPALData[] =
 {
  {1008, 625,1008, 625},
  {1008, 625,1008, 625},
@@ -2488,7 +2459,7 @@ XGI330_CHTVDataStruct  XGI_CHTVUPALData[]=
  {936, 836, 936, 836}
 };
 
-XGI330_CHTVDataStruct  XGI_CHTVOPALData[]=
+struct XGI330_CHTVDataStruct  XGI_CHTVOPALData[] =
 {
  {1008, 625,1008, 625},
  {1008, 625,1008, 625},
@@ -2498,7 +2469,7 @@ XGI330_CHTVDataStruct  XGI_CHTVOPALData[]=
  {960, 750, 960, 750}
 };
 
-XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_1_H[]=
+struct XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_1_H[] =
 {
 	        /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x4B,0x27,0x8F,0x32,0x1B,0x00,0x45,0x00 }}, /* 00 (320x) */
@@ -2511,7 +2482,7 @@ XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_1_H[]=
                 {{      0xA3,0x7F,0x87,0x86,0x97,0x00,0x02,0x00 }} /* 07 (1024x) */
 };
 
-XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_1_H[]=
+struct XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_1_H[] =
 {
 		/* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x56,0x27,0x9A,0x30,0x1E,0x00,0x05,0x00 }}, /* 00 (320x) */
@@ -2525,7 +2496,7 @@ XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_1_H[]=
                 {{      0xCE,0x9F,0x92,0xA8,0x16,0x00,0x07,0x00 }} /* 08 (1280x) */
 };
 
-XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_2_H[]=
+struct XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_2_H[] =
 {
 		/* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x63,0x27,0x87,0x3B,0x8C,0x00,0x01,0x00 }}, /* 00 (320x) */
@@ -2538,7 +2509,7 @@ XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_2_H[]=
                 {{      0xA3,0x7F,0x87,0x86,0x97,0x00,0x02,0x00 }} /* 07 (1024x) */
 };
 
-XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_2_H[]=
+struct XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_2_H[] =
 {
                 /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x7E,0x3B,0x9A,0x44,0x12,0x00,0x01,0x00 }}, /* 00 (320x) */
@@ -2552,7 +2523,7 @@ XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11280x1024_2_H[]=
                 {{      0xCE,0x9F,0x92,0xA8,0x16,0x00,0x07,0x00 }} /* 08 (1280x) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_1_H[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_1_H[] =
 {               /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x47,0x27,0x8B,0x2C,0x1A,0x00,0x05,0x00 }}, /* 00 (320x) */
                 {{      0x47,0x27,0x8B,0x30,0x1E,0x00,0x05,0x00 }}, /* 01 (360x) */
@@ -2566,7 +2537,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_1_H[]=
                 {{      0xCE,0xAE,0x92,0xB3,0x01,0x00,0x03,0x00 }} /* 09 (1400x) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_2_H[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_2_H[] =
 {               /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x76,0x3F,0x83,0x45,0x8C,0x00,0x41,0x00 }}, /* 00 (320x) */
                 {{      0x76,0x3F,0x83,0x45,0x8C,0x00,0x41,0x00 }}, /* 01 (360x) */
@@ -2580,7 +2551,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11400x1050_2_H[]=
                 {{      0xCE,0xAE,0x92,0xBC,0x0A,0x00,0x03,0x00 }} /* 09 (1400x) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11600x1200_1_H[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11600x1200_1_H[] =
 /* ;302lv channelA [ycchen] 12/05/02 LCDHT=2048 */
 {   /* ; CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
                 {{      0x5B,0x27,0x9F,0x32,0x0A,0x00,0x01,0x00 }},/* 00 (320x) */
@@ -2596,7 +2567,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11600x1200_1_H[]=
 		{{      0xFB,0xC7,0x9F,0xC9,0x81,0x00,0x07,0x00 }} /* 0A (1600x) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_V[] =
 {               /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A+CR09(5->7) */
                 {{      0x97,0x1F,0x60,0x87,0x5D,0x83,0x10      }}, /* 00 (x350) */
                 {{      0xB4,0x1F,0x92,0x89,0x8F,0xB5,0x30      }}, /* 01 (x400) */
@@ -2605,7 +2576,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_V[]=
                 {{      0x24,0xF5,0x02,0x88,0xFF,0x25,0x90      }} /* 04 (x768) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_V[] =
 {               /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
                 {{      0x24,0xBB,0x31,0x87,0x5D,0x25,0x30      }}, /* 00 (x350) */
                 {{      0x24,0xBB,0x4A,0x80,0x8F,0x25,0x30      }}, /* 01 (x400) */
@@ -2614,7 +2585,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_V[]=
                 {{      0x24,0xF5,0x02,0x88,0xFF,0x25,0x90      }} /* 04 (x768) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_V[] =
 {               /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
                 {{       0x86,0x1F,0x5E,0x82,0x5D,0x87,0x00     }}, /* 00 (x350) */
                 {{       0xB8,0x1F,0x90,0x84,0x8F,0xB9,0x30     }}, /* 01 (x400) */
@@ -2624,7 +2595,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_V[]=
                 {{       0x28,0x5A,0x13,0x87,0xFF,0x29,0xA9     }} /* 05 (x1024) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_V[] =
 {               /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
                 {{      0x28,0xD2,0xAF,0x83,0xAE,0xD8,0xA1      }}, /* 00 (x350) */
                 {{      0x28,0xD2,0xC8,0x8C,0xC7,0xF2,0x81      }}, /* 01 (x400) */
@@ -2634,7 +2605,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_V[]=
                 {{      0x28,0x5A,0x13,0x87,0xFF,0x29,0xA9      }} /* 05 (x1024) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_1_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_1_V[] =
 {               /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
                 {{      0x6C,0x1F,0x60,0x84,0x5D,0x6D,0x10      }}, /* 00 (x350) */
                 {{      0x9E,0x1F,0x93,0x86,0x8F,0x9F,0x30      }}, /* 01 (x400) */
@@ -2645,7 +2616,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_1_V[]=
                 {{      0x28,0x10,0x1A,0x80,0x19,0x29,0x0F      }} /* 06 (x1050) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_2_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_2_V[] =
 {              /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
                 {{      0x28,0x92,0xB6,0x83,0xB5,0xCF,0x81      }}, /* 00 (x350) */
                 {{      0x28,0x92,0xD5,0x82,0xD4,0xEE,0x81      }}, /* 01 (x400) */
@@ -2656,7 +2627,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11400x1050_2_V[]=
                 {{      0x28,0x10,0x1A,0x87,0x19,0x29,0x8F      }} /* 06 (x1050) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11600x1200_1_V[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11600x1200_1_V[] =
 {
                /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A+CR09(5->7) */
                 {{      0xd4,0x1F,0x81,0x84,0x5D,0xd5,0x10      }}, /* 00 (x350) */
@@ -2669,7 +2640,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11600x1200_1_V[]=
                 {{      0x26,0x11,0xd3,0x86,0xaF,0x27,0x3f      }} /* 07 (x1200) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_1_Hx75[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_1_Hx75[] =
 { 	/* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
     {{      0x4B,0x27,0x8F,0x32,0x1B,0x00,0x45,0x00 }},/* ; 00 (320x) */
     {{      0x4B,0x27,0x8F,0x2B,0x03,0x00,0x44,0x00 }},/* ; 01 (360x) */
@@ -2681,7 +2652,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_1_Hx75[]=
     {{      0x9F,0x7F,0x83,0x85,0x91,0x00,0x02,0x00 }} /* ; 07 (1024x) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_Vx75[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_Vx75[] =
 {	/* CR06,CR07,CR10,CR11,CR15,CR16,SR0A+CR09(5->7) */
     {{      0x97,0x1F,0x60,0x87,0x5D,0x83,0x10      }},/* ; 00 (x350) */
     {{      0xB4,0x1F,0x92,0x89,0x8F,0xB5,0x30      }},/* ; 01 (x400) */
@@ -2690,7 +2661,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_1_Vx75[]=
     {{      0x1E,0xF5,0x00,0x83,0xFF,0x1F,0x90      }} /* ; 04 (x768) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_2_Hx75[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_2_Hx75[] =
 {       /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
     {{      0x63,0x27,0x87,0x3B,0x8C,0x00,0x01,0x00 }},/* ; 00 (320x) */
     {{      0x63,0x27,0x87,0x3B,0x8C,0x00,0x01,0x00 }},/* ; 01 (360x) */
@@ -2702,7 +2673,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11024x768_2_Hx75[]=
     {{      0xA3,0x7F,0x87,0x86,0x97,0x00,0x02,0x00 }} /* ; 07 (1024x) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_Vx75[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_Vx75[] =
 {       /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
     {{      0x24,0xBB,0x31,0x87,0x5D,0x25,0x30      }},/* ; 00 (x350) */
     {{      0x24,0xBB,0x4A,0x80,0x8F,0x25,0x30      }},/* ; 01 (x400) */
@@ -2711,7 +2682,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11024x768_2_Vx75[]=
     {{      0x24,0xF5,0x02,0x88,0xFF,0x25,0x90      }} /* ; 04 (x768) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_1_Hx75[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_1_Hx75[] =
 {      /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
     {{      0x56,0x27,0x9A,0x30,0x1E,0x00,0x05,0x00 }},/* ; 00 (320x) */
     {{      0x56,0x27,0x9A,0x30,0x1E,0x00,0x05,0x00 }},/* ; 01 (360x) */
@@ -2724,7 +2695,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_1_Hx75[]=
     {{      0xCE,0x9F,0x92,0xA5,0x17,0x00,0x07,0x00 }} /* ; 08 (1280x) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_Vx75[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_Vx75[] =
 {	/* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
     {{      0x86,0xD1,0xBC,0x80,0xBB,0xE5,0x00      }},/* ; 00 (x350) */
     {{      0xB8,0x1F,0x90,0x84,0x8F,0xB9,0x30      }},/* ; 01 (x400) */
@@ -2734,7 +2705,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_1_Vx75[]=
     {{      0x28,0x5A,0x13,0x87,0xFF,0x29,0xA9      }} /* ; 05 (x1024) */
 };
 
-XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_2_Hx75[]=
+struct XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_2_Hx75[] =
 {
 	/* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
     {{      0x7E,0x3B,0x9A,0x44,0x12,0x00,0x01,0x00 }},/* ; 00 (320x) */
@@ -2748,7 +2719,7 @@ XGI_LVDSCRT1HDataStruct XGI_LVDSCRT11280x1024_2_Hx75[]=
     {{      0xCE,0x9F,0x92,0xA8,0x16,0x00,0x07,0x00 }} /* ; 08 (1280x) */
 };
 
-XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_Vx75[]=
+struct XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_Vx75[] =
 {
         /* CR06,CR07,CR10,CR11,CR15,CR16,SR0A */
      {{     0x28,0xD2,0xAF,0x83,0xAE,0xD8,0xA1     }},/* ; 00 (x350) */
@@ -2759,7 +2730,7 @@ XGI_LVDSCRT1VDataStruct XGI_LVDSCRT11280x1024_2_Vx75[]=
      {{     0x28,0x5A,0x13,0x87,0xFF,0x29,0xA9     }} /* ; 05 (x1024) */
 };
 
-XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UNTSC[]=
+struct XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UNTSC[] =
 {
  {{0x64,0x4f,0x88,0x56,0x9f,0x56,0x3e,
     0xe8,0x84,0x8f,0x57,0x20,0x00,0x01,0x00 }},
@@ -2775,7 +2746,7 @@ XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UNTSC[]=
    0x90,0x8c,0x57,0xed,0x20,0x00,0x06,0x01 }}
 };
 
-XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1ONTSC[]=
+struct XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1ONTSC[] =
 {
  {{0x64,0x4f,0x88,0x5a,0x9f,0x0b,0x3e,
     0xc0,0x84,0x8f,0x0c,0x20,0x00,0x01,0x00 }},
@@ -2791,7 +2762,7 @@ XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1ONTSC[]=
    0x7f,0x86,0x57,0xbb,0x00,0x00,0x06,0x01 }}
 };
 
-XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UPAL[]=
+struct XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UPAL[] =
 {
  {{0x79,0x4f,0x9d,0x5a,0x90,0x6f,0x3e,
     0xf8,0x83,0x8f,0x70,0x20,0x00,0x05,0x00 }},
@@ -2807,7 +2778,7 @@ XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1UPAL[]=
    0xc8,0x8c,0x57,0xe9,0x20,0x00,0x05,0x01 }}
 };
 
-XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1OPAL[]=
+struct XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1OPAL[] =
 {
  {{0x79,0x4f,0x9d,0x5a,0x90,0x6f,0x3e,
     0xf0,0x83,0x8f,0x70,0x20,0x00,0x05,0x00 }},
@@ -2824,7 +2795,7 @@ XGI_LVDSCRT1DataStruct  XGI_CHTVCRT1OPAL[]=
 };
 
 /*add for new UNIVGABIOS*/
-XGI330_LCDDataTablStruct XGI_LCDDataTable[]=
+struct XGI330_LCDDataTablStruct XGI_LCDDataTable[] =
 {
   {Panel1024x768,0x0019,0x0001,0},  /* XGI_ExtLCD1024x768Data */
   {Panel1024x768,0x0019,0x0000,1},  /* XGI_StLCD1024x768Data */
@@ -2848,7 +2819,7 @@ XGI330_LCDDataTablStruct XGI_LCDDataTable[]=
   {0xFF,0x0000,0x0000,0}   		/* End of table */
 };
 
-XGI330_LCDDataTablStruct XGI_LCDDesDataTable[]=
+struct XGI330_LCDDataTablStruct XGI_LCDDesDataTable[] =
 {
   {Panel1024x768,0x0019,0x0001,0}, /* XGI_ExtLCDDes1024x768Data */
   {Panel1024x768,0x0019,0x0000,1}, /* XGI_StLCDDes1024x768Data */
@@ -2873,7 +2844,7 @@ XGI330_LCDDataTablStruct XGI_LCDDesDataTable[]=
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_H[]=
+struct XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_H[] =
 {
   {Panel1024x768,0x0018,0x0000,0}, /* XGI_LVDSCRT11024x768_1_H */
   {Panel1024x768,0x0018,0x0010,1}, /* XGI_LVDSCRT11024x768_2_H */
@@ -2889,7 +2860,7 @@ XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_H[]=
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_V[]=
+struct XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_V[] =
 {
   {Panel1024x768,0x0018,0x0000,0}, /* XGI_LVDSCRT11024x768_1_V */
   {Panel1024x768,0x0018,0x0010,1}, /* XGI_LVDSCRT11024x768_2_V */
@@ -2905,7 +2876,7 @@ XGI330_LCDDataTablStruct XGI_EPLLCDCRT1Ptr_V[]=
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_LCDDataTablStruct XGI_EPLLCDDataPtr[]=
+struct XGI330_LCDDataTablStruct XGI_EPLLCDDataPtr[] =
 {
   {Panel1024x768,0x0018,0x0000,0}, /* XGI_LVDS1024x768Data_1 */
   {Panel1024x768,0x0018,0x0010,1}, /* XGI_LVDS1024x768Data_2 */
@@ -2923,7 +2894,7 @@ XGI330_LCDDataTablStruct XGI_EPLLCDDataPtr[]=
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_LCDDataTablStruct XGI_EPLLCDDesDataPtr[]=
+struct XGI330_LCDDataTablStruct XGI_EPLLCDDesDataPtr[] =
 {
   {Panel1024x768,0x0018,0x0000,0}, /* XGI_LVDS1024x768Des_1 */
   {Panel1024x768,0x0618,0x0410,1}, /* XGI_LVDS1024x768Des_3 */
@@ -2943,14 +2914,14 @@ XGI330_LCDDataTablStruct XGI_EPLLCDDesDataPtr[]=
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_LCDDataTablStruct XGI_EPLCHLCDRegPtr[]=
+struct XGI330_LCDDataTablStruct XGI_EPLCHLCDRegPtr[] =
 {
   {Panel1024x768,0x0000,0x0000,0}, /* XGI_CH7017LV1024x768 */
   {Panel1400x1050,0x0000,0x0000,1}, /* XGI_CH7017LV1400x1050 */
   {0xFF,0x0000,0x0000,0}
 };
 
-XGI330_TVDataTablStruct XGI_TVDataTable[]=
+struct XGI330_TVDataTablStruct XGI_TVDataTable[] =
 {
  {0x09E1,0x0001,0},	/* XGI_ExtPALData */
  {0x09E1,0x0000,1},	/* XGI_ExtNTSCData */
@@ -2968,7 +2939,7 @@ XGI330_TVDataTablStruct XGI_TVDataTable[]=
  {0xffff,0x0000,12}  	/* END */
 };
 
-USHORT TVLenList[]=
+unsigned short TVLenList[] =
 {
    LVDSCRT1Len_H,
    LVDSCRT1Len_V,
@@ -2981,7 +2952,7 @@ USHORT TVLenList[]=
 } ;
 
 /* Chrontel 7017 TV CRT1 Timing List */
-XGI330_TVDataTablStruct XGI_EPLCHTVCRT1Ptr[]=
+struct XGI330_TVDataTablStruct XGI_EPLCHTVCRT1Ptr[] =
 {
   {0x0011,0x0000,0}, /* XGI_CHTVCRT1UNTSC */
   {0x0011,0x0010,1}, /* XGI_CHTVCRT1ONTSC */
@@ -2991,7 +2962,7 @@ XGI330_TVDataTablStruct XGI_EPLCHTVCRT1Ptr[]=
 };
 
 /* ;;Chrontel 7017 TV Timing List */
-XGI330_TVDataTablStruct XGI_EPLCHTVDataPtr[]=
+struct XGI330_TVDataTablStruct XGI_EPLCHTVDataPtr[] =
 {
   {0x0011,0x0000,0}, /* XGI_CHTVUNTSCData */
   {0x0011,0x0010,1}, /* XGI_CHTVONTSCData */
@@ -3001,7 +2972,7 @@ XGI330_TVDataTablStruct XGI_EPLCHTVDataPtr[]=
 };
 
 /* ;;Chrontel 7017 TV Reg. List */
-XGI330_TVDataTablStruct XGI_EPLCHTVRegPtr[]=
+struct XGI330_TVDataTablStruct XGI_EPLCHTVRegPtr[] =
 {
   {0x0011,0x0000,0}, /* XGI_CHTVRegUNTSC */
   {0x0011,0x0010,1}, /* XGI_CHTVRegONTSC */
@@ -3010,7 +2981,7 @@ XGI330_TVDataTablStruct XGI_EPLCHTVRegPtr[]=
   {0xFFFF,0x0000,4}
 };
 
-USHORT LCDLenList[]=
+unsigned short LCDLenList[] =
 {
    LVDSCRT1Len_H,
    LVDSCRT1Len_V,
@@ -3024,7 +2995,7 @@ USHORT LCDLenList[]=
    0
 } ;
 
-XGI330_LCDCapStruct  XGI660_LCDDLCapList[]=  /* 660, Dual link */
+struct XGI330_LCDCapStruct  XGI660_LCDDLCapList[] =  /* 660, Dual link */
 {
 /* LCDCap1024x768 */
 		{Panel1024x768, DefaultLCDCap, 0, 0x014, 0x88, 0x06, VCLK65,
@@ -3056,7 +3027,7 @@ XGI330_LCDCapStruct  XGI660_LCDDLCapList[]=  /* 660, Dual link */
 		0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-XGI330_LCDCapStruct  XGI_LCDDLCapList[]=  /* Dual link only */
+struct XGI330_LCDCapStruct  XGI_LCDDLCapList[] =  /* Dual link only */
 {
 /* LCDCap1024x768 */
 		{Panel1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
@@ -3088,7 +3059,7 @@ XGI330_LCDCapStruct  XGI_LCDDLCapList[]=  /* Dual link only */
 		0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-XGI330_LCDCapStruct  XGI660_LCDCapList[]=
+struct XGI330_LCDCapStruct  XGI660_LCDCapList[] =
 {
 /* LCDCap1024x768 */
                 {Panel1024x768, DefaultLCDCap, 0, 0x014, 0x88, 0x06, VCLK65,
@@ -3120,7 +3091,7 @@ XGI330_LCDCapStruct  XGI660_LCDCapList[]=
 		0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-XGI330_LCDCapStruct  XGI_LCDCapList[]=
+struct XGI330_LCDCapStruct  XGI_LCDCapList[] =
 {
 /* LCDCap1024x768 */
 		{Panel1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
@@ -3152,7 +3123,7 @@ XGI330_LCDCapStruct  XGI_LCDCapList[]=
 		0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-XGI21_LVDSCapStruct XGI21_LCDCapList[]=
+struct XGI21_LVDSCapStruct XGI21_LCDCapList[] =
 {
     {DisableLCD24bpp + LCDPolarity,
      2160,1250,1600,1200,  64,  1,  192,   3,
@@ -3181,7 +3152,7 @@ XGI21_LVDSCapStruct XGI21_LCDCapList[]=
 
 };
 
-XGI_Ext2Struct XGI330_RefIndex[]=
+struct XGI_Ext2Struct XGI330_RefIndex[] =
 {
 {Support32Bpp + SupportAllCRT2 + SyncPN,			RES320x200,	 VCLK25_175, 0x00,0x10,0x59, 320, 200},/* 00 */
 {Support32Bpp + SupportAllCRT2 + SyncPN,			RES320x200,	 VCLK25_175, 0x00,0x10,0x00, 320, 400},/* 01 */
@@ -3260,7 +3231,7 @@ XGI_Ext2Struct XGI330_RefIndex[]=
 
 
 
-XGI330_VCLKDataStruct XGI330_VCLKData[]=
+struct XGI330_VCLKDataStruct XGI330_VCLKData[] =
 {
  { 0x1b,0xe1, 25}, /* 0x0 */
  { 0x4e,0xe4, 28}, /* 0x1 */
@@ -3344,7 +3315,7 @@ XGI330_VCLKDataStruct XGI330_VCLKData[]=
  { 0x3b,0x61,108}  /* 0x4f */
 };
 
-XGI_VBVCLKDataStruct XGI330_VBVCLKData[]=
+struct XGI_VBVCLKDataStruct XGI330_VBVCLKData[] =
 {
  { 0x1b,0xe1, 25}, /* 0x0 */
  { 0x4e,0xe4, 28}, /* 0x1 */
@@ -3422,9 +3393,11 @@ XGI_VBVCLKDataStruct XGI330_VBVCLKData[]=
  { 0x70,0x44,108}, /* 0x49 chiawen for 1400x1050*/
 };
 
-UCHAR XGI330_ScreenOffset[]={ 0x14,0x19,0x20,0x28,0x32,0x40,0x50,0x64,0x78,0x80,0x2d,0x35,0x57,0x48 };
+unsigned char XGI330_ScreenOffset[] = { 0x14, 0x19, 0x20, 0x28, 0x32, 0x40,
+					0x50, 0x64, 0x78, 0x80, 0x2d, 0x35,
+					0x57, 0x48};
 
-XGI_StResInfoStruct XGI330_StResInfo[]=
+struct XGI_StResInfoStruct XGI330_StResInfo[] =
 {
  { 640,400},
  { 640,350},
@@ -3433,7 +3406,7 @@ XGI_StResInfoStruct XGI330_StResInfo[]=
  { 640,480}
 };
 
-XGI_ModeResInfoStruct XGI330_ModeResInfo[]=
+struct XGI_ModeResInfoStruct XGI330_ModeResInfo[] =
 {
  {  320, 200, 8, 8},
  {  320, 240, 8, 8},
@@ -3460,10 +3433,10 @@ XGI_ModeResInfoStruct XGI330_ModeResInfo[]=
  { 1152, 864, 8,16}
 };
 
-UCHAR XGI330_OutputSelect =0x40;
-UCHAR XGI330_SoftSetting = 0x30;
-UCHAR XGI330_SR07=0x18;
-UCHAR XGI330New_SR15[8][8]={
+unsigned char XGI330_OutputSelect = 0x40;
+unsigned char XGI330_SoftSetting = 0x30;
+unsigned char XGI330_SR07 = 0x18;
+unsigned char XGI330New_SR15[8][8] = {
 {0x0,0x4,0x60,0x60},
 {0xf,0xf,0xf,0xf},
 {0xba,0xba,0xba,0xba},
@@ -3474,7 +3447,7 @@ UCHAR XGI330New_SR15[8][8]={
 {0x0,0xa5,0xfb,0xf6}
 };
 
-UCHAR XGI330New_CR40[5][8]={
+unsigned char XGI330New_CR40[5][8] = {
 {0x77,0x77,0x44,0x44},
 {0x77,0x77,0x44,0x44},
 {0x0,0x0,0x0,0x0},
@@ -3482,63 +3455,63 @@ UCHAR XGI330New_CR40[5][8]={
 {0x0,0x0,0xf0,0xf8}
 };
 
-UCHAR XGI330_CR49[]={0xaa,0x88};
-UCHAR XGI330_SR1F=0x0;
-UCHAR XGI330_SR21=0xa3;
-UCHAR XGI330_650_SR21=0xa7;
-UCHAR XGI330_SR22=0xfb;
-UCHAR XGI330_SR23=0xf6;
-UCHAR XGI330_SR24=0xd;
+unsigned char XGI330_CR49[] = {0xaa, 0x88};
+unsigned char XGI330_SR1F = 0x0;
+unsigned char XGI330_SR21 = 0xa3;
+unsigned char XGI330_650_SR21 = 0xa7;
+unsigned char XGI330_SR22 = 0xfb;
+unsigned char XGI330_SR23 = 0xf6;
+unsigned char XGI330_SR24 = 0xd;
 
-UCHAR XGI660_SR21=0xa3;/* 2003.0312 */
-UCHAR XGI660_SR22=0xf3;/* 2003.0312 */
+unsigned char XGI660_SR21 = 0xa3;/* 2003.0312 */
+unsigned char XGI660_SR22 = 0xf3;/* 2003.0312 */
 
-UCHAR XGI330_LVDS_SR32=0x00;   /* ynlai for 650 LVDS */
-UCHAR XGI330_LVDS_SR33=0x00;	/* chiawen for 650 LVDS */
-UCHAR XGI330_650_SR31=0x40;
-UCHAR XGI330_650_SR33=0x04;
-UCHAR XGI330_CRT2Data_1_2 = 0x0;
-UCHAR XGI330_CRT2Data_4_D = 0x0;
-UCHAR XGI330_CRT2Data_4_E = 0x0;
-UCHAR XGI330_CRT2Data_4_10 = 0x80;
-USHORT XGI330_RGBSenseData = 0xd1;
-USHORT XGI330_VideoSenseData = 0xb9;
-USHORT XGI330_YCSenseData = 0xb3;
-USHORT XGI330_RGBSenseData2 = 0x0190;     /*301b*/
-USHORT XGI330_VideoSenseData2 = 0x0110;
-USHORT XGI330_YCSenseData2 = 0x016B;
-UCHAR XGI330_NTSCPhase[] = {0x21,0xed,0x8a,0x8};
-UCHAR XGI330_PALPhase[] = {0x2a,0x5,0xd3,0x0};
-UCHAR XGI330_NTSCPhase2[] = {0x21,0xF0,0x7B,0xD6};/*301b*/
-UCHAR XGI330_PALPhase2[] = {0x2a,0x09,0x86,0xe9};
-UCHAR XGI330_PALMPhase[] = {0x21,0xE4,0x2E,0x9B};   /*palmn*/
-UCHAR XGI330_PALNPhase[] = {0x21,0xF4,0x3E,0xBA};
-UCHAR XG40_I2CDefinition = 0x00 ;
-UCHAR XG20_CR97 = 0x10 ;
+unsigned char XGI330_LVDS_SR32 = 0x00;   /* ynlai for 650 LVDS */
+unsigned char XGI330_LVDS_SR33 = 0x00;	/* chiawen for 650 LVDS */
+unsigned char XGI330_650_SR31 = 0x40;
+unsigned char XGI330_650_SR33 = 0x04;
+unsigned char XGI330_CRT2Data_1_2 = 0x0;
+unsigned char XGI330_CRT2Data_4_D = 0x0;
+unsigned char XGI330_CRT2Data_4_E = 0x0;
+unsigned char XGI330_CRT2Data_4_10 = 0x80;
+unsigned short XGI330_RGBSenseData = 0xd1;
+unsigned short XGI330_VideoSenseData = 0xb9;
+unsigned short XGI330_YCSenseData = 0xb3;
+unsigned short XGI330_RGBSenseData2 = 0x0190;     /*301b*/
+unsigned short XGI330_VideoSenseData2 = 0x0110;
+unsigned short XGI330_YCSenseData2 = 0x016B;
+unsigned char XGI330_NTSCPhase[] = {0x21, 0xed, 0x8a, 0x8};
+unsigned char XGI330_PALPhase[] = {0x2a, 0x5, 0xd3, 0x0};
+unsigned char XGI330_NTSCPhase2[] = {0x21, 0xF0, 0x7B, 0xD6};/*301b*/
+unsigned char XGI330_PALPhase2[] = {0x2a, 0x09, 0x86, 0xe9};
+unsigned char XGI330_PALMPhase[] = {0x21, 0xE4, 0x2E, 0x9B};   /*palmn*/
+unsigned char XGI330_PALNPhase[] = {0x21, 0xF4, 0x3E, 0xBA};
+unsigned char XG40_I2CDefinition = 0x00 ;
+unsigned char XG20_CR97 = 0x10 ;
 
-UCHAR XG21_DVOSetting = 0x00 ;
-UCHAR XG21_CR2E = 0x00 ;
-UCHAR XG21_CR2F = 0x00 ;
-UCHAR XG21_CR46 = 0x00 ;
-UCHAR XG21_CR47 = 0x00 ;
+unsigned char XG21_DVOSetting = 0x00 ;
+unsigned char XG21_CR2E = 0x00 ;
+unsigned char XG21_CR2F = 0x00 ;
+unsigned char XG21_CR46 = 0x00 ;
+unsigned char XG21_CR47 = 0x00 ;
 
-UCHAR XG27_CR97 = 0xC1 ;
-UCHAR XG27_SR36 = 0x30 ;
-UCHAR XG27_CR8F = 0x0C ;
-UCHAR XG27_CRD0[] = {0,0,0,0,0,0,0,0x82,0x00,0x66,0x01,0x00} ;
-UCHAR XG27_CRDE[] = {0,0} ;
-UCHAR XG27_SR40 = 0x04 ;
-UCHAR XG27_SR41 = 0x00 ;
+unsigned char XG27_CR97 = 0xC1 ;
+unsigned char XG27_SR36 = 0x30 ;
+unsigned char XG27_CR8F = 0x0C ;
+unsigned char XG27_CRD0[] = {0, 0, 0, 0, 0, 0, 0, 0x82, 0x00, 0x66, 0x01, 0x00};
+unsigned char XG27_CRDE[] = {0, 0};
+unsigned char XG27_SR40 = 0x04 ;
+unsigned char XG27_SR41 = 0x00 ;
 
-UCHAR XGI330_CHTVVCLKUNTSC[]={0x00 };
+unsigned char XGI330_CHTVVCLKUNTSC[] = {0x00};
 
-UCHAR XGI330_CHTVVCLKONTSC[]={0x00 };
+unsigned char XGI330_CHTVVCLKONTSC[] = {0x00};
 
-UCHAR XGI330_CHTVVCLKUPAL[]={0x00 };
+unsigned char XGI330_CHTVVCLKUPAL[] = {0x00};
 
-UCHAR XGI330_CHTVVCLKOPAL[]={0x00 };
+unsigned char XGI330_CHTVVCLKOPAL[] = {0x00};
 
-UCHAR XGI7007_CHTVVCLKUNTSC[]={CH7007TVVCLK30_2,
+unsigned char XGI7007_CHTVVCLKUNTSC[] = {CH7007TVVCLK30_2,
                                CH7007TVVCLK30_2,
                                CH7007TVVCLK30_2,
                                CH7007TVVCLK30_2,
@@ -3546,7 +3519,7 @@ UCHAR XGI7007_CHTVVCLKUNTSC[]={CH7007TVVCLK30_2,
                                CH7007TVVCLK47_8
                               };
 
-UCHAR XGI7007_CHTVVCLKONTSC[]={CH7007TVVCLK26_4,
+unsigned char XGI7007_CHTVVCLKONTSC[] = {CH7007TVVCLK26_4,
                                CH7007TVVCLK26_4,
                                CH7007TVVCLK26_4,
                                CH7007TVVCLK26_4,
@@ -3554,7 +3527,7 @@ UCHAR XGI7007_CHTVVCLKONTSC[]={CH7007TVVCLK26_4,
                                CH7007TVVCLK43_6
                               };
 
-UCHAR XGI7007_CHTVVCLKUPAL[]={CH7007TVVCLK31_5,
+unsigned char XGI7007_CHTVVCLKUPAL[] = {CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
@@ -3562,7 +3535,7 @@ UCHAR XGI7007_CHTVVCLKUPAL[]={CH7007TVVCLK31_5,
                               CH7007TVVCLK39
                              };
 
-UCHAR XGI7007_CHTVVCLKOPAL[]={CH7007TVVCLK31_5,
+unsigned char XGI7007_CHTVVCLKOPAL[] = {CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
                               CH7007TVVCLK31_5,
@@ -3570,7 +3543,7 @@ UCHAR XGI7007_CHTVVCLKOPAL[]={CH7007TVVCLK31_5,
                               CH7007TVVCLK36
                              };
 
-XGI330_VCLKDataStruct XGI_CH7007VCLKData[]=
+struct XGI330_VCLKDataStruct XGI_CH7007VCLKData[] =
 {
  { 0x60,0x36,30},  /* 0 30.2 MHZ */
  { 0x40,0x4A,28},  /* 1 28.19 MHZ */
@@ -3585,7 +3558,7 @@ XGI330_VCLKDataStruct XGI_CH7007VCLKData[]=
  { 0xFF,0x00,0 }   /* End mark      */
 };
 
-XGI330_VCLKDataStruct XGI_VCLKData[]=
+struct XGI330_VCLKDataStruct XGI_VCLKData[] =
 {
                	/* SR2B,SR2C,SR2D */
  		{      0x1B,0xE1,25               },/* 00 (25.175MHz) */
@@ -3786,7 +3759,7 @@ XGI330_VCLKDataStruct XGI_VCLKData[]=
                 {      0xFF,0x00,0                }/* End mark */
  }  ;
 
-XGI330_VCLKDataStruct XGI_VBVCLKData[]=
+struct XGI330_VCLKDataStruct XGI_VBVCLKData[] =
 {
                 {      0x1B,0xE1,25               },/* 00 (25.175MHz) */
 
@@ -3987,7 +3960,7 @@ XGI330_VCLKDataStruct XGI_VBVCLKData[]=
                 {      0xFF,0x00,0                }      /* End mark */
 };
 
-UCHAR XGI660_TVDelayList[]=
+unsigned char XGI660_TVDelayList[] =
 {
           0x44,            /* ; 0 ExtNTSCDelay */
           0x44,            /* ; 1 StNTSCDelay */
@@ -4003,7 +3976,7 @@ UCHAR XGI660_TVDelayList[]=
           0x44             /* ; B StYPbPrDealy(750p) */
 };
 
-UCHAR XGI660_TVDelayList2[]=
+unsigned char XGI660_TVDelayList2[] =
 {
           0x44,           /* ; 0 ExtNTSCDelay */
           0x44,           /* ; 1 StNTSCDelay */
@@ -4019,7 +3992,7 @@ UCHAR XGI660_TVDelayList2[]=
           0x44            /* ; B StYPbPrDealy(750p) */
 };
 
-UCHAR XGI301TVDelayList[]=
+unsigned char XGI301TVDelayList[] =
 {
 	0x22,            /* ; 0 ExtNTSCDelay */
 	0x22,            /* ; 1 StNTSCDelay */
@@ -4035,7 +4008,7 @@ UCHAR XGI301TVDelayList[]=
 	0x22            /* B StYPbPrDealy(750p) */
 };
 
-UCHAR XGI301TVDelayList2[]=
+unsigned char XGI301TVDelayList2[] =
 {
 	0x22,           /* ; 0 ExtNTSCDelay */
 	0x22,           /* ; 1 StNTSCDelay */
@@ -4052,7 +4025,7 @@ UCHAR XGI301TVDelayList2[]=
 };
 
 
-UCHAR TVAntiFlickList[]=
+unsigned char TVAntiFlickList[] =
 {/* NTSCAntiFlicker */
                       0x04,           /* ; 0 Adaptive */
                       0x00,           /* ; 1 new anti-flicker ? */
@@ -4065,7 +4038,7 @@ UCHAR TVAntiFlickList[]=
 };
 
 
-UCHAR TVEdgeList[]=
+unsigned char TVEdgeList[] =
 {
       0x00,            /* ; 0 NTSC No Edge enhance */
       0x04,            /* ; 1 NTSC Adaptive Edge enhance */
@@ -4075,7 +4048,7 @@ UCHAR TVEdgeList[]=
       0x00             /* ; 1 HiTV */
 };
 
-ULONG TVPhaseList[]=
+unsigned long TVPhaseList[] =
 {      0x08BAED21, /* ; 0 NTSC phase */
        0x00E3052A, /* ; 1 PAL phase */
        0x9B2EE421, /* ; 2 PAL-M phase */
@@ -4092,7 +4065,7 @@ ULONG TVPhaseList[]=
        0xE00A831E  /* ; D PAL-M 1024x768 */
 };
 
-UCHAR NTSCYFilter1[]=
+unsigned char NTSCYFilter1[] =
 {
 		      0x00,0xF4,0x10,0x38     ,/* 0 : 320x text mode */
                       0x00,0xF4,0x10,0x38     ,/* 1 : 360x text mode */
@@ -4103,7 +4076,7 @@ UCHAR NTSCYFilter1[]=
                       0xEB,0x15,0x25,0xF6     /* 6 : 800x gra. mode */
 };
 
-UCHAR PALYFilter1[]=
+unsigned char PALYFilter1[] =
 {
 		      0x00,0xF4,0x10,0x38, /* 0 : 320x text mode */
                       0x00,0xF4,0x10,0x38     ,/* 1 : 360x text mode */
@@ -4114,7 +4087,7 @@ UCHAR PALYFilter1[]=
                       0xFC,0xFB,0x14,0x2A     /* 6 : 800x gra. mode */
 };
 
-UCHAR PALMYFilter1[]=
+unsigned char PALMYFilter1[] =
 {
 		      0x00,0xF4,0x10,0x38, /* 0 : 320x text mode */
                       0x00,0xF4,0x10,0x38, /* 1 : 360x text mode */
@@ -4126,7 +4099,7 @@ UCHAR PALMYFilter1[]=
                       0xFF,0xFF,0xFF,0xFF  /* End of Table */
 };
 
-UCHAR PALNYFilter1[]=
+unsigned char PALNYFilter1[] =
 {
 		      0x00,0xF4,0x10,0x38, /* 0 : 320x text mode */
                       0x00,0xF4,0x10,0x38, /* 1 : 360x text mode */
@@ -4138,7 +4111,7 @@ UCHAR PALNYFilter1[]=
                       0xFF,0xFF,0xFF,0xFF  /* End of Table */
 };
 
-UCHAR NTSCYFilter2[]=
+unsigned char NTSCYFilter2[] =
 {
 		      0xFF,0x03,0x02,0xF6,0xFC,0x27,0x46, /* 0 : 320x text mode */
                       0x01,0x02,0xFE,0xF7,0x03,0x27,0x3C, /* 1 : 360x text mode */
@@ -4150,7 +4123,7 @@ UCHAR NTSCYFilter2[]=
                       0xFF,0xFF,0xFC,0x00,0x0F,0x22,0x28  /* 7 : 1024xgra. mode */
 };
 
-UCHAR PALYFilter2[]=
+unsigned char PALYFilter2[] =
 {
 		      0xFF,0x03,0x02,0xF6,0xFC,0x27,0x46, /* 0 : 320x text mode */
                       0x01,0x02,0xFE,0xF7,0x03,0x27,0x3C, /* 1 : 360x text mode */
@@ -4162,7 +4135,7 @@ UCHAR PALYFilter2[]=
                       0xFF,0xFF,0xFC,0x00,0x0F,0x22,0x28  /* 7 : 1024xgra. mode */
 };
 
-UCHAR PALMYFilter2[]=
+unsigned char PALMYFilter2[] =
 {
 		      0xFF,0x03,0x02,0xF6,0xFC,0x27,0x46, /* 0 : 320x text mode */
                       0x01,0x02,0xFE,0xF7,0x03,0x27,0x3C, /* 1 : 360x text mode */
@@ -4174,7 +4147,7 @@ UCHAR PALMYFilter2[]=
                       0xFF,0xFF,0xFC,0x00,0x0F,0x22,0x28  /* 7 : 1024xgra. mode */
 };
 
-UCHAR PALNYFilter2[]=
+unsigned char PALNYFilter2[] =
 {
 		      0xFF,0x03,0x02,0xF6,0xFC,0x27,0x46, /* 0 : 320x text mode */
                       0x01,0x02,0xFE,0xF7,0x03,0x27,0x3C, /* 1 : 360x text mode */
@@ -4186,14 +4159,14 @@ UCHAR PALNYFilter2[]=
                       0xFF,0xFF,0xFC,0x00,0x0F,0x22,0x28  /* 7 : 1024xgra. mode */
 };
 
-UCHAR XGI_NTSC1024AdjTime[]=
+unsigned char XGI_NTSC1024AdjTime[] =
 {
       0xa7,0x07,0xf2,0x6e,0x17,0x8b,0x73,0x53,
       0x13,0x40,0x34,0xF4,0x63,0xBB,0xCC,0x7A,
       0x58,0xe4,0x73,0xd0,0x13
 };
 
-XGI301C_Tap4TimingStruct HiTVTap4Timing[]=
+struct XGI301C_Tap4TimingStruct HiTVTap4Timing[] =
 {
 	{0,{
 	0x00,0x20,0x00,0x00,0x7F,0x20,0x02,0x7F, /* ; C0-C7 */
@@ -4208,7 +4181,7 @@ XGI301C_Tap4TimingStruct HiTVTap4Timing[]=
 	}
 };
 
-XGI301C_Tap4TimingStruct EnlargeTap4Timing[]=
+struct XGI301C_Tap4TimingStruct EnlargeTap4Timing[] =
 {
 	{0,{
 	0x00,0x20,0x00,0x00,0x7F,0x20,0x02,0x7F, /* ; C0-C7 */
@@ -4223,7 +4196,7 @@ XGI301C_Tap4TimingStruct EnlargeTap4Timing[]=
 	}
 };
 
-XGI301C_Tap4TimingStruct NoScaleTap4Timing[]=
+struct XGI301C_Tap4TimingStruct NoScaleTap4Timing[] =
 {
 	{0,{
 	0x00,0x20,0x00,0x00,0x7F,0x20,0x02,0x7F, /* ; C0-C7 */
@@ -4238,7 +4211,7 @@ XGI301C_Tap4TimingStruct NoScaleTap4Timing[]=
 	}
 };
 
-XGI301C_Tap4TimingStruct PALTap4Timing[]=
+struct XGI301C_Tap4TimingStruct PALTap4Timing[] =
 {
 	{600,  {
                 0x05,0x19,0x05,0x7D,0x03,0x19,0x06,0x7E, /* ; C0-C7 */
@@ -4276,7 +4249,7 @@ XGI301C_Tap4TimingStruct PALTap4Timing[]=
         }
 };
 
-XGI301C_Tap4TimingStruct NTSCTap4Timing[]=
+struct XGI301C_Tap4TimingStruct NTSCTap4Timing[] =
 {
 	{480,	{
               	0x04,0x1A,0x04,0x7E,0x03,0x1A,0x06,0x7D, /* ; C0-C7 */
@@ -4314,7 +4287,7 @@ XGI301C_Tap4TimingStruct NTSCTap4Timing[]=
         }
 };
 
-XGI301C_Tap4TimingStruct YPbPr525pTap4Timing[]=
+struct XGI301C_Tap4TimingStruct YPbPr525pTap4Timing[] =
 {
 	{480,	{
               	0x04,0x1A,0x04,0x7E,0x03,0x1A,0x06,0x7D, /* ; C0-C7 */
@@ -4352,7 +4325,7 @@ XGI301C_Tap4TimingStruct YPbPr525pTap4Timing[]=
         }
 };
 
-XGI301C_Tap4TimingStruct YPbPr525iTap4Timing[]=
+struct XGI301C_Tap4TimingStruct YPbPr525iTap4Timing[] =
 {
 	{480,	{
               	0x04,0x1A,0x04,0x7E,0x03,0x1A,0x06,0x7D, /* ; C0-C7 */
@@ -4390,7 +4363,7 @@ XGI301C_Tap4TimingStruct YPbPr525iTap4Timing[]=
         }
 };
 
-XGI301C_Tap4TimingStruct YPbPr750pTap4Timing[]=
+struct XGI301C_Tap4TimingStruct YPbPr750pTap4Timing[] =
 {        {0xFFFF,
                {
                0x05,0x19,0x05,0x7D,0x03,0x19,0x06,0x7E, /* ; C0-C7 */

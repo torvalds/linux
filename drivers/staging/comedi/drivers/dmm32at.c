@@ -37,43 +37,6 @@ Configuration Options:
   comedi_config /dev/comedi0 dmm32at baseaddr,irq
 */
 
-/*
- * The previous block comment is used to automatically generate
- * documentation in Comedi and Comedilib.  The fields:
- *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the struct comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
- *
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
- */
-
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/ioport.h>
@@ -336,12 +299,14 @@ static int dmm32at_attach(struct comedi_device *dev,
 	iobase = it->options[0];
 	irq = it->options[1];
 
-	printk("comedi%d: dmm32at: attaching\n", dev->minor);
-	printk("dmm32at: probing at address 0x%04lx, irq %u\n", iobase, irq);
+	printk(KERN_INFO "comedi%d: dmm32at: attaching\n", dev->minor);
+	printk(KERN_DEBUG "dmm32at: probing at address 0x%04lx, irq %u\n",
+	       iobase, irq);
 
 	/* register address space */
 	if (!request_region(iobase, DMM32AT_MEMSIZE, thisboard->name)) {
-		printk("I/O port conflict\n");
+		printk(KERN_ERR "comedi%d: dmm32at: I/O port conflict\n",
+		       dev->minor);
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -379,14 +344,15 @@ static int dmm32at_attach(struct comedi_device *dev,
 	intstat = dmm_inb(dev, DMM32AT_INTCLOCK);
 	airback = dmm_inb(dev, DMM32AT_AIRBACK);
 
-	printk("dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
+	printk(KERN_DEBUG "dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
 	       ailo, aihi, fifostat);
-	printk("dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
+	printk(KERN_DEBUG
+	       "dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
 	       aistat, intstat, airback);
 
 	if ((ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
-		printk("dmmat32: board detection failed\n");
+		printk(KERN_ERR "dmmat32: board detection failed\n");
 		return -EIO;
 	}
 
@@ -394,7 +360,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	if (irq) {
 		ret = request_irq(irq, dmm32at_isr, 0, thisboard->name, dev);
 		if (ret < 0) {
-			printk("irq conflict\n");
+			printk(KERN_ERR "dmm32at: irq conflict\n");
 			return ret;
 		}
 		dev->irq = irq;
@@ -478,7 +444,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	}
 
 	/* success */
-	printk("comedi%d: dmm32at: attached\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dmm32at: attached\n", dev->minor);
 
 	return 1;
 
@@ -494,7 +460,7 @@ static int dmm32at_attach(struct comedi_device *dev,
  */
 static int dmm32at_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: dmm32at: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dmm32at: remove\n", dev->minor);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase)
@@ -542,7 +508,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			break;
 	}
 	if (i == 40000) {
-		printk("timeout\n");
+		printk(KERN_WARNING "dmm32at: timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -557,7 +523,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 				break;
 		}
 		if (i == 40000) {
-			printk("timeout\n");
+			printk(KERN_WARNING "dmm32at: timeout\n");
 			return -ETIMEDOUT;
 		}
 
@@ -627,7 +593,8 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+	 * compatible */
 
 	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
@@ -800,7 +767,8 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scans_left = cmd->stop_arg;
 	else {			/* TRIG_NONE */
-		devpriv->ai_scans_left = 0xffffffff;	/* indicates TRIG_NONE to isr */
+		devpriv->ai_scans_left = 0xffffffff; /* indicates TRIG_NONE to
+						      * isr */
 	}
 
 	/* wait for circuit to settle */
@@ -810,7 +778,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			break;
 	}
 	if (i == 40000) {
-		printk("timeout\n");
+		printk(KERN_WARNING "dmm32at: timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -823,13 +791,13 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		dmm_outb(dev, DMM32AT_CONV, 0xff);
 	}
 
-/* 	printk("dmmat32 in command\n"); */
+/*	printk("dmmat32 in command\n"); */
 
-/* 	for(i=0;i<cmd->chanlist_len;i++) */
-/* 		comedi_buf_put(s->async,i*100); */
+/*	for(i=0;i<cmd->chanlist_len;i++) */
+/*		comedi_buf_put(s->async,i*100); */
 
-/* 	s->async->events |= COMEDI_CB_EOA; */
-/* 	comedi_event(dev, s); */
+/*	s->async->events |= COMEDI_CB_EOA; */
+/*	comedi_event(dev, s); */
 
 	return 0;
 
@@ -937,7 +905,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 				break;
 		}
 		if (i == 40000) {
-			printk("timeout\n");
+			printk(KERN_WARNING "dmm32at: timeout\n");
 			return -ETIMEDOUT;
 		}
 		/* dummy read to update trigger the output */
@@ -1095,4 +1063,19 @@ void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_dmm32at);
+static int __init driver_dmm32at_init_module(void)
+{
+	return comedi_driver_register(&driver_dmm32at);
+}
+
+static void __exit driver_dmm32at_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dmm32at);
+}
+
+module_init(driver_dmm32at_init_module);
+module_exit(driver_dmm32at_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

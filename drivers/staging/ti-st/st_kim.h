@@ -43,50 +43,72 @@
  * since the self-test for chip takes a while
  */
 #define POR_RETRY_COUNT 5
-/*
- * legacy rfkill support where-in 3 rfkill
- * devices are created for the 3 gpios
- * that ST has requested
+
+/**
+ * struct chip_version - save the chip version
  */
-#define LEGACY_RFKILL_SUPPORT
-/*
- * header file for ST provided by KIM
+struct chip_version {
+	unsigned short full;
+	unsigned short chip;
+	unsigned short min_ver;
+	unsigned short maj_ver;
+};
+
+/**
+ * struct kim_data_s - the KIM internal data, embedded as the
+ *	platform's drv data. One for each ST device in the system.
+ * @uim_pid: KIM needs to communicate with UIM to request to install
+ *	the ldisc by opening UART when protocol drivers register.
+ * @kim_pdev: the platform device added in one of the board-XX.c file
+ *	in arch/XX/ directory, 1 for each ST device.
+ * @kim_rcvd: completion handler to notify when data was received,
+ *	mainly used during fw download, which involves multiple send/wait
+ *	for each of the HCI-VS commands.
+ * @ldisc_installed: completion handler to notify that the UIM accepted
+ *	the request to install ldisc, notify from tty_open which suggests
+ *	the ldisc was properly installed.
+ * @resp_buffer: data buffer for the .bts fw file name.
+ * @fw_entry: firmware class struct to request/release the fw.
+ * @gpios: the list of core/chip enable gpios for BT, FM and GPS cores.
+ * @rx_state: the rx state for kim's receive func during fw download.
+ * @rx_count: the rx count for the kim's receive func during fw download.
+ * @rx_skb: all of fw data might not come at once, and hence data storage for
+ *	whole of the fw response, only HCI_EVENTs and hence diff from ST's
+ *	response.
+ * @rfkill: rfkill data for each of the cores to be registered with rfkill.
+ * @rf_protos: proto types of the data registered with rfkill sub-system.
+ * @core_data: ST core's data, which mainly is the tty's disc_data
+ * @version: chip version available via a sysfs entry.
+ *
  */
 struct kim_data_s {
 	long uim_pid;
 	struct platform_device *kim_pdev;
 	struct completion kim_rcvd, ldisc_installed;
-	/* MAX len of the .bts firmware script name */
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
 	long gpios[ST_MAX];
-	struct kobject *kim_kobj;
-/* used by kim_int_recv to validate fw response */
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-#ifdef LEGACY_RFKILL_SUPPORT
 	struct rfkill *rfkill[ST_MAX];
 	enum proto_type rf_protos[ST_MAX];
-#endif
 	struct st_data_s *core_data;
+	struct chip_version version;
 };
 
-long st_kim_start(void);
-long st_kim_stop(void);
-/*
- * called from st_tty_receive to authenticate fw_download
+/**
+ * functions called when 1 of the protocol drivers gets
+ * registered, these need to communicate with UIM to request
+ * ldisc installed, read chip_version, download relevant fw
  */
+long st_kim_start(void *);
+long st_kim_stop(void *);
+
 void st_kim_recv(void *, const unsigned char *, long count);
-
 void st_kim_chip_toggle(enum proto_type, enum kim_gpio_state);
-
-void st_kim_complete(void);
-
-/* function called from ST KIM to ST Core, to
- * list out the protocols registered
- */
-void kim_st_list_protocols(struct st_data_s *, char *);
+void st_kim_complete(void *);
+void kim_st_list_protocols(struct st_data_s *, void *);
 
 /*
  * BTS headers
@@ -98,9 +120,13 @@ void kim_st_list_protocols(struct st_data_s *, char *);
 #define ACTION_RUN_SCRIPT       5
 #define ACTION_REMARKS          6
 
-/*
- *  * BRF Firmware header
- *   */
+/**
+ * struct bts_header - the fw file is NOT binary which can
+ *	be sent onto TTY as is. The .bts is more a script
+ *	file which has different types of actions.
+ *	Each such action needs to be parsed by the KIM and
+ *	relevant procedure to be called.
+ */
 struct bts_header {
 	uint32_t magic;
 	uint32_t version;
@@ -108,9 +134,10 @@ struct bts_header {
 	uint8_t actions[0];
 } __attribute__ ((packed));
 
-/*
- *  * BRF Actions structure
- *   */
+/**
+ * struct bts_action - Each .bts action has its own type of
+ *	data.
+ */
 struct bts_action {
 	uint16_t type;
 	uint16_t size;
@@ -136,8 +163,11 @@ struct bts_action_serial {
 	uint32_t flow_control;
 } __attribute__ ((packed));
 
-/* for identifying the change speed HCI VS
- * command
+/**
+ * struct hci_command - the HCI-VS for intrepreting
+ *	the change baud rate of host-side UART, which
+ *	needs to be ignored, since UIM would do that
+ *	when it receives request from KIM for ldisc installation.
  */
 struct hci_command {
 	uint8_t prefix;

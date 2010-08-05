@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_AGGREGATION_H_
+#define _NET_BATMAN_ADV_AGGREGATION_H_
+
 #include "main.h"
 
 /* is there another aggregated packet here? */
@@ -36,3 +39,5 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 			    unsigned long send_time);
 void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
 			     int packet_len, struct batman_if *if_incoming);
+
+#endif /* _NET_BATMAN_ADV_AGGREGATION_H_ */

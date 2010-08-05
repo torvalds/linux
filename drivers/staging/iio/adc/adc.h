@@ -26,3 +26,6 @@
 			      _show,					\
 			      NULL,					\
 			      _addr)
+
+#define IIO_EVENT_CODE_IN_HIGH_THRESH(a) (IIO_EVENT_CODE_ADC_BASE  + a)
+#define IIO_EVENT_CODE_IN_LOW_THRESH(a) (IIO_EVENT_CODE_ADC_BASE  + a + 32)

@@ -64,11 +64,7 @@ extern const BYTE RFaby11aChannelIndex[200];
 /*---------------------  Export Functions  --------------------------*/
 
 BOOL IFRFbWriteEmbeded(PSDevice pDevice, DWORD dwData);
-BOOL RFbSetPower (
-      PSDevice  pDevice,
-      unsigned int      uRATE,
-      unsigned int      uCH
-    );
+BOOL RFbSetPower(PSDevice pDevice, unsigned int uRATE, unsigned int uCH);
 
 BOOL RFbRawSetPower(
       PSDevice  pDevice,
@@ -76,17 +72,8 @@ BOOL RFbRawSetPower(
       unsigned int      uRATE
     );
 
-void
-RFvRSSITodBm (
-      PSDevice pDevice,
-      BYTE     byCurrRSSI,
-    long *    pldBm
-    );
-
-void
-RFbRFTableDownload (
-      PSDevice pDevice
-    );
+void RFvRSSITodBm(PSDevice pDevice, BYTE byCurrRSSI, long *pldBm);
+void RFbRFTableDownload(PSDevice pDevice);
 
 BOOL s_bVT3226D0_11bLoCurrentAdjust(
       PSDevice    pDevice,

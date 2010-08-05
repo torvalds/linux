@@ -48,9 +48,6 @@
 #else
 #include <linux/types.h>
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-#include <linux/config.h>
-#endif
 #if defined(CONFIG_SMP) && ! defined(__SMP__)
 #define __SMP__
 #endif
@@ -60,11 +57,7 @@
 
 #ifdef MODULE
 #ifdef MODVERSIONS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <linux/modversions.h>
-#else
 #include <config/modversions.h>
-#endif
 #endif
 #include <linux/module.h>
 #endif
@@ -260,11 +253,7 @@ OS_sem_free (void *sem)
 struct watchdog
 {
     struct timer_list h;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-    struct tq_struct tq;
-#else
     struct work_struct work;
-#endif
     void       *softc;
     void        (*func) (void *softc);
     int         ticks;

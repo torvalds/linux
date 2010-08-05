@@ -517,4 +517,19 @@ static int c6xdigio_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_c6xdigio);
+static int __init driver_c6xdigio_init_module(void)
+{
+	return comedi_driver_register(&driver_c6xdigio);
+}
+
+static void __exit driver_c6xdigio_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_c6xdigio);
+}
+
+module_init(driver_c6xdigio_init_module);
+module_exit(driver_c6xdigio_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

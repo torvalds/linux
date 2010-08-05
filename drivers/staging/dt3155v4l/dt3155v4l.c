@@ -1008,6 +1008,8 @@ struct dma_coherent_mem {
 static int __devinit
 dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
 {
+	struct dma_coherent_mem *mem;
+	dma_addr_t dev_base;
 	int pages = size >> PAGE_SHIFT;
 	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
 
@@ -1018,25 +1020,28 @@ dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
 	if (dev->dma_mem)
 		goto out;
 
-	dev->dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
-	if (!dev->dma_mem)
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
 		goto out;
-	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!dev->dma_mem->bitmap)
+	mem->virt_base = dma_alloc_coherent(dev, size, &dev_base,
+							DT3155_COH_FLAGS);
+	if (!mem->virt_base)
+		goto err_alloc_coherent;
+	mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+	if (!mem->bitmap)
 		goto err_bitmap;
 
-	dev->dma_mem->virt_base = dma_alloc_coherent(dev, size,
-				&dev->dma_mem->device_base, DT3155_COH_FLAGS);
-	if (!dev->dma_mem->virt_base)
-		goto err_coherent;
-	dev->dma_mem->size = pages;
-	dev->dma_mem->flags = flags;
+	/* coherent_dma_mask is already set to 32 bits */
+	mem->device_base = dev_base;
+	mem->size = pages;
+	mem->flags = flags;
+	dev->dma_mem = mem;
 	return DMA_MEMORY_MAP;
 
-err_coherent:
-	kfree(dev->dma_mem->bitmap);
 err_bitmap:
-	kfree(dev->dma_mem);
+	dma_free_coherent(dev, size, mem->virt_base, dev_base);
+err_alloc_coherent:
+	kfree(mem);
 out:
 	return 0;
 }

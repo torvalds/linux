@@ -158,7 +158,18 @@ static struct comedi_driver driver_rti800 = {
 	.offset = sizeof(struct rti800_board),
 };
 
-COMEDI_INITCLEANUP(driver_rti800);
+static int __init driver_rti800_init_module(void)
+{
+	return comedi_driver_register(&driver_rti800);
+}
+
+static void __exit driver_rti800_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_rti800);
+}
+
+module_init(driver_rti800_init_module);
+module_exit(driver_rti800_cleanup_module);
 
 static irqreturn_t rti800_interrupt(int irq, void *dev);
 
@@ -475,3 +486,7 @@ static int rti800_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

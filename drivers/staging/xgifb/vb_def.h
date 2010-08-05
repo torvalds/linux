@@ -6,7 +6,7 @@
 #define NewScratch
 #endif
 /* shampoo */
-#ifdef LINUX_KERNEL
+
 #define SEQ_ADDRESS_PORT	  0x0014
 #define SEQ_DATA_PORT		  0x0015
 #define MISC_OUTPUT_REG_READ_PORT 0x001C
@@ -17,7 +17,7 @@
 #define CRTC_ADDRESS_PORT_COLOR   0x0024
 #define VIDEO_SUBSYSTEM_ENABLE_PORT 0x0013
 #define PCI_COMMAND		0x04
-#endif
+
 /* ~shampoo */
 
 

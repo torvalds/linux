@@ -259,41 +259,6 @@ int is_valid_key_string( char *s )
 
 
 /*******************************************************************************
- *	hexdigit2int()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Converts a hexadecimal digit character to an integer
- *
- *  PARAMETERS:
- *
- *      c   - the hexadecimal digit character
- *
- *  RETURNS:
- *
- *      the converted integer
- *
- ******************************************************************************/
-int hexdigit2int( char c )
-{
-   if( c >= '0' && c <= '9' )
-       return c - '0';
-
-   if( c >= 'A' && c <= 'F' )
-       return c - 'A' + 10;
-
-   if( c >= 'a' && c <= 'f' )
-       return c - 'a' + 10;
-
-   return 0;
-} // hexdigit2int
-/*============================================================================*/
-
-
-
-
-/*******************************************************************************
  *	key_string2key()
  *******************************************************************************
  *
@@ -328,7 +293,7 @@ void key_string2key( char *ks, KEY_STRCT *key )
         p = (char *)key->key;
 
         for( i = 2; i < l; i+=2 ) {
-           *p++ = ( hexdigit2int( ks[i] ) << 4 ) + hexdigit2int (ks[i+1] );
+			*p++ = (hex_to_bin(ks[i]) << 4) + hex_to_bin(ks[i+1]);
            n++;
         }
 

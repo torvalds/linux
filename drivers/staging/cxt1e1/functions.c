@@ -122,19 +122,7 @@ watchdog_func (unsigned long arg)
             pr_warning("%s: drvr not available (%x)\n", __func__, drvr_state);
         return;
     }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-    /* Initialize the tq entry only the first time */
-    if (wd->init_tq)
-    {
-        wd->init_tq = 0;
-        wd->tq.routine = wd->func;
-        wd->tq.sync = 0;
-        wd->tq.data = wd->softc;
-    }
-    schedule_task (&wd->tq);
-#else
     schedule_work (&wd->work);
-#endif
     mod_timer (&wd->h, jiffies + wd->ticks);
 }
 

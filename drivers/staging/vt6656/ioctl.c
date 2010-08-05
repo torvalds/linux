@@ -48,9 +48,7 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-#ifdef WPA_SM_Transtatus
     SWPAResult wpa_Result;
-#endif
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -232,10 +230,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             pDevice->bEncryptionEnable = FALSE;
             pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
             spin_lock_irq(&pDevice->lock);
-            for(uu=0;uu<MAX_KEY_TABLE;uu++)
-                MACvDisableKeyEntry(pDevice,uu);
+	    for (uu = 0; uu < MAX_KEY_TABLE; uu++)
+		MACvDisableKeyEntry(pDevice, uu);
             spin_unlock_irq(&pDevice->lock);
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable. \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable.\n");
             break;
         }
 
@@ -656,7 +654,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         pReq->wResult = 0;
         break;
 
-#ifdef WPA_SM_Transtatus
     case 0xFF:
         memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
 	    wpa_Result.proto = 0;
@@ -676,7 +673,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 //DavidWang
 
 if(wpa_Result.authenticated==TRUE) {
-   #ifdef SndEvt_ToAPI
    {
      union iwreq_data      wrqu;
 
@@ -687,7 +683,6 @@ if(wpa_Result.authenticated==TRUE) {
      wrqu.data.length =pItemSSID->len;
      wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pItemSSID->abySSID);
    }
-   #endif
          pDevice->fWPA_Authened = TRUE;           //is successful peer to wpa_Result.authenticated?
 }
 
@@ -700,7 +695,6 @@ if(wpa_Result.authenticated==TRUE) {
 
 	pReq->wResult = 0;
         break;
-#endif
 
     default:
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");

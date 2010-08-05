@@ -149,12 +149,10 @@ __iio_request_ring_buffer_event_chrdev(struct iio_ring_buffer *buf,
 {
 	int ret;
 
-	buf->ev_int.id = id;
-
 	snprintf(buf->ev_int._name, sizeof(buf->ev_int._name),
 		 "%s:event%d",
 		 dev_name(&buf->dev),
-		 buf->ev_int.id);
+		 id);
 	ret = iio_setup_ev_int(&(buf->ev_int),
 			       buf->ev_int._name,
 			       owner,

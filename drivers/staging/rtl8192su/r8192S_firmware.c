@@ -1,16 +1,22 @@
-/**************************************************************************************************
- * Procedure:    Init boot code/firmware code/data session
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * Description: This routine will intialize firmware. If any error occurs during the initialization
- * 		process, the routine shall terminate immediately and return fail.
- *		NIC driver should call NdisOpenFile only from MiniportInitialize.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * Arguments:   The pointer of the adapter
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 
- * Returns:
- *        NDIS_STATUS_FAILURE - the following initialization process should be terminated
- *        NDIS_STATUS_SUCCESS - if firmware initialization process success
-**************************************************************************************************/
 #include "r8192U.h"
 #include "r8192S_firmware.h"
 #include <linux/unistd.h>

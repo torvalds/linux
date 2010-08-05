@@ -159,19 +159,4 @@ typedef enum _COUNTRY_CODE {
     CCODE_MAX
 } COUNTRY_CODE;
 
-typedef struct tagSCountryTable
-{
-    BYTE    byChannelCountryCode;             /* The country code         */
-    CHAR    chCountryCode[2];
-    BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
-    BYTE    byPower[CB_MAX_CHANNEL];
-}   SCountryTable, *PSCountryTable;
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-extern SCountryTable ChannelRuleTab[CCODE_MAX+1];
-
-/*---------------------  Export Functions  --------------------------*/
-
 #endif  /* __COUNTRY_H__ */

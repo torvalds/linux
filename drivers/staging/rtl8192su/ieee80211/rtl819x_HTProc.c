@@ -1,5 +1,21 @@
-
-//As this function is mainly ported from Windows driver, so leave the name little changed. If any confusion caused, tell me. Created by WB. 2008.05.08
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #include "ieee80211.h"
 #include "rtl819x_HT.h"
 u8 MCS_FILTER_ALL[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -8,32 +24,31 @@ u8 MCS_FILTER_1SS[16] = {0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 
 u16 MCS_DATA_RATE[2][2][77] =
 	{	{	{13, 26, 39, 52, 78, 104, 117, 130, 26, 52, 78 ,104, 156, 208, 234, 260,
-			39, 78, 117, 234, 312, 351, 390, 52, 104, 156, 208, 312, 416, 468, 520,
+			39, 78, 117, 234, 312, 351, 390, 52, 104, 156, 208, 312, 416, 468, 520, 
 			0, 78, 104, 130, 117, 156, 195, 104, 130, 130, 156, 182, 182, 208, 156, 195,
-			195, 234, 273, 273, 312, 130, 156, 181, 156, 181, 208, 234, 208, 234, 260, 260,
-			286, 195, 234, 273, 234, 273, 312, 351, 312, 351, 390, 390, 429},			// Long GI, 20MHz
-			{14, 29, 43, 58, 87, 116, 130, 144, 29, 58, 87, 116, 173, 231, 260, 289,
-			43, 87, 130, 173, 260, 347, 390, 433, 58, 116, 173, 231, 347, 462, 520, 578,
-			0, 87, 116, 144, 130, 173, 217, 116, 144, 144, 173, 202, 202, 231, 173, 217,
-			217, 260, 303, 303, 347, 144, 173, 202, 173, 202, 231, 260, 231, 260, 289, 289,
-			318, 217, 260, 303, 260, 303, 347, 390, 347, 390, 433, 433, 477}	},		// Short GI, 20MHz
-		{	{27, 54, 81, 108, 162, 216, 243, 270, 54, 108, 162, 216, 324, 432, 486, 540,
-			81, 162, 243, 324, 486, 648, 729, 810, 108, 216, 324, 432, 648, 864, 972, 1080,
-			12, 162, 216, 270, 243, 324, 405, 216, 270, 270, 324, 378, 378, 432, 324, 405,
-			405, 486, 567, 567, 648, 270, 324, 378, 324, 378, 432, 486, 432, 486, 540, 540,
-			594, 405, 486, 567, 486, 567, 648, 729, 648, 729, 810, 810, 891}, 	// Long GI, 40MHz
-			{30, 60, 90, 120, 180, 240, 270, 300, 60, 120, 180, 240, 360, 480, 540, 600,
-			90, 180, 270, 360, 540, 720, 810, 900, 120, 240, 360, 480, 720, 960, 1080, 1200,
-			13, 180, 240, 300, 270, 360, 450, 240, 300, 300, 360, 420, 420, 480, 360, 450,
-			450, 540, 630, 630, 720, 300, 360, 420, 360, 420, 480, 540, 480, 540, 600, 600,
-			660, 450, 540, 630, 540, 630, 720, 810, 720, 810, 900, 900, 990}	}	// Short GI, 40MHz
+			195, 234, 273, 273, 312, 130, 156, 181, 156, 181, 208, 234, 208, 234, 260, 260, 
+			286, 195, 234, 273, 234, 273, 312, 351, 312, 351, 390, 390, 429},			
+			{14, 29, 43, 58, 87, 116, 130, 144, 29, 58, 87, 116, 173, 231, 260, 289, 
+			43, 87, 130, 173, 260, 347, 390, 433, 58, 116, 173, 231, 347, 462, 520, 578, 
+			0, 87, 116, 144, 130, 173, 217, 116, 144, 144, 173, 202, 202, 231, 173, 217, 
+			217, 260, 303, 303, 347, 144, 173, 202, 173, 202, 231, 260, 231, 260, 289, 289, 
+			318, 217, 260, 303, 260, 303, 347, 390, 347, 390, 433, 433, 477}	},		
+		{	{27, 54, 81, 108, 162, 216, 243, 270, 54, 108, 162, 216, 324, 432, 486, 540, 
+			81, 162, 243, 324, 486, 648, 729, 810, 108, 216, 324, 432, 648, 864, 972, 1080, 
+			12, 162, 216, 270, 243, 324, 405, 216, 270, 270, 324, 378, 378, 432, 324, 405, 
+			405, 486, 567, 567, 648, 270, 324, 378, 324, 378, 432, 486, 432, 486, 540, 540, 
+			594, 405, 486, 567, 486, 567, 648, 729, 648, 729, 810, 810, 891}, 	
+			{30, 60, 90, 120, 180, 240, 270, 300, 60, 120, 180, 240, 360, 480, 540, 600, 
+			90, 180, 270, 360, 540, 720, 810, 900, 120, 240, 360, 480, 720, 960, 1080, 1200, 
+			13, 180, 240, 300, 270, 360, 450, 240, 300, 300, 360, 420, 420, 480, 360, 450, 
+			450, 540, 630, 630, 720, 300, 360, 420, 360, 420, 480, 540, 480, 540, 600, 600, 
+			660, 450, 540, 630, 540, 630, 720, 810, 720, 810, 900, 900, 990}	}	
 	};
 
 static u8 UNKNOWN_BORADCOM[3] = {0x00, 0x14, 0xbf};
 static u8 LINKSYSWRT330_LINKSYSWRT300_BROADCOM[3] = {0x00, 0x1a, 0x70};
 static u8 LINKSYSWRT350_LINKSYSWRT150_BROADCOM[3] = {0x00, 0x1d, 0x7e};
-static u8 NETGEAR834Bv2_BROADCOM[3] = {0x00, 0x1b, 0x2f};
-static u8 BELKINF5D8233V1_RALINK[3] = {0x00, 0x17, 0x3f};	//cosa 03202008
+static u8 BELKINF5D8233V1_RALINK[3] = {0x00, 0x17, 0x3f};	
 static u8 BELKINF5D82334V3_RALINK[3] = {0x00, 0x1c, 0xdf};
 static u8 PCI_RALINK[3] = {0x00, 0x90, 0xcc};
 static u8 EDIMAX_RALINK[3] = {0x00, 0x0e, 0x2e};
@@ -41,10 +56,9 @@ static u8 AIRLINK_RALINK[3] = {0x00, 0x18, 0x02};
 static u8 DLINK_ATHEROS_1[3] = {0x00, 0x1c, 0xf0};
 static u8 DLINK_ATHEROS_2[3] = {0x00, 0x21, 0x91};
 static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
+static u8 NETGEAR_BROADCOM[3] = {0x00, 0x1f, 0x33};
 static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
-// 2008/04/01 MH For Cisco G mode RX TP We need to change FW duration. Should we put the
-// code in other place??
-//static u8 WIFI_CISCO_G_AP[3] = {0x00, 0x40, 0x96};
+
 /********************************************************************************************************************
  *function:  This function update default settings in pHTInfo structure
  *   input:  PRT_HIGH_THROUGHPUT	pHTInfo
@@ -55,10 +69,7 @@ static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	//const typeof( ((struct ieee80211_device *)0)->pHTInfo ) *__mptr = &pHTInfo;
 
-	//printk("pHTinfo:%p, &pHTinfo:%p, mptr:%p,  offsetof:%x\n", pHTInfo, &pHTInfo, __mptr, offsetof(struct ieee80211_device, pHTInfo));
-	//printk("===>ieee:%p,\n", ieee);
 	// ShortGI support
 	pHTInfo->bRegShortGI20MHz= 1;
 	pHTInfo->bRegShortGI40MHz= 1;
@@ -291,7 +302,6 @@ u16 HTMcsToDataRate( struct ieee80211_device* ieee, u8 nMcsRate)
  * *****************************************************************************************************************/
 u16  TxCountToDataRate( struct ieee80211_device* ieee, u8 nDataRate)
 {
-	//PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u16		CCKOFDMRate[12] = {0x02 , 0x04 , 0x0b , 0x16 , 0x0c , 0x12 , 0x18 , 0x24 , 0x30 , 0x48 , 0x60 , 0x6c};
 	u8	is40MHz = 0;
 	u8	isShortGI = 0;
@@ -307,28 +317,24 @@ u16  TxCountToDataRate( struct ieee80211_device* ieee, u8 nDataRate)
 			is40MHz = 0;
 			isShortGI = 0;
 
-		      // nDataRate = nDataRate - 12;
 		}
 		else if(nDataRate >=0x20  && nDataRate <= 0x2f ) //(27, 44)
 		{
 			is40MHz = 1;
 			isShortGI = 0;
 
-			//nDataRate = nDataRate - 28;
 		}
 		else if(nDataRate >= 0x30  && nDataRate <= 0x3f )  //(43, 60)
 		{
 			is40MHz = 0;
 			isShortGI = 1;
 
-			//nDataRate = nDataRate - 44;
 		}
 		else if(nDataRate >= 0x40  && nDataRate <= 0x4f ) //(59, 76)
 		{
 			is40MHz = 1;
 			isShortGI = 1;
 
-			//nDataRate = nDataRate - 60;
 		}
 		return MCS_DATA_RATE[is40MHz][isShortGI][nDataRate&0xf];
 	}
@@ -351,7 +357,6 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
     		    (memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
     		    (memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-    		    (memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
     		    (net->broadcom_cap_exist))
     		  retValue = true;
 	else if(net->bssht.bdRT2RTAggregation)
@@ -379,13 +384,15 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 		if(net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_92SE){
 			pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK_92SE;
 		}
+		if(net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_SOFTAP){
+			pHTInfo->IOTPeer = HT_IOT_PEER_92U_SOFTAP;
+		}
 	}
 	else if(net->broadcom_cap_exist)
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
 			(memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) )
+			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0))
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
 	else if((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
 			(memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
@@ -398,7 +405,7 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 		(memcmp(net->bssid, DLINK_ATHEROS_1, 3) == 0)||
 		(memcmp(net->bssid, DLINK_ATHEROS_2, 3) == 0))
 		pHTInfo->IOTPeer = HT_IOT_PEER_ATHEROS;
-	else if(memcmp(net->bssid, CISCO_BROADCOM, 3)==0)
+	else if ((memcmp(net->bssid, CISCO_BROADCOM, 3)==0)||net->cisco_cap_exist)
 		pHTInfo->IOTPeer = HT_IOT_PEER_CISCO;
 	else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
 		  net->marvell_cap_exist)
@@ -439,25 +446,6 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device* ieee, u8* PeerMacAddr)
 bool HTIOTActIsDisableMCS15(struct ieee80211_device* ieee)
 {
 	bool retValue = false;
-
-#ifdef TODO
-	// Apply for 819u only
-#if (HAL_CODE_BASE==RTL8192)
-
-#if (DEV_BUS_TYPE == USB_INTERFACE)
-	// Alway disable MCS15 by Jerry Chang's request.by Emily, 2008.04.15
-	retValue = true;
-#elif (DEV_BUS_TYPE == PCI_INTERFACE)
-	// Enable MCS15 if the peer is Cisco AP. by Emily, 2008.05.12
-//	if(pBssDesc->bCiscoCapExist)
-//		retValue = false;
-//	else
-		retValue = false;
-#endif
-#endif
-#endif
-	// Jerry Chang suggest that 8190 1x2 does not need to disable MCS15
-
 	return retValue;
 }
 
@@ -624,17 +612,11 @@ HTIOCActRejcectADDBARequest(struct ieee80211_network *network)
   HTIOTActIsEDCABiasRx(struct ieee80211_device* ieee,struct ieee80211_network *network)
 {
 	u8	retValue = 0;
-	//if(IS_HARDWARE_TYPE_8192SU(Adapter))
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	{
-//#if UNDER_VISTA
-//		if(pBssDesc->Vender==HT_IOT_PEER_ATHEROS ||
-//			pBssDesc->Vender==HT_IOT_PEER_RALINK)
-//#else
 		if(pHTInfo->IOTPeer==HT_IOT_PEER_ATHEROS ||
 		   pHTInfo->IOTPeer==HT_IOT_PEER_BROADCOM ||
 		   pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
-//#endif
 			return 1;
 
 	}
@@ -649,7 +631,6 @@ HTIOTActDisableShortGI(struct ieee80211_device* ieee,struct ieee80211_network *n
 
 	if(pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
 	{
-		if(network->bssht.bdHT1R)
 			retValue = 1;
 	}
 
@@ -662,9 +643,10 @@ HTIOTActDisableHighPower(struct ieee80211_device* ieee,struct ieee80211_network 
 	u8	retValue = 0;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
-	if(pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
+	if(pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
+		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK ||
+		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK_92SE)
 	{
-		if(network->bssht.bdHT1R)
 			retValue = 1;
 	}
 
@@ -718,8 +700,7 @@ HTIOTActIsTxNoAggregation(struct ieee80211_device* ieee,struct ieee80211_network
 		(KEY_TYPE_WEP40 == ieee->group_key_type) ||
 		(KEY_TYPE_TKIP == ieee->pairwise_key_type) )
 	{
-		if(pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK ||
-		    pHTInfo->IOTPeer==HT_IOT_PEER_UNKNOWN)
+		if(pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK)
 			retValue = 1;
 	}
 
@@ -751,10 +732,11 @@ bool HTIOCActAllowPeerAggOnePacket(struct ieee80211_device* ieee,struct ieee8021
 {
 	bool 	retValue = false;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	if(pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
-		if(pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
+		if((memcmp(network->bssid, NETGEAR_BROADCOM, 3)==0)
+			&& (network->bssht.bdBandWidth == HT_CHANNEL_WIDTH_20_40))
 			return true;
-
 	}
 	return retValue;
 }
@@ -783,7 +765,6 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 {
 	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
 	PHT_CAPABILITY_ELE 	pCapELE = NULL;
-	//u8 bIsDeclareMCS13;
 
 	if ((posHTCap == NULL) || (pHT == NULL))
 	{
@@ -813,13 +794,11 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 		pCapELE->ChlWidth = (pHT->bRegBW40MHz?1:0);
 	}
 
-//	pCapELE->ChlWidth 		= (pHT->bRegBW40MHz?1:0);
 	pCapELE->MimoPwrSave 		= pHT->SelfMimoPs;
 	pCapELE->GreenField		= 0; // This feature is not supported now!!
 	pCapELE->ShortGI20Mhz		= 1; // We can receive Short GI!!
 	pCapELE->ShortGI40Mhz		= 1; // We can receive Short GI!!
-	//DbgPrint("TX HT cap/info ele BW=%d SG20=%d SG40=%d\n\r",
-		//pCapELE->ChlWidth, pCapELE->ShortGI20Mhz, pCapELE->ShortGI40Mhz);
+
 	pCapELE->TxSTBC 		= 1;
 	pCapELE->RxSTBC 		= 0;
 	pCapELE->DelayBA		= 0;	// Do not support now!!
@@ -879,12 +858,6 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 	else
 		*len = 26 + 2;
 
-
-
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTCap, *len -2);
-
-	//Print each field in detail. Driver should not print out this message by default
-//	HTDebugHTCapability(posHTCap, (u8*)"HTConstructCapability()");
 	return;
 
 }
@@ -938,8 +911,6 @@ void HTConstructInfoElement(struct ieee80211_device* ieee, u8* posHTInfo, u8* le
 		//STA should not generate High Throughput Information Element
 		*len = 0;
 	}
-	//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTInfo, *len - 2);
-	//HTDebugHTInfo(posHTInfo, "HTConstructInforElement");
 	return;
 }
 
@@ -1005,7 +976,6 @@ void HTConstructRT2RTAggElement(struct ieee80211_device* ieee, u8* posRT2RTAgg, 
 	*/
 
 #else
-	// Do Nothing
 #endif
 
 	posRT2RTAgg->Length = 6;
@@ -1188,12 +1158,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 		return;
 	}
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTCapBuf, sizeof(HT_CAPABILITY_ELE));
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTInfoBuf, sizeof(HT_INFORMATION_ELE));
 
-//	HTDebugHTCapability(pHTInfo->PeerHTCapBuf,"HTOnAssocRsp_wq");
-//	HTDebugHTInfo(pHTInfo->PeerHTInfoBuf,"HTOnAssocRsp_wq");
-	//
 	if(!memcmp(pHTInfo->PeerHTCapBuf,EWC11NHTCap, sizeof(EWC11NHTCap)))
 		pPeerHTCap = (PHT_CAPABILITY_ELE)(&pHTInfo->PeerHTCapBuf[4]);
 	else
@@ -1209,12 +1174,10 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	// Configurations:
 	////////////////////////////////////////////////////////
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_HT, pPeerHTCap, sizeof(HT_CAPABILITY_ELE));
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_HT, pPeerHTInfo, sizeof(HT_INFORMATION_ELE));
-	// Config Supported Channel Width setting
-	//
+
 	HTSetConnectBwMode(ieee, (HT_CHANNEL_WIDTH)(pPeerHTCap->ChlWidth), (HT_EXTCHNL_OFFSET)(pPeerHTInfo->ExtChlOffset));
 
-//	if(pHTInfo->bCurBW40MHz == true)
+	if(pHTInfo->bCurBW40MHz == true)
 		pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1)?true:false);
 
 	//
@@ -1295,7 +1258,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 
 	// <2> Set AMPDU Minimum MPDU Start Spacing
 	// 802.11n 3.0 section 9.7d.3
-#if 1
+#if 0
 	if(pHTInfo->MPDU_Density > pPeerHTCap->MPDUDensity)
 		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
 	else

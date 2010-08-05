@@ -65,6 +65,7 @@
 #include "desc.h"
 #include "device.h"
 #include "card.h"
+#include "channel.h"
 #include "80211hdr.h"
 #include "80211mgr.h"
 #include "wmgr.h"
@@ -93,9 +94,9 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 //2008-8-4 <add> by chester
-static BOOL ChannelExceedZoneType(
+static bool ChannelExceedZoneType(
     PSDevice pDevice,
-    BYTE byCurrChannel
+    unsigned char byCurrChannel
     );
 
 // Association/diassociation functions
@@ -104,9 +105,9 @@ PSTxMgmtPacket
 s_MgrMakeAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned char *pDAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -118,7 +119,7 @@ s_vMgrRxAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    UINT  uNodeIndex
+    unsigned int uNodeIndex
     );
 
 static
@@ -126,9 +127,9 @@ PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned char *pDAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -140,7 +141,7 @@ s_vMgrRxAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bReAssocType
+    bool bReAssocType
     );
 
 static
@@ -225,7 +226,7 @@ s_vMgrRxBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bInScan
+    bool bInScan
     );
 
 static
@@ -240,12 +241,12 @@ PSTxMgmtPacket
 s_MgrMakeBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
-    UINT uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
+    unsigned int uCurrChannel,
+    unsigned short wCurrATIMWinodw,
     PWLAN_IE_SSID pCurrSSID,
-    PBYTE pCurrBSSID,
+    unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
@@ -257,10 +258,10 @@ PSTxMgmtPacket
 s_MgrMakeAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
+    unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
@@ -271,10 +272,10 @@ PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
+    unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
@@ -285,16 +286,16 @@ PSTxMgmtPacket
 s_MgrMakeProbeResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
-    UINT uCurrChannel,
-    WORD wCurrATIMWinodw,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
+    unsigned int uCurrChannel,
+    unsigned short wCurrATIMWinodw,
+    unsigned char *pDstAddr,
     PWLAN_IE_SSID pCurrSSID,
-    PBYTE pCurrBSSID,
+    unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates,
-    BYTE byPHYType
+    unsigned char byPHYType
     );
 
 // received status
@@ -302,7 +303,7 @@ static
 void
 s_vMgrLogStatus(
     PSMgmtObject pMgmt,
-    WORD wStatus
+    unsigned short wStatus
     );
 
 
@@ -310,18 +311,18 @@ static
 void
 s_vMgrSynchBSS (
     PSDevice      pDevice,
-    UINT          uBSSMode,
+    unsigned int uBSSMode,
     PKnownBSS     pCurr,
     PCMD_STATUS  pStatus
     );
 
 
-static BOOL
+static bool
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
-    PBYTE                           pbyCCSPK,
-    PBYTE                           pbyCCSGK
+    unsigned char *pbyCCSPK,
+    unsigned char *pbyCCSGK
     );
 
  static void  Encyption_Rebuild(
@@ -368,7 +369,7 @@ vMgrObjectInit(
     pMgmt->byCSSPK = KEY_CTL_NONE;
     pMgmt->byCSSGK = KEY_CTL_NONE;
     pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
-    BSSvClearBSSList((void *)pDevice, FALSE);
+    BSSvClearBSSList((void *)pDevice, false);
 
     return;
 }
@@ -393,22 +394,22 @@ vMgrTimerInit(
 
 
     init_timer(&pMgmt->sTimerSecondCallback);
-    pMgmt->sTimerSecondCallback.data = (ULONG)pDevice;
+    pMgmt->sTimerSecondCallback.data = (unsigned long) pDevice;
     pMgmt->sTimerSecondCallback.function = (TimerFunction)BSSvSecondCallBack;
     pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long) pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vCommandTimer;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
 
    #ifdef TxInSleep
     init_timer(&pDevice->sTimerTxData);
-    pDevice->sTimerTxData.data = (ULONG)pDevice;
+    pDevice->sTimerTxData.data = (unsigned long) pDevice;
     pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
     pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-    pDevice->fTxDataInSleep = FALSE;
-    pDevice->IsTxDataTrigger = FALSE;
+    pDevice->fTxDataInSleep = false;
+    pDevice->IsTxDataTrigger = false;
     pDevice->nTxDataTimeCout = 0;
    #endif
 
@@ -441,7 +442,7 @@ vMgrObjectReset(
 
     pMgmt->eCurrMode = WMAC_MODE_STANDBY;
     pMgmt->eCurrState = WMAC_STATE_IDLE;
-    pDevice->bEnablePSMode = FALSE;
+    pDevice->bEnablePSMode = false;
     // TODO: timer
 
     return;
@@ -487,15 +488,15 @@ vMgrAssocBeginSta(
     // ERP Phy (802.11g) should support short preamble.
     if (pMgmt->eCurrentPHYMode == PHY_TYPE_11G) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
-        if (CARDbIsShorSlotTime(pMgmt->pAdapter) == TRUE) {
+        if (CARDbIsShorSlotTime(pMgmt->pAdapter) == true) {
             pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTSLOTTIME(1);
         }
     } else if (pMgmt->eCurrentPHYMode == PHY_TYPE_11B) {
-        if (CARDbIsShortPreamble(pMgmt->pAdapter) == TRUE) {
+        if (CARDbIsShortPreamble(pMgmt->pAdapter) == true) {
             pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
         }
     }
-    if (pMgmt->b11hEnable == TRUE)
+    if (pMgmt->b11hEnable == true)
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SPECTRUMMNG(1);
 
     /* build an assocreq frame and send it */
@@ -566,15 +567,15 @@ vMgrReAssocBeginSta(
     // ERP Phy (802.11g) should support short preamble.
     if (pMgmt->eCurrentPHYMode == PHY_TYPE_11G) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
-        if (CARDbIsShorSlotTime(pMgmt->pAdapter) == TRUE) {
+        if (CARDbIsShorSlotTime(pMgmt->pAdapter) == true) {
             pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTSLOTTIME(1);
         }
     } else if (pMgmt->eCurrentPHYMode == PHY_TYPE_11B) {
-        if (CARDbIsShortPreamble(pMgmt->pAdapter) == TRUE) {
+        if (CARDbIsShortPreamble(pMgmt->pAdapter) == true) {
             pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
         }
     }
-    if (pMgmt->b11hEnable == TRUE)
+    if (pMgmt->b11hEnable == true)
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SPECTRUMMNG(1);
 
 
@@ -619,8 +620,8 @@ void
 vMgrDisassocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
-    PBYTE  abyDestAddress,
-    WORD    wReason,
+    unsigned char *abyDestAddress,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     )
 {
@@ -630,10 +631,10 @@ vMgrDisassocBeginSta(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_DISASSOC_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
 
     // Setup the sFrame structure
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_DISASSOC_FR_MAXLEN;
 
     // format fixed field frame structure
@@ -683,17 +684,17 @@ s_vMgrRxAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    UINT uNodeIndex
+    unsigned int uNodeIndex
     )
 {
     WLAN_FR_ASSOCREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    WORD                wAssocStatus = 0;
-    WORD                wAssocAID = 0;
-    UINT                uRateLen = WLAN_RATES_MAXLEN;
-    BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-    BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned short wAssocStatus = 0;
+    unsigned short wAssocAID = 0;
+    unsigned int uRateLen = WLAN_RATES_MAXLEN;
+    unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP)
@@ -708,7 +709,7 @@ s_vMgrRxAssocRequest(
     memset(abyCurrSuppRates, 0, WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1);
     memset(abyCurrExtSuppRates, 0, WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1);
     sFrame.len = pRxPacket->cbMPDULen;
-    sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 
     vMgrDecodeAssocRequest(&sFrame);
 
@@ -717,7 +718,7 @@ s_vMgrRxAssocRequest(
         pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = cpu_to_le16(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = cpu_to_le16(*sFrame.pwListenInterval);
         pMgmt->sNodeDBTable[uNodeIndex].bPSEnable =
-                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : FALSE;
+                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? true : false;
         // Todo: check sta basic rate, if ap can't support, set status code
         if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
             uRateLen = WLAN_RATES_MAXLEN_11B;
@@ -739,7 +740,7 @@ s_vMgrRxAssocRequest(
         RATEvParseMaxRate((void *)pDevice,
                            (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                            (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
-                           FALSE, // do not change our basic rate
+                           false, // do not change our basic rate
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -758,20 +759,20 @@ s_vMgrRxAssocRequest(
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (unsigned short)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (unsigned short)uNodeIndex;
         // check if ERP support
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
-           pMgmt->sNodeDBTable[uNodeIndex].bERPExist = TRUE;
+           pMgmt->sNodeDBTable[uNodeIndex].bERPExist = true;
 
         if (pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate <= RATE_11M) {
             // B only STA join
-            pDevice->bProtectMode = TRUE;
-            pDevice->bNonERPPresent = TRUE;
+            pDevice->bProtectMode = true;
+            pDevice->bNonERPPresent = true;
         }
-        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == FALSE) {
-            pDevice->bBarkerPreambleMd = TRUE;
+        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == false) {
+            pDevice->bBarkerPreambleMd = true;
         }
 
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Associate AID= %d \n", wAssocAID);
@@ -845,17 +846,17 @@ s_vMgrRxReAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    UINT uNodeIndex
+    unsigned int uNodeIndex
     )
 {
     WLAN_FR_REASSOCREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    WORD                wAssocStatus = 0;
-    WORD                wAssocAID = 0;
-    UINT                uRateLen = WLAN_RATES_MAXLEN;
-    BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-    BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned short wAssocStatus = 0;
+    unsigned short wAssocAID = 0;
+    unsigned int	uRateLen = WLAN_RATES_MAXLEN;
+    unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP)
         return;
@@ -866,7 +867,7 @@ s_vMgrRxReAssocRequest(
     //decode the frame
     memset(&sFrame, 0, sizeof(WLAN_FR_REASSOCREQ));
     sFrame.len = pRxPacket->cbMPDULen;
-    sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
     vMgrDecodeReassocRequest(&sFrame);
 
     if (pMgmt->sNodeDBTable[uNodeIndex].eNodeState >= NODE_AUTH) {
@@ -874,7 +875,7 @@ s_vMgrRxReAssocRequest(
         pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = cpu_to_le16(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = cpu_to_le16(*sFrame.pwListenInterval);
         pMgmt->sNodeDBTable[uNodeIndex].bPSEnable =
-                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : FALSE;
+                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? true : false;
         // Todo: check sta basic rate, if ap can't support, set status code
 
         if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
@@ -898,7 +899,7 @@ s_vMgrRxReAssocRequest(
         RATEvParseMaxRate((void *)pDevice,
                           (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                           (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
-                           FALSE, // do not change our basic rate
+                           false, // do not change our basic rate
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -917,21 +918,21 @@ s_vMgrRxReAssocRequest(
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (unsigned short)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (unsigned short)uNodeIndex;
 
         // if suppurt ERP
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
-           pMgmt->sNodeDBTable[uNodeIndex].bERPExist = TRUE;
+           pMgmt->sNodeDBTable[uNodeIndex].bERPExist = true;
 
         if (pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate <= RATE_11M) {
             // B only STA join
-            pDevice->bProtectMode = TRUE;
-            pDevice->bNonERPPresent = TRUE;
+            pDevice->bProtectMode = true;
+            pDevice->bNonERPPresent = true;
         }
-        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == FALSE) {
-            pDevice->bBarkerPreambleMd = TRUE;
+        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == false) {
+            pDevice->bBarkerPreambleMd = true;
         }
 
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Rx ReAssociate AID= %d \n", wAssocAID);
@@ -995,12 +996,12 @@ s_vMgrRxAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bReAssocType
+    bool bReAssocType
     )
 {
     WLAN_FR_ASSOCRESP   sFrame;
     PWLAN_IE_SSID   pItemSSID;
-    PBYTE   pbyIEs;
+    unsigned char *pbyIEs;
     viawget_wpa_header *wpahdr;
 
 
@@ -1009,7 +1010,7 @@ s_vMgrRxAssocResponse(
          pMgmt->eCurrState == WMAC_STATE_ASSOC) {
 
         sFrame.len = pRxPacket->cbMPDULen;
-        sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+        sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
         // decode the frame
         vMgrDecodeAssocResponse(&sFrame);
         if ((sFrame.pwCapInfo == 0) ||
@@ -1044,7 +1045,7 @@ s_vMgrRxAssocResponse(
             BSSvUpdateAPNode((void *)pDevice, sFrame.pwCapInfo, sFrame.pSuppRates, sFrame.pExtSuppRates);
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Link with AP(SSID): %s\n", pItemSSID->abySSID);
-            pDevice->bLinkPass = TRUE;
+            pDevice->bLinkPass = true;
             pDevice->uBBVGADiffCount = 0;
             if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
 	  if(skb_tailroom(pDevice->skb) <(sizeof(viawget_wpa_header)+pMgmt->sAssocInfo.AssocInfo.ResponseIELength+
@@ -1073,9 +1074,9 @@ s_vMgrRxAssocResponse(
 
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-	//if(pDevice->bWPADevEnable == TRUE)
+	//if(pDevice->bWPADevEnable == true)
 		{
-		BYTE buf[512];
+		unsigned char buf[512];
 		size_t len;
 		union iwreq_data  wrqu;
 		int we_event;
@@ -1128,7 +1129,7 @@ s_vMgrRxAssocResponse(
 //need clear flags related to Networkmanager
 
               pDevice->bwextcount = 0;
-              pDevice->bWPASuppWextEnabled = FALSE;
+              pDevice->bWPASuppWextEnabled = false;
 #endif
 
 
@@ -1163,8 +1164,8 @@ vMgrAuthenBeginSta(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_AUTHEN_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_AUTHEN_FR_MAXLEN;
     vMgrEncodeAuthen(&sFrame);
     /* insert values */
@@ -1212,8 +1213,8 @@ void
 vMgrDeAuthenBeginSta(
     void *hDeviceContext,
     PSMgmtObject  pMgmt,
-    PBYTE  abyDestAddress,
-    WORD    wReason,
+    unsigned char *abyDestAddress,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     )
 {
@@ -1224,8 +1225,8 @@ vMgrDeAuthenBeginSta(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_DEAUTHEN_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_DEAUTHEN_FR_MAXLEN;
     vMgrEncodeDeauthen(&sFrame);
     /* insert values */
@@ -1282,7 +1283,7 @@ s_vMgrRxAuthentication(
 
     // decode the frame
     sFrame.len = pRxPacket->cbMPDULen;
-    sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
     vMgrDecodeAuthen(&sFrame);
     switch (cpu_to_le16((*(sFrame.pwAuthSequence )))){
         case 1:
@@ -1331,7 +1332,7 @@ s_vMgrRxAuthenSequence_1(
      )
 {
     PSTxMgmtPacket      pTxPacket = NULL;
-    UINT                uNodeIndex;
+    unsigned int	uNodeIndex;
     WLAN_FR_AUTHEN      sFrame;
     PSKeyItem           pTransmitKey;
 
@@ -1353,8 +1354,8 @@ s_vMgrRxAuthenSequence_1(
     // send auth reply
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_AUTHEN_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_AUTHEN_FR_MAXLEN;
     // format buffer structure
     vMgrEncodeAuthen(&sFrame);
@@ -1393,7 +1394,7 @@ s_vMgrRxAuthenSequence_1(
         sFrame.pChallenge->len = WLAN_CHALLENGE_LEN;
         memset(pMgmt->abyChallenge, 0, WLAN_CHALLENGE_LEN);
         // get group key
-        if(KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBroadcastAddr, GROUP_KEY, &pTransmitKey) == TRUE) {
+        if(KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBroadcastAddr, GROUP_KEY, &pTransmitKey) == true) {
             rc4_init(&pDevice->SBox, pDevice->abyPRNG, pTransmitKey->uKeyLength+3);
             rc4_encrypt(&pDevice->SBox, pMgmt->abyChallenge, pMgmt->abyChallenge, WLAN_CHALLENGE_LEN);
         }
@@ -1466,8 +1467,8 @@ s_vMgrRxAuthenSequence_2(
             if (cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS) {
                 pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
                 memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_AUTHEN_FR_MAXLEN);
-                pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-                sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+                pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+                sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
                 sFrame.len = WLAN_AUTHEN_FR_MAXLEN;
                 // format buffer structure
                 vMgrEncodeAuthen(&sFrame);
@@ -1539,8 +1540,8 @@ s_vMgrRxAuthenSequence_3(
     )
 {
     PSTxMgmtPacket      pTxPacket = NULL;
-    UINT                uStatusCode = 0 ;
-    UINT                uNodeIndex = 0;
+    unsigned int uStatusCode = 0 ;
+    unsigned int uNodeIndex = 0;
     WLAN_FR_AUTHEN      sFrame;
 
     if (!WLAN_GET_FC_ISWEP(pFrame->pHdr->sA3.wFrameCtl)) {
@@ -1573,8 +1574,8 @@ reply:
     // send auth reply
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_AUTHEN_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_AUTHEN_FR_MAXLEN;
     // format buffer structure
     vMgrEncodeAuthen(&sFrame);
@@ -1666,7 +1667,7 @@ s_vMgrRxDisassociation(
     )
 {
     WLAN_FR_DISASSOC    sFrame;
-    UINT        uNodeIndex = 0;
+    unsigned int uNodeIndex = 0;
 //    CMD_STATUS          CmdStatus;
     viawget_wpa_header *wpahdr;
 
@@ -1674,7 +1675,7 @@ s_vMgrRxDisassociation(
         // if is acting an AP..
         // a STA is leaving this BSS..
         sFrame.len = pRxPacket->cbMPDULen;
-        sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+        sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
         if (BSSDBbIsSTAInNodeDB(pMgmt, pRxPacket->p80211Header->sA3.abyAddr2, &uNodeIndex)) {
             BSSvRemoveOneNode(pDevice, uNodeIndex);
         }
@@ -1684,7 +1685,7 @@ s_vMgrRxDisassociation(
     }
     else if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA ){
         sFrame.len = pRxPacket->cbMPDULen;
-        sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+        sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
         vMgrDecodeDisassociation(&sFrame);
         DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "AP disassociated me, reason=%d.\n", cpu_to_le16(*(sFrame.pwReason)));
         //TODO: do something let upper layer know or
@@ -1709,7 +1710,7 @@ s_vMgrRxDisassociation(
          };
 
  #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-  // if(pDevice->bWPASuppWextEnabled == TRUE)
+  // if(pDevice->bWPASuppWextEnabled == true)
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
@@ -1745,7 +1746,7 @@ s_vMgrRxDeauthentication(
     )
 {
     WLAN_FR_DEAUTHEN    sFrame;
-    UINT        uNodeIndex = 0;
+    unsigned int uNodeIndex = 0;
     viawget_wpa_header *wpahdr;
 
 
@@ -1754,7 +1755,7 @@ s_vMgrRxDeauthentication(
         // if is acting an AP..
         // a STA is leaving this BSS..
         sFrame.len = pRxPacket->cbMPDULen;
-        sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+        sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
         if (BSSDBbIsSTAInNodeDB(pMgmt, pRxPacket->p80211Header->sA3.abyAddr2, &uNodeIndex)) {
             BSSvRemoveOneNode(pDevice, uNodeIndex);
         }
@@ -1765,17 +1766,17 @@ s_vMgrRxDeauthentication(
     else {
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA ) {
             sFrame.len = pRxPacket->cbMPDULen;
-            sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+            sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
             vMgrDecodeDeauthen(&sFrame);
             DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO  "AP deauthed me, reason=%d.\n", cpu_to_le16((*(sFrame.pwReason))));
             // TODO: update BSS list for specific BSSID if pre-authentication case
-            if (IS_ETH_ADDRESS_EQUAL(sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID)) {
+            if (!compare_ether_addr(sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID)) {
                 if (pMgmt->eCurrState >= WMAC_STATE_AUTHPENDING) {
-                    pMgmt->sNodeDBTable[0].bActive = FALSE;
+                    pMgmt->sNodeDBTable[0].bActive = false;
                     pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     netif_stop_queue(pDevice->dev);
-                    pDevice->bLinkPass = FALSE;
+                    pDevice->bLinkPass = false;
                 }
             };
 
@@ -1795,7 +1796,7 @@ s_vMgrRxDeauthentication(
            };
 
    #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-  // if(pDevice->bWPASuppWextEnabled == TRUE)
+  // if(pDevice->bWPASuppWextEnabled == true)
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
@@ -1825,23 +1826,23 @@ s_vMgrRxDeauthentication(
  *               True:exceed;
  *                False:normal case
 -*/
-static BOOL
+static bool
 ChannelExceedZoneType(
     PSDevice pDevice,
-    BYTE byCurrChannel
+    unsigned char byCurrChannel
     )
 {
-  BOOL exceed=FALSE;
+  bool exceed=false;
 
   switch(pDevice->byZoneType) {
   	case 0x00:                  //USA:1~11
                      if((byCurrChannel<1) ||(byCurrChannel>11))
-	                exceed = TRUE;
+	                exceed = true;
 	         break;
 	case 0x01:                  //Japan:1~13
 	case 0x02:                  //Europe:1~13
                      if((byCurrChannel<1) ||(byCurrChannel>13))
-	                exceed = TRUE;
+	                exceed = true;
 	         break;
 	default:                    //reserve for other zonetype
 		break;
@@ -1868,39 +1869,39 @@ s_vMgrRxBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     PSRxMgmtPacket pRxPacket,
-    BOOL bInScan
+    bool bInScan
     )
 {
 
     PKnownBSS           pBSSList;
     WLAN_FR_BEACON      sFrame;
     QWORD               qwTSFOffset;
-    BOOL                bIsBSSIDEqual = FALSE;
-    BOOL                bIsSSIDEqual = FALSE;
-    BOOL                bTSFLargeDiff = FALSE;
-    BOOL                bTSFOffsetPostive = FALSE;
-    BOOL                bUpdateTSF = FALSE;
-    BOOL                bIsAPBeacon = FALSE;
-    BOOL                bIsChannelEqual = FALSE;
-    UINT                uLocateByteIndex;
-    BYTE                byTIMBitOn = 0;
-    WORD                wAIDNumber = 0;
-    UINT                uNodeIndex;
+    bool bIsBSSIDEqual = false;
+    bool bIsSSIDEqual = false;
+    bool bTSFLargeDiff = false;
+    bool bTSFOffsetPostive = false;
+    bool bUpdateTSF = false;
+    bool bIsAPBeacon = false;
+    bool bIsChannelEqual = false;
+    unsigned int uLocateByteIndex;
+    unsigned char byTIMBitOn = 0;
+    unsigned short wAIDNumber = 0;
+    unsigned int uNodeIndex;
     QWORD               qwTimestamp, qwLocalTSF;
     QWORD               qwCurrTSF;
-    WORD                wStartIndex = 0;
-    WORD                wAIDIndex = 0;
-    BYTE                byCurrChannel = pRxPacket->byRxChannel;
+    unsigned short wStartIndex = 0;
+    unsigned short wAIDIndex = 0;
+    unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
-    UINT                uRateLen = WLAN_RATES_MAXLEN;
-    BOOL                bChannelHit = FALSE;
-    BOOL                bUpdatePhyParameter = FALSE;
-    BYTE                byIEChannel = 0;
+    unsigned int uRateLen = WLAN_RATES_MAXLEN;
+    bool bChannelHit = false;
+    bool bUpdatePhyParameter = false;
+    unsigned char byIEChannel = 0;
 
 
     memset(&sFrame, 0, sizeof(WLAN_FR_BEACON));
     sFrame.len = pRxPacket->cbMPDULen;
-    sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 
     // decode the beacon frame
     vMgrDecodeBeacon(&sFrame);
@@ -1917,29 +1918,29 @@ s_vMgrRxBeacon(
     if (sFrame.pDSParms != NULL) {
         if (byCurrChannel > CB_MAX_CHANNEL_24G) {
             // channel remapping to
-            byIEChannel = CARDbyGetChannelMapping(pDevice, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
+            byIEChannel = get_channel_mapping(pDevice, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
         } else {
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
         if (byCurrChannel != byIEChannel) {
             // adjust channel info. bcs we rcv adjcent channel pakckets
-            bChannelHit = FALSE;
+            bChannelHit = false;
             byCurrChannel = byIEChannel;
         }
     } else {
         // no DS channel info
-        bChannelHit = TRUE;
+        bChannelHit = true;
     }
 //2008-0730-01<Add>by MikeLiu
-if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
+if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
       return;
 
     if (sFrame.pERP != NULL) {
         sERP.byERP = sFrame.pERP->byContext;
-        sERP.bERPExist = TRUE;
+        sERP.bERPExist = true;
 
     } else {
-        sERP.bERPExist = FALSE;
+        sERP.bERPExist = false;
         sERP.byERP = 0;
     }
 
@@ -1993,8 +1994,8 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         return;
     }
 
-    if(byCurrChannel == (BYTE)pMgmt->uCurrChannel)
-       bIsChannelEqual = TRUE;
+    if(byCurrChannel == (unsigned char)pMgmt->uCurrChannel)
+       bIsChannelEqual = true;
 
     if (bIsChannelEqual && (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
 
@@ -2021,7 +2022,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         if (WLAN_GET_ERP_USE_PROTECTION(pDevice->byERPFlag)){
             if (!pDevice->bProtectMode) {
                  MACvEnableProtectMD(pDevice->PortOffset);
-                 pDevice->bProtectMode = TRUE;
+                 pDevice->bProtectMode = true;
             }
         }
     }
@@ -2035,7 +2036,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                pMgmt->abyCurrBSSID,
                WLAN_BSSID_LEN) == 0) {
 
-        bIsBSSIDEqual = TRUE;
+        bIsBSSIDEqual = true;
 
 // 2008-05-21 <add> by Richardtai
         pDevice->uCurrRSSI = pRxPacket->uRSSI;
@@ -2052,30 +2053,30 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                    ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->abySSID,
                    sFrame.pSSID->len
                    ) == 0) {
-            bIsSSIDEqual = TRUE;
+            bIsSSIDEqual = true;
         };
     }
 
-    if ((WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)== TRUE) &&
-        (bIsBSSIDEqual == TRUE) &&
-        (bIsSSIDEqual == TRUE) &&
+    if ((WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)== true) &&
+        (bIsBSSIDEqual == true) &&
+        (bIsSSIDEqual == true) &&
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
         (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
         // add state check to prevent reconnect fail since we'll receive Beacon
 
-        bIsAPBeacon = TRUE;
+        bIsAPBeacon = true;
 
         if (pBSSList != NULL) {
 
             // Compare PHY paramater setting
             if (pMgmt->wCurrCapInfo != pBSSList->wCapInfo) {
-                bUpdatePhyParameter = TRUE;
+                bUpdatePhyParameter = true;
                 pMgmt->wCurrCapInfo = pBSSList->wCapInfo;
             }
             if (sFrame.pERP != NULL) {
                 if ((sFrame.pERP->byElementID == WLAN_EID_ERP) &&
                     (pMgmt->byERPContext != sFrame.pERP->byContext)) {
-                    bUpdatePhyParameter = TRUE;
+                    bUpdatePhyParameter = true;
                     pMgmt->byERPContext = sFrame.pERP->byContext;
                 }
             }
@@ -2094,7 +2095,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             RATEvParseMaxRate( (void *)pDevice,
                                (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
-                               TRUE,
+                               true,
                                &(pMgmt->sNodeDBTable[0].wMaxBasicRate),
                                &(pMgmt->sNodeDBTable[0].wMaxSuppRate),
                                &(pMgmt->sNodeDBTable[0].wSuppRate),
@@ -2104,7 +2105,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 #ifdef	PLICE_DEBUG
 		//printk("RxBeacon:MaxSuppRate is %d\n",pMgmt->sNodeDBTable[0].wMaxSuppRate);
 #endif
-			if (bUpdatePhyParameter == TRUE) {
+			if (bUpdatePhyParameter == true) {
                 CARDbSetPhyParameter( pMgmt->pAdapter,
                                       pMgmt->eCurrentPHYMode,
                                       pMgmt->wCurrCapInfo,
@@ -2115,19 +2116,19 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             }
             if (sFrame.pIE_PowerConstraint != NULL) {
                 CARDvSetPowerConstraint(pMgmt->pAdapter,
-                                        (BYTE) pBSSList->uChannel,
+                                        (unsigned char) pBSSList->uChannel,
                                         sFrame.pIE_PowerConstraint->byPower
                                         );
             }
             if (sFrame.pIE_CHSW != NULL) {
                 CARDbChannelSwitch( pMgmt->pAdapter,
                                     sFrame.pIE_CHSW->byMode,
-                                    CARDbyGetChannelMapping(pMgmt->pAdapter, sFrame.pIE_CHSW->byMode, pMgmt->eCurrentPHYMode),
+                                    get_channel_mapping(pMgmt->pAdapter, sFrame.pIE_CHSW->byMode, pMgmt->eCurrentPHYMode),
                                     sFrame.pIE_CHSW->byCount
                                     );
 
-            } else if (bIsChannelEqual == FALSE) {
-                CARDbSetChannel(pMgmt->pAdapter, pBSSList->uChannel);
+            } else if (bIsChannelEqual == false) {
+                set_channel(pMgmt->pAdapter, pBSSList->uChannel);
             }
         }
     }
@@ -2148,17 +2149,17 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
     // check if beacon TSF larger or small than our local TSF
     if (HIDWORD(qwTimestamp) == HIDWORD(qwLocalTSF)) {
         if (LODWORD(qwTimestamp) >= LODWORD(qwLocalTSF)) {
-            bTSFOffsetPostive = TRUE;
+            bTSFOffsetPostive = true;
         }
         else {
-            bTSFOffsetPostive = FALSE;
+            bTSFOffsetPostive = false;
         }
     }
     else if (HIDWORD(qwTimestamp) > HIDWORD(qwLocalTSF)) {
-        bTSFOffsetPostive = TRUE;
+        bTSFOffsetPostive = true;
     }
     else if (HIDWORD(qwTimestamp) < HIDWORD(qwLocalTSF)) {
-        bTSFOffsetPostive = FALSE;
+        bTSFOffsetPostive = false;
     };
 
     if (bTSFOffsetPostive) {
@@ -2170,21 +2171,21 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 
     if (HIDWORD(qwTSFOffset) != 0 ||
         (LODWORD(qwTSFOffset) > TRIVIAL_SYNC_DIFFERENCE )) {
-         bTSFLargeDiff = TRUE;
+         bTSFLargeDiff = true;
     }
 
 
     // if infra mode
-    if (bIsAPBeacon == TRUE) {
+    if (bIsAPBeacon == true) {
 
         // Infra mode: Local TSF always follow AP's TSF if Difference huge.
         if (bTSFLargeDiff)
-            bUpdateTSF = TRUE;
+            bUpdateTSF = true;
 
-        if ((pDevice->bEnablePSMode == TRUE) &&(sFrame.pTIM != 0)) {
+        if ((pDevice->bEnablePSMode == true) &&(sFrame.pTIM != 0)) {
 
             // deal with DTIM, analysis TIM
-            pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? TRUE : FALSE ;
+            pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? true : false ;
             pMgmt->byDTIMCount = sFrame.pTIM->byDTIMCount;
             pMgmt->byDTIMPeriod = sFrame.pTIM->byDTIMPeriod;
             wAIDNumber = pMgmt->wCurrAID & ~(BIT14|BIT15);
@@ -2199,19 +2200,19 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 // len = byDTIMCount + byDTIMPeriod + byDTIMPeriod + byVirtBitMap[0~250]
                 if (sFrame.pTIM->len >= (uLocateByteIndex + 4)) {
                     byTIMBitOn  = (0x01) << ((wAIDNumber) % 8);
-                    pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? TRUE : FALSE;
+                    pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? true : false;
                 }
                 else {
-                    pMgmt->bInTIM = FALSE;
+                    pMgmt->bInTIM = false;
                 };
             }
             else {
-                pMgmt->bInTIM = FALSE;
+                pMgmt->bInTIM = false;
             };
 
             if (pMgmt->bInTIM ||
                 (pMgmt->bMulticastTIM && (pMgmt->byDTIMCount == 0))) {
-                pMgmt->bInTIMWake = TRUE;
+                pMgmt->bInTIMWake = true;
                 // send out ps-poll packet
 //                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN:In TIM\n");
                 if (pMgmt->bInTIM) {
@@ -2221,14 +2222,14 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 
             }
             else {
-                pMgmt->bInTIMWake = FALSE;
+                pMgmt->bInTIMWake = false;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Not In TIM..\n");
-                if (pDevice->bPWBitOn == FALSE) {
+                if (pDevice->bPWBitOn == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Send Null Packet\n");
                     if (PSbSendNullPacket(pDevice))
-                        pDevice->bPWBitOn = TRUE;
+                        pDevice->bPWBitOn = true;
                 }
-                if(PSbConsiderPowerDown(pDevice, FALSE, FALSE)) {
+                if(PSbConsiderPowerDown(pDevice, false, false)) {
                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Power down now...\n");
                 };
             }
@@ -2246,7 +2247,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             // adhoc mode:TSF updated only when beacon larger then local TSF
             if (bTSFLargeDiff && bTSFOffsetPostive &&
                 (pMgmt->eCurrState == WMAC_STATE_JOINTED))
-                bUpdateTSF = TRUE;
+                bUpdateTSF = true;
 
             // During dpc, already in spinlocked.
             if (BSSDBbIsSTAInNodeDB(pMgmt, sFrame.pHdr->sA3.abyAddr2, &uNodeIndex)) {
@@ -2259,7 +2260,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 RATEvParseMaxRate( (void *)pDevice,
                                    (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                    NULL,
-                                   TRUE,
+                                   true,
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -2280,7 +2281,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 RATEvParseMaxRate( (void *)pDevice,
                                    (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                    NULL,
-                                   TRUE,
+                                   true,
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                                    &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -2300,7 +2301,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 /*
                 pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime = WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
                 if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
-                       pMgmt->sNodeDBTable[uNodeIndex].bERPExist = TRUE;
+                       pMgmt->sNodeDBTable[uNodeIndex].bERPExist = true;
 */
             }
 
@@ -2308,11 +2309,11 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             if (pMgmt->eCurrState == WMAC_STATE_STARTED) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
                 pMgmt->eCurrState = WMAC_STATE_JOINTED;
-                pDevice->bLinkPass = TRUE;
+                pDevice->bLinkPass = true;
                 if (netif_queue_stopped(pDevice->dev)){
                     netif_wake_queue(pDevice->dev);
                 }
-                pMgmt->sNodeDBTable[0].bActive = TRUE;
+                pMgmt->sNodeDBTable[0].bActive = true;
                 pMgmt->sNodeDBTable[0].uInActiveCount = 0;
 
             };
@@ -2392,16 +2393,16 @@ vMgrCreateOwnIBSS(
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    WORD                wMaxBasicRate;
-    WORD                wMaxSuppRate;
-    BYTE                byTopCCKBasicRate;
-    BYTE                byTopOFDMBasicRate;
+    unsigned short wMaxBasicRate;
+    unsigned short wMaxSuppRate;
+    unsigned char byTopCCKBasicRate;
+    unsigned char byTopOFDMBasicRate;
     QWORD               qwCurrTSF;
-    UINT                ii;
-    BYTE    abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
-    BYTE    abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
-    BYTE    abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
-    WORD                wSuppRate;
+    unsigned int ii;
+    unsigned char abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
+    unsigned char abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
+    unsigned char abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+    unsigned short wSuppRate;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create Basic Service Set .......\n");
 
@@ -2486,7 +2487,7 @@ vMgrCreateOwnIBSS(
     // set basic rate
 
     RATEvParseMaxRate((void *)pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
-                      (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates, TRUE,
+                      (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates, true,
                       &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                       &byTopCCKBasicRate, &byTopOFDMBasicRate);
 
@@ -2533,12 +2534,12 @@ vMgrCreateOwnIBSS(
     if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
 
         // BSSID selected must be randomized as spec 11.1.3
-        pMgmt->abyCurrBSSID[5] = (BYTE) (LODWORD(qwCurrTSF)& 0x000000ff);
-        pMgmt->abyCurrBSSID[4] = (BYTE)((LODWORD(qwCurrTSF)& 0x0000ff00) >> 8);
-        pMgmt->abyCurrBSSID[3] = (BYTE)((LODWORD(qwCurrTSF)& 0x00ff0000) >> 16);
-        pMgmt->abyCurrBSSID[2] = (BYTE)((LODWORD(qwCurrTSF)& 0x00000ff0) >> 4);
-        pMgmt->abyCurrBSSID[1] = (BYTE)((LODWORD(qwCurrTSF)& 0x000ff000) >> 12);
-        pMgmt->abyCurrBSSID[0] = (BYTE)((LODWORD(qwCurrTSF)& 0x0ff00000) >> 20);
+        pMgmt->abyCurrBSSID[5] = (unsigned char) (LODWORD(qwCurrTSF)& 0x000000ff);
+        pMgmt->abyCurrBSSID[4] = (unsigned char)((LODWORD(qwCurrTSF)& 0x0000ff00) >> 8);
+        pMgmt->abyCurrBSSID[3] = (unsigned char)((LODWORD(qwCurrTSF)& 0x00ff0000) >> 16);
+        pMgmt->abyCurrBSSID[2] = (unsigned char)((LODWORD(qwCurrTSF)& 0x00000ff0) >> 4);
+        pMgmt->abyCurrBSSID[1] = (unsigned char)((LODWORD(qwCurrTSF)& 0x000ff000) >> 12);
+        pMgmt->abyCurrBSSID[0] = (unsigned char)((LODWORD(qwCurrTSF)& 0x0ff00000) >> 20);
         pMgmt->abyCurrBSSID[5] ^= pMgmt->abyMACAddr[0];
         pMgmt->abyCurrBSSID[4] ^= pMgmt->abyMACAddr[1];
         pMgmt->abyCurrBSSID[3] ^= pMgmt->abyMACAddr[2];
@@ -2611,7 +2612,7 @@ vMgrCreateOwnIBSS(
 
     CARDbSetBeaconPeriod(pMgmt->pAdapter, pMgmt->wIBSSBeaconPeriod);
     // set channel and clear NAV
-    CARDbSetChannel(pMgmt->pAdapter, pMgmt->uIBSSChannel);
+    set_channel(pMgmt->pAdapter, pMgmt->uIBSSChannel);
     pMgmt->uCurrChannel = pMgmt->uIBSSChannel;
 
     if (CARDbIsShortPreamble(pMgmt->pAdapter)) {
@@ -2620,7 +2621,7 @@ vMgrCreateOwnIBSS(
         pMgmt->wCurrCapInfo &= (~WLAN_SET_CAP_INFO_SHORTPREAMBLE(1));
     }
 
-    if ((pMgmt->b11hEnable == TRUE) &&
+    if ((pMgmt->b11hEnable == true) &&
         (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SPECTRUMMNG(1);
     } else {
@@ -2661,20 +2662,20 @@ vMgrJoinBSSBegin(
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PKnownBSS       pCurr = NULL;
-    UINT            ii, uu;
+    unsigned int ii, uu;
     PWLAN_IE_SUPP_RATES pItemRates = NULL;
     PWLAN_IE_SUPP_RATES pItemExtRates = NULL;
     PWLAN_IE_SSID   pItemSSID;
-    UINT            uRateLen = WLAN_RATES_MAXLEN;
-    WORD            wMaxBasicRate = RATE_1M;
-    WORD            wMaxSuppRate = RATE_1M;
-    WORD            wSuppRate;
-    BYTE            byTopCCKBasicRate = RATE_1M;
-    BYTE            byTopOFDMBasicRate = RATE_1M;
+    unsigned int uRateLen = WLAN_RATES_MAXLEN;
+    unsigned short wMaxBasicRate = RATE_1M;
+    unsigned short wMaxSuppRate = RATE_1M;
+    unsigned short wSuppRate;
+    unsigned char byTopCCKBasicRate = RATE_1M;
+    unsigned char byTopOFDMBasicRate = RATE_1M;
 
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-        if (pMgmt->sBSSList[ii].bActive == TRUE)
+        if (pMgmt->sBSSList[ii].bActive == true)
             break;
     }
 
@@ -2708,14 +2709,14 @@ vMgrJoinBSSBegin(
     // patch for CISCO migration mode
 /*
             if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
-                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No match RSN info. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
                 }
             } else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
-                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No match RSN info. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -2726,7 +2727,7 @@ vMgrJoinBSSBegin(
         }
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-	//if(pDevice->bWPASuppWextEnabled == TRUE)
+	//if(pDevice->bWPASuppWextEnabled == true)
             Encyption_Rebuild(pDevice, pCurr);
 #endif
         // Infrastructure BSS
@@ -2764,15 +2765,15 @@ vMgrJoinBSSBegin(
                                             uRateLen);
             // Stuffing Rate IE
             if ((pItemExtRates->len > 0) && (pItemRates->len < 8)) {
-                for (ii = 0; ii < (UINT)(8 - pItemRates->len); ) {
+                for (ii = 0; ii < (unsigned int)(8 - pItemRates->len); ) {
                     pItemRates->abyRates[pItemRates->len + ii] = pItemExtRates->abyRates[ii];
                     ii ++;
                     if (pItemExtRates->len <= ii)
                         break;
                 }
-                pItemRates->len += (BYTE)ii;
+                pItemRates->len += (unsigned char)ii;
                 if (pItemExtRates->len - ii > 0) {
-                    pItemExtRates->len -= (BYTE)ii;
+                    pItemExtRates->len -= (unsigned char)ii;
                     for (uu = 0; uu < pItemExtRates->len; uu ++) {
                         pItemExtRates->abyRates[uu] = pItemExtRates->abyRates[uu + ii];
                     }
@@ -2781,7 +2782,7 @@ vMgrJoinBSSBegin(
                 }
             }
 
-            RATEvParseMaxRate((void *)pDevice, pItemRates, pItemExtRates, TRUE,
+            RATEvParseMaxRate((void *)pDevice, pItemRates, pItemExtRates, true,
                               &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
 
@@ -2802,9 +2803,9 @@ vMgrJoinBSSBegin(
             // Add current BSS to Candidate list
             // This should only works for WPA2 BSS, and WPA2 BSS check must be done before.
             if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2) {
-                BOOL bResult = bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
+                bool bResult = bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate: 1(%d)\n", bResult);
-                if (bResult == FALSE) {
+                if (bResult == false) {
                     vFlush_PMKID_Candidate((void *)pDevice);
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFlush_PMKID_Candidate: 4\n");
                     bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
@@ -2831,13 +2832,13 @@ vMgrJoinBSSBegin(
         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
 
             if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
-                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == false) {
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
                 }
             } else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
-                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == false) {
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
@@ -2868,7 +2869,7 @@ vMgrJoinBSSBegin(
                                                     WLAN_RATES_MAXLEN_11B);
             // set basic rate
             RATEvParseMaxRate((void *)pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
-                              NULL, TRUE, &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
+                              NULL, true, &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
 
             pMgmt->wCurrCapInfo = pCurr->wCapInfo;
@@ -2883,7 +2884,7 @@ vMgrJoinBSSBegin(
             pMgmt->eCurrState = WMAC_STATE_STARTED;
             // Adopt BSS state in Adapter Device Object
             //pDevice->byOpMode = OP_MODE_ADHOC;
-//            pDevice->bLinkPass = TRUE;
+//            pDevice->bLinkPass = true;
 //            memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Join IBSS ok:%02x-%02x-%02x-%02x-%02x-%02x \n",
@@ -2923,7 +2924,7 @@ static
 void
 s_vMgrSynchBSS (
     PSDevice      pDevice,
-    UINT          uBSSMode,
+    unsigned int uBSSMode,
     PKnownBSS     pCurr,
     PCMD_STATUS  pStatus
     )
@@ -2932,11 +2933,11 @@ s_vMgrSynchBSS (
     PSMgmtObject  pMgmt = pDevice->pMgmt;
 //    int     ii;
                                                      //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
-    BYTE abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
-    BYTE abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
+    unsigned char abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
+    unsigned char abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
                                                            //6M,   9M,   12M,  48M
-    BYTE abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
-    BYTE abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
+    unsigned char abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+    unsigned char abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
 
 
     *pStatus = CMD_STATUS_FAILURE;
@@ -2944,7 +2945,7 @@ s_vMgrSynchBSS (
     if (s_bCipherMatch(pCurr,
                        pDevice->eEncryptionStatus,
                        &(pMgmt->byCSSPK),
-                       &(pMgmt->byCSSGK)) == FALSE) {
+                       &(pMgmt->byCSSGK)) == false) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "s_bCipherMatch Fail .......\n");
         return;
     }
@@ -2958,12 +2959,12 @@ s_vMgrSynchBSS (
     }
 
     // Init the BSS informations
-    pDevice->bCCK = TRUE;
-    pDevice->bProtectMode = FALSE;
+    pDevice->bCCK = true;
+    pDevice->bProtectMode = false;
     MACvDisableProtectMD(pDevice->PortOffset);
-    pDevice->bBarkerPreambleMd = FALSE;
+    pDevice->bBarkerPreambleMd = false;
     MACvDisableBarkerPreambleMd(pDevice->PortOffset);
-    pDevice->bNonERPPresent = FALSE;
+    pDevice->bNonERPPresent = false;
     pDevice->byPreambleType = 0;
     pDevice->wBasicRate = 0;
     // Set Basic Rate
@@ -3046,12 +3047,12 @@ s_vMgrSynchBSS (
                                 pCurr->sERP.byERP,
                                 pMgmt->abyCurrSuppRates,
                                 pMgmt->abyCurrExtSuppRates
-                            ) != TRUE) {
+                            ) != true) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Phy Mode Fail [%d]\n", ePhyType);
         return;
     }
     // set channel and clear NAV
-    if (CARDbSetChannel(pMgmt->pAdapter, pCurr->uChannel) == FALSE) {
+    if (set_channel(pMgmt->pAdapter, pCurr->uChannel) == false) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
         return;
     }
@@ -3077,7 +3078,7 @@ s_vMgrSynchBSS (
     pMgmt->uCurrChannel = pCurr->uChannel;
     pMgmt->eCurrentPHYMode = ePhyType;
     pMgmt->byERPContext = pCurr->sERP.byERP;
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Sync:Set to channel = [%d]\n", (INT)pCurr->uChannel);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Sync:Set to channel = [%d]\n", (int)pCurr->uChannel);
 
 
     *pStatus = CMD_STATUS_SUCCESS;
@@ -3094,18 +3095,18 @@ s_vMgrSynchBSS (
  )
  {
   PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
- // UINT            ii , uSameBssidNum=0;
+ // unsigned int ii , uSameBssidNum=0;
 
         //  for (ii = 0; ii < MAX_BSS_NUM; ii++) {
           //   if (pMgmt->sBSSList[ii].bActive &&
-            //      IS_ETH_ADDRESS_EQUAL(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
+            //      !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
              //       uSameBssidNum++;
                //   }
            // }
   //   if( uSameBssidNum>=2) {	 //we only check AP in hidden sssid  mode
         if ((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||           //networkmanager 0.7.0 does not give the pairwise-key selsection,
              (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {         // so we need re-selsect it according to real pairwise-key info.
-               if(pCurr->bWPAValid == TRUE)  {   //WPA-PSK
+               if(pCurr->bWPAValid == true)  {   //WPA-PSK
                           pMgmt->eAuthenMode = WMAC_AUTH_WPAPSK;
 		    if(pCurr->abyPKType[0] == WPA_TKIP) {
      		        pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;    //TKIP
@@ -3116,7 +3117,7 @@ s_vMgrSynchBSS (
                           PRINT_K("Encyption_Rebuild--->ssid reset config to [WPAPSK-AES]\n");
      		     }
                	}
-               else if(pCurr->bWPA2Valid == TRUE) {  //WPA2-PSK
+               else if(pCurr->bWPA2Valid == true) {  //WPA2-PSK
                          pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK;
 		       if(pCurr->abyCSSPK[0] == WLAN_11i_CSS_TKIP) {
       		           pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;     //TKIP
@@ -3151,13 +3152,13 @@ s_vMgrFormatTIM(
     PWLAN_IE_TIM pTIM
     )
 {
-    BYTE        byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    BYTE        byMap;
-    UINT        ii, jj;
-    BOOL        bStartFound = FALSE;
-    BOOL        bMulticast = FALSE;
-    WORD        wStartIndex = 0;
-    WORD        wEndIndex = 0;
+    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+    unsigned char byMap;
+    unsigned int ii, jj;
+    bool bStartFound = false;
+    bool bMulticast = false;
+    unsigned short wStartIndex = 0;
+    unsigned short wEndIndex = 0;
 
 
     // Find size of partial virtual bitmap
@@ -3167,13 +3168,13 @@ s_vMgrFormatTIM(
             // Mask out the broadcast bit which is indicated separately.
             bMulticast = (byMap & byMask[0]) != 0;
             if(bMulticast) {
-               pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
+               pMgmt->sNodeDBTable[0].bRxPSPoll = true;
             }
             byMap = 0;
         }
         if (byMap) {
             if (!bStartFound) {
-                bStartFound = TRUE;
+                bStartFound = true;
                 wStartIndex = ii;
             }
             wEndIndex = ii;
@@ -3224,30 +3225,30 @@ PSTxMgmtPacket
 s_MgrMakeBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
-    UINT uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
+    unsigned int uCurrChannel,
+    unsigned short wCurrATIMWinodw,
     PWLAN_IE_SSID pCurrSSID,
-    PBYTE pCurrBSSID,
+    unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     )
 {
     PSTxMgmtPacket      pTxPacket = NULL;
     WLAN_FR_BEACON      sFrame;
-    BYTE                abyBroadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    PBYTE               pbyBuffer;
-    UINT                uLength = 0;
+    unsigned char abyBroadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    unsigned char *pbyBuffer;
+    unsigned int uLength = 0;
     PWLAN_IE_IBSS_DFS   pIBSSDFS = NULL;
-    UINT                ii;
+    unsigned int ii;
 
     // prepare beacon frame
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_BEACON_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     // Setup the sFrame structure.
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_BEACON_FR_MAXLEN;
     vMgrEncodeBeacon(&sFrame);
     // Setup the header
@@ -3258,7 +3259,7 @@ s_MgrMakeBeacon(
         ));
 
     if (pDevice->bEnablePSMode) {
-        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_PWRMGT(1));
+        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_PWRMGT(1));
     }
 
     memcpy( sFrame.pHdr->sA3.abyAddr1, abyBroadcastAddr, WLAN_ADDR_LEN);
@@ -3286,7 +3287,7 @@ s_MgrMakeBeacon(
         sFrame.len += (1) + WLAN_IEHDR_LEN;
         sFrame.pDSParms->byElementID = WLAN_EID_DS_PARMS;
         sFrame.pDSParms->len = 1;
-        sFrame.pDSParms->byCurrChannel = (BYTE)uCurrChannel;
+        sFrame.pDSParms->byCurrChannel = (unsigned char)uCurrChannel;
     }
     // TIM field
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -3329,22 +3330,22 @@ s_MgrMakeBeacon(
             // Pairwise Key Cipher Suite
             sFrame.pRSNWPA->wPKCount = 0;
             // Auth Key Management Suite
-            *((PWORD)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
+            *((unsigned short *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
 
             // RSN Capabilites
-            *((PWORD)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
+            *((unsigned short *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
             sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         }
     }
 
-    if ((pMgmt->b11hEnable == TRUE) &&
+    if ((pMgmt->b11hEnable == true) &&
         (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)) {
         // Country IE
-        pbyBuffer = (PBYTE)(sFrame.pBuf + sFrame.len);
-        CARDvSetCountryIE(pMgmt->pAdapter, pbyBuffer);
-        CARDvSetCountryInfo(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
+        pbyBuffer = (unsigned char *)(sFrame.pBuf + sFrame.len);
+        set_country_IE(pMgmt->pAdapter, pbyBuffer);
+        set_country_info(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
         uLength += ((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN;
         pbyBuffer += (((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN);
         // Power Constrain IE
@@ -3353,12 +3354,12 @@ s_MgrMakeBeacon(
         ((PWLAN_IE_PW_CONST) pbyBuffer)->byPower = 0;
         pbyBuffer += (1) + WLAN_IEHDR_LEN;
         uLength += (1) + WLAN_IEHDR_LEN;
-        if (pMgmt->bSwitchChannel == TRUE) {
+        if (pMgmt->bSwitchChannel == true) {
             // Channel Switch IE
             ((PWLAN_IE_CH_SW) pbyBuffer)->byElementID = WLAN_EID_CH_SWITCH;
             ((PWLAN_IE_CH_SW) pbyBuffer)->len = 3;
             ((PWLAN_IE_CH_SW) pbyBuffer)->byMode = 1;
-            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = CARDbyGetChannelNumber(pMgmt->pAdapter, pMgmt->byNewChannel);
+            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = get_channel_number(pMgmt->pAdapter, pMgmt->byNewChannel);
             ((PWLAN_IE_CH_SW) pbyBuffer)->byCount = 0;
             pbyBuffer += (3) + WLAN_IEHDR_LEN;
             uLength += (3) + WLAN_IEHDR_LEN;
@@ -3382,7 +3383,7 @@ s_MgrMakeBeacon(
             pbyBuffer += (7) + WLAN_IEHDR_LEN;
             uLength += (7) + WLAN_IEHDR_LEN;
             for(ii=CB_MAX_CHANNEL_24G+1; ii<=CB_MAX_CHANNEL; ii++ ) {
-                if (CARDbGetChannelMapInfo(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
+                if (get_channel_map_info(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == true) {
                     pbyBuffer += 2;
                     uLength += 2;
                     pIBSSDFS->len += 2;
@@ -3398,11 +3399,11 @@ s_MgrMakeBeacon(
         sFrame.pERP->byElementID = WLAN_EID_ERP;
         sFrame.pERP->len = 1;
         sFrame.pERP->byContext = 0;
-        if (pDevice->bProtectMode == TRUE)
+        if (pDevice->bProtectMode == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_USE_PROTECTION;
-        if (pDevice->bNonERPPresent == TRUE)
+        if (pDevice->bNonERPPresent == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_NONERP_PRESENT;
-        if (pDevice->bBarkerPreambleMd == TRUE)
+        if (pDevice->bBarkerPreambleMd == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_BARKER_MODE;
     }
     if (((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len != 0) {
@@ -3414,7 +3415,7 @@ s_MgrMakeBeacon(
              );
     }
     // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == TRUE)) {
+    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
          if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
              if (pMgmt->wWPAIELen != 0) {
                  sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -3453,31 +3454,31 @@ PSTxMgmtPacket
 s_MgrMakeProbeResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
-    UINT uCurrChannel,
-    WORD wCurrATIMWinodw,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
+    unsigned int uCurrChannel,
+    unsigned short wCurrATIMWinodw,
+    unsigned char *pDstAddr,
     PWLAN_IE_SSID pCurrSSID,
-    PBYTE pCurrBSSID,
+    unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates,
-    BYTE byPHYType
+    unsigned char byPHYType
     )
 {
     PSTxMgmtPacket      pTxPacket = NULL;
     WLAN_FR_PROBERESP   sFrame;
-    PBYTE               pbyBuffer;
-    UINT                uLength = 0;
+    unsigned char *pbyBuffer;
+    unsigned int uLength = 0;
     PWLAN_IE_IBSS_DFS   pIBSSDFS = NULL;
-    UINT                ii;
+    unsigned int ii;
 
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_PROBERESP_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     // Setup the sFrame structure.
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_PROBERESP_FR_MAXLEN;
     vMgrEncodeProbeResponse(&sFrame);
     // Setup the header
@@ -3493,7 +3494,7 @@ s_MgrMakeProbeResponse(
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
 
     if (byPHYType == BB_TYPE_11B) {
-        *sFrame.pwCapInfo &= cpu_to_le16((WORD)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
+        *sFrame.pwCapInfo &= cpu_to_le16((unsigned short)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
     }
 
     // Copy SSID
@@ -3518,7 +3519,7 @@ s_MgrMakeProbeResponse(
         sFrame.len += (1) + WLAN_IEHDR_LEN;
         sFrame.pDSParms->byElementID = WLAN_EID_DS_PARMS;
         sFrame.pDSParms->len = 1;
-        sFrame.pDSParms->byCurrChannel = (BYTE)uCurrChannel;
+        sFrame.pDSParms->byCurrChannel = (unsigned char)uCurrChannel;
     }
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP) {
@@ -3535,20 +3536,20 @@ s_MgrMakeProbeResponse(
         sFrame.pERP->byElementID = WLAN_EID_ERP;
         sFrame.pERP->len = 1;
         sFrame.pERP->byContext = 0;
-        if (pDevice->bProtectMode == TRUE)
+        if (pDevice->bProtectMode == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_USE_PROTECTION;
-        if (pDevice->bNonERPPresent == TRUE)
+        if (pDevice->bNonERPPresent == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_NONERP_PRESENT;
-        if (pDevice->bBarkerPreambleMd == TRUE)
+        if (pDevice->bBarkerPreambleMd == true)
             sFrame.pERP->byContext |= WLAN_EID_ERP_BARKER_MODE;
     }
 
-    if ((pMgmt->b11hEnable == TRUE) &&
+    if ((pMgmt->b11hEnable == true) &&
         (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)) {
         // Country IE
-        pbyBuffer = (PBYTE)(sFrame.pBuf + sFrame.len);
-        CARDvSetCountryIE(pMgmt->pAdapter, pbyBuffer);
-        CARDvSetCountryInfo(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
+        pbyBuffer = (unsigned char *)(sFrame.pBuf + sFrame.len);
+        set_country_IE(pMgmt->pAdapter, pbyBuffer);
+        set_country_info(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
         uLength += ((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN;
         pbyBuffer += (((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN);
         // Power Constrain IE
@@ -3557,12 +3558,12 @@ s_MgrMakeProbeResponse(
         ((PWLAN_IE_PW_CONST) pbyBuffer)->byPower = 0;
         pbyBuffer += (1) + WLAN_IEHDR_LEN;
         uLength += (1) + WLAN_IEHDR_LEN;
-        if (pMgmt->bSwitchChannel == TRUE) {
+        if (pMgmt->bSwitchChannel == true) {
             // Channel Switch IE
             ((PWLAN_IE_CH_SW) pbyBuffer)->byElementID = WLAN_EID_CH_SWITCH;
             ((PWLAN_IE_CH_SW) pbyBuffer)->len = 3;
             ((PWLAN_IE_CH_SW) pbyBuffer)->byMode = 1;
-            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = CARDbyGetChannelNumber(pMgmt->pAdapter, pMgmt->byNewChannel);
+            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = get_channel_number(pMgmt->pAdapter, pMgmt->byNewChannel);
             ((PWLAN_IE_CH_SW) pbyBuffer)->byCount = 0;
             pbyBuffer += (3) + WLAN_IEHDR_LEN;
             uLength += (3) + WLAN_IEHDR_LEN;
@@ -3586,7 +3587,7 @@ s_MgrMakeProbeResponse(
             pbyBuffer += (7) + WLAN_IEHDR_LEN;
             uLength += (7) + WLAN_IEHDR_LEN;
             for(ii=CB_MAX_CHANNEL_24G+1; ii<=CB_MAX_CHANNEL; ii++ ) {
-                if (CARDbGetChannelMapInfo(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
+                if (get_channel_map_info(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == true) {
                     pbyBuffer += 2;
                     uLength += 2;
                     pIBSSDFS->len += 2;
@@ -3607,7 +3608,7 @@ s_MgrMakeProbeResponse(
     }
 
     // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == TRUE)) {
+    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
          if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
              if (pMgmt->wWPAIELen != 0) {
                  sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -3642,9 +3643,9 @@ PSTxMgmtPacket
 s_MgrMakeAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned char *pDAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -3652,15 +3653,15 @@ s_MgrMakeAssocRequest(
 {
     PSTxMgmtPacket      pTxPacket = NULL;
     WLAN_FR_ASSOCREQ    sFrame;
-    PBYTE               pbyIEs;
-    PBYTE               pbyRSN;
+    unsigned char *pbyIEs;
+    unsigned char *pbyRSN;
 
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_ASSOCREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     // Setup the sFrame structure.
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_ASSOCREQ_FR_MAXLEN;
     // format fixed field frame structure
     vMgrEncodeAssocRequest(&sFrame);
@@ -3709,7 +3710,7 @@ s_MgrMakeAssocRequest(
     pbyIEs += pCurrRates->len + WLAN_IEHDR_LEN;
 
     // for 802.11h
-    if (pMgmt->b11hEnable == TRUE) {
+    if (pMgmt->b11hEnable == true) {
         if (sFrame.pCurrPowerCap == NULL) {
             sFrame.pCurrPowerCap = (PWLAN_IE_PW_CAP)(sFrame.pBuf + sFrame.len);
             sFrame.len += (2 + WLAN_IEHDR_LEN);
@@ -3722,7 +3723,7 @@ s_MgrMakeAssocRequest(
         }
         if (sFrame.pCurrSuppCh == NULL) {
             sFrame.pCurrSuppCh = (PWLAN_IE_SUPP_CH)(sFrame.pBuf + sFrame.len);
-            sFrame.len += CARDbySetSupportChannels(pMgmt->pAdapter,(PBYTE)sFrame.pCurrSuppCh);
+            sFrame.len += set_support_channels(pMgmt->pAdapter,(unsigned char *)sFrame.pCurrSuppCh);
         }
     }
 
@@ -3765,7 +3766,7 @@ s_MgrMakeAssocRequest(
             sFrame.pRSNWPA->PKSList[0].abyOUI[3] = WPA_NONE;
         }
         // Auth Key Management Suite
-        pbyRSN = (PBYTE)(sFrame.pBuf + sFrame.len + 2 + sFrame.pRSNWPA->len);
+        pbyRSN = (unsigned char *)(sFrame.pBuf + sFrame.len + 2 + sFrame.pRSNWPA->len);
         *pbyRSN++=0x01;
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
@@ -3799,8 +3800,8 @@ s_MgrMakeAssocRequest(
     } else if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
                 (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
                (pMgmt->pCurrBSS != NULL)) {
-        UINT                ii;
-        PWORD               pwPMKID;
+        unsigned int ii;
+        unsigned short *pwPMKID;
 
         // WPA IE
         sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -3854,7 +3855,7 @@ s_MgrMakeAssocRequest(
         sFrame.pRSN->len +=6;
 
         // RSN Capabilites
-        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == TRUE) {
+        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == true) {
             memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
             sFrame.pRSN->abyRSN[16] = 0;
@@ -3862,10 +3863,10 @@ s_MgrMakeAssocRequest(
         }
         sFrame.pRSN->len +=2;
 
-        if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == TRUE) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
+        if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == true) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
             pbyRSN = &sFrame.pRSN->abyRSN[18];
-            pwPMKID = (PWORD)pbyRSN; // Point to PMKID count
+            pwPMKID = (unsigned short *)pbyRSN; // Point to PMKID count
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
@@ -3917,9 +3918,9 @@ PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned char *pDAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -3927,15 +3928,15 @@ s_MgrMakeReAssocRequest(
 {
     PSTxMgmtPacket      pTxPacket = NULL;
     WLAN_FR_REASSOCREQ  sFrame;
-    PBYTE               pbyIEs;
-    PBYTE               pbyRSN;
+    unsigned char *pbyIEs;
+    unsigned char *pbyRSN;
 
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset( pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_REASSOCREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     /* Setup the sFrame structure. */
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_REASSOCREQ_FR_MAXLEN;
 
     // format fixed field frame structure
@@ -4024,7 +4025,7 @@ s_MgrMakeReAssocRequest(
             sFrame.pRSNWPA->PKSList[0].abyOUI[3] = WPA_NONE;
         }
         // Auth Key Management Suite
-        pbyRSN = (PBYTE)(sFrame.pBuf + sFrame.len + 2 + sFrame.pRSNWPA->len);
+        pbyRSN = (unsigned char *)(sFrame.pBuf + sFrame.len + 2 + sFrame.pRSNWPA->len);
         *pbyRSN++=0x01;
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
@@ -4055,8 +4056,8 @@ s_MgrMakeReAssocRequest(
     } else if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
                 (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
                (pMgmt->pCurrBSS != NULL)) {
-        UINT                ii;
-        PWORD               pwPMKID;
+        unsigned int ii;
+        unsigned short *pwPMKID;
 
         /* WPA IE */
         sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -4110,7 +4111,7 @@ s_MgrMakeReAssocRequest(
         sFrame.pRSN->len +=6;
 
         // RSN Capabilites
-        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == TRUE) {
+        if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == true) {
             memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
             sFrame.pRSN->abyRSN[16] = 0;
@@ -4118,10 +4119,10 @@ s_MgrMakeReAssocRequest(
         }
         sFrame.pRSN->len +=2;
 
-        if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == TRUE) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
+        if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == true) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
             pbyRSN = &sFrame.pRSN->abyRSN[18];
-            pwPMKID = (PWORD)pbyRSN; // Point to PMKID count
+            pwPMKID = (unsigned short *)pbyRSN; // Point to PMKID count
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
@@ -4169,10 +4170,10 @@ PSTxMgmtPacket
 s_MgrMakeAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
+    unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     )
@@ -4183,9 +4184,9 @@ s_MgrMakeAssocResponse(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_ASSOCREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     // Setup the sFrame structure
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_REASSOCRESP_FR_MAXLEN;
     vMgrEncodeAssocResponse(&sFrame);
     // Setup the header
@@ -4200,7 +4201,7 @@ s_MgrMakeAssocResponse(
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((unsigned short)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
@@ -4243,10 +4244,10 @@ PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
-    PBYTE pDstAddr,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
+    unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     )
@@ -4257,9 +4258,9 @@ s_MgrMakeReAssocResponse(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_ASSOCREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
     // Setup the sFrame structure
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_REASSOCRESP_FR_MAXLEN;
     vMgrEncodeReassocResponse(&sFrame);
     // Setup the header
@@ -4274,7 +4275,7 @@ s_MgrMakeReAssocResponse(
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((unsigned short)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
@@ -4322,16 +4323,16 @@ s_vMgrRxProbeResponse(
 {
     PKnownBSS           pBSSList = NULL;
     WLAN_FR_PROBERESP   sFrame;
-    BYTE                byCurrChannel = pRxPacket->byRxChannel;
+    unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
-    BYTE                byIEChannel = 0;
-    BOOL                bChannelHit = TRUE;
+    unsigned char byIEChannel = 0;
+    bool bChannelHit = true;
 
 
     memset(&sFrame, 0, sizeof(WLAN_FR_PROBERESP));
     // decode the frame
     sFrame.len = pRxPacket->cbMPDULen;
-    sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+    sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
     vMgrDecodeProbeResponse(&sFrame);
 
     if ((sFrame.pqwTimestamp == 0) ||
@@ -4350,29 +4351,29 @@ s_vMgrRxProbeResponse(
     if (sFrame.pDSParms != 0) {
         if (byCurrChannel > CB_MAX_CHANNEL_24G) {
             // channel remapping to
-            byIEChannel = CARDbyGetChannelMapping(pMgmt->pAdapter, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
+            byIEChannel = get_channel_mapping(pMgmt->pAdapter, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
         } else {
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
         if (byCurrChannel != byIEChannel) {
             // adjust channel info. bcs we rcv adjcent channel pakckets
-            bChannelHit = FALSE;
+            bChannelHit = false;
             byCurrChannel = byIEChannel;
         }
     } else {
         // no DS channel info
-        bChannelHit = TRUE;
+        bChannelHit = true;
     }
 
 //2008-0730-01<Add>by MikeLiu
-if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
+if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
       return;
 
     if (sFrame.pERP != NULL) {
         sERP.byERP = sFrame.pERP->byContext;
-        sERP.bERPExist = TRUE;
+        sERP.bERPExist = true;
     } else {
-        sERP.bERPExist = FALSE;
+        sERP.bERPExist = false;
         sERP.byERP = 0;
     }
 
@@ -4448,7 +4449,7 @@ s_vMgrRxProbeRequest(
     WLAN_FR_PROBEREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    BYTE                byPHYType = BB_TYPE_11B;
+    unsigned char byPHYType = BB_TYPE_11B;
 
     // STA in Ad-hoc mode: when latest TBTT beacon transmit success,
     // STA have to response this request.
@@ -4458,7 +4459,7 @@ s_vMgrRxProbeRequest(
         memset(&sFrame, 0, sizeof(WLAN_FR_PROBEREQ));
         // decode the frame
         sFrame.len = pRxPacket->cbMPDULen;
-        sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
+        sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
         vMgrDecodeProbeRequest(&sFrame);
 /*
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request rx:MAC addr:%02x-%02x-%02x=%02x-%02x-%02x \n",
@@ -4495,7 +4496,7 @@ s_vMgrRxProbeRequest(
                       0,
                       sFrame.pHdr->sA3.abyAddr2,
                       (PWLAN_IE_SSID)pMgmt->abyCurrSSID,
-                      (PBYTE)pMgmt->abyCurrBSSID,
+                      (unsigned char *)pMgmt->abyCurrBSSID,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                        byPHYType
@@ -4542,8 +4543,8 @@ vMgrRxManagePacket(
      )
 {
     PSDevice    pDevice = (PSDevice)hDeviceContext;
-    BOOL        bInScan = FALSE;
-    UINT        uNodeIndex = 0;
+    bool bInScan = false;
+    unsigned int uNodeIndex = 0;
     NODE_STATE  eNodeState = 0;
     CMD_STATUS  Status;
 
@@ -4577,7 +4578,7 @@ vMgrRxManagePacket(
         case WLAN_FSTYPE_ASSOCRESP:
             // Frame Clase = 2
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx assocresp1\n");
-            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, FALSE);
+            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, false);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx assocresp2\n");
             break;
 
@@ -4603,7 +4604,7 @@ vMgrRxManagePacket(
         case WLAN_FSTYPE_REASSOCRESP:
             // Frame Clase = 2
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx reassocresp\n");
-            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, TRUE);
+            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, true);
             break;
 
         case WLAN_FSTYPE_PROBEREQ:
@@ -4623,7 +4624,7 @@ vMgrRxManagePacket(
             // Frame Clase = 0
             //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx beacon\n");
             if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-                bInScan = TRUE;
+                bInScan = true;
             };
             s_vMgrRxBeacon(pDevice, pMgmt, pRxPacket, bInScan);
             break;
@@ -4680,10 +4681,10 @@ vMgrRxManagePacket(
  *  Prepare beacon to send
  *
  * Return Value:
- *    TRUE if success; FALSE if failed.
+ *    true if success; false if failed.
  *
 -*/
-BOOL
+bool
 bMgrPrepareBeaconToSend(
     void *hDeviceContext,
     PSMgmtObject pMgmt
@@ -4692,7 +4693,7 @@ bMgrPrepareBeaconToSend(
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSTxMgmtPacket      pTxPacket;
 
-//    pDevice->bBeaconBufReady = FALSE;
+//    pDevice->bBeaconBufReady = false;
     if (pDevice->bEncryptionEnable || pDevice->bEnable8021x){
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
     }
@@ -4708,18 +4709,18 @@ bMgrPrepareBeaconToSend(
                   pMgmt->uCurrChannel,
                   pMgmt->wCurrATIMWindow, //0,
                   (PWLAN_IE_SSID)pMgmt->abyCurrSSID,
-                  (PBYTE)pMgmt->abyCurrBSSID,
+                  (unsigned char *)pMgmt->abyCurrBSSID,
                   (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                   (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates
                 );
 
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
         (pMgmt->abyCurrBSSID[0] == 0))
-        return FALSE;
+        return false;
 
     csBeacon_xmit(pDevice, pTxPacket);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -4741,7 +4742,7 @@ static
 void
 s_vMgrLogStatus(
     PSMgmtObject pMgmt,
-    WORD  wStatus
+    unsigned short wStatus
     )
 {
     switch( wStatus ){
@@ -4807,24 +4808,24 @@ s_vMgrLogStatus(
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 bAdd_PMKID_Candidate (
     void *hDeviceContext,
-    PBYTE          pbyBSSID,
+    unsigned char *pbyBSSID,
     PSRSNCapObject psRSNCapObj
     )
 {
     PSDevice         pDevice = (PSDevice)hDeviceContext;
     PPMKID_CANDIDATE pCandidateList;
-    UINT             ii = 0;
+    unsigned int ii = 0;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
 
     if ((pDevice == NULL) || (pbyBSSID == NULL) || (psRSNCapObj == NULL))
-        return FALSE;
+        return false;
 
     if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST)
-        return FALSE;
+        return false;
 
 
 
@@ -4832,18 +4833,18 @@ bAdd_PMKID_Candidate (
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
         pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
         if ( !memcmp(pCandidateList->BSSID, pbyBSSID, ETH_ALEN)) {
-            if ((psRSNCapObj->bRSNCapExist == TRUE) && (psRSNCapObj->wRSNCap & BIT0)) {
+            if ((psRSNCapObj->bRSNCapExist == true) && (psRSNCapObj->wRSNCap & BIT0)) {
                 pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
             } else {
                 pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
             }
-            return TRUE;
+            return true;
         }
     }
 
     // New Candidate
     pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[pDevice->gsPMKIDCandidate.NumCandidates];
-    if ((psRSNCapObj->bRSNCapExist == TRUE) && (psRSNCapObj->wRSNCap & BIT0)) {
+    if ((psRSNCapObj->bRSNCapExist == true) && (psRSNCapObj->wRSNCap & BIT0)) {
         pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
     } else {
         pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
@@ -4851,7 +4852,7 @@ bAdd_PMKID_Candidate (
     memcpy(pCandidateList->BSSID, pbyBSSID, ETH_ALEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -4881,20 +4882,20 @@ vFlush_PMKID_Candidate (
     memset(&pDevice->gsPMKIDCandidate, 0, sizeof(SPMKIDCandidateEvent));
 }
 
-static BOOL
+static bool
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
-    PBYTE                           pbyCCSPK,
-    PBYTE                           pbyCCSGK
+    unsigned char *pbyCCSPK,
+    unsigned char *pbyCCSGK
     )
 {
-    BYTE byMulticastCipher = KEY_CTL_INVALID;
-    BYTE byCipherMask = 0x00;
+    unsigned char byMulticastCipher = KEY_CTL_INVALID;
+    unsigned char byCipherMask = 0x00;
     int i;
 
     if (pBSSNode == NULL)
-        return FALSE;
+        return false;
 
     // check cap. of BSS
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
@@ -4904,7 +4905,7 @@ s_bCipherMatch (
     }
 
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
-        (pBSSNode->bWPA2Valid == TRUE) &&
+        (pBSSNode->bWPA2Valid == true) &&
           //20080123-01,<Add> by Einsn Liu
         ((EncStatus == Ndis802_11Encryption3Enabled)||(EncStatus == Ndis802_11Encryption2Enabled))) {
         //WPA2
@@ -4938,7 +4939,7 @@ s_bCipherMatch (
         }
 
     } else if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
-                (pBSSNode->bWPAValid == TRUE) &&
+                (pBSSNode->bWPAValid == true) &&
                 ((EncStatus == Ndis802_11Encryption3Enabled) || (EncStatus == Ndis802_11Encryption2Enabled))) {
         //WPA
         // check Group Key Cipher
@@ -4978,9 +4979,9 @@ s_bCipherMatch (
             (byCipherMask == 0)) {
             *pbyCCSGK = KEY_CTL_WEP;
             *pbyCCSPK = KEY_CTL_NONE;
-            return TRUE;
+            return true;
         } else {
-            return FALSE;
+            return false;
         }
 
     } else if (EncStatus == Ndis802_11Encryption2Enabled) {
@@ -4988,45 +4989,45 @@ s_bCipherMatch (
             (byCipherMask == 0)) {
             *pbyCCSGK = KEY_CTL_TKIP;
             *pbyCCSPK = KEY_CTL_NONE;
-            return TRUE;
+            return true;
         } else if ((byMulticastCipher == KEY_CTL_WEP) &&
                    ((byCipherMask & 0x02) != 0)) {
             *pbyCCSGK = KEY_CTL_WEP;
             *pbyCCSPK = KEY_CTL_TKIP;
-            return TRUE;
+            return true;
         } else if ((byMulticastCipher == KEY_CTL_TKIP) &&
                    ((byCipherMask & 0x02) != 0)) {
             *pbyCCSGK = KEY_CTL_TKIP;
             *pbyCCSPK = KEY_CTL_TKIP;
-            return TRUE;
+            return true;
         } else {
-            return FALSE;
+            return false;
         }
     } else if (EncStatus == Ndis802_11Encryption3Enabled) {
         if ((byMulticastCipher == KEY_CTL_CCMP) &&
             (byCipherMask == 0)) {
             // When CCMP is enable, "Use group cipher suite" shall not be a valid option.
-            return FALSE;
+            return false;
         } else if ((byMulticastCipher == KEY_CTL_WEP) &&
                    ((byCipherMask & 0x04) != 0)) {
             *pbyCCSGK = KEY_CTL_WEP;
             *pbyCCSPK = KEY_CTL_CCMP;
-            return TRUE;
+            return true;
         } else if ((byMulticastCipher == KEY_CTL_TKIP) &&
                    ((byCipherMask & 0x04) != 0)) {
             *pbyCCSGK = KEY_CTL_TKIP;
             *pbyCCSPK = KEY_CTL_CCMP;
-            return TRUE;
+            return true;
         } else if ((byMulticastCipher == KEY_CTL_CCMP) &&
                    ((byCipherMask & 0x04) != 0)) {
             *pbyCCSGK = KEY_CTL_CCMP;
             *pbyCCSPK = KEY_CTL_CCMP;
-            return TRUE;
+            return true;
         } else {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 
