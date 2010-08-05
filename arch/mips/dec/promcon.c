@@ -33,8 +33,7 @@ static int __init prom_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct console sercons =
-{
+static struct console sercons = {
 	.name	= "ttyS",
 	.write	= prom_console_write,
 	.setup	= prom_console_setup,

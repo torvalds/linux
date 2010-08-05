@@ -11,7 +11,7 @@ config ALCHEMY_GPIO_INDIRECT
 
 choice
 	prompt "Machine type"
-	depends on MACH_ALCHEMY
+	depends on MIPS_ALCHEMY
 	default MIPS_DB1000
 
 config MIPS_MTX1
@@ -128,41 +128,33 @@ config MIPS_XXS1500
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 
+config MIPS_GPR
+	bool "Trapeze ITS GPR board"
+	select SOC_AU1550
+	select HW_HAS_PCI
+	select DMA_NONCOHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
 endchoice
 
 config SOC_AU1000
 	bool
-	select SOC_AU1X00
 	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1100
 	bool
-	select SOC_AU1X00
 	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1500
 	bool
-	select SOC_AU1X00
 	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1550
 	bool
-	select SOC_AU1X00
 	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1200
 	bool
-	select SOC_AU1X00
 	select ALCHEMY_GPIOINT_AU1000
-
-config SOC_AU1X00
-	bool
-	select 64BIT_PHYS_ADDR
-	select CEVT_R4K_LIB
-	select CSRC_R4K_LIB
-	select IRQ_CPU
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_APM_EMULATION
-	select GENERIC_GPIO
-	select ARCH_WANT_OPTIONAL_GPIOLIB

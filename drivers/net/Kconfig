@@ -484,7 +484,7 @@ config XTENSA_XT2000_SONIC
 
 config MIPS_AU1X00_ENET
 	tristate "MIPS AU1000 Ethernet support"
-	depends on SOC_AU1X00
+	depends on MIPS_ALCHEMY
 	select PHYLIB
 	select CRC32
 	help

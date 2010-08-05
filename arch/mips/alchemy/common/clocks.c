@@ -89,11 +89,7 @@ unsigned long au1xxx_calc_clock(void)
 	 * over backwards trying to determine the frequency.
 	 */
 	if (au1xxx_cpu_has_pll_wo())
-#ifdef CONFIG_SOC_AU1000_FREQUENCY
-		cpu_speed = CONFIG_SOC_AU1000_FREQUENCY;
-#else
 		cpu_speed = 396000000;
-#endif
 	else
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
 
