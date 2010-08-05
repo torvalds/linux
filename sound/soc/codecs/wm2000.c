@@ -795,6 +795,8 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 
 	dev_set_drvdata(&i2c->dev, wm2000);
 	wm2000->anc_eng_ena = 1;
+	wm2000->anc_active = 1;
+	wm2000->spk_ena = 1;
 	wm2000->i2c = i2c;
 
 	wm2000_reset(wm2000);

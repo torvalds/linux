@@ -714,6 +714,73 @@ void ep93xx_keypad_release_gpio(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(ep93xx_keypad_release_gpio);
 
+/*************************************************************************
+ * EP93xx I2S audio peripheral handling
+ *************************************************************************/
+static struct resource ep93xx_i2s_resource[] = {
+	{
+		.start	= EP93XX_I2S_PHYS_BASE,
+		.end	= EP93XX_I2S_PHYS_BASE + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ep93xx_i2s_device = {
+	.name		= "ep93xx-i2s",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_i2s_resource),
+	.resource	= ep93xx_i2s_resource,
+};
+
+void __init ep93xx_register_i2s(void)
+{
+	platform_device_register(&ep93xx_i2s_device);
+}
+
+#define EP93XX_SYSCON_DEVCFG_I2S_MASK	(EP93XX_SYSCON_DEVCFG_I2SONSSP | \
+					 EP93XX_SYSCON_DEVCFG_I2SONAC97)
+
+#define EP93XX_I2SCLKDIV_MASK		(EP93XX_SYSCON_I2SCLKDIV_ORIDE | \
+					 EP93XX_SYSCON_I2SCLKDIV_SPOL)
+
+int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config)
+{
+	unsigned val;
+
+	/* Sanity check */
+	if (i2s_pins & ~EP93XX_SYSCON_DEVCFG_I2S_MASK)
+		return -EINVAL;
+	if (i2s_config & ~EP93XX_I2SCLKDIV_MASK)
+		return -EINVAL;
+
+	/* Must have only one of I2SONSSP/I2SONAC97 set */
+	if ((i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONSSP) ==
+	    (i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONAC97))
+		return -EINVAL;
+
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2S_MASK);
+	ep93xx_devcfg_set_bits(i2s_pins);
+
+	/*
+	 * This is potentially racy with the clock api for i2s_mclk, sclk and 
+	 * lrclk. Since the i2s driver is the only user of those clocks we
+	 * rely on it to prevent parallel use of this function and the 
+	 * clock api for the i2s clocks.
+	 */
+	val = __raw_readl(EP93XX_SYSCON_I2SCLKDIV);
+	val &= ~EP93XX_I2SCLKDIV_MASK;
+	val |= i2s_config;
+	ep93xx_syscon_swlocked_write(val, EP93XX_SYSCON_I2SCLKDIV);
+
+	return 0;
+}
+EXPORT_SYMBOL(ep93xx_i2s_acquire);
+
+void ep93xx_i2s_release(void)
+{
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2S_MASK);
+}
+EXPORT_SYMBOL(ep93xx_i2s_release);
 
 extern void ep93xx_gpio_init(void);
 

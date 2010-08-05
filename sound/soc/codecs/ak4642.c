@@ -22,20 +22,13 @@
  * AK4643 is tested.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "ak4642.h"
 
@@ -110,6 +103,23 @@
 #define FS_MASK		(FS0 | FS1 | FS2 | FS3)
 
 struct snd_soc_codec_device soc_codec_dev_ak4642;
+
+/*
+ * Playback Volume (table 39)
+ *
+ * max : 0x00 : +12.0 dB
+ *       ( 0.5 dB step )
+ * min : 0xFE : -115.0 dB
+ * mute: 0xFF
+ */
+static const DECLARE_TLV_DB_SCALE(out_tlv, -11500, 50, 1);
+
+static const struct snd_kcontrol_new ak4642_snd_controls[] = {
+
+	SOC_DOUBLE_R_TLV("Digital Playback Volume", L_DVC, R_DVC,
+			 0, 0xFF, 1, out_tlv),
+};
+
 
 /* codec private data */
 struct ak4642_priv {
@@ -204,7 +214,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 *
 		 * PLL, Master Mode
 		 * Audio I/F Format :MSB justified (ADC & DAC)
-		 * Digital Volume: -8dB
 		 * Bass Boost Level : Middle
 		 *
 		 * This operation came from example code of
@@ -214,8 +223,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		ak4642_write(codec, 0x0e, 0x19);
 		ak4642_write(codec, 0x09, 0x91);
 		ak4642_write(codec, 0x0c, 0x91);
-		ak4642_write(codec, 0x0a, 0x28);
-		ak4642_write(codec, 0x0d, 0x28);
 		ak4642_write(codec, 0x00, 0x64);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
@@ -491,8 +498,10 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	ret = ak4642_init(ak4642);
-	if (ret < 0)
+	if (ret < 0) {
 		printk(KERN_ERR "failed to initialise AK4642\n");
+		kfree(ak4642);
+	}
 
 	return ret;
 }
@@ -547,6 +556,9 @@ static int ak4642_probe(struct platform_device *pdev)
 		printk(KERN_ERR "ak4642: failed to create pcms\n");
 		goto pcm_err;
 	}
+
+	snd_soc_add_controls(ak4642_codec, ak4642_snd_controls,
+			     ARRAY_SIZE(ak4642_snd_controls));
 
 	dev_info(&pdev->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
 	return ret;

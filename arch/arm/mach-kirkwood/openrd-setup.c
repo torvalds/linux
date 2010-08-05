@@ -15,6 +15,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/i2c.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
@@ -60,6 +61,12 @@ static unsigned int openrd_mpp_config[] __initdata = {
 	0
 };
 
+static struct i2c_board_info i2c_board_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("cs42l51", 0x4a),
+	},
+};
+
 static void __init openrd_init(void)
 {
 	/*
@@ -80,6 +87,12 @@ static void __init openrd_init(void)
 	kirkwood_sdio_init(&openrd_mvsdio_data);
 
 	kirkwood_i2c_init();
+
+	if (machine_is_openrd_client()) {
+		i2c_register_board_info(0, i2c_board_info,
+			ARRAY_SIZE(i2c_board_info));
+		kirkwood_audio_init();
+	}
 }
 
 static int __init openrd_pci_init(void)

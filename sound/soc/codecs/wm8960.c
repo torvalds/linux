@@ -79,12 +79,13 @@ struct wm8960_priv {
 	struct snd_soc_dapm_widget *lout1;
 	struct snd_soc_dapm_widget *rout1;
 	struct snd_soc_dapm_widget *out3;
+	bool deemph;
+	int playback_fs;
 };
 
 #define wm8960_reset(c)	snd_soc_write(c, WM8960_RESET, 0)
 
 /* enumerated controls */
-static const char *wm8960_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
 static const char *wm8960_polarity[] = {"No Inversion", "Left Inverted",
 	"Right Inverted", "Stereo Inversion"};
 static const char *wm8960_3d_upper_cutoff[] = {"High", "Low"};
@@ -93,7 +94,6 @@ static const char *wm8960_alcfunc[] = {"Off", "Right", "Left", "Stereo"};
 static const char *wm8960_alcmode[] = {"ALC", "Limiter"};
 
 static const struct soc_enum wm8960_enum[] = {
-	SOC_ENUM_SINGLE(WM8960_DACCTL1, 1, 4, wm8960_deemph),
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
 	SOC_ENUM_SINGLE(WM8960_DACCTL2, 5, 4, wm8960_polarity),
 	SOC_ENUM_SINGLE(WM8960_3D, 6, 2, wm8960_3d_upper_cutoff),
@@ -101,6 +101,59 @@ static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_ALC1, 7, 4, wm8960_alcfunc),
 	SOC_ENUM_SINGLE(WM8960_ALC3, 8, 2, wm8960_alcmode),
 };
+
+static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
+
+static int wm8960_set_deemph(struct snd_soc_codec *codec)
+{
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	int val, i, best;
+
+	/* If we're using deemphasis select the nearest available sample
+	 * rate.
+	 */
+	if (wm8960->deemph) {
+		best = 1;
+		for (i = 2; i < ARRAY_SIZE(deemph_settings); i++) {
+			if (abs(deemph_settings[i] - wm8960->playback_fs) <
+			    abs(deemph_settings[best] - wm8960->playback_fs))
+				best = i;
+		}
+
+		val = best << 1;
+	} else {
+		val = 0;
+	}
+
+	dev_dbg(codec->dev, "Set deemphasis %d\n", val);
+
+	return snd_soc_update_bits(codec, WM8960_DACCTL1,
+				   0x6, val);
+}
+
+static int wm8960_get_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+
+	return wm8960->deemph;
+}
+
+static int wm8960_put_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	int deemph = ucontrol->value.enumerated.item[0];
+
+	if (deemph > 1)
+		return -EINVAL;
+
+	wm8960->deemph = deemph;
+
+	return wm8960_set_deemph(codec);
+}
 
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -9700, 50, 0);
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -12700, 50, 1);
@@ -131,23 +184,24 @@ SOC_SINGLE("Speaker DC Volume", WM8960_CLASSD3, 3, 5, 0),
 SOC_SINGLE("Speaker AC Volume", WM8960_CLASSD3, 0, 5, 0),
 
 SOC_SINGLE("PCM Playback -6dB Switch", WM8960_DACCTL1, 7, 1, 0),
-SOC_ENUM("ADC Polarity", wm8960_enum[1]),
-SOC_ENUM("Playback De-emphasis", wm8960_enum[0]),
+SOC_ENUM("ADC Polarity", wm8960_enum[0]),
 SOC_SINGLE("ADC High Pass Filter Switch", WM8960_DACCTL1, 0, 1, 0),
 
 SOC_ENUM("DAC Polarity", wm8960_enum[2]),
+SOC_SINGLE_BOOL_EXT("DAC Deemphasis Switch", 0,
+		    wm8960_get_deemph, wm8960_put_deemph),
 
-SOC_ENUM("3D Filter Upper Cut-Off", wm8960_enum[3]),
-SOC_ENUM("3D Filter Lower Cut-Off", wm8960_enum[4]),
+SOC_ENUM("3D Filter Upper Cut-Off", wm8960_enum[2]),
+SOC_ENUM("3D Filter Lower Cut-Off", wm8960_enum[3]),
 SOC_SINGLE("3D Volume", WM8960_3D, 1, 15, 0),
 SOC_SINGLE("3D Switch", WM8960_3D, 0, 1, 0),
 
-SOC_ENUM("ALC Function", wm8960_enum[5]),
+SOC_ENUM("ALC Function", wm8960_enum[4]),
 SOC_SINGLE("ALC Max Gain", WM8960_ALC1, 4, 7, 0),
 SOC_SINGLE("ALC Target", WM8960_ALC1, 0, 15, 1),
 SOC_SINGLE("ALC Min Gain", WM8960_ALC2, 4, 7, 0),
 SOC_SINGLE("ALC Hold Time", WM8960_ALC2, 0, 15, 0),
-SOC_ENUM("ALC Mode", wm8960_enum[6]),
+SOC_ENUM("ALC Mode", wm8960_enum[5]),
 SOC_SINGLE("ALC Decay", WM8960_ALC3, 4, 15, 0),
 SOC_SINGLE("ALC Attack", WM8960_ALC3, 0, 15, 0),
 
@@ -433,6 +487,21 @@ static int wm8960_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static struct {
+	int rate;
+	unsigned int val;
+} alc_rates[] = {
+	{ 48000, 0 },
+	{ 44100, 0 },
+	{ 32000, 1 },
+	{ 22050, 2 },
+	{ 24000, 2 },
+	{ 16000, 3 },
+	{ 11250, 4 },
+	{ 12000, 4 },
+	{  8000, 5 },
+};
+
 static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -440,7 +509,9 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8960_IFACE1) & 0xfff3;
+	int i;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -452,6 +523,18 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S24_LE:
 		iface |= 0x0008;
 		break;
+	}
+
+	/* Update filters for the new rate */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		wm8960->playback_fs = params_rate(params);
+		wm8960_set_deemph(codec);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(alc_rates); i++)
+			if (alc_rates[i].rate == params_rate(params))
+				snd_soc_update_bits(codec,
+						    WM8960_ADDCTL3, 0x7,
+						    alc_rates[i].val);
 	}
 
 	/* set iface */

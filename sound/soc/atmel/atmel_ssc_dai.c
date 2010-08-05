@@ -549,7 +549,6 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_WARNING "atmel_ssc_dai: unsupported DAI format 0x%x\n",
 			ssc_p->daifmt);
 		return -EINVAL;
-		break;
 	}
 	pr_debug("atmel_ssc_hw_params: "
 			"RCMR=%08x RFMR=%08x TCMR=%08x TFMR=%08x\n",
