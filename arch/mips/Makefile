@@ -334,13 +334,6 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= $(COMPRESSION_FNAME).bin
 
 #
-# MIPS SIM
-#
-core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
-cflags-$(CONFIG_MIPS_SIM)	+= -I$(srctree)/arch/mips/include/asm/mach-mipssim
-load-$(CONFIG_MIPS_SIM)		+= 0x80100000
-
-#
 # PMC-Sierra MSP SOCs
 #
 core-$(CONFIG_PMC_MSP)		+= arch/mips/pmc-sierra/msp71xx/
