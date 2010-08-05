@@ -93,7 +93,8 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
 cflags-y			+= -msoft-float
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
-MODFLAGS			+= -mlong-calls
+KBUILD_AFLAGS_MODULE		+= -mlong-calls
+KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
 cflags-y += -ffreestanding
 
@@ -165,7 +166,8 @@ cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-mno-daddi,)
 
 ifdef CONFIG_CPU_SB1
 ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
-MODFLAGS	+= -msb1-pass1-workarounds
+KBUILD_AFLAGS_MODULE += -msb1-pass1-workarounds
+KBUILD_CFLAGS_MODULE += -msb1-pass1-workarounds
 endif
 endif
 

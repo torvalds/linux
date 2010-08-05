@@ -921,16 +921,33 @@ When kbuild executes, the following steps are followed (roughly):
 	The first example utilises the trick that a config option expands
 	to 'y' when selected.
 
-    CFLAGS_KERNEL	$(CC) options specific for built-in
+    KBUILD_AFLAGS_KERNEL	$(AS) options specific for built-in
 
-	$(CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	$(KBUILD_AFLAGS_KERNEL) contains extra C compiler flags used to compile
 	resident kernel code.
 
-    CFLAGS_MODULE	$(CC) options specific for modules
+    KBUILD_AFLAGS_MODULE   Options for $(AS) when building modules
 
-	$(CFLAGS_MODULE) contains extra C compiler flags used to compile code
-	for loadable kernel modules.
+	$(KBUILD_AFLAGS_MODULE) is used to add arch specific options that
+	are used for $(AS).
+	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
 
+    KBUILD_CFLAGS_KERNEL	$(CC) options specific for built-in
+
+	$(KBUILD_CFLAGS_KERNEL) contains extra C compiler flags used to compile
+	resident kernel code.
+
+    KBUILD_CFLAGS_MODULE   Options for $(CC) when building modules
+
+	$(KBUILD_CFLAGS_MODULE) is used to add arch specific options that
+	are used for $(CC).
+	From commandline CFLAGS_MODULE shall be used (see kbuild.txt).
+
+    KBUILD_LDFLAGS_MODULE   Options for $(LD) when linking modules
+
+	$(KBUILD_LDFLAGS_MODULE) is used to add arch specific options
+	used when linking modules. This is often a linker script.
+	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
 --- 6.2 Add prerequisites to archprepare:
 
