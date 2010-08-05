@@ -1126,8 +1126,9 @@ static const struct kernel_symbol *resolve_symbol_wait(Elf_Shdr *sechdrs,
  * /sys/module/foo/sections stuff
  * J. Corbet <corbet@lwn.net>
  */
-#if defined(CONFIG_KALLSYMS) && defined(CONFIG_SYSFS)
+#ifdef CONFIG_SYSFS
 
+#ifdef CONFIG_KALLSYMS
 static inline bool sect_empty(const Elf_Shdr *sect)
 {
 	return !(sect->sh_flags & SHF_ALLOC) || sect->sh_size == 0;
@@ -1164,8 +1165,7 @@ static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 	kfree(sect_attrs);
 }
 
-static void add_sect_attrs(struct module *mod, unsigned int nsect,
-		char *secstrings, Elf_Shdr *sechdrs)
+static void add_sect_attrs(struct module *mod, const struct load_info *info)
 {
 	unsigned int nloaded = 0, i, size[2];
 	struct module_sect_attrs *sect_attrs;
@@ -1173,8 +1173,8 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 	struct attribute **gattr;
 
 	/* Count loaded sections and allocate structures */
-	for (i = 0; i < nsect; i++)
-		if (!sect_empty(&sechdrs[i]))
+	for (i = 0; i < info->hdr->e_shnum; i++)
+		if (!sect_empty(&info->sechdrs[i]))
 			nloaded++;
 	size[0] = ALIGN(sizeof(*sect_attrs)
 			+ nloaded * sizeof(sect_attrs->attrs[0]),
@@ -1191,11 +1191,12 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 	sect_attrs->nsections = 0;
 	sattr = &sect_attrs->attrs[0];
 	gattr = &sect_attrs->grp.attrs[0];
-	for (i = 0; i < nsect; i++) {
-		if (sect_empty(&sechdrs[i]))
+	for (i = 0; i < info->hdr->e_shnum; i++) {
+		Elf_Shdr *sec = &info->sechdrs[i];
+		if (sect_empty(sec))
 			continue;
-		sattr->address = sechdrs[i].sh_addr;
-		sattr->name = kstrdup(secstrings + sechdrs[i].sh_name,
+		sattr->address = sec->sh_addr;
+		sattr->name = kstrdup(info->secstrings + sec->sh_name,
 					GFP_KERNEL);
 		if (sattr->name == NULL)
 			goto out;
@@ -1263,8 +1264,7 @@ static void free_notes_attrs(struct module_notes_attrs *notes_attrs,
 	kfree(notes_attrs);
 }
 
-static void add_notes_attrs(struct module *mod, unsigned int nsect,
-			    char *secstrings, Elf_Shdr *sechdrs)
+static void add_notes_attrs(struct module *mod, const struct load_info *info)
 {
 	unsigned int notes, loaded, i;
 	struct module_notes_attrs *notes_attrs;
@@ -1276,9 +1276,9 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
-	for (i = 0; i < nsect; i++)
-		if (!sect_empty(&sechdrs[i]) &&
-		    (sechdrs[i].sh_type == SHT_NOTE))
+	for (i = 0; i < info->hdr->e_shnum; i++)
+		if (!sect_empty(&info->sechdrs[i]) &&
+		    (info->sechdrs[i].sh_type == SHT_NOTE))
 			++notes;
 
 	if (notes == 0)
@@ -1292,15 +1292,15 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 
 	notes_attrs->notes = notes;
 	nattr = &notes_attrs->attrs[0];
-	for (loaded = i = 0; i < nsect; ++i) {
-		if (sect_empty(&sechdrs[i]))
+	for (loaded = i = 0; i < info->hdr->e_shnum; ++i) {
+		if (sect_empty(&info->sechdrs[i]))
 			continue;
-		if (sechdrs[i].sh_type == SHT_NOTE) {
+		if (info->sechdrs[i].sh_type == SHT_NOTE) {
 			sysfs_bin_attr_init(nattr);
 			nattr->attr.name = mod->sect_attrs->attrs[loaded].name;
 			nattr->attr.mode = S_IRUGO;
-			nattr->size = sechdrs[i].sh_size;
-			nattr->private = (void *) sechdrs[i].sh_addr;
+			nattr->size = info->sechdrs[i].sh_size;
+			nattr->private = (void *) info->sechdrs[i].sh_addr;
 			nattr->read = module_notes_read;
 			++nattr;
 		}
@@ -1331,8 +1331,8 @@ static void remove_notes_attrs(struct module *mod)
 
 #else
 
-static inline void add_sect_attrs(struct module *mod, unsigned int nsect,
-		char *sectstrings, Elf_Shdr *sechdrs)
+static inline void add_sect_attrs(struct module *mod,
+				  const struct load_info *info)
 {
 }
 
@@ -1340,17 +1340,16 @@ static inline void remove_sect_attrs(struct module *mod)
 {
 }
 
-static inline void add_notes_attrs(struct module *mod, unsigned int nsect,
-				   char *sectstrings, Elf_Shdr *sechdrs)
+static inline void add_notes_attrs(struct module *mod,
+				   const struct load_info *info)
 {
 }
 
 static inline void remove_notes_attrs(struct module *mod)
 {
 }
-#endif
+#endif /* CONFIG_KALLSYMS */
 
-#ifdef CONFIG_SYSFS
 static void add_usage_links(struct module *mod)
 {
 #ifdef CONFIG_MODULE_UNLOAD
@@ -1455,6 +1454,7 @@ out:
 }
 
 static int mod_sysfs_setup(struct module *mod,
+			   const struct load_info *info,
 			   struct kernel_param *kparam,
 			   unsigned int num_params)
 {
@@ -1479,6 +1479,8 @@ static int mod_sysfs_setup(struct module *mod,
 		goto out_unreg_param;
 
 	add_usage_links(mod);
+	add_sect_attrs(mod, info);
+	add_notes_attrs(mod, info);
 
 	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
@@ -1495,30 +1497,24 @@ out:
 
 static void mod_sysfs_fini(struct module *mod)
 {
+	remove_notes_attrs(mod);
+	remove_sect_attrs(mod);
 	kobject_put(&mod->mkobj.kobj);
 }
 
-#else /* CONFIG_SYSFS */
+#else /* !CONFIG_SYSFS */
 
-static inline int mod_sysfs_init(struct module *mod)
+static int mod_sysfs_init(struct module *mod)
 {
 	return 0;
 }
 
-static inline int mod_sysfs_setup(struct module *mod,
+static int mod_sysfs_setup(struct module *mod,
+			   const struct load_info *info,
 			   struct kernel_param *kparam,
 			   unsigned int num_params)
 {
 	return 0;
-}
-
-static inline int module_add_modinfo_attrs(struct module *mod)
-{
-	return 0;
-}
-
-static inline void module_remove_modinfo_attrs(struct module *mod)
-{
 }
 
 static void mod_sysfs_fini(struct module *mod)
@@ -1561,8 +1557,6 @@ static void free_module(struct module *mod)
 	mutex_lock(&module_mutex);
 	stop_machine(__unlink_module, mod, NULL);
 	mutex_unlock(&module_mutex);
-	remove_notes_attrs(mod);
-	remove_sect_attrs(mod);
 	mod_kobject_remove(mod);
 
 	/* Remove dynamic debug info */
@@ -2691,12 +2685,9 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto unlink;
 
-	err = mod_sysfs_setup(mod, mod->kp, mod->num_kp);
+	err = mod_sysfs_setup(mod, &info, mod->kp, mod->num_kp);
 	if (err < 0)
 		goto unlink;
-
-	add_sect_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
-	add_notes_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
 
 	/* Get rid of temporary copy and strmap. */
 	kfree(info.strmap);
