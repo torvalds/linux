@@ -110,6 +110,16 @@ int unregister_module_notifier(struct notifier_block * nb)
 }
 EXPORT_SYMBOL(unregister_module_notifier);
 
+struct load_info {
+	Elf_Ehdr *hdr;
+	unsigned long len;
+	Elf_Shdr *sechdrs;
+	char *secstrings, *args, *strtab;
+	struct {
+		unsigned int sym, str, mod, vers, info, pcpu;
+	} index;
+};
+
 /* We require a truly strong try_module_get(): 0 means failure due to
    ongoing or failed initialization etc. */
 static inline int strong_try_module_get(struct module *mod)
@@ -1909,11 +1919,10 @@ static int is_exported(const char *name, unsigned long value,
 }
 
 /* As per nm */
-static char elf_type(const Elf_Sym *sym,
-		     Elf_Shdr *sechdrs,
-		     const char *secstrings,
-		     struct module *mod)
+static char elf_type(const Elf_Sym *sym, const struct load_info *info)
 {
+	const Elf_Shdr *sechdrs = info->sechdrs;
+
 	if (ELF_ST_BIND(sym->st_info) == STB_WEAK) {
 		if (ELF_ST_TYPE(sym->st_info) == STT_OBJECT)
 			return 'v';
@@ -1943,8 +1952,10 @@ static char elf_type(const Elf_Sym *sym,
 		else
 			return 'b';
 	}
-	if (strstarts(secstrings + sechdrs[sym->st_shndx].sh_name, ".debug"))
+	if (strstarts(info->secstrings + sechdrs[sym->st_shndx].sh_name,
+		      ".debug")) {
 		return 'n';
+	}
 	return '?';
 }
 
@@ -2021,35 +2032,30 @@ static unsigned long layout_symtab(struct module *mod,
 	return symoffs;
 }
 
-static void add_kallsyms(struct module *mod,
-			 Elf_Shdr *sechdrs,
-			 unsigned int shnum,
-			 unsigned int symindex,
-			 unsigned int strindex,
+static void add_kallsyms(struct module *mod, struct load_info *info,
 			 unsigned long symoffs,
 			 unsigned long stroffs,
-			 const char *secstrings,
 			 unsigned long *strmap)
 {
 	unsigned int i, ndst;
 	const Elf_Sym *src;
 	Elf_Sym *dst;
 	char *s;
+	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
 
-	mod->symtab = (void *)sechdrs[symindex].sh_addr;
-	mod->num_symtab = sechdrs[symindex].sh_size / sizeof(Elf_Sym);
-	mod->strtab = (void *)sechdrs[strindex].sh_addr;
+	mod->symtab = (void *)symsec->sh_addr;
+	mod->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
+	mod->strtab = info->strtab;
 
 	/* Set types up while we still have access to sections. */
 	for (i = 0; i < mod->num_symtab; i++)
-		mod->symtab[i].st_info
-			= elf_type(&mod->symtab[i], sechdrs, secstrings, mod);
+		mod->symtab[i].st_info = elf_type(&mod->symtab[i], info);
 
 	mod->core_symtab = dst = mod->module_core + symoffs;
 	src = mod->symtab;
 	*dst = *src;
 	for (ndst = i = 1; i < mod->num_symtab; ++i, ++src) {
-		if (!is_core_symbol(src, sechdrs, shnum))
+		if (!is_core_symbol(src, info->sechdrs, info->hdr->e_shnum))
 			continue;
 		dst[ndst] = *src;
 		dst[ndst].st_name = bitmap_weight(strmap, dst[ndst].st_name);
@@ -2058,7 +2064,7 @@ static void add_kallsyms(struct module *mod,
 	mod->core_num_syms = ndst;
 
 	mod->core_strtab = s = mod->module_core + stroffs;
-	for (*s = 0, i = 1; i < sechdrs[strindex].sh_size; ++i)
+	for (*s = 0, i = 1; i < info->sechdrs[info->index.str].sh_size; ++i)
 		if (test_bit(i, strmap))
 			*++s = mod->strtab[i];
 }
@@ -2075,15 +2081,10 @@ static inline unsigned long layout_symtab(struct module *mod,
 	return 0;
 }
 
-static inline void add_kallsyms(struct module *mod,
-				Elf_Shdr *sechdrs,
-				unsigned int shnum,
-				unsigned int symindex,
-				unsigned int strindex,
-				unsigned long symoffs,
-				unsigned long stroffs,
-				const char *secstrings,
-				const unsigned long *strmap)
+static void add_kallsyms(struct module *mod, struct load_info *info,
+			 unsigned long symoffs,
+			 unsigned long stroffs,
+			 unsigned long *strmap)
 {
 }
 #endif /* CONFIG_KALLSYMS */
@@ -2147,16 +2148,6 @@ static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 {
 }
 #endif
-
-struct load_info {
-	Elf_Ehdr *hdr;
-	unsigned long len;
-	Elf_Shdr *sechdrs;
-	char *secstrings, *args, *strtab;
-	struct {
-		unsigned int sym, str, mod, vers, info, pcpu;
-	} index;
-};
 
 /* Sets info->hdr and info->len. */
 static int copy_and_check(struct load_info *info, const void __user *umod, unsigned long len)
@@ -2623,8 +2614,7 @@ static noinline struct module *load_module(void __user *umod,
 	percpu_modcopy(mod, (void *)info.sechdrs[info.index.pcpu].sh_addr,
 		       info.sechdrs[info.index.pcpu].sh_size);
 
-	add_kallsyms(mod, info.sechdrs, info.hdr->e_shnum, info.index.sym, info.index.str,
-		     symoffs, stroffs, info.secstrings, strmap);
+	add_kallsyms(mod, &info, symoffs, stroffs, strmap);
 	kfree(strmap);
 	strmap = NULL;
 
