@@ -2082,7 +2082,8 @@ static void *module_alloc_update_bounds(unsigned long size)
 
 #ifdef CONFIG_DEBUG_KMEMLEAK
 static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
-				 Elf_Shdr *sechdrs, char *secstrings)
+				 const Elf_Shdr *sechdrs,
+				 const char *secstrings)
 {
 	unsigned int i;
 
@@ -2102,7 +2103,8 @@ static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 }
 #else
 static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
-					Elf_Shdr *sechdrs, char *secstrings)
+					Elf_Shdr *sechdrs,
+					const char *secstrings)
 {
 }
 #endif
@@ -2172,6 +2174,70 @@ static void find_module_sections(struct module *mod, Elf_Ehdr *hdr,
 #endif
 }
 
+static struct module *move_module(struct module *mod,
+				  Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+				  const char *secstrings, unsigned modindex)
+{
+	int i;
+	void *ptr;
+
+	/* Do the allocs. */
+	ptr = module_alloc_update_bounds(mod->core_size);
+	/*
+	 * The pointer to this block is stored in the module structure
+	 * which is inside the block. Just mark it as not being a
+	 * leak.
+	 */
+	kmemleak_not_leak(ptr);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	memset(ptr, 0, mod->core_size);
+	mod->module_core = ptr;
+
+	ptr = module_alloc_update_bounds(mod->init_size);
+	/*
+	 * The pointer to this block is stored in the module structure
+	 * which is inside the block. This block doesn't need to be
+	 * scanned as it contains data and code that will be freed
+	 * after the module is initialized.
+	 */
+	kmemleak_ignore(ptr);
+	if (!ptr && mod->init_size) {
+		module_free(mod, mod->module_core);
+		return ERR_PTR(-ENOMEM);
+	}
+	memset(ptr, 0, mod->init_size);
+	mod->module_init = ptr;
+
+	/* Transfer each section which specifies SHF_ALLOC */
+	DEBUGP("final section addresses:\n");
+	for (i = 0; i < hdr->e_shnum; i++) {
+		void *dest;
+
+		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
+			continue;
+
+		if (sechdrs[i].sh_entsize & INIT_OFFSET_MASK)
+			dest = mod->module_init
+				+ (sechdrs[i].sh_entsize & ~INIT_OFFSET_MASK);
+		else
+			dest = mod->module_core + sechdrs[i].sh_entsize;
+
+		if (sechdrs[i].sh_type != SHT_NOBITS)
+			memcpy(dest, (void *)sechdrs[i].sh_addr,
+			       sechdrs[i].sh_size);
+		/* Update sh_addr to point to copy in image. */
+		sechdrs[i].sh_addr = (unsigned long)dest;
+		DEBUGP("\t0x%lx %s\n",
+		       sechdrs[i].sh_addr, secstrings + sechdrs[i].sh_name);
+	}
+	/* Module has been moved. */
+	mod = (void *)sechdrs[modindex].sh_addr;
+	kmemleak_load_module(mod, hdr, sechdrs, secstrings);
+	return mod;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static noinline struct module *load_module(void __user *umod,
@@ -2188,7 +2254,6 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int modindex, versindex, infoindex, pcpuindex;
 	struct module *mod;
 	long err = 0;
-	void *ptr = NULL; /* Stops spurious gcc warning */
 	unsigned long symoffs, stroffs, *strmap;
 	void __percpu *percpu;
 	struct _ddebug *debug = NULL;
@@ -2342,61 +2407,12 @@ static noinline struct module *load_module(void __user *umod,
 	symoffs = layout_symtab(mod, sechdrs, symindex, strindex, hdr,
 				secstrings, &stroffs, strmap);
 
-	/* Do the allocs. */
-	ptr = module_alloc_update_bounds(mod->core_size);
-	/*
-	 * The pointer to this block is stored in the module structure
-	 * which is inside the block. Just mark it as not being a
-	 * leak.
-	 */
-	kmemleak_not_leak(ptr);
-	if (!ptr) {
-		err = -ENOMEM;
+	/* Allocate and move to the final place */
+	mod = move_module(mod, hdr, sechdrs, secstrings, modindex);
+	if (IS_ERR(mod)) {
+		err = PTR_ERR(mod);
 		goto free_percpu;
 	}
-	memset(ptr, 0, mod->core_size);
-	mod->module_core = ptr;
-
-	ptr = module_alloc_update_bounds(mod->init_size);
-	/*
-	 * The pointer to this block is stored in the module structure
-	 * which is inside the block. This block doesn't need to be
-	 * scanned as it contains data and code that will be freed
-	 * after the module is initialized.
-	 */
-	kmemleak_ignore(ptr);
-	if (!ptr && mod->init_size) {
-		err = -ENOMEM;
-		goto free_core;
-	}
-	memset(ptr, 0, mod->init_size);
-	mod->module_init = ptr;
-
-	/* Transfer each section which specifies SHF_ALLOC */
-	DEBUGP("final section addresses:\n");
-	for (i = 0; i < hdr->e_shnum; i++) {
-		void *dest;
-
-		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
-			continue;
-
-		if (sechdrs[i].sh_entsize & INIT_OFFSET_MASK)
-			dest = mod->module_init
-				+ (sechdrs[i].sh_entsize & ~INIT_OFFSET_MASK);
-		else
-			dest = mod->module_core + sechdrs[i].sh_entsize;
-
-		if (sechdrs[i].sh_type != SHT_NOBITS)
-			memcpy(dest, (void *)sechdrs[i].sh_addr,
-			       sechdrs[i].sh_size);
-		/* Update sh_addr to point to copy in image. */
-		sechdrs[i].sh_addr = (unsigned long)dest;
-		DEBUGP("\t0x%lx %s\n",
-		       sechdrs[i].sh_addr, secstrings + sechdrs[i].sh_name);
-	}
-	/* Module has been moved. */
-	mod = (void *)sechdrs[modindex].sh_addr;
-	kmemleak_load_module(mod, hdr, sechdrs, secstrings);
 
 #if defined(CONFIG_MODULE_UNLOAD)
 	mod->refptr = alloc_percpu(struct module_ref);
@@ -2580,7 +2596,6 @@ static noinline struct module *load_module(void __user *umod,
  free_init:
 #endif
 	module_free(mod, mod->module_init);
- free_core:
 	module_free(mod, mod->module_core);
 	/* mod will be freed with core. Don't access it beyond this line! */
  free_percpu:
