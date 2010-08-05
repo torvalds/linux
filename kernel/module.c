@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2002 Richard Henderson
-   Copyright (C) 2001 Rusty Russell, 2002 Rusty Russell IBM.
+   Copyright (C) 2001 Rusty Russell, 2002, 2010 Rusty Russell IBM.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -2523,12 +2523,14 @@ static void module_deallocate(struct module *mod, struct load_info *info)
 
 static int post_relocation(struct module *mod, const struct load_info *info)
 {
+	/* Sort exception table now relocations are done. */
 	sort_extable(mod->extable, mod->extable + mod->num_exentries);
 
 	/* Copy relocated percpu area over. */
 	percpu_modcopy(mod, (void *)info->sechdrs[info->index.pcpu].sh_addr,
 		       info->sechdrs[info->index.pcpu].sh_size);
 
+	/* Setup kallsyms-specific fields. */
 	add_kallsyms(mod, info);
 
 	/* Arch-specific module finalizing. */
@@ -2537,7 +2539,7 @@ static int post_relocation(struct module *mod, const struct load_info *info)
 
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
-static noinline struct module *load_module(void __user *umod,
+static struct module *load_module(void __user *umod,
 				  unsigned long len,
 				  const char __user *uargs)
 {
@@ -2598,6 +2600,7 @@ static noinline struct module *load_module(void __user *umod,
 		goto free_arch_cleanup;
 	}
 
+	/* Mark state as coming so strong_try_module_get() ignores us. */
 	mod->state = MODULE_STATE_COMING;
 
 	/* Now sew it into the lists so we can get lockdep and oops
@@ -2625,10 +2628,12 @@ static noinline struct module *load_module(void __user *umod,
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
+	/* Module is ready to execute: parsing args may do that. */
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
 	if (err < 0)
 		goto unlink;
 
+	/* Link in to syfs. */
 	err = mod_sysfs_setup(mod, &info, mod->kp, mod->num_kp);
 	if (err < 0)
 		goto unlink;
@@ -2637,9 +2642,8 @@ static noinline struct module *load_module(void __user *umod,
 	kfree(info.strmap);
 	free_copy(&info);
 
-	trace_module_load(mod);
-
 	/* Done! */
+	trace_module_load(mod);
 	return mod;
 
  unlink:
