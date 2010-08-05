@@ -90,6 +90,19 @@ struct kgdb_bkpt {
 	enum kgdb_bpstate	state;
 };
 
+struct dbg_reg_def_t {
+	char *name;
+	int size;
+	int offset;
+};
+
+#ifndef DBG_MAX_REG_NUM
+#define DBG_MAX_REG_NUM 0
+#else
+extern struct dbg_reg_def_t dbg_reg_def[];
+extern char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs);
+extern int dbg_set_reg(int regno, void *mem, struct pt_regs *regs);
+#endif
 #ifndef KGDB_MAX_BREAKPOINTS
 # define KGDB_MAX_BREAKPOINTS	1000
 #endif

@@ -328,6 +328,32 @@ static int kgdb_ebin2mem(char *buf, char *mem, int count)
 	return probe_kernel_write(mem, c, size);
 }
 
+#if DBG_MAX_REG_NUM > 0
+void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
+{
+	int i;
+	int idx = 0;
+	char *ptr = (char *)gdb_regs;
+
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		dbg_get_reg(i, ptr + idx, regs);
+		idx += dbg_reg_def[i].size;
+	}
+}
+
+void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
+{
+	int i;
+	int idx = 0;
+	char *ptr = (char *)gdb_regs;
+
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		dbg_set_reg(i, ptr + idx, regs);
+		idx += dbg_reg_def[i].size;
+	}
+}
+#endif /* DBG_MAX_REG_NUM > 0 */
+
 /* Write memory due to an 'M' or 'X' packet. */
 static int write_mem_msg(int binary)
 {
