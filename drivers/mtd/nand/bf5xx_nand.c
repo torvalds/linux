@@ -215,9 +215,9 @@ static void bf5xx_nand_hwcontrol(struct mtd_info *mtd, int cmd,
  */
 static int bf5xx_nand_devready(struct mtd_info *mtd)
 {
-	unsigned short val = bfin_read_NFC_IRQSTAT();
+	unsigned short val = bfin_read_NFC_STAT();
 
-	if ((val & NBUSYIRQ) == NBUSYIRQ)
+	if ((val & NBUSY) == NBUSY)
 		return 1;
 	else
 		return 0;
