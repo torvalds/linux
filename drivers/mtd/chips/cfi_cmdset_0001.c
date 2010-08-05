@@ -720,7 +720,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		chip = &newcfi->chips[0];
 		for (i = 0; i < cfi->numchips; i++) {
 			shared[i].writing = shared[i].erasing = NULL;
-			spin_lock_init(&shared[i].lock);
+			mutex_init(&shared[i].lock);
 			for (j = 0; j < numparts; j++) {
 				*chip = cfi->chips[i];
 				chip->start += j << partshift;
@@ -889,7 +889,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		 */
 		struct flchip_shared *shared = chip->priv;
 		struct flchip *contender;
-		spin_lock(&shared->lock);
+		mutex_lock(&shared->lock);
 		contender = shared->writing;
 		if (contender && contender != chip) {
 			/*
@@ -902,7 +902,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 			 * get_chip returns success we're clear to go ahead.
 			 */
 			ret = mutex_trylock(&contender->mutex);
-			spin_unlock(&shared->lock);
+			mutex_unlock(&shared->lock);
 			if (!ret)
 				goto retry;
 			mutex_unlock(&chip->mutex);
@@ -917,7 +917,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 				mutex_unlock(&contender->mutex);
 				return ret;
 			}
-			spin_lock(&shared->lock);
+			mutex_lock(&shared->lock);
 
 			/* We should not own chip if it is already
 			 * in FL_SYNCING state. Put contender and retry. */
@@ -933,7 +933,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		 * on this chip. Sleep. */
 		if (mode == FL_ERASING && shared->erasing
 		    && shared->erasing->oldstate == FL_ERASING) {
-			spin_unlock(&shared->lock);
+			mutex_unlock(&shared->lock);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&chip->wq, &wait);
 			mutex_unlock(&chip->mutex);
@@ -947,7 +947,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		shared->writing = chip;
 		if (mode == FL_ERASING)
 			shared->erasing = chip;
-		spin_unlock(&shared->lock);
+		mutex_unlock(&shared->lock);
 	}
 	ret = chip_ready(map, chip, adr, mode);
 	if (ret == -EAGAIN)
@@ -962,7 +962,7 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 	if (chip->priv) {
 		struct flchip_shared *shared = chip->priv;
-		spin_lock(&shared->lock);
+		mutex_lock(&shared->lock);
 		if (shared->writing == chip && chip->oldstate == FL_READY) {
 			/* We own the ability to write, but we're done */
 			shared->writing = shared->erasing;
@@ -970,7 +970,7 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 				/* give back ownership to who we loaned it from */
 				struct flchip *loaner = shared->writing;
 				mutex_lock(&loaner->mutex);
-				spin_unlock(&shared->lock);
+				mutex_unlock(&shared->lock);
 				mutex_unlock(&chip->mutex);
 				put_chip(map, loaner, loaner->start);
 				mutex_lock(&chip->mutex);
@@ -988,11 +988,11 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 			 * Don't let the switch below mess things up since
 			 * we don't have ownership to resume anything.
 			 */
-			spin_unlock(&shared->lock);
+			mutex_unlock(&shared->lock);
 			wake_up(&chip->wq);
 			return;
 		}
-		spin_unlock(&shared->lock);
+		mutex_unlock(&shared->lock);
 	}
 
 	switch(chip->oldstate) {

@@ -92,7 +92,7 @@ struct flchip {
 /* This is used to handle contention on write/erase operations
    between partitions of the same physical chip. */
 struct flchip_shared {
-	spinlock_t lock;
+	struct mutex lock;
 	struct flchip *writing;
 	struct flchip *erasing;
 };
