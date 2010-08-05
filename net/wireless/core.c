@@ -253,11 +253,16 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			WARN_ON(err);
 			wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
 		}
+
+		return err;
 	}
 
 	wiphy_net_set(&rdev->wiphy, net);
 
-	return err;
+	err = device_rename(&rdev->wiphy.dev, dev_name(&rdev->wiphy.dev));
+	WARN_ON(err);
+
+	return 0;
 }
 
 static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
