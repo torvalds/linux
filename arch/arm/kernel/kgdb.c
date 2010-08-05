@@ -10,6 +10,7 @@
  *           Deepak Saxena <dsaxena@plexity.net>
  */
 #include <linux/irq.h>
+#include <linux/kdebug.h>
 #include <linux/kgdb.h>
 #include <asm/traps.h>
 
@@ -180,6 +181,33 @@ void kgdb_roundup_cpus(unsigned long flags)
        local_irq_disable();
 }
 
+static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+{
+	struct pt_regs *regs = args->regs;
+
+	if (kgdb_handle_exception(1, args->signr, cmd, regs))
+		return NOTIFY_DONE;
+	return NOTIFY_STOP;
+}
+static int
+kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+{
+	unsigned long flags;
+	int ret;
+
+	local_irq_save(flags);
+	ret = __kgdb_notify(ptr, cmd);
+	local_irq_restore(flags);
+
+	return ret;
+}
+
+static struct notifier_block kgdb_notifier = {
+	.notifier_call	= kgdb_notify,
+	.priority	= -INT_MAX,
+};
+
+
 /**
  *	kgdb_arch_init - Perform any architecture specific initalization.
  *
@@ -188,6 +216,11 @@ void kgdb_roundup_cpus(unsigned long flags)
  */
 int kgdb_arch_init(void)
 {
+	int ret = register_die_notifier(&kgdb_notifier);
+
+	if (ret != 0)
+		return ret;
+
 	register_undef_hook(&kgdb_brkpt_hook);
 	register_undef_hook(&kgdb_compiled_brkpt_hook);
 
@@ -204,6 +237,7 @@ void kgdb_arch_exit(void)
 {
 	unregister_undef_hook(&kgdb_brkpt_hook);
 	unregister_undef_hook(&kgdb_compiled_brkpt_hook);
+	unregister_die_notifier(&kgdb_notifier);
 }
 
 /*
