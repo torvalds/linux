@@ -506,7 +506,7 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 					"restart rx from a descriptor that's "
 					"not free: %p\n",
 					priv->dev->name, restart);
-				goto fatal_error;
+			goto fatal_error;
 		}
 
 		cpmac_write(priv->regs, CPMAC_RX_PTR(0), restart->mapping);
