@@ -201,6 +201,9 @@ static void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
 {
 	clear_bit(kvmppc_book3s_vec2irqprio(vec),
 		  &vcpu->arch.pending_exceptions);
+
+	if (!vcpu->arch.pending_exceptions)
+		vcpu->arch.shared->int_pending = 0;
 }
 
 void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
