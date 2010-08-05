@@ -13,6 +13,11 @@ config XEN
 	  kernel to boot in a paravirtualized environment under the
 	  Xen hypervisor.
 
+config XEN_PVHVM
+	def_bool y
+	depends on XEN
+	depends on X86_LOCAL_APIC
+
 config XEN_MAX_DOMAIN_MEMORY
        int "Maximum allowed size of a domain in gigabytes"
        default 8 if X86_32
