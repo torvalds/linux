@@ -1,7 +1,7 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007-2009 Freescale Semiconductor, Inc.
+ * Copyright 2007-2010 Freescale Semiconductor, Inc.
  * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
@@ -34,7 +34,7 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
-static int fsl_pcie_bus_fixup;
+static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
 static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
 {
@@ -430,6 +430,13 @@ struct mpc83xx_pcie_priv {
 	u32 dev_base;
 };
 
+struct pex_inbound_window {
+	u32 ar;
+	u32 tar;
+	u32 barl;
+	u32 barh;
+};
+
 /*
  * With the convention of u-boot, the PCIE outbound window 0 serves
  * as configuration transactions outbound.
@@ -437,6 +444,8 @@ struct mpc83xx_pcie_priv {
 #define PEX_OUTWIN0_BAR		0xCA4
 #define PEX_OUTWIN0_TAL		0xCA8
 #define PEX_OUTWIN0_TAH		0xCAC
+#define PEX_RC_INWIN_BASE	0xE60
+#define PEX_RCIWARn_EN		0x1
 
 static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 {
@@ -604,6 +613,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	const int *bus_range;
 	int primary;
 
+	is_mpc83xx_pci = 1;
+
 	if (!of_device_is_available(dev)) {
 		pr_warning("%s: disabled by the firmware.\n",
 			   dev->full_name);
@@ -683,3 +694,40 @@ err0:
 	return ret;
 }
 #endif /* CONFIG_PPC_83xx */
+
+u64 fsl_pci_immrbar_base(struct pci_controller *hose)
+{
+#ifdef CONFIG_PPC_83xx
+	if (is_mpc83xx_pci) {
+		struct mpc83xx_pcie_priv *pcie = hose->dn->data;
+		struct pex_inbound_window *in;
+		int i;
+
+		/* Walk the Root Complex Inbound windows to match IMMR base */
+		in = pcie->cfg_type0 + PEX_RC_INWIN_BASE;
+		for (i = 0; i < 4; i++) {
+			/* not enabled, skip */
+			if (!in_le32(&in[i].ar) & PEX_RCIWARn_EN)
+				 continue;
+
+			if (get_immrbase() == in_le32(&in[i].tar))
+				return (u64)in_le32(&in[i].barh) << 32 |
+					    in_le32(&in[i].barl);
+		}
+
+		printk(KERN_WARNING "could not find PCI BAR matching IMMR\n");
+	}
+#endif
+
+#if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+	if (!is_mpc83xx_pci) {
+		u32 base;
+
+		pci_bus_read_config_dword(hose->bus,
+			PCI_DEVFN(0, 0), PCI_BASE_ADDRESS_0, &base);
+		return base;
+	}
+#endif
+
+	return 0;
+}
