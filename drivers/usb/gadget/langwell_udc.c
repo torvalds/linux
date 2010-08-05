@@ -2988,6 +2988,50 @@ static void gadget_release(struct device *_dev)
 }
 
 
+/* enable SRAM caching if SRAM detected */
+static void sram_init(struct langwell_udc *dev)
+{
+	struct pci_dev		*pdev = dev->pdev;
+
+	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
+
+	dev->sram_addr = pci_resource_start(pdev, 1);
+	dev->sram_size = pci_resource_len(pdev, 1);
+	dev_info(&dev->pdev->dev, "Found private SRAM at %x size:%x\n",
+			dev->sram_addr, dev->sram_size);
+	dev->got_sram = 1;
+
+	if (pci_request_region(pdev, 1, kobject_name(&pdev->dev.kobj))) {
+		dev_warn(&dev->pdev->dev, "SRAM request failed\n");
+		dev->got_sram = 0;
+	} else if (!dma_declare_coherent_memory(&pdev->dev, dev->sram_addr,
+			dev->sram_addr, dev->sram_size, DMA_MEMORY_MAP)) {
+		dev_warn(&dev->pdev->dev, "SRAM DMA declare failed\n");
+		pci_release_region(pdev, 1);
+		dev->got_sram = 0;
+	}
+
+	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+}
+
+
+/* release SRAM caching */
+static void sram_deinit(struct langwell_udc *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+
+	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
+
+	dma_release_declared_memory(&pdev->dev);
+	pci_release_region(pdev, 1);
+
+	dev->got_sram = 0;
+
+	dev_info(&dev->pdev->dev, "release SRAM caching\n");
+	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+}
+
+
 /* tear down the binding between this driver and the pci device */
 static void langwell_udc_remove(struct pci_dev *pdev)
 {
@@ -3000,18 +3044,24 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	dev->done = &done;
 
-	/* free memory allocated in probe */
+#ifndef	OTG_TRANSCEIVER
+	/* free dTD dma_pool and dQH */
 	if (dev->dtd_pool)
 		dma_pool_destroy(dev->dtd_pool);
+
+	if (dev->ep_dqh)
+		dma_free_coherent(&pdev->dev, dev->ep_dqh_size,
+			dev->ep_dqh, dev->ep_dqh_dma);
+
+	/* release SRAM caching */
+	if (dev->has_sram && dev->got_sram)
+		sram_deinit(dev);
+#endif
 
 	if (dev->status_req) {
 		kfree(dev->status_req->req.buf);
 		kfree(dev->status_req);
 	}
-
-	if (dev->ep_dqh)
-		dma_free_coherent(&pdev->dev, dev->ep_dqh_size,
-			dev->ep_dqh, dev->ep_dqh_dma);
 
 	kfree(dev->ep);
 
@@ -3140,7 +3190,15 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 		goto error;
 	}
 
+	dev->has_sram = 1;
+	dev->got_sram = 0;
+	dev_vdbg(&dev->pdev->dev, "dev->has_sram: %d\n", dev->has_sram);
+
 #ifndef	OTG_TRANSCEIVER
+	/* enable SRAM caching if detected */
+	if (dev->has_sram && !dev->got_sram)
+		sram_init(dev);
+
 	dev_info(&dev->pdev->dev,
 			"irq %d, io mem: 0x%08lx, len: 0x%08lx, pci mem 0x%p\n",
 			pdev->irq, resource, len, base);
@@ -3335,6 +3393,18 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* save PCI state */
 	pci_save_state(pdev);
 
+	/* free dTD dma_pool and dQH */
+	if (dev->dtd_pool)
+		dma_pool_destroy(dev->dtd_pool);
+
+	if (dev->ep_dqh)
+		dma_free_coherent(&pdev->dev, dev->ep_dqh_size,
+			dev->ep_dqh, dev->ep_dqh_dma);
+
+	/* release SRAM caching */
+	if (dev->has_sram && dev->got_sram)
+		sram_deinit(dev);
+
 	/* set device power state */
 	pci_set_power_state(pdev, PCI_D3hot);
 
@@ -3351,6 +3421,7 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 static int langwell_udc_resume(struct pci_dev *pdev)
 {
 	struct langwell_udc	*dev = the_controller;
+	size_t			size;
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -3360,6 +3431,38 @@ static int langwell_udc_resume(struct pci_dev *pdev)
 
 	/* set device D0 power state */
 	pci_set_power_state(pdev, PCI_D0);
+
+	/* enable SRAM caching if detected */
+	if (dev->has_sram && !dev->got_sram)
+		sram_init(dev);
+
+	/* allocate device dQH memory */
+	size = dev->ep_max * sizeof(struct langwell_dqh);
+	dev_vdbg(&dev->pdev->dev, "orig size = %d\n", size);
+	if (size < DQH_ALIGNMENT)
+		size = DQH_ALIGNMENT;
+	else if ((size % DQH_ALIGNMENT) != 0) {
+		size += DQH_ALIGNMENT + 1;
+		size &= ~(DQH_ALIGNMENT - 1);
+	}
+	dev->ep_dqh = dma_alloc_coherent(&pdev->dev, size,
+					&dev->ep_dqh_dma, GFP_KERNEL);
+	if (!dev->ep_dqh) {
+		dev_err(&dev->pdev->dev, "allocate dQH memory failed\n");
+		return -ENOMEM;
+	}
+	dev->ep_dqh_size = size;
+	dev_vdbg(&dev->pdev->dev, "ep_dqh_size = %d\n", dev->ep_dqh_size);
+
+	/* create dTD dma_pool resource */
+	dev->dtd_pool = dma_pool_create("langwell_dtd",
+			&dev->pdev->dev,
+			sizeof(struct langwell_dtd),
+			DTD_ALIGNMENT,
+			DMA_BOUNDARY);
+
+	if (!dev->dtd_pool)
+		return -ENOMEM;
 
 	/* restore PCI state */
 	pci_restore_state(pdev);
