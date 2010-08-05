@@ -78,7 +78,8 @@ kvm_emulate_mtmsrd:
 
 	/* OR the register's (MSR_EE|MSR_RI) on MSR */
 kvm_emulate_mtmsrd_reg:
-	andi.	r30, r0, (MSR_EE|MSR_RI)
+	ori	r30, r0, 0
+	andi.	r30, r30, (MSR_EE|MSR_RI)
 	or	r31, r31, r30
 
 	/* Put MSR back into magic page */
@@ -96,6 +97,7 @@ kvm_emulate_mtmsrd_reg:
 	SCRATCH_RESTORE
 
 	/* Nag hypervisor */
+kvm_emulate_mtmsrd_orig_ins:
 	tlbsync
 
 	b	kvm_emulate_mtmsrd_branch
@@ -116,6 +118,10 @@ kvm_emulate_mtmsrd_branch_offs:
 .global kvm_emulate_mtmsrd_reg_offs
 kvm_emulate_mtmsrd_reg_offs:
 	.long (kvm_emulate_mtmsrd_reg - kvm_emulate_mtmsrd) / 4
+
+.global kvm_emulate_mtmsrd_orig_ins_offs
+kvm_emulate_mtmsrd_orig_ins_offs:
+	.long (kvm_emulate_mtmsrd_orig_ins - kvm_emulate_mtmsrd) / 4
 
 .global kvm_emulate_mtmsrd_len
 kvm_emulate_mtmsrd_len:

@@ -158,6 +158,7 @@ static u32 *kvm_alloc(int len)
 
 extern u32 kvm_emulate_mtmsrd_branch_offs;
 extern u32 kvm_emulate_mtmsrd_reg_offs;
+extern u32 kvm_emulate_mtmsrd_orig_ins_offs;
 extern u32 kvm_emulate_mtmsrd_len;
 extern u32 kvm_emulate_mtmsrd[];
 
@@ -186,7 +187,21 @@ static void kvm_patch_ins_mtmsrd(u32 *inst, u32 rt)
 	/* Modify the chunk to fit the invocation */
 	memcpy(p, kvm_emulate_mtmsrd, kvm_emulate_mtmsrd_len * 4);
 	p[kvm_emulate_mtmsrd_branch_offs] |= distance_end & KVM_INST_B_MASK;
-	p[kvm_emulate_mtmsrd_reg_offs] |= rt;
+	switch (get_rt(rt)) {
+	case 30:
+		kvm_patch_ins_ll(&p[kvm_emulate_mtmsrd_reg_offs],
+				 magic_var(scratch2), KVM_RT_30);
+		break;
+	case 31:
+		kvm_patch_ins_ll(&p[kvm_emulate_mtmsrd_reg_offs],
+				 magic_var(scratch1), KVM_RT_30);
+		break;
+	default:
+		p[kvm_emulate_mtmsrd_reg_offs] |= rt;
+		break;
+	}
+
+	p[kvm_emulate_mtmsrd_orig_ins_offs] = *inst;
 	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_mtmsrd_len * 4);
 
 	/* Patch the invocation */
@@ -423,9 +438,7 @@ static void kvm_check_ins(u32 *inst, u32 features)
 
 	/* Rewrites */
 	case KVM_INST_MTMSRD_L1:
-		/* We use r30 and r31 during the hook */
-		if (get_rt(inst_rt) < 30)
-			kvm_patch_ins_mtmsrd(inst, inst_rt);
+		kvm_patch_ins_mtmsrd(inst, inst_rt);
 		break;
 	case KVM_INST_MTMSR:
 	case KVM_INST_MTMSRD_L0:
