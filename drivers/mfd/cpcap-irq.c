@@ -630,3 +630,21 @@ int cpcap_irq_sense(struct cpcap_device *cpcap,
 	return ((val & EVENT_MASK(irq)) != 0) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(cpcap_irq_sense);
+
+#ifdef CONFIG_PM
+int cpcap_irq_suspend(struct cpcap_device *cpcap)
+{
+	struct spi_device *spi = cpcap->spi;
+
+	disable_irq(spi->irq);
+	return 0;
+}
+
+int cpcap_irq_resume(struct cpcap_device *cpcap)
+{
+	struct spi_device *spi = cpcap->spi;
+
+	enable_irq(spi->irq);
+	return 0;
+}
+#endif

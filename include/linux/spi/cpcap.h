@@ -717,6 +717,12 @@ int cpcap_irq_mask_get(struct cpcap_device *cpcap, enum cpcap_irqs int_event);
 int cpcap_irq_sense(struct cpcap_device *cpcap, enum cpcap_irqs int_event,
 		    unsigned char clear);
 
+#ifdef CONFIG_PM
+int cpcap_irq_suspend(struct cpcap_device *cpcap);
+
+int cpcap_irq_resume(struct cpcap_device *cpcap);
+#endif
+
 int cpcap_adc_sync_read(struct cpcap_device *cpcap,
 			struct cpcap_adc_request *request);
 
