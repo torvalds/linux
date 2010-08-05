@@ -63,7 +63,7 @@ static void __init sbus_iommu_init(struct of_device *op)
 	unsigned long *bitmap;
 	unsigned long tmp;
 
-	iommu = kmalloc(sizeof(struct iommu_struct), GFP_ATOMIC);
+	iommu = kmalloc(sizeof(struct iommu_struct), GFP_KERNEL);
 	if (!iommu) {
 		prom_printf("Unable to allocate iommu structure\n");
 		prom_halt();
