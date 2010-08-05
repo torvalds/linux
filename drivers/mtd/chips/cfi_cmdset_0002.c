@@ -418,12 +418,13 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 			cfi_fixup_major_minor(cfi, extp);
 
 			/*
-			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3
-			 * see: http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_r20.pdf, page 19 and on
+			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3, 1.4
+			 * see: http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_r20.pdf, page 19
 			 *      http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_100_20011201.pdf
+			 *      http://www.spansion.com/Support/Datasheets/s29ws-p_00_a12_e.pdf
 			 */
 			if (extp->MajorVersion != '1' ||
-			    (extp->MajorVersion == '1' && ( extp->MinorVersion < '0' || extp->MinorVersion > '3'))) {
+			    (extp->MajorVersion == '1' && (extp->MinorVersion < '0' || extp->MinorVersion > '4'))) {
 				printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
 				       "version %c.%c (%#02x/%#02x).\n",
 				       extp->MajorVersion, extp->MinorVersion,
