@@ -2158,6 +2158,7 @@ struct load_info {
 	} index;
 };
 
+/* Sets info->hdr and info->len. */
 static int copy_and_check(struct load_info *info, const void __user *umod, unsigned long len)
 {
 	int err;
@@ -2199,6 +2200,39 @@ free_hdr:
 	return err;
 }
 
+static int rewrite_section_headers(struct load_info *info)
+{
+	unsigned int i;
+
+	/* This should always be true, but let's be sure. */
+	info->sechdrs[0].sh_addr = 0;
+
+	for (i = 1; i < info->hdr->e_shnum; i++) {
+		Elf_Shdr *shdr = &info->sechdrs[i];
+		if (shdr->sh_type != SHT_NOBITS
+		    && info->len < shdr->sh_offset + shdr->sh_size) {
+			printk(KERN_ERR "Module len %lu truncated\n",
+			       info->len);
+			return -ENOEXEC;
+		}
+
+		/* Mark all sections sh_addr with their address in the
+		   temporary image. */
+		shdr->sh_addr = (size_t)info->hdr + shdr->sh_offset;
+
+#ifndef CONFIG_MODULE_UNLOAD
+		/* Don't load .exit sections */
+		if (strstarts(info->secstrings+shdr->sh_name, ".exit"))
+			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
+#endif
+		/* Don't keep modinfo and version sections. */
+		if (!strcmp(info->secstrings+shdr->sh_name, "__versions")
+		    || !strcmp(info->secstrings+shdr->sh_name, ".modinfo"))
+			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
+	}
+	return 0;
+}
+
 /*
  * Set up our basic convenience variables (pointers to section headers,
  * search for module section index etc), and do some basic section
@@ -2210,33 +2244,27 @@ free_hdr:
 static struct module *setup_load_info(struct load_info *info)
 {
 	unsigned int i;
+	int err;
 	struct module *mod;
 
 	/* Set up the convenience variables */
 	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
-	info->secstrings = (void *)info->hdr + info->sechdrs[info->hdr->e_shstrndx].sh_offset;
-	info->sechdrs[0].sh_addr = 0;
+	info->secstrings = (void *)info->hdr
+		+ info->sechdrs[info->hdr->e_shstrndx].sh_offset;
 
+	err = rewrite_section_headers(info);
+	if (err)
+		return ERR_PTR(err);
+
+	/* Find internal symbols and strings. */
 	for (i = 1; i < info->hdr->e_shnum; i++) {
-		if (info->sechdrs[i].sh_type != SHT_NOBITS
-		    && info->len < info->sechdrs[i].sh_offset + info->sechdrs[i].sh_size)
-			goto truncated;
-
-		/* Mark all sections sh_addr with their address in the
-		   temporary image. */
-		info->sechdrs[i].sh_addr = (size_t)info->hdr + info->sechdrs[i].sh_offset;
-
-		/* Internal symbols and strings. */
 		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
 			info->index.sym = i;
 			info->index.str = info->sechdrs[i].sh_link;
-			info->strtab = (char *)info->hdr + info->sechdrs[info->index.str].sh_offset;
+			info->strtab = (char *)info->hdr
+				+ info->sechdrs[info->index.str].sh_offset;
+			break;
 		}
-#ifndef CONFIG_MODULE_UNLOAD
-		/* Don't load .exit sections */
-		if (strstarts(info->secstrings+info->sechdrs[i].sh_name, ".exit"))
-			info->sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
-#endif
 	}
 
 	info->index.mod = find_sec(info->hdr, info->sechdrs, info->secstrings,
@@ -2258,19 +2286,11 @@ static struct module *setup_load_info(struct load_info *info)
 	info->index.info = find_sec(info->hdr, info->sechdrs, info->secstrings, ".modinfo");
 	info->index.pcpu = find_pcpusec(info->hdr, info->sechdrs, info->secstrings);
 
-	/* Don't keep modinfo and version sections. */
-	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
-	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
-
 	/* Check module struct version now, before we try to use module. */
 	if (!check_modstruct_version(info->sechdrs, info->index.vers, mod))
 		return ERR_PTR(-ENOEXEC);
 
 	return mod;
-
- truncated:
-	printk(KERN_ERR "Module len %lu truncated\n", info->len);
-	return ERR_PTR(-ENOEXEC);
 }
 
 static int check_modinfo(struct module *mod,
