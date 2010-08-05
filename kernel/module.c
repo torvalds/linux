@@ -1803,7 +1803,7 @@ static char *next_string(char *string, unsigned long *secsize)
 	return string;
 }
 
-static char *get_modinfo(Elf_Shdr *sechdrs,
+static char *get_modinfo(const Elf_Shdr *sechdrs,
 			 unsigned int info,
 			 const char *tag)
 {
@@ -2109,6 +2109,73 @@ static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 }
 #endif
 
+static int copy_and_check(Elf_Ehdr **hdrp,
+			  const void __user *umod, unsigned long len)
+{
+	int err;
+	Elf_Ehdr *hdr;
+
+	if (len < sizeof(*hdr))
+		return -ENOEXEC;
+
+	/* Suck in entire file: we'll want most of it. */
+	/* vmalloc barfs on "unusual" numbers.  Check here */
+	if (len > 64 * 1024 * 1024 || (hdr = *hdrp = vmalloc(len)) == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(hdr, umod, len) != 0) {
+		err = -EFAULT;
+		goto free_hdr;
+	}
+
+	/* Sanity checks against insmoding binaries or wrong arch,
+	   weird elf version */
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
+	    || hdr->e_type != ET_REL
+	    || !elf_check_arch(hdr)
+	    || hdr->e_shentsize != sizeof(Elf_Shdr)) {
+		err = -ENOEXEC;
+		goto free_hdr;
+	}
+
+	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr)) {
+		err = -ENOEXEC;
+		goto free_hdr;
+	}
+	return 0;
+
+free_hdr:
+	vfree(hdr);
+	return err;
+}
+
+static int check_modinfo(struct module *mod,
+			 const Elf_Shdr *sechdrs,
+			 unsigned int infoindex, unsigned int versindex)
+{
+	const char *modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
+	int err;
+
+	/* This is allowed: modprobe --force will invalidate it. */
+	if (!modmagic) {
+		err = try_to_force_load(mod, "bad vermagic");
+		if (err)
+			return err;
+	} else if (!same_magic(modmagic, vermagic, versindex)) {
+		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
+		       mod->name, modmagic, vermagic);
+		return -ENOEXEC;
+	}
+
+	if (get_modinfo(sechdrs, infoindex, "staging")) {
+		add_taint_module(mod, TAINT_CRAP);
+		printk(KERN_WARNING "%s: module is from the staging directory,"
+		       " the quality is unknown, you have been warned.\n",
+		       mod->name);
+	}
+	return 0;
+}
+
 static void find_module_sections(struct module *mod, Elf_Ehdr *hdr,
 				 Elf_Shdr *sechdrs, const char *secstrings)
 {
@@ -2246,14 +2313,13 @@ static noinline struct module *load_module(void __user *umod,
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
-	char *secstrings, *args, *modmagic, *strtab = NULL;
-	char *staging;
+	char *secstrings, *args, *strtab = NULL;
 	unsigned int i;
 	unsigned int symindex = 0;
 	unsigned int strindex = 0;
 	unsigned int modindex, versindex, infoindex, pcpuindex;
 	struct module *mod;
-	long err = 0;
+	long err;
 	unsigned long symoffs, stroffs, *strmap;
 	void __percpu *percpu;
 	struct _ddebug *debug = NULL;
@@ -2263,31 +2329,10 @@ static noinline struct module *load_module(void __user *umod,
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
-	if (len < sizeof(*hdr))
-		return ERR_PTR(-ENOEXEC);
 
-	/* Suck in entire file: we'll want most of it. */
-	/* vmalloc barfs on "unusual" numbers.  Check here */
-	if (len > 64 * 1024 * 1024 || (hdr = vmalloc(len)) == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(hdr, umod, len) != 0) {
-		err = -EFAULT;
-		goto free_hdr;
-	}
-
-	/* Sanity checks against insmoding binaries or wrong arch,
-	   weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
-	    || hdr->e_type != ET_REL
-	    || !elf_check_arch(hdr)
-	    || hdr->e_shentsize != sizeof(*sechdrs)) {
-		err = -ENOEXEC;
-		goto free_hdr;
-	}
-
-	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr))
-		goto truncated;
+	err = copy_and_check(&hdr, umod, len);
+	if (err)
+		return ERR_PTR(err);
 
 	/* Convenience variables */
 	sechdrs = (void *)hdr + hdr->e_shoff;
@@ -2347,26 +2392,9 @@ static noinline struct module *load_module(void __user *umod,
 		goto free_hdr;
 	}
 
-	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
-	/* This is allowed: modprobe --force will invalidate it. */
-	if (!modmagic) {
-		err = try_to_force_load(mod, "bad vermagic");
-		if (err)
-			goto free_hdr;
-	} else if (!same_magic(modmagic, vermagic, versindex)) {
-		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
-		       mod->name, modmagic, vermagic);
-		err = -ENOEXEC;
+	err = check_modinfo(mod, sechdrs, infoindex, versindex);
+	if (err)
 		goto free_hdr;
-	}
-
-	staging = get_modinfo(sechdrs, infoindex, "staging");
-	if (staging) {
-		add_taint_module(mod, TAINT_CRAP);
-		printk(KERN_WARNING "%s: module is from the staging directory,"
-		       " the quality is unknown, you have been warned.\n",
-		       mod->name);
-	}
 
 	/* Now copy in args */
 	args = strndup_user(uargs, ~0UL >> 1);
