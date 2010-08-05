@@ -121,9 +121,8 @@ bttv_i2c_wait_done(struct bttv *btv)
 
 	/* timeout */
 	if (wait_event_interruptible_timeout(btv->i2c_queue,
-		btv->i2c_done, msecs_to_jiffies(85)) == -ERESTARTSYS)
-
-	rc = -EIO;
+	    btv->i2c_done, msecs_to_jiffies(85)) == -ERESTARTSYS)
+		rc = -EIO;
 
 	if (btv->i2c_done & BT848_INT_RACK)
 		rc = 1;
