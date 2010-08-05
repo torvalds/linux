@@ -20,6 +20,7 @@ platforms += sgi-ip27
 platforms += sgi-ip32
 platforms += sibyte
 platforms += sni
+platforms += txx9
 platforms += vr41xx
 platforms += wrppmc
 

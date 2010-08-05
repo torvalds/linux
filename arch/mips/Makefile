@@ -229,28 +229,6 @@ cflags-$(CONFIG_SOC_EMMA2RH)	+= -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
 load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
 
-#
-# Common TXx9
-#
-core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_MACH_TX39XX) += -I$(srctree)/arch/mips/include/asm/mach-tx39xx
-load-$(CONFIG_MACH_TX39XX)	+= 0xffffffff80050000
-core-$(CONFIG_MACH_TX49XX)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_MACH_TX49XX) += -I$(srctree)/arch/mips/include/asm/mach-tx49xx
-load-$(CONFIG_MACH_TX49XX)	+= 0xffffffff80100000
-
-#
-# Toshiba JMR-TX3927 board
-#
-core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/txx9/jmr3927/
-
-#
-# Toshiba RBTX49XX boards
-#
-core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/rbtx4927/
-core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/rbtx4938/
-core-$(CONFIG_TOSHIBA_RBTX4939) += arch/mips/txx9/rbtx4939/
-
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 
