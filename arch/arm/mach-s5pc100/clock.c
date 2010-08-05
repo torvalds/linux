@@ -1078,7 +1078,7 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P_CLK_DIV3, .shift = 24, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 0,
 			.ctrlbit	= (1 << 12),
 			.enable		= s5pc100_sclk1_ctrl,
@@ -1089,7 +1089,7 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P_CLK_DIV3, .shift = 0, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 1,
 			.ctrlbit	= (1 << 13),
 			.enable		= s5pc100_sclk1_ctrl,
@@ -1100,7 +1100,7 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P_CLK_DIV3, .shift = 4, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 2,
 			.ctrlbit	= (1 << 14),
 			.enable		= s5pc100_sclk1_ctrl,
