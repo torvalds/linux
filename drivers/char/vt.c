@@ -104,6 +104,7 @@
 #include <linux/io.h>
 #include <asm/system.h>
 #include <linux/uaccess.h>
+#include <linux/kdb.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -3442,6 +3443,22 @@ int con_debug_enter(struct vc_data *vc)
 	console_blanked = 0;
 	if (vc->vc_sw->con_debug_enter)
 		ret = vc->vc_sw->con_debug_enter(vc);
+#ifdef CONFIG_KGDB_KDB
+	/* Set the initial LINES variable if it is not already set */
+	if (vc->vc_rows < 999) {
+		int linecount;
+		char lns[4];
+		const char *setargs[3] = {
+			"set",
+			"LINES",
+			lns,
+		};
+		if (kdbgetintenv(setargs[0], &linecount)) {
+			snprintf(lns, 4, "%i", vc->vc_rows);
+			kdb_set(2, setargs);
+		}
+	}
+#endif /* CONFIG_KGDB_KDB */
 	return ret;
 }
 EXPORT_SYMBOL_GPL(con_debug_enter);
