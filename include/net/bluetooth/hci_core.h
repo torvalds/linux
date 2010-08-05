@@ -132,7 +132,7 @@ struct hci_dev {
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
-	struct bdaddr_list	blacklist;
+	struct list_head	blacklist;
 
 	struct hci_dev_stats	stat;
 

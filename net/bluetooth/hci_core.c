@@ -924,7 +924,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hci_conn_hash_init(hdev);
 
-	INIT_LIST_HEAD(&hdev->blacklist.list);
+	INIT_LIST_HEAD(&hdev->blacklist);
 
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
