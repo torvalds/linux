@@ -202,19 +202,19 @@ load-$(CONFIG_NXP_STB225)		+= 0xffffffff80001000
 #
 # Common NXP PNX8550
 #
-core-$(CONFIG_SOC_PNX8550)	+= arch/mips/nxp/pnx8550/common/
+core-$(CONFIG_SOC_PNX8550)	+= arch/mips/pnx8550/common/
 cflags-$(CONFIG_SOC_PNX8550)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
 
 #
 # NXP PNX8550 JBS board
 #
-libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/nxp/pnx8550/jbs/
+libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/pnx8550/jbs/
 #cflags-$(CONFIG_PNX8550_JBS)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
 load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
 # NXP PNX8550 STB810 board
 #
-libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/nxp/pnx8550/stb810/
+libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/pnx8550/stb810/
 load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
 
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
