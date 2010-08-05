@@ -1698,6 +1698,39 @@ static int simplify_symbols(Elf_Shdr *sechdrs,
 	return ret;
 }
 
+static int apply_relocations(struct module *mod,
+			     Elf_Ehdr *hdr,
+			     Elf_Shdr *sechdrs,
+			     unsigned int symindex,
+			     unsigned int strindex)
+{
+	unsigned int i;
+	int err = 0;
+
+	/* Now do relocations. */
+	for (i = 1; i < hdr->e_shnum; i++) {
+		const char *strtab = (char *)sechdrs[strindex].sh_addr;
+		unsigned int info = sechdrs[i].sh_info;
+
+		/* Not a valid relocation section? */
+		if (info >= hdr->e_shnum)
+			continue;
+
+		/* Don't bother with non-allocated sections */
+		if (!(sechdrs[info].sh_flags & SHF_ALLOC))
+			continue;
+
+		if (sechdrs[i].sh_type == SHT_REL)
+			err = apply_relocate(sechdrs, strtab, symindex, i, mod);
+		else if (sechdrs[i].sh_type == SHT_RELA)
+			err = apply_relocate_add(sechdrs, strtab, symindex, i,
+						 mod);
+		if (err < 0)
+			break;
+	}
+	return err;
+}
+
 /* Additional bytes needed by arch in front of individual sections */
 unsigned int __weak arch_mod_section_prepend(struct module *mod,
 					     unsigned int section)
@@ -2179,6 +2212,10 @@ static int check_modinfo(struct module *mod,
 		       " the quality is unknown, you have been warned.\n",
 		       mod->name);
 	}
+
+	/* Set up license info based on the info section */
+	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
+
 	return 0;
 }
 
@@ -2245,6 +2282,10 @@ static void find_module_sections(struct module *mod, Elf_Ehdr *hdr,
 					     sizeof(*mod->ftrace_callsites),
 					     &mod->num_ftrace_callsites);
 #endif
+
+	if (section_addr(hdr, sechdrs, secstrings, "__obsparm"))
+		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
+		       mod->name);
 }
 
 static struct module *move_module(struct module *mod,
@@ -2311,6 +2352,60 @@ static struct module *move_module(struct module *mod,
 	return mod;
 }
 
+static int check_module_license_and_versions(struct module *mod,
+					     Elf_Shdr *sechdrs)
+{
+	/*
+	 * ndiswrapper is under GPL by itself, but loads proprietary modules.
+	 * Don't use add_taint_module(), as it would prevent ndiswrapper from
+	 * using GPL-only symbols it needs.
+	 */
+	if (strcmp(mod->name, "ndiswrapper") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE);
+
+	/* driverloader was caught wrongly pretending to be under GPL */
+	if (strcmp(mod->name, "driverloader") == 0)
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+
+#ifdef CONFIG_MODVERSIONS
+	if ((mod->num_syms && !mod->crcs)
+	    || (mod->num_gpl_syms && !mod->gpl_crcs)
+	    || (mod->num_gpl_future_syms && !mod->gpl_future_crcs)
+#ifdef CONFIG_UNUSED_SYMBOLS
+	    || (mod->num_unused_syms && !mod->unused_crcs)
+	    || (mod->num_unused_gpl_syms && !mod->unused_gpl_crcs)
+#endif
+		) {
+		return try_to_force_load(mod,
+					 "no versions for exported symbols");
+	}
+#endif
+	return 0;
+}
+
+static void flush_module_icache(const struct module *mod)
+{
+	mm_segment_t old_fs;
+
+	/* flush the icache in correct context */
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	/*
+	 * Flush the instruction cache, since we've played with text.
+	 * Do it before processing of module parameters, so the module
+	 * can provide parameter accessor functions of its own.
+	 */
+	if (mod->module_init)
+		flush_icache_range((unsigned long)mod->module_init,
+				   (unsigned long)mod->module_init
+				   + mod->init_size);
+	flush_icache_range((unsigned long)mod->module_core,
+			   (unsigned long)mod->module_core + mod->core_size);
+
+	set_fs(old_fs);
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static noinline struct module *load_module(void __user *umod,
@@ -2330,8 +2425,6 @@ static noinline struct module *load_module(void __user *umod,
 	void __percpu *percpu;
 	struct _ddebug *debug = NULL;
 	unsigned int num_debug = 0;
-
-	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
@@ -2453,20 +2546,13 @@ static noinline struct module *load_module(void __user *umod,
 	if (err)
 		goto free_init;
 
-	/* Set up license info based on the info section */
-	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
+	/* Now we've got everything in the final locations, we can
+	 * find optional sections. */
+	find_module_sections(mod, hdr, sechdrs, secstrings);
 
-	/*
-	 * ndiswrapper is under GPL by itself, but loads proprietary modules.
-	 * Don't use add_taint_module(), as it would prevent ndiswrapper from
-	 * using GPL-only symbols it needs.
-	 */
-	if (strcmp(mod->name, "ndiswrapper") == 0)
-		add_taint(TAINT_PROPRIETARY_MODULE);
-
-	/* driverloader was caught wrongly pretending to be under GPL */
-	if (strcmp(mod->name, "driverloader") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+	err = check_module_license_and_versions(mod, sechdrs);
+	if (err)
+		goto free_unload;
 
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
@@ -2477,47 +2563,9 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto cleanup;
 
-	/* Now we've got everything in the final locations, we can
-	 * find optional sections. */
-	find_module_sections(mod, hdr, sechdrs, secstrings);
-
-#ifdef CONFIG_MODVERSIONS
-	if ((mod->num_syms && !mod->crcs)
-	    || (mod->num_gpl_syms && !mod->gpl_crcs)
-	    || (mod->num_gpl_future_syms && !mod->gpl_future_crcs)
-#ifdef CONFIG_UNUSED_SYMBOLS
-	    || (mod->num_unused_syms && !mod->unused_crcs)
-	    || (mod->num_unused_gpl_syms && !mod->unused_gpl_crcs)
-#endif
-		) {
-		err = try_to_force_load(mod,
-					"no versions for exported symbols");
-		if (err)
-			goto cleanup;
-	}
-#endif
-
-	/* Now do relocations. */
-	for (i = 1; i < hdr->e_shnum; i++) {
-		const char *strtab = (char *)sechdrs[strindex].sh_addr;
-		unsigned int info = sechdrs[i].sh_info;
-
-		/* Not a valid relocation section? */
-		if (info >= hdr->e_shnum)
-			continue;
-
-		/* Don't bother with non-allocated sections */
-		if (!(sechdrs[info].sh_flags & SHF_ALLOC))
-			continue;
-
-		if (sechdrs[i].sh_type == SHT_REL)
-			err = apply_relocate(sechdrs, strtab, symindex, i,mod);
-		else if (sechdrs[i].sh_type == SHT_RELA)
-			err = apply_relocate_add(sechdrs, strtab, symindex, i,
-						 mod);
-		if (err < 0)
-			goto cleanup;
-	}
+	err = apply_relocations(mod, hdr, sechdrs, symindex, strindex);
+	if (err < 0)
+		goto cleanup;
 
   	/* Set up and sort exception table */
 	mod->extable = section_objs(hdr, sechdrs, secstrings, "__ex_table",
@@ -2541,28 +2589,9 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto cleanup;
 
-	/* flush the icache in correct context */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	/*
-	 * Flush the instruction cache, since we've played with text.
-	 * Do it before processing of module parameters, so the module
-	 * can provide parameter accessor functions of its own.
-	 */
-	if (mod->module_init)
-		flush_icache_range((unsigned long)mod->module_init,
-				   (unsigned long)mod->module_init
-				   + mod->init_size);
-	flush_icache_range((unsigned long)mod->module_core,
-			   (unsigned long)mod->module_core + mod->core_size);
-
-	set_fs(old_fs);
+	flush_module_icache(mod);
 
 	mod->args = args;
-	if (section_addr(hdr, sechdrs, secstrings, "__obsparm"))
-		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
-		       mod->name);
 
 	/* Now sew it into the lists so we can get lockdep and oops
 	 * info during argument parsing.  Noone should access us, since
@@ -2619,6 +2648,7 @@ static noinline struct module *load_module(void __user *umod,
 	module_arch_cleanup(mod);
  cleanup:
 	free_modinfo(mod);
+ free_unload:
 	module_unload_free(mod);
  free_init:
 	module_free(mod, mod->module_init);
