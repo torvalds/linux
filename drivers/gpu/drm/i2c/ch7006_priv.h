@@ -95,6 +95,7 @@ struct ch7006_priv {
 	int flicker;
 	int scale;
 
+	int chip_version;
 	int last_dpms;
 };
 
