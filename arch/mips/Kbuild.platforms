@@ -11,6 +11,7 @@ platforms += mti-malta
 platforms += pmc-sierra
 platforms += sgi-ip22
 platforms += sgi-ip27
+platforms += sgi-ip32
 platforms += sni
 platforms += vr41xx
 

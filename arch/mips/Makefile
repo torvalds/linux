@@ -251,18 +251,6 @@ cflags-$(CONFIG_POWERTV)        += -I$(srctree)/arch/mips/include/asm/mach-power
 load-$(CONFIG_POWERTV)		+= 0xffffffff90800000
 
 #
-# SGI-IP32 (O2)
-#
-# Set the load address to >= 80069000 if you want to leave space for symmon,
-# 0xffffffff80004000 for production kernels.  Note that the value must be aligned to
-# a multiple of the kernel stack size or the handling of the current variable
-# will break.
-#
-core-$(CONFIG_SGI_IP32)		+= arch/mips/sgi-ip32/
-cflags-$(CONFIG_SGI_IP32)	+= -I$(srctree)/arch/mips/include/asm/mach-ip32
-load-$(CONFIG_SGI_IP32)		+= 0xffffffff80004000
-
-#
 # Sibyte SB1250/BCM1480 SOC
 #
 # This is a LIB so that it links at the end, and initcalls are later
