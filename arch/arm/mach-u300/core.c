@@ -19,6 +19,8 @@
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <mach/coh901318.h>
 
 #include <asm/types.h>
@@ -1477,14 +1479,19 @@ static struct platform_device *platform_devs[] __initdata = {
 void __init u300_init_irq(void)
 {
 	u32 mask[2] = {0, 0};
+	struct clk *clk;
 	int i;
 
 	/* initialize clocking early, we want to clock the INTCON */
 	u300_clock_init();
 
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("intcon", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+
 	for (i = 0; i < NR_IRQS; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
-	u300_enable_intcon_clock();
 	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
 	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
 }

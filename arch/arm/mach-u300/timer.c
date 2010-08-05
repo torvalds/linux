@@ -15,6 +15,8 @@
 #include <linux/clocksource.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 
@@ -23,7 +25,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include "clock.h"
 
 /*
  * APP side special timer registers
@@ -367,7 +368,13 @@ unsigned long long notrace sched_clock(void)
  */
 static void __init u300_timer_init(void)
 {
-	u300_enable_timer_clock();
+	struct clk *clk;
+
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("apptimer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+
 	/*
 	 * Disable the "OS" and "DD" timers - these are designed for Symbian!
 	 * Example usage in cnh1601578 cpu subsystem pd_timer_app.c

@@ -1315,25 +1315,6 @@ static void __init clk_register(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 }
 
-/*
- * The interrupt controller is enabled before the clock API is registered.
- */
-void u300_enable_intcon_clock(void)
-{
-	clk_enable(&intcon_clk);
-}
-EXPORT_SYMBOL(u300_enable_intcon_clock);
-
-/*
- * The timer is enabled before the clock API is registered.
- */
-void u300_enable_timer_clock(void)
-{
-	clk_enable(&app_timer_clk);
-}
-EXPORT_SYMBOL(u300_enable_timer_clock);
-
-
 #if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_U300_DEBUG))
 /*
  * The following makes it possible to view the status (especially
