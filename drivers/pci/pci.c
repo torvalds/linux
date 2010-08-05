@@ -2689,7 +2689,7 @@ int pcie_get_readrq(struct pci_dev *dev)
 
 	ret = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
 	if (!ret)
-	ret = 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
+		ret = 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
 
 	return ret;
 }
