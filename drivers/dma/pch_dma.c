@@ -133,9 +133,9 @@ struct pch_dma {
 #define PCH_DMA_STS1	0x14
 
 #define dma_readl(pd, name) \
-	__raw_readl((pd)->membase + PCH_DMA_##name)
+	readl((pd)->membase + PCH_DMA_##name)
 #define dma_writel(pd, name, val) \
-	__raw_writel((val), (pd)->membase + PCH_DMA_##name)
+	writel((val), (pd)->membase + PCH_DMA_##name)
 
 static inline struct pch_dma_desc *to_pd_desc(struct dma_async_tx_descriptor *txd)
 {
