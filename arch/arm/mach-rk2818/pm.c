@@ -12,6 +12,22 @@
 #include <mach/iomux.h>
 #include <mach/gpio.h>
 
+extern void rockchip_timer_clocksource_suspend_resume(int suspend);
+extern int rockchip_timer_clocksource_irq_checkandclear(void);
+
+#ifdef CONFIG_DWC_OTG_HOST_ONLY
+static int rk28_usb_suspend(int exitsuspend) { return 0; }
+static int rk28_usb_check_vbus_change(void) { return 0; }
+#else
+extern int rk28_usb_suspend(int exitsuspend);
+extern int rk28_usb_check_vbus_change(void);
+#endif
+#ifdef CONFIG_DWC_OTG_BOTH_HOST_SLAVE
+extern int rk28_usb_check_connectid_change(void);
+#else
+static int rk28_usb_check_connectid_change(void) { return 0; }
+#endif
+
 #define regfile_readl(offset)	readl(RK2818_REGFILE_BASE + offset)
 
 #define scu_readl(offset)	readl(RK2818_SCU_BASE + offset)
@@ -197,9 +213,32 @@ static void rk2818_idle(void)
 
 static int rk2818_pm_enter(suspend_state_t state)
 {
-	rk2818_idle();
-	__udelay(40);
+	int irq_val = 0;
 
+	printk(KERN_DEBUG "before core halt\n");
+
+#ifdef CONFIG_RK28_USB_WAKE
+	rockchip_timer_clocksource_suspend_resume(1);
+
+	while (!irq_val) {
+		rk28_usb_suspend(0);
+#endif
+
+		rk2818_idle();
+
+#ifdef CONFIG_RK28_USB_WAKE
+		rk28_usb_suspend(1);
+		__udelay(400);
+
+		irq_val = rockchip_timer_clocksource_irq_checkandclear();
+		irq_val |= rk28_usb_check_vbus_change();
+		irq_val |= rk28_usb_check_connectid_change();
+	}
+
+	rockchip_timer_clocksource_suspend_resume(0);
+#endif
+
+	printk(KERN_DEBUG "quit arm halt,irq_val=0x%x\n", irq_val);
 	return 0;
 }
 

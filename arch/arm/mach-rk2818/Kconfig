@@ -34,4 +34,13 @@ config RK28_ADC
 	default y
 	---help---
 		RK28 ADC Driver
+
+config RK28_USB_WAKE
+	bool "Enable wake-up events for USB ports"
+	depends on ARCH_RK2818 && PM
+	default y
+	help
+	  Select this option if you want to have your system wake up
+	  from USB.
+
 endif
