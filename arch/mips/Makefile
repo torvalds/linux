@@ -230,56 +230,6 @@ core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
 load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
 
 #
-# Sibyte SB1250/BCM1480 SOC
-#
-# This is a LIB so that it links at the end, and initcalls are later
-# the sequence; but it is built as an object so that modules don't get
-# removed (as happens, even if they have __initcall/module_init)
-#
-core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/sb1250/
-core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM112X)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
-			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
-
-core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/sb1250/
-core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_SB1250)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
-			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
-
-core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/bcm1480/
-core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM1x55)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
-			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
-
-core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/bcm1480/
-core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM1x80)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
-			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
-
-#
-# Sibyte BCM91120x (Carmel) board
-# Sibyte BCM91120C (CRhine) board
-# Sibyte BCM91125C (CRhone) board
-# Sibyte BCM91125E (Rhone) board
-# Sibyte SWARM board
-# Sibyte BCM91x80 (BigSur) board
-#
-core-$(CONFIG_SIBYTE_CARMEL)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_CARMEL)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_CRHINE)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_CRHINE)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_CRHONE)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_CRHONE)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_RHONE)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_RHONE)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_SENTOSA)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_SENTOSA)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_SWARM)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_SWARM)	:= 0xffffffff80100000
-core-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
-load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
-
-#
 # Common TXx9
 #
 core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/

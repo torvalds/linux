@@ -18,6 +18,7 @@ platforms += rb532
 platforms += sgi-ip22
 platforms += sgi-ip27
 platforms += sgi-ip32
+platforms += sibyte
 platforms += sni
 platforms += vr41xx
 platforms += wrppmc
