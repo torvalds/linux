@@ -26,4 +26,4 @@
 obj-y += init.o ioremap.o memory.o powertv_setup.o reset.o time.o \
 	asic/ pci/
 
-EXTRA_CFLAGS += -Wall -Werror
+EXTRA_CFLAGS += -Wall

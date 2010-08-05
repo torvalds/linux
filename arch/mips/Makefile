@@ -237,13 +237,6 @@ core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
 load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
 
 #
-# Cisco PowerTV Platform
-#
-core-$(CONFIG_POWERTV)		+= arch/mips/powertv/
-cflags-$(CONFIG_POWERTV)        += -I$(srctree)/arch/mips/include/asm/mach-powertv
-load-$(CONFIG_POWERTV)		+= 0xffffffff90800000
-
-#
 # Sibyte SB1250/BCM1480 SOC
 #
 # This is a LIB so that it links at the end, and initcalls are later
