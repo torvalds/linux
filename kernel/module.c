@@ -2045,7 +2045,8 @@ static void add_kallsyms(struct module *mod, struct load_info *info,
 
 	mod->symtab = (void *)symsec->sh_addr;
 	mod->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
-	mod->strtab = info->strtab;
+	/* Make sure we get permanent strtab: don't use info->strtab. */
+	mod->strtab = (void *)info->sechdrs[info->index.str].sh_addr;
 
 	/* Set types up while we still have access to sections. */
 	for (i = 0; i < mod->num_symtab; i++)
