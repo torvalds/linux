@@ -907,11 +907,6 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block default_cu2_notifier = {
-	.notifier_call	= default_cu2_call,
-	.priority	= 0x80000000,		/* Run last  */
-};
-
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	unsigned int __user *epc;
@@ -1734,5 +1729,5 @@ void __init trap_init(void)
 
 	sort_extable(__start___dbe_table, __stop___dbe_table);
 
-	register_cu2_notifier(&default_cu2_notifier);
+	cu2_notifier(default_cu2_call, 0x80000000);	/* Run last  */
 }
