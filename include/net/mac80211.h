@@ -149,6 +149,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ARP_FILTER: Hardware ARP filter address list or state changed.
  * @BSS_CHANGED_QOS: QoS for this association was enabled/disabled. Note
  *	that it is only ever disabled for station mode.
+ * @BSS_CHANGED_IDLE: Idle changed for this BSS/interface.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -165,6 +166,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_IBSS		= 1<<11,
 	BSS_CHANGED_ARP_FILTER		= 1<<12,
 	BSS_CHANGED_QOS			= 1<<13,
+	BSS_CHANGED_IDLE		= 1<<14,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -223,6 +225,9 @@ enum ieee80211_bss_change {
  *	hardware must not perform any ARP filtering. Note, that the filter will
  *	be enabled also in promiscuous mode.
  * @qos: This is a QoS-enabled BSS.
+ * @idle: This interface is idle. There's also a global idle flag in the
+ *	hardware config which may be more appropriate depending on what
+ *	your driver/device needs to do.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -247,6 +252,7 @@ struct ieee80211_bss_conf {
 	u8 arp_addr_cnt;
 	bool arp_filter_enabled;
 	bool qos;
+	bool idle;
 };
 
 /**

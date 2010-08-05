@@ -888,9 +888,9 @@ static void ieee80211_work_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&local->work_skb_queue)))
 		ieee80211_work_rx_queued_mgmt(local, skb);
 
-	ieee80211_recalc_idle(local);
-
 	mutex_lock(&local->mtx);
+
+	ieee80211_recalc_idle(local);
 
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
 		bool started = wk->started;
@@ -1001,9 +1001,9 @@ static void ieee80211_work_work(struct work_struct *work)
 					     &local->scan_work,
 					     round_jiffies_relative(0));
 
-	mutex_unlock(&local->mtx);
-
 	ieee80211_recalc_idle(local);
+
+	mutex_unlock(&local->mtx);
 
 	list_for_each_entry_safe(wk, tmp, &free_work, list) {
 		wk->done(wk, NULL);

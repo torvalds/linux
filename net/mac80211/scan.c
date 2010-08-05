@@ -304,7 +304,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	ieee80211_offchannel_return(local, true);
 
  done:
+	mutex_lock(&local->mtx);
 	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
