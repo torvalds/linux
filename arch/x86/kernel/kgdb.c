@@ -456,7 +456,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 {
 	unsigned long addr;
 	char *ptr;
-	int newPC;
 
 	switch (remcomInBuffer[0]) {
 	case 'c':
@@ -467,8 +466,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 			linux_regs->ip = addr;
 	case 'D':
 	case 'k':
-		newPC = linux_regs->ip;
-
 		/* clear the trace bit */
 		linux_regs->flags &= ~X86_EFLAGS_TF;
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
