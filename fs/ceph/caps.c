@@ -2384,7 +2384,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		     ceph_cap_string(cap->issued),
 		     ceph_cap_string(newcaps),
 		     ceph_cap_string(revoking));
-		if (revoking & CEPH_CAP_FILE_BUFFER)
+		if (revoking & used & CEPH_CAP_FILE_BUFFER)
 			writeback = 1;  /* initiate writeback; will delay ack */
 		else if (revoking == CEPH_CAP_FILE_CACHE &&
 			 (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
