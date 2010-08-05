@@ -316,20 +316,16 @@ extern void scheduler_tick(void);
 
 extern void sched_show_task(struct task_struct *p);
 
-#ifdef CONFIG_DETECT_SOFTLOCKUP
-extern void softlockup_tick(void);
+#ifdef CONFIG_LOCKUP_DETECTOR
 extern void touch_softlockup_watchdog(void);
 extern void touch_softlockup_watchdog_sync(void);
 extern void touch_all_softlockup_watchdogs(void);
-extern int proc_dosoftlockup_thresh(struct ctl_table *table, int write,
-				    void __user *buffer,
-				    size_t *lenp, loff_t *ppos);
+extern int proc_dowatchdog_thresh(struct ctl_table *table, int write,
+				  void __user *buffer,
+				  size_t *lenp, loff_t *ppos);
 extern unsigned int  softlockup_panic;
 extern int softlockup_thresh;
 #else
-static inline void softlockup_tick(void)
-{
-}
 static inline void touch_softlockup_watchdog(void)
 {
 }
