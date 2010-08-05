@@ -1862,16 +1862,7 @@ SOC_DOUBLE_SWITCH_WM8994CODEC("Capture Switch", MIC_CAPTURE),
 static int wm8994_lrc_control(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	u16 adctl2 = snd_soc_read(codec, WM8994_ADCTL2);
-
-	/* Use the DAC to gate LRC if active, otherwise use ADC */
-	if (snd_soc_read(codec, WM8994_PWR2) & 0x180)
-		adctl2 &= ~0x4;
-	else
-		adctl2 |= 0x4;
-	
-	return snd_soc_write(codec, WM8994_ADCTL2, adctl2);
+	return 0;
 }
 
 static const char *wm8994_line_texts[] = {
@@ -2208,58 +2199,6 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int wm8994_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 iface = 0;
-
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		iface = 0x0040;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* interface format */
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_I2S:
-		iface |= 0x0002;
-		break;
-	case SND_SOC_DAIFMT_RIGHT_J:
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		iface |= 0x0001;
-		break;
-	case SND_SOC_DAIFMT_DSP_A:
-		iface |= 0x0003;
-		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x0013;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* clock inversion */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF:
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		iface |= 0x0090;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		iface |= 0x0080;
-		break;
-	case SND_SOC_DAIFMT_NB_IF:
-		iface |= 0x0010;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	snd_soc_write(codec, WM8994_IFACE, iface);
 	return 0;
 }
 
@@ -2294,14 +2233,11 @@ static int wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
-	u16 iface = snd_soc_read(codec, WM8994_IFACE) & 0x1f3;
-	u16 srate = snd_soc_read(codec, WM8994_SRATE) & 0x180;
 	int coeff;
 	
 	coeff = get_coeff(wm8994->sysclk, params_rate(params));
 	if (coeff < 0) {
 		coeff = get_coeff(wm8994->sysclk / 2, params_rate(params));
-		srate |= 0x40;
 	}
 	if (coeff < 0) {
 		dev_err(codec->dev,
@@ -2309,29 +2245,7 @@ static int wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 			params_rate(params), wm8994->sysclk);
 		return coeff;
 	}
-
-	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		iface |= 0x0004;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		iface |= 0x0008;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		iface |= 0x000c;
-		break;
-	}
-
-	DBG("%s::%d--  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
-
-	/* set iface & srate */
-	snd_soc_write(codec, WM8994_IFACE, iface);
-	if (coeff >= 0)
-		snd_soc_write(codec, WM8994_SRATE, srate |
-			(coeff_div[coeff].sr << 1) | coeff_div[coeff].usb);
+	params_format(params);
 
 	return 0;
 }
@@ -2344,34 +2258,7 @@ static int wm8994_mute(struct snd_soc_dai *dai, int mute)
 static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 pwr_reg = snd_soc_read(codec, WM8994_PWR1) & ~0x1c1;
 
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-
-	case SND_SOC_BIAS_PREPARE:
-		/* VREF, VMID=2x50k, digital enabled */
-		snd_soc_write(codec, WM8994_PWR1, pwr_reg | 0x00c0);
-		break;
-
-	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
-			/* VREF, VMID=2x5k */
-			snd_soc_write(codec, WM8994_PWR1, pwr_reg | 0x1c1);
-
-			/* Charge caps */
-			msleep(100);
-		}
-
-		/* VREF, VMID=2*500k, digital stopped */
-		snd_soc_write(codec, WM8994_PWR1, pwr_reg | 0x0141);
-		break;
-
-	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, WM8994_PWR1, 0x0000);
-		break;
-	}
 	codec->bias_level = level;
 	return 0;
 }
@@ -2567,32 +2454,6 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 		gpio_request(RK2818_PIN_PF7, "WM8994");	
 		rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
 		gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
-
-	/* set the update bits (we always update left then right) */
-	reg = snd_soc_read(codec, WM8994_RADC);
-	snd_soc_write(codec, WM8994_RADC, reg | 0x100);
-	reg = snd_soc_read(codec, WM8994_RDAC);
-	snd_soc_write(codec, WM8994_RDAC, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8994_ROUT1V);
-	snd_soc_write(codec, WM8994_ROUT1V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8994_ROUT2V);
-	snd_soc_write(codec, WM8994_ROUT2V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8994_RINVOL);
-	snd_soc_write(codec, WM8994_RINVOL, reg | 0x0100); 
-	
-	snd_soc_write(codec, WM8994_LOUTM1, 0x120); 
-	snd_soc_write(codec, WM8994_ROUTM2, 0x120);  
-	snd_soc_write(codec, WM8994_LOUTM2, 0x0070);
-	snd_soc_write(codec, WM8994_ROUTM1, 0x0070);
-	
-	snd_soc_write(codec, WM8994_LOUT1V, 0x017f); 
-	snd_soc_write(codec, WM8994_ROUT1V, 0x017f);
-	snd_soc_write(codec, WM8994_LDAC, 0xff);  
-	snd_soc_write(codec, WM8994_RDAC, 0x1ff);//vol set 
-	
-	snd_soc_write(codec, WM8994_SRATE,0x100);  ///SET MCLK/8
-	snd_soc_write(codec, WM8994_PWR1, 0x1cc);  ///(0x80|0x40|0x20|0x08|0x04|0x10|0x02));
- 	snd_soc_write(codec, WM8994_PWR2, 0x1e0);  //power r l out1
 
 
 	wm8994_set_bias_level(&wm8994->codec, SND_SOC_BIAS_STANDBY);
