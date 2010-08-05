@@ -575,12 +575,8 @@ static int ssu100_process_packet(struct tty_struct *tty,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (len < 4) {
-		dbg("%s - malformed packet", __func__);
-		return 0;
-	}
-
-	if ((packet[0] == 0x1b) && (packet[1] == 0x1b) &&
+	if ((len >= 4) &&
+	    (packet[0] == 0x1b) && (packet[1] == 0x1b) &&
 	    ((packet[2] == 0x00) || (packet[2] == 0x01))) {
 		if (packet[2] == 0x00)
 			priv->shadowLSR = packet[3] & (SERIAL_LSR_OE |
