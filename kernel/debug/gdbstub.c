@@ -367,28 +367,31 @@ static void error_packet(char *pkt, int error)
  * remapped to negative TIDs.
  */
 
-#define BUF_THREAD_ID_SIZE	16
+#define BUF_THREAD_ID_SIZE	8
 
 static char *pack_threadid(char *pkt, unsigned char *id)
 {
-	char *limit;
+	unsigned char *limit;
+	int lzero = 1;
 
-	limit = pkt + BUF_THREAD_ID_SIZE;
-	while (pkt < limit)
-		pkt = pack_hex_byte(pkt, *id++);
+	limit = id + (BUF_THREAD_ID_SIZE / 2);
+	while (id < limit) {
+		if (!lzero || *id != 0) {
+			pkt = pack_hex_byte(pkt, *id);
+			lzero = 0;
+		}
+		id++;
+	}
+
+	if (lzero)
+		pkt = pack_hex_byte(pkt, 0);
 
 	return pkt;
 }
 
 static void int_to_threadref(unsigned char *id, int value)
 {
-	unsigned char *scan;
-	int i = 4;
-
-	scan = (unsigned char *)id;
-	while (i--)
-		*scan++ = 0;
-	put_unaligned_be32(value, scan);
+	put_unaligned_be32(value, id);
 }
 
 static struct task_struct *getthread(struct pt_regs *regs, int tid)
@@ -601,7 +604,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 {
 	struct task_struct *g;
 	struct task_struct *p;
-	unsigned char thref[8];
+	unsigned char thref[BUF_THREAD_ID_SIZE];
 	char *ptr;
 	int i;
 	int cpu;
@@ -621,8 +624,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			for_each_online_cpu(cpu) {
 				ks->thr_query = 0;
 				int_to_threadref(thref, -cpu - 2);
-				pack_threadid(ptr, thref);
-				ptr += BUF_THREAD_ID_SIZE;
+				ptr = pack_threadid(ptr, thref);
 				*(ptr++) = ',';
 				i++;
 			}
@@ -631,8 +633,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 		do_each_thread(g, p) {
 			if (i >= ks->thr_query && !finished) {
 				int_to_threadref(thref, p->pid);
-				pack_threadid(ptr, thref);
-				ptr += BUF_THREAD_ID_SIZE;
+				ptr = pack_threadid(ptr, thref);
 				*(ptr++) = ',';
 				ks->thr_query++;
 				if (ks->thr_query % KGDB_MAX_THREAD_QUERY == 0)
@@ -851,7 +852,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
 
 	if (kgdb_connected) {
-		unsigned char thref[8];
+		unsigned char thref[BUF_THREAD_ID_SIZE];
 		char *ptr;
 
 		/* Reply to host that an exception has occurred */
