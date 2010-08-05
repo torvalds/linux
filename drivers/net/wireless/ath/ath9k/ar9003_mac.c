@@ -185,7 +185,7 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 			ath_print(common, ATH_DBG_INTERRUPT,
 				  "AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 
-			REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
+		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
 		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR);
 
 	}
