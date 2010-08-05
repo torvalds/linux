@@ -15,6 +15,7 @@
 #include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/serial_reg.h>
 #include <linux/uaccess.h>
 
 #define QT_OPEN_CLOSE_CHANNEL       0xca
@@ -27,36 +28,11 @@
 #define QT_HW_FLOW_CONTROL_MASK     0xc5
 #define QT_SW_FLOW_CONTROL_MASK     0xc6
 
-#define MODEM_CTL_REGISTER         0x04
-#define MODEM_STATUS_REGISTER      0x06
-
-
-#define SERIAL_LSR_OE       0x02
-#define SERIAL_LSR_PE       0x04
-#define SERIAL_LSR_FE       0x08
-#define SERIAL_LSR_BI       0x10
-
-#define SERIAL_LSR_TEMT     0x40
-
-#define  SERIAL_MCR_DTR             0x01
-#define  SERIAL_MCR_RTS             0x02
-#define  SERIAL_MCR_LOOP            0x10
-
-#define  SERIAL_MSR_CTS             0x10
-#define  SERIAL_MSR_CD              0x80
-#define  SERIAL_MSR_RI              0x40
-#define  SERIAL_MSR_DSR             0x20
 #define  SERIAL_MSR_MASK            0xf0
 
-#define  SERIAL_CRTSCTS ((SERIAL_MCR_RTS << 8) | SERIAL_MSR_CTS)
+#define  SERIAL_CRTSCTS ((UART_MCR_RTS << 8) | UART_MSR_CTS)
 
-#define  SERIAL_8_DATA              0x03
-#define  SERIAL_7_DATA              0x02
-#define  SERIAL_6_DATA              0x01
-#define  SERIAL_5_DATA              0x00
-
-#define  SERIAL_ODD_PARITY          0X08
-#define  SERIAL_EVEN_PARITY         0X18
+#define  SERIAL_EVEN_PARITY         (UART_LCR_PARITY | UART_LCR_EPAR)
 
 #define  MAX_BAUD_RATE              460800
 
@@ -153,7 +129,7 @@ static inline int ssu100_setregister(struct usb_device *dev,
 				     unsigned short uart,
 				     u16 data)
 {
-	u16 value = (data << 8) | MODEM_CTL_REGISTER;
+	u16 value = (data << 8) | UART_MCR;
 
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			       QT_SET_GET_REGISTER, 0x40, value, uart,
@@ -179,9 +155,9 @@ static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
 	urb_value = 0;
 	if (set & TIOCM_DTR)
-		urb_value |= SERIAL_MCR_DTR;
+		urb_value |= UART_MCR_DTR;
 	if (set & TIOCM_RTS)
-		urb_value |= SERIAL_MCR_RTS;
+		urb_value |= UART_MCR_RTS;
 
 	result = ssu100_setregister(dev, 0, urb_value);
 	if (result < 0)
@@ -265,24 +241,24 @@ static void ssu100_set_termios(struct tty_struct *tty,
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD)
-			urb_value |= SERIAL_ODD_PARITY;
+			urb_value |= UART_LCR_PARITY;
 		else
 			urb_value |= SERIAL_EVEN_PARITY;
 	}
 
 	switch (cflag & CSIZE) {
 	case CS5:
-		urb_value |= SERIAL_5_DATA;
+		urb_value |= UART_LCR_WLEN5;
 		break;
 	case CS6:
-		urb_value |= SERIAL_6_DATA;
+		urb_value |= UART_LCR_WLEN6;
 		break;
 	case CS7:
-		urb_value |= SERIAL_7_DATA;
+		urb_value |= UART_LCR_WLEN7;
 		break;
 	default:
 	case CS8:
-		urb_value |= SERIAL_8_DATA;
+		urb_value |= UART_LCR_WLEN8;
 		break;
 	}
 
@@ -353,11 +329,11 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	spin_lock_irqsave(&priv->status_lock, flags);
-	priv->shadowLSR = data[0]  & (SERIAL_LSR_OE | SERIAL_LSR_PE |
-				      SERIAL_LSR_FE | SERIAL_LSR_BI);
+	priv->shadowLSR = data[0]  & (UART_LSR_OE | UART_LSR_PE |
+				      UART_LSR_FE | UART_LSR_BI);
 
-	priv->shadowMSR = data[1]  & (SERIAL_MSR_CTS | SERIAL_MSR_DSR |
-				      SERIAL_MSR_RI | SERIAL_MSR_CD);
+	priv->shadowMSR = data[1]  & (UART_MSR_CTS | UART_MSR_DSR |
+				      UART_MSR_RI | UART_MSR_DCD);
 	spin_unlock_irqrestore(&priv->status_lock, flags);
 
 	kfree(data);
@@ -430,10 +406,10 @@ static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 				/* Return 0 if caller wanted to know about
 				   these bits */
 
-				if (((arg & TIOCM_RNG) && (diff & SERIAL_MSR_RI)) ||
-				    ((arg & TIOCM_DSR) && (diff & SERIAL_MSR_DSR)) ||
-				    ((arg & TIOCM_CD) && (diff & SERIAL_MSR_CD)) ||
-				    ((arg & TIOCM_CTS) && (diff & SERIAL_MSR_CTS)))
+				if (((arg & TIOCM_RNG) && (diff & UART_MSR_RI)) ||
+				    ((arg & TIOCM_DSR) && (diff & UART_MSR_DSR)) ||
+				    ((arg & TIOCM_CD) && (diff & UART_MSR_DCD)) ||
+				    ((arg & TIOCM_CTS) && (diff & UART_MSR_CTS)))
 					return 0;
 			}
 		}
@@ -513,20 +489,20 @@ static int ssu100_tiocmget(struct tty_struct *tty, struct file *file)
 	if (!d)
 		return -ENOMEM;
 
-	r = ssu100_getregister(dev, 0, MODEM_CTL_REGISTER, d);
+	r = ssu100_getregister(dev, 0, UART_MCR, d);
 	if (r < 0)
 		goto mget_out;
 
-	r = ssu100_getregister(dev, 0, MODEM_STATUS_REGISTER, d+1);
+	r = ssu100_getregister(dev, 0, UART_MSR, d+1);
 	if (r < 0)
 		goto mget_out;
 
-	r = (d[0] & SERIAL_MCR_DTR ? TIOCM_DTR : 0) |
-		(d[0] & SERIAL_MCR_RTS ? TIOCM_RTS : 0) |
-		(d[1] & SERIAL_MSR_CTS ? TIOCM_CTS : 0) |
-		(d[1] & SERIAL_MSR_CD ? TIOCM_CAR : 0) |
-		(d[1] & SERIAL_MSR_RI ? TIOCM_RI : 0) |
-		(d[1] & SERIAL_MSR_DSR ? TIOCM_DSR : 0);
+	r = (d[0] & UART_MCR_DTR ? TIOCM_DTR : 0) |
+		(d[0] & UART_MCR_RTS ? TIOCM_RTS : 0) |
+		(d[1] & UART_MSR_CTS ? TIOCM_CTS : 0) |
+		(d[1] & UART_MSR_DCD ? TIOCM_CAR : 0) |
+		(d[1] & UART_MSR_RI ? TIOCM_RI : 0) |
+		(d[1] & UART_MSR_DSR ? TIOCM_DSR : 0);
 
 mget_out:
 	kfree(d);
@@ -579,10 +555,10 @@ static int ssu100_process_packet(struct tty_struct *tty,
 	    (packet[0] == 0x1b) && (packet[1] == 0x1b) &&
 	    ((packet[2] == 0x00) || (packet[2] == 0x01))) {
 		if (packet[2] == 0x00)
-			priv->shadowLSR = packet[3] & (SERIAL_LSR_OE |
-						       SERIAL_LSR_PE |
-						       SERIAL_LSR_FE |
-						       SERIAL_LSR_BI);
+			priv->shadowLSR = packet[3] & (UART_LSR_OE |
+						       UART_LSR_PE |
+						       UART_LSR_FE |
+						       UART_LSR_BI);
 
 		if (packet[2] == 0x01) {
 			priv->shadowMSR = packet[3];
