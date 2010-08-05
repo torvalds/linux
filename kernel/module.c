@@ -115,6 +115,8 @@ struct load_info {
 	unsigned long len;
 	Elf_Shdr *sechdrs;
 	char *secstrings, *args, *strtab;
+	unsigned long *strmap;
+	unsigned long symoffs, stroffs;
 	struct {
 		unsigned int sym, str, mod, vers, info, pcpu;
 	} index;
@@ -402,7 +404,8 @@ static int percpu_modalloc(struct module *mod,
 	mod->percpu = __alloc_reserved_percpu(size, align);
 	if (!mod->percpu) {
 		printk(KERN_WARNING
-		       "Could not allocate %lu bytes percpu data\n", size);
+		       "%s: Could not allocate %lu bytes percpu data\n",
+		       mod->name, size);
 		return -ENOMEM;
 	}
 	mod->percpu_size = size;
@@ -2032,10 +2035,7 @@ static unsigned long layout_symtab(struct module *mod,
 	return symoffs;
 }
 
-static void add_kallsyms(struct module *mod, struct load_info *info,
-			 unsigned long symoffs,
-			 unsigned long stroffs,
-			 unsigned long *strmap)
+static void add_kallsyms(struct module *mod, struct load_info *info)
 {
 	unsigned int i, ndst;
 	const Elf_Sym *src;
@@ -2052,21 +2052,22 @@ static void add_kallsyms(struct module *mod, struct load_info *info,
 	for (i = 0; i < mod->num_symtab; i++)
 		mod->symtab[i].st_info = elf_type(&mod->symtab[i], info);
 
-	mod->core_symtab = dst = mod->module_core + symoffs;
+	mod->core_symtab = dst = mod->module_core + info->symoffs;
 	src = mod->symtab;
 	*dst = *src;
 	for (ndst = i = 1; i < mod->num_symtab; ++i, ++src) {
 		if (!is_core_symbol(src, info->sechdrs, info->hdr->e_shnum))
 			continue;
 		dst[ndst] = *src;
-		dst[ndst].st_name = bitmap_weight(strmap, dst[ndst].st_name);
+		dst[ndst].st_name = bitmap_weight(info->strmap,
+						  dst[ndst].st_name);
 		++ndst;
 	}
 	mod->core_num_syms = ndst;
 
-	mod->core_strtab = s = mod->module_core + stroffs;
+	mod->core_strtab = s = mod->module_core + info->stroffs;
 	for (*s = 0, i = 1; i < info->sechdrs[info->index.str].sh_size; ++i)
-		if (test_bit(i, strmap))
+		if (test_bit(i, info->strmap))
 			*++s = mod->strtab[i];
 }
 #else
@@ -2082,10 +2083,7 @@ static inline unsigned long layout_symtab(struct module *mod,
 	return 0;
 }
 
-static void add_kallsyms(struct module *mod, struct load_info *info,
-			 unsigned long symoffs,
-			 unsigned long stroffs,
-			 unsigned long *strmap)
+static void add_kallsyms(struct module *mod, struct load_info *info)
 {
 }
 #endif /* CONFIG_KALLSYMS */
@@ -2150,8 +2148,10 @@ static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 }
 #endif
 
-/* Sets info->hdr and info->len. */
-static int copy_and_check(struct load_info *info, const void __user *umod, unsigned long len)
+/* Sets info->hdr, info->len and info->args. */
+static int copy_and_check(struct load_info *info,
+			  const void __user *umod, unsigned long len,
+			  const char __user *uargs)
 {
 	int err;
 	Elf_Ehdr *hdr;
@@ -2183,6 +2183,14 @@ static int copy_and_check(struct load_info *info, const void __user *umod, unsig
 		err = -ENOEXEC;
 		goto free_hdr;
 	}
+
+	/* Now copy in args */
+	info->args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(info->args)) {
+		err = PTR_ERR(info->args);
+		goto free_hdr;
+	}
+
 	info->hdr = hdr;
 	info->len = len;
 	return 0;
@@ -2190,6 +2198,12 @@ static int copy_and_check(struct load_info *info, const void __user *umod, unsig
 free_hdr:
 	vfree(hdr);
 	return err;
+}
+
+static void free_copy(struct load_info *info)
+{
+	kfree(info->args);
+	vfree(info->hdr);
 }
 
 static int rewrite_section_headers(struct load_info *info)
@@ -2385,9 +2399,9 @@ static void find_module_sections(struct module *mod, Elf_Ehdr *hdr,
 		       mod->name);
 }
 
-static struct module *move_module(struct module *mod,
-				  Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-				  const char *secstrings, unsigned modindex)
+static int move_module(struct module *mod,
+		       Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+		       const char *secstrings, unsigned modindex)
 {
 	int i;
 	void *ptr;
@@ -2401,7 +2415,7 @@ static struct module *move_module(struct module *mod,
 	 */
 	kmemleak_not_leak(ptr);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	memset(ptr, 0, mod->core_size);
 	mod->module_core = ptr;
@@ -2416,7 +2430,7 @@ static struct module *move_module(struct module *mod,
 	kmemleak_ignore(ptr);
 	if (!ptr && mod->init_size) {
 		module_free(mod, mod->module_core);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(ptr, 0, mod->init_size);
 	mod->module_init = ptr;
@@ -2443,10 +2457,8 @@ static struct module *move_module(struct module *mod,
 		DEBUGP("\t0x%lx %s\n",
 		       sechdrs[i].sh_addr, secstrings + sechdrs[i].sh_name);
 	}
-	/* Module has been moved. */
-	mod = (void *)sechdrs[modindex].sh_addr;
-	kmemleak_load_module(mod, hdr, sechdrs, secstrings);
-	return mod;
+
+	return 0;
 }
 
 static int check_module_license_and_versions(struct module *mod,
@@ -2503,6 +2515,76 @@ static void flush_module_icache(const struct module *mod)
 	set_fs(old_fs);
 }
 
+static struct module *layout_and_allocate(struct load_info *info)
+{
+	/* Module within temporary copy. */
+	struct module *mod;
+	int err;
+
+	mod = setup_load_info(info);
+	if (IS_ERR(mod))
+		return mod;
+
+	err = check_modinfo(mod, info->sechdrs, info->index.info, info->index.vers);
+	if (err)
+		return ERR_PTR(err);
+
+	/* Allow arches to frob section contents and sizes.  */
+	err = module_frob_arch_sections(info->hdr, info->sechdrs, info->secstrings, mod);
+	if (err < 0)
+		goto free_args;
+
+	if (info->index.pcpu) {
+		/* We have a special allocation for this section. */
+		err = percpu_modalloc(mod, info->sechdrs[info->index.pcpu].sh_size,
+				      info->sechdrs[info->index.pcpu].sh_addralign);
+		if (err)
+			goto free_args;
+		info->sechdrs[info->index.pcpu].sh_flags &= ~(unsigned long)SHF_ALLOC;
+	}
+
+	/* Determine total sizes, and put offsets in sh_entsize.  For now
+	   this is done generically; there doesn't appear to be any
+	   special cases for the architectures. */
+	layout_sections(mod, info->hdr, info->sechdrs, info->secstrings);
+
+	info->strmap = kzalloc(BITS_TO_LONGS(info->sechdrs[info->index.str].sh_size)
+			 * sizeof(long), GFP_KERNEL);
+	if (!info->strmap) {
+		err = -ENOMEM;
+		goto free_percpu;
+	}
+	info->symoffs = layout_symtab(mod, info->sechdrs, info->index.sym, info->index.str, info->hdr,
+				info->secstrings, &info->stroffs, info->strmap);
+
+	/* Allocate and move to the final place */
+	err = move_module(mod, info->hdr, info->sechdrs, info->secstrings, info->index.mod);
+	if (err)
+		goto free_strmap;
+
+	/* Module has been copied to its final place now: return it. */
+	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
+	kmemleak_load_module(mod, info->hdr, info->sechdrs, info->secstrings);
+	return mod;
+
+free_strmap:
+	kfree(info->strmap);
+free_percpu:
+	percpu_modfree(mod);
+free_args:
+	kfree(info->args);
+	return ERR_PTR(err);
+}
+
+/* mod is no longer valid after this! */
+static void module_deallocate(struct module *mod, struct load_info *info)
+{
+	kfree(info->strmap);
+	percpu_modfree(mod);
+	module_free(mod, mod->module_init);
+	module_free(mod, mod->module_core);
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static noinline struct module *load_module(void __user *umod,
@@ -2512,78 +2594,28 @@ static noinline struct module *load_module(void __user *umod,
 	struct load_info info = { NULL, };
 	struct module *mod;
 	long err;
-	unsigned long symoffs, stroffs, *strmap;
-	void __percpu *percpu;
 	struct _ddebug *debug = NULL;
 	unsigned int num_debug = 0;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
 
-	err = copy_and_check(&info, umod, len);
+	/* Copy in the blobs from userspace, check they are vaguely sane. */
+	err = copy_and_check(&info, umod, len, uargs);
 	if (err)
 		return ERR_PTR(err);
 
-	mod = setup_load_info(&info);
+	/* Figure out module layout, and allocate all the memory. */
+	mod = layout_and_allocate(&info);
 	if (IS_ERR(mod)) {
 		err = PTR_ERR(mod);
-		goto free_hdr;
-	}
-
-	err = check_modinfo(mod, info.sechdrs, info.index.info, info.index.vers);
-	if (err)
-		goto free_hdr;
-
-	/* Now copy in args */
-	info.args = strndup_user(uargs, ~0UL >> 1);
-	if (IS_ERR(info.args)) {
-		err = PTR_ERR(info.args);
-		goto free_hdr;
-	}
-
-	strmap = kzalloc(BITS_TO_LONGS(info.sechdrs[info.index.str].sh_size)
-			 * sizeof(long), GFP_KERNEL);
-	if (!strmap) {
-		err = -ENOMEM;
-		goto free_mod;
-	}
-
-	mod->state = MODULE_STATE_COMING;
-
-	/* Allow arches to frob section contents and sizes.  */
-	err = module_frob_arch_sections(info.hdr, info.sechdrs, info.secstrings, mod);
-	if (err < 0)
-		goto free_mod;
-
-	if (info.index.pcpu) {
-		/* We have a special allocation for this section. */
-		err = percpu_modalloc(mod, info.sechdrs[info.index.pcpu].sh_size,
-				      info.sechdrs[info.index.pcpu].sh_addralign);
-		if (err)
-			goto free_mod;
-		info.sechdrs[info.index.pcpu].sh_flags &= ~(unsigned long)SHF_ALLOC;
-	}
-	/* Keep this around for failure path. */
-	percpu = mod_percpu(mod);
-
-	/* Determine total sizes, and put offsets in sh_entsize.  For now
-	   this is done generically; there doesn't appear to be any
-	   special cases for the architectures. */
-	layout_sections(mod, info.hdr, info.sechdrs, info.secstrings);
-	symoffs = layout_symtab(mod, info.sechdrs, info.index.sym, info.index.str, info.hdr,
-				info.secstrings, &stroffs, strmap);
-
-	/* Allocate and move to the final place */
-	mod = move_module(mod, info.hdr, info.sechdrs, info.secstrings, info.index.mod);
-	if (IS_ERR(mod)) {
-		err = PTR_ERR(mod);
-		goto free_percpu;
+		goto free_copy;
 	}
 
 	/* Now we've moved module, initialize linked lists, etc. */
 	err = module_unload_init(mod);
 	if (err)
-		goto free_init;
+		goto free_module;
 
 	/* Now we've got everything in the final locations, we can
 	 * find optional sections. */
@@ -2600,11 +2632,11 @@ static noinline struct module *load_module(void __user *umod,
 	err = simplify_symbols(info.sechdrs, info.index.sym, info.strtab, info.index.vers, info.index.pcpu,
 			       mod);
 	if (err < 0)
-		goto cleanup;
+		goto free_modinfo;
 
 	err = apply_relocations(mod, info.hdr, info.sechdrs, info.index.sym, info.index.str);
 	if (err < 0)
-		goto cleanup;
+		goto free_modinfo;
 
   	/* Set up and sort exception table */
 	mod->extable = section_objs(info.hdr, info.sechdrs, info.secstrings, "__ex_table",
@@ -2615,9 +2647,7 @@ static noinline struct module *load_module(void __user *umod,
 	percpu_modcopy(mod, (void *)info.sechdrs[info.index.pcpu].sh_addr,
 		       info.sechdrs[info.index.pcpu].sh_size);
 
-	add_kallsyms(mod, &info, symoffs, stroffs, strmap);
-	kfree(strmap);
-	strmap = NULL;
+	add_kallsyms(mod, &info);
 
 	if (!mod->taints)
 		debug = section_objs(info.hdr, info.sechdrs, info.secstrings, "__verbose",
@@ -2625,11 +2655,13 @@ static noinline struct module *load_module(void __user *umod,
 
 	err = module_finalize(info.hdr, info.sechdrs, mod);
 	if (err < 0)
-		goto cleanup;
+		goto free_modinfo;
 
 	flush_module_icache(mod);
 
 	mod->args = info.args;
+
+	mod->state = MODULE_STATE_COMING;
 
 	/* Now sew it into the lists so we can get lockdep and oops
 	 * info during argument parsing.  Noone should access us, since
@@ -2666,8 +2698,9 @@ static noinline struct module *load_module(void __user *umod,
 	add_sect_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
 	add_notes_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
 
-	/* Get rid of temporary copy */
-	vfree(info.hdr);
+	/* Get rid of temporary copy and strmap. */
+	kfree(info.strmap);
+	free_copy(&info);
 
 	trace_module_load(mod);
 
@@ -2684,21 +2717,14 @@ static noinline struct module *load_module(void __user *umod,
 	mutex_unlock(&module_mutex);
 	synchronize_sched();
 	module_arch_cleanup(mod);
- cleanup:
+ free_modinfo:
 	free_modinfo(mod);
  free_unload:
 	module_unload_free(mod);
- free_init:
-	module_free(mod, mod->module_init);
-	module_free(mod, mod->module_core);
-	/* mod will be freed with core. Don't access it beyond this line! */
- free_percpu:
-	free_percpu(percpu);
- free_mod:
-	kfree(info.args);
-	kfree(strmap);
- free_hdr:
-	vfree(info.hdr);
+ free_module:
+	module_deallocate(mod, &info);
+ free_copy:
+	free_copy(&info);
 	return ERR_PTR(err);
 }
 
