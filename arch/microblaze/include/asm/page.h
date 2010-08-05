@@ -23,8 +23,16 @@
 #ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	(12)
-#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
+#if defined(CONFIG_MICROBLAZE_32K_PAGES)
+#define PAGE_SHIFT		15
+#elif defined(CONFIG_MICROBLAZE_16K_PAGES)
+#define PAGE_SHIFT		14
+#elif defined(CONFIG_MICROBLAZE_8K_PAGES)
+#define PAGE_SHIFT		13
+#else
+#define PAGE_SHIFT		12
+#endif
+#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_KERNEL_BASE_ADDR))
