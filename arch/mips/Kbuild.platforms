@@ -5,6 +5,7 @@ platforms += ar7
 platforms += cobalt
 platforms += dec
 platforms += jazz
+platforms += lasat
 platforms += loongson
 platforms += mipssim
 platforms += mti-malta

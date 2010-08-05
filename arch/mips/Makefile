@@ -191,13 +191,6 @@ endif
 #
 include $(srctree)/arch/mips/Kbuild.platforms
 
-#
-# LASAT platforms
-#
-core-$(CONFIG_LASAT)		+= arch/mips/lasat/
-cflags-$(CONFIG_LASAT)		+= -I$(srctree)/arch/mips/include/asm/mach-lasat
-load-$(CONFIG_LASAT)		+= 0xffffffff80000000
-
 # NXP STB225
 core-$(CONFIG_SOC_PNX833X)		+= arch/mips/nxp/pnx833x/common/
 cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x
