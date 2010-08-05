@@ -407,7 +407,8 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	 * but there doesn't seem to be any harm in allowing the client to
 	 * read them.
 	 */
-	if (!(tcon->ses->capabilities & CAP_UNIX)) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
+	    && !(tcon->ses->capabilities & CAP_UNIX)) {
 		rc = -EACCES;
 		goto out;
 	}
@@ -418,8 +419,21 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 
 	cFYI(1, "Full path: %s inode = 0x%p", full_path, inode);
 
-	rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
-				     cifs_sb->local_nls);
+	rc = -EACCES;
+	/*
+	 * First try Minshall+French Symlinks, if configured
+	 * and fallback to UNIX Extensions Symlinks.
+	 */
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
+		rc = CIFSQueryMFSymLink(xid, tcon, full_path, &target_path,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if ((rc != 0) && (tcon->ses->capabilities & CAP_UNIX))
+		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
+					     cifs_sb->local_nls);
+
 	kfree(full_path);
 out:
 	if (rc != 0) {
@@ -459,7 +473,12 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	cFYI(1, "symname is %s", symname);
 
 	/* BB what if DFS and this volume is on different share? BB */
-	if (pTcon->unix_ext)
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
+		rc = CIFSCreateMFSymLink(xid, pTcon, full_path, symname,
+					 cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	else if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
 					   cifs_sb->local_nls);
 	/* else

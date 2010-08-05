@@ -738,6 +738,15 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		cifs_autodisable_serverino(cifs_sb);
 	}
 
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
+	    CIFSCouldBeMFSymlink(&fattr))
+		/*
+		 * trying to get the type and mode can be slow,
+		 * so just call those regular files for now, and mark
+		 * for reval
+		 */
+		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
+
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring, &fattr);
 
