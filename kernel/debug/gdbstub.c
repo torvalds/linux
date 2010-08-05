@@ -225,7 +225,7 @@ void gdbstub_msg_write(const char *s, int len)
  * buf.  Return a pointer to the last char put in buf (null). May
  * return an error.
  */
-int kgdb_mem2hex(char *mem, char *buf, int count)
+char *kgdb_mem2hex(char *mem, char *buf, int count)
 {
 	char *tmp;
 	int err;
@@ -237,17 +237,16 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 	tmp = buf + count;
 
 	err = probe_kernel_read(tmp, mem, count);
-	if (!err) {
-		while (count > 0) {
-			buf = pack_hex_byte(buf, *tmp);
-			tmp++;
-			count--;
-		}
-
-		*buf = 0;
+	if (err)
+		return NULL;
+	while (count > 0) {
+		buf = pack_hex_byte(buf, *tmp);
+		tmp++;
+		count--;
 	}
+	*buf = 0;
 
-	return err;
+	return buf;
 }
 
 /*
@@ -481,8 +480,7 @@ static void gdb_cmd_status(struct kgdb_state *ks)
 	pack_hex_byte(&remcom_out_buffer[1], ks->signo);
 }
 
-/* Handle the 'g' get registers request */
-static void gdb_cmd_getregs(struct kgdb_state *ks)
+static void gdb_get_regs_helper(struct kgdb_state *ks)
 {
 	struct task_struct *thread;
 	void *local_debuggerinfo;
@@ -523,6 +521,12 @@ static void gdb_cmd_getregs(struct kgdb_state *ks)
 		 */
 		sleeping_thread_to_gdb_regs(gdb_regs, thread);
 	}
+}
+
+/* Handle the 'g' get registers request */
+static void gdb_cmd_getregs(struct kgdb_state *ks)
+{
+	gdb_get_regs_helper(ks);
 	kgdb_mem2hex((char *)gdb_regs, remcom_out_buffer, NUMREGBYTES);
 }
 
@@ -545,13 +549,13 @@ static void gdb_cmd_memread(struct kgdb_state *ks)
 	char *ptr = &remcom_in_buffer[1];
 	unsigned long length;
 	unsigned long addr;
-	int err;
+	char *err;
 
 	if (kgdb_hex2long(&ptr, &addr) > 0 && *ptr++ == ',' &&
 					kgdb_hex2long(&ptr, &length) > 0) {
 		err = kgdb_mem2hex((char *)addr, remcom_out_buffer, length);
-		if (err)
-			error_packet(remcom_out_buffer, err);
+		if (!err)
+			error_packet(remcom_out_buffer, -EINVAL);
 	} else {
 		error_packet(remcom_out_buffer, -EINVAL);
 	}
@@ -567,6 +571,52 @@ static void gdb_cmd_memwrite(struct kgdb_state *ks)
 	else
 		strcpy(remcom_out_buffer, "OK");
 }
+
+#if DBG_MAX_REG_NUM > 0
+static char *gdb_hex_reg_helper(int regnum, char *out)
+{
+	int i;
+	int offset = 0;
+
+	for (i = 0; i < regnum; i++)
+		offset += dbg_reg_def[i].size;
+	return kgdb_mem2hex((char *)gdb_regs + offset, out,
+			    dbg_reg_def[i].size);
+}
+
+/* Handle the 'p' individual regster get */
+static void gdb_cmd_reg_get(struct kgdb_state *ks)
+{
+	unsigned long regnum;
+	char *ptr = &remcom_in_buffer[1];
+
+	kgdb_hex2long(&ptr, &regnum);
+	if (regnum >= DBG_MAX_REG_NUM) {
+		error_packet(remcom_out_buffer, -EINVAL);
+		return;
+	}
+	gdb_get_regs_helper(ks);
+	gdb_hex_reg_helper(regnum, remcom_out_buffer);
+}
+
+/* Handle the 'P' individual regster set */
+static void gdb_cmd_reg_set(struct kgdb_state *ks)
+{
+	unsigned long regnum;
+	char *ptr = &remcom_in_buffer[1];
+
+	kgdb_hex2long(&ptr, &regnum);
+	if (*ptr++ != '=' ||
+	    !(!kgdb_usethread || kgdb_usethread == current) ||
+	    !dbg_get_reg(regnum, gdb_regs, ks->linux_regs)) {
+		error_packet(remcom_out_buffer, -EINVAL);
+		return;
+	}
+	kgdb_hex2mem(ptr, (char *)gdb_regs, dbg_reg_def[regnum].size);
+	dbg_set_reg(regnum, gdb_regs, ks->linux_regs);
+	strcpy(remcom_out_buffer, "OK");
+}
+#endif /* DBG_MAX_REG_NUM > 0 */
 
 /* Handle the 'X' memory binary write bytes */
 static void gdb_cmd_binwrite(struct kgdb_state *ks)
@@ -874,8 +924,11 @@ int gdb_serial_stub(struct kgdb_state *ks)
 	int error = 0;
 	int tmp;
 
-	/* Clear the out buffer. */
+	/* Initialize comm buffer and globals. */
 	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
+	kgdb_usethread = kgdb_info[ks->cpu].task;
+	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
+	ks->pass_exception = 0;
 
 	if (kgdb_connected) {
 		unsigned char thref[BUF_THREAD_ID_SIZE];
@@ -891,10 +944,6 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		*ptr++ = ';';
 		put_packet(remcom_out_buffer);
 	}
-
-	kgdb_usethread = kgdb_info[ks->cpu].task;
-	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
-	ks->pass_exception = 0;
 
 	while (1) {
 		error = 0;
@@ -920,6 +969,14 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		case 'M': /* MAA..AA,LLLL: Write LLLL bytes at address AA..AA */
 			gdb_cmd_memwrite(ks);
 			break;
+#if DBG_MAX_REG_NUM > 0
+		case 'p': /* pXX Return gdb register XX (in hex) */
+			gdb_cmd_reg_get(ks);
+			break;
+		case 'P': /* PXX=aaaa Set gdb register XX to aaaa (in hex) */
+			gdb_cmd_reg_set(ks);
+			break;
+#endif /* DBG_MAX_REG_NUM > 0 */
 		case 'X': /* XAA..AA,LLLL: Write LLLL bytes at address AA..AA */
 			gdb_cmd_binwrite(ks);
 			break;
