@@ -695,6 +695,8 @@ static void rtl8180_beacon_work(struct work_struct *work)
 
 	/* grab a fresh beacon */
 	skb = ieee80211_beacon_get(dev, vif);
+	if (!skb)
+		goto resched;
 
 	/*
 	 * update beacon timestamp w/ TSF value
