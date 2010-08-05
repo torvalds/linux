@@ -91,6 +91,56 @@ CIFSParseMFSymlink(const u8 *buf,
 	return 0;
 }
 
+static int
+CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
+		   const unsigned char *searchName, char **symlinkinfo,
+		   const struct nls_table *nls_codepage, int remap)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid = 0;
+	u8 *buf;
+	char *pbuf;
+	unsigned int bytes_read = 0;
+	int buf_type = CIFS_NO_BUFFER;
+	unsigned int link_len = 0;
+	FILE_ALL_INFO file_info;
+
+	rc = CIFSSMBOpen(xid, tcon, searchName, FILE_OPEN, GENERIC_READ,
+			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
+			 nls_codepage, remap);
+	if (rc != 0)
+		return rc;
+
+	if (file_info.EndOfFile != CIFS_MF_SYMLINK_FILE_SIZE) {
+		CIFSSMBClose(xid, tcon, netfid);
+		/* it's not a symlink */
+		return -EINVAL;
+	}
+
+	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	pbuf = buf;
+
+	rc = CIFSSMBRead(xid, tcon, netfid,
+			 CIFS_MF_SYMLINK_FILE_SIZE /* length */,
+			 0 /* offset */,
+			 &bytes_read, &pbuf, &buf_type);
+	CIFSSMBClose(xid, tcon, netfid);
+	if (rc != 0) {
+		kfree(buf);
+		return rc;
+	}
+
+	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, symlinkinfo);
+	kfree(buf);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
 bool
 CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
 {
