@@ -2269,7 +2269,7 @@ static struct opcode opcode_table[256] = {
 	N, N, N, N,
 	D(ImplicitOps | Priv), D(ImplicitOps), G(ByteOp, group3), G(0, group3),
 	/* 0xF8 - 0xFF */
-	D(ImplicitOps), N, D(ImplicitOps), D(ImplicitOps),
+	D(ImplicitOps), D(ImplicitOps), D(ImplicitOps), D(ImplicitOps),
 	D(ImplicitOps), D(ImplicitOps), G(0, group4), G(0, group5),
 };
 
@@ -3123,6 +3123,9 @@ special_insn:
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
+		break;
+	case 0xf9: /* stc */
+		ctxt->eflags |= EFLG_CF;
 		break;
 	case 0xfa: /* cli */
 		if (emulator_bad_iopl(ctxt, ops)) {
