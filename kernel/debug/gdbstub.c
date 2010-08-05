@@ -604,6 +604,7 @@ static void gdb_cmd_reg_set(struct kgdb_state *ks)
 {
 	unsigned long regnum;
 	char *ptr = &remcom_in_buffer[1];
+	int i = 0;
 
 	kgdb_hex2long(&ptr, &regnum);
 	if (*ptr++ != '=' ||
@@ -612,7 +613,14 @@ static void gdb_cmd_reg_set(struct kgdb_state *ks)
 		error_packet(remcom_out_buffer, -EINVAL);
 		return;
 	}
-	kgdb_hex2mem(ptr, (char *)gdb_regs, dbg_reg_def[regnum].size);
+	memset(gdb_regs, 0, sizeof(gdb_regs));
+	while (i < sizeof(gdb_regs) * 2)
+		if (hex_to_bin(ptr[i]) >= 0)
+			i++;
+		else
+			break;
+	i = i / 2;
+	kgdb_hex2mem(ptr, (char *)gdb_regs, i);
 	dbg_set_reg(regnum, gdb_regs, ks->linux_regs);
 	strcpy(remcom_out_buffer, "OK");
 }
