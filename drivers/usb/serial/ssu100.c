@@ -127,9 +127,10 @@ static inline int ssu100_getregister(struct usb_device *dev,
 
 static inline int ssu100_setregister(struct usb_device *dev,
 				     unsigned short uart,
+				     unsigned short reg,
 				     u16 data)
 {
-	u16 value = (data << 8) | UART_MCR;
+	u16 value = (data << 8) | reg;
 
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			       QT_SET_GET_REGISTER, 0x40, value, uart,
@@ -159,7 +160,7 @@ static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 	if (set & TIOCM_RTS)
 		urb_value |= UART_MCR_RTS;
 
-	result = ssu100_setregister(dev, 0, urb_value);
+	result = ssu100_setregister(dev, 0, UART_MCR, urb_value);
 	if (result < 0)
 		dbg("%s Error from MODEM_CTRL urb", __func__);
 
@@ -529,7 +530,7 @@ static void ssu100_dtr_rts(struct usb_serial_port *port, int on)
 	if (!port->serial->disconnected) {
 		/* Disable flow control */
 		if (!on &&
-		    ssu100_setregister(dev, 0, 0) < 0)
+		    ssu100_setregister(dev, 0, UART_MCR, 0) < 0)
 			dev_err(&port->dev, "error from flowcontrol urb\n");
 		/* drop RTS and DTR */
 		if (on)
