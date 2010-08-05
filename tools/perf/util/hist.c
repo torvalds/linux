@@ -876,6 +876,9 @@ unsigned int hists__sort_list_width(struct hists *self)
 		if (!se->elide)
 			ret += 2 + hists__col_len(self, se->se_width_idx);
 
+	if (verbose) /* Addr + origin */
+		ret += 3 + BITS_PER_LONG / 4;
+
 	return ret;
 }
 
