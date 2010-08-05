@@ -15,6 +15,16 @@ config CPU_S5PV310
 	help
 	  Enable S5PV310 CPU support
 
+config S5PV310_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+config S5PV310_SETUP_I2C2
+	bool
+	help
+	  Common setup code for i2c bus 2.
+
 # machine support
 
 config MACH_SMDKV310
