@@ -2250,7 +2250,7 @@ nv04_init_compute_mem(struct nvbios *bios)
 			  NV04_PFB_BOOT_0_RAM_AMOUNT,
 			  NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 
-	} else if (peek_fb(dev, fb, 0) == patt) {
+	} else if (peek_fb(dev, fb, 0) != patt) {
 		if (read_back_fb(dev, fb, 0x800000, patt))
 			bios_md32(bios, NV04_PFB_BOOT_0,
 				  NV04_PFB_BOOT_0_RAM_AMOUNT,
