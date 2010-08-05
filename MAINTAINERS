@@ -4731,7 +4731,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ivd/rt2x00.git
 F:	drivers/net/wireless/rt2x00/
 
 RAMDISK RAM BLOCK DEVICE DRIVER
-M:	Nick Piggin <npiggin@suse.de>
+M:	Nick Piggin <npiggin@kernel.dk>
 S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
