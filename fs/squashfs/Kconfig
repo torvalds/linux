@@ -37,6 +37,11 @@ config SQUASHFS_XATTR
 
 	  If unsure, say N.
 
+config SQUASHFS_LZO
+	bool "Include support for LZO compressed file systems"
+	depends on SQUASHFS
+	select LZO_DECOMPRESS
+
 config SQUASHFS_EMBEDDED
 
 	bool "Additional option for memory-constrained systems" 
