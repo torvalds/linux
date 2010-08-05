@@ -99,6 +99,7 @@ static struct usb_driver ssu100_driver = {
 };
 
 struct ssu100_port_private {
+	spinlock_t status_lock;
 	u8 shadowLSR;
 	u8 shadowMSR;
 	wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
@@ -333,6 +334,7 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
 	u8 *data;
 	int result;
+	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -350,11 +352,13 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
+	spin_lock_irqsave(&priv->status_lock, flags);
 	priv->shadowLSR = data[0]  & (SERIAL_LSR_OE | SERIAL_LSR_PE |
 				      SERIAL_LSR_FE | SERIAL_LSR_BI);
 
 	priv->shadowMSR = data[1]  & (SERIAL_MSR_CTS | SERIAL_MSR_DSR |
 				      SERIAL_MSR_RI | SERIAL_MSR_CD);
+	spin_unlock_irqrestore(&priv->status_lock, flags);
 
 	kfree(data);
 
@@ -455,6 +459,7 @@ static void ssu100_set_max_packet_size(struct usb_serial_port *port)
 
 	unsigned num_endpoints;
 	int i;
+	unsigned long flags;
 
 	num_endpoints = interface->cur_altsetting->desc.bNumEndpoints;
 	dev_info(&udev->dev, "Number of endpoints %d\n", num_endpoints);
@@ -466,7 +471,9 @@ static void ssu100_set_max_packet_size(struct usb_serial_port *port)
 	}
 
 	/* set max packet size based on descriptor */
+	spin_lock_irqsave(&priv->status_lock, flags);
 	priv->max_packet_size = ep_desc->wMaxPacketSize;
+	spin_unlock_irqrestore(&priv->status_lock, flags);
 
 	dev_info(&udev->dev, "Setting MaxPacketSize %d\n", priv->max_packet_size);
 }
@@ -485,9 +492,9 @@ static int ssu100_attach(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 
+	spin_lock_init(&priv->status_lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
 	usb_set_serial_port_data(port, priv);
-
 	ssu100_set_max_packet_size(port);
 
 	return ssu100_initdevice(serial->dev);
