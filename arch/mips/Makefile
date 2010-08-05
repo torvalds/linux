@@ -191,24 +191,6 @@ endif
 #
 include $(srctree)/arch/mips/Kbuild.platforms
 
-#
-# Common NXP PNX8550
-#
-core-$(CONFIG_SOC_PNX8550)	+= arch/mips/pnx8550/common/
-cflags-$(CONFIG_SOC_PNX8550)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
-
-#
-# NXP PNX8550 JBS board
-#
-core-$(CONFIG_PNX8550_JBS)	+= arch/mips/pnx8550/jbs/
-#cflags-$(CONFIG_PNX8550_JBS)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
-load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
-
-# NXP PNX8550 STB810 board
-#
-core-$(CONFIG_PNX8550_STB810)	+= arch/mips/pnx8550/stb810/
-load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
-
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 
