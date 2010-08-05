@@ -280,7 +280,7 @@ struct ui_browser {
 	void		*first_visible_entry, *entries;
 	u16		top, left, width, height;
 	void		*priv;
-	unsigned int	(*refresh_entries)(struct ui_browser *self);
+	unsigned int	(*refresh)(struct ui_browser *self);
 	void		(*write)(struct ui_browser *self, void *entry, int row);
 	void		(*seek)(struct ui_browser *self,
 				off_t offset, int whence);
@@ -472,12 +472,12 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 	return 0;
 }
 
-static int ui_browser__refresh_entries(struct ui_browser *self)
+static int ui_browser__refresh(struct ui_browser *self)
 {
 	int row;
 
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
-	row = self->refresh_entries(self);
+	row = self->refresh(self);
 	SLsmg_set_color(HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->top + row, self->left,
 			  self->height - row, self->width, ' ');
@@ -487,7 +487,7 @@ static int ui_browser__refresh_entries(struct ui_browser *self)
 
 static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 {
-	if (ui_browser__refresh_entries(self) < 0)
+	if (ui_browser__refresh(self) < 0)
 		return -1;
 
 	while (1) {
@@ -558,7 +558,7 @@ static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 		default:
 			return es->u.key;
 		}
-		if (ui_browser__refresh_entries(self) < 0)
+		if (ui_browser__refresh(self) < 0)
 			return -1;
 	}
 	return 0;
@@ -621,9 +621,9 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	ui_helpline__push("Press <- or ESC to exit");
 
 	memset(&browser, 0, sizeof(browser));
-	browser.entries		= &head;
-	browser.refresh_entries = hist_entry__annotate_browser_refresh;
-	browser.seek		= ui_browser__list_head_seek;
+	browser.entries	= &head;
+	browser.refresh = hist_entry__annotate_browser_refresh;
+	browser.seek	= ui_browser__list_head_seek;
 	browser.priv = self;
 	list_for_each_entry(pos, &head, node) {
 		size_t line_len = strlen(pos->line);
@@ -675,7 +675,7 @@ static int map__browse(struct map *self)
 	struct map_browser mb = {
 		.b = {
 			.entries = &self->dso->symbols[self->type],
-			.refresh_entries = ui_browser__rb_tree_refresh,
+			.refresh = ui_browser__rb_tree_refresh,
 			.seek	 = ui_browser__rb_tree_seek,
 			.write	 = map_browser__write,
 		},
@@ -720,7 +720,7 @@ struct hist_browser {
 static void hist_browser__reset(struct hist_browser *self);
 static int hist_browser__run(struct hist_browser *self, const char *title,
 			     struct newtExitStruct *es);
-static unsigned int hist_browser__refresh_entries(struct ui_browser *self);
+static unsigned int hist_browser__refresh(struct ui_browser *self);
 static void ui_browser__hists_seek(struct ui_browser *self,
 				   off_t offset, int whence);
 
@@ -730,7 +730,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 
 	if (self) {
 		self->hists = hists;
-		self->b.refresh_entries = hist_browser__refresh_entries;
+		self->b.refresh = hist_browser__refresh;
 		self->b.seek = ui_browser__hists_seek;
 	}
 
@@ -1338,7 +1338,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	return printed;
 }
 
-static unsigned int hist_browser__refresh_entries(struct ui_browser *self)
+static unsigned int hist_browser__refresh(struct ui_browser *self)
 {
 	unsigned row = 0;
 	struct rb_node *nd;
