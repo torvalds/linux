@@ -1479,6 +1479,9 @@ void __init u300_init_irq(void)
 	u32 mask[2] = {0, 0};
 	int i;
 
+	/* initialize clocking early, we want to clock the INTCON */
+	u300_clock_init();
+
 	for (i = 0; i < NR_IRQS; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
 	u300_enable_intcon_clock();
@@ -1635,12 +1638,10 @@ void __init u300_init_devices(void)
 	u300_spi_init(&pl022_device);
 
 	/* Register the AMBA devices in the AMBA bus abstraction layer */
-	u300_clock_primecells();
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-	u300_unclock_primecells();
 
 	u300_assign_physmem();
 
