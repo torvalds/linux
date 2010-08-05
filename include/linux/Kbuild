@@ -39,6 +39,7 @@ header-y += ax25.h
 header-y += b1lli.h
 header-y += baycom.h
 header-y += bfs_fs.h
+header-y += blk_types.h
 header-y += blkpg.h
 header-y += bpqether.h
 header-y += bsg.h
