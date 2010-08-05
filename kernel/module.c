@@ -227,7 +227,7 @@ bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
 			    unsigned int symnum, void *data), void *data)
 {
 	struct module *mod;
-	const struct symsearch arr[] = {
+	static const struct symsearch arr[] = {
 		{ __start___ksymtab, __stop___ksymtab, __start___kcrctab,
 		  NOT_GPL_ONLY, false },
 		{ __start___ksymtab_gpl, __stop___ksymtab_gpl,
