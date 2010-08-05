@@ -192,14 +192,6 @@ endif
 include $(srctree)/arch/mips/Kbuild.platforms
 
 #
-# DECstation family
-#
-core-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/
-cflags-$(CONFIG_MACH_DECSTATION)+= -I$(srctree)/arch/mips/include/asm/mach-dec
-libs-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/prom/
-load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
-
-#
 # Wind River PPMC Board (4KC + GT64120)
 #
 core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/
