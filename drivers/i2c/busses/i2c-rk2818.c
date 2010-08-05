@@ -318,7 +318,10 @@ static int rk2818_send_address(struct rk2818_i2c_data *i2c,
 			return ret;
 		}
 	}
-	writel(I2C_LCMR_START, i2c->regs + I2C_LCMR);
+	if (msg->flags & I2C_M_RD)
+		writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+	else
+		writel(I2C_LCMR_START, i2c->regs + I2C_LCMR);
 	/*
 	if(msg->flags & I2C_M_TEN)
 	{
@@ -327,7 +330,7 @@ static int rk2818_send_address(struct rk2818_i2c_data *i2c,
 		{
 			return ret;
 		}
-		addr_2nd = msg->addr & 0xff;
+		addr_2nd = msg->addr & 0xff;if (msg->flags & I2C_M_RD)
 		writel(addr_2nd, i2c->regs + I2C_MTXR);
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 		if (msg->flags & I2C_M_RD)
@@ -426,6 +429,8 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 		conr = readl(i2c->regs + I2C_CONR);
 		conr |= I2C_CONR_NAK;
 		writel(conr, i2c->regs + I2C_CONR);
+		if(!stop)
+			return 0;
 		if(msg->flags & I2C_M_TEN)
 			writel(I2C_LCMR_START|I2C_LCMR_RESUME , i2c->regs + I2C_LCMR);
 		else
