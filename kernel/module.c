@@ -117,6 +117,8 @@ struct load_info {
 	char *secstrings, *strtab;
 	unsigned long *strmap;
 	unsigned long symoffs, stroffs;
+	struct _ddebug *debug;
+	unsigned int num_debug;
 	struct {
 		unsigned int sym, str, mod, vers, info, pcpu;
 	} index;
@@ -1993,7 +1995,7 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	mod->core_size += bitmap_weight(info->strmap, strsect->sh_size);
 }
 
-static void add_kallsyms(struct module *mod, struct load_info *info)
+static void add_kallsyms(struct module *mod, const struct load_info *info)
 {
 	unsigned int i, ndst;
 	const Elf_Sym *src;
@@ -2040,6 +2042,8 @@ static void add_kallsyms(struct module *mod, struct load_info *info)
 
 static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
 {
+	if (!debug)
+		return;
 #ifdef CONFIG_DYNAMIC_DEBUG
 	if (ddebug_add_module(debug, num, debug->modname))
 		printk(KERN_ERR "dynamic debug error adding module: %s\n",
@@ -2267,8 +2271,7 @@ static int check_modinfo(struct module *mod, struct load_info *info)
 	return 0;
 }
 
-static void find_module_sections(struct module *mod,
-				 const struct load_info *info)
+static void find_module_sections(struct module *mod, struct load_info *info)
 {
 	mod->kp = section_objs(info, "__param",
 			       sizeof(*mod->kp), &mod->num_kp);
@@ -2323,9 +2326,15 @@ static void find_module_sections(struct module *mod,
 					     &mod->num_ftrace_callsites);
 #endif
 
+	mod->extable = section_objs(info, "__ex_table",
+				    sizeof(*mod->extable), &mod->num_exentries);
+
 	if (section_addr(info, "__obsparm"))
 		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
 		       mod->name);
+
+	info->debug = section_objs(info, "__verbose",
+				   sizeof(*info->debug), &info->num_debug);
 }
 
 static int move_module(struct module *mod, struct load_info *info)
@@ -2512,6 +2521,20 @@ static void module_deallocate(struct module *mod, struct load_info *info)
 	module_free(mod, mod->module_core);
 }
 
+static int post_relocation(struct module *mod, const struct load_info *info)
+{
+	sort_extable(mod->extable, mod->extable + mod->num_exentries);
+
+	/* Copy relocated percpu area over. */
+	percpu_modcopy(mod, (void *)info->sechdrs[info->index.pcpu].sh_addr,
+		       info->sechdrs[info->index.pcpu].sh_size);
+
+	add_kallsyms(mod, info);
+
+	/* Arch-specific module finalizing. */
+	return module_finalize(info->hdr, info->sechdrs, mod);
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static noinline struct module *load_module(void __user *umod,
@@ -2521,8 +2544,6 @@ static noinline struct module *load_module(void __user *umod,
 	struct load_info info = { NULL, };
 	struct module *mod;
 	long err;
-	struct _ddebug *debug = NULL;
-	unsigned int num_debug = 0;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
@@ -2564,22 +2585,7 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto free_modinfo;
 
-  	/* Set up and sort exception table */
-	mod->extable = section_objs(&info, "__ex_table",
-				    sizeof(*mod->extable), &mod->num_exentries);
-	sort_extable(mod->extable, mod->extable + mod->num_exentries);
-
-	/* Finally, copy percpu area over. */
-	percpu_modcopy(mod, (void *)info.sechdrs[info.index.pcpu].sh_addr,
-		       info.sechdrs[info.index.pcpu].sh_size);
-
-	add_kallsyms(mod, &info);
-
-	if (!mod->taints)
-		debug = section_objs(&info, "__verbose",
-				     sizeof(*debug), &num_debug);
-
-	err = module_finalize(info.hdr, info.sechdrs, mod);
+	err = post_relocation(mod, &info);
 	if (err < 0)
 		goto free_modinfo;
 
@@ -2607,8 +2613,9 @@ static noinline struct module *load_module(void __user *umod,
 		goto unlock;
 	}
 
-	if (debug)
-		dynamic_debug_setup(debug, num_debug);
+	/* This has to be done once we're sure module name is unique. */
+	if (!mod->taints)
+		dynamic_debug_setup(info.debug, info.num_debug);
 
 	/* Find duplicate symbols */
 	err = verify_export_symbols(mod);
@@ -2640,7 +2647,8 @@ static noinline struct module *load_module(void __user *umod,
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
  ddebug:
-	dynamic_debug_remove(debug);
+	if (!mod->taints)
+		dynamic_debug_remove(info.debug);
  unlock:
 	mutex_unlock(&module_mutex);
 	synchronize_sched();
