@@ -800,14 +800,16 @@ static int lbs_spi_thread(void *data)
 			goto err;
 		}
 
-		if (hiStatus & IF_SPI_HIST_CMD_UPLOAD_RDY)
+		if (hiStatus & IF_SPI_HIST_CMD_UPLOAD_RDY) {
 			err = if_spi_c2h_cmd(card);
 			if (err)
 				goto err;
-		if (hiStatus & IF_SPI_HIST_RX_UPLOAD_RDY)
+		}
+		if (hiStatus & IF_SPI_HIST_RX_UPLOAD_RDY) {
 			err = if_spi_c2h_data(card);
 			if (err)
 				goto err;
+		}
 
 		/* workaround: in PS mode, the card does not set the Command
 		 * Download Ready bit, but it sets TX Download Ready. */
