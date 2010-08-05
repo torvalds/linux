@@ -345,7 +345,7 @@ nv50_display_init(struct drm_device *dev)
 
 	/* initialise fifo */
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_DMA_CB(0),
-		((evo->pushbuf_bo->bo.mem.mm_node->start << PAGE_SHIFT) >> 8) |
+		((evo->pushbuf_bo->bo.mem.start << PAGE_SHIFT) >> 8) |
 		NV50_PDISPLAY_CHANNEL_DMA_CB_LOCATION_VRAM |
 		NV50_PDISPLAY_CHANNEL_DMA_CB_VALID);
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_UNK2(0), 0x00010000);

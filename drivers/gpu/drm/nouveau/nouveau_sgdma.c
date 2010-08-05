@@ -95,9 +95,9 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 	struct nouveau_gpuobj *gpuobj = dev_priv->gart_info.sg_ctxdma;
 	unsigned i, j, pte;
 
-	NV_DEBUG(dev, "pg=0x%lx\n", mem->mm_node->start);
+	NV_DEBUG(dev, "pg=0x%lx\n", mem->start);
 
-	pte = nouveau_sgdma_pte(nvbe->dev, mem->mm_node->start << PAGE_SHIFT);
+	pte = nouveau_sgdma_pte(nvbe->dev, mem->start << PAGE_SHIFT);
 	nvbe->pte_start = pte;
 	for (i = 0; i < nvbe->nr_pages; i++) {
 		dma_addr_t dma_offset = nvbe->pages[i];

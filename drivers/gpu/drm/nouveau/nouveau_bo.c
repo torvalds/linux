@@ -381,6 +381,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
+		man->func = &ttm_bo_manager_func;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
@@ -392,6 +393,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->gpu_offset = 0;
 		break;
 	case TTM_PL_TT:
+		man->func = &ttm_bo_manager_func;
 		switch (dev_priv->gart_info.type) {
 		case NOUVEAU_GART_AGP:
 			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
@@ -494,8 +496,8 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	u64 src_offset, dst_offset;
 	int ret;
 
-	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
-	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
+	src_offset = old_mem->start << PAGE_SHIFT;
+	dst_offset = new_mem->start << PAGE_SHIFT;
 	if (!nvbo->no_vm) {
 		if (old_mem->mem_type == TTM_PL_VRAM)
 			src_offset += dev_priv->vm_vram_base;
@@ -597,8 +599,8 @@ static int
 nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
-	u32 src_offset = old_mem->mm_node->start << PAGE_SHIFT;
-	u32 dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
+	u32 src_offset = old_mem->start << PAGE_SHIFT;
+	u32 dst_offset = new_mem->start << PAGE_SHIFT;
 	u32 page_count = new_mem->num_pages;
 	int ret;
 
@@ -746,7 +748,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 		return 0;
 	}
 
-	offset = new_mem->mm_node->start << PAGE_SHIFT;
+	offset = new_mem->start << PAGE_SHIFT;
 
 	if (dev_priv->card_type == NV_50) {
 		ret = nv50_mem_vm_bind_linear(dev,
@@ -860,14 +862,14 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	case TTM_PL_TT:
 #if __OS_HAS_AGP
 		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
-			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = dev_priv->gart_info.aper_base;
 			mem->bus.is_iomem = true;
 		}
 #endif
 		break;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		mem->bus.offset = mem->start << PAGE_SHIFT;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 		break;
@@ -897,7 +899,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	}
 
 	/* make sure bo is in mappable vram */
-	if (bo->mem.mm_node->start + bo->mem.num_pages < dev_priv->fb_mappable_pages)
+	if (bo->mem.start + bo->mem.num_pages < dev_priv->fb_mappable_pages)
 		return 0;
 
 

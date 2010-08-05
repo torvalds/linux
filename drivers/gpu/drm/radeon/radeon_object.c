@@ -435,7 +435,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 
 out:
 	radeon_set_surface_reg(rdev, i, bo->tiling_flags, bo->pitch,
-			       bo->tbo.mem.mm_node->start << PAGE_SHIFT,
+			       bo->tbo.mem.start << PAGE_SHIFT,
 			       bo->tbo.num_pages << PAGE_SHIFT);
 	return 0;
 }
@@ -532,7 +532,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	rdev = rbo->rdev;
 	if (bo->mem.mem_type == TTM_PL_VRAM) {
 		size = bo->mem.num_pages << PAGE_SHIFT;
-		offset = bo->mem.mm_node->start << PAGE_SHIFT;
+		offset = bo->mem.start << PAGE_SHIFT;
 		if ((offset + size) > rdev->mc.visible_vram_size) {
 			/* hurrah the memory is not visible ! */
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
@@ -540,7 +540,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 			r = ttm_bo_validate(bo, &rbo->placement, false, true, false);
 			if (unlikely(r != 0))
 				return r;
-			offset = bo->mem.mm_node->start << PAGE_SHIFT;
+			offset = bo->mem.start << PAGE_SHIFT;
 			/* this should not happen */
 			if ((offset + size) > rdev->mc.visible_vram_size)
 				return -EINVAL;

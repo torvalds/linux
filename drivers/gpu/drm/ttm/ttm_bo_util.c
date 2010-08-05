@@ -256,8 +256,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	dir = 1;
 
 	if ((old_mem->mem_type == new_mem->mem_type) &&
-	    (new_mem->mm_node->start <
-	     old_mem->mm_node->start + old_mem->mm_node->size)) {
+	    (new_mem->start < old_mem->start + old_mem->size)) {
 		dir = -1;
 		add = new_mem->num_pages - 1;
 	}

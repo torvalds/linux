@@ -113,7 +113,7 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		return -ENOMEM;
 	}
 
-	offset = chan->notifier_bo->bo.mem.mm_node->start << PAGE_SHIFT;
+	offset = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
 	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM) {
 		target = NV_DMA_TARGET_VIDMEM;
 	} else

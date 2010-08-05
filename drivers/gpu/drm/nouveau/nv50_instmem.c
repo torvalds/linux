@@ -347,7 +347,7 @@ nv50_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 		return ret;
 	}
 
-	gpuobj->vinst = gpuobj->im_backing->bo.mem.mm_node->start << PAGE_SHIFT;
+	gpuobj->vinst = gpuobj->im_backing->bo.mem.start << PAGE_SHIFT;
 	return 0;
 }
 
