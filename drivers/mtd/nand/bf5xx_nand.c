@@ -648,7 +648,7 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
 	val = (plat->page_size << NFC_PG_SIZE_OFFSET) |
 		(plat->data_width << NFC_NWIDTH_OFFSET) |
 		(plat->rd_dly << NFC_RDDLY_OFFSET) |
-		(plat->rd_dly << NFC_WRDLY_OFFSET);
+		(plat->wr_dly << NFC_WRDLY_OFFSET);
 	dev_dbg(info->device, "NFC_CTL is 0x%04x\n", val);
 
 	bfin_write_NFC_CTL(val);
