@@ -1815,6 +1815,36 @@ static ssize_t show_langwell_udc(struct device *_dev,
 static DEVICE_ATTR(langwell_udc, S_IRUGO, show_langwell_udc, NULL);
 
 
+/* device "remote_wakeup" sysfs attribute file */
+static ssize_t store_remote_wakeup(struct device *_dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct langwell_udc	*dev = the_controller;
+	unsigned long		flags;
+	ssize_t			rc = count;
+
+	if (count > 2)
+		return -EINVAL;
+
+	if (count > 0 && buf[count-1] == '\n')
+		((char *) buf)[count-1] = 0;
+
+	if (buf[0] != '1')
+		return -EINVAL;
+
+	/* force remote wakeup enabled in case gadget driver doesn't support */
+	spin_lock_irqsave(&dev->lock, flags);
+	dev->remote_wakeup = 1;
+	dev->dev_status |= (1 << USB_DEVICE_REMOTE_WAKEUP);
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	langwell_wakeup(&dev->gadget);
+
+	return rc;
+}
+static DEVICE_ATTR(remote_wakeup, S_IWUSR, NULL, store_remote_wakeup);
+
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -2136,8 +2166,7 @@ static void get_status(struct langwell_udc *dev, u8 request_type, u16 value,
 
 	if ((request_type & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* get device status */
-		status_data = 1 << USB_DEVICE_SELF_POWERED;
-		status_data |= dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP;
+		status_data = dev->dev_status;
 	} else if ((request_type & USB_RECIP_MASK) == USB_RECIP_INTERFACE) {
 		/* get interface status */
 		status_data = 0;
@@ -2275,6 +2304,22 @@ static void handle_setup_packet(struct langwell_udc *dev,
 		} else if ((setup->bRequestType & (USB_RECIP_MASK
 				| USB_TYPE_MASK)) == (USB_RECIP_DEVICE
 				| USB_TYPE_STANDARD)) {
+			rc = 0;
+			switch (wValue) {
+			case USB_DEVICE_REMOTE_WAKEUP:
+				if (setup->bRequest == USB_REQ_SET_FEATURE) {
+					dev->remote_wakeup = 1;
+					dev->dev_status |= (1 << wValue);
+				} else {
+					dev->remote_wakeup = 0;
+					dev->dev_status &= ~(1 << wValue);
+				}
+				break;
+			default:
+				rc = -EOPNOTSUPP;
+				break;
+			}
+
 			if (!gadget_is_otg(&dev->gadget))
 				break;
 			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE) {
@@ -2290,7 +2335,6 @@ static void handle_setup_packet(struct langwell_udc *dev,
 				dev->gadget.a_alt_hnp_support = 1;
 			else
 				break;
-			rc = 0;
 		} else
 			break;
 
@@ -2678,7 +2722,10 @@ static void handle_usb_reset(struct langwell_udc *dev)
 
 	dev->ep0_dir = USB_DIR_OUT;
 	dev->ep0_state = WAIT_FOR_SETUP;
-	dev->remote_wakeup = 0;		/* default to 0 on reset */
+
+	/* remote wakeup reset to 0 when the device is reset */
+	dev->remote_wakeup = 0;
+	dev->dev_status = 1 << USB_DEVICE_SELF_POWERED;
 	dev->gadget.b_hnp_enable = 0;
 	dev->gadget.a_hnp_support = 0;
 	dev->gadget.a_alt_hnp_support = 0;
@@ -2997,6 +3044,7 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	device_unregister(&dev->gadget.dev);
 	device_remove_file(&pdev->dev, &dev_attr_langwell_udc);
+	device_remove_file(&pdev->dev, &dev_attr_remote_wakeup);
 
 #ifndef	OTG_TRANSCEIVER
 	pci_set_drvdata(pdev, NULL);
@@ -3177,7 +3225,10 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev->resume_state = USB_STATE_NOTATTACHED;
 	dev->usb_state = USB_STATE_POWERED;
 	dev->ep0_dir = USB_DIR_OUT;
-	dev->remote_wakeup = 0;	/* default to 0 on reset */
+
+	/* remote wakeup reset to 0 when the device is reset */
+	dev->remote_wakeup = 0;
+	dev->dev_status = 1 << USB_DEVICE_SELF_POWERED;
 
 #ifndef	OTG_TRANSCEIVER
 	/* reset device controller */
@@ -3247,9 +3298,15 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	if (retval)
 		goto error;
 
+	retval = device_create_file(&pdev->dev, &dev_attr_remote_wakeup);
+	if (retval)
+		goto error_attr1;
+
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 	return 0;
 
+error_attr1:
+	device_remove_file(&pdev->dev, &dev_attr_langwell_udc);
 error:
 	if (dev) {
 		dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);

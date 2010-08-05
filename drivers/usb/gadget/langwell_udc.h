@@ -224,5 +224,8 @@ struct langwell_udc {
 
 	/* make sure release() is done */
 	struct completion	*done;
+
+	/* device status data for get_status request */
+	u16			dev_status;
 };
 
