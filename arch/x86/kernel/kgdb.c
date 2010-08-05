@@ -195,7 +195,7 @@ static struct hw_breakpoint {
 	int			len;
 	int			type;
 	struct perf_event	**pev;
-} breakinfo[4];
+} breakinfo[HBP_NUM];
 
 static unsigned long early_dr7;
 
@@ -203,7 +203,7 @@ static void kgdb_correct_hw_break(void)
 {
 	int breakno;
 
-	for (breakno = 0; breakno < 4; breakno++) {
+	for (breakno = 0; breakno < HBP_NUM; breakno++) {
 		struct perf_event *bp;
 		struct arch_hw_breakpoint *info;
 		int val;
@@ -290,10 +290,10 @@ kgdb_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < HBP_NUM; i++)
 		if (breakinfo[i].addr == addr && breakinfo[i].enabled)
 			break;
-	if (i == 4)
+	if (i == HBP_NUM)
 		return -1;
 
 	if (hw_break_release_slot(i)) {
@@ -311,7 +311,7 @@ static void kgdb_remove_all_hw_break(void)
 	int cpu = raw_smp_processor_id();
 	struct perf_event *bp;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < HBP_NUM; i++) {
 		if (!breakinfo[i].enabled)
 			continue;
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
@@ -331,10 +331,10 @@ kgdb_set_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < HBP_NUM; i++)
 		if (!breakinfo[i].enabled)
 			break;
-	if (i == 4)
+	if (i == HBP_NUM)
 		return -1;
 
 	switch (bptype) {
@@ -395,7 +395,7 @@ void kgdb_disable_hw_debug(struct pt_regs *regs)
 
 	/* Disable hardware debugging while we are in kgdb: */
 	set_debugreg(0UL, 7);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < HBP_NUM; i++) {
 		if (!breakinfo[i].enabled)
 			continue;
 		if (dbg_is_early) {
@@ -640,7 +640,7 @@ void kgdb_arch_late(void)
 	attr.bp_len = HW_BREAKPOINT_LEN_1;
 	attr.bp_type = HW_BREAKPOINT_W;
 	attr.disabled = 1;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < HBP_NUM; i++) {
 		if (breakinfo[i].pev)
 			continue;
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL);
