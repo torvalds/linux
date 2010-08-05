@@ -2375,13 +2375,11 @@ done_prefixes:
 
 	/* Opcode byte(s). */
 	opcode = opcode_table[c->b];
-	if (opcode.flags == 0) {
-		/* Two-byte opcode? */
-		if (c->b == 0x0f) {
-			c->twobyte = 1;
-			c->b = insn_fetch(u8, 1, c->eip);
-			opcode = twobyte_table[c->b];
-		}
+	/* Two-byte opcode? */
+	if (c->b == 0x0f) {
+		c->twobyte = 1;
+		c->b = insn_fetch(u8, 1, c->eip);
+		opcode = twobyte_table[c->b];
 	}
 	c->d = opcode.flags;
 
