@@ -36,6 +36,7 @@
 #include <linux/writeback.h>
 #include <linux/falloc.h>
 #include <linux/quotaops.h>
+#include <linux/blkdev.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -190,8 +191,16 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 	if (err)
 		goto bail;
 
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
+		/*
+		 * We still have to flush drive's caches to get data to the
+		 * platter
+		 */
+		if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
+			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
+					   NULL, BLKDEV_IFL_WAIT);
 		goto bail;
+	}
 
 	journal = osb->journal->j_journal;
 	err = jbd2_journal_force_commit(journal);
