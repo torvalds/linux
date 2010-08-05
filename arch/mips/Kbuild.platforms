@@ -2,6 +2,7 @@
 
 platforms += alchemy
 platforms += ar7
+platforms += bcm47xx
 platforms += cobalt
 platforms += dec
 platforms += jazz

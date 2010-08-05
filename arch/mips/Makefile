@@ -280,13 +280,6 @@ core-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
-# Broadcom BCM47XX boards
-#
-core-$(CONFIG_BCM47XX)		+= arch/mips/bcm47xx/
-cflags-$(CONFIG_BCM47XX)	+= -I$(srctree)/arch/mips/include/asm/mach-bcm47xx
-load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
-
-#
 # Broadcom BCM63XX boards
 #
 core-$(CONFIG_BCM63XX)		+= arch/mips/bcm63xx/
