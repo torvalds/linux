@@ -399,9 +399,11 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 }
 
 
-static void __devexit rockchip_i2s_remove(struct platform_device *pdev)
+static int __devexit rockchip_i2s_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&rk2818_i2s_dai);
+
+	return 0;
 }
 
 static struct platform_driver rockchip_i2s_driver = {
