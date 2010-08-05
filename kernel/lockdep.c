@@ -3775,19 +3775,13 @@ EXPORT_SYMBOL_GPL(debug_show_all_locks);
  * Careful: only use this function if you are sure that
  * the task cannot run in parallel!
  */
-void __debug_show_held_locks(struct task_struct *task)
+void debug_show_held_locks(struct task_struct *task)
 {
 	if (unlikely(!debug_locks)) {
 		printk("INFO: lockdep is turned off.\n");
 		return;
 	}
 	lockdep_print_held_locks(task);
-}
-EXPORT_SYMBOL_GPL(__debug_show_held_locks);
-
-void debug_show_held_locks(struct task_struct *task)
-{
-		__debug_show_held_locks(task);
 }
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
 
