@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/mtd/mtd.h>
 #include <linux/module.h>
