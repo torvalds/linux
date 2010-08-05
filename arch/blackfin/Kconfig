@@ -850,7 +850,6 @@ config CPLB_SWITCH_TAB_L1
 config ICACHE_FLUSH_L1
 	bool "Locate icache flush funcs in L1 Inst Memory"
 	default y
-	depends on !SMP
 	help
 	  If enabled, the Blackfin icache flushing functions are linked
 	  into L1 instruction memory.

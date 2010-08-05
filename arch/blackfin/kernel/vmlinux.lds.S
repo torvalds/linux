@@ -176,6 +176,7 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		__stext_l1 = .;
+		*(.l1.text.head)
 		*(.l1.text)
 #ifdef CONFIG_SCHEDULE_L1
 		SCHED_TEXT

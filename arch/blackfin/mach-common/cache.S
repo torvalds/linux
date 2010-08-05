@@ -69,9 +69,29 @@
 #endif
 
 /* Invalidate all instruction cache lines assocoiated with this memory area */
+#ifdef CONFIG_SMP
+# define _blackfin_icache_flush_range _blackfin_icache_flush_range_l1
+#endif
 ENTRY(_blackfin_icache_flush_range)
 	do_flush IFLUSH
 ENDPROC(_blackfin_icache_flush_range)
+
+#ifdef CONFIG_SMP
+.text
+# undef _blackfin_icache_flush_range
+ENTRY(_blackfin_icache_flush_range)
+	p0.L = LO(DSPID);
+	p0.H = HI(DSPID);
+	r3 = [p0];
+	r3 = r3.b (z);
+	p2 = r3;
+	p0.L = _blackfin_iflush_l1_entry;
+	p0.H = _blackfin_iflush_l1_entry;
+	p0 = p0 + (p2 << 2);
+	p1 = [p0];
+	jump (p1);
+ENDPROC(_blackfin_icache_flush_range)
+#endif
 
 #ifdef CONFIG_DCACHE_FLUSH_L1
 .section .l1.text

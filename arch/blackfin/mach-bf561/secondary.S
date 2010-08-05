@@ -13,7 +13,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
 
-__INIT
+/*
+ * This code must come first as CoreB is hardcoded (in hardware)
+ * to start at the beginning of its L1 instruction memory.
+ */
+.section .l1.text.head
 
 /* Lay the initial stack into the L1 scratch area of Core B */
 #define INITIAL_STACK	(COREB_L1_SCRATCH_START + L1_SCRATCH_LENGTH - 12)
@@ -160,7 +164,6 @@ ENTRY(_coreb_trampoline_start)
 .LWAIT_HERE:
 	jump .LWAIT_HERE;
 ENDPROC(_coreb_trampoline_start)
-ENTRY(_coreb_trampoline_end)
 
 #ifdef CONFIG_HOTPLUG_CPU
 .section ".text"

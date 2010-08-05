@@ -40,6 +40,10 @@
  */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
+#ifdef CONFIG_ICACHE_FLUSH_L1
+unsigned long blackfin_iflush_l1_entry[NR_CPUS];
+#endif
+
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
 	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
 	*init_saved_dcplb_fault_addr_coreb;

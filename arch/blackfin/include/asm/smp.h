@@ -17,7 +17,12 @@
 
 #define raw_smp_processor_id()  blackfin_core_id()
 
-extern char coreb_trampoline_start, coreb_trampoline_end;
+extern void bfin_relocate_coreb_l1_mem(void);
+
+#if defined(CONFIG_SMP) && defined(CONFIG_ICACHE_FLUSH_L1)
+asmlinkage void blackfin_icache_flush_range_l1(unsigned long *ptr);
+extern unsigned long blackfin_iflush_l1_entry[NR_CPUS];
+#endif
 
 struct corelock_slot {
 	int lock;

@@ -30,18 +30,11 @@ void __init platform_init_cpus(void)
 
 void __init platform_prepare_cpus(unsigned int max_cpus)
 {
-	int len;
-
-	len = &coreb_trampoline_end - &coreb_trampoline_start + 1;
-	BUG_ON(len > L1_CODE_LENGTH);
-
-	dma_memcpy((void *)COREB_L1_CODE_START, &coreb_trampoline_start, len);
+	bfin_relocate_coreb_l1_mem();
 
 	/* Both cores ought to be present on a bf561! */
 	cpu_set(0, cpu_present_map); /* CoreA */
 	cpu_set(1, cpu_present_map); /* CoreB */
-
-	printk(KERN_INFO "CoreB bootstrap code to SRAM %p via DMA.\n", (void *)COREB_L1_CODE_START);
 }
 
 int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
