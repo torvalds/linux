@@ -1251,6 +1251,10 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 		goto out_disable;
 	}
 
+	/* If the kernel debugger is active, always disable compression */
+	if (in_dbg_master())
+		goto out_disable;
+
 	if (intel_fbc_enabled(dev)) {
 		/* We can re-enable it in this case, but need to update pitch */
 		if ((fb->pitch > dev_priv->cfb_pitch) ||
