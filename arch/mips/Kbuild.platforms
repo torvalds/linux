@@ -4,6 +4,7 @@ platforms += alchemy
 platforms += ar7
 platforms += loongson
 platforms += mipssim
+platforms += sgi-ip27
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))
