@@ -8,6 +8,7 @@
 #include "linux/slab.h"
 #include "linux/sound.h"
 #include "linux/soundcard.h"
+#include "linux/smp_lock.h"
 #include "asm/uaccess.h"
 #include "init.h"
 #include "os.h"
@@ -198,7 +199,10 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		w = 1;
 
+	lock_kernel();
 	ret = os_open_file(dsp, of_set_rw(OPENFLAGS(), r, w), 0);
+	unlock_kernel();
+
 	if (ret < 0) {
 		kfree(state);
 		return ret;
@@ -254,7 +258,9 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		w = 1;
 
+	lock_kernel();
 	ret = os_open_file(mixer, of_set_rw(OPENFLAGS(), r, w), 0);
+	unlock_kernel();
 
 	if (ret < 0) {
 		printk(KERN_ERR "hostaudio_open_mixdev failed to open '%s', "

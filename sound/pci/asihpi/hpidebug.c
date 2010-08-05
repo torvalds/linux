@@ -111,7 +111,7 @@ make_treenode_from_array(hpi_control_type_strings, HPI_CONTROL_TYPE_STRINGS)
   &hpi_profile_strings,\
   &hpi_control_strings, \
   &hpi_asyncevent_strings \
-};
+}
 	make_treenode_from_array(hpi_function_strings, HPI_FUNCTION_STRINGS)
 
 	compile_time_assert(HPI_OBJ_MAXINDEX == 14, obj_list_doesnt_match);

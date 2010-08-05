@@ -434,7 +434,7 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 			u8 cin = buffer[i] & 0x0f;
 			struct usbmidi_in_port *port = &ep->ports[cable];
 			int length;
-			
+
 			length = snd_usbmidi_cin_length[cin];
 			if (cin == 0xf && buffer[i + 1] >= 0xf8)
 				; /* realtime msg: no running status change */
@@ -628,13 +628,13 @@ static struct usb_protocol_ops snd_usbmidi_standard_ops = {
 
 static struct usb_protocol_ops snd_usbmidi_midiman_ops = {
 	.input = snd_usbmidi_midiman_input,
-	.output = snd_usbmidi_standard_output, 
+	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_midiman_packet,
 };
 
 static struct usb_protocol_ops snd_usbmidi_maudio_broken_running_status_ops = {
 	.input = snd_usbmidi_maudio_broken_running_status_input,
-	.output = snd_usbmidi_standard_output, 
+	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_standard_packet,
 };
 
@@ -1248,7 +1248,7 @@ static void snd_usbmidi_out_endpoint_delete(struct snd_usb_midi_out_endpoint *ep
  */
 static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 					   struct snd_usb_midi_endpoint_info* ep_info,
-			 		   struct snd_usb_midi_endpoint* rep)
+					   struct snd_usb_midi_endpoint* rep)
 {
 	struct snd_usb_midi_out_endpoint* ep;
 	unsigned int i;
@@ -1398,7 +1398,7 @@ static void snd_usbmidi_rawmidi_free(struct snd_rawmidi *rmidi)
 }
 
 static struct snd_rawmidi_substream *snd_usbmidi_find_substream(struct snd_usb_midi* umidi,
-							   int stream, int number)
+								int stream, int number)
 {
 	struct list_head* list;
 
@@ -1811,7 +1811,7 @@ static int snd_usbmidi_detect_endpoints(struct snd_usb_midi* umidi,
 		snd_usbmidi_switch_roland_altsetting(umidi);
 
 	if (endpoint[0].out_ep || endpoint[0].in_ep)
-		return 0;	
+		return 0;
 
 	intf = umidi->iface;
 	if (!intf || intf->num_altsetting < 1)
@@ -1849,7 +1849,7 @@ static int snd_usbmidi_detect_per_port_endpoints(struct snd_usb_midi* umidi,
 						 struct snd_usb_midi_endpoint_info* endpoints)
 {
 	int err, i;
-	
+
 	err = snd_usbmidi_detect_endpoints(umidi, endpoints, MIDI_MAX_ENDPOINTS);
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
 		if (endpoints[i].out_ep)
