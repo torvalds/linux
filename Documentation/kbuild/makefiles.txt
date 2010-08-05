@@ -285,12 +285,12 @@ more details, with real examples.
 --- 3.7 Compilation flags
 
     ccflags-y, asflags-y and ldflags-y
-	The three flags listed above apply only to the kbuild makefile where
-	they are assigned (i.e., per-directory). They are used for all the
-	normal cc, as and ld invocation happening during a recursive build.
+	These three flags apply only to the kbuild makefile in which they
+	are assigned. They are used for all the normal cc, as and ld
+	invocations happening during a recursive build.
 	Note: Flags with the same behaviour were previously named:
-	EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS. They are still
-	supported but their use is deprecated.
+	EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
+	They are still supported but their usage is deprecated.
 
 	ccflags-y specifies options for compiling with $(CC).
 
@@ -317,10 +317,10 @@ more details, with real examples.
 
     subdir-ccflags-y, subdir-asflags-y
 	The two flags listed above are similar to ccflags-y and asflags-y.
-	The difference is that the subdir- variants affect the kbuild
-	file where they are present and all subdirectories. Options specified
-	using subdir-* are added to the commandline before the options
-	specified using the non-subdir variants.
+	The difference is that the subdir- variants have effect for the kbuild
+	file where they are present and all subdirectories.
+	Options specified using subdir-* are added to the commandline before
+	the options specified using the non-subdir variants.
 
 	Example:
 		subdir-ccflags-y := -Werror
@@ -1174,14 +1174,14 @@ When kbuild executes, the following steps are followed (roughly):
 === 7 Kbuild syntax for exported headers
 
 The kernel include a set of headers that is exported to userspace.
-Many headers can be exported as-is but other headers requires  a
+Many headers can be exported as-is but other headers require a
 minimal pre-processing before they are ready for user-space.
 The pre-processing does:
 - drop kernel specific annotations
 - drop include of compiler.h
-- drop all sections that is kernel internat (guarded by ifdef __KERNEL__)
+- drop all sections that are kernel internal (guarded by ifdef __KERNEL__)
 
-Each relevant directory contain a file name "Kbuild" which specify the
+Each relevant directory contains a file name "Kbuild" which specifies the
 headers to be exported.
 See subsequent chapter for the syntax of the Kbuild file.
 
