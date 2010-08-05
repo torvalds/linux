@@ -179,30 +179,6 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode);
 
-unsigned int ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
-{
-	unsigned len = le16_to_cpu(dlen);
-
-	if (len == EXT4_MAX_REC_LEN || len == 0)
-		return blocksize;
-	return (len & 65532) | ((len & 3) << 16);
-}
-
-__le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
-{
-	if ((len > blocksize) || (blocksize > (1 << 18)) || (len & 3))
-		BUG();
-	if (len < 65536)
-		return cpu_to_le16(len);
-	if (len == blocksize) {
-		if (blocksize == 65536)
-			return cpu_to_le16(EXT4_MAX_REC_LEN);
-		else
-			return cpu_to_le16(0);
-	}
-	return cpu_to_le16((len & 65532) | ((len >> 16) & 3));
-}
-
 /*
  * p is at least 6 bytes before the end of page
  */
