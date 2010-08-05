@@ -507,6 +507,8 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	 */
 	bfin_write_NFC_RST(ECC_RST);
 	SSYNC();
+	while (bfin_read_NFC_RST() & ECC_RST)
+		cpu_relax();
 
 	disable_dma(CH_NFC);
 	clear_dma_irqstat(CH_NFC);
