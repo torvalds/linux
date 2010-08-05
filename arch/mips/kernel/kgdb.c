@@ -329,7 +329,7 @@ static struct notifier_block kgdb_notifier = {
 };
 
 /*
- * Handle the 's' and 'c' commands
+ * Handle the 'c' command
  */
 int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
@@ -337,19 +337,13 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 {
 	char *ptr;
 	unsigned long address;
-	int cpu = smp_processor_id();
 
 	switch (remcom_in_buffer[0]) {
-	case 's':
 	case 'c':
 		/* handle the optional parameter */
 		ptr = &remcom_in_buffer[1];
 		if (kgdb_hex2long(&ptr, &address))
 			regs->cp0_epc = address;
-
-		atomic_set(&kgdb_cpu_doing_single_step, -1);
-		if (remcom_in_buffer[0] == 's')
-			atomic_set(&kgdb_cpu_doing_single_step, cpu);
 
 		return 0;
 	}
