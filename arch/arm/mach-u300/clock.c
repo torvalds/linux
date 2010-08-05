@@ -1204,10 +1204,14 @@ static struct clk timer_clk = {
 	.lock       = __SPIN_LOCK_UNLOCKED(timer_clk.lock),
 };
 
+/*
+ * There is a binary divider in the hardware that divides
+ * the 13MHz PLL by 13 down to 1 MHz.
+ */
 static struct clk app_timer_clk = {
 	.name       = "TIMER_APP",
 	.parent	    = &slow_clk,
-	.rate       = 13000000,
+	.rate       = 1000000,
 	.hw_ctrld   = true,
 	.reset	    = true,
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RSR,
