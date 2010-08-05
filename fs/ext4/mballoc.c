@@ -4253,7 +4253,7 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
  * to usual allocation
  */
 ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
-				 struct ext4_allocation_request *ar, int *errp)
+				struct ext4_allocation_request *ar, int *errp)
 {
 	int freed;
 	struct ext4_allocation_context *ac = NULL;
@@ -4297,7 +4297,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		inquota = ar->len;
 		if (ar->len == 0) {
 			*errp = -EDQUOT;
-			goto out3;
+			goto out;
 		}
 	}
 
@@ -4305,13 +4305,13 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	if (!ac) {
 		ar->len = 0;
 		*errp = -ENOMEM;
-		goto out1;
+		goto out;
 	}
 
 	*errp = ext4_mb_initialize_context(ac, ar);
 	if (*errp) {
 		ar->len = 0;
-		goto out2;
+		goto out;
 	}
 
 	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
@@ -4320,7 +4320,9 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		ext4_mb_normalize_request(ac, ar);
 repeat:
 		/* allocate space in core */
-		ext4_mb_regular_allocator(ac);
+		*errp = ext4_mb_regular_allocator(ac);
+		if (*errp)
+			goto errout;
 
 		/* as we've just preallocated more space than
 		 * user requested orinally, we store allocated
@@ -4331,7 +4333,7 @@ repeat:
 	}
 	if (likely(ac->ac_status == AC_STATUS_FOUND)) {
 		*errp = ext4_mb_mark_diskspace_used(ac, handle, reserv_blks);
-		if (*errp ==  -EAGAIN) {
+		if (*errp == -EAGAIN) {
 			/*
 			 * drop the reference that we took
 			 * in ext4_mb_use_best_found
@@ -4342,12 +4344,10 @@ repeat:
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
 			goto repeat;
-		} else if (*errp) {
+		} else if (*errp)
+		errout:
 			ext4_discard_allocated_blocks(ac);
-			ac->ac_b_ex.fe_len = 0;
-			ar->len = 0;
-			ext4_mb_show_ac(ac);
-		} else {
+		else {
 			block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
 			ar->len = ac->ac_b_ex.fe_len;
 		}
@@ -4356,19 +4356,19 @@ repeat:
 		if (freed)
 			goto repeat;
 		*errp = -ENOSPC;
+	}
+
+	if (*errp) {
 		ac->ac_b_ex.fe_len = 0;
 		ar->len = 0;
 		ext4_mb_show_ac(ac);
 	}
-
 	ext4_mb_release_context(ac);
-
-out2:
-	kmem_cache_free(ext4_ac_cachep, ac);
-out1:
+out:
+	if (ac)
+		kmem_cache_free(ext4_ac_cachep, ac);
 	if (inquota && ar->len < inquota)
 		dquot_free_block(ar->inode, inquota - ar->len);
-out3:
 	if (!ar->len) {
 		if (!EXT4_I(ar->inode)->i_delalloc_reserved_flag)
 			/* release all the reserved blocks if non delalloc */
