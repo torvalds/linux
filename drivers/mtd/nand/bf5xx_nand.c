@@ -571,6 +571,22 @@ static void bf5xx_nand_dma_write_buf(struct mtd_info *mtd,
 		bf5xx_nand_write_buf(mtd, buf, len);
 }
 
+static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		uint8_t *buf, int page)
+{
+	bf5xx_nand_read_buf(mtd, buf, mtd->writesize);
+	bf5xx_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
+}
+
+static void bf5xx_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		const uint8_t *buf)
+{
+	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
+	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+}
+
 /*
  * System initialization functions
  */
@@ -795,6 +811,8 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 		chip->ecc.correct   = bf5xx_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
 		chip->ecc.hwctl	    = bf5xx_nand_enable_hwecc;
+		chip->ecc.read_page_raw = bf5xx_nand_read_page_raw;
+		chip->ecc.write_page_raw = bf5xx_nand_write_page_raw;
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
 	}
