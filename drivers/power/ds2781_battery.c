@@ -422,6 +422,10 @@ static int ds2781_battery_probe(struct platform_device *pdev)
 	alarm_init(&di->alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 			ds2781_battery_alarm);
 	wake_lock(&di->work_wake_lock);
+
+	/* Check for charger since it could have been detected already. */
+	battery_ext_power_changed(&di->bat);
+
 	queue_work(di->monitor_wqueue, &di->monitor_work);
 	return 0;
 
