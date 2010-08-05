@@ -191,14 +191,6 @@ endif
 #
 include $(srctree)/arch/mips/Kbuild.platforms
 
-# NXP STB225
-core-$(CONFIG_SOC_PNX833X)		+= arch/mips/pnx833x/common/
-cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x
-core-$(CONFIG_NXP_STB220)		+= arch/mips/pnx833x/stb22x/
-load-$(CONFIG_NXP_STB220)		+= 0xffffffff80001000
-core-$(CONFIG_NXP_STB225)		+= arch/mips/pnx833x/stb22x/
-load-$(CONFIG_NXP_STB225)		+= 0xffffffff80001000
-
 #
 # Common NXP PNX8550
 #
