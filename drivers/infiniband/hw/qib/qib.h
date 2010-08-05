@@ -45,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
