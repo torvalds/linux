@@ -52,17 +52,6 @@ static unsigned long		gdb_regs[(NUMREGBYTES +
  * GDB remote protocol parser:
  */
 
-static int hex(char ch)
-{
-	if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	return -1;
-}
-
 #ifdef CONFIG_KGDB_KDB
 static int gdbstub_read_wait(void)
 {
@@ -123,8 +112,8 @@ static void get_packet(char *buffer)
 		buffer[count] = 0;
 
 		if (ch == '#') {
-			xmitcsum = hex(gdbstub_read_wait()) << 4;
-			xmitcsum += hex(gdbstub_read_wait());
+			xmitcsum = hex_to_bin(gdbstub_read_wait()) << 4;
+			xmitcsum += hex_to_bin(gdbstub_read_wait());
 
 			if (checksum != xmitcsum)
 				/* failed checksum */
@@ -280,8 +269,8 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 	tmp_hex = tmp_raw - 1;
 	while (tmp_hex >= buf) {
 		tmp_raw--;
-		*tmp_raw = hex(*tmp_hex--);
-		*tmp_raw |= hex(*tmp_hex--) << 4;
+		*tmp_raw = hex_to_bin(*tmp_hex--);
+		*tmp_raw |= hex_to_bin(*tmp_hex--) << 4;
 	}
 
 	return probe_kernel_write(mem, tmp_raw, count);
@@ -304,7 +293,7 @@ int kgdb_hex2long(char **ptr, unsigned long *long_val)
 		(*ptr)++;
 	}
 	while (**ptr) {
-		hex_val = hex(**ptr);
+		hex_val = hex_to_bin(**ptr);
 		if (hex_val < 0)
 			break;
 
