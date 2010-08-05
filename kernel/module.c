@@ -2225,11 +2225,13 @@ static int rewrite_section_headers(struct load_info *info)
 		if (strstarts(info->secstrings+shdr->sh_name, ".exit"))
 			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
 #endif
-		/* Don't keep modinfo and version sections. */
-		if (!strcmp(info->secstrings+shdr->sh_name, "__versions")
-		    || !strcmp(info->secstrings+shdr->sh_name, ".modinfo"))
-			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
 	}
+
+	/* Track but don't keep modinfo and version sections. */
+	info->index.vers = find_sec(info->hdr, info->sechdrs, info->secstrings, "__versions");
+	info->index.info = find_sec(info->hdr, info->sechdrs, info->secstrings, ".modinfo");
+	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
+	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	return 0;
 }
 
@@ -2282,8 +2284,6 @@ static struct module *setup_load_info(struct load_info *info)
 		return ERR_PTR(-ENOEXEC);
 	}
 
-	info->index.vers = find_sec(info->hdr, info->sechdrs, info->secstrings, "__versions");
-	info->index.info = find_sec(info->hdr, info->sechdrs, info->secstrings, ".modinfo");
 	info->index.pcpu = find_pcpusec(info->hdr, info->sechdrs, info->secstrings);
 
 	/* Check module struct version now, before we try to use module. */
