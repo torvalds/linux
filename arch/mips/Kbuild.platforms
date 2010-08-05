@@ -3,6 +3,7 @@
 platforms += alchemy
 platforms += ar7
 platforms += cobalt
+platforms += jazz
 platforms += loongson
 platforms += mipssim
 platforms += pmc-sierra

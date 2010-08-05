@@ -192,13 +192,6 @@ endif
 include $(srctree)/arch/mips/Kbuild.platforms
 
 #
-# Acer PICA 61, Mips Magnum 4000 and Olivetti M700.
-#
-core-$(CONFIG_MACH_JAZZ)	+= arch/mips/jazz/
-cflags-$(CONFIG_MACH_JAZZ)	+= -I$(srctree)/arch/mips/include/asm/mach-jazz
-load-$(CONFIG_MACH_JAZZ)	+= 0xffffffff80080000
-
-#
 # DECstation family
 #
 core-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/
