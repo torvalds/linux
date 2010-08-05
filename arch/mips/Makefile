@@ -192,13 +192,6 @@ endif
 include $(srctree)/arch/mips/Kbuild.platforms
 
 #
-# Wind River PPMC Board (4KC + GT64120)
-#
-core-$(CONFIG_WR_PPMC)		+= arch/mips/wrppmc/
-cflags-$(CONFIG_WR_PPMC)		+= -I$(srctree)/arch/mips/include/asm/mach-wrppmc
-load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
-
-#
 # LASAT platforms
 #
 core-$(CONFIG_LASAT)		+= arch/mips/lasat/

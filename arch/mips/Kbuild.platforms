@@ -15,6 +15,7 @@ platforms += sgi-ip27
 platforms += sgi-ip32
 platforms += sni
 platforms += vr41xx
+platforms += wrppmc
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

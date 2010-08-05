@@ -6,9 +6,7 @@
 # Copyright 2006 Wind River System, Inc.
 # Author: Rongkai.Zhan <rongkai.zhan@windriver.com>
 #
-# Makefile for the Wind River MIPS 4KC PPMC Eval Board
+# Makefile for the Wind River MIPS 4Kc PPMC Eval Board
 #
 
 obj-y += irq.o pci.o reset.o serial.o setup.o time.o
-
-EXTRA_CFLAGS += -Werror
