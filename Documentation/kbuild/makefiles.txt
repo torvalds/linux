@@ -168,7 +168,7 @@ more details, with real examples.
 		#drivers/isdn/i4l/Makefile
 		# Makefile for the kernel ISDN subsystem and device drivers.
 		# Each configuration option enables a list of files.
-		obj-$(CONFIG_ISDN)             += isdn.o
+		obj-$(CONFIG_ISDN_I4L)         += isdn.o
 		obj-$(CONFIG_ISDN_PPP_BSDCOMP) += isdn_bsdcomp.o
 
 --- 3.3 Loadable module goals - obj-m
@@ -245,12 +245,12 @@ more details, with real examples.
 	may contain both a built-in.o and a lib.a file.
 
 	Example:
-		#arch/i386/lib/Makefile
-		lib-y    := checksum.o delay.o
+		#arch/x86/lib/Makefile
+		lib-y    := delay.o
 
-	This will create a library lib.a based on checksum.o and delay.o.
-	For kbuild to actually recognize that there is a lib.a being built,
-	the directory shall be listed in libs-y.
+	This will create a library lib.a based on delay.o. For kbuild to
+	actually recognize that there is a lib.a being built, the directory
+	shall be listed in libs-y.
 	See also "6.3 List directories to visit when descending".
 
 	Use of lib-y is normally restricted to lib/ and arch/*/lib.
