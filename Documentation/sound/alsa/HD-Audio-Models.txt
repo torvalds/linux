@@ -114,6 +114,11 @@ ALC662/663/272
   samsung-nc10	Samsung NC10 mini notebook
   auto		auto-config reading BIOS (default)
 
+ALC680
+======
+  base		Base model (ASUS NX90)
+  auto		auto-config reading BIOS (default)
+
 ALC882/883/885/888/889
 ======================
   3stack-dig	3-jack with SPDIF I/O
@@ -282,6 +287,7 @@ Conexant 5051
   hp		HP Spartan laptop
   hp-dv6736	HP dv6736
   hp-f700	HP Compaq Presario F700
+  ideapad	Lenovo IdeaPad laptop
   lenovo-x200	Lenovo X200 laptop
   toshiba	Toshiba Satellite M300
 
