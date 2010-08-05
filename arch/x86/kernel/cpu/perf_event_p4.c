@@ -656,6 +656,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		int overflow;
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
@@ -666,11 +667,13 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		WARN_ON_ONCE(hwc->idx != idx);
 
 		/* it might be unflagged overflow */
-		handled = p4_pmu_clear_cccr_ovf(hwc);
+		overflow = p4_pmu_clear_cccr_ovf(hwc);
 
 		val = x86_perf_event_update(event);
-		if (!handled && (val & (1ULL << (x86_pmu.cntval_bits - 1))))
+		if (!overflow && (val & (1ULL << (x86_pmu.cntval_bits - 1))))
 			continue;
+
+		handled += overflow;
 
 		/* event overflow for sure */
 		data.period = event->hw.last_period;
@@ -687,7 +690,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		inc_irq_stat(apic_perf_irqs);
 	}
 
-	return handled;
+	return handled > 0;
 }
 
 /*
