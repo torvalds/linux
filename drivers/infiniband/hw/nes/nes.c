@@ -110,8 +110,8 @@ static unsigned int sysfs_nonidx_addr;
 static unsigned int sysfs_idx_addr;
 
 static struct pci_device_id nes_pci_table[] = {
-	{PCI_VENDOR_ID_NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020, PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020_KR, PCI_ANY_ID, PCI_ANY_ID},
+	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020), },
+	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020_KR), },
 	{0}
 };
 
@@ -259,13 +259,11 @@ static void nes_cqp_rem_ref_callback(struct nes_device *nesdev, struct nes_cqp_r
 	unsigned long flags;
 	struct nes_qp *nesqp = cqp_request->cqp_callback_pointer;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	u32 qp_id;
 
 	atomic_inc(&qps_destroyed);
 
 	/* Free the control structures */
 
-	qp_id = nesqp->hwqp.qp_id;
 	if (nesqp->pbl_vbase) {
 		pci_free_consistent(nesdev->pcidev, nesqp->qp_mem_size,
 				nesqp->hwqp.q2_vbase, nesqp->hwqp.q2_pbase);
@@ -441,7 +439,6 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	struct net_device *netdev = NULL;
 	struct nes_device *nesdev = NULL;
 	int ret = 0;
-	struct nes_vnic *nesvnic = NULL;
 	void __iomem *mmio_regs = NULL;
 	u8 hw_rev;
 
@@ -664,25 +661,21 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nes_notifiers_registered++;
 
 	/* Initialize network devices */
-		if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL) {
-			goto bail7;
-		}
+	if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL)
+		goto bail7;
 
-		/* Register network device */
-		ret = register_netdev(netdev);
-		if (ret) {
-			printk(KERN_ERR PFX "Unable to register netdev, ret = %d\n", ret);
-			nes_netdev_destroy(netdev);
-			goto bail7;
-		}
+	/* Register network device */
+	ret = register_netdev(netdev);
+	if (ret) {
+		printk(KERN_ERR PFX "Unable to register netdev, ret = %d\n", ret);
+		nes_netdev_destroy(netdev);
+		goto bail7;
+	}
 
-		nes_print_macaddr(netdev);
-		/* create a CM core for this netdev */
-		nesvnic = netdev_priv(netdev);
+	nes_print_macaddr(netdev);
 
-		nesdev->netdev_count++;
-		nesdev->nesadapter->netdev_count++;
-
+	nesdev->netdev_count++;
+	nesdev->nesadapter->netdev_count++;
 
 	printk(KERN_ERR PFX "%s: NetEffect RNIC driver successfully loaded.\n",
 			pci_name(pcidev));
@@ -1104,7 +1097,7 @@ static ssize_t nes_show_wqm_quanta(struct device_driver *ddp, char *buf)
 		i++;
 	}
 
-	return  snprintf(buf, PAGE_SIZE, "0x%X\n", wqm_quanta);
+	return  snprintf(buf, PAGE_SIZE, "0x%X\n", wqm_quanta_value);
 }
 
 

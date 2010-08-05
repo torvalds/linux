@@ -826,4 +826,14 @@ struct ulptx_idata {
 #define S_ULPTX_NSGE    0
 #define M_ULPTX_NSGE    0xFFFF
 #define V_ULPTX_NSGE(x) ((x) << S_ULPTX_NSGE)
+
+#define S_RX_DACK_MODE    29
+#define M_RX_DACK_MODE    0x3
+#define V_RX_DACK_MODE(x) ((x) << S_RX_DACK_MODE)
+#define G_RX_DACK_MODE(x) (((x) >> S_RX_DACK_MODE) & M_RX_DACK_MODE)
+
+#define S_RX_DACK_CHANGE    31
+#define V_RX_DACK_CHANGE(x) ((x) << S_RX_DACK_CHANGE)
+#define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
+
 #endif /* _T4FW_RI_API_H_ */
