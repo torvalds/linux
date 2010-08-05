@@ -64,6 +64,8 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
+#include <asm/dbell.h>
+
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/firmware.h>
@@ -153,14 +155,28 @@ notrace void raw_local_irq_restore(unsigned long en)
 	if (get_hard_enabled())
 		return;
 
+#if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
+	/* Check for pending doorbell interrupts and resend to ourself */
+	doorbell_check_self();
+#endif
+
 	/*
 	 * Need to hard-enable interrupts here.  Since currently disabled,
 	 * no need to take further asm precautions against preemption; but
 	 * use local_paca instead of get_paca() to avoid preemption checking.
 	 */
 	local_paca->hard_enabled = en;
+
+#ifndef CONFIG_BOOKE
+	/* On server, re-trigger the decrementer if it went negative since
+	 * some processors only trigger on edge transitions of the sign bit.
+	 *
+	 * BookE has a level sensitive decrementer (latches in TSR) so we
+	 * don't need that
+	 */
 	if ((int)mfspr(SPRN_DEC) < 0)
 		mtspr(SPRN_DEC, 1);
+#endif /* CONFIG_BOOKE */
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.

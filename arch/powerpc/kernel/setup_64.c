@@ -142,16 +142,6 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
-/* Put the paca pointer into r13 and SPRG_PACA */
-static void __init setup_paca(struct paca_struct *new_paca)
-{
-	local_paca = new_paca;
-	mtspr(SPRN_SPRG_PACA, local_paca);
-#ifdef CONFIG_PPC_BOOK3E
-	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
-#endif
-}
-
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
@@ -600,6 +590,9 @@ static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 		return REMOTE_DISTANCE;
 }
 
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(__per_cpu_offset);
+
 void __init setup_per_cpu_areas(void)
 {
 	const size_t dyn_size = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
@@ -624,8 +617,10 @@ void __init setup_per_cpu_areas(void)
 		panic("cannot initialize percpu area (err=%d)", rc);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
-	for_each_possible_cpu(cpu)
-		paca[cpu].data_offset = delta + pcpu_unit_offsets[cpu];
+	for_each_possible_cpu(cpu) {
+                __per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
+		paca[cpu].data_offset = __per_cpu_offset[cpu];
+	}
 }
 #endif
 

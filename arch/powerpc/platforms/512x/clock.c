@@ -292,6 +292,15 @@ static void diu_clk_calc(struct clk *clk)
 	clk->rate = rate;
 }
 
+static void viu_clk_calc(struct clk *clk)
+{
+	unsigned long rate;
+
+	rate = sys_clk.rate;
+	rate /= 2;
+	clk->rate = rate;
+}
+
 static void half_clk_calc(struct clk *clk)
 {
 	clk->rate = clk->parent->rate / 2;
@@ -410,6 +419,14 @@ static struct clk diu_clk = {
 	.reg = 1,
 	.bit = 31,
 	.calc = diu_clk_calc,
+};
+
+static struct clk viu_clk = {
+	.name = "viu_clk",
+	.flags = CLK_HAS_CTRL,
+	.reg = 1,
+	.bit = 18,
+	.calc = viu_clk_calc,
 };
 
 static struct clk axe_clk = {
@@ -535,6 +552,7 @@ struct clk *rate_clks[] = {
 	&ref_clk,
 	&sys_clk,
 	&diu_clk,
+	&viu_clk,
 	&csb_clk,
 	&e300_clk,
 	&ips_clk,
