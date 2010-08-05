@@ -64,12 +64,6 @@
 
 #include "buffer_head_io.h"
 
-static int ocfs2_sync_inode(struct inode *inode)
-{
-	filemap_fdatawrite(inode->i_mapping);
-	return sync_mapping_buffers(inode->i_mapping);
-}
-
 static int ocfs2_init_file_private(struct inode *inode, struct file *file)
 {
 	struct ocfs2_file_private *fp;
@@ -186,10 +180,6 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 
 	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", file, dentry, datasync,
 		   dentry->d_name.len, dentry->d_name.name);
-
-	err = ocfs2_sync_inode(dentry->d_inode);
-	if (err)
-		goto bail;
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
 		/*
