@@ -301,6 +301,16 @@ A partial list of the supported mount options follows:
   gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
+  fsc		Enable local disk caching using FS-Cache (off by default). This
+  		option could be useful to improve performance on a slow link,
+		heavily loaded server and/or network where reading from the
+		disk is faster than reading from the server (over the network).
+		This could also impact scalability positively as the
+		number of calls to the server are reduced. However, local
+		caching is not suitable for all workloads for e.g. read-once
+		type workloads. So, you need to consider carefully your
+		workload/scenario before using this option. Currently, local
+		disk caching is functional for CIFS files opened as read-only.
   dir_mode      If CIFS Unix extensions are not supported by the server 
 		this overrides the default mode for directory inodes.
   port		attempt to contact the server on this tcp port, before
