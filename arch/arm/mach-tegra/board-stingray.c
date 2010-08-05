@@ -861,6 +861,17 @@ static void __init tegra_stingray_init(void)
 		gpio_export(TEGRA_GPIO_PI4, false);
 	}
 
+	/* Enable charge LEDs */
+	if (stingray_revision() >= STINGRAY_REVISION_P0) {
+		/* Set the SYS_CLK_REQ override bit to allow PZ5 to be used
+		   as a GPIO. */
+		writel(0, IO_TO_VIRT(TEGRA_PMC_BASE + 0x01C));
+		tegra_gpio_enable(TEGRA_GPIO_PZ5);
+		gpio_request(TEGRA_GPIO_PZ5, "chg_led_disable");
+		gpio_direction_output(TEGRA_GPIO_PZ5, 0);
+		gpio_export(TEGRA_GPIO_PZ5, false);
+	}
+
 	stingray_pinmux_init();
 
 	tegra_clk_init_from_table(stingray_clk_init_table);
