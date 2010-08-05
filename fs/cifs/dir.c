@@ -305,8 +305,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto cifs_create_out;
 	}
 
 	if (oplockEnabled)
@@ -365,9 +364,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 	if (buf == NULL) {
-		kfree(full_path);
-		FreeXid(xid);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto cifs_create_out;
 	}
 
 	/*
