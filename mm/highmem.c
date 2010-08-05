@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
+#include <linux/kgdb.h>
 #include <asm/tlbflush.h>
 
 /*
@@ -470,6 +471,12 @@ void debug_kmap_atomic(enum km_type type)
 			warn_count--;
 		}
 	}
+#ifdef CONFIG_KGDB_KDB
+	if (unlikely(type == KM_KDB && atomic_read(&kgdb_active) == -1)) {
+		WARN_ON(1);
+		warn_count--;
+	}
+#endif /* CONFIG_KGDB_KDB */
 }
 
 #endif
