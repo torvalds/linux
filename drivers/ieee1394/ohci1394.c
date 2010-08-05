@@ -1106,7 +1106,7 @@ static int ohci_iso_recv_init(struct hpsb_iso *iso)
 		if (recv->block_irq_interval * 4 > iso->buf_packets)
 			recv->block_irq_interval = iso->buf_packets / 4;
 		if (recv->block_irq_interval < 1)
-		recv->block_irq_interval = 1;
+			recv->block_irq_interval = 1;
 
 		/* choose a buffer stride */
 		/* must be a power of 2, and <= PAGE_SIZE */
