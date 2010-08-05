@@ -35,6 +35,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
+#include <plat/sdhci.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -420,12 +421,47 @@ static void __init goni_pmic_init(void)
 	s3c_gpio_setpull(S5PV210_GPH2(6), S3C_GPIO_PULL_UP);
 }
 
+/* MoviNAND */
+static struct s3c_sdhci_platdata goni_hsmmc0_data __initdata = {
+	.max_width		= 4,
+	.cd_type		= S3C_SDHCI_CD_PERMANENT,
+};
+
+/* Wireless LAN */
+static struct s3c_sdhci_platdata goni_hsmmc1_data __initdata = {
+	.max_width		= 4,
+	.cd_type		= S3C_SDHCI_CD_EXTERNAL,
+	/* ext_cd_{init,cleanup} callbacks will be added later */
+};
+
+/* External Flash */
+#define GONI_EXT_FLASH_EN	S5PV210_MP05(4)
+#define GONI_EXT_FLASH_CD	S5PV210_GPH3(4)
+static struct s3c_sdhci_platdata goni_hsmmc2_data __initdata = {
+	.max_width		= 4,
+	.cd_type		= S3C_SDHCI_CD_GPIO,
+	.ext_cd_gpio		= GONI_EXT_FLASH_CD,
+	.ext_cd_gpio_invert	= 1,
+};
+
+static void goni_setup_sdhci(void)
+{
+	gpio_request(GONI_EXT_FLASH_EN, "FLASH_EN");
+	gpio_direction_output(GONI_EXT_FLASH_EN, 1);
+
+	s3c_sdhci0_set_platdata(&goni_hsmmc0_data);
+	s3c_sdhci1_set_platdata(&goni_hsmmc1_data);
+	s3c_sdhci2_set_platdata(&goni_hsmmc2_data);
+};
 
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
 	&s5pc110_device_onenand,
 	&goni_i2c_gpio_pmic,
 	&goni_device_gpiokeys,
+	&s3c_device_hsmmc0,
+	&s3c_device_hsmmc1,
+	&s3c_device_hsmmc2,
 };
 
 static void __init goni_map_io(void)
@@ -441,6 +477,9 @@ static void __init goni_machine_init(void)
 	goni_pmic_init();
 	i2c_register_board_info(AP_I2C_GPIO_PMIC_BUS_4, i2c_gpio_pmic_devs,
 			ARRAY_SIZE(i2c_gpio_pmic_devs));
+	/* SDHCI */
+	goni_setup_sdhci();
+
 	/* FB */
 	s3c_fb_set_platdata(&goni_lcd_pdata);
 
