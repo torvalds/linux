@@ -4,6 +4,7 @@ platforms += alchemy
 platforms += ar7
 platforms += bcm47xx
 platforms += bcm63xx
+platforms += cavium-octeon
 platforms += cobalt
 platforms += dec
 platforms += jazz
