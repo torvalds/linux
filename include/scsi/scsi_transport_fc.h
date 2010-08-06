@@ -496,6 +496,7 @@ struct fc_host_attrs {
 	u64 fabric_name;
 	char symbolic_name[FC_SYMBOLIC_NAME_SIZE];
 	char system_hostname[FC_SYMBOLIC_NAME_SIZE];
+	u32 def_dev_loss_tmo;
 
 	/* Private (Transport-managed) Attributes */
 	enum fc_tgtid_binding_type  tgtid_bind_type;
@@ -580,6 +581,8 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q_name)
 #define fc_host_devloss_work_q(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q)
+#define fc_host_def_dev_loss_tmo(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->def_dev_loss_tmo)
 
 
 struct fc_bsg_buffer {
@@ -640,6 +643,7 @@ struct fc_function_template {
 	void	(*get_host_fabric_name)(struct Scsi_Host *);
 	void	(*get_host_symbolic_name)(struct Scsi_Host *);
 	void	(*set_host_system_hostname)(struct Scsi_Host *);
+	void	(*get_host_def_dev_loss_tmo)(struct Scsi_Host *);
 
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);

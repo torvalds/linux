@@ -2525,7 +2525,11 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
-	rport->dev_loss_tmo = fc_dev_loss_tmo;
+	if (fci->f->get_host_def_dev_loss_tmo) {
+		fci->f->get_host_def_dev_loss_tmo(shost);
+		rport->dev_loss_tmo = fc_host_def_dev_loss_tmo(shost);
+	} else
+		rport->dev_loss_tmo = fc_dev_loss_tmo;
 	memcpy(&rport->node_name, &ids->node_name, sizeof(rport->node_name));
 	memcpy(&rport->port_name, &ids->port_name, sizeof(rport->port_name));
 	rport->port_id = ids->port_id;
