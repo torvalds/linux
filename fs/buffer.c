@@ -275,6 +275,7 @@ void invalidate_bdev(struct block_device *bdev)
 		return;
 
 	invalidate_bh_lrus();
+	lru_add_drain_all();	/* make sure all lru add caches are flushed */
 	invalidate_mapping_pages(mapping, 0, -1);
 }
 EXPORT_SYMBOL(invalidate_bdev);
@@ -560,26 +561,17 @@ repeat:
 	return err;
 }
 
+static void do_thaw_one(struct super_block *sb, void *unused)
+{
+	char b[BDEVNAME_SIZE];
+	while (sb->s_bdev && !thaw_bdev(sb->s_bdev, sb))
+		printk(KERN_WARNING "Emergency Thaw on %s\n",
+		       bdevname(sb->s_bdev, b));
+}
+
 static void do_thaw_all(struct work_struct *work)
 {
-	struct super_block *sb;
-	char b[BDEVNAME_SIZE];
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		while (sb->s_bdev && !thaw_bdev(sb->s_bdev, sb))
-			printk(KERN_WARNING "Emergency Thaw on %s\n",
-			       bdevname(sb->s_bdev, b));
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
+	iterate_supers(do_thaw_one, NULL);
 	kfree(work);
 	printk(KERN_WARNING "Emergency Thaw complete\n");
 }
@@ -1957,14 +1949,11 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 }
 
 /*
- * block_write_begin takes care of the basic task of block allocation and
- * bringing partial write blocks uptodate first.
- *
- * If *pagep is not NULL, then block_write_begin uses the locked page
- * at *pagep rather than allocating its own. In this case, the page will
- * not be unlocked or deallocated on failure.
+ * Filesystems implementing the new truncate sequence should use the
+ * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * The filesystem needs to handle block truncation upon failure.
  */
-int block_write_begin(struct file *file, struct address_space *mapping,
+int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
@@ -2000,19 +1989,49 @@ int block_write_begin(struct file *file, struct address_space *mapping,
 			unlock_page(page);
 			page_cache_release(page);
 			*pagep = NULL;
-
-			/*
-			 * prepare_write() may have instantiated a few blocks
-			 * outside i_size.  Trim these off again. Don't need
-			 * i_size_read because we hold i_mutex.
-			 */
-			if (pos + len > inode->i_size)
-				vmtruncate(inode, inode->i_size);
 		}
 	}
 
 out:
 	return status;
+}
+EXPORT_SYMBOL(block_write_begin_newtrunc);
+
+/*
+ * block_write_begin takes care of the basic task of block allocation and
+ * bringing partial write blocks uptodate first.
+ *
+ * If *pagep is not NULL, then block_write_begin uses the locked page
+ * at *pagep rather than allocating its own. In this case, the page will
+ * not be unlocked or deallocated on failure.
+ */
+int block_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata,
+			get_block_t *get_block)
+{
+	int ret;
+
+	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags,
+					pagep, fsdata, get_block);
+
+	/*
+	 * prepare_write() may have instantiated a few blocks
+	 * outside i_size.  Trim these off again. Don't need
+	 * i_size_read because we hold i_mutex.
+	 *
+	 * Filesystems which pass down their own page also cannot
+	 * call into vmtruncate here because it would lead to lock
+	 * inversion problems (*pagep is locked). This is a further
+	 * example of where the old truncate sequence is inadequate.
+	 */
+	if (unlikely(ret) && *pagep == NULL) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(block_write_begin);
 
@@ -2332,7 +2351,7 @@ out:
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-int cont_write_begin(struct file *file, struct address_space *mapping,
+int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
@@ -2353,10 +2372,29 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 	*pagep = NULL;
-	err = block_write_begin(file, mapping, pos, len,
+	err = block_write_begin_newtrunc(file, mapping, pos, len,
 				flags, pagep, fsdata, get_block);
 out:
 	return err;
+}
+EXPORT_SYMBOL(cont_write_begin_newtrunc);
+
+int cont_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata,
+			get_block_t *get_block, loff_t *bytes)
+{
+	int ret;
+
+	ret = cont_write_begin_newtrunc(file, mapping, pos, len, flags,
+					pagep, fsdata, get_block, bytes);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(cont_write_begin);
 
@@ -2389,7 +2427,7 @@ EXPORT_SYMBOL(block_commit_write);
  *
  * We are not allowed to take the i_mutex here so we have to play games to
  * protect against truncate races as the page could now be beyond EOF.  Because
- * vmtruncate() writes the inode size before removing pages, once we have the
+ * truncate writes the inode size before removing pages, once we have the
  * page lock we can determine safely if the page is beyond EOF. If it is not
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
@@ -2472,10 +2510,11 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 }
 
 /*
- * On entry, the page is fully not uptodate.
- * On exit the page is fully uptodate in the areas outside (from,to)
+ * Filesystems implementing the new truncate sequence should use the
+ * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin(struct file *file, struct address_space *mapping,
+int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
@@ -2508,8 +2547,8 @@ int nobh_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 		*pagep = NULL;
-		return block_write_begin(file, mapping, pos, len, flags, pagep,
-					fsdata, get_block);
+		return block_write_begin_newtrunc(file, mapping, pos, len,
+					flags, pagep, fsdata, get_block);
 	}
 
 	if (PageMappedToDisk(page))
@@ -2613,8 +2652,34 @@ out_release:
 	page_cache_release(page);
 	*pagep = NULL;
 
-	if (pos + len > inode->i_size)
-		vmtruncate(inode, inode->i_size);
+	return ret;
+}
+EXPORT_SYMBOL(nobh_write_begin_newtrunc);
+
+/*
+ * On entry, the page is fully not uptodate.
+ * On exit the page is fully uptodate in the areas outside (from,to)
+ */
+int nobh_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata,
+			get_block_t *get_block)
+{
+	int ret;
+
+	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags,
+					pagep, fsdata, get_block);
+
+	/*
+	 * prepare_write() may have instantiated a few blocks
+	 * outside i_size.  Trim these off again. Don't need
+	 * i_size_read because we hold i_mutex.
+	 */
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
 
 	return ret;
 }

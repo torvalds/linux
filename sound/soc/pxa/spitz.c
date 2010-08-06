@@ -322,17 +322,10 @@ static struct snd_soc_card snd_soc_spitz = {
 	.num_links = 1,
 };
 
-/* spitz audio private data */
-static struct wm8750_setup_data spitz_wm8750_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x1b,
-};
-
 /* spitz audio subsystem */
 static struct snd_soc_device spitz_snd_devdata = {
 	.card = &snd_soc_spitz,
 	.codec_dev = &soc_codec_dev_wm8750,
-	.codec_data = &spitz_wm8750_setup,
 };
 
 static struct platform_device *spitz_snd_device;

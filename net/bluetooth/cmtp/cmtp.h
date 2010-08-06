@@ -125,7 +125,7 @@ static inline void cmtp_schedule(struct cmtp_session *session)
 {
 	struct sock *sk = session->sock->sk;
 
-	wake_up_interruptible(sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(sk));
 }
 
 /* CMTP init defines */

@@ -88,6 +88,12 @@ struct clk clk_48m = {
 	.enable		= clk_48m_ctrl,
 };
 
+struct clk clk_xusbxti = {
+	.name		= "xusbxti",
+	.id		= -1,
+	.rate		= 48000000,
+};
+
 static int inline s3c64xx_gate(void __iomem *reg,
 				struct clk *clk,
 				int enable)
@@ -252,6 +258,12 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_h,
 		.enable		= s3c64xx_hclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_HCLK_HSMMC2,
+	}, {
+		.name		= "otg",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c64xx_hclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_HCLK_USB,
 	}, {
 		.name		= "timers",
 		.id		= -1,
@@ -518,6 +530,11 @@ static struct clk clk_iis_cd1 = {
 	.id		= -1,
 };
 
+static struct clk clk_iisv4_cd = {
+	.name		= "iis_cdclk_v4",
+	.id		= -1,
+};
+
 static struct clk clk_pcm_cd = {
 	.name		= "pcm_cdclk",
 	.id		= -1,
@@ -547,6 +564,19 @@ static struct clk *clkset_audio1_list[] = {
 static struct clksrc_sources clkset_audio1 = {
 	.sources	= clkset_audio1_list,
 	.nr_sources	= ARRAY_SIZE(clkset_audio1_list),
+};
+
+static struct clk *clkset_audio2_list[] = {
+	[0] = &clk_mout_epll.clk,
+	[1] = &clk_dout_mpll,
+	[2] = &clk_fin_epll,
+	[3] = &clk_iisv4_cd,
+	[4] = &clk_pcm_cd,
+};
+
+static struct clksrc_sources clkset_audio2 = {
+	.sources	= clkset_audio2_list,
+	.nr_sources	= ARRAY_SIZE(clkset_audio2_list),
 };
 
 static struct clk *clkset_camif_list[] = {
@@ -652,6 +682,16 @@ static struct clksrc_clk clksrcs[] = {
 		.sources	= &clkset_audio1,
 	}, {
 		.clk	= {
+			.name		= "audio-bus",
+			.id		= -1,  /* There's only one IISv4 port */
+			.ctrlbit        = S3C6410_CLKCON_SCLK_AUDIO2,
+			.enable		= s3c64xx_sclk_ctrl,
+		},
+		.reg_src	= { .reg = S3C6410_CLK_SRC2, .shift = 0, .size = 3  },
+		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 24, .size = 4  },
+		.sources	= &clkset_audio2,
+	}, {
+		.clk	= {
 			.name		= "irda-bus",
 			.id		= 0,
 			.ctrlbit        = S3C_CLKCON_SCLK_IRDA,
@@ -749,6 +789,7 @@ static struct clk *clks1[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_iis_cd0,
 	&clk_iis_cd1,
+	&clk_iisv4_cd,
 	&clk_pcm_cd,
 	&clk_mout_epll.clk,
 	&clk_mout_mpll.clk,
@@ -762,6 +803,7 @@ static struct clk *clks[] __initdata = {
 	&clk_27m,
 	&clk_48m,
 	&clk_h2,
+	&clk_xusbxti,
 };
 
 /**

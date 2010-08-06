@@ -210,7 +210,7 @@ struct dbmap_disk {
 	__le32 dn_maxag;	/* 4: max active alloc group number	*/
 	__le32 dn_agpref;	/* 4: preferred alloc group (hint)	*/
 	__le32 dn_aglevel;	/* 4: dmapctl level holding the AG	*/
-	__le32 dn_agheigth;	/* 4: height in dmapctl of the AG	*/
+	__le32 dn_agheight;	/* 4: height in dmapctl of the AG	*/
 	__le32 dn_agwidth;	/* 4: width in dmapctl of the AG	*/
 	__le32 dn_agstart;	/* 4: start tree index at AG height	*/
 	__le32 dn_agl2size;	/* 4: l2 num of blks per alloc group	*/
@@ -229,7 +229,7 @@ struct dbmap {
 	int dn_maxag;		/* max active alloc group number	*/
 	int dn_agpref;		/* preferred alloc group (hint)		*/
 	int dn_aglevel;		/* dmapctl level holding the AG		*/
-	int dn_agheigth;	/* height in dmapctl of the AG		*/
+	int dn_agheight;	/* height in dmapctl of the AG		*/
 	int dn_agwidth;		/* width in dmapctl of the AG		*/
 	int dn_agstart;		/* start tree index at AG height	*/
 	int dn_agl2size;	/* l2 num of blks per alloc group	*/
@@ -255,7 +255,7 @@ struct bmap {
 #define	db_agsize	db_bmap.dn_agsize
 #define	db_agl2size	db_bmap.dn_agl2size
 #define	db_agwidth	db_bmap.dn_agwidth
-#define	db_agheigth	db_bmap.dn_agheigth
+#define	db_agheight	db_bmap.dn_agheight
 #define	db_agstart	db_bmap.dn_agstart
 #define	db_numag	db_bmap.dn_numag
 #define	db_maxlevel	db_bmap.dn_maxlevel

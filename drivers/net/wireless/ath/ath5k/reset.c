@@ -19,8 +19,6 @@
  *
  */
 
-#define _ATH5K_RESET
-
 /*****************************\
   Reset functions and helpers
 \*****************************/
@@ -33,6 +31,27 @@
 #include "reg.h"
 #include "base.h"
 #include "debug.h"
+
+/*
+ * Check if a register write has been completed
+ */
+int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
+			      bool is_set)
+{
+	int i;
+	u32 data;
+
+	for (i = AR5K_TUNE_REGISTER_TIMEOUT; i > 0; i--) {
+		data = ath5k_hw_reg_read(ah, reg);
+		if (is_set && (data & flag))
+			break;
+		else if ((data & flag) == val)
+			break;
+		udelay(15);
+	}
+
+	return (i <= 0) ? -EAGAIN : 0;
+}
 
 /**
  * ath5k_hw_write_ofdm_timings - set OFDM timings on AR5212
@@ -182,8 +201,6 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 	int ret;
 	u32 mask = val ? val : ~0U;
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	/* Read-and-clear RX Descriptor Pointer*/
 	ath5k_hw_reg_read(ah, AR5K_RXDP);
 
@@ -221,13 +238,12 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 /*
  * Sleep control
  */
-int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
-		bool set_chip, u16 sleep_duration)
+static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
+			      bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
 	u32 staid, data;
 
-	ATH5K_TRACE(ah->ah_sc);
 	staid = ath5k_hw_reg_read(ah, AR5K_STA_ID1);
 
 	switch (mode) {
@@ -373,8 +389,6 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	turbo = 0;
 	mode = 0;
 	clock = 0;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	/* Wakeup the device */
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
@@ -608,7 +622,6 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
 	}
-	return;
 }
 
 /* TODO: Half/Quarter rate */
@@ -716,7 +729,7 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 }
 
 static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, u8 *ant, u8 ee_mode)
+		struct ieee80211_channel *channel, u8 ee_mode)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	s16 cck_ofdm_pwr_delta;
@@ -750,17 +763,9 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 						ee->ee_cck_ofdm_gain_delta;
 	}
 
-	/* Set antenna idle switch table */
-	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_ANT_CTL,
-			AR5K_PHY_ANT_CTL_SWTABLE_IDLE,
-			(ah->ah_ant_ctl[ee_mode][0] |
-			AR5K_PHY_ANT_CTL_TXRX_EN));
-
-	/* Set antenna switch tables */
-	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[0]],
-		AR5K_PHY_ANT_SWITCH_TABLE_0);
-	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[1]],
-		AR5K_PHY_ANT_SWITCH_TABLE_1);
+	/* XXX: necessary here? is called from ath5k_hw_set_antenna_mode()
+	 * too */
+	ath5k_hw_set_antenna_switch(ah, ee_mode);
 
 	/* Noise floor threshold */
 	ath5k_hw_reg_write(ah,
@@ -837,7 +842,6 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 			AR5K_PHY_NF_THRESH62,
 			ee->ee_thr_62[ee_mode]);
 
-
 	/* False detect backoff for channels
 	 * that have spur noise. Write the new
 	 * cyclic power RSSI threshold. */
@@ -864,8 +868,6 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	/* Heavy clipping -disable for now */
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_1)
 		ath5k_hw_reg_write(ah, 0, AR5K_PHY_HEAVY_CLIP_ENABLE);
-
-	return;
 }
 
 /*
@@ -875,14 +877,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
-	u32 s_seq[10], s_ant, s_led[3], staid1_flags, tsf_up, tsf_lo;
+	u32 s_seq[10], s_led[3], staid1_flags, tsf_up, tsf_lo;
 	u32 phy_tst1;
-	u8 mode, freq, ee_mode, ant[2];
+	u8 mode, freq, ee_mode;
 	int i, ret;
 
-	ATH5K_TRACE(ah->ah_sc);
-
-	s_ant = 0;
 	ee_mode = 0;
 	staid1_flags = 0;
 	tsf_up = 0;
@@ -979,9 +978,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			}
 		}
 
-		/* Save default antenna */
-		s_ant = ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA);
-
 		if (ah->ah_version == AR5K_AR5212) {
 			/* Restore normal 32/40MHz clock operation
 			 * to avoid register access delay on certain
@@ -1016,11 +1012,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ret = ath5k_hw_nic_wakeup(ah, channel->hw_value, false);
 	if (ret)
 		return ret;
-
-	/*
-	 * Initialize operating mode
-	 */
-	ah->ah_op_mode = op_mode;
 
 	/* PHY access enable */
 	if (ah->ah_mac_srev >= AR5K_SREV_AR5211)
@@ -1083,22 +1074,17 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/* Write OFDM timings on 5212*/
 		if (ah->ah_version == AR5K_AR5212 &&
 			channel->hw_value & CHANNEL_OFDM) {
-			struct ath5k_eeprom_info *ee =
-					&ah->ah_capabilities.cap_eeprom;
 
 			ret = ath5k_hw_write_ofdm_timings(ah, channel);
 			if (ret)
 				return ret;
 
-			/* Note: According to docs we can have a newer
-			 * EEPROM on old hardware, so we need to verify
-			 * that our hardware is new enough to have spur
-			 * mitigation registers (delta phase etc) */
-			if (ah->ah_mac_srev >= AR5K_SREV_AR5424 ||
-			(ah->ah_mac_srev >= AR5K_SREV_AR5424 &&
-			ee->ee_version >= AR5K_EEPROM_VERSION_5_3))
+			/* Spur info is available only from EEPROM versions
+			 * bigger than 5.3 but but the EEPOM routines will use
+			 * static values for older versions */
+			if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
 				ath5k_hw_set_spur_mitigation_filter(ah,
-								channel);
+								    channel);
 		}
 
 		/*Enable/disable 802.11b mode on 5111
@@ -1112,21 +1098,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				    AR5K_TXCFG_B_MODE);
 		}
 
-		/*
-		 * In case a fixed antenna was set as default
-		 * use the same switch table twice.
-		 */
-		if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_A)
-				ant[0] = ant[1] = AR5K_ANT_SWTABLE_A;
-		else if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_B)
-				ant[0] = ant[1] = AR5K_ANT_SWTABLE_B;
-		else {
-			ant[0] = AR5K_ANT_SWTABLE_A;
-			ant[1] = AR5K_ANT_SWTABLE_B;
-		}
-
 		/* Commit values from EEPROM */
-		ath5k_hw_commit_eeprom_settings(ah, channel, ant, ee_mode);
+		ath5k_hw_commit_eeprom_settings(ah, channel, ee_mode);
 
 	} else {
 		/*
@@ -1164,8 +1137,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				ath5k_hw_reg_write(ah, tsf_lo, AR5K_TSF_L32);
 			}
 		}
-
-		ath5k_hw_reg_write(ah, s_ant, AR5K_DEFAULT_ANTENNA);
 	}
 
 	/* Ledstate */
@@ -1192,7 +1163,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_set_associd(ah);
 
 	/* Set PCU config */
-	ath5k_hw_set_opmode(ah);
+	ath5k_hw_set_opmode(ah, op_mode);
 
 	/* Clear any pending interrupts
 	 * PISR/SISR Not available on 5210 */
@@ -1378,7 +1349,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * external 32KHz crystal when sleeping if one
 	 * exists */
 	if (ah->ah_version == AR5K_AR5212 &&
-	    ah->ah_op_mode != NL80211_IFTYPE_AP)
+	    op_mode != NL80211_IFTYPE_AP)
 		ath5k_hw_set_sleep_clock(ah, true);
 
 	/*
@@ -1388,5 +1359,3 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_reset_tsf(ah);
 	return 0;
 }
-
-#undef _ATH5K_RESET

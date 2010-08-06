@@ -38,8 +38,9 @@ int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 		return 0;
 	}
 
-	psc_base = soc_info->psc_bases[ctlr];
+	psc_base = ioremap(soc_info->psc_bases[ctlr], SZ_4K);
 	mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
+	iounmap(psc_base);
 
 	/* if clocked, state can be "Enable" or "SyncReset" */
 	return mdstat & BIT(12);
@@ -47,12 +48,11 @@ int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 
 /* Enable or disable a PSC domain */
 void davinci_psc_config(unsigned int domain, unsigned int ctlr,
-		unsigned int id, char enable)
+		unsigned int id, u32 next_state)
 {
 	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl;
 	void __iomem *psc_base;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
-	u32 next_state = enable ? 0x3 : 0x2; /* 0x3 enables, 0x2 disables */
 
 	if (!soc_info->psc_bases || (ctlr >= soc_info->psc_bases_num)) {
 		pr_warning("PSC: Bad psc data: 0x%x[%d]\n",
@@ -60,7 +60,7 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		return;
 	}
 
-	psc_base = soc_info->psc_bases[ctlr];
+	psc_base = ioremap(soc_info->psc_bases[ctlr], SZ_4K);
 
 	mdctl = __raw_readl(psc_base + MDCTL + 4 * id);
 	mdctl &= ~MDSTAT_STATE_MASK;
@@ -100,4 +100,6 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 	do {
 		mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
 	} while (!((mdstat & MDSTAT_STATE_MASK) == next_state));
+
+	iounmap(psc_base);
 }

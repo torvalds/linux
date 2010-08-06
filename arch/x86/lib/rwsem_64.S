@@ -60,7 +60,7 @@ ENTRY(call_rwsem_down_write_failed)
 	ENDPROC(call_rwsem_down_write_failed)
 
 ENTRY(call_rwsem_wake)
-	decw %dx    /* do nothing if still outstanding active readers */
+	decl %edx	/* do nothing if still outstanding active readers */
 	jnz 1f
 	save_common_regs
 	movq %rax,%rdi

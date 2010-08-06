@@ -4,6 +4,7 @@
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -274,6 +275,7 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 {
 	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
 	struct cfg80211_internal_bss *bss, *res = NULL;
+	unsigned long now = jiffies;
 
 	spin_lock_bh(&dev->bss_lock);
 
@@ -281,6 +283,10 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 		if ((bss->pub.capability & capa_mask) != capa_val)
 			continue;
 		if (channel && bss->pub.channel != channel)
+			continue;
+		/* Don't get expired BSS structs */
+		if (time_after(now, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE) &&
+		    !atomic_read(&bss->hold))
 			continue;
 		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {
 			res = bss;
@@ -514,7 +520,7 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 
 	privsz = wiphy->bss_priv_size;
 
-	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 			(signal < 0 || signal > 100)))
 		return NULL;
 
@@ -570,7 +576,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 				      u.probe_resp.variable);
 	size_t privsz = wiphy->bss_priv_size;
 
-	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 	            (signal < 0 || signal > 100)))
 		return NULL;
 

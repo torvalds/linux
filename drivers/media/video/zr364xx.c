@@ -376,8 +376,8 @@ static int buffer_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (*count == 0)
 		*count = ZR364XX_DEF_BUFS;
 
-	while (*size * (*count) > ZR364XX_DEF_BUFS * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > ZR364XX_DEF_BUFS * 1024 * 1024)
+		*count = (ZR364XX_DEF_BUFS * 1024 * 1024) / *size;
 
 	return 0;
 }

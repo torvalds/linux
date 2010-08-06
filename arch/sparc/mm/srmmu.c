@@ -10,7 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
@@ -20,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/kdebug.h>
 #include <linux/log2.h>
+#include <linux/gfp.h>
 
 #include <asm/bitext.h>
 #include <asm/page.h>
@@ -2214,8 +2214,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(pte_pfn, srmmu_pte_pfn, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_page, srmmu_pmd_page, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_SETHI(none_mask, 0xF0000000);
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_SWAPO0G0);

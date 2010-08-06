@@ -246,7 +246,7 @@ const struct sysfs_ops brport_sysfs_ops = {
 /*
  * Add sysfs entries to ethernet device added to a bridge.
  * Creates a brport subdirectory with bridge attributes.
- * Puts symlink in bridge's brport subdirectory
+ * Puts symlink in bridge's brif subdirectory
  */
 int br_sysfs_addif(struct net_bridge_port *p)
 {
@@ -257,15 +257,37 @@ int br_sysfs_addif(struct net_bridge_port *p)
 	err = sysfs_create_link(&p->kobj, &br->dev->dev.kobj,
 				SYSFS_BRIDGE_PORT_LINK);
 	if (err)
-		goto out2;
+		return err;
 
 	for (a = brport_attrs; *a; ++a) {
 		err = sysfs_create_file(&p->kobj, &((*a)->attr));
 		if (err)
-			goto out2;
+			return err;
 	}
 
-	err = sysfs_create_link(br->ifobj, &p->kobj, p->dev->name);
-out2:
+	strlcpy(p->sysfs_name, p->dev->name, IFNAMSIZ);
+	return sysfs_create_link(br->ifobj, &p->kobj, p->sysfs_name);
+}
+
+/* Rename bridge's brif symlink */
+int br_sysfs_renameif(struct net_bridge_port *p)
+{
+	struct net_bridge *br = p->br;
+	int err;
+
+	/* If a rename fails, the rollback will cause another
+	 * rename call with the existing name.
+	 */
+	if (!strncmp(p->sysfs_name, p->dev->name, IFNAMSIZ))
+		return 0;
+
+	err = sysfs_rename_link(br->ifobj, &p->kobj,
+				p->sysfs_name, p->dev->name);
+	if (err)
+		netdev_notice(br->dev, "unable to rename link %s to %s",
+			      p->sysfs_name, p->dev->name);
+	else
+		strlcpy(p->sysfs_name, p->dev->name, IFNAMSIZ);
+
 	return err;
 }

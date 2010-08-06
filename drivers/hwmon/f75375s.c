@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/f75375s.h>
+#include <linux/slab.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
@@ -661,7 +662,6 @@ exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 exit_free:
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 	return err;
 }
 
@@ -671,7 +671,6 @@ static int f75375_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

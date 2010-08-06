@@ -270,6 +270,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
+	trace_wake_queue(local, queue, reason);
+
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -279,13 +281,13 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 		/* someone still has this queue stopped */
 		return;
 
-	if (!skb_queue_empty(&local->pending[queue]))
+	if (skb_queue_empty(&local->pending[queue])) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(sdata, &local->interfaces, list)
+			netif_tx_wake_queue(netdev_get_tx_queue(sdata->dev, queue));
+		rcu_read_unlock();
+	} else
 		tasklet_schedule(&local->tx_pending_tasklet);
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_tx_wake_queue(netdev_get_tx_queue(sdata->dev, queue));
-	rcu_read_unlock();
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -311,6 +313,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+
+	trace_stop_queue(local, queue, reason);
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
@@ -796,6 +800,15 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		drv_conf_tx(local, queue, &qparam);
 	}
+
+	/* after reinitialize QoS TX queues setting to default,
+	 * disable QoS at all */
+
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+		sdata->vif.bss_conf.qos =
+			sdata->vif.type != NL80211_IFTYPE_STATION;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+	}
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1097,9 +1110,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 */
 		res = drv_start(local);
 		if (res) {
-			WARN(local->suspended, "Harware became unavailable "
-			     "upon resume. This is could be a software issue"
-			     "prior to suspend or a hardware issue\n");
+			WARN(local->suspended, "Hardware became unavailable "
+			     "upon resume. This could be a software issue "
+			     "prior to suspend or a hardware issue.\n");
 			return res;
 		}
 
@@ -1129,18 +1142,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* Clear Suspend state so that ADDBA requests can be processed */
-
-	rcu_read_lock();
-
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_SUSPEND);
-		}
-	}
-
-	rcu_read_unlock();
-
 	/* setup RTS threshold */
 	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
 
@@ -1151,18 +1152,34 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		u32 changed = ~0;
+		u32 changed;
+
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		/* common change flags for all interface types */
+		changed = BSS_CHANGED_ERP_CTS_PROT |
+			  BSS_CHANGED_ERP_PREAMBLE |
+			  BSS_CHANGED_ERP_SLOT |
+			  BSS_CHANGED_HT |
+			  BSS_CHANGED_BASIC_RATES |
+			  BSS_CHANGED_BEACON_INT |
+			  BSS_CHANGED_BSSID |
+			  BSS_CHANGED_CQM |
+			  BSS_CHANGED_QOS;
+
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
-			/* disable beacon change bits */
-			changed &= ~(BSS_CHANGED_BEACON |
-				     BSS_CHANGED_BEACON_ENABLED);
-			/* fall through */
+			changed |= BSS_CHANGED_ASSOC;
+			ieee80211_bss_info_change_notify(sdata, changed);
+			break;
 		case NL80211_IFTYPE_ADHOC:
+			changed |= BSS_CHANGED_IBSS;
+			/* fall through */
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_MESH_POINT:
+			changed |= BSS_CHANGED_BEACON |
+				   BSS_CHANGED_BEACON_ENABLED;
 			ieee80211_bss_info_change_notify(sdata, changed);
 			break;
 		case NL80211_IFTYPE_WDS:
@@ -1178,13 +1195,26 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	rcu_read_lock();
+	/*
+	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
+	 * sessions can be established after a resume.
+	 *
+	 * Also tear down aggregation sessions since reconfiguring
+	 * them in a hardware restart scenario is not easily done
+	 * right now, and the hardware will have lost information
+	 * about the sessions, but we and the AP still think they
+	 * are active. This is really a workaround though.
+	 */
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		mutex_lock(&local->sta_mtx);
+
+		list_for_each_entry(sta, &local->sta_list, list) {
 			ieee80211_sta_tear_down_BA_sessions(sta);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
+
+		mutex_unlock(&local->sta_mtx);
 	}
-	rcu_read_unlock();
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)

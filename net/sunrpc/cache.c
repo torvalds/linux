@@ -28,11 +28,13 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
+#include <linux/smp_lock.h>
 #include <asm/ioctls.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/smp_lock.h>
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -49,11 +51,17 @@ static void cache_init(struct cache_head *h)
 	h->last_refresh = now;
 }
 
+static inline int cache_is_expired(struct cache_detail *detail, struct cache_head *h)
+{
+	return  (h->expiry_time < get_seconds()) ||
+		(detail->flush_time > h->last_refresh);
+}
+
 struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 				       struct cache_head *key, int hash)
 {
 	struct cache_head **head,  **hp;
-	struct cache_head *new = NULL;
+	struct cache_head *new = NULL, *freeme = NULL;
 
 	head = &detail->hash_table[hash];
 
@@ -62,6 +70,9 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
 		struct cache_head *tmp = *hp;
 		if (detail->match(tmp, key)) {
+			if (cache_is_expired(detail, tmp))
+				/* This entry is expired, we will discard it. */
+				break;
 			cache_get(tmp);
 			read_unlock(&detail->hash_lock);
 			return tmp;
@@ -86,6 +97,13 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
 		struct cache_head *tmp = *hp;
 		if (detail->match(tmp, key)) {
+			if (cache_is_expired(detail, tmp)) {
+				*hp = tmp->next;
+				tmp->next = NULL;
+				detail->entries --;
+				freeme = tmp;
+				break;
+			}
 			cache_get(tmp);
 			write_unlock(&detail->hash_lock);
 			cache_put(new, detail);
@@ -98,6 +116,8 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	cache_get(new);
 	write_unlock(&detail->hash_lock);
 
+	if (freeme)
+		cache_put(freeme, detail);
 	return new;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
@@ -183,10 +203,7 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 
 static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
 {
-	if (!test_bit(CACHE_VALID, &h->flags) ||
-	    h->expiry_time < get_seconds())
-		return -EAGAIN;
-	else if (detail->flush_time > h->last_refresh)
+	if (!test_bit(CACHE_VALID, &h->flags))
 		return -EAGAIN;
 	else {
 		/* entry is valid */
@@ -397,31 +414,27 @@ static int cache_clean(void)
 		/* Ok, now to clean this strand */
 
 		cp = & current_detail->hash_table[current_index];
-		ch = *cp;
-		for (; ch; cp= & ch->next, ch= *cp) {
+		for (ch = *cp ; ch ; cp = & ch->next, ch = *cp) {
 			if (current_detail->nextcheck > ch->expiry_time)
 				current_detail->nextcheck = ch->expiry_time+1;
-			if (ch->expiry_time >= get_seconds() &&
-			    ch->last_refresh >= current_detail->flush_time)
+			if (!cache_is_expired(current_detail, ch))
 				continue;
-			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
-				cache_dequeue(current_detail, ch);
 
-			if (atomic_read(&ch->ref.refcount) == 1)
-				break;
-		}
-		if (ch) {
 			*cp = ch->next;
 			ch->next = NULL;
 			current_detail->entries--;
 			rv = 1;
+			break;
 		}
+
 		write_unlock(&current_detail->hash_lock);
 		d = current_detail;
 		if (!ch)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
 		if (ch) {
+			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
+				cache_dequeue(current_detail, ch);
 			cache_revisit_request(ch);
 			cache_put(ch, d);
 		}
@@ -1233,8 +1246,10 @@ static int content_open(struct inode *inode, struct file *file,
 	if (!cd || !try_module_get(cd->owner))
 		return -EACCES;
 	han = __seq_open_private(file, &cache_content_op, sizeof(*han));
-	if (han == NULL)
+	if (han == NULL) {
+		module_put(cd->owner);
 		return -ENOMEM;
+	}
 
 	han->cd = cd;
 	return 0;
@@ -1331,12 +1346,18 @@ static unsigned int cache_poll_procfs(struct file *filp, poll_table *wait)
 	return cache_poll(filp, wait, cd);
 }
 
-static int cache_ioctl_procfs(struct inode *inode, struct file *filp,
-			      unsigned int cmd, unsigned long arg)
+static long cache_ioctl_procfs(struct file *filp,
+			       unsigned int cmd, unsigned long arg)
 {
+	long ret;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cache_detail *cd = PDE(inode)->data;
 
-	return cache_ioctl(inode, filp, cmd, arg, cd);
+	lock_kernel();
+	ret = cache_ioctl(inode, filp, cmd, arg, cd);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int cache_open_procfs(struct inode *inode, struct file *filp)
@@ -1359,7 +1380,7 @@ static const struct file_operations cache_file_operations_procfs = {
 	.read		= cache_read_procfs,
 	.write		= cache_write_procfs,
 	.poll		= cache_poll_procfs,
-	.ioctl		= cache_ioctl_procfs, /* for FIONREAD */
+	.unlocked_ioctl	= cache_ioctl_procfs, /* for FIONREAD */
 	.open		= cache_open_procfs,
 	.release	= cache_release_procfs,
 };
@@ -1525,12 +1546,18 @@ static unsigned int cache_poll_pipefs(struct file *filp, poll_table *wait)
 	return cache_poll(filp, wait, cd);
 }
 
-static int cache_ioctl_pipefs(struct inode *inode, struct file *filp,
+static long cache_ioctl_pipefs(struct file *filp,
 			      unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct cache_detail *cd = RPC_I(inode)->private;
+	long ret;
 
-	return cache_ioctl(inode, filp, cmd, arg, cd);
+	lock_kernel();
+	ret = cache_ioctl(inode, filp, cmd, arg, cd);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int cache_open_pipefs(struct inode *inode, struct file *filp)
@@ -1553,7 +1580,7 @@ const struct file_operations cache_file_operations_pipefs = {
 	.read		= cache_read_pipefs,
 	.write		= cache_write_pipefs,
 	.poll		= cache_poll_pipefs,
-	.ioctl		= cache_ioctl_pipefs, /* for FIONREAD */
+	.unlocked_ioctl	= cache_ioctl_pipefs, /* for FIONREAD */
 	.open		= cache_open_pipefs,
 	.release	= cache_release_pipefs,
 };

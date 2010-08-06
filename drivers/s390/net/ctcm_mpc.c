@@ -669,8 +669,7 @@ static void ctcmpc_send_sweep_resp(struct channel *rch)
 				goto done;
 	}
 
-	header = (struct th_sweep *)
-			kmalloc(sizeof(struct th_sweep), gfp_type());
+	header = kmalloc(sizeof(struct th_sweep), gfp_type());
 
 	if (!header) {
 		dev_kfree_skb_any(sweep_skb);
@@ -1191,8 +1190,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			skb_pull(pskb, new_len); /* point to next PDU */
 		}
 	} else {
-		mpcginfo = (struct mpcg_info *)
-				kmalloc(sizeof(struct mpcg_info), gfp_type());
+		mpcginfo = kmalloc(sizeof(struct mpcg_info), gfp_type());
 		if (mpcginfo == NULL)
 					goto done;
 

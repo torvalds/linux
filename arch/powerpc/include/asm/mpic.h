@@ -463,9 +463,6 @@ extern void mpic_cpu_set_priority(int prio);
 /* Request IPIs on primary mpic */
 extern void mpic_request_ipis(void);
 
-/* Send an IPI (non offseted number 0..3) */
-extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
-
 /* Send a message (IPI) to a given target (cpu number or MSG_*) */
 void smp_mpic_message_pass(int target, int msg);
 

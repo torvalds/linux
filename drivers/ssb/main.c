@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -485,11 +486,12 @@ static int ssb_devices_register(struct ssb_bus *bus)
 #ifdef CONFIG_SSB_PCIHOST
 			sdev->irq = bus->host_pci->irq;
 			dev->parent = &bus->host_pci->dev;
+			sdev->dma_dev = dev->parent;
 #endif
 			break;
 		case SSB_BUSTYPE_PCMCIA:
 #ifdef CONFIG_SSB_PCMCIAHOST
-			sdev->irq = bus->host_pcmcia->irq.AssignedIRQ;
+			sdev->irq = bus->host_pcmcia->irq;
 			dev->parent = &bus->host_pcmcia->dev;
 #endif
 			break;
@@ -500,6 +502,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 			break;
 		case SSB_BUSTYPE_SSB:
 			dev->dma_mask = &dev->coherent_dma_mask;
+			sdev->dma_dev = dev;
 			break;
 		}
 
@@ -833,6 +836,9 @@ int ssb_bus_pcibus_register(struct ssb_bus *bus,
 	if (!err) {
 		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
 			   "PCI device %s\n", dev_name(&host_pci->dev));
+	} else {
+		ssb_printk(KERN_ERR PFX "Failed to register PCI version"
+			   " of SSB with error %d\n", err);
 	}
 
 	return err;
@@ -1221,80 +1227,6 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(ssb_dma_translation);
-
-int ssb_dma_set_mask(struct ssb_device *dev, u64 mask)
-{
-#ifdef CONFIG_SSB_PCIHOST
-	int err;
-#endif
-
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		err = pci_set_dma_mask(dev->bus->host_pci, mask);
-		if (err)
-			return err;
-		err = pci_set_consistent_dma_mask(dev->bus->host_pci, mask);
-		return err;
-#endif
-	case SSB_BUSTYPE_SSB:
-		return dma_set_mask(dev->dev, mask);
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-	return -ENOSYS;
-}
-EXPORT_SYMBOL(ssb_dma_set_mask);
-
-void * ssb_dma_alloc_consistent(struct ssb_device *dev, size_t size,
-				dma_addr_t *dma_handle, gfp_t gfp_flags)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		if (gfp_flags & GFP_DMA) {
-			/* Workaround: The PCI API does not support passing
-			 * a GFP flag. */
-			return dma_alloc_coherent(&dev->bus->host_pci->dev,
-						  size, dma_handle, gfp_flags);
-		}
-		return pci_alloc_consistent(dev->bus->host_pci, size, dma_handle);
-#endif
-	case SSB_BUSTYPE_SSB:
-		return dma_alloc_coherent(dev->dev, size, dma_handle, gfp_flags);
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(ssb_dma_alloc_consistent);
-
-void ssb_dma_free_consistent(struct ssb_device *dev, size_t size,
-			     void *vaddr, dma_addr_t dma_handle,
-			     gfp_t gfp_flags)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		if (gfp_flags & GFP_DMA) {
-			/* Workaround: The PCI API does not support passing
-			 * a GFP flag. */
-			dma_free_coherent(&dev->bus->host_pci->dev,
-					  size, vaddr, dma_handle);
-			return;
-		}
-		pci_free_consistent(dev->bus->host_pci, size,
-				    vaddr, dma_handle);
-		return;
-#endif
-	case SSB_BUSTYPE_SSB:
-		dma_free_coherent(dev->dev, size, vaddr, dma_handle);
-		return;
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-}
-EXPORT_SYMBOL(ssb_dma_free_consistent);
 
 int ssb_bus_may_powerdown(struct ssb_bus *bus)
 {

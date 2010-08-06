@@ -163,6 +163,10 @@
  * ro setting are not allowed when the medium is loaded or if CD-ROM
  * emulation is being used.
  *
+ * When a LUN receive an "eject" SCSI request (Start/Stop Unit),
+ * if the LUN is removable, the backing file is released to simulate
+ * ejection.
+ *
  *
  * This function is heavily based on "File-backed Storage Gadget" by
  * Alan Stern which in turn is heavily based on "Gadget Zero" by David
@@ -302,7 +306,6 @@ static const char fsg_string_interface[] = "Mass Storage";
 
 
 #define FSG_NO_INTR_EP 1
-#define FSG_BUFFHD_STATIC_BUFFER 1
 #define FSG_NO_DEVICE_STRINGS    1
 #define FSG_NO_OTG               1
 #define FSG_NO_INTR_EP           1
@@ -318,8 +321,8 @@ struct fsg_dev;
 /* Data shared by all the FSG instances. */
 struct fsg_common {
 	struct usb_gadget	*gadget;
-	struct fsg_dev		*fsg;
-	struct fsg_dev		*prev_fsg;
+	struct fsg_dev		*fsg, *new_fsg;
+	wait_queue_head_t	fsg_wait;
 
 	/* filesem protects: backing files in use */
 	struct rw_semaphore	filesem;
@@ -348,7 +351,6 @@ struct fsg_common {
 	enum fsg_state		state;		/* For exception handling */
 	unsigned int		exception_req_tag;
 
-	u8			config, new_config;
 	enum data_direction	data_dir;
 	u32			data_size;
 	u32			data_size_from_cmnd;
@@ -592,7 +594,7 @@ static int fsg_setup(struct usb_function *f,
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
-	if (!fsg->common->config)
+	if (!fsg_is_set(fsg->common))
 		return -EOPNOTSUPP;
 
 	switch (ctrl->bRequest) {
@@ -1385,11 +1387,49 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 
 static int do_start_stop(struct fsg_common *common)
 {
-	if (!common->curlun) {
+	struct fsg_lun	*curlun = common->curlun;
+	int		loej, start;
+
+	if (!curlun) {
 		return -EINVAL;
-	} else if (!common->curlun->removable) {
-		common->curlun->sense_data = SS_INVALID_COMMAND;
+	} else if (!curlun->removable) {
+		curlun->sense_data = SS_INVALID_COMMAND;
 		return -EINVAL;
+	}
+
+	loej = common->cmnd[4] & 0x02;
+	start = common->cmnd[4] & 0x01;
+
+	/* eject code from file_storage.c:do_start_stop() */
+
+	if ((common->cmnd[1] & ~0x01) != 0 ||	  /* Mask away Immed */
+		(common->cmnd[4] & ~0x03) != 0) { /* Mask LoEj, Start */
+		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+		return -EINVAL;
+	}
+
+	if (!start) {
+		/* Are we allowed to unload the media? */
+		if (curlun->prevent_medium_removal) {
+			LDBG(curlun, "unload attempt prevented\n");
+			curlun->sense_data = SS_MEDIUM_REMOVAL_PREVENTED;
+			return -EINVAL;
+		}
+		if (loej) {	/* Simulate an unload/eject */
+			up_read(&common->filesem);
+			down_write(&common->filesem);
+			fsg_lun_close(curlun);
+			up_write(&common->filesem);
+			down_read(&common->filesem);
+		}
+	} else {
+
+		/* Our emulation doesn't support mounting; the medium is
+		 * available for use as soon as it is loaded. */
+		if (!fsg_lun_is_open(curlun)) {
+			curlun->sense_data = SS_MEDIUM_NOT_PRESENT;
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -2262,24 +2302,20 @@ static int alloc_request(struct fsg_common *common, struct usb_ep *ep,
 	return -ENOMEM;
 }
 
-/*
- * Reset interface setting and re-init endpoint state (toggle etc).
- * Call with altsetting < 0 to disable the interface.  The only other
- * available altsetting is 0, which enables the interface.
- */
-static int do_set_interface(struct fsg_common *common, int altsetting)
+/* Reset interface setting and re-init endpoint state (toggle etc). */
+static int do_set_interface(struct fsg_common *common, struct fsg_dev *new_fsg)
 {
-	int	rc = 0;
-	int	i;
-	const struct usb_endpoint_descriptor	*d;
+	const struct usb_endpoint_descriptor *d;
+	struct fsg_dev *fsg;
+	int i, rc = 0;
 
 	if (common->running)
 		DBG(common, "reset interface\n");
 
 reset:
 	/* Deallocate the requests */
-	if (common->prev_fsg) {
-		struct fsg_dev *fsg = common->prev_fsg;
+	if (common->fsg) {
+		fsg = common->fsg;
 
 		for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
 			struct fsg_buffhd *bh = &common->buffhds[i];
@@ -2304,88 +2340,53 @@ reset:
 			fsg->bulk_out_enabled = 0;
 		}
 
-		common->prev_fsg = 0;
+		common->fsg = NULL;
+		wake_up(&common->fsg_wait);
 	}
 
 	common->running = 0;
-	if (altsetting < 0 || rc != 0)
+	if (!new_fsg || rc)
 		return rc;
 
-	DBG(common, "set interface %d\n", altsetting);
+	common->fsg = new_fsg;
+	fsg = common->fsg;
 
-	if (fsg_is_set(common)) {
-		struct fsg_dev *fsg = common->fsg;
-		common->prev_fsg = common->fsg;
+	/* Enable the endpoints */
+	d = fsg_ep_desc(common->gadget,
+			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
+	rc = enable_endpoint(common, fsg->bulk_in, d);
+	if (rc)
+		goto reset;
+	fsg->bulk_in_enabled = 1;
 
-		/* Enable the endpoints */
-		d = fsg_ep_desc(common->gadget,
-				&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
-		rc = enable_endpoint(common, fsg->bulk_in, d);
+	d = fsg_ep_desc(common->gadget,
+			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
+	rc = enable_endpoint(common, fsg->bulk_out, d);
+	if (rc)
+		goto reset;
+	fsg->bulk_out_enabled = 1;
+	common->bulk_out_maxpacket = le16_to_cpu(d->wMaxPacketSize);
+	clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
+
+	/* Allocate the requests */
+	for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+		struct fsg_buffhd	*bh = &common->buffhds[i];
+
+		rc = alloc_request(common, fsg->bulk_in, &bh->inreq);
 		if (rc)
 			goto reset;
-		fsg->bulk_in_enabled = 1;
-
-		d = fsg_ep_desc(common->gadget,
-				&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
-		rc = enable_endpoint(common, fsg->bulk_out, d);
+		rc = alloc_request(common, fsg->bulk_out, &bh->outreq);
 		if (rc)
 			goto reset;
-		fsg->bulk_out_enabled = 1;
-		common->bulk_out_maxpacket = le16_to_cpu(d->wMaxPacketSize);
-		clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
-
-		/* Allocate the requests */
-		for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
-			struct fsg_buffhd	*bh = &common->buffhds[i];
-
-			rc = alloc_request(common, fsg->bulk_in, &bh->inreq);
-			if (rc)
-				goto reset;
-			rc = alloc_request(common, fsg->bulk_out, &bh->outreq);
-			if (rc)
-				goto reset;
-			bh->inreq->buf = bh->outreq->buf = bh->buf;
-			bh->inreq->context = bh->outreq->context = bh;
-			bh->inreq->complete = bulk_in_complete;
-			bh->outreq->complete = bulk_out_complete;
-		}
-
-		common->running = 1;
-		for (i = 0; i < common->nluns; ++i)
-			common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
-		return rc;
-	} else {
-		return -EIO;
-	}
-}
-
-
-/*
- * Change our operational configuration.  This code must agree with the code
- * that returns config descriptors, and with interface altsetting code.
- *
- * It's also responsible for power management interactions.  Some
- * configurations might not work with our current power sources.
- * For now we just assume the gadget is always self-powered.
- */
-static int do_set_config(struct fsg_common *common, u8 new_config)
-{
-	int	rc = 0;
-
-	/* Disable the single interface */
-	if (common->config != 0) {
-		DBG(common, "reset config\n");
-		common->config = 0;
-		rc = do_set_interface(common, -1);
+		bh->inreq->buf = bh->outreq->buf = bh->buf;
+		bh->inreq->context = bh->outreq->context = bh;
+		bh->inreq->complete = bulk_in_complete;
+		bh->outreq->complete = bulk_out_complete;
 	}
 
-	/* Enable the interface */
-	if (new_config != 0) {
-		common->config = new_config;
-		rc = do_set_interface(common, 0);
-		if (rc != 0)
-			common->config = 0;	/* Reset on errors */
-	}
+	common->running = 1;
+	for (i = 0; i < common->nluns; ++i)
+		common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
 	return rc;
 }
 
@@ -2396,9 +2397,7 @@ static int do_set_config(struct fsg_common *common, u8 new_config)
 static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 {
 	struct fsg_dev *fsg = fsg_from_func(f);
-	fsg->common->prev_fsg = fsg->common->fsg;
-	fsg->common->fsg = fsg;
-	fsg->common->new_config = 1;
+	fsg->common->new_fsg = fsg;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 	return 0;
 }
@@ -2406,9 +2405,7 @@ static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 static void fsg_disable(struct usb_function *f)
 {
 	struct fsg_dev *fsg = fsg_from_func(f);
-	fsg->common->prev_fsg = fsg->common->fsg;
-	fsg->common->fsg = fsg;
-	fsg->common->new_config = 0;
+	fsg->common->new_fsg = NULL;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 }
 
@@ -2418,19 +2415,17 @@ static void fsg_disable(struct usb_function *f)
 static void handle_exception(struct fsg_common *common)
 {
 	siginfo_t		info;
-	int			sig;
 	int			i;
 	struct fsg_buffhd	*bh;
 	enum fsg_state		old_state;
-	u8			new_config;
 	struct fsg_lun		*curlun;
 	unsigned int		exception_req_tag;
-	int			rc;
 
 	/* Clear the existing signals.  Anything but SIGUSR1 is converted
 	 * into a high-priority EXIT exception. */
 	for (;;) {
-		sig = dequeue_signal_lock(current, &current->blocked, &info);
+		int sig =
+			dequeue_signal_lock(current, &current->blocked, &info);
 		if (!sig)
 			break;
 		if (sig != SIGUSR1) {
@@ -2441,7 +2436,7 @@ static void handle_exception(struct fsg_common *common)
 	}
 
 	/* Cancel all the pending transfers */
-	if (fsg_is_set(common)) {
+	if (likely(common->fsg)) {
 		for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
 			bh = &common->buffhds[i];
 			if (bh->inreq_busy)
@@ -2482,7 +2477,6 @@ static void handle_exception(struct fsg_common *common)
 	common->next_buffhd_to_fill = &common->buffhds[0];
 	common->next_buffhd_to_drain = &common->buffhds[0];
 	exception_req_tag = common->exception_req_tag;
-	new_config = common->new_config;
 	old_state = common->state;
 
 	if (old_state == FSG_STATE_ABORT_BULK_OUT)
@@ -2532,12 +2526,12 @@ static void handle_exception(struct fsg_common *common)
 		break;
 
 	case FSG_STATE_CONFIG_CHANGE:
-		rc = do_set_config(common, new_config);
+		do_set_interface(common, common->new_fsg);
 		break;
 
 	case FSG_STATE_EXIT:
 	case FSG_STATE_TERMINATED:
-		do_set_config(common, 0);		/* Free resources */
+		do_set_interface(common, NULL);		/* Free resources */
 		spin_lock_irq(&common->lock);
 		common->state = FSG_STATE_TERMINATED;	/* Stop the thread */
 		spin_unlock_irq(&common->lock);
@@ -2701,10 +2695,8 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	/* Maybe allocate device-global string IDs, and patch descriptors */
 	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
 		rc = usb_string_id(cdev);
-		if (rc < 0) {
-			kfree(common);
-			return ERR_PTR(rc);
-		}
+		if (unlikely(rc < 0))
+			goto error_release;
 		fsg_strings[FSG_STRING_INTERFACE].id = rc;
 		fsg_intf_desc.iInterface = rc;
 	}
@@ -2712,9 +2704,9 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	/* Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs. */
 	curlun = kzalloc(nluns * sizeof *curlun, GFP_KERNEL);
-	if (!curlun) {
-		kfree(common);
-		return ERR_PTR(-ENOMEM);
+	if (unlikely(!curlun)) {
+		rc = -ENOMEM;
+		goto error_release;
 	}
 	common->luns = curlun;
 
@@ -2762,13 +2754,19 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 
 
 	/* Data buffers cyclic list */
-	/* Buffers in buffhds are static -- no need for additional
-	 * allocation. */
 	bh = common->buffhds;
-	i = FSG_NUM_BUFFERS - 1;
+	i = FSG_NUM_BUFFERS;
+	goto buffhds_first_it;
 	do {
 		bh->next = bh + 1;
-	} while (++bh, --i);
+		++bh;
+buffhds_first_it:
+		bh->buf = kmalloc(FSG_BUFLEN, GFP_KERNEL);
+		if (unlikely(!bh->buf)) {
+			rc = -ENOMEM;
+			goto error_release;
+		}
+	} while (--i);
 	bh->next = common->buffhds;
 
 
@@ -2818,6 +2816,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		goto error_release;
 	}
 	init_completion(&common->thread_notifier);
+	init_waitqueue_head(&common->fsg_wait);
 #undef OR
 
 
@@ -2867,10 +2866,7 @@ error_release:
 
 static void fsg_common_release(struct kref *ref)
 {
-	struct fsg_common *common =
-		container_of(ref, struct fsg_common, ref);
-	unsigned i = common->nluns;
-	struct fsg_lun *lun = common->luns;
+	struct fsg_common *common = container_of(ref, struct fsg_common, ref);
 
 	/* If the thread isn't already dead, tell it to exit now */
 	if (common->state != FSG_STATE_TERMINATED) {
@@ -2881,17 +2877,29 @@ static void fsg_common_release(struct kref *ref)
 		complete(&common->thread_notifier);
 	}
 
-	/* Beware tempting for -> do-while optimization: when in error
-	 * recovery nluns may be zero. */
+	if (likely(common->luns)) {
+		struct fsg_lun *lun = common->luns;
+		unsigned i = common->nluns;
 
-	for (; i; --i, ++lun) {
-		device_remove_file(&lun->dev, &dev_attr_ro);
-		device_remove_file(&lun->dev, &dev_attr_file);
-		fsg_lun_close(lun);
-		device_unregister(&lun->dev);
+		/* In error recovery common->nluns may be zero. */
+		for (; i; --i, ++lun) {
+			device_remove_file(&lun->dev, &dev_attr_ro);
+			device_remove_file(&lun->dev, &dev_attr_file);
+			fsg_lun_close(lun);
+			device_unregister(&lun->dev);
+		}
+
+		kfree(common->luns);
 	}
 
-	kfree(common->luns);
+	{
+		struct fsg_buffhd *bh = common->buffhds;
+		unsigned i = FSG_NUM_BUFFERS;
+		do {
+			kfree(bh->buf);
+		} while (++bh, --i);
+	}
+
 	if (common->free_storage_on_release)
 		kfree(common);
 }
@@ -2903,9 +2911,19 @@ static void fsg_common_release(struct kref *ref)
 static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
+	struct fsg_common	*common = fsg->common;
 
 	DBG(fsg, "unbind\n");
-	fsg_common_put(fsg->common);
+	if (fsg->common->fsg == fsg) {
+		fsg->common->new_fsg = NULL;
+		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
+		/* FIXME: make interruptible or killable somehow? */
+		wait_event(common->fsg_wait, common->fsg != fsg);
+	}
+
+	fsg_common_put(common);
+	usb_free_descriptors(fsg->function.descriptors);
+	usb_free_descriptors(fsg->function.hs_descriptors);
 	kfree(fsg);
 }
 
@@ -2914,7 +2932,6 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
 	struct usb_gadget	*gadget = c->cdev->gadget;
-	int			rc;
 	int			i;
 	struct usb_ep		*ep;
 
@@ -2940,22 +2957,29 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep->driver_data = fsg->common;	/* claim the endpoint */
 	fsg->bulk_out = ep;
 
+	/* Copy descriptors */
+	f->descriptors = usb_copy_descriptors(fsg_fs_function);
+	if (unlikely(!f->descriptors))
+		return -ENOMEM;
+
 	if (gadget_is_dualspeed(gadget)) {
 		/* Assume endpoint addresses are the same for both speeds */
 		fsg_hs_bulk_in_desc.bEndpointAddress =
 			fsg_fs_bulk_in_desc.bEndpointAddress;
 		fsg_hs_bulk_out_desc.bEndpointAddress =
 			fsg_fs_bulk_out_desc.bEndpointAddress;
-		f->hs_descriptors = fsg_hs_function;
+		f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
+		if (unlikely(!f->hs_descriptors)) {
+			usb_free_descriptors(f->descriptors);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
 
 autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
-	rc = -ENOTSUPP;
-	fsg_unbind(c, f);
-	return rc;
+	return -ENOTSUPP;
 }
 
 
@@ -2979,7 +3003,6 @@ static int fsg_add(struct usb_composite_dev *cdev,
 
 	fsg->function.name        = FSG_DRIVER_DESC;
 	fsg->function.strings     = fsg_strings_array;
-	fsg->function.descriptors = fsg_fs_function;
 	fsg->function.bind        = fsg_bind;
 	fsg->function.unbind      = fsg_unbind;
 	fsg->function.setup       = fsg_setup;
@@ -2994,12 +3017,10 @@ static int fsg_add(struct usb_composite_dev *cdev,
 	 * call to usb_add_function() was successful. */
 
 	rc = usb_add_function(c, &fsg->function);
-
-	if (likely(rc == 0))
-		fsg_common_get(fsg->common);
-	else
+	if (unlikely(rc))
 		kfree(fsg);
-
+	else
+		fsg_common_get(fsg->common);
 	return rc;
 }
 

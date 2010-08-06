@@ -27,6 +27,7 @@
 #include <linux/fb.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include <linux/uaccess.h>
@@ -52,7 +53,7 @@ MODULE_LICENSE("GPL");
 
 static bool hotplug_disabled;
 
-module_param(hotplug_disabled, bool, 0644);
+module_param(hotplug_disabled, bool, 0444);
 MODULE_PARM_DESC(hotplug_disabled,
 		 "Disable hotplug for wireless device. "
 		 "If your laptop need that, please report to "
@@ -168,7 +169,6 @@ struct eeepc_laptop {
 	struct backlight_device *backlight_device;
 
 	struct input_dev *inputdev;
-	struct key_entry *keymap;
 
 	struct rfkill *wlan_rfkill;
 	struct rfkill *bluetooth_rfkill;
@@ -1203,8 +1203,8 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 {
 	if (eeepc->inputdev) {
+		sparse_keymap_free(eeepc->inputdev);
 		input_unregister_device(eeepc->inputdev);
-		kfree(eeepc->keymap);
 	}
 }
 

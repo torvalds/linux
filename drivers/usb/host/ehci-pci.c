@@ -109,6 +109,9 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_NEC:
+		ehci->need_io_watchdog = 0;
+		break;
 	case PCI_VENDOR_ID_INTEL:
 		ehci->need_io_watchdog = 0;
 		if (pdev->device == 0x27cc) {
@@ -284,23 +287,15 @@ static int ehci_pci_suspend(struct usb_hcd *hcd)
 		msleep(10);
 
 	/* Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible, bail out if RH has been resumed. Use
-	 * the spinlock to properly synchronize with possible pending
-	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
+	 * mark HW unaccessible.  The PM and USB cores make sure that
+	 * the root hub is either suspended or stopped.
 	 */
 	spin_lock_irqsave (&ehci->lock, flags);
-	if (hcd->state != HC_STATE_SUSPENDED) {
-		rc = -EINVAL;
-		goto bail;
-	}
+	ehci_prepare_ports_for_controller_suspend(ehci);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
- bail:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
 	// could save FLADJ in case of Vaux power loss
@@ -330,6 +325,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 				!hibernated) {
 		int	mask = INTR_MASK;
 
+		ehci_prepare_ports_for_controller_resume(ehci);
 		if (!hcd->self.root_hub->do_remote_wakeup)
 			mask &= ~STS_PCD;
 		ehci_writel(ehci, mask, &ehci->regs->intr_enable);

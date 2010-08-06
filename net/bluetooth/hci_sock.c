@@ -165,6 +165,86 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+	struct bdaddr_list *blacklist = &hdev->blacklist;
+
+	list_for_each(p, &blacklist->list) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		if (bacmp(bdaddr, &b->bdaddr) == 0)
+			return b;
+	}
+
+	return NULL;
+}
+
+static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
+{
+	bdaddr_t bdaddr;
+	struct bdaddr_list *entry;
+
+	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
+		return -EFAULT;
+
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return -EBADF;
+
+	if (hci_blacklist_lookup(hdev, &bdaddr))
+		return -EEXIST;
+
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	bacpy(&entry->bdaddr, &bdaddr);
+
+	list_add(&entry->list, &hdev->blacklist.list);
+
+	return 0;
+}
+
+int hci_blacklist_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+	struct bdaddr_list *blacklist = &hdev->blacklist;
+
+	list_for_each_safe(p, n, &blacklist->list) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+
+	return 0;
+}
+
+static int hci_blacklist_del(struct hci_dev *hdev, void __user *arg)
+{
+	bdaddr_t bdaddr;
+	struct bdaddr_list *entry;
+
+	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
+		return -EFAULT;
+
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return hci_blacklist_clear(hdev);
+
+	entry = hci_blacklist_lookup(hdev, &bdaddr);
+	if (!entry)
+		return -ENOENT;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	return 0;
+}
+
 /* Ioctls that require bound socket */
 static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
 {
@@ -193,6 +273,16 @@ static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsign
 
 	case HCIGETAUTHINFO:
 		return hci_get_auth_info(hdev, (void __user *) arg);
+
+	case HCIBLOCKADDR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+		return hci_blacklist_add(hdev, (void __user *) arg);
+
+	case HCIUNBLOCKADDR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+		return hci_blacklist_del(hdev, (void __user *) arg);
 
 	default:
 		if (hdev->ioctl)

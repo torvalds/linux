@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 
 MODULE_LICENSE("GPL");
@@ -88,7 +89,7 @@ static int __init iptable_filter_init(void)
 	int ret;
 
 	if (forward < 0 || forward > NF_MAX_VERDICT) {
-		printk("iptables forward must be 0 or 1\n");
+		pr_err("iptables forward must be 0 or 1\n");
 		return -EINVAL;
 	}
 

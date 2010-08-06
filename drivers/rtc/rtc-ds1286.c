@@ -18,6 +18,7 @@
 #include <linux/bcd.h>
 #include <linux/ds1286.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define DRV_VERSION		"1.0"
 

@@ -16,7 +16,7 @@
 ({									\
 	__typeof(*(m)) __ret;						\
 									\
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {				\
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {			\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\

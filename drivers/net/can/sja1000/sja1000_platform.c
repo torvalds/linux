@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/platform/sja1000.h>
 #include <linux/io.h>
@@ -37,14 +36,34 @@ MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("Socket-CAN driver for SJA1000 on the platform bus");
 MODULE_LICENSE("GPL v2");
 
-static u8 sp_read_reg(const struct sja1000_priv *priv, int reg)
+static u8 sp_read_reg8(const struct sja1000_priv *priv, int reg)
 {
 	return ioread8(priv->reg_base + reg);
 }
 
-static void sp_write_reg(const struct sja1000_priv *priv, int reg, u8 val)
+static void sp_write_reg8(const struct sja1000_priv *priv, int reg, u8 val)
 {
 	iowrite8(val, priv->reg_base + reg);
+}
+
+static u8 sp_read_reg16(const struct sja1000_priv *priv, int reg)
+{
+	return ioread8(priv->reg_base + reg * 2);
+}
+
+static void sp_write_reg16(const struct sja1000_priv *priv, int reg, u8 val)
+{
+	iowrite8(val, priv->reg_base + reg * 2);
+}
+
+static u8 sp_read_reg32(const struct sja1000_priv *priv, int reg)
+{
+	return ioread8(priv->reg_base + reg * 4);
+}
+
+static void sp_write_reg32(const struct sja1000_priv *priv, int reg, u8 val)
+{
+	iowrite8(val, priv->reg_base + reg * 4);
 }
 
 static int sp_probe(struct platform_device *pdev)
@@ -90,13 +109,28 @@ static int sp_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 
 	dev->irq = res_irq->start;
-	priv->irq_flags = res_irq->flags & IRQF_TRIGGER_MASK;
+	priv->irq_flags = res_irq->flags & (IRQF_TRIGGER_MASK | IRQF_SHARED);
 	priv->reg_base = addr;
-	priv->read_reg = sp_read_reg;
-	priv->write_reg = sp_write_reg;
-	priv->can.clock.freq = pdata->clock;
+	/* The CAN clock frequency is half the oscillator clock frequency */
+	priv->can.clock.freq = pdata->osc_freq / 2;
 	priv->ocr = pdata->ocr;
 	priv->cdr = pdata->cdr;
+
+	switch (res_mem->flags & IORESOURCE_MEM_TYPE_MASK) {
+	case IORESOURCE_MEM_32BIT:
+		priv->read_reg = sp_read_reg32;
+		priv->write_reg = sp_write_reg32;
+		break;
+	case IORESOURCE_MEM_16BIT:
+		priv->read_reg = sp_read_reg16;
+		priv->write_reg = sp_write_reg16;
+		break;
+	case IORESOURCE_MEM_8BIT:
+	default:
+		priv->read_reg = sp_read_reg8;
+		priv->write_reg = sp_write_reg8;
+		break;
+	}
 
 	dev_set_drvdata(&pdev->dev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);

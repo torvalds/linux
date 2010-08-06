@@ -39,17 +39,17 @@ static inline int mmp2_add_twsi(int id, struct i2c_pxa_platform_data *data,
 	int ret;
 
 	switch (id) {
-	case 0: d = &mmp2_device_twsi1; break;
-	case 1: d = &mmp2_device_twsi2; break;
-	case 2: d = &mmp2_device_twsi3; break;
-	case 3: d = &mmp2_device_twsi4; break;
-	case 4: d = &mmp2_device_twsi5; break;
-	case 5: d = &mmp2_device_twsi6; break;
+	case 1: d = &mmp2_device_twsi1; break;
+	case 2: d = &mmp2_device_twsi2; break;
+	case 3: d = &mmp2_device_twsi3; break;
+	case 4: d = &mmp2_device_twsi4; break;
+	case 5: d = &mmp2_device_twsi5; break;
+	case 6: d = &mmp2_device_twsi6; break;
 	default:
 		return -EINVAL;
 	}
 
-	ret = i2c_register_board_info(id, info, size);
+	ret = i2c_register_board_info(id - 1, info, size);
 	if (ret)
 		return ret;
 

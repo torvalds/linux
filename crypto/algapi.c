@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "internal.h"
@@ -543,7 +544,7 @@ int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
 {
 	int err = -EINVAL;
 
-	if (frontend && (alg->cra_flags ^ frontend->type) & frontend->maskset)
+	if ((alg->cra_flags ^ frontend->type) & frontend->maskset)
 		goto out;
 
 	spawn->frontend = frontend;

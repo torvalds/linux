@@ -30,6 +30,7 @@
 
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
 #include "zfcp_reqlist.h"
@@ -97,12 +98,10 @@ static void __init zfcp_init_device_setup(char *devstr)
 	u64 wwpn, lun;
 
 	/* duplicate devstr and keep the original for sysfs presentation*/
-	str_saved = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str_saved = kstrdup(devstr, GFP_KERNEL);
 	str = str_saved;
 	if (!str)
 		return;
-
-	strcpy(str, devstr);
 
 	token = strsep(&str, ",");
 	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
@@ -313,7 +312,7 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	}
 	retval = -EINVAL;
 
-	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
+	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan_work);
 
 	spin_lock_init(&unit->latencies.lock);
 	unit->latencies.write.channel.min = 0xFFFFFFFF;
@@ -424,7 +423,8 @@ int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 {
 	while (atomic_read(&adapter->stat_miss) > 0)
 		if (zfcp_fsf_status_read(adapter->qdio)) {
-			if (atomic_read(&adapter->stat_miss) >= 16) {
+			if (atomic_read(&adapter->stat_miss) >=
+			    adapter->stat_read_buf_num) {
 				zfcp_erp_adapter_reopen(adapter, 0, "axsref1",
 							NULL);
 				return 1;
@@ -524,6 +524,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	rwlock_init(&adapter->port_list_lock);
 	INIT_LIST_HEAD(&adapter->port_list);
 
+	INIT_LIST_HEAD(&adapter->events.list);
+	INIT_WORK(&adapter->events.work, zfcp_fc_post_event);
+	spin_lock_init(&adapter->events.list_lock);
+
 	init_waitqueue_head(&adapter->erp_ready_wq);
 	init_waitqueue_head(&adapter->erp_done_wqh);
 
@@ -543,6 +547,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (sysfs_create_group(&ccw_device->dev.kobj,
 			       &zfcp_sysfs_adapter_attrs))
 		goto failed;
+
+	/* report size limit per scatter-gather segment */
+	adapter->dma_parms.max_segment_size = ZFCP_QDIO_SBALE_LEN;
+	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return adapter;

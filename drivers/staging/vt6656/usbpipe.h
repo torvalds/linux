@@ -43,34 +43,34 @@
 
 NTSTATUS
 PIPEnsControlOut(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN PBYTE        pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+     PBYTE        pbyBuffer
     );
 
 
 
 NTSTATUS
 PIPEnsControlOutAsyn(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN PBYTE        pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+     PBYTE        pbyBuffer
     );
 
 NTSTATUS
 PIPEnsControlIn(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN OUT  PBYTE   pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+       PBYTE   pbyBuffer
     );
 
 
@@ -78,22 +78,19 @@ PIPEnsControlIn(
 
 NTSTATUS
 PIPEnsInterruptRead(
-    IN PSDevice pDevice
+     PSDevice pDevice
     );
 
 NTSTATUS
 PIPEnsBulkInUsbRead(
-    IN PSDevice pDevice,
-    IN PRCB     pRCB
+     PSDevice pDevice,
+     PRCB     pRCB
     );
 
 NTSTATUS
 PIPEnsSendBulkOut(
-    IN  PSDevice pDevice,
-    IN  PUSB_SEND_CONTEXT pContext
+      PSDevice pDevice,
+      PUSB_SEND_CONTEXT pContext
     );
 
-#endif // __USBPIPE_H__
-
-
-
+#endif /* __USBPIPE_H__ */

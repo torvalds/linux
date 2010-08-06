@@ -46,7 +46,7 @@
 /*---------------------  Export Functions  --------------------------*/
 
 BOOL IEEE11hbMSRRepTx (
-    IN PVOID pMgmtHandle
+    void *pMgmtHandle
     );
 
 #endif // __IEEE11h_H__

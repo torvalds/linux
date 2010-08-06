@@ -11,8 +11,8 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
-obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 			\
-	   idle.o io.o io_generic.o irq.o				\
+obj-y	:= clkdev.o debugtraps.o dma-nommu.o dumpstack.o 		\
+	   idle.o io.o irq.o						\
 	   irq_$(BITS).o machvec.o nmi_debug.o process.o		\
 	   process_$(BITS).o ptrace_$(BITS).o				\
 	   reboot.o return_address.o					\
@@ -39,6 +39,7 @@ obj-$(CONFIG_DUMP_CODE)		+= disassemble.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o
 obj-$(CONFIG_DWARF_UNWINDER)	+= dwarf.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_callchain.o
+obj-$(CONFIG_HAS_IOPORT)	+= io_generic.o
 
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)		+= hw_breakpoint.o
 obj-$(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)	+= localtimer.o

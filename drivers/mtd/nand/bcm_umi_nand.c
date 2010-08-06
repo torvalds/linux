@@ -13,11 +13,11 @@
 *****************************************************************************/
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
@@ -446,7 +446,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	 * layout we'll be using.
 	 */
 
-	err = nand_scan_ident(board_mtd, 1);
+	err = nand_scan_ident(board_mtd, 1, NULL);
 	if (err) {
 		printk(KERN_ERR "nand_scan failed: %d\n", err);
 		iounmap(bcm_umi_io_base);

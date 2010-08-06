@@ -15,11 +15,7 @@
 #ifndef _RAMZSWAP_IOCTL_H_
 #define _RAMZSWAP_IOCTL_H_
 
-#define MAX_SWAP_NAME_LEN 128
-
 struct ramzswap_ioctl_stats {
-	char backing_swap_name[MAX_SWAP_NAME_LEN];
-	u64 memlimit;		/* only applicable if backing swap present */
 	u64 disksize;		/* user specified or equal to backing swap
 				 * size (if present) */
 	u64 num_reads;		/* failed + successful */
@@ -36,15 +32,11 @@ struct ramzswap_ioctl_stats {
 	u64 orig_data_size;
 	u64 compr_data_size;
 	u64 mem_used_total;
-	u64 bdev_num_reads;	/* no. of reads on backing dev */
-	u64 bdev_num_writes;	/* no. of writes on backing dev */
 } __attribute__ ((packed, aligned(4)));
 
 #define RZSIO_SET_DISKSIZE_KB	_IOW('z', 0, size_t)
-#define RZSIO_SET_MEMLIMIT_KB	_IOW('z', 1, size_t)
-#define RZSIO_SET_BACKING_SWAP	_IOW('z', 2, unsigned char[MAX_SWAP_NAME_LEN])
-#define RZSIO_GET_STATS		_IOR('z', 3, struct ramzswap_ioctl_stats)
-#define RZSIO_INIT		_IO('z', 4)
-#define RZSIO_RESET		_IO('z', 5)
+#define RZSIO_GET_STATS		_IOR('z', 1, struct ramzswap_ioctl_stats)
+#define RZSIO_INIT		_IO('z', 2)
+#define RZSIO_RESET		_IO('z', 3)
 
 #endif

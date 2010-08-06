@@ -36,6 +36,7 @@
 #include "drmP.h"
 #if defined(__ia64__)
 #include <linux/efi.h>
+#include <linux/slab.h>
 #endif
 
 static void drm_vm_open(struct vm_area_struct *vma);

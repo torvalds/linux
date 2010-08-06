@@ -276,8 +276,10 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 
 	mutex_lock(&vgasr_mutex);
 
-	if (!vgasr_priv.active)
-		return -EINVAL;
+	if (!vgasr_priv.active) {
+		cnt = -EINVAL;
+		goto out;
+	}
 
 	/* pwr off the device not in use */
 	if (strncmp(usercmd, "OFF", 3) == 0) {

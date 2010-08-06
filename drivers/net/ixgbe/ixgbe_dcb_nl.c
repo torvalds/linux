@@ -121,7 +121,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			goto out;
 
 		if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
-			DPRINTK(DRV, ERR, "Enable failed, needs MSI-X\n");
+			e_err(drv, "Enable failed, needs MSI-X\n");
 			err = 1;
 			goto out;
 		}
@@ -488,7 +488,6 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	if (adapter->temp_dcb_cfg.pfc_mode_enable !=
 		adapter->dcb_cfg.pfc_mode_enable)
 		adapter->dcb_set_bitmap |= BIT_PFC;
-	return;
 }
 
 /**

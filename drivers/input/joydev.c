@@ -37,7 +37,6 @@ MODULE_LICENSE("GPL");
 #define JOYDEV_BUFFER_SIZE	64
 
 struct joydev {
-	int exist;
 	int open;
 	int minor;
 	struct input_handle handle;
@@ -46,16 +45,17 @@ struct joydev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
+	bool exist;
 
-	struct js_corr corr[ABS_MAX + 1];
+	struct js_corr corr[ABS_CNT];
 	struct JS_DATA_SAVE_TYPE glue;
 	int nabs;
 	int nkey;
 	__u16 keymap[KEY_MAX - BTN_MISC + 1];
 	__u16 keypam[KEY_MAX - BTN_MISC + 1];
-	__u8 absmap[ABS_MAX + 1];
-	__u8 abspam[ABS_MAX + 1];
-	__s16 abs[ABS_MAX + 1];
+	__u8 absmap[ABS_CNT];
+	__u8 abspam[ABS_CNT];
+	__s16 abs[ABS_CNT];
 };
 
 struct joydev_client {
@@ -760,7 +760,7 @@ static void joydev_remove_chrdev(struct joydev *joydev)
 static void joydev_mark_dead(struct joydev *joydev)
 {
 	mutex_lock(&joydev->mutex);
-	joydev->exist = 0;
+	joydev->exist = false;
 	mutex_unlock(&joydev->mutex);
 }
 
@@ -817,16 +817,15 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	init_waitqueue_head(&joydev->wait);
 
 	dev_set_name(&joydev->dev, "js%d", minor);
-	joydev->exist = 1;
+	joydev->exist = true;
 	joydev->minor = minor;
 
-	joydev->exist = 1;
 	joydev->handle.dev = input_get_device(dev);
 	joydev->handle.name = dev_name(&joydev->dev);
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;
 
-	for (i = 0; i < ABS_MAX + 1; i++)
+	for (i = 0; i < ABS_CNT; i++)
 		if (test_bit(i, dev->absbit)) {
 			joydev->absmap[i] = joydev->nabs;
 			joydev->abspam[joydev->nabs] = i;
@@ -928,6 +927,24 @@ static const struct input_device_id joydev_ids[] = {
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
 		.absbit = { BIT_MASK(ABS_THROTTLE) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = {[BIT_WORD(BTN_JOYSTICK)] = BIT_MASK(BTN_JOYSTICK) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(BTN_GAMEPAD)] = BIT_MASK(BTN_GAMEPAD) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(BTN_TRIGGER_HAPPY)] = BIT_MASK(BTN_TRIGGER_HAPPY) },
 	},
 	{ }	/* Terminating entry */
 };

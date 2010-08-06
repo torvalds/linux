@@ -6,8 +6,8 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
@@ -17,30 +17,14 @@
 
 #include "mm.h"
 
-/*
- * Reserve the various regions of node 0
- */
-void __init reserve_node_zero(pg_data_t *pgdat)
+void __init arm_mm_memblock_reserve(void)
 {
-	/*
-	 * Register the kernel text and data with bootmem.
-	 * Note that this can only be in node 0.
-	 */
-#ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
-			BOOTMEM_DEFAULT);
-#else
-	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
-			BOOTMEM_DEFAULT);
-#endif
-
 	/*
 	 * Register the exception vector page.
 	 * some architectures which the DRAM is the exception vector to trap,
 	 * alloc_page breaks with error, although it is not NULL, but "0."
 	 */
-	reserve_bootmem_node(pgdat, CONFIG_VECTORS_BASE, PAGE_SIZE,
-			BOOTMEM_DEFAULT);
+	memblock_reserve(CONFIG_VECTORS_BASE, PAGE_SIZE);
 }
 
 /*
@@ -65,6 +49,15 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		       unsigned long uaddr, void *dst, const void *src,
+		       unsigned long len)
+{
+	memcpy(dst, src, len);
+	if (vma->vm_flags & VM_EXEC)
+		__cpuc_coherent_user_range(uaddr, uaddr + len);
+}
+
 void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
 				size_t size, unsigned int mtype)
 {
@@ -87,8 +80,8 @@ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
-void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
-			    unsigned int mtype, void *caller)
+void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
+				   unsigned int mtype, void *caller)
 {
 	return __arm_ioremap(phys_addr, size, mtype);
 }

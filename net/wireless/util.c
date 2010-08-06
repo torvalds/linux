@@ -5,6 +5,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 #include <net/ip.h>
 #include "core.h"
@@ -330,11 +331,18 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
 			struct ieee80211s_hdr *meshdr =
 				(struct ieee80211s_hdr *) (skb->data + hdrlen);
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			/* make sure meshdr->flags is on the linear part */
+			if (!pskb_may_pull(skb, hdrlen + 1))
+				return -1;
 			if (meshdr->flags & MESH_FLAGS_AE_A5_A6) {
-				memcpy(dst, meshdr->eaddr1, ETH_ALEN);
-				memcpy(src, meshdr->eaddr2, ETH_ALEN);
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr1),
+				       	dst, ETH_ALEN);
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr2),
+				        src, ETH_ALEN);
 			}
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
 		}
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
@@ -346,9 +354,14 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
 			struct ieee80211s_hdr *meshdr =
 				(struct ieee80211s_hdr *) (skb->data + hdrlen);
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			/* make sure meshdr->flags is on the linear part */
+			if (!pskb_may_pull(skb, hdrlen + 1))
+				return -1;
 			if (meshdr->flags & MESH_FLAGS_AE_A4)
-				memcpy(src, meshdr->eaddr1, ETH_ALEN);
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr1),
+					src, ETH_ALEN);
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
 		}
 		break;
 	case cpu_to_le16(0):
@@ -357,7 +370,7 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 		break;
 	}
 
-	if (unlikely(skb->len - hdrlen < 8))
+	if (!pskb_may_pull(skb, hdrlen + 8))
 		return -1;
 
 	payload = skb->data + hdrlen;
@@ -757,8 +770,8 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EOPNOTSUPP;
 
 	/* if it's part of a bridge, reject changing type to station/ibss */
-	if (dev->br_port && (ntype == NL80211_IFTYPE_ADHOC ||
-			     ntype == NL80211_IFTYPE_STATION))
+	if ((dev->priv_flags & IFF_BRIDGE_PORT) &&
+	    (ntype == NL80211_IFTYPE_ADHOC || ntype == NL80211_IFTYPE_STATION))
 		return -EBUSY;
 
 	if (ntype != otype) {

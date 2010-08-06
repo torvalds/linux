@@ -19,6 +19,7 @@
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>	 /* for struct sock */
 

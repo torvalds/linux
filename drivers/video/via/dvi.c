@@ -18,6 +18,8 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <linux/via-core.h>
+#include <linux/via_i2c.h>
 #include "global.h"
 
 static void tmds_register_write(int index, u8 data);
@@ -96,7 +98,7 @@ int viafb_tmds_trasmitter_identify(void)
 	viaparinfo->chip_info->tmds_chip_info.tmds_chip_name = VT1632_TMDS;
 	viaparinfo->chip_info->
 		tmds_chip_info.tmds_chip_slave_addr = VT1632_TMDS_I2C_ADDR;
-	viaparinfo->chip_info->tmds_chip_info.i2c_port = I2CPORTINDEX;
+	viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_31;
 	if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID) != FAIL) {
 		/*
 		 * Currently only support 12bits,dual edge,add 24bits mode later
@@ -110,7 +112,7 @@ int viafb_tmds_trasmitter_identify(void)
 			  viaparinfo->chip_info->tmds_chip_info.i2c_port);
 		return OK;
 	} else {
-		viaparinfo->chip_info->tmds_chip_info.i2c_port = GPIOPORTINDEX;
+		viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_2C;
 		if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)
 		    != FAIL) {
 			tmds_register_write(0x08, 0x3b);
@@ -160,32 +162,26 @@ int viafb_tmds_trasmitter_identify(void)
 
 static void tmds_register_write(int index, u8 data)
 {
-	viaparinfo->shared->i2c_stuff.i2c_port =
-		viaparinfo->chip_info->tmds_chip_info.i2c_port;
-
-	viafb_i2c_writebyte(viaparinfo->chip_info->tmds_chip_info.
-		tmds_chip_slave_addr, index,
-		     data);
+	viafb_i2c_writebyte(viaparinfo->chip_info->tmds_chip_info.i2c_port,
+			    viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr,
+			    index, data);
 }
 
 static int tmds_register_read(int index)
 {
 	u8 data;
 
-	viaparinfo->shared->i2c_stuff.i2c_port =
-		viaparinfo->chip_info->tmds_chip_info.i2c_port;
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->
-	    tmds_chip_info.tmds_chip_slave_addr,
-			(u8) index, &data);
+	viafb_i2c_readbyte(viaparinfo->chip_info->tmds_chip_info.i2c_port,
+			   (u8) viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr,
+			   (u8) index, &data);
 	return data;
 }
 
 static int tmds_register_read_bytes(int index, u8 *buff, int buff_len)
 {
-	viaparinfo->shared->i2c_stuff.i2c_port =
-		viaparinfo->chip_info->tmds_chip_info.i2c_port;
-	viafb_i2c_readbytes((u8) viaparinfo->chip_info->tmds_chip_info.
-			 tmds_chip_slave_addr, (u8) index, buff, buff_len);
+	viafb_i2c_readbytes(viaparinfo->chip_info->tmds_chip_info.i2c_port,
+			    (u8) viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr,
+			    (u8) index, buff, buff_len);
 	return 0;
 }
 
@@ -541,9 +537,10 @@ void viafb_dvi_enable(void)
 				else
 					data = 0x37;
 				viafb_i2c_writebyte(viaparinfo->chip_info->
-					     tmds_chip_info.
-					     tmds_chip_slave_addr,
-					     0x08, data);
+						       tmds_chip_info.i2c_port,
+						    viaparinfo->chip_info->
+						       tmds_chip_info.tmds_chip_slave_addr,
+						    0x08, data);
 			}
 		}
 	}

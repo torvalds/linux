@@ -95,7 +95,7 @@ static int __devinit snd_gusextreme_match(struct device *dev, unsigned int n)
 }
 
 static int __devinit snd_gusextreme_es1688_create(struct snd_card *card,
-		struct device *dev, unsigned int n, struct snd_es1688 **rchip)
+		struct snd_es1688 *chip, struct device *dev, unsigned int n)
 {
 	static long possible_ports[] = {0x220, 0x240, 0x260};
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
@@ -119,14 +119,14 @@ static int __devinit snd_gusextreme_es1688_create(struct snd_card *card,
 	}
 
 	if (port[n] != SNDRV_AUTO_PORT)
-		return snd_es1688_create(card, port[n], mpu_port[n], irq[n],
-				mpu_irq[n], dma8[n], ES1688_HW_1688, rchip);
+		return snd_es1688_create(card, chip, port[n], mpu_port[n],
+				irq[n], mpu_irq[n], dma8[n], ES1688_HW_1688);
 
 	i = 0;
 	do {
 		port[n] = possible_ports[i];
-		error = snd_es1688_create(card, port[n], mpu_port[n], irq[n],
-				mpu_irq[n], dma8[n], ES1688_HW_1688, rchip);
+		error = snd_es1688_create(card, chip, port[n], mpu_port[n],
+				irq[n], mpu_irq[n], dma8[n], ES1688_HW_1688);
 	} while (error < 0 && ++i < ARRAY_SIZE(possible_ports));
 
 	return error;
@@ -206,9 +206,8 @@ static int __devinit snd_gusextreme_detect(struct snd_gus_card *gus,
 	return 0;
 }
 
-static int __devinit snd_gusextreme_mixer(struct snd_es1688 *chip)
+static int __devinit snd_gusextreme_mixer(struct snd_card *card)
 {
-	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
 	int error;
 
@@ -241,9 +240,12 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 	struct snd_opl3 *opl3;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_create(index[n], id[n], THIS_MODULE,
+				sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
+
+	es1688 = card->private_data;
 
 	if (mpu_port[n] == SNDRV_AUTO_PORT)
 		mpu_port[n] = 0;
@@ -251,7 +253,7 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 	if (mpu_irq[n] > 15)
 		mpu_irq[n] = -1;
 
-	error = snd_gusextreme_es1688_create(card, dev, n, &es1688);
+	error = snd_gusextreme_es1688_create(card, es1688, dev, n);
 	if (error < 0)
 		goto out;
 
@@ -280,11 +282,11 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 	}
 	gus->codec_flag = 1;
 
-	error = snd_es1688_pcm(es1688, 0, NULL);
+	error = snd_es1688_pcm(card, es1688, 0, NULL);
 	if (error < 0)
 		goto out;
 
-	error = snd_es1688_mixer(es1688);
+	error = snd_es1688_mixer(card, es1688);
 	if (error < 0)
 		goto out;
 
@@ -300,7 +302,7 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	error = snd_gusextreme_mixer(es1688);
+	error = snd_gusextreme_mixer(card);
 	if (error < 0)
 		goto out;
 

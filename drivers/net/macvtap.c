@@ -9,6 +9,7 @@
 #include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/cdev.h>
@@ -36,6 +37,8 @@
 struct macvtap_queue {
 	struct sock sk;
 	struct socket sock;
+	struct socket_wq wq;
+	int vnet_hdr_sz;
 	struct macvlan_dev *vlan;
 	struct file *file;
 	unsigned int flags;
@@ -55,7 +58,7 @@ static struct proto macvtap_proto = {
  * only has one tap, the interface numbers assure that the
  * device nodes are unique.
  */
-static unsigned int macvtap_major;
+static dev_t macvtap_major;
 #define MACVTAP_NUM_DEVS 65536
 static struct class *macvtap_class;
 static struct cdev macvtap_cdev;
@@ -177,11 +180,18 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 {
 	struct macvtap_queue *q = macvtap_get_queue(dev, skb);
 	if (!q)
-		return -ENOLINK;
+		goto drop;
+
+	if (skb_queue_len(&q->sk.sk_receive_queue) >= dev->tx_queue_len)
+		goto drop;
 
 	skb_queue_tail(&q->sk.sk_receive_queue, skb);
-	wake_up_interruptible_poll(q->sk.sk_sleep, POLLIN | POLLRDNORM | POLLRDBAND);
-	return 0;
+	wake_up_interruptible_poll(sk_sleep(&q->sk), POLLIN | POLLRDNORM | POLLRDBAND);
+	return NET_RX_SUCCESS;
+
+drop:
+	kfree_skb(skb);
+	return NET_RX_DROP;
 }
 
 /*
@@ -232,8 +242,15 @@ static void macvtap_dellink(struct net_device *dev,
 	macvlan_dellink(dev, head);
 }
 
+static void macvtap_setup(struct net_device *dev)
+{
+	macvlan_common_setup(dev);
+	dev->tx_queue_len = TUN_READQ_SIZE;
+}
+
 static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 	.kind		= "macvtap",
+	.setup		= macvtap_setup,
 	.newlink	= macvtap_newlink,
 	.dellink	= macvtap_dellink,
 };
@@ -241,12 +258,15 @@ static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 
 static void macvtap_sock_write_space(struct sock *sk)
 {
+	wait_queue_head_t *wqueue;
+
 	if (!sock_writeable(sk) ||
 	    !test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_poll(sk->sk_sleep, POLLOUT | POLLWRNORM | POLLWRBAND);
+	wqueue = sk_sleep(sk);
+	if (wqueue && waitqueue_active(wqueue))
+		wake_up_interruptible_poll(wqueue, POLLOUT | POLLWRNORM | POLLWRBAND);
 }
 
 static int macvtap_open(struct inode *inode, struct file *file)
@@ -271,7 +291,8 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	if (!q)
 		goto out;
 
-	init_waitqueue_head(&q->sock.wait);
+	q->sock.wq = &q->wq;
+	init_waitqueue_head(&q->wq.wait);
 	q->sock.type = SOCK_RAW;
 	q->sock.state = SS_CONNECTED;
 	q->sock.file = file;
@@ -279,6 +300,7 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	sock_init_data(&q->sock, &q->sk);
 	q->sk.sk_write_space = macvtap_sock_write_space;
 	q->flags = IFF_VNET_HDR | IFF_NO_PI | IFF_TAP;
+	q->vnet_hdr_sz = sizeof(struct virtio_net_hdr);
 
 	err = macvtap_set_queue(dev, file, q);
 	if (err)
@@ -307,7 +329,7 @@ static unsigned int macvtap_poll(struct file *file, poll_table * wait)
 		goto out;
 
 	mask = 0;
-	poll_wait(file, &q->sock.wait, wait);
+	poll_wait(file, &q->wq.wait, wait);
 
 	if (!skb_queue_empty(&q->sk.sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
@@ -439,14 +461,14 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 	int vnet_hdr_len = 0;
 
 	if (q->flags & IFF_VNET_HDR) {
-		vnet_hdr_len = sizeof(vnet_hdr);
+		vnet_hdr_len = q->vnet_hdr_sz;
 
 		err = -EINVAL;
 		if ((len -= vnet_hdr_len) < 0)
 			goto err;
 
 		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
-					   vnet_hdr_len);
+					   sizeof(vnet_hdr));
 		if (err < 0)
 			goto err;
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -528,7 +550,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 
 	if (q->flags & IFF_VNET_HDR) {
 		struct virtio_net_hdr vnet_hdr;
-		vnet_hdr_len = sizeof (vnet_hdr);
+		vnet_hdr_len = q->vnet_hdr_sz;
 		if ((len -= vnet_hdr_len) < 0)
 			return -EINVAL;
 
@@ -536,7 +558,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		if (ret)
 			return ret;
 
-		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, vnet_hdr_len))
+		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, sizeof(vnet_hdr)))
 			return -EFAULT;
 	}
 
@@ -561,7 +583,7 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	add_wait_queue(q->sk.sk_sleep, &wait);
+	add_wait_queue(sk_sleep(&q->sk), &wait);
 	while (len) {
 		current->state = TASK_INTERRUPTIBLE;
 
@@ -586,7 +608,7 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(q->sk.sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(&q->sk), &wait);
 	return ret;
 }
 
@@ -621,6 +643,8 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	struct ifreq __user *ifr = argp;
 	unsigned int __user *up = argp;
 	unsigned int u;
+	int __user *sp = argp;
+	int s;
 	int ret;
 
 	switch (cmd) {
@@ -664,6 +688,21 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		q->sk.sk_sndbuf = u;
+		return 0;
+
+	case TUNGETVNETHDRSZ:
+		s = q->vnet_hdr_sz;
+		if (put_user(s, sp))
+			return -EFAULT;
+		return 0;
+
+	case TUNSETVNETHDRSZ:
+		if (get_user(s, sp))
+			return -EFAULT;
+		if (s < (int)sizeof(struct virtio_net_hdr))
+			return -EINVAL;
+
+		q->vnet_hdr_sz = s;
 		return 0;
 
 	case TUNSETOFFLOAD:

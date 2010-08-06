@@ -32,7 +32,7 @@
 #define MODE0                                     0
 #define MODE1                                     1
 /* ANALOG OUTPUT RANGE */
-struct comedi_lrange range_apci3501_ao = { 2, {
+static struct comedi_lrange range_apci3501_ao = { 2, {
 					BIP_RANGE(10),
 					UNI_RANGE(10)
 					}

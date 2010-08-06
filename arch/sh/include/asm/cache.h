@@ -14,7 +14,7 @@
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+#define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
 #ifndef __ASSEMBLY__
 struct cache_info {
@@ -38,14 +38,10 @@ struct cache_info {
 	 * 2. those in the physical page number.
 	 */
 	unsigned int alias_mask;
-
 	unsigned int n_aliases;		/* Number of aliases */
 
 	unsigned long flags;
 };
-
-int __init detect_cpu_and_cache_system(void);
-
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHE_H */

@@ -80,8 +80,8 @@ static int it8761e_gpio_get(struct gpio_chip *gc, unsigned gpio_num)
 	u16 reg;
 	u8 bit;
 
-	bit = gpio_num % 7;
-	reg = (gpio_num >= 7) ? gpio_ba + 1 : gpio_ba;
+	bit = gpio_num % 8;
+	reg = (gpio_num >= 8) ? gpio_ba + 1 : gpio_ba;
 
 	return !!(inb(reg) & (1 << bit));
 }
@@ -91,8 +91,8 @@ static int it8761e_gpio_direction_in(struct gpio_chip *gc, unsigned gpio_num)
 	u8 curr_dirs;
 	u8 io_reg, bit;
 
-	bit = gpio_num % 7;
-	io_reg = (gpio_num >= 7) ? GPIO2X_IO : GPIO1X_IO;
+	bit = gpio_num % 8;
+	io_reg = (gpio_num >= 8) ? GPIO2X_IO : GPIO1X_IO;
 
 	spin_lock(&sio_lock);
 
@@ -116,8 +116,8 @@ static void it8761e_gpio_set(struct gpio_chip *gc,
 	u8 curr_vals, bit;
 	u16 reg;
 
-	bit = gpio_num % 7;
-	reg = (gpio_num >= 7) ? gpio_ba + 1 : gpio_ba;
+	bit = gpio_num % 8;
+	reg = (gpio_num >= 8) ? gpio_ba + 1 : gpio_ba;
 
 	spin_lock(&sio_lock);
 
@@ -135,8 +135,8 @@ static int it8761e_gpio_direction_out(struct gpio_chip *gc,
 {
 	u8 curr_dirs, io_reg, bit;
 
-	bit = gpio_num % 7;
-	io_reg = (gpio_num >= 7) ? GPIO2X_IO : GPIO1X_IO;
+	bit = gpio_num % 8;
+	io_reg = (gpio_num >= 8) ? GPIO2X_IO : GPIO1X_IO;
 
 	it8761e_gpio_set(gc, gpio_num, val);
 
@@ -200,7 +200,7 @@ static int __init it8761e_gpio_init(void)
 		return -EBUSY;
 
 	it8761e_gpio_chip.base = -1;
-	it8761e_gpio_chip.ngpio = 14;
+	it8761e_gpio_chip.ngpio = 16;
 
 	err = gpiochip_add(&it8761e_gpio_chip);
 	if (err < 0)
@@ -217,7 +217,10 @@ gpiochip_add_err:
 static void __exit it8761e_gpio_exit(void)
 {
 	if (gpio_ba) {
-		gpiochip_remove(&it8761e_gpio_chip);
+		int ret = gpiochip_remove(&it8761e_gpio_chip);
+
+		WARN(ret, "%s(): gpiochip_remove() failed, ret=%d\n",
+				__func__, ret);
 
 		release_region(gpio_ba, GPIO_IOSIZE);
 		gpio_ba = 0;

@@ -37,6 +37,7 @@
  *  - add timers that autoremove intervalled IEs?
  */
 #include <linux/usb/wusb.h>
+#include <linux/slab.h>
 #include "wusbhc.h"
 
 /* Initialize the MMCIEs handling mechanism */

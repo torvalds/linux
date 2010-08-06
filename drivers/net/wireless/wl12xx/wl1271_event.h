@@ -38,6 +38,14 @@
  */
 
 enum {
+	RSSI_SNR_TRIGGER_0_EVENT_ID              = BIT(0),
+	RSSI_SNR_TRIGGER_1_EVENT_ID              = BIT(1),
+	RSSI_SNR_TRIGGER_2_EVENT_ID              = BIT(2),
+	RSSI_SNR_TRIGGER_3_EVENT_ID              = BIT(3),
+	RSSI_SNR_TRIGGER_4_EVENT_ID              = BIT(4),
+	RSSI_SNR_TRIGGER_5_EVENT_ID              = BIT(5),
+	RSSI_SNR_TRIGGER_6_EVENT_ID              = BIT(6),
+	RSSI_SNR_TRIGGER_7_EVENT_ID              = BIT(7),
 	MEASUREMENT_START_EVENT_ID		 = BIT(8),
 	MEASUREMENT_COMPLETE_EVENT_ID		 = BIT(9),
 	SCAN_COMPLETE_EVENT_ID			 = BIT(10),
@@ -77,7 +85,7 @@ struct event_debug_report {
 	__le32 report_1;
 	__le32 report_2;
 	__le32 report_3;
-} __attribute__ ((packed));
+} __packed;
 
 #define NUM_OF_RSSI_SNR_TRIGGERS 8
 
@@ -108,10 +116,11 @@ struct event_mailbox {
 	u8 ps_status;
 
 	u8 reserved_5[29];
-} __attribute__ ((packed));
+} __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
+void wl1271_pspoll_work(struct work_struct *work);
 
 #endif

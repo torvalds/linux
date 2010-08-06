@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/slab.h>
 
 #define ADT7411_REG_INT_TEMP_VDD_LSB		0x03
 #define ADT7411_REG_EXT_TEMP_AIN14_LSB		0x04
@@ -315,7 +316,6 @@ static int __devinit adt7411_probe(struct i2c_client *client,
  exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
  exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return ret;
 }
@@ -326,7 +326,6 @@ static int __devexit adt7411_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

@@ -5,6 +5,7 @@
 #include "parse-events.h"
 #include "exec_cmd.h"
 #include "string.h"
+#include "symbol.h"
 #include "cache.h"
 #include "header.h"
 #include "debugfs.h"
@@ -409,7 +410,6 @@ static enum event_result
 parse_single_tracepoint_event(char *sys_name,
 			      const char *evt_name,
 			      unsigned int evt_length,
-			      char *flags,
 			      struct perf_event_attr *attr,
 			      const char **strp)
 {
@@ -417,14 +417,6 @@ parse_single_tracepoint_event(char *sys_name,
 	char id_buf[4];
 	u64 id;
 	int fd;
-
-	if (flags) {
-		if (!strncmp(flags, "record", strlen(flags))) {
-			attr->sample_type |= PERF_SAMPLE_RAW;
-			attr->sample_type |= PERF_SAMPLE_TIME;
-			attr->sample_type |= PERF_SAMPLE_CPU;
-		}
-	}
 
 	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
 		 sys_name, evt_name);
@@ -443,6 +435,13 @@ parse_single_tracepoint_event(char *sys_name,
 	attr->config = id;
 	attr->type = PERF_TYPE_TRACEPOINT;
 	*strp = evt_name + evt_length;
+
+	attr->sample_type |= PERF_SAMPLE_RAW;
+	attr->sample_type |= PERF_SAMPLE_TIME;
+	attr->sample_type |= PERF_SAMPLE_CPU;
+
+	attr->sample_period = 1;
+
 
 	return EVT_HANDLED;
 }
@@ -532,8 +531,7 @@ static enum event_result parse_tracepoint_event(const char **strp,
 						       flags);
 	} else
 		return parse_single_tracepoint_event(sys_name, evt_name,
-						     evt_length, flags,
-						     attr, strp);
+						     evt_length, attr, strp);
 }
 
 static enum event_result
@@ -690,19 +688,29 @@ static enum event_result
 parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 {
 	const char *str = *strp;
-	int eu = 1, ek = 1, eh = 1;
+	int exclude = 0;
+	int eu = 0, ek = 0, eh = 0, precise = 0;
 
 	if (*str++ != ':')
 		return 0;
 	while (*str) {
-		if (*str == 'u')
+		if (*str == 'u') {
+			if (!exclude)
+				exclude = eu = ek = eh = 1;
 			eu = 0;
-		else if (*str == 'k')
+		} else if (*str == 'k') {
+			if (!exclude)
+				exclude = eu = ek = eh = 1;
 			ek = 0;
-		else if (*str == 'h')
+		} else if (*str == 'h') {
+			if (!exclude)
+				exclude = eu = ek = eh = 1;
 			eh = 0;
-		else
+		} else if (*str == 'p') {
+			precise++;
+		} else
 			break;
+
 		++str;
 	}
 	if (str >= *strp + 2) {
@@ -710,6 +718,7 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 		attr->exclude_user   = eu;
 		attr->exclude_kernel = ek;
 		attr->exclude_hv     = eh;
+		attr->precise_ip     = precise;
 		return 1;
 	}
 	return 0;
@@ -934,7 +943,8 @@ void print_events(void)
 
 	printf("\n");
 	printf("  %-42s [%s]\n",
-		"rNNN", event_type_descriptors[PERF_TYPE_RAW]);
+		"rNNN (see 'perf list --help' on how to encode it)",
+	       event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
 	printf("  %-42s [%s]\n",

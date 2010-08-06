@@ -153,7 +153,7 @@ acpi_ex_resolve_operands(u16 opcode,
 
 	arg_types = op_info->runtime_args;
 	if (arg_types == ARGI_INVALID_OPCODE) {
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X", opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X", opcode));
 
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -218,7 +218,7 @@ acpi_ex_resolve_operands(u16 opcode,
 
 			if (!acpi_ut_valid_object_type(object_type)) {
 				ACPI_ERROR((AE_INFO,
-					    "Bad operand object type [%X]",
+					    "Bad operand object type [0x%X]",
 					    object_type));
 
 				return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -253,7 +253,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Reference Class %2.2X in %p",
+						    "Unknown Reference Class 0x%2.2X in %p",
 						    obj_desc->reference.class,
 						    obj_desc));
 
@@ -665,7 +665,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/* Unknown type */
 
 			ACPI_ERROR((AE_INFO,
-				    "Internal - Unknown ARGI (required operand) type %X",
+				    "Internal - Unknown ARGI (required operand) type 0x%X",
 				    this_arg_type));
 
 			return_ACPI_STATUS(AE_BAD_PARAMETER);

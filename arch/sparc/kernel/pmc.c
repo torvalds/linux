@@ -79,8 +79,11 @@ static struct of_device_id __initdata pmc_match[] = {
 MODULE_DEVICE_TABLE(of, pmc_match);
 
 static struct of_platform_driver pmc_driver = {
-	.name		= "pmc",
-	.match_table	= pmc_match,
+	.driver = {
+		.name = "pmc",
+		.owner = THIS_MODULE,
+		.of_match_table = pmc_match,
+	},
 	.probe		= pmc_probe,
 };
 

@@ -132,7 +132,7 @@ config PPC
 	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -140,6 +140,7 @@ config PPC
 	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
 	select HAVE_PERF_EVENTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
 
 config EARLY_PRINTK
 	bool
@@ -313,19 +314,6 @@ config 8XX_MINIMAL_FPEMU
 
 	  It is recommended that you build a soft-float userspace instead.
 
-config IOMMU_VMERGE
-	bool "Enable IOMMU virtual merging"
-	depends on PPC64
-	default y
-	help
-	  Cause IO segments sent to a device for DMA to be merged virtually
-	  by the IOMMU when they happen to have been allocated contiguously.
-	  This doesn't add pressure to the IOMMU allocator. However, some
-	  drivers don't support getting large merged segments coming back
-	  from *_map_sg().
-
-	  Most drivers don't have this problem; it is safe to say Y here.
-
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -363,7 +351,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on PPC_BOOK3S && EXPERIMENTAL
+	depends on (PPC_BOOK3S || (FSL_BOOKE && !SMP)) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -412,7 +400,7 @@ config IRQ_ALL_CPUS
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
-	default y
+	default n
 	help
 	  This enables support for sparse irqs. This is useful for distro
 	  kernels that want to define a high CONFIG_NR_CPUS value but still
@@ -421,7 +409,7 @@ config SPARSE_IRQ
 	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
 	    out the irq_desc[] array in a more NUMA-friendly way. )
 
-	  If you don't know what to do here, say Y.
+	  If you don't know what to do here, say N.
 
 config NUMA
 	bool "NUMA support"
@@ -674,6 +662,9 @@ config ZONE_DMA
 
 config NEED_DMA_MAP_STATE
 	def_bool (PPC64 || NOT_COHERENT_CACHE)
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 config GENERIC_ISA_DMA
 	bool

@@ -32,7 +32,7 @@ static bool busy;
 static void random_recv_done(struct virtqueue *vq)
 {
 	/* We can get spurious callbacks, e.g. shared IRQs + virtio_pci. */
-	if (!vq->vq_ops->get_buf(vq, &data_avail))
+	if (!virtqueue_get_buf(vq, &data_avail))
 		return;
 
 	complete(&have_data);
@@ -46,10 +46,10 @@ static void register_buffer(u8 *buf, size_t size)
 	sg_init_one(&sg, buf, size);
 
 	/* There should always be room for one buffer. */
-	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, buf) < 0)
+	if (virtqueue_add_buf(vq, &sg, 0, 1, buf) < 0)
 		BUG();
 
-	vq->vq_ops->kick(vq);
+	virtqueue_kick(vq);
 }
 
 static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)

@@ -539,11 +539,10 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	drm_savage_private_t *dev_priv;
 
-	dev_priv = kmalloc(sizeof(drm_savage_private_t), GFP_KERNEL);
+	dev_priv = kzalloc(sizeof(drm_savage_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
-	memset(dev_priv, 0, sizeof(drm_savage_private_t));
 	dev->dev_private = (void *)dev_priv;
 
 	dev_priv->chipset = (enum savage_family)chipset;
@@ -553,7 +552,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 
 /*
- * Initalize mappings. On Savage4 and SavageIX the alignment
+ * Initialize mappings. On Savage4 and SavageIX the alignment
  * and size of the aperture is not suitable for automatic MTRR setup
  * in drm_addmap. Therefore we add them manually before the maps are
  * initialized, and tear them down on last close.

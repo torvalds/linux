@@ -1,0 +1,20 @@
+#
+# The following files are shared by (and manually synchronized
+# between) the Ceph userland and kernel client.
+#
+# userland                  kernel
+src/include/ceph_fs.h	    fs/ceph/ceph_fs.h
+src/include/ceph_fs.cc	    fs/ceph/ceph_fs.c
+src/include/msgr.h	    fs/ceph/msgr.h
+src/include/rados.h	    fs/ceph/rados.h
+src/include/ceph_strings.cc fs/ceph/ceph_strings.c
+src/include/ceph_frag.h	    fs/ceph/ceph_frag.h
+src/include/ceph_frag.cc    fs/ceph/ceph_frag.c
+src/include/ceph_hash.h	    fs/ceph/ceph_hash.h
+src/include/ceph_hash.cc    fs/ceph/ceph_hash.c
+src/crush/crush.c	    fs/ceph/crush/crush.c
+src/crush/crush.h	    fs/ceph/crush/crush.h
+src/crush/mapper.c	    fs/ceph/crush/mapper.c
+src/crush/mapper.h	    fs/ceph/crush/mapper.h
+src/crush/hash.h	    fs/ceph/crush/hash.h
+src/crush/hash.c	    fs/ceph/crush/hash.c

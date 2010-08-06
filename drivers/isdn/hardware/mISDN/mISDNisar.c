@@ -25,6 +25,7 @@
  */
 /* #define DEBUG */
 
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/mISDNhw.h>

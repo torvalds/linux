@@ -20,13 +20,8 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#define DRV_MODULE_VERSION	"Jan_2010"
+#define DRV_MODULE_VERSION	"Apr_2010"
 #include <linux/stmmac.h>
-
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define STMMAC_VLAN_TAG_USED
-#include <linux/if_vlan.h>
-#endif
 
 #include "common.h"
 #ifdef CONFIG_STMMAC_TIMER
@@ -93,6 +88,7 @@ struct stmmac_priv {
 #ifdef STMMAC_VLAN_TAG_USED
 	struct vlan_group *vlgrp;
 #endif
+	int enh_desc;
 };
 
 #ifdef CONFIG_STM_DRIVERS
@@ -120,3 +116,5 @@ static inline int stmmac_claim_resource(struct platform_device *pdev)
 extern int stmmac_mdio_unregister(struct net_device *ndev);
 extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
+extern struct stmmac_desc_ops enh_desc_ops;
+extern struct stmmac_desc_ops ndesc_ops;

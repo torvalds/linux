@@ -156,7 +156,7 @@ static unsigned int cs5530_qc_issue(struct ata_queued_cmd *qc)
 		    	cs5530_set_dmamode(ap, adev);
 	}
 
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct scsi_host_template cs5530_sht = {
@@ -167,7 +167,7 @@ static struct scsi_host_template cs5530_sht = {
 static struct ata_port_operations cs5530_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
-	.qc_prep 	= ata_sff_dumb_qc_prep,
+	.qc_prep 	= ata_bmdma_dumb_qc_prep,
 	.qc_issue	= cs5530_qc_issue,
 
 	.cable_detect	= ata_cable_40wire,
@@ -324,7 +324,7 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ppi[1] = &info_palmax_secondary;
 
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(pdev, ppi, &cs5530_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &cs5530_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

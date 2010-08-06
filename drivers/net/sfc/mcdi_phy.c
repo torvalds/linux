@@ -11,13 +11,16 @@
  * Driver for PHY related operations via MCDI.
  */
 
+#include <linux/slab.h>
 #include "efx.h"
 #include "phy.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "mdio_10g.h"
+#include "nic.h"
+#include "selftest.h"
 
-struct efx_mcdi_phy_cfg {
+struct efx_mcdi_phy_data {
 	u32 flags;
 	u32 type;
 	u32 supported_cap;
@@ -32,7 +35,7 @@ struct efx_mcdi_phy_cfg {
 };
 
 static int
-efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_cfg *cfg)
+efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
 	u8 outbuf[MC_CMD_GET_PHY_CFG_OUT_LEN];
 	size_t outlen;
@@ -47,7 +50,7 @@ efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_cfg *cfg)
 		goto fail;
 
 	if (outlen < MC_CMD_GET_PHY_CFG_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -68,7 +71,7 @@ efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_cfg *cfg)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -94,7 +97,7 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -110,7 +113,7 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 		goto fail;
 
 	if (outlen < MC_CMD_GET_LOOPBACK_MODES_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -119,7 +122,7 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -147,7 +150,7 @@ int efx_mcdi_mdio_read(struct efx_nic *efx, unsigned int bus,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -175,7 +178,7 @@ int efx_mcdi_mdio_write(struct efx_nic *efx, unsigned int bus,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -256,7 +259,7 @@ static u32 ethtool_to_mcdi_cap(u32 cap)
 
 static u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	enum efx_phy_mode mode, supported;
 	u32 flags;
 
@@ -304,7 +307,7 @@ static u32 mcdi_to_ethtool_media(u32 media)
 
 static int efx_mcdi_phy_probe(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_data;
+	struct efx_mcdi_phy_data *phy_data;
 	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
 	u32 caps;
 	int rc;
@@ -392,6 +395,7 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		efx->wanted_fc |= EFX_FC_AUTO;
+	efx_link_set_wanted_fc(efx, efx->wanted_fc);
 
 	return 0;
 
@@ -402,7 +406,7 @@ fail:
 
 int efx_mcdi_phy_reconfigure(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 caps = (efx->link_advertising ?
 		    ethtool_to_mcdi_cap(efx->link_advertising) :
 		    phy_cfg->forced_cap);
@@ -443,7 +447,7 @@ void efx_mcdi_phy_decode_link(struct efx_nic *efx,
  */
 void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 rmtadv;
 
 	/* The link partner capabilities are only relevent if the
@@ -462,8 +466,8 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 		rmtadv |=  ADVERTISED_Asym_Pause;
 
 	if ((efx->wanted_fc & EFX_FC_TX) && rmtadv == ADVERTISED_Asym_Pause)
-		EFX_ERR(efx, "warning: link partner doesn't support "
-			"pause frames");
+		netif_err(efx, link, efx->net_dev,
+			  "warning: link partner doesn't support pause frames");
 }
 
 static bool efx_mcdi_phy_poll(struct efx_nic *efx)
@@ -479,7 +483,8 @@ static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc) {
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 		efx->link_state.up = false;
 	} else {
 		efx_mcdi_phy_decode_link(
@@ -502,7 +507,7 @@ static void efx_mcdi_phy_remove(struct efx_nic *efx)
 
 static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
 	int rc;
 
@@ -522,7 +527,8 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc) {
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 		return;
 	}
 	ecmd->lp_advertising =
@@ -532,7 +538,7 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 
 static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 caps;
 	int rc;
 
@@ -586,11 +592,151 @@ static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 		return rc;
 
 	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
-		return -EMSGSIZE;
+		return -EIO;
 	if (MCDI_DWORD(outbuf, GET_PHY_STATE_STATE) != MC_CMD_PHY_STATE_OK)
 		return -EINVAL;
 
 	return 0;
+}
+
+static const char *const mcdi_sft9001_cable_diag_names[] = {
+	"cable.pairA.length",
+	"cable.pairB.length",
+	"cable.pairC.length",
+	"cable.pairD.length",
+	"cable.pairA.status",
+	"cable.pairB.status",
+	"cable.pairC.status",
+	"cable.pairD.status",
+};
+
+static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
+			 int *results)
+{
+	unsigned int retry, i, count = 0;
+	size_t outlen;
+	u32 status;
+	u8 *buf, *ptr;
+	int rc;
+
+	buf = kzalloc(0x100, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	BUILD_BUG_ON(MC_CMD_START_BIST_OUT_LEN != 0);
+	MCDI_SET_DWORD(buf, START_BIST_IN_TYPE, bist_mode);
+	rc = efx_mcdi_rpc(efx, MC_CMD_START_BIST, buf, MC_CMD_START_BIST_IN_LEN,
+			  NULL, 0, NULL);
+	if (rc)
+		goto out;
+
+	/* Wait up to 10s for BIST to finish */
+	for (retry = 0; retry < 100; ++retry) {
+		BUILD_BUG_ON(MC_CMD_POLL_BIST_IN_LEN != 0);
+		rc = efx_mcdi_rpc(efx, MC_CMD_POLL_BIST, NULL, 0,
+				  buf, 0x100, &outlen);
+		if (rc)
+			goto out;
+
+		status = MCDI_DWORD(buf, POLL_BIST_OUT_RESULT);
+		if (status != MC_CMD_POLL_BIST_RUNNING)
+			goto finished;
+
+		msleep(100);
+	}
+
+	rc = -ETIMEDOUT;
+	goto out;
+
+finished:
+	results[count++] = (status == MC_CMD_POLL_BIST_PASSED) ? 1 : -1;
+
+	/* SFT9001 specific cable diagnostics output */
+	if (efx->phy_type == PHY_TYPE_SFT9001B &&
+	    (bist_mode == MC_CMD_PHY_BIST_CABLE_SHORT ||
+	     bist_mode == MC_CMD_PHY_BIST_CABLE_LONG)) {
+		ptr = MCDI_PTR(buf, POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A);
+		if (status == MC_CMD_POLL_BIST_PASSED &&
+		    outlen >= MC_CMD_POLL_BIST_OUT_SFT9001_LEN) {
+			for (i = 0; i < 8; i++) {
+				results[count + i] =
+					EFX_DWORD_FIELD(((efx_dword_t *)ptr)[i],
+							EFX_DWORD_0);
+			}
+		}
+		count += 8;
+	}
+	rc = count;
+
+out:
+	kfree(buf);
+
+	return rc;
+}
+
+static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
+				  unsigned flags)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 mode;
+	int rc;
+
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_LBN)) {
+		rc = efx_mcdi_bist(efx, MC_CMD_PHY_BIST, results);
+		if (rc < 0)
+			return rc;
+
+		results += rc;
+	}
+
+	/* If we support both LONG and SHORT, then run each in response to
+	 * break or not. Otherwise, run the one we support */
+	mode = 0;
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_SHORT_LBN)) {
+		if ((flags & ETH_TEST_FL_OFFLINE) &&
+		    (phy_cfg->flags &
+		     (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN)))
+			mode = MC_CMD_PHY_BIST_CABLE_LONG;
+		else
+			mode = MC_CMD_PHY_BIST_CABLE_SHORT;
+	} else if (phy_cfg->flags &
+		   (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN))
+		mode = MC_CMD_PHY_BIST_CABLE_LONG;
+
+	if (mode != 0) {
+		rc = efx_mcdi_bist(efx, mode, results);
+		if (rc < 0)
+			return rc;
+		results += rc;
+	}
+
+	return 0;
+}
+
+const char *efx_mcdi_phy_test_name(struct efx_nic *efx, unsigned int index)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_LBN)) {
+		if (index == 0)
+			return "bist";
+		--index;
+	}
+
+	if (phy_cfg->flags & ((1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_SHORT_LBN) |
+			      (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN))) {
+		if (index == 0)
+			return "cable";
+		--index;
+
+		if (efx->phy_type == PHY_TYPE_SFT9001B) {
+			if (index < ARRAY_SIZE(mcdi_sft9001_cable_diag_names))
+				return mcdi_sft9001_cable_diag_names[index];
+			index -= ARRAY_SIZE(mcdi_sft9001_cable_diag_names);
+		}
+	}
+
+	return NULL;
 }
 
 struct efx_phy_operations efx_mcdi_phy_ops = {
@@ -603,6 +749,6 @@ struct efx_phy_operations efx_mcdi_phy_ops = {
 	.get_settings	= efx_mcdi_phy_get_settings,
 	.set_settings	= efx_mcdi_phy_set_settings,
 	.test_alive	= efx_mcdi_phy_test_alive,
-	.run_tests	= NULL,
-	.test_name	= NULL,
+	.run_tests	= efx_mcdi_phy_run_tests,
+	.test_name	= efx_mcdi_phy_test_name,
 };

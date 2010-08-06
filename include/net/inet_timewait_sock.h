@@ -224,7 +224,9 @@ static inline
 struct net *twsk_net(const struct inet_timewait_sock *twsk)
 {
 #ifdef CONFIG_NET_NS
-	return rcu_dereference(twsk->tw_net);
+	return rcu_dereference_raw(twsk->tw_net); /* protected by locking, */
+						  /* reference counting, */
+						  /* initialization, or RCU. */
 #else
 	return &init_net;
 #endif

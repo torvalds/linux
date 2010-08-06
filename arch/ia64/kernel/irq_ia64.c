@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel_stat.h>
-#include <linux/slab.h>
 #include <linux/ptrace.h>
 #include <linux/random.h>	/* for rand_initialize_irq() */
 #include <linux/signal.h>
@@ -30,6 +29,7 @@
 #include <linux/threads.h>
 #include <linux/bitops.h>
 #include <linux/irq.h>
+#include <linux/ratelimit.h>
 
 #include <asm/delay.h>
 #include <asm/intrinsics.h>
@@ -468,13 +468,9 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 		sp = ia64_getreg(_IA64_REG_SP);
 
 		if ((sp - bsp) < 1024) {
-			static unsigned char count;
-			static long last_time;
+			static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 5);
 
-			if (time_after(jiffies, last_time + 5 * HZ))
-				count = 0;
-			if (++count < 5) {
-				last_time = jiffies;
+			if (__ratelimit(&ratelimit)) {
 				printk("ia64_handle_irq: DANGER: less than "
 				       "1KB of free stack space!!\n"
 				       "(bsp=0x%lx, sp=%lx)\n", bsp, sp);

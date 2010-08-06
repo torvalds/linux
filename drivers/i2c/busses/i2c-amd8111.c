@@ -17,7 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Vojtech Pavlik <vojtech@suse.cz>");

@@ -23,12 +23,14 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
+#include <media/ir-core.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
@@ -303,6 +305,15 @@ struct cx23885_tsport {
 	void                       *port_priv;
 };
 
+struct cx23885_kernel_ir {
+	struct cx23885_dev	*cx;
+	char			*name;
+	char			*phys;
+
+	struct input_dev	*inp_dev;
+	struct ir_dev_props	props;
+};
+
 struct cx23885_dev {
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
@@ -362,7 +373,7 @@ struct cx23885_dev {
 	struct work_struct	   ir_tx_work;
 	unsigned long		   ir_tx_notifications;
 
-	struct card_ir		   *ir_input;
+	struct cx23885_kernel_ir   *kernel_ir;
 	atomic_t		   ir_input_stopping;
 
 	/* V4l */

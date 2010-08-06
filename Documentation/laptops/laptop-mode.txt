@@ -207,7 +207,7 @@ Tips & Tricks
 * Drew Scott Daniels observed: "I don't know why, but when I decrease the number
   of colours that my display uses it consumes less battery power. I've seen
   this on powerbooks too. I hope that this is a piece of information that
-  might be useful to the Laptop Mode patch or it's users."
+  might be useful to the Laptop Mode patch or its users."
 
 * In syslog.conf, you can prefix entries with a dash ``-'' to omit syncing the
   file after every logging. When you're using laptop-mode and your disk doesn't

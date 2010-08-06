@@ -20,6 +20,7 @@
 #include <linux/route.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -359,7 +360,8 @@ fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 		msg.msg_control = (void*)(fl->opt+1);
 		flowi.oif = 0;
 
-		err = datagram_send_ctl(net, &msg, &flowi, fl->opt, &junk, &junk);
+		err = datagram_send_ctl(net, &msg, &flowi, fl->opt, &junk,
+					&junk, &junk);
 		if (err)
 			goto done;
 		err = -EINVAL;

@@ -20,6 +20,7 @@
 #include <linux/timex.h>
 #include <linux/signal.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>

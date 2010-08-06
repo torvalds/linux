@@ -55,6 +55,7 @@
 #include <linux/mm.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
@@ -1427,10 +1428,13 @@ extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 /* Graphics Execution Manager library functions (drm_gem.c) */
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
+void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
 void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
+int drm_gem_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size);
 void drm_gem_object_handle_free(struct kref *kref);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
@@ -1545,39 +1549,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
-
-static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
-{
-	if (size != 0 && nmemb > ULONG_MAX / size)
-		return NULL;
-
-	if (size * nmemb <= PAGE_SIZE)
-	    return kcalloc(nmemb, size, GFP_KERNEL);
-
-	return __vmalloc(size * nmemb,
-			 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-}
-
-/* Modeled after cairo's malloc_ab, it's like calloc but without the zeroing. */
-static __inline__ void *drm_malloc_ab(size_t nmemb, size_t size)
-{
-	if (size != 0 && nmemb > ULONG_MAX / size)
-		return NULL;
-
-	if (size * nmemb <= PAGE_SIZE)
-	    return kmalloc(nmemb * size, GFP_KERNEL);
-
-	return __vmalloc(size * nmemb,
-			 GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
-}
-
-static __inline void drm_free_large(void *ptr)
-{
-	if (!is_vmalloc_addr(ptr))
-		return kfree(ptr);
-
-	vfree(ptr);
-}
+#include "drm_mem_util.h"
 /*@}*/
 
 #endif				/* __KERNEL__ */

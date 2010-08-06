@@ -373,11 +373,13 @@ syscall_exit_cont:
 	bnel-	load_dbcr0
 #endif
 #ifdef CONFIG_44x
+BEGIN_MMU_FTR_SECTION
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0
 	bne-	2f
 1:
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_47x)
 #endif /* CONFIG_44x */
 BEGIN_FTR_SECTION
 	lwarx	r7,0,r1
@@ -848,6 +850,9 @@ resume_kernel:
 	/* interrupts are hard-disabled at this point */
 restore:
 #ifdef CONFIG_44x
+BEGIN_MMU_FTR_SECTION
+	b	1f
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0

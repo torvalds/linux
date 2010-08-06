@@ -16,4 +16,5 @@ obj-y				+= dev-uart.o
 obj-y				+= cpu.o
 obj-y				+= clock.o
 obj-y				+= irq.o
-obj-y				+= setup-i2c0.o
+obj-$(CONFIG_S5P_EXT_INT)	+= irq-eint.o
+

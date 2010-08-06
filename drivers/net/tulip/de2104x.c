@@ -42,6 +42,7 @@
 #include <linux/compiler.h>
 #include <linux/rtnetlink.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -261,13 +262,13 @@ struct de_srom_media_block {
 	u16			csr13;
 	u16			csr14;
 	u16			csr15;
-} __attribute__((packed));
+} __packed;
 
 struct de_srom_info_leaf {
 	u16			default_media;
 	u8			n_blocks;
 	u8			unused;
-} __attribute__((packed));
+} __packed;
 
 struct de_desc {
 	__le32			opts1;
@@ -366,8 +367,8 @@ static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
 static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 
 
-#define dr32(reg)		readl(de->regs + (reg))
-#define dw32(reg,val)		writel((val), de->regs + (reg))
+#define dr32(reg)	ioread32(de->regs + (reg))
+#define dw32(reg, val)	iowrite32((val), de->regs + (reg))
 
 
 static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
@@ -653,7 +654,6 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 
 	/* Trigger an immediate transmit demand. */
 	dw32(TxPoll, NormalTxPoll);
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -670,15 +670,15 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
 	u16 hash_table[32];
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	set_bit_le(255, hash_table); 			/* Broadcast entry */
 	/* This should work on big-endian machines as well. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		int index = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x1ff;
+	netdev_for_each_mc_addr(ha, dev) {
+		int index = ether_crc_le(ETH_ALEN, ha->addr) & 0x1ff;
 
 		set_bit_le(index, hash_table);
 	}
@@ -699,13 +699,13 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		eaddrs = (u16 *)mclist->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		eaddrs = (u16 *) ha->addr;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
@@ -1706,6 +1706,7 @@ static void __devinit de21040_get_mac_address (struct de_private *de)
 		int value, boguscnt = 100000;
 		do {
 			value = dr32(ROMCmd);
+			rmb();
 		} while (value < 0 && --boguscnt > 0);
 		de->dev->dev_addr[i] = value;
 		udelay(1);

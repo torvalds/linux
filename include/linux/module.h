@@ -181,6 +181,13 @@ void *__symbol_get(const char *symbol);
 void *__symbol_get_gpl(const char *symbol);
 #define symbol_get(x) ((typeof(&x))(__symbol_get(MODULE_SYMBOL_PREFIX #x)))
 
+/* modules using other modules: kdb wants to see this. */
+struct module_use {
+	struct list_head source_list;
+	struct list_head target_list;
+	struct module *source, *target;
+};
+
 #ifndef __GENKSYMS__
 #ifdef CONFIG_MODVERSIONS
 /* Mark the CRC weak since genksyms apparently decides not to
@@ -330,8 +337,11 @@ struct module
 	struct module_notes_attrs *notes_attrs;
 #endif
 
+#ifdef CONFIG_SMP
 	/* Per-cpu data. */
-	void *percpu;
+	void __percpu *percpu;
+	unsigned int percpu_size;
+#endif
 
 	/* The command line arguments (may be mangled).  People like
 	   keeping pointers to this stuff */
@@ -356,7 +366,9 @@ struct module
 
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
-	struct list_head modules_which_use_me;
+	struct list_head source_list;
+	/* What modules do I depend on? */
+	struct list_head target_list;
 
 	/* Who is waiting for us to be unloaded */
 	struct task_struct *waiter;
@@ -365,7 +377,8 @@ struct module
 	void (*exit)(void);
 
 	struct module_ref {
-		int count;
+		unsigned int incs;
+		unsigned int decs;
 	} __percpu *refptr;
 #endif
 
@@ -392,6 +405,7 @@ static inline int module_is_live(struct module *mod)
 struct module *__module_text_address(unsigned long addr);
 struct module *__module_address(unsigned long addr);
 bool is_module_address(unsigned long addr);
+bool is_module_percpu_address(unsigned long addr);
 bool is_module_text_address(unsigned long addr);
 
 static inline int within_module_core(unsigned long addr, struct module *mod)
@@ -459,9 +473,8 @@ static inline void __module_get(struct module *module)
 {
 	if (module) {
 		preempt_disable();
-		__this_cpu_inc(module->refptr->count);
-		trace_module_get(module, _THIS_IP_,
-				 __this_cpu_read(module->refptr->count));
+		__this_cpu_inc(module->refptr->incs);
+		trace_module_get(module, _THIS_IP_);
 		preempt_enable();
 	}
 }
@@ -474,11 +487,9 @@ static inline int try_module_get(struct module *module)
 		preempt_disable();
 
 		if (likely(module_is_live(module))) {
-			__this_cpu_inc(module->refptr->count);
-			trace_module_get(module, _THIS_IP_,
-				__this_cpu_read(module->refptr->count));
-		}
-		else
+			__this_cpu_inc(module->refptr->incs);
+			trace_module_get(module, _THIS_IP_);
+		} else
 			ret = 0;
 
 		preempt_enable();
@@ -559,6 +570,11 @@ static inline struct module *__module_text_address(unsigned long addr)
 }
 
 static inline bool is_module_address(unsigned long addr)
+{
+	return false;
+}
+
+static inline bool is_module_percpu_address(unsigned long addr)
 {
 	return false;
 }
@@ -656,43 +672,10 @@ static inline int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 
 #endif /* CONFIG_MODULES */
 
-struct device_driver;
 #ifdef CONFIG_SYSFS
-struct module;
-
 extern struct kset *module_kset;
 extern struct kobj_type module_ktype;
 extern int module_sysfs_initialized;
-
-int mod_sysfs_init(struct module *mod);
-int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params);
-int module_add_modinfo_attrs(struct module *mod);
-void module_remove_modinfo_attrs(struct module *mod);
-
-#else /* !CONFIG_SYSFS */
-
-static inline int mod_sysfs_init(struct module *mod)
-{
-	return 0;
-}
-
-static inline int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params)
-{
-	return 0;
-}
-
-static inline int module_add_modinfo_attrs(struct module *mod)
-{
-	return 0;
-}
-
-static inline void module_remove_modinfo_attrs(struct module *mod)
-{ }
-
 #endif /* CONFIG_SYSFS */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)

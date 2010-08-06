@@ -1711,8 +1711,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto fail1;
         }
 
-	aiptek->data = usb_buffer_alloc(usbdev, AIPTEK_PACKET_LENGTH,
-					GFP_ATOMIC, &aiptek->data_dma);
+	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
+					  GFP_ATOMIC, &aiptek->data_dma);
         if (!aiptek->data) {
 		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
 		goto fail1;
@@ -1884,8 +1884,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
  fail4:	sysfs_remove_group(&intf->dev.kobj, &aiptek_attribute_group);
  fail3: usb_free_urb(aiptek->urb);
- fail2:	usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
-			aiptek->data_dma);
+ fail2:	usb_free_coherent(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
+			  aiptek->data_dma);
  fail1: usb_set_intfdata(intf, NULL);
 	input_free_device(inputdev);
 	kfree(aiptek);
@@ -1909,9 +1909,9 @@ static void aiptek_disconnect(struct usb_interface *intf)
 		input_unregister_device(aiptek->inputdev);
 		sysfs_remove_group(&intf->dev.kobj, &aiptek_attribute_group);
 		usb_free_urb(aiptek->urb);
-		usb_buffer_free(interface_to_usbdev(intf),
-				AIPTEK_PACKET_LENGTH,
-				aiptek->data, aiptek->data_dma);
+		usb_free_coherent(interface_to_usbdev(intf),
+				  AIPTEK_PACKET_LENGTH,
+				  aiptek->data, aiptek->data_dma);
 		kfree(aiptek);
 	}
 }

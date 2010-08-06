@@ -77,6 +77,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/isp1362.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/io.h>
@@ -95,7 +96,6 @@ module_param(dbg_level, int, 0);
 #define	STUB_DEBUG_FILE
 #endif
 
-#include "../core/hcd.h"
 #include "../core/usb.h"
 #include "isp1362.h"
 
@@ -1265,7 +1265,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 
 	/* don't submit to a dead or disabled port */
 	if (!((isp1362_hcd->rhport[0] | isp1362_hcd->rhport[1]) &
-	      (1 << USB_PORT_FEAT_ENABLE)) ||
+	      USB_PORT_STAT_ENABLE) ||
 	    !HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		retval = -ENODEV;
@@ -2217,19 +2217,16 @@ static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
 	if (isp1362_hcd->pde)
-		remove_proc_entry(proc_filename, 0);
+		remove_proc_entry(proc_filename, NULL);
 }
 
 #endif
 
 /*-------------------------------------------------------------------------*/
 
-static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+static void __isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 {
 	int tmp = 20;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 	isp1362_write_reg16(isp1362_hcd, HCSWRES, HCSWRES_MAGIC);
 	isp1362_write_reg32(isp1362_hcd, HCCMDSTAT, OHCI_HCR);
@@ -2240,6 +2237,14 @@ static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 	}
 	if (!tmp)
 		pr_err("Software reset timeout\n");
+}
+
+static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&isp1362_hcd->lock, flags);
+	__isp1362_sw_reset(isp1362_hcd);
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 }
 
@@ -2418,7 +2423,7 @@ static void isp1362_hc_stop(struct usb_hcd *hcd)
 	if (isp1362_hcd->board && isp1362_hcd->board->reset)
 		isp1362_hcd->board->reset(hcd->self.controller, 1);
 	else
-		isp1362_sw_reset(isp1362_hcd);
+		__isp1362_sw_reset(isp1362_hcd);
 
 	if (isp1362_hcd->board && isp1362_hcd->board->clock)
 		isp1362_hcd->board->clock(hcd->self.controller, 0);

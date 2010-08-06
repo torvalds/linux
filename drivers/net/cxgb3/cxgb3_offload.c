@@ -31,6 +31,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/neighbour.h>
 #include <linux/notifier.h>
 #include <asm/atomic.h>

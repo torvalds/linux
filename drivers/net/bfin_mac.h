@@ -7,8 +7,17 @@
  *
  * Licensed under the GPL-2 or later.
  */
+#ifndef _BFIN_MAC_H_
+#define _BFIN_MAC_H_
+
+#include <linux/net_tstamp.h>
+#include <linux/clocksource.h>
+#include <linux/timecompare.h>
+#include <linux/timer.h>
 
 #define BFIN_MAC_CSUM_OFFLOAD
+
+#define TX_RECLAIM_JIFFIES (HZ / 5)
 
 struct dma_descriptor {
 	struct dma_descriptor *next_dma_desc;
@@ -60,6 +69,11 @@ struct bfin_mac_local {
 	unsigned char Mac[6];	/* MAC address of the board */
 	spinlock_t lock;
 
+	int wol;		/* Wake On Lan */
+	int irq_wake_requested;
+	struct timer_list tx_reclaim_timer;
+	struct net_device *ndev;
+
 	/* MII and PHY stuffs */
 	int old_link;          /* used by bf537_adjust_link */
 	int old_speed;
@@ -67,6 +81,15 @@ struct bfin_mac_local {
 
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
+
+#if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)
+	struct cyclecounter cycles;
+	struct timecounter clock;
+	struct timecompare compare;
+	struct hwtstamp_config stamp_cfg;
+#endif
 };
 
 extern void bfin_get_ether_addr(char *addr);
+
+#endif

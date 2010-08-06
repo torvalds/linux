@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -125,6 +126,8 @@ static __devinit int wm8727_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register DAI: %d\n", ret);
 		goto err_codec;
 	}
+
+	return 0;
 
 err_codec:
 	snd_soc_unregister_codec(codec);

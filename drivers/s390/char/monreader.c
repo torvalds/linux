@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <net/iucv/iucv.h>
 #include <asm/uaccess.h>
 #include <asm/ebcdic.h>

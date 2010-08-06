@@ -11,6 +11,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/slab.h>
 
 #include "hdpvr.h"
 

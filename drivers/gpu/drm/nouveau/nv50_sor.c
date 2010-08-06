@@ -211,7 +211,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			mode_ctl = 0x0200;
 		break;
 	case OUTPUT_DP:
-		mode_ctl |= 0x00050000;
+		mode_ctl |= (nv_encoder->dp.mc_unknown << 16);
 		if (nv_encoder->dcb->sorconf.link & 1)
 			mode_ctl |= 0x00000800;
 		else
@@ -318,6 +318,29 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
+
+	if (nv_encoder->dcb->type == OUTPUT_DP) {
+		int or = nv_encoder->or, link = !(entry->dpconf.sor.link & 1);
+		uint32_t tmp;
+
+		tmp = nv_rd32(dev, 0x61c700 + (or * 0x800));
+
+		switch ((tmp & 0x00000f00) >> 8) {
+		case 8:
+		case 9:
+			nv_encoder->dp.mc_unknown = (tmp & 0x000f0000) >> 16;
+			tmp = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
+			nv_encoder->dp.unk0 = tmp & 0x000001fc;
+			tmp = nv_rd32(dev, NV50_SOR_DP_UNK128(or, link));
+			nv_encoder->dp.unk1 = tmp & 0x010f7f3f;
+			break;
+		default:
+			break;
+		}
+
+		if (!nv_encoder->dp.mc_unknown)
+			nv_encoder->dp.mc_unknown = 5;
+	}
 
 	return 0;
 }

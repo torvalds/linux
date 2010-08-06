@@ -22,8 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/io.h>
 

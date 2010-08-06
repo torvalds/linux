@@ -298,9 +298,9 @@ static int opromgetbootargs(void __user *argp, struct openpromio *op, int bufsiz
 /*
  *	SunOS and Solaris /dev/openprom ioctl calls.
  */
-static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
-				unsigned int cmd, unsigned long arg,
-				struct device_node *dp)
+static long openprom_sunos_ioctl(struct file * file,
+				 unsigned int cmd, unsigned long arg,
+				 struct device_node *dp)
 {
 	DATA *data = file->private_data;
 	struct openpromio *opp = NULL;
@@ -315,6 +315,8 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 
 	if (bufsize < 0)
 		return bufsize;
+
+	lock_kernel();
 
 	switch (cmd) {
 	case OPROMGETOPT:
@@ -365,6 +367,8 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 	}
 
 	kfree(opp);
+	unlock_kernel();
+
 	return error;
 }
 
@@ -547,13 +551,14 @@ static int opiocgetnext(unsigned int cmd, void __user *argp)
 	return 0;
 }
 
-static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
+static int openprom_bsd_ioctl(struct file * file,
 			      unsigned int cmd, unsigned long arg)
 {
-	DATA *data = (DATA *) file->private_data;
+	DATA *data = file->private_data;
 	void __user *argp = (void __user *)arg;
 	int err;
 
+	lock_kernel();
 	switch (cmd) {
 	case OPIOCGET:
 		err = opiocget(argp, data);
@@ -570,10 +575,10 @@ static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
 	case OPIOCGETOPTNODE:
 		BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
 
+		err = 0;
 		if (copy_to_user(argp, &options_node->phandle, sizeof(phandle)))
-			return -EFAULT;
-
-		return 0;
+			err = -EFAULT;
+		break;
 
 	case OPIOCGETNEXT:
 	case OPIOCGETCHILD:
@@ -581,9 +586,10 @@ static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
 		break;
 
 	default:
-		return -EINVAL;
-
+		err = -EINVAL;
+		break;
 	};
+	unlock_kernel();
 
 	return err;
 }
@@ -592,24 +598,24 @@ static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
 /*
  *	Handoff control to the correct ioctl handler.
  */
-static int openprom_ioctl(struct inode * inode, struct file * file,
-			  unsigned int cmd, unsigned long arg)
+static long openprom_ioctl(struct file * file,
+			   unsigned int cmd, unsigned long arg)
 {
-	DATA *data = (DATA *) file->private_data;
+	DATA *data = file->private_data;
 
 	switch (cmd) {
 	case OPROMGETOPT:
 	case OPROMNXTOPT:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(inode, file, cmd, arg,
+		return openprom_sunos_ioctl(file, cmd, arg,
 					    options_node);
 
 	case OPROMSETOPT:
 	case OPROMSETOPT2:
 		if ((file->f_mode & FMODE_WRITE) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(inode, file, cmd, arg,
+		return openprom_sunos_ioctl(file, cmd, arg,
 					    options_node);
 
 	case OPROMNEXT:
@@ -618,7 +624,7 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 	case OPROMNXTPROP:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(inode, file, cmd, arg,
+		return openprom_sunos_ioctl(file, cmd, arg,
 					    data->current_node);
 
 	case OPROMU2P:
@@ -630,7 +636,7 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 	case OPROMPATH2NODE:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(inode, file, cmd, arg, NULL);
+		return openprom_sunos_ioctl(file, cmd, arg, NULL);
 
 	case OPIOCGET:
 	case OPIOCNEXTPROP:
@@ -639,12 +645,12 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 	case OPIOCGETCHILD:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EBADF;
-		return openprom_bsd_ioctl(inode,file,cmd,arg);
+		return openprom_bsd_ioctl(file,cmd,arg);
 
 	case OPIOCSET:
 		if ((file->f_mode & FMODE_WRITE) == 0)
 			return -EBADF;
-		return openprom_bsd_ioctl(inode,file,cmd,arg);
+		return openprom_bsd_ioctl(file,cmd,arg);
 
 	default:
 		return -EINVAL;
@@ -676,7 +682,7 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	case OPROMSETCUR:
 	case OPROMPCI2NODE:
 	case OPROMPATH2NODE:
-		rval = openprom_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+		rval = openprom_ioctl(file, cmd, arg);
 		break;
 	}
 
@@ -709,7 +715,7 @@ static int openprom_release(struct inode * inode, struct file * file)
 static const struct file_operations openprom_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
-	.ioctl =	openprom_ioctl,
+	.unlocked_ioctl = openprom_ioctl,
 	.compat_ioctl =	openprom_compat_ioctl,
 	.open =		openprom_open,
 	.release =	openprom_release,

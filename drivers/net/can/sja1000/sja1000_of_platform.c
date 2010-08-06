@@ -38,7 +38,6 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 
 #include <linux/of_platform.h>
@@ -72,7 +71,7 @@ static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct sja1000_priv *priv = netdev_priv(dev);
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 
 	dev_set_drvdata(&ofdev->dev, NULL);
@@ -91,7 +90,7 @@ static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
 static int __devinit sja1000_ofp_probe(struct of_device *ofdev,
 				       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev;
 	struct sja1000_priv *priv;
 	struct resource res;
@@ -216,11 +215,13 @@ static struct of_device_id __devinitdata sja1000_ofp_table[] = {
 MODULE_DEVICE_TABLE(of, sja1000_ofp_table);
 
 static struct of_platform_driver sja1000_ofp_driver = {
-	.owner = THIS_MODULE,
-	.name = DRV_NAME,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DRV_NAME,
+		.of_match_table = sja1000_ofp_table,
+	},
 	.probe = sja1000_ofp_probe,
 	.remove = __devexit_p(sja1000_ofp_remove),
-	.match_table = sja1000_ofp_table,
 };
 
 static int __init sja1000_ofp_init(void)

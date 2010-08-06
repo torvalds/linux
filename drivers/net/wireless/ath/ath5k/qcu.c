@@ -31,7 +31,6 @@ Queue Control Unit, DFS Control Unit Functions
 int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
 		struct ath5k_txq_info *queue_info)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	memcpy(queue_info, &ah->ah_txq[queue], sizeof(struct ath5k_txq_info));
 	return 0;
 }
@@ -42,7 +41,6 @@ int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
 int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
 				const struct ath5k_txq_info *queue_info)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
 	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
@@ -68,8 +66,6 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 {
 	unsigned int queue;
 	int ret;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	/*
 	 * Get queue by type
@@ -149,7 +145,6 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 {
 	u32 pending;
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
 	/* Return if queue is declared inactive */
@@ -177,7 +172,6 @@ u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
  */
 void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	if (WARN_ON(queue >= ah->ah_capabilities.cap_queues.q_tx_num))
 		return;
 
@@ -195,7 +189,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	u32 cw_min, cw_max, retry_lg, retry_sh;
 	struct ath5k_txq_info *tq = &ah->ah_txq[queue];
 
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
 	tq = &ah->ah_txq[queue];
@@ -517,30 +510,11 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 }
 
 /*
- * Get slot time from DCU
- */
-unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
-{
-	unsigned int slot_time_clock;
-
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (ah->ah_version == AR5K_AR5210)
-		slot_time_clock = ath5k_hw_reg_read(ah, AR5K_SLOT_TIME);
-	else
-		slot_time_clock = ath5k_hw_reg_read(ah, AR5K_DCU_GBL_IFS_SLOT);
-
-	return ath5k_hw_clocktoh(ah, slot_time_clock & 0xffff);
-}
-
-/*
  * Set slot time on DCU
  */
 int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time)
 {
 	u32 slot_time_clock = ath5k_hw_htoclock(ah, slot_time);
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	if (slot_time < 6 || slot_time_clock > AR5K_SLOT_TIME_MAX)
 		return -EINVAL;

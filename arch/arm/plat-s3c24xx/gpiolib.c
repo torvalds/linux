@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/gpiolib.c
  *
- * Copyright (c) 2008 Simtec Electronics
+ * Copyright (c) 2008-2010 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -21,6 +21,8 @@
 #include <linux/gpio.h>
 
 #include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <plat/pm.h>
@@ -77,10 +79,21 @@ static int s3c24xx_gpiolib_bankg_toirq(struct gpio_chip *chip, unsigned offset)
 	return IRQ_EINT8 + offset;
 }
 
+static struct s3c_gpio_cfg s3c24xx_gpiocfg_banka = {
+	.set_config	= s3c_gpio_setcfg_s3c24xx_a,
+	.get_config	= s3c_gpio_getcfg_s3c24xx_a,
+};
+
+struct s3c_gpio_cfg s3c24xx_gpiocfg_default = {
+	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.get_config	= s3c_gpio_getcfg_s3c24xx,
+};
+
 struct s3c_gpio_chip s3c24xx_gpios[] = {
 	[0] = {
 		.base	= S3C2410_GPACON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_1bit),
+		.config	= &s3c24xx_gpiocfg_banka,
 		.chip	= {
 			.base			= S3C2410_GPA(0),
 			.owner			= THIS_MODULE,
@@ -161,15 +174,58 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 			.ngpio			= 11,
 		},
 	},
+		/* GPIOS for the S3C2443 and later devices. */
+	{
+		.base	= S3C2440_GPJCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPJ(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOJ",
+			.ngpio			= 16,
+		},
+	}, {
+		.base	= S3C2443_GPKCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPK(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOK",
+			.ngpio			= 16,
+		},
+	}, {
+		.base	= S3C2443_GPLCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPL(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOL",
+			.ngpio			= 15,
+		},
+	}, {
+		.base	= S3C2443_GPMCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPM(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOM",
+			.ngpio			= 2,
+		},
+	},
 };
+
 
 static __init int s3c24xx_gpiolib_init(void)
 {
 	struct s3c_gpio_chip *chip = s3c24xx_gpios;
 	int gpn;
 
-	for (gpn = 0; gpn < ARRAY_SIZE(s3c24xx_gpios); gpn++, chip++)
+	for (gpn = 0; gpn < ARRAY_SIZE(s3c24xx_gpios); gpn++, chip++) {
+		if (!chip->config)
+			chip->config = &s3c24xx_gpiocfg_default;
+
 		s3c_gpiolib_add(chip);
+	}
 
 	return 0;
 }

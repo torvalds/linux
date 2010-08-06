@@ -12,8 +12,13 @@ obj-				:=
 
 # Core support for S5P6440 system
 
-obj-$(CONFIG_CPU_S5P6440)	+= cpu.o init.o clock.o gpio.o
+obj-$(CONFIG_CPU_S5P6440)	+= cpu.o init.o clock.o gpio.o dma.o
+obj-$(CONFIG_CPU_S5P6440)	+= setup-i2c0.o
 
 # machine support
 
 obj-$(CONFIG_MACH_SMDK6440)	+= mach-smdk6440.o
+
+# device support
+obj-y				+= dev-audio.o
+obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o

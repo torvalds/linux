@@ -9,6 +9,7 @@
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -329,6 +330,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 
         dev->irq = pdev->irq;
         hw_priv->mem_start = mem;
+	dev->base_addr = (unsigned long) mem;
 
 	prism2_pci_cor_sreset(local);
 

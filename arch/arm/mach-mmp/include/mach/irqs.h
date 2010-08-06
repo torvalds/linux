@@ -5,10 +5,10 @@
  * Interrupt numbers for PXA168
  */
 #define IRQ_PXA168_NONE			(-1)
-#define IRQ_PXA168_SSP3			0
-#define IRQ_PXA168_SSP2			1
-#define IRQ_PXA168_SSP1			2
-#define IRQ_PXA168_SSP0			3
+#define IRQ_PXA168_SSP4			0
+#define IRQ_PXA168_SSP3			1
+#define IRQ_PXA168_SSP2			2
+#define IRQ_PXA168_SSP1			3
 #define IRQ_PXA168_PMIC_INT		4
 #define IRQ_PXA168_RTC_INT		5
 #define IRQ_PXA168_RTC_ALARM		6
@@ -20,7 +20,7 @@
 #define IRQ_PXA168_TIMER2		14
 #define IRQ_PXA168_TIMER3		15
 #define IRQ_PXA168_CMU			16
-#define IRQ_PXA168_SSP4			17
+#define IRQ_PXA168_SSP5			17
 #define IRQ_PXA168_MSP_WAKEUP		19
 #define IRQ_PXA168_CF_WAKEUP		20
 #define IRQ_PXA168_XD_WAKEUP		21

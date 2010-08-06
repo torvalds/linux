@@ -35,7 +35,7 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 #ifdef CONFIG_PPC64
 
 /* Time in microseconds we delay before sleeping in the idle loop */
-DEFINE_PER_CPU(unsigned long, smt_snooze_delay) = { 100 };
+DEFINE_PER_CPU(long, smt_snooze_delay) = { 100 };
 
 static ssize_t store_smt_snooze_delay(struct sys_device *dev,
 				      struct sysdev_attribute *attr,
@@ -44,9 +44,9 @@ static ssize_t store_smt_snooze_delay(struct sys_device *dev,
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t ret;
-	unsigned long snooze;
+	long snooze;
 
-	ret = sscanf(buf, "%lu", &snooze);
+	ret = sscanf(buf, "%ld", &snooze);
 	if (ret != 1)
 		return -EINVAL;
 
@@ -61,53 +61,23 @@ static ssize_t show_smt_snooze_delay(struct sys_device *dev,
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
-	return sprintf(buf, "%lu\n", per_cpu(smt_snooze_delay, cpu->sysdev.id));
+	return sprintf(buf, "%ld\n", per_cpu(smt_snooze_delay, cpu->sysdev.id));
 }
 
 static SYSDEV_ATTR(smt_snooze_delay, 0644, show_smt_snooze_delay,
 		   store_smt_snooze_delay);
 
-/* Only parse OF options if the matching cmdline option was not specified */
-static int smt_snooze_cmdline;
-
-static int __init smt_setup(void)
-{
-	struct device_node *options;
-	const unsigned int *val;
-	unsigned int cpu;
-
-	if (!cpu_has_feature(CPU_FTR_SMT))
-		return -ENODEV;
-
-	options = of_find_node_by_path("/options");
-	if (!options)
-		return -ENODEV;
-
-	val = of_get_property(options, "ibm,smt-snooze-delay", NULL);
-	if (!smt_snooze_cmdline && val) {
-		for_each_possible_cpu(cpu)
-			per_cpu(smt_snooze_delay, cpu) = *val;
-	}
-
-	of_node_put(options);
-	return 0;
-}
-__initcall(smt_setup);
-
 static int __init setup_smt_snooze_delay(char *str)
 {
 	unsigned int cpu;
-	int snooze;
+	long snooze;
 
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return 1;
 
-	smt_snooze_cmdline = 1;
-
-	if (get_option(&str, &snooze)) {
-		for_each_possible_cpu(cpu)
-			per_cpu(smt_snooze_delay, cpu) = snooze;
-	}
+	snooze = simple_strtol(str, NULL, 10);
+	for_each_possible_cpu(cpu)
+		per_cpu(smt_snooze_delay, cpu) = snooze;
 
 	return 1;
 }

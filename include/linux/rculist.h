@@ -428,5 +428,47 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; }); \
 		pos = rcu_dereference_raw(pos->next))
 
+/**
+ * hlist_for_each_entry_rcu_bh - iterate over rcu list of given type
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the hlist_node within the struct.
+ *
+ * This list-traversal primitive may safely run concurrently with
+ * the _rcu list-mutation primitives such as hlist_add_head_rcu()
+ * as long as the traversal is guarded by rcu_read_lock().
+ */
+#define hlist_for_each_entry_rcu_bh(tpos, pos, head, member)		 \
+	for (pos = rcu_dereference_bh((head)->first);			 \
+		pos && ({ prefetch(pos->next); 1; }) &&			 \
+		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; }); \
+		pos = rcu_dereference_bh(pos->next))
+
+/**
+ * hlist_for_each_entry_continue_rcu - iterate over a hlist continuing after current point
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @member:	the name of the hlist_node within the struct.
+ */
+#define hlist_for_each_entry_continue_rcu(tpos, pos, member)		\
+	for (pos = rcu_dereference((pos)->next);			\
+	     pos && ({ prefetch(pos->next); 1; }) &&			\
+	     ({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });  \
+	     pos = rcu_dereference(pos->next))
+
+/**
+ * hlist_for_each_entry_continue_rcu_bh - iterate over a hlist continuing after current point
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @member:	the name of the hlist_node within the struct.
+ */
+#define hlist_for_each_entry_continue_rcu_bh(tpos, pos, member)		\
+	for (pos = rcu_dereference_bh((pos)->next);			\
+	     pos && ({ prefetch(pos->next); 1; }) &&			\
+	     ({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });  \
+	     pos = rcu_dereference_bh(pos->next))
+
+
 #endif	/* __KERNEL__ */
 #endif

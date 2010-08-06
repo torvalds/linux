@@ -102,32 +102,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		}
 	}
 
-	/* if it was a local io error, we want to notify our
-	 * peer about that, and see if we need to
-	 * detach the disk and stuff.
-	 * to avoid allocating some special work
-	 * struct, reuse the request. */
-
-	/* THINK
-	 * why do we do this not when we detect the error,
-	 * but delay it until it is "done", i.e. possibly
-	 * until the next barrier ack? */
-
-	if (rw == WRITE &&
-	    ((s & RQ_LOCAL_MASK) && !(s & RQ_LOCAL_OK))) {
-		if (!(req->w.list.next == LIST_POISON1 ||
-		      list_empty(&req->w.list))) {
-			/* DEBUG ASSERT only; if this triggers, we
-			 * probably corrupt the worker list here */
-			dev_err(DEV, "req->w.list.next = %p\n", req->w.list.next);
-			dev_err(DEV, "req->w.list.prev = %p\n", req->w.list.prev);
-		}
-		req->w.cb = w_io_error;
-		drbd_queue_work(&mdev->data.work, &req->w);
-		/* drbd_req_free() is done in w_io_error */
-	} else {
-		drbd_req_free(req);
-	}
+	drbd_req_free(req);
 }
 
 static void queue_barrier(struct drbd_conf *mdev)
@@ -453,9 +428,6 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		dev_alert(DEV, "Local WRITE failed sec=%llus size=%u\n",
-		      (unsigned long long)req->sector, req->size);
-		/* and now: check how to handle local io error. */
 		__drbd_chk_io_error(mdev, FALSE);
 		_req_may_be_done(req, m);
 		put_ldev(mdev);
@@ -475,22 +447,21 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		dev_alert(DEV, "Local READ failed sec=%llus size=%u\n",
-		      (unsigned long long)req->sector, req->size);
-		/* _req_mod(req,to_be_send); oops, recursion... */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
-		req->rq_state |= RQ_NET_PENDING;
-		inc_ap_pending(mdev);
 
 		__drbd_chk_io_error(mdev, FALSE);
 		put_ldev(mdev);
-		/* NOTE: if we have no connection,
-		 * or know the peer has no good data either,
-		 * then we don't actually need to "queue_for_net_read",
-		 * but we do so anyways, since the drbd_io_error()
-		 * and the potential state change to "Diskless"
-		 * needs to be done from process context */
 
+		/* no point in retrying if there is no good remote data,
+		 * or we have no connection. */
+		if (mdev->state.pdsk != D_UP_TO_DATE) {
+			_req_may_be_done(req, m);
+			break;
+		}
+
+		/* _req_mod(req,to_be_send); oops, recursion... */
+		req->rq_state |= RQ_NET_PENDING;
+		inc_ap_pending(mdev);
 		/* fall through: _req_mod(req,queue_for_net_read); */
 
 	case queue_for_net_read:
@@ -600,6 +571,9 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done(req, m);
 		break;
 
+	case read_retry_remote_canceled:
+		req->rq_state &= ~RQ_NET_QUEUED;
+		/* fall through, in case we raced with drbd_disconnect */
 	case connection_lost_while_pending:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */
@@ -722,6 +696,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	struct drbd_request *req;
 	int local, remote;
 	int err = -EIO;
+	int ret = 0;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -784,7 +759,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 			    (mdev->state.pdsk == D_INCONSISTENT &&
 			     mdev->state.conn >= C_CONNECTED));
 
-	if (!(local || remote)) {
+	if (!(local || remote) && !mdev->state.susp) {
 		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		goto fail_free_complete;
 	}
@@ -809,6 +784,16 @@ allocate_barrier:
 
 	/* GOOD, everything prepared, grab the spin_lock */
 	spin_lock_irq(&mdev->req_lock);
+
+	if (mdev->state.susp) {
+		/* If we got suspended, use the retry mechanism of
+		   generic_make_request() to restart processing of this
+		   bio. In the next call to drbd_make_request_26
+		   we sleep in inc_ap_bio() */
+		ret = 1;
+		spin_unlock_irq(&mdev->req_lock);
+		goto fail_free_complete;
+	}
 
 	if (remote) {
 		remote = (mdev->state.pdsk == D_UP_TO_DATE ||
@@ -947,12 +932,14 @@ fail_and_free_req:
 		req->private_bio = NULL;
 		put_ldev(mdev);
 	}
-	bio_endio(bio, err);
+	if (!ret)
+		bio_endio(bio, err);
+
 	drbd_req_free(req);
 	dec_ap_bio(mdev);
 	kfree(b);
 
-	return 0;
+	return ret;
 }
 
 /* helper function for drbd_make_request
@@ -962,11 +949,6 @@ fail_and_free_req:
  */
 static int drbd_fail_request_early(struct drbd_conf *mdev, int is_write)
 {
-	/* Unconfigured */
-	if (mdev->state.conn == C_DISCONNECTING &&
-	    mdev->state.disk == D_DISKLESS)
-		return 1;
-
 	if (mdev->state.role != R_PRIMARY &&
 		(!allow_oos || is_write)) {
 		if (__ratelimit(&drbd_ratelimit_state)) {
@@ -1070,15 +1052,21 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 		/* we need to get a "reference count" (ap_bio_cnt)
 		 * to avoid races with the disconnect/reconnect/suspend code.
-		 * In case we need to split the bio here, we need to get two references
+		 * In case we need to split the bio here, we need to get three references
 		 * atomically, otherwise we might deadlock when trying to submit the
 		 * second one! */
-		inc_ap_bio(mdev, 2);
+		inc_ap_bio(mdev, 3);
 
 		D_ASSERT(e_enr == s_enr + 1);
 
-		drbd_make_request_common(mdev, &bp->bio1);
-		drbd_make_request_common(mdev, &bp->bio2);
+		while (drbd_make_request_common(mdev, &bp->bio1))
+			inc_ap_bio(mdev, 1);
+
+		while (drbd_make_request_common(mdev, &bp->bio2))
+			inc_ap_bio(mdev, 1);
+
+		dec_ap_bio(mdev);
+
 		bio_pair_release(bp);
 	}
 	return 0;
@@ -1115,7 +1103,7 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
 	} else if (limit && get_ldev(mdev)) {
 		struct request_queue * const b =
 			mdev->ldev->backing_bdev->bd_disk->queue;
-		if (b->merge_bvec_fn && mdev->ldev->dc.use_bmbv) {
+		if (b->merge_bvec_fn) {
 			backing_limit = b->merge_bvec_fn(b, bvm, bvec);
 			limit = min(limit, backing_limit);
 		}

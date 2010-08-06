@@ -74,10 +74,10 @@ static int          msglevel                =MSG_LEVEL_INFO;
 -*/
 
 
-VOID
+void
 PSvEnablePowerSaving(
-    IN HANDLE hDeviceContext,
-    IN WORD wListenInterval
+    void *hDeviceContext,
+    WORD wListenInterval
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -118,7 +118,7 @@ PSvEnablePowerSaving(
     pDevice->bEnablePSMode = TRUE;
 
     if (pDevice->eOPMode == OP_MODE_ADHOC) {
-//        bMgrPrepareBeaconToSend((HANDLE)pDevice, pMgmt);
+//        bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
     }
     // We don't send null pkt in ad hoc mode since beacon will handle this.
     else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
@@ -144,9 +144,9 @@ PSvEnablePowerSaving(
  *
 -*/
 
-VOID
+void
 PSvDisablePowerSaving(
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -184,9 +184,9 @@ PSvDisablePowerSaving(
 
 BOOL
 PSbConsiderPowerDown(
-    IN HANDLE hDeviceContext,
-    IN BOOL bCheckRxDMA,
-    IN BOOL bCheckCountToWakeUp
+    void *hDeviceContext,
+    BOOL bCheckRxDMA,
+    BOOL bCheckCountToWakeUp
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -250,9 +250,9 @@ PSbConsiderPowerDown(
 
 
 
-VOID
+void
 PSvSendPSPOLL(
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -298,7 +298,7 @@ PSvSendPSPOLL(
 -*/
 BOOL
 PSbSendNullPacket(
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -384,7 +384,7 @@ PSbSendNullPacket(
 
 BOOL
 PSbIsNextTBTTWakeUp(
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     )
 {
 

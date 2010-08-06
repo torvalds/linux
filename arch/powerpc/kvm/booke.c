@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
@@ -132,12 +133,18 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_EXTERNAL);
 }
 
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
+                                  struct kvm_interrupt *irq)
+{
+	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
+}
+
 /* Deliver the interrupt of the corresponding priority, if possible. */
 static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
 {
 	int allowed = 0;
-	ulong msr_mask;
+	ulong uninitialized_var(msr_mask);
 	bool update_esr = false, update_dear = false;
 
 	switch (priority) {
@@ -552,7 +559,10 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
                                   struct kvm_translation *tr)
 {
-	return kvmppc_core_vcpu_translate(vcpu, tr);
+	int r;
+
+	r = kvmppc_core_vcpu_translate(vcpu, tr);
+	return r;
 }
 
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)

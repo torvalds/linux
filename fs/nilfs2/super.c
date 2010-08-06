@@ -67,6 +67,11 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
+struct kmem_cache *nilfs_inode_cachep;
+struct kmem_cache *nilfs_transaction_cachep;
+struct kmem_cache *nilfs_segbuf_cachep;
+struct kmem_cache *nilfs_btree_path_cache;
+
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
 /**
@@ -129,7 +134,6 @@ void nilfs_warning(struct super_block *sb, const char *function,
 	va_end(args);
 }
 
-static struct kmem_cache *nilfs_inode_cachep;
 
 struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
 {
@@ -153,34 +157,6 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 void nilfs_destroy_inode(struct inode *inode)
 {
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
-}
-
-static void init_once(void *obj)
-{
-	struct nilfs_inode_info *ii = obj;
-
-	INIT_LIST_HEAD(&ii->i_dirty);
-#ifdef CONFIG_NILFS_XATTR
-	init_rwsem(&ii->xattr_sem);
-#endif
-	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
-	ii->i_bmap = (struct nilfs_bmap *)&ii->i_bmap_union;
-	inode_init_once(&ii->vfs_inode);
-}
-
-static int nilfs_init_inode_cache(void)
-{
-	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
-					       sizeof(struct nilfs_inode_info),
-					       0, SLAB_RECLAIM_ACCOUNT,
-					       init_once);
-
-	return (nilfs_inode_cachep == NULL) ? -ENOMEM : 0;
-}
-
-static inline void nilfs_destroy_inode_cache(void)
-{
-	kmem_cache_destroy(nilfs_inode_cachep);
 }
 
 static void nilfs_clear_inode(struct inode *inode)
@@ -266,8 +242,8 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
 	int err;
 
 	/* nilfs->sem must be locked by the caller. */
-	if (sbp[0]->s_magic != NILFS_SUPER_MAGIC) {
-		if (sbp[1] && sbp[1]->s_magic == NILFS_SUPER_MAGIC)
+	if (sbp[0]->s_magic != cpu_to_le16(NILFS_SUPER_MAGIC)) {
+		if (sbp[1] && sbp[1]->s_magic == cpu_to_le16(NILFS_SUPER_MAGIC))
 			nilfs_swap_super_block(nilfs);
 		else {
 			printk(KERN_CRIT "NILFS: superblock broke on dev %s\n",
@@ -470,10 +446,10 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (nilfs_test_opt(sbi, SNAPSHOT))
 		seq_printf(seq, ",cp=%llu",
 			   (unsigned long long int)sbi->s_snapshot_cno);
-	if (nilfs_test_opt(sbi, ERRORS_RO))
-		seq_printf(seq, ",errors=remount-ro");
 	if (nilfs_test_opt(sbi, ERRORS_PANIC))
 		seq_printf(seq, ",errors=panic");
+	if (nilfs_test_opt(sbi, ERRORS_CONT))
+		seq_printf(seq, ",errors=continue");
 	if (nilfs_test_opt(sbi, STRICT_ORDER))
 		seq_printf(seq, ",order=strict");
 	if (nilfs_test_opt(sbi, NORECOVERY))
@@ -631,7 +607,7 @@ nilfs_set_default_options(struct nilfs_sb_info *sbi,
 			  struct nilfs_super_block *sbp)
 {
 	sbi->s_mount_opt =
-		NILFS_MOUNT_ERRORS_CONT | NILFS_MOUNT_BARRIER;
+		NILFS_MOUNT_ERRORS_RO | NILFS_MOUNT_BARRIER;
 }
 
 static int nilfs_setup_super(struct nilfs_sb_info *sbi)
@@ -749,6 +725,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_export_op = &nilfs_export_ops;
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
+	sb->s_bdi = nilfs->ns_bdi;
 
 	err = load_nilfs(nilfs, sbi);
 	if (err)
@@ -777,9 +754,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 				goto failed_sbi;
 			}
 			cno = sbi->s_snapshot_cno;
-		} else
-			/* Read-only mount */
-			sbi->s_snapshot_cno = cno;
+		}
 	}
 
 	err = nilfs_attach_checkpoint(sbi, cno);
@@ -848,7 +823,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	unsigned long old_sb_flags;
 	struct nilfs_mount_options old_opts;
-	int err;
+	int was_snapshot, err;
 
 	lock_kernel();
 
@@ -856,6 +831,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	old_sb_flags = sb->s_flags;
 	old_opts.mount_opt = sbi->s_mount_opt;
 	old_opts.snapshot_cno = sbi->s_snapshot_cno;
+	was_snapshot = nilfs_test_opt(sbi, SNAPSHOT);
 
 	if (!parse_options(data, sb)) {
 		err = -EINVAL;
@@ -863,20 +839,32 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	}
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);
 
-	if ((*flags & MS_RDONLY) &&
-	    sbi->s_snapshot_cno != old_opts.snapshot_cno) {
-		printk(KERN_WARNING "NILFS (device %s): couldn't "
-		       "remount to a different snapshot.\n",
-		       sb->s_id);
-		err = -EINVAL;
-		goto restore_opts;
+	err = -EINVAL;
+	if (was_snapshot) {
+		if (!(*flags & MS_RDONLY)) {
+			printk(KERN_ERR "NILFS (device %s): cannot remount "
+			       "snapshot read/write.\n",
+			       sb->s_id);
+			goto restore_opts;
+		} else if (sbi->s_snapshot_cno != old_opts.snapshot_cno) {
+			printk(KERN_ERR "NILFS (device %s): cannot "
+			       "remount to a different snapshot.\n",
+			       sb->s_id);
+			goto restore_opts;
+		}
+	} else {
+		if (nilfs_test_opt(sbi, SNAPSHOT)) {
+			printk(KERN_ERR "NILFS (device %s): cannot change "
+			       "a regular mount to a snapshot.\n",
+			       sb->s_id);
+			goto restore_opts;
+		}
 	}
 
 	if (!nilfs_valid_fs(nilfs)) {
 		printk(KERN_WARNING "NILFS (device %s): couldn't "
 		       "remount because the filesystem is in an "
 		       "incomplete recovery state.\n", sb->s_id);
-		err = -EINVAL;
 		goto restore_opts;
 	}
 
@@ -886,9 +874,6 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		/* Shutting down the segment constructor */
 		nilfs_detach_segment_constructor(sbi);
 		sb->s_flags |= MS_RDONLY;
-
-		sbi->s_snapshot_cno = nilfs_last_cno(nilfs);
-		/* nilfs_set_opt(sbi, SNAPSHOT); */
 
 		/*
 		 * Remounting a valid RW partition RDONLY, so set
@@ -908,24 +893,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		 * store the current valid flag.  (It may have been changed
 		 * by fsck since we originally mounted the partition.)
 		 */
-		if (nilfs->ns_current && nilfs->ns_current != sbi) {
-			printk(KERN_WARNING "NILFS (device %s): couldn't "
-			       "remount because an RW-mount exists.\n",
-			       sb->s_id);
-			err = -EBUSY;
-			goto restore_opts;
-		}
-		if (sbi->s_snapshot_cno != nilfs_last_cno(nilfs)) {
-			printk(KERN_WARNING "NILFS (device %s): couldn't "
-			       "remount because the current RO-mount is not "
-			       "the latest one.\n",
-			       sb->s_id);
-			err = -EINVAL;
-			goto restore_opts;
-		}
 		sb->s_flags &= ~MS_RDONLY;
-		nilfs_clear_opt(sbi, SNAPSHOT);
-		sbi->s_snapshot_cno = 0;
 
 		err = nilfs_attach_segment_constructor(sbi);
 		if (err)
@@ -934,8 +902,6 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sbi);
 		up_write(&nilfs->ns_sem);
-
-		nilfs->ns_current = sbi;
 	}
  out:
 	up_write(&nilfs->ns_super_sem);
@@ -1021,10 +987,14 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 {
 	struct nilfs_super_data sd;
 	struct super_block *s;
+	fmode_t mode = FMODE_READ;
 	struct the_nilfs *nilfs;
 	int err, need_to_close = 1;
 
-	sd.bdev = open_bdev_exclusive(dev_name, flags, fs_type);
+	if (!(flags & MS_RDONLY))
+		mode |= FMODE_WRITE;
+
+	sd.bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(sd.bdev))
 		return PTR_ERR(sd.bdev);
 
@@ -1091,10 +1061,12 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 
 		/* New superblock instance created */
 		s->s_flags = flags;
+		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));
 
-		err = nilfs_fill_super(s, data, flags & MS_VERBOSE, nilfs);
+		err = nilfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0,
+				       nilfs);
 		if (err)
 			goto cancel_new;
 
@@ -1105,7 +1077,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	mutex_unlock(&nilfs->ns_mount_mutex);
 	put_nilfs(nilfs);
 	if (need_to_close)
-		close_bdev_exclusive(sd.bdev, flags);
+		close_bdev_exclusive(sd.bdev, mode);
 	simple_set_mnt(mnt, s);
 	return 0;
 
@@ -1113,7 +1085,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	mutex_unlock(&nilfs->ns_mount_mutex);
 	put_nilfs(nilfs);
  failed:
-	close_bdev_exclusive(sd.bdev, flags);
+	close_bdev_exclusive(sd.bdev, mode);
 
 	return err;
 
@@ -1123,7 +1095,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	put_nilfs(nilfs);
 	deactivate_locked_super(s);
 	/*
-	 * deactivate_super() invokes close_bdev_exclusive().
+	 * deactivate_locked_super() invokes close_bdev_exclusive().
 	 * We must finish all post-cleaning before this call;
 	 * put_nilfs() needs the block device.
 	 */
@@ -1138,54 +1110,93 @@ struct file_system_type nilfs_fs_type = {
 	.fs_flags = FS_REQUIRES_DEV,
 };
 
+static void nilfs_inode_init_once(void *obj)
+{
+	struct nilfs_inode_info *ii = obj;
+
+	INIT_LIST_HEAD(&ii->i_dirty);
+#ifdef CONFIG_NILFS_XATTR
+	init_rwsem(&ii->xattr_sem);
+#endif
+	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
+	ii->i_bmap = (struct nilfs_bmap *)&ii->i_bmap_union;
+	inode_init_once(&ii->vfs_inode);
+}
+
+static void nilfs_segbuf_init_once(void *obj)
+{
+	memset(obj, 0, sizeof(struct nilfs_segment_buffer));
+}
+
+static void nilfs_destroy_cachep(void)
+{
+	if (nilfs_inode_cachep)
+		kmem_cache_destroy(nilfs_inode_cachep);
+	if (nilfs_transaction_cachep)
+		kmem_cache_destroy(nilfs_transaction_cachep);
+	if (nilfs_segbuf_cachep)
+		kmem_cache_destroy(nilfs_segbuf_cachep);
+	if (nilfs_btree_path_cache)
+		kmem_cache_destroy(nilfs_btree_path_cache);
+}
+
+static int __init nilfs_init_cachep(void)
+{
+	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
+			sizeof(struct nilfs_inode_info), 0,
+			SLAB_RECLAIM_ACCOUNT, nilfs_inode_init_once);
+	if (!nilfs_inode_cachep)
+		goto fail;
+
+	nilfs_transaction_cachep = kmem_cache_create("nilfs2_transaction_cache",
+			sizeof(struct nilfs_transaction_info), 0,
+			SLAB_RECLAIM_ACCOUNT, NULL);
+	if (!nilfs_transaction_cachep)
+		goto fail;
+
+	nilfs_segbuf_cachep = kmem_cache_create("nilfs2_segbuf_cache",
+			sizeof(struct nilfs_segment_buffer), 0,
+			SLAB_RECLAIM_ACCOUNT, nilfs_segbuf_init_once);
+	if (!nilfs_segbuf_cachep)
+		goto fail;
+
+	nilfs_btree_path_cache = kmem_cache_create("nilfs2_btree_path_cache",
+			sizeof(struct nilfs_btree_path) * NILFS_BTREE_LEVEL_MAX,
+			0, 0, NULL);
+	if (!nilfs_btree_path_cache)
+		goto fail;
+
+	return 0;
+
+fail:
+	nilfs_destroy_cachep();
+	return -ENOMEM;
+}
+
 static int __init init_nilfs_fs(void)
 {
 	int err;
 
-	err = nilfs_init_inode_cache();
+	err = nilfs_init_cachep();
 	if (err)
-		goto failed;
-
-	err = nilfs_init_transaction_cache();
-	if (err)
-		goto failed_inode_cache;
-
-	err = nilfs_init_segbuf_cache();
-	if (err)
-		goto failed_transaction_cache;
-
-	err = nilfs_btree_path_cache_init();
-	if (err)
-		goto failed_segbuf_cache;
+		goto fail;
 
 	err = register_filesystem(&nilfs_fs_type);
 	if (err)
-		goto failed_btree_path_cache;
+		goto free_cachep;
 
+	printk(KERN_INFO "NILFS version 2 loaded\n");
 	return 0;
 
- failed_btree_path_cache:
-	nilfs_btree_path_cache_destroy();
-
- failed_segbuf_cache:
-	nilfs_destroy_segbuf_cache();
-
- failed_transaction_cache:
-	nilfs_destroy_transaction_cache();
-
- failed_inode_cache:
-	nilfs_destroy_inode_cache();
-
- failed:
+free_cachep:
+	nilfs_destroy_cachep();
+fail:
 	return err;
 }
 
 static void __exit exit_nilfs_fs(void)
 {
-	nilfs_destroy_segbuf_cache();
-	nilfs_destroy_transaction_cache();
-	nilfs_destroy_inode_cache();
-	nilfs_btree_path_cache_destroy();
+	nilfs_destroy_cachep();
 	unregister_filesystem(&nilfs_fs_type);
 }
 

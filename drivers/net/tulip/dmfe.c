@@ -74,7 +74,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -590,7 +589,7 @@ static int dmfe_open(struct DEVICE *dev)
 		db->dm910x_chk_mode = 1;	/* Enter the check mode */
 	}
 
-	/* Initilize DM910X board */
+	/* Initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Active System Interface */
@@ -607,9 +606,9 @@ static int dmfe_open(struct DEVICE *dev)
 }
 
 
-/*	Initilize DM910X board
+/*	Initialize DM910X board
  *	Reset DM910X board
- *	Initilize TX/Rx descriptor chain structure
+ *	Initialize TX/Rx descriptor chain structure
  *	Send the set-up frame
  *	Enable Tx/Rx machine
  */
@@ -650,7 +649,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 	if ( !(db->media_mode & DMFE_AUTO) )
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
-	/* Initiliaze Transmit/Receive decriptor and CR3/4 */
+	/* Initialize Transmit/Receive decriptor and CR3/4 */
 	dmfe_descriptor_init(db, ioaddr);
 
 	/* Init CR6 to program DM910x operation */
@@ -1119,7 +1118,6 @@ static void dmfe_ethtool_get_wol(struct net_device *dev,
 
 	wolinfo->supported = WAKE_PHY | WAKE_MAGIC;
 	wolinfo->wolopts = db->wol_mode;
-	return;
 }
 
 
@@ -1181,11 +1179,11 @@ static void dmfe_timer(unsigned long data)
 
 	/* TX polling kick monitor */
 	if ( db->tx_packet_cnt &&
-	     time_after(jiffies, dev->trans_start + DMFE_TX_KICK) ) {
+	     time_after(jiffies, dev_trans_start(dev) + DMFE_TX_KICK) ) {
 		outl(0x1, dev->base_addr + DCR1);   /* Tx polling again */
 
 		/* TX Timeout */
-		if ( time_after(jiffies, dev->trans_start + DMFE_TX_TIMEOUT) ) {
+		if (time_after(jiffies, dev_trans_start(dev) + DMFE_TX_TIMEOUT) ) {
 			db->reset_TXtimeout++;
 			db->wait_reset = 1;
 			dev_warn(&dev->dev, "Tx timeout - resetting\n");
@@ -1290,7 +1288,7 @@ static void dmfe_timer(unsigned long data)
  *	Stop DM910X board
  *	Free Tx/Rx allocated memory
  *	Reset DM910X board
- *	Re-initilize DM910X board
+ *	Re-initialize DM910X board
  */
 
 static void dmfe_dynamic_reset(struct DEVICE *dev)
@@ -1318,7 +1316,7 @@ static void dmfe_dynamic_reset(struct DEVICE *dev)
 	netif_carrier_off(dev);
 	db->wait_reset = 0;
 
-	/* Re-initilize DM910X board */
+	/* Re-initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Restart upper layer interface */
@@ -1449,12 +1447,12 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
 
 /*
  *	Send a setup frame for DM9132
- *	This setup frame initilize DM910X address filter mode
+ *	This setup frame initialize DM910X address filter mode
 */
 
 static void dm9132_id_table(struct DEVICE *dev)
 {
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	u16 * addrptr;
 	unsigned long ioaddr = dev->base_addr+0xc0;		/* ID Table */
 	u32 hash_val;
@@ -1478,8 +1476,8 @@ static void dm9132_id_table(struct DEVICE *dev)
 	hash_table[3] = 0x8000;
 
 	/* the multicast address in Hash Table : 64 bits */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		hash_val = cal_CRC((char *) mcptr->dmi_addr, 6, 0) & 0x3f;
+	netdev_for_each_mc_addr(ha, dev) {
+		hash_val = cal_CRC((char *) ha->addr, 6, 0) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
 
@@ -1491,13 +1489,13 @@ static void dm9132_id_table(struct DEVICE *dev)
 
 /*
  *	Send a setup frame for DM9102/DM9102A
- *	This setup frame initilize DM910X address filter mode
+ *	This setup frame initialize DM910X address filter mode
  */
 
 static void send_filter_frame(struct DEVICE *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
 	u16 * addrptr;
 	u32 * suptr;
@@ -1520,8 +1518,8 @@ static void send_filter_frame(struct DEVICE *dev)
 	*suptr++ = 0xffff;
 
 	/* fit the multicast address */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		addrptr = (u16 *) mcptr->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrptr = (u16 *) ha->addr;
 		*suptr++ = addrptr[0];
 		*suptr++ = addrptr[1];
 		*suptr++ = addrptr[2];
@@ -2144,7 +2142,7 @@ static int dmfe_resume(struct pci_dev *pci_dev)
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 
-	/* Re-initilize DM910X board */
+	/* Re-initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Disable WOL */
@@ -2198,7 +2196,7 @@ MODULE_PARM_DESC(SF_mode, "Davicom DM9xxx special function "
 
 /*	Description:
  *	when user used insmod to add module, system invoked init_module()
- *	to initilize and register.
+ *	to initialize and register.
  */
 
 static int __init dmfe_init_module(void)

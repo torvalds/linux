@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
@@ -74,7 +73,7 @@ static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
 	else
 		*mscan_clksrc = MSCAN_CLKSRC_XTAL;
 
-	freq = mpc5xxx_get_bus_frequency(ofdev->node);
+	freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
 	if (!freq)
 		return 0;
 
@@ -153,7 +152,7 @@ static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
 	}
 
 	/* Determine the MSCAN device index from the physical address */
-	pval = of_get_property(ofdev->node, "reg", &plen);
+	pval = of_get_property(ofdev->dev.of_node, "reg", &plen);
 	BUG_ON(!pval || plen < sizeof(*pval));
 	clockidx = (*pval & 0x80) ? 1 : 0;
 	if (*pval & 0x2000)
@@ -169,11 +168,11 @@ static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
 	 */
 	if (clock_name && !strcmp(clock_name, "ip")) {
 		*mscan_clksrc = MSCAN_CLKSRC_IPS;
-		freq = mpc5xxx_get_bus_frequency(ofdev->node);
+		freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
 	} else {
 		*mscan_clksrc = MSCAN_CLKSRC_BUS;
 
-		pval = of_get_property(ofdev->node,
+		pval = of_get_property(ofdev->dev.of_node,
 				       "fsl,mscan-clock-divider", &plen);
 		if (pval && plen == sizeof(*pval))
 			clockdiv = *pval;
@@ -252,7 +251,7 @@ static int __devinit mpc5xxx_can_probe(struct of_device *ofdev,
 				       const struct of_device_id *id)
 {
 	struct mpc5xxx_can_data *data = (struct mpc5xxx_can_data *)id->data;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev;
 	struct mscan_priv *priv;
 	void __iomem *base;
@@ -393,15 +392,17 @@ static struct of_device_id __devinitdata mpc5xxx_can_table[] = {
 };
 
 static struct of_platform_driver mpc5xxx_can_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc5xxx_can",
+	.driver = {
+		.name = "mpc5xxx_can",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc5xxx_can_table,
+	},
 	.probe = mpc5xxx_can_probe,
 	.remove = __devexit_p(mpc5xxx_can_remove),
 #ifdef CONFIG_PM
 	.suspend = mpc5xxx_can_suspend,
 	.resume = mpc5xxx_can_resume,
 #endif
-	.match_table = mpc5xxx_can_table,
 };
 
 static int __init mpc5xxx_can_init(void)

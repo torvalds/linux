@@ -188,10 +188,9 @@ extern unsigned long get_au1x00_uart_baud_base(void);
 extern unsigned long au1xxx_calc_clock(void);
 
 /* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
-void au1xxx_save_and_sleep(void);
+void alchemy_sleep_au1000(void);
+void alchemy_sleep_au1550(void);
 void au_sleep(void);
-void save_au1xxx_intctl(void);
-void restore_au1xxx_intctl(void);
 
 
 /* SOC Interrupt numbers */
@@ -834,6 +833,38 @@ enum soc_au1200_ints {
 #define MEM_STNAND_ADDR 	0x4
 #define MEM_STNAND_DATA 	0x20
 #endif
+
+
+/* Interrupt Controller register offsets */
+#define IC_CFG0RD		0x40
+#define IC_CFG0SET		0x40
+#define IC_CFG0CLR		0x44
+#define IC_CFG1RD		0x48
+#define IC_CFG1SET		0x48
+#define IC_CFG1CLR		0x4C
+#define IC_CFG2RD		0x50
+#define IC_CFG2SET		0x50
+#define IC_CFG2CLR		0x54
+#define IC_REQ0INT		0x54
+#define IC_SRCRD		0x58
+#define IC_SRCSET		0x58
+#define IC_SRCCLR		0x5C
+#define IC_REQ1INT		0x5C
+#define IC_ASSIGNRD		0x60
+#define IC_ASSIGNSET		0x60
+#define IC_ASSIGNCLR		0x64
+#define IC_WAKERD		0x68
+#define IC_WAKESET		0x68
+#define IC_WAKECLR		0x6C
+#define IC_MASKRD		0x70
+#define IC_MASKSET		0x70
+#define IC_MASKCLR		0x74
+#define IC_RISINGRD		0x78
+#define IC_RISINGCLR		0x78
+#define IC_FALLINGRD		0x7C
+#define IC_FALLINGCLR		0x7C
+#define IC_TESTBIT		0x80
+
 
 /* Interrupt Controller 0 */
 #define IC0_CFG0RD		0xB0400040

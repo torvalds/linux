@@ -108,6 +108,9 @@ struct mmc_host_ops {
 	int	(*get_cd)(struct mmc_host *host);
 
 	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
+
+	/* optional callback for HC quirks */
+	void	(*init_card)(struct mmc_host *host, struct mmc_card *card);
 };
 
 struct mmc_card;
@@ -227,7 +230,7 @@ static inline void *mmc_priv(struct mmc_host *host)
 #define mmc_classdev(x)	(&(x)->class_dev)
 #define mmc_hostname(x)	(dev_name(&(x)->class_dev))
 
-extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
+extern int mmc_suspend_host(struct mmc_host *);
 extern int mmc_resume_host(struct mmc_host *);
 
 extern void mmc_power_save_host(struct mmc_host *host);

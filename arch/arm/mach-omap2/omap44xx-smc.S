@@ -27,6 +27,6 @@ ENTRY(omap_smc1)
 	mov	r12, r0
 	mov 	r0, r1
 	dsb
-	smc
+	smc	#0
 	ldmfd   sp!, {r2-r12, pc}
 END(omap_smc1)

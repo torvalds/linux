@@ -33,9 +33,6 @@
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
 
-#define DA830_EMIF25_ASYNC_DATA_CE3_BASE	0x62000000
-#define DA830_EMIF25_CONTROL_BASE		0x68000000
-
 /*
  * USB1 VBUS is controlled by GPIO1[15], over-current is reported on GPIO2[4].
  */
@@ -157,7 +154,7 @@ static __init void da830_evm_usb_init(void)
 				   __func__, ret);
 	}
 
-	ret = da8xx_pinmux_setup(da830_evm_usb11_pins);
+	ret = davinci_cfg_reg_list(da830_evm_usb11_pins);
 	if (ret) {
 		pr_warning("%s: USB 1.1 PinMux setup failed: %d\n",
 			   __func__, ret);
@@ -229,15 +226,22 @@ static const short da830_evm_mmc_sd_pins[] = {
 };
 
 #define DA830_MMCSD_WP_PIN		GPIO_TO_PIN(2, 1)
+#define DA830_MMCSD_CD_PIN		GPIO_TO_PIN(2, 2)
 
 static int da830_evm_mmc_get_ro(int index)
 {
 	return gpio_get_value(DA830_MMCSD_WP_PIN);
 }
 
+static int da830_evm_mmc_get_cd(int index)
+{
+	return !gpio_get_value(DA830_MMCSD_CD_PIN);
+}
+
 static struct davinci_mmc_config da830_evm_mmc_config = {
 	.get_ro			= da830_evm_mmc_get_ro,
-	.wires			= 4,
+	.get_cd			= da830_evm_mmc_get_cd,
+	.wires			= 8,
 	.max_freq		= 50000000,
 	.caps			= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
 	.version		= MMC_CTLR_VERSION_2,
@@ -247,7 +251,7 @@ static inline void da830_evm_init_mmc(void)
 {
 	int ret;
 
-	ret = da8xx_pinmux_setup(da830_evm_mmc_sd_pins);
+	ret = davinci_cfg_reg_list(da830_evm_mmc_sd_pins);
 	if (ret) {
 		pr_warning("da830_evm_init: mmc/sd mux setup failed: %d\n",
 				ret);
@@ -261,6 +265,14 @@ static inline void da830_evm_init_mmc(void)
 		return;
 	}
 	gpio_direction_input(DA830_MMCSD_WP_PIN);
+
+	ret = gpio_request(DA830_MMCSD_CD_PIN, "MMC CD\n");
+	if (ret) {
+		pr_warning("da830_evm_init: can not open GPIO %d\n",
+			   DA830_MMCSD_CD_PIN);
+		return;
+	}
+	gpio_direction_input(DA830_MMCSD_CD_PIN);
 
 	ret = da8xx_register_mmcsd0(&da830_evm_mmc_config);
 	if (ret) {
@@ -360,13 +372,13 @@ static struct davinci_nand_pdata da830_evm_nand_pdata = {
 
 static struct resource da830_evm_nand_resources[] = {
 	[0] = {		/* First memory resource is NAND I/O window */
-		.start	= DA830_EMIF25_ASYNC_DATA_CE3_BASE,
-		.end	= DA830_EMIF25_ASYNC_DATA_CE3_BASE + PAGE_SIZE - 1,
+		.start	= DA8XX_AEMIF_CS3_BASE,
+		.end	= DA8XX_AEMIF_CS3_BASE + PAGE_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {		/* Second memory resource is AEMIF control registers */
-		.start	= DA830_EMIF25_CONTROL_BASE,
-		.end	= DA830_EMIF25_CONTROL_BASE + SZ_32K - 1,
+		.start	= DA8XX_AEMIF_CTL_BASE,
+		.end	= DA8XX_AEMIF_CTL_BASE + SZ_32K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -392,7 +404,7 @@ static inline void da830_evm_init_nand(int mux_mode)
 		return;
 	}
 
-	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
+	ret = davinci_cfg_reg_list(da830_evm_emif25_pins);
 	if (ret)
 		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
 				ret);
@@ -412,7 +424,7 @@ static inline void da830_evm_init_lcdc(int mux_mode)
 {
 	int ret;
 
-	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
+	ret = davinci_cfg_reg_list(da830_lcdcntl_pins);
 	if (ret)
 		pr_warning("da830_evm_init: lcdcntl mux setup failed: %d\n",
 				ret);
@@ -492,7 +504,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: edma registration failed: %d\n",
 				ret);
 
-	ret = da8xx_pinmux_setup(da830_i2c0_pins);
+	ret = davinci_cfg_reg_list(da830_i2c0_pins);
 	if (ret)
 		pr_warning("da830_evm_init: i2c0 mux setup failed: %d\n",
 				ret);
@@ -508,7 +520,7 @@ static __init void da830_evm_init(void)
 	soc_info->emac_pdata->mdio_max_freq = DA830_EVM_MDIO_FREQUENCY;
 	soc_info->emac_pdata->rmii_en = 1;
 
-	ret = da8xx_pinmux_setup(da830_cpgmac_pins);
+	ret = davinci_cfg_reg_list(da830_cpgmac_pins);
 	if (ret)
 		pr_warning("da830_evm_init: cpgmac mux setup failed: %d\n",
 				ret);
@@ -527,7 +539,7 @@ static __init void da830_evm_init(void)
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 
-	ret = da8xx_pinmux_setup(da830_evm_mcasp1_pins);
+	ret = davinci_cfg_reg_list(da830_evm_mcasp1_pins);
 	if (ret)
 		pr_warning("da830_evm_init: mcasp1 mux setup failed: %d\n",
 				ret);
@@ -549,14 +561,6 @@ static int __init da830_evm_console_init(void)
 console_initcall(da830_evm_console_init);
 #endif
 
-static __init void da830_evm_irq_init(void)
-{
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-
-	cp_intc_init((void __iomem *)DA8XX_CP_INTC_VIRT, DA830_N_CP_INTC_IRQ,
-			soc_info->intc_irq_prios);
-}
-
 static void __init da830_evm_map_io(void)
 {
 	da830_init();
@@ -567,7 +571,7 @@ MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137 EVM")
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da830_evm_map_io,
-	.init_irq	= da830_evm_irq_init,
+	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
 	.init_machine	= da830_evm_init,
 MACHINE_END

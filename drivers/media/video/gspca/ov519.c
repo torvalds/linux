@@ -41,6 +41,11 @@
 #include <linux/input.h>
 #include "gspca.h"
 
+/* The jpeg_hdr is used by w996Xcf only */
+/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
+#define CONEX_CAM
+#include "jpeg.h"
+
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("OV519 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -90,6 +95,7 @@ struct sd {
 #define QUALITY_DEF 50
 
 	__u8 stopped;		/* Streaming is temporarily paused */
+	__u8 first_frame;
 
 	__u8 frame_rate;	/* current Framerate */
 	__u8 clockdiv;		/* clockdiv override */
@@ -115,7 +121,7 @@ struct sd {
 	int sensor_height;
 	int sensor_reg_cache[256];
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
@@ -3147,7 +3153,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autobrightness = AUTOBRIGHT_DEF;
 	if (sd->sensor == SEN_OV7670) {
 		sd->freq = OV7670_FREQ_DEF;
-		gspca_dev->ctrl_dis = 1 << FREQ_IDX;
+		gspca_dev->ctrl_dis = (1 << FREQ_IDX) | (1 << COLOR_IDX);
 	} else {
 		sd->freq = FREQ_DEF;
 		gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) |
@@ -3961,6 +3967,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd_reset_snapshot(gspca_dev);
 	sd->snapshot_pressed = 0;
 
+	sd->first_frame = 3;
+
 	ret = ov51x_restart(sd);
 	if (ret < 0)
 		goto out;
@@ -4153,13 +4161,23 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+
 	/* A short read signals EOF */
 	if (len < OVFX2_BULK_SIZE) {
-		gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
+		/* If the frame is short, and it is one of the first ones
+		   the sensor and bridge are still syncing, so drop it. */
+		if (sd->first_frame) {
+			sd->first_frame--;
+			if (gspca_dev->image_len <
+				  sd->gspca_dev.width * sd->gspca_dev.height)
+				gspca_dev->last_packet_type = DISCARD_PACKET;
+		}
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
-		return;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

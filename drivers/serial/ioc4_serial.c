@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/ioc4.h>
 #include <linux/serial_core.h>
+#include <linux/slab.h>
 
 /*
  * interesting things about the ioc4

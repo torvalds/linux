@@ -59,8 +59,6 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 
 int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn);
 
-void beiscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag);
-
 struct iscsi_endpoint *beiscsi_ep_connect(struct Scsi_Host *shost,
 					  struct sockaddr *dst_addr,
 					  int non_blocking);

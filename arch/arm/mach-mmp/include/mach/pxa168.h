@@ -14,6 +14,11 @@ extern struct pxa_device_desc pxa168_device_pwm1;
 extern struct pxa_device_desc pxa168_device_pwm2;
 extern struct pxa_device_desc pxa168_device_pwm3;
 extern struct pxa_device_desc pxa168_device_pwm4;
+extern struct pxa_device_desc pxa168_device_ssp1;
+extern struct pxa_device_desc pxa168_device_ssp2;
+extern struct pxa_device_desc pxa168_device_ssp3;
+extern struct pxa_device_desc pxa168_device_ssp4;
+extern struct pxa_device_desc pxa168_device_ssp5;
 extern struct pxa_device_desc pxa168_device_nand;
 
 static inline int pxa168_add_uart(int id)
@@ -64,6 +69,22 @@ static inline int pxa168_add_pwm(int id)
 		return -EINVAL;
 	}
 
+	return pxa_register_device(d, NULL, 0);
+}
+
+static inline int pxa168_add_ssp(int id)
+{
+	struct pxa_device_desc *d = NULL;
+
+	switch (id) {
+	case 1: d = &pxa168_device_ssp1; break;
+	case 2: d = &pxa168_device_ssp2; break;
+	case 3: d = &pxa168_device_ssp3; break;
+	case 4: d = &pxa168_device_ssp4; break;
+	case 5: d = &pxa168_device_ssp5; break;
+	default:
+		return -EINVAL;
+	}
 	return pxa_register_device(d, NULL, 0);
 }
 

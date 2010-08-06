@@ -243,8 +243,12 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 				struct rds_message *rm;
 
 				rm = rds_send_get_message(conn, send->s_op);
-				if (rm)
+				if (rm) {
+					if (rm->m_rdma_op)
+						rds_ib_send_unmap_rdma(ic, rm->m_rdma_op);
 					rds_ib_send_rdma_complete(rm, wc.status);
+					rds_message_put(rm);
+				}
 			}
 
 			oldest = (oldest + 1) % ic->i_send_ring.w_nr;
@@ -482,6 +486,13 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	BUG_ON(off % RDS_FRAG_SIZE);
 	BUG_ON(hdr_off != 0 && hdr_off != sizeof(struct rds_header));
 
+	/* Do not send cong updates to IB loopback */
+	if (conn->c_loopback
+	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
+		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
+		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+	}
+
 	/* FIXME we may overallocate here */
 	if (be32_to_cpu(rm->m_inc.i_hdr.h_len) == 0)
 		i = 1;
@@ -574,8 +585,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
 		adv_credits += posted;
 		BUG_ON(adv_credits > 255);
-	} else if (ic->i_rm != rm)
-		BUG();
+	}
 
 	send = &ic->i_sends[pos];
 	first = send;
@@ -714,8 +724,8 @@ add_header:
 			ic->i_rm = prev->s_rm;
 			prev->s_rm = NULL;
 		}
-		/* Finesse this later */
-		BUG();
+
+		rds_ib_conn_error(ic->conn, "ib_post_send failed\n");
 		goto out;
 	}
 

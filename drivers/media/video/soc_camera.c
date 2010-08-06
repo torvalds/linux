@@ -24,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <linux/vmalloc.h>
 
 #include <media/soc_camera.h>
@@ -198,7 +200,8 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0, raw_fmts = 0, ret;
+	unsigned int i, fmts = 0, raw_fmts = 0;
+	int ret;
 	enum v4l2_mbus_pixelcode code;
 
 	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
@@ -387,6 +390,11 @@ static int soc_camera_open(struct file *file)
 			goto eiciadd;
 		}
 
+		pm_runtime_enable(&icd->vdev->dev);
+		ret = pm_runtime_resume(&icd->vdev->dev);
+		if (ret < 0 && ret != -ENOSYS)
+			goto eresume;
+
 		/*
 		 * Try to configure with default parameters. Notice: this is the
 		 * very first open, so, we cannot race against other calls,
@@ -408,10 +416,12 @@ static int soc_camera_open(struct file *file)
 	return 0;
 
 	/*
-	 * First five errors are entered with the .video_lock held
+	 * First four errors are entered with the .video_lock held
 	 * and use_count == 1
 	 */
 esfmt:
+	pm_runtime_disable(&icd->vdev->dev);
+eresume:
 	ici->ops->remove(icd);
 eiciadd:
 	if (icl->power)
@@ -436,7 +446,11 @@ static int soc_camera_close(struct file *file)
 	if (!icd->use_count) {
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
 
+		pm_runtime_suspend(&icd->vdev->dev);
+		pm_runtime_disable(&icd->vdev->dev);
+
 		ici->ops->remove(icd);
+
 		if (icl->power)
 			icl->power(icd->pdev, 0);
 	}
@@ -740,8 +754,7 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 /*
  * According to the V4L2 API, drivers shall not update the struct v4l2_crop
  * argument with the actual geometry, instead, the user shall use G_CROP to
- * retrieve it. However, we expect camera host and client drivers to update
- * the argument, which we then use internally, but do not return to the user.
+ * retrieve it.
  */
 static int soc_camera_s_crop(struct file *file, void *fh,
 			     struct v4l2_crop *a)
@@ -1094,13 +1107,14 @@ static int soc_camera_resume(struct device *dev)
 	return ret;
 }
 
-static struct bus_type soc_camera_bus_type = {
+struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
 	.suspend	= soc_camera_suspend,
 	.resume		= soc_camera_resume,
 };
+EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 
 static struct device_driver ic_drv = {
 	.name	= "camera",
@@ -1318,6 +1332,7 @@ static int video_dev_create(struct soc_camera_device *icd)
  */
 static int soc_camera_video_start(struct soc_camera_device *icd)
 {
+	struct device_type *type = icd->vdev->dev.type;
 	int ret;
 
 	if (!icd->dev.parent)
@@ -1333,6 +1348,9 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
 		return ret;
 	}
+
+	/* Restore device type, possibly set by the subdevice driver */
+	icd->vdev->dev.type = type;
 
 	return 0;
 }

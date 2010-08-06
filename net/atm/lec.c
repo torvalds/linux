@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>
@@ -160,8 +161,6 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 		skb_queue_tail(&sk->sk_receive_queue, skb2);
 		sk->sk_data_ready(sk, skb2->len);
 	}
-
-	return;
 }
 #endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
 
@@ -639,7 +638,6 @@ static void lec_set_multicast_list(struct net_device *dev)
 	 * by default, all multicast frames arrive over the bus.
 	 * eventually support selective multicast service
 	 */
-	return;
 }
 
 static const struct net_device_ops lec_netdev_ops = {
@@ -1198,8 +1196,6 @@ static void __exit lane_module_cleanup(void)
 			dev_lec[i] = NULL;
 		}
 	}
-
-	return;
 }
 
 module_init(lane_module_init);
@@ -1333,7 +1329,6 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 		priv->lane2_ops->associate_indicator(dev, mac_addr,
 						     tlvs, sizeoftlvs);
 	}
-	return;
 }
 
 /*

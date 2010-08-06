@@ -42,6 +42,15 @@
 #define  SCBR_I2CCEN	BIT(1)	/* CPU I2C master enable */
 
 #define PWRCR		0x1a0
+#define  PWRCR_SCISEL0	BIT(0)
+#define  PWRCR_SCISEL1	BIT(1)
+#define  PWRCR_SCIEN	BIT(2)	/* Serial port enable */
+#define  PWRCR_PDWNACK	BIT(5)	/* Power down acknowledge */
+#define  PWRCR_PDWNREQ	BIT(7)	/* Power down request */
+#define  PWRCR_INT2	BIT(11)	/* INT2 connection to power manager */
+#define  PWRCR_BUPINIT	BIT(13)	/* DDR backup initialize */
+#define  PWRCR_BKPRST	BIT(15) /* Backup power reset */
+
 #define SPCBR		0x1b0
 #define SPICR		0x1c0
 #define SPIDR		0x1d0

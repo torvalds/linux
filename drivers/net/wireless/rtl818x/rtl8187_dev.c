@@ -22,6 +22,7 @@
 
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>
@@ -572,7 +573,7 @@ static int rtl8187_cmd_reset(struct ieee80211_hw *dev)
 	} while (--i);
 
 	if (!i) {
-		printk(KERN_ERR "%s: Reset timeout!\n", wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "reset timeout!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -588,8 +589,7 @@ static int rtl8187_cmd_reset(struct ieee80211_hw *dev)
 	} while (--i);
 
 	if (!i) {
-		printk(KERN_ERR "%s: eeprom reset timeout!\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "eeprom reset timeout!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1193,9 +1193,9 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 }
 
 static u64 rtl8187_prepare_multicast(struct ieee80211_hw *dev,
-				     int mc_count, struct dev_addr_list *mc_list)
+				     struct netdev_hw_addr_list *mc_list)
 {
-	return mc_count;
+	return netdev_hw_addr_list_count(mc_list);
 }
 
 static void rtl8187_configure_filter(struct ieee80211_hw *dev,
@@ -1332,6 +1332,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	u16 txpwr, reg;
 	u16 product_id = le16_to_cpu(udev->descriptor.idProduct);
 	int err, i;
+	u8 mac_addr[ETH_ALEN];
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
 	if (!dev) {
@@ -1389,12 +1390,13 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	udelay(10);
 
 	eeprom_93cx6_multiread(&eeprom, RTL8187_EEPROM_MAC_ADDR,
-			       (__le16 __force *)dev->wiphy->perm_addr, 3);
-	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
+			       (__le16 __force *)mac_addr, 3);
+	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "rtl8187: Invalid hwaddr! Using randomly "
 		       "generated MAC address\n");
-		random_ether_addr(dev->wiphy->perm_addr);
+		random_ether_addr(mac_addr);
 	}
+	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 
 	channel = priv->channels;
 	for (i = 0; i < 3; i++) {
@@ -1524,9 +1526,9 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
 
-	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s, rfkill mask %d\n",
-	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
-	       chip_name, priv->asic_rev, priv->rf->name, priv->rfkill_mask);
+	wiphy_info(dev->wiphy, "hwaddr %pm, %s v%d + %s, rfkill mask %d\n",
+		   mac_addr, chip_name, priv->asic_rev, priv->rf->name,
+		   priv->rfkill_mask);
 
 #ifdef CONFIG_RTL8187_LEDS
 	eeprom_93cx6_read(&eeprom, 0x3F, &reg);

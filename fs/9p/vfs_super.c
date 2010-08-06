@@ -37,14 +37,17 @@
 #include <linux/mount.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/statfs.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
+#include "xattr.h"
 
-static const struct super_operations v9fs_super_ops;
+static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 
 /**
  * v9fs_set_super - set the superblock
@@ -75,7 +78,12 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
 	sb->s_blocksize = 1 << sb->s_blocksize_bits;
 	sb->s_magic = V9FS_MAGIC;
-	sb->s_op = &v9fs_super_ops;
+	if (v9fs_proto_dotl(v9ses)) {
+		sb->s_op = &v9fs_super_ops_dotl;
+		sb->s_xattr = v9fs_xattr_handlers;
+	} else
+		sb->s_op = &v9fs_super_ops;
+	sb->s_bdi = &v9ses->bdi;
 
 	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
 	    MS_NOATIME;
@@ -101,7 +109,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	struct p9_wstat *st = NULL;
 	int mode = S_IRWXUGO | S_ISVTX;
 	struct p9_fid *fid;
 	int retval = 0;
@@ -118,16 +125,10 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		goto close_session;
 	}
 
-	st = p9_client_stat(fid);
-	if (IS_ERR(st)) {
-		retval = PTR_ERR(st);
-		goto clunk_fid;
-	}
-
 	sb = sget(fs_type, NULL, v9fs_set_super, v9ses);
 	if (IS_ERR(sb)) {
 		retval = PTR_ERR(sb);
-		goto free_stat;
+		goto clunk_fid;
 	}
 	v9fs_fill_super(sb, v9ses, flags, data);
 
@@ -145,21 +146,37 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	sb->s_root = root;
-	root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
 
-	v9fs_stat2inode(st, root->d_inode, sb);
+	if (v9fs_proto_dotl(v9ses)) {
+		struct p9_stat_dotl *st = NULL;
+		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+		if (IS_ERR(st)) {
+			retval = PTR_ERR(st);
+			goto clunk_fid;
+		}
+
+		v9fs_stat2inode_dotl(st, root->d_inode);
+		kfree(st);
+	} else {
+		struct p9_wstat *st = NULL;
+		st = p9_client_stat(fid);
+		if (IS_ERR(st)) {
+			retval = PTR_ERR(st);
+			goto clunk_fid;
+		}
+
+		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
+		v9fs_stat2inode(st, root->d_inode, sb);
+
+		p9stat_free(st);
+		kfree(st);
+	}
 
 	v9fs_fid_add(root, fid);
-	p9stat_free(st);
-	kfree(st);
 
 P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
-
-free_stat:
-	p9stat_free(st);
-	kfree(st);
 
 clunk_fid:
 	p9_client_clunk(fid);
@@ -170,8 +187,6 @@ close_session:
 	return retval;
 
 release_sb:
-	p9stat_free(st);
-	kfree(st);
 	deactivate_locked_super(sb);
 	return retval;
 }
@@ -193,6 +208,7 @@ static void v9fs_kill_super(struct super_block *s)
 
 	kill_anon_super(s);
 
+	v9fs_session_cancel(v9ses);
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
 	s->s_fs_info = NULL;
@@ -205,7 +221,43 @@ v9fs_umount_begin(struct super_block *sb)
 	struct v9fs_session_info *v9ses;
 
 	v9ses = sb->s_fs_info;
-	v9fs_session_cancel(v9ses);
+	v9fs_session_begin_cancel(v9ses);
+}
+
+static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid;
+	struct p9_rstatfs rs;
+	int res;
+
+	fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid)) {
+		res = PTR_ERR(fid);
+		goto done;
+	}
+
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	if (v9fs_proto_dotl(v9ses)) {
+		res = p9_client_statfs(fid, &rs);
+		if (res == 0) {
+			buf->f_type = rs.type;
+			buf->f_bsize = rs.bsize;
+			buf->f_blocks = rs.blocks;
+			buf->f_bfree = rs.bfree;
+			buf->f_bavail = rs.bavail;
+			buf->f_files = rs.files;
+			buf->f_ffree = rs.ffree;
+			buf->f_fsid.val[0] = rs.fsid & 0xFFFFFFFFUL;
+			buf->f_fsid.val[1] = (rs.fsid >> 32) & 0xFFFFFFFFUL;
+			buf->f_namelen = rs.namelen;
+		}
+		if (res != -ENOSYS)
+			goto done;
+	}
+	res = simple_statfs(dentry, buf);
+done:
+	return res;
 }
 
 static const struct super_operations v9fs_super_ops = {
@@ -219,9 +271,21 @@ static const struct super_operations v9fs_super_ops = {
 	.umount_begin = v9fs_umount_begin,
 };
 
+static const struct super_operations v9fs_super_ops_dotl = {
+#ifdef CONFIG_9P_FSCACHE
+	.alloc_inode = v9fs_alloc_inode,
+	.destroy_inode = v9fs_destroy_inode,
+#endif
+	.statfs = v9fs_statfs,
+	.clear_inode = v9fs_clear_inode,
+	.show_options = generic_show_options,
+	.umount_begin = v9fs_umount_begin,
+};
+
 struct file_system_type v9fs_fs_type = {
 	.name = "9p",
 	.get_sb = v9fs_get_sb,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };

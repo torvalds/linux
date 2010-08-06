@@ -43,6 +43,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/sysdev.h>
+#include <linux/gfp.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>

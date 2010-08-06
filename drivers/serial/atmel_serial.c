@@ -38,8 +38,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/atmel_pdc.h>
 #include <linux/atmel_serial.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
+#include <asm/ioctls.h>
 
 #include <asm/mach/serial_at91.h>
 #include <mach/board.h>
@@ -58,6 +60,9 @@
 #endif
 
 #include <linux/serial_core.h>
+
+static void atmel_start_rx(struct uart_port *port);
+static void atmel_stop_rx(struct uart_port *port);
 
 #ifdef CONFIG_SERIAL_ATMEL_TTYAT
 
@@ -93,6 +98,7 @@
 #define UART_GET_BRGR(port)	__raw_readl((port)->membase + ATMEL_US_BRGR)
 #define UART_PUT_BRGR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_BRGR)
 #define UART_PUT_RTOR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_RTOR)
+#define UART_PUT_TTGR(port, v)	__raw_writel(v, (port)->membase + ATMEL_US_TTGR)
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_PTCR)
@@ -147,6 +153,9 @@ struct atmel_uart_port {
 	unsigned int		irq_status_prev;
 
 	struct circ_buf		rx_ring;
+
+	struct serial_rs485	rs485;		/* rs485 settings */
+	unsigned int		tx_done_mask;
 };
 
 static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
@@ -187,6 +196,46 @@ static bool atmel_use_dma_tx(struct uart_port *port)
 }
 #endif
 
+/* Enable or disable the rs485 support */
+void atmel_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	unsigned int mode;
+
+	spin_lock(&port->lock);
+
+	/* Disable interrupts */
+	UART_PUT_IDR(port, atmel_port->tx_done_mask);
+
+	mode = UART_GET_MR(port);
+
+	/* Resetting serial mode to RS232 (0x0) */
+	mode &= ~ATMEL_US_USMODE;
+
+	atmel_port->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		atmel_port->tx_done_mask = ATMEL_US_TXEMPTY;
+		UART_PUT_TTGR(port, rs485conf->delay_rts_before_send);
+		mode |= ATMEL_US_USMODE_RS485;
+	} else {
+		dev_dbg(port->dev, "Setting UART to RS232\n");
+		if (atmel_use_dma_tx(port))
+			atmel_port->tx_done_mask = ATMEL_US_ENDTX |
+				ATMEL_US_TXBUFE;
+		else
+			atmel_port->tx_done_mask = ATMEL_US_TXRDY;
+	}
+	UART_PUT_MR(port, mode);
+
+	/* Enable interrupts */
+	UART_PUT_IER(port, atmel_port->tx_done_mask);
+
+	spin_unlock(&port->lock);
+
+}
+
 /*
  * Return TIOCSER_TEMT when transmitter FIFO and Shift register is empty.
  */
@@ -202,6 +251,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 {
 	unsigned int control = 0;
 	unsigned int mode;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
 #ifdef CONFIG_ARCH_AT91RM9200
 	if (cpu_is_at91rm9200()) {
@@ -236,6 +286,17 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 		mode |= ATMEL_US_CHMODE_LOC_LOOP;
 	else
 		mode |= ATMEL_US_CHMODE_NORMAL;
+
+	/* Resetting serial mode to RS232 (0x0) */
+	mode &= ~ATMEL_US_USMODE;
+
+	if (atmel_port->rs485.flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		UART_PUT_TTGR(port, atmel_port->rs485.delay_rts_before_send);
+		mode |= ATMEL_US_USMODE_RS485;
+	} else {
+		dev_dbg(port->dev, "Setting UART to RS232\n");
+	}
 	UART_PUT_MR(port, mode);
 }
 
@@ -268,12 +329,17 @@ static u_int atmel_get_mctrl(struct uart_port *port)
  */
 static void atmel_stop_tx(struct uart_port *port)
 {
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
 	if (atmel_use_dma_tx(port)) {
 		/* disable PDC transmit */
 		UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
-		UART_PUT_IDR(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
-	} else
-		UART_PUT_IDR(port, ATMEL_US_TXRDY);
+	}
+	/* Disable interrupts */
+	UART_PUT_IDR(port, atmel_port->tx_done_mask);
+
+	if (atmel_port->rs485.flags & SER_RS485_ENABLED)
+		atmel_start_rx(port);
 }
 
 /*
@@ -281,17 +347,39 @@ static void atmel_stop_tx(struct uart_port *port)
  */
 static void atmel_start_tx(struct uart_port *port)
 {
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
 	if (atmel_use_dma_tx(port)) {
 		if (UART_GET_PTSR(port) & ATMEL_PDC_TXTEN)
 			/* The transmitter is already running.  Yes, we
 			   really need this.*/
 			return;
 
-		UART_PUT_IER(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
+		if (atmel_port->rs485.flags & SER_RS485_ENABLED)
+			atmel_stop_rx(port);
+
 		/* re-enable PDC transmit */
 		UART_PUT_PTCR(port, ATMEL_PDC_TXTEN);
-	} else
-		UART_PUT_IER(port, ATMEL_US_TXRDY);
+	}
+	/* Enable interrupts */
+	UART_PUT_IER(port, atmel_port->tx_done_mask);
+}
+
+/*
+ * start receiving - port is in process of being opened.
+ */
+static void atmel_start_rx(struct uart_port *port)
+{
+	UART_PUT_CR(port, ATMEL_US_RSTSTA);  /* reset status and receiver */
+
+	if (atmel_use_dma_rx(port)) {
+		/* enable PDC controller */
+		UART_PUT_IER(port, ATMEL_US_ENDRX | ATMEL_US_TIMEOUT |
+			port->read_status_mask);
+		UART_PUT_PTCR(port, ATMEL_PDC_RXTEN);
+	} else {
+		UART_PUT_IER(port, ATMEL_US_RXRDY);
+	}
 }
 
 /*
@@ -302,9 +390,11 @@ static void atmel_stop_rx(struct uart_port *port)
 	if (atmel_use_dma_rx(port)) {
 		/* disable PDC receive */
 		UART_PUT_PTCR(port, ATMEL_PDC_RXTDIS);
-		UART_PUT_IDR(port, ATMEL_US_ENDRX | ATMEL_US_TIMEOUT);
-	} else
+		UART_PUT_IDR(port, ATMEL_US_ENDRX | ATMEL_US_TIMEOUT |
+			port->read_status_mask);
+	} else {
 		UART_PUT_IDR(port, ATMEL_US_RXRDY);
+	}
 }
 
 /*
@@ -428,8 +518,9 @@ static void atmel_rx_chars(struct uart_port *port)
 static void atmel_tx_chars(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	if (port->x_char && UART_GET_CSR(port) & ATMEL_US_TXRDY) {
+	if (port->x_char && UART_GET_CSR(port) & atmel_port->tx_done_mask) {
 		UART_PUT_CHAR(port, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
@@ -437,7 +528,7 @@ static void atmel_tx_chars(struct uart_port *port)
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return;
 
-	while (UART_GET_CSR(port) & ATMEL_US_TXRDY) {
+	while (UART_GET_CSR(port) & atmel_port->tx_done_mask) {
 		UART_PUT_CHAR(port, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
@@ -449,7 +540,8 @@ static void atmel_tx_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (!uart_circ_empty(xmit))
-		UART_PUT_IER(port, ATMEL_US_TXRDY);
+		/* Enable interrupts */
+		UART_PUT_IER(port, atmel_port->tx_done_mask);
 }
 
 /*
@@ -501,18 +593,10 @@ atmel_handle_transmit(struct uart_port *port, unsigned int pending)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	if (atmel_use_dma_tx(port)) {
-		/* PDC transmit */
-		if (pending & (ATMEL_US_ENDTX | ATMEL_US_TXBUFE)) {
-			UART_PUT_IDR(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
-			tasklet_schedule(&atmel_port->tasklet);
-		}
-	} else {
-		/* Interrupt transmit */
-		if (pending & ATMEL_US_TXRDY) {
-			UART_PUT_IDR(port, ATMEL_US_TXRDY);
-			tasklet_schedule(&atmel_port->tasklet);
-		}
+	if (pending & atmel_port->tx_done_mask) {
+		/* Either PDC or interrupt transmission */
+		UART_PUT_IDR(port, atmel_port->tx_done_mask);
+		tasklet_schedule(&atmel_port->tasklet);
 	}
 }
 
@@ -590,9 +674,15 @@ static void atmel_tx_dma(struct uart_port *port)
 
 		UART_PUT_TPR(port, pdc->dma_addr + xmit->tail);
 		UART_PUT_TCR(port, count);
-		/* re-enable PDC transmit and interrupts */
+		/* re-enable PDC transmit */
 		UART_PUT_PTCR(port, ATMEL_PDC_TXTEN);
-		UART_PUT_IER(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
+		/* Enable interrupts */
+		UART_PUT_IER(port, atmel_port->tx_done_mask);
+	} else {
+		if (atmel_port->rs485.flags & SER_RS485_ENABLED) {
+			/* DMA done, stop TX, start RX for RS485 */
+			atmel_start_rx(port);
+		}
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -1017,6 +1107,7 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned long flags;
 	unsigned int mode, imr, quot, baud;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
 	/* Get current mode register */
 	mode = UART_GET_MR(port) & ~(ATMEL_US_USCLKS | ATMEL_US_CHRL
@@ -1114,6 +1205,17 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* disable receiver and transmitter */
 	UART_PUT_CR(port, ATMEL_US_TXDIS | ATMEL_US_RXDIS);
+
+	/* Resetting serial mode to RS232 (0x0) */
+	mode &= ~ATMEL_US_USMODE;
+
+	if (atmel_port->rs485.flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		UART_PUT_TTGR(port, atmel_port->rs485.delay_rts_before_send);
+		mode |= ATMEL_US_USMODE_RS485;
+	} else {
+		dev_dbg(port->dev, "Setting UART to RS232\n");
+	}
 
 	/* set the parity, stop bits and data size */
 	UART_PUT_MR(port, mode);
@@ -1231,6 +1333,35 @@ static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
 }
 #endif
 
+static int
+atmel_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct serial_rs485 rs485conf;
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485conf, (struct serial_rs485 *) arg,
+					sizeof(rs485conf)))
+			return -EFAULT;
+
+		atmel_config_rs485(port, &rs485conf);
+		break;
+
+	case TIOCGRS485:
+		if (copy_to_user((struct serial_rs485 *) arg,
+					&(to_atmel_uart_port(port)->rs485),
+					sizeof(rs485conf)))
+			return -EFAULT;
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+
+
+
 static struct uart_ops atmel_pops = {
 	.tx_empty	= atmel_tx_empty,
 	.set_mctrl	= atmel_set_mctrl,
@@ -1250,6 +1381,7 @@ static struct uart_ops atmel_pops = {
 	.config_port	= atmel_config_port,
 	.verify_port	= atmel_verify_port,
 	.pm		= atmel_serial_pm,
+	.ioctl		= atmel_ioctl,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char	= atmel_poll_get_char,
 	.poll_put_char	= atmel_poll_put_char,
@@ -1265,13 +1397,12 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
 	struct uart_port *port = &atmel_port->uart;
 	struct atmel_uart_data *data = pdev->dev.platform_data;
 
-	port->iotype	= UPIO_MEM;
-	port->flags	= UPF_BOOT_AUTOCONF;
-	port->ops	= &atmel_pops;
-	port->fifosize	= 1;
-	port->line	= pdev->id;
-	port->dev	= &pdev->dev;
-
+	port->iotype		= UPIO_MEM;
+	port->flags		= UPF_BOOT_AUTOCONF;
+	port->ops		= &atmel_pops;
+	port->fifosize		= 1;
+	port->line		= pdev->id;
+	port->dev		= &pdev->dev;
 	port->mapbase	= pdev->resource[0].start;
 	port->irq	= pdev->resource[1].start;
 
@@ -1299,8 +1430,16 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
 
 	atmel_port->use_dma_rx = data->use_dma_rx;
 	atmel_port->use_dma_tx = data->use_dma_tx;
-	if (atmel_use_dma_tx(port))
+	atmel_port->rs485	= data->rs485;
+	/* Use TXEMPTY for interrupt when rs485 else TXRDY or ENDTX|TXBUFE */
+	if (atmel_port->rs485.flags & SER_RS485_ENABLED)
+		atmel_port->tx_done_mask = ATMEL_US_TXEMPTY;
+	else if (atmel_use_dma_tx(port)) {
 		port->fifosize = PDC_BUFFER_SIZE;
+		atmel_port->tx_done_mask = ATMEL_US_ENDTX | ATMEL_US_TXBUFE;
+	} else {
+		atmel_port->tx_done_mask = ATMEL_US_TXRDY;
+	}
 }
 
 /*
@@ -1334,6 +1473,7 @@ static void atmel_console_putchar(struct uart_port *port, int ch)
 static void atmel_console_write(struct console *co, const char *s, u_int count)
 {
 	struct uart_port *port = &atmel_ports[co->index].uart;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned int status, imr;
 	unsigned int pdc_tx;
 
@@ -1341,7 +1481,7 @@ static void atmel_console_write(struct console *co, const char *s, u_int count)
 	 * First, save IMR and then disable interrupts
 	 */
 	imr = UART_GET_IMR(port);
-	UART_PUT_IDR(port, ATMEL_US_RXRDY | ATMEL_US_TXRDY);
+	UART_PUT_IDR(port, ATMEL_US_RXRDY | atmel_port->tx_done_mask);
 
 	/* Store PDC transmit status and disable it */
 	pdc_tx = UART_GET_PTSR(port) & ATMEL_PDC_TXTEN;

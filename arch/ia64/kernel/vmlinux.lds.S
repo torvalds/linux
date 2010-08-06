@@ -8,7 +8,7 @@
 
 #define IVT_TEXT							\
 		VMLINUX_SYMBOL(__start_ivt_text) = .;			\
-		*(.text.ivt)						\
+		*(.text..ivt)						\
 		VMLINUX_SYMBOL(__end_ivt_text) = .;
 
 OUTPUT_FORMAT("elf64-ia64-little")
@@ -54,8 +54,8 @@ SECTIONS
   .text2 : AT(ADDR(.text2) - LOAD_OFFSET)
 	{ *(.text2) }
 #ifdef CONFIG_SMP
-  .text.lock : AT(ADDR(.text.lock) - LOAD_OFFSET)
-	{ *(.text.lock) }
+  .text..lock : AT(ADDR(.text..lock) - LOAD_OFFSET)
+	{ *(.text..lock) }
 #endif
   _etext = .;
 
@@ -75,10 +75,10 @@ SECTIONS
 	  __stop___mca_table = .;
 	}
 
-  .data.patch.phys_stack_reg : AT(ADDR(.data.patch.phys_stack_reg) - LOAD_OFFSET)
+  .data..patch.phys_stack_reg : AT(ADDR(.data..patch.phys_stack_reg) - LOAD_OFFSET)
 	{
 	  __start___phys_stack_reg_patchlist = .;
-	  *(.data.patch.phys_stack_reg)
+	  *(.data..patch.phys_stack_reg)
 	  __end___phys_stack_reg_patchlist = .;
 	}
 
@@ -110,24 +110,24 @@ SECTIONS
   INIT_TEXT_SECTION(PAGE_SIZE)
   INIT_DATA_SECTION(16)
 
-  .data.patch.vtop : AT(ADDR(.data.patch.vtop) - LOAD_OFFSET)
+  .data..patch.vtop : AT(ADDR(.data..patch.vtop) - LOAD_OFFSET)
 	{
 	  __start___vtop_patchlist = .;
-	  *(.data.patch.vtop)
+	  *(.data..patch.vtop)
 	  __end___vtop_patchlist = .;
 	}
 
-  .data.patch.rse : AT(ADDR(.data.patch.rse) - LOAD_OFFSET)
+  .data..patch.rse : AT(ADDR(.data..patch.rse) - LOAD_OFFSET)
 	{
 	  __start___rse_patchlist = .;
-	  *(.data.patch.rse)
+	  *(.data..patch.rse)
 	  __end___rse_patchlist = .;
 	}
 
-  .data.patch.mckinley_e9 : AT(ADDR(.data.patch.mckinley_e9) - LOAD_OFFSET)
+  .data..patch.mckinley_e9 : AT(ADDR(.data..patch.mckinley_e9) - LOAD_OFFSET)
 	{
 	  __start___mckinley_e9_bundles = .;
-	  *(.data.patch.mckinley_e9)
+	  *(.data..patch.mckinley_e9)
 	  __end___mckinley_e9_bundles = .;
 	}
 
@@ -175,17 +175,17 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
-  .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET)
+  .data..page_aligned : AT(ADDR(.data..page_aligned) - LOAD_OFFSET)
         {
 	PAGE_ALIGNED_DATA(PAGE_SIZE)
 	  . = ALIGN(PAGE_SIZE);
 	  __start_gate_section = .;
-	  *(.data.gate)
+	  *(.data..gate)
 	  __stop_gate_section = .;
 #ifdef CONFIG_XEN
 	  . = ALIGN(PAGE_SIZE);
 	  __xen_start_gate_section = .;
-	  *(.data.gate.xen)
+	  *(.data..gate.xen)
 	  __xen_stop_gate_section = .;
 #endif
 	}

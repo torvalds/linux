@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
-#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/unistd.h>
 #include <linux/sem.h>
@@ -29,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>
@@ -79,7 +79,11 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	int do_color_align;
 	unsigned long task_size;
 
-	task_size = STACK_TOP;
+#ifdef CONFIG_32BIT
+	task_size = TASK_SIZE;
+#else /* Must be CONFIG_64BIT*/
+	task_size = test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE;
+#endif
 
 	if (len > task_size)
 		return -ENOMEM;

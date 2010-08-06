@@ -376,6 +376,10 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
 		return -EINVAL;		/* invalid combination */
 
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
+
 	if (maj == snd_major) {
 		rmidi = snd_lookup_minor_data(iminor(inode),
 					      SNDRV_DEVICE_TYPE_RAWMIDI);
@@ -1391,6 +1395,7 @@ static const struct file_operations snd_rawmidi_f_ops =
 	.write =	snd_rawmidi_write,
 	.open =		snd_rawmidi_open,
 	.release =	snd_rawmidi_release,
+	.llseek =	no_llseek,
 	.poll =		snd_rawmidi_poll,
 	.unlocked_ioctl =	snd_rawmidi_ioctl,
 	.compat_ioctl =	snd_rawmidi_ioctl_compat,

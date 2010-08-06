@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/of_gpio.h>
 #include <asm/prom.h>
 

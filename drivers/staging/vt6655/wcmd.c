@@ -66,21 +66,21 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 static
-VOID
+void
 s_vProbeChannel(
-    IN PSDevice pDevice
+    PSDevice pDevice
     );
 
 
 static
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+    PSDevice pDevice,
+    PSMgmtObject pMgmt,
+    PBYTE pScanBSSID,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pCurrRates,
+    PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
 
 
@@ -202,9 +202,9 @@ vAdHocBeaconRestart(PSDevice pDevice)
 -*/
 
 static
-VOID
+void
 s_vProbeChannel(
-    IN PSDevice pDevice
+    PSDevice pDevice
     )
 {
                                                      //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
@@ -267,12 +267,12 @@ s_vProbeChannel(
 
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+    PSDevice pDevice,
+    PSMgmtObject pMgmt,
+    PBYTE pScanBSSID,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pCurrRates,
+    PWLAN_IE_SUPP_RATES pCurrExtSuppRates
 
     )
 {
@@ -317,10 +317,10 @@ s_MgrMakeProbeRequest(
 
 
 
-VOID
+void
 vCommandTimerWait(
-    IN HANDLE    hDeviceContext,
-    IN UINT MSecond
+    void *hDeviceContext,
+    UINT MSecond
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -337,9 +337,9 @@ vCommandTimerWait(
 
 
 
-VOID
+void
 vCommandTimer (
-    IN  HANDLE      hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -382,7 +382,7 @@ vCommandTimer (
             // wait all Data TD complete
             if (pDevice->iTDUsed[TYPE_AC0DMA] != 0){
                 spin_unlock_irq(&pDevice->lock);
-                vCommandTimerWait((HANDLE)pDevice, 10);
+                vCommandTimerWait((void *)pDevice, 10);
                 return;
             };
 
@@ -424,7 +424,7 @@ vCommandTimer (
                     pMgmt->abyScanBSSID[5] = 0xFF;
                     pItemSSID->byElementID = WLAN_EID_SSID;
                     // clear bssid list
-                    // BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+                    // BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
                     pMgmt->eScanState = WMAC_IS_SCANNING;
 
                 }
@@ -453,11 +453,11 @@ vCommandTimer (
                     (pMgmt->uScanChannel < CB_MAX_CHANNEL_24G)) {
                     s_vProbeChannel(pDevice);
                     spin_unlock_irq(&pDevice->lock);
-                    vCommandTimerWait((HANDLE)pDevice, WCMD_ACTIVE_SCAN_TIME);
+                    vCommandTimerWait((void *)pDevice, WCMD_ACTIVE_SCAN_TIME);
                     return;
                 } else {
                     spin_unlock_irq(&pDevice->lock);
-                    vCommandTimerWait((HANDLE)pDevice, WCMD_PASSIVE_SCAN_TIME);
+                    vCommandTimerWait((void *)pDevice, WCMD_PASSIVE_SCAN_TIME);
                     return;
                 }
 
@@ -501,7 +501,7 @@ vCommandTimer (
             } else {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Send Disassociation Packet..\n");
                 // reason = 8 : disassoc because sta has left
-                vMgrDisassocBeginSta((HANDLE)pDevice, pMgmt, pMgmt->abyCurrBSSID, (8), &Status);
+                vMgrDisassocBeginSta((void *)pDevice, pMgmt, pMgmt->abyCurrBSSID, (8), &Status);
                 pDevice->bLinkPass = FALSE;
                 // unlock command busy
                 pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
@@ -515,7 +515,7 @@ vCommandTimer (
             pDevice->eCommandState = WLAN_DISASSOCIATE_WAIT;
             // wait all Control TD complete
             if (pDevice->iTDUsed[TYPE_TXDMA0] != 0){
-                vCommandTimerWait((HANDLE)pDevice, 10);
+                vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
             };
@@ -528,7 +528,7 @@ vCommandTimer (
         case WLAN_DISASSOCIATE_WAIT :
             // wait all Control TD complete
             if (pDevice->iTDUsed[TYPE_TXDMA0] != 0){
-                vCommandTimerWait((HANDLE)pDevice, 10);
+                vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
             };
@@ -578,24 +578,24 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
             // set initial state
             pMgmt->eCurrState = WMAC_STATE_IDLE;
             pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-            PSvDisablePowerSaving((HANDLE)pDevice);
+            PSvDisablePowerSaving((void *)pDevice);
             BSSvClearNodeDBTable(pDevice, 0);
 
-            vMgrJoinBSSBegin((HANDLE)pDevice, &Status);
+            vMgrJoinBSSBegin((void *)pDevice, &Status);
             // if Infra mode
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED)) {
 
 		// Call mgr to begin the deauthentication
                 // reason = (3) beacuse sta has left ESS
                 if (pMgmt->eCurrState>= WMAC_STATE_AUTH) {
-                    vMgrDeAuthenBeginSta((HANDLE)pDevice, pMgmt, pMgmt->abyCurrBSSID, (3), &Status);
+                    vMgrDeAuthenBeginSta((void *)pDevice, pMgmt, pMgmt->abyCurrBSSID, (3), &Status);
                 }
                 // Call mgr to begin the authentication
-                vMgrAuthenBeginSta((HANDLE)pDevice, pMgmt, &Status);
+                vMgrAuthenBeginSta((void *)pDevice, pMgmt, &Status);
                 if (Status == CMD_STATUS_SUCCESS) {
 		pDevice->byLinkWaitCount = 0;
                     pDevice->eCommandState = WLAN_AUTHENTICATE_WAIT;
-                    vCommandTimerWait((HANDLE)pDevice, AUTHENTICATE_TIMEOUT);
+                    vCommandTimerWait((void *)pDevice, AUTHENTICATE_TIMEOUT);
                     spin_unlock_irq(&pDevice->lock);
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Set eCommandState = WLAN_AUTHENTICATE_WAIT\n");
                     return;
@@ -615,7 +615,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 }
                 else {
                     // start own IBSS
-                    vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
+                    vMgrCreateOwnIBSS((void *)pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
                     };
@@ -627,7 +627,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA ||
                     pMgmt->eConfigMode == WMAC_CONFIG_AUTO) {
                     // start own IBSS
-                    vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
+                    vMgrCreateOwnIBSS((void *)pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_IBSS_CREATE fail ! \n");
                     };
@@ -661,12 +661,12 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 // Call mgr to begin the association
                 	pDevice->byLinkWaitCount = 0;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_AUTH\n");
-                vMgrAssocBeginSta((HANDLE)pDevice, pMgmt, &Status);
+                vMgrAssocBeginSta((void *)pDevice, pMgmt, &Status);
                 if (Status == CMD_STATUS_SUCCESS) {
 		pDevice->byLinkWaitCount = 0;
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState = WLAN_ASSOCIATE_WAIT\n");
                     pDevice->eCommandState = WLAN_ASSOCIATE_WAIT;
-                    vCommandTimerWait((HANDLE)pDevice, ASSOCIATE_TIMEOUT);
+                    vCommandTimerWait((void *)pDevice, ASSOCIATE_TIMEOUT);
                     spin_unlock_irq(&pDevice->lock);
                     return;
                 }
@@ -679,7 +679,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 pDevice->byLinkWaitCount ++;
 	       printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n",pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
-	       vCommandTimerWait((HANDLE)pDevice, AUTHENTICATE_TIMEOUT/2);
+	       vCommandTimerWait((void *)pDevice, AUTHENTICATE_TIMEOUT/2);
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
@@ -702,7 +702,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
             if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_ASSOC\n");
                 if (pDevice->ePSMode != WMAC_POWER_CAM) {
-                    PSvEnablePowerSaving((HANDLE)pDevice, pMgmt->wListenInterval);
+                    PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
                 }
                 if (pMgmt->eAuthenMode >= WMAC_AUTH_WPA) {
                     KeybRemoveAllKey(&(pDevice->sKey), pDevice->abyBSSID, pDevice->PortOffset);
@@ -743,7 +743,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 pDevice->byLinkWaitCount ++;
 	       printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n",pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
-	       vCommandTimerWait((HANDLE)pDevice, ASSOCIATE_TIMEOUT/2);
+	       vCommandTimerWait((void *)pDevice, ASSOCIATE_TIMEOUT/2);
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
@@ -779,7 +779,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 pMgmt->eCurrState = WMAC_STATE_IDLE;
                 pDevice->bFixRate = FALSE;
 
-                vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
+                vMgrCreateOwnIBSS((void *)pDevice, &Status);
                 if (Status != CMD_STATUS_SUCCESS){
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail ! \n");
                 };
@@ -869,12 +869,12 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
             //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_CHECK_BBSENSITIVITY_START\n");
             // wait all TD complete
             if (pDevice->iTDUsed[TYPE_AC0DMA] != 0){
-                vCommandTimerWait((HANDLE)pDevice, 10);
+                vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
             }
             if (pDevice->iTDUsed[TYPE_TXDMA0] != 0){
-                vCommandTimerWait((HANDLE)pDevice, 10);
+                vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
             }
@@ -971,7 +971,7 @@ s_bCommandComplete (
 
         }
 
-        vCommandTimerWait((HANDLE)pDevice, 0);
+        vCommandTimerWait((void *)pDevice, 0);
     }
 
     return TRUE;
@@ -980,9 +980,9 @@ s_bCommandComplete (
 
 
 BOOL bScheduleCommand (
-    IN HANDLE hDeviceContext,
-    IN CMD_CODE    eCommand,
-    IN PBYTE       pbyItem0
+    void *hDeviceContext,
+    CMD_CODE    eCommand,
+    PBYTE       pbyItem0
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1061,7 +1061,7 @@ BOOL bScheduleCommand (
  *
  */
 BOOL bClearBSSID_SCAN (
-    IN HANDLE hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1081,9 +1081,9 @@ BOOL bClearBSSID_SCAN (
 }
 
 //mike add:reset command timer
-VOID
+void
 vResetCommandTimer(
-    IN HANDLE      hDeviceContext
+    void *hDeviceContext
     )
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1105,9 +1105,9 @@ vResetCommandTimer(
 
 
 #ifdef TxInSleep
-VOID
+void
 BSSvSecondTxData(
-    IN  HANDLE      hDeviceContext
+    void *hDeviceContext
     )
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;

@@ -59,23 +59,22 @@ struct iwmmxt_sigframe {
 #endif /* CONFIG_IWMMXT */
 
 #ifdef CONFIG_VFP
-#if __LINUX_ARM_ARCH__ < 6
-/* For ARM pre-v6, we use fstmiax and fldmiax.  This adds one extra
- * word after the registers, and a word of padding at the end for
- * alignment.  */
 #define VFP_MAGIC		0x56465001
-#define VFP_STORAGE_SIZE	152
-#else
-#define VFP_MAGIC		0x56465002
-#define VFP_STORAGE_SIZE	144
-#endif
 
 struct vfp_sigframe
 {
 	unsigned long		magic;
 	unsigned long		size;
-	union vfp_state		storage;
-};
+	struct user_vfp		ufp;
+	struct user_vfp_exc	ufp_exc;
+} __attribute__((__aligned__(8)));
+
+/*
+ *  8 byte for magic and size, 264 byte for ufp, 12 bytes for ufp_exc,
+ *  4 bytes padding.
+ */
+#define VFP_STORAGE_SIZE	sizeof(struct vfp_sigframe)
+
 #endif /* CONFIG_VFP */
 
 /*
@@ -91,7 +90,7 @@ struct aux_sigframe {
 #ifdef CONFIG_IWMMXT
 	struct iwmmxt_sigframe	iwmmxt;
 #endif
-#if 0 && defined CONFIG_VFP /* Not yet saved.  */
+#ifdef CONFIG_VFP
 	struct vfp_sigframe	vfp;
 #endif
 	/* Something that isn't a valid magic number for any coprocessor.  */

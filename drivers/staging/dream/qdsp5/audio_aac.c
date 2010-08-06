@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <linux/delay.h>
 

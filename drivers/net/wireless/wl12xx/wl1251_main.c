@@ -29,6 +29,7 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
@@ -123,15 +124,13 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	}
 
 	wl->nvs_len = fw->size;
-	wl->nvs = kmalloc(wl->nvs_len, GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, wl->nvs_len, GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1251_error("could not allocate memory for the nvs file");
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memcpy(wl->nvs, fw->data, wl->nvs_len);
 
 	ret = 0;
 
@@ -146,8 +145,8 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	u32 elp_reg;
 
 	elp_reg = ELPCTRL_WAKE_UP;
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
-	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
+	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY))
 		wl1251_warning("WLAN not ready");
@@ -201,8 +200,8 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 			goto out;
 	}
 
-	/* No NVS from netlink, try to get it from the filesystem */
-	if (wl->nvs == NULL) {
+	if (wl->nvs == NULL && !wl->use_eeprom) {
+		/* No NVS from netlink, try to get it from the filesystem */
 		ret = wl1251_fetch_nvs(wl);
 		if (ret < 0)
 			goto out;
@@ -412,6 +411,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int wl1251_op_start(struct ieee80211_hw *hw)
 {
 	struct wl1251 *wl = hw->priv;
+	struct wiphy *wiphy = hw->wiphy;
 	int ret = 0;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 start");
@@ -444,6 +444,10 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	wl->state = WL1251_STATE_ON;
 
 	wl1251_info("firmware booted (%s)", wl->fw_ver);
+
+	/* update hw/fw version info in wiphy struct */
+	wiphy->hw_version = wl->chip_id;
+	strncpy(wiphy->fw_version, wl->fw_ver, sizeof(wiphy->fw_version));
 
 out:
 	if (ret < 0)
@@ -856,6 +860,7 @@ out:
 }
 
 static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1251 *wl = hw->priv;
@@ -1172,6 +1177,22 @@ out:
 	return ret;
 }
 
+static int wl1251_op_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct wl1251 *wl = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+ 
+	if (idx != 0)
+		return -ENOENT;
+ 
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = wl->noise;
+ 
+	return 0;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1251_band_2ghz = {
 	.channels = wl1251_channels,
@@ -1193,7 +1214,68 @@ static const struct ieee80211_ops wl1251_ops = {
 	.bss_info_changed = wl1251_op_bss_info_changed,
 	.set_rts_threshold = wl1251_op_set_rts_threshold,
 	.conf_tx = wl1251_op_conf_tx,
+	.get_survey = wl1251_op_get_survey,
 };
+
+static int wl1251_read_eeprom_byte(struct wl1251 *wl, off_t offset, u8 *data)
+{
+	unsigned long timeout;
+
+	wl1251_reg_write32(wl, EE_ADDR, offset);
+	wl1251_reg_write32(wl, EE_CTL, EE_CTL_READ);
+
+	/* EE_CTL_READ clears when data is ready */
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (1) {
+		if (!(wl1251_reg_read32(wl, EE_CTL) & EE_CTL_READ))
+			break;
+
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		msleep(1);
+	}
+
+	*data = wl1251_reg_read32(wl, EE_DATA);
+	return 0;
+}
+
+static int wl1251_read_eeprom(struct wl1251 *wl, off_t offset,
+			      u8 *data, size_t len)
+{
+	size_t i;
+	int ret;
+
+	wl1251_reg_write32(wl, EE_START, 0);
+
+	for (i = 0; i < len; i++) {
+		ret = wl1251_read_eeprom_byte(wl, offset + i, &data[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int wl1251_read_eeprom_mac(struct wl1251 *wl)
+{
+	u8 mac[ETH_ALEN];
+	int i, ret;
+
+	wl1251_set_partition(wl, 0, 0, REGISTERS_BASE, REGISTERS_DOWN_SIZE);
+
+	ret = wl1251_read_eeprom(wl, 0x1c, mac, sizeof(mac));
+	if (ret < 0) {
+		wl1251_warning("failed to read MAC address from EEPROM");
+		return ret;
+	}
+
+	/* MAC is stored in reverse order */
+	for (i = 0; i < ETH_ALEN; i++)
+		wl->mac_addr[i] = mac[ETH_ALEN - i - 1];
+
+	return 0;
+}
 
 static int wl1251_register_hw(struct wl1251 *wl)
 {
@@ -1230,7 +1312,6 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->channel_change_time = 10000;
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_BEACON_FILTER |
 		IEEE80211_HW_SUPPORTS_UAPSD;
@@ -1240,6 +1321,9 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
 	wl->hw->queues = 4;
+
+	if (wl->use_eeprom)
+		wl1251_read_eeprom_mac(wl);
 
 	ret = wl1251_register_hw(wl);
 	if (ret)
@@ -1355,5 +1439,4 @@ EXPORT_SYMBOL_GPL(wl1251_free_hw);
 MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");
-MODULE_ALIAS("spi:wl1251");
 MODULE_FIRMWARE(WL1251_FW_NAME);

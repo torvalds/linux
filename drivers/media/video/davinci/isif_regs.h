@@ -158,7 +158,7 @@
 
 /* gain - offset masks */
 #define GAIN_INTEGER_SHIFT			9
-#define OFFSET_MASK			  	0xFFF
+#define OFFSET_MASK				0xFFF
 #define GAIN_SDRAM_EN_SHIFT			12
 #define GAIN_IPIPE_EN_SHIFT			13
 #define GAIN_H3A_EN_SHIFT			14

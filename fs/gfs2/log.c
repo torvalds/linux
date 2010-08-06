@@ -168,12 +168,11 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 	return list_empty(&ai->ai_ail1_list);
 }
 
-static void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
+static void gfs2_ail1_start(struct gfs2_sbd *sdp)
 {
 	struct list_head *head;
 	u64 sync_gen;
-	struct list_head *first;
-	struct gfs2_ail *first_ai, *ai, *tmp;
+	struct gfs2_ail *ai;
 	int done = 0;
 
 	gfs2_log_lock(sdp);
@@ -184,21 +183,9 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 	}
 	sync_gen = sdp->sd_ail_sync_gen++;
 
-	first = head->prev;
-	first_ai = list_entry(first, struct gfs2_ail, ai_list);
-	first_ai->ai_sync_gen = sync_gen;
-	gfs2_ail1_start_one(sdp, first_ai); /* This may drop log lock */
-
-	if (flags & DIO_ALL)
-		first = NULL;
-
 	while(!done) {
-		if (first && (head->prev != first ||
-			      gfs2_ail1_empty_one(sdp, first_ai, 0)))
-			break;
-
 		done = 1;
-		list_for_each_entry_safe_reverse(ai, tmp, head, ai_list) {
+		list_for_each_entry_reverse(ai, head, ai_list) {
 			if (ai->ai_sync_gen >= sync_gen)
 				continue;
 			ai->ai_sync_gen = sync_gen;
@@ -290,56 +277,55 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
  * flush time, so we ensure that we have just enough free blocks at all
  * times to avoid running out during a log flush.
  *
+ * We no longer flush the log here, instead we wake up logd to do that
+ * for us. To avoid the thundering herd and to ensure that we deal fairly
+ * with queued waiters, we use an exclusive wait. This means that when we
+ * get woken with enough journal space to get our reservation, we need to
+ * wake the next waiter on the list.
+ *
  * Returns: errno
  */
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	unsigned int try = 0;
 	unsigned reserved_blks = 6 * (4096 / sdp->sd_vfs->s_blocksize);
+	unsigned wanted = blks + reserved_blks;
+	DEFINE_WAIT(wait);
+	int did_wait = 0;
+	unsigned int free_blocks;
 
 	if (gfs2_assert_warn(sdp, blks) ||
 	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
 		return -EINVAL;
-
-	mutex_lock(&sdp->sd_log_reserve_mutex);
-	gfs2_log_lock(sdp);
-	while(atomic_read(&sdp->sd_log_blks_free) <= (blks + reserved_blks)) {
-		gfs2_log_unlock(sdp);
-		gfs2_ail1_empty(sdp, 0);
-		gfs2_log_flush(sdp, NULL);
-
-		if (try++)
-			gfs2_ail1_start(sdp, 0);
-		gfs2_log_lock(sdp);
+retry:
+	free_blocks = atomic_read(&sdp->sd_log_blks_free);
+	if (unlikely(free_blocks <= wanted)) {
+		do {
+			prepare_to_wait_exclusive(&sdp->sd_log_waitq, &wait,
+					TASK_UNINTERRUPTIBLE);
+			wake_up(&sdp->sd_logd_waitq);
+			did_wait = 1;
+			if (atomic_read(&sdp->sd_log_blks_free) <= wanted)
+				io_schedule();
+			free_blocks = atomic_read(&sdp->sd_log_blks_free);
+		} while(free_blocks <= wanted);
+		finish_wait(&sdp->sd_log_waitq, &wait);
 	}
-	atomic_sub(blks, &sdp->sd_log_blks_free);
+	if (atomic_cmpxchg(&sdp->sd_log_blks_free, free_blocks,
+				free_blocks - blks) != free_blocks)
+		goto retry;
 	trace_gfs2_log_blocks(sdp, -blks);
-	gfs2_log_unlock(sdp);
-	mutex_unlock(&sdp->sd_log_reserve_mutex);
+
+	/*
+	 * If we waited, then so might others, wake them up _after_ we get
+	 * our share of the log.
+	 */
+	if (unlikely(did_wait))
+		wake_up(&sdp->sd_log_waitq);
 
 	down_read(&sdp->sd_log_flush_lock);
 
 	return 0;
-}
-
-/**
- * gfs2_log_release - Release a given number of log blocks
- * @sdp: The GFS2 superblock
- * @blks: The number of blocks
- *
- */
-
-void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
-{
-
-	gfs2_log_lock(sdp);
-	atomic_add(blks, &sdp->sd_log_blks_free);
-	trace_gfs2_log_blocks(sdp, blks);
-	gfs2_assert_withdraw(sdp,
-			     atomic_read(&sdp->sd_log_blks_free) <= sdp->sd_jdesc->jd_blocks);
-	gfs2_log_unlock(sdp);
-	up_read(&sdp->sd_log_flush_lock);
 }
 
 static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
@@ -559,11 +545,10 @@ static void log_pull_tail(struct gfs2_sbd *sdp, unsigned int new_tail)
 
 	ail2_empty(sdp, new_tail);
 
-	gfs2_log_lock(sdp);
 	atomic_add(dist, &sdp->sd_log_blks_free);
 	trace_gfs2_log_blocks(sdp, dist);
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <= sdp->sd_jdesc->jd_blocks);
-	gfs2_log_unlock(sdp);
+	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
+			     sdp->sd_jdesc->jd_blocks);
 
 	sdp->sd_log_tail = new_tail;
 }
@@ -615,6 +600,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	if (buffer_eopnotsupp(bh)) {
 		clear_buffer_eopnotsupp(bh);
 		set_buffer_uptodate(bh);
+		fs_info(sdp, "barrier sync failed - disabling barriers\n");
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 		lock_buffer(bh);
 skip_barrier:
@@ -710,7 +696,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
  *
  */
 
-void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
+void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
 	struct gfs2_ail *ai;
 
@@ -822,6 +808,13 @@ static void buf_lo_incore_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
  * @sdp: the filesystem
  * @tr: the transaction
  *
+ * We wake up gfs2_logd if the number of pinned blocks exceed thresh1
+ * or the total number of used blocks (pinned blocks plus AIL blocks)
+ * is greater than thresh2.
+ *
+ * At mount time thresh1 is 1/3rd of journal size, thresh2 is 2/3rd of
+ * journal size.
+ *
  * Returns: errno
  */
 
@@ -832,10 +825,10 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 
 	up_read(&sdp->sd_log_flush_lock);
 
-	gfs2_log_lock(sdp);
-	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks))
-		wake_up_process(sdp->sd_logd_process);
-	gfs2_log_unlock(sdp);
+	if (atomic_read(&sdp->sd_log_pinned) > atomic_read(&sdp->sd_log_thresh1) ||
+	    ((sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free)) >
+	    atomic_read(&sdp->sd_log_thresh2)))
+		wake_up(&sdp->sd_logd_waitq);
 }
 
 /**
@@ -882,13 +875,23 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 {
 	gfs2_log_flush(sdp, NULL);
 	for (;;) {
-		gfs2_ail1_start(sdp, DIO_ALL);
+		gfs2_ail1_start(sdp);
 		if (gfs2_ail1_empty(sdp, DIO_ALL))
 			break;
 		msleep(10);
 	}
 }
 
+static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return (atomic_read(&sdp->sd_log_pinned) >= atomic_read(&sdp->sd_log_thresh1));
+}
+
+static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
+{
+	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
+	return used_blocks >= atomic_read(&sdp->sd_log_thresh2);
+}
 
 /**
  * gfs2_logd - Update log tail as Active Items get flushed to in-place blocks
@@ -901,28 +904,43 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 int gfs2_logd(void *data)
 {
 	struct gfs2_sbd *sdp = data;
-	unsigned long t;
-	int need_flush;
+	unsigned long t = 1;
+	DEFINE_WAIT(wait);
+	unsigned preflush;
 
 	while (!kthread_should_stop()) {
-		/* Advance the log tail */
 
-		t = sdp->sd_log_flush_time +
-		    gfs2_tune_get(sdp, gt_log_flush_secs) * HZ;
-
-		gfs2_ail1_empty(sdp, DIO_ALL);
-		gfs2_log_lock(sdp);
-		need_flush = sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks);
-		gfs2_log_unlock(sdp);
-		if (need_flush || time_after_eq(jiffies, t)) {
+		preflush = atomic_read(&sdp->sd_log_pinned);
+		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
+			gfs2_ail1_empty(sdp, DIO_ALL);
 			gfs2_log_flush(sdp, NULL);
-			sdp->sd_log_flush_time = jiffies;
+			gfs2_ail1_empty(sdp, DIO_ALL);
 		}
 
+		if (gfs2_ail_flush_reqd(sdp)) {
+			gfs2_ail1_start(sdp);
+			io_schedule();
+			gfs2_ail1_empty(sdp, 0);
+			gfs2_log_flush(sdp, NULL);
+			gfs2_ail1_empty(sdp, DIO_ALL);
+		}
+
+		wake_up(&sdp->sd_log_waitq);
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
 		if (freezing(current))
 			refrigerator();
-		schedule_timeout_interruptible(t);
+
+		do {
+			prepare_to_wait(&sdp->sd_logd_waitq, &wait,
+					TASK_UNINTERRUPTIBLE);
+			if (!gfs2_ail_flush_reqd(sdp) &&
+			    !gfs2_jrnl_flush_reqd(sdp) &&
+			    !kthread_should_stop())
+				t = schedule_timeout(t);
+		} while(t && !gfs2_ail_flush_reqd(sdp) &&
+			!gfs2_jrnl_flush_reqd(sdp) &&
+			!kthread_should_stop());
+		finish_wait(&sdp->sd_logd_waitq, &wait);
 	}
 
 	return 0;

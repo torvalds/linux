@@ -1089,9 +1089,10 @@ void crash_kexec(struct pt_regs *regs)
 
 size_t crash_get_memory_size(void)
 {
-	size_t size;
+	size_t size = 0;
 	mutex_lock(&kexec_mutex);
-	size = crashk_res.end - crashk_res.start + 1;
+	if (crashk_res.end != crashk_res.start)
+		size = crashk_res.end - crashk_res.start + 1;
 	mutex_unlock(&kexec_mutex);
 	return size;
 }
@@ -1134,11 +1135,9 @@ int crash_shrink_memory(unsigned long new_size)
 
 	free_reserved_phys_range(end, crashk_res.end);
 
-	if (start == end) {
-		crashk_res.end = end;
+	if ((start == end) && (crashk_res.parent != NULL))
 		release_resource(&crashk_res);
-	} else
-		crashk_res.end = end - 1;
+	crashk_res.end = end - 1;
 
 unlock:
 	mutex_unlock(&kexec_mutex);

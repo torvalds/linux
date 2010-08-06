@@ -9,11 +9,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/cb710.h>
+#include <linux/gfp.h>
 
 static DEFINE_IDA(cb710_ida);
 static DEFINE_SPINLOCK(cb710_ida_lock);

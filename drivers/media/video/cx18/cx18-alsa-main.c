@@ -1,7 +1,7 @@
 /*
  *  ALSA interface to cx18 PCM capture streams
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *  Copyright (C) 2009  Devin Heitmueller <dheitmueller@kernellabs.com>
  *
  *  Portions of this work were sponsored by ONELAN Limited.
@@ -23,6 +23,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>

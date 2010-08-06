@@ -9,9 +9,22 @@ enum {
 };
 
 enum {
-	HW_BREAKPOINT_R = 1,
-	HW_BREAKPOINT_W = 2,
-	HW_BREAKPOINT_X = 4,
+	HW_BREAKPOINT_EMPTY	= 0,
+	HW_BREAKPOINT_R		= 1,
+	HW_BREAKPOINT_W		= 2,
+	HW_BREAKPOINT_RW	= HW_BREAKPOINT_R | HW_BREAKPOINT_W,
+	HW_BREAKPOINT_X		= 4,
+	HW_BREAKPOINT_INVALID   = HW_BREAKPOINT_RW | HW_BREAKPOINT_X,
+};
+
+enum bp_type_idx {
+	TYPE_INST 	= 0,
+#ifdef CONFIG_HAVE_MIXED_BREAKPOINTS_REGS
+	TYPE_DATA	= 0,
+#else
+	TYPE_DATA	= 1,
+#endif
+	TYPE_MAX
 };
 
 #ifdef __KERNEL__
@@ -32,6 +45,12 @@ static inline void hw_breakpoint_init(struct perf_event_attr *attr)
 	 */
 	attr->pinned = 1;
 	attr->sample_period = 1;
+}
+
+static inline void ptrace_breakpoint_init(struct perf_event_attr *attr)
+{
+	hw_breakpoint_init(attr);
+	attr->exclude_kernel = 1;
 }
 
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)

@@ -12,6 +12,7 @@
 
 #include <linux/dccp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
@@ -104,7 +105,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto failure;
 
 	/* OK, now commit destination to socket.  */
-	sk_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->dst);
 
 	dp->dccps_iss = secure_dccp_sequence_number(inet->inet_saddr,
 						    inet->inet_daddr,
@@ -348,7 +349,7 @@ static inline __sum16 dccp_v4_csum_finish(struct sk_buff *skb,
 	return csum_tcpudp_magic(src, dst, skb->len, IPPROTO_DCCP, skb->csum);
 }
 
-void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
+void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);
@@ -474,7 +475,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 		return NULL;
 	}
 
-	return &rt->u.dst;
+	return &rt->dst;
 }
 
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,

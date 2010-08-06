@@ -24,9 +24,10 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/aio.h>
+#include <linux/gfp.h>
+#include <linux/swap.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -53,7 +54,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 static ssize_t nfs_file_write(struct kiocb *, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
 static int  nfs_file_flush(struct file *, fl_owner_t id);
-static int  nfs_file_fsync(struct file *, struct dentry *dentry, int datasync);
+static int  nfs_file_fsync(struct file *, int datasync);
 static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
@@ -161,14 +162,17 @@ static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (server->flags & NFS_MOUNT_NOAC)
-		goto force_reval;
+	if (nfs_have_delegated_attributes(inode))
+		goto out_noreval;
+
 	if (filp->f_flags & O_DIRECT)
 		goto force_reval;
-	if (nfsi->npages != 0)
-		return 0;
-	if (!(nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
-		return 0;
+	if (nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+		goto force_reval;
+	if (nfs_attribute_timeout(inode))
+		goto force_reval;
+out_noreval:
+	return 0;
 force_reval:
 	return __nfs_revalidate_inode(server, inode);
 }
@@ -319,8 +323,9 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * whether any write errors occurred for this process.
  */
 static int
-nfs_file_fsync(struct file *file, struct dentry *dentry, int datasync)
+nfs_file_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
 
@@ -489,10 +494,19 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
  */
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
+	struct address_space *mapping = page->mapping;
+
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
-	if (gfp & __GFP_WAIT)
-		nfs_wb_page(page->mapping->host, page);
+	/* Only do I/O if gfp is a superset of GFP_KERNEL */
+	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL) {
+		int how = FLUSH_SYNC;
+
+		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+		if (current_is_kswapd())
+			how = 0;
+		nfs_commit_inode(mapping->host, how);
+	}
 	/* If PagePrivate() is set, then the page is not freeable */
 	if (PagePrivate(page))
 		return 0;

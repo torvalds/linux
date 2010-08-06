@@ -875,8 +875,6 @@ static netdev_tx_t i596_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		length = ETH_ZLEN;
 	}
 
-	dev->trans_start = jiffies;
-
 	tx_cmd = kmalloc((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
 	if (tx_cmd == NULL) {
 		printk(KERN_WARNING "%s: i596_xmit Memory squeeze, dropping packet.\n", dev->name);
@@ -1256,7 +1254,7 @@ static void set_multicast_list(struct net_device *dev) {
 			dev->name, netdev_mc_count(dev));
 
 	if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		char *cp;
 		cmd = kmalloc(sizeof(struct i596_cmd) + 2 +
 			      netdev_mc_count(dev) * 6, GFP_ATOMIC);
@@ -1267,8 +1265,8 @@ static void set_multicast_list(struct net_device *dev) {
 		cmd->command = CmdMulticastList;
 		*((unsigned short *) (cmd + 1)) = netdev_mc_count(dev) * 6;
 		cp = ((char *)(cmd + 1))+2;
-		netdev_for_each_mc_addr(dmi, dev) {
-			memcpy(cp, dmi->dmi_addr, 6);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy(cp, ha->addr, 6);
 			cp += 6;
 		}
 		if (i596_debug & LOG_SRCDST)

@@ -7,6 +7,7 @@
  *
  * (As all part of the Linux kernel, this file is GPL)
  */
+#include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <net/iw_handler.h>

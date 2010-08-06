@@ -5,6 +5,7 @@
  * Copyright (C) 2006 Qumranet, Inc.
  * Copyright (C) 2007 Novell
  * Copyright (C) 2007 Intel
+ * Copyright 2009 Red Hat, Inc. and/or its affilates.
  *
  * Authors:
  *   Dor Laor <dor.laor@qumranet.com>
@@ -26,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/page.h>
@@ -327,7 +329,7 @@ int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		   "dest_mode 0x%x, short_hand 0x%x\n",
 		   target, source, dest, dest_mode, short_hand);
 
-	ASSERT(!target);
+	ASSERT(target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == 0)
@@ -532,7 +534,7 @@ static void __report_tpr_access(struct kvm_lapic *apic, bool write)
 	struct kvm_vcpu *vcpu = apic->vcpu;
 	struct kvm_run *run = vcpu->run;
 
-	set_bit(KVM_REQ_REPORT_TPR_ACCESS, &vcpu->requests);
+	kvm_make_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu);
 	run->tpr_access.rip = kvm_rip_read(vcpu);
 	run->tpr_access.is_write = write;
 }
@@ -1105,13 +1107,11 @@ int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
 	u32 lvt0 = apic_get_reg(vcpu->arch.apic, APIC_LVT0);
 	int r = 0;
 
-	if (kvm_vcpu_is_bsp(vcpu)) {
-		if (!apic_hw_enabled(vcpu->arch.apic))
-			r = 1;
-		if ((lvt0 & APIC_LVT_MASKED) == 0 &&
-		    GET_APIC_DELIVERY_MODE(lvt0) == APIC_MODE_EXTINT)
-			r = 1;
-	}
+	if (!apic_hw_enabled(vcpu->arch.apic))
+		r = 1;
+	if ((lvt0 & APIC_LVT_MASKED) == 0 &&
+	    GET_APIC_DELIVERY_MODE(lvt0) == APIC_MODE_EXTINT)
+		r = 1;
 	return r;
 }
 

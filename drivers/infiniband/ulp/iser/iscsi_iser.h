@@ -232,6 +232,7 @@ struct iser_device {
 	struct ib_cq	             *tx_cq;
 	struct ib_mr	             *mr;
 	struct tasklet_struct	     cq_tasklet;
+	struct ib_event_handler      event_handler;
 	struct list_head             ig_list; /* entry in ig devices list */
 	int                          refcount;
 };
@@ -246,7 +247,6 @@ struct iser_conn {
 	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
 	struct ib_qp	             *qp;           /* QP 		       */
 	struct ib_fmr_pool           *fmr_pool;     /* pool of IB FMRs         */
-	int                          disc_evt_flag; /* disconn event delivered */
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
 	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
@@ -320,7 +320,7 @@ void iser_conn_init(struct iser_conn *ib_conn);
 
 void iser_conn_get(struct iser_conn *ib_conn);
 
-void iser_conn_put(struct iser_conn *ib_conn);
+int iser_conn_put(struct iser_conn *ib_conn, int destroy_cma_id_allowed);
 
 void iser_conn_terminate(struct iser_conn *ib_conn);
 

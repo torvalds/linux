@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #define FM3130_RTC_CONTROL	(0x0)
 #define FM3130_CAL_CONTROL	(0x1)
@@ -103,7 +104,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	if (!fm3130->data_valid) {
 		/* We have invalid data in RTC, probably due
 		to battery faults or other problems. Return EIO
-		for now, it will allow us to set data later insted
+		for now, it will allow us to set data later instead
 		of error during probing which disables device */
 		return -EIO;
 	}

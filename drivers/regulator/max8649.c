@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max8649.h>
 
 #define MAX8649_DCDC_VMIN	750000		/* uV */
@@ -369,7 +370,6 @@ static int __devexit max8649_regulator_remove(struct i2c_client *client)
 			regulator_unregister(info->regulator);
 		kfree(info);
 	}
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

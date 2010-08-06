@@ -39,6 +39,9 @@ static int omap2_nand_gpmc_retime(void)
 	struct gpmc_timings t;
 	int err;
 
+	if (!gpmc_nand_data->gpmc_t)
+		return 0;
+
 	memset(&t, 0, sizeof(t));
 	t.sync_clk = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->sync_clk);
 	t.cs_on = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->cs_on);

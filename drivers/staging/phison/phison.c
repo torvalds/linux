@@ -23,7 +23,7 @@
 #define PHISON_DEBUG
 
 #define DRV_NAME		"phison_e-box"	/* #0003 */
-#define DRV_VERSION 		"0.91"		/* #0003 */
+#define DRV_VERSION		"0.91"		/* #0003 */
 
 #define PCI_VENDOR_ID_PHISON	0x1987
 #define PCI_DEVICE_ID_PS5000	0x5000
@@ -56,7 +56,7 @@ static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask 	= ATA_UDMA5,
+		.udma_mask	= ATA_UDMA5,
 
 		.port_ops	= &phison_ops,
 	};

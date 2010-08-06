@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
+#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -33,6 +34,10 @@
 #include <plat/cpu.h>
 #include <plat/s3c244x.h>
 
+#include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
+
 static struct sys_device s3c2440_sysdev = {
 	.cls		= &s3c2440_sysclass,
 };
@@ -40,6 +45,9 @@ static struct sys_device s3c2440_sysdev = {
 int __init s3c2440_init(void)
 {
 	printk("S3C2440: Initialising architecture\n");
+
+	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_1up;
+	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_1up;
 
 	/* change irq for watchdog */
 

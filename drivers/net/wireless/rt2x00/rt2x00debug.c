@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include "rt2x00.h"
@@ -155,10 +156,11 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    enum rt2x00_dump_type type, struct sk_buff *skb)
 {
 	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
-	struct skb_frame_desc *desc = get_skb_frame_desc(skb);
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	struct sk_buff *skbcopy;
 	struct rt2x00dump_hdr *dump_hdr;
 	struct timeval timestamp;
+	u32 data_len;
 
 	do_gettimeofday(&timestamp);
 
@@ -170,7 +172,11 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 		return;
 	}
 
-	skbcopy = alloc_skb(sizeof(*dump_hdr) + desc->desc_len + skb->len,
+	data_len = skb->len;
+	if (skbdesc->flags & SKBDESC_DESC_IN_SKB)
+		data_len -= skbdesc->desc_len;
+
+	skbcopy = alloc_skb(sizeof(*dump_hdr) + skbdesc->desc_len + data_len,
 			    GFP_ATOMIC);
 	if (!skbcopy) {
 		DEBUG(rt2x00dev, "Failed to copy skb for dump.\n");
@@ -180,18 +186,20 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr = (struct rt2x00dump_hdr *)skb_put(skbcopy, sizeof(*dump_hdr));
 	dump_hdr->version = cpu_to_le32(DUMP_HEADER_VERSION);
 	dump_hdr->header_length = cpu_to_le32(sizeof(*dump_hdr));
-	dump_hdr->desc_length = cpu_to_le32(desc->desc_len);
-	dump_hdr->data_length = cpu_to_le32(skb->len);
+	dump_hdr->desc_length = cpu_to_le32(skbdesc->desc_len);
+	dump_hdr->data_length = cpu_to_le32(data_len);
 	dump_hdr->chip_rt = cpu_to_le16(rt2x00dev->chip.rt);
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le16(rt2x00dev->chip.rev);
 	dump_hdr->type = cpu_to_le16(type);
-	dump_hdr->queue_index = desc->entry->queue->qid;
-	dump_hdr->entry_index = desc->entry->entry_idx;
+	dump_hdr->queue_index = skbdesc->entry->queue->qid;
+	dump_hdr->entry_index = skbdesc->entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
 
-	memcpy(skb_put(skbcopy, desc->desc_len), desc->desc, desc->desc_len);
+	if (!(skbdesc->flags & SKBDESC_DESC_IN_SKB))
+		memcpy(skb_put(skbcopy, skbdesc->desc_len), skbdesc->desc,
+		       skbdesc->desc_len);
 	memcpy(skb_put(skbcopy, skb->len), skb->data, skb->len);
 
 	skb_queue_tail(&intf->frame_dump_skbqueue, skbcopy);
@@ -203,6 +211,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		skb_queue_purge(&intf->frame_dump_skbqueue);
 }
+EXPORT_SYMBOL_GPL(rt2x00debug_dump_frame);
 
 static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 {
@@ -699,8 +708,6 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 exit:
 	rt2x00debug_deregister(rt2x00dev);
 	ERROR(rt2x00dev, "Failed to register debug handler.\n");
-
-	return;
 }
 
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)

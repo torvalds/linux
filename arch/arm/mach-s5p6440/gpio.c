@@ -46,6 +46,7 @@ static int s5p6440_gpiolib_rbank_4bit2_input(struct gpio_chip *chip,
 	void __iomem *base = ourchip->base;
 	void __iomem *regcon = base;
 	unsigned long con;
+	unsigned long flags;
 
 	switch (offset) {
 	case 6:
@@ -63,9 +64,13 @@ static int s5p6440_gpiolib_rbank_4bit2_input(struct gpio_chip *chip,
 		break;
 	}
 
+	s3c_gpio_lock(ourchip, flags);
+
 	con = __raw_readl(regcon);
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, regcon);
+
+	s3c_gpio_unlock(ourchip, flags);
 
 	return 0;
 }
@@ -78,6 +83,7 @@ static int s5p6440_gpiolib_rbank_4bit2_output(struct gpio_chip *chip,
 	void __iomem *regcon = base;
 	unsigned long con;
 	unsigned long dat;
+	unsigned long flags;
 	unsigned con_offset  = offset;
 
 	switch (con_offset) {
@@ -96,6 +102,8 @@ static int s5p6440_gpiolib_rbank_4bit2_output(struct gpio_chip *chip,
 		break;
 	}
 
+	s3c_gpio_lock(ourchip, flags);
+
 	con = __raw_readl(regcon);
 	con &= ~(0xf << con_4bit_shift(con_offset));
 	con |= 0x1 << con_4bit_shift(con_offset);
@@ -109,6 +117,8 @@ static int s5p6440_gpiolib_rbank_4bit2_output(struct gpio_chip *chip,
 	__raw_writel(con, regcon);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
+	s3c_gpio_unlock(ourchip, flags);
+
 	return 0;
 }
 
@@ -117,6 +127,7 @@ int s5p6440_gpio_setcfg_4bit_rbank(struct s3c_gpio_chip *chip,
 {
 	void __iomem *reg = chip->base;
 	unsigned int shift;
+	unsigned long flags;
 	u32 con;
 
 	switch (off) {
@@ -142,10 +153,14 @@ int s5p6440_gpio_setcfg_4bit_rbank(struct s3c_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
+	s3c_gpio_lock(chip, flags);
+
 	con = __raw_readl(reg);
 	con &= ~(0xf << shift);
 	con |= cfg;
 	__raw_writel(con, reg);
+
+	s3c_gpio_unlock(chip, flags);
 
 	return 0;
 }
@@ -161,12 +176,15 @@ static struct s3c_gpio_cfg s5p6440_gpio_cfgs[] = {
 	}, {
 		.cfg_eint	= 0,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	}, {
 		.cfg_eint	= 2,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	}, {
 		.cfg_eint	= 3,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	},
 };
 
@@ -279,6 +297,8 @@ void __init s5p6440_gpiolib_set_cfg(struct s3c_gpio_cfg *chipcfg, int nr_chips)
 	for (; nr_chips > 0; nr_chips--, chipcfg++) {
 		if (!chipcfg->set_config)
 			chipcfg->set_config	= s3c_gpio_setcfg_s3c64xx_4bit;
+		if (!chipcfg->get_config)
+			chipcfg->get_config	= s3c_gpio_getcfg_s3c64xx_4bit;
 		if (!chipcfg->set_pull)
 			chipcfg->set_pull	= s3c_gpio_setpull_updown;
 		if (!chipcfg->get_pull)

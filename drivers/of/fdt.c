@@ -376,8 +376,11 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		if (!np->type)
 			np->type = "<NULL>";
 	}
-	while (tag == OF_DT_BEGIN_NODE) {
-		mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
+	while (tag == OF_DT_BEGIN_NODE || tag == OF_DT_NOP) {
+		if (tag == OF_DT_NOP)
+			*p += 4;
+		else
+			mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
 		tag = be32_to_cpup((__be32 *)(*p));
 	}
 	if (tag != OF_DT_END_NODE) {
@@ -552,6 +555,21 @@ void __init unflatten_device_tree(void)
 	struct device_node **allnextp = &allnodes;
 
 	pr_debug(" -> unflatten_device_tree()\n");
+
+	if (!initial_boot_params) {
+		pr_debug("No device tree pointer\n");
+		return;
+	}
+
+	pr_debug("Unflattening device tree:\n");
+	pr_debug("magic: %08x\n", be32_to_cpu(initial_boot_params->magic));
+	pr_debug("size: %08x\n", be32_to_cpu(initial_boot_params->totalsize));
+	pr_debug("version: %08x\n", be32_to_cpu(initial_boot_params->version));
+
+	if (be32_to_cpu(initial_boot_params->magic) != OF_DT_HEADER) {
+		pr_err("Invalid device tree blob header\n");
+		return;
+	}
 
 	/* First pass, scan for size */
 	start = ((unsigned long)initial_boot_params) +

@@ -6,6 +6,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/err.h>
 #include "pci.h"

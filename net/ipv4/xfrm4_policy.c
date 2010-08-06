@@ -37,7 +37,7 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 		fl.fl4_src = saddr->a4;
 
 	err = __ip_route_output_key(net, &rt, &fl);
-	dst = &rt->u.dst;
+	dst = &rt->dst;
 	if (err)
 		dst = ERR_PTR(err);
 	return dst;
@@ -57,27 +57,6 @@ static int xfrm4_get_saddr(struct net *net,
 	saddr->a4 = rt->rt_src;
 	dst_release(dst);
 	return 0;
-}
-
-static struct dst_entry *
-__xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
-{
-	struct dst_entry *dst;
-
-	read_lock_bh(&policy->lock);
-	for (dst = policy->bundles; dst; dst = dst->next) {
-		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
-		if (xdst->u.rt.fl.oif == fl->oif &&	/*XXX*/
-		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
-		    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
-		    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
-		    xfrm_bundle_ok(policy, xdst, fl, AF_INET, 0)) {
-			dst_clone(dst);
-			break;
-		}
-	}
-	read_unlock_bh(&policy->lock);
-	return dst;
 }
 
 static int xfrm4_get_tos(struct flowi *fl)
@@ -129,6 +108,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
+	fl->mark = skb->mark;
+
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
@@ -259,7 +240,6 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.dst_ops =		&xfrm4_dst_ops,
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
-	.find_bundle = 		__xfrm4_find_bundle,
 	.decode_session =	_decode_session4,
 	.get_tos =		xfrm4_get_tos,
 	.init_path =		xfrm4_init_path,

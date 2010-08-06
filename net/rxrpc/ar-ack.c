@@ -13,6 +13,7 @@
 #include <linux/circ_buf.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/udp.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>

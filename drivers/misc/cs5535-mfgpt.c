@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/cs5535.h>
+#include <linux/slab.h>
 
 #define DRV_NAME "cs5535-mfgpt"
 #define MFGPT_BAR 2
@@ -365,6 +366,6 @@ static int __init cs5535_mfgpt_init(void)
 
 module_init(cs5535_mfgpt_init);
 
-MODULE_AUTHOR("Andres Salomon <dilinger@collabora.co.uk>");
+MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
 MODULE_DESCRIPTION("CS5535/CS5536 MFGPT timer driver");
 MODULE_LICENSE("GPL");

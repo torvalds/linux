@@ -383,12 +383,12 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	} else if (dev->flags & IFF_ALLMULTI) {
 		memset(multi_hash, 0xff, sizeof(multi_hash));
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 
 		memset(multi_hash, 0x00, sizeof(multi_hash));
 
-		netdev_for_each_mc_addr(dmi, dev)
-			am79c961_mc_hash(dmi->dmi_addr, multi_hash);
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, multi_hash);
 	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
@@ -469,7 +469,6 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_TDMD|CSR0_IENA);
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	/*

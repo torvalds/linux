@@ -476,7 +476,7 @@ static int uda1380_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct uda1380_priv *uda1380 = codec->private_data;
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
 	int mixer = uda1380_read_reg_cache(codec, UDA1380_MIXER);
 
 	switch (cmd) {
@@ -670,7 +670,6 @@ static int uda1380_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	uda1380_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda1380_set_bias_level(codec, codec->suspend_bias_level);
 	return 0;
 }
 
@@ -774,7 +773,7 @@ static int uda1380_register(struct uda1380_priv *uda1380)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = uda1380;
+	snd_soc_codec_set_drvdata(codec, uda1380);
 	codec->name = "UDA1380";
 	codec->owner = THIS_MODULE;
 	codec->read = uda1380_read_reg_cache;

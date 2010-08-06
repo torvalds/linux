@@ -52,9 +52,11 @@ obj-$(CONFIG_USB_SERIAL_SIEMENS_MPI)		+= siemens_mpi.o
 obj-$(CONFIG_USB_SERIAL_SIERRAWIRELESS)		+= sierra.o
 obj-$(CONFIG_USB_SERIAL_SPCP8X5)		+= spcp8x5.o
 obj-$(CONFIG_USB_SERIAL_SYMBOL)			+= symbolserial.o
+obj-$(CONFIG_USB_SERIAL_WWAN)			+= usb_wwan.o
 obj-$(CONFIG_USB_SERIAL_TI)			+= ti_usb_3410_5052.o
 obj-$(CONFIG_USB_SERIAL_VISOR)			+= visor.o
 obj-$(CONFIG_USB_SERIAL_WHITEHEAT)		+= whiteheat.o
 obj-$(CONFIG_USB_SERIAL_XIRCOM)			+= keyspan_pda.o
 obj-$(CONFIG_USB_SERIAL_VIVOPAY_SERIAL)	+= vivopay-serial.o
+obj-$(CONFIG_USB_SERIAL_ZIO)			+= zio.o
 

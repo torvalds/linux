@@ -5,8 +5,10 @@
 
 #include <linux/module.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
+#include <linux/quotaops.h>
 #include <linux/mutex.h>
 #include <linux/exportfs.h>
 #include <linux/writeback.h>
@@ -57,11 +59,6 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct na
 	return NULL;
 }
 
-int simple_sync_file(struct file * file, struct dentry *dentry, int datasync)
-{
-	return 0;
-}
- 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
 	static struct qstr cursor_name = {.len = 1, .name = "."};
@@ -189,7 +186,7 @@ const struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
-	.fsync		= simple_sync_file,
+	.fsync		= noop_fsync,
 };
 
 const struct inode_operations simple_dir_inode_operations = {
@@ -329,6 +326,81 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 }
 
+/**
+ * simple_setsize - handle core mm and vfs requirements for file size change
+ * @inode: inode
+ * @newsize: new file size
+ *
+ * Returns 0 on success, -error on failure.
+ *
+ * simple_setsize must be called with inode_mutex held.
+ *
+ * simple_setsize will check that the requested new size is OK (see
+ * inode_newsize_ok), and then will perform the necessary i_size update
+ * and pagecache truncation (if necessary). It will be typically be called
+ * from the filesystem's setattr function when ATTR_SIZE is passed in.
+ *
+ * The inode itself must have correct permissions and attributes to allow
+ * i_size to be changed, this function then just checks that the new size
+ * requested is valid.
+ *
+ * In the case of simple in-memory filesystems with inodes stored solely
+ * in the inode cache, and file data in the pagecache, nothing more needs
+ * to be done to satisfy a truncate request. Filesystems with on-disk
+ * blocks for example will need to free them in the case of truncate, in
+ * that case it may be easier not to use simple_setsize (but each of its
+ * components will likely be required at some point to update pagecache
+ * and inode etc).
+ */
+int simple_setsize(struct inode *inode, loff_t newsize)
+{
+	loff_t oldsize;
+	int error;
+
+	error = inode_newsize_ok(inode, newsize);
+	if (error)
+		return error;
+
+	oldsize = inode->i_size;
+	i_size_write(inode, newsize);
+	truncate_pagecache(inode, oldsize, newsize);
+
+	return error;
+}
+EXPORT_SYMBOL(simple_setsize);
+
+/**
+ * simple_setattr - setattr for simple in-memory filesystem
+ * @dentry: dentry
+ * @iattr: iattr structure
+ *
+ * Returns 0 on success, -error on failure.
+ *
+ * simple_setattr implements setattr for an in-memory filesystem which
+ * does not store its own file data or metadata (eg. uses the page cache
+ * and inode cache as its data store).
+ */
+int simple_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	if (iattr->ia_valid & ATTR_SIZE) {
+		error = simple_setsize(inode, iattr->ia_size);
+		if (error)
+			return error;
+	}
+
+	generic_setattr(inode, iattr);
+
+	return error;
+}
+EXPORT_SYMBOL(simple_setattr);
+
 int simple_readpage(struct file *file, struct page *page)
 {
 	clear_highpage(page);
@@ -417,7 +489,8 @@ int simple_write_end(struct file *file, struct address_space *mapping,
  * unique inode values later for this filesystem, then you must take care
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
-int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files)
+int simple_fill_super(struct super_block *s, unsigned long magic,
+		      struct tree_descr *files)
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -541,6 +614,40 @@ ssize_t simple_read_from_buffer(void __user *to, size_t count, loff_t *ppos,
 	if (ret == count)
 		return -EFAULT;
 	count -= ret;
+	*ppos = pos + count;
+	return count;
+}
+
+/**
+ * simple_write_to_buffer - copy data from user space to the buffer
+ * @to: the buffer to write to
+ * @available: the size of the buffer
+ * @ppos: the current position in the buffer
+ * @from: the user space buffer to read from
+ * @count: the maximum number of bytes to read
+ *
+ * The simple_write_to_buffer() function reads up to @count bytes from the user
+ * space address starting at @from into the buffer @to at offset @ppos.
+ *
+ * On success, the number of bytes written is returned and the offset @ppos is
+ * advanced by this number, or negative value is returned on error.
+ **/
+ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
+		const void __user *from, size_t count)
+{
+	loff_t pos = *ppos;
+	size_t res;
+
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= available || !count)
+		return 0;
+	if (count > available - pos)
+		count = available - pos;
+	res = copy_from_user(to + pos, from, count);
+	if (res == count)
+		return -EFAULT;
+	count -= res;
 	*ppos = pos + count;
 	return count;
 }
@@ -816,13 +923,22 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
-int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
+/**
+ * generic_file_fsync - generic fsync implementation for simple filesystems
+ * @file:	file to synchronize
+ * @datasync:	only synchronize essential metadata if true
+ *
+ * This is a generic implementation of the fsync method for simple
+ * filesystems which track all non-inode metadata in the buffers list
+ * hanging off the address_space structure.
+ */
+int generic_file_fsync(struct file *file, int datasync)
 {
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = 0, /* metadata-only; caller takes care of data */
 	};
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int err;
 	int ret;
 
@@ -837,7 +953,15 @@ int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
 		ret = err;
 	return ret;
 }
-EXPORT_SYMBOL(simple_fsync);
+EXPORT_SYMBOL(generic_file_fsync);
+
+/*
+ * No-op implementation of ->fsync for in-memory filesystems.
+ */
+int noop_fsync(struct file *file, int datasync)
+{
+	return 0;
+}
 
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);
@@ -860,9 +984,10 @@ EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);
 EXPORT_SYMBOL(simple_rmdir);
 EXPORT_SYMBOL(simple_statfs);
-EXPORT_SYMBOL(simple_sync_file);
+EXPORT_SYMBOL(noop_fsync);
 EXPORT_SYMBOL(simple_unlink);
 EXPORT_SYMBOL(simple_read_from_buffer);
+EXPORT_SYMBOL(simple_write_to_buffer);
 EXPORT_SYMBOL(memory_read_from_buffer);
 EXPORT_SYMBOL(simple_transaction_set);
 EXPORT_SYMBOL(simple_transaction_get);

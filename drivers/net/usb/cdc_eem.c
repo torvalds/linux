@@ -30,6 +30,7 @@
 #include <linux/crc32.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
+#include <linux/gfp.h>
 
 
 /*

@@ -36,9 +36,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/mach-au1x00/au1000.h>
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
-#include <asm/mach-au1x00/au1xxx_dbdma.h>
-#endif
 
 #ifdef CONFIG_PM
 
@@ -106,9 +103,6 @@ static void save_core_regs(void)
 	sleep_usb[1] = au_readl(0xb4020024);	/* OTG_MUX */
 #endif
 
-	/* Save interrupt controller state. */
-	save_au1xxx_intctl();
-
 	/* Clocks and PLLs. */
 	sleep_sys_clocks[0] = au_readl(SYS_FREQCTRL0);
 	sleep_sys_clocks[1] = au_readl(SYS_FREQCTRL1);
@@ -132,10 +126,6 @@ static void save_core_regs(void)
 	sleep_static_memctlr[3][0] = au_readl(MEM_STCFG3);
 	sleep_static_memctlr[3][1] = au_readl(MEM_STTIME3);
 	sleep_static_memctlr[3][2] = au_readl(MEM_STADDR3);
-
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
-	au1xxx_dbdma_suspend();
-#endif
 }
 
 static void restore_core_regs(void)
@@ -199,19 +189,19 @@ static void restore_core_regs(void)
 		au_writel(sleep_uart0_linectl, UART0_ADDR + UART_LCR); au_sync();
 		au_writel(sleep_uart0_clkdiv, UART0_ADDR + UART_CLK); au_sync();
 	}
-
-	restore_au1xxx_intctl();
-
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
-	au1xxx_dbdma_resume();
-#endif
 }
 
 void au_sleep(void)
 {
-	save_core_regs();
-	au1xxx_save_and_sleep();
-	restore_core_regs();
+	int cpuid = alchemy_get_cputype();
+	if (cpuid != ALCHEMY_CPU_UNKNOWN) {
+		save_core_regs();
+		if (cpuid <= ALCHEMY_CPU_AU1500)
+			alchemy_sleep_au1000();
+		else if (cpuid <= ALCHEMY_CPU_AU1200)
+			alchemy_sleep_au1550();
+		restore_core_regs();
+	}
 }
 
 #endif	/* CONFIG_PM */

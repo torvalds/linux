@@ -317,12 +317,12 @@ static struct of_device_id psc_ac97_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
 static struct of_platform_driver psc_ac97_driver = {
-	.match_table = psc_ac97_match,
 	.probe = psc_ac97_of_probe,
 	.remove = __devexit_p(psc_ac97_of_remove),
 	.driver = {
 		.name = "mpc5200-psc-ac97",
 		.owner = THIS_MODULE,
+		.of_match_table = psc_ac97_match,
 	},
 };
 

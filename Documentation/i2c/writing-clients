@@ -74,6 +74,11 @@ structure at all.  You should use this to keep device-specific data.
 	/* retrieve the value */
 	void *i2c_get_clientdata(const struct i2c_client *client);
 
+Note that starting with kernel 2.6.34, you don't have to set the `data' field
+to NULL in remove() or if probe() failed anymore. The i2c-core does this
+automatically on these occasions. Those are also the only times the core will
+touch this field.
+
 
 Accessing the client
 ====================

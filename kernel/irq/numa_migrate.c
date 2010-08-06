@@ -6,6 +6,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/interrupt.h>

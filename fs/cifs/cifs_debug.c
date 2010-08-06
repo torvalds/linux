@@ -60,10 +60,10 @@ cifs_dump_mem(char *label, void *data, int length)
 #ifdef CONFIG_CIFS_DEBUG2
 void cifs_dump_detail(struct smb_hdr *smb)
 {
-	cERROR(1, ("Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
+	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
-		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid));
-	cERROR(1, ("smb buf %p len %d", smb, smbCalcSize_LE(smb)));
+		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
+	cERROR(1, "smb buf %p len %d", smb, smbCalcSize_LE(smb));
 }
 
 
@@ -75,25 +75,25 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	if (server == NULL)
 		return;
 
-	cERROR(1, ("Dump pending requests:"));
+	cERROR(1, "Dump pending requests:");
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		cERROR(1, ("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
+		cERROR(1, "State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
 			mid_entry->midState,
 			(int)mid_entry->command,
 			mid_entry->pid,
 			mid_entry->tsk,
-			mid_entry->mid));
+			mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
-		cERROR(1, ("IsLarge: %d buf: %p time rcv: %ld now: %ld",
+		cERROR(1, "IsLarge: %d buf: %p time rcv: %ld now: %ld",
 			mid_entry->largeBuf,
 			mid_entry->resp_buf,
 			mid_entry->when_received,
-			jiffies));
+			jiffies);
 #endif /* STATS2 */
-		cERROR(1, ("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
-			  mid_entry->multiEnd));
+		cERROR(1, "IsMult: %d IsEnd: %d", mid_entry->multiRsp,
+			  mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
 			cifs_dump_detail(mid_entry->resp_buf);
 			cifs_dump_mem("existing buf: ",
@@ -716,7 +716,7 @@ static const struct file_operations cifs_multiuser_mount_proc_fops = {
 
 static int cifs_security_flags_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "0x%x\n", extended_security);
+	seq_printf(m, "0x%x\n", global_secflags);
 	return 0;
 }
 
@@ -744,13 +744,13 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 		/* single char or single char followed by null */
 		c = flags_string[0];
 		if (c == '0' || c == 'n' || c == 'N') {
-			extended_security = CIFSSEC_DEF; /* default */
+			global_secflags = CIFSSEC_DEF; /* default */
 			return count;
 		} else if (c == '1' || c == 'y' || c == 'Y') {
-			extended_security = CIFSSEC_MAX;
+			global_secflags = CIFSSEC_MAX;
 			return count;
 		} else if (!isdigit(c)) {
-			cERROR(1, ("invalid flag %c", c));
+			cERROR(1, "invalid flag %c", c);
 			return -EINVAL;
 		}
 	}
@@ -758,26 +758,26 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 
 	flags = simple_strtoul(flags_string, NULL, 0);
 
-	cFYI(1, ("sec flags 0x%x", flags));
+	cFYI(1, "sec flags 0x%x", flags);
 
 	if (flags <= 0)  {
-		cERROR(1, ("invalid security flags %s", flags_string));
+		cERROR(1, "invalid security flags %s", flags_string);
 		return -EINVAL;
 	}
 
 	if (flags & ~CIFSSEC_MASK) {
-		cERROR(1, ("attempt to set unsupported security flags 0x%x",
-			flags & ~CIFSSEC_MASK));
+		cERROR(1, "attempt to set unsupported security flags 0x%x",
+			flags & ~CIFSSEC_MASK);
 		return -EINVAL;
 	}
 	/* flags look ok - update the global security flags for cifs module */
-	extended_security = flags;
-	if (extended_security & CIFSSEC_MUST_SIGN) {
+	global_secflags = flags;
+	if (global_secflags & CIFSSEC_MUST_SIGN) {
 		/* requiring signing implies signing is allowed */
-		extended_security |= CIFSSEC_MAY_SIGN;
-		cFYI(1, ("packet signing now required"));
-	} else if ((extended_security & CIFSSEC_MAY_SIGN) == 0) {
-		cFYI(1, ("packet signing disabled"));
+		global_secflags |= CIFSSEC_MAY_SIGN;
+		cFYI(1, "packet signing now required");
+	} else if ((global_secflags & CIFSSEC_MAY_SIGN) == 0) {
+		cFYI(1, "packet signing disabled");
 	}
 	/* BB should we turn on MAY flags for other MUST options? */
 	return count;

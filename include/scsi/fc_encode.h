@@ -21,6 +21,13 @@
 #define _FC_ENCODE_H_
 #include <asm/unaligned.h>
 
+/*
+ * F_CTL values for simple requests and responses.
+ */
+#define FC_FCTL_REQ	(FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)
+#define FC_FCTL_RESP	(FC_FC_EX_CTX | FC_FC_LAST_SEQ | \
+			FC_FC_END_SEQ | FC_FC_SEQ_INIT)
+
 struct fc_ns_rft {
 	struct fc_ns_fid fid;	/* port ID object */
 	struct fc_ns_fts fts;	/* FC4-types object */
@@ -74,7 +81,7 @@ static inline void fc_adisc_fill(struct fc_lport *lport, struct fc_frame *fp)
 	adisc->adisc_cmd = ELS_ADISC;
 	put_unaligned_be64(lport->wwpn, &adisc->adisc_wwpn);
 	put_unaligned_be64(lport->wwnn, &adisc->adisc_wwnn);
-	hton24(adisc->adisc_port_id, fc_host_port_id(lport->host));
+	hton24(adisc->adisc_port_id, lport->port_id);
 }
 
 /**
@@ -127,15 +134,13 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 
 	case FC_NS_RFT_ID:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rft));
-		hton24(ct->payload.rft.fid.fp_fid,
-		       fc_host_port_id(lport->host));
+		hton24(ct->payload.rft.fid.fp_fid, lport->port_id);
 		ct->payload.rft.fts = lport->fcts;
 		break;
 
 	case FC_NS_RFF_ID:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rff_id));
-		hton24(ct->payload.rff.fr_fid.fp_fid,
-		       fc_host_port_id(lport->host));
+		hton24(ct->payload.rff.fr_fid.fp_fid, lport->port_id);
 		ct->payload.rff.fr_type = FC_TYPE_FCP;
 		if (lport->service_params & FCP_SPPF_INIT_FCN)
 			ct->payload.rff.fr_feat = FCP_FEAT_INIT;
@@ -145,16 +150,14 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 
 	case FC_NS_RNN_ID:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rn_id));
-		hton24(ct->payload.rn.fr_fid.fp_fid,
-		       fc_host_port_id(lport->host));
+		hton24(ct->payload.rn.fr_fid.fp_fid, lport->port_id);
 		put_unaligned_be64(lport->wwnn, &ct->payload.rn.fr_wwn);
 		break;
 
 	case FC_NS_RSPN_ID:
 		len = strnlen(fc_host_symbolic_name(lport->host), 255);
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn) + len);
-		hton24(ct->payload.spn.fr_fid.fp_fid,
-		       fc_host_port_id(lport->host));
+		hton24(ct->payload.spn.fr_fid.fp_fid, lport->port_id);
 		strncpy(ct->payload.spn.fr_name,
 			fc_host_symbolic_name(lport->host), len);
 		ct->payload.spn.fr_name_len = len;
@@ -268,7 +271,7 @@ static inline void fc_logo_fill(struct fc_lport *lport, struct fc_frame *fp)
 	logo = fc_frame_payload_get(fp, sizeof(*logo));
 	memset(logo, 0, sizeof(*logo));
 	logo->fl_cmd = ELS_LOGO;
-	hton24(logo->fl_n_port_id, fc_host_port_id(lport->host));
+	hton24(logo->fl_n_port_id, lport->port_id);
 	logo->fl_n_port_wwn = htonll(lport->wwpn);
 }
 
@@ -295,7 +298,7 @@ static inline void fc_rec_fill(struct fc_lport *lport, struct fc_frame *fp)
 	rec = fc_frame_payload_get(fp, sizeof(*rec));
 	memset(rec, 0, sizeof(*rec));
 	rec->rec_cmd = ELS_REC;
-	hton24(rec->rec_s_id, fc_host_port_id(lport->host));
+	hton24(rec->rec_s_id, lport->port_id);
 	rec->rec_ox_id = htons(ep->oxid);
 	rec->rec_rx_id = htons(ep->rxid);
 }

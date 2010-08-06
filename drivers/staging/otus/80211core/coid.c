@@ -553,7 +553,8 @@ u8_t zfiWlanSetKey(zdev_t* dev, struct zsKeyInfo keyInfo)
         if (keyInfo.flag & ZM_KEY_FLAG_PK)
         {
             /* Find STA's information */
-            if ((id = zfApFindSta(dev, keyInfo.macAddr)) == 0xffff)
+            id = zfApFindSta(dev, keyInfo.macAddr);
+            if (id == 0xffff)
             {
                 /* Can't STA in the staTable */
                 return ZM_STATUS_FAILURE;

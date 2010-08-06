@@ -536,7 +536,7 @@ restart:
  */
 static void prune_dcache(int count)
 {
-	struct super_block *sb;
+	struct super_block *sb, *n;
 	int w_count;
 	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
@@ -545,13 +545,14 @@ static void prune_dcache(int count)
 	if (unused == 0 || count == 0)
 		return;
 	spin_lock(&dcache_lock);
-restart:
 	if (count >= unused)
 		prune_ratio = 1;
 	else
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_nr_dentry_unused == 0)
 			continue;
 		sb->s_count++;
@@ -589,15 +590,13 @@ restart:
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
+		/* lock was dropped, must reset next */
+		list_safe_reset_next(sb, n, s_list);
 		count -= pruned;
-		/*
-		 * restart only when sb is no longer on the list and
-		 * we have more work to do.
-		 */
-		if (__put_super_and_need_restart(sb) && count > 0) {
-			spin_unlock(&sb_lock);
-			goto restart;
-		}
+		__put_super(sb);
+		/* more work left to do? */
+		if (count <= 0)
+			break;
 	}
 	spin_unlock(&sb_lock);
 	spin_unlock(&dcache_lock);
@@ -897,7 +896,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
+static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
@@ -1529,6 +1528,7 @@ void d_delete(struct dentry * dentry)
 	spin_lock(&dentry->d_lock);
 	isdir = S_ISDIR(dentry->d_inode->i_mode);
 	if (atomic_read(&dentry->d_count) == 1) {
+		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
 		dentry_iput(dentry);
 		fsnotify_nameremove(dentry, isdir);
 		return;

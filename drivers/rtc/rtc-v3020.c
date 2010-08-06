@@ -28,6 +28,7 @@
 #include <linux/rtc-v3020.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <linux/io.h>
 

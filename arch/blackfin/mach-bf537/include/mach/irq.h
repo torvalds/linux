@@ -74,7 +74,7 @@
 
 #define IRQ_PPI_ERROR       42	/*PPI Error Interrupt */
 #define IRQ_CAN_ERROR       43	/*CAN Error Interrupt */
-#define IRQ_MAC_ERROR       44	/*PPI Error Interrupt */
+#define IRQ_MAC_ERROR       44	/*MAC Status/Error Interrupt */
 #define IRQ_SPORT0_ERROR    45	/*SPORT0 Error Interrupt */
 #define IRQ_SPORT1_ERROR    46	/*SPORT1 Error Interrupt */
 #define IRQ_SPI_ERROR       47	/*SPI Error Interrupt */

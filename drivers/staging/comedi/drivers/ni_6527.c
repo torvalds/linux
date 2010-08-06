@@ -107,10 +107,9 @@ static const struct ni6527_board ni6527_boards[] = {
 #define this_board ((const struct ni6527_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
-	{
-	PCI_VENDOR_ID_NATINST, 0x2b10, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x2b20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b10)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b20)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, ni6527_pci_table);

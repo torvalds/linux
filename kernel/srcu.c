@@ -30,7 +30,6 @@
 #include <linux/preempt.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/srcu.h>
 

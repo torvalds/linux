@@ -34,7 +34,7 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/lockdep.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -61,7 +61,6 @@
 #include <asm/xmon.h>
 #include <asm/udbg.h>
 #include <asm/kexec.h>
-#include <asm/swiotlb.h>
 #include <asm/mmu_context.h>
 
 #include "setup.h"
@@ -159,7 +158,7 @@ static void __init setup_paca(struct paca_struct *new_paca)
  * the CPU that ignores the top 2 bits of the address in real
  * mode so we can access kernel globals normally provided we
  * only toy with things in the RMO region. From here, we do
- * some early parsing of the device-tree to setup out LMB
+ * some early parsing of the device-tree to setup out MEMBLOCK
  * data structures, and allocate & initialize the hash table
  * and segment tables so we can start running with translation
  * enabled.
@@ -405,7 +404,7 @@ void __init setup_system(void)
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%llx\n", lmb_phys_mem_size());
+	printk("physicalMemorySize            = 0x%llx\n", memblock_phys_mem_size());
 	if (ppc64_caches.dline_size != 0x80)
 		printk("ppc64_caches.dcache_line_size = 0x%x\n",
 		       ppc64_caches.dline_size);
@@ -425,9 +424,17 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
-#ifdef CONFIG_IRQSTACKS
+static u64 slb0_limit(void)
+{
+	if (cpu_has_feature(CPU_FTR_1T_SEGMENT)) {
+		return 1UL << SID_SHIFT_1T;
+	}
+	return 1UL << SID_SHIFT;
+}
+
 static void __init irqstack_early_init(void)
 {
+	u64 limit = slb0_limit();
 	unsigned int i;
 
 	/*
@@ -436,16 +443,13 @@ static void __init irqstack_early_init(void)
 	 */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc_base(THREAD_SIZE,
-					    THREAD_SIZE, 0x10000000));
+			__va(memblock_alloc_base(THREAD_SIZE,
+					    THREAD_SIZE, limit));
 		hardirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc_base(THREAD_SIZE,
-					    THREAD_SIZE, 0x10000000));
+			__va(memblock_alloc_base(THREAD_SIZE,
+					    THREAD_SIZE, limit));
 	}
 }
-#else
-#define irqstack_early_init()
-#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 static void __init exc_lvl_early_init(void)
@@ -454,11 +458,11 @@ static void __init exc_lvl_early_init(void)
 
 	for_each_possible_cpu(i) {
 		critirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 		dbgirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 		mcheckirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 	}
 }
 #else
@@ -471,7 +475,7 @@ static void __init exc_lvl_early_init(void)
  */
 static void __init emergency_stack_init(void)
 {
-	unsigned long limit;
+	u64 limit;
 	unsigned int i;
 
 	/*
@@ -483,11 +487,11 @@ static void __init emergency_stack_init(void)
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
 	 */
-	limit = min(0x10000000ULL, lmb.rmo_size);
+	limit = min(slb0_limit(), memblock.rmo_size);
 
 	for_each_possible_cpu(i) {
 		unsigned long sp;
-		sp  = lmb_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
+		sp  = memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
 		sp += THREAD_SIZE;
 		paca[i].emergency_sp = __va(sp);
 	}
@@ -541,11 +545,6 @@ void __init setup_arch(char **cmdline_p)
 	if (ppc_md.setup_arch)
 		ppc_md.setup_arch();
 
-#ifdef CONFIG_SWIOTLB
-	if (ppc_swiotlb_enable)
-		swiotlb_init(1);
-#endif
-
 	paging_init();
 
 	/* Initialize the MMU context management stuff */
@@ -577,12 +576,6 @@ void ppc64_boot_msg(unsigned int src, const char *msg)
 {
 	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_IPL_MESSAGE|src, msg);
 	printk("[boot]%04x %s\n", src, msg);
-}
-
-void cpu_die(void)
-{
-	if (ppc_md.cpu_die)
-		ppc_md.cpu_die();
 }
 
 #ifdef CONFIG_SMP

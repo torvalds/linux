@@ -28,7 +28,6 @@
 #define __IWLWIFI_DEVICE_TRACE
 
 #include <linux/tracepoint.h>
-#include "iwl-dev.h"
 
 #if !defined(CONFIG_IWLWIFI_DEVICE_TRACING) || defined(__CHECKER__)
 #undef TRACE_EVENT

@@ -142,7 +142,7 @@ acpi_install_fixed_event_handler(u32 event,
 	if (ACPI_SUCCESS(status))
 		status = acpi_enable_event(event, 0);
 	if (ACPI_FAILURE(status)) {
-		ACPI_WARNING((AE_INFO, "Could not enable fixed event %X",
+		ACPI_WARNING((AE_INFO, "Could not enable fixed event 0x%X",
 			      event));
 
 		/* Remove the handler */
@@ -203,7 +203,7 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_WARNING((AE_INFO,
-			      "Could not write to fixed event enable register %X",
+			      "Could not write to fixed event enable register 0x%X",
 			      event));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X\n",
@@ -682,14 +682,13 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	/* Parameter validation */
 
-	if ((!address) || (type > ACPI_GPE_XRUPT_TYPE_MASK)) {
-		status = AE_BAD_PARAMETER;
-		goto exit;
+	if ((!address) || (type & ~ACPI_GPE_XRUPT_TYPE_MASK)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
-		goto exit;
+		return_ACPI_STATUS(status);
 	}
 
 	/* Ensure that we have a valid GPE number */
@@ -733,12 +732,8 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-      exit:
-	if (ACPI_FAILURE(status))
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Installing notify handler failed"));
 	return_ACPI_STATUS(status);
 }
 

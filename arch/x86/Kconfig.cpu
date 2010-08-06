@@ -338,6 +338,10 @@ config X86_F00F_BUG
 	def_bool y
 	depends on M586MMX || M586TSC || M586 || M486 || M386
 
+config X86_INVD_BUG
+	def_bool y
+	depends on M486 || M386
+
 config X86_WP_WORKS_OK
 	def_bool y
 	depends on !M386
@@ -502,23 +506,3 @@ config CPU_SUP_UMC_32
 	  CPU might render the kernel unbootable.
 
 	  If unsure, say N.
-
-config X86_DS
-	def_bool X86_PTRACE_BTS
-	depends on X86_DEBUGCTLMSR
-	select HAVE_HW_BRANCH_TRACER
-
-config X86_PTRACE_BTS
-	bool "Branch Trace Store"
-	default y
-	depends on X86_DEBUGCTLMSR
-	depends on BROKEN
-	---help---
-	  This adds a ptrace interface to the hardware's branch trace store.
-
-	  Debuggers may use it to collect an execution trace of the debugged
-	  application in order to answer the question 'how did I get here?'.
-	  Debuggers may trace user mode as well as kernel mode.
-
-	  Say Y unless there is no application development on this machine
-	  and you want to save a small amount of code size.

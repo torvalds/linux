@@ -10,6 +10,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/circ_buf.h>
 #include "internal.h"

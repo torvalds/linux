@@ -168,6 +168,12 @@ static inline void dst_use(struct dst_entry *dst, unsigned long time)
 	dst->lastuse = time;
 }
 
+static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
+{
+	dst->__use++;
+	dst->lastuse = time;
+}
+
 static inline
 struct dst_entry * dst_clone(struct dst_entry * dst)
 {
@@ -177,22 +183,78 @@ struct dst_entry * dst_clone(struct dst_entry * dst)
 }
 
 extern void dst_release(struct dst_entry *dst);
+
+static inline void refdst_drop(unsigned long refdst)
+{
+	if (!(refdst & SKB_DST_NOREF))
+		dst_release((struct dst_entry *)(refdst & SKB_DST_PTRMASK));
+}
+
+/**
+ * skb_dst_drop - drops skb dst
+ * @skb: buffer
+ *
+ * Drops dst reference count if a reference was taken.
+ */
 static inline void skb_dst_drop(struct sk_buff *skb)
 {
-	if (skb->_skb_dst)
-		dst_release(skb_dst(skb));
-	skb->_skb_dst = 0UL;
+	if (skb->_skb_refdst) {
+		refdst_drop(skb->_skb_refdst);
+		skb->_skb_refdst = 0UL;
+	}
+}
+
+static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb)
+{
+	nskb->_skb_refdst = oskb->_skb_refdst;
+	if (!(nskb->_skb_refdst & SKB_DST_NOREF))
+		dst_clone(skb_dst(nskb));
+}
+
+/**
+ * skb_dst_force - makes sure skb dst is refcounted
+ * @skb: buffer
+ *
+ * If dst is not yet refcounted, let's do it
+ */
+static inline void skb_dst_force(struct sk_buff *skb)
+{
+	if (skb_dst_is_noref(skb)) {
+		WARN_ON(!rcu_read_lock_held());
+		skb->_skb_refdst &= ~SKB_DST_NOREF;
+		dst_clone(skb_dst(skb));
+	}
+}
+
+
+/**
+ *	skb_tunnel_rx - prepare skb for rx reinsert
+ *	@skb: buffer
+ *	@dev: tunnel device
+ *
+ *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
+ *	so make some cleanups, and perform accounting.
+ */
+static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev = dev;
+	/* TODO : stats should be SMP safe */
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+	skb->rxhash = 0;
+	skb_dst_drop(skb);
+	nf_reset(skb);
 }
 
 /* Children define the path of the packet through the
  * Linux networking.  Thus, destinations are stackable.
  */
 
-static inline struct dst_entry *dst_pop(struct dst_entry *dst)
+static inline struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 {
-	struct dst_entry *child = dst_clone(dst->child);
+	struct dst_entry *child = skb_dst(skb)->child;
 
-	dst_release(dst);
+	skb_dst_drop(skb);
 	return child;
 }
 
@@ -223,21 +285,6 @@ static inline void dst_confirm(struct dst_entry *dst)
 {
 	if (dst)
 		neigh_confirm(dst->neighbour);
-}
-
-static inline void dst_negative_advice(struct dst_entry **dst_p,
-				       struct sock *sk)
-{
-	struct dst_entry * dst = *dst_p;
-	if (dst && dst->ops->negative_advice) {
-		*dst_p = dst->ops->negative_advice(dst);
-
-		if (dst != *dst_p) {
-			extern void sk_reset_txq(struct sock *sk);
-
-			sk_reset_txq(sk);
-		}
-	}
 }
 
 static inline void dst_link_failure(struct sk_buff *skb)

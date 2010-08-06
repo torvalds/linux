@@ -7,6 +7,7 @@ config M68K
 	default y
 	select HAVE_AOUT
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 
 config MMU
 	bool

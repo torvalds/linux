@@ -52,7 +52,7 @@ omap_irq_base:	.word	0
 
 		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
 		and	\tmp, \tmp, #0x000f0000	@ only check architecture
-		cmp	\tmp, #0x00060000	@ is v6?
+		cmp	\tmp, #0x00070000	@ is v6?
 		beq	2400f			@ found v6 so it's omap24xx
 		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
 		and	\tmp, \tmp, #0x000000f0	@ check cortex 8 or 9

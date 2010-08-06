@@ -127,8 +127,8 @@ struct ar9170_eeprom {
 	__le16	checksum;
 	__le16	version;
 	u8	operating_flags;
-#define AR9170_OPFLAG_5GHZ 		1
-#define AR9170_OPFLAG_2GHZ 		2
+#define AR9170_OPFLAG_5GHZ		1
+#define AR9170_OPFLAG_2GHZ		2
 	u8	misc;
 	__le16	reg_domain[2];
 	u8	mac_address[6];

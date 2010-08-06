@@ -164,8 +164,8 @@ static inline void hidp_schedule(struct hidp_session *session)
 	struct sock *ctrl_sk = session->ctrl_sock->sk;
 	struct sock *intr_sk = session->intr_sock->sk;
 
-	wake_up_interruptible(ctrl_sk->sk_sleep);
-	wake_up_interruptible(intr_sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(ctrl_sk));
+	wake_up_interruptible(sk_sleep(intr_sk));
 }
 
 /* HIDP init defines */

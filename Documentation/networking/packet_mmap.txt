@@ -8,7 +8,7 @@ capture network traffic with utilities like tcpdump or any other that needs
 raw access to network interface.
 
 You can find the latest version of this document at:
-    http://pusa.uv.es/~ulisses/packet_mmap/
+    http://wiki.ipxwarzone.com/index.php5?title=Linux_packet_mmap
 
 Howto can be found at:
     http://wiki.gnu-log.net (packet_mmap)
@@ -56,7 +56,7 @@ support for PACKET_MMAP, and also probably the libpcap included in your distribu
 
 I'm aware of two implementations of PACKET_MMAP in libpcap:
 
-    http://pusa.uv.es/~ulisses/packet_mmap/  (by Simon Patarin, based on libpcap 0.6.2)
+    http://wiki.ipxwarzone.com/		     (by Simon Patarin, based on libpcap 0.6.2)
     http://public.lanl.gov/cpw/              (by Phil Wood, based on lastest libpcap)
 
 The rest of this document is intended for people who want to understand
@@ -100,7 +100,7 @@ by the kernel.
 The destruction of the socket and all associated resources
 is done by a simple call to close(fd).
 
-Next I will describe PACKET_MMAP settings and it's constraints,
+Next I will describe PACKET_MMAP settings and its constraints,
 also the mapping of the circular buffer in the user process and 
 the use of this buffer.
 
@@ -432,7 +432,7 @@ TP_STATUS_LOSING      : indicates there were packet drops from last time
                         the PACKET_STATISTICS option.
 
 TP_STATUS_CSUMNOTREADY: currently it's used for outgoing IP packets which 
-                        it's checksum will be done in hardware. So while 
+                        its checksum will be done in hardware. So while
                         reading the packet we should not try to check the 
                         checksum. 
 
@@ -492,6 +492,32 @@ The user can also use poll() to check if a buffer is available:
     pfd.revents = 0;
     pfd.events = POLLOUT;
     retval = poll(&pfd, 1, timeout);
+
+-------------------------------------------------------------------------------
++ PACKET_TIMESTAMP
+-------------------------------------------------------------------------------
+
+The PACKET_TIMESTAMP setting determines the source of the timestamp in
+the packet meta information.  If your NIC is capable of timestamping
+packets in hardware, you can request those hardware timestamps to used.
+Note: you may need to enable the generation of hardware timestamps with
+SIOCSHWTSTAMP.
+
+PACKET_TIMESTAMP accepts the same integer bit field as
+SO_TIMESTAMPING.  However, only the SOF_TIMESTAMPING_SYS_HARDWARE
+and SOF_TIMESTAMPING_RAW_HARDWARE values are recognized by
+PACKET_TIMESTAMP.  SOF_TIMESTAMPING_SYS_HARDWARE takes precedence over
+SOF_TIMESTAMPING_RAW_HARDWARE if both bits are set.
+
+    int req = 0;
+    req |= SOF_TIMESTAMPING_SYS_HARDWARE;
+    setsockopt(fd, SOL_PACKET, PACKET_TIMESTAMP, (void *) &req, sizeof(req))
+
+If PACKET_TIMESTAMP is not set, a software timestamp generated inside
+the networking stack is used (the behavior before this setting was added).
+
+See include/linux/net_tstamp.h and Documentation/networking/timestamping
+for more information on hardware timestamps.
 
 --------------------------------------------------------------------------------
 + THANKS

@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <plat/clock.h>
 #include <plat/board.h>
@@ -546,6 +547,9 @@ static int option_get(void *data, u64 *val)
 static int option_set(void *data, u64 val)
 {
 	u32 *option = data;
+
+	if (option == &wakeup_timer_milliseconds && val >= 1000)
+		return -EINVAL;
 
 	*option = val;
 

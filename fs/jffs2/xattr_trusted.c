@@ -47,7 +47,7 @@ static size_t jffs2_trusted_listxattr(struct dentry *dentry, char *list,
 	return retlen;
 }
 
-struct xattr_handler jffs2_trusted_xattr_handler = {
+const struct xattr_handler jffs2_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.list = jffs2_trusted_listxattr,
 	.set = jffs2_trusted_setxattr,

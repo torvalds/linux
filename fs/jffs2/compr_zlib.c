@@ -14,7 +14,6 @@
 #endif
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/zlib.h>
 #include <linux/zutil.h>
 #include "nodelist.h"

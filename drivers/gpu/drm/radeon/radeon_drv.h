@@ -107,9 +107,10 @@
  * 1.30- Add support for occlusion queries
  * 1.31- Add support for num Z pipes from GET_PARAM
  * 1.32- fixes for rv740 setup
+ * 1.33- Add r6xx/r7xx const buffer support
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		32
+#define DRIVER_MINOR		33
 #define DRIVER_PATCHLEVEL	0
 
 enum radeon_cp_microcode_version {

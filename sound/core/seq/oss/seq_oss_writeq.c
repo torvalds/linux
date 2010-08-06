@@ -27,6 +27,7 @@
 #include "../seq_lock.h"
 #include "../seq_clientmgr.h"
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 
 /*

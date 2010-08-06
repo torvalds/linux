@@ -26,6 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/slab.h>
 
 struct i2c_smbus_alert {
 	unsigned int		alert_edge_triggered:1;
@@ -172,7 +173,6 @@ static int smbalert_remove(struct i2c_client *ara)
 
 	cancel_work_sync(&alert->alert);
 
-	i2c_set_clientdata(ara, NULL);
 	kfree(alert);
 	return 0;
 }

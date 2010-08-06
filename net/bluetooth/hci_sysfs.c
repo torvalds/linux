@@ -1,6 +1,7 @@
 /* Bluetooth HCI driver model support. */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -8,13 +9,10 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-struct class *bt_class = NULL;
-EXPORT_SYMBOL_GPL(bt_class);
+static struct class *bt_class;
 
 struct dentry *bt_debugfs = NULL;
 EXPORT_SYMBOL_GPL(bt_debugfs);
-
-static struct workqueue_struct *bt_workq;
 
 static inline char *link_typetostr(int type)
 {
@@ -161,14 +159,14 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	queue_work(bt_workq, &conn->work_add);
+	queue_work(conn->hdev->workqueue, &conn->work_add);
 }
 
 void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	queue_work(bt_workq, &conn->work_del);
+	queue_work(conn->hdev->workqueue, &conn->work_del);
 }
 
 static inline char *host_bustostr(int bus)
@@ -283,11 +281,9 @@ static ssize_t show_idle_timeout(struct device *dev, struct device_attribute *at
 static ssize_t store_idle_timeout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u32 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val != 0 && (val < 500 || val > 3600000))
@@ -307,11 +303,9 @@ static ssize_t show_sniff_max_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_max_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
@@ -334,11 +328,9 @@ static ssize_t show_sniff_min_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_min_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
@@ -444,6 +436,41 @@ static const struct file_operations inquiry_cache_fops = {
 	.release	= single_release,
 };
 
+static int blacklist_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *blacklist = &hdev->blacklist;
+	struct list_head *l;
+
+	hci_dev_lock_bh(hdev);
+
+	list_for_each(l, &blacklist->list) {
+		struct bdaddr_list *b;
+		bdaddr_t bdaddr;
+
+		b = list_entry(l, struct bdaddr_list, list);
+
+		baswap(&bdaddr, &b->bdaddr);
+
+		seq_printf(f, "%s\n", batostr(&bdaddr));
+	}
+
+	hci_dev_unlock_bh(hdev);
+
+	return 0;
+}
+
+static int blacklist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, blacklist_show, inode->i_private);
+}
+
+static const struct file_operations blacklist_fops = {
+	.open		= blacklist_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 int hci_register_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
@@ -473,6 +500,9 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 						hdev, &inquiry_cache_fops);
 
+	debugfs_create_file("blacklist", 0444, hdev->debugfs,
+						hdev, &blacklist_fops);
+
 	return 0;
 }
 
@@ -487,17 +517,11 @@ void hci_unregister_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	bt_workq = create_singlethread_workqueue("bluetooth");
-	if (!bt_workq)
-		return -ENOMEM;
-
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
-	if (IS_ERR(bt_class)) {
-		destroy_workqueue(bt_workq);
+	if (IS_ERR(bt_class))
 		return PTR_ERR(bt_class);
-	}
 
 	return 0;
 }
@@ -507,6 +531,4 @@ void bt_sysfs_cleanup(void)
 	class_destroy(bt_class);
 
 	debugfs_remove_recursive(bt_debugfs);
-
-	destroy_workqueue(bt_workq);
 }

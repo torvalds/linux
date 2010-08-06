@@ -108,7 +108,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 static int __devinit
 ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;
@@ -274,13 +274,12 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 
 static struct of_platform_driver ehci_hcd_ppc_of_driver = {
-	.name		= "ppc-of-ehci",
-	.match_table	= ehci_hcd_ppc_of_match,
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
 	.shutdown	= ehci_hcd_ppc_of_shutdown,
-	.driver		= {
-		.name	= "ppc-of-ehci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "ppc-of-ehci",
+		.owner = THIS_MODULE,
+		.of_match_table = ehci_hcd_ppc_of_match,
 	},
 };

@@ -719,7 +719,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 				(ds3000_readreg(state, 0x8d) << 4);
 		dvbs2_signal_reading = ds3000_readreg(state, 0x8e);
 		tmp = dvbs2_signal_reading * dvbs2_signal_reading >> 1;
-		if (dvbs2_signal_reading == 0) {
+		if (tmp == 0) {
 			*snr = 0x0000;
 			return 0;
 		}
@@ -969,14 +969,11 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct ds3000_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ds3000_state), GFP_KERNEL);
 	if (state == NULL) {
 		printk(KERN_ERR "Unable to kmalloc\n");
 		goto error2;
 	}
-
-	/* setup the state */
-	memset(state, 0, sizeof(struct ds3000_state));
 
 	state->config = config;
 	state->i2c = i2c;

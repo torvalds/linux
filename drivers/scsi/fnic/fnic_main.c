@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -555,7 +556,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	}
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;
-	host->max_cmd_len = FNIC_MAX_CMD_LEN;
+	host->max_cmd_len = FCOE_MAX_CMD_LEN;
 
 	fnic_get_res_counts(fnic);
 
@@ -616,7 +617,6 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fnic->ctlr.send = fnic_eth_send;
 	fnic->ctlr.update_mac = fnic_update_mac;
 	fnic->ctlr.get_src_addr = fnic_get_mac;
-	fcoe_ctlr_init(&fnic->ctlr);
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware supports FIP\n");
@@ -624,10 +624,11 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
 		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
+		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
-		fnic->ctlr.mode = FIP_ST_NON_FIP;
+		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
@@ -672,7 +673,6 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	/* Start local port initiatialization */
 
 	lp->link_up = 0;
-	lp->tt = fnic_transport_template;
 
 	lp->max_retry_count = fnic->config.flogi_retries;
 	lp->max_rport_retry_count = fnic->config.plogi_retries;
@@ -688,11 +688,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fc_set_wwnn(lp, fnic->config.node_wwn);
 	fc_set_wwpn(lp, fnic->config.port_wwn);
 
-	fc_lport_init(lp);
-	fc_exch_init(lp);
-	fc_elsct_init(lp);
-	fc_rport_init(lp);
-	fc_disc_init(lp);
+	fcoe_libfc_config(lp, &fnic->ctlr, &fnic_transport_template, 0);
 
 	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCPIO_HOST_EXCH_RANGE_START,
 			       FCPIO_HOST_EXCH_RANGE_END, NULL)) {

@@ -216,7 +216,6 @@ static int acct_on(char *name)
 {
 	struct file *file;
 	struct vfsmount *mnt;
-	int error;
 	struct pid_namespace *ns;
 	struct bsd_acct_struct *acct = NULL;
 
@@ -242,13 +241,6 @@ static int acct_on(char *name)
 			filp_close(file, NULL);
 			return -ENOMEM;
 		}
-	}
-
-	error = security_acct(file);
-	if (error) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return error;
 	}
 
 	spin_lock(&acct_lock);
@@ -281,7 +273,7 @@ static int acct_on(char *name)
  */
 SYSCALL_DEFINE1(acct, const char __user *, name)
 {
-	int error;
+	int error = 0;
 
 	if (!capable(CAP_SYS_PACCT))
 		return -EPERM;
@@ -299,13 +291,11 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		if (acct == NULL)
 			return 0;
 
-		error = security_acct(NULL);
-		if (!error) {
-			spin_lock(&acct_lock);
-			acct_file_reopen(acct, NULL, NULL);
-			spin_unlock(&acct_lock);
-		}
+		spin_lock(&acct_lock);
+		acct_file_reopen(acct, NULL, NULL);
+		spin_unlock(&acct_lock);
 	}
+
 	return error;
 }
 
@@ -353,17 +343,18 @@ restart:
 
 void acct_exit_ns(struct pid_namespace *ns)
 {
-	struct bsd_acct_struct *acct;
+	struct bsd_acct_struct *acct = ns->bacct;
 
+	if (acct == NULL)
+		return;
+
+	del_timer_sync(&acct->timer);
 	spin_lock(&acct_lock);
-	acct = ns->bacct;
-	if (acct != NULL) {
-		if (acct->file != NULL)
-			acct_file_reopen(acct, NULL, NULL);
-
-		kfree(acct);
-	}
+	if (acct->file != NULL)
+		acct_file_reopen(acct, NULL, NULL);
 	spin_unlock(&acct_lock);
+
+	kfree(acct);
 }
 
 /*

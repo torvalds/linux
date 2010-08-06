@@ -15,6 +15,7 @@
 #include <linux/rtc.h>
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 
 #include "rtc-core.h"
 

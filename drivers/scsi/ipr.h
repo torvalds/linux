@@ -62,12 +62,12 @@
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
 #define IPR_SUBS_DEV_ID_5703	0x0278
-#define IPR_SUBS_DEV_ID_572E  0x028D
-#define IPR_SUBS_DEV_ID_573E  0x02D3
-#define IPR_SUBS_DEV_ID_573D  0x02D4
+#define IPR_SUBS_DEV_ID_572E	0x028D
+#define IPR_SUBS_DEV_ID_573E	0x02D3
+#define IPR_SUBS_DEV_ID_573D	0x02D4
 #define IPR_SUBS_DEV_ID_571A	0x02C0
 #define IPR_SUBS_DEV_ID_571B	0x02BE
-#define IPR_SUBS_DEV_ID_571E  0x02BF
+#define IPR_SUBS_DEV_ID_571E	0x02BF
 #define IPR_SUBS_DEV_ID_571F	0x02D5
 #define IPR_SUBS_DEV_ID_572A	0x02C1
 #define IPR_SUBS_DEV_ID_572B	0x02C2
@@ -82,6 +82,7 @@
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
 #define IPR_SUBS_DEV_ID_57C6    0x0357
+#define IPR_SUBS_DEV_ID_57CC    0x035C
 
 #define IPR_SUBS_DEV_ID_57B5    0x033C
 #define IPR_SUBS_DEV_ID_57CE    0x035E
@@ -244,6 +245,7 @@
 #define IPR_RUNTIME_RESET				0x40000000
 
 #define IPR_IPL_INIT_MIN_STAGE_TIME			5
+#define IPR_IPL_INIT_DEFAULT_STAGE_TIME                 15
 #define IPR_IPL_INIT_STAGE_UNKNOWN			0x0
 #define IPR_IPL_INIT_STAGE_TRANSOP			0xB0000000
 #define IPR_IPL_INIT_STAGE_MASK				0xff000000
@@ -271,6 +273,7 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 
 #define IPR_UPROCI_RESET_ALERT			(0x80000000 >> 7)
 #define IPR_UPROCI_IO_DEBUG_ALERT			(0x80000000 >> 9)
+#define IPR_UPROCI_SIS64_START_BIST			(0x80000000 >> 23)
 
 #define IPR_LDUMP_MAX_LONG_ACK_DELAY_IN_USEC		200000	/* 200 ms */
 #define IPR_LDUMP_MAX_SHORT_ACK_DELAY_IN_USEC		200000	/* 200 ms */
@@ -613,7 +616,7 @@ struct ipr_auto_sense {
 	__be32 data[SCSI_SENSE_BUFFERSIZE/sizeof(__be32)];
 };
 
-struct ipr_ioasa {
+struct ipr_ioasa_hdr {
 	__be32 ioasc;
 #define IPR_IOASC_SENSE_KEY(ioasc) ((ioasc) >> 24)
 #define IPR_IOASC_SENSE_CODE(ioasc) (((ioasc) & 0x00ff0000) >> 16)
@@ -644,6 +647,25 @@ struct ipr_ioasa {
 #define IPR_IOASC_SPECIFIC_MASK		0x00ffffff
 #define IPR_FIELD_POINTER_VALID		(0x80000000 >> 8)
 #define IPR_FIELD_POINTER_MASK		0x0000ffff
+
+}__attribute__((packed, aligned (4)));
+
+struct ipr_ioasa {
+	struct ipr_ioasa_hdr hdr;
+
+	union {
+		struct ipr_ioasa_vset vset;
+		struct ipr_ioasa_af_dasd dasd;
+		struct ipr_ioasa_gpdd gpdd;
+		struct ipr_ioasa_gata gata;
+	} u;
+
+	struct ipr_auto_sense auto_sense;
+}__attribute__((packed, aligned (4)));
+
+struct ipr_ioasa64 {
+	struct ipr_ioasa_hdr hdr;
+	u8 fd_res_path[8];
 
 	union {
 		struct ipr_ioasa_vset vset;
@@ -804,7 +826,7 @@ struct ipr_hostrcb_array_data_entry_enhanced {
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_ff_error {
-	__be32 ioa_data[502];
+	__be32 ioa_data[758];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_01_error {
@@ -976,7 +998,7 @@ struct ipr_hostrcb64_fabric_desc {
 	__be16 length;
 	u8 descriptor_id;
 
-	u8 reserved;
+	u8 reserved[2];
 	u8 path_state;
 
 	u8 reserved2[2];
@@ -1034,7 +1056,7 @@ struct ipr_hostrcb64_error {
 	__be64 fd_lun;
 	u8 fd_res_path[8];
 	__be64 time_stamp;
-	u8 reserved[2];
+	u8 reserved[16];
 	union {
 		struct ipr_hostrcb_type_ff_error type_ff_error;
 		struct ipr_hostrcb_type_12_error type_12_error;
@@ -1181,7 +1203,7 @@ struct ipr_resource_entry {
 	u8 flags;
 	__be16 res_flags;
 
-	__be32 type;
+	u8 type;
 
 	u8 qmodel;
 	struct ipr_std_inq_data std_inq_data;
@@ -1234,6 +1256,9 @@ struct ipr_interrupt_offsets {
 
 	unsigned long dump_addr_reg;
 	unsigned long dump_data_reg;
+
+#define IPR_ENDIAN_SWAP_KEY		0x00080800
+	unsigned long endian_swap_reg;
 };
 
 struct ipr_interrupts {
@@ -1259,6 +1284,8 @@ struct ipr_interrupts {
 
 	void __iomem *dump_addr_reg;
 	void __iomem *dump_data_reg;
+
+	void __iomem *endian_swap_reg;
 };
 
 struct ipr_chip_cfg_t {
@@ -1276,6 +1303,9 @@ struct ipr_chip_t {
 	u16 sis_type;
 #define IPR_SIS32			0x00
 #define IPR_SIS64			0x01
+	u16 bist_method;
+#define IPR_PCI_CFG			0x00
+#define IPR_MMIO			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
@@ -1464,7 +1494,10 @@ struct ipr_cmnd {
 		struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
 		struct ipr_ata64_ioadl ata_ioadl;
 	} i;
-	struct ipr_ioasa ioasa;
+	union {
+		struct ipr_ioasa ioasa;
+		struct ipr_ioasa64 ioasa64;
+	} s;
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
 	struct ata_queued_cmd *qc;
@@ -1661,8 +1694,9 @@ struct ipr_ucode_image_header {
 	if (ipr_is_device(hostrcb)) {					\
 		if ((hostrcb)->ioa_cfg->sis64) {			\
 			printk(KERN_ERR IPR_NAME ": %s: " fmt, 		\
-				ipr_format_resource_path(&hostrcb->hcam.u.error64.fd_res_path[0], \
-					&hostrcb->rp_buffer[0]),	\
+				ipr_format_res_path(hostrcb->hcam.u.error64.fd_res_path, \
+					hostrcb->rp_buffer,		\
+					sizeof(hostrcb->rp_buffer)),	\
 				__VA_ARGS__);				\
 		} else {						\
 			ipr_ra_err((hostrcb)->ioa_cfg,			\
@@ -1831,4 +1865,12 @@ static inline int ipr_sdt_is_fmt2(u32 sdt_word)
 	return 0;
 }
 
+#ifndef writeq
+static inline void writeq(u64 val, void __iomem *addr)
+{
+        writel(((u32) (val >> 32)), addr);
+        writel(((u32) (val)), (addr + 4));
+}
 #endif
+
+#endif /* _IPR_H */

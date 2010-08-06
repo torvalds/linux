@@ -335,7 +335,7 @@ static void cciss_map_sg_chain_block(ctlr_info_t *h, CommandList_struct *c,
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 	"UNKNOWN"
 };
-#define RAID_UNKNOWN (sizeof(raid_label) / sizeof(raid_label[0])-1)
+#define RAID_UNKNOWN (ARRAY_SIZE(raid_label)-1)
 
 #ifdef CONFIG_PROC_FS
 
@@ -1588,7 +1588,6 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 
 			c->Request = ioc->Request;
 			if (ioc->buf_size > 0) {
-				int i;
 				for (i = 0; i < sg_used; i++) {
 					temp64.val =
 					    pci_map_single(host->pdev, buff[i],
@@ -2434,7 +2433,7 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 
 	/* if it was the last disk, find the new hightest lun */
 	if (clear_all && recalculate_highest_lun) {
-		int i, newhighest = -1;
+		int newhighest = -1;
 		for (i = 0; i <= h->highest_lun; i++) {
 			/* if the disk has size > 0, it is available */
 			if (h->drv[i] && h->drv[i]->heads)
@@ -3341,6 +3340,7 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id)
 					printk(KERN_WARNING
 					       "cciss: controller cciss%d failed, stopping.\n",
 					       h->ctlr);
+					spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 					fail_all_cmds(h->ctlr);
 					return IRQ_HANDLED;
 				}

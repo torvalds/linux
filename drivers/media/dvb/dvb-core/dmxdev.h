@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <linux/dvb/dmx.h>
 

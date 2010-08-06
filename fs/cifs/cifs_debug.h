@@ -43,34 +43,54 @@ void dump_smb(struct smb_hdr *, int);
  */
 #ifdef CIFS_DEBUG
 
-
 /* information message: e.g., configuration, major event */
 extern int cifsFYI;
-#define cifsfyi(format,arg...) if (cifsFYI & CIFS_INFO) printk(KERN_DEBUG " " __FILE__ ": " format "\n" "" , ## arg)
+#define cifsfyi(fmt, arg...)						\
+do {									\
+	if (cifsFYI & CIFS_INFO)					\
+		printk(KERN_DEBUG "%s: " fmt "\n", __FILE__, ##arg);	\
+} while (0)
 
-#define cFYI(button,prspec) if (button) cifsfyi prspec
+#define cFYI(set, fmt, arg...)			\
+do {						\
+	if (set)				\
+		cifsfyi(fmt, ##arg);		\
+} while (0)
 
-#define cifswarn(format, arg...) printk(KERN_WARNING ": " format "\n" , ## arg)
+#define cifswarn(fmt, arg...)			\
+	printk(KERN_WARNING fmt "\n", ##arg)
 
 /* debug event message: */
 extern int cifsERROR;
 
-#define cEVENT(format,arg...) if (cifsERROR) printk(KERN_EVENT __FILE__ ": " format "\n" , ## arg)
+#define cEVENT(fmt, arg...)						\
+do {									\
+	if (cifsERROR)							\
+		printk(KERN_EVENT "%s: " fmt "\n", __FILE__, ##arg);	\
+} while (0)
 
 /* error event message: e.g., i/o error */
-#define cifserror(format,arg...) if (cifsERROR) printk(KERN_ERR " CIFS VFS: " format "\n" "" , ## arg)
+#define cifserror(fmt, arg...)					\
+do {								\
+	if (cifsERROR)						\
+		printk(KERN_ERR "CIFS VFS: " fmt "\n", ##arg);	\
+} while (0)
 
-#define cERROR(button, prspec) if (button) cifserror prspec
+#define cERROR(set, fmt, arg...)		\
+do {						\
+	if (set)				\
+		cifserror(fmt, ##arg);		\
+} while (0)
 
 /*
  *	debug OFF
  *	---------
  */
 #else		/* _CIFS_DEBUG */
-#define cERROR(button, prspec)
-#define cEVENT(format, arg...)
-#define cFYI(button, prspec)
-#define cifserror(format, arg...)
+#define cERROR(set, fmt, arg...)
+#define cEVENT(fmt, arg...)
+#define cFYI(set, fmt, arg...)
+#define cifserror(fmt, arg...)
 #endif		/* _CIFS_DEBUG */
 
 #endif				/* _H_CIFS_DEBUG */

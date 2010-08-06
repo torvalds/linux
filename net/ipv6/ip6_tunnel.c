@@ -37,6 +37,7 @@
 #include <linux/route.h>
 #include <linux/rtnetlink.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -551,7 +552,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (ip_route_output_key(dev_net(skb->dev), &rt, &fl))
 		goto out;
 
-	skb2->dev = rt->u.dst.dev;
+	skb2->dev = rt->dst.dev;
 
 	/* route "incoming" packet */
 	if (rt->rt_flags & RTCF_LOCAL) {
@@ -561,7 +562,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		fl.fl4_src = eiph->saddr;
 		fl.fl4_tos = eiph->tos;
 		if (ip_route_output_key(dev_net(skb->dev), &rt, &fl) ||
-		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
+		    rt->dst.dev->type != ARPHRD_TUNNEL) {
 			ip_rt_put(rt);
 			goto out;
 		}
@@ -625,7 +626,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		icmpv6_send(skb2, rel_type, rel_code, rel_info);
 
 		if (rt)
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 
 		kfree_skb(skb2);
 	}
@@ -722,14 +723,10 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb->protocol = htons(protocol);
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
-		skb->dev = t->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+
+		skb_tunnel_rx(skb, t->dev);
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
-
-		t->dev->stats.rx_packets++;
-		t->dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		rcu_read_unlock();
 		return 0;
@@ -1138,7 +1135,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 			if (dev->mtu < IPV6_MIN_MTU)
 				dev->mtu = IPV6_MIN_MTU;
 		}
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 	}
 }
 

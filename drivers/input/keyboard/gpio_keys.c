@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
@@ -30,6 +31,7 @@ struct gpio_button_data {
 	struct input_dev *input;
 	struct timer_list timer;
 	struct work_struct work;
+	int timer_debounce;	/* in msecs */
 	bool disabled;
 };
 
@@ -108,7 +110,7 @@ static void gpio_keys_disable_button(struct gpio_button_data *bdata)
 		 * Disable IRQ and possible debouncing timer.
 		 */
 		disable_irq(gpio_to_irq(bdata->button->gpio));
-		if (bdata->button->debounce_interval)
+		if (bdata->timer_debounce)
 			del_timer_sync(&bdata->timer);
 
 		bdata->disabled = true;
@@ -346,9 +348,9 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 
 	BUG_ON(irq != gpio_to_irq(button->gpio));
 
-	if (button->debounce_interval)
+	if (bdata->timer_debounce)
 		mod_timer(&bdata->timer,
-			jiffies + msecs_to_jiffies(button->debounce_interval));
+			jiffies + msecs_to_jiffies(bdata->timer_debounce));
 	else
 		schedule_work(&bdata->work);
 
@@ -380,6 +382,14 @@ static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
 			" direction for GPIO %d, error %d\n",
 			button->gpio, error);
 		goto fail3;
+	}
+
+	if (button->debounce_interval) {
+		error = gpio_set_debounce(button->gpio,
+					  button->debounce_interval * 1000);
+		/* use timer if gpiolib doesn't provide debounce */
+		if (error < 0)
+			bdata->timer_debounce = button->debounce_interval;
 	}
 
 	irq = gpio_to_irq(button->gpio);
@@ -497,7 +507,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
  fail2:
 	while (--i >= 0) {
 		free_irq(gpio_to_irq(pdata->buttons[i].gpio), &ddata->data[i]);
-		if (pdata->buttons[i].debounce_interval)
+		if (ddata->data[i].timer_debounce)
 			del_timer_sync(&ddata->data[i].timer);
 		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);
@@ -525,7 +535,7 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 		free_irq(irq, &ddata->data[i]);
-		if (pdata->buttons[i].debounce_interval)
+		if (ddata->data[i].timer_debounce)
 			del_timer_sync(&ddata->data[i].timer);
 		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);

@@ -11,16 +11,14 @@
 #ifndef ASM_SIU_H
 #define ASM_SIU_H
 
-#include <asm/dmaengine.h>
-
 struct device;
 
 struct siu_platform {
 	struct device *dma_dev;
-	enum sh_dmae_slave_chan_id dma_slave_tx_a;
-	enum sh_dmae_slave_chan_id dma_slave_rx_a;
-	enum sh_dmae_slave_chan_id dma_slave_tx_b;
-	enum sh_dmae_slave_chan_id dma_slave_rx_b;
+	unsigned int dma_slave_tx_a;
+	unsigned int dma_slave_rx_a;
+	unsigned int dma_slave_tx_b;
+	unsigned int dma_slave_rx_b;
 };
 
 #endif /* ASM_SIU_H */

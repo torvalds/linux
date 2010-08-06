@@ -378,6 +378,7 @@ MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_fsample_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_fsample_init_irq,
 	.init_machine	= omap_fsample_init,
 	.timer		= &omap_timer,

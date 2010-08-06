@@ -26,6 +26,7 @@
 #include <linux/netlink.h>
 #include <linux/moduleparam.h>
 #include <linux/connector.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>

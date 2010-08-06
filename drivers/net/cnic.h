@@ -169,6 +169,16 @@ struct cnic_context {
 	} proto;
 };
 
+struct kcq_info {
+	struct cnic_dma	dma;
+	struct kcqe	**kcq;
+
+	u16		*hw_prod_idx_ptr;
+	u16		sw_prod_idx;
+	u16		*status_idx_ptr;
+	u32		io_addr;
+};
+
 struct cnic_local {
 
 	spinlock_t cnic_ulp_lock;
@@ -179,9 +189,9 @@ struct cnic_local {
 #define ULP_F_CALL_PENDING	2
 	struct cnic_ulp_ops *ulp_ops[MAX_CNIC_ULP_TYPE];
 
-	/* protected by ulp_lock */
-	u32 cnic_local_flags;
-#define	CNIC_LCL_FL_KWQ_INIT	0x00000001
+	unsigned long cnic_local_flags;
+#define	CNIC_LCL_FL_KWQ_INIT		0x0
+#define	CNIC_LCL_FL_L2_WAIT		0x1
 
 	struct cnic_dev *dev;
 
@@ -202,9 +212,6 @@ struct cnic_local {
 	u16		rx_cons;
 	u16		tx_cons;
 
-	u32 kwq_cid_addr;
-	u32 kcq_cid_addr;
-
 	struct cnic_dma		kwq_info;
 	struct kwqe		**kwq;
 
@@ -218,11 +225,7 @@ struct cnic_local {
 	u16		*kwq_con_idx_ptr;
 	u16		kwq_con_idx;
 
-	struct cnic_dma	kcq_info;
-	struct kcqe	**kcq;
-
-	u16		kcq_prod_idx;
-	u32		kcq_io_addr;
+	struct kcq_info	kcq1;
 
 	union {
 		void				*gen;
@@ -248,8 +251,10 @@ struct cnic_local {
 	struct cnic_iscsi	*iscsi_tbl;
 	struct cnic_context	*ctx_tbl;
 	struct cnic_id_tbl	cid_tbl;
-	int			max_iscsi_conn;
 	atomic_t		iscsi_conn;
+	u32			iscsi_start_cid;
+
+	u32			max_cid_space;
 
 	/* per connection parameters */
 	int			num_iscsi_tasks;
@@ -348,6 +353,10 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_MAX_RX_DESC_CNT		(BNX2X_RX_DESC_CNT - 2)
 #define BNX2X_RCQ_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
 #define BNX2X_MAX_RCQ_DESC_CNT		(BNX2X_RCQ_DESC_CNT - 1)
+
+#define BNX2X_NEXT_RCQE(x) (((x) & BNX2X_MAX_RCQ_DESC_CNT) ==		\
+		(BNX2X_MAX_RCQ_DESC_CNT - 1)) ?				\
+		((x) + 2) : ((x) + 1)
 
 #define BNX2X_DEF_SB_ID			16
 

@@ -304,6 +304,19 @@ config SSFDC
 	  This enables read only access to SmartMedia formatted NAND
 	  flash. You can mount it with FAT file system.
 
+
+config SM_FTL
+	tristate "SmartMedia/xD new translation layer"
+	depends on EXPERIMENTAL && BLOCK
+	select MTD_BLKDEVS
+	select MTD_NAND_ECC
+	help
+	  This enables new and very EXPERMENTAL support for SmartMedia/xD
+	  FTL (Flash translation layer).
+	  Write support isn't yet well tested, therefore this code IS likely to
+	  eat your card, so please don't use it together with valuable data.
+	  Use readonly driver (CONFIG_SSFDC) instead.
+
 config MTD_OOPS
 	tristate "Log panic/oops to an MTD buffer"
 	depends on MTD

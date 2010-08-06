@@ -115,7 +115,9 @@ my $ksource = $ARGV[0];
 my $kconfig = $ARGV[1];
 my $lsmod_file = $ARGV[2];
 
-my @makefiles = `find $ksource -name Makefile`;
+my @makefiles = `find $ksource -name Makefile 2>/dev/null`;
+chomp @makefiles;
+
 my %depends;
 my %selects;
 my %prompts;
@@ -215,7 +217,6 @@ if ($kconfig) {
 
 # Read all Makefiles to map the configs to the objects
 foreach my $makefile (@makefiles) {
-    chomp $makefile;
 
     open(MIN,$makefile) || die "Can't open $makefile";
     while (<MIN>) {
@@ -242,7 +243,7 @@ foreach my $makefile (@makefiles) {
 	    foreach my $obj (split /\s+/,$objs) {
 		$obj =~ s/-/_/g;
 		if ($obj =~ /(.*)\.o$/) {
-		    # Objects may bes enabled by more than one config.
+		    # Objects may be enabled by more than one config.
 		    # Store configs in an array.
 		    my @arr;
 
@@ -307,7 +308,7 @@ close (LIN);
 my %configs;
 foreach my $module (keys(%modules)) {
     if (defined($objects{$module})) {
-	@arr = @{$objects{$module}};
+	my @arr = @{$objects{$module}};
 	foreach my $conf (@arr) {
 	    $configs{$conf} = $module;
 	}

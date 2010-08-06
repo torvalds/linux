@@ -96,6 +96,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap_sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
+	omap_serial_init();
 	zoom_peripherals_init();
 	board_smc91x_init();
 	enable_board_wakeup_source();
@@ -107,6 +108,7 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_sdp_init_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap_timer,

@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -22,8 +18,10 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 
@@ -328,6 +326,11 @@ static int __init marxbot_usbh1_init(void)
 	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 }
 
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -354,6 +357,8 @@ void __init mx31moboard_marxbot_init(void)
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_LCS0), "bat-present");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_LCS0));
 	gpio_export(IOMUX_TO_GPIO(MX31_PIN_LCS0), false);
+
+	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 
 	marxbot_usbh1_init();
 }

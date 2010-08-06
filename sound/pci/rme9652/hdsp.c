@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>

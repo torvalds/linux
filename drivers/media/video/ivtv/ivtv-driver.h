@@ -53,6 +53,7 @@
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
@@ -62,6 +63,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 #include <media/ir-kbd-i2c.h>
@@ -115,8 +117,14 @@
 #define IVTV_REG_VPU 			(0x9058)
 #define IVTV_REG_APU 			(0xA064)
 
+/* Other registers */
+#define IVTV_REG_DEC_LINE_FIELD		(0x28C0)
+
 /* debugging */
 extern int ivtv_debug;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+extern int ivtv_fw_debug;
+#endif
 
 #define IVTV_DBGFLG_WARN    (1 << 0)
 #define IVTV_DBGFLG_INFO    (1 << 1)
@@ -371,12 +379,18 @@ struct ivtv_stream {
 };
 
 struct ivtv_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;                    /* unique ID for this file descriptor */
 	int type;                       /* stream type */
 	int yuv_frames;                 /* 1: started OUT_UDMA_YUV output mode */
 	enum v4l2_priority prio;        /* priority */
 	struct ivtv *itv;
 };
+
+static inline struct ivtv_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct ivtv_open_id, fh);
+}
 
 struct yuv_frame_info
 {
@@ -723,6 +737,7 @@ struct ivtv {
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
 	struct osd_info *osd_info;      /* ivtvfb private OSD info */
+	void (*ivtvfb_restore)(struct ivtv *itv); /* Used for a warm start */
 };
 
 static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)

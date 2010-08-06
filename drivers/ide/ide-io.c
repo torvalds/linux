@@ -566,7 +566,7 @@ plug_device_2:
 		blk_plug_device(q);
 }
 
-static void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
+void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
 	unsigned long flags;

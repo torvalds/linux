@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -234,7 +235,7 @@ static struct {
 
 static int wm8955_configure_clocking(struct snd_soc_codec *codec)
 {
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int i, ret, val;
 	int clocking = 0;
 	int srate = 0;
@@ -352,7 +353,7 @@ static int deemph_settings[] = { 0, 32000, 44100, 48000 };
 
 static int wm8955_set_deemph(struct snd_soc_codec *codec)
 {
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int val, i, best;
 
 	/* If we're using deemphasis select the nearest available sample
@@ -381,7 +382,7 @@ static int wm8955_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 
 	return wm8955->deemph;
 }
@@ -390,7 +391,7 @@ static int wm8955_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int deemph = ucontrol->value.enumerated.item[0];
 
 	if (deemph > 1)
@@ -597,7 +598,7 @@ static int wm8955_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	int wl;
 
@@ -646,7 +647,7 @@ static int wm8955_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			     unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8955_priv *priv = codec->private_data;
+	struct wm8955_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int div;
 
 	switch (clk_id) {
@@ -769,7 +770,7 @@ static int wm8955_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 static int wm8955_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8955_priv *wm8955 = codec->private_data;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
 
 	switch (level) {
@@ -970,7 +971,7 @@ static int wm8955_register(struct wm8955_priv *wm8955,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8955;
+	snd_soc_codec_set_drvdata(codec, wm8955);
 	codec->name = "WM8955";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

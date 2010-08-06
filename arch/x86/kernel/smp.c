@@ -21,6 +21,7 @@
 #include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
+#include <linux/gfp.h>
 
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>

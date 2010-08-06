@@ -24,9 +24,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <asm/qe.h>
 #include <asm/fsl_gtm.h>
-#include "../core/hcd.h"
 #include "fhci.h"
 
 static void recycle_frame(struct fhci_usb *usb, struct packet *pkt)
@@ -125,7 +125,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 /*
  * Flush all transmitted packets from BDs
  * This routine is called when disabling the USB port to flush all
- * transmissions that are allready scheduled in the BDs
+ * transmissions that are already scheduled in the BDs
  */
 void fhci_flush_all_transmissions(struct fhci_usb *usb)
 {

@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.08
+ *    mpi2_init.h Version:  02.00.09
  *
  *  Version History
  *  ---------------
@@ -31,6 +31,7 @@
  *                      both SCSI IO Error Reply and SCSI Task Management Reply.
  *                      Added ResponseInfo field to MPI2_SCSI_TASK_MANAGE_REPLY.
  *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
+ *  02-10-10  02.00.09  Removed unused structure that had "#if 0" around it.
  *  --------------------------------------------------------------------------
  */
 
@@ -56,20 +57,6 @@ typedef struct
     U32                     TransferLength;             /* 0x1C */
 } MPI2_SCSI_IO_CDB_EEDP32, MPI2_POINTER PTR_MPI2_SCSI_IO_CDB_EEDP32,
   Mpi2ScsiIoCdbEedp32_t, MPI2_POINTER pMpi2ScsiIoCdbEedp32_t;
-
-/* TBD: I don't think this is needed for MPI2/Gen2 */
-#if 0
-typedef struct
-{
-    U8                      CDB[16];                    /* 0x00 */
-    U32                     DataLength;                 /* 0x10 */
-    U32                     PrimaryReferenceTag;        /* 0x14 */
-    U16                     PrimaryApplicationTag;      /* 0x18 */
-    U16                     PrimaryApplicationTagMask;  /* 0x1A */
-    U32                     TransferLength;             /* 0x1C */
-} MPI2_SCSI_IO32_CDB_EEDP16, MPI2_POINTER PTR_MPI2_SCSI_IO32_CDB_EEDP16,
-  Mpi2ScsiIo32CdbEedp16_t, MPI2_POINTER pMpi2ScsiIo32CdbEedp16_t;
-#endif
 
 typedef union
 {

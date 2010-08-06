@@ -1820,10 +1820,6 @@ struct atyclk {
 #define ATYIO_FEATW		0x41545903	/* ATY\03 */
 #endif
 
-#ifndef FBIO_WAITFORVSYNC
-#define FBIO_WAITFORVSYNC _IOW('F', 0x20, __u32)
-#endif
-
 static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;

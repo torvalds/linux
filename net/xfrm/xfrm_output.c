@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
@@ -94,13 +95,13 @@ resume:
 			goto error_nolock;
 		}
 
-		dst = dst_pop(dst);
+		dst = skb_dst_pop(skb);
 		if (!dst) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
-		skb_dst_set(skb, dst);
+		skb_dst_set_noref(skb, dst);
 		x = dst->xfrm;
 	} while (x && !(x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL));
 

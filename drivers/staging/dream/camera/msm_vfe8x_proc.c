@@ -3828,7 +3828,7 @@ void vfe_camif_config(struct vfe_cmd_camif_config *in)
 		ctrl->vfeImaskLocal.camifEpoch2Irq = 1;
 	}
 
-	/*  save the content to program CAMIF_CONFIG seperately. */
+	/*  save the content to program CAMIF_CONFIG separately. */
 	ctrl->vfeCamifConfigLocal.camifCfgFromCmd = in->camifConfig;
 
 	/* EFS_Config */

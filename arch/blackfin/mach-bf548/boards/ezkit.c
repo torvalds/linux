@@ -603,6 +603,10 @@ static struct musb_hdrc_config musb_config = {
 	.num_eps	= 8,
 	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PE7,
+	/* Some custom boards need to be active low, just set it to "0"
+	 * if it is the case.
+	 */
+	.gpio_vrsel_active	= 1,
 };
 
 static struct musb_hdrc_platform_data musb_plat = {

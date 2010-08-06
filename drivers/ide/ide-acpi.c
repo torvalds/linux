@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <acpi/acpi.h>
 #include <linux/ide.h>
 #include <linux/pci.h>

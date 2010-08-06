@@ -3,7 +3,7 @@
  *
  *  Infrared device support routines - non-input, non-vl42_subdev routines
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ void cx23885_ir_rx_work_handler(struct work_struct *work)
 	if (events == 0)
 		return;
 
-	if (dev->ir_input)
+	if (dev->kernel_ir)
 		cx23885_input_rx_work_handler(dev, events);
 }
 

@@ -14,6 +14,7 @@
 #include <linux/dnotify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pipe_fs_i.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
@@ -273,7 +274,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 
 	ret = copy_from_user(&owner, owner_p, sizeof(owner));
 	if (ret)
-		return ret;
+		return -EFAULT;
 
 	switch (owner.type) {
 	case F_OWNER_TID:
@@ -331,8 +332,11 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 	}
 	read_unlock(&filp->f_owner.lock);
 
-	if (!ret)
+	if (!ret) {
 		ret = copy_to_user(owner_p, &owner, sizeof(owner));
+		if (ret)
+			ret = -EFAULT;
+	}
 	return ret;
 }
 
@@ -411,6 +415,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_NOTIFY:
 		err = fcntl_dirnotify(fd, filp, arg);
+		break;
+	case F_SETPIPE_SZ:
+	case F_GETPIPE_SZ:
+		err = pipe_fcntl(filp, cmd, arg);
 		break;
 	default:
 		break;
@@ -614,8 +622,14 @@ int send_sigurg(struct fown_struct *fown)
 	return ret;
 }
 
-static DEFINE_RWLOCK(fasync_lock);
+static DEFINE_SPINLOCK(fasync_lock);
 static struct kmem_cache *fasync_cache __read_mostly;
+
+static void fasync_free_rcu(struct rcu_head *head)
+{
+	kmem_cache_free(fasync_cache,
+			container_of(head, struct fasync_struct, fa_rcu));
+}
 
 /*
  * Remove a fasync entry. If successfully removed, return
@@ -625,8 +639,6 @@ static struct kmem_cache *fasync_cache __read_mostly;
  * NOTE! It is very important that the FASYNC flag always
  * match the state "is the filp on a fasync list".
  *
- * We always take the 'filp->f_lock', in since fasync_lock
- * needs to be irq-safe.
  */
 static int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 {
@@ -634,17 +646,22 @@ static int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 	int result = 0;
 
 	spin_lock(&filp->f_lock);
-	write_lock_irq(&fasync_lock);
+	spin_lock(&fasync_lock);
 	for (fp = fapp; (fa = *fp) != NULL; fp = &fa->fa_next) {
 		if (fa->fa_file != filp)
 			continue;
+
+		spin_lock_irq(&fa->fa_lock);
+		fa->fa_file = NULL;
+		spin_unlock_irq(&fa->fa_lock);
+
 		*fp = fa->fa_next;
-		kmem_cache_free(fasync_cache, fa);
+		call_rcu(&fa->fa_rcu, fasync_free_rcu);
 		filp->f_flags &= ~FASYNC;
 		result = 1;
 		break;
 	}
-	write_unlock_irq(&fasync_lock);
+	spin_unlock(&fasync_lock);
 	spin_unlock(&filp->f_lock);
 	return result;
 }
@@ -666,25 +683,30 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 		return -ENOMEM;
 
 	spin_lock(&filp->f_lock);
-	write_lock_irq(&fasync_lock);
+	spin_lock(&fasync_lock);
 	for (fp = fapp; (fa = *fp) != NULL; fp = &fa->fa_next) {
 		if (fa->fa_file != filp)
 			continue;
+
+		spin_lock_irq(&fa->fa_lock);
 		fa->fa_fd = fd;
+		spin_unlock_irq(&fa->fa_lock);
+
 		kmem_cache_free(fasync_cache, new);
 		goto out;
 	}
 
+	spin_lock_init(&new->fa_lock);
 	new->magic = FASYNC_MAGIC;
 	new->fa_file = filp;
 	new->fa_fd = fd;
 	new->fa_next = *fapp;
-	*fapp = new;
+	rcu_assign_pointer(*fapp, new);
 	result = 1;
 	filp->f_flags |= FASYNC;
 
 out:
-	write_unlock_irq(&fasync_lock);
+	spin_unlock(&fasync_lock);
 	spin_unlock(&filp->f_lock);
 	return result;
 }
@@ -704,26 +726,33 @@ int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fap
 
 EXPORT_SYMBOL(fasync_helper);
 
-void __kill_fasync(struct fasync_struct *fa, int sig, int band)
+/*
+ * rcu_read_lock() is held
+ */
+static void kill_fasync_rcu(struct fasync_struct *fa, int sig, int band)
 {
 	while (fa) {
-		struct fown_struct * fown;
+		struct fown_struct *fown;
+		unsigned long flags;
+
 		if (fa->magic != FASYNC_MAGIC) {
 			printk(KERN_ERR "kill_fasync: bad magic number in "
 			       "fasync_struct!\n");
 			return;
 		}
-		fown = &fa->fa_file->f_owner;
-		/* Don't send SIGURG to processes which have not set a
-		   queued signum: SIGURG has its own default signalling
-		   mechanism. */
-		if (!(sig == SIGURG && fown->signum == 0))
-			send_sigio(fown, fa->fa_fd, band);
-		fa = fa->fa_next;
+		spin_lock_irqsave(&fa->fa_lock, flags);
+		if (fa->fa_file) {
+			fown = &fa->fa_file->f_owner;
+			/* Don't send SIGURG to processes which have not set a
+			   queued signum: SIGURG has its own default signalling
+			   mechanism. */
+			if (!(sig == SIGURG && fown->signum == 0))
+				send_sigio(fown, fa->fa_fd, band);
+		}
+		spin_unlock_irqrestore(&fa->fa_lock, flags);
+		fa = rcu_dereference(fa->fa_next);
 	}
 }
-
-EXPORT_SYMBOL(__kill_fasync);
 
 void kill_fasync(struct fasync_struct **fp, int sig, int band)
 {
@@ -731,10 +760,9 @@ void kill_fasync(struct fasync_struct **fp, int sig, int band)
 	 * the list is empty.
 	 */
 	if (*fp) {
-		read_lock(&fasync_lock);
-		/* reread *fp after obtaining the lock */
-		__kill_fasync(*fp, sig, band);
-		read_unlock(&fasync_lock);
+		rcu_read_lock();
+		kill_fasync_rcu(rcu_dereference(*fp), sig, band);
+		rcu_read_unlock();
 	}
 }
 EXPORT_SYMBOL(kill_fasync);

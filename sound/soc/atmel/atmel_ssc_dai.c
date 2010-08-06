@@ -363,12 +363,12 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	ssc_p->dma_params[dir] = dma_params;
 
 	/*
-	 * The cpu_dai->dma_data field is only used to communicate the
-	 * appropriate DMA parameters to the pcm driver hw_params()
+	 * The snd_soc_pcm_stream->dma_data field is only used to communicate
+	 * the appropriate DMA parameters to the pcm driver hw_params()
 	 * function.  It should not be used for other purposes
 	 * as it is common to all substreams.
 	 */
-	rtd->dai->cpu_dai->dma_data = dma_params;
+	snd_soc_dai_set_dma_data(rtd->dai->cpu_dai, substream, dma_params);
 
 	channels = params_channels(params);
 

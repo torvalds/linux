@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/key.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <linux/file.h>
@@ -85,7 +86,6 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 		if (lower_dentry->d_inode) {
 			fput(inode_info->lower_file);
 			inode_info->lower_file = NULL;
-			d_drop(lower_dentry);
 		}
 	}
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
@@ -106,26 +106,6 @@ void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
 	inode->i_op = &ecryptfs_main_iops;
 	inode->i_fop = &ecryptfs_main_fops;
 	inode->i_mapping->a_ops = &ecryptfs_aops;
-}
-
-/**
- * ecryptfs_put_super
- * @sb: Pointer to the ecryptfs super block
- *
- * Final actions when unmounting a file system.
- * This will handle deallocation and release of our private data.
- */
-static void ecryptfs_put_super(struct super_block *sb)
-{
-	struct ecryptfs_sb_info *sb_info = ecryptfs_superblock_to_private(sb);
-
-	lock_kernel();
-
-	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
-	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
-	ecryptfs_set_superblock_private(sb, NULL);
-
-	unlock_kernel();
 }
 
 /**
@@ -202,7 +182,6 @@ const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.put_super = ecryptfs_put_super,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.clear_inode = ecryptfs_clear_inode,

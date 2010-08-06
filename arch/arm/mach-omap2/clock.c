@@ -334,6 +334,15 @@ oce_err1:
 	return ret;
 }
 
+/* Given a clock and a rate apply a clock specific rounding function */
+long omap2_clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	if (clk->round_rate)
+		return clk->round_rate(clk, rate);
+
+	return clk->rate;
+}
+
 /* Set the clock rate for a clock source */
 int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 {

@@ -136,7 +136,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 	default:
 		printk(KERN_DEBUG
 		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, (int)eth->h_proto);
+		       dev->name, ntohs(eth->h_proto));
 
 		memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
@@ -158,11 +158,10 @@ EXPORT_SYMBOL(eth_rebuild_header);
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
-	unsigned char *rawp;
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
-	skb_pull(skb, ETH_HLEN);
+	skb_pull_inline(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
 	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
@@ -199,15 +198,13 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (ntohs(eth->h_proto) >= 1536)
 		return eth->h_proto;
 
-	rawp = skb->data;
-
 	/*
 	 *      This is a magic hack to spot IPX packets. Older Novell breaks
 	 *      the protocol design and runs IPX over 802.3 without an 802.2 LLC
 	 *      layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *      won't work for fault tolerant netware but does for the rest.
 	 */
-	if (*(unsigned short *)rawp == 0xFFFF)
+	if (skb->len >= 2 && *(unsigned short *)(skb->data) == 0xFFFF)
 		return htons(ETH_P_802_3);
 
 	/*

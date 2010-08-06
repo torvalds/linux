@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include "netxen_nic_hw.h"
@@ -604,16 +605,14 @@ netxen_cleanup_pci_map(struct netxen_adapter *adapter)
 static int
 netxen_setup_pci_map(struct netxen_adapter *adapter)
 {
-	void __iomem *mem_ptr0 = NULL;
-	void __iomem *mem_ptr1 = NULL;
-	void __iomem *mem_ptr2 = NULL;
 	void __iomem *db_ptr = NULL;
 
 	resource_size_t mem_base, db_base;
-	unsigned long mem_len, db_len = 0, pci_len0 = 0;
+	unsigned long mem_len, db_len = 0;
 
 	struct pci_dev *pdev = adapter->pdev;
 	int pci_func = adapter->ahw.pci_func;
+	struct netxen_hardware_context *ahw = &adapter->ahw;
 
 	int err = 0;
 
@@ -630,24 +629,40 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 
 	/* 128 Meg of memory */
 	if (mem_len == NETXEN_PCI_128MB_SIZE) {
-		mem_ptr0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
-		mem_ptr1 = ioremap(mem_base + SECOND_PAGE_GROUP_START,
+
+		ahw->pci_base0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
+		ahw->pci_base1 = ioremap(mem_base + SECOND_PAGE_GROUP_START,
 				SECOND_PAGE_GROUP_SIZE);
-		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
+		ahw->pci_base2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
 				THIRD_PAGE_GROUP_SIZE);
-		pci_len0 = FIRST_PAGE_GROUP_SIZE;
+		if (ahw->pci_base0 == NULL || ahw->pci_base1 == NULL ||
+						ahw->pci_base2 == NULL) {
+			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
+			err = -EIO;
+			goto err_out;
+		}
+
+		ahw->pci_len0 = FIRST_PAGE_GROUP_SIZE;
+
 	} else if (mem_len == NETXEN_PCI_32MB_SIZE) {
-		mem_ptr1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
-		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
+
+		ahw->pci_base1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
+		ahw->pci_base2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
 			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
+		if (ahw->pci_base1 == NULL || ahw->pci_base2 == NULL) {
+			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
+			err = -EIO;
+			goto err_out;
+		}
+
 	} else if (mem_len == NETXEN_PCI_2MB_SIZE) {
 
-		mem_ptr0 = pci_ioremap_bar(pdev, 0);
-		if (mem_ptr0 == NULL) {
+		ahw->pci_base0 = pci_ioremap_bar(pdev, 0);
+		if (ahw->pci_base0 == NULL) {
 			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
 			return -EIO;
 		}
-		pci_len0 = mem_len;
+		ahw->pci_len0 = mem_len;
 	} else {
 		return -EIO;
 	}
@@ -655,11 +670,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	netxen_setup_hwops(adapter);
 
 	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
-
-	adapter->ahw.pci_base0 = mem_ptr0;
-	adapter->ahw.pci_len0 = pci_len0;
-	adapter->ahw.pci_base1 = mem_ptr1;
-	adapter->ahw.pci_base2 = mem_ptr2;
 
 	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id)) {
 		adapter->ahw.ocm_win_crb = netxen_get_ioaddr(adapter,
@@ -772,15 +782,22 @@ netxen_check_options(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		adapter->msix_supported = !!use_msi_x;
 		adapter->rss_supported = !!use_msi_x;
-	} else if (adapter->fw_version >= NETXEN_VERSION_CODE(3, 4, 336)) {
-		switch (adapter->ahw.board_type) {
-		case NETXEN_BRDTYPE_P2_SB31_10G:
-		case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
-			adapter->msix_supported = !!use_msi_x;
-			adapter->rss_supported = !!use_msi_x;
-			break;
-		default:
-			break;
+	} else {
+		u32 flashed_ver = 0;
+		netxen_rom_fast_read(adapter,
+				NX_FW_VERSION_OFFSET, (int *)&flashed_ver);
+		flashed_ver = NETXEN_DECODE_VERSION(flashed_ver);
+
+		if (flashed_ver >= NETXEN_VERSION_CODE(3, 4, 336)) {
+			switch (adapter->ahw.board_type) {
+			case NETXEN_BRDTYPE_P2_SB31_10G:
+			case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
+				adapter->msix_supported = !!use_msi_x;
+				adapter->rss_supported = !!use_msi_x;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -1246,8 +1263,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
-	if (pdev->revision >= NX_P3_A0 && pdev->revision < NX_P3_B1) {
-		pr_warning("%s: chip revisions between 0x%x-0x%x"
+	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
+		pr_warning("%s: chip revisions between 0x%x-0x%x "
 				"will not be enabled.\n",
 				module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
 		return -ENODEV;
@@ -2294,6 +2311,7 @@ netxen_fwinit_work(struct work_struct *work)
 		}
 		break;
 
+	case NX_DEV_NEED_RESET:
 	case NX_DEV_INITALIZING:
 		if (++adapter->fw_wait_cnt < FW_POLL_THRESH) {
 			netxen_schedule_work(adapter,
@@ -2336,6 +2354,9 @@ netxen_detach_work(struct work_struct *work)
 		goto err_ret;
 
 	ref_cnt = nx_decr_dev_ref_cnt(adapter);
+
+	if (ref_cnt == -EIO)
+		goto err_ret;
 
 	delay = (ref_cnt == 0) ? 0 : (2 * FW_POLL_DELAY);
 
@@ -2516,51 +2537,81 @@ static int
 netxen_sysfs_validate_crb(struct netxen_adapter *adapter,
 		loff_t offset, size_t size)
 {
+	size_t crb_size = 4;
+
 	if (!(adapter->flags & NETXEN_NIC_DIAG_ENABLED))
 		return -EIO;
 
-	if ((size != 4) || (offset & 0x3))
-		return  -EINVAL;
+	if (offset < NETXEN_PCI_CRBSPACE) {
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+			return -EINVAL;
 
-	if (offset < NETXEN_PCI_CRBSPACE)
-		return -EINVAL;
+		if (ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+						NETXEN_PCI_CAMQM_2M_END))
+			crb_size = 8;
+		else
+			return -EINVAL;
+	}
+
+	if ((size != crb_size) || (offset & (crb_size-1)))
+		return  -EINVAL;
 
 	return 0;
 }
 
 static ssize_t
-netxen_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_read_crb(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = netxen_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	data = NXRD32(adapter, offset);
-	memcpy(buf, &data, size);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) &&
+		ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+					NETXEN_PCI_CAMQM_2M_END)) {
+		netxen_pci_camqm_read_2M(adapter, offset, &qmdata);
+		memcpy(buf, &qmdata, size);
+	} else {
+		data = NXRD32(adapter, offset);
+		memcpy(buf, &data, size);
+	}
+
 	return size;
 }
 
 static ssize_t
-netxen_sysfs_write_crb(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_write_crb(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = netxen_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	memcpy(&data, buf, size);
-	NXWR32(adapter, offset, data);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) &&
+		ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+					NETXEN_PCI_CAMQM_2M_END)) {
+		memcpy(&qmdata, buf, size);
+		netxen_pci_camqm_write_2M(adapter, offset, qmdata);
+	} else {
+		memcpy(&data, buf, size);
+		NXWR32(adapter, offset, data);
+	}
+
 	return size;
 }
 
@@ -2578,7 +2629,8 @@ netxen_sysfs_validate_mem(struct netxen_adapter *adapter,
 }
 
 static ssize_t
-netxen_sysfs_read_mem(struct kobject *kobj, struct bin_attribute *attr,
+netxen_sysfs_read_mem(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2598,7 +2650,7 @@ netxen_sysfs_read_mem(struct kobject *kobj, struct bin_attribute *attr,
 	return size;
 }
 
-static ssize_t netxen_sysfs_write_mem(struct kobject *kobj,
+static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t offset, size_t size)
 {
@@ -2732,7 +2784,6 @@ netxen_config_indev_addr(struct net_device *dev, unsigned long event)
 	} endfor_ifa(indev);
 
 	in_dev_put(indev);
-	return;
 }
 
 static int netxen_netdev_event(struct notifier_block *this,

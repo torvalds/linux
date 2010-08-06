@@ -35,6 +35,9 @@ enum port_dev_state {
 	PORT_UNREGISTERING,
 };
 
+/* USB serial flags */
+#define USB_SERIAL_WRITE_BUSY	0
+
 /**
  * usb_serial_port: structure for the specific ports of a device.
  * @serial: pointer back to the struct usb_serial owner of this port.
@@ -49,7 +52,7 @@ enum port_dev_state {
  * @interrupt_out_size: the size of the interrupt_out_buffer, in bytes.
  * @interrupt_out_urb: pointer to the interrupt out struct urb for this port.
  * @interrupt_out_endpointAddress: endpoint address for the interrupt out pipe
- * 	for this port.
+ *	for this port.
  * @bulk_in_buffer: pointer to the bulk in buffer for this port.
  * @bulk_in_size: the size of the bulk_in_buffer, in bytes.
  * @read_urb: pointer to the bulk in struct urb for this port.
@@ -60,13 +63,17 @@ enum port_dev_state {
  * @write_urb: pointer to the bulk out struct urb for this port.
  * @write_fifo: kfifo used to buffer outgoing data
  * @write_urb_busy: port`s writing status
+ * @bulk_out_buffers: pointers to the bulk out buffers for this port
+ * @write_urbs: pointers to the bulk out urbs for this port
+ * @write_urbs_free: status bitmap the for bulk out urbs
+ * @tx_bytes: number of bytes currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
+ * @flags: usb serial port flags
  * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
  * @throttled: nonzero if the read urb is inactive to throttle the device
  * @throttle_req: nonzero if the tty wants to throttle us
- * @console: attached usb serial console
  * @dev: pointer to the serial device
  *
  * This structure is used by the usb-serial core and drivers for the specific
@@ -97,16 +104,19 @@ struct usb_serial_port {
 	struct urb		*write_urb;
 	struct kfifo		write_fifo;
 	int			write_urb_busy;
+
+	unsigned char		*bulk_out_buffers[2];
+	struct urb		*write_urbs[2];
+	unsigned long		write_urbs_free;
 	__u8			bulk_out_endpointAddress;
 
-	int			tx_bytes_flight;
-	int			urbs_in_flight;
+	int			tx_bytes;
 
+	unsigned long		flags;
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	char			throttled;
 	char			throttle_req;
-	char			console;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
 	enum port_dev_state	dev_state;
@@ -181,6 +191,8 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_ports: the number of different ports this device will have.
+ * @bulk_in_size: bytes to allocate for bulk-in buffer (0 = end-point size)
+ * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
  *	device has dynamically.  It will be called after the probe()
  *	callback is called, but before attach()
@@ -223,7 +235,9 @@ struct usb_serial_driver {
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
-	int			max_in_flight_urbs;
+
+	size_t			bulk_in_size;
+	size_t			bulk_out_size;
 
 	int (*probe)(struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach)(struct usb_serial *serial);
@@ -269,6 +283,11 @@ struct usb_serial_driver {
 	void (*write_int_callback)(struct urb *urb);
 	void (*read_bulk_callback)(struct urb *urb);
 	void (*write_bulk_callback)(struct urb *urb);
+	/* Called by the generic read bulk callback */
+	void (*process_read_urb)(struct urb *urb);
+	/* Called by the generic write implementation */
+	int (*prepare_write_buffer)(struct usb_serial_port *port,
+						void *dest, size_t size);
 };
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)
@@ -318,8 +337,11 @@ extern void usb_serial_generic_disconnect(struct usb_serial *serial);
 extern void usb_serial_generic_release(struct usb_serial *serial);
 extern int usb_serial_generic_register(int debug);
 extern void usb_serial_generic_deregister(void);
-extern void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
+extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 						 gfp_t mem_flags);
+extern void usb_serial_generic_process_read_urb(struct urb *urb);
+extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
+						void *dest, size_t size);
 extern int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					unsigned int ch);

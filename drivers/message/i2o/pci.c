@@ -29,6 +29,7 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/i2o.h>
 #include "core.h"
 

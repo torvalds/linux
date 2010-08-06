@@ -112,6 +112,27 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
  */
 u8 ACPI_INIT_GLOBAL(acpi_gbl_use_default_register_widths, TRUE);
 
+/*
+ * Optionally enable output from the AML Debug Object.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_aml_debug_object, FALSE);
+
+/*
+ * Optionally copy the entire DSDT to local memory (instead of simply
+ * mapping it.) There are some BIOSs that corrupt or replace the original
+ * DSDT, creating the need for this option. Default is FALSE, do not copy
+ * the DSDT.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_copy_dsdt_locally, FALSE);
+
+/*
+ * Optionally truncate I/O addresses to 16 bits. Provides compatibility
+ * with other ACPI implementations. NOTE: During ACPICA initialization,
+ * this value is set to TRUE if any Windows OSI strings have been
+ * requested by the BIOS.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_truncate_io_addresses, FALSE);
+
 /* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
 struct acpi_table_fadt acpi_gbl_FADT;
@@ -145,11 +166,10 @@ ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
  ****************************************************************************/
 
 /*
- * acpi_gbl_root_table_list is the master list of ACPI tables found in the
- * RSDT/XSDT.
- *
+ * acpi_gbl_root_table_list is the master list of ACPI tables that were
+ * found in the RSDT/XSDT.
  */
-ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
+ACPI_EXTERN struct acpi_table_list acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
 
 /* These addresses are calculated from the FADT Event Block addresses */
@@ -159,6 +179,11 @@ ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
 
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_status;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
+
+/* DSDT information. Used to check for DSDT corruption */
+
+ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
+ACPI_EXTERN struct acpi_table_header acpi_gbl_original_dsdt_header;
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is

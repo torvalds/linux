@@ -36,7 +36,6 @@ struct iscsi_sw_tcp_send {
 };
 
 struct iscsi_sw_tcp_conn {
-	struct iscsi_conn	*iscsi_conn;
 	struct socket		*sock;
 
 	struct iscsi_sw_tcp_send out;

@@ -2,7 +2,7 @@
 #define __LINUX_SERIAL_SCI_H
 
 #include <linux/serial_core.h>
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 /*
  * Generic header for SuperH SCI(F) (used by sh/sh64/h8300 and related parts)
@@ -30,8 +30,10 @@ struct plat_sci_port {
 	upf_t		flags;			/* UPF_* flags */
 	char		*clk;			/* clock string */
 	struct device	*dma_dev;
-	enum sh_dmae_slave_chan_id dma_slave_tx;
-	enum sh_dmae_slave_chan_id dma_slave_rx;
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	unsigned int dma_slave_tx;
+	unsigned int dma_slave_rx;
+#endif
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */

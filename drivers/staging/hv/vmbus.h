@@ -26,7 +26,7 @@
 #define _VMBUS_H_
 
 #include <linux/device.h>
-#include "VmbusApi.h"
+#include "vmbus_api.h"
 
 struct driver_context {
 	struct hv_guid class_id;
@@ -73,5 +73,7 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 int vmbus_child_driver_register(struct driver_context *driver_ctx);
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx);
 void vmbus_get_interface(struct vmbus_channel_interface *interface);
+
+extern struct completion hv_channel_ready;
 
 #endif /* _VMBUS_H_ */

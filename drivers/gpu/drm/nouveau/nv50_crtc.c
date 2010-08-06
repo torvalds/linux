@@ -264,32 +264,40 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 int
 nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 {
-	uint32_t pll_reg = NV50_PDISPLAY_CRTC_CLK_CTRL1(head);
-	struct nouveau_pll_vals pll;
-	struct pll_lims limits;
+	uint32_t reg = NV50_PDISPLAY_CRTC_CLK_CTRL1(head);
+	struct pll_lims pll;
 	uint32_t reg1, reg2;
-	int ret;
+	int ret, N1, M1, N2, M2, P;
 
-	ret = get_pll_limits(dev, pll_reg, &limits);
+	ret = get_pll_limits(dev, reg, &pll);
 	if (ret)
 		return ret;
 
-	ret = nouveau_calc_pll_mnp(dev, &limits, pclk, &pll);
-	if (ret <= 0)
-		return ret;
+	if (pll.vco2.maxfreq) {
+		ret = nv50_calc_pll(dev, &pll, pclk, &N1, &M1, &N2, &M2, &P);
+		if (ret <= 0)
+			return 0;
 
-	if (limits.vco2.maxfreq) {
-		reg1 = nv_rd32(dev, pll_reg + 4) & 0xff00ff00;
-		reg2 = nv_rd32(dev, pll_reg + 8) & 0x8000ff00;
-		nv_wr32(dev, pll_reg, 0x10000611);
-		nv_wr32(dev, pll_reg + 4, reg1 | (pll.M1 << 16) | pll.N1);
-		nv_wr32(dev, pll_reg + 8,
-			reg2 | (pll.log2P << 28) | (pll.M2 << 16) | pll.N2);
+		NV_DEBUG(dev, "pclk %d out %d NM1 %d %d NM2 %d %d P %d\n",
+			 pclk, ret, N1, M1, N2, M2, P);
+
+		reg1 = nv_rd32(dev, reg + 4) & 0xff00ff00;
+		reg2 = nv_rd32(dev, reg + 8) & 0x8000ff00;
+		nv_wr32(dev, reg, 0x10000611);
+		nv_wr32(dev, reg + 4, reg1 | (M1 << 16) | N1);
+		nv_wr32(dev, reg + 8, reg2 | (P << 28) | (M2 << 16) | N2);
 	} else {
-		reg1 = nv_rd32(dev, pll_reg + 4) & 0xffc00000;
-		nv_wr32(dev, pll_reg, 0x50000610);
-		nv_wr32(dev, pll_reg + 4, reg1 |
-			(pll.log2P << 16) | (pll.M1 << 8) | pll.N1);
+		ret = nv50_calc_pll2(dev, &pll, pclk, &N1, &N2, &M1, &P);
+		if (ret <= 0)
+			return 0;
+
+		NV_DEBUG(dev, "pclk %d out %d N %d fN 0x%04x M %d P %d\n",
+			 pclk, ret, N1, N2, M1, P);
+
+		reg1 = nv_rd32(dev, reg + 4) & 0xffc00000;
+		nv_wr32(dev, reg, 0x50000610);
+		nv_wr32(dev, reg + 4, reg1 | (P << 16) | (M1 << 8) | N1);
+		nv_wr32(dev, reg + 8, N2);
 	}
 
 	return 0;

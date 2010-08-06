@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/syscalls.h>
 
 #include <linux/mutex.h>

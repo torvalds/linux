@@ -26,6 +26,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kmod.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -1042,7 +1043,7 @@ static int __devinit envctrl_probe(struct of_device *op,
 		return -ENOMEM;
 
 	index = 0;
-	dp = op->node->child;
+	dp = op->dev.of_node->child;
 	while (dp) {
 		if (!strcmp(dp->name, "gpio")) {
 			i2c_childlist[index].i2ctype = I2C_GPIO;
@@ -1130,8 +1131,11 @@ static const struct of_device_id envctrl_match[] = {
 MODULE_DEVICE_TABLE(of, envctrl_match);
 
 static struct of_platform_driver envctrl_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= envctrl_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = envctrl_match,
+	},
 	.probe		= envctrl_probe,
 	.remove		= __devexit_p(envctrl_remove),
 };

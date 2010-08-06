@@ -1055,7 +1055,7 @@ static int snd_trident_capture_prepare(struct snd_pcm_substream *substream)
 
 	spin_lock_irq(&trident->reg_lock);
 
-	// Initilize the channel and set channel Mode
+	// Initialize the channel and set channel Mode
 	outb(0, TRID_REG(trident, LEGACY_DMAR15));
 
 	// Set DMA channel operation mode register

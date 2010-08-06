@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008-2009 QUALCOMM Incorporated.
  */
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <mach/irqs.h>

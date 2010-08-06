@@ -9,6 +9,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/slab.h>
 #include "zfcp_ext.h"
 
 #define ZFCP_DEV_ATTR(_feat, _name, _mode, _show, _store) \
@@ -274,7 +275,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 
 	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
-	flush_work(&unit->scsi_work);
+	zfcp_scsi_scan(unit);
 out:
 	put_device(&port->dev);
 	return retval ? retval : (ssize_t) count;
@@ -289,6 +290,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = -EINVAL;
+	struct scsi_device *sdev;
 
 	if (!(port && get_device(&port->dev)))
 		return -EBUSY;
@@ -302,8 +304,13 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	else
 		retval = 0;
 
-	/* wait for possible timeout during SCSI probe */
-	flush_work(&unit->scsi_work);
+	sdev = scsi_device_lookup(port->adapter->scsi_host, 0,
+				  port->starget_id,
+				  scsilun_to_int((struct scsi_lun *)&fcp_lun));
+	if (sdev) {
+		scsi_remove_device(sdev);
+		scsi_device_put(sdev);
+	}
 
 	write_lock_irq(&port->unit_list_lock);
 	list_del(&unit->list);

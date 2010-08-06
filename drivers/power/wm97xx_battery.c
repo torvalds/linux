@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
@@ -306,6 +307,9 @@ static void __exit wm97xx_bat_exit(void)
 {
 	platform_driver_unregister(&wm97xx_bat_driver);
 }
+
+/* The interface is deprecated, as well as linux/wm97xx_batt.h */
+void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data);
 
 void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data)
 {

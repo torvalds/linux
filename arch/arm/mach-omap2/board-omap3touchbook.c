@@ -328,8 +328,7 @@ static void __init omap3_ads7846_init(void)
 	}
 
 	gpio_direction_input(OMAP3_TS_GPIO);
-	omap_set_gpio_debounce(OMAP3_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_TS_GPIO, 310);
 }
 
 static struct ads7846_platform_data ads7846_config = {
@@ -572,6 +571,7 @@ MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_touchbook_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3_touchbook_init_irq,
 	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap_timer,

@@ -17,11 +17,11 @@
 
 #include <linux/crypto.h>
 #include <linux/err.h>
-#include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/percpu.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
 #include <net/ip.h>

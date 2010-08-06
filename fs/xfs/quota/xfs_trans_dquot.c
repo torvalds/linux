@@ -23,25 +23,15 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_ialloc.h"
 #include "xfs_itable.h"
-#include "xfs_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
@@ -59,17 +49,14 @@ xfs_trans_dqjoin(
 	xfs_trans_t	*tp,
 	xfs_dquot_t	*dqp)
 {
-	xfs_dq_logitem_t    *lp;
-
-	ASSERT(! XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+	ASSERT(dqp->q_transp != tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	ASSERT(XFS_DQ_IS_LOGITEM_INITD(dqp));
-	lp = &dqp->q_logitem;
+	ASSERT(dqp->q_logitem.qli_dquot == dqp);
 
 	/*
 	 * Get a log_item_desc to point at the new item.
 	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)(lp));
+	xfs_trans_add_item(tp, &dqp->q_logitem.qli_item);
 
 	/*
 	 * Initialize i_transp so we can later determine if this dquot is
@@ -94,16 +81,11 @@ xfs_trans_log_dquot(
 	xfs_trans_t	*tp,
 	xfs_dquot_t	*dqp)
 {
-	xfs_log_item_desc_t	*lidp;
-
-	ASSERT(XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+	ASSERT(dqp->q_transp == tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)(&dqp->q_logitem));
-	ASSERT(lidp != NULL);
-
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	lidp->lid_flags |= XFS_LID_DIRTY;
+	dqp->q_logitem.qli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 }
 
 /*
@@ -198,16 +180,16 @@ xfs_trans_get_dqtrx(
 	int		i;
 	xfs_dqtrx_t	*qa;
 
-	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
-		qa = XFS_QM_DQP_TO_DQACCT(tp, dqp);
+	qa = XFS_QM_ISUDQ(dqp) ?
+		tp->t_dqinfo->dqa_usrdquots : tp->t_dqinfo->dqa_grpdquots;
 
+	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 		if (qa[i].qt_dquot == NULL ||
-		    qa[i].qt_dquot == dqp) {
-			return (&qa[i]);
-		}
+		    qa[i].qt_dquot == dqp)
+			return &qa[i];
 	}
 
-	return (NULL);
+	return NULL;
 }
 
 /*
@@ -381,7 +363,7 @@ xfs_trans_apply_dquot_deltas(
 				break;
 
 			ASSERT(XFS_DQ_IS_LOCKED(dqp));
-			ASSERT(XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+			ASSERT(dqp->q_transp == tp);
 
 			/*
 			 * adjust the actual number of blocks used
@@ -639,7 +621,7 @@ xfs_trans_dqresv(
 			softlimit = q->qi_bsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_btimer);
 		warns = be16_to_cpu(dqp->q_core.d_bwarns);
-		warnlimit = XFS_QI_BWARNLIMIT(dqp->q_mount);
+		warnlimit = dqp->q_mount->m_quotainfo->qi_bwarnlimit;
 		resbcountp = &dqp->q_res_bcount;
 	} else {
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
@@ -651,7 +633,7 @@ xfs_trans_dqresv(
 			softlimit = q->qi_rtbsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_rtbtimer);
 		warns = be16_to_cpu(dqp->q_core.d_rtbwarns);
-		warnlimit = XFS_QI_RTBWARNLIMIT(dqp->q_mount);
+		warnlimit = dqp->q_mount->m_quotainfo->qi_rtbwarnlimit;
 		resbcountp = &dqp->q_res_rtbcount;
 	}
 
@@ -691,7 +673,7 @@ xfs_trans_dqresv(
 			count = be64_to_cpu(dqp->q_core.d_icount);
 			timer = be32_to_cpu(dqp->q_core.d_itimer);
 			warns = be16_to_cpu(dqp->q_core.d_iwarns);
-			warnlimit = XFS_QI_IWARNLIMIT(dqp->q_mount);
+			warnlimit = dqp->q_mount->m_quotainfo->qi_iwarnlimit;
 			hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 			if (!hardlimit)
 				hardlimit = q->qi_ihardlimit;
@@ -875,9 +857,8 @@ xfs_trans_get_qoff_item(
 	/*
 	 * Get a log_item_desc to point at the new item.
 	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)q);
-
-	return (q);
+	xfs_trans_add_item(tp, &q->qql_item);
+	return q;
 }
 
 
@@ -891,13 +872,8 @@ xfs_trans_log_quotaoff_item(
 	xfs_trans_t		*tp,
 	xfs_qoff_logitem_t	*qlp)
 {
-	xfs_log_item_desc_t	*lidp;
-
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t *)qlp);
-	ASSERT(lidp != NULL);
-
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	lidp->lid_flags |= XFS_LID_DIRTY;
+	qlp->qql_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 }
 
 STATIC void

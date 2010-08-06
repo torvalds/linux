@@ -25,6 +25,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/slab.h>
 
 #define PM8607_WAKEUP		0x0b
 
@@ -86,7 +87,6 @@ static int __devinit pm860x_onkey_probe(struct platform_device *pdev)
 	info->idev->phys = "88pm860x_on/input0";
 	info->idev->id.bustype = BUS_I2C;
 	info->idev->dev.parent = &pdev->dev;
-	info->irq = irq;
 	info->idev->evbit[0] = BIT_MASK(EV_KEY);
 	info->idev->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
 

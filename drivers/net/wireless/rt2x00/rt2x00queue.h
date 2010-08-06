@@ -94,12 +94,15 @@ enum data_queue_qid {
  *	mac80211 but was stripped for processing by the driver.
  * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
  *	don't try to pass it back.
+ * @SKBDESC_DESC_IN_SKB: The descriptor is at the start of the
+ *	skb, instead of in the desc field.
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
 	SKBDESC_NOT_MAC80211 = 1 << 3,
+	SKBDESC_DESC_IN_SKB = 1 << 4,
 };
 
 /**
@@ -183,7 +186,6 @@ enum rxdone_entry_desc_flags {
  * @timestamp: RX Timestamp
  * @signal: Signal of the received frame.
  * @rssi: RSSI of the received frame.
- * @noise: Measured noise during frame reception.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
@@ -197,7 +199,6 @@ struct rxdone_entry_desc {
 	u64 timestamp;
 	int signal;
 	int rssi;
-	int noise;
 	int size;
 	int flags;
 	int dev_flags;
@@ -212,9 +213,16 @@ struct rxdone_entry_desc {
 /**
  * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
  *
+ * Every txdone report has to contain the basic result of the
+ * transmission, either &TXDONE_UNKNOWN, &TXDONE_SUCCESS or
+ * &TXDONE_FAILURE. The flag &TXDONE_FALLBACK can be used in
+ * conjunction with all of these flags but should only be set
+ * if retires > 0. The flag &TXDONE_EXCESSIVE_RETRY can only be used
+ * in conjunction with &TXDONE_FAILURE.
+ *
  * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
  * @TXDONE_SUCCESS: Frame was successfully send
- * @TXDONE_FALLBACK: Frame was successfully send using a fallback rate.
+ * @TXDONE_FALLBACK: Hardware used fallback rates for retries
  * @TXDONE_FAILURE: Frame was not successfully send
  * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
  *	frame transmission failed due to excessive retries.
@@ -287,8 +295,8 @@ enum txentry_desc_flags {
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
  * @queue: Queue identification (See &enum data_queue_qid).
+ * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
- * @l2pad: Amount of padding to align 802.11 payload to 4-byte boundrary.
  * @length_high: PLCP length high word.
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
@@ -301,6 +309,7 @@ enum txentry_desc_flags {
  * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
+ * @txop: IFS value for 11n capable chips.
  * @cw_min: cwmin value.
  * @cw_max: cwmax value.
  * @cipher: Cipher type used for encryption.
@@ -313,8 +322,8 @@ struct txentry_desc {
 
 	enum data_queue_qid queue;
 
+	u16 length;
 	u16 header_length;
-	u16 l2pad;
 
 	u16 length_high;
 	u16 length_low;
@@ -330,6 +339,7 @@ struct txentry_desc {
 	short retry_limit;
 	short aifs;
 	short ifs;
+	short txop;
 	short cw_min;
 	short cw_max;
 
@@ -436,6 +446,8 @@ struct data_queue {
 	enum data_queue_qid qid;
 
 	spinlock_t lock;
+	unsigned long last_index;
+	unsigned long last_index_done;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
@@ -586,6 +598,15 @@ static inline int rt2x00queue_available(struct data_queue *queue)
 static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for this queue
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_index, queue->last_index_done + (HZ / 10));
 }
 
 /**

@@ -48,6 +48,7 @@
 #include "umac.h"
 #include "lmac.h"
 #include "eeprom.h"
+#include "trace.h"
 
 #define IWM_COPYRIGHT "Copyright(c) 2009 Intel Corporation"
 #define IWM_AUTHOR "<ilw@linux.intel.com>"
@@ -161,7 +162,7 @@ struct iwm_umac_key_hdr {
 	u8 mac[ETH_ALEN];
 	u8 key_idx;
 	u8 multicast; /* BCast encrypt & BCast decrypt of frames FROM mac */
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_key {
 	struct iwm_umac_key_hdr hdr;
@@ -268,7 +269,9 @@ struct iwm_priv {
 
 	struct sk_buff_head rx_list;
 	struct list_head rx_tickets;
+	spinlock_t ticket_lock;
 	struct list_head rx_packets[IWM_RX_ID_HASH];
+	spinlock_t packet_lock[IWM_RX_ID_HASH];
 	struct workqueue_struct *rx_wq;
 	struct work_struct rx_worker;
 

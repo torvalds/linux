@@ -49,6 +49,7 @@
 #include <linux/blkpg.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

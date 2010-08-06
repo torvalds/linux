@@ -46,6 +46,7 @@
 #include <linux/skbuff.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -385,7 +386,7 @@ ip_vs_lblcr_new(struct ip_vs_lblcr_table *tbl, const union nf_inet_addr *daddr,
 		ip_vs_addr_copy(dest->af, &en->addr, daddr);
 		en->lastuse = jiffies;
 
-		/* initilize its dest set */
+		/* initialize its dest set */
 		atomic_set(&(en->set.size), 0);
 		INIT_LIST_HEAD(&en->set.list);
 		rwlock_init(&en->set.lock);

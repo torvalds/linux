@@ -124,8 +124,8 @@ struct acm {
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
-	int combined_interfaces:1;			/* control and data collapsed */
-	int is_int_ep:1;				/* interrupt endpoints contrary to spec used */
+	unsigned int combined_interfaces:1;		/* control and data collapsed */
+	unsigned int is_int_ep:1;			/* interrupt endpoints contrary to spec used */
 	u8 bInterval;
 	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
 };

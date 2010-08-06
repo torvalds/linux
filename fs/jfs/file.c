@@ -27,9 +27,9 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-int jfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int jfs_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int rc = 0;
 
 	if (!(inode->i_state & I_DIRTY) ||
@@ -98,7 +98,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (rc)
 		return rc;
 
-	if (iattr->ia_valid & ATTR_SIZE)
+	if (is_quota_modification(inode, iattr))
 		dquot_initialize(inode);
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {

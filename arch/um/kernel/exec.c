@@ -8,6 +8,7 @@
 #include "linux/smp_lock.h"
 #include "linux/ptrace.h"
 #include "linux/sched.h"
+#include "linux/slab.h"
 #include "asm/current.h"
 #include "asm/processor.h"
 #include "asm/uaccess.h"

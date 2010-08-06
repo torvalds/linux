@@ -15,6 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -40,6 +41,8 @@ static DEFINE_PCI_DEVICE_TABLE(p54p_table) = {
 	{ PCI_DEVICE(0x1260, 0x3877) },
 	/* Intersil PRISM Javelin/Xbow Wireless LAN adapter */
 	{ PCI_DEVICE(0x1260, 0x3886) },
+	/* Intersil PRISM Xbow Wireless LAN adapter (Symbol AP-300) */
+	{ PCI_DEVICE(0x1260, 0xffff) },
 	{ },
 };
 
@@ -131,7 +134,7 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 
 static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 	int ring_index, struct p54p_desc *ring, u32 ring_limit,
-	struct sk_buff **rx_buf)
+	struct sk_buff **rx_buf, u32 index)
 {
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
@@ -139,7 +142,7 @@ static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 
 	idx = le32_to_cpu(ring_control->host_idx[ring_index]);
 	limit = idx;
-	limit -= le32_to_cpu(ring_control->device_idx[ring_index]);
+	limit -= index;
 	limit = ring_limit - limit;
 
 	i = idx % ring_limit;
@@ -231,7 +234,7 @@ static void p54p_check_rx_ring(struct ieee80211_hw *dev, u32 *index,
 		i %= ring_limit;
 	}
 
-	p54p_refill_rx_ring(dev, ring_index, ring, ring_limit, rx_buf);
+	p54p_refill_rx_ring(dev, ring_index, ring, ring_limit, rx_buf, *index);
 }
 
 static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
@@ -245,7 +248,7 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	u32 idx, i;
 
 	i = (*index) % ring_limit;
-	(*index) = idx = le32_to_cpu(ring_control->device_idx[1]);
+	(*index) = idx = le32_to_cpu(ring_control->device_idx[ring_index]);
 	idx %= ring_limit;
 
 	while (i != idx) {
@@ -444,10 +447,10 @@ static int p54p_open(struct ieee80211_hw *dev)
 	priv->rx_idx_mgmt = priv->tx_idx_mgmt = 0;
 
 	p54p_refill_rx_ring(dev, 0, priv->ring_control->rx_data,
-		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data);
+		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data, 0);
 
 	p54p_refill_rx_ring(dev, 2, priv->ring_control->rx_mgmt,
-		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt);
+		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt, 0);
 
 	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
 	P54P_READ(ring_control_base);
@@ -463,8 +466,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	P54P_READ(dev_int);
 
 	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
-		printk(KERN_ERR "%s: Cannot boot firmware!\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "cannot boot firmware!\n");
 		p54p_stop(dev);
 		return -ETIMEDOUT;
 	}

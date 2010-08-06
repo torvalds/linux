@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/88pm860x.h>
 
@@ -255,8 +256,10 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	if (pdev->dev.parent->platform_data) {
 		pm860x_pdata = pdev->dev.parent->platform_data;
 		pdata = pm860x_pdata->led;
-	} else
-		pdata = NULL;
+	} else {
+		dev_err(&pdev->dev, "missing platform data\n");
+		return -EINVAL;
+	}
 
 	data = kzalloc(sizeof(struct pm860x_led), GFP_KERNEL);
 	if (data == NULL)
@@ -267,8 +270,11 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->iset = pdata->iset;
 	data->port = __check_device(pdata, data->name);
-	if (data->port < 0)
+	if (data->port < 0) {
+		dev_err(&pdev->dev, "check device failed\n");
+		kfree(data);
 		return -EINVAL;
+	}
 
 	data->current_brightness = 0;
 	data->cdev.name = data->name;

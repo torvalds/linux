@@ -921,7 +921,7 @@ static void depca_tx_timeout(struct net_device *dev)
 	STOP_DEPCA;
 	depca_init_ring(dev);
 	LoadCSRs(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	InitRestartDepca(dev);
 }
@@ -954,7 +954,6 @@ static netdev_tx_t depca_start_xmit(struct sk_buff *skb,
 			outw(CSR0, DEPCA_ADDR);
 			outw(INEA | TDMD, DEPCA_DATA);
 
-			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
 		}
 		if (TX_BUFFS_AVAIL)
@@ -1204,8 +1203,6 @@ static void LoadCSRs(struct net_device *dev)
 	outw(ACON, DEPCA_DATA);
 
 	outw(CSR0, DEPCA_ADDR);	/* Point back to CSR0 */
-
-	return;
 }
 
 static int InitRestartDepca(struct net_device *dev)
@@ -1272,7 +1269,7 @@ static void set_multicast_list(struct net_device *dev)
 static void SetMulticastFilter(struct net_device *dev)
 {
 	struct depca_private *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	int i, j, bit, byte;
 	u16 hashcode;
@@ -1287,8 +1284,8 @@ static void SetMulticastFilter(struct net_device *dev)
 			lp->init_block.mcast_table[i] = 0;
 		}
 		/* Add multicast addresses */
-		netdev_for_each_mc_addr(dmi, dev) {
-			addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 			if ((*addrs & 0x01) == 1) {	/* multicast address? */
 				crc = ether_crc(ETH_ALEN, addrs);
 				hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
@@ -1303,8 +1300,6 @@ static void SetMulticastFilter(struct net_device *dev)
 			}
 		}
 	}
-
-	return;
 }
 
 static int __init depca_common_init (u_long ioaddr, struct net_device **devp)
@@ -1909,8 +1904,6 @@ static void depca_dbg_open(struct net_device *dev)
 		outw(CSR3, DEPCA_ADDR);
 		printk("CSR3: 0x%4.4x\n", inw(DEPCA_DATA));
 	}
-
-	return;
 }
 
 /*
@@ -2068,18 +2061,35 @@ static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int __init depca_module_init (void)
 {
-        int err = 0;
+	int err = 0;
 
 #ifdef CONFIG_MCA
-        err = mca_register_driver (&depca_mca_driver);
+	err = mca_register_driver(&depca_mca_driver);
+	if (err)
+		goto err;
 #endif
 #ifdef CONFIG_EISA
-        err |= eisa_driver_register (&depca_eisa_driver);
+	err = eisa_driver_register(&depca_eisa_driver);
+	if (err)
+		goto err_mca;
 #endif
-	err |= platform_driver_register (&depca_isa_driver);
-	depca_platform_probe ();
+	err = platform_driver_register(&depca_isa_driver);
+	if (err)
+		goto err_eisa;
 
-        return err;
+	depca_platform_probe();
+	return 0;
+
+err_eisa:
+#ifdef CONFIG_EISA
+	eisa_driver_unregister(&depca_eisa_driver);
+err_mca:
+#endif
+#ifdef CONFIG_MCA
+	mca_unregister_driver(&depca_mca_driver);
+err:
+#endif
+	return err;
 }
 
 static void __exit depca_module_exit (void)

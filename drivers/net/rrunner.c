@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -1466,7 +1467,6 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

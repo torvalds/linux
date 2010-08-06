@@ -328,7 +328,7 @@ static int cpmac_config(struct net_device *dev, struct ifmap *map)
 
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *iter;
+	struct netdev_hw_addr *ha;
 	u8 tmp;
 	u32 mbp, bit, hash[2] = { 0, };
 	struct cpmac_priv *priv = netdev_priv(dev);
@@ -348,19 +348,19 @@ static void cpmac_set_multicast_list(struct net_device *dev)
 			 * cpmac uses some strange mac address hashing
 			 * (not crc32)
 			 */
-			netdev_for_each_mc_addr(iter, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				bit = 0;
-				tmp = iter->dmi_addr[0];
+				tmp = ha->addr[0];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);
-				tmp = iter->dmi_addr[1];
+				tmp = ha->addr[1];
 				bit  ^= (tmp >> 4) ^ (tmp << 2);
-				tmp = iter->dmi_addr[2];
+				tmp = ha->addr[2];
 				bit  ^= (tmp >> 6) ^ tmp;
-				tmp = iter->dmi_addr[3];
+				tmp = ha->addr[3];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);
-				tmp = iter->dmi_addr[4];
+				tmp = ha->addr[4];
 				bit  ^= (tmp >> 4) ^ (tmp << 2);
-				tmp = iter->dmi_addr[5];
+				tmp = ha->addr[5];
 				bit  ^= (tmp >> 6) ^ tmp;
 				bit &= 0x3f;
 				hash[bit / 32] |= 1 << (bit % 32);
@@ -579,7 +579,6 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock(&priv->lock);
-	dev->trans_start = jiffies;
 	spin_unlock(&priv->lock);
 	desc->dataflags = CPMAC_SOP | CPMAC_EOP | CPMAC_OWN;
 	desc->skb = skb;
@@ -847,11 +846,8 @@ static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -EINVAL;
 	if (!priv->phy)
 		return -EINVAL;
-	if ((cmd == SIOCGMIIPHY) || (cmd == SIOCGMIIREG) ||
-	    (cmd == SIOCSMIIREG))
-		return phy_mii_ioctl(priv->phy, if_mii(ifr), cmd);
 
-	return -EOPNOTSUPP;
+	return phy_mii_ioctl(priv->phy, ifr, cmd);
 }
 
 static int cpmac_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -965,7 +961,7 @@ static int cpmac_open(struct net_device *dev)
 	struct sk_buff *skb;
 
 	mem = platform_get_resource_byname(priv->pdev, IORESOURCE_MEM, "regs");
-	if (!request_mem_region(mem->start, mem->end - mem->start, dev->name)) {
+	if (!request_mem_region(mem->start, resource_size(mem), dev->name)) {
 		if (netif_msg_drv(priv))
 			printk(KERN_ERR "%s: failed to request registers\n",
 			       dev->name);
@@ -973,7 +969,7 @@ static int cpmac_open(struct net_device *dev)
 		goto fail_reserve;
 	}
 
-	priv->regs = ioremap(mem->start, mem->end - mem->start);
+	priv->regs = ioremap(mem->start, resource_size(mem));
 	if (!priv->regs) {
 		if (netif_msg_drv(priv))
 			printk(KERN_ERR "%s: failed to remap registers\n",
@@ -1050,7 +1046,7 @@ fail_alloc:
 	iounmap(priv->regs);
 
 fail_remap:
-	release_mem_region(mem->start, mem->end - mem->start);
+	release_mem_region(mem->start, resource_size(mem));
 
 fail_reserve:
 	return res;
@@ -1078,7 +1074,7 @@ static int cpmac_stop(struct net_device *dev)
 	free_irq(dev->irq, dev);
 	iounmap(priv->regs);
 	mem = platform_get_resource_byname(priv->pdev, IORESOURCE_MEM, "regs");
-	release_mem_region(mem->start, mem->end - mem->start);
+	release_mem_region(mem->start, resource_size(mem));
 	priv->rx_head = &priv->desc_ring[CPMAC_QUEUES];
 	for (i = 0; i < priv->ring_size; i++) {
 		if (priv->rx_head[i].skb) {
@@ -1182,7 +1178,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 		if (netif_msg_drv(priv))
 			printk(KERN_ERR "%s: Could not attach to PHY\n",
 			       dev->name);
-		return PTR_ERR(priv->phy);
+		rc = PTR_ERR(priv->phy);
+		goto fail;
 	}
 
 	if ((rc = register_netdev(dev))) {

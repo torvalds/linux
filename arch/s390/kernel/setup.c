@@ -2,7 +2,7 @@
  *  arch/s390/kernel/setup.c
  *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2010
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -25,7 +25,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
@@ -112,22 +111,6 @@ static struct resource data_resource = {
 	.name = "Kernel data",
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
-
-/*
- * cpu_init() initializes state that is per-CPU.
- */
-void __cpuinit cpu_init(void)
-{
-        /*
-         * Store processor id in lowcore (used e.g. in timer_interrupt)
-         */
-	get_cpu_id(&S390_lowcore.cpu_id);
-
-	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
-        enter_lazy_tlb(&init_mm, current);
-}
 
 /*
  * condev= and conmode= setup parameter.
@@ -386,10 +369,6 @@ static void setup_addressing_mode(void)
 			pr_info("Address spaces switched, "
 				"mvcos not available\n");
 	}
-#ifdef CONFIG_TRACE_IRQFLAGS
-	sysc_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-	io_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-#endif
 }
 
 static void __init
@@ -401,7 +380,7 @@ setup_lowcore(void)
 	 * Setup lowcore for boot cpu
 	 */
 	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
-	lc = __alloc_bootmem(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
+	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
@@ -433,11 +412,12 @@ setup_lowcore(void)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
-			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
+			__alloc_bootmem_low(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
 		__ctl_set_bit(14, 29);
 	}
 #else
+	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -696,6 +676,7 @@ static void __init setup_hwcaps(void)
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
 	unsigned long long facility_list_extended;
 	unsigned int facility_list;
+	struct cpuid cpu_id;
 	int i;
 
 	facility_list = stfl();
@@ -757,7 +738,8 @@ static void __init setup_hwcaps(void)
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
 
-	switch (S390_lowcore.cpu_id.machine) {
+	get_cpu_id(&cpu_id);
+	switch (cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
 	default:	/* Use "g5" as default for 31 bit kernels. */

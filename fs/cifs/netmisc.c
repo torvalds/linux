@@ -61,6 +61,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRremcd, -EACCES},
 	{ERRdiffdevice, -EXDEV},
 	{ERRnofiles, -ENOENT},
+	{ERRwriteprot, -EROFS},
 	{ERRbadshare, -ETXTBSY},
 	{ERRlock, -EACCES},
 	{ERRunsup, -EINVAL},
@@ -149,7 +150,7 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
 	else if (address_family == AF_INET6)
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
 
-	cFYI(DBG2, ("address conversion returned %d for %s", ret, cp));
+	cFYI(DBG2, "address conversion returned %d for %s", ret, cp);
 	if (ret > 0)
 		ret = 1;
 	return ret;
@@ -164,7 +165,7 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
  * Returns 0 on failure.
  */
 int
-cifs_convert_address(char *src, void *dst)
+cifs_convert_address(struct sockaddr *dst, char *src)
 {
 	int rc;
 	char *pct, *endp;
@@ -199,6 +200,27 @@ cifs_convert_address(char *src, void *dst)
 	}
 
 	return rc;
+}
+
+int
+cifs_fill_sockaddr(struct sockaddr *dst, char *src,
+		   const unsigned short int port)
+{
+	if (!cifs_convert_address(dst, src))
+		return 0;
+
+	switch (dst->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)dst)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)dst)->sin6_port = htons(port);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
 }
 
 /*****************************************************************************
@@ -870,8 +892,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
-	cFYI(1, ("Mapping smb error code %d to POSIX err %d",
-		 smberrcode, rc));
+	cFYI(1, "Mapping smb error code %d to POSIX err %d",
+		 smberrcode, rc);
 
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
@@ -940,20 +962,20 @@ struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	SMB_TIME *st = (SMB_TIME *)&time;
 	SMB_DATE *sd = (SMB_DATE *)&date;
 
-	cFYI(1, ("date %d time %d", date, time));
+	cFYI(1, "date %d time %d", date, time);
 
 	sec = 2 * st->TwoSeconds;
 	min = st->Minutes;
 	if ((sec > 59) || (min > 59))
-		cERROR(1, ("illegal time min %d sec %d", min, sec));
+		cERROR(1, "illegal time min %d sec %d", min, sec);
 	sec += (min * 60);
 	sec += 60 * 60 * st->Hours;
 	if (st->Hours > 24)
-		cERROR(1, ("illegal hours %d", st->Hours));
+		cERROR(1, "illegal hours %d", st->Hours);
 	days = sd->Day;
 	month = sd->Month;
 	if ((days > 31) || (month > 12)) {
-		cERROR(1, ("illegal date, month %d day: %d", month, days));
+		cERROR(1, "illegal date, month %d day: %d", month, days);
 		if (month > 12)
 			month = 12;
 	}
@@ -979,7 +1001,7 @@ struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 
 	ts.tv_sec = sec + offset;
 
-	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
+	/* cFYI(1, "sec after cnvrt dos to unix time %d",sec); */
 
 	ts.tv_nsec = 0;
 	return ts;

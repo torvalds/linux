@@ -715,8 +715,6 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_TXE;
 	}
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 

@@ -460,7 +460,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid ArgType %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType 0x%X", arg_type));
 		return_VOID;
 	}
 
@@ -742,7 +742,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid ArgType: %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType: 0x%X", arg_type));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

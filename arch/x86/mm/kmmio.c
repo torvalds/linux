@@ -21,6 +21,7 @@
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <linux/errno.h>

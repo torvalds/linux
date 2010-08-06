@@ -40,6 +40,7 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>

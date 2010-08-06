@@ -231,7 +231,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				/* Invalid reference object */
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown TargetType %X in Index/Reference object %p",
+					    "Unknown TargetType 0x%X in Index/Reference object %p",
 					    stack_desc->reference.target_type,
 					    stack_desc));
 				status = AE_AML_INTERNAL;
@@ -273,8 +273,8 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference type %X in %p", ref_type,
-				    stack_desc));
+				    "Unknown Reference type 0x%X in %p",
+				    ref_type, stack_desc));
 			status = AE_AML_INTERNAL;
 			break;
 		}
@@ -403,7 +403,8 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
 			    ACPI_DESC_TYPE_NAMED) {
-				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
+				ACPI_ERROR((AE_INFO,
+					    "Not a namespace node %p [%s]",
 					    node,
 					    acpi_ut_get_descriptor_name(node)));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
@@ -507,7 +508,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference Class %2.2X",
+				    "Unknown Reference Class 0x%2.2X",
 				    obj_desc->reference.class));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}

@@ -138,6 +138,17 @@ static struct pci_dev *I801_dev;
 #define FEATURE_I2C_BLOCK_READ	(1 << 3)
 static unsigned int i801_features;
 
+static const char *i801_feature_names[] = {
+	"SMBus PEC",
+	"Block buffer",
+	"Block process call",
+	"I2C block read",
+};
+
+static unsigned int disable_features;
+module_param(disable_features, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(disable_features, "Disable selected driver features");
+
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */
 static int i801_check_pre(void)
@@ -341,9 +352,8 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		do {
 			msleep(1);
 			status = inb_p(SMBHSTSTS);
-		}
-		while ((!(status & SMBHSTSTS_BYTE_DONE))
-		       && (timeout++ < MAX_TIMEOUT));
+		} while ((!(status & SMBHSTSTS_BYTE_DONE))
+			 && (timeout++ < MAX_TIMEOUT));
 
 		result = i801_check_post(status, timeout > MAX_TIMEOUT);
 		if (result < 0)
@@ -440,9 +450,9 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 }
 
 /* Return negative errno on error. */
-static s32 i801_access(struct i2c_adapter * adap, u16 addr,
+static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
-		       int size, union i2c_smbus_data * data)
+		       int size, union i2c_smbus_data *data)
 {
 	int hwpec;
 	int block = 0;
@@ -511,7 +521,7 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	else
 		outb_p(inb_p(SMBAUXCTL) & (~SMBAUXCTL_CRC), SMBAUXCTL);
 
-	if(block)
+	if (block)
 		ret = i801_block_transaction(data, read_write, size, hwpec);
 	else
 		ret = i801_transaction(xact | ENABLE_INT9);
@@ -523,9 +533,9 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		outb_p(inb_p(SMBAUXCTL) & ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B),
 		       SMBAUXCTL);
 
-	if(block)
+	if (block)
 		return ret;
-	if(ret)
+	if (ret)
 		return ret;
 	if ((read_write == I2C_SMBUS_WRITE) || (xact == I801_QUICK))
 		return 0;
@@ -585,7 +595,7 @@ static const struct pci_device_id i801_ids[] = {
 	{ 0, }
 };
 
-MODULE_DEVICE_TABLE (pci, i801_ids);
+MODULE_DEVICE_TABLE(pci, i801_ids);
 
 #if defined CONFIG_INPUT_APANEL || defined CONFIG_INPUT_APANEL_MODULE
 static unsigned char apanel_addr;
@@ -645,7 +655,7 @@ static void __devinit dmi_check_onboard_device(u8 type, const char *name,
 		/* & ~0x80, ignore enabled/disabled bit */
 		if ((type & ~0x80) != dmi_devices[i].type)
 			continue;
-		if (strcmp(name, dmi_devices[i].name))
+		if (strcasecmp(name, dmi_devices[i].name))
 			continue;
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
@@ -689,36 +699,36 @@ static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
 }
 #endif
 
-static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int __devinit i801_probe(struct pci_dev *dev,
+				const struct pci_device_id *id)
 {
 	unsigned char temp;
-	int err;
-#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
-	const char *vendor;
-#endif
+	int err, i;
 
 	I801_dev = dev;
 	i801_features = 0;
 	switch (dev->device) {
-	case PCI_DEVICE_ID_INTEL_82801EB_3:
-	case PCI_DEVICE_ID_INTEL_ESB_4:
-	case PCI_DEVICE_ID_INTEL_ICH6_16:
-	case PCI_DEVICE_ID_INTEL_ICH7_17:
-	case PCI_DEVICE_ID_INTEL_ESB2_17:
-	case PCI_DEVICE_ID_INTEL_ICH8_5:
-	case PCI_DEVICE_ID_INTEL_ICH9_6:
-	case PCI_DEVICE_ID_INTEL_TOLAPAI_1:
-	case PCI_DEVICE_ID_INTEL_ICH10_4:
-	case PCI_DEVICE_ID_INTEL_ICH10_5:
-	case PCI_DEVICE_ID_INTEL_PCH_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CPT_SMBUS:
+	default:
 		i801_features |= FEATURE_I2C_BLOCK_READ;
 		/* fall through */
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 		i801_features |= FEATURE_SMBUS_PEC;
 		i801_features |= FEATURE_BLOCK_BUFFER;
+		/* fall through */
+	case PCI_DEVICE_ID_INTEL_82801CA_3:
+	case PCI_DEVICE_ID_INTEL_82801BA_2:
+	case PCI_DEVICE_ID_INTEL_82801AB_3:
+	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
 	}
+
+	/* Disable features on user request */
+	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
+		if (i801_features & disable_features & (1 << i))
+			dev_notice(&dev->dev, "%s disabled by user\n",
+				   i801_feature_names[i]);
+	}
+	i801_features &= ~disable_features;
 
 	err = pci_enable_device(dev);
 	if (err) {
@@ -795,8 +805,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	}
 #endif
 #if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
-	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
-	if (vendor && !strcmp(vendor, "FUJITSU SIEMENS"))
+	if (dmi_name_in_vendors("FUJITSU"))
 		dmi_walk(dmi_check_onboard_devices, &i801_adapter);
 #endif
 

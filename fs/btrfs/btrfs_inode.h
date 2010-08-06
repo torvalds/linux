@@ -137,8 +137,8 @@ struct btrfs_inode {
 	 * of extent items we've reserved metadata for.
 	 */
 	spinlock_t accounting_lock;
+	atomic_t outstanding_extents;
 	int reserved_extents;
-	int outstanding_extents;
 
 	/*
 	 * ordered_data_close is set by truncate when a file that used
@@ -151,6 +151,7 @@ struct btrfs_inode {
 	 * of these.
 	 */
 	unsigned ordered_data_close:1;
+	unsigned orphan_meta_reserved:1;
 	unsigned dummy_inode:1;
 
 	/*

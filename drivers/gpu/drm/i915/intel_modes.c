@@ -23,6 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/fb.h>
 #include "drmP.h"
@@ -33,7 +34,7 @@
  * intel_ddc_probe
  *
  */
-bool intel_ddc_probe(struct intel_output *intel_output)
+bool intel_ddc_probe(struct intel_encoder *intel_encoder)
 {
 	u8 out_buf[] = { 0x0, 0x0};
 	u8 buf[2];
@@ -53,9 +54,9 @@ bool intel_ddc_probe(struct intel_output *intel_output)
 		}
 	};
 
-	intel_i2c_quirk_set(intel_output->base.dev, true);
-	ret = i2c_transfer(intel_output->ddc_bus, msgs, 2);
-	intel_i2c_quirk_set(intel_output->base.dev, false);
+	intel_i2c_quirk_set(intel_encoder->enc.dev, true);
+	ret = i2c_transfer(intel_encoder->ddc_bus, msgs, 2);
+	intel_i2c_quirk_set(intel_encoder->enc.dev, false);
 	if (ret == 2)
 		return true;
 
@@ -65,22 +66,23 @@ bool intel_ddc_probe(struct intel_output *intel_output)
 /**
  * intel_ddc_get_modes - get modelist from monitor
  * @connector: DRM connector device to use
+ * @adapter: i2c adapter
  *
  * Fetch the EDID information from @connector using the DDC bus.
  */
-int intel_ddc_get_modes(struct intel_output *intel_output)
+int intel_ddc_get_modes(struct drm_connector *connector,
+			struct i2c_adapter *adapter)
 {
 	struct edid *edid;
 	int ret = 0;
 
-	intel_i2c_quirk_set(intel_output->base.dev, true);
-	edid = drm_get_edid(&intel_output->base, intel_output->ddc_bus);
-	intel_i2c_quirk_set(intel_output->base.dev, false);
+	intel_i2c_quirk_set(connector->dev, true);
+	edid = drm_get_edid(connector, adapter);
+	intel_i2c_quirk_set(connector->dev, false);
 	if (edid) {
-		drm_mode_connector_update_edid_property(&intel_output->base,
-							edid);
-		ret = drm_add_edid_modes(&intel_output->base, edid);
-		intel_output->base.display_info.raw_edid = NULL;
+		drm_mode_connector_update_edid_property(connector, edid);
+		ret = drm_add_edid_modes(connector, edid);
+		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 

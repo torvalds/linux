@@ -24,6 +24,7 @@
  */
 
 #include <linux/swab.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"
@@ -33,9 +34,9 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_fbcon.h"
 #include "nv50_display.h"
 
-static int nouveau_stub_init(struct drm_device *dev) { return 0; }
 static void nouveau_stub_takedown(struct drm_device *dev) {}
 
 static int nouveau_init_engine_ptrs(struct drm_device *dev)
@@ -277,8 +278,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nouveau_stub_init;
-		engine->fb.takedown		= nouveau_stub_takedown;
+		engine->fb.init			= nv50_fb_init;
+		engine->fb.takedown		= nv50_fb_takedown;
 		engine->graph.grclass		= nv50_graph_grclass;
 		engine->graph.init		= nv50_graph_init;
 		engine->graph.takedown		= nv50_graph_takedown;
@@ -341,7 +342,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
+				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
 				     &gpuobj);
 	if (ret)
@@ -375,12 +376,15 @@ out_err:
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 					 enum vga_switcheroo_state state)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
 		nouveau_pci_resume(pdev);
+		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		drm_kms_helper_poll_disable(dev);
 		nouveau_pci_suspend(pdev, pmm);
 	}
 }
@@ -426,6 +430,10 @@ nouveau_card_init(struct drm_device *dev)
 		if (ret)
 			goto out;
 	}
+
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		goto out_bios;
 
 	ret = nouveau_gpuobj_early_init(dev);
 	if (ret)
@@ -502,7 +510,7 @@ nouveau_card_init(struct drm_device *dev)
 		else
 			ret = nv04_display_create(dev);
 		if (ret)
-			goto out_irq;
+			goto out_channel;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -511,11 +519,18 @@ nouveau_card_init(struct drm_device *dev)
 
 	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_helper_initial_config(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		nouveau_fbcon_init(dev);
+		drm_kms_helper_poll_init(dev);
+	}
 
 	return 0;
 
+out_channel:
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
+	}
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
@@ -533,6 +548,7 @@ out_mc:
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
 out_mem:
+	nouveau_sgdma_takedown(dev);
 	nouveau_mem_close(dev);
 out_instmem:
 	engine->instmem.takedown(dev);
@@ -553,6 +569,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
 
 	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DOWN) {
+
 		nouveau_backlight_exit(dev);
 
 		if (dev_priv->channel) {
@@ -625,6 +642,48 @@ static void nouveau_OF_copy_vbios_to_ramin(struct drm_device *dev)
 		NV_INFO(dev, "Unable to get the OF bios\n");
 	}
 #endif
+}
+
+static struct apertures_struct *nouveau_get_apertures(struct drm_device *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+	struct apertures_struct *aper = alloc_apertures(3);
+	if (!aper)
+		return NULL;
+
+	aper->ranges[0].base = pci_resource_start(pdev, 1);
+	aper->ranges[0].size = pci_resource_len(pdev, 1);
+	aper->count = 1;
+
+	if (pci_resource_len(pdev, 2)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 2);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 2);
+		aper->count++;
+	}
+
+	if (pci_resource_len(pdev, 3)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 3);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 3);
+		aper->count++;
+	}
+
+	return aper;
+}
+
+static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool primary = false;
+	dev_priv->apertures = nouveau_get_apertures(dev);
+	if (!dev_priv->apertures)
+		return -ENOMEM;
+
+#ifdef CONFIG_X86
+	primary = dev->pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+#endif
+	
+	remove_conflicting_framebuffers(dev_priv->apertures, "nouveaufb", primary);
+	return 0;
 }
 
 int nouveau_load(struct drm_device *dev, unsigned long flags)
@@ -714,29 +773,30 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
 
-	/* map larger RAMIN aperture on NV40 cards */
-	dev_priv->ramin  = NULL;
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		int ret = nouveau_remove_conflicting_drivers(dev);
+		if (ret)
+			return ret;
+	}
+
+	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
 	if (dev_priv->card_type >= NV_40) {
 		int ramin_bar = 2;
 		if (pci_resource_len(dev->pdev, ramin_bar) == 0)
 			ramin_bar = 3;
 
 		dev_priv->ramin_size = pci_resource_len(dev->pdev, ramin_bar);
-		dev_priv->ramin = ioremap(
-				pci_resource_start(dev->pdev, ramin_bar),
+		dev_priv->ramin =
+			ioremap(pci_resource_start(dev->pdev, ramin_bar),
 				dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
-			NV_ERROR(dev, "Failed to init RAMIN mapping, "
-				      "limited instance memory available\n");
+			NV_ERROR(dev, "Failed to PRAMIN BAR");
+			return -ENOMEM;
 		}
-	}
-
-	/* On older cards (or if the above failed), create a map covering
-	 * the BAR0 PRAMIN aperture */
-	if (!dev_priv->ramin) {
+	} else {
 		dev_priv->ramin_size = 1 * 1024 * 1024;
 		dev_priv->ramin = ioremap(mmio_start_offs + NV_RAMIN,
-							dev_priv->ramin_size);
+					  dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
 			NV_ERROR(dev, "Failed to map BAR0 PRAMIN.\n");
 			return -ENOMEM;
@@ -784,6 +844,8 @@ int nouveau_unload(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		drm_kms_helper_poll_fini(dev);
+		nouveau_fbcon_fini(dev);
 		if (dev_priv->card_type >= NV_50)
 			nv50_display_destroy(dev);
 		else
@@ -848,6 +910,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		break;
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
+		break;
+	case NOUVEAU_GETPARAM_PTIMER_TIME:
+		getparam->value = dev_priv->engine.timer.read(dev);
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register

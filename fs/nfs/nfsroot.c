@@ -105,7 +105,7 @@ static char nfs_root_name[256] __initdata = "";
 static __be32 servaddr __initdata = 0;
 
 /* Name of directory to mount */
-static char nfs_export_path[NFS_MAXPATHLEN] __initdata = { 0, };
+static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = { 0, };
 
 /* NFS-related data */
 static struct nfs_mount_data nfs_data __initdata = { 0, };/* NFS mount info */
@@ -488,7 +488,6 @@ static int __init root_nfs_ports(void)
  */
 static int __init root_nfs_get_handle(void)
 {
-	struct nfs_fh fh;
 	struct sockaddr_in sin;
 	unsigned int auth_flav_len = 0;
 	struct nfs_mount_request request = {
@@ -499,21 +498,24 @@ static int __init root_nfs_get_handle(void)
 					NFS_MNT3_VERSION : NFS_MNT_VERSION,
 		.protocol	= (nfs_data.flags & NFS_MOUNT_TCP) ?
 					XPRT_TRANSPORT_TCP : XPRT_TRANSPORT_UDP,
-		.fh		= &fh,
 		.auth_flav_len	= &auth_flav_len,
 	};
-	int status;
+	int status = -ENOMEM;
 
+	request.fh = nfs_alloc_fhandle();
+	if (!request.fh)
+		goto out;
 	set_sockaddr(&sin, servaddr, htons(mount_port));
 	status = nfs_mount(&request);
 	if (status < 0)
 		printk(KERN_ERR "Root-NFS: Server returned error %d "
 				"while mounting %s\n", status, nfs_export_path);
 	else {
-		nfs_data.root.size = fh.size;
-		memcpy(nfs_data.root.data, fh.data, fh.size);
+		nfs_data.root.size = request.fh->size;
+		memcpy(&nfs_data.root.data, request.fh->data, request.fh->size);
 	}
-
+	nfs_free_fhandle(request.fh);
+out:
 	return status;
 }
 

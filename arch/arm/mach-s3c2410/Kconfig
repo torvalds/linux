@@ -6,6 +6,7 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select CPU_ARM920T
+	select S3C_GPIO_PULL_UP
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
 	select CPU_LLSERIAL_S3C2410
@@ -76,6 +77,7 @@ config ARCH_H1940
 	select PM_H1940 if PM
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C2410_SETUP_TS
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -95,11 +97,18 @@ config PM_H1940
 config MACH_N30
 	bool "Acer N30 family"
 	select CPU_S3C2410
+	select MACH_N35
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
 	help
 	  Say Y here if you want suppt for the Acer N30, Acer N35,
 	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
+
+config MACH_N35
+	bool
+	help
+	  Internal node in order to enable support for Acer N35 if Acer N30 is
+	  selected.
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
@@ -110,6 +119,7 @@ config ARCH_BAST
 	select MACH_BAST_IDE
 	select S3C24XX_DCLK
 	select ISA
+	select S3C_DEV_HWMON
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
 	help

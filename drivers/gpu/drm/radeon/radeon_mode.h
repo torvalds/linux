@@ -34,11 +34,12 @@
 #include <drm_mode.h>
 #include <drm_edid.h>
 #include <drm_dp_helper.h>
+#include <drm_fixed.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
-#include "radeon_fixed.h"
 
+struct radeon_bo;
 struct radeon_device;
 
 #define to_radeon_crtc(x) container_of(x, struct radeon_crtc, base)
@@ -65,6 +66,16 @@ enum radeon_tv_std {
 	TV_STD_PAL_N,
 };
 
+enum radeon_hpd_id {
+	RADEON_HPD_1 = 0,
+	RADEON_HPD_2,
+	RADEON_HPD_3,
+	RADEON_HPD_4,
+	RADEON_HPD_5,
+	RADEON_HPD_6,
+	RADEON_HPD_NONE = 0xff,
+};
+
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
@@ -84,7 +95,7 @@ struct radeon_i2c_bus_rec {
 	/* id used by atom */
 	uint8_t i2c_id;
 	/* id used by atom */
-	uint8_t hpd_id;
+	enum radeon_hpd_id hpd;
 	/* can be used with hw i2c engine */
 	bool hw_capable;
 	/* uses multi-media i2c engine */
@@ -129,6 +140,7 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
+#define RADEON_PLL_IS_LCD               (1 << 13)
 
 /* pll algo */
 enum radeon_pll_algo {
@@ -149,6 +161,8 @@ struct radeon_pll {
 	uint32_t pll_in_max;
 	uint32_t pll_out_min;
 	uint32_t pll_out_max;
+	uint32_t lcd_pll_out_min;
+	uint32_t lcd_pll_out_max;
 	uint32_t best_vco;
 
 	/* divider limits */
@@ -170,17 +184,12 @@ struct radeon_pll {
 	enum radeon_pll_algo algo;
 };
 
-struct i2c_algo_radeon_data {
-	struct i2c_adapter bit_adapter;
-	struct i2c_algo_bit_data bit_data;
-};
-
 struct radeon_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
 	union {
+		struct i2c_algo_bit_data bit;
 		struct i2c_algo_dp_aux_data dp;
-		struct i2c_algo_radeon_data radeon;
 	} algo;
 	struct radeon_i2c_bus_rec rec;
 };
@@ -197,12 +206,15 @@ enum radeon_connector_table {
 	CT_MINI_INTERNAL,
 	CT_IMAC_G5_ISIGHT,
 	CT_EMAC,
+	CT_RN50_POWER,
 };
 
 enum radeon_dvo_chip {
 	DVO_SIL164,
 	DVO_SIL1178,
 };
+
+struct radeon_fbdev;
 
 struct radeon_mode_info {
 	struct atom_context *atom_context;
@@ -220,6 +232,9 @@ struct radeon_mode_info {
 	struct drm_property *tmds_pll_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
+
+	/* pointer to fbdev info structure */
+	struct radeon_fbdev *rfbdev;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32
@@ -341,7 +356,9 @@ struct radeon_encoder {
 	enum radeon_rmx_type rmx_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
+	int audio_polling_active;
 	int hdmi_offset;
+	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 };
@@ -362,16 +379,6 @@ struct radeon_gpio_rec {
 	u8 id;
 	u32 reg;
 	u32 mask;
-};
-
-enum radeon_hpd_id {
-	RADEON_HPD_NONE = 0,
-	RADEON_HPD_1,
-	RADEON_HPD_2,
-	RADEON_HPD_3,
-	RADEON_HPD_4,
-	RADEON_HPD_5,
-	RADEON_HPD_6,
 };
 
 struct radeon_hpd {
@@ -431,7 +438,6 @@ extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);
 extern void radeon_i2c_destroy(struct radeon_i2c_chan *i2c);
-extern void radeon_i2c_destroy_dp(struct radeon_i2c_chan *i2c);
 extern void radeon_i2c_get_byte(struct radeon_i2c_chan *i2c_bus,
 				u8 slave_addr,
 				u8 addr,
@@ -534,11 +540,10 @@ extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				     u16 blue, int regno);
 extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				     u16 *blue, int regno);
-struct drm_framebuffer *radeon_framebuffer_create(struct drm_device *dev,
-						  struct drm_mode_fb_cmd *mode_cmd,
-						  struct drm_gem_object *obj);
-
-int radeonfb_probe(struct drm_device *dev);
+void radeon_framebuffer_init(struct drm_device *dev,
+			     struct radeon_framebuffer *rfb,
+			     struct drm_mode_fb_cmd *mode_cmd,
+			     struct drm_gem_object *obj);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev);
@@ -560,6 +565,8 @@ extern int radeon_static_clocks_init(struct drm_device *dev);
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);
+void radeon_panel_mode_fixup(struct drm_encoder *encoder,
+			     struct drm_display_mode *adjusted_mode);
 void atom_rv515_force_tv_scaler(struct radeon_device *rdev, struct radeon_crtc *radeon_crtc);
 
 /* legacy tv */
@@ -575,4 +582,13 @@ void radeon_legacy_tv_adjust_pll2(struct drm_encoder *encoder,
 void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode);
+
+/* fbdev layer */
+int radeon_fbdev_init(struct radeon_device *rdev);
+void radeon_fbdev_fini(struct radeon_device *rdev);
+void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
+int radeon_fbdev_total_size(struct radeon_device *rdev);
+bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
+
+void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 #endif

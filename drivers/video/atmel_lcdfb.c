@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/backlight.h>
+#include <linux/gfp.h>
 
 #include <mach/board.h>
 #include <mach/cpu.h>

@@ -784,6 +784,9 @@ static int read_pin_defaults(struct hda_codec *codec)
 		pin->nid = nid;
 		pin->cfg = snd_hda_codec_read(codec, nid, 0,
 					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+		pin->ctrl = snd_hda_codec_read(codec, nid, 0,
+					       AC_VERB_GET_PIN_WIDGET_CONTROL,
+					       0);
 	}
 	return 0;
 }
@@ -912,14 +915,37 @@ static void restore_pincfgs(struct hda_codec *codec)
 void snd_hda_shutup_pins(struct hda_codec *codec)
 {
 	int i;
+	/* don't shut up pins when unloading the driver; otherwise it breaks
+	 * the default pin setup at the next load of the driver
+	 */
+	if (codec->bus->shutdown)
+		return;
 	for (i = 0; i < codec->init_pins.used; i++) {
 		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
 		/* use read here for syncing after issuing each verb */
 		snd_hda_codec_read(codec, pin->nid, 0,
 				   AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
 	}
+	codec->pins_shutup = 1;
 }
 EXPORT_SYMBOL_HDA(snd_hda_shutup_pins);
+
+/* Restore the pin controls cleared previously via snd_hda_shutup_pins() */
+static void restore_shutup_pins(struct hda_codec *codec)
+{
+	int i;
+	if (!codec->pins_shutup)
+		return;
+	if (codec->bus->shutdown)
+		return;
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		snd_hda_codec_write(codec, pin->nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    pin->ctrl);
+	}
+	codec->pins_shutup = 0;
+}
 
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
@@ -1209,8 +1235,7 @@ static void free_hda_cache(struct hda_cache_rec *cache)
 }
 
 /* query the hash.  allocate an entry if not found. */
-static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
-					      u32 key)
+static struct hda_cache_head  *get_hash(struct hda_cache_rec *cache, u32 key)
 {
 	u16 idx = key % (u16)ARRAY_SIZE(cache->hash);
 	u16 cur = cache->hash[idx];
@@ -1222,17 +1247,27 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 			return info;
 		cur = info->next;
 	}
+	return NULL;
+}
 
-	/* add a new hash entry */
-	info = snd_array_new(&cache->buf);
-	if (!info)
-		return NULL;
-	cur = snd_array_index(&cache->buf, info);
-	info->key = key;
-	info->val = 0;
-	info->next = cache->hash[idx];
-	cache->hash[idx] = cur;
-
+/* query the hash.  allocate an entry if not found. */
+static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
+					      u32 key)
+{
+	struct hda_cache_head *info = get_hash(cache, key);
+	if (!info) {
+		u16 idx, cur;
+		/* add a new hash entry */
+		info = snd_array_new(&cache->buf);
+		if (!info)
+			return NULL;
+		cur = snd_array_index(&cache->buf, info);
+		info->key = key;
+		info->val = 0;
+		idx = key % (u16)ARRAY_SIZE(cache->hash);
+		info->next = cache->hash[idx];
+		cache->hash[idx] = cur;
+	}
 	return info;
 }
 
@@ -1461,6 +1496,8 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 	info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, idx));
 	if (!info)
 		return 0;
+	if (snd_BUG_ON(mask & ~0xff))
+		mask &= 0xff;
 	val &= mask;
 	val |= get_vol_mute(codec, info, nid, ch, direction, idx) & ~mask;
 	if (info->vol[ch] == val)
@@ -1486,6 +1523,9 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 			     int direction, int idx, int mask, int val)
 {
 	int ch, ret = 0;
+
+	if (snd_BUG_ON(mask & ~0xff))
+		mask &= 0xff;
 	for (ch = 0; ch < 2; ch++)
 		ret |= snd_hda_codec_amp_update(codec, nid, ch, direction,
 						idx, mask, val);
@@ -2717,6 +2757,41 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 EXPORT_SYMBOL_HDA(snd_hda_codec_write_cache);
 
 /**
+ * snd_hda_codec_update_cache - check cache and write the cmd only when needed
+ * @codec: the HDA codec
+ * @nid: NID to send the command
+ * @direct: direct flag
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * This function works like snd_hda_codec_write_cache(), but it doesn't send
+ * command if the parameter is already identical with the cached value.
+ * If not, it sends the command and refreshes the cache.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
+			       int direct, unsigned int verb, unsigned int parm)
+{
+	struct hda_cache_head *c;
+	u32 key;
+
+	/* parm may contain the verb stuff for get/set amp */
+	verb = verb | (parm >> 8);
+	parm &= 0xff;
+	key = build_cmd_cache_key(nid, verb);
+	mutex_lock(&codec->bus->cmd_mutex);
+	c = get_hash(&codec->cmd_cache, key);
+	if (c && c->val == parm) {
+		mutex_unlock(&codec->bus->cmd_mutex);
+		return 0;
+	}
+	mutex_unlock(&codec->bus->cmd_mutex);
+	return snd_hda_codec_write_cache(codec, nid, direct, verb, parm);
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_update_cache);
+
+/**
  * snd_hda_codec_resume_cache - Resume the all commands from the cache
  * @codec: HD-audio codec
  *
@@ -2858,6 +2933,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D0);
 	restore_pincfgs(codec); /* restore all current pin configs */
+	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
@@ -4218,7 +4294,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			break;
 		case AC_JACK_MIC_IN: {
 			int preferred, alt;
-			if (loc == AC_JACK_LOC_FRONT) {
+			if (loc == AC_JACK_LOC_FRONT ||
+			    (loc & 0x30) == AC_JACK_LOC_INTERNAL) {
 				preferred = AUTO_PIN_FRONT_MIC;
 				alt = AUTO_PIN_MIC;
 			} else {

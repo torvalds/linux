@@ -476,7 +476,7 @@ static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
 	knew->name = kstrdup(tmpl->name, GFP_KERNEL);
 	if (!knew->name)
 		return NULL;
-	return 0;
+	return knew;
 }
 
 static void via_free_kctls(struct hda_codec *codec)
@@ -1215,14 +1215,13 @@ static struct snd_kcontrol_new via_hp_mixer[2] = {
 	},
 };
 
-static int via_hp_build(struct via_spec *spec)
+static int via_hp_build(struct hda_codec *codec)
 {
+	struct via_spec *spec = codec->spec;
 	struct snd_kcontrol_new *knew;
 	hda_nid_t nid;
-
-	knew = via_clone_control(spec, &via_hp_mixer[0]);
-	if (knew == NULL)
-		return -ENOMEM;
+	int nums;
+	hda_nid_t conn[HDA_MAX_CONNECTIONS];
 
 	switch (spec->codec_type) {
 	case VT1718S:
@@ -1238,6 +1237,14 @@ static int via_hp_build(struct via_spec *spec)
 		nid = spec->autocfg.hp_pins[0];
 		break;
 	}
+
+	nums = snd_hda_get_connections(codec, nid, conn, HDA_MAX_CONNECTIONS);
+	if (nums <= 1)
+		return 0;
+
+	knew = via_clone_control(spec, &via_hp_mixer[0]);
+	if (knew == NULL)
+		return -ENOMEM;
 
 	knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
 	knew->private_value = nid;
@@ -2561,7 +2568,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 	return 1;
@@ -3087,7 +3094,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 	return 1;
@@ -3654,7 +3661,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 	return 1;
@@ -4140,7 +4147,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 	return 1;
@@ -4510,7 +4517,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	return 1;
 }
@@ -4930,7 +4937,7 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 
@@ -5425,7 +5432,7 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	via_smart51_build(spec);
 
@@ -5781,7 +5788,7 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	return 1;
 }
@@ -6000,12 +6007,12 @@ static int vt1812_auto_create_multi_out_ctls(struct via_spec *spec,
 
 	/* Line-Out: PortE */
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Master Front Playback Volume",
+			      "Front Playback Volume",
 			      HDA_COMPOSE_AMP_VAL(0x8, 3, 0, HDA_OUTPUT));
 	if (err < 0)
 		return err;
 	err = via_add_control(spec, VIA_CTL_WIDGET_BIND_PIN_MUTE,
-			      "Master Front Playback Switch",
+			      "Front Playback Switch",
 			      HDA_COMPOSE_AMP_VAL(0x28, 3, 0, HDA_OUTPUT));
 	if (err < 0)
 		return err;
@@ -6130,7 +6137,7 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		via_hp_build(spec);
+		via_hp_build(codec);
 
 	return 1;
 }

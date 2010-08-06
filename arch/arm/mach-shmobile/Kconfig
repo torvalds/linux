@@ -7,7 +7,6 @@ config ARCH_SH7367
 	select CPU_V6
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7377
@@ -15,7 +14,6 @@ config ARCH_SH7377
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7372
@@ -23,7 +21,6 @@ config ARCH_SH7372
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 comment "SH-Mobile Board Type"
@@ -72,6 +69,18 @@ config MEMORY_SIZE
 endmenu
 
 menu "Timer and clock configuration"
+
+config SHMOBILE_TIMER_HZ
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	default "128"
+	help
+	  Allows the configuration of the timer frequency. It is customary
+	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
+	  case of low timer frequencies other values may be more suitable.
+	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
+	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  A HZ value that does not divide evenly may cause timer drift.
 
 config SH_TIMER_CMT
 	bool "CMT timer driver"

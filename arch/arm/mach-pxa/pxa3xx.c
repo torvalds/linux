@@ -29,7 +29,6 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/ssp.h>
 #include <mach/regs-intc.h>
 #include <plat/i2c.h>
 

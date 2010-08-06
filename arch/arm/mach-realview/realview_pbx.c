@@ -24,12 +24,15 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
 #include <asm/smp_twd.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -134,6 +137,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PBXCore AMBA devices
  */
@@ -200,7 +209,7 @@ AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
 AMBA_DEVICE(uart0,	"dev:uart0",	PBX_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PBX_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PBX_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
 AMBA_DEVICE(clcd,	"issp:clcd",	PBX_CLCD,	&clcd_plat_data);
@@ -268,6 +277,36 @@ static struct resource realview_pbx_isp1761_resources[] = {
 		.end		= IRQ_PBX_USB,
 		.flags		= IORESOURCE_IRQ,
 	},
+};
+
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start		= IRQ_PBX_PMU_CPU0,
+		.end		= IRQ_PBX_PMU_CPU0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start		= IRQ_PBX_PMU_CPU1,
+		.end		= IRQ_PBX_PMU_CPU1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start		= IRQ_PBX_PMU_CPU2,
+		.end		= IRQ_PBX_PMU_CPU2,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start		= IRQ_PBX_PMU_CPU3,
+		.end		= IRQ_PBX_PMU_CPU3,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= ARRAY_SIZE(pmu_resources),
+	.resource		= pmu_resources,
 };
 
 static void __init gic_init_irq(void)
@@ -354,6 +393,7 @@ static void __init realview_pbx_init(void)
 		/* 16KB way size, 8-way associativity, parity disabled
 		 * Bits:  .. 0 0 0 0 1 00 1 0 1 001 0 000 0 .... .... .... */
 		l2x0_init(l2x0_base, 0x02520000, 0xc0000fff);
+		platform_device_register(&pmu_device);
 	}
 #endif
 
@@ -377,7 +417,7 @@ static void __init realview_pbx_init(void)
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_PBX_UART0_BASE,
+	.phys_io	= REALVIEW_PBX_UART0_BASE & SECTION_MASK,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PBX_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_pbx_fixup,

@@ -22,7 +22,8 @@
 #include <linux/smp.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
+#include <linux/slab.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -690,10 +691,14 @@ void rtas_os_term(char *str)
 {
 	int status;
 
-	if (panic_timeout)
-		return;
-
-	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term"))
+	/*
+	 * Firmware with the ibm,extended-os-term property is guaranteed
+	 * to always return from an ibm,os-term call. Earlier versions without
+	 * this property may terminate the partition which we want to avoid
+	 * since it interferes with panic_timeout.
+	 */
+	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term") ||
+	    RTAS_UNKNOWN_SERVICE == rtas_token("ibm,extended-os-term"))
 		return;
 
 	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
@@ -704,8 +709,7 @@ void rtas_os_term(char *str)
 	} while (rtas_busy_delay(status));
 
 	if (status != 0)
-		printk(KERN_EMERG "ibm,os-term call failed %d\n",
-			       status);
+		printk(KERN_EMERG "ibm,os-term call failed %d\n", status);
 }
 
 static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
@@ -930,11 +934,11 @@ void __init rtas_initialize(void)
 	 */
 #ifdef CONFIG_PPC64
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
-		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
+		rtas_region = min(memblock.rmo_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}
 #endif
-	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
+	rtas_rmo_buf = memblock_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 	rtas_last_error_token = rtas_token("rtas-last-error");

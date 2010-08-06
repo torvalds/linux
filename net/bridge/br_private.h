@@ -15,6 +15,8 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/netpoll.h>
+#include <linux/u64_stats_sync.h>
 #include <net/route.h>
 
 #define BR_HASH_BITS 8
@@ -45,6 +47,17 @@ struct mac_addr
 	unsigned char	addr[6];
 };
 
+struct br_ip
+{
+	union {
+		__be32	ip4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		struct in6_addr ip6;
+#endif
+	} u;
+	__be16		proto;
+};
+
 struct net_bridge_fdb_entry
 {
 	struct hlist_node		hlist;
@@ -64,7 +77,7 @@ struct net_bridge_port_group {
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
@@ -77,7 +90,7 @@ struct net_bridge_mdb_entry
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
@@ -128,6 +141,27 @@ struct net_bridge_port
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
 #endif
+
+#ifdef CONFIG_SYSFS
+	char				sysfs_name[IFNAMSIZ];
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll			*np;
+#endif
+};
+
+#define br_port_get_rcu(dev) \
+	((struct net_bridge_port *) rcu_dereference(dev->rx_handler_data))
+#define br_port_get(dev) ((struct net_bridge_port *) dev->rx_handler_data)
+#define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
+
+struct br_cpu_netstats {
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			tx_packets;
+	u64			tx_bytes;
+	struct u64_stats_sync	syncp;
 };
 
 struct net_bridge
@@ -135,11 +169,16 @@ struct net_bridge
 	spinlock_t			lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
+
+	struct br_cpu_netstats __percpu *stats;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	unsigned long			feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
+	bool				nf_call_iptables;
+	bool				nf_call_ip6tables;
+	bool				nf_call_arptables;
 #endif
 	unsigned long			flags;
 #define BR_SET_MAC_ADDR		0x00000001
@@ -220,6 +259,21 @@ struct br_input_skb_cb {
 # define BR_INPUT_SKB_CB_MROUTERS_ONLY(__skb)	(0)
 #endif
 
+#define br_printk(level, br, format, args...)	\
+	printk(level "%s: " format, (br)->dev->name, ##args)
+
+#define br_err(__br, format, args...)			\
+	br_printk(KERN_ERR, __br, format, ##args)
+#define br_warn(__br, format, args...)			\
+	br_printk(KERN_WARNING, __br, format, ##args)
+#define br_notice(__br, format, args...)		\
+	br_printk(KERN_NOTICE, __br, format, ##args)
+#define br_info(__br, format, args...)			\
+	br_printk(KERN_INFO, __br, format, ##args)
+
+#define br_debug(br, format, args...)			\
+	pr_debug("%s: " format,  (br)->dev->name, ##args)
+
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
 
@@ -233,6 +287,43 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return br->dev->npinfo;
+}
+
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+	struct netpoll *np = p->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+
+extern int br_netpoll_enable(struct net_bridge_port *p);
+extern void br_netpoll_disable(struct net_bridge_port *p);
+#else
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return NULL;
+}
+
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+}
+
+static inline int br_netpoll_enable(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void br_netpoll_disable(struct net_bridge_port *p)
+{
+}
+#endif
 
 /* br_fdb.c */
 extern int br_fdb_init(void);
@@ -280,8 +371,7 @@ extern void br_features_recompute(struct net_bridge *br);
 
 /* br_input.c */
 extern int br_handle_frame_finish(struct sk_buff *skb);
-extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
-				       struct sk_buff *skb);
+extern struct sk_buff *br_handle_frame(struct sk_buff *skb);
 
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -433,6 +523,7 @@ extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 /* br_sysfs_if.c */
 extern const struct sysfs_ops brport_sysfs_ops;
 extern int br_sysfs_addif(struct net_bridge_port *p);
+extern int br_sysfs_renameif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
 extern int br_sysfs_addbr(struct net_device *dev);
@@ -441,6 +532,7 @@ extern void br_sysfs_delbr(struct net_device *dev);
 #else
 
 #define br_sysfs_addif(p)	(0)
+#define br_sysfs_renameif(p)	(0)
 #define br_sysfs_addbr(dev)	(0)
 #define br_sysfs_delbr(dev)	do { } while(0)
 #endif /* CONFIG_SYSFS */

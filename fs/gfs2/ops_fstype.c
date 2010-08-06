@@ -57,8 +57,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 {
 	spin_lock_init(&gt->gt_spin);
 
-	gt->gt_incore_log_blocks = 1024;
-	gt->gt_logd_secs = 1;
 	gt->gt_quota_simul_sync = 64;
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
@@ -78,7 +76,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	sb->s_fs_info = sdp;
 	sdp->sd_vfs = sb;
-
+	set_bit(SDF_NOJOURNALID, &sdp->sd_flags);
 	gfs2_tune_init(&sdp->sd_tune);
 
 	init_waitqueue_head(&sdp->sd_glock_wait);
@@ -101,14 +99,15 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	spin_lock_init(&sdp->sd_trunc_lock);
 
 	spin_lock_init(&sdp->sd_log_lock);
-
+	atomic_set(&sdp->sd_log_pinned, 0);
 	INIT_LIST_HEAD(&sdp->sd_log_le_buf);
 	INIT_LIST_HEAD(&sdp->sd_log_le_revoke);
 	INIT_LIST_HEAD(&sdp->sd_log_le_rg);
 	INIT_LIST_HEAD(&sdp->sd_log_le_databuf);
 	INIT_LIST_HEAD(&sdp->sd_log_le_ordered);
 
-	mutex_init(&sdp->sd_log_reserve_mutex);
+	init_waitqueue_head(&sdp->sd_log_waitq);
+	init_waitqueue_head(&sdp->sd_logd_waitq);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
@@ -487,7 +486,7 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0, 0);
+	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
 	if (IS_ERR(inode)) {
 		fs_err(sdp, "can't read in %s inode: %ld\n", name, PTR_ERR(inode));
 		return PTR_ERR(inode);
@@ -733,6 +732,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	if (sdp->sd_args.ar_spectator) {
 		sdp->sd_jdesc = gfs2_jdesc_find(sdp, 0);
 		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
+		atomic_set(&sdp->sd_log_thresh1, 2*sdp->sd_jdesc->jd_blocks/5);
+		atomic_set(&sdp->sd_log_thresh2, 4*sdp->sd_jdesc->jd_blocks/5);
 	} else {
 		if (sdp->sd_lockstruct.ls_jid >= gfs2_jindex_size(sdp)) {
 			fs_err(sdp, "can't mount journal #%u\n",
@@ -770,6 +771,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jinode_gh;
 		}
 		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
+		atomic_set(&sdp->sd_log_thresh1, 2*sdp->sd_jdesc->jd_blocks/5);
+		atomic_set(&sdp->sd_log_thresh2, 4*sdp->sd_jdesc->jd_blocks/5);
 
 		/* Map the extents for this journal's blocks */
 		map_journal_extents(sdp);
@@ -951,8 +954,6 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 	if (undo)
 		goto fail_quotad;
 
-	sdp->sd_log_flush_time = jiffies;
-
 	p = kthread_run(gfs2_logd, sdp, "gfs2_logd");
 	error = IS_ERR(p);
 	if (error) {
@@ -1049,7 +1050,8 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 			ret = match_int(&tmp[0], &option);
 			if (ret || option < 0) 
 				goto hostdata_error;
-			ls->ls_jid = option;
+			if (test_and_clear_bit(SDF_NOJOURNALID, &sdp->sd_flags))
+				ls->ls_jid = option;
 			break;
 		case Opt_id:
 			/* Obsolete, but left for backward compat purposes */
@@ -1099,6 +1101,24 @@ void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) &&
 	    lm->lm_unmount)
 		lm->lm_unmount(sdp);
+}
+
+static int gfs2_journalid_wait(void *word)
+{
+	if (signal_pending(current))
+		return -EINTR;
+	schedule();
+	return 0;
+}
+
+static int wait_on_journal(struct gfs2_sbd *sdp)
+{
+	if (sdp->sd_args.ar_spectator)
+		return 0;
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		return 0;
+
+	return wait_on_bit(&sdp->sd_flags, SDF_NOJOURNALID, gfs2_journalid_wait, TASK_INTERRUPTIBLE);
 }
 
 void gfs2_online_uevent(struct gfs2_sbd *sdp)
@@ -1160,7 +1180,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
                                GFS2_BASIC_BLOCK_SHIFT;
 	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 
-	sdp->sd_tune.gt_log_flush_secs = sdp->sd_args.ar_commit;
+	sdp->sd_tune.gt_logd_secs = sdp->sd_args.ar_commit;
 	sdp->sd_tune.gt_quota_quantum = sdp->sd_args.ar_quota_quantum;
 	if (sdp->sd_args.ar_statfs_quantum) {
 		sdp->sd_tune.gt_statfs_slow = 0;
@@ -1192,6 +1212,10 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	error = init_sb(sdp, silent);
 	if (error)
 		goto fail_locking;
+
+	error = wait_on_journal(sdp);
+	if (error)
+		goto fail_sb;
 
 	error = init_inodes(sdp, DO);
 	if (error)
@@ -1323,7 +1347,7 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
 	args.ar_data = GFS2_DATA_DEFAULT;
-	args.ar_commit = 60;
+	args.ar_commit = 30;
 	args.ar_statfs_quantum = 30;
 	args.ar_quota_quantum = 60;
 	args.ar_errors = GFS2_ERRORS_DEFAULT;

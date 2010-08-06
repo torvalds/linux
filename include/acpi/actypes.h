@@ -663,44 +663,43 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_MAX                    0xFF
 #define ACPI_NUM_GPE                    256
 
+/* Actions for acpi_set_gpe and acpi_hw_low_set_gpe */
+
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
+#define ACPI_GPE_COND_ENABLE            2
+
+/* gpe_types for acpi_enable_gpe and acpi_disable_gpe */
+
+#define ACPI_GPE_TYPE_WAKE              (u8) 0x01
+#define ACPI_GPE_TYPE_RUNTIME           (u8) 0x02
+#define ACPI_GPE_TYPE_WAKE_RUN          (u8) 0x03
 
 /*
  * GPE info flags - Per GPE
- * +-+-+-+---+-+-+-+
- * |7|6|5|4:3|2|1|0|
- * +-+-+-+---+-+-+-+
- *  | | |  |  | | |
- *  | | |  |  | | +--- Interrupt type: Edge or Level Triggered
- *  | | |  |  | +--- GPE can wake the system
- *  | | |  |  +--- Unused
- *  | | |  +--- Type of dispatch -- to method, handler, or none
- *  | | +--- Unused
- *  | +--- Unused
- *  +--- Unused
+ * +-------+---+-+-+
+ * |  7:4  |3:2|1|0|
+ * +-------+---+-+-+
+ *     |     |  | |
+ *     |     |  | +--- Interrupt type: edge or level triggered
+ *     |     |  +----- GPE can wake the system
+ *     |     +-------- Type of dispatch:to method, handler, or none
+ *     +-------------- <Reserved>
  */
 #define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
 #define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x01
 #define ACPI_GPE_EDGE_TRIGGERED         (u8) 0x00
 
-#define ACPI_GPE_TYPE_MASK              (u8) 0x06
-#define ACPI_GPE_TYPE_WAKE_RUN          (u8) 0x06
-#define ACPI_GPE_TYPE_WAKE              (u8) 0x02
-#define ACPI_GPE_TYPE_RUNTIME           (u8) 0x04	/* Default */
 #define ACPI_GPE_CAN_WAKE		(u8) 0x02
 
-#define ACPI_GPE_DISPATCH_MASK          (u8) 0x18
-#define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x08
-#define ACPI_GPE_DISPATCH_METHOD        (u8) 0x10
-#define ACPI_GPE_DISPATCH_NOT_USED      (u8) 0x00	/* Default */
+#define ACPI_GPE_DISPATCH_MASK          (u8) 0x0C
+#define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x04
+#define ACPI_GPE_DISPATCH_METHOD        (u8) 0x08
+#define ACPI_GPE_DISPATCH_NOT_USED      (u8) 0x00
 
 /*
  * Flags for GPE and Lock interfaces
  */
-#define ACPI_EVENT_WAKE_ENABLE          0x2	/* acpi_gpe_enable */
-#define ACPI_EVENT_WAKE_DISABLE         0x2	/* acpi_gpe_disable */
-
 #define ACPI_NOT_ISR                    0x1
 #define ACPI_ISR                        0x0
 
@@ -953,7 +952,7 @@ acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
 #define ACPI_REGION_DEACTIVATE  1
 
 typedef
-acpi_status(*acpi_walk_callback) (acpi_handle obj_handle,
+acpi_status(*acpi_walk_callback) (acpi_handle object,
 				  u32 nesting_level,
 				  void *context, void **return_value);
 

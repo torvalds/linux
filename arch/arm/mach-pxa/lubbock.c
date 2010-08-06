@@ -478,7 +478,7 @@ static void lubbock_mci_exit(struct device *dev, void *data)
 
 static struct pxamci_platform_data lubbock_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay		= 1,
+	.detect_delay_ms	= 10,
 	.init 			= lubbock_mci_init,
 	.get_ro			= lubbock_mci_get_ro,
 	.exit 			= lubbock_mci_exit,

@@ -475,6 +475,26 @@ config I2C_PASEMI
 	help
 	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
 
+config I2C_PCA_PLATFORM
+	tristate "PCA9564/PCA9665 as platform device"
+	select I2C_ALGOPCA
+	default n
+	help
+	  This driver supports a memory mapped Philips PCA9564/PCA9665
+	  parallel bus to I2C bus controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pca-platform.
+
+config I2C_PMCMSP
+	tristate "PMC MSP I2C TWI Controller"
+	depends on PMC_MSP
+	help
+	  This driver supports the PMC TWI controller on MSP devices.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-pmcmsp.
+
 config I2C_PNX
 	tristate "I2C bus support for Philips PNX targets"
 	depends on ARCH_PNX4008
@@ -564,7 +584,7 @@ config I2C_STU300
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW
+	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile
@@ -710,26 +730,6 @@ config I2C_PCA_ISA
 	  system which doesn't have this device will result in long
 	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
 	  time).  If unsure, say N.
-
-config I2C_PCA_PLATFORM
-	tristate "PCA9564/PCA9665 as platform device"
-	select I2C_ALGOPCA
-	default n
-	help
-	  This driver supports a memory mapped Philips PCA9564/PCA9665
-	  parallel bus to I2C bus controller.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pca-platform.
-
-config I2C_PMCMSP
-	tristate "PMC MSP I2C TWI Controller"
-	depends on PMC_MSP
-	help
-	  This driver supports the PMC TWI controller on MSP devices.
-
-	  This driver can also be built as module. If so, the module
-	  will be called i2c-pmcmsp.
 
 config I2C_SIBYTE
 	tristate "SiByte SMBus interface"

@@ -23,6 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 #include <linux/sysdev.h>
+#include <linux/slab.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -904,7 +905,7 @@ struct txx9_sramc_sysdev {
 	void __iomem *base;
 };
 
-static ssize_t txx9_sram_read(struct kobject *kobj,
+static ssize_t txx9_sram_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t size)
 {
@@ -919,7 +920,7 @@ static ssize_t txx9_sram_read(struct kobject *kobj,
 	return size;
 }
 
-static ssize_t txx9_sram_write(struct kobject *kobj,
+static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t pos, size_t size)
 {

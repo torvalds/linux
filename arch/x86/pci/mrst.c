@@ -66,8 +66,9 @@ static int fixed_bar_cap(struct pci_bus *bus, unsigned int devfn)
 					  devfn, pos, 4, &pcie_cap))
 			return 0;
 
-		if (pcie_cap == 0xffffffff)
-			return 0;
+		if (PCI_EXT_CAP_ID(pcie_cap) == 0x0000 ||
+			PCI_EXT_CAP_ID(pcie_cap) == 0xffff)
+			break;
 
 		if (PCI_EXT_CAP_ID(pcie_cap) == PCI_EXT_CAP_ID_VNDR) {
 			raw_pci_ext_ops->read(pci_domain_nr(bus), bus->number,
@@ -76,7 +77,7 @@ static int fixed_bar_cap(struct pci_bus *bus, unsigned int devfn)
 				return pos;
 		}
 
-		pos = pcie_cap >> 20;
+		pos = PCI_EXT_CAP_NEXT(pcie_cap);
 	}
 
 	return 0;
@@ -109,7 +110,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
 			decode++;
 			decode = ~(decode - 1);
 		} else {
-			decode = ~0;
+			decode = 0;
 		}
 
 		/*
@@ -246,6 +247,10 @@ static void __devinit pci_fixed_bar_fixup(struct pci_dev *dev)
 	unsigned long offset;
 	u32 size;
 	int i;
+
+	/* Must have extended configuration space */
+	if (dev->cfg_size < PCIE_CAP_OFFSET + 4)
+		return;
 
 	/* Fixup the BAR sizes for fixed BAR devices and make them unmoveable */
 	offset = fixed_bar_cap(dev->bus, dev->devfn);

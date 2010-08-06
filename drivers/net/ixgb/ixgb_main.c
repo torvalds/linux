@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ixgb.h"
 
 char ixgb_driver_name[] = "ixgb";
@@ -146,10 +148,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int __init
 ixgb_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n",
-	       ixgb_driver_string, ixgb_driver_version);
-
-	printk(KERN_INFO "%s\n", ixgb_copyright);
+	pr_info("%s - version %s\n", ixgb_driver_string, ixgb_driver_version);
+	pr_info("%s\n", ixgb_copyright);
 
 	return pci_register_driver(&ixgb_driver);
 }
@@ -368,17 +368,22 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
-		pci_using_dac = 1;
+	pci_using_dac = 0;
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (!err) {
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+		if (!err)
+			pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			printk(KERN_ERR
-			 "ixgb: No usable DMA configuration, aborting\n");
-			goto err_dma_mask;
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (err) {
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
+			if (err) {
+				pr_err("No usable DMA configuration, aborting\n");
+				goto err_dma_mask;
+			}
 		}
-		pci_using_dac = 0;
 	}
 
 	err = pci_request_regions(pdev, ixgb_driver_name);
@@ -674,7 +679,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
 		netif_err(adapter, probe, adapter->netdev,
@@ -763,7 +769,8 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	rxdr->size = rxdr->count * sizeof(struct ixgb_rx_desc);
 	rxdr->size = ALIGN(rxdr->size, 4096);
 
-	rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma);
+	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
+					GFP_KERNEL);
 
 	if (!rxdr->desc) {
 		vfree(rxdr->buffer_info);
@@ -884,8 +891,8 @@ ixgb_free_tx_resources(struct ixgb_adapter *adapter)
 	vfree(adapter->tx_ring.buffer_info);
 	adapter->tx_ring.buffer_info = NULL;
 
-	pci_free_consistent(pdev, adapter->tx_ring.size,
-			    adapter->tx_ring.desc, adapter->tx_ring.dma);
+	dma_free_coherent(&pdev->dev, adapter->tx_ring.size,
+			  adapter->tx_ring.desc, adapter->tx_ring.dma);
 
 	adapter->tx_ring.desc = NULL;
 }
@@ -896,12 +903,11 @@ ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
-			pci_unmap_page(adapter->pdev, buffer_info->dma,
-				       buffer_info->length, PCI_DMA_TODEVICE);
+			dma_unmap_page(&adapter->pdev->dev, buffer_info->dma,
+				       buffer_info->length, DMA_TO_DEVICE);
 		else
-			pci_unmap_single(adapter->pdev, buffer_info->dma,
-					 buffer_info->length,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&adapter->pdev->dev, buffer_info->dma,
+					 buffer_info->length, DMA_TO_DEVICE);
 		buffer_info->dma = 0;
 	}
 
@@ -967,7 +973,8 @@ ixgb_free_rx_resources(struct ixgb_adapter *adapter)
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
 
-	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
+	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+			  rx_ring->dma);
 
 	rx_ring->desc = NULL;
 }
@@ -991,10 +998,10 @@ ixgb_clean_rx_ring(struct ixgb_adapter *adapter)
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
-			pci_unmap_single(pdev,
+			dma_unmap_single(&pdev->dev,
 					 buffer_info->dma,
 					 buffer_info->length,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 			buffer_info->length = 0;
 		}
@@ -1058,7 +1065,7 @@ ixgb_set_multi(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 rctl;
 	int i;
 
@@ -1089,9 +1096,9 @@ ixgb_set_multi(struct net_device *netdev)
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
 		i = 0;
-		netdev_for_each_mc_addr(mc_ptr, netdev)
+		netdev_for_each_mc_addr(ha, netdev)
 			memcpy(&mta[i++ * IXGB_ETH_LENGTH_OF_ADDRESS],
-			       mc_ptr->dmi_addr, IXGB_ETH_LENGTH_OF_ADDRESS);
+			       ha->addr, IXGB_ETH_LENGTH_OF_ADDRESS);
 
 		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
 	}
@@ -1118,15 +1125,14 @@ ixgb_watchdog(unsigned long data)
 
 	if (adapter->hw.link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "ixgb: %s NIC Link is Up 10 Gbps "
-			       "Full Duplex, Flow Control: %s\n",
-			       netdev->name,
-			       (adapter->hw.fc.type == ixgb_fc_full) ?
-			        "RX/TX" :
-			        ((adapter->hw.fc.type == ixgb_fc_rx_pause) ?
-			         "RX" :
-			         ((adapter->hw.fc.type == ixgb_fc_tx_pause) ?
-			          "TX" : "None")));
+			netdev_info(netdev,
+				    "NIC Link is Up 10 Gbps Full Duplex, Flow Control: %s\n",
+				    (adapter->hw.fc.type == ixgb_fc_full) ?
+				    "RX/TX" :
+				    (adapter->hw.fc.type == ixgb_fc_rx_pause) ?
+				     "RX" :
+				    (adapter->hw.fc.type == ixgb_fc_tx_pause) ?
+				    "TX" : "None");
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1135,8 +1141,7 @@ ixgb_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
-			       netdev->name);
+			netdev_info(netdev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 		}
 	}
@@ -1303,9 +1308,10 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->time_stamp = jiffies;
 		buffer_info->mapped_as_page = false;
-		buffer_info->dma = pci_map_single(pdev, skb->data + offset,
-						  size, PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+		buffer_info->dma = dma_map_single(&pdev->dev,
+						  skb->data + offset,
+						  size, DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 			goto dma_error;
 		buffer_info->next_to_watch = 0;
 
@@ -1344,10 +1350,9 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 			buffer_info->time_stamp = jiffies;
 			buffer_info->mapped_as_page = true;
 			buffer_info->dma =
-				pci_map_page(pdev, frag->page,
-					     offset, size,
-					     PCI_DMA_TODEVICE);
-			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+				dma_map_page(&pdev->dev, frag->page,
+					     offset, size, DMA_TO_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 				goto dma_error;
 			buffer_info->next_to_watch = 0;
 
@@ -1916,6 +1921,31 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
 	}
 }
 
+/*
+ * this should improve performance for small packets with large amounts
+ * of reassembly being done in the stack
+ */
+static void ixgb_check_copybreak(struct net_device *netdev,
+				 struct ixgb_buffer *buffer_info,
+				 u32 length, struct sk_buff **skb)
+{
+	struct sk_buff *new_skb;
+
+	if (length > copybreak)
+		return;
+
+	new_skb = netdev_alloc_skb_ip_align(netdev, length);
+	if (!new_skb)
+		return;
+
+	skb_copy_to_linear_data_offset(new_skb, -NET_IP_ALIGN,
+				       (*skb)->data - NET_IP_ALIGN,
+				       length + NET_IP_ALIGN);
+	/* save the skb in buffer_info as good */
+	buffer_info->skb = *skb;
+	*skb = new_skb;
+}
+
 /**
  * ixgb_clean_rx_irq - Send received data up the network stack,
  * @adapter: board private structure
@@ -1952,11 +1982,14 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 		prefetch(skb->data - NET_IP_ALIGN);
 
-		if (++i == rx_ring->count) i = 0;
+		if (++i == rx_ring->count)
+			i = 0;
 		next_rxd = IXGB_RX_DESC(*rx_ring, i);
 		prefetch(next_rxd);
 
-		if ((j = i + 1) == rx_ring->count) j = 0;
+		j = i + 1;
+		if (j == rx_ring->count)
+			j = 0;
 		next2_buffer = &rx_ring->buffer_info[j];
 		prefetch(next2_buffer);
 
@@ -1965,10 +1998,10 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 		cleaned = true;
 		cleaned_count++;
 
-		pci_unmap_single(pdev,
+		dma_unmap_single(&pdev->dev,
 				 buffer_info->dma,
 				 buffer_info->length,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		length = le16_to_cpu(rx_desc->length);
@@ -1992,25 +2025,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			goto rxdesc_done;
 		}
 
-		/* code added for copybreak, this should improve
-		 * performance for small packets with large amounts
-		 * of reassembly being done in the stack */
-		if (length < copybreak) {
-			struct sk_buff *new_skb =
-			    netdev_alloc_skb_ip_align(netdev, length);
-			if (new_skb) {
-				skb_copy_to_linear_data_offset(new_skb,
-							       -NET_IP_ALIGN,
-							       (skb->data -
-							        NET_IP_ALIGN),
-							       (length +
-							        NET_IP_ALIGN));
-				/* save the skb in buffer_info as good */
-				buffer_info->skb = skb;
-				skb = new_skb;
-			}
-		}
-		/* end copybreak code */
+		ixgb_check_copybreak(netdev, buffer_info, length, &skb);
 
 		/* Good Receive */
 		skb_put(skb, length);
@@ -2091,10 +2106,10 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter, int cleaned_count)
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 map_skb:
-		buffer_info->dma = pci_map_single(pdev,
+		buffer_info->dma = dma_map_single(&pdev->dev,
 		                                  skb->data,
 		                                  adapter->rx_buffer_len,
-		                                  PCI_DMA_FROMDEVICE);
+						  DMA_FROM_DEVICE);
 
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
@@ -2322,7 +2337,7 @@ static void ixgb_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (ixgb_up(adapter)) {
-			printk ("ixgb: can't bring device back up after reset\n");
+			pr_err("can't bring device back up after reset\n");
 			return;
 		}
 	}

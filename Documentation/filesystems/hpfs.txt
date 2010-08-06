@@ -103,7 +103,7 @@ to analyze or change OS2SYS.INI.
 Codepages
 
 HPFS can contain several uppercasing tables for several codepages and each
-file has a pointer to codepage it's name is in. However OS/2 was created in
+file has a pointer to codepage its name is in. However OS/2 was created in
 America where people don't care much about codepages and so multiple codepages
 support is quite buggy. I have Czech OS/2 working in codepage 852 on my disk.
 Once I booted English OS/2 working in cp 850 and I created a file on my 852

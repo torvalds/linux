@@ -25,6 +25,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <asm/uaccess.h>
@@ -70,7 +71,7 @@ struct acpi_table_attr {
 	struct list_head node;
 };
 
-static ssize_t acpi_table_show(struct kobject *kobj,
+static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr, char *buf,
 			       loff_t offset, size_t count)
 {
@@ -302,8 +303,7 @@ static int get_status(u32 index, acpi_event_status *status, acpi_handle *handle)
 				"Invalid GPE 0x%x\n", index));
 			goto end;
 		}
-		result = acpi_get_gpe_status(*handle, index,
-						ACPI_NOT_ISR, status);
+		result = acpi_get_gpe_status(*handle, index, status);
 	} else if (index < (num_gpes + ACPI_NUM_FIXED_EVENTS))
 		result = acpi_get_event_status(index - num_gpes, status);
 
@@ -388,13 +388,15 @@ static ssize_t counter_set(struct kobject *kobj,
 	if (index < num_gpes) {
 		if (!strcmp(buf, "disable\n") &&
 				(status & ACPI_EVENT_FLAG_ENABLED))
-			result = acpi_set_gpe(handle, index, ACPI_GPE_DISABLE);
+			result = acpi_disable_gpe(handle, index,
+						ACPI_GPE_TYPE_RUNTIME);
 		else if (!strcmp(buf, "enable\n") &&
 				!(status & ACPI_EVENT_FLAG_ENABLED))
-			result = acpi_set_gpe(handle, index, ACPI_GPE_ENABLE);
+			result = acpi_enable_gpe(handle, index,
+						ACPI_GPE_TYPE_RUNTIME);
 		else if (!strcmp(buf, "clear\n") &&
 				(status & ACPI_EVENT_FLAG_SET))
-			result = acpi_clear_gpe(handle, index, ACPI_NOT_ISR);
+			result = acpi_clear_gpe(handle, index);
 		else
 			all_counters[index].count = strtoul(buf, NULL, 0);
 	} else if (index < num_gpes + ACPI_NUM_FIXED_EVENTS) {

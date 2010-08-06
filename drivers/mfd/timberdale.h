@@ -23,7 +23,7 @@
 #ifndef MFD_TIMBERDALE_H
 #define MFD_TIMBERDALE_H
 
-#define DRV_VERSION		"0.1"
+#define DRV_VERSION		"0.2"
 
 /* This driver only support versions >= 3.8 and < 4.0  */
 #define TIMB_SUPPORTED_MAJOR	3
@@ -66,7 +66,7 @@
 
 #define CHIPCTLOFFSET	0x800
 #define CHIPCTLEND	0x8ff
-#define CHIPCTLSIZE	(CHIPCTLEND - CHIPCTLOFFSET)
+#define CHIPCTLSIZE	(CHIPCTLEND - CHIPCTLOFFSET + 1)
 
 #define INTCOFFSET	0xc00
 #define INTCEND		0xfff
@@ -126,5 +126,17 @@
 #define GPIO_PIN_INIC_RST	14
 #define GPIO_PIN_BT_RST		15
 #define GPIO_NR_PINS		16
+
+/* DMA Channels */
+#define DMA_UART_RX         0
+#define DMA_UART_TX         1
+#define DMA_MLB_RX          2
+#define DMA_MLB_TX          3
+#define DMA_VIDEO_RX        4
+#define DMA_VIDEO_DROP      5
+#define DMA_SDHCI_RX        6
+#define DMA_SDHCI_TX        7
+#define DMA_ETH_RX          8
+#define DMA_ETH_TX          9
 
 #endif

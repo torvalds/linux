@@ -14,6 +14,7 @@
  */
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 
 #include <asm/paravirt.h>

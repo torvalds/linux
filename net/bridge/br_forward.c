@@ -12,8 +12,10 @@
  */
 
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
@@ -43,12 +45,11 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 	if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
 		kfree_skb(skb);
 	else {
-		/* ip_refrag calls ip_fragment, doesn't copy the MAC header. */
+		/* ip_fragment doesn't copy the MAC header */
 		if (nf_bridge_maybe_copy_header(skb))
 			kfree_skb(skb);
 		else {
 			skb_push(skb, ETH_HLEN);
-
 			dev_queue_xmit(skb);
 		}
 	}
@@ -58,7 +59,7 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 
 int br_forward_finish(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_BRIDGE, NF_BR_POST_ROUTING, skb, NULL, skb->dev,
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING, skb, NULL, skb->dev,
 		       br_dev_queue_push_xmit);
 
 }
@@ -66,8 +67,19 @@ int br_forward_finish(struct sk_buff *skb)
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 	skb->dev = to->dev;
-	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
-			br_forward_finish);
+
+	if (unlikely(netpoll_tx_running(to->dev))) {
+		if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+			kfree_skb(skb);
+		else {
+			skb_push(skb, ETH_HLEN);
+			br_netpoll_send_skb(to, skb);
+		}
+		return;
+	}
+
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
+		br_forward_finish);
 }
 
 static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
@@ -83,8 +95,8 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 	skb_forward_csum(skb);
 
-	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, indev, skb->dev,
-			br_forward_finish);
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_FORWARD, skb, indev, skb->dev,
+		br_forward_finish);
 }
 
 /* called with rcu_read_lock */
@@ -118,10 +130,10 @@ static int deliver_clone(const struct net_bridge_port *prev,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb))
 {
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb) {
-		struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-
 		dev->stats.tx_dropped++;
 		return -ENOMEM;
 	}
@@ -207,17 +219,15 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(dev);
-	struct net_bridge_port *port;
-	struct net_bridge_port *lport, *rport;
-	struct net_bridge_port *prev;
+	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
 	struct hlist_node *rp;
 
-	prev = NULL;
-
-	rp = br->router_list.first;
-	p = mdst ? mdst->ports : NULL;
+	rp = rcu_dereference(br->router_list.first);
+	p = mdst ? rcu_dereference(mdst->ports) : NULL;
 	while (p || rp) {
+		struct net_bridge_port *port, *lport, *rport;
+
 		lport = p ? p->port : NULL;
 		rport = rp ? hlist_entry(rp, struct net_bridge_port, rlist) :
 			     NULL;
@@ -230,9 +240,9 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 			goto out;
 
 		if ((unsigned long)lport >= (unsigned long)port)
-			p = p->next;
+			p = rcu_dereference(p->next);
 		if ((unsigned long)rport >= (unsigned long)port)
-			rp = rp->next;
+			rp = rcu_dereference(rp->next);
 	}
 
 	if (!prev)

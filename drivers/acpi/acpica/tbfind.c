@@ -83,7 +83,7 @@ acpi_tb_find_table(char *signature,
 
 	/* Search for the table */
 
-	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
+	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		if (ACPI_MEMCMP(&(acpi_gbl_root_table_list.tables[i].signature),
 				header.signature, ACPI_NAME_SIZE)) {
 

@@ -611,6 +611,73 @@ static DEVICE_ATTR(multicast_startup_query_interval, S_IRUGO | S_IWUSR,
 		   show_multicast_startup_query_interval,
 		   store_multicast_startup_query_interval);
 #endif
+#ifdef CONFIG_BRIDGE_NETFILTER
+static ssize_t show_nf_call_iptables(
+	struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br->nf_call_iptables);
+}
+
+static int set_nf_call_iptables(struct net_bridge *br, unsigned long val)
+{
+	br->nf_call_iptables = val ? true : false;
+	return 0;
+}
+
+static ssize_t store_nf_call_iptables(
+	struct device *d, struct device_attribute *attr, const char *buf,
+	size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_nf_call_iptables);
+}
+static DEVICE_ATTR(nf_call_iptables, S_IRUGO | S_IWUSR,
+		   show_nf_call_iptables, store_nf_call_iptables);
+
+static ssize_t show_nf_call_ip6tables(
+	struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br->nf_call_ip6tables);
+}
+
+static int set_nf_call_ip6tables(struct net_bridge *br, unsigned long val)
+{
+	br->nf_call_ip6tables = val ? true : false;
+	return 0;
+}
+
+static ssize_t store_nf_call_ip6tables(
+	struct device *d, struct device_attribute *attr, const char *buf,
+	size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_nf_call_ip6tables);
+}
+static DEVICE_ATTR(nf_call_ip6tables, S_IRUGO | S_IWUSR,
+		   show_nf_call_ip6tables, store_nf_call_ip6tables);
+
+static ssize_t show_nf_call_arptables(
+	struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br->nf_call_arptables);
+}
+
+static int set_nf_call_arptables(struct net_bridge *br, unsigned long val)
+{
+	br->nf_call_arptables = val ? true : false;
+	return 0;
+}
+
+static ssize_t store_nf_call_arptables(
+	struct device *d, struct device_attribute *attr, const char *buf,
+	size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_nf_call_arptables);
+}
+static DEVICE_ATTR(nf_call_arptables, S_IRUGO | S_IWUSR,
+		   show_nf_call_arptables, store_nf_call_arptables);
+#endif
 
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
@@ -645,6 +712,11 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_multicast_query_response_interval.attr,
 	&dev_attr_multicast_startup_query_interval.attr,
 #endif
+#ifdef CONFIG_BRIDGE_NETFILTER
+	&dev_attr_nf_call_iptables.attr,
+	&dev_attr_nf_call_ip6tables.attr,
+	&dev_attr_nf_call_arptables.attr,
+#endif
 	NULL
 };
 
@@ -659,7 +731,7 @@ static struct attribute_group bridge_group = {
  *
  * Returns the number of bytes read.
  */
-static ssize_t brforward_read(struct kobject *kobj,
+static ssize_t brforward_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {

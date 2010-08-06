@@ -345,8 +345,6 @@
 #define INT_34XX_MMC3_IRQ	94
 #define INT_34XX_GPT12_IRQ	95
 
-#define	INT_34XX_BENCH_MPU_EMUL	3
-
 #define INT_35XX_HECC0_IRQ		24
 #define INT_35XX_HECC1_IRQ		28
 #define INT_35XX_EMAC_C0_RXTHRESH_IRQ	67
@@ -429,5 +427,9 @@ void omap3_intc_resume_idle(void);
 #endif
 
 #include <mach/hardware.h>
+
+#ifdef CONFIG_FIQ
+#define FIQ_START		1024
+#endif
 
 #endif

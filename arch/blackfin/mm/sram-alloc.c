@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 #include <asm/blackfin.h>
 #include <asm/mem_map.h>
 #include "blackfin_sram.h"
@@ -255,7 +256,8 @@ static void *_sram_alloc(size_t size, struct sram_piece *pfree_head,
 		plast->next = pslot->next;
 		pavail = pslot;
 	} else {
-		pavail = kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+		/* use atomic so our L1 allocator can be used atomically */
+		pavail = kmem_cache_alloc(sram_piece_cache, GFP_ATOMIC);
 
 		if (!pavail)
 			return NULL;

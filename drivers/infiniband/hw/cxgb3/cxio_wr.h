@@ -691,7 +691,7 @@ struct t3_swrq {
 struct t3_wq {
 	union t3_wr *queue;		/* DMA accessable memory */
 	dma_addr_t dma_addr;		/* DMA address for HW */
-	DECLARE_PCI_UNMAP_ADDR(mapping)	/* unmap kruft */
+	DEFINE_DMA_UNMAP_ADDR(mapping); /* unmap kruft */
 	u32 error;			/* 1 once we go to ERROR */
 	u32 qpid;
 	u32 wptr;			/* idx to next available WR slot */
@@ -718,7 +718,7 @@ struct t3_cq {
 	u32 wptr;
 	u32 size_log2;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t3_cqe *queue;
 	struct t3_cqe *sw_queue;
 	u32 sw_rptr;

@@ -72,6 +72,7 @@
  *   wimax_msg_send()
  */
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 #include <linux/wimax.h>

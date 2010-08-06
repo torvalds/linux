@@ -10,6 +10,7 @@
  */
 
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <linux/file.h>
 #include "internal.h"
 

@@ -64,12 +64,6 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 void die(const char *str, struct pt_regs *fp, long err);
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr);
 
-#ifdef CONFIG_MMU
-void __bug(const char *file, int line, void *data);
-int bad_trap(int trap_num, struct pt_regs *regs);
-int debug_trap(struct pt_regs *regs);
-#endif /* CONFIG_MMU */
-
 #if defined(CONFIG_KGDB)
 void (*debugger)(struct pt_regs *regs);
 int (*debugger_bpt)(struct pt_regs *regs);

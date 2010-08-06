@@ -14,6 +14,7 @@
  * for more details.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/types.h>
@@ -26,6 +27,7 @@
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <mach/highlander.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
 #include <asm/io.h>
@@ -326,12 +328,18 @@ static struct clk_ops ivdr_clk_ops = {
 };
 
 static struct clk ivdr_clk = {
-	.name		= "ivdr_clk",
 	.ops		= &ivdr_clk_ops,
 };
 
 static struct clk *r7780rp_clocks[] = {
 	&ivdr_clk,
+};
+
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("ivdr_clk", &ivdr_clk),
 };
 
 static void r7780rp_power_off(void)
@@ -369,6 +377,8 @@ static void __init highlander_setup(char **cmdline_p)
 		clk_register(clk);
 		clk_enable(clk);
 	}
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	__raw_writew(0x0000, PA_OBLED);	/* Clear LED. */
 

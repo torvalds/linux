@@ -225,6 +225,7 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  * outside of main memory.
  *
  */
+#ifdef pgprot_noncached
 static int uncached_access(struct file *file, unsigned long addr)
 {
 #if defined(CONFIG_IA64)
@@ -251,6 +252,7 @@ static int uncached_access(struct file *file, unsigned long addr)
 	return addr >= __pa(high_memory);
 #endif
 }
+#endif
 
 static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
@@ -710,11 +712,6 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
-		if ((unsigned long long)offset <
-		    (unsigned long long)file->f_pos) {
-			ret = -EOVERFLOW;
-			break;
-		}
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
 		if ((unsigned long long)offset >= ~0xFFFULL) {
@@ -908,6 +905,9 @@ static int __init chr_dev_init(void)
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
 	mem_class = class_create(THIS_MODULE, "mem");
+	if (IS_ERR(mem_class))
+		return PTR_ERR(mem_class);
+
 	mem_class->devnode = mem_devnode;
 	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
 		if (!devlist[minor].name)

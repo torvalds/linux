@@ -92,3 +92,25 @@ out_close_from:
 out:
 	return err;
 }
+
+unsigned long convert_unit(unsigned long value, char *unit)
+{
+	*unit = ' ';
+
+	if (value > 1000) {
+		value /= 1000;
+		*unit = 'K';
+	}
+
+	if (value > 1000) {
+		value /= 1000;
+		*unit = 'M';
+	}
+
+	if (value > 1000) {
+		value /= 1000;
+		*unit = 'G';
+	}
+
+	return value;
+}

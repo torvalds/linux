@@ -46,9 +46,11 @@
 #include "util/debug.h"
 #include "util/header.h"
 #include "util/cpumap.h"
+#include "util/thread.h"
 
 #include <sys/prctl.h>
 #include <math.h>
+#include <locale.h>
 
 static struct perf_event_attr default_attrs[] = {
 
@@ -66,18 +68,23 @@ static struct perf_event_attr default_attrs[] = {
 
 };
 
-static int			system_wide			=  0;
+static bool			system_wide			=  false;
 static unsigned int		nr_cpus				=  0;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
-static int			inherit				=  1;
-static int			scale				=  1;
+static bool			no_inherit			= false;
+static bool			scale				=  true;
 static pid_t			target_pid			= -1;
+static pid_t			target_tid			= -1;
+static pid_t			*all_tids			=  NULL;
+static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
-static int			null_run			=  0;
+static bool			null_run			=  false;
+static bool			big_num				=  false;
 
-static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+
+static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int			event_scaled[MAX_COUNTERS];
 
@@ -140,9 +147,11 @@ struct stats			runtime_branches_stats;
 #define ERR_PERF_OPEN \
 "Error: counter %d, sys_perf_event_open() syscall returned with %d (%s)\n"
 
-static void create_perf_stat_counter(int counter, int pid)
+static int create_perf_stat_counter(int counter)
 {
 	struct perf_event_attr *attr = attrs + counter;
+	int thread;
+	int ncreated = 0;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -152,21 +161,33 @@ static void create_perf_stat_counter(int counter, int pid)
 		unsigned int cpu;
 
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			fd[cpu][counter] = sys_perf_event_open(attr, -1, cpumap[cpu], -1, 0);
-			if (fd[cpu][counter] < 0 && verbose)
-				fprintf(stderr, ERR_PERF_OPEN, counter,
-					fd[cpu][counter], strerror(errno));
+			fd[cpu][counter][0] = sys_perf_event_open(attr,
+					-1, cpumap[cpu], -1, 0);
+			if (fd[cpu][counter][0] < 0)
+				pr_debug(ERR_PERF_OPEN, counter,
+					 fd[cpu][counter][0], strerror(errno));
+			else
+				++ncreated;
 		}
 	} else {
-		attr->inherit	     = inherit;
-		attr->disabled	     = 1;
-		attr->enable_on_exec = 1;
-
-		fd[0][counter] = sys_perf_event_open(attr, pid, -1, -1, 0);
-		if (fd[0][counter] < 0 && verbose)
-			fprintf(stderr, ERR_PERF_OPEN, counter,
-				fd[0][counter], strerror(errno));
+		attr->inherit = !no_inherit;
+		if (target_pid == -1 && target_tid == -1) {
+			attr->disabled = 1;
+			attr->enable_on_exec = 1;
+		}
+		for (thread = 0; thread < thread_num; thread++) {
+			fd[0][counter][thread] = sys_perf_event_open(attr,
+				all_tids[thread], -1, -1, 0);
+			if (fd[0][counter][thread] < 0)
+				pr_debug(ERR_PERF_OPEN, counter,
+					 fd[0][counter][thread],
+					 strerror(errno));
+			else
+				++ncreated;
+		}
 	}
+
+	return ncreated;
 }
 
 /*
@@ -190,25 +211,28 @@ static void read_counter(int counter)
 	unsigned int cpu;
 	size_t res, nv;
 	int scaled;
-	int i;
+	int i, thread;
 
 	count[0] = count[1] = count[2] = 0;
 
 	nv = scale ? 3 : 1;
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		if (fd[cpu][counter] < 0)
-			continue;
+		for (thread = 0; thread < thread_num; thread++) {
+			if (fd[cpu][counter][thread] < 0)
+				continue;
 
-		res = read(fd[cpu][counter], single_count, nv * sizeof(u64));
-		assert(res == nv * sizeof(u64));
+			res = read(fd[cpu][counter][thread],
+					single_count, nv * sizeof(u64));
+			assert(res == nv * sizeof(u64));
 
-		close(fd[cpu][counter]);
-		fd[cpu][counter] = -1;
+			close(fd[cpu][counter][thread]);
+			fd[cpu][counter][thread] = -1;
 
-		count[0] += single_count[0];
-		if (scale) {
-			count[1] += single_count[1];
-			count[2] += single_count[2];
+			count[0] += single_count[0];
+			if (scale) {
+				count[1] += single_count[1];
+				count[2] += single_count[2];
+			}
 		}
 	}
 
@@ -250,10 +274,9 @@ static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
 	int status = 0;
-	int counter;
-	int pid = target_pid;
+	int counter, ncreated = 0;
 	int child_ready_pipe[2], go_pipe[2];
-	const bool forks = (target_pid == -1 && argc > 0);
+	const bool forks = (argc > 0);
 	char buf;
 
 	if (!system_wide)
@@ -265,10 +288,10 @@ static int run_perf_stat(int argc __used, const char **argv)
 	}
 
 	if (forks) {
-		if ((pid = fork()) < 0)
+		if ((child_pid = fork()) < 0)
 			perror("failed to fork");
 
-		if (!pid) {
+		if (!child_pid) {
 			close(child_ready_pipe[0]);
 			close(go_pipe[1]);
 			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
@@ -297,7 +320,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 			exit(-1);
 		}
 
-		child_pid = pid;
+		if (target_tid == -1 && target_pid == -1 && !system_wide)
+			all_tids[0] = child_pid;
 
 		/*
 		 * Wait for the child to be ready to exec.
@@ -310,7 +334,16 @@ static int run_perf_stat(int argc __used, const char **argv)
 	}
 
 	for (counter = 0; counter < nr_counters; counter++)
-		create_perf_stat_counter(counter, pid);
+		ncreated += create_perf_stat_counter(counter);
+
+	if (ncreated == 0) {
+		pr_err("No permission to collect %sstats.\n"
+		       "Consider tweaking /proc/sys/kernel/perf_event_paranoid.\n",
+		       system_wide ? "system-wide " : "");
+		if (child_pid != -1)
+			kill(child_pid, SIGTERM);
+		return -1;
+	}
 
 	/*
 	 * Enable counters and exec the command:
@@ -321,7 +354,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(go_pipe[1]);
 		wait(&status);
 	} else {
-		while(!done);
+		while(!done) sleep(1);
 	}
 
 	t1 = rdclock();
@@ -347,7 +380,7 @@ static void nsec_printout(int counter, double avg)
 {
 	double msecs = avg / 1e6;
 
-	fprintf(stderr, " %14.6f  %-24s", msecs, event_name(counter));
+	fprintf(stderr, " %18.6f  %-24s", msecs, event_name(counter));
 
 	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
 		fprintf(stderr, " # %10.3f CPUs ",
@@ -359,7 +392,10 @@ static void abs_printout(int counter, double avg)
 {
 	double total, ratio = 0.0;
 
-	fprintf(stderr, " %14.0f  %-24s", avg, event_name(counter));
+	if (big_num)
+		fprintf(stderr, " %'18.0f  %-24s", avg, event_name(counter));
+	else
+		fprintf(stderr, " %18.0f  %-24s", avg, event_name(counter));
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
 		total = avg_stats(&runtime_cycles_stats);
@@ -396,7 +432,7 @@ static void print_counter(int counter)
 	int scaled = event_scaled[counter];
 
 	if (scaled == -1) {
-		fprintf(stderr, " %14s  %-24s\n",
+		fprintf(stderr, " %18s  %-24s\n",
 			"<not counted>", event_name(counter));
 		return;
 	}
@@ -429,12 +465,14 @@ static void print_stat(int argc, const char **argv)
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, " Performance counter stats for ");
-	if(target_pid == -1) {
+	if(target_pid == -1 && target_tid == -1) {
 		fprintf(stderr, "\'%s", argv[0]);
 		for (i = 1; i < argc; i++)
 			fprintf(stderr, " %s", argv[i]);
-	}else
-		fprintf(stderr, "task pid \'%d", target_pid);
+	} else if (target_pid != -1)
+		fprintf(stderr, "process id \'%d", target_pid);
+	else
+		fprintf(stderr, "thread id \'%d", target_tid);
 
 	fprintf(stderr, "\'");
 	if (run_count > 1)
@@ -445,7 +483,7 @@ static void print_stat(int argc, const char **argv)
 		print_counter(counter);
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " %14.9f  seconds time elapsed",
+	fprintf(stderr, " %18.9f  seconds time elapsed",
 			avg_stats(&walltime_nsecs_stats)/1e9);
 	if (run_count > 1) {
 		fprintf(stderr, "   ( +- %7.3f%% )",
@@ -459,7 +497,7 @@ static volatile int signr = -1;
 
 static void skip_signal(int signo)
 {
-	if(target_pid != -1)
+	if(child_pid == -1)
 		done = 1;
 
 	signr = signo;
@@ -486,30 +524,37 @@ static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
-	OPT_BOOLEAN('i', "inherit", &inherit,
-		    "child tasks inherit counters"),
+	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
+		    "child tasks do not inherit counters"),
 	OPT_INTEGER('p', "pid", &target_pid,
-		    "stat events on existing pid"),
+		    "stat events on existing process id"),
+	OPT_INTEGER('t', "tid", &target_tid,
+		    "stat events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('c', "scale", &scale,
 		    "scale/normalize counters"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
+	OPT_BOOLEAN('B', "big-num", &big_num,
+		    "print large numbers with thousands\' separators"),
 	OPT_END()
 };
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	int status;
+	int i,j;
+
+	setlocale(LC_ALL, "");
 
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1)
+	if (!argc && target_pid == -1 && target_tid == -1)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0)
 		usage_with_options(stat_usage, options);
@@ -524,6 +569,31 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		nr_cpus = read_cpu_map();
 	else
 		nr_cpus = 1;
+
+	if (target_pid != -1) {
+		target_tid = target_pid;
+		thread_num = find_all_tid(target_pid, &all_tids);
+		if (thread_num <= 0) {
+			fprintf(stderr, "Can't find all threads of pid %d\n",
+					target_pid);
+			usage_with_options(stat_usage, options);
+		}
+	} else {
+		all_tids=malloc(sizeof(pid_t));
+		if (!all_tids)
+			return -ENOMEM;
+
+		all_tids[0] = target_tid;
+		thread_num = 1;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++) {
+		for (j = 0; j < MAX_COUNTERS; j++) {
+			fd[i][j] = malloc(sizeof(int)*thread_num);
+			if (!fd[i][j])
+				return -ENOMEM;
+		}
+	}
 
 	/*
 	 * We dont want to block the signals - that would cause
@@ -543,7 +613,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		status = run_perf_stat(argc, argv);
 	}
 
-	print_stat(argc, argv);
+	if (status != -1)
+		print_stat(argc, argv);
 
 	return status;
 }

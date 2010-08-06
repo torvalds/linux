@@ -496,7 +496,7 @@ struct twl4030_madc_platform_data {
 	int		irq_line;
 };
 
-/* Boards have uniqe mappings of {row, col} --> keycode.
+/* Boards have unique mappings of {row, col} --> keycode.
  * Column and row are 8 bits each, but range only from 0..7.
  * a PERSISTENT_KEY is "always on" and never reported.
  */
@@ -569,9 +569,9 @@ struct twl4030_codec_data {
 	struct twl4030_codec_audio_data		*audio;
 	struct twl4030_codec_vibra_data		*vibra;
 
-	/* twl6030 */
-	int audpwron_gpio;      /* audio power-on gpio */
-	int naudint_irq;        /* audio interrupt */
+	/* twl6040 */
+	int audpwron_gpio;	/* audio power-on gpio */
+	int naudint_irq;	/* audio interrupt */
 };
 
 struct twl4030_platform_data {
@@ -664,15 +664,15 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 #define TWL4030_REG_VUSB3V1	19
 
 /* TWL6030 SMPS/LDO's */
-/* EXTERNAL dc-to-dc buck convertor contollable via SR */
+/* EXTERNAL dc-to-dc buck convertor controllable via SR */
 #define TWL6030_REG_VDD1	30
 #define TWL6030_REG_VDD2	31
 #define TWL6030_REG_VDD3	32
 
 /* Non SR compliant dc-to-dc buck convertors */
-#define	TWL6030_REG_VMEM	33
+#define TWL6030_REG_VMEM	33
 #define TWL6030_REG_V2V1	34
-#define	TWL6030_REG_V1V29	35
+#define TWL6030_REG_V1V29	35
 #define TWL6030_REG_V1V8	36
 
 /* EXTERNAL LDOs */

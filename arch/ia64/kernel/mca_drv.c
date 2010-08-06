@@ -22,6 +22,7 @@
 #include <linux/smp.h>
 #include <linux/workqueue.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/delay.h>
 #include <asm/machvec.h>

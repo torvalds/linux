@@ -10,7 +10,7 @@
 #include "check.h"
 #include "sun.h"
 
-int sun_partition(struct parsed_partitions *state, struct block_device *bdev)
+int sun_partition(struct parsed_partitions *state)
 {
 	int i;
 	__be16 csum;
@@ -61,7 +61,7 @@ int sun_partition(struct parsed_partitions *state, struct block_device *bdev)
 	int use_vtoc;
 	int nparts;
 
-	label = (struct sun_disklabel *)read_dev_sector(bdev, 0, &sect);
+	label = read_part_sector(state, 0, &sect);
 	if (!label)
 		return -1;
 
@@ -78,7 +78,7 @@ int sun_partition(struct parsed_partitions *state, struct block_device *bdev)
 		csum ^= *ush--;
 	if (csum) {
 		printk("Dev %s Sun disklabel: Csum bad, label corrupted\n",
-		       bdevname(bdev, b));
+		       bdevname(state->bdev, b));
 		put_dev_sector(sect);
 		return 0;
 	}

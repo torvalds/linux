@@ -150,7 +150,6 @@ static void svc_set_cmsg_data(struct svc_rqst *rqstp, struct cmsghdr *cmh)
 		}
 		break;
 	}
-	return;
 }
 
 /*
@@ -419,8 +418,8 @@ static void svc_udp_data_ready(struct sock *sk, int count)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*
@@ -436,10 +435,10 @@ static void svc_write_space(struct sock *sk)
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep)) {
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk))) {
 		dprintk("RPC svc_write_space: someone sleeping on %p\n",
 		       svsk);
-		wake_up_interruptible(sk->sk_sleep);
+		wake_up_interruptible(sk_sleep(sk));
 	}
 }
 
@@ -547,7 +546,6 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 			dprintk("svc: recvfrom returned error %d\n", -err);
 			set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		}
-		svc_xprt_received(&svsk->sk_xprt);
 		return -EAGAIN;
 	}
 	len = svc_addr_len(svc_addr(rqstp));
@@ -561,11 +559,6 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	}
 	svsk->sk_sk->sk_stamp = skb->tstamp;
 	set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags); /* there may be more data... */
-
-	/*
-	 * Maybe more packets - kick another thread ASAP.
-	 */
-	svc_xprt_received(&svsk->sk_xprt);
 
 	len  = skb->len - sizeof(struct udphdr);
 	rqstp->rq_arg.len = len;
@@ -757,8 +750,8 @@ static void svc_tcp_listen_data_ready(struct sock *sk, int count_unused)
 			printk("svc: socket %p: no user data\n", sk);
 	}
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_all(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible_all(sk_sleep(sk));
 }
 
 /*
@@ -777,8 +770,8 @@ static void svc_tcp_state_change(struct sock *sk)
 		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_all(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible_all(sk_sleep(sk));
 }
 
 static void svc_tcp_data_ready(struct sock *sk, int count)
@@ -791,8 +784,8 @@ static void svc_tcp_data_ready(struct sock *sk, int count)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*
@@ -917,7 +910,6 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		if (len < want) {
 			dprintk("svc: short recvfrom while reading record "
 				"length (%d of %d)\n", len, want);
-			svc_xprt_received(&svsk->sk_xprt);
 			goto err_again; /* record header not complete */
 		}
 
@@ -953,7 +945,6 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	if (len < svsk->sk_reclen) {
 		dprintk("svc: incomplete TCP record (%d of %d)\n",
 			len, svsk->sk_reclen);
-		svc_xprt_received(&svsk->sk_xprt);
 		goto err_again;	/* record not complete */
 	}
 	len = svsk->sk_reclen;
@@ -961,14 +952,11 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 
 	return len;
  error:
-	if (len == -EAGAIN) {
+	if (len == -EAGAIN)
 		dprintk("RPC: TCP recv_record got EAGAIN\n");
-		svc_xprt_received(&svsk->sk_xprt);
-	}
 	return len;
  err_delete:
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-	svc_xprt_received(&svsk->sk_xprt);
  err_again:
 	return -EAGAIN;
 }
@@ -1110,7 +1098,6 @@ out:
 	svsk->sk_tcplen = 0;
 
 	svc_xprt_copy_addrs(rqstp, &svsk->sk_xprt);
-	svc_xprt_received(&svsk->sk_xprt);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
 
@@ -1119,7 +1106,6 @@ out:
 err_again:
 	if (len == -EAGAIN) {
 		dprintk("RPC: TCP recvfrom got EAGAIN\n");
-		svc_xprt_received(&svsk->sk_xprt);
 		return len;
 	}
 error:
@@ -1494,8 +1480,8 @@ static void svc_sock_detach(struct svc_xprt *xprt)
 	sk->sk_data_ready = svsk->sk_odata;
 	sk->sk_write_space = svsk->sk_owspace;
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*

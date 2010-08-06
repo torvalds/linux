@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
@@ -707,7 +708,6 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* NPE firmware pads short frames with zeros internally */
 	wmb();
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
-	dev->trans_start = jiffies;
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
@@ -735,9 +735,20 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 static void eth_set_mcast_list(struct net_device *dev)
 {
 	struct port *port = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	u8 diffs[ETH_ALEN], *addr;
 	int i;
+	static const u8 allmulti[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	if (dev->flags & IFF_ALLMULTI) {
+		for (i = 0; i < ETH_ALEN; i++) {
+			__raw_writel(allmulti[i], &port->regs->mcast_addr[i]);
+			__raw_writel(allmulti[i], &port->regs->mcast_mask[i]);
+		}
+		__raw_writel(DEFAULT_RX_CNTRL0 | RX_CNTRL0_ADDR_FLTR_EN,
+			&port->regs->rx_control[0]);
+		return;
+	}
 
 	if ((dev->flags & IFF_PROMISC) || netdev_mc_empty(dev)) {
 		__raw_writel(DEFAULT_RX_CNTRL0 & ~RX_CNTRL0_ADDR_FLTR_EN,
@@ -748,11 +759,11 @@ static void eth_set_mcast_list(struct net_device *dev)
 	memset(diffs, 0, ETH_ALEN);
 
 	addr = NULL;
-	netdev_for_each_mc_addr(mclist, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (!addr)
-			addr = mclist->dmi_addr; /* first MAC address */
+			addr = ha->addr; /* first MAC address */
 		for (i = 0; i < ETH_ALEN; i++)
-			diffs[i] |= addr[i] ^ mclist->dmi_addr[i];
+			diffs[i] |= addr[i] ^ ha->addr[i];
 	}
 
 	for (i = 0; i < ETH_ALEN; i++) {
@@ -771,7 +782,8 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	if (!netif_running(dev))
 		return -EINVAL;
-	return phy_mii_ioctl(port->phydev, if_mii(req), cmd);
+
+	return phy_mii_ioctl(port->phydev, req, cmd);
 }
 
 /* ethtool support */

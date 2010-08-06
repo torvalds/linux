@@ -87,7 +87,7 @@
 #define AE_NO_GLOBAL_LOCK               (acpi_status) (0x0017 | AE_CODE_ENVIRONMENTAL)
 #define AE_ABORT_METHOD                 (acpi_status) (0x0018 | AE_CODE_ENVIRONMENTAL)
 #define AE_SAME_HANDLER                 (acpi_status) (0x0019 | AE_CODE_ENVIRONMENTAL)
-#define AE_WAKE_ONLY_GPE                (acpi_status) (0x001A | AE_CODE_ENVIRONMENTAL)
+#define AE_NO_HANDLER                   (acpi_status) (0x001A | AE_CODE_ENVIRONMENTAL)
 #define AE_OWNER_ID_LIMIT               (acpi_status) (0x001B | AE_CODE_ENVIRONMENTAL)
 
 #define AE_CODE_ENV_MAX                 0x001B
@@ -212,7 +212,7 @@ char const *acpi_gbl_exception_names_env[] = {
 	"AE_NO_GLOBAL_LOCK",
 	"AE_ABORT_METHOD",
 	"AE_SAME_HANDLER",
-	"AE_WAKE_ONLY_GPE",
+	"AE_NO_HANDLER",
 	"AE_OWNER_ID_LIMIT"
 };
 

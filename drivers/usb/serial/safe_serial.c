@@ -1,6 +1,7 @@
 /*
  * Safe Encapsulated USB Serial Driver
  *
+ *      Copyright (C) 2010 Johan Hovold <jhovold@gmail.com>
  *      Copyright (C) 2001 Lineo
  *      Copyright (C) 2001 Hewlett-Packard
  *
@@ -64,8 +65,8 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -84,8 +85,8 @@ static int debug;
 static int safe = 1;
 static int padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
-#define DRIVER_VERSION "v0.0b"
-#define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com"
+#define DRIVER_VERSION "v0.1"
+#define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB Safe Encapsulated Serial"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -212,191 +213,80 @@ static __u16 __inline__ fcs_compute10(unsigned char *sp, int len, __u16 fcs)
 	return fcs;
 }
 
-static void safe_read_bulk_callback(struct urb *urb)
+static void safe_process_read_urb(struct urb *urb)
 {
-	struct usb_serial_port *port =  urb->context;
+	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
+	int actual_length;
 	struct tty_struct *tty;
-	int result;
-	int status = urb->status;
+	__u16 fcs;
 
-	dbg("%s", __func__);
-
-	if (status) {
-		dbg("%s - nonzero read bulk status received: %d",
-		    __func__, status);
+	if (!length)
 		return;
-	}
 
-	dbg("safe_read_bulk_callback length: %d",
-					port->read_urb->actual_length);
-#ifdef ECHO_RCV
-	{
-		int i;
-		unsigned char *cp = port->read_urb->transfer_buffer;
-		for (i = 0; i < port->read_urb->actual_length; i++) {
-			if ((i % 32) == 0)
-				printk("\nru[%02x] ", i);
-			printk("%02x ", *cp++);
-		}
-		printk("\n");
-	}
-#endif
 	tty = tty_port_tty_get(&port->port);
-	if (safe) {
-		__u16 fcs;
-		fcs = fcs_compute10(data, length, CRC10_INITFCS);
-		if (!fcs) {
-			int actual_length = data[length - 2] >> 2;
-			if (actual_length <= (length - 2)) {
-				dev_info(&urb->dev->dev, "%s - actual: %d\n",
-					 __func__, actual_length);
-				tty_insert_flip_string(tty,
-							data, actual_length);
-				tty_flip_buffer_push(tty);
-			} else {
-				dev_err(&port->dev,
-					"%s - inconsistent lengths %d:%d\n",
-					__func__, actual_length, length);
-			}
-		} else {
-			dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
-		}
-	} else {
-		tty_insert_flip_string(tty, data, length);
-		tty_flip_buffer_push(tty);
+	if (!tty)
+		return;
+
+	if (!safe)
+		goto out;
+
+	fcs = fcs_compute10(data, length, CRC10_INITFCS);
+	if (fcs) {
+		dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
+		goto err;
 	}
+
+	actual_length = data[length - 2] >> 2;
+	if (actual_length > (length - 2)) {
+		dev_err(&port->dev, "%s - inconsistent lengths %d:%d\n",
+				__func__, actual_length, length);
+		goto err;
+	}
+	dev_info(&urb->dev->dev, "%s - actual: %d\n", __func__, actual_length);
+	length = actual_length;
+out:
+	tty_insert_flip_string(tty, data, length);
+	tty_flip_buffer_push(tty);
+err:
 	tty_kref_put(tty);
-
-	/* Continue trying to always read  */
-	usb_fill_bulk_urb(urb, port->serial->dev,
-			usb_rcvbulkpipe(port->serial->dev,
-					port->bulk_in_endpointAddress),
-			urb->transfer_buffer, urb->transfer_buffer_length,
-			safe_read_bulk_callback, port);
-
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
-		/* FIXME: Need a mechanism to retry later if this happens */
 }
 
-static int safe_write(struct tty_struct *tty, struct usb_serial_port *port,
-					const unsigned char *buf, int count)
+static int safe_prepare_write_buffer(struct usb_serial_port *port,
+						void *dest, size_t size)
 {
-	unsigned char *data;
-	int result;
-	int i;
-	int packet_length;
+	unsigned char *buf = dest;
+	int count;
+	int trailer_len;
+	int pkt_len;
+	__u16 fcs;
 
-	dbg("safe_write port: %p %d urb: %p count: %d",
-				port, port->number, port->write_urb, count);
+	trailer_len = safe ? 2 : 0;
 
-	if (!port->write_urb) {
-		dbg("%s - write urb NULL", __func__);
-		return 0;
-	}
+	count = kfifo_out_locked(&port->write_fifo, buf, size - trailer_len,
+								&port->lock);
+	if (!safe)
+		return count;
 
-	dbg("safe_write write_urb: %d transfer_buffer_length",
-	     port->write_urb->transfer_buffer_length);
-
-	if (!port->write_urb->transfer_buffer_length) {
-		dbg("%s - write urb transfer_buffer_length zero", __func__);
-		return 0;
-	}
-	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __func__);
-		return 0;
-	}
-	spin_lock_bh(&port->lock);
-	if (port->write_urb_busy) {
-		spin_unlock_bh(&port->lock);
-		dbg("%s - already writing", __func__);
-		return 0;
-	}
-	port->write_urb_busy = 1;
-	spin_unlock_bh(&port->lock);
-
-	packet_length = port->bulk_out_size;	/* get max packetsize */
-
-	i = packet_length - (safe ? 2 : 0);	/* get bytes to send */
-	count = (count > i) ? i : count;
-
-
-	/* get the data into the transfer buffer */
-	data = port->write_urb->transfer_buffer;
-	memset(data, '0', packet_length);
-
-	memcpy(data, buf, count);
-
-	if (safe) {
-		__u16 fcs;
-
-		/* pad if necessary */
-		if (!padded)
-			packet_length = count + 2;
-		/* set count */
-		data[packet_length - 2] = count << 2;
-		data[packet_length - 1] = 0;
-
-		/* compute fcs and insert into trailer */
-		fcs = fcs_compute10(data, packet_length, CRC10_INITFCS);
-		data[packet_length - 2] |= fcs >> 8;
-		data[packet_length - 1] |= fcs & 0xff;
-
-		/* set length to send */
-		port->write_urb->transfer_buffer_length = packet_length;
+	/* pad if necessary */
+	if (padded) {
+		pkt_len = size;
+		memset(buf + count, '0', pkt_len - count - trailer_len);
 	} else {
-		port->write_urb->transfer_buffer_length = count;
+		pkt_len = count + trailer_len;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-					port->write_urb->transfer_buffer);
-#ifdef ECHO_TX
-	{
-		int i;
-		unsigned char *cp = port->write_urb->transfer_buffer;
-		for (i = 0; i < port->write_urb->transfer_buffer_length; i++) {
-			if ((i % 32) == 0)
-				printk("\nsu[%02x] ", i);
-			printk("%02x ", *cp++);
-		}
-		printk("\n");
-	}
-#endif
-	port->write_urb->dev = port->serial->dev;
-	result = usb_submit_urb(port->write_urb, GFP_KERNEL);
-	if (result) {
-		port->write_urb_busy = 0;
-		dev_err(&port->dev,
-			"%s - failed submitting write urb, error %d\n",
-			__func__, result);
-		return 0;
-	}
-	dbg("%s urb: %p submitted", __func__, port->write_urb);
+	/* set count */
+	buf[pkt_len - 2] = count << 2;
+	buf[pkt_len - 1] = 0;
 
-	return count;
-}
+	/* compute fcs and insert into trailer */
+	fcs = fcs_compute10(buf, pkt_len, CRC10_INITFCS);
+	buf[pkt_len - 2] |= fcs >> 8;
+	buf[pkt_len - 1] |= fcs & 0xff;
 
-static int safe_write_room(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	int room = 0;		/* Default: no room */
-	unsigned long flags;
-
-	dbg("%s", __func__);
-
-	spin_lock_irqsave(&port->lock, flags);
-	if (port->write_urb_busy)
-		room = port->bulk_out_size - (safe ? 2 : 0);
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	if (room)
-		dbg("safe_write_room returns %d", room);
-	return room;
+	return pkt_len;
 }
 
 static int safe_startup(struct usb_serial *serial)
@@ -421,9 +311,8 @@ static struct usb_serial_driver safe_device = {
 	.id_table =		id_table,
 	.usb_driver =		&safe_driver,
 	.num_ports =		1,
-	.write =		safe_write,
-	.write_room =		safe_write_room,
-	.read_bulk_callback =	safe_read_bulk_callback,
+	.process_read_urb =	safe_process_read_urb,
+	.prepare_write_buffer =	safe_prepare_write_buffer,
 	.attach =		safe_startup,
 };
 

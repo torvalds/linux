@@ -63,6 +63,8 @@
 
 #define OVERO_SMSC911X_CS      5
 #define OVERO_SMSC911X_GPIO    176
+#define OVERO_SMSC911X2_CS     4
+#define OVERO_SMSC911X2_GPIO   65
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
@@ -137,6 +139,16 @@ static struct resource overo_smsc911x_resources[] = {
 	},
 };
 
+static struct resource overo_smsc911x2_resources[] = {
+	{
+		.name	= "smsc911x2-memory",
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	},
+};
+
 static struct smsc911x_platform_config overo_smsc911x_config = {
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
@@ -146,7 +158,7 @@ static struct smsc911x_platform_config overo_smsc911x_config = {
 
 static struct platform_device overo_smsc911x_device = {
 	.name		= "smsc911x",
-	.id		= -1,
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
 	.resource	= overo_smsc911x_resources,
 	.dev		= {
@@ -483,6 +495,7 @@ MACHINE_START(OVERO, "Gumstix Overo")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= overo_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= overo_init_irq,
 	.init_machine	= overo_init,
 	.timer		= &omap_timer,

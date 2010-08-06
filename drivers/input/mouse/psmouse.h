@@ -47,6 +47,7 @@ struct psmouse {
 	unsigned char pktcnt;
 	unsigned char pktsize;
 	unsigned char type;
+	bool ignore_parity;
 	bool acks_disable_command;
 	unsigned int model;
 	unsigned long last;

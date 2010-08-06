@@ -27,8 +27,10 @@
  */
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "rv770d.h"
 #include "atom.h"
@@ -40,6 +42,21 @@
 static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 
+void rv770_pm_misc(struct radeon_device *rdev)
+{
+	int req_ps_idx = rdev->pm.requested_power_state_index;
+	int req_cm_idx = rdev->pm.requested_clock_mode_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
+	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
+
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		if (voltage->voltage != rdev->pm.current_vddc) {
+			radeon_atom_set_voltage(rdev, voltage->voltage);
+			rdev->pm.current_vddc = voltage->voltage;
+			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+		}
+	}
+}
 
 /*
  * GART
@@ -125,9 +142,9 @@ void rv770_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv770_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv770_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 
@@ -207,7 +224,7 @@ static void rv770_mc_program(struct radeon_device *rdev)
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, (rdev->mc.mc_vram_size - 1) | 0x3FF);
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
@@ -234,7 +251,6 @@ void r700_cp_stop(struct radeon_device *rdev)
 {
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 }
-
 
 static int rv770_cp_load_microcode(struct radeon_device *rdev)
 {
@@ -270,6 +286,11 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 	return 0;
 }
 
+void r700_cp_fini(struct radeon_device *rdev)
+{
+	r700_cp_stop(rdev);
+	radeon_ring_fini(rdev);
+}
 
 /*
  * Core functions
@@ -647,10 +668,13 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	WREG32(CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 	WREG32(CC_SYS_RB_BACKEND_DISABLE,  cc_rb_backend_disable);
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
 	WREG32(CGTS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_SYS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_TCC_DISABLE, 0);
 
 	num_qd_pipes =
 		R7XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
@@ -864,7 +888,6 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 int rv770_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -902,25 +925,10 @@ int rv770_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	/* FIXME remove this once we support unmappable VRAM */
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
-		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-		rdev->mc.real_vram_size = rdev->mc.aper_size;
-	}
 	r600_vram_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-	return 0;
-}
+	radeon_update_bandwidth_info(rdev);
 
-int rv770_gpu_reset(struct radeon_device *rdev)
-{
-	/* FIXME: implement any rv770 specific bits */
-	return r600_gpu_reset(rdev);
+	return 0;
 }
 
 static int rv770_startup(struct radeon_device *rdev)
@@ -1013,6 +1021,13 @@ int rv770_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return r;
 
 }
@@ -1021,6 +1036,7 @@ int rv770_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
@@ -1086,8 +1102,6 @@ int rv770_init(struct radeon_device *rdev)
 	r = radeon_clocks_init(rdev);
 	if (r)
 		return r;
-	/* Initialize power management */
-	radeon_pm_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -1124,7 +1138,7 @@ int rv770_init(struct radeon_device *rdev)
 	r = rv770_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
-		r600_cp_fini(rdev);
+		r700_cp_fini(rdev);
 		r600_wb_fini(rdev);
 		r600_irq_fini(rdev);
 		radeon_irq_kms_fini(rdev);
@@ -1144,13 +1158,20 @@ int rv770_init(struct radeon_device *rdev)
 			}
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
 void rv770_fini(struct radeon_device *rdev)
 {
 	r600_blit_fini(rdev);
-	r600_cp_fini(rdev);
+	r700_cp_fini(rdev);
 	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);

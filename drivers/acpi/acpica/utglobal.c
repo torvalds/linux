@@ -785,6 +785,7 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Miscellaneous variables */
 
+	acpi_gbl_DSDT = NULL;
 	acpi_gbl_cm_single_step = FALSE;
 	acpi_gbl_db_terminate_threads = FALSE;
 	acpi_gbl_shutdown = FALSE;

@@ -31,6 +31,11 @@
 
 #ifndef __ASSEMBLY__
 
+/* MS be sure that SLAB allocates aligned objects */
+#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
+
+#define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
+
 #define PAGE_UP(addr)	(((addr)+((PAGE_SIZE)-1))&(~((PAGE_SIZE)-1)))
 #define PAGE_DOWN(addr)	((addr)&(~((PAGE_SIZE)-1)))
 
@@ -70,14 +75,7 @@ typedef unsigned long pte_basic_t;
 
 #endif /* CONFIG_MMU */
 
-#  ifndef CONFIG_MMU
-#  define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
-#  define get_user_page(vaddr)			__get_free_page(GFP_KERNEL)
-#  define free_user_page(page, addr)		free_page(addr)
-#  else /* CONFIG_MMU */
-extern void copy_page(void *to, void *from);
-#  endif /* CONFIG_MMU */
-
+# define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
 # define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)
 
 # define clear_user_page(pgaddr, vaddr, page)	memset((pgaddr), 0, PAGE_SIZE)

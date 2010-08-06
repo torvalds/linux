@@ -26,7 +26,7 @@ const struct file_operations sysv_file_operations = {
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
-	.fsync		= simple_fsync,
+	.fsync		= generic_file_fsync,
 	.splice_read	= generic_file_splice_read,
 };
 

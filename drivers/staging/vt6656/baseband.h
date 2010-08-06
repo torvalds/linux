@@ -96,51 +96,44 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-UINT
+unsigned int
 BBuGetFrameTime(
-    IN BYTE byPreambleType,
-    IN BYTE byFreqType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+     BYTE byPreambleType,
+     BYTE byFreqType,
+     unsigned int cbFrameLength,
+     WORD wRate
     );
 
-VOID
+void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
-    OUT PWORD pwPhyLen,
-    OUT PBYTE pbyPhySrv,
-    OUT PBYTE pbyPhySgn
+      PSDevice pDevice,
+      unsigned int cbFrameLength,
+      WORD wRate,
+      BYTE byPacketType,
+     PWORD pwPhyLen,
+     PBYTE pbyPhySrv,
+     PBYTE pbyPhySgn
     );
 
 // timer for antenna diversity
 
-VOID
-TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
-    );
+void TimerSQ3CallBack(void *hDeviceContext);
+void TimerSQ3Tmax3CallBack(void *hDeviceContext);
 
-VOID
-TimerSQ3Tmax3CallBack (
-    IN  HANDLE      hDeviceContext
-    );
-
-VOID BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
-void BBvLoopbackOn (PSDevice pDevice);
-void BBvLoopbackOff (PSDevice pDevice);
-void BBvSoftwareReset (PSDevice pDevice);
+void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
+void BBvLoopbackOn(PSDevice pDevice);
+void BBvLoopbackOff(PSDevice pDevice);
+void BBvSoftwareReset(PSDevice pDevice);
 
 void BBvSetShortSlotTime(PSDevice pDevice);
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
+void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
 void BBvSetAntennaMode(PSDevice pDevice, BYTE byAntennaMode);
 BOOL BBbVT3184Init (PSDevice pDevice);
-VOID BBvSetDeepSleep (PSDevice pDevice);
-VOID BBvExitDeepSleep (PSDevice pDevice);
-VOID BBvUpdatePreEDThreshold(
-     IN  PSDevice    pDevice,
-     IN  BOOL        bScanning
+void BBvSetDeepSleep(PSDevice pDevice);
+void BBvExitDeepSleep(PSDevice pDevice);
+void BBvUpdatePreEDThreshold(
+       PSDevice    pDevice,
+       BOOL        bScanning
      );
 
-#endif // __BASEBAND_H__
+#endif /* __BASEBAND_H__ */

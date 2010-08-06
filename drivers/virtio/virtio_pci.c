@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
@@ -635,6 +636,9 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&vp_dev->virtqueues);
 	spin_lock_init(&vp_dev->lock);
 
+	/* Disable MSI/MSIX to bring device to a known good state. */
+	pci_msi_off(pci_dev);
+
 	/* enable the device */
 	err = pci_enable_device(pci_dev);
 	if (err)
@@ -654,7 +658,7 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	/* we use the subsystem vendor/device id as the virtio vendor/device
 	 * id.  this allows us to use the same PCI vendor/device id for all
 	 * virtio devices and to identify the particular virtio driver by
-	 * the subsytem ids */
+	 * the subsystem ids */
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
 

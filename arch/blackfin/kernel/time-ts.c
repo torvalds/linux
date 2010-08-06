@@ -353,9 +353,15 @@ void bfin_coretmr_clockevent_init(void)
 #endif /* CONFIG_TICKSOURCE_CORETMR */
 
 
-void __init time_init(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	time_t secs_since_1970 = (365 * 37 + 9) * 24 * 60 * 60;	/* 1 Jan 2007 */
+	ts->tv_sec = secs_since_1970;
+	ts->tv_nsec = 0;
+}
+
+void __init time_init(void)
+{
 
 #ifdef CONFIG_RTC_DRV_BFIN
 	/* [#2663] hack to filter junk RTC values that would cause
@@ -367,11 +373,6 @@ void __init time_init(void)
 		bfin_write_RTC_STAT(0);
 	}
 #endif
-
-	/* Initialize xtime. From now on, xtime is updated with timer interrupts */
-	xtime.tv_sec = secs_since_1970;
-	xtime.tv_nsec = 0;
-	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
 	bfin_cs_cycles_init();
 	bfin_cs_gptimer0_init();

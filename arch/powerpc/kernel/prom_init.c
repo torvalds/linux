@@ -653,6 +653,7 @@ static void __init early_cmdline_parse(void)
 #else
 #define OV5_CMO			0x00
 #endif
+#define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */
@@ -706,7 +707,7 @@ static unsigned char ibm_architecture_vec[] = {
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
 	OV5_CMO,
-	0,
+	OV5_TYPE1_AFFINITY,
 	0,
 	0,
 	0,
@@ -871,7 +872,7 @@ static void __init prom_send_capabilities(void)
 				    "ibm_architecture_vec structure inconsistent: 0x%x !\n",
 				    *cores);
 		} else {
-			*cores = NR_CPUS / prom_count_smt_threads();
+			*cores = DIV_ROUND_UP(NR_CPUS, prom_count_smt_threads());
 			prom_printf("Max number of cores passed to firmware: 0x%x\n",
 				    (unsigned long)*cores);
 		}

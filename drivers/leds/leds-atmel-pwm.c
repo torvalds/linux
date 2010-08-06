@@ -3,6 +3,7 @@
 #include <linux/leds.h>
 #include <linux/io.h>
 #include <linux/atmel_pwm.h>
+#include <linux/slab.h>
 
 
 struct pwmled {

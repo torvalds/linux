@@ -1,7 +1,20 @@
+config MTD_NAND_ECC
+	tristate
+
+config MTD_NAND_ECC_SMC
+	bool "NAND ECC Smart Media byte order"
+	depends on MTD_NAND_ECC
+	default n
+	help
+	  Software ECC according to the Smart Media Specification.
+	  The original Linux implementation had byte 0 and 1 swapped.
+
+
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
 	select MTD_NAND_IDS
+	select MTD_NAND_ECC
 	help
 	  This enables support for accessing all type of NAND flash
 	  devices. For further information see
@@ -18,12 +31,9 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentally due to device wear or something else.
 
-config MTD_NAND_ECC_SMC
-	bool "NAND ECC Smart Media byte order"
+config MTD_SM_COMMON
+	tristate
 	default n
-	help
-	  Software ECC according to the Smart Media Specification.
-	  The original Linux implementation had byte 0 and 1 swapped.
 
 config MTD_NAND_MUSEUM_IDS
 	bool "Enable chip ids for obsolete ancient NAND devices"
@@ -40,6 +50,23 @@ config MTD_NAND_AUTCPU12
 	help
 	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
+
+config MTD_NAND_DENALI
+       depends on PCI
+        tristate "Support Denali NAND controller on Intel Moorestown"
+        help
+          Enable the driver for NAND flash on Intel Moorestown, using the
+          Denali NAND controller core.
+ 
+config MTD_NAND_DENALI_SCRATCH_REG_ADDR
+        hex "Denali NAND size scratch register address"
+        default "0xFF108018"
+        help
+          Some platforms place the NAND chip size in a scratch register
+          because (some versions of) the driver aren't able to automatically
+          determine the size of certain chips. Set the address of the
+          scratch register here to enable this feature. On Intel Moorestown
+          boards, the scratch register is at 0xFF108018.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
@@ -95,14 +122,20 @@ config MTD_NAND_OMAP_PREFETCH_DMA
 	 or in DMA interrupt mode.
 	 Say y for DMA mode or MPU mode will be used
 
-config MTD_NAND_TS7250
-	tristate "NAND Flash device on TS-7250 board"
-	depends on MACH_TS72XX
-	help
-	  Support for NAND flash on Technologic Systems TS-7250 platform.
-
 config MTD_NAND_IDS
 	tristate
+
+config MTD_NAND_RICOH
+	tristate "Ricoh xD card reader"
+	default n
+	depends on PCI
+	select MTD_SM_COMMON
+	help
+	  Enable support for Ricoh R5C852 xD card reader
+	  You also need to enable ether
+	  NAND SSFDC (SmartMedia) read only translation layer' or new
+	  expermental, readwrite
+	  'SmartMedia/xD new translation layer'
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
@@ -358,8 +391,6 @@ config MTD_NAND_ATMEL_ECC_NONE
 
 	  If unsure, say N
 
-	  endchoice
-
 endchoice
 
 config MTD_NAND_PXA3xx
@@ -442,6 +473,13 @@ config MTD_NAND_FSL_UPM
 	  Enables support for NAND Flash chips wired onto Freescale PowerPC
 	  processor localbus with User-Programmable Machine support.
 
+config MTD_NAND_MPC5121_NFC
+	tristate "MPC5121 built-in NAND Flash Controller support"
+	depends on PPC_MPC512x
+	help
+	  This enables the driver for the NAND flash controller on the
+	  MPC5121 SoC.
+
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
 	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3
@@ -481,11 +519,11 @@ config MTD_NAND_SOCRATES
 	help
 	  Enables support for NAND Flash chips wired onto Socrates board.
 
-config MTD_NAND_W90P910
-	tristate "Support for NAND on w90p910 evaluation board."
+config MTD_NAND_NUC900
+	tristate "Support for NAND on Nuvoton NUC9xx/w90p910 evaluation boards."
 	depends on ARCH_W90X900 && MTD_PARTITIONS
 	help
 	  This enables the driver for the NAND Flash on evaluation board based
-	  on w90p910.
+	  on w90p910 / NUC9xx.
 
 endif # MTD_NAND

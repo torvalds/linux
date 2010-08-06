@@ -11,6 +11,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/module.h>
 #include <linux/init.h>

@@ -38,6 +38,7 @@
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -64,10 +65,9 @@ static void btrfs_put_super(struct super_block *sb)
 
 enum {
 	Opt_degraded, Opt_subvol, Opt_subvolid, Opt_device, Opt_nodatasum,
-	Opt_nodatacow, Opt_max_extent, Opt_max_inline, Opt_alloc_start,
-	Opt_nobarrier, Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool,
-	Opt_noacl, Opt_compress, Opt_compress_force, Opt_notreelog, Opt_ratio,
-	Opt_flushoncommit,
+	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
+	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
+	Opt_compress_force, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
 	Opt_discard, Opt_err,
 };
 
@@ -79,7 +79,6 @@ static match_table_t tokens = {
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
 	{Opt_nobarrier, "nobarrier"},
-	{Opt_max_extent, "max_extent=%s"},
 	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
@@ -186,18 +185,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->thread_pool_size = intarg;
 				printk(KERN_INFO "btrfs: thread pool %d\n",
 				       info->thread_pool_size);
-			}
-			break;
-		case Opt_max_extent:
-			num = match_strdup(&args[0]);
-			if (num) {
-				info->max_extent = memparse(num, NULL);
-				kfree(num);
-
-				info->max_extent = max_t(u64,
-					info->max_extent, root->sectorsize);
-				printk(KERN_INFO "btrfs: max_extent at %llu\n",
-				       (unsigned long long)info->max_extent);
 			}
 			break;
 		case Opt_max_inline:
@@ -373,6 +360,8 @@ static struct dentry *get_default_root(struct super_block *sb,
 	 */
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, "default", 7, 0);
+	if (IS_ERR(di))
+		return ERR_CAST(di);
 	if (!di) {
 		/*
 		 * Ok the default dir item isn't there.  This is weird since
@@ -403,8 +392,8 @@ setup_root:
 	location.offset = 0;
 
 	inode = btrfs_iget(sb, &location, new_root, &new);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	/*
 	 * If we're just mounting the root most subvol put the inode and return
@@ -511,7 +500,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root, 0);
 	btrfs_wait_ordered_extents(root, 0, 0);
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	ret = btrfs_commit_transaction(trans, root);
 	return ret;
 }
@@ -529,9 +518,6 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nodatacow");
 	if (btrfs_test_opt(root, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
-	if (info->max_extent != (u64)-1)
-		seq_printf(seq, ",max_extent=%llu",
-			   (unsigned long long)info->max_extent);
 	if (info->max_inline != 8192 * 1024)
 		seq_printf(seq, ",max_inline=%llu",
 			   (unsigned long long)info->max_inline);
@@ -710,11 +696,11 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (btrfs_super_log_root(&root->fs_info->super_copy) != 0)
 			return -EINVAL;
 
-		/* recover relocation */
-		ret = btrfs_recover_relocation(root);
+		ret = btrfs_cleanup_fs_roots(root->fs_info);
 		WARN_ON(ret);
 
-		ret = btrfs_cleanup_fs_roots(root->fs_info);
+		/* recover relocation */
+		ret = btrfs_recover_relocation(root);
 		WARN_ON(ret);
 
 		sb->s_flags &= ~MS_RDONLY;
@@ -730,34 +716,18 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct list_head *head = &root->fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
-	u64 data_used = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list) {
-		if (found->flags & (BTRFS_BLOCK_GROUP_DUP|
-				    BTRFS_BLOCK_GROUP_RAID10|
-				    BTRFS_BLOCK_GROUP_RAID1)) {
-			total_used += found->bytes_used;
-			if (found->flags & BTRFS_BLOCK_GROUP_DATA)
-				data_used += found->bytes_used;
-			else
-				data_used += found->total_bytes;
-		}
-
-		total_used += found->bytes_used;
-		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
-			data_used += found->bytes_used;
-		else
-			data_used += found->total_bytes;
-	}
+	list_for_each_entry_rcu(found, head, list)
+		total_used += found->disk_used;
 	rcu_read_unlock();
 
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
 	buf->f_bfree = buf->f_blocks - (total_used >> bits);
-	buf->f_bavail = buf->f_blocks - (data_used >> bits);
+	buf->f_bavail = buf->f_bfree;
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
@@ -848,10 +818,13 @@ static const struct file_operations btrfs_ctl_fops = {
 };
 
 static struct miscdevice btrfs_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= BTRFS_MINOR,
 	.name		= "btrfs-control",
 	.fops		= &btrfs_ctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(BTRFS_MINOR);
+MODULE_ALIAS("devname:btrfs-control");
 
 static int btrfs_interface_init(void)
 {

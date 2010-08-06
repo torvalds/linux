@@ -322,7 +322,7 @@ struct rt_trigger_eventa {
 	u8 BSSID[6];
 	u8 RegClass;		/* Regulatory Class */
 	u16 Channel;
-	unsigned long CDCounter;	/* Maintain a seperate count down counter for each Event A. */
+	unsigned long CDCounter;	/* Maintain a separate count down counter for each Event A. */
 };
 
 /* 20/40 trigger event table */

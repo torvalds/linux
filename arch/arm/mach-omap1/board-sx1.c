@@ -423,7 +423,8 @@ MACHINE_START(SX1, "OMAP310 based Siemens SX1")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_sx1_map_io,
-	.init_irq		= omap_sx1_init_irq,
+	.reserve	= omap_reserve,
+	.init_irq	= omap_sx1_init_irq,
 	.init_machine	= omap_sx1_init,
 	.timer		= &omap_timer,
 MACHINE_END

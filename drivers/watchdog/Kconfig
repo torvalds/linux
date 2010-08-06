@@ -55,11 +55,6 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
-config MAX63XX_WATCHDOG
-       tristate "Max63xx watchdog"
-       help
-         Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
-
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
@@ -150,13 +145,19 @@ config KS8695_WATCHDOG
 	  Watchdog timer embedded into KS8695 processor. This will reboot your
 	  system when the timeout is reached.
 
+config HAVE_S3C2410_WATCHDOG
+	bool
+	help
+	  This will include watchdog timer support for Samsung SoCs. If
+	  you want to include watchdog support for any machine, kindly
+	  select this in the respective mach-XXXX/Kconfig file.
+
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
 	help
-	  Watchdog timer block in the Samsung S3C2410 chips. This will
-	  reboot the system when the timer expires with the watchdog
-	  enabled.
+	  Watchdog timer block in the Samsung SoCs. This will reboot
+	  the system when the timer expires with the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK
 	  signal, so with reasonably fast systems (PCLK around 50-66MHz)
@@ -180,7 +181,7 @@ config SA1100_WATCHDOG
 
 config MPCORE_WATCHDOG
 	tristate "MPcore watchdog"
-	depends on ARM_MPCORE_PLATFORM && LOCAL_TIMERS
+	depends on HAVE_ARM_TWD
 	help
 	  Watchdog timer embedded into the MPcore system.
 
@@ -199,10 +200,10 @@ config EP93XX_WATCHDOG
 
 config OMAP_WATCHDOG
 	tristate "OMAP Watchdog"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2 || ARCH_OMAP3
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
 	help
-	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog.  Say 'Y'
-	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog timer.
+	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog.  Say 'Y'
+	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog timer.
 
 config PNX4008_WATCHDOG
 	tristate "PNX4008 Watchdog"
@@ -304,6 +305,24 @@ config TS72XX_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ts72xx_wdt.
+
+config MAX63XX_WATCHDOG
+	tristate "Max63xx watchdog"
+	depends on ARM && HAS_IOMEM
+	help
+	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
+
+config IMX2_WDT
+	tristate "IMX2+ Watchdog"
+	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	help
+	  This is the driver for the hardware watchdog
+	  on the Freescale IMX2 and later processors.
+	  If you have one of these processors and wish to have
+	  watchdog support enabled, say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx2_wdt.
 
 # AVR32 Architecture
 

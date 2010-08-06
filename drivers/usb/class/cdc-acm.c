@@ -2,7 +2,7 @@
  * cdc-acm.c
  *
  * Copyright (c) 1999 Armin Fuerst	<fuerst@in.tum.de>
- * Copyright (c) 1999 Pavel Machek	<pavel@suse.cz>
+ * Copyright (c) 1999 Pavel Machek	<pavel@ucw.cz>
  * Copyright (c) 1999 Johannes Erdfelt	<johannes@erdfelt.com>
  * Copyright (c) 2000 Vojtech Pavlik	<vojtech@suse.cz>
  * Copyright (c) 2004 Oliver Neukum	<oliver@neukum.name>
@@ -892,7 +892,7 @@ static void acm_write_buffers_free(struct acm *acm)
 	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++)
-		usb_buffer_free(usb_dev, acm->writesize, wb->buf, wb->dmah);
+		usb_free_coherent(usb_dev, acm->writesize, wb->buf, wb->dmah);
 }
 
 static void acm_read_buffers_free(struct acm *acm)
@@ -901,8 +901,8 @@ static void acm_read_buffers_free(struct acm *acm)
 	int i, n = acm->rx_buflimit;
 
 	for (i = 0; i < n; i++)
-		usb_buffer_free(usb_dev, acm->readsize,
-					acm->rb[i].base, acm->rb[i].dma);
+		usb_free_coherent(usb_dev, acm->readsize,
+				  acm->rb[i].base, acm->rb[i].dma);
 }
 
 /* Little helper: write buffers allocate */
@@ -912,13 +912,13 @@ static int acm_write_buffers_alloc(struct acm *acm)
 	struct acm_wb *wb;
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
-		wb->buf = usb_buffer_alloc(acm->dev, acm->writesize, GFP_KERNEL,
+		wb->buf = usb_alloc_coherent(acm->dev, acm->writesize, GFP_KERNEL,
 		    &wb->dmah);
 		if (!wb->buf) {
 			while (i != 0) {
 				--i;
 				--wb;
-				usb_buffer_free(acm->dev, acm->writesize,
+				usb_free_coherent(acm->dev, acm->writesize,
 				    wb->buf, wb->dmah);
 			}
 			return -ENOMEM;
@@ -1177,7 +1177,7 @@ made_compressed_probe:
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
 
-	buf = usb_buffer_alloc(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
+	buf = usb_alloc_coherent(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf) {
 		dev_dbg(&intf->dev, "out of memory (ctrl buffer alloc)\n");
 		goto alloc_fail2;
@@ -1201,7 +1201,7 @@ made_compressed_probe:
 		if (rcv->urb == NULL) {
 			dev_dbg(&intf->dev,
 				"out of memory (read urbs usb_alloc_urb)\n");
-			goto alloc_fail7;
+			goto alloc_fail6;
 		}
 
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
@@ -1210,11 +1210,11 @@ made_compressed_probe:
 	for (i = 0; i < num_rx_buf; i++) {
 		struct acm_rb *rb = &(acm->rb[i]);
 
-		rb->base = usb_buffer_alloc(acm->dev, readsize,
+		rb->base = usb_alloc_coherent(acm->dev, readsize,
 				GFP_KERNEL, &rb->dma);
 		if (!rb->base) {
 			dev_dbg(&intf->dev,
-				"out of memory (read bufs usb_buffer_alloc)\n");
+				"out of memory (read bufs usb_alloc_coherent)\n");
 			goto alloc_fail7;
 		}
 	}
@@ -1225,7 +1225,7 @@ made_compressed_probe:
 		if (snd->urb == NULL) {
 			dev_dbg(&intf->dev,
 				"out of memory (write urbs usb_alloc_urb)");
-			goto alloc_fail7;
+			goto alloc_fail8;
 		}
 
 		if (usb_endpoint_xfer_int(epwrite))
@@ -1264,6 +1264,7 @@ made_compressed_probe:
 		i = device_create_file(&intf->dev,
 						&dev_attr_iCountryCodeRelDate);
 		if (i < 0) {
+			device_remove_file(&intf->dev, &dev_attr_wCountryCodes);
 			kfree(acm->country_codes);
 			goto skip_countries;
 		}
@@ -1300,13 +1301,14 @@ alloc_fail8:
 		usb_free_urb(acm->wb[i].urb);
 alloc_fail7:
 	acm_read_buffers_free(acm);
+alloc_fail6:
 	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->ru[i].urb);
 	usb_free_urb(acm->ctrlurb);
 alloc_fail5:
 	acm_write_buffers_free(acm);
 alloc_fail4:
-	usb_buffer_free(usb_dev, ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
+	usb_free_coherent(usb_dev, ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 alloc_fail2:
 	kfree(acm);
 alloc_fail:
@@ -1356,8 +1358,8 @@ static void acm_disconnect(struct usb_interface *intf)
 	stop_data_traffic(acm);
 
 	acm_write_buffers_free(acm);
-	usb_buffer_free(usb_dev, acm->ctrlsize, acm->ctrl_buffer,
-								acm->ctrl_dma);
+	usb_free_coherent(usb_dev, acm->ctrlsize, acm->ctrl_buffer,
+			  acm->ctrl_dma);
 	acm_read_buffers_free(acm);
 
 	if (!acm->combined_interfaces)
@@ -1441,7 +1443,7 @@ static int acm_resume(struct usb_interface *intf)
 			wb = acm->delayed_wb;
 			acm->delayed_wb = NULL;
 			spin_unlock_irq(&acm->write_lock);
-			acm_start_wb(acm, acm->delayed_wb);
+			acm_start_wb(acm, wb);
 		} else {
 			spin_unlock_irq(&acm->write_lock);
 		}
@@ -1542,6 +1544,9 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x1bbb, 0x0003), /* Alcatel OT-I650 */
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
+	{ USB_DEVICE(0x1576, 0x03b1), /* Maretron USB100 */
+	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	},
 
 	/* Nokia S60 phones expose two ACM channels. The first is
 	 * a modem and is picked up by the standard AT-command
@@ -1591,6 +1596,7 @@ static const struct usb_device_id acm_ids[] = {
 	{ NOKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Nokia 5320 XpressMusic */
 	{ NOKIA_PCSUITE_ACM_INFO(0x0108), }, /* Nokia 5320 XpressMusic 2G */
 	{ NOKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Nokia N97, RM-505 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x02e3), }, /* Nokia 5230, RM-588 */
 
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
 

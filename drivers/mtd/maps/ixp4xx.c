@@ -107,8 +107,8 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 		return;
 
 	if (from & 1) {
-		*dest++ = BYTE1(flash_read16(src));
-                src++;
+		*dest++ = BYTE1(flash_read16(src-1));
+		src++;
 		--len;
 	}
 
@@ -196,12 +196,11 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 			return err;
 	}
 
-	info = kmalloc(sizeof(struct ixp4xx_flash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct ixp4xx_flash_info), GFP_KERNEL);
 	if(!info) {
 		err = -ENOMEM;
 		goto Error;
 	}
-	memset(info, 0, sizeof(struct ixp4xx_flash_info));
 
 	platform_set_drvdata(dev, info);
 

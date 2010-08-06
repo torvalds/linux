@@ -80,21 +80,19 @@ static int acpi_sleep_prepare(u32 acpi_state)
 
 #ifdef CONFIG_ACPI_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
-/*
- * According to the ACPI specification the BIOS should make sure that ACPI is
- * enabled and SCI_EN bit is set on wake-up from S1 - S3 sleep states.  Still,
- * some BIOSes don't do that and therefore we use acpi_enable() to enable ACPI
- * on such systems during resume.  Unfortunately that doesn't help in
- * particularly pathological cases in which SCI_EN has to be set directly on
- * resume, although the specification states very clearly that this flag is
- * owned by the hardware.  The set_sci_en_on_resume variable will be set in such
- * cases.
- */
-static bool set_sci_en_on_resume;
 
-void __init acpi_set_sci_en_on_resume(void)
+/*
+ * The ACPI specification wants us to save NVS memory regions during hibernation
+ * and to restore them during the subsequent resume.  Windows does that also for
+ * suspend to RAM.  However, it is known that this mechanism does not work on
+ * all machines, so we allow the user to disable it with the help of the
+ * 'acpi_sleep=nonvs' kernel command line option.
+ */
+static bool nvs_nosave;
+
+void __init acpi_nvs_nosave(void)
 {
-	set_sci_en_on_resume = true;
+	nvs_nosave = true;
 }
 
 /*
@@ -110,11 +108,13 @@ void __init acpi_old_suspend_ordering(void)
 }
 
 /**
- *	acpi_pm_disable_gpes - Disable the GPEs.
+ * acpi_pm_freeze - Disable the GPEs and suspend EC transactions.
  */
-static int acpi_pm_disable_gpes(void)
+static int acpi_pm_freeze(void)
 {
 	acpi_disable_all_gpes();
+	acpi_os_wait_events_complete(NULL);
+	acpi_ec_block_transactions();
 	return 0;
 }
 
@@ -127,6 +127,8 @@ static int acpi_pm_disable_gpes(void)
 static int __acpi_pm_prepare(void)
 {
 	int error = acpi_sleep_prepare(acpi_target_sleep_state);
+
+	suspend_nvs_save();
 
 	if (error)
 		acpi_target_sleep_state = ACPI_STATE_S0;
@@ -142,7 +144,8 @@ static int acpi_pm_prepare(void)
 	int error = __acpi_pm_prepare();
 
 	if (!error)
-		acpi_disable_all_gpes();
+		acpi_pm_freeze();
+
 	return error;
 }
 
@@ -155,6 +158,9 @@ static int acpi_pm_prepare(void)
 static void acpi_pm_finish(void)
 {
 	u32 acpi_state = acpi_target_sleep_state;
+
+	suspend_nvs_free();
+	acpi_ec_unblock_transactions();
 
 	if (acpi_state == ACPI_STATE_S0)
 		return;
@@ -205,6 +211,10 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 	u32 acpi_state = acpi_suspend_states[pm_state];
 	int error = 0;
 
+	error = nvs_nosave ? 0 : suspend_nvs_alloc();
+	if (error)
+		return error;
+
 	if (sleep_states[acpi_state]) {
 		acpi_target_sleep_state = acpi_state;
 		acpi_sleep_tts_switch(acpi_target_sleep_state);
@@ -253,11 +263,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		break;
 	}
 
-	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
-	if (set_sci_en_on_resume)
-		acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
-	else
-		acpi_enable();
+	/* This violates the spec but is required for bug compatibility. */
+	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	/* Reprogram control registers and execute _BFS */
 	acpi_leave_sleep_state_prep(acpi_state);
@@ -275,6 +282,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 * acpi_leave_sleep_state will reenable specific GPEs later
 	 */
 	acpi_disable_all_gpes();
+	/* Allow EC transactions to happen. */
+	acpi_ec_unblock_transactions_early();
 
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
@@ -283,7 +292,14 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	if (acpi_state == ACPI_STATE_S3)
 		acpi_restore_state_mem();
 
+	suspend_nvs_restore();
+
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
+}
+
+static void acpi_suspend_finish(void)
+{
+	acpi_pm_finish();
 }
 
 static int acpi_suspend_state_valid(suspend_state_t pm_state)
@@ -307,7 +323,7 @@ static struct platform_suspend_ops acpi_suspend_ops = {
 	.begin = acpi_suspend_begin,
 	.prepare_late = acpi_pm_prepare,
 	.enter = acpi_suspend_enter,
-	.wake = acpi_pm_finish,
+	.wake = acpi_suspend_finish,
 	.end = acpi_pm_end,
 };
 
@@ -333,9 +349,9 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare_late = acpi_pm_disable_gpes,
+	.prepare_late = acpi_pm_freeze,
 	.enter = acpi_suspend_enter,
-	.wake = acpi_pm_finish,
+	.wake = acpi_suspend_finish,
 	.end = acpi_pm_end,
 	.recover = acpi_pm_finish,
 };
@@ -343,12 +359,6 @@ static struct platform_suspend_ops acpi_suspend_ops_old = {
 static int __init init_old_suspend_ordering(const struct dmi_system_id *d)
 {
 	old_suspend_ordering = true;
-	return 0;
-}
-
-static int __init init_set_sci_en_on_resume(const struct dmi_system_id *d)
-{
-	set_sci_en_on_resume = true;
 	return 0;
 }
 
@@ -370,83 +380,11 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		},
 	},
 	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Apple MacBook 1,1",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Apple MacMini 1,1",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
-		},
-	},
-	{
 	.callback = init_old_suspend_ordering,
 	.ident = "Asus Pundit P1-AH2 (M2N8L motherboard)",
 	.matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
 		DMI_MATCH(DMI_BOARD_NAME, "M2N8L"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Toshiba Satellite L300",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard HP G7000 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP G7000 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard HP Pavilion dv3 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv3 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Pavilion dv4",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv4"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Pavilion dv7",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv7"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Compaq Presario C700 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Compaq Presario C700 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Compaq Presario CQ40 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Compaq Presario CQ40 Notebook PC"),
 		},
 	},
 	{
@@ -463,20 +401,6 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 #endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_HIBERNATION
-/*
- * The ACPI specification wants us to save NVS memory regions during hibernation
- * and to restore them during the subsequent resume.  However, it is not certain
- * if this mechanism is going to work on all machines, so we allow the user to
- * disable this mechanism using the 'acpi_sleep=s4_nonvs' kernel command line
- * option.
- */
-static bool s4_no_nvs;
-
-void __init acpi_s4_no_nvs(void)
-{
-	s4_no_nvs = true;
-}
-
 static unsigned long s4_hardware_signature;
 static struct acpi_table_facs *facs;
 static bool nosigcheck;
@@ -490,7 +414,7 @@ static int acpi_hibernation_begin(void)
 {
 	int error;
 
-	error = s4_no_nvs ? 0 : hibernate_nvs_alloc();
+	error = nvs_nosave ? 0 : suspend_nvs_alloc();
 	if (!error) {
 		acpi_target_sleep_state = ACPI_STATE_S4;
 		acpi_sleep_tts_switch(acpi_target_sleep_state);
@@ -504,7 +428,7 @@ static int acpi_hibernation_pre_snapshot(void)
 	int error = acpi_pm_prepare();
 
 	if (!error)
-		hibernate_nvs_save();
+		suspend_nvs_save();
 
 	return error;
 }
@@ -527,12 +451,6 @@ static int acpi_hibernation_enter(void)
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
 
-static void acpi_hibernation_finish(void)
-{
-	hibernate_nvs_free();
-	acpi_pm_finish();
-}
-
 static void acpi_hibernation_leave(void)
 {
 	/*
@@ -549,20 +467,14 @@ static void acpi_hibernation_leave(void)
 		panic("ACPI S4 hardware signature mismatch");
 	}
 	/* Restore the NVS memory area */
-	hibernate_nvs_restore();
+	suspend_nvs_restore();
+	/* Allow EC transactions to happen. */
+	acpi_ec_unblock_transactions_early();
 }
 
-static int acpi_pm_pre_restore(void)
+static void acpi_pm_thaw(void)
 {
-	acpi_disable_all_gpes();
-	acpi_os_wait_events_complete(NULL);
-	acpi_ec_suspend_transactions();
-	return 0;
-}
-
-static void acpi_pm_restore_cleanup(void)
-{
-	acpi_ec_resume_transactions();
+	acpi_ec_unblock_transactions();
 	acpi_enable_all_runtime_gpes();
 }
 
@@ -570,12 +482,12 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
 	.begin = acpi_hibernation_begin,
 	.end = acpi_pm_end,
 	.pre_snapshot = acpi_hibernation_pre_snapshot,
-	.finish = acpi_hibernation_finish,
+	.finish = acpi_pm_finish,
 	.prepare = acpi_pm_prepare,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
-	.pre_restore = acpi_pm_pre_restore,
-	.restore_cleanup = acpi_pm_restore_cleanup,
+	.pre_restore = acpi_pm_freeze,
+	.restore_cleanup = acpi_pm_thaw,
 };
 
 /**
@@ -597,8 +509,8 @@ static int acpi_hibernation_begin_old(void)
 	error = acpi_sleep_prepare(ACPI_STATE_S4);
 
 	if (!error) {
-		if (!s4_no_nvs)
-			error = hibernate_nvs_alloc();
+		if (!nvs_nosave)
+			error = suspend_nvs_alloc();
 		if (!error)
 			acpi_target_sleep_state = ACPI_STATE_S4;
 	}
@@ -607,12 +519,9 @@ static int acpi_hibernation_begin_old(void)
 
 static int acpi_hibernation_pre_snapshot_old(void)
 {
-	int error = acpi_pm_disable_gpes();
-
-	if (!error)
-		hibernate_nvs_save();
-
-	return error;
+	acpi_pm_freeze();
+	suspend_nvs_save();
+	return 0;
 }
 
 /*
@@ -623,12 +532,12 @@ static struct platform_hibernation_ops acpi_hibernation_ops_old = {
 	.begin = acpi_hibernation_begin_old,
 	.end = acpi_pm_end,
 	.pre_snapshot = acpi_hibernation_pre_snapshot_old,
-	.finish = acpi_hibernation_finish,
-	.prepare = acpi_pm_disable_gpes,
+	.prepare = acpi_pm_freeze,
+	.finish = acpi_pm_finish,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
-	.pre_restore = acpi_pm_pre_restore,
-	.restore_cleanup = acpi_pm_restore_cleanup,
+	.pre_restore = acpi_pm_freeze,
+	.restore_cleanup = acpi_pm_thaw,
 	.recover = acpi_pm_finish,
 };
 #endif /* CONFIG_HIBERNATION */

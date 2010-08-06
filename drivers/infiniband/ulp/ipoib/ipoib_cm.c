@@ -35,6 +35,7 @@
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "ipoib.h"

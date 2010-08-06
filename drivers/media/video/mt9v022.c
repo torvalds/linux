@@ -325,7 +325,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&client->dev, "Frame %ux%u pixel\n", rect.width, rect.height);
+	dev_dbg(&client->dev, "Frame %dx%d pixel\n", rect.width, rect.height);
 
 	mt9v022->rect = rect;
 
@@ -838,13 +838,13 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #endif
 };
 
-static int mt9v022_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9v022_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	if ((unsigned int)index >= mt9v022->num_fmts)
+	if (index >= mt9v022->num_fmts)
 		return -EINVAL;
 
 	*code = mt9v022->fmts[index].code;
@@ -920,7 +920,6 @@ static int mt9v022_probe(struct i2c_client *client,
 	ret = mt9v022_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9v022);
 	}
 
@@ -934,7 +933,6 @@ static int mt9v022_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9v022_video_remove(icd);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9v022);
 

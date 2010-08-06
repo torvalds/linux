@@ -46,9 +46,9 @@ struct bin_buffer {
 };
 
 static int
-fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
+fill_read(struct file *file, char *buffer, loff_t off, size_t count)
 {
-	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
@@ -59,7 +59,7 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 
 	rc = -EIO;
 	if (attr->read)
-		rc = attr->read(kobj, attr, buffer, off, count);
+		rc = attr->read(file, kobj, attr, buffer, off, count);
 
 	sysfs_put_active(attr_sd);
 
@@ -70,8 +70,7 @@ static ssize_t
 read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 {
 	struct bin_buffer *bb = file->private_data;
-	struct dentry *dentry = file->f_path.dentry;
-	int size = dentry->d_inode->i_size;
+	int size = file->f_path.dentry->d_inode->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	char *temp;
@@ -92,7 +91,7 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 
 	mutex_lock(&bb->mutex);
 
-	count = fill_read(dentry, bb->buffer, offs, count);
+	count = fill_read(file, bb->buffer, offs, count);
 	if (count < 0) {
 		mutex_unlock(&bb->mutex);
 		goto out_free;
@@ -117,9 +116,9 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 }
 
 static int
-flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
+flush_write(struct file *file, char *buffer, loff_t offset, size_t count)
 {
-	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
@@ -130,7 +129,7 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 
 	rc = -EIO;
 	if (attr->write)
-		rc = attr->write(kobj, attr, buffer, offset, count);
+		rc = attr->write(file, kobj, attr, buffer, offset, count);
 
 	sysfs_put_active(attr_sd);
 
@@ -141,8 +140,7 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 		     size_t bytes, loff_t *off)
 {
 	struct bin_buffer *bb = file->private_data;
-	struct dentry *dentry = file->f_path.dentry;
-	int size = dentry->d_inode->i_size;
+	int size = file->f_path.dentry->d_inode->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	char *temp;
@@ -165,7 +163,7 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 
 	memcpy(bb->buffer, temp, count);
 
-	count = flush_write(dentry, bb->buffer, offs, count);
+	count = flush_write(file, bb->buffer, offs, count);
 	mutex_unlock(&bb->mutex);
 
 	if (count > 0)
@@ -363,7 +361,7 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 	if (!attr->mmap)
 		goto out_put;
 
-	rc = attr->mmap(kobj, attr, vma);
+	rc = attr->mmap(file, kobj, attr, vma);
 	if (rc)
 		goto out_put;
 
@@ -501,7 +499,7 @@ int sysfs_create_bin_file(struct kobject *kobj,
 void sysfs_remove_bin_file(struct kobject *kobj,
 			   const struct bin_attribute *attr)
 {
-	sysfs_hash_and_remove(kobj->sd, attr->attr.name);
+	sysfs_hash_and_remove(kobj->sd, NULL, attr->attr.name);
 }
 
 EXPORT_SYMBOL_GPL(sysfs_create_bin_file);

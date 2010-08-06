@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 
 #include <net/inet_sock.h>
@@ -311,7 +312,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 	unsigned int mask;
 	struct sock *sk = sock->sk;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	if (sk->sk_state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
@@ -472,14 +473,9 @@ static int dccp_setsockopt_ccid(struct sock *sk, int type,
 	if (optlen < 1 || optlen > DCCP_FEAT_MAX_SP_VALS)
 		return -EINVAL;
 
-	val = kmalloc(optlen, GFP_KERNEL);
-	if (val == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(val, optval, optlen)) {
-		kfree(val);
-		return -EFAULT;
-	}
+	val = memdup_user(optval, optlen);
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
 	lock_sock(sk);
 	if (type == DCCP_SOCKOPT_TX_CCID || type == DCCP_SOCKOPT_CCID)
@@ -1006,7 +1002,8 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 static inline int dccp_mib_init(void)
 {
 	return snmp_mib_init((void __percpu **)dccp_statistics,
-			     sizeof(struct dccp_mib));
+			     sizeof(struct dccp_mib),
+			     __alignof__(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)

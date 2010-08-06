@@ -1030,8 +1030,6 @@ void ipath_free_data(struct ipath_portdata *dd);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32, u32 *);
 void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 				unsigned len, int avail);
-void ipath_init_iba7220_funcs(struct ipath_devdata *);
-void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);

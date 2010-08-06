@@ -29,12 +29,15 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
+#include <linux/spi/spi.h>
 
 #include <mach/hardware.h>
 #include <mach/fb.h>
 #include <mach/ep93xx_keypad.h>
+#include <mach/ep93xx_spi.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -213,8 +216,8 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 	spin_lock_irqsave(&syscon_swlock, flags);
 
 	val = __raw_readl(EP93XX_SYSCON_DEVCFG);
-	val |= set_bits;
 	val &= ~clear_bits;
+	val |= set_bits;
 	__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 	__raw_writel(val, EP93XX_SYSCON_DEVCFG);
 
@@ -222,6 +225,20 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 }
 EXPORT_SYMBOL(ep93xx_devcfg_set_clear);
 
+/**
+ * ep93xx_chip_revision() - returns the EP93xx chip revision
+ *
+ * See <mach/platform.h> for more information.
+ */
+unsigned int ep93xx_chip_revision(void)
+{
+	unsigned int v;
+
+	v = __raw_readl(EP93XX_SYSCON_SYSCFG);
+	v &= EP93XX_SYSCON_SYSCFG_REV_MASK;
+	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
+	return v;
+}
 
 /*************************************************************************
  * EP93xx peripheral handling
@@ -330,6 +347,47 @@ static struct platform_device ep93xx_ohci_device = {
 	.resource	= ep93xx_ohci_resources,
 };
 
+
+/*************************************************************************
+ * EP93xx physmap'ed flash
+ *************************************************************************/
+static struct physmap_flash_data ep93xx_flash_data;
+
+static struct resource ep93xx_flash_resource = {
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ep93xx_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ep93xx_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &ep93xx_flash_resource,
+};
+
+/**
+ * ep93xx_register_flash() - Register the external flash device.
+ * @width:	bank width in octets
+ * @start:	resource start address
+ * @size:	resource size
+ */
+void __init ep93xx_register_flash(unsigned int width,
+				  resource_size_t start, resource_size_t size)
+{
+	ep93xx_flash_data.width		= width;
+
+	ep93xx_flash_resource.start	= start;
+	ep93xx_flash_resource.end	= start + size - 1;
+
+	platform_device_register(&ep93xx_flash);
+}
+
+
+/*************************************************************************
+ * EP93xx ethernet peripheral handling
+ *************************************************************************/
 static struct ep93xx_eth_data ep93xx_eth_data;
 
 static struct resource ep93xx_eth_resource[] = {
@@ -354,6 +412,12 @@ static struct platform_device ep93xx_eth_device = {
 	.resource	= ep93xx_eth_resource,
 };
 
+/**
+ * ep93xx_register_eth - Register the built-in ethernet platform device.
+ * @data:	platform specific ethernet configuration (__initdata)
+ * @copy_addr:	flag indicating that the MAC address should be copied
+ *		from the IndAd registers (as programmed by the bootloader)
+ */
 void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 {
 	if (copy_addr)
@@ -370,11 +434,19 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 static struct i2c_gpio_platform_data ep93xx_i2c_data;
 
 static struct platform_device ep93xx_i2c_device = {
-	.name			= "i2c-gpio",
-	.id			= 0,
-	.dev.platform_data	= &ep93xx_i2c_data,
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ep93xx_i2c_data,
+	},
 };
 
+/**
+ * ep93xx_register_i2c - Register the i2c platform device.
+ * @data:	platform specific i2c-gpio configuration (__initdata)
+ * @devices:	platform specific i2c bus device information (__initdata)
+ * @num:	the number of devices on the i2c bus
+ */
 void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 				struct i2c_board_info *devices, int num)
 {
@@ -398,17 +470,67 @@ void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 	platform_device_register(&ep93xx_i2c_device);
 }
 
+/*************************************************************************
+ * EP93xx SPI peripheral handling
+ *************************************************************************/
+static struct ep93xx_spi_info ep93xx_spi_master_data;
+
+static struct resource ep93xx_spi_resources[] = {
+	{
+		.start	= EP93XX_SPI_PHYS_BASE,
+		.end	= EP93XX_SPI_PHYS_BASE + 0x18 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_EP93XX_SSP,
+		.end	= IRQ_EP93XX_SSP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ep93xx_spi_device = {
+	.name		= "ep93xx-spi",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &ep93xx_spi_master_data,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_spi_resources),
+	.resource	= ep93xx_spi_resources,
+};
+
+/**
+ * ep93xx_register_spi() - registers spi platform device
+ * @info: ep93xx board specific spi master info (__initdata)
+ * @devices: SPI devices to register (__initdata)
+ * @num: number of SPI devices to register
+ *
+ * This function registers platform device for the EP93xx SPI controller and
+ * also makes sure that SPI pins are muxed so that I2S is not using those pins.
+ */
+void __init ep93xx_register_spi(struct ep93xx_spi_info *info,
+				struct spi_board_info *devices, int num)
+{
+	/*
+	 * When SPI is used, we need to make sure that I2S is muxed off from
+	 * SPI pins.
+	 */
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2SONSSP);
+
+	ep93xx_spi_master_data = *info;
+	spi_register_board_info(devices, num);
+	platform_device_register(&ep93xx_spi_device);
+}
 
 /*************************************************************************
  * EP93xx LEDs
  *************************************************************************/
 static struct gpio_led ep93xx_led_pins[] = {
 	{
-		.name			= "platform:grled",
-		.gpio			= EP93XX_GPIO_LINE_GRLED,
+		.name	= "platform:grled",
+		.gpio	= EP93XX_GPIO_LINE_GRLED,
 	}, {
-		.name			= "platform:rdled",
-		.gpio			= EP93XX_GPIO_LINE_RDLED,
+		.name	= "platform:rdled",
+		.gpio	= EP93XX_GPIO_LINE_RDLED,
 	},
 };
 
@@ -528,7 +650,7 @@ static struct platform_device ep93xx_fb_device = {
 	.name			= "ep93xx-fb",
 	.id			= -1,
 	.dev			= {
-		.platform_data	= &ep93xxfb_data,
+		.platform_data		= &ep93xxfb_data,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.dma_mask		= &ep93xx_fb_device.dev.coherent_dma_mask,
 	},
@@ -536,16 +658,28 @@ static struct platform_device ep93xx_fb_device = {
 	.resource		= ep93xx_fb_resource,
 };
 
+static struct platform_device ep93xx_bl_device = {
+	.name		= "ep93xx-bl",
+	.id		= -1,
+};
+
+/**
+ * ep93xx_register_fb - Register the framebuffer platform device.
+ * @data:	platform specific framebuffer configuration (__initdata)
+ */
 void __init ep93xx_register_fb(struct ep93xxfb_mach_info *data)
 {
 	ep93xxfb_data = *data;
 	platform_device_register(&ep93xx_fb_device);
+	platform_device_register(&ep93xx_bl_device);
 }
 
 
 /*************************************************************************
  * EP93xx matrix keypad peripheral handling
  *************************************************************************/
+static struct ep93xx_keypad_platform_data ep93xx_keypad_data;
+
 static struct resource ep93xx_keypad_resource[] = {
 	{
 		.start	= EP93XX_KEY_MATRIX_PHYS_BASE,
@@ -559,15 +693,22 @@ static struct resource ep93xx_keypad_resource[] = {
 };
 
 static struct platform_device ep93xx_keypad_device = {
-	.name			= "ep93xx-keypad",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(ep93xx_keypad_resource),
-	.resource		= ep93xx_keypad_resource,
+	.name		= "ep93xx-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ep93xx_keypad_data,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_keypad_resource),
+	.resource	= ep93xx_keypad_resource,
 };
 
+/**
+ * ep93xx_register_keypad - Register the keypad platform device.
+ * @data:	platform specific keypad configuration (__initdata)
+ */
 void __init ep93xx_register_keypad(struct ep93xx_keypad_platform_data *data)
 {
-	ep93xx_keypad_device.dev.platform_data = data;
+	ep93xx_keypad_data = *data;
 	platform_device_register(&ep93xx_keypad_device);
 }
 

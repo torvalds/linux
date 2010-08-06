@@ -185,7 +185,7 @@ struct jffs2_raw_xref
 	jint32_t hdr_crc;
 	jint32_t ino;		/* inode number */
 	jint32_t xid;		/* XATTR identifier number */
-	jint32_t xseqno;	/* xref sequencial number */
+	jint32_t xseqno;	/* xref sequential number */
 	jint32_t node_crc;
 } __attribute__((packed));
 
@@ -215,8 +215,8 @@ union jffs2_node_union
 
 /* Data payload for device nodes. */
 union jffs2_device_node {
-	jint16_t old;
-	jint32_t new;
+	jint16_t old_id;
+	jint32_t new_id;
 };
 
 #endif /* __LINUX_JFFS2_H__ */

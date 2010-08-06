@@ -1,0 +1,22 @@
+Todo:
+	- Fix the loss of some blocks when receiving the video URB's
+	- Add a lock at tm6000_read_write_usb() to prevent two simultaneous access to the
+	  URB control transfers
+	- Properly add the locks at tm6000-video
+	- Add audio support
+	- Add vbi support
+	- Add IR support
+	- Do several cleanups
+	- I think that frame1/frame0 are inverted. This causes a funny effect at the image.
+	  the fix is trivial, but require some tests
+	- My tm6010 devices sometimes insist on stop working. I need to turn them off, removing
+	  from my machine and wait for a while for it to work again. I'm starting to think that
+	  it is an overheat issue - is there a workaround that we could do?
+	- Sometimes, tm6010 doesn't read eeprom at the proper time (hardware bug). So, the device
+	  got miss-detected as a "generic" tm6000. This can be really bad if the tuner is the
+	  Low Power one, as it may result on loading the high power firmware, that could damage
+	  the device. Maybe we may read eeprom to double check, when the device is marked as "generic"
+	- Coding Style fixes
+	- sparse cleanups
+
+Please send patches to linux-media@vger.kernel.org

@@ -24,6 +24,11 @@
 
 #include "viamode.h"
 #include "global.h"
+#include "via_modesetting.h"
+
+#define viafb_read_reg(p, i)			via_read_reg(p, i)
+#define viafb_write_reg(i, p, d)		via_write_reg(p, i, d)
+#define viafb_write_reg_mask(i, p, d, m)	via_write_reg_mask(p, i, d, m)
 
 /***************************************************
 * Definition IGA1 Design Method of CRTC Registers *
@@ -823,8 +828,8 @@ struct iga2_crtc_timing {
 };
 
 /* device ID */
-#define CLE266              0x3123
-#define KM400               0x3205
+#define CLE266_FUNCTION3    0x3123
+#define KM400_FUNCTION3     0x3205
 #define CN400_FUNCTION2     0x2259
 #define CN400_FUNCTION3     0x3259
 /* support VT3314 chipset */
@@ -870,7 +875,6 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask);
 void viafb_set_output_path(int device, int set_iga,
 	int output_interface);
 
@@ -885,8 +889,6 @@ void viafb_crt_disable(void);
 void viafb_crt_enable(void);
 void init_ad9389(void);
 /* Access I/O Function */
-void viafb_write_reg(u8 index, u16 io_port, u8 data);
-u8 viafb_read_reg(int io_port, u8 index);
 void viafb_lock_crt(void);
 void viafb_unlock_crt(void);
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga);
@@ -900,20 +902,14 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	struct VideoModeTable *vmode_tbl1, int video_bpp1);
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	struct VideoModeTable *vmode_tbl);
-void viafb_init_chip_info(struct pci_dev *pdev,
-			  const struct pci_device_id *pdi);
+void viafb_init_chip_info(int chip_type);
 void viafb_init_dac(int set_iga);
 int viafb_get_pixclock(int hres, int vres, int vmode_refresh);
 int viafb_get_refresh(int hres, int vres, u32 float_refresh);
 void viafb_update_device_setting(int hres, int vres, int bpp,
 			   int vmode_refresh, int flag);
 
-int viafb_get_fb_size_from_pci(void);
 void viafb_set_iga_path(void);
-void viafb_set_primary_address(u32 addr);
-void viafb_set_secondary_address(u32 addr);
-void viafb_set_primary_pitch(u32 pitch);
-void viafb_set_secondary_pitch(u32 pitch);
 void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue);
 void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue);
 void viafb_get_fb_info(unsigned int *fb_base, unsigned int *fb_len);

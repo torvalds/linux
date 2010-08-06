@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 
 struct gameport {
 

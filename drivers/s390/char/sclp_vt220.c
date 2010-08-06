@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include "sclp.h"

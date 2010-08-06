@@ -70,6 +70,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8192U_dm.h"
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
+#include <linux/slab.h>
 // FIXME: check if 2.6.7 is ok
 
 #ifdef CONFIG_RTL8192_PM
@@ -120,6 +121,8 @@ static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* LG */
+	{USB_DEVICE(0x043e, 0x7a01)},
 	{}
 };
 
@@ -2215,7 +2218,8 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->rx_urb = (struct urb**) kmalloc (sizeof(struct urb*) * (MAX_RX_URB+1), GFP_KERNEL);
+	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB+1),
+				GFP_KERNEL);
 
 #ifndef JACKSON_NEW_RX
 	for(i=0;i<(MAX_RX_URB+1);i++){
@@ -2249,11 +2253,10 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 #endif
 
 	memset(priv->rx_urb, 0, sizeof(struct urb*) * MAX_RX_URB);
-	priv->pp_rxskb = (struct sk_buff **)kmalloc(sizeof(struct sk_buff *) * MAX_RX_URB, GFP_KERNEL);
+	priv->pp_rxskb = kcalloc(MAX_RX_URB, sizeof(struct sk_buff *),
+				 GFP_KERNEL);
 	if (priv->pp_rxskb == NULL)
 		goto destroy;
-
-	memset(priv->pp_rxskb, 0, sizeof(struct sk_buff*) * MAX_RX_URB);
 
 	goto _middle;
 
@@ -2838,7 +2841,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		(priv->EarlyRxThreshold == 7 ? RCR_ONLYERLPKT:0);
 
 	priv->AcmControl = 0;
-	priv->pFirmware = (rt_firmware*)kmalloc(sizeof(rt_firmware), GFP_KERNEL);
+	priv->pFirmware = kmalloc(sizeof(rt_firmware), GFP_KERNEL);
 	if (priv->pFirmware)
 	memset(priv->pFirmware, 0, sizeof(rt_firmware));
 
@@ -4414,7 +4417,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	     goto out;
 	}
 
-     ipw = (struct ieee_param *)kmalloc(p->length, GFP_KERNEL);
+     ipw = kmalloc(p->length, GFP_KERNEL);
      if (ipw == NULL){
 	     ret = -ENOMEM;
 	     goto out;

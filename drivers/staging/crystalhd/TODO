@@ -1,7 +1,6 @@
 - Testing
 - Cleanup return codes
 - Cleanup typedefs
-- Cleanup all WIN* references
 - Allocate an Accelerator device class specific Major number,
   since we don't have any other open sourced accelerators, it is the only
   one in that category for now.

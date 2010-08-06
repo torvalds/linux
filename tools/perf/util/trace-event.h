@@ -1,6 +1,7 @@
 #ifndef __PERF_TRACE_EVENTS_H
 #define __PERF_TRACE_EVENTS_H
 
+#include <stdbool.h>
 #include "parse-events.h"
 
 #define __unused __attribute__((unused))
@@ -162,7 +163,7 @@ struct record *trace_read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);
 
-void trace_report(int fd);
+ssize_t trace_report(int fd, bool repipe);
 
 void *malloc_or_die(unsigned int size);
 
@@ -232,7 +233,12 @@ static inline unsigned long long __data2host8(unsigned long long data)
 
 #define data2host2(ptr)		__data2host2(*(unsigned short *)ptr)
 #define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
-#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
+#define data2host8(ptr)		({				\
+	unsigned long long __val;				\
+								\
+	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
+	__data2host8(__val);					\
+})
 
 extern int header_page_ts_offset;
 extern int header_page_ts_size;
@@ -241,9 +247,8 @@ extern int header_page_size_size;
 extern int header_page_data_offset;
 extern int header_page_data_size;
 
-extern int latency_format;
+extern bool latency_format;
 
-int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
 int trace_parse_common_pid(void *data);
 int parse_common_pc(void *data);
@@ -258,6 +263,8 @@ void *raw_field_ptr(struct event *event, const char *name, void *data);
 unsigned long long eval_flag(const char *flag);
 
 int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
+ssize_t read_tracing_data_size(int fd, struct perf_event_attr *pattrs,
+			       int nb_events);
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {

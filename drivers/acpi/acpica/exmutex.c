@@ -85,10 +85,10 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
 		(obj_desc->mutex.prev)->mutex.next = obj_desc->mutex.next;
 
 		/*
-		 * Migrate the previous sync level associated with this mutex to the
-		 * previous mutex on the list so that it may be preserved. This handles
-		 * the case where several mutexes have been acquired at the same level,
-		 * but are not released in opposite order.
+		 * Migrate the previous sync level associated with this mutex to
+		 * the previous mutex on the list so that it may be preserved.
+		 * This handles the case where several mutexes have been acquired
+		 * at the same level, but are not released in opposite order.
 		 */
 		(obj_desc->mutex.prev)->mutex.original_sync_level =
 		    obj_desc->mutex.original_sync_level;
@@ -101,8 +101,8 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
  *
  * FUNCTION:    acpi_ex_link_mutex
  *
- * PARAMETERS:  obj_desc        - The mutex to be linked
- *              Thread          - Current executing thread object
+ * PARAMETERS:  obj_desc            - The mutex to be linked
+ *              Thread              - Current executing thread object
  *
  * RETURN:      None
  *
@@ -138,9 +138,9 @@ acpi_ex_link_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_acquire_mutex_object
  *
- * PARAMETERS:  time_desc           - Timeout in milliseconds
+ * PARAMETERS:  Timeout             - Timeout in milliseconds
  *              obj_desc            - Mutex object
- *              Thread              - Current thread state
+ *              thread_id           - Current thread state
  *
  * RETURN:      Status
  *
@@ -234,7 +234,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Must have a valid thread ID */
+	/* Must have a valid thread state struct */
 
 	if (!walk_state->thread) {
 		ACPI_ERROR((AE_INFO,
@@ -249,7 +249,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot acquire Mutex [%4.4s], current SyncLevel is too large (%d)",
+			    "Cannot acquire Mutex [%4.4s], current SyncLevel is too large (%u)",
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
 			    walk_state->thread->current_sync_level));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
@@ -359,6 +359,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 {
 	acpi_status status = AE_OK;
 	u8 previous_sync_level;
+	struct acpi_thread_state *owner_thread;
 
 	ACPI_FUNCTION_TRACE(ex_release_mutex);
 
@@ -366,9 +367,11 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	owner_thread = obj_desc->mutex.owner_thread;
+
 	/* The mutex must have been previously acquired in order to release it */
 
-	if (!obj_desc->mutex.owner_thread) {
+	if (!owner_thread) {
 		ACPI_ERROR((AE_INFO,
 			    "Cannot release Mutex [%4.4s], not acquired",
 			    acpi_ut_get_node_name(obj_desc->mutex.node)));
@@ -387,16 +390,13 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 * The Mutex is owned, but this thread must be the owner.
 	 * Special case for Global Lock, any thread can release
 	 */
-	if ((obj_desc->mutex.owner_thread->thread_id !=
-	     walk_state->thread->thread_id)
-	    && (obj_desc != acpi_gbl_global_lock_mutex)) {
+	if ((owner_thread->thread_id != walk_state->thread->thread_id) &&
+	    (obj_desc != acpi_gbl_global_lock_mutex)) {
 		ACPI_ERROR((AE_INFO,
 			    "Thread %p cannot release Mutex [%4.4s] acquired by thread %p",
 			    ACPI_CAST_PTR(void, walk_state->thread->thread_id),
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
-			    ACPI_CAST_PTR(void,
-					  obj_desc->mutex.owner_thread->
-					  thread_id)));
+			    ACPI_CAST_PTR(void, owner_thread->thread_id)));
 		return_ACPI_STATUS(AE_AML_NOT_OWNER);
 	}
 
@@ -407,10 +407,9 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 * different level can only mean that the mutex ordering rule is being
 	 * violated. This behavior is clarified in ACPI 4.0 specification.
 	 */
-	if (obj_desc->mutex.sync_level !=
-	    walk_state->thread->current_sync_level) {
+	if (obj_desc->mutex.sync_level != owner_thread->current_sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %d current %d",
+			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %u current %u",
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
 			    obj_desc->mutex.sync_level,
 			    walk_state->thread->current_sync_level));
@@ -423,7 +422,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 * acquired, but are not released in reverse order.
 	 */
 	previous_sync_level =
-	    walk_state->thread->acquired_mutex_list->mutex.original_sync_level;
+	    owner_thread->acquired_mutex_list->mutex.original_sync_level;
 
 	status = acpi_ex_release_mutex_object(obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -434,8 +433,9 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 
 		/* Restore the previous sync_level */
 
-		walk_state->thread->current_sync_level = previous_sync_level;
+		owner_thread->current_sync_level = previous_sync_level;
 	}
+
 	return_ACPI_STATUS(status);
 }
 
@@ -443,7 +443,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_release_all_mutexes
  *
- * PARAMETERS:  Thread          - Current executing thread object
+ * PARAMETERS:  Thread              - Current executing thread object
  *
  * RETURN:      Status
  *

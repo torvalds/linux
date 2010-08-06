@@ -31,6 +31,7 @@
 #include "atom.h"
 
 #include <linux/vga_switcheroo.h>
+#include <linux/slab.h>
 /*
  * BIOS.
  */
@@ -46,6 +47,10 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	uint8_t __iomem *bios;
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
+
+	if (!(rdev->flags & RADEON_IS_IGP))
+		if (!radeon_card_posted(rdev))
+			return false;
 
 	rdev->bios = NULL;
 	vram_base = drm_get_resource_start(rdev->ddev, 0);
@@ -84,12 +89,11 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	rdev->bios = kmalloc(size, GFP_KERNEL);
+	rdev->bios = kmemdup(bios, size, GFP_KERNEL);
 	if (rdev->bios == NULL) {
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	memcpy(rdev->bios, bios, size);
 	pci_unmap_rom(rdev->pdev, bios);
 	return true;
 }

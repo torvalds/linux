@@ -46,6 +46,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	tcn75,
 	tmp100,
 	tmp101,
+	tmp105,
 	tmp175,
 	tmp275,
 	tmp75,
@@ -191,7 +192,6 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return status;
 }
@@ -203,7 +203,6 @@ static int lm75_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 	lm75_write_value(client, LM75_REG_CONF, data->orig_conf);
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }
@@ -220,6 +219,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tcn75", tcn75, },
 	{ "tmp100", tmp100, },
 	{ "tmp101", tmp101, },
+	{ "tmp105", tmp105, },
 	{ "tmp175", tmp175, },
 	{ "tmp275", tmp275, },
 	{ "tmp75", tmp75, },

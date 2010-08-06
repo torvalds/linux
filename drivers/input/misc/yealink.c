@@ -111,7 +111,6 @@ struct yealink_dev {
 	struct yld_ctl_packet	*ctl_data;
 	dma_addr_t		ctl_dma;
 	struct usb_ctrlrequest	*ctl_req;
-	dma_addr_t		ctl_req_dma;
 	struct urb		*urb_ctl;
 
 	char phys[64];			/* physical device path */
@@ -836,12 +835,9 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 	usb_free_urb(yld->urb_irq);
 	usb_free_urb(yld->urb_ctl);
 
-	usb_buffer_free(yld->udev, sizeof(*(yld->ctl_req)),
-			yld->ctl_req, yld->ctl_req_dma);
-	usb_buffer_free(yld->udev, USB_PKT_LEN,
-			yld->ctl_data, yld->ctl_dma);
-	usb_buffer_free(yld->udev, USB_PKT_LEN,
-			yld->irq_data, yld->irq_dma);
+	kfree(yld->ctl_req);
+	usb_free_coherent(yld->udev, USB_PKT_LEN, yld->ctl_data, yld->ctl_dma);
+	usb_free_coherent(yld->udev, USB_PKT_LEN, yld->irq_data, yld->irq_dma);
 
 	kfree(yld);
 	return err;
@@ -886,18 +882,17 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return usb_cleanup(yld, -ENOMEM);
 
 	/* allocate usb buffers */
-	yld->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					GFP_ATOMIC, &yld->irq_dma);
+	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_ATOMIC, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
-	yld->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					GFP_ATOMIC, &yld->ctl_dma);
+	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_ATOMIC, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
-	yld->ctl_req = usb_buffer_alloc(udev, sizeof(*(yld->ctl_req)),
-					GFP_ATOMIC, &yld->ctl_req_dma);
+	yld->ctl_req = kmalloc(sizeof(*(yld->ctl_req)), GFP_KERNEL);
 	if (yld->ctl_req == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
@@ -936,10 +931,8 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_fill_control_urb(yld->urb_ctl, udev, usb_sndctrlpipe(udev, 0),
 			(void *)yld->ctl_req, yld->ctl_data, USB_PKT_LEN,
 			urb_ctl_callback, yld);
-	yld->urb_ctl->setup_dma	= yld->ctl_req_dma;
 	yld->urb_ctl->transfer_dma	= yld->ctl_dma;
-	yld->urb_ctl->transfer_flags	|= URB_NO_SETUP_DMA_MAP |
-					URB_NO_TRANSFER_DMA_MAP;
+	yld->urb_ctl->transfer_flags	|= URB_NO_TRANSFER_DMA_MAP;
 	yld->urb_ctl->dev = udev;
 
 	/* find out the physical bus location */

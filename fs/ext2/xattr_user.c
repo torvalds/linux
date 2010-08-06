@@ -54,7 +54,7 @@ ext2_xattr_user_set(struct dentry *dentry, const char *name,
 			      name, value, size, flags);
 }
 
-struct xattr_handler ext2_xattr_user_handler = {
+const struct xattr_handler ext2_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.list	= ext2_xattr_user_list,
 	.get	= ext2_xattr_user_get,

@@ -24,7 +24,7 @@
 #define MV64X60_VAL_LEN_MAX		11
 #define MV64X60_PCICFG_CPCI_HOTSWAP	0x68
 
-static ssize_t mv64x60_hs_reg_read(struct kobject *kobj,
+static ssize_t mv64x60_hs_reg_read(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *attr, char *buf,
 				   loff_t off, size_t count)
 {
@@ -45,7 +45,7 @@ static ssize_t mv64x60_hs_reg_read(struct kobject *kobj,
 	return sprintf(buf, "0x%08x\n", v);
 }
 
-static ssize_t mv64x60_hs_reg_write(struct kobject *kobj,
+static ssize_t mv64x60_hs_reg_write(struct file *filp, struct kobject *kobj,
 				    struct bin_attribute *attr, char *buf,
 				    loff_t off, size_t count)
 {

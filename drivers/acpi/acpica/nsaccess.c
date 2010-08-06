@@ -222,7 +222,7 @@ acpi_status acpi_ns_root_initialize(void)
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unsupported initial type value %X",
+					    "Unsupported initial type value 0x%X",
 					    init_val->type));
 				acpi_ut_remove_reference(obj_desc);
 				obj_desc = NULL;

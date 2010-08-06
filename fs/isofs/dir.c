@@ -11,6 +11,7 @@
  *  isofs directory handling functions
  */
 #include <linux/smp_lock.h>
+#include <linux/gfp.h>
 #include "isofs.h"
 
 int isofs_name_translate(struct iso_directory_record *de, char *new, struct inode *inode)
@@ -271,6 +272,7 @@ static int isofs_readdir(struct file *filp,
 
 const struct file_operations isofs_dir_operations =
 {
+	.llseek = generic_file_llseek,
 	.read = generic_read_dir,
 	.readdir = isofs_readdir,
 };

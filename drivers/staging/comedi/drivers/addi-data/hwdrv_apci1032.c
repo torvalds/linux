@@ -53,8 +53,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 */
 #include "hwdrv_apci1032.h"
 #include <linux/delay.h>
-/* Global variables */
-unsigned int ui_InterruptStatus;
+
+static unsigned int ui_InterruptStatus;
 
 /*
 +----------------------------------------------------------------------------+

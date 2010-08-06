@@ -33,6 +33,8 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 
+#include <ttm/ttm_page_alloc.h>
+
 static int
 nouveau_debugfs_channel_info(struct seq_file *m, void *data)
 {
@@ -137,10 +139,9 @@ nouveau_debugfs_memory_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_minor *minor = node->minor;
-	struct drm_device *dev = minor->dev;
+	struct drm_nouveau_private *dev_priv = minor->dev->dev_private;
 
-	seq_printf(m, "VRAM total: %dKiB\n",
-		   (int)(nouveau_mem_fb_amount(dev) >> 10));
+	seq_printf(m, "VRAM total: %dKiB\n", (int)(dev_priv->vram_size >> 10));
 	return 0;
 }
 
@@ -160,6 +161,7 @@ static struct drm_info_list nouveau_debugfs_list[] = {
 	{ "chipset", nouveau_debugfs_chipset_info, 0, NULL },
 	{ "memory", nouveau_debugfs_memory_info, 0, NULL },
 	{ "vbios.rom", nouveau_debugfs_vbios_image, 0, NULL },
+	{ "ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL },
 };
 #define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(nouveau_debugfs_list)
 

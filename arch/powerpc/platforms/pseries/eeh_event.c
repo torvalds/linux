@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>

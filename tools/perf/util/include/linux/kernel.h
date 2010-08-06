@@ -28,6 +28,8 @@
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
+#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
+
 #ifndef max
 #define max(x, y) ({				\
 	typeof(x) _max1 = (x);			\
@@ -85,16 +87,19 @@ simple_strtoul(const char *nptr, char **endptr, int base)
 	return strtoul(nptr, endptr, base);
 }
 
+int eprintf(int level,
+	    const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
 #endif
 
 #define pr_err(fmt, ...) \
-	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+	eprintf(0, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning(fmt, ...) \
-	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+	eprintf(0, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
-	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+	eprintf(0, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debug(fmt, ...) \
 	eprintf(1, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debugN(n, fmt, ...) \

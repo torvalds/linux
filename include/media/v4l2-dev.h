@@ -32,6 +32,7 @@ struct v4l2_device;
    Drivers can clear this flag if they want to block all future
    device access. It is cleared by video_unregister_device. */
 #define V4L2_FL_REGISTERED	(0)
+#define V4L2_FL_USES_V4L2_FH	(1)
 
 struct v4l2_file_operations {
 	struct module *owner;
@@ -76,6 +77,10 @@ struct video_device
 	unsigned long flags;
 	/* attribute to differentiate multiple indices on one physical device */
 	int index;
+
+	/* V4L2 file handles */
+	spinlock_t		fh_lock; /* Lock for all v4l2_fhs */
+	struct list_head	fh_list; /* List of struct v4l2_fh */
 
 	int debug;			/* Activates debug level*/
 

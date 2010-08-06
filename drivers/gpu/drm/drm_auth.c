@@ -79,10 +79,9 @@ static int drm_add_magic(struct drm_master *master, struct drm_file *priv,
 	struct drm_device *dev = master->minor->dev;
 	DRM_DEBUG("%d\n", magic);
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
-	memset(entry, 0, sizeof(*entry));
 	entry->priv = priv;
 	entry->hash_item.key = (unsigned long)magic;
 	mutex_lock(&dev->struct_mutex);

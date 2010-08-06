@@ -61,7 +61,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int blacklist[] = {
 	PCI_DEVICE_ID_SI_540,

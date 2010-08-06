@@ -45,6 +45,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/mcspi.h>
 
 #include <mach/hardware.h>
 
@@ -836,6 +837,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= cm_t35_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= cm_t35_init_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap_timer,

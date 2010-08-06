@@ -17,6 +17,7 @@
 #include <linux/inet.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
@@ -193,8 +194,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 			return 0;
 		}
 
-		if (net_ratelimit())
-			printk("nf_ct_h323: incomplete TPKT (fragmented?)\n");
+		pr_debug("nf_ct_h323: incomplete TPKT (fragmented?)\n");
 		goto clear_out;
 	}
 
@@ -607,7 +607,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
       drop:
 	spin_unlock_bh(&nf_h323_lock);
 	if (net_ratelimit())
-		printk("nf_ct_h245: packet dropped\n");
+		pr_info("nf_ct_h245: packet dropped\n");
 	return NF_DROP;
 }
 
@@ -734,11 +734,11 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 		if (!afinfo->route((struct dst_entry **)&rt1, &fl1)) {
 			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
 				if (rt1->rt_gateway == rt2->rt_gateway &&
-				    rt1->u.dst.dev  == rt2->u.dst.dev)
+				    rt1->dst.dev  == rt2->dst.dev)
 					ret = 1;
-				dst_release(&rt2->u.dst);
+				dst_release(&rt2->dst);
 			}
-			dst_release(&rt1->u.dst);
+			dst_release(&rt1->dst);
 		}
 		break;
 	}
@@ -753,11 +753,11 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
 				if (!memcmp(&rt1->rt6i_gateway, &rt2->rt6i_gateway,
 					    sizeof(rt1->rt6i_gateway)) &&
-				    rt1->u.dst.dev == rt2->u.dst.dev)
+				    rt1->dst.dev == rt2->dst.dev)
 					ret = 1;
-				dst_release(&rt2->u.dst);
+				dst_release(&rt2->dst);
 			}
-			dst_release(&rt1->u.dst);
+			dst_release(&rt1->dst);
 		}
 		break;
 	}
@@ -1152,7 +1152,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
       drop:
 	spin_unlock_bh(&nf_h323_lock);
 	if (net_ratelimit())
-		printk("nf_ct_q931: packet dropped\n");
+		pr_info("nf_ct_q931: packet dropped\n");
 	return NF_DROP;
 }
 
@@ -1727,7 +1727,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
       drop:
 	spin_unlock_bh(&nf_h323_lock);
 	if (net_ratelimit())
-		printk("nf_ct_ras: packet dropped\n");
+		pr_info("nf_ct_ras: packet dropped\n");
 	return NF_DROP;
 }
 

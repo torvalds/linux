@@ -30,6 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <mach/hardware.h>
 
 #define MODULE_NAME "PNX4008-WDT: "

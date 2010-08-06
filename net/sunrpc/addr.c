@@ -18,6 +18,7 @@
 
 #include <net/ipv6.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/slab.h>
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 

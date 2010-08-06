@@ -25,6 +25,7 @@
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <linux/io.h>
 
@@ -35,8 +36,8 @@
 #include "niu.h"
 
 #define DRV_MODULE_NAME		"niu"
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"Nov 14, 2008"
+#define DRV_MODULE_VERSION	"1.1"
+#define DRV_MODULE_RELDATE	"Apr 22, 2010"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -3329,10 +3330,12 @@ static struct page *niu_find_rxpage(struct rx_ring_info *rp, u64 addr,
 	for (; (p = *pp) != NULL; pp = (struct page **) &p->mapping) {
 		if (p->index == addr) {
 			*link = pp;
-			break;
+			goto found;
 		}
 	}
+	BUG();
 
+found:
 	return p;
 }
 
@@ -3443,6 +3446,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 			      struct rx_ring_info *rp)
 {
 	unsigned int index = rp->rcr_index;
+	struct rx_pkt_hdr1 *rh;
 	struct sk_buff *skb;
 	int len, num_rcr;
 
@@ -3476,9 +3480,6 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 		if (num_rcr == 1) {
 			int ptype;
 
-			off += 2;
-			append_size -= 2;
-
 			ptype = (val >> RCR_ENTRY_PKT_TYPE_SHIFT);
 			if ((ptype == RCR_PKT_TYPE_TCP ||
 			     ptype == RCR_PKT_TYPE_UDP) &&
@@ -3487,8 +3488,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			else
 				skb->ip_summed = CHECKSUM_NONE;
-		}
-		if (!(val & RCR_ENTRY_MULTI))
+		} else if (!(val & RCR_ENTRY_MULTI))
 			append_size = len - skb->len;
 
 		niu_rx_skb_append(skb, page, off, append_size);
@@ -3509,8 +3509,17 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 	}
 	rp->rcr_index = index;
 
-	skb_reserve(skb, NET_IP_ALIGN);
-	__pskb_pull_tail(skb, min(len, VLAN_ETH_HLEN));
+	len += sizeof(*rh);
+	len = min_t(int, len, sizeof(*rh) + VLAN_ETH_HLEN);
+	__pskb_pull_tail(skb, len);
+
+	rh = (struct rx_pkt_hdr1 *) skb->data;
+	if (np->dev->features & NETIF_F_RXHASH)
+		skb->rxhash = ((u32)rh->hashval2_0 << 24 |
+			       (u32)rh->hashval2_1 << 16 |
+			       (u32)rh->hashval1_1 << 8 |
+			       (u32)rh->hashval1_2 << 0);
+	skb_pull(skb, sizeof(*rh));
 
 	rp->rx_packets++;
 	rp->rx_bytes += skb->len;
@@ -4945,7 +4954,9 @@ static int niu_init_one_rx_channel(struct niu *np, struct rx_ring_info *rp)
 	      RX_DMA_CTL_STAT_RCRTO |
 	      RX_DMA_CTL_STAT_RBR_EMPTY));
 	nw64(RXDMA_CFIG1(channel), rp->mbox_dma >> 32);
-	nw64(RXDMA_CFIG2(channel), (rp->mbox_dma & 0x00000000ffffffc0));
+	nw64(RXDMA_CFIG2(channel),
+	     ((rp->mbox_dma & RXDMA_CFIG2_MBADDR_L) |
+	      RXDMA_CFIG2_FULL_HDR));
 	nw64(RBR_CFIG_A(channel),
 	     ((u64)rp->rbr_table_size << RBR_CFIG_A_LEN_SHIFT) |
 	     (rp->rbr_dma & (RBR_CFIG_A_STADDR_BASE | RBR_CFIG_A_STADDR)));
@@ -6313,7 +6324,6 @@ static void niu_set_rx_mode(struct net_device *dev)
 {
 	struct niu *np = netdev_priv(dev);
 	int i, alt_cnt, err;
-	struct dev_addr_list *addr;
 	struct netdev_hw_addr *ha;
 	unsigned long flags;
 	u16 hash[16] = { 0, };
@@ -6365,8 +6375,8 @@ static void niu_set_rx_mode(struct net_device *dev)
 		for (i = 0; i < 16; i++)
 			hash[i] = 0xffff;
 	} else if (!netdev_mc_empty(dev)) {
-		netdev_for_each_mc_addr(addr, dev) {
-			u32 crc = ether_crc_le(ETH_ALEN, addr->da_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 crc = ether_crc_le(ETH_ALEN, ha->addr);
 
 			crc >>= 24;
 			hash[crc >> 4] |= (1 << (15 - (crc & 0xf)));
@@ -7910,6 +7920,11 @@ static int niu_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int niu_set_flags(struct net_device *dev, u32 data)
+{
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_RXHASH);
+}
+
 static const struct ethtool_ops niu_ethtool_ops = {
 	.get_drvinfo		= niu_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -7926,6 +7941,8 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.phys_id		= niu_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
+	.set_flags		= niu_set_flags,
+	.get_flags		= ethtool_op_get_flags,
 };
 
 static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
@@ -9093,7 +9110,7 @@ static int __devinit niu_n2_irq_init(struct niu *np, u8 *ldg_num_map)
 	const u32 *int_prop;
 	int i;
 
-	int_prop = of_get_property(op->node, "interrupts", NULL);
+	int_prop = of_get_property(op->dev.of_node, "interrupts", NULL);
 	if (!int_prop)
 		return -ENODEV;
 
@@ -9244,7 +9261,7 @@ static int __devinit niu_get_of_props(struct niu *np)
 	int prop_len;
 
 	if (np->parent->plat_type == PLAT_TYPE_NIU)
-		dp = np->op->node;
+		dp = np->op->dev.of_node;
 	else
 		dp = pci_device_to_OF_node(np->pdev);
 
@@ -9754,6 +9771,12 @@ static void __devinit niu_device_announce(struct niu *np)
 	}
 }
 
+static void __devinit niu_set_basic_features(struct net_device *dev)
+{
+	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM |
+			  NETIF_F_GRO | NETIF_F_RXHASH);
+}
+
 static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
@@ -9838,7 +9861,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		}
 	}
 
-	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM);
+	niu_set_basic_features(dev);
 
 	np->regs = pci_ioremap_bar(pdev, 0);
 	if (!np->regs) {
@@ -10055,10 +10078,10 @@ static int __devinit niu_of_probe(struct of_device *op,
 
 	niu_driver_version();
 
-	reg = of_get_property(op->node, "reg", NULL);
+	reg = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!reg) {
 		dev_err(&op->dev, "%s: No 'reg' property, aborting\n",
-			op->node->full_name);
+			op->dev.of_node->full_name);
 		return -ENODEV;
 	}
 
@@ -10071,7 +10094,7 @@ static int __devinit niu_of_probe(struct of_device *op,
 	np = netdev_priv(dev);
 
 	memset(&parent_id, 0, sizeof(parent_id));
-	parent_id.of = of_get_parent(op->node);
+	parent_id.of = of_get_parent(op->dev.of_node);
 
 	np->parent = niu_get_parent(np, &parent_id,
 				    PLAT_TYPE_NIU);
@@ -10080,7 +10103,7 @@ static int __devinit niu_of_probe(struct of_device *op,
 		goto err_out_free_dev;
 	}
 
-	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM);
+	niu_set_basic_features(dev);
 
 	np->regs = of_ioremap(&op->resource[1], 0,
 			      resource_size(&op->resource[1]),
@@ -10206,8 +10229,11 @@ static const struct of_device_id niu_match[] = {
 MODULE_DEVICE_TABLE(of, niu_match);
 
 static struct of_platform_driver niu_of_driver = {
-	.name		= "niu",
-	.match_table	= niu_match,
+	.driver = {
+		.name = "niu",
+		.owner = THIS_MODULE,
+		.of_match_table = niu_match,
+	},
 	.probe		= niu_of_probe,
 	.remove		= __devexit_p(niu_of_remove),
 };

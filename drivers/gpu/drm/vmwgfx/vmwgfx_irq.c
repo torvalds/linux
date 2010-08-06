@@ -64,22 +64,33 @@ static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t sequence)
 	return (busy == 0);
 }
 
+void vmw_update_sequence(struct vmw_private *dev_priv,
+			 struct vmw_fifo_state *fifo_state)
+{
+	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+
+	uint32_t sequence = ioread32(fifo_mem + SVGA_FIFO_FENCE);
+
+	if (dev_priv->last_read_sequence != sequence) {
+		dev_priv->last_read_sequence = sequence;
+		vmw_fence_pull(&fifo_state->fence_queue, sequence);
+	}
+}
 
 bool vmw_fence_signaled(struct vmw_private *dev_priv,
 			uint32_t sequence)
 {
-	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	struct vmw_fifo_state *fifo_state;
 	bool ret;
 
 	if (likely(dev_priv->last_read_sequence - sequence < VMW_FENCE_WRAP))
 		return true;
 
-	dev_priv->last_read_sequence = ioread32(fifo_mem + SVGA_FIFO_FENCE);
+	fifo_state = &dev_priv->fifo;
+	vmw_update_sequence(dev_priv, fifo_state);
 	if (likely(dev_priv->last_read_sequence - sequence < VMW_FENCE_WRAP))
 		return true;
 
-	fifo_state = &dev_priv->fifo;
 	if (!(fifo_state->capabilities & SVGA_FIFO_CAP_FENCE) &&
 	    vmw_fifo_idle(dev_priv, sequence))
 		return true;

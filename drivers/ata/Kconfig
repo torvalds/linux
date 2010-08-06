@@ -57,6 +57,8 @@ config SATA_PMP
 	  This option adds support for SATA Port Multipliers
 	  (the SATA version of an ethernet hub, or SAS expander).
 
+comment "Controllers with non-SFF native interface"
+
 config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on PCI
@@ -65,11 +67,11 @@ config SATA_AHCI
 
 	  If unsure, say N.
 
-config SATA_SIL24
-	tristate "Silicon Image 3124/3132 SATA support"
-	depends on PCI
+config SATA_AHCI_PLATFORM
+	tristate "Platform AHCI SATA support"
 	help
-	  This option enables support for Silicon Image 3124/3132 Serial ATA.
+	  This option enables support for Platform AHCI Serial ATA
+	  controllers.
 
 	  If unsure, say N.
 
@@ -79,6 +81,20 @@ config SATA_FSL
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
 	  It can be found on MPC837x and MPC8315.
+
+	  If unsure, say N.
+
+config SATA_INIC162X
+	tristate "Initio 162x SATA support"
+	depends on PCI
+	help
+	  This option enables support for Initio 162x Serial ATA.
+
+config SATA_SIL24
+	tristate "Silicon Image 3124/3132 SATA support"
+	depends on PCI
+	help
+	  This option enables support for Silicon Image 3124/3132 Serial ATA.
 
 	  If unsure, say N.
 
@@ -102,14 +118,64 @@ config ATA_SFF
 
 if ATA_SFF
 
-config SATA_SVW
-	tristate "ServerWorks Frodo / Apple K2 SATA support"
+comment "SFF controllers with custom DMA interface"
+
+config PDC_ADMA
+	tristate "Pacific Digital ADMA support"
 	depends on PCI
 	help
-	  This option enables support for Broadcom/Serverworks/Apple K2
-	  SATA support.
+	  This option enables support for Pacific Digital ADMA controllers
 
 	  If unsure, say N.
+
+config PATA_MPC52xx
+	tristate "Freescale MPC52xx SoC internal IDE"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select PPC_BESTCOMM_ATA
+	help
+	  This option enables support for integrated IDE controller
+	  of the Freescale MPC52xx SoC.
+
+	  If unsure, say N.
+
+config PATA_OCTEON_CF
+	tristate "OCTEON Boot Bus Compact Flash support"
+	depends on CPU_CAVIUM_OCTEON
+	help
+	  This option enables a polled compact flash driver for use with
+	  compact flash cards attached to the OCTEON boot bus.
+
+	  If unsure, say N.
+
+config SATA_QSTOR
+	tristate "Pacific Digital SATA QStor support"
+	depends on PCI
+	help
+	  This option enables support for Pacific Digital Serial ATA QStor.
+
+	  If unsure, say N.
+
+config SATA_SX4
+	tristate "Promise SATA SX4 support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for Promise Serial ATA SX4.
+
+	  If unsure, say N.
+
+config ATA_BMDMA
+	bool "ATA BMDMA support"
+	default y
+	help
+	  This option adds support for SFF ATA controllers with BMDMA
+	  capability.  BMDMA stands for bus-master DMA and is the
+	  de facto DMA interface for SFF controllers.
+
+	  If unsure, say Y.
+
+if ATA_BMDMA
+
+comment "SATA SFF controllers with BMDMA"
 
 config ATA_PIIX
 	tristate "Intel ESB, ICH, PIIX3, PIIX4 PATA/SATA support"
@@ -138,35 +204,11 @@ config SATA_NV
 
 	  If unsure, say N.
 
-config PDC_ADMA
-	tristate "Pacific Digital ADMA support"
-	depends on PCI
-	help
-	  This option enables support for Pacific Digital ADMA controllers
-
-	  If unsure, say N.
-
-config SATA_QSTOR
-	tristate "Pacific Digital SATA QStor support"
-	depends on PCI
-	help
-	  This option enables support for Pacific Digital Serial ATA QStor.
-
-	  If unsure, say N.
-
 config SATA_PROMISE
 	tristate "Promise SATA TX2/TX4 support"
 	depends on PCI
 	help
 	  This option enables support for Promise Serial ATA TX2/TX4.
-
-	  If unsure, say N.
-
-config SATA_SX4
-	tristate "Promise SATA SX4 support (Experimental)"
-	depends on PCI && EXPERIMENTAL
-	help
-	  This option enables support for Promise Serial ATA SX4.
 
 	  If unsure, say N.
 
@@ -187,6 +229,15 @@ config SATA_SIS
 	  SiS 964/965/966/180 and Parallel ATA on SiS 180.
 	  The PATA support for SiS 180 requires additionally to
 	  enable the PATA_SIS driver in the config.
+	  If unsure, say N.
+
+config SATA_SVW
+	tristate "ServerWorks Frodo / Apple K2 SATA support"
+	depends on PCI
+	help
+	  This option enables support for Broadcom/Serverworks/Apple K2
+	  SATA support.
+
 	  If unsure, say N.
 
 config SATA_ULI
@@ -213,20 +264,7 @@ config SATA_VITESSE
 
 	  If unsure, say N.
 
-config SATA_INIC162X
-	tristate "Initio 162x SATA support"
-	depends on PCI
-	help
-	  This option enables support for Initio 162x Serial ATA.
-
-config PATA_ACPI
-	tristate "ACPI firmware driver for PATA"
-	depends on ATA_ACPI
-	help
-	  This option enables an ACPI method driver which drives
-	  motherboard PATA controller interfaces through the ACPI
-	  firmware in the BIOS. This driver can sometimes handle
-	  otherwise unsupported hardware.
+comment "PATA SFF controllers with BMDMA"
 
 config PATA_ALI
 	tristate "ALi PATA support"
@@ -254,24 +292,6 @@ config PATA_ARTOP
 
 	  If unsure, say N.
 
-config PATA_ATP867X
-	tristate "ARTOP/Acard ATP867X PATA support"
-	depends on PCI
-	help
-	  This option enables support for ARTOP/Acard ATP867X PATA
-	  controllers.
-
-	  If unsure, say N.
-
-config PATA_AT32
-	tristate "Atmel AVR32 PATA support (Experimental)"
-	depends on AVR32 && PLATFORM_AT32AP && EXPERIMENTAL
-	help
-	  This option enables support for the IDE devices on the
-	  Atmel AT32AP platform.
-
-	  If unsure, say N.
-
 config PATA_ATIIXP
 	tristate "ATI PATA support"
 	depends on PCI
@@ -281,13 +301,21 @@ config PATA_ATIIXP
 
 	  If unsure, say N.
 
-config PATA_CMD640_PCI
-	tristate "CMD640 PCI PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+config PATA_ATP867X
+	tristate "ARTOP/Acard ATP867X PATA support"
+	depends on PCI
 	help
-	  This option enables support for the CMD640 PCI IDE
-	  interface chip. Only the primary channel is currently
-	  supported.
+	  This option enables support for ARTOP/Acard ATP867X PATA
+	  controllers.
+
+	  If unsure, say N.
+
+config PATA_BF54X
+	tristate "Blackfin 54x ATAPI support"
+	depends on BF542 || BF548 || BF549
+	help
+	  This option enables support for the built-in ATAPI controller on
+	  Blackfin 54x family chips.
 
 	  If unsure, say N.
 
@@ -354,15 +382,6 @@ config PATA_EFAR
 
 	  If unsure, say N.
 
-config ATA_GENERIC
-	tristate "Generic ATA support"
-	depends on PCI
-	help
-	  This option enables support for generic BIOS configured
-	  ATA controllers via the new ATA layer
-
-	  If unsure, say N.
-
 config PATA_HPT366
 	tristate "HPT 366/368 PATA support"
 	depends on PCI
@@ -407,12 +426,20 @@ config PATA_HPT3X3_DMA
 	  controllers. Enable with care as there are still some
 	  problems with DMA on this chipset.
 
-config PATA_ISAPNP
-	tristate "ISA Plug and Play PATA support"
-	depends on ISAPNP
+config PATA_ICSIDE
+	tristate "Acorn ICS PATA support"
+	depends on ARM && ARCH_ACORN
 	help
-	  This option enables support for ISA plug & play ATA
-	  controllers such as those found on old soundcards.
+	  On Acorn systems, say Y here if you wish to use the ICS PATA
+	  interface card.  This is not required for ICS partition support.
+	  If you are unsure, say N to this.
+
+config PATA_IT8213
+	tristate "IT8213 PATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the ITE 821 PATA
+          controllers via the new ATA layer.
 
 	  If unsure, say N.
 
@@ -426,15 +453,6 @@ config PATA_IT821X
 
 	  If unsure, say N.
 
-config PATA_IT8213
-	tristate "IT8213 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
-	help
-	  This option enables support for the ITE 821 PATA
-          controllers via the new ATA layer.
-
-	  If unsure, say N.
-
 config PATA_JMICRON
 	tristate "JMicron PATA support"
 	depends on PCI
@@ -444,23 +462,14 @@ config PATA_JMICRON
 
 	  If unsure, say N.
 
-config PATA_LEGACY
-	tristate "Legacy ISA PATA support (Experimental)"
-	depends on (ISA || PCI)  && EXPERIMENTAL
+config PATA_MACIO
+	tristate "Apple PowerMac/PowerBook internal 'MacIO' IDE"
+	depends on PPC_PMAC
 	help
-	  This option enables support for ISA/VLB/PCI bus legacy PATA
-	  ports and allows them to be accessed via the new ATA layer.
-
-	  If unsure, say N.
-
-config PATA_TRIFLEX
-	tristate "Compaq Triflex PATA support"
-	depends on PCI
-	help
-	  Enable support for the Compaq 'Triflex' IDE controller as found
-	  on many Compaq Pentium-Pro systems, via the new ATA layer.
-
-	  If unsure, say N.
+	  Most IDE capable PowerMacs have IDE busses driven by a variant
+          of this controller which is part of the Apple chipset used on
+          most PowerMac models. Some models have multiple busses using
+          different chipsets, though generally, MacIO is one of them.
 
 config PATA_MARVELL
 	tristate "Marvell PATA support via legacy mode"
@@ -470,32 +479,6 @@ config PATA_MARVELL
 	  controllers. If you wish to use only the SATA ports then select
 	  the AHCI driver alone. If you wish to the use the PATA port or
 	  both SATA and PATA include this driver.
-
-	  If unsure, say N.
-
-config PATA_MPC52xx
-	tristate "Freescale MPC52xx SoC internal IDE"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select PPC_BESTCOMM_ATA
-	help
-	  This option enables support for integrated IDE controller
-	  of the Freescale MPC52xx SoC.
-
-	  If unsure, say N.
-
-config PATA_MPIIX
-	tristate "Intel PATA MPIIX support"
-	depends on PCI
-	help
-	  This option enables support for MPIIX PATA support.
-
-	  If unsure, say N.
-
-config PATA_OLDPIIX
-	tristate "Intel PATA old PIIX support"
-	depends on PCI
-	help
-	  This option enables support for early PIIX PATA support.
 
 	  If unsure, say N.
 
@@ -517,15 +500,6 @@ config PATA_NINJA32
 
 	  If unsure, say N.
 
-config PATA_NS87410
-	tristate "Nat Semi NS87410 PATA support"
-	depends on PCI
-	help
-	  This option enables support for the National Semiconductor
-	  NS87410 PCI-IDE controller.
-
-	  If unsure, say N.
-
 config PATA_NS87415
 	tristate "Nat Semi NS87415 PATA support"
 	depends on PCI
@@ -535,12 +509,11 @@ config PATA_NS87415
 
 	  If unsure, say N.
 
-config PATA_OPTI
-	tristate "OPTI621/6215 PATA support (Very Experimental)"
-	depends on PCI && EXPERIMENTAL
+config PATA_OLDPIIX
+	tristate "Intel PATA old PIIX support"
+	depends on PCI
 	help
-	  This option enables full PIO support for the early Opti ATA
-	  controllers found on some old motherboards.
+	  This option enables support for early PIIX PATA support.
 
 	  If unsure, say N.
 
@@ -551,24 +524,6 @@ config PATA_OPTIDMA
 	  This option enables DMA/PIO support for the later OPTi
 	  controllers found on some old motherboards and in some
 	  laptops.
-
-	  If unsure, say N.
-
-config PATA_PALMLD
-	tristate "Palm LifeDrive PATA support"
-	depends on MACH_PALMLD
-	help
-	  This option enables support for Palm LifeDrive's internal ATA
-	  port via the new ATA layer.
-
-	  If unsure, say N.
-
-config PATA_PCMCIA
-	tristate "PCMCIA PATA support"
-	depends on PCMCIA
-	help
-	  This option enables support for PCMCIA ATA interfaces, including
-	  compact flash card adapters via the new ATA layer.
 
 	  If unsure, say N.
 
@@ -589,27 +544,12 @@ config PATA_PDC_OLD
 
 	  If unsure, say N.
 
-config PATA_QDI
-	tristate "QDI VLB PATA support"
-	depends on ISA
-	help
-	  Support for QDI 6500 and 6580 PATA controllers on VESA local bus.
-
 config PATA_RADISYS
 	tristate "RADISYS 82600 PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
 	help
 	  This option enables support for the RADISYS 82600
 	  PATA controllers via the new ATA layer
-
-	  If unsure, say N.
-
-config PATA_RB532
-	tristate "RouterBoard 532 PATA CompactFlash support"
-	depends on MIKROTIK_RB532
-	help
-	  This option enables support for the RouterBoard 532
-	  PATA CompactFlash controller.
 
 	  If unsure, say N.
 
@@ -623,21 +563,30 @@ config PATA_RDC
 
 	  If unsure, say N.
 
-config PATA_RZ1000
-	tristate "PC Tech RZ1000 PATA support"
-	depends on PCI
-	help
-	  This option enables basic support for the PC Tech RZ1000/1
-	  PATA controllers via the new ATA layer
-
-	  If unsure, say N.
-
 config PATA_SC1200
 	tristate "SC1200 PATA support"
 	depends on PCI
 	help
 	  This option enables support for the NatSemi/AMD SC1200 SoC
 	  companion chip used with the Geode processor family.
+
+	  If unsure, say N.
+
+config PATA_SCC
+	tristate "Toshiba's Cell Reference Set IDE support"
+	depends on PCI && PPC_CELLEB
+	help
+	  This option enables support for the built-in IDE controller on
+	  Toshiba Cell Reference Board.
+
+	  If unsure, say N.
+
+config PATA_SCH
+	tristate "Intel SCH PATA support"
+	depends on PCI
+	help
+	  This option enables support for Intel SCH PATA on the Intel
+	  SCH (US15W, US15L, UL11L) series host controllers.
 
 	  If unsure, say N.
 
@@ -675,6 +624,15 @@ config PATA_TOSHIBA
 
 	  If unsure, say N.
 
+config PATA_TRIFLEX
+	tristate "Compaq Triflex PATA support"
+	depends on PCI
+	help
+	  Enable support for the Compaq 'Triflex' IDE controller as found
+	  on many Compaq Pentium-Pro systems, via the new ATA layer.
+
+	  If unsure, say N.
+
 config PATA_VIA
 	tristate "VIA PATA support"
 	depends on PCI
@@ -693,12 +651,99 @@ config PATA_WINBOND
 
 	  If unsure, say N.
 
-config PATA_WINBOND_VLB
-	tristate "Winbond W83759A VLB PATA support (Experimental)"
-	depends on ISA && EXPERIMENTAL
+endif # ATA_BMDMA
+
+comment "PIO-only SFF controllers"
+
+config PATA_AT32
+	tristate "Atmel AVR32 PATA support (Experimental)"
+	depends on AVR32 && PLATFORM_AT32AP && EXPERIMENTAL
 	help
-	  Support for the Winbond W83759A controller on Vesa Local Bus
-	  systems.
+	  This option enables support for the IDE devices on the
+	  Atmel AT32AP platform.
+
+	  If unsure, say N.
+
+config PATA_AT91
+	tristate "PATA support for AT91SAM9260"
+	depends on ARM && ARCH_AT91
+	help
+	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
+
+	  If unsure, say N.
+
+config PATA_CMD640_PCI
+	tristate "CMD640 PCI PATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the CMD640 PCI IDE
+	  interface chip. Only the primary channel is currently
+	  supported.
+
+	  If unsure, say N.
+
+config PATA_ISAPNP
+	tristate "ISA Plug and Play PATA support"
+	depends on ISAPNP
+	help
+	  This option enables support for ISA plug & play ATA
+	  controllers such as those found on old soundcards.
+
+	  If unsure, say N.
+
+config PATA_IXP4XX_CF
+	tristate "IXP4XX Compact Flash support"
+	depends on ARCH_IXP4XX
+	help
+	  This option enables support for a Compact Flash connected on
+	  the ixp4xx expansion bus. This driver had been written for
+	  Loft/Avila boards in mind but can work with others.
+
+	  If unsure, say N.
+
+config PATA_MPIIX
+	tristate "Intel PATA MPIIX support"
+	depends on PCI
+	help
+	  This option enables support for MPIIX PATA support.
+
+	  If unsure, say N.
+
+config PATA_NS87410
+	tristate "Nat Semi NS87410 PATA support"
+	depends on PCI
+	help
+	  This option enables support for the National Semiconductor
+	  NS87410 PCI-IDE controller.
+
+	  If unsure, say N.
+
+config PATA_OPTI
+	tristate "OPTI621/6215 PATA support (Very Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables full PIO support for the early Opti ATA
+	  controllers found on some old motherboards.
+
+	  If unsure, say N.
+
+config PATA_PALMLD
+	tristate "Palm LifeDrive PATA support"
+	depends on MACH_PALMLD
+	help
+	  This option enables support for Palm LifeDrive's internal ATA
+	  port via the new ATA layer.
+
+	  If unsure, say N.
+
+config PATA_PCMCIA
+	tristate "PCMCIA PATA support"
+	depends on PCMCIA
+	help
+	  This option enables support for PCMCIA ATA interfaces, including
+	  compact flash card adapters via the new ATA layer.
+
+	  If unsure, say N.
 
 config HAVE_PATA_PLATFORM
 	bool
@@ -717,14 +762,6 @@ config PATA_PLATFORM
 
 	  If unsure, say N.
 
-config PATA_AT91
-	tristate "PATA support for AT91SAM9260"
-	depends on ARM && ARCH_AT91
-	help
-	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
-
-	  If unsure, say N.
-
 config PATA_OF_PLATFORM
 	tristate "OpenFirmware platform device PATA support"
 	depends on PATA_PLATFORM && PPC_OF
@@ -735,69 +772,65 @@ config PATA_OF_PLATFORM
 
 	  If unsure, say N.
 
-config PATA_ICSIDE
-	tristate "Acorn ICS PATA support"
-	depends on ARM && ARCH_ACORN
+config PATA_QDI
+	tristate "QDI VLB PATA support"
+	depends on ISA
 	help
-	  On Acorn systems, say Y here if you wish to use the ICS PATA
-	  interface card.  This is not required for ICS partition support.
-	  If you are unsure, say N to this.
+	  Support for QDI 6500 and 6580 PATA controllers on VESA local bus.
 
-config PATA_IXP4XX_CF
-	tristate "IXP4XX Compact Flash support"
-	depends on ARCH_IXP4XX
+config PATA_RB532
+	tristate "RouterBoard 532 PATA CompactFlash support"
+	depends on MIKROTIK_RB532
 	help
-	  This option enables support for a Compact Flash connected on
-	  the ixp4xx expansion bus. This driver had been written for
-	  Loft/Avila boards in mind but can work with others.
+	  This option enables support for the RouterBoard 532
+	  PATA CompactFlash controller.
 
 	  If unsure, say N.
 
-config PATA_OCTEON_CF
-	tristate "OCTEON Boot Bus Compact Flash support"
-	depends on CPU_CAVIUM_OCTEON
-	help
-	  This option enables a polled compact flash driver for use with
-	  compact flash cards attached to the OCTEON boot bus.
-
-	  If unsure, say N.
-
-config PATA_SCC
-	tristate "Toshiba's Cell Reference Set IDE support"
-	depends on PCI && PPC_CELLEB
-	help
-	  This option enables support for the built-in IDE controller on
-	  Toshiba Cell Reference Board.
-
-	  If unsure, say N.
-
-config PATA_SCH
-	tristate "Intel SCH PATA support"
+config PATA_RZ1000
+	tristate "PC Tech RZ1000 PATA support"
 	depends on PCI
 	help
-	  This option enables support for Intel SCH PATA on the Intel
-	  SCH (US15W, US15L, UL11L) series host controllers.
+	  This option enables basic support for the PC Tech RZ1000/1
+	  PATA controllers via the new ATA layer
 
 	  If unsure, say N.
 
-config PATA_BF54X
-	tristate "Blackfin 54x ATAPI support"
-	depends on BF542 || BF548 || BF549
+config PATA_WINBOND_VLB
+	tristate "Winbond W83759A VLB PATA support (Experimental)"
+	depends on ISA && EXPERIMENTAL
 	help
-	  This option enables support for the built-in ATAPI controller on
-	  Blackfin 54x family chips.
+	  Support for the Winbond W83759A controller on Vesa Local Bus
+	  systems.
+
+comment "Generic fallback / legacy drivers"
+
+config PATA_ACPI
+	tristate "ACPI firmware driver for PATA"
+	depends on ATA_ACPI && ATA_BMDMA
+	help
+	  This option enables an ACPI method driver which drives
+	  motherboard PATA controller interfaces through the ACPI
+	  firmware in the BIOS. This driver can sometimes handle
+	  otherwise unsupported hardware.
+
+config ATA_GENERIC
+	tristate "Generic ATA support"
+	depends on PCI && ATA_BMDMA
+	help
+	  This option enables support for generic BIOS configured
+	  ATA controllers via the new ATA layer
 
 	  If unsure, say N.
 
-config PATA_MACIO
-	tristate "Apple PowerMac/PowerBook internal 'MacIO' IDE"
-	depends on PPC_PMAC
+config PATA_LEGACY
+	tristate "Legacy ISA PATA support (Experimental)"
+	depends on (ISA || PCI) && EXPERIMENTAL
 	help
-	  Most IDE capable PowerMacs have IDE busses driven by a variant
-          of this controller which is part of the Apple chipset used on
-          most PowerMac models. Some models have multiple busses using
-          different chipsets, though generally, MacIO is one of them.
+	  This option enables support for ISA/VLB/PCI bus legacy PATA
+	  ports and allows them to be accessed via the new ATA layer.
 
+	  If unsure, say N.
 
 endif # ATA_SFF
 endif # ATA

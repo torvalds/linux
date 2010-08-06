@@ -916,9 +916,9 @@ affs_truncate(struct inode *inode)
 	affs_free_prealloc(inode);
 }
 
-int affs_file_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int affs_file_fsync(struct file *filp, int datasync)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int ret, err;
 
 	ret = write_inode_now(inode, 0);

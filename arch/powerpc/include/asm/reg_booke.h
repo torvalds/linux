@@ -4,6 +4,12 @@
  * are not true Book E PowerPCs, they borrowed a number of features
  * before Book E was finalized, and are included here as well.  Unfortunatly,
  * they sometimes used different locations than true Book E CPUs did.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation.
+ *
+ * Copyright 2009-2010 Freescale Semiconductor, Inc.
  */
 #ifdef __KERNEL__
 #ifndef __ASM_POWERPC_REG_BOOKE_H__
@@ -88,6 +94,7 @@
 #define SPRN_IVOR35	0x213	/* Interrupt Vector Offset Register 35 */
 #define SPRN_IVOR36	0x214	/* Interrupt Vector Offset Register 36 */
 #define SPRN_IVOR37	0x215	/* Interrupt Vector Offset Register 37 */
+#define SPRN_MCARU	0x239	/* Machine Check Address Register Upper */
 #define SPRN_MCSRR0	0x23A	/* Machine Check Save and Restore Register 0 */
 #define SPRN_MCSRR1	0x23B	/* Machine Check Save and Restore Register 1 */
 #define SPRN_MCSR	0x23C	/* Machine Check Status Register */
@@ -191,9 +198,16 @@
 #define MCSR_DCFP	0x01000000 /* D-Cache Flush Parity Error */
 #define MCSR_IMPE	0x00800000 /* Imprecise Machine Check Exception */
 
+#define PPC47x_MCSR_GPR	0x01000000 /* GPR parity error */
+#define PPC47x_MCSR_FPR	0x00800000 /* FPR parity error */
+#define PPC47x_MCSR_IPR	0x00400000 /* Imprecise Machine Check Exception */
+
 #ifdef CONFIG_E500
+/* All e500 */
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
+
+/* e500v1/v2 */
 #define MCSR_DCP_PERR 	0x20000000UL /* D-Cache Push Parity Error */
 #define MCSR_DCPERR 	0x10000000UL /* D-Cache Parity Error */
 #define MCSR_BUS_IAERR 	0x00000080UL /* Instruction Address Error */
@@ -205,12 +219,20 @@
 #define MCSR_BUS_IPERR 	0x00000002UL /* Instruction parity Error */
 #define MCSR_BUS_RPERR 	0x00000001UL /* Read parity Error */
 
-/* e500 parts may set unused bits in MCSR; mask these off */
-#define MCSR_MASK	(MCSR_MCP | MCSR_ICPERR | MCSR_DCP_PERR | \
-			MCSR_DCPERR | MCSR_BUS_IAERR | MCSR_BUS_RAERR | \
-			MCSR_BUS_WAERR | MCSR_BUS_IBERR | MCSR_BUS_RBERR | \
-			MCSR_BUS_WBERR | MCSR_BUS_IPERR | MCSR_BUS_RPERR)
+/* e500mc */
+#define MCSR_DCPERR_MC	0x20000000UL /* D-Cache Parity Error */
+#define MCSR_L2MMU_MHIT	0x04000000UL /* Hit on multiple TLB entries */
+#define MCSR_NMI	0x00100000UL /* Non-Maskable Interrupt */
+#define MCSR_MAV	0x00080000UL /* MCAR address valid */
+#define MCSR_MEA	0x00040000UL /* MCAR is effective address */
+#define MCSR_IF		0x00010000UL /* Instruction Fetch */
+#define MCSR_LD		0x00008000UL /* Load */
+#define MCSR_ST		0x00004000UL /* Store */
+#define MCSR_LDG	0x00002000UL /* Guarded Load */
+#define MCSR_TLBSYNC	0x00000002UL /* Multiple tlbsyncs detected */
+#define MCSR_BSL2_ERR	0x00000001UL /* Backside L2 cache error */
 #endif
+
 #ifdef CONFIG_E200
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
@@ -221,11 +243,6 @@
 #define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
 #define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
 					store or cache line push */
-
-/* e200 parts may set unused bits in MCSR; mask these off */
-#define MCSR_MASK	(MCSR_MCP | MCSR_CP_PERR | MCSR_CPERR | \
-			MCSR_EXCP_ERR | MCSR_BUS_IRERR | MCSR_BUS_DRERR | \
-			MCSR_BUS_WRERR)
 #endif
 
 /* Bit definitions for the DBSR. */
@@ -604,5 +621,25 @@
 #define DBCR_JOI	0x00000002	/* JTAG Serial Outbound Int. Enable */
 #define DBCR_JII	0x00000001	/* JTAG Serial Inbound Int. Enable */
 #endif /* 403GCX */
+
+/* Some 476 specific registers */
+#define SPRN_SSPCR		830
+#define SPRN_USPCR		831
+#define SPRN_ISPCR		829
+#define SPRN_MMUBE0		820
+#define MMUBE0_IBE0_SHIFT	24
+#define MMUBE0_IBE1_SHIFT	16
+#define MMUBE0_IBE2_SHIFT	8
+#define MMUBE0_VBE0		0x00000004
+#define MMUBE0_VBE1		0x00000002
+#define MMUBE0_VBE2		0x00000001
+#define SPRN_MMUBE1		821
+#define MMUBE1_IBE3_SHIFT	24
+#define MMUBE1_IBE4_SHIFT	16
+#define MMUBE1_IBE5_SHIFT	8
+#define MMUBE1_VBE3		0x00000004
+#define MMUBE1_VBE4		0x00000002
+#define MMUBE1_VBE5		0x00000001
+
 #endif /* __ASM_POWERPC_REG_BOOKE_H__ */
 #endif /* __KERNEL__ */

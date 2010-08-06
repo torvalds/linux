@@ -32,6 +32,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
+#include <linux/slab.h>
 
 #define MY_NAME	"acpi_pcihp"
 

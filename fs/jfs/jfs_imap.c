@@ -45,6 +45,7 @@
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
+#include <linux/slab.h>
 
 #include "jfs_incore.h"
 #include "jfs_inode.h"

@@ -25,11 +25,11 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/ip32/ip32_ints.h>
 #include <asm/ip32/mace.h>

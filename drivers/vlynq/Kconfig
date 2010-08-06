@@ -1,8 +1,8 @@
 menu "TI VLYNQ"
+	depends on AR7 && EXPERIMENTAL
 
 config VLYNQ
 	bool "TI VLYNQ bus support"
-	depends on AR7 && EXPERIMENTAL
 	help
 	  Support for Texas Instruments(R) VLYNQ bus.
 	  The VLYNQ bus is a high-speed, serial and packetized

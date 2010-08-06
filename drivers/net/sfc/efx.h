@@ -35,8 +35,8 @@ efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
 efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
-extern void efx_stop_queue(struct efx_nic *efx);
-extern void efx_wake_queue(struct efx_nic *efx);
+extern void efx_stop_queue(struct efx_channel *channel);
+extern void efx_wake_queue(struct efx_channel *channel);
 #define EFX_TXQ_SIZE 1024
 #define EFX_TXQ_MASK (EFX_TXQ_SIZE - 1)
 
@@ -47,12 +47,12 @@ extern void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_rx_strategy(struct efx_channel *channel);
 extern void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
-extern void efx_rx_work(struct work_struct *data);
+extern void efx_rx_slow_fill(unsigned long context);
 extern void __efx_rx_packet(struct efx_channel *channel,
 			    struct efx_rx_buffer *rx_buf, bool checksummed);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			  unsigned int len, bool checksummed, bool discard);
-extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
+extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 #define EFX_RXQ_SIZE 1024
 #define EFX_RXQ_MASK (EFX_RXQ_SIZE - 1)
 
@@ -106,8 +106,9 @@ extern unsigned int efx_monitor_interval;
 
 static inline void efx_schedule_channel(struct efx_channel *channel)
 {
-	EFX_TRACE(channel->efx, "channel %d scheduling NAPI poll on CPU%d\n",
-		  channel->channel, raw_smp_processor_id());
+	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
+		   "channel %d scheduling NAPI poll on CPU%d\n",
+		   channel->channel, raw_smp_processor_id());
 	channel->work_pending = true;
 
 	napi_schedule(&channel->napi_str);

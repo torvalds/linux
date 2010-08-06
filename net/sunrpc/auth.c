@@ -236,10 +236,15 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 
 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
 
-		/* Enforce a 60 second garbage collection moratorium */
-		if (time_in_range_open(cred->cr_expire, expired, jiffies) &&
+		if (nr_to_scan-- == 0)
+			break;
+		/*
+		 * Enforce a 60 second garbage collection moratorium
+		 * Note that the cred_unused list must be time-ordered.
+		 */
+		if (time_in_range(cred->cr_expire, expired, jiffies) &&
 		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
-			continue;
+			return 0;
 
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
@@ -252,29 +257,27 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 			get_rpccred(cred);
 			list_add_tail(&cred->cr_lru, free);
 			rpcauth_unhash_cred_locked(cred);
-			nr_to_scan--;
 		}
 		spin_unlock(cache_lock);
-		if (nr_to_scan == 0)
-			break;
 	}
-	return nr_to_scan;
+	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
 /*
  * Run memory cache shrinker.
  */
 static int
-rpcauth_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
+rpcauth_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	LIST_HEAD(free);
 	int res;
 
+	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+		return (nr_to_scan == 0) ? 0 : -1;
 	if (list_empty(&cred_unused))
 		return 0;
 	spin_lock(&rpc_credcache_lock);
-	nr_to_scan = rpcauth_prune_expired(&free, nr_to_scan);
-	res = (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
+	res = rpcauth_prune_expired(&free, nr_to_scan);
 	spin_unlock(&rpc_credcache_lock);
 	rpcauth_destroy_credlist(&free);
 	return res;

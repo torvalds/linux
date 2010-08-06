@@ -22,6 +22,7 @@
  */
 
 #include <linux/hash.h>
+#include <linux/slab.h>
 
 #include "af9015.h"
 #include "af9013.h"
@@ -734,7 +735,7 @@ error:
 
 struct af9015_setup {
 	unsigned int id;
-	struct dvb_usb_rc_key *rc_key_map;
+	struct ir_scancode *rc_key_map;
 	unsigned int rc_key_map_size;
 	u8 *ir_table;
 	unsigned int ir_table_size;
@@ -751,19 +752,19 @@ static const struct af9015_setup *af9015_setup_match(unsigned int id,
 
 static const struct af9015_setup af9015_setup_modparam[] = {
 	{ AF9015_REMOTE_A_LINK_DTU_M,
-		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
+		ir_codes_af9015_table_a_link, ARRAY_SIZE(ir_codes_af9015_table_a_link),
 		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
 	{ AF9015_REMOTE_MSI_DIGIVOX_MINI_II_V3,
-		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
+		ir_codes_af9015_table_msi, ARRAY_SIZE(ir_codes_af9015_table_msi),
 		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
 	{ AF9015_REMOTE_MYGICTV_U718,
-		af9015_rc_keys_mygictv, ARRAY_SIZE(af9015_rc_keys_mygictv),
+		ir_codes_af9015_table_mygictv, ARRAY_SIZE(ir_codes_af9015_table_mygictv),
 		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
 	{ AF9015_REMOTE_DIGITTRADE_DVB_T,
-		af9015_rc_keys_digittrade, ARRAY_SIZE(af9015_rc_keys_digittrade),
+		ir_codes_af9015_table_digittrade, ARRAY_SIZE(ir_codes_af9015_table_digittrade),
 		af9015_ir_table_digittrade, ARRAY_SIZE(af9015_ir_table_digittrade) },
 	{ AF9015_REMOTE_AVERMEDIA_KS,
-		af9015_rc_keys_avermedia, ARRAY_SIZE(af9015_rc_keys_avermedia),
+		ir_codes_af9015_table_avermedia, ARRAY_SIZE(ir_codes_af9015_table_avermedia),
 		af9015_ir_table_avermedia_ks, ARRAY_SIZE(af9015_ir_table_avermedia_ks) },
 	{ }
 };
@@ -771,32 +772,32 @@ static const struct af9015_setup af9015_setup_modparam[] = {
 /* don't add new entries here anymore, use hashes instead */
 static const struct af9015_setup af9015_setup_usbids[] = {
 	{ USB_VID_LEADTEK,
-		af9015_rc_keys_leadtek, ARRAY_SIZE(af9015_rc_keys_leadtek),
+		ir_codes_af9015_table_leadtek, ARRAY_SIZE(ir_codes_af9015_table_leadtek),
 		af9015_ir_table_leadtek, ARRAY_SIZE(af9015_ir_table_leadtek) },
 	{ USB_VID_VISIONPLUS,
-		af9015_rc_keys_twinhan, ARRAY_SIZE(af9015_rc_keys_twinhan),
+		ir_codes_af9015_table_twinhan, ARRAY_SIZE(ir_codes_af9015_table_twinhan),
 		af9015_ir_table_twinhan, ARRAY_SIZE(af9015_ir_table_twinhan) },
 	{ USB_VID_KWORLD_2, /* TODO: use correct rc keys */
-		af9015_rc_keys_twinhan, ARRAY_SIZE(af9015_rc_keys_twinhan),
+		ir_codes_af9015_table_twinhan, ARRAY_SIZE(ir_codes_af9015_table_twinhan),
 		af9015_ir_table_kworld, ARRAY_SIZE(af9015_ir_table_kworld) },
 	{ USB_VID_AVERMEDIA,
-		af9015_rc_keys_avermedia, ARRAY_SIZE(af9015_rc_keys_avermedia),
+		ir_codes_af9015_table_avermedia, ARRAY_SIZE(ir_codes_af9015_table_avermedia),
 		af9015_ir_table_avermedia, ARRAY_SIZE(af9015_ir_table_avermedia) },
 	{ USB_VID_MSI_2,
-		af9015_rc_keys_msi_digivox_iii, ARRAY_SIZE(af9015_rc_keys_msi_digivox_iii),
+		ir_codes_af9015_table_msi_digivox_iii, ARRAY_SIZE(ir_codes_af9015_table_msi_digivox_iii),
 		af9015_ir_table_msi_digivox_iii, ARRAY_SIZE(af9015_ir_table_msi_digivox_iii) },
 	{ }
 };
 
 static const struct af9015_setup af9015_setup_hashes[] = {
 	{ 0xb8feb708,
-		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
+		ir_codes_af9015_table_msi, ARRAY_SIZE(ir_codes_af9015_table_msi),
 		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
 	{ 0xa3703d00,
-		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
+		ir_codes_af9015_table_a_link, ARRAY_SIZE(ir_codes_af9015_table_a_link),
 		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
 	{ 0x9b7dc64e,
-		af9015_rc_keys_mygictv, ARRAY_SIZE(af9015_rc_keys_mygictv),
+		ir_codes_af9015_table_mygictv, ARRAY_SIZE(ir_codes_af9015_table_mygictv),
 		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
 	{ }
 };
@@ -835,8 +836,8 @@ static void af9015_set_remote_config(struct usb_device *udev,
 			} else if (udev->descriptor.idProduct ==
 				cpu_to_le16(USB_PID_TREKSTOR_DVBT)) {
 				table = &(const struct af9015_setup){ 0,
-					af9015_rc_keys_trekstor,
-					ARRAY_SIZE(af9015_rc_keys_trekstor),
+					ir_codes_af9015_table_trekstor,
+					ARRAY_SIZE(ir_codes_af9015_table_trekstor),
 					af9015_ir_table_trekstor,
 					ARRAY_SIZE(af9015_ir_table_trekstor)
 				};
@@ -846,8 +847,8 @@ static void af9015_set_remote_config(struct usb_device *udev,
 	}
 
 	if (table) {
-		props->rc_key_map = table->rc_key_map;
-		props->rc_key_map_size = table->rc_key_map_size;
+		props->rc.legacy.rc_key_map = table->rc_key_map;
+		props->rc.legacy.rc_key_map_size = table->rc_key_map_size;
 		af9015_config.ir_table = table->ir_table;
 		af9015_config.ir_table_size = table->ir_table_size;
 	}
@@ -877,8 +878,8 @@ static int af9015_read_config(struct usb_device *udev)
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED) {
-			af9015_properties[i].rc_key_map = NULL;
-			af9015_properties[i].rc_key_map_size  = 0;
+			af9015_properties[i].rc.legacy.rc_key_map = NULL;
+			af9015_properties[i].rc.legacy.rc_key_map_size  = 0;
 		} else
 			af9015_set_remote_config(udev, &af9015_properties[i]);
 	}
@@ -1062,7 +1063,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[8];
 	struct req_t req = {GET_IR_CODE, 0, 0, 0, 0, sizeof(buf), buf};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	int i, ret;
 
 	memset(buf, 0, sizeof(buf));
@@ -1074,10 +1075,10 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
 		    rc5_data(&keymap[i]) == buf[2]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 			break;
 		}
@@ -1296,6 +1297,9 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV20)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_TINYTWIN_2)},
 	{USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV2000DS)},
+/* 30 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_UB383_T)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1350,8 +1354,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1457,8 +1463,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1499,7 +1507,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					"(VS-DVB-T 395U)",
 				.cold_ids = {&af9015_usb_table[16],
 					     &af9015_usb_table[17],
-					     &af9015_usb_table[18], NULL},
+					     &af9015_usb_table[18],
+					     &af9015_usb_table[31], NULL},
 				.warm_ids = {NULL},
 			},
 			{
@@ -1563,12 +1572,14 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 7, /* max 9 */
+		.num_device_descs = 9, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
@@ -1605,6 +1616,17 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "Leadtek WinFast DTV2000DS",
 				.cold_ids = {&af9015_usb_table[29], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "KWorld USB DVB-T Stick Mobile " \
+					"(UB383-T)",
+				.cold_ids = {&af9015_usb_table[30], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "AverMedia AVerTV Volar M (A815Mac)",
+				.cold_ids = {&af9015_usb_table[32], NULL},
 				.warm_ids = {NULL},
 			},
 		}

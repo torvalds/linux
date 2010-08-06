@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -678,7 +679,7 @@ static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
  */
 int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 {
-	return state > PCI_D0 ?
+	return state >= PCI_D0 ?
 			pci_platform_power_transition(dev, state) : -EINVAL;
 }
 EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
@@ -713,10 +714,6 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		 * ignore the request if we're doing anything other than putting
 		 * it into D0 (which would only happen on boot).
 		 */
-		return 0;
-
-	/* Check if we're already there */
-	if (dev->current_state == state)
 		return 0;
 
 	__pci_start_power_transition(dev, state);
@@ -1196,7 +1193,7 @@ void pci_disable_enabled_device(struct pci_dev *dev)
  * anymore.  This only involves disabling PCI bus-mastering, if active.
  *
  * Note we don't actually disable the device until all callers of
- * pci_device_enable() have called pci_device_disable().
+ * pci_enable_device() have called pci_disable_device().
  */
 void
 pci_disable_device(struct pci_dev *dev)
@@ -1278,6 +1275,22 @@ bool pci_check_pme_status(struct pci_dev *dev)
 	return ret;
 }
 
+/*
+ * Time to wait before the system can be put into a sleep state after reporting
+ * a wakeup event signaled by a PCI device.
+ */
+#define PCI_WAKEUP_COOLDOWN	100
+
+/**
+ * pci_wakeup_event - Report a wakeup event related to a given PCI device.
+ * @dev: Device to report the wakeup event for.
+ */
+void pci_wakeup_event(struct pci_dev *dev)
+{
+	if (device_may_wakeup(&dev->dev))
+		pm_wakeup_event(&dev->dev, PCI_WAKEUP_COOLDOWN);
+}
+
 /**
  * pci_pme_wakeup - Wake up a PCI device if its PME Status bit is set.
  * @dev: Device to handle.
@@ -1288,8 +1301,10 @@ bool pci_check_pme_status(struct pci_dev *dev)
  */
 static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
 {
-	if (pci_check_pme_status(dev))
+	if (pci_check_pme_status(dev)) {
 		pm_request_resume(&dev->dev);
+		pci_wakeup_event(dev);
+	}
 	return 0;
 }
 
@@ -1506,7 +1521,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
  * pci_back_from_sleep - turn PCI device on during system-wide transition into working state
  * @dev: Device to handle.
  *
- * Disable device's sytem wake-up capability and put it into D0.
+ * Disable device's system wake-up capability and put it into D0.
  */
 int pci_back_from_sleep(struct pci_dev *dev)
 {
@@ -1634,7 +1649,6 @@ void pci_pm_init(struct pci_dev *dev)
 		 * let the user space enable it to wake up the system as needed.
 		 */
 		device_set_wakeup_capable(&dev->dev, true);
-		device_set_wakeup_enable(&dev->dev, false);
 		/* Disable the PME# generation functionality */
 		pci_pme_active(dev, false);
 	} else {
@@ -1658,7 +1672,6 @@ void platform_pci_wakeup_init(struct pci_dev *dev)
 		return;
 
 	device_set_wakeup_capable(&dev->dev, true);
-	device_set_wakeup_enable(&dev->dev, false);
 	platform_pci_sleep_wake(dev, false);
 }
 
@@ -2297,6 +2310,7 @@ void pci_msi_off(struct pci_dev *dev)
 		pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 	}
 }
+EXPORT_SYMBOL_GPL(pci_msi_off);
 
 #ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
@@ -2576,18 +2590,17 @@ EXPORT_SYMBOL_GPL(pci_reset_function);
  */
 int pcix_get_max_mmrbc(struct pci_dev *dev)
 {
-	int err, cap;
+	int cap;
 	u32 stat;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!cap)
 		return -EINVAL;
 
-	err = pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat);
-	if (err)
+	if (pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat))
 		return -EINVAL;
 
-	return (stat & PCI_X_STATUS_MAX_READ) >> 12;
+	return 512 << ((stat & PCI_X_STATUS_MAX_READ) >> 21);
 }
 EXPORT_SYMBOL(pcix_get_max_mmrbc);
 
@@ -2600,18 +2613,17 @@ EXPORT_SYMBOL(pcix_get_max_mmrbc);
  */
 int pcix_get_mmrbc(struct pci_dev *dev)
 {
-	int ret, cap;
-	u32 cmd;
+	int cap;
+	u16 cmd;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!cap)
 		return -EINVAL;
 
-	ret = pci_read_config_dword(dev, cap + PCI_X_CMD, &cmd);
-	if (!ret)
-		ret = 512 << ((cmd & PCI_X_CMD_MAX_READ) >> 2);
+	if (pci_read_config_word(dev, cap + PCI_X_CMD, &cmd))
+		return -EINVAL;
 
-	return ret;
+	return 512 << ((cmd & PCI_X_CMD_MAX_READ) >> 2);
 }
 EXPORT_SYMBOL(pcix_get_mmrbc);
 
@@ -2626,28 +2638,27 @@ EXPORT_SYMBOL(pcix_get_mmrbc);
  */
 int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 {
-	int cap, err = -EINVAL;
-	u32 stat, cmd, v, o;
+	int cap;
+	u32 stat, v, o;
+	u16 cmd;
 
 	if (mmrbc < 512 || mmrbc > 4096 || !is_power_of_2(mmrbc))
-		goto out;
+		return -EINVAL;
 
 	v = ffs(mmrbc) - 10;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!cap)
-		goto out;
+		return -EINVAL;
 
-	err = pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat);
-	if (err)
-		goto out;
+	if (pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat))
+		return -EINVAL;
 
 	if (v > (stat & PCI_X_STATUS_MAX_READ) >> 21)
 		return -E2BIG;
 
-	err = pci_read_config_dword(dev, cap + PCI_X_CMD, &cmd);
-	if (err)
-		goto out;
+	if (pci_read_config_word(dev, cap + PCI_X_CMD, &cmd))
+		return -EINVAL;
 
 	o = (cmd & PCI_X_CMD_MAX_READ) >> 2;
 	if (o != v) {
@@ -2657,10 +2668,10 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 
 		cmd &= ~PCI_X_CMD_MAX_READ;
 		cmd |= v << 2;
-		err = pci_write_config_dword(dev, cap + PCI_X_CMD, cmd);
+		if (pci_write_config_word(dev, cap + PCI_X_CMD, cmd))
+			return -EIO;
 	}
-out:
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(pcix_set_mmrbc);
 
@@ -3023,7 +3034,6 @@ EXPORT_SYMBOL(pcim_pin_device);
 EXPORT_SYMBOL(pci_disable_device);
 EXPORT_SYMBOL(pci_find_capability);
 EXPORT_SYMBOL(pci_bus_find_capability);
-EXPORT_SYMBOL(pci_register_set_vga_state);
 EXPORT_SYMBOL(pci_release_regions);
 EXPORT_SYMBOL(pci_request_regions);
 EXPORT_SYMBOL(pci_request_regions_exclusive);

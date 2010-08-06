@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "smsc9420.h"
 
@@ -244,7 +245,7 @@ static int smsc9420_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (!netif_running(dev) || !pd->phy_dev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(pd->phy_dev, if_mii(ifr), cmd);
+	return phy_mii_ioctl(pd->phy_dev, ifr, cmd);
 }
 
 static int smsc9420_ethtool_get_settings(struct net_device *dev,
@@ -1033,8 +1034,6 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);
 	smsc9420_pci_flush_write(pd);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -1063,12 +1062,12 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 		mac_cr |= MAC_CR_MCPAS_;
 		mac_cr &= (~MAC_CR_HPFILT_);
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 hash_lo = 0, hash_hi = 0;
 
 		smsc_dbg(HW, "Multicast filter enabled");
-		netdev_for_each_mc_addr(mc_list, dev) {
-			u32 bit_num = smsc9420_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 bit_num = smsc9420_hash(ha->addr);
 			u32 mask = 1 << (bit_num & 0x1F);
 
 			if (bit_num & 0x20)

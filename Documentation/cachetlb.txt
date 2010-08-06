@@ -5,7 +5,7 @@
 
 This document describes the cache/tlb flushing interfaces called
 by the Linux VM subsystem.  It enumerates over each interface,
-describes it's intended purpose, and what side effect is expected
+describes its intended purpose, and what side effect is expected
 after the interface is invoked.
 
 The side effects described below are stated for a uniprocessor
@@ -231,7 +231,7 @@ require a whole different set of interfaces to handle properly.
 The biggest problem is that of virtual aliasing in the data cache
 of a processor.
 
-Is your port susceptible to virtual aliasing in it's D-cache?
+Is your port susceptible to virtual aliasing in its D-cache?
 Well, if your D-cache is virtually indexed, is larger in size than
 PAGE_SIZE, and does not prevent multiple cache lines for the same
 physical address from existing at once, you have this problem.
@@ -249,7 +249,7 @@ one way to solve this (in particular SPARC_FLAG_MMAPSHARED).
 Next, you have to solve the D-cache aliasing issue for all
 other cases.  Please keep in mind that fact that, for a given page
 mapped into some user address space, there is always at least one more
-mapping, that of the kernel in it's linear mapping starting at
+mapping, that of the kernel in its linear mapping starting at
 PAGE_OFFSET.  So immediately, once the first user maps a given
 physical page into its address space, by implication the D-cache
 aliasing problem has the potential to exist since the kernel already

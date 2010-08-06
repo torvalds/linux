@@ -206,8 +206,8 @@ typedef const SRrvTime_atim *PCSRrvTime_atim;
 typedef struct tagSRTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
-    BYTE    abyTA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
+    BYTE    abyTA[ETH_ALEN];
 }__attribute__ ((__packed__))
 SRTSData, *PSRTSData;
 typedef const SRTSData *PCSRTSData;
@@ -282,7 +282,7 @@ typedef const SRTS_a_FB *PCSRTS_a_FB;
 typedef struct tagSCTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
     WORD    wReserved;
 }__attribute__ ((__packed__))
 SCTSData, *PSCTSData;
@@ -436,8 +436,4 @@ SKeyEntry;
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-
-#endif // __DESC_H__
-
+#endif /* __DESC_H__ */

@@ -127,5 +127,10 @@
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
 
+/*
+ * Pin Assignment
+*/
+#define	MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
+#define	MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
 /****************************************************************************/
 #endif	/* m523xsim_h */

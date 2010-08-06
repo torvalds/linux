@@ -136,7 +136,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Just skip unknown opcodes */
 
 		ACPI_ERROR((AE_INFO,
-			    "Found unknown opcode %X at AML address %p offset %X, ignoring",
+			    "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
 			    walk_state->opcode, walk_state->parser_state.aml,
 			    walk_state->aml_offset));
 
@@ -1021,7 +1021,6 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					if (status == AE_AML_NO_RETURN_VALUE) {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Invoked method did not return a value"));
-
 					}
 
 					ACPI_EXCEPTION((AE_INFO, status,

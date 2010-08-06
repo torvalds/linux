@@ -20,10 +20,8 @@
 	aliases {
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
-/*
 		ethernet2 = &enet2;
 		ethernet3 = &enet3;
-*/
 		serial0 = &serial0;
 		serial1 = &serial1;
 		pci0 = &pci0;
@@ -254,7 +252,6 @@
 			};
 		};
 
-/* eTSEC 3/4 are currently broken
 		enet2: ethernet@26000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -310,7 +307,6 @@
 				};
 			};
 		};
- */
 
 		serial0: serial@4500 {
 			cell-index = <0>;

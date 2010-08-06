@@ -136,6 +136,18 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
+config MMC_SDHCI_SPEAR
+	tristate "SDHCI support on ST SPEAr platform"
+	depends on MMC_SDHCI && PLAT_SPEAR
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  often referrered to as the HSMMC block in some of the ST SPEAR range
+	  of SoC
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C_DMA
 	bool "DMA support on S3C SDHCI"
 	depends on MMC_SDHCI_S3C && EXPERIMENTAL
@@ -237,7 +249,7 @@ config MMC_IMX
 
 config MMC_MSM7X00A
 	tristate "Qualcomm MSM 7X00A SDCC Controller Support"
-	depends on MMC && ARCH_MSM
+	depends on MMC && ARCH_MSM && !ARCH_MSM7X30
 	help
 	  This provides support for the SD/MMC cell found in the
           MSM 7X00A controllers from Qualcomm.
@@ -412,3 +424,11 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 	depends on SDH_BFIN
 	help
 	  If you say yes here SD-Cards may work on the EZkit.
+
+config MMC_SH_MMCIF
+	tristate "SuperH Internal MMCIF support"
+	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
+	help
+	  This selects the MMC Host Interface controler (MMCIF).
+
+	  This driver supports MMCIF in sh7724/sh7757/sh7372.

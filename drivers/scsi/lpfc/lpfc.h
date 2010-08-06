@@ -20,7 +20,6 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
-
 struct lpfc_sli2_slim;
 
 #define LPFC_PCI_DEV_LP		0x1
@@ -49,7 +48,7 @@ struct lpfc_sli2_slim;
 #define LPFC_TGTQ_INTERVAL	40000	/* Min amount of time between tgt
 					   queue depth change in millisecs */
 #define LPFC_TGTQ_RAMPUP_PCENT	5	/* Target queue rampup in percentage */
-#define LPFC_MIN_TGT_QDEPTH	100
+#define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
 #define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
@@ -310,7 +309,9 @@ struct lpfc_vport {
 #define FC_NLP_MORE             0x40	 /* More node to process in node tbl */
 #define FC_OFFLINE_MODE         0x80	 /* Interface is offline for diag */
 #define FC_FABRIC               0x100	 /* We are fabric attached */
+#define FC_VPORT_LOGO_RCVD      0x200    /* LOGO received on vport */
 #define FC_RSCN_DISCOVERY       0x400	 /* Auth all devices after RSCN */
+#define FC_LOGO_RCVD_DID_CHNG   0x800    /* FDISC on phys port detect DID chng*/
 #define FC_SCSI_SCAN_TMO        0x4000	 /* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	 /* NPort discovery active */
@@ -374,6 +375,7 @@ struct lpfc_vport {
 #define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timeout */
 #define WORKER_RAMP_DOWN_QUEUE         0x800	/* hba: Decrease Q depth */
 #define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
+#define WORKER_SERVICE_TXQ             0x2000	/* hba: IOCBs on the txq */
 
 	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
@@ -398,6 +400,7 @@ struct lpfc_vport {
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
+	uint32_t cfg_tgt_queue_depth;
 
 	uint32_t dev_loss_tmo_changed;
 
@@ -508,9 +511,9 @@ struct lpfc_hba {
 	void (*lpfc_stop_port)
 		(struct lpfc_hba *);
 	int (*lpfc_hba_init_link)
-		(struct lpfc_hba *);
+		(struct lpfc_hba *, uint32_t);
 	int (*lpfc_hba_down_link)
-		(struct lpfc_hba *);
+		(struct lpfc_hba *, uint32_t);
 
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
@@ -523,7 +526,6 @@ struct lpfc_hba {
 #define LPFC_SLI3_NPIV_ENABLED		0x02
 #define LPFC_SLI3_VPORT_TEARDOWN	0x04
 #define LPFC_SLI3_CRP_ENABLED		0x08
-#define LPFC_SLI3_INB_ENABLED		0x10
 #define LPFC_SLI3_BG_ENABLED		0x20
 #define LPFC_SLI3_DSS_ENABLED		0x40
 	uint32_t iocb_cmd_size;
@@ -554,9 +556,7 @@ struct lpfc_hba {
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
-	uint32_t *inb_ha_copy;
-	uint32_t *inb_counter;
-	uint32_t inb_last_counter;
+	uint32_t *mbox_ext;
 	uint32_t ha_copy;
 	struct _PCB *pcb;
 	struct _IOCB *IOCBs;
@@ -622,8 +622,10 @@ struct lpfc_hba {
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
 	uint32_t cfg_enable_bg;
+	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
+	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
@@ -812,6 +814,9 @@ struct lpfc_hba {
 
 	uint8_t menlo_flag;	/* menlo generic flags */
 #define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
+	uint32_t iocb_cnt;
+	uint32_t iocb_max;
+	atomic_t sdev_cnt;
 };
 
 static inline struct Scsi_Host *

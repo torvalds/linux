@@ -1014,81 +1014,59 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 /* ----------------------------------------------------------------------- */
 
-static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_g_fmt(sd, fmt);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		pix = &(fmt->fmt.pix);
-
-		Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
-		Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
-
-		Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
-		Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
-
-		Vlines = pix->height + (is_50Hz ? 4 : 7);
-
-		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
-		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-			v4l_err(client, "%dx%d is not a valid size!\n",
-				    pix->width, pix->height);
-			return -ERANGE;
-		}
-
-		HSC = (Hsrc * (1 << 20)) / pix->width - (1 << 20);
-		VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
-		VSC &= 0x1fff;
-
-		if (pix->width >= 385)
-			filter = 0;
-		else if (pix->width > 192)
-			filter = 1;
-		else if (pix->width > 96)
-			filter = 2;
-		else
-			filter = 3;
-
-		v4l_dbg(1, cx25840_debug, client, "decoder set size %dx%d -> scale  %ux%u\n",
-			    pix->width, pix->height, HSC, VSC);
-
-		/* HSCALE=HSC */
-		cx25840_write(client, 0x418, HSC & 0xff);
-		cx25840_write(client, 0x419, (HSC >> 8) & 0xff);
-		cx25840_write(client, 0x41a, HSC >> 16);
-		/* VSCALE=VSC */
-		cx25840_write(client, 0x41c, VSC & 0xff);
-		cx25840_write(client, 0x41d, VSC >> 8);
-		/* VS_INTRLACE=1 VFILT=filter */
-		cx25840_write(client, 0x41e, 0x8 | filter);
-		break;
-
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
-
-	default:
+	if (fmt->code != V4L2_MBUS_FMT_FIXED)
 		return -EINVAL;
+
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
+	Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
+
+	Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
+	Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
+
+	Vlines = fmt->height + (is_50Hz ? 4 : 7);
+
+	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
+			(Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
+		v4l_err(client, "%dx%d is not a valid size!\n",
+				fmt->width, fmt->height);
+		return -ERANGE;
 	}
 
+	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
+	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
+	VSC &= 0x1fff;
+
+	if (fmt->width >= 385)
+		filter = 0;
+	else if (fmt->width > 192)
+		filter = 1;
+	else if (fmt->width > 96)
+		filter = 2;
+	else
+		filter = 3;
+
+	v4l_dbg(1, cx25840_debug, client, "decoder set size %dx%d -> scale  %ux%u\n",
+			fmt->width, fmt->height, HSC, VSC);
+
+	/* HSCALE=HSC */
+	cx25840_write(client, 0x418, HSC & 0xff);
+	cx25840_write(client, 0x419, (HSC >> 8) & 0xff);
+	cx25840_write(client, 0x41a, HSC >> 16);
+	/* VSCALE=VSC */
+	cx25840_write(client, 0x41c, VSC & 0xff);
+	cx25840_write(client, 0x41d, VSC >> 8);
+	/* VS_INTRLACE=1 VFILT=filter */
+	cx25840_write(client, 0x41e, 0x8 | filter);
 	return 0;
 }
 
@@ -1633,10 +1611,15 @@ static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_routing = cx25840_s_video_routing,
-	.g_fmt = cx25840_g_fmt,
-	.s_fmt = cx25840_s_fmt,
-	.decode_vbi_line = cx25840_decode_vbi_line,
+	.s_mbus_fmt = cx25840_s_mbus_fmt,
 	.s_stream = cx25840_s_stream,
+};
+
+static const struct v4l2_subdev_vbi_ops cx25840_vbi_ops = {
+	.decode_vbi_line = cx25840_decode_vbi_line,
+	.s_raw_fmt = cx25840_s_raw_fmt,
+	.s_sliced_fmt = cx25840_s_sliced_fmt,
+	.g_sliced_fmt = cx25840_g_sliced_fmt,
 };
 
 static const struct v4l2_subdev_ops cx25840_ops = {
@@ -1644,6 +1627,7 @@ static const struct v4l2_subdev_ops cx25840_ops = {
 	.tuner = &cx25840_tuner_ops,
 	.audio = &cx25840_audio_ops,
 	.video = &cx25840_video_ops,
+	.vbi = &cx25840_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */

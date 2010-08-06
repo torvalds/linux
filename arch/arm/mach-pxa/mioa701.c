@@ -38,6 +38,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
+#include <linux/slab.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -425,6 +426,7 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
  * to give the card a chance to fully insert/eject.
  */
 static struct pxamci_platform_data mioa701_mci_info = {
+	.detect_delay_ms	= 250,
 	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_card_detect	= GPIO15_SDIO_INSERT,
 	.gpio_card_ro		= GPIO78_SDIO_RO,
@@ -695,7 +697,7 @@ static struct i2c_board_info __initdata mioa701_pi2c_devices[] = {
 };
 
 /* Board I2C devices. */
-static struct i2c_board_info __initdata mioa701_i2c_devices[] = {
+static struct i2c_board_info mioa701_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("mt9m111", 0x5d),
 	},
@@ -790,7 +792,6 @@ static void __init mioa701_machine_init(void)
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
 	bootstrap_init();
 	set_pxa_fb_info(&mioa701_pxafb_info);
-	mioa701_mci_info.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	wm97xx_bat_set_pdata(&mioa701_battery_data);

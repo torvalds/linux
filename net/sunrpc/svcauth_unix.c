@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/hash.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <linux/kernel.h>

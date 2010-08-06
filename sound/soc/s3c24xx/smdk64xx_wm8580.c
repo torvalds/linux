@@ -22,8 +22,6 @@
 #include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
-#define S3C64XX_I2S_V4 2
-
 /* SMDK64XX has a 12MHZ crystal attached to WM8580 */
 #define SMDK64XX_WM8580_FREQ 12000000
 
@@ -215,7 +213,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Playback i/f */
 	.name = "WM8580 PAIF RX",
 	.stream_name = "Playback",
-	.cpu_dai = &s3c64xx_i2s_dai[S3C64XX_I2S_V4],
+	.cpu_dai = &s3c64xx_i2s_v4_dai,
 	.codec_dai = &wm8580_dai[WM8580_DAI_PAIFRX],
 	.init = smdk64xx_wm8580_init_paifrx,
 	.ops = &smdk64xx_ops,
@@ -223,7 +221,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Capture i/f */
 	.name = "WM8580 PAIF TX",
 	.stream_name = "Capture",
-	.cpu_dai = &s3c64xx_i2s_dai[S3C64XX_I2S_V4],
+	.cpu_dai = &s3c64xx_i2s_v4_dai,
 	.codec_dai = &wm8580_dai[WM8580_DAI_PAIFTX],
 	.init = smdk64xx_wm8580_init_paiftx,
 	.ops = &smdk64xx_ops,

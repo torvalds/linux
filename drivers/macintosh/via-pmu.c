@@ -2273,8 +2273,7 @@ static int register_pmu_pm_ops(void)
 device_initcall(register_pmu_pm_ops);
 #endif
 
-static int
-pmu_ioctl(struct inode * inode, struct file *filp,
+static int pmu_ioctl(struct file *filp,
 		     u_int cmd, u_long arg)
 {
 	__u32 __user *argp = (__u32 __user *)arg;
@@ -2337,11 +2336,23 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	return error;
 }
 
+static long pmu_unlocked_ioctl(struct file *filp,
+			       u_int cmd, u_long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = pmu_ioctl(filp, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.poll		= pmu_fpoll,
-	.ioctl		= pmu_ioctl,
+	.unlocked_ioctl	= pmu_unlocked_ioctl,
 	.open		= pmu_open,
 	.release	= pmu_release,
 };

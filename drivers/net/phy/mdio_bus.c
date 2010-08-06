@@ -208,7 +208,7 @@ EXPORT_SYMBOL(mdiobus_scan);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-int mdiobus_read(struct mii_bus *bus, int addr, u16 regnum)
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(mdiobus_read);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-int mdiobus_write(struct mii_bus *bus, int addr, u16 regnum, u16 val)
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 

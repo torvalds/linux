@@ -22,7 +22,6 @@
 
 typedef struct ixj_info_t {
 	int ndev;
-	dev_node_t node;
 	struct ixj *port;
 } ixj_info_t;
 
@@ -155,8 +154,6 @@ static int ixj_config(struct pcmcia_device * link)
 	j = ixj_pcmcia_probe(link->io.BasePort1, link->io.BasePort1 + 0x10);
 
 	info->ndev = 1;
-	info->node.major = PHONE_MAJOR;
-	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
 	return 0;
 

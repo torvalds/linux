@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 

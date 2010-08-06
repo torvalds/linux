@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/cmd.h>
 
@@ -162,28 +163,30 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 			ret = mlx4_alloc_icm_pages(&chunk->mem[chunk->npages],
 						   cur_order, gfp_mask);
 
-		if (!ret) {
-			++chunk->npages;
+		if (ret) {
+			if (--cur_order < 0)
+				goto fail;
+			else
+				continue;
+		}
 
-			if (coherent)
-				++chunk->nsg;
-			else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
-				chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
-							chunk->npages,
-							PCI_DMA_BIDIRECTIONAL);
+		++chunk->npages;
 
-				if (chunk->nsg <= 0)
-					goto fail;
+		if (coherent)
+			++chunk->nsg;
+		else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
+			chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
+						chunk->npages,
+						PCI_DMA_BIDIRECTIONAL);
 
-				chunk = NULL;
-			}
-
-			npages -= 1 << cur_order;
-		} else {
-			--cur_order;
-			if (cur_order < 0)
+			if (chunk->nsg <= 0)
 				goto fail;
 		}
+
+		if (chunk->npages == MLX4_ICM_CHUNK_LEN)
+			chunk = NULL;
+
+		npages -= 1 << cur_order;
 	}
 
 	if (!coherent && chunk) {

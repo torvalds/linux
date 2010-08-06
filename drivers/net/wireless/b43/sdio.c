@@ -16,6 +16,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/slab.h>
 #include <linux/ssb/ssb.h>
 
 #include "sdio.h"
@@ -181,6 +182,7 @@ static void b43_sdio_remove(struct sdio_func *func)
 
 static const struct sdio_device_id b43_sdio_ids[] = {
 	{ SDIO_DEVICE(0x02d0, 0x044b) }, /* Nintendo Wii WLAN daughter card */
+	{ SDIO_DEVICE(0x0092, 0x0004) }, /* C-guys, Inc. EW-CG1102GC */
 	{ },
 };
 

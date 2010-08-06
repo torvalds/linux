@@ -414,15 +414,13 @@ static int zeus_mcp2515_transceiver_enable(int enable)
 
 static struct mcp251x_platform_data zeus_mcp2515_pdata = {
 	.oscillator_frequency	= 16*1000*1000,
-	.model			= CAN_MCP251X_MCP2515,
 	.board_specific_setup	= zeus_mcp2515_setup,
-	.transceiver_enable	= zeus_mcp2515_transceiver_enable,
 	.power_enable		= zeus_mcp2515_transceiver_enable,
 };
 
 static struct spi_board_info zeus_spi_board_info[] = {
 	[0] = {
-		.modalias	= "mcp251x",
+		.modalias	= "mcp2515",
 		.platform_data	= &zeus_mcp2515_pdata,
 		.irq		= gpio_to_irq(ZEUS_CAN_GPIO),
 		.max_speed_hz	= 1*1000*1000,
@@ -644,7 +642,7 @@ static struct pxafb_mach_info zeus_fb_info = {
 
 static struct pxamci_platform_data zeus_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay		= HZ/4,
+	.detect_delay_ms	= 250,
 	.gpio_card_detect       = ZEUS_MMC_CD_GPIO,
 	.gpio_card_ro           = ZEUS_MMC_WP_GPIO,
 	.gpio_card_ro_invert	= 1,

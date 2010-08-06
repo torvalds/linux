@@ -4,7 +4,7 @@
  * Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 2001,2002  Andi Kleen, SuSE Labs 
- * Copyright (C) 2003       Pavel Machek (pavel@suse.cz)
+ * Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  *
  * These routines maintain argument size conversion between 32bit and 64bit
  * ioctls.
@@ -23,7 +23,6 @@
 #include <linux/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_bridge.h>
-#include <linux/slab.h>
 #include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
@@ -60,6 +59,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/atalk.h>
+#include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
@@ -102,7 +102,6 @@
 #include <linux/nbd.h>
 #include <linux/random.h>
 #include <linux/filter.h>
-#include <linux/pktcdvd.h>
 
 #include <linux/hiddev.h>
 
@@ -602,8 +601,11 @@ static int ioc_settimeout(unsigned int fd, unsigned int cmd,
 }
 
 /* Bluetooth ioctls */
-#define HCIUARTSETPROTO	_IOW('U', 200, int)
-#define HCIUARTGETPROTO	_IOR('U', 201, int)
+#define HCIUARTSETPROTO		_IOW('U', 200, int)
+#define HCIUARTGETPROTO		_IOR('U', 201, int)
+#define HCIUARTGETDEVICE	_IOR('U', 202, int)
+#define HCIUARTSETFLAGS		_IOW('U', 203, int)
+#define HCIUARTGETFLAGS		_IOR('U', 204, int)
 
 #define BNEPCONNADD	_IOW('B', 200, int)
 #define BNEPCONNDEL	_IOW('B', 201, int)
@@ -1126,8 +1128,6 @@ COMPATIBLE_IOCTL(PPGETMODE)
 COMPATIBLE_IOCTL(PPGETPHASE)
 COMPATIBLE_IOCTL(PPGETFLAGS)
 COMPATIBLE_IOCTL(PPSETFLAGS)
-/* pktcdvd */
-COMPATIBLE_IOCTL(PACKET_CTRL_CMD)
 /* Big A */
 /* sparc only */
 /* Big Q for sound/OSS */
@@ -1331,6 +1331,8 @@ COMPATIBLE_IOCTL(HCISETLINKPOL)
 COMPATIBLE_IOCTL(HCISETLINKMODE)
 COMPATIBLE_IOCTL(HCISETACLMTU)
 COMPATIBLE_IOCTL(HCISETSCOMTU)
+COMPATIBLE_IOCTL(HCIBLOCKADDR)
+COMPATIBLE_IOCTL(HCIUNBLOCKADDR)
 COMPATIBLE_IOCTL(HCIINQUIRY)
 COMPATIBLE_IOCTL(HCIUARTSETPROTO)
 COMPATIBLE_IOCTL(HCIUARTGETPROTO)

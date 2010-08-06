@@ -9,6 +9,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/slab.h>
 #include "ieee80211_i.h"
 #include "key.h"
 #include "debugfs.h"
@@ -142,7 +143,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = p - buf;
 		break;
 	case ALG_CCMP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
+		for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%02x%02x%02x%02x%02x%02x\n",

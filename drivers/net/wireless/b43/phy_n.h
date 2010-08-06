@@ -711,6 +711,8 @@
 #define B43_NPHY_PAPD_EN1			B43_PHY_N(0x29B) /* PAPD Enable1 TBD */
 #define B43_NPHY_EPS_TABLE_ADJ1			B43_PHY_N(0x29C) /* EPS Table Adj1 TBD */
 
+#define B43_PHY_B_BBCFG				B43_PHY_N_BMODE(0x001) /* BB config */
+#define B43_PHY_B_TEST				B43_PHY_N_BMODE(0x00A)
 
 
 /* Broadcom 2055 radio registers */
@@ -924,6 +926,13 @@
 
 struct b43_wldev;
 
+struct b43_chanspec {
+	u8 channel;
+	u8 sideband;
+	u8 b_width;
+	u8 b_freq;
+};
+
 struct b43_phy_n_iq_comp {
 	s16 a0;
 	s16 b0;
@@ -975,7 +984,8 @@ struct b43_phy_n {
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
 	u32 bb_mult_save;
-	u16 radio_chanspec;
+	u8 b_width;
+	struct b43_chanspec radio_chanspec;
 
 	bool gain_boost;
 	bool elna_gain_config;
@@ -991,6 +1001,7 @@ struct b43_phy_n {
 	u16 txiqlocal_bestc[11];
 	bool txiqlocal_coeffsvalid;
 	struct b43_phy_n_txpwrindex txpwrindex[2];
+	struct b43_chanspec txiqlocal_chanspec;
 
 	u8 txrx_chain;
 	u16 tx_rx_cal_phy_saveregs[11];
@@ -1006,12 +1017,12 @@ struct b43_phy_n {
 	bool gband_spurwar_en;
 
 	bool ipa2g_on;
-	u8 iqcal_chanspec_2G;
-	u8 rssical_chanspec_2G;
+	struct b43_chanspec iqcal_chanspec_2G;
+	struct b43_chanspec rssical_chanspec_2G;
 
 	bool ipa5g_on;
-	u8 iqcal_chanspec_5G;
-	u8 rssical_chanspec_5G;
+	struct b43_chanspec iqcal_chanspec_5G;
+	struct b43_chanspec rssical_chanspec_5G;
 
 	struct b43_phy_n_rssical_cache rssical_cache;
 	struct b43_phy_n_cal_cache cal_cache;

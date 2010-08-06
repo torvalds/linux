@@ -1,6 +1,6 @@
 config RT2870
 	tristate "Ralink 2870/3070 wireless support"
-	depends on USB && X86 && WLAN
+	depends on USB && (X86 || ARM) && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select CRC_CCITT

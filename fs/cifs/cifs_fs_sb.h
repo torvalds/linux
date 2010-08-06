@@ -18,6 +18,8 @@
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
 
+#include <linux/backing-dev.h>
+
 #define CIFS_MOUNT_NO_PERM      1 /* do not do client vfs_perm check */
 #define CIFS_MOUNT_SET_UID      2 /* set current's euid in create etc. */
 #define CIFS_MOUNT_SERVER_INUM  4 /* inode numbers from uniqueid from server  */
@@ -33,6 +35,7 @@
 #define CIFS_MOUNT_DYNPERM      0x1000 /* allow in-memory only mode setting   */
 #define CIFS_MOUNT_NOPOSIXBRL   0x2000 /* mandatory not posix byte range lock */
 #define CIFS_MOUNT_NOSSYNC      0x4000 /* don't do slow SMBflush on every sync*/
+#define CIFS_MOUNT_FSCACHE	0x8000 /* local caching enabled */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */
@@ -50,5 +53,6 @@ struct cifs_sb_info {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	char   *mountdata; /* mount options received at mount time */
 #endif
+	struct backing_dev_info bdi;
 };
 #endif				/* _CIFS_FS_SB_H */

@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/quotaops.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 

@@ -43,9 +43,9 @@
  * peripherals (nofpu, nodsp, and so forth).
  */
 #define onchip_setup(x)					\
-static int x##_disabled __initdata = !cpu_has_##x;	\
+static int x##_disabled __cpuinitdata = !cpu_has_##x;	\
 							\
-static int __init x##_setup(char *opts)			\
+static int __cpuinit x##_setup(char *opts)			\
 {							\
 	x##_disabled = 1;				\
 	return 1;					\
@@ -59,7 +59,7 @@ onchip_setup(dsp);
 #define CPUOPM		0xff2f0000
 #define CPUOPM_RABD	(1 << 5)
 
-static void __init speculative_execution_init(void)
+static void __cpuinit speculative_execution_init(void)
 {
 	/* Clear RABD */
 	__raw_writel(__raw_readl(CPUOPM) & ~CPUOPM_RABD, CPUOPM);
@@ -78,7 +78,7 @@ static void __init speculative_execution_init(void)
 #define EXPMASK_BRDSSLP		(1 << 1)
 #define EXPMASK_MMCAW		(1 << 4)
 
-static void __init expmask_init(void)
+static void __cpuinit expmask_init(void)
 {
 	unsigned long expmask = __raw_readl(EXPMASK);
 
@@ -217,7 +217,7 @@ static void detect_cache_shape(void)
 		l2_cache_shape = -1; /* No S-cache */
 }
 
-static void __init fpu_init(void)
+static void __cpuinit fpu_init(void)
 {
 	/* Disable the FPU */
 	if (fpu_disabled && (current_cpu_data.flags & CPU_HAS_FPU)) {
@@ -230,7 +230,7 @@ static void __init fpu_init(void)
 }
 
 #ifdef CONFIG_SH_DSP
-static void __init release_dsp(void)
+static void __cpuinit release_dsp(void)
 {
 	unsigned long sr;
 
@@ -244,7 +244,7 @@ static void __init release_dsp(void)
 	);
 }
 
-static void __init dsp_init(void)
+static void __cpuinit dsp_init(void)
 {
 	unsigned long sr;
 
@@ -276,11 +276,11 @@ static void __init dsp_init(void)
 	release_dsp();
 }
 #else
-static inline void __init dsp_init(void) { }
+static inline void __cpuinit dsp_init(void) { }
 #endif /* CONFIG_SH_DSP */
 
 /**
- * sh_cpu_init
+ * cpu_init
  *
  * This is our initial entry point for each CPU, and is invoked on the
  * boot CPU prior to calling start_kernel(). For SMP, a combination of
@@ -293,14 +293,14 @@ static inline void __init dsp_init(void) { }
  * subtype and initial configuration will all be done.
  *
  * Each processor family is still responsible for doing its own probing
- * and cache configuration in detect_cpu_and_cache_system().
+ * and cache configuration in cpu_probe().
  */
-asmlinkage void __init sh_cpu_init(void)
+asmlinkage void __cpuinit cpu_init(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
 
 	/* First, probe the CPU */
-	detect_cpu_and_cache_system();
+	cpu_probe();
 
 	if (current_cpu_data.type == CPU_SH_NONE)
 		panic("Unknown CPU");

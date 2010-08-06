@@ -40,6 +40,7 @@
 #include <linux/hdreg.h>
 #include <linux/cdrom.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/scatterlist.h>
 
 #include <xen/xen.h>

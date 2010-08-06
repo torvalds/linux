@@ -117,6 +117,16 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci and DA8xx SPI modules.
 
+config SPI_EP93XX
+	tristate "Cirrus Logic EP93xx SPI controller"
+	depends on ARCH_EP93XX
+	help
+	  This enables using the Cirrus EP93xx SPI controller in master
+	  mode.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called ep93xx_spi.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GENERIC_GPIO
@@ -165,6 +175,13 @@ config SPI_MPC52xx_PSC
 	  This enables using the Freescale MPC52xx Programmable Serial
 	  Controller in master SPI mode.
 
+config SPI_MPC512x_PSC
+	tristate "Freescale MPC512x PSC SPI controller"
+	depends on SPI_MASTER && PPC_MPC512x
+	help
+	  This enables using the Freescale MPC5121 Programmable Serial
+	  Controller in SPI master mode.
+
 config SPI_MPC8xxx
 	tristate "Freescale MPC8xxx SPI controller"
 	depends on FSL_SOC
@@ -180,10 +197,10 @@ config SPI_OMAP_UWIRE
 	  This hooks up to the MicroWire controller on OMAP1 chips.
 
 config SPI_OMAP24XX
-	tristate "McSPI driver for OMAP24xx/OMAP34xx"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
+	tristate "McSPI driver for OMAP"
+	depends on ARCH_OMAP2PLUS
 	help
-	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
+	  SPI master controller for OMAP24XX and later Multichannel SPI
 	  (McSPI) modules.
 
 config SPI_OMAP_100K

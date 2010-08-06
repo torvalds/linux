@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #define PPP_VERSION	"2.4.2"

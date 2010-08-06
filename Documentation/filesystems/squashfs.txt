@@ -38,7 +38,8 @@ Hard link support:		yes			no
 Real inode numbers:		yes			no
 32-bit uids/gids:		yes			no
 File creation time:		yes			no
-Xattr and ACL support:		no			no
+Xattr support:			yes			no
+ACL support:			no			no
 
 Squashfs compresses data, inodes and directories.  In addition, inode and
 directory data are highly compacted, and packed on byte boundaries.  Each
@@ -58,7 +59,7 @@ obtained from this site also.
 3. SQUASHFS FILESYSTEM DESIGN
 -----------------------------
 
-A squashfs filesystem consists of seven parts, packed together on a byte
+A squashfs filesystem consists of a maximum of eight parts, packed together on a byte
 alignment:
 
 	 ---------------
@@ -80,6 +81,9 @@ alignment:
 	|---------------|
 	|    uid/gid	|
 	|  lookup table	|
+	|---------------|
+	|     xattr     |
+	|     table	|
 	 ---------------
 
 Compressed data blocks are written to the filesystem as files are read from
@@ -192,6 +196,26 @@ This table is stored compressed into metadata blocks.  A second index table is
 used to locate these.  This second index table for speed of access (and because
 it is small) is read at mount time and cached in memory.
 
+3.7 Xattr table
+---------------
+
+The xattr table contains extended attributes for each inode.  The xattrs
+for each inode are stored in a list, each list entry containing a type,
+name and value field.  The type field encodes the xattr prefix
+("user.", "trusted." etc) and it also encodes how the name/value fields
+should be interpreted.  Currently the type indicates whether the value
+is stored inline (in which case the value field contains the xattr value),
+or if it is stored out of line (in which case the value field stores a
+reference to where the actual value is stored).  This allows large values
+to be stored out of line improving scanning and lookup performance and it
+also allows values to be de-duplicated, the value being stored once, and
+all other occurences holding an out of line reference to that value.
+
+The xattr lists are packed into compressed 8K metadata blocks.
+To reduce overhead in inodes, rather than storing the on-disk
+location of the xattr list inside each inode, a 32-bit xattr id
+is stored.  This xattr id is mapped into the location of the xattr
+list using a second xattr id lookup table.
 
 4. TODOS AND OUTSTANDING ISSUES
 -------------------------------
@@ -199,9 +223,7 @@ it is small) is read at mount time and cached in memory.
 4.1 Todo list
 -------------
 
-Implement Xattr and ACL support.  The Squashfs 4.0 filesystem layout has hooks
-for these but the code has not been written.  Once the code has been written
-the existing layout should not require modification.
+Implement ACL support.
 
 4.2 Squashfs internal cache
 ---------------------------

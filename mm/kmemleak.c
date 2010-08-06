@@ -72,7 +72,6 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/prio_tree.h>
-#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>

@@ -545,7 +545,7 @@ static int netlink_autobind(struct socket *sock)
 	struct hlist_head *head;
 	struct sock *osk;
 	struct hlist_node *node;
-	s32 pid = current->tgid;
+	s32 pid = task_tgid_vnr(current);
 	int err;
 	static s32 rover = -4097;
 
@@ -682,6 +682,9 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
+
+	if (alen < sizeof(addr->sa_family))
+		return -EINVAL;
 
 	if (addr->sa_family == AF_UNSPEC) {
 		sk->sk_state	= NETLINK_UNCONNECTED;
@@ -975,6 +978,8 @@ struct netlink_broadcast_data {
 	int delivered;
 	gfp_t allocation;
 	struct sk_buff *skb, *skb2;
+	int (*tx_filter)(struct sock *dsk, struct sk_buff *skb, void *data);
+	void *tx_data;
 };
 
 static inline int do_one_broadcast(struct sock *sk,
@@ -1017,6 +1022,9 @@ static inline int do_one_broadcast(struct sock *sk,
 		p->failure = 1;
 		if (nlk->flags & NETLINK_BROADCAST_SEND_ERROR)
 			p->delivery_failure = 1;
+	} else if (p->tx_filter && p->tx_filter(sk, p->skb2, p->tx_data)) {
+		kfree_skb(p->skb2);
+		p->skb2 = NULL;
 	} else if (sk_filter(sk, p->skb2)) {
 		kfree_skb(p->skb2);
 		p->skb2 = NULL;
@@ -1035,8 +1043,10 @@ out:
 	return 0;
 }
 
-int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
-		      u32 group, gfp_t allocation)
+int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
+	u32 group, gfp_t allocation,
+	int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
+	void *filter_data)
 {
 	struct net *net = sock_net(ssk);
 	struct netlink_broadcast_data info;
@@ -1056,6 +1066,8 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	info.allocation = allocation;
 	info.skb = skb;
 	info.skb2 = NULL;
+	info.tx_filter = filter;
+	info.tx_data = filter_data;
 
 	/* While we sleep in clone, do not allow to change socket list */
 
@@ -1064,14 +1076,15 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	sk_for_each_bound(sk, node, &nl_table[ssk->sk_protocol].mc_list)
 		do_one_broadcast(sk, &info);
 
-	kfree_skb(skb);
+	consume_skb(skb);
 
 	netlink_unlock_table();
 
-	kfree_skb(info.skb2);
-
-	if (info.delivery_failure)
+	if (info.delivery_failure) {
+		kfree_skb(info.skb2);
 		return -ENOBUFS;
+	} else
+		consume_skb(info.skb2);
 
 	if (info.delivered) {
 		if (info.congested && (allocation & __GFP_WAIT))
@@ -1079,6 +1092,14 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 		return 0;
 	}
 	return -ESRCH;
+}
+EXPORT_SYMBOL(netlink_broadcast_filtered);
+
+int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
+		      u32 group, gfp_t allocation)
+{
+	return netlink_broadcast_filtered(ssk, skb, pid, group, allocation,
+		NULL, NULL);
 }
 EXPORT_SYMBOL(netlink_broadcast);
 
@@ -1093,6 +1114,7 @@ static inline int do_one_set_err(struct sock *sk,
 				 struct netlink_set_err_data *p)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
+	int ret = 0;
 
 	if (sk == p->exclude_sk)
 		goto out;
@@ -1104,10 +1126,15 @@ static inline int do_one_set_err(struct sock *sk,
 	    !test_bit(p->group - 1, nlk->groups))
 		goto out;
 
+	if (p->code == ENOBUFS && nlk->flags & NETLINK_RECV_NO_ENOBUFS) {
+		ret = 1;
+		goto out;
+	}
+
 	sk->sk_err = p->code;
 	sk->sk_error_report(sk);
 out:
-	return 0;
+	return ret;
 }
 
 /**
@@ -1116,12 +1143,16 @@ out:
  * @pid: the PID of a process that we want to skip (if any)
  * @groups: the broadcast group that will notice the error
  * @code: error code, must be negative (as usual in kernelspace)
+ *
+ * This function returns the number of broadcast listeners that have set the
+ * NETLINK_RECV_NO_ENOBUFS socket option.
  */
-void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
+int netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 {
 	struct netlink_set_err_data info;
 	struct hlist_node *node;
 	struct sock *sk;
+	int ret = 0;
 
 	info.exclude_sk = ssk;
 	info.pid = pid;
@@ -1132,9 +1163,10 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 	read_lock(&nl_table_lock);
 
 	sk_for_each_bound(sk, node, &nl_table[ssk->sk_protocol].mc_list)
-		do_one_set_err(sk, &info);
+		ret += do_one_set_err(sk, &info);
 
 	read_unlock(&nl_table_lock);
+	return ret;
 }
 EXPORT_SYMBOL(netlink_set_err);
 
@@ -1292,19 +1324,23 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (msg->msg_flags&MSG_OOB)
 		return -EOPNOTSUPP;
 
-	if (NULL == siocb->scm)
+	if (NULL == siocb->scm) {
 		siocb->scm = &scm;
+		memset(&scm, 0, sizeof(scm));
+	}
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;
 
 	if (msg->msg_namelen) {
+		err = -EINVAL;
 		if (addr->nl_family != AF_NETLINK)
-			return -EINVAL;
+			goto out;
 		dst_pid = addr->nl_pid;
 		dst_group = ffs(addr->nl_groups);
+		err =  -EPERM;
 		if (dst_group && !netlink_capable(sock, NL_NONROOT_SEND))
-			return -EPERM;
+			goto out;
 	} else {
 		dst_pid = nlk->dst_pid;
 		dst_group = nlk->dst_group;
@@ -1356,6 +1392,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
 
 out:
+	scm_destroy(siocb->scm);
 	return err;
 }
 
@@ -1369,7 +1406,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	int noblock = flags&MSG_DONTWAIT;
 	size_t copied;
-	struct sk_buff *skb, *frag __maybe_unused = NULL;
+	struct sk_buff *skb;
 	int err;
 
 	if (flags&MSG_OOB)
@@ -1404,7 +1441,21 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 			kfree_skb(skb);
 			skb = compskb;
 		} else {
-			frag = skb_shinfo(skb)->frag_list;
+			/*
+			 * Before setting frag_list to NULL, we must get a
+			 * private copy of skb if shared (because of MSG_PEEK)
+			 */
+			if (skb_shared(skb)) {
+				struct sk_buff *nskb;
+
+				nskb = pskb_copy(skb, GFP_KERNEL);
+				kfree_skb(skb);
+				skb = nskb;
+				err = -ENOMEM;
+				if (!skb)
+					goto out;
+			}
+			kfree_skb(skb_shinfo(skb)->frag_list);
 			skb_shinfo(skb)->frag_list = NULL;
 		}
 	}
@@ -1440,10 +1491,6 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	siocb->scm->creds = *NETLINK_CREDS(skb);
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
-
-#ifdef CONFIG_COMPAT_NETLINK_MESSAGES
-	skb_shinfo(skb)->frag_list = frag;
-#endif
 
 	skb_free_datagram(sk, skb);
 

@@ -2,7 +2,7 @@
  * Shared interrupt handling code for IPR and INTC2 types of IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009 Paul Mundt
+ * Copyright (C) 2009, 2010 Paul Mundt
  *
  * Based on intc2.c and ipr.c
  *
@@ -16,16 +16,21 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
 #include <linux/list.h>
 #include <linux/topology.h>
 #include <linux/bitmap.h>
+#include <linux/cpumask.h>
+#include <asm/sizes.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -43,6 +48,12 @@ struct intc_handle_int {
 	unsigned long handle;
 };
 
+struct intc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
+};
+
 struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
@@ -56,6 +67,8 @@ struct intc_desc_int {
 	unsigned int nr_prio;
 	struct intc_handle_int *sense;
 	unsigned int nr_sense;
+	struct intc_window *window;
+	unsigned int nr_windows;
 	struct irq_chip chip;
 };
 
@@ -85,13 +98,58 @@ static DEFINE_SPINLOCK(vector_lock);
 #define SMP_NR(d, x) 1
 #endif
 
-static unsigned int intc_prio_level[NR_IRQS]; /* for now */
+static unsigned int intc_prio_level[NR_IRQS];	/* for now */
+static unsigned int default_prio_level = 2;	/* 2 - 16 */
 static unsigned long ack_handle[NR_IRQS];
+#ifdef CONFIG_INTC_BALANCING
+static unsigned long dist_handle[NR_IRQS];
+#endif
 
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
 	struct irq_chip *chip = get_irq_chip(irq);
 	return container_of(chip, struct intc_desc_int, chip);
+}
+
+static unsigned long intc_phys_to_virt(struct intc_desc_int *d,
+				       unsigned long address)
+{
+	struct intc_window *window;
+	int k;
+
+	/* scan through physical windows and convert address */
+	for (k = 0; k < d->nr_windows; k++) {
+		window = d->window + k;
+
+		if (address < window->phys)
+			continue;
+
+		if (address >= (window->phys + window->size))
+			continue;
+
+		address -= window->phys;
+		address += (unsigned long)window->virt;
+
+		return address;
+	}
+
+	/* no windows defined, register must be 1:1 mapped virt:phys */
+	return address;
+}
+
+static unsigned int intc_get_reg(struct intc_desc_int *d, unsigned long address)
+{
+	unsigned int k;
+
+	address = intc_phys_to_virt(d, address);
+
+	for (k = 0; k < d->nr_reg; k++) {
+		if (d->reg[k] == address)
+			return k;
+	}
+
+	BUG();
+	return 0;
 }
 
 static inline unsigned int set_field(unsigned int value,
@@ -227,6 +285,85 @@ static void (*intc_disable_fns[])(unsigned long addr,
 	[MODE_PCLR_REG] = intc_mode_field,
 };
 
+#ifdef CONFIG_INTC_BALANCING
+static inline void intc_balancing_enable(unsigned int irq)
+{
+	struct intc_desc_int *d = get_intc_desc(irq);
+	unsigned long handle = dist_handle[irq];
+	unsigned long addr;
+
+	if (irq_balancing_disabled(irq) || !handle)
+		return;
+
+	addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+	intc_reg_fns[_INTC_FN(handle)](addr, handle, 1);
+}
+
+static inline void intc_balancing_disable(unsigned int irq)
+{
+	struct intc_desc_int *d = get_intc_desc(irq);
+	unsigned long handle = dist_handle[irq];
+	unsigned long addr;
+
+	if (irq_balancing_disabled(irq) || !handle)
+		return;
+
+	addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+	intc_reg_fns[_INTC_FN(handle)](addr, handle, 0);
+}
+
+static unsigned int intc_dist_data(struct intc_desc *desc,
+				   struct intc_desc_int *d,
+				   intc_enum enum_id)
+{
+	struct intc_mask_reg *mr = desc->hw.mask_regs;
+	unsigned int i, j, fn, mode;
+	unsigned long reg_e, reg_d;
+
+	for (i = 0; mr && enum_id && i < desc->hw.nr_mask_regs; i++) {
+		mr = desc->hw.mask_regs + i;
+
+		/*
+		 * Skip this entry if there's no auto-distribution
+		 * register associated with it.
+		 */
+		if (!mr->dist_reg)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(mr->enum_ids); j++) {
+			if (mr->enum_ids[j] != enum_id)
+				continue;
+
+			fn = REG_FN_MODIFY_BASE;
+			mode = MODE_ENABLE_REG;
+			reg_e = mr->dist_reg;
+			reg_d = mr->dist_reg;
+
+			fn += (mr->reg_width >> 3) - 1;
+			return _INTC_MK(fn, mode,
+					intc_get_reg(d, reg_e),
+					intc_get_reg(d, reg_d),
+					1,
+					(mr->reg_width - 1) - j);
+		}
+	}
+
+	/*
+	 * It's possible we've gotten here with no distribution options
+	 * available for the IRQ in question, so we just skip over those.
+	 */
+	return 0;
+}
+#else
+static inline void intc_balancing_enable(unsigned int irq)
+{
+}
+
+static inline void intc_balancing_disable(unsigned int irq)
+{
+}
+#endif
+
 static inline void _intc_enable(unsigned int irq, unsigned long handle)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
@@ -234,10 +371,16 @@ static inline void _intc_enable(unsigned int irq, unsigned long handle)
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
 		intc_enable_fns[_INTC_MODE(handle)](addr, handle, intc_reg_fns\
 						    [_INTC_FN(handle)], irq);
 	}
+
+	intc_balancing_enable(irq);
 }
 
 static void intc_enable(unsigned int irq)
@@ -248,11 +391,17 @@ static void intc_enable(unsigned int irq)
 static void intc_disable(unsigned int irq)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
-	unsigned long handle = (unsigned long) get_irq_chip_data(irq);
+	unsigned long handle = (unsigned long)get_irq_chip_data(irq);
 	unsigned long addr;
 	unsigned int cpu;
 
+	intc_balancing_disable(irq);
+
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
 		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
 						     [_INTC_FN(handle)], irq);
@@ -301,6 +450,23 @@ static int intc_set_wake(unsigned int irq, unsigned int on)
 	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
 
+#ifdef CONFIG_SMP
+/*
+ * This is held with the irq desc lock held, so we don't require any
+ * additional locking here at the intc desc level. The affinity mask is
+ * later tested in the enable/disable paths.
+ */
+static int intc_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+{
+	if (!cpumask_intersects(cpumask, cpu_online_mask))
+		return -1;
+
+	cpumask_copy(irq_to_desc(irq)->affinity, cpumask);
+
+	return 0;
+}
+#endif
+
 static void intc_mask_ack(unsigned int irq)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
@@ -309,8 +475,7 @@ static void intc_mask_ack(unsigned int irq)
 
 	intc_disable(irq);
 
-	/* read register and write zero only to the assocaited bit */
-
+	/* read register and write zero only to the associated bit */
 	if (handle) {
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
 		switch (_INTC_FN(handle)) {
@@ -339,7 +504,8 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 {
 	int i;
 
-	/* this doesn't scale well, but...
+	/*
+	 * this doesn't scale well, but...
 	 *
 	 * this function should only be used for cerain uncommon
 	 * operations such as intc_set_priority() and intc_set_sense()
@@ -350,7 +516,6 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 	 * memory footprint down is to make sure the array is sorted
 	 * and then perform a bisect to lookup the irq.
 	 */
-
 	for (i = 0; i < nr_hp; i++) {
 		if ((hp + i)->irq != irq)
 			continue;
@@ -381,7 +546,6 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 		 * primary masking method is using intc_prio_level[irq]
 		 * priority level will be set during next enable()
 		 */
-
 		if (_INTC_FN(ihp->handle) != REG_FN_ERR)
 			_intc_enable(irq, ihp->handle);
 	}
@@ -417,20 +581,6 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
 		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
-	return 0;
-}
-
-static unsigned int __init intc_get_reg(struct intc_desc_int *d,
-				 unsigned long address)
-{
-	unsigned int k;
-
-	for (k = 0; k < d->nr_reg; k++) {
-		if (d->reg[k] == address)
-			return k;
-	}
-
-	BUG();
 	return 0;
 }
 
@@ -691,13 +841,14 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	 */
 	set_bit(irq, intc_irq_map);
 
-	/* Prefer single interrupt source bitmap over other combinations:
+	/*
+	 * Prefer single interrupt source bitmap over other combinations:
+	 *
 	 * 1. bitmap, single interrupt source
 	 * 2. priority, single interrupt source
 	 * 3. bitmap, multiple interrupt sources (groups)
 	 * 4. priority, multiple interrupt sources (groups)
 	 */
-
 	data[0] = intc_mask_data(desc, d, enum_id, 0);
 	data[1] = intc_prio_data(desc, d, enum_id, 0);
 
@@ -706,8 +857,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 		primary = 1;
 
 	if (!data[0] && !data[1])
-		pr_warning("intc: missing unique irq mask for "
-			   "irq %d (vect 0x%04x)\n", irq, irq2evt(irq));
+		pr_warning("missing unique irq mask for irq %d (vect 0x%04x)\n",
+			   irq, irq2evt(irq));
 
 	data[0] = data[0] ? data[0] : intc_mask_data(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_prio_data(desc, d, enum_id, 1);
@@ -722,10 +873,11 @@ static void __init intc_register_irq(struct intc_desc *desc,
 				      handle_level_irq, "level");
 	set_irq_chip_data(irq, (void *)data[primary]);
 
-	/* set priority level
+	/*
+	 * set priority level
 	 * - this needs to be at least 2 for 5-bit priorities on 7780
 	 */
-	intc_prio_level[irq] = 2;
+	intc_prio_level[irq] = default_prio_level;
 
 	/* enable secondary masking method if present */
 	if (data[!primary])
@@ -742,7 +894,6 @@ static void __init intc_register_irq(struct intc_desc *desc,
 			 * only secondary priority should access registers, so
 			 * set _INTC_FN(h) = REG_FN_ERR for intc_set_priority()
 			 */
-
 			hp->handle &= ~_INTC_MK(0x0f, 0, 0, 0, 0, 0);
 			hp->handle |= _INTC_MK(REG_FN_ERR, 0, 0, 0, 0, 0);
 		}
@@ -763,6 +914,11 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	if (desc->hw.ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
 
+#ifdef CONFIG_INTC_BALANCING
+	if (desc->hw.mask_regs)
+		dist_handle[irq] = intc_dist_data(desc, d, enum_id);
+#endif
+
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
 #endif
@@ -774,6 +930,8 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 				    unsigned int smp)
 {
 	if (value) {
+		value = intc_phys_to_virt(d, value);
+
 		d->reg[cnt] = value;
 #ifdef CONFIG_SMP
 		d->smp[cnt] = smp;
@@ -789,25 +947,59 @@ static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 	generic_handle_irq((unsigned int)get_irq_data(irq));
 }
 
-void __init register_intc_controller(struct intc_desc *desc)
+int __init register_intc_controller(struct intc_desc *desc)
 {
 	unsigned int i, k, smp;
 	struct intc_hw_desc *hw = &desc->hw;
 	struct intc_desc_int *d;
+	struct resource *res;
+
+	pr_info("Registered controller '%s' with %u IRQs\n",
+		desc->name, hw->nr_vectors);
 
 	d = kzalloc(sizeof(*d), GFP_NOWAIT);
+	if (!d)
+		goto err0;
 
 	INIT_LIST_HEAD(&d->list);
 	list_add(&d->list, &intc_list);
 
+	if (desc->num_resources) {
+		d->nr_windows = desc->num_resources;
+		d->window = kzalloc(d->nr_windows * sizeof(*d->window),
+				    GFP_NOWAIT);
+		if (!d->window)
+			goto err1;
+
+		for (k = 0; k < d->nr_windows; k++) {
+			res = desc->resource + k;
+			WARN_ON(resource_type(res) != IORESOURCE_MEM);
+			d->window[k].phys = res->start;
+			d->window[k].size = resource_size(res);
+			d->window[k].virt = ioremap_nocache(res->start,
+							 resource_size(res));
+			if (!d->window[k].virt)
+				goto err2;
+		}
+	}
+
 	d->nr_reg = hw->mask_regs ? hw->nr_mask_regs * 2 : 0;
+#ifdef CONFIG_INTC_BALANCING
+	if (d->nr_reg)
+		d->nr_reg += hw->nr_mask_regs;
+#endif
 	d->nr_reg += hw->prio_regs ? hw->nr_prio_regs * 2 : 0;
 	d->nr_reg += hw->sense_regs ? hw->nr_sense_regs : 0;
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
 
 	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
+	if (!d->reg)
+		goto err2;
+
 #ifdef CONFIG_SMP
 	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
+	if (!d->smp)
+		goto err3;
 #endif
 	k = 0;
 
@@ -816,12 +1008,17 @@ void __init register_intc_controller(struct intc_desc *desc)
 			smp = IS_SMP(hw->mask_regs[i]);
 			k += save_reg(d, k, hw->mask_regs[i].set_reg, smp);
 			k += save_reg(d, k, hw->mask_regs[i].clr_reg, smp);
+#ifdef CONFIG_INTC_BALANCING
+			k += save_reg(d, k, hw->mask_regs[i].dist_reg, 0);
+#endif
 		}
 	}
 
 	if (hw->prio_regs) {
 		d->prio = kzalloc(hw->nr_vectors * sizeof(*d->prio),
 				  GFP_NOWAIT);
+		if (!d->prio)
+			goto err4;
 
 		for (i = 0; i < hw->nr_prio_regs; i++) {
 			smp = IS_SMP(hw->prio_regs[i]);
@@ -833,6 +1030,8 @@ void __init register_intc_controller(struct intc_desc *desc)
 	if (hw->sense_regs) {
 		d->sense = kzalloc(hw->nr_vectors * sizeof(*d->sense),
 				   GFP_NOWAIT);
+		if (!d->sense)
+			goto err5;
 
 		for (i = 0; i < hw->nr_sense_regs; i++)
 			k += save_reg(d, k, hw->sense_regs[i].reg, 0);
@@ -847,6 +1046,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
 	d->chip.set_wake = intc_set_wake;
+#ifdef CONFIG_SMP
+	d->chip.set_affinity = intc_set_affinity;
+#endif
 
 	if (hw->ack_regs) {
 		for (i = 0; i < hw->nr_ack_regs; i++)
@@ -876,7 +1078,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
 		if (unlikely(!irq_desc)) {
-			pr_info("can't get irq_desc for %d\n", irq);
+			pr_err("can't get irq_desc for %d\n", irq);
 			continue;
 		}
 
@@ -896,7 +1098,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 			 */
 			irq_desc = irq_to_desc_alloc_node(irq2, numa_node_id());
 			if (unlikely(!irq_desc)) {
-				pr_info("can't get irq_desc for %d\n", irq2);
+				pr_err("can't get irq_desc for %d\n", irq2);
 				continue;
 			}
 
@@ -912,7 +1114,99 @@ void __init register_intc_controller(struct intc_desc *desc)
 	/* enable bits matching force_enable after registering irqs */
 	if (desc->force_enable)
 		intc_enable_disable_enum(desc, d, desc->force_enable, 1);
+
+	return 0;
+err5:
+	kfree(d->prio);
+err4:
+#ifdef CONFIG_SMP
+	kfree(d->smp);
+err3:
+#endif
+	kfree(d->reg);
+err2:
+	for (k = 0; k < d->nr_windows; k++)
+		if (d->window[k].virt)
+			iounmap(d->window[k].virt);
+
+	kfree(d->window);
+err1:
+	kfree(d);
+err0:
+	pr_err("unable to allocate INTC memory\n");
+
+	return -ENOMEM;
 }
+
+#ifdef CONFIG_INTC_USERIMASK
+static void __iomem *uimask;
+
+int register_intc_userimask(unsigned long addr)
+{
+	if (unlikely(uimask))
+		return -EBUSY;
+
+	uimask = ioremap_nocache(addr, SZ_4K);
+	if (unlikely(!uimask))
+		return -ENOMEM;
+
+	pr_info("userimask support registered for levels 0 -> %d\n",
+		default_prio_level - 1);
+
+	return 0;
+}
+
+static ssize_t
+show_intc_userimask(struct sysdev_class *cls,
+		    struct sysdev_class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", (__raw_readl(uimask) >> 4) & 0xf);
+}
+
+static ssize_t
+store_intc_userimask(struct sysdev_class *cls,
+		     struct sysdev_class_attribute *attr,
+		     const char *buf, size_t count)
+{
+	unsigned long level;
+
+	level = simple_strtoul(buf, NULL, 10);
+
+	/*
+	 * Minimal acceptable IRQ levels are in the 2 - 16 range, but
+	 * these are chomped so as to not interfere with normal IRQs.
+	 *
+	 * Level 1 is a special case on some CPUs in that it's not
+	 * directly settable, but given that USERIMASK cuts off below a
+	 * certain level, we don't care about this limitation here.
+	 * Level 0 on the other hand equates to user masking disabled.
+	 *
+	 * We use default_prio_level as a cut off so that only special
+	 * case opt-in IRQs can be mangled.
+	 */
+	if (level >= default_prio_level)
+		return -EINVAL;
+
+	__raw_writel(0xa5 << 24 | level << 4, uimask);
+
+	return count;
+}
+
+static SYSDEV_CLASS_ATTR(userimask, S_IRUSR | S_IWUSR,
+			 show_intc_userimask, store_intc_userimask);
+#endif
+
+static ssize_t
+show_intc_name(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
+{
+	struct intc_desc_int *d;
+
+	d = container_of(dev, struct intc_desc_int, sysdev);
+
+	return sprintf(buf, "%s\n", d->chip.name);
+}
+
+static SYSDEV_ATTR(name, S_IRUGO, show_intc_name, NULL);
 
 static int intc_suspend(struct sys_device *dev, pm_message_t state)
 {
@@ -973,19 +1267,28 @@ static int __init register_intc_sysdevs(void)
 	int id = 0;
 
 	error = sysdev_class_register(&intc_sysdev_class);
+#ifdef CONFIG_INTC_USERIMASK
+	if (!error && uimask)
+		error = sysdev_class_create_file(&intc_sysdev_class,
+						 &attr_userimask);
+#endif
 	if (!error) {
 		list_for_each_entry(d, &intc_list, list) {
 			d->sysdev.id = id;
 			d->sysdev.cls = &intc_sysdev_class;
 			error = sysdev_register(&d->sysdev);
+			if (error == 0)
+				error = sysdev_create_file(&d->sysdev,
+							   &attr_name);
 			if (error)
 				break;
+
 			id++;
 		}
 	}
 
 	if (error)
-		pr_warning("intc: sysdev registration error\n");
+		pr_err("sysdev registration error\n");
 
 	return error;
 }
@@ -1018,7 +1321,7 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 
 	desc = irq_to_desc_alloc_node(new, node);
 	if (unlikely(!desc)) {
-		pr_info("can't get irq_desc for %d\n", new);
+		pr_err("can't get irq_desc for %d\n", new);
 		goto out_unlock;
 	}
 

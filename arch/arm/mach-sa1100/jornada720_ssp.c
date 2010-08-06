@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <mach/jornada720.h>

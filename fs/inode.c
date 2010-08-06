@@ -286,11 +286,9 @@ static void init_once(void *foo)
  */
 void __iget(struct inode *inode)
 {
-	if (atomic_read(&inode->i_count)) {
-		atomic_inc(&inode->i_count);
+	if (atomic_inc_return(&inode->i_count) != 1)
 		return;
-	}
-	atomic_inc(&inode->i_count);
+
 	if (!(inode->i_state & (I_DIRTY|I_SYNC)))
 		list_move(&inode->i_list, &inode_in_use);
 	inodes_stat.nr_unused--;
@@ -514,7 +512,7 @@ static void prune_icache(int nr_to_scan)
  * This function is passed the number of inodes to scan, and it returns the
  * total number of remaining possibly-reclaimable inodes.
  */
-static int shrink_icache_memory(int nr, gfp_t gfp_mask)
+static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		/*
@@ -1205,8 +1203,6 @@ void generic_delete_inode(struct inode *inode)
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	security_inode_delete(inode);
-
 	if (op->delete_inode) {
 		void (*delete)(struct inode *) = op->delete_inode;
 		/* Filesystems implementing their own
@@ -1610,3 +1606,23 @@ void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 				  inode->i_ino);
 }
 EXPORT_SYMBOL(init_special_inode);
+
+/**
+ * Init uid,gid,mode for new inode according to posix standards
+ * @inode: New inode
+ * @dir: Directory inode
+ * @mode: mode of the new inode
+ */
+void inode_init_owner(struct inode *inode, const struct inode *dir,
+			mode_t mode)
+{
+	inode->i_uid = current_fsuid();
+	if (dir && dir->i_mode & S_ISGID) {
+		inode->i_gid = dir->i_gid;
+		if (S_ISDIR(mode))
+			mode |= S_ISGID;
+	} else
+		inode->i_gid = current_fsgid();
+	inode->i_mode = mode;
+}
+EXPORT_SYMBOL(inode_init_owner);

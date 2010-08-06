@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -79,6 +80,16 @@ static struct wmi_block wmi_blocks;
 #define ACPI_WMI_METHOD      0x2	/* GUID is a method */
 #define ACPI_WMI_STRING      0x4	/* GUID takes & returns a string */
 #define ACPI_WMI_EVENT       0x8	/* GUID is an event */
+
+static int debug_event;
+module_param(debug_event, bool, 0444);
+MODULE_PARM_DESC(debug_event,
+		 "Log WMI Events [0/1]");
+
+static int debug_dump_wdg;
+module_param(debug_dump_wdg, bool, 0444);
+MODULE_PARM_DESC(debug_dump_wdg,
+		 "Dump available WMI interfaces [0/1]");
 
 static int acpi_wmi_remove(struct acpi_device *device, int type);
 static int acpi_wmi_add(struct acpi_device *device);
@@ -476,6 +487,70 @@ const struct acpi_buffer *in)
 }
 EXPORT_SYMBOL_GPL(wmi_set_block);
 
+static void wmi_dump_wdg(struct guid_block *g)
+{
+	char guid_string[37];
+
+	wmi_gtoa(g->guid, guid_string);
+	printk(KERN_INFO PREFIX "%s:\n", guid_string);
+	printk(KERN_INFO PREFIX "\tobject_id: %c%c\n",
+	       g->object_id[0], g->object_id[1]);
+	printk(KERN_INFO PREFIX "\tnotify_id: %02X\n", g->notify_id);
+	printk(KERN_INFO PREFIX "\treserved: %02X\n", g->reserved);
+	printk(KERN_INFO PREFIX "\tinstance_count: %d\n", g->instance_count);
+	printk(KERN_INFO PREFIX "\tflags: %#x", g->flags);
+	if (g->flags) {
+		printk(" ");
+		if (g->flags & ACPI_WMI_EXPENSIVE)
+			printk("ACPI_WMI_EXPENSIVE ");
+		if (g->flags & ACPI_WMI_METHOD)
+			printk("ACPI_WMI_METHOD ");
+		if (g->flags & ACPI_WMI_STRING)
+			printk("ACPI_WMI_STRING ");
+		if (g->flags & ACPI_WMI_EVENT)
+			printk("ACPI_WMI_EVENT ");
+	}
+	printk("\n");
+
+}
+
+static void wmi_notify_debug(u32 value, void *context)
+{
+	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO "wmi: bad event status 0x%x\n", status);
+		return;
+	}
+
+	obj = (union acpi_object *)response.pointer;
+
+	if (!obj)
+		return;
+
+	printk(KERN_INFO PREFIX "DEBUG Event ");
+	switch(obj->type) {
+	case ACPI_TYPE_BUFFER:
+		printk("BUFFER_TYPE - length %d\n", obj->buffer.length);
+		break;
+	case ACPI_TYPE_STRING:
+		printk("STRING_TYPE - %s\n", obj->string.pointer);
+		break;
+	case ACPI_TYPE_INTEGER:
+		printk("INTEGER_TYPE - %llu\n", obj->integer.value);
+		break;
+	case ACPI_TYPE_PACKAGE:
+		printk("PACKAGE_TYPE - %d elements\n", obj->package.count);
+		break;
+	default:
+		printk("object type 0x%X\n", obj->type);
+	}
+	kfree(obj);
+}
+
 /**
  * wmi_install_notify_handler - Register handler for WMI events
  * @handler: Function to handle notifications
@@ -495,7 +570,7 @@ wmi_notify_handler handler, void *data)
 	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
-	if (block->handler)
+	if (block->handler && block->handler != wmi_notify_debug)
 		return AE_ALREADY_ACQUIRED;
 
 	block->handler = handler;
@@ -515,7 +590,7 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 acpi_status wmi_remove_notify_handler(const char *guid)
 {
 	struct wmi_block *block;
-	acpi_status status;
+	acpi_status status = AE_OK;
 
 	if (!guid)
 		return AE_BAD_PARAMETER;
@@ -523,14 +598,16 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
-	if (!block->handler)
+	if (!block->handler || block->handler == wmi_notify_debug)
 		return AE_NULL_ENTRY;
 
-	status = wmi_method_enable(block, 0);
-
-	block->handler = NULL;
-	block->handler_data = NULL;
-
+	if (debug_event) {
+		block->handler = wmi_notify_debug;
+	} else {
+		status = wmi_method_enable(block, 0);
+		block->handler = NULL;
+		block->handler_data = NULL;
+	}
 	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
@@ -733,7 +810,7 @@ static bool guid_already_parsed(const char *guid_string)
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static __init acpi_status parse_wdg(acpi_handle handle)
+static acpi_status parse_wdg(acpi_handle handle)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
@@ -755,11 +832,11 @@ static __init acpi_status parse_wdg(acpi_handle handle)
 
 	total = obj->buffer.length / sizeof(struct guid_block);
 
-	gblock = kzalloc(obj->buffer.length, GFP_KERNEL);
-	if (!gblock)
-		return AE_NO_MEMORY;
-
-	memcpy(gblock, obj->buffer.pointer, obj->buffer.length);
+	gblock = kmemdup(obj->buffer.pointer, obj->buffer.length, GFP_KERNEL);
+	if (!gblock) {
+		status = AE_NO_MEMORY;
+		goto out_free_pointer;
+	}
 
 	for (i = 0; i < total; i++) {
 		/*
@@ -775,17 +852,28 @@ static __init acpi_status parse_wdg(acpi_handle handle)
 				guid_string);
 			continue;
 		}
+		if (debug_dump_wdg)
+			wmi_dump_wdg(&gblock[i]);
+
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
-		if (!wblock)
-			return AE_NO_MEMORY;
+		if (!wblock) {
+			status = AE_NO_MEMORY;
+			goto out_free_gblock;
+		}
 
 		wblock->gblock = gblock[i];
 		wblock->handle = handle;
+		if (debug_event) {
+			wblock->handler = wmi_notify_debug;
+			status = wmi_method_enable(wblock, 1);
+		}
 		list_add_tail(&wblock->list, &wmi_blocks.list);
 	}
 
-	kfree(out.pointer);
+out_free_gblock:
 	kfree(gblock);
+out_free_pointer:
+	kfree(out.pointer);
 
 	return status;
 }
@@ -839,6 +927,7 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 	struct guid_block *block;
 	struct wmi_block *wblock;
 	struct list_head *p;
+	char guid_string[37];
 
 	list_for_each(p, &wmi_blocks.list) {
 		wblock = list_entry(p, struct wmi_block, list);
@@ -848,6 +937,11 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 			(block->notify_id == event)) {
 			if (wblock->handler)
 				wblock->handler(event, wblock->handler_data);
+			if (debug_event) {
+				wmi_gtoa(wblock->gblock.guid, guid_string);
+				printk(KERN_INFO PREFIX "DEBUG Event GUID:"
+				       " %s\n", guid_string);
+			}
 
 			acpi_bus_generate_netlink_event(
 				device->pnp.device_class, dev_name(&device->dev),
@@ -865,7 +959,7 @@ static int acpi_wmi_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int __init acpi_wmi_add(struct acpi_device *device)
+static int acpi_wmi_add(struct acpi_device *device)
 {
 	acpi_status status;
 	int result = 0;

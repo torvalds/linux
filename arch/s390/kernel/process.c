@@ -16,9 +16,9 @@
 #include <linux/fs.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>

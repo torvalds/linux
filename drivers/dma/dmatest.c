@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 
 static unsigned int test_buf_size = 16384;

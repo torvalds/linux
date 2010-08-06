@@ -518,12 +518,13 @@ config SERIAL_S3C2412
 	  Serial port support for the Samsung S3C2412 and S3C2413 SoC
 
 config SERIAL_S3C2440
-	tristate "Samsung S3C2440/S3C2442 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C2440 || CPU_S3C2442)
+	tristate "Samsung S3C2440/S3C2442/S3C2416 Serial port support"
+	depends on SERIAL_SAMSUNG && (CPU_S3C2440 || CPU_S3C2442 || CPU_S3C2416)
 	default y if CPU_S3C2440
 	default y if CPU_S3C2442
+	select SERIAL_SAMSUNG_UARTS_4 if CPU_S3C2416
 	help
-	  Serial port support for the Samsung S3C2440 and S3C2442 SoC
+	  Serial port support for the Samsung S3C2440, S3C2416 and S3C2442 SoC
 
 config SERIAL_S3C24A0
 	tristate "Samsung S3C24A0 Serial port support"
@@ -533,21 +534,13 @@ config SERIAL_S3C24A0
 	  Serial port support for the Samsung S3C24A0 SoC
 
 config SERIAL_S3C6400
-	tristate "Samsung S3C6400/S3C6410/S5P6440 Seria port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440)
+	tristate "Samsung S3C6400/S3C6410/S5P6440/S5PC100 Serial port support"
+	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440 || CPU_S5PC100)
 	select SERIAL_SAMSUNG_UARTS_4
 	default y
 	help
-	  Serial port support for the Samsung S3C6400, S3C6410 and S5P6440
-	  SoCs
-
-config SERIAL_S5PC100
-	tristate "Samsung S5PC100 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S5PC100
-	select SERIAL_SAMSUNG_UARTS_4
-	default y
-	help
-	  Serial port support for the Samsung S5PC100 SoCs
+	  Serial port support for the Samsung S3C6400, S3C6410, S5P6440
+	  and S5PC100 SoCs
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
@@ -1430,8 +1423,8 @@ config SERIAL_SC26XX_CONSOLE
 	  Support for Console on SC2681/SC2692 serial ports.
 
 config SERIAL_BFIN_SPORT
-	tristate "Blackfin SPORT emulate UART (EXPERIMENTAL)"
-	depends on BLACKFIN && EXPERIMENTAL
+	tristate "Blackfin SPORT emulate UART"
+	depends on BLACKFIN
 	select SERIAL_CORE
 	help
 	  Enable SPORT emulate UART on Blackfin series.
@@ -1446,9 +1439,15 @@ config SERIAL_BFIN_SPORT_CONSOLE
 
 config SERIAL_BFIN_SPORT0_UART
 	bool "Enable UART over SPORT0"
-	depends on SERIAL_BFIN_SPORT && !(BF542 || BF542M || BF544 || BF544M)
+	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
 	help
 	  Enable UART over SPORT0
+
+config SERIAL_BFIN_SPORT0_UART_CTSRTS
+	bool "Enable UART over SPORT0 hardware flow control"
+	depends on SERIAL_BFIN_SPORT0_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_SPORT1_UART
 	bool "Enable UART over SPORT1"
@@ -1456,17 +1455,35 @@ config SERIAL_BFIN_SPORT1_UART
 	help
 	  Enable UART over SPORT1
 
+config SERIAL_BFIN_SPORT1_UART_CTSRTS
+	bool "Enable UART over SPORT1 hardware flow control"
+	depends on SERIAL_BFIN_SPORT1_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT2_UART
 	bool "Enable UART over SPORT2"
 	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
 	help
 	  Enable UART over SPORT2
 
+config SERIAL_BFIN_SPORT2_UART_CTSRTS
+	bool "Enable UART over SPORT2 hardware flow control"
+	depends on SERIAL_BFIN_SPORT2_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT3_UART
 	bool "Enable UART over SPORT3"
 	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
 	help
 	  Enable UART over SPORT3
+
+config SERIAL_BFIN_SPORT3_UART_CTSRTS
+	bool "Enable UART over SPORT3 hardware flow control"
+	depends on SERIAL_BFIN_SPORT3_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
@@ -1505,5 +1522,57 @@ config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
 	Support for running a console on the GRLIB APBUART
+
+config SERIAL_ALTERA_JTAGUART
+	tristate "Altera JTAG UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera JTAG UART port.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE
+	bool "Altera JTAG UART console support"
+	depends on SERIAL_ALTERA_JTAGUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera JTAG UART port to be the system console.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS
+	bool "Bypass output when no connection"
+	depends on SERIAL_ALTERA_JTAGUART_CONSOLE
+	select SERIAL_CORE_CONSOLE
+	help
+	  Bypass console output and keep going even if there is no
+	  JTAG terminal connection with the host.
+
+config SERIAL_ALTERA_UART
+	tristate "Altera UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera softcore UART port.
+
+config SERIAL_ALTERA_UART_MAXPORTS
+	int "Maximum number of Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 4
+	help
+	  This setting lets you define the maximum number of the Altera
+	  UART ports. The usual default varies from board to board, and
+	  this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_BAUDRATE
+	int "Default baudrate for Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 115200
+	help
+	  This setting lets you define what the default baudrate is for the
+	  Altera UART ports. The usual default varies from board to board,
+	  and this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_CONSOLE
+	bool "Altera UART console support"
+	depends on SERIAL_ALTERA_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera UART port to be the system console.
 
 endmenu

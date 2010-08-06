@@ -646,7 +646,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
 		if (error) {
 			pr_err("cant copy from user\n");
-			RET(error);
+			RET(-EFAULT);
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
 	}
@@ -665,7 +665,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		    data[2]);
 		error = copy_to_user(ifr->ifr_data, data, sizeof(data));
 		if (error)
-			RET(error);
+			RET(-EFAULT);
 		break;
 
 	case BDX_OP_WRITE:
@@ -808,7 +808,7 @@ static void bdx_setmulti(struct net_device *ndev)
 			WRITE_REG(priv, regRX_MCST_HASH0 + i * 4, ~0);
 	} else if (!netdev_mc_empty(ndev)) {
 		u8 hash;
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		u32 reg, val;
 
 		/* set IMF to deny all multicast frames */
@@ -825,10 +825,10 @@ static void bdx_setmulti(struct net_device *ndev)
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
 		/* accept the rest of addresses throu IMF */
-		netdev_for_each_mc_addr(mclist, ndev) {
+		netdev_for_each_mc_addr(ha, ndev) {
 			hash = 0;
 			for (i = 0; i < ETH_ALEN; i++)
-				hash ^= mclist->dmi_addr[i];
+				hash ^= ha->addr[i];
 			reg = regRX_MCST_HASH0 + ((hash >> 5) << 2);
 			val = READ_REG(priv, reg);
 			val |= (1 << (hash % 32));
@@ -1303,7 +1303,6 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		priv->net_stats.rx_bytes += len;
 
 		skb_put(skb, len);
-		skb->dev = priv->ndev;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, priv->ndev);
 
@@ -1509,7 +1508,7 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int i;
 
-	db->wptr->len = skb->len - skb->data_len;
+	db->wptr->len = skb_headlen(skb);
 	db->wptr->addr.dma = pci_map_single(priv->pdev, skb->data,
 					    db->wptr->len, PCI_DMA_TODEVICE);
 	pbl->len = CPU_CHIP_SWAP32(db->wptr->len);
@@ -2034,7 +2033,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/************** priv ****************/
 		priv = nic->priv[port] = netdev_priv(ndev);
 
-		memset(priv, 0, sizeof(struct bdx_priv));
 		priv->pBdxRegs = nic->regs + port * 0x8000;
 		priv->port = port;
 		priv->pdev = pdev;

@@ -20,7 +20,6 @@
 #include <linux/signal.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/tty.h>
@@ -50,6 +49,7 @@ MODULE_LICENSE("GPL");
 
 /* -------- driver information -------------------------------------- */
 
+static DEFINE_MUTEX(capi_mutex);
 static struct class *capi_class;
 static int capi_major = 68;		/* allocated */
 
@@ -691,7 +691,7 @@ unlock_out:
 static ssize_t
 capi_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	struct sk_buff *skb;
 	size_t copied;
 	int err;
@@ -726,7 +726,7 @@ capi_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 static ssize_t
 capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	struct sk_buff *skb;
 	u16 mlen;
 
@@ -773,7 +773,7 @@ capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos
 static unsigned int
 capi_poll(struct file *file, poll_table * wait)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	unsigned int mask = 0;
 
 	if (!cdev->ap.applid)
@@ -787,8 +787,7 @@ capi_poll(struct file *file, poll_table * wait)
 }
 
 static int
-capi_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+capi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct capidev *cdev = file->private_data;
 	capi_ioctl_struct data;
@@ -981,6 +980,18 @@ register_out:
 	}
 }
 
+static long
+capi_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&capi_mutex);
+	ret = capi_ioctl(file, cmd, arg);
+	mutex_unlock(&capi_mutex);
+
+	return ret;
+}
+
 static int capi_open(struct inode *inode, struct file *file)
 {
 	struct capidev *cdev;
@@ -1026,7 +1037,7 @@ static const struct file_operations capi_fops =
 	.read		= capi_read,
 	.write		= capi_write,
 	.poll		= capi_poll,
-	.ioctl		= capi_ioctl,
+	.unlocked_ioctl	= capi_unlocked_ioctl,
 	.open		= capi_open,
 	.release	= capi_release,
 };

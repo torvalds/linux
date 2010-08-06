@@ -254,7 +254,7 @@
  * device.  A queue maps to only one (selectable by driver) Tx DMA channel,
  * but one DMA channel may take input from several queues.
  *
- * Tx DMA channels have dedicated purposes.  For 4965, they are used as follows
+ * Tx DMA FIFOs have dedicated purposes.  For 4965, they are used as follows
  * (cf. default_queue_to_tx_fifo in iwl-4965.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
@@ -262,20 +262,20 @@
  * 2 -- EDCA VI (video) frames, higher priority
  * 3 -- EDCA VO (voice) and management frames, highest priority
  * 4 -- Commands (e.g. RXON, etc.)
- * 5 -- HCCA short frames
- * 6 -- HCCA long frames
+ * 5 -- unused (HCCA)
+ * 6 -- unused (HCCA)
  * 7 -- not used by driver (device-internal only)
  *
- * For 5000 series and up, they are used slightly differently
+ * For 5000 series and up, they are used differently
  * (cf. iwl5000_default_queue_to_tx_fifo in iwl-5000.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
  * 1 -- EDCA BE (best effort) frames, normal priority
  * 2 -- EDCA VI (video) frames, higher priority
  * 3 -- EDCA VO (voice) and management frames, highest priority
- * 4 -- (TBD)
- * 5 -- HCCA short frames
- * 6 -- HCCA long frames
+ * 4 -- unused
+ * 5 -- unused
+ * 6 -- unused
  * 7 -- Commands
  *
  * Driver should normally map queues 0-6 to Tx DMA/FIFO channels 0-6.
@@ -529,48 +529,48 @@
 #define IWL_SCD_TXFIFO_POS_RA			(4)
 #define IWL_SCD_QUEUE_RA_TID_MAP_RATID_MSK	(0x01FF)
 
-/* 5000 SCD */
-#define IWL50_SCD_QUEUE_STTS_REG_POS_TXF	(0)
-#define IWL50_SCD_QUEUE_STTS_REG_POS_ACTIVE	(3)
-#define IWL50_SCD_QUEUE_STTS_REG_POS_WSL	(4)
-#define IWL50_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN (19)
-#define IWL50_SCD_QUEUE_STTS_REG_MSK		(0x00FF0000)
+/* agn SCD */
+#define IWLAGN_SCD_QUEUE_STTS_REG_POS_TXF	(0)
+#define IWLAGN_SCD_QUEUE_STTS_REG_POS_ACTIVE	(3)
+#define IWLAGN_SCD_QUEUE_STTS_REG_POS_WSL	(4)
+#define IWLAGN_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN (19)
+#define IWLAGN_SCD_QUEUE_STTS_REG_MSK		(0x00FF0000)
 
-#define IWL50_SCD_QUEUE_CTX_REG1_CREDIT_POS		(8)
-#define IWL50_SCD_QUEUE_CTX_REG1_CREDIT_MSK		(0x00FFFF00)
-#define IWL50_SCD_QUEUE_CTX_REG1_SUPER_CREDIT_POS	(24)
-#define IWL50_SCD_QUEUE_CTX_REG1_SUPER_CREDIT_MSK	(0xFF000000)
-#define IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS		(0)
-#define IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK		(0x0000007F)
-#define IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
-#define IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
+#define IWLAGN_SCD_QUEUE_CTX_REG1_CREDIT_POS		(8)
+#define IWLAGN_SCD_QUEUE_CTX_REG1_CREDIT_MSK		(0x00FFFF00)
+#define IWLAGN_SCD_QUEUE_CTX_REG1_SUPER_CREDIT_POS	(24)
+#define IWLAGN_SCD_QUEUE_CTX_REG1_SUPER_CREDIT_MSK	(0xFF000000)
+#define IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS		(0)
+#define IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK		(0x0000007F)
+#define IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
+#define IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 
-#define IWL50_SCD_CONTEXT_DATA_OFFSET		(0x600)
-#define IWL50_SCD_TX_STTS_BITMAP_OFFSET		(0x7B1)
-#define IWL50_SCD_TRANSLATE_TBL_OFFSET		(0x7E0)
+#define IWLAGN_SCD_CONTEXT_DATA_OFFSET		(0x600)
+#define IWLAGN_SCD_TX_STTS_BITMAP_OFFSET		(0x7B1)
+#define IWLAGN_SCD_TRANSLATE_TBL_OFFSET		(0x7E0)
 
-#define IWL50_SCD_CONTEXT_QUEUE_OFFSET(x)\
-	(IWL50_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
+#define IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(x)\
+	(IWLAGN_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
 
-#define IWL50_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
-	((IWL50_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffc)
+#define IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
+	((IWLAGN_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffc)
 
-#define IWL50_SCD_QUEUECHAIN_SEL_ALL(x)		(((1<<(x)) - 1) &\
+#define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(x)		(((1<<(x)) - 1) &\
 	(~(1<<IWL_CMD_QUEUE_NUM)))
 
-#define IWL50_SCD_BASE			(PRPH_BASE + 0xa02c00)
+#define IWLAGN_SCD_BASE			(PRPH_BASE + 0xa02c00)
 
-#define IWL50_SCD_SRAM_BASE_ADDR         (IWL50_SCD_BASE + 0x0)
-#define IWL50_SCD_DRAM_BASE_ADDR	 (IWL50_SCD_BASE + 0x8)
-#define IWL50_SCD_AIT                    (IWL50_SCD_BASE + 0x0c)
-#define IWL50_SCD_TXFACT                 (IWL50_SCD_BASE + 0x10)
-#define IWL50_SCD_ACTIVE		 (IWL50_SCD_BASE + 0x14)
-#define IWL50_SCD_QUEUE_WRPTR(x)         (IWL50_SCD_BASE + 0x18 + (x) * 4)
-#define IWL50_SCD_QUEUE_RDPTR(x)         (IWL50_SCD_BASE + 0x68 + (x) * 4)
-#define IWL50_SCD_QUEUECHAIN_SEL         (IWL50_SCD_BASE + 0xe8)
-#define IWL50_SCD_AGGR_SEL	     	 (IWL50_SCD_BASE + 0x248)
-#define IWL50_SCD_INTERRUPT_MASK         (IWL50_SCD_BASE + 0x108)
-#define IWL50_SCD_QUEUE_STATUS_BITS(x)   (IWL50_SCD_BASE + 0x10c + (x) * 4)
+#define IWLAGN_SCD_SRAM_BASE_ADDR	(IWLAGN_SCD_BASE + 0x0)
+#define IWLAGN_SCD_DRAM_BASE_ADDR	(IWLAGN_SCD_BASE + 0x8)
+#define IWLAGN_SCD_AIT			(IWLAGN_SCD_BASE + 0x0c)
+#define IWLAGN_SCD_TXFACT		(IWLAGN_SCD_BASE + 0x10)
+#define IWLAGN_SCD_ACTIVE		(IWLAGN_SCD_BASE + 0x14)
+#define IWLAGN_SCD_QUEUE_WRPTR(x)	(IWLAGN_SCD_BASE + 0x18 + (x) * 4)
+#define IWLAGN_SCD_QUEUE_RDPTR(x)	(IWLAGN_SCD_BASE + 0x68 + (x) * 4)
+#define IWLAGN_SCD_QUEUECHAIN_SEL	(IWLAGN_SCD_BASE + 0xe8)
+#define IWLAGN_SCD_AGGR_SEL		(IWLAGN_SCD_BASE + 0x248)
+#define IWLAGN_SCD_INTERRUPT_MASK	(IWLAGN_SCD_BASE + 0x108)
+#define IWLAGN_SCD_QUEUE_STATUS_BITS(x)	(IWLAGN_SCD_BASE + 0x10c + (x) * 4)
 
 /*********************** END TX SCHEDULER *************************************/
 

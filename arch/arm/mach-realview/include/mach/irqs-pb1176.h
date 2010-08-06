@@ -31,6 +31,7 @@
 #define IRQ_DC1176_SOFTINT	(IRQ_DC1176_GIC_START + 1)	/* Software interrupt */
 #define IRQ_DC1176_COMMRx	(IRQ_DC1176_GIC_START + 2)	/* Debug Comm Rx interrupt */
 #define IRQ_DC1176_COMMTx	(IRQ_DC1176_GIC_START + 3)	/* Debug Comm Tx interrupt */
+#define IRQ_DC1176_CORE_PMU	(IRQ_DC1176_GIC_START + 7)	/* Core PMU interrupt */
 #define IRQ_DC1176_TIMER0	(IRQ_DC1176_GIC_START + 8)	/* Timer 0 */
 #define IRQ_DC1176_TIMER1	(IRQ_DC1176_GIC_START + 9)	/* Timer 1 */
 #define IRQ_DC1176_TIMER2	(IRQ_DC1176_GIC_START + 10)	/* Timer 2 */
@@ -39,6 +40,7 @@
 #define IRQ_DC1176_L2CC		(IRQ_DC1176_GIC_START + 13)
 #define IRQ_DC1176_RTC		(IRQ_DC1176_GIC_START + 14)
 #define IRQ_DC1176_CLCD		(IRQ_DC1176_GIC_START + 15)	/* CLCD controller */
+#define IRQ_DC1176_SSP		(IRQ_DC1176_GIC_START + 17)	/* SSP port */
 #define IRQ_DC1176_UART0	(IRQ_DC1176_GIC_START + 18)	/* UART 0 on development chip */
 #define IRQ_DC1176_UART1	(IRQ_DC1176_GIC_START + 19)	/* UART 1 on development chip */
 #define IRQ_DC1176_UART2	(IRQ_DC1176_GIC_START + 20)	/* UART 2 on development chip */
@@ -72,7 +74,6 @@
 #define IRQ_PB1176_RTC		(IRQ_PB1176_GIC_START + 25)	/* Real Time Clock */
 
 #define IRQ_PB1176_GPIO0	-1
-#define IRQ_PB1176_SSP		-1
 #define IRQ_PB1176_SCTL		-1
 
 #define NR_GIC_PB1176		2

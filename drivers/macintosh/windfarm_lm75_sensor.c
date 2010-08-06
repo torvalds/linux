@@ -107,10 +107,8 @@ static int wf_lm75_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, lm);
 
 	rc = wf_register_sensor(&lm->sens);
-	if (rc) {
-		i2c_set_clientdata(client, NULL);
+	if (rc)
 		kfree(lm);
-	}
 
 	return rc;
 }
@@ -216,7 +214,6 @@ static int wf_lm75_remove(struct i2c_client *client)
 	/* release sensor */
 	wf_unregister_sensor(&lm->sens);
 
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

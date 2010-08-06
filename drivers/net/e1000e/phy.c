@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -2319,6 +2319,9 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 	case I82577_E_PHY_ID:
 		phy_type = e1000_phy_82577;
 		break;
+	case I82579_E_PHY_ID:
+		phy_type = e1000_phy_82579;
+		break;
 	default:
 		phy_type = e1000_phy_unknown;
 		break;
@@ -3116,9 +3119,7 @@ s32 e1000_check_polarity_82577(struct e1000_hw *hw)
  *  e1000_phy_force_speed_duplex_82577 - Force speed/duplex for I82577 PHY
  *  @hw: pointer to the HW structure
  *
- *  Calls the PHY setup function to force speed and duplex.  Clears the
- *  auto-crossover to force MDI manually.  Waits for link and returns
- *  successful if link up is successful, else -E1000_ERR_PHY (-2).
+ *  Calls the PHY setup function to force speed and duplex.
  **/
 s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 {
@@ -3136,23 +3137,6 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_data);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * Clear Auto-Crossover to force MDI manually.  82577 requires MDI
-	 * forced whenever speed and duplex are forced.
-	 */
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_CTRL_2, &phy_data);
-	if (ret_val)
-		goto out;
-
-	phy_data &= ~I82577_PHY_CTRL2_AUTO_MDIX;
-	phy_data &= ~I82577_PHY_CTRL2_FORCE_MDI_MDIX;
-
-	ret_val = phy->ops.write_reg(hw, I82577_PHY_CTRL_2, phy_data);
-	if (ret_val)
-		goto out;
-
-	e_dbg("I82577_PHY_CTRL_2: %X\n", phy_data);
 
 	udelay(1);
 

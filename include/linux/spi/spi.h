@@ -21,6 +21,7 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/slab.h>
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.

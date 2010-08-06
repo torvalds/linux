@@ -269,7 +269,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 			information about the device.
 		</para>
 		<programlisting>
-int __init board_init (void)
+static int __init board_init (void)
 {
 	struct nand_chip *this;
 	int err = 0;

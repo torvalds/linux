@@ -111,7 +111,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/mca-legacy.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
@@ -544,7 +543,7 @@ static void unstick_cu(struct net_device *dev)
 
 	if (lp->started)
 	{
-		if (time_after(jiffies, dev->trans_start + 50))
+		if (time_after(jiffies, dev_trans_start(dev) + HZ/2))
 		{
 			if (lp->tx_link==lp->last_tx_restart)
 			{
@@ -1019,7 +1018,7 @@ static void eexp_hw_tx_pio(struct net_device *dev, unsigned short *buf,
 	outw(lp->tx_head+0x16, ioaddr + DATAPORT);
 	outw(0, ioaddr + DATAPORT);
 
-        outsw(ioaddr + DATAPORT, buf, (len+1)>>1);
+	outsw(ioaddr + DATAPORT, buf, (len+1)>>1);
 
 	outw(lp->tx_tail+0xc, ioaddr + WRITE_PTR);
 	outw(lp->tx_head, ioaddr + DATAPORT);
@@ -1571,12 +1570,11 @@ static void eexp_hw_init586(struct net_device *dev)
 #if NET_DEBUG > 6
         printk("%s: leaving eexp_hw_init586()\n", dev->name);
 #endif
-	return;
 }
 
 static void eexp_setup_filter(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned short ioaddr = dev->base_addr;
 	int count = netdev_mc_count(dev);
 	int i;
@@ -1589,8 +1587,8 @@ static void eexp_setup_filter(struct net_device *dev)
 	outw(CONF_NR_MULTICAST & ~31, ioaddr+SM_PTR);
 	outw(6*count, ioaddr+SHADOW(CONF_NR_MULTICAST));
 	i = 0;
-	netdev_for_each_mc_addr(dmi, dev) {
-		unsigned short *data = (unsigned short *) dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		unsigned short *data = (unsigned short *) ha->addr;
 
 		if (i == count)
 			break;

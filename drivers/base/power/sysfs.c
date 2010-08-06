@@ -5,6 +5,8 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/pm_runtime.h>
+#include <asm/atomic.h>
+#include <linux/jiffies.h>
 #include "power.h"
 
 /*
@@ -72,6 +74,8 @@
  *	device are known to the PM core.  However, for some devices this
  *	attribute is set to "enabled" by bus type code or device drivers and in
  *	that cases it should be safe to leave the default value.
+ *
+ *	wakeup_count - Report the number of wakeup events related to the device
  */
 
 static const char enabled[] = "enabled";
@@ -107,6 +111,65 @@ static ssize_t control_store(struct device * dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(control, 0644, control_show, control_store);
+
+static ssize_t rtpm_active_time_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	spin_lock_irq(&dev->power.lock);
+	update_pm_runtime_accounting(dev);
+	ret = sprintf(buf, "%i\n", jiffies_to_msecs(dev->power.active_jiffies));
+	spin_unlock_irq(&dev->power.lock);
+	return ret;
+}
+
+static DEVICE_ATTR(runtime_active_time, 0444, rtpm_active_time_show, NULL);
+
+static ssize_t rtpm_suspended_time_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	spin_lock_irq(&dev->power.lock);
+	update_pm_runtime_accounting(dev);
+	ret = sprintf(buf, "%i\n",
+		jiffies_to_msecs(dev->power.suspended_jiffies));
+	spin_unlock_irq(&dev->power.lock);
+	return ret;
+}
+
+static DEVICE_ATTR(runtime_suspended_time, 0444, rtpm_suspended_time_show, NULL);
+
+static ssize_t rtpm_status_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	const char *p;
+
+	if (dev->power.runtime_error) {
+		p = "error\n";
+	} else if (dev->power.disable_depth) {
+		p = "unsupported\n";
+	} else {
+		switch (dev->power.runtime_status) {
+		case RPM_SUSPENDED:
+			p = "suspended\n";
+			break;
+		case RPM_SUSPENDING:
+			p = "suspending\n";
+			break;
+		case RPM_RESUMING:
+			p = "resuming\n";
+			break;
+		case RPM_ACTIVE:
+			p = "active\n";
+			break;
+		default:
+			return -EIO;
+		}
+	}
+	return sprintf(buf, p);
+}
+
+static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
 #endif
 
 static ssize_t
@@ -143,7 +206,50 @@ wake_store(struct device * dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
-#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+#ifdef CONFIG_PM_SLEEP
+static ssize_t wakeup_count_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", dev->power.wakeup_count);
+}
+
+static DEVICE_ATTR(wakeup_count, 0444, wakeup_count_show, NULL);
+#endif
+
+#ifdef CONFIG_PM_ADVANCED_DEBUG
+#ifdef CONFIG_PM_RUNTIME
+
+static ssize_t rtpm_usagecount_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&dev->power.usage_count));
+}
+
+static ssize_t rtpm_children_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev->power.ignore_children ?
+		0 : atomic_read(&dev->power.child_count));
+}
+
+static ssize_t rtpm_enabled_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	if ((dev->power.disable_depth) && (dev->power.runtime_auto == false))
+		return sprintf(buf, "disabled & forbidden\n");
+	else if (dev->power.disable_depth)
+		return sprintf(buf, "disabled\n");
+	else if (dev->power.runtime_auto == false)
+		return sprintf(buf, "forbidden\n");
+	return sprintf(buf, "enabled\n");
+}
+
+static DEVICE_ATTR(runtime_usage, 0444, rtpm_usagecount_show, NULL);
+static DEVICE_ATTR(runtime_active_kids, 0444, rtpm_children_show, NULL);
+static DEVICE_ATTR(runtime_enabled, 0444, rtpm_enabled_show, NULL);
+
+#endif
+
 static ssize_t async_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -170,15 +276,26 @@ static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(async, 0644, async_show, async_store);
-#endif /* CONFIG_PM_SLEEP_ADVANCED_DEBUG */
+#endif /* CONFIG_PM_ADVANCED_DEBUG */
 
 static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_control.attr,
+	&dev_attr_runtime_status.attr,
+	&dev_attr_runtime_suspended_time.attr,
+	&dev_attr_runtime_active_time.attr,
 #endif
 	&dev_attr_wakeup.attr,
-#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+#ifdef CONFIG_PM_SLEEP
+	&dev_attr_wakeup_count.attr,
+#endif
+#ifdef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_async.attr,
+#ifdef CONFIG_PM_RUNTIME
+	&dev_attr_runtime_usage.attr,
+	&dev_attr_runtime_active_kids.attr,
+	&dev_attr_runtime_enabled.attr,
+#endif
 #endif
 	NULL,
 };

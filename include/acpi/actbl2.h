@@ -69,6 +69,7 @@
 #define ACPI_SIG_IBFT           "IBFT"	/* i_sCSI Boot Firmware Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_MCFG           "MCFG"	/* PCI Memory Mapped Configuration table */
+#define ACPI_SIG_MCHI           "MCHI"	/* Management Controller Host Interface table */
 #define ACPI_SIG_SLIC           "SLIC"	/* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"	/* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"	/* Server Platform Management Interface table */
@@ -675,6 +676,32 @@ struct acpi_mcfg_allocation {
 	u8 start_bus_number;	/* Starting PCI Bus number */
 	u8 end_bus_number;	/* Final PCI Bus number */
 	u32 reserved;
+};
+
+/*******************************************************************************
+ *
+ * MCHI - Management Controller Host Interface Table
+ *        Version 1
+ *
+ * Conforms to "Management Component Transport Protocol (MCTP) Host
+ * Interface Specification", Revision 1.0.0a, October 13, 2009
+ *
+ ******************************************************************************/
+
+struct acpi_table_mchi {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 interface_type;
+	u8 protocol;
+	u64 protocol_data;
+	u8 interrupt_type;
+	u8 gpe;
+	u8 pci_device_flag;
+	u32 global_interrupt;
+	struct acpi_generic_address control_register;
+	u8 pci_segment;
+	u8 pci_bus;
+	u8 pci_device;
+	u8 pci_function;
 };
 
 /*******************************************************************************

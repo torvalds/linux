@@ -40,10 +40,10 @@ struct op_x86_model_spec {
 	u64		reserved;
 	u16		event_mask;
 	int		(*init)(struct oprofile_operations *ops);
-	void		(*exit)(void);
-	void		(*fill_in_addresses)(struct op_msrs * const msrs);
+	int		(*fill_in_addresses)(struct op_msrs * const msrs);
 	void		(*setup_ctrs)(struct op_x86_model_spec const *model,
 				      struct op_msrs const * const msrs);
+	void		(*cpu_down)(void);
 	int		(*check_ctrs)(struct pt_regs * const regs,
 				      struct op_msrs const * const msrs);
 	void		(*start)(struct op_msrs const * const msrs);

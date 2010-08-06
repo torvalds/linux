@@ -17,6 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>
@@ -102,6 +103,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	unsigned int count = 32;
+	u8 signal, agc, sq;
 
 	while (count--) {
 		struct rtl8180_rx_desc *entry = &priv->rx_ring[priv->rx_idx];
@@ -129,10 +131,18 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			skb_put(skb, flags & 0xFFF);
 
 			rx_status.antenna = (flags2 >> 15) & 1;
-			/* TODO: improve signal/rssi reporting */
-			rx_status.signal = (flags2 >> 8) & 0x7F;
-			/* XXX: is this correct? */
 			rx_status.rate_idx = (flags >> 20) & 0xF;
+			agc = (flags2 >> 17) & 0x7F;
+			if (priv->r8185) {
+				if (rx_status.rate_idx > 3)
+					signal = 90 - clamp_t(u8, agc, 25, 90);
+				else
+					signal = 95 - clamp_t(u8, agc, 30, 95);
+			} else {
+				sq = flags2 & 0xff;
+				signal = priv->rf->calc_rssi(agc, sq);
+			}
+			rx_status.signal = signal;
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
@@ -187,6 +197,7 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
+		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -232,6 +243,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *dev_id)
 static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl8180_tx_ring *ring;
 	struct rtl8180_tx_desc *entry;
@@ -283,6 +295,14 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			priv->seqno += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+	}
+
 	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
 	entry = &ring->desc[idx];
 
@@ -296,7 +316,8 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	entry->flags = cpu_to_le32(tx_flags);
 	__skb_queue_tail(&ring->queue, skb);
 	if (ring->entries - skb_queue_len(&ring->queue) < 2)
-		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
+		ieee80211_stop_queue(dev, prio);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING, (1 << (prio + 4)));
@@ -340,7 +361,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	/* check success of reset */
 	if (rtl818x_ioread8(priv, &priv->map->CMD) & RTL818X_CMD_RESET) {
-		printk(KERN_ERR "%s: reset timeout!\n", wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "reset timeout!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -424,8 +445,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 					     &priv->rx_ring_dma);
 
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
-		printk(KERN_ERR "%s: Cannot allocate RX ring\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "cannot allocate rx ring\n");
 		return -ENOMEM;
 	}
 
@@ -482,8 +502,8 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 
 	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		printk(KERN_ERR "%s: Cannot allocate TX ring (prio = %d)\n",
-		       wiphy_name(dev->wiphy), prio);
+		wiphy_err(dev->wiphy, "cannot allocate tx ring (prio = %d)\n",
+			  prio);
 		return -ENOMEM;
 	}
 
@@ -548,8 +568,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "failed to register irq handler\n");
 		goto err_free_rings;
 	}
 
@@ -651,10 +670,59 @@ static void rtl8180_stop(struct ieee80211_hw *dev)
 		rtl8180_free_tx_ring(dev, i);
 }
 
+static u64 rtl8180_get_tsf(struct ieee80211_hw *dev)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	return rtl818x_ioread32(priv, &priv->map->TSFT[0]) |
+	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
+}
+
+static void rtl8180_beacon_work(struct work_struct *work)
+{
+	struct rtl8180_vif *vif_priv =
+		container_of(work, struct rtl8180_vif, beacon_work.work);
+	struct ieee80211_vif *vif =
+		container_of((void *)vif_priv, struct ieee80211_vif, drv_priv);
+	struct ieee80211_hw *dev = vif_priv->dev;
+	struct ieee80211_mgmt *mgmt;
+	struct sk_buff *skb;
+	int err = 0;
+
+	/* don't overflow the tx ring */
+	if (ieee80211_queue_stopped(dev, 0))
+		goto resched;
+
+	/* grab a fresh beacon */
+	skb = ieee80211_beacon_get(dev, vif);
+
+	/*
+	 * update beacon timestamp w/ TSF value
+	 * TODO: make hardware update beacon timestamp
+	 */
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+	mgmt->u.beacon.timestamp = cpu_to_le64(rtl8180_get_tsf(dev));
+
+	/* TODO: use actual beacon queue */
+	skb_set_queue_mapping(skb, 0);
+
+	err = rtl8180_tx(dev, skb);
+	WARN_ON(err);
+
+resched:
+	/*
+	 * schedule next beacon
+	 * TODO: use hardware support for beacon timing
+	 */
+	schedule_delayed_work(&vif_priv->beacon_work,
+			usecs_to_jiffies(1024 * vif->bss_conf.beacon_int));
+}
+
 static int rtl8180_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_vif *vif)
 {
 	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_vif *vif_priv;
 
 	/*
 	 * We only support one active interface at a time.
@@ -664,12 +732,19 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
 	priv->vif = vif;
+
+	/* Initialize driver private area */
+	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
+	vif_priv->dev = dev;
+	INIT_DELAYED_WORK(&vif_priv->beacon_work, rtl8180_beacon_work);
+	vif_priv->enable_beacon = false;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->MAC[0],
@@ -704,7 +779,10 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 				     u32 changed)
 {
 	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_vif *vif_priv;
 	int i;
+
+	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
 	if (changed & BSS_CHANGED_BSSID) {
 		for (i = 0; i < ETH_ALEN; i++)
@@ -720,13 +798,22 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
-	        priv->rf->conf_erp(dev, info);
+		priv->rf->conf_erp(dev, info);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		vif_priv->enable_beacon = info->enable_beacon;
+
+	if (changed & (BSS_CHANGED_BEACON_ENABLED | BSS_CHANGED_BEACON)) {
+		cancel_delayed_work_sync(&vif_priv->beacon_work);
+		if (vif_priv->enable_beacon)
+			schedule_work(&vif_priv->beacon_work.work);
+	}
 }
 
-static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev, int mc_count,
-				     struct dev_addr_list *mc_list)
+static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev,
+				     struct netdev_hw_addr_list *mc_list)
 {
-	return mc_count;
+	return netdev_hw_addr_list_count(mc_list);
 }
 
 static void rtl8180_configure_filter(struct ieee80211_hw *dev,
@@ -759,14 +846,6 @@ static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 		*total_flags |= FIF_ALLMULTI;
 
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, priv->rx_conf);
-}
-
-static u64 rtl8180_get_tsf(struct ieee80211_hw *dev)
-{
-	struct rtl8180_priv *priv = dev->priv;
-
-	return rtl818x_ioread32(priv, &priv->map->TSFT[0]) |
-	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
 }
 
 static const struct ieee80211_ops rtl8180_ops = {
@@ -826,6 +905,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	const char *chip_name, *rf_name = NULL;
 	u32 reg;
 	u16 eeprom_val;
+	u8 mac_addr[ETH_ALEN];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -854,8 +934,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		goto err_free_reg;
 	}
 
-	if ((err = pci_set_dma_mask(pdev, 0xFFFFFF00ULL)) ||
-	    (err = pci_set_consistent_dma_mask(pdev, 0xFFFFFF00ULL))) {
+	if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
+	    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
 		printk(KERN_ERR "%s (rtl8180): No suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;
@@ -904,7 +984,9 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
-	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	dev->vif_data_size = sizeof(struct rtl8180_vif);
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_ADHOC);
 	dev->queues = 1;
 	dev->max_signal = 65;
 
@@ -986,12 +1068,13 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
 	}
 
-	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)dev->wiphy->perm_addr, 3);
-	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
+	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)mac_addr, 3);
+	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		random_ether_addr(dev->wiphy->perm_addr);
+		random_ether_addr(mac_addr);
 	}
+	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 
 	/* CCK TX power */
 	for (i = 0; i < 14; i += 2) {
@@ -1022,9 +1105,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	printk(KERN_INFO "%s: hwaddr %pM, %s + %s\n",
-	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
-	       chip_name, priv->rf->name);
+	wiphy_info(dev->wiphy, "hwaddr %pm, %s + %s\n",
+		   mac_addr, chip_name, priv->rf->name);
 
 	return 0;
 

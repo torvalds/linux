@@ -387,7 +387,7 @@ static int n2rng_init_control(struct n2rng *np)
 
 static int n2rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct n2rng *np = (struct n2rng *) rng->priv;
+	struct n2rng *np = rng->priv;
 	unsigned long ra = __pa(&np->test_data);
 	int len;
 
@@ -660,7 +660,7 @@ static int __devinit n2rng_probe(struct of_device *op,
 				np->hvapi_major);
 			goto out_hvapi_unregister;
 		}
-		np->num_units = of_getintprop_default(op->node,
+		np->num_units = of_getintprop_default(op->dev.of_node,
 						      "rng-#units", 0);
 		if (!np->num_units) {
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");
@@ -751,8 +751,11 @@ static const struct of_device_id n2rng_match[] = {
 MODULE_DEVICE_TABLE(of, n2rng_match);
 
 static struct of_platform_driver n2rng_driver = {
-	.name		= "n2rng",
-	.match_table	= n2rng_match,
+	.driver = {
+		.name = "n2rng",
+		.owner = THIS_MODULE,
+		.of_match_table = n2rng_match,
+	},
 	.probe		= n2rng_probe,
 	.remove		= __devexit_p(n2rng_remove),
 };

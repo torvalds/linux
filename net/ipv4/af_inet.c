@@ -86,6 +86,7 @@
 #include <linux/poll.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -153,7 +154,7 @@ void inet_sock_destruct(struct sock *sk)
 	WARN_ON(sk->sk_forward_alloc);
 
 	kfree(inet->opt);
-	dst_release(sk->sk_dst_cache);
+	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 	sk_refcnt_debug_dec(sk);
 }
 EXPORT_SYMBOL(inet_sock_destruct);
@@ -354,6 +355,8 @@ lookup_protocol:
 	inet = inet_sk(sk);
 	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
 
+	inet->nodefrag = 0;
+
 	if (SOCK_RAW == sock->type) {
 		inet->inet_num = protocol;
 		if (IPPROTO_RAW == protocol)
@@ -417,6 +420,8 @@ int inet_release(struct socket *sock)
 
 	if (sk) {
 		long timeout;
+
+		sock_rps_reset_flow(sk);
 
 		/* Applications forget to leave groups before exiting */
 		ip_mc_drop_socket(sk);
@@ -530,6 +535,8 @@ int inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr,
 {
 	struct sock *sk = sock->sk;
 
+	if (addr_len < sizeof(uaddr->sa_family))
+		return -EINVAL;
 	if (uaddr->sa_family == AF_UNSPEC)
 		return sk->sk_prot->disconnect(sk, flags);
 
@@ -543,7 +550,7 @@ static long inet_wait_for_connect(struct sock *sk, long timeo)
 {
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 	/* Basic assumption: if someone sets sk->sk_err, he _must_
 	 * change state of the socket from TCP_SYN_*.
@@ -556,9 +563,9 @@ static long inet_wait_for_connect(struct sock *sk, long timeo)
 		lock_sock(sk);
 		if (signal_pending(current) || !timeo)
 			break;
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return timeo;
 }
 
@@ -572,6 +579,9 @@ int inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	int err;
 	long timeo;
+
+	if (addr_len < sizeof(uaddr->sa_family))
+		return -EINVAL;
 
 	lock_sock(sk);
 
@@ -714,29 +724,51 @@ int inet_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 
+	sock_rps_record_flow(sk);
+
 	/* We may need to bind the socket. */
-	if (!inet_sk(sk)->inet_num && inet_autobind(sk))
+	if (!inet_sk(sk)->inet_num && !sk->sk_prot->no_autobind &&
+	    inet_autobind(sk))
 		return -EAGAIN;
 
 	return sk->sk_prot->sendmsg(iocb, sk, msg, size);
 }
 EXPORT_SYMBOL(inet_sendmsg);
 
-
-static ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
-			     size_t size, int flags)
+ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
+		      size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
 
+	sock_rps_record_flow(sk);
+
 	/* We may need to bind the socket. */
-	if (!inet_sk(sk)->inet_num && inet_autobind(sk))
+	if (!inet_sk(sk)->inet_num && !sk->sk_prot->no_autobind &&
+	    inet_autobind(sk))
 		return -EAGAIN;
 
 	if (sk->sk_prot->sendpage)
 		return sk->sk_prot->sendpage(sk, page, offset, size, flags);
 	return sock_no_sendpage(sock, page, offset, size, flags);
 }
+EXPORT_SYMBOL(inet_sendpage);
 
+int inet_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
+		 size_t size, int flags)
+{
+	struct sock *sk = sock->sk;
+	int addr_len = 0;
+	int err;
+
+	sock_rps_record_flow(sk);
+
+	err = sk->sk_prot->recvmsg(iocb, sk, msg, size, flags & MSG_DONTWAIT,
+				   flags & ~MSG_DONTWAIT, &addr_len);
+	if (err >= 0)
+		msg->msg_namelen = addr_len;
+	return err;
+}
+EXPORT_SYMBOL(inet_recvmsg);
 
 int inet_shutdown(struct socket *sock, int how)
 {
@@ -865,10 +897,10 @@ const struct proto_ops inet_stream_ops = {
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
-	.sendmsg	   = tcp_sendmsg,
-	.recvmsg	   = sock_common_recvmsg,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
-	.sendpage	   = tcp_sendpage,
+	.sendpage	   = inet_sendpage,
 	.splice_read	   = tcp_splice_read,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
@@ -893,7 +925,7 @@ const struct proto_ops inet_dgram_ops = {
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
-	.recvmsg	   = sock_common_recvmsg,
+	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = inet_sendpage,
 #ifdef CONFIG_COMPAT
@@ -923,7 +955,7 @@ static const struct proto_ops inet_sockraw_ops = {
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
-	.recvmsg	   = sock_common_recvmsg,
+	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = inet_sendpage,
 #ifdef CONFIG_COMPAT
@@ -1073,7 +1105,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	if (err)
 		return err;
 
-	sk_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->dst);
 
 	new_saddr = rt->rt_src;
 
@@ -1139,7 +1171,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0);
 }
 	if (!err)
-		sk_setup_caps(sk, &rt->u.dst);
+		sk_setup_caps(sk, &rt->dst);
 	else {
 		/* Routing failed... */
 		sk->sk_route_caps = 0;
@@ -1296,8 +1328,8 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto out_unlock;
 
-	id = ntohl(*(u32 *)&iph->id);
-	flush = (u16)((ntohl(*(u32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
+	id = ntohl(*(__be32 *)&iph->id);
+	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
 	id >>= 16;
 
 	for (p = *head; p; p = p->next) {
@@ -1310,8 +1342,8 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 
 		if ((iph->protocol ^ iph2->protocol) |
 		    (iph->tos ^ iph2->tos) |
-		    (iph->saddr ^ iph2->saddr) |
-		    (iph->daddr ^ iph2->daddr)) {
+		    ((__force u32)iph->saddr ^ (__force u32)iph2->saddr) |
+		    ((__force u32)iph->daddr ^ (__force u32)iph2->daddr)) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
@@ -1398,13 +1430,49 @@ unsigned long snmp_fold_field(void __percpu *mib[], int offt)
 }
 EXPORT_SYMBOL_GPL(snmp_fold_field);
 
-int snmp_mib_init(void __percpu *ptr[2], size_t mibsize)
+#if BITS_PER_LONG==32
+
+u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp_offset)
+{
+	u64 res = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		void *bhptr, *userptr;
+		struct u64_stats_sync *syncp;
+		u64 v_bh, v_user;
+		unsigned int start;
+
+		/* first mib used by softirq context, we must use _bh() accessors */
+		bhptr = per_cpu_ptr(SNMP_STAT_BHPTR(mib), cpu);
+		syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
+		do {
+			start = u64_stats_fetch_begin_bh(syncp);
+			v_bh = *(((u64 *) bhptr) + offt);
+		} while (u64_stats_fetch_retry_bh(syncp, start));
+
+		/* second mib used in USER context */
+		userptr = per_cpu_ptr(SNMP_STAT_USRPTR(mib), cpu);
+		syncp = (struct u64_stats_sync *)(userptr + syncp_offset);
+		do {
+			start = u64_stats_fetch_begin(syncp);
+			v_user = *(((u64 *) userptr) + offt);
+		} while (u64_stats_fetch_retry(syncp, start));
+
+		res += v_bh + v_user;
+	}
+	return res;
+}
+EXPORT_SYMBOL_GPL(snmp_fold_field64);
+#endif
+
+int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align)
 {
 	BUG_ON(ptr == NULL);
-	ptr[0] = __alloc_percpu(mibsize, __alignof__(unsigned long long));
+	ptr[0] = __alloc_percpu(mibsize, align);
 	if (!ptr[0])
 		goto err0;
-	ptr[1] = __alloc_percpu(mibsize, __alignof__(unsigned long long));
+	ptr[1] = __alloc_percpu(mibsize, align);
 	if (!ptr[1])
 		goto err1;
 	return 0;
@@ -1461,25 +1529,32 @@ static const struct net_protocol icmp_protocol = {
 static __net_init int ipv4_mib_init_net(struct net *net)
 {
 	if (snmp_mib_init((void __percpu **)net->mib.tcp_statistics,
-			  sizeof(struct tcp_mib)) < 0)
+			  sizeof(struct tcp_mib),
+			  __alignof__(struct tcp_mib)) < 0)
 		goto err_tcp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.ip_statistics,
-			  sizeof(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.net_statistics,
-			  sizeof(struct linux_mib)) < 0)
+			  sizeof(struct linux_mib),
+			  __alignof__(struct linux_mib)) < 0)
 		goto err_net_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.udp_statistics,
-			  sizeof(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.udplite_statistics,
-			  sizeof(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmp_statistics,
-			  sizeof(struct icmp_mib)) < 0)
+			  sizeof(struct icmp_mib),
+			  __alignof__(struct icmp_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmpmsg_statistics,
-			  sizeof(struct icmpmsg_mib)) < 0)
+			  sizeof(struct icmpmsg_mib),
+			  __alignof__(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
 
 	tcp_mib_init(net);
@@ -1546,9 +1621,13 @@ static int __init inet_init(void)
 
 	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb));
 
+	sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
+	if (!sysctl_local_reserved_ports)
+		goto out;
+
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)
-		goto out;
+		goto out_free_reserved_ports;
 
 	rc = proto_register(&udp_prot, 1);
 	if (rc)
@@ -1647,6 +1726,8 @@ out_unregister_udp_proto:
 	proto_unregister(&udp_prot);
 out_unregister_tcp_proto:
 	proto_unregister(&tcp_prot);
+out_free_reserved_ports:
+	kfree(sysctl_local_reserved_ports);
 	goto out;
 }
 

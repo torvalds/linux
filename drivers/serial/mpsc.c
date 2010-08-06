@@ -70,6 +70,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -2070,6 +2071,7 @@ static int mpsc_drv_probe(struct platform_device *dev)
 
 		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
 			mpsc_drv_get_platform_data(pi, dev, dev->id);
+			pi->port.dev = &dev->dev;
 
 			if (!(rc = mpsc_make_ready(pi))) {
 				spin_lock_init(&pi->tx_lock);

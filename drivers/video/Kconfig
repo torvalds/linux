@@ -8,6 +8,9 @@ menu "Graphics support"
 config HAVE_FB_ATMEL
 	bool
 
+config HAVE_FB_IMX
+	bool
+
 source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
@@ -399,9 +402,6 @@ config FB_SA1100
 
 	  If you plan to use the LCD display with your SA-1100 system, say
 	  Y here.
-
-config HAVE_FB_IMX
-	bool
 
 config FB_IMX
 	tristate "Motorola i.MX LCD support"
@@ -1511,6 +1511,7 @@ config FB_VIA
        select FB_CFB_IMAGEBLIT
        select I2C_ALGOBIT
        select I2C
+       select GPIOLIB
        help
 	  This is the frame buffer device driver for Graphics chips of VIA
 	  UniChrome (Pro) Family (CLE266,PM800/CN400,P4M800CE/P4M800Pro/
@@ -1520,6 +1521,21 @@ config FB_VIA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called viafb.
+
+if FB_VIA
+
+config FB_VIA_DIRECT_PROCFS
+	bool "direct hardware access via procfs (DEPRECATED)(DANGEROUS)"
+	depends on FB_VIA
+	default n
+	help
+	  Allow direct hardware access to some output registers via procfs.
+	  This is dangerous but may provide the only chance to get the
+	  correct output device configuration.
+	  Its use is strongly discouraged.
+
+endif
+
 config FB_NEOMAGIC
 	tristate "NeoMagic display support"
 	depends on FB && PCI
@@ -2186,7 +2202,6 @@ config FB_MSM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	default y
 
 config FB_MX3
 	tristate "MX3 Framebuffer support"

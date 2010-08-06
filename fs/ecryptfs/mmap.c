@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -43,17 +44,9 @@
  * Returns locked and up-to-date page (if ok), with increased
  * refcnt.
  */
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index)
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
 {
-	struct dentry *dentry;
-	struct inode *inode;
-	struct address_space *mapping;
-	struct page *page;
-
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
-	mapping = inode->i_mapping;
-	page = read_mapping_page(mapping, index, (void *)file);
+	struct page *page = read_mapping_page(inode->i_mapping, index, NULL);
 	if (!IS_ERR(page))
 		lock_page(page);
 	return page;
@@ -82,6 +75,19 @@ out:
 	return rc;
 }
 
+static void strip_xattr_flag(char *page_virt,
+			     struct ecryptfs_crypt_stat *crypt_stat)
+{
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
+		size_t written;
+
+		crypt_stat->flags &= ~ECRYPTFS_METADATA_IN_XATTR;
+		ecryptfs_write_crypt_stat_flags(page_virt, crypt_stat,
+						&written);
+		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
+	}
+}
+
 /**
  *   Header Extent:
  *     Octets 0-7:        Unencrypted file size (big-endian)
@@ -97,19 +103,6 @@ out:
  *                        (big-endian)
  *     Octet  26:         Begin RFC 2440 authentication token packet set
  */
-static void set_header_info(char *page_virt,
-			    struct ecryptfs_crypt_stat *crypt_stat)
-{
-	size_t written;
-	size_t save_num_header_bytes_at_front =
-		crypt_stat->num_header_bytes_at_front;
-
-	crypt_stat->num_header_bytes_at_front =
-		ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
-	ecryptfs_write_header_metadata(page_virt + 20, crypt_stat, &written);
-	crypt_stat->num_header_bytes_at_front =
-		save_num_header_bytes_at_front;
-}
 
 /**
  * ecryptfs_copy_up_encrypted_with_header
@@ -135,8 +128,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 					   * num_extents_per_page)
 					  + extent_num_in_page);
 		size_t num_header_extents_at_front =
-			(crypt_stat->num_header_bytes_at_front
-			 / crypt_stat->extent_size);
+			(crypt_stat->metadata_size / crypt_stat->extent_size);
 
 		if (view_extent_num < num_header_extents_at_front) {
 			/* This is a header extent */
@@ -146,9 +138,14 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			memset(page_virt, 0, PAGE_CACHE_SIZE);
 			/* TODO: Support more than one header extent */
 			if (view_extent_num == 0) {
+				size_t written;
+
 				rc = ecryptfs_read_xattr_region(
 					page_virt, page->mapping->host);
-				set_header_info(page_virt, crypt_stat);
+				strip_xattr_flag(page_virt + 16, crypt_stat);
+				ecryptfs_write_header_metadata(page_virt + 20,
+							       crypt_stat,
+							       &written);
 			}
 			kunmap_atomic(page_virt, KM_USER0);
 			flush_dcache_page(page);
@@ -161,7 +158,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			/* This is an encrypted data extent */
 			loff_t lower_offset =
 				((view_extent_num * crypt_stat->extent_size)
-				 - crypt_stat->num_header_bytes_at_front);
+				 - crypt_stat->metadata_size);
 
 			rc = ecryptfs_read_lower_page_segment(
 				page, (lower_offset >> PAGE_CACHE_SHIFT),
@@ -193,7 +190,7 @@ out:
 static int ecryptfs_readpage(struct file *file, struct page *page)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
 	int rc = 0;
 
 	if (!crypt_stat
@@ -295,8 +292,7 @@ static int ecryptfs_write_begin(struct file *file,
 
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
-			&ecryptfs_inode_to_private(
-				file->f_path.dentry->d_inode)->crypt_stat;
+			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
 		    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
@@ -482,7 +478,7 @@ static int ecryptfs_write_end(struct file *file,
 	unsigned to = from + copied;
 	struct inode *ecryptfs_inode = mapping->host;
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc;
 
 	if (crypt_stat->flags & ECRYPTFS_NEW_FILE) {

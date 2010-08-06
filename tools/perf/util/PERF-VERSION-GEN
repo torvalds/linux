@@ -1,17 +1,17 @@
 #!/bin/sh
 
-GVF=PERF-VERSION-FILE
-DEF_VER=v0.0.2.PERF
+if [ $# -eq 1 ]  ; then
+	OUTPUT=$1
+fi
+
+GVF=${OUTPUT}PERF-VERSION-FILE
 
 LF='
 '
 
-# First see if there is a version file (included in release tarballs),
-# then try git-describe, then default.
-if test -f version
-then
-	VN=$(cat version) || VN="$DEF_VER"
-elif test -d .git -o -f .git &&
+# First check if there is a .git to get the version from git describe
+# otherwise try to get the version from the kernel makefile
+if test -d ../../.git -o -f ../../.git &&
 	VN=$(git describe --abbrev=4 HEAD 2>/dev/null) &&
 	case "$VN" in
 	*$LF*) (exit 1) ;;
@@ -23,7 +23,12 @@ elif test -d .git -o -f .git &&
 then
 	VN=$(echo "$VN" | sed -e 's/-/./g');
 else
-	VN="$DEF_VER"
+	eval `grep '^VERSION\s*=' ../../Makefile|tr -d ' '`
+	eval `grep '^PATCHLEVEL\s*=' ../../Makefile|tr -d ' '`
+	eval `grep '^SUBLEVEL\s*=' ../../Makefile|tr -d ' '`
+	eval `grep '^EXTRAVERSION\s*=' ../../Makefile|tr -d ' '`
+
+	VN="${VERSION}.${PATCHLEVEL}.${SUBLEVEL}${EXTRAVERSION}"
 fi
 
 VN=$(expr "$VN" : v*'\(.*\)')

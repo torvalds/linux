@@ -153,6 +153,4 @@ struct viawget_scan_result {
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-#endif //__IOWPA_H__
+#endif /* __IOWPA_H__ */

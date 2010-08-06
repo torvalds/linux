@@ -654,7 +654,7 @@ static int fsg_lun_fsync_sub(struct fsg_lun *curlun)
 
 	if (curlun->ro || !filp)
 		return 0;
-	return vfs_fsync(filp, filp->f_path.dentry, 1);
+	return vfs_fsync(filp, 1);
 }
 
 static void store_cdrom_address(u8 *dest, int msf, u32 addr)

@@ -77,8 +77,9 @@
 
 #define S5P_IRQ_EINT_BASE	(IRQ_VIC_END + 1)
 
-#define IRQ_EINT(x)             ((x) < 16 ? S5P_IRQ_VIC0(x) : \
-					(S5P_IRQ_EINT_BASE + (x)-16))
+#define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
+#define S5P_EINT_BASE2		(S5P_IRQ_EINT_BASE)
+
 /* Set the default NR_IRQS */
 
 #define NR_IRQS 		(IRQ_EINT(31) + 1)

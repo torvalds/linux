@@ -27,6 +27,7 @@
 #include <linux/blkdev.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"

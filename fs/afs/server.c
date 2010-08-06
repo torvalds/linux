@@ -91,9 +91,10 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 
 		memcpy(&server->addr, addr, sizeof(struct in_addr));
 		server->addr.s_addr = addr->s_addr;
+		_leave(" = %p{%d}", server, atomic_read(&server->usage));
+	} else {
+		_leave(" = NULL [nomem]");
 	}
-
-	_leave(" = %p{%d}", server, atomic_read(&server->usage));
 	return server;
 }
 

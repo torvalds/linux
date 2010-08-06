@@ -29,6 +29,7 @@ ocfs2-objs := \
 	mmap.o 			\
 	namei.o 		\
 	refcounttree.o		\
+	reservations.o		\
 	resize.o		\
 	slot_map.o 		\
 	suballoc.o 		\

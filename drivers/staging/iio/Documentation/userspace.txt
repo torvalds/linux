@@ -56,5 +56,5 @@ KERNEL="ring_event_line*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_
 KERNEL="event_line*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_event"
 KERNEL="ring_access*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_ring_access"
 
-The files, lis3l02dqbuffersimple.c and iio_util.h in this directory provide an example
+The files, lis3l02dqbuffersimple.c and iio_utils.h in this directory provide an example
 of how to use the ring buffer and event interfaces.

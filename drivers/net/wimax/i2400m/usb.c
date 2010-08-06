@@ -66,6 +66,7 @@
 #include "i2400m-usb.h"
 #include <linux/wimax/i2400m.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 
 #define D_SUBMODULE usb
@@ -81,6 +82,8 @@ MODULE_PARM_DESC(debug,
 
 /* Our firmware file name */
 static const char *i2400mu_bus_fw_names_5x50[] = {
+#define I2400MU_FW_FILE_NAME_v1_5 "i2400m-fw-usb-1.5.sbcf"
+	I2400MU_FW_FILE_NAME_v1_5,
 #define I2400MU_FW_FILE_NAME_v1_4 "i2400m-fw-usb-1.4.sbcf"
 	I2400MU_FW_FILE_NAME_v1_4,
 	NULL,
@@ -466,6 +469,13 @@ int i2400mu_probe(struct usb_interface *iface,
 	usb_set_intfdata(iface, i2400mu);
 
 	i2400m->bus_tx_block_size = I2400MU_BLK_SIZE;
+	/*
+	 * Room required in the Tx queue for USB message to accommodate
+	 * a smallest payload while allocating header space is 16 bytes.
+	 * Adding this room  for the new tx message increases the
+	 * possibilities of including any payload with size <= 16 bytes.
+	 */
+	i2400m->bus_tx_room_min = I2400MU_BLK_SIZE;
 	i2400m->bus_pl_size_max = I2400MU_PL_SIZE_MAX;
 	i2400m->bus_setup = NULL;
 	i2400m->bus_dev_start = i2400mu_bus_dev_start;
@@ -481,6 +491,7 @@ int i2400mu_probe(struct usb_interface *iface,
 	switch (id->idProduct) {
 	case USB_DEVICE_ID_I6050:
 	case USB_DEVICE_ID_I6050_2:
+	case USB_DEVICE_ID_I6250:
 		i2400mu->i6050 = 1;
 		break;
 	default:
@@ -504,7 +515,7 @@ int i2400mu_probe(struct usb_interface *iface,
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);
 	usb_dev->autosuspend_delay = 15 * HZ;
-	usb_dev->autosuspend_disabled = 0;
+	usb_enable_autosuspend(usb_dev);
 #endif
 
 	result = i2400m_setup(i2400m, I2400M_BRI_MAC_REINIT);
@@ -729,6 +740,7 @@ static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050_2) },
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6250) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },
 	{ USB_DEVICE(0x8086, 0x1405) },
@@ -777,4 +789,5 @@ MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
 MODULE_DESCRIPTION("Driver for USB based Intel Wireless WiMAX Connection 2400M "
 		   "(5x50 & 6050)");
 MODULE_LICENSE("GPL");
-MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_4);
+MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_5);
+MODULE_FIRMWARE(I6050U_FW_FILE_NAME_v1_5);

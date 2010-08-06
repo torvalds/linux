@@ -18,8 +18,8 @@
  */
 
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include "usb.h"
-#include "hcd.h"
 
 static inline const char *plural(int n)
 {
@@ -120,7 +120,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		 * than a vendor-specific driver. */
 		else if (udev->descriptor.bDeviceClass !=
 						USB_CLASS_VENDOR_SPEC &&
-				(!desc || desc->bInterfaceClass !=
+				(desc && desc->bInterfaceClass !=
 						USB_CLASS_VENDOR_SPEC)) {
 			best = c;
 			break;

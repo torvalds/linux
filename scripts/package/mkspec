@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	Output a simple RPM spec file that uses no fancy features requring
+#	Output a simple RPM spec file that uses no fancy features requiring
 #	RPM v4. This is intended to work with any RPM distro.
 #
 #	The only gothic bit here is redefining install_post to avoid
@@ -39,7 +39,7 @@ if ! $PREBUILT; then
 echo "Source: kernel-$__KERNELRELEASE.tar.gz"
 fi
 
-echo "BuildRoot: /var/tmp/%{name}-%{PACKAGE_VERSION}-root"
+echo "BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root"
 echo "Provides: $PROVIDES"
 echo "%define __spec_install_post /usr/lib/rpm/brp-compress || :"
 echo "%define debug_package %{nil}"

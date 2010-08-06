@@ -22,6 +22,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/jiffies.h>
 #include <net/ieee80211_radiotap.h>
@@ -41,7 +42,8 @@ static struct zd_reg_alpha2_map reg_alpha2_map[] = {
 	{ ZD_REGDOMAIN_IC, "CA" },
 	{ ZD_REGDOMAIN_ETSI, "DE" }, /* Generic ETSI, use most restrictive */
 	{ ZD_REGDOMAIN_JAPAN, "JP" },
-	{ ZD_REGDOMAIN_JAPAN_ADD, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_2, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_3, "JP" },
 	{ ZD_REGDOMAIN_SPAIN, "ES" },
 	{ ZD_REGDOMAIN_FRANCE, "FR" },
 };
@@ -854,7 +856,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	if (skb == NULL)
 		return -ENOMEM;
 	if (need_padding) {
-		/* Make sure the the payload data is 4 byte aligned. */
+		/* Make sure the payload data is 4 byte aligned. */
 		skb_reserve(skb, 2);
 	}
 
@@ -947,20 +949,17 @@ static void set_rx_filter_handler(struct work_struct *work)
 }
 
 static u64 zd_op_prepare_multicast(struct ieee80211_hw *hw,
-				   int mc_count, struct dev_addr_list *mclist)
+				   struct netdev_hw_addr_list *mc_list)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct zd_mc_hash hash;
-	int i;
+	struct netdev_hw_addr *ha;
 
 	zd_mc_clear(&hash);
 
-	for (i = 0; i < mc_count; i++) {
-		if (!mclist)
-			break;
-		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", mclist->dmi_addr);
-		zd_mc_add_addr(&hash, mclist->dmi_addr);
-		mclist = mclist->next;
+	netdev_hw_addr_list_for_each(ha, mc_list) {
+		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", ha->addr);
+		zd_mc_add_addr(&hash, ha->addr);
 	}
 
 	return hash.low | ((u64)hash.high << 32);

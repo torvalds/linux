@@ -316,10 +316,6 @@ extern int ip6t_ext_hdr(u8 nexthdr);
 extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			 int target, unsigned short *fragoff);
 
-extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
-			      const struct in6_addr *mask,
-			      const struct in6_addr *addr2);
-
 #define IP6T_ALIGN(s) XT_ALIGN(s)
 
 #ifdef CONFIG_COMPAT

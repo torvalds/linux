@@ -256,12 +256,15 @@ restore_registers:
 	lghi	%r2,0
 	brasl	%r14,arch_set_page_states
 
+	/* Reinitialize the channel subsystem */
+	brasl	%r14,channel_subsystem_reinit
+
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
 	br	%r14
 
-	.section .data.nosave,"aw",@progbits
+	.section .data..nosave,"aw",@progbits
 	.align	8
 .Ldisabled_wait_31:
 	.long  0x000a0000,0x00000000

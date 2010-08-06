@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/resource.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <pcmcia/cs_types.h>

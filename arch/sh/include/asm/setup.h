@@ -19,6 +19,7 @@
 #define COMMAND_LINE ((char *) (PARAM+0x100))
 
 void sh_mv_setup(void);
+void check_for_initrd(void);
 
 #endif /* __KERNEL__ */
 

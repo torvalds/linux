@@ -20,7 +20,7 @@
 			.name =  #desc,					\
 			.debug = dbg,					\
 			.mux_reg_name = "PINMUX"#muxreg,		\
-			.mux_reg = PINMUX##muxreg,			\
+			.mux_reg = PINMUX(muxreg),			\
 			.mask_offset = mode_offset,			\
 			.mask = mode_mask,				\
 			.mode = mux_mode,				\

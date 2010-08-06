@@ -27,10 +27,12 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/ratelimit.h>
 
 #include <asm/types.h>
 #include <asm/io.h>
@@ -443,7 +445,11 @@ void __init iSeries_pcibios_fixup_resources(struct pci_dev *pdev)
 	}
 
 	allocate_device_bars(pdev);
-	iseries_device_information(pdev, bus, *sub_bus);
+	if (likely(sub_bus))
+		iseries_device_information(pdev, bus, *sub_bus);
+	else
+		printk(KERN_ERR "PCI: Device node %s has missing or invalid "
+				"linux,subbus property\n", node->full_name);
 }
 
 /*
@@ -583,14 +589,9 @@ static inline struct device_node *xlate_iomm_address(
 
 	orig_addr = (unsigned long __force)addr;
 	if ((orig_addr < BASE_IO_MEMORY) || (orig_addr >= max_io_memory)) {
-		static unsigned long last_jiffies;
-		static int num_printed;
+		static DEFINE_RATELIMIT_STATE(ratelimit, 60 * HZ, 10);
 
-		if (time_after(jiffies, last_jiffies + 60 * HZ)) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
+		if (__ratelimit(&ratelimit))
 			printk(KERN_ERR
 				"iSeries_%s: invalid access at IO address %p\n",
 				func, addr);

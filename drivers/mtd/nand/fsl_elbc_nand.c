@@ -874,7 +874,7 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	priv->ctrl = ctrl;
 	priv->dev = ctrl->dev;
 
-	priv->vbase = ioremap(res.start, res.end - res.start + 1);
+	priv->vbase = ioremap(res.start, resource_size(&res));
 	if (!priv->vbase) {
 		dev_err(ctrl->dev, "failed to map chip region\n");
 		ret = -ENOMEM;
@@ -891,7 +891,7 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	if (ret)
 		goto err;
 
-	ret = nand_scan_ident(&priv->mtd, 1);
+	ret = nand_scan_ident(&priv->mtd, 1, NULL);
 	if (ret)
 		goto err;
 
@@ -1030,14 +1030,14 @@ static int __devinit fsl_elbc_ctrl_probe(struct of_device *ofdev,
 	init_waitqueue_head(&ctrl->controller.wq);
 	init_waitqueue_head(&ctrl->irq_wait);
 
-	ctrl->regs = of_iomap(ofdev->node, 0);
+	ctrl->regs = of_iomap(ofdev->dev.of_node, 0);
 	if (!ctrl->regs) {
 		dev_err(&ofdev->dev, "failed to get memory region\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	ctrl->irq = of_irq_to_resource(ofdev->node, 0, NULL);
+	ctrl->irq = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (ctrl->irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "failed to get irq resource\n");
 		ret = -ENODEV;
@@ -1058,7 +1058,7 @@ static int __devinit fsl_elbc_ctrl_probe(struct of_device *ofdev,
 		goto err;
 	}
 
-	for_each_child_of_node(ofdev->node, child)
+	for_each_child_of_node(ofdev->dev.of_node, child)
 		if (of_device_is_compatible(child, "fsl,elbc-fcm-nand"))
 			fsl_elbc_chip_probe(ctrl, child);
 
@@ -1078,9 +1078,10 @@ static const struct of_device_id fsl_elbc_match[] = {
 
 static struct of_platform_driver fsl_elbc_ctrl_driver = {
 	.driver = {
-		.name	= "fsl-elbc",
+		.name = "fsl-elbc",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_elbc_match,
 	},
-	.match_table = fsl_elbc_match,
 	.probe = fsl_elbc_ctrl_probe,
 	.remove = fsl_elbc_ctrl_remove,
 };

@@ -73,7 +73,7 @@ NOTE: Smack labels are limited to 23 characters. The attr command
 If you don't do anything special all users will get the floor ("_")
 label when they log in. If you do want to log in via the hacked ssh
 at other labels use the attr command to set the smack value on the
-home directory and it's contents.
+home directory and its contents.
 
 You can add access rules in /etc/smack/accesses. They take the form:
 

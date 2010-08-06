@@ -11,7 +11,7 @@
    control how the core is synthesized.  Historically, the EDK tool would
    extract the device parameters relevant to device drivers and copy them
    into an 'xparameters.h' in the form of #define symbols.  This tells the
-   device drivers how the IP cores are configured, but it requres the kernel
+   device drivers how the IP cores are configured, but it requires the kernel
    to be recompiled every time the FPGA bitstream is resynthesized.
 
    The new approach is to export the parameters into the device tree and

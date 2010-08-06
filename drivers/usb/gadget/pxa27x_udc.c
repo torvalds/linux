@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -2560,7 +2561,7 @@ static void pxa_udc_shutdown(struct platform_device *_dev)
 		udc_disable(udc);
 }
 
-#ifdef CONFIG_CPU_PXA27x
+#ifdef CONFIG_PXA27x
 extern void pxa27x_clear_otgph(void);
 #else
 #define pxa27x_clear_otgph()   do {} while (0)

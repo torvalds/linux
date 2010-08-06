@@ -65,7 +65,6 @@ static int max_interrupt_work = 20;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
@@ -959,7 +958,6 @@ static void corkscrew_timer(unsigned long data)
 		       dev->name, media_tbl[dev->if_port].name);
 
 #endif				/* AUTOMEDIA */
-	return;
 }
 
 static void corkscrew_timeout(struct net_device *dev)
@@ -993,7 +991,7 @@ static void corkscrew_timeout(struct net_device *dev)
 		if (!(inw(ioaddr + EL3_STATUS) & CmdInProgress))
 			break;
 	outw(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
@@ -1056,7 +1054,6 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 				prev_entry->status &= ~0x80000000;
 			netif_wake_queue(dev);
 		}
-		dev->trans_start = jiffies;
 		return NETDEV_TX_OK;
 	}
 	/* Put out the doubleword header... */
@@ -1092,7 +1089,6 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 		outw(SetTxThreshold + (1536 >> 2), ioaddr + EL3_CMD);
 #endif				/* bus master */
 
-	dev->trans_start = jiffies;
 
 	/* Clear the Tx status stack. */
 	{
@@ -1519,7 +1515,6 @@ static void update_stats(int ioaddr, struct net_device *dev)
 
 	/* We change back to window 7 (not 1) with the Vortex. */
 	EL3WINDOW(7);
-	return;
 }
 
 /* This new version of set_rx_mode() supports v1.4 kernels.

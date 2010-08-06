@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -501,7 +502,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 out:
 	rcu_read_unlock();
-	return;
 }
 
 static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
@@ -537,7 +537,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	int    offset = 4;
 	__be16 gre_proto;
-	unsigned int len;
 
 	if (!pskb_may_pull(skb, 16))
 		goto drop_nolock;
@@ -628,8 +627,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 			tunnel->i_seqno = seqno + 1;
 		}
 
-		len = skb->len;
-
 		/* Warning: All skb pointers will be invalidated! */
 		if (tunnel->dev->type == ARPHRD_ETHER) {
 			if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -643,11 +640,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
-		stats->rx_packets++;
-		stats->rx_bytes += len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+		skb_tunnel_rx(skb, tunnel->dev);
 
 		skb_reset_network_header(skb);
 		ipgre_ecn_decapsulate(iph, skb);
@@ -738,6 +731,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		tos = 0;
 		if (skb->protocol == htons(ETH_P_IP))
 			tos = old_iph->tos;
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			tos = ipv6_get_dsfield((struct ipv6hdr *)old_iph);
 	}
 
 	{
@@ -752,7 +747,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			goto tx_error;
 		}
 	}
-	tdev = rt->u.dst.dev;
+	tdev = rt->dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
@@ -762,7 +757,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 	df = tiph->frag_off;
 	if (df)
-		mtu = dst_mtu(&rt->u.dst) - dev->hard_header_len - tunnel->hlen;
+		mtu = dst_mtu(&rt->dst) - dev->hard_header_len - tunnel->hlen;
 	else
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
@@ -810,11 +805,13 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tunnel->err_count = 0;
 	}
 
-	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen;
+	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen + rt->dst.header_len;
 
 	if (skb_headroom(skb) < max_headroom || skb_shared(skb)||
 	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
+		if (max_headroom > dev->needed_headroom)
+			dev->needed_headroom = max_headroom;
 		if (!new_skb) {
 			ip_rt_put(rt);
 			txq->tx_dropped++;
@@ -835,7 +832,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -858,7 +855,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
-			iph->ttl = dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
+			iph->ttl = dst_metric(&rt->dst, RTAX_HOPLIMIT);
 	}
 
 	((__be16 *)(iph + 1))[0] = tunnel->parms.o_flags;
@@ -920,7 +917,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 				    .proto = IPPROTO_GRE };
 		struct rtable *rt;
 		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tdev = rt->u.dst.dev;
+			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
 
@@ -1179,7 +1176,7 @@ static int ipgre_open(struct net_device *dev)
 		struct rtable *rt;
 		if (ip_route_output_key(dev_net(dev), &rt, &fl))
 			return -EADDRNOTAVAIL;
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (__in_dev_get_rtnl(dev) == NULL)
 			return -EADDRNOTAVAIL;

@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>
+#include <linux/slab.h>
 #include "w6692.h"
 
 #define W6692_REV	"2.0"
@@ -1401,7 +1402,7 @@ w6692_remove_pci(struct pci_dev *pdev)
 		release_card(card);
 	else
 		if (debug)
-			pr_notice("%s: drvdata allready removed\n", __func__);
+			pr_notice("%s: drvdata already removed\n", __func__);
 }
 
 static struct pci_device_id w6692_ids[] = {

@@ -31,6 +31,7 @@
  *
  */
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/dma-mapping.h> /* for DMA_*_DEVICE */
 
@@ -438,8 +439,10 @@ void rds_rdma_free_op(struct rds_rdma_op *ro)
 		/* Mark page dirty if it was possibly modified, which
 		 * is the case for a RDMA_READ which copies from remote
 		 * to local memory */
-		if (!ro->r_write)
+		if (!ro->r_write) {
+			BUG_ON(in_interrupt());
 			set_page_dirty(page);
+		}
 		put_page(page);
 	}
 

@@ -98,7 +98,7 @@ static int __devinit rng_probe(struct of_device *ofdev,
 			       const struct of_device_id *match)
 {
 	void __iomem *rng_regs;
-	struct device_node *rng_np = ofdev->node;
+	struct device_node *rng_np = ofdev->dev.of_node;
 	struct resource res;
 	int err = 0;
 
@@ -140,8 +140,11 @@ static struct of_device_id rng_match[] = {
 };
 
 static struct of_platform_driver rng_driver = {
-	.name		= "pasemi-rng",
-	.match_table	= rng_match,
+	.driver = {
+		.name = "pasemi-rng",
+		.owner = THIS_MODULE,
+		.of_match_table = rng_match,
+	},
 	.probe		= rng_probe,
 	.remove		= rng_remove,
 };

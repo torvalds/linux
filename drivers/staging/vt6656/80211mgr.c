@@ -89,9 +89,9 @@ static int          msglevel                =MSG_LEVEL_INFO;
  *
 -*/
 
-VOID
+void
 vMgrEncodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+      PWLAN_FR_BEACON  pFrame
      )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -121,9 +121,9 @@ vMgrEncodeBeacon(
 -*/
 
 
-VOID
+void
 vMgrDecodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+      PWLAN_FR_BEACON  pFrame
     )
 {
     PWLAN_IE        pItem;
@@ -242,9 +242,9 @@ vMgrDecodeBeacon(
 -*/
 
 
-VOID
+void
 vMgrEncodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+      PWLAN_FR_IBSSATIM   pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -265,9 +265,9 @@ vMgrEncodeIBSSATIM(
  *
 -*/
 
-VOID
+void
 vMgrDecodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+      PWLAN_FR_IBSSATIM   pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -287,9 +287,9 @@ vMgrDecodeIBSSATIM(
  *
 -*/
 
-VOID
+void
 vMgrEncodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+      PWLAN_FR_DISASSOC  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -315,9 +315,9 @@ vMgrEncodeDisassociation(
  *
 -*/
 
-VOID
+void
 vMgrDecodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+      PWLAN_FR_DISASSOC  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -341,9 +341,9 @@ vMgrDecodeDisassociation(
 -*/
 
 
-VOID
+void
 vMgrEncodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+      PWLAN_FR_ASSOCREQ  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -368,9 +368,9 @@ vMgrEncodeAssocRequest(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+      PWLAN_FR_ASSOCREQ  pFrame
     )
 {
     PWLAN_IE   pItem;
@@ -434,9 +434,9 @@ vMgrDecodeAssocRequest(
  *
 -*/
 
-VOID
+void
 vMgrEncodeAssocResponse(
-    IN  PWLAN_FR_ASSOCRESP  pFrame
+      PWLAN_FR_ASSOCRESP  pFrame
      )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -466,9 +466,9 @@ vMgrEncodeAssocResponse(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAssocResponse(
-    IN PWLAN_FR_ASSOCRESP  pFrame
+     PWLAN_FR_ASSOCRESP  pFrame
      )
 {
     PWLAN_IE   pItem;
@@ -512,9 +512,9 @@ vMgrDecodeAssocResponse(
  *
 -*/
 
-VOID
+void
 vMgrEncodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+      PWLAN_FR_REASSOCREQ  pFrame
      )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -544,9 +544,9 @@ vMgrEncodeReassocRequest(
 -*/
 
 
-VOID
+void
 vMgrDecodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+      PWLAN_FR_REASSOCREQ  pFrame
      )
 {
     PWLAN_IE   pItem;
@@ -616,9 +616,9 @@ vMgrDecodeReassocRequest(
 -*/
 
 
-VOID
+void
 vMgrEncodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+     PWLAN_FR_PROBEREQ  pFrame
      )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -637,9 +637,9 @@ vMgrEncodeProbeRequest(
  *
 -*/
 
-VOID
+void
 vMgrDecodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+     PWLAN_FR_PROBEREQ  pFrame
      )
 {
     PWLAN_IE   pItem;
@@ -690,9 +690,9 @@ vMgrDecodeProbeRequest(
 -*/
 
 
-VOID
+void
 vMgrEncodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+     PWLAN_FR_PROBERESP  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -724,9 +724,9 @@ vMgrEncodeProbeResponse(
  *
 -*/
 
-VOID
+void
 vMgrDecodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+     PWLAN_FR_PROBERESP  pFrame
     )
 {
     PWLAN_IE    pItem;
@@ -838,9 +838,9 @@ vMgrDecodeProbeResponse(
  *
 -*/
 
-VOID
+void
 vMgrEncodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+      PWLAN_FR_AUTHEN  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -869,9 +869,9 @@ vMgrEncodeAuthen(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+      PWLAN_FR_AUTHEN  pFrame
     )
 {
     PWLAN_IE    pItem;
@@ -909,9 +909,9 @@ vMgrDecodeAuthen(
  *
 -*/
 
-VOID
+void
 vMgrEncodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+      PWLAN_FR_DEAUTHEN  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -936,9 +936,9 @@ vMgrEncodeDeauthen(
  *
 -*/
 
-VOID
+void
 vMgrDecodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+      PWLAN_FR_DEAUTHEN  pFrame
     )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -962,9 +962,9 @@ vMgrDecodeDeauthen(
  *
 -*/
 
-VOID
+void
 vMgrEncodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+      PWLAN_FR_REASSOCRESP  pFrame
      )
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -995,9 +995,9 @@ vMgrEncodeReassocResponse(
 -*/
 
 
-VOID
+void
 vMgrDecodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+      PWLAN_FR_REASSOCRESP  pFrame
      )
 {
     PWLAN_IE   pItem;

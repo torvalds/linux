@@ -19,7 +19,7 @@
 */
 
 #include <linux/input.h>
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 #include <linux/pci.h>
 
 #include "dmxdev.h"
@@ -31,6 +31,8 @@
 #include "mantis_common.h"
 #include "mantis_reg.h"
 #include "mantis_uart.h"
+
+#define MODULE_NAME "mantis_core"
 
 static struct ir_scancode mantis_ir_table[] = {
 	{ 0x29, KEY_POWER	},
@@ -102,7 +104,6 @@ EXPORT_SYMBOL_GPL(ir_mantis);
 int mantis_input_init(struct mantis_pci *mantis)
 {
 	struct input_dev *rc;
-	struct ir_input_state rc_state;
 	char name[80], dev[80];
 	int err;
 
@@ -118,15 +119,13 @@ int mantis_input_init(struct mantis_pci *mantis)
 	rc->name = name;
 	rc->phys = dev;
 
-	ir_input_init(rc, &rc_state, IR_TYPE_OTHER);
-
 	rc->id.bustype	= BUS_PCI;
 	rc->id.vendor	= mantis->vendor_id;
 	rc->id.product	= mantis->device_id;
 	rc->id.version	= 1;
 	rc->dev		= mantis->pdev->dev;
 
-	err = ir_input_register(rc, &ir_mantis, NULL);
+	err = __ir_input_register(rc, &ir_mantis, NULL, MODULE_NAME);
 	if (err) {
 		dprintk(MANTIS_ERROR, 1, "IR device registration failed, ret = %d", err);
 		input_free_device(rc);

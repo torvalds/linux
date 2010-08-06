@@ -11,7 +11,6 @@
 
 struct file;
 
-extern void __fput(struct file *);
 extern void fput(struct file *);
 extern void drop_file_write_access(struct file *file);
 

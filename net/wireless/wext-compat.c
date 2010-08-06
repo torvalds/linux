@@ -12,6 +12,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include "wext-compat.h"
@@ -781,16 +782,22 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return cfg80211_mgd_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
-	default:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		wdev_lock(wdev);
 		mutex_lock(&rdev->devlist_mtx);
-		err = rdev_set_freq(rdev, NULL, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
+		wdev_unlock(wdev);
 		return err;
+	default:
+		return -EOPNOTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
@@ -800,7 +807,6 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 			  struct iw_freq *freq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -808,9 +814,9 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 	default:
-		if (!rdev->channel)
+		if (!wdev->channel)
 			return -EINVAL;
-		freq->m = rdev->channel->center_freq;
+		freq->m = wdev->channel->center_freq;
 		freq->e = 6;
 		return 0;
 	}
@@ -823,7 +829,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	enum tx_power_setting type;
+	enum nl80211_tx_power_setting type;
 	int dbm = 0;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
@@ -846,7 +852,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			if (data->txpower.value < 0)
 				return -EINVAL;
 			dbm = data->txpower.value;
-			type = TX_POWER_FIXED;
+			type = NL80211_TX_POWER_FIXED;
 			/* TODO: do regulatory check! */
 		} else {
 			/*
@@ -854,10 +860,10 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			 * passed in from userland.
 			 */
 			if (data->txpower.value < 0) {
-				type = TX_POWER_AUTOMATIC;
+				type = NL80211_TX_POWER_AUTOMATIC;
 			} else {
 				dbm = data->txpower.value;
-				type = TX_POWER_LIMITED;
+				type = NL80211_TX_POWER_LIMITED;
 			}
 		}
 	} else {
@@ -866,7 +872,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 		return 0;
 	}
 
-	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);
+	return rdev->ops->set_tx_power(wdev->wiphy, type, DBM_TO_MBM(dbm));
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
 
@@ -1465,6 +1471,7 @@ int cfg80211_wext_siwpmksa(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwpmksa);
 
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,

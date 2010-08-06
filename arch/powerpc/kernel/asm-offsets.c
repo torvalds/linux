@@ -50,6 +50,9 @@
 #endif
 #ifdef CONFIG_KVM
 #include <linux/kvm_host.h>
+#ifndef CONFIG_BOOKE
+#include <asm/kvm_book3s.h>
+#endif
 #endif
 
 #ifdef CONFIG_PPC32
@@ -105,6 +108,9 @@ int main(void)
 	DEFINE(THREAD_USED_SPE, offsetof(struct thread_struct, used_spe));
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_PPC64 */
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
+	DEFINE(THREAD_KVM_SVCPU, offsetof(struct thread_struct, kvm_shadow_vcpu));
+#endif
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));
@@ -133,7 +139,6 @@ int main(void)
 	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
 	DEFINE(PACAHARDIRQEN, offsetof(struct paca_struct, hard_enabled));
-	DEFINE(PACAPERFPEND, offsetof(struct paca_struct, perf_event_pending));
 	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
@@ -184,6 +189,7 @@ int main(void)
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
+	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
 	DEFINE(PACA_STARTPURR, offsetof(struct paca_struct, startpurr));
 	DEFINE(PACA_STARTSPURR, offsetof(struct paca_struct, startspurr));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
@@ -191,33 +197,9 @@ int main(void)
 	DEFINE(PACA_DATA_OFFSET, offsetof(struct paca_struct, data_offset));
 	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	DEFINE(PACA_KVM_IN_GUEST, offsetof(struct paca_struct, kvm_in_guest));
-	DEFINE(PACA_KVM_SLB, offsetof(struct paca_struct, kvm_slb));
-	DEFINE(PACA_KVM_SLB_MAX, offsetof(struct paca_struct, kvm_slb_max));
-	DEFINE(PACA_KVM_CR, offsetof(struct paca_struct, shadow_vcpu.cr));
-	DEFINE(PACA_KVM_XER, offsetof(struct paca_struct, shadow_vcpu.xer));
-	DEFINE(PACA_KVM_R0, offsetof(struct paca_struct, shadow_vcpu.gpr[0]));
-	DEFINE(PACA_KVM_R1, offsetof(struct paca_struct, shadow_vcpu.gpr[1]));
-	DEFINE(PACA_KVM_R2, offsetof(struct paca_struct, shadow_vcpu.gpr[2]));
-	DEFINE(PACA_KVM_R3, offsetof(struct paca_struct, shadow_vcpu.gpr[3]));
-	DEFINE(PACA_KVM_R4, offsetof(struct paca_struct, shadow_vcpu.gpr[4]));
-	DEFINE(PACA_KVM_R5, offsetof(struct paca_struct, shadow_vcpu.gpr[5]));
-	DEFINE(PACA_KVM_R6, offsetof(struct paca_struct, shadow_vcpu.gpr[6]));
-	DEFINE(PACA_KVM_R7, offsetof(struct paca_struct, shadow_vcpu.gpr[7]));
-	DEFINE(PACA_KVM_R8, offsetof(struct paca_struct, shadow_vcpu.gpr[8]));
-	DEFINE(PACA_KVM_R9, offsetof(struct paca_struct, shadow_vcpu.gpr[9]));
-	DEFINE(PACA_KVM_R10, offsetof(struct paca_struct, shadow_vcpu.gpr[10]));
-	DEFINE(PACA_KVM_R11, offsetof(struct paca_struct, shadow_vcpu.gpr[11]));
-	DEFINE(PACA_KVM_R12, offsetof(struct paca_struct, shadow_vcpu.gpr[12]));
-	DEFINE(PACA_KVM_R13, offsetof(struct paca_struct, shadow_vcpu.gpr[13]));
-	DEFINE(PACA_KVM_HOST_R1, offsetof(struct paca_struct, shadow_vcpu.host_r1));
-	DEFINE(PACA_KVM_HOST_R2, offsetof(struct paca_struct, shadow_vcpu.host_r2));
-	DEFINE(PACA_KVM_VMHANDLER, offsetof(struct paca_struct,
-					    shadow_vcpu.vmhandler));
-	DEFINE(PACA_KVM_SCRATCH0, offsetof(struct paca_struct,
-					   shadow_vcpu.scratch0));
-	DEFINE(PACA_KVM_SCRATCH1, offsetof(struct paca_struct,
-					   shadow_vcpu.scratch1));
+	DEFINE(PACA_KVM_SVCPU, offsetof(struct paca_struct, shadow_vcpu));
+	DEFINE(SVCPU_SLB, offsetof(struct kvmppc_book3s_shadow_vcpu, slb));
+	DEFINE(SVCPU_SLB_MAX, offsetof(struct kvmppc_book3s_shadow_vcpu, slb_max));
 #endif
 #endif /* CONFIG_PPC64 */
 
@@ -228,8 +210,8 @@ int main(void)
 	/* Interrupt register frame */
 	DEFINE(STACK_FRAME_OVERHEAD, STACK_FRAME_OVERHEAD);
 	DEFINE(INT_FRAME_SIZE, STACK_INT_FRAME_SIZE);
-#ifdef CONFIG_PPC64
 	DEFINE(SWITCH_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs));
+#ifdef CONFIG_PPC64
 	/* Create extra stack space for SRR0 and SRR1 when calling prom/rtas. */
 	DEFINE(PROM_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
 	DEFINE(RTAS_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
@@ -412,9 +394,6 @@ int main(void)
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
-	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
-	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
-	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
 	DEFINE(VCPU_MSR, offsetof(struct kvm_vcpu, arch.msr));
 	DEFINE(VCPU_SPRG4, offsetof(struct kvm_vcpu, arch.sprg4));
 	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
@@ -422,31 +401,80 @@ int main(void)
 	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
 	DEFINE(VCPU_SHADOW_PID, offsetof(struct kvm_vcpu, arch.shadow_pid));
 
-	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
-	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
-	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
-
-	/* book3s_64 */
-#ifdef CONFIG_PPC64
-	DEFINE(VCPU_FAULT_DSISR, offsetof(struct kvm_vcpu, arch.fault_dsisr));
+	/* book3s */
+#ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_HOST_RETIP, offsetof(struct kvm_vcpu, arch.host_retip));
-	DEFINE(VCPU_HOST_R2, offsetof(struct kvm_vcpu, arch.host_r2));
 	DEFINE(VCPU_HOST_MSR, offsetof(struct kvm_vcpu, arch.host_msr));
 	DEFINE(VCPU_SHADOW_MSR, offsetof(struct kvm_vcpu, arch.shadow_msr));
-	DEFINE(VCPU_SHADOW_SRR1, offsetof(struct kvm_vcpu, arch.shadow_srr1));
 	DEFINE(VCPU_TRAMPOLINE_LOWMEM, offsetof(struct kvm_vcpu, arch.trampoline_lowmem));
 	DEFINE(VCPU_TRAMPOLINE_ENTER, offsetof(struct kvm_vcpu, arch.trampoline_enter));
 	DEFINE(VCPU_HIGHMEM_HANDLER, offsetof(struct kvm_vcpu, arch.highmem_handler));
 	DEFINE(VCPU_RMCALL, offsetof(struct kvm_vcpu, arch.rmcall));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
+	DEFINE(VCPU_SVCPU, offsetof(struct kvmppc_vcpu_book3s, shadow_vcpu) -
+			   offsetof(struct kvmppc_vcpu_book3s, vcpu));
+	DEFINE(SVCPU_CR, offsetof(struct kvmppc_book3s_shadow_vcpu, cr));
+	DEFINE(SVCPU_XER, offsetof(struct kvmppc_book3s_shadow_vcpu, xer));
+	DEFINE(SVCPU_CTR, offsetof(struct kvmppc_book3s_shadow_vcpu, ctr));
+	DEFINE(SVCPU_LR, offsetof(struct kvmppc_book3s_shadow_vcpu, lr));
+	DEFINE(SVCPU_PC, offsetof(struct kvmppc_book3s_shadow_vcpu, pc));
+	DEFINE(SVCPU_R0, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[0]));
+	DEFINE(SVCPU_R1, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[1]));
+	DEFINE(SVCPU_R2, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[2]));
+	DEFINE(SVCPU_R3, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[3]));
+	DEFINE(SVCPU_R4, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[4]));
+	DEFINE(SVCPU_R5, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[5]));
+	DEFINE(SVCPU_R6, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[6]));
+	DEFINE(SVCPU_R7, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[7]));
+	DEFINE(SVCPU_R8, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[8]));
+	DEFINE(SVCPU_R9, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[9]));
+	DEFINE(SVCPU_R10, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[10]));
+	DEFINE(SVCPU_R11, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[11]));
+	DEFINE(SVCPU_R12, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[12]));
+	DEFINE(SVCPU_R13, offsetof(struct kvmppc_book3s_shadow_vcpu, gpr[13]));
+	DEFINE(SVCPU_HOST_R1, offsetof(struct kvmppc_book3s_shadow_vcpu, host_r1));
+	DEFINE(SVCPU_HOST_R2, offsetof(struct kvmppc_book3s_shadow_vcpu, host_r2));
+	DEFINE(SVCPU_VMHANDLER, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					 vmhandler));
+	DEFINE(SVCPU_SCRATCH0, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					scratch0));
+	DEFINE(SVCPU_SCRATCH1, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					scratch1));
+	DEFINE(SVCPU_IN_GUEST, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					in_guest));
+	DEFINE(SVCPU_FAULT_DSISR, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					   fault_dsisr));
+	DEFINE(SVCPU_FAULT_DAR, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					 fault_dar));
+	DEFINE(SVCPU_LAST_INST, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					 last_inst));
+	DEFINE(SVCPU_SHADOW_SRR1, offsetof(struct kvmppc_book3s_shadow_vcpu,
+					   shadow_srr1));
+#ifdef CONFIG_PPC_BOOK3S_32
+	DEFINE(SVCPU_SR, offsetof(struct kvmppc_book3s_shadow_vcpu, sr));
+#endif
 #else
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
 	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
-#endif /* CONFIG_PPC64 */
+	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
+	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
+	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
+	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
+	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
+#endif /* CONFIG_PPC_BOOK3S */
 #endif
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
+#ifdef CONFIG_FSL_BOOKE
+	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
+	DEFINE(TLBCAM_MAS0, offsetof(struct tlbcam, MAS0));
+	DEFINE(TLBCAM_MAS1, offsetof(struct tlbcam, MAS1));
+	DEFINE(TLBCAM_MAS2, offsetof(struct tlbcam, MAS2));
+	DEFINE(TLBCAM_MAS3, offsetof(struct tlbcam, MAS3));
+	DEFINE(TLBCAM_MAS7, offsetof(struct tlbcam, MAS7));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

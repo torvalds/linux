@@ -5,18 +5,20 @@
 
 #define USB_VID_NATIVEINSTRUMENTS 0x17cc
 
-#define USB_PID_RIGKONTROL2	0x1969
-#define USB_PID_RIGKONTROL3	0x1940
-#define USB_PID_KORECONTROLLER	0x4711
-#define USB_PID_KORECONTROLLER2	0x4712
-#define USB_PID_AK1		0x0815
-#define USB_PID_AUDIO2DJ	0x041c
-#define USB_PID_AUDIO4DJ	0x0839
-#define USB_PID_AUDIO8DJ	0x1978
-#define USB_PID_SESSIONIO	0x1915
-#define USB_PID_GUITARRIGMOBILE	0x0d8d
+#define USB_PID_RIGKONTROL2		0x1969
+#define USB_PID_RIGKONTROL3		0x1940
+#define USB_PID_KORECONTROLLER		0x4711
+#define USB_PID_KORECONTROLLER2		0x4712
+#define USB_PID_AK1			0x0815
+#define USB_PID_AUDIO2DJ		0x041c
+#define USB_PID_AUDIO4DJ		0x0839
+#define USB_PID_AUDIO8DJ		0x1978
+#define USB_PID_SESSIONIO		0x1915
+#define USB_PID_GUITARRIGMOBILE		0x0d8d
+#define USB_PID_TRAKTORKONTROLX1	0x2305
 
 #define EP1_BUFSIZE 64
+#define EP4_BUFSIZE 512
 #define CAIAQ_USB_STR_LEN 0xff
 #define MAX_STREAMS 32
 
@@ -104,6 +106,8 @@ struct snd_usb_caiaqdev {
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
 	unsigned short keycode[64];
+	struct urb *ep4_in_urb;
+	unsigned char ep4_in_buf[EP4_BUFSIZE];
 #endif
 
 	/* ALSA */

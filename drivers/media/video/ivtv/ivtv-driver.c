@@ -130,6 +130,9 @@ static int ivtv_yuv_threshold = -1;
 static int ivtv_pci_latency = 1;
 
 int ivtv_debug;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+int ivtv_fw_debug;
+#endif
 
 static int tunertype = -1;
 static int newi2c = -1;
@@ -141,6 +144,9 @@ module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 module_param_named(debug,ivtv_debug, int, 0644);
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+module_param_named(fw_debug, ivtv_fw_debug, int, 0644);
+#endif
 module_param(ivtv_pci_latency, int, 0644);
 module_param(ivtv_yuv_mode, int, 0644);
 module_param(ivtv_yuv_threshold, int, 0644);
@@ -217,6 +223,10 @@ MODULE_PARM_DESC(debug,
 		 "\t\t\t 256/0x0100: yuv\n"
 		 "\t\t\t 512/0x0200: i2c\n"
 		 "\t\t\t1024/0x0400: high volume\n");
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+MODULE_PARM_DESC(fw_debug,
+		 "Enable code for debugging firmware problems.  Default: 0\n");
+#endif
 MODULE_PARM_DESC(ivtv_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
@@ -1293,7 +1303,6 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 1);
 		ivtv_init_mpeg_decoder(itv);
 	}
-	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
 	/* On a cx23416 this seems to be able to enable DMA to the chip? */
 	if (!itv->has_cx23415)
@@ -1310,6 +1319,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	}
 	else
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
+
+	/* For cards with video out, this call needs interrupts enabled */
+	ivtv_s_std(NULL, &fh, &itv->tuner_std);
+
 	return 0;
 }
 
@@ -1422,12 +1435,16 @@ EXPORT_SYMBOL(ivtv_vapi);
 EXPORT_SYMBOL(ivtv_vapi_result);
 EXPORT_SYMBOL(ivtv_clear_irq_mask);
 EXPORT_SYMBOL(ivtv_debug);
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+EXPORT_SYMBOL(ivtv_fw_debug);
+#endif
 EXPORT_SYMBOL(ivtv_reset_ir_gpio);
 EXPORT_SYMBOL(ivtv_udma_setup);
 EXPORT_SYMBOL(ivtv_udma_unmap);
 EXPORT_SYMBOL(ivtv_udma_alloc);
 EXPORT_SYMBOL(ivtv_udma_prepare);
 EXPORT_SYMBOL(ivtv_init_on_first_open);
+EXPORT_SYMBOL(ivtv_firmware_check);
 
 module_init(module_start);
 module_exit(module_cleanup);

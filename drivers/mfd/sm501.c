@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/i2c-gpio.h>
+#include <linux/slab.h>
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>

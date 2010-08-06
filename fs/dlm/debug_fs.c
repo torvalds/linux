@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "dlm_internal.h"
 #include "lock.h"

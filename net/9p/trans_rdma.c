@@ -40,6 +40,7 @@
 #include <linux/file.h>
 #include <linux/parser.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -307,7 +308,6 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 		   req, err, status);
 	rdma->state = P9_RDMA_FLUSHING;
 	client->status = Disconnected;
-	return;
 }
 
 static void

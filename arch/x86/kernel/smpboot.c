@@ -49,6 +49,7 @@
 #include <linux/nmi.h>
 #include <linux/tboot.h>
 #include <linux/stackprotector.h>
+#include <linux/gfp.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -242,12 +243,10 @@ static void __cpuinit smp_callin(void)
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
-	notify_cpu_starting(cpuid);
-
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
 	 */
-	__setup_vector_irq(smp_processor_id());
+	setup_vector_irq(smp_processor_id());
 	/*
 	 * Get our bogomips.
 	 *
@@ -263,6 +262,8 @@ static void __cpuinit smp_callin(void)
 	 * Save our processor parameters
 	 */
 	smp_store_cpu_info(cpuid);
+
+	notify_cpu_starting(cpuid);
 
 	/*
 	 * Allow the master to continue.
@@ -685,7 +686,7 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 static void __cpuinit announce_cpu(int cpu, int apicid)
 {
 	static int current_node = -1;
-	int node = cpu_to_node(cpu);
+	int node = early_cpu_to_node(cpu);
 
 	if (system_state == SYSTEM_BOOTING) {
 		if (node != current_node) {
@@ -1214,9 +1215,17 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-	if (setup_possible_cpus == -1)
-		possible = num_processors + disabled_cpus;
-	else
+	i = setup_max_cpus ?: 1;
+	if (setup_possible_cpus == -1) {
+		possible = num_processors;
+#ifdef CONFIG_HOTPLUG_CPU
+		if (setup_max_cpus)
+			possible += disabled_cpus;
+#else
+		if (possible > i)
+			possible = i;
+#endif
+	} else
 		possible = setup_possible_cpus;
 
 	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
@@ -1229,11 +1238,23 @@ __init void prefill_possible_map(void)
 		possible = nr_cpu_ids;
 	}
 
+#ifdef CONFIG_HOTPLUG_CPU
+	if (!setup_max_cpus)
+#endif
+	if (possible > i) {
+		printk(KERN_WARNING
+			"%d Processors exceeds max_cpus limit of %u\n",
+			possible, setup_max_cpus);
+		possible = i;
+	}
+
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
 
 	for (i = 0; i < possible; i++)
 		set_cpu_possible(i, true);
+	for (; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
 
 	nr_cpu_ids = possible;
 }

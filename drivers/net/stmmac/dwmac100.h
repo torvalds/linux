@@ -22,6 +22,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/phy.h>
+#include "common.h"
+
 /*----------------------------------------------------------------------------
  *	 			MAC BLOCK defines
  *---------------------------------------------------------------------------*/
@@ -114,3 +117,5 @@ enum ttc_control {
 #define DMA_MISSED_FRAME_OVE_CNTR 0x0ffe0000	/* Overflow Frame Counter */
 #define DMA_MISSED_FRAME_OVE_M	0x00010000	/* Missed Frame Overflow */
 #define DMA_MISSED_FRAME_M_CNTR	0x0000ffff	/* Missed Frame Couinter */
+
+extern struct stmmac_dma_ops dwmac100_dma_ops;

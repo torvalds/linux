@@ -12,6 +12,7 @@
 #include <linux/in6.h>
 #include <linux/mutex.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/dst.h>
@@ -19,6 +20,7 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
+#include <net/flow.h>
 
 #include <linux/interrupt.h>
 
@@ -266,7 +268,6 @@ struct xfrm_policy_afinfo {
 					       xfrm_address_t *saddr,
 					       xfrm_address_t *daddr);
 	int			(*get_saddr)(struct net *net, xfrm_address_t *saddr, xfrm_address_t *daddr);
-	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
 	void			(*decode_session)(struct sk_buff *skb,
 						  struct flowi *fl,
 						  int reverse);
@@ -481,13 +482,14 @@ struct xfrm_policy {
 	atomic_t		refcnt;
 	struct timer_list	timer;
 
+	struct flow_cache_object flo;
+	atomic_t		genid;
 	u32			priority;
 	u32			index;
 	struct xfrm_mark	mark;
 	struct xfrm_selector	selector;
 	struct xfrm_lifetime_cfg lft;
 	struct xfrm_lifetime_cur curlft;
-	struct dst_entry       *bundles;
 	struct xfrm_policy_walk_entry walk;
 	u8			type;
 	u8			action;
@@ -734,19 +736,12 @@ static inline void xfrm_pol_put(struct xfrm_policy *policy)
 		xfrm_policy_destroy(policy);
 }
 
-#ifdef CONFIG_XFRM_SUB_POLICY
 static inline void xfrm_pols_put(struct xfrm_policy **pols, int npols)
 {
 	int i;
 	for (i = npols - 1; i >= 0; --i)
 		xfrm_pol_put(pols[i]);
 }
-#else
-static inline void xfrm_pols_put(struct xfrm_policy **pols, int npols)
-{
-	xfrm_pol_put(pols[0]);
-}
-#endif
 
 extern void __xfrm_state_destroy(struct xfrm_state *);
 
@@ -877,11 +872,15 @@ struct xfrm_dst {
 		struct rt6_info		rt6;
 	} u;
 	struct dst_entry *route;
+	struct flow_cache_object flo;
+	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
+	int num_pols, num_xfrms;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct flowi *origin;
 	struct xfrm_selector *partner;
 #endif
-	u32 genid;
+	u32 xfrm_genid;
+	u32 policy_genid;
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
 	u32 route_cookie;
@@ -891,6 +890,7 @@ struct xfrm_dst {
 #ifdef CONFIG_XFRM
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 {
+	xfrm_pols_put(xdst->pols, xdst->num_pols);
 	dst_release(xdst->route);
 	if (likely(xdst->u.dst.xfrm))
 		xfrm_state_put(xdst->u.dst.xfrm);
@@ -1586,7 +1586,7 @@ static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
 static inline int xfrm_mark_get(struct nlattr **attrs, struct xfrm_mark *m)
 {
 	if (attrs[XFRMA_MARK])
-		memcpy(m, nla_data(attrs[XFRMA_MARK]), sizeof(m));
+		memcpy(m, nla_data(attrs[XFRMA_MARK]), sizeof(struct xfrm_mark));
 	else
 		m->v = m->m = 0;
 

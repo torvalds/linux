@@ -30,16 +30,13 @@
 
 #define __NO_VERSION__
 #include "comedidev.h"
+#include "comedi_fops.h"
 #include <linux/proc_fs.h>
-/* #include <linux/string.h> */
+#include <linux/string.h>
 
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
-			int *eof, void *data);
-
-extern struct comedi_driver *comedi_drivers;
-
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
-			int *eof, void *data)
+#ifdef CONFIG_PROC_FS
+static int comedi_read(char *buf, char **start, off_t offset, int len,
+		       int *eof, void *data)
 {
 	int i;
 	int devices_q = 0;
@@ -49,7 +46,8 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	l += sprintf(buf + l,
 		     "comedi version " COMEDI_RELEASE "\n"
 		     "format string: %s\n",
-		     "\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
+		     "\"%2d: %-20s %-20s %4d\", i, "
+		     "driver_name, board_name, n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *dev_file_info =
@@ -85,18 +83,17 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	return l;
 }
 
-#ifdef CONFIG_PROC_FS
 void comedi_proc_init(void)
 {
 	struct proc_dir_entry *comedi_proc;
 
-	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, 0);
+	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, NULL);
 	if (comedi_proc)
-		comedi_proc->read_proc = comedi_read_procmem;
+		comedi_proc->read_proc = comedi_read;
 }
 
 void comedi_proc_cleanup(void)
 {
-	remove_proc_entry("comedi", 0);
+	remove_proc_entry("comedi", NULL);
 }
 #endif

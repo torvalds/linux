@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 
 #include "wis-i2c.h"
 
@@ -304,7 +305,6 @@ static int wis_tw9903_remove(struct i2c_client *client)
 {
 	struct wis_tw9903 *dec = i2c_get_clientdata(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(dec);
 	return 0;
 }

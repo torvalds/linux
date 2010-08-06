@@ -24,7 +24,8 @@ SECTIONS {
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = . ;
 		_stext = . ;
-		*(.text .text.*)
+		HEAD_TEXT
+		TEXT_TEXT
 		*(.fixup)
 		EXIT_TEXT
 		EXIT_CALL

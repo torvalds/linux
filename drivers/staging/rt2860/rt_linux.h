@@ -455,10 +455,11 @@ void hex_dump(char *str, unsigned char *pSrcBufVA, unsigned int SrcBufLen);
  * Device DMA Access related definitions and data structures.
  **********************************************************************************/
 #ifdef RTMP_MAC_PCI
-dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
-				int sd_idx, int direction);
-void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
-			    int direction);
+struct rt_rtmp_adapter;
+dma_addr_t linux_pci_map_single(struct rt_rtmp_adapter *pAd, void *ptr,
+				size_t size, int sd_idx, int direction);
+void linux_pci_unmap_single(struct rt_rtmp_adapter *pAd, dma_addr_t dma_addr,
+			    size_t size, int direction);
 
 #define PCI_MAP_SINGLE(_handle, _ptr, _size, _sd_idx, _dir) \
 	linux_pci_map_single(_handle, _ptr, _size, _sd_idx, _dir)
@@ -475,11 +476,6 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 #define DEV_ALLOC_SKB(_length) \
 	dev_alloc_skb(_length)
 #endif /* RTMP_MAC_PCI // */
-#ifdef RTMP_MAC_USB
-#define PCI_MAP_SINGLE(_handle, _ptr, _size, _dir) (unsigned long)0
-
-#define PCI_UNMAP_SINGLE(_handle, _ptr, _size, _dir)
-#endif /* RTMP_MAC_USB // */
 
 /*
  * unsigned long

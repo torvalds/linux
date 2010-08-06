@@ -342,7 +342,7 @@ static inline void skel_delete (struct usb_skel *dev)
 {
     kfree (dev->bulk_in_buffer);
     if (dev->bulk_out_buffer != NULL)
-        usb_buffer_free (dev->udev, dev->bulk_out_size,
+        usb_free_coherent (dev->udev, dev->bulk_out_size,
             dev->bulk_out_buffer,
             dev->write_urb->transfer_dma);
     usb_free_urb (dev->write_urb);

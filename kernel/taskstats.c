@@ -22,6 +22,7 @@
 #include <linux/delayacct.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
+#include <linux/slab.h>
 #include <linux/cgroupstats.h>
 #include <linux/cgroup.h>
 #include <linux/fs.h>

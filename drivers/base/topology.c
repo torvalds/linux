@@ -162,7 +162,7 @@ static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
 		topology_remove_dev(cpu);
 		break;
 	}
-	return rc ? NOTIFY_BAD : NOTIFY_OK;
+	return notifier_from_errno(rc);
 }
 
 static int __cpuinit topology_sysfs_init(void)

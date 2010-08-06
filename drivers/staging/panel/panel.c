@@ -57,7 +57,7 @@
 #include <generated/utsrelease.h>
 
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/system.h>
 
 #define LCD_MINOR		156
@@ -1906,12 +1906,11 @@ static struct logical_input *panel_bind_key(char *name, char *press,
 {
 	struct logical_input *key;
 
-	key = kmalloc(sizeof(struct logical_input), GFP_KERNEL);
+	key = kzalloc(sizeof(struct logical_input), GFP_KERNEL);
 	if (!key) {
 		printk(KERN_ERR "panel: not enough memory\n");
 		return NULL;
 	}
-	memset(key, 0, sizeof(struct logical_input));
 	if (!input_name2mask(name, &key->mask, &key->value, &scan_mask_i,
 			     &scan_mask_o))
 		return NULL;

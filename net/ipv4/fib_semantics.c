@@ -32,6 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <net/arp.h>
 #include <net/ip.h>

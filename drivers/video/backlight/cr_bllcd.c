@@ -36,6 +36,7 @@
 #include <linux/backlight.h>
 #include <linux/lcd.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* The LVDS- and panel power controls sits on the
  * GPIO port of the ISA bridge.

@@ -24,24 +24,15 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_dfrag.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
@@ -69,7 +60,9 @@ xfs_swapext(
 		goto out;
 	}
 
-	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
+	if (!(file->f_mode & FMODE_WRITE) ||
+	    !(file->f_mode & FMODE_READ) ||
+	    (file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_file;
 	}
@@ -81,6 +74,7 @@ xfs_swapext(
 	}
 
 	if (!(tmp_file->f_mode & FMODE_WRITE) ||
+	    !(tmp_file->f_mode & FMODE_READ) ||
 	    (tmp_file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_tmp_file;
@@ -177,16 +171,26 @@ xfs_swap_extents_check_format(
 	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) > tip->i_df.if_ext_max)
 		return EINVAL;
 
-	/* Check root block of temp in btree form to max in target */
+	/*
+	 * If we are in a btree format, check that the temp root block will fit
+	 * in the target and that it has enough extents to be in btree format
+	 * in the target.
+	 *
+	 * Note that we have to be careful to allow btree->extent conversions
+	 * (a common defrag case) which will occur when the temp inode is in
+	 * extent format...
+	 */
 	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(ip) &&
-	    tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip))
+	    ((XFS_IFORK_BOFF(ip) &&
+	      tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip)) ||
+	     XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <= ip->i_df.if_ext_max))
 		return EINVAL;
 
-	/* Check root block of target in btree form to max in temp */
+	/* Reciprocal target->temp btree format checks */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(tip) &&
-	    ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip))
+	    ((XFS_IFORK_BOFF(tip) &&
+	      ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip)) ||
+	     XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <= tip->i_df.if_ext_max))
 		return EINVAL;
 
 	return 0;
@@ -412,11 +416,8 @@ xfs_swap_extents(
 	}
 
 
-	IHOLD(ip);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-
-	IHOLD(tip);
-	xfs_trans_ijoin(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 
 	xfs_trans_log_inode(tp, ip,  ilf_fields);
 	xfs_trans_log_inode(tp, tip, tilf_fields);

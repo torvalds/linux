@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 

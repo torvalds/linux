@@ -209,6 +209,7 @@ struct nfs_inode {
 #define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
 #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
+#define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -355,6 +356,20 @@ extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struc
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
 
+extern struct nfs_fattr *nfs_alloc_fattr(void);
+
+static inline void nfs_free_fattr(const struct nfs_fattr *fattr)
+{
+	kfree(fattr);
+}
+
+extern struct nfs_fh *nfs_alloc_fhandle(void);
+
+static inline void nfs_free_fhandle(const struct nfs_fh *fh)
+{
+	kfree(fh);
+}
+
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 extern unsigned long nfs_inc_attr_generation_counter(void);
@@ -478,8 +493,15 @@ extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_write_data *wdata);
+#else
+static inline int
+nfs_commit_inode(struct inode *inode, int how)
+{
+	return 0;
+}
 #endif
 
 static inline int

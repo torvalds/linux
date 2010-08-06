@@ -34,33 +34,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <asm/dma.h>
-
-struct sport_register {
-	u16 tcr1;	u16 reserved0;
-	u16 tcr2;	u16 reserved1;
-	u16 tclkdiv;	u16 reserved2;
-	u16 tfsdiv;	u16 reserved3;
-	u32 tx;
-	u32 reserved_l0;
-	u32 rx;
-	u32 reserved_l1;
-	u16 rcr1;	u16 reserved4;
-	u16 rcr2;	u16 reserved5;
-	u16 rclkdiv;	u16 reserved6;
-	u16 rfsdiv;	u16 reserved7;
-	u16 stat;	u16 reserved8;
-	u16 chnl;	u16 reserved9;
-	u16 mcmc1;	u16 reserved10;
-	u16 mcmc2;	u16 reserved11;
-	u32 mtcs0;
-	u32 mtcs1;
-	u32 mtcs2;
-	u32 mtcs3;
-	u32 mrcs0;
-	u32 mrcs1;
-	u32 mrcs2;
-	u32 mrcs3;
-};
+#include <asm/bfin_sport.h>
 
 #define DESC_ELEMENT_COUNT 9
 

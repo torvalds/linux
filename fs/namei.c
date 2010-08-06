@@ -282,8 +282,7 @@ int inode_permission(struct inode *inode, int mask)
 	if (retval)
 		return retval;
 
-	return security_inode_permission(inode,
-			mask & (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND));
+	return security_inode_permission(inode, mask);
 }
 
 /**
@@ -523,9 +522,10 @@ static void path_put_conditional(struct path *path, struct nameidata *nd)
 static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
 {
 	dput(nd->path.dentry);
-	if (nd->path.mnt != path->mnt)
+	if (nd->path.mnt != path->mnt) {
 		mntput(nd->path.mnt);
-	nd->path.mnt = path->mnt;
+		nd->path.mnt = path->mnt;
+	}
 	nd->path.dentry = path->dentry;
 }
 
@@ -1483,8 +1483,7 @@ static int handle_truncate(struct path *path)
 	 */
 	error = locks_verify_locked(inode);
 	if (!error)
-		error = security_path_truncate(path, 0,
-				       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
+		error = security_path_truncate(path);
 	if (!error) {
 		error = do_truncate(path->dentry, 0,
 				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
@@ -1610,8 +1609,7 @@ exit:
 
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    int open_flag, int acc_mode,
-			    int mode, const char *pathname,
-			    int *want_dir)
+			    int mode, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
@@ -1621,6 +1619,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	case LAST_DOTDOT:
 		follow_dotdot(nd);
 		dir = nd->path.dentry;
+	case LAST_DOT:
 		if (nd->path.mnt->mnt_sb->s_type->fs_flags & FS_REVAL_DOT) {
 			if (!dir->d_op->d_revalidate(dir, nd)) {
 				error = -ESTALE;
@@ -1628,7 +1627,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			}
 		}
 		/* fallthrough */
-	case LAST_DOT:
 	case LAST_ROOT:
 		if (open_flag & O_CREAT)
 			goto exit;
@@ -1642,7 +1640,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (nd->last.name[nd->last.len]) {
 		if (open_flag & O_CREAT)
 			goto exit;
-		*want_dir = 1;
+		nd->flags |= LOOKUP_DIRECTORY | LOOKUP_FOLLOW;
 	}
 
 	/* just plain open? */
@@ -1656,8 +1654,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (path->dentry->d_inode->i_op->follow_link)
 			return NULL;
 		error = -ENOTDIR;
-		if (*want_dir && !path->dentry->d_inode->i_op->lookup)
-			goto exit_dput;
+		if (nd->flags & LOOKUP_DIRECTORY) {
+			if (!path->dentry->d_inode->i_op->lookup)
+				goto exit_dput;
+		}
 		path_to_nameidata(path, nd);
 		audit_inode(pathname, nd->path.dentry);
 		goto ok;
@@ -1766,7 +1766,6 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
-	int want_dir = open_flag & O_DIRECTORY;
 
 	if (!(open_flag & O_CREAT))
 		mode = 0;
@@ -1828,14 +1827,18 @@ reval:
 		if (open_flag & O_EXCL)
 			nd.flags |= LOOKUP_EXCL;
 	}
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
+	if (open_flag & O_DIRECTORY)
+		nd.flags |= LOOKUP_DIRECTORY;
+	if (!(open_flag & O_NOFOLLOW))
+		nd.flags |= LOOKUP_FOLLOW;
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path holder;
 		struct inode *inode = path.dentry->d_inode;
 		void *cookie;
 		error = -ELOOP;
 		/* S_ISDIR part is a temporary automount kludge */
-		if ((open_flag & O_NOFOLLOW) && !S_ISDIR(inode->i_mode))
+		if (!(nd.flags & LOOKUP_FOLLOW) && !S_ISDIR(inode->i_mode))
 			goto exit_dput;
 		if (count++ == 32)
 			goto exit_dput;
@@ -1866,7 +1869,7 @@ reval:
 		}
 		holder = path;
 		nd.flags &= ~LOOKUP_PARENT;
-		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
+		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 		if (inode->i_op->put_link)
 			inode->i_op->put_link(holder.dentry, &nd, cookie);
 		path_put(&holder);
@@ -2172,8 +2175,10 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 		error = security_inode_rmdir(dir, dentry);
 		if (!error) {
 			error = dir->i_op->rmdir(dir, dentry);
-			if (!error)
+			if (!error) {
 				dentry->d_inode->i_flags |= S_DEAD;
+				dont_mount(dentry);
+			}
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -2257,7 +2262,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 		if (!error) {
 			error = dir->i_op->unlink(dir, dentry);
 			if (!error)
-				dentry->d_inode->i_flags |= S_DEAD;
+				dont_mount(dentry);
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -2568,17 +2573,20 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 		return error;
 
 	target = new_dentry->d_inode;
-	if (target) {
+	if (target)
 		mutex_lock(&target->i_mutex);
-		dentry_unhash(new_dentry);
-	}
 	if (d_mountpoint(old_dentry)||d_mountpoint(new_dentry))
 		error = -EBUSY;
-	else 
+	else {
+		if (target)
+			dentry_unhash(new_dentry);
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
+	}
 	if (target) {
-		if (!error)
+		if (!error) {
 			target->i_flags |= S_DEAD;
+			dont_mount(new_dentry);
+		}
 		mutex_unlock(&target->i_mutex);
 		if (d_unhashed(new_dentry))
 			d_rehash(new_dentry);
@@ -2610,7 +2618,7 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (!error) {
 		if (target)
-			target->i_flags |= S_DEAD;
+			dont_mount(new_dentry);
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
 			d_move(old_dentry, new_dentry);
 	}

@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ath9k.h"
 
 static char *dev_info = "ath9k";
@@ -30,6 +32,10 @@ MODULE_PARM_DESC(debug, "Debugging mask");
 int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+
+int led_blink = 1;
+module_param_named(blink, led_blink, int, 0444);
+MODULE_PARM_DESC(blink, "Enable LED blink on activity");
 
 /* We use the hw_value as an index into our private channel structure */
 
@@ -180,8 +186,10 @@ static const struct ath_ops ath9k_common_ops = {
 static void setup_ht_cap(struct ath_softc *sc,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u8 tx_streams, rx_streams;
+	int i, max_streams;
 
 	ht_info->ht_supported = true;
 	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
@@ -189,28 +197,43 @@ static void setup_ht_cap(struct ath_softc *sc,
 		       IEEE80211_HT_CAP_SGI_40 |
 		       IEEE80211_HT_CAP_DSSSCCK40;
 
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_LDPC)
+		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		max_streams = 3;
+	else
+		max_streams = 2;
+
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		if (max_streams >= 2)
+			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
+		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+	}
+
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = !(common->tx_chainmask & (common->tx_chainmask - 1)) ?
-		     1 : 2;
-	rx_streams = !(common->rx_chainmask & (common->rx_chainmask - 1)) ?
-		     1 : 2;
+	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, max_streams);
+	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, max_streams);
+
+	ath_print(common, ATH_DBG_CONFIG,
+		  "TX streams %d, RX streams: %d\n",
+		  tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
-		ath_print(common, ATH_DBG_CONFIG,
-			  "TX streams %d, RX streams: %d\n",
-			  tx_streams, rx_streams);
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
 		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
 				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 	}
 
-	ht_info->mcs.rx_mask[0] = 0xff;
-	if (rx_streams >= 2)
-		ht_info->mcs.rx_mask[1] = 0xff;
+	for (i = 0; i < rx_streams; i++)
+		ht_info->mcs.rx_mask[i] = 0xff;
 
 	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 }
@@ -233,31 +256,37 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 */
 int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		      struct list_head *head, const char *name,
-		      int nbuf, int ndesc)
+		      int nbuf, int ndesc, bool is_tx)
 {
 #define	DS2PHYS(_dd, _ds)						\
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define ATH_DESC_4KB_BOUND_CHECK(_daddr) ((((_daddr) & 0xFFF) > 0xF7F) ? 1 : 0)
 #define ATH_DESC_4KB_BOUND_NUM_SKIPPED(_len) ((_len) / 4096)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_desc *ds;
+	u8 *ds;
 	struct ath_buf *bf;
-	int i, bsize, error;
+	int i, bsize, error, desc_len;
 
 	ath_print(common, ATH_DBG_CONFIG, "%s DMA: %u buffers %u desc/buf\n",
 		  name, nbuf, ndesc);
 
 	INIT_LIST_HEAD(head);
+
+	if (is_tx)
+		desc_len = sc->sc_ah->caps.tx_desc_len;
+	else
+		desc_len = sizeof(struct ath_desc);
+
 	/* ath_desc must be a multiple of DWORDs */
-	if ((sizeof(struct ath_desc) % 4) != 0) {
+	if ((desc_len % 4) != 0) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "ath_desc not DWORD aligned\n");
-		BUG_ON((sizeof(struct ath_desc) % 4) != 0);
+		BUG_ON((desc_len % 4) != 0);
 		error = -ENOMEM;
 		goto fail;
 	}
 
-	dd->dd_desc_len = sizeof(struct ath_desc) * nbuf * ndesc;
+	dd->dd_desc_len = desc_len * nbuf * ndesc;
 
 	/*
 	 * Need additional DMA memory because we can't use
@@ -270,11 +299,11 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		u32 dma_len;
 
 		while (ndesc_skipped) {
-			dma_len = ndesc_skipped * sizeof(struct ath_desc);
+			dma_len = ndesc_skipped * desc_len;
 			dd->dd_desc_len += dma_len;
 
 			ndesc_skipped = ATH_DESC_4KB_BOUND_NUM_SKIPPED(dma_len);
-		};
+		}
 	}
 
 	/* allocate descriptors */
@@ -284,7 +313,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		error = -ENOMEM;
 		goto fail;
 	}
-	ds = dd->dd_desc;
+	ds = (u8 *) dd->dd_desc;
 	ath_print(common, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
 		  name, ds, (u32) dd->dd_desc_len,
 		  ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
@@ -298,7 +327,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	}
 	dd->dd_bufptr = bf;
 
-	for (i = 0; i < nbuf; i++, bf++, ds += ndesc) {
+	for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
 		bf->bf_desc = ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
 
@@ -314,7 +343,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 				       ((caddr_t) dd->dd_desc +
 					dd->dd_desc_len));
 
-				ds += ndesc;
+				ds += (desc_len * ndesc);
 				bf->bf_desc = ds;
 				bf->bf_daddr = DS2PHYS(dd, ds);
 			}
@@ -354,36 +383,14 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
 
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)) {
-		/*
-		 * Whether we should enable h/w TKIP MIC.
-		 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-		 * report WMM capable, so it's always safe to turn on
-		 * TKIP MIC in this case.
-		 */
-		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-	}
-
 	/*
 	 * Check whether the separate key cache entries
 	 * are required to handle both tx+rx MIC keys.
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT,
-				      0, NULL))
+	if (!(sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA))
 		common->splitmic = 1;
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
-
 }
 
 static int ath9k_init_btcoex(struct ath_softc *sc)
@@ -401,7 +408,7 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
@@ -438,23 +445,23 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
+	if (!ath_tx_setup(sc, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
+	if (!ath_tx_setup(sc, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
+	if (!ath_tx_setup(sc, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
+	if (!ath_tx_setup(sc, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;
@@ -512,7 +519,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	common->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 	common->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
 
-	ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
+	ath9k_hw_set_diversity(sc->sc_ah, true);
 	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
@@ -566,13 +573,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
 
+	/* Initializes the hardware for all supported chipsets */
 	ret = ath9k_hw_init(ah);
-	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", ret);
+	if (ret)
 		goto err_hw;
-	}
 
 	ret = ath9k_init_debug(ah);
 	if (ret) {
@@ -714,6 +718,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 			goto error_world;
 	}
 
+	INIT_WORK(&sc->hw_check_work, ath_hw_check);
+	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
@@ -758,6 +764,9 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 
 	tasklet_kill(&sc->intr_tq);
 	tasklet_kill(&sc->bcon_tasklet);
+
+	kfree(sc->sc_ah);
+	sc->sc_ah = NULL;
 }
 
 void ath9k_deinit_device(struct ath_softc *sc)
@@ -778,12 +787,12 @@ void ath9k_deinit_device(struct ath_softc *sc)
 		ieee80211_unregister_hw(aphy->hw);
 		ieee80211_free_hw(aphy->hw);
 	}
-	kfree(sc->sec_wiphy);
 
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
+	kfree(sc->sec_wiphy);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,

@@ -17,7 +17,7 @@ config IWM
 config IWM_DEBUG
 	bool "Enable full debugging output in iwmc3200wifi"
 	depends on IWM && DEBUG_FS
-	---help---
+	help
 	  This option will enable debug tracing and setting for iwm
 
 	  You can set the debug level and module through debugfs. By
@@ -30,3 +30,10 @@ config IWM_DEBUG
 	  Or, if you want the full debug, for all modules:
 	  echo 0xff > /sys/kernel/debug/iwm/phyN/debug/level
 	  echo 0xff > /sys/kernel/debug/iwm/phyN/debug/modules
+
+config IWM_TRACING
+	bool "Enable event tracing for iwmc3200wifi"
+	depends on IWM && EVENT_TRACING
+	help
+	  Say Y here to trace all the commands and responses between
+	  the driver and firmware (including TX/RX frames) with ftrace.

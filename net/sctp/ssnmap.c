@@ -37,6 +37,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 

@@ -20,7 +20,9 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/ftrace.h>
 #include <linux/irq.h>
+#include <linux/kmemleak.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -45,6 +47,7 @@
 
 #include "entry.h"
 #include "cpumap.h"
+#include "kstack.h"
 
 #define NUM_IVECS	(IMAP_INR + 1)
 
@@ -647,6 +650,14 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
 	if (unlikely(!bucket))
 		return 0;
+
+	/* The only reference we store to the IRQ bucket is
+	 * by physical address which kmemleak can't see, tell
+	 * it that this object explicitly is not a leak and
+	 * should be scanned.
+	 */
+	kmemleak_not_leak(bucket);
+
 	__flush_dcache_range((unsigned long) bucket,
 			     ((unsigned long) bucket +
 			      sizeof(struct ino_bucket)));
@@ -703,25 +714,7 @@ void ack_bad_irq(unsigned int virt_irq)
 void *hardirq_stack[NR_CPUS];
 void *softirq_stack[NR_CPUS];
 
-static __attribute__((always_inline)) void *set_hardirq_stack(void)
-{
-	void *orig_sp, *sp = hardirq_stack[smp_processor_id()];
-
-	__asm__ __volatile__("mov %%sp, %0" : "=r" (orig_sp));
-	if (orig_sp < sp ||
-	    orig_sp > (sp + THREAD_SIZE)) {
-		sp += THREAD_SIZE - 192 - STACK_BIAS;
-		__asm__ __volatile__("mov %0, %%sp" : : "r" (sp));
-	}
-
-	return orig_sp;
-}
-static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
-{
-	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
-}
-
-void handler_irq(int irq, struct pt_regs *regs)
+void __irq_entry handler_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;

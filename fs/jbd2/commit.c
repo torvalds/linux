@@ -717,7 +717,8 @@ start_journal_io:
 	if (commit_transaction->t_flushed_data_blocks &&
 	    (journal->j_fs_dev != journal->j_dev) &&
 	    (journal->j_flags & JBD2_BARRIER))
-		blkdev_issue_flush(journal->j_fs_dev, NULL);
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL,
+			BLKDEV_IFL_WAIT);
 
 	/* Done it all: now write the commit record asynchronously. */
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
@@ -727,7 +728,8 @@ start_journal_io:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 		if (journal->j_flags & JBD2_BARRIER)
-			blkdev_issue_flush(journal->j_dev, NULL);
+			blkdev_issue_flush(journal->j_dev, GFP_KERNEL, NULL,
+				BLKDEV_IFL_WAIT);
 	}
 
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);

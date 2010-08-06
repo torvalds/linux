@@ -89,6 +89,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/cache.h>
@@ -1173,8 +1174,6 @@ static netdev_tx_t dscc4_start_xmit(struct sk_buff *skb,
 	while (dscc4_tx_poll(dpriv, dev));
 	spin_unlock(&dpriv->lock);
 #endif
-
-	dev->trans_start = jiffies;
 
 	if (debug > 2)
 		dscc4_tx_print(dev, dpriv, "Xmit");

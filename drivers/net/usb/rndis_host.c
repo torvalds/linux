@@ -22,6 +22,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>

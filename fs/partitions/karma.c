@@ -9,7 +9,7 @@
 #include "check.h"
 #include "karma.h"
 
-int karma_partition(struct parsed_partitions *state, struct block_device *bdev)
+int karma_partition(struct parsed_partitions *state)
 {
 	int i;
 	int slot = 1;
@@ -29,7 +29,7 @@ int karma_partition(struct parsed_partitions *state, struct block_device *bdev)
 	} __attribute__((packed)) *label;
 	struct d_partition *p;
 
-	data = read_dev_sector(bdev, 0, &sect);
+	data = read_part_sector(state, 0, &sect);
 	if (!data)
 		return -1;
 

@@ -166,8 +166,8 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int	i;
 
 	if (free_tx_pages <= 0) {	/* Do timeouts, to avoid hangs. */
-		tickssofar = jiffies - dev->trans_start;
-		if (tickssofar < 5)
+		tickssofar = jiffies - dev_trans_start(dev);
+		if (tickssofar < HZ/20)
 			return NETDEV_TX_BUSY;
 		/* else */
 		printk(KERN_WARNING "%s: transmit timed out (%d), %s?\n", dev->name, tickssofar, "network cable problem");

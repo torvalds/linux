@@ -24,6 +24,11 @@ config SND_S3C64XX_SOC_I2S
 	select SND_S3C_I2SV2_SOC
 	select S3C64XX_DMA
 
+config SND_S3C64XX_SOC_I2S_V4
+	tristate
+	select SND_S3C_I2SV2_SOC
+	select S3C64XX_DMA
+
 config SND_S3C_SOC_PCM
 	tristate
 
@@ -59,12 +64,11 @@ config SND_S3C24XX_SOC_JIVE_WM8750
 
 config SND_S3C64XX_SOC_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK64XX"
-	depends on SND_S3C24XX_SOC && (MACH_SMDK6400 || MACH_SMDK6410)
-	depends on BROKEN
+	depends on SND_S3C24XX_SOC && MACH_SMDK6410
 	select SND_SOC_WM8580
-	select SND_S3C64XX_SOC_I2S
+	select SND_S3C64XX_SOC_I2S_V4
 	help
-	  Sat Y if you want to add support for SoC audio on the SMDK64XX.
+	  Say Y if you want to add support for SoC audio on the SMDK6410.
 
 config SND_S3C24XX_SOC_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"

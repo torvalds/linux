@@ -19,7 +19,6 @@
 #ifndef __ASSEMBLY__
 # include <linux/types.h>
 # include <asm/processor.h>
-# include <asm/segment.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -59,6 +58,10 @@ struct cpu_context {
 	__u32	esr;
 	__u32	fsr;
 };
+
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
 
 struct thread_info {
 	struct task_struct	*task; /* main task structure */
@@ -119,7 +122,7 @@ static inline struct thread_info *current_thread_info(void)
 /* restore singlestep on return to user mode */
 #define TIF_SINGLESTEP		4
 #define TIF_IRET		5 /* return with iret */
-#define TIF_MEMDIE		6
+#define TIF_MEMDIE		6	/* is terminating due to OOM killer */
 #define TIF_SYSCALL_AUDIT	9       /* syscall auditing active */
 #define TIF_SECCOMP		10      /* secure computing */
 #define TIF_FREEZE		14	/* Freezing for suspend */

@@ -116,11 +116,12 @@ extern unsigned long acpi_realmode_flags;
 
 int acpi_register_gsi (struct device *dev, u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
+int acpi_isa_irq_to_gsi (unsigned isa_irq, u32 *gsi);
 
 #ifdef CONFIG_X86_IO_APIC
-extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
+extern int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity);
 #else
-#define acpi_get_override_irq(bus, trigger, polarity) (-1)
+#define acpi_get_override_irq(gsi, trigger, polarity) (-1)
 #endif
 /*
  * This function undoes the effect of one call to acpi_register_gsi().
@@ -247,11 +248,12 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
+int acpi_resources_are_enforced(void);
+
 #ifdef CONFIG_PM_SLEEP
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
-void __init acpi_s4_no_nvs(void);
-void __init acpi_set_sci_en_on_resume(void);
+void __init acpi_nvs_nosave(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {

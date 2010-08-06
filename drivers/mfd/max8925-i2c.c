@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/mfd/max8925.h>
+#include <linux/slab.h>
 
 #define RTC_I2C_ADDR		0x68
 #define ADC_I2C_ADDR		0x47
@@ -172,9 +173,6 @@ static int __devexit max8925_remove(struct i2c_client *client)
 	max8925_device_exit(chip);
 	i2c_unregister_device(chip->adc);
 	i2c_unregister_device(chip->rtc);
-	i2c_set_clientdata(chip->adc, NULL);
-	i2c_set_clientdata(chip->rtc, NULL);
-	i2c_set_clientdata(chip->i2c, NULL);
 	kfree(chip);
 	return 0;
 }

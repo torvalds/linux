@@ -63,6 +63,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x07D1, 0x3C11)},	/* D-Link */
 	{USB_DEVICE(0x14B2, 0x3C07)},	/* AL */
 	{USB_DEVICE(0x050D, 0x8053)},	/* Belkin */
+	{USB_DEVICE(0x050D, 0x825B)},	/* Belkin */
 	{USB_DEVICE(0x14B2, 0x3C23)},	/* Airlink */
 	{USB_DEVICE(0x14B2, 0x3C27)},	/* Airlink */
 	{USB_DEVICE(0x07AA, 0x002F)},	/* Corega */
@@ -76,6 +77,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x083A, 0x7522)},	/* Arcadyan */
 	{USB_DEVICE(0x0CDE, 0x0022)},	/* ZCOM */
 	{USB_DEVICE(0x0586, 0x3416)},	/* Zyxel */
+	{USB_DEVICE(0x0586, 0x341a)},	/* Zyxel NWD-270N */
 	{USB_DEVICE(0x0CDE, 0x0025)},	/* Zyxel */
 	{USB_DEVICE(0x1740, 0x9701)},	/* EnGenius */
 	{USB_DEVICE(0x1740, 0x9702)},	/* EnGenius */
@@ -97,6 +99,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x5A57, 0x0282)},	/* Zinwell */
 	{USB_DEVICE(0x7392, 0x7718)},
 	{USB_DEVICE(0x7392, 0x7717)},
+	{USB_DEVICE(0x0411, 0x016f)},	/* MelCo.,Inc. WLI-UC-G301N */
 	{USB_DEVICE(0x1737, 0x0070)},	/* Linksys WUSB100 */
 	{USB_DEVICE(0x1737, 0x0071)},	/* Linksys WUSB600N */
 	{USB_DEVICE(0x0411, 0x00e8)},	/* Buffalo WLI-UC-G300N */
@@ -153,7 +156,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  struct rt_rtmp_adapter ** ppAd);
+				  struct rt_rtmp_adapter **ppAd);
 
 #ifndef PF_NOFREEZE
 #define PF_NOFREEZE  0
@@ -801,7 +804,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  struct rt_rtmp_adapter ** ppAd)
+				  struct rt_rtmp_adapter **ppAd)
 {
 	struct net_device *net_dev = NULL;
 	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;

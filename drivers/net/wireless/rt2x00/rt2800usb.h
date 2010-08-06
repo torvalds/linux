@@ -32,43 +32,6 @@
 #define RT2800USB_H
 
 /*
- * USB registers.
- */
-
-/*
- * USB_DMA_CFG
- * RX_BULK_AGG_TIMEOUT: Rx Bulk Aggregation TimeOut in unit of 33ns.
- * RX_BULK_AGG_LIMIT: Rx Bulk Aggregation Limit in unit of 256 bytes.
- * PHY_CLEAR: phy watch dog enable.
- * TX_CLEAR: Clear USB DMA TX path.
- * TXOP_HALT: Halt TXOP count down when TX buffer is full.
- * RX_BULK_AGG_EN: Enable Rx Bulk Aggregation.
- * RX_BULK_EN: Enable USB DMA Rx.
- * TX_BULK_EN: Enable USB DMA Tx.
- * EP_OUT_VALID: OUT endpoint data valid.
- * RX_BUSY: USB DMA RX FSM busy.
- * TX_BUSY: USB DMA TX FSM busy.
- */
-#define USB_DMA_CFG			0x02a0
-#define USB_DMA_CFG_RX_BULK_AGG_TIMEOUT	FIELD32(0x000000ff)
-#define USB_DMA_CFG_RX_BULK_AGG_LIMIT	FIELD32(0x0000ff00)
-#define USB_DMA_CFG_PHY_CLEAR		FIELD32(0x00010000)
-#define USB_DMA_CFG_TX_CLEAR		FIELD32(0x00080000)
-#define USB_DMA_CFG_TXOP_HALT		FIELD32(0x00100000)
-#define USB_DMA_CFG_RX_BULK_AGG_EN	FIELD32(0x00200000)
-#define USB_DMA_CFG_RX_BULK_EN		FIELD32(0x00400000)
-#define USB_DMA_CFG_TX_BULK_EN		FIELD32(0x00800000)
-#define USB_DMA_CFG_EP_OUT_VALID	FIELD32(0x3f000000)
-#define USB_DMA_CFG_RX_BUSY		FIELD32(0x40000000)
-#define USB_DMA_CFG_TX_BUSY		FIELD32(0x80000000)
-
-/*
- * USB_CYC_CFG
- */
-#define USB_CYC_CFG			0x02a4
-#define USB_CYC_CFG_CLOCK_CYCLE		FIELD32(0x000000ff)
-
-/*
  * 8051 firmware image.
  */
 #define FIRMWARE_RT2870			"rt2870.bin"
@@ -79,8 +42,6 @@
  */
 #define TXINFO_DESC_SIZE		( 1 * sizeof(__le32) )
 #define RXINFO_DESC_SIZE		( 1 * sizeof(__le32) )
-#define RXWI_DESC_SIZE			( 4 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 1 * sizeof(__le32) )
 
 /*
  * TX Info structure
@@ -111,44 +72,6 @@
  */
 
 #define RXINFO_W0_USB_DMA_RX_PKT_LEN	FIELD32(0x0000ffff)
-
-/*
- * RX WI structure
- */
-
-/*
- * Word0
- */
-#define RXWI_W0_WIRELESS_CLI_ID		FIELD32(0x000000ff)
-#define RXWI_W0_KEY_INDEX		FIELD32(0x00000300)
-#define RXWI_W0_BSSID			FIELD32(0x00001c00)
-#define RXWI_W0_UDF			FIELD32(0x0000e000)
-#define RXWI_W0_MPDU_TOTAL_BYTE_COUNT	FIELD32(0x0fff0000)
-#define RXWI_W0_TID			FIELD32(0xf0000000)
-
-/*
- * Word1
- */
-#define RXWI_W1_FRAG			FIELD32(0x0000000f)
-#define RXWI_W1_SEQUENCE		FIELD32(0x0000fff0)
-#define RXWI_W1_MCS			FIELD32(0x007f0000)
-#define RXWI_W1_BW			FIELD32(0x00800000)
-#define RXWI_W1_SHORT_GI		FIELD32(0x01000000)
-#define RXWI_W1_STBC			FIELD32(0x06000000)
-#define RXWI_W1_PHYMODE			FIELD32(0xc0000000)
-
-/*
- * Word2
- */
-#define RXWI_W2_RSSI0			FIELD32(0x000000ff)
-#define RXWI_W2_RSSI1			FIELD32(0x0000ff00)
-#define RXWI_W2_RSSI2			FIELD32(0x00ff0000)
-
-/*
- * Word3
- */
-#define RXWI_W3_SNR0			FIELD32(0x000000ff)
-#define RXWI_W3_SNR1			FIELD32(0x0000ff00)
 
 /*
  * RX descriptor format for RX Ring.

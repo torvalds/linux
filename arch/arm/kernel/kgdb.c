@@ -98,6 +98,11 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 	gdb_regs[_CPSR]		= thread_regs->ARM_cpsr;
 }
 
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
+{
+	regs->ARM_pc = pc;
+}
+
 static int compiled_break;
 
 int kgdb_arch_handle_exception(int exception_vector, int signo,

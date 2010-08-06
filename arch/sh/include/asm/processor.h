@@ -85,6 +85,10 @@ struct sh_cpuinfo {
 	struct tlb_info itlb;
 	struct tlb_info dtlb;
 
+#ifdef CONFIG_SMP
+	struct task_struct *idle;
+#endif
+
 	unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
 
@@ -101,6 +105,9 @@ struct seq_operations;
 struct task_struct;
 
 extern struct pt_regs fake_swapper_regs;
+
+extern void cpu_init(void);
+extern void cpu_probe(void);
 
 /* arch/sh/kernel/process.c */
 extern unsigned int xstate_size;

@@ -6,7 +6,6 @@
 #define MCPCIA_ONE_HAE_WINDOW 1
 
 #include <linux/types.h>
-#include <linux/pci.h>
 #include <asm/compiler.h>
 
 /*

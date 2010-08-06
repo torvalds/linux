@@ -1,4 +1,3 @@
-* remove support for wakelocks since those are not in mainline
 
 * camera driver uses old V4L API
 

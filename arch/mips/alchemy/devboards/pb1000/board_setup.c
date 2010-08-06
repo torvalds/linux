@@ -27,8 +27,10 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1000.h>
+#include <asm/reboot.h>
 #include <prom.h>
 
 #include "../platform.h"
@@ -38,8 +40,16 @@ const char *get_system_type(void)
 	return "Alchemy Pb1000";
 }
 
-void board_reset(void)
+static void board_reset(char *c)
 {
+	asm volatile ("jr %0" : : "r" (0xbfc00000));
+}
+
+static void board_power_off(void)
+{
+	printk(KERN_ALERT "It's now safe to remove power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips1");
 }
 
 void __init board_setup(void)
@@ -177,6 +187,10 @@ void __init board_setup(void)
 		au_writel(au_readl(SYS_POWERCTRL) | (0x3 << 5), SYS_POWERCTRL);
 		break;
 	}
+
+	pm_power_off = board_power_off;
+	_machine_halt = board_power_off;
+	_machine_restart = board_reset;
 }
 
 static int __init pb1000_init_irq(void)

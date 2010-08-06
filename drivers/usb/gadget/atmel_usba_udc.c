@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
@@ -47,10 +48,9 @@ static int queue_dbg_open(struct inode *inode, struct file *file)
 
 	spin_lock_irq(&ep->udc->lock);
 	list_for_each_entry(req, &ep->queue, queue) {
-		req_copy = kmalloc(sizeof(*req_copy), GFP_ATOMIC);
+		req_copy = kmemdup(req, sizeof(*req_copy), GFP_ATOMIC);
 		if (!req_copy)
 			goto fail;
-		memcpy(req_copy, req, sizeof(*req_copy));
 		list_add_tail(&req_copy->queue, queue_data);
 	}
 	spin_unlock_irq(&ep->udc->lock);

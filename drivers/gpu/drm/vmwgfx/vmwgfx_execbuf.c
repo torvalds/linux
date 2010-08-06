@@ -570,7 +570,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * Put BO in VRAM, only if there is space.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false, false);
 	if (unlikely(ret == -ERESTARTSYS))
 		return ret;
 
@@ -590,7 +590,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * previous contents.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false, false);
 	return ret;
 }
 
@@ -644,6 +644,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(cmd, user_cmd, arg->command_size);
 
 	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		DRM_ERROR("Failed copying commands.\n");
 		goto out_commit;
 	}
@@ -669,6 +670,15 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		goto out_err;
 
 	vmw_apply_relocations(sw_context);
+
+	if (arg->throttle_us) {
+		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.fence_queue,
+				   arg->throttle_us);
+
+		if (unlikely(ret != 0))
+			goto out_err;
+	}
+
 	vmw_fifo_commit(dev_priv, arg->command_size);
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);

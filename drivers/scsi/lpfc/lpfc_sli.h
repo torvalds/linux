@@ -36,6 +36,7 @@ struct lpfc_cq_event {
 		struct lpfc_acqe_link		acqe_link;
 		struct lpfc_acqe_fcoe		acqe_fcoe;
 		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_acqe_grp5		acqe_grp5;
 		struct lpfc_rcqe		rcqe_cmpl;
 		struct sli4_wcqe_xri_aborted	wcqe_axri;
 		struct lpfc_wcqe_complete	wcqe_cmpl;
@@ -47,6 +48,7 @@ struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
 	struct list_head clist;
+	struct list_head dlist;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct lpfc_cq_event cq_event;
@@ -63,6 +65,7 @@ struct lpfc_iocbq {
 #define LPFC_EXCHANGE_BUSY	0x40    /* SLI4 hba reported XB in response */
 #define LPFC_USE_FCPWQIDX	0x80    /* Submit to specified FCPWQ index */
 #define DSS_SECURITY_OP		0x100	/* security IO */
+#define LPFC_IO_ON_Q		0x200	/* The IO is still on the TXCMPLQ */
 
 #define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14
@@ -110,6 +113,9 @@ typedef struct lpfcMboxq {
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;
+	uint16_t in_ext_byte_len;
+	uint16_t out_ext_byte_len;
+	uint8_t  mbox_offset_word;
 	struct lpfc_mcqe mcqe;
 	struct lpfc_mbx_nembed_sge_virt *sge_array;
 } LPFC_MBOXQ_t;

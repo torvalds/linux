@@ -261,7 +261,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
 	sd->host_controller = pbm;
-	sd->prom_node = node;
 	sd->op = op = of_find_device_by_node(node);
 	sd->numa_node = pbm->numa_node;
 
@@ -285,6 +284,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
 	dev->dev.bus = &pci_bus_type;
+	dev->dev.of_node = node;
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 	set_pcie_port_type(dev);
@@ -653,7 +653,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 	struct device_node *dp;
 
 	pdev = to_pci_dev(dev);
-	dp = pdev->dev.archdata.prom_node;
+	dp = pdev->dev.of_node;
 
 	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
 }
@@ -683,7 +683,7 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 					    struct device *parent)
 {
-	struct device_node *node = pbm->op->node;
+	struct device_node *node = pbm->op->dev.of_node;
 	struct pci_bus *bus;
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
@@ -1022,7 +1022,7 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 
 struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 {
-	return pdev->dev.archdata.prom_node;
+	return pdev->dev.of_node;
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
 
@@ -1151,15 +1151,13 @@ static int __init of_pci_slot_init(void)
 		struct device_node *node;
 
 		if (pbus->self) {
-			struct dev_archdata *sd = pbus->self->sysdata;
-
 			/* PCI->PCI bridge */
-			node = sd->prom_node;
+			node = pbus->self->dev.of_node;
 		} else {
 			struct pci_pbm_info *pbm = pbus->sysdata;
 
 			/* Host PCI controller */
-			node = pbm->op->node;
+			node = pbm->op->dev.of_node;
 		}
 
 		pci_bus_slot_names(node, pbus);

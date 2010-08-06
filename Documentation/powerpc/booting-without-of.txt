@@ -1048,7 +1048,7 @@ IV - "dtc", the device tree compiler
 
 
 dtc source code can be found at
-<http://ozlabs.org/~dgibson/dtc/dtc.tar.gz>
+<http://git.jdl.com/gitweb/?p=dtc.git>
 
 WARNING: This version is still in early development stage; the
 resulting device-tree "blobs" have not yet been validated with the
@@ -1289,7 +1289,7 @@ link between a device node and its interrupt parent in
 the interrupt tree.  The value of interrupt-parent is the
 phandle of the parent node.
 
-If the interrupt-parent property is not defined for a node, it's
+If the interrupt-parent property is not defined for a node, its
 interrupt parent is assumed to be an ancestor in the node's
 _device tree_ hierarchy.
 

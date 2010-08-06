@@ -9,8 +9,8 @@ config SUPERH
 	def_bool y
 	select EMBEDDED
 	select HAVE_CLK
-	select HAVE_IDE
-	select HAVE_LMB
+	select HAVE_IDE if HAS_IOPORT
+	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
@@ -44,6 +44,7 @@ config SUPERH32
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_ARCH_KGDB
 	select HAVE_HW_BREAKPOINT
+	select HAVE_MIXED_BREAKPOINTS_REGS
 	select PERF_EVENTS if HAVE_HW_BREAKPOINT
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 
@@ -157,7 +158,6 @@ config LOCKDEP_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
-	depends on !SMP
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n
@@ -174,6 +174,9 @@ config ARCH_HAS_DEFAULT_IDLE
 config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
 
+config NO_IOPORT
+	bool
+
 config IO_TRAPPED
 	bool
 
@@ -185,6 +188,9 @@ config DMA_NONCOHERENT
 
 config NEED_DMA_MAP_STATE
 	def_bool DMA_NONCOHERENT
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 source "init/Kconfig"
 
@@ -237,6 +243,8 @@ config CPU_SHX2
 config CPU_SHX3
 	bool
 	select DMA_COHERENT
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_NUMA
 
 config ARCH_SHMOBILE
 	bool
@@ -453,18 +461,12 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SH4A
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
 	select CPU_SH4A
 	select CPU_SHX3
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 # SH4AL-DSP Processor Support
@@ -634,7 +636,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL && BROKEN_ON_SMP
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -706,6 +708,13 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
 source "kernel/Kconfig.preempt"
 
 config GUSA
@@ -731,6 +740,8 @@ config GUSA_RB
 	  store-conditional (LLSC). On machines which do not have hardware
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
+
+source "drivers/sh/Kconfig"
 
 endmenu
 
@@ -767,6 +778,17 @@ config ENTRY_OFFSET
 	default "0x00004000" if PAGE_SIZE_16KB
 	default "0x00010000" if PAGE_SIZE_64KB
 	default "0x00000000"
+
+config ROMIMAGE_MMCIF
+	bool "Include MMCIF loader in romImage (EXPERIMENTAL)"
+	depends on CPU_SUBTYPE_SH7724 && EXPERIMENTAL
+	help
+	  Say Y here to include experimental MMCIF loading code in
+	  romImage. With this enabled it is possible to write the romImage
+	  kernel image to an MMC card and boot the kernel straight from
+	  the reset vector. At reset the processor Mask ROM will load the
+	  first part of the romImage which in turn loads the rest the kernel
+	  image to RAM using the MMCIF hardware block.
 
 choice
 	prompt "Kernel command line"
@@ -862,5 +884,21 @@ source "arch/sh/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	default n
+	---help---
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+source drivers/virtio/Kconfig
+
+endif # VIRTUALIZATION
 
 source "lib/Kconfig"

@@ -38,6 +38,8 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pll.h>
+#include <plat/adc.h>
+#include <plat/ts.h>
 
 #define S5P6440_UCON_DEFAULT    (S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -84,6 +86,16 @@ static struct s3c2410_uartcfg smdk6440_uartcfgs[] __initdata = {
 };
 
 static struct platform_device *smdk6440_devices[] __initdata = {
+	&s5p6440_device_iis,
+	&s3c_device_adc,
+	&s3c_device_ts,
+	&s3c_device_wdt,
+};
+
+static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
 };
 
 static void __init smdk6440_map_io(void)
@@ -95,6 +107,8 @@ static void __init smdk6440_map_io(void)
 
 static void __init smdk6440_machine_init(void)
 {
+	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+
 	platform_add_devices(smdk6440_devices, ARRAY_SIZE(smdk6440_devices));
 }
 

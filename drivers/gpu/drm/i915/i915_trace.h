@@ -53,23 +53,6 @@ TRACE_EVENT(i915_gem_object_bind,
 		      __entry->obj, __entry->gtt_offset)
 );
 
-TRACE_EVENT(i915_gem_object_clflush,
-
-	    TP_PROTO(struct drm_gem_object *obj),
-
-	    TP_ARGS(obj),
-
-	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->obj = obj;
-			   ),
-
-	    TP_printk("obj=%p", __entry->obj)
-);
-
 TRACE_EVENT(i915_gem_object_change_domain,
 
 	    TP_PROTO(struct drm_gem_object *obj, uint32_t old_read_domains, uint32_t old_write_domain),
@@ -115,7 +98,7 @@ TRACE_EVENT(i915_gem_object_get_fence,
 		      __entry->obj, __entry->fence, __entry->tiling_mode)
 );
 
-TRACE_EVENT(i915_gem_object_unbind,
+DECLARE_EVENT_CLASS(i915_gem_object,
 
 	    TP_PROTO(struct drm_gem_object *obj),
 
@@ -132,21 +115,25 @@ TRACE_EVENT(i915_gem_object_unbind,
 	    TP_printk("obj=%p", __entry->obj)
 );
 
-TRACE_EVENT(i915_gem_object_destroy,
+DEFINE_EVENT(i915_gem_object, i915_gem_object_clflush,
 
 	    TP_PROTO(struct drm_gem_object *obj),
 
-	    TP_ARGS(obj),
+	    TP_ARGS(obj)
+);
 
-	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
-			     ),
+DEFINE_EVENT(i915_gem_object, i915_gem_object_unbind,
 
-	    TP_fast_assign(
-			   __entry->obj = obj;
-			   ),
+	    TP_PROTO(struct drm_gem_object *obj),
 
-	    TP_printk("obj=%p", __entry->obj)
+	    TP_ARGS(obj)
+);
+
+DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
+
+	    TP_PROTO(struct drm_gem_object *obj),
+
+	    TP_ARGS(obj)
 );
 
 /* batch tracing */
@@ -197,27 +184,7 @@ TRACE_EVENT(i915_gem_request_flush,
 		      __entry->flush_domains, __entry->invalidate_domains)
 );
 
-
-TRACE_EVENT(i915_gem_request_complete,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, seqno)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
-			   ),
-
-	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
-);
-
-TRACE_EVENT(i915_gem_request_retire,
+DECLARE_EVENT_CLASS(i915_gem_request,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
 
@@ -236,45 +203,35 @@ TRACE_EVENT(i915_gem_request_retire,
 	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
-TRACE_EVENT(i915_gem_request_wait_begin,
+DEFINE_EVENT(i915_gem_request, i915_gem_request_complete,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
 
-	    TP_ARGS(dev, seqno),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, seqno)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
-			   ),
-
-	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_ARGS(dev, seqno)
 );
 
-TRACE_EVENT(i915_gem_request_wait_end,
+DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
 
-	    TP_ARGS(dev, seqno),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, seqno)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
-			   ),
-
-	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_ARGS(dev, seqno)
 );
 
-TRACE_EVENT(i915_ring_wait_begin,
+DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_begin,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_end,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DECLARE_EVENT_CLASS(i915_ring,
 
 	    TP_PROTO(struct drm_device *dev),
 
@@ -291,26 +248,23 @@ TRACE_EVENT(i915_ring_wait_begin,
 	    TP_printk("dev=%u", __entry->dev)
 );
 
-TRACE_EVENT(i915_ring_wait_end,
+DEFINE_EVENT(i915_ring, i915_ring_wait_begin,
 
 	    TP_PROTO(struct drm_device *dev),
 
-	    TP_ARGS(dev),
+	    TP_ARGS(dev)
+);
 
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     ),
+DEFINE_EVENT(i915_ring, i915_ring_wait_end,
 
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			   ),
+	    TP_PROTO(struct drm_device *dev),
 
-	    TP_printk("dev=%u", __entry->dev)
+	    TP_ARGS(dev)
 );
 
 #endif /* _I915_TRACE_H_ */
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/i915
+#define TRACE_INCLUDE_PATH .
 #include <trace/define_trace.h>

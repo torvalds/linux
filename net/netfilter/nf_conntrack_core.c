@@ -62,8 +62,8 @@ EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 unsigned int nf_conntrack_max __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_max);
 
-struct nf_conn nf_conntrack_untracked __read_mostly;
-EXPORT_SYMBOL_GPL(nf_conntrack_untracked);
+DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
+EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
 static int nf_conntrack_hash_rnd_initted;
 static unsigned int nf_conntrack_hash_rnd;
@@ -319,8 +319,10 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
-	if (get_nulls_value(n) != hash)
+	if (get_nulls_value(n) != hash) {
+		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
+	}
 	local_bh_enable();
 
 	return NULL;
@@ -421,6 +423,16 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	pr_debug("Confirming conntrack %p\n", ct);
 
 	spin_lock_bh(&nf_conntrack_lock);
+
+	/* We have to check the DYING flag inside the lock to prevent
+	   a race against nf_ct_get_next_corpse() possibly called from
+	   user context, else we insert an already 'dead' hash, blocking
+	   further use of that particular connection -JM */
+
+	if (unlikely(nf_ct_is_dying(ct))) {
+		spin_unlock_bh(&nf_conntrack_lock);
+		return NF_ACCEPT;
+	}
 
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
@@ -607,9 +619,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 	ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev = NULL;
 	/* Don't set timer yet: wait for confirmation */
 	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
-#ifdef CONFIG_NET_NS
-	ct->ct_net = net;
-#endif
+	write_pnet(&ct->ct_net, net);
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	if (zone) {
 		struct nf_conntrack_zone *nf_ct_zone;
@@ -956,8 +966,7 @@ acct:
 		if (acct) {
 			spin_lock_bh(&ct->lock);
 			acct[CTINFO2DIR(ctinfo)].packets++;
-			acct[CTINFO2DIR(ctinfo)].bytes +=
-				skb->len - skb_network_offset(skb);
+			acct[CTINFO2DIR(ctinfo)].bytes += skb->len;
 			spin_unlock_bh(&ct->lock);
 		}
 	}
@@ -1171,10 +1180,21 @@ static void nf_ct_release_dying_list(struct net *net)
 	spin_unlock_bh(&nf_conntrack_lock);
 }
 
+static int untrack_refs(void)
+{
+	int cnt = 0, cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct nf_conn *ct = &per_cpu(nf_conntrack_untracked, cpu);
+
+		cnt += atomic_read(&ct->ct_general.use) - 1;
+	}
+	return cnt;
+}
+
 static void nf_conntrack_cleanup_init_net(void)
 {
-	/* wait until all references to nf_conntrack_untracked are dropped */
-	while (atomic_read(&nf_conntrack_untracked.ct_general.use) > 1)
+	while (untrack_refs() > 0)
 		schedule();
 
 	nf_conntrack_helper_fini();
@@ -1309,10 +1329,19 @@ EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);
 
+void nf_ct_untracked_status_or(unsigned long bits)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(nf_conntrack_untracked, cpu).status |= bits;
+}
+EXPORT_SYMBOL_GPL(nf_ct_untracked_status_or);
+
 static int nf_conntrack_init_init_net(void)
 {
 	int max_factor = 8;
-	int ret;
+	int ret, cpu;
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
 	 * machine has 512 buckets. >= 1GB machines have 16384 buckets. */
@@ -1333,7 +1362,7 @@ static int nf_conntrack_init_init_net(void)
 	}
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
-	printk("nf_conntrack version %s (%u buckets, %d max)\n",
+	printk(KERN_INFO "nf_conntrack version %s (%u buckets, %d max)\n",
 	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
 	       nf_conntrack_max);
 
@@ -1351,13 +1380,13 @@ static int nf_conntrack_init_init_net(void)
 		goto err_extend;
 #endif
 	/* Set up fake conntrack: to never be deleted, not in any hashes */
-#ifdef CONFIG_NET_NS
-	nf_conntrack_untracked.ct_net = &init_net;
-#endif
-	atomic_set(&nf_conntrack_untracked.ct_general.use, 1);
+	for_each_possible_cpu(cpu) {
+		struct nf_conn *ct = &per_cpu(nf_conntrack_untracked, cpu);
+		write_pnet(&ct->ct_net, &init_net);
+		atomic_set(&ct->ct_general.use, 1);
+	}
 	/*  - and look it like as a confirmed connection */
-	set_bit(IPS_CONFIRMED_BIT, &nf_conntrack_untracked.status);
-
+	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
 	return 0;
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES

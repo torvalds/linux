@@ -34,7 +34,6 @@
 #include <linux/string.h>
 #include <linux/ioctl.h>
 #include <linux/dma-mapping.h>
-#include <linux/version.h>
 #include <linux/sched.h>
 #include <asm/system.h>
 #include "bc_dts_glob_lnx.h"
@@ -55,7 +54,7 @@ extern uint32_t g_linklog_level;
 /* Scatter Gather memory pool size for Tx and Rx */
 #define BC_LINK_SG_POOL_SZ    (BC_TX_LIST_CNT + BC_RX_LIST_CNT)
 
-enum _crystalhd_dio_sig {
+enum crystalhd_dio_sig {
 	crystalhd_dio_inv = 0,
 	crystalhd_dio_locked,
 	crystalhd_dio_sg_mapped,
@@ -77,7 +76,7 @@ struct crystalhd_dio_user_info {
 	bool			b422mode;
 };
 
-typedef struct _crystalhd_dio_req {
+struct crystalhd_dio_req {
 	uint32_t			sig;
 	uint32_t			max_pages;
 	struct page			**pages;
@@ -89,34 +88,34 @@ typedef struct _crystalhd_dio_req {
 	void				*fb_va;
 	uint32_t			fb_size;
 	dma_addr_t			fb_pa;
-	struct _crystalhd_dio_req		*next;
-} crystalhd_dio_req;
+	struct crystalhd_dio_req	*next;
+};
 
 #define BC_LINK_DIOQ_SIG	(0x09223280)
 
-typedef struct _crystalhd_elem_s {
-	struct _crystalhd_elem_s	*flink;
-	struct _crystalhd_elem_s	*blink;
+struct crystalhd_elem {
+	struct crystalhd_elem	*flink;
+	struct crystalhd_elem	*blink;
 	void			*data;
 	uint32_t		tag;
-} crystalhd_elem_t;
+};
 
 typedef void (*crystalhd_data_free_cb)(void *context, void *data);
 
-typedef struct _crystalhd_dioq_s {
+struct crystalhd_dioq {
 	uint32_t		sig;
 	struct crystalhd_adp	*adp;
-	crystalhd_elem_t		*head;
-	crystalhd_elem_t		*tail;
+	struct crystalhd_elem		*head;
+	struct crystalhd_elem		*tail;
 	uint32_t		count;
 	spinlock_t		lock;
 	wait_queue_head_t	event;
 	crystalhd_data_free_cb	data_rel_cb;
 	void			*cb_context;
-} crystalhd_dioq_t;
+};
 
-typedef void (*hw_comp_callback)(crystalhd_dio_req *,
-				 wait_queue_head_t *event, BC_STATUS sts);
+typedef void (*hw_comp_callback)(struct crystalhd_dio_req *,
+				 wait_queue_head_t *event, enum BC_STATUS sts);
 
 /*========= Decoder (7412) register access routines.================= */
 uint32_t bc_dec_reg_rd(struct crystalhd_adp *, uint32_t);
@@ -127,12 +126,12 @@ uint32_t crystalhd_reg_rd(struct crystalhd_adp *, uint32_t);
 void crystalhd_reg_wr(struct crystalhd_adp *, uint32_t, uint32_t);
 
 /*========= Decoder (7412) memory access routines..=================*/
-BC_STATUS crystalhd_mem_rd(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
-BC_STATUS crystalhd_mem_wr(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
+enum BC_STATUS crystalhd_mem_rd(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
+enum BC_STATUS crystalhd_mem_wr(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
 
 /*==========Link (70012) PCIe Config access routines.================*/
-BC_STATUS crystalhd_pci_cfg_rd(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
-BC_STATUS crystalhd_pci_cfg_wr(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t);
+enum BC_STATUS crystalhd_pci_cfg_rd(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t *);
+enum BC_STATUS crystalhd_pci_cfg_wr(struct crystalhd_adp *, uint32_t, uint32_t, uint32_t);
 
 /*========= Linux Kernel Interface routines. ======================= */
 void *bc_kern_dma_alloc(struct crystalhd_adp *, uint32_t, dma_addr_t *);
@@ -168,20 +167,20 @@ do {									\
 /*================ Direct IO mapping routines ==================*/
 extern int crystalhd_create_dio_pool(struct crystalhd_adp *, uint32_t);
 extern void crystalhd_destroy_dio_pool(struct crystalhd_adp *);
-extern BC_STATUS crystalhd_map_dio(struct crystalhd_adp *, void *, uint32_t,
-				   uint32_t, bool, bool, crystalhd_dio_req**);
+extern enum BC_STATUS crystalhd_map_dio(struct crystalhd_adp *, void *, uint32_t,
+				   uint32_t, bool, bool, struct crystalhd_dio_req**);
 
-extern BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *, crystalhd_dio_req*);
+extern enum BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *, struct crystalhd_dio_req*);
 #define crystalhd_get_sgle_paddr(_dio, _ix) (cpu_to_le64(sg_dma_address(&_dio->sg[_ix])))
 #define crystalhd_get_sgle_len(_dio, _ix) (cpu_to_le32(sg_dma_len(&_dio->sg[_ix])))
 
 /*================ General Purpose Queues ==================*/
-extern BC_STATUS crystalhd_create_dioq(struct crystalhd_adp *, crystalhd_dioq_t **, crystalhd_data_free_cb , void *);
-extern void crystalhd_delete_dioq(struct crystalhd_adp *, crystalhd_dioq_t *);
-extern BC_STATUS crystalhd_dioq_add(crystalhd_dioq_t *ioq, void *data, bool wake, uint32_t tag);
-extern void *crystalhd_dioq_fetch(crystalhd_dioq_t *ioq);
-extern void *crystalhd_dioq_find_and_fetch(crystalhd_dioq_t *ioq, uint32_t tag);
-extern void *crystalhd_dioq_fetch_wait(crystalhd_dioq_t *ioq, uint32_t to_secs, uint32_t *sig_pend);
+extern enum BC_STATUS crystalhd_create_dioq(struct crystalhd_adp *, struct crystalhd_dioq **, crystalhd_data_free_cb , void *);
+extern void crystalhd_delete_dioq(struct crystalhd_adp *, struct crystalhd_dioq *);
+extern enum BC_STATUS crystalhd_dioq_add(struct crystalhd_dioq *ioq, void *data, bool wake, uint32_t tag);
+extern void *crystalhd_dioq_fetch(struct crystalhd_dioq *ioq);
+extern void *crystalhd_dioq_find_and_fetch(struct crystalhd_dioq *ioq, uint32_t tag);
+extern void *crystalhd_dioq_fetch_wait(struct crystalhd_dioq *ioq, uint32_t to_secs, uint32_t *sig_pend);
 
 #define crystalhd_dioq_count(_ioq)	((_ioq) ? _ioq->count : 0)
 

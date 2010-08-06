@@ -50,6 +50,7 @@
 #include <linux/notifier.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -1080,6 +1081,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		}
 		ip_mc_up(in_dev);
 		/* fall through */
+	case NETDEV_NOTIFY_PEERS:
 	case NETDEV_CHANGEADDR:
 		/* Send gratuitous ARP to notify of link change */
 		if (IN_DEV_ARP_NOTIFY(in_dev)) {
@@ -1095,10 +1097,10 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_DOWN:
 		ip_mc_down(in_dev);
 		break;
-	case NETDEV_BONDING_OLDTYPE:
+	case NETDEV_PRE_TYPE_CHANGE:
 		ip_mc_unmap(in_dev);
 		break;
-	case NETDEV_BONDING_NEWTYPE:
+	case NETDEV_POST_TYPE_CHANGE:
 		ip_mc_remap(in_dev);
 		break;
 	case NETDEV_CHANGEMTU:
@@ -1194,7 +1196,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
-			if (idx > s_idx)
+			if (h > s_h || idx > s_idx)
 				s_ip_idx = 0;
 			in_dev = __in_dev_get_rcu(dev);
 			if (!in_dev)

@@ -29,26 +29,24 @@
 #ifndef __TETHER_H__
 #define __TETHER_H__
 
+#include <linux/if_ether.h>
 #include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 //
 // constants
 //
-#define U_ETHER_ADDR_LEN    6           // Ethernet address length
-#define U_TYPE_LEN          2           //
 #define U_CRC_LEN           4           //
-#define U_HEADER_LEN        (U_ETHER_ADDR_LEN * 2 + U_TYPE_LEN)
-#define U_ETHER_ADDR_STR_LEN (U_ETHER_ADDR_LEN * 2 + 1)
+#define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
 
 #define MIN_DATA_LEN        46          // min data length
 #define MAX_DATA_LEN        1500        // max data length
 
-#define MIN_PACKET_LEN      (MIN_DATA_LEN + U_HEADER_LEN)
+#define MIN_PACKET_LEN      (MIN_DATA_LEN + ETH_HLEN)
                                         // 60
                                         // min total packet length (tx)
-#define MAX_PACKET_LEN      (MAX_DATA_LEN + U_HEADER_LEN)
+#define MAX_PACKET_LEN      (MAX_DATA_LEN + ETH_HLEN)
                                         // 1514
                                         // max total packet length (tx)
 
@@ -167,8 +165,8 @@
 // Ethernet packet
 //
 typedef struct tagSEthernetHeader {
-    BYTE    abyDstAddr[U_ETHER_ADDR_LEN];
-    BYTE    abySrcAddr[U_ETHER_ADDR_LEN];
+    BYTE    abyDstAddr[ETH_ALEN];
+    BYTE    abySrcAddr[ETH_ALEN];
     WORD    wType;
 }__attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
@@ -178,8 +176,8 @@ SEthernetHeader, *PSEthernetHeader;
 // 802_3 packet
 //
 typedef struct tagS802_3Header {
-    BYTE    abyDstAddr[U_ETHER_ADDR_LEN];
-    BYTE    abySrcAddr[U_ETHER_ADDR_LEN];
+    BYTE    abyDstAddr[ETH_ALEN];
+    BYTE    abySrcAddr[ETH_ALEN];
     WORD    wLen;
 }__attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
@@ -190,11 +188,11 @@ S802_3Header, *PS802_3Header;
 typedef struct tagS802_11Header {
     WORD    wFrameCtl;
     WORD    wDurationID;
-    BYTE    abyAddr1[U_ETHER_ADDR_LEN];
-    BYTE    abyAddr2[U_ETHER_ADDR_LEN];
-    BYTE    abyAddr3[U_ETHER_ADDR_LEN];
+    BYTE    abyAddr1[ETH_ALEN];
+    BYTE    abyAddr2[ETH_ALEN];
+    BYTE    abyAddr3[ETH_ALEN];
     WORD    wSeqCtl;
-    BYTE    abyAddr4[U_ETHER_ADDR_LEN];
+    BYTE    abyAddr4[ETH_ALEN];
 }__attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;
 
@@ -228,9 +226,6 @@ S802_11Header, *PS802_11Header;
 
 BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
 //BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
-BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, UINT cbFrameLength);
+BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
 
-#endif // __TETHER_H__
-
-
-
+#endif /* __TETHER_H__ */

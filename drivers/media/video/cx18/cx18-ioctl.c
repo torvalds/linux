@@ -4,7 +4,7 @@
  *  Derived from ivtv-ioctl.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * digitizer/slicer.  Note, cx18_av_vbi() wipes the passed in
 	 * fmt->fmt.sliced under valid calling conditions
 	 */
-	if (v4l2_subdev_call(cx->sd_av, video, g_fmt, fmt))
+	if (v4l2_subdev_call(cx->sd_av, vbi, g_sliced_fmt, &fmt->fmt.sliced))
 		return -EINVAL;
 
 	/* Ensure V4L2 spec compliant output */
@@ -274,10 +274,11 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 	int w, h;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -293,9 +294,10 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
-	cx->params.width = w;
-	cx->params.height = h;
-	v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	mbus_fmt.width = cx->params.width = w;
+	mbus_fmt.height = cx->params.height = h;
+	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &mbus_fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
 
@@ -306,7 +308,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -322,7 +324,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	 * Note cx18_av_vbi_wipes out alot of the passed in fmt under valid
 	 * calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &fmt->fmt.vbi);
 	if (ret)
 		return ret;
 
@@ -341,7 +343,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	int ret;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -359,7 +361,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the
 	 * passed in fmt->fmt.sliced under valid calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_sliced_fmt, &fmt->fmt.sliced);
 	if (ret)
 		return ret;
 	/* Store our current v4l2 sliced VBI settings */
@@ -549,7 +551,7 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -601,7 +603,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -647,7 +649,7 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -675,7 +677,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -715,7 +717,7 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -1079,7 +1081,7 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
-	struct cx18_open_id *id = (struct cx18_open_id *)filp->private_data;
+	struct cx18_open_id *id = filp->private_data;
 	struct cx18 *cx = id->cx;
 	long res;
 

@@ -105,7 +105,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO, "Invalid SystemMemory width %d",
+		ACPI_ERROR((AE_INFO, "Invalid SystemMemory width %u",
 			    bit_width));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
@@ -173,7 +173,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		mem_info->mapped_logical_address = acpi_os_map_memory((acpi_physical_address) address, map_length);
 		if (!mem_info->mapped_logical_address) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not map memory at %8.8X%8.8X, size %X",
+				    "Could not map memory at 0x%8.8X%8.8X, size %u",
 				    ACPI_FORMAT_NATIVE_UINT(address),
 				    (u32) map_length));
 			mem_info->mapped_length = 0;
@@ -491,8 +491,10 @@ acpi_ex_data_table_space_handler(u32 function,
 {
 	ACPI_FUNCTION_TRACE(ex_data_table_space_handler);
 
-	/* Perform the memory read or write */
-
+	/*
+	 * Perform the memory read or write. The bit_width was already
+	 * validated.
+	 */
 	switch (function) {
 	case ACPI_READ:
 
@@ -502,9 +504,14 @@ acpi_ex_data_table_space_handler(u32 function,
 		break;
 
 	case ACPI_WRITE:
+
+		ACPI_MEMCPY(ACPI_PHYSADDR_TO_PTR(address),
+			    ACPI_CAST_PTR(char, value), ACPI_DIV_8(bit_width));
+		break;
+
 	default:
 
-		return_ACPI_STATUS(AE_SUPPORT);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	return_ACPI_STATUS(AE_OK);

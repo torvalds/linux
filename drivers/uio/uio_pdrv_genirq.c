@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/stringify.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "uio_pdrv_genirq"
 

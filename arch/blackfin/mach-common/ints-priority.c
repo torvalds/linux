@@ -92,26 +92,29 @@ static void __init search_IAR(void)
 {
 	unsigned ivg, irq_pos = 0;
 	for (ivg = 0; ivg <= IVG13 - IVG7; ivg++) {
-		int irqn;
+		int irqN;
 
 		ivg7_13[ivg].istop = ivg7_13[ivg].ifirst = &ivg_table[irq_pos];
 
-		for (irqn = 0; irqn < NR_PERI_INTS; irqn++) {
-			int iar_shift = (irqn & 7) * 4;
-				if (ivg == (0xf &
-#if defined(CONFIG_BF52x) || defined(CONFIG_BF538) \
-	|| defined(CONFIG_BF539) || defined(CONFIG_BF51x)
-			     bfin_read32((unsigned long *)SIC_IAR0 +
-					 ((irqn % 32) >> 3) + ((irqn / 32) *
-					 ((SIC_IAR4 - SIC_IAR0) / 4))) >> iar_shift)) {
+		for (irqN = 0; irqN < NR_PERI_INTS; irqN += 4) {
+			int irqn;
+			u32 iar = bfin_read32((unsigned long *)SIC_IAR0 +
+#if defined(CONFIG_BF51x) || defined(CONFIG_BF52x) || \
+	defined(CONFIG_BF538) || defined(CONFIG_BF539)
+				((irqN % 32) >> 3) + ((irqN / 32) * ((SIC_IAR4 - SIC_IAR0) / 4))
 #else
-			     bfin_read32((unsigned long *)SIC_IAR0 +
-					 (irqn >> 3)) >> iar_shift)) {
+				(irqN >> 3)
 #endif
-				ivg_table[irq_pos].irqno = IVG7 + irqn;
-				ivg_table[irq_pos].isrflag = 1 << (irqn % 32);
-				ivg7_13[ivg].istop++;
-				irq_pos++;
+				);
+
+			for (irqn = irqN; irqn < irqN + 4; ++irqn) {
+				int iar_shift = (irqn & 7) * 4;
+				if (ivg == (0xf & (iar >> iar_shift))) {
+					ivg_table[irq_pos].irqno = IVG7 + irqn;
+					ivg_table[irq_pos].isrflag = 1 << (irqn % 32);
+					ivg7_13[ivg].istop++;
+					irq_pos++;
+				}
 			}
 		}
 	}
@@ -662,14 +665,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 #ifdef CONFIG_PM
 int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
 {
-	unsigned gpio = irq_to_gpio(irq);
-
-	if (state)
-		gpio_pm_wakeup_request(gpio, PM_WAKE_IGNORE);
-	else
-		gpio_pm_wakeup_free(gpio);
-
-	return 0;
+	return gpio_pm_wakeup_ctrl(irq_to_gpio(irq), state);
 }
 #endif
 

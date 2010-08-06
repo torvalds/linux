@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 #define MC13783_TS_NAME	"mc13783-ts"

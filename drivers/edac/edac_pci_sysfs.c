@@ -8,6 +8,7 @@
  */
 #include <linux/module.h>
 #include <linux/sysdev.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 
 #include "edac_core.h"

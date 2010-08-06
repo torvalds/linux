@@ -8,7 +8,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
@@ -233,6 +232,8 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 	glops = gfs2_glops_list[gltype];
 	if (glops == NULL)
 		return -EINVAL;
+	if (!test_and_set_bit(SDF_DEMOTE, &sdp->sd_flags))
+		fs_info(sdp, "demote interface used\n");
 	rv = gfs2_glock_get(sdp, glnum, glops, 0, &gl);
 	if (rv)
 		return rv;
@@ -324,6 +325,30 @@ static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
 	return sprintf(buf, "%d\n", ls->ls_first);
 }
 
+static ssize_t lkfirst_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	unsigned first;
+	int rv;
+
+	rv = sscanf(buf, "%u", &first);
+	if (rv != 1 || first > 1)
+		return -EINVAL;
+	spin_lock(&sdp->sd_jindex_spin);
+	rv = -EBUSY;
+	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+		goto out;
+	rv = -EINVAL;
+	if (sdp->sd_args.ar_spectator)
+		goto out;
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		goto out;
+        sdp->sd_lockstruct.ls_first = first;
+        rv = 0;
+out:
+        spin_unlock(&sdp->sd_jindex_spin);
+        return rv ? rv : len;
+}
+
 static ssize_t first_done_show(struct gfs2_sbd *sdp, char *buf)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
@@ -376,14 +401,41 @@ static ssize_t jid_show(struct gfs2_sbd *sdp, char *buf)
 	return sprintf(buf, "%u\n", sdp->sd_lockstruct.ls_jid);
 }
 
+static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+        unsigned jid;
+	int rv;
+
+	rv = sscanf(buf, "%u", &jid);
+	if (rv != 1)
+		return -EINVAL;
+
+	spin_lock(&sdp->sd_jindex_spin);
+	rv = -EINVAL;
+	if (sdp->sd_args.ar_spectator)
+		goto out;
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		goto out;
+	rv = -EBUSY;
+	if (test_and_clear_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+		goto out;
+	sdp->sd_lockstruct.ls_jid = jid;
+	smp_mb__after_clear_bit();
+	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
+	rv = 0;
+out:
+	spin_unlock(&sdp->sd_jindex_spin);
+	return rv ? rv : len;
+}
+
 #define GDLM_ATTR(_name,_mode,_show,_store) \
 static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 GDLM_ATTR(proto_name,		0444, proto_name_show,		NULL);
 GDLM_ATTR(block,		0644, block_show,		block_store);
 GDLM_ATTR(withdraw,		0644, withdraw_show,		withdraw_store);
-GDLM_ATTR(jid,			0444, jid_show,			NULL);
-GDLM_ATTR(first,		0444, lkfirst_show,		NULL);
+GDLM_ATTR(jid,			0644, jid_show,			jid_store);
+GDLM_ATTR(first,		0644, lkfirst_show,		lkfirst_store);
 GDLM_ATTR(first_done,		0444, first_done_show,		NULL);
 GDLM_ATTR(recover,		0600, NULL,			recover_store);
 GDLM_ATTR(recover_done,		0444, recover_done_show,	NULL);
@@ -469,8 +521,6 @@ static ssize_t name##_store(struct gfs2_sbd *sdp, const char *buf, size_t len)\
 }                                                                             \
 TUNE_ATTR_2(name, name##_store)
 
-TUNE_ATTR(incore_log_blocks, 0);
-TUNE_ATTR(log_flush_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
 TUNE_ATTR(quota_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
@@ -482,8 +532,6 @@ TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
 static struct attribute *tune_attrs[] = {
-	&tune_attr_incore_log_blocks.attr,
-	&tune_attr_log_flush_secs.attr,
 	&tune_attr_quota_warn_period.attr,
 	&tune_attr_quota_quantum.attr,
 	&tune_attr_max_readahead.attr,
@@ -567,7 +615,7 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
-	if (!sdp->sd_args.ar_spectator)
+	if (!test_bit(SDF_NOJOURNALID, &sdp->sd_flags))
 		add_uevent_var(env, "JOURNALID=%u", sdp->sd_lockstruct.ls_jid);
 	if (gfs2_uuid_valid(uuid))
 		add_uevent_var(env, "UUID=%pUB", uuid);

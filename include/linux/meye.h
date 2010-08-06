@@ -44,17 +44,17 @@ struct meye_params {
 };
 
 /* query the extended parameters */
-#define MEYEIOC_G_PARAMS	_IOR ('v', BASE_VIDIOCPRIVATE+0, struct meye_params)
+#define MEYEIOC_G_PARAMS	_IOR ('v', BASE_VIDIOC_PRIVATE+0, struct meye_params)
 /* set the extended parameters */
-#define MEYEIOC_S_PARAMS	_IOW ('v', BASE_VIDIOCPRIVATE+1, struct meye_params)
+#define MEYEIOC_S_PARAMS	_IOW ('v', BASE_VIDIOC_PRIVATE+1, struct meye_params)
 /* queue a buffer for mjpeg capture */
-#define MEYEIOC_QBUF_CAPT	_IOW ('v', BASE_VIDIOCPRIVATE+2, int)
+#define MEYEIOC_QBUF_CAPT	_IOW ('v', BASE_VIDIOC_PRIVATE+2, int)
 /* sync a previously queued mjpeg buffer */
-#define MEYEIOC_SYNC		_IOWR('v', BASE_VIDIOCPRIVATE+3, int)
+#define MEYEIOC_SYNC		_IOWR('v', BASE_VIDIOC_PRIVATE+3, int)
 /* get a still uncompressed snapshot */
-#define MEYEIOC_STILLCAPT	_IO  ('v', BASE_VIDIOCPRIVATE+4)
+#define MEYEIOC_STILLCAPT	_IO  ('v', BASE_VIDIOC_PRIVATE+4)
 /* get a jpeg compressed snapshot */
-#define MEYEIOC_STILLJCAPT	_IOR ('v', BASE_VIDIOCPRIVATE+5, int)
+#define MEYEIOC_STILLJCAPT	_IOR ('v', BASE_VIDIOC_PRIVATE+5, int)
 
 /* V4L2 private controls */
 #define V4L2_CID_AGC		V4L2_CID_PRIVATE_BASE

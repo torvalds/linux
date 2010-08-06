@@ -117,7 +117,7 @@
 
 /*
  * Software reset reg at address 0x0028
- * 0: 	txdma_sw_reset
+ * 0:	txdma_sw_reset
  * 1:	rxdma_sw_reset
  * 2:	txmac_sw_reset
  * 3:	rxmac_sw_reset
@@ -1052,7 +1052,7 @@ typedef struct _RXMAC_t {				/* Location: */
  * 4-0: register
  */
 
-#define MII_ADDR(phy,reg)	((phy) << 8 | (reg))
+#define MII_ADDR(phy, reg)	((phy) << 8 | (reg))
 
 /*
  * structure for MII Management Control reg in mac address map.
@@ -1249,8 +1249,7 @@ typedef struct _MAC_t {					/* Location: */
 /*
  * MAC STATS Module of JAGCore Address Mapping
  */
-struct macstat_regs
-{					/* Location: */
+struct macstat_regs {			/* Location: */
 	u32 pad[32];			/*  0x6000 - 607C */
 
 	/* Tx/Rx 0-64 Byte Frame Counter */

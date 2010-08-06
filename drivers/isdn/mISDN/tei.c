@@ -16,6 +16,7 @@
  */
 #include "layer2.h"
 #include <linux/random.h>
+#include <linux/slab.h>
 #include "core.h"
 
 #define ID_REQUEST	1
@@ -456,7 +457,7 @@ tei_id_request(struct FsmInst *fi, int event, void *arg)
 
 	if (tm->l2->tei != GROUP_TEI) {
 		tm->tei_m.printdebug(&tm->tei_m,
-			"assign request for allready assigned tei %d",
+			"assign request for already assigned tei %d",
 			tm->l2->tei);
 		return;
 	}

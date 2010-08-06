@@ -16,6 +16,8 @@
  *
  * Copyright (C) 2006-2008 Intel Corporation
  * Copyright IBM Corporation, 2008
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ *
  * Author: Allen M. Kay <allen.m.kay@intel.com>
  * Author: Weidong Han <weidong.han@intel.com>
  * Author: Ben-Ami Yassour <benami@il.ibm.com>
@@ -32,12 +34,30 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm);
 static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages);
 
+static pfn_t kvm_pin_pages(struct kvm *kvm, struct kvm_memory_slot *slot,
+			   gfn_t gfn, unsigned long size)
+{
+	gfn_t end_gfn;
+	pfn_t pfn;
+
+	pfn     = gfn_to_pfn_memslot(kvm, slot, gfn);
+	end_gfn = gfn + (size >> PAGE_SHIFT);
+	gfn    += 1;
+
+	if (is_error_pfn(pfn))
+		return pfn;
+
+	while (gfn < end_gfn)
+		gfn_to_pfn_memslot(kvm, slot, gfn++);
+
+	return pfn;
+}
+
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
-	gfn_t gfn = slot->base_gfn;
-	unsigned long npages = slot->npages;
+	gfn_t gfn, end_gfn;
 	pfn_t pfn;
-	int i, r = 0;
+	int r = 0;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	int flags;
 
@@ -45,46 +65,79 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 	if (!domain)
 		return 0;
 
+	gfn     = slot->base_gfn;
+	end_gfn = gfn + slot->npages;
+
 	flags = IOMMU_READ | IOMMU_WRITE;
 	if (kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY)
 		flags |= IOMMU_CACHE;
 
-	for (i = 0; i < npages; i++) {
-		/* check if already mapped */
-		if (iommu_iova_to_phys(domain, gfn_to_gpa(gfn)))
-			continue;
 
-		pfn = gfn_to_pfn_memslot(kvm, slot, gfn);
-		r = iommu_map_range(domain,
-				    gfn_to_gpa(gfn),
-				    pfn_to_hpa(pfn),
-				    PAGE_SIZE, flags);
+	while (gfn < end_gfn) {
+		unsigned long page_size;
+
+		/* Check if already mapped */
+		if (iommu_iova_to_phys(domain, gfn_to_gpa(gfn))) {
+			gfn += 1;
+			continue;
+		}
+
+		/* Get the page size we could use to map */
+		page_size = kvm_host_page_size(kvm, gfn);
+
+		/* Make sure the page_size does not exceed the memslot */
+		while ((gfn + (page_size >> PAGE_SHIFT)) > end_gfn)
+			page_size >>= 1;
+
+		/* Make sure gfn is aligned to the page size we want to map */
+		while ((gfn << PAGE_SHIFT) & (page_size - 1))
+			page_size >>= 1;
+
+		/*
+		 * Pin all pages we are about to map in memory. This is
+		 * important because we unmap and unpin in 4kb steps later.
+		 */
+		pfn = kvm_pin_pages(kvm, slot, gfn, page_size);
+		if (is_error_pfn(pfn)) {
+			gfn += 1;
+			continue;
+		}
+
+		/* Map into IO address space */
+		r = iommu_map(domain, gfn_to_gpa(gfn), pfn_to_hpa(pfn),
+			      get_order(page_size), flags);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
-			       "iommu failed to map pfn=%lx\n", pfn);
+			       "iommu failed to map pfn=%llx\n", pfn);
 			goto unmap_pages;
 		}
-		gfn++;
+
+		gfn += page_size >> PAGE_SHIFT;
+
+
 	}
+
 	return 0;
 
 unmap_pages:
-	kvm_iommu_put_pages(kvm, slot->base_gfn, i);
+	kvm_iommu_put_pages(kvm, slot->base_gfn, gfn);
 	return r;
 }
 
 static int kvm_iommu_map_memslots(struct kvm *kvm)
 {
-	int i, r = 0;
+	int i, idx, r = 0;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	idx = srcu_read_lock(&kvm->srcu);
+	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		r = kvm_iommu_map_pages(kvm, &slots->memslots[i]);
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return r;
 }
@@ -189,40 +242,62 @@ out_unmap:
 	return r;
 }
 
+static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
+{
+	unsigned long i;
+
+	for (i = 0; i < npages; ++i)
+		kvm_release_pfn_clean(pfn + i);
+}
+
 static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages)
 {
-	gfn_t gfn = base_gfn;
+	struct iommu_domain *domain;
+	gfn_t end_gfn, gfn;
 	pfn_t pfn;
-	struct iommu_domain *domain = kvm->arch.iommu_domain;
-	unsigned long i;
 	u64 phys;
+
+	domain  = kvm->arch.iommu_domain;
+	end_gfn = base_gfn + npages;
+	gfn     = base_gfn;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return;
 
-	for (i = 0; i < npages; i++) {
-		phys = iommu_iova_to_phys(domain, gfn_to_gpa(gfn));
-		pfn = phys >> PAGE_SHIFT;
-		kvm_release_pfn_clean(pfn);
-		gfn++;
-	}
+	while (gfn < end_gfn) {
+		unsigned long unmap_pages;
+		int order;
 
-	iommu_unmap_range(domain, gfn_to_gpa(base_gfn), PAGE_SIZE * npages);
+		/* Get physical address */
+		phys = iommu_iova_to_phys(domain, gfn_to_gpa(gfn));
+		pfn  = phys >> PAGE_SHIFT;
+
+		/* Unmap address from IO address space */
+		order       = iommu_unmap(domain, gfn_to_gpa(gfn), 0);
+		unmap_pages = 1ULL << order;
+
+		/* Unpin all pages we just unmapped to not leak any memory */
+		kvm_unpin_pages(kvm, pfn, unmap_pages);
+
+		gfn += unmap_pages;
+	}
 }
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 {
-	int i;
+	int i, idx;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	idx = srcu_read_lock(&kvm->srcu);
+	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		kvm_iommu_put_pages(kvm, slots->memslots[i].base_gfn,
 				    slots->memslots[i].npages);
 	}
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return 0;
 }

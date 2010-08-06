@@ -135,6 +135,7 @@ struct korina_private {
 	struct napi_struct napi;
 	struct timer_list media_check_timer;
 	struct mii_if_info mii_if;
+	struct work_struct restart_task;
 	struct net_device *dev;
 	int phy_addr;
 };
@@ -375,7 +376,7 @@ static int korina_rx(struct net_device *dev, int limit)
 		if (devcs & ETH_RX_LE)
 			dev->stats.rx_length_errors++;
 		if (devcs & ETH_RX_OVR)
-			dev->stats.rx_over_errors++;
+			dev->stats.rx_fifo_errors++;
 		if (devcs & ETH_RX_CV)
 			dev->stats.rx_frame_errors++;
 		if (devcs & ETH_RX_CES)
@@ -482,7 +483,7 @@ static void korina_multicast_list(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	unsigned long flags;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	u32 recognise = ETH_ARC_AB;	/* always accept broadcasts */
 	int i;
 
@@ -502,8 +503,8 @@ static void korina_multicast_list(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		netdev_for_each_mc_addr(dmi, dev) {
-			char *addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			char *addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -764,10 +765,9 @@ static int korina_alloc_ring(struct net_device *dev)
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
-		skb = dev_alloc_skb(KORINA_RBSIZE + 2);
+		skb = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
 		if (!skb)
 			return -ENOMEM;
-		skb_reserve(skb, 2);
 		lp->rx_skb[i] = skb;
 		lp->rd_ring[i].control = DMA_DESC_IOD |
 				DMA_COUNT(KORINA_RBSIZE);
@@ -890,12 +890,12 @@ static int korina_init(struct net_device *dev)
 
 /*
  * Restart the RC32434 ethernet controller.
- * FIXME: check the return status where we call it
  */
-static int korina_restart(struct net_device *dev)
+static void korina_restart_task(struct work_struct *work)
 {
-	struct korina_private *lp = netdev_priv(dev);
-	int ret;
+	struct korina_private *lp = container_of(work,
+			struct korina_private, restart_task);
+	struct net_device *dev = lp->dev;
 
 	/*
 	 * Disable interrupts
@@ -916,10 +916,9 @@ static int korina_restart(struct net_device *dev)
 
 	napi_disable(&lp->napi);
 
-	ret = korina_init(dev);
-	if (ret < 0) {
+	if (korina_init(dev) < 0) {
 		printk(KERN_ERR "%s: cannot restart device\n", dev->name);
-		return ret;
+		return;
 	}
 	korina_multicast_list(dev);
 
@@ -927,8 +926,6 @@ static int korina_restart(struct net_device *dev)
 	enable_irq(lp->ovr_irq);
 	enable_irq(lp->tx_irq);
 	enable_irq(lp->rx_irq);
-
-	return ret;
 }
 
 static void korina_clear_and_restart(struct net_device *dev, u32 value)
@@ -937,7 +934,7 @@ static void korina_clear_and_restart(struct net_device *dev, u32 value)
 
 	netif_stop_queue(dev);
 	writel(value, &lp->eth_regs->ethintfc);
-	korina_restart(dev);
+	schedule_work(&lp->restart_task);
 }
 
 /* Ethernet Tx Underflow interrupt */
@@ -962,11 +959,8 @@ static irqreturn_t korina_und_interrupt(int irq, void *dev_id)
 static void korina_tx_timeout(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&lp->lock, flags);
-	korina_restart(dev);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	schedule_work(&lp->restart_task);
 }
 
 /* Ethernet Rx Overflow interrupt */
@@ -1086,6 +1080,8 @@ static int korina_close(struct net_device *dev)
 
 	napi_disable(&lp->napi);
 
+	cancel_work_sync(&lp->restart_task);
+
 	free_irq(lp->rx_irq, dev);
 	free_irq(lp->tx_irq, dev);
 	free_irq(lp->ovr_irq, dev);
@@ -1135,7 +1131,7 @@ static int korina_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_regs");
 	dev->base_addr = r->start;
-	lp->eth_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->eth_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->eth_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap registers\n");
 		rc = -ENXIO;
@@ -1143,7 +1139,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_rx");
-	lp->rx_dma_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->rx_dma_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->rx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Rx DMA registers\n");
 		rc = -ENXIO;
@@ -1151,7 +1147,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_tx");
-	lp->tx_dma_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->tx_dma_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->tx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Tx DMA registers\n");
 		rc = -ENXIO;
@@ -1197,6 +1193,8 @@ static int korina_probe(struct platform_device *pdev)
 		goto probe_err_register;
 	}
 	setup_timer(&lp->media_check_timer, korina_poll_media, (unsigned long) dev);
+
+	INIT_WORK(&lp->restart_task, korina_restart_task);
 
 	printk(KERN_INFO "%s: " DRV_NAME "-" DRV_VERSION " " DRV_RELDATE "\n",
 			dev->name);

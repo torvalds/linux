@@ -52,7 +52,6 @@ void dwmac_dma_start_tx(unsigned long ioaddr)
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value |= DMA_CONTROL_ST;
 	writel(value, ioaddr + DMA_CONTROL);
-	return;
 }
 
 void dwmac_dma_stop_tx(unsigned long ioaddr)
@@ -60,7 +59,6 @@ void dwmac_dma_stop_tx(unsigned long ioaddr)
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value &= ~DMA_CONTROL_ST;
 	writel(value, ioaddr + DMA_CONTROL);
-	return;
 }
 
 void dwmac_dma_start_rx(unsigned long ioaddr)
@@ -68,8 +66,6 @@ void dwmac_dma_start_rx(unsigned long ioaddr)
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value |= DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CONTROL);
-
-	return;
 }
 
 void dwmac_dma_stop_rx(unsigned long ioaddr)
@@ -77,8 +73,6 @@ void dwmac_dma_stop_rx(unsigned long ioaddr)
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value &= ~DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CONTROL);
-
-	return;
 }
 
 #ifdef DWMAC_DMA_DEBUG
@@ -111,7 +105,6 @@ static void show_tx_process_state(unsigned int status)
 	default:
 		break;
 	}
-	return;
 }
 
 static void show_rx_process_state(unsigned int status)
@@ -149,7 +142,6 @@ static void show_rx_process_state(unsigned int status)
 	default:
 		break;
 	}
-	return;
 }
 #endif
 
@@ -227,6 +219,13 @@ int dwmac_dma_interrupt(unsigned long ioaddr,
 	return ret;
 }
 
+void dwmac_dma_flush_tx_fifo(unsigned long ioaddr)
+{
+	u32 csr6 = readl(ioaddr + DMA_CONTROL);
+	writel((csr6 | DMA_CONTROL_FTF), ioaddr + DMA_CONTROL);
+
+	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
+}
 
 void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low)
@@ -237,8 +236,6 @@ void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
 	writel(data, ioaddr + high);
 	data = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
 	writel(data, ioaddr + low);
-
-	return;
 }
 
 void stmmac_get_mac_addr(unsigned long ioaddr, unsigned char *addr,
@@ -257,7 +254,5 @@ void stmmac_get_mac_addr(unsigned long ioaddr, unsigned char *addr,
 	addr[3] = (lo_addr >> 24) & 0xff;
 	addr[4] = hi_addr & 0xff;
 	addr[5] = (hi_addr >> 8) & 0xff;
-
-	return;
 }
 

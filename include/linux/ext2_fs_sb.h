@@ -106,6 +106,15 @@ struct ext2_sb_info {
 	spinlock_t s_rsv_window_lock;
 	struct rb_root s_rsv_window_root;
 	struct ext2_reserve_window_node s_rsv_window_head;
+	/*
+	 * s_lock protects against concurrent modifications of s_mount_state,
+	 * s_blocks_last, s_overhead_last and the content of superblock's
+	 * buffer pointed to by sbi->s_es.
+	 *
+	 * Note: It is used in ext2_show_options() to provide a consistent view
+	 * of the mount options.
+	 */
+	spinlock_t s_lock;
 };
 
 static inline spinlock_t *

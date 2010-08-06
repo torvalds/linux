@@ -42,25 +42,9 @@
 
 #define DBG(...)
 
-#ifdef CONFIG_IOMMU_VMERGE
-static int novmerge = 0;
-#else
-static int novmerge = 1;
-#endif
-
-static int protect4gb = 1;
+static int novmerge;
 
 static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
-
-static int __init setup_protect4gb(char *str)
-{
-	if (strcmp(str, "on") == 0)
-		protect4gb = 1;
-	else if (strcmp(str, "off") == 0)
-		protect4gb = 0;
-
-	return 1;
-}
 
 static int __init setup_iommu(char *str)
 {
@@ -71,7 +55,6 @@ static int __init setup_iommu(char *str)
 	return 1;
 }
 
-__setup("protect4gb=", setup_protect4gb);
 __setup("iommu=", setup_iommu);
 
 static unsigned long iommu_range_alloc(struct device *dev,

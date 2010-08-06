@@ -10,7 +10,6 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
@@ -18,8 +17,8 @@
 #include <linux/securebits.h>
 #include <linux/security.h>
 #include <linux/mount.h>
-#include <linux/vfs.h>
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>
@@ -32,171 +31,6 @@
 #include <linux/ima.h>
 
 #include "internal.h"
-
-int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
-{
-	int retval = -ENODEV;
-
-	if (dentry) {
-		retval = -ENOSYS;
-		if (dentry->d_sb->s_op->statfs) {
-			memset(buf, 0, sizeof(*buf));
-			retval = security_sb_statfs(dentry);
-			if (retval)
-				return retval;
-			retval = dentry->d_sb->s_op->statfs(dentry, buf);
-			if (retval == 0 && buf->f_frsize == 0)
-				buf->f_frsize = buf->f_bsize;
-		}
-	}
-	return retval;
-}
-
-EXPORT_SYMBOL(vfs_statfs);
-
-static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
-{
-	struct kstatfs st;
-	int retval;
-
-	retval = vfs_statfs(dentry, &st);
-	if (retval)
-		return retval;
-
-	if (sizeof(*buf) == sizeof(st))
-		memcpy(buf, &st, sizeof(st));
-	else {
-		if (sizeof buf->f_blocks == 4) {
-			if ((st.f_blocks | st.f_bfree | st.f_bavail |
-			     st.f_bsize | st.f_frsize) &
-			    0xffffffff00000000ULL)
-				return -EOVERFLOW;
-			/*
-			 * f_files and f_ffree may be -1; it's okay to stuff
-			 * that into 32 bits
-			 */
-			if (st.f_files != -1 &&
-			    (st.f_files & 0xffffffff00000000ULL))
-				return -EOVERFLOW;
-			if (st.f_ffree != -1 &&
-			    (st.f_ffree & 0xffffffff00000000ULL))
-				return -EOVERFLOW;
-		}
-
-		buf->f_type = st.f_type;
-		buf->f_bsize = st.f_bsize;
-		buf->f_blocks = st.f_blocks;
-		buf->f_bfree = st.f_bfree;
-		buf->f_bavail = st.f_bavail;
-		buf->f_files = st.f_files;
-		buf->f_ffree = st.f_ffree;
-		buf->f_fsid = st.f_fsid;
-		buf->f_namelen = st.f_namelen;
-		buf->f_frsize = st.f_frsize;
-		memset(buf->f_spare, 0, sizeof(buf->f_spare));
-	}
-	return 0;
-}
-
-static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
-{
-	struct kstatfs st;
-	int retval;
-
-	retval = vfs_statfs(dentry, &st);
-	if (retval)
-		return retval;
-
-	if (sizeof(*buf) == sizeof(st))
-		memcpy(buf, &st, sizeof(st));
-	else {
-		buf->f_type = st.f_type;
-		buf->f_bsize = st.f_bsize;
-		buf->f_blocks = st.f_blocks;
-		buf->f_bfree = st.f_bfree;
-		buf->f_bavail = st.f_bavail;
-		buf->f_files = st.f_files;
-		buf->f_ffree = st.f_ffree;
-		buf->f_fsid = st.f_fsid;
-		buf->f_namelen = st.f_namelen;
-		buf->f_frsize = st.f_frsize;
-		memset(buf->f_spare, 0, sizeof(buf->f_spare));
-	}
-	return 0;
-}
-
-SYSCALL_DEFINE2(statfs, const char __user *, pathname, struct statfs __user *, buf)
-{
-	struct path path;
-	int error;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct statfs tmp;
-		error = vfs_statfs_native(path.dentry, &tmp);
-		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-			error = -EFAULT;
-		path_put(&path);
-	}
-	return error;
-}
-
-SYSCALL_DEFINE3(statfs64, const char __user *, pathname, size_t, sz, struct statfs64 __user *, buf)
-{
-	struct path path;
-	long error;
-
-	if (sz != sizeof(*buf))
-		return -EINVAL;
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct statfs64 tmp;
-		error = vfs_statfs64(path.dentry, &tmp);
-		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-			error = -EFAULT;
-		path_put(&path);
-	}
-	return error;
-}
-
-SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct statfs __user *, buf)
-{
-	struct file * file;
-	struct statfs tmp;
-	int error;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = vfs_statfs_native(file->f_path.dentry, &tmp);
-	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-		error = -EFAULT;
-	fput(file);
-out:
-	return error;
-}
-
-SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user *, buf)
-{
-	struct file * file;
-	struct statfs64 tmp;
-	int error;
-
-	if (sz != sizeof(*buf))
-		return -EINVAL;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = vfs_statfs64(file->f_path.dentry, &tmp);
-	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-		error = -EFAULT;
-	fput(file);
-out:
-	return error;
-}
 
 int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	struct file *filp)
@@ -276,7 +110,7 @@ static long do_sys_truncate(const char __user *pathname, loff_t length)
 
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error)
-		error = security_path_truncate(&path, length, 0);
+		error = security_path_truncate(&path);
 	if (!error)
 		error = do_truncate(path.dentry, length, 0, NULL);
 
@@ -331,8 +165,7 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = security_path_truncate(&file->f_path, length,
-					       ATTR_MTIME|ATTR_CTIME);
+		error = security_path_truncate(&file->f_path);
 	if (!error)
 		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
 out_putf:
@@ -533,7 +366,7 @@ SYSCALL_DEFINE1(chdir, const char __user *, filename)
 	if (error)
 		goto out;
 
-	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_CHDIR);
 	if (error)
 		goto dput_and_out;
 
@@ -562,7 +395,7 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = inode_permission(inode, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(inode, MAY_EXEC | MAY_CHDIR);
 	if (!error)
 		set_fs_pwd(current->fs, &file->f_path);
 out_putf:
@@ -580,7 +413,7 @@ SYSCALL_DEFINE1(chroot, const char __user *, filename)
 	if (error)
 		goto out;
 
-	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_CHDIR);
 	if (error)
 		goto dput_and_out;
 

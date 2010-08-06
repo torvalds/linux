@@ -6,13 +6,13 @@
  * Copyright (c) 2005-2008 Joern Engel <joern@logfs.org>
  */
 #include "logfs.h"
-
+#include <linux/slab.h>
 
 /*
  * Atomic dir operations
  *
  * Directory operations are by default not atomic.  Dentries and Inodes are
- * created/removed/altered in seperate operations.  Therefore we need to do
+ * created/removed/altered in separate operations.  Therefore we need to do
  * a small amount of journaling.
  *
  * Create, link, mkdir, mknod and symlink all share the same function to do
@@ -303,12 +303,12 @@ static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 				(filler_t *)logfs_readpage, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
-		dd = kmap_atomic(page, KM_USER0);
+		dd = kmap(page);
 		BUG_ON(dd->namelen == 0);
 
 		full = filldir(buf, (char *)dd->name, be16_to_cpu(dd->namelen),
 				pos, be64_to_cpu(dd->ino), dd->type);
-		kunmap_atomic(dd, KM_USER0);
+		kunmap(page);
 		page_cache_release(page);
 		if (full)
 			break;

@@ -109,13 +109,13 @@ static void pca_stop(struct i2c_algo_pca_data *adap)
  * returns after the address has been sent
  */
 static int pca_address(struct i2c_algo_pca_data *adap,
-			struct i2c_msg *msg)
+		       struct i2c_msg *msg)
 {
 	int sta = pca_get_con(adap);
 	int addr;
 
-	addr = ( (0x7f & msg->addr) << 1 );
-	if (msg->flags & I2C_M_RD )
+	addr = ((0x7f & msg->addr) << 1);
+	if (msg->flags & I2C_M_RD)
 		addr |= 1;
 	DEB2("=== SLAVE ADDRESS %#04x+%c=%#04x\n",
 	     msg->addr, msg->flags & I2C_M_RD ? 'R' : 'W', addr);
@@ -134,7 +134,7 @@ static int pca_address(struct i2c_algo_pca_data *adap,
  * Returns after the byte has been transmitted
  */
 static int pca_tx_byte(struct i2c_algo_pca_data *adap,
-			__u8 b)
+		       __u8 b)
 {
 	int sta = pca_get_con(adap);
 	DEB2("=== WRITE %#04x\n", b);
@@ -164,13 +164,13 @@ static void pca_rx_byte(struct i2c_algo_pca_data *adap,
  * Returns after next byte has arrived.
  */
 static int pca_rx_ack(struct i2c_algo_pca_data *adap,
-		       int ack)
+		      int ack)
 {
 	int sta = pca_get_con(adap);
 
 	sta &= ~(I2C_PCA_CON_STO|I2C_PCA_CON_STA|I2C_PCA_CON_SI|I2C_PCA_CON_AA);
 
-	if ( ack )
+	if (ack)
 		sta |= I2C_PCA_CON_AA;
 
 	pca_set_con(adap, sta);
@@ -178,12 +178,12 @@ static int pca_rx_ack(struct i2c_algo_pca_data *adap,
 }
 
 static int pca_xfer(struct i2c_adapter *i2c_adap,
-                    struct i2c_msg *msgs,
-                    int num)
+		    struct i2c_msg *msgs,
+		    int num)
 {
-        struct i2c_algo_pca_data *adap = i2c_adap->algo_data;
-        struct i2c_msg *msg = NULL;
-        int curmsg;
+	struct i2c_algo_pca_data *adap = i2c_adap->algo_data;
+	struct i2c_msg *msg = NULL;
+	int curmsg;
 	int numbytes = 0;
 	int state;
 	int ret;
@@ -202,21 +202,21 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 	DEB1("{{{ XFER %d messages\n", num);
 
-	if (i2c_debug>=2) {
+	if (i2c_debug >= 2) {
 		for (curmsg = 0; curmsg < num; curmsg++) {
 			int addr, i;
 			msg = &msgs[curmsg];
 
 			addr = (0x7f & msg->addr) ;
 
-			if (msg->flags & I2C_M_RD )
+			if (msg->flags & I2C_M_RD)
 				printk(KERN_INFO "    [%02d] RD %d bytes from %#02x [%#02x, ...]\n",
-				       curmsg, msg->len, addr, (addr<<1) | 1);
+				       curmsg, msg->len, addr, (addr << 1) | 1);
 			else {
 				printk(KERN_INFO "    [%02d] WR %d bytes to %#02x [%#02x%s",
-				       curmsg, msg->len, addr, addr<<1,
+				       curmsg, msg->len, addr, addr << 1,
 				       msg->len == 0 ? "" : ", ");
-				for(i=0; i < msg->len; i++)
+				for (i = 0; i < msg->len; i++)
 					printk("%#04x%s", msg->buf[i], i == msg->len - 1 ? "" : ", ");
 				printk("]\n");
 			}
@@ -305,7 +305,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 			goto out;
 
 		case 0x58: /* Data byte has been received; NOT ACK has been returned */
-			if ( numbytes == msg->len - 1 ) {
+			if (numbytes == msg->len - 1) {
 				pca_rx_byte(adap, &msg->buf[numbytes], 0);
 				curmsg++; numbytes = 0;
 				if (curmsg == num)
@@ -352,7 +352,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 static u32 pca_func(struct i2c_adapter *adap)
 {
-        return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static const struct i2c_algorithm pca_algo = {

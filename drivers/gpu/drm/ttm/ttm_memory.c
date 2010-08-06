@@ -27,11 +27,13 @@
 
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
+#include "ttm/ttm_page_alloc.h"
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
@@ -260,8 +262,8 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_kernel = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -296,8 +298,8 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_highmem = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -343,8 +345,8 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_dma32 = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -365,10 +367,8 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
 	init_waitqueue_head(&glob->queue);
-	kobject_init(&glob->kobj, &ttm_mem_glob_kobj_type);
-	ret = kobject_add(&glob->kobj,
-			  ttm_get_kobj(),
-			  "memory_accounting");
+	ret = kobject_init_and_add(
+		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
 	if (unlikely(ret != 0)) {
 		kobject_put(&glob->kobj);
 		return ret;
@@ -394,6 +394,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		       "Zone %7s: Available graphics memory: %llu kiB.\n",
 		       zone->name, (unsigned long long) zone->max_mem >> 10);
 	}
+	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -406,6 +407,9 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	unsigned int i;
 	struct ttm_mem_zone *zone;
 
+	/* let the page allocator first stop the shrink work. */
+	ttm_page_alloc_fini();
+
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
 	glob->swap_queue = NULL;
@@ -413,7 +417,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 		zone = glob->zones[i];
 		kobject_del(&zone->kobj);
 		kobject_put(&zone->kobj);
-	}
+			}
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 }

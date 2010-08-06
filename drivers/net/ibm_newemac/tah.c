@@ -57,7 +57,8 @@ void tah_reset(struct of_device *ofdev)
 		--n;
 
 	if (unlikely(!n))
-		printk(KERN_ERR "%s: reset timeout\n", ofdev->node->full_name);
+		printk(KERN_ERR "%s: reset timeout\n",
+			ofdev->dev.of_node->full_name);
 
 	/* 10KB TAH TX FIFO accomodates the max MTU of 9000 */
 	out_be32(&p->mr,
@@ -89,7 +90,7 @@ void *tah_dump_regs(struct of_device *ofdev, void *buf)
 static int __devinit tah_probe(struct of_device *ofdev,
 			       const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct tah_instance *dev;
 	struct resource regs;
 	int rc;
@@ -127,7 +128,7 @@ static int __devinit tah_probe(struct of_device *ofdev,
 	tah_reset(ofdev);
 
 	printk(KERN_INFO
-	       "TAH %s initialized\n", ofdev->node->full_name);
+	       "TAH %s initialized\n", ofdev->dev.of_node->full_name);
 	wmb();
 
 	return 0;
@@ -165,9 +166,11 @@ static struct of_device_id tah_match[] =
 };
 
 static struct of_platform_driver tah_driver = {
-	.name = "emac-tah",
-	.match_table = tah_match,
-
+	.driver = {
+		.name = "emac-tah",
+		.owner = THIS_MODULE,
+		.of_match_table = tah_match,
+	},
 	.probe = tah_probe,
 	.remove = tah_remove,
 };

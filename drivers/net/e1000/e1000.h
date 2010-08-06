@@ -81,34 +81,17 @@ struct e1000_adapter;
 
 #include "e1000_hw.h"
 
-#ifdef DBG
-#define E1000_DBG(args...) printk(KERN_DEBUG "e1000: " args)
-#else
-#define E1000_DBG(args...)
-#endif
-
-#define E1000_ERR(args...) printk(KERN_ERR "e1000: " args)
-
-#define PFX "e1000: "
-
-#define DPRINTK(nlevel, klevel, fmt, args...)				\
-do {									\
-	if (NETIF_MSG_##nlevel & adapter->msg_enable)			\
-		printk(KERN_##klevel PFX "%s: %s: " fmt,		\
-		       adapter->netdev->name, __func__, ##args);	\
-} while (0)
-
 #define E1000_MAX_INTR 10
 
 /* TX/RX descriptor defines */
 #define E1000_DEFAULT_TXD                  256
 #define E1000_MAX_TXD                      256
-#define E1000_MIN_TXD                       80
+#define E1000_MIN_TXD                       48
 #define E1000_MAX_82544_TXD               4096
 
 #define E1000_DEFAULT_RXD                  256
 #define E1000_MAX_RXD                      256
-#define E1000_MIN_RXD                       80
+#define E1000_MIN_RXD                       48
 #define E1000_MAX_82544_RXD               4096
 
 #define E1000_MIN_ITR_USECS		10 /* 100000 irq/sec */
@@ -261,7 +244,6 @@ struct e1000_adapter {
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
-	unsigned long tx_queue_len;
 	u32 txd_cmd;
 	u32 tx_int_delay;
 	u32 tx_abs_int_delay;
@@ -336,6 +318,27 @@ enum e1000_state_t {
 	__E1000_DOWN
 };
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+extern struct net_device *e1000_get_hw_dev(struct e1000_hw *hw);
+#define e_dbg(format, arg...) \
+	netdev_dbg(e1000_get_hw_dev(hw), format, ## arg)
+#define e_err(msglvl, format, arg...) \
+	netif_err(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_info(msglvl, format, arg...) \
+	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_warn(msglvl, format, arg...) \
+	netif_warn(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_notice(msglvl, format, arg...) \
+	netif_notice(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_dev_info(format, arg...) \
+	dev_info(&adapter->pdev->dev, format, ## arg)
+#define e_dev_warn(format, arg...) \
+	dev_warn(&adapter->pdev->dev, format, ## arg)
+#define e_dev_err(format, arg...) \
+	dev_err(&adapter->pdev->dev, format, ## arg)
+
 extern char e1000_driver_name[];
 extern const char e1000_driver_version[];
 
@@ -353,5 +356,6 @@ extern bool e1000_has_link(struct e1000_adapter *adapter);
 extern void e1000_power_up_phy(struct e1000_adapter *);
 extern void e1000_set_ethtool_ops(struct net_device *netdev);
 extern void e1000_check_options(struct e1000_adapter *adapter);
+extern char *e1000_get_hw_dev_name(struct e1000_hw *hw);
 
 #endif /* _E1000_H_ */

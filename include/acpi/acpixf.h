@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100121
+#define ACPI_CA_VERSION                 0x20100428
 
 #include "actypes.h"
 #include "actbl.h"
@@ -67,6 +67,9 @@ extern u8 acpi_gbl_leave_wake_gpes_disabled;
 extern u8 acpi_gbl_use_default_register_widths;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u32 acpi_gbl_trace_flags;
+extern u8 acpi_gbl_enable_aml_debug_object;
+extern u8 acpi_gbl_copy_dsdt_locally;
+extern u8 acpi_gbl_truncate_io_addresses;
 
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
@@ -164,7 +167,7 @@ acpi_get_devices(const char *HID,
 		 void *context, void **return_value);
 
 acpi_status
-acpi_get_name(acpi_handle handle,
+acpi_get_name(acpi_handle object,
 	      u32 name_type, struct acpi_buffer *ret_path_ptr);
 
 acpi_status
@@ -172,14 +175,12 @@ acpi_get_handle(acpi_handle parent,
 		acpi_string pathname, acpi_handle * ret_handle);
 
 acpi_status
-acpi_attach_data(acpi_handle obj_handle,
-		 acpi_object_handler handler, void *data);
+acpi_attach_data(acpi_handle object, acpi_object_handler handler, void *data);
+
+acpi_status acpi_detach_data(acpi_handle object, acpi_object_handler handler);
 
 acpi_status
-acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler);
-
-acpi_status
-acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data);
+acpi_get_data(acpi_handle object, acpi_object_handler handler, void **data);
 
 acpi_status
 acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags);
@@ -201,7 +202,7 @@ acpi_evaluate_object_typed(acpi_handle object,
 			   acpi_object_type return_type);
 
 acpi_status
-acpi_get_object_info(acpi_handle handle,
+acpi_get_object_info(acpi_handle object,
 		     struct acpi_device_info **return_buffer);
 
 acpi_status acpi_install_method(u8 *buffer);
@@ -283,16 +284,17 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
  */
 acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action);
 
-acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type);
+acpi_status
+acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type);
 
-acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type);
+acpi_status
+acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type);
 
-acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags);
+acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number);
 
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
-		    u32 gpe_number,
-		    u32 flags, acpi_event_status * event_status);
+		    u32 gpe_number, acpi_event_status *event_status);
 
 acpi_status acpi_disable_all_gpes(void);
 
@@ -315,33 +317,29 @@ acpi_status(*acpi_walk_resource_callback) (struct acpi_resource * resource,
 					   void *context);
 
 acpi_status
-acpi_get_vendor_resource(acpi_handle device_handle,
+acpi_get_vendor_resource(acpi_handle device,
 			 char *name,
 			 struct acpi_vendor_uuid *uuid,
 			 struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_get_current_resources(acpi_handle device_handle,
-			   struct acpi_buffer *ret_buffer);
+acpi_get_current_resources(acpi_handle device, struct acpi_buffer *ret_buffer);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
-acpi_get_possible_resources(acpi_handle device_handle,
-			    struct acpi_buffer *ret_buffer);
+acpi_get_possible_resources(acpi_handle device, struct acpi_buffer *ret_buffer);
 #endif
 
 acpi_status
-acpi_walk_resources(acpi_handle device_handle,
+acpi_walk_resources(acpi_handle device,
 		    char *name,
 		    acpi_walk_resource_callback user_function, void *context);
 
 acpi_status
-acpi_set_current_resources(acpi_handle device_handle,
-			   struct acpi_buffer *in_buffer);
+acpi_set_current_resources(acpi_handle device, struct acpi_buffer *in_buffer);
 
 acpi_status
-acpi_get_irq_routing_table(acpi_handle bus_device_handle,
-			   struct acpi_buffer *ret_buffer);
+acpi_get_irq_routing_table(acpi_handle device, struct acpi_buffer *ret_buffer);
 
 acpi_status
 acpi_resource_to_address64(struct acpi_resource *resource,

@@ -7,6 +7,13 @@
 #include <linux/if_addr.h>
 #include <linux/neighbour.h>
 
+/* rtnetlink families. Values up to 127 are reserved for real address
+ * families, values above 128 may be used arbitrarily.
+ */
+#define RTNL_FAMILY_IPMR		128
+#define RTNL_FAMILY_IP6MR		129
+#define RTNL_FAMILY_MAX			129
+
 /****
  *		Routing/neighbour discovery messages.
  ****/
@@ -275,6 +282,7 @@ enum rtattr_type_t {
 	RTA_SESSION, /* no longer used */
 	RTA_MP_ALGO, /* no longer used */
 	RTA_TABLE,
+	RTA_MARK,
 	__RTA_MAX
 };
 

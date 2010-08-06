@@ -26,7 +26,6 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/stat.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>

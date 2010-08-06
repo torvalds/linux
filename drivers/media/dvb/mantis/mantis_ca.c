@@ -19,6 +19,7 @@
 */
 
 #include <linux/signal.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 

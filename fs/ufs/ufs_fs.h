@@ -48,6 +48,7 @@ typedef __u16 __bitwise __fs16;
 #define UFS_SECTOR_SIZE 512
 #define UFS_SECTOR_BITS 9
 #define UFS_MAGIC  0x00011954
+#define UFS_MAGIC_BW 0x0f242697
 #define UFS2_MAGIC 0x19540119
 #define UFS_CIGAM  0x54190100 /* byteswapped MAGIC */
 

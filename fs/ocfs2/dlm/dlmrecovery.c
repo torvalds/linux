@@ -463,7 +463,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
 		int bit;
 
-		bit = find_next_bit (dlm->recovery_map, O2NM_MAX_NODES+1, 0);
+		bit = find_next_bit (dlm->recovery_map, O2NM_MAX_NODES, 0);
 		if (bit >= O2NM_MAX_NODES || bit < 0)
 			dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
 		else
@@ -803,7 +803,9 @@ static int dlm_request_all_locks(struct dlm_ctxt *dlm, u8 request_from,
 
 	/* negative status is handled by caller */
 	if (ret < 0)
-		mlog_errno(ret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key "
+		     "0x%x) to node %u\n", ret, DLM_LOCK_REQUEST_MSG,
+		     dlm->key, request_from);
 
 	// return from here, then
 	// sleep until all received or error
@@ -955,10 +957,10 @@ static int dlm_send_all_done_msg(struct dlm_ctxt *dlm, u8 dead_node, u8 send_to)
 	ret = o2net_send_message(DLM_RECO_DATA_DONE_MSG, dlm->key, &done_msg,
 				 sizeof(done_msg), send_to, &tmpret);
 	if (ret < 0) {
+		mlog(ML_ERROR, "Error %d when sending message %u (key "
+		     "0x%x) to node %u\n", ret, DLM_RECO_DATA_DONE_MSG,
+		     dlm->key, send_to);
 		if (!dlm_is_host_down(ret)) {
-			mlog_errno(ret);
-			mlog(ML_ERROR, "%s: unknown error sending data-done "
-			     "to %u\n", dlm->name, send_to);
 			BUG();
 		}
 	} else
@@ -1126,7 +1128,9 @@ static int dlm_send_mig_lockres_msg(struct dlm_ctxt *dlm,
 	if (ret < 0) {
 		/* XXX: negative status is not handled.
 		 * this will end up killing this node. */
-		mlog_errno(ret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key "
+		     "0x%x) to node %u\n", ret, DLM_MIG_LOCKRES_MSG,
+		     dlm->key, send_to);
 	} else {
 		/* might get an -ENOMEM back here */
 		ret = status;
@@ -1642,7 +1646,9 @@ int dlm_do_master_requery(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 				 &req, sizeof(req), nodenum, &status);
 	/* XXX: negative status not handled properly here. */
 	if (ret < 0)
-		mlog_errno(ret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key "
+		     "0x%x) to node %u\n", ret, DLM_MASTER_REQUERY_MSG,
+		     dlm->key, nodenum);
 	else {
 		BUG_ON(status < 0);
 		BUG_ON(status > DLM_LOCK_RES_OWNER_UNKNOWN);
@@ -2640,7 +2646,7 @@ retry:
 		if (dlm_is_host_down(ret)) {
 			/* node is down.  not involved in recovery
 			 * so just keep going */
-			mlog(0, "%s: node %u was down when sending "
+			mlog(ML_NOTICE, "%s: node %u was down when sending "
 			     "begin reco msg (%d)\n", dlm->name, nodenum, ret);
 			ret = 0;
 		}
@@ -2660,11 +2666,12 @@ retry:
 		}
 		if (ret < 0) {
 			struct dlm_lock_resource *res;
+
 			/* this is now a serious problem, possibly ENOMEM
 			 * in the network stack.  must retry */
 			mlog_errno(ret);
 			mlog(ML_ERROR, "begin reco of dlm %s to node %u "
-			    " returned %d\n", dlm->name, nodenum, ret);
+			     "returned %d\n", dlm->name, nodenum, ret);
 			res = dlm_lookup_lockres(dlm, DLM_RECOVERY_LOCK_NAME,
 						 DLM_RECOVERY_LOCK_NAME_LEN);
 			if (res) {
@@ -2789,7 +2796,9 @@ stage2:
 		if (ret >= 0)
 			ret = status;
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog(ML_ERROR, "Error %d when sending message %u (key "
+			     "0x%x) to node %u\n", ret, DLM_FINALIZE_RECO_MSG,
+			     dlm->key, nodenum);
 			if (dlm_is_host_down(ret)) {
 				/* this has no effect on this recovery
 				 * session, so set the status to zero to

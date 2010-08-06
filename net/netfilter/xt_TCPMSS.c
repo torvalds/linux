@@ -7,10 +7,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <linux/gfp.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <net/dst.h>
@@ -67,15 +68,14 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
 		if (dst_mtu(skb_dst(skb)) <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: "
-				       "unknown or invalid path-MTU (%u)\n",
+				pr_err("unknown or invalid path-MTU (%u)\n",
 				       dst_mtu(skb_dst(skb)));
 			return -1;
 		}
 		if (in_mtu <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: unknown or "
-				       "invalid path-MTU (%u)\n", in_mtu);
+				pr_err("unknown or invalid path-MTU (%u)\n",
+				       in_mtu);
 			return -1;
 		}
 		newmss = min(dst_mtu(skb_dst(skb)), in_mtu) - minlen;
@@ -165,14 +165,14 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (rt != NULL) {
-		mtu = dst_mtu(&rt->u.dst);
-		dst_release(&rt->u.dst);
+		mtu = dst_mtu(&rt->dst);
+		dst_release(&rt->dst);
 	}
 	return mtu;
 }
 
 static unsigned int
-tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	__be16 newlen;
@@ -195,7 +195,7 @@ tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static unsigned int
-tcpmss_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u8 nexthdr;
@@ -220,22 +220,20 @@ tcpmss_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 }
 #endif
 
-#define TH_SYN 0x02
-
 /* Must specify -p tcp --syn */
 static inline bool find_syn_match(const struct xt_entry_match *m)
 {
 	const struct xt_tcp *tcpinfo = (const struct xt_tcp *)m->data;
 
 	if (strcmp(m->u.kernel.match->name, "tcp") == 0 &&
-	    tcpinfo->flg_cmp & TH_SYN &&
+	    tcpinfo->flg_cmp & TCPHDR_SYN &&
 	    !(tcpinfo->invflags & XT_TCP_INV_FLAGS))
 		return true;
 
 	return false;
 }
 
-static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
+static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
@@ -245,19 +243,19 @@ static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
+		return -EINVAL;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
-			return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return false;
+			return 0;
+	pr_info("Only works on TCP SYN packets\n");
+	return -EINVAL;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
+static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ip6t_entry *e = par->entryinfo;
@@ -267,15 +265,15 @@ static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
+		return -EINVAL;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
-			return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return false;
+			return 0;
+	pr_info("Only works on TCP SYN packets\n");
+	return -EINVAL;
 }
 #endif
 

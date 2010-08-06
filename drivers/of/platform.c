@@ -21,14 +21,12 @@ extern struct device_attribute of_platform_device_attrs[];
 
 static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct of_device *of_dev = to_of_device(dev);
-	struct of_platform_driver *of_drv = to_of_platform_driver(drv);
-	const struct of_device_id *matches = of_drv->match_table;
+	const struct of_device_id *matches = drv->of_match_table;
 
 	if (!matches)
 		return 0;
 
-	return of_match_device(matches, of_dev) != NULL;
+	return of_match_device(matches, dev) != NULL;
 }
 
 static int of_platform_device_probe(struct device *dev)
@@ -46,7 +44,7 @@ static int of_platform_device_probe(struct device *dev)
 
 	of_dev_get(of_dev);
 
-	match = of_match_device(drv->match_table, of_dev);
+	match = of_match_device(drv->driver.of_match_table, dev);
 	if (match)
 		error = drv->probe(of_dev, match);
 	if (error)
@@ -386,11 +384,6 @@ int of_bus_type_init(struct bus_type *bus, const char *name)
 
 int of_register_driver(struct of_platform_driver *drv, struct bus_type *bus)
 {
-	/* initialize common driver fields */
-	if (!drv->driver.name)
-		drv->driver.name = drv->name;
-	if (!drv->driver.owner)
-		drv->driver.owner = drv->owner;
 	drv->driver.bus = bus;
 
 	/* register with core */

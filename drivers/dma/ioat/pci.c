@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/dca.h>
+#include <linux/slab.h>
 #include "dma.h"
 #include "dma_v2.h"
 #include "registers.h"
@@ -137,15 +138,10 @@ static int __devinit ioat_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	if (err)
 		return err;
 
-	device = devm_kzalloc(dev, sizeof(*device), GFP_KERNEL);
-	if (!device)
-		return -ENOMEM;
-
-	pci_set_master(pdev);
-
 	device = alloc_ioatdma(pdev, iomap[IOAT_MMIO_BAR]);
 	if (!device)
 		return -ENOMEM;
+	pci_set_master(pdev);
 	pci_set_drvdata(pdev, device);
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);

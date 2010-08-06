@@ -37,26 +37,43 @@ void davinci_get_mac_addr(struct memory_accessor *mem_acc, void *context)
 		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
 }
 
-static struct davinci_id * __init davinci_get_id(u32 jtag_id)
+static int __init davinci_init_id(struct davinci_soc_info *soc_info)
 {
-	int i;
-	struct davinci_id *dip;
-	u8 variant = (jtag_id & 0xf0000000) >> 28;
-	u16 part_no = (jtag_id & 0x0ffff000) >> 12;
+	int			i;
+	struct davinci_id	*dip;
+	u8			variant;
+	u16			part_no;
+	void __iomem		*base;
 
-	for (i = 0, dip = davinci_soc_info.ids; i < davinci_soc_info.ids_num;
+	base = ioremap(soc_info->jtag_id_reg, SZ_4K);
+	if (!base) {
+		pr_err("Unable to map JTAG ID register\n");
+		return -ENOMEM;
+	}
+
+	soc_info->jtag_id = __raw_readl(base);
+	iounmap(base);
+
+	variant = (soc_info->jtag_id & 0xf0000000) >> 28;
+	part_no = (soc_info->jtag_id & 0x0ffff000) >> 12;
+
+	for (i = 0, dip = soc_info->ids; i < soc_info->ids_num;
 			i++, dip++)
 		/* Don't care about the manufacturer right now */
-		if ((dip->part_no == part_no) && (dip->variant == variant))
-			return dip;
+		if ((dip->part_no == part_no) && (dip->variant == variant)) {
+			soc_info->cpu_id = dip->cpu_id;
+			pr_info("DaVinci %s variant 0x%x\n", dip->name,
+					dip->variant);
+			return 0;
+		}
 
-	return NULL;
+	pr_err("Unknown DaVinci JTAG ID 0x%x\n", soc_info->jtag_id);
+	return -EINVAL;
 }
 
 void __init davinci_common_init(struct davinci_soc_info *soc_info)
 {
 	int ret;
-	struct davinci_id *dip;
 
 	if (!soc_info) {
 		ret = -EINVAL;
@@ -77,22 +94,16 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	local_flush_tlb_all();
 	flush_cache_all();
 
+	if (!davinci_soc_info.reset)
+		davinci_soc_info.reset = davinci_watchdog_reset;
+
 	/*
 	 * We want to check CPU revision early for cpu_is_xxxx() macros.
 	 * IO space mapping must be initialized before we can do that.
 	 */
-	davinci_soc_info.jtag_id = __raw_readl(davinci_soc_info.jtag_id_base);
-
-	dip = davinci_get_id(davinci_soc_info.jtag_id);
-	if (!dip) {
-		ret = -EINVAL;
-		pr_err("Unknown DaVinci JTAG ID 0x%x\n",
-						davinci_soc_info.jtag_id);
+	ret = davinci_init_id(&davinci_soc_info);
+	if (ret < 0)
 		goto err;
-	}
-
-	davinci_soc_info.cpu_id = dip->cpu_id;
-	pr_info("DaVinci %s variant 0x%x\n", dip->name, dip->variant);
 
 	if (davinci_soc_info.cpu_clks) {
 		ret = davinci_clk_init(davinci_soc_info.cpu_clks);
@@ -101,8 +112,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 			goto err;
 	}
 
-	davinci_intc_base = davinci_soc_info.intc_base;
-	davinci_intc_type = davinci_soc_info.intc_type;
 	return;
 
 err:

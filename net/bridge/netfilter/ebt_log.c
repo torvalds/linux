@@ -24,16 +24,16 @@
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
-static bool ebt_log_tg_check(const struct xt_tgchk_param *par)
+static int ebt_log_tg_check(const struct xt_tgchk_param *par)
 {
 	struct ebt_log_info *info = par->targinfo;
 
 	if (info->bitmask & ~EBT_LOG_MASK)
-		return false;
+		return -EINVAL;
 	if (info->loglevel >= 8)
-		return false;
+		return -EINVAL;
 	info->prefix[EBT_LOG_PREFIX_SIZE - 1] = '\0';
-	return true;
+	return 0;
 }
 
 struct tcpudphdr
@@ -171,7 +171,7 @@ out:
 }
 
 static unsigned int
-ebt_log_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;

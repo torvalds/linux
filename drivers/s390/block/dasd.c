@@ -37,6 +37,9 @@
  */
 #define DASD_CHANQ_MAX_SIZE 4
 
+#define DASD_SLEEPON_START_TAG	(void *) 1
+#define DASD_SLEEPON_END_TAG	(void *) 2
+
 /*
  * SECTION: exported variables of dasd.c
  */
@@ -62,6 +65,7 @@ static void dasd_device_tasklet(struct dasd_device *);
 static void dasd_block_tasklet(struct dasd_block *);
 static void do_kick_device(struct work_struct *);
 static void do_restore_device(struct work_struct *);
+static void do_reload_device(struct work_struct *);
 static void dasd_return_cqr_cb(struct dasd_ccw_req *, void *);
 static void dasd_device_timeout(unsigned long);
 static void dasd_block_timeout(unsigned long);
@@ -112,6 +116,7 @@ struct dasd_device *dasd_alloc_device(void)
 	device->timer.data = (unsigned long) device;
 	INIT_WORK(&device->kick_work, do_kick_device);
 	INIT_WORK(&device->restore_device, do_restore_device);
+	INIT_WORK(&device->reload_device, do_reload_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
 	mutex_init(&device->state_mutex);
@@ -516,6 +521,26 @@ void dasd_kick_device(struct dasd_device *device)
 	/* queue call to dasd_kick_device to the kernel event daemon. */
 	schedule_work(&device->kick_work);
 }
+
+/*
+ * dasd_reload_device will schedule a call do do_reload_device to the kernel
+ * event daemon.
+ */
+static void do_reload_device(struct work_struct *work)
+{
+	struct dasd_device *device = container_of(work, struct dasd_device,
+						  reload_device);
+	device->discipline->reload(device);
+	dasd_put_device(device);
+}
+
+void dasd_reload_device(struct dasd_device *device)
+{
+	dasd_get_device(device);
+	/* queue call to dasd_reload_device to the kernel event daemon. */
+	schedule_work(&device->reload_device);
+}
+EXPORT_SYMBOL(dasd_reload_device);
 
 /*
  * dasd_restore_device will schedule a call do do_restore_device to the kernel
@@ -1161,6 +1186,29 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	dasd_schedule_device_bh(device);
 }
 
+enum uc_todo dasd_generic_uc_handler(struct ccw_device *cdev, struct irb *irb)
+{
+	struct dasd_device *device;
+
+	device = dasd_device_from_cdev_locked(cdev);
+
+	if (IS_ERR(device))
+		goto out;
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
+	   device->state != device->target ||
+	   !device->discipline->handle_unsolicited_interrupt){
+		dasd_put_device(device);
+		goto out;
+	}
+
+	dasd_device_clear_timer(device);
+	device->discipline->handle_unsolicited_interrupt(device, irb);
+	dasd_put_device(device);
+out:
+	return UC_TODO_RETRY;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_uc_handler);
+
 /*
  * If we have an error on a dasd_block layer request then we cancel
  * and return all further requests from the same dasd_block as well.
@@ -1472,7 +1520,10 @@ void dasd_add_request_tail(struct dasd_ccw_req *cqr)
  */
 static void dasd_wakeup_cb(struct dasd_ccw_req *cqr, void *data)
 {
-	wake_up((wait_queue_head_t *) data);
+	spin_lock_irq(get_ccwdev_lock(cqr->startdev->cdev));
+	cqr->callback_data = DASD_SLEEPON_END_TAG;
+	spin_unlock_irq(get_ccwdev_lock(cqr->startdev->cdev));
+	wake_up(&generic_waitq);
 }
 
 static inline int _wait_for_wakeup(struct dasd_ccw_req *cqr)
@@ -1482,10 +1533,7 @@ static inline int _wait_for_wakeup(struct dasd_ccw_req *cqr)
 
 	device = cqr->startdev;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
-	rc = ((cqr->status == DASD_CQR_DONE ||
-	       cqr->status == DASD_CQR_NEED_ERP ||
-	       cqr->status == DASD_CQR_TERMINATED) &&
-	      list_empty(&cqr->devlist));
+	rc = (cqr->callback_data == DASD_SLEEPON_END_TAG);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return rc;
 }
@@ -1573,7 +1621,7 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			wait_event(generic_waitq, !(device->stopped));
 
 		cqr->callback = dasd_wakeup_cb;
-		cqr->callback_data = (void *) &generic_waitq;
+		cqr->callback_data = DASD_SLEEPON_START_TAG;
 		dasd_add_request_tail(cqr);
 		if (interruptible) {
 			rc = wait_event_interruptible(
@@ -1652,7 +1700,7 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 	}
 
 	cqr->callback = dasd_wakeup_cb;
-	cqr->callback_data = (void *) &generic_waitq;
+	cqr->callback_data = DASD_SLEEPON_START_TAG;
 	cqr->status = DASD_CQR_QUEUED;
 	list_add(&cqr->devlist, &device->ccw_queue);
 
@@ -1899,7 +1947,8 @@ restart:
 		/*  Process requests that may be recovered */
 		if (cqr->status == DASD_CQR_NEED_ERP) {
 			erp_fn = base->discipline->erp_action(cqr);
-			erp_fn(cqr);
+			if (IS_ERR(erp_fn(cqr)))
+				continue;
 			goto restart;
 		}
 

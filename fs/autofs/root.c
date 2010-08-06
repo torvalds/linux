@@ -13,6 +13,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/smp_lock.h>
@@ -27,6 +28,7 @@ static int autofs_root_mkdir(struct inode *,struct dentry *,int);
 static int autofs_root_ioctl(struct inode *, struct file *,unsigned int,unsigned long);
 
 const struct file_operations autofs_root_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= autofs_root_readdir,
 	.ioctl		= autofs_root_ioctl,

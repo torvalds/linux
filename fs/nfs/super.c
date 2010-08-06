@@ -48,6 +48,7 @@
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <net/ipv6.h>
 #include <linux/netdevice.h>
 #include <linux/nfs_xdr.h>
@@ -140,7 +141,6 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_resvport, "resvport" },
 	{ Opt_noresvport, "noresvport" },
 	{ Opt_fscache, "fsc" },
-	{ Opt_fscache_uniq, "fsc=%s" },
 	{ Opt_nofscache, "nofsc" },
 
 	{ Opt_port, "port=%s" },
@@ -170,6 +170,7 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_mountaddr, "mountaddr=%s" },
 
 	{ Opt_lookupcache, "lookupcache=%s" },
+	{ Opt_fscache_uniq, "fsc=%s" },
 
 	{ Opt_err, NULL }
 };
@@ -422,15 +423,19 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	unsigned char blockbits;
 	unsigned long blockres;
 	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
-	struct nfs_fattr fattr;
-	struct nfs_fsstat res = {
-			.fattr = &fattr,
-	};
-	int error;
+	struct nfs_fsstat res;
+	int error = -ENOMEM;
+
+	res.fattr = nfs_alloc_fattr();
+	if (res.fattr == NULL)
+		goto out_err;
 
 	error = server->nfs_client->rpc_ops->statfs(server, fh, &res);
+
+	nfs_free_fattr(res.fattr);
 	if (error < 0)
 		goto out_err;
+
 	buf->f_type = NFS_SUPER_MAGIC;
 
 	/*
@@ -565,6 +570,22 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	nfs_show_mountd_netid(m, nfss, showdefaults);
 }
 
+#ifdef CONFIG_NFS_V4
+static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
+				    int showdefaults)
+{
+	struct nfs_client *clp = nfss->nfs_client;
+
+	seq_printf(m, ",clientaddr=%s", clp->cl_ipaddr);
+	seq_printf(m, ",minorversion=%u", clp->cl_minorversion);
+}
+#else
+static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
+				    int showdefaults)
+{
+}
+#endif
+
 /*
  * Describe the mount options in force on this server representation
  */
@@ -626,11 +647,9 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 
 	if (version != 4)
 		nfs_show_mountd_options(m, nfss, showdefaults);
+	else
+		nfs_show_nfsv4_options(m, nfss, showdefaults);
 
-#ifdef CONFIG_NFS_V4
-	if (clp->rpc_ops->version == 4)
-		seq_printf(m, ",clientaddr=%s", clp->cl_ipaddr);
-#endif
 	if (nfss->options & NFS_OPTION_FSCACHE)
 		seq_printf(m, ",fsc");
 }
@@ -1045,14 +1064,6 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(mnt->fscache_uniq);
 			mnt->fscache_uniq = NULL;
 			break;
-		case Opt_fscache_uniq:
-			string = match_strdup(args);
-			if (!string)
-				goto out_nomem;
-			kfree(mnt->fscache_uniq);
-			mnt->fscache_uniq = string;
-			mnt->options |= NFS_OPTION_FSCACHE;
-			break;
 
 		/*
 		 * options that take numeric values
@@ -1063,7 +1074,7 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			rc = strict_strtoul(string, 10, &option);
 			kfree(string);
-			if (rc != 0 || option > USHORT_MAX)
+			if (rc != 0 || option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->nfs_server.port = option;
 			break;
@@ -1184,7 +1195,7 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			rc = strict_strtoul(string, 10, &option);
 			kfree(string);
-			if (rc != 0 || option > USHORT_MAX)
+			if (rc != 0 || option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->mount_server.port = option;
 			break;
@@ -1382,6 +1393,14 @@ static int nfs_parse_mount_options(char *raw,
 							"lookupcache argument\n");
 					return 0;
 			};
+			break;
+		case Opt_fscache_uniq:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			kfree(mnt->fscache_uniq);
+			mnt->fscache_uniq = string;
+			mnt->options |= NFS_OPTION_FSCACHE;
 			break;
 
 		/*
@@ -2171,7 +2190,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	int error = -ENOMEM;
 
 	data = nfs_alloc_parsed_mount_data(3);
-	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
 
@@ -2186,6 +2205,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (data->version == 4) {
 		error = nfs4_try_mount(flags, dev_name, data, mnt);
 		kfree(data->client_address);
+		kfree(data->nfs_server.export_path);
 		goto out;
 	}
 #endif	/* CONFIG_NFS_V4 */
@@ -2245,7 +2265,7 @@ out:
 	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
-	kfree(mntfh);
+	nfs_free_fhandle(mntfh);
 	kfree(data);
 	return error;
 
@@ -2554,7 +2574,7 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 	};
 	int error = -ENOMEM;
 
-	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
 
@@ -2612,7 +2632,7 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 out:
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
-	kfree(mntfh);
+	nfs_free_fhandle(mntfh);
 	return error;
 
 out_free:
@@ -2656,7 +2676,7 @@ static void nfs_fix_devname(const struct path *path, struct vfsmount *mnt)
 	devname = nfs_path(path->mnt->mnt_devname,
 			path->mnt->mnt_root, path->dentry,
 			page, PAGE_SIZE);
-	if (devname == NULL)
+	if (IS_ERR(devname))
 		goto out_freepage;
 	tmp = kstrdup(devname, GFP_KERNEL);
 	if (tmp == NULL)
@@ -2667,41 +2687,120 @@ out_freepage:
 	free_page((unsigned long)page);
 }
 
+struct nfs_referral_count {
+	struct list_head list;
+	const struct task_struct *task;
+	unsigned int referral_count;
+};
+
+static LIST_HEAD(nfs_referral_count_list);
+static DEFINE_SPINLOCK(nfs_referral_count_list_lock);
+
+static struct nfs_referral_count *nfs_find_referral_count(void)
+{
+	struct nfs_referral_count *p;
+
+	list_for_each_entry(p, &nfs_referral_count_list, list) {
+		if (p->task == current)
+			return p;
+	}
+	return NULL;
+}
+
+#define NFS_MAX_NESTED_REFERRALS 2
+
+static int nfs_referral_loop_protect(void)
+{
+	struct nfs_referral_count *p, *new;
+	int ret = -ENOMEM;
+
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		goto out;
+	new->task = current;
+	new->referral_count = 1;
+
+	ret = 0;
+	spin_lock(&nfs_referral_count_list_lock);
+	p = nfs_find_referral_count();
+	if (p != NULL) {
+		if (p->referral_count >= NFS_MAX_NESTED_REFERRALS)
+			ret = -ELOOP;
+		else
+			p->referral_count++;
+	} else {
+		list_add(&new->list, &nfs_referral_count_list);
+		new = NULL;
+	}
+	spin_unlock(&nfs_referral_count_list_lock);
+	kfree(new);
+out:
+	return ret;
+}
+
+static void nfs_referral_loop_unprotect(void)
+{
+	struct nfs_referral_count *p;
+
+	spin_lock(&nfs_referral_count_list_lock);
+	p = nfs_find_referral_count();
+	p->referral_count--;
+	if (p->referral_count == 0)
+		list_del(&p->list);
+	else
+		p = NULL;
+	spin_unlock(&nfs_referral_count_list_lock);
+	kfree(p);
+}
+
 static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		const char *export_path, struct vfsmount *mnt_target)
 {
+	struct nameidata *nd = NULL;
 	struct mnt_namespace *ns_private;
-	struct nameidata nd;
 	struct super_block *s;
 	int ret;
+
+	nd = kmalloc(sizeof(*nd), GFP_KERNEL);
+	if (nd == NULL)
+		return -ENOMEM;
 
 	ns_private = create_mnt_ns(root_mnt);
 	ret = PTR_ERR(ns_private);
 	if (IS_ERR(ns_private))
 		goto out_mntput;
 
-	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
-			export_path, LOOKUP_FOLLOW, &nd);
+	ret = nfs_referral_loop_protect();
+	if (ret != 0)
+		goto out_put_mnt_ns;
 
+	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
+			export_path, LOOKUP_FOLLOW, nd);
+
+	nfs_referral_loop_unprotect();
 	put_mnt_ns(ns_private);
 
 	if (ret != 0)
 		goto out_err;
 
-	s = nd.path.mnt->mnt_sb;
+	s = nd->path.mnt->mnt_sb;
 	atomic_inc(&s->s_active);
 	mnt_target->mnt_sb = s;
-	mnt_target->mnt_root = dget(nd.path.dentry);
+	mnt_target->mnt_root = dget(nd->path.dentry);
 
 	/* Correct the device pathname */
-	nfs_fix_devname(&nd.path, mnt_target);
+	nfs_fix_devname(&nd->path, mnt_target);
 
-	path_put(&nd.path);
+	path_put(&nd->path);
+	kfree(nd);
 	down_write(&s->s_umount);
 	return 0;
+out_put_mnt_ns:
+	put_mnt_ns(ns_private);
 out_mntput:
 	mntput(root_mnt);
 out_err:
+	kfree(nd);
 	return ret;
 }
 
@@ -2872,17 +2971,21 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 	struct super_block *s;
 	struct nfs_server *server;
 	struct dentry *mntroot;
-	struct nfs_fh mntfh;
+	struct nfs_fh *mntfh;
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 	};
-	int error;
+	int error = -ENOMEM;
 
 	dprintk("--> nfs4_referral_get_sb()\n");
 
+	mntfh = nfs_alloc_fhandle();
+	if (mntfh == NULL)
+		goto out_err_nofh;
+
 	/* create a new volume representation */
-	server = nfs4_create_referral_server(data, &mntfh);
+	server = nfs4_create_referral_server(data, mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out_err_noserver;
@@ -2914,7 +3017,7 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, &mntfh);
+	mntroot = nfs4_get_root(s, mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2931,12 +3034,15 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 
 	security_sb_clone_mnt_opts(data->sb, s);
 
+	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
 	return 0;
 
 out_err_nosb:
 	nfs_free_server(server);
 out_err_noserver:
+	nfs_free_fhandle(mntfh);
+out_err_nofh:
 	dprintk("<-- nfs4_referral_get_sb() = %d [error]\n", error);
 	return error;
 
@@ -2945,6 +3051,7 @@ error_splat_super:
 		bdi_unregister(&server->backing_dev_info);
 error_splat_bdi:
 	deactivate_locked_super(s);
+	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = %d [splat]\n", error);
 	return error;
 }

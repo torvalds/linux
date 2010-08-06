@@ -611,6 +611,13 @@ config RTC_DRV_AB3100
 	  Select this to enable the ST-Ericsson AB3100 Mixed Signal IC RTC
 	  support. This chip contains a battery- and capacitor-backed RTC.
 
+config RTC_DRV_AB8500
+	tristate "ST-Ericsson AB8500 RTC"
+	depends on AB8500_CORE
+	help
+	  Select this to enable the ST-Ericsson AB8500 power management IC RTC
+	  support. This chip contains a battery- and capacitor-backed RTC.
+
 config RTC_DRV_NUC900
 	tristate "NUC910/NUC920 RTC driver"
 	depends on RTC_CLASS && ARCH_W90X900
@@ -619,6 +626,16 @@ config RTC_DRV_NUC900
 	  NUC910/NUC920 used in embedded systems.
 
 comment "on-CPU RTC drivers"
+
+config RTC_DRV_DAVINCI
+	tristate "TI DaVinci RTC"
+	depends on ARCH_DAVINCI_DM365
+	help
+	  If you say yes here you get support for the RTC on the
+	  DaVinci platforms (DM365).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-davinci.
 
 config RTC_DRV_OMAP
 	tristate "TI OMAP1"
@@ -630,7 +647,7 @@ config RTC_DRV_OMAP
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C2410 || ARCH_S3C64XX
 	help
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
 	  Samsung S3C24XX series of SoCs. This can provide periodic

@@ -7,13 +7,44 @@
 #include "util.h"
 #include "debug.h"
 
-void map_groups__init(struct map_groups *self)
+/* Skip "." and ".." directories */
+static int filter(const struct dirent *dir)
 {
+	if (dir->d_name[0] == '.')
+		return 0;
+	else
+		return 1;
+}
+
+int find_all_tid(int pid, pid_t ** all_tid)
+{
+	char name[256];
+	int items;
+	struct dirent **namelist = NULL;
+	int ret = 0;
 	int i;
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		self->maps[i] = RB_ROOT;
-		INIT_LIST_HEAD(&self->removed_maps[i]);
+
+	sprintf(name, "/proc/%d/task", pid);
+	items = scandir(name, &namelist, filter, NULL);
+	if (items <= 0)
+                return -ENOENT;
+	*all_tid = malloc(sizeof(pid_t) * items);
+	if (!*all_tid) {
+		ret = -ENOMEM;
+		goto failure;
 	}
+
+	for (i = 0; i < items; i++)
+		(*all_tid)[i] = atoi(namelist[i]->d_name);
+
+	ret = items;
+
+failure:
+	for (i=0; i<items; i++)
+		free(namelist[i]);
+	free(namelist);
+
+	return ret;
 }
 
 static struct thread *thread__new(pid_t pid)
@@ -29,28 +60,6 @@ static struct thread *thread__new(pid_t pid)
 	}
 
 	return self;
-}
-
-static void map_groups__flush(struct map_groups *self)
-{
-	int type;
-
-	for (type = 0; type < MAP__NR_TYPES; type++) {
-		struct rb_root *root = &self->maps[type];
-		struct rb_node *next = rb_first(root);
-
-		while (next) {
-			struct map *pos = rb_entry(next, struct map, rb_node);
-			next = rb_next(&pos->rb_node);
-			rb_erase(&pos->rb_node, root);
-			/*
-			 * We may have references to this map, for
-			 * instance in some hist_entry instances, so
-			 * just move them to a separate list.
-			 */
-			list_add_tail(&pos->node, &self->removed_maps[pos->type]);
-		}
-	}
 }
 
 int thread__set_comm(struct thread *self, const char *comm)
@@ -79,69 +88,10 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-size_t __map_groups__fprintf_maps(struct map_groups *self,
-				  enum map_type type, FILE *fp)
-{
-	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
-	struct rb_node *nd;
-
-	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
-		printed += fprintf(fp, "Map:");
-		printed += map__fprintf(pos, fp);
-		if (verbose > 2) {
-			printed += dso__fprintf(pos->dso, type, fp);
-			printed += fprintf(fp, "--\n");
-		}
-	}
-
-	return printed;
-}
-
-size_t map_groups__fprintf_maps(struct map_groups *self, FILE *fp)
-{
-	size_t printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += __map_groups__fprintf_maps(self, i, fp);
-	return printed;
-}
-
-static size_t __map_groups__fprintf_removed_maps(struct map_groups *self,
-						 enum map_type type, FILE *fp)
-{
-	struct map *pos;
-	size_t printed = 0;
-
-	list_for_each_entry(pos, &self->removed_maps[type], node) {
-		printed += fprintf(fp, "Map:");
-		printed += map__fprintf(pos, fp);
-		if (verbose > 1) {
-			printed += dso__fprintf(pos->dso, type, fp);
-			printed += fprintf(fp, "--\n");
-		}
-	}
-	return printed;
-}
-
-static size_t map_groups__fprintf_removed_maps(struct map_groups *self, FILE *fp)
-{
-	size_t printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += __map_groups__fprintf_removed_maps(self, i, fp);
-	return printed;
-}
-
-static size_t map_groups__fprintf(struct map_groups *self, FILE *fp)
-{
-	size_t printed = map_groups__fprintf_maps(self, fp);
-	printed += fprintf(fp, "Removed maps:\n");
-	return printed + map_groups__fprintf_removed_maps(self, fp);
-}
-
 static size_t thread__fprintf(struct thread *self, FILE *fp)
 {
 	return fprintf(fp, "Thread %d %s\n", self->pid, self->comm) +
-	       map_groups__fprintf(&self->mg, fp);
+	       map_groups__fprintf(&self->mg, verbose, fp);
 }
 
 struct thread *perf_session__findnew(struct perf_session *self, pid_t pid)
@@ -183,125 +133,10 @@ struct thread *perf_session__findnew(struct perf_session *self, pid_t pid)
 	return th;
 }
 
-static int map_groups__fixup_overlappings(struct map_groups *self,
-					  struct map *map)
-{
-	struct rb_root *root = &self->maps[map->type];
-	struct rb_node *next = rb_first(root);
-
-	while (next) {
-		struct map *pos = rb_entry(next, struct map, rb_node);
-		next = rb_next(&pos->rb_node);
-
-		if (!map__overlap(pos, map))
-			continue;
-
-		if (verbose >= 2) {
-			fputs("overlapping maps:\n", stderr);
-			map__fprintf(map, stderr);
-			map__fprintf(pos, stderr);
-		}
-
-		rb_erase(&pos->rb_node, root);
-		/*
-		 * We may have references to this map, for instance in some
-		 * hist_entry instances, so just move them to a separate
-		 * list.
-		 */
-		list_add_tail(&pos->node, &self->removed_maps[map->type]);
-		/*
-		 * Now check if we need to create new maps for areas not
-		 * overlapped by the new map:
-		 */
-		if (map->start > pos->start) {
-			struct map *before = map__clone(pos);
-
-			if (before == NULL)
-				return -ENOMEM;
-
-			before->end = map->start - 1;
-			map_groups__insert(self, before);
-			if (verbose >= 2)
-				map__fprintf(before, stderr);
-		}
-
-		if (map->end < pos->end) {
-			struct map *after = map__clone(pos);
-
-			if (after == NULL)
-				return -ENOMEM;
-
-			after->start = map->end + 1;
-			map_groups__insert(self, after);
-			if (verbose >= 2)
-				map__fprintf(after, stderr);
-		}
-	}
-
-	return 0;
-}
-
-void maps__insert(struct rb_root *maps, struct map *map)
-{
-	struct rb_node **p = &maps->rb_node;
-	struct rb_node *parent = NULL;
-	const u64 ip = map->start;
-	struct map *m;
-
-	while (*p != NULL) {
-		parent = *p;
-		m = rb_entry(parent, struct map, rb_node);
-		if (ip < m->start)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&map->rb_node, parent, p);
-	rb_insert_color(&map->rb_node, maps);
-}
-
-struct map *maps__find(struct rb_root *maps, u64 ip)
-{
-	struct rb_node **p = &maps->rb_node;
-	struct rb_node *parent = NULL;
-	struct map *m;
-
-	while (*p != NULL) {
-		parent = *p;
-		m = rb_entry(parent, struct map, rb_node);
-		if (ip < m->start)
-			p = &(*p)->rb_left;
-		else if (ip > m->end)
-			p = &(*p)->rb_right;
-		else
-			return m;
-	}
-
-	return NULL;
-}
-
 void thread__insert_map(struct thread *self, struct map *map)
 {
-	map_groups__fixup_overlappings(&self->mg, map);
+	map_groups__fixup_overlappings(&self->mg, map, verbose, stderr);
 	map_groups__insert(&self->mg, map);
-}
-
-/*
- * XXX This should not really _copy_ te maps, but refcount them.
- */
-static int map_groups__clone(struct map_groups *self,
-			     struct map_groups *parent, enum map_type type)
-{
-	struct rb_node *nd;
-	for (nd = rb_first(&parent->maps[type]); nd; nd = rb_next(nd)) {
-		struct map *map = rb_entry(nd, struct map, rb_node);
-		struct map *new = map__clone(map);
-		if (new == NULL)
-			return -ENOMEM;
-		map_groups__insert(self, new);
-	}
-	return 0;
 }
 
 int thread__fork(struct thread *self, struct thread *parent)
@@ -335,16 +170,4 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
 	}
 
 	return ret;
-}
-
-struct symbol *map_groups__find_symbol(struct map_groups *self,
-				       enum map_type type, u64 addr,
-				       symbol_filter_t filter)
-{
-	struct map *map = map_groups__find(self, type, addr);
-
-	if (map != NULL)
-		return map__find_symbol(map, map->map_ip(map, addr), filter);
-
-	return NULL;
 }

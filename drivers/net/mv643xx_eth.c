@@ -54,6 +54,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/inet_lro.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
@@ -288,6 +289,7 @@ struct mv643xx_eth_shared_private {
 	unsigned int t_clk;
 	int extended_rx_coal_limit;
 	int tx_bw_control;
+	int tx_csum_limit;
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -775,13 +777,16 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	l4i_chk = 0;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int hdr_len;
 		int tag_bytes;
 
 		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
 		       skb->protocol != htons(ETH_P_8021Q));
 
-		tag_bytes = (void *)ip_hdr(skb) - (void *)skb->data - ETH_HLEN;
-		if (unlikely(tag_bytes & ~12)) {
+		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		tag_bytes = hdr_len - ETH_HLEN;
+		if (skb->len - hdr_len > mp->shared->tx_csum_limit ||
+		    unlikely(tag_bytes & ~12)) {
 			if (skb_checksum_help(skb) == 0)
 				goto no_csum;
 			kfree_skb(skb);
@@ -881,7 +886,6 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		txq->tx_bytes += skb->len;
 		txq->tx_packets++;
-		dev->trans_start = jiffies;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
 		if (entries_left < MAX_SKB_FRAGS + 1)
@@ -1636,6 +1640,11 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static int mv643xx_eth_set_flags(struct net_device *dev, u32 data)
+{
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO);
+}
+
 static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
@@ -1661,7 +1670,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ethtool_op_set_flags,
+	.set_flags		= mv643xx_eth_set_flags,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 };
 
@@ -1769,7 +1778,7 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 *mc_spec;
 	u32 *mc_other;
-	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
@@ -1794,8 +1803,8 @@ oom:
 	memset(mc_spec, 0, 0x100);
 	memset(mc_other, 0, 0x100);
 
-	netdev_for_each_mc_addr(addr, dev) {
-		u8 *a = addr->da_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		u8 *a = ha->addr;
 		u32 *table;
 		int entry;
 
@@ -2452,7 +2461,7 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (mp->phy != NULL)
-		return phy_mii_ioctl(mp->phy, if_mii(ifr), cmd);
+		return phy_mii_ioctl(mp->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -2608,10 +2617,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		goto out;
 
 	ret = -ENOMEM;
-	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
+	msp = kzalloc(sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
 		goto out;
-	memset(msp, 0, sizeof(*msp));
 
 	msp->base = ioremap(res->start, res->end - res->start + 1);
 	if (msp->base == NULL)
@@ -2667,6 +2675,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Detect hardware parameters.
 	 */
 	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
+					pd->tx_csum_limit : 9 * 1024;
 	infer_hw_params(msp);
 
 	platform_set_drvdata(pdev, msp);

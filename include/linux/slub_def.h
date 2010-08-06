@@ -75,12 +75,6 @@ struct kmem_cache {
 	int offset;		/* Free pointer offset. */
 	struct kmem_cache_order_objects oo;
 
-	/*
-	 * Avoid an extra cache line for UP, SMP and for the node local to
-	 * struct kmem_cache.
-	 */
-	struct kmem_cache_node local_node;
-
 	/* Allocation and freeing of slabs */
 	struct kmem_cache_order_objects max;
 	struct kmem_cache_order_objects min;
@@ -102,6 +96,9 @@ struct kmem_cache {
 	 */
 	int remote_node_defrag_ratio;
 	struct kmem_cache_node *node[MAX_NUMNODES];
+#else
+	/* Avoid an extra cache line for UP */
+	struct kmem_cache_node local_node;
 #endif
 };
 
@@ -115,6 +112,14 @@ struct kmem_cache {
 #endif
 
 #define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
+
+#ifndef ARCH_KMALLOC_MINALIGN
+#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+#endif
+
+#ifndef ARCH_SLAB_MINALIGN
+#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+#endif
 
 /*
  * Maximum kmalloc object size handled by SLUB. Larger object allocations
@@ -132,7 +137,7 @@ struct kmem_cache {
 #ifdef CONFIG_ZONE_DMA
 #define SLUB_DMA __GFP_DMA
 /* Reserve extra caches for potential DMA use */
-#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT - 6)
+#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT)
 #else
 /* Disable DMA functionality */
 #define SLUB_DMA (__force gfp_t)0

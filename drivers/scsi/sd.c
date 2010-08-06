@@ -49,6 +49,7 @@
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
 #include <linux/async.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
@@ -96,6 +97,7 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 #endif
 
 static int  sd_revalidate_disk(struct gendisk *);
+static void sd_unlock_native_capacity(struct gendisk *disk);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
@@ -757,6 +759,10 @@ static int sd_open(struct block_device *bdev, fmode_t mode)
 
 	sdev = sdkp->device;
 
+	retval = scsi_autopm_get_device(sdev);
+	if (retval)
+		goto error_autopm;
+
 	/*
 	 * If the device is in error recovery, wait until it is done.
 	 * If the device is offline, then disallow any access to it.
@@ -801,6 +807,8 @@ static int sd_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 
 error_out:
+	scsi_autopm_put_device(sdev);
+error_autopm:
 	scsi_disk_put(sdkp);
 	return retval;	
 }
@@ -832,6 +840,8 @@ static int sd_release(struct gendisk *disk, fmode_t mode)
 	 * XXX and what if there are packets in flight and this close()
 	 * XXX is followed by a "rmmod sd_mod"?
 	 */
+
+	scsi_autopm_put_device(sdev);
 	scsi_disk_put(sdkp);
 	return 0;
 }
@@ -1039,6 +1049,7 @@ static void sd_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->timeout = SD_TIMEOUT;
+	rq->retries = SD_MAX_RETRIES;
 	rq->cmd[0] = SYNCHRONIZE_CACHE;
 	rq->cmd_len = 10;
 }
@@ -1099,6 +1110,7 @@ static const struct block_device_operations sd_fops = {
 #endif
 	.media_changed		= sd_media_changed,
 	.revalidate_disk	= sd_revalidate_disk,
+	.unlock_native_capacity	= sd_unlock_native_capacity,
 };
 
 static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
@@ -1432,6 +1444,8 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 #error RC16_LEN must not be more than SD_BUF_SIZE
 #endif
 
+#define READ_CAPACITY_RETRIES_ON_RESET	10
+
 static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 						unsigned char *buffer)
 {
@@ -1439,7 +1453,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	int the_result;
-	int retries = 3;
+	int retries = 3, reset_retries = READ_CAPACITY_RETRIES_ON_RESET;
 	unsigned int alignment;
 	unsigned long long lba;
 	unsigned sector_size;
@@ -1468,6 +1482,13 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 				 * Invalid Field in CDB, just retry
 				 * silently with RC10 */
 				return -EINVAL;
+			if (sense_valid &&
+			    sshdr.sense_key == UNIT_ATTENTION &&
+			    sshdr.asc == 0x29 && sshdr.ascq == 0x00)
+				/* Device reset might occur several times,
+				 * give it one more chance */
+				if (--reset_retries > 0)
+					continue;
 		}
 		retries--;
 
@@ -1526,7 +1547,7 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	int the_result;
-	int retries = 3;
+	int retries = 3, reset_retries = READ_CAPACITY_RETRIES_ON_RESET;
 	sector_t lba;
 	unsigned sector_size;
 
@@ -1542,8 +1563,16 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
 
-		if (the_result)
+		if (the_result) {
 			sense_valid = scsi_sense_valid(&sshdr);
+			if (sense_valid &&
+			    sshdr.sense_key == UNIT_ATTENTION &&
+			    sshdr.asc == 0x29 && sshdr.ascq == 0x00)
+				/* Device reset might occur several times,
+				 * give it one more chance */
+				if (--reset_retries > 0)
+					continue;
+		}
 		retries--;
 
 	} while (the_result && retries);
@@ -1572,6 +1601,8 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 
 static int sd_try_rc16_first(struct scsi_device *sdp)
 {
+	if (sdp->host->max_cmd_len < 16)
+		return 0;
 	if (sdp->scsi_level > SCSI_SPC_2)
 		return 1;
 	if (scsi_device_protection(sdp))
@@ -2100,6 +2131,26 @@ static int sd_revalidate_disk(struct gendisk *disk)
 }
 
 /**
+ *	sd_unlock_native_capacity - unlock native capacity
+ *	@disk: struct gendisk to set capacity for
+ *
+ *	Block layer calls this function if it detects that partitions
+ *	on @disk reach beyond the end of the device.  If the SCSI host
+ *	implements ->unlock_native_capacity() method, it's invoked to
+ *	give it a chance to adjust the device capacity.
+ *
+ *	CONTEXT:
+ *	Defined by block layer.  Might sleep.
+ */
+static void sd_unlock_native_capacity(struct gendisk *disk)
+{
+	struct scsi_device *sdev = scsi_disk(disk)->device;
+
+	if (sdev->host->hostt->unlock_native_capacity)
+		sdev->host->hostt->unlock_native_capacity(sdev);
+}
+
+/**
  *	sd_format_disk_name - format disk name
  *	@prefix: name prefix - ie. "sd" for SCSI disks
  *	@index: index of the disk to format name for
@@ -2185,11 +2236,10 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	blk_queue_prep_rq(sdp->request_queue, sd_prep_fn);
 
 	gd->driverfs_dev = &sdp->sdev_gendev;
-	gd->flags = GENHD_FL_EXT_DEVT | GENHD_FL_DRIVERFS;
+	gd->flags = GENHD_FL_EXT_DEVT;
 	if (sdp->removable)
 		gd->flags |= GENHD_FL_REMOVABLE;
 
-	dev_set_drvdata(dev, sdkp);
 	add_disk(gd);
 	sd_dif_config_host(sdkp);
 
@@ -2197,6 +2247,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
+	scsi_autopm_put_device(sdp);
 	put_device(&sdkp->dev);
 }
 
@@ -2274,14 +2325,15 @@ static int sd_probe(struct device *dev)
 	}
 
 	device_initialize(&sdkp->dev);
-	sdkp->dev.parent = &sdp->sdev_gendev;
+	sdkp->dev.parent = dev;
 	sdkp->dev.class = &sd_disk_class;
-	dev_set_name(&sdkp->dev, dev_name(&sdp->sdev_gendev));
+	dev_set_name(&sdkp->dev, dev_name(dev));
 
 	if (device_add(&sdkp->dev))
 		goto out_free_index;
 
-	get_device(&sdp->sdev_gendev);
+	get_device(dev);
+	dev_set_drvdata(dev, sdkp);
 
 	get_device(&sdkp->dev);	/* prevent release before async_schedule */
 	async_schedule(sd_probe_async, sdkp);
@@ -2315,8 +2367,10 @@ static int sd_remove(struct device *dev)
 {
 	struct scsi_disk *sdkp;
 
-	async_synchronize_full();
 	sdkp = dev_get_drvdata(dev);
+	scsi_autopm_get_device(sdkp->device);
+
+	async_synchronize_full();
 	blk_queue_prep_rq(sdkp->device->request_queue, scsi_prep_fn);
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);

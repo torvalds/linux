@@ -48,6 +48,7 @@
  */
 
 #include <linux/pci.h>	/* for Tavor hack below */
+#include <linux/slab.h>
 
 #include "xprt_rdma.h"
 

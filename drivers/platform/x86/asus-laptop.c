@@ -49,6 +49,7 @@
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/rfkill.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
@@ -75,18 +76,18 @@ MODULE_LICENSE("GPL");
  * So, if something doesn't work as you want, just try other values =)
  */
 static uint wapf = 1;
-module_param(wapf, uint, 0644);
+module_param(wapf, uint, 0444);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
-static uint wlan_status = 1;
-static uint bluetooth_status = 1;
+static int wlan_status = 1;
+static int bluetooth_status = 1;
 
-module_param(wlan_status, uint, 0644);
+module_param(wlan_status, int, 0444);
 MODULE_PARM_DESC(wlan_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
 		 "default is 1");
 
-module_param(bluetooth_status, uint, 0644);
+module_param(bluetooth_status, int, 0444);
 MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
 		 "default is 1");
@@ -139,7 +140,7 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 
 /* Backlight */
 static acpi_handle lcd_switch_handle;
-static const char *lcd_switch_paths[] = {
+static char *lcd_switch_paths[] = {
   "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
   "\\_SB.PCI0.ISA.EC0._Q10",	/* A1x */
   "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
@@ -153,7 +154,7 @@ static const char *lcd_switch_paths[] = {
 #define METHOD_SWITCH_DISPLAY	"SDSP"
 
 static acpi_handle display_get_handle;
-static const char *display_get_paths[] = {
+static char *display_get_paths[] = {
   /* A6B, A6K A6R A7D F3JM L4R M6R A3G M6A M6V VX-1 V6J V6V W3Z */
   "\\_SB.PCI0.P0P1.VGA.GETD",
   /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V S5A M5A z33A W1Jc W2V G1 */
@@ -296,7 +297,7 @@ static int write_acpi_int_ret(acpi_handle handle, const char *method, int val,
 	acpi_status status;
 
 	if (!handle)
-		return 0;
+		return -1;
 
 	params.count = 1;
 	params.pointer = &in_obj;
@@ -795,10 +796,11 @@ static ssize_t store_ledd(struct device *dev, struct device_attribute *attr,
 
 	rv = parse_arg(buf, count, &value);
 	if (rv > 0) {
-		if (write_acpi_int(asus->handle, METHOD_LEDD, value))
+		if (write_acpi_int(asus->handle, METHOD_LEDD, value)) {
 			pr_warning("LED display write failed\n");
-		else
-			asus->ledd_status = (u32) value;
+			return -ENODEV;
+		}
+		asus->ledd_status = (u32) value;
 	}
 	return rv;
 }
@@ -1122,7 +1124,7 @@ static int asus_input_init(struct asus_laptop *asus)
 	input = input_allocate_device();
 	if (!input) {
 		pr_info("Unable to allocate input device\n");
-		return 0;
+		return -ENOMEM;
 	}
 	input->name = "Asus Laptop extra buttons";
 	input->phys = ASUS_LAPTOP_FILE "/input0";
@@ -1133,20 +1135,20 @@ static int asus_input_init(struct asus_laptop *asus)
 	error = sparse_keymap_setup(input, asus_keymap, NULL);
 	if (error) {
 		pr_err("Unable to setup input device keymap\n");
-		goto err_keymap;
+		goto err_free_dev;
 	}
 	error = input_register_device(input);
 	if (error) {
 		pr_info("Unable to register input device\n");
-		goto err_device;
+		goto err_free_keymap;
 	}
 
 	asus->inputdev = input;
 	return 0;
 
-err_keymap:
+err_free_keymap:
 	sparse_keymap_free(input);
-err_device:
+err_free_dev:
 	input_free_device(input);
 	return error;
 }
@@ -1396,8 +1398,10 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 		}
 	}
 	asus->name = kstrdup(string, GFP_KERNEL);
-	if (!asus->name)
+	if (!asus->name) {
+		kfree(buffer.pointer);
 		return -ENOMEM;
+	}
 
 	if (*string)
 		pr_notice("  %s model detected\n", string);

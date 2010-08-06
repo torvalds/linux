@@ -25,22 +25,22 @@
  * m = memory, c = core, r = register, f = field, d = data.
  */
 #if !defined(GET_FIELD) && !defined(SET_FIELD)
-#define BRCM_ALIGN(c,r,f)   c##_##r##_##f##_ALIGN
-#define BRCM_BITS(c,r,f)    c##_##r##_##f##_BITS
-#define BRCM_MASK(c,r,f)    c##_##r##_##f##_MASK
-#define BRCM_SHIFT(c,r,f)   c##_##r##_##f##_SHIFT
+#define BRCM_ALIGN(c, r, f)   c##_##r##_##f##_ALIGN
+#define BRCM_BITS(c, r, f)    c##_##r##_##f##_BITS
+#define BRCM_MASK(c, r, f)    c##_##r##_##f##_MASK
+#define BRCM_SHIFT(c, r, f)   c##_##r##_##f##_SHIFT
 
-#define GET_FIELD(m,c,r,f) \
-	((((m) & BRCM_MASK(c,r,f)) >> BRCM_SHIFT(c,r,f)) << BRCM_ALIGN(c,r,f))
+#define GET_FIELD(m, c, r, f) \
+	((((m) & BRCM_MASK(c, r, f)) >> BRCM_SHIFT(c, r, f)) << BRCM_ALIGN(c, r, f))
 
-#define SET_FIELD(m,c,r,f,d) \
-	((m) = (((m) & ~BRCM_MASK(c,r,f)) | ((((d) >> BRCM_ALIGN(c,r,f)) << \
-	 BRCM_SHIFT(c,r,f)) & BRCM_MASK(c,r,f))) \
+#define SET_FIELD(m, c, r, f, d) \
+	((m) = (((m) & ~BRCM_MASK(c, r, f)) | ((((d) >> BRCM_ALIGN(c, r, f)) << \
+	 BRCM_SHIFT(c, r, f)) & BRCM_MASK(c, r, f))) \
 	)
 
-#define SET_TYPE_FIELD(m,c,r,f,d) SET_FIELD(m,c,r,f,c##_##d)
-#define SET_NAME_FIELD(m,c,r,f,d) SET_FIELD(m,c,r,f,c##_##r##_##f##_##d)
-#define SET_VALUE_FIELD(m,c,r,f,d) SET_FIELD(m,c,r,f,d)
+#define SET_TYPE_FIELD(m, c, r, f, d) SET_FIELD(m, c, r, f, c##_##d)
+#define SET_NAME_FIELD(m, c, r, f, d) SET_FIELD(m, c, r, f, c##_##r##_##f##_##d)
+#define SET_VALUE_FIELD(m, c, r, f, d) SET_FIELD(m, c, r, f, d)
 
 #endif /* GET & SET */
 

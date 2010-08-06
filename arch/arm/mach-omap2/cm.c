@@ -27,9 +27,6 @@
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 
-/* MAX_MODULE_READY_TIME: max milliseconds for module to leave idle */
-#define MAX_MODULE_READY_TIME		20000
-
 static const u8 cm_idlest_offs[] = {
 	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
 };

@@ -344,26 +344,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     0, sizeof(child->thread.user->f),
 					     (const void __user *)data);
 
-	case PTRACE_GETFDPIC:
-		tmp = 0;
-		switch (addr) {
-		case PTRACE_GETFDPIC_EXEC:
-			tmp = child->mm->context.exec_fdpic_loadmap;
-			break;
-		case PTRACE_GETFDPIC_INTERP:
-			tmp = child->mm->context.interp_fdpic_loadmap;
-			break;
-		default:
-			break;
-		}
-
-		ret = 0;
-		if (put_user(tmp, (unsigned long *) data)) {
-			ret = -EFAULT;
-			break;
-		}
-		break;
-
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

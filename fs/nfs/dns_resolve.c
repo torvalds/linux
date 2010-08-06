@@ -9,6 +9,7 @@
 #include <linux/hash.h>
 #include <linux/string.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/seq_file.h>

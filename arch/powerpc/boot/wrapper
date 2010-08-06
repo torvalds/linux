@@ -149,6 +149,10 @@ pseries)
     platformo=$object/of.o
     link_address='0x4000000'
     ;;
+maple)
+    platformo=$object/of.o
+    link_address='0x400000'
+    ;;
 pmac|chrp)
     platformo=$object/of.o
     ;;
@@ -237,6 +241,9 @@ gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
     ;;
+treeboot-iss4xx-mpic)
+    platformo="$object/treeboot-iss4xx.o"
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
@@ -321,7 +328,7 @@ fi
 
 # post-processing needed for some platforms
 case "$platform" in
-pseries|chrp)
+pseries|chrp|maple)
     $objbin/addnote "$ofile"
     ;;
 coff)

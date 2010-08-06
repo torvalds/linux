@@ -30,6 +30,7 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
+#include <linux/slab.h>
 
 #include <asm/syscalls.h>
 

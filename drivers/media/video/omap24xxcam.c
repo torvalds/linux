@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -425,7 +426,7 @@ static void omap24xxcam_vbq_release(struct videobuf_queue *vbq,
 			     dma->direction);
 		dma->direction = DMA_NONE;
 	} else {
-		videobuf_dma_unmap(vbq, videobuf_to_dma(vb));
+		videobuf_dma_unmap(vbq->dev, videobuf_to_dma(vb));
 		videobuf_dma_free(videobuf_to_dma(vb));
 	}
 
@@ -451,8 +452,8 @@ static int omap24xxcam_vbq_setup(struct videobuf_queue *vbq, unsigned int *cnt,
 	*size = fh->pix.sizeimage;
 
 	/* accessing fh->cam->capture_mem is ok, it's constant */
-	while (*size * *cnt > fh->cam->capture_mem)
-		(*cnt)--;
+	if (*size * *cnt > fh->cam->capture_mem)
+		*cnt = fh->cam->capture_mem / *size;
 
 	return 0;
 }
@@ -1404,7 +1405,7 @@ static int omap24xxcam_mmap_buffers(struct file *file,
 	}
 
 	size = 0;
-	for (i = first; i <= last; i++) {
+	for (i = first; i <= last && i < VIDEO_MAX_FRAME; i++) {
 		struct videobuf_dmabuf *dma = videobuf_to_dma(vbq->bufs[i]);
 
 		for (j = 0; j < dma->sglen; j++) {

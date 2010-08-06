@@ -34,8 +34,8 @@ struct notifier_block;
 
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
+extern void rcu_note_context_switch(int cpu);
 extern int rcu_needs_cpu(int cpu);
-extern int rcu_expedited_torture_stats(char *page);
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
@@ -86,6 +86,8 @@ static inline void __rcu_read_unlock_bh(void)
 
 extern void call_rcu_sched(struct rcu_head *head,
 			   void (*func)(struct rcu_head *rcu));
+extern void synchronize_rcu_bh(void);
+extern void synchronize_sched(void);
 extern void synchronize_rcu_expedited(void);
 
 static inline void synchronize_rcu_bh_expedited(void)
@@ -119,5 +121,8 @@ static inline int rcu_blocking_is_gp(void)
 {
 	return num_online_cpus() == 1;
 }
+
+extern void rcu_scheduler_starting(void);
+extern int rcu_scheduler_active __read_mostly;
 
 #endif /* __LINUX_RCUTREE_H */

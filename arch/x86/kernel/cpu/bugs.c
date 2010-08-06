@@ -86,7 +86,7 @@ static void __init check_fpu(void)
 
 static void __init check_hlt(void)
 {
-	if (paravirt_enabled())
+	if (boot_cpu_data.x86 >= 5 || paravirt_enabled())
 		return;
 
 	printk(KERN_INFO "Checking 'hlt' instruction... ");

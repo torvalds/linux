@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
@@ -1471,8 +1472,6 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 	txring->next_to_fill = fill;
 
 	write_dma_reg(PAS_DMA_TXCHAN_INCR(txring->chan.chno), 2);
-
-	return;
 }
 
 static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)

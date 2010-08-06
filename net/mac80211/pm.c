@@ -40,22 +40,14 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	list_for_each_entry(sdata, &local->interfaces, list)
 		ieee80211_disable_keys(sdata);
 
-	/* Tear down aggregation sessions */
-
-	rcu_read_lock();
-
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			set_sta_flags(sta, WLAN_STA_SUSPEND);
-			ieee80211_sta_tear_down_BA_sessions(sta);
-		}
-	}
-
-	rcu_read_unlock();
-
-	/* remove STAs */
+	/* tear down aggregation sessions and remove STAs */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
+		if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+			ieee80211_sta_tear_down_BA_sessions(sta);
+		}
+
 		if (sta->uploaded) {
 			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -72,6 +64,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		cancel_work_sync(&sdata->work);
+
 		switch(sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			ieee80211_sta_quiesce(sdata);

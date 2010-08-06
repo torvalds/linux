@@ -5,7 +5,6 @@
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <asm/dmi.h>
 
 /*

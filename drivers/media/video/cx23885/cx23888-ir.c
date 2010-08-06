@@ -3,7 +3,7 @@
  *
  *  CX23888 Integrated Consumer Infrared Controller
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -22,6 +22,7 @@
  */
 
 #include <linux/kfifo.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>

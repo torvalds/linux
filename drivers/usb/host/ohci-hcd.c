@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/hcd.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/workqueue.h>
@@ -43,7 +44,6 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
-#include "../core/hcd.h"
 
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
@@ -1006,9 +1006,14 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_s3c2410_driver
 #endif
 
-#ifdef CONFIG_ARCH_OMAP
+#ifdef CONFIG_USB_OHCI_HCD_OMAP1
 #include "ohci-omap.c"
-#define PLATFORM_DRIVER		ohci_hcd_omap_driver
+#define OMAP1_PLATFORM_DRIVER	ohci_hcd_omap_driver
+#endif
+
+#ifdef CONFIG_USB_OHCI_HCD_OMAP3
+#include "ohci-omap3.c"
+#define OMAP3_PLATFORM_DRIVER	ohci_hcd_omap3_driver
 #endif
 
 #ifdef CONFIG_ARCH_LH7A404
@@ -1092,6 +1097,8 @@ MODULE_LICENSE ("GPL");
 
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
+	!defined(OMAP1_PLATFORM_DRIVER) &&	\
+	!defined(OMAP3_PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER) &&	\
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
@@ -1131,6 +1138,18 @@ static int __init ohci_hcd_mod_init(void)
 	retval = platform_driver_register(&PLATFORM_DRIVER);
 	if (retval < 0)
 		goto error_platform;
+#endif
+
+#ifdef OMAP1_PLATFORM_DRIVER
+	retval = platform_driver_register(&OMAP1_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_omap1_platform;
+#endif
+
+#ifdef OMAP3_PLATFORM_DRIVER
+	retval = platform_driver_register(&OMAP3_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_omap3_platform;
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
@@ -1199,6 +1218,14 @@ static int __init ohci_hcd_mod_init(void)
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
  error_platform:
+#endif
+#ifdef OMAP1_PLATFORM_DRIVER
+	platform_driver_unregister(&OMAP1_PLATFORM_DRIVER);
+ error_omap1_platform:
+#endif
+#ifdef OMAP3_PLATFORM_DRIVER
+	platform_driver_unregister(&OMAP3_PLATFORM_DRIVER);
+ error_omap3_platform:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);

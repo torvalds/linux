@@ -20,6 +20,9 @@
 		strb	\rd, [\rx]
 		.endm
 
+		.macro waituart,rd,rx
+		.endm
+
 		.macro	busyuart,rd,rx
 		mov	\rd, #0
 1001:		add	\rd, \rd, #1

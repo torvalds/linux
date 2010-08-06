@@ -54,7 +54,7 @@ extern struct kmem_cache *kvm_vcpu_cache;
  */
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 6
+#define NR_IOBUS_DEVS 200
 	struct kvm_io_device *devs[NR_IOBUS_DEVS];
 };
 
@@ -81,13 +81,14 @@ struct kvm_vcpu {
 	int vcpu_id;
 	struct mutex mutex;
 	int   cpu;
+	atomic_t guest_mode;
 	struct kvm_run *run;
 	unsigned long requests;
 	unsigned long guest_debug;
 	int srcu_idx;
 
 	int fpu_active;
-	int guest_fpu_loaded;
+	int guest_fpu_loaded, guest_xcr0_loaded;
 	wait_queue_head_t wq;
 	int sigset_active;
 	sigset_t sigset;
@@ -105,6 +106,12 @@ struct kvm_vcpu {
 	struct kvm_vcpu_arch arch;
 };
 
+/*
+ * Some of the bitops functions do not support too long bitmaps.
+ * This number must be determined not to exceed such limits.
+ */
+#define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
+
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -117,7 +124,13 @@ struct kvm_memory_slot {
 	} *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned long userspace_addr;
 	int user_alloc;
+	int id;
 };
+
+static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memslot)
+{
+	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+}
 
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
@@ -232,23 +245,31 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-int kvm_init(void *opaque, unsigned int vcpu_size,
+int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 		  struct module *module);
 void kvm_exit(void);
 
 void kvm_get_kvm(struct kvm *kvm);
 void kvm_put_kvm(struct kvm *kvm);
 
+static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
+{
+	return rcu_dereference_check(kvm->memslots,
+			srcu_read_lock_held(&kvm->srcu)
+			|| lockdep_is_held(&kvm->slots_lock));
+}
+
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
 #define HPA_ERR_MASK ((hpa_t)1 << HPA_MSB)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
-struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
 extern struct page *bad_page;
 extern pfn_t bad_pfn;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);
+int is_hwpoison_pfn(pfn_t pfn);
+int is_fault_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -267,8 +288,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				int user_alloc);
 void kvm_disable_largepages(void);
 void kvm_arch_flush_shadow(struct kvm *kvm);
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
-gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
@@ -428,7 +447,8 @@ void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
 				    struct kvm_irq_mask_notifier *kimn);
 void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 				      struct kvm_irq_mask_notifier *kimn);
-void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask);
+void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
+			     bool mask);
 
 #ifdef __KVM_HAVE_IOAPIC
 void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
@@ -545,10 +565,6 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 }
 #endif
 
-#ifndef KVM_ARCH_HAS_UNALIAS_INSTANTIATION
-#define unalias_gfn_instantiation unalias_gfn
-#endif
-
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 
 #define KVM_MAX_IRQ_ROUTES 1024
@@ -610,6 +626,26 @@ static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 }
 
 #endif
+
+static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+{
+	set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_make_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	return test_and_set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	if (test_bit(req, &vcpu->requests)) {
+		clear_bit(req, &vcpu->requests);
+		return true;
+	} else {
+		return false;
+	}
+}
 
 #endif
 

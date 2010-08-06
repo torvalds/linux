@@ -26,7 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
-#include "radeon_fixed.h"
+#include <drm/drm_fixed.h>
 #include "radeon.h"
 #include "atom.h"
 
@@ -314,6 +314,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
+		radeon_crtc->enabled = true;
+		/* adjust pm to dpms changes BEFORE enabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		if (radeon_crtc->crtc_id)
 			WREG32_P(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_EN, ~(RADEON_CRTC2_EN | mask));
 		else {
@@ -335,6 +338,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 										    RADEON_CRTC_DISP_REQ_EN_B));
 			WREG32_P(RADEON_CRTC_EXT_CNTL, mask, ~mask);
 		}
+		radeon_crtc->enabled = false;
+		/* adjust pm to dpms changes AFTER disabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		break;
 	}
 }
@@ -603,6 +609,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				      ? RADEON_CRTC2_INTERLACE_EN
 				      : 0));
 
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc2_gen_cntl |= RADEON_CRTC2_EN;
+
 		disp2_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
 		disp2_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
 
@@ -629,6 +639,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				 | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				    ? RADEON_CRTC_INTERLACE_EN
 				    : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc_gen_cntl |= RADEON_CRTC_EN;
 
 		crtc_ext_cntl = RREG32(RADEON_CRTC_EXT_CNTL);
 		crtc_ext_cntl |= (RADEON_XCRT_CNT_EN |
@@ -958,6 +972,12 @@ static bool radeon_crtc_mode_fixup(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	/* adjust pm to upcoming mode change */
+	radeon_pm_compute_clocks(rdev);
+
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	return true;

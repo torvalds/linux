@@ -34,10 +34,6 @@ static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 {
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
-	struct drm_device *dev = drm_fb->dev;
-
-	if (drm_fb->fbdev)
-		nouveau_fbcon_remove(dev, drm_fb);
 
 	if (fb->nvbo)
 		drm_gem_object_unreference_unlocked(fb->nvbo->gem);
@@ -61,27 +57,20 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 	.create_handle = nouveau_user_framebuffer_create_handle,
 };
 
-struct drm_framebuffer *
-nouveau_framebuffer_create(struct drm_device *dev, struct nouveau_bo *nvbo,
-			   struct drm_mode_fb_cmd *mode_cmd)
+int
+nouveau_framebuffer_init(struct drm_device *dev, struct nouveau_framebuffer *nouveau_fb,
+			 struct drm_mode_fb_cmd *mode_cmd, struct nouveau_bo *nvbo)
 {
-	struct nouveau_framebuffer *fb;
 	int ret;
 
-	fb = kzalloc(sizeof(struct nouveau_framebuffer), GFP_KERNEL);
-	if (!fb)
-		return NULL;
-
-	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
+	ret = drm_framebuffer_init(dev, &nouveau_fb->base, &nouveau_framebuffer_funcs);
 	if (ret) {
-		kfree(fb);
-		return NULL;
+		return ret;
 	}
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
-
-	fb->nvbo = nvbo;
-	return &fb->base;
+	drm_helper_mode_fill_fb_struct(&nouveau_fb->base, mode_cmd);
+	nouveau_fb->nvbo = nvbo;
+	return 0;
 }
 
 static struct drm_framebuffer *
@@ -89,24 +78,29 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				struct drm_mode_fb_cmd *mode_cmd)
 {
-	struct drm_framebuffer *fb;
+	struct nouveau_framebuffer *nouveau_fb;
 	struct drm_gem_object *gem;
+	int ret;
 
 	gem = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
 	if (!gem)
 		return NULL;
 
-	fb = nouveau_framebuffer_create(dev, nouveau_gem_object(gem), mode_cmd);
-	if (!fb) {
+	nouveau_fb = kzalloc(sizeof(struct nouveau_framebuffer), GFP_KERNEL);
+	if (!nouveau_fb)
+		return NULL;
+
+	ret = nouveau_framebuffer_init(dev, nouveau_fb, mode_cmd, nouveau_gem_object(gem));
+	if (ret) {
 		drm_gem_object_unreference(gem);
 		return NULL;
 	}
 
-	return fb;
+	return &nouveau_fb->base;
 }
 
 const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
-	.fb_changed = nouveau_fbcon_probe,
+	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 };
 

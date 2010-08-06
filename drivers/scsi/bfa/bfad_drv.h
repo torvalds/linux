@@ -46,7 +46,7 @@
 #ifdef BFA_DRIVER_VERSION
 #define BFAD_DRIVER_VERSION    BFA_DRIVER_VERSION
 #else
-#define BFAD_DRIVER_VERSION    "2.1.2.1"
+#define BFAD_DRIVER_VERSION    "2.2.2.1"
 #endif
 
 
@@ -111,6 +111,9 @@ struct bfad_port_s {
 	struct bfad_im_port_s *im_port;	/* IM specific data */
 	struct bfad_tm_port_s *tm_port;	/* TM specific data */
 	struct bfad_ipfc_port_s *ipfc_port;	/* IPFC specific data */
+
+	/* port debugfs specific data */
+	struct dentry *port_debugfs_root;
 };
 
 /*
@@ -120,6 +123,8 @@ struct bfad_vport_s {
 	struct bfad_port_s     drv_port;
 	struct bfa_fcs_vport_s fcs_vport;
 	struct completion *comp_del;
+	struct list_head list_entry;
+	struct bfa_port_cfg_s port_cfg;
 };
 
 /*
@@ -139,18 +144,6 @@ struct bfad_cfg_param_s {
 	u32        binding_method;
 };
 
-union bfad_tmp_buf {
-	/* From struct bfa_adapter_attr_s */
-	char            manufacturer[BFA_ADAPTER_MFG_NAME_LEN];
-	char            serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
-	char            model[BFA_ADAPTER_MODEL_NAME_LEN];
-	char            fw_ver[BFA_VERSION_LEN];
-	char            optrom_ver[BFA_VERSION_LEN];
-
-	/* From struct bfa_ioc_pci_attr_s */
-	u8         chip_rev[BFA_IOC_CHIP_REV_LEN];  /*  chip revision */
-};
-
 /*
  * BFAD (PCI function) data structure
  */
@@ -162,7 +155,6 @@ struct bfad_s {
 	const char *pci_name;
 	struct bfa_pcidev_s hal_pcidev;
 	struct bfa_ioc_pci_attr_s pci_attr;
-	unsigned long   pci_bar0_map;
 	void __iomem   *pci_bar0_kva;
 	struct completion comp;
 	struct completion suspend;
@@ -194,8 +186,18 @@ struct bfad_s {
 	struct bfa_plog_s      plog_buf;
 	int             ref_count;
 	bfa_boolean_t	ipfc_enabled;
-	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
+	struct list_head pbc_pcfg_list;
+	atomic_t wq_reqcnt;
+	/* debugfs specific data */
+	char *regdata;
+	u32 reglen;
+	struct dentry *bfad_dentry_files[5];
+};
+
+struct bfad_pcfg_s {
+	struct list_head list_entry;
+	struct bfa_port_cfg_s port_cfg;
 };
 
 /*
@@ -254,7 +256,7 @@ do {                                            	\
 
 
 bfa_status_t    bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-				  struct bfa_port_cfg_s *port_cfg);
+			  struct bfa_port_cfg_s *port_cfg, struct device *dev);
 bfa_status_t    bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
 			       struct bfa_port_cfg_s *port_cfg);
 bfa_status_t    bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role);
@@ -281,7 +283,9 @@ void		bfad_drv_uninit(struct bfad_s *bfad);
 void		bfad_drv_log_level_set(struct bfad_s *bfad);
 bfa_status_t	bfad_fc4_module_init(void);
 void		bfad_fc4_module_exit(void);
-int		bfad_worker (void *ptr);
+int		bfad_worker(void *ptr);
+void		bfad_debugfs_init(struct bfad_port_s *port);
+void		bfad_debugfs_exit(struct bfad_port_s *port);
 
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);
@@ -294,5 +298,7 @@ extern struct list_head bfad_list;
 extern int bfa_lun_queue_depth;
 extern int bfad_supported_fc4s;
 extern int bfa_linkup_delay;
+extern int bfa_debugfs_enable;
+extern struct mutex bfad_mutex;
 
 #endif /* __BFAD_DRV_H__ */

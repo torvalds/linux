@@ -1,0 +1,15 @@
+config MRST_RAR_HANDLER
+	tristate "RAR handler driver for Intel Moorestown platform"
+	depends on RAR_REGISTER
+	---help---
+	  This driver provides a memory management interface to
+	  restricted access regions (RAR) available on the Intel
+	  Moorestown platform.
+
+	  Once locked down, restricted access regions are only
+	  accessible by specific hardware on the platform.  The x86
+	  CPU is typically not one of those platforms.  As such this
+	  driver does not access RAR, and only provides a buffer
+	  allocation/bookkeeping mechanism.
+
+	  If unsure, say N.

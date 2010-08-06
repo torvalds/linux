@@ -23,6 +23,7 @@ struct nfs_unlinkdata {
 	struct nfs_removeres res;
 	struct inode *dir;
 	struct rpc_cred	*cred;
+	struct nfs_fattr dir_attr;
 };
 
 /**
@@ -169,7 +170,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	}
 	nfs_sb_active(dir->i_sb);
 	data->args.fh = NFS_FH(dir);
-	nfs_fattr_init(&data->res.dir_attr);
+	nfs_fattr_init(data->res.dir_attr);
 
 	NFS_PROTO(dir)->unlink_setup(&msg, dir);
 
@@ -259,6 +260,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 		goto out_free;
 	}
 	data->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
+	data->res.dir_attr = &data->dir_attr;
 
 	status = -EBUSY;
 	spin_lock(&dentry->d_lock);

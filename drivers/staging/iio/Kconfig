@@ -41,6 +41,8 @@ config IIO_TRIGGER
 
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
+source "drivers/staging/iio/gyro/Kconfig"
+source "drivers/staging/iio/imu/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
 
 source "drivers/staging/iio/trigger/Kconfig"

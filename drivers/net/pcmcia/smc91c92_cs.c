@@ -103,7 +103,6 @@ struct smc_private {
     u_short			manfid;
     u_short			cardid;
 
-    dev_node_t			node;
     struct sk_buff		*saved_skb;
     int				packets_waiting;
     void			__iomem *base;
@@ -329,8 +328,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->io.NumPorts1 = 16;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 4;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = &smc_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -363,8 +360,7 @@ static void smc91c92_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "smc91c92_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     smc91c92_release(link);
 
@@ -453,7 +449,6 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -493,13 +488,14 @@ static int pcmcia_get_versmac(struct pcmcia_device *p_dev,
 {
 	struct net_device *dev = priv;
 	cisparse_t parse;
+	u8 *buf;
 
 	if (pcmcia_parse_tuple(tuple, &parse))
 		return -EINVAL;
 
-	if ((parse.version_1.ns > 3) &&
-	    (cvt_ascii_address(dev,
-			       (parse.version_1.str + parse.version_1.ofs[3]))))
+	buf = parse.version_1.str + parse.version_1.ofs[3];
+
+	if ((parse.version_1.ns > 3) && (cvt_ascii_address(dev, buf) == 0))
 		return 0;
 
 	return -EINVAL;
@@ -528,7 +524,7 @@ static int mhz_setup(struct pcmcia_device *link)
     len = pcmcia_get_tuple(link, 0x81, &buf);
     if (buf && len >= 13) {
 	    buf[12] = '\0';
-	    if (cvt_ascii_address(dev, buf))
+	    if (cvt_ascii_address(dev, buf) == 0)
 		    rc = 0;
     }
     kfree(buf);
@@ -651,7 +647,6 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.NumPorts1 = 64;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -876,7 +871,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (i)
 	    goto config_failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
+    i = pcmcia_request_irq(link, smc_interrupt);
     if (i)
 	    goto config_failed;
     i = pcmcia_request_configuration(link, &link->conf);
@@ -886,7 +881,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (smc->manfid == MANFID_MOTOROLA)
 	mot_config(link);
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
 
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
@@ -910,7 +905,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 
     if (i != 0) {
 	printk(KERN_NOTICE "smc91c92_cs: Unable to find hardware address.\n");
-	goto config_undo;
+	goto config_failed;
     }
 
     smc->duplex = 0;
@@ -959,16 +954,12 @@ static int smc91c92_config(struct pcmcia_device *link)
 	SMC_SELECT_BANK(0);
     }
 
-    link->dev_node = &smc->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_undo;
     }
-
-    strcpy(smc->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
 	   "hw_addr %pM\n",
@@ -998,6 +989,7 @@ config_undo:
     unregister_netdev(dev);
 config_failed:
     smc91c92_release(link);
+    free_netdev(dev);
     return -ENODEV;
 } /* smc91c92_config */
 
@@ -1237,7 +1229,6 @@ static void smc_hardware_send_packet(struct net_device * dev)
     dev_kfree_skb_irq(skb);
     dev->trans_start = jiffies;
     netif_start_queue(dev);
-    return;
 }
 
 /*====================================================================*/
@@ -1252,7 +1243,7 @@ static void smc_tx_timeout(struct net_device *dev)
 	   dev->name, inw(ioaddr)&0xff, inw(ioaddr + 2));
     dev->stats.tx_errors++;
     smc_reset(dev);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     smc->saved_skb = NULL;
     netif_wake_queue(dev);
 }
@@ -1367,7 +1358,6 @@ static void smc_tx_err(struct net_device * dev)
     smc->packets_waiting--;
 
     outw(saved_packet, ioaddr + PNR_ARR);
-    return;
 }
 
 /*====================================================================*/
@@ -1515,12 +1505,20 @@ irq_done:
 	writeb(cor & ~COR_IREQ_ENA, smc->base + MOT_LAN + CISREG_COR);
 	writeb(cor, smc->base + MOT_LAN + CISREG_COR);
     }
-#ifdef DOES_NOT_WORK
-    if (smc->base != NULL) { /* Megahertz MFC's */
-	readb(smc->base+MEGAHERTZ_ISR);
-	readb(smc->base+MEGAHERTZ_ISR);
+
+    if ((smc->base != NULL) &&  /* Megahertz MFC's */
+	(smc->manfid == MANFID_MEGAHERTZ) &&
+	(smc->cardid == PRODID_MEGAHERTZ_EM3288)) {
+
+	u_char tmp;
+	tmp = readb(smc->base+MEGAHERTZ_ISR);
+	tmp = readb(smc->base+MEGAHERTZ_ISR);
+
+	/* Retrigger interrupt if needed */
+	writeb(tmp, smc->base + MEGAHERTZ_ISR);
+	writeb(tmp, smc->base + MEGAHERTZ_ISR);
     }
-#endif
+
     spin_unlock(&smc->lock);
     return IRQ_RETVAL(handled);
 }
@@ -1587,8 +1585,6 @@ static void smc_rx(struct net_device *dev)
     }
     /* Let the MMU free the memory of this packet. */
     outw(MC_RELEASE, ioaddr + MMU_CMD);
-
-    return;
 }
 
 /*======================================================================
@@ -1606,9 +1602,12 @@ static void set_rx_mode(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
     struct smc_private *smc = netdev_priv(dev);
-    u_int multicast_table[ 2 ] = { 0, };
+    unsigned char multicast_table[8];
     unsigned long flags;
     u_short rx_cfg_setting;
+    int i;
+
+    memset(multicast_table, 0, sizeof(multicast_table));
 
     if (dev->flags & IFF_PROMISC) {
 	rx_cfg_setting = RxStripCRC | RxEnable | RxPromisc | RxAllMulti;
@@ -1616,14 +1615,10 @@ static void set_rx_mode(struct net_device *dev)
 	rx_cfg_setting = RxStripCRC | RxEnable | RxAllMulti;
     else {
 	if (!netdev_mc_empty(dev)) {
-	    struct dev_mc_list *mc_addr;
+	    struct netdev_hw_addr *ha;
 
-	    netdev_for_each_mc_addr(mc_addr, dev) {
-		u_int position = ether_crc(6, mc_addr->dmi_addr);
-#ifndef final_version		/* Verify multicast address. */
-		if ((mc_addr->dmi_addr[0] & 1) == 0)
-		    continue;
-#endif
+	    netdev_for_each_mc_addr(ha, dev) {
+		u_int position = ether_crc(6, ha->addr);
 		multicast_table[position >> 29] |= 1 << ((position >> 26) & 7);
 	    }
 	}
@@ -1633,14 +1628,12 @@ static void set_rx_mode(struct net_device *dev)
     /* Load MC table and Rx setting into the chip without interrupts. */
     spin_lock_irqsave(&smc->lock, flags);
     SMC_SELECT_BANK(3);
-    outl(multicast_table[0], ioaddr + MULTICAST0);
-    outl(multicast_table[1], ioaddr + MULTICAST4);
+    for (i = 0; i < 8; i++)
+	outb(multicast_table[i], ioaddr + MULTICAST0 + i);
     SMC_SELECT_BANK(0);
     outw(rx_cfg_setting, ioaddr + RCR);
     SMC_SELECT_BANK(2);
     spin_unlock_irqrestore(&smc->lock, flags);
-
-    return;
 }
 
 /*======================================================================
@@ -1803,22 +1796,29 @@ static void media_check(u_long arg)
     SMC_SELECT_BANK(1);
     media |= (inw(ioaddr + CONFIG) & CFG_AUI_SELECT) ? 2 : 1;
 
+    SMC_SELECT_BANK(saved_bank);
+    spin_unlock_irqrestore(&smc->lock, flags);
+
     /* Check for pending interrupt with watchdog flag set: with
        this, we can limp along even if the interrupt is blocked */
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	local_irq_save(flags);
 	smc_interrupt(dev->irq, dev);
+	local_irq_restore(flags);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {
 	smc->fast_poll--;
 	smc->media.expires = jiffies + HZ/100;
 	add_timer(&smc->media);
-	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irqrestore(&smc->lock, flags);
 	return;
     }
+
+    spin_lock_irqsave(&smc->lock, flags);
+
+    saved_bank = inw(ioaddr + BANK_SELECT);
 
     if (smc->cfg & CFG_MII_SELECT) {
 	if (smc->mii_if.phy_id < 0)
@@ -1977,15 +1977,16 @@ static int smc_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_gset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_get_ecmd(dev, ecmd);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -1995,15 +1996,16 @@ static int smc_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_sset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_set_ecmd(dev, ecmd);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -2013,12 +2015,13 @@ static u32 smc_get_link(struct net_device *dev)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	u32 ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	ret = smc_link_ok(dev);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -2055,16 +2058,17 @@ static int smc_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	int rc = 0;
 	u16 saved_bank;
 	unsigned int ioaddr = dev->base_addr;
+	unsigned long flags;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	saved_bank = inw(ioaddr + BANK_SELECT);
 	SMC_SELECT_BANK(3);
 	rc = generic_mii_ioctl(&smc->mii_if, mii, cmd, NULL);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return rc;
 }
 

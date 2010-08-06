@@ -106,7 +106,6 @@ static int major;		/* major number we get from the kernel */
 
 struct cm4000_dev {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;		/* OS node (major,minor) */
 
 	unsigned char atr[MAX_ATR];
 	unsigned char rbuf[512];
@@ -884,8 +883,7 @@ static void monitor_card(unsigned long p)
 		/* slow down warning, but prompt immediately after insertion */
 		if (dev->cwarn == 0 || dev->cwarn == 10) {
 			set_bit(IS_BAD_CARD, &dev->flags);
-			printk(KERN_WARNING MODULE_NAME ": device %s: ",
-			       dev->node.dev_name);
+			dev_warn(&dev->p_dev->dev, MODULE_NAME ": ");
 			if (test_bit(IS_BAD_CSUM, &dev->flags)) {
 				DEBUGP(4, dev, "ATR checksum (0x%.2x, should "
 				       "be zero) failed\n", dev->atr_csum);
@@ -1026,14 +1024,16 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 
 	xoutb(0, REG_FLAGS1(iobase));	/* clear detectCMM */
 	/* last check before exit */
-	if (!io_detect_cm4000(iobase, dev))
-		count = -ENODEV;
+	if (!io_detect_cm4000(iobase, dev)) {
+		rc = -ENODEV;
+		goto release_io;
+	}
 
 	if (test_bit(IS_INVREV, &dev->flags) && count > 0)
 		str_invert_revert(dev->rbuf, count);
 
 	if (copy_to_user(buf, dev->rbuf, count))
-		return -EFAULT;
+		rc = -EFAULT;
 
 release_io:
 	clear_bit(LOCK_IO, &dev->flags);
@@ -1779,11 +1779,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 		goto cs_release;
 
 	dev = link->priv;
-	sprintf(dev->node.dev_name, DEVICE_NAME "%d", devno);
-	dev->node.major = major;
-	dev->node.minor = devno;
-	dev->node.next = NULL;
-	link->dev_node = &dev->node;
 
 	return 0;
 

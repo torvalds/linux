@@ -46,6 +46,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "actables.h"
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER
@@ -219,6 +220,10 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	struct acpi_walk_state *walk_state;
 
 	ACPI_FUNCTION_TRACE(ps_execute_method);
+
+	/* Quick validation of DSDT header */
+
+	acpi_tb_check_dsdt_header();
 
 	/* Validate the Info and method Node */
 

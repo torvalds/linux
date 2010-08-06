@@ -1016,7 +1016,7 @@ static int fuse_permission(struct inode *inode, int mask)
 		   exist.  So if permissions are revoked this won't be
 		   noticed immediately, only after the attribute
 		   timeout has expired */
-	} else if (mask & MAY_ACCESS) {
+	} else if (mask & (MAY_ACCESS | MAY_CHDIR)) {
 		err = fuse_access(inode, mask);
 	} else if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		if (!(inode->i_mode & S_IXUGO)) {
@@ -1156,10 +1156,9 @@ static int fuse_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)
+static int fuse_dir_fsync(struct file *file, int datasync)
 {
-	/* nfsd can call this with no file */
-	return file ? fuse_fsync_common(file, de, datasync, 1) : 0;
+	return fuse_fsync_common(file, datasync, 1);
 }
 
 static bool update_mtime(unsigned ivalid)

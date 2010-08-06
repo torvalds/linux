@@ -21,6 +21,7 @@
 #include <linux/binfmts.h>
 #include <linux/mount.h>
 #include <linux/mman.h>
+#include <linux/slab.h>
 
 #include "ima.h"
 
@@ -194,7 +195,7 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 	     (iint->writecount < 0)) &&
 	    !ima_limit_imbalance(file)) {
 		printk(KERN_INFO "%s: open/free imbalance (r:%ld w:%ld o:%ld)\n",
-		       __FUNCTION__, iint->readcount, iint->writecount,
+		       __func__, iint->readcount, iint->writecount,
 		       iint->opencount);
 		dump_stack();
 	}

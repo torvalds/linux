@@ -21,9 +21,8 @@
  * probed using OF properties.
  */
 struct of_device {
-	struct device_node	*node; /* to be obsoleted */
-	u64			dma_mask; /* DMA mask */
 	struct device		dev; /* Generic device interface */
+	struct pdev_archdata	archdata;
 };
 
 extern ssize_t of_device_get_modalias(struct of_device *ofdev,

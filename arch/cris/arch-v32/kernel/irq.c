@@ -280,8 +280,7 @@ out:
 	return cpu;
 }
 
-void
-mask_irq(int irq)
+void crisv32_mask_irq(int irq)
 {
 	int cpu;
 
@@ -289,8 +288,7 @@ mask_irq(int irq)
 		block_irq(irq, cpu);
 }
 
-void
-unmask_irq(int irq)
+void crisv32_unmask_irq(int irq)
 {
 	unblock_irq(irq, irq_cpu(irq));
 }
@@ -298,23 +296,23 @@ unmask_irq(int irq)
 
 static unsigned int startup_crisv32_irq(unsigned int irq)
 {
-	unmask_irq(irq);
+	crisv32_unmask_irq(irq);
 	return 0;
 }
 
 static void shutdown_crisv32_irq(unsigned int irq)
 {
-	mask_irq(irq);
+	crisv32_mask_irq(irq);
 }
 
 static void enable_crisv32_irq(unsigned int irq)
 {
-	unmask_irq(irq);
+	crisv32_unmask_irq(irq);
 }
 
 static void disable_crisv32_irq(unsigned int irq)
 {
-	mask_irq(irq);
+	crisv32_mask_irq(irq);
 }
 
 static void ack_crisv32_irq(unsigned int irq)

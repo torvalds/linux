@@ -21,7 +21,6 @@ startup_continue:
 	larl	%r1,sched_clock_base_cc
 	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
 	larl	%r13,.LPG1		# get base
-	lmh	%r0,%r15,.Lzero64-.LPG1(%r13)	# clear high-order half
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
 					# move IPL device to lowcore
@@ -67,7 +66,6 @@ startup_continue:
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
 .Lnop:	.long	0x07000700
-.Lzero64:.fill	16,4,0x0
 .Lparmaddr:
 	.quad	PARMAREA
 	.align	64
@@ -82,7 +80,7 @@ startup_continue:
 _ehead:
 
 #ifdef CONFIG_SHARED_KERNEL
-	.org	0x100000
+	.org	0x100000 - 0x11000	# head.o ends at 0x11000
 #endif
 
 #

@@ -1,7 +1,8 @@
 /*
  * Contains routines needed to support swiotlb for ppc.
  *
- * Copyright (C) 2009 Becky Bruce, Freescale Semiconductor
+ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc.
+ * Author: Becky Bruce
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -38,8 +39,8 @@ struct dma_map_ops swiotlb_dma_ops = {
 	.dma_supported = swiotlb_dma_supported,
 	.map_page = swiotlb_map_page,
 	.unmap_page = swiotlb_unmap_page,
-	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
-	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
+	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
+	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = swiotlb_sync_sg_for_device,
 	.mapping_error = swiotlb_dma_mapping_error,
@@ -70,7 +71,7 @@ static int ppc_swiotlb_bus_notify(struct notifier_block *nb,
 	sd->max_direct_dma_addr = 0;
 
 	/* May need to bounce if the device can't address all of DRAM */
-	if (dma_get_mask(dev) < lmb_end_of_DRAM())
+	if ((dma_get_mask(dev) + 1) < memblock_end_of_DRAM())
 		set_dma_ops(dev, &swiotlb_dma_ops);
 
 	return NOTIFY_DONE;

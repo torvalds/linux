@@ -19,6 +19,7 @@
  *  Copyright (c) Dimitri Sivanich
  */
 #include <linux/clockchips.h>
+#include <linux/slab.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>

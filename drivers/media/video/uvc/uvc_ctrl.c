@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
@@ -121,8 +122,8 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_PU_POWER_LINE_FREQUENCY_CONTROL,
 		.index		= 10,
 		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_RESTORE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_PROCESSING,
@@ -216,8 +217,7 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_EXPOSURE_TIME_RELATIVE_CONTROL,
 		.index		= 4,
 		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_RESTORE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_RESTORE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -232,8 +232,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_FOCUS_RELATIVE_CONTROL,
 		.index		= 6,
 		.size		= 2,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -248,8 +249,7 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_IRIS_RELATIVE_CONTROL,
 		.index		= 8,
 		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -264,8 +264,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_ZOOM_RELATIVE_CONTROL,
 		.index		= 10,
 		.size		= 3,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -280,8 +281,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_PANTILT_RELATIVE_CONTROL,
 		.index		= 12,
 		.size		= 4,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -296,8 +298,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_ROLL_RELATIVE_CONTROL,
 		.index		= 14,
 		.size		= 2,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -561,6 +564,26 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.data_type	= UVC_CTRL_DATA_TYPE_BOOLEAN,
 	},
 	{
+		.id		= V4L2_CID_IRIS_ABSOLUTE,
+		.name		= "Iris, Absolute",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_IRIS_ABSOLUTE_CONTROL,
+		.size		= 16,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+	},
+	{
+		.id		= V4L2_CID_IRIS_RELATIVE,
+		.name		= "Iris, Relative",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_IRIS_RELATIVE_CONTROL,
+		.size		= 8,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
+	},
+	{
 		.id		= V4L2_CID_ZOOM_ABSOLUTE,
 		.name		= "Zoom, Absolute",
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -583,6 +606,26 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.set		= uvc_ctrl_set_zoom,
 	},
 	{
+		.id		= V4L2_CID_PAN_ABSOLUTE,
+		.name		= "Pan (Absolute)",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_PANTILT_ABSOLUTE_CONTROL,
+		.size		= 32,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+	},
+	{
+		.id		= V4L2_CID_TILT_ABSOLUTE,
+		.name		= "Tilt (Absolute)",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_PANTILT_ABSOLUTE_CONTROL,
+		.size		= 32,
+		.offset		= 32,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+	},
+	{
 		.id		= V4L2_CID_PRIVACY,
 		.name		= "Privacy",
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -600,7 +643,7 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 
 static inline __u8 *uvc_ctrl_data(struct uvc_control *ctrl, int id)
 {
-	return ctrl->data + id * ctrl->info->size;
+	return ctrl->uvc_data + id * ctrl->info->size;
 }
 
 static inline int uvc_test_bit(const __u8 *data, int bit)
@@ -654,6 +697,14 @@ static void uvc_set_le_value(struct uvc_control_mapping *mapping,
 	int bits = mapping->size;
 	int offset = mapping->offset;
 	__u8 mask;
+
+	/* According to the v4l2 spec, writing any value to a button control
+	 * should result in the action belonging to the button control being
+	 * triggered. UVC devices however want to see a 1 written -> override
+	 * value.
+	 */
+	if (mapping->v4l2_type == V4L2_CTRL_TYPE_BUTTON)
+		value = -1;
 
 	data += offset / 8;
 	offset &= 7;
@@ -821,6 +872,8 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	strlcpy(v4l2_ctrl->name, mapping->name, sizeof v4l2_ctrl->name);
 	v4l2_ctrl->flags = 0;
 
+	if (!(ctrl->info->flags & UVC_CONTROL_GET_CUR))
+		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 	if (!(ctrl->info->flags & UVC_CONTROL_SET_CUR))
 		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
@@ -1046,6 +1099,8 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
 		step = mapping->get(mapping, UVC_GET_RES,
 				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		if (step == 0)
+			step = 1;
 
 		xctrl->value = min + (xctrl->value - min + step/2) / step * step;
 		xctrl->value = clamp(xctrl->value, min, max);
@@ -1238,13 +1293,15 @@ int uvc_ctrl_resume_device(struct uvc_device *dev)
  * Control and mapping handling
  */
 
-static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
+static int uvc_ctrl_add_ctrl(struct uvc_device *dev,
 	struct uvc_control_info *info)
 {
 	struct uvc_entity *entity;
 	struct uvc_control *ctrl = NULL;
-	int ret, found = 0;
+	int ret = 0, found = 0;
 	unsigned int i;
+	u8 *uvc_info;
+	u8 *uvc_data;
 
 	list_for_each_entry(entity, &dev->entities, list) {
 		if (!uvc_entity_match_guid(entity, info->entity))
@@ -1263,56 +1320,69 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 	}
 
 	if (!found)
-		return;
+		return 0;
+
+	uvc_data = kmalloc(info->size * UVC_CTRL_DATA_LAST + 1, GFP_KERNEL);
+	if (uvc_data == NULL)
+		return -ENOMEM;
+
+	uvc_info = uvc_data + info->size * UVC_CTRL_DATA_LAST;
 
 	if (UVC_ENTITY_TYPE(entity) == UVC_VC_EXTENSION_UNIT) {
 		/* Check if the device control information and length match
 		 * the user supplied information.
 		 */
-		__u32 flags;
-		__le16 size;
-		__u8 inf;
-
 		ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id,
-			dev->intfnum, info->selector, (__u8 *)&size, 2);
+				     dev->intfnum, info->selector, uvc_data, 2);
 		if (ret < 0) {
 			uvc_trace(UVC_TRACE_CONTROL,
 				"GET_LEN failed on control %pUl/%u (%d).\n",
 				info->entity, info->selector, ret);
-			return;
+			goto done;
 		}
 
-		if (info->size != le16_to_cpu(size)) {
+		if (info->size != le16_to_cpu(*(__le16 *)uvc_data)) {
 			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u size "
 				"doesn't match user supplied value.\n",
 				info->entity, info->selector);
-			return;
+			ret = -EINVAL;
+			goto done;
 		}
 
 		ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id,
-			dev->intfnum, info->selector, &inf, 1);
+				     dev->intfnum, info->selector, uvc_info, 1);
 		if (ret < 0) {
 			uvc_trace(UVC_TRACE_CONTROL,
 				"GET_INFO failed on control %pUl/%u (%d).\n",
 				info->entity, info->selector, ret);
-			return;
+			goto done;
 		}
 
-		flags = info->flags;
-		if (((flags & UVC_CONTROL_GET_CUR) && !(inf & (1 << 0))) ||
-		    ((flags & UVC_CONTROL_SET_CUR) && !(inf & (1 << 1)))) {
+		if (((info->flags & UVC_CONTROL_GET_CUR) &&
+		    !(*uvc_info & UVC_CONTROL_CAP_GET)) ||
+		    ((info->flags & UVC_CONTROL_SET_CUR) &&
+		    !(*uvc_info & UVC_CONTROL_CAP_SET))) {
 			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u flags "
 				"don't match supported operations.\n",
 				info->entity, info->selector);
-			return;
+			ret = -EINVAL;
+			goto done;
 		}
 	}
 
 	ctrl->info = info;
-	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_DATA_LAST, GFP_KERNEL);
+	ctrl->uvc_data = uvc_data;
+	ctrl->uvc_info = uvc_info;
+
 	uvc_trace(UVC_TRACE_CONTROL, "Added control %pUl/%u to device %s "
 		"entity %u\n", ctrl->info->entity, ctrl->info->selector,
 		dev->udev->devpath, entity->id);
+
+done:
+	if (ret < 0)
+		kfree(uvc_data);
+
+	return ret;
 }
 
 /*
@@ -1545,9 +1615,31 @@ void uvc_ctrl_cleanup_device(struct uvc_device *dev)
 
 	list_for_each_entry(entity, &dev->entities, list) {
 		for (i = 0; i < entity->ncontrols; ++i)
-			kfree(entity->controls[i].data);
+			kfree(entity->controls[i].uvc_data);
 
 		kfree(entity->controls);
+	}
+}
+
+void uvc_ctrl_cleanup(void)
+{
+	struct uvc_control_info *info;
+	struct uvc_control_info *ni;
+	struct uvc_control_mapping *mapping;
+	struct uvc_control_mapping *nm;
+
+	list_for_each_entry_safe(info, ni, &uvc_driver.controls, list) {
+		if (!(info->flags & UVC_CONTROL_EXTENSION))
+			continue;
+
+		list_for_each_entry_safe(mapping, nm, &info->mappings, list) {
+			list_del(&mapping->list);
+			kfree(mapping->menu_info);
+			kfree(mapping);
+		}
+
+		list_del(&info->list);
+		kfree(info);
 	}
 }
 

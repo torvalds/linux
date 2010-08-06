@@ -82,7 +82,7 @@ struct avtab_node *avtab_search_node_next(struct avtab_node *node, int specified
 void avtab_cache_init(void);
 void avtab_cache_destroy(void);
 
-#define MAX_AVTAB_HASH_BITS 13
+#define MAX_AVTAB_HASH_BITS 11
 #define MAX_AVTAB_HASH_BUCKETS (1 << MAX_AVTAB_HASH_BITS)
 #define MAX_AVTAB_HASH_MASK (MAX_AVTAB_HASH_BUCKETS-1)
 #define MAX_AVTAB_SIZE MAX_AVTAB_HASH_BUCKETS

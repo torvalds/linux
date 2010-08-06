@@ -11,6 +11,7 @@
 #include <linux/suspend.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 
@@ -19,34 +20,10 @@
 #include <asm/dma.h>
 #include <asm/dpmc.h>
 
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_H
-#define WAKEUP_TYPE	PM_WAKE_HIGH
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_L
-#define WAKEUP_TYPE	PM_WAKE_LOW
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_F
-#define WAKEUP_TYPE	PM_WAKE_FALLING
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_R
-#define WAKEUP_TYPE	PM_WAKE_RISING
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_B
-#define WAKEUP_TYPE	PM_WAKE_BOTH_EDGES
-#endif
-
 
 void bfin_pm_suspend_standby_enter(void)
 {
 	unsigned long flags;
-
-#ifdef CONFIG_PM_WAKEUP_BY_GPIO
-	gpio_pm_wakeup_request(CONFIG_PM_WAKEUP_GPIO_NUMBER, WAKEUP_TYPE);
-#endif
 
 	local_irq_save_hw(flags);
 	bfin_pm_standby_setup();

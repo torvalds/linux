@@ -312,6 +312,8 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 	__set_bit(BTN_LEFT, input_dev->keybit);
+
+	input_set_events_per_packet(input_dev, 60);
 }
 
 /* report button data as logical button state */
@@ -580,23 +582,30 @@ exit:
  */
 static int bcm5974_start_traffic(struct bcm5974 *dev)
 {
-	if (bcm5974_wellspring_mode(dev, true)) {
+	int error;
+
+	error = bcm5974_wellspring_mode(dev, true);
+	if (error) {
 		dprintk(1, "bcm5974: mode switch failed\n");
-		goto error;
+		goto err_out;
 	}
 
-	if (usb_submit_urb(dev->bt_urb, GFP_KERNEL))
-		goto error;
+	error = usb_submit_urb(dev->bt_urb, GFP_KERNEL);
+	if (error)
+		goto err_reset_mode;
 
-	if (usb_submit_urb(dev->tp_urb, GFP_KERNEL))
+	error = usb_submit_urb(dev->tp_urb, GFP_KERNEL);
+	if (error)
 		goto err_kill_bt;
 
 	return 0;
 
 err_kill_bt:
 	usb_kill_urb(dev->bt_urb);
-error:
-	return -EIO;
+err_reset_mode:
+	bcm5974_wellspring_mode(dev, false);
+err_out:
+	return error;
 }
 
 static void bcm5974_pause_traffic(struct bcm5974 *dev)
@@ -715,15 +724,15 @@ static int bcm5974_probe(struct usb_interface *iface,
 	if (!dev->tp_urb)
 		goto err_free_bt_urb;
 
-	dev->bt_data = usb_buffer_alloc(dev->udev,
-					dev->cfg.bt_datalen, GFP_KERNEL,
-					&dev->bt_urb->transfer_dma);
+	dev->bt_data = usb_alloc_coherent(dev->udev,
+					  dev->cfg.bt_datalen, GFP_KERNEL,
+					  &dev->bt_urb->transfer_dma);
 	if (!dev->bt_data)
 		goto err_free_urb;
 
-	dev->tp_data = usb_buffer_alloc(dev->udev,
-					dev->cfg.tp_datalen, GFP_KERNEL,
-					&dev->tp_urb->transfer_dma);
+	dev->tp_data = usb_alloc_coherent(dev->udev,
+					  dev->cfg.tp_datalen, GFP_KERNEL,
+					  &dev->tp_urb->transfer_dma);
 	if (!dev->tp_data)
 		goto err_free_bt_buffer;
 
@@ -765,10 +774,10 @@ static int bcm5974_probe(struct usb_interface *iface,
 	return 0;
 
 err_free_buffer:
-	usb_buffer_free(dev->udev, dev->cfg.tp_datalen,
+	usb_free_coherent(dev->udev, dev->cfg.tp_datalen,
 		dev->tp_data, dev->tp_urb->transfer_dma);
 err_free_bt_buffer:
-	usb_buffer_free(dev->udev, dev->cfg.bt_datalen,
+	usb_free_coherent(dev->udev, dev->cfg.bt_datalen,
 		dev->bt_data, dev->bt_urb->transfer_dma);
 err_free_urb:
 	usb_free_urb(dev->tp_urb);
@@ -788,10 +797,10 @@ static void bcm5974_disconnect(struct usb_interface *iface)
 	usb_set_intfdata(iface, NULL);
 
 	input_unregister_device(dev->input);
-	usb_buffer_free(dev->udev, dev->cfg.tp_datalen,
-			dev->tp_data, dev->tp_urb->transfer_dma);
-	usb_buffer_free(dev->udev, dev->cfg.bt_datalen,
-			dev->bt_data, dev->bt_urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->cfg.tp_datalen,
+			  dev->tp_data, dev->tp_urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->cfg.bt_datalen,
+			  dev->bt_data, dev->bt_urb->transfer_dma);
 	usb_free_urb(dev->tp_urb);
 	usb_free_urb(dev->bt_urb);
 	kfree(dev);
@@ -803,7 +812,6 @@ static struct usb_driver bcm5974_driver = {
 	.disconnect		= bcm5974_disconnect,
 	.suspend		= bcm5974_suspend,
 	.resume			= bcm5974_resume,
-	.reset_resume		= bcm5974_resume,
 	.id_table		= bcm5974_table,
 	.supports_autosuspend	= 1,
 };

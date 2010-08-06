@@ -2393,8 +2393,8 @@ struct skge_element {
 	struct skge_element	*next;
 	void			*desc;
 	struct sk_buff  	*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	DECLARE_PCI_UNMAP_LEN(maplen);
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	DEFINE_DMA_UNMAP_LEN(maplen);
 };
 
 struct skge_ring {

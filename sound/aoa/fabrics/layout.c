@@ -12,6 +12,7 @@
 #include <asm/prom.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "../aoa.h"
 #include "../soundbus/soundbus.h"
 
@@ -991,7 +992,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 		return -ENODEV;
 
 	/* by breaking out we keep a reference */
-	while ((sound = of_get_next_child(sdev->ofdev.node, sound))) {
+	while ((sound = of_get_next_child(sdev->ofdev.dev.of_node, sound))) {
 		if (sound->type && strcasecmp(sound->type, "soundchip") == 0)
 			break;
 	}

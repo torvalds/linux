@@ -52,9 +52,19 @@
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
 
-/********* Power managment (WOL) **********/
+/********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
 #define PCICFG_PM_CONTROL_MASK			0x108	/* bits 3 & 8 */
+
+/********* Online Control Registers *******/
+#define PCICFG_ONLINE0				0xB0
+#define PCICFG_ONLINE1				0xB4
+
+/********* UE Status and Mask Registers ***/
+#define PCICFG_UE_STATUS_LOW			0xA0
+#define PCICFG_UE_STATUS_HIGH			0xA4
+#define PCICFG_UE_STATUS_LOW_MASK		0xA8
+#define PCICFG_UE_STATUS_HI_MASK		0xAC
 
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
@@ -98,6 +108,9 @@
 #define DB_MCCQ_RING_ID_MASK		0x7FF	/* bits 0 - 10 */
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
+
+/********** SRIOV VF PCICFG OFFSET ********/
+#define SRIOV_VF_PCICFG_OFFSET		(4096)
 
 /* Flashrom related descriptors */
 #define IMAGE_TYPE_FIRMWARE		160
@@ -189,7 +202,7 @@ struct amap_eth_hdr_wrb {
 	u8 event;
 	u8 crc;
 	u8 forward;
-	u8 ipsec;
+	u8 lso6;
 	u8 mgmt;
 	u8 ipcs;
 	u8 udpcs;

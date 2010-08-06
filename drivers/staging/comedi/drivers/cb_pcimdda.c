@@ -91,7 +91,8 @@ Configuration Options:
 #include "8255.h"
 
 /* device ids of the cards we support -- currently only 1 card supported */
-#define PCI_ID_PCIM_DDA06_16 0x0053
+#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
+#define PCI_ID_PCIM_DDA06_16		0x0053
 
 /*
  * This is straight from skel.c -- I did this in case this source file

@@ -58,13 +58,11 @@ void hwblk_cnt_inc(struct hwblk_info *info, int hwblk, int cnt);
 void hwblk_cnt_dec(struct hwblk_info *info, int hwblk, int cnt);
 
 /* allow clocks to enable and disable hardware blocks */
-#define SH_HWBLK_CLK(_name, _id, _parent, _hwblk, _flags)	\
-{							\
-	.name		= _name,			\
-	.id		= _id,				\
-	.parent		= _parent,			\
-	.arch_flags	= _hwblk,			\
-	.flags		= _flags,			\
+#define SH_HWBLK_CLK(_hwblk, _parent, _flags)	\
+[_hwblk] = {					\
+	.parent		= _parent,		\
+	.arch_flags	= _hwblk,		\
+	.flags		= _flags,		\
 }
 
 int sh_hwblk_clk_register(struct clk *clks, int nr);

@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 
 #include "em28xx.h"
 
@@ -37,6 +38,8 @@
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
+
+#define MODULE_NAME "em28xx"
 
 #define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
@@ -62,17 +65,14 @@ struct em28xx_ir_poll_result {
 struct em28xx_IR {
 	struct em28xx *dev;
 	struct input_dev *input;
-	struct ir_input_state ir;
 	char name[32];
 	char phys[32];
 
 	/* poll external decoder */
 	int polling;
 	struct delayed_work work;
-	unsigned int last_toggle:1;
 	unsigned int full_code:1;
 	unsigned int last_readcount;
-	unsigned int repeat_interval;
 
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
 
@@ -288,67 +288,39 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 {
 	int result;
-	int do_sendkey = 0;
 	struct em28xx_ir_poll_result poll_result;
 
 	/* read the registers containing the IR status */
 	result = ir->get_key(ir, &poll_result);
-	if (result < 0) {
+	if (unlikely(result < 0)) {
 		dprintk("ir->get_key() failed %d\n", result);
 		return;
 	}
 
-	dprintk("ir->get_key result tb=%02x rc=%02x lr=%02x data=%02x%02x\n",
-		poll_result.toggle_bit, poll_result.read_count,
-		ir->last_readcount, poll_result.rc_address,
-		poll_result.rc_data[0]);
-
-	if (ir->dev->chip_id == CHIP_ID_EM2874) {
-		/* The em2874 clears the readcount field every time the
-		   register is read.  The em2860/2880 datasheet says that it
-		   is supposed to clear the readcount, but it doesn't.  So with
-		   the em2874, we are looking for a non-zero read count as
-		   opposed to a readcount that is incrementing */
-		ir->last_readcount = 0;
-	}
-
-	if (poll_result.read_count == 0) {
-		/* The button has not been pressed since the last read */
-	} else if (ir->last_toggle != poll_result.toggle_bit) {
-		/* A button has been pressed */
-		dprintk("button has been pressed\n");
-		ir->last_toggle = poll_result.toggle_bit;
-		ir->repeat_interval = 0;
-		do_sendkey = 1;
-	} else if (poll_result.toggle_bit == ir->last_toggle &&
-		   poll_result.read_count > 0 &&
-		   poll_result.read_count != ir->last_readcount) {
-		/* The button is still being held down */
-		dprintk("button being held down\n");
-
-		/* Debouncer for first keypress */
-		if (ir->repeat_interval++ > 9) {
-			/* Start repeating after 1 second */
-			do_sendkey = 1;
-		}
-	}
-
-	if (do_sendkey) {
-		dprintk("sending keypress\n");
-
+	if (unlikely(poll_result.read_count != ir->last_readcount)) {
+		dprintk("%s: toggle: %d, count: %d, key 0x%02x%02x\n", __func__,
+			poll_result.toggle_bit, poll_result.read_count,
+			poll_result.rc_address, poll_result.rc_data[0]);
 		if (ir->full_code)
-			ir_input_keydown(ir->input, &ir->ir,
-					 poll_result.rc_address << 8 |
-					 poll_result.rc_data[0]);
+			ir_keydown(ir->input,
+				   poll_result.rc_address << 8 |
+				   poll_result.rc_data[0],
+				   poll_result.toggle_bit);
 		else
-			ir_input_keydown(ir->input, &ir->ir,
-					 poll_result.rc_data[0]);
+			ir_keydown(ir->input,
+				   poll_result.rc_data[0],
+				   poll_result.toggle_bit);
 
-		ir_input_nokey(ir->input, &ir->ir);
+		if (ir->dev->chip_id == CHIP_ID_EM2874)
+			/* The em2874 clears the readcount field every time the
+			   register is read.  The em2860/2880 datasheet says that it
+			   is supposed to clear the readcount, but it doesn't.  So with
+			   the em2874, we are looking for a non-zero read count as
+			   opposed to a readcount that is incrementing */
+			ir->last_readcount = 0;
+		else
+			ir->last_readcount = poll_result.read_count;
 	}
-
-	ir->last_readcount = poll_result.read_count;
-	return;
 }
 
 static void em28xx_ir_work(struct work_struct *work)
@@ -359,14 +331,20 @@ static void em28xx_ir_work(struct work_struct *work)
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 }
 
-static void em28xx_ir_start(struct em28xx_IR *ir)
+static int em28xx_ir_start(void *priv)
 {
+	struct em28xx_IR *ir = priv;
+
 	INIT_DELAYED_WORK(&ir->work, em28xx_ir_work);
 	schedule_delayed_work(&ir->work, 0);
+
+	return 0;
 }
 
-static void em28xx_ir_stop(struct em28xx_IR *ir)
+static void em28xx_ir_stop(void *priv)
 {
+	struct em28xx_IR *ir = priv;
+
 	cancel_delayed_work_sync(&ir->work);
 }
 
@@ -379,7 +357,6 @@ int em28xx_ir_change_protocol(void *priv, u64 ir_type)
 
 	/* Adjust xclk based o IR table for RC5/NEC tables */
 
-	dev->board.ir_codes->ir_type = IR_TYPE_OTHER;
 	if (ir_type == IR_TYPE_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
@@ -387,10 +364,8 @@ int em28xx_ir_change_protocol(void *priv, u64 ir_type)
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir_config = EM2874_IR_NEC;
 		ir->full_code = 1;
-	} else
+	} else if (ir_type != IR_TYPE_UNKNOWN)
 		rc = -EINVAL;
-
-	dev->board.ir_codes->ir_type = ir_type;
 
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
@@ -442,6 +417,13 @@ int em28xx_ir_init(struct em28xx *dev)
 	ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
 	ir->props.priv = ir;
 	ir->props.change_protocol = em28xx_ir_change_protocol;
+	ir->props.open = em28xx_ir_start;
+	ir->props.close = em28xx_ir_stop;
+
+	/* By default, keep protocol field untouched */
+	err = em28xx_ir_change_protocol(ir, IR_TYPE_UNKNOWN);
+	if (err)
+		goto err_out_free;
 
 	/* This is how often we ask the chip for IR information */
 	ir->polling = 100; /* ms */
@@ -453,12 +435,6 @@ int em28xx_ir_init(struct em28xx *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	/* Set IR protocol */
-	em28xx_ir_change_protocol(ir, dev->board.ir_codes->ir_type);
-	err = ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER);
-	if (err < 0)
-		goto err_out_free;
-
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_USB;
@@ -469,17 +445,15 @@ int em28xx_ir_init(struct em28xx *dev)
 	input_dev->dev.parent = &dev->udev->dev;
 
 
-	em28xx_ir_start(ir);
 
 	/* all done */
 	err = ir_input_register(ir->input, dev->board.ir_codes,
-				&ir->props);
+				&ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 
 	return 0;
  err_out_stop:
-	em28xx_ir_stop(ir);
 	dev->ir = NULL;
  err_out_free:
 	kfree(ir);

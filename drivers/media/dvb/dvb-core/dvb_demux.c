@@ -426,7 +426,7 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		};
 	};
 
-	if (demux->cnt_storage) {
+	if (demux->cnt_storage && dvb_demux_tscheck) {
 		/* check pkt counter */
 		if (pid < MAX_PID) {
 			if (buf[1] & 0x80)
@@ -1130,13 +1130,9 @@ static int dvbdmx_write(struct dmx_demux *demux, const char __user *buf, size_t 
 	if ((!demux->frontend) || (demux->frontend->source != DMX_MEMORY_FE))
 		return -EINVAL;
 
-	p = kmalloc(count, GFP_USER);
-	if (!p)
-		return -ENOMEM;
-	if (copy_from_user(p, buf, count)) {
-		kfree(p);
-		return -EFAULT;
-	}
+	p = memdup_user(buf, count);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 	if (mutex_lock_interruptible(&dvbdemux->mutex)) {
 		kfree(p);
 		return -ERESTARTSYS;
@@ -1248,12 +1244,9 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 		dvbdemux->feed[i].index = i;
 	}
 
-	if (dvb_demux_tscheck) {
-		dvbdemux->cnt_storage = vmalloc(MAX_PID + 1);
-
-		if (!dvbdemux->cnt_storage)
-			printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
-	}
+	dvbdemux->cnt_storage = vmalloc(MAX_PID + 1);
+	if (!dvbdemux->cnt_storage)
+		printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
 
 	INIT_LIST_HEAD(&dvbdemux->frontend_list);
 

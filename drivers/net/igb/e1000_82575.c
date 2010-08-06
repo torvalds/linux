@@ -30,7 +30,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/if_ether.h>
 
 #include "e1000_mac.h"
@@ -64,12 +63,42 @@ static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
 static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
+static s32  igb_reset_mdicnfg_82580(struct e1000_hw *hw);
 
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
 #define E1000_82580_RXPBS_TABLE_SIZE \
 	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
+
+/**
+ *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
+ *  @hw: pointer to the HW structure
+ *
+ *  Called to determine if the I2C pins are being used for I2C or as an
+ *  external MDIO interface since the two options are mutually exclusive.
+ **/
+static bool igb_sgmii_uses_mdio_82575(struct e1000_hw *hw)
+{
+	u32 reg = 0;
+	bool ext_mdio = false;
+
+	switch (hw->mac.type) {
+	case e1000_82575:
+	case e1000_82576:
+		reg = rd32(E1000_MDIC);
+		ext_mdio = !!(reg & E1000_MDIC_DEST);
+		break;
+	case e1000_82580:
+	case e1000_i350:
+		reg = rd32(E1000_MDICNFG);
+		ext_mdio = !!(reg & E1000_MDICNFG_EXT_MDIO);
+		break;
+	default:
+		break;
+	}
+	return ext_mdio;
+}
 
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
@@ -94,6 +123,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
 	case E1000_DEV_ID_82576_SERDES_QUAD:
 		mac->type = e1000_82576;
 		break;
@@ -103,6 +133,12 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_SGMII:
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 		mac->type = e1000_82580;
+		break;
+	case E1000_DEV_ID_I350_COPPER:
+	case E1000_DEV_ID_I350_FIBER:
+	case E1000_DEV_ID_I350_SERDES:
+	case E1000_DEV_ID_I350_SGMII:
+		mac->type = e1000_i350;
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
@@ -124,26 +160,14 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
 	case E1000_CTRL_EXT_LINK_MODE_SGMII:
 		dev_spec->sgmii_active = true;
-		ctrl_ext |= E1000_CTRL_I2C_ENA;
 		break;
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
-		ctrl_ext |= E1000_CTRL_I2C_ENA;
 		break;
 	default:
-		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
 		break;
 	}
-
-	wr32(E1000_CTRL_EXT, ctrl_ext);
-
-	/*
-	 * if using i2c make certain the MDICNFG register is cleared to prevent
-	 * communications from being misrouted to the mdic registers
-	 */
-	if ((ctrl_ext & E1000_CTRL_I2C_ENA) && (hw->mac.type == e1000_82580))
-		wr32(E1000_MDICNFG, 0);
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
@@ -153,8 +177,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82576;
 	if (mac->type == e1000_82580)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
+	if (mac->type == e1000_i350)
+		mac->rar_entry_count = E1000_RAR_ENTRIES_I350;
 	/* reset */
-	if (mac->type == e1000_82580)
+	if (mac->type >= e1000_82580)
 		mac->ops.reset_hw = igb_reset_hw_82580;
 	else
 		mac->ops.reset_hw = igb_reset_hw_82575;
@@ -220,19 +246,29 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	phy->autoneg_mask        = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 	phy->reset_delay_us      = 100;
 
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+
 	/* PHY function pointers */
 	if (igb_sgmii_active_82575(hw)) {
-		phy->ops.reset              = igb_phy_hw_reset_sgmii_82575;
-		phy->ops.read_reg           = igb_read_phy_reg_sgmii_82575;
-		phy->ops.write_reg          = igb_write_phy_reg_sgmii_82575;
-	} else if (hw->mac.type == e1000_82580) {
-		phy->ops.reset              = igb_phy_hw_reset;
-		phy->ops.read_reg           = igb_read_phy_reg_82580;
-		phy->ops.write_reg          = igb_write_phy_reg_82580;
+		phy->ops.reset      = igb_phy_hw_reset_sgmii_82575;
+		ctrl_ext |= E1000_CTRL_I2C_ENA;
 	} else {
-		phy->ops.reset              = igb_phy_hw_reset;
-		phy->ops.read_reg           = igb_read_phy_reg_igp;
-		phy->ops.write_reg          = igb_write_phy_reg_igp;
+		phy->ops.reset      = igb_phy_hw_reset;
+		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
+	}
+
+	wr32(E1000_CTRL_EXT, ctrl_ext);
+	igb_reset_mdicnfg_82580(hw);
+
+	if (igb_sgmii_active_82575(hw) && !igb_sgmii_uses_mdio_82575(hw)) {
+		phy->ops.read_reg   = igb_read_phy_reg_sgmii_82575;
+		phy->ops.write_reg  = igb_write_phy_reg_sgmii_82575;
+	} else if (hw->mac.type >= e1000_82580) {
+		phy->ops.read_reg   = igb_read_phy_reg_82580;
+		phy->ops.write_reg  = igb_write_phy_reg_82580;
+	} else {
+		phy->ops.read_reg   = igb_read_phy_reg_igp;
+		phy->ops.write_reg  = igb_write_phy_reg_igp;
 	}
 
 	/* set lan id */
@@ -261,6 +297,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.set_d3_lplu_state  = igb_set_d3_lplu_state;
 		break;
 	case I82580_I_PHY_ID:
+	case I350_I_PHY_ID:
 		phy->type                   = e1000_phy_82580;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_82580;
 		phy->ops.get_cable_length   = igb_get_cable_length_82580;
@@ -286,6 +323,10 @@ static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_1)
 		mask = E1000_SWFW_PHY1_SM;
+	else if (hw->bus.func == E1000_FUNC_2)
+		mask = E1000_SWFW_PHY2_SM;
+	else if (hw->bus.func == E1000_FUNC_3)
+		mask = E1000_SWFW_PHY3_SM;
 
 	return igb_acquire_swfw_sync_82575(hw, mask);
 }
@@ -303,6 +344,10 @@ static void igb_release_phy_82575(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_1)
 		mask = E1000_SWFW_PHY1_SM;
+	else if (hw->bus.func == E1000_FUNC_2)
+		mask = E1000_SWFW_PHY2_SM;
+	else if (hw->bus.func == E1000_FUNC_3)
+		mask = E1000_SWFW_PHY3_SM;
 
 	igb_release_swfw_sync_82575(hw, mask);
 }
@@ -383,6 +428,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	s32  ret_val = 0;
 	u16 phy_id;
 	u32 ctrl_ext;
+	u32 mdic;
 
 	/*
 	 * For SGMII PHYs, we try the list of possible addresses until
@@ -393,6 +439,29 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	 */
 	if (!(igb_sgmii_active_82575(hw))) {
 		phy->addr = 1;
+		ret_val = igb_get_phy_id(hw);
+		goto out;
+	}
+
+	if (igb_sgmii_uses_mdio_82575(hw)) {
+		switch (hw->mac.type) {
+		case e1000_82575:
+		case e1000_82576:
+			mdic = rd32(E1000_MDIC);
+			mdic &= E1000_MDIC_PHY_MASK;
+			phy->addr = mdic >> E1000_MDIC_PHY_SHIFT;
+			break;
+		case e1000_82580:
+		case e1000_i350:
+			mdic = rd32(E1000_MDICNFG);
+			mdic &= E1000_MDICNFG_PHY_MASK;
+			phy->addr = mdic >> E1000_MDICNFG_PHY_SHIFT;
+			break;
+		default:
+			ret_val = -E1000_ERR_PHY;
+			goto out;
+			break;
+		}
 		ret_val = igb_get_phy_id(hw);
 		goto out;
 	}
@@ -1205,8 +1274,6 @@ void igb_power_down_phy_copper_82575(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(igb_enable_mng_pass_thru(hw) || igb_check_reset_block(hw)))
 		igb_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**
@@ -1445,22 +1512,12 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
  **/
 static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
 
 	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
 
@@ -1480,7 +1537,6 @@ out:
  **/
 static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
@@ -1488,19 +1544,47 @@ static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 	if (ret_val)
 		goto out;
 
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
-
 	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
 
 	hw->phy.ops.release(hw);
 
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
+ *  @hw: pointer to the HW structure
+ *
+ *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  the values found in the EEPROM.  This addresses an issue in which these
+ *  bits are not restored from EEPROM after reset.
+ **/
+static s32 igb_reset_mdicnfg_82580(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 mdicnfg;
+	u16 nvm_data;
+
+	if (hw->mac.type != e1000_82580)
+		goto out;
+	if (!igb_sgmii_active_82575(hw))
+		goto out;
+
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
+				   NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
+				   &nvm_data);
+	if (ret_val) {
+		hw_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	mdicnfg = rd32(E1000_MDICNFG);
+	if (nvm_data & NVM_WORD24_EXT_MDIO)
+		mdicnfg |= E1000_MDICNFG_EXT_MDIO;
+	if (nvm_data & NVM_WORD24_COM_MDIO)
+		mdicnfg |= E1000_MDICNFG_COM_MDIO;
+	wr32(E1000_MDICNFG, mdicnfg);
 out:
 	return ret_val;
 }
@@ -1579,6 +1663,10 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	/* Clear any pending interrupt events. */
 	wr32(E1000_IMC, 0xffffffff);
 	icr = rd32(E1000_ICR);
+
+	ret_val = igb_reset_mdicnfg_82580(hw);
+	if (ret_val)
+		hw_dbg("Could not reset MDICNFG based on EEPROM\n");
 
 	/* Install any alternate MAC address into RAR0 */
 	ret_val = igb_check_alt_mac_addr(hw);

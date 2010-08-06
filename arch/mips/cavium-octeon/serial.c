@@ -65,7 +65,11 @@ static void __init octeon_uart_set_common(struct plat_serial8250_port *p)
 	p->type = PORT_OCTEON;
 	p->iotype = UPIO_MEM;
 	p->regshift = 3;	/* I/O addresses are every 8 bytes */
-	p->uartclk = mips_hpt_frequency;
+	if (octeon_is_simulation())
+		/* Make simulator output fast*/
+		p->uartclk = 115200 * 16;
+	else
+		p->uartclk = mips_hpt_frequency;
 	p->serial_in = octeon_serial_in;
 	p->serial_out = octeon_serial_out;
 }

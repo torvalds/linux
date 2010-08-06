@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -109,7 +110,7 @@ int uflash_devinit(struct of_device *op, struct device_node *dp)
 
 static int __devinit uflash_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 
 	/* Flashprom must have the "user" property in order to
 	 * be used by this driver.
@@ -148,8 +149,11 @@ static const struct of_device_id uflash_match[] = {
 MODULE_DEVICE_TABLE(of, uflash_match);
 
 static struct of_platform_driver uflash_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= uflash_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = uflash_match,
+	},
 	.probe		= uflash_probe,
 	.remove		= __devexit_p(uflash_remove),
 };

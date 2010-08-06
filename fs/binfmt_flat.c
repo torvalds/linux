@@ -56,16 +56,19 @@
 #endif
 
 /*
- * User data (stack, data section and bss) needs to be aligned
- * for the same reasons as SLAB memory is, and to the same amount.
- * Avoid duplicating architecture specific code by using the same
- * macro as with SLAB allocation:
+ * User data (data section and bss) needs to be aligned.
+ * We pick 0x20 here because it is the max value elf2flt has always
+ * used in producing FLAT files, and because it seems to be large
+ * enough to make all the gcc alignment related tests happy.
  */
-#ifdef ARCH_SLAB_MINALIGN
-#define FLAT_DATA_ALIGN	(ARCH_SLAB_MINALIGN)
-#else
-#define FLAT_DATA_ALIGN	(sizeof(void *))
-#endif
+#define FLAT_DATA_ALIGN	(0x20)
+
+/*
+ * User data (stack) also needs to be aligned.
+ * Here we can be a bit looser than the data sections since this
+ * needs to only meet arch ABI requirements.
+ */
+#define FLAT_STACK_ALIGN	max_t(unsigned long, sizeof(void *), ARCH_SLAB_MINALIGN)
 
 #define RELOC_FAILED 0xff00ff01		/* Relocation incorrect somewhere */
 #define UNLOADED_LIB 0x7ff000ff		/* Placeholder for unused library */
@@ -129,7 +132,7 @@ static unsigned long create_flat_tables(
 
 	sp = (unsigned long *)p;
 	sp -= (envc + argc + 2) + 1 + (flat_argvp_envp_on_stack() ? 2 : 0);
-	sp = (unsigned long *) ((unsigned long)sp & -FLAT_DATA_ALIGN);
+	sp = (unsigned long *) ((unsigned long)sp & -FLAT_STACK_ALIGN);
 	argv = sp + 1 + (flat_argvp_envp_on_stack() ? 2 : 0);
 	envp = argv + (argc + 1);
 
@@ -355,7 +358,7 @@ calc_reloc(unsigned long r, struct lib_info *p, int curid, int internalp)
 
 	if (!flat_reloc_valid(r, start_brk - start_data + text_len)) {
 		printk("BINFMT_FLAT: reloc outside program 0x%x (0 - 0x%x/0x%x)",
-		       (int) r,(int)(start_brk-start_code),(int)text_len);
+		       (int) r,(int)(start_brk-start_data+text_len),(int)text_len);
 		goto failed;
 	}
 
@@ -589,7 +592,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read data+bss, errno %d\n", (int)-result);
 			do_munmap(current->mm, textpos, text_len);
-			do_munmap(current->mm, realdatastart, data_len + extra);
+			do_munmap(current->mm, realdatastart, len);
 			ret = result;
 			goto err;
 		}
@@ -876,7 +879,7 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	stack_len = TOP_OF_ARGS - bprm->p;             /* the strings */
 	stack_len += (bprm->argc + 1) * sizeof(char *); /* the argv array */
 	stack_len += (bprm->envc + 1) * sizeof(char *); /* the envp array */
-	stack_len += FLAT_DATA_ALIGN - 1;  /* reserve for upcoming alignment */
+	stack_len += FLAT_STACK_ALIGN - 1;  /* reserve for upcoming alignment */
 	
 	res = load_flat_file(bprm, &libinfo, 0, &stack_len);
 	if (IS_ERR_VALUE(res))

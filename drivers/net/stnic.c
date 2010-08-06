@@ -280,7 +280,6 @@ stnic_init (struct net_device *dev)
 {
   stnic_reset (dev);
   NS8390_init (dev, 0);
-  return;
 }
 
 static void __exit stnic_cleanup(void)

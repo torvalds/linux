@@ -13,6 +13,7 @@
 #include <linux/mtd/super.h>
 #include <linux/namei.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 /*
  * compare superblocks to see if they're equivalent
@@ -44,6 +45,7 @@ static int get_sb_mtd_set(struct super_block *sb, void *_mtd)
 
 	sb->s_mtd = mtd;
 	sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
+	sb->s_bdi = mtd->backing_dev_info;
 	return 0;
 }
 
@@ -150,18 +152,12 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 			DEBUG(1, "MTDSB: mtd:%%s, name \"%s\"\n",
 			      dev_name + 4);
 
-			for (mtdnr = 0; mtdnr < MAX_MTD_DEVICES; mtdnr++) {
-				mtd = get_mtd_device(NULL, mtdnr);
-				if (!IS_ERR(mtd)) {
-					if (!strcmp(mtd->name, dev_name + 4))
-						return get_sb_mtd_aux(
-							fs_type, flags,
-							dev_name, data, mtd,
-							fill_super, mnt);
-
-					put_mtd_device(mtd);
-				}
-			}
+			mtd = get_mtd_device_nm(dev_name + 4);
+			if (!IS_ERR(mtd))
+				return get_sb_mtd_aux(
+					fs_type, flags,
+					dev_name, data, mtd,
+					fill_super, mnt);
 
 			printk(KERN_NOTICE "MTD:"
 			       " MTD device with name \"%s\" not found.\n",

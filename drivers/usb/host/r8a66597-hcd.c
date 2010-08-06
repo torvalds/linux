@@ -33,13 +33,14 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 
-#include "../core/hcd.h"
 #include "r8a66597.h"
 
 MODULE_DESCRIPTION("R8A66597 USB Host Controller Driver");
@@ -418,7 +419,7 @@ static u8 alloc_usb_address(struct r8a66597 *r8a66597, struct urb *urb)
 
 /* this function must be called with interrupt disabled */
 static void free_usb_address(struct r8a66597 *r8a66597,
-			     struct r8a66597_device *dev)
+			     struct r8a66597_device *dev, int reset)
 {
 	int port;
 
@@ -430,7 +431,13 @@ static void free_usb_address(struct r8a66597 *r8a66597,
 	dev->state = USB_STATE_DEFAULT;
 	r8a66597->address_map &= ~(1 << dev->address);
 	dev->address = 0;
-	dev_set_drvdata(&dev->udev->dev, NULL);
+	/*
+	 * Only when resetting USB, it is necessary to erase drvdata. When
+	 * a usb device with usb hub is disconnect, "dev->udev" is already
+	 * freed on usb_desconnect(). So we cannot access the data.
+	 */
+	if (reset)
+		dev_set_drvdata(&dev->udev->dev, NULL);
 	list_del(&dev->device_list);
 	kfree(dev);
 
@@ -1011,10 +1018,10 @@ static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port,
 	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
 	rh->scount = R8A66597_MAX_SAMPLING;
 	if (connect)
-		rh->port |= 1 << USB_PORT_FEAT_CONNECTION;
+		rh->port |= USB_PORT_STAT_CONNECTION;
 	else
-		rh->port &= ~(1 << USB_PORT_FEAT_CONNECTION);
-	rh->port |= 1 << USB_PORT_FEAT_C_CONNECTION;
+		rh->port &= ~USB_PORT_STAT_CONNECTION;
+	rh->port |= USB_PORT_STAT_C_CONNECTION << 16;
 
 	r8a66597_root_hub_start_polling(r8a66597);
 }
@@ -1052,15 +1059,14 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	u16 speed = get_rh_usb_speed(r8a66597, port);
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
-	rh->port &= ~((1 << USB_PORT_FEAT_HIGHSPEED) |
-		      (1 << USB_PORT_FEAT_LOWSPEED));
+	rh->port &= ~(USB_PORT_STAT_HIGH_SPEED | USB_PORT_STAT_LOW_SPEED);
 	if (speed == HSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_HIGHSPEED);
+		rh->port |= USB_PORT_STAT_HIGH_SPEED;
 	else if (speed == LSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_LOWSPEED);
+		rh->port |= USB_PORT_STAT_LOW_SPEED;
 
-	rh->port &= ~(1 << USB_PORT_FEAT_RESET);
-	rh->port |= 1 << USB_PORT_FEAT_ENABLE;
+	rh->port &= ~USB_PORT_STAT_RESET;
+	rh->port |= USB_PORT_STAT_ENABLE;
 }
 
 /* this function must be called with interrupt disabled */
@@ -1069,7 +1075,7 @@ static void r8a66597_usb_disconnect(struct r8a66597 *r8a66597, int port)
 	struct r8a66597_device *dev = r8a66597->root_hub[port].dev;
 
 	disable_r8a66597_pipe_all(r8a66597, dev);
-	free_usb_address(r8a66597, dev);
+	free_usb_address(r8a66597, dev, 0);
 
 	start_root_hub_sampling(r8a66597, port, 0);
 }
@@ -1699,7 +1705,7 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 	u16 tmp;
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
-	if (rh->port & (1 << USB_PORT_FEAT_RESET)) {
+	if (rh->port & USB_PORT_STAT_RESET) {
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
 		tmp = r8a66597_read(r8a66597, dvstctr_reg);
@@ -1711,7 +1717,7 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 			r8a66597_usb_connect(r8a66597, port);
 	}
 
-	if (!(rh->port & (1 << USB_PORT_FEAT_CONNECTION))) {
+	if (!(rh->port & USB_PORT_STAT_CONNECTION)) {
 		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
 		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 	}
@@ -2085,7 +2091,7 @@ static void update_usb_address_map(struct r8a66597 *r8a66597,
 				spin_lock_irqsave(&r8a66597->lock, flags);
 				dev = get_r8a66597_device(r8a66597, addr);
 				disable_r8a66597_pipe_all(r8a66597, dev);
-				free_usb_address(r8a66597, dev);
+				free_usb_address(r8a66597, dev, 0);
 				put_child_connect_map(r8a66597, addr);
 				spin_unlock_irqrestore(&r8a66597->lock, flags);
 			}
@@ -2179,7 +2185,7 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			rh->port &= ~(1 << USB_PORT_FEAT_POWER);
+			rh->port &= ~USB_PORT_STAT_POWER;
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			break;
@@ -2220,15 +2226,15 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_POWER:
 			r8a66597_port_power(r8a66597, port, 1);
-			rh->port |= (1 << USB_PORT_FEAT_POWER);
+			rh->port |= USB_PORT_STAT_POWER;
 			break;
 		case USB_PORT_FEAT_RESET: {
 			struct r8a66597_device *dev = rh->dev;
 
-			rh->port |= (1 << USB_PORT_FEAT_RESET);
+			rh->port |= USB_PORT_STAT_RESET;
 
 			disable_r8a66597_pipe_all(r8a66597, dev);
-			free_usb_address(r8a66597, dev);
+			free_usb_address(r8a66597, dev, 1);
 
 			r8a66597_mdfy(r8a66597, USBRST, USBRST | UACT,
 				      get_dvstctr_reg(port));
@@ -2263,12 +2269,12 @@ static int r8a66597_bus_suspend(struct usb_hcd *hcd)
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
-		if (!(rh->port & (1 << USB_PORT_FEAT_ENABLE)))
+		if (!(rh->port & USB_PORT_STAT_ENABLE))
 			continue;
 
 		dbg("suspend port = %d", port);
 		r8a66597_bclr(r8a66597, UACT, dvstctr_reg);	/* suspend */
-		rh->port |= 1 << USB_PORT_FEAT_SUSPEND;
+		rh->port |= USB_PORT_STAT_SUSPEND;
 
 		if (rh->dev->udev->do_remote_wakeup) {
 			msleep(3);	/* waiting last SOF */
@@ -2294,12 +2300,12 @@ static int r8a66597_bus_resume(struct usb_hcd *hcd)
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
-		if (!(rh->port & (1 << USB_PORT_FEAT_SUSPEND)))
+		if (!(rh->port & USB_PORT_STAT_SUSPEND))
 			continue;
 
 		dbg("resume port = %d", port);
-		rh->port &= ~(1 << USB_PORT_FEAT_SUSPEND);
-		rh->port |= 1 << USB_PORT_FEAT_C_SUSPEND;
+		rh->port &= ~USB_PORT_STAT_SUSPEND;
+		rh->port |= USB_PORT_STAT_C_SUSPEND < 16;
 		r8a66597_mdfy(r8a66597, RESUME, RESUME | UACT, dvstctr_reg);
 		msleep(50);
 		r8a66597_mdfy(r8a66597, UACT, RESUME | UACT, dvstctr_reg);
@@ -2398,7 +2404,7 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 
 	del_timer_sync(&r8a66597->rh_timer);
 	usb_remove_hcd(hcd);
-	iounmap((void *)r8a66597->reg);
+	iounmap(r8a66597->reg);
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
@@ -2490,7 +2496,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	init_timer(&r8a66597->rh_timer);
 	r8a66597->rh_timer.function = r8a66597_timer;
 	r8a66597->rh_timer.data = (unsigned long)r8a66597;
-	r8a66597->reg = (unsigned long)reg;
+	r8a66597->reg = reg;
 
 	/* make sure no interrupts are pending */
 	ret = r8a66597_clock_enable(r8a66597);

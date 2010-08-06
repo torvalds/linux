@@ -39,7 +39,7 @@ extern long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate);
 extern unsigned long omap1_watchdog_recalc(struct clk *clk);
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
-extern void __init omap1_clk_disable_unused(struct clk *clk);
+extern void omap1_clk_disable_unused(struct clk *clk);
 #else
 #define omap1_clk_disable_unused	NULL
 #endif

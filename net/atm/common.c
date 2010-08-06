@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
 #include <linux/uaccess.h>
 #include <linux/poll.h>
@@ -35,6 +36,8 @@ EXPORT_SYMBOL(vcc_hash);
 
 DEFINE_RWLOCK(vcc_sklist_lock);
 EXPORT_SYMBOL(vcc_sklist_lock);
+
+static ATOMIC_NOTIFIER_HEAD(atm_dev_notify_chain);
 
 static void __vcc_insert_socket(struct sock *sk)
 {
@@ -89,10 +92,13 @@ static void vcc_sock_destruct(struct sock *sk)
 
 static void vcc_def_wakeup(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
-	if (sk_has_sleeper(sk))
-		wake_up(sk->sk_sleep);
-	read_unlock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up(&wq->wait);
+	rcu_read_unlock();
 }
 
 static inline int vcc_writable(struct sock *sk)
@@ -105,16 +111,19 @@ static inline int vcc_writable(struct sock *sk)
 
 static void vcc_write_space(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
 
 	if (vcc_writable(sk)) {
-		if (sk_has_sleeper(sk))
-			wake_up_interruptible(sk->sk_sleep);
+		wq = rcu_dereference(sk->sk_wq);
+		if (wq_has_sleeper(wq))
+			wake_up_interruptible(&wq->wait);
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 static struct proto vcc_proto = {
@@ -205,6 +214,22 @@ void vcc_release_async(struct atm_vcc *vcc, int reply)
 }
 EXPORT_SYMBOL(vcc_release_async);
 
+void atm_dev_signal_change(struct atm_dev *dev, char signal)
+{
+	pr_debug("%s signal=%d dev=%p number=%d dev->signal=%d\n",
+		__func__, signal, dev, dev->number, dev->signal);
+
+	/* atm driver sending invalid signal */
+	WARN_ON(signal < ATM_PHY_SIG_LOST || signal > ATM_PHY_SIG_FOUND);
+
+	if (dev->signal == signal)
+		return; /* no change */
+
+	dev->signal = signal;
+
+	atomic_notifier_call_chain(&atm_dev_notify_chain, signal, dev);
+}
+EXPORT_SYMBOL(atm_dev_signal_change);
 
 void atm_dev_release_vccs(struct atm_dev *dev)
 {
@@ -548,7 +573,7 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 	}
 
 	eff = (size+3) & ~3; /* align to word boundary */
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	error = 0;
 	while (!(skb = alloc_tx(vcc, eff))) {
 		if (m->msg_flags & MSG_DONTWAIT) {
@@ -567,9 +592,9 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 			send_sig(SIGPIPE, current, 0);
 			break;
 		}
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	if (error)
 		goto out;
 	skb->dev = NULL; /* for paths shared with net_device interfaces */
@@ -594,7 +619,7 @@ unsigned int vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct atm_vcc *vcc;
 	unsigned int mask;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	vcc = ATM_SD(sock);
@@ -773,6 +798,18 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 		return -EINVAL;
 	return vcc->dev->ops->getsockopt(vcc, level, optname, optval, len);
 }
+
+int register_atmdevice_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&atm_dev_notify_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_atmdevice_notifier);
+
+void unregister_atmdevice_notifier(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&atm_dev_notify_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_atmdevice_notifier);
 
 static int __init atm_init(void)
 {

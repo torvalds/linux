@@ -37,6 +37,7 @@ static const struct mvs_chip_info mvs_chips[] = {
 };
 
 #define SOC_SAS_NUM 2
+#define SG_MX 64
 
 static struct scsi_host_template mvs_sht = {
 	.module			= THIS_MODULE,
@@ -53,10 +54,10 @@ static struct scsi_host_template mvs_sht = {
 	.can_queue		= 1,
 	.cmd_per_lun		= 1,
 	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
+	.sg_tablesize		= SG_MX,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.eh_device_reset_handler	= sas_eh_device_reset_handler,
+	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
 	.slave_alloc		= mvs_slave_alloc,
 	.target_destroy		= sas_target_destroy,
@@ -65,19 +66,17 @@ static struct scsi_host_template mvs_sht = {
 
 static struct sas_domain_function_template mvs_transport_ops = {
 	.lldd_dev_found 	= mvs_dev_found,
-	.lldd_dev_gone	= mvs_dev_gone,
-
+	.lldd_dev_gone		= mvs_dev_gone,
 	.lldd_execute_task	= mvs_queue_command,
 	.lldd_control_phy	= mvs_phy_control,
 
 	.lldd_abort_task	= mvs_abort_task,
 	.lldd_abort_task_set    = mvs_abort_task_set,
 	.lldd_clear_aca         = mvs_clear_aca,
-       .lldd_clear_task_set    = mvs_clear_task_set,
+	.lldd_clear_task_set    = mvs_clear_task_set,
 	.lldd_I_T_nexus_reset	= mvs_I_T_nexus_reset,
 	.lldd_lu_reset 		= mvs_lu_reset,
 	.lldd_query_task	= mvs_query_task,
-
 	.lldd_port_formed	= mvs_port_formed,
 	.lldd_port_deformed     = mvs_port_deformed,
 
@@ -213,7 +212,7 @@ static irqreturn_t mvs_interrupt(int irq, void *opaque)
 
 static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 {
-	int i, slot_nr;
+	int i = 0, slot_nr;
 
 	if (mvi->flags & MVF_FLAG_SOC)
 		slot_nr = MVS_SOC_SLOTS;
@@ -232,6 +231,7 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		mvi->devices[i].dev_type = NO_DEVICE;
 		mvi->devices[i].device_id = i;
 		mvi->devices[i].dev_status = MVS_DEV_NORMAL;
+		init_timer(&mvi->devices[i].timer);
 	}
 
 	/*
@@ -437,6 +437,7 @@ static int __devinit mvs_prep_sas_ha_init(struct Scsi_Host *shost,
 
 	sha->sas_phy = arr_phy;
 	sha->sas_port = arr_port;
+	sha->core.shost = shost;
 
 	sha->lldd_ha = kzalloc(sizeof(struct mvs_prv_info), GFP_KERNEL);
 	if (!sha->lldd_ha)
@@ -574,6 +575,10 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 		}
 		nhost++;
 	} while (nhost < chip->n_host);
+#ifdef MVS_USE_TASKLET
+	tasklet_init(&mv_tasklet, mvs_tasklet,
+		     (unsigned long)SHOST_TO_SAS_HA(shost));
+#endif
 
 	mvs_post_sas_ha_init(shost, chip);
 

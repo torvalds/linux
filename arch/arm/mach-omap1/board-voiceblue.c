@@ -287,6 +287,7 @@ MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= voiceblue_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= voiceblue_init_irq,
 	.init_machine	= voiceblue_init,
 	.timer		= &omap_timer,

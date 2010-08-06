@@ -1,5 +1,5 @@
 /*
- * linux/mm/percpu.c - percpu memory allocator
+ * mm/percpu.c - percpu memory allocator
  *
  * Copyright (C) 2009		SUSE Linux Products GmbH
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
@@ -7,14 +7,13 @@
  * This file is released under the GPLv2.
  *
  * This is percpu allocator which can handle both static and dynamic
- * areas.  Percpu areas are allocated in chunks in vmalloc area.  Each
- * chunk is consisted of boot-time determined number of units and the
- * first chunk is used for static percpu variables in the kernel image
+ * areas.  Percpu areas are allocated in chunks.  Each chunk is
+ * consisted of boot-time determined number of units and the first
+ * chunk is used for static percpu variables in the kernel image
  * (special boot time alloc/init handling necessary as these areas
  * need to be brought up before allocation services are running).
  * Unit grows as necessary and all units grow or shrink in unison.
- * When a chunk is filled up, another chunk is allocated.  ie. in
- * vmalloc area
+ * When a chunk is filled up, another chunk is allocated.
  *
  *  c0                           c1                         c2
  *  -------------------          -------------------        ------------
@@ -99,7 +98,7 @@ struct pcpu_chunk {
 	int			map_used;	/* # of map entries used */
 	int			map_alloc;	/* # of map entries allocated */
 	int			*map;		/* allocation map */
-	struct vm_struct	**vms;		/* mapped vmalloc regions */
+	void			*data;		/* chunk data */
 	bool			immutable;	/* no [de]population allowed */
 	unsigned long		populated[];	/* populated bitmap */
 };
@@ -177,6 +176,21 @@ static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 static void pcpu_reclaim(struct work_struct *work);
 static DECLARE_WORK(pcpu_reclaim_work, pcpu_reclaim);
 
+static bool pcpu_addr_in_first_chunk(void *addr)
+{
+	void *first_start = pcpu_first_chunk->base_addr;
+
+	return addr >= first_start && addr < first_start + pcpu_unit_size;
+}
+
+static bool pcpu_addr_in_reserved_chunk(void *addr)
+{
+	void *first_start = pcpu_first_chunk->base_addr;
+
+	return addr >= first_start &&
+		addr < first_start + pcpu_reserved_chunk_limit;
+}
+
 static int __pcpu_size_to_slot(int size)
 {
 	int highbit = fls(size);	/* size is in bytes */
@@ -198,27 +212,6 @@ static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)
 	return pcpu_size_to_slot(chunk->free_size);
 }
 
-static int pcpu_page_idx(unsigned int cpu, int page_idx)
-{
-	return pcpu_unit_map[cpu] * pcpu_unit_pages + page_idx;
-}
-
-static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
-				     unsigned int cpu, int page_idx)
-{
-	return (unsigned long)chunk->base_addr + pcpu_unit_offsets[cpu] +
-		(page_idx << PAGE_SHIFT);
-}
-
-static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
-				    unsigned int cpu, int page_idx)
-{
-	/* must not be used on pre-mapped chunk */
-	WARN_ON(chunk->immutable);
-
-	return vmalloc_to_page((void *)pcpu_chunk_addr(chunk, cpu, page_idx));
-}
-
 /* set the pointer to a chunk in a page struct */
 static void pcpu_set_page_chunk(struct page *page, struct pcpu_chunk *pcpu)
 {
@@ -231,13 +224,27 @@ static struct pcpu_chunk *pcpu_get_page_chunk(struct page *page)
 	return (struct pcpu_chunk *)page->index;
 }
 
-static void pcpu_next_unpop(struct pcpu_chunk *chunk, int *rs, int *re, int end)
+static int __maybe_unused pcpu_page_idx(unsigned int cpu, int page_idx)
+{
+	return pcpu_unit_map[cpu] * pcpu_unit_pages + page_idx;
+}
+
+static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
+				     unsigned int cpu, int page_idx)
+{
+	return (unsigned long)chunk->base_addr + pcpu_unit_offsets[cpu] +
+		(page_idx << PAGE_SHIFT);
+}
+
+static void __maybe_unused pcpu_next_unpop(struct pcpu_chunk *chunk,
+					   int *rs, int *re, int end)
 {
 	*rs = find_next_zero_bit(chunk->populated, end, *rs);
 	*re = find_next_bit(chunk->populated, end, *rs + 1);
 }
 
-static void pcpu_next_pop(struct pcpu_chunk *chunk, int *rs, int *re, int end)
+static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
+					 int *rs, int *re, int end)
 {
 	*rs = find_next_bit(chunk->populated, end, *rs);
 	*re = find_next_zero_bit(chunk->populated, end, *rs + 1);
@@ -275,6 +282,9 @@ static void pcpu_next_pop(struct pcpu_chunk *chunk, int *rs, int *re, int end)
  */
 static void *pcpu_mem_alloc(size_t size)
 {
+	if (WARN_ON_ONCE(!slab_is_available()))
+		return NULL;
+
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
 	else {
@@ -323,36 +333,6 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
 		else
 			list_move_tail(&chunk->list, &pcpu_slot[nslot]);
 	}
-}
-
-/**
- * pcpu_chunk_addr_search - determine chunk containing specified address
- * @addr: address for which the chunk needs to be determined.
- *
- * RETURNS:
- * The address of the found chunk.
- */
-static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
-{
-	void *first_start = pcpu_first_chunk->base_addr;
-
-	/* is it in the first chunk? */
-	if (addr >= first_start && addr < first_start + pcpu_unit_size) {
-		/* is it in the reserved area? */
-		if (addr < first_start + pcpu_reserved_chunk_limit)
-			return pcpu_reserved_chunk;
-		return pcpu_first_chunk;
-	}
-
-	/*
-	 * The address is relative to unit0 which might be unused and
-	 * thus unmapped.  Offset the address to the unit space of the
-	 * current processor before looking it up in the vmalloc
-	 * space.  Note that any possible cpu id can be used here, so
-	 * there's no need to worry about preemption or cpu hotplug.
-	 */
-	addr += pcpu_unit_offsets[raw_smp_processor_id()];
-	return pcpu_get_page_chunk(vmalloc_to_page(addr));
 }
 
 /**
@@ -414,13 +394,6 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
 
 	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
 	memcpy(new, chunk->map, old_size);
-
-	/*
-	 * map_alloc < PCPU_DFL_MAP_ALLOC indicates that the chunk is
-	 * one of the first chunks and still using static map.
-	 */
-	if (chunk->map_alloc >= PCPU_DFL_MAP_ALLOC)
-		old = chunk->map;
 
 	chunk->map_alloc = new_alloc;
 	chunk->map = new;
@@ -623,434 +596,92 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 	pcpu_chunk_relocate(chunk, oslot);
 }
 
-/**
- * pcpu_get_pages_and_bitmap - get temp pages array and bitmap
- * @chunk: chunk of interest
- * @bitmapp: output parameter for bitmap
- * @may_alloc: may allocate the array
- *
- * Returns pointer to array of pointers to struct page and bitmap,
- * both of which can be indexed with pcpu_page_idx().  The returned
- * array is cleared to zero and *@bitmapp is copied from
- * @chunk->populated.  Note that there is only one array and bitmap
- * and access exclusion is the caller's responsibility.
- *
- * CONTEXT:
- * pcpu_alloc_mutex and does GFP_KERNEL allocation if @may_alloc.
- * Otherwise, don't care.
- *
- * RETURNS:
- * Pointer to temp pages array on success, NULL on failure.
- */
-static struct page **pcpu_get_pages_and_bitmap(struct pcpu_chunk *chunk,
-					       unsigned long **bitmapp,
-					       bool may_alloc)
-{
-	static struct page **pages;
-	static unsigned long *bitmap;
-	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-	size_t bitmap_size = BITS_TO_LONGS(pcpu_unit_pages) *
-			     sizeof(unsigned long);
-
-	if (!pages || !bitmap) {
-		if (may_alloc && !pages)
-			pages = pcpu_mem_alloc(pages_size);
-		if (may_alloc && !bitmap)
-			bitmap = pcpu_mem_alloc(bitmap_size);
-		if (!pages || !bitmap)
-			return NULL;
-	}
-
-	memset(pages, 0, pages_size);
-	bitmap_copy(bitmap, chunk->populated, pcpu_unit_pages);
-
-	*bitmapp = bitmap;
-	return pages;
-}
-
-/**
- * pcpu_free_pages - free pages which were allocated for @chunk
- * @chunk: chunk pages were allocated for
- * @pages: array of pages to be freed, indexed by pcpu_page_idx()
- * @populated: populated bitmap
- * @page_start: page index of the first page to be freed
- * @page_end: page index of the last page to be freed + 1
- *
- * Free pages [@page_start and @page_end) in @pages for all units.
- * The pages were allocated for @chunk.
- */
-static void pcpu_free_pages(struct pcpu_chunk *chunk,
-			    struct page **pages, unsigned long *populated,
-			    int page_start, int page_end)
-{
-	unsigned int cpu;
-	int i;
-
-	for_each_possible_cpu(cpu) {
-		for (i = page_start; i < page_end; i++) {
-			struct page *page = pages[pcpu_page_idx(cpu, i)];
-
-			if (page)
-				__free_page(page);
-		}
-	}
-}
-
-/**
- * pcpu_alloc_pages - allocates pages for @chunk
- * @chunk: target chunk
- * @pages: array to put the allocated pages into, indexed by pcpu_page_idx()
- * @populated: populated bitmap
- * @page_start: page index of the first page to be allocated
- * @page_end: page index of the last page to be allocated + 1
- *
- * Allocate pages [@page_start,@page_end) into @pages for all units.
- * The allocation is for @chunk.  Percpu core doesn't care about the
- * content of @pages and will pass it verbatim to pcpu_map_pages().
- */
-static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
-			    struct page **pages, unsigned long *populated,
-			    int page_start, int page_end)
-{
-	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
-	unsigned int cpu;
-	int i;
-
-	for_each_possible_cpu(cpu) {
-		for (i = page_start; i < page_end; i++) {
-			struct page **pagep = &pages[pcpu_page_idx(cpu, i)];
-
-			*pagep = alloc_pages_node(cpu_to_node(cpu), gfp, 0);
-			if (!*pagep) {
-				pcpu_free_pages(chunk, pages, populated,
-						page_start, page_end);
-				return -ENOMEM;
-			}
-		}
-	}
-	return 0;
-}
-
-/**
- * pcpu_pre_unmap_flush - flush cache prior to unmapping
- * @chunk: chunk the regions to be flushed belongs to
- * @page_start: page index of the first page to be flushed
- * @page_end: page index of the last page to be flushed + 1
- *
- * Pages in [@page_start,@page_end) of @chunk are about to be
- * unmapped.  Flush cache.  As each flushing trial can be very
- * expensive, issue flush on the whole region at once rather than
- * doing it for each cpu.  This could be an overkill but is more
- * scalable.
- */
-static void pcpu_pre_unmap_flush(struct pcpu_chunk *chunk,
-				 int page_start, int page_end)
-{
-	flush_cache_vunmap(
-		pcpu_chunk_addr(chunk, pcpu_first_unit_cpu, page_start),
-		pcpu_chunk_addr(chunk, pcpu_last_unit_cpu, page_end));
-}
-
-static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)
-{
-	unmap_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT);
-}
-
-/**
- * pcpu_unmap_pages - unmap pages out of a pcpu_chunk
- * @chunk: chunk of interest
- * @pages: pages array which can be used to pass information to free
- * @populated: populated bitmap
- * @page_start: page index of the first page to unmap
- * @page_end: page index of the last page to unmap + 1
- *
- * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.
- * Corresponding elements in @pages were cleared by the caller and can
- * be used to carry information to pcpu_free_pages() which will be
- * called after all unmaps are finished.  The caller should call
- * proper pre/post flush functions.
- */
-static void pcpu_unmap_pages(struct pcpu_chunk *chunk,
-			     struct page **pages, unsigned long *populated,
-			     int page_start, int page_end)
-{
-	unsigned int cpu;
-	int i;
-
-	for_each_possible_cpu(cpu) {
-		for (i = page_start; i < page_end; i++) {
-			struct page *page;
-
-			page = pcpu_chunk_page(chunk, cpu, i);
-			WARN_ON(!page);
-			pages[pcpu_page_idx(cpu, i)] = page;
-		}
-		__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, page_start),
-				   page_end - page_start);
-	}
-
-	for (i = page_start; i < page_end; i++)
-		__clear_bit(i, populated);
-}
-
-/**
- * pcpu_post_unmap_tlb_flush - flush TLB after unmapping
- * @chunk: pcpu_chunk the regions to be flushed belong to
- * @page_start: page index of the first page to be flushed
- * @page_end: page index of the last page to be flushed + 1
- *
- * Pages [@page_start,@page_end) of @chunk have been unmapped.  Flush
- * TLB for the regions.  This can be skipped if the area is to be
- * returned to vmalloc as vmalloc will handle TLB flushing lazily.
- *
- * As with pcpu_pre_unmap_flush(), TLB flushing also is done at once
- * for the whole region.
- */
-static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
-				      int page_start, int page_end)
-{
-	flush_tlb_kernel_range(
-		pcpu_chunk_addr(chunk, pcpu_first_unit_cpu, page_start),
-		pcpu_chunk_addr(chunk, pcpu_last_unit_cpu, page_end));
-}
-
-static int __pcpu_map_pages(unsigned long addr, struct page **pages,
-			    int nr_pages)
-{
-	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
-					PAGE_KERNEL, pages);
-}
-
-/**
- * pcpu_map_pages - map pages into a pcpu_chunk
- * @chunk: chunk of interest
- * @pages: pages array containing pages to be mapped
- * @populated: populated bitmap
- * @page_start: page index of the first page to map
- * @page_end: page index of the last page to map + 1
- *
- * For each cpu, map pages [@page_start,@page_end) into @chunk.  The
- * caller is responsible for calling pcpu_post_map_flush() after all
- * mappings are complete.
- *
- * This function is responsible for setting corresponding bits in
- * @chunk->populated bitmap and whatever is necessary for reverse
- * lookup (addr -> chunk).
- */
-static int pcpu_map_pages(struct pcpu_chunk *chunk,
-			  struct page **pages, unsigned long *populated,
-			  int page_start, int page_end)
-{
-	unsigned int cpu, tcpu;
-	int i, err;
-
-	for_each_possible_cpu(cpu) {
-		err = __pcpu_map_pages(pcpu_chunk_addr(chunk, cpu, page_start),
-				       &pages[pcpu_page_idx(cpu, page_start)],
-				       page_end - page_start);
-		if (err < 0)
-			goto err;
-	}
-
-	/* mapping successful, link chunk and mark populated */
-	for (i = page_start; i < page_end; i++) {
-		for_each_possible_cpu(cpu)
-			pcpu_set_page_chunk(pages[pcpu_page_idx(cpu, i)],
-					    chunk);
-		__set_bit(i, populated);
-	}
-
-	return 0;
-
-err:
-	for_each_possible_cpu(tcpu) {
-		if (tcpu == cpu)
-			break;
-		__pcpu_unmap_pages(pcpu_chunk_addr(chunk, tcpu, page_start),
-				   page_end - page_start);
-	}
-	return err;
-}
-
-/**
- * pcpu_post_map_flush - flush cache after mapping
- * @chunk: pcpu_chunk the regions to be flushed belong to
- * @page_start: page index of the first page to be flushed
- * @page_end: page index of the last page to be flushed + 1
- *
- * Pages [@page_start,@page_end) of @chunk have been mapped.  Flush
- * cache.
- *
- * As with pcpu_pre_unmap_flush(), TLB flushing also is done at once
- * for the whole region.
- */
-static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
-				int page_start, int page_end)
-{
-	flush_cache_vmap(
-		pcpu_chunk_addr(chunk, pcpu_first_unit_cpu, page_start),
-		pcpu_chunk_addr(chunk, pcpu_last_unit_cpu, page_end));
-}
-
-/**
- * pcpu_depopulate_chunk - depopulate and unmap an area of a pcpu_chunk
- * @chunk: chunk to depopulate
- * @off: offset to the area to depopulate
- * @size: size of the area to depopulate in bytes
- * @flush: whether to flush cache and tlb or not
- *
- * For each cpu, depopulate and unmap pages [@page_start,@page_end)
- * from @chunk.  If @flush is true, vcache is flushed before unmapping
- * and tlb after.
- *
- * CONTEXT:
- * pcpu_alloc_mutex.
- */
-static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
-{
-	int page_start = PFN_DOWN(off);
-	int page_end = PFN_UP(off + size);
-	struct page **pages;
-	unsigned long *populated;
-	int rs, re;
-
-	/* quick path, check whether it's empty already */
-	rs = page_start;
-	pcpu_next_unpop(chunk, &rs, &re, page_end);
-	if (rs == page_start && re == page_end)
-		return;
-
-	/* immutable chunks can't be depopulated */
-	WARN_ON(chunk->immutable);
-
-	/*
-	 * If control reaches here, there must have been at least one
-	 * successful population attempt so the temp pages array must
-	 * be available now.
-	 */
-	pages = pcpu_get_pages_and_bitmap(chunk, &populated, false);
-	BUG_ON(!pages);
-
-	/* unmap and free */
-	pcpu_pre_unmap_flush(chunk, page_start, page_end);
-
-	pcpu_for_each_pop_region(chunk, rs, re, page_start, page_end)
-		pcpu_unmap_pages(chunk, pages, populated, rs, re);
-
-	/* no need to flush tlb, vmalloc will handle it lazily */
-
-	pcpu_for_each_pop_region(chunk, rs, re, page_start, page_end)
-		pcpu_free_pages(chunk, pages, populated, rs, re);
-
-	/* commit new bitmap */
-	bitmap_copy(chunk->populated, populated, pcpu_unit_pages);
-}
-
-/**
- * pcpu_populate_chunk - populate and map an area of a pcpu_chunk
- * @chunk: chunk of interest
- * @off: offset to the area to populate
- * @size: size of the area to populate in bytes
- *
- * For each cpu, populate and map pages [@page_start,@page_end) into
- * @chunk.  The area is cleared on return.
- *
- * CONTEXT:
- * pcpu_alloc_mutex, does GFP_KERNEL allocation.
- */
-static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
-{
-	int page_start = PFN_DOWN(off);
-	int page_end = PFN_UP(off + size);
-	int free_end = page_start, unmap_end = page_start;
-	struct page **pages;
-	unsigned long *populated;
-	unsigned int cpu;
-	int rs, re, rc;
-
-	/* quick path, check whether all pages are already there */
-	rs = page_start;
-	pcpu_next_pop(chunk, &rs, &re, page_end);
-	if (rs == page_start && re == page_end)
-		goto clear;
-
-	/* need to allocate and map pages, this chunk can't be immutable */
-	WARN_ON(chunk->immutable);
-
-	pages = pcpu_get_pages_and_bitmap(chunk, &populated, true);
-	if (!pages)
-		return -ENOMEM;
-
-	/* alloc and map */
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-		rc = pcpu_alloc_pages(chunk, pages, populated, rs, re);
-		if (rc)
-			goto err_free;
-		free_end = re;
-	}
-
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-		rc = pcpu_map_pages(chunk, pages, populated, rs, re);
-		if (rc)
-			goto err_unmap;
-		unmap_end = re;
-	}
-	pcpu_post_map_flush(chunk, page_start, page_end);
-
-	/* commit new bitmap */
-	bitmap_copy(chunk->populated, populated, pcpu_unit_pages);
-clear:
-	for_each_possible_cpu(cpu)
-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-	return 0;
-
-err_unmap:
-	pcpu_pre_unmap_flush(chunk, page_start, unmap_end);
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, unmap_end)
-		pcpu_unmap_pages(chunk, pages, populated, rs, re);
-	pcpu_post_unmap_tlb_flush(chunk, page_start, unmap_end);
-err_free:
-	pcpu_for_each_unpop_region(chunk, rs, re, page_start, free_end)
-		pcpu_free_pages(chunk, pages, populated, rs, re);
-	return rc;
-}
-
-static void free_pcpu_chunk(struct pcpu_chunk *chunk)
-{
-	if (!chunk)
-		return;
-	if (chunk->vms)
-		pcpu_free_vm_areas(chunk->vms, pcpu_nr_groups);
-	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
-	kfree(chunk);
-}
-
-static struct pcpu_chunk *alloc_pcpu_chunk(void)
+static struct pcpu_chunk *pcpu_alloc_chunk(void)
 {
 	struct pcpu_chunk *chunk;
 
-	chunk = kzalloc(pcpu_chunk_struct_size, GFP_KERNEL);
+	chunk = pcpu_mem_alloc(pcpu_chunk_struct_size);
 	if (!chunk)
 		return NULL;
 
 	chunk->map = pcpu_mem_alloc(PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
-	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
-	chunk->map[chunk->map_used++] = pcpu_unit_size;
-
-	chunk->vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
-				       pcpu_nr_groups, pcpu_atom_size,
-				       GFP_KERNEL);
-	if (!chunk->vms) {
-		free_pcpu_chunk(chunk);
+	if (!chunk->map) {
+		kfree(chunk);
 		return NULL;
 	}
+
+	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
+	chunk->map[chunk->map_used++] = pcpu_unit_size;
 
 	INIT_LIST_HEAD(&chunk->list);
 	chunk->free_size = pcpu_unit_size;
 	chunk->contig_hint = pcpu_unit_size;
-	chunk->base_addr = chunk->vms[0]->addr - pcpu_group_offsets[0];
 
 	return chunk;
+}
+
+static void pcpu_free_chunk(struct pcpu_chunk *chunk)
+{
+	if (!chunk)
+		return;
+	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
+	kfree(chunk);
+}
+
+/*
+ * Chunk management implementation.
+ *
+ * To allow different implementations, chunk alloc/free and
+ * [de]population are implemented in a separate file which is pulled
+ * into this file and compiled together.  The following functions
+ * should be implemented.
+ *
+ * pcpu_populate_chunk		- populate the specified range of a chunk
+ * pcpu_depopulate_chunk	- depopulate the specified range of a chunk
+ * pcpu_create_chunk		- create a new chunk
+ * pcpu_destroy_chunk		- destroy a chunk, always preceded by full depop
+ * pcpu_addr_to_page		- translate address to physical address
+ * pcpu_verify_alloc_info	- check alloc_info is acceptable during init
+ */
+static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size);
+static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size);
+static struct pcpu_chunk *pcpu_create_chunk(void);
+static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
+static struct page *pcpu_addr_to_page(void *addr);
+static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
+
+#ifdef CONFIG_NEED_PER_CPU_KM
+#include "percpu-km.c"
+#else
+#include "percpu-vm.c"
+#endif
+
+/**
+ * pcpu_chunk_addr_search - determine chunk containing specified address
+ * @addr: address for which the chunk needs to be determined.
+ *
+ * RETURNS:
+ * The address of the found chunk.
+ */
+static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
+{
+	/* is it in the first chunk? */
+	if (pcpu_addr_in_first_chunk(addr)) {
+		/* is it in the reserved area? */
+		if (pcpu_addr_in_reserved_chunk(addr))
+			return pcpu_reserved_chunk;
+		return pcpu_first_chunk;
+	}
+
+	/*
+	 * The address is relative to unit0 which might be unused and
+	 * thus unmapped.  Offset the address to the unit space of the
+	 * current processor before looking it up in the vmalloc
+	 * space.  Note that any possible cpu id can be used here, so
+	 * there's no need to worry about preemption or cpu hotplug.
+	 */
+	addr += pcpu_unit_offsets[raw_smp_processor_id()];
+	return pcpu_get_page_chunk(pcpu_addr_to_page(addr));
 }
 
 /**
@@ -1142,7 +773,7 @@ restart:
 	/* hmmm... no space left, create a new chunk */
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	chunk = alloc_pcpu_chunk();
+	chunk = pcpu_create_chunk();
 	if (!chunk) {
 		err = "failed to allocate new chunk";
 		goto fail_unlock_mutex;
@@ -1254,7 +885,7 @@ static void pcpu_reclaim(struct work_struct *work)
 
 	list_for_each_entry_safe(chunk, next, &todo, list) {
 		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
-		free_pcpu_chunk(chunk);
+		pcpu_destroy_chunk(chunk);
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
@@ -1304,6 +935,32 @@ void free_percpu(void __percpu *ptr)
 EXPORT_SYMBOL_GPL(free_percpu);
 
 /**
+ * is_kernel_percpu_address - test whether address is from static percpu area
+ * @addr: address to test
+ *
+ * Test whether @addr belongs to in-kernel static percpu area.  Module
+ * static percpu areas are not considered.  For those, use
+ * is_module_percpu_address().
+ *
+ * RETURNS:
+ * %true if @addr is from in-kernel static percpu area, %false otherwise.
+ */
+bool is_kernel_percpu_address(unsigned long addr)
+{
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
+	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		void *start = per_cpu_ptr(base, cpu);
+
+		if ((void *)addr >= start && (void *)addr < start + static_size)
+			return true;
+        }
+	return false;
+}
+
+/**
  * per_cpu_ptr_to_phys - convert translated percpu address to physical address
  * @addr: the address to be converted to physical address
  *
@@ -1317,25 +974,39 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 phys_addr_t per_cpu_ptr_to_phys(void *addr)
 {
-	if ((unsigned long)addr < VMALLOC_START ||
-			(unsigned long)addr >= VMALLOC_END)
-		return __pa(addr);
-	else
-		return page_to_phys(vmalloc_to_page(addr));
-}
+	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
+	bool in_first_chunk = false;
+	unsigned long first_start, first_end;
+	unsigned int cpu;
 
-static inline size_t pcpu_calc_fc_sizes(size_t static_size,
-					size_t reserved_size,
-					ssize_t *dyn_sizep)
-{
-	size_t size_sum;
+	/*
+	 * The following test on first_start/end isn't strictly
+	 * necessary but will speed up lookups of addresses which
+	 * aren't in the first chunk.
+	 */
+	first_start = pcpu_chunk_addr(pcpu_first_chunk, pcpu_first_unit_cpu, 0);
+	first_end = pcpu_chunk_addr(pcpu_first_chunk, pcpu_last_unit_cpu,
+				    pcpu_unit_pages);
+	if ((unsigned long)addr >= first_start &&
+	    (unsigned long)addr < first_end) {
+		for_each_possible_cpu(cpu) {
+			void *start = per_cpu_ptr(base, cpu);
 
-	size_sum = PFN_ALIGN(static_size + reserved_size +
-			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
-	if (*dyn_sizep != 0)
-		*dyn_sizep = size_sum - static_size - reserved_size;
+			if (addr >= start && addr < start + pcpu_unit_size) {
+				in_first_chunk = true;
+				break;
+			}
+		}
+	}
 
-	return size_sum;
+	if (in_first_chunk) {
+		if ((unsigned long)addr < VMALLOC_START ||
+		    (unsigned long)addr >= VMALLOC_END)
+			return __pa(addr);
+		else
+			return page_to_phys(vmalloc_to_page(addr));
+	} else
+		return page_to_phys(pcpu_addr_to_page(addr));
 }
 
 /**
@@ -1396,7 +1067,7 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
 /**
  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
  * @reserved_size: the size of reserved percpu area in bytes
- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @dyn_size: minimum free size for dynamic allocation in bytes
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
  *
@@ -1414,15 +1085,15 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
  * On success, pointer to the new allocation_info is returned.  On
  * failure, ERR_PTR value is returned.
  */
-struct pcpu_alloc_info * __init pcpu_build_alloc_info(
-				size_t reserved_size, ssize_t dyn_size,
+static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+				size_t reserved_size, size_t dyn_size,
 				size_t atom_size,
 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
 {
 	static int group_map[NR_CPUS] __initdata;
 	static int group_cnt[NR_CPUS] __initdata;
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
-	int group_cnt_max = 0, nr_groups = 1, nr_units = 0;
+	int nr_groups = 1, nr_units = 0;
 	size_t size_sum, min_unit_size, alloc_size;
 	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
 	int last_allocs, group, unit;
@@ -1432,7 +1103,12 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 
 	/* this function may be called multiple times */
 	memset(group_map, 0, sizeof(group_map));
-	memset(group_cnt, 0, sizeof(group_map));
+	memset(group_cnt, 0, sizeof(group_cnt));
+
+	/* calculate size_sum and ensure dyn_size is enough for early alloc */
+	size_sum = PFN_ALIGN(static_size + reserved_size +
+			    max_t(size_t, dyn_size, PERCPU_DYNAMIC_EARLY_SIZE));
+	dyn_size = size_sum - static_size - reserved_size;
 
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
@@ -1440,7 +1116,6 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	 * which can accomodate 4k aligned segments which are equal to
 	 * or larger than min_unit_size.
 	 */
-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
 
 	alloc_size = roundup(min_unit_size, atom_size);
@@ -1466,7 +1141,6 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		}
 		group_map[cpu] = group;
 		group_cnt[group]++;
-		group_cnt_max = max(group_cnt_max, group_cnt[group]);
 	}
 
 	/*
@@ -1662,7 +1336,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
 	static char cpus_buf[4096] __initdata;
-	static int smap[2], dmap[2];
+	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
 	struct pcpu_chunk *schunk, *dchunk = NULL;
@@ -1685,14 +1360,14 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 } while (0)
 
 	/* sanity checks */
-	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
-		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
 	PCPU_SETUP_BUG_ON(!ai->static_size);
 	PCPU_SETUP_BUG_ON(!base_addr);
 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
 	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */
 	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
@@ -1843,7 +1518,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
 /**
  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
  * @reserved_size: the size of reserved percpu area in bytes
- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @dyn_size: minimum free size for dynamic allocation in bytes
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
  * @alloc_fn: function to allocate percpu page
@@ -1864,10 +1539,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * vmalloc space is not orders of magnitude larger than distances
  * between node memory addresses (ie. 32bit NUMA machines).
  *
- * When @dyn_size is positive, dynamic area might be larger than
- * specified to fill page alignment.  When @dyn_size is auto,
- * @dyn_size is just big enough to fill page alignment after static
- * and reserved areas.
+ * @dyn_size specifies the minimum dynamic area size.
  *
  * If the needed size is smaller than the minimum or specified unit
  * size, the leftover is returned using @free_fn.
@@ -1875,7 +1547,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
+int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				  size_t atom_size,
 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
 				  pcpu_fc_alloc_fn_t alloc_fn,
@@ -2006,7 +1678,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 
 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
-	ai = pcpu_build_alloc_info(reserved_size, -1, PAGE_SIZE, NULL);
+	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
 	if (IS_ERR(ai))
 		return PTR_ERR(ai);
 	BUG_ON(ai->nr_groups != 1);
@@ -2132,3 +1804,33 @@ void __init setup_per_cpu_areas(void)
 		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
 #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+
+/*
+ * First and reserved chunks are initialized with temporary allocation
+ * map in initdata so that they can be used before slab is online.
+ * This function is called after slab is brought up and replaces those
+ * with properly allocated maps.
+ */
+void __init percpu_init_late(void)
+{
+	struct pcpu_chunk *target_chunks[] =
+		{ pcpu_first_chunk, pcpu_reserved_chunk, NULL };
+	struct pcpu_chunk *chunk;
+	unsigned long flags;
+	int i;
+
+	for (i = 0; (chunk = target_chunks[i]); i++) {
+		int *map;
+		const size_t size = PERCPU_DYNAMIC_EARLY_SLOTS * sizeof(map[0]);
+
+		BUILD_BUG_ON(size > PAGE_SIZE);
+
+		map = pcpu_mem_alloc(size);
+		BUG_ON(!map);
+
+		spin_lock_irqsave(&pcpu_lock, flags);
+		memcpy(map, chunk->map, size);
+		chunk->map = map;
+		spin_unlock_irqrestore(&pcpu_lock, flags);
+	}
+}

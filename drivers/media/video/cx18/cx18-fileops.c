@@ -4,7 +4,7 @@
  *  Derived from ivtv-fileops.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -700,7 +700,7 @@ int cx18_v4l2_close(struct file *filp)
 
 	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
 
-	v4l2_prio_close(&cx->prio, &id->prio);
+	v4l2_prio_close(&cx->prio, id->prio);
 
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {

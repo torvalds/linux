@@ -23,6 +23,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/err.h>
+#include <linux/gfp.h>
 
 #include <asm/irq.h>
 

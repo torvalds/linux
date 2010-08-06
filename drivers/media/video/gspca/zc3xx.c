@@ -46,9 +46,9 @@ struct sd {
 	u8 lightfreq;
 	u8 sharpness;
 	u8 quality;			/* image quality */
-#define QUALITY_MIN 40
-#define QUALITY_MAX 60
-#define QUALITY_DEF 50
+#define QUALITY_MIN 50
+#define QUALITY_MAX 80
+#define QUALITY_DEF 70
 
 	u8 sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
@@ -75,7 +75,7 @@ struct sd {
 #define SENSOR_MAX 19
 	unsigned short chip_revision;
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -93,7 +93,6 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
-#define BRIGHTNESS_IDX 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -6003,33 +6002,6 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev->dev, matrix[i], 0x010a + i);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	u8 brightness;
-
-	switch (sd->sensor) {
-	case SENSOR_GC0305:
-	case SENSOR_OV7620:
-	case SENSOR_PAS202B:
-	case SENSOR_PO2030:
-		return;
-	}
-/*fixme: is it really write to 011d and 018d for all other sensors? */
-	brightness = sd->brightness;
-	reg_w(gspca_dev->dev, brightness, 0x011d);
-	switch (sd->sensor) {
-	case SENSOR_ADCM2700:
-	case SENSOR_HV7131B:
-		return;
-	}
-	if (brightness < 0x70)
-		brightness += 0x10;
-	else
-		brightness = 0x80;
-	reg_w(gspca_dev->dev, brightness, 0x018d);
-}
-
 static void setsharpness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -6055,11 +6027,14 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	const u8 *Tgamma;
-	int g, i, k, adj, gp;
+	int g, i, brightness, contrast, adj, gp1, gp2;
 	u8 gr[16];
-	static const u8 delta_tb[16] =		/* delta for contrast */
-		{0x15, 0x0d, 0x0a, 0x09, 0x08, 0x08, 0x08, 0x08,
-		 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
+	static const u8 delta_b[16] =		/* delta for brightness */
+		{0x50, 0x38, 0x2d, 0x28, 0x24, 0x21, 0x1e, 0x1d,
+		 0x1d, 0x1b, 0x1b, 0x1b, 0x19, 0x18, 0x18, 0x18};
+	static const u8 delta_c[16] =		/* delta for contrast */
+		{0x2c, 0x1a, 0x12, 0x0c, 0x0a, 0x06, 0x06, 0x06,
+		 0x04, 0x06, 0x04, 0x04, 0x03, 0x03, 0x02, 0x02};
 	static const u8 gamma_tb[6][16] = {
 		{0x00, 0x00, 0x03, 0x0d, 0x1b, 0x2e, 0x45, 0x5f,
 		 0x79, 0x93, 0xab, 0xc1, 0xd4, 0xe5, 0xf3, 0xff},
@@ -6077,30 +6052,30 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 
 	Tgamma = gamma_tb[sd->gamma - 1];
 
-	k = ((int) sd->contrast - 128);		/* -128 / 128 */
+	contrast = ((int) sd->contrast - 128);		/* -128 / 127 */
+	brightness = ((int) sd->brightness - 128);	/* -128 / 92 */
 	adj = 0;
-	gp = 0;
+	gp1 = gp2 = 0;
 	for (i = 0; i < 16; i++) {
-		g = Tgamma[i] - delta_tb[i] * k / 128 - adj / 2;
+		g = Tgamma[i] + delta_b[i] * brightness / 256
+				- delta_c[i] * contrast / 256 - adj / 2;
 		if (g > 0xff)
 			g = 0xff;
-		else if (g <= 0)
-			g = 1;
+		else if (g < 0)
+			g = 0;
 		reg_w(dev, g, 0x0120 + i);	/* gamma */
-		if (k > 0)
+		if (contrast > 0)
 			adj--;
-		else
+		else if (contrast < 0)
 			adj++;
-
-		if (i != 0) {
-			if (gp == 0)
-				gr[i - 1] = 0;
-			else
-				gr[i - 1] = g - gp;
-		}
-		gp = g;
+		if (i > 1)
+			gr[i - 1] = (g - gp2) / 2;
+		else if (i != 0)
+			gr[0] = gp1 == 0 ? 0 : (g - gp1);
+		gp2 = gp1;
+		gp1 = g;
 	}
-	gr[15] = gr[14] / 2;
+	gr[15] = (0xff - gp2) / 2;
 	for (i = 0; i < 16; i++)
 		reg_w(dev, gr[i], 0x0130 + i);	/* gradient */
 }
@@ -6202,13 +6177,13 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 pas106b_50HZ, pas106b_50HZ,
 		 pas106b_60HZ, pas106b_60HZ},
 /* SENSOR_PAS202B 13 */
-		{pas202b_NoFlikerScale, pas202b_NoFliker,
-		 pas202b_50HZScale, pas202b_50HZ,
-		 pas202b_60HZScale, pas202b_60HZ},
+		{pas202b_NoFliker, pas202b_NoFlikerScale,
+		 pas202b_50HZ, pas202b_50HZScale,
+		 pas202b_60HZ, pas202b_60HZScale},
 /* SENSOR_PB0330 14 */
-		{pb0330_NoFlikerScale, pb0330_NoFliker,
-		 pb0330_50HZScale, pb0330_50HZ,
-		 pb0330_60HZScale, pb0330_60HZ},
+		{pb0330_NoFliker, pb0330_NoFlikerScale,
+		 pb0330_50HZ, pb0330_50HZScale,
+		 pb0330_60HZ, pb0330_60HZScale},
 /* SENSOR_PO2030 15 */
 		{po2030_NoFliker, po2030_NoFliker,
 		 po2030_50HZ, po2030_50HZ,
@@ -6796,12 +6771,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->quality = QUALITY_DEF;
 
 	switch (sd->sensor) {
-	case SENSOR_GC0305:
-	case SENSOR_OV7620:
-	case SENSOR_PAS202B:
-	case SENSOR_PO2030:
-		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
-		break;
 	case SENSOR_HV7131B:
 	case SENSOR_HV7131C:
 	case SENSOR_OV7630C:
@@ -6849,9 +6818,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	};
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -6892,7 +6858,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	setmatrix(gspca_dev);
-	setbrightness(gspca_dev);
 	switch (sd->sensor) {
 	case SENSOR_ADCM2700:
 	case SENSOR_OV7620:
@@ -6970,10 +6935,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x00, 0x0007);	/* (from win traces) */
 		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
 		break;
-	case SENSOR_PAS202B:
-		reg_w(dev, 0x32, 0x0007);	/* (from win traces) */
-		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
-		break;
 	}
 	return 0;
 }
@@ -6983,7 +6944,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	kfree(sd->jpeg_hdr);
 	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev->dev, sd->sensor);
@@ -7020,7 +6980,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->brightness = val;
 	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
+		setcontrast(gspca_dev);
 	return 0;
 }
 
@@ -7233,9 +7193,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08aa)},
 	{USB_DEVICE(0x046d, 0x08ac)},
 	{USB_DEVICE(0x046d, 0x08ad)},
-#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x046d, 0x08ae)},
-#endif
 	{USB_DEVICE(0x046d, 0x08af)},
 	{USB_DEVICE(0x046d, 0x08b9)},
 	{USB_DEVICE(0x046d, 0x08d7)},

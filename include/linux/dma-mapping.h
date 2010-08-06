@@ -40,16 +40,6 @@ struct dma_map_ops {
 	void (*sync_single_for_device)(struct device *dev,
 				       dma_addr_t dma_handle, size_t size,
 				       enum dma_data_direction dir);
-	void (*sync_single_range_for_cpu)(struct device *dev,
-					  dma_addr_t dma_handle,
-					  unsigned long offset,
-					  size_t size,
-					  enum dma_data_direction dir);
-	void (*sync_single_range_for_device)(struct device *dev,
-					     dma_addr_t dma_handle,
-					     unsigned long offset,
-					     size_t size,
-					     enum dma_data_direction dir);
 	void (*sync_sg_for_cpu)(struct device *dev,
 				struct scatterlist *sg, int nents,
 				enum dma_data_direction dir);
@@ -104,21 +94,6 @@ static inline int is_device_dma_capable(struct device *dev)
 #else
 #include <asm-generic/dma-mapping-broken.h>
 #endif
-
-/* for backwards compatibility, removed soon */
-static inline void __deprecated dma_sync_single(struct device *dev,
-						dma_addr_t addr, size_t size,
-						enum dma_data_direction dir)
-{
-	dma_sync_single_for_cpu(dev, addr, size, dir);
-}
-
-static inline void __deprecated dma_sync_sg(struct device *dev,
-					    struct scatterlist *sg, int nelems,
-					    enum dma_data_direction dir)
-{
-	dma_sync_sg_for_cpu(dev, sg, nelems, dir);
-}
 
 static inline u64 dma_get_mask(struct device *dev)
 {

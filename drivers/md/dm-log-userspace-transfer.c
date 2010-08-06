@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/workqueue.h>
 #include <linux/connector.h>

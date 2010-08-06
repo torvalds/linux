@@ -1,7 +1,7 @@
 Global File System
 ------------------
 
-http://sources.redhat.com/cluster/
+http://sources.redhat.com/cluster/wiki/
 
 GFS is a cluster file system. It allows a cluster of computers to
 simultaneously use a block device that is shared between them (with FC,
@@ -36,11 +36,11 @@ GFS2 is not on-disk compatible with previous versions of GFS, but it
 is pretty close.
 
 The following man pages can be found at the URL above:
-  fsck.gfs2	to repair a filesystem
-  gfs2_grow	to expand a filesystem online
-  gfs2_jadd	to add journals to a filesystem online
-  gfs2_tool	to manipulate, examine and tune a filesystem
+  fsck.gfs2		to repair a filesystem
+  gfs2_grow		to expand a filesystem online
+  gfs2_jadd		to add journals to a filesystem online
+  gfs2_tool		to manipulate, examine and tune a filesystem
   gfs2_quota	to examine and change quota values in a filesystem
   gfs2_convert	to convert a gfs filesystem to gfs2 in-place
   mount.gfs2	to help mount(8) mount a filesystem
-  mkfs.gfs2	to make a filesystem
+  mkfs.gfs2		to make a filesystem

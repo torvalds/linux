@@ -17,6 +17,7 @@
 #include <linux/magic.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;

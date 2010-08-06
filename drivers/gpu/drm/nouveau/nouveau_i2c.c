@@ -254,16 +254,27 @@ struct nouveau_i2c_chan *
 nouveau_i2c_find(struct drm_device *dev, int index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct dcb_i2c_entry *i2c = &dev_priv->vbios.dcb.i2c[index];
 
 	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
 		return NULL;
 
-	if (!bios->dcb.i2c[index].chan) {
-		if (nouveau_i2c_init(dev, &bios->dcb.i2c[index], index))
-			return NULL;
+	if (dev_priv->chipset >= NV_50 && (i2c->entry & 0x00000100)) {
+		uint32_t reg = 0xe500, val;
+
+		if (i2c->port_type == 6) {
+			reg += i2c->read * 0x50;
+			val  = 0x2002;
+		} else {
+			reg += ((i2c->entry & 0x1e00) >> 9) * 0x50;
+			val  = 0xe001;
+		}
+
+		nv_wr32(dev, reg, (nv_rd32(dev, reg) & ~0xf003) | val);
 	}
 
-	return bios->dcb.i2c[index].chan;
+	if (!i2c->chan && nouveau_i2c_init(dev, i2c, index))
+		return NULL;
+	return i2c->chan;
 }
 

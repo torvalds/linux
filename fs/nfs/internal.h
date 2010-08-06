@@ -205,7 +205,8 @@ extern struct rpc_procinfo nfs4_procedures[];
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 
 /* dir.c */
-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
+extern int nfs_access_cache_shrinker(struct shrinker *shrink,
+					int nr_to_scan, gfp_t gfp_mask);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
@@ -244,9 +245,7 @@ extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);
 #ifdef CONFIG_NFS_V4
 extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *);
 
-extern int nfs4_path_walk(struct nfs_server *server,
-			  struct nfs_fh *mntfh,
-			  const char *path);
+extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
 #endif
 
 /* read.c */

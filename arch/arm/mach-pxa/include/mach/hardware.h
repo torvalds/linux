@@ -14,11 +14,6 @@
 #define __ASM_ARCH_HARDWARE_H
 
 /*
- * We requires absolute addresses.
- */
-#define PCIO_BASE		0
-
-/*
  * Workarounds for at least 2 errata so far require this.
  * The mapping is set in mach-pxa/generic.c.
  */
@@ -202,7 +197,7 @@
 #define __cpu_is_pxa950(id)                             \
 	({                                              \
 		unsigned int _id = (id) >> 4 & 0xfff;	\
-		id == 0x697;				\
+		_id == 0x697;				\
 	 })
 #else
 #define __cpu_is_pxa950(id)	(0)

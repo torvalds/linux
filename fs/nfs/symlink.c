@@ -19,7 +19,6 @@
 #include <linux/pagemap.h>
 #include <linux/stat.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/namei.h>
 

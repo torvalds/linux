@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <scsi/scsi.h>
@@ -762,7 +763,9 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
 		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
-			lpfc_printf_vlog(port_iterator, KERN_WARNING, LOG_VPORT,
+			if (!(port_iterator->load_flag & FC_UNLOADING))
+				lpfc_printf_vlog(port_iterator, KERN_ERR,
+					 LOG_VPORT,
 					 "1801 Create vport work array FAILED: "
 					 "cannot do scsi_host_get\n");
 			continue;
@@ -779,7 +782,7 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	int i;
 	if (vports == NULL)
 		return;
-	for (i = 0; vports[i] != NULL && i <= phba->max_vports; i++)
+	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
 }

@@ -30,6 +30,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
+#include <linux/slab.h>
 
 #include <net/dst.h>
 

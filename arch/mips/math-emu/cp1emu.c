@@ -78,6 +78,9 @@ DEFINE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
 #define FPCREG_RID	0	/* $0  = revision id */
 #define FPCREG_CSR	31	/* $31 = csr */
 
+/* Determine rounding mode from the RM bits of the FCSR */
+#define modeindex(v) ((v) & FPU_CSR_RM)
+
 /* Convert Mips rounding mode (0..3) to IEEE library modes. */
 static const unsigned char ieee_rm[4] = {
 	[FPU_CSR_RN] = IEEE754_RN,
@@ -351,7 +354,8 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 
 			if (MIPSInst_RD(ir) == FPCREG_CSR) {
 				value = ctx->fcr31;
-				value = (value & ~0x3) | mips_rm[value & 0x3];
+				value = (value & ~FPU_CSR_RM) |
+					mips_rm[modeindex(value)];
 #ifdef CSRTRACE
 				printk("%p gpr[%d]<-csr=%08x\n",
 					(void *) (xcp->cp0_epc),
@@ -384,10 +388,14 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 					(void *) (xcp->cp0_epc),
 					MIPSInst_RT(ir), value);
 #endif
-				value &= (FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
-				ctx->fcr31 &= ~(FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
-				/* convert to ieee library modes */
-				ctx->fcr31 |= (value & ~0x3) | ieee_rm[value & 0x3];
+
+				/*
+				 * Don't write reserved bits,
+				 * and convert to ieee library modes
+				 */
+				ctx->fcr31 = (value &
+						~(FPU_CSR_RSVD | FPU_CSR_RM)) |
+						ieee_rm[modeindex(value)];
 			}
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
@@ -900,7 +908,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754sp fs;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.w = ieee754sp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -926,7 +934,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754sp fs;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.l = ieee754sp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1074,7 +1082,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754dp fs;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.w = ieee754dp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -1100,7 +1108,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			ieee754dp fs;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[MIPSInst_FUNC(ir) & 0x3];
+			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
 			rv.l = ieee754dp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;

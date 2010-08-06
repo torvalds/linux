@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/lcd.h>
+#include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/spi/spi.h>
@@ -124,8 +125,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 
 	if (priv == NULL) {
 		dev_err(&spi->dev, "No memory for this device.\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	dev_set_drvdata(&spi->dev, priv);
@@ -138,7 +138,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 reset gpio.\n");
-		return ret;
+		goto err;
 	}
 
 	ret = gpio_direction_output(pdata->reset_gpio, 1);
@@ -150,7 +150,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 data en gpio.\n");
-		return ret;
+		goto err2;
 	}
 
 	ret = gpio_direction_output(pdata->data_enable_gpio, 0);
@@ -221,9 +221,9 @@ static int __devexit l4f00242t03_remove(struct spi_device *spi)
 	gpio_free(pdata->reset_gpio);
 
 	if (priv->io_reg)
-		regulator_put(priv->core_reg);
-	if (priv->core_reg)
 		regulator_put(priv->io_reg);
+	if (priv->core_reg)
+		regulator_put(priv->core_reg);
 
 	kfree(priv);
 

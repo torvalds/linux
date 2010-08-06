@@ -35,6 +35,7 @@
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "igb.h"
 
@@ -901,6 +902,49 @@ struct igb_reg_test {
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
 
+/* i350 reg test */
+static struct igb_reg_test reg_test_i350[] = {
+	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_VET,	   0x100, 1,  PATTERN_TEST, 0xFFFF0000, 0xFFFF0000 },
+	{ E1000_RDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_RDBAL(4),  0x40,  4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(4),  0x40,  4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(4),  0x40,  4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	/* RDH is read-only for i350, only test RDT. */
+	{ E1000_RDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RDT(4),	   0x40,  4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_FCRTH,	   0x100, 1,  PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,	   0x100, 1,  PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_TDBAL(4),  0x40,  4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(4),  0x40,  4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(4),  0x40,  4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_TDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TDT(4),	   0x40,  4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0x003FFFFB },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0xFFFFFFFF },
+	{ E1000_TCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_LO,
+						0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_HI,
+						0xC3FFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 16, TABLE64_TEST_LO,
+						0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 16, TABLE64_TEST_HI,
+						0xC3FFFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,	   0, 128, TABLE32_TEST,
+						0xFFFFFFFF, 0xFFFFFFFF },
+	{ 0, 0, 0, 0 }
+};
+
 /* 82580 reg test */
 static struct igb_reg_test reg_test_82580[] = {
 	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
@@ -1076,6 +1120,10 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 	u32 i, toggle;
 
 	switch (adapter->hw.mac.type) {
+	case e1000_i350:
+		test = reg_test_i350;
+		toggle = 0x7FEFF3FF;
+		break;
 	case e1000_82580:
 		test = reg_test_82580;
 		toggle = 0x7FEFF3FF;
@@ -1237,6 +1285,9 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	case e1000_82580:
 		ics_mask = 0x77DCFED5;
 		break;
+	case e1000_i350:
+		ics_mask = 0x77DCFED5;
+		break;
 	default:
 		ics_mask = 0x7FFFFFFF;
 		break;
@@ -1343,7 +1394,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	/* Setup Tx descriptor ring and Tx buffers */
 	tx_ring->count = IGB_DEFAULT_TXD;
-	tx_ring->pdev = adapter->pdev;
+	tx_ring->dev = &adapter->pdev->dev;
 	tx_ring->netdev = adapter->netdev;
 	tx_ring->reg_idx = adapter->vfs_allocated_count;
 
@@ -1357,7 +1408,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	/* Setup Rx descriptor ring and Rx buffers */
 	rx_ring->count = IGB_DEFAULT_RXD;
-	rx_ring->pdev = adapter->pdev;
+	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
 	rx_ring->rx_buffer_len = IGB_RXBUFFER_2048;
 	rx_ring->reg_idx = adapter->vfs_allocated_count;
@@ -1553,10 +1604,10 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		buffer_info = &rx_ring->buffer_info[rx_ntc];
 
 		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		pci_unmap_single(rx_ring->pdev,
+		dma_unmap_single(rx_ring->dev,
 		                 buffer_info->dma,
 				 rx_ring->rx_buffer_len,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		/* verify contents of skb */
@@ -1772,12 +1823,10 @@ static void igb_diag_test(struct net_device *netdev,
 		dev_info(&adapter->pdev->dev, "online testing starting\n");
 
 		/* PHY is powered down when interface is down */
-		if (!netif_carrier_ok(netdev)) {
+		if (if_running && igb_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+		else
 			data[4] = 0;
-		} else {
-			if (igb_link_test(adapter, &data[4]))
-				eth_test->flags |= ETH_TEST_FL_FAILED;
-		}
 
 		/* Online tests aren't run; pass by default */
 		data[0] = 0;
@@ -1813,6 +1862,7 @@ static int igb_wol_exclusion(struct igb_adapter *adapter,
 		retval = 0;
 		break;
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
 		/* quad port adapters only support WoL on port A */
 		if (!(adapter->flags & IGB_FLAG_QUAD_PORT_A)) {
 			wol->supported = 0;

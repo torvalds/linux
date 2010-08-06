@@ -3020,7 +3020,7 @@ static int edge_startup(struct usb_serial *serial)
 
 	/* set up our port private structures */
 	for (i = 0; i < serial->num_ports; ++i) {
-		edge_port = kmalloc(sizeof(struct edgeport_port), GFP_KERNEL);
+		edge_port = kzalloc(sizeof(struct edgeport_port), GFP_KERNEL);
 		if (edge_port == NULL) {
 			dev_err(&serial->dev->dev, "%s - Out of memory\n",
 								   __func__);
@@ -3033,7 +3033,6 @@ static int edge_startup(struct usb_serial *serial)
 			kfree(edge_serial);
 			return -ENOMEM;
 		}
-		memset(edge_port, 0, sizeof(struct edgeport_port));
 		spin_lock_init(&edge_port->ep_lock);
 		edge_port->port = serial->port[i];
 		usb_set_serial_port_data(serial->port[i], edge_port);

@@ -145,6 +145,7 @@ config SND_HDA_CODEC_NVHDMI
 
 config SND_HDA_CODEC_INTELHDMI
 	bool "Build INTEL HDMI HD-audio codec support"
+	select SND_DYNAMIC_MINORS
 	default y
 	help
 	  Say Y here to include INTEL HDMI HD-audio codec support in

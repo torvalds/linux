@@ -20,6 +20,7 @@
 
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/workqueue.h>
 #include <net/tcp.h>
@@ -46,7 +47,6 @@ struct inet_timewait_death_row tcp_death_row = {
 	.twcal_timer	= TIMER_INITIALIZER(inet_twdr_twcal_tick, 0,
 					    (unsigned long)&tcp_death_row),
 };
-
 EXPORT_SYMBOL_GPL(tcp_death_row);
 
 static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
@@ -261,6 +261,7 @@ kill:
 	inet_twsk_put(tw);
 	return TCP_TW_SUCCESS;
 }
+EXPORT_SYMBOL(tcp_timewait_state_process);
 
 /*
  * Move a socket to time-wait or dead fin-wait-2 state.
@@ -361,7 +362,6 @@ void tcp_twsk_destructor(struct sock *sk)
 		tcp_free_md5sig_pool();
 #endif
 }
-
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
 static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
@@ -509,6 +509,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 	}
 	return newsk;
 }
+EXPORT_SYMBOL(tcp_create_openreq_child);
 
 /*
  *	Process an incoming packet for SYN_RECV sockets represented
@@ -671,6 +672,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (req->retrans < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
 	    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
 		inet_rsk(req)->acked = 1;
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDEFERACCEPTDROP);
 		return NULL;
 	}
 
@@ -704,6 +706,7 @@ embryonic_reset:
 	inet_csk_reqsk_queue_drop(sk, req, prev);
 	return NULL;
 }
+EXPORT_SYMBOL(tcp_check_req);
 
 /*
  * Queue segment on the new socket if the new socket is active,
@@ -735,8 +738,4 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 	sock_put(child);
 	return ret;
 }
-
-EXPORT_SYMBOL(tcp_check_req);
 EXPORT_SYMBOL(tcp_child_process);
-EXPORT_SYMBOL(tcp_create_openreq_child);
-EXPORT_SYMBOL(tcp_timewait_state_process);

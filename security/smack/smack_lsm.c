@@ -19,12 +19,12 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/stat.h>
-#include <linux/ext2_fs.h>
 #include <linux/kd.h>
 #include <asm/ioctls.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/pipe_fs_i.h>
 #include <net/netlabel.h>
@@ -598,6 +598,8 @@ static int smack_inode_rename(struct inode *old_inode,
 static int smack_inode_permission(struct inode *inode, int mask)
 {
 	struct smk_audit_info ad;
+
+	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
 	/*
 	 * No permission to check. Existence test. Yup, it's there.
 	 */
@@ -1115,15 +1117,6 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 {
 	new->security = old->security;
 	return 0;
-}
-
-/**
- * smack_cred_commit - commit new credentials
- * @new: the new credentials
- * @old: the original credentials
- */
-static void smack_cred_commit(struct cred *new, const struct cred *old)
-{
 }
 
 /**
@@ -2200,7 +2193,7 @@ static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
 
 /**
  * smack_d_instantiate - Make sure the blob is correct on an inode
- * @opt_dentry: unused
+ * @opt_dentry: dentry where inode will be attached
  * @inode: the object
  *
  * Set the inode's security blob if it hasn't been done already.
@@ -2319,20 +2312,10 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		/*
 		 * Get the dentry for xattr.
 		 */
-		if (opt_dentry == NULL) {
-			dp = d_find_alias(inode);
-			if (dp == NULL)
-				break;
-		} else {
-			dp = dget(opt_dentry);
-			if (dp == NULL)
-				break;
-		}
-
+		dp = dget(opt_dentry);
 		fetched = smk_fetch(inode, dp);
 		if (fetched != NULL)
 			final = fetched;
-
 		dput(dp);
 		break;
 	}
@@ -3120,7 +3103,6 @@ struct security_operations smack_ops = {
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
-	.cred_commit =			smack_cred_commit,
 	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,
@@ -3237,7 +3219,7 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = &smack_known_floor.smk_known;
 
-	/* initilize the smack_know_list */
+	/* initialize the smack_know_list */
 	init_smack_know_list();
 	/*
 	 * Initialize locks

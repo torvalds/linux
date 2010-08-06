@@ -9,6 +9,7 @@
 #include <linux/completion.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #define PAGE_OFS(ofs) ((ofs) & (PAGE_SIZE-1))
 
@@ -126,7 +127,8 @@ static int mtd_readpage(void *_sb, struct page *page)
 
 	err = mtd_read(sb, page->index << PAGE_SHIFT, PAGE_SIZE,
 			page_address(page));
-	if (err == -EUCLEAN) {
+	if (err == -EUCLEAN || err == -EBADMSG) {
+		/* -EBADMSG happens regularly on power failures */
 		err = 0;
 		/* FIXME: force GC this segment */
 	}
@@ -233,12 +235,32 @@ static void mtd_put_device(struct super_block *sb)
 	put_mtd_device(logfs_super(sb)->s_mtd);
 }
 
+static int mtd_can_write_buf(struct super_block *sb, u64 ofs)
+{
+	struct logfs_super *super = logfs_super(sb);
+	void *buf;
+	int err;
+
+	buf = kmalloc(super->s_writesize, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	err = mtd_read(sb, ofs, super->s_writesize, buf);
+	if (err)
+		goto out;
+	if (memchr_inv(buf, 0xff, super->s_writesize))
+		err = -EIO;
+	kfree(buf);
+out:
+	return err;
+}
+
 static const struct logfs_device_ops mtd_devops = {
 	.find_first_sb	= mtd_find_first_sb,
 	.find_last_sb	= mtd_find_last_sb,
 	.readpage	= mtd_readpage,
 	.writeseg	= mtd_writeseg,
 	.erase		= mtd_erase,
+	.can_write_buf	= mtd_can_write_buf,
 	.sync		= mtd_sync,
 	.put_device	= mtd_put_device,
 };
@@ -250,5 +272,7 @@ int logfs_get_sb_mtd(struct file_system_type *type, int flags,
 	const struct logfs_device_ops *devops = &mtd_devops;
 
 	mtd = get_mtd_device(NULL, mtdnr);
+	if (IS_ERR(mtd))
+		return PTR_ERR(mtd);
 	return logfs_get_sb_device(type, flags, mtd, NULL, devops, mnt);
 }

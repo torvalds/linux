@@ -58,6 +58,7 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	KGDB	Kernel debugger support is enabled.
 	KVM	Kernel Virtual Machine support is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
@@ -92,6 +93,7 @@ parameter is applicable:
 			Documentation/scsi/.
 	SECURITY Different security models are enabled.
 	SELINUX SELinux support is enabled.
+	APPARMOR AppArmor support is enabled.
 	SERIAL	Serial support is enabled.
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
@@ -99,6 +101,7 @@ parameter is applicable:
 	SWSUSP	Software suspend (hibernation) is enabled.
 	SUSPEND	System suspend states are enabled.
 	FTRACE	Function tracing enabled.
+	TPM	TPM drivers are enabled.
 	TS	Appropriate touchscreen support is enabled.
 	UMS	USB Mass Storage support is enabled.
 	USB	USB support is enabled.
@@ -143,14 +146,14 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi=		[HW,ACPI,X86]
 			Advanced Configuration and Power Interface
-			Format: { force | off | ht | strict | noirq | rsdt }
+			Format: { force | off | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
-			ht -- run only enough ACPI to enable Hyper Threading
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
+			copy_dsdt -- copy DSDT to memory
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
@@ -252,8 +255,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			control method, with respect to putting devices into
 			low power states, to be enforced (the ACPI 2.0 ordering
 			of _PTS is used by default).
-			s4_nonvs prevents the kernel from saving/restoring the
-			ACPI NVS memory during hibernation.
+			nonvs prevents the kernel from saving/restoring the
+			ACPI NVS memory during suspend/hibernation and resume.
 			sci_force_enable causes the kernel to set SCI_EN directly
 			on resume from S1/S3 (which is against the ACPI spec,
 			but some broken systems don't work without it).
@@ -287,9 +290,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
 
-	advwdt=		[HW,WDT] Advantech WDT
-			Format: <iostart>,<iostop>
-
 	aedsp16=	[HW,OSS] Audio Excel DSP 16
 			Format: <io>,<irq>,<dma>,<mss_io>,<mpu_io>,<mpu_irq>
 			See also header of sound/oss/aedsp16.c.
@@ -320,15 +320,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	amd_iommu=	[HW,X86-84]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
-			isolate - enable device isolation (each device, as far
-			          as possible, will get its own protection
-			          domain) [default]
-			share - put every device behind one IOMMU into the
-				same protection domain
 			fullflush - enable flushing of IO/TLB entries when
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
 				    is a lot of faster
+			off	  - do not initialize any AMD IOMMU found in
+				    the system
 
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
@@ -713,6 +710,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			The VGA output is eventually overwritten by the real
 			console.
 
+	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
+			ekgdboc=kbd
+
+			This is desgined to be used in conjunction with
+			the boot argument: earlyprintk=vga
+
 	eata=		[HW,SCSI]
 
 	edd=		[EDD]
@@ -755,12 +758,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is 0.
 			Value can be changed at runtime via /selinux/enforce.
 
+	erst_disable	[ACPI]
+			Disable Error Record Serialization Table (ERST)
+			support.
+
 	ether=		[HW,NET] Ethernet cards parameters
 			This option is obsoleted by the "netdev=" option, which
 			has equivalent usage. See its documentation for details.
-
-	eurwdt=		[HW,WDT] Eurotech CPU-1220/1410 onboard watchdog.
-			Format: <io>[,<irq>]
 
 	failslab=
 	fail_page_alloc=
@@ -789,8 +793,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			as early as possible in order to facilitate early
 			boot debugging.
 
-	ftrace_dump_on_oops
+	ftrace_dump_on_oops[=orig_cpu]
 			[FTRACE] will dump the trace buffers on oops.
+			If no parameter is passed, ftrace will dump
+			buffers of all CPUs, but if you pass orig_cpu, it will
+			dump only the buffer of the CPU that triggered the
+			oops.
 
 	ftrace_filter=[function-list]
 			[FTRACE] Limit the functions traced by the function
@@ -847,6 +855,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
+
+	hest_disable	[ACPI]
+			Disable Hardware Error Source Table (HEST) support;
+			corresponding firmware-first mode error processing
+			logic will be disabled.
 
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
@@ -1117,10 +1130,26 @@ and is between 256 and 4096 characters. It is defined in the file
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
 
-	kgdboc=		[HW] kgdb over consoles.
-			Requires a tty driver that supports console polling.
-			(only serial supported for now)
-			Format: <serial_device>[,baud]
+	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+			Format: <Controller#>[,poll interval]
+			The controller # is the number of the ehci usb debug
+			port as it is probed via PCI.  The poll interval is
+			optional and is the number seconds in between
+			each poll cycle to the debug port in case you need
+			the functionality for interrupting the kernel with
+			gdb or control-c on the dbgp connection.  When
+			not using this parameter you use sysrq-g to break into
+			the kernel debugger.
+
+	kgdboc=		[KGDB,HW] kgdb over consoles.
+			Requires a tty driver that supports console polling,
+			or a supported polling keyboard driver (non-usb).
+			Serial only format: <serial_device>[,baud]
+			keyboard only format: kbd
+			keyboard and serial format: kbd,<serial_device>[,baud]
+
+	kgdbwait	[KGDB] Stop kernel execution and enter the
+			kernel debugger at the earliest opportunity.
 
 	kmac=		[MIPS] korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
@@ -1199,7 +1228,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	libata.force=	[LIBATA] Force configurations.  The format is comma
 			separated list of "[ID:]VAL" where ID is
-			PORT[:DEVICE].  PORT and DEVICE are decimal numbers
+			PORT[.DEVICE].  PORT and DEVICE are decimal numbers
 			matching port, link or device.  Basically, it matches
 			the ATA ID string printed on console by libata.  If
 			the whole ID part is omitted, the last PORT and DEVICE
@@ -1232,10 +1261,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
 
+			* dump_id: dump IDENTIFY data.
+
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
-	lmb=debug	[KNL] Enable lmb debug messages.
+	memblock=debug	[KNL] Enable memblock debug messages.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/blockdev/ramdisk.txt.
@@ -1567,8 +1598,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			[NETFILTER] Enable connection tracking flow accounting
 			0 to disable accounting
 			1 to enable accounting
-			Default value depends on CONFIG_NF_CT_ACCT that is
-			going to be removed in 2.6.29.
+			Default value is 0.
 
 	nfsaddrs=	[NFS]
 			See Documentation/filesystems/nfs/nfsroot.txt.
@@ -2018,7 +2048,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			WARNING: Forcing ASPM on may cause system lockups.
 
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
-		off	Do not use native PCIe PME signaling.
+			Format: {auto|force}[,nomsi]
+		auto	Use native PCIe PME signaling if the BIOS allows the
+			kernel to control PCIe config registers of root ports.
 		force	Use native PCIe PME signaling even if the BIOS refuses
 			to allow the kernel to control the relevant PCIe config
 			registers.
@@ -2241,9 +2273,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	sched_debug	[KNL] Enables verbose scheduler debug messages.
 
-	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
-			Format: <io>[,<timeout>[,<isapnp>]]
-
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
@@ -2282,6 +2311,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via kernel config option.
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
+
+	apparmor=	[APPARMOR] Disable or enable AppArmor at boot time
+			Format: { "0" | "1" }
+			See security/apparmor/Kconfig help text
+			0 -- disable.
+			1 -- enable.
+			Default value is set via kernel config option.
 
 	serialnumber	[BUGS=X86-32]
 
@@ -2615,6 +2651,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tp720=		[HW,PS2]
 
+	tpm_suspend_pcr=[HW,TPM]
+			Format: integer pcr id
+			Specify that at suspend time, the tpm driver
+			should extend the specified pcr with zeros,
+			as a workaround for some chips which fail to
+			flush the last written pcr on TPM_SaveState.
+			This will guarantee that all the other pcrs
+			are saved.
+
 	trace_buf_size=nn[KMG]
 			[FTRACE] will set tracing buffer size.
 
@@ -2823,8 +2868,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	wd7000=		[HW,SCSI]
 			See header of drivers/scsi/wd7000.c.
 
-	wdt=		[WDT] Watchdog
-			See Documentation/watchdog/wdt.txt.
+	watchdog timers	[HW,WDT] For information on watchdog timers,
+			see Documentation/watchdog/watchdog-parameters.txt
+			or other driver-specific files in the
+			Documentation/watchdog/ directory.
 
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms

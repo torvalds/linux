@@ -74,6 +74,7 @@ extern struct clk clk_ext;
 extern struct clk clk_h2;
 extern struct clk clk_27m;
 extern struct clk clk_48m;
+extern struct clk clk_xusbxti;
 
 extern int clk_default_setrate(struct clk *clk, unsigned long rate);
 extern struct clk_ops clk_ops_def_setrate;
@@ -91,6 +92,7 @@ extern int s3c24xx_register_clock(struct clk *clk);
 extern int s3c24xx_register_clocks(struct clk **clk, int nr_clks);
 
 extern void s3c_register_clocks(struct clk *clk, int nr_clks);
+extern void s3c_disable_clocks(struct clk *clkp, int nr_clks);
 
 extern int s3c24xx_register_baseclocks(unsigned long xtal);
 

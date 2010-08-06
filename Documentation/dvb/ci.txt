@@ -41,7 +41,7 @@ This application requires the following to function properly as of now.
 
 * Cards that fall in this category
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-At present the cards that fall in this category are the Twinhan and it's
+At present the cards that fall in this category are the Twinhan and its
 clones, these cards are available as VVMER, Tomato, Hercules, Orange and
 so on.
 

@@ -73,7 +73,6 @@
 #include <linux/serial.h>
 
 
-#define DRIVER_VERSION			"1.2"
 #define MOD_AUTHOR			"Option Wireless"
 #define MOD_DESCRIPTION			"USB High Speed Option driver"
 #define MOD_LICENSE			"GPL"
@@ -211,7 +210,7 @@ struct hso_serial_state_notification {
 	u16 wIndex;
 	u16 wLength;
 	u16 UART_state_bitmap;
-} __attribute__((packed));
+} __packed;
 
 struct hso_tiocmget {
 	struct mutex mutex;
@@ -401,7 +400,7 @@ static int disable_net;
 /* driver info */
 static const char driver_name[] = "hso";
 static const char tty_filename[] = "ttyHS";
-static const char *version = __FILE__ ": " DRIVER_VERSION " " MOD_AUTHOR;
+static const char *version = __FILE__ ": " MOD_AUTHOR;
 /* the usb driver itself (registered in hso_init) */
 static struct usb_driver hso_driver;
 /* serial structures */
@@ -475,6 +474,10 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x8302)},
 	{USB_DEVICE(0x0af0, 0x8304)},
 	{USB_DEVICE(0x0af0, 0x8400)},
+	{USB_DEVICE(0x0af0, 0x8600)},
+	{USB_DEVICE(0x0af0, 0x8800)},
+	{USB_DEVICE(0x0af0, 0x8900)},
+	{USB_DEVICE(0x0af0, 0x9000)},
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -834,8 +837,6 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	} else {
 		net->stats.tx_packets++;
 		net->stats.tx_bytes += skb->len;
-		/* And tell the kernel when the last transmit started. */
-		net->trans_start = jiffies;
 	}
 	dev_kfree_skb(skb);
 	/* we're done */
@@ -847,7 +848,6 @@ static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info
 	struct hso_net *odev = netdev_priv(net);
 
 	strncpy(info->driver, driver_name, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ETHTOOL_BUSINFO_LEN);
 	usb_make_path(odev->parent->usb, info->bus_info, sizeof info->bus_info);
 }
 
@@ -1333,7 +1333,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* check for port already opened, if not set the termios */
 	serial->open_count++;
 	if (serial->open_count == 1) {
-		tty->low_latency = 1;
 		serial->rx_state = RX_IDLE;
 		/* Force default termio settings */
 		_hso_serial_set_termios(tty, NULL);
@@ -1474,7 +1473,6 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	/* done */
-	return;
 }
 
 /* how many characters in the buffer */
@@ -1994,7 +1992,6 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 	hso_kick_transmit(serial);
 
 	D1(" ");
-	return;
 }
 
 /* called for writing diag or CS serial port */
@@ -3390,7 +3387,6 @@ module_exit(hso_exit);
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
 MODULE_LICENSE(MOD_LICENSE);
-MODULE_INFO(Version, DRIVER_VERSION);
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "Level of debug [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");

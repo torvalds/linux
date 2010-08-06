@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************/
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 #include "dmxdev.h"

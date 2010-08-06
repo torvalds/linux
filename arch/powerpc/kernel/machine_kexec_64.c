@@ -155,66 +155,70 @@ void kexec_copy_flush(struct kimage *image)
 
 #ifdef CONFIG_SMP
 
-/* FIXME: we should schedule this function to be called on all cpus based
- * on calling the interrupts, but we would like to call it off irq level
- * so that the interrupt controller is clean.
- */
+static int kexec_all_irq_disabled = 0;
+
 static void kexec_smp_down(void *arg)
 {
+	local_irq_disable();
+	mb(); /* make sure our irqs are disabled before we say they are */
+	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
+	while(kexec_all_irq_disabled == 0)
+		cpu_relax();
+	mb(); /* make sure all irqs are disabled before this */
+	/*
+	 * Now every CPU has IRQs off, we can clear out any pending
+	 * IPIs and be sure that no more will come in after this.
+	 */
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 1);
 
-	local_irq_disable();
 	kexec_smp_wait();
 	/* NOTREACHED */
 }
 
-static void kexec_prepare_cpus(void)
+static void kexec_prepare_cpus_wait(int wait_state)
 {
 	int my_cpu, i, notified=-1;
 
-	smp_call_function(kexec_smp_down, NULL, /* wait */0);
 	my_cpu = get_cpu();
-
-	/* check the others cpus are now down (via paca hw cpu id == -1) */
-	for (i=0; i < NR_CPUS; i++) {
+	/* Make sure each CPU has atleast made it to the state we need */
+	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
 
-		while (paca[i].hw_cpu_id != -1) {
+		while (paca[i].kexec_state < wait_state) {
 			barrier();
-			if (!cpu_possible(i)) {
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" possible, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
-			if (!cpu_online(i)) {
-				/* Fixme: this can be spinning in
-				 * pSeries_secondary_wait with a paca
-				 * waiting for it to go online.
-				 */
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" online, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
 			if (i != notified) {
 				printk( "kexec: waiting for cpu %d (physical"
-						" %d) to go down\n",
-						i, paca[i].hw_cpu_id);
+						" %d) to enter %i state\n",
+					i, paca[i].hw_cpu_id, wait_state);
 				notified = i;
 			}
 		}
 	}
+	mb();
+}
+
+static void kexec_prepare_cpus(void)
+{
+
+	smp_call_function(kexec_smp_down, NULL, /* wait */0);
+	local_irq_disable();
+	mb(); /* make sure IRQs are disabled before we say they are */
+	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
+
+	kexec_prepare_cpus_wait(KEXEC_STATE_IRQS_OFF);
+	/* we are sure every CPU has IRQs off at this point */
+	kexec_all_irq_disabled = 1;
 
 	/* after we tell the others to go down */
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 0);
 
-	put_cpu();
+	/* Before removing MMU mapings make sure all CPUs have entered real mode */
+	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
 
-	local_irq_disable();
+	put_cpu();
 }
 
 #else /* ! SMP */

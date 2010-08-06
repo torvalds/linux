@@ -28,6 +28,7 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>

@@ -1142,7 +1142,7 @@ void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf)
 
 	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(q, dma);
+	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -1953,8 +1953,12 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 		goto fail_irq;
 	}
 
-	err = request_irq(pci_dev->irq, cx23885_irq,
-			  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+	if (!pci_enable_msi(pci_dev))
+		err = request_irq(pci_dev->irq, cx23885_irq,
+				  IRQF_DISABLED, dev->name, dev);
+	else
+		err = request_irq(pci_dev->irq, cx23885_irq,
+				  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name, pci_dev->irq);
@@ -2000,6 +2004,7 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
+	pci_disable_msi(pci_dev);
 
 	cx23885_dev_unregister(dev);
 	v4l2_device_unregister(v4l2_dev);

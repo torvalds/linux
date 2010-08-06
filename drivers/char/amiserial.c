@@ -84,6 +84,7 @@ static char *serial_version = "4.30";
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 
@@ -1954,28 +1955,15 @@ static const struct tty_operations serial_ops = {
 /*
  * The serial driver boot-time initialization code!
  */
-static int __init rs_init(void)
+static int __init amiga_serial_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct serial_state * state;
 	int error;
 
-	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_SERIAL))
-		return -ENODEV;
-
 	serial_driver = alloc_tty_driver(1);
 	if (!serial_driver)
 		return -ENOMEM;
-
-	/*
-	 *  We request SERDAT and SERPER only, because the serial registers are
-	 *  too spreaded over the custom register space
-	 */
-	if (!request_mem_region(CUSTOM_PHYSADDR+0x30, 4,
-				"amiserial [Paula]")) {
-		error = -EBUSY;
-		goto fail_put_tty_driver;
-	}
 
 	IRQ_ports = NULL;
 
@@ -1998,7 +1986,7 @@ static int __init rs_init(void)
 
 	error = tty_register_driver(serial_driver);
 	if (error)
-		goto fail_release_mem_region;
+		goto fail_put_tty_driver;
 
 	state = rs_table;
 	state->magic = SSTATE_MAGIC;
@@ -2021,8 +2009,6 @@ static int __init rs_init(void)
 	state->baud_base = amiga_colorclock;
 	state->xmit_fifo_size = 1;
 
-	local_irq_save(flags);
-
 	/* set ISRs, and then disable the rx interrupts */
 	error = request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
 	if (error)
@@ -2032,6 +2018,8 @@ static int __init rs_init(void)
 			    "serial RX", state);
 	if (error)
 		goto fail_free_irq;
+
+	local_irq_save(flags);
 
 	/* turn off Rx and Tx interrupts */
 	custom.intena = IF_RBF | IF_TBE;
@@ -2050,23 +2038,24 @@ static int __init rs_init(void)
 	ciab.ddra |= (SER_DTR | SER_RTS);   /* outputs */
 	ciab.ddra &= ~(SER_DCD | SER_CTS | SER_DSR);  /* inputs */
 
+	platform_set_drvdata(pdev, state);
+
 	return 0;
 
 fail_free_irq:
 	free_irq(IRQ_AMIGA_TBE, state);
 fail_unregister:
 	tty_unregister_driver(serial_driver);
-fail_release_mem_region:
-	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
 fail_put_tty_driver:
 	put_tty_driver(serial_driver);
 	return error;
 }
 
-static __exit void rs_exit(void) 
+static int __exit amiga_serial_remove(struct platform_device *pdev)
 {
 	int error;
-	struct async_struct *info = rs_table[0].info;
+	struct serial_state *state = platform_get_drvdata(pdev);
+	struct async_struct *info = state->info;
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
 	tasklet_kill(&info->tlet);
@@ -2075,19 +2064,38 @@ static __exit void rs_exit(void)
 		       error);
 	put_tty_driver(serial_driver);
 
-	if (info) {
-	  rs_table[0].info = NULL;
-	  kfree(info);
-	}
+	rs_table[0].info = NULL;
+	kfree(info);
 
 	free_irq(IRQ_AMIGA_TBE, rs_table);
 	free_irq(IRQ_AMIGA_RBF, rs_table);
 
-	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
+	platform_set_drvdata(pdev, NULL);
+
+	return error;
 }
 
-module_init(rs_init)
-module_exit(rs_exit)
+static struct platform_driver amiga_serial_driver = {
+	.remove = __exit_p(amiga_serial_remove),
+	.driver   = {
+		.name	= "amiga-serial",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init amiga_serial_init(void)
+{
+	return platform_driver_probe(&amiga_serial_driver, amiga_serial_probe);
+}
+
+module_init(amiga_serial_init);
+
+static void __exit amiga_serial_exit(void)
+{
+	platform_driver_unregister(&amiga_serial_driver);
+}
+
+module_exit(amiga_serial_exit);
 
 
 #if defined(CONFIG_SERIAL_CONSOLE) && !defined(MODULE)
@@ -2154,3 +2162,4 @@ console_initcall(amiserial_console_init);
 #endif /* CONFIG_SERIAL_CONSOLE && !MODULE */
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:amiga-serial");

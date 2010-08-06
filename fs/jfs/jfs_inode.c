@@ -98,14 +98,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		goto fail_unlock;
 	}
 
-	inode->i_uid = current_fsuid();
-	if (parent->i_mode & S_ISGID) {
-		inode->i_gid = parent->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else
-		inode->i_gid = current_fsgid();
-
+	inode_init_owner(inode, parent, mode);
 	/*
 	 * New inodes need to save sane values on disk when
 	 * uid & gid mount options are used
@@ -121,7 +114,6 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	if (rc)
 		goto fail_drop;
 
-	inode->i_mode = mode;
 	/* inherit flags from parent */
 	jfs_inode->mode2 = JFS_IP(parent)->mode2 & JFS_FL_INHERIT;
 
@@ -134,7 +126,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		if (S_ISLNK(mode))
 			jfs_inode->mode2 &= ~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
 	}
-	jfs_inode->mode2 |= mode;
+	jfs_inode->mode2 |= inode->i_mode;
 
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;

@@ -33,6 +33,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
@@ -411,6 +412,35 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 	geom[2] = capacity;
 
 	return 0;
+}
+
+/**
+ *	ata_scsi_unlock_native_capacity - unlock native capacity
+ *	@sdev: SCSI device to adjust device capacity for
+ *
+ *	This function is called if a partition on @sdev extends beyond
+ *	the end of the device.  It requests EH to unlock HPA.
+ *
+ *	LOCKING:
+ *	Defined by the SCSI layer.  Might sleep.
+ */
+void ata_scsi_unlock_native_capacity(struct scsi_device *sdev)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct ata_device *dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	dev = ata_scsi_find_dev(ap, sdev);
+	if (dev && dev->n_sectors < dev->n_native_sectors) {
+		dev->flags |= ATA_DFLAG_UNLOCK_HPA;
+		dev->link->eh_info.action |= ATA_EH_RESET;
+		ata_port_schedule_eh(ap);
+	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+	ata_port_wait_eh(ap);
 }
 
 /**
@@ -3343,9 +3373,6 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	struct ata_device *last_failed_dev = NULL;
 	struct ata_link *link;
 	struct ata_device *dev;
-
-	if (ap->flags & ATA_FLAG_DISABLED)
-		return;
 
  repeat:
 	ata_for_each_link(link, ap, EDGE) {

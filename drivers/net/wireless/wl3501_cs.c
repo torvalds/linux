@@ -1307,7 +1307,7 @@ static void wl3501_tx_timeout(struct net_device *dev)
 		printk(KERN_ERR "%s: Error %d resetting card on Tx timeout!\n",
 		       dev->name, rc);
 	else {
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 		netif_wake_queue(dev);
 	}
 }
@@ -1326,7 +1326,6 @@ static netdev_tx_t wl3501_hard_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&this->lock, flags);
 	enabled = wl3501_block_interrupt(this);
-	dev->trans_start = jiffies;
 	rc = wl3501_send_pkt(this, skb->data, skb->len);
 	if (enabled)
 		wl3501_unblock_interrupt(this);
@@ -1451,10 +1450,10 @@ static void wl3501_detach(struct pcmcia_device *link)
 	netif_device_detach(dev);
 	wl3501_release(link);
 
+	unregister_netdev(dev);
+
 	if (link->priv)
 		free_netdev(link->priv);
-
-	return;
 }
 
 static int wl3501_get_name(struct net_device *dev, struct iw_request_info *info,
@@ -1834,32 +1833,32 @@ out:
 }
 
 static const iw_handler	wl3501_handler[] = {
-	[SIOCGIWNAME	- SIOCIWFIRST] = wl3501_get_name,
-	[SIOCSIWFREQ	- SIOCIWFIRST] = wl3501_set_freq,
-	[SIOCGIWFREQ	- SIOCIWFIRST] = wl3501_get_freq,
-	[SIOCSIWMODE	- SIOCIWFIRST] = wl3501_set_mode,
-	[SIOCGIWMODE	- SIOCIWFIRST] = wl3501_get_mode,
-	[SIOCGIWSENS	- SIOCIWFIRST] = wl3501_get_sens,
-	[SIOCGIWRANGE	- SIOCIWFIRST] = wl3501_get_range,
-	[SIOCSIWSPY	- SIOCIWFIRST] = iw_handler_set_spy,
-	[SIOCGIWSPY	- SIOCIWFIRST] = iw_handler_get_spy,
-	[SIOCSIWTHRSPY	- SIOCIWFIRST] = iw_handler_set_thrspy,
-	[SIOCGIWTHRSPY	- SIOCIWFIRST] = iw_handler_get_thrspy,
-	[SIOCSIWAP	- SIOCIWFIRST] = wl3501_set_wap,
-	[SIOCGIWAP	- SIOCIWFIRST] = wl3501_get_wap,
-	[SIOCSIWSCAN	- SIOCIWFIRST] = wl3501_set_scan,
-	[SIOCGIWSCAN	- SIOCIWFIRST] = wl3501_get_scan,
-	[SIOCSIWESSID	- SIOCIWFIRST] = wl3501_set_essid,
-	[SIOCGIWESSID	- SIOCIWFIRST] = wl3501_get_essid,
-	[SIOCSIWNICKN	- SIOCIWFIRST] = wl3501_set_nick,
-	[SIOCGIWNICKN	- SIOCIWFIRST] = wl3501_get_nick,
-	[SIOCGIWRATE	- SIOCIWFIRST] = wl3501_get_rate,
-	[SIOCGIWRTS	- SIOCIWFIRST] = wl3501_get_rts_threshold,
-	[SIOCGIWFRAG	- SIOCIWFIRST] = wl3501_get_frag_threshold,
-	[SIOCGIWTXPOW	- SIOCIWFIRST] = wl3501_get_txpow,
-	[SIOCGIWRETRY	- SIOCIWFIRST] = wl3501_get_retry,
-	[SIOCGIWENCODE	- SIOCIWFIRST] = wl3501_get_encode,
-	[SIOCGIWPOWER	- SIOCIWFIRST] = wl3501_get_power,
+	IW_HANDLER(SIOCGIWNAME, wl3501_get_name),
+	IW_HANDLER(SIOCSIWFREQ, wl3501_set_freq),
+	IW_HANDLER(SIOCGIWFREQ, wl3501_get_freq),
+	IW_HANDLER(SIOCSIWMODE, wl3501_set_mode),
+	IW_HANDLER(SIOCGIWMODE, wl3501_get_mode),
+	IW_HANDLER(SIOCGIWSENS, wl3501_get_sens),
+	IW_HANDLER(SIOCGIWRANGE, wl3501_get_range),
+	IW_HANDLER(SIOCSIWSPY, iw_handler_set_spy),
+	IW_HANDLER(SIOCGIWSPY, iw_handler_get_spy),
+	IW_HANDLER(SIOCSIWTHRSPY, iw_handler_set_thrspy),
+	IW_HANDLER(SIOCGIWTHRSPY, iw_handler_get_thrspy),
+	IW_HANDLER(SIOCSIWAP, wl3501_set_wap),
+	IW_HANDLER(SIOCGIWAP, wl3501_get_wap),
+	IW_HANDLER(SIOCSIWSCAN, wl3501_set_scan),
+	IW_HANDLER(SIOCGIWSCAN, wl3501_get_scan),
+	IW_HANDLER(SIOCSIWESSID, wl3501_set_essid),
+	IW_HANDLER(SIOCGIWESSID, wl3501_get_essid),
+	IW_HANDLER(SIOCSIWNICKN, wl3501_set_nick),
+	IW_HANDLER(SIOCGIWNICKN, wl3501_get_nick),
+	IW_HANDLER(SIOCGIWRATE, wl3501_get_rate),
+	IW_HANDLER(SIOCGIWRTS, wl3501_get_rts_threshold),
+	IW_HANDLER(SIOCGIWFRAG, wl3501_get_frag_threshold),
+	IW_HANDLER(SIOCGIWTXPOW, wl3501_get_txpow),
+	IW_HANDLER(SIOCGIWRETRY, wl3501_get_retry),
+	IW_HANDLER(SIOCGIWENCODE, wl3501_get_encode),
+	IW_HANDLER(SIOCGIWPOWER, wl3501_get_power),
 };
 
 static const struct iw_handler_def wl3501_handler_def = {
@@ -1896,10 +1895,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	p_dev->io.NumPorts1	= 16;
 	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines	= 5;
-
-	/* Interrupt setup */
-	p_dev->irq.Attributes	= IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = wl3501_interrupt;
 
 	/* General socket configuration */
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
@@ -1961,7 +1956,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	/* Now allocate an interrupt line. Note that this does not actually
 	 * assign a handler to the interrupt. */
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, wl3501_interrupt);
 	if (ret)
 		goto failed;
 
@@ -1972,7 +1967,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	dev->base_addr = link->io.BasePort1;
 	SET_NETDEV_DEV(dev, &link->dev);
 	if (register_netdev(dev)) {
@@ -1981,20 +1976,15 @@ static int wl3501_config(struct pcmcia_device *link)
 	}
 
 	this = netdev_priv(dev);
-	/*
-	 * At this point, the dev_node_t structure(s) should be initialized and
-	 * arranged in a linked list at link->dev_node.
-	 */
-	link->dev_node = &this->node;
 
 	this->base_addr = dev->base_addr;
 
 	if (!wl3501_get_flash_mac_addr(this)) {
 		printk(KERN_WARNING "%s: Cant read MAC addr in flash ROM?\n",
 		       dev->name);
+		unregister_netdev(dev);
 		goto failed;
 	}
-	strcpy(this->node.dev_name, dev->name);
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ((char *)&this->mac_addr)[i];
@@ -2038,12 +2028,6 @@ failed:
  */
 static void wl3501_release(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-
-	/* Unlink the device chain */
-	if (link->dev_node)
-		unregister_netdev(dev);
-
 	pcmcia_disable_device(link);
 }
 

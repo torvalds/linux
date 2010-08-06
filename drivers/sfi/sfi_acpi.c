@@ -173,3 +173,44 @@ int sfi_acpi_table_parse(char *signature, char *oem_id, char *oem_table_id,
 	sfi_acpi_put_table(table);
 	return ret;
 }
+
+static ssize_t sfi_acpi_table_show(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr, char *buf,
+			       loff_t offset, size_t count)
+{
+	struct sfi_table_attr *tbl_attr =
+	    container_of(bin_attr, struct sfi_table_attr, attr);
+	struct acpi_table_header *th = NULL;
+	struct sfi_table_key key;
+	ssize_t cnt;
+
+	key.sig = tbl_attr->name;
+	key.oem_id = NULL;
+	key.oem_table_id = NULL;
+
+	th = sfi_acpi_get_table(&key);
+	if (!th)
+		return 0;
+
+	cnt =  memory_read_from_buffer(buf, count, &offset,
+					th, th->length);
+	sfi_acpi_put_table(th);
+
+	return cnt;
+}
+
+
+void __init sfi_acpi_sysfs_init(void)
+{
+	u32 tbl_cnt, i;
+	struct sfi_table_attr *tbl_attr;
+
+	tbl_cnt = XSDT_GET_NUM_ENTRIES(xsdt_va, u64);
+	for (i = 0; i < tbl_cnt; i++) {
+		tbl_attr =
+			sfi_sysfs_install_table(xsdt_va->table_offset_entry[i]);
+		tbl_attr->attr.read = sfi_acpi_table_show;
+	}
+
+	return;
+}

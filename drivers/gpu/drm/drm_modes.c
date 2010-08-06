@@ -258,8 +258,10 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	drm_mode->clock -= drm_mode->clock % CVT_CLOCK_STEP;
 	/* 18/16. Find actual vertical frame frequency */
 	/* ignore - just set the mode flag for interlaced */
-	if (interlaced)
+	if (interlaced) {
 		drm_mode->vtotal *= 2;
+		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+	}
 	/* Fill the mode line name */
 	drm_mode_set_name(drm_mode);
 	if (reduced)
@@ -268,43 +270,35 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	else
 		drm_mode->flags |= (DRM_MODE_FLAG_PVSYNC |
 					DRM_MODE_FLAG_NHSYNC);
-	if (interlaced)
-		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
-    return drm_mode;
+	return drm_mode;
 }
 EXPORT_SYMBOL(drm_cvt_mode);
 
 /**
- * drm_gtf_mode - create the modeline based on GTF algorithm
+ * drm_gtf_mode_complex - create the modeline based on full GTF algorithm
  *
  * @dev		:drm device
  * @hdisplay	:hdisplay size
  * @vdisplay	:vdisplay size
  * @vrefresh	:vrefresh rate.
  * @interlaced	:whether the interlace is supported
- * @margins	:whether the margin is supported
+ * @margins	:desired margin size
+ * @GTF_[MCKJ]  :extended GTF formula parameters
  *
  * LOCKING.
  * none.
  *
- * return the modeline based on GTF algorithm
+ * return the modeline based on full GTF algorithm.
  *
- * This function is to create the modeline based on the GTF algorithm.
- * Generalized Timing Formula is derived from:
- *	GTF Spreadsheet by Andy Morrish (1/5/97)
- *	available at http://www.vesa.org
- *
- * And it is copied from the file of xserver/hw/xfree86/modes/xf86gtf.c.
- * What I have done is to translate it by using integer calculation.
- * I also refer to the function of fb_get_mode in the file of
- * drivers/video/fbmon.c
+ * GTF feature blocks specify C and J in multiples of 0.5, so we pass them
+ * in here multiplied by two.  For a C of 40, pass in 80.
  */
-struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
-				      int vdisplay, int vrefresh,
-				      bool interlaced, int margins)
-{
-	/* 1) top/bottom margin size (% of height) - default: 1.8, */
+struct drm_display_mode *
+drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
+		     int vrefresh, bool interlaced, int margins,
+		     int GTF_M, int GTF_2C, int GTF_K, int GTF_2J)
+{	/* 1) top/bottom margin size (% of height) - default: 1.8, */
 #define	GTF_MARGIN_PERCENTAGE		18
 	/* 2) character cell horizontal granularity (pixels) - default 8 */
 #define	GTF_CELL_GRAN			8
@@ -316,17 +310,9 @@ struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
 #define H_SYNC_PERCENT			8
 	/* min time of vsync + back porch (microsec) */
 #define MIN_VSYNC_PLUS_BP		550
-	/* blanking formula gradient */
-#define GTF_M				600
-	/* blanking formula offset */
-#define GTF_C				40
-	/* blanking formula scaling factor */
-#define GTF_K				128
-	/* blanking formula scaling factor */
-#define GTF_J				20
 	/* C' and M' are part of the Blanking Duty Cycle computation */
-#define GTF_C_PRIME		(((GTF_C - GTF_J) * GTF_K / 256) + GTF_J)
-#define GTF_M_PRIME		(GTF_K * GTF_M / 256)
+#define GTF_C_PRIME	((((GTF_2C - GTF_2J) * GTF_K / 256) + GTF_2J) / 2)
+#define GTF_M_PRIME	(GTF_K * GTF_M / 256)
 	struct drm_display_mode *drm_mode;
 	unsigned int hdisplay_rnd, vdisplay_rnd, vfieldrate_rqd;
 	int top_margin, bottom_margin;
@@ -460,17 +446,61 @@ struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
 
 	drm_mode->clock = pixel_freq;
 
-	drm_mode_set_name(drm_mode);
-	drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
-
 	if (interlaced) {
 		drm_mode->vtotal *= 2;
 		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 	}
 
+	drm_mode_set_name(drm_mode);
+	if (GTF_M == 600 && GTF_2C == 80 && GTF_K == 128 && GTF_2J == 40)
+		drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
+	else
+		drm_mode->flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC;
+
 	return drm_mode;
 }
+EXPORT_SYMBOL(drm_gtf_mode_complex);
+
+/**
+ * drm_gtf_mode - create the modeline based on GTF algorithm
+ *
+ * @dev		:drm device
+ * @hdisplay	:hdisplay size
+ * @vdisplay	:vdisplay size
+ * @vrefresh	:vrefresh rate.
+ * @interlaced	:whether the interlace is supported
+ * @margins	:whether the margin is supported
+ *
+ * LOCKING.
+ * none.
+ *
+ * return the modeline based on GTF algorithm
+ *
+ * This function is to create the modeline based on the GTF algorithm.
+ * Generalized Timing Formula is derived from:
+ *	GTF Spreadsheet by Andy Morrish (1/5/97)
+ *	available at http://www.vesa.org
+ *
+ * And it is copied from the file of xserver/hw/xfree86/modes/xf86gtf.c.
+ * What I have done is to translate it by using integer calculation.
+ * I also refer to the function of fb_get_mode in the file of
+ * drivers/video/fbmon.c
+ *
+ * Standard GTF parameters:
+ * M = 600
+ * C = 40
+ * K = 128
+ * J = 20
+ */
+struct drm_display_mode *
+drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
+	     bool lace, int margins)
+{
+	return drm_gtf_mode_complex(dev, hdisplay, vdisplay, vrefresh, lace,
+				    margins, 600, 40 * 2, 128, 20 * 2);
+}
 EXPORT_SYMBOL(drm_gtf_mode);
+
 /**
  * drm_mode_set_name - set the name on a mode
  * @mode: name will be set in this mode
@@ -482,8 +512,11 @@ EXPORT_SYMBOL(drm_gtf_mode);
  */
 void drm_mode_set_name(struct drm_display_mode *mode)
 {
-	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d", mode->hdisplay,
-		 mode->vdisplay);
+	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d%s",
+		 mode->hdisplay, mode->vdisplay,
+		 interlaced ? "i" : "");
 }
 EXPORT_SYMBOL(drm_mode_set_name);
 

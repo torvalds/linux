@@ -32,8 +32,6 @@ DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
 HOWTO
 	- the process and procedures of how to do Linux kernel development.
-IO-mapping.txt
-	- how to access I/O mapped memory from within device drivers.
 IPMI.txt
 	- info on Linux Intelligent Platform Management Interface (IPMI) Driver.
 IRQ-affinity.txt
@@ -84,6 +82,8 @@ blockdev/
 	- info on block devices & drivers
 btmrvl.txt
 	- info on Marvell Bluetooth driver usage.
+bus-virt-phys-mapping.txt
+	- how to access I/O mapped memory from within device drivers.
 cachetlb.txt
 	- describes the cache/TLB flushing interfaces Linux uses.
 cdrom/
@@ -168,6 +168,8 @@ initrd.txt
 	- how to use the RAM disk as an initial/temporary root filesystem.
 input/
 	- info on Linux input device support.
+io-mapping.txt
+	- description of io_mapping functions in linux/io-mapping.h
 io_ordering.txt
 	- info on ordering I/O writes to memory-mapped addresses.
 ioctl/
@@ -250,6 +252,8 @@ numastat.txt
 	- info on how to read Numa policy hit/miss statistics in sysfs.
 oops-tracing.txt
 	- how to decode those nasty internal kernel error dump messages.
+padata.txt
+	- An introduction to the "padata" parallel execution API
 parisc/
 	- directory with info on using Linux on PA-RISC architecture.
 parport.txt

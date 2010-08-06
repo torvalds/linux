@@ -35,16 +35,16 @@
 
 /*---------------------  Export Types  ------------------------------*/
 
-VOID MIC_vInit(DWORD dwK0, DWORD dwK1);
+void MIC_vInit(DWORD dwK0, DWORD dwK1);
 
-VOID MIC_vUnInit(void);
+void MIC_vUnInit(void);
 
 // Append bytes to the message to be MICed
-VOID MIC_vAppend(PBYTE src, UINT nBytes);
+void MIC_vAppend(PBYTE src, unsigned int nBytes);
 
 // Get the MIC result. Destination should accept 8 bytes of result.
 // This also resets the message to empty.
-VOID MIC_vGetMIC(PDWORD pdwL, PDWORD pdwR);
+void MIC_vGetMIC(PDWORD pdwL, PDWORD pdwR);
 
 /*---------------------  Export Macros ------------------------------*/
 
@@ -53,6 +53,4 @@ VOID MIC_vGetMIC(PDWORD pdwL, PDWORD pdwR);
  ( ((A) << (n)) | ( ((A)>>(32-(n)))  & ( (1UL << (n)) - 1 ) ) )
 #define ROR32( A, n ) ROL32( (A), 32-(n) )
 
-#endif //__MICHAEL_H__
-
-
+#endif /* __MICHAEL_H__ */

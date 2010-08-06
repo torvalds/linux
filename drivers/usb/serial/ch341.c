@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
@@ -304,10 +305,7 @@ static void ch341_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 
-	/* shutdown our urbs */
-	dbg("%s - shutting down urbs", __func__);
-	usb_kill_urb(port->write_urb);
-	usb_kill_urb(port->read_urb);
+	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 }
 

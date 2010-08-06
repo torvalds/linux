@@ -119,10 +119,18 @@ the codec slots 0 and 1 no matter what the hardware reports.
 
 Interrupt Handling
 ~~~~~~~~~~~~~~~~~~
-In rare but some cases, the interrupt isn't properly handled as
-default.  You would notice this by the DMA transfer error reported by
-ALSA PCM core, for example.  Using MSI might help in such a case.
-Pass `enable_msi=1` option for enabling MSI.
+HD-audio driver uses MSI as default (if available) since 2.6.33
+kernel as MSI works better on some machines, and in general, it's
+better for performance.  However, Nvidia controllers showed bad
+regressions with MSI (especially in a combination with AMD chipset),
+thus we disabled MSI for them.
+
+There seem also still other devices that don't work with MSI.  If you
+see a regression wrt the sound quality (stuttering, etc) or a lock-up
+in the recent kernel, try to pass `enable_msi=0` option to disable
+MSI.  If it works, you can add the known bad device to the blacklist
+defined in hda_intel.c.  In such a case, please report and give the
+patch back to the upstream developer. 
 
 
 HD-AUDIO CODEC
@@ -195,7 +203,6 @@ Note that `model=generic` has a special meaning.  It means to use the
 generic parser regardless of the codec.  Usually the codec-specific
 parser is much better than the generic parser (as now).  Thus this
 option is more about the debugging purpose.
-
 
 Speaker and Headphone Output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -555,7 +562,7 @@ compare the codec registers directly.
 Send a bug report either the followings:
 
 kernel-bugzilla::
-  http://bugme.linux-foundation.org/
+  https://bugzilla.kernel.org/
 alsa-devel ML::
   alsa-devel@alsa-project.org
 
@@ -592,6 +599,9 @@ probing, the proc file is available, so you can get the raw codec
 information before modified by the driver.  Of course, the driver
 isn't usable with `probe_only=1`.  But you can continue the
 configuration via hwdep sysfs file if hda-reconfig option is enabled.
+Using `probe_only` mask 2 skips the reset of HDA codecs (use
+`probe_only=3` as module option). The hwdep interface can be used
+to determine the BIOS codec initialization.
 
 
 hda-verb

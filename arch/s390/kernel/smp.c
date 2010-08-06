@@ -36,6 +36,7 @@
 #include <linux/cpu.h>
 #include <linux/timex.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
@@ -292,9 +293,9 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 	zfcpdump_save_areas[cpu] = kmalloc(sizeof(struct save_area), GFP_KERNEL);
 	while (raw_sigp(phy_cpu, sigp_stop_and_store_status) == sigp_busy)
 		cpu_relax();
-	memcpy(zfcpdump_save_areas[cpu],
-	       (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
-	       sizeof(struct save_area));
+	memcpy_real(zfcpdump_save_areas[cpu],
+		    (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
+		    sizeof(struct save_area));
 }
 
 struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
@@ -943,21 +944,21 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
 	struct s390_idle_data *idle;
+	int err = 0;
 
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		idle = &per_cpu(s390_idle, cpu);
 		memset(idle, 0, sizeof(struct s390_idle_data));
-		if (sysfs_create_group(&s->kobj, &cpu_online_attr_group))
-			return NOTIFY_BAD;
+		err = sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
 		break;
 	}
-	return NOTIFY_OK;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block __cpuinitdata smp_cpu_nb = {

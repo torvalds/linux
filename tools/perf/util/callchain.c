@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, Frederic Weisbecker <fweisbec@gmail.com>
+ * Copyright (C) 2009-2010, Frederic Weisbecker <fweisbec@gmail.com>
  *
  * Handle the callchains from the stream in an ad-hoc radix tree and then
  * sort them in an rbtree.
@@ -15,7 +15,15 @@
 #include <errno.h>
 #include <math.h>
 
+#include "util.h"
 #include "callchain.h"
+
+bool ip_callchain__valid(struct ip_callchain *chain, event_t *event)
+{
+	unsigned int chain_size = event->header.size;
+	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
+	return chain->nr * sizeof(u64) <= chain_size;
+}
 
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, brothers)
@@ -160,7 +168,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 {
 	struct callchain_node *new;
 
-	new = malloc(sizeof(*new));
+	new = zalloc(sizeof(*new));
 	if (!new) {
 		perror("not enough memory to create child for code path tree");
 		return NULL;
@@ -183,25 +191,36 @@ create_child(struct callchain_node *parent, bool inherit_children)
 	return new;
 }
 
+
+struct resolved_ip {
+	u64		  ip;
+	struct map_symbol ms;
+};
+
+struct resolved_chain {
+	u64			nr;
+	struct resolved_ip	ips[0];
+};
+
+
 /*
  * Fill the node with callchain values
  */
 static void
-fill_node(struct callchain_node *node, struct ip_callchain *chain,
-	  int start, struct symbol **syms)
+fill_node(struct callchain_node *node, struct resolved_chain *chain, int start)
 {
 	unsigned int i;
 
 	for (i = start; i < chain->nr; i++) {
 		struct callchain_list *call;
 
-		call = malloc(sizeof(*call));
+		call = zalloc(sizeof(*call));
 		if (!call) {
 			perror("not enough memory for the code path tree");
 			return;
 		}
-		call->ip = chain->ips[i];
-		call->sym = syms[i];
+		call->ip = chain->ips[i].ip;
+		call->ms = chain->ips[i].ms;
 		list_add_tail(&call->list, &node->val);
 	}
 	node->val_nr = chain->nr - start;
@@ -210,16 +229,16 @@ fill_node(struct callchain_node *node, struct ip_callchain *chain,
 }
 
 static void
-add_child(struct callchain_node *parent, struct ip_callchain *chain,
-	  int start, struct symbol **syms)
+add_child(struct callchain_node *parent, struct resolved_chain *chain,
+	  int start, u64 period)
 {
 	struct callchain_node *new;
 
 	new = create_child(parent, false);
-	fill_node(new, chain, start, syms);
+	fill_node(new, chain, start);
 
 	new->children_hit = 0;
-	new->hit = 1;
+	new->hit = period;
 }
 
 /*
@@ -228,9 +247,9 @@ add_child(struct callchain_node *parent, struct ip_callchain *chain,
  * Then create another child to host the given callchain of new branch
  */
 static void
-split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
+split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 		struct callchain_list *to_split, int idx_parents, int idx_local,
-		struct symbol **syms)
+		u64 period)
 {
 	struct callchain_node *new;
 	struct list_head *old_tail;
@@ -257,40 +276,41 @@ split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
 	/* create a new child for the new branch if any */
 	if (idx_total < chain->nr) {
 		parent->hit = 0;
-		add_child(parent, chain, idx_total, syms);
-		parent->children_hit++;
+		add_child(parent, chain, idx_total, period);
+		parent->children_hit += period;
 	} else {
-		parent->hit = 1;
+		parent->hit = period;
 	}
 }
 
 static int
-__append_chain(struct callchain_node *root, struct ip_callchain *chain,
-	       unsigned int start, struct symbol **syms);
+__append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	       unsigned int start, u64 period);
 
 static void
-__append_chain_children(struct callchain_node *root, struct ip_callchain *chain,
-			struct symbol **syms, unsigned int start)
+__append_chain_children(struct callchain_node *root,
+			struct resolved_chain *chain,
+			unsigned int start, u64 period)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	chain_for_each_child(rnode, root) {
-		unsigned int ret = __append_chain(rnode, chain, start, syms);
+		unsigned int ret = __append_chain(rnode, chain, start, period);
 
 		if (!ret)
 			goto inc_children_hit;
 	}
 	/* nothing in children, add to the current node */
-	add_child(root, chain, start, syms);
+	add_child(root, chain, start, period);
 
 inc_children_hit:
-	root->children_hit++;
+	root->children_hit += period;
 }
 
 static int
-__append_chain(struct callchain_node *root, struct ip_callchain *chain,
-	       unsigned int start, struct symbol **syms)
+__append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	       unsigned int start, u64 period)
 {
 	struct callchain_list *cnode;
 	unsigned int i = start;
@@ -302,13 +322,19 @@ __append_chain(struct callchain_node *root, struct ip_callchain *chain,
 	 * anywhere inside a function.
 	 */
 	list_for_each_entry(cnode, &root->val, list) {
+		struct symbol *sym;
+
 		if (i == chain->nr)
 			break;
-		if (cnode->sym && syms[i]) {
-			if (cnode->sym->start != syms[i]->start)
+
+		sym = chain->ips[i].ms.sym;
+
+		if (cnode->ms.sym && sym) {
+			if (cnode->ms.sym->start != sym->start)
 				break;
-		} else if (cnode->ip != chain->ips[i])
+		} else if (cnode->ip != chain->ips[i].ip)
 			break;
+
 		if (!found)
 			found = true;
 		i++;
@@ -320,26 +346,61 @@ __append_chain(struct callchain_node *root, struct ip_callchain *chain,
 
 	/* we match only a part of the node. Split it and add the new chain */
 	if (i - start < root->val_nr) {
-		split_add_child(root, chain, cnode, start, i - start, syms);
+		split_add_child(root, chain, cnode, start, i - start, period);
 		return 0;
 	}
 
 	/* we match 100% of the path, increment the hit */
 	if (i - start == root->val_nr && i == chain->nr) {
-		root->hit++;
+		root->hit += period;
 		return 0;
 	}
 
 	/* We match the node and still have a part remaining */
-	__append_chain_children(root, chain, syms, i);
+	__append_chain_children(root, chain, i, period);
 
 	return 0;
 }
 
-void append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		  struct symbol **syms)
+static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
+			   struct map_symbol *syms)
 {
+	int i, j = 0;
+
+	for (i = 0; i < (int)old->nr; i++) {
+		if (old->ips[i] >= PERF_CONTEXT_MAX)
+			continue;
+
+		new->ips[j].ip = old->ips[i];
+		new->ips[j].ms = syms[i];
+		j++;
+	}
+
+	new->nr = j;
+}
+
+
+int append_chain(struct callchain_node *root, struct ip_callchain *chain,
+		 struct map_symbol *syms, u64 period)
+{
+	struct resolved_chain *filtered;
+
 	if (!chain->nr)
-		return;
-	__append_chain_children(root, chain, syms, 0);
+		return 0;
+
+	filtered = zalloc(sizeof(*filtered) +
+			  chain->nr * sizeof(struct resolved_ip));
+	if (!filtered)
+		return -ENOMEM;
+
+	filter_context(chain, filtered, syms);
+
+	if (!filtered->nr)
+		goto end;
+
+	__append_chain_children(root, filtered, 0, period);
+end:
+	free(filtered);
+
+	return 0;
 }

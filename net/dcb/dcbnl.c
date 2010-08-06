@@ -19,6 +19,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/rtnetlink.h>
 #include <linux/dcbnl.h>

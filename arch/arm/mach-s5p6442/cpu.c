@@ -95,7 +95,7 @@ void __init s5p6442_init_irq(void)
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
 
-static struct sysdev_class s5p6442_sysclass = {
+struct sysdev_class s5p6442_sysclass = {
 	.name	= "s5p6442-core",
 };
 

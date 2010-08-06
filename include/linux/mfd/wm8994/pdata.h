@@ -70,6 +70,7 @@ struct wm8994_pdata {
 
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
 
+	int irq_base;  /** Base IRQ number for WM8994, required for IRQs */
 
         int num_drc_cfgs;
         struct wm8994_drc_cfg *drc_cfgs;

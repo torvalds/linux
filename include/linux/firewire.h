@@ -55,13 +55,11 @@
 #define CSR_DESCRIPTOR		0x01
 #define CSR_VENDOR		0x03
 #define CSR_HARDWARE_VERSION	0x04
-#define CSR_NODE_CAPABILITIES	0x0c
 #define CSR_UNIT		0x11
 #define CSR_SPECIFIER_ID	0x12
 #define CSR_VERSION		0x13
 #define CSR_DEPENDENT_INFO	0x14
 #define CSR_MODEL		0x17
-#define CSR_INSTANCE		0x18
 #define CSR_DIRECTORY_ID	0x20
 
 struct fw_csr_iterator {
@@ -89,7 +87,6 @@ struct fw_card {
 	int current_tlabel;
 	u64 tlabel_mask;
 	struct list_head transaction_list;
-	struct timer_list flush_timer;
 	unsigned long reset_jiffies;
 
 	unsigned long long guid;
@@ -290,6 +287,8 @@ struct fw_transaction {
 	int tlabel;
 	int timestamp;
 	struct list_head link;
+	struct fw_card *card;
+	struct timer_list split_timeout_timer;
 
 	struct fw_packet packet;
 

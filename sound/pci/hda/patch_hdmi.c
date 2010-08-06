@@ -52,6 +52,10 @@ struct hdmi_spec {
 	 */
 	struct hda_multi_out multiout;
 	unsigned int codec_type;
+
+	/* misc flags */
+	/* PD bit indicates only the update, not the current state */
+	unsigned int old_pin_detect:1;
 };
 
 
@@ -616,6 +620,9 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
  * Unsolicited events
  */
 
+static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
+			       struct hdmi_eld *eld);
+
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -631,6 +638,12 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	index = hda_node_index(spec->pin, tag);
 	if (index < 0)
 		return;
+
+	if (spec->old_pin_detect) {
+		if (pind)
+			hdmi_present_sense(codec, tag, &spec->sink_eld[index]);
+		pind = spec->sink_eld[index].monitor_present;
+	}
 
 	spec->sink_eld[index].monitor_present = pind;
 	spec->sink_eld[index].eld_valid = eldv;
@@ -766,7 +779,7 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	if (spec->num_pins >= MAX_HDMI_PINS) {
 		snd_printk(KERN_WARNING
 			   "HDMI: no space for pin %d\n", pin_nid);
-		return -EINVAL;
+		return -E2BIG;
 	}
 
 	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[spec->num_pins]);
@@ -788,7 +801,7 @@ static int hdmi_add_cvt(struct hda_codec *codec, hda_nid_t nid)
 	if (spec->num_cvts >= MAX_HDMI_CVTS) {
 		snd_printk(KERN_WARNING
 			   "HDMI: no space for converter %d\n", nid);
-		return -EINVAL;
+		return -E2BIG;
 	}
 
 	spec->cvt[spec->num_cvts] = nid;
@@ -820,15 +833,13 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 
 		switch (type) {
 		case AC_WID_AUD_OUT:
-			if (hdmi_add_cvt(codec, nid) < 0)
-				return -EINVAL;
+			hdmi_add_cvt(codec, nid);
 			break;
 		case AC_WID_PIN:
 			caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
 			if (!(caps & (AC_PINCAP_HDMI | AC_PINCAP_DP)))
 				continue;
-			if (hdmi_add_pin(codec, nid) < 0)
-				return -EINVAL;
+			hdmi_add_pin(codec, nid);
 			break;
 		}
 	}

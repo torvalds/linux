@@ -9,7 +9,7 @@
 
 #include <linux/threads.h>
 #include <linux/module.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/firmware.h>
 #include <asm/lppaca.h>
@@ -18,6 +18,7 @@
 #include <asm/pgtable.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/iseries/hv_types.h>
+#include <asm/kexec.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
@@ -97,6 +98,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->kernelbase = (unsigned long) _stext;
 	new_paca->kernel_msr = MSR_KERNEL;
 	new_paca->hw_cpu_id = 0xffff;
+	new_paca->kexec_state = KEXEC_STATE_NONE;
 	new_paca->__current = &init_task;
 #ifdef CONFIG_PPC_STD_MMU_64
 	new_paca->slb_shadow_ptr = &slb_shadow[cpu];
@@ -115,7 +117,7 @@ void __init allocate_pacas(void)
 	 * the first segment. On iSeries they must be within the area mapped
 	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
 	 */
-	limit = min(0x10000000ULL, lmb.rmo_size);
+	limit = min(0x10000000ULL, memblock.rmo_size);
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		limit = min(limit, HvPagesToMap * HVPAGESIZE);
 
@@ -126,7 +128,7 @@ void __init allocate_pacas(void)
 
 	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
 
-	paca = __va(lmb_alloc_base(paca_size, PAGE_SIZE, limit));
+	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
 	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
@@ -146,7 +148,7 @@ void __init free_unused_pacas(void)
 	if (new_size >= paca_size)
 		return;
 
-	lmb_free(__pa(paca) + new_size, paca_size - new_size);
+	memblock_free(__pa(paca) + new_size, paca_size - new_size);
 
 	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
 		paca_size - new_size);

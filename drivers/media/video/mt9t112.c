@@ -121,22 +121,22 @@ struct mt9t112_priv {
 
 static const struct mt9t112_format mt9t112_cfmts[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8_BE,
+		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8_BE,
+		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 1,
 	}, {
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8_LE,
+		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 2,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8_LE,
+		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 3,
@@ -972,7 +972,7 @@ static int mt9t112_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct v4l2_rect *rect = &a->c;
 
 	return mt9t112_set_params(client, rect->width, rect->height,
-				 V4L2_MBUS_FMT_YUYV8_2X8_BE);
+				 V4L2_MBUS_FMT_UYVY8_2X8);
 }
 
 static int mt9t112_g_fmt(struct v4l2_subdev *sd,
@@ -983,7 +983,7 @@ static int mt9t112_g_fmt(struct v4l2_subdev *sd,
 
 	if (!priv->format) {
 		int ret = mt9t112_set_params(client, VGA_WIDTH, VGA_HEIGHT,
-					     V4L2_MBUS_FMT_YUYV8_2X8_BE);
+					     V4L2_MBUS_FMT_UYVY8_2X8);
 		if (ret < 0)
 			return ret;
 	}
@@ -1017,10 +1017,10 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9t112_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9t112_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(mt9t112_cfmts))
+	if (index >= ARRAY_SIZE(mt9t112_cfmts))
 		return -EINVAL;
 
 	*code = mt9t112_cfmts[index].code;
@@ -1119,7 +1119,6 @@ static int mt9t112_probe(struct i2c_client *client,
 	ret = mt9t112_camera_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -1132,7 +1131,6 @@ static int mt9t112_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

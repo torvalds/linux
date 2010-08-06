@@ -35,6 +35,7 @@
 #include <linux/scatterlist.h>
 #include <linux/hash.h>
 #include <linux/nsproxy.h>
+#include <linux/backing-dev.h>
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
@@ -273,7 +274,7 @@ struct ecryptfs_crypt_stat {
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
-	size_t num_header_bytes_at_front;
+	size_t metadata_size;
 	size_t extent_size; /* Data extent size; default is 4096 */
 	size_t key_size;
 	size_t extent_shift;
@@ -393,6 +394,7 @@ struct ecryptfs_mount_crypt_stat {
 struct ecryptfs_sb_info {
 	struct super_block *wsi_sb;
 	struct ecryptfs_mount_crypt_stat mount_crypt_stat;
+	struct backing_dev_info bdi;
 };
 
 /* file private data. */
@@ -463,6 +465,14 @@ struct ecryptfs_daemon {
 };
 
 extern struct mutex ecryptfs_daemon_hash_mux;
+
+static inline size_t
+ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
+{
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		return 0;
+	return crypt_stat->metadata_size;
+}
 
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
@@ -651,6 +661,9 @@ int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
+void ecryptfs_write_crypt_stat_flags(char *page_virt,
+				     struct ecryptfs_crypt_stat *crypt_stat,
+				     size_t *written);
 int ecryptfs_read_and_validate_header_region(char *data,
 					     struct inode *ecryptfs_inode);
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,
@@ -718,15 +731,14 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
 				      struct page *page_for_lower,
 				      size_t offset_in_page, size_t size);
-int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
-		   size_t size);
+int ecryptfs_write(struct inode *inode, char *data, loff_t offset, size_t size);
 int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 			struct inode *ecryptfs_inode);
 int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode);
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index);
 int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
 int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid,
 				 struct user_namespace *user_ns);

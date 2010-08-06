@@ -110,6 +110,7 @@ extern void pfault_fini(void);
 #endif /* CONFIG_PFAULT */
 
 extern void cmma_init(void);
+extern int memcpy_real(void *, void *, size_t);
 
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
@@ -218,8 +219,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 			"	l	%0,%2\n"
 			"0:	nr	%0,%5\n"
 			"	lr	%1,%0\n"
-			"	or	%0,%2\n"
-			"	or	%1,%3\n"
+			"	or	%0,%3\n"
+			"	or	%1,%4\n"
 			"	cs	%0,%1,%2\n"
 			"	jnl	1f\n"
 			"	xr	%1,%0\n"
@@ -239,8 +240,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 			"	l	%0,%2\n"
 			"0:	nr	%0,%5\n"
 			"	lr	%1,%0\n"
-			"	or	%0,%2\n"
-			"	or	%1,%3\n"
+			"	or	%0,%3\n"
+			"	or	%1,%4\n"
 			"	cs	%0,%1,%2\n"
 			"	jnl	1f\n"
 			"	xr	%1,%0\n"
@@ -457,11 +458,6 @@ extern void (*_machine_halt)(void);
 extern void (*_machine_power_off)(void);
 
 #define arch_align_stack(x) (x)
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-extern psw_t sysc_restore_trace_psw;
-extern psw_t io_restore_trace_psw;
-#endif
 
 static inline int tprot(unsigned long addr)
 {

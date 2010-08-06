@@ -202,6 +202,7 @@ input_file() {
 			print_mtime "$1" >> ${output}
 			cat "$1"         >> ${output}
 		else
+		        echo "$1 \\"
 			cat "$1" | while read type dir file perm ; do
 				if [ "$type" == "file" ]; then
 					echo "$file \\";
@@ -231,7 +232,7 @@ arg="$1"
 case "$arg" in
 	"-l")	# files included in initramfs - used by kbuild
 		dep_list="list_"
-		echo "deps_initramfs := \\"
+		echo "deps_initramfs := $0 \\"
 		shift
 		;;
 	"-o")	# generate compressed cpio image named $1
@@ -242,6 +243,7 @@ case "$arg" in
 		echo "$output_file" | grep -q "\.gz$" && compr="gzip -9 -f"
 		echo "$output_file" | grep -q "\.bz2$" && compr="bzip2 -9 -f"
 		echo "$output_file" | grep -q "\.lzma$" && compr="lzma -9 -f"
+		echo "$output_file" | grep -q "\.lzo$" && compr="lzop -9 -f"
 		echo "$output_file" | grep -q "\.cpio$" && compr="cat"
 		shift
 		;;

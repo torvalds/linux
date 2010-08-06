@@ -23,6 +23,13 @@ enum {
 	MPOL_MAX,	/* always last member of enum */
 };
 
+enum mpol_rebind_step {
+	MPOL_REBIND_ONCE,	/* do rebind work at once(not by two step) */
+	MPOL_REBIND_STEP1,	/* first step(set all the newly nodes) */
+	MPOL_REBIND_STEP2,	/* second step(clean all the disallowed nodes)*/
+	MPOL_REBIND_NSTEP,
+};
+
 /* Flags for set_mempolicy */
 #define MPOL_F_STATIC_NODES	(1 << 15)
 #define MPOL_F_RELATIVE_NODES	(1 << 14)
@@ -51,6 +58,7 @@ enum {
  */
 #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
 #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+#define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
 
 #ifdef __KERNEL__
 
@@ -193,8 +201,8 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void mpol_rebind_task(struct task_struct *tsk,
-					const nodemask_t *new);
+extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+				enum mpol_rebind_step step);
 extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
 extern void mpol_fix_fork_child_flag(struct task_struct *p);
 
@@ -308,7 +316,8 @@ static inline void numa_default_policy(void)
 }
 
 static inline void mpol_rebind_task(struct task_struct *tsk,
-					const nodemask_t *new)
+				const nodemask_t *new,
+				enum mpol_rebind_step step)
 {
 }
 

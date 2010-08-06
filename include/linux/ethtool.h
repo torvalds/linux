@@ -310,6 +310,7 @@ struct ethtool_perm_addr {
 enum ethtool_flags {
 	ETH_FLAG_LRO		= (1 << 15),	/* LRO is enabled */
 	ETH_FLAG_NTUPLE		= (1 << 27),	/* N-tuple filters enabled */
+	ETH_FLAG_RXHASH		= (1 << 28),
 };
 
 /* The following structures are for supporting RX network flow
@@ -378,9 +379,20 @@ struct ethtool_rxnfc {
 	__u32				flow_type;
 	/* The rx flow hash value or the rule DB size */
 	__u64				data;
+	/* The following fields are not valid and must not be used for
+	 * the ETHTOOL_{G,X}RXFH commands. */
 	struct ethtool_rx_flow_spec	fs;
 	__u32				rule_cnt;
 	__u32				rule_locs[0];
+};
+
+struct ethtool_rxfh_indir {
+	__u32	cmd;
+	/* On entry, this is the array size of the user buffer.  On
+	 * return from ETHTOOL_GRXFHINDIR, this is the array size of
+	 * the hardware indirection table. */
+	__u32	size;
+	__u32	ring_index[0];	/* ring/queue index for each hash value */
 };
 
 struct ethtool_rx_ntuple_flow_spec {
@@ -456,7 +468,7 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data);
 u32 ethtool_op_get_ufo(struct net_device *dev);
 int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
-int ethtool_op_set_flags(struct net_device *dev, u32 data);
+int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported);
 void ethtool_ntuple_flush(struct net_device *dev);
 
 /**
@@ -490,12 +502,12 @@ void ethtool_ntuple_flush(struct net_device *dev);
  * get_ufo: Report whether UDP fragmentation offload is enabled
  * set_ufo: Turn UDP fragmentation offload on or off
  * self_test: Run specified self-tests
- * get_strings: Return a set of strings that describe the requested objects 
+ * get_strings: Return a set of strings that describe the requested objects
  * phys_id: Identify the device
  * get_stats: Return statistics about the device
  * get_flags: get 32-bit flags bitmap
  * set_flags: set 32-bit flags bitmap
- * 
+ *
  * Description:
  *
  * get_settings:
@@ -531,14 +543,20 @@ struct ethtool_ops {
 	int	(*nway_reset)(struct net_device *);
 	u32	(*get_link)(struct net_device *);
 	int	(*get_eeprom_len)(struct net_device *);
-	int	(*get_eeprom)(struct net_device *, struct ethtool_eeprom *, u8 *);
-	int	(*set_eeprom)(struct net_device *, struct ethtool_eeprom *, u8 *);
+	int	(*get_eeprom)(struct net_device *,
+			      struct ethtool_eeprom *, u8 *);
+	int	(*set_eeprom)(struct net_device *,
+			      struct ethtool_eeprom *, u8 *);
 	int	(*get_coalesce)(struct net_device *, struct ethtool_coalesce *);
 	int	(*set_coalesce)(struct net_device *, struct ethtool_coalesce *);
-	void	(*get_ringparam)(struct net_device *, struct ethtool_ringparam *);
-	int	(*set_ringparam)(struct net_device *, struct ethtool_ringparam *);
-	void	(*get_pauseparam)(struct net_device *, struct ethtool_pauseparam*);
-	int	(*set_pauseparam)(struct net_device *, struct ethtool_pauseparam*);
+	void	(*get_ringparam)(struct net_device *,
+				 struct ethtool_ringparam *);
+	int	(*set_ringparam)(struct net_device *,
+				 struct ethtool_ringparam *);
+	void	(*get_pauseparam)(struct net_device *,
+				  struct ethtool_pauseparam*);
+	int	(*set_pauseparam)(struct net_device *,
+				  struct ethtool_pauseparam*);
 	u32	(*get_rx_csum)(struct net_device *);
 	int	(*set_rx_csum)(struct net_device *, u32);
 	u32	(*get_tx_csum)(struct net_device *);
@@ -550,22 +568,29 @@ struct ethtool_ops {
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
 	int	(*phys_id)(struct net_device *, u32);
-	void	(*get_ethtool_stats)(struct net_device *, struct ethtool_stats *, u64 *);
+	void	(*get_ethtool_stats)(struct net_device *,
+				     struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);
 	void	(*complete)(struct net_device *);
-	u32     (*get_ufo)(struct net_device *);
-	int     (*set_ufo)(struct net_device *, u32);
-	u32     (*get_flags)(struct net_device *);
-	int     (*set_flags)(struct net_device *, u32);
-	u32     (*get_priv_flags)(struct net_device *);
-	int     (*set_priv_flags)(struct net_device *, u32);
+	u32	(*get_ufo)(struct net_device *);
+	int	(*set_ufo)(struct net_device *, u32);
+	u32	(*get_flags)(struct net_device *);
+	int	(*set_flags)(struct net_device *, u32);
+	u32	(*get_priv_flags)(struct net_device *);
+	int	(*set_priv_flags)(struct net_device *, u32);
 	int	(*get_sset_count)(struct net_device *, int);
-	int	(*get_rxnfc)(struct net_device *, struct ethtool_rxnfc *, void *);
+	int	(*get_rxnfc)(struct net_device *,
+			     struct ethtool_rxnfc *, void *);
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
-	int     (*flash_device)(struct net_device *, struct ethtool_flash *);
+	int	(*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);
-	int	(*set_rx_ntuple)(struct net_device *, struct ethtool_rx_ntuple *);
+	int	(*set_rx_ntuple)(struct net_device *,
+				 struct ethtool_rx_ntuple *);
 	int	(*get_rx_ntuple)(struct net_device *, u32 stringset, void *);
+	int	(*get_rxfh_indir)(struct net_device *,
+				  struct ethtool_rxfh_indir *);
+	int	(*set_rxfh_indir)(struct net_device *,
+				  const struct ethtool_rxfh_indir *);
 };
 #endif /* __KERNEL__ */
 
@@ -612,21 +637,23 @@ struct ethtool_ops {
 #define ETHTOOL_GPFLAGS		0x00000027 /* Get driver-private flags bitmap */
 #define ETHTOOL_SPFLAGS		0x00000028 /* Set driver-private flags bitmap */
 
-#define	ETHTOOL_GRXFH		0x00000029 /* Get RX flow hash configuration */
-#define	ETHTOOL_SRXFH		0x0000002a /* Set RX flow hash configuration */
+#define ETHTOOL_GRXFH		0x00000029 /* Get RX flow hash configuration */
+#define ETHTOOL_SRXFH		0x0000002a /* Set RX flow hash configuration */
 #define ETHTOOL_GGRO		0x0000002b /* Get GRO enable (ethtool_value) */
 #define ETHTOOL_SGRO		0x0000002c /* Set GRO enable (ethtool_value) */
-#define	ETHTOOL_GRXRINGS	0x0000002d /* Get RX rings available for LB */
-#define	ETHTOOL_GRXCLSRLCNT	0x0000002e /* Get RX class rule count */
-#define	ETHTOOL_GRXCLSRULE	0x0000002f /* Get RX classification rule */
-#define	ETHTOOL_GRXCLSRLALL	0x00000030 /* Get all RX classification rule */
-#define	ETHTOOL_SRXCLSRLDEL	0x00000031 /* Delete RX classification rule */
-#define	ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
-#define	ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
-#define	ETHTOOL_RESET		0x00000034 /* Reset hardware */
-#define	ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
-#define	ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
-#define	ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
+#define ETHTOOL_GRXRINGS	0x0000002d /* Get RX rings available for LB */
+#define ETHTOOL_GRXCLSRLCNT	0x0000002e /* Get RX class rule count */
+#define ETHTOOL_GRXCLSRULE	0x0000002f /* Get RX classification rule */
+#define ETHTOOL_GRXCLSRLALL	0x00000030 /* Get all RX classification rule */
+#define ETHTOOL_SRXCLSRLDEL	0x00000031 /* Delete RX classification rule */
+#define ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
+#define ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
+#define ETHTOOL_RESET		0x00000034 /* Reset hardware */
+#define ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
+#define ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
+#define ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
+#define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
+#define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -746,8 +773,8 @@ struct ethtool_ops {
 #define	AH_V6_FLOW	0x0b
 #define	ESP_V6_FLOW	0x0c
 #define	IP_USER_FLOW	0x0d
-#define IPV4_FLOW       0x10
-#define IPV6_FLOW       0x11
+#define	IPV4_FLOW	0x10
+#define	IPV6_FLOW	0x11
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)

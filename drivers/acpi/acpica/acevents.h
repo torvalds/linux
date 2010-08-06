@@ -73,31 +73,23 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
 			     u32 notify_value);
 
 /*
- * evgpe - GPE handling and dispatch
+ * evgpe - Low-level GPE support
  */
+u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list);
+
 acpi_status
 acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info);
-
-acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
-
-acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 						       u32 gpe_number);
 
+struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
+						     struct acpi_gpe_block_info
+						     *gpe_block);
+
 /*
- * evgpeblk
+ * evgpeblk - Upper-level GPE block support
  */
-u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info);
-
-acpi_status
-acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context);
-
-acpi_status
-acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-			    struct acpi_gpe_block_info *gpe_block,
-			    void *context);
-
 acpi_status
 acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			 struct acpi_generic_address *gpe_block_address,
@@ -116,12 +108,37 @@ u32
 acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info,
 		     u32 gpe_number);
 
-u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list);
+/*
+ * evgpeinit - GPE initialization and update
+ */
+acpi_status acpi_ev_gpe_initialize(void);
+
+void acpi_ev_update_gpes(acpi_owner_id table_owner_id);
 
 acpi_status
-acpi_ev_check_for_wake_only_gpe(struct acpi_gpe_event_info *gpe_event_info);
+acpi_ev_match_gpe_method(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value);
 
-acpi_status acpi_ev_gpe_initialize(void);
+acpi_status
+acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
+			  u32 level, void *context, void **return_value);
+
+/*
+ * evgpeutil - GPE utilities
+ */
+acpi_status
+acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context);
+
+u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info);
+
+struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number);
+
+acpi_status acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt);
+
+acpi_status
+acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			    struct acpi_gpe_block_info *gpe_block,
+			    void *context);
 
 /*
  * evregion - Address Space handling

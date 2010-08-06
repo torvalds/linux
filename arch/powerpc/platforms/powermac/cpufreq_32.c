@@ -21,7 +21,6 @@
 #include <linux/sched.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
-#include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>

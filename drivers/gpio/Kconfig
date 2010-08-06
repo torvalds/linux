@@ -1,5 +1,5 @@
 #
-# GPIO infrastructure and expanders
+# platform-neutral GPIO infrastructure and expanders
 #
 
 config ARCH_WANT_OPTIONAL_GPIOLIB
@@ -139,6 +139,13 @@ config GPIO_MAX732X
 	  Board setup code must specify the model to use, and the start
 	  number for these GPIOs.
 
+config GPIO_MAX732X_IRQ
+	bool "Interrupt controller support for MAX732x"
+	depends on GPIO_MAX732X=y && GENERIC_HARDIRQS
+	help
+	  Say yes here to enable the max732x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
@@ -187,6 +194,13 @@ config GPIO_PCF857X
 
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
+
+config GPIO_TC35892
+	bool "TC35892 GPIOs"
+	depends on MFD_TC35892
+	help
+	  This enables support for the GPIOs found on the TC35892
+	  I/O Expander.
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
@@ -264,16 +278,25 @@ config GPIO_BT8XX
 	  If unsure, say N.
 
 config GPIO_LANGWELL
-	bool "Intel Moorestown Platform Langwell GPIO support"
+	bool "Intel Langwell/Penwell GPIO support"
 	depends on PCI
 	help
-	  Say Y here to support Intel Moorestown platform GPIO.
+	  Say Y here to support Intel Langwell/Penwell GPIO.
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
 	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
+
+config GPIO_RDC321X
+	tristate "RDC R-321x GPIO support"
+	depends on PCI && GPIOLIB
+	select MFD_CORE
+	select MFD_RDC321X
+	help
+	  Support for the RDC R321x SoC GPIOs over southbridge
+	  PCI configuration space.
 
 comment "SPI GPIO expanders:"
 
@@ -309,5 +332,15 @@ config GPIO_UCB1400
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_gpio.
+
+comment "MODULbus GPIO expanders:"
+
+config GPIO_JANZ_TTL
+	tristate "Janz VMOD-TTL Digital IO Module"
+	depends on MFD_JANZ_CMODIO
+	help
+	  This enables support for the Janz VMOD-TTL Digital IO module.
+	  This driver provides support for driving the pins in output
+	  mode only. Input mode is not supported.
 
 endif

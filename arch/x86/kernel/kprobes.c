@@ -422,14 +422,22 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 static void __kprobes clear_btf(void)
 {
-	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		update_debugctlmsr(0);
+	if (test_thread_flag(TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+	}
 }
 
 static void __kprobes restore_btf(void)
 {
-	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		update_debugctlmsr(current->thread.debugctlmsr);
+	if (test_thread_flag(TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl |= DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+	}
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -534,20 +542,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb;
 
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
-	if (*addr != BREAKPOINT_INSTRUCTION) {
-		/*
-		 * The breakpoint instruction was removed right
-		 * after we hit it.  Another cpu has removed
-		 * either a probepoint or a debugger breakpoint
-		 * at this address.  In either case, no further
-		 * handling of this interrupt is appropriate.
-		 * Back up over the (now missing) int3 and run
-		 * the original instruction.
-		 */
-		regs->ip = (unsigned long)addr;
-		return 1;
-	}
-
 	/*
 	 * We don't want to be preempted for the entire
 	 * duration of kprobe processing. We conditionally
@@ -579,6 +573,19 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 				setup_singlestep(p, regs, kcb, 0);
 			return 1;
 		}
+	} else if (*addr != BREAKPOINT_INSTRUCTION) {
+		/*
+		 * The breakpoint instruction was removed right
+		 * after we hit it.  Another cpu has removed
+		 * either a probepoint or a debugger breakpoint
+		 * at this address.  In either case, no further
+		 * handling of this interrupt is appropriate.
+		 * Back up over the (now missing) int3 and run
+		 * the original instruction.
+		 */
+		regs->ip = (unsigned long)addr;
+		preempt_enable_no_resched();
+		return 1;
 	} else if (kprobe_running()) {
 		p = __get_cpu_var(current_kprobe);
 		if (p->break_handler && p->break_handler(p, regs)) {
@@ -633,8 +640,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	/* Skip cs, ip, orig_ax and gs. */	\
 	"	subl $16, %esp\n"	\
 	"	pushl %fs\n"		\
-	"	pushl %ds\n"		\
 	"	pushl %es\n"		\
+	"	pushl %ds\n"		\
 	"	pushl %eax\n"		\
 	"	pushl %ebp\n"		\
 	"	pushl %edi\n"		\

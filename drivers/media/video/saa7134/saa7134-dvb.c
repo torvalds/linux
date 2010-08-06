@@ -24,7 +24,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
@@ -479,6 +478,17 @@ static struct tda1004x_config medion_cardbus = {
 	.agc_config    = TDA10046_AGC_IFO_AUTO_NEG,
 	.if_freq       = TDA10046_FREQ_3613,
 	.tuner_address = 0x61,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
+static struct tda1004x_config technotrend_budget_t3000_config = {
+	.demod_address = 0x8,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_4M,
+	.agc_config    = TDA10046_AGC_DEFAULT,
+	.if_freq       = TDA10046_FREQ_3617,
+	.tuner_address = 0x63,
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
@@ -1169,6 +1179,18 @@ static int dvb_init(struct saa7134_dev *dev)
 			fe0->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
 		}
 		break;
+	case SAA7134_BOARD_TECHNOTREND_BUDGET_T3000:
+		fe0->dvb.frontend = dvb_attach(tda10046_attach,
+					       &technotrend_budget_t3000_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dev->original_demod_sleep = fe0->dvb.frontend->ops.sleep;
+			fe0->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
+			fe0->dvb.frontend->ops.tuner_ops.init = philips_europa_tuner_init;
+			fe0->dvb.frontend->ops.tuner_ops.sleep = philips_europa_tuner_sleep;
+			fe0->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
+		}
+		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		fe0->dvb.frontend = dvb_attach(tda10046_attach,
 					       &philips_tu1216_61_config,
@@ -1525,6 +1547,15 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_BEHOLD_X7:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+						&behold_x7_config,
+						&dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(xc5000_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, &behold_x7_tunerconfig);
+		}
+		break;
+	case SAA7134_BOARD_BEHOLD_H7:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 						&behold_x7_config,
 						&dev->i2c_adap);

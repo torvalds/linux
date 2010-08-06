@@ -25,7 +25,7 @@ long document in its own right.  Instead, the focus here will be on how git
 fits into the kernel development process in particular.  Developers who
 wish to come up to speed with git will find more information at:
 
-	http://git.or.cz/
+	http://git-scm.com/
 
 	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 

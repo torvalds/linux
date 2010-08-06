@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

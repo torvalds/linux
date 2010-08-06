@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 
 #include "u_ether.h"
 
@@ -468,8 +469,7 @@ static int eem_unwrap(struct gether *port,
 				crc = get_unaligned_le32(skb->data + len
 							- ETH_FCS_LEN);
 				crc2 = ~crc32_le(~0,
-						skb->data,
-						skb->len - ETH_FCS_LEN);
+						skb->data, len - ETH_FCS_LEN);
 			} else {
 				crc = get_unaligned_be32(skb->data + len
 							- ETH_FCS_LEN);

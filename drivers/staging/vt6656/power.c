@@ -50,18 +50,13 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-
-
-
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
-
 /*---------------------  Export Variables  --------------------------*/
-
 
 /*---------------------  Export Functions  --------------------------*/
 
@@ -75,12 +70,8 @@ static int          msglevel                =MSG_LEVEL_INFO;
  *
 -*/
 
-
-VOID
-PSvEnablePowerSaving(
-    IN HANDLE hDeviceContext,
-    IN WORD wListenInterval
-    )
+void PSvEnablePowerSaving(void *hDeviceContext,
+			  WORD wListenInterval)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
@@ -128,7 +119,7 @@ PSvEnablePowerSaving(
     pDevice->bEnablePSMode = TRUE;
 
     if (pDevice->eOPMode == OP_MODE_ADHOC) {
-//        bMgrPrepareBeaconToSend((HANDLE)pDevice, pMgmt);
+	/* bMgrPrepareBeaconToSend((void *) pDevice, pMgmt); */
     }
     // We don't send null pkt in ad hoc mode since beacon will handle this.
     else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
@@ -138,11 +129,6 @@ PSvEnablePowerSaving(
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
     return;
 }
-
-
-
-
-
 
 /*+
  *
@@ -154,10 +140,7 @@ PSvEnablePowerSaving(
  *
 -*/
 
-VOID
-PSvDisablePowerSaving(
-    IN HANDLE hDeviceContext
-    )
+void PSvDisablePowerSaving(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 //    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
@@ -187,7 +170,6 @@ PSvDisablePowerSaving(
     return;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -198,13 +180,9 @@ PSvDisablePowerSaving(
  *    FALSE, if fail
 -*/
 
-
-BOOL
-PSbConsiderPowerDown(
-    IN HANDLE hDeviceContext,
-    IN BOOL bCheckRxDMA,
-    IN BOOL bCheckCountToWakeUp
-    )
+BOOL PSbConsiderPowerDown(void *hDeviceContext,
+			  BOOL bCheckRxDMA,
+			  BOOL bCheckCountToWakeUp)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
@@ -248,8 +226,6 @@ PSbConsiderPowerDown(
     return TRUE;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -260,12 +236,7 @@ PSbConsiderPowerDown(
  *
 -*/
 
-
-
-VOID
-PSvSendPSPOLL(
-    IN HANDLE hDeviceContext
-    )
+void PSvSendPSPOLL(void *hDeviceContext)
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
@@ -297,8 +268,6 @@ PSvSendPSPOLL(
     return;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -308,10 +277,8 @@ PSvSendPSPOLL(
  *    None.
  *
 -*/
-BOOL
-PSbSendNullPacket(
-    IN HANDLE hDeviceContext
-    )
+
+BOOL PSbSendNullPacket(void *hDeviceContext)
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSTxMgmtPacket      pTxPacket = NULL;
@@ -388,10 +355,7 @@ PSbSendNullPacket(
  *
 -*/
 
-BOOL
-PSbIsNextTBTTWakeUp(
-    IN HANDLE hDeviceContext
-    )
+BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
 {
 
     PSDevice         pDevice = (PSDevice)hDeviceContext;

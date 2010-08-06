@@ -31,6 +31,7 @@
 
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/math64.h>
 #include <linux/module.h>

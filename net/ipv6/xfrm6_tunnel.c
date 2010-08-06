@@ -23,6 +23,7 @@
  */
 #include <linux/module.h>
 #include <linux/xfrm.h>
+#include <linux/slab.h>
 #include <linux/rculist.h>
 #include <net/ip.h>
 #include <net/xfrm.h>

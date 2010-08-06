@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/uio_driver.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /* ID's for SERCOS III PCI card (PLX 9030) */
 #define SERCOS_SUB_VENDOR_ID  0x1971

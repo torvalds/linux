@@ -151,6 +151,9 @@
 #define EVERGREEN_DATA_FORMAT                           0x6b00
 #       define EVERGREEN_INTERLEAVE_EN                  (1 << 0)
 #define EVERGREEN_DESKTOP_HEIGHT                        0x6b04
+#define EVERGREEN_VLINE_START_END                       0x6b08
+#define EVERGREEN_VLINE_STATUS                          0x6bb8
+#       define EVERGREEN_VLINE_STAT                     (1 << 12)
 
 #define EVERGREEN_VIEWPORT_START                        0x6d70
 #define EVERGREEN_VIEWPORT_SIZE                         0x6d74
@@ -164,8 +167,12 @@
 #define EVERGREEN_CRTC5_REGISTER_OFFSET                 (0x129f0 - 0x6df0)
 
 /* CRTC blocks at 0x6df0, 0x79f0, 0x105f0, 0x111f0, 0x11df0, 0x129f0 */
+#define EVERGREEN_CRTC_V_BLANK_START_END                0x6e34
 #define EVERGREEN_CRTC_CONTROL                          0x6e70
 #       define EVERGREEN_CRTC_MASTER_EN                 (1 << 0)
+#       define EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE (1 << 24)
+#define EVERGREEN_CRTC_STATUS                           0x6e8c
+#define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
 
 #define EVERGREEN_DC_GPIO_HPD_MASK                      0x64b0

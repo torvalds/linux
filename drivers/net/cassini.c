@@ -107,12 +107,7 @@
 #define cas_page_unmap(x)    kunmap_atomic((x), KM_SKB_DATA_SOFTIRQ)
 #define CAS_NCPUS            num_online_cpus()
 
-#ifdef CONFIG_CASSINI_NAPI
-#define USE_NAPI
-#define cas_skb_release(x)  netif_receive_skb(x)
-#else
 #define cas_skb_release(x)  netif_rx(x)
-#endif
 
 /* select which firmware to use */
 #define USE_HP_WORKAROUND
@@ -2889,7 +2884,6 @@ static netdev_tx_t cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
 		return NETDEV_TX_BUSY;
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -2957,20 +2951,20 @@ static void cas_process_mc_list(struct cas *cp)
 {
 	u16 hash_table[16];
 	u32 crc;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int i = 1;
 
 	memset(hash_table, 0, sizeof(hash_table));
-	netdev_for_each_mc_addr(dmi, cp->dev) {
+	netdev_for_each_mc_addr(ha, cp->dev) {
 		if (i <= CAS_MC_EXACT_MATCH_SIZE) {
 			/* use the alternate mac address registers for the
 			 * first 15 multicast addresses
 			 */
-			writel((dmi->dmi_addr[4] << 8) | dmi->dmi_addr[5],
+			writel((ha->addr[4] << 8) | ha->addr[5],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 0));
-			writel((dmi->dmi_addr[2] << 8) | dmi->dmi_addr[3],
+			writel((ha->addr[2] << 8) | ha->addr[3],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 1));
-			writel((dmi->dmi_addr[0] << 8) | dmi->dmi_addr[1],
+			writel((ha->addr[0] << 8) | ha->addr[1],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 2));
 			i++;
 		}
@@ -2978,7 +2972,7 @@ static void cas_process_mc_list(struct cas *cp)
 			/* use hw hash table for the next series of
 			 * multicast addresses
 			 */
-			crc = ether_crc_le(ETH_ALEN, dmi->dmi_addr);
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
 			crc >>= 24;
 			hash_table[crc >> 4] |= 1 << (15 - (crc & 0xf));
 		}
@@ -3064,9 +3058,6 @@ static void cas_init_mac(struct cas *cp)
 {
 	unsigned char *e = &cp->dev->dev_addr[0];
 	int i;
-#ifdef CONFIG_CASSINI_MULTICAST_REG_WRITE
-	u32 rxcfg;
-#endif
 	cas_mac_reset(cp);
 
 	/* setup core arbitration weight register */
@@ -3134,23 +3125,8 @@ static void cas_init_mac(struct cas *cp)
 	writel(0xc200, cp->regs + REG_MAC_ADDRN(43));
 	writel(0x0180, cp->regs + REG_MAC_ADDRN(44));
 
-#ifndef CONFIG_CASSINI_MULTICAST_REG_WRITE
 	cp->mac_rx_cfg = cas_setup_multicast(cp);
-#else
-	/* WTZ: Do what Adrian did in cas_set_multicast. Doing
-	 * a writel does not seem to be necessary because Cassini
-	 * seems to preserve the configuration when we do the reset.
-	 * If the chip is in trouble, though, it is not clear if we
-	 * can really count on this behavior. cas_set_multicast uses
-	 * spin_lock_irqsave, but we are called only in cas_init_hw and
-	 * cas_init_hw is protected by cas_lock_all, which calls
-	 * spin_lock_irq (so it doesn't need to save the flags, and
-	 * we should be OK for the writel, as that is the only
-	 * difference).
-	 */
-	cp->mac_rx_cfg = rxcfg = cas_setup_multicast(cp);
-	writel(rxcfg, cp->regs + REG_MAC_RX_CFG);
-#endif
+
 	spin_lock(&cp->stat_lock[N_TX_RINGS]);
 	cas_clear_mac_err(cp);
 	spin_unlock(&cp->stat_lock[N_TX_RINGS]);
@@ -4825,7 +4801,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	default:
 		break;
-	};
+	}
 
 	mutex_unlock(&cp->pm_mutex);
 	return rc;

@@ -94,7 +94,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	/* We must have a valid region */
 
 	if (rgn_desc->common.type != ACPI_TYPE_REGION) {
-		ACPI_ERROR((AE_INFO, "Needed Region, found type %X (%s)",
+		ACPI_ERROR((AE_INFO, "Needed Region, found type 0x%X (%s)",
 			    rgn_desc->common.type,
 			    acpi_ut_get_object_type_name(rgn_desc)));
 
@@ -175,7 +175,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 			 * byte, and a field with Dword access specified.
 			 */
 			ACPI_ERROR((AE_INFO,
-				    "Field [%4.4s] access width (%d bytes) too large for region [%4.4s] (length %X)",
+				    "Field [%4.4s] access width (%u bytes) too large for region [%4.4s] (length %u)",
 				    acpi_ut_get_node_name(obj_desc->
 							  common_field.node),
 				    obj_desc->common_field.access_byte_width,
@@ -189,7 +189,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		 * exceeds region length, indicate an error
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] Base+Offset+Width %X+%X+%X is beyond end of region [%4.4s] (length %X)",
+			    "Field [%4.4s] Base+Offset+Width %u+%u+%u is beyond end of region [%4.4s] (length %u)",
 			    acpi_ut_get_node_name(obj_desc->common_field.node),
 			    obj_desc->common_field.base_byte_offset,
 			    field_datum_byte_offset,
@@ -281,13 +281,13 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_IMPLEMENTED) {
 			ACPI_ERROR((AE_INFO,
-				    "Region %s(%X) not implemented",
+				    "Region %s(0x%X) not implemented",
 				    acpi_ut_get_region_name(rgn_desc->region.
 							    space_id),
 				    rgn_desc->region.space_id));
 		} else if (status == AE_NOT_EXIST) {
 			ACPI_ERROR((AE_INFO,
-				    "Region %s(%X) has no handler",
+				    "Region %s(0x%X) has no handler",
 				    acpi_ut_get_region_name(rgn_desc->region.
 							    space_id),
 				    rgn_desc->region.space_id));
@@ -525,7 +525,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Wrong object type in field I/O %X",
+		ACPI_ERROR((AE_INFO, "Wrong object type in field I/O %u",
 			    obj_desc->common.type));
 		status = AE_AML_INTERNAL;
 		break;
@@ -630,7 +630,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown UpdateRule value: %X",
+				    "Unknown UpdateRule value: 0x%X",
 				    (obj_desc->common_field.
 				     field_flags &
 				     AML_FIELD_UPDATE_RULE_MASK)));
@@ -689,7 +689,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 	if (buffer_length <
 	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length)) {
 		ACPI_ERROR((AE_INFO,
-			    "Field size %X (bits) is too large for buffer (%X)",
+			    "Field size %u (bits) is too large for buffer (%u)",
 			    obj_desc->common_field.bit_length, buffer_length));
 
 		return_ACPI_STATUS(AE_BUFFER_OVERFLOW);

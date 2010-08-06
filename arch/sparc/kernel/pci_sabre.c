@@ -310,7 +310,7 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct device_node *dp = pbm->op->node;
+	struct device_node *dp = pbm->op->dev.of_node;
 	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
@@ -456,7 +456,7 @@ static int __devinit sabre_probe(struct of_device *op,
 				 const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *pr_regs;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
 	u32 upa_portid, dma_mask;
 	struct iommu *iommu;
@@ -596,8 +596,11 @@ static struct of_device_id __initdata sabre_match[] = {
 };
 
 static struct of_platform_driver sabre_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= sabre_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = sabre_match,
+	},
 	.probe		= sabre_probe,
 };
 

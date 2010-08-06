@@ -10,7 +10,6 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/bio.h>
-#include <linux/slab.h>
 
 #define DM_MSG_PREFIX "target"
 

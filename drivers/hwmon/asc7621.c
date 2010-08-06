@@ -268,8 +268,11 @@ static ssize_t store_fan16(struct device *dev,
 	if (strict_strtol(buf, 10, &reqval))
 		return -EINVAL;
 
+	/* If a minimum RPM of zero is requested, then we set the register to
+	   0xffff. This value allows the fan to be stopped completely without
+	   generating an alarm. */
 	reqval =
-	    (SENSORS_LIMIT((reqval) <= 0 ? 0 : 5400000 / (reqval), 0, 65534));
+	    (reqval <= 0 ? 0xffff : SENSORS_LIMIT(5400000 / reqval, 0, 0xfffe));
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = (reqval >> 8) & 0xff;
@@ -285,8 +288,9 @@ static ssize_t store_fan16(struct device *dev,
  * Voltages are scaled in the device so that the nominal voltage
  * is 3/4ths of the 0-255 range (i.e. 192).
  * If all voltages are 'normal' then all voltage registers will
- * read 0xC0.  This doesn't help us if we don't have a point of refernce.
- * The data sheet however provides us with the full scale value for each
+ * read 0xC0.
+ *
+ * The data sheet provides us with the 3/4 scale value for each voltage
  * which is stored in in_scaling.  The sda->index parameter value provides
  * the index into in_scaling.
  *
@@ -295,7 +299,7 @@ static ssize_t store_fan16(struct device *dev,
  */
 
 static int asc7621_in_scaling[] = {
-	3320, 3000, 4380, 6640, 16000
+	2500, 2250, 3300, 5000, 12000
 };
 
 static ssize_t show_in10(struct device *dev, struct device_attribute *attr,
@@ -306,18 +310,11 @@ static ssize_t show_in10(struct device *dev, struct device_attribute *attr,
 	u8 nr = sda->index;
 
 	mutex_lock(&data->update_lock);
-	regval = (data->reg[param->msb[0]] * asc7621_in_scaling[nr]) / 256;
-
-	/* The LSB value is a 2-bit scaling of the MSB's LSbit value.
-	 * I.E.  If the maximim voltage for this input is 6640 millivolts then
-	 * a MSB register value of 0 = 0mv and 255 = 6640mv.
-	 * A 1 step change therefore represents 25.9mv (6640 / 256).
-	 * The extra 2-bits therefore represent increments of 6.48mv.
-	 */
-	regval += ((asc7621_in_scaling[nr] / 256) / 4) *
-	    (data->reg[param->lsb[0]] >> 6);
-
+	regval = (data->reg[param->msb[0]] << 8) | (data->reg[param->lsb[0]]);
 	mutex_unlock(&data->update_lock);
+
+	/* The LSB value is a 2-bit scaling of the MSB's LSbit value. */
+	regval = (regval >> 6) * asc7621_in_scaling[nr] / (0xc0 << 2);
 
 	return sprintf(buf, "%u\n", regval);
 }
@@ -331,7 +328,7 @@ static ssize_t show_in8(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%u\n",
 		       ((data->reg[param->msb[0]] *
-			 asc7621_in_scaling[nr]) / 256));
+			 asc7621_in_scaling[nr]) / 0xc0));
 }
 
 static ssize_t store_in8(struct device *dev, struct device_attribute *attr,
@@ -344,9 +341,11 @@ static ssize_t store_in8(struct device *dev, struct device_attribute *attr,
 	if (strict_strtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, asc7621_in_scaling[nr]);
+	reqval = SENSORS_LIMIT(reqval, 0, 0xffff);
 
-	reqval = (reqval * 255 + 128) / asc7621_in_scaling[nr];
+	reqval = reqval * 0xc0 / asc7621_in_scaling[nr];
+
+	reqval = SENSORS_LIMIT(reqval, 0, 0xff);
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = reqval;
@@ -846,11 +845,11 @@ static struct asc7621_param asc7621_params[] = {
 	PWRITE(in3_max, 3, PRI_LOW, 0x4b, 0, 0, 0, in8),
 	PWRITE(in4_max, 4, PRI_LOW, 0x4d, 0, 0, 0, in8),
 
-	PREAD(in0_alarm, 0, PRI_LOW, 0x41, 0, 0x01, 0, bitmask),
-	PREAD(in1_alarm, 1, PRI_LOW, 0x41, 0, 0x01, 1, bitmask),
-	PREAD(in2_alarm, 2, PRI_LOW, 0x41, 0, 0x01, 2, bitmask),
-	PREAD(in3_alarm, 3, PRI_LOW, 0x41, 0, 0x01, 3, bitmask),
-	PREAD(in4_alarm, 4, PRI_LOW, 0x42, 0, 0x01, 0, bitmask),
+	PREAD(in0_alarm, 0, PRI_HIGH, 0x41, 0, 0x01, 0, bitmask),
+	PREAD(in1_alarm, 1, PRI_HIGH, 0x41, 0, 0x01, 1, bitmask),
+	PREAD(in2_alarm, 2, PRI_HIGH, 0x41, 0, 0x01, 2, bitmask),
+	PREAD(in3_alarm, 3, PRI_HIGH, 0x41, 0, 0x01, 3, bitmask),
+	PREAD(in4_alarm, 4, PRI_HIGH, 0x42, 0, 0x01, 0, bitmask),
 
 	PREAD(fan1_input, 0, PRI_HIGH, 0x29, 0x28, 0, 0, fan16),
 	PREAD(fan2_input, 1, PRI_HIGH, 0x2b, 0x2a, 0, 0, fan16),
@@ -862,10 +861,10 @@ static struct asc7621_param asc7621_params[] = {
 	PWRITE(fan3_min, 2, PRI_LOW, 0x59, 0x58, 0, 0, fan16),
 	PWRITE(fan4_min, 3, PRI_LOW, 0x5b, 0x5a, 0, 0, fan16),
 
-	PREAD(fan1_alarm, 0, PRI_LOW, 0x42, 0, 0x01, 0, bitmask),
-	PREAD(fan2_alarm, 1, PRI_LOW, 0x42, 0, 0x01, 1, bitmask),
-	PREAD(fan3_alarm, 2, PRI_LOW, 0x42, 0, 0x01, 2, bitmask),
-	PREAD(fan4_alarm, 3, PRI_LOW, 0x42, 0, 0x01, 3, bitmask),
+	PREAD(fan1_alarm, 0, PRI_HIGH, 0x42, 0, 0x01, 2, bitmask),
+	PREAD(fan2_alarm, 1, PRI_HIGH, 0x42, 0, 0x01, 3, bitmask),
+	PREAD(fan3_alarm, 2, PRI_HIGH, 0x42, 0, 0x01, 4, bitmask),
+	PREAD(fan4_alarm, 3, PRI_HIGH, 0x42, 0, 0x01, 5, bitmask),
 
 	PREAD(temp1_input, 0, PRI_HIGH, 0x25, 0x10, 0, 0, temp10),
 	PREAD(temp2_input, 1, PRI_HIGH, 0x26, 0x15, 0, 0, temp10),
@@ -886,10 +885,10 @@ static struct asc7621_param asc7621_params[] = {
 	PWRITE(temp3_max, 2, PRI_LOW, 0x53, 0, 0, 0, temp8),
 	PWRITE(temp4_max, 3, PRI_LOW, 0x35, 0, 0, 0, temp8),
 
-	PREAD(temp1_alarm, 0, PRI_LOW, 0x41, 0, 0x01, 4, bitmask),
-	PREAD(temp2_alarm, 1, PRI_LOW, 0x41, 0, 0x01, 5, bitmask),
-	PREAD(temp3_alarm, 2, PRI_LOW, 0x41, 0, 0x01, 6, bitmask),
-	PREAD(temp4_alarm, 3, PRI_LOW, 0x43, 0, 0x01, 0, bitmask),
+	PREAD(temp1_alarm, 0, PRI_HIGH, 0x41, 0, 0x01, 4, bitmask),
+	PREAD(temp2_alarm, 1, PRI_HIGH, 0x41, 0, 0x01, 5, bitmask),
+	PREAD(temp3_alarm, 2, PRI_HIGH, 0x41, 0, 0x01, 6, bitmask),
+	PREAD(temp4_alarm, 3, PRI_HIGH, 0x43, 0, 0x01, 0, bitmask),
 
 	PWRITE(temp1_source, 0, PRI_LOW, 0x02, 0, 0x07, 4, bitmask),
 	PWRITE(temp2_source, 1, PRI_LOW, 0x02, 0, 0x07, 0, bitmask),
@@ -898,7 +897,7 @@ static struct asc7621_param asc7621_params[] = {
 
 	PWRITE(temp1_smoothing_enable, 0, PRI_LOW, 0x62, 0, 0x01, 3, bitmask),
 	PWRITE(temp2_smoothing_enable, 1, PRI_LOW, 0x63, 0, 0x01, 7, bitmask),
-	PWRITE(temp3_smoothing_enable, 2, PRI_LOW, 0x64, 0, 0x01, 3, bitmask),
+	PWRITE(temp3_smoothing_enable, 2, PRI_LOW, 0x63, 0, 0x01, 3, bitmask),
 	PWRITE(temp4_smoothing_enable, 3, PRI_LOW, 0x3c, 0, 0x01, 3, bitmask),
 
 	PWRITE(temp1_smoothing_time, 0, PRI_LOW, 0x62, 0, 0x07, 0, temp_st),
@@ -1142,7 +1141,6 @@ exit_remove:
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return err;
 }
@@ -1197,7 +1195,6 @@ static int asc7621_remove(struct i2c_client *client)
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

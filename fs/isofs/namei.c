@@ -7,6 +7,7 @@
  */
 
 #include <linux/smp_lock.h>
+#include <linux/gfp.h>
 #include "isofs.h"
 
 /*

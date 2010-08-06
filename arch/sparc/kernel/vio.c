@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/init.h>
 

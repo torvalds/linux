@@ -76,6 +76,10 @@ enum ip_conntrack_status {
 	/* Conntrack is a template */
 	IPS_TEMPLATE_BIT = 11,
 	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
+
+	/* Conntrack is a fake untracked entry */
+	IPS_UNTRACKED_BIT = 12,
+	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
 };
 
 /* Connection tracking event types */
@@ -113,6 +117,7 @@ struct ip_conntrack_stat {
 	unsigned int expect_new;
 	unsigned int expect_create;
 	unsigned int expect_delete;
+	unsigned int search_restart;
 };
 
 /* call to create an explicit dependency on nf_conntrack. */

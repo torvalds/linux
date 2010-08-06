@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
@@ -114,7 +113,6 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id);
 
 typedef struct axnet_dev_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     caddr_t		base;
     struct timer_list	watchdog;
     int			stale, fast_poll;
@@ -169,7 +167,6 @@ static int axnet_probe(struct pcmcia_device *link)
     info = PRIV(dev);
     info->p_dev = link;
     link->priv = dev;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -196,8 +193,7 @@ static void axnet_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "axnet_detach(0x%p)\n", link);
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     axnet_release(link);
 
@@ -266,12 +262,9 @@ static int try_io_port(struct pcmcia_device *link)
     int j, ret;
     if (link->io.NumPorts1 == 32) {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	if (link->io.NumPorts2 > 0) {
-	    /* for master/slave multifunction cards */
+	/* for master/slave multifunction cards */
+	if (link->io.NumPorts2 > 0)
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	    link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING;
-	}
     } else {
 	/* This should be two 16-port windows */
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -337,8 +330,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (ret != 0)
 	goto failed;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     
     if (link->io.NumPorts2 == 8) {
@@ -350,7 +342,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (!get_prom(link)) {
@@ -398,16 +390,12 @@ static int axnet_config(struct pcmcia_device *link)
     }
 
     info->phy_id = (i < 32) ? i : -1;
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, "
 	   "hw_addr %pM\n",
@@ -1006,7 +994,7 @@ static void axnet_tx_timeout(struct net_device *dev)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
-	int txsr, isr, tickssofar = jiffies - dev->trans_start;
+	int txsr, isr, tickssofar = jiffies - dev_trans_start(dev);
 	unsigned long flags;
 
 	dev->stats.tx_errors++;
@@ -1180,6 +1168,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	int interrupts, nr_serviced = 0, i;
 	struct ei_device *ei_local;
     	int handled = 0;
+	unsigned long flags;
 
 	e8390_base = dev->base_addr;
 	ei_local = netdev_priv(dev);
@@ -1188,7 +1177,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	 *	Protect the irq test too.
 	 */
 	 
-	spin_lock(&ei_local->page_lock);
+	spin_lock_irqsave(&ei_local->page_lock, flags);
 
 	if (ei_local->irqlock) 
 	{
@@ -1200,7 +1189,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 			   dev->name, inb_p(e8390_base + EN0_ISR),
 			   inb_p(e8390_base + EN0_IMR));
 #endif
-		spin_unlock(&ei_local->page_lock);
+		spin_unlock_irqrestore(&ei_local->page_lock, flags);
 		return IRQ_NONE;
 	}
     
@@ -1273,7 +1262,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	ei_local->irqlock = 0;
 	outb_p(ENISR_ALL, e8390_base + EN0_IMR);
 
-	spin_unlock(&ei_local->page_lock);
+	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	return IRQ_RETVAL(handled);
 }
 
@@ -1511,8 +1500,6 @@ static void ei_receive(struct net_device *dev)
 		ei_local->current_page = next_frame;
 		outb_p(next_frame-1, e8390_base+EN0_BOUNDARY);
 	}
-
-	return;
 }
 
 /**
@@ -1623,11 +1610,11 @@ static struct net_device_stats *get_stats(struct net_device *dev)
  
 static inline void make_mc_bits(u8 *bits, struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	u32 crc;
 
-	netdev_for_each_mc_addr(dmi, dev) {
-		crc = ether_crc(ETH_ALEN, dmi->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		crc = ether_crc(ETH_ALEN, ha->addr);
 		/* 
 		 * The 8390 uses the 6 most significant bits of the
 		 * CRC to index the multicast table.

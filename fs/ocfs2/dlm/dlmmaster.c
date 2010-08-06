@@ -617,13 +617,11 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 {
 	struct dlm_lock_resource *res = NULL;
 
-	res = (struct dlm_lock_resource *)
-				kmem_cache_zalloc(dlm_lockres_cache, GFP_NOFS);
+	res = kmem_cache_zalloc(dlm_lockres_cache, GFP_NOFS);
 	if (!res)
 		goto error;
 
-	res->lockname.name = (char *)
-				kmem_cache_zalloc(dlm_lockname_cache, GFP_NOFS);
+	res->lockname.name = kmem_cache_zalloc(dlm_lockname_cache, GFP_NOFS);
 	if (!res->lockname.name)
 		goto error;
 
@@ -757,8 +755,7 @@ lookup:
 		spin_unlock(&dlm->spinlock);
 		mlog(0, "allocating a new resource\n");
 		/* nothing found and we need to allocate one. */
-		alloc_mle = (struct dlm_master_list_entry *)
-			kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
+		alloc_mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 		if (!alloc_mle)
 			goto leave;
 		res = dlm_new_lockres(dlm, lockid, namelen);
@@ -1542,8 +1539,7 @@ way_up_top:
 			spin_unlock(&dlm->master_lock);
 			spin_unlock(&dlm->spinlock);
 
-			mle = (struct dlm_master_list_entry *)
-				kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
+			mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 			if (!mle) {
 				response = DLM_MASTER_RESP_ERROR;
 				mlog_errno(-ENOMEM);
@@ -1666,7 +1662,9 @@ again:
 		tmpret = o2net_send_message(DLM_ASSERT_MASTER_MSG, dlm->key,
 					    &assert, sizeof(assert), to, &r);
 		if (tmpret < 0) {
-			mlog(0, "assert_master returned %d!\n", tmpret);
+			mlog(ML_ERROR, "Error %d when sending message %u (key "
+			     "0x%x) to node %u\n", tmpret,
+			     DLM_ASSERT_MASTER_MSG, dlm->key, to);
 			if (!dlm_is_host_down(tmpret)) {
 				mlog(ML_ERROR, "unhandled error=%d!\n", tmpret);
 				BUG();
@@ -1875,7 +1873,6 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
 ok:
 		spin_unlock(&res->spinlock);
 	}
-	spin_unlock(&dlm->spinlock);
 
 	// mlog(0, "woo!  got an assert_master from node %u!\n",
 	// 	     assert->node_idx);
@@ -1926,7 +1923,6 @@ ok:
 		/* master is known, detach if not already detached.
 		 * ensures that only one assert_master call will happen
 		 * on this mle. */
-		spin_lock(&dlm->spinlock);
 		spin_lock(&dlm->master_lock);
 
 		rr = atomic_read(&mle->mle_refs.refcount);
@@ -1959,7 +1955,6 @@ ok:
 			__dlm_put_mle(mle);
 		}
 		spin_unlock(&dlm->master_lock);
-		spin_unlock(&dlm->spinlock);
 	} else if (res) {
 		if (res->owner != assert->node_idx) {
 			mlog(0, "assert_master from %u, but current "
@@ -1967,6 +1962,7 @@ ok:
 			     res->owner, namelen, name);
 		}
 	}
+	spin_unlock(&dlm->spinlock);
 
 done:
 	ret = 0;
@@ -2207,7 +2203,9 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	ret = o2net_send_message(DLM_DEREF_LOCKRES_MSG, dlm->key,
 				 &deref, sizeof(deref), res->owner, &r);
 	if (ret < 0)
-		mlog_errno(ret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", ret, DLM_DEREF_LOCKRES_MSG, dlm->key,
+		     res->owner);
 	else if (r < 0) {
 		/* BAD.  other node says I did not have a ref. */
 		mlog(ML_ERROR,"while dropping ref on %s:%.*s "
@@ -2454,8 +2452,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 		goto leave;
 	}
 
-	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-								GFP_NOFS);
+	mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 	if (!mle) {
 		mlog_errno(ret);
 		goto leave;
@@ -2811,14 +2808,8 @@ again:
 		mlog(0, "trying again...\n");
 		goto again;
 	}
-	/* now that we are sure the MIGRATING state is there, drop
-	 * the unneded state which blocked threads trying to DIRTY */
-	spin_lock(&res->spinlock);
-	BUG_ON(!(res->state & DLM_LOCK_RES_BLOCK_DIRTY));
-	BUG_ON(!(res->state & DLM_LOCK_RES_MIGRATING));
-	res->state &= ~DLM_LOCK_RES_BLOCK_DIRTY;
-	spin_unlock(&res->spinlock);
 
+	ret = 0;
 	/* did the target go down or die? */
 	spin_lock(&dlm->spinlock);
 	if (!test_bit(target, dlm->domain_map)) {
@@ -2829,9 +2820,21 @@ again:
 	spin_unlock(&dlm->spinlock);
 
 	/*
+	 * if target is down, we need to clear DLM_LOCK_RES_BLOCK_DIRTY for
+	 * another try; otherwise, we are sure the MIGRATING state is there,
+	 * drop the unneded state which blocked threads trying to DIRTY
+	 */
+	spin_lock(&res->spinlock);
+	BUG_ON(!(res->state & DLM_LOCK_RES_BLOCK_DIRTY));
+	res->state &= ~DLM_LOCK_RES_BLOCK_DIRTY;
+	if (!ret)
+		BUG_ON(!(res->state & DLM_LOCK_RES_MIGRATING));
+	spin_unlock(&res->spinlock);
+
+	/*
 	 * at this point:
 	 *
-	 *   o the DLM_LOCK_RES_MIGRATING flag is set
+	 *   o the DLM_LOCK_RES_MIGRATING flag is set if target not down
 	 *   o there are no pending asts on this lockres
 	 *   o all processes trying to reserve an ast on this
 	 *     lockres must wait for the MIGRATING flag to clear
@@ -2977,7 +2980,9 @@ static int dlm_do_migrate_request(struct dlm_ctxt *dlm,
 					 &migrate, sizeof(migrate), nodenum,
 					 &status);
 		if (ret < 0) {
-			mlog(0, "migrate_request returned %d!\n", ret);
+			mlog(ML_ERROR, "Error %d when sending message %u (key "
+			     "0x%x) to node %u\n", ret, DLM_MIGRATE_REQUEST_MSG,
+			     dlm->key, nodenum);
 			if (!dlm_is_host_down(ret)) {
 				mlog(ML_ERROR, "unhandled error=%d!\n", ret);
 				BUG();
@@ -3035,8 +3040,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	hash = dlm_lockid_hash(name, namelen);
 
 	/* preallocate.. if this fails, abort */
-	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-							 GFP_NOFS);
+	mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 
 	if (!mle) {
 		ret = -ENOMEM;

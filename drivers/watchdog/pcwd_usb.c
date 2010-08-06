@@ -600,8 +600,8 @@ static inline void usb_pcwd_delete(struct usb_pcwd_private *usb_pcwd)
 {
 	usb_free_urb(usb_pcwd->intr_urb);
 	if (usb_pcwd->intr_buffer != NULL)
-		usb_buffer_free(usb_pcwd->udev, usb_pcwd->intr_size,
-				usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
+		usb_free_coherent(usb_pcwd->udev, usb_pcwd->intr_size,
+				  usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
 	kfree(usb_pcwd);
 }
 
@@ -671,7 +671,7 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 				le16_to_cpu(endpoint->wMaxPacketSize) : 8);
 
 	/* set up the memory buffer's */
-	usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size,
+	usb_pcwd->intr_buffer = usb_alloc_coherent(udev, usb_pcwd->intr_size,
 					GFP_ATOMIC, &usb_pcwd->intr_dma);
 	if (!usb_pcwd->intr_buffer) {
 		printk(KERN_ERR PFX "Out of memory\n");

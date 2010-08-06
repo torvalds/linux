@@ -26,6 +26,7 @@
 #include <linux/in6.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/xfrm.h>
@@ -98,7 +99,7 @@ static void pfkey_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
-		printk("Attempt to release alive pfkey socket: %p\n", sk);
+		pr_err("Attempt to release alive pfkey socket: %p\n", sk);
 		return;
 	}
 
@@ -1401,7 +1402,7 @@ static inline int event2poltype(int event)
 	case XFRM_MSG_POLEXPIRE:
 	//	return SADB_X_SPDEXPIRE;
 	default:
-		printk("pfkey: Unknown policy event %d\n", event);
+		pr_err("pfkey: Unknown policy event %d\n", event);
 		break;
 	}
 
@@ -1420,7 +1421,7 @@ static inline int event2keytype(int event)
 	case XFRM_MSG_EXPIRE:
 		return SADB_EXPIRE;
 	default:
-		printk("pfkey: Unknown SA event %d\n", event);
+		pr_err("pfkey: Unknown SA event %d\n", event);
 		break;
 	}
 
@@ -2129,10 +2130,9 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	int err;
 
 	out_skb = pfkey_xfrm_policy2msg_prep(xp);
-	if (IS_ERR(out_skb)) {
-		err = PTR_ERR(out_skb);
-		goto out;
-	}
+	if (IS_ERR(out_skb))
+		return PTR_ERR(out_skb);
+
 	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
 	if (err < 0)
 		return err;
@@ -2148,7 +2148,6 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	out_hdr->sadb_msg_seq = c->seq;
 	out_hdr->sadb_msg_pid = c->pid;
 	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xp_net(xp));
-out:
 	return 0;
 
 }
@@ -2970,7 +2969,7 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 	case XFRM_MSG_NEWAE: /* not yet supported */
 		break;
 	default:
-		printk("pfkey: Unknown SA event %d\n", c->event);
+		pr_err("pfkey: Unknown SA event %d\n", c->event);
 		break;
 	}
 
@@ -2994,7 +2993,7 @@ static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_e
 			break;
 		return key_notify_policy_flush(c);
 	default:
-		printk("pfkey: Unknown policy event %d\n", c->event);
+		pr_err("pfkey: Unknown policy event %d\n", c->event);
 		break;
 	}
 

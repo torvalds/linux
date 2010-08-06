@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
@@ -694,6 +695,7 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 	 * 1) Enable Runtime PM
 	 * 2) Force Runtime PM Resume since hardware is accessed from probe()
 	 */
+	priv->dev = &pdev->dev;
 	pm_runtime_enable(priv->dev);
 	pm_runtime_resume(priv->dev);
 	return 0;
@@ -956,24 +958,23 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data defined\n");
-		error = -EINVAL;
-		goto err0;
+		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i = platform_get_irq(pdev, 0);
 	if (!res || i < 0) {
 		dev_err(&pdev->dev, "cannot get platform resources\n");
-		error = -ENOENT;
-		goto err0;
+		return -ENOENT;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "cannot allocate device data\n");
-		error = -ENOMEM;
-		goto err0;
+		return -ENOMEM;
 	}
+
+	platform_set_drvdata(pdev, priv);
 
 	error = request_irq(i, sh_mobile_lcdc_irq, IRQF_DISABLED,
 			    dev_name(&pdev->dev), priv);
@@ -983,8 +984,6 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	priv->irq = i;
-	priv->dev = &pdev->dev;
-	platform_set_drvdata(pdev, priv);
 	pdata = pdev->dev.platform_data;
 
 	j = 0;
@@ -992,13 +991,13 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		priv->ch[j].lcdc = priv;
 		memcpy(&priv->ch[j].cfg, &pdata->ch[i], sizeof(pdata->ch[i]));
 
-		error = sh_mobile_lcdc_check_interface(&priv->ch[i]);
+		error = sh_mobile_lcdc_check_interface(&priv->ch[j]);
 		if (error) {
 			dev_err(&pdev->dev, "unsupported interface type\n");
 			goto err1;
 		}
-		init_waitqueue_head(&priv->ch[i].frame_end_wait);
-		init_completion(&priv->ch[i].vsync_completion);
+		init_waitqueue_head(&priv->ch[j].frame_end_wait);
+		init_completion(&priv->ch[j].vsync_completion);
 		priv->ch[j].pan_offset = 0;
 
 		switch (pdata->ch[i].chan) {
@@ -1098,9 +1097,9 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		info = ch->info;
 
 		if (info->fbdefio) {
-			priv->ch->sglist = vmalloc(sizeof(struct scatterlist) *
+			ch->sglist = vmalloc(sizeof(struct scatterlist) *
 					info->fix.smem_len >> PAGE_SHIFT);
-			if (!priv->ch->sglist) {
+			if (!ch->sglist) {
 				dev_err(&pdev->dev, "cannot allocate sglist\n");
 				goto err1;
 			}
@@ -1125,9 +1124,9 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	return 0;
- err1:
+err1:
 	sh_mobile_lcdc_remove(pdev);
- err0:
+
 	return error;
 }
 
@@ -1138,7 +1137,7 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++)
-		if (priv->ch[i].info->dev)
+		if (priv->ch[i].info && priv->ch[i].info->dev)
 			unregister_framebuffer(priv->ch[i].info);
 
 	sh_mobile_lcdc_stop(priv);
@@ -1161,7 +1160,8 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	if (priv->dot_clk)
 		clk_put(priv->dot_clk);
 
-	pm_runtime_disable(priv->dev);
+	if (priv->dev)
+		pm_runtime_disable(priv->dev);
 
 	if (priv->base)
 		iounmap(priv->base);

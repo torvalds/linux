@@ -21,11 +21,12 @@
  *
  */
 
+#include <linux/gfp.h>
+
 #include "wl1271.h"
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"
 #include "wl1271_rx.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 
 static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
@@ -42,66 +43,6 @@ static u32 wl1271_rx_get_buf_size(struct wl1271_fw_status *status,
 		RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
 }
 
-/* The values of this table must match the wl1271_rates[] array */
-static u8 wl1271_rx_rate_to_idx[] = {
-	/* MCS rates are used only with 11n */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS7 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS6 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS5 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS4 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS3 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS2 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS1 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS0 */
-
-	11,                         /* WL1271_RATE_54   */
-	10,                         /* WL1271_RATE_48   */
-	9,                          /* WL1271_RATE_36   */
-	8,                          /* WL1271_RATE_24   */
-
-	/* TI-specific rate */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_22   */
-
-	7,                          /* WL1271_RATE_18   */
-	6,                          /* WL1271_RATE_12   */
-	3,                          /* WL1271_RATE_11   */
-	5,                          /* WL1271_RATE_9    */
-	4,                          /* WL1271_RATE_6    */
-	2,                          /* WL1271_RATE_5_5  */
-	1,                          /* WL1271_RATE_2    */
-	0                           /* WL1271_RATE_1    */
-};
-
-/* The values of this table must match the wl1271_rates[] array */
-static u8 wl1271_5_ghz_rx_rate_to_idx[] = {
-	/* MCS rates are used only with 11n */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS7 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS6 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS5 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS4 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS3 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS2 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS1 */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_MCS0 */
-
-	7,                          /* WL1271_RATE_54   */
-	6,                          /* WL1271_RATE_48   */
-	5,                          /* WL1271_RATE_36   */
-	4,                          /* WL1271_RATE_24   */
-
-	/* TI-specific rate */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_22   */
-
-	3,                          /* WL1271_RATE_18   */
-	2,                          /* WL1271_RATE_12   */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_11   */
-	1,                          /* WL1271_RATE_9    */
-	0,                          /* WL1271_RATE_6    */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_5_5  */
-	WL1271_RX_RATE_UNSUPPORTED, /* WL1271_RATE_2    */
-	WL1271_RX_RATE_UNSUPPORTED  /* WL1271_RATE_1    */
-};
-
 static void wl1271_rx_status(struct wl1271 *wl,
 			     struct wl1271_rx_descriptor *desc,
 			     struct ieee80211_rx_status *status,
@@ -109,27 +50,9 @@ static void wl1271_rx_status(struct wl1271 *wl,
 {
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) ==
-	    WL1271_RX_DESC_BAND_BG) {
-		status->band = IEEE80211_BAND_2GHZ;
-		status->rate_idx = wl1271_rx_rate_to_idx[desc->rate];
-	} else if ((desc->flags & WL1271_RX_DESC_BAND_MASK) ==
-		 WL1271_RX_DESC_BAND_A) {
-		status->band = IEEE80211_BAND_5GHZ;
-		status->rate_idx = wl1271_5_ghz_rx_rate_to_idx[desc->rate];
-	} else
-		wl1271_warning("unsupported band 0x%x",
-			       desc->flags & WL1271_RX_DESC_BAND_MASK);
+	status->band = wl->band;
+	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
 
-	if (unlikely(status->rate_idx == WL1271_RX_RATE_UNSUPPORTED))
-		wl1271_warning("unsupported rate");
-
-	/*
-	 * FIXME: Add mactime handling.  For IBSS (ad-hoc) we need to get the
-	 * timestamp from the beacon (acx_tsf_info).  In BSS mode (infra) we
-	 * only need the mactime for monitor mode.  For now the mactime is
-	 * not valid, so RX_FLAG_TSFT should not be set
-	 */
 	status->signal = desc->rssi;
 
 	/*
@@ -137,7 +60,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 * need to divide by two for now, but TI has been discussing about
 	 * changing it.  This needs to be rechecked.
 	 */
-	status->noise = desc->rssi - (desc->snr >> 1);
+	wl->noise = desc->rssi - (desc->snr >> 1);
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 
@@ -159,6 +82,13 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	u16 *fc;
 	u8 *buf;
 	u8 beacon = 0;
+
+	/*
+	 * In PLT mode we seem to get frames and mac80211 warns about them,
+	 * workaround this by not retrieving them at all.
+	 */
+	if (unlikely(wl->state == WL1271_STATE_PLT))
+		return;
 
 	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
@@ -183,6 +113,8 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 
 	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
 		     beacon ? "beacon" : "");
+
+	skb_trim(skb, skb->len - desc->pad_len);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 	ieee80211_rx_ni(wl->hw, skb);
@@ -218,6 +150,7 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 
 		wl->rx_counter++;
 		drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
-		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 	}
+
+	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 }

@@ -137,7 +137,7 @@ NS*| OPENATTR             | OPT        |              | Section 18.17  |
    | READ                 | REQ        |              | Section 18.22  |
    | READDIR              | REQ        |              | Section 18.23  |
    | READLINK             | OPT        |              | Section 18.24  |
-NS | RECLAIM_COMPLETE     | REQ        |              | Section 18.51  |
+   | RECLAIM_COMPLETE     | REQ        |              | Section 18.51  |
    | RELEASE_LOCKOWNER    | MNI        |              | N/A            |
    | REMOVE               | REQ        |              | Section 18.25  |
    | RENAME               | REQ        |              | Section 18.26  |

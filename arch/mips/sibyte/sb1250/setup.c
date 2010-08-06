@@ -87,6 +87,21 @@ static int __init setup_bcm1250(void)
 	return ret;
 }
 
+int sb1250_m3_workaround_needed(void)
+{
+	switch (soc_type) {
+	case K_SYS_SOC_TYPE_BCM1250:
+	case K_SYS_SOC_TYPE_BCM1250_ALT:
+	case K_SYS_SOC_TYPE_BCM1250_ALT2:
+	case K_SYS_SOC_TYPE_BCM1125:
+	case K_SYS_SOC_TYPE_BCM1125H:
+		return soc_pass < K_SYS_REVISION_BCM1250_C0;
+
+	default:
+		return 0;
+	}
+}
+
 static int __init setup_bcm112x(void)
 {
 	int ret = 0;

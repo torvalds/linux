@@ -360,7 +360,7 @@ struct pxa_ep {
 	 * Specific pxa endpoint data, needed for hardware initialization
 	 */
 	unsigned		dir_in:1;
-	unsigned		addr:3;
+	unsigned		addr:4;
 	unsigned		config:2;
 	unsigned		interface:3;
 	unsigned		alternate:3;

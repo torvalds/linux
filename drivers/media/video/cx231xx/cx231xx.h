@@ -32,7 +32,7 @@
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_CX231XX_DVB) || \
 	defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>

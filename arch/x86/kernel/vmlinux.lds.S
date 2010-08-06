@@ -97,7 +97,7 @@ SECTIONS
 		HEAD_TEXT
 #ifdef CONFIG_X86_32
 		. = ALIGN(PAGE_SIZE);
-		*(.text.page_aligned)
+		*(.text..page_aligned)
 #endif
 		. = ALIGN(8);
 		_stext = .;
@@ -291,8 +291,8 @@ SECTIONS
 	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
 		__smp_locks = .;
 		*(.smp_locks)
-		__smp_locks_end = .;
 		. = ALIGN(PAGE_SIZE);
+		__smp_locks_end = .;
 	}
 
 #ifdef CONFIG_X86_64
@@ -305,7 +305,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 		__bss_start = .;
-		*(.bss.page_aligned)
+		*(.bss..page_aligned)
 		*(.bss)
 		. = ALIGN(4);
 		__bss_stop = .;

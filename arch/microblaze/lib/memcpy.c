@@ -53,7 +53,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 	const uint32_t *i_src;
 	uint32_t *i_dst;
 
-	if (c >= 4) {
+	if (likely(c >= 4)) {
 		unsigned  value, buf_hold;
 
 		/* Align the dstination to a word boundry. */

@@ -93,7 +93,7 @@ static int __devinit pasemi_nand_probe(struct of_device *ofdev,
 				      const struct of_device_id *match)
 {
 	struct pci_dev *pdev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct nand_chip *chip;
 	int err = 0;
@@ -209,7 +209,7 @@ static int __devexit pasemi_nand_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id pasemi_nand_match[] =
+static const struct of_device_id pasemi_nand_match[] =
 {
 	{
 		.compatible   = "pasemi,localbus-nand",
@@ -221,8 +221,11 @@ MODULE_DEVICE_TABLE(of, pasemi_nand_match);
 
 static struct of_platform_driver pasemi_nand_driver =
 {
-	.name		= (char*)driver_name,
-	.match_table	= pasemi_nand_match,
+	.driver = {
+		.name = (char*)driver_name,
+		.owner = THIS_MODULE,
+		.of_match_table = pasemi_nand_match,
+	},
 	.probe		= pasemi_nand_probe,
 	.remove		= pasemi_nand_remove,
 };

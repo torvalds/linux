@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 
 /* RIO uses the NatSemi Super I/O power management logical device
@@ -238,8 +239,11 @@ static const struct of_device_id riowd_match[] = {
 MODULE_DEVICE_TABLE(of, riowd_match);
 
 static struct of_platform_driver riowd_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= riowd_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = riowd_match,
+	},
 	.probe		= riowd_probe,
 	.remove		= __devexit_p(riowd_remove),
 };

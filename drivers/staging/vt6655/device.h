@@ -103,7 +103,7 @@
 #define MAC_MAX_CONTEXT_REG     (256+128)
 
 #define MAX_MULTICAST_ADDRESS_NUM       32
-#define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * U_ETHER_ADDR_LEN)
+#define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
 
 
 //#define OP_MODE_INFRASTRUCTURE  0
@@ -304,7 +304,7 @@ typedef enum {
 // The receive duplicate detection cache entry
 typedef struct tagSCacheEntry{
     WORD        wFmSequence;
-    BYTE        abyAddr2[U_ETHER_ADDR_LEN];
+    BYTE        abyAddr2[ETH_ALEN];
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
@@ -321,7 +321,7 @@ typedef struct tagSDeFragControlBlock
 {
     WORD            wSequence;
     WORD            wFragNum;
-    BYTE            abyAddr2[U_ETHER_ADDR_LEN];
+    BYTE            abyAddr2[ETH_ALEN];
 	UINT            uLifetime;
     struct sk_buff* skb;
     PBYTE           pbyRxBuffer;
@@ -484,7 +484,7 @@ typedef struct __device_info {
    BYTE                        byOriginalZonetype;
     BYTE                        abyMacContext[MAC_MAX_CONTEXT_REG];
     BOOL                        bLinkPass;          // link status: OK or fail
-    BYTE                        abyCurrentNetAddr[U_ETHER_ADDR_LEN];
+    BYTE                        abyCurrentNetAddr[ETH_ALEN];
 
     // Adapter statistics
     SStatCounter                scStatistic;
@@ -546,8 +546,8 @@ typedef struct __device_info {
     BYTE                        byOpMode;
     BOOL                        bBSSIDFilter;
     WORD                        wMaxTransmitMSDULifetime;
-    BYTE                        abyBSSID[U_ETHER_ADDR_LEN];
-    BYTE                        abyDesireBSSID[U_ETHER_ADDR_LEN];
+    BYTE                        abyBSSID[ETH_ALEN];
+    BYTE                        abyDesireBSSID[ETH_ALEN];
     WORD                        wCTSDuration;       // update while speed change
     WORD                        wACKDuration;       // update while speed change
     WORD                        wRTSTransmitLen;    // update while speed change
@@ -753,9 +753,9 @@ typedef struct __device_info {
 
     SEthernetHeader         sTxEthHeader;
     SEthernetHeader         sRxEthHeader;
-    BYTE                    abyBroadcastAddr[U_ETHER_ADDR_LEN];
-    BYTE                    abySNAP_RFC1042[U_ETHER_ADDR_LEN];
-    BYTE                    abySNAP_Bridgetunnel[U_ETHER_ADDR_LEN];
+    BYTE                    abyBroadcastAddr[ETH_ALEN];
+    BYTE                    abySNAP_RFC1042[ETH_ALEN];
+    BYTE                    abySNAP_Bridgetunnel[ETH_ALEN];
      BYTE                        abyEEPROM[EEP_MAX_CONTEXT_SIZE];  //DWORD alignment
     // Pre-Authentication & PMK cache
     SPMKID                  gsPMKID;
@@ -828,7 +828,7 @@ typedef struct __device_info {
 //PLICE_DEBUG->
 
 
- inline  static	VOID   EnQueue (PSDevice pDevice,PSRxMgmtPacket  pRxMgmtPacket)
+ inline  static	void   EnQueue (PSDevice pDevice,PSRxMgmtPacket  pRxMgmtPacket)
 {
 	//printk("Enter EnQueue:tail is %d\n",pDevice->rxManeQueue.tail);
 	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head)
@@ -869,7 +869,7 @@ typedef struct __device_info {
 	}
 }
 
-VOID	InitRxManagementQueue(PSDevice   pDevice);
+void	InitRxManagementQueue(PSDevice   pDevice);
 
 
 
@@ -898,7 +898,8 @@ inline static BOOL device_get_ip(PSDevice pInfo) {
 
 static inline PDEVICE_RD_INFO alloc_rd_info(void) {
     PDEVICE_RD_INFO  ptr;
-    if ((ptr = (PDEVICE_RD_INFO)kmalloc((int)sizeof(DEVICE_RD_INFO), (int)GFP_ATOMIC)) == NULL)
+    ptr = (PDEVICE_RD_INFO)kmalloc((int)sizeof(DEVICE_RD_INFO), (int)GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_RD_INFO));
@@ -908,7 +909,8 @@ static inline PDEVICE_RD_INFO alloc_rd_info(void) {
 
 static inline PDEVICE_TD_INFO alloc_td_info(void) {
     PDEVICE_TD_INFO  ptr;
-    if ((ptr = (PDEVICE_TD_INFO)kmalloc((int)sizeof(DEVICE_TD_INFO), (int)GFP_ATOMIC))==NULL)
+    ptr = (PDEVICE_TD_INFO)kmalloc((int)sizeof(DEVICE_TD_INFO), (int)GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_TD_INFO));

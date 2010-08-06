@@ -53,6 +53,8 @@
 #include <asm/pmac_low_i2c.h>
 #include <asm/pmac_pfunc.h>
 
+#include "pmac.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -315,7 +317,7 @@ static int __init smp_psurge_probe(void)
 	/* This is necessary because OF doesn't know about the
 	 * secondary cpu(s), and thus there aren't nodes in the
 	 * device tree for them, and smp_setup_cpu_maps hasn't
-	 * set their bits in cpu_present_map.
+	 * set their bits in cpu_present_mask.
 	 */
 	if (ncpus > NR_CPUS)
 		ncpus = NR_CPUS;
@@ -878,10 +880,9 @@ int smp_core99_cpu_disable(void)
 	return 0;
 }
 
-extern void low_cpu_die(void) __attribute__((noreturn)); /* in sleep.S */
 static int cpu_dead[NR_CPUS];
 
-void cpu_die(void)
+void pmac32_cpu_die(void)
 {
 	local_irq_disable();
 	cpu_dead[smp_processor_id()] = 1;
@@ -944,7 +945,7 @@ void __init pmac_setup_smp(void)
 	}
 #ifdef CONFIG_PPC32
 	else {
-		/* We have to set bits in cpu_possible_map here since the
+		/* We have to set bits in cpu_possible_mask here since the
 		 * secondary CPU(s) aren't in the device tree. Various
 		 * things won't be initialized for CPUs not in the possible
 		 * map, so we really need to fix it up here.

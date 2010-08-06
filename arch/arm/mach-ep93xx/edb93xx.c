@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -38,43 +37,17 @@
 #include <asm/mach/arch.h>
 
 
-static struct physmap_flash_data edb93xx_flash_data;
-
-static struct resource edb93xx_flash_resource = {
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device edb93xx_flash = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &edb93xx_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &edb93xx_flash_resource,
-};
-
-static void __init __edb93xx_register_flash(unsigned int width,
-			resource_size_t start, resource_size_t size)
-{
-	edb93xx_flash_data.width	= width;
-	edb93xx_flash_resource.start	= start;
-	edb93xx_flash_resource.end	= start + size - 1;
-
-	platform_device_register(&edb93xx_flash);
-}
-
 static void __init edb93xx_register_flash(void)
 {
 	if (machine_is_edb9307() || machine_is_edb9312() ||
 	    machine_is_edb9315()) {
-		__edb93xx_register_flash(4, EP93XX_CS6_PHYS_BASE, SZ_32M);
+		ep93xx_register_flash(4, EP93XX_CS6_PHYS_BASE, SZ_32M);
 	} else {
-		__edb93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
+		ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
 	}
 }
 
-static struct ep93xx_eth_data edb93xx_eth_data = {
+static struct ep93xx_eth_data __initdata edb93xx_eth_data = {
 	.phy_id		= 1,
 };
 
@@ -82,7 +55,7 @@ static struct ep93xx_eth_data edb93xx_eth_data = {
 /*************************************************************************
  * EDB93xx i2c peripheral handling
  *************************************************************************/
-static struct i2c_gpio_platform_data edb93xx_i2c_gpio_data = {
+static struct i2c_gpio_platform_data __initdata edb93xx_i2c_gpio_data = {
 	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
 	.sda_is_open_drain	= 0,
 	.scl_pin		= EP93XX_GPIO_LINE_EECLK,

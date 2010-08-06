@@ -26,6 +26,7 @@
 #include <linux/in6.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #ifdef 	CONFIG_PROC_FS
 #include <linux/proc_fs.h>
@@ -127,12 +128,24 @@ static __inline__ u32 fib6_new_sernum(void)
 /*
  *	test bit
  */
+#if defined(__LITTLE_ENDIAN)
+# define BITOP_BE32_SWIZZLE	(0x1F & ~7)
+#else
+# define BITOP_BE32_SWIZZLE	0
+#endif
 
 static __inline__ __be32 addr_bit_set(void *token, int fn_bit)
 {
 	__be32 *addr = token;
-
-	return htonl(1 << ((~fn_bit)&0x1F)) & addr[fn_bit>>5];
+	/*
+	 * Here,
+	 * 	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
+	 * is optimized version of
+	 *	htonl(1 << ((~fn_bit)&0x1F))
+	 * See include/asm-generic/bitops/le.h.
+	 */
+	return (__force __be32)(1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)) &
+	       addr[fn_bit >> 5];
 }
 
 static __inline__ struct fib6_node * node_alloc(void)
@@ -152,7 +165,7 @@ static __inline__ void node_free(struct fib6_node * fn)
 static __inline__ void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref))
-		dst_free(&rt->u.dst);
+		dst_free(&rt->dst);
 }
 
 static void fib6_link_table(struct net *net, struct fib6_table *tb)
@@ -265,7 +278,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 	int res;
 	struct rt6_info *rt;
 
-	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
+	for (rt = w->leaf; rt; rt = rt->dst.rt6_next) {
 		res = rt6_dump_route(rt, w->args);
 		if (res < 0) {
 			/* Frame is full, suspend walking */
@@ -606,7 +619,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 
 	ins = &fn->leaf;
 
-	for (iter = fn->leaf; iter; iter=iter->u.dst.rt6_next) {
+	for (iter = fn->leaf; iter; iter=iter->dst.rt6_next) {
 		/*
 		 *	Search for duplicates
 		 */
@@ -634,7 +647,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		if (iter->rt6i_metric > rt->rt6i_metric)
 			break;
 
-		ins = &iter->u.dst.rt6_next;
+		ins = &iter->dst.rt6_next;
 	}
 
 	/* Reset round-robin state, if necessary */
@@ -645,7 +658,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	 *	insert node
 	 */
 
-	rt->u.dst.rt6_next = iter;
+	rt->dst.rt6_next = iter;
 	*ins = rt;
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
@@ -786,7 +799,7 @@ out:
 			atomic_inc(&pn->leaf->rt6i_ref);
 		}
 #endif
-		dst_free(&rt->u.dst);
+		dst_free(&rt->dst);
 	}
 	return err;
 
@@ -797,7 +810,7 @@ out:
 st_failure:
 	if (fn && !(fn->fn_flags & (RTN_RTINFO|RTN_ROOT)))
 		fib6_repair_tree(info->nl_net, fn);
-	dst_free(&rt->u.dst);
+	dst_free(&rt->dst);
 	return err;
 #endif
 }
@@ -1095,7 +1108,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	RT6_TRACE("fib6_del_route\n");
 
 	/* Unlink it */
-	*rtp = rt->u.dst.rt6_next;
+	*rtp = rt->dst.rt6_next;
 	rt->rt6i_node = NULL;
 	net->ipv6.rt6_stats->fib_rt_entries--;
 	net->ipv6.rt6_stats->fib_discarded_routes++;
@@ -1109,14 +1122,14 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	FOR_WALKERS(w) {
 		if (w->state == FWS_C && w->leaf == rt) {
 			RT6_TRACE("walker %p adjusted by delroute\n", w);
-			w->leaf = rt->u.dst.rt6_next;
+			w->leaf = rt->dst.rt6_next;
 			if (w->leaf == NULL)
 				w->state = FWS_U;
 		}
 	}
 	read_unlock(&fib6_walker_lock);
 
-	rt->u.dst.rt6_next = NULL;
+	rt->dst.rt6_next = NULL;
 
 	/* If it was last route, expunge its radix tree node */
 	if (fn->leaf == NULL) {
@@ -1155,7 +1168,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	struct rt6_info **rtp;
 
 #if RT6_DEBUG >= 2
-	if (rt->u.dst.obsolete>0) {
+	if (rt->dst.obsolete>0) {
 		WARN_ON(fn != NULL);
 		return -ENOENT;
 	}
@@ -1182,7 +1195,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	 *	Walk the leaf entries looking for ourself
 	 */
 
-	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.dst.rt6_next) {
+	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->dst.rt6_next) {
 		if (*rtp == rt) {
 			fib6_del_route(fn, rtp, info);
 			return 0;
@@ -1321,7 +1334,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 		.nl_net = c->net,
 	};
 
-	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
+	for (rt = w->leaf; rt; rt = rt->dst.rt6_next) {
 		res = c->func(rt, c->arg);
 		if (res < 0) {
 			w->leaf = rt;
@@ -1435,8 +1448,8 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 		}
 		gc_args.more++;
 	} else if (rt->rt6i_flags & RTF_CACHE) {
-		if (atomic_read(&rt->u.dst.__refcnt) == 0 &&
-		    time_after_eq(now, rt->u.dst.lastuse + gc_args.timeout)) {
+		if (atomic_read(&rt->dst.__refcnt) == 0 &&
+		    time_after_eq(now, rt->dst.lastuse + gc_args.timeout)) {
 			RT6_TRACE("aging clone %p\n", rt);
 			return -1;
 		} else if ((rt->rt6i_flags & RTF_GATEWAY) &&

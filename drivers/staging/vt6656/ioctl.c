@@ -72,16 +72,16 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     SNodeList           sNodeList;
     PSBSSIDList         pList;
     PSNodeList          pNodeList;
-    UINT                cbListCount;
+    unsigned int                cbListCount;
     PKnownBSS           pBSS;
     PKnownNodeDB        pNode;
-    UINT                ii, jj;
+    unsigned int                ii, jj;
     SCmdLinkStatus      sLinkStatus;
     BYTE                abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
     BYTE                abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     DWORD               dwKeyIndex= 0;
     BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    LONG                ldBm;
+    signed long                ldBm;
 
     pReq->wResult = 0;
 
@@ -100,16 +100,21 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             memcpy(abyScanSSID, pItemSSID, pItemSSID->len + WLAN_IEHDR_LEN);
         }
         spin_lock_irq(&pDevice->lock);
-        if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
-            BSSvClearBSSList((HANDLE)pDevice, FALSE);
-        else
-            BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_BSS_SCAN..begin \n");
 
-        if (pItemSSID->len != 0)
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
-        else
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+	if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
+		BSSvClearBSSList((void *) pDevice, FALSE);
+	else
+		BSSvClearBSSList((void *) pDevice, pDevice->bLinkPass);
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_BSS_SCAN..begin\n");
+
+	if (pItemSSID->len != 0)
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_BSSID_SCAN,
+				 abyScanSSID);
+	else
+		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -207,8 +212,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
         pMgmt->eCurrState = WMAC_STATE_IDLE;
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+	bScheduleCommand((void *) pDevice,
+			 WLAN_CMD_BSSID_SCAN,
+			 pMgmt->abyDesireSSID);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -330,7 +337,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
     		    pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
     		    RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
-    		    pList->sBSSIDList[ii].uRSSI = (UINT)ldBm;
+		    pList->sBSSIDList[ii].uRSSI = (unsigned int) ldBm;
 //    		    pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI;
     		    memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
     		    pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;
@@ -412,7 +419,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			break;
 		};
 		if (sValue.dwValue == 1) {
-            if (hostap_set_hostapd(pDevice, 1, 1) == 0){
+            if (vt6656_hostap_set_hostapd(pDevice, 1, 1) == 0){
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HOSTAP\n");
             }
             else {
@@ -421,7 +428,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			}
         }
         else {
-            hostap_set_hostapd(pDevice, 0, 1);
+            vt6656_hostap_set_hostapd(pDevice, 0, 1);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HOSTAP\n");
         }
 
@@ -480,7 +487,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 		};
 		if (sValue.dwValue == 1) {
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
-		   memcpy(pDevice->wpadev->dev_addr, pDevice->dev->dev_addr, U_ETHER_ADDR_LEN);
+		   memcpy(pDevice->wpadev->dev_addr,
+			  pDevice->dev->dev_addr,
+			  ETH_ALEN);
 		   pDevice->bWPADEVUp = TRUE;
         }
         else {
@@ -574,7 +583,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 

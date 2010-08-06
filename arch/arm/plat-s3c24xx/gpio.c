@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/gpio.c
  *
- * Copyright (c) 2004-2005 Simtec Electronics
+ * Copyright (c) 2004-2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C24XX GPIO support
@@ -20,12 +20,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/gpio.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -34,133 +34,46 @@
 
 #include <mach/regs-gpio.h>
 
-void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long mask;
-	unsigned long con;
-	unsigned long flags;
+#include <plat/gpio-core.h>
 
-	if (pin < S3C2410_GPIO_BANKB) {
-		mask = 1 << S3C2410_GPIO_OFFSET(pin);
-	} else {
-		mask = 3 << S3C2410_GPIO_OFFSET(pin)*2;
-	}
-
-	switch (function) {
-	case S3C2410_GPIO_LEAVE:
-		mask = 0;
-		function = 0;
-		break;
-
-	case S3C2410_GPIO_INPUT:
-	case S3C2410_GPIO_OUTPUT:
-	case S3C2410_GPIO_SFN2:
-	case S3C2410_GPIO_SFN3:
-		if (pin < S3C2410_GPIO_BANKB) {
-			function -= 1;
-			function &= 1;
-			function <<= S3C2410_GPIO_OFFSET(pin);
-		} else {
-			function &= 3;
-			function <<= S3C2410_GPIO_OFFSET(pin)*2;
-		}
-	}
-
-	/* modify the specified register wwith IRQs off */
-
-	local_irq_save(flags);
-
-	con  = __raw_readl(base + 0x00);
-	con &= ~mask;
-	con |= function;
-
-	__raw_writel(con, base + 0x00);
-
-	local_irq_restore(flags);
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_cfgpin);
-
-unsigned int s3c2410_gpio_getcfg(unsigned int pin)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long val = __raw_readl(base);
-
-	if (pin < S3C2410_GPIO_BANKB) {
-		val >>= S3C2410_GPIO_OFFSET(pin);
-		val &= 1;
-		val += 1;
-	} else {
-		val >>= S3C2410_GPIO_OFFSET(pin)*2;
-		val &= 3;
-	}
-
-	return val | S3C2410_GPIO_INPUT;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getcfg);
+/* gpiolib wrappers until these are totally eliminated */
 
 void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
 {
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
-	unsigned long flags;
-	unsigned long up;
+	int ret;
 
-	if (pin < S3C2410_GPIO_BANKB)
-		return;
+	WARN_ON(to);	/* should be none of these left */
 
-	local_irq_save(flags);
+	if (!to) {
+		/* if pull is enabled, try first with up, and if that
+		 * fails, try using down */
 
-	up = __raw_readl(base + 0x08);
-	up &= ~(1L << offs);
-	up |= to << offs;
-	__raw_writel(up, base + 0x08);
-
-	local_irq_restore(flags);
+		ret = s3c_gpio_setpull(pin, S3C_GPIO_PULL_UP);
+		if (ret)
+			s3c_gpio_setpull(pin, S3C_GPIO_PULL_DOWN);
+	} else {
+		s3c_gpio_setpull(pin, S3C_GPIO_PULL_NONE);
+	}
 }
-
 EXPORT_SYMBOL(s3c2410_gpio_pullup);
-
-int s3c2410_gpio_getpull(unsigned int pin)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
-
-	if (pin < S3C2410_GPIO_BANKB)
-		return -EINVAL;
-
-	return (__raw_readl(base + 0x08) & (1L << offs)) ? 1 : 0;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getpull);
 
 void s3c2410_gpio_setpin(unsigned int pin, unsigned int to)
 {
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
-	unsigned long flags;
-	unsigned long dat;
+	/* do this via gpiolib until all users removed */
 
-	local_irq_save(flags);
-
-	dat = __raw_readl(base + 0x04);
-	dat &= ~(1 << offs);
-	dat |= to << offs;
-	__raw_writel(dat, base + 0x04);
-
-	local_irq_restore(flags);
+	gpio_request(pin, "temporary");
+	gpio_set_value(pin, to);
+	gpio_free(pin);
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_setpin);
 
 unsigned int s3c2410_gpio_getpin(unsigned int pin)
 {
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned long offs = pin - chip->chip.base;
 
-	return __raw_readl(base + 0x04) & (1<< offs);
+	return __raw_readl(chip->base + 0x04) & (1<< offs);
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getpin);
@@ -181,22 +94,3 @@ unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 }
 
 EXPORT_SYMBOL(s3c2410_modify_misccr);
-
-int s3c2410_gpio_getirq(unsigned int pin)
-{
-	if (pin < S3C2410_GPF(0) || pin > S3C2410_GPG(15))
-		return -EINVAL;	/* not valid interrupts */
-
-	if (pin < S3C2410_GPG(0) && pin > S3C2410_GPF(7))
-		return -EINVAL;	/* not valid pin */
-
-	if (pin < S3C2410_GPF(4))
-		return (pin - S3C2410_GPF(0)) + IRQ_EINT0;
-
-	if (pin < S3C2410_GPG(0))
-		return (pin - S3C2410_GPF(4)) + IRQ_EINT4;
-
-	return (pin - S3C2410_GPG(0)) + IRQ_EINT8;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getirq);

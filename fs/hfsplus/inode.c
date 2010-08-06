@@ -285,7 +285,7 @@ static const struct file_operations hfsplus_file_operations = {
 	.fsync		= file_fsync,
 	.open		= hfsplus_file_open,
 	.release	= hfsplus_file_release,
-	.ioctl          = hfsplus_ioctl,
+	.unlocked_ioctl = hfsplus_ioctl,
 };
 
 struct inode *hfsplus_new_inode(struct super_block *sb, int mode)

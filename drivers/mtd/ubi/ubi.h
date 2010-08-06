@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>
@@ -88,16 +89,16 @@
  *                   %0xFF bytes
  * UBI_IO_PEB_FREE: the physical eraseblock is free, i.e. it contains only a
  *                  valid erase counter header, and the rest are %0xFF bytes
- * UBI_IO_BAD_EC_HDR: the erase counter header is corrupted (bad magic or CRC)
- * UBI_IO_BAD_VID_HDR: the volume identifier header is corrupted (bad magic or
- *                     CRC)
+ * UBI_IO_BAD_HDR: the EC or VID header is corrupted (bad magic or CRC)
+ * UBI_IO_BAD_HDR_READ: the same as %UBI_IO_BAD_HDR, but also there was a read
+ * 			error reported by the flash driver
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
  */
 enum {
 	UBI_IO_PEB_EMPTY = 1,
 	UBI_IO_PEB_FREE,
-	UBI_IO_BAD_EC_HDR,
-	UBI_IO_BAD_VID_HDR,
+	UBI_IO_BAD_HDR,
+	UBI_IO_BAD_HDR_READ,
 	UBI_IO_BITFLIPS
 };
 
@@ -349,7 +350,6 @@ struct ubi_wl_entry;
  * @bgt_thread: background thread description object
  * @thread_enabled: if the background thread is enabled
  * @bgt_name: background thread name
- * @reboot_notifier: notifier to terminate background thread before rebooting
  *
  * @flash_size: underlying MTD device size (in bytes)
  * @peb_count: count of physical eraseblocks on the MTD device
@@ -435,7 +435,6 @@ struct ubi_device {
 	struct task_struct *bgt_thread;
 	int thread_enabled;
 	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
-	struct notifier_block reboot_notifier;
 
 	/* I/O sub-system's stuff */
 	long long flash_size;

@@ -93,7 +93,6 @@ earlier 3Com products.
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -200,7 +199,6 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 
 struct el3_private {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	u16 advertising, partner;		/* NWay media advertisement */
 	unsigned char phys;			/* MII device address */
 	unsigned int autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
@@ -283,8 +281,6 @@ static int tc574_probe(struct pcmcia_device *link)
 	spin_lock_init(&lp->window_lock);
 	link->io.NumPorts1 = 32;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = &el3_interrupt;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
@@ -311,8 +307,7 @@ static void tc574_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c574_detach()\n");
 
-	if (link->dev_node)
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
 	tc574_release(link);
 
@@ -353,7 +348,7 @@ static int tc574_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, el3_interrupt);
 	if (ret)
 		goto failed;
 
@@ -361,7 +356,7 @@ static int tc574_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	dev->base_addr = link->io.BasePort1;
 
 	ioaddr = dev->base_addr;
@@ -446,16 +441,12 @@ static int tc574_config(struct pcmcia_device *link)
 		}
 	}
 
-	link->dev_node = &lp->node;
 	SET_NETDEV_DEV(dev, &link->dev);
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
-		link->dev_node = NULL;
 		goto failed;
 	}
-
-	strcpy(lp->node.dev_name, dev->name);
 
 	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, "
 	       "hw_addr %pM.\n",
@@ -622,8 +613,6 @@ static void mdio_write(unsigned int ioaddr, int phy_id, int location, int value)
 		outw(MDIO_ENB_IN, mdio_addr);
 		outw(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 	}
-
-	return;
 }
 
 /* Reset and restore all of the 3c574 registers. */
@@ -739,7 +728,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc574_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -781,11 +770,14 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 		  inw(ioaddr + EL3_STATUS));
 
 	spin_lock_irqsave(&lp->window_lock, flags);
+
+	dev->stats.tx_bytes += skb->len;
+
+	/* Put out the doubleword header... */
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0, ioaddr + TX_FIFO);
+	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
-
-	dev->trans_start = jiffies;
 
 	/* TxFree appears only in Window 1, not offset 0x1c. */
 	if (inw(ioaddr + TxFree) <= 1536) {
@@ -1020,8 +1012,6 @@ static void update_stats(struct net_device *dev)
 	EL3WINDOW(4);
 	/* BadSSD */				   inb(ioaddr + 12);
 	up					 = inb(ioaddr + 13);
-
-	dev->stats.tx_bytes 			+= tx + ((up & 0xf0) << 12);
 
 	EL3WINDOW(1);
 }

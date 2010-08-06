@@ -23,12 +23,13 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
+#include <asm/portmux.h>
 #include <linux/spi/ad7877.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char *bfin_board_name = "CamSig Minotaur BF537";
+const char bfin_board_name[] = "CamSig Minotaur BF537";
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
 static struct resource bfin_pcmcia_cf_resources[] = {

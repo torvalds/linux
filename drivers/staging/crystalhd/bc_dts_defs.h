@@ -26,12 +26,10 @@
 #ifndef _BC_DTS_DEFS_H_
 #define _BC_DTS_DEFS_H_
 
-#include "bc_dts_types.h"
-
 /* BIT Mask */
 #define BC_BIT(_x)		(1 << (_x))
 
-typedef enum _BC_STATUS {
+enum BC_STATUS {
 	BC_STS_SUCCESS		= 0,
 	BC_STS_INV_ARG		= 1,
 	BC_STS_BUSY		= 2,
@@ -62,7 +60,7 @@ typedef enum _BC_STATUS {
 
 	/* Must be the last one.*/
 	BC_STS_ERROR		= -1
-} BC_STATUS;
+};
 
 /*------------------------------------------------------*
  *    Registry Key Definitions				*
@@ -81,14 +79,14 @@ typedef enum _BC_STATUS {
  *
  */
 
-typedef enum _BC_SW_OPTIONS {
+enum BC_SW_OPTIONS {
 	BC_OPT_DOSER_OUT_ENCRYPT	= BC_BIT(3),
 	BC_OPT_LINK_OUT_ENCRYPT		= BC_BIT(29),
-} BC_SW_OPTIONS;
+};
 
-typedef struct _BC_REG_CONFIG{
+struct BC_REG_CONFIG{
 	uint32_t		DbgOptions;
-} BC_REG_CONFIG;
+};
 
 #if defined(__KERNEL__) || defined(__LINUX_USER__)
 #else
@@ -108,7 +106,7 @@ typedef struct _BC_REG_CONFIG{
  */
 
 /* To allow multiple apps to open the device. */
-enum _DtsDeviceOpenMode {
+enum DtsDeviceOpenMode {
 	DTS_PLAYBACK_MODE = 0,
 	DTS_DIAG_MODE,
 	DTS_MONITOR_MODE,
@@ -116,7 +114,7 @@ enum _DtsDeviceOpenMode {
 };
 
 /* To enable the filter to selectively enable/disable fixes or erratas */
-enum _DtsDeviceFixMode {
+enum DtsDeviceFixMode {
 	DTS_LOAD_NEW_FW		= BC_BIT(8),
 	DTS_LOAD_FILE_PLAY_FW	= BC_BIT(9),
 	DTS_DISK_FMT_BD		= BC_BIT(10),
@@ -133,7 +131,7 @@ enum _DtsDeviceFixMode {
 #define DTS_DFLT_CLOCK(x) (x<<19)
 
 /* F/W File Version corresponding to S/W Releases */
-enum _FW_FILE_VER {
+enum FW_FILE_VER {
 	/* S/W release: 02.04.02	F/W release 2.12.2.0 */
 	BC_FW_VER_020402 = ((12<<16) | (2<<8) | (0))
 };
@@ -141,7 +139,7 @@ enum _FW_FILE_VER {
 /*------------------------------------------------------*
  *    Stream Types for DtsOpenDecoder()			*
  *------------------------------------------------------*/
-enum _DtsOpenDecStreamTypes {
+enum DtsOpenDecStreamTypes {
 	BC_STREAM_TYPE_ES		= 0,
 	BC_STREAM_TYPE_PES		= 1,
 	BC_STREAM_TYPE_TS		= 2,
@@ -151,7 +149,7 @@ enum _DtsOpenDecStreamTypes {
 /*------------------------------------------------------*
  *    Video Algorithms for DtsSetVideoParams()		*
  *------------------------------------------------------*/
-enum _DtsSetVideoParamsAlgo {
+enum DtsSetVideoParamsAlgo {
 	BC_VID_ALGO_H264		= 0,
 	BC_VID_ALGO_MPEG2		= 1,
 	BC_VID_ALGO_VC1			= 4,
@@ -163,7 +161,7 @@ enum _DtsSetVideoParamsAlgo {
  *------------------------------------------------------*/
 #define BC_MPEG_VALID_PANSCAN		(1)
 
-typedef struct _BC_PIB_EXT_MPEG {
+struct BC_PIB_EXT_MPEG {
 	uint32_t	valid;
 	/* Always valid,  defaults to picture size if no
 	 * sequence display extension in the stream. */
@@ -175,8 +173,7 @@ typedef struct _BC_PIB_EXT_MPEG {
 	uint32_t	offset_count;
 	int32_t		horizontal_offset[3];
 	int32_t		vertical_offset[3];
-
-} BC_PIB_EXT_MPEG;
+};
 
 /*------------------------------------------------------*
  *    H.264 Extension to the PPB			*
@@ -186,7 +183,7 @@ typedef struct _BC_PIB_EXT_MPEG {
 #define H264_VALID_SPS_CROP		(2)
 #define H264_VALID_VUI			(4)
 
-typedef struct _BC_PIB_EXT_H264 {
+struct BC_PIB_EXT_H264 {
 	/* 'valid' specifies which fields (or sets of
 	 * fields) below are valid.  If the corresponding
 	 * bit in 'valid' is NOT set then that field(s)
@@ -209,15 +206,14 @@ typedef struct _BC_PIB_EXT_H264 {
 	/* H264_VALID_VUI */
 	uint32_t	chroma_top;
 	uint32_t	chroma_bottom;
-
-} BC_PIB_EXT_H264;
+};
 
 /*------------------------------------------------------*
  *    VC1 Extension to the PPB				*
  *------------------------------------------------------*/
 #define VC1_VALID_PANSCAN		(1)
 
-typedef struct _BC_PIB_EXT_VC1 {
+struct BC_PIB_EXT_VC1 {
 	uint32_t	valid;
 
 	/* Always valid, defaults to picture size if no
@@ -231,14 +227,12 @@ typedef struct _BC_PIB_EXT_VC1 {
 	int32_t		ps_vert_offset[4];
 	int32_t		ps_width[4];
 	int32_t		ps_height[4];
-
-} BC_PIB_EXT_VC1;
-
+};
 
 /*------------------------------------------------------*
  *    Picture Information Block				*
  *------------------------------------------------------*/
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX_USER__)
+#if defined(__LINUX_USER__)
 /* Values for 'pulldown' field.  '0' means no pulldown information
  * was present for this picture. */
 enum {
@@ -358,7 +352,7 @@ enum {
 
 #define VDEC_FLAG_PICTURE_META_DATA_PRESENT	(0x40000)
 
-#endif /* _WIN32 || _WIN64 */
+#endif /* __LINUX_USER__ */
 
 enum _BC_OUTPUT_FORMAT {
 	MODE420				= 0x0,
@@ -366,7 +360,7 @@ enum _BC_OUTPUT_FORMAT {
 	MODE422_UYVY			= 0x2,
 };
 
-typedef struct _BC_PIC_INFO_BLOCK {
+struct BC_PIC_INFO_BLOCK {
 	/* Common fields. */
 	uint64_t	timeStamp;	/* Timestamp */
 	uint32_t	picture_number;	/* Ordinal display number  */
@@ -386,18 +380,18 @@ typedef struct _BC_PIC_INFO_BLOCK {
 
 	/* Protocol-specific extensions. */
 	union {
-		BC_PIB_EXT_H264	h264;
-		BC_PIB_EXT_MPEG	mpeg;
-		BC_PIB_EXT_VC1	 vc1;
+		struct BC_PIB_EXT_H264	h264;
+		struct BC_PIB_EXT_MPEG	mpeg;
+		struct BC_PIB_EXT_VC1	 vc1;
 	} other;
 
-} BC_PIC_INFO_BLOCK, *PBC_PIC_INFO_BLOCK;
+};
 
 /*------------------------------------------------------*
  *    ProcOut Info					*
  *------------------------------------------------------*/
 /* Optional flags for ProcOut Interface.*/
-enum _POUT_OPTIONAL_IN_FLAGS_{
+enum POUT_OPTIONAL_IN_FLAGS_{
 	/* Flags from App to Device */
 	BC_POUT_FLAGS_YV12	  = 0x01,	/* Copy Data in YV12 format */
 	BC_POUT_FLAGS_STRIDE	  = 0x02,	/* Stride size is valid. */
@@ -412,17 +406,13 @@ enum _POUT_OPTIONAL_IN_FLAGS_{
 	BC_POUT_FLAGS_FLD_BOT	  = 0x80000,	/* Bottom Field data */
 };
 
-#if defined(__KERNEL__) || defined(__LINUX_USER__)
-typedef BC_STATUS(*dts_pout_callback)(void  *shnd, uint32_t width, uint32_t height, uint32_t stride, void *pOut);
-#else
-typedef BC_STATUS(*dts_pout_callback)(void  *shnd, uint32_t width, uint32_t height, uint32_t stride, struct _BC_DTS_PROC_OUT *pOut);
-#endif
+typedef enum BC_STATUS(*dts_pout_callback)(void  *shnd, uint32_t width, uint32_t height, uint32_t stride, void *pOut);
 
 /* Line 21 Closed Caption */
 /* User Data */
 #define MAX_UD_SIZE		1792	/* 1920 - 128 */
 
-typedef struct _BC_DTS_PROC_OUT {
+struct BC_DTS_PROC_OUT {
 	uint8_t		*Ybuff;			/* Caller Supplied buffer for Y data */
 	uint32_t	YbuffSz;		/* Caller Supplied Y buffer size */
 	uint32_t	YBuffDoneSz;		/* Transferred Y datasize */
@@ -436,7 +426,7 @@ typedef struct _BC_DTS_PROC_OUT {
 
 	uint32_t	discCnt;		/* Picture discontinuity count */
 
-	BC_PIC_INFO_BLOCK PicInfo;		/* Picture Information Block Data */
+	struct BC_PIC_INFO_BLOCK PicInfo;		/* Picture Information Block Data */
 
 	/* Line 21 Closed Caption */
 	/* User Data */
@@ -450,9 +440,9 @@ typedef struct _BC_DTS_PROC_OUT {
 	uint8_t		bPibEnc;		/* PIB encrypted */
 	uint8_t		bRevertScramble;
 
-} BC_DTS_PROC_OUT;
+};
 
-typedef struct _BC_DTS_STATUS {
+struct BC_DTS_STATUS {
 	uint8_t		ReadyListCount;	/* Number of frames in ready list (reported by driver) */
 	uint8_t		FreeListCount;	/* Number of frame buffers free.  (reported by driver) */
 	uint8_t		PowerStateChange; /* Number of active state power transitions (reported by driver) */
@@ -479,7 +469,7 @@ typedef struct _BC_DTS_STATUS {
 					 * back from the driver */
 	uint8_t		reserved__[16];
 
-} BC_DTS_STATUS;
+};
 
 #define BC_SWAP32(_v)			\
 	((((_v) & 0xFF000000)>>24)|	\

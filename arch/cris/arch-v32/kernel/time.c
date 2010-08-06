@@ -44,7 +44,6 @@ unsigned long timer_regs[NR_CPUS] =
 #endif
 };
 
-extern void update_xtime_from_cmos(void);
 extern int set_rtc_mmss(unsigned long nowtime);
 extern int have_rtc;
 
@@ -198,9 +197,6 @@ handle_watchdog_bite(struct pt_regs* regs)
 #endif
 }
 
-/* Last time the cmos clock got updated. */
-static long last_rtc_update = 0;
-
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick.
@@ -238,25 +234,6 @@ timer_interrupt(int irq, void *dev_id)
 
 	/* Call the real timer interrupt handler */
 	do_timer(1);
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 *
-	 * The division here is not time critical since it will run once in
-	 * 11 minutes
-	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - (tick_nsec / 1000) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + (tick_nsec / 1000) / 2) {
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			/* Do it again in 60 s */
-			last_rtc_update = xtime.tv_sec - 600;
-	}
         return IRQ_HANDLED;
 }
 
@@ -309,23 +286,10 @@ time_init(void)
 	 */
 	loops_per_usec = 50;
 
-	if(RTC_INIT() < 0) {
-		/* No RTC, start at 1980 */
-		xtime.tv_sec = 0;
-		xtime.tv_nsec = 0;
+	if(RTC_INIT() < 0)
 		have_rtc = 0;
-	} else {
-		/* Get the current time */
+	else
 		have_rtc = 1;
-		update_xtime_from_cmos();
-	}
-
-	/*
-	 * Initialize wall_to_monotonic such that adding it to
-	 * xtime will yield zero, the tv_nsec field must be normalized
-	 * (i.e., 0 <= nsec < NSEC_PER_SEC).
-	 */
-	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* Start CPU local timer. */
 	cris_timer_init();

@@ -56,21 +56,25 @@
 #define RF3021				0x0007
 #define RF3022				0x0008
 #define RF3052				0x0009
+#define RF3320				0x000b
 
 /*
- * Chipset version.
+ * Chipset revisions.
  */
-#define RT2860C_VERSION			0x0100
-#define RT2860D_VERSION			0x0101
-#define RT2880E_VERSION			0x0200
-#define RT2883_VERSION			0x0300
-#define RT3070_VERSION			0x0200
+#define REV_RT2860C			0x0100
+#define REV_RT2860D			0x0101
+#define REV_RT2872E			0x0200
+#define REV_RT3070E			0x0200
+#define REV_RT3070F			0x0201
+#define REV_RT3071E			0x0211
+#define REV_RT3090E			0x0211
+#define REV_RT3390E			0x0211
 
 /*
  * Signal information.
  * Default offset is required for RSSI <-> dBm conversion.
  */
-#define DEFAULT_RSSI_OFFSET		120 /* FIXME */
+#define DEFAULT_RSSI_OFFSET		120
 
 /*
  * Register layout information.
@@ -90,13 +94,34 @@
 #define NUM_TX_QUEUES			4
 
 /*
- * USB registers.
+ * Registers.
  */
+
+/*
+ * E2PROM_CSR: PCI EEPROM control register.
+ * RELOAD: Write 1 to reload eeprom content.
+ * TYPE: 0: 93c46, 1:93c66.
+ * LOAD_STATUS: 1:loading, 0:done.
+ */
+#define E2PROM_CSR			0x0004
+#define E2PROM_CSR_DATA_CLOCK		FIELD32(0x00000001)
+#define E2PROM_CSR_CHIP_SELECT		FIELD32(0x00000002)
+#define E2PROM_CSR_DATA_IN		FIELD32(0x00000004)
+#define E2PROM_CSR_DATA_OUT		FIELD32(0x00000008)
+#define E2PROM_CSR_TYPE			FIELD32(0x00000030)
+#define E2PROM_CSR_LOAD_STATUS		FIELD32(0x00000040)
+#define E2PROM_CSR_RELOAD		FIELD32(0x00000080)
+
+/*
+ * OPT_14: Unknown register used by rt3xxx devices.
+ */
+#define OPT_14_CSR			0x0114
+#define OPT_14_CSR_BIT0			FIELD32(0x00000001)
 
 /*
  * INT_SOURCE_CSR: Interrupt source register.
  * Write one to clear corresponding bit.
- * TX_FIFO_STATUS: FIFO Statistics is full, sw should read 0x171c
+ * TX_FIFO_STATUS: FIFO Statistics is full, sw should read TX_STA_FIFO
  */
 #define INT_SOURCE_CSR			0x0200
 #define INT_SOURCE_CSR_RXDELAYINT	FIELD32(0x00000001)
@@ -311,6 +336,39 @@
 #define RX_DRX_IDX			0x029c
 
 /*
+ * USB_DMA_CFG
+ * RX_BULK_AGG_TIMEOUT: Rx Bulk Aggregation TimeOut in unit of 33ns.
+ * RX_BULK_AGG_LIMIT: Rx Bulk Aggregation Limit in unit of 256 bytes.
+ * PHY_CLEAR: phy watch dog enable.
+ * TX_CLEAR: Clear USB DMA TX path.
+ * TXOP_HALT: Halt TXOP count down when TX buffer is full.
+ * RX_BULK_AGG_EN: Enable Rx Bulk Aggregation.
+ * RX_BULK_EN: Enable USB DMA Rx.
+ * TX_BULK_EN: Enable USB DMA Tx.
+ * EP_OUT_VALID: OUT endpoint data valid.
+ * RX_BUSY: USB DMA RX FSM busy.
+ * TX_BUSY: USB DMA TX FSM busy.
+ */
+#define USB_DMA_CFG			0x02a0
+#define USB_DMA_CFG_RX_BULK_AGG_TIMEOUT	FIELD32(0x000000ff)
+#define USB_DMA_CFG_RX_BULK_AGG_LIMIT	FIELD32(0x0000ff00)
+#define USB_DMA_CFG_PHY_CLEAR		FIELD32(0x00010000)
+#define USB_DMA_CFG_TX_CLEAR		FIELD32(0x00080000)
+#define USB_DMA_CFG_TXOP_HALT		FIELD32(0x00100000)
+#define USB_DMA_CFG_RX_BULK_AGG_EN	FIELD32(0x00200000)
+#define USB_DMA_CFG_RX_BULK_EN		FIELD32(0x00400000)
+#define USB_DMA_CFG_TX_BULK_EN		FIELD32(0x00800000)
+#define USB_DMA_CFG_EP_OUT_VALID	FIELD32(0x3f000000)
+#define USB_DMA_CFG_RX_BUSY		FIELD32(0x40000000)
+#define USB_DMA_CFG_TX_BUSY		FIELD32(0x80000000)
+
+/*
+ * US_CYC_CNT
+ */
+#define US_CYC_CNT			0x02a4
+#define US_CYC_CNT_CLOCK_CYCLE		FIELD32(0x000000ff)
+
+/*
  * PBF_SYS_CTRL
  * HOST_RAM_WRITE: enable Host program ram write selection
  */
@@ -396,6 +454,31 @@
  * EFUSE_DATA3
  */
 #define EFUSE_DATA3			0x059c
+
+/*
+ * LDO_CFG0
+ */
+#define LDO_CFG0			0x05d4
+#define LDO_CFG0_DELAY3			FIELD32(0x000000ff)
+#define LDO_CFG0_DELAY2			FIELD32(0x0000ff00)
+#define LDO_CFG0_DELAY1			FIELD32(0x00ff0000)
+#define LDO_CFG0_BGSEL			FIELD32(0x03000000)
+#define LDO_CFG0_LDO_CORE_VLEVEL	FIELD32(0x1c000000)
+#define LD0_CFG0_LDO25_LEVEL		FIELD32(0x60000000)
+#define LDO_CFG0_LDO25_LARGEA		FIELD32(0x80000000)
+
+/*
+ * GPIO_SWITCH
+ */
+#define GPIO_SWITCH			0x05dc
+#define GPIO_SWITCH_0			FIELD32(0x00000001)
+#define GPIO_SWITCH_1			FIELD32(0x00000002)
+#define GPIO_SWITCH_2			FIELD32(0x00000004)
+#define GPIO_SWITCH_3			FIELD32(0x00000008)
+#define GPIO_SWITCH_4			FIELD32(0x00000010)
+#define GPIO_SWITCH_5			FIELD32(0x00000020)
+#define GPIO_SWITCH_6			FIELD32(0x00000040)
+#define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
  * MAC Control/Status Registers(CSR).
@@ -636,14 +719,20 @@
 #define TBTT_TIMER			0x1124
 
 /*
- * INT_TIMER_CFG:
+ * INT_TIMER_CFG: timer configuration
+ * PRE_TBTT_TIMER: leadtime to tbtt for pretbtt interrupt in units of 1/16 TU
+ * GP_TIMER: period of general purpose timer in units of 1/16 TU
  */
 #define INT_TIMER_CFG			0x1128
+#define INT_TIMER_CFG_PRE_TBTT_TIMER	FIELD32(0x0000ffff)
+#define INT_TIMER_CFG_GP_TIMER		FIELD32(0xffff0000)
 
 /*
  * INT_TIMER_EN: GP-timer and pre-tbtt Int enable
  */
 #define INT_TIMER_EN			0x112c
+#define INT_TIMER_EN_PRE_TBTT_TIMER	FIELD32(0x00000001)
+#define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
  * CH_IDLE_STA: channel idle time
@@ -718,6 +807,18 @@
  * EDCA_TID_AC_MAP:
  */
 #define EDCA_TID_AC_MAP			0x1310
+
+/*
+ * TX_PWR_CFG:
+ */
+#define TX_PWR_CFG_RATE0		FIELD32(0x0000000f)
+#define TX_PWR_CFG_RATE1		FIELD32(0x000000f0)
+#define TX_PWR_CFG_RATE2		FIELD32(0x00000f00)
+#define TX_PWR_CFG_RATE3		FIELD32(0x0000f000)
+#define TX_PWR_CFG_RATE4		FIELD32(0x000f0000)
+#define TX_PWR_CFG_RATE5		FIELD32(0x00f00000)
+#define TX_PWR_CFG_RATE6		FIELD32(0x0f000000)
+#define TX_PWR_CFG_RATE7		FIELD32(0xf0000000)
 
 /*
  * TX_PWR_CFG_0:
@@ -809,7 +910,7 @@
  * TX_BAND_CFG: 0x1 use upper 20MHz, 0x0 use lower 20MHz
  */
 #define TX_BAND_CFG			0x132c
-#define TX_BAND_CFG_HT40_PLUS		FIELD32(0x00000001)
+#define TX_BAND_CFG_HT40_MINUS		FIELD32(0x00000001)
 #define TX_BAND_CFG_A			FIELD32(0x00000002)
 #define TX_BAND_CFG_BG			FIELD32(0x00000004)
 
@@ -1334,17 +1435,17 @@
 struct mac_wcid_entry {
 	u8 mac[6];
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct hw_key_entry {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct mac_iveiv_entry {
 	u8 iv[8];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * MAC_WCID_ATTRIBUTE:
@@ -1353,6 +1454,10 @@ struct mac_iveiv_entry {
 #define MAC_WCID_ATTRIBUTE_CIPHER	FIELD32(0x0000000e)
 #define MAC_WCID_ATTRIBUTE_BSS_IDX	FIELD32(0x00000070)
 #define MAC_WCID_ATTRIBUTE_RX_WIUDF	FIELD32(0x00000380)
+#define MAC_WCID_ATTRIBUTE_CIPHER_EXT	FIELD32(0x00000400)
+#define MAC_WCID_ATTRIBUTE_BSS_IDX_EXT	FIELD32(0x00000800)
+#define MAC_WCID_ATTRIBUTE_WAPI_MCBC	FIELD32(0x00008000)
+#define MAC_WCID_ATTRIBUTE_WAPI_KEY_IDX	FIELD32(0xff000000)
 
 /*
  * SHARED_KEY_MODE:
@@ -1474,7 +1579,9 @@ struct mac_iveiv_entry {
  */
 
 /*
- * BBP 1: TX Antenna
+ * BBP 1: TX Antenna & Power
+ * POWER: 0 - normal, 1 - drop tx power by 6dBm, 2 - drop tx power by 12dBm,
+ *	3 - increase tx power by 6dBm
  */
 #define BBP1_TX_POWER			FIELD8(0x07)
 #define BBP1_TX_ANTENNA			FIELD8(0x18)
@@ -1483,7 +1590,7 @@ struct mac_iveiv_entry {
  * BBP 3: RX Antenna
  */
 #define BBP3_RX_ANTENNA			FIELD8(0x18)
-#define BBP3_HT40_PLUS			FIELD8(0x20)
+#define BBP3_HT40_MINUS			FIELD8(0x20)
 
 /*
  * BBP 4: Bandwidth
@@ -1492,14 +1599,32 @@ struct mac_iveiv_entry {
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 
 /*
+ * BBP 138: Unknown
+ */
+#define BBP138_RX_ADC1			FIELD8(0x02)
+#define BBP138_RX_ADC2			FIELD8(0x04)
+#define BBP138_TX_DAC1			FIELD8(0x20)
+#define BBP138_TX_DAC2			FIELD8(0x40)
+
+/*
  * RFCSR registers
  * The wordsize of the RFCSR is 8 bits.
  */
 
 /*
+ * RFCSR 1:
+ */
+#define RFCSR1_RF_BLOCK_EN		FIELD8(0x01)
+#define RFCSR1_RX0_PD			FIELD8(0x04)
+#define RFCSR1_TX0_PD			FIELD8(0x08)
+#define RFCSR1_RX1_PD			FIELD8(0x10)
+#define RFCSR1_TX1_PD			FIELD8(0x20)
+
+/*
  * RFCSR 6:
  */
-#define RFCSR6_R			FIELD8(0x03)
+#define RFCSR6_R1			FIELD8(0x03)
+#define RFCSR6_R2			FIELD8(0x40)
 
 /*
  * RFCSR 7:
@@ -1512,6 +1637,33 @@ struct mac_iveiv_entry {
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
 
 /*
+ * RFCSR 13:
+ */
+#define RFCSR13_TX_POWER		FIELD8(0x1f)
+
+/*
+ * RFCSR 15:
+ */
+#define RFCSR15_TX_LO2_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 17:
+ */
+#define RFCSR17_TXMIXER_GAIN		FIELD8(0x07)
+#define RFCSR17_TX_LO1_EN		FIELD8(0x08)
+#define RFCSR17_R			FIELD8(0x20)
+
+/*
+ * RFCSR 20:
+ */
+#define RFCSR20_RX_LO1_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 21:
+ */
+#define RFCSR21_RX_LO2_EN		FIELD8(0x08)
+
+/*
  * RFCSR 22:
  */
 #define RFCSR22_BASEBAND_LOOPBACK	FIELD8(0x01)
@@ -1520,6 +1672,14 @@ struct mac_iveiv_entry {
  * RFCSR 23:
  */
 #define RFCSR23_FREQ_OFFSET		FIELD8(0x7f)
+
+/*
+ * RFCSR 27:
+ */
+#define RFCSR27_R1			FIELD8(0x03)
+#define RFCSR27_R2			FIELD8(0x04)
+#define RFCSR27_R3			FIELD8(0x30)
+#define RFCSR27_R4			FIELD8(0x40)
 
 /*
  * RFCSR 30:
@@ -1603,6 +1763,8 @@ struct mac_iveiv_entry {
 #define EEPROM_NIC_WPS_PBC		FIELD16(0x0080)
 #define EEPROM_NIC_BW40M_BG		FIELD16(0x0100)
 #define EEPROM_NIC_BW40M_A		FIELD16(0x0200)
+#define EEPROM_NIC_ANT_DIVERSITY	FIELD16(0x0800)
+#define EEPROM_NIC_DAC_TEST		FIELD16(0x8000)
 
 /*
  * EEPROM frequency
@@ -1659,6 +1821,12 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_BG2_LNA_A1		FIELD16(0xff00)
 
 /*
+ * EEPROM TXMIXER GAIN BG offset (note overlaps with EEPROM RSSI BG2).
+ */
+#define EEPROM_TXMIXER_GAIN_BG		0x0024
+#define EEPROM_TXMIXER_GAIN_BG_VAL	FIELD16(0x0007)
+
+/*
  * EEPROM RSSI A offset
  */
 #define EEPROM_RSSI_A			0x0025
@@ -1703,9 +1871,15 @@ struct mac_iveiv_entry {
 #define EEPROM_TXPOWER_A_2		FIELD16(0xff00)
 
 /*
- * EEPROM TXpower byrate: 20MHZ power
+ * EEPROM TXPOWER by rate: tx power per tx rate for HT20 mode
  */
 #define EEPROM_TXPOWER_BYRATE		0x006f
+#define EEPROM_TXPOWER_BYRATE_SIZE	9
+
+#define EEPROM_TXPOWER_BYRATE_RATE0	FIELD16(0x000f)
+#define EEPROM_TXPOWER_BYRATE_RATE1	FIELD16(0x00f0)
+#define EEPROM_TXPOWER_BYRATE_RATE2	FIELD16(0x0f00)
+#define EEPROM_TXPOWER_BYRATE_RATE3	FIELD16(0xf000)
 
 /*
  * EEPROM BBP.

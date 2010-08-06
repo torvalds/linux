@@ -2,7 +2,7 @@
  *  linux/arch/m68knommu/mm/fault.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com) 
+ *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com)
  *
  *  Based on:
  *
@@ -36,7 +36,7 @@ asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
 			      unsigned long error_code)
 {
 #ifdef DEBUG
-	printk (KERN_DEBUG "regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
+	printk(KERN_DEBUG "regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
 		regs->sr, regs->pc, address, error_code);
 #endif
 
@@ -44,11 +44,11 @@ asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
-	if ((unsigned long) address < PAGE_SIZE) {
+	if ((unsigned long) address < PAGE_SIZE)
 		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
-	} else
+	else
 		printk(KERN_ALERT "Unable to handle kernel access");
-	printk(KERN_ALERT " at virtual address %08lx\n",address);
+	printk(KERN_ALERT " at virtual address %08lx\n", address);
 	die_if_kernel("Oops", regs, error_code);
 	do_exit(SIGKILL);
 

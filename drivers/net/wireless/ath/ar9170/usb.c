@@ -38,9 +38,11 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/device.h>
 #include <net/mac80211.h>
 #include "ar9170.h"
 #include "cmd.h"
@@ -66,18 +68,28 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x1001) },
 	/* TP-Link TL-WN821N v2 */
 	{ USB_DEVICE(0x0cf3, 0x1002) },
+	/* 3Com Dual Band 802.11n USB Adapter */
+	{ USB_DEVICE(0x0cf3, 0x1010) },
+	/* H3C Dual Band 802.11n USB Adapter */
+	{ USB_DEVICE(0x0cf3, 0x1011) },
 	/* Cace Airpcap NX */
 	{ USB_DEVICE(0xcace, 0x0300) },
 	/* D-Link DWA 160 A1 */
 	{ USB_DEVICE(0x07d1, 0x3c10) },
 	/* D-Link DWA 160 A2 */
 	{ USB_DEVICE(0x07d1, 0x3a09) },
+	/* Netgear WNA1000 */
+	{ USB_DEVICE(0x0846, 0x9040) },
 	/* Netgear WNDA3100 */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
 	{ USB_DEVICE(0x0846, 0x9001) },
 	/* Zydas ZD1221 */
 	{ USB_DEVICE(0x0ace, 0x1221) },
+	/* Proxim ORiNOCO 802.11n USB */
+	{ USB_DEVICE(0x1435, 0x0804) },
+	/* WNC Generic 11n USB Dongle */
+	{ USB_DEVICE(0x1435, 0x0326) },
 	/* ZyXEL NWD271N */
 	{ USB_DEVICE(0x0586, 0x3417) },
 	/* Z-Com UB81 BG */
@@ -94,8 +106,12 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x04bb, 0x093f) },
 	/* AVM FRITZ!WLAN USB Stick N */
 	{ USB_DEVICE(0x057C, 0x8401) },
+	/* NEC WL300NU-G */
+	{ USB_DEVICE(0x0409, 0x0249) },
 	/* AVM FRITZ!WLAN USB Stick N 2.4 */
 	{ USB_DEVICE(0x057C, 0x8402), .driver_info = AR9170_REQ_FW1_ONLY },
+	/* Qwest/Actiontec 802AIN Wireless N USB Network Adapter */
+	{ USB_DEVICE(0x1668, 0x1200) },
 
 	/* terminate */
 	{}
@@ -199,7 +215,7 @@ resubmit:
 	return;
 
 free:
-	usb_buffer_free(aru->udev, 64, urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(aru->udev, 64, urb->transfer_buffer, urb->transfer_dma);
 }
 
 static void ar9170_usb_rx_completed(struct urb *urb)
@@ -280,7 +296,7 @@ static int ar9170_usb_alloc_rx_irq_urb(struct ar9170_usb *aru)
 	if (!urb)
 		goto out;
 
-	ibuf = usb_buffer_alloc(aru->udev, 64, GFP_KERNEL, &urb->transfer_dma);
+	ibuf = usb_alloc_coherent(aru->udev, 64, GFP_KERNEL, &urb->transfer_dma);
 	if (!ibuf)
 		goto out;
 
@@ -293,8 +309,8 @@ static int ar9170_usb_alloc_rx_irq_urb(struct ar9170_usb *aru)
 	err = usb_submit_urb(urb, GFP_KERNEL);
 	if (err) {
 		usb_unanchor_urb(urb);
-		usb_buffer_free(aru->udev, 64, urb->transfer_buffer,
-				urb->transfer_dma);
+		usb_free_coherent(aru->udev, 64, urb->transfer_buffer,
+				  urb->transfer_dma);
 	}
 
 out:
@@ -416,7 +432,7 @@ static int ar9170_usb_exec_cmd(struct ar9170 *ar, enum ar9170_cmd cmd,
 	spin_unlock_irqrestore(&aru->common.cmdlock, flags);
 
 	usb_fill_int_urb(urb, aru->udev,
-			 usb_sndbulkpipe(aru->udev, AR9170_EP_CMD),
+			 usb_sndintpipe(aru->udev, AR9170_EP_CMD),
 			 aru->common.cmdbuf, plen + 4,
 			 ar9170_usb_tx_urb_complete, NULL, 1);
 
@@ -723,13 +739,27 @@ err_out:
 static void ar9170_usb_firmware_failed(struct ar9170_usb *aru)
 {
 	struct device *parent = aru->udev->dev.parent;
+	struct usb_device *udev;
+
+	/*
+	 * Store a copy of the usb_device pointer locally.
+	 * This is because device_release_driver initiates
+	 * ar9170_usb_disconnect, which in turn frees our
+	 * driver context (aru).
+	 */
+	udev = aru->udev;
+
+	complete(&aru->firmware_loading_complete);
 
 	/* unbind anything failed */
 	if (parent)
-		down(&parent->sem);
-	device_release_driver(&aru->udev->dev);
+		device_lock(parent);
+
+	device_release_driver(&udev->dev);
 	if (parent)
-		up(&parent->sem);
+		device_unlock(parent);
+
+	usb_put_dev(udev);
 }
 
 static void ar9170_usb_firmware_finish(const struct firmware *fw, void *context)
@@ -758,6 +788,8 @@ static void ar9170_usb_firmware_finish(const struct firmware *fw, void *context)
 	if (err)
 		goto err_unrx;
 
+	complete(&aru->firmware_loading_complete);
+	usb_put_dev(aru->udev);
 	return;
 
  err_unrx:
@@ -855,6 +887,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	init_usb_anchor(&aru->tx_pending);
 	init_usb_anchor(&aru->tx_submitted);
 	init_completion(&aru->cmd_wait);
+	init_completion(&aru->firmware_loading_complete);
 	spin_lock_init(&aru->tx_urb_lock);
 
 	aru->tx_pending_urbs = 0;
@@ -874,6 +907,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	if (err)
 		goto err_freehw;
 
+	usb_get_dev(aru->udev);
 	return request_firmware_nowait(THIS_MODULE, 1, "ar9170.fw",
 				       &aru->udev->dev, GFP_KERNEL, aru,
 				       ar9170_usb_firmware_step2);
@@ -893,6 +927,9 @@ static void ar9170_usb_disconnect(struct usb_interface *intf)
 		return;
 
 	aru->common.state = AR9170_IDLE;
+
+	wait_for_completion(&aru->firmware_loading_complete);
+
 	ar9170_unregister(&aru->common);
 	ar9170_usb_cancel_urbs(aru);
 

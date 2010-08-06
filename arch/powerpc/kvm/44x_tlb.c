@@ -316,7 +316,8 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr,
 	gfn = gpaddr >> PAGE_SHIFT;
 	new_page = gfn_to_page(vcpu->kvm, gfn);
 	if (is_error_page(new_page)) {
-		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
+		printk(KERN_ERR "Couldn't get guest page for gfn %llx!\n",
+			(unsigned long long)gfn);
 		kvm_release_page_clean(new_page);
 		return;
 	}
@@ -440,7 +441,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	unsigned int gtlb_index;
 
 	gtlb_index = kvmppc_get_gpr(vcpu, ra);
-	if (gtlb_index > KVM44x_GUEST_TLB_SIZE) {
+	if (gtlb_index >= KVM44x_GUEST_TLB_SIZE) {
 		printk("%s: index %d\n", __func__, gtlb_index);
 		kvmppc_dump_vcpu(vcpu);
 		return EMULATE_FAIL;

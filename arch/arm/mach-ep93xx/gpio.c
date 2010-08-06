@@ -25,7 +25,7 @@
 #include <mach/hardware.h>
 
 /*************************************************************************
- * GPIO handling for EP93xx
+ * Interrupt handling for EP93xx on-chip GPIOs
  *************************************************************************/
 static unsigned char gpio_int_unmasked[3];
 static unsigned char gpio_int_enabled[3];
@@ -40,7 +40,7 @@ static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
 static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x58 };
 static const u8 int_debounce_register_offset[3]	= { 0xa8, 0xc4, 0x64 };
 
-void ep93xx_gpio_update_int_params(unsigned port)
+static void ep93xx_gpio_update_int_params(unsigned port)
 {
 	BUG_ON(port > 2);
 
@@ -56,7 +56,7 @@ void ep93xx_gpio_update_int_params(unsigned port)
 		EP93XX_GPIO_REG(int_en_register_offset[port]));
 }
 
-void ep93xx_gpio_int_mask(unsigned line)
+static inline void ep93xx_gpio_int_mask(unsigned line)
 {
 	gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
 }

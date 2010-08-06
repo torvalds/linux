@@ -17,6 +17,8 @@
 #define VIRTIO_BLK_F_FLUSH	9	/* Cache flush command support */
 #define VIRTIO_BLK_F_TOPOLOGY	10	/* Topology information is available */
 
+#define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
+
 struct virtio_blk_config {
 	/* The capacity (in 512-byte sectors). */
 	__u64 capacity;
@@ -66,6 +68,9 @@ struct virtio_blk_config {
 
 /* Cache flush command */
 #define VIRTIO_BLK_T_FLUSH	4
+
+/* Get device ID command */
+#define VIRTIO_BLK_T_GET_ID    8
 
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER	0x80000000

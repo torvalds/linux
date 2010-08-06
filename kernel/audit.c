@@ -46,6 +46,7 @@
 #include <asm/atomic.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/kthread.h>
 
@@ -406,7 +407,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		audit_hold_skb(skb);
 	} else
 		/* drop the extra reference if sent ok */
-		kfree_skb(skb);
+		consume_skb(skb);
 }
 
 static int kauditd_thread(void *dummy)

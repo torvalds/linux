@@ -260,7 +260,7 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	return ata_pci_sff_init_one(dev, ppi, &cs5536_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(dev, ppi, &cs5536_sht, NULL, 0);
 }
 
 static const struct pci_device_id cs5536[] = {

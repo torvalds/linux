@@ -630,7 +630,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	/* release the old buffer */
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}
@@ -646,12 +646,12 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 		return err;
 	}
 
-	if (0 != (err = videobuf_sg_dma_map(&dev->pci->dev, &dev->dmasound.dma))) {
+	if (0 != (err = videobuf_dma_map(&dev->pci->dev, &dev->dmasound.dma))) {
 		dsp_buffer_free(dev);
 		return err;
 	}
 	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->dmasound.pt))) {
-		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		return err;
 	}
@@ -660,7 +660,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 						dev->dmasound.dma.sglen,
 						0))) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		return err;
 	}
@@ -669,7 +669,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	   byte, but it doesn't work. So I allocate the DMA using the
 	   V4L functions, and force ALSA to use that as the DMA area */
 
-	substream->runtime->dma_area = dev->dmasound.dma.vmalloc;
+	substream->runtime->dma_area = dev->dmasound.dma.vaddr;
 	substream->runtime->dma_bytes = dev->dmasound.bufsize;
 	substream->runtime->dma_addr = 0;
 
@@ -696,7 +696,7 @@ static int snd_card_saa7134_hw_free(struct snd_pcm_substream * substream)
 
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}
@@ -1011,8 +1011,6 @@ static int snd_card_saa7134_new_mixer(snd_card_saa7134_t * chip)
 	unsigned int idx;
 	int err, addr;
 
-	if (snd_BUG_ON(!chip))
-		return -EINVAL;
 	strcpy(card->mixername, "SAA7134 Mixer");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_saa7134_volume_controls); idx++) {
@@ -1082,7 +1080,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	/* Card "creation" */
 
 	card->private_free = snd_saa7134_free;
-	chip = (snd_card_saa7134_t *) card->private_data;
+	chip = card->private_data;
 
 	spin_lock_init(&chip->lock);
 	spin_lock_init(&chip->mixer_lock);

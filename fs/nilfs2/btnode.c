@@ -27,6 +27,7 @@
 #include <linux/buffer_head.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
+#include <linux/gfp.h>
 #include "nilfs.h"
 #include "mdt.h"
 #include "dat.h"

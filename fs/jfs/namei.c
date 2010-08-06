@@ -956,7 +956,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	 */
 
 	if (ssize <= IDATASIZE) {
-		ip->i_op = &jfs_symlink_inode_operations;
+		ip->i_op = &jfs_fast_symlink_inode_operations;
 
 		i_fastsymlink = JFS_IP(ip)->i_inline;
 		memcpy(i_fastsymlink, name, ssize);
@@ -978,7 +978,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	else {
 		jfs_info("jfs_symlink: allocate extent ip:0x%p", ip);
 
-		ip->i_op = &page_symlink_inode_operations;
+		ip->i_op = &jfs_symlink_inode_operations;
 		ip->i_mapping->a_ops = &jfs_aops;
 
 		/*

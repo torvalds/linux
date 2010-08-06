@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 
 #include "rds.h"
@@ -97,6 +98,7 @@ int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
 				goto out;
 			}
 
+			rds_stats_add(s_copy_to_user, to_copy);
 			size -= to_copy;
 			ret += to_copy;
 			skb_off += to_copy;

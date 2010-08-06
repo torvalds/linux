@@ -54,7 +54,6 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/slab.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/bitops.h>
@@ -753,8 +752,10 @@ static void pmz_break_ctl(struct uart_port *port, int break_state)
 		uap->curregs[R5] = new_reg;
 
 		/* NOTE: Not subject to 'transmitter active' rule. */
-		if (ZS_IS_ASLEEP(uap))
+		if (ZS_IS_ASLEEP(uap)) {
+			spin_unlock_irqrestore(&port->lock, flags);
 			return;
+		}
 		write_zsreg(uap, R5, uap->curregs[R5]);
 	}
 
@@ -1610,7 +1611,7 @@ static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Iterate the pmz_ports array to find a matching entry
 	 */
 	for (i = 0; i < MAX_ZS_PORTS; i++)
-		if (pmz_ports[i].node == mdev->ofdev.node) {
+		if (pmz_ports[i].node == mdev->ofdev.dev.of_node) {
 			struct uart_pmac_port *uap = &pmz_ports[i];
 
 			uap->dev = mdev;
@@ -2004,8 +2005,11 @@ static struct of_device_id pmz_match[] =
 MODULE_DEVICE_TABLE (of, pmz_match);
 
 static struct macio_driver pmz_driver = {
-	.name 		= "pmac_zilog",
-	.match_table	= pmz_match,
+	.driver = {
+		.name 		= "pmac_zilog",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pmz_match,
+	},
 	.probe		= pmz_attach,
 	.remove		= pmz_detach,
 	.suspend	= pmz_suspend,

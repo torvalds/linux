@@ -18,10 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 #define DUMMY_BD_BUFFER  0xdeadbeef

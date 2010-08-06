@@ -26,7 +26,9 @@
 #include <linux/sysctl.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
-#include "VersionInfo.h"
+#include <linux/slab.h>
+#include <linux/completion.h>
+#include "version_info.h"
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
@@ -128,7 +130,7 @@ static struct vmbus_driver_context g_vmbus_drv = {
 	.bus.dev_attrs =	vmbus_device_attrs,
 };
 
-/**
+/*
  * vmbus_show_device_attr - Show the device attribute in sysfs.
  *
  * This is invoked when user does a
@@ -232,17 +234,17 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	}
 }
 
-/**
+/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
- * 	- initialize the vmbus driver context
- * 	- setup various driver entry points
- * 	- invoke the vmbus hv main init routine
- * 	- get the irq resource
- * 	- invoke the vmbus to add the vmbus root device
- * 	- setup the vmbus root device
- * 	- retrieve the channel offers
+ *	- initialize the vmbus driver context
+ *	- setup various driver entry points
+ *	- invoke the vmbus hv main init routine
+ *	- get the irq resource
+ *	- invoke the vmbus to add the vmbus root device
+ *	- setup the vmbus root device
+ *	- retrieve the channel offers
  */
 static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 {
@@ -355,13 +357,15 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 
 	vmbus_drv_obj->GetChannelOffers();
 
+	wait_for_completion(&hv_channel_ready);
+
 cleanup:
 	DPRINT_EXIT(VMBUS_DRV);
 
 	return ret;
 }
 
-/**
+/*
  * vmbus_bus_exit - Terminate the vmbus driver.
  *
  * This routine is opposite of vmbus_bus_init()
@@ -397,8 +401,18 @@ static void vmbus_bus_exit(void)
 	return;
 }
 
+
 /**
- * vmbus_child_driver_register - Register a vmbus's child driver
+ * vmbus_child_driver_register() - Register a vmbus's child driver
+ * @driver_ctx:        Pointer to driver structure you want to register
+ *
+ * @driver_ctx is of type &struct driver_context
+ *
+ * Registers the given driver with Linux through the 'driver_register()' call
+ * And sets up the hyper-v vmbus handling for this driver.
+ * It will return the state of the 'driver_register()' call.
+ *
+ * Mainly used by Hyper-V drivers.
  */
 int vmbus_child_driver_register(struct driver_context *driver_ctx)
 {
@@ -424,7 +438,15 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx)
 EXPORT_SYMBOL(vmbus_child_driver_register);
 
 /**
- * vmbus_child_driver_unregister Unregister a vmbus's child driver
+ * vmbus_child_driver_unregister() - Unregister a vmbus's child driver
+ * @driver_ctx:        Pointer to driver structure you want to un-register
+ *
+ * @driver_ctx is of type &struct driver_context
+ *
+ * Un-register the given driver with Linux through the 'driver_unregister()'
+ * call. And ungegisters the driver from the Hyper-V vmbus handler.
+ *
+ * Mainly used by Hyper-V drivers.
  */
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
 {
@@ -442,9 +464,15 @@ void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 
 /**
- * vmbus_get_interface - Get the vmbus channel interface.
+ * vmbus_get_interface() - Get the vmbus channel interface.
+ * @interface: Pointer to channel interface structure
  *
- * This is invoked by child/client driver that sits above vmbus
+ * Get the Hyper-V channel used for the driver.
+ *
+ * @interface is of type &struct vmbus_channel_interface
+ * This is invoked by child/client driver that sits above vmbus.
+ *
+ * Mainly used by Hyper-V drivers.
  */
 void vmbus_get_interface(struct vmbus_channel_interface *interface)
 {
@@ -454,7 +482,7 @@ void vmbus_get_interface(struct vmbus_channel_interface *interface)
 }
 EXPORT_SYMBOL(vmbus_get_interface);
 
-/**
+/*
  * vmbus_child_device_get_info - Get the vmbus child device info.
  *
  * This is invoked to display various device attributes in sysfs.
@@ -467,8 +495,9 @@ static void vmbus_child_device_get_info(struct hv_device *device_obj,
 	vmbus_drv_obj->GetChannelInfo(device_obj, device_info);
 }
 
-/**
- * vmbus_child_device_create - Creates and registers a new child device on the vmbus.
+/*
+ * vmbus_child_device_create - Creates and registers a new child device
+ * on the vmbus.
  */
 static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 						   struct hv_guid *instance,
@@ -522,7 +551,7 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	return child_device_obj;
 }
 
-/**
+/*
  * vmbus_child_device_register - Register the child device on the specified bus
  */
 static int vmbus_child_device_register(struct hv_device *root_device_obj,
@@ -570,8 +599,9 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 	return ret;
 }
 
-/**
- * vmbus_child_device_unregister - Remove the specified child device from the vmbus.
+/*
+ * vmbus_child_device_unregister - Remove the specified child device
+ * from the vmbus.
  */
 static void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
@@ -594,7 +624,7 @@ static void vmbus_child_device_unregister(struct hv_device *device_obj)
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
-/**
+/*
  * vmbus_child_device_destroy - Destroy the specified child device on the vmbus.
  */
 static void vmbus_child_device_destroy(struct hv_device *device_obj)
@@ -604,7 +634,7 @@ static void vmbus_child_device_destroy(struct hv_device *device_obj)
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
-/**
+/*
  * vmbus_uevent - add uevent for our device
  *
  * This routine is invoked when a device is added or removed on the vmbus to
@@ -683,7 +713,7 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
-/**
+/*
  * vmbus_match - Attempt to match the specified device to the specified driver
  */
 static int vmbus_match(struct device *device, struct device_driver *driver)
@@ -718,7 +748,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	return match;
 }
 
-/**
+/*
  * vmbus_probe_failed_cb - Callback when a driver probe failed in vmbus_probe()
  *
  * We need a callback because we cannot invoked device_unregister() inside
@@ -741,7 +771,7 @@ static void vmbus_probe_failed_cb(struct work_struct *context)
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
-/**
+/*
  * vmbus_probe - Add the new vmbus's child device
  */
 static int vmbus_probe(struct device *child_device)
@@ -777,7 +807,7 @@ static int vmbus_probe(struct device *child_device)
 	return ret;
 }
 
-/**
+/*
  * vmbus_remove - Remove a vmbus device
  */
 static int vmbus_remove(struct device *child_device)
@@ -819,7 +849,7 @@ static int vmbus_remove(struct device *child_device)
 	return 0;
 }
 
-/**
+/*
  * vmbus_shutdown - Shutdown a vmbus device
  */
 static void vmbus_shutdown(struct device *child_device)
@@ -855,7 +885,7 @@ static void vmbus_shutdown(struct device *child_device)
 	return;
 }
 
-/**
+/*
  * vmbus_bus_release - Final callback release of the vmbus root device
  */
 static void vmbus_bus_release(struct device *device)
@@ -869,7 +899,7 @@ static void vmbus_bus_release(struct device *device)
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
-/**
+/*
  * vmbus_device_release - Final callback release of the vmbus child device
  */
 static void vmbus_device_release(struct device *device)
@@ -887,7 +917,7 @@ static void vmbus_device_release(struct device *device)
 	return;
 }
 
-/**
+/*
  * vmbus_msg_dpc - Tasklet routine to handle hypervisor messages
  */
 static void vmbus_msg_dpc(unsigned long data)
@@ -896,7 +926,7 @@ static void vmbus_msg_dpc(unsigned long data)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_drv_obj->OnMsgDpc != NULL);
+	/* ASSERT(vmbus_drv_obj->OnMsgDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnMsgDpc(&vmbus_drv_obj->Base);
@@ -904,7 +934,7 @@ static void vmbus_msg_dpc(unsigned long data)
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
-/**
+/*
  * vmbus_msg_dpc - Tasklet routine to handle hypervisor events
  */
 static void vmbus_event_dpc(unsigned long data)
@@ -913,7 +943,7 @@ static void vmbus_event_dpc(unsigned long data)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_drv_obj->OnEventDpc != NULL);
+	/* ASSERT(vmbus_drv_obj->OnEventDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnEventDpc(&vmbus_drv_obj->Base);
@@ -928,7 +958,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_driver_obj->OnIsr != NULL);
+	/* ASSERT(vmbus_driver_obj->OnIsr != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	ret = vmbus_driver_obj->OnIsr(&vmbus_driver_obj->Base);

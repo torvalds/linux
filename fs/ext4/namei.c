@@ -187,7 +187,7 @@ unsigned int ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
 		return blocksize;
 	return (len & 65532) | ((len & 3) << 16);
 }
-  
+
 __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 {
 	if ((len > blocksize) || (blocksize > (1 << 18)) || (len & 3))
@@ -197,7 +197,7 @@ __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 	if (len == blocksize) {
 		if (blocksize == 65536)
 			return cpu_to_le16(EXT4_MAX_REC_LEN);
-		else 
+		else
 			return cpu_to_le16(0);
 	}
 	return cpu_to_le16((len & 65532) | ((len >> 16) & 3));
@@ -349,7 +349,7 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		brelse(bh);
 	}
 	if (bcount)
-		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n", 
+		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n",
 		       levels ? "" : "   ", names, space/bcount,
 		       (space/bcount)*100/blocksize);
 	return (struct stats) { names, space, bcount};
@@ -653,10 +653,10 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	int ret, err;
 	__u32 hashval;
 
-	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n", 
+	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
 	dir = dir_file->f_path.dentry->d_inode;
-	if (!(EXT4_I(dir)->i_flags & EXT4_INDEX_FL)) {
+	if (!(ext4_test_inode_flag(dir, EXT4_INODE_INDEX))) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
 		if (hinfo.hash_version <= DX_HASH_TEA)
 			hinfo.hash_version +=
@@ -801,7 +801,7 @@ static void ext4_update_dx_flag(struct inode *inode)
 {
 	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
 				     EXT4_FEATURE_COMPAT_DIR_INDEX))
-		EXT4_I(inode)->i_flags &= ~EXT4_INDEX_FL;
+		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
 }
 
 /*
@@ -943,8 +943,8 @@ restart:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
-			ext4_error(sb, "reading directory #%lu offset %lu",
-				   dir->i_ino, (unsigned long)block);
+			EXT4_ERROR_INODE(dir, "reading directory lblock %lu",
+					 (unsigned long) block);
 			brelse(bh);
 			goto next;
 		}
@@ -1066,15 +1066,15 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 		__u32 ino = le32_to_cpu(de->inode);
 		brelse(bh);
 		if (!ext4_valid_inum(dir->i_sb, ino)) {
-			ext4_error(dir->i_sb, "bad inode number: %u", ino);
+			EXT4_ERROR_INODE(dir, "bad inode number: %u", ino);
 			return ERR_PTR(-EIO);
 		}
 		inode = ext4_iget(dir->i_sb, ino);
 		if (unlikely(IS_ERR(inode))) {
 			if (PTR_ERR(inode) == -ESTALE) {
-				ext4_error(dir->i_sb,
-						"deleted inode referenced: %u",
-						ino);
+				EXT4_ERROR_INODE(dir,
+						 "deleted inode referenced: %u",
+						 ino);
 				return ERR_PTR(-EIO);
 			} else {
 				return ERR_CAST(inode);
@@ -1104,8 +1104,8 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	brelse(bh);
 
 	if (!ext4_valid_inum(child->d_inode->i_sb, ino)) {
-		ext4_error(child->d_inode->i_sb,
-			   "bad inode number: %u", ino);
+		EXT4_ERROR_INODE(child->d_inode,
+				 "bad parent inode number: %u", ino);
 		return ERR_PTR(-EIO);
 	}
 
@@ -1141,7 +1141,7 @@ dx_move_dirents(char *from, char *to, struct dx_map_entry *map, int count,
 	unsigned rec_len = 0;
 
 	while (count--) {
-		struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *) 
+		struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *)
 						(from + (map->offs<<2));
 		rec_len = EXT4_DIR_REC_LEN(de->name_len);
 		memcpy (to, de, rec_len);
@@ -1404,9 +1404,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	de = (struct ext4_dir_entry_2 *)((char *)fde +
 		ext4_rec_len_from_disk(fde->rec_len, blocksize));
 	if ((char *) de >= (((char *) root) + blocksize)) {
-		ext4_error(dir->i_sb,
-			   "invalid rec_len for '..' in inode %lu",
-			   dir->i_ino);
+		EXT4_ERROR_INODE(dir, "invalid rec_len for '..'");
 		brelse(bh);
 		return -EIO;
 	}
@@ -1418,7 +1416,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 		brelse(bh);
 		return retval;
 	}
-	EXT4_I(dir)->i_flags |= EXT4_INDEX_FL;
+	ext4_set_inode_flag(dir, EXT4_INODE_INDEX);
 	data1 = bh2->b_data;
 
 	memcpy (data1, de, len);
@@ -1491,7 +1489,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		retval = ext4_dx_add_entry(handle, dentry, inode);
 		if (!retval || (retval != ERR_BAD_DX_DIR))
 			return retval;
-		EXT4_I(dir)->i_flags &= ~EXT4_INDEX_FL;
+		ext4_clear_inode_flag(dir, EXT4_INODE_INDEX);
 		dx_fallback++;
 		ext4_mark_inode_dirty(handle, dir);
 	}
@@ -1519,6 +1517,8 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	de->rec_len = ext4_rec_len_to_disk(blocksize, blocksize);
 	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
 	brelse(bh);
+	if (retval == 0)
+		ext4_set_inode_state(inode, EXT4_STATE_NEWENTRY);
 	return retval;
 }
 
@@ -1915,9 +1915,8 @@ static int empty_dir(struct inode *inode)
 	if (inode->i_size < EXT4_DIR_REC_LEN(1) + EXT4_DIR_REC_LEN(2) ||
 	    !(bh = ext4_bread(NULL, inode, 0, 0, &err))) {
 		if (err)
-			ext4_error(inode->i_sb,
-				   "error %d reading directory #%lu offset 0",
-				   err, inode->i_ino);
+			EXT4_ERROR_INODE(inode,
+				"error %d reading directory lblock 0", err);
 		else
 			ext4_warning(inode->i_sb,
 				     "bad directory (dir #%lu) - no data block",
@@ -1941,17 +1940,17 @@ static int empty_dir(struct inode *inode)
 	de = ext4_next_entry(de1, sb->s_blocksize);
 	while (offset < inode->i_size) {
 		if (!bh ||
-			(void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
+		    (void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
+			unsigned int lblock;
 			err = 0;
 			brelse(bh);
-			bh = ext4_bread(NULL, inode,
-				offset >> EXT4_BLOCK_SIZE_BITS(sb), 0, &err);
+			lblock = offset >> EXT4_BLOCK_SIZE_BITS(sb);
+			bh = ext4_bread(NULL, inode, lblock, 0, &err);
 			if (!bh) {
 				if (err)
-					ext4_error(sb,
-						   "error %d reading directory"
-						   " #%lu offset %u",
-						   err, inode->i_ino, offset);
+					EXT4_ERROR_INODE(inode,
+						"error %d reading directory "
+						"lblock %u", err, lblock);
 				offset += sb->s_blocksize;
 				continue;
 			}
@@ -2297,7 +2296,7 @@ retry:
 		}
 	} else {
 		/* clear the extent format for fast symlink */
-		EXT4_I(inode)->i_flags &= ~EXT4_EXTENTS_FL;
+		ext4_clear_inode_flag(inode, EXT4_INODE_EXTENTS);
 		inode->i_op = &ext4_fast_symlink_inode_operations;
 		memcpy((char *)&EXT4_I(inode)->i_data, symname, l);
 		inode->i_size = l-1;

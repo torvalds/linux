@@ -17,6 +17,7 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -734,9 +735,6 @@ void __init uv_system_init(void)
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);
-
-		printk(KERN_DEBUG "UV: cpu %d, apicid 0x%x, pnode %d, nid %d, lcpu %d, blade %d\n",
-			cpu, apicid, pnode, nid, lcpu, blade);
 	}
 
 	/* Add blade/pnode info for nodes without cpus */

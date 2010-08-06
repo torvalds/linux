@@ -9,12 +9,14 @@
 #include <linux/memory.h>
 #include <linux/node.h>
 #include <linux/hugetlb.h>
+#include <linux/compaction.h>
 #include <linux/cpumask.h>
 #include <linux/topology.h>
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 
 static struct sysdev_class_attribute *node_state_attrs[];
 
@@ -165,8 +167,11 @@ static ssize_t node_read_distance(struct sys_device * dev,
 	int len = 0;
 	int i;
 
-	/* buf currently PAGE_SIZE, need ~4 chars per node */
-	BUILD_BUG_ON(MAX_NUMNODES*4 > PAGE_SIZE/2);
+	/*
+	 * buf is currently PAGE_SIZE in length and each node needs 4 chars
+	 * at the most (distance + space or newline).
+	 */
+	BUILD_BUG_ON(MAX_NUMNODES * 4 > PAGE_SIZE);
 
 	for_each_online_node(i)
 		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));
@@ -242,6 +247,8 @@ int register_node(struct node *node, int num, struct node *parent)
 		scan_unevictable_register_node(node);
 
 		hugetlb_register_node(node);
+
+		compaction_register_node(node);
 	}
 	return error;
 }

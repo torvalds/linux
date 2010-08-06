@@ -23,8 +23,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.6.0"
-#define DRV_RELDATE	"September 26, 2009"
+#define DRV_VERSION	"3.7.0"
+#define DRV_RELDATE	"June 2, 2010"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -60,6 +60,9 @@
 		 ((mode) == BOND_MODE_TLB)          ||	\
 		 ((mode) == BOND_MODE_ALB))
 
+#define TX_QUEUE_OVERRIDE(mode)				\
+			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
+			 ((mode) == BOND_MODE_ROUNDROBIN))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -131,6 +134,8 @@ struct bond_params {
 	char primary[IFNAMSIZ];
 	int primary_reselect;
 	__be32 arp_targets[BOND_MAX_ARP_TARGETS];
+	int tx_queues;
+	int all_slaves_active;
 };
 
 struct bond_parm_tbl {
@@ -159,12 +164,12 @@ struct slave {
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
 	s8     state;   /* one of BOND_STATE_XXXX */
-	u32    original_flags;
 	u32    original_mtu;
 	u32    link_failure_count;
 	u8     perm_hwaddr[ETH_ALEN];
 	u16    speed;
 	u8     duplex;
+	u16    queue_id;
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 };
@@ -202,7 +207,7 @@ struct bonding {
 	char     proc_file_name[IFNAMSIZ];
 #endif /* CONFIG_PROC_FS */
 	struct   list_head bond_list;
-	struct   dev_mc_list *mc_list;
+	struct   netdev_hw_addr_list mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, int);
 	__be32   master_ip;
 	u16      flags;
@@ -291,7 +296,8 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (!bond_is_lb(bond))
 		slave->state = BOND_STATE_BACKUP;
-	slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+	if (!bond->params.all_slaves_active)
+		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 	if (slave_do_arp_validate(bond, slave))
 		slave->dev->priv_flags |= IFF_SLAVE_NEEDARP;
 }

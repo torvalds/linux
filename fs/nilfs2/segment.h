@@ -100,7 +100,6 @@ struct nilfs_segsum_pointer {
  * @sc_write_logs: List of segment buffers to hold logs under writing
  * @sc_segbuf_nblocks: Number of available blocks in segment buffers.
  * @sc_curseg: Current segment buffer
- * @sc_super_root: Pointer to the super root buffer
  * @sc_stage: Collection stage
  * @sc_finfo_ptr: pointer to the current finfo struct in the segment summary
  * @sc_binfo_ptr: pointer to the current binfo struct in the segment summary
@@ -148,7 +147,6 @@ struct nilfs_sc_info {
 	struct list_head	sc_write_logs;
 	unsigned long		sc_segbuf_nblocks;
 	struct nilfs_segment_buffer *sc_curseg;
-	struct buffer_head     *sc_super_root;
 
 	struct nilfs_cstage	sc_stage;
 
@@ -179,7 +177,7 @@ struct nilfs_sc_info {
 	unsigned long		sc_lseg_stime;	/* in 1/HZ seconds */
 	unsigned long		sc_watermark;
 
-	struct timer_list      *sc_timer;
+	struct timer_list	sc_timer;
 	struct task_struct     *sc_task;
 };
 
@@ -219,10 +217,10 @@ enum {
  */
 #define NILFS_SC_DEFAULT_WATERMARK  3600
 
+/* super.c */
+extern struct kmem_cache *nilfs_transaction_cachep;
 
 /* segment.c */
-extern int nilfs_init_transaction_cache(void);
-extern void nilfs_destroy_transaction_cache(void);
 extern void nilfs_relax_pressure_in_lock(struct super_block *);
 
 extern int nilfs_construct_segment(struct super_block *);

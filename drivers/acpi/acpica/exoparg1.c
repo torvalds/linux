@@ -110,7 +110,7 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:		/*  Unknown opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -173,7 +173,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 
 	case AML_SLEEP_OP:	/*  Sleep (msec_time) */
 
-		status = acpi_ex_system_do_suspend(operand[0]->integer.value);
+		status = acpi_ex_system_do_sleep(operand[0]->integer.value);
 		break;
 
 	case AML_STALL_OP:	/*  Stall (usec_time) */
@@ -189,7 +189,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 
 	default:		/*  Unknown opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -229,7 +229,7 @@ acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state)
 
 	default:		/* Unknown opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -399,7 +399,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 			if (digit > 0) {
 				ACPI_ERROR((AE_INFO,
-					    "Integer too large to convert to BCD: %8.8X%8.8X",
+					    "Integer too large to convert to BCD: 0x%8.8X%8.8X",
 					    ACPI_FORMAT_UINT64(operand[0]->
 							       integer.value)));
 				status = AE_AML_NUMERIC_OVERFLOW;
@@ -540,7 +540,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:		/* Unknown opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -979,7 +979,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Index TargetType %X in reference object %p",
+						    "Unknown Index TargetType 0x%X in reference object %p",
 						    operand[0]->reference.
 						    target_type, operand[0]));
 					status = AE_AML_OPERAND_TYPE;
@@ -1007,7 +1007,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 			default:
 				ACPI_ERROR((AE_INFO,
-					    "Unknown class in reference(%p) - %2.2X",
+					    "Unknown class in reference(%p) - 0x%2.2X",
 					    operand[0],
 					    operand[0]->reference.class));
 
@@ -1019,7 +1019,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;

@@ -135,7 +135,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	/* If the size of RAM is not an exact power of two, we may not
 	 * have covered RAM in its entirety with 16 and 4 MiB
 	 * pages. Consequently, restrict the top end of RAM currently
-	 * allocable so that calls to the LMB to allocate PTEs for "tail"
+	 * allocable so that calls to the MEMBLOCK to allocate PTEs for "tail"
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */

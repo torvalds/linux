@@ -58,6 +58,18 @@ config SND_ALI5451
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ali5451.
 
+config SND_ASIHPI
+	tristate "AudioScience ASIxxxx"
+	depends on X86
+	select FW_LOADER
+	select SND_PCM
+	select SND_HWDEP
+	help
+	  Say Y here to include support for AudioScience ASI sound cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-asihpi.
+
 config SND_ATIIXP
 	tristate "ATI IXP AC97 Controller"
 	select SND_AC97_CODEC
@@ -501,6 +513,16 @@ config SND_ES1968
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-es1968.
 
+config SND_ES1968_INPUT
+	bool "Enable input device for es1968 volume buttons"
+	depends on SND_ES1968
+	depends on INPUT=y || INPUT=SND_ES1968
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the es1968 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
+
 config SND_FM801
 	tristate "ForteMedia FM801"
 	select SND_OPL3_LIB
@@ -654,6 +676,16 @@ config SND_MAESTRO3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-maestro3.
+
+config SND_MAESTRO3_INPUT
+	bool "Enable input device for maestro3 volume buttons"
+	depends on SND_MAESTRO3
+	depends on INPUT=y || INPUT=SND_MAESTRO3
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the maestro3 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
 
 config SND_MIXART
 	tristate "Digigram miXart"

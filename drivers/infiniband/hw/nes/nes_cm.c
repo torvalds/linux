@@ -53,6 +53,7 @@
 #include <linux/list.h>
 #include <linux/threads.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>
@@ -1145,7 +1146,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	}
 
 	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
-		neigh_event_send(rt->u.dst.neighbour, NULL);
+		neigh_event_send(rt->dst.neighbour, NULL);
 
 	ip_rt_put(rt);
 	return rc;

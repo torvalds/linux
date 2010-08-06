@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/slab.h>
 
 struct pwm_bl_data {
 	struct pwm_device	*pwm;

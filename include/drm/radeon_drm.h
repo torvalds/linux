@@ -902,6 +902,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_NUM_GB_PIPES	0x01
 #define RADEON_INFO_NUM_Z_PIPES 	0x02
 #define RADEON_INFO_ACCEL_WORKING	0x03
+#define RADEON_INFO_CRTC_FROM_ID	0x04
+#define RADEON_INFO_ACCEL_WORKING2	0x05
 
 struct drm_radeon_info {
 	uint32_t		request;

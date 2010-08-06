@@ -78,7 +78,7 @@ typedef struct tagSMib2Counter {
     LONG    ifType;
     LONG    ifMtu;
     DWORD   ifSpeed;
-    BYTE    ifPhysAddress[U_ETHER_ADDR_LEN];
+    BYTE    ifPhysAddress[ETH_ALEN];
     LONG    ifAdminStatus;
     LONG    ifOperStatus;
     DWORD   ifLastChange;

@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/crc32.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/mtd/mtd.h>
 #include "nodelist.h"

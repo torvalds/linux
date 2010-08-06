@@ -821,6 +821,7 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
+	unsigned int pins_shutup:1;	/* pins are shut up */
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
@@ -885,16 +886,21 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
 				  const struct hda_verb *seq);
+int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
+			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
 #else
 #define snd_hda_codec_write_cache	snd_hda_codec_write
+#define snd_hda_codec_update_cache	snd_hda_codec_write
 #define snd_hda_sequence_write_cache	snd_hda_sequence_write
 #endif
 
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;
-	unsigned int cfg;
+	unsigned char ctrl;	/* current pin control value */
+	unsigned char pad;	/* reserved */
+	unsigned int cfg;	/* default configuration */
 };
 
 unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid);

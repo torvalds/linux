@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/ds1wm.h>
 #include <linux/mfd/htc-pasic3.h>
+#include <linux/slab.h>
 
 struct pasic3_data {
 	void __iomem *mapping;

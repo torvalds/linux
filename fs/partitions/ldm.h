@@ -209,7 +209,7 @@ struct ldmdb {				/* Cache of the database */
 	struct list_head v_part;
 };
 
-int ldm_partition (struct parsed_partitions *state, struct block_device *bdev);
+int ldm_partition(struct parsed_partitions *state);
 
 #endif /* _FS_PT_LDM_H_ */
 

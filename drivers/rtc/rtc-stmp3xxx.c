@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 
 #include <mach/platform.h>
 #include <mach/stmp3xxx.h>

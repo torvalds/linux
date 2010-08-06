@@ -8,7 +8,6 @@
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>

@@ -55,7 +55,29 @@
  * The Primary thread of each non-boot processor was started from the OF client
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
-static cpumask_t of_spin_map;
+static cpumask_var_t of_spin_mask;
+
+/* Query where a cpu is now.  Return codes #defined in plpar_wrappers.h */
+int smp_query_cpu_stopped(unsigned int pcpu)
+{
+	int cpu_status, status;
+	int qcss_tok = rtas_token("query-cpu-stopped-state");
+
+	if (qcss_tok == RTAS_UNKNOWN_SERVICE) {
+		printk(KERN_INFO "Firmware doesn't support "
+				"query-cpu-stopped-state\n");
+		return QCSS_HARDWARE_ERROR;
+	}
+
+	status = rtas_call(qcss_tok, 1, 2, &cpu_status, pcpu);
+	if (status != 0) {
+		printk(KERN_ERR
+		       "RTAS query-cpu-stopped-state failed: %i\n", status);
+		return status;
+	}
+
+	return cpu_status;
+}
 
 /**
  * smp_startup_cpu() - start the given cpu
@@ -76,11 +98,17 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	unsigned int pcpu;
 	int start_cpu;
 
-	if (cpu_isset(lcpu, of_spin_map))
+	if (cpumask_test_cpu(lcpu, of_spin_mask))
 		/* Already started by OF and sitting in spin loop */
 		return 1;
 
 	pcpu = get_hard_smp_processor_id(lcpu);
+
+	/* Check to see if the CPU out of FW already for kexec */
+	if (smp_query_cpu_stopped(pcpu) == QCSS_NOT_STOPPED){
+		cpumask_set_cpu(lcpu, of_spin_mask);
+		return 1;
+	}
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
 	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
@@ -115,7 +143,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(cpu);
 
-	cpu_clear(cpu, of_spin_map);
+	cpumask_clear_cpu(cpu, of_spin_mask);
 	set_cpu_current_state(cpu, CPU_STATE_ONLINE);
 	set_default_offline_state(cpu);
 
@@ -186,17 +214,19 @@ static void __init smp_init_pseries(void)
 
 	pr_debug(" -> smp_init_pSeries()\n");
 
+	alloc_bootmem_cpumask_var(&of_spin_mask);
+
 	/* Mark threads which are still spinning in hold loops. */
 	if (cpu_has_feature(CPU_FTR_SMT)) {
 		for_each_present_cpu(i) { 
 			if (cpu_thread_in_core(i) == 0)
-				cpu_set(i, of_spin_map);
+				cpumask_set_cpu(i, of_spin_mask);
 		}
 	} else {
-		of_spin_map = cpu_present_map;
+		cpumask_copy(of_spin_mask, cpu_present_mask);
 	}
 
-	cpu_clear(boot_cpuid, of_spin_map);
+	cpumask_clear_cpu(boot_cpuid, of_spin_mask);
 
 	/* Non-lpar has additional take/give timebase */
 	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {

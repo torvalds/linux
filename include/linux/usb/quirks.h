@@ -22,4 +22,8 @@
 /*device will morph if reset, don't use reset for handling errors */
 #define USB_QUIRK_RESET_MORPHS		0x00000010
 
+/* device has more interface descriptions than the bNumInterfaces count,
+   and can't handle talking to these interfaces */
+#define USB_QUIRK_HONOR_BNUMINTERFACES	0x00000020
+
 #endif /* __LINUX_USB_QUIRKS_H */

@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/mg_disk.h>
+#include <linux/slab.h>
 
 #define MG_RES_SEC (CONFIG_MG_DISK_RES << 1)
 

@@ -24,12 +24,40 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/notifier.h>
+#include <linux/kobject.h>
+#include <linux/cpu.h>
 #include <crypto/pcrypt.h>
 
-static struct padata_instance *pcrypt_enc_padata;
-static struct padata_instance *pcrypt_dec_padata;
-static struct workqueue_struct *encwq;
-static struct workqueue_struct *decwq;
+struct padata_pcrypt {
+	struct padata_instance *pinst;
+	struct workqueue_struct *wq;
+
+	/*
+	 * Cpumask for callback CPUs. It should be
+	 * equal to serial cpumask of corresponding padata instance,
+	 * so it is updated when padata notifies us about serial
+	 * cpumask change.
+	 *
+	 * cb_cpumask is protected by RCU. This fact prevents us from
+	 * using cpumask_var_t directly because the actual type of
+	 * cpumsak_var_t depends on kernel configuration(particularly on
+	 * CONFIG_CPUMASK_OFFSTACK macro). Depending on the configuration
+	 * cpumask_var_t may be either a pointer to the struct cpumask
+	 * or a variable allocated on the stack. Thus we can not safely use
+	 * cpumask_var_t with RCU operations such as rcu_assign_pointer or
+	 * rcu_dereference. So cpumask_var_t is wrapped with struct
+	 * pcrypt_cpumask which makes possible to use it with RCU.
+	 */
+	struct pcrypt_cpumask {
+		cpumask_var_t mask;
+	} *cb_cpumask;
+	struct notifier_block nblock;
+};
+
+static struct padata_pcrypt pencrypt;
+static struct padata_pcrypt pdecrypt;
+static struct kset           *pcrypt_kset;
 
 struct pcrypt_instance_ctx {
 	struct crypto_spawn spawn;
@@ -42,25 +70,32 @@ struct pcrypt_aead_ctx {
 };
 
 static int pcrypt_do_parallel(struct padata_priv *padata, unsigned int *cb_cpu,
-			      struct padata_instance *pinst)
+			      struct padata_pcrypt *pcrypt)
 {
 	unsigned int cpu_index, cpu, i;
+	struct pcrypt_cpumask *cpumask;
 
 	cpu = *cb_cpu;
 
-	if (cpumask_test_cpu(cpu, cpu_active_mask))
+	rcu_read_lock_bh();
+	cpumask = rcu_dereference(pcrypt->cb_cpumask);
+	if (cpumask_test_cpu(cpu, cpumask->mask))
 			goto out;
 
-	cpu_index = cpu % cpumask_weight(cpu_active_mask);
+	if (!cpumask_weight(cpumask->mask))
+			goto out;
 
-	cpu = cpumask_first(cpu_active_mask);
+	cpu_index = cpu % cpumask_weight(cpumask->mask);
+
+	cpu = cpumask_first(cpumask->mask);
 	for (i = 0; i < cpu_index; i++)
-		cpu = cpumask_next(cpu, cpu_active_mask);
+		cpu = cpumask_next(cpu, cpumask->mask);
 
 	*cb_cpu = cpu;
 
 out:
-	return padata_do_parallel(pinst, padata, cpu);
+	rcu_read_unlock_bh();
+	return padata_do_parallel(pcrypt->pinst, padata, cpu);
 }
 
 static int pcrypt_aead_setkey(struct crypto_aead *parent,
@@ -142,11 +177,9 @@ static int pcrypt_aead_encrypt(struct aead_request *req)
 			       req->cryptlen, req->iv);
 	aead_request_set_assoc(creq, req->assoc, req->assoclen);
 
-	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_enc_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_encrypt(creq);
+	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, &pencrypt);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }
@@ -186,11 +219,9 @@ static int pcrypt_aead_decrypt(struct aead_request *req)
 			       req->cryptlen, req->iv);
 	aead_request_set_assoc(creq, req->assoc, req->assoclen);
 
-	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_dec_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_decrypt(creq);
+	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, &pdecrypt);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }
@@ -232,11 +263,9 @@ static int pcrypt_aead_givencrypt(struct aead_givcrypt_request *req)
 	aead_givcrypt_set_assoc(creq, areq->assoc, areq->assoclen);
 	aead_givcrypt_set_giv(creq, req->giv, req->seq);
 
-	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_enc_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_givencrypt(creq);
+	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, &pencrypt);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }
@@ -315,16 +344,13 @@ out_free_inst:
 	goto out;
 }
 
-static struct crypto_instance *pcrypt_alloc_aead(struct rtattr **tb)
+static struct crypto_instance *pcrypt_alloc_aead(struct rtattr **tb,
+						 u32 type, u32 mask)
 {
 	struct crypto_instance *inst;
 	struct crypto_alg *alg;
-	struct crypto_attr_type *algt;
 
-	algt = crypto_get_attr_type(tb);
-
-	alg = crypto_get_attr_alg(tb, algt->type,
-				  (algt->mask & CRYPTO_ALG_TYPE_MASK));
+	alg = crypto_get_attr_alg(tb, type, (mask & CRYPTO_ALG_TYPE_MASK));
 	if (IS_ERR(alg))
 		return ERR_CAST(alg);
 
@@ -365,7 +391,7 @@ static struct crypto_instance *pcrypt_alloc(struct rtattr **tb)
 
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_AEAD:
-		return pcrypt_alloc_aead(tb);
+		return pcrypt_alloc_aead(tb, algt->type, algt->mask);
 	}
 
 	return ERR_PTR(-EINVAL);
@@ -379,6 +405,115 @@ static void pcrypt_free(struct crypto_instance *inst)
 	kfree(inst);
 }
 
+static int pcrypt_cpumask_change_notify(struct notifier_block *self,
+					unsigned long val, void *data)
+{
+	struct padata_pcrypt *pcrypt;
+	struct pcrypt_cpumask *new_mask, *old_mask;
+	struct padata_cpumask *cpumask = (struct padata_cpumask *)data;
+
+	if (!(val & PADATA_CPU_SERIAL))
+		return 0;
+
+	pcrypt = container_of(self, struct padata_pcrypt, nblock);
+	new_mask = kmalloc(sizeof(*new_mask), GFP_KERNEL);
+	if (!new_mask)
+		return -ENOMEM;
+	if (!alloc_cpumask_var(&new_mask->mask, GFP_KERNEL)) {
+		kfree(new_mask);
+		return -ENOMEM;
+	}
+
+	old_mask = pcrypt->cb_cpumask;
+
+	cpumask_copy(new_mask->mask, cpumask->cbcpu);
+	rcu_assign_pointer(pcrypt->cb_cpumask, new_mask);
+	synchronize_rcu_bh();
+
+	free_cpumask_var(old_mask->mask);
+	kfree(old_mask);
+	return 0;
+}
+
+static int pcrypt_sysfs_add(struct padata_instance *pinst, const char *name)
+{
+	int ret;
+
+	pinst->kobj.kset = pcrypt_kset;
+	ret = kobject_add(&pinst->kobj, NULL, name);
+	if (!ret)
+		kobject_uevent(&pinst->kobj, KOBJ_ADD);
+
+	return ret;
+}
+
+static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
+			      const char *name)
+{
+	int ret = -ENOMEM;
+	struct pcrypt_cpumask *mask;
+
+	get_online_cpus();
+
+	pcrypt->wq = create_workqueue(name);
+	if (!pcrypt->wq)
+		goto err;
+
+	pcrypt->pinst = padata_alloc_possible(pcrypt->wq);
+	if (!pcrypt->pinst)
+		goto err_destroy_workqueue;
+
+	mask = kmalloc(sizeof(*mask), GFP_KERNEL);
+	if (!mask)
+		goto err_free_padata;
+	if (!alloc_cpumask_var(&mask->mask, GFP_KERNEL)) {
+		kfree(mask);
+		goto err_free_padata;
+	}
+
+	cpumask_and(mask->mask, cpu_possible_mask, cpu_active_mask);
+	rcu_assign_pointer(pcrypt->cb_cpumask, mask);
+
+	pcrypt->nblock.notifier_call = pcrypt_cpumask_change_notify;
+	ret = padata_register_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
+	if (ret)
+		goto err_free_cpumask;
+
+	ret = pcrypt_sysfs_add(pcrypt->pinst, name);
+	if (ret)
+		goto err_unregister_notifier;
+
+	put_online_cpus();
+
+	return ret;
+
+err_unregister_notifier:
+	padata_unregister_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
+err_free_cpumask:
+	free_cpumask_var(mask->mask);
+	kfree(mask);
+err_free_padata:
+	padata_free(pcrypt->pinst);
+err_destroy_workqueue:
+	destroy_workqueue(pcrypt->wq);
+err:
+	put_online_cpus();
+
+	return ret;
+}
+
+static void pcrypt_fini_padata(struct padata_pcrypt *pcrypt)
+{
+	kobject_put(&pcrypt->pinst->kobj);
+	free_cpumask_var(pcrypt->cb_cpumask->mask);
+	kfree(pcrypt->cb_cpumask);
+
+	padata_stop(pcrypt->pinst);
+	padata_unregister_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
+	destroy_workqueue(pcrypt->wq);
+	padata_free(pcrypt->pinst);
+}
+
 static struct crypto_template pcrypt_tmpl = {
 	.name = "pcrypt",
 	.alloc = pcrypt_alloc,
@@ -388,52 +523,39 @@ static struct crypto_template pcrypt_tmpl = {
 
 static int __init pcrypt_init(void)
 {
-	encwq = create_workqueue("pencrypt");
-	if (!encwq)
+	int err = -ENOMEM;
+
+	pcrypt_kset = kset_create_and_add("pcrypt", NULL, kernel_kobj);
+	if (!pcrypt_kset)
 		goto err;
 
-	decwq = create_workqueue("pdecrypt");
-	if (!decwq)
-		goto err_destroy_encwq;
+	err = pcrypt_init_padata(&pencrypt, "pencrypt");
+	if (err)
+		goto err_unreg_kset;
 
+	err = pcrypt_init_padata(&pdecrypt, "pdecrypt");
+	if (err)
+		goto err_deinit_pencrypt;
 
-	pcrypt_enc_padata = padata_alloc(cpu_possible_mask, encwq);
-	if (!pcrypt_enc_padata)
-		goto err_destroy_decwq;
-
-	pcrypt_dec_padata = padata_alloc(cpu_possible_mask, decwq);
-	if (!pcrypt_dec_padata)
-		goto err_free_padata;
-
-	padata_start(pcrypt_enc_padata);
-	padata_start(pcrypt_dec_padata);
+	padata_start(pencrypt.pinst);
+	padata_start(pdecrypt.pinst);
 
 	return crypto_register_template(&pcrypt_tmpl);
 
-err_free_padata:
-	padata_free(pcrypt_enc_padata);
-
-err_destroy_decwq:
-	destroy_workqueue(decwq);
-
-err_destroy_encwq:
-	destroy_workqueue(encwq);
-
+err_deinit_pencrypt:
+	pcrypt_fini_padata(&pencrypt);
+err_unreg_kset:
+	kset_unregister(pcrypt_kset);
 err:
-	return -ENOMEM;
+	return err;
 }
 
 static void __exit pcrypt_exit(void)
 {
-	padata_stop(pcrypt_enc_padata);
-	padata_stop(pcrypt_dec_padata);
+	pcrypt_fini_padata(&pencrypt);
+	pcrypt_fini_padata(&pdecrypt);
 
-	destroy_workqueue(encwq);
-	destroy_workqueue(decwq);
-
-	padata_free(pcrypt_enc_padata);
-	padata_free(pcrypt_dec_padata);
-
+	kset_unregister(pcrypt_kset);
 	crypto_unregister_template(&pcrypt_tmpl);
 }
 

@@ -7,7 +7,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/dmapool.h>
 #include <linux/mempool.h>
 #include <linux/spinlock.h>
@@ -182,8 +181,6 @@ quit:
 	spin_unlock(&qdev->stats_lock);
 
 	QL_DUMP_STAT(qdev);
-
-	return;
 }
 
 static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {

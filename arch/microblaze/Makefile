@@ -25,7 +25,7 @@ ifeq (,$(findstring spartan2,$(CONFIG_XILINX_MICROBLAZE0_FAMILY)))
   ifeq ($(CPU_MAJOR),3)
     CPUFLAGS-1 += -mno-xl-soft-mul
   else
-    # USE_HW_MUL can be 0, 1, or 2, defining a heirarchy of HW Mul support.
+    # USE_HW_MUL can be 0, 1, or 2, defining a hierarchy of HW Mul support.
     CPUFLAGS-$(subst 1,,$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL)) += -mxl-multiply-high
     CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL) += -mno-xl-soft-mul
   endif
@@ -84,7 +84,7 @@ define archhelp
   echo '* linux.bin    - Create raw binary'
   echo '  linux.bin.gz - Create compressed raw binary'
   echo '  simpleImage.<dt> - ELF image with $(arch)/boot/dts/<dt>.dts linked in'
-  echo '                   - stripped elf with fdt blob
+  echo '                   - stripped elf with fdt blob'
   echo '  simpleImage.<dt>.unstrip - full ELF image with fdt blob'
   echo '  *_defconfig      - Select default config from arch/microblaze/configs'
   echo ''
@@ -94,3 +94,5 @@ define archhelp
   echo '  name of a dts file from the arch/microblaze/boot/dts/ directory'
   echo '  (minus the .dts extension).'
 endef
+
+MRPROPER_FILES += $(boot)/simpleImage.*

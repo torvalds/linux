@@ -20,6 +20,8 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/io.h>
 #include <plat/mux.h>
 
@@ -236,3 +238,158 @@ void __init usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata)
 
 #endif /* CONFIG_USB_EHCI_HCD */
 
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+
+static struct resource ohci_resources[] = {
+	{
+		.start	= OMAP34XX_OHCI_BASE,
+		.end	= OMAP34XX_OHCI_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= OMAP34XX_UHH_CONFIG_BASE,
+		.end	= OMAP34XX_UHH_CONFIG_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= OMAP34XX_USBTLL_BASE,
+		.end	= OMAP34XX_USBTLL_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{	/* general IRQ */
+		.start	= INT_34XX_OHCI_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static u64 ohci_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device ohci_device = {
+	.name		= "ohci-omap3",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &ohci_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(ohci_resources),
+	.resource	= ohci_resources,
+};
+
+static void setup_ohci_io_mux(const enum ohci_omap3_port_mode *port_mode)
+{
+	switch (port_mode[0]) {
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DPDM:
+		omap_mux_init_signal("mm1_rxdp",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm1_rxdm",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_4PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_4PIN_DPDM:
+		omap_mux_init_signal("mm1_rxrcv",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_3PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_3PIN_DATSE0:
+		omap_mux_init_signal("mm1_txen_n", OMAP_PIN_OUTPUT);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM:
+		omap_mux_init_signal("mm1_txse0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm1_txdat",
+			OMAP_PIN_INPUT_PULLDOWN);
+		break;
+	case OMAP_OHCI_PORT_MODE_UNUSED:
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+	switch (port_mode[1]) {
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DPDM:
+		omap_mux_init_signal("mm2_rxdp",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm2_rxdm",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_4PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_4PIN_DPDM:
+		omap_mux_init_signal("mm2_rxrcv",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_3PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_3PIN_DATSE0:
+		omap_mux_init_signal("mm2_txen_n", OMAP_PIN_OUTPUT);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM:
+		omap_mux_init_signal("mm2_txse0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm2_txdat",
+			OMAP_PIN_INPUT_PULLDOWN);
+		break;
+	case OMAP_OHCI_PORT_MODE_UNUSED:
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+	switch (port_mode[2]) {
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_6PIN_DPDM:
+		omap_mux_init_signal("mm3_rxdp",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm3_rxdm",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_4PIN_DPDM:
+	case OMAP_OHCI_PORT_MODE_TLL_4PIN_DPDM:
+		omap_mux_init_signal("mm3_rxrcv",
+			OMAP_PIN_INPUT_PULLDOWN);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_PHY_3PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_3PIN_DATSE0:
+		omap_mux_init_signal("mm3_txen_n", OMAP_PIN_OUTPUT);
+		/* FALLTHROUGH */
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DATSE0:
+	case OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM:
+		omap_mux_init_signal("mm3_txse0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("mm3_txdat",
+			OMAP_PIN_INPUT_PULLDOWN);
+		break;
+	case OMAP_OHCI_PORT_MODE_UNUSED:
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+}
+
+void __init usb_ohci_init(const struct ohci_hcd_omap_platform_data *pdata)
+{
+	platform_device_add_data(&ohci_device, pdata, sizeof(*pdata));
+
+	/* Setup Pin IO MUX for OHCI */
+	if (cpu_is_omap34xx())
+		setup_ohci_io_mux(pdata->port_mode);
+
+	if (platform_device_register(&ohci_device) < 0) {
+		pr_err("Unable to register FS-USB (OHCI) device\n");
+		return;
+	}
+}
+
+#else
+
+void __init usb_ohci_init(const struct ohci_hcd_omap_platform_data *pdata)
+{
+}
+
+#endif /* CONFIG_USB_OHCI_HCD */

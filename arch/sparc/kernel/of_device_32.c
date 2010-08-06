@@ -254,10 +254,10 @@ static void __init build_device_resources(struct of_device *op,
 		return;
 
 	p_op = to_of_device(parent);
-	bus = of_match_bus(p_op->node);
-	bus->count_cells(op->node, &na, &ns);
+	bus = of_match_bus(p_op->dev.of_node);
+	bus->count_cells(op->dev.of_node, &na, &ns);
 
-	preg = of_get_property(op->node, bus->addr_prop_name, &num_reg);
+	preg = of_get_property(op->dev.of_node, bus->addr_prop_name, &num_reg);
 	if (!preg || num_reg == 0)
 		return;
 
@@ -271,8 +271,8 @@ static void __init build_device_resources(struct of_device *op,
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
 		const u32 *reg = (preg + (index * ((na + ns) * 4)));
-		struct device_node *dp = op->node;
-		struct device_node *pp = p_op->node;
+		struct device_node *dp = op->dev.of_node;
+		struct device_node *pp = p_op->dev.of_node;
 		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
@@ -321,7 +321,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		if (of_resource_verbose)
 			printk("%s reg[%d] -> %llx\n",
-			       op->node->full_name, index,
+			       op->dev.of_node->full_name, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -329,7 +329,7 @@ static void __init build_device_resources(struct of_device *op,
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
 		}
-		r->name = op->node->name;
+		r->name = op->dev.of_node->name;
 	}
 }
 
@@ -345,10 +345,9 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		return NULL;
 
 	sd = &op->dev.archdata;
-	sd->prom_node = dp;
 	sd->op = op;
 
-	op->node = dp;
+	op->dev.of_node = dp;
 
 	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
 					       (25*1000*1000));

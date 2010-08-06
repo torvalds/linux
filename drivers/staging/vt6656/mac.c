@@ -70,7 +70,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
  */
 void MACvSetMultiAddrByHash (PSDevice pDevice, BYTE byHashIdx)
 {
-    UINT            uByteIdx;
+    unsigned int            uByteIdx;
     BYTE            byBitMask;
     BYTE            pbyData[2];
 
@@ -110,7 +110,7 @@ void MACvSetMultiAddrByHash (PSDevice pDevice, BYTE byHashIdx)
  * Return Value: none
  *
  */
-VOID MACvWriteMultiAddr (PSDevice pDevice, UINT uByteIdx, BYTE byData)
+void MACvWriteMultiAddr(PSDevice pDevice, unsigned int uByteIdx, BYTE byData)
 {
     BYTE            byData1;
 
@@ -199,7 +199,7 @@ BYTE    pbyData[4];
  * Return Value: none
  *
  */
-void MACvDisableKeyEntry (PSDevice pDevice, UINT uEntryIdx)
+void MACvDisableKeyEntry(PSDevice pDevice, unsigned int uEntryIdx)
 {
 WORD    wOffset;
 BYTE            byData;
@@ -239,17 +239,15 @@ BYTE            byData;
  * Return Value: none
  *
  */
-void MACvSetKeyEntry (PSDevice pDevice, WORD wKeyCtl, UINT uEntryIdx, UINT uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey)
+void MACvSetKeyEntry(PSDevice pDevice, WORD wKeyCtl,
+		     unsigned int uEntryIdx, unsigned int uKeyIdx,
+		     PBYTE pbyAddr, PDWORD pdwKey)
 {
 PBYTE           pbyKey;
 WORD            wOffset;
 DWORD           dwData1,dwData2;
 int             ii;
 BYTE            pbyData[24];
-
-
-
-
 
     if ( pDevice->byLocalID <= MAC_REVISION_A1 ) {
         if ( pDevice->sMgmtObj.byCSSPK == KEY_CTL_CCMP )

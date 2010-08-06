@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ath9k.h"
 
 struct ath9k_vif_iter_data {
@@ -217,8 +219,8 @@ static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
 	info->control.rates[1].idx = -1;
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
-	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[ATH9K_WME_AC_VO]];
-	txctl.frame_type = ps ? ATH9K_INT_PAUSE : ATH9K_INT_UNPAUSE;
+	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[WME_AC_VO]];
+	txctl.frame_type = ps ? ATH9K_IFT_PAUSE : ATH9K_IFT_UNPAUSE;
 
 	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)
 		goto exit;
@@ -693,16 +695,18 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle)
 		  idle ? "idle" : "not-idle");
 }
 /* Only bother starting a queue on an active virtual wiphy */
-void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)
+bool ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)
 {
 	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
 	unsigned int i;
+	bool txq_started = false;
 
 	spin_lock_bh(&sc->wiphy_lock);
 
 	/* Start the primary wiphy */
 	if (sc->pri_wiphy->state == ATH_WIPHY_ACTIVE) {
 		ieee80211_wake_queue(hw, skb_queue);
+		txq_started = true;
 		goto unlock;
 	}
 
@@ -716,11 +720,13 @@ void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)
 
 		hw = aphy->hw;
 		ieee80211_wake_queue(hw, skb_queue);
+		txq_started = true;
 		break;
 	}
 
 unlock:
 	spin_unlock_bh(&sc->wiphy_lock);
+	return txq_started;
 }
 
 /* Go ahead and propagate information to all virtual wiphys, it won't hurt */

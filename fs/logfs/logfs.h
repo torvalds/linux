@@ -144,6 +144,7 @@ struct logfs_area_ops {
  * @erase:			erase one segment
  * @read:			read from the device
  * @erase:			erase part of the device
+ * @can_write_buf:		decide whether wbuf can be written to ofs
  */
 struct logfs_device_ops {
 	struct page *(*find_first_sb)(struct super_block *sb, u64 *ofs);
@@ -153,6 +154,7 @@ struct logfs_device_ops {
 	void (*writeseg)(struct super_block *sb, u64 ofs, size_t len);
 	int (*erase)(struct super_block *sb, loff_t ofs, size_t len,
 			int ensure_write);
+	int (*can_write_buf)(struct super_block *sb, u64 ofs);
 	void (*sync)(struct super_block *sb);
 	void (*put_device)(struct super_block *sb);
 };
@@ -257,10 +259,14 @@ struct logfs_shadow {
  * struct shadow_tree
  * @new:			shadows where old_ofs==0, indexed by new_ofs
  * @old:			shadows where old_ofs!=0, indexed by old_ofs
+ * @segment_map:		bitfield of segments containing shadows
+ * @no_shadowed_segment:	number of segments containing shadows
  */
 struct shadow_tree {
 	struct btree_head64 new;
 	struct btree_head64 old;
+	struct btree_head32 segment_map;
+	int no_shadowed_segments;
 };
 
 struct object_alias_item {
@@ -305,12 +311,13 @@ typedef int write_alias_t(struct super_block *sb, u64 ino, u64 bix,
 		level_t level, int child_no, __be64 val);
 struct logfs_block_ops {
 	void	(*write_block)(struct logfs_block *block);
-	gc_level_t	(*block_level)(struct logfs_block *block);
 	void	(*free_block)(struct super_block *sb, struct logfs_block*block);
 	int	(*write_alias)(struct super_block *sb,
 			struct logfs_block *block,
 			write_alias_t *write_one_alias);
 };
+
+#define MAX_JOURNAL_ENTRIES 256
 
 struct logfs_super {
 	struct mtd_info *s_mtd;			/* underlying device */
@@ -378,7 +385,7 @@ struct logfs_super {
 	u32	 s_journal_ec[LOGFS_JOURNAL_SEGS]; /* journal erasecounts */
 	u64	 s_last_version;
 	struct logfs_area *s_journal_area;	/* open journal segment */
-	__be64	s_je_array[64];
+	__be64	s_je_array[MAX_JOURNAL_ENTRIES];
 	int	s_no_je;
 
 	int	 s_sum_index;			/* for the 12 summaries */
@@ -389,6 +396,7 @@ struct logfs_super {
 	int	 s_lock_count;
 	mempool_t *s_block_pool;		/* struct logfs_block pool */
 	mempool_t *s_shadow_pool;		/* struct logfs_shadow pool */
+	struct list_head s_writeback_list;	/* writeback pages */
 	/*
 	 * Space accounting:
 	 * - s_used_bytes specifies space used to store valid data objects.
@@ -498,7 +506,7 @@ extern const struct address_space_operations logfs_reg_aops;
 int logfs_readpage(struct file *file, struct page *page);
 int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		unsigned long arg);
-int logfs_fsync(struct file *file, struct dentry *dentry, int datasync);
+int logfs_fsync(struct file *file, int datasync);
 
 /* gc.c */
 u32 get_best_cand(struct super_block *sb, struct candidate_list *list, u32 *ec);
@@ -587,24 +595,25 @@ void move_page_to_btree(struct page *page);
 int logfs_init_mapping(struct super_block *sb);
 void logfs_sync_area(struct logfs_area *area);
 void logfs_sync_segments(struct super_block *sb);
+void freeseg(struct super_block *sb, u32 segno);
 
 /* area handling */
 int logfs_init_areas(struct super_block *sb);
 void logfs_cleanup_areas(struct super_block *sb);
 int logfs_open_area(struct logfs_area *area, size_t bytes);
-void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
+int __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		int use_filler);
 
-static inline void logfs_buf_write(struct logfs_area *area, u64 ofs,
+static inline int logfs_buf_write(struct logfs_area *area, u64 ofs,
 		void *buf, size_t len)
 {
-	__logfs_buf_write(area, ofs, buf, len, 0);
+	return __logfs_buf_write(area, ofs, buf, len, 0);
 }
 
-static inline void logfs_buf_recover(struct logfs_area *area, u64 ofs,
+static inline int logfs_buf_recover(struct logfs_area *area, u64 ofs,
 		void *buf, size_t len)
 {
-	__logfs_buf_write(area, ofs, buf, len, 1);
+	return __logfs_buf_write(area, ofs, buf, len, 1);
 }
 
 /* super.c */
@@ -698,7 +707,7 @@ static inline gc_level_t expand_level(u64 ino, level_t __level)
 	u8 level = (__force u8)__level;
 
 	if (ino == LOGFS_INO_MASTER) {
-		/* ifile has seperate areas */
+		/* ifile has separate areas */
 		level += LOGFS_MAX_LEVELS;
 	}
 	return (__force gc_level_t)level;
@@ -719,6 +728,12 @@ static inline struct logfs_area *get_area(struct super_block *sb,
 		gc_level_t gc_level)
 {
 	return logfs_super(sb)->s_area[(__force u8)gc_level];
+}
+
+static inline void logfs_mempool_destroy(mempool_t *pool)
+{
+	if (pool)
+		mempool_destroy(pool);
 }
 
 #endif

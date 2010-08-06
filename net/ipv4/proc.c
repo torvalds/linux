@@ -251,6 +251,8 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPSackShiftFallback", LINUX_MIB_SACKSHIFTFALLBACK),
 	SNMP_MIB_ITEM("TCPBacklogDrop", LINUX_MIB_TCPBACKLOGDROP),
 	SNMP_MIB_ITEM("TCPMinTTLDrop", LINUX_MIB_TCPMINTTLDROP),
+	SNMP_MIB_ITEM("TCPDeferAcceptDrop", LINUX_MIB_TCPDEFERACCEPTDROP),
+	SNMP_MIB_ITEM("IPReversePathFilter", LINUX_MIB_IPRPFILTER),
 	SNMP_MIB_SENTINEL
 };
 
@@ -341,10 +343,12 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
 		   sysctl_ip_default_ttl);
 
+	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field((void __percpu **)net->mib.ip_statistics,
-					   snmp4_ipstats_list[i].entry));
+		seq_printf(seq, " %llu",
+			   snmp_fold_field64((void __percpu **)net->mib.ip_statistics,
+					     snmp4_ipstats_list[i].entry,
+					     offsetof(struct ipstats_mib, syncp)));
 
 	icmp_put(seq);	/* RFC 2011 compatibility */
 	icmpmsg_put(seq);
@@ -430,9 +434,10 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "\nIpExt:");
 	for (i = 0; snmp4_ipextstats_list[i].name != NULL; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field((void __percpu **)net->mib.ip_statistics,
-					   snmp4_ipextstats_list[i].entry));
+		seq_printf(seq, " %llu",
+			   snmp_fold_field64((void __percpu **)net->mib.ip_statistics,
+					     snmp4_ipextstats_list[i].entry,
+					     offsetof(struct ipstats_mib, syncp)));
 
 	seq_putc(seq, '\n');
 	return 0;

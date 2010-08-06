@@ -96,13 +96,16 @@ static inline void __disable_dcache_nomsr(void)
 }
 
 
-/* Helper macro for computing the limits of cache range loops */
+/* Helper macro for computing the limits of cache range loops
+ *
+ * End address can be unaligned which is OK for C implementation.
+ * ASM implementation align it in ASM macros
+ */
 #define CACHE_LOOP_LIMITS(start, end, cache_line_length, cache_size)	\
 do {									\
 	int align = ~(cache_line_length - 1);				\
 	end = min(start + cache_size, end);				\
 	start &= align;							\
-	end = ((end & align) + cache_line_length);			\
 } while (0);
 
 /*
@@ -111,9 +114,9 @@ do {									\
  */
 #define CACHE_ALL_LOOP(cache_size, line_length, op)			\
 do {									\
-	unsigned int len = cache_size;					\
+	unsigned int len = cache_size - line_length;			\
 	int step = -line_length;					\
-	BUG_ON(step >= 0);						\
+	WARN_ON(step >= 0);						\
 									\
 	__asm__ __volatile__ (" 1:      " #op " %0, r0;			\
 					bgtid   %0, 1b;			\
@@ -122,26 +125,22 @@ do {									\
 					: "memory");			\
 } while (0);
 
-
-#define CACHE_ALL_LOOP2(cache_size, line_length, op)			\
-do {									\
-	unsigned int len = cache_size;					\
-	int step = -line_length;					\
-	BUG_ON(step >= 0);						\
-									\
-	__asm__ __volatile__ (" 1:	" #op "	r0, %0;			\
-					bgtid	%0, 1b;			\
-					addk	%0, %0, %1;		\
-					" : : "r" (len), "r" (step)	\
-					: "memory");			\
-} while (0);
-
-/* for wdc.flush/clear */
+/* Used for wdc.flush/clear which can use rB for offset which is not possible
+ * to use for simple wdc or wic.
+ *
+ * start address is cache aligned
+ * end address is not aligned, if end is aligned then I have to substract
+ * cacheline length because I can't flush/invalidate the next cacheline.
+ * If is not, I align it because I will flush/invalidate whole line.
+ */
 #define CACHE_RANGE_LOOP_2(start, end, line_length, op)			\
 do {									\
 	int step = -line_length;					\
-	int count = end - start;					\
-	BUG_ON(count <= 0);						\
+	int align = ~(line_length - 1);					\
+	int count;							\
+	end = ((end & align) == end) ? end - line_length : end & align;	\
+	count = end - start;						\
+	WARN_ON(count < 0);						\
 									\
 	__asm__ __volatile__ (" 1:	" #op "	%0, %1;			\
 					bgtid	%1, 1b;			\
@@ -154,7 +153,9 @@ do {									\
 #define CACHE_RANGE_LOOP_1(start, end, line_length, op)			\
 do {									\
 	int volatile temp;						\
-	BUG_ON(end - start <= 0);					\
+	int align = ~(line_length - 1);					\
+	end = ((end & align) == end) ? end - line_length : end & align;	\
+	WARN_ON(end - start < 0);					\
 									\
 	__asm__ __volatile__ (" 1:	" #op "	%1, r0;			\
 					cmpu	%0, %1, %2;		\
@@ -360,8 +361,12 @@ static void __invalidate_dcache_all_noirq_wt(void)
 #endif
 }
 
-/* FIXME this is weird - should be only wdc but not work
- * MS: I am getting bus errors and other weird things */
+/* FIXME It is blindly invalidation as is expected
+ * but can't be called on noMMU in microblaze_cache_init below
+ *
+ * MS: noMMU kernel won't boot if simple wdc is used
+ * The reason should be that there are discared data which kernel needs
+ */
 static void __invalidate_dcache_all_wb(void)
 {
 #ifndef ASM_LOOP
@@ -369,12 +374,12 @@ static void __invalidate_dcache_all_wb(void)
 #endif
 	pr_debug("%s\n", __func__);
 #ifdef ASM_LOOP
-	CACHE_ALL_LOOP2(cpuinfo.dcache_size, cpuinfo.dcache_line_length,
-					wdc.clear)
+	CACHE_ALL_LOOP(cpuinfo.dcache_size, cpuinfo.dcache_line_length,
+					wdc)
 #else
 	for (i = 0; i < cpuinfo.dcache_size;
 		 i += cpuinfo.dcache_line_length)
-			__asm__ __volatile__ ("wdc.clear	%0, r0;" \
+			__asm__ __volatile__ ("wdc	%0, r0;" \
 					: : "r" (i));
 #endif
 }
@@ -393,7 +398,7 @@ static void __invalidate_dcache_range_wb(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_2(start, end, cpuinfo.dcache_line_length, wdc.clear);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc.clear	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -413,7 +418,7 @@ static void __invalidate_dcache_range_nomsr_wt(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -437,7 +442,7 @@ static void __invalidate_dcache_range_msr_irq_wt(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -465,7 +470,7 @@ static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -504,7 +509,7 @@ static void __flush_dcache_range_wb(unsigned long start, unsigned long end)
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_2(start, end, cpuinfo.dcache_line_length, wdc.flush);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc.flush	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -650,7 +655,11 @@ void microblaze_cache_init(void)
 			}
 		}
 	}
-	invalidate_dcache();
+/* FIXME Invalidation is done in U-BOOT
+ * WT cache: Data is already written to main memory
+ * WB cache: Discard data on noMMU which caused that kernel doesn't boot
+ */
+	/* invalidate_dcache(); */
 	enable_dcache();
 
 	invalidate_icache();

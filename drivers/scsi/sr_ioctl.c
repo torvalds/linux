@@ -7,6 +7,7 @@
 #include <linux/blkpg.h>
 #include <linux/cdrom.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 

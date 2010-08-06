@@ -85,6 +85,7 @@
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
+#include <linux/gfp.h>
 
 #include <asm/delay.h>
 #include <asm/machvec.h>

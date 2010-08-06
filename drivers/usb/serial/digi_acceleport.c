@@ -1239,8 +1239,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		dev_err(&port->dev,
-			"%s: port or port->private is NULL, status=%d\n",
+		pr_err("%s: port or port->private is NULL, status=%d\n",
 			__func__, status);
 		return;
 	}
@@ -1703,8 +1702,8 @@ static int digi_read_inb_callback(struct urb *urb)
 		/* data length is len-1 (one byte of len is port_status) */
 		--len;
 		if (len > 0) {
-			tty_insert_flip_string_fixed_flag(tty, data, len,
-									flag);
+			tty_insert_flip_string_fixed_flag(tty, data, flag,
+									len);
 			tty_flip_buffer_push(tty);
 		}
 	}

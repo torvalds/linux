@@ -47,7 +47,7 @@
 #include <linux/i2c-id.h>
 #include <linux/workqueue.h>
 
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 #include <media/ir-kbd-i2c.h>
 
 /* ----------------------------------------------------------------------- */
@@ -61,9 +61,9 @@ module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
 MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
 
 
-#define DEVNAME "ir-kbd-i2c"
+#define MODULE_NAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG DEVNAME ": " fmt , ## arg)
+	printk(KERN_DEBUG MODULE_NAME ": " fmt , ## arg)
 
 /* ----------------------------------------------------------------------- */
 
@@ -272,11 +272,8 @@ static void ir_key_poll(struct IR_i2c *ir)
 		return;
 	}
 
-	if (0 == rc) {
-		ir_input_nokey(ir->input, &ir->ir);
-	} else {
-		ir_input_keydown(ir->input, &ir->ir, ir_key);
-	}
+	if (rc)
+		ir_keydown(ir->input, ir_key, 0);
 }
 
 static void ir_work(struct work_struct *work)
@@ -297,7 +294,7 @@ static void ir_work(struct work_struct *work)
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	struct ir_scancode_table *ir_codes = NULL;
+	char *ir_codes = NULL;
 	const char *name = NULL;
 	u64 ir_type = 0;
 	struct IR_i2c *ir;
@@ -322,13 +319,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &ir_codes_empty_table;
+		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x4b:
 		name        = "PV951";
 		ir->get_key = get_key_pv951;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &ir_codes_pv951_table;
+		ir_codes    = RC_MAP_PV951;
 		break;
 	case 0x18:
 	case 0x1f:
@@ -337,22 +334,22 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = &ir_codes_hauppauge_new_table;
+			ir_codes    = RC_MAP_HAUPPAUGE_NEW;
 		} else {
-			ir_codes    = &ir_codes_rc5_tv_table;
+			ir_codes    = RC_MAP_RC5_TV;
 		}
 		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &ir_codes_empty_table;
+		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = &ir_codes_fusionhdtv_mce_table;
+		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
 	case 0x0b:
 	case 0x47:
@@ -365,9 +362,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
-				ir_codes    = &ir_codes_hauppauge_new_table;
+				ir_codes    = RC_MAP_HAUPPAUGE_NEW;
 			} else {
-				ir_codes    = &ir_codes_rc5_tv_table;
+				ir_codes    = RC_MAP_RC5_TV;
 			}
 		} else {
 			/* Handled by saa7134-input */
@@ -379,7 +376,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &ir_codes_avermedia_cardbus_table;
+		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
 		break;
 	}
 
@@ -439,19 +436,16 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 dev_name(&client->dev));
 
 	/* init + register input device */
-	err = ir_input_init(input_dev, &ir->ir, ir_type);
-	if (err < 0)
-		goto err_out_free;
-
+	ir->ir_type = ir_type;
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = ir_input_register(ir->input, ir->ir_codes, NULL);
+	err = ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 
-	printk(DEVNAME ": %s detected at %s [%s]\n",
+	printk(MODULE_NAME ": %s detected at %s [%s]\n",
 	       ir->input->name, ir->input->phys, adap->name);
 
 	/* start polling via eventd */

@@ -130,8 +130,8 @@ static struct platform_device pandora_keys_gpio = {
 static void __init pandora_keys_gpio_init(void)
 {
 	/* set debounce time for GPIO banks 4 and 6 */
-	omap_set_gpio_debounce_time(32 * 3, GPIO_DEBOUNCE_TIME);
-	omap_set_gpio_debounce_time(32 * 5, GPIO_DEBOUNCE_TIME);
+	gpio_set_debounce(32 * 3, GPIO_DEBOUNCE_TIME);
+	gpio_set_debounce(32 * 5, GPIO_DEBOUNCE_TIME);
 }
 
 static int board_keymap[] = {
@@ -601,6 +601,7 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3pandora_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3pandora_init_irq,
 	.init_machine	= omap3pandora_init,
 	.timer		= &omap_timer,

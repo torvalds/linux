@@ -313,6 +313,7 @@ static int ehci_fsl_drv_suspend(struct device *dev)
 	struct ehci_fsl *ehci_fsl = hcd_to_ehci_fsl(hcd);
 	void __iomem *non_ehci = hcd->regs;
 
+	ehci_prepare_ports_for_controller_suspend(hcd_to_ehci(hcd));
 	if (!fsl_deep_sleep())
 		return 0;
 
@@ -327,6 +328,7 @@ static int ehci_fsl_drv_resume(struct device *dev)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	void __iomem *non_ehci = hcd->regs;
 
+	ehci_prepare_ports_for_controller_resume(ehci);
 	if (!fsl_deep_sleep())
 		return 0;
 

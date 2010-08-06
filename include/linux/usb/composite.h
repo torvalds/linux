@@ -326,6 +326,7 @@ struct usb_composite_dev {
 
 	/* private: */
 	/* internals */
+	unsigned int			suspended:1;
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;
 	struct usb_composite_driver	*driver;

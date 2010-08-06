@@ -114,7 +114,6 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -627,7 +626,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite32(MDIO_EnbIn | MDIO_ShiftClk, mdio_addr);
 		mdio_delay(mdio_addr);
 	}
-	return;
 }
 
 
@@ -970,9 +968,8 @@ static void tx_timeout(struct net_device *dev)
 	enable_irq(dev->irq);
 
 	netif_wake_queue(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
-	return;
 }
 
 /* Initialize the Rx and Tx rings, along with various 'dev' bits. */
@@ -1055,8 +1052,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		np->tx_full = 1;
 	}
 	spin_unlock_irq(&np->lock);
-
-	dev->trans_start = jiffies;
 
 	if (debug > 4) {
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d\n",
@@ -1367,13 +1362,15 @@ static u32 __set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int filterbit = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26) ^ 0x3F;
-			filterbit &= 0x3f;
-			mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
+		netdev_for_each_mc_addr(ha, dev) {
+			int filbit;
+
+			filbit = (ether_crc(ETH_ALEN, ha->addr) >> 26) ^ 0x3F;
+			filbit &= 0x3f;
+			mc_filter[filbit >> 5] |= 1 << (filbit & 31);
 		}
 		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	}
@@ -1517,12 +1514,12 @@ static int netdev_close(struct net_device *dev)
 	if (debug > 2) {
 		int i;
 
-		printk(KERN_DEBUG"  Tx ring at %08x:\n", (int)np->tx_ring);
+		printk(KERN_DEBUG"  Tx ring at %p:\n", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_DEBUG " #%d desc. %04x %04x %08x\n",
 			       i, np->tx_ring[i].length,
 			       np->tx_ring[i].status, np->tx_ring[i].buffer1);
-		printk(KERN_DEBUG "  Rx ring %08x:\n", (int)np->rx_ring);
+		printk(KERN_DEBUG "  Rx ring %p:\n", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			printk(KERN_DEBUG " #%d desc. %04x %04x %08x\n",
 			       i, np->rx_ring[i].length,

@@ -16,6 +16,7 @@
  */
 
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mISDNhw.h>
 #include "core.h"

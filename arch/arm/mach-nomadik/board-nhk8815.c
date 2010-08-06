@@ -32,7 +32,6 @@
 #include <mach/setup.h>
 #include <mach/nand.h>
 #include <mach/fsmc.h>
-#include "clock.h"
 
 /* Initial value for SRC control register: all timers use MXTAL/8 source */
 #define SRC_CR_INIT_MASK	0x00007fff
@@ -202,11 +201,6 @@ static struct amba_device *amba_devs[] __initdata = {
 	&uart1_device,
 };
 
-/* We have a fixed clock alone, by now */
-static struct clk nhk8815_clk_48 = {
-	.rate = 48*1000*1000,
-};
-
 static struct resource nhk8815_eth_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -276,10 +270,8 @@ static void __init nhk8815_platform_init(void)
 	platform_add_devices(nhk8815_platform_devices,
 			     ARRAY_SIZE(nhk8815_platform_devices));
 
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		nmdk_clk_create(&nhk8815_clk_48, amba_devs[i]->dev.init_name);
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
 		amba_device_register(amba_devs[i], &iomem_resource);
-	}
 }
 
 MACHINE_START(NOMADIK, "NHK8815")

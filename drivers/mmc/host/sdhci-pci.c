@@ -16,6 +16,7 @@
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <linux/mmc/host.h>
 
@@ -627,7 +628,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	host = sdhci_alloc_host(&pdev->dev, sizeof(struct sdhci_pci_slot));
 	if (IS_ERR(host)) {
 		dev_err(&pdev->dev, "cannot allocate host\n");
-		return ERR_PTR(PTR_ERR(host));
+		return ERR_CAST(host);
 	}
 
 	slot = sdhci_priv(host);

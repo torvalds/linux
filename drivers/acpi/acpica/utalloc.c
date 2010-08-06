@@ -340,7 +340,7 @@ void *acpi_ut_allocate(acpi_size size,
 		/* Report allocation error */
 
 		ACPI_WARNING((module, line,
-			      "Could not allocate size %X", (u32) size));
+			      "Could not allocate size %u", (u32) size));
 
 		return_PTR(NULL);
 	}

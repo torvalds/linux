@@ -15,7 +15,6 @@
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
@@ -323,6 +322,7 @@ static void __clear_pmb_entry(struct pmb_entry *pmbe)
 	writel_uncached(data_val & ~PMB_V, data);
 }
 
+#ifdef CONFIG_PM
 static void set_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned long flags;
@@ -331,6 +331,7 @@ static void set_pmb_entry(struct pmb_entry *pmbe)
 	__set_pmb_entry(pmbe);
 	spin_unlock_irqrestore(&pmbe->lock, flags);
 }
+#endif /* CONFIG_PM */
 
 int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		     unsigned long size, pgprot_t prot)
@@ -340,6 +341,8 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 	unsigned long flags, pmb_flags;
 	int i, mapped;
 
+	if (size < SZ_16M)
+		return -EINVAL;
 	if (!pmb_addr_valid(vaddr, size))
 		return -EFAULT;
 	if (pmb_mapping_exists(vaddr, phys, size))
@@ -679,7 +682,7 @@ static void __init pmb_merge(struct pmb_entry *head)
 	/*
 	 * The merged page size must be valid.
 	 */
-	if (!pmb_size_valid(newsize))
+	if (!depth || !pmb_size_valid(newsize))
 		return;
 
 	head->flags &= ~PMB_SZ_MASK;
@@ -767,7 +770,7 @@ static void __init pmb_resize(void)
 		spin_unlock_irqrestore(&pmbe->lock, flags);
 	}
 
-	read_lock(&pmb_rwlock);
+	read_unlock(&pmb_rwlock);
 }
 #endif
 
@@ -802,7 +805,7 @@ void __init pmb_init(void)
 	writel_uncached(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
-	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
+	local_flush_tlb_all();
 	ctrl_barrier();
 }
 

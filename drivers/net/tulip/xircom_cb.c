@@ -350,9 +350,9 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 
 #ifdef DEBUG
 	print_binary(status);
-	printk("tx status 0x%08x 0x%08x \n",
+	printk("tx status 0x%08x 0x%08x\n",
 	       card->tx_buffer[0], card->tx_buffer[4]);
-	printk("rx status 0x%08x 0x%08x \n",
+	printk("rx status 0x%08x 0x%08x\n",
 	       card->rx_buffer[0], card->rx_buffer[4]);
 #endif
 	/* Handle shared irq and hotplug */
@@ -462,7 +462,7 @@ static int xircom_open(struct net_device *dev)
 	struct xircom_private *xp = netdev_priv(dev);
 	int retval;
 	enter("xircom_open");
-	pr_info("xircom cardbus adaptor found, registering as %s, using irq %i \n",
+	pr_info("xircom cardbus adaptor found, registering as %s, using irq %i\n",
 		dev->name, dev->irq);
 	retval = request_irq(dev->irq, xircom_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {

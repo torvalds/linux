@@ -16,7 +16,7 @@
 #include "util/symbol.h"
 
 static char const *input_name = "perf.data";
-static int force;
+static bool force;
 static bool with_hits;
 
 static const char * const buildid_list_usage[] = {
@@ -29,7 +29,7 @@ static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose"),
 	OPT_END()
 };
@@ -39,14 +39,16 @@ static int __cmd_buildid_list(void)
 	int err = -1;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force);
+	session = perf_session__new(input_name, O_RDONLY, force, false);
 	if (session == NULL)
 		return -1;
 
-	if (with_hits)
+	if (with_hits) {
+		symbol_conf.full_paths = true;
 		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
+	}
 
-	dsos__fprintf_buildid(stdout, with_hits);
+	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
 
 	perf_session__delete(session);
 	return err;
