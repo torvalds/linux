@@ -94,6 +94,7 @@ struct mxc_nand_host {
 	struct clk		*clk;
 	int			clk_act;
 	int			irq;
+	int			eccsize;
 
 	wait_queue_head_t	irq_waitq;
 
@@ -342,7 +343,7 @@ static void mxc_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	 */
 }
 
-static int mxc_nand_correct_data(struct mtd_info *mtd, u_char *dat,
+static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 				 u_char *read_ecc, u_char *calc_ecc)
 {
 	struct nand_chip *nand_chip = mtd->priv;
@@ -362,6 +363,40 @@ static int mxc_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	}
 
 	return 0;
+}
+
+static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
+				 u_char *read_ecc, u_char *calc_ecc)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
+	u32 ecc_stat, err;
+	int no_subpages = 1;
+	int ret = 0;
+	u8 ecc_bit_mask, err_limit;
+
+	ecc_bit_mask = (host->eccsize == 4) ? 0x7 : 0xf;
+	err_limit = (host->eccsize == 4) ? 0x4 : 0x8;
+
+	no_subpages = mtd->writesize >> 9;
+
+	ecc_stat = readl(NFC_V1_V2_ECC_STATUS_RESULT);
+
+	do {
+		err = ecc_stat & ecc_bit_mask;
+		if (err > err_limit) {
+			printk(KERN_WARNING "UnCorrectable RS-ECC Error\n");
+			return -1;
+		} else {
+			ret += err;
+		}
+		ecc_stat >>= 4;
+	} while (--no_subpages);
+
+	mtd->ecc_stats.corrected += ret;
+	pr_debug("%d Symbol Correctable RS-ECC Error\n", ret);
+
+	return ret;
 }
 
 static int mxc_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
@@ -790,7 +825,10 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (pdata->hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
 		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		this->ecc.correct = mxc_nand_correct_data;
+		if (nfc_is_v1())
+			this->ecc.correct = mxc_nand_correct_data_v1;
+		else
+			this->ecc.correct = mxc_nand_correct_data_v2_v3;
 		this->ecc.mode = NAND_ECC_HW;
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
