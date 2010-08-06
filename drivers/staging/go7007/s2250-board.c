@@ -479,12 +479,13 @@ static int s2250_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-static int s2250_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int s2250_s_mbus_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *fmt)
 {
 	struct s2250 *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (fmt->fmt.pix.height < 640) {
+	if (fmt->height < 640) {
 		write_reg_fp(client, 0x12b, state->reg12b_val | 0x400);
 		write_reg_fp(client, 0x140, 0x060);
 	} else {
@@ -555,7 +556,7 @@ static const struct v4l2_subdev_audio_ops s2250_audio_ops = {
 
 static const struct v4l2_subdev_video_ops s2250_video_ops = {
 	.s_routing = s2250_s_video_routing,
-	.s_fmt = s2250_s_fmt,
+	.s_mbus_fmt = s2250_s_mbus_fmt,
 };
 
 static const struct v4l2_subdev_ops s2250_ops = {
