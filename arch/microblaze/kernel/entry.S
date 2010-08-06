@@ -295,6 +295,8 @@ C_ENTRY(_user_exception):
 	/* addik	r1, r1, -STATE_SAVE_SIZE; */
 	addik r1, r1, THREAD_SIZE + CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE;
 	SAVE_REGS
+	swi	r0, r1, PTO + PT_R3
+	swi	r0, r1, PTO + PT_R4
 
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
