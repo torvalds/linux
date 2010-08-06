@@ -364,43 +364,12 @@ static void set_ecc_config(struct denali_nand_info *denali)
 		denali_write32(8, denali->flash_reg + ECC_CORRECTION);
 #endif
 
-	if ((ioread32(denali->flash_reg + ECC_CORRECTION) &
-				ECC_CORRECTION__VALUE) == 1) {
-		denali->dev_info.wECCBytesPerSector = 4;
-		denali->dev_info.wECCBytesPerSector *=
-			denali->dev_info.wDevicesConnected;
-		denali->dev_info.wNumPageSpareFlag =
-			denali->dev_info.wPageSpareSize -
-			denali->dev_info.wPageDataSize /
-			(ECC_SECTOR_SIZE * denali->dev_info.wDevicesConnected) *
-			denali->dev_info.wECCBytesPerSector
-			- denali->dev_info.wSpareSkipBytes;
-	} else {
-		denali->dev_info.wECCBytesPerSector =
-			(ioread32(denali->flash_reg + ECC_CORRECTION) &
-			ECC_CORRECTION__VALUE) * 13 / 8;
-		if ((denali->dev_info.wECCBytesPerSector) % 2 == 0)
-			denali->dev_info.wECCBytesPerSector += 2;
-		else
-			denali->dev_info.wECCBytesPerSector += 1;
-
-		denali->dev_info.wECCBytesPerSector *=
-			denali->dev_info.wDevicesConnected;
-		denali->dev_info.wNumPageSpareFlag =
-			denali->dev_info.wPageSpareSize -
-			denali->dev_info.wPageDataSize /
-			(ECC_SECTOR_SIZE * denali->dev_info.wDevicesConnected) *
-			denali->dev_info.wECCBytesPerSector
-			- denali->dev_info.wSpareSkipBytes;
-	}
 }
 
 /* queries the NAND device to see what ONFI modes it supports. */
 static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 {
 	int i;
-	uint16_t blks_lun_l, blks_lun_h, n_of_luns;
-	uint32_t blockperlun, id;
 
 	denali_write32(DEVICE_RESET__BANK0, denali->flash_reg + DEVICE_RESET);
 
@@ -458,26 +427,6 @@ static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 	denali_write32(INTR_STATUS3__TIME_OUT,
 			denali->flash_reg + INTR_STATUS3);
 
-	denali->dev_info.wONFIDevFeatures =
-		ioread32(denali->flash_reg + ONFI_DEVICE_FEATURES);
-	denali->dev_info.wONFIOptCommands =
-		ioread32(denali->flash_reg + ONFI_OPTIONAL_COMMANDS);
-	denali->dev_info.wONFITimingMode =
-		ioread32(denali->flash_reg + ONFI_TIMING_MODE);
-	denali->dev_info.wONFIPgmCacheTimingMode =
-		ioread32(denali->flash_reg + ONFI_PGM_CACHE_TIMING_MODE);
-
-	n_of_luns = ioread32(denali->flash_reg + ONFI_DEVICE_NO_OF_LUNS) &
-		ONFI_DEVICE_NO_OF_LUNS__NO_OF_LUNS;
-	blks_lun_l = ioread32(denali->flash_reg +
-				ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_L);
-	blks_lun_h = ioread32(denali->flash_reg +
-				ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_U);
-
-	blockperlun = (blks_lun_h << 16) | blks_lun_l;
-
-	denali->dev_info.wTotalBlocks = n_of_luns * blockperlun;
-
 	if (!(ioread32(denali->flash_reg + ONFI_TIMING_MODE) &
 		ONFI_TIMING_MODE__VALUE))
 		return FAIL;
@@ -490,16 +439,6 @@ static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 
 	nand_onfi_timing_set(denali, i);
 
-	index_addr(denali, MODE_11 | 0, 0x90);
-	index_addr(denali, MODE_11 | 1, 0);
-
-	for (i = 0; i < 3; i++)
-		index_addr_read_data(denali, MODE_11 | 2, &id);
-
-	nand_dbg_print(NAND_DBG_DEBUG, "3rd ID: 0x%x\n", id);
-
-	denali->dev_info.MLCDevice = id & 0x0C;
-
 	/* By now, all the ONFI devices we know support the page cache */
 	/* rw feature. So here we enable the pipeline_rw_ahead feature */
 	/* iowrite32(1, denali->flash_reg + CACHE_WRITE_ENABLE); */
@@ -510,9 +449,6 @@ static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 
 static void get_samsung_nand_para(struct denali_nand_info *denali)
 {
-	uint8_t no_of_planes;
-	uint32_t blk_size;
-	uint64_t plane_size, capacity;
 	uint32_t id_bytes[5];
 	int i;
 
@@ -537,15 +473,6 @@ static void get_samsung_nand_para(struct denali_nand_info *denali)
 		denali_write32(2, denali->flash_reg + RDWR_EN_HI_CNT);
 		denali_write32(2, denali->flash_reg + CS_SETUP_CNT);
 	}
-
-	no_of_planes = 1 << ((id_bytes[4] & 0x0c) >> 2);
-	plane_size  = (uint64_t)64 << ((id_bytes[4] & 0x70) >> 4);
-	blk_size = 64 << ((ioread32(denali->flash_reg + DEVICE_PARAM_1) &
-					0x30) >> 4);
-	capacity = (uint64_t)128 * plane_size * no_of_planes;
-
-	do_div(capacity, blk_size);
-	denali->dev_info.wTotalBlocks = capacity;
 }
 
 static void get_toshiba_nand_para(struct denali_nand_info *denali)
@@ -594,13 +521,12 @@ static void get_hynix_nand_para(struct denali_nand_info *denali,
 #elif SUPPORT_8BITECC
 		denali_write32(8, denali->flash_reg + ECC_CORRECTION);
 #endif
-		denali->dev_info.MLCDevice  = 1;
 		break;
 	default:
 		nand_dbg_print(NAND_DBG_WARN,
 			"Spectra: Unknown Hynix NAND (Device ID: 0x%x)."
 			"Will use default parameter values instead.\n",
-			denali->dev_info.wDeviceID);
+			device_id);
 	}
 }
 
@@ -650,130 +576,31 @@ static void find_valid_banks(struct denali_nand_info *denali)
 
 static void detect_partition_feature(struct denali_nand_info *denali)
 {
+	/* For MRST platform, denali->fwblks represent the
+	 * number of blocks firmware is taken,
+	 * FW is in protect partition and MTD driver has no
+	 * permission to access it. So let driver know how many
+	 * blocks it can't touch.
+	 * */
 	if (ioread32(denali->flash_reg + FEATURES) & FEATURES__PARTITION) {
 		if ((ioread32(denali->flash_reg + PERM_SRC_ID_1) &
 			PERM_SRC_ID_1__SRCID) == SPECTRA_PARTITION_ID) {
-			denali->dev_info.wSpectraStartBlock =
+			denali->fwblks =
 			    ((ioread32(denali->flash_reg + MIN_MAX_BANK_1) &
 			      MIN_MAX_BANK_1__MIN_VALUE) *
-			     denali->dev_info.wTotalBlocks)
+			     denali->blksperchip)
 			    +
 			    (ioread32(denali->flash_reg + MIN_BLK_ADDR_1) &
 			    MIN_BLK_ADDR_1__VALUE);
-
-			denali->dev_info.wSpectraEndBlock =
-			    (((ioread32(denali->flash_reg + MIN_MAX_BANK_1) &
-			       MIN_MAX_BANK_1__MAX_VALUE) >> 2) *
-			     denali->dev_info.wTotalBlocks)
-			    +
-			    (ioread32(denali->flash_reg + MAX_BLK_ADDR_1) &
-			    MAX_BLK_ADDR_1__VALUE);
-
-			denali->dev_info.wTotalBlocks *=
-				denali->total_used_banks;
-
-			if (denali->dev_info.wSpectraEndBlock >=
-			    denali->dev_info.wTotalBlocks) {
-				denali->dev_info.wSpectraEndBlock =
-				    denali->dev_info.wTotalBlocks - 1;
-			}
-
-			denali->dev_info.wDataBlockNum =
-				denali->dev_info.wSpectraEndBlock -
-				denali->dev_info.wSpectraStartBlock + 1;
-		} else {
-			denali->dev_info.wTotalBlocks *=
-				denali->total_used_banks;
-			denali->dev_info.wSpectraStartBlock =
-				SPECTRA_START_BLOCK;
-			denali->dev_info.wSpectraEndBlock =
-				denali->dev_info.wTotalBlocks - 1;
-			denali->dev_info.wDataBlockNum =
-				denali->dev_info.wSpectraEndBlock -
-				denali->dev_info.wSpectraStartBlock + 1;
-		}
-	} else {
-		denali->dev_info.wTotalBlocks *= denali->total_used_banks;
-		denali->dev_info.wSpectraStartBlock = SPECTRA_START_BLOCK;
-		denali->dev_info.wSpectraEndBlock =
-			denali->dev_info.wTotalBlocks - 1;
-		denali->dev_info.wDataBlockNum =
-			denali->dev_info.wSpectraEndBlock -
-			denali->dev_info.wSpectraStartBlock + 1;
-	}
-}
-
-static void dump_device_info(struct denali_nand_info *denali)
-{
-	nand_dbg_print(NAND_DBG_DEBUG, "denali->dev_info:\n");
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceMaker: 0x%x\n",
-		denali->dev_info.wDeviceMaker);
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceID: 0x%x\n",
-		denali->dev_info.wDeviceID);
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceType: 0x%x\n",
-		denali->dev_info.wDeviceType);
-	nand_dbg_print(NAND_DBG_DEBUG, "SpectraStartBlock: %d\n",
-		denali->dev_info.wSpectraStartBlock);
-	nand_dbg_print(NAND_DBG_DEBUG, "SpectraEndBlock: %d\n",
-		denali->dev_info.wSpectraEndBlock);
-	nand_dbg_print(NAND_DBG_DEBUG, "TotalBlocks: %d\n",
-		denali->dev_info.wTotalBlocks);
-	nand_dbg_print(NAND_DBG_DEBUG, "PagesPerBlock: %d\n",
-		denali->dev_info.wPagesPerBlock);
-	nand_dbg_print(NAND_DBG_DEBUG, "PageSize: %d\n",
-		denali->dev_info.wPageSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "PageDataSize: %d\n",
-		denali->dev_info.wPageDataSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "PageSpareSize: %d\n",
-		denali->dev_info.wPageSpareSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "NumPageSpareFlag: %d\n",
-		denali->dev_info.wNumPageSpareFlag);
-	nand_dbg_print(NAND_DBG_DEBUG, "ECCBytesPerSector: %d\n",
-		denali->dev_info.wECCBytesPerSector);
-	nand_dbg_print(NAND_DBG_DEBUG, "BlockSize: %d\n",
-		denali->dev_info.wBlockSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "BlockDataSize: %d\n",
-		denali->dev_info.wBlockDataSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "DataBlockNum: %d\n",
-		denali->dev_info.wDataBlockNum);
-	nand_dbg_print(NAND_DBG_DEBUG, "PlaneNum: %d\n",
-		denali->dev_info.bPlaneNum);
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceMainAreaSize: %d\n",
-		denali->dev_info.wDeviceMainAreaSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceSpareAreaSize: %d\n",
-		denali->dev_info.wDeviceSpareAreaSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "DevicesConnected: %d\n",
-		denali->dev_info.wDevicesConnected);
-	nand_dbg_print(NAND_DBG_DEBUG, "DeviceWidth: %d\n",
-		denali->dev_info.wDeviceWidth);
-	nand_dbg_print(NAND_DBG_DEBUG, "HWRevision: 0x%x\n",
-		denali->dev_info.wHWRevision);
-	nand_dbg_print(NAND_DBG_DEBUG, "HWFeatures: 0x%x\n",
-		denali->dev_info.wHWFeatures);
-	nand_dbg_print(NAND_DBG_DEBUG, "ONFIDevFeatures: 0x%x\n",
-		denali->dev_info.wONFIDevFeatures);
-	nand_dbg_print(NAND_DBG_DEBUG, "ONFIOptCommands: 0x%x\n",
-		denali->dev_info.wONFIOptCommands);
-	nand_dbg_print(NAND_DBG_DEBUG, "ONFITimingMode: 0x%x\n",
-		denali->dev_info.wONFITimingMode);
-	nand_dbg_print(NAND_DBG_DEBUG, "ONFIPgmCacheTimingMode: 0x%x\n",
-		denali->dev_info.wONFIPgmCacheTimingMode);
-	nand_dbg_print(NAND_DBG_DEBUG, "MLCDevice: %s\n",
-		denali->dev_info.MLCDevice ? "Yes" : "No");
-	nand_dbg_print(NAND_DBG_DEBUG, "SpareSkipBytes: %d\n",
-		denali->dev_info.wSpareSkipBytes);
-	nand_dbg_print(NAND_DBG_DEBUG, "BitsInPageNumber: %d\n",
-		denali->dev_info.nBitsInPageNumber);
-	nand_dbg_print(NAND_DBG_DEBUG, "BitsInPageDataSize: %d\n",
-		denali->dev_info.nBitsInPageDataSize);
-	nand_dbg_print(NAND_DBG_DEBUG, "BitsInBlockDataSize: %d\n",
-		denali->dev_info.nBitsInBlockDataSize);
+		} else
+			denali->fwblks = SPECTRA_START_BLOCK;
+	} else
+		denali->fwblks = SPECTRA_START_BLOCK;
 }
 
 static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 {
 	uint16_t status = PASS;
-	uint8_t no_of_planes;
 	uint32_t id_bytes[5], addr;
 	uint8_t i, maf_id, device_id;
 
@@ -803,8 +630,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 		get_toshiba_nand_para(denali);
 	} else if (maf_id == 0xAD) { /* Hynix NAND */
 		get_hynix_nand_para(denali, device_id);
-	} else {
-		denali->dev_info.wTotalBlocks = GLOB_HWCTL_DEFAULT_BLKS;
 	}
 
 	nand_dbg_print(NAND_DBG_DEBUG, "Dump timing register values:"
@@ -819,78 +644,11 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 			ioread32(denali->flash_reg + RDWR_EN_HI_CNT),
 			ioread32(denali->flash_reg + CS_SETUP_CNT));
 
-	denali->dev_info.wHWRevision = ioread32(denali->flash_reg + REVISION);
-	denali->dev_info.wHWFeatures = ioread32(denali->flash_reg + FEATURES);
-
-	denali->dev_info.wDeviceMainAreaSize =
-		ioread32(denali->flash_reg + DEVICE_MAIN_AREA_SIZE);
-	denali->dev_info.wDeviceSpareAreaSize =
-		ioread32(denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
-
-	denali->dev_info.wPageDataSize =
-		ioread32(denali->flash_reg + LOGICAL_PAGE_DATA_SIZE);
-
-	/* Note: When using the Micon 4K NAND device, the controller will report
-	 * Page Spare Size as 216 bytes. But Micron's Spec say it's 218 bytes.
-	 * And if force set it to 218 bytes, the controller can not work
-	 * correctly. So just let it be. But keep in mind that this bug may
-	 * cause
-	 * other problems in future.       - Yunpeng  2008-10-10
-	 */
-	denali->dev_info.wPageSpareSize =
-		ioread32(denali->flash_reg + LOGICAL_PAGE_SPARE_SIZE);
-
-	denali->dev_info.wPagesPerBlock =
-		ioread32(denali->flash_reg + PAGES_PER_BLOCK);
-
-	denali->dev_info.wPageSize =
-	    denali->dev_info.wPageDataSize + denali->dev_info.wPageSpareSize;
-	denali->dev_info.wBlockSize =
-	    denali->dev_info.wPageSize * denali->dev_info.wPagesPerBlock;
-	denali->dev_info.wBlockDataSize =
-	    denali->dev_info.wPagesPerBlock * denali->dev_info.wPageDataSize;
-
-	denali->dev_info.wDeviceWidth =
-		ioread32(denali->flash_reg + DEVICE_WIDTH);
-	denali->dev_info.wDeviceType =
-		((ioread32(denali->flash_reg + DEVICE_WIDTH) > 0) ? 16 : 8);
-
-	denali->dev_info.wDevicesConnected =
-		ioread32(denali->flash_reg + DEVICES_CONNECTED);
-
-	denali->dev_info.wSpareSkipBytes =
-		ioread32(denali->flash_reg + SPARE_AREA_SKIP_BYTES) *
-		denali->dev_info.wDevicesConnected;
-
-	denali->dev_info.nBitsInPageNumber =
-		ilog2(denali->dev_info.wPagesPerBlock);
-	denali->dev_info.nBitsInPageDataSize =
-		ilog2(denali->dev_info.wPageDataSize);
-	denali->dev_info.nBitsInBlockDataSize =
-		ilog2(denali->dev_info.wBlockDataSize);
-
 	set_ecc_config(denali);
-
-	no_of_planes = ioread32(denali->flash_reg + NUMBER_OF_PLANES) &
-		NUMBER_OF_PLANES__VALUE;
-
-	switch (no_of_planes) {
-	case 0:
-	case 1:
-	case 3:
-	case 7:
-		denali->dev_info.bPlaneNum = no_of_planes + 1;
-		break;
-	default:
-		status = FAIL;
-		break;
-	}
 
 	find_valid_banks(denali);
 
 	detect_partition_feature(denali);
-
-	dump_device_info(denali);
 
 	/* If the user specified to override the default timings
 	 * with a specific ONFI mode, we apply those changes here.
@@ -1963,16 +1721,6 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	denali_nand_timing_set(denali);
 
-	/* MTD supported page sizes vary by kernel. We validate our
-	 * kernel supports the device here.
-	 */
-	if (denali->dev_info.wPageSize > NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE) {
-		ret = -ENODEV;
-		printk(KERN_ERR "Spectra: device size not supported by this "
-			"version of MTD.");
-		goto failed_nand;
-	}
-
 	nand_dbg_print(NAND_DBG_DEBUG, "Dump timing register values:"
 			"acc_clks: %d, re_2_we: %d, we_2_re: %d,"
 			"addr_2_data: %d, rdwr_en_lo_cnt: %d, "
@@ -2003,6 +1751,16 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_nand;
 	}
 
+	/* MTD supported page sizes vary by kernel. We validate our
+	 * kernel supports the device here.
+	 */
+	if (denali->mtd.writesize > NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE) {
+		ret = -ENODEV;
+		printk(KERN_ERR "Spectra: device size not supported by this "
+			"version of MTD.");
+		goto failed_nand;
+	}
+
 	/* second stage of the NAND scan
 	 * this stage requires information regarding ECC and
 	 * bad block management. */
@@ -2015,13 +1773,22 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->nand.options |= NAND_USE_FLASH_BBT | NAND_SKIP_BBTSCAN;
 	denali->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 
-	if (denali->dev_info.MLCDevice) {
+	if (denali->nand.cellinfo & 0xc) {
 		denali->nand.ecc.layout = &nand_oob_mlc_14bit;
 		denali->nand.ecc.bytes = ECC_BYTES_MLC;
 	} else {/* SLC */
 		denali->nand.ecc.layout = &nand_oob_slc;
 		denali->nand.ecc.bytes = ECC_BYTES_SLC;
 	}
+
+	/* Let driver know the total blocks number and
+	 * how many blocks contained by each nand chip.
+	 * blksperchip will help driver to know how many
+	 * blocks is taken by FW.
+	 * */
+	denali->totalblks = denali->mtd.size >>
+				denali->nand.phys_erase_shift;
+	denali->blksperchip = denali->totalblks / denali->nand.numchips;
 
 	/* These functions are required by the NAND core framework, otherwise,
 	 * the NAND core will assert. However, we don't need them, so we'll stub
