@@ -80,8 +80,6 @@ static struct libfc_function_template fnic_transport_template = {
 static int fnic_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
-	struct fc_lport *lp = shost_priv(sdev->host);
-	struct fnic *fnic = lport_priv(lp);
 
 	sdev->tagged_supported = 1;
 
@@ -89,8 +87,6 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 		return -ENXIO;
 
 	scsi_activate_tcq(sdev, FNIC_DFLT_QUEUE_DEPTH);
-	rport->dev_loss_tmo = fnic->config.port_down_timeout / 1000;
-
 	return 0;
 }
 
@@ -112,6 +108,15 @@ static struct scsi_host_template fnic_host_template = {
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
 };
+
+static void
+fnic_get_host_def_loss_tmo(struct Scsi_Host *shost)
+{
+	struct fc_lport *lp = shost_priv(shost);
+	struct fnic *fnic = lport_priv(lp);
+
+	fc_host_def_dev_loss_tmo(shost) = fnic->config.port_down_timeout / 1000;
+}
 
 static void fnic_get_host_speed(struct Scsi_Host *shost);
 static struct scsi_transport_template *fnic_fc_transport;
@@ -142,6 +147,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.show_rport_dev_loss_tmo = 1,
 	.issue_fc_host_lip = fnic_reset,
 	.get_fc_host_stats = fnic_get_stats,
+	.get_host_def_dev_loss_tmo = fnic_get_host_def_loss_tmo,
 	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
 	.terminate_rport_io = fnic_terminate_rport_io,
 	.bsg_request = fc_lport_bsg_request,
