@@ -36,14 +36,16 @@
 static struct cpcap_device *cpcap;
 static struct cpcap_audio_platform_data *pdata;
 static unsigned current_output = CPCAP_AUDIO_OUT_SPEAKER;
-static unsigned current_volume = 10;
+static unsigned current_input  = -1U; /* none */
+static unsigned current_volume = CPCAP_AUDIO_OUT_VOL_MAX;
+static unsigned current_in_volume = CPCAP_AUDIO_IN_VOL_MAX;
 
 static int cpcap_audio_set(const struct cpcap_audio_path *path, bool on)
 {
 	int len, rc;
 	const struct cpcap_audio_config_table *entry;
 
-	pr_info("%s: %s\n", __func__, path->name);
+	pr_info("%s: %s %s\n", __func__, path->name, on ? "on" : "off");
 
 	if (!path) {
 		pr_info("%s: no path\n", __func__);
@@ -98,6 +100,16 @@ static int cpcap_set_volume(struct cpcap_device *cpcap, unsigned volume)
 	return cpcap_regacc_write(cpcap, CPCAP_REG_RXVC, volume, 0xFF00);
 }
 
+
+static int cpcap_set_mic_volume(struct cpcap_device *cpcap, unsigned volume)
+{
+	pr_info("%s\n", __func__);
+	volume &= 0x1F;
+	/* set the same volume for mic1 and mic2 */
+	volume = volume << 5 | volume;
+	return cpcap_regacc_write(cpcap, CPCAP_REG_TXMP, volume, 0x3FF);
+}
+
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
 	return 0;
@@ -120,42 +132,70 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case CPCAP_AUDIO_OUT_SET_OUTPUT:
 		if (arg > CPCAP_AUDIO_OUT_MAX) {
-			pr_err("%s: invalid audio path selector %ld\n",
+			pr_err("%s: invalid audio-output selector %ld\n",
 				__func__, arg);
+			rc = -EINVAL;
 			goto done;
 		}
-		if (current_output == arg) {
-			pr_info("%s: no path change\n", __func__);
-			goto done;
-		}
-		if (current_output == CPCAP_AUDIO_OUT_SPEAKER) {
-			pr_info("%s: setting path to %s\n", __func__,
-					pdata->headset->name);
-			cpcap_audio_set(pdata->speaker, 0);
-			cpcap_audio_set(pdata->headset, 1);
-		} else {
-			pr_info("%s: setting path to %s\n", __func__,
+		switch (arg) {
+		case CPCAP_AUDIO_OUT_SPEAKER:
+			pr_info("%s: setting output path to %s\n", __func__,
 					pdata->speaker->name);
 			cpcap_audio_set(pdata->headset, 0);
 			cpcap_audio_set(pdata->speaker, 1);
+			break;
+		case CPCAP_AUDIO_OUT_HEADSET:
+			pr_info("%s: setting output path to %s\n", __func__,
+					pdata->headset->name);
+			cpcap_audio_set(pdata->speaker, 0);
+			cpcap_audio_set(pdata->headset, 1);
+			break;
 		}
 		current_output = arg;
 		break;
 	case CPCAP_AUDIO_OUT_GET_OUTPUT:
 		if (copy_to_user((void *)arg, &current_output,
-					sizeof(unsigned int))) {
+					sizeof(unsigned int)))
 			rc = -EFAULT;
+		break;
+	case CPCAP_AUDIO_IN_SET_INPUT:
+		if (arg > CPCAP_AUDIO_IN_MAX && arg != -1UL) {
+			pr_err("%s: invalid audio input selector %ld\n",
+				__func__, arg);
+			rc = -EINVAL;
 			goto done;
 		}
+		switch (arg) {
+		case -1UL:
+			pr_info("%s: turning off input path\n", __func__);
+			cpcap_audio_set(pdata->mic1, 0);
+			cpcap_audio_set(pdata->mic2, 0);
+			break;
+		case CPCAP_AUDIO_IN_MIC1:
+			pr_info("%s: setting input path to %s\n", __func__,
+					pdata->mic1->name);
+			cpcap_audio_set(pdata->mic2, 0);
+			cpcap_audio_set(pdata->mic1, 1);
+			break;
+		case CPCAP_AUDIO_IN_MIC2:
+			pr_info("%s: setting input path to %s\n", __func__,
+					pdata->mic2->name);
+			cpcap_audio_set(pdata->mic1, 0);
+			cpcap_audio_set(pdata->mic2, 1);
+			break;
+		}
+		current_input = arg;
+		break;
+	case CPCAP_AUDIO_IN_GET_INPUT:
+		if (copy_to_user((void *)arg, &current_input,
+					sizeof(unsigned int)))
+			rc = -EFAULT;
 		break;
 	case CPCAP_AUDIO_OUT_SET_VOLUME:
 		if (arg > CPCAP_AUDIO_OUT_VOL_MAX) {
-			pr_err("%s: invalid audio volume selector %ld\n",
+			pr_err("%s: invalid audio volume %ld\n",
 				__func__, arg);
-			goto done;
-		}
-		if (current_volume == arg) {
-			pr_info("%s: no volume change\n", __func__);
+			rc = -EINVAL;
 			goto done;
 		}
 		rc = cpcap_set_volume(cpcap, (unsigned)arg);
@@ -166,8 +206,30 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		}
 		current_volume = arg;
 		break;
+	case CPCAP_AUDIO_IN_SET_VOLUME:
+		if (arg > CPCAP_AUDIO_IN_VOL_MAX) {
+			pr_err("%s: invalid audio-input volume %ld\n",
+				__func__, arg);
+			rc = -EINVAL;
+			goto done;
+		}
+		rc = cpcap_set_mic_volume(cpcap, (unsigned)arg);
+		if (rc < 0) {
+			pr_err("%s: could not set audio-input"\
+				" volume to %ld: %d\n", __func__, arg, rc);
+			goto done;
+		}
+		current_in_volume = arg;
+		break;
 	case CPCAP_AUDIO_OUT_GET_VOLUME:
 		if (copy_to_user((void *)arg, &current_volume,
+					sizeof(unsigned int))) {
+			rc = -EFAULT;
+			goto done;
+		}
+		break;
+	case CPCAP_AUDIO_IN_GET_VOLUME:
+		if (copy_to_user((void *)arg, &current_in_volume,
 					sizeof(unsigned int))) {
 			rc = -EFAULT;
 			goto done;
@@ -217,8 +279,7 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 	if (rc) {
 		pr_err("%s: failed to enable vaudio regulator: %d\n", __func__,
 			rc);
-		regulator_put(audio_reg);
-		return rc;
+		goto fail;
 	}
 
 	if (pdata->speaker->gpio >= 0) {
@@ -227,7 +288,7 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 		if (rc) {
 			pr_err("%s: could not get speaker GPIO %d: %d\n",
 				__func__, pdata->speaker->gpio, rc);
-			goto fail;
+			goto fail1;
 		}
 	}
 
@@ -243,6 +304,7 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 
 	cpcap_audio_set(pdata->speaker, 1);
 	cpcap_set_volume(cpcap, current_volume);
+	cpcap_set_mic_volume(cpcap, current_in_volume);
 
 	rc = misc_register(&cpcap_audio_ctl);
 	if (rc < 0) {
@@ -259,6 +321,8 @@ fail3:
 fail2:
 	if (pdata->speaker->gpio >= 0)
 		gpio_free(pdata->speaker->gpio);
+fail1:
+	regulator_disable(audio_reg);
 fail:
 	regulator_put(audio_reg);
 	return rc;
