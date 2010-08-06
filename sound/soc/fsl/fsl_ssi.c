@@ -93,6 +93,7 @@ struct fsl_ssi_private {
 	unsigned int playback;
 	unsigned int capture;
 	int asynchronous;
+	unsigned int fifo_depth;
 	struct snd_soc_dai_driver cpu_dai_drv;
 	struct device_attribute dev_attr;
 	struct platform_device *pdev;
@@ -337,11 +338,20 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 
 		/*
 		 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We
-		 * don't use FIFO 1.  Since the SSI only supports stereo, the
-		 * watermark should never be an odd number.
+		 * don't use FIFO 1.  We program the transmit water to signal a
+		 * DMA transfer if there are only two (or fewer) elements left
+		 * in the FIFO.  Two elements equals one frame (left channel,
+		 * right channel).  This value, however, depends on the depth of
+		 * the transmit buffer.
+		 *
+		 * We program the receive FIFO to notify us if at least two
+		 * elements (one frame) have been written to the FIFO.  We could
+		 * make this value larger (and maybe we should), but this way
+		 * data will be written to memory as soon as it's available.
 		 */
 		out_be32(&ssi->sfcsr,
-			 CCSR_SSI_SFCSR_TFWM0(6) | CCSR_SSI_SFCSR_RFWM0(2));
+			CCSR_SSI_SFCSR_TFWM0(ssi_private->fifo_depth - 2) |
+			CCSR_SSI_SFCSR_RFWM0(ssi_private->fifo_depth - 2));
 
 		/*
 		 * We keep the SSI disabled because if we enable it, then the
@@ -622,6 +632,7 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	struct device_attribute *dev_attr = NULL;
 	struct device_node *np = of_dev->dev.of_node;
 	const char *p, *sprop;
+	const uint32_t *iprop;
 	struct resource res;
 	char name[64];
 
@@ -677,6 +688,14 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 		ssi_private->asynchronous = 1;
 	else
 		ssi_private->cpu_dai_drv.symmetric_rates = 1;
+
+	/* Determine the FIFO depth. */
+	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
+	if (iprop)
+		ssi_private->fifo_depth = *iprop;
+	else
+                /* Older 8610 DTs didn't have the fifo-depth property */
+		ssi_private->fifo_depth = 8;
 
 	/* Initialize the the device_attribute structure */
 	dev_attr = &ssi_private->dev_attr;
