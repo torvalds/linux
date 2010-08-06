@@ -913,7 +913,7 @@ ENTRY(simd_coprocessor_error)
 	.balign 4
 	.long 661b
 	.long 663f
-	.byte X86_FEATURE_XMM
+	.word X86_FEATURE_XMM
 	.byte 662b-661b
 	.byte 664f-663f
 .previous

@@ -131,7 +131,7 @@ ENDPROC(__memcpy)
 	.align 8
 	.quad memcpy
 	.quad .Lmemcpy_c
-	.byte X86_FEATURE_REP_GOOD
+	.word X86_FEATURE_REP_GOOD
 
 	/*
 	 * Replace only beginning, memcpy is used to apply alternatives,
