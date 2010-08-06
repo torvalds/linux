@@ -2787,16 +2787,12 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		c->eip = ctxt->eip;
 	}
 
-	if (c->src.type == OP_MEM) {
-		if (c->d & NoAccess)
-			goto no_fetch;
+	if ((c->src.type == OP_MEM) && !(c->d & NoAccess)) {
 		rc = read_emulated(ctxt, ops, c->src.addr.mem,
 					c->src.valptr, c->src.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->src.orig_val64 = c->src.val64;
-	no_fetch:
-		;
 	}
 
 	if (c->src2.type == OP_MEM) {
