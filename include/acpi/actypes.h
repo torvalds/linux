@@ -950,6 +950,9 @@ acpi_status(*acpi_walk_callback) (acpi_handle object,
 				  u32 nesting_level,
 				  void *context, void **return_value);
 
+typedef
+u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
+
 /* Interrupt handler return values */
 
 #define ACPI_INTERRUPT_NOT_HANDLED      0x00

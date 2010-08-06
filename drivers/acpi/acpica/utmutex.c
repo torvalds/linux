@@ -86,6 +86,12 @@ acpi_status acpi_ut_mutex_initialize(void)
 	spin_lock_init(acpi_gbl_gpe_lock);
 	spin_lock_init(acpi_gbl_hardware_lock);
 
+	/* Mutex for _OSI support */
+	status = acpi_os_create_mutex(&acpi_gbl_osi_mutex);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
 	/* Create the reader/writer lock for namespace access */
 
 	status = acpi_ut_create_rw_lock(&acpi_gbl_namespace_rw_lock);
@@ -116,6 +122,8 @@ void acpi_ut_mutex_terminate(void)
 	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		acpi_ut_delete_mutex(i);
 	}
+
+	acpi_os_delete_mutex(acpi_gbl_osi_mutex);
 
 	/* Delete the spinlocks */
 

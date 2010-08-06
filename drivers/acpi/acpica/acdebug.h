@@ -105,6 +105,8 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg);
 acpi_status
 acpi_db_display_objects(char *obj_type_arg, char *display_count_arg);
 
+void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg);
+
 acpi_status acpi_db_find_name_in_namespace(char *name_arg);
 
 void acpi_db_set_scope(char *name);

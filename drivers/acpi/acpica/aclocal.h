@@ -914,8 +914,13 @@ struct acpi_bit_register_info {
 
 struct acpi_interface_info {
 	char *name;
+	struct acpi_interface_info *next;
+	u8 flags;
 	u8 value;
 };
+
+#define ACPI_OSI_INVALID                0x01
+#define ACPI_OSI_DYNAMIC                0x02
 
 struct acpi_port_info {
 	char *name;

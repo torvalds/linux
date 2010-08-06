@@ -187,6 +187,10 @@ ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 
+/* Mutex for _OSI support */
+
+ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
+
 /* Reader/Writer lock is used for namespace walk and dynamic table unload */
 
 ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
@@ -255,6 +259,7 @@ ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
 ACPI_EXTERN acpi_tbl_handler acpi_gbl_table_handler;
 ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
+ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
 
 /* Owner ID support */
 
@@ -275,6 +280,7 @@ ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
 ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 ACPI_EXTERN u8 acpi_gbl_osi_data;
+ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
 
 #ifndef DEFINE_ACPI_GLOBALS
 

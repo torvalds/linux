@@ -105,6 +105,10 @@ const char *acpi_format_exception(acpi_status exception);
 
 acpi_status acpi_purge_cached_objects(void);
 
+acpi_status acpi_install_interface(acpi_string interface_name);
+
+acpi_status acpi_remove_interface(acpi_string interface_name);
+
 /*
  * ACPI Memory management
  */
@@ -262,6 +266,8 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 #endif
+
+acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
 
 /*
  * Event interfaces

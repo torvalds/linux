@@ -312,8 +312,6 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list);
 /*
  * uteval - object evaluation
  */
-acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
-
 acpi_status
 acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 			char *path,
@@ -393,6 +391,21 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size);
 
 acpi_status
 acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
+
+/*
+ * utosi - Support for the _OSI predefined control method
+ */
+acpi_status acpi_ut_initialize_interfaces(void);
+
+void acpi_ut_interface_terminate(void);
+
+acpi_status acpi_ut_install_interface(acpi_string interface_name);
+
+acpi_status acpi_ut_remove_interface(acpi_string interface_name);
+
+struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
+
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
 
 /*
  * utstate - Generic state creation/cache routines
