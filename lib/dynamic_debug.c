@@ -429,6 +429,27 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 	return 0;
 }
 
+static int ddebug_exec_query(char *query_string)
+{
+	unsigned int flags = 0, mask = 0;
+	struct ddebug_query query;
+#define MAXWORDS 9
+	int nwords;
+	char *words[MAXWORDS];
+
+	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
+	if (nwords <= 0)
+		return -EINVAL;
+	if (ddebug_parse_query(words, nwords-1, &query))
+		return -EINVAL;
+	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
+		return -EINVAL;
+
+	/* actually go and implement the change */
+	ddebug_change(&query, flags, mask);
+	return 0;
+}
+
 /*
  * File_ops->write method for <debugfs>/dynamic_debug/conrol.  Gathers the
  * command text from userspace, parses and executes it.
@@ -436,12 +457,8 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
-	unsigned int flags = 0, mask = 0;
-	struct ddebug_query query;
-#define MAXWORDS 9
-	int nwords;
-	char *words[MAXWORDS];
 	char tmpbuf[256];
+	int ret;
 
 	if (len == 0)
 		return 0;
@@ -455,16 +472,9 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 		printk(KERN_INFO "%s: read %d bytes from userspace\n",
 			__func__, (int)len);
 
-	nwords = ddebug_tokenize(tmpbuf, words, MAXWORDS);
-	if (nwords <= 0)
-		return -EINVAL;
-	if (ddebug_parse_query(words, nwords-1, &query))
-		return -EINVAL;
-	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
-		return -EINVAL;
-
-	/* actually go and implement the change */
-	ddebug_change(&query, flags, mask);
+	ret = ddebug_exec_query(tmpbuf);
+	if (ret)
+		return ret;
 
 	*offp += len;
 	return len;
