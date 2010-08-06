@@ -224,7 +224,6 @@ static int nfsd_startup(unsigned short port, int nrservs)
 	ret = nfs4_state_start();
 	if (ret)
 		goto out_lockd;
-	nfsd_reset_versions();
 	nfsd_up = true;
 	return 0;
 out_lockd:
@@ -329,6 +328,7 @@ int nfsd_create_serv(void)
 		       nfsd_max_blksize >= 8*1024*2)
 			nfsd_max_blksize /= 2;
 	}
+	nfsd_reset_versions();
 
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
