@@ -21,10 +21,14 @@ API.</para>
       <title>Opening and Closing Devices</title>
 
       <para>For compatibility reasons the character device file names
-recommended for V4L2 video capture, overlay, radio, teletext and raw
+recommended for V4L2 video capture, overlay, radio and raw
 vbi capture devices did not change from those used by V4L. They are
 listed in <xref linkend="devices" /> and below in <xref
 	  linkend="v4l-dev" />.</para>
+
+      <para>The teletext devices (minor range 192-223) have been removed in
+V4L2 and no longer exist. There is no hardware available anymore for handling
+pure teletext. Instead raw or sliced VBI is used.</para>
 
       <para>The V4L <filename>videodev</filename> module automatically
 assigns minor numbers to drivers in load order, depending on the
@@ -64,13 +68,6 @@ not compatible with V4L or V4L2.</para> </footnote>,
 		  </footnote>, <filename>/dev/radio0</filename> to
 <filename>/dev/radio63</filename></para></entry>
 	      <entry>64-127</entry>
-	    </row>
-	    <row>
-	      <entry>Teletext decoder</entry>
-	      <entry><para><filename>/dev/vtx</filename>,
-<filename>/dev/vtx0</filename> to
-<filename>/dev/vtx31</filename></para></entry>
-	      <entry>192-223</entry>
 	    </row>
 	    <row>
 	      <entry>Raw VBI capture</entry>
@@ -2341,6 +2338,17 @@ more information.</para>
 <constant>V4L2_CID_IRIS_ABSOLUTE</constant> and
 <constant>V4L2_CID_IRIS_RELATIVE</constant> controls to the
 	    <link linkend="camera-controls">Camera controls class</link>.
+	  </para>
+	</listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>V4L2 in Linux 2.6.37</title>
+      <orderedlist>
+	<listitem>
+	  <para>Remove the vtx (videotext/teletext) API. This API was no longer
+used and no hardware exists to verify the API. Nor were any userspace applications found
+that used it. It was originally scheduled for removal in 2.6.35.
 	  </para>
 	</listitem>
       </orderedlist>

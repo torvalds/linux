@@ -498,29 +498,6 @@ When:	April 2011
 Why:	Superseded by xt_CT
 Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
 
----------------------------
-
-What:	video4linux /dev/vtx teletext API support
-When:	2.6.35
-Files:	drivers/media/video/saa5246a.c drivers/media/video/saa5249.c
-	include/linux/videotext.h
-Why:	The vtx device nodes have been superseded by vbi device nodes
-	for many years. No applications exist that use the vtx support.
-	Of the two i2c drivers that actually support this API the saa5249
-	has been impossible to use for a year now and no known hardware
-	that supports this device exists. The saa5246a is theoretically
-	supported by the old mxb boards, but it never actually worked.
-
-	In summary: there is no hardware that can use this API and there
-	are no applications actually implementing this API.
-
-	The vtx support still reserves minors 192-223 and we would really
-	like to reuse those for upcoming new functionality. In the unlikely
-	event that new hardware appears that wants to use the functionality
-	provided by the vtx API, then that functionality should be build
-	around the sliced VBI API instead.
-Who:	Hans Verkuil <hverkuil@xs4all.nl>
-
 ----------------------------
 
 What:	IRQF_DISABLED

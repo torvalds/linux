@@ -44,8 +44,8 @@ All drivers have the following structure:
 
 2) A way of initializing and commanding sub-devices (if any).
 
-3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX, /dev/radioX and
-   /dev/vtxX) and keeping track of device-node specific data.
+3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX and /dev/radioX)
+   and keeping track of device-node specific data.
 
 4) Filehandle-specific structs containing per-filehandle data;
 
@@ -488,7 +488,6 @@ types exist:
 VFL_TYPE_GRABBER: videoX for video input/output devices
 VFL_TYPE_VBI: vbiX for vertical blank data (i.e. closed captions, teletext)
 VFL_TYPE_RADIO: radioX for radio tuners
-VFL_TYPE_VTX: vtxX for teletext devices (deprecated, don't use)
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in videoX). Normally you will pass -1
