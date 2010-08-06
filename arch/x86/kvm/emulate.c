@@ -2362,7 +2362,7 @@ static struct opcode twobyte_table[256] = {
 	/* 0x80 - 0x8F */
 	X16(D(SrcImm)),
 	/* 0x90 - 0x9F */
-	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
+	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
 	N, D(DstMem | SrcReg | ModRM | BitOp),
@@ -3423,6 +3423,9 @@ twobyte_insn:
 	case 0x80 ... 0x8f: /* jnz rel, etc*/
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
+		break;
+	case 0x90 ... 0x9f:     /* setcc r/m8 */
+		c->dst.val = test_cc(c->b, ctxt->eflags);
 		break;
 	case 0xa0:	  /* push fs */
 		emulate_push_sreg(ctxt, ops, VCPU_SREG_FS);
