@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
@@ -861,6 +862,12 @@ struct rt2x00_dev {
 	 * due to RTNL locking requirements.
 	 */
 	struct work_struct intf_work;
+
+	/**
+	 * Scheduled work for TX/RX done handling (USB devices)
+	 */
+	struct work_struct rxdone_work;
+	struct work_struct txdone_work;
 
 	/*
 	 * Data queue arrays for RX, TX and Beacon.

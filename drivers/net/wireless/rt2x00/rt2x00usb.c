@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -167,19 +168,12 @@ EXPORT_SYMBOL_GPL(rt2x00usb_regbusy_read);
 /*
  * TX data handlers.
  */
-static void rt2x00usb_interrupt_txdone(struct urb *urb)
+static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 {
-	struct queue_entry *entry = (struct queue_entry *)urb->context;
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct txdone_entry_desc txdesc;
 
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
-		return;
-
 	/*
-	 * Obtain the status about this packet.
-	 * Note that when the status is 0 it does not mean the
+	 * If the transfer to hardware succeeded, it does not mean the
 	 * frame was send out correctly. It only means the frame
 	 * was succesfully pushed to the hardware, we have no
 	 * way to determine the transmission status right now.
@@ -187,13 +181,54 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * in the register).
 	 */
 	txdesc.flags = 0;
-	if (!urb->status)
-		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
-	else
+	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 		__set_bit(TXDONE_FAILURE, &txdesc.flags);
+	else
+		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 	txdesc.retry = 0;
 
 	rt2x00lib_txdone(entry, &txdesc);
+}
+
+static void rt2x00usb_work_txdone(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, txdone_work);
+	struct data_queue *queue;
+	struct queue_entry *entry;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		while (!rt2x00queue_empty(queue)) {
+			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+				break;
+
+			rt2x00usb_work_txdone_entry(entry);
+		}
+	}
+}
+
+static void rt2x00usb_interrupt_txdone(struct urb *urb)
+{
+	struct queue_entry *entry = (struct queue_entry *)urb->context;
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
+	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		return;
+
+	/*
+	 * Check if the frame was correctly uploaded
+	 */
+	if (urb->status)
+		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+
+	/*
+	 * Schedule the delayed work for reading the TX status
+	 * from the device.
+	 */
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 }
 
 static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
@@ -294,6 +329,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
 
 static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
 {
+	struct queue_entry *entry;
 	struct queue_entry_priv_usb *entry_priv;
 	unsigned short threshold = queue->threshold;
 
@@ -313,14 +349,22 @@ static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
 	 * Reset all currently uploaded TX frames.
 	 */
 	while (!rt2x00queue_empty(queue)) {
-		entry_priv = rt2x00queue_get_entry(queue, Q_INDEX_DONE)->priv_data;
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+		entry_priv = entry->priv_data;
 		usb_kill_urb(entry_priv->urb);
 
 		/*
 		 * We need a short delay here to wait for
-		 * the URB to be canceled and invoked the tx_done handler.
+		 * the URB to be canceled
 		 */
-		udelay(200);
+		do {
+			udelay(100);
+		} while (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags));
+
+		/*
+		 * Invoke the TX done handler
+		 */
+		rt2x00usb_work_txdone_entry(entry);
 	}
 
 	/*
@@ -345,15 +389,41 @@ EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
 /*
  * RX data handlers.
  */
+static void rt2x00usb_work_rxdone(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, rxdone_work);
+	struct queue_entry *entry;
+	struct skb_frame_desc *skbdesc;
+	u8 rxd[32];
+
+	while (!rt2x00queue_empty(rt2x00dev->rx)) {
+		entry = rt2x00queue_get_entry(rt2x00dev->rx, Q_INDEX_DONE);
+
+		if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+			break;
+
+		/*
+		 * Fill in desc fields of the skb descriptor
+		 */
+		skbdesc = get_skb_frame_desc(entry->skb);
+		skbdesc->desc = rxd;
+		skbdesc->desc_len = entry->queue->desc_size;
+
+		/*
+		 * Send the frame to rt2x00lib for further processing.
+		 */
+		rt2x00lib_rxdone(rt2x00dev, entry);
+	}
+}
+
 static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	u8 rxd[32];
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -361,22 +431,14 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * to be actually valid, or if the urb is signaling
 	 * a problem.
 	 */
-	if (urb->actual_length < entry->queue->desc_size || urb->status) {
-		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		usb_submit_urb(urb, GFP_ATOMIC);
-		return;
-	}
+	if (urb->actual_length < entry->queue->desc_size || urb->status)
+		__set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
-	 * Fill in desc fields of the skb descriptor
+	 * Schedule the delayed work for reading the RX status
+	 * from the device.
 	 */
-	skbdesc->desc = rxd;
-	skbdesc->desc_len = entry->queue->desc_size;
-
-	/*
-	 * Send the frame to rt2x00lib for further processing.
-	 */
-	rt2x00lib_rxdone(rt2x00dev, entry);
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
 }
 
 /*
@@ -405,6 +467,8 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	int pipe;
 
+	entry->flags = 0;
+
 	if (entry->queue->qid == QID_RX) {
 		pipe = usb_rcvbulkpipe(usb_dev, entry->queue->usb_endpoint);
 		usb_fill_bulk_urb(entry_priv->urb, usb_dev, pipe,
@@ -413,8 +477,6 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 
 		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
-	} else {
-		entry->flags = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
@@ -658,6 +720,9 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->hw = hw;
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
+
+	INIT_WORK(&rt2x00dev->rxdone_work, rt2x00usb_work_rxdone);
+	INIT_WORK(&rt2x00dev->txdone_work, rt2x00usb_work_txdone);
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)
