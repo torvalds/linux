@@ -25,150 +25,170 @@
 	CFI_ADJUST_CFA_OFFSET -4
 .endm
 
-.macro BEGIN func reg
-$v = \reg
+#define BEGIN(op) \
+.macro END; \
+	CFI_ENDPROC; \
+ENDPROC(atomic64_##op##_386); \
+.purgem END; \
+.endm; \
+ENTRY(atomic64_##op##_386); \
+	CFI_STARTPROC; \
+	LOCK v;
 
-ENTRY(atomic64_\func\()_386)
-	CFI_STARTPROC
-	LOCK $v
-
-.macro RETURN
-	UNLOCK $v
+#define RET \
+	UNLOCK v; \
 	ret
-.endm
 
-.macro END_
-	CFI_ENDPROC
-ENDPROC(atomic64_\func\()_386)
-.purgem RETURN
-.purgem END_
-.purgem END
-.endm
+#define RET_END \
+	RET; \
+	END
 
-.macro END
-RETURN
-END_
-.endm
-.endm
+#define v %ecx
+BEGIN(read)
+	movl  (v), %eax
+	movl 4(v), %edx
+RET_END
+#undef v
 
-BEGIN read %ecx
-	movl  ($v), %eax
-	movl 4($v), %edx
-END
+#define v %esi
+BEGIN(set)
+	movl %ebx,  (v)
+	movl %ecx, 4(v)
+RET_END
+#undef v
 
-BEGIN set %esi
-	movl %ebx,  ($v)
-	movl %ecx, 4($v)
-END
+#define v  %esi
+BEGIN(xchg)
+	movl  (v), %eax
+	movl 4(v), %edx
+	movl %ebx,  (v)
+	movl %ecx, 4(v)
+RET_END
+#undef v
 
-BEGIN xchg %esi
-	movl  ($v), %eax
-	movl 4($v), %edx
-	movl %ebx,  ($v)
-	movl %ecx, 4($v)
-END
+#define v %ecx
+BEGIN(add)
+	addl %eax,  (v)
+	adcl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN add %ecx
-	addl %eax,  ($v)
-	adcl %edx, 4($v)
-END
+#define v %ecx
+BEGIN(add_return)
+	addl  (v), %eax
+	adcl 4(v), %edx
+	movl %eax,  (v)
+	movl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN add_return %ecx
-	addl  ($v), %eax
-	adcl 4($v), %edx
-	movl %eax,  ($v)
-	movl %edx, 4($v)
-END
+#define v %ecx
+BEGIN(sub)
+	subl %eax,  (v)
+	sbbl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN sub %ecx
-	subl %eax,  ($v)
-	sbbl %edx, 4($v)
-END
-
-BEGIN sub_return %ecx
+#define v %ecx
+BEGIN(sub_return)
 	negl %edx
 	negl %eax
 	sbbl $0, %edx
-	addl  ($v), %eax
-	adcl 4($v), %edx
-	movl %eax,  ($v)
-	movl %edx, 4($v)
-END
+	addl  (v), %eax
+	adcl 4(v), %edx
+	movl %eax,  (v)
+	movl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN inc %esi
-	addl $1,  ($v)
-	adcl $0, 4($v)
-END
+#define v %esi
+BEGIN(inc)
+	addl $1,  (v)
+	adcl $0, 4(v)
+RET_END
+#undef v
 
-BEGIN inc_return %esi
-	movl  ($v), %eax
-	movl 4($v), %edx
+#define v %esi
+BEGIN(inc_return)
+	movl  (v), %eax
+	movl 4(v), %edx
 	addl $1, %eax
 	adcl $0, %edx
-	movl %eax,  ($v)
-	movl %edx, 4($v)
-END
+	movl %eax,  (v)
+	movl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN dec %esi
-	subl $1,  ($v)
-	sbbl $0, 4($v)
-END
+#define v %esi
+BEGIN(dec)
+	subl $1,  (v)
+	sbbl $0, 4(v)
+RET_END
+#undef v
 
-BEGIN dec_return %esi
-	movl  ($v), %eax
-	movl 4($v), %edx
+#define v %esi
+BEGIN(dec_return)
+	movl  (v), %eax
+	movl 4(v), %edx
 	subl $1, %eax
 	sbbl $0, %edx
-	movl %eax,  ($v)
-	movl %edx, 4($v)
-END
+	movl %eax,  (v)
+	movl %edx, 4(v)
+RET_END
+#undef v
 
-BEGIN add_unless %ecx
+#define v %ecx
+BEGIN(add_unless)
 	addl %eax, %esi
 	adcl %edx, %edi
-	addl  ($v), %eax
-	adcl 4($v), %edx
+	addl  (v), %eax
+	adcl 4(v), %edx
 	cmpl %eax, %esi
 	je 3f
 1:
-	movl %eax,  ($v)
-	movl %edx, 4($v)
+	movl %eax,  (v)
+	movl %edx, 4(v)
 	movl $1, %eax
 2:
-RETURN
+	RET
 3:
 	cmpl %edx, %edi
 	jne 1b
 	xorl %eax, %eax
 	jmp 2b
-END_
+END
+#undef v
 
-BEGIN inc_not_zero %esi
-	movl  ($v), %eax
-	movl 4($v), %edx
+#define v %esi
+BEGIN(inc_not_zero)
+	movl  (v), %eax
+	movl 4(v), %edx
 	testl %eax, %eax
 	je 3f
 1:
 	addl $1, %eax
 	adcl $0, %edx
-	movl %eax,  ($v)
-	movl %edx, 4($v)
+	movl %eax,  (v)
+	movl %edx, 4(v)
 	movl $1, %eax
 2:
-RETURN
+	RET
 3:
 	testl %edx, %edx
 	jne 1b
 	jmp 2b
-END_
+END
+#undef v
 
-BEGIN dec_if_positive %esi
-	movl  ($v), %eax
-	movl 4($v), %edx
+#define v %esi
+BEGIN(dec_if_positive)
+	movl  (v), %eax
+	movl 4(v), %edx
 	subl $1, %eax
 	sbbl $0, %edx
 	js 1f
-	movl %eax,  ($v)
-	movl %edx, 4($v)
+	movl %eax,  (v)
+	movl %edx, 4(v)
 1:
-END
+RET_END
+#undef v
