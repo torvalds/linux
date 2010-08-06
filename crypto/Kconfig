@@ -103,7 +103,8 @@ config CRYPTO_MANAGER2
 
 config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
-	depends on CRYPTO_MANAGER2 && EMBEDDED
+	default y
+	depends on CRYPTO_MANAGER2
 	help
 	  Disable run-time self tests that normally take place at
 	  algorithm registration.
