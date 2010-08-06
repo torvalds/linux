@@ -513,9 +513,6 @@ extern void tracing_start(void);
 extern void tracing_stop(void);
 extern void ftrace_off_permanent(void);
 
-extern void
-ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
-
 static inline void __attribute__ ((format (printf, 1, 2)))
 ____trace_printk_check_format(const char *fmt, ...)
 {
@@ -591,8 +588,6 @@ __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 
 extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
-static inline void
-ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
 static inline int
 trace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 

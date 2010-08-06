@@ -152,28 +152,33 @@ config DEBUG_SHIRQ
 	  Drivers ought to be able to handle interrupts coming in at those
 	  points; some don't and need to be caught.
 
-config DETECT_SOFTLOCKUP
-	bool "Detect Soft Lockups"
+config LOCKUP_DETECTOR
+	bool "Detect Hard and Soft Lockups"
 	depends on DEBUG_KERNEL && !S390
-	default y
 	help
-	  Say Y here to enable the kernel to detect "soft lockups",
-	  which are bugs that cause the kernel to loop in kernel
+	  Say Y here to enable the kernel to act as a watchdog to detect
+	  hard and soft lockups.
+
+	  Softlockups are bugs that cause the kernel to loop in kernel
 	  mode for more than 60 seconds, without giving other tasks a
-	  chance to run.
+	  chance to run.  The current stack trace is displayed upon
+	  detection and the system will stay locked up.
 
-	  When a soft-lockup is detected, the kernel will print the
-	  current stack trace (which you should report), but the
-	  system will stay locked up. This feature has negligible
-	  overhead.
+	  Hardlockups are bugs that cause the CPU to loop in kernel mode
+	  for more than 60 seconds, without letting other interrupts have a
+	  chance to run.  The current stack trace is displayed upon detection
+	  and the system will stay locked up.
 
-	  (Note that "hard lockups" are separate type of bugs that
-	   can be detected via the NMI-watchdog, on platforms that
-	   support it.)
+	  The overhead should be minimal.  A periodic hrtimer runs to
+	  generate interrupts and kick the watchdog task every 10-12 seconds.
+	  An NMI is generated every 60 seconds or so to check for hardlockups.
+
+config HARDLOCKUP_DETECTOR
+	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
@@ -190,7 +195,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 	int
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	range 0 1
 	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
 	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC

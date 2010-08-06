@@ -3403,13 +3403,6 @@ F:	include/linux/kmemleak.h
 F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
-KMEMTRACE
-M:	Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-S:	Maintained
-F:	Documentation/trace/kmemtrace.txt
-F:	include/linux/kmemtrace.h
-F:	kernel/trace/kmemtrace.c
-
 KPROBES
 M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
@@ -5685,7 +5678,7 @@ TRACING
 M:	Steven Rostedt <rostedt@goodmis.org>
 M:	Frederic Weisbecker <fweisbec@gmail.com>
 M:	Ingo Molnar <mingo@redhat.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git tracing/core
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git perf/core
 S:	Maintained
 F:	Documentation/trace/ftrace.txt
 F:	arch/*/*/*/ftrace.h

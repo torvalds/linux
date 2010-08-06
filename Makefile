@@ -420,7 +420,7 @@ endif
 no-dot-config-targets := clean mrproper distclean \
 			 cscope TAGS tags help %docs check% coccicheck \
 			 include/linux/version.h headers_% \
-			 kernelversion
+			 kernelversion %src-pkg
 
 config-targets := 0
 mixed-targets  := 0
@@ -1168,6 +1168,8 @@ distclean: mrproper
 # rpm target kept for backward compatibility
 package-dir	:= $(srctree)/scripts/package
 
+%src-pkg: FORCE
+	$(Q)$(MAKE) $(build)=$(package-dir) $@
 %pkg: include/config/kernel.release FORCE
 	$(Q)$(MAKE) $(build)=$(package-dir) $@
 rpm: include/config/kernel.release FORCE
