@@ -268,6 +268,7 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_HT_AMPDU: This frame is part of an AMPDU.
  * @ENTRY_TXD_HT_BW_40: Use 40MHz Bandwidth.
  * @ENTRY_TXD_HT_SHORT_GI: Use short GI.
+ * @ENTRY_TXD_HT_MIMO_PS: The receiving STA is in dynamic SM PS mode.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
@@ -286,6 +287,7 @@ enum txentry_desc_flags {
 	ENTRY_TXD_HT_AMPDU,
 	ENTRY_TXD_HT_BW_40,
 	ENTRY_TXD_HT_SHORT_GI,
+	ENTRY_TXD_HT_MIMO_PS,
 };
 
 /**

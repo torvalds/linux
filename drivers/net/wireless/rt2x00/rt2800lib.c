@@ -437,7 +437,8 @@ void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 	rt2x00_desc_read(txwi, 0, &word);
 	rt2x00_set_field32(&word, TXWI_W0_FRAG,
 			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS, 0);
+	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS,
+			   test_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W0_CF_ACK, 0);
 	rt2x00_set_field32(&word, TXWI_W0_TS,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
