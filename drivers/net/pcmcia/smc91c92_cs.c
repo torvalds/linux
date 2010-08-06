@@ -44,7 +44,6 @@
 #include <linux/jiffies.h>
 #include <linux/firmware.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -325,9 +324,8 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->priv = dev;
 
     spin_lock_init(&smc->lock);
-    link->io.NumPorts1 = 16;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 4;
+    link->resource[0]->end = 16;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -428,12 +426,13 @@ static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
 	int k;
-	p_dev->io.BasePort2 = cf->io.win[0].base;
+	p_dev->resource[1]->start = cf->io.win[0].base;
 	for (k = 0; k < 0x400; k += 0x10) {
 		if (k & 0x80)
 			continue;
-		p_dev->io.BasePort1 = k ^ 0x300;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = k ^ 0x300;
+		p_dev->io_lines = 16;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;
@@ -444,21 +443,20 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
     win_req_t req;
-    memreq_t mem;
+    unsigned int offset;
     int i;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->io.IOAddrLines = 16;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts2 = 8;
+    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[1]->end = 8;
 
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
     if (pcmcia_loop_config(link, mhz_mfc_config_check, NULL))
 	    return -ENODEV;
 
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     /* Allocate a memory window, for accessing the ISR */
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
@@ -469,11 +467,8 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 	    return -ENODEV;
 
     smc->base = ioremap(req.Base, req.Size);
-    mem.CardOffset = mem.Page = 0;
-    if (smc->manfid == MANFID_MOTOROLA)
-	mem.CardOffset = link->conf.ConfigBase;
-    i = pcmcia_map_mem_page(link, link->win, &mem);
-
+    offset = (smc->manfid == MANFID_MOTOROLA) ? link->conf.ConfigBase : 0;
+    i = pcmcia_map_mem_page(link, link->win, offset);
     if ((i == 0) &&
 	(smc->manfid == MANFID_MEGAHERTZ) &&
 	(smc->cardid == PRODID_MEGAHERTZ_EM3288))
@@ -546,7 +541,7 @@ static void mot_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
-    unsigned int iouart = link->io.BasePort2;
+    unsigned int iouart = link->resource[1]->start;
 
     /* Set UART base address and force map with COR bit 1 */
     writeb(iouart & 0xff,        smc->base + MOT_UART + CISREG_IOBASE_0);
@@ -602,9 +597,9 @@ static int smc_configcheck(struct pcmcia_device *p_dev,
 			   unsigned int vcc,
 			   void *priv_data)
 {
-	p_dev->io.BasePort1 = cf->io.win[0].base;
-	p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	p_dev->resource[0]->start = cf->io.win[0].base;
+	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	return pcmcia_request_io(p_dev);
 }
 
 static int smc_config(struct pcmcia_device *link)
@@ -612,10 +607,10 @@ static int smc_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     int i;
 
-    link->io.NumPorts1 = 16;
+    link->resource[0]->end = 16;
     i = pcmcia_loop_config(link, smc_configcheck, NULL);
     if (!i)
-	    dev->base_addr = link->io.BasePort1;
+	    dev->base_addr = link->resource[0]->start;
 
     return i;
 }
@@ -647,27 +642,27 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->io.NumPorts1 = 64;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts2 = 8;
-    link->io.IOAddrLines = 16;
+    link->resource[0]->end = 64;
+    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[1]->end = 8;
 
     /* Enable Hard Decode, LAN, Modem */
     link->conf.ConfigIndex = 0x23;
+    link->io_lines = 16;
 
     for (i = j = 0; j < 4; j++) {
-	link->io.BasePort2 = com[j];
-	i = pcmcia_request_io(link, &link->io);
+	link->resource[1]->start = com[j];
+	i = pcmcia_request_io(link);
 	if (i == 0)
 		break;
     }
     if (i != 0) {
 	/* Fallback: turn off hard decode */
 	link->conf.ConfigIndex = 0x03;
-	link->io.NumPorts2 = 0;
-	i = pcmcia_request_io(link, &link->io);
+	link->resource[1]->end = 0;
+	i = pcmcia_request_io(link);
     }
-    dev->base_addr = link->io.BasePort1 + 0x10;
+    dev->base_addr = link->resource[0]->start + 0x10;
     return i;
 }
 
@@ -684,7 +679,7 @@ static int osi_load_firmware(struct pcmcia_device *link)
 
 	/* Download the Seven of Diamonds firmware */
 	for (i = 0; i < fw->size; i++) {
-	    outb(fw->data[i], link->io.BasePort1 + 2);
+	    outb(fw->data[i], link->resource[0]->start + 2);
 	    udelay(50);
 	}
 	release_firmware(fw);
@@ -726,12 +721,12 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 		return rc;
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
-	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
+	set_bits(0x300, link->resource[0]->start + OSITECH_AUI_PWR);
 	/* Now, turn on the interrupt for both card functions */
-	set_bits(0x300, link->io.BasePort1 + OSITECH_RESET_ISR);
+	set_bits(0x300, link->resource[0]->start + OSITECH_RESET_ISR);
 	dev_dbg(&link->dev, "AUI/PWR: %4.4x RESET/ISR: %4.4x\n",
-	      inw(link->io.BasePort1 + OSITECH_AUI_PWR),
-	      inw(link->io.BasePort1 + OSITECH_RESET_ISR));
+	      inw(link->resource[0]->start + OSITECH_AUI_PWR),
+	      inw(link->resource[0]->start + OSITECH_RESET_ISR));
     }
     return 0;
 }
@@ -804,7 +799,7 @@ static int check_sig(struct pcmcia_device *link)
     }
 
     /* Try setting bus width */
-    width = (link->io.Attributes1 == IO_DATA_PATH_WIDTH_AUTO);
+    width = (link->resource[0]->flags == IO_DATA_PATH_WIDTH_AUTO);
     s = inb(ioaddr + CONFIG);
     if (width)
 	s |= CFG_16BIT;

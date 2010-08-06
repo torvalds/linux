@@ -50,7 +50,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -871,7 +870,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	dev->iobase = local->link->io.BasePort1;
+	dev->iobase = local->link->resource[0]->start;
 
 	ret = alloc_subdevices(dev, 4);
 	if (ret < 0)
@@ -995,14 +994,6 @@ static int daqp_cs_resume(struct pcmcia_device *p_dev);
 static int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
 
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static const dev_info_t dev_info = "quatech_daqp_cs";
-
 /*======================================================================
 
     daqp_cs_attach() creates an "instance" of the driver, allocating
@@ -1101,26 +1092,24 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+			pcmcia_io_cfg_data_width(io->flags);
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
 	}
 
 	/* This reserves IO space but doesn't actually enable it */
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static void daqp_cs_config(struct pcmcia_device *link)
@@ -1151,13 +1140,11 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	/* Finally, report what we've done */
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(KERN_INFO ", irq %u", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+		printk(", irq %u", link->irq);
+	if (link->resource[0])
+		printk(" & %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	printk("\n");
 
 	return;
@@ -1226,7 +1213,7 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
+		.name = "quatech_daqp_cs",
 		},
 };
 

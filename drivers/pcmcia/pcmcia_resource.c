@@ -25,7 +25,6 @@
 
 #include <asm/irq.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -57,47 +56,23 @@ struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 }
 
 
-/** alloc_io_space
- *
- * Special stuff for managing IO windows, because they are scarce
- */
-
-static int alloc_io_space(struct pcmcia_socket *s, u_int attr,
-			  unsigned int *base, unsigned int num, u_int lines)
+static void release_io_space(struct pcmcia_socket *s, struct resource *res)
 {
-	unsigned int align;
-
-	align = (*base) ? (lines ? 1<<lines : 0) : 1;
-	if (align && (align < num)) {
-		if (*base) {
-			dev_dbg(&s->dev, "odd IO request: num %#x align %#x\n",
-			       num, align);
-			align = 0;
-		} else
-			while (align && (align < num))
-				align <<= 1;
-	}
-	if (*base & ~(align-1)) {
-		dev_dbg(&s->dev, "odd IO request: base %#x align %#x\n",
-		       *base, align);
-		align = 0;
-	}
-
-	return s->resource_ops->find_io(s, attr, base, num, align);
-} /* alloc_io_space */
-
-
-static void release_io_space(struct pcmcia_socket *s, unsigned int base,
-			     unsigned int num)
-{
+	resource_size_t num = resource_size(res);
 	int i;
+
+	dev_dbg(&s->dev, "release_io_space for %pR\n", res);
 
 	for (i = 0; i < MAX_IO_WIN; i++) {
 		if (!s->io[i].res)
 			continue;
-		if ((s->io[i].res->start <= base) &&
-		    (s->io[i].res->end >= base+num-1)) {
+		if ((s->io[i].res->start <= res->start) &&
+		    (s->io[i].res->end >= res->end)) {
 			s->io[i].InUse -= num;
+			if (res->parent)
+				release_resource(res);
+			res->start = res->end = 0;
+			res->flags = IORESOURCE_IO;
 			/* Free the window if no one else is using it */
 			if (s->io[i].InUse == 0) {
 				release_resource(s->io[i].res);
@@ -108,25 +83,79 @@ static void release_io_space(struct pcmcia_socket *s, unsigned int base,
 	}
 } /* release_io_space */
 
-
-/** pccard_access_configuration_register
+/** alloc_io_space
  *
- * Access_configuration_register() reads and writes configuration
- * registers in attribute memory.  Memory window 0 is reserved for
- * this and the tuple reading services.
+ * Special stuff for managing IO windows, because they are scarce
  */
+static int alloc_io_space(struct pcmcia_socket *s, struct resource *res,
+			unsigned int lines)
+{
+	unsigned int align;
+	unsigned int base = res->start;
+	unsigned int num = res->end;
+	int ret;
 
-int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
-					 conf_reg_t *reg)
+	res->flags |= IORESOURCE_IO;
+
+	dev_dbg(&s->dev, "alloc_io_space request for %pR, %d lines\n",
+		res, lines);
+
+	align = base ? (lines ? 1<<lines : 0) : 1;
+	if (align && (align < num)) {
+		if (base) {
+			dev_dbg(&s->dev, "odd IO request\n");
+			align = 0;
+		} else
+			while (align && (align < num))
+				align <<= 1;
+	}
+	if (base & ~(align-1)) {
+		dev_dbg(&s->dev, "odd IO request\n");
+		align = 0;
+	}
+
+	ret = s->resource_ops->find_io(s, res->flags, &base, num, align,
+				&res->parent);
+	if (ret) {
+		dev_dbg(&s->dev, "alloc_io_space request failed (%d)\n", ret);
+		return -EINVAL;
+	}
+
+	res->start = base;
+	res->end = res->start + num - 1;
+
+	if (res->parent) {
+		ret = request_resource(res->parent, res);
+		if (ret) {
+			dev_warn(&s->dev,
+				"request_resource %pR failed: %d\n", res, ret);
+			res->parent = NULL;
+			release_io_space(s, res);
+		}
+	}
+	dev_dbg(&s->dev, "alloc_io_space request result %d: %pR\n", ret, res);
+	return ret;
+} /* alloc_io_space */
+
+
+/**
+ * pcmcia_access_config() - read or write card configuration registers
+ *
+ * pcmcia_access_config() reads and writes configuration registers in
+ * attribute memory.  Memory window 0 is reserved for this and the tuple
+ * reading services. Drivers must use pcmcia_read_config_byte() or
+ * pcmcia_write_config_byte().
+ */
+static int pcmcia_access_config(struct pcmcia_device *p_dev,
+				off_t where, u8 *val,
+				int (*accessf) (struct pcmcia_socket *s,
+						int attr, unsigned int addr,
+						unsigned int len, void *ptr))
 {
 	struct pcmcia_socket *s;
 	config_t *c;
 	int addr;
-	u_char val;
 	int ret = 0;
-
-	if (!p_dev || !p_dev->function_config)
-		return -EINVAL;
 
 	s = p_dev->socket;
 
@@ -139,44 +168,57 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		return -EACCES;
 	}
 
-	addr = (c->ConfigBase + reg->Offset) >> 1;
+	addr = (c->ConfigBase + where) >> 1;
 
-	switch (reg->Action) {
-	case CS_READ:
-		ret = pcmcia_read_cis_mem(s, 1, addr, 1, &val);
-		reg->Value = val;
-		break;
-	case CS_WRITE:
-		val = reg->Value;
-		pcmcia_write_cis_mem(s, 1, addr, 1, &val);
-		break;
-	default:
-		dev_dbg(&s->dev, "Invalid conf register request\n");
-		ret = -EINVAL;
-		break;
-	}
+	ret = accessf(s, 1, addr, 1, val);
+
 	mutex_unlock(&s->ops_mutex);
+
 	return ret;
-} /* pcmcia_access_configuration_register */
-EXPORT_SYMBOL(pcmcia_access_configuration_register);
+} /* pcmcia_access_config */
+
+
+/**
+ * pcmcia_read_config_byte() - read a byte from a card configuration register
+ *
+ * pcmcia_read_config_byte() reads a byte from a configuration register in
+ * attribute memory.
+ */
+int pcmcia_read_config_byte(struct pcmcia_device *p_dev, off_t where, u8 *val)
+{
+	return pcmcia_access_config(p_dev, where, val, pcmcia_read_cis_mem);
+}
+EXPORT_SYMBOL(pcmcia_read_config_byte);
+
+
+/**
+ * pcmcia_write_config_byte() - write a byte to a card configuration register
+ *
+ * pcmcia_write_config_byte() writes a byte to a configuration register in
+ * attribute memory.
+ */
+int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val)
+{
+	return pcmcia_access_config(p_dev, where, &val, pcmcia_write_cis_mem);
+}
+EXPORT_SYMBOL(pcmcia_write_config_byte);
 
 
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
-			memreq_t *req)
+			unsigned int offset)
 {
 	struct pcmcia_socket *s = p_dev->socket;
+	struct resource *res = wh;
+	unsigned int w;
 	int ret;
 
-	wh--;
-	if (wh >= MAX_WIN)
+	w = ((res->flags & IORESOURCE_BITS & WIN_FLAGS_REQ) >> 2) - 1;
+	if (w >= MAX_WIN)
 		return -EINVAL;
-	if (req->Page != 0) {
-		dev_dbg(&s->dev, "failure: requested page is zero\n");
-		return -EINVAL;
-	}
+
 	mutex_lock(&s->ops_mutex);
-	s->win[wh].card_start = req->CardOffset;
-	ret = s->ops->set_mem_map(s, &s->win[wh]);
+	s->win[w].card_start = offset;
+	ret = s->ops->set_mem_map(s, &s->win[w]);
 	if (ret)
 		dev_warn(&s->dev, "failed to set_mem_map\n");
 	mutex_unlock(&s->ops_mutex);
@@ -316,31 +358,25 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
  * don't bother checking the port ranges against the current socket
  * values.
  */
-static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
+static int pcmcia_release_io(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	int ret = -EINVAL;
 	config_t *c;
 
 	mutex_lock(&s->ops_mutex);
-	c = p_dev->function_config;
-
 	if (!p_dev->_io)
 		goto out;
 
+	c = p_dev->function_config;
+
+	release_io_space(s, &c->io[0]);
+
+	if (c->io[1].end)
+		release_io_space(s, &c->io[1]);
+
 	p_dev->_io = 0;
-
-	if ((c->io.BasePort1 != req->BasePort1) ||
-	    (c->io.NumPorts1 != req->NumPorts1) ||
-	    (c->io.BasePort2 != req->BasePort2) ||
-	    (c->io.NumPorts2 != req->NumPorts2))
-		goto out;
-
 	c->state &= ~CONFIG_IO_REQ;
-
-	release_io_space(s, req->BasePort1, req->NumPorts1);
-	if (req->NumPorts2)
-		release_io_space(s, req->BasePort2, req->NumPorts2);
 
 out:
 	mutex_unlock(&s->ops_mutex);
@@ -349,19 +385,22 @@ out:
 } /* pcmcia_release_io */
 
 
-int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
+int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
+	unsigned int w;
 
-	wh--;
-	if (wh >= MAX_WIN)
+	dev_dbg(&p_dev->dev, "releasing window %pR\n", res);
+
+	w = ((res->flags & IORESOURCE_BITS & WIN_FLAGS_REQ) >> 2) - 1;
+	if (w >= MAX_WIN)
 		return -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
-	win = &s->win[wh];
+	win = &s->win[w];
 
-	if (!(p_dev->_win & CLIENT_WIN_REQ(wh))) {
+	if (!(p_dev->_win & CLIENT_WIN_REQ(w))) {
 		dev_dbg(&s->dev, "not releasing unknown window\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
@@ -370,15 +409,16 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 	/* Shut down memory window */
 	win->flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, win);
-	s->state &= ~SOCKET_WIN_REQ(wh);
+	s->state &= ~SOCKET_WIN_REQ(w);
 
 	/* Release system memory */
 	if (win->res) {
+		release_resource(res);
 		release_resource(win->res);
 		kfree(win->res);
 		win->res = NULL;
 	}
-	p_dev->_win &= ~CLIENT_WIN_REQ(wh);
+	p_dev->_win &= ~CLIENT_WIN_REQ(w);
 	mutex_unlock(&s->ops_mutex);
 
 	return 0;
@@ -473,13 +513,13 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1, &c->ExtStatus);
 	}
 	if (req->Present & PRESENT_IOBASE_0) {
-		u_char b = c->io.BasePort1 & 0xff;
+		u8 b = c->io[0].start & 0xff;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);
-		b = (c->io.BasePort1 >> 8) & 0xff;
+		b = (c->io[0].start >> 8) & 0xff;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &b);
 	}
 	if (req->Present & PRESENT_IOSIZE) {
-		u_char b = c->io.NumPorts1 + c->io.NumPorts2 - 1;
+		u8 b = resource_size(&c->io[0]) + resource_size(&c->io[1]) - 1;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &b);
 	}
 
@@ -513,28 +553,29 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 EXPORT_SYMBOL(pcmcia_request_configuration);
 
 
-/** pcmcia_request_io
+/**
+ * pcmcia_request_io() - attempt to reserve port ranges for PCMCIA devices
  *
- * Request_io() reserves ranges of port addresses for a socket.
- * I have not implemented range sharing or alias addressing.
+ * pcmcia_request_io() attepts to reserve the IO port ranges specified in
+ * &struct pcmcia_device @p_dev->resource[0] and @p_dev->resource[1]. The
+ * "start" value is the requested start of the IO port resource; "end"
+ * reflects the number of ports requested. The number of IO lines requested
+ * is specified in &struct pcmcia_device @p_dev->io_lines.
  */
-int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
+int pcmcia_request_io(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c;
+	config_t *c = p_dev->function_config;
 	int ret = -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
+	dev_dbg(&s->dev, "pcmcia_request_io: %pR , %pR", &c->io[0], &c->io[1]);
 
 	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&s->dev, "No card present\n");
+		dev_dbg(&s->dev, "pcmcia_request_io: No card present\n");
 		goto out;
 	}
 
-	if (!req)
-		goto out;
-
-	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
 		dev_dbg(&s->dev, "Configuration is locked\n");
 		goto out;
@@ -543,40 +584,25 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		dev_dbg(&s->dev, "IO already configured\n");
 		goto out;
 	}
-	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)) {
-		dev_dbg(&s->dev, "bad attribute setting for IO region 1\n");
-		goto out;
-	}
-	if ((req->NumPorts2 > 0) &&
-	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))) {
-		dev_dbg(&s->dev, "bad attribute setting for IO region 2\n");
-		goto out;
-	}
 
-	dev_dbg(&s->dev, "trying to allocate resource 1\n");
-	ret = alloc_io_space(s, req->Attributes1, &req->BasePort1,
-			     req->NumPorts1, req->IOAddrLines);
-	if (ret) {
-		dev_dbg(&s->dev, "allocation of resource 1 failed\n");
+	ret = alloc_io_space(s, &c->io[0], p_dev->io_lines);
+	if (ret)
 		goto out;
-	}
 
-	if (req->NumPorts2) {
-		dev_dbg(&s->dev, "trying to allocate resource 2\n");
-		ret = alloc_io_space(s, req->Attributes2, &req->BasePort2,
-				     req->NumPorts2, req->IOAddrLines);
+	if (c->io[1].end) {
+		ret = alloc_io_space(s, &c->io[1], p_dev->io_lines);
 		if (ret) {
-			dev_dbg(&s->dev, "allocation of resource 2 failed\n");
-			release_io_space(s, req->BasePort1, req->NumPorts1);
+			release_io_space(s, &c->io[0]);
 			goto out;
 		}
-	}
+	} else
+		c->io[1].start = 0;
 
-	c->io = *req;
 	c->state |= CONFIG_IO_REQ;
 	p_dev->_io = 1;
-	dev_dbg(&s->dev, "allocating resources succeeded: %d\n", ret);
 
+	dev_dbg(&s->dev, "pcmcia_request_io succeeded: %pR , %pR",
+		&c->io[0], &c->io[1]);
 out:
 	mutex_unlock(&s->ops_mutex);
 
@@ -651,7 +677,7 @@ EXPORT_SYMBOL(__pcmcia_request_exclusive_irq);
 #ifdef CONFIG_PCMCIA_PROBE
 
 /* mask of IRQs already reserved by other cards, we should avoid using them */
-static u8 pcmcia_used_irq[NR_IRQS];
+static u8 pcmcia_used_irq[32];
 
 static irqreturn_t test_action(int cpl, void *dev_id)
 {
@@ -673,6 +699,9 @@ static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
 
 	for (try = 0; try < 64; try++) {
 		irq = try % 32;
+
+		if (irq > NR_IRQS)
+			continue;
 
 		/* marked as available by driver, not blocked by userspace? */
 		if (!((mask >> irq) & 1))
@@ -767,23 +796,18 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
 	u_long align;
+	struct resource *res;
 	int w;
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
 	}
-	if (req->Attributes & (WIN_PAGED | WIN_SHARED)) {
-		dev_dbg(&s->dev, "bad attribute setting for iomem region\n");
-		return -EINVAL;
-	}
 
 	/* Window size defaults to smallest available */
 	if (req->Size == 0)
 		req->Size = s->map_size;
-	align = (((s->features & SS_CAP_MEM_ALIGN) ||
-		  (req->Attributes & WIN_STRICT_ALIGN)) ?
-		 req->Size : s->map_size);
+	align = (s->features & SS_CAP_MEM_ALIGN) ? req->Size : s->map_size;
 	if (req->Size & (s->map_size-1)) {
 		dev_dbg(&s->dev, "invalid map size\n");
 		return -EINVAL;
@@ -797,20 +821,21 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		align = 0;
 
 	/* Allocate system memory window */
+	mutex_lock(&s->ops_mutex);
 	for (w = 0; w < MAX_WIN; w++)
 		if (!(s->state & SOCKET_WIN_REQ(w)))
 			break;
 	if (w == MAX_WIN) {
 		dev_dbg(&s->dev, "all windows are used already\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
 
-	mutex_lock(&s->ops_mutex);
 	win = &s->win[w];
 
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
 		win->res = pcmcia_find_mem_region(req->Base, req->Size, align,
-						      (req->Attributes & WIN_MAP_BELOW_1MB), s);
+						0, s);
 		if (!win->res) {
 			dev_dbg(&s->dev, "allocating mem region failed\n");
 			mutex_unlock(&s->ops_mutex);
@@ -821,16 +846,8 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 
 	/* Configure the socket controller */
 	win->map = w+1;
-	win->flags = 0;
+	win->flags = req->Attributes;
 	win->speed = req->AccessSpeed;
-	if (req->Attributes & WIN_MEMORY_TYPE)
-		win->flags |= MAP_ATTRIB;
-	if (req->Attributes & WIN_ENABLE)
-		win->flags |= MAP_ACTIVE;
-	if (req->Attributes & WIN_DATA_WIDTH_16)
-		win->flags |= MAP_16BIT;
-	if (req->Attributes & WIN_USE_WAIT)
-		win->flags |= MAP_USE_WAIT;
 	win->card_start = 0;
 
 	if (s->ops->set_mem_map(s, win) != 0) {
@@ -846,8 +863,21 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	else
 		req->Base = win->res->start;
 
+	/* convert to new-style resources */
+	res = p_dev->resource[w + MAX_IO_WIN];
+	res->start = req->Base;
+	res->end = req->Base + req->Size - 1;
+	res->flags &= ~IORESOURCE_BITS;
+	res->flags |= (req->Attributes & WIN_FLAGS_MAP) | (win->map << 2);
+	res->flags |= IORESOURCE_MEM;
+	res->parent = win->res;
+	if (win->res)
+		request_resource(&iomem_resource, res);
+
+	dev_dbg(&s->dev, "request_window results in %pR\n", res);
+
 	mutex_unlock(&s->ops_mutex);
-	*wh = w + 1;
+	*wh = res;
 
 	return 0;
 } /* pcmcia_request_window */
@@ -855,13 +885,18 @@ EXPORT_SYMBOL(pcmcia_request_window);
 
 void pcmcia_disable_device(struct pcmcia_device *p_dev)
 {
+	int i;
+	for (i = 0; i < MAX_WIN; i++) {
+		struct resource *res = p_dev->resource[MAX_IO_WIN + i];
+		if (res->flags & WIN_FLAGS_REQ)
+			pcmcia_release_window(p_dev, res);
+	}
+
 	pcmcia_release_configuration(p_dev);
-	pcmcia_release_io(p_dev, &p_dev->io);
+	pcmcia_release_io(p_dev);
 	if (p_dev->_irq) {
 		free_irq(p_dev->irq, p_dev->priv);
 		p_dev->_irq = 0;
 	}
-	if (p_dev->win)
-		pcmcia_release_window(p_dev, p_dev->win);
 }
 EXPORT_SYMBOL(pcmcia_disable_device);
