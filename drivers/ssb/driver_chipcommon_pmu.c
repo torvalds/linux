@@ -495,9 +495,9 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		chipco_write32(cc, SSB_CHIPCO_PMU_MAXRES_MSK, max_msk);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/SSB/PmuInit */
 void ssb_pmu_init(struct ssb_chipcommon *cc)
 {
+	struct ssb_bus *bus = cc->dev->bus;
 	u32 pmucap;
 
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PMU))
@@ -509,12 +509,15 @@ void ssb_pmu_init(struct ssb_chipcommon *cc)
 	ssb_dprintk(KERN_DEBUG PFX "Found rev %u PMU (capabilities 0x%08X)\n",
 		    cc->pmu.rev, pmucap);
 
-	if (cc->pmu.rev == 1)
-		chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
-			      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
-	else
-		chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
-			     SSB_CHIPCO_PMU_CTL_NOILPONW);
+	if (cc->pmu.rev >= 1) {
+		if ((bus->chip_id == 0x4325) && (bus->chip_rev < 2)) {
+			chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
+				      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
+		} else {
+			chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
+				     SSB_CHIPCO_PMU_CTL_NOILPONW);
+		}
+	}
 	ssb_pmu_pll_init(cc);
 	ssb_pmu_resources_init(cc);
 }
