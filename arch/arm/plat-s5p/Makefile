@@ -19,3 +19,8 @@ obj-y				+= clock.o
 obj-y				+= irq.o
 obj-$(CONFIG_S5P_EXT_INT)	+= irq-eint.o
 
+# devices
+
+obj-$(CONFIG_S5P_DEV_FIMC0)	+= dev-fimc0.o
+obj-$(CONFIG_S5P_DEV_FIMC1)	+= dev-fimc1.o
+obj-$(CONFIG_S5P_DEV_FIMC2)	+= dev-fimc2.o

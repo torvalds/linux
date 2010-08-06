@@ -15,9 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/fb.h>
+#include <linux/gpio.h>
 
 #include <mach/regs-fb.h>
-#include <mach/gpio.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 

@@ -20,7 +20,6 @@ config MACH_SMDK6442
 	bool "SMDK6442"
 	select CPU_S5P6442
 	select S3C_DEV_WDT
-	select HAVE_S3C2410_WATCHDOG
 	help
 	  Machine support for Samsung SMDK6442
 
