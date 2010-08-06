@@ -145,7 +145,7 @@ static void bio_batch_end_io(struct bio *bio, int err)
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
 {
-	int ret = 0;
+	int ret;
 	struct bio *bio;
 	struct bio_batch bb;
 	unsigned int sz, issued = 0;
@@ -163,11 +163,14 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			return ret;
 	}
 submit:
+	ret = 0;
 	while (nr_sects != 0) {
 		bio = bio_alloc(gfp_mask,
 				min(nr_sects, (sector_t)BIO_MAX_PAGES));
-		if (!bio)
+		if (!bio) {
+			ret = -ENOMEM;
 			break;
+		}
 
 		bio->bi_sector = sector;
 		bio->bi_bdev   = bdev;
@@ -186,6 +189,7 @@ submit:
 			if (ret < (sz << 9))
 				break;
 		}
+		ret = 0;
 		issued++;
 		submit_bio(WRITE, bio);
 	}
