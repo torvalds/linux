@@ -470,6 +470,12 @@ static void dbg_cpu_switch(int cpu, int next_cpu)
 	kgdb_info[next_cpu].exception_state |= DCPU_NEXT_MASTER;
 }
 
+static void dbg_touch_watchdogs(void)
+{
+	touch_softlockup_watchdog_sync();
+	clocksource_touch_watchdog();
+}
+
 static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs)
 {
 	unsigned long flags;
@@ -523,8 +529,7 @@ return_normal:
 			if (trace_on)
 				tracing_on();
 			atomic_dec(&cpu_in_kgdb[cpu]);
-			touch_softlockup_watchdog_sync();
-			clocksource_touch_watchdog();
+			dbg_touch_watchdogs();
 			local_irq_restore(flags);
 			return 0;
 		}
@@ -541,8 +546,7 @@ return_normal:
 	    (kgdb_info[cpu].task &&
 	     kgdb_info[cpu].task->pid != kgdb_sstep_pid) && --sstep_tries) {
 		atomic_set(&kgdb_active, -1);
-		touch_softlockup_watchdog_sync();
-		clocksource_touch_watchdog();
+		dbg_touch_watchdogs();
 		local_irq_restore(flags);
 
 		goto acquirelock;
@@ -659,8 +663,7 @@ kgdb_restore:
 		tracing_on();
 	/* Free kgdb_active */
 	atomic_set(&kgdb_active, -1);
-	touch_softlockup_watchdog_sync();
-	clocksource_touch_watchdog();
+	dbg_touch_watchdogs();
 	local_irq_restore(flags);
 
 	return kgdb_info[cpu].ret_state;
