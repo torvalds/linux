@@ -33,4 +33,13 @@ config MACH_SMDKV310
 	select ARCH_SPARSEMEM_ENABLE
 	help
 	  Machine support for Samsung SMDKV310
+
+config MACH_UNIVERSAL_C210
+	bool "Mobile UNIVERSAL_C210 Board"
+	select CPU_S5PV310
+	select ARCH_SPARSEMEM_ENABLE
+	help
+	  Machine support for Samsung Mobile Universal S5PC210 Reference
+	  Board. S5PC210(MCP) is one of package option of S5PV310
+
 endif
