@@ -1190,7 +1190,7 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 			bsize = NFSSVC_MAXBLKSIZE;
 		bsize &= ~(1024-1);
 		mutex_lock(&nfsd_mutex);
-		if (nfsd_serv && nfsd_serv->sv_nrthreads) {
+		if (nfsd_serv) {
 			mutex_unlock(&nfsd_mutex);
 			return -EBUSY;
 		}
