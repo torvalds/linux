@@ -566,14 +566,10 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2800pci_write_tx_data(struct queue_entry* entry,
-				    struct txentry_desc *txdesc)
+static __le32 *rt2800pci_get_txwi(struct queue_entry *entry)
 {
-	__le32 *txwi = (__le32 *) entry->skb->data;
-
-	rt2800_write_txwi(txwi, txdesc);
+	return (__le32 *) entry->skb->data;
 }
-
 
 static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
@@ -1011,6 +1007,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.regbusy_read		= rt2x00pci_regbusy_read,
 	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800pci_init_registers,
+	.drv_get_txwi		= rt2800pci_get_txwi,
 };
 
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
@@ -1030,7 +1027,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
 	.write_tx_desc		= rt2800pci_write_tx_desc,
-	.write_tx_data		= rt2800pci_write_tx_data,
+	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.kick_tx_queue		= rt2800pci_kick_tx_queue,
 	.kill_tx_queue		= rt2800pci_kill_tx_queue,

@@ -427,8 +427,10 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_load_firmware);
 
-void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
+void rt2800_write_tx_data(struct queue_entry *entry,
+			  struct txentry_desc *txdesc)
 {
+	__le32 *txwi = rt2800_drv_get_txwi(entry);
 	u32 word;
 
 	/*
@@ -479,7 +481,7 @@ void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
 	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
 }
-EXPORT_SYMBOL_GPL(rt2800_write_txwi);
+EXPORT_SYMBOL_GPL(rt2800_write_tx_data);
 
 static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
 {
@@ -601,7 +603,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	/*
 	 * Add the TXWI for the beacon to the skb.
 	 */
-	rt2800_write_txwi((__le32 *)entry->skb->data, txdesc);
+	rt2800_write_tx_data(entry, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
