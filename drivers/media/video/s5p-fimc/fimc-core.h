@@ -28,18 +28,6 @@
 #define dbg(fmt, args...)
 #endif
 
-#define ctx_m2m_get_frame(frame, ctx, type) do { \
-	if (V4L2_BUF_TYPE_VIDEO_OUTPUT == (type)) { \
-		frame = &(ctx)->s_frame; \
-	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE == (type)) { \
-		frame = &(ctx)->d_frame; \
-	} else { \
-		v4l2_err(&(ctx)->fimc_dev->m2m.v4l2_dev,\
-			"Wrong buffer/video queue type (%d)\n", type); \
-		return -EINVAL; \
-	} \
-} while (0)
-
 #define NUM_FIMC_CLOCKS		2
 #define MODULE_NAME		"s5p-fimc"
 #define FIMC_MAX_DEVS		3
@@ -442,6 +430,24 @@ static inline void fimc_hw_stop_in_dma(struct fimc_dev *dev)
 	u32 cfg = readl(dev->regs + S5P_MSCTRL);
 	cfg &= ~S5P_MSCTRL_ENVID;
 	writel(cfg, dev->regs + S5P_MSCTRL);
+}
+
+static inline struct fimc_frame *ctx_m2m_get_frame(struct fimc_ctx *ctx,
+						   enum v4l2_buf_type type)
+{
+	struct fimc_frame *frame;
+
+	if (V4L2_BUF_TYPE_VIDEO_OUTPUT == type) {
+		frame = &ctx->s_frame;
+	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE == type) {
+		frame = &ctx->d_frame;
+	} else {
+		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
+			"Wrong buffer/video queue type (%d)\n", type);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return frame;
 }
 
 /* -----------------------------------------------------*/

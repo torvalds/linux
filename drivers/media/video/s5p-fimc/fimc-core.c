@@ -303,7 +303,9 @@ static int fimc_prepare_addr(struct fimc_ctx *ctx,
 	u32 pix_size;
 	int ret = 0;
 
-	ctx_m2m_get_frame(frame, ctx, type);
+	frame = ctx_m2m_get_frame(ctx, type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 	paddr = &frame->paddr;
 
 	if (!buf)
@@ -555,8 +557,10 @@ dma_unlock:
 	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
-/* Nothing done in job_abort. */
-static void fimc_job_abort(void *priv) {}
+static void fimc_job_abort(void *priv)
+{
+	/* Nothing done in job_abort. */
+}
 
 static void fimc_buf_release(struct videobuf_queue *vq,
 				    struct videobuf_buffer *vb)
@@ -571,7 +575,9 @@ static int fimc_buf_setup(struct videobuf_queue *vq, unsigned int *count,
 	struct fimc_ctx *ctx = vq->priv_data;
 	struct fimc_frame *frame;
 
-	ctx_m2m_get_frame(frame, ctx, vq->type);
+	frame = ctx_m2m_get_frame(ctx, vq->type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	*size = (frame->width * frame->height * frame->fmt->depth) >> 3;
 	if (0 == *count)
@@ -587,7 +593,9 @@ static int fimc_buf_prepare(struct videobuf_queue *vq,
 	struct fimc_frame *frame;
 	int ret;
 
-	ctx_m2m_get_frame(frame, ctx, vq->type);
+	frame = ctx_m2m_get_frame(ctx, vq->type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	if (vb->baddr) {
 		if (vb->bsize < frame->size) {
@@ -628,7 +636,7 @@ static void fimc_buf_queue(struct videobuf_queue *vq,
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, vq, vb);
 }
 
-struct videobuf_queue_ops fimc_qops = {
+static struct videobuf_queue_ops fimc_qops = {
 	.buf_setup	= fimc_buf_setup,
 	.buf_prepare	= fimc_buf_prepare,
 	.buf_queue	= fimc_buf_queue,
@@ -670,7 +678,9 @@ static int fimc_m2m_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct fimc_ctx *ctx = priv;
 	struct fimc_frame *frame;
 
-	ctx_m2m_get_frame(frame, ctx, f->type);
+	frame = ctx_m2m_get_frame(ctx, f->type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	f->fmt.pix.width	= frame->width;
 	f->fmt.pix.height	= frame->height;
@@ -1003,7 +1013,9 @@ static int fimc_m2m_cropcap(struct file *file, void *fh,
 	struct fimc_frame *frame;
 	struct fimc_ctx *ctx = fh;
 
-	ctx_m2m_get_frame(frame, ctx, cr->type);
+	frame = ctx_m2m_get_frame(ctx, cr->type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	cr->bounds.left = 0;
 	cr->bounds.top = 0;
@@ -1021,7 +1033,9 @@ static int fimc_m2m_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	struct fimc_frame *frame;
 	struct fimc_ctx *ctx = file->private_data;
 
-	ctx_m2m_get_frame(frame, ctx, cr->type);
+	frame = ctx_m2m_get_frame(ctx, cr->type);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	cr->c.left = frame->offs_h;
 	cr->c.top = frame->offs_v;
@@ -1052,7 +1066,9 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 		return -EINVAL;
 	}
 
-	ctx_m2m_get_frame(f, ctx, cr->type);
+	f = ctx_m2m_get_frame(ctx, cr->type);
+	if (IS_ERR(f))
+		return PTR_ERR(f);
 
 	/* Adjust to required pixel boundary. */
 	min_size = (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) ?
