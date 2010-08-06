@@ -21,17 +21,16 @@
 #define __MACH_TEGRA_FB_H
 
 #ifdef CONFIG_FB_TEGRA
-struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
+struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 					struct tegra_dc *dc,
 					struct tegra_fb_data *fb_data,
 					struct resource *fb_mem);
 void tegra_fb_unregister(struct tegra_fb_info *fb_info);
 #else
-static inline
-struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
-					struct tegra_dc *dc,
-					struct tegra_fb_data *fb_data,
-					struct resource *fb_mem)
+static inline struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
+						      struct tegra_dc *dc,
+						      struct tegra_fb_data *fb_data,
+						      struct resource *fb_mem)
 {
 	return NULL;
 }

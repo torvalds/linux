@@ -24,7 +24,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/platform_device.h>
+#include <linux/nvhost_bus.h>
 
 #include <asm/atomic.h>
 
@@ -33,7 +33,7 @@
 
 struct tegra_fb_info {
 	struct tegra_dc_win	*win;
-	struct platform_device	*pdev;
+	struct nvhost_device	*ndev;
 	struct fb_info		*info;
 
 	struct resource		*fb_mem;
@@ -193,7 +193,7 @@ static struct fb_ops tegra_fb_ops = {
 	.fb_imageblit = tegra_fb_imageblit,
 };
 
-struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
+struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 					struct tegra_dc *dc,
 					struct tegra_fb_data *fb_data,
 					struct resource *fb_mem)
@@ -208,12 +208,12 @@ struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
 
 	win = tegra_dc_get_window(dc, fb_data->win);
 	if (!win) {
-		dev_err(&pdev->dev, "dc does not have a window at index %d\n",
+		dev_err(&ndev->dev, "dc does not have a window at index %d\n",
 			fb_data->win);
 		return ERR_PTR(-ENOENT);
 	}
 
-	info = framebuffer_alloc(sizeof(struct tegra_fb_info), &pdev->dev);
+	info = framebuffer_alloc(sizeof(struct tegra_fb_info), &ndev->dev);
 	if (!info) {
 		ret = -ENOMEM;
 		goto err;
@@ -223,14 +223,14 @@ struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
 	fb_phys = fb_mem->start;
 	fb_base = ioremap_nocache(fb_phys, fb_size);
 	if (!fb_base) {
-		dev_err(&pdev->dev, "fb can't be mapped\n");
+		dev_err(&ndev->dev, "fb can't be mapped\n");
 		ret = -EBUSY;
 		goto err_free;
 	}
 
 	tegra_fb = info->par;
 	tegra_fb->win = win;
-	tegra_fb->pdev = pdev;
+	tegra_fb->ndev = ndev;
 	tegra_fb->fb_mem = fb_mem;
 	tegra_fb->xres = fb_data->xres;
 	tegra_fb->yres = fb_data->yres;
@@ -282,14 +282,14 @@ struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
 	tegra_fb_set_par(info);
 
 	if (register_framebuffer(info)) {
-		dev_err(&pdev->dev, "failed to register framebuffer\n");
+		dev_err(&ndev->dev, "failed to register framebuffer\n");
 		ret = -ENODEV;
 		goto err_iounmap_fb;
 	}
 
 	tegra_fb->info = info;
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(&ndev->dev, "probed\n");
 
 	return tegra_fb;
 

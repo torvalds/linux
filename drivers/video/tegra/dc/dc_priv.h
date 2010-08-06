@@ -31,7 +31,7 @@ struct tegra_dc_out_ops {
 struct tegra_dc {
 	struct list_head		list;
 
-	struct platform_device		*pdev;
+	struct nvhost_device		*ndev;
 	struct tegra_dc_platform_data	*pdata;
 
 	struct resource			*base_res;

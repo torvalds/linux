@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/platform_device.h>
+#include <linux/nvhost.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -261,7 +261,7 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 static void dump_regs_print(void *data, const char *str)
 {
 	struct tegra_dc *dc = data;
-	dev_dbg(&dc->pdev->dev, "%s", str);
+	dev_dbg(&dc->ndev->dev, "%s", str);
 }
 
 static void dump_regs(struct tegra_dc *dc)
@@ -311,8 +311,9 @@ static void tegra_dc_dbg_add(struct tegra_dc *dc)
 {
 	char name[32];
 
-	snprintf(name, sizeof(name), "tegra_dc%d_regs", dc->pdev->id);
+	snprintf(name, sizeof(name), "tegra_dc%d_regs", dc->ndev->id);
 	(void) debugfs_create_file(name, S_IRUGO, NULL, dc, &dbg_fops);
+
 }
 #else
 static void tegra_dc_dbg_add(struct tegra_dc *dc) {}
@@ -531,7 +532,7 @@ int tegra_dc_set_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 
 	if (rate * 2 / (div + 2) < (mode->pclk / 100 * 99) ||
 	    rate * 2 / (div + 2) > (mode->pclk / 100 * 109)) {
-		dev_err(&dc->pdev->dev,
+		dev_err(&dc->ndev->dev,
 			"can't divide %ld clock to %d -1/+9%% %ld %d %d\n",
 			rate, mode->pclk,
 			rate / div, (mode->pclk / 100 * 99),
@@ -555,7 +556,7 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 	if (out->n_modes > 0)
 		dc->mode = &dc->out->modes[0];
 	else
-		dev_err(&dc->pdev->dev,
+		dev_err(&dc->ndev->dev,
 			"No default modes specified.  Leaving output disabled.\n");
 
 	switch (out->type) {
@@ -615,9 +616,9 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 static void tegra_dc_init(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	if (dc->pdev->id == 0)
+	if (dc->ndev->id == 0)
 		tegra_dc_writel(dc, 0x0000011a, DC_CMD_CONT_SYNCPT_VSYNC);
-	else if (dc->pdev->id == 1)
+	else if (dc->ndev->id == 1)
 		tegra_dc_writel(dc, 0x0000011b, DC_CMD_CONT_SYNCPT_VSYNC);
 	tegra_dc_writel(dc, 0x00004700, DC_CMD_INT_TYPE);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_POLARITY);
@@ -635,7 +636,7 @@ static void tegra_dc_init(struct tegra_dc *dc)
 		dc->out_ops->init(dc);
 }
 
-static int tegra_dc_probe(struct platform_device *pdev)
+static int tegra_dc_probe(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc;
 	struct clk *clk;
@@ -648,60 +649,60 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	int irq;
 	int i;
 
-	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "no platform data\n");
+	if (!ndev->dev.platform_data) {
+		dev_err(&ndev->dev, "no platform data\n");
 		return -ENOENT;
 	}
 
 	dc = kzalloc(sizeof(struct tegra_dc), GFP_KERNEL);
 	if (!dc) {
-		dev_err(&pdev->dev, "can't allocate memory for tegra_dc\n");
+		dev_err(&ndev->dev, "can't allocate memory for tegra_dc\n");
 		return -ENOMEM;
 	}
 
-	irq = platform_get_irq_byname(pdev, "irq");
+	irq = nvhost_get_irq_byname(ndev, "irq");
 	if (irq <= 0) {
-		dev_err(&pdev->dev, "no irq\n");
+		dev_err(&ndev->dev, "no irq\n");
 		ret = -ENOENT;
 		goto err_free;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
+	res = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "regs");
 	if (!res) {
-		dev_err(&pdev->dev, "no mem resource\n");
+		dev_err(&ndev->dev, "no mem resource\n");
 		ret = -ENOENT;
 		goto err_free;
 	}
 
-	base_res = request_mem_region(res->start, resource_size(res), pdev->name);
+	base_res = request_mem_region(res->start, resource_size(res), ndev->name);
 	if (!base_res) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
+		dev_err(&ndev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto err_free;
 	}
 
 	base = ioremap(res->start, resource_size(res));
 	if (!base) {
-		dev_err(&pdev->dev, "registers can't be mapped\n");
+		dev_err(&ndev->dev, "registers can't be mapped\n");
 		ret = -EBUSY;
 		goto err_release_resource_reg;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fbmem");
+	res = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
 	if (res)
-		fb_mem = request_mem_region(res->start, resource_size(res), pdev->name);
+		fb_mem = request_mem_region(res->start, resource_size(res), ndev->name);
 
-	host1x_clk = clk_get(&pdev->dev, "host1x");
+	host1x_clk = clk_get(&ndev->dev, "host1x");
 	if (IS_ERR_OR_NULL(host1x_clk)) {
-		dev_err(&pdev->dev, "can't get host1x clock\n");
+		dev_err(&ndev->dev, "can't get host1x clock\n");
 		ret = -ENOENT;
 		goto err_iounmap_reg;
 	}
 	clk_enable(host1x_clk);
 
-	clk = clk_get(&pdev->dev, NULL);
+	clk = clk_get(&ndev->dev, NULL);
 	if (IS_ERR_OR_NULL(clk)) {
-		dev_err(&pdev->dev, "can't get clock\n");
+		dev_err(&ndev->dev, "can't get clock\n");
 		ret = -ENOENT;
 
 		goto err_put_host1x_clk;
@@ -714,8 +715,8 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	dc->base_res = base_res;
 	dc->base = base;
 	dc->irq = irq;
-	dc->pdev = pdev;
-	dc->pdata = pdev->dev.platform_data;
+	dc->ndev = ndev;
+	dc->pdata = ndev->dev.platform_data;
 	spin_lock_init(&dc->lock);
 	init_waitqueue_head(&dc->wq);
 
@@ -727,15 +728,15 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	}
 
 	if (request_irq(irq, tegra_dc_irq, IRQF_DISABLED,
-			dev_name(&pdev->dev), dc)) {
-		dev_err(&pdev->dev, "request_irq %d failed\n", irq);
+			dev_name(&ndev->dev), dc)) {
+		dev_err(&ndev->dev, "request_irq %d failed\n", irq);
 		ret = -EBUSY;
 		goto err_put_clk;
 	}
 
-	ret = tegra_dc_add(dc, pdev->id);
+	ret = tegra_dc_add(dc, ndev->id);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can't add dc\n");
+		dev_err(&ndev->dev, "can't add dc\n");
 		goto err_free_irq;
 	}
 
@@ -743,7 +744,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		if (dc->pdata->default_out)
 			tegra_dc_set_out(dc, dc->pdata->default_out);
 		else
-			dev_err(&pdev->dev, "No default output specified.  Leaving output disabled.\n");
+			dev_err(&ndev->dev, "No default output specified.  Leaving output disabled.\n");
 	}
 
 	tegra_dc_init(dc);
@@ -752,14 +753,14 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
 
-	platform_set_drvdata(pdev, dc);
+	nvhost_set_drvdata(ndev, dc);
 
 	tegra_dc_dbg_add(dc);
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(&ndev->dev, "probed\n");
 
 	if (fb_mem && dc->pdata->fb) {
-		dc->fb = tegra_fb_register(pdev, dc, dc->pdata->fb, fb_mem);
+		dc->fb = tegra_fb_register(ndev, dc, dc->pdata->fb, fb_mem);
 		if (IS_ERR_OR_NULL(dc->fb))
 			dc->fb = NULL;
 	}
@@ -786,9 +787,9 @@ err_free:
 	return ret;
 }
 
-static int tegra_dc_remove(struct platform_device *pdev)
+static int tegra_dc_remove(struct nvhost_device *ndev)
 {
-	struct tegra_dc *dc = platform_get_drvdata(pdev);
+	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
 	if (dc->fb) {
 		tegra_fb_unregister(dc->fb);
@@ -802,17 +803,18 @@ static int tegra_dc_remove(struct platform_device *pdev)
 	clk_disable(dc->host1x_clk);
 	clk_put(dc->host1x_clk);
 	iounmap(dc->base);
-	release_resource(dc->base_res);
+	if (dc->fb_mem)
+		release_resource(dc->base_res);
 	kfree(dc);
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int tegra_dc_suspend(struct platform_device *pdev, pm_message_t state)
+static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 {
-	struct tegra_dc *dc = platform_get_drvdata(pdev);
+	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
-	dev_info(&pdev->dev, "suspend\n");
+	dev_info(&ndev->dev, "suspend\n");
 
 	if (dc->out && dc->out->suspend)
 		dc->out->suspend(state);
@@ -824,13 +826,13 @@ static int tegra_dc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int tegra_dc_resume(struct platform_device *pdev)
+static int tegra_dc_resume(struct nvhost_device *ndev)
 {
-	struct tegra_dc *dc = platform_get_drvdata(pdev);
+	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 	struct tegra_dc_win *wins[DC_N_WINDOWS];
 	int i;
 
-	dev_info(&pdev->dev, "resume\n");
+	dev_info(&ndev->dev, "resume\n");
 
 	clk_enable(dc->clk);
 	tegra_periph_reset_deassert(dc->clk);
@@ -857,9 +859,9 @@ extern int suspend_set(const char *val, struct kernel_param *kp)
 		dump_regs(tegra_dcs[0]);
 #ifdef CONFIG_PM
 	else if (!strcmp(val, "suspend"))
-		tegra_dc_suspend(tegra_dcs[0]->pdev, PMSG_SUSPEND);
+		tegra_dc_suspend(tegra_dcs[0]->ndev, PMSG_SUSPEND);
 	else if (!strcmp(val, "resume"))
-		tegra_dc_resume(tegra_dcs[0]->pdev);
+		tegra_dc_resume(tegra_dcs[0]->ndev);
 #endif
 
 	return 0;
@@ -874,7 +876,7 @@ int suspend;
 
 module_param_call(suspend, suspend_set, suspend_get, &suspend, 0644);
 
-struct platform_driver tegra_dc_driver = {
+struct nvhost_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegradc",
 		.owner = THIS_MODULE,
@@ -889,12 +891,12 @@ struct platform_driver tegra_dc_driver = {
 
 static int __init tegra_dc_module_init(void)
 {
-	return platform_driver_register(&tegra_dc_driver);
+	return nvhost_driver_register(&tegra_dc_driver);
 }
 
 static void __exit tegra_dc_module_exit(void)
 {
-	platform_driver_unregister(&tegra_dc_driver);
+	nvhost_driver_unregister(&tegra_dc_driver);
 }
 
 module_exit(tegra_dc_module_exit);
