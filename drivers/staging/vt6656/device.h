@@ -887,11 +887,8 @@ typedef struct __device_info {
 #define fMP_CONTROL_READS                   0x00000400
 #define fMP_CONTROL_WRITES                  0x00000800
 
-
-
 #define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
 #define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))
-#define MP_TEST_FLAG(_M, _F)            (((_M)->Flags & (_F)) != 0)
 #define MP_TEST_FLAGS(_M, _F)            (((_M)->Flags & (_F)) == (_F))
 
 #define MP_IS_READY(_M)        (((_M)->Flags & \
@@ -905,5 +902,3 @@ typedef struct __device_info {
 BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
 
 #endif
-
-

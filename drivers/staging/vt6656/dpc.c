@@ -1522,7 +1522,8 @@ void RXvWorkItem(void *Context)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
-    while ( MP_TEST_FLAG(pDevice, fMP_POST_READS) &&
+
+    while ((pDevice->Flags & fMP_POST_READS) &&
             MP_IS_READY(pDevice) &&
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
@@ -1567,7 +1568,7 @@ RXvFreeRCB(
     pDevice->NumRecvFreeList++;
 
 
-    if (MP_TEST_FLAG(pDevice, fMP_POST_READS) && MP_IS_READY(pDevice) &&
+    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == FALSE) ) {
 
         pDevice->bIsRxWorkItemQueued = TRUE;
