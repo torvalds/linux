@@ -119,16 +119,18 @@ struct extent_state {
 	struct list_head leak_list;
 };
 
+#define INLINE_EXTENT_BUFFER_PAGES 16
+#define MAX_INLINE_EXTENT_BUFFER_SIZE (INLINE_EXTENT_BUFFER_PAGES * PAGE_CACHE_SIZE)
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
 	unsigned long map_start;
 	unsigned long map_len;
-	struct page *first_page;
 	unsigned long bflags;
+	atomic_t refs;
+	atomic_t pages_reading;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
-	atomic_t refs;
 	pid_t lock_owner;
 
 	/* count of read lock holders on the extent buffer */
@@ -152,6 +154,9 @@ struct extent_buffer {
 	 * to unlock
 	 */
 	wait_queue_head_t read_lock_wq;
+	wait_queue_head_t lock_wq;
+	struct page *inline_pages[INLINE_EXTENT_BUFFER_PAGES];
+	struct page **pages;
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
@@ -251,8 +256,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
-					  u64 start, unsigned long len,
-					  struct page *page0);
+					  u64 start, unsigned long len);
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					 u64 start, unsigned long len);
 void free_extent_buffer(struct extent_buffer *eb);

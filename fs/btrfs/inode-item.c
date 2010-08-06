@@ -19,6 +19,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "print-tree.h"
 
 static int find_name_in_backref(struct btrfs_path *path, const char *name,
 			 int name_len, struct btrfs_inode_ref **ref_ret)

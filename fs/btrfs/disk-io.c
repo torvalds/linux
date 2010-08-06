@@ -370,8 +370,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		ret = read_extent_buffer_pages(io_tree, eb, start,
 					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
-		if (!ret &&
-		    !verify_parent_transid(io_tree, eb, parent_transid))
+		if (!ret && !verify_parent_transid(io_tree, eb, parent_transid))
 			return ret;
 
 		/*
@@ -406,14 +405,11 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	u64 found_start;
 	unsigned long len;
 	struct extent_buffer *eb;
-	int ret;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-	if (page->private == EXTENT_PAGE_PRIVATE) {
-		WARN_ON(1);
+	if (page->private == EXTENT_PAGE_PRIVATE)
 		goto out;
-	}
 	if (!page->private) {
 		WARN_ON(1);
 		goto out;
@@ -421,22 +417,14 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 
-	eb = alloc_extent_buffer(tree, start, len, page);
-	if (eb == NULL) {
-		WARN_ON(1);
-		goto out;
-	}
-	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
-					     btrfs_header_generation(eb));
-	BUG_ON(ret);
-	WARN_ON(!btrfs_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN));
+	eb = find_extent_buffer(tree, start, len);
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		WARN_ON(1);
 		goto err;
 	}
-	if (eb->first_page != page) {
+	if (eb->pages[0] != page) {
 		WARN_ON(1);
 		goto err;
 	}
@@ -537,6 +525,41 @@ static noinline int check_leaf(struct btrfs_root *root,
 	return 0;
 }
 
+struct extent_buffer *find_eb_for_page(struct extent_io_tree *tree,
+				       struct page *page, int max_walk)
+{
+	struct extent_buffer *eb;
+	u64 start = page_offset(page);
+	u64 target = start;
+	u64 min_start;
+
+	if (start < max_walk)
+		min_start = 0;
+	else
+		min_start = start - max_walk;
+
+	while (start >= min_start) {
+		eb = find_extent_buffer(tree, start, 0);
+		if (eb) {
+			/*
+			 * we found an extent buffer and it contains our page
+			 * horray!
+			 */
+			if (eb->start <= target &&
+			    eb->start + eb->len > target)
+				return eb;
+
+			/* we found an extent buffer that wasn't for us */
+			free_extent_buffer(eb);
+			return NULL;
+		}
+		if (start == 0)
+			break;
+		start -= PAGE_CACHE_SIZE;
+	}
+	return NULL;
+}
+
 static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -547,35 +570,29 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	struct extent_buffer *eb;
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	int ret = 0;
+	int reads_done;
 
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	if (page->private == EXTENT_PAGE_PRIVATE)
-		goto out;
 	if (!page->private)
 		goto out;
 
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	len = page->private >> 2;
-	WARN_ON(len == 0);
 
-	eb = alloc_extent_buffer(tree, start, len, page);
-	if (eb == NULL) {
+	eb = find_eb_for_page(tree, page, max(root->leafsize, root->nodesize));
+	if (!eb) {
 		ret = -EIO;
 		goto out;
 	}
+	reads_done = atomic_dec_and_test(&eb->pages_reading);
+	if (!reads_done)
+		goto err;
 
 	found_start = btrfs_header_bytenr(eb);
-	if (found_start != start) {
+	if (found_start != eb->start) {
 		printk_ratelimited(KERN_INFO "btrfs bad tree block start "
 			       "%llu %llu\n",
 			       (unsigned long long)found_start,
 			       (unsigned long long)eb->start);
-		ret = -EIO;
-		goto err;
-	}
-	if (eb->first_page != page) {
-		printk(KERN_INFO "btrfs bad first page %lu %lu\n",
-		       eb->first_page->index, page->index);
-		WARN_ON(1);
 		ret = -EIO;
 		goto err;
 	}
@@ -606,14 +623,14 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		ret = -EIO;
 	}
 
-	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
-	end = eb->start + end - 1;
 err:
 	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
 		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
 		btree_readahead_hook(root, eb, eb->start, ret);
 	}
 
+	if (ret && eb)
+		clear_extent_buffer_uptodate(tree, eb, NULL);
 	free_extent_buffer(eb);
 out:
 	return ret;
@@ -637,7 +654,7 @@ static int btree_io_failed_hook(struct bio *failed_bio,
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 
-	eb = alloc_extent_buffer(tree, start, len, page);
+	eb = alloc_extent_buffer(tree, start, len);
 	if (eb == NULL)
 		goto out;
 
@@ -896,28 +913,14 @@ static int btree_migratepage(struct address_space *mapping,
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	struct extent_buffer *eb;
-	int was_dirty;
-
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
+
 	if (!(current->flags & PF_MEMALLOC)) {
 		return extent_write_full_page(tree, page,
 					      btree_get_extent, wbc);
 	}
 
 	redirty_page_for_writepage(wbc, page);
-	eb = btrfs_find_tree_block(root, page_offset(page), PAGE_CACHE_SIZE);
-	WARN_ON(!eb);
-
-	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
-	if (!was_dirty) {
-		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->dirty_metadata_bytes += PAGE_CACHE_SIZE;
-		spin_unlock(&root->fs_info->delalloc_lock);
-	}
-	free_extent_buffer(eb);
-
 	unlock_page(page);
 	return 0;
 }
@@ -954,6 +957,8 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct extent_io_tree *tree;
 	struct extent_map_tree *map;
+	struct extent_buffer *eb;
+	struct btrfs_root *root;
 	int ret;
 
 	if (PageWriteback(page) || PageDirty(page))
@@ -962,6 +967,13 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 
+	root = BTRFS_I(page->mapping->host)->root;
+	if (page->private == EXTENT_PAGE_PRIVATE) {
+		eb = find_eb_for_page(tree, page, max(root->leafsize, root->nodesize));
+		free_extent_buffer(eb);
+		if (eb)
+			return 0;
+	}
 	/*
 	 * We need to mask out eg. __GFP_HIGHMEM and __GFP_DMA32 as we're doing
 	 * slab allocation from alloc_extent_state down the callchain where
@@ -1074,20 +1086,20 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 	struct extent_buffer *eb;
 
 	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				 bytenr, blocksize, NULL);
+				 bytenr, blocksize);
 	return eb;
 }
 
 
 int btrfs_write_tree_block(struct extent_buffer *buf)
 {
-	return filemap_fdatawrite_range(buf->first_page->mapping, buf->start,
+	return filemap_fdatawrite_range(buf->pages[0]->mapping, buf->start,
 					buf->start + buf->len - 1);
 }
 
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 {
-	return filemap_fdatawait_range(buf->first_page->mapping,
+	return filemap_fdatawait_range(buf->pages[0]->mapping,
 				       buf->start, buf->start + buf->len - 1);
 }
 
@@ -1513,41 +1525,6 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 	return 0;
 }
 
-static int bio_ready_for_csum(struct bio *bio)
-{
-	u64 length = 0;
-	u64 buf_len = 0;
-	u64 start = 0;
-	struct page *page;
-	struct extent_io_tree *io_tree = NULL;
-	struct bio_vec *bvec;
-	int i;
-	int ret;
-
-	bio_for_each_segment(bvec, bio, i) {
-		page = bvec->bv_page;
-		if (page->private == EXTENT_PAGE_PRIVATE) {
-			length += bvec->bv_len;
-			continue;
-		}
-		if (!page->private) {
-			length += bvec->bv_len;
-			continue;
-		}
-		length = bvec->bv_len;
-		buf_len = page->private >> 2;
-		start = page_offset(page) + bvec->bv_offset;
-		io_tree = &BTRFS_I(page->mapping->host)->io_tree;
-	}
-	/* are we fully contained in this bio? */
-	if (buf_len <= length)
-		return 1;
-
-	ret = extent_range_uptodate(io_tree, start + length,
-				    start + buf_len - 1);
-	return ret;
-}
-
 /*
  * called by the kthread helper functions to finally call the bio end_io
  * functions.  This is where read checksum verification actually happens
@@ -1563,17 +1540,6 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio = end_io_wq->bio;
 	fs_info = end_io_wq->info;
 
-	/* metadata bio reads are special because the whole tree block must
-	 * be checksummed at once.  This makes sure the entire block is in
-	 * ram and up to date before trying to verify things.  For
-	 * blocksize <= pagesize, it is basically a noop
-	 */
-	if (!(bio->bi_rw & REQ_WRITE) && end_io_wq->metadata &&
-	    !bio_ready_for_csum(bio)) {
-		btrfs_queue_worker(&fs_info->endio_meta_workers,
-				   &end_io_wq->work);
-		return;
-	}
 	error = end_io_wq->error;
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
@@ -2135,10 +2101,38 @@ int open_ctree(struct super_block *sb,
 		goto fail_alloc;
 	}
 
+	if (btrfs_super_leafsize(disk_super) !=
+	    btrfs_super_nodesize(disk_super)) {
+		printk(KERN_ERR "BTRFS: couldn't mount because metadata "
+		       "blocksizes don't match.  node %d leaf %d\n",
+		       btrfs_super_nodesize(disk_super),
+		       btrfs_super_leafsize(disk_super));
+		err = -EINVAL;
+		goto fail_alloc;
+	}
+	if (btrfs_super_leafsize(disk_super) > BTRFS_MAX_METADATA_BLOCKSIZE) {
+		printk(KERN_ERR "BTRFS: couldn't mount because metadata "
+		       "blocksize (%d) was too large\n",
+		       btrfs_super_leafsize(disk_super));
+		err = -EINVAL;
+		goto fail_alloc;
+	}
+
 	features = btrfs_super_incompat_flags(disk_super);
 	features |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
 	if (tree_root->fs_info->compress_type & BTRFS_COMPRESS_LZO)
 		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
+
+	/*
+	 * flag our filesystem as having big metadata blocks if
+	 * they are bigger than the page size
+	 */
+	if (btrfs_super_leafsize(disk_super) > PAGE_CACHE_SIZE) {
+		if (!(features & BTRFS_FEATURE_INCOMPAT_BIG_METADATA))
+			printk(KERN_INFO "btrfs flagging fs with big metadata feature\n");
+		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
+	}
+
 	btrfs_set_super_incompat_flags(disk_super, features);
 
 	features = btrfs_super_compat_ro_flags(disk_super) &
@@ -3122,7 +3116,7 @@ int close_ctree(struct btrfs_root *root)
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 {
 	int ret;
-	struct inode *btree_inode = buf->first_page->mapping->host;
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
 
 	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf,
 				     NULL);
@@ -3136,14 +3130,14 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
 {
-	struct inode *btree_inode = buf->first_page->mapping->host;
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
 	return set_extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 }
 
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 {
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
 	u64 transid = btrfs_header_generation(buf);
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	int was_dirty;
@@ -3212,7 +3206,7 @@ void __btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 {
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
 	int ret;
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret == 0)

@@ -3548,32 +3548,26 @@ out:
 inline struct page *extent_buffer_page(struct extent_buffer *eb,
 					      unsigned long i)
 {
-	struct page *p;
-	struct address_space *mapping;
-
-	if (i == 0)
-		return eb->first_page;
-	i += eb->start >> PAGE_CACHE_SHIFT;
-	mapping = eb->first_page->mapping;
-	if (!mapping)
-		return NULL;
-
-	/*
-	 * extent_buffer_page is only called after pinning the page
-	 * by increasing the reference count.  So we know the page must
-	 * be in the radix tree.
-	 */
-	rcu_read_lock();
-	p = radix_tree_lookup(&mapping->page_tree, i);
-	rcu_read_unlock();
-
-	return p;
+	return eb->pages[i];
 }
 
 inline unsigned long num_extent_pages(u64 start, u64 len)
 {
 	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
 		(start >> PAGE_CACHE_SHIFT);
+}
+
+static void __free_extent_buffer(struct extent_buffer *eb)
+{
+#if LEAK_DEBUG
+	unsigned long flags;
+	spin_lock_irqsave(&leak_lock, flags);
+	list_del(&eb->leak_list);
+	spin_unlock_irqrestore(&leak_lock, flags);
+#endif
+	if (eb->pages && eb->pages != eb->inline_pages)
+		kfree(eb->pages);
+	kmem_cache_free(extent_buffer_cache, eb);
 }
 
 static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
@@ -3608,19 +3602,23 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	spin_unlock_irqrestore(&leak_lock, flags);
 #endif
 	atomic_set(&eb->refs, 1);
+	atomic_set(&eb->pages_reading, 0);
+
+	if (len > MAX_INLINE_EXTENT_BUFFER_SIZE) {
+		struct page **pages;
+		int num_pages = (len + PAGE_CACHE_SIZE - 1) >>
+			PAGE_CACHE_SHIFT;
+		pages = kzalloc(num_pages, mask);
+		if (!pages) {
+			__free_extent_buffer(eb);
+			return NULL;
+		}
+		eb->pages = pages;
+	} else {
+		eb->pages = eb->inline_pages;
+	}
 
 	return eb;
-}
-
-static void __free_extent_buffer(struct extent_buffer *eb)
-{
-#if LEAK_DEBUG
-	unsigned long flags;
-	spin_lock_irqsave(&leak_lock, flags);
-	list_del(&eb->leak_list);
-	spin_unlock_irqrestore(&leak_lock, flags);
-#endif
-	kmem_cache_free(extent_buffer_cache, eb);
 }
 
 /*
@@ -3631,9 +3629,6 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 {
 	unsigned long index;
 	struct page *page;
-
-	if (!eb->first_page)
-		return;
 
 	index = num_extent_pages(eb->start, eb->len);
 	if (start_idx >= index)
@@ -3657,8 +3652,7 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 }
 
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
-					  u64 start, unsigned long len,
-					  struct page *page0)
+					  u64 start, unsigned long len)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
@@ -3674,7 +3668,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
-		mark_page_accessed(eb->first_page);
+		mark_page_accessed(eb->pages[0]);
 		return eb;
 	}
 	rcu_read_unlock();
@@ -3683,32 +3677,14 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	if (!eb)
 		return NULL;
 
-	if (page0) {
-		eb->first_page = page0;
-		i = 1;
-		index++;
-		page_cache_get(page0);
-		mark_page_accessed(page0);
-		set_page_extent_mapped(page0);
-		set_page_extent_head(page0, len);
-		uptodate = PageUptodate(page0);
-	} else {
-		i = 0;
-	}
-	for (; i < num_pages; i++, index++) {
+	for (i = 0; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!p) {
 			WARN_ON(1);
 			goto free_eb;
 		}
-		set_page_extent_mapped(p);
 		mark_page_accessed(p);
-		if (i == 0) {
-			eb->first_page = p;
-			set_page_extent_head(p, len);
-		} else {
-			set_page_private(p, EXTENT_PAGE_PRIVATE);
-		}
+		eb->pages[i] = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
 
@@ -3716,8 +3692,6 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		 * see below about how we avoid a nasty race with release page
 		 * and why we unlock later
 		 */
-		if (i != 0)
-			unlock_page(p);
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
@@ -3751,15 +3725,23 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	 * after the extent buffer is in the radix tree so
 	 * it doesn't get lost
 	 */
-	set_page_extent_mapped(eb->first_page);
-	set_page_extent_head(eb->first_page, eb->len);
-	if (!page0)
-		unlock_page(eb->first_page);
+	set_page_extent_mapped(eb->pages[0]);
+	set_page_extent_head(eb->pages[0], eb->len);
+	SetPageChecked(eb->pages[0]);
+	for (i = 1; i < num_pages; i++) {
+		p = extent_buffer_page(eb, i);
+		set_page_extent_mapped(p);
+		ClearPageChecked(p);
+		unlock_page(p);
+	}
+	unlock_page(eb->pages[0]);
 	return eb;
 
 free_eb:
-	if (eb->first_page && !page0)
-		unlock_page(eb->first_page);
+	for (i = 0; i < num_pages; i++) {
+		if (eb->pages[i])
+			unlock_page(eb->pages[i]);
+	}
 
 	if (!atomic_dec_and_test(&eb->refs))
 		return exists;
@@ -3776,7 +3758,7 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
-		mark_page_accessed(eb->first_page);
+		mark_page_accessed(eb->pages[0]);
 		return eb;
 	}
 	rcu_read_unlock();
@@ -3981,8 +3963,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	int ret = 0;
 	int locked_pages = 0;
 	int all_uptodate = 1;
-	int inc_all_pages = 0;
 	unsigned long num_pages;
+	unsigned long num_reads = 0;
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 
@@ -4014,8 +3996,10 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 			lock_page(page);
 		}
 		locked_pages++;
-		if (!PageUptodate(page))
+		if (!PageUptodate(page)) {
+			num_reads++;
 			all_uptodate = 0;
+		}
 	}
 	if (all_uptodate) {
 		if (start_i == 0)
@@ -4023,20 +4007,13 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		goto unlock_exit;
 	}
 
+	atomic_set(&eb->pages_reading, num_reads);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-
-		WARN_ON(!PagePrivate(page));
-
 		set_page_extent_mapped(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
-
-		if (inc_all_pages)
-			page_cache_get(page);
 		if (!PageUptodate(page)) {
-			if (start_i == 0)
-				inc_all_pages = 1;
 			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
 						      get_extent, &bio,
@@ -4304,15 +4281,20 @@ static void copy_pages(struct page *dst_page, struct page *src_page,
 {
 	char *dst_kaddr = page_address(dst_page);
 	char *src_kaddr;
+	int must_memmove = 0;
 
 	if (dst_page != src_page) {
 		src_kaddr = page_address(src_page);
 	} else {
 		src_kaddr = dst_kaddr;
-		BUG_ON(areas_overlap(src_off, dst_off, len));
+		if (areas_overlap(src_off, dst_off, len))
+			must_memmove = 1;
 	}
 
-	memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
+	if (must_memmove)
+		memmove(dst_kaddr + dst_off, src_kaddr + src_off, len);
+	else
+		memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
 }
 
 void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
@@ -4382,7 +4364,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		       "len %lu len %lu\n", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}
-	if (!areas_overlap(src_offset, dst_offset, len)) {
+	if (dst_offset < src_offset) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
 		return;
 	}
@@ -4429,7 +4411,8 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		return ret;
 	}
 
-	if (test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
+	if (atomic_read(&eb->refs) > 1 ||
+	    test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		ret = 0;
 		goto out;
 	}
@@ -4442,7 +4425,6 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		ret = 0;
 		goto out;
 	}
-
 	radix_tree_delete(&tree->buffer, start >> PAGE_CACHE_SHIFT);
 out:
 	spin_unlock(&tree->buffer_lock);
