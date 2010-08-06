@@ -1199,19 +1199,17 @@ void ppc64_runlatch_on(void)
 	}
 }
 
-void ppc64_runlatch_off(void)
+void __ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	HMT_medium();
 
-		clear_thread_flag(TIF_RUNLATCH);
+	clear_thread_flag(TIF_RUNLATCH);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl &= ~CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl &= ~CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 }
 #endif
 
