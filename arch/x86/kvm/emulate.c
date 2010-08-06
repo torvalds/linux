@@ -54,6 +54,7 @@
 #define DstAcc      (4<<1)	/* Destination Accumulator */
 #define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
 #define DstMem64    (6<<1)	/* 64bit memory operand */
+#define DstImmUByte (7<<1)	/* 8-bit unsigned immediate operand */
 #define DstMask     (7<<1)
 /* Source operand type. */
 #define SrcNone     (0<<4)	/* No source operand. */
@@ -2692,6 +2693,12 @@ done_prefixes:
 	case DstReg:
 		decode_register_operand(&c->dst, c,
 			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
+		break;
+	case DstImmUByte:
+		c->dst.type = OP_IMM;
+		c->dst.addr.mem = c->eip;
+		c->dst.bytes = 1;
+		c->dst.val = insn_fetch(u8, 1, c->eip);
 		break;
 	case DstMem:
 	case DstMem64:
