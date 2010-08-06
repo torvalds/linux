@@ -19,6 +19,8 @@ obj-$(CONFIG_CPU_S5PC100)	+= dma.o
 
 obj-$(CONFIG_S5PC100_SETUP_FB_24BPP)	+= setup-fb-24bpp.o
 obj-$(CONFIG_S5PC100_SETUP_I2C1)	+= setup-i2c1.o
+obj-$(CONFIG_S5PC100_SETUP_IDE)		+= setup-ide.o
+obj-$(CONFIG_S5PC100_SETUP_KEYPAD)	+= setup-keypad.o
 obj-$(CONFIG_S5PC100_SETUP_SDHCI)	+= setup-sdhci.o
 obj-$(CONFIG_S5PC100_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 
