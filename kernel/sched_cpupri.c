@@ -166,13 +166,9 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  *
  * Returns: -ENOMEM if memory fails.
  */
-int cpupri_init(struct cpupri *cp, bool bootmem)
+int cpupri_init(struct cpupri *cp)
 {
-	gfp_t gfp = GFP_KERNEL;
 	int i;
-
-	if (bootmem)
-		gfp = GFP_NOWAIT;
 
 	memset(cp, 0, sizeof(*cp));
 
@@ -181,7 +177,7 @@ int cpupri_init(struct cpupri *cp, bool bootmem)
 
 		raw_spin_lock_init(&vec->lock);
 		vec->count = 0;
-		if (!zalloc_cpumask_var(&vec->mask, gfp))
+		if (!zalloc_cpumask_var(&vec->mask, GFP_KERNEL))
 			goto cleanup;
 	}
 
