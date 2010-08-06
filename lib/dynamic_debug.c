@@ -450,6 +450,19 @@ static int ddebug_exec_query(char *query_string)
 	return 0;
 }
 
+static __initdata char ddebug_setup_string[1024];
+static __init int ddebug_setup_query(char *str)
+{
+	if (strlen(str) >= 1024) {
+		pr_warning("ddebug boot param string too large\n");
+		return 0;
+	}
+	strcpy(ddebug_setup_string, str);
+	return 1;
+}
+
+__setup("ddebug_query=", ddebug_setup_query);
+
 /*
  * File_ops->write method for <debugfs>/dynamic_debug/conrol.  Gathers the
  * command text from userspace, parses and executes it.
@@ -769,6 +782,18 @@ static int __init dynamic_debug_init(void)
 		}
 		ret = ddebug_add_module(iter_start, n, modname);
 	}
+
+	/* ddebug_query boot param got passed -> set it up */
+	if (ddebug_setup_string[0] != '\0') {
+		ret = ddebug_exec_query(ddebug_setup_string);
+		if (ret)
+			pr_warning("Invalid ddebug boot param %s",
+				   ddebug_setup_string);
+		else
+			pr_info("ddebug initialized with string %s",
+				ddebug_setup_string);
+	}
+
 out_free:
 	if (ret) {
 		ddebug_remove_all_tables();
