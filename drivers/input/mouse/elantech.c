@@ -257,6 +257,14 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOUCH, fingers != 0);
 
 	switch (fingers) {
+	case 3:
+		/*
+		 * Same as one finger, except report of more than 3 fingers:
+		 * byte 3:  n4  .   w1  w0   .   .   .   .
+		 */
+		if (packet[3] & 0x80)
+			fingers = 4;
+		/* pass through... */
 	case 1:
 		/*
 		 * byte 1:  .   .   .   .   .  x10 x9  x8
@@ -309,6 +317,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
 	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
+	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
 	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
 
@@ -466,6 +475,7 @@ static void elantech_set_input_params(struct psmouse *psmouse)
 		break;
 
 	case 2:
+		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		input_set_abs_params(dev, ABS_X, ETP_XMIN_V2, ETP_XMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_Y, ETP_YMIN_V2, ETP_YMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_HAT0X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
