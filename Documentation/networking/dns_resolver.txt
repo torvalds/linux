@@ -96,9 +96,9 @@ implemented in the module can be called after doing:
      for the default query type it is just a list of comma-separated IPv4 and
      IPv6 addresses.  The caller must free the result.
 
-     The length of the result string is returned on success, and a -ve error
-     code is returned otherwise.  -EKEYREJECTED will be returned if the DNS
-     lookup failed.
+     The length of the result string is returned on success, and a negative
+     error code is returned otherwise.  -EKEYREJECTED will be returned if the
+     DNS lookup failed.
 
      If _expiry is non-NULL, the expiry time (TTL) of the result will be
      returned also.

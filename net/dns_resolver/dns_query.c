@@ -45,7 +45,7 @@
 
 #include "internal.h"
 
-/*
+/**
  * dns_query - Query the DNS
  * @type: Query type (or NULL for straight host->IP lookup)
  * @name: Name to look up
