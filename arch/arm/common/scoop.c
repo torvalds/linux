@@ -44,12 +44,12 @@ void reset_scoop(struct device *dev)
 {
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
-	iowrite16(0x0100, sdev->base + SCOOP_MCR);  // 00
-	iowrite16(0x0000, sdev->base + SCOOP_CDR);  // 04
-	iowrite16(0x0000, sdev->base + SCOOP_CCR);  // 10
-	iowrite16(0x0000, sdev->base + SCOOP_IMR);  // 18
-	iowrite16(0x00FF, sdev->base + SCOOP_IRM);  // 14
-	iowrite16(0x0000, sdev->base + SCOOP_ISR);  // 1C
+	iowrite16(0x0100, sdev->base + SCOOP_MCR);  /* 00 */
+	iowrite16(0x0000, sdev->base + SCOOP_CDR);  /* 04 */
+	iowrite16(0x0000, sdev->base + SCOOP_CCR);  /* 10 */
+	iowrite16(0x0000, sdev->base + SCOOP_IMR);  /* 18 */
+	iowrite16(0x00FF, sdev->base + SCOOP_IRM);  /* 14 */
+	iowrite16(0x0000, sdev->base + SCOOP_ISR);  /* 1C */
 	iowrite16(0x0000, sdev->base + SCOOP_IRM);
 }
 
