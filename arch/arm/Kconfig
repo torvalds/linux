@@ -43,10 +43,6 @@ config SYS_SUPPORTS_APM_EMULATION
 config GENERIC_GPIO
 	bool
 
-config GENERIC_TIME
-	bool
-	default y
-
 config ARCH_USES_GETTIMEOFFSET
 	bool
 	default n
