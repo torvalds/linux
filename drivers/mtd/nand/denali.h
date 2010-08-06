@@ -764,6 +764,7 @@ struct denali_nand_info {
 	int irq_debug_array[32];
 	int idx;
 
+	uint32_t devnum;	/* represent how many nands connected */
 	uint32_t fwblks; /* represent how many blocks FW used */
 	uint32_t totalblks;
 	uint32_t blksperchip;

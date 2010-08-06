@@ -1677,6 +1677,25 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_nand;
 	}
 
+	/* support for multi nand
+	 * MTD known nothing about multi nand,
+	 * so we should tell it the real pagesize
+	 * and anything necessery
+	 */
+	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
+	denali->nand.chipsize <<= (denali->devnum - 1);
+	denali->nand.page_shift += (denali->devnum - 1);
+	denali->nand.pagemask = (denali->nand.chipsize >>
+						denali->nand.page_shift) - 1;
+	denali->nand.bbt_erase_shift += (denali->devnum - 1);
+	denali->nand.phys_erase_shift = denali->nand.bbt_erase_shift;
+	denali->nand.chip_shift += (denali->devnum - 1);
+	denali->mtd.writesize <<= (denali->devnum - 1);
+	denali->mtd.oobsize <<= (denali->devnum - 1);
+	denali->mtd.erasesize <<= (denali->devnum - 1);
+	denali->mtd.size = denali->nand.numchips * denali->nand.chipsize;
+	denali->bbtskipbytes *= denali->devnum;
+
 	/* second stage of the NAND scan
 	 * this stage requires information regarding ECC and
 	 * bad block management. */
@@ -1713,6 +1732,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		denali_write32(8, denali->flash_reg + ECC_CORRECTION);
 	}
 
+	denali->nand.ecc.bytes *= denali->devnum;
 	denali->nand.ecc.layout->eccbytes *=
 		denali->mtd.writesize / ECC_SECTOR_SIZE;
 	denali->nand.ecc.layout->oobfree[0].offset =
@@ -1738,7 +1758,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->nand.ecc.hwctl = denali_ecc_hwctl;
 
 	/* override the default read operations */
-	denali->nand.ecc.size = denali->mtd.writesize;
+	denali->nand.ecc.size = ECC_SECTOR_SIZE * denali->devnum;
 	denali->nand.ecc.read_page = denali_read_page;
 	denali->nand.ecc.read_page_raw = denali_read_page_raw;
 	denali->nand.ecc.write_page = denali_write_page;
