@@ -2321,12 +2321,12 @@ static struct opcode opcode_table[256] = {
 	/* 0xE0 - 0xE7 */
 	N, N, N, N,
 	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
-	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
+	D(ByteOp | SrcAcc | DstImmUByte), D(SrcAcc | DstImmUByte),
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
 	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
 	D(SrcNone | ByteOp | DstAcc), D(SrcNone | DstAcc),
-	D(SrcNone | ByteOp | DstAcc), D(SrcNone | DstAcc),
+	D(ByteOp | SrcAcc | ImplicitOps), D(SrcAcc | ImplicitOps),
 	/* 0xF0 - 0xF7 */
 	N, N, N, N,
 	D(ImplicitOps | Priv), D(ImplicitOps), G(ByteOp, group3), G(0, group3),
@@ -3148,15 +3148,16 @@ special_insn:
 		break;
 	case 0xee: /* out dx,al */
 	case 0xef: /* out dx,(e/r)ax */
-		c->src.val = c->regs[VCPU_REGS_RDX];
+		c->dst.val = c->regs[VCPU_REGS_RDX];
 	do_io_out:
-		c->dst.bytes = min(c->dst.bytes, 4u);
-		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
+		c->src.bytes = min(c->src.bytes, 4u);
+		if (!emulator_io_permited(ctxt, ops, c->dst.val,
+					  c->src.bytes)) {
 			emulate_gp(ctxt, 0);
 			goto done;
 		}
-		ops->pio_out_emulated(c->dst.bytes, c->src.val, &c->dst.val, 1,
-				      ctxt->vcpu);
+		ops->pio_out_emulated(c->src.bytes, c->dst.val,
+				      &c->src.val, 1, ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */
