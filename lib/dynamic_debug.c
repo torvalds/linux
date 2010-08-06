@@ -748,13 +748,14 @@ static void ddebug_remove_all_tables(void)
 	mutex_unlock(&ddebug_lock);
 }
 
-static int __init dynamic_debug_init(void)
+static __initdata int ddebug_init_success;
+
+static int __init dynamic_debug_init_debugfs(void)
 {
 	struct dentry *dir, *file;
-	struct _ddebug *iter, *iter_start;
-	const char *modname = NULL;
-	int ret = 0;
-	int n = 0;
+
+	if (!ddebug_init_success)
+		return -ENODEV;
 
 	dir = debugfs_create_dir("dynamic_debug", NULL);
 	if (!dir)
@@ -765,6 +766,16 @@ static int __init dynamic_debug_init(void)
 		debugfs_remove(dir);
 		return -ENOMEM;
 	}
+	return 0;
+}
+
+static int __init dynamic_debug_init(void)
+{
+	struct _ddebug *iter, *iter_start;
+	const char *modname = NULL;
+	int ret = 0;
+	int n = 0;
+
 	if (__start___verbose != __stop___verbose) {
 		iter = __start___verbose;
 		modname = iter->modname;
@@ -795,11 +806,13 @@ static int __init dynamic_debug_init(void)
 	}
 
 out_free:
-	if (ret) {
+	if (ret)
 		ddebug_remove_all_tables();
-		debugfs_remove(dir);
-		debugfs_remove(file);
-	}
+	else
+		ddebug_init_success = 1;
 	return 0;
 }
-module_init(dynamic_debug_init);
+/* Allow early initialization for boot messages via boot param */
+arch_initcall(dynamic_debug_init);
+/* Debugfs setup must be done later */
+module_init(dynamic_debug_init_debugfs);
