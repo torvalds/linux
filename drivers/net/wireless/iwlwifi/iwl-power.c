@@ -284,13 +284,11 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, &cmd, IWL_POWER_INDEX_5, 20);
 	else if (priv->cfg->ops->lib->tt_ops.lower_power_detection &&
-		 priv->cfg->ops->lib->tt_ops.tt_power_mode) {
-		if (priv->cfg->ops->lib->tt_ops.lower_power_detection(priv)) {
-			/* in thermal throttling low power state */
-			iwl_static_sleep_cmd(priv, &cmd,
-			    priv->cfg->ops->lib->tt_ops.tt_power_mode(priv),
-			    dtimper);
-		}
+		 priv->cfg->ops->lib->tt_ops.tt_power_mode &&
+		 priv->cfg->ops->lib->tt_ops.lower_power_detection(priv)) {
+		/* in thermal throttling low power state */
+		iwl_static_sleep_cmd(priv, &cmd,
+		    priv->cfg->ops->lib->tt_ops.tt_power_mode(priv), dtimper);
 	} else if (!enabled)
 		iwl_power_sleep_cam_cmd(priv, &cmd);
 	else if (priv->power_data.debug_sleep_level_override >= 0)
