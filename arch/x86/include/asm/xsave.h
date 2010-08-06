@@ -65,6 +65,16 @@ static inline int fpu_xrstor_checking(struct fpu *fpu)
 static inline int xsave_user(struct xsave_struct __user *buf)
 {
 	int err;
+
+	/*
+	 * Clear the xsave header first, so that reserved fields are
+	 * initialized to zero.
+	 */
+	err = __clear_user(&buf->xsave_hdr,
+			   sizeof(struct xsave_hdr_struct));
+	if (unlikely(err))
+		return -EFAULT;
+
 	__asm__ __volatile__("1: .byte " REX_PREFIX "0x0f,0xae,0x27\n"
 			     "2:\n"
 			     ".section .fixup,\"ax\"\n"
