@@ -31,6 +31,8 @@
 #include <linux/wakelock.h>
 
 #define WDR_TIMEOUT       (HZ * 5)
+#define MODEM_NO_TRAFFIC_TIME (HZ/4)
+#define MODEM_WAKELOCK_TIME (HZ/2)
 
 #define BP_MODEM_STATUS 0x20a1
 #define BP_RSP_AVAIL 0x01a1
@@ -85,6 +87,7 @@ struct modem_port {
 	struct usb_serial_port *port;
 	spinlock_t read_lock;
 	spinlock_t write_lock;
+	atomic_t wakeup_flag;
 	spinlock_t last_traffic_lock;
 	unsigned long last_traffic;
 	unsigned int readsize;
@@ -106,8 +109,10 @@ static struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static uint32_t cdma_modem_debug;
+static uint32_t cdma_modem_debug = 0;
 module_param_named(cdma_mdm_debug, cdma_modem_debug, uint, 0664);
+
+static struct wake_lock modem_wakelock;
 
 static int modem_wb_alloc(struct modem_port *modem_ptr)
 {
@@ -161,6 +166,14 @@ static int modem_write_buffers_alloc(
 	return 0;
 }
 
+static void mark_latest_traffic_time(struct modem_port *modem_port_ptr)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&modem_port_ptr->last_traffic_lock, flags);
+	modem_port_ptr->last_traffic = jiffies;
+	spin_unlock_irqrestore(&modem_port_ptr->last_traffic_lock, flags);
+}
+
 static void stop_data_traffic(struct modem_port *modem_port_ptr)
 {
 	int i;
@@ -203,6 +216,8 @@ static void modem_read_buffers_free(
 
 static int modem_dtr_control(struct usb_serial *serial, int ctrl)
 {
+	struct modem_port *modem_port_ptr =
+		usb_get_serial_data(serial);
 	uint8_t bRequesttype =
 		(USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT);
 	uint16_t wLength = 0;
@@ -227,6 +242,8 @@ static int modem_dtr_control(struct usb_serial *serial, int ctrl)
 			wValue, wIndex, NULL, wLength,
 			WDR_TIMEOUT);
 	usb_autopm_put_interface(serial->interface);
+	if (modem_port_ptr)
+		mark_latest_traffic_time(modem_port_ptr);
 
 	return status;
 }
@@ -282,6 +299,7 @@ static void modem_read_bulk_callback(struct urb *urb)
 	if (modem_port_ptr->port == NULL)
 		return;
 
+	mark_latest_traffic_time(modem_port_ptr);
 	buf = rcv->buffer;
 	buf->size = urb->actual_length;
 
@@ -444,6 +462,7 @@ exit:
 	}
 	modem_port_ptr->processing--;
 	spin_unlock_irqrestore(&modem_port_ptr->read_lock, flags);
+	mark_latest_traffic_time(modem_port_ptr);
 	return;
 }
 
@@ -496,6 +515,7 @@ static int modem_open(struct tty_struct *tty,
 
 	if (port->number == MODEM_INTERFACE_NUM) {
 		spin_lock_irqsave(&modem_port_ptr->read_lock, flags);
+		if (modem_port_ptr->susp_count == 0) {
 		if (port->interrupt_in_urb) {
 			/* start to read INT EP data */
 			port->interrupt_in_urb->dev = port->serial->dev;
@@ -514,12 +534,26 @@ static int modem_open(struct tty_struct *tty,
 				__func__);
 		}
 
+		}
 		spin_unlock_irqrestore(&modem_port_ptr->read_lock,
 					flags);
 
 		/* clean up the modem status data */
-		 modem_port_ptr->modem_status = 0;
+		modem_port_ptr->modem_status = 0;
+
+		wake_lock_init(&modem_wakelock, WAKE_LOCK_SUSPEND,
+				"omap_usb_modem");
 	}
+
+	/*  pm interface is taken at
+	 *  serial_open() at usb-serial.c.
+	 *  For data modem port: the pm count needs to be put back here
+	 *  to support the auto-suspend/auto-resume.
+	 *  For other test command port: the pm count will be put back at
+	 *  the time when port is closed.
+	 */
+	if (port->number == MODEM_INTERFACE_NUM)
+		usb_autopm_put_interface(port->serial->interface);
 
 	if (cdma_modem_debug)
 		dev_info(&port->dev, "%s: Exit. retval = %d\n",
@@ -662,6 +696,13 @@ static void modem_close(struct usb_serial_port *port)
 	}
 
 	modem_port_ptr->opened = 0;
+	/*  For the data modem port, the pm interface needs to be get here
+	 *  and will be put back at serial_close() of usb-serial.c
+	 */
+
+	if (port->number == MODEM_INTERFACE_NUM) {
+		usb_autopm_get_interface(port->serial->interface);
+	}
 
 	stop_data_traffic(modem_port_ptr);
 	cancel_work_sync(&modem_port_ptr->wake_and_write);
@@ -669,6 +710,9 @@ static void modem_close(struct usb_serial_port *port)
 	modem_port_ptr->modem_status = 0;
 	if (modem_port_ptr->delayed_wb)
 		modem_port_ptr->delayed_wb->use = 0;
+
+	if (port->number == MODEM_INTERFACE_NUM)
+		wake_lock_destroy(&modem_wakelock);
 
 	if (cdma_modem_debug)
 		dev_info(&port->dev, "%s: Exit.\n", __func__);
@@ -709,8 +753,36 @@ static int modem_start_wb(struct modem_port *modem_port_ptr,
 	}
 
 	spin_unlock_irqrestore(&modem_port_ptr->write_lock, flags);
+	mark_latest_traffic_time(modem_port_ptr);
 
 	return result;
+}
+
+static void modem_wake_and_write(struct work_struct *work)
+{
+	struct modem_port *modem_port_ptr =
+		container_of(work, struct modem_port, wake_and_write);
+	struct usb_serial *serial;
+	struct usb_serial_port *port =  modem_port_ptr->port;
+	int result;
+
+	if (modem_port_ptr->port == NULL)
+		return;
+
+	serial = modem_port_ptr->port->serial;
+
+	result = usb_autopm_get_interface(serial->interface);
+	if (result < 0) {
+		dev_err(&port->dev, "%s: autopm failed. result = %d \n",
+			__func__, result);
+		return;
+	}
+	if (modem_port_ptr->delayed_wb) {
+		modem_start_wb(modem_port_ptr, modem_port_ptr->delayed_wb);
+		modem_port_ptr->delayed_wb = NULL;
+	}
+
+	usb_autopm_put_interface(serial->interface);
 }
 
 static void modem_write_bulk_callback(struct urb *urb)
@@ -789,6 +861,18 @@ static int modem_write(struct tty_struct *tty,
 			modem_port_ptr->delayed_wb = wb;
 			spin_unlock_irqrestore(&modem_port_ptr->write_lock,
 						flags);
+
+			/* for the data modem, add wakelock to bypass the issue
+			 * caused by skip_sys_resume for FS USB
+			 */
+			if (modem_port_ptr->port->number
+					 == MODEM_INTERFACE_NUM) {
+				wake_lock_timeout(&modem_wakelock,
+						  MODEM_WAKELOCK_TIME);
+				if (cdma_modem_debug)
+					dev_info(&modem_port_ptr->port->dev,
+					      "%s: add wakelock\n", __func__);
+			}
 			schedule_work(&modem_port_ptr->wake_and_write);
 			return count;
 		}
@@ -802,6 +886,248 @@ static int modem_write(struct tty_struct *tty,
 	/* no bulk out, so return 0 bytes written */
 	return 0;
 }
+
+//#ifdef CONFIG_PM
+static void modem_usb_wkup_work(struct work_struct *work)
+{
+	struct modem_port *modem_port_ptr =
+	container_of(work, struct modem_port, usb_wkup_work);
+	struct usb_serial *serial;
+	int result;
+
+	if (modem_port_ptr->port == 0)
+		return;
+
+	if (cdma_modem_debug)
+		printk("%s +++ \n", __func__);
+
+	serial = modem_port_ptr->port->serial;
+	if ((modem_port_ptr->port != 0) &&
+	    !(atomic_cmpxchg(&modem_port_ptr->wakeup_flag, 0, 1))) {
+		/* for the data modem, add wakelock to bypass the issue
+		 * caused by skip_sys_resume for FS USB
+		*/
+		if (modem_port_ptr->port->number == MODEM_INTERFACE_NUM) {
+			if (cdma_modem_debug)
+				dev_info(&modem_port_ptr->port->dev,
+					 "%s: add wakelock\n", __func__);
+			wake_lock_timeout(&modem_wakelock, MODEM_WAKELOCK_TIME);
+		}
+		result = usb_autopm_get_interface(serial->interface);
+		if (result < 0) {
+			atomic_set(&modem_port_ptr->wakeup_flag, 0);
+			dev_err(&modem_port_ptr->port->dev,
+				 "%s: autopm failed. result = %d \n",
+				__func__, result);
+			return;
+		}
+
+		if (cdma_modem_debug)
+			dev_info(&modem_port_ptr->port->dev,
+				 "%s: woke up interface\n", __func__);
+		usb_autopm_put_interface(serial->interface);
+	}
+}
+
+static int modem_usb_enable_wakeup_irq(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct modem_port *modem_port_ptr =
+		usb_get_serial_data(serial);
+	int ret = 0;
+
+	if (modem_port_ptr == NULL)
+		return  -ENODEV;
+
+	return ret;
+}
+
+static int modem_suspend(struct usb_interface *intf,
+				   pm_message_t message)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct modem_port *modem_port_ptr =
+	    usb_get_serial_data(serial);
+	struct usb_serial_port *port;
+	unsigned long flags;
+	unsigned long threshold_time;
+	int tmp;
+
+	if (modem_port_ptr == NULL) {
+		dev_err(&intf->dev, " NULL modem_port ptr \n");
+		return 0;
+	}
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev, "%s +++ \n", __func__);
+
+	port = modem_port_ptr->port;
+
+	if (port == NULL) {
+		if (cdma_modem_debug)
+			dev_info(&intf->dev,
+				 "%s: port not open yet \n",
+				 __func__);
+		modem_port_ptr->susp_count++;
+		return 0;
+	}
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev, "%s: Suspend Port  num %d.\n",
+			 __func__, port->number);
+
+	spin_lock_irqsave(&modem_port_ptr->read_lock, flags);
+	spin_lock(&modem_port_ptr->write_lock);
+	tmp = modem_port_ptr->processing + modem_port_ptr->sending;
+	spin_unlock(&modem_port_ptr->write_lock);
+	spin_unlock_irqrestore(&modem_port_ptr->read_lock, flags);
+
+	if (tmp) {
+		if (cdma_modem_debug)
+			dev_info(&intf->dev,
+				 "%s:  sending = %d, receiving = %d.\n",
+				 __func__, modem_port_ptr->sending,
+				 modem_port_ptr->processing);
+		return -EBUSY;
+	}
+
+	threshold_time = modem_port_ptr->last_traffic + MODEM_NO_TRAFFIC_TIME;
+
+	if (time_before(jiffies, threshold_time)) {
+		if (cdma_modem_debug)
+			dev_info(&intf->dev,
+				 "%s: busy. suspend failed.\n", __func__);
+		return -EBUSY;
+	}
+
+	spin_lock_irqsave(&modem_port_ptr->read_lock, flags);
+	spin_lock(&modem_port_ptr->write_lock);
+	modem_port_ptr->susp_count++;
+	spin_unlock(&modem_port_ptr->write_lock);
+	spin_unlock_irqrestore(&modem_port_ptr->read_lock, flags);
+
+	stop_data_traffic(modem_port_ptr);
+
+	if (port->number == MODEM_INTERFACE_NUM) {
+		//modem_usb_enable_wakeup_irq(intf);
+		atomic_set(&modem_port_ptr->wakeup_flag, 0);
+	}
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev, "%s: Port  num %d.suspended\n",
+			 __func__, port->number);
+
+	return 0;
+}
+
+static int modem_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct modem_port *modem_port_ptr =
+	    usb_get_serial_data(serial);
+	struct usb_serial_port *port;
+	unsigned long flags;
+	int retval;
+
+	if (modem_port_ptr == NULL) {
+		dev_err(&intf->dev, "%s: null modem port pointer. \n",
+			 __func__);
+		return 0;
+	}
+	if (cdma_modem_debug)
+		dev_info(&intf->dev, "%s +++ \n", __func__);
+
+	port = modem_port_ptr->port;
+
+	if (port == NULL) {
+		if (cdma_modem_debug)
+			dev_info(&intf->dev,
+				 "%s: port not open yet \n",
+				 __func__);
+		modem_port_ptr->susp_count--;
+		return 0;
+
+	}
+
+	spin_lock_irqsave(&modem_port_ptr->read_lock, flags);
+	spin_lock(&modem_port_ptr->write_lock);
+	if (modem_port_ptr->susp_count > 0) {
+		modem_port_ptr->susp_count--;
+		spin_unlock(&modem_port_ptr->write_lock);
+		spin_unlock_irqrestore(&modem_port_ptr->read_lock, flags);
+
+		modem_port_ptr->resuming = 0;
+
+		if (cdma_modem_debug)
+			dev_info(&intf->dev, "%s: port %d is resumed here \n",
+				 __func__, port->number);
+
+		if (port->number == MODEM_INTERFACE_NUM) {
+			spin_lock_irqsave(&modem_port_ptr->read_lock, flags);
+			if (port->interrupt_in_urb) {
+				port->interrupt_in_urb->dev = port->serial->dev;
+				retval =
+					usb_submit_urb(port->interrupt_in_urb,
+						       GFP_KERNEL);
+				if (retval) {
+					usb_kill_urb(port->interrupt_in_urb);
+					dev_err(&port->dev,
+						"%s: retval is %d \n",
+						__func__, retval);
+				}
+			} else {
+				dev_err(&port->dev,
+					"%s: no interrupt endpoint \n",
+					__func__);
+			}
+			spin_unlock_irqrestore(&modem_port_ptr->read_lock,
+					       flags);
+
+			//modem_usb_disable_wakeup_irq(intf);
+
+		}
+
+		tasklet_schedule(&modem_port_ptr->urb_task);
+	} else {
+		spin_unlock(&modem_port_ptr->write_lock);
+		spin_unlock_irqrestore(&modem_port_ptr->read_lock, flags);
+	}
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev, "%s: Port  num %d.resumed\n",
+			 __func__, port->number);
+
+	return 0;
+}
+
+static int modem_reset_resume(struct usb_interface *intf)
+{
+	int ret = 0;
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev,
+		"%s: Enter \n", __func__);
+
+	ret = modem_resume(intf);
+
+	if (cdma_modem_debug)
+		dev_info(&intf->dev,
+		"%s: Exit ret is %d \n", __func__, ret);
+
+	return ret;
+}
+
+static int modem_pre_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int modem_post_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+//#endif /* CONFIG_PM */
 
 static int modem_startup(struct usb_serial *serial)
 {
@@ -863,12 +1189,16 @@ static int modem_startup(struct usb_serial *serial)
 	spin_lock_init(&modem_port_ptr->write_lock);
 	spin_lock_init(&modem_port_ptr->last_traffic_lock);
 
+	atomic_set(&modem_port_ptr->wakeup_flag, 0);
 	modem_port_ptr->susp_count = 0;
 	modem_port_ptr->resuming = 0;
 	modem_port_ptr->port = 0;
 	modem_port_ptr->last_traffic = 0;
 	modem_port_ptr->readsize = readsize;
 	modem_port_ptr->writesize = le16_to_cpu(epwrite->wMaxPacketSize) * 20;
+
+	INIT_WORK(&modem_port_ptr->wake_and_write, modem_wake_and_write);
+	INIT_WORK(&modem_port_ptr->usb_wkup_work, modem_usb_wkup_work);
 
 	if (modem_write_buffers_alloc(modem_port_ptr, serial) < 0) {
 		dev_err(&serial->dev->dev,
@@ -994,6 +1324,11 @@ static struct usb_driver modem_driver = {
 	.no_dynamic_id = 1,
 #ifdef CONFIG_PM
 	.supports_autosuspend = 1,
+	.suspend = modem_suspend,
+	.resume = modem_resume,
+	.reset_resume = modem_reset_resume,
+	.pre_reset = modem_pre_reset,
+	.post_reset = modem_post_reset,
 #endif
 };
 
