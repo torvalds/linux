@@ -53,6 +53,7 @@ struct symbol {
 	u64		start;
 	u64		end;
 	u16		namelen;
+	u8		binding;
 	char		name[0];
 };
 

@@ -13,6 +13,7 @@
 #include <slang.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <elf.h>
 #include <newt.h>
 #include <sys/ttydefaults.h>
 
@@ -125,6 +126,39 @@ static void ui_helpline__puts(const char *msg)
 {
 	ui_helpline__pop();
 	ui_helpline__push(msg);
+}
+
+static int ui_entry__read(const char *title, char *bf, size_t size, int width)
+{
+	struct newtExitStruct es;
+	newtComponent form, entry;
+	const char *result;
+	int err = -1;
+
+	newtCenteredWindow(width, 1, title);
+	form = newtForm(NULL, NULL, 0);
+	if (form == NULL)
+		return -1;
+
+	entry = newtEntry(0, 0, "0x", width, &result, NEWT_FLAG_SCROLL);
+	if (entry == NULL)
+		goto out_free_form;
+
+	newtFormAddComponent(form, entry);
+	newtFormAddHotKey(form, NEWT_KEY_ENTER);
+	newtFormAddHotKey(form, NEWT_KEY_ESCAPE);
+	newtFormAddHotKey(form, NEWT_KEY_LEFT);
+	newtFormAddHotKey(form, CTRL('c'));
+	newtFormRun(form, &es);
+
+	if (result != NULL) {
+		strncpy(bf, result, size);
+		err = 0;
+	}
+out_free_form:
+	newtPopWindow();
+	newtFormDestroy(form);
+	return 0;
 }
 
 static char browser__last_msg[1024];
@@ -279,7 +313,8 @@ struct ui_browser {
 	void		*first_visible_entry, *entries;
 	u16		top, left, width, height;
 	void		*priv;
-	unsigned int	(*refresh_entries)(struct ui_browser *self);
+	unsigned int	(*refresh)(struct ui_browser *self);
+	void		(*write)(struct ui_browser *self, void *entry, int row);
 	void		(*seek)(struct ui_browser *self,
 				off_t offset, int whence);
 	u32		nr_entries;
@@ -314,6 +349,58 @@ static void ui_browser__list_head_seek(struct ui_browser *self,
 	}
 
 	self->first_visible_entry = pos;
+}
+
+static void ui_browser__rb_tree_seek(struct ui_browser *self,
+				     off_t offset, int whence)
+{
+	struct rb_root *root = self->entries;
+	struct rb_node *nd;
+
+	switch (whence) {
+	case SEEK_SET:
+		nd = rb_first(root);
+		break;
+	case SEEK_CUR:
+		nd = self->first_visible_entry;
+		break;
+	case SEEK_END:
+		nd = rb_last(root);
+		break;
+	default:
+		return;
+	}
+
+	if (offset > 0) {
+		while (offset-- != 0)
+			nd = rb_next(nd);
+	} else {
+		while (offset++ != 0)
+			nd = rb_prev(nd);
+	}
+
+	self->first_visible_entry = nd;
+}
+
+static unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
+{
+	struct rb_node *nd;
+	int row = 0;
+
+	if (self->first_visible_entry == NULL)
+                self->first_visible_entry = rb_first(self->entries);
+
+	nd = self->first_visible_entry;
+
+	while (nd != NULL) {
+		SLsmg_gotorc(self->top + row, self->left);
+		self->write(self, nd, row);
+		if (++row == self->height)
+			break;
+		nd = rb_next(nd);
+	}
+
+	return row;
 }
 
 static bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row)
@@ -418,12 +505,12 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 	return 0;
 }
 
-static int ui_browser__refresh_entries(struct ui_browser *self)
+static int ui_browser__refresh(struct ui_browser *self)
 {
 	int row;
 
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
-	row = self->refresh_entries(self);
+	row = self->refresh(self);
 	SLsmg_set_color(HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->top + row, self->left,
 			  self->height - row, self->width, ' ');
@@ -433,7 +520,7 @@ static int ui_browser__refresh_entries(struct ui_browser *self)
 
 static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 {
-	if (ui_browser__refresh_entries(self) < 0)
+	if (ui_browser__refresh(self) < 0)
 		return -1;
 
 	while (1) {
@@ -504,7 +591,7 @@ static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 		default:
 			return es->u.key;
 		}
-		if (ui_browser__refresh_entries(self) < 0)
+		if (ui_browser__refresh(self) < 0)
 			return -1;
 	}
 	return 0;
@@ -567,9 +654,9 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	ui_helpline__push("Press <- or ESC to exit");
 
 	memset(&browser, 0, sizeof(browser));
-	browser.entries		= &head;
-	browser.refresh_entries = hist_entry__annotate_browser_refresh;
-	browser.seek		= ui_browser__list_head_seek;
+	browser.entries	= &head;
+	browser.refresh = hist_entry__annotate_browser_refresh;
+	browser.seek	= ui_browser__list_head_seek;
 	browser.priv = self;
 	list_for_each_entry(pos, &head, node) {
 		size_t line_len = strlen(pos->line);
@@ -592,6 +679,128 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	return ret;
 }
 
+/* -------------------------------------------------------------------- */
+
+struct map_browser {
+	struct ui_browser b;
+	struct map	  *map;
+	u16		  namelen;
+	u8		  addrlen;
+};
+
+static void map_browser__write(struct ui_browser *self, void *nd, int row)
+{
+	struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+	struct map_browser *mb = container_of(self, struct map_browser, b);
+	bool current_entry = ui_browser__is_current_entry(self, row);
+	int color = ui_browser__percent_color(0, current_entry);
+
+	SLsmg_set_color(color);
+	slsmg_printf("%*llx %*llx %c ",
+		     mb->addrlen, sym->start, mb->addrlen, sym->end,
+		     sym->binding == STB_GLOBAL ? 'g' :
+		     sym->binding == STB_LOCAL  ? 'l' : 'w');
+	slsmg_write_nstring(sym->name, mb->namelen);
+}
+
+/* FIXME uber-kludgy, see comment on cmd_report... */
+static u32 *symbol__browser_index(struct symbol *self)
+{
+	return ((void *)self) - sizeof(struct rb_node) - sizeof(u32);
+}
+
+static int map_browser__search(struct map_browser *self)
+{
+	char target[512];
+	struct symbol *sym;
+	int err = ui_entry__read("Search by name/addr", target, sizeof(target), 40);
+
+	if (err)
+		return err;
+
+	if (target[0] == '0' && tolower(target[1]) == 'x') {
+		u64 addr = strtoull(target, NULL, 16);
+		sym = map__find_symbol(self->map, addr, NULL);
+	} else
+		sym = map__find_symbol_by_name(self->map, target, NULL);
+
+	if (sym != NULL) {
+		u32 *idx = symbol__browser_index(sym);
+			
+		self->b.first_visible_entry = &sym->rb_node;
+		self->b.index = self->b.first_visible_entry_idx = *idx;
+	} else
+		ui_helpline__fpush("%s not found!", target);
+
+	return 0;
+}
+
+static int map_browser__run(struct map_browser *self, struct newtExitStruct *es)
+{
+	if (ui_browser__show(&self->b, self->map->dso->long_name) < 0)
+		return -1;
+
+	ui_helpline__fpush("Press <- or ESC to exit, %s / to search",
+			   verbose ? "" : "restart with -v to use");
+	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
+	newtFormAddHotKey(self->b.form, NEWT_KEY_ENTER);
+	if (verbose)
+		newtFormAddHotKey(self->b.form, '/');
+
+	while (1) {
+		ui_browser__run(&self->b, es);
+
+		if (es->reason != NEWT_EXIT_HOTKEY)
+			break;
+		if (verbose && es->u.key == '/')
+			map_browser__search(self);
+		else
+			break;
+	}
+
+	newtFormDestroy(self->b.form);
+	newtPopWindow();
+	ui_helpline__pop();
+	return 0;
+}
+
+static int map__browse(struct map *self)
+{
+	struct map_browser mb = {
+		.b = {
+			.entries = &self->dso->symbols[self->type],
+			.refresh = ui_browser__rb_tree_refresh,
+			.seek	 = ui_browser__rb_tree_seek,
+			.write	 = map_browser__write,
+		},
+		.map = self,
+	};
+	struct newtExitStruct es;
+	struct rb_node *nd;
+	char tmp[BITS_PER_LONG / 4];
+	u64 maxaddr = 0;
+
+	for (nd = rb_first(mb.b.entries); nd; nd = rb_next(nd)) {
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+
+		if (mb.namelen < pos->namelen)
+			mb.namelen = pos->namelen;
+		if (maxaddr < pos->end)
+			maxaddr = pos->end;
+		if (verbose) {
+			u32 *idx = symbol__browser_index(pos);
+			*idx = mb.b.nr_entries;
+		}
+		++mb.b.nr_entries;
+	}
+
+	mb.addrlen = snprintf(tmp, sizeof(tmp), "%llx", maxaddr);
+	mb.b.width += mb.addrlen * 2 + 4 + mb.namelen;
+	return map_browser__run(&mb, &es);
+}
+
+/* -------------------------------------------------------------------- */
+
 struct hist_browser {
 	struct ui_browser   b;
 	struct hists	    *hists;
@@ -602,7 +811,7 @@ struct hist_browser {
 static void hist_browser__reset(struct hist_browser *self);
 static int hist_browser__run(struct hist_browser *self, const char *title,
 			     struct newtExitStruct *es);
-static unsigned int hist_browser__refresh_entries(struct ui_browser *self);
+static unsigned int hist_browser__refresh(struct ui_browser *self);
 static void ui_browser__hists_seek(struct ui_browser *self,
 				   off_t offset, int whence);
 
@@ -612,7 +821,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 
 	if (self) {
 		self->hists = hists;
-		self->b.refresh_entries = hist_browser__refresh_entries;
+		self->b.refresh = hist_browser__refresh;
 		self->b.seek = ui_browser__hists_seek;
 	}
 
@@ -680,7 +889,8 @@ int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
 		const struct dso *dso;
 		char *options[16];
 		int nr_options = 0, choice = 0, i,
-		    annotate = -2, zoom_dso = -2, zoom_thread = -2;
+		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
+		    browse_map = -2;
 
 		if (hist_browser__run(browser, msg, &es))
 			break;
@@ -771,6 +981,10 @@ do_help:
 			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
 			zoom_dso = nr_options++;
 
+		if (browser->selection->map != NULL &&
+		    asprintf(&options[nr_options], "Browse map details") > 0)
+			browse_map = nr_options++;
+
 		options[nr_options++] = (char *)"Exit";
 
 		choice = popup_menu(nr_options, options);
@@ -800,7 +1014,9 @@ do_annotate:
 				continue;
 
 			hist_entry__tui_annotate(he);
-		} else if (choice == zoom_dso) {
+		} else if (choice == browse_map)
+			map__browse(browser->selection->map);
+		else if (choice == zoom_dso) {
 zoom_dso:
 			if (dso_filter) {
 				pstack__remove(fstack, &dso_filter);
@@ -1213,7 +1429,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	return printed;
 }
 
-static unsigned int hist_browser__refresh_entries(struct ui_browser *self)
+static unsigned int hist_browser__refresh(struct ui_browser *self)
 {
 	unsigned row = 0;
 	struct rb_node *nd;

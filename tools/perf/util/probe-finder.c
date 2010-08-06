@@ -33,7 +33,6 @@
 #include <ctype.h>
 #include <dwarf-regs.h>
 
-#include "string.h"
 #include "event.h"
 #include "debug.h"
 #include "util.h"

@@ -131,7 +131,8 @@ static void map_groups__fixup_end(struct map_groups *self)
 		__map_groups__fixup_end(self, i);
 }
 
-static struct symbol *symbol__new(u64 start, u64 len, const char *name)
+static struct symbol *symbol__new(u64 start, u64 len, u8 binding,
+				  const char *name)
 {
 	size_t namelen = strlen(name) + 1;
 	struct symbol *self = calloc(1, (symbol_conf.priv_size +
@@ -144,6 +145,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 
 	self->start   = start;
 	self->end     = len ? start + len - 1 : start;
+	self->binding = binding;
 	self->namelen = namelen - 1;
 
 	pr_debug4("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
@@ -160,8 +162,11 @@ void symbol__delete(struct symbol *self)
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 {
-	return fprintf(fp, " %llx-%llx %s\n",
-		       self->start, self->end, self->name);
+	return fprintf(fp, " %llx-%llx %c %s\n",
+		       self->start, self->end,
+		       self->binding == STB_GLOBAL ? 'g' :
+		       self->binding == STB_LOCAL  ? 'l' : 'w',
+		       self->name);
 }
 
 void dso__set_long_name(struct dso *self, char *name)
@@ -453,6 +458,14 @@ struct process_kallsyms_args {
 	struct dso *dso;
 };
 
+static u8 kallsyms2elf_type(char type)
+{
+	if (type == 'W')
+		return STB_WEAK;
+
+	return isupper(type) ? STB_GLOBAL : STB_LOCAL;
+}
+
 static int map__process_kallsym_symbol(void *arg, const char *name,
 				       char type, u64 start)
 {
@@ -466,7 +479,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	/*
 	 * Will fix up the end later, when we have all symbols sorted.
 	 */
-	sym = symbol__new(start, 0, name);
+	sym = symbol__new(start, 0, kallsyms2elf_type(type), name);
 
 	if (sym == NULL)
 		return -ENOMEM;
@@ -661,7 +674,7 @@ static int dso__load_perf_map(struct dso *self, struct map *map,
 		if (len + 2 >= line_len)
 			continue;
 
-		sym = symbol__new(start, size, line + len);
+		sym = symbol__new(start, size, STB_GLOBAL, line + len);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -873,7 +886,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname);
+					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -895,7 +908,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname);
+					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -1146,7 +1159,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		if (demangled != NULL)
 			elf_name = demangled;
 new_symbol:
-		f = symbol__new(sym.st_value, sym.st_size, elf_name);
+		f = symbol__new(sym.st_value, sym.st_size,
+				GELF_ST_BIND(sym.st_info), elf_name);
 		free(demangled);
 		if (!f)
 			goto out_elf_end;
