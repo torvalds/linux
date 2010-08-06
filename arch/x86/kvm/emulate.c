@@ -2923,28 +2923,12 @@ special_insn:
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
-		c->dst.bytes = min(c->dst.bytes, 4u);
-		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
-					  c->dst.bytes)) {
-			emulate_gp(ctxt, 0);
-			goto done;
-		}
-		if (!pio_in_emulated(ctxt, ops, c->dst.bytes,
-				     c->regs[VCPU_REGS_RDX], &c->dst.val))
-			goto done; /* IO is needed, skip writeback */
-		break;
+		c->src.val = c->regs[VCPU_REGS_RDX];
+		goto do_io_in;
 	case 0x6e:		/* outsb */
 	case 0x6f:		/* outsw/outsd */
-		c->src.bytes = min(c->src.bytes, 4u);
-		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
-					  c->src.bytes)) {
-			emulate_gp(ctxt, 0);
-			goto done;
-		}
-		ops->pio_out_emulated(c->src.bytes, c->regs[VCPU_REGS_RDX],
-				      &c->src.val, 1, ctxt->vcpu);
-
-		c->dst.type = OP_NONE; /* nothing to writeback */
+		c->dst.val = c->regs[VCPU_REGS_RDX];
+		goto do_io_out;
 		break;
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(c->b, ctxt->eflags))
