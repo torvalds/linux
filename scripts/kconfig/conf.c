@@ -599,12 +599,12 @@ int main(int ac, char **av)
 		break;
 	case savedefconfig:
 		break;
-	case oldconfig:
 	case oldaskconfig:
 		rootEntry = &rootmenu;
 		conf(&rootmenu);
 		input_mode = silentoldconfig;
 		/* fall through */
+	case oldconfig:
 	case listnewconfig:
 	case oldnoconfig:
 	case silentoldconfig:
