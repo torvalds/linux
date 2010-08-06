@@ -102,7 +102,6 @@ struct mxc_nand_host {
 
 	void			*spare0;
 	void			*main_area0;
-	void			*main_area1;
 
 	void __iomem		*base;
 	void __iomem		*regs;
@@ -305,25 +304,24 @@ static void send_read_id(struct mxc_nand_host *host)
  * NAND device status and returns the current status. */
 static uint16_t get_dev_status(struct mxc_nand_host *host)
 {
-	void __iomem *main_buf = host->main_area1;
+	void __iomem *main_buf = host->main_area0;
 	uint32_t store;
 	uint16_t ret;
-	/* Issue status request to NAND device */
 
-	/* store the main area1 first word, later do recovery */
+	writew(0x0, NFC_V1_V2_BUF_ADDR);
+
+	/*
+	 * The device status is stored in main_area0. To
+	 * prevent corruption of the buffer save the value
+	 * and restore it afterwards.
+	 */
 	store = readl(main_buf);
-	/* NANDFC buffer 1 is used for device status to prevent
-	 * corruption of read/write buffer on status requests. */
-	writew(1, host->regs + NFC_BUF_ADDR);
 
 	writew(NFC_STATUS, host->regs + NFC_CONFIG2);
-
-	/* Wait for operation to complete */
 	wait_op_done(host, true);
 
-	/* Status is placed in first word of main buffer */
-	/* get status, then recovery area 1 data */
 	ret = readw(main_buf);
+
 	writel(store, main_buf);
 
 	return ret;
@@ -761,7 +759,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	}
 
 	host->main_area0 = host->base;
-	host->main_area1 = host->base + 0x200;
 
 	if (nfc_is_v21()) {
 		host->regs = host->base + 0x1e00;
