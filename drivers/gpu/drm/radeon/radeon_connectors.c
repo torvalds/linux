@@ -518,8 +518,6 @@ static void radeon_connector_destroy(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (radeon_connector->ddc_bus)
-		radeon_i2c_destroy(radeon_connector->ddc_bus);
 	if (radeon_connector->edid)
 		kfree(radeon_connector->edid);
 	kfree(radeon_connector->con_priv);
@@ -955,8 +953,6 @@ static void radeon_dp_connector_destroy(struct drm_connector *connector)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 
-	if (radeon_connector->ddc_bus)
-		radeon_i2c_destroy(radeon_connector->ddc_bus);
 	if (radeon_connector->edid)
 		kfree(radeon_connector->edid);
 	if (radeon_dig_connector->dp_i2c_bus)
@@ -1088,7 +1084,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_vga_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "VGA");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1104,7 +1100,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_vga_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1126,7 +1122,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dvi_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_dvi_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1156,7 +1152,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dvi_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_dvi_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "HDMI");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1187,10 +1183,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
 			if (!radeon_dig_connector->dp_i2c_bus)
 				goto failed;
-			if (connector_type == DRM_MODE_CONNECTOR_eDP)
-				radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "eDP");
-			else
-				radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DP");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1230,7 +1223,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_lvds_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_lvds_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "LVDS");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1252,8 +1245,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 	return;
 
 failed:
-	if (radeon_connector->ddc_bus)
-		radeon_i2c_destroy(radeon_connector->ddc_bus);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1300,7 +1291,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_vga_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "VGA");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1316,7 +1307,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_vga_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1332,7 +1323,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_dvi_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_dvi_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1372,7 +1363,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_init(dev, &radeon_connector->base, &radeon_lvds_connector_funcs, connector_type);
 		drm_connector_helper_add(&radeon_connector->base, &radeon_lvds_connector_helper_funcs);
 		if (i2c_bus->valid) {
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "LVDS");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1393,8 +1384,6 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	return;
 
 failed:
-	if (radeon_connector->ddc_bus)
-		radeon_i2c_destroy(radeon_connector->ddc_bus);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }

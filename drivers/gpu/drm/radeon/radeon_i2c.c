@@ -960,6 +960,59 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 	kfree(i2c);
 }
 
+/* Add the default buses */
+void radeon_i2c_init(struct radeon_device *rdev)
+{
+	if (rdev->is_atom_bios)
+		radeon_atombios_i2c_init(rdev);
+	else
+		radeon_combios_i2c_init(rdev);
+}
+
+/* remove all the buses */
+void radeon_i2c_fini(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (rdev->i2c_bus[i]) {
+			radeon_i2c_destroy(rdev->i2c_bus[i]);
+			rdev->i2c_bus[i] = NULL;
+		}
+	}
+}
+
+/* Add additional buses */
+void radeon_i2c_add(struct radeon_device *rdev,
+		    struct radeon_i2c_bus_rec *rec,
+		    const char *name)
+{
+	struct drm_device *dev = rdev->ddev;
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (!rdev->i2c_bus[i]) {
+			rdev->i2c_bus[i] = radeon_i2c_create(dev, rec, name);
+			return;
+		}
+	}
+}
+
+/* looks up bus based on id */
+struct radeon_i2c_chan *radeon_i2c_lookup(struct radeon_device *rdev,
+					  struct radeon_i2c_bus_rec *i2c_bus)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
+		if (rdev->i2c_bus[i] &&
+		    (rdev->i2c_bus[i]->rec.i2c_id == i2c_bus->i2c_id)) {
+			return rdev->i2c_bus[i];
+		}
+	}
+	return NULL;
+}
+
 struct drm_encoder *radeon_best_encoder(struct drm_connector *connector)
 {
 	return NULL;

@@ -1040,6 +1040,9 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
+	/* init i2c buses */
+	radeon_i2c_init(rdev);
+
 	/* check combios for a valid hardcoded EDID - Sun servers */
 	if (!rdev->is_atom_bios) {
 		/* check for hardcoded EDID in BIOS */
@@ -1080,6 +1083,8 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}
+	/* free i2c buses */
+	radeon_i2c_fini(rdev);
 }
 
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
