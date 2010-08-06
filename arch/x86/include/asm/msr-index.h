@@ -161,8 +161,6 @@
 #define MSR_K7_FID_VID_STATUS		0xc0010042
 
 /* K6 MSRs */
-#define MSR_K6_EFER			0xc0000080
-#define MSR_K6_STAR			0xc0000081
 #define MSR_K6_WHCR			0xc0000082
 #define MSR_K6_UWCCR			0xc0000085
 #define MSR_K6_EPMR			0xc0000086
