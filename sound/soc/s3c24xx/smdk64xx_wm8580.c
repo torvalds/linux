@@ -138,9 +138,9 @@ static struct snd_soc_ops smdk64xx_ops = {
 
 /* SMDK64xx Playback widgets */
 static const struct snd_soc_dapm_widget wm8580_dapm_widgets_pbk[] = {
-	SND_SOC_DAPM_HP("Front-L/R", NULL),
-	SND_SOC_DAPM_HP("Center/Sub", NULL),
-	SND_SOC_DAPM_HP("Rear-L/R", NULL),
+	SND_SOC_DAPM_HP("Front", NULL),
+	SND_SOC_DAPM_HP("Center+Sub", NULL),
+	SND_SOC_DAPM_HP("Rear", NULL),
 };
 
 /* SMDK64xx Capture widgets */
@@ -162,16 +162,16 @@ static const struct snd_soc_dapm_route audio_map_tx[] = {
 /* SMDK-PAIFRX connections */
 static const struct snd_soc_dapm_route audio_map_rx[] = {
 	/* Front Left/Right are fed VOUT1L/R */
-	{"Front-L/R", NULL, "VOUT1L"},
-	{"Front-L/R", NULL, "VOUT1R"},
+	{"Front", NULL, "VOUT1L"},
+	{"Front", NULL, "VOUT1R"},
 
 	/* Center/Sub are fed VOUT2L/R */
-	{"Center/Sub", NULL, "VOUT2L"},
-	{"Center/Sub", NULL, "VOUT2R"},
+	{"Center+Sub", NULL, "VOUT2L"},
+	{"Center+Sub", NULL, "VOUT2R"},
 
 	/* Rear Left/Right are fed VOUT3L/R */
-	{"Rear-L/R", NULL, "VOUT3L"},
-	{"Rear-L/R", NULL, "VOUT3R"},
+	{"Rear", NULL, "VOUT3L"},
+	{"Rear", NULL, "VOUT3R"},
 };
 
 static int smdk64xx_wm8580_init_paiftx(struct snd_soc_codec *codec)
