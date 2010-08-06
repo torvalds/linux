@@ -456,20 +456,24 @@ static int ui_browser__show(struct ui_browser *self, const char *title)
 	return 0;
 }
 
-static int objdump_line__show(struct objdump_line *self, struct list_head *head,
-			      int width, struct hist_entry *he, int len,
-			      bool current_entry)
+static void annotate_browser__write(struct ui_browser *self, void *entry, int row)
 {
-	if (self->offset != -1) {
+	struct objdump_line *ol = rb_entry(entry, struct objdump_line, node);
+	bool current_entry = ui_browser__is_current_entry(self, row);
+	int width = self->width;
+
+	if (ol->offset != -1) {
+		struct hist_entry *he = self->priv;
 		struct symbol *sym = he->ms.sym;
+		int len = he->ms.sym->end - he->ms.sym->start;
 		unsigned int hits = 0;
 		double percent = 0.0;
 		int color;
 		struct sym_priv *priv = symbol__priv(sym);
 		struct sym_ext *sym_ext = priv->ext;
 		struct sym_hist *h = priv->hist;
-		s64 offset = self->offset;
-		struct objdump_line *next = objdump__get_next_ip_line(head, self);
+		s64 offset = ol->offset;
+		struct objdump_line *next = objdump__get_next_ip_line(self->entries, ol);
 
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
@@ -497,12 +501,10 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 
 	SLsmg_write_char(':');
 	slsmg_write_nstring(" ", 8);
-	if (!*self->line)
+	if (!*ol->line)
 		slsmg_write_nstring(" ", width - 18);
 	else
-		slsmg_write_nstring(self->line, width - 18);
-
-	return 0;
+		slsmg_write_nstring(ol->line, width - 18);
 }
 
 static int ui_browser__refresh(struct ui_browser *self)
@@ -607,24 +609,20 @@ static char *callchain_list__sym_name(struct callchain_list *self,
 	return bf;
 }
 
-static unsigned int hist_entry__annotate_browser_refresh(struct ui_browser *self)
+static unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 {
-	struct objdump_line *pos;
+	struct list_head *pos;
 	struct list_head *head = self->entries;
-	struct hist_entry *he = self->priv;
 	int row = 0;
-	int len = he->ms.sym->end - he->ms.sym->start;
 
 	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
                 self->first_visible_entry = head->next;
 
-	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
+	pos = self->first_visible_entry;
 
-	list_for_each_entry_from(pos, head, node) {
-		bool current_entry = ui_browser__is_current_entry(self, row);
+	list_for_each_from(pos, head) {
 		SLsmg_gotorc(self->top + row, self->left);
-		objdump_line__show(pos, head, self->width,
-				   he, len, current_entry);
+		self->write(self, pos, row);
 		if (++row == self->height)
 			break;
 	}
@@ -634,10 +632,16 @@ static unsigned int hist_entry__annotate_browser_refresh(struct ui_browser *self
 
 int hist_entry__tui_annotate(struct hist_entry *self)
 {
-	struct ui_browser browser;
 	struct newtExitStruct es;
 	struct objdump_line *pos, *n;
 	LIST_HEAD(head);
+	struct ui_browser browser = {
+		.entries = &head,
+		.refresh = ui_browser__list_head_refresh,
+		.seek	 = ui_browser__list_head_seek,
+		.write	 = annotate_browser__write,
+		.priv	 = self,
+	};
 	int ret;
 
 	if (self->ms.sym == NULL)
@@ -653,11 +657,6 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 
 	ui_helpline__push("Press <- or ESC to exit");
 
-	memset(&browser, 0, sizeof(browser));
-	browser.entries	= &head;
-	browser.refresh = hist_entry__annotate_browser_refresh;
-	browser.seek	= ui_browser__list_head_seek;
-	browser.priv = self;
 	list_for_each_entry(pos, &head, node) {
 		size_t line_len = strlen(pos->line);
 		if (browser.width < line_len)
