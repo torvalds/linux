@@ -24,6 +24,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 #include <linux/i2c.h>
 
 struct cx25840_ir_state;
@@ -31,6 +32,12 @@ struct cx25840_ir_state;
 struct cx25840_state {
 	struct i2c_client *c;
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
+	struct {
+		/* volume cluster */
+		struct v4l2_ctrl *volume;
+		struct v4l2_ctrl *mute;
+	};
 	int pvr150_workaround;
 	int radio;
 	v4l2_std_id std;
@@ -38,8 +45,6 @@ struct cx25840_state {
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
 	int audmode;
-	int unmute_volume; /* -1 if not muted */
-	int default_volume;
 	int vbi_line_offset;
 	u32 id;
 	u32 rev;
@@ -52,6 +57,11 @@ struct cx25840_state {
 static inline struct cx25840_state *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct cx25840_state, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct cx25840_state, hdl)->sd;
 }
 
 static inline bool is_cx2583x(struct cx25840_state *state)
@@ -106,8 +116,8 @@ int cx25840_loadfw(struct i2c_client *client);
 /* cx25850-audio.c                                                         */
 void cx25840_audio_set_path(struct i2c_client *client);
 int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq);
-int cx25840_audio_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
-int cx25840_audio_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
+
+extern const struct v4l2_ctrl_ops cx25840_audio_ctrl_ops;
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */
