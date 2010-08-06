@@ -884,7 +884,7 @@ static struct adp5520_keys_platform_data adp5520_keys_data = {
 };
 
 	/*
-	 *  ADP5520/5501 Multifuction Device Init Data
+	 *  ADP5520/5501 Multifunction Device Init Data
 	 */
 
 static struct adp5520_platform_data adp5520_pdev_data = {
