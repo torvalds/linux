@@ -30,10 +30,14 @@
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/max8998-private.h>
 
+#define RTC_I2C_ADDR		(0x0c >> 1)
+
 static struct mfd_cell max8998_devs[] = {
 	{
 		.name = "max8998-pmic",
-	}
+	}, {
+		.name = "max8998-rtc",
+	},
 };
 
 int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
@@ -80,6 +84,21 @@ int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 }
 EXPORT_SYMBOL(max8998_write_reg);
 
+int max8998_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
+{
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+	int ret;
+
+	mutex_lock(&max8998->iolock);
+	ret = i2c_smbus_write_i2c_block_data(i2c, reg, count, buf);
+	mutex_unlock(&max8998->iolock);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(max8998_bulk_write);
+
 int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 {
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
@@ -119,6 +138,9 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 		max8998->irq_base = pdata->irq_base;
 	}
 	mutex_init(&max8998->iolock);
+
+	max8998->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
+	i2c_set_clientdata(max8998->rtc, max8998);
 
 	max8998_irq_init(max8998);
 

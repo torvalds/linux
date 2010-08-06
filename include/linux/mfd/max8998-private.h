@@ -126,7 +126,8 @@ enum {
 /**
  * struct max8998_dev - max8998 master device for sub-drivers
  * @dev: master device of the chip (can be used to access platform data)
- * @i2c: i2c client private data
+ * @i2c: i2c client private data for regulator
+ * @rtc: i2c client private data for rtc
  * @iolock: mutex for serializing io access
  * @irqlock: mutex for buslock
  * @irq_base: base IRQ number for max8998, required for IRQs
@@ -138,6 +139,7 @@ enum {
 struct max8998_dev {
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct i2c_client *rtc;
 	struct mutex iolock;
 	struct mutex irqlock;
 
@@ -155,6 +157,8 @@ extern int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest);
 extern int max8998_bulk_read(struct i2c_client *i2c, u8 reg, int count,
 		u8 *buf);
 extern int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
+extern int max8998_bulk_write(struct i2c_client *i2c, u8 reg, int count,
+		u8 *buf);
 extern int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
 
 #endif /*  __LINUX_MFD_MAX8998_PRIV_H */
