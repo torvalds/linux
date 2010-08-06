@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2009 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -724,110 +724,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 /*
  * Interrupt functions.
  */
-static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-	__le32 *txwi;
-	struct txdone_entry_desc txdesc;
-	u32 word;
-	u32 reg;
-	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
-	u16 mcs, real_mcs;
-	int i;
-
-	/*
-	 * TX_STA_FIFO is a stack of X entries, hence read TX_STA_FIFO
-	 * at most X times and also stop processing once the TX_STA_FIFO_VALID
-	 * flag is not set anymore.
-	 *
-	 * The legacy drivers use X=TX_RING_SIZE but state in a comment
-	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
-	 * tx ring size for now.
-	 */
-	for (i = 0; i < TX_ENTRIES; i++) {
-		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &reg);
-		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
-			break;
-
-		wcid    = rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
-		ack     = rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
-		pid     = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
-
-		/*
-		 * Skip this entry when it contains an invalid
-		 * queue identication number.
-		 */
-		if (pid <= 0 || pid > QID_RX)
-			continue;
-
-		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
-		if (unlikely(!queue))
-			continue;
-
-		/*
-		 * Inside each queue, we process each entry in a chronological
-		 * order. We first check that the queue is not empty.
-		 */
-		if (rt2x00queue_empty(queue))
-			continue;
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-
-		/* Check if we got a match by looking at WCID/ACK/PID
-		 * fields */
-		txwi = (__le32 *) entry->skb->data;
-
-		rt2x00_desc_read(txwi, 1, &word);
-		tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-		tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
-		tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
-
-		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
-			WARNING(rt2x00dev, "invalid TX_STA_FIFO content\n");
-
-		/*
-		 * Obtain the status about this packet.
-		 */
-		txdesc.flags = 0;
-		rt2x00_desc_read(txwi, 0, &word);
-		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
-
-		/*
-		 * Ralink has a retry mechanism using a global fallback
-		 * table. We setup this fallback table to try the immediate
-		 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
-		 * always contains the MCS used for the last transmission, be
-		 * it successful or not.
-		 */
-		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS)) {
-			/*
-			 * Transmission succeeded. The number of retries is
-			 * mcs - real_mcs
-			 */
-			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
-			txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
-		} else {
-			/*
-			 * Transmission failed. The number of retries is
-			 * always 7 in this case (for a total number of 8
-			 * frames sent).
-			 */
-			__set_bit(TXDONE_FAILURE, &txdesc.flags);
-			txdesc.retry = 7;
-		}
-
-		/*
-		 * the frame was retried at least once
-		 * -> hw used fallback rates
-		 */
-		if (txdesc.retry)
-			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
-
-		rt2x00lib_txdone(entry, &txdesc);
-	}
-}
-
 static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
 {
 	struct ieee80211_conf conf = { .flags = 0 };
@@ -863,7 +759,7 @@ static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 	 * 4 - Tx done interrupt.
 	 */
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
-		rt2800pci_txdone(rt2x00dev);
+		rt2800_txdone(rt2x00dev);
 
 	/*
 	 * 5 - Auto wakeup interrupt.

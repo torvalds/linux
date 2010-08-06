@@ -1,4 +1,6 @@
 /*
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
+	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz
 
 	This program is free software; you can redistribute it and/or modify
@@ -146,6 +148,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 void rt2800_write_tx_data(struct queue_entry *entry,
 			  struct txentry_desc *txdesc);
 void rt2800_process_rxwi(struct queue_entry *entry, struct rxdone_entry_desc *txdesc);
+
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev);
 
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 
