@@ -289,8 +289,7 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 	dio24_release(link);
 
 	/* This points to the parent local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 
 }				/* dio24_cs_detach */
 
