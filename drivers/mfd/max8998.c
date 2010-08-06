@@ -36,13 +36,13 @@ static struct mfd_cell max8998_devs[] = {
 	}
 };
 
-static int max8998_i2c_device_read(struct max8998_dev *max8998, u8 reg, u8 *dest)
+int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_read_byte_data(client, reg);
+	ret = i2c_smbus_read_byte_data(i2c, reg);
 	mutex_unlock(&max8998->iolock);
 	if (ret < 0)
 		return ret;
@@ -51,36 +51,38 @@ static int max8998_i2c_device_read(struct max8998_dev *max8998, u8 reg, u8 *dest
 	*dest = ret;
 	return 0;
 }
+EXPORT_SYMBOL(max8998_read_reg);
 
-static int max8998_i2c_device_write(struct max8998_dev *max8998, u8 reg, u8 value)
+int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_write_byte_data(client, reg, value);
+	ret = i2c_smbus_write_byte_data(i2c, reg, value);
 	mutex_unlock(&max8998->iolock);
 	return ret;
 }
+EXPORT_SYMBOL(max8998_write_reg);
 
-static int max8998_i2c_device_update(struct max8998_dev *max8998, u8 reg,
-				     u8 val, u8 mask)
+int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_read_byte_data(client, reg);
+	ret = i2c_smbus_read_byte_data(i2c, reg);
 	if (ret >= 0) {
 		u8 old_val = ret & 0xff;
 		u8 new_val = (val & mask) | (old_val & (~mask));
-		ret = i2c_smbus_write_byte_data(client, reg, new_val);
+		ret = i2c_smbus_write_byte_data(i2c, reg, new_val);
 		if (ret >= 0)
 			ret = 0;
 	}
 	mutex_unlock(&max8998->iolock);
 	return ret;
 }
+EXPORT_SYMBOL(max8998_update_reg);
 
 static int max8998_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -94,10 +96,7 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, max8998);
 	max8998->dev = &i2c->dev;
-	max8998->i2c_client = i2c;
-	max8998->dev_read = max8998_i2c_device_read;
-	max8998->dev_write = max8998_i2c_device_write;
-	max8998->dev_update = max8998_i2c_device_update;
+	max8998->i2c = i2c;
 	mutex_init(&max8998->iolock);
 
 	ret = mfd_add_devices(max8998->dev, -1,
