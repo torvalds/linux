@@ -4370,6 +4370,14 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 		ndlp ? wwn_to_u64(ndlp->nlp_portname.u.wwn) : 0;
 }
 
+static void
+lpfc_get_host_def_loss_tmo(struct Scsi_Host *shost)
+{
+        struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+
+	fc_host_def_dev_loss_tmo(shost) = vport->cfg_devloss_tmo;
+}
+
 /**
  * lpfc_set_rport_loss_tmo - Set the rport dev loss tmo
  * @rport: fc rport address.
@@ -4478,6 +4486,7 @@ struct fc_function_template lpfc_transport_functions = {
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
 
+	.get_host_def_dev_loss_tmo = lpfc_get_host_def_loss_tmo,
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
 	 * so there are no sysfs handlers for link_down_tmo.
@@ -4545,6 +4554,7 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
 
+	.get_host_def_dev_loss_tmo = lpfc_get_host_def_loss_tmo,
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
 	 * so there are no sysfs handlers for link_down_tmo.
