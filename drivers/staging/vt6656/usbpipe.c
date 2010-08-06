@@ -618,7 +618,7 @@ s_nsBulkInUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-NDIS_STATUS
+int
 PIPEnsSendBulkOut(
       PSDevice pDevice,
       PUSB_SEND_CONTEXT pContext

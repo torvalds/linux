@@ -773,7 +773,7 @@ FIRMWAREbDownload(
      PSDevice pDevice
     )
 {
-    NDIS_STATUS NdisStatus;
+    int NdisStatus;
     PBYTE       pBuffer = NULL;
     WORD        wLength;
     int         ii;
@@ -823,7 +823,7 @@ FIRMWAREbBrach2Sram(
      PSDevice pDevice
     )
 {
-    NDIS_STATUS NdisStatus;
+    int NdisStatus;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
 

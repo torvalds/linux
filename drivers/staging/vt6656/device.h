@@ -258,15 +258,12 @@ typedef enum _VIA_PKT_TYPE
 
 //++ NDIS related
 
-#define NDIS_STATUS     int
-
 typedef enum __DEVICE_NDIS_STATUS {
     STATUS_SUCCESS = 0,
     STATUS_FAILURE,
     STATUS_RESOURCES,
     STATUS_PENDING,
 } DEVICE_NDIS_STATUS, *PDEVICE_NDIS_STATUS;
-
 
 #define MAX_BSSIDINFO_4_PMKID   16
 #define MAX_PMKIDLIST           5
