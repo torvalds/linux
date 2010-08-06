@@ -773,7 +773,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 
 int iwl_restore_default_wep_keys(struct iwl_priv *priv)
 {
-	WARN_ON(!mutex_is_locked(&priv->mutex));
+	lockdep_assert_held(&priv->mutex);
 
 	return iwl_send_static_wepkey_cmd(priv, 0);
 }
@@ -784,7 +784,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 {
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&priv->mutex));
+	lockdep_assert_held(&priv->mutex);
 
 	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
@@ -808,7 +808,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 {
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&priv->mutex));
+	lockdep_assert_held(&priv->mutex);
 
 	if (keyconf->keylen != WEP_KEY_LEN_128 &&
 	    keyconf->keylen != WEP_KEY_LEN_64) {

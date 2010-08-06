@@ -1429,7 +1429,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed)
 {
-	WARN_ON(!spin_is_locked(&priv->sta_lock));
+	lockdep_assert_held(&priv->sta_lock);
 
 	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
 		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;

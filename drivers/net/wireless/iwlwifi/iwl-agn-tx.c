@@ -1117,7 +1117,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
 
-	WARN_ON(!spin_is_locked(&priv->sta_lock));
+	lockdep_assert_held(&priv->sta_lock);
 
 	switch (priv->stations[sta_id].tid[tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
