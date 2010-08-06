@@ -170,8 +170,6 @@ EXPORT_SYMBOL_GPL(rt2x00usb_regbusy_read);
  */
 static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 {
-	struct txdone_entry_desc txdesc;
-
 	/*
 	 * If the transfer to hardware succeeded, it does not mean the
 	 * frame was send out correctly. It only means the frame
@@ -180,14 +178,10 @@ static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 	 * (Only indirectly by looking at the failed TX counters
 	 * in the register).
 	 */
-	txdesc.flags = 0;
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-		__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 	else
-		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
-	txdesc.retry = 0;
-
-	rt2x00lib_txdone(entry, &txdesc);
+		rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
 }
 
 static void rt2x00usb_work_txdone(struct work_struct *work)

@@ -408,6 +408,18 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
+void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status)
+{
+	struct txdone_entry_desc txdesc;
+
+	txdesc.flags = 0;
+	__set_bit(status, &txdesc.flags);
+	txdesc.retry = 0;
+
+	rt2x00lib_txdone(entry, &txdesc);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_txdone_noinfo);
+
 static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 					struct rxdone_entry_desc *rxdesc)
 {
