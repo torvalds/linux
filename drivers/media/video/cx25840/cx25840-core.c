@@ -1127,11 +1127,6 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
-	case CX25840_CID_ENABLE_PVR150_WORKAROUND:
-		state->pvr150_workaround = ctrl->value;
-		set_input(client, state->vid_input, state->aud_input);
-		break;
-
 	case V4L2_CID_BRIGHTNESS:
 		if (ctrl->value < 0 || ctrl->value > 255) {
 			v4l_err(client, "invalid brightness setting %d\n",
@@ -1194,9 +1189,6 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
-	case CX25840_CID_ENABLE_PVR150_WORKAROUND:
-		ctrl->value = state->pvr150_workaround;
-		break;
 	case V4L2_CID_BRIGHTNESS:
 		ctrl->value = (s8)cx25840_read(client, 0x414) + 128;
 		break;
@@ -1792,6 +1784,20 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int cx25840_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
+{
+	struct cx25840_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (platform_data) {
+		struct cx25840_platform_data *pdata = platform_data;
+
+		state->pvr150_workaround = pdata->pvr150_workaround;
+		set_input(client, state->vid_input, state->aud_input);
+	}
+	return 0;
+}
+
 static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 			       bool *handled)
 {
@@ -1879,6 +1885,7 @@ static int cx25840_irq_handler(struct v4l2_subdev *sd, u32 status,
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.log_status = cx25840_log_status,
+	.s_config = cx25840_s_config,
 	.g_chip_ident = cx25840_g_chip_ident,
 	.g_ctrl = cx25840_g_ctrl,
 	.s_ctrl = cx25840_s_ctrl,

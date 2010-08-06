@@ -1269,15 +1269,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	IVTV_DEBUG_INFO("Getting firmware version..\n");
 	ivtv_firmware_versions(itv);
 
-	if (itv->card->hw_all & IVTV_HW_CX25840) {
-		struct v4l2_control ctrl;
-
+	if (itv->card->hw_all & IVTV_HW_CX25840)
 		v4l2_subdev_call(itv->sd_video, core, load_fw);
-		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
-		ctrl.id = V4L2_CID_PRIVATE_BASE;
-		ctrl.value = itv->pvr150_workaround;
-		v4l2_subdev_call(itv->sd_video, core, s_ctrl, &ctrl);
-	}
 
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;

@@ -26,14 +26,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <linux/i2c.h>
 
-/* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
-   present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
-   certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
-   audio autodetect fails on some channels for these models and the workaround
-   is to select the audio standard explicitly. Many thanks to Hauppauge for
-   providing this information. */
-#define CX25840_CID_ENABLE_PVR150_WORKAROUND (V4L2_CID_PRIVATE_BASE+0)
-
 struct cx25840_ir_state;
 
 struct cx25840_state {
