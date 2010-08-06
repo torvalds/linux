@@ -58,6 +58,7 @@
 #define NFC_V1_V2_CONFIG1		(host->regs + 0x1a)
 #define NFC_V1_V2_CONFIG2		(host->regs + 0x1c)
 
+#define NFC_V2_CONFIG1_ECC_MODE_4	(1 << 0)
 #define NFC_V1_V2_CONFIG1_SP_EN		(1 << 2)
 #define NFC_V1_V2_CONFIG1_ECC_EN	(1 << 3)
 #define NFC_V1_V2_CONFIG1_INT_MSK	(1 << 4)
@@ -581,6 +582,23 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
+/*
+ * v2 and v3 type controllers can do 4bit or 8bit ecc depending
+ * on how much oob the nand chip has. For 8bit ecc we need at least
+ * 26 bytes of oob data per 512 byte block.
+ */
+static int get_eccsize(struct mtd_info *mtd)
+{
+	int oobbytes_per_512 = 0;
+
+	oobbytes_per_512 = mtd->oobsize * 512 / mtd->writesize;
+
+	if (oobbytes_per_512 < 26)
+		return 4;
+	else
+		return 8;
+}
+
 static void preset_v1_v2(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = mtd->priv;
@@ -596,6 +614,15 @@ static void preset_v1_v2(struct mtd_info *mtd)
 	} else {
 		tmp &= ~NFC_V1_V2_CONFIG1_ECC_EN;
 	}
+
+	if (nfc_is_v21() && mtd->writesize) {
+		host->eccsize = get_eccsize(mtd);
+		if (host->eccsize == 4)
+			tmp |= NFC_V2_CONFIG1_ECC_MODE_4;
+	} else {
+		host->eccsize = 1;
+	}
+
 	writew(tmp, NFC_V1_V2_CONFIG1);
 	/* preset operation */
 
@@ -858,6 +885,9 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		err = -ENXIO;
 		goto escan;
 	}
+
+	/* Call preset again, with correct writesize this time */
+	host->preset(mtd);
 
 	if (mtd->writesize == 2048)
 		this->ecc.layout = oob_largepage;
