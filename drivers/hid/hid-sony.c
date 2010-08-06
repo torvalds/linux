@@ -31,17 +31,18 @@ struct sony_sc {
 };
 
 /* Sony Vaio VGX has wrongly mouse pointer declared as constant */
-static void sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
 	if ((sc->quirks & VAIO_RDESC_CONSTANT) &&
-			rsize >= 56 && rdesc[54] == 0x81 && rdesc[55] == 0x07) {
+			*rsize >= 56 && rdesc[54] == 0x81 && rdesc[55] == 0x07) {
 		dev_info(&hdev->dev, "Fixing up Sony Vaio VGX report "
 				"descriptor\n");
 		rdesc[55] = 0x06;
 	}
+	return rdesc;
 }
 
 /*

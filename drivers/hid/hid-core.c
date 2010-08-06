@@ -651,7 +651,7 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 	};
 
 	if (device->driver->report_fixup)
-		device->driver->report_fixup(device, start, size);
+		start = device->driver->report_fixup(device, start, &size);
 
 	device->rdesc = kmemdup(start, size, GFP_KERNEL);
 	if (device->rdesc == NULL)

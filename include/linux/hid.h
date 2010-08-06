@@ -626,8 +626,8 @@ struct hid_driver {
 	int (*event)(struct hid_device *hdev, struct hid_field *field,
 			struct hid_usage *usage, __s32 value);
 
-	void (*report_fixup)(struct hid_device *hdev, __u8 *buf,
-			unsigned int size);
+	__u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
+			unsigned int *size);
 
 	int (*input_mapping)(struct hid_device *hdev,
 			struct hid_input *hidinput, struct hid_field *field,
