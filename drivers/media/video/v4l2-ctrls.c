@@ -267,17 +267,17 @@ const char *v4l2_ctrl_get_name(u32 id)
 	switch (id) {
 	/* USER controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
-	case V4L2_CID_USER_CLASS: 		return "User Controls";
-	case V4L2_CID_BRIGHTNESS: 		return "Brightness";
-	case V4L2_CID_CONTRAST: 		return "Contrast";
-	case V4L2_CID_SATURATION: 		return "Saturation";
-	case V4L2_CID_HUE: 			return "Hue";
-	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
-	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
-	case V4L2_CID_AUDIO_BASS: 		return "Bass";
-	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
-	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
-	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
+	case V4L2_CID_USER_CLASS:		return "User Controls";
+	case V4L2_CID_BRIGHTNESS:		return "Brightness";
+	case V4L2_CID_CONTRAST:			return "Contrast";
+	case V4L2_CID_SATURATION:		return "Saturation";
+	case V4L2_CID_HUE:			return "Hue";
+	case V4L2_CID_AUDIO_VOLUME:		return "Volume";
+	case V4L2_CID_AUDIO_BALANCE:		return "Balance";
+	case V4L2_CID_AUDIO_BASS:		return "Bass";
+	case V4L2_CID_AUDIO_TREBLE:		return "Treble";
+	case V4L2_CID_AUDIO_MUTE:		return "Mute";
+	case V4L2_CID_AUDIO_LOUDNESS:		return "Loudness";
 	case V4L2_CID_BLACK_LEVEL:		return "Black Level";
 	case V4L2_CID_AUTO_WHITE_BALANCE:	return "White Balance, Automatic";
 	case V4L2_CID_DO_WHITE_BALANCE:		return "Do White Balance";
@@ -307,38 +307,38 @@ const char *v4l2_ctrl_get_name(u32 id)
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
-	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
-	case V4L2_CID_MPEG_STREAM_TYPE: 	return "Stream Type";
-	case V4L2_CID_MPEG_STREAM_PID_PMT: 	return "Stream PMT Program ID";
-	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	return "Stream Audio Program ID";
-	case V4L2_CID_MPEG_STREAM_PID_VIDEO: 	return "Stream Video Program ID";
-	case V4L2_CID_MPEG_STREAM_PID_PCR: 	return "Stream PCR Program ID";
+	case V4L2_CID_MPEG_CLASS:		return "MPEG Encoder Controls";
+	case V4L2_CID_MPEG_STREAM_TYPE:		return "Stream Type";
+	case V4L2_CID_MPEG_STREAM_PID_PMT:	return "Stream PMT Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_AUDIO:	return "Stream Audio Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_VIDEO:	return "Stream Video Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_PCR:	return "Stream PCR Program ID";
 	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: return "Stream PES Audio ID";
 	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: return "Stream PES Video ID";
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:	return "Stream VBI Format";
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: return "Audio Sampling Frequency";
-	case V4L2_CID_MPEG_AUDIO_ENCODING: 	return "Audio Encoding";
-	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	return "Audio Layer I Bitrate";
-	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	return "Audio Layer II Bitrate";
-	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	return "Audio Layer III Bitrate";
-	case V4L2_CID_MPEG_AUDIO_MODE: 		return "Audio Stereo Mode";
+	case V4L2_CID_MPEG_AUDIO_ENCODING:	return "Audio Encoding";
+	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:	return "Audio Layer I Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:	return "Audio Layer II Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:	return "Audio Layer III Bitrate";
+	case V4L2_CID_MPEG_AUDIO_MODE:		return "Audio Stereo Mode";
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: return "Audio Stereo Mode Extension";
-	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	return "Audio Emphasis";
-	case V4L2_CID_MPEG_AUDIO_CRC: 		return "Audio CRC";
-	case V4L2_CID_MPEG_AUDIO_MUTE: 		return "Audio Mute";
-	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE: 	return "Audio AAC Bitrate";
-	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	return "Audio AC-3 Bitrate";
-	case V4L2_CID_MPEG_VIDEO_ENCODING: 	return "Video Encoding";
-	case V4L2_CID_MPEG_VIDEO_ASPECT: 	return "Video Aspect";
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	return "Video B Frames";
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE: 	return "Video GOP Size";
-	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE: 	return "Video GOP Closure";
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN: 	return "Video Pulldown";
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: 	return "Video Bitrate Mode";
-	case V4L2_CID_MPEG_VIDEO_BITRATE: 	return "Video Bitrate";
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	return "Video Peak Bitrate";
+	case V4L2_CID_MPEG_AUDIO_EMPHASIS:	return "Audio Emphasis";
+	case V4L2_CID_MPEG_AUDIO_CRC:		return "Audio CRC";
+	case V4L2_CID_MPEG_AUDIO_MUTE:		return "Audio Mute";
+	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE:	return "Audio AAC Bitrate";
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:	return "Audio AC-3 Bitrate";
+	case V4L2_CID_MPEG_VIDEO_ENCODING:	return "Video Encoding";
+	case V4L2_CID_MPEG_VIDEO_ASPECT:	return "Video Aspect";
+	case V4L2_CID_MPEG_VIDEO_B_FRAMES:	return "Video B Frames";
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:	return "Video GOP Size";
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:	return "Video GOP Closure";
+	case V4L2_CID_MPEG_VIDEO_PULLDOWN:	return "Video Pulldown";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:	return "Video Bitrate Mode";
+	case V4L2_CID_MPEG_VIDEO_BITRATE:	return "Video Bitrate";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:	return "Video Peak Bitrate";
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: return "Video Temporal Decimation";
-	case V4L2_CID_MPEG_VIDEO_MUTE: 		return "Video Mute";
+	case V4L2_CID_MPEG_VIDEO_MUTE:		return "Video Mute";
 	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	return "Video Mute YUV";
 
 	/* CAMERA controls */
