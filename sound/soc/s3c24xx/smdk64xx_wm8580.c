@@ -22,6 +22,12 @@
 #include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
+/*
+ * Default CFG switch settings to use this driver:
+ *
+ *   SMDK6410: Set CFG1 1-3 Off, CFG2 1-4 On
+ */
+
 /* SMDK64XX has a 12MHZ crystal attached to WM8580 */
 #define SMDK64XX_WM8580_FREQ 12000000
 
