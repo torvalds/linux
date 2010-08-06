@@ -172,7 +172,7 @@ static struct miscdevice riowd_miscdev = {
 	.fops	= &riowd_fops
 };
 
-static int __devinit riowd_probe(struct of_device *op,
+static int __devinit riowd_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	struct riowd *p;
@@ -219,7 +219,7 @@ out:
 	return err;
 }
 
-static int __devexit riowd_remove(struct of_device *op)
+static int __devexit riowd_remove(struct platform_device *op)
 {
 	struct riowd *p = dev_get_drvdata(&op->dev);
 

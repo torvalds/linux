@@ -107,10 +107,10 @@ struct ehea_fw_handle_array ehea_fw_handles;
 struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int __devinit ehea_probe_adapter(struct of_device *dev,
+static int __devinit ehea_probe_adapter(struct platform_device *dev,
 					const struct of_device_id *id);
 
-static int __devexit ehea_remove(struct of_device *dev);
+static int __devexit ehea_remove(struct platform_device *dev);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -3376,7 +3376,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
 static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
 
-int ehea_create_device_sysfs(struct of_device *dev)
+int ehea_create_device_sysfs(struct platform_device *dev)
 {
 	int ret = device_create_file(&dev->dev, &dev_attr_probe_port);
 	if (ret)
@@ -3387,13 +3387,13 @@ out:
 	return ret;
 }
 
-void ehea_remove_device_sysfs(struct of_device *dev)
+void ehea_remove_device_sysfs(struct platform_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_probe_port);
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int __devinit ehea_probe_adapter(struct of_device *dev,
+static int __devinit ehea_probe_adapter(struct platform_device *dev,
 					const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
@@ -3492,7 +3492,7 @@ out:
 	return ret;
 }
 
-static int __devexit ehea_remove(struct of_device *dev)
+static int __devexit ehea_remove(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
 	int i;

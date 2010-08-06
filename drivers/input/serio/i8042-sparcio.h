@@ -49,7 +49,7 @@ static inline void i8042_write_command(int val)
 #define OBP_PS2MS_NAME1		"kdmouse"
 #define OBP_PS2MS_NAME2		"mouse"
 
-static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit sparc_i8042_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
 
@@ -57,7 +57,7 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 	while (dp) {
 		if (!strcmp(dp->name, OBP_PS2KBD_NAME1) ||
 		    !strcmp(dp->name, OBP_PS2KBD_NAME2)) {
-			struct of_device *kbd = of_find_device_by_node(dp);
+			struct platform_device *kbd = of_find_device_by_node(dp);
 			unsigned int irq = kbd->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -67,7 +67,7 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 			kbd_res = &kbd->resource[0];
 		} else if (!strcmp(dp->name, OBP_PS2MS_NAME1) ||
 			   !strcmp(dp->name, OBP_PS2MS_NAME2)) {
-			struct of_device *ms = of_find_device_by_node(dp);
+			struct platform_device *ms = of_find_device_by_node(dp);
 			unsigned int irq = ms->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -80,7 +80,7 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 	return 0;
 }
 
-static int __devexit sparc_i8042_remove(struct of_device *op)
+static int __devexit sparc_i8042_remove(struct platform_device *op)
 {
 	of_iounmap(kbd_res, kbd_iobase, 8);
 

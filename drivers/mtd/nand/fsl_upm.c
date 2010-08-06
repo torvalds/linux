@@ -217,7 +217,7 @@ err:
 	return ret;
 }
 
-static int __devinit fun_probe(struct of_device *ofdev,
+static int __devinit fun_probe(struct platform_device *ofdev,
 			       const struct of_device_id *ofid)
 {
 	struct fsl_upm_nand *fun;
@@ -335,7 +335,7 @@ err1:
 	return ret;
 }
 
-static int __devexit fun_remove(struct of_device *ofdev)
+static int __devexit fun_remove(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun = dev_get_drvdata(&ofdev->dev);
 	int i;

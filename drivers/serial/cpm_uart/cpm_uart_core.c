@@ -1340,7 +1340,7 @@ static struct uart_driver cpm_reg = {
 
 static int probe_index;
 
-static int __devinit cpm_uart_probe(struct of_device *ofdev,
+static int __devinit cpm_uart_probe(struct platform_device *ofdev,
                                     const struct of_device_id *match)
 {
 	int index = probe_index++;
@@ -1364,7 +1364,7 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }
 
-static int __devexit cpm_uart_remove(struct of_device *ofdev)
+static int __devexit cpm_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_cpm_port *pinfo = dev_get_drvdata(&ofdev->dev);
 	return uart_remove_one_port(&cpm_reg, &pinfo->port);

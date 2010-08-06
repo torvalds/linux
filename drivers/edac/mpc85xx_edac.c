@@ -200,7 +200,7 @@ static irqreturn_t mpc85xx_pci_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
+static int __devinit mpc85xx_pci_err_probe(struct platform_device *op,
 					   const struct of_device_id *match)
 {
 	struct edac_pci_ctl_info *pci;
@@ -305,7 +305,7 @@ err:
 	return res;
 }
 
-static int mpc85xx_pci_err_remove(struct of_device *op)
+static int mpc85xx_pci_err_remove(struct platform_device *op)
 {
 	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
@@ -503,7 +503,7 @@ static irqreturn_t mpc85xx_l2_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpc85xx_l2_err_probe(struct of_device *op,
+static int __devinit mpc85xx_l2_err_probe(struct platform_device *op,
 					  const struct of_device_id *match)
 {
 	struct edac_device_ctl_info *edac_dev;
@@ -613,7 +613,7 @@ err:
 	return res;
 }
 
-static int mpc85xx_l2_err_remove(struct of_device *op)
+static int mpc85xx_l2_err_remove(struct platform_device *op)
 {
 	struct edac_device_ctl_info *edac_dev = dev_get_drvdata(&op->dev);
 	struct mpc85xx_l2_pdata *pdata = edac_dev->pvt_info;
@@ -953,7 +953,7 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 	}
 }
 
-static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
+static int __devinit mpc85xx_mc_err_probe(struct platform_device *op,
 					  const struct of_device_id *match)
 {
 	struct mem_ctl_info *mci;
@@ -1085,7 +1085,7 @@ err:
 	return res;
 }
 
-static int mpc85xx_mc_err_remove(struct of_device *op)
+static int mpc85xx_mc_err_remove(struct platform_device *op)
 {
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;

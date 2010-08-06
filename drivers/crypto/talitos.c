@@ -118,7 +118,7 @@ struct talitos_channel {
 
 struct talitos_private {
 	struct device *dev;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	void __iomem *reg;
 	int irq;
 
@@ -2308,7 +2308,7 @@ static int hw_supports(struct device *dev, __be32 desc_hdr_template)
 	return ret;
 }
 
-static int talitos_remove(struct of_device *ofdev)
+static int talitos_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct talitos_private *priv = dev_get_drvdata(dev);
@@ -2401,7 +2401,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	return t_alg;
 }
 
-static int talitos_probe(struct of_device *ofdev,
+static int talitos_probe(struct platform_device *ofdev,
 			 const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;

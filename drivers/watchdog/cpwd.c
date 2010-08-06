@@ -526,7 +526,7 @@ static const struct file_operations cpwd_fops = {
 	.release =		cpwd_release,
 };
 
-static int __devinit cpwd_probe(struct of_device *op,
+static int __devinit cpwd_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *options;
@@ -639,7 +639,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit cpwd_remove(struct of_device *op)
+static int __devexit cpwd_remove(struct platform_device *op)
 {
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;

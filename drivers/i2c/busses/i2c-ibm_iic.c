@@ -661,7 +661,7 @@ static inline u8 iic_clckdiv(unsigned int opb)
 	return (u8)((opb + 9) / 10 - 1);
 }
 
-static int __devinit iic_request_irq(struct of_device *ofdev,
+static int __devinit iic_request_irq(struct platform_device *ofdev,
 				     struct ibm_iic_private *dev)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -692,7 +692,7 @@ static int __devinit iic_request_irq(struct of_device *ofdev,
 /*
  * Register single IIC interface
  */
-static int __devinit iic_probe(struct of_device *ofdev,
+static int __devinit iic_probe(struct platform_device *ofdev,
 			       const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -780,7 +780,7 @@ error_cleanup:
 /*
  * Cleanup initialized IIC interface
  */
-static int __devexit iic_remove(struct of_device *ofdev)
+static int __devexit iic_remove(struct platform_device *ofdev)
 {
 	struct ibm_iic_private *dev = dev_get_drvdata(&ofdev->dev);
 

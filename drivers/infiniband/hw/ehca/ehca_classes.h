@@ -112,7 +112,7 @@ struct ehca_sport {
 
 struct ehca_shca {
 	struct ib_device ib_device;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	u8 num_ports;
 	int hw_level;
 	struct list_head shca_list;

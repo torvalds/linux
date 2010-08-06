@@ -1150,7 +1150,7 @@ static struct pccard_operations m8xx_services = {
 	.set_mem_map = m8xx_set_mem_map,
 };
 
-static int __init m8xx_probe(struct of_device *ofdev,
+static int __init m8xx_probe(struct platform_device *ofdev,
 			     const struct of_device_id *match)
 {
 	struct pcmcia_win *w;
@@ -1250,7 +1250,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int m8xx_remove(struct of_device *ofdev)
+static int m8xx_remove(struct platform_device *ofdev)
 {
 	u32 m, i;
 	struct pcmcia_win *w;

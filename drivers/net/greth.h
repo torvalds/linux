@@ -118,7 +118,7 @@ struct greth_private {
 
 	int irq;
 
-	struct device *dev;	        /* Pointer to of_device->dev */
+	struct device *dev;	        /* Pointer to platform_device->dev */
 	struct net_device *netdev;
 	struct napi_struct napi;
 	spinlock_t devlock;

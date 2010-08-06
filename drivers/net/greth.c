@@ -1373,7 +1373,7 @@ error:
 }
 
 /* Initialize the GRETH MAC */
-static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_device_id *match)
+static int __devinit greth_of_probe(struct platform_device *ofdev, const struct of_device_id *match)
 {
 	struct net_device *dev;
 	struct greth_private *greth;
@@ -1572,7 +1572,7 @@ error1:
 	return err;
 }
 
-static int __devexit greth_of_remove(struct of_device *of_dev)
+static int __devexit greth_of_remove(struct platform_device *of_dev)
 {
 	struct net_device *ndev = dev_get_drvdata(&of_dev->dev);
 	struct greth_private *greth = netdev_priv(ndev);

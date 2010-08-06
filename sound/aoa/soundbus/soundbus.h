@@ -141,7 +141,7 @@ struct soundbus_dev {
 	struct list_head onbuslist;
 
 	/* the of device it represents */
-	struct of_device ofdev;
+	struct platform_device ofdev;
 
 	/* what modules go by */
 	char modalias[32];

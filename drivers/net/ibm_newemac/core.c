@@ -2245,7 +2245,7 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 struct emac_depentry {
 	u32			phandle;
 	struct device_node	*node;
-	struct of_device	*ofdev;
+	struct platform_device	*ofdev;
 	void			*drvdata;
 };
 
@@ -2719,7 +2719,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct of_device *ofdev,
+static int __devinit emac_probe(struct platform_device *ofdev,
 				const struct of_device_id *match)
 {
 	struct net_device *ndev;
@@ -2941,7 +2941,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit emac_remove(struct of_device *ofdev)
+static int __devexit emac_remove(struct platform_device *ofdev)
 {
 	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
 

@@ -517,7 +517,7 @@ void *mal_dump_regs(struct mal_instance *mal, void *buf)
 	return regs + 1;
 }
 
-static int __devinit mal_probe(struct of_device *ofdev,
+static int __devinit mal_probe(struct platform_device *ofdev,
 			       const struct of_device_id *match)
 {
 	struct mal_instance *mal;
@@ -730,7 +730,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit mal_remove(struct of_device *ofdev)
+static int __devexit mal_remove(struct platform_device *ofdev)
 {
 	struct mal_instance *mal = dev_get_drvdata(&ofdev->dev);
 

@@ -19,9 +19,17 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
-/*
- * An of_platform_driver driver is attached to a basic of_device on
- * the "platform bus" (platform_bus_type).
+/**
+ * of_platform_driver - Legacy of-aware driver for platform devices.
+ *
+ * An of_platform_driver driver is attached to a basic platform_device on
+ * ether the "platform bus" (platform_bus_type), or the ibm ebus
+ * (ibmebus_bus_type).
+ *
+ * of_platform_driver is being phased out when used with the platform_bus_type,
+ * and regular platform_drivers should be used instead.  When the transition
+ * is complete, only ibmebus will be using this structure, and the
+ * platform_driver member of this structure will be removed.
  */
 struct of_platform_driver
 {

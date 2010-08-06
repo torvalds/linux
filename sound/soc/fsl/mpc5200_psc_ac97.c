@@ -263,7 +263,7 @@ EXPORT_SYMBOL_GPL(psc_ac97_dai);
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_ac97_of_probe(struct of_device *op,
+static int __devinit psc_ac97_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
 	int rc, i;
@@ -303,7 +303,7 @@ static int __devinit psc_ac97_of_probe(struct of_device *op,
 	return 0;
 }
 
-static int __devexit psc_ac97_of_remove(struct of_device *op)
+static int __devexit psc_ac97_of_remove(struct platform_device *op)
 {
 	return mpc5200_audio_dma_destroy(op);
 }

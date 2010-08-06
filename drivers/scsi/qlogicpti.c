@@ -704,7 +704,7 @@ static void __devexit qpti_chain_del(struct qlogicpti *qpti)
 
 static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
 	qpti->qregs = of_ioremap(&op->resource[0], 0,
 				 resource_size(&op->resource[0]),
@@ -727,7 +727,7 @@ static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 
 static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
 	qpti->qhost->irq = qpti->irq = op->archdata.irqs[0];
 
@@ -752,7 +752,7 @@ fail:
 
 static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 	struct device_node *dp;
 
 	dp = op->dev.of_node;
@@ -773,7 +773,7 @@ static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 
 static void qpti_get_bursts(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 	u8 bursts, bmask;
 
 	bursts = of_getintprop_default(op->dev.of_node, "burst-sizes", 0xff);
@@ -806,7 +806,7 @@ static void qpti_get_clock(struct qlogicpti *qpti)
  */
 static int __devinit qpti_map_queues(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
 #define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
 	qpti->res_cpu = dma_alloc_coherent(&op->dev,
@@ -1290,7 +1290,7 @@ static struct scsi_host_template qpti_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
-static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit qpti_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct scsi_host_template *tpnt = match->data;
 	struct device_node *dp = op->dev.of_node;
@@ -1401,7 +1401,7 @@ fail_unlink:
 	return -ENODEV;
 }
 
-static int __devexit qpti_sbus_remove(struct of_device *op)
+static int __devexit qpti_sbus_remove(struct platform_device *op)
 {
 	struct qlogicpti *qpti = dev_get_drvdata(&op->dev);
 

@@ -84,7 +84,7 @@ struct thermostat {
 
 static enum {ADT7460, ADT7467} therm_type;
 static int therm_bus, therm_address;
-static struct of_device * of_dev;
+static struct platform_device * of_dev;
 static struct thermostat* thermostat;
 static struct task_struct *thread_therm = NULL;
 

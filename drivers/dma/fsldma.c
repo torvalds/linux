@@ -1297,7 +1297,7 @@ static void fsl_dma_chan_remove(struct fsldma_chan *chan)
 	kfree(chan);
 }
 
-static int __devinit fsldma_of_probe(struct of_device *op,
+static int __devinit fsldma_of_probe(struct platform_device *op,
 			const struct of_device_id *match)
 {
 	struct fsldma_device *fdev;
@@ -1382,7 +1382,7 @@ out_return:
 	return err;
 }
 
-static int fsldma_of_remove(struct of_device *op)
+static int fsldma_of_remove(struct platform_device *op)
 {
 	struct fsldma_device *fdev;
 	unsigned int i;

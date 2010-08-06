@@ -997,7 +997,7 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 #endif
 };
 
-static int __devinit fs_enet_probe(struct of_device *ofdev,
+static int __devinit fs_enet_probe(struct platform_device *ofdev,
                                    const struct of_device_id *match)
 {
 	struct net_device *ndev;
@@ -1105,7 +1105,7 @@ out_free_fpi:
 	return ret;
 }
 
-static int fs_enet_remove(struct of_device *ofdev)
+static int fs_enet_remove(struct platform_device *ofdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct fs_enet_private *fep = netdev_priv(ndev);
