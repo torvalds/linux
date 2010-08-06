@@ -468,7 +468,7 @@ static struct android_pmem_platform_data pmem_pdata = {
 
 static struct android_pmem_platform_data pmem_pdata_dsp = {
 	.name = "pmem-dsp",
-	.no_allocator = 1,
+	.no_allocator = 0,                  
 	.cached = 0,
     .start = 0x6db00000,
 	.size =  0x1500000,

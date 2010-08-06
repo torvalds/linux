@@ -292,7 +292,8 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 
 	dev_dbg(&icd->dev, "S_FMT(%c%c%c%c, %ux%u)\n",
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
-
+		
+	printk("%s..%d.. ********ddl*******\n",__FUNCTION__, __LINE__);
 	/* We always call try_fmt() before set_fmt() or set_crop() */
 	ret = ici->ops->try_fmt(icd, f);
 	if (ret < 0)
@@ -443,6 +444,8 @@ static int soc_camera_close(struct file *file)
 
 	module_put(ici->ops->owner);
 
+	printk("icf->vb_vidq.bufs[0] = 0x%x\n",(int)(icf->vb_vidq.bufs[0]));
+
 	vfree(icf);
 
 	dev_dbg(&icd->dev, "camera device close\n");
@@ -509,17 +512,34 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	int ret;
+	int ret,i;
 
 	WARN_ON(priv != file->private_data);
 
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
+	#if 0
 	if (icf->vb_vidq.bufs[0]) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
+	#else
+
+	/* ddl@rock-chips.com :  
+	     Judge queue  initialised by Judge icf->vb_vidq.bufs[0] whether is NULL , it is error.    */
+
+	i = 0;
+	while (icf->vb_vidq.bufs[i]) {
+		if (icf->vb_vidq.bufs[i]->state != VIDEOBUF_NEEDS_INIT) {
+			dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
+			ret = -EBUSY;
+			goto unlock;
+		}
+		i++;
+	}
+	
+	#endif
 
 	ret = soc_camera_set_fmt(icf, f);
 

@@ -774,12 +774,12 @@ static int rk28_camera_try_fmt(struct soc_camera_device *icd,
     struct v4l2_pix_format *pix = &f->fmt.pix;
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
-    int ret;
+    int ret,i;
 
     RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
-    if (!xlate) {
+    if (!xlate) {       
         dev_err(ici->v4l2_dev.dev, "Format %x not found\n", pixfmt);
         ret = -EINVAL;
         goto RK28_CAMERA_TRY_FMT_END;

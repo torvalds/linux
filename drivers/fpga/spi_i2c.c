@@ -93,7 +93,7 @@ int spi_i2c_select_speed(int speed)
 			result = ICE_SET_400K_I2C_SPEED;	
 			break;			
 		default:	
-			printk("not support this rate ,set spi i2c rate fail\n");
+			result = ICE_SET_100K_I2C_SPEED;            /* ddl@rock-chips.com : default set 100KHz  */ 	
 			break;		
 	}
 	return result;
