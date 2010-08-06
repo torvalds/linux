@@ -642,6 +642,17 @@ config PATA_VIA
 
 	  If unsure, say N.
 
+config PATA_PXA
+	tristate "PXA DMA-capable PATA support"
+	depends on ARCH_PXA
+	help
+	  This option enables support for harddrive attached to PXA CPU's bus.
+
+	  NOTE: This driver utilizes PXA DMA controller, in case your hardware
+	        is not capable of doing MWDMA, use pata_platform instead.
+
+	  If unsure, say N.
+
 config PATA_WINBOND
 	tristate "Winbond SL82C105 PATA support"
 	depends on PCI
