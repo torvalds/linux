@@ -1675,6 +1675,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 			ts->ypos_lshift_msb, ts->ypos_rshift_lsb);
 
 	qtouch_force_reset(ts, 0);
+	msleep(QTM_OBP_SLEEP_WAIT_FOR_HW_RESET);
 	err = qtouch_process_info_block(ts);
 
 	if (err == 0) {
@@ -1699,7 +1700,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 			/* Reset the chip into bootloader mode */
 			if (ts->fw_version >= ts->base_fw_version) {
 				qtouch_force_reset(ts, 2);
-				msleep(QTM_OBP_SLEEP_WAIT_FOR_RESET);
+				msleep(QTM_OBP_SLEEP_WAIT_FOR_HW_RESET);
 
 				ts->org_i2c_addr = ts->client->addr;
 				ts->client->addr = ts->pdata->boot_i2c_addr;
@@ -1713,7 +1714,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 		pr_info("%s:Cannot read info block %i, checking for bootloader mode.\n", __func__, err);
 
 		qtouch_force_reset(ts, 0);
-		msleep(QTM_OBP_SLEEP_WAIT_FOR_RESET);
+		msleep(QTM_OBP_SLEEP_WAIT_FOR_HW_RESET);
 
 		ts->org_i2c_addr = ts->client->addr;
 		ts->client->addr = ts->pdata->boot_i2c_addr;
@@ -1767,6 +1768,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 
 			ts->client->addr = ts->org_i2c_addr;
 			qtouch_force_reset(ts, 0);
+			msleep(QTM_OBP_SLEEP_WAIT_FOR_HW_RESET);
 			pr_err("%s: I2C address is 0x%X\n",
 				__func__, ts->client->addr);
 			err = qtouch_process_info_block(ts);
@@ -1906,6 +1908,7 @@ static int qtouch_ts_resume(struct i2c_client *client)
 	struct qtouch_ts_data *ts = i2c_get_clientdata(client);
 	int ret;
 	int i;
+	struct qtm_object *obj;
 
 	if (qtouch_tsdebug & 4)
 		pr_info("%s: Resuming\n", __func__);
@@ -1936,7 +1939,16 @@ static int qtouch_ts_resume(struct i2c_client *client)
 		pr_err("%s: Cannot write power config\n", __func__);
 		return -EIO;
 	}
-	qtouch_force_reset(ts, 0);
+	/* HACK: temporary fix for IC wake issue
+	qtouch_force_reset(ts, 0); */
+	/* Point the address pointer to the message processor.
+	 * Must do this before enabling interrupts */
+	obj = find_obj(ts, QTM_OBJ_GEN_MSG_PROC);
+	ret = qtouch_set_addr(ts, obj->entry.addr);
+	if (ret != 0) {
+		pr_err("%s: Can't to set addr to msg processor\n", __func__);
+	}
+	/* end of HACK */
 
 	enable_irq(ts->client->irq);
 	return 0;
