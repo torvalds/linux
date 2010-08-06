@@ -507,7 +507,8 @@ int __ir_input_register(struct input_dev *input_dev,
 
 	IR_dprintk(1, "Registered input device on %s for %s remote%s.\n",
 		   driver_name, rc_tab->name,
-		   ir_dev->props->driver_type == RC_DRIVER_IR_RAW ? " in raw mode" : "");
+		   (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_IR_RAW) ?
+			" in raw mode" : "");
 
 	return 0;
 
