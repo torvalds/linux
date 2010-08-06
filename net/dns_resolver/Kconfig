@@ -15,7 +15,7 @@ config DNS_RESOLVER
 	  cell's volume location database servers.
 
 	  DNS Resolver is used by the CIFS and AFS modules, and would support
-	  samba4 later.  DNS Resolver is supported by the userspace upcall
+	  SMB2 later.  DNS Resolver is supported by the userspace upcall
 	  helper "/sbin/dns.resolver" via /etc/request-key.conf.
 
 	  See <file:Documentation/networking/dns_resolver.txt> for further
