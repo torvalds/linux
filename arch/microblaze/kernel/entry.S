@@ -458,14 +458,8 @@ C_ENTRY(sys_execve):
 	addik	r8, r1, PTO;		/* add user context as 4th arg */
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	brlid	r15, sys_rt_sigreturn	/* Do real work */
+	brid	sys_rt_sigreturn	/* Do real work */
 	addik	r5, r1, PTO;		/* add user context as 1st arg */
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
-	nop;
 
 /*
  * HW EXCEPTION rutine start
