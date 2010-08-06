@@ -38,52 +38,52 @@
 #include <plat/sdhci.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
-#define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+#define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				 S3C2410_UCON_RXILEVEL |	\
 				 S3C2410_UCON_TXIRQMODE |	\
 				 S3C2410_UCON_RXIRQMODE |	\
 				 S3C2410_UCON_RXFIFO_TOI |	\
 				 S3C2443_UCON_RXERR_IRQEN)
 
-#define S5PV210_ULCON_DEFAULT	S3C2410_LCON_CS8
+#define AQUILA_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5PV210_UFCON_DEFAULT	S3C2410_UFCON_FIFOMODE
+#define AQUILA_UFCON_DEFAULT	S3C2410_UFCON_FIFOMODE
 
 static struct s3c2410_uartcfg aquila_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport		= 0,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
+		.ucon		= AQUILA_UCON_DEFAULT,
+		.ulcon		= AQUILA_ULCON_DEFAULT,
 		/*
 		 * Actually UART0 can support 256 bytes fifo, but aquila board
 		 * supports 128 bytes fifo because of initial chip bug
 		 */
-		.ufcon		= S5PV210_UFCON_DEFAULT |
+		.ufcon		= AQUILA_UFCON_DEFAULT |
 			S5PV210_UFCON_TXTRIG128 | S5PV210_UFCON_RXTRIG128,
 	},
 	[1] = {
 		.hwport		= 1,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT |
+		.ucon		= AQUILA_UCON_DEFAULT,
+		.ulcon		= AQUILA_ULCON_DEFAULT,
+		.ufcon		= AQUILA_UFCON_DEFAULT |
 			S5PV210_UFCON_TXTRIG64 | S5PV210_UFCON_RXTRIG64,
 	},
 	[2] = {
 		.hwport		= 2,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT |
+		.ucon		= AQUILA_UCON_DEFAULT,
+		.ulcon		= AQUILA_ULCON_DEFAULT,
+		.ufcon		= AQUILA_UFCON_DEFAULT |
 			S5PV210_UFCON_TXTRIG16 | S5PV210_UFCON_RXTRIG16,
 	},
 	[3] = {
 		.hwport		= 3,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT |
+		.ucon		= AQUILA_UCON_DEFAULT,
+		.ulcon		= AQUILA_ULCON_DEFAULT,
+		.ufcon		= AQUILA_UFCON_DEFAULT |
 			S5PV210_UFCON_TXTRIG16 | S5PV210_UFCON_RXTRIG16,
 	},
 };

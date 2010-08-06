@@ -1,23 +1,16 @@
-/* linux/arch/arm/mach-s5pv210/include/mach/system.h
+/* linux/arch/arm/plat-s5p/include/plat/reset.h
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * S5PV210 - system support header
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_SYSTEM_H
-#define __ASM_ARCH_SYSTEM_H __FILE__
+#ifndef __ASM_PLAT_S5P_RESET_H
+#define __ASM_PLAT_S5P_RESET_H __FILE__
 
-#include <plat/system-reset.h>
+extern void (*s5p_reset_hook)(void);
 
-static void arch_idle(void)
-{
-	/* nothing here yet */
-}
-
-#endif /* __ASM_ARCH_SYSTEM_H */
+#endif /* __ASM_PLAT_S5P_RESET_H */
