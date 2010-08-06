@@ -578,20 +578,12 @@ extern int vt_ioctl(struct tty_struct *tty, struct file *file,
 extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 		     unsigned int cmd, unsigned long arg);
 
+/* tty_mutex.c */
 /* functions for preparation of BKL removal */
-static inline void tty_lock(void) __acquires(kernel_lock)
-{
-#ifdef CONFIG_LOCK_KERNEL
-	/* kernel_locked is 1 for !CONFIG_LOCK_KERNEL */
-	WARN_ON(kernel_locked());
-#endif
-	lock_kernel();
-}
-static inline void tty_unlock(void) __releases(kernel_lock)
-{
-	unlock_kernel();
-}
-#define tty_locked()		(kernel_locked())
+extern void __lockfunc tty_lock(void) __acquires(tty_lock);
+extern void __lockfunc tty_unlock(void) __releases(tty_lock);
+extern struct task_struct *__big_tty_mutex_owner;
+#define tty_locked()		(current == __big_tty_mutex_owner)
 
 /*
  * wait_event_interruptible_tty -- wait for a condition with the tty lock held
