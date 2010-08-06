@@ -370,63 +370,9 @@ static void set_ecc_config(struct denali_nand_info *denali)
 static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 {
 	int i;
-
-	denali_write32(DEVICE_RESET__BANK0, denali->flash_reg + DEVICE_RESET);
-
-	while (!((ioread32(denali->flash_reg + INTR_STATUS0) &
-			INTR_STATUS0__RST_COMP) |
-			(ioread32(denali->flash_reg + INTR_STATUS0) &
-			INTR_STATUS0__TIME_OUT)))
-		;
-
-	if (ioread32(denali->flash_reg + INTR_STATUS0) &
-			INTR_STATUS0__RST_COMP) {
-		denali_write32(DEVICE_RESET__BANK1,
-				denali->flash_reg + DEVICE_RESET);
-		while (!((ioread32(denali->flash_reg + INTR_STATUS1) &
-			INTR_STATUS1__RST_COMP) |
-			(ioread32(denali->flash_reg + INTR_STATUS1) &
-			INTR_STATUS1__TIME_OUT)))
-			;
-
-		if (ioread32(denali->flash_reg + INTR_STATUS1) &
-			INTR_STATUS1__RST_COMP) {
-			denali_write32(DEVICE_RESET__BANK2,
-				denali->flash_reg + DEVICE_RESET);
-			while (!((ioread32(denali->flash_reg + INTR_STATUS2) &
-				INTR_STATUS2__RST_COMP) |
-				(ioread32(denali->flash_reg + INTR_STATUS2) &
-				INTR_STATUS2__TIME_OUT)))
-				;
-
-			if (ioread32(denali->flash_reg + INTR_STATUS2) &
-				INTR_STATUS2__RST_COMP) {
-				denali_write32(DEVICE_RESET__BANK3,
-					denali->flash_reg + DEVICE_RESET);
-				while (!((ioread32(denali->flash_reg +
-						INTR_STATUS3) &
-						INTR_STATUS3__RST_COMP) |
-						(ioread32(denali->flash_reg +
-						INTR_STATUS3) &
-						INTR_STATUS3__TIME_OUT)))
-					;
-			} else {
-				printk(KERN_ERR "Getting a time out for bank 2!\n");
-			}
-		} else {
-			printk(KERN_ERR "Getting a time out for bank 1!\n");
-		}
-	}
-
-	denali_write32(INTR_STATUS0__TIME_OUT,
-			denali->flash_reg + INTR_STATUS0);
-	denali_write32(INTR_STATUS1__TIME_OUT,
-			denali->flash_reg + INTR_STATUS1);
-	denali_write32(INTR_STATUS2__TIME_OUT,
-			denali->flash_reg + INTR_STATUS2);
-	denali_write32(INTR_STATUS3__TIME_OUT,
-			denali->flash_reg + INTR_STATUS3);
-
+	/* we needn't to do a reset here because driver has already
+	 * reset all the banks before
+	 * */
 	if (!(ioread32(denali->flash_reg + ONFI_TIMING_MODE) &
 		ONFI_TIMING_MODE__VALUE))
 		return FAIL;
@@ -447,23 +393,10 @@ static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 	return PASS;
 }
 
-static void get_samsung_nand_para(struct denali_nand_info *denali)
+static void get_samsung_nand_para(struct denali_nand_info *denali,
+							uint8_t device_id)
 {
-	uint32_t id_bytes[5];
-	int i;
-
-	index_addr(denali, (uint32_t)(MODE_11 | 0), 0x90);
-	index_addr(denali, (uint32_t)(MODE_11 | 1), 0);
-	for (i = 0; i < 5; i++)
-		index_addr_read_data(denali, (uint32_t)(MODE_11 | 2),
-							&id_bytes[i]);
-
-	nand_dbg_print(NAND_DBG_DEBUG,
-		"ID bytes: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
-		id_bytes[0], id_bytes[1], id_bytes[2],
-		id_bytes[3], id_bytes[4]);
-
-	if ((id_bytes[1] & 0xff) == 0xd3) { /* Samsung K9WAG08U1A */
+	if (device_id == 0xd3) { /* Samsung K9WAG08U1A */
 		/* Set timing register values according to datasheet */
 		denali_write32(5, denali->flash_reg + ACC_CLKS);
 		denali_write32(20, denali->flash_reg + RE_2_WE);
@@ -625,7 +558,7 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 		if (FAIL == get_onfi_nand_para(denali))
 			return FAIL;
 	} else if (maf_id == 0xEC) { /* Samsung NAND */
-		get_samsung_nand_para(denali);
+		get_samsung_nand_para(denali, device_id);
 	} else if (maf_id == 0x98) { /* Toshiba NAND */
 		get_toshiba_nand_para(denali);
 	} else if (maf_id == 0xAD) { /* Hynix NAND */
