@@ -185,7 +185,6 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	struct elantech_data *etd = psmouse->private;
 	unsigned char *packet = psmouse->packet;
 	int fingers;
-	static int old_fingers;
 
 	if (etd->fw_version < 0x020000) {
 		/*
@@ -203,10 +202,13 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	}
 
 	if (etd->jumpy_cursor) {
-		/* Discard packets that are likely to have bogus coordinates */
-		if (fingers > old_fingers) {
+		if (fingers != 1) {
+			etd->single_finger_reports = 0;
+		} else if (etd->single_finger_reports < 2) {
+			/* Discard first 2 reports of one finger, bogus */
+			etd->single_finger_reports++;
 			elantech_debug("discarding packet\n");
-			goto discard_packet_v1;
+			return;
 		}
 	}
 
@@ -238,9 +240,6 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	}
 
 	input_sync(dev);
-
- discard_packet_v1:
-	old_fingers = fingers;
 }
 
 /*
@@ -733,13 +732,13 @@ int elantech_init(struct psmouse *psmouse)
 	etd->capabilities = param[0];
 
 	/*
-	 * This firmware seems to suffer from misreporting coordinates when
+	 * This firmware suffers from misreporting coordinates when
 	 * a touch action starts causing the mouse cursor or scrolled page
 	 * to jump. Enable a workaround.
 	 */
-	if (etd->fw_version == 0x020022) {
-		pr_info("firmware version 2.0.34 detected, enabling jumpy cursor workaround\n");
-		etd->jumpy_cursor = 1;
+	if (etd->fw_version == 0x020022 || etd->fw_version == 0x020600) {
+		pr_info("firmware version 2.0.34/2.6.0 detected, enabling jumpy cursor workaround\n");
+		etd->jumpy_cursor = true;
 	}
 
 	if (elantech_set_absolute_mode(psmouse)) {
