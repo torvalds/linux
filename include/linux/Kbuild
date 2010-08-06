@@ -371,7 +371,6 @@ header-y += veth.h
 header-y += vhost.h
 header-y += videodev.h
 header-y += videodev2.h
-header-y += videotext.h
 header-y += virtio_9p.h
 header-y += virtio_balloon.h
 header-y += virtio_blk.h

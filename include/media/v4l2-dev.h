@@ -21,8 +21,7 @@
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
-#define VFL_TYPE_VTX		3
-#define VFL_TYPE_MAX		4
+#define VFL_TYPE_MAX		3
 
 struct v4l2_ioctl_callbacks;
 struct video_device;

@@ -81,7 +81,7 @@ static inline unsigned long *devnode_bits(int vfl_type)
 	/* Any types not assigned to fixed minor ranges must be mapped to
 	   one single bitmap for the purposes of finding a free node number
 	   since all those unassigned types use the same minor range. */
-	int idx = (vfl_type > VFL_TYPE_VTX) ? VFL_TYPE_MAX - 1 : vfl_type;
+	int idx = (vfl_type > VFL_TYPE_RADIO) ? VFL_TYPE_MAX - 1 : vfl_type;
 
 	return devnode_nums[idx];
 }
@@ -377,8 +377,6 @@ static int get_index(struct video_device *vdev)
  *
  *	%VFL_TYPE_GRABBER - A frame grabber
  *
- *	%VFL_TYPE_VTX - A teletext device
- *
  *	%VFL_TYPE_VBI - Vertical blank data (undecoded)
  *
  *	%VFL_TYPE_RADIO - A radio card
@@ -410,9 +408,6 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	switch (type) {
 	case VFL_TYPE_GRABBER:
 		name_base = "video";
-		break;
-	case VFL_TYPE_VTX:
-		name_base = "vtx";
 		break;
 	case VFL_TYPE_VBI:
 		name_base = "vbi";
@@ -450,10 +445,6 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	case VFL_TYPE_RADIO:
 		minor_offset = 64;
 		minor_cnt = 64;
-		break;
-	case VFL_TYPE_VTX:
-		minor_offset = 192;
-		minor_cnt = 32;
 		break;
 	case VFL_TYPE_VBI:
 		minor_offset = 224;
