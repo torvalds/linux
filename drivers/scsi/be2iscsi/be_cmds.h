@@ -47,8 +47,8 @@ struct be_mcc_wrb {
 
 #define CQE_FLAGS_VALID_MASK (1 << 31)
 #define CQE_FLAGS_ASYNC_MASK (1 << 30)
-#define CQE_FLAGS_COMPLETED_MASK 	(1 << 28)
-#define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
+#define CQE_FLAGS_COMPLETED_MASK	(1 << 28)
+#define CQE_FLAGS_CONSUMED_MASK		(1 << 27)
 
 /* Completion Status */
 #define MCC_STATUS_SUCCESS 0x0
@@ -56,7 +56,7 @@ struct be_mcc_wrb {
 #define CQE_STATUS_COMPL_MASK 0xFFFF
 #define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
 #define CQE_STATUS_EXTD_MASK 0xFFFF
-#define CQE_STATUS_EXTD_SHIFT 0		/* bits 0 - 15 */
+#define CQE_STATUS_EXTD_SHIFT 16		/* bits 0 - 15 */
 
 struct be_mcc_compl {
 	u32 status;		/* dword 0 */
@@ -143,14 +143,14 @@ struct be_mcc_mailbox {
  */
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
-#define OPCODE_COMMON_MCC_CREATE        		21
-#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES               32
+#define OPCODE_COMMON_MCC_CREATE			21
+#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES		32
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_MODIFY_EQ_DELAY			41
 #define OPCODE_COMMON_FIRMWARE_CONFIG			42
-#define OPCODE_COMMON_MCC_DESTROY        		53
-#define OPCODE_COMMON_CQ_DESTROY        		54
-#define OPCODE_COMMON_EQ_DESTROY        		55
+#define OPCODE_COMMON_MCC_DESTROY			53
+#define OPCODE_COMMON_CQ_DESTROY			54
+#define OPCODE_COMMON_EQ_DESTROY			55
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
 
@@ -164,9 +164,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ISCSI_NTWK_GET_NIC_CONFIG		7
 #define OPCODE_COMMON_ISCSI_SET_FRAGNUM_BITS_FOR_SGL_CRA 61
 #define OPCODE_COMMON_ISCSI_DEFQ_CREATE                 64
-#define OPCODE_COMMON_ISCSI_DEFQ_DESTROY 		65
+#define OPCODE_COMMON_ISCSI_DEFQ_DESTROY		65
 #define OPCODE_COMMON_ISCSI_WRBQ_CREATE			66
-#define OPCODE_COMMON_ISCSI_WRBQ_DESTROY 		67
+#define OPCODE_COMMON_ISCSI_WRBQ_DESTROY		67
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -423,7 +423,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *cq);
 
 int be_poll_mcc(struct be_ctrl_info *ctrl);
-unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
+int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba);
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
@@ -875,7 +875,7 @@ struct be_fw_cfg {
 						 */
 #define UNSOL_HDR_NOTIFY		28	/* Unsolicited header notify.*/
 #define UNSOL_DATA_NOTIFY		29	/* Unsolicited data notify.*/
-#define UNSOL_DATA_DIGEST_ERROR_NOTIFY 	30	/* Unsolicited data digest
+#define UNSOL_DATA_DIGEST_ERROR_NOTIFY	30	/* Unsolicited data digest
 						 * error notify.
 						 */
 #define DRIVERMSG_NOTIFY		31	/* TCP acknowledge based
@@ -900,6 +900,9 @@ struct be_fw_cfg {
 						 * that has immediate data on
 						 * the cxn
 						 */
+
+int beiscsi_pci_soft_reset(struct beiscsi_hba *phba);
+int be_chk_reset_complete(struct beiscsi_hba *phba);
 
 void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 			bool embedded, u8 sge_cnt);

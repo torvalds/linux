@@ -261,7 +261,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 static int caps_show(struct seq_file *s, void *p)
 {
-	struct ceph_client *client = p;
+	struct ceph_client *client = s->private;
 	int total, avail, used, reserved, min;
 
 	ceph_reservation_status(client, &total, &avail, &used, &reserved, &min);

@@ -2,6 +2,7 @@
  * kvm eventfd support - use eventfd objects to signal various KVM events
  *
  * Copyright 2009 Novell.  All Rights Reserved.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Author:
  *	Gregory Haskins <ghaskins@novell.com>

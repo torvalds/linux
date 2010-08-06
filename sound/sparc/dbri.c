@@ -2608,7 +2608,7 @@ static int __devinit dbri_probe(struct of_device *op, const struct of_device_id 
 		return -ENOENT;
 	}
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 	if (irq <= 0) {
 		printk(KERN_ERR "DBRI-%d: No IRQ.\n", dev);
 		return -ENODEV;
@@ -2699,12 +2699,12 @@ static struct of_platform_driver dbri_sbus_driver = {
 /* Probe for the dbri chip and then attach the driver. */
 static int __init dbri_init(void)
 {
-	return of_register_driver(&dbri_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&dbri_sbus_driver);
 }
 
 static void __exit dbri_exit(void)
 {
-	of_unregister_driver(&dbri_sbus_driver);
+	of_unregister_platform_driver(&dbri_sbus_driver);
 }
 
 module_init(dbri_init);

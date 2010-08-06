@@ -295,7 +295,7 @@ static int __devinit bpp_probe(struct of_device *op, const struct of_device_id *
 	void __iomem *base;
 	struct parport *p;
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 	base = of_ioremap(&op->resource[0], 0,
 			  resource_size(&op->resource[0]),
 			  "sunbpp");
@@ -393,12 +393,12 @@ static struct of_platform_driver bpp_sbus_driver = {
 
 static int __init parport_sunbpp_init(void)
 {
-	return of_register_driver(&bpp_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&bpp_sbus_driver);
 }
 
 static void __exit parport_sunbpp_exit(void)
 {
-	of_unregister_driver(&bpp_sbus_driver);
+	of_unregister_platform_driver(&bpp_sbus_driver);
 }
 
 MODULE_AUTHOR("Derrick J Brashear");

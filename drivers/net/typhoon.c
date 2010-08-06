@@ -255,7 +255,7 @@ struct typhoon_shared {
 	struct rx_free			rxBuff[RXFREE_ENTRIES]	__3xp_aligned;
 	u32				zeroWord;
 	struct tx_desc			txHi[TXHI_ENTRIES];
-} __attribute__ ((packed));
+} __packed;
 
 struct rxbuff_ent {
 	struct sk_buff *skb;

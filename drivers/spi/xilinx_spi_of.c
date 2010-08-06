@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of_spi.h>
@@ -79,9 +80,6 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 		return -ENODEV;
 
 	dev_set_drvdata(&ofdev->dev, master);
-
-	/* Add any subnodes on the SPI bus */
-	of_register_spi_devices(master, ofdev->dev.of_node);
 
 	return 0;
 }

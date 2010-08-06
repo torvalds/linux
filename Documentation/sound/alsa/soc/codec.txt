@@ -143,7 +143,7 @@ struct snd_soc_ops {
 };
 
 Please refer to the ALSA driver PCM documentation for details.
-http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c436.htm
+http://www.alsa-project.org/~iwai/writing-an-alsa-driver/
 
 
 5 - DAPM description.

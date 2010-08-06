@@ -74,3 +74,38 @@ nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
 	nv_wr32(dev, r, v);
 	return 0;
 }
+
+void
+nv50_gpio_irq_enable(struct drm_device *dev, enum dcb_gpio_tag tag, bool on)
+{
+	struct dcb_gpio_entry *gpio;
+	u32 reg, mask;
+
+	gpio = nouveau_bios_gpio_entry(dev, tag);
+	if (!gpio) {
+		NV_ERROR(dev, "gpio tag 0x%02x not found\n", tag);
+		return;
+	}
+
+	reg  = gpio->line < 16 ? 0xe050 : 0xe070;
+	mask = 0x00010001 << (gpio->line & 0xf);
+
+	nv_wr32(dev, reg + 4, mask);
+	nv_mask(dev, reg + 0, mask, on ? mask : 0);
+}
+
+int
+nv50_gpio_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/* disable, and ack any pending gpio interrupts */
+	nv_wr32(dev, 0xe050, 0x00000000);
+	nv_wr32(dev, 0xe054, 0xffffffff);
+	if (dev_priv->chipset >= 0x90) {
+		nv_wr32(dev, 0xe070, 0x00000000);
+		nv_wr32(dev, 0xe074, 0xffffffff);
+	}
+
+	return 0;
+}

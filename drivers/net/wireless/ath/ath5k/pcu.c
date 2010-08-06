@@ -59,8 +59,6 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 
 	beacon_reg = 0;
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	switch (op_mode) {
 	case NL80211_IFTYPE_ADHOC:
 		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
@@ -173,7 +171,6 @@ void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high)
  */
 static int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_ACK))
 			<= timeout)
 		return -EINVAL;
@@ -192,7 +189,6 @@ static int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
  */
 static int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_CTS))
 			<= timeout)
 		return -EINVAL;
@@ -297,7 +293,6 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 	u32 low_id, high_id;
 	u32 pcu_reg;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
 	memcpy(common->macaddr, mac, ETH_ALEN);
 
@@ -357,7 +352,6 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah)
 void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
-	ATH5K_TRACE(ah->ah_sc);
 
 	/* Cache bssid mask so that we can restore it
 	 * on reset */
@@ -382,7 +376,6 @@ void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
  */
 void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
 }
 
@@ -397,7 +390,6 @@ void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
  */
 void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
 }
 
@@ -406,8 +398,6 @@ void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah)
  */
 void ath5k_hw_set_mcast_filter(struct ath5k_hw *ah, u32 filter0, u32 filter1)
 {
-	ATH5K_TRACE(ah->ah_sc);
-	/* Set the multicat filter */
 	ath5k_hw_reg_write(ah, filter0, AR5K_MCAST_FILTER0);
 	ath5k_hw_reg_write(ah, filter1, AR5K_MCAST_FILTER1);
 }
@@ -427,7 +417,6 @@ u32 ath5k_hw_get_rx_filter(struct ath5k_hw *ah)
 {
 	u32 data, filter = 0;
 
-	ATH5K_TRACE(ah->ah_sc);
 	filter = ath5k_hw_reg_read(ah, AR5K_RX_FILTER);
 
 	/*Radar detection for 5212*/
@@ -456,8 +445,6 @@ u32 ath5k_hw_get_rx_filter(struct ath5k_hw *ah)
 void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 {
 	u32 data = 0;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	/* Set PHY error filter register on 5212*/
 	if (ah->ah_version == AR5K_AR5212) {
@@ -533,8 +520,6 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 
 	WARN_ON( i == ATH5K_MAX_TSF_READ );
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	return (((u64)tsf_upper1 << 32) | tsf_lower);
 }
 
@@ -548,8 +533,6 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
  */
 void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	ath5k_hw_reg_write(ah, tsf64 & 0xffffffff, AR5K_TSF_L32);
 	ath5k_hw_reg_write(ah, (tsf64 >> 32) & 0xffffffff, AR5K_TSF_U32);
 }
@@ -564,8 +547,6 @@ void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64)
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah)
 {
 	u32 val;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	val = ath5k_hw_reg_read(ah, AR5K_BEACON) | AR5K_BEACON_RESET_TSF;
 
@@ -586,7 +567,6 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 {
 	u32 timer1, timer2, timer3;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/*
 	 * Set the additional timers by mode
 	 */
@@ -674,7 +654,6 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	unsigned int i, type;
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 
-	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 
 	type = ath5k_hw_reg_read(ah, AR5K_KEYTABLE_TYPE(entry));
@@ -748,8 +727,6 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 	bool is_tkip;
 	const u8 *key_ptr;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	is_tkip = (key->alg == ALG_TKIP);
 
@@ -836,7 +813,6 @@ int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac)
 {
 	u32 low_id, high_id;
 
-	ATH5K_TRACE(ah->ah_sc);
 	 /* Invalid entry (key table overflow) */
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 

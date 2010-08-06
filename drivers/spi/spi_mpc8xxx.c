@@ -38,7 +38,6 @@
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/of_spi.h>
 #include <linux/slab.h>
 
 #include <sysdev/fsl_soc.h>
@@ -64,28 +63,6 @@ struct mpc8xxx_spi_reg {
 	__be32 command;
 	__be32 transmit;
 	__be32 receive;
-};
-
-/* SPI Parameter RAM */
-struct spi_pram {
-	__be16	rbase;	/* Rx Buffer descriptor base address */
-	__be16	tbase;	/* Tx Buffer descriptor base address */
-	u8	rfcr;	/* Rx function code */
-	u8	tfcr;	/* Tx function code */
-	__be16	mrblr;	/* Max receive buffer length */
-	__be32	rstate;	/* Internal */
-	__be32	rdp;	/* Internal */
-	__be16	rbptr;	/* Internal */
-	__be16	rbc;	/* Internal */
-	__be32	rxtmp;	/* Internal */
-	__be32	tstate;	/* Internal */
-	__be32	tdp;	/* Internal */
-	__be16	tbptr;	/* Internal */
-	__be16	tbc;	/* Internal */
-	__be32	txtmp;	/* Internal */
-	__be32	res;	/* Tx temp. */
-	__be16  rpbase;	/* Relocation pointer (CPM1 only) */
-	__be16	res1;	/* Reserved */
 };
 
 /* SPI Controller mode register definitions */
@@ -1031,6 +1008,7 @@ mpc8xxx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 	master->setup = mpc8xxx_spi_setup;
 	master->transfer = mpc8xxx_spi_transfer;
 	master->cleanup = mpc8xxx_spi_cleanup;
+	master->dev.of_node = dev->of_node;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->dev = dev;
@@ -1320,8 +1298,6 @@ static int __devinit of_mpc8xxx_spi_probe(struct of_device *ofdev,
 		ret = PTR_ERR(master);
 		goto err;
 	}
-
-	of_register_spi_devices(master, np);
 
 	return 0;
 

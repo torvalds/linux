@@ -18,8 +18,8 @@ ifeq ($(CONFIG_ROMKERNEL),y)
 KBUILD_CFLAGS           += -mlong-calls
 endif
 KBUILD_AFLAGS           += $(call cc-option,-mno-fdpic)
-CFLAGS_MODULE    += -mlong-calls
-LDFLAGS_MODULE   += -m elf32bfin
+KBUILD_CFLAGS_MODULE    += -mlong-calls
+KBUILD_LDFLAGS_MODULE   += -m elf32bfin
 KALLSYMS         += --symbol-prefix=_
 
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig

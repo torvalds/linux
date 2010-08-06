@@ -485,6 +485,9 @@ struct ar5416_desc {
 #define AR_TxRSSICombined   0xff000000
 #define AR_TxRSSICombined_S 24
 
+#define AR_TxTid	0xf0000000
+#define AR_TxTid_S	28
+
 #define AR_TxEVM0           ds_txstatus5
 #define AR_TxEVM1           ds_txstatus6
 #define AR_TxEVM2           ds_txstatus7
@@ -577,13 +580,8 @@ enum ath9k_tx_queue {
 
 #define	ATH9K_NUM_TX_QUEUES 10
 
-enum ath9k_tx_queue_subtype {
-	ATH9K_WME_AC_BK = 0,
-	ATH9K_WME_AC_BE,
-	ATH9K_WME_AC_VI,
-	ATH9K_WME_AC_VO,
-	ATH9K_WME_UPSD
-};
+/* Used as a queue subtype instead of a WMM AC */
+#define ATH9K_WME_UPSD	4
 
 enum ath9k_tx_queue_flags {
 	TXQ_FLAG_TXOKINT_ENABLE = 0x0001,
@@ -617,7 +615,7 @@ enum ath9k_pkt_type {
 struct ath9k_tx_queue_info {
 	u32 tqi_ver;
 	enum ath9k_tx_queue tqi_type;
-	enum ath9k_tx_queue_subtype tqi_subtype;
+	int tqi_subtype;
 	enum ath9k_tx_queue_flags tqi_qflags;
 	u32 tqi_priority;
 	u32 tqi_aifs;
@@ -715,7 +713,7 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);
-void ath9k_hw_startpcureceive(struct ath_hw *ah);
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_stoppcurecv(struct ath_hw *ah);
 void ath9k_hw_abortpcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);

@@ -1212,6 +1212,8 @@ static struct clk ppm_clk = {
 };
 #endif
 
+static struct clk dummy_apb_pclk;
+
 #define DEF_LOOKUP(devid, clkref)		\
 	{					\
 	.dev_id = devid,			\
@@ -1223,6 +1225,10 @@ static struct clk ppm_clk = {
  * look up through clockdevice.
  */
 static struct clk_lookup lookups[] = {
+	{
+		.con_id = "apb_pclk",
+		.clk = &dummy_apb_pclk,
+	},
 	/* Connected directly to the AMBA bus */
 	DEF_LOOKUP("amba",      &amba_clk),
 	DEF_LOOKUP("cpu",       &cpu_clk),

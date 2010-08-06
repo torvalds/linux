@@ -1025,6 +1025,12 @@ struct gfar_priv_grp {
 	char int_name_er[GFAR_INT_NAME_MAX];
 };
 
+enum gfar_errata {
+	GFAR_ERRATA_74		= 0x01,
+	GFAR_ERRATA_76		= 0x02,
+	GFAR_ERRATA_A002	= 0x04,
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblence)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -1049,6 +1055,7 @@ struct gfar_private {
 	struct device_node *node;
 	struct net_device *ndev;
 	struct of_device *ofdev;
+	enum gfar_errata errata;
 
 	struct gfar_priv_grp gfargrp[MAXGROUPS];
 	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
@@ -1110,6 +1117,12 @@ struct gfar_private {
 
 extern unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
 extern unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
+
+static inline int gfar_has_errata(struct gfar_private *priv,
+				  enum gfar_errata err)
+{
+	return priv->errata & err;
+}
 
 static inline u32 gfar_read(volatile unsigned __iomem *addr)
 {

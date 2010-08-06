@@ -60,9 +60,14 @@ struct drm_crtc_helper_funcs {
 	/* Move the crtc on the current fb to the given position *optional* */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+	int (*mode_set_base_atomic)(struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb, int x, int y);
 
 	/* reload the current crtc LUT */
 	void (*load_lut)(struct drm_crtc *crtc);
+
+	/* disable crtc when not in use - more explicit than dpms off */
+	void (*disable)(struct drm_crtc *crtc);
 };
 
 struct drm_encoder_helper_funcs {

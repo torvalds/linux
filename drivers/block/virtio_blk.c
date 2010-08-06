@@ -225,16 +225,6 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
 
-	if (cmd == 0x56424944) { /* 'VBID' */
-		void __user *usr_data = (void __user *)data;
-		char id_str[VIRTIO_BLK_ID_BYTES];
-		int err;
-
-		err = virtblk_get_id(disk, id_str);
-		if (!err && copy_to_user(usr_data, id_str, VIRTIO_BLK_ID_BYTES))
-			err = -EFAULT;
-		return err;
-	}
 	/*
 	 * Only allow the generic SCSI ioctls if the host can support it.
 	 */
@@ -280,6 +270,27 @@ static int index_to_minor(int index)
 {
 	return index << PART_BITS;
 }
+
+static ssize_t virtblk_serial_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	int err;
+
+	/* sysfs gives us a PAGE_SIZE buffer */
+	BUILD_BUG_ON(PAGE_SIZE < VIRTIO_BLK_ID_BYTES);
+
+	buf[VIRTIO_BLK_ID_BYTES] = '\0';
+	err = virtblk_get_id(disk, buf);
+	if (!err)
+		return strlen(buf);
+
+	if (err == -EIO) /* Unsupported? Make it empty. */
+		return 0;
+
+	return err;
+}
+DEVICE_ATTR(serial, S_IRUGO, virtblk_serial_show, NULL);
 
 static int __devinit virtblk_probe(struct virtio_device *vdev)
 {
@@ -366,12 +377,32 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->driverfs_dev = &vdev->dev;
 	index++;
 
-	/* If barriers are supported, tell block layer that queue is ordered */
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH)) {
+		/*
+		 * If the FLUSH feature is supported we do have support for
+		 * flushing a volatile write cache on the host.  Use that
+		 * to implement write barrier support.
+		 */
 		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH,
 				  virtblk_prepare_flush);
-	else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
+	} else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER)) {
+		/*
+		 * If the BARRIER feature is supported the host expects us
+		 * to order request by tags.  This implies there is not
+		 * volatile write cache on the host, and that the host
+		 * never re-orders outstanding I/O.  This feature is not
+		 * useful for real life scenarious and deprecated.
+		 */
 		blk_queue_ordered(q, QUEUE_ORDERED_TAG, NULL);
+	} else {
+		/*
+		 * If the FLUSH feature is not supported we must assume that
+		 * the host does not perform any kind of volatile write
+		 * caching. We still need to drain the queue to provider
+		 * proper barrier semantics.
+		 */
+		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN, NULL);
+	}
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
@@ -445,8 +476,15 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 
 
 	add_disk(vblk->disk);
+	err = device_create_file(disk_to_dev(vblk->disk), &dev_attr_serial);
+	if (err)
+		goto out_del_disk;
+
 	return 0;
 
+out_del_disk:
+	del_gendisk(vblk->disk);
+	blk_cleanup_queue(vblk->disk->queue);
 out_put_disk:
 	put_disk(vblk->disk);
 out_mempool:

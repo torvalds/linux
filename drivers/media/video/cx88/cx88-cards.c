@@ -45,6 +45,10 @@ static unsigned int latency = UNSET;
 module_param(latency,int,0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
+static int disable_ir;
+module_param(disable_ir, int, 0444);
+MODULE_PARM_DESC(latency, "Disable IR support");
+
 #define info_printk(core, fmt, arg...) \
 	printk(KERN_INFO "%s: " fmt, core->name , ## arg)
 
@@ -3498,7 +3502,10 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	}
 
 	cx88_card_setup(core);
-	cx88_ir_init(core, pci);
+	if (!disable_ir) {
+		cx88_i2c_init_ir(core);
+		cx88_ir_init(core, pci);
+	}
 
 	return core;
 }

@@ -307,9 +307,6 @@ static const struct file_operations queues_ops = {
 
 /* statistics stuff */
 
-#define DEBUGFS_STATS_FILE(name, buflen, fmt, value...)			\
-	DEBUGFS_READONLY_FILE(stats_ ##name, buflen, fmt, ##value)
-
 static ssize_t format_devstat_counter(struct ieee80211_local *local,
 	char __user *userbuf,
 	size_t count, loff_t *ppos,
@@ -351,74 +348,15 @@ static const struct file_operations stats_ ##name## _ops = {		\
 	.open = mac80211_open_file_generic,				\
 };
 
-#define DEBUGFS_STATS_ADD(name)						\
+#define DEBUGFS_STATS_ADD(name, field)					\
+	debugfs_create_u32(#name, 0400, statsd, (u32 *) &field);
+#define DEBUGFS_DEVSTATS_ADD(name)					\
 	debugfs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
-
-DEBUGFS_STATS_FILE(transmitted_fragment_count, 20, "%u",
-		   local->dot11TransmittedFragmentCount);
-DEBUGFS_STATS_FILE(multicast_transmitted_frame_count, 20, "%u",
-		   local->dot11MulticastTransmittedFrameCount);
-DEBUGFS_STATS_FILE(failed_count, 20, "%u",
-		   local->dot11FailedCount);
-DEBUGFS_STATS_FILE(retry_count, 20, "%u",
-		   local->dot11RetryCount);
-DEBUGFS_STATS_FILE(multiple_retry_count, 20, "%u",
-		   local->dot11MultipleRetryCount);
-DEBUGFS_STATS_FILE(frame_duplicate_count, 20, "%u",
-		   local->dot11FrameDuplicateCount);
-DEBUGFS_STATS_FILE(received_fragment_count, 20, "%u",
-		   local->dot11ReceivedFragmentCount);
-DEBUGFS_STATS_FILE(multicast_received_frame_count, 20, "%u",
-		   local->dot11MulticastReceivedFrameCount);
-DEBUGFS_STATS_FILE(transmitted_frame_count, 20, "%u",
-		   local->dot11TransmittedFrameCount);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-DEBUGFS_STATS_FILE(tx_handlers_drop, 20, "%u",
-		   local->tx_handlers_drop);
-DEBUGFS_STATS_FILE(tx_handlers_queued, 20, "%u",
-		   local->tx_handlers_queued);
-DEBUGFS_STATS_FILE(tx_handlers_drop_unencrypted, 20, "%u",
-		   local->tx_handlers_drop_unencrypted);
-DEBUGFS_STATS_FILE(tx_handlers_drop_fragment, 20, "%u",
-		   local->tx_handlers_drop_fragment);
-DEBUGFS_STATS_FILE(tx_handlers_drop_wep, 20, "%u",
-		   local->tx_handlers_drop_wep);
-DEBUGFS_STATS_FILE(tx_handlers_drop_not_assoc, 20, "%u",
-		   local->tx_handlers_drop_not_assoc);
-DEBUGFS_STATS_FILE(tx_handlers_drop_unauth_port, 20, "%u",
-		   local->tx_handlers_drop_unauth_port);
-DEBUGFS_STATS_FILE(rx_handlers_drop, 20, "%u",
-		   local->rx_handlers_drop);
-DEBUGFS_STATS_FILE(rx_handlers_queued, 20, "%u",
-		   local->rx_handlers_queued);
-DEBUGFS_STATS_FILE(rx_handlers_drop_nullfunc, 20, "%u",
-		   local->rx_handlers_drop_nullfunc);
-DEBUGFS_STATS_FILE(rx_handlers_drop_defrag, 20, "%u",
-		   local->rx_handlers_drop_defrag);
-DEBUGFS_STATS_FILE(rx_handlers_drop_short, 20, "%u",
-		   local->rx_handlers_drop_short);
-DEBUGFS_STATS_FILE(rx_handlers_drop_passive_scan, 20, "%u",
-		   local->rx_handlers_drop_passive_scan);
-DEBUGFS_STATS_FILE(tx_expand_skb_head, 20, "%u",
-		   local->tx_expand_skb_head);
-DEBUGFS_STATS_FILE(tx_expand_skb_head_cloned, 20, "%u",
-		   local->tx_expand_skb_head_cloned);
-DEBUGFS_STATS_FILE(rx_expand_skb_head, 20, "%u",
-		   local->rx_expand_skb_head);
-DEBUGFS_STATS_FILE(rx_expand_skb_head2, 20, "%u",
-		   local->rx_expand_skb_head2);
-DEBUGFS_STATS_FILE(rx_handlers_fragments, 20, "%u",
-		   local->rx_handlers_fragments);
-DEBUGFS_STATS_FILE(tx_status_drop, 20, "%u",
-		   local->tx_status_drop);
-
-#endif
 
 DEBUGFS_DEVSTATS_FILE(dot11ACKFailureCount);
 DEBUGFS_DEVSTATS_FILE(dot11RTSFailureCount);
 DEBUGFS_DEVSTATS_FILE(dot11FCSErrorCount);
 DEBUGFS_DEVSTATS_FILE(dot11RTSSuccessCount);
-
 
 void debugfs_hw_add(struct ieee80211_local *local)
 {
@@ -448,38 +386,60 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	if (!statsd)
 		return;
 
-	DEBUGFS_STATS_ADD(transmitted_fragment_count);
-	DEBUGFS_STATS_ADD(multicast_transmitted_frame_count);
-	DEBUGFS_STATS_ADD(failed_count);
-	DEBUGFS_STATS_ADD(retry_count);
-	DEBUGFS_STATS_ADD(multiple_retry_count);
-	DEBUGFS_STATS_ADD(frame_duplicate_count);
-	DEBUGFS_STATS_ADD(received_fragment_count);
-	DEBUGFS_STATS_ADD(multicast_received_frame_count);
-	DEBUGFS_STATS_ADD(transmitted_frame_count);
+	DEBUGFS_STATS_ADD(transmitted_fragment_count,
+		local->dot11TransmittedFragmentCount);
+	DEBUGFS_STATS_ADD(multicast_transmitted_frame_count,
+		local->dot11MulticastTransmittedFrameCount);
+	DEBUGFS_STATS_ADD(failed_count, local->dot11FailedCount);
+	DEBUGFS_STATS_ADD(retry_count, local->dot11RetryCount);
+	DEBUGFS_STATS_ADD(multiple_retry_count,
+		local->dot11MultipleRetryCount);
+	DEBUGFS_STATS_ADD(frame_duplicate_count,
+		local->dot11FrameDuplicateCount);
+	DEBUGFS_STATS_ADD(received_fragment_count,
+		local->dot11ReceivedFragmentCount);
+	DEBUGFS_STATS_ADD(multicast_received_frame_count,
+		local->dot11MulticastReceivedFrameCount);
+	DEBUGFS_STATS_ADD(transmitted_frame_count,
+		local->dot11TransmittedFrameCount);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_STATS_ADD(tx_handlers_drop);
-	DEBUGFS_STATS_ADD(tx_handlers_queued);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unencrypted);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_fragment);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port);
-	DEBUGFS_STATS_ADD(rx_handlers_drop);
-	DEBUGFS_STATS_ADD(rx_handlers_queued);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_short);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_passive_scan);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned);
-	DEBUGFS_STATS_ADD(rx_expand_skb_head);
-	DEBUGFS_STATS_ADD(rx_expand_skb_head2);
-	DEBUGFS_STATS_ADD(rx_handlers_fragments);
-	DEBUGFS_STATS_ADD(tx_status_drop);
+	DEBUGFS_STATS_ADD(tx_handlers_drop, local->tx_handlers_drop);
+	DEBUGFS_STATS_ADD(tx_handlers_queued, local->tx_handlers_queued);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_unencrypted,
+		local->tx_handlers_drop_unencrypted);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_fragment,
+		local->tx_handlers_drop_fragment);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_wep,
+		local->tx_handlers_drop_wep);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc,
+		local->tx_handlers_drop_not_assoc);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port,
+		local->tx_handlers_drop_unauth_port);
+	DEBUGFS_STATS_ADD(rx_handlers_drop, local->rx_handlers_drop);
+	DEBUGFS_STATS_ADD(rx_handlers_queued, local->rx_handlers_queued);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc,
+		local->rx_handlers_drop_nullfunc);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag,
+		local->rx_handlers_drop_defrag);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_short,
+		local->rx_handlers_drop_short);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_passive_scan,
+		local->rx_handlers_drop_passive_scan);
+	DEBUGFS_STATS_ADD(tx_expand_skb_head,
+		local->tx_expand_skb_head);
+	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned,
+		local->tx_expand_skb_head_cloned);
+	DEBUGFS_STATS_ADD(rx_expand_skb_head,
+		local->rx_expand_skb_head);
+	DEBUGFS_STATS_ADD(rx_expand_skb_head2,
+		local->rx_expand_skb_head2);
+	DEBUGFS_STATS_ADD(rx_handlers_fragments,
+		local->rx_handlers_fragments);
+	DEBUGFS_STATS_ADD(tx_status_drop,
+		local->tx_status_drop);
 #endif
-	DEBUGFS_STATS_ADD(dot11ACKFailureCount);
-	DEBUGFS_STATS_ADD(dot11RTSFailureCount);
-	DEBUGFS_STATS_ADD(dot11FCSErrorCount);
-	DEBUGFS_STATS_ADD(dot11RTSSuccessCount);
+	DEBUGFS_DEVSTATS_ADD(dot11ACKFailureCount);
+	DEBUGFS_DEVSTATS_ADD(dot11RTSFailureCount);
+	DEBUGFS_DEVSTATS_ADD(dot11FCSErrorCount);
+	DEBUGFS_DEVSTATS_ADD(dot11RTSSuccessCount);
 }

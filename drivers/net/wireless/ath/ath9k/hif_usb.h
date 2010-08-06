@@ -19,6 +19,7 @@
 
 #define AR9271_FIRMWARE       0x501000
 #define AR9271_FIRMWARE_TEXT  0x903000
+#define AR7010_FIRMWARE_TEXT  0x906000
 
 #define FIRMWARE_DOWNLOAD       0x30
 #define FIRMWARE_DOWNLOAD_COMP  0x31
@@ -90,6 +91,7 @@ struct hif_device_usb {
 	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
 	struct sk_buff *remain_skb;
+	const char *fw_name;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;

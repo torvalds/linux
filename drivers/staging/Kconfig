@@ -109,8 +109,6 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
-source "drivers/staging/rar_register/Kconfig"
-
 source "drivers/staging/memrar/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
@@ -146,6 +144,8 @@ source "drivers/staging/xgifb/Kconfig"
 source "drivers/staging/mrst-touchscreen/Kconfig"
 
 source "drivers/staging/msm/Kconfig"
+
+source "drivers/staging/lirc/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

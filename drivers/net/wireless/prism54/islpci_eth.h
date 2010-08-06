@@ -34,13 +34,13 @@ struct rfmon_header {
 	__le16 unk3;
 	u8 rssi;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct rx_annex_header {
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	struct rfmon_header rfmon;
-} __attribute__ ((packed));
+} __packed;
 
 /* wlan-ng (and hopefully others) AVS header, version one.  Fields in
  * network byte order. */

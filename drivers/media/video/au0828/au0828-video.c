@@ -314,6 +314,23 @@ static inline void buffer_filled(struct au0828_dev *dev,
 	wake_up(&buf->vb.done);
 }
 
+static inline void vbi_buffer_filled(struct au0828_dev *dev,
+				     struct au0828_dmaqueue *dma_q,
+				     struct au0828_buffer *buf)
+{
+	/* Advice that buffer was filled */
+	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
+
+	buf->vb.state = VIDEOBUF_DONE;
+	buf->vb.field_count++;
+	do_gettimeofday(&buf->vb.ts);
+
+	dev->isoc_ctl.vbi_buf = NULL;
+
+	list_del(&buf->vb.queue);
+	wake_up(&buf->vb.done);
+}
+
 /*
  * Identify the buffer header type and properly handles
  */
@@ -326,6 +343,9 @@ static void au0828_copy_video(struct au0828_dev *dev,
 	void *fieldstart, *startwrite, *startread;
 	int  linesdone, currlinedone, offset, lencopy, remain;
 	int bytesperline = dev->width << 1; /* Assumes 16-bit depth @@@@ */
+
+	if (len == 0)
+		return;
 
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
@@ -414,17 +434,98 @@ static inline void get_next_buf(struct au0828_dmaqueue *dma_q,
 	return;
 }
 
+static void au0828_copy_vbi(struct au0828_dev *dev,
+			      struct au0828_dmaqueue  *dma_q,
+			      struct au0828_buffer *buf,
+			      unsigned char *p,
+			      unsigned char *outp, unsigned long len)
+{
+	unsigned char *startwrite, *startread;
+	int bytesperline;
+	int i, j = 0;
+
+	if (dev == NULL) {
+		au0828_isocdbg("dev is null\n");
+		return;
+	}
+
+	if (dma_q == NULL) {
+		au0828_isocdbg("dma_q is null\n");
+		return;
+	}
+	if (buf == NULL)
+		return;
+	if (p == NULL) {
+		au0828_isocdbg("p is null\n");
+		return;
+	}
+	if (outp == NULL) {
+		au0828_isocdbg("outp is null\n");
+		return;
+	}
+
+	bytesperline = dev->vbi_width;
+
+	if (dma_q->pos + len > buf->vb.size)
+		len = buf->vb.size - dma_q->pos;
+
+	startread = p;
+	startwrite = outp + (dma_q->pos / 2);
+
+	/* Make sure the bottom field populates the second half of the frame */
+	if (buf->top_field == 0)
+		startwrite += bytesperline * dev->vbi_height;
+
+	for (i = 0; i < len; i += 2)
+		startwrite[j++] = startread[i+1];
+
+	dma_q->pos += len;
+}
+
+
+/*
+ * video-buf generic routine to get the next available VBI buffer
+ */
+static inline void vbi_get_next_buf(struct au0828_dmaqueue *dma_q,
+				    struct au0828_buffer **buf)
+{
+	struct au0828_dev *dev = container_of(dma_q, struct au0828_dev, vbiq);
+	char *outp;
+
+	if (list_empty(&dma_q->active)) {
+		au0828_isocdbg("No active queue to serve\n");
+		dev->isoc_ctl.vbi_buf = NULL;
+		*buf = NULL;
+		return;
+	}
+
+	/* Get the next buffer */
+	*buf = list_entry(dma_q->active.next, struct au0828_buffer, vb.queue);
+	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	outp = videobuf_to_vmalloc(&(*buf)->vb);
+	memset(outp, 0x00, (*buf)->vb.size);
+
+	dev->isoc_ctl.vbi_buf = *buf;
+
+	return;
+}
+
 /*
  * Controls the isoc copy of each urb packet
  */
 static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 {
 	struct au0828_buffer    *buf;
+	struct au0828_buffer    *vbi_buf;
 	struct au0828_dmaqueue  *dma_q = urb->context;
+	struct au0828_dmaqueue  *vbi_dma_q = &dev->vbiq;
 	unsigned char *outp = NULL;
+	unsigned char *vbioutp = NULL;
 	int i, len = 0, rc = 1;
 	unsigned char *p;
 	unsigned char fbyte;
+	unsigned int vbi_field_size;
+	unsigned int remain, lencopy;
 
 	if (!dev)
 		return 0;
@@ -442,6 +543,10 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 	buf = dev->isoc_ctl.buf;
 	if (buf != NULL)
 		outp = videobuf_to_vmalloc(&buf->vb);
+
+	vbi_buf = dev->isoc_ctl.vbi_buf;
+	if (vbi_buf != NULL)
+		vbioutp = videobuf_to_vmalloc(&vbi_buf->vb);
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
@@ -472,6 +577,19 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 			au0828_isocdbg("Video frame %s\n",
 				       (fbyte & 0x40) ? "odd" : "even");
 			if (!(fbyte & 0x40)) {
+				/* VBI */
+				if (vbi_buf != NULL)
+					vbi_buffer_filled(dev,
+							  vbi_dma_q,
+							  vbi_buf);
+				vbi_get_next_buf(vbi_dma_q, &vbi_buf);
+				if (vbi_buf == NULL)
+					vbioutp = NULL;
+				else
+					vbioutp = videobuf_to_vmalloc(
+						&vbi_buf->vb);
+
+				/* Video */
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
 				get_next_buf(dma_q, &buf);
@@ -488,9 +606,36 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 					buf->top_field = 0;
 			}
 
+			if (vbi_buf != NULL) {
+				if (fbyte & 0x40)
+					vbi_buf->top_field = 1;
+				else
+					vbi_buf->top_field = 0;
+			}
+
+			dev->vbi_read = 0;
+			vbi_dma_q->pos = 0;
 			dma_q->pos = 0;
 		}
-		if (buf != NULL)
+
+		vbi_field_size = dev->vbi_width * dev->vbi_height * 2;
+		if (dev->vbi_read < vbi_field_size) {
+			remain  = vbi_field_size - dev->vbi_read;
+			if (len < remain)
+				lencopy = len;
+			else
+				lencopy = remain;
+
+			if (vbi_buf != NULL)
+				au0828_copy_vbi(dev, vbi_dma_q, vbi_buf, p,
+						vbioutp, len);
+
+			len -= lencopy;
+			p += lencopy;
+			dev->vbi_read += lencopy;
+		}
+
+		if (dev->vbi_read >= vbi_field_size && buf != NULL)
 			au0828_copy_video(dev, dma_q, buf, p, outp, len);
 	}
 	return rc;
@@ -642,7 +787,7 @@ int au0828_analog_stream_enable(struct au0828_dev *d)
 	au0828_writereg(d, 0x114, 0xa0);
 	au0828_writereg(d, 0x115, 0x05);
 	/* set y position */
-	au0828_writereg(d, 0x112, 0x02);
+	au0828_writereg(d, 0x112, 0x00);
 	au0828_writereg(d, 0x113, 0x00);
 	au0828_writereg(d, 0x116, 0xf2);
 	au0828_writereg(d, 0x117, 0x00);
@@ -703,47 +848,83 @@ void au0828_analog_unregister(struct au0828_dev *dev)
 
 
 /* Usage lock check functions */
-static int res_get(struct au0828_fh *fh)
+static int res_get(struct au0828_fh *fh, unsigned int bit)
 {
-	struct au0828_dev *dev = fh->dev;
-	int		 rc   = 0;
+	struct au0828_dev    *dev = fh->dev;
 
-	/* This instance already has stream_on */
-	if (fh->stream_on)
-		return rc;
+	if (fh->resources & bit)
+		/* have it already allocated */
+		return 1;
 
-	if (dev->stream_on)
-		return -EBUSY;
-
-	dev->stream_on = 1;
-	fh->stream_on  = 1;
-	return rc;
+	/* is it free? */
+	mutex_lock(&dev->lock);
+	if (dev->resources & bit) {
+		/* no, someone else uses it */
+		mutex_unlock(&dev->lock);
+		return 0;
+	}
+	/* it's free, grab it */
+	fh->resources  |= bit;
+	dev->resources |= bit;
+	dprintk(1, "res: get %d\n", bit);
+	mutex_unlock(&dev->lock);
+	return 1;
 }
 
-static int res_check(struct au0828_fh *fh)
+static int res_check(struct au0828_fh *fh, unsigned int bit)
 {
-	return fh->stream_on;
+	return fh->resources & bit;
 }
 
-static void res_free(struct au0828_fh *fh)
+static int res_locked(struct au0828_dev *dev, unsigned int bit)
 {
-	struct au0828_dev *dev = fh->dev;
+	return dev->resources & bit;
+}
 
-	fh->stream_on = 0;
-	dev->stream_on = 0;
+static void res_free(struct au0828_fh *fh, unsigned int bits)
+{
+	struct au0828_dev    *dev = fh->dev;
+
+	BUG_ON((fh->resources & bits) != bits);
+
+	mutex_lock(&dev->lock);
+	fh->resources  &= ~bits;
+	dev->resources &= ~bits;
+	dprintk(1, "res: put %d\n", bits);
+	mutex_unlock(&dev->lock);
+}
+
+static int get_ressource(struct au0828_fh *fh)
+{
+	switch (fh->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return AU0828_RESOURCE_VIDEO;
+	case V4L2_BUF_TYPE_VBI_CAPTURE:
+		return AU0828_RESOURCE_VBI;
+	default:
+		BUG();
+		return 0;
+	}
 }
 
 static int au0828_v4l2_open(struct file *filp)
 {
 	int ret = 0;
+	struct video_device *vdev = video_devdata(filp);
 	struct au0828_dev *dev = video_drvdata(filp);
 	struct au0828_fh *fh;
-	int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	int type;
 
-#ifdef VBI_IS_WORKING
-	if (video_devdata(filp)->vfl_type == VFL_TYPE_GRABBER)
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
 		type = V4L2_BUF_TYPE_VBI_CAPTURE;
-#endif
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	fh = kzalloc(sizeof(struct au0828_fh), GFP_KERNEL);
 	if (NULL == fh) {
@@ -781,9 +962,20 @@ static int au0828_v4l2_open(struct file *filp)
 	dev->users++;
 
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &au0828_video_qops,
-				    NULL, &dev->slock, fh->type,
+				    NULL, &dev->slock,
+				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
 				    sizeof(struct au0828_buffer), fh);
+
+	/* VBI Setup */
+	dev->vbi_width = 720;
+	dev->vbi_height = 1;
+	videobuf_queue_vmalloc_init(&fh->vb_vbiq, &au0828_vbi_qops,
+				    NULL, &dev->slock,
+				    V4L2_BUF_TYPE_VBI_CAPTURE,
+				    V4L2_FIELD_SEQ_TB,
+				    sizeof(struct au0828_buffer), fh);
+
 
 	return ret;
 }
@@ -794,17 +986,19 @@ static int au0828_v4l2_close(struct file *filp)
 	struct au0828_fh *fh = filp->private_data;
 	struct au0828_dev *dev = fh->dev;
 
-	mutex_lock(&dev->lock);
-	if (res_check(fh))
-		res_free(fh);
+	if (res_check(fh, AU0828_RESOURCE_VIDEO)) {
+		videobuf_stop(&fh->vb_vidq);
+		res_free(fh, AU0828_RESOURCE_VIDEO);
+	}
+
+	if (res_check(fh, AU0828_RESOURCE_VBI)) {
+		videobuf_stop(&fh->vb_vbiq);
+		res_free(fh, AU0828_RESOURCE_VBI);
+	}
 
 	if (dev->users == 1) {
-		videobuf_stop(&fh->vb_vidq);
-		videobuf_mmap_free(&fh->vb_vidq);
-
 		if (dev->dev_state & DEV_DISCONNECTED) {
 			au0828_analog_unregister(dev);
-			mutex_unlock(&dev->lock);
 			kfree(dev);
 			return 0;
 		}
@@ -823,10 +1017,11 @@ static int au0828_v4l2_close(struct file *filp)
 			printk(KERN_INFO "Au0828 can't set alternate to 0!\n");
 	}
 
+	videobuf_mmap_free(&fh->vb_vidq);
+	videobuf_mmap_free(&fh->vb_vbiq);
 	kfree(fh);
 	dev->users--;
 	wake_up_interruptible_nr(&dev->open, 1);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -842,16 +1037,21 @@ static ssize_t au0828_v4l2_read(struct file *filp, char __user *buf,
 		return rc;
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		mutex_lock(&dev->lock);
-		rc = res_get(fh);
-		mutex_unlock(&dev->lock);
-
-		if (unlikely(rc < 0))
-			return rc;
+		if (res_locked(dev, AU0828_RESOURCE_VIDEO))
+			return -EBUSY;
 
 		return videobuf_read_stream(&fh->vb_vidq, buf, count, pos, 0,
 					filp->f_flags & O_NONBLOCK);
 	}
+
+	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		if (!res_get(fh, AU0828_RESOURCE_VBI))
+			return -EBUSY;
+
+		return videobuf_read_stream(&fh->vb_vbiq, buf, count, pos, 0,
+					    filp->f_flags & O_NONBLOCK);
+	}
+
 	return 0;
 }
 
@@ -865,17 +1065,17 @@ static unsigned int au0828_v4l2_poll(struct file *filp, poll_table *wait)
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
-	mutex_unlock(&dev->lock);
-
-	if (unlikely(rc < 0))
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		if (!res_get(fh, AU0828_RESOURCE_VIDEO))
+			return POLLERR;
+		return videobuf_poll_stream(filp, &fh->vb_vidq, wait);
+	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		if (!res_get(fh, AU0828_RESOURCE_VBI))
+			return POLLERR;
+		return videobuf_poll_stream(filp, &fh->vb_vbiq, wait);
+	} else {
 		return POLLERR;
-
-	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
-		return POLLERR;
-
-	return videobuf_poll_stream(filp, &fh->vb_vidq, wait);
+	}
 }
 
 static int au0828_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -888,14 +1088,10 @@ static int au0828_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
-	mutex_unlock(&dev->lock);
-
-	if (unlikely(rc < 0))
-		return rc;
-
-	rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_mmap_mapper(&fh->vb_vbiq, vma);
 
 	return rc;
 }
@@ -911,14 +1107,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	maxwidth = 720;
 	maxheight = 480;
 
-#ifdef VBI_IS_WORKING
-	if (format->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
-		dprintk(1, "VBI format set: to be supported!\n");
-		return 0;
-	}
-	if (format->type == V4L2_BUF_TYPE_VBI_CAPTURE)
-		return 0;
-#endif
 	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
@@ -999,9 +1187,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	/*set the device capabilities */
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-#ifdef VBI_IS_WORKING
 		V4L2_CAP_VBI_CAPTURE |
-#endif
 		V4L2_CAP_AUDIO |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING |
@@ -1056,20 +1242,21 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct au0828_dev *dev = fh->dev;
 	int rc;
 
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&dev->lock);
+
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		printk(KERN_INFO "%s queue busy\n", __func__);
 		rc = -EBUSY;
 		goto out;
 	}
 
-	if (dev->stream_on && !fh->stream_on) {
-		printk(KERN_INFO "%s device in use by another fh\n", __func__);
-		rc = -EBUSY;
-		goto out;
-	}
-
-	return au0828_set_format(dev, VIDIOC_S_FMT, f);
+	rc = au0828_set_format(dev, VIDIOC_S_FMT, f);
 out:
+	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1300,6 +1487,29 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
+
+/* RAW VBI ioctls */
+
+static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
+				struct v4l2_format *format)
+{
+	struct au0828_fh      *fh  = priv;
+	struct au0828_dev     *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
+	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
+	format->fmt.vbi.offset = 0;
+	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
+	format->fmt.vbi.start[0] = 21;
+	format->fmt.vbi.start[1] = 284;
+
+	return 0;
+}
+
 static int vidioc_g_chip_ident(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_ident *chip)
 {
@@ -1345,25 +1555,32 @@ static int vidioc_cropcap(struct file *file, void *priv,
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	int rc;
+	struct au0828_fh      *fh  = priv;
+	struct au0828_dev     *dev = fh->dev;
+	int                   rc = -EINVAL;
 
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
+
+	if (unlikely(type != fh->type))
+		return -EINVAL;
+
+	dprintk(1, "vidioc_streamon fh=%p t=%d fh->res=%d dev->res=%d\n",
+		fh, type, fh->resources, dev->resources);
+
+	if (unlikely(!res_get(fh, get_ressource(fh))))
+		return -EBUSY;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		au0828_analog_stream_enable(dev);
 		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 1);
 	}
 
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
-
-	if (likely(rc >= 0))
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		rc = videobuf_streamon(&fh->vb_vidq);
-	mutex_unlock(&dev->lock);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_streamon(&fh->vb_vbiq);
 
 	return rc;
 }
@@ -1371,38 +1588,42 @@ static int vidioc_streamon(struct file *file, void *priv,
 static int vidioc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	int i;
-	int ret;
-	int rc;
+	struct au0828_fh      *fh  = priv;
+	struct au0828_dev     *dev = fh->dev;
+	int                   rc;
+	int                   i;
 
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
 
-	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    fh->type != V4L2_BUF_TYPE_VBI_CAPTURE)
 		return -EINVAL;
 	if (type != fh->type)
 		return -EINVAL;
 
-	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	dprintk(1, "vidioc_streamoff fh=%p t=%d fh->res=%d dev->res=%d\n",
+		fh, type, fh->resources, dev->resources);
+
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
-		ret = au0828_stream_interrupt(dev);
-		if (ret != 0)
-			return ret;
-	}
+		rc = au0828_stream_interrupt(dev);
+		if (rc != 0)
+			return rc;
 
-	for (i = 0; i < AU0828_MAX_INPUT; i++) {
-		if (AUVI_INPUT(i).audio_setup == NULL)
-			continue;
-		(AUVI_INPUT(i).audio_setup)(dev, 0);
-	}
+		for (i = 0; i < AU0828_MAX_INPUT; i++) {
+			if (AUVI_INPUT(i).audio_setup == NULL)
+				continue;
+			(AUVI_INPUT(i).audio_setup)(dev, 0);
+		}
 
-	mutex_lock(&dev->lock);
-	videobuf_streamoff(&fh->vb_vidq);
-	res_free(fh);
-	mutex_unlock(&dev->lock);
+		videobuf_streamoff(&fh->vb_vidq);
+		res_free(fh, AU0828_RESOURCE_VIDEO);
+	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		videobuf_streamoff(&fh->vb_vbiq);
+		res_free(fh, AU0828_RESOURCE_VBI);
+	}
 
 	return 0;
 }
@@ -1527,19 +1748,11 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap       = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
-#ifdef VBI_IS_WORKING
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
-	.vidioc_try_fmt_vbi_cap     = vidioc_s_fmt_vbi_cap,
-	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
-#endif
+	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
-#ifdef VBI_IS_WORKING
-	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
-	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
-	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
-#endif
 	.vidioc_reqbufs             = vidioc_reqbufs,
 	.vidioc_querybuf            = vidioc_querybuf,
 	.vidioc_qbuf                = vidioc_qbuf,
@@ -1621,8 +1834,11 @@ int au0828_analog_register(struct au0828_dev *dev,
 	spin_lock_init(&dev->slock);
 	mutex_init(&dev->lock);
 
+	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
+	INIT_LIST_HEAD(&dev->vbiq.active);
+	INIT_LIST_HEAD(&dev->vbiq.queued);
 
 	dev->width = NTSC_STD_W;
 	dev->height = NTSC_STD_H;
@@ -1638,26 +1854,23 @@ int au0828_analog_register(struct au0828_dev *dev,
 		return -ENOMEM;
 	}
 
-#ifdef VBI_IS_WORKING
+	/* allocate the VBI struct */
 	dev->vbi_dev = video_device_alloc();
 	if (NULL == dev->vbi_dev) {
 		dprintk(1, "Can't allocate vbi_device.\n");
 		kfree(dev->vdev);
 		return -ENOMEM;
 	}
-#endif
 
 	/* Fill the video capture device struct */
 	*dev->vdev = au0828_video_template;
 	dev->vdev->parent = &dev->usbdev->dev;
 	strcpy(dev->vdev->name, "au0828a video");
 
-#ifdef VBI_IS_WORKING
 	/* Setup the VBI device */
 	*dev->vbi_dev = au0828_video_template;
 	dev->vbi_dev->parent = &dev->usbdev->dev;
 	strcpy(dev->vbi_dev->name, "au0828a vbi");
-#endif
 
 	/* Register the v4l2 device */
 	video_set_drvdata(dev->vdev, dev);
@@ -1669,7 +1882,6 @@ int au0828_analog_register(struct au0828_dev *dev,
 		return -ENODEV;
 	}
 
-#ifdef VBI_IS_WORKING
 	/* Register the vbi device */
 	video_set_drvdata(dev->vbi_dev, dev);
 	retval = video_register_device(dev->vbi_dev, VFL_TYPE_VBI, -1);
@@ -1680,7 +1892,6 @@ int au0828_analog_register(struct au0828_dev *dev,
 		video_device_release(dev->vdev);
 		return -ENODEV;
 	}
-#endif
 
 	dprintk(1, "%s completed!\n", __func__);
 

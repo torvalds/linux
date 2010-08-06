@@ -61,7 +61,7 @@ static pgprot_t drm_io_prot(uint32_t map_type, struct vm_area_struct *vma)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
-#elif defined(__sparc__)
+#elif defined(__sparc__) || defined(__arm__)
 	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;
@@ -601,6 +601,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	switch (map->type) {
+#if !defined(__arm__)
 	case _DRM_AGP:
 		if (drm_core_has_AGP(dev) && dev->agp->cant_use_aperture) {
 			/*
@@ -615,20 +616,31 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			break;
 		}
 		/* fall through to _DRM_FRAME_BUFFER... */
+#endif
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 		offset = dev->driver->get_reg_ofs(dev);
 		vma->vm_flags |= VM_IO;	/* not in core dump */
 		vma->vm_page_prot = drm_io_prot(map->type, vma);
+#if !defined(__arm__)
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,
 				       vma->vm_page_prot))
 			return -EAGAIN;
+#else
+		if (remap_pfn_range(vma, vma->vm_start,
+					(map->offset + offset) >> PAGE_SHIFT,
+					vma->vm_end - vma->vm_start,
+					vma->vm_page_prot))
+			return -EAGAIN;
+#endif
+
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%llx\n",
 			  map->type,
 			  vma->vm_start, vma->vm_end, (unsigned long long)(map->offset + offset));
+
 		vma->vm_ops = &drm_vm_ops;
 		break;
 	case _DRM_CONSISTENT:

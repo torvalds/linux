@@ -221,7 +221,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			return;
 		}
 
-		if (dell_new_hk_type)
+		if (dell_new_hk_type || buffer_entry[1] == 0x0)
 			reported_key = (int)buffer_entry[2];
 		else
 			reported_key = (int)buffer_entry[1] & 0xffff;
@@ -339,13 +339,18 @@ static int __init dell_wmi_init(void)
 	acpi_video = acpi_video_backlight_support();
 
 	err = dell_wmi_input_setup();
-	if (err)
+	if (err) {
+		if (dell_new_hk_type)
+			kfree(dell_wmi_keymap);
 		return err;
+	}
 
 	status = wmi_install_notify_handler(DELL_EVENT_GUID,
 					 dell_wmi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
 		input_unregister_device(dell_wmi_input_dev);
+		if (dell_new_hk_type)
+			kfree(dell_wmi_keymap);
 		printk(KERN_ERR
 			"dell-wmi: Unable to register notify handler - %d\n",
 			status);
@@ -359,6 +364,8 @@ static void __exit dell_wmi_exit(void)
 {
 	wmi_remove_notify_handler(DELL_EVENT_GUID);
 	input_unregister_device(dell_wmi_input_dev);
+	if (dell_new_hk_type)
+		kfree(dell_wmi_keymap);
 }
 
 module_init(dell_wmi_init);

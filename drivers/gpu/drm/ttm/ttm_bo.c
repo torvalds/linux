@@ -476,7 +476,6 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 			++put_count;
 		}
 		if (bo->mem.mm_node) {
-			bo->mem.mm_node->private = NULL;
 			drm_mm_put_block(bo->mem.mm_node);
 			bo->mem.mm_node = NULL;
 		}
@@ -670,7 +669,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 			printk(KERN_ERR TTM_PFX "Buffer eviction failed\n");
 		spin_lock(&glob->lru_lock);
 		if (evict_mem.mm_node) {
-			evict_mem.mm_node->private = NULL;
 			drm_mm_put_block(evict_mem.mm_node);
 			evict_mem.mm_node = NULL;
 		}
@@ -929,8 +927,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		mem->mm_node = node;
 		mem->mem_type = mem_type;
 		mem->placement = cur_flags;
-		if (node)
-			node->private = bo;
 		return 0;
 	}
 
@@ -973,7 +969,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 						interruptible, no_wait_reserve, no_wait_gpu);
 		if (ret == 0 && mem->mm_node) {
 			mem->placement = cur_flags;
-			mem->mm_node->private = bo;
 			return 0;
 		}
 		if (ret == -ERESTARTSYS)
@@ -1029,7 +1024,6 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 out_unlock:
 	if (ret && mem.mm_node) {
 		spin_lock(&glob->lru_lock);
-		mem.mm_node->private = NULL;
 		drm_mm_put_block(mem.mm_node);
 		spin_unlock(&glob->lru_lock);
 	}
@@ -1401,7 +1395,7 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 	kfree(glob);
 }
 
-void ttm_bo_global_release(struct ttm_global_reference *ref)
+void ttm_bo_global_release(struct drm_global_reference *ref)
 {
 	struct ttm_bo_global *glob = ref->object;
 
@@ -1410,7 +1404,7 @@ void ttm_bo_global_release(struct ttm_global_reference *ref)
 }
 EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_init(struct ttm_global_reference *ref)
+int ttm_bo_global_init(struct drm_global_reference *ref)
 {
 	struct ttm_bo_global_ref *bo_ref =
 		container_of(ref, struct ttm_bo_global_ref, ref);

@@ -117,9 +117,14 @@ static void fcoe_recv_frame(struct sk_buff *skb);
 
 static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
-module_param_call(create, fcoe_create, NULL, NULL, S_IWUSR);
+module_param_call(create, fcoe_create, NULL, (void *)FIP_MODE_AUTO, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
 MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
+module_param_call(create_vn2vn, fcoe_create, NULL,
+		  (void *)FIP_MODE_VN2VN, S_IWUSR);
+__MODULE_PARM_TYPE(create_vn2vn, "string");
+MODULE_PARM_DESC(create_vn2vn, " Creates a VN_node to VN_node FCoE instance "
+		 "on an Ethernet interface");
 module_param_call(destroy, fcoe_destroy, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(destroy, "string");
 MODULE_PARM_DESC(destroy, " Destroys fcoe instance on a ethernet interface");
@@ -315,7 +320,11 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	dev_uc_add(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_add(netdev, fip->ctl_src_addr);
-	dev_mc_add(netdev, FIP_ALL_ENODE_MACS);
+	if (fip->mode == FIP_MODE_VN2VN) {
+		dev_mc_add(netdev, FIP_ALL_VN2VN_MACS);
+		dev_mc_add(netdev, FIP_ALL_P2P_MACS);
+	} else
+		dev_mc_add(netdev, FIP_ALL_ENODE_MACS);
 
 	/*
 	 * setup the receive function from ethernet driver
@@ -337,10 +346,12 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 /**
  * fcoe_interface_create() - Create a FCoE interface on a net device
  * @netdev: The net device to create the FCoE interface on
+ * @fip_mode: The mode to use for FIP
  *
  * Returns: pointer to a struct fcoe_interface or NULL on error
  */
-static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
+static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
+						    enum fip_state fip_mode)
 {
 	struct fcoe_interface *fcoe;
 	int err;
@@ -357,7 +368,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 	/*
 	 * Initialize FIP.
 	 */
-	fcoe_ctlr_init(&fcoe->ctlr);
+	fcoe_ctlr_init(&fcoe->ctlr, fip_mode);
 	fcoe->ctlr.send = fcoe_fip_send;
 	fcoe->ctlr.update_mac = fcoe_update_src_mac;
 	fcoe->ctlr.get_src_addr = fcoe_get_src_mac;
@@ -401,7 +412,11 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	dev_uc_del(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_del(netdev, fip->ctl_src_addr);
-	dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
+	if (fip->mode == FIP_MODE_VN2VN) {
+		dev_mc_del(netdev, FIP_ALL_VN2VN_MACS);
+		dev_mc_del(netdev, FIP_ALL_P2P_MACS);
+	} else
+		dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
@@ -574,6 +589,50 @@ static int fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 }
 
 /**
+ * fcoe_netdev_features_change - Updates the lport's offload flags based
+ * on the LLD netdev's FCoE feature flags
+ */
+static void fcoe_netdev_features_change(struct fc_lport *lport,
+					struct net_device *netdev)
+{
+	mutex_lock(&lport->lp_mutex);
+
+	if (netdev->features & NETIF_F_SG)
+		lport->sg_supp = 1;
+	else
+		lport->sg_supp = 0;
+
+	if (netdev->features & NETIF_F_FCOE_CRC) {
+		lport->crc_offload = 1;
+		FCOE_NETDEV_DBG(netdev, "Supports FCCRC offload\n");
+	} else {
+		lport->crc_offload = 0;
+	}
+
+	if (netdev->features & NETIF_F_FSO) {
+		lport->seq_offload = 1;
+		lport->lso_max = netdev->gso_max_size;
+		FCOE_NETDEV_DBG(netdev, "Supports LSO for max len 0x%x\n",
+				lport->lso_max);
+	} else {
+		lport->seq_offload = 0;
+		lport->lso_max = 0;
+	}
+
+	if (netdev->fcoe_ddp_xid) {
+		lport->lro_enabled = 1;
+		lport->lro_xid = netdev->fcoe_ddp_xid;
+		FCOE_NETDEV_DBG(netdev, "Supports LRO for max xid 0x%x\n",
+				lport->lro_xid);
+	} else {
+		lport->lro_enabled = 0;
+		lport->lro_xid = 0;
+	}
+
+	mutex_unlock(&lport->lp_mutex);
+}
+
+/**
  * fcoe_netdev_config() - Set up net devive for SW FCoE
  * @lport:  The local port that is associated with the net device
  * @netdev: The associated net device
@@ -588,7 +647,6 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	u64 wwnn, wwpn;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
-	int vid = 0;
 
 	/* Setup lport private data to point to fcoe softc */
 	port = lport_priv(lport);
@@ -609,25 +667,8 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 		return -EINVAL;
 
 	/* offload features support */
-	if (netdev->features & NETIF_F_SG)
-		lport->sg_supp = 1;
+	fcoe_netdev_features_change(lport, netdev);
 
-	if (netdev->features & NETIF_F_FCOE_CRC) {
-		lport->crc_offload = 1;
-		FCOE_NETDEV_DBG(netdev, "Supports FCCRC offload\n");
-	}
-	if (netdev->features & NETIF_F_FSO) {
-		lport->seq_offload = 1;
-		lport->lso_max = netdev->gso_max_size;
-		FCOE_NETDEV_DBG(netdev, "Supports LSO for max len 0x%x\n",
-				lport->lso_max);
-	}
-	if (netdev->fcoe_ddp_xid) {
-		lport->lro_enabled = 1;
-		lport->lro_xid = netdev->fcoe_ddp_xid;
-		FCOE_NETDEV_DBG(netdev, "Supports LRO for max xid 0x%x\n",
-				lport->lro_xid);
-	}
 	skb_queue_head_init(&port->fcoe_pending_queue);
 	port->fcoe_pending_queue_active = 0;
 	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lport);
@@ -635,20 +676,12 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	fcoe_link_speed_update(lport);
 
 	if (!lport->vport) {
-		/*
-		 * Use NAA 1&2 (FC-FS Rev. 2.0, Sec. 15) to generate WWNN/WWPN:
-		 * For WWNN, we use NAA 1 w/ bit 27-16 of word 0 as 0.
-		 * For WWPN, we use NAA 2 w/ bit 27-16 of word 0 from VLAN ID
-		 */
-		if (netdev->priv_flags & IFF_802_1Q_VLAN)
-			vid = vlan_dev_vlan_id(netdev);
-
 		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))
 			wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
 		fc_set_wwnn(lport, wwnn);
 		if (fcoe_get_wwn(netdev, &wwpn, NETDEV_FCOE_WWPN))
 			wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr,
-						 2, vid);
+						 2, 0);
 		fc_set_wwpn(lport, wwpn);
 	}
 
@@ -967,7 +1000,7 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	}
 
 	/* Initialize the library */
-	rc = fcoe_libfc_config(lport, &fcoe_libfc_fcn_templ);
+	rc = fcoe_libfc_config(lport, &fcoe->ctlr, &fcoe_libfc_fcn_templ, 1);
 	if (rc) {
 		FCOE_NETDEV_DBG(netdev, "Could not configure libfc for the "
 				"interface\n");
@@ -1210,6 +1243,8 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	struct fcoe_interface *fcoe;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
+	struct fcoe_port *port;
+	struct ethhdr *eh;
 	unsigned int cpu;
 
 	fcoe = container_of(ptype, struct fcoe_interface, fcoe_packet_type);
@@ -1227,9 +1262,21 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
-	/* check for FCOE packet type */
-	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
-		FCOE_NETDEV_DBG(netdev, "Wrong FC type frame");
+	/* check for mac addresses */
+	eh = eth_hdr(skb);
+	port = lport_priv(lport);
+	if (compare_ether_addr(eh->h_dest, port->data_src_addr) &&
+	    compare_ether_addr(eh->h_dest, fcoe->ctlr.ctl_src_addr) &&
+	    compare_ether_addr(eh->h_dest, (u8[6])FC_FCOE_FLOGI_MAC)) {
+		FCOE_NETDEV_DBG(netdev, "wrong destination mac address:%pM\n",
+				eh->h_dest);
+		goto err;
+	}
+
+	if (is_fip_mode(&fcoe->ctlr) &&
+	    compare_ether_addr(eh->h_source, fcoe->ctlr.dest_addr)) {
+		FCOE_NETDEV_DBG(netdev, "wrong source mac address:%pM\n",
+				eh->h_source);
 		goto err;
 	}
 
@@ -1512,11 +1559,9 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	/* fill up mac and fcoe headers */
 	eh = eth_hdr(skb);
 	eh->h_proto = htons(ETH_P_FCOE);
+	memcpy(eh->h_dest, fcoe->ctlr.dest_addr, ETH_ALEN);
 	if (fcoe->ctlr.map_dest)
-		fc_fcoe_set_mac(eh->h_dest, fh->fh_d_id);
-	else
-		/* insert GW address */
-		memcpy(eh->h_dest, fcoe->ctlr.dest_addr, ETH_ALEN);
+		memcpy(eh->h_dest + 3, fh->fh_d_id, 3);
 
 	if (unlikely(fcoe->ctlr.flogi_oxid != FC_XID_UNKNOWN))
 		memcpy(eh->h_source, fcoe->ctlr.ctl_src_addr, ETH_ALEN);
@@ -1834,6 +1879,9 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		schedule_work(&port->destroy_work);
 		goto out;
 		break;
+	case NETDEV_FEAT_CHANGE:
+		fcoe_netdev_features_change(lport, netdev);
+		break;
 	default:
 		FCOE_NETDEV_DBG(netdev, "Unknown event %ld "
 				"from netdev netlink\n", event);
@@ -1918,8 +1966,8 @@ static int fcoe_disable(const char *buffer, struct kernel_param *kp)
 	rtnl_unlock();
 
 	if (fcoe) {
-		fc_fabric_logoff(fcoe->ctlr.lp);
 		fcoe_ctlr_link_down(&fcoe->ctlr);
+		fcoe_clean_pending_queue(fcoe->ctlr.lp);
 	} else
 		rc = -ENODEV;
 
@@ -1972,12 +2020,10 @@ static int fcoe_enable(const char *buffer, struct kernel_param *kp)
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
-	if (fcoe) {
-		if (!fcoe_link_ok(fcoe->ctlr.lp))
-			fcoe_ctlr_link_up(&fcoe->ctlr);
-		rc = fc_fabric_login(fcoe->ctlr.lp);
-	} else
+	if (!fcoe)
 		rc = -ENODEV;
+	else if (!fcoe_link_ok(fcoe->ctlr.lp))
+		fcoe_ctlr_link_up(&fcoe->ctlr);
 
 	dev_put(netdev);
 out_nodev:
@@ -2031,8 +2077,8 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 		rc = -ENODEV;
 		goto out_putdev;
 	}
-	list_del(&fcoe->list);
 	fcoe_interface_cleanup(fcoe);
+	list_del(&fcoe->list);
 	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(fcoe->ctlr.lp);
 
@@ -2070,6 +2116,7 @@ static void fcoe_destroy_work(struct work_struct *work)
  */
 static int fcoe_create(const char *buffer, struct kernel_param *kp)
 {
+	enum fip_state fip_mode = (enum fip_state)(long)kp->arg;
 	int rc;
 	struct fcoe_interface *fcoe;
 	struct fc_lport *lport;
@@ -2111,7 +2158,7 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 		goto out_putdev;
 	}
 
-	fcoe = fcoe_interface_create(netdev);
+	fcoe = fcoe_interface_create(netdev, fip_mode);
 	if (!fcoe) {
 		rc = -ENOMEM;
 		goto out_putdev;
@@ -2452,7 +2499,7 @@ module_exit(fcoe_exit);
  * @fp: response frame, or error encoded in a pointer (timeout)
  * @arg: pointer the the fcoe_ctlr structure
  *
- * This handles MAC address managment for FCoE, then passes control on to
+ * This handles MAC address management for FCoE, then passes control on to
  * the libfc FLOGI response handler.
  */
 static void fcoe_flogi_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
@@ -2484,7 +2531,7 @@ done:
  * @fp: response frame, or error encoded in a pointer (timeout)
  * @arg: pointer the the fcoe_ctlr structure
  *
- * This handles MAC address managment for FCoE, then passes control on to
+ * This handles MAC address management for FCoE, then passes control on to
  * the libfc LOGO response handler.
  */
 static void fcoe_logo_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
@@ -2521,6 +2568,8 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport, u32 did,
 	switch (op) {
 	case ELS_FLOGI:
 	case ELS_FDISC:
+		if (lport->point_to_multipoint)
+			break;
 		return fc_elsct_send(lport, did, fp, op, fcoe_flogi_resp,
 				     fip, timeout);
 	case ELS_LOGO:
@@ -2653,6 +2702,7 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	u32 lfc, vlfc, mdac;
 	struct fcoe_dev_stats *devst;
 	struct fcoe_fc_els_lesb *lesb;
+	struct rtnl_link_stats64 temp;
 	struct net_device *netdev = fcoe_netdev(lport);
 
 	lfc = 0;
@@ -2669,7 +2719,7 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	lesb->lesb_link_fail = htonl(lfc);
 	lesb->lesb_vlink_fail = htonl(vlfc);
 	lesb->lesb_miss_fka = htonl(mdac);
-	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev)->rx_crc_errors);
+	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
 }
 
 /**

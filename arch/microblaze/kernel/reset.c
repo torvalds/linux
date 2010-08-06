@@ -24,8 +24,8 @@ static int of_reset_gpio_handle(void)
 	int ret; /* variable which stored handle reset gpio pin */
 	struct device_node *root; /* root node */
 	struct device_node *gpio; /* gpio node */
-	struct of_gpio_chip *of_gc = NULL;
-	enum of_gpio_flags flags ;
+	struct gpio_chip *gc;
+	u32 flags;
 	const void *gpio_spec;
 
 	/* find out root node */
@@ -39,19 +39,19 @@ static int of_reset_gpio_handle(void)
 		goto err0;
 	}
 
-	of_gc = gpio->data;
-	if (!of_gc) {
+	gc = of_node_to_gpiochip(gpio);
+	if (!gc) {
 		pr_debug("%s: gpio controller %s isn't registered\n",
 			 root->full_name, gpio->full_name);
 		ret = -ENODEV;
 		goto err1;
 	}
 
-	ret = of_gc->xlate(of_gc, root, gpio_spec, &flags);
+	ret = gc->of_xlate(gc, root, gpio_spec, &flags);
 	if (ret < 0)
 		goto err1;
 
-	ret += of_gc->gc.base;
+	ret += gc->base;
 err1:
 	of_node_put(gpio);
 err0:

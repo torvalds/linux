@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <net/netlink.h>
+#include <linux/u64_stats_sync.h>
 
 #if defined(CONFIG_MACVTAP) || defined(CONFIG_MACVTAP_MODULE)
 struct socket *macvtap_get_socket(struct file *);
@@ -27,14 +28,16 @@ struct macvtap_queue;
  *	struct macvlan_rx_stats - MACVLAN percpu rx stats
  *	@rx_packets: number of received packets
  *	@rx_bytes: number of received bytes
- *	@multicast: number of received multicast packets
+ *	@rx_multicast: number of received multicast packets
+ *	@syncp: synchronization point for 64bit counters
  *	@rx_errors: number of errors
  */
 struct macvlan_rx_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long multicast;
-	unsigned long rx_errors;
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			rx_multicast;
+	struct u64_stats_sync	syncp;
+	unsigned long		rx_errors;
 };
 
 struct macvlan_dev {
@@ -56,16 +59,20 @@ static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
 {
 	struct macvlan_rx_stats *rx_stats;
 
-	rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
+	rx_stats = this_cpu_ptr(vlan->rx_stats);
 	if (likely(success)) {
+		u64_stats_update_begin(&rx_stats->syncp);
 		rx_stats->rx_packets++;;
 		rx_stats->rx_bytes += len;
 		if (multicast)
-			rx_stats->multicast++;
+			rx_stats->rx_multicast++;
+		u64_stats_update_end(&rx_stats->syncp);
 	} else {
 		rx_stats->rx_errors++;
 	}
 }
+
+extern void macvlan_common_setup(struct net_device *dev);
 
 extern int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 				  struct nlattr *tb[], struct nlattr *data[],
@@ -83,9 +90,5 @@ extern int macvlan_link_register(struct rtnl_link_ops *ops);
 
 extern netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev);
-
-
-extern struct sk_buff *(*macvlan_handle_frame_hook)(struct macvlan_port *,
-						    struct sk_buff *);
 
 #endif /* _LINUX_IF_MACVLAN_H */

@@ -117,7 +117,7 @@ struct wl1251_rx_descriptor {
 	s8 rssi; /* in dB */
 	u8 rcpi; /* in dB */
 	u8 snr; /* in dB */
-} __attribute__ ((packed));
+} __packed;
 
 void wl1251_rx(struct wl1251 *wl);
 

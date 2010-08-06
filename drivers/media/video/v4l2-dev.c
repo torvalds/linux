@@ -410,7 +410,7 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	int minor_offset = 0;
 	int minor_cnt = VIDEO_NUM_DEVICES;
 	const char *name_base;
-	void *priv = video_get_drvdata(vdev);
+	void *priv = vdev->dev.p;
 
 	/* A minor value of -1 marks this video device as never
 	   having been registered */
@@ -536,9 +536,9 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 
 	/* Part 4: register the device with sysfs */
 	memset(&vdev->dev, 0, sizeof(vdev->dev));
-	/* The memset above cleared the device's drvdata, so
+	/* The memset above cleared the device's device_private, so
 	   put back the copy we made earlier. */
-	video_set_drvdata(vdev, priv);
+	vdev->dev.p = priv;
 	vdev->dev.class = &video_class;
 	vdev->dev.devt = MKDEV(VIDEO_MAJOR, vdev->minor);
 	if (vdev->parent)

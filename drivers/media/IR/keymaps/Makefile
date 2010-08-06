@@ -14,6 +14,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-budget-ci-old.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
+			rc-dib0700-nec.o \
+			rc-dib0700-rc5.o \
 			rc-dm1105-nec.o \
 			rc-dntv-live-dvb-t.o \
 			rc-dntv-live-dvbt-pro.o \
@@ -37,6 +39,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-kaiomy.o \
 			rc-kworld-315u.o \
 			rc-kworld-plus-tv-analog.o \
+			rc-lirc.o \
 			rc-manli.o \
 			rc-msi-tvanywhere.o \
 			rc-msi-tvanywhere-plus.o \
@@ -57,6 +60,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-pv951.o \
 			rc-rc5-hauppauge-new.o \
 			rc-rc5-tv.o \
+			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
 			rc-tbs-nec.o \
 			rc-terratec-cinergy-xs.o \

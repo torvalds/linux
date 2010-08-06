@@ -1145,7 +1145,7 @@ static void lpphy_write_tx_pctl_mode_to_hardware(struct b43_wldev *dev)
 		B43_WARN_ON(1);
 	}
 	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
-			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE, ctl);
+			~B43_LPPHY_TX_PWR_CTL_CMD_MODE & 0xFFFF, ctl);
 }
 
 static void lpphy_set_tx_power_control(struct b43_wldev *dev,
@@ -1522,11 +1522,11 @@ static void lpphy_tx_pctl_init_hw(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xFF);
 	b43_phy_write(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xA);
 	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
-			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			~B43_LPPHY_TX_PWR_CTL_CMD_MODE & 0xFFFF,
 			B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
 	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0xF8FF);
 	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
-			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			~B43_LPPHY_TX_PWR_CTL_CMD_MODE & 0xFFFF,
 			B43_LPPHY_TX_PWR_CTL_CMD_MODE_SW);
 
 	if (dev->phy.rev < 2) {
@@ -2698,7 +2698,7 @@ static enum b43_txpwr_result b43_lpphy_op_recalc_txpower(struct b43_wldev *dev,
 	return B43_TXPWR_RES_DONE;
 }
 
-void b43_lpphy_op_switch_analog(struct b43_wldev *dev, bool on)
+static void b43_lpphy_op_switch_analog(struct b43_wldev *dev, bool on)
 {
        if (on) {
                b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVR, 0xfff8);

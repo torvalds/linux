@@ -77,10 +77,10 @@ Memory
 
 Guest memory (gpa) is part of the user address space of the process that is
 using kvm.  Userspace defines the translation between guest addresses and user
-addresses (gpa->hva); note that two gpas may alias to the same gva, but not
+addresses (gpa->hva); note that two gpas may alias to the same hva, but not
 vice versa.
 
-These gvas may be backed using any method available to the host: anonymous
+These hvas may be backed using any method available to the host: anonymous
 memory, file backed memory, and device memory.  Memory might be paged by the
 host at any time.
 
@@ -161,7 +161,7 @@ Shadow pages contain the following information:
   role.cr4_pae:
     Contains the value of cr4.pae for which the page is valid (e.g. whether
     32-bit or 64-bit gptes are in use).
-  role.cr4_nxe:
+  role.nxe:
     Contains the value of efer.nxe for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
@@ -180,7 +180,9 @@ Shadow pages contain the following information:
     guest pages as leaves.
   gfns:
     An array of 512 guest frame numbers, one for each present pte.  Used to
-    perform a reverse map from a pte to a gfn.
+    perform a reverse map from a pte to a gfn. When role.direct is set, any
+    element of this array can be calculated from the gfn field when used, in
+    this case, the array of gfns is not allocated. See role.direct and gfn.
   slot_bitmap:
     A bitmap containing one bit per memory slot.  If the page contains a pte
     mapping a page from memory slot n, then bit n of slot_bitmap will be set
@@ -295,6 +297,48 @@ Host translation updates:
   - mmu notifier called with updated hva
   - look up affected sptes through reverse map
   - drop (or update) translations
+
+Emulating cr0.wp
+================
+
+If tdp is not enabled, the host must keep cr0.wp=1 so page write protection
+works for the guest kernel, not guest guest userspace.  When the guest
+cr0.wp=1, this does not present a problem.  However when the guest cr0.wp=0,
+we cannot map the permissions for gpte.u=1, gpte.w=0 to any spte (the
+semantics require allowing any guest kernel access plus user read access).
+
+We handle this by mapping the permissions to two possible sptes, depending
+on fault type:
+
+- kernel write fault: spte.u=0, spte.w=1 (allows full kernel access,
+  disallows user access)
+- read fault: spte.u=1, spte.w=0 (allows full read access, disallows kernel
+  write access)
+
+(user write faults generate a #PF)
+
+Large pages
+===========
+
+The mmu supports all combinations of large and small guest and host pages.
+Supported page sizes include 4k, 2M, 4M, and 1G.  4M pages are treated as
+two separate 2M pages, on both guest and host, since the mmu always uses PAE
+paging.
+
+To instantiate a large spte, four constraints must be satisfied:
+
+- the spte must point to a large host page
+- the guest pte must be a large pte of at least equivalent size (if tdp is
+  enabled, there is no guest pte and this condition is satisified)
+- if the spte will be writeable, the large page frame may not overlap any
+  write-protected pages
+- the guest page must be wholly contained by a single memory slot
+
+To check the last two conditions, the mmu maintains a ->write_count set of
+arrays for each memory slot and large page size.  Every write protected page
+causes its write_count to be incremented, thus preventing instantiation of
+a large spte.  The frames at the end of an unaligned memory slot have
+artificically inflated ->write_counts so they can never be instantiated.
 
 Further reading
 ===============

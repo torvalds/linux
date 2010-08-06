@@ -29,8 +29,11 @@
 
 #ifdef CONFIG_PM
 
-/* changes to device_may_wakeup take effect on the next pm state change.
- * by default, devices should wakeup if they can.
+/* Changes to device_may_wakeup take effect on the next pm state change.
+ *
+ * By default, most devices should leave wakeup disabled.  The exceptions
+ * are devices that everyone expects to be wakeup sources: keyboards,
+ * power buttons, possibly network interfaces, etc.
  */
 static inline void device_init_wakeup(struct device *dev, bool val)
 {
@@ -59,7 +62,7 @@ static inline bool device_may_wakeup(struct device *dev)
 
 #else /* !CONFIG_PM */
 
-/* For some reason the next two routines work even without CONFIG_PM */
+/* For some reason the following routines work even without CONFIG_PM */
 static inline void device_init_wakeup(struct device *dev, bool val)
 {
 	dev->power.can_wakeup = val;
@@ -67,6 +70,7 @@ static inline void device_init_wakeup(struct device *dev, bool val)
 
 static inline void device_set_wakeup_capable(struct device *dev, bool capable)
 {
+	dev->power.can_wakeup = capable;
 }
 
 static inline bool device_can_wakeup(struct device *dev)

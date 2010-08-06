@@ -9,14 +9,6 @@ extern void irq_trans_init(struct device_node *dp);
 
 extern unsigned int prom_unique_id;
 
-static inline int is_root_node(const struct device_node *dp)
-{
-	if (!dp)
-		return 0;
-
-	return (dp->parent == NULL);
-}
-
 extern char *build_path_component(struct device_node *dp);
 extern void of_console_init(void);
 

@@ -18,11 +18,7 @@
 
 #include <asm/octeon/octeon.h>
 
-#ifdef CONFIG_GDB_CONSOLE
-#define DEBUG_UART 0
-#else
 #define DEBUG_UART 1
-#endif
 
 unsigned int octeon_serial_in(struct uart_port *up, int offset)
 {

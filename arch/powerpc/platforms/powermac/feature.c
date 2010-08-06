@@ -21,6 +21,8 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/spinlock.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
@@ -2191,7 +2193,11 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
 		PMAC_MB_MAY_SLEEP,
 	},
-	{	"iMac,1",			"iMac (first generation)",
+	{       "PowerMac10,2",                 "Mac mini (Late 2005)",
+		PMAC_TYPE_UNKNOWN_INTREPID,     intrepid_features,
+		PMAC_MB_MAY_SLEEP,
+	},
+ 	{	"iMac,1",			"iMac (first generation)",
 		PMAC_TYPE_ORIG_IMAC,		paddington_features,
 		0
 	},

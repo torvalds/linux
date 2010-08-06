@@ -311,12 +311,12 @@ static struct of_platform_driver env_driver = {
 
 static int __init env_init(void)
 {
-	return of_register_driver(&env_driver, &of_bus_type);
+	return of_register_platform_driver(&env_driver);
 }
 
 static void __exit env_exit(void)
 {
-	of_unregister_driver(&env_driver);
+	of_unregister_platform_driver(&env_driver);
 }
 
 module_init(env_init);

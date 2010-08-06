@@ -330,7 +330,7 @@ and on its mirrors.
 
 The latest version of fbset can be found at
 
-    http://home.tvd.be/cr26864/Linux/fbdev/
+    http://www.linux-fbdev.org/ 
 
   
 10. Credits                                                       

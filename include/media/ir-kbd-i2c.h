@@ -11,7 +11,7 @@ struct IR_i2c {
 	struct i2c_client      *c;
 	struct input_dev       *input;
 	struct ir_input_state  ir;
-
+	u64                    ir_type;
 	/* Used to avoid fast repeating */
 	unsigned char          old;
 

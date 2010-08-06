@@ -561,8 +561,7 @@ static void sony_pf_remove(void)
 	if (!atomic_dec_and_test(&sony_pf_users))
 		return;
 
-	platform_device_del(sony_pf_device);
-	platform_device_put(sony_pf_device);
+	platform_device_unregister(sony_pf_device);
 	platform_driver_unregister(&sony_pf_driver);
 }
 
@@ -1196,9 +1195,13 @@ static void sony_nc_rfkill_setup(struct acpi_device *device)
 	}
 
 	device_enum = (union acpi_object *) buffer.pointer;
-	if (!device_enum || device_enum->type != ACPI_TYPE_BUFFER) {
-		printk(KERN_ERR "Invalid SN06 return object 0x%.2x\n",
-				device_enum->type);
+	if (!device_enum) {
+		pr_err("Invalid SN06 return object\n");
+		goto out_no_enum;
+	}
+	if (device_enum->type != ACPI_TYPE_BUFFER) {
+		pr_err("Invalid SN06 return object type 0x%.2x\n",
+		       device_enum->type);
 		goto out_no_enum;
 	}
 

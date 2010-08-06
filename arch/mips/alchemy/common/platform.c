@@ -12,6 +12,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/init.h>
@@ -20,6 +21,8 @@
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_eth.h>
+
+#include <prom.h>
 
 #define PORT(_base, _irq)					\
 	{							\
@@ -33,7 +36,6 @@
 	}
 
 static struct plat_serial8250_port au1x00_uart_data[] = {
-#if defined(CONFIG_SERIAL_8250_AU1X00)
 #if defined(CONFIG_SOC_AU1000)
 	PORT(UART0_PHYS_ADDR, AU1000_UART0_INT),
 	PORT(UART1_PHYS_ADDR, AU1000_UART1_INT),
@@ -54,7 +56,6 @@ static struct plat_serial8250_port au1x00_uart_data[] = {
 	PORT(UART0_PHYS_ADDR, AU1200_UART0_INT),
 	PORT(UART1_PHYS_ADDR, AU1200_UART1_INT),
 #endif
-#endif	/* CONFIG_SERIAL_8250_AU1X00 */
 	{ },
 };
 
@@ -435,20 +436,31 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 static int __init au1xxx_platform_init(void)
 {
 	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
-	int i;
+	int err, i;
+	unsigned char ethaddr[6];
 
 	/* Fill up uartclk. */
 	for (i = 0; au1x00_uart_data[i].flags; i++)
 		au1x00_uart_data[i].uartclk = uartclk;
 
+	/* use firmware-provided mac addr if available and necessary */
+	i = prom_get_ethernet_addr(ethaddr);
+	if (!i && !is_valid_ether_addr(au1xxx_eth0_platform_data.mac))
+		memcpy(au1xxx_eth0_platform_data.mac, ethaddr, 6);
+
+	err = platform_add_devices(au1xxx_platform_devices,
+				   ARRAY_SIZE(au1xxx_platform_devices));
 #ifndef CONFIG_SOC_AU1100
+	ethaddr[5] += 1;	/* next addr for 2nd MAC */
+	if (!i && !is_valid_ether_addr(au1xxx_eth1_platform_data.mac))
+		memcpy(au1xxx_eth1_platform_data.mac, ethaddr, 6);
+
 	/* Register second MAC if enabled in pinfunc */
-	if (!(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2))
-		platform_device_register(&au1xxx_eth1_device);
+	if (!err && !(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2))
+		err = platform_device_register(&au1xxx_eth1_device);
 #endif
 
-	return platform_add_devices(au1xxx_platform_devices,
-				    ARRAY_SIZE(au1xxx_platform_devices));
+	return err;
 }
 
 arch_initcall(au1xxx_platform_init);

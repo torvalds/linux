@@ -987,13 +987,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					data + 12, len - 12);
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
-			struct gspca_frame *frame;
-
 			sd->last_pts = 0;
-			frame = gspca_get_i_frame(gspca_dev);
-			if (frame == NULL)
-				goto discard;
-			if (frame->data_end - frame->data + (len - 12) !=
+			if (gspca_dev->image_len + len - 12 !=
 			    gspca_dev->width * gspca_dev->height * 2) {
 				PDEBUG(D_PACK, "wrong sized frame");
 				goto discard;

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007 Red Hat, Inc.
+ *  Copyright 2007-2010 Red Hat, Inc.
  *  by Peter Jones <pjones@redhat.com>
  *  Copyright 2007 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
@@ -22,6 +22,7 @@
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
+#include <linux/efi.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/limits.h>
@@ -30,13 +31,15 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/acpi.h>
+#include <linux/iscsi_ibft.h>
 
 #include <asm/mmzone.h>
 
 /*
  * Physical location of iSCSI Boot Format Table.
  */
-struct ibft_table_header *ibft_addr;
+struct acpi_table_ibft *ibft_addr;
 EXPORT_SYMBOL_GPL(ibft_addr);
 
 #define IBFT_SIGN "iBFT"
@@ -46,18 +49,19 @@ EXPORT_SYMBOL_GPL(ibft_addr);
 #define VGA_MEM 0xA0000 /* VGA buffer */
 #define VGA_SIZE 0x20000 /* 128kB */
 
+#ifdef CONFIG_ACPI
+static int __init acpi_find_ibft(struct acpi_table_header *header)
+{
+	ibft_addr = (struct acpi_table_ibft *)header;
+	return 0;
+}
+#endif /* CONFIG_ACPI */
 
-/*
- * Routine used to find the iSCSI Boot Format Table. The logical
- * kernel address is set in the ibft_addr global variable.
- */
-unsigned long __init find_ibft_region(unsigned long *sizep)
+static int __init find_ibft_in_mem(void)
 {
 	unsigned long pos;
 	unsigned int len = 0;
 	void *virt;
-
-	ibft_addr = NULL;
 
 	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
 		/* The table can't be inside the VGA BIOS reserved space,
@@ -72,14 +76,42 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 			/* if the length of the table extends past 1M,
 			 * the table cannot be valid. */
 			if (pos + len <= (IBFT_END-1)) {
-				ibft_addr = (struct ibft_table_header *)virt;
+				ibft_addr = (struct acpi_table_ibft *)virt;
 				break;
 			}
 		}
 	}
+	return len;
+}
+/*
+ * Routine used to find the iSCSI Boot Format Table. The logical
+ * kernel address is set in the ibft_addr global variable.
+ */
+unsigned long __init find_ibft_region(unsigned long *sizep)
+{
+
+	ibft_addr = NULL;
+
+#ifdef CONFIG_ACPI
+	/*
+	 * One spec says "IBFT", the other says "iBFT". We have to check
+	 * for both.
+	 */
+	if (!ibft_addr)
+		acpi_table_parse(ACPI_SIG_IBFT, acpi_find_ibft);
+	if (!ibft_addr)
+		acpi_table_parse(IBFT_SIGN, acpi_find_ibft);
+#endif /* CONFIG_ACPI */
+
+	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
+	 * only use ACPI for this */
+
+	if (!ibft_addr && !efi_enabled)
+		find_ibft_in_mem();
+
 	if (ibft_addr) {
-		*sizep = PAGE_ALIGN(len);
-		return pos;
+		*sizep = PAGE_ALIGN(ibft_addr->header.length);
+		return (u64)isa_virt_to_bus(ibft_addr);
 	}
 
 	*sizep = 0;

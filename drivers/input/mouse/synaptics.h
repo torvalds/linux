@@ -47,7 +47,7 @@
 #define SYN_CAP_FOUR_BUTTON(c)		((c) & (1 << 3))
 #define SYN_CAP_MULTIFINGER(c)		((c) & (1 << 1))
 #define SYN_CAP_PALMDETECT(c)		((c) & (1 << 0))
-#define SYN_CAP_VALID(c)		((((c) & 0x00ff00) >> 8) == 0x47)
+#define SYN_CAP_SUBMODEL_ID(c)		(((c) & 0x00ff00) >> 8)
 #define SYN_EXT_CAP_REQUESTS(c)		(((c) & 0x700000) >> 20)
 #define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & 0x00f000) >> 12)
 #define SYN_CAP_PRODUCT_ID(ec)		(((ec) & 0xff0000) >> 16)
@@ -66,6 +66,7 @@
 #define SYN_ID_MODEL(i)			(((i) >> 4) & 0x0f)
 #define SYN_ID_MAJOR(i)			((i) & 0x0f)
 #define SYN_ID_MINOR(i)			(((i) >> 16) & 0xff)
+#define SYN_ID_FULL(i)			((SYN_ID_MAJOR(i) << 8) | SYN_ID_MINOR(i))
 #define SYN_ID_IS_SYNAPTICS(i)		((((i) >> 8) & 0xff) == 0x47)
 
 /* synaptics special commands */

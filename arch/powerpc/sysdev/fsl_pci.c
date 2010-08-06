@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
 
@@ -190,7 +190,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	pr_info("%s: PCICSRBAR @ 0x%x\n", name, pcicsrbar);
 
 	/* Setup inbound mem window */
-	mem = lmb_end_of_DRAM();
+	mem = memblock_end_of_DRAM();
 	sz = min(mem, paddr_lo);
 	mem_log = __ilog2_u64(sz);
 
@@ -412,6 +412,7 @@ DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P4080, quirk_fsl_pcie_header);
 #endif /* CONFIG_FSL_SOC_BOOKE || CONFIG_PPC_86xx */
 
 #if defined(CONFIG_PPC_83xx) || defined(CONFIG_PPC_MPC512x)
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8308, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8314E, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8314, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8315E, quirk_fsl_pcie_header);

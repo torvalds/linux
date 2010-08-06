@@ -208,7 +208,7 @@ static ssize_t cmpc_accel_sensitivity_store(struct device *dev,
 	return strnlen(buf, count);
 }
 
-struct device_attribute cmpc_accel_sensitivity_attr = {
+static struct device_attribute cmpc_accel_sensitivity_attr = {
 	.attr = { .name = "sensitivity", .mode = 0660 },
 	.show = cmpc_accel_sensitivity_show,
 	.store = cmpc_accel_sensitivity_store
@@ -573,16 +573,17 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 
 	ipml->rf = rfkill_alloc("cmpc_rfkill", &acpi->dev, RFKILL_TYPE_WLAN,
 				&cmpc_rfkill_ops, acpi->handle);
-	/* rfkill_alloc may fail if RFKILL is disabled. We should still work
-	 * anyway. */
-	if (!IS_ERR(ipml->rf)) {
+	/*
+	 * If RFKILL is disabled, rfkill_alloc will return ERR_PTR(-ENODEV).
+	 * This is OK, however, since all other uses of the device will not
+	 * derefence it.
+	 */
+	if (ipml->rf) {
 		retval = rfkill_register(ipml->rf);
 		if (retval) {
 			rfkill_destroy(ipml->rf);
 			ipml->rf = NULL;
 		}
-	} else {
-		ipml->rf = NULL;
 	}
 
 	dev_set_drvdata(&acpi->dev, ipml);

@@ -22,6 +22,8 @@
 #define __KVM_HAVE_XEN_HVM
 #define __KVM_HAVE_VCPU_EVENTS
 #define __KVM_HAVE_DEBUGREGS
+#define __KVM_HAVE_XSAVE
+#define __KVM_HAVE_XCRS
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -297,6 +299,26 @@ struct kvm_debugregs {
 	__u64 dr7;
 	__u64 flags;
 	__u64 reserved[9];
+};
+
+/* for KVM_CAP_XSAVE */
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+#define KVM_MAX_XCRS	16
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
 };
 
 #endif /* _ASM_X86_KVM_H */

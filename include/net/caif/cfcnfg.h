@@ -7,6 +7,7 @@
 #ifndef CFCNFG_H_
 #define CFCNFG_H_
 #include <linux/spinlock.h>
+#include <linux/netdevice.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfctrl.h>
 
@@ -73,8 +74,8 @@ void cfcnfg_remove(struct cfcnfg *cfg);
 
 void
 cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
-		     void *dev, struct cflayer *phy_layer, u16 *phyid,
-		     enum cfcnfg_phy_preference pref,
+		     struct net_device *dev, struct cflayer *phy_layer,
+		     u16 *phyid, enum cfcnfg_phy_preference pref,
 		     bool fcs, bool stx);
 
 /**
@@ -114,11 +115,18 @@ void cfcnfg_release_adap_layer(struct cflayer *adap_layer);
  * @param:		Link setup parameters.
  * @adap_layer:		Specify the adaptation layer; the receive and
  *			flow-control functions MUST be set in the structure.
- *
+ * @ifindex:		Link layer interface index used for this connection.
+ * @proto_head:		Protocol head-space needed by CAIF protocol,
+ *			excluding link layer.
+ * @proto_tail:		Protocol tail-space needed by CAIF protocol,
+ *			excluding link layer.
  */
 int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 			    struct cfctrl_link_param *param,
-			    struct cflayer *adap_layer);
+			    struct cflayer *adap_layer,
+			    int *ifindex,
+			    int *proto_head,
+			    int *proto_tail);
 
 /**
  * cfcnfg_get_phyid() - Get physical ID, given type.

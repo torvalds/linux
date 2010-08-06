@@ -1,5 +1,5 @@
 The padata parallel execution mechanism
-Last updated for 2.6.34
+Last updated for 2.6.36
 
 Padata is a mechanism by which the kernel can farm work out to be done in
 parallel on multiple CPUs while retaining the ordering of tasks.  It was
@@ -13,31 +13,86 @@ overall control of how tasks are to be run:
 
     #include <linux/padata.h>
 
-    struct padata_instance *padata_alloc(const struct cpumask *cpumask,
-				         struct workqueue_struct *wq);
+    struct padata_instance *padata_alloc(struct workqueue_struct *wq,
+					 const struct cpumask *pcpumask,
+					 const struct cpumask *cbcpumask);
 
-The cpumask describes which processors will be used to execute work
-submitted to this instance.  The workqueue wq is where the work will
-actually be done; it should be a multithreaded queue, naturally.
+The pcpumask describes which processors will be used to execute work
+submitted to this instance in parallel. The cbcpumask defines which
+processors are allowed to use as the serialization callback processor.
+The workqueue wq is where the work will actually be done; it should be
+a multithreaded queue, naturally.
+
+To allocate a padata instance with the cpu_possible_mask for both
+cpumasks this helper function can be used:
+
+    struct padata_instance *padata_alloc_possible(struct workqueue_struct *wq);
+
+Note: Padata maintains two kinds of cpumasks internally. The user supplied
+cpumasks, submitted by padata_alloc/padata_alloc_possible and the 'usable'
+cpumasks. The usable cpumasks are always the subset of active cpus in the
+user supplied cpumasks, these are the cpumasks padata actually use. So
+it is legal to supply a cpumask to padata that contains offline cpus.
+Once a offline cpu in the user supplied cpumask comes online, padata
+is going to use it.
 
 There are functions for enabling and disabling the instance:
 
-    void padata_start(struct padata_instance *pinst);
+    int padata_start(struct padata_instance *pinst);
     void padata_stop(struct padata_instance *pinst);
 
-These functions literally do nothing beyond setting or clearing the
-"padata_start() was called" flag; if that flag is not set, other functions
-will refuse to work.
+These functions are setting or clearing the "PADATA_INIT" flag;
+if that flag is not set, other functions will refuse to work.
+padata_start returns zero on success (flag set) or -EINVAL if the
+padata cpumask contains no active cpu (flag not set).
+padata_stop clears the flag and blocks until the padata instance
+is unused.
 
 The list of CPUs to be used can be adjusted with these functions:
 
-    int padata_set_cpumask(struct padata_instance *pinst,
+    int padata_set_cpumasks(struct padata_instance *pinst,
+			    cpumask_var_t pcpumask,
+			    cpumask_var_t cbcpumask);
+    int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			   cpumask_var_t cpumask);
-    int padata_add_cpu(struct padata_instance *pinst, int cpu);
-    int padata_remove_cpu(struct padata_instance *pinst, int cpu);
+    int padata_add_cpu(struct padata_instance *pinst, int cpu, int mask);
+    int padata_remove_cpu(struct padata_instance *pinst, int cpu, int mask);
 
-Changing the CPU mask has the look of an expensive operation, though, so it
-probably should not be done with great frequency.
+Changing the CPU masks are expensive operations, though, so it should not be
+done with great frequency.
+
+It's possible to change both cpumasks of a padata instance with
+padata_set_cpumasks by specifying the cpumasks for parallel execution (pcpumask)
+and for the serial callback function (cbcpumask). padata_set_cpumask is to
+change just one of the cpumasks. Here cpumask_type is one of PADATA_CPU_SERIAL,
+PADATA_CPU_PARALLEL and cpumask specifies the new cpumask to use.
+To simply add or remove one cpu from a certain cpumask the functions
+padata_add_cpu/padata_remove_cpu are used. cpu specifies the cpu to add or
+remove and mask is one of PADATA_CPU_SERIAL, PADATA_CPU_PARALLEL.
+
+If a user is interested in padata cpumask changes, he can register to
+the padata cpumask change notifier:
+
+    int padata_register_cpumask_notifier(struct padata_instance *pinst,
+					 struct notifier_block *nblock);
+
+To unregister from that notifier:
+
+    int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
+					   struct notifier_block *nblock);
+
+The padata cpumask change notifier notifies about changes of the usable
+cpumasks, i.e. the subset of active cpus in the user supplied cpumask.
+
+Padata calls the notifier chain with:
+
+    blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
+				 notification_mask,
+				 &pd_new->cpumask);
+
+Here cpumask_change_notifier is registered notifier, notification_mask
+is one of PADATA_CPU_SERIAL, PADATA_CPU_PARALLEL and cpumask is a pointer
+to a struct padata_cpumask that contains the new cpumask informations.
 
 Actually submitting work to the padata instance requires the creation of a
 padata_priv structure:
@@ -50,7 +105,7 @@ padata_priv structure:
 
 This structure will almost certainly be embedded within some larger
 structure specific to the work to be done.  Most its fields are private to
-padata, but the structure should be zeroed at initialization time, and the
+padata, but the structure should be zeroed at initialisation time, and the
 parallel() and serial() functions should be provided.  Those functions will
 be called in the process of getting the work done as we will see
 momentarily.
@@ -63,12 +118,10 @@ The submission of work is done with:
 The pinst and padata structures must be set up as described above; cb_cpu
 specifies which CPU will be used for the final callback when the work is
 done; it must be in the current instance's CPU mask.  The return value from
-padata_do_parallel() is a little strange; zero is an error return
-indicating that the caller forgot the padata_start() formalities.  -EBUSY
-means that somebody, somewhere else is messing with the instance's CPU
-mask, while -EINVAL is a complaint about cb_cpu not being in that CPU mask.
-If all goes well, this function will return -EINPROGRESS, indicating that
-the work is in progress.
+padata_do_parallel() is zero on success, indicating that the work is in
+progress. -EBUSY means that somebody, somewhere else is messing with the
+instance's CPU mask, while -EINVAL is a complaint about cb_cpu not being
+in that CPU mask or about a not running instance.
 
 Each task submitted to padata_do_parallel() will, in turn, be passed to
 exactly one call to the above-mentioned parallel() function, on one CPU, so

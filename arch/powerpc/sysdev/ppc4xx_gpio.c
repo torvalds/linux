@@ -181,7 +181,6 @@ static int __init ppc4xx_add_gpiochips(void)
 		int ret;
 		struct ppc4xx_gpio_chip *ppc4xx_gc;
 		struct of_mm_gpio_chip *mm_gc;
-		struct of_gpio_chip *of_gc;
 		struct gpio_chip *gc;
 
 		ppc4xx_gc = kzalloc(sizeof(*ppc4xx_gc), GFP_KERNEL);
@@ -193,10 +192,8 @@ static int __init ppc4xx_add_gpiochips(void)
 		spin_lock_init(&ppc4xx_gc->lock);
 
 		mm_gc = &ppc4xx_gc->mm_gc;
-		of_gc = &mm_gc->of_gc;
-		gc = &of_gc->gc;
+		gc = &mm_gc->gc;
 
-		of_gc->gpio_cells = 2;
 		gc->ngpio = 32;
 		gc->direction_input = ppc4xx_gpio_dir_in;
 		gc->direction_output = ppc4xx_gpio_dir_out;

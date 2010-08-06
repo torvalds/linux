@@ -14,7 +14,7 @@ find $paths -name '*.[chS]' -o -name 'Makefile' -o -name 'Makefile*[^~]'| while 
 do
 	# Output the bare Kconfig variable and the filename; the _MODULE part at
 	# the end is not removed here (would need perl an not-hungry regexp for that).
-	sed -ne 's!^.*\<\(UML_\)\?CONFIG_\([0-9A-Z_]\+\).*!\2 '$i'!p' < $i
+	sed -ne 's!^.*\<\(UML_\)\?CONFIG_\([0-9A-Za-z_]\+\).*!\2 '$i'!p' < $i
 done | \
 # Smart "sort|uniq" implemented in awk and tuned to collect the names of all
 # files which use a given symbol

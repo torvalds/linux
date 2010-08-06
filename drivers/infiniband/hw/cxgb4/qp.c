@@ -40,10 +40,10 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	 */
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->rq.memsize, wq->rq.queue,
-			  pci_unmap_addr(&wq->rq, mapping));
+			  dma_unmap_addr(&wq->rq, mapping));
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->sq.memsize, wq->sq.queue,
-			  pci_unmap_addr(&wq->sq, mapping));
+			  dma_unmap_addr(&wq->sq, mapping));
 	c4iw_rqtpool_free(rdev, wq->rq.rqt_hwaddr, wq->rq.rqt_size);
 	kfree(wq->rq.sw_rq);
 	kfree(wq->sq.sw_sq);
@@ -99,7 +99,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	if (!wq->sq.queue)
 		goto err5;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
-	pci_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
+	dma_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
 	wq->rq.queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev),
 					  wq->rq.memsize, &(wq->rq.dma_addr),
@@ -112,7 +112,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		wq->rq.queue,
 		(unsigned long long)virt_to_phys(wq->rq.queue));
 	memset(wq->rq.queue, 0, wq->rq.memsize);
-	pci_unmap_addr_set(&wq->rq, mapping, wq->rq.dma_addr);
+	dma_unmap_addr_set(&wq->rq, mapping, wq->rq.dma_addr);
 
 	wq->db = rdev->lldi.db_reg;
 	wq->gts = rdev->lldi.gts_reg;
@@ -217,11 +217,11 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 err7:
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->rq.memsize, wq->rq.queue,
-			  pci_unmap_addr(&wq->rq, mapping));
+			  dma_unmap_addr(&wq->rq, mapping));
 err6:
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->sq.memsize, wq->sq.queue,
-			  pci_unmap_addr(&wq->sq, mapping));
+			  dma_unmap_addr(&wq->sq, mapping));
 err5:
 	c4iw_rqtpool_free(rdev, wq->rq.rqt_hwaddr, wq->rq.rqt_size);
 err4:
@@ -905,7 +905,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	atomic_inc(&qhp->refcnt);
 	spin_unlock_irqrestore(&qhp->lock, *flag);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, *flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&rchp->cq);
@@ -916,7 +916,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&schp->cq);

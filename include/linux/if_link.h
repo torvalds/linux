@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 
-/* The struct should be in sync with struct net_device_stats */
+/* This struct should be in sync with struct rtnl_link_stats64 */
 struct rtnl_link_stats {
 	__u32	rx_packets;		/* total packets received	*/
 	__u32	tx_packets;		/* total packets transmitted	*/
@@ -37,6 +37,7 @@ struct rtnl_link_stats {
 	__u32	tx_compressed;
 };
 
+/* The main device statistics structure */
 struct rtnl_link_stats64 {
 	__u64	rx_packets;		/* total packets received	*/
 	__u64	tx_packets;		/* total packets transmitted	*/
@@ -233,7 +234,7 @@ enum macvlan_mode {
 	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
 };
 
-/* SR-IOV virtual function managment section */
+/* SR-IOV virtual function management section */
 
 enum {
 	IFLA_VF_INFO_UNSPEC,

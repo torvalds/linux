@@ -1847,6 +1847,10 @@ config ZFCP
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
 
+config ZFCP_DIF
+	tristate "T10 DIF/DIX support for the zfcp driver (EXPERIMENTAL)"
+	depends on ZFCP && EXPERIMENTAL
+
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
 	depends on PCI && SCSI

@@ -52,7 +52,7 @@ extern unsigned int fc_debug_logging;
 #define FC_DISC_DBG(disc, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_DISC_LOGGING,			\
 			 printk(KERN_INFO "host%u: disc: " fmt,	\
-				(disc)->lport->host->host_no,	\
+				fc_disc_lport(disc)->host->host_no,	\
 				##args))
 
 #define FC_RPORT_ID_DBG(lport, port_id, fmt, args...)			\

@@ -1443,7 +1443,7 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 		return -ENOMEM;
 	}
 
-	up->port.irq = op->irqs[0];
+	up->port.irq = op->archdata.irqs[0];
 
 	up->port.dev = &op->dev;
 
@@ -1500,19 +1500,24 @@ out_unmap:
 static int __devexit su_remove(struct of_device *op)
 {
 	struct uart_sunsu_port *up = dev_get_drvdata(&op->dev);
+	bool kbdms = false;
 
 	if (up->su_type == SU_PORT_MS ||
-	    up->su_type == SU_PORT_KBD) {
+	    up->su_type == SU_PORT_KBD)
+		kbdms = true;
+
+	if (kbdms) {
 #ifdef CONFIG_SERIO
 		serio_unregister_port(&up->serio);
 #endif
-		kfree(up);
-	} else if (up->port.type != PORT_UNKNOWN) {
+	} else if (up->port.type != PORT_UNKNOWN)
 		uart_remove_one_port(&sunsu_reg, &up->port);
-	}
 
 	if (up->port.membase)
 		of_iounmap(&op->resource[0], up->port.membase, up->reg_size);
+
+	if (kbdms)
+		kfree(up);
 
 	dev_set_drvdata(&op->dev, NULL);
 
@@ -1581,7 +1586,7 @@ static int __init sunsu_init(void)
 			return err;
 	}
 
-	err = of_register_driver(&su_driver, &of_bus_type);
+	err = of_register_platform_driver(&su_driver);
 	if (err && num_uart)
 		sunserial_unregister_minors(&sunsu_reg, num_uart);
 

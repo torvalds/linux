@@ -69,6 +69,15 @@ static void grf5101_write_phy_antenna(struct ieee80211_hw *dev, short chan)
 	rtl8180_write_phy(dev, 0x10, ant);
 }
 
+static u8 grf5101_rf_calc_rssi(u8 agc, u8 sq)
+{
+	if (agc > 60)
+		return 65;
+
+	/* TODO(?): just return agc (or agc + 5) to avoid mult / div */
+	return 65 * agc / 60;
+}
+
 static void grf5101_rf_set_channel(struct ieee80211_hw *dev,
 				   struct ieee80211_conf *conf)
 {
@@ -176,5 +185,6 @@ const struct rtl818x_rf_ops grf5101_rf_ops = {
 	.name		= "GCT",
 	.init		= grf5101_rf_init,
 	.stop		= grf5101_rf_stop,
-	.set_chan	= grf5101_rf_set_channel
+	.set_chan	= grf5101_rf_set_channel,
+	.calc_rssi	= grf5101_rf_calc_rssi,
 };

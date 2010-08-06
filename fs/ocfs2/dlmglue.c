@@ -2966,7 +2966,7 @@ static const struct seq_operations ocfs2_dlm_seq_ops = {
 
 static int ocfs2_dlm_debug_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq = (struct seq_file *) file->private_data;
+	struct seq_file *seq = file->private_data;
 	struct ocfs2_dlm_seq_priv *priv = seq->private;
 	struct ocfs2_lock_res *res = &priv->p_iter_res;
 
@@ -3000,7 +3000,7 @@ static int ocfs2_dlm_debug_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	seq = (struct seq_file *) file->private_data;
+	seq = file->private_data;
 	seq->private = priv;
 
 	ocfs2_add_lockres_tracking(&priv->p_iter_res,

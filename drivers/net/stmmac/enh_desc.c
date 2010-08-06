@@ -123,7 +123,7 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	 */
 	if (status == 0x0) {
 		CHIP_DBG(KERN_INFO "RX Des0 status: IEEE 802.3 Type frame.\n");
-		ret = good_frame;
+		ret = llc_snap;
 	} else if (status == 0x4) {
 		CHIP_DBG(KERN_INFO "RX Des0 status: IPv4/6 No CSUM errorS.\n");
 		ret = good_frame;

@@ -36,11 +36,11 @@ struct sd {
 	unsigned char colors;
 	unsigned char lightfreq;
 	u8 quality;
-#define QUALITY_MIN 60
+#define QUALITY_MIN 70
 #define QUALITY_MAX 95
-#define QUALITY_DEF 80
+#define QUALITY_DEF 88
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -337,9 +337,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int ret, value;
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -410,13 +407,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x0650, 0);
 	reg_w(gspca_dev, 0x0660, 0);
 	PDEBUG(D_STREAM, "camera stopped");
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	kfree(sd->jpeg_hdr);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -578,7 +568,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,

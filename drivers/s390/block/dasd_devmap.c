@@ -948,8 +948,10 @@ static ssize_t dasd_alias_show(struct device *dev,
 	if (device->discipline && device->discipline->get_uid &&
 	    !device->discipline->get_uid(device, &uid)) {
 		if (uid.type == UA_BASE_PAV_ALIAS ||
-		    uid.type == UA_HYPER_PAV_ALIAS)
+		    uid.type == UA_HYPER_PAV_ALIAS) {
+			dasd_put_device(device);
 			return sprintf(buf, "1\n");
+		}
 	}
 	dasd_put_device(device);
 

@@ -198,7 +198,7 @@ static unsigned long pci_parse_of_flags(u32 addr0)
  * into physical address resources, we only have to figure out the register
  * mapping.
  */
-static void pci_parse_of_addrs(struct of_device *op,
+static void pci_parse_of_addrs(struct platform_device *op,
 			       struct device_node *node,
 			       struct pci_dev *dev)
 {
@@ -248,7 +248,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 {
 	struct dev_archdata *sd;
 	struct pci_slot *slot;
-	struct of_device *op;
+	struct platform_device *op;
 	struct pci_dev *dev;
 	const char *type;
 	u32 class;
@@ -340,7 +340,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
 
-		dev->irq = sd->op->irqs[0];
+		dev->irq = sd->op->archdata.irqs[0];
 		if (dev->irq == 0xffffffff)
 			dev->irq = PCI_IRQ_NONE;
 	}

@@ -13,12 +13,13 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/seq_file.h>
 #include <generated/utsrelease.h>
 
 #include <asm/machdep.h>
 #include <asm/cputable.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/i8259.h>
 #include <asm/time.h>

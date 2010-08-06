@@ -133,6 +133,8 @@ bfa_ioim_sm_uninit(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 
 	case BFA_IOIM_SM_IOTOV:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
 				__bfa_cb_ioim_pathtov, ioim);
 		break;
@@ -182,6 +184,8 @@ bfa_ioim_sm_sgalloc(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_ABORT:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_sgpg_wcancel(ioim->bfa, &ioim->iosp->sgpg_wqe);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
@@ -189,6 +193,8 @@ bfa_ioim_sm_sgalloc(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_sgpg_wcancel(ioim->bfa, &ioim->iosp->sgpg_wqe);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -210,18 +216,24 @@ bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	switch (event) {
 	case BFA_IOIM_SM_COMP_GOOD:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
 			      __bfa_cb_ioim_good_comp, ioim);
 		break;
 
 	case BFA_IOIM_SM_COMP:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_comp,
 			      ioim);
 		break;
 
 	case BFA_IOIM_SM_DONE:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb_free);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_comp,
 			      ioim);
 		break;
@@ -234,8 +246,8 @@ bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 			bfa_sm_set_state(ioim, bfa_ioim_sm_abort);
 		else {
 			bfa_sm_set_state(ioim, bfa_ioim_sm_abort_qfull);
-			bfa_reqq_wait(ioim->bfa, ioim->itnim->reqq,
-					  &ioim->iosp->reqq_wait);
+			bfa_reqq_wait(ioim->bfa, ioim->reqq,
+					&ioim->iosp->reqq_wait);
 		}
 		break;
 
@@ -247,13 +259,15 @@ bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 			bfa_sm_set_state(ioim, bfa_ioim_sm_cleanup);
 		else {
 			bfa_sm_set_state(ioim, bfa_ioim_sm_cleanup_qfull);
-			bfa_reqq_wait(ioim->bfa, ioim->itnim->reqq,
-					  &ioim->iosp->reqq_wait);
+			bfa_reqq_wait(ioim->bfa, ioim->reqq,
+					&ioim->iosp->reqq_wait);
 		}
 		break;
 
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -287,12 +301,16 @@ bfa_ioim_sm_abort(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 
 	case BFA_IOIM_SM_ABORT_COMP:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
 
 	case BFA_IOIM_SM_COMP_UTAG:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
@@ -305,13 +323,15 @@ bfa_ioim_sm_abort(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 			bfa_sm_set_state(ioim, bfa_ioim_sm_cleanup);
 		else {
 			bfa_sm_set_state(ioim, bfa_ioim_sm_cleanup_qfull);
-			bfa_reqq_wait(ioim->bfa, ioim->itnim->reqq,
+			bfa_reqq_wait(ioim->bfa, ioim->reqq,
 					  &ioim->iosp->reqq_wait);
 		}
 		break;
 
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -365,6 +385,8 @@ bfa_ioim_sm_cleanup(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -399,6 +421,8 @@ bfa_ioim_sm_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_ABORT:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
@@ -414,6 +438,8 @@ bfa_ioim_sm_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -448,6 +474,8 @@ bfa_ioim_sm_abort_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_COMP:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
@@ -455,6 +483,8 @@ bfa_ioim_sm_abort_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_DONE:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb_free);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_abort,
 			      ioim);
 		break;
@@ -462,6 +492,8 @@ bfa_ioim_sm_abort_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -488,7 +520,7 @@ bfa_ioim_sm_cleanup_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 
 	case BFA_IOIM_SM_ABORT:
 		/**
-		 * IO is alraedy being cleaned up implicitly
+		 * IO is already being cleaned up implicitly
 		 */
 		ioim->io_cbfn = __bfa_cb_ioim_abort;
 		break;
@@ -511,6 +543,8 @@ bfa_ioim_sm_cleanup_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	case BFA_IOIM_SM_HWFAIL:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 		bfa_reqq_wcancel(&ioim->iosp->reqq_wait);
+		list_del(&ioim->qe);
+		list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe, __bfa_cb_ioim_failed,
 			      ioim);
 		break;
@@ -738,9 +772,9 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	/**
 	 * check for room in queue to send request now
 	 */
-	m = bfa_reqq_next(ioim->bfa, itnim->reqq);
+	m = bfa_reqq_next(ioim->bfa, ioim->reqq);
 	if (!m) {
-		bfa_reqq_wait(ioim->bfa, ioim->itnim->reqq,
+		bfa_reqq_wait(ioim->bfa, ioim->reqq,
 				  &ioim->iosp->reqq_wait);
 		return BFA_FALSE;
 	}
@@ -832,7 +866,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	/**
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(ioim->bfa, itnim->reqq);
+	bfa_reqq_produce(ioim->bfa, ioim->reqq);
 	return BFA_TRUE;
 }
 
@@ -930,14 +964,13 @@ bfa_ioim_sgpg_setup(struct bfa_ioim_s *ioim)
 static          bfa_boolean_t
 bfa_ioim_send_abort(struct bfa_ioim_s *ioim)
 {
-	struct bfa_itnim_s          *itnim = ioim->itnim;
 	struct bfi_ioim_abort_req_s *m;
 	enum bfi_ioim_h2i       msgop;
 
 	/**
 	 * check for room in queue to send request now
 	 */
-	m = bfa_reqq_next(ioim->bfa, itnim->reqq);
+	m = bfa_reqq_next(ioim->bfa, ioim->reqq);
 	if (!m)
 		return BFA_FALSE;
 
@@ -956,7 +989,7 @@ bfa_ioim_send_abort(struct bfa_ioim_s *ioim)
 	/**
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(ioim->bfa, itnim->reqq);
+	bfa_reqq_produce(ioim->bfa, ioim->reqq);
 	return BFA_TRUE;
 }
 
@@ -1306,6 +1339,14 @@ void
 bfa_ioim_start(struct bfa_ioim_s *ioim)
 {
 	bfa_trc_fp(ioim->bfa, ioim->iotag);
+
+	/**
+	 * Obtain the queue over which this request has to be issued
+	 */
+	ioim->reqq = bfa_fcpim_ioredirect_enabled(ioim->bfa) ?
+			bfa_cb_ioim_get_reqq(ioim->dio) :
+			bfa_itnim_get_reqq(ioim);
+
 	bfa_sm_send_event(ioim, BFA_IOIM_SM_START);
 }
 

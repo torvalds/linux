@@ -325,7 +325,6 @@ int cpm2_gpiochip_add32(struct device_node *np)
 {
 	struct cpm2_gpio32_chip *cpm2_gc;
 	struct of_mm_gpio_chip *mm_gc;
-	struct of_gpio_chip *of_gc;
 	struct gpio_chip *gc;
 
 	cpm2_gc = kzalloc(sizeof(*cpm2_gc), GFP_KERNEL);
@@ -335,11 +334,9 @@ int cpm2_gpiochip_add32(struct device_node *np)
 	spin_lock_init(&cpm2_gc->lock);
 
 	mm_gc = &cpm2_gc->mm_gc;
-	of_gc = &mm_gc->of_gc;
-	gc = &of_gc->gc;
+	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = cpm2_gpio32_save_regs;
-	of_gc->gpio_cells = 2;
 	gc->ngpio = 32;
 	gc->direction_input = cpm2_gpio32_dir_in;
 	gc->direction_output = cpm2_gpio32_dir_out;

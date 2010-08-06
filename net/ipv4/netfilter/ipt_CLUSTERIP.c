@@ -53,12 +53,13 @@ struct clusterip_config {
 #endif
 	enum clusterip_hashmode hash_mode;	/* which hashing mode */
 	u_int32_t hash_initval;			/* hash initialization */
+	struct rcu_head rcu;
 };
 
 static LIST_HEAD(clusterip_configs);
 
 /* clusterip_lock protects the clusterip_configs list */
-static DEFINE_RWLOCK(clusterip_lock);
+static DEFINE_SPINLOCK(clusterip_lock);
 
 #ifdef CONFIG_PROC_FS
 static const struct file_operations clusterip_proc_fops;
@@ -71,11 +72,17 @@ clusterip_config_get(struct clusterip_config *c)
 	atomic_inc(&c->refcount);
 }
 
+
+static void clusterip_config_rcu_free(struct rcu_head *head)
+{
+	kfree(container_of(head, struct clusterip_config, rcu));
+}
+
 static inline void
 clusterip_config_put(struct clusterip_config *c)
 {
 	if (atomic_dec_and_test(&c->refcount))
-		kfree(c);
+		call_rcu_bh(&c->rcu, clusterip_config_rcu_free);
 }
 
 /* decrease the count of entries using/referencing this config.  If last
@@ -84,10 +91,11 @@ clusterip_config_put(struct clusterip_config *c)
 static inline void
 clusterip_config_entry_put(struct clusterip_config *c)
 {
-	write_lock_bh(&clusterip_lock);
-	if (atomic_dec_and_test(&c->entries)) {
-		list_del(&c->list);
-		write_unlock_bh(&clusterip_lock);
+	local_bh_disable();
+	if (atomic_dec_and_lock(&c->entries, &clusterip_lock)) {
+		list_del_rcu(&c->list);
+		spin_unlock(&clusterip_lock);
+		local_bh_enable();
 
 		dev_mc_del(c->dev, c->clustermac);
 		dev_put(c->dev);
@@ -100,7 +108,7 @@ clusterip_config_entry_put(struct clusterip_config *c)
 #endif
 		return;
 	}
-	write_unlock_bh(&clusterip_lock);
+	local_bh_enable();
 }
 
 static struct clusterip_config *
@@ -108,7 +116,7 @@ __clusterip_config_find(__be32 clusterip)
 {
 	struct clusterip_config *c;
 
-	list_for_each_entry(c, &clusterip_configs, list) {
+	list_for_each_entry_rcu(c, &clusterip_configs, list) {
 		if (c->clusterip == clusterip)
 			return c;
 	}
@@ -121,16 +129,15 @@ clusterip_config_find_get(__be32 clusterip, int entry)
 {
 	struct clusterip_config *c;
 
-	read_lock_bh(&clusterip_lock);
+	rcu_read_lock_bh();
 	c = __clusterip_config_find(clusterip);
-	if (!c) {
-		read_unlock_bh(&clusterip_lock);
-		return NULL;
+	if (c) {
+		if (unlikely(!atomic_inc_not_zero(&c->refcount)))
+			c = NULL;
+		else if (entry)
+			atomic_inc(&c->entries);
 	}
-	atomic_inc(&c->refcount);
-	if (entry)
-		atomic_inc(&c->entries);
-	read_unlock_bh(&clusterip_lock);
+	rcu_read_unlock_bh();
 
 	return c;
 }
@@ -181,9 +188,9 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 	}
 #endif
 
-	write_lock_bh(&clusterip_lock);
-	list_add(&c->list, &clusterip_configs);
-	write_unlock_bh(&clusterip_lock);
+	spin_lock_bh(&clusterip_lock);
+	list_add_rcu(&c->list, &clusterip_configs);
+	spin_unlock_bh(&clusterip_lock);
 
 	return c;
 }
@@ -462,7 +469,7 @@ struct arp_payload {
 	__be32 src_ip;
 	u_int8_t dst_hw[ETH_ALEN];
 	__be32 dst_ip;
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef DEBUG
 static void arp_print(struct arp_payload *payload)
@@ -733,6 +740,9 @@ static void __exit clusterip_tg_exit(void)
 #endif
 	nf_unregister_hook(&cip_arp_ops);
 	xt_unregister_target(&clusterip_tg_reg);
+
+	/* Wait for completion of call_rcu_bh()'s (clusterip_config_rcu_free) */
+	rcu_barrier_bh();
 }
 
 module_init(clusterip_tg_init);

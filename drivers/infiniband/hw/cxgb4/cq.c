@@ -77,7 +77,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
 	return ret;
 }
@@ -112,7 +112,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		ret = -ENOMEM;
 		goto err3;
 	}
-	pci_unmap_addr_set(cq, mapping, cq->dma_addr);
+	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
 	memset(cq->queue, 0, cq->memsize);
 
 	/* build fw_ri_res_wr */
@@ -179,7 +179,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	return 0;
 err4:
 	dma_free_coherent(&rdev->lldi.pdev->dev, cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 err3:
 	kfree(cq->sw_queue);
 err2:
@@ -764,7 +764,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	struct c4iw_create_cq_resp uresp;
 	struct c4iw_ucontext *ucontext = NULL;
 	int ret;
-	size_t memsize;
+	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
@@ -788,14 +788,29 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	 * entries must be multiple of 16 for HW.
 	 */
 	entries = roundup(entries, 16);
-	memsize = entries * sizeof *chp->cq.queue;
+
+	/*
+	 * Make actual HW queue 2x to avoid cdix_inc overflows.
+	 */
+	hwentries = entries * 2;
+
+	/*
+	 * Make HW queue at least 64 entries so GTS updates aren't too
+	 * frequent.
+	 */
+	if (hwentries < 64)
+		hwentries = 64;
+
+	memsize = hwentries * sizeof *chp->cq.queue;
 
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (ucontext) {
 		memsize = roundup(memsize, PAGE_SIZE);
-	chp->cq.size = entries;
+		hwentries = memsize / sizeof *chp->cq.queue;
+	}
+	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
 
 	ret = create_cq(&rhp->rdev, &chp->cq,
@@ -805,7 +820,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 
 	chp->rhp = rhp;
 	chp->cq.size--;				/* status page */
-	chp->ibcq.cqe = chp->cq.size - 1;
+	chp->ibcq.cqe = entries - 2;
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);

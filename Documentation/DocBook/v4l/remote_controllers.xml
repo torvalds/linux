@@ -173,3 +173,5 @@ keymapping.</para>
 <para>This program demonstrates how to replace the keymap tables.</para>
 &sub-keytable-c;
 </section>
+
+&sub-lirc_device_interface;

@@ -580,10 +580,8 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			   fsp, seq_blen, lport->lso_max, t_blen);
 	}
 
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);
 	if (t_blen > 512)
 		t_blen &= ~(512 - 1);	/* round down to block size */
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);	/* won't go below 256 */
 	sc = fsp->cmd;
 
 	remaining = seq_blen;
@@ -745,7 +743,7 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
 
-	if (!(lport->state & LPORT_ST_READY))
+	if (lport->state != LPORT_ST_READY)
 		goto out;
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
@@ -1110,7 +1108,7 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_UNSOL_CMD, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 
 	seq = lport->tt.exch_seq_send(lport, fp, resp, fc_fcp_pkt_destroy,
 				      fsp, 0);
@@ -1383,7 +1381,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	fr_seq(fp) = fsp->seq_ptr;
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_ELS,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 	if (lport->tt.elsct_send(lport, rport->port_id, fp, ELS_REC,
 				 fc_fcp_rec_resp, fsp,
 				 jiffies_to_msecs(FC_SCSI_REC_TOV))) {
@@ -1641,7 +1639,7 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS4_REQ, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 
 	seq = lport->tt.exch_seq_send(lport, fp, fc_fcp_srr_resp, NULL,
 				      fsp, jiffies_to_msecs(FC_SCSI_REC_TOV));
@@ -1971,6 +1969,11 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 			   "due to unknown error\n");
 		sc_cmd->result = (DID_ERROR << 16);
 		break;
+	}
+
+	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE) {
+		sc_cmd->result = (DID_REQUEUE << 16);
+		FC_FCP_DBG(fsp, "Returning DID_REQUEUE to scsi-ml\n");
 	}
 
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);

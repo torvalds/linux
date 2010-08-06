@@ -31,6 +31,7 @@
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/hvcall.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
@@ -71,11 +72,13 @@ static void rpavscsi_release_crq_queue(struct crq_queue *queue,
 				       struct ibmvscsi_host_data *hostdata,
 				       int max_requests)
 {
-	long rc;
+	long rc = 0;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
 	free_irq(vdev->irq, (void *)hostdata);
 	tasklet_kill(&hostdata->srp_task);
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 	dma_unmap_single(hostdata->dev,
@@ -200,11 +203,13 @@ static void set_adapter_info(struct ibmvscsi_host_data *hostdata)
 static int rpavscsi_reset_crq_queue(struct crq_queue *queue,
 				    struct ibmvscsi_host_data *hostdata)
 {
-	int rc;
+	int rc = 0;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
 
 	/* Close the CRQ */
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 
@@ -277,6 +282,12 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto reg_crq_failed;
 	}
 
+	queue->cur = 0;
+	spin_lock_init(&queue->lock);
+
+	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
+		     (unsigned long)hostdata);
+
 	if (request_irq(vdev->irq,
 			rpavscsi_handle_event,
 			0, "ibmvscsi", (void *)hostdata) != 0) {
@@ -291,16 +302,14 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 		goto req_irq_failed;
 	}
 
-	queue->cur = 0;
-	spin_lock_init(&queue->lock);
-
-	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
-		     (unsigned long)hostdata);
-
 	return retrc;
 
       req_irq_failed:
+	tasklet_kill(&hostdata->srp_task);
+	rc = 0;
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
       reg_crq_failed:
@@ -322,11 +331,13 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 static int rpavscsi_reenable_crq_queue(struct crq_queue *queue,
 				       struct ibmvscsi_host_data *hostdata)
 {
-	int rc;
+	int rc = 0;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
 
 	/* Re-enable the CRQ */
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
 	} while ((rc == H_IN_PROGRESS) || (rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 

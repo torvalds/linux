@@ -735,7 +735,7 @@ error:
 
 struct af9015_setup {
 	unsigned int id;
-	struct dvb_usb_rc_key *rc_key_map;
+	struct ir_scancode *rc_key_map;
 	unsigned int rc_key_map_size;
 	u8 *ir_table;
 	unsigned int ir_table_size;
@@ -847,8 +847,8 @@ static void af9015_set_remote_config(struct usb_device *udev,
 	}
 
 	if (table) {
-		props->rc_key_map = table->rc_key_map;
-		props->rc_key_map_size = table->rc_key_map_size;
+		props->rc.legacy.rc_key_map = table->rc_key_map;
+		props->rc.legacy.rc_key_map_size = table->rc_key_map_size;
 		af9015_config.ir_table = table->ir_table;
 		af9015_config.ir_table_size = table->ir_table_size;
 	}
@@ -878,8 +878,8 @@ static int af9015_read_config(struct usb_device *udev)
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED) {
-			af9015_properties[i].rc_key_map = NULL;
-			af9015_properties[i].rc_key_map_size  = 0;
+			af9015_properties[i].rc.legacy.rc_key_map = NULL;
+			af9015_properties[i].rc.legacy.rc_key_map_size  = 0;
 		} else
 			af9015_set_remote_config(udev, &af9015_properties[i]);
 	}
@@ -1063,7 +1063,7 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[8];
 	struct req_t req = {GET_IR_CODE, 0, 0, 0, 0, sizeof(buf), buf};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	int i, ret;
 
 	memset(buf, 0, sizeof(buf));
@@ -1075,10 +1075,10 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
 		    rc5_data(&keymap[i]) == buf[2]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 			break;
 		}
@@ -1299,6 +1299,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV2000DS)},
 /* 30 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_UB383_T)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1353,8 +1354,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1460,8 +1463,10 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
@@ -1567,12 +1572,14 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc_query         = af9015_rc_query,
-		.rc_interval      = 150,
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 8, /* max 9 */
+		.num_device_descs = 9, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
@@ -1615,6 +1622,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "KWorld USB DVB-T Stick Mobile " \
 					"(UB383-T)",
 				.cold_ids = {&af9015_usb_table[30], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "AverMedia AVerTV Volar M (A815Mac)",
+				.cold_ids = {&af9015_usb_table[32], NULL},
 				.warm_ids = {NULL},
 			},
 		}

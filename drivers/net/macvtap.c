@@ -58,7 +58,7 @@ static struct proto macvtap_proto = {
  * only has one tap, the interface numbers assure that the
  * device nodes are unique.
  */
-static unsigned int macvtap_major;
+static dev_t macvtap_major;
 #define MACVTAP_NUM_DEVS 65536
 static struct class *macvtap_class;
 static struct cdev macvtap_cdev;
@@ -180,11 +180,18 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 {
 	struct macvtap_queue *q = macvtap_get_queue(dev, skb);
 	if (!q)
-		return -ENOLINK;
+		goto drop;
+
+	if (skb_queue_len(&q->sk.sk_receive_queue) >= dev->tx_queue_len)
+		goto drop;
 
 	skb_queue_tail(&q->sk.sk_receive_queue, skb);
 	wake_up_interruptible_poll(sk_sleep(&q->sk), POLLIN | POLLRDNORM | POLLRDBAND);
-	return 0;
+	return NET_RX_SUCCESS;
+
+drop:
+	kfree_skb(skb);
+	return NET_RX_DROP;
 }
 
 /*
@@ -235,8 +242,15 @@ static void macvtap_dellink(struct net_device *dev,
 	macvlan_dellink(dev, head);
 }
 
+static void macvtap_setup(struct net_device *dev)
+{
+	macvlan_common_setup(dev);
+	dev->tx_queue_len = TUN_READQ_SIZE;
+}
+
 static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 	.kind		= "macvtap",
+	.setup		= macvtap_setup,
 	.newlink	= macvtap_newlink,
 	.dellink	= macvtap_dellink,
 };

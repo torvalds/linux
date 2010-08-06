@@ -108,6 +108,7 @@ enum rx_frame_status { /* IPC status */
 	good_frame = 0,
 	discard_frame = 1,
 	csum_none = 2,
+	llc_snap = 4,
 };
 
 enum tx_dma_irq_status {

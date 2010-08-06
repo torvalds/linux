@@ -18,8 +18,8 @@
 #include <net/tcp.h>
 #include <net/route.h>
 
-/* Timestamps: lowest 9 bits store TCP options */
-#define TSBITS 9
+/* Timestamps: lowest bits store TCP options */
+#define TSBITS 6
 #define TSMASK (((__u32)1 << TSBITS) - 1)
 
 extern int sysctl_tcp_syncookies;
@@ -58,7 +58,7 @@ static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 
 /*
  * when syncookies are in effect and tcp timestamps are enabled we encode
- * tcp options in the lowest 9 bits of the timestamp value that will be
+ * tcp options in the lower bits of the timestamp value that will be
  * sent in the syn-ack.
  * Since subsequent timestamps use the normal tcp_time_stamp value, we
  * must make sure that the resulting initial timestamp is <= tcp_time_stamp.
@@ -70,11 +70,10 @@ __u32 cookie_init_timestamp(struct request_sock *req)
 	u32 options = 0;
 
 	ireq = inet_rsk(req);
-	if (ireq->wscale_ok) {
-		options = ireq->snd_wscale;
-		options |= ireq->rcv_wscale << 4;
-	}
-	options |= ireq->sack_ok << 8;
+
+	options = ireq->wscale_ok ? ireq->snd_wscale : 0xf;
+	options |= ireq->sack_ok << 4;
+	options |= ireq->ecn_ok << 5;
 
 	ts = ts_now & ~TSMASK;
 	ts |= options;
@@ -138,23 +137,23 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
 }
 
 /*
- * This table has to be sorted and terminated with (__u16)-1.
- * XXX generate a better table.
- * Unresolved Issues: HIPPI with a 64k MSS is not well supported.
+ * MSS Values are taken from the 2009 paper
+ * 'Measuring TCP Maximum Segment Size' by S. Alcock and R. Nelson:
+ *  - values 1440 to 1460 accounted for 80% of observed mss values
+ *  - values outside the 536-1460 range are rare (<0.2%).
+ *
+ * Table must be sorted.
  */
 static __u16 const msstab[] = {
-	64 - 1,
-	256 - 1,
-	512 - 1,
-	536 - 1,
-	1024 - 1,
-	1440 - 1,
-	1460 - 1,
-	4312 - 1,
-	(__u16)-1
+	64,
+	512,
+	536,
+	1024,
+	1440,
+	1460,
+	4312,
+	8960,
 };
-/* The number doesn't include the -1 terminator */
-#define NUM_MSS (ARRAY_SIZE(msstab) - 1)
 
 /*
  * Generate a syncookie.  mssp points to the mss, which is returned
@@ -169,10 +168,10 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 
 	tcp_synq_overflow(sk);
 
-	/* XXX sort msstab[] by probability?  Binary search? */
-	for (mssind = 0; mss > msstab[mssind + 1]; mssind++)
-		;
-	*mssp = msstab[mssind] + 1;
+	for (mssind = ARRAY_SIZE(msstab) - 1; mssind ; mssind--)
+		if (mss >= msstab[mssind])
+			break;
+	*mssp = msstab[mssind];
 
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 
@@ -202,7 +201,7 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 					    jiffies / (HZ * 60),
 					    COUNTER_TRIES);
 
-	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
+	return mssind < ARRAY_SIZE(msstab) ? msstab[mssind] : 0;
 }
 
 static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
@@ -227,26 +226,38 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
  * additional tcp options in the timestamp.
  * This extracts these options from the timestamp echo.
  *
- * The lowest 4 bits are for snd_wscale
- * The next 4 lsb are for rcv_wscale
- * The next lsb is for sack_ok
+ * The lowest 4 bits store snd_wscale.
+ * next 2 bits indicate SACK and ECN support.
+ *
+ * return false if we decode an option that should not be.
  */
-void cookie_check_timestamp(struct tcp_options_received *tcp_opt)
+bool cookie_check_timestamp(struct tcp_options_received *tcp_opt, bool *ecn_ok)
 {
-	/* echoed timestamp, 9 lowest bits contain options */
+	/* echoed timestamp, lowest bits contain options */
 	u32 options = tcp_opt->rcv_tsecr & TSMASK;
 
-	tcp_opt->snd_wscale = options & 0xf;
-	options >>= 4;
-	tcp_opt->rcv_wscale = options & 0xf;
+	if (!tcp_opt->saw_tstamp)  {
+		tcp_clear_options(tcp_opt);
+		return true;
+	}
+
+	if (!sysctl_tcp_timestamps)
+		return false;
 
 	tcp_opt->sack_ok = (options >> 4) & 0x1;
+	*ecn_ok = (options >> 5) & 1;
+	if (*ecn_ok && !sysctl_tcp_ecn)
+		return false;
 
-	if (tcp_opt->sack_ok)
-		tcp_sack_reset(tcp_opt);
+	if (tcp_opt->sack_ok && !sysctl_tcp_sack)
+		return false;
 
-	if (tcp_opt->snd_wscale || tcp_opt->rcv_wscale)
-		tcp_opt->wscale_ok = 1;
+	if ((options & 0xf) == 0xf)
+		return true; /* no window scaling */
+
+	tcp_opt->wscale_ok = 1;
+	tcp_opt->snd_wscale = options & 0xf;
+	return sysctl_tcp_window_scaling != 0;
 }
 EXPORT_SYMBOL(cookie_check_timestamp);
 
@@ -265,8 +276,9 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	int mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
+	bool ecn_ok;
 
-	if (!sysctl_tcp_syncookies || !th->ack)
+	if (!sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
 
 	if (tcp_synq_no_recent_overflow(sk) ||
@@ -281,8 +293,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
-	if (tcp_opt.saw_tstamp)
-		cookie_check_timestamp(&tcp_opt);
+	if (!cookie_check_timestamp(&tcp_opt, &ecn_ok))
+		goto out;
 
 	ret = NULL;
 	req = inet_reqsk_alloc(&tcp_request_sock_ops); /* for safety */
@@ -298,9 +310,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	ireq->rmt_port		= th->source;
 	ireq->loc_addr		= ip_hdr(skb)->daddr;
 	ireq->rmt_addr		= ip_hdr(skb)->saddr;
-	ireq->ecn_ok		= 0;
+	ireq->ecn_ok		= ecn_ok;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
-	ireq->rcv_wscale	= tcp_opt.rcv_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;
 	ireq->wscale_ok		= tcp_opt.wscale_ok;
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
@@ -354,15 +365,15 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* Try to redo what tcp_v4_send_synack did. */
-	req->window_clamp = tp->window_clamp ? :dst_metric(&rt->u.dst, RTAX_WINDOW);
+	req->window_clamp = tp->window_clamp ? :dst_metric(&rt->dst, RTAX_WINDOW);
 
 	tcp_select_initial_window(tcp_full_space(sk), req->mss,
 				  &req->rcv_wnd, &req->window_clamp,
 				  ireq->wscale_ok, &rcv_wscale,
-				  dst_metric(&rt->u.dst, RTAX_INITRWND));
+				  dst_metric(&rt->dst, RTAX_INITRWND));
 
 	ireq->rcv_wscale  = rcv_wscale;
 
-	ret = get_cookie_sock(sk, skb, req, &rt->u.dst);
+	ret = get_cookie_sock(sk, skb, req, &rt->dst);
 out:	return ret;
 }

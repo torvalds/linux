@@ -106,19 +106,19 @@ struct rfcomm_hdr {
 	u8 addr;
 	u8 ctrl;
 	u8 len;    // Actual size can be 2 bytes
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_cmd {
 	u8 addr;
 	u8 ctrl;
 	u8 len;
 	u8 fcs;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_mcc {
 	u8 type;
 	u8 len;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_pn {
 	u8  dlci;
@@ -128,7 +128,7 @@ struct rfcomm_pn {
 	__le16 mtu;
 	u8  max_retrans;
 	u8  credits;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_rpn {
 	u8  dlci;
@@ -138,17 +138,17 @@ struct rfcomm_rpn {
 	u8  xon_char;
 	u8  xoff_char;
 	__le16 param_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_rls {
 	u8  dlci;
 	u8  status;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfcomm_msc {
 	u8  dlci;
 	u8  v24_sig;
-} __attribute__ ((packed));
+} __packed;
 
 /* ---- Core structures, flags etc ---- */
 

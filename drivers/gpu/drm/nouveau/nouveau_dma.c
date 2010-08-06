@@ -92,11 +92,9 @@ nouveau_dma_init(struct nouveau_channel *chan)
 		return ret;
 
 	/* Map M2MF notifier object - fbcon. */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = nouveau_bo_map(chan->notifier_bo);
-		if (ret)
-			return ret;
-	}
+	ret = nouveau_bo_map(chan->notifier_bo);
+	if (ret)
+		return ret;
 
 	/* Insert NOPS for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);

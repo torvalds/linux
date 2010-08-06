@@ -13,7 +13,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>		/* request_region */
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <asm/atomic.h>
@@ -26,6 +26,7 @@
 #define DRIVER_NAME	"d7s"
 #define PFX		DRIVER_NAME ": "
 
+static DEFINE_MUTEX(d7s_mutex);
 static int sol_compat = 0;		/* Solaris compatibility mode	*/
 
 /* Solaris compatibility flag -
@@ -74,7 +75,6 @@ static int d7s_open(struct inode *inode, struct file *f)
 {
 	if (D7S_MINOR != iminor(inode))
 		return -ENODEV;
-	cycle_kernel_lock();
 	atomic_inc(&d7s_users);
 	return 0;
 }
@@ -110,7 +110,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (D7S_MINOR != iminor(file->f_path.dentry->d_inode))
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&d7s_mutex);
 	switch (cmd) {
 	case D7SIOCWR:
 		/* assign device register values we mask-out D7S_FLIP
@@ -151,7 +151,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		writeb(regs, p->regs);
 		break;
 	};
-	unlock_kernel();
+	mutex_unlock(&d7s_mutex);
 
 	return error;
 }
@@ -277,12 +277,12 @@ static struct of_platform_driver d7s_driver = {
 
 static int __init d7s_init(void)
 {
-	return of_register_driver(&d7s_driver, &of_bus_type);
+	return of_register_platform_driver(&d7s_driver);
 }
 
 static void __exit d7s_exit(void)
 {
-	of_unregister_driver(&d7s_driver);
+	of_unregister_platform_driver(&d7s_driver);
 }
 
 module_init(d7s_init);

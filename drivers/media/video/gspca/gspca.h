@@ -7,7 +7,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
 
 /* compilation option */
 #define GSPCA_DEBUG 1
@@ -148,7 +147,6 @@ enum gspca_packet_type {
 
 struct gspca_frame {
 	__u8 *data;			/* frame buffer */
-	__u8 *data_end;			/* end of frame while filling */
 	int vma_use_count;
 	struct v4l2_buffer v4l2_buf;
 };
@@ -177,13 +175,14 @@ struct gspca_dev {
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
-	struct gspca_frame *cur_frame;		/* frame beeing filled */
+	u8 *image;				/* image beeing filled */
 	__u32 frsz;				/* frame size */
-	char nframes;				/* number of frames */
-	char fr_i;				/* frame being filled */
-	char fr_q;				/* next frame to queue */
-	char fr_o;				/* next frame to dequeue */
+	u32 image_len;				/* current length of image */
+	atomic_t fr_q;				/* next frame to queue */
+	atomic_t fr_i;				/* frame being filled */
 	signed char fr_queue[GSPCA_MAX_FRAMES];	/* frame queue */
+	char nframes;				/* number of frames */
+	u8 fr_o;				/* next frame to dequeue */
 	__u8 last_packet_type;
 	__s8 empty_packet;		/* if (-1) don't check empty packets */
 	__u8 streaming;
@@ -199,6 +198,7 @@ struct gspca_dev {
 	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
 	int usb_err;			/* USB error - protected by usb_lock */
+	u16 pkt_size;			/* ISOC packet size */
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
@@ -209,10 +209,15 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
-	u16 pkt_size;			/* ISOC packet size */
+	u8 audio;			/* presence of audio device */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
+		const struct usb_device_id *id,
+		const struct sd_desc *sd_desc,
+		int dev_size,
+		struct module *module);
+int gspca_dev_probe2(struct usb_interface *intf,
 		const struct usb_device_id *id,
 		const struct sd_desc *sd_desc,
 		int dev_size,
@@ -222,7 +227,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 			enum gspca_packet_type packet_type,
 			const u8 *data,
 			int len);
-struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev);
 #ifdef CONFIG_PM
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);
 int gspca_resume(struct usb_interface *intf);

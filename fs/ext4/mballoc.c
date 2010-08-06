@@ -2704,7 +2704,7 @@ void exit_ext4_mballoc(void)
 
 
 /*
- * Check quota and mark choosed space (ac->ac_b_ex) non-free in bitmaps
+ * Check quota and mark chosen space (ac->ac_b_ex) non-free in bitmaps
  * Returns 0 if success or error code
  */
 static noinline_for_stack int

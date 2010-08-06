@@ -549,8 +549,6 @@ static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
 
-	WARN_ON(cpu_is_offline(cpu));
-
 	mb();	/* order mmio clearing qirr */
 	while (*tgt) {
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt)) {

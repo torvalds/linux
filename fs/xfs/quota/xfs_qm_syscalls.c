@@ -26,25 +26,15 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -248,39 +238,73 @@ out_unlock:
 	return error;
 }
 
+STATIC int
+xfs_qm_scall_trunc_qfile(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino)
+{
+	struct xfs_inode	*ip;
+	struct xfs_trans	*tp;
+	int			error;
+
+	if (ino == NULLFSINO)
+		return 0;
+
+	error = xfs_iget(mp, NULL, ino, 0, 0, &ip);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
+	error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
+				  XFS_TRANS_PERM_LOG_RES,
+				  XFS_ITRUNCATE_LOG_COUNT);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+		goto out_put;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip);
+
+	error = xfs_itruncate_finish(&tp, ip, 0, XFS_DATA_FORK, 1);
+	if (error) {
+		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
+				     XFS_TRANS_ABORT);
+		goto out_unlock;
+	}
+
+	xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+out_put:
+	IRELE(ip);
+	return error;
+}
+
 int
 xfs_qm_scall_trunc_qfiles(
 	xfs_mount_t	*mp,
 	uint		flags)
 {
 	int		error = 0, error2 = 0;
-	xfs_inode_t	*qip;
 
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0) {
 		qdprintk("qtrunc flags=%x m_qflags=%x\n", flags, mp->m_qflags);
 		return XFS_ERROR(EINVAL);
 	}
 
-	if ((flags & XFS_DQ_USER) && mp->m_sb.sb_uquotino != NULLFSINO) {
-		error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino, 0, 0, &qip);
-		if (!error) {
-			error = xfs_truncate_file(mp, qip);
-			IRELE(qip);
-		}
-	}
-
-	if ((flags & (XFS_DQ_GROUP|XFS_DQ_PROJ)) &&
-	    mp->m_sb.sb_gquotino != NULLFSINO) {
-		error2 = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino, 0, 0, &qip);
-		if (!error2) {
-			error2 = xfs_truncate_file(mp, qip);
-			IRELE(qip);
-		}
-	}
+	if (flags & XFS_DQ_USER)
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotino);
+	if (flags & (XFS_DQ_GROUP|XFS_DQ_PROJ))
+		error2 = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotino);
 
 	return error ? error : error2;
 }
-
 
 /*
  * Switch on (a given) quota enforcement for a filesystem.  This takes
@@ -875,8 +899,9 @@ xfs_dqrele_inode(
 		xfs_qm_dqrele(ip->i_gdquot);
 		ip->i_gdquot = NULL;
 	}
-	xfs_iput(ip, XFS_ILOCK_EXCL);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
+	IRELE(ip);
 	return 0;
 }
 
@@ -1143,7 +1168,8 @@ xfs_qm_internalqcheck_adjust(
 	 * of those now.
 	 */
 	if (! ipreleased) {
-		xfs_iput(ip, lock_flags);
+		xfs_iunlock(ip, lock_flags);
+		IRELE(ip);
 		ipreleased = B_TRUE;
 		goto again;
 	}
@@ -1160,7 +1186,8 @@ xfs_qm_internalqcheck_adjust(
 		ASSERT(gd);
 		xfs_qm_internalqcheck_dqadjust(ip, gd);
 	}
-	xfs_iput(ip, lock_flags);
+	xfs_iunlock(ip, lock_flags);
+	IRELE(ip);
 	*res = BULKSTAT_RV_DIDONE;
 	return (0);
 }

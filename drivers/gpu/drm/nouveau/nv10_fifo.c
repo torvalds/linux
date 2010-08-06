@@ -55,7 +55,6 @@ nv10_fifo_create_context(struct nouveau_channel *chan)
 	/* Fill entries that are seen filled in dumps of nvidia driver just
 	 * after channel's is put into DMA mode
 	 */
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
 	nv_wi32(dev, fc +  4, chan->pushbuf_base);
 	nv_wi32(dev, fc + 12, chan->pushbuf->instance >> 4);
@@ -66,7 +65,6 @@ nv10_fifo_create_context(struct nouveau_channel *chan)
 			      NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			      0);
-	dev_priv->engine.instmem.finish_access(dev);
 
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
@@ -90,8 +88,6 @@ nv10_fifo_do_load_context(struct drm_device *dev, int chid)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t fc = NV10_RAMFC(chid), tmp;
-
-	dev_priv->engine.instmem.prepare_access(dev, false);
 
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_PUT, nv_ri32(dev, fc + 0));
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_GET, nv_ri32(dev, fc + 4));
@@ -117,8 +113,6 @@ nv10_fifo_do_load_context(struct drm_device *dev, int chid)
 	nv_wr32(dev, NV10_PFIFO_CACHE1_DMA_SUBROUTINE, nv_ri32(dev, fc + 48));
 
 out:
-	dev_priv->engine.instmem.finish_access(dev);
-
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
 }
@@ -155,8 +149,6 @@ nv10_fifo_unload_context(struct drm_device *dev)
 		return 0;
 	fc = NV10_RAMFC(chid);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
-
 	nv_wi32(dev, fc +  0, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT));
 	nv_wi32(dev, fc +  4, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET));
 	nv_wi32(dev, fc +  8, nv_rd32(dev, NV10_PFIFO_CACHE1_REF_CNT));
@@ -179,8 +171,6 @@ nv10_fifo_unload_context(struct drm_device *dev)
 	nv_wi32(dev, fc + 48, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET));
 
 out:
-	dev_priv->engine.instmem.finish_access(dev);
-
 	nv10_fifo_do_load_context(dev, pfifo->channels - 1);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, pfifo->channels - 1);
 	return 0;

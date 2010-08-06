@@ -571,8 +571,8 @@ auditsys:
 	 * masked off.
 	 */
 sysret_audit:
-	movq %rax,%rsi		/* second arg, syscall return value */
-	cmpq $0,%rax		/* is it < 0? */
+	movq RAX-ARGOFFSET(%rsp),%rsi	/* second arg, syscall return value */
+	cmpq $0,%rsi		/* is it < 0? */
 	setl %al		/* 1 if so, 0 if not */
 	movzbl %al,%edi		/* zero-extend that into %edi */
 	inc %edi /* first arg, 0->1(AUDITSC_SUCCESS), 1->2(AUDITSC_FAILURE) */
@@ -1328,6 +1328,9 @@ ENTRY(xen_failsafe_callback)
 	jmp error_exit
 	CFI_ENDPROC
 END(xen_failsafe_callback)
+
+apicinterrupt XEN_HVM_EVTCHN_CALLBACK \
+	xen_hvm_callback_vector xen_evtchn_do_upcall
 
 #endif /* CONFIG_XEN */
 

@@ -1182,11 +1182,69 @@ static void if_sdio_remove(struct sdio_func *func)
 	lbs_deb_leave(LBS_DEB_SDIO);
 }
 
+static int if_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int ret;
+	struct if_sdio_card *card = sdio_get_drvdata(func);
+
+	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
+
+	lbs_pr_info("%s: suspend: PM flags = 0x%x\n",
+						sdio_func_id(func), flags);
+
+	/* If we aren't being asked to wake on anything, we should bail out
+	 * and let the SD stack power down the card.
+	 */
+	if (card->priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+		lbs_pr_info("Suspend without wake params -- "
+						"powering down card.");
+		return -ENOSYS;
+	}
+
+	if (!(flags & MMC_PM_KEEP_POWER)) {
+		lbs_pr_err("%s: cannot remain alive while host is suspended\n",
+			sdio_func_id(func));
+		return -ENOSYS;
+	}
+
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret)
+		return ret;
+
+	ret = lbs_suspend(card->priv);
+	if (ret)
+		return ret;
+
+	return sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
+}
+
+static int if_sdio_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct if_sdio_card *card = sdio_get_drvdata(func);
+	int ret;
+
+	lbs_pr_info("%s: resume: we're back\n", sdio_func_id(func));
+
+	ret = lbs_resume(card->priv);
+
+	return ret;
+}
+
+static const struct dev_pm_ops if_sdio_pm_ops = {
+	.suspend	= if_sdio_suspend,
+	.resume		= if_sdio_resume,
+};
+
 static struct sdio_driver if_sdio_driver = {
 	.name		= "libertas_sdio",
 	.id_table	= if_sdio_ids,
 	.probe		= if_sdio_probe,
 	.remove		= if_sdio_remove,
+	.drv = {
+		.pm = &if_sdio_pm_ops,
+	},
 };
 
 /*******************************************************************/

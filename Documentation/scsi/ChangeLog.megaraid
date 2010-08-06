@@ -215,7 +215,7 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 
 3.	Convert pci_module_init to pci_register_driver
 	Convert from pci_module_init to pci_register_driver
-	(from:http://kerneljanitors.org/TODO)
+	(from:http://kernelnewbies.org/KernelJanitors/TODO)
 		- Signed-off-by: Domen Puncer <domen@coderock.org>
 
 4.	Use the pre defined DMA mask constants from dma-mapping.h

@@ -13,7 +13,7 @@
 
 #include <linux/crash_dump.h>
 #include <linux/bootmem.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/code-patching.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -33,7 +33,7 @@ unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
 #ifndef CONFIG_RELOCATABLE
 void __init reserve_kdump_trampoline(void)
 {
-	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
+	memblock_reserve(0, KDUMP_RESERVE_LIMIT);
 }
 
 static void __init create_trampoline(unsigned long addr)
@@ -128,9 +128,9 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 	if (!csize)
 		return 0;
 
-	csize = min(csize, PAGE_SIZE);
+	csize = min_t(size_t, csize, PAGE_SIZE);
 
-	if (pfn < max_pfn) {
+	if ((min_low_pfn < pfn) && (pfn < max_pfn)) {
 		vaddr = __va(pfn << PAGE_SHIFT);
 		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
 	} else {

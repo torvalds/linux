@@ -126,7 +126,7 @@ struct ehea_swqe {
 			u8 immediate_data[SWQE2_MAX_IMM];
 			/* 0xd0 */
 			struct ehea_vsgentry sg_list[EHEA_MAX_WQE_SG_ENTRIES-1];
-		} immdata_desc __attribute__ ((packed));
+		} immdata_desc __packed;
 
 		/*  Send WQE Format 3 */
 		struct {

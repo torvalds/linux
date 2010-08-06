@@ -463,6 +463,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 				break;
 
 			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
+				set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
 				cpu_maps_update_done();
 				rc = cpu_down(cpu);
 				if (rc)

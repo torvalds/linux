@@ -938,16 +938,16 @@ out_free:	dev_kfree_skb(skb);
 
 		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
 				       FW_WR_IMMDLEN(sizeof(*lso)));
-		lso->lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
-				      LSO_FIRST_SLICE | LSO_LAST_SLICE |
-				      LSO_IPV6(v6) |
-				      LSO_ETHHDR_LEN(eth_xtra_len / 4) |
-				      LSO_IPHDR_LEN(l3hdr_len / 4) |
-				      LSO_TCPHDR_LEN(tcp_hdr(skb)->doff));
-		lso->ipid_ofst = htons(0);
-		lso->mss = htons(ssi->gso_size);
-		lso->seqno_offset = htonl(0);
-		lso->len = htonl(skb->len);
+		lso->c.lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
+					LSO_FIRST_SLICE | LSO_LAST_SLICE |
+					LSO_IPV6(v6) |
+					LSO_ETHHDR_LEN(eth_xtra_len / 4) |
+					LSO_IPHDR_LEN(l3hdr_len / 4) |
+					LSO_TCPHDR_LEN(tcp_hdr(skb)->doff));
+		lso->c.ipid_ofst = htons(0);
+		lso->c.mss = htons(ssi->gso_size);
+		lso->c.seqno_offset = htonl(0);
+		lso->c.len = htonl(skb->len);
 		cpl = (void *)(lso + 1);
 		cntrl = TXPKT_CSUM_TYPE(v6 ? TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
 			TXPKT_IPHDR_LEN(l3hdr_len) |
@@ -1593,14 +1593,15 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 
 	if (csum_ok && (pi->rx_offload & RX_CSO) &&
 	    (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
-		if (!pkt->ip_frag)
+		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else {
+			rxq->stats.rx_cso++;
+		} else if (pkt->l2info & htonl(RXF_IP)) {
 			__sum16 c = (__force __sum16)pkt->csum;
 			skb->csum = csum_unfold(c);
 			skb->ip_summed = CHECKSUM_COMPLETE;
+			rxq->stats.rx_cso++;
 		}
-		rxq->stats.rx_cso++;
 	} else
 		skb->ip_summed = CHECKSUM_NONE;
 
@@ -1718,7 +1719,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 					free_rx_bufs(q->adap, &rxq->fl, 1);
 					q->offset = 0;
 				}
-				len &= RSPD_LEN;
+				len = RSPD_LEN(len);
 			}
 			si.tot_len = len;
 
@@ -1998,7 +1999,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD) | FW_CMD_REQUEST |
 			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_IQ_CMD_PFN(0) | FW_IQ_CMD_VFN(0));
+			    FW_IQ_CMD_PFN(adap->fn) | FW_IQ_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC | FW_IQ_CMD_IQSTART(1) |
 				 FW_LEN16(c));
 	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
@@ -2030,7 +2031,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		c.fl0addr = cpu_to_be64(fl->addr);
 	}
 
-	ret = t4_wr_mbox(adap, 0, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
 	if (ret)
 		goto err;
 
@@ -2109,7 +2110,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_ETH_CMD) | FW_CMD_REQUEST |
 			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_ETH_CMD_PFN(0) | FW_EQ_ETH_CMD_VFN(0));
+			    FW_EQ_ETH_CMD_PFN(adap->fn) | FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC |
 				 FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
 	c.viid_pkd = htonl(FW_EQ_ETH_CMD_VIID(pi->viid));
@@ -2122,7 +2123,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 				  FW_EQ_ETH_CMD_EQSIZE(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, 0, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
 	if (ret) {
 		kfree(txq->q.sdesc);
 		txq->q.sdesc = NULL;
@@ -2159,7 +2160,8 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST |
 			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_CTRL_CMD_PFN(0) | FW_EQ_CTRL_CMD_VFN(0));
+			    FW_EQ_CTRL_CMD_PFN(adap->fn) |
+			    FW_EQ_CTRL_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC |
 				 FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
 	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID(cmplqid));
@@ -2173,7 +2175,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 				  FW_EQ_CTRL_CMD_EQSIZE(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, 0, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
 	if (ret) {
 		dma_free_coherent(adap->pdev_dev,
 				  nentries * sizeof(struct tx_desc),
@@ -2209,7 +2211,8 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST |
 			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_OFLD_CMD_PFN(0) | FW_EQ_OFLD_CMD_VFN(0));
+			    FW_EQ_OFLD_CMD_PFN(adap->fn) |
+			    FW_EQ_OFLD_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC |
 				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
@@ -2221,7 +2224,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 				  FW_EQ_OFLD_CMD_EQSIZE(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, 0, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
 	if (ret) {
 		kfree(txq->q.sdesc);
 		txq->q.sdesc = NULL;
@@ -2257,8 +2260,8 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
 
 	adap->sge.ingr_map[rq->cntxt_id] = NULL;
-	t4_iq_free(adap, 0, 0, 0, FW_IQ_TYPE_FL_INT_CAP, rq->cntxt_id, fl_id,
-		   0xffff);
+	t4_iq_free(adap, adap->fn, adap->fn, 0, FW_IQ_TYPE_FL_INT_CAP,
+		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,
 			  rq->desc, rq->phys_addr);
 	netif_napi_del(&rq->napi);
@@ -2295,7 +2298,8 @@ void t4_free_sge_resources(struct adapter *adap)
 		if (eq->rspq.desc)
 			free_rspq_fl(adap, &eq->rspq, &eq->fl);
 		if (etq->q.desc) {
-			t4_eth_eq_free(adap, 0, 0, 0, etq->q.cntxt_id);
+			t4_eth_eq_free(adap, adap->fn, adap->fn, 0,
+				       etq->q.cntxt_id);
 			free_tx_desc(adap, &etq->q, etq->q.in_use, true);
 			kfree(etq->q.sdesc);
 			free_txq(adap, &etq->q);
@@ -2318,7 +2322,8 @@ void t4_free_sge_resources(struct adapter *adap)
 
 		if (q->q.desc) {
 			tasklet_kill(&q->qresume_tsk);
-			t4_ofld_eq_free(adap, 0, 0, 0, q->q.cntxt_id);
+			t4_ofld_eq_free(adap, adap->fn, adap->fn, 0,
+					q->q.cntxt_id);
 			free_tx_desc(adap, &q->q, q->q.in_use, false);
 			kfree(q->q.sdesc);
 			__skb_queue_purge(&q->sendq);
@@ -2332,7 +2337,8 @@ void t4_free_sge_resources(struct adapter *adap)
 
 		if (cq->q.desc) {
 			tasklet_kill(&cq->qresume_tsk);
-			t4_ctrl_eq_free(adap, 0, 0, 0, cq->q.cntxt_id);
+			t4_ctrl_eq_free(adap, adap->fn, adap->fn, 0,
+					cq->q.cntxt_id);
 			__skb_queue_purge(&cq->sendq);
 			free_txq(adap, &cq->q);
 		}
@@ -2400,6 +2406,7 @@ void t4_sge_stop(struct adapter *adap)
  */
 void t4_sge_init(struct adapter *adap)
 {
+	unsigned int i, v;
 	struct sge *s = &adap->sge;
 	unsigned int fl_align_log = ilog2(FL_ALIGN);
 
@@ -2408,8 +2415,10 @@ void t4_sge_init(struct adapter *adap)
 			 INGPADBOUNDARY(fl_align_log - 5) | PKTSHIFT(2) |
 			 RXPKTCPLMODE |
 			 (STAT_LEN == 128 ? EGRSTATUSPAGESIZE : 0));
-	t4_set_reg_field(adap, SGE_HOST_PAGE_SIZE, HOSTPAGESIZEPF0_MASK,
-			 HOSTPAGESIZEPF0(PAGE_SHIFT - 10));
+
+	for (i = v = 0; i < 32; i += 4)
+		v |= (PAGE_SHIFT - 10) << i;
+	t4_write_reg(adap, SGE_HOST_PAGE_SIZE, v);
 	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0, PAGE_SIZE);
 #if FL_PG_ORDER > 0
 	t4_write_reg(adap, SGE_FL_BUFFER_SIZE1, PAGE_SIZE << FL_PG_ORDER);

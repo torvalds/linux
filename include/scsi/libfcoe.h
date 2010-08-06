@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
+#include <linux/random.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
 
@@ -37,6 +38,7 @@
 #define FCOE_CTLR_START_DELAY	2000	/* mS after first adv. to choose FCF */
 #define FCOE_CTRL_SOL_TOV	2000	/* min. solicitation interval (mS) */
 #define FCOE_CTLR_FCF_LIMIT	20	/* max. number of FCF entries */
+#define FCOE_CTLR_VN2VN_LOGIN_LIMIT 3	/* max. VN2VN rport login retries */
 
 /**
  * enum fip_state - internal state of FCoE controller.
@@ -45,6 +47,11 @@
  * @FIP_ST_AUTO:	determining whether to use FIP or non-FIP mode.
  * @FIP_ST_NON_FIP:	non-FIP mode selected.
  * @FIP_ST_ENABLED:	FIP mode selected.
+ * @FIP_ST_VNMP_START:	VN2VN multipath mode start, wait
+ * @FIP_ST_VNMP_PROBE1:	VN2VN sent first probe, listening
+ * @FIP_ST_VNMP_PROBE2:	VN2VN sent second probe, listening
+ * @FIP_ST_VNMP_CLAIM:	VN2VN sent claim, waiting for responses
+ * @FIP_ST_VNMP_UP:	VN2VN multipath mode operation
  */
 enum fip_state {
 	FIP_ST_DISABLED,
@@ -52,7 +59,22 @@ enum fip_state {
 	FIP_ST_AUTO,
 	FIP_ST_NON_FIP,
 	FIP_ST_ENABLED,
+	FIP_ST_VNMP_START,
+	FIP_ST_VNMP_PROBE1,
+	FIP_ST_VNMP_PROBE2,
+	FIP_ST_VNMP_CLAIM,
+	FIP_ST_VNMP_UP,
 };
+
+/*
+ * Modes:
+ * The mode is the state that is to be entered after link up.
+ * It must not change after fcoe_ctlr_init() sets it.
+ */
+#define FIP_MODE_AUTO		FIP_ST_AUTO
+#define FIP_MODE_NON_FIP	FIP_ST_NON_FIP
+#define FIP_MODE_FABRIC		FIP_ST_ENABLED
+#define FIP_MODE_VN2VN		FIP_ST_VNMP_START
 
 /**
  * struct fcoe_ctlr - FCoE Controller and FIP state
@@ -70,19 +92,20 @@ enum fip_state {
  * @timer_work:	   &work_struct for doing keep-alives and resets.
  * @recv_work:	   &work_struct for receiving FIP frames.
  * @fip_recv_list: list of received FIP frames.
+ * @rnd_state:	   state for pseudo-random number generator.
+ * @port_id:	   proposed or selected local-port ID.
  * @user_mfs:	   configured maximum FC frame size, including FC header.
  * @flogi_oxid:    exchange ID of most recent fabric login.
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
  * @spma:	   supports SPMA server-provided MACs mode
- * @send_ctlr_ka:  need to send controller keep alive
- * @send_port_ka:  need to send port keep alives
+ * @probe_tries:   number of FC_IDs probed
  * @dest_addr:	   MAC address of the selected FC forwarder.
  * @ctl_src_addr:  the native MAC address of our local port.
  * @send:	   LLD-supplied function to handle sending FIP Ethernet frames
  * @update_mac:    LLD-supplied function to handle changes to MAC addresses.
  * @get_src_addr:  LLD-supplied function to supply a source MAC address.
- * @lock:	   lock protecting this structure.
+ * @ctlr_mutex:	   lock protecting this structure.
  *
  * This structure is used by all FCoE drivers.  It contains information
  * needed by all FCoE low-level drivers (LLDs) as well as internal state
@@ -103,21 +126,23 @@ struct fcoe_ctlr {
 	struct work_struct timer_work;
 	struct work_struct recv_work;
 	struct sk_buff_head fip_recv_list;
+
+	struct rnd_state rnd_state;
+	u32 port_id;
+
 	u16 user_mfs;
 	u16 flogi_oxid;
 	u8 flogi_count;
-	u8 reset_req;
 	u8 map_dest;
 	u8 spma;
-	u8 send_ctlr_ka;
-	u8 send_port_ka;
+	u8 probe_tries;
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
 
 	void (*send)(struct fcoe_ctlr *, struct sk_buff *);
 	void (*update_mac)(struct fc_lport *, u8 *addr);
 	u8 * (*get_src_addr)(struct fc_lport *);
-	spinlock_t lock;
+	struct mutex ctlr_mutex;
 };
 
 /**
@@ -156,8 +181,26 @@ struct fcoe_fcf {
 	u8 fd_flags:1;
 };
 
+/**
+ * struct fcoe_rport - VN2VN remote port
+ * @time:	time of create or last beacon packet received from node
+ * @fcoe_len:	max FCoE frame size, not including VLAN or Ethernet headers
+ * @flags:	flags from probe or claim
+ * @login_count: number of unsuccessful rport logins to this port
+ * @enode_mac:	E_Node control MAC address
+ * @vn_mac:	VN_Node assigned MAC address for data
+ */
+struct fcoe_rport {
+	unsigned long time;
+	u16 fcoe_len;
+	u16 flags;
+	u8 login_count;
+	u8 enode_mac[ETH_ALEN];
+	u8 vn_mac[ETH_ALEN];
+};
+
 /* FIP API functions */
-void fcoe_ctlr_init(struct fcoe_ctlr *);
+void fcoe_ctlr_init(struct fcoe_ctlr *, enum fip_state);
 void fcoe_ctlr_destroy(struct fcoe_ctlr *);
 void fcoe_ctlr_link_up(struct fcoe_ctlr *);
 int fcoe_ctlr_link_down(struct fcoe_ctlr *);
@@ -168,6 +211,17 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
 
 /* libfcoe funcs */
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
-int fcoe_libfc_config(struct fc_lport *, struct libfc_function_template *);
+int fcoe_libfc_config(struct fc_lport *, struct fcoe_ctlr *,
+		      const struct libfc_function_template *, int init_fcp);
+
+/**
+ * is_fip_mode() - returns true if FIP mode selected.
+ * @fip:	FCoE controller.
+ */
+static inline bool is_fip_mode(struct fcoe_ctlr *fip)
+{
+	return fip->state == FIP_ST_ENABLED;
+}
+
 
 #endif /* _LIBFCOE_H */

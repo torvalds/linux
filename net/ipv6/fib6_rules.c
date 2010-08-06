@@ -43,8 +43,8 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 	if (arg.result)
 		return arg.result;
 
-	dst_hold(&net->ipv6.ip6_null_entry->u.dst);
-	return &net->ipv6.ip6_null_entry->u.dst;
+	dst_hold(&net->ipv6.ip6_null_entry->dst);
+	return &net->ipv6.ip6_null_entry->dst;
 }
 
 static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
@@ -86,7 +86,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 			struct in6_addr saddr;
 
 			if (ipv6_dev_get_saddr(net,
-					       ip6_dst_idev(&rt->u.dst)->dev,
+					       ip6_dst_idev(&rt->dst)->dev,
 					       &flp->fl6_dst,
 					       rt6_flags2srcprefs(flags),
 					       &saddr))
@@ -99,12 +99,12 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto out;
 	}
 again:
-	dst_release(&rt->u.dst);
+	dst_release(&rt->dst);
 	rt = NULL;
 	goto out;
 
 discard_pkt:
-	dst_hold(&rt->u.dst);
+	dst_hold(&rt->dst);
 out:
 	arg->result = rt;
 	return rt == NULL ? -EAGAIN : 0;
