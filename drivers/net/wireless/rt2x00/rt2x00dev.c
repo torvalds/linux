@@ -464,7 +464,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 {
 	struct rxdone_entry_desc rxdesc;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
+	struct ieee80211_rx_status *rx_status;
 	unsigned int header_length;
 	int rate_idx;
 
@@ -535,19 +535,21 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00link_update_stats(rt2x00dev, entry->skb, &rxdesc);
 	rt2x00debug_update_crypto(rt2x00dev, &rxdesc);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 
+	/*
+	 * Initialize RX status information, and send frame
+	 * to mac80211.
+	 */
+	rx_status = IEEE80211_SKB_RXCB(entry->skb);
 	rx_status->mactime = rxdesc.timestamp;
+	rx_status->band = rt2x00dev->curr_band;
+	rx_status->freq = rt2x00dev->curr_freq;
 	rx_status->rate_idx = rate_idx;
 	rx_status->signal = rxdesc.rssi;
 	rx_status->flag = rxdesc.flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
-	/*
-	 * Send frame to mac80211 & debugfs.
-	 * mac80211 will clean up the skb structure.
-	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
-	memcpy(IEEE80211_SKB_RXCB(entry->skb), rx_status, sizeof(*rx_status));
 	ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
 
 	/*

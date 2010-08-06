@@ -699,6 +699,7 @@ struct rt2x00_dev {
 	struct ieee80211_hw *hw;
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	enum ieee80211_band curr_band;
+	int curr_freq;
 
 	/*
 	 * If enabled, the debugfs interface structures
@@ -849,11 +850,6 @@ struct rt2x00_dev {
 	 * to be kept up to date while device is running.
 	 */
 	struct ieee80211_low_level_stats low_level_stats;
-
-	/*
-	 * RX configuration information.
-	 */
-	struct ieee80211_rx_status rx_status;
 
 	/*
 	 * Scheduled work.

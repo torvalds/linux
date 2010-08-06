@@ -494,7 +494,7 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
 	u8 offset1;
 	u8 offset2;
 
-	if (rt2x00dev->rx_status.band == IEEE80211_BAND_2GHZ) {
+	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG, &eeprom);
 		offset0 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET0);
 		offset1 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET1);
