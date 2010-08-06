@@ -336,6 +336,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key_clear(BTN_STYLUS);
 			break;
 
+		case 0x46: /* TabletPick */
+			map_key_clear(BTN_STYLUS2);
+			break;
+
 		default:  goto unknown;
 		}
 		break;
