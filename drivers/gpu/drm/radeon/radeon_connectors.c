@@ -1040,7 +1040,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  bool linkb,
 			  uint32_t igp_lane_info,
 			  uint16_t connector_object_id,
-			  struct radeon_hpd *hpd)
+			  struct radeon_hpd *hpd,
+			  struct radeon_router *router)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
@@ -1065,6 +1066,11 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_connector->shared_ddc = true;
 				shared_ddc = true;
 			}
+			if (radeon_connector->router_bus && router->valid &&
+			    (radeon_connector->router.router_id == router->router_id)) {
+				radeon_connector->shared_ddc = false;
+				shared_ddc = false;
+			}
 		}
 	}
 
@@ -1079,6 +1085,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 	radeon_connector->shared_ddc = shared_ddc;
 	radeon_connector->connector_object_id = connector_object_id;
 	radeon_connector->hpd = *hpd;
+	radeon_connector->router = *router;
+	if (router->valid) {
+		radeon_connector->router_bus = radeon_i2c_lookup(rdev, &router->i2c_info);
+		if (!radeon_connector->router_bus)
+			goto failed;
+	}
 	switch (connector_type) {
 	case DRM_MODE_CONNECTOR_VGA:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
