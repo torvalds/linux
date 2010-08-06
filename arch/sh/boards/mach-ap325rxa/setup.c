@@ -154,7 +154,7 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
-static void ap320_wvga_power_on(void *board_data)
+static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 {
 	msleep(100);
 
