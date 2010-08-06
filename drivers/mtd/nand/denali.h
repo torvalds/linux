@@ -767,6 +767,7 @@ struct denali_nand_info {
 	uint32_t fwblks; /* represent how many blocks FW used */
 	uint32_t totalblks;
 	uint32_t blksperchip;
+	uint32_t bbtskipbytes;
 };
 
 #endif /*_LLD_NAND_*/

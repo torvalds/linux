@@ -355,17 +355,6 @@ static void nand_onfi_timing_set(struct denali_nand_info *denali,
 	denali_write32(cs_cnt, denali->flash_reg + CS_SETUP_CNT);
 }
 
-/* configures the initial ECC settings for the controller */
-static void set_ecc_config(struct denali_nand_info *denali)
-{
-#if SUPPORT_8BITECC
-	if ((ioread32(denali->flash_reg + DEVICE_MAIN_AREA_SIZE) < 4096) ||
-		(ioread32(denali->flash_reg + DEVICE_SPARE_AREA_SIZE) <= 128))
-		denali_write32(8, denali->flash_reg + ECC_CORRECTION);
-#endif
-
-}
-
 /* queries the NAND device to see what ONFI modes it supports. */
 static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 {
@@ -576,8 +565,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 			ioread32(denali->flash_reg + RDWR_EN_LO_CNT),
 			ioread32(denali->flash_reg + RDWR_EN_HI_CNT),
 			ioread32(denali->flash_reg + CS_SETUP_CNT));
-
-	set_ecc_config(denali);
 
 	find_valid_banks(denali);
 
@@ -1451,6 +1438,13 @@ static void denali_ecc_hwctl(struct mtd_info *mtd, int mode)
 /* Initialization code to bring the device up to a known good state */
 static void denali_hw_init(struct denali_nand_info *denali)
 {
+	/* tell driver how many bit controller will skip before
+	 * writing ECC code in OOB, this register may be already
+	 * set by firmware. So we read this value out.
+	 * if this value is 0, just let it be.
+	 * */
+	denali->bbtskipbytes = ioread32(denali->flash_reg +
+						SPARE_AREA_SKIP_BYTES);
 	denali_irq_init(denali);
 	denali_nand_reset(denali);
 	denali_write32(0x0F, denali->flash_reg + RB_PIN_ENABLED);
@@ -1465,29 +1459,18 @@ static void denali_hw_init(struct denali_nand_info *denali)
 	denali_write32(1, denali->flash_reg + ECC_ENABLE);
 }
 
-/* ECC layout for SLC devices. Denali spec indicates SLC fixed at 4 bytes */
-#define ECC_BYTES_SLC   (4 * (2048 / ECC_SECTOR_SIZE))
-static struct nand_ecclayout nand_oob_slc = {
-	.eccbytes = 4,
-	.eccpos = { 0, 1, 2, 3 }, /* not used */
-	.oobfree = {
-		{
-			.offset = ECC_BYTES_SLC,
-			.length = 64 - ECC_BYTES_SLC
-		}
-	}
+/* Althogh controller spec said SLC ECC is forceb to be 4bit,
+ * but denali controller in MRST only support 15bit and 8bit ECC
+ * correction
+ * */
+#define ECC_8BITS	14
+static struct nand_ecclayout nand_8bit_oob = {
+	.eccbytes = 14,
 };
 
-#define ECC_BYTES_MLC   (14 * (2048 / ECC_SECTOR_SIZE))
-static struct nand_ecclayout nand_oob_mlc_14bit = {
-	.eccbytes = 14,
-	.eccpos = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13 }, /* not used */
-	.oobfree = {
-		{
-			.offset = ECC_BYTES_MLC,
-			.length = 64 - ECC_BYTES_MLC
-		}
-	}
+#define ECC_15BITS	26
+static struct nand_ecclayout nand_15bit_oob = {
+	.eccbytes = 26,
 };
 
 static uint8_t bbt_pattern[] = {'B', 'b', 't', '0' };
@@ -1706,13 +1689,37 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->nand.options |= NAND_USE_FLASH_BBT | NAND_SKIP_BBTSCAN;
 	denali->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 
-	if (denali->nand.cellinfo & 0xc) {
-		denali->nand.ecc.layout = &nand_oob_mlc_14bit;
-		denali->nand.ecc.bytes = ECC_BYTES_MLC;
-	} else {/* SLC */
-		denali->nand.ecc.layout = &nand_oob_slc;
-		denali->nand.ecc.bytes = ECC_BYTES_SLC;
+	/* Denali Controller only support 15bit and 8bit ECC in MRST,
+	 * so just let controller do 15bit ECC for MLC and 8bit ECC for
+	 * SLC if possible.
+	 * */
+	if (denali->nand.cellinfo & 0xc &&
+			(denali->mtd.oobsize > (denali->bbtskipbytes +
+			ECC_15BITS * (denali->mtd.writesize /
+			ECC_SECTOR_SIZE)))) {
+		/* if MLC OOB size is large enough, use 15bit ECC*/
+		denali->nand.ecc.layout = &nand_15bit_oob;
+		denali->nand.ecc.bytes = ECC_15BITS;
+		denali_write32(15, denali->flash_reg + ECC_CORRECTION);
+	} else if (denali->mtd.oobsize < (denali->bbtskipbytes +
+			ECC_8BITS * (denali->mtd.writesize /
+			ECC_SECTOR_SIZE))) {
+		printk(KERN_ERR "Your NAND chip OOB is not large enough to"
+				" contain 8bit ECC correction codes");
+		goto failed_nand;
+	} else {
+		denali->nand.ecc.layout = &nand_8bit_oob;
+		denali->nand.ecc.bytes = ECC_8BITS;
+		denali_write32(8, denali->flash_reg + ECC_CORRECTION);
 	}
+
+	denali->nand.ecc.layout->eccbytes *=
+		denali->mtd.writesize / ECC_SECTOR_SIZE;
+	denali->nand.ecc.layout->oobfree[0].offset =
+		denali->bbtskipbytes + denali->nand.ecc.layout->eccbytes;
+	denali->nand.ecc.layout->oobfree[0].length =
+		denali->mtd.oobsize - denali->nand.ecc.layout->eccbytes -
+		denali->bbtskipbytes;
 
 	/* Let driver know the total blocks number and
 	 * how many blocks contained by each nand chip.
