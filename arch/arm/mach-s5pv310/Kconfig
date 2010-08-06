@@ -27,6 +27,14 @@ config S5PV310_SETUP_I2C2
 
 # machine support
 
+config MACH_SMDKC210
+	bool "SMDKC210"
+	select CPU_S5PV310
+	select ARCH_SPARSEMEM_ENABLE
+	help
+	  Machine support for Samsung SMDKC210
+	  S5PC210(MCP) is one of package option of S5PV310
+
 config MACH_SMDKV310
 	bool "SMDKV310"
 	select CPU_S5PV310
