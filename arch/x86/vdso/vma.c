@@ -74,7 +74,7 @@ static int __init init_vdso_vars(void)
 	vdso_enabled = 0;
 	return -ENOMEM;
 }
-__initcall(init_vdso_vars);
+subsys_initcall(init_vdso_vars);
 
 struct linux_binprm;
 
