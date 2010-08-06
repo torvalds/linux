@@ -641,26 +641,6 @@ config VIDEO_CPIA_USB
 
 source "drivers/media/video/cpia2/Kconfig"
 
-config VIDEO_SAA5246A
-	tristate "SAA5246A, SAA5281 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5246A or SAA5281
-	  chip. Useful only if you live in Europe.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5246a.
-
-config VIDEO_SAA5249
-	tristate "SAA5249 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5249 chip. At the
-	  moment this is only useful on some European WinTV cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5249.
-
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
 	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2
