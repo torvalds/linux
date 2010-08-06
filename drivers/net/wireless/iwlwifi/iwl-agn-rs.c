@@ -300,8 +300,9 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
+	u32 load = rs_tl_get_load(lq_data, tid);
 
-	if (rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
+	if (load > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
 		ret = ieee80211_start_tx_ba_session(sta, tid);
@@ -311,12 +312,14 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 			 * this might be cause by reloading firmware
 			 * stop the tx ba session here
 			 */
-			IWL_DEBUG_HT(priv, "Fail start Tx agg on tid: %d\n",
+			IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
 				tid);
 			ieee80211_stop_tx_ba_session(sta, tid);
 		}
-	} else
-		IWL_ERR(priv, "Fail finding valid aggregation tid: %d\n", tid);
+	} else {
+		IWL_ERR(priv, "Aggregation not enabled for tid %d "
+			"because load = %u\n", tid, load);
+	}
 	return ret;
 }
 

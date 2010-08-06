@@ -298,7 +298,7 @@ EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int iwl_scan_initiate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
-	WARN_ON(!mutex_is_locked(&priv->mutex));
+	lockdep_assert_held(&priv->mutex);
 
 	IWL_DEBUG_INFO(priv, "Starting scan...\n");
 	set_bit(STATUS_SCANNING, &priv->status);

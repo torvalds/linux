@@ -685,10 +685,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	return 0;
 
+#ifdef CONFIG_INET
  fail_ifa:
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
 	rtnl_lock();
+#endif
  fail_pm_qos:
 	ieee80211_led_exit(local);
 	ieee80211_remove_interfaces(local);

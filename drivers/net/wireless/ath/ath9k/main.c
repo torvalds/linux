@@ -154,6 +154,27 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 }
 
+static void ath_start_ani(struct ath_common *common)
+{
+	struct ath_hw *ah = common->ah;
+	unsigned long timestamp = jiffies_to_msecs(jiffies);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
+	if (!(sc->sc_flags & SC_OP_ANI_RUN))
+		return;
+
+	if (sc->sc_flags & SC_OP_OFFCHANNEL)
+		return;
+
+	common->ani.longcal_timer = timestamp;
+	common->ani.shortcal_timer = timestamp;
+	common->ani.checkani_timer = timestamp;
+
+	mod_timer(&common->ani.timer,
+		  jiffies +
+			msecs_to_jiffies((u32)ah->config.ani_poll_interval));
+}
+
 /*
  * Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending
@@ -162,15 +183,22 @@ void ath9k_ps_restore(struct ath_softc *sc)
 int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan)
 {
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	bool fastcc = true, stopped;
 	struct ieee80211_channel *channel = hw->conf.channel;
+	struct ath9k_hw_cal_data *caldata = NULL;
 	int r;
 
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
+
+	del_timer_sync(&common->ani.timer);
+	cancel_work_sync(&sc->paprd_work);
+	cancel_work_sync(&sc->hw_check_work);
+	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	ath9k_ps_wakeup(sc);
 
@@ -191,8 +219,11 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	 * to flush data frames already in queue because of
 	 * changing channel. */
 
-	if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
+	if (!stopped || !(sc->sc_flags & SC_OP_OFFCHANNEL))
 		fastcc = false;
+
+	if (!(sc->sc_flags & SC_OP_OFFCHANNEL))
+		caldata = &aphy->caldata;
 
 	ath_print(common, ATH_DBG_CONFIG,
 		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
@@ -201,7 +232,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	spin_lock_bh(&sc->sc_resetlock);
 
-	r = ath9k_hw_reset(ah, hchan, fastcc);
+	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -211,8 +242,6 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		goto ps_restore;
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
-
-	sc->sc_flags &= ~SC_OP_FULL_RESET;
 
 	if (ath_startrecv(sc) != 0) {
 		ath_print(common, ATH_DBG_FATAL,
@@ -225,6 +254,12 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	ath_update_txpow(sc);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
+	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL | SC_OP_SCANNING))) {
+		ath_start_ani(common);
+		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+		ath_beacon_config(sc, NULL);
+	}
+
  ps_restore:
 	ath9k_ps_restore(sc);
 	return r;
@@ -233,17 +268,19 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 static void ath_paprd_activate(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!ah->curchan->paprd_done)
+	if (!caldata || !caldata->paprd_done)
 		return;
 
 	ath9k_ps_wakeup(sc);
+	ar9003_paprd_enable(ah, false);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
 			continue;
 
-		ar9003_paprd_populate_single_table(ah, ah->curchan, chain);
+		ar9003_paprd_populate_single_table(ah, caldata, chain);
 	}
 
 	ar9003_paprd_enable(ah, true);
@@ -261,12 +298,16 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int band = hw->conf.channel->band;
 	struct ieee80211_supported_band *sband = &sc->sbands[band];
 	struct ath_tx_control txctl;
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int qnum, ftype;
 	int chain_ok = 0;
 	int chain;
 	int len = 1800;
 	int time_left;
 	int i;
+
+	if (!caldata)
+		return;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
@@ -322,7 +363,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		if (!ar9003_paprd_is_done(ah))
 			break;
 
-		if (ar9003_paprd_create_curve(ah, ah->curchan, chain) != 0)
+		if (ar9003_paprd_create_curve(ah, caldata, chain) != 0)
 			break;
 
 		chain_ok = 1;
@@ -330,7 +371,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	kfree_skb(skb);
 
 	if (chain_ok) {
-		ah->curchan->paprd_done = true;
+		caldata->paprd_done = true;
 		ath_paprd_activate(sc);
 	}
 
@@ -439,31 +480,12 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) &&
-	    !(sc->sc_flags & SC_OP_SCANNING)) {
-		if (!sc->sc_ah->curchan->paprd_done)
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->caldata) {
+		if (!ah->caldata->paprd_done)
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		else
 			ath_paprd_activate(sc);
 	}
-}
-
-static void ath_start_ani(struct ath_common *common)
-{
-	struct ath_hw *ah = common->ah;
-	unsigned long timestamp = jiffies_to_msecs(jiffies);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-
-	if (!(sc->sc_flags & SC_OP_ANI_RUN))
-		return;
-
-	common->ani.longcal_timer = timestamp;
-	common->ani.shortcal_timer = timestamp;
-	common->ani.checkani_timer = timestamp;
-
-	mod_timer(&common->ani.timer,
-		  jiffies +
-			msecs_to_jiffies((u32)ah->config.ani_poll_interval));
 }
 
 /*
@@ -477,7 +499,7 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
+	if ((sc->sc_flags & SC_OP_OFFCHANNEL) || is_ht ||
 	    (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE)) {
 		common->tx_chainmask = ah->caps.tx_chainmask;
 		common->rx_chainmask = ah->caps.rx_chainmask;
@@ -817,7 +839,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		ah->curchan = ath_get_curchannel(sc, sc->hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, ah->curchan, false);
+	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -877,7 +899,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		ah->curchan = ath_get_curchannel(sc, hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, ah->curchan, false);
+	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
@@ -910,7 +932,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath_flushrecv(sc);
 
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
+	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 	if (r)
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d\n", r);
@@ -1085,7 +1107,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(ah, init_channel, false);
+	r = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d "
@@ -1579,6 +1601,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 		aphy->chan_idx = pos;
 		aphy->chan_is_ht = conf_is_ht(conf);
+		if (hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+			sc->sc_flags |= SC_OP_OFFCHANNEL;
+		else
+			sc->sc_flags &= ~SC_OP_OFFCHANNEL;
 
 		if (aphy->state == ATH_WIPHY_SCAN ||
 		    aphy->state == ATH_WIPHY_ACTIVE)
@@ -1990,7 +2016,6 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
 	if (ath9k_wiphy_scanning(sc)) {
@@ -2008,10 +2033,6 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	aphy->state = ATH_WIPHY_SCAN;
 	ath9k_wiphy_pause_all_forced(sc, aphy);
 	sc->sc_flags |= SC_OP_SCANNING;
-	del_timer_sync(&common->ani.timer);
-	cancel_work_sync(&sc->paprd_work);
-	cancel_work_sync(&sc->hw_check_work);
-	cancel_delayed_work_sync(&sc->tx_complete_work);
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2023,15 +2044,10 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
 	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
-	sc->sc_flags |= SC_OP_FULL_RESET;
-	ath_start_ani(common);
-	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
-	ath_beacon_config(sc, NULL);
 	mutex_unlock(&sc->mutex);
 }
 

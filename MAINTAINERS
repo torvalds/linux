@@ -1087,7 +1087,6 @@ F:	drivers/net/wireless/ath/ath5k/
 ATHEROS ATH9K WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
 M:	Jouni Malinen <jmalinen@atheros.com>
-M:	Sujith Manoharan <Sujith.Manoharan@atheros.com>
 M:	Vasanthakumar Thiagarajan <vasanth@atheros.com>
 M:	Senthil Balasubramanian <senthilkumar@atheros.com>
 L:	linux-wireless@vger.kernel.org
