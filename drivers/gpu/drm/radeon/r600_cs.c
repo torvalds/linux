@@ -174,7 +174,7 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 		dev_warn(p->dev, "FMASK or CMASK buffer are not supported by this kernel\n");
 		return -EINVAL;
 	}
-	size = radeon_bo_size(track->cb_color_bo[i]);
+	size = radeon_bo_size(track->cb_color_bo[i]) - track->cb_color_bo_offset[i];
 	if (r600_bpe_from_format(&bpe, G_0280A0_FORMAT(track->cb_color_info[i]))) {
 		dev_warn(p->dev, "%s:%d cb invalid format %d for %d (0x%08X)\n",
 			 __func__, __LINE__, G_0280A0_FORMAT(track->cb_color_info[i]),
@@ -938,7 +938,7 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 			return -EINVAL;
 		}
 		tmp = (reg - CB_COLOR0_BASE) / 4;
-		track->cb_color_bo_offset[tmp] = radeon_get_ib_value(p, idx);
+		track->cb_color_bo_offset[tmp] = radeon_get_ib_value(p, idx) << 8;
 		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 		track->cb_color_base_last[tmp] = ib[idx];
 		track->cb_color_bo[tmp] = reloc->robj;
@@ -950,7 +950,7 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 					"0x%04X\n", reg);
 			return -EINVAL;
 		}
-		track->db_offset = radeon_get_ib_value(p, idx);
+		track->db_offset = radeon_get_ib_value(p, idx) << 8;
 		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 		track->db_bo = reloc->robj;
 		break;
@@ -1055,10 +1055,10 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned nlevels
 	}
 	*l0_size = ALIGN((w0 * bpe), pitch_align) * h0 * d0;
 	*mipmap_size = offset;
-	if (!blevel)
-		*mipmap_size -= *l0_size;
 	if (!nlevels)
 		*mipmap_size = *l0_size;
+	if (!blevel)
+		*mipmap_size -= *l0_size;
 }
 
 /**
@@ -1165,14 +1165,14 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 			  (pitch_align * bpe),
 			  &l0_size, &mipmap_size);
 	/* using get ib will give us the offset into the texture bo */
-	word0 = radeon_get_ib_value(p, idx + 2);
+	word0 = radeon_get_ib_value(p, idx + 2) << 8;
 	if ((l0_size + word0) > radeon_bo_size(texture)) {
 		dev_warn(p->dev, "texture bo too small (%d %d %d %d -> %d have %ld)\n",
 			w0, h0, bpe, word0, l0_size, radeon_bo_size(texture));
 		return -EINVAL;
 	}
 	/* using get ib will give us the offset into the mipmap bo */
-	word0 = radeon_get_ib_value(p, idx + 3);
+	word0 = radeon_get_ib_value(p, idx + 3) << 8;
 	if ((mipmap_size + word0) > radeon_bo_size(mipmap)) {
 		dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
 			w0, h0, bpe, blevel, nlevels, word0, mipmap_size, radeon_bo_size(texture));
@@ -1366,7 +1366,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		for (i = 0; i < (pkt->count / 7); i++) {
 			struct radeon_bo *texture, *mipmap;
-			u32 size, offset;
+			u32 size, offset, base_offset, mip_offset;
 
 			switch (G__SQ_VTX_CONSTANT_TYPE(radeon_get_ib_value(p, idx+(i*7)+6+1))) {
 			case SQ_TEX_VTX_VALID_TEXTURE:
@@ -1376,7 +1376,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*7)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				base_offset = (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
 					ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
 				else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
@@ -1388,12 +1388,14 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*7)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				mip_offset = (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				mipmap = reloc->robj;
 				r = r600_check_texture_resource(p,  idx+(i*7)+1,
 								texture, mipmap, reloc->lobj.tiling_flags);
 				if (r)
 					return r;
+				ib[idx+1+(i*7)+2] += base_offset;
+				ib[idx+1+(i*7)+3] += mip_offset;
 				break;
 			case SQ_TEX_VTX_VALID_BUFFER:
 				/* vtx base */
@@ -1403,10 +1405,11 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				offset = radeon_get_ib_value(p, idx+1+(i*7)+0);
-				size = radeon_get_ib_value(p, idx+1+(i*7)+1);
+				size = radeon_get_ib_value(p, idx+1+(i*7)+1) + 1;
 				if (p->rdev && (size + offset) > radeon_bo_size(reloc->robj)) {
 					/* force size to size of the buffer */
-					dev_warn(p->dev, "vbo resource seems too big for the bo\n");
+					dev_warn(p->dev, "vbo resource seems too big (%d) for the bo (%ld)\n",
+						 size + offset, radeon_bo_size(reloc->robj));
 					ib[idx+1+(i*7)+1] = radeon_bo_size(reloc->robj);
 				}
 				ib[idx+1+(i*7)+0] += (u32)((reloc->lobj.gpu_offset) & 0xffffffff);
