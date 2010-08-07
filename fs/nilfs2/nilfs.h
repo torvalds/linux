@@ -32,7 +32,6 @@
 #include "the_nilfs.h"
 #include "sb.h"
 #include "bmap.h"
-#include "bmap_union.h"
 
 /*
  * nilfs inode data in memory
@@ -41,7 +40,7 @@ struct nilfs_inode_info {
 	__u32 i_flags;
 	unsigned long  i_state;		/* Dynamic state flags */
 	struct nilfs_bmap *i_bmap;
-	union nilfs_bmap_union i_bmap_union;
+	struct nilfs_bmap i_bmap_data;
 	__u64 i_xattr;	/* sector_t ??? */
 	__u32 i_dir_start_lookup;
 	__u64 i_cno;		/* check point number for GC inode */
@@ -71,9 +70,7 @@ static inline struct nilfs_inode_info *NILFS_I(const struct inode *inode)
 static inline struct nilfs_inode_info *
 NILFS_BMAP_I(const struct nilfs_bmap *bmap)
 {
-	return container_of((union nilfs_bmap_union *)bmap,
-			    struct nilfs_inode_info,
-			    i_bmap_union);
+	return container_of(bmap, struct nilfs_inode_info, i_bmap_data);
 }
 
 static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
@@ -104,6 +101,14 @@ enum {
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
 	NILFS_I_GCINODE,		/* inode for GC, on memory only */
 	NILFS_I_GCDAT,			/* shadow DAT, on memory only */
+};
+
+/*
+ * commit flags for nilfs_commit_super and nilfs_sync_super
+ */
+enum {
+	NILFS_SB_COMMIT = 0,	/* Commit a super block alternately */
+	NILFS_SB_COMMIT_ALL	/* Commit both super blocks */
 };
 
 /*
@@ -270,7 +275,14 @@ extern struct nilfs_super_block *
 nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
 extern int nilfs_store_magic_and_option(struct super_block *,
 					struct nilfs_super_block *, char *);
+extern int nilfs_check_feature_compatibility(struct super_block *,
+					     struct nilfs_super_block *);
+extern void nilfs_set_log_cursor(struct nilfs_super_block *,
+				 struct the_nilfs *);
+extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
+						      int flip);
 extern int nilfs_commit_super(struct nilfs_sb_info *, int);
+extern int nilfs_cleanup_super(struct nilfs_sb_info *);
 extern int nilfs_attach_checkpoint(struct nilfs_sb_info *, __u64);
 extern void nilfs_detach_checkpoint(struct nilfs_sb_info *);
 
