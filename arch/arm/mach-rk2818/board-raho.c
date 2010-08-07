@@ -663,7 +663,9 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&usb_mass_storage_device,
 #endif
-
+#ifdef CONFIG_ANDROID_TIMED_GPIO
+	&rk28_device_vibrator,
+#endif
 };
 
 extern struct sys_timer rk2818_timer;
