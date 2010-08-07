@@ -1142,31 +1142,48 @@ static int blkif_open(struct block_device *bdev, fmode_t mode)
 	if (!err)
 		++info->users;
 
-	unlock_kernel();
 out:
+	unlock_kernel();
 	return err;
 }
 
 static int blkif_release(struct gendisk *disk, fmode_t mode)
 {
 	struct blkfront_info *info = disk->private_data;
-	lock_kernel();
-	info->users--;
-	if (info->users == 0) {
-		/* Check whether we have been instructed to close.  We will
-		   have ignored this request initially, as the device was
-		   still mounted. */
-		struct xenbus_device *dev = info->xbdev;
+	struct block_device *bdev;
+	struct xenbus_device *xbdev;
 
-		if (!dev) {
-			xlvbd_release_gendisk(info);
-			kfree(info);
-		} else if (xenbus_read_driver_state(dev->otherend)
-			   == XenbusStateClosing && info->is_ready) {
-			xlvbd_release_gendisk(info);
-			xenbus_frontend_closed(dev);
-		}
+	lock_kernel();
+	if (--info->users)
+		goto out;
+
+	bdev = bdget_disk(disk, 0);
+	bdput(bdev);
+
+	/*
+	 * Check if we have been instructed to close. We will have
+	 * deferred this request, because the bdev was still open.
+	 */
+
+	mutex_lock(&info->mutex);
+	xbdev = info->xbdev;
+
+	if (xbdev && xbdev->state == XenbusStateClosing) {
+		/* pending switch to state closed */
+		xlvbd_release_gendisk(info);
+		xenbus_frontend_closed(info->xbdev);
+ 	}
+
+	mutex_unlock(&info->mutex);
+
+	if (!xbdev) {
+		/* sudden device removal */
+		xlvbd_release_gendisk(info);
+		disk->private_data = NULL;
+		kfree(info);
 	}
+
+out:
 	unlock_kernel();
 	return 0;
 }
