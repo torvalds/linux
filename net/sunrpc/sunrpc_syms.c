@@ -44,6 +44,7 @@ init_sunrpc(void)
 #ifdef CONFIG_PROC_FS
 	rpc_proc_init();
 #endif
+	cache_initialize();
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	svc_init_xprt_sock();	/* svc sock transport */
