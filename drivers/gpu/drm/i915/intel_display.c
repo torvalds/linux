@@ -1585,15 +1585,13 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		      Start, Offset, x, y, crtc->fb->pitch);
 	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
-		I915_WRITE(dspbase, Offset);
-		I915_READ(dspbase);
 		I915_WRITE(dspsurf, Start);
-		I915_READ(dspsurf);
 		I915_WRITE(dsptileoff, (y << 16) | x);
+		I915_WRITE(dspbase, Offset);
 	} else {
 		I915_WRITE(dspbase, Start + Offset);
-		I915_READ(dspbase);
 	}
+	POSTING_READ(dspbase);
 
 	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
