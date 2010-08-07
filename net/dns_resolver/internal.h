@@ -1,9 +1,8 @@
 /*
- *   fs/cifs/dns_resolve.h -- DNS Resolver upcall management for CIFS DFS
- *                            Handles host name to IP address resolution
+ *   Copyright (c) 2010 Wang Lei
+ *   Author(s): Wang Lei (wang840925@gmail.com). All Rights Reserved.
  *
- *   Copyright (c) International Business Machines  Corp., 2008
- *   Author(s): Steve French (sfrench@us.ibm.com)
+ *   Internal DNS Rsolver stuff
  *
  *   This library is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published
@@ -20,11 +19,26 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef _DNS_RESOLVE_H
-#define _DNS_RESOLVE_H
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
 
-#ifdef __KERNEL__
-extern int dns_resolve_server_name_to_ip(const char *unc, char **ip_addr);
-#endif /* KERNEL */
+/*
+ * dns_key.c
+ */
+extern const struct cred *dns_resolver_cache;
 
-#endif /* _DNS_RESOLVE_H */
+/*
+ * debug tracing
+ */
+extern unsigned dns_resolver_debug;
+
+#define	kdebug(FMT, ...)				\
+do {							\
+	if (unlikely(dns_resolver_debug))		\
+		printk(KERN_DEBUG "[%-6.6s] "FMT"\n",	\
+		       current->comm, ##__VA_ARGS__);	\
+} while (0)
+
+#define kenter(FMT, ...) kdebug("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define kleave(FMT, ...) kdebug("<== %s()"FMT"", __func__, ##__VA_ARGS__)

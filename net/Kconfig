@@ -213,6 +213,7 @@ source "net/phonet/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
+source "net/dns_resolver/Kconfig"
 
 config RPS
 	boolean
