@@ -1956,7 +1956,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		DRM_DEBUG_KMS("crtc %d dpms on\n", pipe);
+		DRM_DEBUG_KMS("crtc %d/%d dpms on\n", pipe, plane);
 
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 			temp = I915_READ(PCH_LVDS);
@@ -2142,10 +2142,10 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		intel_crtc_load_lut(crtc);
 
 		intel_update_fbc(crtc, &crtc->mode);
+		break;
 
-	break;
 	case DRM_MODE_DPMS_OFF:
-		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
+		DRM_DEBUG_KMS("crtc %d/%d dpms off\n", pipe, plane);
 
 		drm_vblank_off(dev, pipe);
 		/* Disable display plane */
