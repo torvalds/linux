@@ -4171,9 +4171,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
-	if ((IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
-
 	intel_update_watermarks(dev);
 
 	drm_vblank_post_modeset(dev, pipe);
