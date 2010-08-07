@@ -90,9 +90,8 @@ static const struct pci6208_board pci6208_boards[] = {
 static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
-	{
-	PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x6208) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
