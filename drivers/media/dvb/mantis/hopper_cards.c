@@ -126,7 +126,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_RISCI) {
 		dprintk(MANTIS_DEBUG, 0, "<%s>", label[8]);
-		mantis->finished_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
+		mantis->busy_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
 		tasklet_schedule(&mantis->tasklet);
 	}
 	if (stat & MANTIS_INT_I2CDONE) {
