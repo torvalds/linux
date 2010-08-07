@@ -1120,6 +1120,10 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	mutex_lock(&bdev->bd_mutex);
 	info = disk->private_data;
 
+	dev_warn(disk_to_dev(disk),
+		 "%s was hot-unplugged, %d stale handles\n",
+		 xbdev->nodename, bdev->bd_openers);
+
 	if (info && !bdev->bd_openers) {
 		xlvbd_release_gendisk(info);
 		disk->private_data = NULL;
@@ -1191,6 +1195,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 
 	if (xbdev && xbdev->state == XenbusStateClosing) {
 		/* pending switch to state closed */
+		dev_info(disk_to_dev(bdev->bd_disk), "releasing disk\n");
 		xlvbd_release_gendisk(info);
 		xenbus_frontend_closed(info->xbdev);
  	}
@@ -1199,6 +1204,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 
 	if (!xbdev) {
 		/* sudden device removal */
+		dev_info(disk_to_dev(bdev->bd_disk), "releasing disk\n");
 		xlvbd_release_gendisk(info);
 		disk->private_data = NULL;
 		kfree(info);
