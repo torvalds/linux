@@ -56,5 +56,6 @@
 
 extern struct snd_soc_dai wm8994_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8994;
+void wm8994_codec_set_volume(unsigned char mode,unsigned char volume);
 
 #endif
