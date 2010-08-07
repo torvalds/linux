@@ -312,7 +312,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 {
 	struct spi_fpga_port *port;
 	int ret;
-	char b[12];
+	char b[24];
 	int num;
 	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
 	/*

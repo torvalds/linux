@@ -32,8 +32,12 @@
 #include <mach/rk2818_nand.h>
 #include <mach/iomux.h>
 #include <mach/rk2818_camera.h>                          /* ddl@rock-chips.com : camera support */
-#include <linux/i2c.h>                                      
+#include <linux/i2c.h>  
+#include <linux/miscdevice.h>
+#include <linux/circ_buf.h>
+#include <mach/spi_fpga.h>                                    
 #include <media/soc_camera.h>
+#include "../../../drivers/staging/android/timed_gpio.h"
 static struct resource resources_sdmmc0[] = {
 	{
 		.start 	= IRQ_NR_SDMMC0,
@@ -666,4 +670,27 @@ struct platform_device usb_mass_storage_device = {
 	},
 };
 
+#if CONFIG_ANDROID_TIMED_GPIO
+static struct timed_gpio timed_gpios[] = {
+	{
+		.name = "vibrator",
+		.gpio = SPI_GPIO_P1_12,
+		.max_timeout = 1000,
+		.active_low = 1,
+	},
+};
+
+static struct timed_gpio_platform_data rk28_vibrator_info = {
+	.num_gpios = 1,
+	.gpios = timed_gpios,		
+};
+struct platform_device rk28_device_vibrator ={
+	.name = "timed-gpio",
+	.id = -1,
+	.dev = {
+		.platform_data = &rk28_vibrator_info,
+		},
+
+};
+#endif 
 
