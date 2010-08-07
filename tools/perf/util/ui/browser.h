@@ -13,9 +13,9 @@
 
 struct ui_browser {
 	newtComponent form, sb;
-	u64	      index, first_visible_entry_idx;
-	void	      *first_visible_entry, *entries;
-	u16	      top, left, width, height;
+	u64	      index, top_idx;
+	void	      *top, *entries;
+	u16	      y, x, width, height;
 	void	      *priv;
 	unsigned int  (*refresh)(struct ui_browser *self);
 	void	      (*write)(struct ui_browser *self, void *entry, int row);

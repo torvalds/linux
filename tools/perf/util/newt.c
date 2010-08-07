@@ -450,8 +450,8 @@ static int map_browser__search(struct map_browser *self)
 	if (sym != NULL) {
 		u32 *idx = symbol__browser_index(sym);
 			
-		self->b.first_visible_entry = &sym->rb_node;
-		self->b.index = self->b.first_visible_entry_idx = *idx;
+		self->b.top = &sym->rb_node;
+		self->b.index = self->b.top_idx = *idx;
 	} else
 		ui_helpline__fpush("%s not found!", target);
 
@@ -967,7 +967,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *self,
 			}
 
 			SLsmg_set_color(color);
-			SLsmg_gotorc(self->b.top + row, self->b.left);
+			SLsmg_gotorc(self->b.y + row, self->b.x);
 			slsmg_write_nstring(" ", offset + extra_offset);
 			slsmg_printf("%c ", folded_sign);
 			slsmg_write_nstring(str, width);
@@ -1030,7 +1030,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *self,
 		}
 
 		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
-		SLsmg_gotorc(self->b.top + row, self->b.left);
+		SLsmg_gotorc(self->b.y + row, self->b.x);
 		SLsmg_set_color(color);
 		slsmg_write_nstring(" ", offset);
 		slsmg_printf("%c ", folded_sign);
@@ -1110,7 +1110,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 		}
 
 		SLsmg_set_color(color);
-		SLsmg_gotorc(self->b.top + row, self->b.left);
+		SLsmg_gotorc(self->b.y + row, self->b.x);
 		if (symbol_conf.use_callchain) {
 			slsmg_printf("%c ", folded_sign);
 			width -= 2;
@@ -1138,10 +1138,10 @@ static unsigned int hist_browser__refresh(struct ui_browser *self)
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(self, struct hist_browser, b);
 
-	if (self->first_visible_entry == NULL)
-		self->first_visible_entry = rb_first(&hb->hists->entries);
+	if (self->top == NULL)
+		self->top = rb_first(&hb->hists->entries);
 
-	for (nd = self->first_visible_entry; nd; nd = rb_next(nd)) {
+	for (nd = self->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
 		if (h->filtered)
@@ -1244,7 +1244,7 @@ static void ui_browser__hists_seek(struct ui_browser *self,
 		nd = hists__filter_entries(rb_first(self->entries));
 		break;
 	case SEEK_CUR:
-		nd = self->first_visible_entry;
+		nd = self->top;
 		goto do_offset;
 	case SEEK_END:
 		nd = hists__filter_prev_entries(rb_last(self->entries));
@@ -1258,7 +1258,7 @@ static void ui_browser__hists_seek(struct ui_browser *self,
 	 * Moves not relative to the first visible entry invalidates its
 	 * row_offset:
 	 */
-	h = rb_entry(self->first_visible_entry, struct hist_entry, rb_node);
+	h = rb_entry(self->top, struct hist_entry, rb_node);
 	h->row_offset = 0;
 
 	/*
@@ -1286,7 +1286,7 @@ do_offset:
 				} else {
 					h->row_offset += offset;
 					offset = 0;
-					self->first_visible_entry = nd;
+					self->top = nd;
 					break;
 				}
 			}
@@ -1294,7 +1294,7 @@ do_offset:
 			if (nd == NULL)
 				break;
 			--offset;
-			self->first_visible_entry = nd;
+			self->top = nd;
 		} while (offset != 0);
 	} else if (offset < 0) {
 		while (1) {
@@ -1307,7 +1307,7 @@ do_offset:
 					} else {
 						h->row_offset += offset;
 						offset = 0;
-						self->first_visible_entry = nd;
+						self->top = nd;
 						break;
 					}
 				} else {
@@ -1317,7 +1317,7 @@ do_offset:
 					} else {
 						h->row_offset = h->nr_rows + offset;
 						offset = 0;
-						self->first_visible_entry = nd;
+						self->top = nd;
 						break;
 					}
 				}
@@ -1327,7 +1327,7 @@ do_offset:
 			if (nd == NULL)
 				break;
 			++offset;
-			self->first_visible_entry = nd;
+			self->top = nd;
 			if (offset == 0) {
 				/*
 				 * Last unfiltered hist_entry, check if it is
@@ -1342,7 +1342,7 @@ do_offset:
 			first = false;
 		}
 	} else {
-		self->first_visible_entry = nd;
+		self->top = nd;
 		h = rb_entry(nd, struct hist_entry, rb_node);
 		h->row_offset = 0;
 	}
@@ -1463,7 +1463,7 @@ static int hist_browser__run(struct hist_browser *self, const char *title,
 		switch (es->u.key) {
 		case 'd': { /* Debug */
 			static int seq;
-			struct hist_entry *h = rb_entry(self->b.first_visible_entry,
+			struct hist_entry *h = rb_entry(self->b.top,
 							struct hist_entry, rb_node);
 			ui_helpline__pop();
 			ui_helpline__fpush("%d: nr_ent=(%d,%d), height=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
@@ -1471,7 +1471,7 @@ static int hist_browser__run(struct hist_browser *self, const char *title,
 					   self->hists->nr_entries,
 					   self->b.height,
 					   self->b.index,
-					   self->b.first_visible_entry_idx,
+					   self->b.top_idx,
 					   h->row_offset, h->nr_rows);
 		}
 			continue;
