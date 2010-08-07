@@ -608,9 +608,10 @@ err:
 int intel_init_ring_buffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
-	int ret;
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_gem_object *obj;
+	int ret;
+
 	ring->dev = dev;
 
 	if (I915_NEED_GFX_HWS(dev)) {
@@ -623,16 +624,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
 		ret = -ENOMEM;
-		goto cleanup;
+		goto err_hws;
 	}
 
 	ring->gem_object = obj;
 
 	ret = i915_gem_object_pin(obj, ring->alignment);
-	if (ret != 0) {
-		drm_gem_object_unreference(obj);
-		goto cleanup;
-	}
+	if (ret)
+		goto err_unref;
 
 	obj_priv = to_intel_bo(obj);
 	ring->map.size = ring->size;
@@ -644,18 +643,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	drm_core_ioremap_wc(&ring->map, dev);
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
 		ret = -EINVAL;
-		goto cleanup;
+		goto err_unpin;
 	}
 
 	ring->virtual_start = ring->map.handle;
 	ret = ring->init(dev, ring);
-	if (ret != 0) {
-		intel_cleanup_ring_buffer(dev, ring);
-		return ret;
-	}
+	if (ret)
+		goto err_unmap;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kernel_lost_context(dev);
@@ -669,7 +664,15 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	return ret;
-cleanup:
+
+err_unmap:
+	drm_core_ioremapfree(&ring->map, dev);
+err_unpin:
+	i915_gem_object_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(obj);
+	ring->gem_object = NULL;
+err_hws:
 	cleanup_status_page(dev, ring);
 	return ret;
 }
