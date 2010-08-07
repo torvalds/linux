@@ -425,9 +425,11 @@ static struct drm_i915_error_object *
 i915_error_object_create(struct drm_device *dev,
 			 struct drm_gem_object *src)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_object *dst;
 	struct drm_i915_gem_object *src_priv;
 	int page, page_count;
+	u32 reloc_offset;
 
 	if (src == NULL)
 		return NULL;
@@ -442,18 +444,27 @@ i915_error_object_create(struct drm_device *dev,
 	if (dst == NULL)
 		return NULL;
 
+	reloc_offset = src_priv->gtt_offset;
 	for (page = 0; page < page_count; page++) {
-		void *s, *d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		unsigned long flags;
+		void __iomem *s;
+		void *d;
 
+		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		if (d == NULL)
 			goto unwind;
+
 		local_irq_save(flags);
-		s = kmap_atomic(src_priv->pages[page], KM_IRQ0);
-		memcpy(d, s, PAGE_SIZE);
-		kunmap_atomic(s, KM_IRQ0);
+		s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+					     reloc_offset,
+					     KM_IRQ0);
+		memcpy_fromio(d, s, PAGE_SIZE);
+		io_mapping_unmap_atomic(s, KM_IRQ0);
 		local_irq_restore(flags);
+
 		dst->pages[page] = d;
+
+		reloc_offset += PAGE_SIZE;
 	}
 	dst->page_count = page_count;
 	dst->gtt_offset = src_priv->gtt_offset;
@@ -613,18 +624,57 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 		if (batchbuffer[1] == NULL &&
 		    error->acthd >= obj_priv->gtt_offset &&
-		    error->acthd < obj_priv->gtt_offset + obj->size &&
-		    batchbuffer[0] != obj)
+		    error->acthd < obj_priv->gtt_offset + obj->size)
 			batchbuffer[1] = obj;
 
 		count++;
+	}
+	/* Scan the other lists for completeness for those bizarre errors. */
+	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
+			struct drm_gem_object *obj = &obj_priv->base;
+
+			if (batchbuffer[0] == NULL &&
+			    bbaddr >= obj_priv->gtt_offset &&
+			    bbaddr < obj_priv->gtt_offset + obj->size)
+				batchbuffer[0] = obj;
+
+			if (batchbuffer[1] == NULL &&
+			    error->acthd >= obj_priv->gtt_offset &&
+			    error->acthd < obj_priv->gtt_offset + obj->size)
+				batchbuffer[1] = obj;
+
+			if (batchbuffer[0] && batchbuffer[1])
+				break;
+		}
+	}
+	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
+			struct drm_gem_object *obj = &obj_priv->base;
+
+			if (batchbuffer[0] == NULL &&
+			    bbaddr >= obj_priv->gtt_offset &&
+			    bbaddr < obj_priv->gtt_offset + obj->size)
+				batchbuffer[0] = obj;
+
+			if (batchbuffer[1] == NULL &&
+			    error->acthd >= obj_priv->gtt_offset &&
+			    error->acthd < obj_priv->gtt_offset + obj->size)
+				batchbuffer[1] = obj;
+
+			if (batchbuffer[0] && batchbuffer[1])
+				break;
+		}
 	}
 
 	/* We need to copy these to an anonymous buffer as the simplest
 	 * method to avoid being overwritten by userpace.
 	 */
 	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
-	error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
+	if (batchbuffer[1] != batchbuffer[0])
+		error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
+	else
+		error->batchbuffer[1] = NULL;
 
 	/* Record the ringbuffer */
 	error->ringbuffer = i915_error_object_create(dev,
