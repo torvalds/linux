@@ -957,6 +957,14 @@ choice
 		tristate  "DM9000 with NOR Interface"
 endchoice
 endif
+
+config DM9000_CHIP_SELECT
+	int "the number of nandc chip select for DM9000"
+	depends on DM9000_USE_NAND_CONTROL
+	default 1
+	help
+	  select the cs for dm9000
+
 	  
 config DM9000_FORCE_SIMPLE_PHY_POLL
 	bool "Force simple NSR based PHY polling"

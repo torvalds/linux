@@ -37,6 +37,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/dm9000.h>
 
 #include "devices.h"
 
@@ -448,11 +449,113 @@ struct rk2818bl_info rk2818_bl_info = {
         .pw_iomux = GPIOF34_UART3_SEL_NAME,
 };
 
+#ifdef CONFIG_DM9000
+#define NET_INT_PIN RK2818_PIN_PA1
+/*dm9000 gpio set*/
+int dm9k_gpio_set(void)
+{
+	//cs
+#ifdef CONFIG_DM9000_CHIP_SELECT
+		switch (CONFIG_DM9000_CHIP_SELECT) {
+		case 1:
+			rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+			break;
+		case 2:
+			rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
+			break;
+		case 3:
+			rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, IOMUXB_FLASH_CS3);
+			break;
+		case 4:
+		case 5:
+			rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_FLASH_CS45);	
+			break;
+		case 6:
+		case 7:
+			rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_FLASH_CS67);  
+			break;
+		default:
+			break;
+		}
+#endif
+
+	//int
+	rk2818_mux_api_set(GPIOA1_HOSTDATA17_SEL_NAME, IOMUXB_GPIO0_A1);
+	if (gpio_request(NET_INT_PIN, "dm9000 interrupt")) {
+		gpio_free(NET_INT_PIN);
+		rk2818_mux_api_mode_resume(GPIOA1_HOSTDATA17_SEL_NAME);		
+		printk("[fun:%s line:%d], request gpio for net interrupt fail\n", __func__,__LINE__);
+		goto err;
+	}	
+	gpio_pull_updown(NET_INT_PIN, GPIOPullDown);
+	gpio_direction_input(NET_INT_PIN);
+	return 0;
+
+err:		
+#ifdef CONFIG_DM9000_CHIP_SELECT
+	switch (CONFIG_DM9000_CHIP_SELECT) {
+	case 1:
+		rk2818_mux_api_mode_resume(GPIOA5_FLASHCS1_SEL_NAME);
+		break;
+	case 2:
+		rk2818_mux_api_mode_resume(GPIOA6_FLASHCS2_SEL_NAME);
+		break;
+	case 3:
+		rk2818_mux_api_mode_resume(GPIOA7_FLASHCS3_SEL_NAME);
+		break;
+	case 4:
+	case 5:
+		rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL1_NAME); 
+		break;
+	case 6:
+	case 7:
+		rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL_NAME);	
+		break;
+	default:
+		break;
+	}
+#endif
+	return -1;
+}
+void dm9k_gpio_free(void)
+{
+	gpio_free(NET_INT_PIN);
+	rk2818_mux_api_mode_resume(GPIOA1_HOSTDATA17_SEL_NAME);
+#ifdef CONFIG_DM9000_CHIP_SELECT
+		switch (CONFIG_DM9000_CHIP_SELECT) {
+		case 1:
+			rk2818_mux_api_mode_resume(GPIOA5_FLASHCS1_SEL_NAME);
+			break;
+		case 2:
+			rk2818_mux_api_mode_resume(GPIOA6_FLASHCS2_SEL_NAME);
+			break;
+		case 3:
+			rk2818_mux_api_mode_resume(GPIOA7_FLASHCS3_SEL_NAME);
+			break;
+		case 4:
+		case 5:
+			rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL1_NAME); 
+			break;
+		case 6:
+		case 7:
+			rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL_NAME);	
+			break;
+		default:
+			break;
+		}
+#endif	
+}
+
+struct dm9000_plat_data dm9k_platdata = {	
+	.flags = DM9000_PLATF_8BITONLY,
+	.pin_int = NET_INT_PIN,
+	.net_gpio_set = dm9k_gpio_set,
+	.net_gpio_free = dm9k_gpio_free,
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
-#ifdef CONFIG_DM9000
-	&rk2818_device_dm9k,
-#endif
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
 #endif
@@ -480,6 +583,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
 #endif
+#ifdef CONFIG_DM9000
+	&rk2818_device_dm9k,
+#endif
+
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif

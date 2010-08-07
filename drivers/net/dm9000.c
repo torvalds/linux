@@ -1515,6 +1515,9 @@ dm9000_probe(struct platform_device *pdev)
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->io_addr;
 
+#if 0
+	rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+
 	#ifdef CONFIG_MACH_RK2818MID
 	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_GPIO1_A12);	
 	ndev->irq = gpio_to_irq(db->irq_res->start);
@@ -1529,7 +1532,17 @@ dm9000_probe(struct platform_device *pdev)
 	gpio_pull_updown(db->irq_res->start, GPIOPullDown);
 	ndev->irq = gpio_to_irq(db->irq_res->start);
 	#endif
-	
+#endif	
+
+	if (pdata->net_gpio_set) {
+		if (pdata->net_gpio_set()) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	ndev->irq = gpio_to_irq(pdata->pin_int);
+
 	/* ensure at least we have a default set of IO routines */
 	dm9000_set_io(db, iosize);
 

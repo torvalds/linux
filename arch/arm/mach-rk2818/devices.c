@@ -325,40 +325,32 @@ struct platform_device rk2818_soc_camera_pdrv = {
 //net device
 /* DM9000 */
 #ifdef CONFIG_DM9000
+#ifdef CONFIG_DM9000_CHIP_SELECT
+#define DM9000_CS CONFIG_DM9000_CHIP_SELECT
+#else
+#define DM9000_CS 1
+#endif
 static struct resource dm9k_resource[] = {
 	[0] = {
-		.start = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x8),    //nand_cs1+nand_cmd
-		.end   = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x8) + 3,
+		.start = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x8),    //nand_cs1+nand_cmd
+		.end   = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x8) + 3,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x4),	//nand_cs1+nand_data
-		.end   = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x4) + 3,
+		.start = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x4),	//nand_cs1+nand_data
+		.end   = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x4) + 3,
 		.flags = IORESOURCE_MEM,
 	},
-	#ifdef CONFIG_MACH_RK2818MID
 	[2] = {
-		.start = RK2818_PIN_PE2,	//use pe2 as interrupt
-		.end   = RK2818_PIN_PE2,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
-	#else	
-	[2] = {
-		.start = RK2818_PIN_PA1,	//use pa1 as interrupt
-		.end   = RK2818_PIN_PA1,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	}
-	#endif
-
 };
 
 /* for the moment we limit ourselves to 8bit IO until some
  * better IO routines can be written and tested
 */
 
-static struct dm9000_plat_data dm9k_platdata = {
-	.flags		= DM9000_PLATF_8BITONLY,
-};
+//dm9k_platdata.flags = DM9000_PLATF_8BITONLY;
 
 struct platform_device rk2818_device_dm9k = {
 	.name		= "dm9000",
