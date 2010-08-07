@@ -242,14 +242,13 @@ int nondata_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
 static int sort_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		      struct list_head *nondata, int *min)
 {
+	int err;
 	struct ubifs_scan_node *snod, *tmp;
 
 	*min = INT_MAX;
 
 	/* Separate data nodes and non-data nodes */
 	list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
-		int err;
-
 		ubifs_assert(snod->type == UBIFS_INO_NODE  ||
 			     snod->type == UBIFS_DATA_NODE ||
 			     snod->type == UBIFS_DENT_NODE ||
@@ -293,6 +292,13 @@ static int sort_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 	/* Sort data and non-data nodes */
 	list_sort(c, &sleb->nodes, &data_nodes_cmp);
 	list_sort(c, nondata, &nondata_nodes_cmp);
+
+	err = dbg_check_data_nodes_order(c, &sleb->nodes);
+	if (err)
+		return err;
+	err = dbg_check_nondata_nodes_order(c, nondata);
+	if (err)
+		return err;
 	return 0;
 }
 
