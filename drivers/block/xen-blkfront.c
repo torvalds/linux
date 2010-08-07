@@ -981,13 +981,11 @@ static void blkfront_connect(struct blkfront_info *info)
  * the backend.  Once is this done, we can switch to Closed in
  * acknowledgement.
  */
-static void blkfront_closing(struct xenbus_device *dev)
+static void blkfront_closing(struct blkfront_info *info)
 {
-	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	unsigned int minor, nr_minors;
 	unsigned long flags;
 
-	dev_dbg(&dev->dev, "blkfront_closing: %s removed\n", dev->nodename);
 
 	if (info->rq == NULL)
 		goto out;
@@ -1013,7 +1011,8 @@ static void blkfront_closing(struct xenbus_device *dev)
 	xlbd_release_minors(minor, nr_minors);
 
  out:
-	xenbus_frontend_closed(dev);
+	if (info->xbdev)
+		xenbus_frontend_closed(info->xbdev);
 }
 
 /**
@@ -1053,7 +1052,7 @@ static void blkback_changed(struct xenbus_device *dev,
 			xenbus_dev_error(dev, -EBUSY,
 					 "Device in use; refusing to close");
 		else
-			blkfront_closing(dev);
+			blkfront_closing(info);
 		mutex_unlock(&bd->bd_mutex);
 		bdput(bd);
 		break;
@@ -1071,7 +1070,7 @@ static int blkfront_remove(struct xenbus_device *dev)
 	if(info->users == 0)
 		kfree(info);
 	else
-		info->is_ready = -1;
+		info->xbdev = NULL;
 
 	return 0;
 }
@@ -1080,22 +1079,21 @@ static int blkfront_is_ready(struct xenbus_device *dev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 
-	return info->is_ready > 0;
+	return info->is_ready && info->xbdev;
 }
 
 static int blkif_open(struct block_device *bdev, fmode_t mode)
 {
 	struct blkfront_info *info = bdev->bd_disk->private_data;
-	int ret = 0;
+
+	if (!info->xbdev)
+		return -ENODEV;
 
 	lock_kernel();
-	if (info->is_ready < 0)
-		ret = -ENODEV;
-	else
-		info->users++;
+	info->users++;
 	unlock_kernel();
 
-	return ret;
+	return 0;
 }
 
 static int blkif_release(struct gendisk *disk, fmode_t mode)
@@ -1108,13 +1106,13 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 		   have ignored this request initially, as the device was
 		   still mounted. */
 		struct xenbus_device *dev = info->xbdev;
-		enum xenbus_state state = xenbus_read_driver_state(dev->otherend);
 
-		if(info->is_ready < 0) {
-			blkfront_closing(dev);
+		if (!dev) {
+			blkfront_closing(info);
 			kfree(info);
-		} else if (state == XenbusStateClosing && info->is_ready)
-			blkfront_closing(dev);
+		} else if (xenbus_read_driver_state(dev->otherend)
+			   == XenbusStateClosing && info->is_ready)
+			blkfront_closing(info);
 	}
 	unlock_kernel();
 	return 0;
