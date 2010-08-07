@@ -26,7 +26,6 @@ struct  intel_ring_buffer {
 	unsigned int	head;
 	unsigned int	tail;
 	unsigned int	space;
-	u32		next_seqno;
 	struct intel_hw_status_page status_page;
 
 	u32		irq_gem_seqno;		/* last seq seem at irq time */

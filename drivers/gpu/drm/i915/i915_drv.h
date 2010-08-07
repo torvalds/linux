@@ -244,6 +244,7 @@ typedef struct drm_i915_private {
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer render_ring;
 	struct intel_ring_buffer bsd_ring;
+	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
 	void *seqno_page;
@@ -572,8 +573,6 @@ typedef struct drm_i915_private {
 		 * fires, go retire requests.
 		 */
 		struct delayed_work retire_work;
-
-		uint32_t next_gem_seqno;
 
 		/**
 		 * Waiting sequence number, if any

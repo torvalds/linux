@@ -4714,6 +4714,8 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
+	dev_priv->next_seqno = 1;
+
 	return 0;
 
 cleanup_render_ring:

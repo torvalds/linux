@@ -33,18 +33,35 @@
 #include "i915_drm.h"
 #include "i915_trace.h"
 
+static u32 i915_gem_get_seqno(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 seqno;
+
+	seqno = dev_priv->next_seqno;
+
+	/* reserve 0 for non-seqno */
+	if (++dev_priv->next_seqno == 0)
+		dev_priv->next_seqno = 1;
+
+	return seqno;
+}
+
 static void
 render_ring_flush(struct drm_device *dev,
 		struct intel_ring_buffer *ring,
 		u32	invalidate_domains,
 		u32	flush_domains)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 cmd;
+
 #if WATCH_EXEC
 	DRM_INFO("%s: invalidate %08x flush %08x\n", __func__,
 		  invalidate_domains, flush_domains);
 #endif
-	u32 cmd;
-	trace_i915_gem_request_flush(dev, ring->next_seqno,
+
+	trace_i915_gem_request_flush(dev, dev_priv->next_seqno,
 				     invalidate_domains, flush_domains);
 
 	if ((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) {
@@ -233,9 +250,10 @@ render_ring_add_request(struct drm_device *dev,
 		struct drm_file *file_priv,
 		u32 flush_domains)
 {
-	u32 seqno;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	seqno = intel_ring_get_seqno(dev, ring);
+	u32 seqno;
+
+	seqno = i915_gem_get_seqno(dev);
 
 	if (IS_GEN6(dev)) {
 		BEGIN_LP_RING(6);
@@ -405,7 +423,9 @@ bsd_ring_add_request(struct drm_device *dev,
 		u32 flush_domains)
 {
 	u32 seqno;
-	seqno = intel_ring_get_seqno(dev, ring);
+
+	seqno = i915_gem_get_seqno(dev);
+
 	intel_ring_begin(dev, ring, 4);
 	intel_ring_emit(dev, ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(dev, ring,
@@ -479,7 +499,7 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 	exec_len = (uint32_t) exec->batch_len;
 
-	trace_i915_gem_request_submit(dev, dev_priv->mm.next_gem_seqno + 1);
+	trace_i915_gem_request_submit(dev, dev_priv->next_seqno + 1);
 
 	count = nbox ? nbox : 1;
 
@@ -757,18 +777,6 @@ void intel_fill_struct(struct drm_device *dev,
 	intel_ring_advance(dev, ring);
 }
 
-u32 intel_ring_get_seqno(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	u32 seqno;
-	seqno = ring->next_seqno;
-
-	/* reserve 0 for non-seqno */
-	if (++ring->next_seqno == 0)
-		ring->next_seqno = 1;
-	return seqno;
-}
-
 struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.regs                   = {
@@ -786,7 +794,6 @@ struct intel_ring_buffer render_ring = {
 	.head			= 0,
 	.tail			= 0,
 	.space			= 0,
-	.next_seqno		= 1,
 	.user_irq_refcount	= 0,
 	.irq_gem_seqno		= 0,
 	.waiting_gem_seqno	= 0,
@@ -825,7 +832,6 @@ struct intel_ring_buffer bsd_ring = {
 	.head			= 0,
 	.tail			= 0,
 	.space			= 0,
-	.next_seqno		= 1,
 	.user_irq_refcount	= 0,
 	.irq_gem_seqno		= 0,
 	.waiting_gem_seqno	= 0,
