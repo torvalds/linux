@@ -116,10 +116,9 @@ static const struct skel_board skel_boards[] = {
  * upstream. */
 #define PCI_VENDOR_ID_SKEL 0xdafe
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{
-	PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
