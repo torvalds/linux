@@ -41,7 +41,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W) msleep(W);					\
+		if (W && !in_dbg_master()) msleep(W);			\
 	}								\
 	ret__;								\
 })
