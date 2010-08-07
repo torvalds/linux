@@ -43,7 +43,7 @@ int kvmppc_core_check_processor_compat(void)
 {
 	int r;
 
-	if (strcmp(cur_cpu_spec->platform, "ppc440") == 0)
+	if (strncmp(cur_cpu_spec->platform, "ppc440", 6) == 0)
 		r = 0;
 	else
 		r = -ENOTSUPP;
@@ -72,6 +72,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	/* Since the guest can directly access the timebase, it must know the
 	 * real timebase frequency. Accordingly, it must see the state of
 	 * CCR1[TCS]. */
+	/* XXX CCR1 doesn't exist on all 440 SoCs. */
 	vcpu->arch.ccr1 = mfspr(SPRN_CCR1);
 
 	for (i = 0; i < ARRAY_SIZE(vcpu_44x->shadow_refs); i++)
