@@ -50,7 +50,7 @@
 #define IS_TV_OR_LVDS(c) (c->output_flag & (SDVO_TV_MASK | SDVO_LVDS_MASK))
 
 
-static char *tv_format_names[] = {
+static const char *tv_format_names[] = {
 	"NTSC_M"   , "NTSC_J"  , "NTSC_443",
 	"PAL_B"    , "PAL_D"   , "PAL_G"   ,
 	"PAL_H"    , "PAL_I"   , "PAL_M"   ,
@@ -292,7 +292,7 @@ static bool intel_sdvo_write_byte(struct intel_sdvo *intel_sdvo, int addr, u8 ch
 /** Mapping of command numbers to names, for debug output */
 static const struct _sdvo_cmd_name {
 	u8 cmd;
-	char *name;
+	const char *name;
 } sdvo_cmd_names[] = {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_RESET),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_DEVICE_CAPS),
