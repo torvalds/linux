@@ -1367,7 +1367,8 @@ void intel_setup_overlay(struct drm_device *dev)
 		overlay->flip_addr = overlay->reg_bo->gtt_offset;
 	} else {
 		ret = i915_gem_attach_phys_object(dev, reg_bo,
-				I915_GEM_PHYS_OVERLAY_REGS);
+						  I915_GEM_PHYS_OVERLAY_REGS,
+						  0);
                 if (ret) {
                         DRM_ERROR("failed to attach phys overlay regs\n");
                         goto out_free_bo;

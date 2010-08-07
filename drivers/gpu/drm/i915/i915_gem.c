@@ -4674,7 +4674,7 @@ i915_gem_load(struct drm_device *dev)
  * e.g. for cursor + overlay regs
  */
 int i915_gem_init_phys_object(struct drm_device *dev,
-			      int id, int size)
+			      int id, int size, int align)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_phys_object *phys_obj;
@@ -4689,7 +4689,7 @@ int i915_gem_init_phys_object(struct drm_device *dev,
 
 	phys_obj->id = id;
 
-	phys_obj->handle = drm_pci_alloc(dev, size, 0);
+	phys_obj->handle = drm_pci_alloc(dev, size, align);
 	if (!phys_obj->handle) {
 		ret = -ENOMEM;
 		goto kfree_obj;
@@ -4771,7 +4771,9 @@ out:
 
 int
 i915_gem_attach_phys_object(struct drm_device *dev,
-			    struct drm_gem_object *obj, int id)
+			    struct drm_gem_object *obj,
+			    int id,
+			    int align)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
@@ -4790,11 +4792,10 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		i915_gem_detach_phys_object(dev, obj);
 	}
 
-
 	/* create a new object */
 	if (!dev_priv->mm.phys_objs[id - 1]) {
 		ret = i915_gem_init_phys_object(dev, id,
-						obj->size);
+						obj->size, align);
 		if (ret) {
 			DRM_ERROR("failed to init phys object %d size: %zu\n", id, obj->size);
 			goto out;

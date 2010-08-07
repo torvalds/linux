@@ -4375,8 +4375,10 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 		addr = obj_priv->gtt_offset;
 	} else {
+		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_attach_phys_object(dev, bo,
-						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
+						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1,
+						  align);
 		if (ret) {
 			DRM_ERROR("failed to attach phys object\n");
 			goto fail_locked;

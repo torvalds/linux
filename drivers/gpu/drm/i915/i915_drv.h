@@ -1000,7 +1000,9 @@ int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
 int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj);
 int i915_gem_attach_phys_object(struct drm_device *dev,
-				struct drm_gem_object *obj, int id);
+				struct drm_gem_object *obj,
+				int id,
+				int align);
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
