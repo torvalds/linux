@@ -21,9 +21,15 @@
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
 #include "global.h"
-#include "lcdtbl.h"
 
 #define viafb_compact_res(x, y) (((x)<<16)|(y))
+
+/* CLE266 Software Power Sequence */
+/* {Mask}, {Data}, {Delay} */
+int PowerSequenceOn[3][3] = { {0x10, 0x08, 0x06}, {0x10, 0x08, 0x06},
+	{0x19, 0x1FE, 0x01} };
+int PowerSequenceOff[3][3] = { {0x06, 0x08, 0x10}, {0x00, 0x00, 0x00},
+	{0xD2, 0x19, 0x01} };
 
 static struct _lcd_scaling_factor lcd_scaling_factor = {
 	/* LCD Horizontal Scaling Factor Register */
