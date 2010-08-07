@@ -982,6 +982,7 @@ int i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
+int i915_gpu_idle(struct drm_device *dev);
 int i915_gem_idle(struct drm_device *dev);
 uint32_t i915_add_request(struct drm_device *dev,
 		struct drm_file *file_priv,
@@ -1006,6 +1007,11 @@ int i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
+
+/* i915_gem_evict.c */
+int i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignment);
+int i915_gem_evict_everything(struct drm_device *dev);
+int i915_gem_evict_inactive(struct drm_device *dev);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
