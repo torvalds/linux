@@ -300,20 +300,26 @@ static void __init pf_init_units(void)
 static int pf_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pf_unit *pf = bdev->bd_disk->private_data;
+	int ret;
 
+	lock_kernel();
 	pf_identify(pf);
 
+	ret = -ENODEV;
 	if (pf->media_status == PF_NM)
-		return -ENODEV;
+		goto out;
 
+	ret = -EROFS;
 	if ((pf->media_status == PF_RO) && (mode & FMODE_WRITE))
-		return -EROFS;
+		goto out;
 
+	ret = 0;
 	pf->access++;
 	if (pf->removable)
 		pf_lock(pf, 1);
-
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -354,14 +360,18 @@ static int pf_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pf_unit *pf = disk->private_data;
 
-	if (pf->access <= 0)
+	lock_kernel();
+	if (pf->access <= 0) {
+		unlock_kernel();
 		return -EINVAL;
+	}
 
 	pf->access--;
 
 	if (!pf->access && pf->removable)
 		pf_lock(pf, 0);
 
+	unlock_kernel();
 	return 0;
 
 }

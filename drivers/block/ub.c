@@ -1711,6 +1711,18 @@ err_open:
 	return rc;
 }
 
+static int ub_bd_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ub_bd_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 /*
  */
 static int ub_bd_release(struct gendisk *disk, fmode_t mode)
@@ -1718,7 +1730,10 @@ static int ub_bd_release(struct gendisk *disk, fmode_t mode)
 	struct ub_lun *lun = disk->private_data;
 	struct ub_dev *sc = lun->udev;
 
+	lock_kernel();
 	ub_put(sc);
+	unlock_kernel();
+
 	return 0;
 }
 
@@ -1798,7 +1813,7 @@ static int ub_bd_media_changed(struct gendisk *disk)
 
 static const struct block_device_operations ub_bd_fops = {
 	.owner		= THIS_MODULE,
-	.open		= ub_bd_open,
+	.open		= ub_bd_unlocked_open,
 	.release	= ub_bd_release,
 	.ioctl		= ub_bd_ioctl,
 	.media_changed	= ub_bd_media_changed,

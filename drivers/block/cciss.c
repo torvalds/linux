@@ -178,6 +178,7 @@ static void do_cciss_request(struct request_queue *q);
 static irqreturn_t do_cciss_intx(int irq, void *dev_id);
 static irqreturn_t do_cciss_msix_intr(int irq, void *dev_id);
 static int cciss_open(struct block_device *bdev, fmode_t mode);
+static int cciss_unlocked_open(struct block_device *bdev, fmode_t mode);
 static int cciss_release(struct gendisk *disk, fmode_t mode);
 static int do_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long arg);
@@ -237,7 +238,7 @@ static int cciss_compat_ioctl(struct block_device *, fmode_t,
 
 static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
-	.open = cciss_open,
+	.open = cciss_unlocked_open,
 	.release = cciss_release,
 	.ioctl = do_ioctl,
 	.getgeo = cciss_getgeo,
@@ -1042,13 +1043,28 @@ static int cciss_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int cciss_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = cciss_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*
  * Close.  Sync first.
  */
 static int cciss_release(struct gendisk *disk, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(disk);
-	drive_info_struct *drv = get_drv(disk);
+	ctlr_info_t *host;
+	drive_info_struct *drv;
+
+	lock_kernel();
+	host = get_host(disk);
+	drv = get_drv(disk);
 
 #ifdef CCISS_DEBUG
 	printk(KERN_DEBUG "cciss_release %s\n", disk->disk_name);
@@ -1056,6 +1072,7 @@ static int cciss_release(struct gendisk *disk, fmode_t mode)
 
 	drv->usage_count--;
 	host->usage_count--;
+	unlock_kernel();
 	return 0;
 }
 

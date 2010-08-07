@@ -467,22 +467,27 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 
 static int sr_block_open(struct block_device *bdev, fmode_t mode)
 {
-	struct scsi_cd *cd = scsi_cd_get(bdev->bd_disk);
+	struct scsi_cd *cd;
 	int ret = -ENXIO;
 
+	lock_kernel();
+	cd = scsi_cd_get(bdev->bd_disk);
 	if (cd) {
 		ret = cdrom_open(&cd->cdi, bdev, mode);
 		if (ret)
 			scsi_cd_put(cd);
 	}
+	unlock_kernel();
 	return ret;
 }
 
 static int sr_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
+	lock_kernel();
 	cdrom_release(&cd->cdi, mode);
 	scsi_cd_put(cd);
+	unlock_kernel();
 	return 0;
 }
 

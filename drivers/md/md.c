@@ -36,6 +36,7 @@
 #include <linux/blkdev.h>
 #include <linux/sysctl.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
 #include <linux/ctype.h>
@@ -5902,6 +5903,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	mddev_t *mddev = mddev_find(bdev->bd_dev);
 	int err;
 
+	lock_kernel();
 	if (mddev->gendisk != bdev->bd_disk) {
 		/* we are racing with mddev_put which is discarding this
 		 * bd_disk.
@@ -5910,6 +5912,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 		/* Wait until bdev->bd_disk is definitely gone */
 		flush_scheduled_work();
 		/* Then retry the open from the top */
+		unlock_kernel();
 		return -ERESTARTSYS;
 	}
 	BUG_ON(mddev != bdev->bd_disk->private_data);
@@ -5923,6 +5926,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	check_disk_size_change(mddev->gendisk, bdev);
  out:
+	unlock_kernel();
 	return err;
 }
 
@@ -5931,8 +5935,10 @@ static int md_release(struct gendisk *disk, fmode_t mode)
  	mddev_t *mddev = disk->private_data;
 
 	BUG_ON(!mddev);
+	lock_kernel();
 	atomic_dec(&mddev->openers);
 	mddev_put(mddev);
+	unlock_kernel();
 
 	return 0;
 }

@@ -1591,17 +1591,19 @@ static struct ide_driver ide_cdrom_driver = {
 
 static int idecd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct cdrom_info *info = ide_cd_get(bdev->bd_disk);
-	int rc = -ENOMEM;
+	struct cdrom_info *info;
+	int rc = -ENXIO;
 
+	lock_kernel();
+	info = ide_cd_get(bdev->bd_disk);
 	if (!info)
-		return -ENXIO;
+		goto out;
 
 	rc = cdrom_open(&info->devinfo, bdev, mode);
-
 	if (rc < 0)
 		ide_cd_put(info);
-
+out:
+	unlock_kernel();
 	return rc;
 }
 
@@ -1609,9 +1611,11 @@ static int idecd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 
+	lock_kernel();
 	cdrom_release(&info->devinfo, mode);
 
 	ide_cd_put(info);
+	unlock_kernel();
 
 	return 0;
 }

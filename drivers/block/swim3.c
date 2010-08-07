@@ -949,15 +949,28 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = floppy_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
+	lock_kernel();
 	if (fs->ref_count > 0 && --fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
 		out_8(&sw->control_bic, 0xff);
 		swim3_select(fs, RELAX);
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -1008,7 +1021,7 @@ static int floppy_revalidate(struct gendisk *disk)
 }
 
 static const struct block_device_operations floppy_fops = {
-	.open		= floppy_open,
+	.open		= floppy_unlocked_open,
 	.release	= floppy_release,
 	.ioctl		= floppy_ioctl,
 	.media_changed	= floppy_check_change,

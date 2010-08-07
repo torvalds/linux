@@ -736,12 +736,14 @@ static int pd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pd_unit *disk = bdev->bd_disk->private_data;
 
+	lock_kernel();
 	disk->access++;
 
 	if (disk->removable) {
 		pd_special_command(disk, pd_media_check);
 		pd_special_command(disk, pd_door_lock);
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -783,8 +785,10 @@ static int pd_release(struct gendisk *p, fmode_t mode)
 {
 	struct pd_unit *disk = p->private_data;
 
+	lock_kernel();
 	if (!--disk->access && disk->removable)
 		pd_special_command(disk, pd_door_unlock);
+	unlock_kernel();
 
 	return 0;
 }

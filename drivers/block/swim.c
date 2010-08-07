@@ -662,11 +662,23 @@ out:
 	return err;
 }
 
+static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = floppy_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim __iomem *base = fs->swd->base;
 
+	lock_kernel();
 	if (fs->ref_count < 0)
 		fs->ref_count = 0;
 	else if (fs->ref_count > 0)
@@ -674,6 +686,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 
 	if (fs->ref_count == 0)
 		swim_motor(base, OFF);
+	unlock_kernel();
 
 	return 0;
 }
@@ -754,7 +767,7 @@ static int floppy_revalidate(struct gendisk *disk)
 
 static const struct block_device_operations floppy_fops = {
 	.owner		 = THIS_MODULE,
-	.open		 = floppy_open,
+	.open		 = floppy_unlocked_open,
 	.release	 = floppy_release,
 	.ioctl		 = floppy_ioctl,
 	.getgeo		 = floppy_getgeo,

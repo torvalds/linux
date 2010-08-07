@@ -3616,6 +3616,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	int drive = (long)disk->private_data;
 
+	lock_kernel();
 	mutex_lock(&open_lock);
 	if (UDRS->fd_ref < 0)
 		UDRS->fd_ref = 0;
@@ -3626,6 +3627,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
 	mutex_unlock(&open_lock);
+	unlock_kernel();
 
 	return 0;
 }
@@ -3643,6 +3645,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int res = -EBUSY;
 	char *tmp;
 
+	lock_kernel();
 	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
 	if (opened_bdev[drive] && opened_bdev[drive] != bdev)
@@ -3719,6 +3722,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			goto out;
 	}
 	mutex_unlock(&open_lock);
+	unlock_kernel();
 	return 0;
 out:
 	if (UDRS->fd_ref < 0)
@@ -3729,6 +3733,7 @@ out:
 		opened_bdev[drive] = NULL;
 out2:
 	mutex_unlock(&open_lock);
+	unlock_kernel();
 	return res;
 }
 

@@ -493,12 +493,18 @@ static struct cdrom_device_ops gdrom_ops = {
 
 static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 {
-	return cdrom_open(gd.cd_info, bdev, mode);
+	int ret;
+	lock_kernel();
+	ret = cdrom_open(gd.cd_info, bdev, mode);
+	unlock_kernel();
+	return ret;
 }
 
 static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 {
+	lock_kernel();
 	cdrom_release(gd.cd_info, mode);
+	unlock_kernel();
 	return 0;
 }
 

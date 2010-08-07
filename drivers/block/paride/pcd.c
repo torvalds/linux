@@ -225,13 +225,21 @@ static char *pcd_buf;		/* buffer for request in progress */
 static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
-	return cdrom_open(&cd->info, bdev, mode);
+	int ret;
+
+	lock_kernel();
+	ret = cdrom_open(&cd->info, bdev, mode);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pcd_unit *cd = disk->private_data;
+	lock_kernel();
 	cdrom_release(&cd->info, mode);
+	unlock_kernel();
 	return 0;
 }
 

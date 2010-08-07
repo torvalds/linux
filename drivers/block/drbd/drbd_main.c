@@ -2604,6 +2604,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	unsigned long flags;
 	int rv = 0;
 
+	lock_kernel();
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	/* to have a stable mdev->state.role
 	 * and no race with updating open_cnt */
@@ -2618,6 +2619,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	if (!rv)
 		mdev->open_cnt++;
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	unlock_kernel();
 
 	return rv;
 }
@@ -2625,7 +2627,9 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 static int drbd_release(struct gendisk *gd, fmode_t mode)
 {
 	struct drbd_conf *mdev = gd->private_data;
+	lock_kernel();
 	mdev->open_cnt--;
+	unlock_kernel();
 	return 0;
 }
 

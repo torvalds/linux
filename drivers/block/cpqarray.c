@@ -158,7 +158,7 @@ static int sendcmd(
 	unsigned int blkcnt,
 	unsigned int log_unit );
 
-static int ida_open(struct block_device *bdev, fmode_t mode);
+static int ida_unlocked_open(struct block_device *bdev, fmode_t mode);
 static int ida_release(struct gendisk *disk, fmode_t mode);
 static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -196,7 +196,7 @@ static inline ctlr_info_t *get_host(struct gendisk *disk)
 
 static const struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
-	.open		= ida_open,
+	.open		= ida_unlocked_open,
 	.release	= ida_release,
 	.ioctl		= ida_ioctl,
 	.getgeo		= ida_getgeo,
@@ -841,13 +841,29 @@ static int ida_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int ida_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ida_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*
  * Close.  Sync first.
  */
 static int ida_release(struct gendisk *disk, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(disk);
+	ctlr_info_t *host;
+
+	lock_kernel();
+	host = get_host(disk);
 	host->usage_count--;
+	unlock_kernel();
+
 	return 0;
 }
 

@@ -25,6 +25,7 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -1326,6 +1327,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	lock_kernel();
 	spin_lock(&blkdev->lock);
 
 	if (!blkdev->users && blkdev->device_type == DVD_TYPE) {
@@ -1337,6 +1339,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	blkdev->users++;
 
 	spin_unlock(&blkdev->lock);
+	unlock_kernel();
 	return 0;
 }
 
@@ -1347,6 +1350,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	lock_kernel();
 	spin_lock(&blkdev->lock);
 	if (blkdev->users == 1) {
 		spin_unlock(&blkdev->lock);
@@ -1357,6 +1361,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	blkdev->users--;
 
 	spin_unlock(&blkdev->lock);
+	unlock_kernel();
 	return 0;
 }
 

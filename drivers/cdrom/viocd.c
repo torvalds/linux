@@ -154,13 +154,21 @@ static const struct file_operations proc_viocd_operations = {
 static int viocd_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct disk_info *di = bdev->bd_disk->private_data;
-	return cdrom_open(&di->viocd_info, bdev, mode);
+	int ret;
+
+	lock_kernel();
+	ret = cdrom_open(&di->viocd_info, bdev, mode);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int viocd_blk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct disk_info *di = disk->private_data;
+	lock_kernel();
 	cdrom_release(&di->viocd_info, mode);
+	unlock_kernel();
 	return 0;
 }
 

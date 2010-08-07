@@ -15,6 +15,7 @@
 #include <linux/blkpg.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
+#include <linux/smp_lock.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -338,6 +339,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
+	lock_kernel();
 	spin_lock(&_minor_lock);
 
 	md = bdev->bd_disk->private_data;
@@ -355,6 +357,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 
 out:
 	spin_unlock(&_minor_lock);
+	unlock_kernel();
 
 	return md ? 0 : -ENXIO;
 }
@@ -362,8 +365,12 @@ out:
 static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
+
+	lock_kernel();
 	atomic_dec(&md->open_count);
 	dm_put(md);
+	unlock_kernel();
+
 	return 0;
 }
 

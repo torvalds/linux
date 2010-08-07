@@ -41,6 +41,7 @@
 #include <linux/cdrom.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/scatterlist.h>
 
 #include <xen/xen.h>
@@ -1018,13 +1019,18 @@ static int blkfront_is_ready(struct xenbus_device *dev)
 static int blkif_open(struct block_device *bdev, fmode_t mode)
 {
 	struct blkfront_info *info = bdev->bd_disk->private_data;
+
+	lock_kernel();
 	info->users++;
+	unlock_kernel();
+
 	return 0;
 }
 
 static int blkif_release(struct gendisk *disk, fmode_t mode)
 {
 	struct blkfront_info *info = disk->private_data;
+	lock_kernel();
 	info->users--;
 	if (info->users == 0) {
 		/* Check whether we have been instructed to close.  We will
@@ -1036,6 +1042,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 		if (state == XenbusStateClosing && info->is_ready)
 			blkfront_closing(dev);
 	}
+	unlock_kernel();
 	return 0;
 }
 

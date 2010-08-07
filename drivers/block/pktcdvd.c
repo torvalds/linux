@@ -2383,6 +2383,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 
 	VPRINTK(DRIVER_NAME": entering open\n");
 
+	lock_kernel();
 	mutex_lock(&ctl_mutex);
 	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
 	if (!pd) {
@@ -2410,6 +2411,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	mutex_unlock(&ctl_mutex);
+	unlock_kernel();
 	return 0;
 
 out_dec:
@@ -2417,6 +2419,7 @@ out_dec:
 out:
 	VPRINTK(DRIVER_NAME": failed open (%d)\n", ret);
 	mutex_unlock(&ctl_mutex);
+	unlock_kernel();
 	return ret;
 }
 
@@ -2425,6 +2428,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 	struct pktcdvd_device *pd = disk->private_data;
 	int ret = 0;
 
+	lock_kernel();
 	mutex_lock(&ctl_mutex);
 	pd->refcnt--;
 	BUG_ON(pd->refcnt < 0);
@@ -2433,6 +2437,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 		pkt_release_dev(pd, flush);
 	}
 	mutex_unlock(&ctl_mutex);
+	unlock_kernel();
 	return ret;
 }
 

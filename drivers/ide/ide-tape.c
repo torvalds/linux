@@ -1907,7 +1907,11 @@ static const struct file_operations idetape_fops = {
 
 static int idetape_open(struct block_device *bdev, fmode_t mode)
 {
-	struct ide_tape_obj *tape = ide_tape_get(bdev->bd_disk, false, 0);
+	struct ide_tape_obj *tape;
+
+	lock_kernel();
+	tape = ide_tape_get(bdev->bd_disk, false, 0);
+	unlock_kernel();
 
 	if (!tape)
 		return -ENXIO;
@@ -1919,7 +1923,10 @@ static int idetape_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ide_tape_obj *tape = ide_drv_g(disk, ide_tape_obj);
 
+	lock_kernel();
 	ide_tape_put(tape);
+	unlock_kernel();
+
 	return 0;
 }
 
