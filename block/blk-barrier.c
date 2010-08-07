@@ -203,7 +203,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 		/* initialize proxy request and queue it */
 		blk_rq_init(q, rq);
 		if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
-			rq->cmd_flags |= REQ_RW;
+			rq->cmd_flags |= REQ_WRITE;
 		if (q->ordered & QUEUE_ORDERED_DO_FUA)
 			rq->cmd_flags |= REQ_FUA;
 		init_request_from_bio(rq, q->orig_bar_rq->bio);

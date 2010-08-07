@@ -138,55 +138,83 @@ struct bio {
 #define BIO_POOL_IDX(bio)	((bio)->bi_flags >> BIO_POOL_OFFSET)	
 
 /*
- * bio bi_rw flags
- *
- * bit 0 -- data direction
- *	If not set, bio is a read from device. If set, it's a write to device.
- * bit 1 -- fail fast device errors
- * bit 2 -- fail fast transport errors
- * bit 3 -- fail fast driver errors
- * bit 4 -- rw-ahead when set
- * bit 5 -- barrier
- *	Insert a serialization point in the IO queue, forcing previously
- *	submitted IO to be completed before this one is issued.
- * bit 6 -- synchronous I/O hint.
- * bit 7 -- Unplug the device immediately after submitting this bio.
- * bit 8 -- metadata request
- *	Used for tracing to differentiate metadata and data IO. May also
- *	get some preferential treatment in the IO scheduler
- * bit 9 -- discard sectors
- *	Informs the lower level device that this range of sectors is no longer
- *	used by the file system and may thus be freed by the device. Used
- *	for flash based storage.
- *	Don't want driver retries for any fast fail whatever the reason.
- * bit 10 -- Tell the IO scheduler not to wait for more requests after this
-	one has been submitted, even if it is a SYNC request.
+ * Request flags.  For use in the cmd_flags field of struct request, and in
+ * bi_rw of struct bio.  Note that some flags are only valid in either one.
  */
-enum bio_rw_flags {
-	BIO_RW,
-	BIO_RW_FAILFAST_DEV,
-	BIO_RW_FAILFAST_TRANSPORT,
-	BIO_RW_FAILFAST_DRIVER,
-	/* above flags must match REQ_* */
-	BIO_RW_AHEAD,
-	BIO_RW_BARRIER,
-	BIO_RW_SYNCIO,
-	BIO_RW_UNPLUG,
-	BIO_RW_META,
-	BIO_RW_DISCARD,
-	BIO_RW_NOIDLE,
+enum rq_flag_bits {
+	/* common flags */
+	__REQ_WRITE,		/* not set, read. set, write */
+	__REQ_FAILFAST_DEV,	/* no driver retries of device errors */
+	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
+	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
+
+	__REQ_HARDBARRIER,	/* may not be passed by drive either */
+	__REQ_SYNC,		/* request is sync (sync write or read) */
+	__REQ_META,		/* metadata io request */
+	__REQ_DISCARD,		/* request to discard sectors */
+	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
+
+	/* bio only flags */
+	__REQ_UNPLUG,		/* unplug the immediately after submission */
+	__REQ_RAHEAD,		/* read ahead, can fail anytime */
+
+	/* request only flags */
+	__REQ_SORTED,		/* elevator knows about this request */
+	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
+	__REQ_FUA,		/* forced unit access */
+	__REQ_NOMERGE,		/* don't touch this for merging */
+	__REQ_STARTED,		/* drive already may have started this one */
+	__REQ_DONTPREP,		/* don't call prep for this one */
+	__REQ_QUEUED,		/* uses queueing */
+	__REQ_ELVPRIV,		/* elevator private data attached */
+	__REQ_FAILED,		/* set if the request failed */
+	__REQ_QUIET,		/* don't worry about errors */
+	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
+	__REQ_ORDERED_COLOR,	/* is before or after barrier */
+	__REQ_ALLOCED,		/* request came from our alloc pool */
+	__REQ_COPY_USER,	/* contains copies of user pages */
+	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
+	__REQ_IO_STAT,		/* account I/O stat */
+	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
+	__REQ_NR_BITS,		/* stops here */
 };
 
-/*
- * First four bits must match between bio->bi_rw and rq->cmd_flags, make
- * that explicit here.
- */
-#define BIO_RW_RQ_MASK		0xf
+#define REQ_WRITE		(1 << __REQ_WRITE)
+#define REQ_FAILFAST_DEV	(1 << __REQ_FAILFAST_DEV)
+#define REQ_FAILFAST_TRANSPORT	(1 << __REQ_FAILFAST_TRANSPORT)
+#define REQ_FAILFAST_DRIVER	(1 << __REQ_FAILFAST_DRIVER)
+#define REQ_HARDBARRIER		(1 << __REQ_HARDBARRIER)
+#define REQ_SYNC		(1 << __REQ_SYNC)
+#define REQ_META		(1 << __REQ_META)
+#define REQ_DISCARD		(1 << __REQ_DISCARD)
+#define REQ_NOIDLE		(1 << __REQ_NOIDLE)
 
-static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
-{
-	return (bio->bi_rw & (1 << flag)) != 0;
-}
+#define REQ_FAILFAST_MASK \
+	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
+#define REQ_COMMON_MASK \
+	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_HARDBARRIER | REQ_SYNC | \
+	 REQ_META| REQ_DISCARD | REQ_NOIDLE)
+
+#define REQ_UNPLUG		(1 << __REQ_UNPLUG)
+#define REQ_RAHEAD		(1 << __REQ_RAHEAD)
+
+#define REQ_SORTED		(1 << __REQ_SORTED)
+#define REQ_SOFTBARRIER		(1 << __REQ_SOFTBARRIER)
+#define REQ_FUA			(1 << __REQ_FUA)
+#define REQ_NOMERGE		(1 << __REQ_NOMERGE)
+#define REQ_STARTED		(1 << __REQ_STARTED)
+#define REQ_DONTPREP		(1 << __REQ_DONTPREP)
+#define REQ_QUEUED		(1 << __REQ_QUEUED)
+#define REQ_ELVPRIV		(1 << __REQ_ELVPRIV)
+#define REQ_FAILED		(1 << __REQ_FAILED)
+#define REQ_QUIET		(1 << __REQ_QUIET)
+#define REQ_PREEMPT		(1 << __REQ_PREEMPT)
+#define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
+#define REQ_ALLOCED		(1 << __REQ_ALLOCED)
+#define REQ_COPY_USER		(1 << __REQ_COPY_USER)
+#define REQ_INTEGRITY		(1 << __REQ_INTEGRITY)
+#define REQ_IO_STAT		(1 << __REQ_IO_STAT)
+#define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -211,7 +239,10 @@ static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_empty_barrier(bio)	(bio_rw_flagged(bio, BIO_RW_BARRIER) && !bio_has_data(bio) && !bio_rw_flagged(bio, BIO_RW_DISCARD))
+#define bio_empty_barrier(bio) \
+	((bio->bi_rw & REQ_HARDBARRIER) && \
+	 !bio_has_data(bio) && \
+	 !(bio->bi_rw & REQ_DISCARD))
 
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {

@@ -67,7 +67,7 @@ struct mdk_rdev_s
 #define	Faulty		1		/* device is known to have a fault */
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
-#define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
+#define	BarriersNotsupp	5		/* REQ_HARDBARRIER is not supported */
 #define	AllReserved	6		/* If whole device is reserved for
 					 * one array */
 #define	AutoDetected	7		/* added by auto-detect */
@@ -254,7 +254,7 @@ struct mddev_s
 							 * fails.  Only supported
 							 */
 	struct bio			*biolist; 	/* bios that need to be retried
-							 * because BIO_RW_BARRIER is not supported
+							 * because REQ_HARDBARRIER is not supported
 							 */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */

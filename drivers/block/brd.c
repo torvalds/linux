@@ -340,7 +340,7 @@ static int brd_make_request(struct request_queue *q, struct bio *bio)
 						get_capacity(bdev->bd_disk))
 		goto out;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
+	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
 		err = 0;
 		discard_from_brd(brd, sector, bio->bi_size);
 		goto out;

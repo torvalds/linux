@@ -1140,25 +1140,9 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
-	/*
-	 * Inherit FAILFAST from bio (for read-ahead, and explicit
-	 * FAILFAST).  FAILFAST flags are identical for req and bio.
-	 */
-	if (bio_rw_flagged(bio, BIO_RW_AHEAD))
+	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
+	if (bio->bi_rw & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
-	else
-		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
-
-	if (bio_rw_flagged(bio, BIO_RW_DISCARD))
-		req->cmd_flags |= REQ_DISCARD;
-	if (bio_rw_flagged(bio, BIO_RW_BARRIER))
-		req->cmd_flags |= REQ_HARDBARRIER;
-	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
-		req->cmd_flags |= REQ_RW_SYNC;
-	if (bio_rw_flagged(bio, BIO_RW_META))
-		req->cmd_flags |= REQ_RW_META;
-	if (bio_rw_flagged(bio, BIO_RW_NOIDLE))
-		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
 	req->__sector = bio->bi_sector;
@@ -1181,12 +1165,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret;
 	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
-	const bool sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
-	const bool unplug = bio_rw_flagged(bio, BIO_RW_UNPLUG);
+	const bool sync = (bio->bi_rw & REQ_SYNC);
+	const bool unplug = (bio->bi_rw & REQ_UNPLUG);
 	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
-	if (bio_rw_flagged(bio, BIO_RW_BARRIER) &&
+	if ((bio->bi_rw & REQ_HARDBARRIER) &&
 	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
@@ -1200,7 +1184,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)) || elv_queue_empty(q))
+	if (unlikely((bio->bi_rw & REQ_HARDBARRIER)) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -1275,7 +1259,7 @@ get_rq:
 	 */
 	rw_flags = bio_data_dir(bio);
 	if (sync)
-		rw_flags |= REQ_RW_SYNC;
+		rw_flags |= REQ_SYNC;
 
 	/*
 	 * Grab a free request. This is might sleep but can not fail.
@@ -1464,7 +1448,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		if (unlikely(!bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+		if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
 			     nr_sectors > queue_max_hw_sectors(q))) {
 			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 			       bdevname(bio->bi_bdev, b),
@@ -1497,8 +1481,7 @@ static inline void __generic_make_request(struct bio *bio)
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
 
-		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
-		    !blk_queue_discard(q)) {
+		if ((bio->bi_rw & REQ_DISCARD) && !blk_queue_discard(q)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
@@ -2365,7 +2348,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
 	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw */
-	rq->cmd_flags |= bio->bi_rw & REQ_RW;
+	rq->cmd_flags |= bio->bi_rw & REQ_WRITE;
 
 	if (bio_has_data(bio)) {
 		rq->nr_phys_segments = bio_phys_segments(q, bio);

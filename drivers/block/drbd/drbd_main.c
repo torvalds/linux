@@ -2425,15 +2425,15 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	/* NOTE: no need to check if barriers supported here as we would
 	 *       not pass the test in make_request_common in that case
 	 */
-	if (bio_rw_flagged(req->master_bio, BIO_RW_BARRIER)) {
+	if (req->master_bio->bi_rw & REQ_HARDBARRIER) {
 		dev_err(DEV, "ASSERT FAILED would have set DP_HARDBARRIER\n");
 		/* dp_flags |= DP_HARDBARRIER; */
 	}
-	if (bio_rw_flagged(req->master_bio, BIO_RW_SYNCIO))
+	if (req->master_bio->bi_rw & REQ_SYNC)
 		dp_flags |= DP_RW_SYNC;
 	/* for now handle SYNCIO and UNPLUG
 	 * as if they still were one and the same flag */
-	if (bio_rw_flagged(req->master_bio, BIO_RW_UNPLUG))
+	if (req->master_bio->bi_rw & REQ_UNPLUG)
 		dp_flags |= DP_RW_SYNC;
 	if (mdev->state.conn >= C_SYNC_SOURCE &&
 	    mdev->state.conn <= C_PAUSED_SYNC_T)

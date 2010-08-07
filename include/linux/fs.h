@@ -144,29 +144,31 @@ struct inodes_stat_t {
  *			of this IO.
  *
  */
-#define RW_MASK		1
-#define RWA_MASK	2
-#define READ 0
-#define WRITE 1
-#define READA 2		/* read-ahead  - don't block if no resources */
-#define SWRITE 3	/* for ll_rw_block() - wait for buffer lock */
-#define READ_SYNC	(READ | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG))
-#define READ_META	(READ | (1 << BIO_RW_META))
-#define WRITE_SYNC_PLUG	(WRITE | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_NOIDLE))
-#define WRITE_SYNC	(WRITE_SYNC_PLUG | (1 << BIO_RW_UNPLUG))
-#define WRITE_ODIRECT_PLUG	(WRITE | (1 << BIO_RW_SYNCIO))
-#define WRITE_META	(WRITE | (1 << BIO_RW_META))
-#define SWRITE_SYNC_PLUG	\
-			(SWRITE | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_NOIDLE))
-#define SWRITE_SYNC	(SWRITE_SYNC_PLUG | (1 << BIO_RW_UNPLUG))
-#define WRITE_BARRIER	(WRITE_SYNC | (1 << BIO_RW_BARRIER))
+#define RW_MASK			1
+#define RWA_MASK		2
+
+#define READ			0
+#define WRITE			1
+#define READA			2 /* readahead  - don't block if no resources */
+#define SWRITE			3 /* for ll_rw_block() - wait for buffer lock */
+
+#define READ_SYNC		(READ | REQ_SYNC | REQ_UNPLUG)
+#define READ_META		(READ | REQ_META)
+#define WRITE_SYNC_PLUG		(WRITE | REQ_SYNC | REQ_NOIDLE)
+#define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
+#define WRITE_ODIRECT_PLUG	(WRITE | REQ_SYNC)
+#define WRITE_META		(WRITE | REQ_META)
+#define WRITE_BARRIER		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
+				 REQ_HARDBARRIER)
+#define SWRITE_SYNC_PLUG	(SWRITE | REQ_SYNC | REQ_NOIDLE)
+#define SWRITE_SYNC		(SWRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
 
 /*
  * These aren't really reads or writes, they pass down information about
  * parts of device that are now unused by the file system.
  */
-#define DISCARD_NOBARRIER (WRITE | (1 << BIO_RW_DISCARD))
-#define DISCARD_BARRIER (DISCARD_NOBARRIER | (1 << BIO_RW_BARRIER))
+#define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
+#define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
 
 #define SEL_IN		1
 #define SEL_OUT		2
