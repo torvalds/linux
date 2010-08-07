@@ -57,6 +57,14 @@ static void i915_gem_free_object_tail(struct drm_gem_object *obj);
 static LIST_HEAD(shrink_list);
 static DEFINE_SPINLOCK(shrink_list_lock);
 
+static inline bool
+i915_gem_object_is_inactive(struct drm_i915_gem_object *obj_priv)
+{
+	return obj_priv->gtt_space &&
+		!obj_priv->active &&
+		obj_priv->pin_count == 0;
+}
+
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end)
 {
@@ -1036,6 +1044,11 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 	}
 
+	
+	/* Maintain LRU order of "inactive" objects */
+	if (ret == 0 && i915_gem_object_is_inactive(obj_priv))
+		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1137,6 +1150,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	pgoff_t page_offset;
 	unsigned long pfn;
@@ -1165,6 +1179,9 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		if (ret)
 			goto unlock;
 	}
+
+	if (i915_gem_object_is_inactive(obj_priv))
+		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 	pfn = ((dev->agp->base + obj_priv->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
