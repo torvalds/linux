@@ -73,14 +73,14 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 
 	buf = req->buffer;
 
-	if (!blk_fs_request(req))
+	if (req->cmd_type != REQ_TYPE_FS)
 		return -EIO;
 
 	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
 	    get_capacity(req->rq_disk))
 		return -EIO;
 
-	if (blk_discard_rq(req))
+	if (req->cmd_flags & REQ_DISCARD)
 		return tr->discard(dev, block, nsect);
 
 	switch(rq_data_dir(req)) {

@@ -65,13 +65,16 @@ static void blk_done(struct virtqueue *vq)
 			break;
 		}
 
-		if (blk_pc_request(vbr->req)) {
+		switch (vbr->req->cmd_type) {
+		case REQ_TYPE_BLOCK_PC:
 			vbr->req->resid_len = vbr->in_hdr.residual;
 			vbr->req->sense_len = vbr->in_hdr.sense_len;
 			vbr->req->errors = vbr->in_hdr.errors;
-		}
-		if (blk_special_request(vbr->req))
+			break;
+		case REQ_TYPE_SPECIAL:
 			vbr->req->errors = (error != 0);
+			break;
+		}
 
 		__blk_end_request_all(vbr->req, error);
 		list_del(&vbr->list);
@@ -123,7 +126,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		BUG();
 	}
 
-	if (blk_barrier_rq(vbr->req))
+	if (vbr->req->cmd_flags & REQ_HARDBARRIER)
 		vbr->out_hdr.type |= VIRTIO_BLK_T_BARRIER;
 
 	sg_set_buf(&vblk->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
@@ -134,12 +137,12 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	 * block, and before the normal inhdr we put the sense data and the
 	 * inhdr with additional status information before the normal inhdr.
 	 */
-	if (blk_pc_request(vbr->req))
+	if (vbr->req->cmd_type == REQ_TYPE_BLOCK_PC)
 		sg_set_buf(&vblk->sg[out++], vbr->req->cmd, vbr->req->cmd_len);
 
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg + out);
 
-	if (blk_pc_request(vbr->req)) {
+	if (vbr->req->cmd_type == REQ_TYPE_BLOCK_PC) {
 		sg_set_buf(&vblk->sg[num + out + in++], vbr->req->sense, 96);
 		sg_set_buf(&vblk->sg[num + out + in++], &vbr->in_hdr,
 			   sizeof(vbr->in_hdr));

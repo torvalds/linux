@@ -224,7 +224,7 @@ static inline int blk_trace_init_sysfs(struct device *dev)
 
 static inline int blk_cmd_buf_len(struct request *rq)
 {
-	return blk_pc_request(rq) ? rq->cmd_len * 3 : 1;
+	return (rq->cmd_type == REQ_TYPE_BLOCK_PC) ? rq->cmd_len * 3 : 1;
 }
 
 extern void blk_dump_cmd(char *buf, struct request *rq);

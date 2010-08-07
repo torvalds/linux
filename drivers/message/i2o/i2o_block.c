@@ -883,7 +883,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 		if (!req)
 			break;
 
-		if (blk_fs_request(req)) {
+		if (req->cmd_type == REQ_TYPE_FS) {
 			struct i2o_block_delayed_request *dreq;
 			struct i2o_block_request *ireq = req->special;
 			unsigned int queue_depth;

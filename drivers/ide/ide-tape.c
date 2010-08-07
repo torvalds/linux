@@ -577,7 +577,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		      rq->cmd[0], (unsigned long long)blk_rq_pos(rq),
 		      blk_rq_sectors(rq));
 
-	BUG_ON(!(blk_special_request(rq) || blk_sense_request(rq)));
+	BUG_ON(!(rq->cmd_type == REQ_TYPE_SPECIAL ||
+		 rq->cmd_type == REQ_TYPE_SENSE));
 
 	/* Retry a failed packet command */
 	if (drive->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {

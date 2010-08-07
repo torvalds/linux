@@ -485,7 +485,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	 * Discard request come in as REQ_TYPE_FS but we turn them into
 	 * block PC requests to make life easier.
 	 */
-	if (blk_discard_rq(rq))
+	if (rq->cmd_flags & REQ_DISCARD)
 		ret = sd_prepare_discard(rq);
 
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
@@ -636,7 +636,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[0] = VARIABLE_LENGTH_CMD;
 		SCpnt->cmnd[7] = 0x18;
 		SCpnt->cmnd[9] = (rq_data_dir(rq) == READ) ? READ_32 : WRITE_32;
-		SCpnt->cmnd[10] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
+		SCpnt->cmnd[10] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
 
 		/* LBA */
 		SCpnt->cmnd[12] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
@@ -661,7 +661,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[31] = (unsigned char) this_count & 0xff;
 	} else if (block > 0xffffffff) {
 		SCpnt->cmnd[0] += READ_16 - READ_6;
-		SCpnt->cmnd[1] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
+		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
 		SCpnt->cmnd[2] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
 		SCpnt->cmnd[3] = sizeof(block) > 4 ? (unsigned char) (block >> 48) & 0xff : 0;
 		SCpnt->cmnd[4] = sizeof(block) > 4 ? (unsigned char) (block >> 40) & 0xff : 0;
@@ -682,7 +682,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 			this_count = 0xffff;
 
 		SCpnt->cmnd[0] += READ_10 - READ_6;
-		SCpnt->cmnd[1] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
+		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
 		SCpnt->cmnd[2] = (unsigned char) (block >> 24) & 0xff;
 		SCpnt->cmnd[3] = (unsigned char) (block >> 16) & 0xff;
 		SCpnt->cmnd[4] = (unsigned char) (block >> 8) & 0xff;
@@ -691,7 +691,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[7] = (unsigned char) (this_count >> 8) & 0xff;
 		SCpnt->cmnd[8] = (unsigned char) this_count & 0xff;
 	} else {
-		if (unlikely(blk_fua_rq(rq))) {
+		if (unlikely(rq->cmd_flags & REQ_FUA)) {
 			/*
 			 * This happens only if this drive failed
 			 * 10byte rw command with ILLEGAL_REQUEST
@@ -1112,7 +1112,7 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 	u64 bad_lba;
 	int info_valid;
 
-	if (!blk_fs_request(scmd->request))
+	if (scmd->request->cmd_type != REQ_TYPE_FS)
 		return 0;
 
 	info_valid = scsi_get_sense_info_fld(scmd->sense_buffer,

@@ -465,7 +465,7 @@ struct request *ace_get_next_request(struct request_queue * q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (blk_fs_request(req))
+		if (req->cmd_type == REQ_TYPE_FS)
 			break;
 		blk_start_request(req);
 		__blk_end_request_all(req, -EIO);

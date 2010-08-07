@@ -661,10 +661,10 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 	if (likely(!bt))
 		return;
 
-	if (blk_discard_rq(rq))
+	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= (1 << BIO_RW_DISCARD);
 
-	if (blk_pc_request(rq)) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
 		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
 				what, rq->errors, rq->cmd_len, rq->cmd);
@@ -925,7 +925,7 @@ void blk_add_driver_data(struct request_queue *q,
 	if (likely(!bt))
 		return;
 
-	if (blk_pc_request(rq))
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC)
 		__blk_add_trace(bt, 0, blk_rq_bytes(rq), 0,
 				BLK_TA_DRV_DATA, rq->errors, len, data);
 	else
@@ -1730,7 +1730,7 @@ void blk_dump_cmd(char *buf, struct request *rq)
 	int len = rq->cmd_len;
 	unsigned char *cmd = rq->cmd;
 
-	if (!blk_pc_request(rq)) {
+	if (rq->cmd_type != REQ_TYPE_BLOCK_PC) {
 		buf[0] = '\0';
 		return;
 	}
@@ -1779,7 +1779,7 @@ void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
 	int rw = rq->cmd_flags & 0x03;
 	int bytes;
 
-	if (blk_discard_rq(rq))
+	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= (1 << BIO_RW_DISCARD);
 
 	bytes = blk_rq_bytes(rq);

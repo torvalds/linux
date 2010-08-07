@@ -238,7 +238,7 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
-	if (blk_barrier_rq(req))
+	if (req->cmd_flags & REQ_HARDBARRIER)
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
@@ -309,7 +309,7 @@ static void do_blkif_request(struct request_queue *rq)
 
 		blk_start_request(req);
 
-		if (!blk_fs_request(req)) {
+		if (req->cmd_type != REQ_TYPE_FS) {
 			__blk_end_request_all(req, -EIO);
 			continue;
 		}

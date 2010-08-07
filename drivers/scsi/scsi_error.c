@@ -307,7 +307,7 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		    (sshdr.asc == 0x04) && (sshdr.ascq == 0x02))
 			return FAILED;
 
-		if (blk_barrier_rq(scmd->request))
+		if (scmd->request->cmd_flags & REQ_HARDBARRIER)
 			/*
 			 * barrier requests should always retry on UA
 			 * otherwise block will get a spurious error
@@ -1318,16 +1318,16 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 	case DID_OK:
 		break;
 	case DID_BUS_BUSY:
-		return blk_failfast_transport(scmd->request);
+		return (scmd->request->cmd_flags & REQ_FAILFAST_TRANSPORT);
 	case DID_PARITY:
-		return blk_failfast_dev(scmd->request);
+		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
 	case DID_ERROR:
 		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
 		    status_byte(scmd->result) == RESERVATION_CONFLICT)
 			return 0;
 		/* fall through */
 	case DID_SOFT_ERROR:
-		return blk_failfast_driver(scmd->request);
+		return (scmd->request->cmd_flags & REQ_FAILFAST_DRIVER);
 	}
 
 	switch (status_byte(scmd->result)) {
@@ -1336,7 +1336,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 		 * assume caller has checked sense and determinted
 		 * the check condition was retryable.
 		 */
-		return blk_failfast_dev(scmd->request);
+		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
 	}
 
 	return 0;

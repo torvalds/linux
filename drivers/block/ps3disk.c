@@ -196,7 +196,7 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
 	while ((req = blk_fetch_request(q))) {
-		if (blk_fs_request(req)) {
+		if (req->cmd_type == REQ_TYPE_FS) {
 			if (ps3disk_submit_request_sg(dev, req))
 				break;
 		} else if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&

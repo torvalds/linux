@@ -792,12 +792,12 @@ static void dm_end_request(struct request *clone, int error)
 {
 	int rw = rq_data_dir(clone);
 	int run_queue = 1;
-	bool is_barrier = blk_barrier_rq(clone);
+	bool is_barrier = clone->cmd_flags & REQ_HARDBARRIER;
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
 	struct request *rq = tio->orig;
 
-	if (blk_pc_request(rq) && !is_barrier) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC && !is_barrier) {
 		rq->errors = clone->errors;
 		rq->resid_len = clone->resid_len;
 
@@ -844,7 +844,7 @@ void dm_requeue_unmapped_request(struct request *clone)
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.
 		 * Leave it to dm_end_request(), which handles this special
@@ -943,7 +943,7 @@ static void dm_complete_request(struct request *clone, int error)
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct request *rq = tio->orig;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.  So can't use
 		 * softirq_done with the original.
@@ -972,7 +972,7 @@ void dm_kill_unmapped_request(struct request *clone, int error)
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct request *rq = tio->orig;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.
 		 * Leave it to dm_end_request(), which handles this special

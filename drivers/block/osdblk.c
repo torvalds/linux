@@ -310,7 +310,8 @@ static void osdblk_rq_fn(struct request_queue *q)
 			break;
 
 		/* filter out block requests we don't understand */
-		if (!blk_fs_request(rq) && !blk_barrier_rq(rq)) {
+		if (rq->cmd_type != REQ_TYPE_FS &&
+		    !(rq->cmd_flags & REQ_HARDBARRIER)) {
 			blk_end_request_all(rq, 0);
 			continue;
 		}

@@ -722,7 +722,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
 
-	if (blk_pc_request(req)) { /* SG_IO ioctl from block level */
+	if (req->cmd_type == REQ_TYPE_BLOCK_PC) { /* SG_IO ioctl from block level */
 		req->errors = result;
 		if (result) {
 			if (sense_valid && req->sense) {
@@ -757,7 +757,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		}
 	}
 
-	BUG_ON(blk_bidi_rq(req)); /* bidi not support for !blk_pc_request yet */
+	/* no bidi support for !REQ_TYPE_BLOCK_PC yet */
+	BUG_ON(blk_bidi_rq(req));
 
 	/*
 	 * Next deal with any sectors which we were able to correctly

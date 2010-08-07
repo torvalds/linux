@@ -604,33 +604,20 @@ enum {
 	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
 
-#define blk_fs_request(rq)	((rq)->cmd_type == REQ_TYPE_FS)
-#define blk_pc_request(rq)	((rq)->cmd_type == REQ_TYPE_BLOCK_PC)
-#define blk_special_request(rq)	((rq)->cmd_type == REQ_TYPE_SPECIAL)
-#define blk_sense_request(rq)	((rq)->cmd_type == REQ_TYPE_SENSE)
+#define blk_noretry_request(rq) \
+	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
+			     REQ_FAILFAST_DRIVER))
 
-#define blk_failfast_dev(rq)	((rq)->cmd_flags & REQ_FAILFAST_DEV)
-#define blk_failfast_transport(rq) ((rq)->cmd_flags & REQ_FAILFAST_TRANSPORT)
-#define blk_failfast_driver(rq)	((rq)->cmd_flags & REQ_FAILFAST_DRIVER)
-#define blk_noretry_request(rq)	(blk_failfast_dev(rq) ||	\
-				 blk_failfast_transport(rq) ||	\
-				 blk_failfast_driver(rq))
-#define blk_rq_started(rq)	((rq)->cmd_flags & REQ_STARTED)
-#define blk_rq_io_stat(rq)	((rq)->cmd_flags & REQ_IO_STAT)
-#define blk_rq_quiet(rq)	((rq)->cmd_flags & REQ_QUIET)
+#define blk_account_rq(rq) \
+	(((rq)->cmd_flags & REQ_STARTED) && \
+	 ((rq)->cmd_type == REQ_TYPE_FS || \
+	  ((rq)->cmd_flags & REQ_DISCARD)))
 
-#define blk_account_rq(rq)	(blk_rq_started(rq) && (blk_fs_request(rq) || blk_discard_rq(rq))) 
-
-#define blk_pm_suspend_request(rq)	((rq)->cmd_type == REQ_TYPE_PM_SUSPEND)
-#define blk_pm_resume_request(rq)	((rq)->cmd_type == REQ_TYPE_PM_RESUME)
 #define blk_pm_request(rq)	\
-	(blk_pm_suspend_request(rq) || blk_pm_resume_request(rq))
+	((rq)->cmd_type == REQ_TYPE_PM_SUSPEND || \
+	 (rq)->cmd_type == REQ_TYPE_PM_RESUME)
 
 #define blk_rq_cpu_valid(rq)	((rq)->cpu != -1)
-#define blk_sorted_rq(rq)	((rq)->cmd_flags & REQ_SORTED)
-#define blk_barrier_rq(rq)	((rq)->cmd_flags & REQ_HARDBARRIER)
-#define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
-#define blk_discard_rq(rq)	((rq)->cmd_flags & REQ_DISCARD)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
 /* rq->queuelist of dequeued request must be list_empty() */
 #define blk_queued_rq(rq)	(!list_empty(&(rq)->queuelist))
@@ -651,9 +638,6 @@ static inline bool rq_is_sync(struct request *rq)
 {
 	return rw_is_sync(rq->cmd_flags);
 }
-
-#define rq_is_meta(rq)		((rq)->cmd_flags & REQ_RW_META)
-#define rq_noidle(rq)		((rq)->cmd_flags & REQ_NOIDLE)
 
 static inline int blk_queue_full(struct request_queue *q, int sync)
 {
@@ -687,7 +671,8 @@ static inline void blk_clear_queue_full(struct request_queue *q, int sync)
 	(REQ_NOMERGE | REQ_STARTED | REQ_HARDBARRIER | REQ_SOFTBARRIER)
 #define rq_mergeable(rq)	\
 	(!((rq)->cmd_flags & RQ_NOMERGE_FLAGS) && \
-	 (blk_discard_rq(rq) || blk_fs_request((rq))))
+	 (((rq)->cmd_flags & REQ_DISCARD) || \
+	  (rq)->cmd_type == REQ_TYPE_FS))
 
 /*
  * q->prep_rq_fn return values

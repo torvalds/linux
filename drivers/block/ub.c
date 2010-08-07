@@ -648,7 +648,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		return 0;
 	}
 
-	if (lun->changed && !blk_pc_request(rq)) {
+	if (lun->changed && rq->cmd_type != REQ_TYPE_BLOCK_PC)
 		blk_start_request(rq);
 		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION);
 		return 0;
@@ -684,7 +684,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	}
 	urq->nsg = n_elem;
 
-	if (blk_pc_request(rq)) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ub_cmd_build_packet(sc, lun, cmd, urq);
 	} else {
 		ub_cmd_build_block(sc, lun, cmd, urq);
@@ -781,7 +781,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	rq = urq->rq;
 
 	if (cmd->error == 0) {
-		if (blk_pc_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 			if (cmd->act_len >= rq->resid_len)
 				rq->resid_len = 0;
 			else
@@ -795,7 +795,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			}
 		}
 	} else {
-		if (blk_pc_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 			/* UB_SENSE_SIZE is smaller than SCSI_SENSE_BUFFERSIZE */
 			memcpy(rq->sense, sc->top_sense, UB_SENSE_SIZE);
 			rq->sense_len = UB_SENSE_SIZE;

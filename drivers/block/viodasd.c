@@ -361,7 +361,7 @@ static void do_viodasd_request(struct request_queue *q)
 		if (req == NULL)
 			return;
 		/* check that request contains a valid command */
-		if (!blk_fs_request(req)) {
+		if (req->cmd_type != REQ_TYPE_FS) {
 			viodasd_end_request(req, -EIO, blk_rq_sectors(req));
 			continue;
 		}

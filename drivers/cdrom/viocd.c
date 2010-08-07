@@ -298,7 +298,7 @@ static void do_viocd_request(struct request_queue *q)
 	struct request *req;
 
 	while ((rwreq == 0) && ((req = blk_fetch_request(q)) != NULL)) {
-		if (!blk_fs_request(req))
+		if (req->cmd_type != REQ_TYPE_FS)
 			__blk_end_request_all(req, -EIO);
 		else if (send_request(req) < 0) {
 			printk(VIOCD_KERN_WARNING

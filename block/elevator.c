@@ -428,7 +428,8 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
-		if (blk_discard_rq(rq) != blk_discard_rq(pos))
+		if ((rq->cmd_flags & REQ_DISCARD) !=
+		    (pos->cmd_flags & REQ_DISCARD))
 			break;
 		if (rq_data_dir(rq) != rq_data_dir(pos))
 			break;
@@ -558,7 +559,7 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]--;
-		if (blk_sorted_rq(rq))
+		if (rq->cmd_flags & REQ_SORTED)
 			elv_deactivate_rq(q, rq);
 	}
 
@@ -644,7 +645,8 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		break;
 
 	case ELEVATOR_INSERT_SORT:
-		BUG_ON(!blk_fs_request(rq) && !blk_discard_rq(rq));
+		BUG_ON(rq->cmd_type != REQ_TYPE_FS &&
+		       !(rq->cmd_flags & REQ_DISCARD));
 		rq->cmd_flags |= REQ_SORTED;
 		q->nr_sorted++;
 		if (rq_mergeable(rq)) {
@@ -716,7 +718,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		/*
 		 * toggle ordered color
 		 */
-		if (blk_barrier_rq(rq))
+		if (rq->cmd_flags & REQ_HARDBARRIER)
 			q->ordcolor ^= 1;
 
 		/*
@@ -729,7 +731,8 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		 * this request is scheduling boundary, update
 		 * end_sector
 		 */
-		if (blk_fs_request(rq) || blk_discard_rq(rq)) {
+		if (rq->cmd_type == REQ_TYPE_FS ||
+		    (rq->cmd_flags & REQ_DISCARD)) {
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
@@ -843,7 +846,8 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]--;
-		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
+		if ((rq->cmd_flags & REQ_SORTED) &&
+		    e->ops->elevator_completed_req_fn)
 			e->ops->elevator_completed_req_fn(q, rq);
 	}
 

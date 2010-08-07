@@ -226,7 +226,7 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 {
 	unsigned short max_sectors;
 
-	if (unlikely(blk_pc_request(req)))
+	if (unlikely(req->cmd_type == REQ_TYPE_BLOCK_PC))
 		max_sectors = queue_max_hw_sectors(q);
 	else
 		max_sectors = queue_max_sectors(q);
@@ -250,7 +250,7 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 {
 	unsigned short max_sectors;
 
-	if (unlikely(blk_pc_request(req)))
+	if (unlikely(req->cmd_type == REQ_TYPE_BLOCK_PC))
 		max_sectors = queue_max_hw_sectors(q);
 	else
 		max_sectors = queue_max_sectors(q);

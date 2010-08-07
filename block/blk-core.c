@@ -184,7 +184,7 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, len %u\n",
 	       rq->bio, rq->biotail, rq->buffer, blk_rq_bytes(rq));
 
-	if (blk_pc_request(rq)) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		printk(KERN_INFO "  cdb: ");
 		for (bit = 0; bit < BLK_MAX_CDB; bit++)
 			printk("%02x ", rq->cmd[bit]);
@@ -1796,7 +1796,7 @@ struct request *blk_peek_request(struct request_queue *q)
 			 * sees this request (possibly after
 			 * requeueing).  Notify IO scheduler.
 			 */
-			if (blk_sorted_rq(rq))
+			if (rq->cmd_flags & REQ_SORTED)
 				elv_activate_rq(q, rq);
 
 			/*
@@ -1984,10 +1984,11 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	 * TODO: tj: This is too subtle.  It would be better to let
 	 * low level drivers do what they see fit.
 	 */
-	if (blk_fs_request(req))
+	if (req->cmd_type == REQ_TYPE_FS)
 		req->errors = 0;
 
-	if (error && (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))) {
+	if (error && req->cmd_type == REQ_TYPE_FS &&
+	    !(req->cmd_flags & REQ_QUIET)) {
 		printk(KERN_ERR "end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
 				(unsigned long long)blk_rq_pos(req));
@@ -2074,7 +2075,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	req->buffer = bio_data(req->bio);
 
 	/* update sector only for requests with clear definition of sector */
-	if (blk_fs_request(req) || blk_discard_rq(req))
+	if (req->cmd_type == REQ_TYPE_FS || (req->cmd_flags & REQ_DISCARD))
 		req->__sector += total_bytes >> 9;
 
 	/* mixed attributes always follow the first bio */
@@ -2127,7 +2128,7 @@ static void blk_finish_request(struct request *req, int error)
 
 	BUG_ON(blk_queued_rq(req));
 
-	if (unlikely(laptop_mode) && blk_fs_request(req))
+	if (unlikely(laptop_mode) && req->cmd_type == REQ_TYPE_FS)
 		laptop_io_completion(&req->q->backing_dev_info);
 
 	blk_delete_timer(req);
