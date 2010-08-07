@@ -1,0 +1,7 @@
+TODO:
+- checkpatch.pl fixes
+- determine where to put the hal and common api code
+- modify the driver directory structure in an intuitive way
+
+Please send any patches to Greg Kroah-Hartman <gregkh@suse.de>
+and David Cross <david.cross@cypress.com>.

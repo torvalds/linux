@@ -57,3 +57,4 @@ obj-$(CONFIG_EASYCAP)		+= easycap/
 obj-$(CONFIG_SOLO6X10)		+= solo6x10/
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
 obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
+obj-$(CONFIG_WESTBRIDGE_ASTORIA)	+= westbridge/astoria/

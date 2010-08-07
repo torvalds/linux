@@ -153,5 +153,7 @@ source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
 
+source "drivers/staging/westbridge/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
