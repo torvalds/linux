@@ -4204,6 +4204,62 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
+static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	bool visible = base != 0;
+	u32 cntl;
+
+	if (intel_crtc->cursor_visible == visible)
+		return;
+
+	cntl = I915_READ(CURACNTR);
+	if (visible) {
+		/* On these chipsets we can only modify the base whilst
+		 * the cursor is disabled.
+		 */
+		I915_WRITE(CURABASE, base);
+
+		cntl &= ~(CURSOR_FORMAT_MASK);
+		/* XXX width must be 64, stride 256 => 0x00 << 28 */
+		cntl |= CURSOR_ENABLE |
+			CURSOR_GAMMA_ENABLE |
+			CURSOR_FORMAT_ARGB;
+	} else
+		cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
+	I915_WRITE(CURACNTR, cntl);
+
+	intel_crtc->cursor_visible = visible;
+}
+
+static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	bool visible = base != 0;
+
+	if (intel_crtc->cursor_visible != visible) {
+		uint32_t cntl = I915_READ(pipe == 0 ? CURACNTR : CURBCNTR);
+		if (base) {
+			cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+			cntl |= pipe << 28; /* Connect to correct pipe */
+		} else {
+			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
+			cntl |= CURSOR_MODE_DISABLE;
+		}
+		I915_WRITE(pipe == 0 ? CURACNTR : CURBCNTR, cntl);
+
+		intel_crtc->cursor_visible = visible;
+	}
+	/* and commit changes on next vblank */
+	I915_WRITE(pipe == 0 ? CURABASE : CURBBASE, base);
+}
+
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
 static void intel_crtc_update_cursor(struct drm_crtc *crtc)
 {
@@ -4213,7 +4269,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int x = intel_crtc->cursor_x;
 	int y = intel_crtc->cursor_y;
-	uint32_t base, pos;
+	u32 base, pos;
 	bool visible;
 
 	pos = 0;
@@ -4247,37 +4303,14 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc)
 	pos |= y << CURSOR_Y_SHIFT;
 
 	visible = base != 0;
-	if (!visible && !intel_crtc->cursor_visble)
+	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
 	I915_WRITE(pipe == 0 ? CURAPOS : CURBPOS, pos);
-	if (intel_crtc->cursor_visble != visible) {
-		uint32_t cntl = I915_READ(pipe == 0 ? CURACNTR : CURBCNTR);
-		if (base) {
-			/* Hooray for CUR*CNTR differences */
-			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-				cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-				cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-				cntl |= pipe << 28; /* Connect to correct pipe */
-			} else {
-				cntl &= ~(CURSOR_FORMAT_MASK);
-				cntl |= CURSOR_ENABLE;
-				cntl |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
-			}
-		} else {
-			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-				cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-				cntl |= CURSOR_MODE_DISABLE;
-			} else {
-				cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-			}
-		}
-		I915_WRITE(pipe == 0 ? CURACNTR : CURBCNTR, cntl);
-
-		intel_crtc->cursor_visble = visible;
-	}
-	/* and commit changes on next vblank */
-	I915_WRITE(pipe == 0 ? CURABASE : CURBBASE, base);
+	if (IS_845G(dev) || IS_I865G(dev))
+		i845_update_cursor(crtc, base);
+	else
+		i9xx_update_cursor(crtc, base);
 
 	if (visible)
 		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
