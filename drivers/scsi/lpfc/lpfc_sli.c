@@ -8476,7 +8476,7 @@ lpfc_sli_intr_handler(int irq, void *dev_id)
 	 * If there is deferred error attention, do not check for any interrupt.
 	 */
 	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock(&phba->hbalock);
 		return IRQ_NONE;
 	}
 
@@ -12827,9 +12827,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			}
 			ndlp = (struct lpfc_nodelist *) mb->context2;
 			if (ndlp) {
-				spin_lock_irq(shost->host_lock);
+				spin_lock(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-				spin_unlock_irq(shost->host_lock);
+				spin_unlock(shost->host_lock);
 				lpfc_nlp_put(ndlp);
 				mb->context2 = NULL;
 			}
@@ -12845,9 +12845,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 			ndlp = (struct lpfc_nodelist *) mb->context2;
 			if (ndlp) {
-				spin_lock_irq(shost->host_lock);
+				spin_lock(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-				spin_unlock_irq(shost->host_lock);
+				spin_unlock(shost->host_lock);
 				lpfc_nlp_put(ndlp);
 				mb->context2 = NULL;
 			}
