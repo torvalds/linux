@@ -422,23 +422,15 @@ u8_t zfRateCtrlRateDiff(struct zsRcCell* rcCell, u8_t retryRate)
     u16_t i;
 
     /* Find retryRate in operationRateSet[] */
-    for (i=0; i<rcCell->operationRateCount; i++)
-    {
-        if (retryRate == rcCell->operationRateSet[i])
-        {
-            if (i < rcCell->currentRateIndex)
-            {
-                return ((rcCell->currentRateIndex - i)+1)>>1;
-            }
-            else if (i == rcCell->currentRateIndex == 0)
-            {
-                return 1;
-            }
-            else
-            {
-                return 0;
-            }
-        }
+    for (i = 0; i < rcCell->operationRateCount; i++) {
+	if (retryRate == rcCell->operationRateSet[i]) {
+		if (i < rcCell->currentRateIndex)
+			return ((rcCell->currentRateIndex - i)+1)>>1;
+		else if (i == rcCell->currentRateIndex && i == 0)
+			return 1;
+		else
+			return 0;
+	}
     }
     /* TODO : retry rate not in operation rate set */
     zm_msg1_tx(ZM_LV_0, "Not in operation rate set:", retryRate);
