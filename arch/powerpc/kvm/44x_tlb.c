@@ -47,6 +47,7 @@
 #ifdef DEBUG
 void kvmppc_dump_tlbs(struct kvm_vcpu *vcpu)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct kvmppc_44x_tlbe *tlbe;
 	int i;
 
