@@ -162,13 +162,22 @@ static struct list_head	ownerstr_hashtbl[OWNER_HASH_SIZE];
 static struct list_head file_hashtbl[FILE_HASH_SIZE];
 static struct list_head stateid_hashtbl[STATEID_HASH_SIZE];
 
-static inline void nfs4_file_get_access(struct nfs4_file *fp, int oflag)
+static void __nfs4_file_get_access(struct nfs4_file *fp, int oflag)
 {
 	BUG_ON(!(fp->fi_fds[oflag] || fp->fi_fds[O_RDWR]));
 	atomic_inc(&fp->fi_access[oflag]);
 }
 
-static inline void nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
+static void nfs4_file_get_access(struct nfs4_file *fp, int oflag)
+{
+	if (oflag == O_RDWR) {
+		__nfs4_file_get_access(fp, O_RDONLY);
+		__nfs4_file_get_access(fp, O_WRONLY);
+	} else
+		__nfs4_file_get_access(fp, oflag);
+}
+
+static void nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
 {
 	if (fp->fi_fds[oflag]) {
 		fput(fp->fi_fds[oflag]);
@@ -176,12 +185,21 @@ static inline void nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
 	}
 }
 
-static inline void nfs4_file_put_access(struct nfs4_file *fp, int oflag)
+static void __nfs4_file_put_access(struct nfs4_file *fp, int oflag)
 {
 	if (atomic_dec_and_test(&fp->fi_access[oflag])) {
 		nfs4_file_put_fd(fp, O_RDWR);
 		nfs4_file_put_fd(fp, oflag);
 	}
+}
+
+static void nfs4_file_put_access(struct nfs4_file *fp, int oflag)
+{
+	if (oflag == O_RDWR) {
+		__nfs4_file_put_access(fp, O_RDONLY);
+		__nfs4_file_put_access(fp, O_WRONLY);
+	} else
+		__nfs4_file_put_access(fp, oflag);
 }
 
 static struct nfs4_delegation *
