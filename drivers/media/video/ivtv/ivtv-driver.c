@@ -705,6 +705,8 @@ done:
  */
 static int __devinit ivtv_init_struct1(struct ivtv *itv)
 {
+	struct sched_param param = { .sched_priority = 99 };
+
 	itv->base_addr = pci_resource_start(itv->pdev, 0);
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
@@ -716,13 +718,17 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	itv->irq_work_queues = create_singlethread_workqueue(itv->v4l2_dev.name);
-	if (itv->irq_work_queues == NULL) {
-		IVTV_ERR("Could not create ivtv workqueue\n");
+	init_kthread_worker(&itv->irq_worker);
+	itv->irq_worker_task = kthread_run(kthread_worker_fn, &itv->irq_worker,
+					   itv->v4l2_dev.name);
+	if (IS_ERR(itv->irq_worker_task)) {
+		IVTV_ERR("Could not create ivtv task\n");
 		return -1;
 	}
+	/* must use the FIFO scheduler as it is realtime sensitive */
+	sched_setscheduler(itv->irq_worker_task, SCHED_FIFO, &param);
 
-	INIT_WORK(&itv->irq_work_queue, ivtv_irq_work_handler);
+	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
 
 	/* start counting open_id at 1 */
 	itv->open_id = 1;
@@ -1006,7 +1012,7 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	/* PCI Device Setup */
 	retval = ivtv_setup_pci(itv, pdev, pci_id);
 	if (retval == -EIO)
-		goto free_workqueue;
+		goto free_worker;
 	if (retval == -ENXIO)
 		goto free_mem;
 
@@ -1218,8 +1224,8 @@ free_mem:
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-free_workqueue:
-	destroy_workqueue(itv->irq_work_queues);
+free_worker:
+	kthread_stop(itv->irq_worker_task);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1363,9 +1369,9 @@ static void ivtv_remove(struct pci_dev *pdev)
 	ivtv_set_irq_mask(itv, 0xffffffff);
 	del_timer_sync(&itv->dma_timer);
 
-	/* Stop all Work Queues */
-	flush_workqueue(itv->irq_work_queues);
-	destroy_workqueue(itv->irq_work_queues);
+	/* Kill irq worker */
+	flush_kthread_worker(&itv->irq_worker);
+	kthread_stop(itv->irq_worker_task);
 
 	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);

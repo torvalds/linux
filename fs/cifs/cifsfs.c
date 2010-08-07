@@ -939,15 +939,10 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_key_type;
 #endif
-	rc = slow_work_register_user(THIS_MODULE);
-	if (rc)
-		goto out_unregister_resolver_key;
 
 	return 0;
 
- out_unregister_resolver_key:
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	cifs_exit_dns_resolver();
  out_unregister_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
