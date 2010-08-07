@@ -1342,8 +1342,10 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		limits = &ips_lv_limits;
 	else if (strstr(boot_cpu_data.x86_model_id, "CPU       U"))
 		limits = &ips_ulv_limits;
-	else
+	else {
 		dev_info(&ips->dev->dev, "No CPUID match found.\n");
+		goto out;
+	}
 
 	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_power);
 	tdp = turbo_power & TURBO_TDP_MASK;
