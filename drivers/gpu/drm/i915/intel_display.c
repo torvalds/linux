@@ -2369,8 +2369,6 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		intel_update_watermarks(dev);
-
 		/* Enable the DPLL */
 		temp = I915_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) == 0) {
@@ -2410,8 +2408,6 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 		intel_crtc_dpms_overlay(intel_crtc, true);
 	break;
 	case DRM_MODE_DPMS_OFF:
-		intel_update_watermarks(dev);
-
 		/* Give the overlay scaler a chance to disable if it's on this pipe */
 		intel_crtc_dpms_overlay(intel_crtc, false);
 		drm_vblank_off(dev, pipe);
@@ -2476,12 +2472,26 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int pipe = intel_crtc->pipe;
 	bool enabled;
 
+	intel_crtc->dpms_mode = mode;
+	intel_crtc->cursor_on = mode == DRM_MODE_DPMS_ON;
+
+	/* When switching on the display, ensure that SR is disabled
+	 * with multiple pipes prior to enabling to new pipe.
+	 *
+	 * When switching off the display, make sure the cursor is
+	 * properly hidden prior to disabling the pipe.
+	 */
+	if (mode == DRM_MODE_DPMS_ON)
+		intel_update_watermarks(dev);
+	else
+		intel_crtc_update_cursor(crtc);
+
 	dev_priv->display.dpms(crtc, mode);
 
-	intel_crtc->dpms_mode = mode;
-
-	intel_crtc->cursor_on = mode == DRM_MODE_DPMS_ON;
-	intel_crtc_update_cursor(crtc);
+	if (mode == DRM_MODE_DPMS_ON)
+		intel_crtc_update_cursor(crtc);
+	else
+		intel_update_watermarks(dev);
 
 	if (!dev->primary->master)
 		return;
@@ -3362,12 +3372,11 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 	int line_count;
 	int planea_htotal = 0, planeb_htotal = 0;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	/* Need htotal for all active display plane */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-		if (crtc->enabled) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		if (intel_crtc->dpms_mode == DRM_MODE_DPMS_ON) {
 			if (intel_crtc->plane == 0)
 				planea_htotal = crtc->mode.htotal;
 			else
@@ -3527,7 +3536,6 @@ static void intel_update_watermarks(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 	int sr_hdisplay = 0;
 	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
 	int enabled = 0, pixel_size = 0;
@@ -3538,8 +3546,8 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 	/* Get the clock config from both planes */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-		if (crtc->enabled) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		if (intel_crtc->dpms_mode == DRM_MODE_DPMS_ON) {
 			enabled++;
 			if (intel_crtc->plane == 0) {
 				DRM_DEBUG_KMS("plane A (pipe %d) clock: %d\n",
