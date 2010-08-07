@@ -1168,9 +1168,6 @@ static int blkif_open(struct block_device *bdev, fmode_t mode)
 
 	mutex_unlock(&info->mutex);
 
-	if (!err)
-		++info->users;
-
 out:
 	unlock_kernel();
 	return err;
@@ -1183,11 +1180,12 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	struct xenbus_device *xbdev;
 
 	lock_kernel();
-	if (--info->users)
-		goto out;
 
 	bdev = bdget_disk(disk, 0);
 	bdput(bdev);
+
+	if (bdev->bd_openers)
+		goto out;
 
 	/*
 	 * Check if we have been instructed to close. We will have
@@ -1212,7 +1210,6 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 		kfree(info);
 	}
 
-out:
 	unlock_kernel();
 	return 0;
 }
