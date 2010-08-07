@@ -246,26 +246,20 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	/* If we don't have a panel mode, there is nothing we can do */
 	if (dev_priv->panel_fixed_mode == NULL)
 		return true;
+
 	/*
 	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	adjusted_mode->hdisplay = dev_priv->panel_fixed_mode->hdisplay;
-	adjusted_mode->hsync_start =
-		dev_priv->panel_fixed_mode->hsync_start;
-	adjusted_mode->hsync_end =
-		dev_priv->panel_fixed_mode->hsync_end;
-	adjusted_mode->htotal = dev_priv->panel_fixed_mode->htotal;
-	adjusted_mode->vdisplay = dev_priv->panel_fixed_mode->vdisplay;
-	adjusted_mode->vsync_start =
-		dev_priv->panel_fixed_mode->vsync_start;
-	adjusted_mode->vsync_end =
-		dev_priv->panel_fixed_mode->vsync_end;
-	adjusted_mode->vtotal = dev_priv->panel_fixed_mode->vtotal;
-	adjusted_mode->clock = dev_priv->panel_fixed_mode->clock;
-	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+	intel_fixed_panel_mode(dev_priv->panel_fixed_mode, adjusted_mode);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_pch_panel_fitting(dev, intel_lvds->fitting_mode,
+					mode, adjusted_mode);
+		return true;
+	}
 
 	/* Make sure pre-965s set dither correctly */
 	if (!IS_I965G(dev)) {
@@ -276,10 +270,6 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	/* Native modes don't need fitting */
 	if (adjusted_mode->hdisplay == mode->hdisplay &&
 	    adjusted_mode->vdisplay == mode->vdisplay)
-		goto out;
-
-	/* full screen scale for now */
-	if (HAS_PCH_SPLIT(dev))
 		goto out;
 
 	/* 965+ wants fuzzy fitting */
@@ -293,10 +283,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	if (!HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(BCLRPAT_A, 0);
-		I915_WRITE(BCLRPAT_B, 0);
-	}
+	I915_WRITE(BCLRPAT_A, 0);
+	I915_WRITE(BCLRPAT_B, 0);
 
 	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:

@@ -186,6 +186,13 @@ extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
 
 
+extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+				   struct drm_display_mode *adjusted_mode);
+extern void intel_pch_panel_fitting(struct drm_device *dev,
+				    int fitting_mode,
+				    struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode);
+
 extern int intel_panel_fitter_pipe (struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);

@@ -2005,15 +2005,13 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Enable panel fitting for LVDS */
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
 		    || HAS_eDP || intel_pch_has_edp(crtc)) {
-			temp = I915_READ(pf_ctl_reg);
-			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
-
-			/* currently full aspect */
-			I915_WRITE(pf_win_pos, 0);
-
-			I915_WRITE(pf_win_size,
-				   (dev_priv->panel_fixed_mode->hdisplay << 16) |
-				   (dev_priv->panel_fixed_mode->vdisplay));
+			if (dev_priv->pch_pf_size) {
+				temp = I915_READ(pf_ctl_reg);
+				I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
+				I915_WRITE(pf_win_pos, dev_priv->pch_pf_pos);
+				I915_WRITE(pf_win_size, dev_priv->pch_pf_size);
+			} else
+				I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
 		}
 
 		/* Enable CPU pipe */
