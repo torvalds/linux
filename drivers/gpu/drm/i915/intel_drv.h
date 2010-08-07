@@ -32,6 +32,20 @@
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
+
+#define wait_for(COND, MS, W) ({ \
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	int ret__ = 0;							\
+	while (! (COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		if (W) msleep(W);					\
+	}								\
+	ret__;								\
+})
+
 /*
  * Display related stuff
  */

@@ -96,7 +96,7 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status, ctl_reg, status_reg, lvds_reg;
+	u32 ctl_reg, status_reg, lvds_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
@@ -114,9 +114,8 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
 			   POWER_TARGET_ON);
-		do {
-			pp_status = I915_READ(status_reg);
-		} while ((pp_status & PP_ON) == 0);
+		if (wait_for(I915_READ(status_reg) & PP_ON, 1000, 0))
+			DRM_ERROR("timed out waiting to enable LVDS pipe");
 
 		intel_lvds_set_backlight(dev, dev_priv->backlight_duty_cycle);
 	} else {
@@ -124,9 +123,8 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) &
 			   ~POWER_TARGET_ON);
-		do {
-			pp_status = I915_READ(status_reg);
-		} while (pp_status & PP_ON);
+		if (wait_for((I915_READ(status_reg) & PP_ON) == 0, 1000, 0))
+			DRM_ERROR("timed out waiting for LVDS pipe to turn off");
 
 		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 		POSTING_READ(lvds_reg);
