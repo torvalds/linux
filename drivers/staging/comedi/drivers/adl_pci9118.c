@@ -252,9 +252,8 @@ struct boardtype {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
-	{
-	PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
