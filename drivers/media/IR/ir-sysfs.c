@@ -43,6 +43,7 @@ static struct {
 	{ IR_TYPE_RC6,		"rc-6"		},
 	{ IR_TYPE_JVC,		"jvc"		},
 	{ IR_TYPE_SONY,		"sony"		},
+	{ IR_TYPE_RC5_SZ,	"rc-5-sz"	},
 	{ IR_TYPE_LIRC,		"lirc"		},
 };
 
