@@ -768,8 +768,10 @@ static bool tomoyo_select_one(struct tomoyo_io_buffer *head, const char *data)
 		return true; /* Do nothing if open(O_WRONLY). */
 	memset(&head->r, 0, sizeof(head->r));
 	head->r.print_this_domain_only = true;
-	head->r.eof = !domain;
-	head->r.domain = &domain->list;
+	if (domain)
+		head->r.domain = &domain->list;
+	else
+		head->r.eof = 1;
 	tomoyo_io_printf(head, "# select %s\n", data);
 	if (domain && domain->is_deleted)
 		tomoyo_io_printf(head, "# This is a deleted domain.\n");
