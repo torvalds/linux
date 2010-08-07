@@ -4765,7 +4765,7 @@ out:
  */
 static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 {
-	int err = 0;
+	int err = 0, revalidate = 0;
 	struct gendisk *disk = mddev->gendisk;
 	mdk_rdev_t *rdev;
 
@@ -4795,7 +4795,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			}
 
 		set_capacity(disk, 0);
-		revalidate_disk(disk);
+		revalidate = 1;
 
 		if (mddev->ro)
 			mddev->ro = 0;
@@ -4803,6 +4803,8 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		err = 0;
 	}
 	mutex_unlock(&mddev->open_mutex);
+	if (revalidate)
+		revalidate_disk(disk);
 	if (err)
 		return err;
 	/*
