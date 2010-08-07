@@ -534,6 +534,39 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	return err;
 }
 
+static void xlvbd_release_gendisk(struct blkfront_info *info)
+{
+	unsigned int minor, nr_minors;
+	unsigned long flags;
+
+	if (info->rq == NULL)
+		return;
+
+	spin_lock_irqsave(&blkif_io_lock, flags);
+
+	/* No more blkif_request(). */
+	blk_stop_queue(info->rq);
+
+	/* No more gnttab callback work. */
+	gnttab_cancel_free_callback(&info->callback);
+	spin_unlock_irqrestore(&blkif_io_lock, flags);
+
+	/* Flush gnttab callback work. Must be done with no locks held. */
+	flush_scheduled_work();
+
+	del_gendisk(info->gd);
+
+	minor = info->gd->first_minor;
+	nr_minors = info->gd->minors;
+	xlbd_release_minors(minor, nr_minors);
+
+	blk_cleanup_queue(info->rq);
+	info->rq = NULL;
+
+	put_disk(info->gd);
+	info->gd = NULL;
+}
+
 static void kick_pending_request_queues(struct blkfront_info *info)
 {
 	if (!RING_FULL(&info->ring)) {
@@ -995,49 +1028,6 @@ static void blkfront_connect(struct blkfront_info *info)
 }
 
 /**
- * Handle the change of state of the backend to Closing.  We must delete our
- * device-layer structures now, to ensure that writes are flushed through to
- * the backend.  Once is this done, we can switch to Closed in
- * acknowledgement.
- */
-static void blkfront_closing(struct blkfront_info *info)
-{
-	unsigned int minor, nr_minors;
-	unsigned long flags;
-
-
-	if (info->rq == NULL)
-		goto out;
-
-	spin_lock_irqsave(&blkif_io_lock, flags);
-
-	/* No more blkif_request(). */
-	blk_stop_queue(info->rq);
-
-	/* No more gnttab callback work. */
-	gnttab_cancel_free_callback(&info->callback);
-	spin_unlock_irqrestore(&blkif_io_lock, flags);
-
-	/* Flush gnttab callback work. Must be done with no locks held. */
-	flush_scheduled_work();
-
-	minor = info->gd->first_minor;
-	nr_minors = info->gd->minors;
-	del_gendisk(info->gd);
-	xlbd_release_minors(minor, nr_minors);
-
-	blk_cleanup_queue(info->rq);
-	info->rq = NULL;
-
-	put_disk(info->gd);
-	info->gd = NULL;
-
- out:
-	if (info->xbdev)
-		xenbus_frontend_closed(info->xbdev);
-}
-
-/**
  * Callback received when the backend's state changes.
  */
 static void blkback_changed(struct xenbus_device *dev,
@@ -1073,8 +1063,11 @@ static void blkback_changed(struct xenbus_device *dev,
 		if (info->users > 0)
 			xenbus_dev_error(dev, -EBUSY,
 					 "Device in use; refusing to close");
-		else
-			blkfront_closing(info);
+		else {
+			xlvbd_release_gendisk(info);
+			xenbus_frontend_closed(info->xbdev);
+		}
+
 		mutex_unlock(&bd->bd_mutex);
 		bdput(bd);
 		break;
@@ -1130,11 +1123,13 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 		struct xenbus_device *dev = info->xbdev;
 
 		if (!dev) {
-			blkfront_closing(info);
+			xlvbd_release_gendisk(info);
 			kfree(info);
 		} else if (xenbus_read_driver_state(dev->otherend)
-			   == XenbusStateClosing && info->is_ready)
-			blkfront_closing(info);
+			   == XenbusStateClosing && info->is_ready) {
+			xlvbd_release_gendisk(info);
+			xenbus_frontend_closed(dev);
+		}
 	}
 	unlock_kernel();
 	return 0;
