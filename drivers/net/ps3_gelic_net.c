@@ -642,7 +642,7 @@ static inline void gelic_card_disable_rxdmac(struct gelic_card *card)
 	status = lv1_net_stop_rx_dma(bus_id(card), dev_id(card), 0);
 	if (status)
 		dev_err(ctodev(card),
-			"lv1_net_stop_rx_dma faild, %d\n", status);
+			"lv1_net_stop_rx_dma failed, %d\n", status);
 }
 
 /**
@@ -660,7 +660,7 @@ static inline void gelic_card_disable_txdmac(struct gelic_card *card)
 	status = lv1_net_stop_tx_dma(bus_id(card), dev_id(card), 0);
 	if (status)
 		dev_err(ctodev(card),
-			"lv1_net_stop_tx_dma faild, status=%d\n", status);
+			"lv1_net_stop_tx_dma failed, status=%d\n", status);
 }
 
 /**

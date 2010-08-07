@@ -362,7 +362,7 @@ static __init int omap_dsp_init(void)
 	ret = dsp_kfunc_device_register(&nokia770_audio_device);
 	if (ret) {
 		printk(KERN_ERR
-		       "KFUNC device registration faild: %s\n",
+		       "KFUNC device registration failed: %s\n",
 		       nokia770_audio_device.name);
 		goto out;
 	}

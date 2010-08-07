@@ -192,7 +192,7 @@ static int bfin_t350mcqb_request_ports(int action)
 {
 	if (action) {
 		if (peripheral_request_list(ppi0_req_8, DRIVER_NAME)) {
-			printk(KERN_ERR "Requesting Peripherals faild\n");
+			printk(KERN_ERR "Requesting Peripherals failed\n");
 			return -EFAULT;
 		}
 	} else
