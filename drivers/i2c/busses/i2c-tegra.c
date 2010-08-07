@@ -302,6 +302,10 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 
 	clk_enable(i2c_dev->clk);
 
+	tegra_periph_reset_assert(i2c_dev->clk);
+	udelay(2);
+	tegra_periph_reset_deassert(i2c_dev->clk);
+
 	if (i2c_dev->is_dvc)
 		tegra_dvc_init(i2c_dev);
 
