@@ -1402,6 +1402,7 @@ static void igdng_enable_pll_edp (struct drm_crtc *crtc)
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl |= DP_PLL_ENABLE;
 	I915_WRITE(DP_A, dpa_ctl);
+	POSTING_READ(DP_A);
 	udelay(200);
 }
 
