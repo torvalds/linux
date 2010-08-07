@@ -1137,7 +1137,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	pgoff_t page_offset;
 	unsigned long pfn;
@@ -1154,8 +1153,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = i915_gem_object_bind_to_gtt(obj, 0);
 		if (ret)
 			goto unlock;
-
-		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, write);
 		if (ret)
@@ -1363,7 +1360,6 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_i915_gem_mmap_gtt *args = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
@@ -1409,7 +1405,6 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			mutex_unlock(&dev->struct_mutex);
 			return ret;
 		}
-		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	drm_gem_object_unreference(obj);
@@ -2722,6 +2717,9 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	}
 	atomic_inc(&dev->gtt_count);
 	atomic_add(obj->size, &dev->gtt_memory);
+
+	/* keep track of bounds object by adding it to the inactive list */
+	list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -4223,8 +4221,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 		atomic_inc(&dev->pin_count);
 		atomic_add(obj->size, &dev->pin_memory);
 		if (!obj_priv->active &&
-		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0 &&
-		    !list_empty(&obj_priv->list))
+		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
 			list_del_init(&obj_priv->list);
 	}
 	i915_verify_inactive(dev, __FILE__, __LINE__);
