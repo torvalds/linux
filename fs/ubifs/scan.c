@@ -212,7 +212,6 @@ int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 	case UBIFS_DENT_NODE:
 	case UBIFS_XENT_NODE:
 	case UBIFS_DATA_NODE:
-	case UBIFS_TRUN_NODE:
 		/*
 		 * The key is in the same place in all keyed
 		 * nodes.
