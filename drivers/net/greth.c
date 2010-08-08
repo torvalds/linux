@@ -1412,7 +1412,7 @@ static int __devinit greth_of_probe(struct platform_device *ofdev, const struct 
 	}
 
 	regs = (struct greth_regs *) greth->regs;
-	greth->irq = ofdev->irqs[0];
+	greth->irq = ofdev->archdata.irqs[0];
 
 	dev_set_drvdata(greth->dev, dev);
 	SET_NETDEV_DEV(dev, greth->dev);

@@ -1580,7 +1580,7 @@ static int find_devino_index(struct platform_device *dev, struct spu_mdesc_info 
 	if (!dev_intrs)
 		return -ENODEV;
 
-	for (i = 0; i < dev->num_irqs; i++) {
+	for (i = 0; i < dev->archdata.num_irqs; i++) {
 		if (dev_intrs[i] == intr)
 			return i;
 	}
@@ -1603,7 +1603,7 @@ static int spu_map_ino(struct platform_device *dev, struct spu_mdesc_info *ip,
 	if (index < 0)
 		return index;
 
-	p->irq = dev->irqs[index];
+	p->irq = dev->archdata.irqs[index];
 
 	sprintf(p->irq_name, "%s-%d", irq_name, index);
 
