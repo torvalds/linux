@@ -2377,8 +2377,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				viaparinfo->crt_setting_info->iga_path);
 		}
 
-		set_crt_output_path(viaparinfo->crt_setting_info->iga_path);
-
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
 		to 8 alignment (1368),there is several pixels (2 pixels)
 		on right side of screen. */
@@ -2388,6 +2386,9 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				viafb_read_reg(VIACR, CR02) - 1);
 			viafb_lock_crt();
 		}
+
+		viafb_set_output_path(DEVICE_CRT,
+			viaparinfo->crt_setting_info->iga_path, 0);
 	}
 
 	if (viafb_DVI_ON) {
@@ -2407,6 +2408,10 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				     video_bpp, viaparinfo->
 				     tmds_setting_info->iga_path);
 		}
+
+		viafb_set_output_path(DEVICE_DVI,
+			viaparinfo->tmds_setting_info->iga_path,
+			viaparinfo->chip_info->tmds_chip_info.output_interface);
 	}
 
 	if (viafb_LCD_ON) {
@@ -2427,6 +2432,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				lvds_setting_info,
 				     &viaparinfo->chip_info->lvds_chip_info);
 		}
+
+		viafb_set_output_path(DEVICE_LCD,
+			viaparinfo->lvds_setting_info->iga_path,
+			viaparinfo->chip_info->
+			lvds_chip_info.output_interface);
 	}
 	if (viafb_LCD2_ON) {
 		if (viafb_SAMM_ON &&
@@ -2446,6 +2456,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				lvds_setting_info2,
 				     &viaparinfo->chip_info->lvds_chip_info2);
 		}
+
+		viafb_set_output_path(DEVICE_LCD,
+			viaparinfo->lvds_setting_info2->iga_path,
+			viaparinfo->chip_info->
+			lvds_chip_info2.output_interface);
 	}
 
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CX700)

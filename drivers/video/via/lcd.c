@@ -661,9 +661,6 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	pll_D_N = viafb_get_clk_value(panel_crt_table[0].clk);
 	DEBUG_MSG(KERN_INFO "PLL=0x%x", pll_D_N);
 	viafb_set_vclock(pll_D_N, set_iga);
-
-	viafb_set_output_path(DEVICE_LCD, set_iga,
-		plvds_chip_info->output_interface);
 	lcd_patch_skew(plvds_setting_info, plvds_chip_info);
 
 	/* If K8M800, enable LCD Prefetch Mode. */

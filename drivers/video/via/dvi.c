@@ -208,8 +208,6 @@ void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
 		}
 	}
 	viafb_fill_crtc_timing(pDviTiming, mode, mode_bpp / 8, set_iga);
-	viafb_set_output_path(DEVICE_DVI, set_iga,
-			viaparinfo->chip_info->tmds_chip_info.output_interface);
 }
 
 /* Sense DVI Connector */
