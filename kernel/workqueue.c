@@ -2568,7 +2568,7 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
 int schedule_on_each_cpu(work_func_t func)
 {
 	int cpu;
-	struct work_struct *works;
+	struct work_struct __percpu *works;
 
 	works = alloc_percpu(struct work_struct);
 	if (!works)
