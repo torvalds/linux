@@ -29,7 +29,6 @@
 #include <linux/kmod.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/compatmac.h>
 
 /* Our partition linked list */
 static LIST_HEAD(mtd_partitions);

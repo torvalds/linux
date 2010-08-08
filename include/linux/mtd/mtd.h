@@ -26,7 +26,6 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 
-#include <linux/mtd/compatmac.h>
 #include <mtd/mtd-abi.h>
 
 #include <asm/div64.h>

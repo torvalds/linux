@@ -34,7 +34,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nftl.h>
 #include <linux/mtd/inftl.h>
-#include <linux/mtd/compatmac.h>
 
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
