@@ -5371,7 +5371,24 @@ int intel_framebuffer_init(struct drm_device *dev,
 			   struct drm_mode_fb_cmd *mode_cmd,
 			   struct drm_gem_object *obj)
 {
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret;
+
+	if (obj_priv->tiling_mode == I915_TILING_Y)
+		return -EINVAL;
+
+	if (mode_cmd->pitch & 63)
+		return -EINVAL;
+
+	switch (mode_cmd->bpp) {
+	case 8:
+	case 16:
+	case 24:
+	case 32:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
