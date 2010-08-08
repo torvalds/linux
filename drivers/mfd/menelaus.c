@@ -356,9 +356,9 @@ int menelaus_set_mmc_slot(int slot, int enable, int power, int cd_en)
 		int b;
 
 		if (enable)
-			ret |= 1 << 1;
+			val |= 1 << 1;
 		else
-			ret &= ~(1 << 1);
+			val &= ~(1 << 1);
 		b = menelaus_read_reg(MENELAUS_MCT_CTRL2);
 		b &= ~0x03;
 		b |= power;
