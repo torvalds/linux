@@ -21,19 +21,16 @@ void bonito_irqdispatch(void)
 
 	/* workaround the IO dma problem: let cpu looping to allow DMA finish */
 	int_status = LOONGSON_INTISR;
-	if (int_status & (1 << 10)) {
-		while (int_status & (1 << 10)) {
-			udelay(1);
-			int_status = LOONGSON_INTISR;
-		}
+	while (int_status & (1 << 10)) {
+		udelay(1);
+		int_status = LOONGSON_INTISR;
 	}
 
 	/* Get pending sources, masked by current enables */
 	int_status = LOONGSON_INTISR & LOONGSON_INTEN;
 
-	if (int_status != 0) {
+	if (int_status) {
 		i = __ffs(int_status);
-		int_status &= ~(1 << i);
 		do_IRQ(LOONGSON_IRQ_BASE + i);
 	}
 }
@@ -55,9 +52,6 @@ void __init arch_init_irq(void)
 	 * int-handler is not on bootstrap
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
-
-	/* setting irq trigger mode */
-	set_irq_trigger_mode();
 
 	/* no steer */
 	LOONGSON_INTSTEER = 0;

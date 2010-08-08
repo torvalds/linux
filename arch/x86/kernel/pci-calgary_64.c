@@ -110,7 +110,7 @@ int use_calgary __read_mostly = 0;
  * x3950 (PCIE): 8 chassis, 32 PHBs per chassis   = 256
  * x3950 (PCIX): 8 chassis, 16 PHBs per chassis   = 128
  */
-#define MAX_PHB_BUS_NUM		384
+#define MAX_PHB_BUS_NUM		256
 
 #define PHBS_PER_CALGARY	  4
 
@@ -1055,8 +1055,6 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	void __iomem *bbar;
 	struct iommu_table *tbl;
 	int ret;
-
-	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
 
 	bbar = busno_to_bbar(dev->bus->number);
 	ret = calgary_setup_tar(dev, bbar);

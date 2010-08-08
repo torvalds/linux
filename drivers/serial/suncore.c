@@ -71,7 +71,9 @@ int sunserial_console_match(struct console *con, struct device_node *dp,
 
 	con->index = line;
 	drv->cons = con;
-	add_preferred_console(con->name, line, NULL);
+
+	if (!console_set_on_cmdline)
+		add_preferred_console(con->name, line, NULL);
 
 	return 1;
 }

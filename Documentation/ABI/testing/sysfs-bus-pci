@@ -139,3 +139,30 @@ Contact:	linux-pci@vger.kernel.org
 Description:
 		This symbolic link points to the PCI hotplug controller driver
 		module that manages the hotplug slot.
+
+What:		/sys/bus/pci/devices/.../label
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given name(SMBIOS type 41 string) of the PCI device.
+		The attribute will be created only if the firmware
+		has given a name to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned name of the PCI device.
+
+What:		/sys/bus/pci/devices/.../index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given instance(SMBIOS type 41 device type instance)
+		of the PCI device. The attribute will be created
+		only if the firmware has given a device type instance
+		to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned device type instance of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.

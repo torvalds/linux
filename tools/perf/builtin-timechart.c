@@ -300,8 +300,9 @@ struct trace_entry {
 
 struct power_entry {
 	struct trace_entry te;
-	s64	type;
-	s64	value;
+	u64	type;
+	u64	value;
+	u64	cpu_id;
 };
 
 #define TASK_COMM_LEN 16
@@ -498,13 +499,13 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 			return 0;
 
 		if (strcmp(event_str, "power:power_start") == 0)
-			c_state_start(data.cpu, data.time, pe->value);
+			c_state_start(pe->cpu_id, data.time, pe->value);
 
 		if (strcmp(event_str, "power:power_end") == 0)
-			c_state_end(data.cpu, data.time);
+			c_state_end(pe->cpu_id, data.time);
 
 		if (strcmp(event_str, "power:power_frequency") == 0)
-			p_state_change(data.cpu, data.time, pe->value);
+			p_state_change(pe->cpu_id, data.time, pe->value);
 
 		if (strcmp(event_str, "sched:sched_wakeup") == 0)
 			sched_wakeup(data.cpu, data.time, data.pid, te);

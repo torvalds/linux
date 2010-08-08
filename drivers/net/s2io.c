@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.c: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2007 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  *
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -38,7 +38,7 @@
  * Tx descriptors that can be associated with each corresponding FIFO.
  * intr_type: This defines the type of interrupt. The values can be 0(INTA),
  *     2(MSI_X). Default value is '2(MSI_X)'
- * lro_enable: Specifies whether to enable Large Receive Offload (LRO) or not.
+ * lro: Specifies whether to enable Large Receive Offload (LRO) or not.
  *     Possible values '1' for enable '0' for disable. Default is '0'
  * lro_max_pkts: This parameter defines maximum number of packets can be
  *     aggregated as a single large packet
@@ -90,7 +90,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.25"
+#define DRV_VERSION "2.0.26.26"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -496,7 +496,7 @@ S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
 S2IO_PARM_INT(intr_type, 2);
 /* Large receive offload feature */
-static unsigned int lro_enable;
+static unsigned int lro_enable = 1;
 module_param_named(lro, lro_enable, uint, 0);
 
 /* Max pkts to be aggregated by LRO at one time. If not specified,
@@ -795,7 +795,6 @@ static int init_shared_mem(struct s2io_nic *nic)
 		ring->rx_curr_put_info.ring_len = rx_cfg->num_rxd - 1;
 		ring->nic = nic;
 		ring->ring_no = i;
-		ring->lro = lro_enable;
 
 		blk_cnt = rx_cfg->num_rxd / (rxd_count[nic->rxd_mode] + 1);
 		/*  Allocating all the Rx blocks */
@@ -3130,7 +3129,6 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		pkt_cnt++;
 
 		/* Updating the statistics block */
-		nic->dev->stats.tx_bytes += skb->len;
 		swstats->mem_freed += skb->truesize;
 		dev_kfree_skb_irq(skb);
 
@@ -4901,48 +4899,81 @@ static void s2io_updt_stats(struct s2io_nic *sp)
  *  Return value:
  *  pointer to the updated net_device_stats structure.
  */
-
 static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	struct config_param *config = &sp->config;
 	struct mac_info *mac_control = &sp->mac_control;
 	struct stat_block *stats = mac_control->stats_info;
-	int i;
+	u64 delta;
 
 	/* Configure Stats for immediate updt */
 	s2io_updt_stats(sp);
 
-	/* Using sp->stats as a staging area, because reset (due to mtu
-	   change, for example) will clear some hardware counters */
-	dev->stats.tx_packets += le32_to_cpu(stats->tmac_frms) -
-		sp->stats.tx_packets;
-	sp->stats.tx_packets = le32_to_cpu(stats->tmac_frms);
+	/* A device reset will cause the on-adapter statistics to be zero'ed.
+	 * This can be done while running by changing the MTU.  To prevent the
+	 * system from having the stats zero'ed, the driver keeps a copy of the
+	 * last update to the system (which is also zero'ed on reset).  This
+	 * enables the driver to accurately know the delta between the last
+	 * update and the current update.
+	 */
+	delta = ((u64) le32_to_cpu(stats->rmac_vld_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_vld_frms)) - sp->stats.rx_packets;
+	sp->stats.rx_packets += delta;
+	dev->stats.rx_packets += delta;
 
-	dev->stats.tx_errors += le32_to_cpu(stats->tmac_any_err_frms) -
-		sp->stats.tx_errors;
-	sp->stats.tx_errors = le32_to_cpu(stats->tmac_any_err_frms);
+	delta = ((u64) le32_to_cpu(stats->tmac_frms_oflow) << 32 |
+		le32_to_cpu(stats->tmac_frms)) - sp->stats.tx_packets;
+	sp->stats.tx_packets += delta;
+	dev->stats.tx_packets += delta;
 
-	dev->stats.rx_errors += le64_to_cpu(stats->rmac_drop_frms) -
-		sp->stats.rx_errors;
-	sp->stats.rx_errors = le64_to_cpu(stats->rmac_drop_frms);
+	delta = ((u64) le32_to_cpu(stats->rmac_data_octets_oflow) << 32 |
+		le32_to_cpu(stats->rmac_data_octets)) - sp->stats.rx_bytes;
+	sp->stats.rx_bytes += delta;
+	dev->stats.rx_bytes += delta;
 
-	dev->stats.multicast = le32_to_cpu(stats->rmac_vld_mcst_frms) -
-		sp->stats.multicast;
-	sp->stats.multicast = le32_to_cpu(stats->rmac_vld_mcst_frms);
+	delta = ((u64) le32_to_cpu(stats->tmac_data_octets_oflow) << 32 |
+		le32_to_cpu(stats->tmac_data_octets)) - sp->stats.tx_bytes;
+	sp->stats.tx_bytes += delta;
+	dev->stats.tx_bytes += delta;
 
-	dev->stats.rx_length_errors = le64_to_cpu(stats->rmac_long_frms) -
-		sp->stats.rx_length_errors;
-	sp->stats.rx_length_errors = le64_to_cpu(stats->rmac_long_frms);
+	delta = le64_to_cpu(stats->rmac_drop_frms) - sp->stats.rx_errors;
+	sp->stats.rx_errors += delta;
+	dev->stats.rx_errors += delta;
 
-	/* collect per-ring rx_packets and rx_bytes */
-	dev->stats.rx_packets = dev->stats.rx_bytes = 0;
-	for (i = 0; i < config->rx_ring_num; i++) {
-		struct ring_info *ring = &mac_control->rings[i];
+	delta = ((u64) le32_to_cpu(stats->tmac_any_err_frms_oflow) << 32 |
+		le32_to_cpu(stats->tmac_any_err_frms)) - sp->stats.tx_errors;
+	sp->stats.tx_errors += delta;
+	dev->stats.tx_errors += delta;
 
-		dev->stats.rx_packets += ring->rx_packets;
-		dev->stats.rx_bytes += ring->rx_bytes;
-	}
+	delta = le64_to_cpu(stats->rmac_drop_frms) - sp->stats.rx_dropped;
+	sp->stats.rx_dropped += delta;
+	dev->stats.rx_dropped += delta;
+
+	delta = le64_to_cpu(stats->tmac_drop_frms) - sp->stats.tx_dropped;
+	sp->stats.tx_dropped += delta;
+	dev->stats.tx_dropped += delta;
+
+	/* The adapter MAC interprets pause frames as multicast packets, but
+	 * does not pass them up.  This erroneously increases the multicast
+	 * packet count and needs to be deducted when the multicast frame count
+	 * is queried.
+	 */
+	delta = (u64) le32_to_cpu(stats->rmac_vld_mcst_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_vld_mcst_frms);
+	delta -= le64_to_cpu(stats->rmac_pause_ctrl_frms);
+	delta -= sp->stats.multicast;
+	sp->stats.multicast += delta;
+	dev->stats.multicast += delta;
+
+	delta = ((u64) le32_to_cpu(stats->rmac_usized_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_usized_frms)) +
+		le64_to_cpu(stats->rmac_long_frms) - sp->stats.rx_length_errors;
+	sp->stats.rx_length_errors += delta;
+	dev->stats.rx_length_errors += delta;
+
+	delta = le64_to_cpu(stats->rmac_fcs_err_frms) - sp->stats.rx_crc_errors;
+	sp->stats.rx_crc_errors += delta;
+	dev->stats.rx_crc_errors += delta;
 
 	return &dev->stats;
 }
@@ -5765,7 +5796,7 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 {
 	u8 *vpd_data;
 	u8 data;
-	int i = 0, cnt, fail = 0;
+	int i = 0, cnt, len, fail = 0;
 	int vpd_addr = 0x80;
 	struct swStat *swstats = &nic->mac_control.stats_info->sw_stat;
 
@@ -5806,20 +5837,28 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 
 	if (!fail) {
 		/* read serial number of adapter */
-		for (cnt = 0; cnt < 256; cnt++) {
+		for (cnt = 0; cnt < 252; cnt++) {
 			if ((vpd_data[cnt] == 'S') &&
-			    (vpd_data[cnt+1] == 'N') &&
-			    (vpd_data[cnt+2] < VPD_STRING_LEN)) {
-				memset(nic->serial_num, 0, VPD_STRING_LEN);
-				memcpy(nic->serial_num, &vpd_data[cnt + 3],
-				       vpd_data[cnt+2]);
-				break;
+			    (vpd_data[cnt+1] == 'N')) {
+				len = vpd_data[cnt+2];
+				if (len < min(VPD_STRING_LEN, 256-cnt-2)) {
+					memcpy(nic->serial_num,
+					       &vpd_data[cnt + 3],
+					       len);
+					memset(nic->serial_num+len,
+					       0,
+					       VPD_STRING_LEN-len);
+					break;
+				}
 			}
 		}
 	}
 
-	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN))
-		memcpy(nic->product_name, &vpd_data[3], vpd_data[1]);
+	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN)) {
+		len = vpd_data[1];
+		memcpy(nic->product_name, &vpd_data[3], len);
+		nic->product_name[len] = 0;
+	}
 	kfree(vpd_data);
 	swstats->mem_freed += 256;
 }
@@ -6675,6 +6714,7 @@ static u32 s2io_ethtool_op_get_tso(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_TSO) != 0;
 }
+
 static int s2io_ethtool_op_set_tso(struct net_device *dev, u32 data)
 {
 	if (data)
@@ -6683,6 +6723,42 @@ static int s2io_ethtool_op_set_tso(struct net_device *dev, u32 data)
 		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
 
 	return 0;
+}
+
+static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
+{
+	struct s2io_nic *sp = netdev_priv(dev);
+	int rc = 0;
+	int changed = 0;
+
+	if (data & ~ETH_FLAG_LRO)
+		return -EINVAL;
+
+	if (data & ETH_FLAG_LRO) {
+		if (lro_enable) {
+			if (!(dev->features & NETIF_F_LRO)) {
+				dev->features |= NETIF_F_LRO;
+				changed = 1;
+			}
+		} else
+			rc = -EINVAL;
+	} else if (dev->features & NETIF_F_LRO) {
+		dev->features &= ~NETIF_F_LRO;
+		changed = 1;
+	}
+
+	if (changed && netif_running(dev)) {
+		s2io_stop_all_tx_queue(sp);
+		s2io_card_down(sp);
+		sp->lro = !!(dev->features & NETIF_F_LRO);
+		rc = s2io_card_up(sp);
+		if (rc)
+			s2io_reset(sp);
+		else
+			s2io_start_all_tx_queue(sp);
+	}
+
+	return rc;
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
@@ -6701,6 +6777,8 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_rx_csum = s2io_ethtool_get_rx_csum,
 	.set_rx_csum = s2io_ethtool_set_rx_csum,
 	.set_tx_csum = s2io_ethtool_op_set_tx_csum,
+	.set_flags = s2io_ethtool_set_flags,
+	.get_flags = ethtool_op_get_flags,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = s2io_ethtool_op_get_tso,
 	.set_tso = s2io_ethtool_op_set_tso,
@@ -7229,6 +7307,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 		struct ring_info *ring = &mac_control->rings[i];
 
 		ring->mtu = dev->mtu;
+		ring->lro = sp->lro;
 		ret = fill_rx_buffers(sp, ring, 1);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Out of memory in Open\n",
@@ -7455,15 +7534,11 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		}
 	}
 
-	/* Updating statistics */
-	ring_data->rx_packets++;
 	rxdp->Host_Control = 0;
 	if (sp->rxd_mode == RXD_MODE_1) {
 		int len = RXD_GET_BUFFER0_SIZE_1(rxdp->Control_2);
 
-		ring_data->rx_bytes += len;
 		skb_put(skb, len);
-
 	} else if (sp->rxd_mode == RXD_MODE_3B) {
 		int get_block = ring_data->rx_curr_get_info.block_index;
 		int get_off = ring_data->rx_curr_get_info.offset;
@@ -7472,7 +7547,6 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		unsigned char *buff = skb_push(skb, buf0_len);
 
 		struct buffAdd *ba = &ring_data->ba[get_block][get_off];
-		ring_data->rx_bytes += buf0_len + buf2_len;
 		memcpy(buff, ba->ba_0, buf0_len);
 		skb_put(skb, buf2_len);
 	}
@@ -7820,7 +7894,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*  Private member variable initialized to s2io NIC structure */
 	sp = netdev_priv(dev);
-	memset(sp, 0, sizeof(struct s2io_nic));
 	sp->dev = dev;
 	sp->pdev = pdev;
 	sp->high_dma_flag = dma_flag;
@@ -7974,7 +8047,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->netdev_ops = &s2io_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-
+	if (lro_enable)
+		dev->features |= NETIF_F_LRO;
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
@@ -8132,7 +8206,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto register_failed;
 	}
 	s2io_vpd_read(sp);
-	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2007 Neterion Inc.\n");
+	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2010 Exar Corp.\n");
 	DBG_PRINT(ERR_DBG, "%s: Neterion %s (rev %d)\n", dev->name,
 		  sp->product_name, pdev->revision);
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,

@@ -413,10 +413,8 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		filemap_write_and_wait(inode->i_mapping);
+	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	}
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -530,6 +528,68 @@ out:
 	return err;
 }
 
+static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
+{
+	atomic_set(&l_ctx->count, 1);
+	l_ctx->lockowner = current->files;
+	l_ctx->pid = current->tgid;
+	INIT_LIST_HEAD(&l_ctx->list);
+}
+
+static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context *ctx)
+{
+	struct nfs_lock_context *pos;
+
+	list_for_each_entry(pos, &ctx->lock_context.list, list) {
+		if (pos->lockowner != current->files)
+			continue;
+		if (pos->pid != current->tgid)
+			continue;
+		atomic_inc(&pos->count);
+		return pos;
+	}
+	return NULL;
+}
+
+struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
+{
+	struct nfs_lock_context *res, *new = NULL;
+	struct inode *inode = ctx->path.dentry->d_inode;
+
+	spin_lock(&inode->i_lock);
+	res = __nfs_find_lock_context(ctx);
+	if (res == NULL) {
+		spin_unlock(&inode->i_lock);
+		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		if (new == NULL)
+			return NULL;
+		nfs_init_lock_context(new);
+		spin_lock(&inode->i_lock);
+		res = __nfs_find_lock_context(ctx);
+		if (res == NULL) {
+			list_add_tail(&new->list, &ctx->lock_context.list);
+			new->open_context = ctx;
+			res = new;
+			new = NULL;
+		}
+	}
+	spin_unlock(&inode->i_lock);
+	kfree(new);
+	return res;
+}
+
+void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
+{
+	struct nfs_open_context *ctx = l_ctx->open_context;
+	struct inode *inode = ctx->path.dentry->d_inode;
+
+	if (!atomic_dec_and_lock(&l_ctx->count, &inode->i_lock))
+		return;
+	list_del(&l_ctx->list);
+	spin_unlock(&inode->i_lock);
+	kfree(l_ctx);
+}
+
 /**
  * nfs_close_context - Common close_context() routine NFSv2/v3
  * @ctx: pointer to context
@@ -566,11 +626,11 @@ static struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct
 		path_get(&ctx->path);
 		ctx->cred = get_rpccred(cred);
 		ctx->state = NULL;
-		ctx->lockowner = current->files;
 		ctx->flags = 0;
 		ctx->error = 0;
 		ctx->dir_cookie = 0;
-		atomic_set(&ctx->count, 1);
+		nfs_init_lock_context(&ctx->lock_context);
+		ctx->lock_context.open_context = ctx;
 	}
 	return ctx;
 }
@@ -578,7 +638,7 @@ static struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		atomic_inc(&ctx->count);
+		atomic_inc(&ctx->lock_context.count);
 	return ctx;
 }
 
@@ -586,7 +646,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
 	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (!atomic_dec_and_lock(&ctx->count, &inode->i_lock))
+	if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
 		return;
 	list_del(&ctx->list);
 	spin_unlock(&inode->i_lock);

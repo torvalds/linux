@@ -3128,7 +3128,7 @@ static struct cdev tty_cdev, console_cdev;
  * Ok, now we can initialize the rest of the tty devices and can count
  * on memory allocations, interrupts etc..
  */
-static int __init tty_init(void)
+int __init tty_init(void)
 {
 	cdev_init(&tty_cdev, &tty_fops);
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
@@ -3149,4 +3149,4 @@ static int __init tty_init(void)
 #endif
 	return 0;
 }
-module_init(tty_init);
+

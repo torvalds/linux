@@ -22,8 +22,6 @@
 
 #include <asm/io.h>
 
-#if !defined (CONFIG_REDWOOD_6)
-
 #define WINDOW_ADDR 0xffc00000
 #define WINDOW_SIZE 0x00400000
 
@@ -68,47 +66,6 @@ static struct mtd_partition redwood_flash_partitions[] = {
 		.mask_flags = MTD_WRITEABLE	/* force read-only */
 	}
 };
-
-#else /* CONFIG_REDWOOD_6 */
-/* FIXME: the window is bigger - armin */
-#define WINDOW_ADDR 0xff800000
-#define WINDOW_SIZE 0x00800000
-
-#define RW_PART0_OF	0
-#define RW_PART0_SZ	0x400000	/* 4 MiB data */
-#define RW_PART1_OF	RW_PART0_OF + RW_PART0_SZ
-#define RW_PART1_SZ	0x10000		/* 64K VPD */
-#define RW_PART2_OF	RW_PART1_OF + RW_PART1_SZ
-#define RW_PART2_SZ	0x400000 - (0x10000 + 0x20000)
-#define RW_PART3_OF	RW_PART2_OF + RW_PART2_SZ
-#define RW_PART3_SZ	0x20000
-
-static struct mtd_partition redwood_flash_partitions[] = {
-	{
-		.name = "Redwood filesystem",
-		.offset = RW_PART0_OF,
-		.size = RW_PART0_SZ
-	},
-	{
-		.name = "Redwood OpenBIOS Vital Product Data",
-		.offset = RW_PART1_OF,
-		.size = RW_PART1_SZ,
-		.mask_flags = MTD_WRITEABLE	/* force read-only */
-	},
-	{
-		.name = "Redwood kernel",
-		.offset = RW_PART2_OF,
-		.size = RW_PART2_SZ
-	},
-	{
-		.name = "Redwood OpenBIOS",
-		.offset = RW_PART3_OF,
-		.size = RW_PART3_SZ,
-		.mask_flags = MTD_WRITEABLE	/* force read-only */
-	}
-};
-
-#endif /* CONFIG_REDWOOD_6 */
 
 struct map_info redwood_flash_map = {
 	.name = "IBM Redwood",

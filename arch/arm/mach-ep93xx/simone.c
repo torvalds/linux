@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -28,26 +27,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-
-static struct physmap_flash_data simone_flash_data = {
-	.width		= 2,
-};
-
-static struct resource simone_flash_resource = {
-	.start		= EP93XX_CS6_PHYS_BASE,
-	.end		= EP93XX_CS6_PHYS_BASE + SZ_8M - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device simone_flash = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= &simone_flash_resource,
-	.dev = {
-		.platform_data	= &simone_flash_data,
-	},
-};
 
 static struct ep93xx_eth_data __initdata simone_eth_data = {
 	.phy_id		= 1,
@@ -77,8 +56,7 @@ static struct i2c_board_info __initdata simone_i2c_board_info[] = {
 static void __init simone_init_machine(void)
 {
 	ep93xx_init_devices();
-
-	platform_device_register(&simone_flash);
+	ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_8M);
 	ep93xx_register_eth(&simone_eth_data, 1);
 	ep93xx_register_fb(&simone_fb_info);
 	ep93xx_register_i2c(&simone_i2c_gpio_data, simone_i2c_board_info,

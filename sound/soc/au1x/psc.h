@@ -32,7 +32,6 @@ struct au1xpsc_audio_data {
 	unsigned long rate;
 
 	unsigned long pm[2];
-	struct resource *ioarea;
 	struct mutex lock;
 	struct platform_device *dmapd;
 };

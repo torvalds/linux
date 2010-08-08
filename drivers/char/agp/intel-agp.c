@@ -816,9 +816,9 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
 	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG,
-	    "Sandybridge", NULL, &intel_i965_driver },
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG,
-	    "Sandybridge", NULL, &intel_i965_driver },
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ 0, 0, NULL, NULL, NULL }
 };
 
@@ -908,6 +908,17 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_agp_chipsets[i].name);
 
 	/*
+	* If the device has not been properly setup, the following will catch
+	* the problem and should stop the system from crashing.
+	* 20030610 - hamish@zot.org
+	*/
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev, "can't enable PCI device\n");
+		agp_put_bridge(bridge);
+		return -ENODEV;
+	}
+
+	/*
 	* The following fixes the case where the BIOS has "forgotten" to
 	* provide an address range for the GART.
 	* 20030610 - hamish@zot.org
@@ -919,17 +930,6 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 			agp_put_bridge(bridge);
 			return -ENODEV;
 		}
-	}
-
-	/*
-	* If the device has not been properly setup, the following will catch
-	* the problem and should stop the system from crashing.
-	* 20030610 - hamish@zot.org
-	*/
-	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev, "can't enable PCI device\n");
-		agp_put_bridge(bridge);
-		return -ENODEV;
 	}
 
 	/* Fill in the mode register */

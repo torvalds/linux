@@ -127,7 +127,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	 * reply packet of an established SNAT-ted connection. */
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct && (ct != &nf_conntrack_untracked) &&
+	if (ct && !nf_ct_is_untracked(ct) &&
 	    ((iph->protocol != IPPROTO_ICMP &&
 	      ctinfo == IP_CT_IS_REPLY + IP_CT_ESTABLISHED) ||
 	     (iph->protocol == IPPROTO_ICMP &&

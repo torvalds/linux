@@ -141,8 +141,13 @@ static int synaptics_capability(struct psmouse *psmouse)
 	priv->capabilities = (cap[0] << 16) | (cap[1] << 8) | cap[2];
 	priv->ext_cap = priv->ext_cap_0c = 0;
 
-	if (!SYN_CAP_VALID(priv->capabilities))
+	/*
+	 * Older firmwares had submodel ID fixed to 0x47
+	 */
+	if (SYN_ID_FULL(priv->identity) < 0x705 &&
+	    SYN_CAP_SUBMODEL_ID(priv->capabilities) != 0x47) {
 		return -1;
+	}
 
 	/*
 	 * Unless capExtended is set the rest of the flags should be ignored
@@ -206,6 +211,7 @@ static int synaptics_resolution(struct psmouse *psmouse)
 	unsigned char max[3];
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
+		return 0;
 
 	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res) == 0) {
 		if (res[0] != 0 && (res[1] & 0x80) && res[2] != 0) {
@@ -496,7 +502,9 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	}
 	input_report_abs(dev, ABS_PRESSURE, hw.z);
 
-	input_report_abs(dev, ABS_TOOL_WIDTH, finger_width);
+	if (SYN_CAP_PALMDETECT(priv->capabilities))
+		input_report_abs(dev, ABS_TOOL_WIDTH, finger_width);
+
 	input_report_key(dev, BTN_TOOL_FINGER, num_fingers == 1);
 	input_report_key(dev, BTN_LEFT, hw.left);
 	input_report_key(dev, BTN_RIGHT, hw.right);
@@ -596,7 +604,9 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	input_set_abs_params(dev, ABS_Y,
 			     YMIN_NOMINAL, priv->y_max ?: YMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
-	__set_bit(ABS_TOOL_WIDTH, dev->absbit);
+
+	if (SYN_CAP_PALMDETECT(priv->capabilities))
+		input_set_abs_params(dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
 
 	__set_bit(EV_KEY, dev->evbit);
 	__set_bit(BTN_TOUCH, dev->keybit);

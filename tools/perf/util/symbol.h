@@ -9,8 +9,6 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 
-#define DEBUG_CACHE_DIR ".debug"
-
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 
@@ -70,9 +68,9 @@ struct symbol_conf {
 			show_nr_samples,
 			use_callchain,
 			exclude_other,
-			full_paths,
 			show_cpu_utilization;
 	const char	*vmlinux_name,
+			*source_prefix,
 			*field_sep;
 	const char	*default_guest_vmlinux_name,
 			*default_guest_kallsyms,
@@ -103,6 +101,8 @@ struct ref_reloc_sym {
 struct map_symbol {
 	struct map    *map;
 	struct symbol *sym;
+	bool	      unfolded;
+	bool	      has_children;
 };
 
 struct addr_location {
@@ -112,7 +112,8 @@ struct addr_location {
 	u64	      addr;
 	char	      level;
 	bool	      filtered;
-	unsigned int  cpumode;
+	u8	      cpumode;
+	s32	      cpu;
 };
 
 enum dso_kernel_type {
@@ -125,12 +126,14 @@ struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	enum dso_kernel_type	kernel;
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
-	enum dso_kernel_type	kernel;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
+	u8		 sname_alloc:1;
+	u8		 lname_alloc:1;
 	unsigned char	 origin;
 	u8		 sorted_by_name;
 	u8		 loaded;
@@ -145,6 +148,8 @@ struct dso {
 struct dso *dso__new(const char *name);
 struct dso *dso__new_kernel(const char *name);
 void dso__delete(struct dso *self);
+
+int dso__name_len(const struct dso *self);
 
 bool dso__loaded(const struct dso *self, enum map_type type);
 bool dso__sorted_by_name(const struct dso *self, enum map_type type);
@@ -207,13 +212,16 @@ int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start));
 
+void machine__destroy_kernel_maps(struct machine *self);
 int __machine__create_kernel_maps(struct machine *self, struct dso *kernel);
 int machine__create_kernel_maps(struct machine *self);
 
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
 int machines__create_guest_kernel_maps(struct rb_root *self);
+void machines__destroy_guest_kernel_maps(struct rb_root *self);
 
 int symbol__init(void);
+void symbol__exit(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
 size_t machine__fprintf_vmlinux_path(struct machine *self, FILE *fp);

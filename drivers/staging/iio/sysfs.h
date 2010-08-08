@@ -284,6 +284,14 @@ struct iio_const_attr {
 	    .mask = _mask,						\
 	    .listel = &_ev_list };
 
+#define IIO_EVENT_ATTR_NAMED_SH(_vname, _name, _ev_list, _show, _store, _mask) \
+	static struct iio_event_attr					\
+	iio_event_attr_##_vname						\
+	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
+			       _show, _store),				\
+	    .mask = _mask,						\
+	    .listel = &_ev_list };
+
 /**
  * IIO_EVENT_ATTR - non-shared event attribute
  * @_name: event name
@@ -293,10 +301,7 @@ struct iio_const_attr {
  * @_handler: handler function to be called
  **/
 #define IIO_EVENT_ATTR(_name, _show, _store, _mask, _handler)		\
-	static struct iio_event_handler_list				\
-	iio_event_##_name = {						\
-		.handler = _handler,					\
-	};								\
+	IIO_EVENT_SH(_name, _handler);					\
 	static struct							\
 	iio_event_attr							\
 	iio_event_attr_##_name						\
@@ -324,6 +329,7 @@ struct iio_const_attr {
 #define IIO_EVENT_CODE_GYRO_BASE	400
 #define IIO_EVENT_CODE_ADC_BASE		500
 #define IIO_EVENT_CODE_MISC_BASE	600
+#define IIO_EVENT_CODE_LIGHT_BASE	700
 
 #define IIO_EVENT_CODE_DEVICE_SPECIFIC	1000
 

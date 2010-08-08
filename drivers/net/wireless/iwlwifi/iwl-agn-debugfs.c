@@ -28,6 +28,30 @@
 
 #include "iwl-agn-debugfs.h"
 
+static int iwl_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
+{
+	int p = 0;
+	u32 flag;
+
+	if (priv->cfg->bt_statistics)
+		flag = le32_to_cpu(priv->_agn.statistics_bt.flag);
+	else
+		flag = le32_to_cpu(priv->_agn.statistics.flag);
+
+	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n", flag);
+	if (flag & UCODE_STATISTICS_CLEAR_MSK)
+		p += scnprintf(buf + p, bufsz - p,
+		"\tStatistics have been cleared\n");
+	p += scnprintf(buf + p, bufsz - p, "\tOperational Frequency: %s\n",
+		(flag & UCODE_STATISTICS_FREQUENCY_MSK)
+		? "2.4 GHz" : "5.2 GHz");
+	p += scnprintf(buf + p, bufsz - p, "\tTGj Narrow Band: %s\n",
+		(flag & UCODE_STATISTICS_NARROW_BAND_MSK)
+		 ? "enabled" : "disabled");
+
+	return p;
+}
+
 ssize_t iwl_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
   {
@@ -58,24 +82,45 @@ ssize_t iwl_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	 * the last statistics notification from uCode
 	 * might not reflect the current uCode activity
 	 */
-	ofdm = &priv->statistics.rx.ofdm;
-	cck = &priv->statistics.rx.cck;
-	general = &priv->statistics.rx.general;
-	ht = &priv->statistics.rx.ofdm_ht;
-	accum_ofdm = &priv->accum_statistics.rx.ofdm;
-	accum_cck = &priv->accum_statistics.rx.cck;
-	accum_general = &priv->accum_statistics.rx.general;
-	accum_ht = &priv->accum_statistics.rx.ofdm_ht;
-	delta_ofdm = &priv->delta_statistics.rx.ofdm;
-	delta_cck = &priv->delta_statistics.rx.cck;
-	delta_general = &priv->delta_statistics.rx.general;
-	delta_ht = &priv->delta_statistics.rx.ofdm_ht;
-	max_ofdm = &priv->max_delta.rx.ofdm;
-	max_cck = &priv->max_delta.rx.cck;
-	max_general = &priv->max_delta.rx.general;
-	max_ht = &priv->max_delta.rx.ofdm_ht;
+	if (priv->cfg->bt_statistics) {
+		ofdm = &priv->_agn.statistics_bt.rx.ofdm;
+		cck = &priv->_agn.statistics_bt.rx.cck;
+		general = &priv->_agn.statistics_bt.rx.general.common;
+		ht = &priv->_agn.statistics_bt.rx.ofdm_ht;
+		accum_ofdm = &priv->_agn.accum_statistics_bt.rx.ofdm;
+		accum_cck = &priv->_agn.accum_statistics_bt.rx.cck;
+		accum_general =
+			&priv->_agn.accum_statistics_bt.rx.general.common;
+		accum_ht = &priv->_agn.accum_statistics_bt.rx.ofdm_ht;
+		delta_ofdm = &priv->_agn.delta_statistics_bt.rx.ofdm;
+		delta_cck = &priv->_agn.delta_statistics_bt.rx.cck;
+		delta_general =
+			&priv->_agn.delta_statistics_bt.rx.general.common;
+		delta_ht = &priv->_agn.delta_statistics_bt.rx.ofdm_ht;
+		max_ofdm = &priv->_agn.max_delta_bt.rx.ofdm;
+		max_cck = &priv->_agn.max_delta_bt.rx.cck;
+		max_general = &priv->_agn.max_delta_bt.rx.general.common;
+		max_ht = &priv->_agn.max_delta_bt.rx.ofdm_ht;
+	} else {
+		ofdm = &priv->_agn.statistics.rx.ofdm;
+		cck = &priv->_agn.statistics.rx.cck;
+		general = &priv->_agn.statistics.rx.general;
+		ht = &priv->_agn.statistics.rx.ofdm_ht;
+		accum_ofdm = &priv->_agn.accum_statistics.rx.ofdm;
+		accum_cck = &priv->_agn.accum_statistics.rx.cck;
+		accum_general = &priv->_agn.accum_statistics.rx.general;
+		accum_ht = &priv->_agn.accum_statistics.rx.ofdm_ht;
+		delta_ofdm = &priv->_agn.delta_statistics.rx.ofdm;
+		delta_cck = &priv->_agn.delta_statistics.rx.cck;
+		delta_general = &priv->_agn.delta_statistics.rx.general;
+		delta_ht = &priv->_agn.delta_statistics.rx.ofdm_ht;
+		max_ofdm = &priv->_agn.max_delta.rx.ofdm;
+		max_cck = &priv->_agn.max_delta.rx.cck;
+		max_general = &priv->_agn.max_delta.rx.general;
+		max_ht = &priv->_agn.max_delta.rx.ofdm_ht;
+	}
 
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	pos += iwl_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Rx - OFDM:");
@@ -539,11 +584,19 @@ ssize_t iwl_ucode_tx_stats_read(struct file *file,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	tx = &priv->statistics.tx;
-	accum_tx = &priv->accum_statistics.tx;
-	delta_tx = &priv->delta_statistics.tx;
-	max_tx = &priv->max_delta.tx;
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	if (priv->cfg->bt_statistics) {
+		tx = &priv->_agn.statistics_bt.tx;
+		accum_tx = &priv->_agn.accum_statistics_bt.tx;
+		delta_tx = &priv->_agn.delta_statistics_bt.tx;
+		max_tx = &priv->_agn.max_delta_bt.tx;
+	} else {
+		tx = &priv->_agn.statistics.tx;
+		accum_tx = &priv->_agn.accum_statistics.tx;
+		delta_tx = &priv->_agn.delta_statistics.tx;
+		max_tx = &priv->_agn.max_delta.tx;
+	}
+
+	pos += iwl_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,  "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Tx:");
@@ -738,8 +791,8 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int bufsz = sizeof(struct statistics_general) * 10 + 300;
 	ssize_t ret;
-	struct statistics_general *general, *accum_general;
-	struct statistics_general *delta_general, *max_general;
+	struct statistics_general_common *general, *accum_general;
+	struct statistics_general_common *delta_general, *max_general;
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
@@ -756,19 +809,35 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	general = &priv->statistics.general;
-	dbg = &priv->statistics.general.dbg;
-	div = &priv->statistics.general.div;
-	accum_general = &priv->accum_statistics.general;
-	delta_general = &priv->delta_statistics.general;
-	max_general = &priv->max_delta.general;
-	accum_dbg = &priv->accum_statistics.general.dbg;
-	delta_dbg = &priv->delta_statistics.general.dbg;
-	max_dbg = &priv->max_delta.general.dbg;
-	accum_div = &priv->accum_statistics.general.div;
-	delta_div = &priv->delta_statistics.general.div;
-	max_div = &priv->max_delta.general.div;
-	pos += iwl_dbgfs_statistics_flag(priv, buf, bufsz);
+	if (priv->cfg->bt_statistics) {
+		general = &priv->_agn.statistics_bt.general.common;
+		dbg = &priv->_agn.statistics_bt.general.common.dbg;
+		div = &priv->_agn.statistics_bt.general.common.div;
+		accum_general = &priv->_agn.accum_statistics_bt.general.common;
+		accum_dbg = &priv->_agn.accum_statistics_bt.general.common.dbg;
+		accum_div = &priv->_agn.accum_statistics_bt.general.common.div;
+		delta_general = &priv->_agn.delta_statistics_bt.general.common;
+		max_general = &priv->_agn.max_delta_bt.general.common;
+		delta_dbg = &priv->_agn.delta_statistics_bt.general.common.dbg;
+		max_dbg = &priv->_agn.max_delta_bt.general.common.dbg;
+		delta_div = &priv->_agn.delta_statistics_bt.general.common.div;
+		max_div = &priv->_agn.max_delta_bt.general.common.div;
+	} else {
+		general = &priv->_agn.statistics.general.common;
+		dbg = &priv->_agn.statistics.general.common.dbg;
+		div = &priv->_agn.statistics.general.common.div;
+		accum_general = &priv->_agn.accum_statistics.general.common;
+		accum_dbg = &priv->_agn.accum_statistics.general.common.dbg;
+		accum_div = &priv->_agn.accum_statistics.general.common.div;
+		delta_general = &priv->_agn.delta_statistics.general.common;
+		max_general = &priv->_agn.max_delta.general.common;
+		delta_dbg = &priv->_agn.delta_statistics.general.common.dbg;
+		max_dbg = &priv->_agn.max_delta.general.common.dbg;
+		delta_div = &priv->_agn.delta_statistics.general.common.div;
+		max_div = &priv->_agn.max_delta.general.common.div;
+	}
+
+	pos += iwl_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_General:");
@@ -790,6 +859,13 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 			 le32_to_cpu(dbg->burst_count),
 			 accum_dbg->burst_count,
 			 delta_dbg->burst_count, max_dbg->burst_count);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "  %-30s %10u  %10u  %10u  %10u\n",
+			 "wait_for_silence_timeout_count:",
+			 le32_to_cpu(dbg->wait_for_silence_timeout_cnt),
+			 accum_dbg->wait_for_silence_timeout_cnt,
+			 delta_dbg->wait_for_silence_timeout_cnt,
+			 max_dbg->wait_for_silence_timeout_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "  %-30s %10u  %10u  %10u  %10u\n",
 			 "sleep_time:",
@@ -844,6 +920,93 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 			 accum_general->num_of_sos_states,
 			 delta_general->num_of_sos_states,
 			 max_general->num_of_sos_states);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+ssize_t iwl_ucode_bt_stats_read(struct file *file,
+				char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char *buf;
+	int bufsz = (sizeof(struct statistics_bt_activity) * 24) + 200;
+	ssize_t ret;
+	struct statistics_bt_activity *bt, *accum_bt;
+
+	if (!iwl_is_alive(priv))
+		return -EAGAIN;
+
+	/* make request to uCode to retrieve statistics information */
+	mutex_lock(&priv->mutex);
+	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
+	mutex_unlock(&priv->mutex);
+
+	if (ret) {
+		IWL_ERR(priv,
+			"Error sending statistics request: %zd\n", ret);
+		return -EAGAIN;
+	}
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(priv, "Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * the statistic information display here is based on
+	 * the last statistics notification from uCode
+	 * might not reflect the current uCode activity
+	 */
+	bt = &priv->_agn.statistics_bt.general.activity;
+	accum_bt = &priv->_agn.accum_statistics_bt.general.activity;
+
+	pos += iwl_statistics_flag(priv, buf, bufsz);
+	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_BT:\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\t\t\tcurrent\t\t\taccumulative\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_tx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_tx_req_cnt),
+			 accum_bt->hi_priority_tx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_tx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_tx_denied_cnt),
+			 accum_bt->hi_priority_tx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_tx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_tx_req_cnt),
+			 accum_bt->lo_priority_tx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_tx_denied_cnt),
+			 accum_bt->lo_priority_tx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_rx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_rx_req_cnt),
+			 accum_bt->hi_priority_rx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_rx_denied_cnt),
+			 accum_bt->hi_priority_rx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_rx_req_cnt),
+			 accum_bt->lo_priority_rx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_rx_denied_cnt),
+			 accum_bt->lo_priority_rx_denied_cnt);
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "(rx)num_bt_kills:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(priv->_agn.statistics_bt.rx.
+				general.num_bt_kills),
+			 priv->_agn.accum_statistics_bt.rx.
+				general.num_bt_kills);
+
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;

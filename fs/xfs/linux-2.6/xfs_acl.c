@@ -225,7 +225,7 @@ xfs_check_acl(struct inode *inode, int mask)
 	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_check_acl(ip);
 
 	/*
 	 * If there is no attribute fork no ACL exists on this inode and

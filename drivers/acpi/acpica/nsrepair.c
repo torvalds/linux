@@ -556,7 +556,7 @@ acpi_ns_repair_null_element(struct acpi_predefined_data *data,
 
 		/* Need an Integer - create a zero-value integer */
 
-		new_object = acpi_ut_create_integer_object(0);
+		new_object = acpi_ut_create_integer_object((u64)0);
 	} else if (expected_btypes & ACPI_RTYPE_STRING) {
 
 		/* Need a String - create a NULL string */

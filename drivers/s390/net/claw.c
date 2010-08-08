@@ -295,7 +295,7 @@ claw_driver_group_store(struct device_driver *ddrv, const char *buf,
 	int err;
 	err = ccwgroup_create_from_string(claw_root_dev,
 					  claw_group_driver.driver_id,
-					  &claw_ccw_driver, 3, buf);
+					  &claw_ccw_driver, 2, buf);
 	return err ? err : count;
 }
 

@@ -102,9 +102,14 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->stats_busy = BFA_FALSE;
 
 	if (status == BFA_STATUS_OK) {
+		struct bfa_timeval_s tv;
+
 		memcpy(port->stats, port->stats_dma.kva,
 		       sizeof(union bfa_pport_stats_u));
 		bfa_port_stats_swap(port, port->stats);
+
+		bfa_os_gettimeofday(&tv);
+		port->stats->fc.secs_reset = tv.tv_sec - port->stats_reset_time;
 	}
 
 	if (port->stats_cbfn) {
@@ -125,8 +130,16 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 static void
 bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 {
+	struct bfa_timeval_s tv;
+
 	port->stats_status = status;
 	port->stats_busy = BFA_FALSE;
+
+	/**
+	 * re-initialize time stamp for stats reset
+	 */
+	bfa_os_gettimeofday(&tv);
+	port->stats_reset_time = tv.tv_sec;
 
 	if (port->stats_cbfn) {
 		port->stats_cbfn(port->stats_cbarg, status);
@@ -394,7 +407,7 @@ bfa_port_hbfail(void *arg)
 	 */
 	if (port->stats_busy) {
 		if (port->stats_cbfn)
-			port->stats_cbfn(port->dev, BFA_STATUS_FAILED);
+			port->stats_cbfn(port->stats_cbarg, BFA_STATUS_FAILED);
 		port->stats_cbfn = NULL;
 		port->stats_busy = BFA_FALSE;
 	}
@@ -404,7 +417,7 @@ bfa_port_hbfail(void *arg)
 	 */
 	if (port->endis_pending) {
 		if (port->endis_cbfn)
-			port->endis_cbfn(port->dev, BFA_STATUS_FAILED);
+			port->endis_cbfn(port->endis_cbarg, BFA_STATUS_FAILED);
 		port->endis_cbfn = NULL;
 		port->endis_pending = BFA_FALSE;
 	}
@@ -428,6 +441,8 @@ void
 bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc, void *dev,
 		struct bfa_trc_mod_s *trcmod, struct bfa_log_mod_s *logmod)
 {
+	struct bfa_timeval_s tv;
+
 	bfa_assert(port);
 
 	port->dev = dev;
@@ -435,12 +450,20 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc, void *dev,
 	port->trcmod = trcmod;
 	port->logmod = logmod;
 
-	port->stats_busy = port->endis_pending = BFA_FALSE;
-	port->stats_cbfn = port->endis_cbfn = NULL;
+	port->stats_busy = BFA_FALSE;
+	port->endis_pending = BFA_FALSE;
+	port->stats_cbfn = NULL;
+	port->endis_cbfn = NULL;
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
 	bfa_ioc_hbfail_init(&port->hbfail, bfa_port_hbfail, port);
 	bfa_ioc_hbfail_register(port->ioc, &port->hbfail);
+
+	/**
+	 * initialize time stamp for stats reset
+	 */
+	bfa_os_gettimeofday(&tv);
+	port->stats_reset_time = tv.tv_sec;
 
 	bfa_trc(port, 0);
 }

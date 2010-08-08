@@ -224,6 +224,27 @@ enum {
 /* Input converter SDI select */
 #define AC_SDI_SELECT			(0xf<<0)
 
+/* stream format id */
+#define AC_FMT_CHAN_SHIFT		0
+#define AC_FMT_CHAN_MASK		(0x0f << 0)
+#define AC_FMT_BITS_SHIFT		4
+#define AC_FMT_BITS_MASK		(7 << 4)
+#define AC_FMT_BITS_8			(0 << 4)
+#define AC_FMT_BITS_16			(1 << 4)
+#define AC_FMT_BITS_20			(2 << 4)
+#define AC_FMT_BITS_24			(3 << 4)
+#define AC_FMT_BITS_32			(4 << 4)
+#define AC_FMT_DIV_SHIFT		8
+#define AC_FMT_DIV_MASK			(7 << 8)
+#define AC_FMT_MULT_SHIFT		11
+#define AC_FMT_MULT_MASK		(7 << 11)
+#define AC_FMT_BASE_SHIFT		14
+#define AC_FMT_BASE_48K			(0 << 14)
+#define AC_FMT_BASE_44K			(1 << 14)
+#define AC_FMT_TYPE_SHIFT		15
+#define AC_FMT_TYPE_PCM			(0 << 15)
+#define AC_FMT_TYPE_NON_PCM		(1 << 15)
+
 /* Unsolicited response control */
 #define AC_UNSOL_TAG			(0x3f<<0)
 #define AC_UNSOL_ENABLED		(1<<7)
@@ -364,6 +385,9 @@ enum {
 #define AC_DIG2_CC			(0x7f<<0)
 
 /* Pin widget control - 8bit */
+#define AC_PINCTL_EPT			(0x3<<0)
+#define AC_PINCTL_EPT_NATIVE		0
+#define AC_PINCTL_EPT_HBR		3
 #define AC_PINCTL_VREFEN		(0x7<<0)
 #define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
 #define AC_PINCTL_VREF_50		1	/* 50% */
@@ -760,7 +784,10 @@ struct hda_codec {
 	hda_nid_t mfg;	/* MFG node id */
 
 	/* ids */
-	u32 function_id;
+	u8 afg_function_id;
+	u8 mfg_function_id;
+	u8 afg_unsol;
+	u8 mfg_unsol;
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;
@@ -821,6 +848,7 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
+	unsigned int pins_shutup:1;	/* pins are shut up */
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
@@ -897,7 +925,9 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec);
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;
-	unsigned int cfg;
+	unsigned char ctrl;	/* current pin control value */
+	unsigned char pad;	/* reserved */
+	unsigned int cfg;	/* default configuration */
 };
 
 unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid);
@@ -925,7 +955,8 @@ void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid);
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
-					unsigned int maxbps);
+					unsigned int maxbps,
+					unsigned short spdif_ctls);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int format);
 

@@ -1495,7 +1495,7 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 	if (ret != 0) {
 		dev_err(wm8350->dev, "Failed to register regulator %d: %d\n",
 			reg, ret);
-		platform_device_del(pdev);
+		platform_device_put(pdev);
 		wm8350->pmic.pdev[reg] = NULL;
 	}
 

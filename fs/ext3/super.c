@@ -661,9 +661,6 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	 */
 	seq_puts(seq, ",barrier=");
 	seq_puts(seq, test_opt(sb, BARRIER) ? "1" : "0");
-	if (test_opt(sb, NOBH))
-		seq_puts(seq, ",nobh");
-
 	seq_printf(seq, ",data=%s", data_mode_string(test_opt(sb, DATA_FLAGS)));
 	if (test_opt(sb, DATA_ERR_ABORT))
 		seq_puts(seq, ",data_err=abort");
@@ -1255,10 +1252,12 @@ set_qf_format:
 			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
-			set_opt(sbi->s_mount_opt, NOBH);
+			ext3_msg(sb, KERN_WARNING,
+				"warning: ignoring deprecated nobh option");
 			break;
 		case Opt_bh:
-			clear_opt(sbi->s_mount_opt, NOBH);
+			ext3_msg(sb, KERN_WARNING,
+				"warning: ignoring deprecated bh option");
 			break;
 		default:
 			ext3_msg(sb, KERN_ERR,
@@ -2001,14 +2000,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		break;
 	}
 
-	if (test_opt(sb, NOBH)) {
-		if (!(test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)) {
-			ext3_msg(sb, KERN_WARNING,
-				"warning: ignoring nobh option - "
-				"it is supported only with writeback mode");
-			clear_opt(sbi->s_mount_opt, NOBH);
-		}
-	}
 	/*
 	 * The journal_load will have done any necessary log recovery,
 	 * so we can safely mount the rest of the filesystem now.

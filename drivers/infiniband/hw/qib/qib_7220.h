@@ -109,10 +109,6 @@ struct qib_chippport_specific {
  */
 int qib_sd7220_presets(struct qib_devdata *dd);
 int qib_sd7220_init(struct qib_devdata *dd);
-int qib_sd7220_prog_ld(struct qib_devdata *dd, int sdnum, u8 *img,
-		       int len, int offset);
-int qib_sd7220_prog_vfy(struct qib_devdata *dd, int sdnum, const u8 *img,
-			int len, int offset);
 void qib_sd7220_clr_ibpar(struct qib_devdata *);
 /*
  * Below used for sdnum parameter, selecting one of the two sections
@@ -120,9 +116,6 @@ void qib_sd7220_clr_ibpar(struct qib_devdata *);
  * only one currently used
  */
 #define IB_7220_SERDES 2
-
-int qib_sd7220_ib_load(struct qib_devdata *dd);
-int qib_sd7220_ib_vfy(struct qib_devdata *dd);
 
 static inline u32 qib_read_kreg32(const struct qib_devdata *dd,
 				  const u16 regno)

@@ -45,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -325,6 +326,9 @@ struct qib_verbs_txreq {
 #define QIB_IB_QDR 4
 
 #define QIB_DEFAULT_MTU 4096
+
+/* max number of IB ports supported per HCA */
+#define QIB_MAX_IB_PORTS 2
 
 /*
  * Possible IB config parameters for f_get/set_ib_table()
@@ -686,6 +690,7 @@ struct qib_devdata {
 	void __iomem *piobase;
 	/* mem-mapped pointer to base of user chip regs (if using WC PAT) */
 	u64 __iomem *userbase;
+	void __iomem *piovl15base; /* base of VL15 buffers, if not WC */
 	/*
 	 * points to area where PIOavail registers will be DMA'ed.
 	 * Has to be on a page of it's own, because the page will be

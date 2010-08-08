@@ -527,7 +527,7 @@ static int
 dev_irnet_close(struct inode *	inode,
 		struct file *	file)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DENTER(FS_TRACE, "(file=0x%p, ap=0x%p)\n",
 	 file, ap);
@@ -564,7 +564,7 @@ dev_irnet_write(struct file *	file,
 		size_t		count,
 		loff_t *	ppos)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
 	file, ap, count);
@@ -588,7 +588,7 @@ dev_irnet_read(struct file *	file,
 	       size_t		count,
 	       loff_t *		ppos)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
 	file, ap, count);
@@ -609,7 +609,7 @@ static unsigned int
 dev_irnet_poll(struct file *	file,
 	       poll_table *	wait)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
   unsigned int		mask;
 
   DENTER(FS_TRACE, "(file=0x%p, ap=0x%p)\n",
@@ -638,7 +638,7 @@ dev_irnet_ioctl(
 		unsigned int	cmd,
 		unsigned long	arg)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
   int			err;
   int			val;
   void __user *argp = (void __user *)arg;

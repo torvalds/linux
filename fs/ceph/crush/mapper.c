@@ -238,7 +238,7 @@ static int bucket_straw_choose(struct crush_bucket_straw *bucket,
 
 static int crush_bucket_choose(struct crush_bucket *in, int x, int r)
 {
-	dprintk("choose %d x=%d r=%d\n", in->id, x, r);
+	dprintk(" crush_bucket_choose %d x=%d r=%d\n", in->id, x, r);
 	switch (in->alg) {
 	case CRUSH_BUCKET_UNIFORM:
 		return bucket_uniform_choose((struct crush_bucket_uniform *)in,
@@ -264,7 +264,7 @@ static int crush_bucket_choose(struct crush_bucket *in, int x, int r)
  */
 static int is_out(struct crush_map *map, __u32 *weight, int item, int x)
 {
-	if (weight[item] >= 0x1000)
+	if (weight[item] >= 0x10000)
 		return 0;
 	if (weight[item] == 0)
 		return 1;
@@ -305,7 +305,9 @@ static int crush_choose(struct crush_map *map,
 	int itemtype;
 	int collide, reject;
 	const int orig_tries = 5; /* attempts before we fall back to search */
-	dprintk("choose bucket %d x %d outpos %d\n", bucket->id, x, outpos);
+
+	dprintk("CHOOSE%s bucket %d x %d outpos %d numrep %d\n", recurse_to_leaf ? "_LEAF" : "",
+		bucket->id, x, outpos, numrep);
 
 	for (rep = outpos; rep < numrep; rep++) {
 		/* keep trying until we get a non-out, non-colliding item */
@@ -366,6 +368,7 @@ static int crush_choose(struct crush_map *map,
 					BUG_ON(item >= 0 ||
 					       (-1-item) >= map->max_buckets);
 					in = map->buckets[-1-item];
+					retry_bucket = 1;
 					continue;
 				}
 
@@ -377,15 +380,25 @@ static int crush_choose(struct crush_map *map,
 					}
 				}
 
-				if (recurse_to_leaf &&
-				    item < 0 &&
-				    crush_choose(map, map->buckets[-1-item],
-						 weight,
-						 x, outpos+1, 0,
-						 out2, outpos,
-						 firstn, 0, NULL) <= outpos) {
-					reject = 1;
-				} else {
+				reject = 0;
+				if (recurse_to_leaf) {
+					if (item < 0) {
+						if (crush_choose(map,
+							 map->buckets[-1-item],
+							 weight,
+							 x, outpos+1, 0,
+							 out2, outpos,
+							 firstn, 0,
+							 NULL) <= outpos)
+							/* didn't get leaf */
+							reject = 1;
+					} else {
+						/* we already have a leaf! */
+						out2[outpos] = item;
+					}
+				}
+
+				if (!reject) {
 					/* out? */
 					if (itemtype == 0)
 						reject = is_out(map, weight,
@@ -424,12 +437,12 @@ reject:
 			continue;
 		}
 
-		dprintk("choose got %d\n", item);
+		dprintk("CHOOSE got %d\n", item);
 		out[outpos] = item;
 		outpos++;
 	}
 
-	dprintk("choose returns %d\n", outpos);
+	dprintk("CHOOSE returns %d\n", outpos);
 	return outpos;
 }
 

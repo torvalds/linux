@@ -72,7 +72,7 @@ config ATMEL_TCLIB
 
 config ATMEL_TCB_CLKSRC
 	bool "TC Block Clocksource"
-	depends on ATMEL_TCLIB && GENERIC_TIME
+	depends on ATMEL_TCLIB
 	default y
 	help
 	  Select this to get a high precision clocksource based on a
@@ -240,7 +240,7 @@ config CS5535_MFGPT_DEFAULT_IRQ
 
 config CS5535_CLOCK_EVENT_SRC
 	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
-	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	depends on GENERIC_CLOCKEVENTS && CS5535_MFGPT
 	help
 	  This driver provides a clock event source based on the MFGPT
 	  timer(s) in the CS5535 and CS5536 companion chips.
@@ -352,6 +352,16 @@ config VMWARE_BALLOON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmware_balloon.
+
+config ARM_CHARLCD
+	bool "ARM Ltd. Character LCD Driver"
+	depends on PLAT_VERSATILE
+	help
+	  This is a driver for the character LCD found on the ARM Ltd.
+	  Versatile and RealView Platform Baseboards. It doesn't do
+	  very much more than display the text "ARM Linux" on the first
+	  line and the Linux version on the second line, but that's
+	  still useful.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

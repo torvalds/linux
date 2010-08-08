@@ -52,6 +52,10 @@ struct hdmi_spec {
 	 */
 	struct hda_multi_out multiout;
 	unsigned int codec_type;
+
+	/* misc flags */
+	/* PD bit indicates only the update, not the current state */
+	unsigned int old_pin_detect:1;
 };
 
 
@@ -616,6 +620,9 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
  * Unsolicited events
  */
 
+static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
+			       struct hdmi_eld *eld);
+
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -631,6 +638,12 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	index = hda_node_index(spec->pin, tag);
 	if (index < 0)
 		return;
+
+	if (spec->old_pin_detect) {
+		if (pind)
+			hdmi_present_sense(codec, tag, &spec->sink_eld[index]);
+		pind = spec->sink_eld[index].monitor_present;
+	}
 
 	spec->sink_eld[index].monitor_present = pind;
 	spec->sink_eld[index].eld_valid = eldv;
@@ -685,11 +698,51 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
-static void hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+/* HBR should be Non-PCM, 8 channels */
+#define is_hbr_format(format) \
+	((format & AC_FMT_TYPE_NON_PCM) && (format & AC_FMT_CHAN_MASK) == 7)
+
+static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 			      u32 stream_tag, int format)
 {
+	struct hdmi_spec *spec = codec->spec;
 	int tag;
 	int fmt;
+	int pinctl;
+	int new_pinctl = 0;
+	int i;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		if (spec->pin_cvt[i] != nid)
+			continue;
+		if (!(snd_hda_query_pin_caps(codec, spec->pin[i]) & AC_PINCAP_HBR))
+			continue;
+
+		pinctl = snd_hda_codec_read(codec, spec->pin[i], 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+
+		new_pinctl = pinctl & ~AC_PINCTL_EPT;
+		if (is_hbr_format(format))
+			new_pinctl |= AC_PINCTL_EPT_HBR;
+		else
+			new_pinctl |= AC_PINCTL_EPT_NATIVE;
+
+		snd_printdd("hdmi_setup_stream: "
+			    "NID=0x%x, %spinctl=0x%x\n",
+			    spec->pin[i],
+			    pinctl == new_pinctl ? "" : "new-",
+			    new_pinctl);
+
+		if (pinctl != new_pinctl)
+			snd_hda_codec_write(codec, spec->pin[i], 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    new_pinctl);
+	}
+
+	if (is_hbr_format(format) && !new_pinctl) {
+		snd_printdd("hdmi_setup_stream: HBR is not supported\n");
+		return -EINVAL;
+	}
 
 	tag = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0) >> 4;
 	fmt = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_STREAM_FORMAT, 0);
@@ -709,6 +762,7 @@ static void hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (fmt != format)
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_STREAM_FORMAT, format);
+	return 0;
 }
 
 /*

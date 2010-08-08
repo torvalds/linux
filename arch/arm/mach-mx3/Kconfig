@@ -15,6 +15,8 @@ comment "MX3 platforms:"
 config MACH_MX31ADS
 	bool "Support MX31ADS platforms"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
 	default y
 	help
 	  Include support for MX31ADS platform. This includes specific
@@ -34,6 +36,9 @@ config MACH_MX31ADS_WM1133_EV1
 config MACH_PCM037
 	bool "Support Phytec pcm037 (i.MX31) platforms"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Phytec pcm037 platform. This includes
@@ -42,6 +47,7 @@ config MACH_PCM037
 config MACH_PCM037_EET
 	bool "Support pcm037 EET board extensions"
 	depends on MACH_PCM037
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Add support for PCM037 EET baseboard extensions. If you are using the
 	  OLED display with EET, use "video=mx3fb:CMEL-OLED" kernel
@@ -51,6 +57,9 @@ config MACH_MX31LITE
 	bool "Support MX31 LITEKIT (LogicPD)"
 	select ARCH_MX31
 	select MXC_ULPI if USB_ULPI
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Include support for MX31 LITEKIT platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -58,6 +67,10 @@ config MACH_MX31LITE
 config MACH_MX31_3DS
 	bool "Support MX31PDK (3DS)"
 	select ARCH_MX31
+	select MXC_DEBUG_BOARD
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Include support for MX31PDK (3DS) platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -74,6 +87,9 @@ config MACH_MX31_3DS_MXC_NAND_USE_BBT
 config MACH_MX31MOBOARD
 	bool "Support mx31moboard platforms (EPFL Mobots group)"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for mx31moboard platform. This includes specific
@@ -82,6 +98,8 @@ config MACH_MX31MOBOARD
 config MACH_MX31LILLY
 	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for mx31 based LILLY1131 modules. This includes
@@ -90,6 +108,7 @@ config MACH_MX31LILLY
 config MACH_QONG
 	bool "Support Dave/DENX QongEVB-LITE platform"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Include support for Dave/DENX QongEVB-LITE platform. This includes
 	  specific configurations for the board and its peripherals.
@@ -97,6 +116,10 @@ config MACH_QONG
 config MACH_PCM043
 	bool "Support Phytec pcm043 (i.MX35) platforms"
 	select ARCH_MX35
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_FLEXCAN
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Phytec pcm043 platform. This includes
@@ -105,6 +128,9 @@ config MACH_PCM043
 config MACH_ARMADILLO5X0
 	bool "Support Atmark Armadillo-500 Development Base Board"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Atmark Armadillo-500 platform. This includes
@@ -113,6 +139,7 @@ config MACH_ARMADILLO5X0
 config MACH_MX35_3DS
 	bool "Support MX35PDK platform"
 	select ARCH_MX35
+	select IMX_HAVE_PLATFORM_IMX_UART
 	default n
 	help
 	  Include support for MX35PDK platform. This includes specific
@@ -121,8 +148,34 @@ config MACH_MX35_3DS
 config MACH_KZM_ARM11_01
 	bool "Support KZM-ARM11-01(Kyoto Microcomputer)"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Include support for KZM-ARM11-01. This includes specific
 	  configurations for the board and its peripherals.
+
+config MACH_EUKREA_CPUIMX35
+	bool "Support Eukrea CPUIMX35 Platform"
+	select ARCH_MX35
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select MXC_ULPI if USB_ULPI
+	help
+	  Include support for Eukrea CPUIMX35 platform. This includes
+	  specific configurations for the board and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX35
+	default MACH_EUKREA_MBIMXSD35_BASEBOARD
+
+config MACH_EUKREA_MBIMXSD35_BASEBOARD
+	prompt "Eukrea MBIMXSD development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMXSD evaluation board.
+
+endchoice
 
 endif

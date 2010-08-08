@@ -822,6 +822,9 @@ static int w90p910_ether_open(struct net_device *dev)
 	w90p910_set_global_maccmd(dev);
 	w90p910_enable_rx(dev, 1);
 
+	clk_enable(ether->rmiiclk);
+	clk_enable(ether->clk);
+
 	ether->rx_packets = 0x0;
 	ether->rx_bytes = 0x0;
 

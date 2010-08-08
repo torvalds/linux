@@ -749,7 +749,7 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	struct sh_irda_self *self;
 	struct resource *res;
 	char clk_name[8];
-	unsigned int irq;
+	int irq;
 	int err = -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

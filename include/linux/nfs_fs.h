@@ -72,13 +72,20 @@ struct nfs_access_entry {
 	int			mask;
 };
 
+struct nfs_lock_context {
+	atomic_t count;
+	struct list_head list;
+	struct nfs_open_context *open_context;
+	fl_owner_t lockowner;
+	pid_t pid;
+};
+
 struct nfs4_state;
 struct nfs_open_context {
-	atomic_t count;
+	struct nfs_lock_context lock_context;
 	struct path path;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
-	fl_owner_t lockowner;
 	fmode_t mode;
 
 	unsigned long flags;
@@ -353,6 +360,8 @@ extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
+extern struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx);
+extern void nfs_put_lock_context(struct nfs_lock_context *l_ctx);
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
 
@@ -493,8 +502,15 @@ extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_write_data *wdata);
+#else
+static inline int
+nfs_commit_inode(struct inode *inode, int how)
+{
+	return 0;
+}
 #endif
 
 static inline int

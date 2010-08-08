@@ -158,6 +158,39 @@ static int wacom_ptu_irq(struct wacom_wac *wacom)
 	return 1;
 }
 
+static int wacom_dtu_irq(struct wacom_wac *wacom)
+{
+	struct wacom_features *features = &wacom->features;
+	char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+	int prox = data[1] & 0x20, pressure;
+
+	dbg("wacom_dtu_irq: received report #%d", data[0]);
+
+	if (prox) {
+		/* Going into proximity select tool */
+		wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+		if (wacom->tool[0] == BTN_TOOL_PEN)
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		else
+			wacom->id[0] = ERASER_DEVICE_ID;
+	}
+	input_report_key(input, BTN_STYLUS, data[1] & 0x02);
+	input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
+	input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
+	input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
+	pressure = ((data[7] & 0x01) << 8) | data[6];
+	if (pressure < 0)
+		pressure = features->pressure_max + pressure + 1;
+	input_report_abs(input, ABS_PRESSURE, pressure);
+	input_report_key(input, BTN_TOUCH, data[1] & 0x05);
+	if (!prox) /* out-prox */
+		wacom->id[0] = 0;
+	input_report_key(input, wacom->tool[0], prox);
+	input_report_abs(input, ABS_MISC, wacom->id[0]);
+	return 1;
+}
+
 static int wacom_graphire_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
@@ -845,6 +878,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_ptu_irq(wacom_wac);
 		break;
 
+	case DTU:
+		sync = wacom_dtu_irq(wacom_wac);
+		break;
+
 	case INTUOS:
 	case INTUOS3S:
 	case INTUOS3:
@@ -1030,6 +1067,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case PL:
 	case PTU:
+	case DTU:
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
@@ -1155,6 +1193,10 @@ static const struct wacom_features wacom_features_0xC6 =
 	{ "Wacom Cintiq 12WX",    WACOM_PKGLEN_INTUOS,    53020, 33440, 1023, 63, WACOM_BEE };
 static const struct wacom_features wacom_features_0xC7 =
 	{ "Wacom DTU1931",        WACOM_PKGLEN_GRAPHIRE,  37832, 30305,  511,  0, PL };
+static const struct wacom_features wacom_features_0xCE =
+	{ "Wacom DTU2231",        WACOM_PKGLEN_GRAPHIRE,  47864, 27011,  511,  0, DTU };
+static const struct wacom_features wacom_features_0xF0 =
+	{ "Wacom DTU1631",        WACOM_PKGLEN_GRAPHIRE,  34623, 19553,  511,  0, DTU };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    87200, 65600, 2047, 63, WACOM_21UX2 };
 static const struct wacom_features wacom_features_0x90 =
@@ -1234,6 +1276,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xC5) },
 	{ USB_DEVICE_WACOM(0xC6) },
 	{ USB_DEVICE_WACOM(0xC7) },
+	{ USB_DEVICE_WACOM(0xCE) },
+	{ USB_DEVICE_WACOM(0xF0) },
 	{ USB_DEVICE_WACOM(0xCC) },
 	{ USB_DEVICE_WACOM(0x90) },
 	{ USB_DEVICE_WACOM(0x93) },

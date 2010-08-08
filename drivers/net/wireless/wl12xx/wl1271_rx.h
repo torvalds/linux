@@ -113,7 +113,7 @@ struct wl1271_rx_descriptor {
 	u8  process_id;
 	u8  pad_len;
 	u8  reserved;
-} __attribute__ ((packed));
+} __packed;
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status);
 u8 wl1271_rate_to_idx(struct wl1271 *wl, int rate);

@@ -93,7 +93,18 @@ static struct comedi_driver driver_multiq3 = {
 	.detach = multiq3_detach,
 };
 
-COMEDI_INITCLEANUP(driver_multiq3);
+static int __init driver_multiq3_init_module(void)
+{
+	return comedi_driver_register(&driver_multiq3);
+}
+
+static void __exit driver_multiq3_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_multiq3);
+}
+
+module_init(driver_multiq3_init_module);
+module_exit(driver_multiq3_cleanup_module);
 
 struct multiq3_private {
 	unsigned int ao_readback[2];
@@ -338,3 +349,7 @@ static int multiq3_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

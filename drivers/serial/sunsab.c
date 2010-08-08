@@ -969,7 +969,7 @@ static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
 		return -ENOMEM;
 	up->regs = (union sab82532_async_regs __iomem *) up->port.membase;
 
-	up->port.irq = op->irqs[0];
+	up->port.irq = op->archdata.irqs[0];
 
 	up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
 	up->port.iotype = UPIO_MEM;
@@ -1130,12 +1130,12 @@ static int __init sunsab_init(void)
 		}
 	}
 
-	return of_register_driver(&sab_driver, &of_bus_type);
+	return of_register_platform_driver(&sab_driver);
 }
 
 static void __exit sunsab_exit(void)
 {
-	of_unregister_driver(&sab_driver);
+	of_unregister_platform_driver(&sab_driver);
 	if (sunsab_reg.nr) {
 		sunserial_unregister_minors(&sunsab_reg, sunsab_reg.nr);
 	}

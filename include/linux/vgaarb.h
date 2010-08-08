@@ -29,6 +29,7 @@
  */
 
 #ifndef LINUX_VGA_H
+#define LINUX_VGA_H
 
 #include <asm/vga.h>
 

@@ -79,6 +79,8 @@ struct iwl_cmd;
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
+#define TIME_UNIT		1024
+
 #define IWL_SKU_G       0x1
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
@@ -123,6 +125,8 @@ struct iwl_debugfs_ops {
 				 size_t count, loff_t *ppos);
 	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos);
+	ssize_t (*bt_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
 };
 
 struct iwl_temp_ops {
@@ -173,7 +177,8 @@ struct iwl_lib_ops {
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
 	void (*dump_csr)(struct iwl_priv *priv);
 	int (*dump_fh)(struct iwl_priv *priv, char **buf, bool display);
-	int (*set_channel_switch)(struct iwl_priv *priv, u16 channel);
+	int (*set_channel_switch)(struct iwl_priv *priv,
+				  struct ieee80211_channel_switch *ch_switch);
 	/* power management */
 	struct iwl_apm_ops apm_ops;
 
@@ -193,6 +198,7 @@ struct iwl_lib_ops {
 	/* station management */
 	int (*manage_ibss_station)(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif, bool add);
+	int (*update_bcast_station)(struct iwl_priv *priv);
 	/* recover from tx queue stall */
 	void (*recover_from_tx_stall)(unsigned long data);
 	/* check for plcp health */
@@ -201,6 +207,9 @@ struct iwl_lib_ops {
 	/* check for ack health */
 	bool (*check_ack_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
+	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
+	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
+
 	struct iwl_debugfs_ops debugfs_ops;
 };
 
@@ -325,7 +334,10 @@ struct iwl_cfg {
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
-	u8 scan_antennas[IEEE80211_NUM_BANDS];
+	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
+	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
+	const bool need_dc_calib;
+	const bool bt_statistics;
 };
 
 /***************************
@@ -343,6 +355,9 @@ int iwl_check_rxon_cmd(struct iwl_priv *priv);
 int iwl_full_rxon_required(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
+void iwl_set_flags_for_band(struct iwl_priv *priv,
+			    enum ieee80211_band band,
+			    struct ieee80211_vif *vif);
 u8 iwl_get_single_channel_number(struct iwl_priv *priv,
 				  enum ieee80211_band band);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
@@ -350,6 +365,7 @@ u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif);
+void iwl_set_rate(struct iwl_priv *priv);
 int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
@@ -364,7 +380,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
-int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwl_commit_rxon(struct iwl_priv *priv);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
@@ -447,20 +462,11 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /* Handlers */
-void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
-			       struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb);
-bool iwl_good_plcp_health(struct iwl_priv *priv,
-				 struct iwl_rx_packet *pkt);
-bool iwl_good_ack_health(struct iwl_priv *priv,
-				 struct iwl_rx_packet *pkt);
 void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt);
-void iwl_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb);
-void iwl_reply_statistics(struct iwl_priv *priv,
-			  struct iwl_rx_mem_buffer *rxb);
+void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
@@ -474,8 +480,6 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
 int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 			 struct iwl_tx_queue *txq);
-void iwl_free_tfds_in_queue(struct iwl_priv *priv,
-			    int sta_id, int tid, int freed);
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		      int slots_num, u32 txq_id);
@@ -495,7 +499,7 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx);
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 {
@@ -526,9 +530,9 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct cfg80211_scan_request *req);
 void iwl_bg_start_internal_scan(struct work_struct *work);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
-int iwl_force_reset(struct iwl_priv *priv, int mode);
+int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
-		       const u8 *ie, int ie_len, int left);
+		       const u8 *ta, const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
 u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 			      enum ieee80211_band band,
@@ -595,6 +599,9 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 }
 
 void iwl_bg_monitor_recover(unsigned long data);
+u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
+__le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
+			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
@@ -693,7 +700,6 @@ extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
-extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 void iwl_apm_stop(struct iwl_priv *priv);

@@ -15,7 +15,7 @@
 #include <linux/numa.h>
 #include <linux/ftrace.h>
 #include <linux/suspend.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
@@ -157,10 +157,10 @@ void __init reserve_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
-	/* this is necessary because of lmb_phys_mem_size() */
-	lmb_analyze();
+	/* this is necessary because of memblock_phys_mem_size() */
+	memblock_analyze();
 
-	ret = parse_crashkernel(boot_command_line, lmb_phys_mem_size(),
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size > 0) {
 		crashk_res.start = crash_base;
@@ -172,14 +172,14 @@ void __init reserve_crashkernel(void)
 
 	crash_size = PAGE_ALIGN(crashk_res.end - crashk_res.start + 1);
 	if (!crashk_res.start) {
-		unsigned long max = lmb_end_of_DRAM() - memory_limit;
-		crashk_res.start = __lmb_alloc_base(crash_size, PAGE_SIZE, max);
+		unsigned long max = memblock_end_of_DRAM() - memory_limit;
+		crashk_res.start = __memblock_alloc_base(crash_size, PAGE_SIZE, max);
 		if (!crashk_res.start) {
 			pr_err("crashkernel allocation failed\n");
 			goto disable;
 		}
 	} else {
-		ret = lmb_reserve(crashk_res.start, crash_size);
+		ret = memblock_reserve(crashk_res.start, crash_size);
 		if (unlikely(ret < 0)) {
 			pr_err("crashkernel reservation failed - "
 			       "memory is in use\n");
@@ -192,7 +192,7 @@ void __init reserve_crashkernel(void)
 	/*
 	 * Crash kernel trumps memory limit
 	 */
-	if ((lmb_end_of_DRAM() - memory_limit) <= crashk_res.end) {
+	if ((memblock_end_of_DRAM() - memory_limit) <= crashk_res.end) {
 		memory_limit = 0;
 		pr_info("Disabled memory limit for crashkernel\n");
 	}
@@ -201,7 +201,7 @@ void __init reserve_crashkernel(void)
 		"for crashkernel (System RAM: %ldMB)\n",
 		(unsigned long)(crash_size >> 20),
 		(unsigned long)(crashk_res.start),
-		(unsigned long)(lmb_phys_mem_size() >> 20));
+		(unsigned long)(memblock_phys_mem_size() >> 20));
 
 	return;
 

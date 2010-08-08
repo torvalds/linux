@@ -972,6 +972,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(rects, user_rects, rects_size);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to get rects.\n");
+		ret = -EFAULT;
 		goto out_free;
 	}
 

@@ -110,7 +110,7 @@ void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
 	struct nfs_unlinkdata *data = calldata;
 	struct nfs_server *server = NFS_SERVER(data->dir);
 
-	if (nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
+	if (nfs4_setup_sequence(server, &data->args.seq_args,
 				&data->res.seq_res, 1, task))
 		return;
 	rpc_call_start(task);

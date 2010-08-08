@@ -346,7 +346,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 	 */
 	reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 	reg &= ~IXGBE_MFLCN_RFCE;
-	reg |= IXGBE_MFLCN_RPFCE;
+	reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 out:
 	return 0;

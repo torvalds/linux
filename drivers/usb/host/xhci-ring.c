@@ -2380,16 +2380,19 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 		u32 field3, u32 field4, bool command_must_succeed)
 {
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
+	int ret;
+
 	if (!command_must_succeed)
 		reserved_trbs++;
 
-	if (!room_on_ring(xhci, xhci->cmd_ring, reserved_trbs)) {
-		if (!in_interrupt())
-			xhci_err(xhci, "ERR: No room for command on command ring\n");
+	ret = prepare_ring(xhci, xhci->cmd_ring, EP_STATE_RUNNING,
+			reserved_trbs, GFP_ATOMIC);
+	if (ret < 0) {
+		xhci_err(xhci, "ERR: No room for command on command ring\n");
 		if (command_must_succeed)
 			xhci_err(xhci, "ERR: Reserved TRB counting for "
 					"unfailable commands failed.\n");
-		return -ENOMEM;
+		return ret;
 	}
 	queue_trb(xhci, xhci->cmd_ring, false, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);

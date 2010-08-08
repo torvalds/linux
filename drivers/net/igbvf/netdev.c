@@ -48,7 +48,7 @@
 #define DRV_VERSION "1.0.0-k0"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
-struct pm_qos_request_list *igbvf_driver_pm_qos_req;
+static struct pm_qos_request_list igbvf_driver_pm_qos_req;
 static const char igbvf_driver_string[] =
 				"Intel(R) Virtual Function Network Driver";
 static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
@@ -2751,7 +2751,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev,
 			 "PF still in reset state, assigning new address."
 			 " Is the PF interface up?\n");
-		random_ether_addr(hw->mac.addr);
+		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
 		if (err) {
@@ -2902,8 +2902,8 @@ static int __init igbvf_init_module(void)
 	printk(KERN_INFO "%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
-	igbvf_driver_pm_qos_req = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
-	                       PM_QOS_DEFAULT_VALUE);
+	pm_qos_add_request(&igbvf_driver_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
 
 	return ret;
 }
@@ -2918,8 +2918,7 @@ module_init(igbvf_init_module);
 static void __exit igbvf_exit_module(void)
 {
 	pci_unregister_driver(&igbvf_driver);
-	pm_qos_remove_request(igbvf_driver_pm_qos_req);
-	igbvf_driver_pm_qos_req = NULL;
+	pm_qos_remove_request(&igbvf_driver_pm_qos_req);
 }
 module_exit(igbvf_exit_module);
 

@@ -735,7 +735,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		goto do_rest;
 	}
 
-	if (!keventd_up() || current_is_keventd())
+	if (!keventd_up())
 		c_idle.work.func(&c_idle.work);
 	else {
 		schedule_work(&c_idle.work);
@@ -816,6 +816,13 @@ do_rest:
 			if (cpumask_test_cpu(cpu, cpu_callin_mask))
 				break;	/* It has booted */
 			udelay(100);
+			/*
+			 * Allow other tasks to run while we wait for the
+			 * AP to come online. This also gives a chance
+			 * for the MTRR work(triggered by the AP coming online)
+			 * to be completed in the stop machine context.
+			 */
+			schedule();
 		}
 
 		if (cpumask_test_cpu(cpu, cpu_callin_mask))

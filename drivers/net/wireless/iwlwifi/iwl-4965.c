@@ -346,8 +346,18 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &(priv->chain_noise_data);
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	     iwl_is_associated(priv)) {
 		struct iwl_calib_diff_gain_cmd cmd;
+
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
 
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
@@ -419,13 +429,6 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 		/* Mark so we run this algo only once! */
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwl4965_bg_txpower_work(struct work_struct *work)
@@ -669,6 +672,7 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
+	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -1441,7 +1445,8 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
+				     struct ieee80211_channel_switch *ch_switch)
 {
 	int rc;
 	u8 band = 0;
@@ -1449,10 +1454,13 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	u8 ctrl_chan_high = 0;
 	struct iwl4965_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
-
+	u32 switch_time_in_usec, ucode_switch_time;
+	u16 ch;
+	u32 tsf_low;
+	u8 switch_count;
+	u16 beacon_interval = le16_to_cpu(priv->rxon_timing.beacon_interval);
+	struct ieee80211_vif *vif = priv->vif;
 	band = priv->band == IEEE80211_BAND_2GHZ;
-
-	ch_info = iwl_get_channel_info(priv, priv->band, channel);
 
 	is_ht40 = is_ht40_channel(priv->staging_rxon.flags);
 
@@ -1462,26 +1470,56 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
-	cmd.channel = cpu_to_le16(channel);
+	ch = ieee80211_frequency_to_channel(ch_switch->channel->center_freq);
+	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = priv->staging_rxon.flags;
 	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
-	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	switch_count = ch_switch->count;
+	tsf_low = ch_switch->timestamp & 0x0ffffffff;
+	/*
+	 * calculate the ucode channel switch time
+	 * adding TSF as one of the factor for when to switch
+	 */
+	if ((priv->ucode_beacon_time > tsf_low) && beacon_interval) {
+		if (switch_count > ((priv->ucode_beacon_time - tsf_low) /
+		    beacon_interval)) {
+			switch_count -= (priv->ucode_beacon_time -
+				tsf_low) / beacon_interval;
+		} else
+			switch_count = 0;
+	}
+	if (switch_count <= 1)
+		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	else {
+		switch_time_in_usec =
+			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
+		ucode_switch_time = iwl_usecs_to_beacons(priv,
+							 switch_time_in_usec,
+							 beacon_interval);
+		cmd.switch_time = iwl_add_beacon_time(priv,
+						      priv->ucode_beacon_time,
+						      ucode_switch_time,
+						      beacon_interval);
+	}
+	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+		      cmd.switch_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, ch);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, channel);
+			priv->active_rxon.channel, ch);
 		return -EFAULT;
 	}
 
-	rc = iwl4965_fill_txpower_tbl(priv, band, channel, is_ht40,
+	rc = iwl4965_fill_txpower_tbl(priv, band, ch, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
 		IWL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
-	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.channel = cmd.channel;
 	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
@@ -1542,7 +1580,8 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	u32 R4;
 
 	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
-		(priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
+	    (priv->_agn.statistics.flag &
+			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		IWL_DEBUG_TEMP(priv, "Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
@@ -1566,8 +1605,8 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	if (!test_bit(STATUS_TEMPERATURE, &priv->status))
 		vt = sign_extend(R4, 23);
 	else
-		vt = sign_extend(
-			le32_to_cpu(priv->statistics.general.temperature), 23);
+		vt = sign_extend(le32_to_cpu(priv->_agn.statistics.
+				 general.common.temperature), 23);
 
 	IWL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
@@ -1747,6 +1786,7 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 {
 	unsigned long flags;
 	u16 ra_tid;
+	int ret;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
@@ -1762,7 +1802,9 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	ret = iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	if (ret)
+		return ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1870,7 +1912,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
+		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_tx_status_to_mac80211(status);
@@ -2026,6 +2068,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	int sta_id;
 	int freed;
 	u8 *qc = NULL;
+	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
@@ -2035,7 +2078,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
@@ -2050,10 +2093,10 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
 		struct iwl_ht_agg *agg = NULL;
-
 		WARN_ON(!qc);
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
@@ -2110,6 +2153,8 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
@@ -2235,11 +2280,14 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
 		.general_stats_read = iwl_ucode_general_stats_read,
+		.bt_stats_read = iwl_ucode_bt_stats_read,
 	},
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 };
 
@@ -2285,7 +2333,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.
 	 */
-	.scan_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

@@ -10,7 +10,7 @@ config SUPERH
 	select EMBEDDED
 	select HAVE_CLK
 	select HAVE_IDE if HAS_IOPORT
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
@@ -97,9 +97,6 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_IOMAP
 	bool
-
-config GENERIC_TIME
-	def_bool y
 
 config GENERIC_CLOCKEVENTS
 	def_bool y

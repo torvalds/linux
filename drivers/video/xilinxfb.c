@@ -485,6 +485,8 @@ static int __devexit xilinxfb_of_remove(struct of_device *op)
 /* Match table for of_platform binding */
 static struct of_device_id xilinxfb_of_match[] __devinitdata = {
 	{ .compatible = "xlnx,xps-tft-1.00.a", },
+	{ .compatible = "xlnx,xps-tft-2.00.a", },
+	{ .compatible = "xlnx,xps-tft-2.01.a", },
 	{ .compatible = "xlnx,plb-tft-cntlr-ref-1.00.a", },
 	{ .compatible = "xlnx,plb-dvi-cntlr-ref-1.00.c", },
 	{},

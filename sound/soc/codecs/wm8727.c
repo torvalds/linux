@@ -127,6 +127,8 @@ static __devinit int wm8727_platform_probe(struct platform_device *pdev)
 		goto err_codec;
 	}
 
+	return 0;
+
 err_codec:
 	snd_soc_unregister_codec(codec);
 err:

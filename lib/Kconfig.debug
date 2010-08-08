@@ -76,7 +76,6 @@ config UNUSED_SYMBOLS
 
 config DEBUG_FS
 	bool "Debug Filesystem"
-	depends on SYSFS
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and
@@ -152,28 +151,33 @@ config DEBUG_SHIRQ
 	  Drivers ought to be able to handle interrupts coming in at those
 	  points; some don't and need to be caught.
 
-config DETECT_SOFTLOCKUP
-	bool "Detect Soft Lockups"
+config LOCKUP_DETECTOR
+	bool "Detect Hard and Soft Lockups"
 	depends on DEBUG_KERNEL && !S390
-	default y
 	help
-	  Say Y here to enable the kernel to detect "soft lockups",
-	  which are bugs that cause the kernel to loop in kernel
+	  Say Y here to enable the kernel to act as a watchdog to detect
+	  hard and soft lockups.
+
+	  Softlockups are bugs that cause the kernel to loop in kernel
 	  mode for more than 60 seconds, without giving other tasks a
-	  chance to run.
+	  chance to run.  The current stack trace is displayed upon
+	  detection and the system will stay locked up.
 
-	  When a soft-lockup is detected, the kernel will print the
-	  current stack trace (which you should report), but the
-	  system will stay locked up. This feature has negligible
-	  overhead.
+	  Hardlockups are bugs that cause the CPU to loop in kernel mode
+	  for more than 60 seconds, without letting other interrupts have a
+	  chance to run.  The current stack trace is displayed upon detection
+	  and the system will stay locked up.
 
-	  (Note that "hard lockups" are separate type of bugs that
-	   can be detected via the NMI-watchdog, on platforms that
-	   support it.)
+	  The overhead should be minimal.  A periodic hrtimer runs to
+	  generate interrupts and kick the watchdog task every 10-12 seconds.
+	  An NMI is generated every 60 seconds or so to check for hardlockups.
+
+config HARDLOCKUP_DETECTOR
+	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
@@ -190,7 +194,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 	int
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	range 0 1
 	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
 	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
@@ -306,6 +310,12 @@ config DEBUG_OBJECTS_WORK
 	  If you say Y here, additional code will be inserted into the
 	  work queue routines to track the life time of work objects and
 	  validate the work operations.
+
+config DEBUG_OBJECTS_RCU_HEAD
+	bool "Debug RCU callbacks objects"
+	depends on DEBUG_OBJECTS && PREEMPT
+	help
+	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
 
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
@@ -528,7 +538,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -627,6 +637,19 @@ config DEBUG_INFO
 	  Say Y here only if you plan to debug the kernel.
 
 	  If unsure, say N.
+
+config DEBUG_INFO_REDUCED
+	bool "Reduce debugging information"
+	depends on DEBUG_INFO
+	help
+	  If you say Y here gcc is instructed to generate less debugging
+	  information for structure types. This means that tools that
+	  need full debugging information (like kgdb or systemtap) won't
+	  be happy. But if you merely need debugging information to
+	  resolve line numbers there is no loss. Advantage is that
+	  build directory object sizes shrink dramatically over a full
+	  DEBUG_INFO build and compile times are reduced too.
+	  Only works with newer gcc versions.
 
 config DEBUG_VM
 	bool "Debug VM"
@@ -937,7 +960,7 @@ config FAIL_MAKE_REQUEST
 	  Provide fault-injection capability for disk IO.
 
 config FAIL_IO_TIMEOUT
-	bool "Faul-injection capability for faking disk interrupts"
+	bool "Fault-injection capability for faking disk interrupts"
 	depends on FAULT_INJECTION && BLOCK
 	help
 	  Provide fault-injection capability on end IO handling. This
@@ -958,13 +981,13 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !PPC && !S390
+	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	select FRAME_POINTER if !MIPS && !PPC && !S390
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE

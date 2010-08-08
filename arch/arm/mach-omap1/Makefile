@@ -23,6 +23,9 @@ obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
 led-y := leds.o
 
+usb-fs-$(CONFIG_USB)			:= usb.o
+obj-y					+= $(usb-fs-m) $(usb-fs-y)
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_H2)		+= board-h2.o board-h2-mmc.o
 obj-$(CONFIG_MACH_OMAP_INNOVATOR)	+= board-innovator.o

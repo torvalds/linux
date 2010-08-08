@@ -78,6 +78,7 @@ ieee754dp ieee754dp_abs(ieee754dp x)
 	DPSIGN(x) = 0;
 
 	if (xc == IEEE754_CLASS_SNAN) {
+		SETCX(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "abs");
 	}
 

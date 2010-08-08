@@ -137,8 +137,6 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	uint32_t flags = 0;
 	int ret = 0;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
-
 	if (unlikely(dev_priv->ttm.bdev.dev_mapping == NULL))
 		dev_priv->ttm.bdev.dev_mapping = dev_priv->dev->dev_mapping;
 
@@ -577,10 +575,9 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_pushbuf_bo *bo;
 	struct nouveau_channel *chan;
 	struct validate_op op;
-	struct nouveau_fence *fence = 0;
+	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(req->channel, file_priv, chan);
 
 	req->vram_available = dev_priv->fb_aper_free;
@@ -760,8 +757,6 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	bool no_wait = !!(req->flags & NOUVEAU_GEM_CPU_PREP_NOWAIT);
 	int ret = -EINVAL;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
-
 	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
 	if (!gem)
 		return ret;
@@ -800,8 +795,6 @@ nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 	struct nouveau_bo *nvbo;
 	int ret = -EINVAL;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
-
 	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
 	if (!gem)
 		return ret;
@@ -826,8 +819,6 @@ nouveau_gem_ioctl_info(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_info *req = data;
 	struct drm_gem_object *gem;
 	int ret;
-
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 
 	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
 	if (!gem)

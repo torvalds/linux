@@ -146,7 +146,7 @@ static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS],
 
 static inline u64 lockstat_clock(void)
 {
-	return cpu_clock(smp_processor_id());
+	return local_clock();
 }
 
 static int lock_point(unsigned long points[], unsigned long ip)

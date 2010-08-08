@@ -104,6 +104,24 @@ config ACPI_SYSFS_POWER
 	help
 	  Say N to disable power /sys interface
 
+config ACPI_EC_DEBUGFS
+	tristate "EC read/write access through /sys/kernel/debug/ec"
+	default n
+	help
+	  Say N to disable Embedded Controller /sys/kernel/debug interface
+
+	  Be aware that using this interface can confuse your Embedded
+	  Controller in a way that a normal reboot is not enough. You then
+	  have to power of your system, and remove the laptop battery for
+	  some seconds.
+	  An Embedded Controller typically is available on laptops and reads
+	  sensor values like battery state and temperature.
+	  The kernel accesses the EC through ACPI parsed code provided by BIOS
+	  tables. This option allows to access the EC directly without ACPI
+	  code being involved.
+	  Thus this option is a debug option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware bugs.
+
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
 	depends on PROC_FS

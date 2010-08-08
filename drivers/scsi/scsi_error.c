@@ -307,6 +307,19 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		    (sshdr.asc == 0x04) && (sshdr.ascq == 0x02))
 			return FAILED;
 
+		if (sshdr.asc == 0x3f && sshdr.ascq == 0x0e)
+			scmd_printk(KERN_WARNING, scmd,
+				    "Warning! Received an indication that the "
+				    "LUN assignments on this target have "
+				    "changed. The Linux SCSI layer does not "
+				    "automatically remap LUN assignments.\n");
+		else if (sshdr.asc == 0x3f)
+			scmd_printk(KERN_WARNING, scmd,
+				    "Warning! Received an indication that the "
+				    "operating parameters on this target have "
+				    "changed. The Linux SCSI layer does not "
+				    "automatically adjust these parameters.\n");
+
 		if (blk_barrier_rq(scmd->request))
 			/*
 			 * barrier requests should always retry on UA
@@ -1762,6 +1775,14 @@ int scsi_error_handler(void *data)
 		 * what we need to do to get it up and online again (if we can).
 		 * If we fail, we end up taking the thing offline.
 		 */
+		if (scsi_autopm_get_host(shost) != 0) {
+			SCSI_LOG_ERROR_RECOVERY(1,
+				printk(KERN_ERR "Error handler scsi_eh_%d "
+						"unable to autoresume\n",
+						shost->host_no));
+			continue;
+		}
+
 		if (shost->transportt->eh_strategy_handler)
 			shost->transportt->eh_strategy_handler(shost);
 		else
@@ -1775,6 +1796,7 @@ int scsi_error_handler(void *data)
 		 * which are still online.
 		 */
 		scsi_restart_operations(shost);
+		scsi_autopm_put_host(shost);
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	__set_current_state(TASK_RUNNING);
@@ -1872,12 +1894,16 @@ scsi_reset_provider_done_command(struct scsi_cmnd *scmd)
 int
 scsi_reset_provider(struct scsi_device *dev, int flag)
 {
-	struct scsi_cmnd *scmd = scsi_get_command(dev, GFP_KERNEL);
+	struct scsi_cmnd *scmd;
 	struct Scsi_Host *shost = dev->host;
 	struct request req;
 	unsigned long flags;
 	int rtn;
 
+	if (scsi_autopm_get_host(shost) < 0)
+		return FAILED;
+
+	scmd = scsi_get_command(dev, GFP_KERNEL);
 	blk_rq_init(NULL, &req);
 	scmd->request = &req;
 
@@ -1934,6 +1960,7 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scsi_run_host_queues(shost);
 
 	scsi_next_command(scmd);
+	scsi_autopm_put_host(shost);
 	return rtn;
 }
 EXPORT_SYMBOL(scsi_reset_provider);

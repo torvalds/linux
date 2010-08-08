@@ -20,6 +20,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/bitmap.h>
 #include <linux/pm_qos_params.h>
+#include <linux/inetdevice.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 
@@ -106,12 +107,15 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	if (scan_chan) {
 		chan = scan_chan;
 		channel_type = NL80211_CHAN_NO_HT;
+		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	} else if (local->tmp_channel) {
 		chan = scan_chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
+		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	} else {
 		chan = local->oper_channel;
 		channel_type = local->_oper_channel_type;
+		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
 	}
 
 	if (chan != local->hw.conf.channel ||
@@ -259,7 +263,6 @@ static void ieee80211_tasklet_handler(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sk_buff *skb;
-	struct ieee80211_ra_tid *ra_tid;
 
 	while ((skb = skb_dequeue(&local->skb_queue)) ||
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
@@ -274,18 +277,6 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			skb->pkt_type = 0;
 			ieee80211_tx_status(local_to_hw(local), skb);
 			break;
-		case IEEE80211_DELBA_MSG:
-			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-			ieee80211_stop_tx_ba_cb(ra_tid->vif, ra_tid->ra,
-						ra_tid->tid);
-			dev_kfree_skb(skb);
-			break;
-		case IEEE80211_ADDBA_MSG:
-			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-			ieee80211_start_tx_ba_cb(ra_tid->vif, ra_tid->ra,
-						 ra_tid->tid);
-			dev_kfree_skb(skb);
-			break ;
 		default:
 			WARN(1, "mac80211: Packet is of unknown type %d\n",
 			     skb->pkt_type);
@@ -328,6 +319,76 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	ieee80211_recalc_smps(local, NULL);
 	mutex_unlock(&local->iflist_mtx);
 }
+
+#ifdef CONFIG_INET
+static int ieee80211_ifa_changed(struct notifier_block *nb,
+				 unsigned long data, void *arg)
+{
+	struct in_ifaddr *ifa = arg;
+	struct ieee80211_local *local =
+		container_of(nb, struct ieee80211_local,
+			     ifa_notifier);
+	struct net_device *ndev = ifa->ifa_dev->dev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct in_device *idev;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_if_managed *ifmgd;
+	int c = 0;
+
+	if (!netif_running(ndev))
+		return NOTIFY_DONE;
+
+	/* Make sure it's our interface that got changed */
+	if (!wdev)
+		return NOTIFY_DONE;
+
+	if (wdev->wiphy != local->hw.wiphy)
+		return NOTIFY_DONE;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
+	bss_conf = &sdata->vif.bss_conf;
+
+	/* ARP filtering is only supported in managed mode */
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return NOTIFY_DONE;
+
+	idev = sdata->dev->ip_ptr;
+	if (!idev)
+		return NOTIFY_DONE;
+
+	ifmgd = &sdata->u.mgd;
+	mutex_lock(&ifmgd->mtx);
+
+	/* Copy the addresses to the bss_conf list */
+	ifa = idev->ifa_list;
+	while (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN && ifa) {
+		bss_conf->arp_addr_list[c] = ifa->ifa_address;
+		ifa = ifa->ifa_next;
+		c++;
+	}
+
+	/* If not all addresses fit the list, disable filtering */
+	if (ifa) {
+		sdata->arp_filter_state = false;
+		c = 0;
+	} else {
+		sdata->arp_filter_state = true;
+	}
+	bss_conf->arp_addr_cnt = c;
+
+	/* Configure driver only if associated */
+	if (ifmgd->associated) {
+		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+		ieee80211_bss_info_change_notify(sdata,
+						 BSS_CHANGED_ARP_FILTER);
+	}
+
+	mutex_unlock(&ifmgd->mtx);
+
+	return NOTIFY_DONE;
+}
+#endif
 
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
@@ -396,7 +457,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mutex_init(&local->iflist_mtx);
 	mutex_init(&local->scan_mtx);
 
-	spin_lock_init(&local->key_lock);
+	mutex_init(&local->key_mtx);
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
@@ -419,8 +480,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	sta_info_init(local);
 
-	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_head_init(&local->pending[i]);
+		atomic_set(&local->agg_queue_stop[i], 0);
+	}
 	tasklet_init(&local->tx_pending_tasklet, ieee80211_tx_pending,
 		     (unsigned long)local);
 
@@ -430,8 +493,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
-
-	spin_lock_init(&local->ampdu_lock);
 
 	return local_to_hw(local);
 }
@@ -572,18 +633,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
-	local->hw.conf.dynamic_ps_forced_timeout = -1;
+	local->dynamic_ps_forced_timeout = -1;
 
 	result = sta_info_start(local);
 	if (result < 0)
 		goto fail_sta_info;
 
 	result = ieee80211_wep_init(local);
-	if (result < 0) {
+	if (result < 0)
 		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
 		       wiphy_name(local->hw.wiphy), result);
-		goto fail_wep;
-	}
 
 	rtnl_lock();
 
@@ -612,21 +671,30 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		ieee80211_max_network_latency;
 	result = pm_qos_add_notifier(PM_QOS_NETWORK_LATENCY,
 				     &local->network_latency_notifier);
-
 	if (result) {
 		rtnl_lock();
 		goto fail_pm_qos;
 	}
 
+#ifdef CONFIG_INET
+	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
+	result = register_inetaddr_notifier(&local->ifa_notifier);
+	if (result)
+		goto fail_ifa;
+#endif
+
 	return 0;
 
+ fail_ifa:
+	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
+			       &local->network_latency_notifier);
+	rtnl_lock();
  fail_pm_qos:
 	ieee80211_led_exit(local);
 	ieee80211_remove_interfaces(local);
  fail_rate:
 	rtnl_unlock();
 	ieee80211_wep_free(local);
- fail_wep:
 	sta_info_stop(local);
  fail_sta_info:
 	destroy_workqueue(local->workqueue);
@@ -647,6 +715,9 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
+#ifdef CONFIG_INET
+	unregister_inetaddr_notifier(&local->ifa_notifier);
+#endif
 
 	rtnl_lock();
 
@@ -704,6 +775,10 @@ static int __init ieee80211_init(void)
 	if (ret)
 		return ret;
 
+	ret = rc80211_minstrel_ht_init();
+	if (ret)
+		goto err_minstrel;
+
 	ret = rc80211_pid_init();
 	if (ret)
 		goto err_pid;
@@ -716,6 +791,8 @@ static int __init ieee80211_init(void)
  err_netdev:
 	rc80211_pid_exit();
  err_pid:
+	rc80211_minstrel_ht_exit();
+ err_minstrel:
 	rc80211_minstrel_exit();
 
 	return ret;
@@ -724,6 +801,7 @@ static int __init ieee80211_init(void)
 static void __exit ieee80211_exit(void)
 {
 	rc80211_pid_exit();
+	rc80211_minstrel_ht_exit();
 	rc80211_minstrel_exit();
 
 	/*

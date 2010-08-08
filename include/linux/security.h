@@ -470,8 +470,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @path_truncate:
  *	Check permission before truncating a file.
  *	@path contains the path structure for the file.
- *	@length is the new length of the file.
- *	@time_attrs is the flags passed to do_truncate().
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
@@ -1412,8 +1410,7 @@ struct security_operations {
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
 	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
 			   unsigned int dev);
-	int (*path_truncate) (struct path *path, loff_t length,
-			      unsigned int time_attrs);
+	int (*path_truncate) (struct path *path);
 	int (*path_symlink) (struct path *dir, struct dentry *dentry,
 			     const char *old_name);
 	int (*path_link) (struct dentry *old_dentry, struct path *new_dir,
@@ -2806,8 +2803,7 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev);
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs);
+int security_path_truncate(struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name);
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -2841,8 +2837,7 @@ static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_path_truncate(struct path *path, loff_t length,
-					 unsigned int time_attrs)
+static inline int security_path_truncate(struct path *path)
 {
 	return 0;
 }

@@ -45,6 +45,16 @@
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
 
 /*
+ * Percpu allocator can serve percpu allocations before slab is
+ * initialized which allows slab to depend on the percpu allocator.
+ * The following two parameters decide how much resource to
+ * preallocate for this.  Keep PERCPU_DYNAMIC_RESERVE equal to or
+ * larger than PERCPU_DYNAMIC_EARLY_SIZE.
+ */
+#define PERCPU_DYNAMIC_EARLY_SLOTS	128
+#define PERCPU_DYNAMIC_EARLY_SIZE	(12 << 10)
+
+/*
  * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
  * back on the first chunk for dynamic percpu allocation if arch is
  * manually allocating and mapping it for faster access (as a part of
@@ -104,16 +114,11 @@ extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
 							     int nr_units);
 extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
 
-extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
-				size_t reserved_size, ssize_t dyn_size,
-				size_t atom_size,
-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
-
 extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 					 void *base_addr);
 
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
-extern int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
+extern int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				size_t atom_size,
 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
 				pcpu_fc_alloc_fn_t alloc_fn,
@@ -140,6 +145,7 @@ extern bool is_kernel_percpu_address(unsigned long addr);
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
 extern void __init setup_per_cpu_areas(void);
 #endif
+extern void __init percpu_init_late(void);
 
 #else /* CONFIG_SMP */
 
@@ -152,6 +158,8 @@ static inline bool is_kernel_percpu_address(unsigned long addr)
 }
 
 static inline void __init setup_per_cpu_areas(void) { }
+
+static inline void __init percpu_init_late(void) { }
 
 static inline void *pcpu_lpage_remapped(void *kaddr)
 {

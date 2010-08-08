@@ -265,7 +265,7 @@ int ceph_release(struct inode *inode, struct file *file)
 	kmem_cache_free(ceph_file_cachep, cf);
 
 	/* wake up anyone waiting for caps on this inode */
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 

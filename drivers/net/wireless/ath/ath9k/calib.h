@@ -19,12 +19,6 @@
 
 #include "hw.h"
 
-#define AR_PHY_CCA_MAX_AR5416_GOOD_VALUE	-85
-#define AR_PHY_CCA_MAX_AR9280_GOOD_VALUE	-112
-#define AR_PHY_CCA_MAX_AR9285_GOOD_VALUE	-118
-#define AR_PHY_CCA_MAX_AR9287_GOOD_VALUE	-118
-#define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
-#define AR_PHY_CCA_MIN_BAD_VALUE       		-140
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH          5
 
@@ -115,6 +109,7 @@ struct ath9k_pacal_info{
 
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah);
 void ath9k_hw_start_nfcal(struct ath_hw *ah);
+void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan);
 int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		       struct ath9k_channel *chan);
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah);

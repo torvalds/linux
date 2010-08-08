@@ -4,6 +4,7 @@ EXTRA_CFLAGS += -DHOSTAP
 
 vt6655_stage-y +=	device_main.o \
 	card.o \
+	channel.o \
 	mac.o \
 	baseband.o \
 	wctl.o \

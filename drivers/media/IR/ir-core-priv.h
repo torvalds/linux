@@ -22,17 +22,62 @@
 struct ir_raw_handler {
 	struct list_head list;
 
+	u64 protocols; /* which are handled by this handler */
 	int (*decode)(struct input_dev *input_dev, struct ir_raw_event event);
+
+	/* These two should only be used by the lirc decoder */
 	int (*raw_register)(struct input_dev *input_dev);
 	int (*raw_unregister)(struct input_dev *input_dev);
 };
 
 struct ir_raw_event_ctrl {
+	struct list_head		list;		/* to keep track of raw clients */
 	struct work_struct		rx_work;	/* for the rx decoding workqueue */
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct input_dev		*input_dev;	/* pointer to the parent input_dev */
+	u64				enabled_protocols; /* enabled raw protocol decoders */
+
+	/* raw decoder state follows */
+	struct ir_raw_event prev_ev;
+	struct nec_dec {
+		int state;
+		unsigned count;
+		u32 bits;
+	} nec;
+	struct rc5_dec {
+		int state;
+		u32 bits;
+		unsigned count;
+		unsigned wanted_bits;
+	} rc5;
+	struct rc6_dec {
+		int state;
+		u8 header;
+		u32 body;
+		bool toggle;
+		unsigned count;
+		unsigned wanted_bits;
+	} rc6;
+	struct sony_dec {
+		int state;
+		u32 bits;
+		unsigned count;
+	} sony;
+	struct jvc_dec {
+		int state;
+		u16 bits;
+		u16 old_bits;
+		unsigned count;
+		bool first;
+		bool toggle;
+	} jvc;
+	struct lirc_codec {
+		struct ir_input_dev *ir_dev;
+		struct lirc_driver *drv;
+		int lircdata;
+	} lirc;
 };
 
 /* macros for IR decoders */
@@ -74,6 +119,7 @@ void ir_unregister_class(struct input_dev *input_dev);
 /*
  * Routines from ir-raw-event.c to be used internally and by decoders
  */
+u64 ir_raw_get_allowed_protocols(void);
 int ir_raw_event_register(struct input_dev *input_dev);
 void ir_raw_event_unregister(struct input_dev *input_dev);
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
@@ -122,5 +168,13 @@ void ir_raw_init(void);
 #else
 #define load_sony_decode()	0
 #endif
+
+/* from ir-lirc-codec.c */
+#ifdef CONFIG_IR_LIRC_CODEC_MODULE
+#define load_lirc_codec()	request_module("ir-lirc-codec")
+#else
+#define load_lirc_codec()	0
+#endif
+
 
 #endif /* _IR_RAW_EVENT */

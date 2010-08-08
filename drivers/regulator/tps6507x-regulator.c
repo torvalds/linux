@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/tps6507x.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mfd/tps6507x.h>
@@ -101,9 +102,12 @@ struct tps_info {
 	unsigned max_uV;
 	u8 table_len;
 	const u16 *table;
+
+	/* Does DCDC high or the low register defines output voltage? */
+	bool defdcdc_default;
 };
 
-static const struct tps_info tps6507x_pmic_regs[] = {
+static struct tps_info tps6507x_pmic_regs[] = {
 	{
 		.name = "VDCDC1",
 		.min_uV = 725000,
@@ -145,7 +149,7 @@ struct tps6507x_pmic {
 	struct regulator_desc desc[TPS6507X_NUM_REGULATOR];
 	struct tps6507x_dev *mfd;
 	struct regulator_dev *rdev[TPS6507X_NUM_REGULATOR];
-	const struct tps_info *info[TPS6507X_NUM_REGULATOR];
+	struct tps_info *info[TPS6507X_NUM_REGULATOR];
 	struct mutex io_lock;
 };
 static inline int tps6507x_pmic_read(struct tps6507x_pmic *tps, u8 reg)
@@ -341,10 +345,16 @@ static int tps6507x_pmic_dcdc_get_voltage(struct regulator_dev *dev)
 		reg = TPS6507X_REG_DEFDCDC1;
 		break;
 	case TPS6507X_DCDC_2:
-		reg = TPS6507X_REG_DEFDCDC2_LOW;
+		if (tps->info[dcdc]->defdcdc_default)
+			reg = TPS6507X_REG_DEFDCDC2_HIGH;
+		else
+			reg = TPS6507X_REG_DEFDCDC2_LOW;
 		break;
 	case TPS6507X_DCDC_3:
-		reg = TPS6507X_REG_DEFDCDC3_LOW;
+		if (tps->info[dcdc]->defdcdc_default)
+			reg = TPS6507X_REG_DEFDCDC3_HIGH;
+		else
+			reg = TPS6507X_REG_DEFDCDC3_LOW;
 		break;
 	default:
 		return -EINVAL;
@@ -370,10 +380,16 @@ static int tps6507x_pmic_dcdc_set_voltage(struct regulator_dev *dev,
 		reg = TPS6507X_REG_DEFDCDC1;
 		break;
 	case TPS6507X_DCDC_2:
-		reg = TPS6507X_REG_DEFDCDC2_LOW;
+		if (tps->info[dcdc]->defdcdc_default)
+			reg = TPS6507X_REG_DEFDCDC2_HIGH;
+		else
+			reg = TPS6507X_REG_DEFDCDC2_LOW;
 		break;
 	case TPS6507X_DCDC_3:
-		reg = TPS6507X_REG_DEFDCDC3_LOW;
+		if (tps->info[dcdc]->defdcdc_default)
+			reg = TPS6507X_REG_DEFDCDC3_HIGH;
+		else
+			reg = TPS6507X_REG_DEFDCDC3_LOW;
 		break;
 	default:
 		return -EINVAL;
@@ -532,7 +548,7 @@ int tps6507x_pmic_probe(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = dev_get_drvdata(pdev->dev.parent);
 	static int desc_id;
-	const struct tps_info *info = &tps6507x_pmic_regs[0];
+	struct tps_info *info = &tps6507x_pmic_regs[0];
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
 	struct tps6507x_pmic *tps;
@@ -569,6 +585,12 @@ int tps6507x_pmic_probe(struct platform_device *pdev)
 	for (i = 0; i < TPS6507X_NUM_REGULATOR; i++, info++, init_data++) {
 		/* Register the regulators */
 		tps->info[i] = info;
+		if (init_data->driver_data) {
+			struct tps6507x_reg_platform_data *data =
+							init_data->driver_data;
+			tps->info[i]->defdcdc_default = data->defdcdc_default;
+		}
+
 		tps->desc[i].name = info->name;
 		tps->desc[i].id = desc_id++;
 		tps->desc[i].n_voltages = num_voltages[i];

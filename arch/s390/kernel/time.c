@@ -207,8 +207,8 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
-		     u32 mult)
+void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+			struct clocksource *clock, u32 mult)
 {
 	if (clock != &clocksource_tod)
 		return;
@@ -219,8 +219,8 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	vdso_data->xtime_tod_stamp = clock->cycle_last;
 	vdso_data->xtime_clock_sec = wall_time->tv_sec;
 	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->wtom_clock_sec = wtm->tv_sec;
+	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
 	vdso_data->ntp_mult = mult;
 	smp_wmb();
 	++vdso_data->tb_update_count;
@@ -524,8 +524,11 @@ void etr_switch_to_local(void)
 	if (!etr_eacr.sl)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events)) {
+		etr_eacr.es = etr_eacr.sl = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -539,8 +542,11 @@ void etr_sync_check(void)
 	if (!etr_eacr.es)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SYNC_CHECK, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SYNC_CHECK, &etr_events)) {
+		etr_eacr.es = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -902,7 +908,7 @@ static struct etr_eacr etr_handle_update(struct etr_aib *aib,
 	 * Do not try to get the alternate port aib if the clock
 	 * is not in sync yet.
 	 */
-	if (!check_sync_clock())
+	if (!eacr.es || !check_sync_clock())
 		return eacr;
 
 	/*
@@ -1064,7 +1070,7 @@ static void etr_work_fn(struct work_struct *work)
 	 * If the clock is in sync just update the eacr and return.
 	 * If there is no valid sync port wait for a port update.
 	 */
-	if (check_sync_clock() || sync_port < 0) {
+	if ((eacr.es && check_sync_clock()) || sync_port < 0) {
 		etr_update_eacr(eacr);
 		etr_set_tolec_timeout(now);
 		goto out_unlock;

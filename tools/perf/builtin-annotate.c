@@ -61,11 +61,9 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct addr_location al;
+	struct sample_data data;
 
-	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
-		    event->ip.pid, event->ip.ip);
-
-	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;

@@ -24,9 +24,10 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mISDNif.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include "core.h"
 
+static DEFINE_MUTEX(mISDN_mutex);
 static u_int	*debug;
 
 
@@ -224,7 +225,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %x, %lx)\n", __func__,
 		    filep, cmd, arg);
-	lock_kernel();
+	mutex_lock(&mISDN_mutex);
 	switch (cmd) {
 	case IMADDTIMER:
 		if (get_user(tout, (int __user *)arg)) {
@@ -256,7 +257,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	default:
 		ret = -EINVAL;
 	}
-	unlock_kernel();
+	mutex_unlock(&mISDN_mutex);
 	return ret;
 }
 

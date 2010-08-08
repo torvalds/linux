@@ -1010,7 +1010,7 @@ static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_de
 	struct snd_amd7930 *amd;
 	int err, irq;
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 
 	if (dev_num >= SNDRV_CARDS)
 		return -ENODEV;
@@ -1075,7 +1075,7 @@ static struct of_platform_driver amd7930_sbus_driver = {
 
 static int __init amd7930_init(void)
 {
-	return of_register_driver(&amd7930_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&amd7930_sbus_driver);
 }
 
 static void __exit amd7930_exit(void)
@@ -1092,7 +1092,7 @@ static void __exit amd7930_exit(void)
 
 	amd7930_list = NULL;
 
-	of_unregister_driver(&amd7930_sbus_driver);
+	of_unregister_platform_driver(&amd7930_sbus_driver);
 }
 
 module_init(amd7930_init);

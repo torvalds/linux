@@ -179,8 +179,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			priv->cfg->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
-	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
@@ -208,6 +208,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ_PERD)	|
 		BIT(IWL_CALIB_BASE_BAND);
 
+	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
+
 	return 0;
 }
 
@@ -224,8 +226,8 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			priv->cfg->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
-	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
@@ -247,10 +249,13 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl5150_sensitivity;
 	priv->hw_params.calib_init_cfg =
-		BIT(IWL_CALIB_DC)		|
 		BIT(IWL_CALIB_LO)		|
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
+	if (priv->cfg->need_dc_calib)
+		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
+
+	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -260,40 +265,76 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 	u32 vt = 0;
 	s32 offset =  iwl_temp_calib_to_offset(priv);
 
-	vt = le32_to_cpu(priv->statistics.general.temperature);
+	vt = le32_to_cpu(priv->_agn.statistics.general.common.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
 	/* now vt hold the temperature in Kelvin */
 	priv->temperature = KELVIN_TO_CELSIUS(vt);
 	iwl_tt_handler(priv);
 }
 
-static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
+				     struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl5000_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
+	u32 switch_time_in_usec, ucode_switch_time;
+	u16 ch;
+	u32 tsf_low;
+	u8 switch_count;
+	u16 beacon_interval = le16_to_cpu(priv->rxon_timing.beacon_interval);
+	struct ieee80211_vif *vif = priv->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = sizeof(cmd),
-		.flags = CMD_SIZE_HUGE,
+		.flags = CMD_SYNC,
 		.data = &cmd,
 	};
 
-	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
-		priv->active_rxon.channel, channel);
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
-	cmd.channel = cpu_to_le16(channel);
+	ch = ieee80211_frequency_to_channel(ch_switch->channel->center_freq);
+	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
+		priv->active_rxon.channel, ch);
+	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = priv->staging_rxon.flags;
 	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
-	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
-	ch_info = iwl_get_channel_info(priv, priv->band, channel);
+	switch_count = ch_switch->count;
+	tsf_low = ch_switch->timestamp & 0x0ffffffff;
+	/*
+	 * calculate the ucode channel switch time
+	 * adding TSF as one of the factor for when to switch
+	 */
+	if ((priv->ucode_beacon_time > tsf_low) && beacon_interval) {
+		if (switch_count > ((priv->ucode_beacon_time - tsf_low) /
+		    beacon_interval)) {
+			switch_count -= (priv->ucode_beacon_time -
+				tsf_low) / beacon_interval;
+		} else
+			switch_count = 0;
+	}
+	if (switch_count <= 1)
+		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	else {
+		switch_time_in_usec =
+			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
+		ucode_switch_time = iwl_usecs_to_beacons(priv,
+							 switch_time_in_usec,
+							 beacon_interval);
+		cmd.switch_time = iwl_add_beacon_time(priv,
+						      priv->ucode_beacon_time,
+						      ucode_switch_time,
+						      beacon_interval);
+	}
+	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+		      cmd.switch_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, ch);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, channel);
+			priv->active_rxon.channel, ch);
 		return -EFAULT;
 	}
-	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.channel = cmd.channel;
 	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_sync(priv, &hcmd);
@@ -352,14 +393,18 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
 		.general_stats_read = iwl_ucode_general_stats_read,
+		.bt_stats_read = iwl_ucode_bt_stats_read,
 	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
+	.txfifo_flush = iwlagn_txfifo_flush,
+	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -414,6 +459,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -422,6 +468,8 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
+	.txfifo_flush = iwlagn_txfifo_flush,
+	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
 };
 
 static const struct iwl_ops iwl5000_ops = {
@@ -620,6 +668,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -649,6 +698,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

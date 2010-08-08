@@ -885,7 +885,6 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 	ret = snd_soc_register_dai(&wm8988_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
 		goto err_codec;
 	}
 

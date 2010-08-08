@@ -165,8 +165,8 @@ static unsigned int longrun_get(unsigned int cpu)
  * TMTA rules:
  * performance_pctg = (target_freq - low_freq)/(high_freq - low_freq)
  */
-static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
-						   unsigned int *high_freq)
+static unsigned int __cpuinit longrun_determine_freqs(unsigned int *low_freq,
+						      unsigned int *high_freq)
 {
 	u32 msr_lo, msr_hi;
 	u32 save_lo, save_hi;
@@ -258,7 +258,7 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 }
 
 
-static int __init longrun_cpu_init(struct cpufreq_policy *policy)
+static int __cpuinit longrun_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 

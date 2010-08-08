@@ -184,6 +184,7 @@ static void __init pcibios_allocate_resources(int pass)
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
 					/* We'll assign a new address later */
+					dev->fw_addr[idx] = r->start;
 					r->end -= r->start;
 					r->start = 0;
 				}
