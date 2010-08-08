@@ -59,7 +59,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		wr_len = roundup(sizeof *req + sizeof *sc +
 				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
 
-		skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(wr_len, GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);

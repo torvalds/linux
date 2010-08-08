@@ -269,6 +269,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_cq *cq,
 			     struct ehca_alloc_cq_parms *param)
 {
+	int rc;
 	u64 ret;
 	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
 
@@ -283,8 +284,19 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 	param->act_nr_of_entries = (u32)outs[3];
 	param->act_pages = (u32)outs[4];
 
-	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&cq->galpas, 0, outs[5], outs[6]);
+	if (ret == H_SUCCESS) {
+		rc = hcp_galpas_ctor(&cq->galpas, 0, outs[5], outs[6]);
+		if (rc) {
+			ehca_gen_err("Could not establish HW access. rc=%d paddr=%#lx",
+				     rc, outs[5]);
+
+			ehca_plpar_hcall_norets(H_FREE_RESOURCE,
+						adapter_handle.handle,     /* r4 */
+						cq->ipz_cq_handle.handle,  /* r5 */
+						0, 0, 0, 0, 0);
+			ret = H_NO_MEM;
+		}
+	}
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lli", ret);
@@ -295,6 +307,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_alloc_qp_parms *parms, int is_user)
 {
+	int rc;
 	u64 ret;
 	u64 allocate_controls, max_r10_reg, r11, r12;
 	unsigned long outs[PLPAR_HCALL9_BUFSIZE];
@@ -358,8 +371,19 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 	parms->rqueue.queue_size =
 		(u32)EHCA_BMASK_GET(H_ALL_RES_QP_RQUEUE_SIZE_PAGES, outs[4]);
 
-	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&parms->galpas, is_user, outs[6], outs[6]);
+	if (ret == H_SUCCESS) {
+		rc = hcp_galpas_ctor(&parms->galpas, is_user, outs[6], outs[6]);
+		if (rc) {
+			ehca_gen_err("Could not establish HW access. rc=%d paddr=%#lx",
+				     rc, outs[6]);
+
+			ehca_plpar_hcall_norets(H_FREE_RESOURCE,
+						adapter_handle.handle,     /* r4 */
+						parms->qp_handle.handle,  /* r5 */
+						0, 0, 0, 0, 0);
+			ret = H_NO_MEM;
+		}
+	}
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lli", ret);
