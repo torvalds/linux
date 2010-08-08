@@ -323,7 +323,7 @@ static struct snd_platform_data dm646x_evm_snd_data[] = {
 		.num_serializer = ARRAY_SIZE(dm646x_iis_serializer_direction),
 		.tdm_slots      = 2,
 		.serial_dir     = dm646x_iis_serializer_direction,
-		.eventq_no      = EVENTQ_0,
+		.asp_chan_q     = EVENTQ_0,
 	},
 	{
 		.tx_dma_offset  = 0x400,
@@ -332,7 +332,7 @@ static struct snd_platform_data dm646x_evm_snd_data[] = {
 		.num_serializer = ARRAY_SIZE(dm646x_dit_serializer_direction),
 		.tdm_slots      = 32,
 		.serial_dir     = dm646x_dit_serializer_direction,
-		.eventq_no      = EVENTQ_0,
+		.asp_chan_q     = EVENTQ_0,
 	},
 };
 

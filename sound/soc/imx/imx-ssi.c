@@ -83,8 +83,6 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 /*
  * SSI DAI format configuration.
  * Should only be called when port is inactive (i.e. SSIEN = 0).
- * Note: We don't use the I2S modes but instead manually configure the
- * SSI for I2S because the I2S mode is only a register preset.
  */
 static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
@@ -99,6 +97,10 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		/* data on rising edge of bclk, frame low 1clk before data */
 		strcr |= SSI_STCR_TFSI | SSI_STCR_TEFS | SSI_STCR_TXBIT0;
 		scr |= SSI_SCR_NET;
+		if (ssi->flags & IMX_SSI_USE_I2S_SLAVE) {
+			scr &= ~SSI_I2S_MODE_MASK;
+			scr |= SSI_SCR_I2S_MODE_SLAVE;
+		}
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		/* data on rising edge of bclk, frame high with data */
@@ -142,6 +144,11 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	}
 
 	strcr |= SSI_STCR_TFEN0;
+
+	if (ssi->flags & IMX_SSI_NET)
+		scr |= SSI_SCR_NET;
+	if (ssi->flags & IMX_SSI_SYN)
+		scr |= SSI_SCR_SYN;
 
 	writel(strcr, ssi->base + SSI_STCR);
 	writel(strcr, ssi->base + SSI_SRCR);

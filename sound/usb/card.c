@@ -217,7 +217,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 
 	switch (protocol) {
 	case UAC_VERSION_1: {
-		struct uac_ac_header_descriptor_v1 *h1 = control_header;
+		struct uac1_ac_header_descriptor *h1 = control_header;
 
 		if (!h1->bInCollection) {
 			snd_printk(KERN_INFO "skipping empty audio interface (v1)\n");

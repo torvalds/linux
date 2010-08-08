@@ -741,7 +741,7 @@ static void HPIMSGX__reset(u16 adapter_index)
 		hpi_init_response(&hr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_FIND_ADAPTERS, 0);
 		memcpy(&gRESP_HPI_SUBSYS_FIND_ADAPTERS, &hr,
-			sizeof(&gRESP_HPI_SUBSYS_FIND_ADAPTERS));
+			sizeof(gRESP_HPI_SUBSYS_FIND_ADAPTERS));
 
 		for (adapter = 0; adapter < HPI_MAX_ADAPTERS; adapter++) {
 

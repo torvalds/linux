@@ -1076,7 +1076,6 @@ static __devinit int wm8978_register(struct wm8978_priv *wm8978)
 err_codec:
 	snd_soc_unregister_codec(codec);
 err:
-	kfree(wm8978);
 	return ret;
 }
 
@@ -1085,13 +1084,13 @@ static __devexit void wm8978_unregister(struct wm8978_priv *wm8978)
 	wm8978_set_bias_level(&wm8978->codec, SND_SOC_BIAS_OFF);
 	snd_soc_unregister_dai(&wm8978_dai);
 	snd_soc_unregister_codec(&wm8978->codec);
-	kfree(wm8978);
 	wm8978_codec = NULL;
 }
 
 static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	int ret;
 	struct wm8978_priv *wm8978;
 	struct snd_soc_codec *codec;
 
@@ -1107,13 +1106,18 @@ static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 
-	return wm8978_register(wm8978);
+	ret = wm8978_register(wm8978);
+	if (ret < 0)
+		kfree(wm8978);
+
+	return ret;
 }
 
 static __devexit int wm8978_i2c_remove(struct i2c_client *client)
 {
 	struct wm8978_priv *wm8978 = i2c_get_clientdata(client);
 	wm8978_unregister(wm8978);
+	kfree(wm8978);
 	return 0;
 }
 
