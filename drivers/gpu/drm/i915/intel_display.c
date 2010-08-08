@@ -5042,9 +5042,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags, offset;
-	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
-	int ret, pipesrc;
-	u32 flip_mask;
+	int pipe = intel_crtc->pipe;
+	u32 pf, pipesrc;
+	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -5093,12 +5093,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
-	if (intel_crtc->plane)
-		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-	else
-		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
+		u32 flip_mask;
+
+		if (intel_crtc->plane)
+			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+		else
+			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+
 		BEGIN_LP_RING(2);
 		OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
 		OUT_RING(0);
@@ -5106,29 +5108,56 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	}
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = obj_priv->gtt_offset;
-	offset += (crtc->y * fb->pitch) + (crtc->x * (fb->bits_per_pixel) / 8);
+	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
 
 	BEGIN_LP_RING(4);
-	if (IS_I965G(dev)) {
+	switch(INTEL_INFO(dev)->gen) {
+	case 2:
 		OUT_RING(MI_DISPLAY_FLIP |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch);
-		OUT_RING(offset | obj_priv->tiling_mode);
-		pipesrc = I915_READ(pipesrc_reg); 
-		OUT_RING(pipesrc & 0x0fff0fff);
-	} else if (IS_GEN3(dev)) {
+		OUT_RING(obj_priv->gtt_offset + offset);
+		OUT_RING(MI_NOOP);
+		break;
+
+	case 3:
 		OUT_RING(MI_DISPLAY_FLIP_I915 |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch);
-		OUT_RING(offset);
+		OUT_RING(obj_priv->gtt_offset + offset);
 		OUT_RING(MI_NOOP);
-	} else {
+		break;
+
+	case 4:
+	case 5:
+		/* i965+ uses the linear or tiled offsets from the
+		 * Display Registers (which do not change across a page-flip)
+		 * so we need only reprogram the base address.
+		 */
 		OUT_RING(MI_DISPLAY_FLIP |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch);
-		OUT_RING(offset);
-		OUT_RING(MI_NOOP);
+		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
+
+		/* XXX Enabling the panel-fitter across page-flip is so far
+		 * untested on non-native modes, so ignore it for now.
+		 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
+		 */
+		pf = 0;
+		pipesrc = I915_READ(pipe == 0 ? PIPEASRC : PIPEBSRC) & 0x0fff0fff;
+		OUT_RING(pf | pipesrc);
+		break;
+
+	case 6:
+		OUT_RING(MI_DISPLAY_FLIP |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch | obj_priv->tiling_mode);
+		OUT_RING(obj_priv->gtt_offset);
+
+		pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
+		pipesrc = I915_READ(pipe == 0 ? PIPEASRC : PIPEBSRC) & 0x0fff0fff;
+		OUT_RING(pf | pipesrc);
+		break;
 	}
 	ADVANCE_LP_RING();
 
