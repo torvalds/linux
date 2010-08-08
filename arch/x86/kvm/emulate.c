@@ -1424,9 +1424,9 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 		emulate_1op_rax_rdx("idiv", c->src, *rax, *rdx, ctxt->eflags);
 		break;
 	default:
-		return 0;
+		return X86EMUL_UNHANDLEABLE;
 	}
-	return 1;
+	return X86EMUL_CONTINUE;
 }
 
 static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
@@ -3172,7 +3172,7 @@ special_insn:
 		ctxt->eflags ^= EFLG_CF;
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
-		if (!emulate_grp3(ctxt, ops))
+		if (emulate_grp3(ctxt, ops) != X86EMUL_CONTINUE)
 			goto cannot_emulate;
 		break;
 	case 0xf8: /* clc */
