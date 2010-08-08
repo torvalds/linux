@@ -458,7 +458,20 @@ extern int rcu_my_thread_group_empty(void);
  * will be deferred until the outermost RCU read-side critical section
  * completes.
  *
- * It is illegal to block while in an RCU read-side critical section.
+ * You can avoid reading and understanding the next paragraph by
+ * following this rule: don't put anything in an rcu_read_lock() RCU
+ * read-side critical section that would block in a !PREEMPT kernel.
+ * But if you want the full story, read on!
+ *
+ * In non-preemptible RCU implementations (TREE_RCU and TINY_RCU), it
+ * is illegal to block while in an RCU read-side critical section.  In
+ * preemptible RCU implementations (TREE_PREEMPT_RCU and TINY_PREEMPT_RCU)
+ * in CONFIG_PREEMPT kernel builds, RCU read-side critical sections may
+ * be preempted, but explicit blocking is illegal.  Finally, in preemptible
+ * RCU implementations in real-time (CONFIG_PREEMPT_RT) kernel builds,
+ * RCU read-side critical sections may be preempted and they may also
+ * block, but only when acquiring spinlocks that are subject to priority
+ * inheritance.
  */
 static inline void rcu_read_lock(void)
 {
