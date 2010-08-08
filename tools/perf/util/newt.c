@@ -24,6 +24,7 @@
 #include "sort.h"
 #include "symbol.h"
 #include "ui/browser.h"
+#include "ui/helpline.h"
 
 #if SLANG_VERSION < 20104
 #define slsmg_printf(msg, args...) SLsmg_printf((char *)msg, ##args)
@@ -92,43 +93,6 @@ void ui_progress__delete(struct ui_progress *self)
 		newtPopWindow();
 	}
 	free(self);
-}
-
-static void ui_helpline__pop(void)
-{
-	newtPopHelpLine();
-}
-
-static void ui_helpline__push(const char *msg)
-{
-	newtPushHelpLine(msg);
-}
-
-static void ui_helpline__vpush(const char *fmt, va_list ap)
-{
-	char *s;
-
-	if (vasprintf(&s, fmt, ap) < 0)
-		vfprintf(stderr, fmt, ap);
-	else {
-		ui_helpline__push(s);
-		free(s);
-	}
-}
-
-static void ui_helpline__fpush(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	ui_helpline__vpush(fmt, ap);
-	va_end(ap);
-}
-
-static void ui_helpline__puts(const char *msg)
-{
-	ui_helpline__pop();
-	ui_helpline__push(msg);
 }
 
 static int ui_entry__read(const char *title, char *bf, size_t size, int width)
