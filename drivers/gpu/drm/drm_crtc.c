@@ -1682,9 +1682,9 @@ int drm_mode_addfb(struct drm_device *dev,
 	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
-	if (!fb) {
+	if (IS_ERR(fb)) {
 		DRM_ERROR("could not create framebuffer\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(fb);
 		goto out;
 	}
 

@@ -888,13 +888,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handle);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
-		return NULL;
-	}
+	if (radeon_fb == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 
