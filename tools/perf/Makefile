@@ -570,8 +570,10 @@ else
 		LIB_OBJS += $(OUTPUT)util/newt.o
 		LIB_OBJS += $(OUTPUT)util/ui/browser.o
 		LIB_OBJS += $(OUTPUT)util/ui/helpline.o
+		LIB_OBJS += $(OUTPUT)util/ui/progress.o
 		LIB_H += util/ui/browser.h
 		LIB_H += util/ui/helpline.h
+		LIB_H += util/ui/progress.h
 	endif
 endif
 

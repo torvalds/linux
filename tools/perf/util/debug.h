@@ -31,9 +31,7 @@ static inline void ui_progress__update(struct ui_progress *self __used,
 static inline void ui_progress__delete(struct ui_progress *self __used) {}
 #else
 int browser__show_help(const char *format, va_list ap);
-struct ui_progress *ui_progress__new(const char *title, u64 total);
-void ui_progress__update(struct ui_progress *self, u64 curr);
-void ui_progress__delete(struct ui_progress *self);
+#include "ui/progress.h"
 #endif
 
 #endif	/* __PERF_DEBUG_H */
