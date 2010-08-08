@@ -6131,12 +6131,12 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		}
 		break;
 	case OUTPUT_TMDS:
-		if (dcb->version >= 0x22)
-			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
+		if (dcb->version >= 0x40)
+			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
 		else if (dcb->version >= 0x30)
 			entry->tmdsconf.slave_addr = (conf & 0x00000700) >> 8;
-		else if (dcb->version >= 0x40)
-			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+		else if (dcb->version >= 0x22)
+			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
 
 		break;
 	case 0xe:
