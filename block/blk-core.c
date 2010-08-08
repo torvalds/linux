@@ -1644,6 +1644,9 @@ EXPORT_SYMBOL(submit_bio);
  */
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
+	if (rq->cmd_flags & REQ_DISCARD)
+		return 0;
+
 	if (blk_rq_sectors(rq) > queue_max_sectors(q) ||
 	    blk_rq_bytes(rq) > queue_max_hw_sectors(q) << 9) {
 		printk(KERN_ERR "%s: over max size limit.\n", __func__);
@@ -2492,6 +2495,8 @@ static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
 	dst->cpu = src->cpu;
 	dst->cmd_flags = (rq_data_dir(src) | REQ_NOMERGE);
+	if (src->cmd_flags & REQ_DISCARD)
+		dst->cmd_flags |= REQ_DISCARD;
 	dst->cmd_type = src->cmd_type;
 	dst->__sector = blk_rq_pos(src);
 	dst->__data_len = blk_rq_bytes(src);
