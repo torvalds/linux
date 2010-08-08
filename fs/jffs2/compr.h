@@ -3,6 +3,7 @@
  *
  * Copyright © 2004   Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *		      University of Szeged, Hungary
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
