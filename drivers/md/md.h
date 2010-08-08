@@ -145,6 +145,10 @@ struct mddev_s
 	int				suspended;
 	atomic_t			active_io;
 	int				ro;
+	int				sysfs_active; /* set when sysfs deletes
+						       * are happening, so run/
+						       * takeover/stop are not safe
+						       */
 
 	struct gendisk			*gendisk;
 
