@@ -1274,10 +1274,7 @@ static int intel_sdvo_mode_valid(struct drm_connector *connector,
 	if (intel_sdvo->pixel_clock_max < mode->clock)
 		return MODE_CLOCK_HIGH;
 
-	if (intel_sdvo->is_lvds == true) {
-		if (intel_sdvo->sdvo_lvds_fixed_mode == NULL)
-			return MODE_PANEL;
-
+	if (intel_sdvo->is_lvds) {
 		if (mode->hdisplay > intel_sdvo->sdvo_lvds_fixed_mode->hdisplay)
 			return MODE_PANEL;
 
@@ -1534,7 +1531,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 			intel_sdvo->base.needs_tv_clock = true;
 		}
 		if (response & SDVO_LVDS_MASK)
-			intel_sdvo->is_lvds = true;
+			intel_sdvo->is_lvds = intel_sdvo->sdvo_lvds_fixed_mode != NULL;
 	}
 
 	return ret;
@@ -1697,6 +1694,7 @@ end:
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
 			intel_sdvo->sdvo_lvds_fixed_mode =
 				drm_mode_duplicate(connector->dev, newmode);
+			intel_sdvo->is_lvds = true;
 			break;
 		}
 	}
@@ -2189,8 +2187,6 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	connector = &intel_connector->base;
         encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
         connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
-
-        intel_sdvo->is_lvds = true;
 
         if (device == 0) {
                 intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS0;
