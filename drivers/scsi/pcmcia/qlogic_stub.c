@@ -294,9 +294,7 @@ MODULE_DEVICE_TABLE(pcmcia, qlogic_ids);
 
 static struct pcmcia_driver qlogic_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
 	.name		= "qlogic_cs",
-	},
 	.probe		= qlogic_probe,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,

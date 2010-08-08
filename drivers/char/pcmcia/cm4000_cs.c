@@ -1877,9 +1877,7 @@ MODULE_DEVICE_TABLE(pcmcia, cm4000_ids);
 
 static struct pcmcia_driver cm4000_driver = {
 	.owner	  = THIS_MODULE,
-	.drv	  = {
-		.name = "cm4000_cs",
-		},
+	.name	  = "cm4000_cs",
 	.probe    = cm4000_probe,
 	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,

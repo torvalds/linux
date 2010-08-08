@@ -1832,9 +1832,7 @@ MODULE_DEVICE_TABLE(pcmcia, xirc2ps_ids);
 
 static struct pcmcia_driver xirc2ps_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "xirc2ps_cs",
-	},
+	.name		= "xirc2ps_cs",
 	.probe		= xirc2ps_probe,
 	.remove		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,

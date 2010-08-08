@@ -221,9 +221,7 @@ MODULE_DEVICE_TABLE(pcmcia, parport_ids);
 
 static struct pcmcia_driver parport_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "parport_cs",
-	},
+	.name		= "parport_cs",
 	.probe		= parport_probe,
 	.remove		= parport_detach,
 	.id_table	= parport_ids,

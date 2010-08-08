@@ -1790,9 +1790,7 @@ MODULE_DEVICE_TABLE(pcmcia, nsp_cs_ids);
 
 static struct pcmcia_driver nsp_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "nsp_cs",
-	},
+	.name		= "nsp_cs",
 	.probe		= nsp_cs_probe,
 	.remove		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,

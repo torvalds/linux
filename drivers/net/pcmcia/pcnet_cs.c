@@ -1748,9 +1748,7 @@ MODULE_FIRMWARE("cis/PE-200.cis");
 MODULE_FIRMWARE("cis/tamarack.cis");
 
 static struct pcmcia_driver pcnet_driver = {
-	.drv		= {
-		.name	= "pcnet_cs",
-	},
+	.name		= "pcnet_cs",
 	.probe		= pcnet_probe,
 	.remove		= pcnet_detach,
 	.owner		= THIS_MODULE,

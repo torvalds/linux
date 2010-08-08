@@ -437,9 +437,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.resume = &mio_cs_resume,
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ni_mio_cs",
-		},
+	.name = "ni_mio_cs",
 };
 
 int init_module(void)

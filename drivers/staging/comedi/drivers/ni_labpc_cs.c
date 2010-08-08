@@ -360,9 +360,7 @@ struct pcmcia_driver labpc_cs_driver = {
 	.resume = labpc_cs_resume,
 	.id_table = labpc_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "daqcard-1200",
-		},
+	.name = "daqcard-1200",
 };
 
 static int __init init_labpc_cs(void)

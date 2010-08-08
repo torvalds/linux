@@ -2090,9 +2090,7 @@ MODULE_DEVICE_TABLE(pcmcia, smc91c92_ids);
 
 static struct pcmcia_driver smc91c92_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "smc91c92_cs",
-	},
+	.name		= "smc91c92_cs",
 	.probe		= smc91c92_probe,
 	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,

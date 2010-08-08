@@ -873,9 +873,7 @@ MODULE_DEVICE_TABLE(pcmcia, sym53c500_ids);
 
 static struct pcmcia_driver sym53c500_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "sym53c500_cs",
-	},
+	.name		= "sym53c500_cs",
 	.probe		= SYM53C500_probe,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,

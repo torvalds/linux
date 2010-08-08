@@ -750,9 +750,7 @@ static struct pcmcia_device_id pcmciamtd_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, pcmciamtd_ids);
 
 static struct pcmcia_driver pcmciamtd_driver = {
-	.drv		= {
-		.name	= "pcmciamtd"
-	},
+	.name		= "pcmciamtd",
 	.probe		= pcmciamtd_probe,
 	.remove		= pcmciamtd_detach,
 	.owner		= THIS_MODULE,

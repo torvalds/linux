@@ -361,9 +361,7 @@ MODULE_DEVICE_TABLE(pcmcia, spectrum_cs_ids);
 
 static struct pcmcia_driver orinoco_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= DRIVER_NAME,
-	},
+	.name		= DRIVER_NAME,
 	.probe		= spectrum_cs_probe,
 	.remove		= spectrum_cs_detach,
 	.suspend	= spectrum_cs_suspend,

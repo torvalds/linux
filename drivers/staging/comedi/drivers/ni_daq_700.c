@@ -634,9 +634,7 @@ struct pcmcia_driver dio700_cs_driver = {
 	.resume = dio700_cs_resume,
 	.id_table = dio700_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ni_daq_700",
-		},
+	.name = "ni_daq_700",
 };
 
 static int __init init_dio700_cs(void)

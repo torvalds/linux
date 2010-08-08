@@ -358,9 +358,7 @@ MODULE_DEVICE_TABLE(pcmcia, vxp_ids);
 
 static struct pcmcia_driver vxp_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "snd-vxpocket",
-	},
+	.name		= "snd-vxpocket",
 	.probe		= vxpocket_probe,
 	.remove		= vxpocket_detach,
 	.id_table	= vxp_ids,

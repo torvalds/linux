@@ -188,9 +188,7 @@ MODULE_DEVICE_TABLE(pcmcia, fdomain_ids);
 
 static struct pcmcia_driver fdomain_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "fdomain_cs",
-	},
+	.name		= "fdomain_cs",
 	.probe		= fdomain_probe,
 	.remove		= fdomain_detach,
 	.id_table       = fdomain_ids,

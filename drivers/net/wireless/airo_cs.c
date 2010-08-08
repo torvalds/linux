@@ -246,9 +246,7 @@ MODULE_DEVICE_TABLE(pcmcia, airo_ids);
 
 static struct pcmcia_driver airo_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "airo_cs",
-	},
+	.name		= "airo_cs",
 	.probe		= airo_probe,
 	.remove		= airo_detach,
 	.id_table       = airo_ids,

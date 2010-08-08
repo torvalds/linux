@@ -769,9 +769,7 @@ MODULE_DEVICE_TABLE(pcmcia, bt3c_ids);
 
 static struct pcmcia_driver bt3c_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "bt3c_cs",
-	},
+	.name		= "bt3c_cs",
 	.probe		= bt3c_probe,
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,

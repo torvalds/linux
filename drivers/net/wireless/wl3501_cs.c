@@ -2054,9 +2054,7 @@ MODULE_DEVICE_TABLE(pcmcia, wl3501_ids);
 
 static struct pcmcia_driver wl3501_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "wl3501_cs",
-	},
+	.name		= "wl3501_cs",
 	.probe		= wl3501_probe,
 	.remove		= wl3501_detach,
 	.id_table	= wl3501_ids,

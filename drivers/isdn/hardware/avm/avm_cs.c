@@ -210,9 +210,7 @@ MODULE_DEVICE_TABLE(pcmcia, avmcs_ids);
 
 static struct pcmcia_driver avmcs_driver = {
 	.owner	= THIS_MODULE,
-	.drv	= {
-		.name	= "avm_cs",
-	},
+	.name		= "avm_cs",
 	.probe = avmcs_probe,
 	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,

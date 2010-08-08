@@ -761,9 +761,7 @@ MODULE_DEVICE_TABLE(pcmcia, axnet_ids);
 
 static struct pcmcia_driver axnet_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "axnet_cs",
-	},
+	.name		= "axnet_cs",
 	.probe		= axnet_probe,
 	.remove		= axnet_detach,
 	.id_table       = axnet_ids,

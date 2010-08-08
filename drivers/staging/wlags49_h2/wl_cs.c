@@ -455,9 +455,7 @@ MODULE_DEVICE_TABLE(pcmcia, wl_adapter_ids);
 
 static struct pcmcia_driver wlags49_driver = {
 	.owner	    = THIS_MODULE,
-	.drv	    = {
-		.name = DRIVER_NAME,
-	},
+	.name	    = DRIVER_NAME,
 	.probe	    = wl_adapter_attach,
 	.remove	    = wl_adapter_detach,
 	.id_table   = wl_adapter_ids,

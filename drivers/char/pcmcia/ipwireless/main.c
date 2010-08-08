@@ -295,7 +295,7 @@ static struct pcmcia_driver me = {
 	.owner		= THIS_MODULE,
 	.probe          = ipwireless_attach,
 	.remove         = ipwireless_detach,
-	.drv = { .name  = IPWIRELESS_PCCARD_NAME },
+	.name		= IPWIRELESS_PCCARD_NAME,
 	.id_table       = ipw_ids
 };
 

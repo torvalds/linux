@@ -1196,9 +1196,7 @@ MODULE_DEVICE_TABLE(pcmcia, tc574_ids);
 
 static struct pcmcia_driver tc574_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "3c574_cs",
-	},
+	.name		= "3c574_cs",
 	.probe		= tc574_probe,
 	.remove		= tc574_detach,
 	.id_table       = tc574_ids,

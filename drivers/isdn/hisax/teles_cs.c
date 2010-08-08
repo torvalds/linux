@@ -255,9 +255,7 @@ MODULE_DEVICE_TABLE(pcmcia, teles_ids);
 
 static struct pcmcia_driver teles_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "teles_cs",
-	},
+	.name		= "teles_cs",
 	.probe		= teles_probe,
 	.remove		= __devexit_p(teles_detach),
 	.id_table       = teles_ids,

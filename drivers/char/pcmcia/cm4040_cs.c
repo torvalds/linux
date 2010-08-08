@@ -643,9 +643,7 @@ MODULE_DEVICE_TABLE(pcmcia, cm4040_ids);
 
 static struct pcmcia_driver reader_driver = {
   	.owner		= THIS_MODULE,
-  	.drv		= {
-		.name	= "cm4040_cs",
-	},
+	.name		= "cm4040_cs",
 	.probe		= reader_probe,
 	.remove		= reader_detach,
 	.id_table	= cm4040_ids,

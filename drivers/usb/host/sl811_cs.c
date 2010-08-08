@@ -195,9 +195,7 @@ MODULE_DEVICE_TABLE(pcmcia, sl811_ids);
 
 static struct pcmcia_driver sl811_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "sl811_cs",
-	},
+	.name		= "sl811_cs",
 	.probe		= sl811_cs_probe,
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,

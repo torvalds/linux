@@ -384,9 +384,7 @@ struct pcmcia_driver dio24_cs_driver = {
 	.resume = dio24_cs_resume,
 	.id_table = dio24_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ni_daq_dio24",
-		},
+	.name = "ni_daq_dio24",
 };
 
 static int __init init_dio24_cs(void)

@@ -389,9 +389,7 @@ MODULE_DEVICE_TABLE(pcmcia, ide_ids);
 
 static struct pcmcia_driver ide_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "ide-cs",
-	},
+	.name		= "ide-cs",
 	.probe		= ide_probe,
 	.remove		= ide_detach,
 	.id_table       = ide_ids,

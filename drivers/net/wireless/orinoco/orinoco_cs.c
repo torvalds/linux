@@ -378,9 +378,7 @@ MODULE_DEVICE_TABLE(pcmcia, orinoco_cs_ids);
 
 static struct pcmcia_driver orinoco_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= DRIVER_NAME,
-	},
+	.name		= DRIVER_NAME,
 	.probe		= orinoco_cs_probe,
 	.remove		= orinoco_cs_detach,
 	.id_table       = orinoco_cs_ids,

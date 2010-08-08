@@ -266,9 +266,7 @@ MODULE_DEVICE_TABLE(pcmcia, elsa_ids);
 
 static struct pcmcia_driver elsa_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "elsa_cs",
-	},
+	.name		= "elsa_cs",
 	.probe		= elsa_cs_probe,
 	.remove		= __devexit_p(elsa_cs_detach),
 	.id_table	= elsa_ids,

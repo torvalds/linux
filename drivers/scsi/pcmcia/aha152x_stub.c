@@ -216,9 +216,7 @@ MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);
 
 static struct pcmcia_driver aha152x_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "aha152x_cs",
-	},
+	.name		= "aha152x_cs",
 	.probe		= aha152x_probe,
 	.remove		= aha152x_detach,
 	.id_table       = aha152x_ids,

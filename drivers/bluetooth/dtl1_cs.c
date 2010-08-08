@@ -647,9 +647,7 @@ MODULE_DEVICE_TABLE(pcmcia, dtl1_ids);
 
 static struct pcmcia_driver dtl1_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "dtl1_cs",
-	},
+	.name		= "dtl1_cs",
 	.probe		= dtl1_probe,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,

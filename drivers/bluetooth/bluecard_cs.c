@@ -940,9 +940,7 @@ MODULE_DEVICE_TABLE(pcmcia, bluecard_ids);
 
 static struct pcmcia_driver bluecard_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "bluecard_cs",
-	},
+	.name		= "bluecard_cs",
 	.probe		= bluecard_probe,
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,

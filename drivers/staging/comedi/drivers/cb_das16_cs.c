@@ -795,9 +795,7 @@ struct pcmcia_driver das16cs_driver = {
 	.resume = das16cs_pcmcia_resume,
 	.id_table = das16cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "cb_das16_cs",
-		},
+	.name = "cb_das16_cs",
 };
 
 static int __init init_das16cs_pcmcia_cs(void)

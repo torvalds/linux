@@ -165,9 +165,7 @@ MODULE_DEVICE_TABLE(pcmcia, ixj_ids);
 
 static struct pcmcia_driver ixj_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "ixj_cs",
-	},
+	.name		= "ixj_cs",
 	.probe		= ixj_probe,
 	.remove		= ixj_detach,
 	.id_table	= ixj_ids,

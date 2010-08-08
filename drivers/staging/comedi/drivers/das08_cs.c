@@ -305,9 +305,7 @@ struct pcmcia_driver das08_cs_driver = {
 	.resume = das08_pcmcia_resume,
 	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "pcm-das08",
-		},
+	.name = "pcm-das08",
 };
 
 static int __init init_das08_pcmcia_cs(void)

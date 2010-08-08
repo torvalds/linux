@@ -394,9 +394,7 @@ MODULE_DEVICE_TABLE(pcmcia, ibmtr_ids);
 
 static struct pcmcia_driver ibmtr_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "ibmtr_cs",
-	},
+	.name		= "ibmtr_cs",
 	.probe		= ibmtr_attach,
 	.remove		= ibmtr_detach,
 	.id_table       = ibmtr_ids,

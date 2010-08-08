@@ -364,9 +364,7 @@ MODULE_DEVICE_TABLE(pcmcia, com20020_ids);
 
 static struct pcmcia_driver com20020_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "com20020_cs",
-	},
+	.name		= "com20020_cs",
 	.probe		= com20020_probe,
 	.remove		= com20020_detach,
 	.id_table	= com20020_ids,

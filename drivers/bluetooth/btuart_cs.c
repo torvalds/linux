@@ -697,9 +697,7 @@ MODULE_DEVICE_TABLE(pcmcia, btuart_ids);
 
 static struct pcmcia_driver btuart_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "btuart_cs",
-	},
+	.name		= "btuart_cs",
 	.probe		= btuart_probe,
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,

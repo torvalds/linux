@@ -121,9 +121,7 @@ static void __devexit b43_pcmcia_remove(struct pcmcia_device *dev)
 
 static struct pcmcia_driver b43_pcmcia_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-				.name = "b43-pcmcia",
-			},
+	.name		= "b43-pcmcia",
 	.id_table	= b43_pcmcia_tbl,
 	.probe		= b43_pcmcia_probe,
 	.remove		= __devexit_p(b43_pcmcia_remove),

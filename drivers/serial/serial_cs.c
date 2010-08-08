@@ -882,9 +882,7 @@ MODULE_FIRMWARE("cis/RS-COM-2P.cis");
 
 static struct pcmcia_driver serial_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "serial_cs",
-	},
+	.name		= "serial_cs",
 	.probe		= serial_probe,
 	.remove		= serial_detach,
 	.id_table	= serial_ids,

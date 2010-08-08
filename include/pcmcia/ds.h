@@ -47,6 +47,8 @@ struct pcmcia_dynids {
 };
 
 struct pcmcia_driver {
+	const char		*name;
+
 	int (*probe)		(struct pcmcia_device *dev);
 	void (*remove)		(struct pcmcia_device *dev);
 

@@ -2843,9 +2843,7 @@ MODULE_DEVICE_TABLE(pcmcia, ray_ids);
 
 static struct pcmcia_driver ray_driver = {
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ray_cs",
-		},
+	.name = "ray_cs",
 	.probe = ray_probe,
 	.remove = ray_detach,
 	.id_table = ray_ids,

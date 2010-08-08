@@ -697,9 +697,7 @@ MODULE_DEVICE_TABLE(pcmcia, fmvj18x_ids);
 
 static struct pcmcia_driver fmvj18x_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "fmvj18x_cs",
-	},
+	.name		= "fmvj18x_cs",
 	.probe		= fmvj18x_probe,
 	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,

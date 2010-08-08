@@ -1533,9 +1533,7 @@ MODULE_DEVICE_TABLE(pcmcia, nmclan_ids);
 
 static struct pcmcia_driver nmclan_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "nmclan_cs",
-	},
+	.name		= "nmclan_cs",
 	.probe		= nmclan_probe,
 	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,

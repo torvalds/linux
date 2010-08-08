@@ -988,9 +988,7 @@ MODULE_DEVICE_TABLE(pcmcia, if_cs_ids);
 
 static struct pcmcia_driver lbs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= DRV_NAME,
-	},
+	.name		= DRV_NAME,
 	.probe		= if_cs_probe,
 	.remove		= if_cs_detach,
 	.id_table       = if_cs_ids,

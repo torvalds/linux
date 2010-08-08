@@ -284,9 +284,7 @@ MODULE_DEVICE_TABLE(pcmcia, sedlbauer_ids);
 
 static struct pcmcia_driver sedlbauer_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "sedlbauer_cs",
-	},
+	.name		= "sedlbauer_cs",
 	.probe		= sedlbauer_probe,
 	.remove		= __devexit_p(sedlbauer_detach),
 	.id_table	= sedlbauer_ids,

@@ -1168,9 +1168,7 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.resume = daqp_cs_resume,
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "quatech_daqp_cs",
-		},
+	.name = "quatech_daqp_cs",
 };
 
 int __init init_module(void)

@@ -309,9 +309,7 @@ MODULE_DEVICE_TABLE(pcmcia, atmel_ids);
 
 static struct pcmcia_driver atmel_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "atmel_cs",
-        },
+	.name		= "atmel_cs",
 	.probe          = atmel_probe,
 	.remove		= atmel_detach,
 	.id_table	= atmel_ids,
