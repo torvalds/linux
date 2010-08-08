@@ -315,6 +315,31 @@ struct group_dual {
 		}							\
 	} while (0)
 
+#define __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, _suffix)		\
+	do {								\
+		unsigned long _tmp;					\
+									\
+		__asm__ __volatile__ (					\
+			_PRE_EFLAGS("0", "4", "1")			\
+			_op _suffix " %5; "				\
+			_POST_EFLAGS("0", "4", "1")			\
+			: "=m" (_eflags), "=&r" (_tmp),			\
+			  "+a" (_rax), "+d" (_rdx)			\
+			: "i" (EFLAGS_MASK), "m" ((_src).val),		\
+			  "a" (_rax), "d" (_rdx));			\
+	} while (0)
+
+/* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
+#define emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags)			\
+	do {									\
+		switch((_src).bytes) {						\
+		case 1: __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, "b"); break; \
+		case 2: __emulate_1op_rax_rdx(_op, _src, _rax, _rdx,  _eflags, "w"); break; \
+		case 4: __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, "l"); break; \
+		case 8: ON64(__emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, "q")); break; \
+		}							\
+	} while (0)
+
 /* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _size, _eip)                                  \
 ({	unsigned long _x;						\
@@ -1373,6 +1398,8 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
+	unsigned long *rax = &c->regs[VCPU_REGS_RAX];
+	unsigned long *rdx = &c->regs[VCPU_REGS_RDX];
 
 	switch (c->modrm_reg) {
 	case 0 ... 1:	/* test */
@@ -1383,6 +1410,18 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 		break;
 	case 3:	/* neg */
 		emulate_1op("neg", c->dst, ctxt->eflags);
+		break;
+	case 4: /* mul */
+		emulate_1op_rax_rdx("mul", c->src, *rax, *rdx, ctxt->eflags);
+		break;
+	case 5: /* imul */
+		emulate_1op_rax_rdx("imul", c->src, *rax, *rdx, ctxt->eflags);
+		break;
+	case 6: /* div */
+		emulate_1op_rax_rdx("div", c->src, *rax, *rdx, ctxt->eflags);
+		break;
+	case 7: /* idiv */
+		emulate_1op_rax_rdx("idiv", c->src, *rax, *rdx, ctxt->eflags);
 		break;
 	default:
 		return 0;
@@ -2138,7 +2177,7 @@ static struct opcode group1A[] = {
 static struct opcode group3[] = {
 	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
 	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	X4(D(Undefined)),
+	X4(D(SrcMem | ModRM)),
 };
 
 static struct opcode group4[] = {
