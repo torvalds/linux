@@ -281,12 +281,6 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 /* Module initialization					    */
 /********************************************************************/
 
-/* Can't be declared "const" or the whole __initdata section will
- * become const */
-static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
-	" (David Gibson <hermes@gibson.dropbear.id.au>, "
-	"Pavel Roskin <proski@gnu.org>, et al)";
-
 static struct pcmcia_device_id orinoco_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0777), /* 3Com AirConnect PCI 777A */
 	PCMCIA_DEVICE_MANF_CARD(0x0156, 0x0002), /* Lucent Orinoco and old Intersil */
@@ -389,8 +383,6 @@ static struct pcmcia_driver orinoco_driver = {
 static int __init
 init_orinoco_cs(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
-
 	return pcmcia_register_driver(&orinoco_driver);
 }
 

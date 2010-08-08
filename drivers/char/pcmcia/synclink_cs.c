@@ -2809,8 +2809,6 @@ static void synclink_cs_cleanup(void)
 {
 	int rc;
 
-	printk("Unloading %s: version %s\n", driver_name, driver_version);
-
 	while(mgslpc_device_list)
 		mgslpc_remove_device(mgslpc_device_list);
 
@@ -2832,8 +2830,6 @@ static int __init synclink_cs_init(void)
 	    mgslpc_get_text_ptr();
 	    BREAKPOINT();
     }
-
-    printk("%s %s\n", driver_name, driver_version);
 
     if ((rc = pcmcia_register_driver(&mgslpc_driver)) < 0)
 	    return rc;

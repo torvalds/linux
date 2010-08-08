@@ -254,12 +254,12 @@ static struct pcmcia_driver airo_driver = {
 	.resume		= airo_resume,
 };
 
-static int airo_cs_init(void)
+static int __init airo_cs_init(void)
 {
 	return pcmcia_register_driver(&airo_driver);
 }
 
-static void airo_cs_cleanup(void)
+static void __exit airo_cs_cleanup(void)
 {
 	pcmcia_unregister_driver(&airo_driver);
 }

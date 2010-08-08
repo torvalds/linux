@@ -317,12 +317,12 @@ static struct pcmcia_driver atmel_driver = {
 	.resume		= atmel_resume,
 };
 
-static int atmel_cs_init(void)
+static int __init atmel_cs_init(void)
 {
         return pcmcia_register_driver(&atmel_driver);
 }
 
-static void atmel_cs_cleanup(void)
+static void __exit atmel_cs_cleanup(void)
 {
         pcmcia_unregister_driver(&atmel_driver);
 }

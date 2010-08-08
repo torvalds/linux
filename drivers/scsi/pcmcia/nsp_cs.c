@@ -1800,14 +1800,11 @@ static struct pcmcia_driver nsp_driver = {
 
 static int __init nsp_cs_init(void)
 {
-	nsp_msg(KERN_INFO, "loading...");
-
 	return pcmcia_register_driver(&nsp_driver);
 }
 
 static void __exit nsp_cs_exit(void)
 {
-	nsp_msg(KERN_INFO, "unloading...");
 	pcmcia_unregister_driver(&nsp_driver);
 }
 

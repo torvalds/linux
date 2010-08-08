@@ -307,9 +307,6 @@ static int __init init_ipwireless(void)
 {
 	int ret;
 
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME " "
-	       IPWIRELESS_PCMCIA_VERSION " by " IPWIRELESS_PCMCIA_AUTHOR "\n");
-
 	ret = ipwireless_tty_init();
 	if (ret != 0)
 		return ret;
@@ -326,9 +323,6 @@ static int __init init_ipwireless(void)
  */
 static void __exit exit_ipwireless(void)
 {
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME " "
-			IPWIRELESS_PCMCIA_VERSION " removed\n");
-
 	pcmcia_unregister_driver(&me);
 	ipwireless_tty_release();
 }

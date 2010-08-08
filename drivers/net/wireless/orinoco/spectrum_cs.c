@@ -345,12 +345,6 @@ spectrum_cs_resume(struct pcmcia_device *link)
 /* Module initialization					    */
 /********************************************************************/
 
-/* Can't be declared "const" or the whole __initdata section will
- * become const */
-static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
-	" (Pavel Roskin <proski@gnu.org>,"
-	" David Gibson <hermes@gibson.dropbear.id.au>, et al)";
-
 static struct pcmcia_device_id spectrum_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4137 */
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0001), /* Socket Communications CF */
@@ -372,8 +366,6 @@ static struct pcmcia_driver orinoco_driver = {
 static int __init
 init_spectrum_cs(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
-
 	return pcmcia_register_driver(&orinoco_driver);
 }
 

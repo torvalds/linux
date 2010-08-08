@@ -54,8 +54,6 @@
 			   __func__ , ## args);		\
 	} while (0)
 
-static char *version = "cm4000_cs.c v2.4.0gm6 - All bugs added by Harald Welte";
-
 #define	T_1SEC		(HZ)
 #define	T_10MSEC	msecs_to_jiffies(10)
 #define	T_20MSEC	msecs_to_jiffies(20)
@@ -1889,8 +1887,6 @@ static int __init cmm_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "%s\n", version);
-
 	cmm_class = class_create(THIS_MODULE, "cardman_4000");
 	if (IS_ERR(cmm_class))
 		return PTR_ERR(cmm_class);
@@ -1915,7 +1911,6 @@ static int __init cmm_init(void)
 
 static void __exit cmm_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&cm4000_driver);
 	unregister_chrdev(major, DEVICE_NAME);
 	class_destroy(cmm_class);

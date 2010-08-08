@@ -220,7 +220,7 @@ static struct pcmcia_driver avma1cs_driver = {
 
 static int __init init_avma1_cs(void)
 {
-	return(pcmcia_register_driver(&avma1cs_driver));
+	return pcmcia_register_driver(&avma1cs_driver);
 }
 
 static void __exit exit_avma1_cs(void)

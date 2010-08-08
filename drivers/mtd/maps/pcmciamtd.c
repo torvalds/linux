@@ -762,8 +762,6 @@ static struct pcmcia_driver pcmciamtd_driver = {
 
 static int __init init_pcmciamtd(void)
 {
-	info(DRIVER_DESC);
-
 	if(bankwidth && bankwidth != 1 && bankwidth != 2) {
 		info("bad bankwidth (%d), using default", bankwidth);
 		bankwidth = 2;

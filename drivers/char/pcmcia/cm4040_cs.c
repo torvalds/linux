@@ -48,9 +48,6 @@
 			   __func__ , ## args);		\
 	} while (0)
 
-static char *version =
-"OMNIKEY CardMan 4040 v1.1.0gm5 - All bugs added by Harald Welte";
-
 #define	CCID_DRIVER_BULK_DEFAULT_TIMEOUT  	(150*HZ)
 #define	CCID_DRIVER_ASYNC_POWERUP_TIMEOUT 	(35*HZ)
 #define	CCID_DRIVER_MINIMUM_TIMEOUT 		(3*HZ)
@@ -653,7 +650,6 @@ static int __init cm4040_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "%s\n", version);
 	cmx_class = class_create(THIS_MODULE, "cardman_4040");
 	if (IS_ERR(cmx_class))
 		return PTR_ERR(cmx_class);
@@ -678,7 +674,6 @@ static int __init cm4040_init(void)
 
 static void __exit cm4040_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&reader_driver);
 	unregister_chrdev(major, DEVICE_NAME);
 	class_destroy(cmx_class);

@@ -85,8 +85,6 @@ static void aha152x_release_cs(struct pcmcia_device *link);
 static void aha152x_detach(struct pcmcia_device *p_dev);
 static int aha152x_config_cs(struct pcmcia_device *link);
 
-static struct pcmcia_device *dev_list;
-
 static int aha152x_probe(struct pcmcia_device *link)
 {
     scsi_info_t *info;
@@ -231,7 +229,6 @@ static int __init init_aha152x_cs(void)
 static void __exit exit_aha152x_cs(void)
 {
 	pcmcia_unregister_driver(&aha152x_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_aha152x_cs);
