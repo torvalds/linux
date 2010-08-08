@@ -1,9 +1,9 @@
 /*
  *  linux/include/linux/mtd/nand.h
  *
- *  Copyright (c) 2000 David Woodhouse <dwmw2@infradead.org>
- *                     Steven J. Hill <sjhill@realitydiluted.com>
- *		       Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
+ *                        Steven J. Hill <sjhill@realitydiluted.com>
+ *		          Thomas Gleixner <tglx@linutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
