@@ -295,6 +295,8 @@
 #define   RING_VALID_MASK	0x00000001
 #define   RING_VALID		0x00000001
 #define   RING_INVALID		0x00000000
+#define   RING_WAIT_I8XX	(1<<0) /* gen2, PRBx_HEAD */
+#define   RING_WAIT		(1<<11) /* gen3+, PRBx_CTL */
 #define PRB1_TAIL	0x02040 /* 915+ only */
 #define PRB1_HEAD	0x02044 /* 915+ only */
 #define PRB1_START	0x02048 /* 915+ only */

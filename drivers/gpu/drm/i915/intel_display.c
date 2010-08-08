@@ -2344,6 +2344,26 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
+/*
+ * When we disable a pipe, we need to clear any pending scanline wait events
+ * to avoid hanging the ring, which we assume we are waiting on.
+ */
+static void intel_clear_scanline_wait(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp;
+
+	if (IS_GEN2(dev))
+		/* Can't break the hang on i8xx */
+		return;
+
+	tmp = I915_READ(PRB0_CTL);
+	if (tmp & RING_WAIT) {
+		I915_WRITE(PRB0_CTL, tmp);
+		POSTING_READ(PRB0_CTL);
+	}
+}
+
 /**
  * Sets the power management mode of the pipe and plane.
  */
@@ -2366,7 +2386,8 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 * with multiple pipes prior to enabling to new pipe.
 	 *
 	 * When switching off the display, make sure the cursor is
-	 * properly hidden prior to disabling the pipe.
+	 * properly hidden and there are no pending waits prior to
+	 * disabling the pipe.
 	 */
 	if (mode == DRM_MODE_DPMS_ON)
 		intel_update_watermarks(dev);
@@ -2377,8 +2398,14 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	if (mode == DRM_MODE_DPMS_ON)
 		intel_crtc_update_cursor(crtc);
-	else
+	else {
+		/* XXX Note that this is not a complete solution, but a hack
+		 * to avoid the most frequently hit hang.
+		 */
+		intel_clear_scanline_wait(dev);
+
 		intel_update_watermarks(dev);
+	}
 
 	if (!dev->primary->master)
 		return;
