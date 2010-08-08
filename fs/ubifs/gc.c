@@ -157,7 +157,6 @@ int data_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
  */
 int nondata_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	int typea, typeb;
 	ino_t inuma, inumb;
 	struct ubifs_info *c = priv;
 	struct ubifs_scan_node *sa, *sb;
@@ -165,21 +164,22 @@ int nondata_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
 	cond_resched();
 	sa = list_entry(a, struct ubifs_scan_node, list);
 	sb = list_entry(b, struct ubifs_scan_node, list);
-	typea = key_type(c, &sa->key);
-	typeb = key_type(c, &sb->key);
-	ubifs_assert(typea != UBIFS_DATA_KEY && typeb != UBIFS_DATA_KEY);
+	ubifs_assert(sa->type != UBIFS_DATA_NODE &&
+		     sb->type != UBIFS_DATA_NODE);
 
 	/* Inodes go before directory entries */
-	if (typea == UBIFS_INO_KEY) {
-		if (typeb == UBIFS_INO_KEY)
+	if (sa->type == UBIFS_INO_NODE) {
+		if (sb->type == UBIFS_INO_NODE)
 			return sb->len - sa->len;
 		return -1;
 	}
-	if (typeb == UBIFS_INO_KEY)
+	if (sb->type == UBIFS_INO_NODE)
 		return 1;
 
-	ubifs_assert(typea == UBIFS_DENT_KEY || typea == UBIFS_XENT_KEY);
-	ubifs_assert(typeb == UBIFS_DENT_KEY || typeb == UBIFS_XENT_KEY);
+	ubifs_assert(sa->type == UBIFS_DENT_NODE ||
+		     sa->type == UBIFS_XENT_NODE);
+	ubifs_assert(sb->type == UBIFS_DENT_NODE ||
+		     sb->type == UBIFS_XENT_NODE);
 	inuma = key_inum(c, &sa->key);
 	inumb = key_inum(c, &sb->key);
 
