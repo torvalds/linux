@@ -28,6 +28,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -432,8 +434,6 @@ static hw_info_t *get_ax88190(struct pcmcia_device *link)
 	dev->dev_addr[i] = j & 0xff;
 	dev->dev_addr[i+1] = j >> 8;
     }
-    printk(KERN_NOTICE "pcnet_cs: this is an AX88190 card!\n");
-    printk(KERN_NOTICE "pcnet_cs: use axnet_cs instead.\n");
     return NULL;
 }
 
@@ -568,15 +568,15 @@ static int pcnet_config(struct pcmcia_device *link)
 	if ((if_port == 1) || (if_port == 2))
 	    dev->if_port = if_port;
 	else
-	    printk(KERN_NOTICE "pcnet_cs: invalid if_port requested\n");
+	    pr_notice("invalid if_port requested\n");
     } else {
 	dev->if_port = 0;
     }
 
     if ((link->conf.ConfigBase == 0x03c0) &&
 	(link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
-	printk(KERN_INFO "pcnet_cs: this is an AX88190 card!\n");
-	printk(KERN_INFO "pcnet_cs: use axnet_cs instead.\n");
+	pr_notice("this is an AX88190 card!\n");
+	pr_notice("use axnet_cs instead.\n");
 	goto failed;
     }
 
@@ -591,8 +591,8 @@ static int pcnet_config(struct pcmcia_device *link)
 	local_hw_info = get_hwired(link);
 
     if (local_hw_info == NULL) {
-	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net"
-	       " address for io base %#3lx\n", dev->base_addr);
+	pr_notice("unable to read hardware net address for io base %#3lx\n",
+		  dev->base_addr);
 	goto failed;
     }
 
@@ -632,7 +632,7 @@ static int pcnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
@@ -641,16 +641,16 @@ static int pcnet_config(struct pcmcia_device *link)
 	netdev_info(dev, "NE2000 (DL100%d rev %02x): ",
 	       (info->flags & IS_DL10022) ? 22 : 19, id);
 	if (info->pna_phy)
-	    printk("PNA, ");
+	    pr_cont("PNA, ");
     } else {
 	netdev_info(dev, "NE2000 Compatible: ");
     }
-    printk("io %#3lx, irq %d,", dev->base_addr, dev->irq);
+    pr_cont("io %#3lx, irq %d,", dev->base_addr, dev->irq);
     if (info->flags & USE_SHMEM)
-	printk (" mem %#5lx,", dev->mem_start);
+	pr_cont(" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
-	printk(" %s xcvr,", if_names[dev->if_port]);
-    printk(" hw_addr %pM\n", dev->dev_addr);
+	pr_cont(" %s xcvr,", if_names[dev->if_port]);
+    pr_cont(" hw_addr %pM\n", dev->dev_addr);
     return 0;
 
 failed:
