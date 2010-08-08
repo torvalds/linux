@@ -66,4 +66,28 @@ config FIREWIRE_NET
 
 source "drivers/ieee1394/Kconfig"
 
+config FIREWIRE_NOSY
+	tristate "Nosy - a FireWire traffic sniffer for PCILynx cards"
+	depends on PCI
+	help
+	  Nosy is an IEEE 1394 packet sniffer that is used for protocol
+	  analysis and in development of IEEE 1394 drivers, applications,
+	  or firmwares.
+
+	  This driver lets you use a Texas Instruments PCILynx 1394 to PCI
+	  link layer controller TSB12LV21/A/B as a low-budget bus analyzer.
+	  PCILynx is a nowadays very rare IEEE 1394 controller which is
+	  not OHCI 1394 compliant.
+
+	  The following cards are known to be based on PCILynx or PCILynx-2:
+	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
+	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
+	  Apple Power Mac G3 blue & white (onboard controller).
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called nosy.  Source code of a userspace interface to nosy, called
+	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
+
+	  If unsure, say N.
+
 endmenu
