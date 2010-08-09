@@ -196,8 +196,8 @@ static inline char *host_typetostr(int type)
 	switch (type) {
 	case HCI_BREDR:
 		return "BR/EDR";
-	case HCI_80211:
-		return "802.11";
+	case HCI_AMP:
+		return "AMP";
 	default:
 		return "UNKNOWN";
 	}
