@@ -82,6 +82,32 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  */
 
 /*
+ * Update transiaction's maximum wait time, if debugging is enabled.
+ *
+ * In order for t_max_wait to be reliable, it must be protected by a
+ * lock.  But doing so will mean that start_this_handle() can not be
+ * run in parallel on SMP systems, which limits our scalability.  So
+ * unless debugging is enabled, we no longer update t_max_wait, which
+ * means that maximum wait time reported by the jbd2_run_stats
+ * tracepoint will always be zero.
+ */
+static inline void update_t_max_wait(transaction_t *transaction)
+{
+#ifdef CONFIG_JBD2_DEBUG
+	unsigned long ts = jiffies;
+
+	if (jbd2_journal_enable_debug &&
+	    time_after(transaction->t_start, ts)) {
+		ts = jbd2_time_diff(ts, transaction->t_start);
+		spin_lock(&transaction->t_handle_lock);
+		if (ts > transaction->t_max_wait)
+			transaction->t_max_wait = ts;
+		spin_unlock(&transaction->t_handle_lock);
+	}
+#endif
+}
+
+/*
  * start_this_handle: Given a handle, deal with any locking or stalling
  * needed to make sure that there is enough journal space for the handle
  * to begin.  Attach the handle to a transaction and set up the
@@ -95,7 +121,6 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	int needed;
 	int nblocks = handle->h_buffer_credits;
 	transaction_t *new_transaction = NULL;
-	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -241,25 +266,8 @@ repeat:
 
 	/* OK, account for the buffers that this operation expects to
 	 * use and add the handle to the running transaction. 
-	 *
-	 * In order for t_max_wait to be reliable, it must be
-	 * protected by a lock.  But doing so will mean that
-	 * start_this_handle() can not be run in parallel on SMP
-	 * systems, which limits our scalability.  So we only enable
-	 * it when debugging is enabled.  We may want to use a
-	 * separate flag, eventually, so we can enable this
-	 * independently of debugging.
 	 */
-#ifdef CONFIG_JBD2_DEBUG
-	if (jbd2_journal_enable_debug &&
-	    time_after(transaction->t_start, ts)) {
-		ts = jbd2_time_diff(ts, transaction->t_start);
-		spin_lock(&transaction->t_handle_lock);
-		if (ts > transaction->t_max_wait)
-			transaction->t_max_wait = ts;
-		spin_unlock(&transaction->t_handle_lock);
-	}
-#endif
+	update_t_max_wait(transaction);
 	handle->h_transaction = transaction;
 	atomic_inc(&transaction->t_updates);
 	atomic_inc(&transaction->t_handle_count);
