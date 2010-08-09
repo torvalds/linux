@@ -724,9 +724,9 @@ static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(int chip_type);
-static void init_tmds_chip_info(void);
-static void init_lvds_chip_info(void);
+static void __devinit init_gfx_chip_info(int chip_type);
+static void __devinit init_tmds_chip_info(void);
+static void __devinit init_lvds_chip_info(void);
 static void device_screen_off(void);
 static void device_screen_on(void);
 static void set_display_channel(void);
@@ -1980,7 +1980,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 }
 
-void viafb_init_chip_info(int chip_type)
+void __devinit viafb_init_chip_info(int chip_type)
 {
 	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
@@ -2047,7 +2047,7 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(int chip_type)
+static void __devinit init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
@@ -2099,7 +2099,7 @@ static void init_gfx_chip_info(int chip_type)
 	}
 }
 
-static void init_tmds_chip_info(void)
+static void __devinit init_tmds_chip_info(void)
 {
 	viafb_tmds_trasmitter_identify();
 
@@ -2144,7 +2144,7 @@ static void init_tmds_chip_info(void)
 		&viaparinfo->shared->tmds_setting_info);
 }
 
-static void init_lvds_chip_info(void)
+static void __devinit init_lvds_chip_info(void)
 {
 	viafb_lvds_trasmitter_identify();
 	viafb_init_lcd_size();
@@ -2178,7 +2178,7 @@ static void init_lvds_chip_info(void)
 		  viaparinfo->chip_info->lvds_chip_info.output_interface);
 }
 
-void viafb_init_dac(int set_iga)
+void __devinit viafb_init_dac(int set_iga)
 {
 	int i;
 	u8 tmp;

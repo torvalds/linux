@@ -961,7 +961,7 @@ static void retrieve_device_setting(struct viafb_ioctl_setting
 	setting_info->lcd_attributes.lcd_mode = viafb_lcd_mode;
 }
 
-static int parse_active_dev(void)
+static int __init parse_active_dev(void)
 {
 	viafb_CRT_ON = STATE_OFF;
 	viafb_DVI_ON = STATE_OFF;
@@ -1031,7 +1031,7 @@ static int parse_active_dev(void)
 	return 0;
 }
 
-static int parse_port(char *opt_str, int *output_interface)
+static int __devinit parse_port(char *opt_str, int *output_interface)
 {
 	if (!strncmp(opt_str, "DVP0", 4))
 		*output_interface = INTERFACE_DVP0;
@@ -1048,7 +1048,7 @@ static int parse_port(char *opt_str, int *output_interface)
 	return 0;
 }
 
-static void parse_lcd_port(void)
+static void __devinit parse_lcd_port(void)
 {
 	parse_port(viafb_lcd_port, &viaparinfo->chip_info->lvds_chip_info.
 		output_interface);
@@ -1061,7 +1061,7 @@ static void parse_lcd_port(void)
 		  output_interface);
 }
 
-static void parse_dvi_port(void)
+static void __devinit parse_dvi_port(void)
 {
 	parse_port(viafb_dvi_port, &viaparinfo->chip_info->tmds_chip_info.
 		output_interface);
