@@ -1521,16 +1521,22 @@ static bool d40_is_paused(struct d40_chan *d40c)
 	}
 
 	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
-	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM)
+	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
 		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
-	else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
+		status = readl(d40c->base->virtbase + D40_DREG_PCBASE +
+			       d40c->phy_chan->num * D40_DREG_PCDELTA +
+			       D40_CHAN_REG_SDLNK);
+	} else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
 		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
-	else {
+		status = readl(d40c->base->virtbase + D40_DREG_PCBASE +
+			       d40c->phy_chan->num * D40_DREG_PCDELTA +
+			       D40_CHAN_REG_SSLNK);
+	} else {
 		dev_err(&d40c->chan.dev->device,
 			"[%s] Unknown direction\n", __func__);
 		goto _exit;
 	}
-	status = d40_chan_has_events(d40c);
+
 	status = (status & D40_EVENTLINE_MASK(event)) >>
 		D40_EVENTLINE_POS(event);
 
