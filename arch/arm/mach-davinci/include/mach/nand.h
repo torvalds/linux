@@ -80,6 +80,9 @@ struct davinci_nand_pdata {		/* platform_data */
 	/* Main and mirror bbt descriptor overrides */
 	struct nand_bbt_descr	*bbt_td;
 	struct nand_bbt_descr	*bbt_md;
+
+	/* Access timings */
+	struct davinci_aemif_timing	*timing;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_NAND_H */
