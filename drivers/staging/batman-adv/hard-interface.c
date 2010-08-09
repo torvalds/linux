@@ -442,8 +442,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
-	struct net_device_stats *stats;
-	struct rtnl_link_stats64 temp;
 	int ret;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -478,12 +476,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/* discard frames on not active interfaces */
 	if (batman_if->if_status != IF_ACTIVE)
 		goto err_free;
-
-	stats = (struct net_device_stats *)dev_get_stats(skb->dev, &temp);
-	if (stats) {
-		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
-	}
 
 	batman_packet = (struct batman_packet *)skb->data;
 
