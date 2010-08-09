@@ -326,6 +326,7 @@ EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
 /**
  * set_timer_slack - set the allowed slack for a timer
+ * @timer: the timer to be modified
  * @slack_hz: the amount of time (in jiffies) allowed for rounding
  *
  * Set the amount of time, in jiffies, that a certain timer has
