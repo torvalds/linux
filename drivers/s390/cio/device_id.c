@@ -216,6 +216,7 @@ void ccw_device_sense_id_start(struct ccw_device *cdev)
 	req->timeout	= SENSE_ID_TIMEOUT;
 	req->maxretries	= SENSE_ID_RETRIES;
 	req->lpm	= sch->schib.pmcw.pam & sch->opm;
+	req->singlepath	= 1;
 	req->check	= snsid_check;
 	req->callback	= snsid_callback;
 	ccw_request_start(cdev);

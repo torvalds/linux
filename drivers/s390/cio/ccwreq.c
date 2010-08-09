@@ -38,9 +38,13 @@ static u16 ccwreq_next_path(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 
+	if (!req->singlepath) {
+		req->mask = 0;
+		goto out;
+	}
 	req->retries	= req->maxretries;
 	req->mask	= lpm_adjust(req->mask >>= 1, req->lpm);
-
+out:
 	return req->mask;
 }
 
@@ -113,8 +117,12 @@ void ccw_request_start(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 
-	/* Try all paths twice to counter link flapping. */
-	req->mask	= 0x8080;
+	if (req->singlepath) {
+		/* Try all paths twice to counter link flapping. */
+		req->mask = 0x8080;
+	} else
+		req->mask = req->lpm;
+
 	req->retries	= req->maxretries;
 	req->mask	= lpm_adjust(req->mask, req->lpm);
 	req->drc	= 0;
