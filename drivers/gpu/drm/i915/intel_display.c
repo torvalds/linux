@@ -2069,7 +2069,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
 			I915_READ(transconf_reg);
 
-			if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 10, 0))
+			if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 100, 1))
 				DRM_ERROR("failed to enable transcoder\n");
 		}
 
