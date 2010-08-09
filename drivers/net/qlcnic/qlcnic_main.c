@@ -477,44 +477,45 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 	int i, ret = 0, err;
 	u8 pfn;
 
-	if (!adapter->npars)
-		adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
+	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
 				QLCNIC_MAX_PCI_FUNC, GFP_KERNEL);
 	if (!adapter->npars)
 		return -ENOMEM;
 
-	if (!adapter->eswitch)
-		adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
+	adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
 				QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
 	if (!adapter->eswitch) {
 		err = -ENOMEM;
-		goto err_eswitch;
+		goto err_npars;
 	}
 
 	ret = qlcnic_get_pci_info(adapter, pci_info);
-	if (!ret) {
-		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
-			pfn = pci_info[i].id;
-			if (pfn > QLCNIC_MAX_PCI_FUNC)
-				return QL_STATUS_INVALID_PARAM;
-			adapter->npars[pfn].active = pci_info[i].active;
-			adapter->npars[pfn].type = pci_info[i].type;
-			adapter->npars[pfn].phy_port = pci_info[i].default_port;
-			adapter->npars[pfn].mac_learning = DEFAULT_MAC_LEARN;
-			adapter->npars[pfn].min_bw = pci_info[i].tx_min_bw;
-			adapter->npars[pfn].max_bw = pci_info[i].tx_max_bw;
-		}
+	if (ret)
+		goto err_eswitch;
 
-		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
-			adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
-
-		return ret;
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
+		pfn = pci_info[i].id;
+		if (pfn > QLCNIC_MAX_PCI_FUNC)
+			return QL_STATUS_INVALID_PARAM;
+		adapter->npars[pfn].active = pci_info[i].active;
+		adapter->npars[pfn].type = pci_info[i].type;
+		adapter->npars[pfn].phy_port = pci_info[i].default_port;
+		adapter->npars[pfn].mac_learning = DEFAULT_MAC_LEARN;
+		adapter->npars[pfn].min_bw = pci_info[i].tx_min_bw;
+		adapter->npars[pfn].max_bw = pci_info[i].tx_max_bw;
 	}
 
+	for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
+		adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
+
+	return 0;
+
+err_eswitch:
 	kfree(adapter->eswitch);
 	adapter->eswitch = NULL;
-err_eswitch:
+err_npars:
 	kfree(adapter->npars);
+	adapter->npars = NULL;
 
 	return ret;
 }
