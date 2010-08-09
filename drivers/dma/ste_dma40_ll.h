@@ -268,22 +268,6 @@ struct d40_def_lcsp {
 	u32 lcsp1;
 };
 
-/**
- * struct d40_lcla_elem - Info for one LCA element.
- *
- * @src_id: logical channel src id
- * @dst_id: logical channel dst id
- * @src: LCPA formated src parameters
- * @dst: LCPA formated dst parameters
- *
- */
-struct d40_lcla_elem {
-	int			src_id;
-	int			dst_id;
-	struct d40_log_lli     *src;
-	struct d40_log_lli     *dst;
-};
-
 /* Physical channels */
 
 void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
@@ -324,38 +308,33 @@ void d40_phy_lli_write(void __iomem *virtbase,
 void d40_log_fill_lli(struct d40_log_lli *lli,
 		      dma_addr_t data,
 		      u32 data_size,
-		      u32 lli_next_off,
 		      u32 reg_cfg,
 		      u32 data_width,
-		      bool term_int,
 		      bool addr_inc);
 
-int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
-		      struct scatterlist *sg,
+int d40_log_sg_to_dev(struct scatterlist *sg,
 		      int sg_len,
 		      struct d40_log_lli_bidir *lli,
 		      struct d40_def_lcsp *lcsp,
 		      u32 src_data_width,
 		      u32 dst_data_width,
 		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr,
-		      int max_len,
-		      int llis_per_log);
+		      dma_addr_t dev_addr);
 
-int d40_log_lli_write(struct d40_log_lli_full *lcpa,
-		      struct d40_log_lli *lcla_src,
-		      struct d40_log_lli *lcla_dst,
-		      struct d40_log_lli *lli_dst,
-		      struct d40_log_lli *lli_src,
-		      int llis_per_log);
-
-int d40_log_sg_to_lli(int lcla_id,
-		      struct scatterlist *sg,
+int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
-		      u32 data_width,
-		      int max_len,
-		      int llis_per_log);
+		      u32 data_width);
+
+void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
+			    struct d40_log_lli *lli_dst,
+			    struct d40_log_lli *lli_src,
+			    int next);
+
+void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
+			    struct d40_log_lli *lli_dst,
+			    struct d40_log_lli *lli_src,
+			    int next);
 
 #endif /* STE_DMA40_LLI_H */
