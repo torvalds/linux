@@ -259,6 +259,7 @@ struct mmci_platform_data realview_mmc0_plat_data = {
 	.status		= realview_mmc_status,
 	.gpio_wp	= 17,
 	.gpio_cd	= 16,
+	.cd_invert	= true,
 };
 
 struct mmci_platform_data realview_mmc1_plat_data = {
@@ -266,6 +267,7 @@ struct mmci_platform_data realview_mmc1_plat_data = {
 	.status		= realview_mmc_status,
 	.gpio_wp	= 19,
 	.gpio_cd	= 18,
+	.cd_invert	= true,
 };
 
 /*
