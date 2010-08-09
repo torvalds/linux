@@ -41,23 +41,35 @@ static unsigned int fmax = 515633;
  * @clkreg: default value for MCICLOCK register
  * @clkreg_enable: enable value for MMCICLOCK register
  * @datalength_bits: number of bits in the MMCIDATALENGTH register
+ * @fifosize: number of bytes that can be written when MMCI_TXFIFOEMPTY
+ *	      is asserted (likewise for RX)
+ * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
+ *		  is asserted (likewise for RX)
  */
 struct variant_data {
 	unsigned int		clkreg;
 	unsigned int		clkreg_enable;
 	unsigned int		datalength_bits;
+	unsigned int		fifosize;
+	unsigned int		fifohalfsize;
 };
 
 static struct variant_data variant_arm = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
 	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_u300 = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
 	.clkreg_enable		= 1 << 13, /* HWFCEN */
 	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_ux500 = {
+	.fifosize		= 30 * 4,
+	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
 	.datalength_bits	= 24,
@@ -138,6 +150,7 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
+	struct variant_data *variant = host->variant;
 	unsigned int datactrl, timeout, irqmask;
 	unsigned long long clks;
 	void __iomem *base;
@@ -173,7 +186,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		 * If we have less than a FIFOSIZE of bytes to transfer,
 		 * trigger a PIO interrupt as soon as any data is available.
 		 */
-		if (host->size < MCI_FIFOSIZE)
+		if (host->size < variant->fifosize)
 			irqmask |= MCI_RXDATAAVLBLMASK;
 	} else {
 		/*
@@ -332,13 +345,15 @@ static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int rema
 
 static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int remain, u32 status)
 {
+	struct variant_data *variant = host->variant;
 	void __iomem *base = host->base;
 	char *ptr = buffer;
 
 	do {
 		unsigned int count, maxcnt;
 
-		maxcnt = status & MCI_TXFIFOEMPTY ? MCI_FIFOSIZE : MCI_FIFOHALFSIZE;
+		maxcnt = status & MCI_TXFIFOEMPTY ?
+			 variant->fifosize : variant->fifohalfsize;
 		count = min(remain, maxcnt);
 
 		writesl(base + MMCIFIFO, ptr, count >> 2);
@@ -362,6 +377,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
 	struct sg_mapping_iter *sg_miter = &host->sg_miter;
+	struct variant_data *variant = host->variant;
 	void __iomem *base = host->base;
 	unsigned long flags;
 	u32 status;
@@ -420,7 +436,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	 * If we're nearing the end of the read, switch to
 	 * "any data available" mode.
 	 */
-	if (status & MCI_RXACTIVE && host->size < MCI_FIFOSIZE)
+	if (status & MCI_RXACTIVE && host->size < variant->fifosize)
 		writel(MCI_RXDATAAVLBLMASK, base + MMCIMASK1);
 
 	/*
