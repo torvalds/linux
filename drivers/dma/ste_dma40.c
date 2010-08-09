@@ -768,6 +768,9 @@ static int d40_pause(struct dma_chan *chan)
 	int res = 0;
 	unsigned long flags;
 
+	if (!d40c->busy)
+		return 0;
+
 	spin_lock_irqsave(&d40c->lock, flags);
 
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
@@ -791,6 +794,9 @@ static int d40_resume(struct dma_chan *chan)
 		container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (!d40c->busy)
+		return 0;
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
