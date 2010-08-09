@@ -197,8 +197,7 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
 		      u32 data_width,
-		      int psize,
-		      bool term_int)
+		      int psize)
 {
 	int total_size = 0;
 	int i;
@@ -309,7 +308,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 		      u32 src_data_width,
 		      u32 dst_data_width,
 		      enum dma_data_direction direction,
-		      bool term_int, dma_addr_t dev_addr, int max_len,
+		      dma_addr_t dev_addr, int max_len,
 		      int llis_per_log)
 {
 	int total_size = 0;
@@ -356,7 +355,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 next_lli_off_dst,
 					 lcsp->lcsp3, dst_data_width,
 					 /* No next == terminal interrupt */
-					 term_int && !next_lli_off_dst,
+					 !next_lli_off_dst,
 					 false);
 		} else {
 			d40_log_fill_lli(&lli->dst[i],
@@ -365,7 +364,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 next_lli_off_dst,
 					 lcsp->lcsp3, dst_data_width,
 					 /* No next == terminal interrupt */
-					 term_int && !next_lli_off_dst,
+					 !next_lli_off_dst,
 					 true);
 			d40_log_fill_lli(&lli->src[i],
 					 dev_addr,
@@ -385,7 +384,7 @@ int d40_log_sg_to_lli(int lcla_id,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width,
-		      bool term_int, int max_len, int llis_per_log)
+		      int max_len, int llis_per_log)
 {
 	int total_size = 0;
 	struct scatterlist *current_sg = sg;
@@ -414,7 +413,7 @@ int d40_log_sg_to_lli(int lcla_id,
 				 sg_dma_len(current_sg),
 				 next_lli_off,
 				 lcsp13, data_width,
-				 term_int && !next_lli_off,
+				 !next_lli_off,
 				 true);
 	}
 	return total_size;

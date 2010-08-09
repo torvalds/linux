@@ -302,8 +302,7 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
 		      u32 data_width,
-		      int psize,
-		      bool term_int);
+		      int psize);
 
 int d40_phy_fill_lli(struct d40_phy_lli *lli,
 		     dma_addr_t data,
@@ -336,7 +335,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 		      u32 src_data_width,
 		      u32 dst_data_width,
 		      enum dma_data_direction direction,
-		      bool term_int, dma_addr_t dev_addr, int max_len,
+		      dma_addr_t dev_addr, int max_len,
 		      int llis_per_log);
 
 int d40_log_lli_write(struct d40_log_lli_full *lcpa,
@@ -352,6 +351,6 @@ int d40_log_sg_to_lli(int lcla_id,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width,
-		      bool term_int, int max_len, int llis_per_log);
+		      int max_len, int llis_per_log);
 
 #endif /* STE_DMA40_LLI_H */

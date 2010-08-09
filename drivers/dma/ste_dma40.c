@@ -878,7 +878,7 @@ static void dma_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
 
-	if (callback)
+	if (callback && (d40d_fin->txd.flags & DMA_PREP_INTERRUPT))
 		callback(callback_param);
 
 	return;
@@ -1583,7 +1583,6 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					 d40d->lli_log.src,
 					 d40c->log_def.lcsp1,
 					 d40c->dma_cfg.src_info.data_width,
-					 dma_flags & DMA_PREP_INTERRUPT,
 					 d40d->lli_tx_len,
 					 d40c->base->plat_data->llis_per_log);
 
@@ -1593,7 +1592,6 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					 d40d->lli_log.dst,
 					 d40c->log_def.lcsp3,
 					 d40c->dma_cfg.dst_info.data_width,
-					 dma_flags & DMA_PREP_INTERRUPT,
 					 d40d->lli_tx_len,
 					 d40c->base->plat_data->llis_per_log);
 
@@ -1612,8 +1610,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					d40d->lli_phy.src_addr,
 					d40c->src_def_cfg,
 					d40c->dma_cfg.src_info.data_width,
-					d40c->dma_cfg.src_info.psize,
-					true);
+					d40c->dma_cfg.src_info.psize);
 
 		if (res < 0)
 			goto err;
@@ -1625,8 +1622,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					d40d->lli_phy.dst_addr,
 					d40c->dst_def_cfg,
 					d40c->dma_cfg.dst_info.data_width,
-					d40c->dma_cfg.dst_info.psize,
-					true);
+					d40c->dma_cfg.dst_info.psize);
 
 		if (res < 0)
 			goto err;
@@ -1913,7 +1909,6 @@ static int d40_prep_slave_sg_log(struct d40_desc *d40d,
 				       d40c->dma_cfg.src_info.data_width,
 				       d40c->dma_cfg.dst_info.data_width,
 				       direction,
-				       dma_flags & DMA_PREP_INTERRUPT,
 				       dev_addr, d40d->lli_tx_len,
 				       d40c->base->plat_data->llis_per_log);
 
@@ -1965,8 +1960,7 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 				d40d->lli_phy.src_addr,
 				d40c->src_def_cfg,
 				d40c->dma_cfg.src_info.data_width,
-				d40c->dma_cfg.src_info.psize,
-				true);
+				d40c->dma_cfg.src_info.psize);
 	if (res < 0)
 		return res;
 
@@ -1977,8 +1971,7 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 				d40d->lli_phy.dst_addr,
 				d40c->dst_def_cfg,
 				d40c->dma_cfg.dst_info.data_width,
-				d40c->dma_cfg.dst_info.psize,
-				 true);
+				d40c->dma_cfg.dst_info.psize);
 	if (res < 0)
 		return res;
 
