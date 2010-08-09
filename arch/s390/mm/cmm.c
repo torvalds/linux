@@ -435,6 +435,13 @@ static int __init cmm_init(void)
 	if (!cmm_sysctl_header)
 		goto out_sysctl;
 #ifdef CONFIG_CMM_IUCV
+	/* convert sender to uppercase characters */
+	if (sender) {
+		int len = strlen(sender);
+		while (len--)
+			sender[len] = toupper(sender[len]);
+	}
+
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 	if (rc < 0)
 		goto out_smsg;
