@@ -186,6 +186,8 @@
 	swi	r13, r1, PTO+PT_R13;	/* Save SDA2 */			\
 	swi	r14, r1, PTO+PT_PC;	/* PC, before IRQ/trap */	\
 	swi	r15, r1, PTO+PT_R15;	/* Save LP */			\
+	swi	r16, r1, PTO+PT_R16;					\
+	swi	r17, r1, PTO+PT_R17;					\
 	swi	r18, r1, PTO+PT_R18;	/* Save asm scratch reg */	\
 	swi	r19, r1, PTO+PT_R19;					\
 	swi	r20, r1, PTO+PT_R20;					\
@@ -220,6 +222,8 @@
 	lwi	r13, r1, PTO+PT_R13;	/* restore SDA2 */		\
 	lwi	r14, r1, PTO+PT_PC;	/* RESTORE_LINK PC, before IRQ/trap */\
 	lwi	r15, r1, PTO+PT_R15;	/* restore LP */		\
+	lwi	r16, r1, PTO+PT_R16;					\
+	lwi	r17, r1, PTO+PT_R17;					\
 	lwi	r18, r1, PTO+PT_R18;	/* restore asm scratch reg */	\
 	lwi	r19, r1, PTO+PT_R19;					\
 	lwi	r20, r1, PTO+PT_R20;					\
@@ -761,9 +765,7 @@ C_ENTRY(_debug_exception):
 	/* save all regs to pt_reg structure */
 	swi	r0, r1, PTO+PT_R0;	/* R0 must be saved too */
 	swi	r14, r1, PTO+PT_R14	/* rewrite saved R14 value */
-	swi	r16, r1, PTO+PT_R16
 	swi	r16, r1, PTO+PT_PC; /* PC and r16 are the same */
-	swi	r17, r1, PTO+PT_R17
 	/* save special purpose registers to pt_regs */
 	mfs	r11, rear;
 	swi	r11, r1, PTO+PT_EAR;
@@ -797,8 +799,6 @@ C_ENTRY(_debug_exception):
 
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS;
-	swi	r17, r1, PTO+PT_R17;
-	swi	r16, r1, PTO+PT_R16;
 	swi	r16, r1, PTO+PT_PC;	/* Save LP */
 	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
@@ -844,8 +844,6 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	tophys(r1,r1);
 	/* MS: Restore all regs */
 	RESTORE_REGS
-	lwi	r17, r1, PTO+PT_R17;
-	lwi	r16, r1, PTO+PT_R16;
 	addik	r1, r1, STATE_SAVE_SIZE	 /* Clean up stack space */
 	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer */
 DBTRAP_return_user: /* MS: Make global symbol for debugging */
@@ -859,7 +857,6 @@ DBTRAP_return_user: /* MS: Make global symbol for debugging */
 	RESTORE_REGS
 	lwi	r14, r1, PTO+PT_R14;
 	lwi	r16, r1, PTO+PT_PC;
-	lwi	r17, r1, PTO+PT_R17;
 	addik	r1, r1, STATE_SAVE_SIZE; /* MS: Clean up stack space */
 	tovirt(r1,r1);
 DBTRAP_return_kernel: /* MS: Make global symbol for debugging */
