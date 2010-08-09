@@ -305,8 +305,13 @@ retry:
 			if (s) {
 				up_write(&s->s_umount);
 				destroy_super(s);
+				s = NULL;
 			}
 			down_write(&old->s_umount);
+			if (unlikely(!(old->s_flags & MS_BORN))) {
+				deactivate_locked_super(old);
+				goto retry;
+			}
 			return old;
 		}
 	}
@@ -918,6 +923,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 		goto out_free_secdata;
 	BUG_ON(!mnt->mnt_sb);
 	WARN_ON(!mnt->mnt_sb->s_bdi);
+	mnt->mnt_sb->s_flags |= MS_BORN;
 
 	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
 	if (error)
