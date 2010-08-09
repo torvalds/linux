@@ -108,6 +108,7 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * @shutdown: Callback for device shutdown
  * @suspend: Callback for device suspend
  * @resume: Callback for device resume
+ * @alert: Alert callback, for example for the SMBus alert protocol
  * @command: Callback for bus-wide signaling (optional)
  * @driver: Device driver model driver
  * @id_table: List of I2C devices supported by this driver
@@ -233,6 +234,7 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
  * @addr: stored in i2c_client.addr
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
+ * @of_node: pointer to OpenFirmware device node
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
