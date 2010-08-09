@@ -229,6 +229,7 @@ struct nilfs_super_block {
  */
 #define NILFS_CURRENT_REV	2	/* current major revision */
 #define NILFS_MINOR_REV		0	/* minor revision */
+#define NILFS_MIN_SUPP_REV	2	/* minimum supported revision */
 
 /*
  * Feature set definitions
