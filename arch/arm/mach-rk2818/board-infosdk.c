@@ -37,6 +37,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/dm9000.h>
 
 #include "devices.h"
 
@@ -448,11 +449,104 @@ struct rk2818bl_info rk2818_bl_info = {
         .pw_iomux = GPIOF34_UART3_SEL_NAME,
 };
 
+/********************************************************
+*				dm9000 net work devices
+*				author:lyx
+********************************************************/
+#ifdef CONFIG_DM9000
+/*
+GPIOA5_FLASHCS1_SEL_NAME     IOMUXB_FLASH_CS1
+GPIOA6_FLASHCS2_SEL_NAME     IOMUXB_FLASH_CS2
+GPIOA7_FLASHCS3_SEL_NAME     IOMUXB_FLASH_CS3
+GPIOE_SPI1_FLASH_SEL1_NAME   IOMUXA_FLASH_CS45
+GPIOE_SPI1_FLASH_SEL_NAME    IOMUXA_FLASH_CS67
+*/
+#define DM9000_USE_NAND_CS 1     //cs can be 1,2,3,4,5,6 or 7
+#define DM9000_CS_IOMUX_NAME GPIOA5_FLASHCS1_SEL_NAME
+#define DM9000_CS_IOMUX_MODE IOMUXB_FLASH_CS1
+#define DM9000_NET_INT_PIN RK2818_PIN_PE2
+#define DM9000_INT_IOMUX_NAME GPIOA23_UART2_SEL_NAME
+#define DM9000_INT_IOMUX_MODE IOMUXB_GPIO0_A23
+#define DM9000_INT_INIT_VALUE GPIOPullDown
+#define DM9000_IRQ IRQF_TRIGGER_HIGH
+#define DM9000_IO_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x8)
+#define DM9000_DATA_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x4)
+
+int dm9k_gpio_set(void)
+{
+	//cs
+	rk2818_mux_api_set(DM9000_CS_IOMUX_NAME, DM9000_CS_IOMUX_MODE);
+
+	//int
+	rk2818_mux_api_set(DM9000_INT_IOMUX_NAME, DM9000_INT_IOMUX_MODE);
+	
+	if (gpio_request(DM9000_NET_INT_PIN, "dm9000 interrupt")) {
+		gpio_free(DM9000_NET_INT_PIN);
+		rk2818_mux_api_mode_resume(DM9000_INT_IOMUX_NAME);
+		rk2818_mux_api_mode_resume(DM9000_CS_IOMUX_NAME);
+		printk("[fun:%s line:%d], request gpio for net interrupt fail\n", __func__,__LINE__);
+
+		return -1;
+	}	
+	gpio_pull_updown(DM9000_NET_INT_PIN, DM9000_INT_INIT_VALUE);
+	gpio_direction_input(DM9000_NET_INT_PIN);
+	
+	return 0;
+}
+int dm9k_gpio_free(void)
+{
+	gpio_free(DM9000_NET_INT_PIN);
+	rk2818_mux_api_mode_resume(DM9000_INT_IOMUX_NAME);
+	rk2818_mux_api_mode_resume(DM9000_CS_IOMUX_NAME);
+	return 0;
+}
+int dm9k_get_gpio_irq(void)
+{
+	return gpio_to_irq(DM9000_NET_INT_PIN);
+}
+
+static struct resource dm9k_resource[] = {
+	[0] = {
+		.start = DM9000_IO_ADDR,    
+		.end   = DM9000_IO_ADDR + 3,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = DM9000_DATA_ADDR,	
+		.end   = DM9000_DATA_ADDR + 3,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start = DM9000_NET_INT_PIN,
+		.end   = DM9000_NET_INT_PIN,
+		.flags = IORESOURCE_IRQ | DM9000_IRQ,
+	}
+
+};
+
+/* for the moment we limit ourselves to 8bit IO until some
+ * better IO routines can be written and tested
+*/
+struct dm9000_plat_data dm9k_platdata = {	
+	.flags = DM9000_PLATF_8BITONLY,
+	.io_init = dm9k_gpio_set,
+	.io_deinit = dm9k_gpio_free,
+	.get_irq_num = dm9k_get_gpio_irq,
+};
+
+struct platform_device rk2818_device_dm9k = {
+	.name		= "dm9000",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm9k_resource),
+	.resource	= dm9k_resource,
+	.dev		= {
+		.platform_data = &dm9k_platdata,
+	}
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
-#ifdef CONFIG_DM9000
-	&rk2818_device_dm9k,
-#endif
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
 #endif
@@ -480,6 +574,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
 #endif
+#ifdef CONFIG_DM9000
+	&rk2818_device_dm9k,
+#endif
+
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif

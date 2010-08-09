@@ -1228,13 +1228,8 @@ dm9000_open(struct net_device *dev)
 
 	irqflags |= IRQF_SHARED;
 
-	#ifndef CONFIG_MACH_RK2818MID
-	if (request_irq(dev->irq, dm9000_interrupt, IRQF_TRIGGER_HIGH, dev->name, dev))
-		return -EAGAIN;
-	#else
 	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
 		return -EAGAIN;
-	#endif
 
 	/* Initialize DM9000 board */
 	dm9000_reset(db);
@@ -1515,34 +1510,20 @@ dm9000_probe(struct platform_device *pdev)
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->io_addr;
 
-#if 0
-	rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
-
-	#ifdef CONFIG_MACH_RK2818MID
-	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_GPIO1_A12);	
-	ndev->irq = gpio_to_irq(db->irq_res->start);
-	#else
-	rk2818_mux_api_set(GPIOA1_HOSTDATA17_SEL_NAME, IOMUXB_GPIO0_A1);
-	if (gpio_request(db->irq_res->start, "dm9000 interrupt")) {
-		gpio_free(db->irq_res->start);
-		dev_err(db->dev, "failed to request gpio\n");
-		ret = -EINVAL;
-		goto out;
-	}	
-	gpio_pull_updown(db->irq_res->start, GPIOPullDown);
-	ndev->irq = gpio_to_irq(db->irq_res->start);
-	#endif
-#endif	
-
-	if (pdata->net_gpio_set) {
-		if (pdata->net_gpio_set()) {
+	//io init for dm9000 , modify by lyx@20100809
+	if (pdata && pdata->io_init) {
+		if (pdata->io_init()) {
 			ret = -EINVAL;
 			goto out;
 		}
 	}
-
-	ndev->irq = gpio_to_irq(pdata->pin_int);
-
+	if (pdata && pdata->get_irq_num) {
+		ndev->irq = pdata->get_irq_num();
+	}
+	else {
+		ndev->irq = db->irq_res->start;
+	}
+	
 	/* ensure at least we have a default set of IO routines */
 	dm9000_set_io(db, iosize);
 
@@ -1735,6 +1716,11 @@ static int __devexit
 dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
+
+	//deinit io for dm9000
+	if (pdata && pdata->io_deinit)
+		pdata->io_deinit();
 
 	platform_set_drvdata(pdev, NULL);
 

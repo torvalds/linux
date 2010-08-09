@@ -27,7 +27,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#include <linux/dm9000.h>
 #include <mach/gpio.h>
 #include <mach/rk2818_nand.h>
 #include <mach/iomux.h>
@@ -321,47 +320,6 @@ struct platform_device rk2818_soc_camera_pdrv = {
 	},
 };
 #endif 
-
-//net device
-/* DM9000 */
-#ifdef CONFIG_DM9000
-#ifdef CONFIG_DM9000_CHIP_SELECT
-#define DM9000_CS CONFIG_DM9000_CHIP_SELECT
-#else
-#define DM9000_CS 1
-#endif
-static struct resource dm9k_resource[] = {
-	[0] = {
-		.start = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x8),    //nand_cs1+nand_cmd
-		.end   = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x8) + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x4),	//nand_cs1+nand_data
-		.end   = RK2818_NANDC_PHYS + 0x800 + (DM9000_CS*0x100 + 0x4) + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	}
-};
-
-/* for the moment we limit ourselves to 8bit IO until some
- * better IO routines can be written and tested
-*/
-
-//dm9k_platdata.flags = DM9000_PLATF_8BITONLY;
-
-struct platform_device rk2818_device_dm9k = {
-	.name		= "dm9000",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(dm9k_resource),
-	.resource	= dm9k_resource,
-	.dev		= {
-		.platform_data = &dm9k_platdata,
-	}
-};
-#endif
 
 /*ADC*/
 static struct resource rk2818_adc_resource[] = {
