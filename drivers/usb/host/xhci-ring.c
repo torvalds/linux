@@ -124,7 +124,7 @@ static void next_trb(struct xhci_hcd *xhci,
 		*seg = (*seg)->next;
 		*trb = ((*seg)->trbs);
 	} else {
-		*trb = (*trb)++;
+		(*trb)++;
 	}
 }
 
