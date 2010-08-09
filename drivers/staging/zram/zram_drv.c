@@ -33,10 +33,39 @@
 
 /* Globals */
 static int zram_major;
-static struct zram *devices;
+struct zram *devices;
 
 /* Module params (documentation at end) */
-static unsigned int num_devices;
+unsigned int num_devices;
+
+static void zram_stat_inc(u32 *v)
+{
+	*v = *v + 1;
+}
+
+static void zram_stat_dec(u32 *v)
+{
+	*v = *v - 1;
+}
+
+static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
+{
+	spin_lock(&zram->stat64_lock);
+	*v = *v + inc;
+	spin_unlock(&zram->stat64_lock);
+}
+
+static void zram_stat64_sub(struct zram *zram, u64 *v, u64 dec)
+{
+	spin_lock(&zram->stat64_lock);
+	*v = *v - dec;
+	spin_unlock(&zram->stat64_lock);
+}
+
+static void zram_stat64_inc(struct zram *zram, u64 *v)
+{
+	zram_stat64_add(zram, v, 1);
+}
 
 static int zram_test_flag(struct zram *zram, u32 index,
 			enum zram_pageflags flag)
@@ -91,56 +120,13 @@ static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
 		"the disk when not in use so a huge zram is "
 		"wasteful.\n"
 		"\tMemory Size: %zu kB\n"
-		"\tSize you selected: %zu kB\n"
+		"\tSize you selected: %llu kB\n"
 		"Continuing anyway ...\n",
 		totalram_bytes >> 10, zram->disksize
 		);
 	}
 
 	zram->disksize &= PAGE_MASK;
-}
-
-static void zram_ioctl_get_stats(struct zram *zram,
-			struct zram_ioctl_stats *s)
-{
-	s->disksize = zram->disksize;
-
-#if defined(CONFIG_ZRAM_STATS)
-	{
-	struct zram_stats *rs = &zram->stats;
-	size_t succ_writes, mem_used;
-	unsigned int good_compress_perc = 0, no_compress_perc = 0;
-
-	mem_used = xv_get_total_size_bytes(zram->mem_pool)
-			+ (rs->pages_expand << PAGE_SHIFT);
-	succ_writes = zram_stat64_read(zram, &rs->num_writes) -
-			zram_stat64_read(zram, &rs->failed_writes);
-
-	if (succ_writes && rs->pages_stored) {
-		good_compress_perc = rs->good_compress * 100
-					/ rs->pages_stored;
-		no_compress_perc = rs->pages_expand * 100
-					/ rs->pages_stored;
-	}
-
-	s->num_reads = zram_stat64_read(zram, &rs->num_reads);
-	s->num_writes = zram_stat64_read(zram, &rs->num_writes);
-	s->failed_reads = zram_stat64_read(zram, &rs->failed_reads);
-	s->failed_writes = zram_stat64_read(zram, &rs->failed_writes);
-	s->invalid_io = zram_stat64_read(zram, &rs->invalid_io);
-	s->notify_free = zram_stat64_read(zram, &rs->notify_free);
-	s->pages_zero = rs->pages_zero;
-
-	s->good_compress_pct = good_compress_perc;
-	s->pages_expand_pct = no_compress_perc;
-
-	s->pages_stored = rs->pages_stored;
-	s->pages_used = mem_used >> PAGE_SHIFT;
-	s->orig_data_size = rs->pages_stored << PAGE_SHIFT;
-	s->compr_data_size = rs->compr_size;
-	s->mem_used_total = mem_used;
-	}
-#endif /* CONFIG_ZRAM_STATS */
 }
 
 static void zram_free_page(struct zram *zram, size_t index)
@@ -180,7 +166,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 		zram_stat_dec(&zram->stats.good_compress);
 
 out:
-	zram->stats.compr_size -= clen;
+	zram_stat64_sub(zram, &zram->stats.compr_size, clen);
 	zram_stat_dec(&zram->stats.pages_stored);
 
 	zram->table[index].page = NULL;
@@ -396,7 +382,7 @@ memstore:
 			kunmap_atomic(src, KM_USER0);
 
 		/* Update stats */
-		zram->stats.compr_size += clen;
+		zram_stat64_add(zram, &zram->stats.compr_size, clen);
 		zram_stat_inc(&zram->stats.pages_stored);
 		if (clen <= PAGE_SIZE / 2)
 			zram_stat_inc(&zram->stats.good_compress);
@@ -463,7 +449,7 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 	return ret;
 }
 
-static void reset_device(struct zram *zram)
+void zram_reset_device(struct zram *zram)
 {
 	size_t index;
 
@@ -506,7 +492,7 @@ static void reset_device(struct zram *zram)
 	zram->disksize = 0;
 }
 
-static int zram_ioctl_init_device(struct zram *zram)
+int zram_init_device(struct zram *zram)
 {
 	int ret;
 	size_t num_pages;
@@ -561,88 +547,9 @@ static int zram_ioctl_init_device(struct zram *zram)
 	return 0;
 
 fail:
-	reset_device(zram);
+	zram_reset_device(zram);
 
 	pr_err("Initialization failed: err=%d\n", ret);
-	return ret;
-}
-
-static int zram_ioctl_reset_device(struct zram *zram)
-{
-	if (zram->init_done)
-		reset_device(zram);
-
-	return 0;
-}
-
-static int zram_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned int cmd, unsigned long arg)
-{
-	int ret = 0;
-	size_t disksize_kb;
-
-	struct zram *zram = bdev->bd_disk->private_data;
-
-	switch (cmd) {
-	case ZRAMIO_SET_DISKSIZE_KB:
-		if (zram->init_done) {
-			ret = -EBUSY;
-			goto out;
-		}
-		if (copy_from_user(&disksize_kb, (void *)arg,
-						_IOC_SIZE(cmd))) {
-			ret = -EFAULT;
-			goto out;
-		}
-		zram->disksize = disksize_kb << 10;
-		pr_info("Disk size set to %zu kB\n", disksize_kb);
-		break;
-
-	case ZRAMIO_GET_STATS:
-	{
-		struct zram_ioctl_stats *stats;
-		if (!zram->init_done) {
-			ret = -ENOTTY;
-			goto out;
-		}
-		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
-		if (!stats) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		zram_ioctl_get_stats(zram, stats);
-		if (copy_to_user((void *)arg, stats, sizeof(*stats))) {
-			kfree(stats);
-			ret = -EFAULT;
-			goto out;
-		}
-		kfree(stats);
-		break;
-	}
-	case ZRAMIO_INIT:
-		ret = zram_ioctl_init_device(zram);
-		break;
-
-	case ZRAMIO_RESET:
-		/* Do not reset an active device! */
-		if (bdev->bd_holders) {
-			ret = -EBUSY;
-			goto out;
-		}
-
-		/* Make sure all pending I/O is finished */
-		if (bdev)
-			fsync_bdev(bdev);
-
-		ret = zram_ioctl_reset_device(zram);
-		break;
-
-	default:
-		pr_info("Invalid ioctl %u\n", cmd);
-		ret = -ENOTTY;
-	}
-
-out:
 	return ret;
 }
 
@@ -656,7 +563,6 @@ void zram_slot_free_notify(struct block_device *bdev, unsigned long index)
 }
 
 static const struct block_device_operations zram_devops = {
-	.ioctl = zram_ioctl,
 	.swap_slot_free_notify = zram_slot_free_notify,
 	.owner = THIS_MODULE
 };
@@ -696,7 +602,7 @@ static int create_device(struct zram *zram, int device_id)
 	zram->disk->private_data = zram;
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 
-	/* Actual capacity set using ZRAMIO_SET_DISKSIZE_KB ioctl */
+	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
 	set_capacity(zram->disk, 0);
 
 	/*
@@ -710,6 +616,15 @@ static int create_device(struct zram *zram, int device_id)
 
 	add_disk(zram->disk);
 
+#ifdef CONFIG_SYSFS
+	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
+				&zram_disk_attr_group);
+	if (ret < 0) {
+		pr_warning("Error creating sysfs group");
+		goto out;
+	}
+#endif
+
 	zram->init_done = 0;
 
 out:
@@ -718,6 +633,11 @@ out:
 
 static void destroy_device(struct zram *zram)
 {
+#ifdef CONFIG_SYSFS
+	sysfs_remove_group(&disk_to_dev(zram->disk)->kobj,
+			&zram_disk_attr_group);
+#endif
+
 	if (zram->disk) {
 		del_gendisk(zram->disk);
 		put_disk(zram->disk);
@@ -785,7 +705,7 @@ static void __exit zram_exit(void)
 
 		destroy_device(zram);
 		if (zram->init_done)
-			reset_device(zram);
+			zram_reset_device(zram);
 	}
 
 	unregister_blkdev(zram_major, "zram");
