@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 
 #include <mach/nand.h>
+#include <mach/aemif.h>
 
 #include <asm/mach-types.h>
 
