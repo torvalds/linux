@@ -35,6 +35,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
+#include <plat/fimc-core.h>
 #include <plat/sdhci.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -502,6 +503,10 @@ static void __init aquila_machine_init(void)
 			ARRAY_SIZE(i2c_gpio_pmic_devs));
 	/* SDHCI */
 	aquila_setup_sdhci();
+
+	s3c_fimc_setname(0, "s5p-fimc");
+	s3c_fimc_setname(1, "s5p-fimc");
+	s3c_fimc_setname(2, "s5p-fimc");
 
 	/* FB */
 	s3c_fb_set_platdata(&aquila_lcd_pdata);
