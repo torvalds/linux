@@ -1226,7 +1226,7 @@ dm9000_open(struct net_device *dev)
 	if (irqflags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
 
-	irqflags |= IRQF_SHARED;
+	//irqflags |= IRQF_SHARED;
 
 	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
 		return -EAGAIN;
