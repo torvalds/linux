@@ -723,6 +723,22 @@ done:
 	return rc;
 }
 
+static void fetch_bit_operand(struct decode_cache *c)
+{
+	long sv, mask;
+
+	if (c->dst.type == OP_MEM) {
+		mask = ~(c->dst.bytes * 8 - 1);
+
+		if (c->src.bytes == 2)
+			sv = (s16)c->src.val & (s16)mask;
+		else if (c->src.bytes == 4)
+			sv = (s32)c->src.val & (s32)mask;
+
+		c->dst.addr.mem += (sv >> 3);
+	}
+}
+
 static int read_emulated(struct x86_emulate_ctxt *ctxt,
 			 struct x86_emulate_ops *ops,
 			 unsigned long addr, void *dest, unsigned size)
@@ -2638,12 +2654,8 @@ done_prefixes:
 			c->dst.bytes = 8;
 		else
 			c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		if (c->dst.type == OP_MEM && (c->d & BitOp)) {
-			unsigned long mask = ~(c->dst.bytes * 8 - 1);
-
-			c->dst.addr.mem = c->dst.addr.mem +
-						   (c->src.val & mask) / 8;
-		}
+		if (c->d & BitOp)
+			fetch_bit_operand(c);
 		c->dst.orig_val = c->dst.val;
 		break;
 	case DstAcc:
