@@ -3527,7 +3527,7 @@ static int __init init_workqueues(void)
 	unsigned int cpu;
 	int i;
 
-	hotcpu_notifier(workqueue_cpu_callback, CPU_PRI_WORKQUEUE);
+	cpu_notifier(workqueue_cpu_callback, CPU_PRI_WORKQUEUE);
 
 	/* initialize gcwqs */
 	for_each_gcwq_cpu(cpu) {
