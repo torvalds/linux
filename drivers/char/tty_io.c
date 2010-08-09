@@ -183,6 +183,8 @@ struct tty_struct *alloc_tty_struct(void)
 
 void free_tty_struct(struct tty_struct *tty)
 {
+	if (tty->dev)
+		put_device(tty->dev);
 	kfree(tty->write_buf);
 	tty_buffer_free_all(tty);
 	kfree(tty);
@@ -2783,6 +2785,20 @@ void do_SAK(struct tty_struct *tty)
 
 EXPORT_SYMBOL(do_SAK);
 
+static int dev_match_devt(struct device *dev, void *data)
+{
+	dev_t *devt = data;
+	return dev->devt == *devt;
+}
+
+/* Must put_device() after it's unused! */
+static struct device *tty_get_device(struct tty_struct *tty)
+{
+	dev_t devt = tty_devnum(tty);
+	return class_find_device(tty_class, NULL, &devt, dev_match_devt);
+}
+
+
 /**
  *	initialize_tty_struct
  *	@tty: tty to initialize
@@ -2823,6 +2839,7 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty->ops = driver->ops;
 	tty->index = idx;
 	tty_line_name(driver, idx, tty->name);
+	tty->dev = tty_get_device(tty);
 }
 
 /**
