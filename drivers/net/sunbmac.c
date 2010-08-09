@@ -1201,7 +1201,7 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	dev->watchdog_timeo = 5*HZ;
 
 	/* Finish net device registration. */
-	dev->irq = bp->bigmac_op->irqs[0];
+	dev->irq = bp->bigmac_op->archdata.irqs[0];
 	dev->dma = 0;
 
 	if (register_netdev(dev)) {
@@ -1301,12 +1301,12 @@ static struct of_platform_driver bigmac_sbus_driver = {
 
 static int __init bigmac_init(void)
 {
-	return of_register_driver(&bigmac_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&bigmac_sbus_driver);
 }
 
 static void __exit bigmac_exit(void)
 {
-	of_unregister_driver(&bigmac_sbus_driver);
+	of_unregister_platform_driver(&bigmac_sbus_driver);
 }
 
 module_init(bigmac_init);

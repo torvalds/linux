@@ -186,6 +186,9 @@
 #define PORT_ALTERA_JTAGUART	91
 #define PORT_ALTERA_UART	92
 
+/* SH-SCI */
+#define PORT_SCIFB	93
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

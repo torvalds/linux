@@ -484,7 +484,7 @@ config XTENSA_XT2000_SONIC
 
 config MIPS_AU1X00_ENET
 	tristate "MIPS AU1000 Ethernet support"
-	depends on SOC_AU1X00
+	depends on MIPS_ALCHEMY
 	select PHYLIB
 	select CRC32
 	help
@@ -914,7 +914,7 @@ config SMC91X
 	tristate "SMC 91C9x/91C1xxx support"
 	select CRC32
 	select MII
-	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
+	depends on ARM || M32R || SUPERH || \
 		MIPS || BLACKFIN || MN10300 || COLDFIRE
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,

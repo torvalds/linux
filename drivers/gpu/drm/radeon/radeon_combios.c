@@ -693,6 +693,10 @@ bool radeon_combios_sideport_present(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	u16 igp_info;
 
+	/* sideport is AMD only */
+	if (rdev->family == CHIP_RS400)
+		return false;
+
 	igp_info = combios_get_table_offset(dev, COMBIOS_INTEGRATED_SYSTEM_INFO_TABLE);
 
 	if (igp_info) {
@@ -1205,7 +1209,7 @@ bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
 				    RBIOS32(tmds_info + i * 10 + 0x08);
 				tmds->tmds_pll[i].freq =
 				    RBIOS16(tmds_info + i * 10 + 0x10);
-				DRM_DEBUG("TMDS PLL From COMBIOS %u %x\n",
+				DRM_DEBUG_KMS("TMDS PLL From COMBIOS %u %x\n",
 					  tmds->tmds_pll[i].freq,
 					  tmds->tmds_pll[i].value);
 			}
@@ -1223,7 +1227,7 @@ bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
 					stride += 10;
 				else
 					stride += 6;
-				DRM_DEBUG("TMDS PLL From COMBIOS %u %x\n",
+				DRM_DEBUG_KMS("TMDS PLL From COMBIOS %u %x\n",
 					  tmds->tmds_pll[i].freq,
 					  tmds->tmds_pll[i].value);
 			}
@@ -2208,7 +2212,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 		uint16_t tmds_info =
 		    combios_get_table_offset(dev, COMBIOS_DFP_INFO_TABLE);
 		if (tmds_info) {
-			DRM_DEBUG("Found DFP table, assuming DVI connector\n");
+			DRM_DEBUG_KMS("Found DFP table, assuming DVI connector\n");
 
 			radeon_add_legacy_encoder(dev,
 						  radeon_get_encoder_id(dev,
@@ -2234,7 +2238,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 		} else {
 			uint16_t crt_info =
 				combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
-			DRM_DEBUG("Found CRT table, assuming VGA connector\n");
+			DRM_DEBUG_KMS("Found CRT table, assuming VGA connector\n");
 			if (crt_info) {
 				radeon_add_legacy_encoder(dev,
 							  radeon_get_encoder_id(dev,
@@ -2251,7 +2255,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 							    CONNECTOR_OBJECT_ID_VGA,
 							    &hpd);
 			} else {
-				DRM_DEBUG("No connector info found\n");
+				DRM_DEBUG_KMS("No connector info found\n");
 				return false;
 			}
 		}
@@ -2340,7 +2344,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					ddc_i2c.valid = false;
 					break;
 				}
-				DRM_DEBUG("LCD DDC Info Table found!\n");
+				DRM_DEBUG_KMS("LCD DDC Info Table found!\n");
 			} else
 				ddc_i2c.valid = false;
 
@@ -2941,9 +2945,8 @@ static void combios_write_ram_size(struct drm_device *dev)
 		if (rev < 3) {
 			mem_cntl = RBIOS32(offset + 1);
 			mem_size = RBIOS16(offset + 5);
-			if (((rdev->flags & RADEON_FAMILY_MASK) < CHIP_R200) &&
-			    ((dev->pdev->device != 0x515e)
-			     && (dev->pdev->device != 0x5969)))
+			if ((rdev->family < CHIP_R200) &&
+			    !ASIC_IS_RN50(rdev))
 				WREG32(RADEON_MEM_CNTL, mem_cntl);
 		}
 	}
@@ -2954,10 +2957,8 @@ static void combios_write_ram_size(struct drm_device *dev)
 		if (offset) {
 			rev = RBIOS8(offset - 1);
 			if (rev < 1) {
-				if (((rdev->flags & RADEON_FAMILY_MASK) <
-				     CHIP_R200)
-				    && ((dev->pdev->device != 0x515e)
-					&& (dev->pdev->device != 0x5969))) {
+				if ((rdev->family < CHIP_R200)
+				    && !ASIC_IS_RN50(rdev)) {
 					int ram = 0;
 					int mem_addr_mapping = 0;
 
@@ -3121,14 +3122,14 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_TV1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_TV1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("TV1 connected\n");
+			DRM_DEBUG_KMS("TV1 connected\n");
 			/* fix me */
 			bios_4_scratch |= RADEON_TV1_ATTACHED_SVIDEO;
 			/*save->bios_4_scratch |= RADEON_TV1_ATTACHED_COMP; */
 			bios_5_scratch |= RADEON_TV1_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_TV1;
 		} else {
-			DRM_DEBUG("TV1 disconnected\n");
+			DRM_DEBUG_KMS("TV1 disconnected\n");
 			bios_4_scratch &= ~RADEON_TV1_ATTACHED_MASK;
 			bios_5_scratch &= ~RADEON_TV1_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_TV1;
@@ -3137,12 +3138,12 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_LCD1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_LCD1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("LCD1 connected\n");
+			DRM_DEBUG_KMS("LCD1 connected\n");
 			bios_4_scratch |= RADEON_LCD1_ATTACHED;
 			bios_5_scratch |= RADEON_LCD1_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_LCD1;
 		} else {
-			DRM_DEBUG("LCD1 disconnected\n");
+			DRM_DEBUG_KMS("LCD1 disconnected\n");
 			bios_4_scratch &= ~RADEON_LCD1_ATTACHED;
 			bios_5_scratch &= ~RADEON_LCD1_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_LCD1;
@@ -3151,12 +3152,12 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_CRT1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_CRT1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("CRT1 connected\n");
+			DRM_DEBUG_KMS("CRT1 connected\n");
 			bios_4_scratch |= RADEON_CRT1_ATTACHED_COLOR;
 			bios_5_scratch |= RADEON_CRT1_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_CRT1;
 		} else {
-			DRM_DEBUG("CRT1 disconnected\n");
+			DRM_DEBUG_KMS("CRT1 disconnected\n");
 			bios_4_scratch &= ~RADEON_CRT1_ATTACHED_MASK;
 			bios_5_scratch &= ~RADEON_CRT1_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_CRT1;
@@ -3165,12 +3166,12 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_CRT2_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_CRT2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("CRT2 connected\n");
+			DRM_DEBUG_KMS("CRT2 connected\n");
 			bios_4_scratch |= RADEON_CRT2_ATTACHED_COLOR;
 			bios_5_scratch |= RADEON_CRT2_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_CRT2;
 		} else {
-			DRM_DEBUG("CRT2 disconnected\n");
+			DRM_DEBUG_KMS("CRT2 disconnected\n");
 			bios_4_scratch &= ~RADEON_CRT2_ATTACHED_MASK;
 			bios_5_scratch &= ~RADEON_CRT2_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_CRT2;
@@ -3179,12 +3180,12 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP1_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP1 connected\n");
+			DRM_DEBUG_KMS("DFP1 connected\n");
 			bios_4_scratch |= RADEON_DFP1_ATTACHED;
 			bios_5_scratch |= RADEON_DFP1_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_DFP1;
 		} else {
-			DRM_DEBUG("DFP1 disconnected\n");
+			DRM_DEBUG_KMS("DFP1 disconnected\n");
 			bios_4_scratch &= ~RADEON_DFP1_ATTACHED;
 			bios_5_scratch &= ~RADEON_DFP1_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_DFP1;
@@ -3193,12 +3194,12 @@ radeon_combios_connected_scratch_regs(struct drm_connector *connector,
 	if ((radeon_encoder->devices & ATOM_DEVICE_DFP2_SUPPORT) &&
 	    (radeon_connector->devices & ATOM_DEVICE_DFP2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG("DFP2 connected\n");
+			DRM_DEBUG_KMS("DFP2 connected\n");
 			bios_4_scratch |= RADEON_DFP2_ATTACHED;
 			bios_5_scratch |= RADEON_DFP2_ON;
 			bios_5_scratch |= RADEON_ACC_REQ_DFP2;
 		} else {
-			DRM_DEBUG("DFP2 disconnected\n");
+			DRM_DEBUG_KMS("DFP2 disconnected\n");
 			bios_4_scratch &= ~RADEON_DFP2_ATTACHED;
 			bios_5_scratch &= ~RADEON_DFP2_ON;
 			bios_5_scratch &= ~RADEON_ACC_REQ_DFP2;

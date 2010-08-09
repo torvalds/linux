@@ -875,6 +875,24 @@ config TXX9_WDT
 	help
 	  Hardware driver for the built-in watchdog timer on TXx9 MIPS SoCs.
 
+config OCTEON_WDT
+	tristate "Cavium OCTEON SOC family Watchdog Timer"
+	depends on CPU_CAVIUM_OCTEON
+	default y
+	select EXPORT_UASM if OCTEON_WDT = m
+	help
+	  Hardware driver for OCTEON's on chip watchdog timer.
+	  Enables the watchdog for all cores running Linux. It
+	  installs a NMI handler and pokes the watchdog based on an
+	  interrupt.  On first expiration of the watchdog, the
+	  interrupt handler pokes it.  The second expiration causes an
+	  NMI that prints a message. The third expiration causes a
+	  global soft reset.
+
+	  When userspace has /dev/watchdog open, no poking is done
+	  from the first interrupt, it is then only poked when the
+	  device is written.
+
 # PARISC Architecture
 
 # POWERPC Architecture

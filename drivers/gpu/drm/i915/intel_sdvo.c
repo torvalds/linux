@@ -1237,9 +1237,11 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (IS_I965G(dev)) {
-		sdvox |= SDVO_BORDER_ENABLE |
-			SDVO_VSYNC_ACTIVE_HIGH |
-			SDVO_HSYNC_ACTIVE_HIGH;
+		sdvox |= SDVO_BORDER_ENABLE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+			sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 	} else {
 		sdvox |= I915_READ(sdvo_priv->sdvo_reg);
 		switch (sdvo_priv->sdvo_reg) {

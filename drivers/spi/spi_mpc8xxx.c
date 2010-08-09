@@ -38,7 +38,6 @@
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/of_spi.h>
 #include <linux/slab.h>
 
 #include <sysdev/fsl_soc.h>
@@ -1009,6 +1008,7 @@ mpc8xxx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 	master->setup = mpc8xxx_spi_setup;
 	master->transfer = mpc8xxx_spi_transfer;
 	master->cleanup = mpc8xxx_spi_cleanup;
+	master->dev.of_node = dev->of_node;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->dev = dev;
@@ -1298,8 +1298,6 @@ static int __devinit of_mpc8xxx_spi_probe(struct of_device *ofdev,
 		ret = PTR_ERR(master);
 		goto err;
 	}
-
-	of_register_spi_devices(master, np);
 
 	return 0;
 

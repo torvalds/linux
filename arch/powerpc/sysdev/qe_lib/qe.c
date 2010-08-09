@@ -651,14 +651,15 @@ unsigned int qe_get_num_of_snums(void)
 EXPORT_SYMBOL(qe_get_num_of_snums);
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx)
-static int qe_resume(struct of_device *ofdev)
+static int qe_resume(struct platform_device *ofdev)
 {
 	if (!qe_alive_during_sleep())
 		qe_reset();
 	return 0;
 }
 
-static int qe_probe(struct of_device *ofdev, const struct of_device_id *id)
+static int qe_probe(struct platform_device *ofdev,
+		    const struct of_device_id *id)
 {
 	return 0;
 }
