@@ -643,6 +643,7 @@ static void clear_interrupts(struct denali_nand_info *denali)
 	spin_lock_irq(&denali->irq_lock);
 
 	status = read_interrupt_status(denali);
+	clear_interrupt(denali, status);
 
 #if DEBUG_DENALI
 	denali->irq_debug_array[denali->idx++] = 0x30000000 | status;
@@ -1015,12 +1016,12 @@ bool is_erased(uint8_t *buf, int len)
 #define ECC_SECTOR(x)	(((x) & ECC_ERROR_ADDRESS__SECTOR_NR) >> 12)
 #define ECC_BYTE(x)	(((x) & ECC_ERROR_ADDRESS__OFFSET))
 #define ECC_CORRECTION_VALUE(x) ((x) & ERR_CORRECTION_INFO__BYTEMASK)
-#define ECC_ERROR_CORRECTABLE(x) (!((x) & ERR_CORRECTION_INFO))
-#define ECC_ERR_DEVICE(x)	((x) & ERR_CORRECTION_INFO__DEVICE_NR >> 8)
+#define ECC_ERROR_CORRECTABLE(x) (!((x) & ERR_CORRECTION_INFO__ERROR_TYPE))
+#define ECC_ERR_DEVICE(x)	(((x) & ERR_CORRECTION_INFO__DEVICE_NR) >> 8)
 #define ECC_LAST_ERR(x)		((x) & ERR_CORRECTION_INFO__LAST_ERR_INFO)
 
 static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
-			uint8_t *oobbuf, uint32_t irq_status)
+					uint32_t irq_status)
 {
 	bool check_erased_page = false;
 
@@ -1029,13 +1030,13 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 		uint32_t err_address = 0, err_correction_info = 0;
 		uint32_t err_byte = 0, err_sector = 0, err_device = 0;
 		uint32_t err_correction_value = 0;
+		denali_set_intr_modes(denali, false);
 
 		do {
 			err_address = ioread32(denali->flash_reg +
 						ECC_ERROR_ADDRESS);
 			err_sector = ECC_SECTOR(err_address);
 			err_byte = ECC_BYTE(err_address);
-
 
 			err_correction_info = ioread32(denali->flash_reg +
 						ERR_CORRECTION_INFO);
@@ -1044,20 +1045,23 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 			err_device = ECC_ERR_DEVICE(err_correction_info);
 
 			if (ECC_ERROR_CORRECTABLE(err_correction_info)) {
-				/* offset in our buffer is computed as:
-				   sector number * sector size + offset in
-				   sector
-				 */
-				int offset = err_sector * ECC_SECTOR_SIZE +
-								err_byte;
-				if (offset < denali->mtd.writesize) {
+				/* If err_byte is larger than ECC_SECTOR_SIZE,
+				 * means error happend in OOB, so we ignore
+				 * it. It's no need for us to correct it
+				 * err_device is represented the NAND error
+				 * bits are happened in if there are more
+				 * than one NAND connected.
+				 * */
+				if (err_byte < ECC_SECTOR_SIZE) {
+					int offset;
+					offset = (err_sector *
+							ECC_SECTOR_SIZE +
+							err_byte) *
+							denali->devnum +
+							err_device;
 					/* correct the ECC error */
 					buf[offset] ^= err_correction_value;
 					denali->mtd.ecc_stats.corrected++;
-				} else {
-					/* bummer, couldn't correct the error */
-					printk(KERN_ERR "ECC offset invalid\n");
-					denali->mtd.ecc_stats.failed++;
 				}
 			} else {
 				/* if the error is not correctable, need to
@@ -1074,6 +1078,15 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 					err_correction_info);
 #endif
 		} while (!ECC_LAST_ERR(err_correction_info));
+		/* Once handle all ecc errors, controller will triger
+		 * a ECC_TRANSACTION_DONE interrupt, so here just wait
+		 * for a while for this interrupt
+		 * */
+		while (!(read_interrupt_status(denali) &
+				INTR_STATUS0__ECC_TRANSACTION_DONE))
+			cpu_relax();
+		clear_interrupts(denali);
+		denali_set_intr_modes(denali, true);
 	}
 	return check_erased_page;
 }
@@ -1237,7 +1250,7 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	memcpy(buf, denali->buf.buf, mtd->writesize);
 
-	check_erased_page = handle_ecc(denali, buf, chip->oob_poi, irq_status);
+	check_erased_page = handle_ecc(denali, buf, irq_status);
 	denali_enable_dma(denali, false);
 
 	if (check_erased_page) {
