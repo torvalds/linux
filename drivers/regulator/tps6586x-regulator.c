@@ -357,13 +357,16 @@ static int __devinit tps6586x_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(rdev);
 	}
 
-	platform_set_drvdata(pdev, ri);
+	platform_set_drvdata(pdev, rdev);
 
 	return 0;
 }
 
 static int __devexit tps6586x_regulator_remove(struct platform_device *pdev)
 {
+	struct regulator_dev *rdev = platform_get_drvdata(pdev);
+
+	regulator_unregister(rdev);
 	return 0;
 }
 
