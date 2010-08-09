@@ -108,6 +108,8 @@ struct zram {
 	struct request_queue *queue;
 	struct gendisk *disk;
 	int init_done;
+	/* Prevent concurrent execution of device init and reset */
+	struct mutex init_lock;
 	/*
 	 * This is the limit on amount of *uncompressed* worth of data
 	 * we can store in a disk.

@@ -207,9 +207,15 @@ static int zram_read(struct zram *zram, struct bio *bio)
 	u32 index;
 	struct bio_vec *bvec;
 
-	zram_stat64_inc(zram, &zram->stats.num_reads);
+	if (unlikely(!zram->init_done)) {
+		set_bit(BIO_UPTODATE, &bio->bi_flags);
+		bio_endio(bio, 0);
+		return 0;
+	}
 
+	zram_stat64_inc(zram, &zram->stats.num_reads);
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
+
 	bio_for_each_segment(bvec, bio, i) {
 		int ret;
 		size_t clen;
@@ -275,16 +281,20 @@ out:
 
 static int zram_write(struct zram *zram, struct bio *bio)
 {
-	int i;
+	int i, ret;
 	u32 index;
 	struct bio_vec *bvec;
 
-	zram_stat64_inc(zram, &zram->stats.num_writes);
+	if (unlikely(!zram->init_done)) {
+		ret = zram_init_device(zram);
+		if (ret)
+			goto out;
+	}
 
+	zram_stat64_inc(zram, &zram->stats.num_writes);
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
 	bio_for_each_segment(bvec, bio, i) {
-		int ret;
 		u32 offset;
 		size_t clen;
 		struct zobj_header *zheader;
@@ -425,11 +435,6 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 	int ret = 0;
 	struct zram *zram = queue->queuedata;
 
-	if (unlikely(!zram->init_done)) {
-		bio_io_error(bio);
-		return 0;
-	}
-
 	if (!valid_io_request(zram, bio)) {
 		zram_stat64_inc(zram, &zram->stats.invalid_io);
 		bio_io_error(bio);
@@ -453,7 +458,7 @@ void zram_reset_device(struct zram *zram)
 {
 	size_t index;
 
-	/* Do not accept any new I/O request */
+	mutex_lock(&zram->init_lock);
 	zram->init_done = 0;
 
 	/* Free various per-device buffers */
@@ -490,6 +495,7 @@ void zram_reset_device(struct zram *zram)
 	memset(&zram->stats, 0, sizeof(zram->stats));
 
 	zram->disksize = 0;
+	mutex_unlock(&zram->init_lock);
 }
 
 int zram_init_device(struct zram *zram)
@@ -497,9 +503,11 @@ int zram_init_device(struct zram *zram)
 	int ret;
 	size_t num_pages;
 
+	mutex_lock(&zram->init_lock);
+
 	if (zram->init_done) {
-		pr_info("Device already initialized!\n");
-		return -EBUSY;
+		mutex_unlock(&zram->init_lock);
+		return 0;
 	}
 
 	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
@@ -542,11 +550,13 @@ int zram_init_device(struct zram *zram)
 	}
 
 	zram->init_done = 1;
+	mutex_unlock(&zram->init_lock);
 
 	pr_debug("Initialization done!\n");
 	return 0;
 
 fail:
+	mutex_unlock(&zram->init_lock);
 	zram_reset_device(zram);
 
 	pr_err("Initialization failed: err=%d\n", ret);
@@ -572,6 +582,7 @@ static int create_device(struct zram *zram, int device_id)
 	int ret = 0;
 
 	mutex_init(&zram->lock);
+	mutex_init(&zram->init_lock);
 	spin_lock_init(&zram->stat64_lock);
 
 	zram->queue = blk_alloc_queue(GFP_KERNEL);
