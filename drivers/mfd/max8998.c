@@ -89,10 +89,8 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	int ret = 0;
 
 	max8998 = kzalloc(sizeof(struct max8998_dev), GFP_KERNEL);
-	if (max8998 == NULL) {
-		kfree(i2c);
+	if (max8998 == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, max8998);
 	max8998->dev = &i2c->dev;
