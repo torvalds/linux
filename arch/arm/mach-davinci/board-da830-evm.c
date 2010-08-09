@@ -29,6 +29,7 @@
 #include <mach/nand.h>
 #include <mach/da8xx.h>
 #include <mach/usb.h>
+#include <mach/aemif.h>
 
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
@@ -360,6 +361,16 @@ static struct nand_bbt_descr da830_evm_nand_bbt_mirror_descr = {
 	.pattern	= da830_evm_nand_mirror_pattern
 };
 
+static struct davinci_aemif_timing da830_evm_nandflash_timing = {
+	.wsetup         = 24,
+	.wstrobe        = 21,
+	.whold          = 14,
+	.rsetup         = 19,
+	.rstrobe        = 50,
+	.rhold          = 0,
+	.ta             = 20,
+};
+
 static struct davinci_nand_pdata da830_evm_nand_pdata = {
 	.parts		= da830_evm_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(da830_evm_nand_partitions),
@@ -368,6 +379,7 @@ static struct davinci_nand_pdata da830_evm_nand_pdata = {
 	.options	= NAND_USE_FLASH_BBT,
 	.bbt_td		= &da830_evm_nand_bbt_main_descr,
 	.bbt_md		= &da830_evm_nand_bbt_mirror_descr,
+	.timing         = &da830_evm_nandflash_timing,
 };
 
 static struct resource da830_evm_nand_resources[] = {
