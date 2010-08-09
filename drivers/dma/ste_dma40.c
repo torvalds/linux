@@ -684,12 +684,12 @@ static void d40_config_write(struct d40_chan *d40c)
 
 static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
 {
-	if (d40d->lli_phy.dst && d40d->lli_phy.src) {
+	if (d40c->log_num == D40_PHY_CHAN) {
 		d40_phy_lli_write(d40c->base->virtbase,
 				  d40c->phy_chan->num,
 				  d40d->lli_phy.dst,
 				  d40d->lli_phy.src);
-	} else if (d40d->lli_log.dst && d40d->lli_log.src) {
+	} else {
 		struct d40_log_lli *src = d40d->lli_log.src;
 		struct d40_log_lli *dst = d40d->lli_log.dst;
 		int s;
