@@ -601,6 +601,15 @@ static int mmci_get_cd(struct mmc_host *mmc)
 	return status;
 }
 
+static irqreturn_t mmci_cd_irq(int irq, void *dev_id)
+{
+	struct mmci_host *host = dev_id;
+
+	mmc_detect_change(host->mmc, msecs_to_jiffies(500));
+
+	return IRQ_HANDLED;
+}
+
 static const struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.set_ios	= mmci_set_ios,
@@ -637,6 +646,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	host->gpio_wp = -ENOSYS;
 	host->gpio_cd = -ENOSYS;
+	host->gpio_cd_irq = -1;
 
 	host->hw_designer = amba_manf(dev);
 	host->hw_revision = amba_rev(dev);
@@ -716,7 +726,6 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (host->vcc == NULL)
 		mmc->ocr_avail = plat->ocr_mask;
 	mmc->caps = plat->capabilities;
-	mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/*
 	 * We can do SGIO
@@ -761,6 +770,12 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 			host->gpio_cd = plat->gpio_cd;
 		else if (ret != -ENOSYS)
 			goto err_gpio_cd;
+
+		ret = request_any_context_irq(gpio_to_irq(plat->gpio_cd),
+					      mmci_cd_irq, 0,
+					      DRIVER_NAME " (cd)", host);
+		if (ret >= 0)
+			host->gpio_cd_irq = gpio_to_irq(plat->gpio_cd);
 	}
 	if (gpio_is_valid(plat->gpio_wp)) {
 		ret = gpio_request(plat->gpio_wp, DRIVER_NAME " (wp)");
@@ -771,6 +786,9 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		else if (ret != -ENOSYS)
 			goto err_gpio_wp;
 	}
+
+	if (host->gpio_cd_irq < 0)
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)
@@ -798,6 +816,8 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (host->gpio_wp != -ENOSYS)
 		gpio_free(host->gpio_wp);
  err_gpio_wp:
+	if (host->gpio_cd_irq >= 0)
+		free_irq(host->gpio_cd_irq, host);
 	if (host->gpio_cd != -ENOSYS)
 		gpio_free(host->gpio_cd);
  err_gpio_cd:
@@ -836,6 +856,8 @@ static int __devexit mmci_remove(struct amba_device *dev)
 
 		if (host->gpio_wp != -ENOSYS)
 			gpio_free(host->gpio_wp);
+		if (host->gpio_cd_irq >= 0)
+			free_irq(host->gpio_cd_irq, host);
 		if (host->gpio_cd != -ENOSYS)
 			gpio_free(host->gpio_cd);
 

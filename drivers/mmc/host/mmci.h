@@ -147,6 +147,7 @@ struct mmci_host {
 	struct clk		*clk;
 	int			gpio_cd;
 	int			gpio_wp;
+	int			gpio_cd_irq;
 
 	unsigned int		data_xfered;
 
