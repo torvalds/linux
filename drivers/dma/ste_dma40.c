@@ -41,7 +41,7 @@
 #define D40_ALLOC_LOG_FREE	0
 
 /* Hardware designer of the block */
-#define D40_PERIPHID2_DESIGNER 0x8
+#define D40_HW_DESIGNER 0x8
 
 /**
  * enum 40_command - The different commands and/or statuses.
@@ -2438,6 +2438,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	int num_phy_chans;
 	int i;
 	u32 val;
+	u32 rev;
 
 	clk = clk_get(&pdev->dev, NULL);
 
@@ -2476,21 +2477,26 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		}
 	}
 
-	/* Get silicon revision */
+	/* Get silicon revision and designer */
 	val = readl(virtbase + D40_DREG_PERIPHID2);
 
-	if ((val & 0xf) != D40_PERIPHID2_DESIGNER) {
+	if ((val & D40_DREG_PERIPHID2_DESIGNER_MASK) !=
+	    D40_HW_DESIGNER) {
 		dev_err(&pdev->dev,
 			"[%s] Unknown designer! Got %x wanted %x\n",
-			__func__, val & 0xf, D40_PERIPHID2_DESIGNER);
+			__func__, val & D40_DREG_PERIPHID2_DESIGNER_MASK,
+			D40_HW_DESIGNER);
 		goto failure;
 	}
+
+	rev = (val & D40_DREG_PERIPHID2_REV_MASK) >>
+		D40_DREG_PERIPHID2_REV_POS;
 
 	/* The number of physical channels on this HW */
 	num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
 
 	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x\n",
-		 (val >> 4) & 0xf, res->start);
+		 rev, res->start);
 
 	plat_data = pdev->dev.platform_data;
 
@@ -2512,7 +2518,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		goto failure;
 	}
 
-	base->rev = (val >> 4) & 0xf;
+	base->rev = rev;
 	base->clk = clk;
 	base->num_phy_chans = num_phy_chans;
 	base->num_log_chans = num_log_chans;
