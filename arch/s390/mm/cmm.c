@@ -427,7 +427,7 @@ static struct notifier_block cmm_power_notifier = {
 	.notifier_call = cmm_power_event,
 };
 
-static int cmm_init(void)
+static int __init cmm_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -467,7 +467,7 @@ out_sysctl:
 }
 module_init(cmm_init);
 
-static void cmm_exit(void)
+static void __exit cmm_exit(void)
 {
 	unregister_sysctl_table(cmm_sysctl_header);
 #ifdef CONFIG_CMM_IUCV
