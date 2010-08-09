@@ -60,13 +60,13 @@ struct usb_driver easycap_usb_driver = {
  */
 /*---------------------------------------------------------------------------*/
 const struct file_operations easycap_fops = {
-.owner =   THIS_MODULE,
-.open =    easycap_open,
-.release = easycap_release,
-.ioctl =   easycap_ioctl,
-.poll =    easycap_poll,
-.mmap =    easycap_mmap,
-.llseek =  no_llseek,
+	.owner		= THIS_MODULE,
+	.open		= easycap_open,
+	.release	= easycap_release,
+	.unlocked_ioctl	= easycap_ioctl,
+	.poll		= easycap_poll,
+	.mmap		= easycap_mmap,
+	.llseek		= no_llseek,
 };
 struct vm_operations_struct easycap_vm_ops = {
 .open  = easycap_vma_open,
@@ -83,12 +83,12 @@ struct usb_class_driver easycap_class = {
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #if defined(EASYCAP_NEEDS_V4L2_FOPS)
 const struct v4l2_file_operations v4l2_fops = {
-.owner =   THIS_MODULE,
-.open =    easycap_open_noinode,
-.release = easycap_release_noinode,
-.ioctl =   easycap_ioctl_noinode,
-.poll =    easycap_poll,
-.mmap =    easycap_mmap,
+	.owner		= THIS_MODULE,
+	.open		= easycap_open_noinode,
+	.release	= easycap_release_noinode,
+	.unlocked_ioctl	= easycap_ioctl,
+	.poll		= easycap_poll,
+	.mmap		= easycap_mmap,
 };
 #endif /*EASYCAP_NEEDS_V4L2_FOPS*/
 int video_device_many /*=0*/;
@@ -102,12 +102,12 @@ struct video_device *pvideo_array[VIDEO_DEVICE_MANY], *pvideo_device;
  */
 /*--------------------------------------------------------------------------*/
 const struct file_operations easysnd_fops = {
-.owner =   THIS_MODULE,
-.open =    easysnd_open,
-.release = easysnd_release,
-.ioctl =   easysnd_ioctl,
-.read =    easysnd_read,
-.llseek =  no_llseek,
+	.owner		= THIS_MODULE,
+	.open		= easysnd_open,
+	.release	= easysnd_release,
+	.unlocked_ioctl	= easysnd_ioctl,
+	.read		= easysnd_read,
+	.llseek		= no_llseek,
 };
 struct usb_class_driver easysnd_class = {
 .name = "usb/easysnd%d",
