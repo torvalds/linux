@@ -563,7 +563,6 @@ void ccw_device_stlck_start(struct ccw_device *cdev, void *data, void *buf1,
 	req->timeout	= PGID_TIMEOUT;
 	req->maxretries	= PGID_RETRIES;
 	req->lpm	= sch->schib.pmcw.pam & sch->opm;
-	req->singlepath	= 1;
 	req->data	= data;
 	req->callback	= stlck_callback;
 	stlck_build_cp(cdev, buf1, buf2);
