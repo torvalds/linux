@@ -182,6 +182,8 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 		/* Ask the driver what to do */
 		if (cdev->drv && cdev->drv->uc_handler) {
 			todo = cdev->drv->uc_handler(cdev, lcirb);
+			CIO_TRACE_EVENT(2, "uc_response");
+			CIO_HEX_EVENT(2, &todo, sizeof(todo));
 			switch (todo) {
 			case UC_TODO_RETRY:
 				return IO_STATUS_ERROR;
