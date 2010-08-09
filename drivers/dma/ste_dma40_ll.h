@@ -202,8 +202,6 @@ struct d40_phy_lli {
  *
  * @src: Register settings for src channel.
  * @dst: Register settings for dst channel.
- * @dst_addr: Physical destination address.
- * @src_addr: Physical source address.
  *
  * All DMA transfers have a source and a destination.
  */
@@ -211,8 +209,6 @@ struct d40_phy_lli {
 struct d40_phy_lli_bidir {
 	struct d40_phy_lli	*src;
 	struct d40_phy_lli	*dst;
-	dma_addr_t		 dst_addr;
-	dma_addr_t		 src_addr;
 };
 
 
