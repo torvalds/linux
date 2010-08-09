@@ -640,19 +640,15 @@ static void d40_config_set_event(struct d40_chan *d40c, bool do_enable)
 
 static u32 d40_chan_has_events(struct d40_chan *d40c)
 {
-	u32 val = 0;
+	u32 val;
 
-	/* If SSLNK or SDLNK is zero all events are disabled */
-	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
-	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
-		val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
-			    d40c->phy_chan->num * D40_DREG_PCDELTA +
-			    D40_CHAN_REG_SSLNK);
+	val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
+		    d40c->phy_chan->num * D40_DREG_PCDELTA +
+		    D40_CHAN_REG_SSLNK);
 
-	if (d40c->dma_cfg.dir !=  STEDMA40_PERIPH_TO_MEM)
-		val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
-			    d40c->phy_chan->num * D40_DREG_PCDELTA +
-			    D40_CHAN_REG_SDLNK);
+	val |= readl(d40c->base->virtbase + D40_DREG_PCBASE +
+		     d40c->phy_chan->num * D40_DREG_PCDELTA +
+		     D40_CHAN_REG_SDLNK);
 	return val;
 }
 
