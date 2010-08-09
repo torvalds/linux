@@ -1536,7 +1536,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ret = pci_enable_device(dev);
 	if (ret) {
 		printk(KERN_ERR "Spectra: pci_enable_device failed.\n");
-		goto failed_enable;
+		goto failed_alloc_memery;
 	}
 
 	if (id->driver_data == INTEL_CE4100) {
@@ -1547,7 +1547,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			printk(KERN_ERR "Intel CE4100 only supports"
 					" ONFI timing mode 1 or below\n");
 			ret = -EINVAL;
-			goto failed_enable;
+			goto failed_enable_dev;
 		}
 		denali->platform = INTEL_CE4100;
 		mem_base = pci_resource_start(dev, 0);
@@ -1557,7 +1557,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	} else {
 		denali->platform = INTEL_MRST;
 		csr_base = pci_resource_start(dev, 0);
-		csr_len = pci_resource_start(dev, 0);
+		csr_len = pci_resource_len(dev, 0);
 		mem_base = pci_resource_start(dev, 1);
 		mem_len = pci_resource_len(dev, 1);
 		if (!mem_len) {
@@ -1576,7 +1576,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (ret) {
 		printk(KERN_ERR "Spectra: no usable DMA configuration\n");
-		goto failed_enable;
+		goto failed_enable_dev;
 	}
 	denali->buf.dma_buf =
 		pci_map_single(dev, denali->buf.buf,
@@ -1585,7 +1585,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (pci_dma_mapping_error(dev, denali->buf.dma_buf)) {
 		printk(KERN_ERR "Spectra: failed to map DMA buffer\n");
-		goto failed_enable;
+		goto failed_enable_dev;
 	}
 
 	pci_set_master(dev);
@@ -1594,14 +1594,14 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ret = pci_request_regions(dev, DENALI_NAND_NAME);
 	if (ret) {
 		printk(KERN_ERR "Spectra: Unable to request memory regions\n");
-		goto failed_req_csr;
+		goto failed_dma_map;
 	}
 
 	denali->flash_reg = ioremap_nocache(csr_base, csr_len);
 	if (!denali->flash_reg) {
 		printk(KERN_ERR "Spectra: Unable to remap memory region\n");
 		ret = -ENOMEM;
-		goto failed_remap_csr;
+		goto failed_req_regions;
 	}
 	nand_dbg_print(NAND_DBG_DEBUG, "Spectra: CSR 0x%08Lx -> 0x%p (0x%lx)\n",
 		       (uint64_t)csr_base, denali->flash_reg, csr_len);
@@ -1609,9 +1609,8 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->flash_mem = ioremap_nocache(mem_base, mem_len);
 	if (!denali->flash_mem) {
 		printk(KERN_ERR "Spectra: ioremap_nocache failed!");
-		iounmap(denali->flash_reg);
 		ret = -ENOMEM;
-		goto failed_remap_csr;
+		goto failed_remap_reg;
 	}
 
 	nand_dbg_print(NAND_DBG_WARN,
@@ -1627,7 +1626,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			DENALI_NAND_NAME, denali)) {
 		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
 		ret = -ENODEV;
-		goto failed_request_irq;
+		goto failed_remap_mem;
 	}
 
 	/* now that our ISR is registered, we can enable interrupts */
@@ -1664,7 +1663,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * with the nand subsystem */
 	if (nand_scan_ident(&denali->mtd, LLD_MAX_FLASH_BANKS, NULL)) {
 		ret = -ENXIO;
-		goto failed_nand;
+		goto failed_req_irq;
 	}
 
 	/* MTD supported page sizes vary by kernel. We validate our
@@ -1674,7 +1673,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		ret = -ENODEV;
 		printk(KERN_ERR "Spectra: device size not supported by this "
 			"version of MTD.");
-		goto failed_nand;
+		goto failed_req_irq;
 	}
 
 	/* support for multi nand
@@ -1725,7 +1724,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			ECC_SECTOR_SIZE))) {
 		printk(KERN_ERR "Your NAND chip OOB is not large enough to"
 				" contain 8bit ECC correction codes");
-		goto failed_nand;
+		goto failed_req_irq;
 	} else {
 		denali->nand.ecc.layout = &nand_8bit_oob;
 		denali->nand.ecc.bytes = ECC_8BITS;
@@ -1769,28 +1768,31 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (nand_scan_tail(&denali->mtd)) {
 		ret = -ENXIO;
-		goto failed_nand;
+		goto failed_req_irq;
 	}
 
 	ret = add_mtd_device(&denali->mtd);
 	if (ret) {
 		printk(KERN_ERR "Spectra: Failed to register"
 				" MTD device: %d\n", ret);
-		goto failed_nand;
+		goto failed_req_irq;
 	}
 	return 0;
 
- failed_nand:
+failed_req_irq:
 	denali_irq_cleanup(dev->irq, denali);
- failed_request_irq:
-	iounmap(denali->flash_reg);
+failed_remap_mem:
 	iounmap(denali->flash_mem);
- failed_remap_csr:
+failed_remap_reg:
+	iounmap(denali->flash_reg);
+failed_req_regions:
 	pci_release_regions(dev);
- failed_req_csr:
+failed_dma_map:
 	pci_unmap_single(dev, denali->buf.dma_buf, DENALI_BUF_SIZE,
 							PCI_DMA_BIDIRECTIONAL);
- failed_enable:
+failed_enable_dev:
+	pci_disable_device(dev);
+failed_alloc_memery:
 	kfree(denali);
 	return ret;
 }
