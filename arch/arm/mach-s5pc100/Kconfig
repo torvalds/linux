@@ -65,6 +65,9 @@ config MACH_SMDKC100
 	select S5PC100_SETUP_IDE
 	select S5PC100_SETUP_KEYPAD
 	select S5PC100_SETUP_SDHCI
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
 	help
 	  Machine support for the Samsung SMDKC100
 

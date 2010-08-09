@@ -193,6 +193,9 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&samsung_device_keypad,
 	&s5pc100_device_ac97,
 	&s3c_device_rtc,
+	&s5p_device_fimc0,
+	&s5p_device_fimc1,
+	&s5p_device_fimc2,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
