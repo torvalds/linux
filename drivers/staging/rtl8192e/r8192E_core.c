@@ -6325,6 +6325,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
 	u8 unit = 0;
+	int ret = -ENODEV;
 
 #ifdef CONFIG_RTL8192_IO_MAP
 	unsigned long pio_start, pio_len, pio_flags;
@@ -6344,8 +6345,10 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	pci_set_dma_mask(pdev, 0xffffff00ULL);
 	pci_set_consistent_dma_mask(pdev,0xffffff00ULL);
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
-	if (!dev)
-		return -ENOMEM;
+	if (!dev) {
+		ret = -ENOMEM;
+		goto fail_free;
+	}
 
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -6494,11 +6497,12 @@ fail:
 		free_ieee80211(dev);
 	}
 
+fail_free:
 	pci_disable_device(pdev);
 
 	DMESG("wlan driver load failed\n");
 	pci_set_drvdata(pdev, NULL);
-	return -ENODEV;
+	return ret;
 
 }
 
