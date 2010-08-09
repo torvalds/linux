@@ -690,6 +690,7 @@ static void timekeeping_adjust(s64 offset)
 static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
 {
 	u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
+	u64 raw_nsecs;
 
 	/* If the offset is smaller then a shifted interval, do nothing */
 	if (offset < timekeeper.cycle_interval<<shift)
@@ -706,12 +707,14 @@ static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
 		second_overflow();
 	}
 
-	/* Accumulate into raw time */
-	raw_time.tv_nsec += timekeeper.raw_interval << shift;;
-	while (raw_time.tv_nsec >= NSEC_PER_SEC) {
-		raw_time.tv_nsec -= NSEC_PER_SEC;
+	/* Accumulate raw time */
+	raw_nsecs = timekeeper.raw_interval << shift;
+	raw_nsecs += raw_time.tv_nsec;
+	while (raw_nsecs >= NSEC_PER_SEC) {
+		raw_nsecs -= NSEC_PER_SEC;
 		raw_time.tv_sec++;
 	}
+	raw_time.tv_nsec = raw_nsecs;
 
 	/* Accumulate error between NTP and clock interval */
 	timekeeper.ntp_error += tick_length << shift;
