@@ -20,7 +20,7 @@ selinux-$(CONFIG_NETLABEL) += netlabel.o
 
 EXTRA_CFLAGS += -Isecurity/selinux -Isecurity/selinux/include
 
-$(obj)/avc.o: $(obj)/flask.h
+$(addprefix $(obj)/,$(selinux-y)): $(obj)/flask.h
 
 quiet_cmd_flask = GEN     $(obj)/flask.h $(obj)/av_permissions.h
       cmd_flask = scripts/selinux/genheaders/genheaders $(obj)/flask.h $(obj)/av_permissions.h
