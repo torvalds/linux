@@ -29,7 +29,7 @@
 #define IRQ_GPIOINT		S5P_IRQ_VIC0(30)
 
 /* VIC1: ARM, power, memory, connectivity */
-#define IRQ_CORTEX0		S5P_IRQ_VIC1(0)
+#define IRQ_PMU			S5P_IRQ_VIC1(0)
 #define IRQ_CORTEX1		S5P_IRQ_VIC1(1)
 #define IRQ_CORTEX2		S5P_IRQ_VIC1(2)
 #define IRQ_CORTEX3		S5P_IRQ_VIC1(3)
@@ -38,7 +38,7 @@
 #define IRQ_IEMIEC		S5P_IRQ_VIC1(6)
 #define IRQ_ONENAND		S5P_IRQ_VIC1(7)
 #define IRQ_NFC			S5P_IRQ_VIC1(8)
-#define IRQ_CFC			S5P_IRQ_VIC1(9)
+#define IRQ_CFCON		S5P_IRQ_VIC1(9)
 #define IRQ_UART0		S5P_IRQ_VIC1(10)
 #define IRQ_UART1		S5P_IRQ_VIC1(11)
 #define IRQ_UART2		S5P_IRQ_VIC1(12)

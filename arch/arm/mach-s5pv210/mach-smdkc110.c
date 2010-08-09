@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -25,18 +26,20 @@
 #include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/ata.h>
+#include <plat/iic.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
-#define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+#define SMDKC110_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				 S3C2410_UCON_RXILEVEL |	\
 				 S3C2410_UCON_TXIRQMODE |	\
 				 S3C2410_UCON_RXIRQMODE |	\
 				 S3C2410_UCON_RXFIFO_TOI |	\
 				 S3C2443_UCON_RXERR_IRQEN)
 
-#define S5PV210_ULCON_DEFAULT	S3C2410_LCON_CS8
+#define SMDKC110_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5PV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+#define SMDKC110_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
 				 S5PV210_UFCON_TXTRIG4 |	\
 				 S5PV210_UFCON_RXTRIG4)
 
@@ -44,37 +47,58 @@ static struct s3c2410_uartcfg smdkv210_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport		= 0,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKC110_UCON_DEFAULT,
+		.ulcon		= SMDKC110_ULCON_DEFAULT,
+		.ufcon		= SMDKC110_UFCON_DEFAULT,
 	},
 	[1] = {
 		.hwport		= 1,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKC110_UCON_DEFAULT,
+		.ulcon		= SMDKC110_ULCON_DEFAULT,
+		.ufcon		= SMDKC110_UFCON_DEFAULT,
 	},
 	[2] = {
 		.hwport		= 2,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKC110_UCON_DEFAULT,
+		.ulcon		= SMDKC110_ULCON_DEFAULT,
+		.ufcon		= SMDKC110_UFCON_DEFAULT,
 	},
 	[3] = {
 		.hwport		= 3,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKC110_UCON_DEFAULT,
+		.ulcon		= SMDKC110_ULCON_DEFAULT,
+		.ufcon		= SMDKC110_UFCON_DEFAULT,
 	},
+};
+
+static struct s3c_ide_platdata smdkc110_ide_pdata __initdata = {
+	.setup_gpio	= s5pv210_ide_setup_gpio,
 };
 
 static struct platform_device *smdkc110_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
+	&s3c_device_cfcon,
+	&s3c_device_i2c0,
+	&s3c_device_i2c1,
+	&s3c_device_i2c2,
+	&s3c_device_rtc,
 	&s3c_device_wdt,
+};
+
+static struct i2c_board_info smdkc110_i2c_devs0[] __initdata = {
+	{ I2C_BOARD_INFO("24c08", 0x50), },     /* Samsung S524AD0XD1 */
+};
+
+static struct i2c_board_info smdkc110_i2c_devs1[] __initdata = {
+	/* To Be Updated */
+};
+
+static struct i2c_board_info smdkc110_i2c_devs2[] __initdata = {
+	/* To Be Updated */
 };
 
 static void __init smdkc110_map_io(void)
@@ -86,6 +110,18 @@ static void __init smdkc110_map_io(void)
 
 static void __init smdkc110_machine_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c2_set_platdata(NULL);
+	i2c_register_board_info(0, smdkc110_i2c_devs0,
+			ARRAY_SIZE(smdkc110_i2c_devs0));
+	i2c_register_board_info(1, smdkc110_i2c_devs1,
+			ARRAY_SIZE(smdkc110_i2c_devs1));
+	i2c_register_board_info(2, smdkc110_i2c_devs2,
+			ARRAY_SIZE(smdkc110_i2c_devs2));
+
+	s3c_ide_set_platdata(&smdkc110_ide_pdata);
+
 	platform_add_devices(smdkc110_devices, ARRAY_SIZE(smdkc110_devices));
 }
 

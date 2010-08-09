@@ -636,6 +636,7 @@ config ARCH_S3C2410
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -665,6 +666,8 @@ config ARCH_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S3C64XX series based systems
 
@@ -673,7 +676,10 @@ config ARCH_S5P6440
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select HAVE_S3C2410_WATCHDOG
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C_RTC
 	help
 	  Samsung S5P6440 CPU based systems
 
@@ -683,6 +689,7 @@ config ARCH_S5P6442
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5P6442 CPU based systems
 
@@ -693,6 +700,9 @@ config ARCH_S5PC100
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C_RTC
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PC100 series based systems
 
@@ -703,8 +713,20 @@ config ARCH_S5PV210
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C_RTC
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV210/S5PC110 series based systems
+
+config ARCH_S5PV310
+	bool "Samsung S5PV310/S5PC210"
+	select CPU_V7
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select GENERIC_CLOCKEVENTS
+	help
+	  Samsung S5PV310 series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -907,6 +929,8 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
+source "arch/arm/mach-s5pv310/Kconfig"
+
 source "arch/arm/mach-shmobile/Kconfig"
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
@@ -1098,10 +1122,11 @@ config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
-		 ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+		 ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_S5PV310)
 	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 ||\
+			ARCH_S5PV310)
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1171,9 +1196,9 @@ config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
 		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
-		ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
-	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || ARCH_U8500)
+		ARCH_S5PV310 || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_S5PV310 || \
+		ARCH_U8500 || ARCH_VEXPRESS)
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1184,7 +1209,8 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || \
+		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
