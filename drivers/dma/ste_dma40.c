@@ -1,11 +1,8 @@
 /*
- * driver/dma/ste_dma40.c
- *
- * Copyright (C) ST-Ericsson 2007-2010
+ * Copyright (C) ST-Ericsson SA 2007-2010
+ * Author: Per Friden <per.friden@stericsson.com> for ST-Ericsson
+ * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
- * Author: Per Friden <per.friden@stericsson.com>
- * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
- *
  */
 
 #include <linux/kernel.h>
@@ -90,7 +87,6 @@ struct d40_lli_pool {
  * @txd: DMA engine struct. Used for among other things for communication
  * during a transfer.
  * @node: List entry.
- * @dir: The transfer direction of this job.
  * @is_in_client_list: true if the client owns this descriptor.
  * @is_hw_linked: true if this job will automatically be continued for
  * the previous one.
@@ -112,7 +108,6 @@ struct d40_desc {
 	struct dma_async_tx_descriptor	 txd;
 	struct list_head		 node;
 
-	enum dma_data_direction		 dir;
 	bool				 is_in_client_list;
 	bool				 is_hw_linked;
 };
@@ -149,9 +144,7 @@ struct d40_lcla_pool {
  * this physical channel. Can also be free or physically allocated.
  * @allocated_dst: Same as for src but is dst.
  * allocated_dst and allocated_src uses the D40_ALLOC* defines as well as
- * event line number. Both allocated_src and allocated_dst can not be
- * allocated to a physical channel, since the interrupt handler has then
- * no way of figure out which one the interrupt belongs to.
+ * event line number.
  */
 struct d40_phy_res {
 	spinlock_t lock;
@@ -237,7 +230,6 @@ struct d40_chan {
  * @dma_both: dma_device channels that can do both memcpy and slave transfers.
  * @dma_slave: dma_device channels that can do only do slave transfers.
  * @dma_memcpy: dma_device channels that can do only do memcpy transfers.
- * @phy_chans: Room for all possible physical channels in system.
  * @log_chans: Room for all possible logical channels in system.
  * @lookup_log_chans: Used to map interrupt number to logical channel. Points
  * to log_chans entries.
@@ -500,7 +492,8 @@ err:
 static int d40_channel_execute_command(struct d40_chan *d40c,
 				       enum d40_command command)
 {
-	int status, i;
+	u32 status;
+	int i;
 	void __iomem *active_reg;
 	int ret = 0;
 	unsigned long flags;
@@ -568,16 +561,12 @@ static void d40_term_all(struct d40_chan *d40c)
 	/* Release active descriptors */
 	while ((d40d = d40_first_active_get(d40c))) {
 		d40_desc_remove(d40d);
-
-		/* Return desc to free-list */
 		d40_desc_free(d40c, d40d);
 	}
 
 	/* Release queued descriptors waiting for transfer */
 	while ((d40d = d40_first_queued(d40c))) {
 		d40_desc_remove(d40d);
-
-		/* Return desc to free-list */
 		d40_desc_free(d40c, d40d);
 	}
 
@@ -973,9 +962,6 @@ static void dma_tc_handle(struct d40_chan *d40c)
 {
 	struct d40_desc *d40d;
 
-	if (!d40c->phy_chan)
-		return;
-
 	/* Get first active entry from list */
 	d40d = d40_first_active_get(d40c);
 
@@ -1001,7 +987,7 @@ static void dma_tc_handle(struct d40_chan *d40c)
 static void dma_tasklet(unsigned long data)
 {
 	struct d40_chan *d40c = (struct d40_chan *) data;
-	struct d40_desc *d40d_fin;
+	struct d40_desc *d40d;
 	unsigned long flags;
 	dma_async_tx_callback callback;
 	void *callback_param;
@@ -1009,12 +995,12 @@ static void dma_tasklet(unsigned long data)
 	spin_lock_irqsave(&d40c->lock, flags);
 
 	/* Get first active entry from list */
-	d40d_fin = d40_first_active_get(d40c);
+	d40d = d40_first_active_get(d40c);
 
-	if (d40d_fin == NULL)
+	if (d40d == NULL)
 		goto err;
 
-	d40c->completed = d40d_fin->txd.cookie;
+	d40c->completed = d40d->txd.cookie;
 
 	/*
 	 * If terminating a channel pending_tx is set to zero.
@@ -1026,19 +1012,18 @@ static void dma_tasklet(unsigned long data)
 	}
 
 	/* Callback to client */
-	callback = d40d_fin->txd.callback;
-	callback_param = d40d_fin->txd.callback_param;
+	callback = d40d->txd.callback;
+	callback_param = d40d->txd.callback_param;
 
-	if (async_tx_test_ack(&d40d_fin->txd)) {
-		d40_pool_lli_free(d40d_fin);
-		d40_desc_remove(d40d_fin);
-		/* Return desc to free-list */
-		d40_desc_free(d40c, d40d_fin);
+	if (async_tx_test_ack(&d40d->txd)) {
+		d40_pool_lli_free(d40d);
+		d40_desc_remove(d40d);
+		d40_desc_free(d40c, d40d);
 	} else {
-		if (!d40d_fin->is_in_client_list) {
-			d40_desc_remove(d40d_fin);
-			list_add_tail(&d40d_fin->node, &d40c->client);
-			d40d_fin->is_in_client_list = true;
+		if (!d40d->is_in_client_list) {
+			d40_desc_remove(d40d);
+			list_add_tail(&d40d->node, &d40c->client);
+			d40d->is_in_client_list = true;
 		}
 	}
 
@@ -1049,7 +1034,7 @@ static void dma_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
 
-	if (callback && (d40d_fin->txd.flags & DMA_PREP_INTERRUPT))
+	if (callback && (d40d->txd.flags & DMA_PREP_INTERRUPT))
 		callback(callback_param);
 
 	return;
@@ -1126,7 +1111,6 @@ static irqreturn_t d40_handle_interrupt(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-
 
 static int d40_validate_conf(struct d40_chan *d40c,
 			     struct stedma40_chan_cfg *conf)
@@ -1432,7 +1416,6 @@ static int d40_free_dma(struct d40_chan *d40c)
 		list_for_each_entry_safe(d, _d, &d40c->client, node) {
 			d40_pool_lli_free(d);
 			d40_desc_remove(d);
-			/* Return desc to free-list */
 			d40_desc_free(d40c, d);
 		}
 
@@ -2793,8 +2776,10 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	if (i < MAX_LCLA_ALLOC_ATTEMPTS) {
 		base->lcla_pool.base = (void *)page_list[i];
 	} else {
-		/* After many attempts, no succees with finding the correct
-		 * alignment try with allocating a big buffer */
+		/*
+		 * After many attempts and no succees with finding the correct
+		 * alignment, try with allocating a big buffer.
+		 */
 		dev_warn(base->dev,
 			 "[%s] Failed to get %d pages @ 18 bit align.\n",
 			 __func__, base->lcla_pool.pages);
@@ -2916,8 +2901,9 @@ failure:
 		if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
 			free_pages((unsigned long)base->lcla_pool.base,
 				   base->lcla_pool.pages);
-		if (base->lcla_pool.base_unaligned)
-			kfree(base->lcla_pool.base_unaligned);
+
+		kfree(base->lcla_pool.base_unaligned);
+
 		if (base->phy_lcpa)
 			release_mem_region(base->phy_lcpa,
 					   base->lcpa_size);

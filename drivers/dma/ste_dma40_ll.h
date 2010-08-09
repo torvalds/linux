@@ -1,10 +1,8 @@
 /*
- * driver/dma/ste_dma40_ll.h
- *
- * Copyright (C) ST-Ericsson 2007-2010
+ * Copyright (C) ST-Ericsson SA 2007-2010
+ * Author: Per Friden <per.friden@stericsson.com> for ST-Ericsson SA
+ * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson SA
  * License terms: GNU General Public License (GPL) version 2
- * Author: Per Friden <per.friden@stericsson.com>
- * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
  */
 #ifndef STE_DMA40_LL_H
 #define STE_DMA40_LL_H
@@ -289,10 +287,13 @@ struct d40_lcla_elem {
 /* Physical channels */
 
 void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
-		 u32 *src_cfg, u32 *dst_cfg, bool is_log);
+		 u32 *src_cfg,
+		 u32 *dst_cfg,
+		 bool is_log);
 
 void d40_log_cfg(struct stedma40_chan_cfg *cfg,
-		 u32 *lcsp1, u32 *lcsp2);
+		 u32 *lcsp1,
+		 u32 *lcsp2);
 
 int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
@@ -321,10 +322,13 @@ void d40_phy_lli_write(void __iomem *virtbase,
 /* Logical channels */
 
 void d40_log_fill_lli(struct d40_log_lli *lli,
-		      dma_addr_t data, u32 data_size,
-		      u32 lli_next_off, u32 reg_cfg,
+		      dma_addr_t data,
+		      u32 data_size,
+		      u32 lli_next_off,
+		      u32 reg_cfg,
 		      u32 data_width,
-		      bool term_int, bool addr_inc);
+		      bool term_int,
+		      bool addr_inc);
 
 int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 		      struct scatterlist *sg,
@@ -334,7 +338,8 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 		      u32 src_data_width,
 		      u32 dst_data_width,
 		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr, int max_len,
+		      dma_addr_t dev_addr,
+		      int max_len,
 		      int llis_per_log);
 
 int d40_log_lli_write(struct d40_log_lli_full *lcpa,
@@ -350,6 +355,7 @@ int d40_log_sg_to_lli(int lcla_id,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width,
-		      int max_len, int llis_per_log);
+		      int max_len,
+		      int llis_per_log);
 
 #endif /* STE_DMA40_LLI_H */
