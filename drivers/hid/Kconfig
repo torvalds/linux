@@ -176,6 +176,12 @@ config HID_KYE
 	---help---
 	Support for Kye/Genius Ergo Mouse.
 
+config HID_UCLOGIC
+	tristate "UC-Logic" if EMBEDDED
+	depends on USB_HID
+	---help---
+	Support for UC-Logic tablets.
+
 config HID_GYRATION
 	tristate "Gyration"
 	depends on USB_HID
