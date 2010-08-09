@@ -582,7 +582,7 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 	 * scaled math multiplication factor for nanosecond to hpet tick
 	 * conversion.
 	 */
-	hpet_freq = 1000000000000000ULL;
+	hpet_freq = FSEC_PER_SEC;
 	do_div(hpet_freq, hpet_period);
 	evt->mult = div_sc((unsigned long) hpet_freq,
 				      NSEC_PER_SEC, evt->shift);
@@ -837,7 +837,7 @@ static int hpet_clocksource_register(void)
 	 * cyc/sec = FSEC_PER_SEC/hpet_period(fsec/cyc)
 	 * cyc/sec = (FSEC_PER_NSEC * NSEC_PER_SEC)/hpet_period
 	 */
-	hpet_freq = FSEC_PER_NSEC * NSEC_PER_SEC;
+	hpet_freq = FSEC_PER_SEC;
 	do_div(hpet_freq, hpet_period);
 	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
 
