@@ -4,6 +4,8 @@ defines of FPGA chip ICE65L08's register
 
 #ifndef SPI_UART_H
 #define SPI_UART_H
+#include <linux/circ_buf.h>
+#include <linux/miscdevice.h>
 
 #define SPI_FPGA_INT_PIN RK2818_PIN_PA4
 #define SPI_DPRAM_BUSY_PIN RK2818_PIN_PA2

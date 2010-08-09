@@ -450,7 +450,12 @@ struct platform_device rk2818_device_dsp = {
         }
 };
 
-
+#ifdef CONFIG_BT
+struct platform_device rk2818_device_rfkill = {
+	.name = "rkbt_rfkill",
+	.id = -1,
+};
+#endif
 
 #if defined(CONFIG_ANDROID_PMEM)
 

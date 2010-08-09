@@ -195,5 +195,17 @@ config BT_MRVL_SDIO
 	  Say Y here to compile support for Marvell BT-over-SDIO driver
 	  into the kernel or say M to compile it as module.
 
+config BT_HCIBCM4325
+	tristate "HCI BCM4325 UART driver"
+	depends on  BT_HCIUART
+	help
+	  Bluetooth HCI BCM4325 UART driver.
+	  This driver provides the firmware loading mechanism for the Broadcom
+	  Blutonium based devices.
+
+	  Say Y here to compile support for HCI BCM4325 devices into the
+	  kernel or say M to compile it as module (bcm4325).
+
+
 endmenu
 

@@ -50,6 +50,7 @@ extern struct platform_device rk2818_device_backlight;
 extern struct platform_device rk2818_device_camera;             /* ddl@rock-chips.com : camera support */
 extern struct platform_device rk2818_soc_camera_pdrv;
 extern struct platform_device rk2818_device_dsp;
+extern struct platform_device rk2818_device_rfkill;
 extern struct platform_device rk2818_nand_device;
 extern struct platform_device rk2818_device_dwc_otg;
 extern struct platform_device rk2818_device_host11;

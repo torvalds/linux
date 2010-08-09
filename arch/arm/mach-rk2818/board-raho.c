@@ -722,6 +722,10 @@ struct dm9000_plat_data dm9k_platdata = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_BT
+    &rk2818_device_rfkill,
+#endif
+	&rk2818_device_uart0,
 	&rk2818_device_uart1,
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
