@@ -915,7 +915,6 @@ static irqreturn_t d40_handle_interrupt(int irq, void *data)
 
 	int i;
 	u32 regs[ARRAY_SIZE(il)];
-	u32 tmp;
 	u32 idx;
 	u32 row;
 	long chan = -1;
@@ -942,9 +941,7 @@ static irqreturn_t d40_handle_interrupt(int irq, void *data)
 		idx = chan & (BITS_PER_LONG - 1);
 
 		/* ACK interrupt */
-		tmp = readl(base->virtbase + il[row].clr);
-		tmp |= 1 << idx;
-		writel(tmp, base->virtbase + il[row].clr);
+		writel(1 << idx, base->virtbase + il[row].clr);
 
 		if (il[row].offset == D40_PHY_CHAN)
 			d40c = base->lookup_phy_chans[idx];
