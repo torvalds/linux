@@ -13,11 +13,13 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/mfd/tc35892.h>
 #include <linux/input/matrix_keypad.h>
 
 #include <asm/mach-types.h>
@@ -69,6 +71,8 @@ static pin_cfg_t mop500_pins[] = {
 	GPIO166_KP_O2,
 	GPIO167_KP_O1,
 	GPIO168_KP_O0,
+
+	GPIO217_GPIO,		/* GPIO_EXP_INT */
 };
 
 static void ab4500_spi_cs_control(u32 command)
@@ -130,6 +134,33 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	 * 224 are connected as chip selects
 	 */
 	.num_chipselect = 5,
+};
+
+/*
+ * TC35892
+ */
+
+static void mop500_tc35892_init(struct tc35892 *tc35892, unsigned int base)
+{
+	mop500_sdi_tc35892_init();
+}
+
+static struct tc35892_gpio_platform_data mop500_tc35892_gpio_data = {
+	.gpio_base	= MOP500_EGPIO(0),
+	.setup		= mop500_tc35892_init,
+};
+
+static struct tc35892_platform_data mop500_tc35892_data = {
+	.gpio		= &mop500_tc35892_gpio_data,
+	.irq_base	= MOP500_EGPIO_IRQ_BASE,
+};
+
+static struct i2c_board_info mop500_i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("tc35892", 0x42),
+		.irq            = NOMADIK_GPIO_TO_IRQ(217),
+		.platform_data  = &mop500_tc35892_data,
+	},
 };
 
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
@@ -314,6 +345,9 @@ static void __init u8500_init_machine(void)
 			ARRAY_SIZE(ab8500_spi_devices));
 	else /* If HW is v.1.1 or later use I2C to access AB8500 */
 		platform_device_register(&ab8500_device);
+
+	i2c_register_board_info(0, mop500_i2c0_devices,
+				ARRAY_SIZE(mop500_i2c0_devices));
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
