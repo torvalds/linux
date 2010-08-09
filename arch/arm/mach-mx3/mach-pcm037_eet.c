@@ -14,6 +14,7 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
+#include <mach/spi.h>
 
 #include <asm/mach-types.h>
 
@@ -59,14 +60,12 @@ static struct spi_board_info pcm037_spi_dev[] = {
 };
 
 /* Platform Data for MXC CSPI */
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 static int pcm037_spi1_cs[] = {MXC_SPI_CS(1), IOMUX_TO_GPIO(MX31_PIN_KEY_COL7)};
 
 static const struct spi_imx_master pcm037_spi1_pdata __initconst = {
 	.chipselect = pcm037_spi1_cs,
 	.num_chipselect = ARRAY_SIZE(pcm037_spi1_cs),
 };
-#endif
 
 /* GPIO-keys input device */
 static struct gpio_keys_button pcm037_gpio_keys[] = {
