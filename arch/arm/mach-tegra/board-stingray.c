@@ -834,6 +834,22 @@ static void __init tegra_stingray_init(void)
 	gpio_request(TEGRA_GPIO_PG3, "sys_restart_b");
 	gpio_direction_output(TEGRA_GPIO_PG3, 1);
 
+	/* ULPI_PHY_RESET_B (TEGRA_GPIO_PG2) can be initialized as
+	   output low when the kernel boots.
+	   FIXME: This will need to be evaluated for datacard scenarios
+	   separately. */
+	tegra_gpio_enable(TEGRA_GPIO_PG2);
+	gpio_request(TEGRA_GPIO_PG2, "ulpi_phy_reset_b");
+	gpio_direction_output(TEGRA_GPIO_PG2, 0);
+	gpio_export(TEGRA_GPIO_PG2, false);
+
+	/* USB_FORCEON_N (TEGRA_GPIO_PC5) should be forced high at boot
+	   and will be pulled low by the hardware on attach */
+	tegra_gpio_enable(TEGRA_GPIO_PC5);
+	gpio_request(TEGRA_GPIO_PC5, "usb_forceon_n");
+	gpio_direction_output(TEGRA_GPIO_PC5, 1);
+	gpio_export(TEGRA_GPIO_PC5, false);
+
 	/* Enable charging */
 	tegra_gpio_enable(TEGRA_GPIO_PV5);
 	gpio_request(TEGRA_GPIO_PV5, "chg_stat1");
