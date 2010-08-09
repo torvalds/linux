@@ -737,6 +737,9 @@ static void fetch_bit_operand(struct decode_cache *c)
 
 		c->dst.addr.mem += (sv >> 3);
 	}
+
+	/* only subword offset */
+	c->src.val &= (c->dst.bytes << 3) - 1;
 }
 
 static int read_emulated(struct x86_emulate_ctxt *ctxt,
@@ -2336,7 +2339,7 @@ static struct opcode twobyte_table[256] = {
 	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
-	G(0, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	G(BitOp, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
 	    D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
@@ -3419,8 +3422,6 @@ twobyte_insn:
 		break;
 	case 0xab:
 	      bts:		/* bts */
-		/* only subword offset */
-		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bts", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xac: /* shrd imm8, r, r/m */
@@ -3448,8 +3449,6 @@ twobyte_insn:
 		break;
 	case 0xb3:
 	      btr:		/* btr */
-		/* only subword offset */
-		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("btr", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
@@ -3471,8 +3470,6 @@ twobyte_insn:
 		break;
 	case 0xbb:
 	      btc:		/* btc */
-		/* only subword offset */
-		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("btc", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xbe ... 0xbf:	/* movsx */
