@@ -177,7 +177,7 @@ config HID_KYE
 	Support for Kye/Genius Ergo Mouse.
 
 config HID_UCLOGIC
-	tristate "UC-Logic" if EMBEDDED
+	tristate "UC-Logic"
 	depends on USB_HID
 	---help---
 	Support for UC-Logic tablets.
