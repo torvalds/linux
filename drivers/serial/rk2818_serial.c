@@ -644,47 +644,50 @@ static int __devinit rk2818_serial_probe(struct platform_device *pdev)
 //RX/TX：HIGH
 //CTS/RTS：LOW
 //注意：CTS/RTS为低有效，硬件上不应该强行做上拉
-    rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_GPIO1_C1 /*IOMUXA_UART0_SOUT*/);  
-    rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_GPIO1_C0 /*IOMUXA_UART0_SIN*/);
-    
-    ret = gpio_request(RK2818_PIN_PG0, NULL); 
-    if(ret != 0)
+    if(pdev->id)
     {
-      gpio_free(RK2818_PIN_PG0);
+        rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_GPIO1_C1 /*IOMUXA_UART0_SOUT*/);  
+        rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_GPIO1_C0 /*IOMUXA_UART0_SIN*/);
+        
+        ret = gpio_request(RK2818_PIN_PG0, NULL); 
+        if(ret != 0)
+        {
+          gpio_free(RK2818_PIN_PG0);
+        }
+        gpio_direction_output(RK2818_PIN_PG0,GPIO_HIGH); 
+
+        
+        ret = gpio_request(RK2818_PIN_PG1, NULL); 
+        if(ret != 0)
+        {
+          gpio_free(RK2818_PIN_PG1);
+        }
+        gpio_direction_output(RK2818_PIN_PG1,GPIO_HIGH); 
+
+        gpio_pull_updown(RK2818_PIN_PG1,GPIOPullUp);
+        gpio_pull_updown(RK2818_PIN_PG0,GPIOPullUp);
+
+        rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_UART0_SOUT);  
+        rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_UART0_SIN);
+
+        rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_GPIO0_B2/*IOMUXB_UART0_CTS_N*/);
+        rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_GPIO0_B3/*IOMUXB_UART0_RTS_N*/);
+
+        ret = gpio_request(RK2818_PIN_PB2, NULL); 
+        if(ret != 0)
+        {
+          gpio_free(RK2818_PIN_PB2);
+        }
+        gpio_direction_input(RK2818_PIN_PB2); 
+    //    gpio_direction_output(RK2818_PIN_PB2,GPIO_LOW); 
+        
+        ret = gpio_request(RK2818_PIN_PB3, NULL); 
+        if(ret != 0)
+        {
+          gpio_free(RK2818_PIN_PB3);
+        }
+        gpio_direction_output(RK2818_PIN_PB3,GPIO_LOW); 
     }
-    gpio_direction_output(RK2818_PIN_PG0,GPIO_HIGH); 
-
-    
-    ret = gpio_request(RK2818_PIN_PG1, NULL); 
-    if(ret != 0)
-    {
-      gpio_free(RK2818_PIN_PG1);
-    }
-    gpio_direction_output(RK2818_PIN_PG1,GPIO_HIGH); 
-
-    gpio_pull_updown(RK2818_PIN_PG1,GPIOPullUp);
-    gpio_pull_updown(RK2818_PIN_PG0,GPIOPullUp);
-
-    rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_UART0_SOUT);  
-    rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_UART0_SIN);
-
-    rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_GPIO0_B2/*IOMUXB_UART0_CTS_N*/);
-    rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_GPIO0_B3/*IOMUXB_UART0_RTS_N*/);
-
-    ret = gpio_request(RK2818_PIN_PB2, NULL); 
-    if(ret != 0)
-    {
-      gpio_free(RK2818_PIN_PB2);
-    }
-    gpio_direction_input(RK2818_PIN_PB2); 
-//    gpio_direction_output(RK2818_PIN_PB2,GPIO_LOW); 
-    
-    ret = gpio_request(RK2818_PIN_PB3, NULL); 
-    if(ret != 0)
-    {
-      gpio_free(RK2818_PIN_PB3);
-    }
-    gpio_direction_output(RK2818_PIN_PB3,GPIO_LOW); 
 #endif
 
     
