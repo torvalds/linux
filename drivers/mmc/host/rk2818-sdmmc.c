@@ -85,6 +85,7 @@ struct rk2818_sdmmc_host {
 	struct mmc_data		*data;
 
 	int				dma_chn;
+	int 			id;
 	unsigned int	use_dma:1;
 	unsigned int	no_detect:1;
 	char			dma_name[8];
@@ -122,7 +123,7 @@ struct rk2818_sdmmc_host {
 
 #define MMC_DEBUG 0
 #if MMC_DEBUG
-#define xjhprintk(msg...) xjhprintk(msg)
+#define xjhprintk(msg...) printk(msg)
 #else
 #define xjhprintk(msg...)
 #endif
@@ -503,7 +504,8 @@ static void rk2818_sdmmc_stop_dma(struct rk2818_sdmmc_host *host)
 		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
 		//disable_dma(host->dma_chn);
-		free_dma(host->dma_chn);
+		if (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)
+			free_dma(host->dma_chn);
 		host->dma_chn = -1;
 		rk2818_sdmmc_dma_cleanup(host);
 		rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);//[xjh]  如果数据读写过程被拔掉，需要设置这个状态
@@ -528,7 +530,8 @@ static void rk2818_sdmmc_dma_complete(int chn, void *arg)
 				host->regs +SDMMC_CTRL);
 	rk2818_sdmmc_dma_cleanup(host);
 	//disable_dma(host->dma_chn);
-	free_dma(host->dma_chn);
+	if (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)
+		free_dma(host->dma_chn);
 	host->dma_chn = -1;
 	if (data) {
 		
@@ -545,35 +548,45 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 	host->dma_chn = -1;
 	if(host->use_dma == 0)
 		return -ENOSYS;
+#if 0
 	if (data->blocks * data->blksz < RK2818_MCI_DMA_THRESHOLD)
 		return -EINVAL;
+#endif
 	if (data->blksz & 3)
 		return -EINVAL;
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (sg->offset & 3 || sg->length & 3)
 			return -EINVAL;
 	}
-	for(i = 0; i < MAX_SG_CHN; i++) {
-		if(request_dma(i, host->dma_name) == 0) {
-			host->dma_chn = i;
-			break;
+	if (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0) {
+		for(i = 0; i < MAX_SG_CHN; i++) {
+			if(request_dma(i, host->dma_name) == 0) {
+				host->dma_chn = i;
+				break;
+			}
 		}
+		if(i == MAX_SG_CHN) 
+			return -EINVAL;
 	}
-	if(i == MAX_SG_CHN) 
-		return -EINVAL;
+	else
+		host->dma_chn = 1;
 	dma_map_sg(host->dev, data->sg, data->sg_len, 
 			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		dev_dbg(host->dev, "sg[%d]  addr: 0x%08x, len: %d", i, sg->dma_address, sg->length);
 	}
-
 	set_dma_sg(host->dma_chn, data->sg, data->sg_len);
+	//printk("2.....\n");
 	set_dma_mode(host->dma_chn,
 				(data->flags & MMC_DATA_READ)? DMA_MODE_READ : DMA_MODE_WRITE);
+	//printk("3.....\n");
 	set_dma_handler(host->dma_chn, rk2818_sdmmc_dma_complete, (void *)host, DMA_IRQ_DELAY_MODE);
+	//printk("4.....\n");
 	writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
+	//printk("5.....\n");
 	enable_dma(host->dma_chn);
+	//printk("6.....\n");
 	dev_dbg(host->dev,"DMA enable, \n");
 	return 0;
 }
@@ -887,14 +900,11 @@ static int rk2818_sdmmc_get_ro(struct mmc_host *mmc)
 
 static int rk2818_sdmmc_get_cd(struct mmc_host *mmc)
 {
-#if !defined(CONFIG_MACH_RAHO)
 	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
 	u32 cdetect = readl(host->regs + SDMMC_CDETECT);
 	
 	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
-#else
-    return 1; //raho板子没接cd引脚，故这里默认都认为有卡存在。该情况下，只能在关机的情况下插拔卡才有效
-#endif
+
 }
 
 static void rk2818_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1466,10 +1476,10 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		    if (!host->data_status)
 				host->data_status = status;
 			smp_wmb();
-		    if(host->dir_status == RK2818_MCI_RECV_STATUS) {
+		 /*   if(host->dir_status == RK2818_MCI_RECV_STATUS) {
 				if(host->sg) 
 					rk2818_sdmmc_read_data_pio(host);
-		    }
+		    }*/
 		    rk2818_sdmmc_set_pending(host, EVENT_DATA_COMPLETE);
 		    tasklet_schedule(&host->tasklet);
 		}
@@ -1838,7 +1848,8 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	writel(0xFFFFFFFF, host->regs + SDMMC_RINTSTS);
 	writel(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK2818_MCI_ERROR_FLAGS | SDMMC_INT_CD,
 			host->regs + SDMMC_INTMASK);
-	
+
+#if 0	
 	/* Assume card is present initially */
 	if(rk2818_sdmmc_get_cd(host->mmc) == 0 &&strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
 	{
@@ -1849,8 +1860,23 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 		set_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
 	else
 		clear_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+#endif
 	
 	ret = mmc_add_host(mmc);
+
+        
+	if (strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
+	{
+		wifi_mmc_host = mmc;
+		if(request_dma(1, host->dma_name) == 0)
+			host->dma_chn = 1;
+		else
+		{
+			ret = -EINVAL;
+			goto err_remove_host;
+		}
+	}
+
 	if(ret) 
 	{
 		dev_err(&pdev->dev, "failed to add mmc host.\n");
@@ -1867,12 +1893,12 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	rk2818_sdmmc_init_debugfs(host);
 #endif
 	writel(SDMMC_CTRL_INT_ENABLE, host->regs + SDMMC_CTRL); // enable mci interrupt
-	dev_info(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
-				host->dma_name, host->irq);
-	if (strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
-		wifi_mmc_host = mmc;
 
+	dev_dbg(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
+				host->dma_name, host->irq);
 	return 0;
+err_remove_host:
+	mmc_remove_host(host->mmc);
 err_free_irq:
 	free_irq(host->irq, host);
 err_free_clk:

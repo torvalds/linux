@@ -1,0 +1,34 @@
+EXTRA_CFLAGS += -Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
+EXTRA_CFLAGS += -DLINUX -DSRCBASE=\"$(BROADCOM_SRC_DIR)\" -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD\
+                -DBCMWPA2 -DBCMWAPI_WPI
+EXTRA_CFLAGS += -DUNRELEASEDCHIP -DOEM_ANDROID -DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT 
+EXTRA_CFLAGS += -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS
+EXTRA_CFLAGS += -DSDIO_ISR_THREAD
+EXTRA_CFLAGS += -DBDC -DTOE -DDHD_BCMEVENTS -DSHOW_EVENTS  \
+                -DDHD_SCHED -DDHD_DEBUG -DSDTEST 
+
+
+bcmsdio-objs := bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o \
+                bcmsdh_sdmmc_linux.o
+
+dhd-objs := dhd_common.o  dhd_linux.o dhd_linux_sched.o dhd_sdio.o \
+            dhd_custom_gpio.o dhd_cdc.o
+
+shared-objs := aiutils.o bcmutils.o bcmwifi.o hndpmu.o \
+               linux_osl.o  sbutils.o siutils.o
+
+wl-objs := wl_iw.o
+
+bcm4329-objs := $(bcmsdio-objs) $(dhd-objs) $(shared-objs) $(wl-objs) wifi_power.o 
+
+obj-$(CONFIG_BCM4329) += bcm4329.o
+
+
+
+
+
+
+
+
+
+                 
