@@ -98,7 +98,7 @@ struct stedma40_half_channel_info {
 };
 
 enum stedma40_xfer_dir {
-	STEDMA40_MEM_TO_MEM,
+	STEDMA40_MEM_TO_MEM = 1,
 	STEDMA40_MEM_TO_PERIPH,
 	STEDMA40_PERIPH_TO_MEM,
 	STEDMA40_PERIPH_TO_PERIPH
