@@ -589,9 +589,12 @@ static int mmci_get_cd(struct mmc_host *mmc)
 	struct mmci_platform_data *plat = host->plat;
 	unsigned int status;
 
-	if (host->gpio_cd == -ENOSYS)
+	if (host->gpio_cd == -ENOSYS) {
+		if (!plat->status)
+			return 1; /* Assume always present */
+
 		status = plat->status(mmc_dev(host->mmc));
-	else
+	} else
 		status = !!gpio_get_value(host->gpio_cd) ^ plat->cd_invert;
 
 	/*
@@ -787,7 +790,8 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 			goto err_gpio_wp;
 	}
 
-	if (host->gpio_cd_irq < 0)
+	if ((host->plat->status || host->gpio_cd != -ENOSYS)
+	    && host->gpio_cd_irq < 0)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
