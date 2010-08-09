@@ -1757,10 +1757,8 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 	struct wm831x *wm831x;
 
 	wm831x = kzalloc(sizeof(struct wm831x), GFP_KERNEL);
-	if (wm831x == NULL) {
-		kfree(i2c);
+	if (wm831x == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, wm831x);
 	wm831x->dev = &i2c->dev;
