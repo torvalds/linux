@@ -405,6 +405,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keycode = 0x7e;
 		ir->polling      = 100; /* ms */
 		break;
+	case CX88_BOARD_TWINHAN_VP1027_DVBS:
+		ir_codes         = RC_MAP_TWINHAN_VP1027_DVBS;
+		ir_type          = IR_TYPE_NEC;
+		ir->sampling     = 0xff00; /* address */
+		break;
 	}
 
 	if (NULL == ir_codes) {
@@ -530,6 +535,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_PROF_7300:
 	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
+	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
 
 		if (ircode == 0xffffffff) { /* decoding error */

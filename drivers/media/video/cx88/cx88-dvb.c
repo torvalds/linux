@@ -56,6 +56,7 @@
 #include "stv0900.h"
 #include "stb6100.h"
 #include "stb6100_proc.h"
+#include "mb86a16.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -250,6 +251,10 @@ static const struct zl10353_config cx88_terratec_cinergy_ht_pci_mkii_config = {
 	.if2           = 45600,
 };
 
+static struct mb86a16_config twinhan_vp1027 = {
+	.demod_address  = 0x08,
+};
+
 #if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
 static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 {
@@ -429,15 +434,41 @@ static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
 
 	cx_set(MO_GP0_IO, 0x6040);
 	switch (voltage) {
-		case SEC_VOLTAGE_13:
-			cx_clear(MO_GP0_IO, 0x20);
-			break;
-		case SEC_VOLTAGE_18:
-			cx_set(MO_GP0_IO, 0x20);
-			break;
-		case SEC_VOLTAGE_OFF:
-			cx_clear(MO_GP0_IO, 0x20);
-			break;
+	case SEC_VOLTAGE_13:
+		cx_clear(MO_GP0_IO, 0x20);
+		break;
+	case SEC_VOLTAGE_18:
+		cx_set(MO_GP0_IO, 0x20);
+		break;
+	case SEC_VOLTAGE_OFF:
+		cx_clear(MO_GP0_IO, 0x20);
+		break;
+	}
+
+	if (core->prev_set_voltage)
+		return core->prev_set_voltage(fe, voltage);
+	return 0;
+}
+
+static int vp1027_set_voltage(struct dvb_frontend *fe,
+				    fe_sec_voltage_t voltage)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		dprintk(1, "LNB SEC Voltage=13\n");
+		cx_write(MO_GP0_IO, 0x00001220);
+		break;
+	case SEC_VOLTAGE_18:
+		dprintk(1, "LNB SEC Voltage=18\n");
+		cx_write(MO_GP0_IO, 0x00001222);
+		break;
+	case SEC_VOLTAGE_OFF:
+		dprintk(1, "LNB Voltage OFF\n");
+		cx_write(MO_GP0_IO, 0x00001230);
+		break;
 	}
 
 	if (core->prev_set_voltage)
@@ -1415,6 +1446,18 @@ static int dvb_register(struct cx8802_dev *dev)
 				samsung_smt_7020_set_tone;
 		}
 
+		break;
+	case CX88_BOARD_TWINHAN_VP1027_DVBS:
+		dev->ts_gen_cntrl = 0x00;
+		fe0->dvb.frontend = dvb_attach(mb86a16_attach,
+						&twinhan_vp1027,
+						&core->i2c_adap);
+		if (fe0->dvb.frontend) {
+			core->prev_set_voltage =
+					fe0->dvb.frontend->ops.set_voltage;
+			fe0->dvb.frontend->ops.set_voltage =
+					vp1027_set_voltage;
+		}
 		break;
 
 	default:
