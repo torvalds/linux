@@ -644,7 +644,7 @@ static int __devinit rk2818_serial_probe(struct platform_device *pdev)
 //RX/TX：HIGH
 //CTS/RTS：LOW
 //注意：CTS/RTS为低有效，硬件上不应该强行做上拉
-    if(pdev->id)
+    if(pdev->id == 0)
     {
         rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_GPIO1_C1 /*IOMUXA_UART0_SOUT*/);  
         rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_GPIO1_C0 /*IOMUXA_UART0_SIN*/);
