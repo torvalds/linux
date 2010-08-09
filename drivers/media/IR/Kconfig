@@ -2,13 +2,20 @@ menuconfig IR_CORE
 	tristate "Infrared remote controller adapters"
 	depends on INPUT
 	default INPUT
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters.
 
-if IR_CORE
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
 
 config VIDEO_IR
 	tristate
 	depends on IR_CORE
 	default IR_CORE
+
+if IR_CORE
 
 config LIRC
 	tristate
