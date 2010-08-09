@@ -42,6 +42,7 @@
 #include <mach/nand.h>
 #include <mach/clock.h>
 #include <mach/cdce949.h>
+#include <mach/aemif.h>
 
 #include "clock.h"
 
@@ -69,6 +70,16 @@ static struct mtd_partition davinci_nand_partitions[] = {
 		.size		= MTDPART_SIZ_FULL,
 		.mask_flags	= 0,
 	}
+};
+
+static struct davinci_aemif_timing dm6467tevm_nandflash_timing = {
+	.wsetup		= 29,
+	.wstrobe	= 24,
+	.whold		= 14,
+	.rsetup		= 19,
+	.rstrobe	= 33,
+	.rhold		= 0,
+	.ta		= 29,
 };
 
 static struct davinci_nand_pdata davinci_nand_data = {
@@ -762,6 +773,9 @@ static __init void evm_init(void)
 	davinci_serial_init(&uart_config);
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
+
+	if (machine_is_davinci_dm6467tevm())
+		davinci_nand_data.timing = &dm6467tevm_nandflash_timing;
 
 	platform_device_register(&davinci_nand_device);
 
