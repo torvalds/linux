@@ -652,29 +652,10 @@ static u32 d40_chan_has_events(struct d40_chan *d40c)
 	return val;
 }
 
-static void d40_config_enable_lidx(struct d40_chan *d40c)
-{
-	/* Set LIDX for lcla */
-	writel((d40c->phy_chan->num << D40_SREG_ELEM_LOG_LIDX_POS) &
-	       D40_SREG_ELEM_LOG_LIDX_MASK,
-	       d40c->base->virtbase + D40_DREG_PCBASE +
-	       d40c->phy_chan->num * D40_DREG_PCDELTA + D40_CHAN_REG_SDELT);
-
-	writel((d40c->phy_chan->num << D40_SREG_ELEM_LOG_LIDX_POS) &
-	       D40_SREG_ELEM_LOG_LIDX_MASK,
-	       d40c->base->virtbase + D40_DREG_PCBASE +
-	       d40c->phy_chan->num * D40_DREG_PCDELTA + D40_CHAN_REG_SSELT);
-}
-
-static int d40_config_write(struct d40_chan *d40c)
+static void d40_config_write(struct d40_chan *d40c)
 {
 	u32 addr_base;
 	u32 var;
-	int res;
-
-	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
-	if (res)
-		return res;
 
 	/* Odd addresses are even addresses + 4 */
 	addr_base = (d40c->phy_chan->num % 2) * 4;
@@ -700,9 +681,20 @@ static int d40_config_write(struct d40_chan *d40c)
 		       d40c->phy_chan->num * D40_DREG_PCDELTA +
 		       D40_CHAN_REG_SDCFG);
 
-		d40_config_enable_lidx(d40c);
+		/* Set LIDX for lcla */
+		writel((d40c->phy_chan->num << D40_SREG_ELEM_LOG_LIDX_POS) &
+		       D40_SREG_ELEM_LOG_LIDX_MASK,
+		       d40c->base->virtbase + D40_DREG_PCBASE +
+		       d40c->phy_chan->num * D40_DREG_PCDELTA +
+		       D40_CHAN_REG_SDELT);
+
+		writel((d40c->phy_chan->num << D40_SREG_ELEM_LOG_LIDX_POS) &
+		       D40_SREG_ELEM_LOG_LIDX_MASK,
+		       d40c->base->virtbase + D40_DREG_PCBASE +
+		       d40c->phy_chan->num * D40_DREG_PCDELTA +
+		       D40_CHAN_REG_SSELT);
+
 	}
-	return res;
 }
 
 static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
@@ -1730,14 +1722,8 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	 * resource is free. In case of multiple logical channels
 	 * on the same physical resource, only the first write is necessary.
 	 */
-	if (is_free_phy) {
-		err = d40_config_write(d40c);
-		if (err) {
-			dev_err(&d40c->chan.dev->device,
-				"[%s] Failed to configure channel\n",
-				__func__);
-		}
-	}
+	if (is_free_phy)
+		d40_config_write(d40c);
 fail:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return err;
