@@ -487,9 +487,11 @@ static int online_store_handle_offline(struct ccw_device *cdev)
 		spin_lock_irq(cdev->ccwlock);
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG_EVAL);
 		spin_unlock_irq(cdev->ccwlock);
-	} else if (cdev->online && cdev->drv && cdev->drv->set_offline)
+		return 0;
+	}
+	if (cdev->drv && cdev->drv->set_offline)
 		return ccw_device_set_offline(cdev);
-	return 0;
+	return -EINVAL;
 }
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
@@ -506,8 +508,8 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 			return -EAGAIN;
 	}
 	if (cdev->drv && cdev->drv->set_online)
-		ccw_device_set_online(cdev);
-	return 0;
+		return ccw_device_set_online(cdev);
+	return -EINVAL;
 }
 
 static int online_store_handle_online(struct ccw_device *cdev, int force)
