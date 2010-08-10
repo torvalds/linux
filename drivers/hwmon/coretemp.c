@@ -502,10 +502,13 @@ static int __cpuinit coretemp_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
 		coretemp_device_add(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
 		coretemp_device_remove(cpu);
 		break;
 	}
@@ -566,7 +569,9 @@ exit_devices_unreg:
 	}
 	mutex_unlock(&pdev_list_mutex);
 exit_driver_unreg:
+#ifndef CONFIG_HOTPLUG_CPU
 	platform_driver_unregister(&coretemp_driver);
+#endif
 exit:
 	return err;
 }
