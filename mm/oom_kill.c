@@ -362,10 +362,10 @@ static void dump_tasks(const struct mem_cgroup *mem)
 static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 							struct mem_cgroup *mem)
 {
+	task_lock(current);
 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
 		"oom_adj=%d\n",
 		current->comm, gfp_mask, order, current->signal->oom_adj);
-	task_lock(current);
 	cpuset_print_task_mems_allowed(current);
 	task_unlock(current);
 	dump_stack();
@@ -436,8 +436,11 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			    unsigned long points, struct mem_cgroup *mem,
 			    const char *message)
 {
-	struct task_struct *c;
+	struct task_struct *victim = p;
+	struct task_struct *child;
 	struct task_struct *t = p;
+	unsigned long victim_points = 0;
+	struct timespec uptime;
 
 	if (printk_ratelimit())
 		dump_header(p, gfp_mask, order, mem);
@@ -451,22 +454,37 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		return 0;
 	}
 
-	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
-					message, task_pid_nr(p), p->comm, points);
+	task_lock(p);
+	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
+		message, task_pid_nr(p), p->comm, points);
+	task_unlock(p);
 
-	/* Try to kill a child first */
+	/*
+	 * If any of p's children has a different mm and is eligible for kill,
+	 * the one with the highest badness() score is sacrificed for its
+	 * parent.  This attempts to lose the minimal amount of work done while
+	 * still freeing memory.
+	 */
+	do_posix_clock_monotonic_gettime(&uptime);
 	do {
-		list_for_each_entry(c, &t->children, sibling) {
-			if (c->mm == p->mm)
+		list_for_each_entry(child, &t->children, sibling) {
+			unsigned long child_points;
+
+			if (child->mm == p->mm)
 				continue;
-			if (mem && !task_in_mem_cgroup(c, mem))
+			if (mem && !task_in_mem_cgroup(child, mem))
 				continue;
-			if (!oom_kill_task(c))
-				return 0;
+
+			/* badness() returns 0 if the thread is unkillable */
+			child_points = badness(child, uptime.tv_sec);
+			if (child_points > victim_points) {
+				victim = child;
+				victim_points = child_points;
+			}
 		}
 	} while_each_thread(p, t);
 
-	return oom_kill_task(p);
+	return oom_kill_task(victim);
 }
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
