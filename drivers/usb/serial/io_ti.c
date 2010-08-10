@@ -1284,7 +1284,7 @@ static int download_fw(struct edgeport_serial *serial)
 				kfree(header);
 				kfree(rom_desc);
 				kfree(ti_manuf_desc);
-				return status;
+				return -EINVAL;
 			}
 
 			/* Update I2C with type 0xf2 record with correct
