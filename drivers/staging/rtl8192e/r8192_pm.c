@@ -17,7 +17,7 @@
 int rtl8192E_save_state (struct pci_dev *dev, pm_message_t state)
 {
         printk(KERN_NOTICE "r8192E save state call (state %u).\n", state.event);
-	return(-EAGAIN);
+	return -EAGAIN;
 }
 
 
@@ -166,5 +166,5 @@ int rtl8192E_enable_wake (struct pci_dev *dev, pm_message_t state, int enable)
 {
         printk(KERN_NOTICE "r8192E enable wake call (state %u, enable %d).\n",
 	       state.event, enable);
-	return(-EAGAIN);
+	return -EAGAIN;
 }

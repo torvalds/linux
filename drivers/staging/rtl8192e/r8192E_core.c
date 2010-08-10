@@ -5610,7 +5610,7 @@ rtl819x_evm_dbtopercentage(
 	ret_val*=3;
 	if(ret_val == 99)
 		ret_val = 100;
-	return(ret_val);
+	return ret_val;
 }
 
 //
@@ -6928,7 +6928,7 @@ bool NicIFEnableNIC(struct net_device* dev)
 	rtl8192_irq_enable(dev);
 	priv->bdisable_nic = false;
 	//RT_TRACE(COMP_PS,"<===========%s()\n",__FUNCTION__);
-	return (init_status == RT_STATUS_SUCCESS) ? true:false;
+	return (init_status == RT_STATUS_SUCCESS);
 }
 bool NicIFDisableNIC(struct net_device* dev)
 {
