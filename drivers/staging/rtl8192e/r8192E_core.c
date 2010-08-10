@@ -71,7 +71,7 @@
 #endif
 
 //set here to open your trace code. //WB
-u32 rt_global_debug_component = \
+u32 rt_global_debug_component =
 		//		COMP_INIT    	|
 			//	COMP_EPROM   	|
 		//		COMP_PHY	|
@@ -363,8 +363,8 @@ u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 
 	crypt = ieee->crypt[ieee->tx_keyidx];
 
-	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY) ||\
-		  (ieee->host_encrypt && crypt && crypt->ops && \
+	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY) ||
+		  (ieee->host_encrypt && crypt && crypt->ops &&
 		   (0 == strcmp(crypt->ops->name,"WEP")));
 
 	/* simply judge  */
@@ -1708,7 +1708,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 
     pdesc = &ring->desc[idx];
     if((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
-	    RT_TRACE(COMP_ERR,"No more TX desc@%d, ring->idx = %d,idx = %d,%x", \
+	    RT_TRACE(COMP_ERR,"No more TX desc@%d, ring->idx = %d,idx = %d,%x",
 			    tcb_desc->queue_index,ring->idx, idx,skb->len);
 	    spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 	    return skb->len;
@@ -2044,7 +2044,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 					"qos_activate\n");
 		}
 	} else {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
@@ -2096,24 +2096,24 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 
         spin_lock_irqsave(&priv->ieee80211->lock, flags);
 	if(network->flags & NETWORK_HAS_QOS_PARAMETERS) {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
-			 &network->qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
+			 &network->qos_data.parameters,
 			sizeof(struct ieee80211_qos_parameters));
 		priv->ieee80211->current_network.qos_data.active = 1;
 #if 0
-		if((priv->ieee80211->current_network.qos_data.param_count != \
+		if((priv->ieee80211->current_network.qos_data.param_count !=
 					network->qos_data.param_count))
 #endif
 		 {
                         set_qos_param = 1;
 			/* update qos parameter for current network */
-			priv->ieee80211->current_network.qos_data.old_param_count = \
+			priv->ieee80211->current_network.qos_data.old_param_count =
 				 priv->ieee80211->current_network.qos_data.param_count;
-			priv->ieee80211->current_network.qos_data.param_count = \
+			priv->ieee80211->current_network.qos_data.param_count =
 			     	 network->qos_data.param_count;
 		}
         } else {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 		       &def_qos_parameters, size);
 		priv->ieee80211->current_network.qos_data.active = 0;
 		priv->ieee80211->current_network.qos_data.supported = 0;
@@ -2589,9 +2589,9 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		RCR_AAP | ((u32)7<<RCR_MXDMA_OFFSET) |
 		((u32)7 << RCR_FIFO_OFFSET) | RCR_ONLYERLPKT;
 
-	priv->irq_mask = 	(u32)(IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |\
-				IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK |\
-				IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 | IMR_RDU | IMR_RXFOVW	|\
+	priv->irq_mask = 	(u32)(IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |
+				IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK |
+				IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 | IMR_RDU | IMR_RXFOVW |
 				IMR_TXFOVW | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
 	priv->AcmControl = 0;
@@ -3314,7 +3314,7 @@ static void rtl8192_hwconfig(struct net_device* dev)
 	// Set Retry Limit here
 	//
 	write_nic_word(dev, RETRY_LIMIT,
-			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT | \
+			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
 			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 	// Set Contention Window here
 
@@ -3469,12 +3469,12 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 	//2Set Tx dma burst
 #ifdef RTL8190P
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) | \
-											(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) | \
-											(1<<MULRW_SHIFT)));
+	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
+			(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) |
+			(1<<MULRW_SHIFT)));
 #else
 	#ifdef RTL8192E
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |\
+	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 				   (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) ));
 	#endif
 #endif
@@ -3488,25 +3488,25 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	#ifdef TO_DO_LIST
 	if(priv->bInHctTest)
 	{
-		PlatformEFIOWrite4Byte(Adapter, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK_DTM << RSVD_FW_QUEUE_PAGE_BK_SHIFT |\
-                                       	NUM_OF_PAGE_IN_FW_QUEUE_BE_DTM << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-					NUM_OF_PAGE_IN_FW_QUEUE_VI_DTM << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
+		PlatformEFIOWrite4Byte(Adapter, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK_DTM << RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+					NUM_OF_PAGE_IN_FW_QUEUE_BE_DTM << RSVD_FW_QUEUE_PAGE_BE_SHIFT |
+					NUM_OF_PAGE_IN_FW_QUEUE_VI_DTM << RSVD_FW_QUEUE_PAGE_VI_SHIFT |
 					NUM_OF_PAGE_IN_FW_QUEUE_VO_DTM <<RSVD_FW_QUEUE_PAGE_VO_SHIFT);
 		PlatformEFIOWrite4Byte(Adapter, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-		PlatformEFIOWrite4Byte(Adapter, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW| \
-					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
+		PlatformEFIOWrite4Byte(Adapter, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW|
+					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
 					NUM_OF_PAGE_IN_FW_QUEUE_PUB_DTM<<RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 	}
 	else
 	#endif
 	{
-		write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |\
-					NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-					NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
+		write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+					NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT |
+					NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT |
 					NUM_OF_PAGE_IN_FW_QUEUE_VO <<RSVD_FW_QUEUE_PAGE_VO_SHIFT);
 		write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-		write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW| \
-					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
+		write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW|
+					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
 					NUM_OF_PAGE_IN_FW_QUEUE_PUB<<RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 	}
 
@@ -4384,7 +4384,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 	//
 	pPSC->bSwRfProcessing = TRUE;
 
-	RT_TRACE(COMP_RF, "InactivePsWorkItemCallback(): Set RF to %s.\n", \
+	RT_TRACE(COMP_RF, "InactivePsWorkItemCallback(): Set RF to %s.\n",
 			pPSC->eInactivePowerState == eRfOff?"OFF":"ON");
 
 
@@ -4667,8 +4667,8 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 //	printk("watch_dog ENABLE_IPS\n");
 	if(ieee->actscanning == false){
 		//printk("%d,%d,%d,%d\n", ieee->eRFPowerState, ieee->is_set_key, ieee->proto_stoppping, ieee->wx_set_enc);
-		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&\
-		    (ieee->eRFPowerState == eRfOn)&&!ieee->is_set_key &&\
+		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&
+		    (ieee->eRFPowerState == eRfOn)&&!ieee->is_set_key &&
 		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
 			if(ieee->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
 				//printk("====================>haha:IPSEnter()\n");
@@ -6813,7 +6813,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 		SECR_value &= ~SCR_RxDecEnable;
 	}
 
-	RT_TRACE(COMP_SEC,"%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__, \
+	RT_TRACE(COMP_SEC,"%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__,
 			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);
 	{
                 write_nic_byte(dev, SECR,  SECR_value);//SECR_value |  SCR_UseDK );

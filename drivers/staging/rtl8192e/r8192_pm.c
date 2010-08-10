@@ -104,7 +104,7 @@ out_pci_suspend:
 	netif_device_detach(dev);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev,state),\
+	pci_enable_wake(pdev, pci_choose_state(pdev,state),
 			priv->ieee80211->bSupportRemoteWakeUp?1:0);
 	pci_set_power_state(pdev,pci_choose_state(pdev,state));
 

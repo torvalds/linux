@@ -3088,7 +3088,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 regBwOpMode;
 
-	RT_TRACE(COMP_SWBW, "==>rtl8192_SetBWModeWorkItem()  Switch to %s bandwidth\n", \
+	RT_TRACE(COMP_SWBW, "==>rtl8192_SetBWModeWorkItem()  Switch to %s bandwidth\n",
 					priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz")
 
 

@@ -24,10 +24,10 @@ static void eprom_cs(struct net_device *dev, short bit)
 {
 	if (bit)
 		write_nic_byte(dev, EPROM_CMD,
-			       (1<<EPROM_CS_SHIFT) | \
+			       (1<<EPROM_CS_SHIFT) |
 			       read_nic_byte(dev, EPROM_CMD)); //enable EPROM
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)\
+		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
 			       &~(1<<EPROM_CS_SHIFT)); //disable EPROM
 
 	force_pci_posting(dev);
@@ -51,10 +51,10 @@ static void eprom_ck_cycle(struct net_device *dev)
 static void eprom_w(struct net_device *dev, short bit)
 {
 	if (bit)
-		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) | \
+		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
 			       read_nic_byte(dev, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)\
+		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
 			       &~(1<<EPROM_W_SHIFT));
 
 	force_pci_posting(dev);
