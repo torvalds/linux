@@ -295,9 +295,7 @@ void dm_check_ac_dc_power(struct net_device *dev)
 		return;
 	}
 	call_usermodehelper(ac_dc_check_script_path,argv,envp,1);
-
-	return;
-};
+}
 
 void hal_dm_watchdog(struct net_device *dev)
 {

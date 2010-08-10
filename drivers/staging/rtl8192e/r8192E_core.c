@@ -1106,7 +1106,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	}
 
 	skb_queue_purge(&priv->skb_queue);
-	return;
 }
 
 #if 0

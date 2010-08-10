@@ -1477,7 +1477,6 @@ void rtl8192_setBBreg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask, u32 
 		write_nic_dword(dev, dwRegAddr, NewValue);
 	}else
 		write_nic_dword(dev, dwRegAddr, dwData);
-	return;
 }
 /******************************************************************************
  *function:  This function reads specific bits from BB register
@@ -1705,8 +1704,6 @@ static void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E 
 	#endif
 #endif
 	}
-
-	return;
 }
 
 /******************************************************************************
@@ -1764,7 +1761,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	}
 	//spin_unlock_irqrestore(&priv->rf_lock, flags);
 	//up(&priv->rf_sem);
-	return;
 }
 
 /******************************************************************************
@@ -1967,8 +1963,6 @@ if(Adapter->bInHctTest)
 		}
 		rtl8192_setBBreg(dev, pdwArray[i], pdwArray[i+1], pdwArray[i+2]);
 	}
-	return;
-
 }
 
 /******************************************************************************
@@ -2039,9 +2033,6 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
 			RT_TRACE(COMP_DBG, "i:%x, The rtl819XAGCTAB_Array[0] is %x rtl819XAGCTAB_Array[1] is %x \n",i, Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]);
 		}
 	}
-	return;
-
-
 }
 /******************************************************************************
  *function:  This function initialize Register definition offset for Radio Path
@@ -2381,7 +2372,6 @@ void rtl8192_phy_getTxPower(struct net_device* dev)
 		rOFDM0_RxDetector3, priv->framesync);
 	// read SIFS (save the value read fome MACPHY_REG.txt)
 	priv->SifsTime = read_nic_word(dev, SIFS);
-	return;
 }
 
 /******************************************************************************
@@ -2503,7 +2493,6 @@ void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel)
 		RT_TRACE(COMP_ERR, "unknown rf chip in funtion %s()\n", __FUNCTION__);
 		break;
 	}
-	return;
 }
 
 /******************************************************************************
@@ -2546,7 +2535,6 @@ RT_STATUS rtl8192_phy_RFConfig(struct net_device* dev)
  * ***************************************************************************/
 void rtl8192_phy_updateInitGain(struct net_device* dev)
 {
-	return;
 }
 
 /******************************************************************************
@@ -2653,7 +2641,6 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 		RT_TRACE(COMP_ERR, "unknown rf chip ID in rtl8192_SetTxPowerLevel()\n");
 		break;
 	}
-	return;
 }
 /****************************************************************************************
  *function:  This function set command table variable(struct SwChnlCmd).
