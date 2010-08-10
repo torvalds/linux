@@ -1951,6 +1951,11 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 	sc.nodemask = &nm;
 	sc.nr_reclaimed = 0;
 	sc.nr_scanned = 0;
+
+	trace_mm_vmscan_memcg_softlimit_reclaim_begin(0,
+						      sc.may_writepage,
+						      sc.gfp_mask);
+
 	/*
 	 * NOTE: Although we can get the priority field, using it
 	 * here is not a good idea, since it limits the pages we can scan.
@@ -1959,6 +1964,9 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 	 * the priority and make it zero.
 	 */
 	shrink_zone(0, zone, &sc);
+
+	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+
 	return sc.nr_reclaimed;
 }
 
@@ -1968,6 +1976,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 					   unsigned int swappiness)
 {
 	struct zonelist *zonelist;
+	unsigned long nr_reclaimed;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
@@ -1982,7 +1991,16 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
 	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
-	return do_try_to_free_pages(zonelist, &sc);
+
+	trace_mm_vmscan_memcg_reclaim_begin(0,
+					    sc.may_writepage,
+					    sc.gfp_mask);
+
+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+
+	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+
+	return nr_reclaimed;
 }
 #endif
 
