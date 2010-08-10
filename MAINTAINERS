@@ -5269,11 +5269,6 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/smsc9420.*
 
-SMX UIO Interface
-M:	Ben Nizette <bn@niasdigital.com>
-S:	Maintained
-F:	drivers/uio/uio_smx.c
-
 SN-IA64 (Itanium) SUB-PLATFORM
 M:	Jes Sorensen <jes@sgi.com>
 L:	linux-altix@sgi.com
