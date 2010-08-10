@@ -3211,6 +3211,13 @@ F:	Documentation/video4linux/*.ivtv
 F:	drivers/media/video/ivtv/
 F:	include/linux/ivtv*
 
+JC42.4 TEMPERATURE SENSOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	drivers/hwmon/jc42.c
+F:	Documentation/hwmon/jc42
+
 JFS FILESYSTEM
 M:	Dave Kleikamp <shaggy@linux.vnet.ibm.com>
 L:	jfs-discussion@lists.sourceforge.net
