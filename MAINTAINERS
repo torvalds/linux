@@ -4821,8 +4821,8 @@ F:	net/rfkill/
 RICOH SMARTMEDIA/XD DRIVER
 M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
-F:	drivers/mtd/nand/r822.c
-F:	drivers/mtd/nand/r822.h
+F:	drivers/mtd/nand/r852.c
+F:	drivers/mtd/nand/r852.h
 
 RISCOM8 DRIVER
 S:	Orphan
