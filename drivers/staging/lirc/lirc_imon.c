@@ -320,7 +320,6 @@ static int send_packet(struct imon_context *context)
 	unsigned int pipe;
 	int interval = 0;
 	int retval = 0;
-	struct usb_ctrlrequest *control_req = NULL;
 
 	/* Check if we need to use control or interrupt urb */
 	pipe = usb_sndintpipe(context->usbdev,
@@ -354,8 +353,6 @@ static int send_packet(struct imon_context *context)
 		if (retval)
 			err("%s: packet tx failed (%d)", __func__, retval);
 	}
-
-	kfree(control_req);
 
 	return retval;
 }
