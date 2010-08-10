@@ -427,7 +427,7 @@ static int pmic_usb_get_property(struct power_supply *psy,
 static inline unsigned long mAStouAh(unsigned long v)
 {
 	/* seconds to hours, mA to µA */
-	return v * 3600 * 1000;
+	return (v * 1000) / 3600;
 }
 
 /**
