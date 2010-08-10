@@ -379,11 +379,12 @@ struct uvc_buffer {
 	struct list_head queue;
 	wait_queue_head_t wait;
 	enum uvc_buffer_state state;
+	unsigned int error;
 };
 
 #define UVC_QUEUE_STREAMING		(1 << 0)
 #define UVC_QUEUE_DISCONNECTED		(1 << 1)
-#define UVC_QUEUE_DROP_INCOMPLETE	(1 << 2)
+#define UVC_QUEUE_DROP_CORRUPTED	(1 << 2)
 
 struct uvc_video_queue {
 	enum v4l2_buf_type type;
@@ -562,7 +563,7 @@ extern struct uvc_driver uvc_driver;
 
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,
-		enum v4l2_buf_type type);
+		enum v4l2_buf_type type, int drop_corrupted);
 extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
 		unsigned int nbuffers, unsigned int buflength);
 extern int uvc_free_buffers(struct uvc_video_queue *queue);

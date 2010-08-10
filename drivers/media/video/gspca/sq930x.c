@@ -23,15 +23,12 @@
 #define MODULE_NAME "sq930x"
 
 #include "gspca.h"
-#include "jpeg.h"
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>\n"
 		"Gerard Klaver <gerard at gkall dot hobby dot nl\n"
 		"Sam Revitch <samr7@cs.washington.edu>");
 MODULE_DESCRIPTION("GSPCA/SQ930x USB Camera Driver");
 MODULE_LICENSE("GPL");
-
-#define BULK_TRANSFER_LEN 5128
 
 /* Structure to hold all of our device specific stuff */
 struct sd {
@@ -40,28 +37,20 @@ struct sd {
 	u16 expo;
 	u8 gain;
 
-	u8 quality;		/* webcam quality 0..3 */
-#define QUALITY_DEF 1
-
-	u8 gpio[2];
-
-	u8 eof_len;
 	u8 do_ctrl;
-
+	u8 gpio[2];
 	u8 sensor;
-enum {
-	SENSOR_ICX098BQ,
-	SENSOR_LZ24BP,
-	SENSOR_MI0360,
-	SENSOR_MT9V111,
-	SENSOR_OV7660,
-	SENSOR_OV9630,
-} sensors;
 	u8 type;
 #define Generic 0
 #define Creative_live_motion 1
-
-	u8 jpeg_hdr[JPEG_HDR_SZ];
+};
+enum sensors {
+	SENSOR_ICX098BQ,
+	SENSOR_LZ24BP,
+	SENSOR_MI0360,
+	SENSOR_MT9V111,		/* = MI360SOC */
+	SENSOR_OV7660,
+	SENSOR_OV9630,
 };
 
 static int sd_setexpo(struct gspca_dev *gspca_dev, __s32 val);
@@ -78,7 +67,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0x0001,
 		.maximum = 0x0fff,
 		.step = 1,
-#define EXPO_DEF 0x027d
+#define EXPO_DEF 0x0356
 		.default_value = EXPO_DEF,
 	    },
 	    .set = sd_setexpo,
@@ -92,7 +81,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0x01,
 		.maximum = 0xff,
 		.step = 1,
-#define GAIN_DEF 0x61
+#define GAIN_DEF 0x8d
 		.default_value = GAIN_DEF,
 	    },
 	    .set = sd_setgain,
@@ -101,29 +90,17 @@ static const struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 5 / 8 + 590,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 0},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 4 / 8 + 590,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+	{640, 480, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 8 + 590,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 2},
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
 };
-
-/* JPEG quality indexed by webcam quality */
-#define QUAL_0 90
-#define QUAL_1 85
-#define QUAL_2 75
-#define QUAL_3 70
-static const u8 quality_tb[4] = { QUAL_0, QUAL_1, QUAL_2, QUAL_3 };
 
 /* sq930x registers */
 #define SQ930_CTRL_UCBUS_IO	0x0001
@@ -302,7 +279,7 @@ static const struct i2c_write_cmd mt9v111_init_0[] = {
 	{0x01, 0x0001},		/* select IFP/SOC registers */
 	{0x06, 0x300c},		/* operating mode control */
 	{0x08, 0xcc00},		/* output format control (RGB) */
-	{0x01, 0x0004},		/* select core registers */
+	{0x01, 0x0004},		/* select sensor core registers */
 };
 static const struct i2c_write_cmd mt9v111_init_1[] = {
 	{0x03, 0x01e5},		/* window height */
@@ -330,7 +307,8 @@ static const struct i2c_write_cmd mt9v111_init_3[] = {
 	{0x62, 0x0405},
 };
 static const struct i2c_write_cmd mt9v111_init_4[] = {
-	{0x05, 0x00ce},		/* horizontal blanking */
+/*	{0x05, 0x00ce}, */
+	{0x05, 0x005d},		/* horizontal blanking */
 };
 
 static const struct ucbus_write_cmd ov7660_start_0[] = {
@@ -343,78 +321,58 @@ static const struct ucbus_write_cmd ov9630_start_0[] = {
 	{0xf334, 0x3e}, {0xf335, 0xf8}, {0xf33f, 0x03}
 };
 
+/* start parameters indexed by [sensor][mode] */
 static const struct cap_s {
 	u8	cc_sizeid;
 	u8	cc_bytes[32];
-} capconfig[4][3] = {
+} capconfig[4][2] = {
 	[SENSOR_ICX098BQ] = {
-		{0,				/* JPEG, 160x120 */
+		{2,				/* Bayer 320x240 */
+		  {0x05, 0x1f, 0x20, 0x0e, 0x00, 0x9f, 0x02, 0xee,
+		   0x01, 0x01, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
+		{4,				/* Bayer 640x480 */
 		  {0x01, 0x1f, 0x20, 0x0e, 0x00, 0x9f, 0x02, 0xee,
 		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0x8b, 0x00, 0x8b, 0x00, 0x41, 0x01, 0x41,
-		   0x01, 0x41, 0x01, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{2,				/* JPEG, 320x240 */
-		  {0x01, 0x1f, 0x20, 0x0e, 0x00, 0x9f, 0x02, 0xee,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0xdf, 0x01, 0x00, 0x00, 0x3f, 0x01, 0x3f,
-		   0x01, 0x00, 0x00, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{4,				/* JPEG, 640x480 */
-		  {0x01, 0x22, 0x20, 0x0e, 0x00, 0xa2, 0x02, 0xf0,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
-		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
 	},
 	[SENSOR_LZ24BP] = {
-		{0,				/* JPEG, 160x120 */
-		  {0x01, 0x1f, 0x20, 0x0e, 0x00, 0x9f, 0x02, 0xee,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0x8b, 0x00, 0x8b, 0x00, 0x41, 0x01, 0x41,
-		   0x01, 0x41, 0x01, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{2,				/* JPEG, 320x240 */
+		{2,				/* Bayer 320x240 */
+		  {0x05, 0x22, 0x20, 0x0e, 0x00, 0xa2, 0x02, 0xee,
+		   0x01, 0x01, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
+		{4,				/* Bayer 640x480 */
 		  {0x01, 0x22, 0x20, 0x0e, 0x00, 0xa2, 0x02, 0xee,
 		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0xdf, 0x01, 0x00, 0x00, 0x3f, 0x01, 0x3f,
-		   0x01, 0x00, 0x00, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{4,				/* JPEG, 640x480 */
-		  {0x01, 0x22, 0x20, 0x0e, 0x00, 0xa2, 0x02, 0xf0,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
-		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
 	},
 	[SENSOR_MI0360] = {
-		{0,				/* JPEG, 160x120 */
-		  {0x05, 0x3d, 0x20, 0x0b, 0x00, 0xbd, 0x02, 0x0b,
-		   0x02, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0x01, 0x01, 0x01, 0x01, 0x9f, 0x00, 0x9f,
-		   0x00, 0x9f, 0x01, 0x05, 0xa0, 0x00, 0x80, 0x00} },
-		{2,				/* JPEG, 320x240 */
+		{2,				/* Bayer 320x240 */
+		  {0x05, 0x02, 0x20, 0x01, 0x20, 0x82, 0x02, 0xe1,
+		   0x01, 0x01, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
+		{4,				/* Bayer 640x480 */
 		  {0x01, 0x02, 0x20, 0x01, 0x20, 0x82, 0x02, 0xe1,
-/*fixme				       03		       e3 */
 		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0xdf, 0x01, 0x00, 0x00, 0x3f, 0x01, 0x3f,
-		   0x01, 0x00, 0x00, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{4,				/* JPEG, 640x480 */
-		  {0x01, 0x02, 0x20, 0x01, 0x20, 0x82, 0x02, 0xe3,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
-		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
 	},
 	[SENSOR_MT9V111] = {
-		{0,				/* JPEG, 160x120 */
-		  {0x05, 0x3d, 0x20, 0x0b, 0x00, 0xbd, 0x02, 0x0b,
-		   0x02, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0x01, 0x01, 0x01, 0x01, 0x9f, 0x00, 0x9f,
-		   0x00, 0x9f, 0x01, 0x05, 0xa0, 0x00, 0x80, 0x00} },
-		{2,				/* JPEG, 320x240 */
-		  {0x01, 0x02, 0x20, 0x03, 0x20, 0x82, 0x02, 0xe3,
+		{2,				/* Bayer 320x240 */
+		  {0x05, 0x02, 0x20, 0x01, 0x20, 0x82, 0x02, 0xe1,
+		   0x01, 0x01, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
+		{4,				/* Bayer 640x480 */
+		  {0x01, 0x02, 0x20, 0x01, 0x20, 0x82, 0x02, 0xe1,
 		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x02, 0xdf, 0x01, 0x00, 0x00, 0x3f, 0x01, 0x3f,
-		   0x01, 0x00, 0x00, 0x05, 0x40, 0x01, 0xf0, 0x00} },
-		{4,				/* JPEG, 640x480 */
-		  {0x01, 0x02, 0x20, 0x03, 0x20, 0x82, 0x02, 0xe3,
-		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
-		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
-		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
 	},
 };
 
@@ -864,7 +822,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		buf[i++] = 0x35;	/* reg = global gain */
 		buf[i++] = 0x00;	/* val H */
 		buf[i++] = sensor->i2c_dum;
-		buf[i++] = sd->gain;	/* val L */
+		buf[i++] = 0x80 + sd->gain / 2; /* val L */
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
@@ -889,10 +847,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
 	cam->bulk = 1;
-	cam->bulk_size = BULK_TRANSFER_LEN;
-/*	cam->bulk_nurbs = 2;	fixme: if no setexpo sync */
 
-	sd->quality = QUALITY_DEF;
 	sd->gain = GAIN_DEF;
 	sd->expo = EXPO_DEF;
 
@@ -945,13 +900,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_MI0360) {
 
 		/* no sensor probe for icam tracer */
-		if (gspca_dev->usb_buf[5] == 0xf6) {	/* if CMOS */
+		if (gspca_dev->usb_buf[5] == 0xf6)	/* if CMOS */
 			sd->sensor = SENSOR_ICX098BQ;
-			gspca_dev->cam.cam_mode = &vga_mode[1];
-			gspca_dev->cam.nmodes = 1;	/* only 320x240 */
-		} else {
+		else
 			cmos_probe(gspca_dev);
-		}
 	}
 
 	PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
@@ -960,51 +912,24 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return gspca_dev->usb_err;
 }
 
-/* special function to create the quantization tables of the JPEG header */
-static void sd_jpeg_set_qual(u8 *jpeg_hdr,
-				int quality)
-{
-	int i, sc1, sc2;
-
-	quality = quality_tb[quality];	/* convert to JPEG quality */
-/*
- * approximative qualities for Y and U/V:
- *	quant = 0:94%/91% 1:91%/87% 2:82%/73% 3:69%/56%
- * should have:
- *	quant = 0:94%/91% 1:91%/87.5% 2:81.5%/72% 3:69%/54.5%
- */
-	sc1 = 200 - quality * 2;
-	quality = quality * 7 / 5 - 40;		/* UV quality */
-	sc2 = 200 - quality * 2;
-	for (i = 0; i < 64; i++) {
-		jpeg_hdr[JPEG_QT0_OFFSET + i] =
-			(jpeg_head[JPEG_QT0_OFFSET + i] * sc1 + 50) / 100;
-		jpeg_hdr[JPEG_QT1_OFFSET + i] =
-			(jpeg_head[JPEG_QT1_OFFSET + i] * sc2 + 50) / 100;
-	}
-}
-
 /* send the start/stop commands to the webcam */
 static void send_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	const struct cap_s *cap;
-	int mode, quality;
+	int mode;
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	cap = &capconfig[sd->sensor][mode];
-	quality = sd->quality;
-	reg_wb(gspca_dev, (quality << 12)
-				 | 0x0a00	/* 900 for Bayer */
-				 | SQ930_CTRL_CAP_START,
-			0x0500			/* a00 for Bayer */
-				 | cap->cc_sizeid,
+	reg_wb(gspca_dev, 0x0900 | SQ930_CTRL_CAP_START,
+			0x0a00 | cap->cc_sizeid,
 			cap->cc_bytes, 32);
-};
+}
+
 static void send_stop(struct gspca_dev *gspca_dev)
 {
 	reg_w(gspca_dev, SQ930_CTRL_CAP_STOP, 0);
-};
+}
 
 /* function called at start time before URB creation */
 static int sd_isoc_init(struct gspca_dev *gspca_dev)
@@ -1013,6 +938,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	gspca_dev->cam.bulk_nurbs = 1;	/* there must be one URB only */
 	sd->do_ctrl = 0;
+	gspca_dev->cam.bulk_size = gspca_dev->width * gspca_dev->height + 8;
 	return 0;
 }
 
@@ -1021,11 +947,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int mode;
-
-	/* initialize the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
-			0x21);		/* JPEG 422 */
-	sd_jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	bridge_init(sd);
 	global_init(sd, 0);
@@ -1071,7 +992,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(lz24bp_start_2),
 				6);
 		mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
-		lz24bp_ppl(sd, mode == 2 ? 0x0564 : 0x0310);
+		lz24bp_ppl(sd, mode == 1 ? 0x0564 : 0x0310);
 		msleep(10);
 		break;
 	case SENSOR_MI0360:
@@ -1095,7 +1016,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* 1st start */
 		send_start(gspca_dev);
 		msleep(60);
-		reg_w(gspca_dev, SQ930_CTRL_CAP_STOP, 0x0000);
+		send_stop(gspca_dev);
 
 		i2c_write(sd,
 			mi0360_start_4, ARRAY_SIZE(mi0360_start_4));
@@ -1113,7 +1034,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(mt9v111_init_2));
 		ucbus_write(gspca_dev, mt9v111_start_1,
 				ARRAY_SIZE(mt9v111_start_1),
-				8);
+				5);
 		i2c_write(sd, mt9v111_init_3,
 				ARRAY_SIZE(mt9v111_init_3));
 		i2c_write(sd, mt9v111_init_4,
@@ -1124,8 +1045,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	send_start(gspca_dev);
 out:
 	msleep(1000);
-
-	sd->eof_len = 0;	/* init packet scan */
 
 	if (sd->sensor == SENSOR_MT9V111)
 		gpio_set(sd, SQ930_GPIO_DFL_LED, SQ930_GPIO_DFL_LED);
@@ -1166,94 +1085,17 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	msleep(100);
 }
 
-/* move a packet adding 0x00 after 0xff */
-static void add_packet(struct gspca_dev *gspca_dev,
-			u8 *data,
-			int len)
-{
-	int i;
-
-	i = 0;
-	do {
-		if (data[i] == 0xff) {
-			gspca_frame_add(gspca_dev, INTER_PACKET,
-					data, i + 1);
-			len -= i;
-			data += i;
-			*data = 0x00;
-			i = 0;
-		}
-	} while (++i < len);
-	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-/* end a frame and start a new one */
-static void eof_sof(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	static const u8 ffd9[] = {0xff, 0xd9};
-
-	/* if control set, stop bulk transfer */
-	if (sd->do_ctrl
-	 && gspca_dev->last_packet_type == INTER_PACKET)
-		gspca_dev->cam.bulk_nurbs = 0;
-	gspca_frame_add(gspca_dev, LAST_PACKET,
-			ffd9, 2);
-	gspca_frame_add(gspca_dev, FIRST_PACKET,
-			sd->jpeg_hdr, JPEG_HDR_SZ);
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* isoc packet */
 			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 *p;
-	int l;
 
-	len -= 8;	/* ignore last 8 bytes (00 00 55 aa 55 aa 00 00) */
-
-	/*
-	 * the end/start of frame is indicated by
-	 *	0x00 * 16 -  0xab * 8
-	 * aligned on 8 bytes boundary
-	 */
-	if (sd->eof_len != 0) {		/* if 'abababab' in previous pkt */
-		if (*((u32 *) data) == 0xabababab) {
-				/*fixme: should remove previous 0000ababab*/
-			eof_sof(gspca_dev);
-			data += 4;
-			len -= 4;
-		}
-		sd->eof_len = 0;
-	}
-	p = data;
-	l = len;
-	for (;;) {
-		if (*((u32 *) p) == 0xabababab) {
-			if (l < 8) {		/* (may be 4 only) */
-				sd->eof_len = 1;
-				break;
-			}
-			if (*((u32 *) p + 1) == 0xabababab) {
-				add_packet(gspca_dev, data, p - data - 16);
-						/* remove previous zeros */
-				eof_sof(gspca_dev);
-				p += 8;
-				l -= 8;
-				if (l <= 0)
-					return;
-				len = l;
-				data = p;
-				continue;
-			}
-		}
-		p += 4;
-		l -= 4;
-		if (l <= 0)
-			break;
-	}
-	add_packet(gspca_dev, data, len);
+	if (sd->do_ctrl)
+		gspca_dev->cam.bulk_nurbs = 0;
+	gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len - 8);
+	gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 }
 
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
@@ -1291,45 +1133,6 @@ static int sd_getexpo(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int quality;
-
-	if (jcomp->quality >= (QUAL_0 + QUAL_1) / 2)
-		quality = 0;
-	else if (jcomp->quality >= (QUAL_1 + QUAL_2) / 2)
-		quality = 1;
-	else if (jcomp->quality >= (QUAL_2 + QUAL_3) / 2)
-		quality = 2;
-	else
-		quality = 3;
-
-	if (quality != sd->quality) {
-		sd->quality = quality;
-		if (gspca_dev->streaming) {
-			send_stop(gspca_dev);
-			sd_jpeg_set_qual(sd->jpeg_hdr, sd->quality);
-			msleep(70);
-			send_start(gspca_dev);
-		}
-	}
-	return gspca_dev->usb_err;
-}
-
-static int sd_get_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = quality_tb[sd->quality];
-	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
-			| V4L2_JPEG_MARKER_DQT;
-	return 0;
-}
-
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name   = MODULE_NAME,
@@ -1342,8 +1145,6 @@ static const struct sd_desc sd_desc = {
 	.stopN  = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = sd_dq_callback,
-	.get_jcomp = sd_get_jcomp,
-	.set_jcomp = sd_set_jcomp,
 };
 
 /* Table of supported USB devices */

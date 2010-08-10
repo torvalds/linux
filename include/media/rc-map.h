@@ -114,6 +114,7 @@ void rc_map_init(void);
 #define RC_MAP_PURPLETV                  "rc-purpletv"
 #define RC_MAP_PV951                     "rc-pv951"
 #define RC_MAP_RC5_HAUPPAUGE_NEW         "rc-rc5-hauppauge-new"
+#define RC_MAP_RC5_STREAMZAP             "rc-rc5-streamzap"
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
 #define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"

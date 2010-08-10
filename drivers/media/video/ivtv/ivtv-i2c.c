@@ -63,6 +63,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-gpio.h"
 #include "ivtv-i2c.h"
+#include <media/cx25840.h>
 
 /* i2c implementation for cx23415/6 chip, ivtv project.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
@@ -292,6 +293,12 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type, 0, I2C_ADDRS(hw_addrs[idx]));
+	} else if (hw == IVTV_HW_CX25840) {
+		struct cx25840_platform_data pdata;
+
+		pdata.pvr150_workaround = itv->pvr150_workaround;
+		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
+				adap, mod, type, 0, &pdata, hw_addrs[idx], NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type, hw_addrs[idx], NULL);

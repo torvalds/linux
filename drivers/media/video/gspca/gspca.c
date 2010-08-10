@@ -55,7 +55,7 @@ MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 9, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 10, 0)
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -440,10 +440,15 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
 		gspca_dev->image = frame->data;
 		gspca_dev->image_len = 0;
-	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
-		if (packet_type == LAST_PACKET)
-			gspca_dev->last_packet_type = packet_type;
-		return;
+	} else {
+		switch (gspca_dev->last_packet_type) {
+		case DISCARD_PACKET:
+			if (packet_type == LAST_PACKET)
+				gspca_dev->last_packet_type = packet_type;
+			return;
+		case LAST_PACKET:
+			return;
+		}
 	}
 
 	/* append the packet to the frame buffer */
@@ -454,6 +459,12 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 				gspca_dev->frsz);
 			packet_type = DISCARD_PACKET;
 		} else {
+/* !! image is NULL only when last pkt is LAST or DISCARD
+			if (gspca_dev->image == NULL) {
+				err("gspca_frame_add() image == NULL");
+				return;
+			}
+ */
 			memcpy(gspca_dev->image + gspca_dev->image_len,
 				data, len);
 			gspca_dev->image_len += len;
