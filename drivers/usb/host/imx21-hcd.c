@@ -1521,7 +1521,7 @@ static int imx21_hc_reset(struct usb_hcd *hcd)
 			return -ETIMEDOUT;
 		}
 		spin_unlock_irq(&imx21->lock);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 		spin_lock_irq(&imx21->lock);
 	}
 	spin_unlock_irqrestore(&imx21->lock, flags);

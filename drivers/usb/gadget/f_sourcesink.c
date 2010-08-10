@@ -404,7 +404,7 @@ static void sourcesink_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init sourcesink_bind_config(struct usb_configuration *c)
+static int __ref sourcesink_bind_config(struct usb_configuration *c)
 {
 	struct f_sourcesink	*ss;
 	int			status;
