@@ -456,13 +456,13 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		tegra->transceiver = otg_get_transceiver();
 #endif
 
-	tegra->host_reinited = 1;
-
 	err = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (err != 0) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
 		goto fail;
 	}
+
+	tegra->host_reinited = 1;
 
 	if (tegra->transceiver) {
 		otg_set_host(tegra->transceiver, (struct usb_bus *)hcd);
