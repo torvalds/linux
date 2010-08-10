@@ -684,7 +684,7 @@ rcu_unlock:
 	/* Drop an anon_vma reference if we took one */
 	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
 		int empty = list_empty(&anon_vma->head);
-		spin_unlock(&anon_vma->lock);
+		anon_vma_unlock(anon_vma);
 		if (empty)
 			anon_vma_free(anon_vma);
 	}
