@@ -44,5 +44,10 @@ static inline void oom_killer_enable(void)
 {
 	oom_killer_disabled = false;
 }
+
+/* sysctls */
+extern int sysctl_oom_dump_tasks;
+extern int sysctl_oom_kill_allocating_task;
+extern int sysctl_panic_on_oom;
 #endif /* __KERNEL__*/
 #endif /* _INCLUDE_LINUX_OOM_H */
