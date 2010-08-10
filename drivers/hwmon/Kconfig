@@ -405,7 +405,7 @@ config SENSORS_CORETEMP
 	help
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU. Most of the family 6 CPUs
-	  are supported. Check documentation/driver for details.
+	  are supported. Check Documentation/hwmon/coretemp for details.
 
 config SENSORS_PKGTEMP
 	tristate "Intel processor package temperature sensor"
