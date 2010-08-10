@@ -52,8 +52,6 @@ static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 /*------------------------Define global variable-----------------------------*/
 // Debug variable ?
 dig_t	dm_digtable;
-// Store current shoftware write register content for MAC PHY.
-u8		dm_shadow[16][256] = {{0}};
 // For Dynamic Rx Path Selection by Signal Strength
 DRxPathSel	DM_RxPathSelTable;
 /*------------------------Define global variable-----------------------------*/
@@ -90,7 +88,6 @@ extern	void	dm_rf_operation_test_callback(unsigned long data);
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
 extern	void dm_fsync_timer_callback(unsigned long data);
 extern	void dm_check_fsync(struct net_device *dev);
-extern	void	dm_shadow_init(struct net_device *dev);
 extern	void dm_initialize_txpower_tracking(struct net_device *dev);
 
 #ifdef RTL8192E
@@ -3721,45 +3718,6 @@ void dm_check_fsync(struct net_device *dev)
 		}
 	}
 }
-
-
-/*-----------------------------------------------------------------------------
- * Function:	dm_shadow_init()
- *
- * Overview:	Store all NIC MAC/BB register content.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-void dm_shadow_init(struct net_device *dev)
-{
-	u8	page;
-	u16	offset;
-
-	for (page = 0; page < 5; page++)
-		for (offset = 0; offset < 256; offset++)
-		{
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
-			//DbgPrint("P-%d/O-%02x=%02x\r\n", page, offset, DM_Shadow[page][offset]);
-		}
-
-	for (page = 8; page < 11; page++)
-		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
-
-	for (page = 12; page < 15; page++)
-		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
-
-}   /* dm_shadow_init */
 
 /*---------------------------Define function prototype------------------------*/
 /*-----------------------------------------------------------------------------
