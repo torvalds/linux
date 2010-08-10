@@ -228,6 +228,10 @@ static const struct of_device_id ecpp_match[] = {
 		.name = "parallel",
 		.compatible = "ns87317-ecpp",
 	},
+	{
+		.name = "parallel",
+		.compatible = "pnpALI,1533,3",
+	},
 	{},
 };
 
