@@ -67,6 +67,9 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 		goto readers_only;
 
 	if (wake_type == RWSEM_WAKE_READ_OWNED)
+		/* Another active reader was observed, so wakeup is not
+		 * likely to succeed. Save the atomic op.
+		 */
 		goto out;
 
 	/* There's a writer at the front of the queue - try to grant it the
@@ -111,8 +114,8 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	 * count adjustment pretty soon.
 	 */
 	if (wake_type == RWSEM_WAKE_ANY &&
-	    (rwsem_atomic_update(0, sem) & RWSEM_ACTIVE_MASK))
-		/* Someone grabbed the sem already */
+	    rwsem_atomic_update(0, sem) < RWSEM_WAITING_BIAS)
+		/* Someone grabbed the sem for write already */
 		goto out;
 
 	/* Grant an infinite number of read locks to the readers at the front
@@ -187,9 +190,17 @@ rwsem_down_failed_common(struct rw_semaphore *sem,
 	/* we're now waiting on the lock, but no longer actively locking */
 	count = rwsem_atomic_update(adjustment, sem);
 
-	/* if there are no active locks, wake the front queued process(es) up */
-	if (!(count & RWSEM_ACTIVE_MASK))
+	/* If there are no active locks, wake the front queued process(es) up.
+	 *
+	 * Alternatively, if we're called from a failed down_write(), there
+	 * were already threads queued before us and there are no active
+	 * writers, the lock must be read owned; so we try to wake any read
+	 * locks that were queued ahead of us. */
+	if (count == RWSEM_WAITING_BIAS)
 		sem = __rwsem_do_wake(sem, RWSEM_WAKE_NO_ACTIVE);
+	else if (count > RWSEM_WAITING_BIAS &&
+		 adjustment == -RWSEM_ACTIVE_WRITE_BIAS)
+		sem = __rwsem_do_wake(sem, RWSEM_WAKE_READ_OWNED);
 
 	spin_unlock_irq(&sem->wait_lock);
 
