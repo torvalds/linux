@@ -51,6 +51,8 @@
 
 #include <asm/uaccess.h>
 
+#include <trace/events/vmscan.h>
+
 struct cgroup_subsys mem_cgroup_subsys __read_mostly;
 #define MEM_CGROUP_RECLAIM_RETRIES	5
 struct mem_cgroup *root_mem_cgroup __read_mostly;
@@ -210,8 +212,6 @@ struct mem_cgroup {
 	  protect against reclaim related member.
 	*/
 	spinlock_t reclaim_param_lock;
-
-	int	prev_priority;	/* for recording reclaim priority */
 
 	/*
 	 * While reclaiming in a hierarchy, we cache the last child we
@@ -858,35 +858,6 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 	return ret;
 }
 
-/*
- * prev_priority control...this will be used in memory reclaim path.
- */
-int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
-{
-	int prev_priority;
-
-	spin_lock(&mem->reclaim_param_lock);
-	prev_priority = mem->prev_priority;
-	spin_unlock(&mem->reclaim_param_lock);
-
-	return prev_priority;
-}
-
-void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem, int priority)
-{
-	spin_lock(&mem->reclaim_param_lock);
-	if (priority < mem->prev_priority)
-		mem->prev_priority = priority;
-	spin_unlock(&mem->reclaim_param_lock);
-}
-
-void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
-{
-	spin_lock(&mem->reclaim_param_lock);
-	mem->prev_priority = priority;
-	spin_unlock(&mem->reclaim_param_lock);
-}
-
 static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
 {
 	unsigned long active;
@@ -1038,6 +1009,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	}
 
 	*scanned = scan;
+
+	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
+				      0, 0, 0, mode);
+
 	return nr_taken;
 }
 
@@ -1155,6 +1130,24 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
 	int num = 0;
  	mem_cgroup_walk_tree(mem, &num, mem_cgroup_count_children_cb);
 	return num;
+}
+
+/*
+ * Return the memory (and swap, if configured) limit for a memcg.
+ */
+u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+{
+	u64 limit;
+	u64 memsw;
+
+	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) +
+			total_swap_pages;
+	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+	/*
+	 * If memsw is finite and limits the amount of swap space available
+	 * to this memcg, return that limit.
+	 */
+	return min(limit, memsw);
 }
 
 /*

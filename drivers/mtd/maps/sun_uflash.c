@@ -160,12 +160,12 @@ static struct of_platform_driver uflash_driver = {
 
 static int __init uflash_init(void)
 {
-	return of_register_driver(&uflash_driver, &of_bus_type);
+	return of_register_platform_driver(&uflash_driver);
 }
 
 static void __exit uflash_exit(void)
 {
-	of_unregister_driver(&uflash_driver);
+	of_unregister_platform_driver(&uflash_driver);
 }
 
 module_init(uflash_init);

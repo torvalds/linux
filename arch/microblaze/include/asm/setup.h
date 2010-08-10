@@ -28,8 +28,6 @@ void disable_early_printk(void);
 void heartbeat(void);
 void setup_heartbeat(void);
 
-unsigned long long sched_clock(void);
-
 #   ifdef CONFIG_MMU
 extern void mmu_reset(void);
 extern void early_console_reg_tlb_alloc(unsigned int addr);

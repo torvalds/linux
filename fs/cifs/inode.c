@@ -732,15 +732,9 @@ cifs_find_inode(struct inode *inode, void *opaque)
 	if ((inode->i_mode & S_IFMT) != (fattr->cf_mode & S_IFMT))
 		return 0;
 
-	/*
-	 * uh oh -- it's a directory. We can't use it since hardlinked dirs are
-	 * verboten. Disable serverino and return it as if it were found, the
-	 * caller can discard it, generate a uniqueid and retry the find
-	 */
-	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry)) {
+	/* if it's not a directory or has no dentries, then flag it */
+	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry))
 		fattr->cf_flags |= CIFS_FATTR_INO_COLLISION;
-		cifs_autodisable_serverino(CIFS_SB(inode->i_sb));
-	}
 
 	return 1;
 }
@@ -752,6 +746,27 @@ cifs_init_inode(struct inode *inode, void *opaque)
 
 	CIFS_I(inode)->uniqueid = fattr->cf_uniqueid;
 	return 0;
+}
+
+/*
+ * walk dentry list for an inode and report whether it has aliases that
+ * are hashed. We use this to determine if a directory inode can actually
+ * be used.
+ */
+static bool
+inode_has_hashed_dentries(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
+			spin_unlock(&dcache_lock);
+			return true;
+		}
+	}
+	spin_unlock(&dcache_lock);
+	return false;
 }
 
 /* Given fattrs, get a corresponding inode */
@@ -769,12 +784,16 @@ retry_iget5_locked:
 
 	inode = iget5_locked(sb, hash, cifs_find_inode, cifs_init_inode, fattr);
 	if (inode) {
-		/* was there a problematic inode number collision? */
+		/* was there a potentially problematic inode collision? */
 		if (fattr->cf_flags & CIFS_FATTR_INO_COLLISION) {
-			iput(inode);
-			fattr->cf_uniqueid = iunique(sb, ROOT_I);
 			fattr->cf_flags &= ~CIFS_FATTR_INO_COLLISION;
-			goto retry_iget5_locked;
+
+			if (inode_has_hashed_dentries(inode)) {
+				cifs_autodisable_serverino(CIFS_SB(sb));
+				iput(inode);
+				fattr->cf_uniqueid = iunique(sb, ROOT_I);
+				goto retry_iget5_locked;
+			}
 		}
 
 		cifs_fattr_to_inode(inode, fattr);

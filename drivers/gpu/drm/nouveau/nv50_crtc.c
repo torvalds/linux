@@ -440,39 +440,8 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_encoder *encoder;
-	uint32_t dac = 0, sor = 0;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
-
-	/* Disconnect all unused encoders. */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (!drm_helper_encoder_in_use(encoder))
-			continue;
-
-		if (nv_encoder->dcb->type == OUTPUT_ANALOG ||
-		    nv_encoder->dcb->type == OUTPUT_TV)
-			dac |= (1 << nv_encoder->or);
-		else
-			sor |= (1 << nv_encoder->or);
-	}
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb->type == OUTPUT_ANALOG ||
-		    nv_encoder->dcb->type == OUTPUT_TV) {
-			if (dac & (1 << nv_encoder->or))
-				continue;
-		} else {
-			if (sor & (1 << nv_encoder->or))
-				continue;
-		}
-
-		nv_encoder->disconnect(nv_encoder);
-	}
 
 	nv50_crtc_blank(nv_crtc, true);
 }
@@ -480,7 +449,6 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc2;
 	struct drm_device *dev = crtc->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *evo = dev_priv->evo;
@@ -491,20 +459,14 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 
 	nv50_crtc_blank(nv_crtc, false);
 
-	/* Explicitly blank all unused crtc's. */
-	list_for_each_entry(crtc2, &dev->mode_config.crtc_list, head) {
-		if (!drm_helper_crtc_in_use(crtc2))
-			nv50_crtc_blank(nouveau_crtc(crtc2), true);
-	}
-
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
 		NV_ERROR(dev, "no space while committing crtc\n");
 		return;
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-	OUT_RING(evo, 0);
-	FIRE_RING(evo);
+	OUT_RING  (evo, 0);
+	FIRE_RING (evo);
 }
 
 static bool

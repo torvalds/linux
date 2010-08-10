@@ -677,12 +677,12 @@ static int __init leo_init(void)
 	if (fb_get_options("leofb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&leo_driver, &of_bus_type);
+	return of_register_platform_driver(&leo_driver);
 }
 
 static void __exit leo_exit(void)
 {
-	of_unregister_driver(&leo_driver);
+	of_unregister_platform_driver(&leo_driver);
 }
 
 module_init(leo_init);

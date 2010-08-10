@@ -1443,7 +1443,7 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 		return -ENOMEM;
 	}
 
-	up->port.irq = op->irqs[0];
+	up->port.irq = op->archdata.irqs[0];
 
 	up->port.dev = &op->dev;
 
@@ -1586,7 +1586,7 @@ static int __init sunsu_init(void)
 			return err;
 	}
 
-	err = of_register_driver(&su_driver, &of_bus_type);
+	err = of_register_platform_driver(&su_driver);
 	if (err && num_uart)
 		sunserial_unregister_minors(&sunsu_reg, num_uart);
 

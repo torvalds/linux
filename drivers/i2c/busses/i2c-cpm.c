@@ -652,6 +652,7 @@ static int __devinit cpm_i2c_probe(struct of_device *ofdev,
 	cpm->adap = cpm_ops;
 	i2c_set_adapdata(&cpm->adap, cpm);
 	cpm->adap.dev.parent = &ofdev->dev;
+	cpm->adap.dev.of_node = of_node_get(ofdev->dev.of_node);
 
 	result = cpm_i2c_setup(cpm);
 	if (result) {
@@ -675,11 +676,6 @@ static int __devinit cpm_i2c_probe(struct of_device *ofdev,
 
 	dev_dbg(&ofdev->dev, "hw routines for %s registered.\n",
 		cpm->adap.name);
-
-	/*
-	 * register OF I2C devices
-	 */
-	of_register_i2c_devices(&cpm->adap, ofdev->dev.of_node);
 
 	return 0;
 out_shut:

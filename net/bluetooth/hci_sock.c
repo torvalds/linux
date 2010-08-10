@@ -168,9 +168,8 @@ static int hci_sock_release(struct socket *sock)
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct list_head *p;
-	struct bdaddr_list *blacklist = &hdev->blacklist;
 
-	list_for_each(p, &blacklist->list) {
+	list_for_each(p, &hdev->blacklist) {
 		struct bdaddr_list *b;
 
 		b = list_entry(p, struct bdaddr_list, list);
@@ -202,7 +201,7 @@ static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
 
 	bacpy(&entry->bdaddr, &bdaddr);
 
-	list_add(&entry->list, &hdev->blacklist.list);
+	list_add(&entry->list, &hdev->blacklist);
 
 	return 0;
 }
@@ -210,9 +209,8 @@ static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
 int hci_blacklist_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
-	struct bdaddr_list *blacklist = &hdev->blacklist;
 
-	list_for_each_safe(p, n, &blacklist->list) {
+	list_for_each_safe(p, n, &hdev->blacklist) {
 		struct bdaddr_list *b;
 
 		b = list_entry(p, struct bdaddr_list, list);

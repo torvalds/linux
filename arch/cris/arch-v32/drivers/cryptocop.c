@@ -11,7 +11,6 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 
@@ -217,7 +216,7 @@ static int cryptocop_open(struct inode *, struct file *);
 
 static int cryptocop_release(struct inode *, struct file *);
 
-static int cryptocop_ioctl(struct inode *inode, struct file *file,
+static long cryptocop_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg);
 
 static void cryptocop_start_job(void);
@@ -279,10 +278,10 @@ static void print_user_dma_lists(struct cryptocop_dma_list_operation *dma_op);
 
 
 const struct file_operations cryptocop_fops = {
-	.owner =	THIS_MODULE,
-	.open =		cryptocop_open,
-	.release =	cryptocop_release,
-	.ioctl =	cryptocop_ioctl
+	.owner		= THIS_MODULE,
+	.open		= cryptocop_open,
+	.release	= cryptocop_release,
+	.unlocked_ioctl = cryptocop_ioctl
 };
 
 
@@ -2307,7 +2306,6 @@ static int cryptocop_open(struct inode *inode, struct file *filp)
 {
 	int p = iminor(inode);
 
-	cycle_kernel_lock();
 	if (p != CRYPTOCOP_MINOR) return -EINVAL;
 
 	filp->private_data = NULL;
@@ -3102,7 +3100,8 @@ static int cryptocop_ioctl_create_session(struct inode *inode, struct file *filp
 	return 0;
 }
 
-static int cryptocop_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long cryptocop_ioctl_unlocked(struct inode *inode,
+	struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	if (_IOC_TYPE(cmd) != ETRAXCRYPTOCOP_IOCTYPE) {
@@ -3132,6 +3131,19 @@ static int cryptocop_ioctl(struct inode *inode, struct file *filp, unsigned int 
 		return -ENOTTY;
 	}
 	return 0;
+}
+
+static long
+cryptocop_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+       struct inode *inode = file->f_path.dentry->d_inode;
+       long ret;
+
+       lock_kernel();
+       ret = cryptocop_ioctl_unlocked(inode, filp, cmd, arg);
+       unlock_kernel();
+
+       return ret;
 }
 
 

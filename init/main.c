@@ -32,7 +32,6 @@
 #include <linux/start_kernel.h>
 #include <linux/security.h>
 #include <linux/smp.h>
-#include <linux/workqueue.h>
 #include <linux/profile.h>
 #include <linux/rcupdate.h>
 #include <linux/moduleparam.h>
@@ -66,11 +65,9 @@
 #include <linux/ftrace.h>
 #include <linux/async.h>
 #include <linux/kmemcheck.h>
-#include <linux/kmemtrace.h>
 #include <linux/sfi.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
-#include <trace/boot.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -444,7 +441,6 @@ static noinline void __init_refok rest_init(void)
 	kthreadd_task = find_task_by_pid_ns(pid, &init_pid_ns);
 	rcu_read_unlock();
 	complete(&kthreadd_done);
-	unlock_kernel();
 
 	/*
 	 * The boot idle thread must execute schedule()
@@ -566,7 +562,6 @@ asmlinkage void __init start_kernel(void)
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
-	lock_kernel();
 	tick_init();
 	boot_cpu_init();
 	page_address_init();
@@ -664,7 +659,6 @@ asmlinkage void __init start_kernel(void)
 #endif
 	page_cgroup_init();
 	enable_debug_pagealloc();
-	kmemtrace_init();
 	kmemleak_init();
 	debug_objects_mem_init();
 	idr_init_cache();
@@ -726,38 +720,39 @@ int initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
 
 static char msgbuf[64];
-static struct boot_trace_call call;
-static struct boot_trace_ret ret;
 
-int do_one_initcall(initcall_t fn)
+static int __init_or_module do_one_initcall_debug(initcall_t fn)
+{
+	ktime_t calltime, delta, rettime;
+	unsigned long long duration;
+	int ret;
+
+	printk(KERN_DEBUG "calling  %pF @ %i\n", fn, task_pid_nr(current));
+	calltime = ktime_get();
+	ret = fn();
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	printk(KERN_DEBUG "initcall %pF returned %d after %lld usecs\n", fn,
+		ret, duration);
+
+	return ret;
+}
+
+int __init_or_module do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
-	ktime_t calltime, delta, rettime;
+	int ret;
 
-	if (initcall_debug) {
-		call.caller = task_pid_nr(current);
-		printk("calling  %pF @ %i\n", fn, call.caller);
-		calltime = ktime_get();
-		trace_boot_call(&call, fn);
-		enable_boot_trace();
-	}
-
-	ret.result = fn();
-
-	if (initcall_debug) {
-		disable_boot_trace();
-		rettime = ktime_get();
-		delta = ktime_sub(rettime, calltime);
-		ret.duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-		trace_boot_ret(&ret, fn);
-		printk("initcall %pF returned %d after %Ld usecs\n", fn,
-			ret.result, ret.duration);
-	}
+	if (initcall_debug)
+		ret = do_one_initcall_debug(fn);
+	else
+		ret = fn();
 
 	msgbuf[0] = 0;
 
-	if (ret.result && ret.result != -ENODEV && initcall_debug)
-		sprintf(msgbuf, "error code %d ", ret.result);
+	if (ret && ret != -ENODEV && initcall_debug)
+		sprintf(msgbuf, "error code %d ", ret);
 
 	if (preempt_count() != count) {
 		strlcat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
@@ -771,7 +766,7 @@ int do_one_initcall(initcall_t fn)
 		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
 
-	return ret.result;
+	return ret;
 }
 
 
@@ -797,7 +792,6 @@ static void __init do_initcalls(void)
  */
 static void __init do_basic_setup(void)
 {
-	init_workqueues();
 	cpuset_init_smp();
 	usermodehelper_init();
 	init_tmpfs();
@@ -830,7 +824,6 @@ static noinline int init_post(void)
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();
-	unlock_kernel();
 	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
@@ -870,8 +863,6 @@ static int __init kernel_init(void * unused)
 	 * Wait until kthreadd is all set-up.
 	 */
 	wait_for_completion(&kthreadd_done);
-	lock_kernel();
-
 	/*
 	 * init can allocate pages on any node
 	 */
@@ -895,7 +886,6 @@ static int __init kernel_init(void * unused)
 	smp_prepare_cpus(setup_max_cpus);
 
 	do_pre_smp_initcalls();
-	start_boot_trace();
 
 	smp_init();
 	sched_init_smp();

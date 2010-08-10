@@ -980,7 +980,7 @@ ssize_t iwl_ucode_bt_stats_read(struct file *file,
 			 le32_to_cpu(bt->lo_priority_tx_req_cnt),
 			 accum_bt->lo_priority_tx_req_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "lo_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 "lo_priority_tx_denied_cnt:\t%u\t\t\t%u\n",
 			 le32_to_cpu(bt->lo_priority_tx_denied_cnt),
 			 accum_bt->lo_priority_tx_denied_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos,

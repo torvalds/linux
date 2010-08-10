@@ -59,7 +59,6 @@
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 

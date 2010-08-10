@@ -333,8 +333,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			i915_gem_release_mmap(obj);
 
 		if (ret != 0) {
-			WARN(ret != -ERESTARTSYS,
-			     "failed to reset object for tiling switch");
 			args->tiling_mode = obj_priv->tiling_mode;
 			args->stride = obj_priv->stride;
 			goto err;

@@ -53,62 +53,6 @@
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
-#define COMEDI_INITCLEANUP_NOMODULE(x)					\
-	static int __init x ## _init_module(void)			\
-		{return comedi_driver_register(&(x)); }			\
-	static void __exit x ## _cleanup_module(void)			\
-		{comedi_driver_unregister(&(x)); }			\
-	module_init(x ## _init_module);					\
-	module_exit(x ## _cleanup_module);
-
-#define COMEDI_MODULE_MACROS						\
-	MODULE_AUTHOR("Comedi http://www.comedi.org");		\
-	MODULE_DESCRIPTION("Comedi low-level driver");			\
-	MODULE_LICENSE("GPL");
-
-#define COMEDI_INITCLEANUP(x)						\
-	COMEDI_MODULE_MACROS		\
-	COMEDI_INITCLEANUP_NOMODULE(x)
-
-#define COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table) \
-	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
-		const struct pci_device_id *ent) \
-	{ \
-		return comedi_pci_auto_config(dev, comedi_driver.driver_name); \
-	} \
-	static void __devexit comedi_driver ## _pci_remove(\
-		struct pci_dev *dev) \
-	{ \
-		comedi_pci_auto_unconfig(dev); \
-	} \
-	static struct pci_driver comedi_driver ## _pci_driver = \
-	{ \
-		.id_table = pci_id_table, \
-		.probe = &comedi_driver ## _pci_probe, \
-		.remove = __devexit_p(&comedi_driver ## _pci_remove) \
-	}; \
-	static int __init comedi_driver ## _init_module(void) \
-	{ \
-		int retval; \
-		retval = comedi_driver_register(&comedi_driver); \
-		if (retval < 0) \
-			return retval; \
-			comedi_driver ## _pci_driver.name = \
-				(char *)comedi_driver.driver_name; \
-		return pci_register_driver(&comedi_driver ## _pci_driver); \
-	} \
-	static void __exit comedi_driver ## _cleanup_module(void) \
-	{ \
-		pci_unregister_driver(&comedi_driver ## _pci_driver); \
-		comedi_driver_unregister(&comedi_driver); \
-	} \
-	module_init(comedi_driver ## _init_module); \
-	module_exit(comedi_driver ## _cleanup_module);
-
-#define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
-	COMEDI_MODULE_MACROS \
-	COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table)
-
 #define PCI_VENDOR_ID_ADLINK		0x144a
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_CONTEC		0x1221
@@ -285,7 +229,7 @@ struct comedi_device {
 
 	struct fasync_struct *async_queue;
 
-	void (*open) (struct comedi_device *dev);
+	int (*open) (struct comedi_device *dev);
 	void (*close) (struct comedi_device *dev);
 };
 

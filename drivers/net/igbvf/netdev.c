@@ -248,6 +248,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		buffer_info = &rx_ring->buffer_info[i];
 
@@ -780,6 +781,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 
 	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
+		rmb();	/* read buffer_info after eop_desc status */
 		for (cleaned = false; !cleaned; count++) {
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];

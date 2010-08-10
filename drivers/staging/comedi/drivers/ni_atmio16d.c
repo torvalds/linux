@@ -151,7 +151,18 @@ static struct comedi_driver driver_atmio16d = {
 	.offset = sizeof(struct atmio16_board_t),
 };
 
-COMEDI_INITCLEANUP(driver_atmio16d);
+static int __init driver_atmio16d_init_module(void)
+{
+	return comedi_driver_register(&driver_atmio16d);
+}
+
+static void __exit driver_atmio16d_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_atmio16d);
+}
+
+module_init(driver_atmio16d_init_module);
+module_exit(driver_atmio16d_cleanup_module);
 
 /* range structs */
 static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
@@ -887,3 +898,7 @@ static int atmio16d_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

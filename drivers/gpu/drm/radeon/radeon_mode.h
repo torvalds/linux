@@ -66,6 +66,12 @@ enum radeon_tv_std {
 	TV_STD_PAL_N,
 };
 
+enum radeon_underscan_type {
+	UNDERSCAN_OFF,
+	UNDERSCAN_ON,
+	UNDERSCAN_AUTO,
+};
+
 enum radeon_hpd_id {
 	RADEON_HPD_1 = 0,
 	RADEON_HPD_2,
@@ -226,10 +232,12 @@ struct radeon_mode_info {
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
 	struct drm_property *load_detect_property;
-	/* TV standard load detect */
+	/* TV standard */
 	struct drm_property *tv_std_property;
 	/* legacy TMDS PLL detect */
 	struct drm_property *tmds_pll_property;
+	/* underscan */
+	struct drm_property *underscan_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 
@@ -266,6 +274,8 @@ struct radeon_crtc {
 	uint32_t legacy_display_base_addr;
 	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
+	u8 h_border;
+	u8 v_border;
 	fixed20_12 vsc;
 	fixed20_12 hsc;
 	struct drm_display_mode native_mode;
@@ -354,6 +364,7 @@ struct radeon_encoder {
 	uint32_t flags;
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
+	enum radeon_underscan_type underscan_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
@@ -392,7 +403,7 @@ struct radeon_connector {
 	uint32_t connector_id;
 	uint32_t devices;
 	struct radeon_i2c_chan *ddc_bus;
-	/* some systems have a an hdmi and vga port with a shared ddc line */
+	/* some systems have an hdmi and vga port with a shared ddc line */
 	bool shared_ddc;
 	bool use_digital;
 	/* we need to mind the EDID between detect
@@ -413,6 +424,9 @@ extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
 radeon_atombios_get_tv_info(struct radeon_device *rdev);
+
+extern struct drm_connector *
+radeon_get_connector_for_encoder(struct drm_encoder *encoder);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);

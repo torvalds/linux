@@ -131,7 +131,7 @@ static struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
 	bool always; /* True if intercept is always on */
 } direct_access_msrs[] = {
-	{ .index = MSR_K6_STAR,				.always = true  },
+	{ .index = MSR_STAR,				.always = true  },
 	{ .index = MSR_IA32_SYSENTER_CS,		.always = true  },
 #ifdef CONFIG_X86_64
 	{ .index = MSR_GS_BASE,				.always = true  },
@@ -384,8 +384,7 @@ static void svm_init_erratum_383(void)
 	int err;
 	u64 val;
 
-	/* Only Fam10h is affected */
-	if (boot_cpu_data.x86 != 0x10)
+	if (!cpu_has_amd_erratum(amd_erratum_383))
 		return;
 
 	/* Use _safe variants to not break nested virtualization */
@@ -2433,7 +2432,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 		*data = tsc_offset + native_read_tsc();
 		break;
 	}
-	case MSR_K6_STAR:
+	case MSR_STAR:
 		*data = svm->vmcb->save.star;
 		break;
 #ifdef CONFIG_X86_64
@@ -2557,7 +2556,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 
 		break;
 	}
-	case MSR_K6_STAR:
+	case MSR_STAR:
 		svm->vmcb->save.star = data;
 		break;
 #ifdef CONFIG_X86_64

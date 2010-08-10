@@ -2176,6 +2176,14 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	info->io.addr_data = res->start;
 
 	info->io.regspacing = DEFAULT_REGSPACING;
+	res = pnp_get_resource(dev,
+			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
+					IORESOURCE_IO : IORESOURCE_MEM,
+			       1);
+	if (res) {
+		if (res->start > info->io.addr_data)
+			info->io.regspacing = res->start - info->io.addr_data;
+	}
 	info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = 0;
 

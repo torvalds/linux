@@ -2339,11 +2339,11 @@ static int __devinit emac_wait_deps(struct emac_instance *dev)
 		deps[EMAC_DEP_MDIO_IDX].phandle = dev->mdio_ph;
 	if (dev->blist && dev->blist > emac_boot_list)
 		deps[EMAC_DEP_PREV_IDX].phandle = 0xffffffffu;
-	bus_register_notifier(&of_platform_bus_type, &emac_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &emac_of_bus_notifier);
 	wait_event_timeout(emac_probe_wait,
 			   emac_check_deps(dev, deps),
 			   EMAC_PROBE_DEP_TIMEOUT);
-	bus_unregister_notifier(&of_platform_bus_type, &emac_of_bus_notifier);
+	bus_unregister_notifier(&platform_bus_type, &emac_of_bus_notifier);
 	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
 		if (deps[i].node)

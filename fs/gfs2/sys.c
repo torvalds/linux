@@ -25,6 +25,7 @@
 #include "quota.h"
 #include "util.h"
 #include "glops.h"
+#include "recovery.h"
 
 struct gfs2_attr {
 	struct attribute attr;
@@ -376,7 +377,7 @@ static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		if (jd->jd_jid != jid)
 			continue;
-		rv = slow_work_enqueue(&jd->jd_work);
+		rv = gfs2_recover_journal(jd, false);
 		break;
 	}
 out:

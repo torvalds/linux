@@ -396,15 +396,18 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			}
 			for (n = prev_nid + 1; n <= val; n++) {
 				if (conns >= max_conns) {
-					snd_printk(KERN_ERR
-						   "Too many connections\n");
+					snd_printk(KERN_ERR "hda_codec: "
+						   "Too many connections %d for NID 0x%x\n",
+						   conns, nid);
 					return -EINVAL;
 				}
 				conn_list[conns++] = n;
 			}
 		} else {
 			if (conns >= max_conns) {
-				snd_printk(KERN_ERR "Too many connections\n");
+				snd_printk(KERN_ERR "hda_codec: "
+					   "Too many connections %d for NID 0x%x\n",
+					   conns, nid);
 				return -EINVAL;
 			}
 			conn_list[conns++] = val;
@@ -730,15 +733,17 @@ static void /*__devinit*/ setup_fg_nodes(struct hda_codec *codec)
 	total_nodes = snd_hda_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
 	for (i = 0; i < total_nodes; i++, nid++) {
 		function_id = snd_hda_param_read(codec, nid,
-						AC_PAR_FUNCTION_TYPE) & 0xff;
-		switch (function_id) {
+						AC_PAR_FUNCTION_TYPE);
+		switch (function_id & 0xff) {
 		case AC_GRP_AUDIO_FUNCTION:
 			codec->afg = nid;
-			codec->function_id = function_id;
+			codec->afg_function_id = function_id & 0xff;
+			codec->afg_unsol = (function_id >> 8) & 1;
 			break;
 		case AC_GRP_MODEM_FUNCTION:
 			codec->mfg = nid;
-			codec->function_id = function_id;
+			codec->mfg_function_id = function_id & 0xff;
+			codec->mfg_unsol = (function_id >> 8) & 1;
 			break;
 		default:
 			break;
@@ -1565,6 +1570,17 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 EXPORT_SYMBOL_HDA(snd_hda_codec_resume_amp);
 #endif /* SND_HDA_NEEDS_RESUME */
 
+static u32 get_amp_max_value(struct hda_codec *codec, hda_nid_t nid, int dir,
+			     unsigned int ofs)
+{
+	u32 caps = query_amp_caps(codec, nid, dir);
+	/* get num steps */
+	caps = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
+	if (ofs < caps)
+		caps -= ofs;
+	return caps;
+}
+
 /**
  * snd_hda_mixer_amp_volume_info - Info callback for a standard AMP mixer
  *
@@ -1579,23 +1595,17 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	u8 chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
 	unsigned int ofs = get_amp_offset(kcontrol);
-	u32 caps;
 
-	caps = query_amp_caps(codec, nid, dir);
-	/* num steps */
-	caps = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
-	if (!caps) {
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = chs == 3 ? 2 : 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = get_amp_max_value(codec, nid, dir, ofs);
+	if (!uinfo->value.integer.max) {
 		printk(KERN_WARNING "hda_codec: "
 		       "num_steps = 0 for NID=0x%x (ctl = %s)\n", nid,
 		       kcontrol->id.name);
 		return -EINVAL;
 	}
-	if (ofs < caps)
-		caps -= ofs;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = chs == 3 ? 2 : 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = caps;
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_volume_info);
@@ -1620,8 +1630,14 @@ update_amp_value(struct hda_codec *codec, hda_nid_t nid,
 		 int ch, int dir, int idx, unsigned int ofs,
 		 unsigned int val)
 {
+	unsigned int maxval;
+
 	if (val > 0)
 		val += ofs;
+	/* ofs = 0: raw max value */
+	maxval = get_amp_max_value(codec, nid, dir, 0);
+	if (val > maxval)
+		val = maxval;
 	return snd_hda_codec_amp_update(codec, nid, ch, dir, idx,
 					HDA_AMP_VOLMASK, val);
 }
@@ -2999,26 +3015,31 @@ struct hda_rate_tbl {
 	unsigned int hda_fmt;
 };
 
+/* rate = base * mult / div */
+#define HDA_RATE(base, mult, div) \
+	(AC_FMT_BASE_##base##K | (((mult) - 1) << AC_FMT_MULT_SHIFT) | \
+	 (((div) - 1) << AC_FMT_DIV_SHIFT))
+
 static struct hda_rate_tbl rate_bits[] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
 
 	/* autodetected value used in snd_hda_query_supported_pcm */
-	{ 8000, SNDRV_PCM_RATE_8000, 0x0500 }, /* 1/6 x 48 */
-	{ 11025, SNDRV_PCM_RATE_11025, 0x4300 }, /* 1/4 x 44 */
-	{ 16000, SNDRV_PCM_RATE_16000, 0x0200 }, /* 1/3 x 48 */
-	{ 22050, SNDRV_PCM_RATE_22050, 0x4100 }, /* 1/2 x 44 */
-	{ 32000, SNDRV_PCM_RATE_32000, 0x0a00 }, /* 2/3 x 48 */
-	{ 44100, SNDRV_PCM_RATE_44100, 0x4000 }, /* 44 */
-	{ 48000, SNDRV_PCM_RATE_48000, 0x0000 }, /* 48 */
-	{ 88200, SNDRV_PCM_RATE_88200, 0x4800 }, /* 2 x 44 */
-	{ 96000, SNDRV_PCM_RATE_96000, 0x0800 }, /* 2 x 48 */
-	{ 176400, SNDRV_PCM_RATE_176400, 0x5800 },/* 4 x 44 */
-	{ 192000, SNDRV_PCM_RATE_192000, 0x1800 }, /* 4 x 48 */
+	{ 8000, SNDRV_PCM_RATE_8000, HDA_RATE(48, 1, 6) },
+	{ 11025, SNDRV_PCM_RATE_11025, HDA_RATE(44, 1, 4) },
+	{ 16000, SNDRV_PCM_RATE_16000, HDA_RATE(48, 1, 3) },
+	{ 22050, SNDRV_PCM_RATE_22050, HDA_RATE(44, 1, 2) },
+	{ 32000, SNDRV_PCM_RATE_32000, HDA_RATE(48, 2, 3) },
+	{ 44100, SNDRV_PCM_RATE_44100, HDA_RATE(44, 1, 1) },
+	{ 48000, SNDRV_PCM_RATE_48000, HDA_RATE(48, 1, 1) },
+	{ 88200, SNDRV_PCM_RATE_88200, HDA_RATE(44, 2, 1) },
+	{ 96000, SNDRV_PCM_RATE_96000, HDA_RATE(48, 2, 1) },
+	{ 176400, SNDRV_PCM_RATE_176400, HDA_RATE(44, 4, 1) },
+	{ 192000, SNDRV_PCM_RATE_192000, HDA_RATE(48, 4, 1) },
 #define AC_PAR_PCM_RATE_BITS	11
 	/* up to bits 10, 384kHZ isn't supported properly */
 
 	/* not autodetected value */
-	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
+	{ 9600, SNDRV_PCM_RATE_KNOT, HDA_RATE(48, 1, 5) },
 
 	{ 0 } /* terminator */
 };
@@ -3037,7 +3058,8 @@ static struct hda_rate_tbl rate_bits[] = {
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
-					unsigned int maxbps)
+					unsigned int maxbps,
+					unsigned short spdif_ctls)
 {
 	int i;
 	unsigned int val = 0;
@@ -3060,26 +3082,29 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 
 	switch (snd_pcm_format_width(format)) {
 	case 8:
-		val |= 0x00;
+		val |= AC_FMT_BITS_8;
 		break;
 	case 16:
-		val |= 0x10;
+		val |= AC_FMT_BITS_16;
 		break;
 	case 20:
 	case 24:
 	case 32:
 		if (maxbps >= 32 || format == SNDRV_PCM_FORMAT_FLOAT_LE)
-			val |= 0x40;
+			val |= AC_FMT_BITS_32;
 		else if (maxbps >= 24)
-			val |= 0x30;
+			val |= AC_FMT_BITS_24;
 		else
-			val |= 0x20;
+			val |= AC_FMT_BITS_20;
 		break;
 	default:
 		snd_printdd("invalid format width %d\n",
 			    snd_pcm_format_width(format));
 		return 0;
 	}
+
+	if (spdif_ctls & AC_DIG1_NONAUDIO)
+		val |= AC_FMT_TYPE_NON_PCM;
 
 	return val;
 }

@@ -58,6 +58,7 @@
 
 #include <xen/page.h>
 #include <xen/interface/xen.h>
+#include <xen/interface/hvm/hvm_op.h>
 #include <xen/interface/version.h>
 #include <xen/hvc-console.h>
 
@@ -1940,6 +1941,40 @@ void __init xen_init_mmu_ops(void)
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;
 }
+
+#ifdef CONFIG_XEN_PVHVM
+static void xen_hvm_exit_mmap(struct mm_struct *mm)
+{
+	struct xen_hvm_pagetable_dying a;
+	int rc;
+
+	a.domid = DOMID_SELF;
+	a.gpa = __pa(mm->pgd);
+	rc = HYPERVISOR_hvm_op(HVMOP_pagetable_dying, &a);
+	WARN_ON_ONCE(rc < 0);
+}
+
+static int is_pagetable_dying_supported(void)
+{
+	struct xen_hvm_pagetable_dying a;
+	int rc = 0;
+
+	a.domid = DOMID_SELF;
+	a.gpa = 0x00;
+	rc = HYPERVISOR_hvm_op(HVMOP_pagetable_dying, &a);
+	if (rc < 0) {
+		printk(KERN_DEBUG "HVMOP_pagetable_dying not supported\n");
+		return 0;
+	}
+	return 1;
+}
+
+void __init xen_hvm_init_mmu_ops(void)
+{
+	if (is_pagetable_dying_supported())
+		pv_mmu_ops.exit_mmap = xen_hvm_exit_mmap;
+}
+#endif
 
 #ifdef CONFIG_XEN_DEBUG_FS
 

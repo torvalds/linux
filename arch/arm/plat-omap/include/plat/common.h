@@ -58,8 +58,7 @@ struct omap_globals {
 
 void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
-void omap2_set_globals_343x(void);
-void omap2_set_globals_36xx(void);
+void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
@@ -68,6 +67,8 @@ void omap2_set_globals_sdrc(struct omap_globals *);
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
 void omap2_set_globals_uart(struct omap_globals *);
+
+void omap3_map_io(void);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition
@@ -88,5 +89,9 @@ void omap2_set_globals_uart(struct omap_globals *);
 		udelay(1);					\
 	}							\
 })
+
+extern struct device *omap2_get_mpuss_device(void);
+extern struct device *omap2_get_dsp_device(void);
+extern struct device *omap2_get_l3_device(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

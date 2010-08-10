@@ -161,6 +161,11 @@ struct lbs_private {
 	/** Scanning */
 	struct delayed_work scan_work;
 	int scan_channel;
+	/* Queue of things waiting for scan completion */
+	wait_queue_head_t scan_q;
+	/* Whether the scan was initiated internally and not by cfg80211 */
+	bool internal_scan;
+	unsigned long last_scan;
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;

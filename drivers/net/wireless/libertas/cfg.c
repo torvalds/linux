@@ -257,6 +257,29 @@ static int lbs_add_supported_rates_tlv(u8 *tlv)
 	return sizeof(rate_tlv->header) + i;
 }
 
+/* Add common rates from a TLV and return the new end of the TLV */
+static u8 *
+add_ie_rates(u8 *tlv, const u8 *ie, int *nrates)
+{
+	int hw, ap, ap_max = ie[1];
+	u8 hw_rate;
+
+	/* Advance past IE header */
+	ie += 2;
+
+	lbs_deb_hex(LBS_DEB_ASSOC, "AP IE Rates", (u8 *) ie, ap_max);
+
+	for (hw = 0; hw < ARRAY_SIZE(lbs_rates); hw++) {
+		hw_rate = lbs_rates[hw].bitrate / 5;
+		for (ap = 0; ap < ap_max; ap++) {
+			if (hw_rate == (ie[ap] & 0x7f)) {
+				*tlv++ = ie[ap];
+				*nrates = *nrates + 1;
+			}
+		}
+	}
+	return tlv;
+}
 
 /*
  * Adds a TLV with all rates the hardware *and* BSS supports.
@@ -264,8 +287,11 @@ static int lbs_add_supported_rates_tlv(u8 *tlv)
 static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 {
 	struct mrvl_ie_rates_param_set *rate_tlv = (void *)tlv;
-	const u8 *rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
-	int n;
+	const u8 *rates_eid, *ext_rates_eid;
+	int n = 0;
+
+	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
+	ext_rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_EXT_SUPP_RATES);
 
 	/*
 	 * 01 00                   TLV_TYPE_RATES
@@ -275,26 +301,21 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 	rate_tlv->header.type = cpu_to_le16(TLV_TYPE_RATES);
 	tlv += sizeof(rate_tlv->header);
 
-	if (!rates_eid) {
+	/* Add basic rates */
+	if (rates_eid) {
+		tlv = add_ie_rates(tlv, rates_eid, &n);
+
+		/* Add extended rates, if any */
+		if (ext_rates_eid)
+			tlv = add_ie_rates(tlv, ext_rates_eid, &n);
+	} else {
+		lbs_deb_assoc("assoc: bss had no basic rate IE\n");
 		/* Fallback: add basic 802.11b rates */
 		*tlv++ = 0x82;
 		*tlv++ = 0x84;
 		*tlv++ = 0x8b;
 		*tlv++ = 0x96;
 		n = 4;
-	} else {
-		int hw, ap;
-		u8 ap_max = rates_eid[1];
-		n = 0;
-		for (hw = 0; hw < ARRAY_SIZE(lbs_rates); hw++) {
-			u8 hw_rate = lbs_rates[hw].bitrate / 5;
-			for (ap = 0; ap < ap_max; ap++) {
-				if (hw_rate == (rates_eid[ap+2] & 0x7f)) {
-					*tlv++ = rates_eid[ap+2];
-					n++;
-				}
-			}
-		}
 	}
 
 	rate_tlv->header.len = cpu_to_le16(n);
@@ -465,7 +486,15 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	bsssize = get_unaligned_le16(&scanresp->bssdescriptsize);
-	nr_sets = le16_to_cpu(resp->size);
+	nr_sets = le16_to_cpu(scanresp->nr_sets);
+
+	lbs_deb_scan("scan response: %d BSSs (%d bytes); resp size %d bytes\n",
+			nr_sets, bsssize, le16_to_cpu(resp->size));
+
+	if (nr_sets == 0) {
+		ret = 0;
+		goto done;
+	}
 
 	/*
 	 * The general layout of the scan response is described in chapter
@@ -670,8 +699,13 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	if (priv->scan_channel >= priv->scan_req->n_channels) {
 		/* Mark scan done */
-		cfg80211_scan_done(priv->scan_req, false);
+		if (priv->internal_scan)
+			kfree(priv->scan_req);
+		else
+			cfg80211_scan_done(priv->scan_req, false);
+
 		priv->scan_req = NULL;
+		priv->last_scan = jiffies;
 	}
 
 	/* Restart network */
@@ -682,10 +716,33 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	kfree(scan_cmd);
 
+	/* Wake up anything waiting on scan completion */
+	if (priv->scan_req == NULL) {
+		lbs_deb_scan("scan: waking up waiters\n");
+		wake_up_all(&priv->scan_q);
+	}
+
  out_no_scan_cmd:
 	lbs_deb_leave(LBS_DEB_SCAN);
 }
 
+static void _internal_start_scan(struct lbs_private *priv, bool internal,
+	struct cfg80211_scan_request *request)
+{
+	lbs_deb_enter(LBS_DEB_CFG80211);
+
+	lbs_deb_scan("scan: ssids %d, channels %d, ie_len %zd\n",
+		request->n_ssids, request->n_channels, request->ie_len);
+
+	priv->scan_channel = 0;
+	queue_delayed_work(priv->work_thread, &priv->scan_work,
+		msecs_to_jiffies(50));
+
+	priv->scan_req = request;
+	priv->internal_scan = internal;
+
+	lbs_deb_leave(LBS_DEB_CFG80211);
+}
 
 static int lbs_cfg_scan(struct wiphy *wiphy,
 	struct net_device *dev,
@@ -702,17 +759,10 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
 		goto out;
 	}
 
-	lbs_deb_scan("scan: ssids %d, channels %d, ie_len %zd\n",
-		request->n_ssids, request->n_channels, request->ie_len);
-
-	priv->scan_channel = 0;
-	queue_delayed_work(priv->work_thread, &priv->scan_work,
-		msecs_to_jiffies(50));
+	_internal_start_scan(priv, false, request);
 
 	if (priv->surpriseremoved)
 		ret = -EIO;
-
-	priv->scan_req = request;
 
  out:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -1000,6 +1050,7 @@ static int lbs_associate(struct lbs_private *priv,
 	int status;
 	int ret;
 	u8 *pos = &(cmd->iebuf[0]);
+	u8 *tmp;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -1044,7 +1095,9 @@ static int lbs_associate(struct lbs_private *priv,
 	pos += lbs_add_cf_param_tlv(pos);
 
 	/* add rates TLV */
+	tmp = pos + 4; /* skip Marvell IE header */
 	pos += lbs_add_common_rates_tlv(pos, bss);
+	lbs_deb_hex(LBS_DEB_ASSOC, "Common Rates", tmp, pos - tmp);
 
 	/* add auth type TLV */
 	if (priv->fwrelease >= 0x09000000)
@@ -1124,7 +1177,62 @@ done:
 	return ret;
 }
 
+static struct cfg80211_scan_request *
+_new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
+{
+	struct cfg80211_scan_request *creq = NULL;
+	int i, n_channels = 0;
+	enum ieee80211_band band;
 
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (wiphy->bands[band])
+			n_channels += wiphy->bands[band]->n_channels;
+	}
+
+	creq = kzalloc(sizeof(*creq) + sizeof(struct cfg80211_ssid) +
+		       n_channels * sizeof(void *),
+		       GFP_ATOMIC);
+	if (!creq)
+		return NULL;
+
+	/* SSIDs come after channels */
+	creq->ssids = (void *)&creq->channels[n_channels];
+	creq->n_channels = n_channels;
+	creq->n_ssids = 1;
+
+	/* Scan all available channels */
+	i = 0;
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		int j;
+
+		if (!wiphy->bands[band])
+			continue;
+
+		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
+			/* ignore disabled channels */
+			if (wiphy->bands[band]->channels[j].flags &
+						IEEE80211_CHAN_DISABLED)
+				continue;
+
+			creq->channels[i] = &wiphy->bands[band]->channels[j];
+			i++;
+		}
+	}
+	if (i) {
+		/* Set real number of channels specified in creq->channels[] */
+		creq->n_channels = i;
+
+		/* Scan for the SSID we're going to connect to */
+		memcpy(creq->ssids[0].ssid, sme->ssid, sme->ssid_len);
+		creq->ssids[0].ssid_len = sme->ssid_len;
+	} else {
+		/* No channels found... */
+		kfree(creq);
+		creq = NULL;
+	}
+
+	return creq;
+}
 
 static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_connect_params *sme)
@@ -1136,37 +1244,43 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
-	if (sme->bssid) {
-		bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
-			sme->ssid, sme->ssid_len,
-			WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-	} else {
-		/*
-		 * Here we have an impedance mismatch. The firmware command
-		 * CMD_802_11_ASSOCIATE always needs a BSSID, it cannot
-		 * connect otherwise. However, for the connect-API of
-		 * cfg80211 the bssid is purely optional. We don't get one,
-		 * except the user specifies one on the "iw" command line.
-		 *
-		 * If we don't got one, we could initiate a scan and look
-		 * for the best matching cfg80211_bss entry.
-		 *
-		 * Or, better yet, net/wireless/sme.c get's rewritten into
-		 * something more generally useful.
+	if (!sme->bssid) {
+		/* Run a scan if one isn't in-progress already and if the last
+		 * scan was done more than 2 seconds ago.
 		 */
-		lbs_pr_err("TODO: no BSS specified\n");
-		ret = -ENOTSUPP;
-		goto done;
+		if (priv->scan_req == NULL &&
+		    time_after(jiffies, priv->last_scan + (2 * HZ))) {
+			struct cfg80211_scan_request *creq;
+
+			creq = _new_connect_scan_req(wiphy, sme);
+			if (!creq) {
+				ret = -EINVAL;
+				goto done;
+			}
+
+			lbs_deb_assoc("assoc: scanning for compatible AP\n");
+			_internal_start_scan(priv, true, creq);
+		}
+
+		/* Wait for any in-progress scan to complete */
+		lbs_deb_assoc("assoc: waiting for scan to complete\n");
+		wait_event_interruptible_timeout(priv->scan_q,
+						 (priv->scan_req == NULL),
+						 (15 * HZ));
+		lbs_deb_assoc("assoc: scanning competed\n");
 	}
 
-
+	/* Find the BSS we want using available scan results */
+	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
+		sme->ssid, sme->ssid_len,
+		WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 	if (!bss) {
-		lbs_pr_err("assicate: bss %pM not in scan results\n",
+		lbs_pr_err("assoc: bss %pM not in scan results\n",
 			   sme->bssid);
 		ret = -ENOENT;
 		goto done;
 	}
-	lbs_deb_assoc("trying %pM", sme->bssid);
+	lbs_deb_assoc("trying %pM\n", bss->bssid);
 	lbs_deb_assoc("cipher 0x%x, key index %d, key len %d\n",
 		      sme->crypto.cipher_group,
 		      sme->key_idx, sme->key_len);
@@ -1229,7 +1343,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	lbs_set_radio(priv, preamble, 1);
 
 	/* Do the actual association */
-	lbs_associate(priv, bss, sme);
+	ret = lbs_associate(priv, bss, sme);
 
  done:
 	if (bss)

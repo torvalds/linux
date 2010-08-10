@@ -546,6 +546,9 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 {
 	struct sockaddr *sap = (struct sockaddr *)&nfss->mountd_address;
 
+	if (nfss->flags & NFS_MOUNT_LEGACY_INTERFACE)
+		return;
+
 	switch (sap->sa_family) {
 	case AF_INET: {
 		struct sockaddr_in *sin = (struct sockaddr_in *)sap;
@@ -1780,6 +1783,7 @@ static int nfs_validate_mount_data(void *options,
 		 * can deal with.
 		 */
 		args->flags		= data->flags & NFS_MOUNT_FLAGMASK;
+		args->flags		|= NFS_MOUNT_LEGACY_INTERFACE;
 		args->rsize		= data->rsize;
 		args->wsize		= data->wsize;
 		args->timeo		= data->timeo;

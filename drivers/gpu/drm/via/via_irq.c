@@ -141,11 +141,10 @@ irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS)
 			atomic_inc(&cur_irq->irq_received);
 			DRM_WAKEUP(&cur_irq->irq_queue);
 			handled = 1;
-			if (dev_priv->irq_map[drm_via_irq_dma0_td] == i) {
+			if (dev_priv->irq_map[drm_via_irq_dma0_td] == i)
 				via_dmablit_handler(dev, 0, 1);
-			} else if (dev_priv->irq_map[drm_via_irq_dma1_td] == i) {
+			else if (dev_priv->irq_map[drm_via_irq_dma1_td] == i)
 				via_dmablit_handler(dev, 1, 1);
-			}
 		}
 		cur_irq++;
 	}
@@ -160,7 +159,7 @@ irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS)
 		return IRQ_NONE;
 }
 
-static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t * dev_priv)
+static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t *dev_priv)
 {
 	u32 status;
 
@@ -207,7 +206,7 @@ void via_disable_vblank(struct drm_device *dev, int crtc)
 }
 
 static int
-via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequence,
+via_driver_irq_wait(struct drm_device *dev, unsigned int irq, int force_sequence,
 		    unsigned int *sequence)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
@@ -260,7 +259,7 @@ via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequenc
  * drm_dma.h hooks
  */
 
-void via_driver_irq_preinstall(struct drm_device * dev)
+void via_driver_irq_preinstall(struct drm_device *dev)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
@@ -329,7 +328,7 @@ int via_driver_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-void via_driver_irq_uninstall(struct drm_device * dev)
+void via_driver_irq_uninstall(struct drm_device *dev)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
