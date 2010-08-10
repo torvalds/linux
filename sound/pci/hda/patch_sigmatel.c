@@ -5349,6 +5349,8 @@ again:
 	case 0x111d7667:
 	case 0x111d7668:
 	case 0x111d7669:
+	case 0x111d76d1:
+	case 0x111d76d9:
 		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
 		spec->pin_nids = stac92hd88xxx_pin_nids;
 		spec->mono_nid = 0;
@@ -6283,6 +6285,8 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76d4, .name = "92HD83C1C5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76d1, .name = "92HD87B1/3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76d9, .name = "92HD87B2/4", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7666, .name = "92HD88B3", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7667, .name = "92HD88B1", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7668, .name = "92HD88B2", .patch = patch_stac92hd83xxx},
