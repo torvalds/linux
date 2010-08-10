@@ -783,7 +783,7 @@ static struct kobj_type ktype_inst_grp = {
  * object tree.
  */
 static int edac_create_mci_instance_attributes(struct mem_ctl_info *mci,
-				struct mcidev_sysfs_attribute *sysfs_attrib,
+				const struct mcidev_sysfs_attribute *sysfs_attrib,
 				struct kobject *kobj)
 {
 	int err;
@@ -842,7 +842,7 @@ static int edac_create_mci_instance_attributes(struct mem_ctl_info *mci,
  *	directory of this mci instance.
  */
 static void edac_remove_mci_instance_attributes(struct mem_ctl_info *mci,
-				struct mcidev_sysfs_attribute *sysfs_attrib,
+				const struct mcidev_sysfs_attribute *sysfs_attrib,
 				struct kobject *kobj, int count)
 {
 	struct mcidev_sysfs_group_kobj *grp_kobj, *tmp;

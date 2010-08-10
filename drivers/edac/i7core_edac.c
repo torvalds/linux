@@ -217,8 +217,8 @@ struct pci_id_descr {
 };
 
 struct pci_id_table {
-	struct pci_id_descr	*descr;
-	int			n_devs;
+	const struct pci_id_descr	*descr;
+	int				n_devs;
 };
 
 struct i7core_dev {
@@ -276,7 +276,7 @@ struct i7core_pvt {
 	.func = (function),			\
 	.dev_id = (device_id)
 
-struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
+static const struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
@@ -313,7 +313,7 @@ struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
 
 };
 
-struct pci_id_descr pci_dev_descr_lynnfield[] = {
+static const struct pci_id_descr pci_dev_descr_lynnfield[] = {
 	{ PCI_DESCR( 3, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_MCR)         },
 	{ PCI_DESCR( 3, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_TAD)      },
 	{ PCI_DESCR( 3, 4, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_TEST)     },
@@ -335,7 +335,7 @@ struct pci_id_descr pci_dev_descr_lynnfield[] = {
 	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)     },
 };
 
-struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
+static const struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_MCR_REV2)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_TAD_REV2)  },
@@ -366,8 +366,8 @@ struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
 
 };
 
-#define PCI_ID_TABLE_ENTRY(A) { A, ARRAY_SIZE(A) }
-struct pci_id_table pci_dev_table[] = {
+#define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
+static const struct pci_id_table pci_dev_table[] = {
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_i7core_nehalem),
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_lynnfield),
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_i7core_westmere),
@@ -486,7 +486,7 @@ static struct pci_dev *get_pdev_slot_func(u8 socket, unsigned slot,
  * to add a fake description for csrows.
  * So, this driver is attributing one DIMM memory for one csrow.
  */
-static int i7core_get_active_channels(u8 socket, unsigned *channels,
+static int i7core_get_active_channels(const u8 socket, unsigned *channels,
 				      unsigned *csrows)
 {
 	struct pci_dev *pdev = NULL;
@@ -547,7 +547,7 @@ static int i7core_get_active_channels(u8 socket, unsigned *channels,
 	return 0;
 }
 
-static int get_dimm_config(struct mem_ctl_info *mci, int *csrow)
+static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
@@ -738,7 +738,7 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow)
    we're disabling error injection on all write calls to the sysfs nodes that
    controls the error code injection.
  */
-static int disable_inject(struct mem_ctl_info *mci)
+static int disable_inject(const struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 
@@ -923,7 +923,7 @@ DECLARE_ADDR_MATCH(bank, 32);
 DECLARE_ADDR_MATCH(page, 0x10000);
 DECLARE_ADDR_MATCH(col, 0x4000);
 
-static int write_and_test(struct pci_dev *dev, int where, u32 val)
+static int write_and_test(struct pci_dev *dev, const int where, const u32 val)
 {
 	u32 read;
 	int count;
@@ -1122,35 +1122,34 @@ DECLARE_COUNTER(2);
  * Sysfs struct
  */
 
-
-static struct mcidev_sysfs_attribute i7core_addrmatch_attrs[] = {
+static const struct mcidev_sysfs_attribute i7core_addrmatch_attrs[] = {
 	ATTR_ADDR_MATCH(channel),
 	ATTR_ADDR_MATCH(dimm),
 	ATTR_ADDR_MATCH(rank),
 	ATTR_ADDR_MATCH(bank),
 	ATTR_ADDR_MATCH(page),
 	ATTR_ADDR_MATCH(col),
-	{ .attr = { .name = NULL } }
+	{ } /* End of list */
 };
 
-static struct mcidev_sysfs_group i7core_inject_addrmatch = {
+static const struct mcidev_sysfs_group i7core_inject_addrmatch = {
 	.name  = "inject_addrmatch",
 	.mcidev_attr = i7core_addrmatch_attrs,
 };
 
-static struct mcidev_sysfs_attribute i7core_udimm_counters_attrs[] = {
+static const struct mcidev_sysfs_attribute i7core_udimm_counters_attrs[] = {
 	ATTR_COUNTER(0),
 	ATTR_COUNTER(1),
 	ATTR_COUNTER(2),
 	{ .attr = { .name = NULL } }
 };
 
-static struct mcidev_sysfs_group i7core_udimm_counters = {
+static const struct mcidev_sysfs_group i7core_udimm_counters = {
 	.name  = "all_channel_counts",
 	.mcidev_attr = i7core_udimm_counters_attrs,
 };
 
-static struct mcidev_sysfs_attribute i7core_sysfs_attrs[] = {
+static const struct mcidev_sysfs_attribute i7core_sysfs_rdimm_attrs[] = {
 	{
 		.attr = {
 			.name = "inject_section",
@@ -1182,8 +1181,44 @@ static struct mcidev_sysfs_attribute i7core_sysfs_attrs[] = {
 		.show  = i7core_inject_enable_show,
 		.store = i7core_inject_enable_store,
 	},
-	{ .attr = { .name = NULL } },	/* Reserved for udimm counters */
-	{ .attr = { .name = NULL } }
+	{ }	/* End of list */
+};
+
+static const struct mcidev_sysfs_attribute i7core_sysfs_udimm_attrs[] = {
+	{
+		.attr = {
+			.name = "inject_section",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_section_show,
+		.store = i7core_inject_section_store,
+	}, {
+		.attr = {
+			.name = "inject_type",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_type_show,
+		.store = i7core_inject_type_store,
+	}, {
+		.attr = {
+			.name = "inject_eccmask",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_eccmask_show,
+		.store = i7core_inject_eccmask_store,
+	}, {
+		.grp = &i7core_inject_addrmatch,
+	}, {
+		.attr = {
+			.name = "inject_enable",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_enable_show,
+		.store = i7core_inject_enable_store,
+	}, {
+		.grp = &i7core_udimm_counters,
+	},
+	{ }	/* End of list */
 };
 
 /****************************************************************************
@@ -1221,7 +1256,7 @@ static void i7core_put_all_devices(void)
 		i7core_put_devices(i7core_dev);
 }
 
-static void __init i7core_xeon_pci_fixup(struct pci_id_table *table)
+static void __init i7core_xeon_pci_fixup(const struct pci_id_table *table)
 {
 	struct pci_dev *pdev = NULL;
 	int i;
@@ -1264,9 +1299,10 @@ static unsigned i7core_pci_lastbus(void)
  *
  *			Need to 'get' device 16 func 1 and func 2
  */
-int i7core_get_onedevice(struct pci_dev **prev, int devno,
-			 struct pci_id_descr *dev_descr, unsigned n_devs,
-			 unsigned last_bus)
+int i7core_get_onedevice(struct pci_dev **prev, const int devno,
+			 const struct pci_id_descr *dev_descr,
+			 const unsigned n_devs,
+			 const unsigned last_bus)
 {
 	struct i7core_dev *i7core_dev;
 
@@ -1375,11 +1411,11 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 	return 0;
 }
 
-static int i7core_get_devices(struct pci_id_table *table)
+static int i7core_get_devices(const struct pci_id_table *table)
 {
 	int i, rc, last_bus;
 	struct pci_dev *pdev = NULL;
-	struct pci_id_descr *dev_descr;
+	const struct pci_id_descr *dev_descr;
 
 	last_bus = i7core_pci_lastbus();
 
@@ -1450,15 +1486,6 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->is_registered = 1;
 	}
 
-	/*
-	 * Add extra nodes to count errors on udimm
-	 * For registered memory, this is not needed, since the counters
-	 * are already displayed at the standard locations
-	 */
-	if (!pvt->is_registered)
-		i7core_sysfs_attrs[ARRAY_SIZE(i7core_sysfs_attrs)-2].grp =
-			&i7core_udimm_counters;
-
 	return 0;
 
 error:
@@ -1472,7 +1499,9 @@ error:
 			Error check routines
  ****************************************************************************/
 static void i7core_rdimm_update_csrow(struct mem_ctl_info *mci,
-					 int chan, int dimm, int add)
+				      const int chan,
+				      const int dimm,
+				      const int add)
 {
 	char *msg;
 	struct i7core_pvt *pvt = mci->pvt_info;
@@ -1489,7 +1518,10 @@ static void i7core_rdimm_update_csrow(struct mem_ctl_info *mci,
 }
 
 static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
-			int chan, int new0, int new1, int new2)
+					 const int chan,
+					 const int new0,
+					 const int new1,
+					 const int new2)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	int add0 = 0, add1 = 0, add2 = 0;
@@ -1643,7 +1675,7 @@ static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci)
  * fields
  */
 static void i7core_mce_output_error(struct mem_ctl_info *mci,
-				    struct mce *m)
+				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	char *type, *optype, *err, *msg;
@@ -1848,7 +1880,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 }
 
 static int i7core_register_mci(struct i7core_dev *i7core_dev,
-			       int num_channels, int num_csrows)
+			       const int num_channels, const int num_csrows)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
@@ -1883,7 +1915,12 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 				  i7core_dev->socket);
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
-	mci->mc_driver_sysfs_attributes = i7core_sysfs_attrs;
+
+	if (pvt->is_registered)
+		mci->mc_driver_sysfs_attributes = i7core_sysfs_rdimm_attrs;
+	else
+		mci->mc_driver_sysfs_attributes = i7core_sysfs_udimm_attrs;
+
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7core_check_error;
 
