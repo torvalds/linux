@@ -50,7 +50,7 @@ int omfs_shrink_inode(struct inode *inode)
 	if (inode->i_size != 0)
 		goto out;
 
-	bh = sb_bread(inode->i_sb, clus_to_blk(sbi, next));
+	bh = omfs_bread(inode->i_sb, next);
 	if (!bh)
 		goto out;
 
@@ -90,7 +90,7 @@ int omfs_shrink_inode(struct inode *inode)
 		if (next == ~0)
 			break;
 
-		bh = sb_bread(inode->i_sb, clus_to_blk(sbi, next));
+		bh = omfs_bread(inode->i_sb, next);
 		if (!bh)
 			goto out;
 		oe = (struct omfs_extent *) (&bh->b_data[OMFS_EXTENT_CONT]);
@@ -222,7 +222,7 @@ static int omfs_get_block(struct inode *inode, sector_t block,
 	struct buffer_head *bh;
 	sector_t next, offset;
 	int ret;
-	u64 new_block;
+	u64 uninitialized_var(new_block);
 	u32 max_extents;
 	int extent_count;
 	struct omfs_extent *oe;
@@ -232,7 +232,7 @@ static int omfs_get_block(struct inode *inode, sector_t block,
 	int remain;
 
 	ret = -EIO;
-	bh = sb_bread(inode->i_sb, clus_to_blk(sbi, inode->i_ino));
+	bh = omfs_bread(inode->i_sb, inode->i_ino);
 	if (!bh)
 		goto out;
 
@@ -265,7 +265,7 @@ static int omfs_get_block(struct inode *inode, sector_t block,
 			break;
 
 		brelse(bh);
-		bh = sb_bread(inode->i_sb, clus_to_blk(sbi, next));
+		bh = omfs_bread(inode->i_sb, next);
 		if (!bh)
 			goto out;
 		oe = (struct omfs_extent *) (&bh->b_data[OMFS_EXTENT_CONT]);

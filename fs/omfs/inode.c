@@ -19,6 +19,15 @@ MODULE_AUTHOR("Bob Copeland <me@bobcopeland.com>");
 MODULE_DESCRIPTION("OMFS (ReplayTV/Karma) Filesystem for Linux");
 MODULE_LICENSE("GPL");
 
+struct buffer_head *omfs_bread(struct super_block *sb, sector_t block)
+{
+	struct omfs_sb_info *sbi = OMFS_SB(sb);
+	if (block >= sbi->s_num_blocks)
+		return NULL;
+
+	return sb_bread(sb, clus_to_blk(sbi, block));
+}
+
 struct inode *omfs_new_inode(struct inode *dir, int mode)
 {
 	struct inode *inode;
@@ -93,15 +102,13 @@ static int __omfs_write_inode(struct inode *inode, int wait)
 	struct omfs_inode *oi;
 	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
 	struct buffer_head *bh, *bh2;
-	unsigned int block;
 	u64 ctime;
 	int i;
 	int ret = -EIO;
 	int sync_failed = 0;
 
 	/* get current inode since we may have written sibling ptrs etc. */
-	block = clus_to_blk(sbi, inode->i_ino);
-	bh = sb_bread(inode->i_sb, block);
+	bh = omfs_bread(inode->i_sb, inode->i_ino);
 	if (!bh)
 		goto out;
 
@@ -140,8 +147,7 @@ static int __omfs_write_inode(struct inode *inode, int wait)
 
 	/* if mirroring writes, copy to next fsblock */
 	for (i = 1; i < sbi->s_mirrors; i++) {
-		bh2 = sb_bread(inode->i_sb, block + i *
-			(sbi->s_blocksize / sbi->s_sys_blocksize));
+		bh2 = omfs_bread(inode->i_sb, inode->i_ino + i);
 		if (!bh2)
 			goto out_brelse;
 
@@ -196,7 +202,6 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	struct omfs_inode *oi;
 	struct buffer_head *bh;
-	unsigned int block;
 	u64 ctime;
 	unsigned long nsecs;
 	struct inode *inode;
@@ -207,8 +212,7 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	block = clus_to_blk(sbi, ino);
-	bh = sb_bread(inode->i_sb, block);
+	bh = omfs_bread(inode->i_sb, ino);
 	if (!bh)
 		goto iget_failed;
 
@@ -322,6 +326,9 @@ static int omfs_get_imap(struct super_block *sb)
 		goto nomem;
 
 	block = clus_to_blk(sbi, sbi->s_bitmap_ino);
+	if (block >= sbi->s_num_blocks)
+		goto nomem;
+
 	ptr = sbi->s_imap;
 	for (count = bitmap_size; count > 0; count -= sb->s_blocksize) {
 		bh = sb_bread(sb, block++);
@@ -420,7 +427,6 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct omfs_root_block *omfs_rb;
 	struct omfs_sb_info *sbi;
 	struct inode *root;
-	sector_t start;
 	int ret = -EINVAL;
 
 	save_mount_options(sb, (char *) data);
@@ -489,8 +495,7 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_block_shift = get_bitmask_order(sbi->s_blocksize) -
 		get_bitmask_order(sbi->s_sys_blocksize);
 
-	start = clus_to_blk(sbi, be64_to_cpu(omfs_sb->s_root_block));
-	bh2 = sb_bread(sb, start);
+	bh2 = omfs_bread(sb, be64_to_cpu(omfs_sb->s_root_block));
 	if (!bh2)
 		goto out_brelse_bh;
 
@@ -504,6 +509,21 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 			"super and root blocks (%llx, %llx)\n",
 			(unsigned long long)sbi->s_num_blocks,
 			(unsigned long long)be64_to_cpu(omfs_rb->r_num_blocks));
+		goto out_brelse_bh2;
+	}
+
+	if (sbi->s_bitmap_ino != ~0ULL &&
+	    sbi->s_bitmap_ino > sbi->s_num_blocks) {
+		printk(KERN_ERR "omfs: free space bitmap location is corrupt "
+			"(%llx, total blocks %llx)\n",
+			(unsigned long long) sbi->s_bitmap_ino,
+			(unsigned long long) sbi->s_num_blocks);
+		goto out_brelse_bh2;
+	}
+	if (sbi->s_clustersize < 1 ||
+	    sbi->s_clustersize > OMFS_MAX_CLUSTER_SIZE) {
+		printk(KERN_ERR "omfs: cluster size out of range (%d)",
+			sbi->s_clustersize);
 		goto out_brelse_bh2;
 	}
 
@@ -532,6 +552,8 @@ out_brelse_bh2:
 out_brelse_bh:
 	brelse(bh);
 end:
+	if (ret)
+		kfree(sbi);
 	return ret;
 }
 
