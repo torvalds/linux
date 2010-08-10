@@ -6216,33 +6216,31 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (tp_features.bright_unkfw)
 		return 1;
 
-	if (tp_features.bright_acpimode) {
-		if (acpi_video_backlight_support()) {
-			if (brightness_enable > 1) {
-				printk(TPACPI_NOTICE
-				       "Standard ACPI backlight interface "
-				       "available, not loading native one.\n");
-				return 1;
-			} else if (brightness_enable == 1) {
-				printk(TPACPI_NOTICE
-				       "Backlight control force enabled, even if standard "
-				       "ACPI backlight interface is available\n");
-			}
-		} else {
-			if (brightness_enable > 1) {
-				printk(TPACPI_NOTICE
-				       "Standard ACPI backlight interface not "
-				       "available, thinkpad_acpi native "
-				       "brightness control enabled\n");
-			}
-		}
-	}
-
 	if (!brightness_enable) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			   "brightness support disabled by "
 			   "module parameter\n");
 		return 1;
+	}
+
+	if (acpi_video_backlight_support()) {
+		if (brightness_enable > 1) {
+			printk(TPACPI_INFO
+			       "Standard ACPI backlight interface "
+			       "available, not loading native one.\n");
+			return 1;
+		} else if (brightness_enable == 1) {
+			printk(TPACPI_WARN
+				"Cannot enable backlight brightness support, "
+				"ACPI is already handling it.  Refer to the "
+				"acpi_backlight kernel parameter\n");
+			return 1;
+		}
+	} else if (tp_features.bright_acpimode && brightness_enable > 1) {
+		printk(TPACPI_NOTICE
+			"Standard ACPI backlight interface not "
+			"available, thinkpad_acpi native "
+			"brightness control enabled\n");
 	}
 
 	/*
