@@ -5,3 +5,10 @@ config VIDEO_OV5650
           This is a driver for the Omnivision OV5650 5MP camera sensor
 	  for use with the tegra isp.
 
+config VIDEO_SOC2030
+        tristate "SOC2030 camera sensor support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the SOC2030 2MP camera sensor
+	  for use with the tegra isp.
+
