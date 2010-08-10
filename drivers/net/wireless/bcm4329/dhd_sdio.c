@@ -4694,8 +4694,6 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = FALSE;
-				dhd_os_wd_timer(bus->dhd,dhd_watchdog_ms);
-			} else {
 				dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 			}
 		}
