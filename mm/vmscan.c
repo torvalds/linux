@@ -2635,10 +2635,19 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		 * Note that shrink_slab will free memory on all zones and may
 		 * take a long time.
 		 */
-		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
-				nr_slab_pages0))
-			;
+		for (;;) {
+			unsigned long lru_pages = zone_reclaimable_pages(zone);
+
+			/* No reclaimable slab or very low memory pressure */
+			if (!shrink_slab(sc.nr_scanned, gfp_mask, lru_pages))
+				break;
+
+			/* Freed enough memory */
+			nr_slab_pages1 = zone_page_state(zone,
+							NR_SLAB_RECLAIMABLE);
+			if (nr_slab_pages1 + nr_pages <= nr_slab_pages0)
+				break;
+		}
 
 		/*
 		 * Update nr_reclaimed by the number of slab pages we
