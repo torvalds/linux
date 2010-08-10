@@ -81,6 +81,13 @@ static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
 	return atomic_read(&anon_vma->external_refcount);
 }
+
+static inline void get_anon_vma(struct anon_vma *anon_vma)
+{
+	atomic_inc(&anon_vma->external_refcount);
+}
+
+void drop_anon_vma(struct anon_vma *);
 #else
 static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 {
@@ -89,6 +96,14 @@ static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
 	return 0;
+}
+
+static inline void get_anon_vma(struct anon_vma *anon_vma)
+{
+}
+
+static inline void drop_anon_vma(struct anon_vma *anon_vma)
+{
 }
 #endif /* CONFIG_KSM */
 
