@@ -39,6 +39,11 @@
 
 #include "edac_core.h"
 
+/* Static vars */
+static LIST_HEAD(i7core_edac_list);
+static DEFINE_MUTEX(i7core_edac_lock);
+static int probed;
+
 /*
  * This is used for Nehalem-EP and Nehalem-EX devices, where the non-core
  * registers start at bus 255, and are not reported by BIOS.
@@ -265,10 +270,6 @@ struct i7core_pvt {
 	/* Struct to control EDAC polling */
 	struct edac_pci_ctl_info *i7core_pci;
 };
-
-/* Static vars */
-static LIST_HEAD(i7core_edac_list);
-static DEFINE_MUTEX(i7core_edac_lock);
 
 #define PCI_DESCR(device, function, device_id)	\
 	.dev = (device),			\
@@ -1949,8 +1950,6 @@ fail:
  *		0 for FOUND a device
  *		< 0 for error code
  */
-
-static int probed = 0;
 
 static int __devinit i7core_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
