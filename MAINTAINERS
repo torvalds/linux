@@ -4043,7 +4043,7 @@ F:	net/rfkill/
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/linux/wireless.h
-F:	include/linux/iw_handler.h
+F:	include/net/iw_handler.h
 F:	drivers/net/wireless/
 
 NETWORKING DRIVERS
