@@ -1979,8 +1979,7 @@ global_root:
  * @buffer: buffer to return value in
  * @buflen: buffer length
  *
- * Convert a dentry into an ASCII path name. If the entry has been deleted
- * the string " (deleted)" is appended. Note that this is ambiguous.
+ * Convert a dentry into an ASCII path name.
  *
  * Returns a pointer into the buffer or an error code if the
  * path was too long.
@@ -1997,17 +1996,27 @@ char *__d_path(const struct path *path, struct path *root,
 	int error;
 
 	prepend(&res, &buflen, "\0", 1);
-	if (d_unlinked(path->dentry)) {
-		error = prepend(&res, &buflen, " (deleted)", 10);
-		if (error)
-			return ERR_PTR(error);
-	}
-
 	error = prepend_path(path, root, &res, &buflen);
 	if (error)
 		return ERR_PTR(error);
 
 	return res;
+}
+
+/*
+ * same as __d_path but appends "(deleted)" for unlinked files.
+ */
+static int path_with_deleted(const struct path *path, struct path *root,
+				 char **buf, int *buflen)
+{
+	prepend(buf, buflen, "\0", 1);
+	if (d_unlinked(path->dentry)) {
+		int error = prepend(buf, buflen, " (deleted)", 10);
+		if (error)
+			return error;
+	}
+
+	return prepend_path(path, root, buf, buflen);
 }
 
 /**
@@ -2028,9 +2037,10 @@ char *__d_path(const struct path *path, struct path *root,
  */
 char *d_path(const struct path *path, char *buf, int buflen)
 {
-	char *res;
+	char *res = buf + buflen;
 	struct path root;
 	struct path tmp;
+	int error;
 
 	/*
 	 * We have various synthetic filesystems that never get mounted.  On
@@ -2045,7 +2055,9 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	get_fs_root(current->fs, &root);
 	spin_lock(&dcache_lock);
 	tmp = root;
-	res = __d_path(path, &tmp, buf, buflen);
+	error = path_with_deleted(path, &tmp, &res, &buflen);
+	if (error)
+		res = ERR_PTR(error);
 	spin_unlock(&dcache_lock);
 	path_put(&root);
 	return res;
