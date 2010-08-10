@@ -139,8 +139,8 @@ static bool oom_unkillable_task(struct task_struct *p, struct mem_cgroup *mem,
  *    algorithm has been meticulously tuned to meet the principle
  *    of least surprise ... (be careful when you change it)
  */
-
-unsigned long badness(struct task_struct *p, unsigned long uptime)
+unsigned long badness(struct task_struct *p, struct mem_cgroup *mem,
+		      const nodemask_t *nodemask, unsigned long uptime)
 {
 	unsigned long points, cpu_time, run_time;
 	struct task_struct *child;
@@ -150,6 +150,8 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	unsigned long utime;
 	unsigned long stime;
 
+	if (oom_unkillable_task(p, mem, nodemask))
+		return 0;
 	if (oom_adj == OOM_DISABLE)
 		return 0;
 
@@ -351,7 +353,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 		if (p->signal->oom_adj == OOM_DISABLE)
 			continue;
 
-		points = badness(p, uptime.tv_sec);
+		points = badness(p, mem, nodemask, uptime.tv_sec);
 		if (points > *ppoints || !chosen) {
 			chosen = p;
 			*ppoints = points;
@@ -482,11 +484,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 
 			if (child->mm == p->mm)
 				continue;
-			if (oom_unkillable_task(p, mem, nodemask))
-				continue;
 
 			/* badness() returns 0 if the thread is unkillable */
-			child_points = badness(child, uptime.tv_sec);
+			child_points = badness(child, mem, nodemask,
+					       uptime.tv_sec);
 			if (child_points > victim_points) {
 				victim = child;
 				victim_points = child_points;
