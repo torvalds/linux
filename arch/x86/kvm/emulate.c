@@ -2379,8 +2379,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0xB8 - 0xBF */
 	N, N,
 	G(BitOp, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
-	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
-	    D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
 	N, N, N, D(DstMem | SrcReg | ModRM | Mov),
 	N, N, N, GD(0, &group9),
@@ -3511,6 +3511,30 @@ twobyte_insn:
 	      btc:		/* btc */
 		emulate_2op_SrcV_nobyte("btc", c->src, c->dst, ctxt->eflags);
 		break;
+	case 0xbc: {		/* bsf */
+		u8 zf;
+		__asm__ ("bsf %2, %0; setz %1"
+			 : "=r"(c->dst.val), "=q"(zf)
+			 : "r"(c->src.val));
+		ctxt->eflags &= ~X86_EFLAGS_ZF;
+		if (zf) {
+			ctxt->eflags |= X86_EFLAGS_ZF;
+			c->dst.type = OP_NONE;	/* Disable writeback. */
+		}
+		break;
+	}
+	case 0xbd: {		/* bsr */
+		u8 zf;
+		__asm__ ("bsr %2, %0; setz %1"
+			 : "=r"(c->dst.val), "=q"(zf)
+			 : "r"(c->src.val));
+		ctxt->eflags &= ~X86_EFLAGS_ZF;
+		if (zf) {
+			ctxt->eflags |= X86_EFLAGS_ZF;
+			c->dst.type = OP_NONE;	/* Disable writeback. */
+		}
+		break;
+	}
 	case 0xbe ... 0xbf:	/* movsx */
 		c->dst.bytes = c->op_bytes;
 		c->dst.val = (c->d & ByteOp) ? (s8) c->src.val :
