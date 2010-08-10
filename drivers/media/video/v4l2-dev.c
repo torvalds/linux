@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -215,28 +216,24 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 	return vdev->fops->poll(filp, poll);
 }
 
-static int v4l2_ioctl(struct inode *inode, struct file *filp,
-		unsigned int cmd, unsigned long arg)
+static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret;
 
-	if (!vdev->fops->ioctl)
-		return -ENOTTY;
 	/* Allow ioctl to continue even if the device was unregistered.
 	   Things like dequeueing buffers might still be useful. */
-	return vdev->fops->ioctl(filp, cmd, arg);
-}
+	if (vdev->fops->unlocked_ioctl) {
+		ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
+	} else if (vdev->fops->ioctl) {
+		/* TODO: convert all drivers to unlocked_ioctl */
+		lock_kernel();
+		ret = vdev->fops->ioctl(filp, cmd, arg);
+		unlock_kernel();
+	} else
+		ret = -ENOTTY;
 
-static long v4l2_unlocked_ioctl(struct file *filp,
-		unsigned int cmd, unsigned long arg)
-{
-	struct video_device *vdev = video_devdata(filp);
-
-	if (!vdev->fops->unlocked_ioctl)
-		return -ENOTTY;
-	/* Allow ioctl to continue even if the device was unregistered.
-	   Things like dequeueing buffers might still be useful. */
-	return vdev->fops->unlocked_ioctl(filp, cmd, arg);
+	return ret;
 }
 
 #ifdef CONFIG_MMU
@@ -307,22 +304,6 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static const struct file_operations v4l2_unlocked_fops = {
-	.owner = THIS_MODULE,
-	.read = v4l2_read,
-	.write = v4l2_write,
-	.open = v4l2_open,
-	.get_unmapped_area = v4l2_get_unmapped_area,
-	.mmap = v4l2_mmap,
-	.unlocked_ioctl = v4l2_unlocked_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l2_compat_ioctl32,
-#endif
-	.release = v4l2_release,
-	.poll = v4l2_poll,
-	.llseek = no_llseek,
-};
-
 static const struct file_operations v4l2_fops = {
 	.owner = THIS_MODULE,
 	.read = v4l2_read,
@@ -330,7 +311,7 @@ static const struct file_operations v4l2_fops = {
 	.open = v4l2_open,
 	.get_unmapped_area = v4l2_get_unmapped_area,
 	.mmap = v4l2_mmap,
-	.ioctl = v4l2_ioctl,
+	.unlocked_ioctl = v4l2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l2_compat_ioctl32,
 #endif
@@ -521,10 +502,7 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 		ret = -ENOMEM;
 		goto cleanup;
 	}
-	if (vdev->fops->unlocked_ioctl)
-		vdev->cdev->ops = &v4l2_unlocked_fops;
-	else
-		vdev->cdev->ops = &v4l2_fops;
+	vdev->cdev->ops = &v4l2_fops;
 	vdev->cdev->owner = vdev->fops->owner;
 	ret = cdev_add(vdev->cdev, MKDEV(VIDEO_MAJOR, vdev->minor), 1);
 	if (ret < 0) {

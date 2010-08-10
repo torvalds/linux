@@ -463,15 +463,12 @@ struct data_buffer audio_buffer[];
 void             easycap_complete(struct urb *);
 int              easycap_open(struct inode *, struct file *);
 int              easycap_release(struct inode *, struct file *);
-int              easycap_ioctl(struct inode *, struct file *, \
-						unsigned int,  unsigned long);
+long             easycap_ioctl(struct file *, unsigned int,  unsigned long);
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 int              easycap_open_noinode(struct file *);
 int              easycap_release_noinode(struct file *);
-long             easycap_ioctl_noinode(struct file *, \
-						unsigned int,  unsigned long);
 int              videodev_release(struct video_device *);
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
@@ -515,8 +512,7 @@ void             easysnd_complete(struct urb *);
 ssize_t          easysnd_read(struct file *, char __user *, size_t, loff_t *);
 int              easysnd_open(struct inode *, struct file *);
 int              easysnd_release(struct inode *, struct file *);
-int              easysnd_ioctl(struct inode *, struct file *, \
-						unsigned int,  unsigned long);
+long             easysnd_ioctl(struct file *, unsigned int,  unsigned long);
 unsigned int     easysnd_poll(struct file *, poll_table *);
 void             easysnd_delete(struct kref *);
 int              submit_audio_urbs(struct easycap *);
