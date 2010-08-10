@@ -168,7 +168,7 @@ struct battery_property {
  */
 static int pmic_scu_ipc_battery_cc_read(u32 *value)
 {
-	return intel_scu_ipc_command(IPC_CMD_CC_RD, IPCMSG_BATTERY,
+	return intel_scu_ipc_command(IPCMSG_BATTERY, IPC_CMD_CC_RD,
 					NULL, 0, value, 1);
 }
 
