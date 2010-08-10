@@ -767,14 +767,20 @@ static void __page_set_anon_rmap(struct page *page,
 	 * If the page isn't exclusively mapped into this vma,
 	 * we must use the _oldest_ possible anon_vma for the
 	 * page mapping!
-	 *
-	 * So take the last AVC chain entry in the vma, which is
-	 * the deepest ancestor, and use the anon_vma from that.
 	 */
 	if (!exclusive) {
-		struct anon_vma_chain *avc;
-		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-		anon_vma = avc->anon_vma;
+		if (PageAnon(page))
+			return;
+		anon_vma = anon_vma->root;
+	} else {
+		/*
+		 * In this case, swapped-out-but-not-discarded swap-cache
+		 * is remapped. So, no need to update page->mapping here.
+		 * We convice anon_vma poitned by page->mapping is not obsolete
+		 * because vma->anon_vma is necessary to be a family of it.
+		 */
+		if (PageAnon(page))
+			return;
 	}
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
