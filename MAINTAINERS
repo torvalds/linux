@@ -1892,6 +1892,7 @@ F:	drivers/firmware/dcdbas.*
 DELL WMI EXTRAS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 S:	Maintained
+F:	drivers/platform/x86/dell-wmi.c
 
 DEVICE NUMBER REGISTRY
 M:	Torben Mathiasen <device@lanana.org>
