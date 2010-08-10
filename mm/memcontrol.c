@@ -1127,6 +1127,24 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
 }
 
 /*
+ * Return the memory (and swap, if configured) limit for a memcg.
+ */
+u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+{
+	u64 limit;
+	u64 memsw;
+
+	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) +
+			total_swap_pages;
+	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+	/*
+	 * If memsw is finite and limits the amount of swap space available
+	 * to this memcg, return that limit.
+	 */
+	return min(limit, memsw);
+}
+
+/*
  * Visit the first child (need not be the first child as per the ordering
  * of the cgroup list, since we track last_scanned_child) of @mem and use
  * that to reclaim free pages from.
