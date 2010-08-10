@@ -50,6 +50,7 @@ static void omap_flashmdm_disable_uhh_smart_idle(void)
 static int moto_flashmdm_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *port = serial->port[0];
+	int i;
 
 	if (port->bulk_out_size >= MOTO_FLASHMDM_BULKOUT_SIZE) {
 		dev_info(&serial->dev->dev,
@@ -69,7 +70,23 @@ static int moto_flashmdm_attach(struct usb_serial *serial)
 			  usb_sndbulkpipe(serial->dev,
 					  port->bulk_out_endpointAddress),
 			  port->bulk_out_buffer, port->bulk_out_size,
-			  usb_serial_generic_write_bulk_callback, port);
+			  serial->type->write_bulk_callback, port);
+
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
+		kfree(port->bulk_out_buffers[i]);
+		port->bulk_out_buffers[i] = kmalloc(port->bulk_out_size,
+						    GFP_KERNEL);
+		if (!port->bulk_out_buffers[i]) {
+			dev_err(&serial->dev->dev,
+				"Couldn't allocate bulk_out_buffer\n");
+			return -ENOMEM;
+		}
+		usb_fill_bulk_urb(port->write_urbs[i], serial->dev,
+				  usb_sndbulkpipe(serial->dev,
+						  port->bulk_out_endpointAddress),
+				  port->bulk_out_buffers[i], port->bulk_out_size,
+				  serial->type->write_bulk_callback, port);
+	}
 
 #if defined(CONFIG_ARCH_OMAP34XX)
 	/* need to disable the AUTO IDLE for the usb iclk */
