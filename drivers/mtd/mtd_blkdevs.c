@@ -1,7 +1,21 @@
 /*
- * (C) 2003 David Woodhouse <dwmw2@infradead.org>
+ * Interface to Linux block layer for MTD 'translation layers'.
  *
- * Interface to Linux 2.5 block layer for MTD 'translation layers'.
+ * Copyright © 2003-2010 David Woodhouse <dwmw2@infradead.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -245,6 +259,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 	case BLKFLSBUF:
 		ret = dev->tr->flush ? dev->tr->flush(dev) : 0;
+		break;
 	default:
 		ret = -ENOTTY;
 	}
@@ -409,12 +424,13 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 		BUG();
 	}
 
-	/* Stop new requests to arrive */
-	del_gendisk(old->disk);
-
 	if (old->disk_attributes)
 		sysfs_remove_group(&disk_to_dev(old->disk)->kobj,
 						old->disk_attributes);
+
+	/* Stop new requests to arrive */
+	del_gendisk(old->disk);
+
 
 	/* Stop the thread */
 	kthread_stop(old->thread);

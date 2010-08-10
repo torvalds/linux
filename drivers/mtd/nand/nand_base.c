@@ -42,7 +42,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
-#include <linux/mtd/compatmac.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/leds.h>
@@ -347,7 +346,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 	struct nand_chip *chip = mtd->priv;
 	u16 bad;
 
-	if (chip->options & NAND_BB_LAST_PAGE)
+	if (chip->options & NAND_BBT_SCANLASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 
 	page = (int)(ofs >> chip->page_shift) & chip->pagemask;
@@ -397,9 +396,9 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint8_t buf[2] = { 0, 0 };
-	int block, ret;
+	int block, ret, i = 0;
 
-	if (chip->options & NAND_BB_LAST_PAGE)
+	if (chip->options & NAND_BBT_SCANLASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 
 	/* Get block number */
@@ -411,17 +410,31 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (chip->options & NAND_USE_FLASH_BBT)
 		ret = nand_update_bbt(mtd, ofs);
 	else {
-		/* We write two bytes, so we dont have to mess with 16 bit
-		 * access
-		 */
 		nand_get_device(chip, mtd, FL_WRITING);
-		ofs += mtd->oobsize;
-		chip->ops.len = chip->ops.ooblen = 2;
-		chip->ops.datbuf = NULL;
-		chip->ops.oobbuf = buf;
-		chip->ops.ooboffs = chip->badblockpos & ~0x01;
 
-		ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+		/* Write to first two pages and to byte 1 and 6 if necessary.
+		 * If we write to more than one location, the first error
+		 * encountered quits the procedure. We write two bytes per
+		 * location, so we dont have to mess with 16 bit access.
+		 */
+		do {
+			chip->ops.len = chip->ops.ooblen = 2;
+			chip->ops.datbuf = NULL;
+			chip->ops.oobbuf = buf;
+			chip->ops.ooboffs = chip->badblockpos & ~0x01;
+
+			ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+
+			if (!ret && (chip->options & NAND_BBT_SCANBYTE1AND6)) {
+				chip->ops.ooboffs = NAND_SMALL_BADBLOCK_POS
+					& ~0x01;
+				ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+			}
+			i++;
+			ofs += mtd->writesize;
+		} while (!ret && (chip->options & NAND_BBT_SCAN2NDPAGE) &&
+				i < 2);
+
 		nand_release_device(mtd);
 	}
 	if (!ret)
@@ -2920,9 +2933,14 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32)) + 32 - 1;
 
 	/* Set the bad block position */
-	chip->badblockpos = mtd->writesize > 512 ?
-		NAND_LARGE_BADBLOCK_POS : NAND_SMALL_BADBLOCK_POS;
-	chip->badblockbits = 8;
+	if (!(busw & NAND_BUSWIDTH_16) && (*maf_id == NAND_MFR_STMICRO ||
+				(*maf_id == NAND_MFR_SAMSUNG &&
+				 mtd->writesize == 512) ||
+				*maf_id == NAND_MFR_AMD))
+		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
+	else
+		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
+
 
 	/* Get chip options, preserve non chip based options */
 	chip->options &= ~NAND_CHIPOPTIONS_MSK;
@@ -2941,12 +2959,32 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	/*
 	 * Bad block marker is stored in the last page of each block
-	 * on Samsung and Hynix MLC devices
+	 * on Samsung and Hynix MLC devices; stored in first two pages
+	 * of each block on Micron devices with 2KiB pages and on
+	 * SLC Samsung, Hynix, and AMD/Spansion. All others scan only
+	 * the first page.
 	 */
 	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 			(*maf_id == NAND_MFR_SAMSUNG ||
 			 *maf_id == NAND_MFR_HYNIX))
-		chip->options |= NAND_BB_LAST_PAGE;
+		chip->options |= NAND_BBT_SCANLASTPAGE;
+	else if ((!(chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
+				(*maf_id == NAND_MFR_SAMSUNG ||
+				 *maf_id == NAND_MFR_HYNIX ||
+				 *maf_id == NAND_MFR_AMD)) ||
+			(mtd->writesize == 2048 &&
+			 *maf_id == NAND_MFR_MICRON))
+		chip->options |= NAND_BBT_SCAN2NDPAGE;
+
+	/*
+	 * Numonyx/ST 2K pages, x8 bus use BOTH byte 1 and 6
+	 */
+	if (!(busw & NAND_BUSWIDTH_16) &&
+			*maf_id == NAND_MFR_STMICRO &&
+			mtd->writesize == 2048) {
+		chip->options |= NAND_BBT_SCANBYTE1AND6;
+		chip->badblockpos = 0;
+	}
 
 	/* Check for AND chips with 4 page planes */
 	if (chip->options & NAND_4PAGE_ARRAY)
@@ -3306,6 +3344,11 @@ void nand_release(struct mtd_info *mtd)
 	kfree(chip->bbt);
 	if (!(chip->options & NAND_OWN_BUFFERS))
 		kfree(chip->buffers);
+
+	/* Free bad block descriptor memory */
+	if (chip->badblock_pattern && chip->badblock_pattern->options
+			& NAND_BBT_DYNAMICSTRUCT)
+		kfree(chip->badblock_pattern);
 }
 
 EXPORT_SYMBOL_GPL(nand_lock);
