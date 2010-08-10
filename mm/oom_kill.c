@@ -429,7 +429,7 @@ static int oom_kill_task(struct task_struct *p)
 
 static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			    unsigned long points, struct mem_cgroup *mem,
-			    const char *message)
+			    nodemask_t *nodemask, const char *message)
 {
 	struct task_struct *victim = p;
 	struct task_struct *child;
@@ -468,6 +468,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			if (child->mm == p->mm)
 				continue;
 			if (mem && !task_in_mem_cgroup(child, mem))
+				continue;
+			if (!has_intersects_mems_allowed(child, nodemask))
 				continue;
 
 			/* badness() returns 0 if the thread is unkillable */
@@ -519,7 +521,7 @@ retry:
 	if (!p || PTR_ERR(p) == -1UL)
 		goto out;
 
-	if (oom_kill_process(p, gfp_mask, 0, points, mem,
+	if (oom_kill_process(p, gfp_mask, 0, points, mem, NULL,
 				"Memory cgroup out of memory"))
 		goto retry;
 out:
@@ -679,6 +681,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		 * the tasklist scan.
 		 */
 		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
+				nodemask,
 				"Out of memory (oom_kill_allocating_task)"))
 			return;
 	}
@@ -697,7 +700,7 @@ retry:
 		panic("Out of memory and no killable processes...\n");
 	}
 
-	if (oom_kill_process(p, gfp_mask, order, points, NULL,
+	if (oom_kill_process(p, gfp_mask, order, points, NULL, nodemask,
 			     "Out of memory"))
 		goto retry;
 	read_unlock(&tasklist_lock);
