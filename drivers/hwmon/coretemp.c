@@ -480,7 +480,6 @@ exit:
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void coretemp_device_remove(unsigned int cpu)
 {
 	struct pdev_entry *p, *n;
@@ -518,7 +517,6 @@ static int __cpuinit coretemp_cpu_callback(struct notifier_block *nfb,
 static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
-#endif				/* !CONFIG_HOTPLUG_CPU */
 
 static int __init coretemp_init(void)
 {
@@ -552,9 +550,7 @@ static int __init coretemp_init(void)
 		goto exit_driver_unreg;
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
 	register_hotcpu_notifier(&coretemp_cpu_notifier);
-#endif
 	return 0;
 
 exit_driver_unreg:
