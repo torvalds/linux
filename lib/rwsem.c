@@ -60,7 +60,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	struct rwsem_waiter *waiter;
 	struct task_struct *tsk;
 	struct list_head *next;
-	signed long oldcount, woken, loop;
+	signed long oldcount, woken, loop, adjustment;
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
 	if (!(waiter->flags & RWSEM_WAITING_FOR_WRITE))
@@ -73,9 +73,12 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	 * write lock.  However, we only wake this writer if we can transition
 	 * the active part of the count from 0 -> 1
 	 */
+	adjustment = RWSEM_ACTIVE_WRITE_BIAS;
+	if (waiter->list.next == &sem->wait_list)
+		adjustment -= RWSEM_WAITING_BIAS;
+
  try_again_write:
-	oldcount = rwsem_atomic_update(RWSEM_ACTIVE_BIAS, sem)
-						- RWSEM_ACTIVE_BIAS;
+	oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
 	if (oldcount & RWSEM_ACTIVE_MASK)
 		/* Someone grabbed the sem already */
 		goto undo_write;
@@ -128,13 +131,15 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 
 	} while (waiter->flags & RWSEM_WAITING_FOR_READ);
 
-	loop = woken;
-	woken *= RWSEM_ACTIVE_BIAS - RWSEM_WAITING_BIAS;
+	adjustment = woken * RWSEM_ACTIVE_READ_BIAS;
+	if (waiter->flags & RWSEM_WAITING_FOR_READ)
+		/* hit end of list above */
+		adjustment -= RWSEM_WAITING_BIAS;
 
-	rwsem_atomic_add(woken, sem);
+	rwsem_atomic_add(adjustment, sem);
 
 	next = sem->wait_list.next;
-	for (; loop > 0; loop--) {
+	for (loop = woken; loop > 0; loop--) {
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
@@ -153,7 +158,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	/* undo the change to the active count, but check for a transition
 	 * 1->0 */
  undo_write:
-	if (rwsem_atomic_update(-RWSEM_ACTIVE_BIAS, sem) & RWSEM_ACTIVE_MASK)
+	if (rwsem_atomic_update(-adjustment, sem) & RWSEM_ACTIVE_MASK)
 		goto out;
 	goto try_again_write;
 }
@@ -175,6 +180,8 @@ rwsem_down_failed_common(struct rw_semaphore *sem,
 	waiter->task = tsk;
 	get_task_struct(tsk);
 
+	if (list_empty(&sem->wait_list))
+		adjustment += RWSEM_WAITING_BIAS;
 	list_add_tail(&waiter->list, &sem->wait_list);
 
 	/* we're now waiting on the lock, but no longer actively locking */
@@ -208,8 +215,7 @@ rwsem_down_read_failed(struct rw_semaphore *sem)
 	struct rwsem_waiter waiter;
 
 	waiter.flags = RWSEM_WAITING_FOR_READ;
-	rwsem_down_failed_common(sem, &waiter,
-				RWSEM_WAITING_BIAS - RWSEM_ACTIVE_BIAS);
+	rwsem_down_failed_common(sem, &waiter, -RWSEM_ACTIVE_READ_BIAS);
 	return sem;
 }
 
@@ -222,7 +228,7 @@ rwsem_down_write_failed(struct rw_semaphore *sem)
 	struct rwsem_waiter waiter;
 
 	waiter.flags = RWSEM_WAITING_FOR_WRITE;
-	rwsem_down_failed_common(sem, &waiter, -RWSEM_ACTIVE_BIAS);
+	rwsem_down_failed_common(sem, &waiter, -RWSEM_ACTIVE_WRITE_BIAS);
 
 	return sem;
 }
