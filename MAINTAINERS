@@ -574,7 +574,6 @@ L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/nand/bcm_umi_nand.c
 F:	drivers/mtd/nand/bcm_umi_bch.c
-F:	drivers/mtd/nand/bcm_umi_hamming.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
 
 ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
