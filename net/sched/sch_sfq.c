@@ -334,7 +334,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (++sch->q.qlen <= q->limit) {
 		sch->bstats.bytes += qdisc_pkt_len(skb);
 		sch->bstats.packets++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
 
 	sfq_drop(sch);
