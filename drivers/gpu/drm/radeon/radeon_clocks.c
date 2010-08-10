@@ -327,6 +327,14 @@ void radeon_get_clock_info(struct drm_device *dev)
 	mpll->max_feedback_div = 0xff;
 	mpll->best_vco = 0;
 
+	if (!rdev->clock.default_sclk)
+		rdev->clock.default_sclk = radeon_get_engine_clock(rdev);
+	if ((!rdev->clock.default_mclk) && rdev->asic->get_memory_clock)
+		rdev->clock.default_mclk = radeon_get_memory_clock(rdev);
+
+	rdev->pm.current_sclk = rdev->clock.default_sclk;
+	rdev->pm.current_mclk = rdev->clock.default_mclk;
+
 }
 
 /* 10 khz */
