@@ -29,6 +29,7 @@
 #include <linux/log2.h>
 #include <linux/idr.h>
 #include <linux/fs_struct.h>
+#include <linux/fsnotify.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include "pnode.h"
@@ -150,6 +151,9 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_share);
 		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 		INIT_LIST_HEAD(&mnt->mnt_slave);
+#ifdef CONFIG_FSNOTIFY
+		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
+#endif
 #ifdef CONFIG_SMP
 		mnt->mnt_writers = alloc_percpu(int);
 		if (!mnt->mnt_writers)
@@ -610,6 +614,7 @@ static inline void __mntput(struct vfsmount *mnt)
 	 * provides barriers, so count_mnt_writers() below is safe.  AV
 	 */
 	WARN_ON(count_mnt_writers(mnt));
+	fsnotify_vfsmount_delete(mnt);
 	dput(mnt->mnt_root);
 	free_vfsmnt(mnt);
 	deactivate_super(sb);

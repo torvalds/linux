@@ -23,6 +23,7 @@
 #define __LINUX_SECURITY_H
 
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/binfmts.h>
 #include <linux/signal.h>
 #include <linux/resource.h>

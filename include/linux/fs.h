@@ -91,6 +91,9 @@ struct inodes_stat_t {
 /* Expect random access pattern */
 #define FMODE_RANDOM		((__force fmode_t)0x1000)
 
+/* File was opened by fanotify and shouldn't generate fanotify events */
+#define FMODE_NONOTIFY		((__force fmode_t)16777216) /* 0x1000000 */
+
 /*
  * The below are the various read and write types that we support. Some of
  * them include behavioral modifiers that send information down to the
@@ -409,9 +412,6 @@ extern int get_max_files(void);
 extern int sysctl_nr_open;
 extern struct inodes_stat_t inodes_stat;
 extern int leases_enable, lease_break_time;
-#ifdef CONFIG_DNOTIFY
-extern int dir_notify_enable;
-#endif
 
 struct buffer_head;
 typedef int (get_block_t)(struct inode *inode, sector_t iblock,
@@ -772,12 +772,7 @@ struct inode {
 
 #ifdef CONFIG_FSNOTIFY
 	__u32			i_fsnotify_mask; /* all events this inode cares about */
-	struct hlist_head	i_fsnotify_mark_entries; /* fsnotify mark entries */
-#endif
-
-#ifdef CONFIG_INOTIFY
-	struct list_head	inotify_watches; /* watches on this inode */
-	struct mutex		inotify_mutex;	/* protects the watches list */
+	struct hlist_head	i_fsnotify_marks;
 #endif
 
 	unsigned long		i_state;
@@ -2484,7 +2479,8 @@ int proc_nr_files(struct ctl_table *table, int write,
 int __init get_filesystem_list(char *buf);
 
 #define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
-#define OPEN_FMODE(flag) ((__force fmode_t)((flag + 1) & O_ACCMODE))
+#define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
+					    (flag & FMODE_NONOTIFY)))
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */
