@@ -250,7 +250,7 @@ extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
 extern struct inode *nilfs_iget(struct super_block *, unsigned long);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
-extern void nilfs_delete_inode(struct inode *);
+extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
 extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
 				  struct buffer_head **);

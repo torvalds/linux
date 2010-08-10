@@ -210,6 +210,7 @@ struct inodes_stat_t {
 #define MS_KERNMOUNT	(1<<22) /* this is a kern_mount call */
 #define MS_I_VERSION	(1<<23) /* Update inode I_version field */
 #define MS_STRICTATIME	(1<<24) /* Always perform atime updates */
+#define MS_BORN		(1<<29)
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
 
@@ -1564,8 +1565,8 @@ struct super_operations {
 
    	void (*dirty_inode) (struct inode *);
 	int (*write_inode) (struct inode *, struct writeback_control *wbc);
-	void (*drop_inode) (struct inode *);
-	void (*delete_inode) (struct inode *);
+	int (*drop_inode) (struct inode *);
+	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
 	void (*write_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
@@ -1573,7 +1574,6 @@ struct super_operations {
 	int (*unfreeze_fs) (struct super_block *);
 	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
-	void (*clear_inode) (struct inode *);
 	void (*umount_begin) (struct super_block *);
 
 	int (*show_options)(struct seq_file *, struct vfsmount *);
@@ -1618,8 +1618,8 @@ struct super_operations {
  * I_FREEING		Set when inode is about to be freed but still has dirty
  *			pages or buffers attached or the inode itself is still
  *			dirty.
- * I_CLEAR		Set by clear_inode().  In this state the inode is clean
- *			and can be destroyed.
+ * I_CLEAR		Added by end_writeback().  In this state the inode is clean
+ *			and can be destroyed.  Inode keeps I_FREEING.
  *
  *			Inodes that are I_WILL_FREE, I_FREEING or I_CLEAR are
  *			prohibited for many purposes.  iget() must wait for
@@ -1816,7 +1816,8 @@ extern struct vfsmount *collect_mounts(struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
 extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
 			  struct vfsmount *);
-extern int vfs_statfs(struct dentry *, struct kstatfs *);
+extern int vfs_statfs(struct path *, struct kstatfs *);
+extern int statfs_by_dentry(struct dentry *, struct kstatfs *);
 extern int freeze_super(struct super_block *super);
 extern int thaw_super(struct super_block *super);
 
@@ -2166,9 +2167,8 @@ extern void iput(struct inode *);
 extern struct inode * igrab(struct inode *);
 extern ino_t iunique(struct super_block *, ino_t);
 extern int inode_needs_sync(struct inode *inode);
-extern void generic_delete_inode(struct inode *inode);
-extern void generic_drop_inode(struct inode *inode);
-extern int generic_detach_inode(struct inode *inode);
+extern int generic_delete_inode(struct inode *inode);
+extern int generic_drop_inode(struct inode *inode);
 
 extern struct inode *ilookup5_nowait(struct super_block *sb,
 		unsigned long hashval, int (*test)(struct inode *, void *),
@@ -2185,7 +2185,7 @@ extern void unlock_new_inode(struct inode *);
 
 extern void __iget(struct inode * inode);
 extern void iget_failed(struct inode *);
-extern void clear_inode(struct inode *);
+extern void end_writeback(struct inode *);
 extern void destroy_inode(struct inode *);
 extern void __destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
@@ -2271,16 +2271,6 @@ static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
 struct bio;
 typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
 			    loff_t file_offset);
-void dio_end_io(struct bio *bio, int error);
-
-ssize_t __blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io, int lock_type);
-ssize_t __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io,	int lock_type);
 
 enum {
 	/* need locking between buffered and direct access */
@@ -2290,24 +2280,13 @@ enum {
 	DIO_SKIP_HOLES	= 0x02,
 };
 
-static inline ssize_t blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb,
-	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_block_t get_block,
-	dio_iodone_t end_io)
-{
-	return __blockdev_direct_IO_newtrunc(rw, iocb, inode, bdev, iov, offset,
-				    nr_segs, get_block, end_io, NULL,
-				    DIO_LOCKING | DIO_SKIP_HOLES);
-}
+void dio_end_io(struct bio *bio, int error);
 
-static inline ssize_t blockdev_direct_IO_no_locking_newtrunc(int rw, struct kiocb *iocb,
-	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_block_t get_block,
-	dio_iodone_t end_io)
-{
-	return __blockdev_direct_IO_newtrunc(rw, iocb, inode, bdev, iov, offset,
-				nr_segs, get_block, end_io, NULL, 0);
-}
+ssize_t __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+	struct block_device *bdev, const struct iovec *iov, loff_t offset,
+	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	dio_submit_t submit_io,	int flags);
+
 static inline ssize_t blockdev_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
 	loff_t offset, unsigned long nr_segs, get_block_t get_block,
@@ -2316,15 +2295,6 @@ static inline ssize_t blockdev_direct_IO(int rw, struct kiocb *iocb,
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
 				    nr_segs, get_block, end_io, NULL,
 				    DIO_LOCKING | DIO_SKIP_HOLES);
-}
-
-static inline ssize_t blockdev_direct_IO_no_locking(int rw, struct kiocb *iocb,
-	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_block_t get_block,
-	dio_iodone_t end_io)
-{
-	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				    nr_segs, get_block, end_io, NULL, 0);
 }
 #endif
 
@@ -2387,7 +2357,6 @@ extern int simple_link(struct dentry *, struct inode *, struct dentry *);
 extern int simple_unlink(struct inode *, struct dentry *);
 extern int simple_rmdir(struct inode *, struct dentry *);
 extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
-extern int simple_setsize(struct inode *, loff_t);
 extern int noop_fsync(struct file *, int);
 extern int simple_empty(struct dentry *);
 extern int simple_readpage(struct file *file, struct page *page);
@@ -2424,8 +2393,7 @@ extern int buffer_migrate_page(struct address_space *,
 
 extern int inode_change_ok(const struct inode *, struct iattr *);
 extern int inode_newsize_ok(const struct inode *, loff_t offset);
-extern int __must_check inode_setattr(struct inode *, const struct iattr *);
-extern void generic_setattr(struct inode *inode, const struct iattr *attr);
+extern void setattr_copy(struct inode *inode, const struct iattr *attr);
 
 extern void file_update_time(struct file *file);
 

@@ -1643,7 +1643,8 @@ extern int  ext4_write_inode(struct inode *, struct writeback_control *);
 extern int  ext4_setattr(struct dentry *, struct iattr *);
 extern int  ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 				struct kstat *stat);
-extern void ext4_delete_inode(struct inode *);
+extern void ext4_evict_inode(struct inode *);
+extern void ext4_clear_inode(struct inode *);
 extern int  ext4_sync_inode(handle_t *, struct inode *);
 extern void ext4_dirty_inode(struct inode *);
 extern int ext4_change_inode_journal_flag(struct inode *, int);

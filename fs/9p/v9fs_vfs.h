@@ -52,7 +52,7 @@ void v9fs_destroy_inode(struct inode *inode);
 #endif
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);
-void v9fs_clear_inode(struct inode *inode);
+void v9fs_evict_inode(struct inode *inode);
 ino_t v9fs_qid2ino(struct p9_qid *qid);
 void v9fs_stat2inode(struct p9_wstat *, struct inode *, struct super_block *);
 void v9fs_stat2inode_dotl(struct p9_stat_dotl *, struct inode *);

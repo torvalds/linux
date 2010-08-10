@@ -158,7 +158,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		 	    u->mq_bytes + mq_bytes >
 			    task_rlimit(p, RLIMIT_MSGQUEUE)) {
 				spin_unlock(&mq_lock);
-				/* mqueue_delete_inode() releases info->messages */
+				/* mqueue_evict_inode() releases info->messages */
 				goto out_inode;
 			}
 			u->mq_bytes += mq_bytes;
@@ -241,7 +241,7 @@ static void mqueue_destroy_inode(struct inode *inode)
 	kmem_cache_free(mqueue_inode_cachep, MQUEUE_I(inode));
 }
 
-static void mqueue_delete_inode(struct inode *inode)
+static void mqueue_evict_inode(struct inode *inode)
 {
 	struct mqueue_inode_info *info;
 	struct user_struct *user;
@@ -249,10 +249,11 @@ static void mqueue_delete_inode(struct inode *inode)
 	int i;
 	struct ipc_namespace *ipc_ns;
 
-	if (S_ISDIR(inode->i_mode)) {
-		clear_inode(inode);
+	end_writeback(inode);
+
+	if (S_ISDIR(inode->i_mode))
 		return;
-	}
+
 	ipc_ns = get_ns_from_inode(inode);
 	info = MQUEUE_I(inode);
 	spin_lock(&info->lock);
@@ -260,8 +261,6 @@ static void mqueue_delete_inode(struct inode *inode)
 		free_msg(info->messages[i]);
 	kfree(info->messages);
 	spin_unlock(&info->lock);
-
-	clear_inode(inode);
 
 	/* Total amount of bytes accounted for the mqueue */
 	mq_bytes = info->attr.mq_maxmsg * (sizeof(struct msg_msg *)
@@ -1225,9 +1224,8 @@ static const struct file_operations mqueue_file_operations = {
 static const struct super_operations mqueue_super_ops = {
 	.alloc_inode = mqueue_alloc_inode,
 	.destroy_inode = mqueue_destroy_inode,
+	.evict_inode = mqueue_evict_inode,
 	.statfs = simple_statfs,
-	.delete_inode = mqueue_delete_inode,
-	.drop_inode = generic_delete_inode,
 };
 
 static struct file_system_type mqueue_fs_type = {

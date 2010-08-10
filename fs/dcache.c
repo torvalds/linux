@@ -536,7 +536,7 @@ restart:
  */
 static void prune_dcache(int count)
 {
-	struct super_block *sb, *n;
+	struct super_block *sb, *p = NULL;
 	int w_count;
 	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
@@ -550,7 +550,7 @@ static void prune_dcache(int count)
 	else
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
 		if (sb->s_nr_dentry_unused == 0)
@@ -590,14 +590,16 @@ static void prune_dcache(int count)
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
-		/* lock was dropped, must reset next */
-		list_safe_reset_next(sb, n, s_list);
+		if (p)
+			__put_super(p);
 		count -= pruned;
-		__put_super(sb);
+		p = sb;
 		/* more work left to do? */
 		if (count <= 0)
 			break;
 	}
+	if (p)
+		__put_super(p);
 	spin_unlock(&sb_lock);
 	spin_unlock(&dcache_lock);
 }
@@ -2049,16 +2051,12 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 /*
  * Write full pathname from the root of the filesystem into the buffer.
  */
-char *dentry_path(struct dentry *dentry, char *buf, int buflen)
+char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 {
 	char *end = buf + buflen;
 	char *retval;
 
-	spin_lock(&dcache_lock);
 	prepend(&end, &buflen, "\0", 1);
-	if (d_unlinked(dentry) &&
-		(prepend(&end, &buflen, "//deleted", 9) != 0))
-			goto Elong;
 	if (buflen < 1)
 		goto Elong;
 	/* Get '/' right */
@@ -2076,7 +2074,28 @@ char *dentry_path(struct dentry *dentry, char *buf, int buflen)
 		retval = end;
 		dentry = parent;
 	}
+	return retval;
+Elong:
+	return ERR_PTR(-ENAMETOOLONG);
+}
+EXPORT_SYMBOL(__dentry_path);
+
+char *dentry_path(struct dentry *dentry, char *buf, int buflen)
+{
+	char *p = NULL;
+	char *retval;
+
+	spin_lock(&dcache_lock);
+	if (d_unlinked(dentry)) {
+		p = buf + buflen;
+		if (prepend(&p, &buflen, "//deleted", 10) != 0)
+			goto Elong;
+		buflen++;
+	}
+	retval = __dentry_path(dentry, buf, buflen);
 	spin_unlock(&dcache_lock);
+	if (!IS_ERR(retval) && p)
+		*p = '/';	/* restore '/' overriden with '\0' */
 	return retval;
 Elong:
 	spin_unlock(&dcache_lock);

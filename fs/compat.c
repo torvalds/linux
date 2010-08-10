@@ -267,7 +267,7 @@ asmlinkage long compat_sys_statfs(const char __user *pathname, struct compat_sta
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(path.dentry, &tmp);
+		error = vfs_statfs(&path, &tmp);
 		if (!error)
 			error = put_compat_statfs(buf, &tmp);
 		path_put(&path);
@@ -285,7 +285,7 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_path.dentry, &tmp);
+	error = vfs_statfs(&file->f_path, &tmp);
 	if (!error)
 		error = put_compat_statfs(buf, &tmp);
 	fput(file);
@@ -335,7 +335,7 @@ asmlinkage long compat_sys_statfs64(const char __user *pathname, compat_size_t s
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(path.dentry, &tmp);
+		error = vfs_statfs(&path, &tmp);
 		if (!error)
 			error = put_compat_statfs64(buf, &tmp);
 		path_put(&path);
@@ -356,7 +356,7 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_path.dentry, &tmp);
+	error = vfs_statfs(&file->f_path, &tmp);
 	if (!error)
 		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
@@ -379,7 +379,7 @@ asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
 	sb = user_get_super(new_decode_dev(dev));
 	if (!sb)
 		return -EINVAL;
-	err = vfs_statfs(sb->s_root, &sbuf);
+	err = statfs_by_dentry(sb->s_root, &sbuf);
 	drop_super(sb);
 	if (err)
 		return err;

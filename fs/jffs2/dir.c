@@ -232,9 +232,7 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	return 0;
 
  fail:
-	make_bad_inode(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	jffs2_free_raw_inode(ri);
 	return ret;
 }
@@ -454,9 +452,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	return 0;
 
  fail:
-	make_bad_inode(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	return ret;
 }
 
@@ -601,9 +597,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	return 0;
 
  fail:
-	make_bad_inode(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	return ret;
 }
 
@@ -778,9 +772,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	return 0;
 
  fail:
-	make_bad_inode(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	return ret;
 }
 

@@ -312,9 +312,17 @@ static int omfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags,
-				pagep, fsdata, omfs_get_block);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep,
+				omfs_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t omfs_bmap(struct address_space *mapping, sector_t block)
@@ -333,7 +341,29 @@ const struct file_operations omfs_file_operations = {
 	.splice_read = generic_file_splice_read,
 };
 
+static int omfs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
+}
+
 const struct inode_operations omfs_file_inops = {
+	.setattr = omfs_setattr,
 	.truncate = omfs_truncate
 };
 
