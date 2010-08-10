@@ -25,7 +25,7 @@ enum oom_constraint {
 	CONSTRAINT_MEMCG,
 };
 
-extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 
 extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,

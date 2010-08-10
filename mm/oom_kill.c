@@ -549,7 +549,7 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
  * if a parallel OOM killing is already taking place that includes a zone in
  * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
  */
-int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 {
 	struct zoneref *z;
 	struct zone *zone;
@@ -566,7 +566,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
 		/*
 		 * Lock each zone in the zonelist under zone_scan_lock so a
-		 * parallel invocation of try_set_zone_oom() doesn't succeed
+		 * parallel invocation of try_set_zonelist_oom() doesn't succeed
 		 * when it shouldn't.
 		 */
 		zone_set_flag(zone, ZONE_OOM_LOCKED);
