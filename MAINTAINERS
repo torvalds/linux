@@ -3626,7 +3626,7 @@ M:	Mike Frysinger <vapier@gentoo.org>
 M:	Subrata Modak <subrata@linux.vnet.ibm.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
 W:	http://ltp.sourceforge.net/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
+T:	git git://ltp.git.sourceforge.net/gitroot/ltp/ltp-dev
 S:	Maintained
 
 M32R ARCHITECTURE
