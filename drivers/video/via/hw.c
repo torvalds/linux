@@ -2313,7 +2313,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		via_write_reg(VIASR, i, VPIT.SR[i - 1]);
 
 	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
-	viafb_set_iga_path();
 
 	/* Write CRTC */
 	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
