@@ -246,8 +246,8 @@ static int __devinit cru_detect(unsigned long map_entry,
 			physical_bios_offset);
 		printk(KERN_DEBUG "hpwdt: CRU Length:         0x%lx\n",
 			cru_length);
-		printk(KERN_DEBUG "hpwdt: CRU Mapped Address: 0x%x\n",
-			(unsigned int)&cru_rom_addr);
+		printk(KERN_DEBUG "hpwdt: CRU Mapped Address: %p\n",
+			&cru_rom_addr);
 	}
 	iounmap(bios32_map);
 	return retval;
