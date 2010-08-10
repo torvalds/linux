@@ -1165,7 +1165,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 	/* shall not be referred by command packet */
 	assert(queue_index != TXCMD_QUEUE);
 
-	if((priv->bHwRadioOff == true)||(!priv->up))
+	if (priv->bHwRadioOff ||(!priv->up))
 	{
 		kfree_skb(skb);
 		return;
@@ -1213,7 +1213,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
         u8 queue_index = tcb_desc->queue_index;
 
         if(queue_index != TXCMD_QUEUE){
-		if((priv->bHwRadioOff == true)||(!priv->up))
+		if (priv->bHwRadioOff ||(!priv->up))
 		{
                	 	kfree_skb(skb);
                 	return 0;
@@ -4654,7 +4654,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	static u8 last_time = 0;
 	bool bEnterPS = false;
 
-	if((!priv->up) || (priv->bHwRadioOff == true))
+	if ((!priv->up) || priv->bHwRadioOff)
 		return;
 
 	if(!priv->up)

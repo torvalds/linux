@@ -2945,14 +2945,14 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 
 			eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
-			if( (priv->bHwRadioOff == true) && (eRfPowerStateToSet == eRfOn))
+			if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn))
 			{
 			RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
 
 				priv->bHwRadioOff = false;
 				bActuallySet = true;
 			}
-			else if ( (priv->bHwRadioOff == false) && (eRfPowerStateToSet == eRfOff))
+			else if ( (!priv->bHwRadioOff) && (eRfPowerStateToSet == eRfOff))
 			{
 			RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
 				priv->bHwRadioOff = true;
