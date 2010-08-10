@@ -536,6 +536,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int channels, max_bitrates;
 	bool supp_ht;
 	static const u32 cipher_suites[] = {
+		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
 		WLAN_CIPHER_SUITE_WEP104,
 		WLAN_CIPHER_SUITE_TKIP,
@@ -623,6 +624,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 	if (!(local->hw.flags & IEEE80211_HW_MFP_CAPABLE))
 		local->hw.wiphy->n_cipher_suites--;
+	if (IS_ERR(local->wep_tx_tfm) || IS_ERR(local->wep_rx_tfm)) {
+		local->hw.wiphy->cipher_suites += 2;
+		local->hw.wiphy->n_cipher_suites -= 2;
+	}
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
