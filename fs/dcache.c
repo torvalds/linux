@@ -1905,6 +1905,74 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 }
 
 /**
+ * Prepend path string to a buffer
+ *
+ * @path: the dentry/vfsmount to report
+ * @root: root vfsmnt/dentry (may be modified by this function)
+ * @buffer: pointer to the end of the buffer
+ * @buflen: pointer to buffer length
+ *
+ * Caller holds the dcache_lock.
+ *
+ * If path is not reachable from the supplied root, then the value of
+ * root is changed (without modifying refcounts).
+ */
+static int prepend_path(const struct path *path, struct path *root,
+			char **buffer, int *buflen)
+{
+	struct dentry *dentry = path->dentry;
+	struct vfsmount *vfsmnt = path->mnt;
+	bool slash = false;
+	int error = 0;
+
+	spin_lock(&vfsmount_lock);
+	while (dentry != root->dentry || vfsmnt != root->mnt) {
+		struct dentry * parent;
+
+		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
+			/* Global root? */
+			if (vfsmnt->mnt_parent == vfsmnt) {
+				goto global_root;
+			}
+			dentry = vfsmnt->mnt_mountpoint;
+			vfsmnt = vfsmnt->mnt_parent;
+			continue;
+		}
+		parent = dentry->d_parent;
+		prefetch(parent);
+		error = prepend_name(buffer, buflen, &dentry->d_name);
+		if (!error)
+			error = prepend(buffer, buflen, "/", 1);
+		if (error)
+			break;
+
+		slash = true;
+		dentry = parent;
+	}
+
+out:
+	if (!error && !slash)
+		error = prepend(buffer, buflen, "/", 1);
+
+	spin_unlock(&vfsmount_lock);
+	return error;
+
+global_root:
+	/*
+	 * Filesystems needing to implement special "root names"
+	 * should do so with ->d_dname()
+	 */
+	if (IS_ROOT(dentry) &&
+	    (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
+		WARN(1, "Root dentry has weird name <%.*s>\n",
+		     (int) dentry->d_name.len, dentry->d_name.name);
+	}
+	root->mnt = vfsmnt;
+	root->dentry = dentry;
+	goto out;
+}
+
+/**
  * __d_path - return the path of a dentry
  * @path: the dentry/vfsmount to report
  * @root: root vfsmnt/dentry (may be modified by this function)
@@ -1923,69 +1991,23 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
  * root is changed (without modifying refcounts).
  */
 char *__d_path(const struct path *path, struct path *root,
-	       char *buffer, int buflen)
+	       char *buf, int buflen)
 {
-	struct dentry *dentry = path->dentry;
-	struct vfsmount *vfsmnt = path->mnt;
-	char *end = buffer + buflen;
-	char *retval;
+	char *res = buf + buflen;
+	int error;
 
-	spin_lock(&vfsmount_lock);
-	prepend(&end, &buflen, "\0", 1);
-	if (d_unlinked(dentry) &&
-		(prepend(&end, &buflen, " (deleted)", 10) != 0))
-			goto Elong;
-
-	if (buflen < 1)
-		goto Elong;
-	/* Get '/' right */
-	retval = end-1;
-	*retval = '/';
-
-	for (;;) {
-		struct dentry * parent;
-
-		if (dentry == root->dentry && vfsmnt == root->mnt)
-			break;
-		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
-			/* Global root? */
-			if (vfsmnt->mnt_parent == vfsmnt) {
-				goto global_root;
-			}
-			dentry = vfsmnt->mnt_mountpoint;
-			vfsmnt = vfsmnt->mnt_parent;
-			continue;
-		}
-		parent = dentry->d_parent;
-		prefetch(parent);
-		if ((prepend_name(&end, &buflen, &dentry->d_name) != 0) ||
-		    (prepend(&end, &buflen, "/", 1) != 0))
-			goto Elong;
-		retval = end;
-		dentry = parent;
+	prepend(&res, &buflen, "\0", 1);
+	if (d_unlinked(path->dentry)) {
+		error = prepend(&res, &buflen, " (deleted)", 10);
+		if (error)
+			return ERR_PTR(error);
 	}
 
-out:
-	spin_unlock(&vfsmount_lock);
-	return retval;
+	error = prepend_path(path, root, &res, &buflen);
+	if (error)
+		return ERR_PTR(error);
 
-global_root:
-	/*
-	 * Filesystems needing to implement special "root names"
-	 * should do so with ->d_dname()
-	 */
-	if (IS_ROOT(dentry) &&
-	    (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
-		WARN(1, "Root dentry has weird name <%.*s>\n",
-		     (int) dentry->d_name.len, dentry->d_name.name);
-	}
-	root->mnt = vfsmnt;
-	root->dentry = dentry;
-	goto out;
-
-Elong:
-	retval = ERR_PTR(-ENAMETOOLONG);
-	goto out;
+	return res;
 }
 
 /**
