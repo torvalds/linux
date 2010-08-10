@@ -628,41 +628,6 @@ static void clear_system_oom(void)
 	spin_unlock(&zone_scan_lock);
 }
 
-
-/*
- * Must be called with tasklist_lock held for read.
- */
-static void __out_of_memory(gfp_t gfp_mask, int order, const nodemask_t *mask)
-{
-	struct task_struct *p;
-	unsigned long points;
-
-	if (sysctl_oom_kill_allocating_task)
-		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
-				"Out of memory (oom_kill_allocating_task)"))
-			return;
-retry:
-	/*
-	 * Rambo mode: Shoot down a process and hope it solves whatever
-	 * issues we may have.
-	 */
-	p = select_bad_process(&points, NULL, mask);
-
-	if (PTR_ERR(p) == -1UL)
-		return;
-
-	/* Found nothing?!?! Either we hang forever, or we panic. */
-	if (!p) {
-		dump_header(NULL, gfp_mask, order, NULL);
-		read_unlock(&tasklist_lock);
-		panic("Out of memory and no killable processes...\n");
-	}
-
-	if (oom_kill_process(p, gfp_mask, order, points, NULL,
-			     "Out of memory"))
-		goto retry;
-}
-
 /**
  * out_of_memory - kill the "best" process when we run out of memory
  * @zonelist: zonelist pointer
@@ -678,7 +643,9 @@ retry:
 void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		int order, nodemask_t *nodemask)
 {
+	struct task_struct *p;
 	unsigned long freed = 0;
+	unsigned long points;
 	enum oom_constraint constraint = CONSTRAINT_NONE;
 
 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
@@ -703,10 +670,36 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	if (zonelist)
 		constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
 	check_panic_on_oom(constraint, gfp_mask, order);
+
 	read_lock(&tasklist_lock);
-	__out_of_memory(gfp_mask, order,
+	if (sysctl_oom_kill_allocating_task) {
+		/*
+		 * oom_kill_process() needs tasklist_lock held.  If it returns
+		 * non-zero, current could not be killed so we must fallback to
+		 * the tasklist scan.
+		 */
+		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
+				"Out of memory (oom_kill_allocating_task)"))
+			return;
+	}
+
+retry:
+	p = select_bad_process(&points, NULL,
 			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
 								 NULL);
+	if (PTR_ERR(p) == -1UL)
+		return;
+
+	/* Found nothing?!?! Either we hang forever, or we panic. */
+	if (!p) {
+		dump_header(NULL, gfp_mask, order, NULL);
+		read_unlock(&tasklist_lock);
+		panic("Out of memory and no killable processes...\n");
+	}
+
+	if (oom_kill_process(p, gfp_mask, order, points, NULL,
+			     "Out of memory"))
+		goto retry;
 	read_unlock(&tasklist_lock);
 
 	/*
