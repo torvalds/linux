@@ -911,7 +911,9 @@ static int enic_set_mac_address_dynamic(struct net_device *netdev, void *p)
 
 static int enic_set_mac_address(struct net_device *netdev, void *p)
 {
-	return -EOPNOTSUPP;
+	struct sockaddr *saddr = p;
+
+	return enic_set_mac_addr(netdev, (char *)saddr->sa_data);
 }
 
 static int enic_dev_packet_filter(struct enic *enic, int directed,
