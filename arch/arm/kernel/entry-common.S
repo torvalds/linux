@@ -127,6 +127,10 @@ ENDPROC(ret_from_fork)
  * clobber the ip register.  This is OK because the ARM calling convention
  * allows it to be clobbered in subroutines and doesn't use it to hold
  * parameters.)
+ *
+ * When using dynamic ftrace, we patch out the mcount call by a "mov r0, r0"
+ * for the mcount case, and a "pop {lr}" for the __gnu_mcount_nc case (see
+ * arch/arm/kernel/ftrace.c).
  */
 
 #ifndef CONFIG_OLD_MCOUNT
@@ -136,30 +140,45 @@ ENDPROC(ret_from_fork)
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-ENTRY(mcount)
+ENTRY(__gnu_mcount_nc)
+	mov	ip, lr
+	ldmia	sp!, {lr}
+	mov	pc, ip
+ENDPROC(__gnu_mcount_nc)
+
+ENTRY(ftrace_caller)
 	stmdb	sp!, {r0-r3, lr}
 	mov	r0, lr
 	sub	r0, r0, #MCOUNT_INSN_SIZE
+	ldr	r1, [sp, #20]
 
-	.globl mcount_call
-mcount_call:
+	.global	ftrace_call
+ftrace_call:
 	bl	ftrace_stub
-	ldr	lr, [fp, #-4]			@ restore lr
-	ldmia	sp!, {r0-r3, pc}
+	ldmia	sp!, {r0-r3, ip, lr}
+	mov	pc, ip
+ENDPROC(ftrace_caller)
+
+#ifdef CONFIG_OLD_MCOUNT
+ENTRY(mcount)
+	stmdb	sp!, {lr}
+	ldr	lr, [fp, #-4]
+	ldmia	sp!, {pc}
 ENDPROC(mcount)
 
-ENTRY(ftrace_caller)
+ENTRY(ftrace_caller_old)
 	stmdb	sp!, {r0-r3, lr}
 	ldr	r1, [fp, #-4]
 	mov	r0, lr
 	sub	r0, r0, #MCOUNT_INSN_SIZE
 
-	.globl ftrace_call
-ftrace_call:
+	.globl ftrace_call_old
+ftrace_call_old:
 	bl	ftrace_stub
 	ldr	lr, [fp, #-4]			@ restore lr
 	ldmia	sp!, {r0-r3, pc}
-ENDPROC(ftrace_caller)
+ENDPROC(ftrace_caller_old)
+#endif
 
 #else
 
