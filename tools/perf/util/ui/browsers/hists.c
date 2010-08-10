@@ -17,10 +17,6 @@
 #include "../util.h"
 #include "map.h"
 
-int ui__help_window(const char *text);
-bool dialog_yesno(const char *msg);
-int popup_menu(int argc, char * const argv[]);
-
 struct hist_browser {
 	struct ui_browser   b;
 	struct hists	    *hists;
@@ -798,7 +794,7 @@ do_help:
 			}
 			if (is_exit_key(key)) {
 				if (key == NEWT_KEY_ESCAPE &&
-				    !dialog_yesno("Do you really want to exit?"))
+				    !ui__dialog_yesno("Do you really want to exit?"))
 					continue;
 				break;
 			}
@@ -842,7 +838,7 @@ do_help:
 
 		options[nr_options++] = (char *)"Exit";
 
-		choice = popup_menu(nr_options, options);
+		choice = ui__popup_menu(nr_options, options);
 
 		for (i = 0; i < nr_options - 1; ++i)
 			free(options[i]);

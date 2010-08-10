@@ -86,7 +86,7 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 		return -1;
 
 	if (hist_entry__annotate(self, &head) < 0) {
-		ui__error_window(browser__last_msg);
+		ui__error_window(ui_helpline__last_msg);
 		return -1;
 	}
 

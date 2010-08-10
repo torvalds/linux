@@ -5,35 +5,13 @@
 #include <string.h>
 #include <sys/ttydefaults.h>
 
-#include "cache.h"
-#include "debug.h"
-#include "ui/browser.h"
-#include "ui/helpline.h"
+#include "../cache.h"
+#include "../debug.h"
+#include "browser.h"
+#include "helpline.h"
+#include "util.h"
 
 newtComponent newt_form__new(void);
-int popup_menu(int argc, char * const argv[]);
-int ui__help_window(const char *text);
-bool dialog_yesno(const char *msg);
-
-char browser__last_msg[1024];
-
-int browser__show_help(const char *format, va_list ap)
-{
-	int ret;
-	static int backlog;
-
-        ret = vsnprintf(browser__last_msg + backlog,
-			sizeof(browser__last_msg) - backlog, format, ap);
-	backlog += ret;
-
-	if (browser__last_msg[backlog - 1] == '\n') {
-		ui_helpline__puts(browser__last_msg);
-		newtRefresh();
-		backlog = 0;
-	}
-
-	return ret;
-}
 
 static void newt_form__set_exit_keys(newtComponent self)
 {
@@ -52,7 +30,7 @@ newtComponent newt_form__new(void)
 	return self;
 }
 
-int popup_menu(int argc, char * const argv[])
+int ui__popup_menu(int argc, char * const argv[])
 {
 	struct newtExitStruct es;
 	int i, rc = -1, max_len = 5;
@@ -128,43 +106,9 @@ out_destroy_form:
 	return rc;
 }
 
-bool dialog_yesno(const char *msg)
+bool ui__dialog_yesno(const char *msg)
 {
 	/* newtWinChoice should really be accepting const char pointers... */
 	char yes[] = "Yes", no[] = "No";
 	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
-}
-
-static void newt_suspend(void *d __used)
-{
-	newtSuspend();
-	raise(SIGTSTP);
-	newtResume();
-}
-
-void setup_browser(void)
-{
-	if (!isatty(1) || !use_browser || dump_trace) {
-		use_browser = 0;
-		setup_pager();
-		return;
-	}
-
-	use_browser = 1;
-	newtInit();
-	newtCls();
-	newtSetSuspendCallback(newt_suspend, NULL);
-	ui_helpline__puts(" ");
-	ui_browser__init();
-}
-
-void exit_browser(bool wait_for_ok)
-{
-	if (use_browser > 0) {
-		if (wait_for_ok) {
-			char title[] = "Fatal Error", ok[] = "Ok";
-			newtWinMessage(title, ok, browser__last_msg);
-		}
-		newtFinished();
-	}
 }
