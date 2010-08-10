@@ -40,8 +40,8 @@
 #define DBGBH(fmt) if (debug_level >= DEBUG_LEVEL_BH) printk fmt
 #define DBGISR(fmt) if (debug_level >= DEBUG_LEVEL_ISR) printk fmt
 #define DBGDATA(info, buf, size, label) if (debug_level >= DEBUG_LEVEL_DATA) trace_block((info), (buf), (size), (label))
-//#define DBGTBUF(info) dump_tbufs(info)
-//#define DBGRBUF(info) dump_rbufs(info)
+/*#define DBGTBUF(info) dump_tbufs(info)*/
+/*#define DBGRBUF(info) dump_rbufs(info)*/
 
 
 #include <linux/module.h>
@@ -62,7 +62,6 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -676,12 +675,14 @@ static int open(struct tty_struct *tty, struct file *filp)
 		goto cleanup;
 	}
 
+	mutex_lock(&info->port.mutex);
 	info->port.tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {
 		retval = -EBUSY;
 		spin_unlock_irqrestore(&info->netlock, flags);
+		mutex_unlock(&info->port.mutex);
 		goto cleanup;
 	}
 	info->port.count++;
@@ -693,7 +694,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 		if (retval < 0)
 			goto cleanup;
 	}
-
+	mutex_unlock(&info->port.mutex);
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
 		DBGINFO(("%s block_til_ready rc=%d\n", info->device_name, retval));
@@ -725,12 +726,14 @@ static void close(struct tty_struct *tty, struct file *filp)
 	if (tty_port_close_start(&info->port, tty, filp) == 0)
 		goto cleanup;
 
+	mutex_lock(&info->port.mutex);
  	if (info->port.flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
 	flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	shutdown(info);
+	mutex_unlock(&info->port.mutex);
 
 	tty_port_close_end(&info->port, tty);
 	info->port.tty = NULL;
@@ -741,17 +744,23 @@ cleanup:
 static void hangup(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
+	unsigned long flags;
 
 	if (sanity_check(info, tty->name, "hangup"))
 		return;
 	DBGINFO(("%s hangup\n", info->device_name));
 
 	flush_buffer(tty);
+
+	mutex_lock(&info->port.mutex);
 	shutdown(info);
 
+	spin_lock_irqsave(&info->port.lock, flags);
 	info->port.count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
+	spin_unlock_irqrestore(&info->port.lock, flags);
+	mutex_unlock(&info->port.mutex);
 
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -901,8 +910,6 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */
 
-	lock_kernel();
-
 	if (info->params.data_rate) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -920,8 +927,6 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
-	unlock_kernel();
-
 exit:
 	DBGINFO(("%s wait_until_sent exit\n", info->device_name));
 }
@@ -1041,8 +1046,37 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		    return -EIO;
 	}
 
-	lock_kernel();
-
+	switch (cmd) {
+	case MGSL_IOCWAITEVENT:
+		return wait_mgsl_event(info, argp);
+	case TIOCMIWAIT:
+		return modem_input_wait(info,(int)arg);
+	case TIOCGICOUNT:
+		spin_lock_irqsave(&info->lock,flags);
+		cnow = info->icount;
+		spin_unlock_irqrestore(&info->lock,flags);
+		p_cuser = argp;
+		if (put_user(cnow.cts, &p_cuser->cts) ||
+		    put_user(cnow.dsr, &p_cuser->dsr) ||
+		    put_user(cnow.rng, &p_cuser->rng) ||
+		    put_user(cnow.dcd, &p_cuser->dcd) ||
+		    put_user(cnow.rx, &p_cuser->rx) ||
+		    put_user(cnow.tx, &p_cuser->tx) ||
+		    put_user(cnow.frame, &p_cuser->frame) ||
+		    put_user(cnow.overrun, &p_cuser->overrun) ||
+		    put_user(cnow.parity, &p_cuser->parity) ||
+		    put_user(cnow.brk, &p_cuser->brk) ||
+		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
+			return -EFAULT;
+		return 0;
+	case MGSL_IOCSGPIO:
+		return set_gpio(info, argp);
+	case MGSL_IOCGGPIO:
+		return get_gpio(info, argp);
+	case MGSL_IOCWAITGPIO:
+		return wait_gpio(info, argp);
+	}
+	mutex_lock(&info->port.mutex);
 	switch (cmd) {
 	case MGSL_IOCGPARAMS:
 		ret = get_params(info, argp);
@@ -1068,50 +1102,16 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	case MGSL_IOCGSTATS:
 		ret = get_stats(info, argp);
 		break;
-	case MGSL_IOCWAITEVENT:
-		ret = wait_mgsl_event(info, argp);
-		break;
-	case TIOCMIWAIT:
-		ret = modem_input_wait(info,(int)arg);
-		break;
 	case MGSL_IOCGIF:
 		ret = get_interface(info, argp);
 		break;
 	case MGSL_IOCSIF:
 		ret = set_interface(info,(int)arg);
 		break;
-	case MGSL_IOCSGPIO:
-		ret = set_gpio(info, argp);
-		break;
-	case MGSL_IOCGGPIO:
-		ret = get_gpio(info, argp);
-		break;
-	case MGSL_IOCWAITGPIO:
-		ret = wait_gpio(info, argp);
-		break;
-	case TIOCGICOUNT:
-		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->lock,flags);
-		p_cuser = argp;
-		if (put_user(cnow.cts, &p_cuser->cts) ||
-		    put_user(cnow.dsr, &p_cuser->dsr) ||
-		    put_user(cnow.rng, &p_cuser->rng) ||
-		    put_user(cnow.dcd, &p_cuser->dcd) ||
-		    put_user(cnow.rx, &p_cuser->rx) ||
-		    put_user(cnow.tx, &p_cuser->tx) ||
-		    put_user(cnow.frame, &p_cuser->frame) ||
-		    put_user(cnow.overrun, &p_cuser->overrun) ||
-		    put_user(cnow.parity, &p_cuser->parity) ||
-		    put_user(cnow.brk, &p_cuser->brk) ||
-		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			ret = -EFAULT;
-		ret = 0;
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
-	unlock_kernel();
+	mutex_unlock(&info->port.mutex);
 	return ret;
 }
 
@@ -3244,7 +3244,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 
 		DBGINFO(("%s block_til_ready wait\n", tty->driver->name));
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 
 	set_current_state(TASK_RUNNING);

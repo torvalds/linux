@@ -250,6 +250,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
+	info->flags |= FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &nouveau_fbcon_ops;
 	info->fix.smem_start = dev->mode_config.fb_base + nvbo->bo.offset -
 			       dev_priv->vm_vram_base;
