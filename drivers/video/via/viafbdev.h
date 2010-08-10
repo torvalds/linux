@@ -40,6 +40,9 @@
 #define VIAFB_NUM_I2C		5
 
 struct viafb_shared {
+	u32 iga1_devices;
+	u32 iga2_devices;
+
 	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
 	struct viafb_dev *vdev;			/* Global dev info */
 

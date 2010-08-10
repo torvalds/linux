@@ -753,6 +753,66 @@ void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
 	outb(b, LUT_DATA);
 }
 
+static u32 get_dvi_devices(int output_interface)
+{
+	switch (output_interface) {
+	case INTERFACE_DVP0:
+		return VIA_96 | VIA_6C;
+
+	case INTERFACE_DVP1:
+		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
+			return VIA_93;
+		else
+			return VIA_DVP1;
+
+	case INTERFACE_DFP_HIGH:
+		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
+			return 0;
+		else
+			return VIA_LVDS2 | VIA_96;
+
+	case INTERFACE_DFP_LOW:
+		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
+			return 0;
+		else
+			return VIA_DVP1 | VIA_LVDS1;
+
+	case INTERFACE_TMDS:
+		return VIA_LVDS1;
+	}
+
+	return 0;
+}
+
+static u32 get_lcd_devices(int output_interface)
+{
+	switch (output_interface) {
+	case INTERFACE_DVP0:
+		return VIA_96;
+
+	case INTERFACE_DVP1:
+		return VIA_DVP1;
+
+	case INTERFACE_DFP_HIGH:
+		return VIA_LVDS2 | VIA_96;
+
+	case INTERFACE_DFP_LOW:
+		return VIA_LVDS1 | VIA_DVP1;
+
+	case INTERFACE_DFP:
+		return VIA_LVDS1 | VIA_LVDS2;
+
+	case INTERFACE_LVDS0:
+	case INTERFACE_LVDS0LVDS1:
+		return VIA_LVDS1;
+
+	case INTERFACE_LVDS1:
+		return VIA_LVDS2;
+	}
+
+	return 0;
+}
+
 /*Set IGA path for each device*/
 void viafb_set_iga_path(void)
 {
@@ -818,6 +878,48 @@ void viafb_set_iga_path(void)
 		} else if (viafb_DVI_ON) {
 			viaparinfo->tmds_setting_info->iga_path = IGA1;
 		}
+	}
+
+	viaparinfo->shared->iga1_devices = 0;
+	viaparinfo->shared->iga2_devices = 0;
+	if (viafb_CRT_ON) {
+		if (viaparinfo->crt_setting_info->iga_path == IGA1)
+			viaparinfo->shared->iga1_devices |= VIA_CRT;
+		else
+			viaparinfo->shared->iga2_devices |= VIA_CRT;
+	}
+
+	if (viafb_DVI_ON) {
+		if (viaparinfo->tmds_setting_info->iga_path == IGA1)
+			viaparinfo->shared->iga1_devices |= get_dvi_devices(
+				viaparinfo->chip_info->
+				tmds_chip_info.output_interface);
+		else
+			viaparinfo->shared->iga2_devices |= get_dvi_devices(
+				viaparinfo->chip_info->
+				tmds_chip_info.output_interface);
+	}
+
+	if (viafb_LCD_ON) {
+		if (viaparinfo->lvds_setting_info->iga_path == IGA1)
+			viaparinfo->shared->iga1_devices |= get_lcd_devices(
+				viaparinfo->chip_info->
+				lvds_chip_info.output_interface);
+		else
+			viaparinfo->shared->iga2_devices |= get_lcd_devices(
+				viaparinfo->chip_info->
+				lvds_chip_info.output_interface);
+	}
+
+	if (viafb_LCD2_ON) {
+		if (viaparinfo->lvds_setting_info2->iga_path == IGA1)
+			viaparinfo->shared->iga1_devices |= get_lcd_devices(
+				viaparinfo->chip_info->
+				lvds_chip_info2.output_interface);
+		else
+			viaparinfo->shared->iga2_devices |= get_lcd_devices(
+				viaparinfo->chip_info->
+				lvds_chip_info2.output_interface);
 	}
 }
 
