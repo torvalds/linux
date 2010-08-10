@@ -812,11 +812,7 @@ short check_nic_enough_desc(struct net_device *dev, int prio)
     /* for now we reserve two free descriptor as a safety boundary
      * between the tail and the head
      */
-    if (ring->entries - skb_queue_len(&ring->queue) >= 2) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return (ring->entries - skb_queue_len(&ring->queue) >= 2);
 }
 
 static void tx_timeout(struct net_device *dev)
@@ -1198,7 +1194,6 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 	//spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 //	return ret;
-	return;
 }
 
 /* This is a rough attempt to TX a frame
@@ -2207,12 +2202,8 @@ static bool GetNmodeSupportBySecCfg8190Pci(struct net_device*dev)
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
-	if (ieee->rtllib_ap_sec_type &&
-	   (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP))) {
-		return false;
-	} else {
-		return true;
-	}
+	return !(ieee->rtllib_ap_sec_type &&
+	   (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP)));
 #else
 	struct r8192_priv* priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
@@ -2256,7 +2247,6 @@ static void rtl8192_refresh_supportrate(struct r8192_priv* priv)
 	}
 	else
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
-	return;
 }
 
 static u8 rtl8192_getSupportedWireleeMode(struct net_device*dev)
@@ -2331,16 +2321,10 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 
 static bool GetHalfNmodeSupportByAPs819xPci(struct net_device* dev)
 {
-	bool			Reval;
 	struct r8192_priv* priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 
-	if(ieee->bHalfWirelessN24GMode == true)
-		Reval = true;
-	else
-		Reval =  false;
-
-	return Reval;
+	return ieee->bHalfWirelessN24GMode;
 }
 
 short rtl8192_is_tx_queue_empty(struct net_device *dev)
