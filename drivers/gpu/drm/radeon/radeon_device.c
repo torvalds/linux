@@ -347,7 +347,8 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 		return -ENOMEM;
 	rdev->dummy_page.addr = pci_map_page(rdev->pdev, rdev->dummy_page.page,
 					0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (!rdev->dummy_page.addr) {
+	if (pci_dma_mapping_error(rdev->pdev, rdev->dummy_page.addr)) {
+		dev_err(&rdev->pdev->dev, "Failed to DMA MAP the dummy page\n");
 		__free_page(rdev->dummy_page.page);
 		rdev->dummy_page.page = NULL;
 		return -ENOMEM;
