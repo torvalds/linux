@@ -2,6 +2,9 @@
 #define __INCLUDE_LINUX_OOM_H
 
 /*
+ * /proc/<pid>/oom_adj is deprecated, see
+ * Documentation/feature-removal-schedule.txt.
+ *
  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
  */
 #define OOM_DISABLE (-17)

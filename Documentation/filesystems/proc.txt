@@ -1285,6 +1285,9 @@ scaled linearly with /proc/<pid>/oom_score_adj.
 Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
 other with its scaled value.
 
+NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
+Documentation/feature-removal-schedule.txt.
+
 Caveat: when a parent task is selected, the oom killer will sacrifice any first
 generation children with seperate address spaces instead, if possible.  This
 avoids servers and important system daemons from being killed and loses the
