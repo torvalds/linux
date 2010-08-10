@@ -448,6 +448,13 @@ config I2C_NOMADIK
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures.
 
+config I2C_NUC900
+	tristate "NUC900 I2C Driver"
+	depends on ARCH_W90X900
+	help
+	  Say Y here to include support for I2C controller in the
+	  Winbond/Nuvoton NUC900 based System-on-Chip devices.
+
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
 	depends on EXPERIMENTAL
