@@ -108,6 +108,8 @@ struct bio {
 #define BIO_POOL_MASK		(1UL << BIO_POOL_OFFSET)
 #define BIO_POOL_IDX(bio)	((bio)->bi_flags >> BIO_POOL_OFFSET)
 
+#endif /* CONFIG_BLOCK */
+
 /*
  * Request flags.  For use in the cmd_flags field of struct request, and in
  * bi_rw of struct bio.  Note that some flags are only valid in either one.
@@ -189,5 +191,4 @@ enum rq_flag_bits {
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
 
-#endif /* CONFIG_BLOCK */
 #endif /* __LINUX_BLK_TYPES_H */
