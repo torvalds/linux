@@ -161,7 +161,7 @@ int register_qdisc(struct Qdisc_ops *qops)
 	if (qops->cl_ops) {
 		const struct Qdisc_class_ops *cops = qops->cl_ops;
 
-		if (!(cops->get && cops->put))
+		if (!(cops->get && cops->put && cops->walk && cops->leaf))
 			goto out_einval;
 
 		if (cops->tcf_chain && !(cops->bind_tcf && cops->unbind_tcf))
