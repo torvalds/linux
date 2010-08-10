@@ -508,6 +508,11 @@ nla_put_failure:
 	return -1;
 }
 
+static struct Qdisc *sfq_leaf(struct Qdisc *sch, unsigned long arg)
+{
+	return NULL;
+}
+
 static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
 {
 	return 0;
@@ -575,6 +580,7 @@ static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 }
 
 static const struct Qdisc_class_ops sfq_class_ops = {
+	.leaf		=	sfq_leaf,
 	.get		=	sfq_get,
 	.put		=	sfq_put,
 	.tcf_chain	=	sfq_find_tcf,
