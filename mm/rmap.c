@@ -811,6 +811,7 @@ static void __page_check_anon_rmap(struct page *page,
 	 * are initially only visible via the pagetables, and the pte is locked
 	 * over the call to page_add_new_anon_rmap.
 	 */
+	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
 	BUG_ON(page->index != linear_page_index(vma, address));
 #endif
 }
@@ -1408,6 +1409,7 @@ int try_to_munlock(struct page *page)
  */
 void drop_anon_vma(struct anon_vma *anon_vma)
 {
+	BUG_ON(atomic_read(&anon_vma->external_refcount) <= 0);
 	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->root->lock)) {
 		struct anon_vma *root = anon_vma->root;
 		int empty = list_empty(&anon_vma->head);
@@ -1419,6 +1421,7 @@ void drop_anon_vma(struct anon_vma *anon_vma)
 		 * the refcount on the root and check if we need to free it.
 		 */
 		if (empty && anon_vma != root) {
+			BUG_ON(atomic_read(&root->external_refcount) <= 0);
 			last_root_user = atomic_dec_and_test(&root->external_refcount);
 			root_empty = list_empty(&root->head);
 		}
