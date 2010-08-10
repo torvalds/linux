@@ -251,7 +251,6 @@ static struct conf_drv_settings default_conf = {
 		.host_fast_wakeup_support = false
 	},
 	.roam_trigger = {
-		/* FIXME: due to firmware bug, must use value 1 for now */
 		.trigger_pacing               = 1,
 		.avg_weight_rssi_beacon       = 20,
 		.avg_weight_rssi_data         = 10,
@@ -2281,8 +2280,7 @@ static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	/* FIXME: what's the maximum length of buf? page size?*/
-	len = 500;
+	len = PAGE_SIZE;
 
 	mutex_lock(&wl->mutex);
 	len = snprintf(buf, len, "%d\n\n0 - off\n1 - on\n",
@@ -2343,8 +2341,7 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	/* FIXME: what's the maximum length of buf? page size?*/
-	len = 500;
+	len = PAGE_SIZE;
 
 	mutex_lock(&wl->mutex);
 	if (wl->hw_pg_ver >= 0)

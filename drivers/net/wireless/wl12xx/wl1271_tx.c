@@ -422,8 +422,6 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	struct sk_buff *skb;
 
 	/* TX failure */
-/* 	control->flags = 0; FIXME */
-
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
 		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 		ieee80211_tx_status(wl->hw, skb);
