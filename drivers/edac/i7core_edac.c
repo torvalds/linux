@@ -666,11 +666,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
 				RANKOFFSET(dimm_dod[j]),
 				banks, ranks, rows, cols);
 
-#if PAGE_SHIFT > 20
-			npages = size >> (PAGE_SHIFT - 20);
-#else
-			npages = size << (20 - PAGE_SHIFT);
-#endif
+			npages = MiB_TO_PAGES(size);
 
 			csr = &mci->csrows[*csrow];
 			csr->first_page = last_page + 1;
