@@ -339,3 +339,4 @@ ENTRY(sys_call_table)
 	.long sys_recvmmsg
 	.long sys_fanotify_init
 	.long sys_fanotify_mark
+	.long sys_prlimit64
