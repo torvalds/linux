@@ -748,6 +748,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
 	       (count < tx_ring->work_limit)) {
 		bool cleaned = false;
+		rmb(); /* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
 			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
@@ -6155,9 +6156,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 			txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
 			txq += adapter->ring_feature[RING_F_FCOE].mask;
 			return txq;
+#ifdef CONFIG_IXGBE_DCB
 		} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 			txq = adapter->fcoe.up;
 			return txq;
+#endif
 		}
 	}
 #endif
@@ -6216,10 +6219,14 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED &&
 	    (skb->protocol == htons(ETH_P_FCOE) ||
 	     skb->protocol == htons(ETH_P_FIP))) {
-		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
-		tx_flags |= ((adapter->fcoe.up << 13)
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+#ifdef CONFIG_IXGBE_DCB
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+			tx_flags |= ((adapter->fcoe.up << 13)
+				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		}
+#endif
 		/* flag for FCoE offloads */
 		if (skb->protocol == htons(ETH_P_FCOE))
 			tx_flags |= IXGBE_TX_FLAGS_FCOE;

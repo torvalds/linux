@@ -240,16 +240,16 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
 
-	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
-	if (retval) {
-		ERROR_PROBE("PCI request regions failed.\n");
-		return retval;
-	}
-
 	retval = pci_enable_device(pci_dev);
 	if (retval) {
 		ERROR_PROBE("Enable device failed.\n");
-		goto exit_release_regions;
+		return retval;
+	}
+
+	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
+	if (retval) {
+		ERROR_PROBE("PCI request regions failed.\n");
+		goto exit_disable_device;
 	}
 
 	pci_set_master(pci_dev);
@@ -260,14 +260,14 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
 		ERROR_PROBE("PCI DMA not supported.\n");
 		retval = -EIO;
-		goto exit_disable_device;
+		goto exit_release_regions;
 	}
 
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		ERROR_PROBE("Failed to allocate hardware.\n");
 		retval = -ENOMEM;
-		goto exit_disable_device;
+		goto exit_release_regions;
 	}
 
 	pci_set_drvdata(pci_dev, hw);
@@ -300,12 +300,11 @@ exit_free_reg:
 exit_free_device:
 	ieee80211_free_hw(hw);
 
-exit_disable_device:
-	if (retval != -EBUSY)
-		pci_disable_device(pci_dev);
-
 exit_release_regions:
 	pci_release_regions(pci_dev);
+
+exit_disable_device:
+	pci_disable_device(pci_dev);
 
 	pci_set_drvdata(pci_dev, NULL);
 

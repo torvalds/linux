@@ -2944,8 +2944,8 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 	release_mem_region(res->start, res->end - res->start + 1);
 
 	unregister_netdev(ndev);
-	free_netdev(ndev);
 	iounmap(priv->remap_addr);
+	free_netdev(ndev);
 
 	clk_disable(emac_clk);
 	clk_put(emac_clk);

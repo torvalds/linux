@@ -1914,11 +1914,13 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	 * The next command will reopen the AT channel automatically.
 	 */
 	if (cb->len == 3 && !memcmp(cb->buf, "+++", 3)) {
-		kfree(cb);
 		rc = req_submit(cs->bcs, HD_CLOSE_ATCHANNEL, 0, BAS_TIMEOUT);
 		if (cb->wake_tasklet)
 			tasklet_schedule(cb->wake_tasklet);
-		return rc < 0 ? rc : cb->len;
+		if (!rc)
+			rc = cb->len;
+		kfree(cb);
+		return rc;
 	}
 
 	spin_lock_irqsave(&cs->cmdlock, flags);

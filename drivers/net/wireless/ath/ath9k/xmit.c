@@ -120,26 +120,14 @@ static void ath_tx_queue_tid(struct ath_txq *txq, struct ath_atx_tid *tid)
 	list_add_tail(&ac->list, &txq->axq_acq);
 }
 
-static void ath_tx_pause_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
-{
-	struct ath_txq *txq = &sc->tx.txq[tid->ac->qnum];
-
-	spin_lock_bh(&txq->axq_lock);
-	tid->paused++;
-	spin_unlock_bh(&txq->axq_lock);
-}
-
 static void ath_tx_resume_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 {
 	struct ath_txq *txq = &sc->tx.txq[tid->ac->qnum];
 
-	BUG_ON(tid->paused <= 0);
+	WARN_ON(!tid->paused);
+
 	spin_lock_bh(&txq->axq_lock);
-
-	tid->paused--;
-
-	if (tid->paused > 0)
-		goto unlock;
+	tid->paused = false;
 
 	if (list_empty(&tid->buf_q))
 		goto unlock;
@@ -157,15 +145,10 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	struct list_head bf_head;
 	INIT_LIST_HEAD(&bf_head);
 
-	BUG_ON(tid->paused <= 0);
+	WARN_ON(!tid->paused);
+
 	spin_lock_bh(&txq->axq_lock);
-
-	tid->paused--;
-
-	if (tid->paused > 0) {
-		spin_unlock_bh(&txq->axq_lock);
-		return;
-	}
+	tid->paused = false;
 
 	while (!list_empty(&tid->buf_q)) {
 		bf = list_first_entry(&tid->buf_q, struct ath_buf, list);
@@ -811,7 +794,7 @@ void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	an = (struct ath_node *)sta->drv_priv;
 	txtid = ATH_AN_2_TID(an, tid);
 	txtid->state |= AGGR_ADDBA_PROGRESS;
-	ath_tx_pause_tid(sc, txtid);
+	txtid->paused = true;
 	*ssn = txtid->seq_start;
 }
 
@@ -835,10 +818,9 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 		return;
 	}
 
-	ath_tx_pause_tid(sc, txtid);
-
 	/* drop all software retried frames and mark this TID */
 	spin_lock_bh(&txq->axq_lock);
+	txtid->paused = true;
 	while (!list_empty(&txtid->buf_q)) {
 		bf = list_first_entry(&txtid->buf_q, struct ath_buf, list);
 		if (!bf_isretried(bf)) {
@@ -1181,7 +1163,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 			  "Failed to stop TX DMA. Resetting hardware!\n");
 
 		spin_lock_bh(&sc->sc_resetlock);
-		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
+		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 		if (r)
 			ath_print(common, ATH_DBG_FATAL,
 				  "Unable to reset hardware; reset status %d\n",

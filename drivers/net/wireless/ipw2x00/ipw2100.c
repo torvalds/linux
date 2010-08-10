@@ -1924,6 +1924,10 @@ static int ipw2100_net_init(struct net_device *dev)
 		bg_band->channels =
 			kzalloc(geo->bg_channels *
 				sizeof(struct ieee80211_channel), GFP_KERNEL);
+		if (!bg_band->channels) {
+			ipw2100_down(priv);
+			return -ENOMEM;
+		}
 		/* translate geo->bg to bg_band.channels */
 		for (i = 0; i < geo->bg_channels; i++) {
 			bg_band->channels[i].band = IEEE80211_BAND_2GHZ;
