@@ -830,6 +830,17 @@ static void __page_check_anon_rmap(struct page *page,
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
+	do_page_add_anon_rmap(page, vma, address, 0);
+}
+
+/*
+ * Special version of the above for do_swap_page, which often runs
+ * into pages that are exclusively owned by the current process.
+ * Everybody else should continue to use page_add_anon_rmap above.
+ */
+void do_page_add_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address, int exclusive)
+{
 	int first = atomic_inc_and_test(&page->_mapcount);
 	if (first)
 		__inc_zone_page_state(page, NR_ANON_PAGES);
@@ -839,7 +850,7 @@ void page_add_anon_rmap(struct page *page,
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	if (first)
-		__page_set_anon_rmap(page, vma, address, 0);
+		__page_set_anon_rmap(page, vma, address, exclusive);
 	else
 		__page_check_anon_rmap(page, vma, address);
 }
