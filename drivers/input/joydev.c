@@ -530,7 +530,7 @@ static int joydev_ioctl_common(struct joydev *joydev,
 {
 	struct input_dev *dev = joydev->handle.dev;
 	size_t len;
-	int i, j;
+	int i;
 	const char *name;
 
 	/* Process fixed-sized commands. */
@@ -562,12 +562,11 @@ static int joydev_ioctl_common(struct joydev *joydev,
 	case JSIOCSCORR:
 		if (copy_from_user(joydev->corr, argp,
 			      sizeof(joydev->corr[0]) * joydev->nabs))
-		    return -EFAULT;
+			return -EFAULT;
 
 		for (i = 0; i < joydev->nabs; i++) {
-			j = joydev->abspam[i];
-			joydev->abs[i] = joydev_correct(dev->abs[j],
-							&joydev->corr[i]);
+			int val = input_abs_get_val(dev, joydev->abspam[i]);
+			joydev->abs[i] = joydev_correct(val, &joydev->corr[i]);
 		}
 		return 0;
 
@@ -848,25 +847,27 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 
 	for (i = 0; i < joydev->nabs; i++) {
 		j = joydev->abspam[i];
-		if (dev->absmax[j] == dev->absmin[j]) {
+		if (input_abs_get_max(dev, j) == input_abs_get_min(dev, j)) {
 			joydev->corr[i].type = JS_CORR_NONE;
-			joydev->abs[i] = dev->abs[j];
+			joydev->abs[i] = input_abs_get_val(dev, j);
 			continue;
 		}
 		joydev->corr[i].type = JS_CORR_BROKEN;
-		joydev->corr[i].prec = dev->absfuzz[j];
-		joydev->corr[i].coef[0] =
-			(dev->absmax[j] + dev->absmin[j]) / 2 - dev->absflat[j];
-		joydev->corr[i].coef[1] =
-			(dev->absmax[j] + dev->absmin[j]) / 2 + dev->absflat[j];
+		joydev->corr[i].prec = input_abs_get_fuzz(dev, j);
 
-		t = (dev->absmax[j] - dev->absmin[j]) / 2 - 2 * dev->absflat[j];
+		t = (input_abs_get_max(dev, j) + input_abs_get_min(dev, j)) / 2;
+		joydev->corr[i].coef[0] = t - input_abs_get_flat(dev, j);
+		joydev->corr[i].coef[1] = t + input_abs_get_flat(dev, j);
+
+		t = (input_abs_get_max(dev, j) - input_abs_get_min(dev, j)) / 2
+			- 2 * input_abs_get_flat(dev, j);
 		if (t) {
 			joydev->corr[i].coef[2] = (1 << 29) / t;
 			joydev->corr[i].coef[3] = (1 << 29) / t;
 
-			joydev->abs[i] = joydev_correct(dev->abs[j],
-							joydev->corr + i);
+			joydev->abs[i] =
+				joydev_correct(input_abs_get_val(dev, j),
+					       joydev->corr + i);
 		}
 	}
 

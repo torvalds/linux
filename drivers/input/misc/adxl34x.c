@@ -724,7 +724,6 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	pdata = &ac->pdata;
 
 	ac->input = input_dev;
-	ac->disabled = true;
 	ac->dev = dev;
 	ac->irq = irq;
 	ac->bops = bops;
