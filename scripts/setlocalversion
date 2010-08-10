@@ -10,13 +10,13 @@
 #
 
 usage() {
-	echo "Usage: $0 [--scm-only] [srctree]" >&2
+	echo "Usage: $0 [--save-scmversion] [srctree]" >&2
 	exit 1
 }
 
 scm_only=false
 srctree=.
-if test "$1" = "--scm-only"; then
+if test "$1" = "--save-scmversion"; then
 	scm_only=true
 	shift
 fi
@@ -30,11 +30,12 @@ fi
 
 scm_version()
 {
-	local short=false
+	local short
+	short=false
 
 	cd "$srctree"
 	if test -e .scmversion; then
-		cat "$_"
+		cat .scmversion
 		return
 	fi
 	if test "$1" = "--short"; then
@@ -131,12 +132,15 @@ collect_files()
 }
 
 if $scm_only; then
-	scm_version
+	if test ! -e .scmversion; then
+		res=$(scm_version)
+		echo "$res" >.scmversion
+	fi
 	exit
 fi
 
 if test -e include/config/auto.conf; then
-	source "$_"
+	. include/config/auto.conf
 else
 	echo "Error: kernelrelease not valid - run 'make prepare' to update it"
 	exit 1

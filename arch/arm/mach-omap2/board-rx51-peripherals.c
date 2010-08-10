@@ -25,13 +25,17 @@
 #include <linux/mmc/host.h>
 
 #include <plat/mcspi.h>
-#include <plat/mux.h>
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
+
+#include <sound/tlv320aic3x.h>
+#include <sound/tpa6130a2-plat.h>
+
+#include <../drivers/staging/iio/light/tsl2563.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -50,6 +54,12 @@ enum {
 };
 
 static struct wl12xx_platform_data wl1251_pdata;
+
+#if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
+static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
+	.cover_comp_gain = 16,
+};
+#endif
 
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
 	.turbo_mode	= 0,
@@ -175,6 +185,10 @@ static void __init rx51_add_gpio_keys(void)
 #endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
 static int board_keymap[] = {
+	/*
+	 * Note that KEY(x, 8, KEY_XXX) entries represent "entrire row
+	 * connected to the ground" matrix state.
+	 */
 	KEY(0, 0, KEY_Q),
 	KEY(0, 1, KEY_O),
 	KEY(0, 2, KEY_P),
@@ -182,6 +196,7 @@ static int board_keymap[] = {
 	KEY(0, 4, KEY_BACKSPACE),
 	KEY(0, 6, KEY_A),
 	KEY(0, 7, KEY_S),
+
 	KEY(1, 0, KEY_W),
 	KEY(1, 1, KEY_D),
 	KEY(1, 2, KEY_F),
@@ -190,6 +205,7 @@ static int board_keymap[] = {
 	KEY(1, 5, KEY_J),
 	KEY(1, 6, KEY_K),
 	KEY(1, 7, KEY_L),
+
 	KEY(2, 0, KEY_E),
 	KEY(2, 1, KEY_DOT),
 	KEY(2, 2, KEY_UP),
@@ -197,6 +213,8 @@ static int board_keymap[] = {
 	KEY(2, 5, KEY_Z),
 	KEY(2, 6, KEY_X),
 	KEY(2, 7, KEY_C),
+	KEY(2, 8, KEY_F9),
+
 	KEY(3, 0, KEY_R),
 	KEY(3, 1, KEY_V),
 	KEY(3, 2, KEY_B),
@@ -205,20 +223,23 @@ static int board_keymap[] = {
 	KEY(3, 5, KEY_SPACE),
 	KEY(3, 6, KEY_SPACE),
 	KEY(3, 7, KEY_LEFT),
+
 	KEY(4, 0, KEY_T),
 	KEY(4, 1, KEY_DOWN),
 	KEY(4, 2, KEY_RIGHT),
 	KEY(4, 4, KEY_LEFTCTRL),
 	KEY(4, 5, KEY_RIGHTALT),
 	KEY(4, 6, KEY_LEFTSHIFT),
+	KEY(4, 8, KEY_F10),
+
 	KEY(5, 0, KEY_Y),
+	KEY(5, 8, KEY_F11),
+
 	KEY(6, 0, KEY_U),
+
 	KEY(7, 0, KEY_I),
 	KEY(7, 1, KEY_F7),
 	KEY(7, 2, KEY_F8),
-	KEY(0xff, 2, KEY_F9),
-	KEY(0xff, 4, KEY_F10),
-	KEY(0xff, 5, KEY_F11),
 };
 
 static struct matrix_keymap_data board_map_data = {
@@ -300,48 +321,29 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply rx51_vmmc1_supply = {
-	.supply   = "vmmc",
-	.dev_name = "mmci-omap-hs.0",
-};
+static struct regulator_consumer_supply rx51_vmmc1_supply =
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
 
-static struct regulator_consumer_supply rx51_vaux3_supply = {
-	.supply   = "vmmc",
-	.dev_name = "mmci-omap-hs.1",
-};
+static struct regulator_consumer_supply rx51_vaux3_supply =
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
 
-static struct regulator_consumer_supply rx51_vsim_supply = {
-	.supply   = "vmmc_aux",
-	.dev_name = "mmci-omap-hs.1",
-};
+static struct regulator_consumer_supply rx51_vsim_supply =
+	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
 
 static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tlv320aic3x analog supplies */
-	{
-		.supply		= "AVDD",
-		.dev_name	= "2-0018",
-	},
-	{
-		.supply		= "DRVDD",
-		.dev_name	= "2-0018",
-	},
+	REGULATOR_SUPPLY("AVDD", "2-0018"),
+	REGULATOR_SUPPLY("DRVDD", "2-0018"),
+	/* tpa6130a2 */
+	REGULATOR_SUPPLY("Vdd", "2-0060"),
 	/* Keep vmmc as last item. It is not iterated for newer boards */
-	{
-		.supply		= "vmmc",
-		.dev_name	= "mmci-omap-hs.1",
-	},
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
 };
 
 static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	/* tlv320aic3x digital supplies */
-	{
-		.supply		= "IOVDD",
-		.dev_name	= "2-0018"
-	},
-	{
-		.supply		= "DVDD",
-		.dev_name	= "2-0018"
-	},
+	REGULATOR_SUPPLY("IOVDD", "2-0018"),
+	REGULATOR_SUPPLY("DVDD", "2-0018"),
 };
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
@@ -362,6 +364,7 @@ static struct regulator_init_data rx51_vaux1 = {
 		.name			= "V28",
 		.min_uV			= 2800000,
 		.max_uV			= 2800000,
+		.always_on		= true, /* due battery cover sensor */
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
@@ -707,6 +710,15 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vio			= &rx51_vio,
 };
 
+static struct aic3x_pdata rx51_aic3x_data __initdata = {
+	.gpio_reset		= 60,
+};
+
+static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata = {
+	.id			= TPA6130A2,
+	.power_gpio		= 98,
+};
+
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 	{
 		I2C_BOARD_INFO("twl5030", 0x48),
@@ -719,7 +731,18 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+		.platform_data = &rx51_aic3x_data,
 	},
+#if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
+	{
+		I2C_BOARD_INFO("tsl2563", 0x29),
+		.platform_data = &rx51_tsl2563_platform_data,
+	},
+#endif
+	{
+		I2C_BOARD_INFO("tpa6130a2", 0x60),
+		.platform_data = &rx51_tpa6130a2_data,
+	}
 };
 
 static int __init rx51_i2c_init(void)

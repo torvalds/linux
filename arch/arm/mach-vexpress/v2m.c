@@ -241,7 +241,7 @@ static struct platform_device v2m_flash_device = {
 
 static unsigned int v2m_mmci_status(struct device *dev)
 {
-	return !(readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0));
+	return readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0);
 }
 
 static struct mmci_platform_data v2m_mmci_data = {
@@ -298,8 +298,13 @@ static struct clk osc2_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup v2m_lookups[] = {
-	{	/* UART0 */
+	{	/* AMBA bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "mb:uart0",
 		.clk		= &osc2_clk,
 	}, {	/* UART1 */

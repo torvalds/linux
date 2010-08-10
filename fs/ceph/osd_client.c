@@ -862,12 +862,12 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	if (req->r_callback)
 		req->r_callback(req, msg);
 	else
-		complete(&req->r_completion);
+		complete_all(&req->r_completion);
 
 	if (flags & CEPH_OSD_FLAG_ONDISK) {
 		if (req->r_safe_callback)
 			req->r_safe_callback(req, msg);
-		complete(&req->r_safe_completion);  /* fsync waiter */
+		complete_all(&req->r_safe_completion);  /* fsync waiter */
 	}
 
 done:
@@ -1083,7 +1083,7 @@ done:
 	if (newmap)
 		kick_requests(osdc, NULL);
 	up_read(&osdc->map_sem);
-	wake_up(&osdc->client->auth_wq);
+	wake_up_all(&osdc->client->auth_wq);
 	return;
 
 bad:

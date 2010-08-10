@@ -51,7 +51,7 @@
 #include <linux/unistd.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -122,6 +122,9 @@
 
 /* debugging */
 extern int ivtv_debug;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+extern int ivtv_fw_debug;
+#endif
 
 #define IVTV_DBGFLG_WARN    (1 << 0)
 #define IVTV_DBGFLG_INFO    (1 << 1)
@@ -257,7 +260,6 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DEC_PAUSED	   20 	/* the decoder is paused */
 #define IVTV_F_I_INITED		   21 	/* set after first open */
 #define IVTV_F_I_FAILED		   22 	/* set if first open failed */
-#define IVTV_F_I_WORK_INITED       23	/* worker thread was initialized */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
@@ -663,8 +665,9 @@ struct ivtv {
 	/* Interrupts & DMA */
 	u32 irqmask;                    /* active interrupts */
 	u32 irq_rr_idx;                 /* round-robin stream index */
-	struct workqueue_struct *irq_work_queues;       /* workqueue for PIO/YUV/VBI actions */
-	struct work_struct irq_work_queue;              /* work entry */
+	struct kthread_worker irq_worker;		/* kthread worker for PIO/YUV/VBI actions */
+	struct task_struct *irq_worker_task;		/* task for irq_worker */
+	struct kthread_work irq_work;	/* kthread work entry */
 	spinlock_t dma_reg_lock;        /* lock access to DMA engine registers */
 	int cur_dma_stream;		/* index of current stream doing DMA (-1 if none) */
 	int cur_pio_stream;		/* index of current stream doing PIO (-1 if none) */
@@ -734,6 +737,7 @@ struct ivtv {
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
 	struct osd_info *osd_info;      /* ivtvfb private OSD info */
+	void (*ivtvfb_restore)(struct ivtv *itv); /* Used for a warm start */
 };
 
 static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)

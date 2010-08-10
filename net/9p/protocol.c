@@ -141,6 +141,7 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 	D - data blob (int32_t size followed by void *, results are not freed)
 	T - array of strings (int16_t count, followed by strings)
 	R - array of qids (int16_t count, followed by qids)
+	A - stat for 9p2000.L (p9_stat_dotl)
 	? - if optional = 1, continue parsing
 */
 
@@ -340,6 +341,33 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				}
 			}
 			break;
+		case 'A': {
+				struct p9_stat_dotl *stbuf =
+				    va_arg(ap, struct p9_stat_dotl *);
+
+				memset(stbuf, 0, sizeof(struct p9_stat_dotl));
+				errcode =
+				    p9pdu_readf(pdu, proto_version,
+					"qQdddqqqqqqqqqqqqqqq",
+					&stbuf->st_result_mask,
+					&stbuf->qid,
+					&stbuf->st_mode,
+					&stbuf->st_uid, &stbuf->st_gid,
+					&stbuf->st_nlink,
+					&stbuf->st_rdev, &stbuf->st_size,
+					&stbuf->st_blksize, &stbuf->st_blocks,
+					&stbuf->st_atime_sec,
+					&stbuf->st_atime_nsec,
+					&stbuf->st_mtime_sec,
+					&stbuf->st_mtime_nsec,
+					&stbuf->st_ctime_sec,
+					&stbuf->st_ctime_nsec,
+					&stbuf->st_btime_sec,
+					&stbuf->st_btime_nsec,
+					&stbuf->st_gen,
+					&stbuf->st_data_version);
+			}
+			break;
 		case '?':
 			if ((proto_version != p9_proto_2000u) &&
 				(proto_version != p9_proto_2000L))
@@ -488,6 +516,23 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				}
 			}
 			break;
+		case 'I':{
+				struct p9_iattr_dotl *p9attr = va_arg(ap,
+							struct p9_iattr_dotl *);
+
+				errcode = p9pdu_writef(pdu, proto_version,
+							"ddddqqqqq",
+							p9attr->valid,
+							p9attr->mode,
+							p9attr->uid,
+							p9attr->gid,
+							p9attr->size,
+							p9attr->atime_sec,
+							p9attr->atime_nsec,
+							p9attr->mtime_sec,
+							p9attr->mtime_nsec);
+			}
+			break;
 		case '?':
 			if ((proto_version != p9_proto_2000u) &&
 				(proto_version != p9_proto_2000L))
@@ -580,3 +625,30 @@ void p9pdu_reset(struct p9_fcall *pdu)
 	pdu->offset = 0;
 	pdu->size = 0;
 }
+
+int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
+						int proto_version)
+{
+	struct p9_fcall fake_pdu;
+	int ret;
+	char *nameptr;
+
+	fake_pdu.size = len;
+	fake_pdu.capacity = len;
+	fake_pdu.sdata = buf;
+	fake_pdu.offset = 0;
+
+	ret = p9pdu_readf(&fake_pdu, proto_version, "Qqbs", &dirent->qid,
+			&dirent->d_off, &dirent->d_type, &nameptr);
+	if (ret) {
+		P9_DPRINTK(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
+		p9pdu_dump(1, &fake_pdu);
+		goto out;
+	}
+
+	strcpy(dirent->d_name, nameptr);
+
+out:
+	return fake_pdu.offset;
+}
+EXPORT_SYMBOL(p9dirent_read);

@@ -46,6 +46,13 @@ OPTIONS
 -B::
         print large numbers with thousands' separators according to locale
 
+-C::
+--cpu=::
+Count only on the list of cpus provided. Multiple CPUs can be provided as a
+comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode, this option is ignored. The -a option is still necessary
+to activate system-wide monitoring. Default is to count on all CPUs.
+
 EXAMPLES
 --------
 

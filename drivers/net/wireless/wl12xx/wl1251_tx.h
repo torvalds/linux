@@ -109,12 +109,12 @@ struct tx_control {
 	unsigned xfer_pad:1;
 
 	unsigned reserved:7;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct tx_double_buffer_desc {
 	/* Length of payload, including headers. */
-	u16 length;
+	__le16 length;
 
 	/*
 	 * A bit mask that specifies the initial rate to be used
@@ -133,10 +133,10 @@ struct tx_double_buffer_desc {
 	 * 0x0800 - 48Mbits
 	 * 0x1000 - 54Mbits
 	 */
-	u16 rate;
+	__le16 rate;
 
 	/* Time in us that a packet can spend in the target */
-	u32 expiry_time;
+	__le32 expiry_time;
 
 	/* index of the TX queue used for this packet */
 	u8 xmit_queue;
@@ -150,13 +150,13 @@ struct tx_double_buffer_desc {
 	 * The FW should cut the packet into fragments
 	 * of this size.
 	 */
-	u16 frag_threshold;
+	__le16 frag_threshold;
 
 	/* Numbers of HW queue blocks to be allocated */
 	u8 num_mem_blocks;
 
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	TX_SUCCESS              = 0,
@@ -208,7 +208,7 @@ struct tx_result {
 
 	/* See done_1 */
 	u8 done_2;
-} __attribute__ ((packed));
+} __packed;
 
 static inline int wl1251_tx_get_queue(int queue)
 {

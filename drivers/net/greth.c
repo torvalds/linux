@@ -1555,7 +1555,6 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	}
 
 	/* setup NAPI */
-	memset(&greth->napi, 0, sizeof(greth->napi));
 	netif_napi_add(dev, &greth->napi, greth_poll, 64);
 
 	return 0;

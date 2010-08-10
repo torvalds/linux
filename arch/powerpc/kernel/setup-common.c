@@ -94,6 +94,10 @@ struct screen_info screen_info = {
 	.orig_video_points = 16
 };
 
+/* Variables required to store legacy IO irq routing */
+int of_i8042_kbd_irq;
+int of_i8042_aux_irq;
+
 #ifdef __DO_IRQ_CANON
 /* XXX should go elsewhere eventually */
 int ppc_do_canonicalize_irqs;
@@ -575,6 +579,15 @@ int check_legacy_ioport(unsigned long base_port)
 			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
 		if (np) {
 			parent = of_get_parent(np);
+
+			of_i8042_kbd_irq = irq_of_parse_and_map(parent, 0);
+			if (!of_i8042_kbd_irq)
+				of_i8042_kbd_irq = 1;
+
+			of_i8042_aux_irq = irq_of_parse_and_map(parent, 1);
+			if (!of_i8042_aux_irq)
+				of_i8042_aux_irq = 12;
+
 			of_node_put(np);
 			np = parent;
 			break;
@@ -701,16 +714,9 @@ static struct notifier_block ppc_dflt_plat_bus_notifier = {
 	.priority = INT_MAX,
 };
 
-static struct notifier_block ppc_dflt_of_bus_notifier = {
-	.notifier_call = ppc_dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
 static int __init setup_bus_notifier(void)
 {
 	bus_register_notifier(&platform_bus_type, &ppc_dflt_plat_bus_notifier);
-	bus_register_notifier(&of_platform_bus_type, &ppc_dflt_of_bus_notifier);
-
 	return 0;
 }
 

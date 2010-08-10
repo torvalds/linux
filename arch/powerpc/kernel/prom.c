@@ -414,7 +414,7 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 	u64 base, size, memblock_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
-	ls = of_get_flat_dt_prop(node, "ibm,memblock-size", &l);
+	ls = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
 	if (ls == NULL || l < dt_root_size_cells * sizeof(__be32))
 		return 0;
 	memblock_size = dt_mem_next_cell(dt_root_size_cells, &ls);

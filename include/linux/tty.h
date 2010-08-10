@@ -552,6 +552,9 @@ static inline void tty_audit_push_task(struct task_struct *tsk,
 }
 #endif
 
+/* tty_io.c */
+extern int __init tty_init(void);
+
 /* tty_ioctl.c */
 extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg);

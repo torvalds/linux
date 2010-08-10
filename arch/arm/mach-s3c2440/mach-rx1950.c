@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/memblock.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/init.h>
@@ -570,12 +571,20 @@ static void __init rx1950_init_machine(void)
 	platform_add_devices(rx1950_devices, ARRAY_SIZE(rx1950_devices));
 }
 
+/* H1940 and RX3715 need to reserve this for suspend */
+static void __init rx1950_reserve(void)
+{
+	memblock_reserve(0x30003000, 0x1000);
+	memblock_reserve(0x30081000, 0x1000);
+}
+
 MACHINE_START(RX1950, "HP iPAQ RX1950")
     /* Maintainers: Vasily Khoruzhick */
     .phys_io = S3C2410_PA_UART,
 	.io_pg_offst = (((u32) S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params = S3C2410_SDRAM_PA + 0x100,
 	.map_io = rx1950_map_io,
+	.reserve	= rx1950_reserve,
 	.init_irq = s3c24xx_init_irq,
 	.init_machine = rx1950_init_machine,
 	.timer = &s3c24xx_timer,

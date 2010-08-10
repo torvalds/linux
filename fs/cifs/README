@@ -568,8 +568,9 @@ module can be displayed via modinfo.
 Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
-DebugData		Displays information about active CIFS sessions
-			and shares, as well as the cifs.ko version.
+DebugData		Displays information about active CIFS sessions and
+			shares, features enabled as well as the cifs.ko
+			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.

@@ -185,12 +185,9 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	},
 };
 
-void __init sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes)
+void __init sa1111_adjust_zones(unsigned long *size, unsigned long *holes)
 {
 	unsigned int sz = SZ_1M >> PAGE_SHIFT;
-
-	if (node != 0)
-		sz = 0;
 
 	size[1] = size[0] - sz;
 	size[0] = sz;
@@ -1028,13 +1025,12 @@ static int sa1111_remove(struct platform_device *pdev)
 	struct sa1111 *sachip = platform_get_drvdata(pdev);
 
 	if (sachip) {
-		__sa1111_remove(sachip);
-		platform_set_drvdata(pdev, NULL);
-
 #ifdef CONFIG_PM
 		kfree(sachip->saved_state);
 		sachip->saved_state = NULL;
 #endif
+		__sa1111_remove(sachip);
+		platform_set_drvdata(pdev, NULL);
 	}
 
 	return 0;

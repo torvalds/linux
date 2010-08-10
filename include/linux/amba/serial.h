@@ -38,10 +38,12 @@
 #define UART01x_FR		0x18	/* Flag register (Read only). */
 #define UART010_IIR		0x1C	/* Interrupt indentification register (Read). */
 #define UART010_ICR		0x1C	/* Interrupt clear register (Write). */
+#define ST_UART011_LCRH_RX	0x1C    /* Rx line control register. */
 #define UART01x_ILPR		0x20	/* IrDA low power counter register. */
 #define UART011_IBRD		0x24	/* Integer baud rate divisor register. */
 #define UART011_FBRD		0x28	/* Fractional baud rate divisor register. */
 #define UART011_LCRH		0x2c	/* Line control register. */
+#define ST_UART011_LCRH_TX	0x2c    /* Tx Line control register. */
 #define UART011_CR		0x30	/* Control register. */
 #define UART011_IFLS		0x34	/* Interrupt fifo level select. */
 #define UART011_IMSC		0x38	/* Interrupt mask. */
@@ -84,6 +86,7 @@
 #define UART010_CR_TIE 		0x0020
 #define UART010_CR_RIE 		0x0010
 #define UART010_CR_MSIE		0x0008
+#define ST_UART011_CR_OVSFACT	0x0008	/* Oversampling factor */
 #define UART01x_CR_IIRLP	0x0004	/* SIR low power mode */
 #define UART01x_CR_SIREN	0x0002	/* SIR enable */
 #define UART01x_CR_UARTEN	0x0001	/* UART enable */

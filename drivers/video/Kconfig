@@ -1505,7 +1505,7 @@ config FB_SIS_315
 
 config FB_VIA
        tristate "VIA UniChrome (Pro) and Chrome9 display support"
-       depends on FB && PCI
+       depends on FB && PCI && X86
        select FB_CFB_FILLRECT
        select FB_CFB_COPYAREA
        select FB_CFB_IMAGEBLIT
@@ -1871,6 +1871,7 @@ config FB_MBX_DEBUG
 config FB_FSL_DIU
 	tristate "Freescale DIU framebuffer support"
 	depends on FB && FSL_SOC
+	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2228,6 +2229,15 @@ config FB_BROADSHEET
 	  controller. The release name for this device was Epson S1D13521
 	  and could also have been called by other names when coupled with
 	  a bridge adapter.
+
+config FB_JZ4740
+	tristate "JZ4740 LCD framebuffer support"
+	depends on FB && MACH_JZ4740
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	help
+	  Framebuffer support for the JZ4740 SoC.
 
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"

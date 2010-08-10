@@ -47,15 +47,21 @@ enum rc_driver_type {
  *	is opened.
  * @close: callback to allow drivers to disable polling/irq when IR input device
  *	is opened.
+ * @s_tx_mask: set transmitter mask (for devices with multiple tx outputs)
+ * @s_tx_carrier: set transmit carrier frequency
+ * @tx_ir: transmit IR
  */
 struct ir_dev_props {
 	enum rc_driver_type	driver_type;
 	unsigned long		allowed_protos;
 	u32			scanmask;
-	void 			*priv;
+	void			*priv;
 	int			(*change_protocol)(void *priv, u64 ir_type);
 	int			(*open)(void *priv);
 	void			(*close)(void *priv);
+	int			(*s_tx_mask)(void *priv, u32 mask);
+	int			(*s_tx_carrier)(void *priv, u32 carrier);
+	int			(*tx_ir)(void *priv, int *txbuf, u32 n);
 };
 
 struct ir_input_dev {

@@ -1832,14 +1832,14 @@ static int __devinit snd_cs4231_sbus_create(struct snd_card *card,
 	chip->c_dma.request = sbus_dma_request;
 	chip->c_dma.address = sbus_dma_addr;
 
-	if (request_irq(op->irqs[0], snd_cs4231_sbus_interrupt,
+	if (request_irq(op->archdata.irqs[0], snd_cs4231_sbus_interrupt,
 			IRQF_SHARED, "cs4231", chip)) {
 		snd_printdd("cs4231-%d: Unable to grab SBUS IRQ %d\n",
-			    dev, op->irqs[0]);
+			    dev, op->archdata.irqs[0]);
 		snd_cs4231_sbus_free(chip);
 		return -EBUSY;
 	}
-	chip->irq[0] = op->irqs[0];
+	chip->irq[0] = op->archdata.irqs[0];
 
 	if (snd_cs4231_probe(chip) < 0) {
 		snd_cs4231_sbus_free(chip);
@@ -1870,7 +1870,7 @@ static int __devinit cs4231_sbus_probe(struct of_device *op, const struct of_dev
 		card->shortname,
 		rp->flags & 0xffL,
 		(unsigned long long)rp->start,
-		op->irqs[0]);
+		op->archdata.irqs[0]);
 
 	err = snd_cs4231_sbus_create(card, op, dev);
 	if (err < 0) {
@@ -1979,12 +1979,12 @@ static int __devinit snd_cs4231_ebus_create(struct snd_card *card,
 	chip->c_dma.ebus_info.flags = EBUS_DMA_FLAG_USE_EBDMA_HANDLER;
 	chip->c_dma.ebus_info.callback = snd_cs4231_ebus_capture_callback;
 	chip->c_dma.ebus_info.client_cookie = chip;
-	chip->c_dma.ebus_info.irq = op->irqs[0];
+	chip->c_dma.ebus_info.irq = op->archdata.irqs[0];
 	strcpy(chip->p_dma.ebus_info.name, "cs4231(play)");
 	chip->p_dma.ebus_info.flags = EBUS_DMA_FLAG_USE_EBDMA_HANDLER;
 	chip->p_dma.ebus_info.callback = snd_cs4231_ebus_play_callback;
 	chip->p_dma.ebus_info.client_cookie = chip;
-	chip->p_dma.ebus_info.irq = op->irqs[1];
+	chip->p_dma.ebus_info.irq = op->archdata.irqs[1];
 
 	chip->p_dma.prepare = _ebus_dma_prepare;
 	chip->p_dma.enable = _ebus_dma_enable;
@@ -2060,7 +2060,7 @@ static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_dev
 	sprintf(card->longname, "%s at 0x%llx, irq %d",
 		card->shortname,
 		op->resource[0].start,
-		op->irqs[0]);
+		op->archdata.irqs[0]);
 
 	err = snd_cs4231_ebus_create(card, op, dev);
 	if (err < 0) {
@@ -2120,12 +2120,12 @@ static struct of_platform_driver cs4231_driver = {
 
 static int __init cs4231_init(void)
 {
-	return of_register_driver(&cs4231_driver, &of_bus_type);
+	return of_register_platform_driver(&cs4231_driver);
 }
 
 static void __exit cs4231_exit(void)
 {
-	of_unregister_driver(&cs4231_driver);
+	of_unregister_platform_driver(&cs4231_driver);
 }
 
 module_init(cs4231_init);

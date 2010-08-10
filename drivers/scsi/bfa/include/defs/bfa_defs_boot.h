@@ -24,6 +24,8 @@
 
 enum {
 	BFA_BOOT_BOOTLUN_MAX = 4,	/*  maximum boot lun per IOC */
+	BFA_PREBOOT_BOOTLUN_MAX = 8,    /*  maximum preboot lun per IOC */
+
 };
 
 #define BOOT_CFG_REV1	1
@@ -67,5 +69,13 @@ struct bfa_boot_cfg_s {
 	struct bfa_boot_bootlun_s blun_disc[BFA_BOOT_BOOTLUN_MAX];
 };
 
+struct bfa_boot_pbc_s {
+	u8         enable;         /* enable/disable SAN boot */
+	u8         speed;          /* boot speed settings */
+	u8         topology;       /* boot topology setting */
+	u8         rsvd1;
+	u32        nbluns;         /* number of boot luns */
+	struct bfa_boot_bootlun_s pblun[BFA_PREBOOT_BOOTLUN_MAX];
+};
 
 #endif /* __BFA_DEFS_BOOT_H__ */

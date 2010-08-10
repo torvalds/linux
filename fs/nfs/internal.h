@@ -205,7 +205,8 @@ extern struct rpc_procinfo nfs4_procedures[];
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 
 /* dir.c */
-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
+extern int nfs_access_cache_shrinker(struct shrinker *shrink,
+					int nr_to_scan, gfp_t gfp_mask);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
@@ -369,10 +370,9 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
  * Helper for restarting RPC calls in the possible presence of NFSv4.1
  * sessions.
  */
-static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+static inline int nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp))
-		rpc_restart_call_prepare(task);
-	else
-		rpc_restart_call(task);
+		return rpc_restart_call_prepare(task);
+	return rpc_restart_call(task);
 }

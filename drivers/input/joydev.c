@@ -37,7 +37,6 @@ MODULE_LICENSE("GPL");
 #define JOYDEV_BUFFER_SIZE	64
 
 struct joydev {
-	int exist;
 	int open;
 	int minor;
 	struct input_handle handle;
@@ -46,6 +45,7 @@ struct joydev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
+	bool exist;
 
 	struct js_corr corr[ABS_CNT];
 	struct JS_DATA_SAVE_TYPE glue;
@@ -760,7 +760,7 @@ static void joydev_remove_chrdev(struct joydev *joydev)
 static void joydev_mark_dead(struct joydev *joydev)
 {
 	mutex_lock(&joydev->mutex);
-	joydev->exist = 0;
+	joydev->exist = false;
 	mutex_unlock(&joydev->mutex);
 }
 
@@ -817,10 +817,9 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	init_waitqueue_head(&joydev->wait);
 
 	dev_set_name(&joydev->dev, "js%d", minor);
-	joydev->exist = 1;
+	joydev->exist = true;
 	joydev->minor = minor;
 
-	joydev->exist = 1;
 	joydev->handle.dev = input_get_device(dev);
 	joydev->handle.name = dev_name(&joydev->dev);
 	joydev->handle.handler = handler;

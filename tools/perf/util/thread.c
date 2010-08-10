@@ -62,6 +62,13 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+void thread__delete(struct thread *self)
+{
+	map_groups__exit(&self->mg);
+	free(self->comm);
+	free(self);
+}
+
 int thread__set_comm(struct thread *self, const char *comm)
 {
 	int err;

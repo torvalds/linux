@@ -6,7 +6,7 @@
  * Copyright (C) 2000-2001 VERITAS Software Corporation.
  * Copyright (C) 2002-2004 Timesys Corporation
  * Copyright (C) 2003-2004 Amit S. Kale <amitkale@linsyssoft.com>
- * Copyright (C) 2004 Pavel Machek <pavel@suse.cz>
+ * Copyright (C) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2004-2006 Tom Rini <trini@kernel.crashing.org>
  * Copyright (C) 2004-2006 LinSysSoft Technologies Pvt. Ltd.
  * Copyright (C) 2005-2009 Wind River Systems, Inc.
@@ -605,13 +605,15 @@ cpu_master_loop:
 		if (dbg_kdb_mode) {
 			kgdb_connected = 1;
 			error = kdb_stub(ks);
+			if (error == -1)
+				continue;
+			kgdb_connected = 0;
 		} else {
 			error = gdb_serial_stub(ks);
 		}
 
 		if (error == DBG_PASS_EVENT) {
 			dbg_kdb_mode = !dbg_kdb_mode;
-			kgdb_connected = 0;
 		} else if (error == DBG_SWITCH_CPU_EVENT) {
 			dbg_cpu_switch(cpu, dbg_switch_cpu);
 			goto cpu_loop;

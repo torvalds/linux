@@ -232,7 +232,7 @@ EXPORT_SYMBOL(__bus_to_virt);
 
 unsigned long __pfn_to_bus(unsigned long pfn)
 {
-	return __pfn_to_phys(pfn) + (fb_bus_sdram_offset() - PHYS_OFFSET));
+	return __pfn_to_phys(pfn) + (fb_bus_sdram_offset() - PHYS_OFFSET);
 }
 EXPORT_SYMBOL(__pfn_to_bus);
 

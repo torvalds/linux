@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/gpio.h>
@@ -27,13 +23,13 @@
 #include <linux/usb/otg.h>
 
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 static unsigned int devboard_pins[] = {
@@ -56,7 +52,7 @@ static unsigned int devboard_pins[] = {
 	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -230,7 +226,7 @@ void __init mx31moboard_devboard_init(void)
 	mxc_iomux_setup_multiple_pins(devboard_pins, ARRAY_SIZE(devboard_pins),
 		"devboard");
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
 

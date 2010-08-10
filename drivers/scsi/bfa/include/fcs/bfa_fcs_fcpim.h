@@ -41,6 +41,7 @@ struct bfa_fcs_itnim_s {
 	struct bfa_fcs_s      	*fcs;		/*  fcs instance         */
 	struct bfa_timer_s 	timer;		/*  timer functions      */
 	struct bfa_itnim_s 	*bfa_itnim;	/*  BFA itnim struct     */
+	u32                	prli_retries;   /*  max prli retry attempts */
 	bfa_boolean_t	 	seq_rec;	/*  seq recovery support */
 	bfa_boolean_t	 	rec_support;	/*  REC supported        */
 	bfa_boolean_t	 	conf_comp;	/*  FCP_CONF     support */

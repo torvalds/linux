@@ -42,6 +42,7 @@
 #include "ivtv-yuv.h"
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
+#include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
 
 static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
@@ -674,12 +675,14 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	/* Decoder sometimes dies here, so wait a moment */
 	ivtv_msleep_timeout(10, 0);
 
-	return 0;
+	/* Known failure point for firmware, so check */
+	return ivtv_firmware_check(itv, "ivtv_setup_v4l2_decode_stream");
 }
 
 int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 {
 	struct ivtv *itv = s->itv;
+	int rc;
 
 	if (s->vdev == NULL)
 		return -EINVAL;
@@ -689,7 +692,11 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	IVTV_DEBUG_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
 
-	ivtv_setup_v4l2_decode_stream(s);
+	rc = ivtv_setup_v4l2_decode_stream(s);
+	if (rc < 0) {
+		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
+		return rc;
+	}
 
 	/* set dma size to 65536 bytes */
 	ivtv_vapi(itv, CX2341X_DEC_SET_DMA_BLOCK_SIZE, 1, 65536);

@@ -37,6 +37,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/personality.h>
 #include <linux/random.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -462,13 +463,41 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread);
 #else
+/*
+ * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
+ * schedule DABR
+ */
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
+
+#if defined(CONFIG_PPC_BOOK3E_64)
+	/* XXX Current Book3E code doesn't deal with kernel side DBCR0,
+	 * we always hold the user values, so we set it now.
+	 *
+	 * However, we ensure the kernel MSR:DE is appropriately cleared too
+	 * to avoid spurrious single step exceptions in the kernel.
+	 *
+	 * This will have to change to merge with the ppc32 code at some point,
+	 * but I don't like much what ppc32 is doing today so there's some
+	 * thinking needed there
+	 */
+	if ((new_thread->dbcr0 | old_thread->dbcr0) & DBCR0_IDM) {
+		u32 dbcr0;
+
+		mtmsr(mfmsr() & ~MSR_DE);
+		isync();
+		dbcr0 = mfspr(SPRN_DBCR0);
+		dbcr0 = (dbcr0 & DBCR0_EDM) | new_thread->dbcr0;
+		mtspr(SPRN_DBCR0, dbcr0);
+	}
+#endif /* CONFIG_PPC64_BOOK3E */
 
 #ifdef CONFIG_PPC64
 	/*
@@ -642,7 +671,11 @@ void flush_thread(void)
 {
 	discard_lazy_cpu_state();
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINTS
+	flush_ptrace_hw_breakpoint(current);
+#else /* CONFIG_HAVE_HW_BREAKPOINTS */
 	set_debug_reg_defaults(&current->thread);
+#endif /* CONFIG_HAVE_HW_BREAKPOINTS */
 }
 
 void
@@ -660,6 +693,9 @@ void prepare_to_copy(struct task_struct *tsk)
 	flush_altivec_to_thread(current);
 	flush_vsx_to_thread(current);
 	flush_spe_to_thread(current);
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	flush_ptrace_hw_breakpoint(tsk);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 
 /*
@@ -1263,3 +1299,14 @@ unsigned long randomize_et_dyn(unsigned long base)
 
 	return ret;
 }
+
+#ifdef CONFIG_SMP
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
+}
+#endif

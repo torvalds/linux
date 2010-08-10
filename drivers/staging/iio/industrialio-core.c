@@ -30,9 +30,6 @@
 
 /* IDR to assign each registered device a unique id*/
 static DEFINE_IDR(iio_idr);
-
-/* IDR for general event identifiers */
-static DEFINE_IDR(iio_event_idr);
 /* IDR to allocate character device minor numbers */
 static DEFINE_IDR(iio_chrdev_idr);
 /* Lock used to protect both of the above */
@@ -654,16 +651,11 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
 		dev_info->event_interfaces[i].owner = dev_info->driver_module;
-		ret = iio_get_new_idr_val(&iio_event_idr);
-		if (ret < 0)
-			goto error_free_setup_ev_ints;
-		else
-			dev_info->event_interfaces[i].id = ret;
 
 		snprintf(dev_info->event_interfaces[i]._name, 20,
 			 "%s:event%d",
 			 dev_name(&dev_info->dev),
-			 dev_info->event_interfaces[i].id);
+			 i);
 
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
 				       (const char *)(dev_info
@@ -674,8 +666,6 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Could not get chrdev interface\n");
-			iio_free_idr_val(&iio_event_idr,
-					 dev_info->event_interfaces[i].id);
 			goto error_free_setup_ev_ints;
 		}
 
@@ -711,11 +701,8 @@ error_remove_sysfs_interfaces:
 				   ->event_interfaces[j].dev.kobj,
 				   &dev_info->event_attrs[j]);
 error_free_setup_ev_ints:
-	for (j = 0; j < i; j++) {
-		iio_free_idr_val(&iio_event_idr,
-				 dev_info->event_interfaces[j].id);
+	for (j = 0; j < i; j++)
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
-	}
 	kfree(dev_info->interrupts);
 error_free_event_interfaces:
 	kfree(dev_info->event_interfaces);
@@ -735,11 +722,8 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 				   ->event_interfaces[i].dev.kobj,
 				   &dev_info->event_attrs[i]);
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		iio_free_idr_val(&iio_event_idr,
-				 dev_info->event_interfaces[i].id);
+	for (i = 0; i < dev_info->num_interrupt_lines; i++)
 		iio_free_ev_int(&dev_info->event_interfaces[i]);
-	}
 	kfree(dev_info->interrupts);
 	kfree(dev_info->event_interfaces);
 }

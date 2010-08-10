@@ -605,6 +605,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		case FBC_NOT_TILED:
 			seq_printf(m, "scanout buffer not tiled");
 			break;
+		case FBC_MULTIPLE_PIPES:
+			seq_printf(m, "multiple pipes are enabled");
+			break;
 		default:
 			seq_printf(m, "unknown reason");
 		}

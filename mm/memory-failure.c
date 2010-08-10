@@ -45,6 +45,7 @@
 #include <linux/page-isolation.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
+#include <linux/swapops.h>
 #include "internal.h"
 
 int sysctl_memory_failure_early_kill __read_mostly = 0;
@@ -1296,3 +1297,35 @@ done:
 	/* keep elevated page count for bad page */
 	return ret;
 }
+
+/*
+ * The caller must hold current->mm->mmap_sem in read mode.
+ */
+int is_hwpoison_address(unsigned long addr)
+{
+	pgd_t *pgdp;
+	pud_t pud, *pudp;
+	pmd_t pmd, *pmdp;
+	pte_t pte, *ptep;
+	swp_entry_t entry;
+
+	pgdp = pgd_offset(current->mm, addr);
+	if (!pgd_present(*pgdp))
+		return 0;
+	pudp = pud_offset(pgdp, addr);
+	pud = *pudp;
+	if (!pud_present(pud) || pud_large(pud))
+		return 0;
+	pmdp = pmd_offset(pudp, addr);
+	pmd = *pmdp;
+	if (!pmd_present(pmd) || pmd_large(pmd))
+		return 0;
+	ptep = pte_offset_map(pmdp, addr);
+	pte = *ptep;
+	pte_unmap(ptep);
+	if (!is_swap_pte(pte))
+		return 0;
+	entry = pte_to_swp_entry(pte);
+	return is_hwpoison_entry(entry);
+}
+EXPORT_SYMBOL_GPL(is_hwpoison_address);

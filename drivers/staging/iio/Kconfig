@@ -21,6 +21,7 @@ config IIO_RING_BUFFER
 if IIO_RING_BUFFER
 
 config IIO_SW_RING
+       select IIO_TRIGGER
 	tristate "Industrial I/O lock free software ring"
 	help
 	  Example software ring buffer implementation.  The design aim
@@ -44,6 +45,7 @@ source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/gyro/Kconfig"
 source "drivers/staging/iio/imu/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
+source "drivers/staging/iio/magnetometer/Kconfig"
 
 source "drivers/staging/iio/trigger/Kconfig"
 

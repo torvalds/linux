@@ -262,7 +262,7 @@ extern void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char
  * @lc: the lru cache to operate on
  *
  * Note that the reference counts and order on the active and lru lists may
- * still change.  Returns true if we aquired the lock.
+ * still change.  Returns true if we acquired the lock.
  */
 static inline int lc_try_lock(struct lru_cache *lc)
 {

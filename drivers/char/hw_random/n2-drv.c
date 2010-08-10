@@ -387,7 +387,7 @@ static int n2rng_init_control(struct n2rng *np)
 
 static int n2rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct n2rng *np = (struct n2rng *) rng->priv;
+	struct n2rng *np = rng->priv;
 	unsigned long ra = __pa(&np->test_data);
 	int len;
 
@@ -762,12 +762,12 @@ static struct of_platform_driver n2rng_driver = {
 
 static int __init n2rng_init(void)
 {
-	return of_register_driver(&n2rng_driver, &of_bus_type);
+	return of_register_platform_driver(&n2rng_driver);
 }
 
 static void __exit n2rng_exit(void)
 {
-	of_unregister_driver(&n2rng_driver);
+	of_unregister_platform_driver(&n2rng_driver);
 }
 
 module_init(n2rng_init);

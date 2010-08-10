@@ -69,7 +69,7 @@ static int pseries_remove_memory(struct device_node *np)
 	const char *type;
 	const unsigned int *regs;
 	unsigned long base;
-	unsigned int memblock_size;
+	unsigned int lmb_size;
 	int ret = -EINVAL;
 
 	/*
@@ -87,9 +87,9 @@ static int pseries_remove_memory(struct device_node *np)
 		return ret;
 
 	base = *(unsigned long *)regs;
-	memblock_size = regs[3];
+	lmb_size = regs[3];
 
-	ret = pseries_remove_memblock(base, memblock_size);
+	ret = pseries_remove_memblock(base, lmb_size);
 	return ret;
 }
 
@@ -98,7 +98,7 @@ static int pseries_add_memory(struct device_node *np)
 	const char *type;
 	const unsigned int *regs;
 	unsigned long base;
-	unsigned int memblock_size;
+	unsigned int lmb_size;
 	int ret = -EINVAL;
 
 	/*
@@ -116,36 +116,36 @@ static int pseries_add_memory(struct device_node *np)
 		return ret;
 
 	base = *(unsigned long *)regs;
-	memblock_size = regs[3];
+	lmb_size = regs[3];
 
 	/*
 	 * Update memory region to represent the memory add
 	 */
-	ret = memblock_add(base, memblock_size);
+	ret = memblock_add(base, lmb_size);
 	return (ret < 0) ? -EINVAL : 0;
 }
 
 static int pseries_drconf_memory(unsigned long *base, unsigned int action)
 {
 	struct device_node *np;
-	const unsigned long *memblock_size;
+	const unsigned long *lmb_size;
 	int rc;
 
 	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!np)
 		return -EINVAL;
 
-	memblock_size = of_get_property(np, "ibm,memblock-size", NULL);
-	if (!memblock_size) {
+	lmb_size = of_get_property(np, "ibm,lmb-size", NULL);
+	if (!lmb_size) {
 		of_node_put(np);
 		return -EINVAL;
 	}
 
 	if (action == PSERIES_DRCONF_MEM_ADD) {
-		rc = memblock_add(*base, *memblock_size);
+		rc = memblock_add(*base, *lmb_size);
 		rc = (rc < 0) ? -EINVAL : 0;
 	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
-		rc = pseries_remove_memblock(*base, *memblock_size);
+		rc = pseries_remove_memblock(*base, *lmb_size);
 	} else {
 		rc = -EINVAL;
 	}

@@ -29,6 +29,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "fscache.h"
 
 
 static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
@@ -288,7 +289,7 @@ int cifs_get_file_info_unix(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+	struct cifsFileInfo *cfile = filp->private_data;
 
 	xid = GetXid();
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -515,7 +516,7 @@ int cifs_get_file_info(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+	struct cifsFileInfo *cfile = filp->private_data;
 
 	xid = GetXid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -723,18 +724,17 @@ cifs_find_inode(struct inode *inode, void *opaque)
 {
 	struct cifs_fattr *fattr = (struct cifs_fattr *) opaque;
 
+	/* don't match inode with different uniqueid */
 	if (CIFS_I(inode)->uniqueid != fattr->cf_uniqueid)
 		return 0;
 
-	/*
-	 * uh oh -- it's a directory. We can't use it since hardlinked dirs are
-	 * verboten. Disable serverino and return it as if it were found, the
-	 * caller can discard it, generate a uniqueid and retry the find
-	 */
-	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry)) {
+	/* don't match inode of different type */
+	if ((inode->i_mode & S_IFMT) != (fattr->cf_mode & S_IFMT))
+		return 0;
+
+	/* if it's not a directory or has no dentries, then flag it */
+	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry))
 		fattr->cf_flags |= CIFS_FATTR_INO_COLLISION;
-		cifs_autodisable_serverino(CIFS_SB(inode->i_sb));
-	}
 
 	return 1;
 }
@@ -746,6 +746,27 @@ cifs_init_inode(struct inode *inode, void *opaque)
 
 	CIFS_I(inode)->uniqueid = fattr->cf_uniqueid;
 	return 0;
+}
+
+/*
+ * walk dentry list for an inode and report whether it has aliases that
+ * are hashed. We use this to determine if a directory inode can actually
+ * be used.
+ */
+static bool
+inode_has_hashed_dentries(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
+			spin_unlock(&dcache_lock);
+			return true;
+		}
+	}
+	spin_unlock(&dcache_lock);
+	return false;
 }
 
 /* Given fattrs, get a corresponding inode */
@@ -763,12 +784,16 @@ retry_iget5_locked:
 
 	inode = iget5_locked(sb, hash, cifs_find_inode, cifs_init_inode, fattr);
 	if (inode) {
-		/* was there a problematic inode number collision? */
+		/* was there a potentially problematic inode collision? */
 		if (fattr->cf_flags & CIFS_FATTR_INO_COLLISION) {
-			iput(inode);
-			fattr->cf_uniqueid = iunique(sb, ROOT_I);
 			fattr->cf_flags &= ~CIFS_FATTR_INO_COLLISION;
-			goto retry_iget5_locked;
+
+			if (inode_has_hashed_dentries(inode)) {
+				cifs_autodisable_serverino(CIFS_SB(sb));
+				iput(inode);
+				fattr->cf_uniqueid = iunique(sb, ROOT_I);
+				goto retry_iget5_locked;
+			}
 		}
 
 		cifs_fattr_to_inode(inode, fattr);
@@ -776,6 +801,10 @@ retry_iget5_locked:
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
 		if (inode->i_state & I_NEW) {
 			inode->i_ino = hash;
+#ifdef CONFIG_CIFS_FSCACHE
+			/* initialize per-inode cache cookie pointer */
+			CIFS_I(inode)->fscache = NULL;
+#endif
 			unlock_new_inode(inode);
 		}
 	}
@@ -806,6 +835,11 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
+
+#ifdef CONFIG_CIFS_FSCACHE
+	/* populate tcon->resource_id */
+	cifs_sb->tcon->resource_id = CIFS_I(inode)->uniqueid;
+#endif
 
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, "ipc connection - fake read inode");
@@ -1568,6 +1602,7 @@ cifs_invalidate_mapping(struct inode *inode)
 			cifs_i->write_behind_rc = rc;
 	}
 	invalidate_remote_inode(inode);
+	cifs_fscache_reset_inode_cookie(inode);
 }
 
 int cifs_revalidate_file(struct file *filp)

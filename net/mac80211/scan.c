@@ -114,6 +114,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss->dtim_period = tim_ie->dtim_period;
 	}
 
+	/* If the beacon had no TIM IE, or it was invalid, use 1 */
+	if (beacon && !bss->dtim_period)
+		bss->dtim_period = 1;
+
 	/* replace old supported rates if we get new values */
 	srlen = 0;
 	if (elems->supp_rates) {
@@ -734,7 +738,7 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
-	enum nl80211_band band;
+	enum ieee80211_band band;
 
 	mutex_lock(&local->scan_mtx);
 

@@ -70,6 +70,18 @@ endmenu
 
 menu "Timer and clock configuration"
 
+config SHMOBILE_TIMER_HZ
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	default "128"
+	help
+	  Allows the configuration of the timer frequency. It is customary
+	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
+	  case of low timer frequencies other values may be more suitable.
+	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
+	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  A HZ value that does not divide evenly may cause timer drift.
+
 config SH_TIMER_CMT
 	bool "CMT timer driver"
 	default y

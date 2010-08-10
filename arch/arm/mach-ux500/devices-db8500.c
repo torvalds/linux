@@ -65,7 +65,7 @@ struct amba_device u8500_ssp0_device = {
 		.end   = U8500_SSP0_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_SSP0, NO_IRQ },
+	.irq = {IRQ_DB8500_SSP0, NO_IRQ },
 	/* ST-Ericsson modified id */
 	.periphid = SSP_PER_ID,
 };
@@ -77,8 +77,8 @@ static struct resource u8500_i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_I2C0,
-		.end	= IRQ_I2C0,
+		.start	= IRQ_DB8500_I2C0,
+		.end	= IRQ_DB8500_I2C0,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -97,8 +97,8 @@ static struct resource u8500_i2c4_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_I2C4,
-		.end	= IRQ_I2C4,
+		.start	= IRQ_DB8500_I2C4,
+		.end	= IRQ_DB8500_I2C4,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -130,8 +130,8 @@ static struct resource dma40_resources[] = {
 		.name = "lcla",
 	},
 	[3] = {
-		.start = IRQ_DMA,
-		.end = IRQ_DMA,
+		.start = IRQ_DB8500_DMA,
+		.end   = IRQ_DB8500_DMA,
 		.flags = IORESOURCE_IRQ}
 };
 

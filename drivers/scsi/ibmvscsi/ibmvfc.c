@@ -504,12 +504,23 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 		if (vhost->action == IBMVFC_HOST_ACTION_ALLOC_TGTS)
 			vhost->action = action;
 		break;
-	case IBMVFC_HOST_ACTION_LOGO:
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
+		switch (vhost->action) {
+		case IBMVFC_HOST_ACTION_RESET:
+		case IBMVFC_HOST_ACTION_REENABLE:
+			break;
+		default:
+			vhost->action = action;
+			break;
+		};
+		break;
+	case IBMVFC_HOST_ACTION_LOGO:
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 	case IBMVFC_HOST_ACTION_NONE:
+	case IBMVFC_HOST_ACTION_RESET:
+	case IBMVFC_HOST_ACTION_REENABLE:
 	default:
 		vhost->action = action;
 		break;
@@ -641,7 +652,7 @@ static int ibmvfc_send_crq_init_complete(struct ibmvfc_host *vhost)
  **/
 static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 {
-	long rc;
+	long rc = 0;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	struct ibmvfc_crq_queue *crq = &vhost->crq;
 
@@ -649,6 +660,8 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 	free_irq(vdev->irq, vhost);
 	tasklet_kill(&vhost->tasklet);
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
@@ -667,11 +680,13 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
  **/
 static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
 {
-	int rc;
+	int rc = 0;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 
 	/* Re-enable the CRQ */
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
 	} while (rc == H_IN_PROGRESS || rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
@@ -690,15 +705,19 @@ static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
  **/
 static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 {
-	int rc;
+	int rc = 0;
+	unsigned long flags;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	struct ibmvfc_crq_queue *crq = &vhost->crq;
 
 	/* Close the CRQ */
 	do {
+		if (rc)
+			msleep(100);
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
+	spin_lock_irqsave(vhost->host->host_lock, flags);
 	vhost->state = IBMVFC_NO_CRQ;
 	vhost->logged_in = 0;
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
@@ -716,6 +735,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 		dev_warn(vhost->dev, "Partner adapter not ready\n");
 	else if (rc != 0)
 		dev_warn(vhost->dev, "Couldn't register crq (rc=%d)\n", rc);
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
 	return rc;
 }
@@ -821,17 +841,9 @@ static void ibmvfc_purge_requests(struct ibmvfc_host *vhost, int error_code)
  **/
 static void ibmvfc_hard_reset_host(struct ibmvfc_host *vhost)
 {
-	int rc;
-
-	scsi_block_requests(vhost->host);
 	ibmvfc_purge_requests(vhost, DID_ERROR);
-	if ((rc = ibmvfc_reset_crq(vhost)) ||
-	    (rc = ibmvfc_send_crq_init(vhost)) ||
-	    (rc = vio_enable_interrupts(to_vio_dev(vhost->dev)))) {
-		dev_err(vhost->dev, "Error after reset rc=%d\n", rc);
-		ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-	} else
-		ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+	ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_RESET);
 }
 
 /**
@@ -2299,6 +2311,7 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 	int rc = FAILED;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
 	abort_rc = ibmvfc_abort_task_set(sdev);
@@ -2325,6 +2338,7 @@ static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	int rc = FAILED;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_LUN_RESET);
 	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_LUN_RESET, "LUN");
@@ -2389,6 +2403,7 @@ static int ibmvfc_eh_target_reset_handler(struct scsi_cmnd *cmd)
 	unsigned long cancel_rc = 0;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_reset);
 	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_TARGET_RESET, "target");
@@ -2410,6 +2425,7 @@ static int ibmvfc_eh_host_reset_handler(struct scsi_cmnd *cmd)
 	int rc;
 	struct ibmvfc_host *vhost = shost_priv(cmd->device->host);
 
+	fc_block_scsi_eh(cmd);
 	dev_err(vhost->dev, "Resetting connection due to error recovery\n");
 	rc = ibmvfc_issue_fc_host_lip(vhost->host);
 	return rc ? FAILED : SUCCESS;
@@ -2606,22 +2622,13 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 			dev_info(vhost->dev, "Re-enabling adapter\n");
 			vhost->client_migrated = 1;
 			ibmvfc_purge_requests(vhost, DID_REQUEUE);
-			if ((rc = ibmvfc_reenable_crq_queue(vhost)) ||
-			    (rc = ibmvfc_send_crq_init(vhost))) {
-				ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-				dev_err(vhost->dev, "Error after enable (rc=%ld)\n", rc);
-			} else
-				ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_REENABLE);
 		} else {
 			dev_err(vhost->dev, "Virtual adapter failed (rc=%d)\n", crq->format);
-
 			ibmvfc_purge_requests(vhost, DID_ERROR);
-			if ((rc = ibmvfc_reset_crq(vhost)) ||
-			    (rc = ibmvfc_send_crq_init(vhost))) {
-				ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-				dev_err(vhost->dev, "Error after reset (rc=%ld)\n", rc);
-			} else
-				ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_RESET);
 		}
 		return;
 	case IBMVFC_CRQ_CMD_RSP:
@@ -4123,6 +4130,8 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 	case IBMVFC_HOST_ACTION_QUERY:
+	case IBMVFC_HOST_ACTION_RESET:
+	case IBMVFC_HOST_ACTION_REENABLE:
 	default:
 		break;
 	};
@@ -4220,6 +4229,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	struct ibmvfc_target *tgt;
 	unsigned long flags;
 	struct fc_rport *rport;
+	int rc;
 
 	ibmvfc_log_ae(vhost, vhost->events_to_log);
 	spin_lock_irqsave(vhost->host->host_lock, flags);
@@ -4228,6 +4238,27 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_NONE:
 	case IBMVFC_HOST_ACTION_LOGO_WAIT:
 	case IBMVFC_HOST_ACTION_INIT_WAIT:
+		break;
+	case IBMVFC_HOST_ACTION_RESET:
+		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		rc = ibmvfc_reset_crq(vhost);
+		spin_lock_irqsave(vhost->host->host_lock, flags);
+		if (rc || (rc = ibmvfc_send_crq_init(vhost)) ||
+		    (rc = vio_enable_interrupts(to_vio_dev(vhost->dev)))) {
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+			dev_err(vhost->dev, "Error after reset (rc=%d)\n", rc);
+		}
+		break;
+	case IBMVFC_HOST_ACTION_REENABLE:
+		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		rc = ibmvfc_reenable_crq_queue(vhost);
+		spin_lock_irqsave(vhost->host->host_lock, flags);
+		if (rc || (rc = ibmvfc_send_crq_init(vhost))) {
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+			dev_err(vhost->dev, "Error after enable (rc=%d)\n", rc);
+		}
 		break;
 	case IBMVFC_HOST_ACTION_LOGO:
 		vhost->job_step(vhost);

@@ -407,7 +407,7 @@ static int display_close(struct inode *inode, struct file *file)
 	struct imon_context *ictx = NULL;
 	int retval = 0;
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 
 	if (!ictx) {
 		err("%s: no context for device", __func__);
@@ -812,7 +812,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 	const unsigned char vfd_packet6[] = {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 	if (!ictx) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;
@@ -896,7 +896,7 @@ static ssize_t lcd_write(struct file *file, const char *buf,
 	int retval = 0;
 	struct imon_context *ictx;
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 	if (!ictx) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;
@@ -1943,7 +1943,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	return ictx;
 
 urb_submit_failed:
-	input_unregister_device(ictx->idev);
+	ir_input_unregister(ictx->idev);
 	input_free_device(ictx->idev);
 idev_setup_failed:
 find_endpoint_failed:
@@ -2067,6 +2067,7 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 		detected_display_type = IMON_DISPLAY_TYPE_VFD;
 		break;
 	/* iMON LCD, MCE IR */
+	case 0x9e:
 	case 0x9f:
 		dev_info(ictx->dev, "0xffdc iMON LCD, MCE IR");
 		detected_display_type = IMON_DISPLAY_TYPE_LCD;
@@ -2306,7 +2307,7 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 	if (ifnum == 0) {
 		ictx->dev_present_intf0 = false;
 		usb_kill_urb(ictx->rx_urb_intf0);
-		input_unregister_device(ictx->idev);
+		ir_input_unregister(ictx->idev);
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);

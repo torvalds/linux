@@ -258,14 +258,6 @@ config SERIAL_8250_ACORN
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
-config SERIAL_8250_AU1X00
-	bool "Au1x00 serial port support"
-	depends on SERIAL_8250 != n && SOC_AU1X00
-	help
-	  If you have an Au1x00 SOC based board and want to use the serial port,
-	  say Y to this option. The driver can handle up to 4 serial ports,
-	  depending on the SOC. If unsure, say N.
-
 config SERIAL_8250_RM9K
 	bool "Support for MIPS RM9xxx integrated serial port"
 	depends on SERIAL_8250 != n && SERIAL_RM9000

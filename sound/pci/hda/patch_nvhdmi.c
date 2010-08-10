@@ -202,8 +202,7 @@ static int nvhdmi_dig_playback_pcm_prepare_8ch_89(struct hda_pcm_stream *hinfo,
 
 	hdmi_setup_audio_infoframe(codec, hinfo->nid, substream);
 
-	hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
-	return 0;
+	return hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
 }
 
 static int nvhdmi_dig_playback_pcm_prepare_8ch(struct hda_pcm_stream *hinfo,
@@ -478,6 +477,7 @@ static int patch_nvhdmi_8ch_89(struct hda_codec *codec)
 
 	codec->spec = spec;
 	spec->codec_type = HDA_CODEC_NVIDIA_MCP89;
+	spec->old_pin_detect = 1;
 
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;
@@ -508,6 +508,7 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	spec->multiout.max_channels = 8;
 	spec->multiout.dig_out_nid = nvhdmi_master_con_nid_7x;
 	spec->codec_type = HDA_CODEC_NVIDIA_MCP7X;
+	spec->old_pin_detect = 1;
 
 	codec->patch_ops = nvhdmi_patch_ops_8ch_7x;
 
@@ -528,6 +529,7 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
 	spec->multiout.max_channels = 2;
 	spec->multiout.dig_out_nid = nvhdmi_master_con_nid_7x;
 	spec->codec_type = HDA_CODEC_NVIDIA_MCP7X;
+	spec->old_pin_detect = 1;
 
 	codec->patch_ops = nvhdmi_patch_ops_2ch;
 

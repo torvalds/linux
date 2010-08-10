@@ -739,6 +739,12 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 */
 	ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
 
+	/* Do Tx IQ Calibration */
+	ar9003_hw_tx_iq_cal(ah);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+	udelay(5);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+
 	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
@@ -752,10 +758,6 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			  "complete in 1ms; noisy environment?\n");
 		return false;
 	}
-
-	/* Do Tx IQ Calibration */
-	if (ah->config.tx_iq_calibration)
-		ar9003_hw_tx_iq_cal(ah);
 
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);

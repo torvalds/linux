@@ -698,6 +698,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp)
 		newsk = NULL;
 		goto out;
 	}
+	kfree_skb(oskb);
 
 	sock_hold(sk);
 	pep_sk(newsk)->listener = sk;

@@ -135,7 +135,7 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 /**
- * vxfs_read_super - read superblock into memory and initalize filesystem
+ * vxfs_read_super - read superblock into memory and initialize filesystem
  * @sbp:		VFS superblock (to fill)
  * @dp:			fs private mount data
  * @silent:		do not complain loudly when sth is wrong

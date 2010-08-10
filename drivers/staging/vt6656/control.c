@@ -72,7 +72,7 @@ void ControlvWriteByte(PSDevice pDevice, BYTE byRegType, BYTE byRegOfs,
 void ControlvReadByte(PSDevice pDevice, BYTE byRegType, BYTE byRegOfs,
 			PBYTE pbyData)
 {
-	NTSTATUS	ntStatus;
+	int ntStatus;
 	BYTE	byData1;
 	ntStatus = CONTROLnsRequestIn(pDevice,
 					MESSAGE_TYPE_READ,

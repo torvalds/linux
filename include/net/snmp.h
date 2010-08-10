@@ -47,15 +47,16 @@ struct snmp_mib {
 }
 
 /*
- * We use all unsigned longs. Linux will soon be so reliable that even 
- * these will rapidly get too small 8-). Seriously consider the IpInReceives 
- * count on the 20Gb/s + networks people expect in a few years time!
+ * We use unsigned longs for most mibs but u64 for ipstats.
  */
+#include <linux/u64_stats_sync.h>
 
 /* IPstats */
 #define IPSTATS_MIB_MAX	__IPSTATS_MIB_MAX
 struct ipstats_mib {
-	unsigned long	mibs[IPSTATS_MIB_MAX];
+	/* mibs[] must be first field of struct ipstats_mib */
+	u64		mibs[IPSTATS_MIB_MAX];
+	struct u64_stats_sync syncp;
 };
 
 /* ICMP */
@@ -155,4 +156,70 @@ struct linux_xfrm_mib {
 		ptr->mibs[basefield##PKTS]++; \
 		ptr->mibs[basefield##OCTETS] += addend;\
 	} while (0)
+
+
+#if BITS_PER_LONG==32
+
+#define SNMP_ADD_STATS64_BH(mib, field, addend) 			\
+	do {								\
+		__typeof__(*mib[0]) *ptr = __this_cpu_ptr((mib)[0]);	\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->mibs[field] += addend;				\
+		u64_stats_update_end(&ptr->syncp);			\
+	} while (0)
+#define SNMP_ADD_STATS64_USER(mib, field, addend) 			\
+	do {								\
+		__typeof__(*mib[0]) *ptr;				\
+		preempt_disable();					\
+		ptr = __this_cpu_ptr((mib)[1]);				\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->mibs[field] += addend;				\
+		u64_stats_update_end(&ptr->syncp);			\
+		preempt_enable();					\
+	} while (0)
+#define SNMP_ADD_STATS64(mib, field, addend)				\
+	do {								\
+		__typeof__(*mib[0]) *ptr;				\
+		preempt_disable();					\
+		ptr = __this_cpu_ptr((mib)[!in_softirq()]);		\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->mibs[field] += addend;				\
+		u64_stats_update_end(&ptr->syncp);			\
+		preempt_enable();					\
+	} while (0)
+#define SNMP_INC_STATS64_BH(mib, field) SNMP_ADD_STATS64_BH(mib, field, 1)
+#define SNMP_INC_STATS64_USER(mib, field) SNMP_ADD_STATS64_USER(mib, field, 1)
+#define SNMP_INC_STATS64(mib, field) SNMP_ADD_STATS64(mib, field, 1)
+#define SNMP_UPD_PO_STATS64(mib, basefield, addend)			\
+	do {								\
+		__typeof__(*mib[0]) *ptr;				\
+		preempt_disable();					\
+		ptr = __this_cpu_ptr((mib)[!in_softirq()]);		\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->mibs[basefield##PKTS]++;				\
+		ptr->mibs[basefield##OCTETS] += addend;			\
+		u64_stats_update_end(&ptr->syncp);			\
+		preempt_enable();					\
+	} while (0)
+#define SNMP_UPD_PO_STATS64_BH(mib, basefield, addend)			\
+	do {								\
+		__typeof__(*mib[0]) *ptr;				\
+		ptr = __this_cpu_ptr((mib)[!in_softirq()]);		\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->mibs[basefield##PKTS]++;				\
+		ptr->mibs[basefield##OCTETS] += addend;			\
+		u64_stats_update_end(&ptr->syncp);			\
+	} while (0)
+#else
+#define SNMP_INC_STATS64_BH(mib, field)		SNMP_INC_STATS_BH(mib, field)
+#define SNMP_INC_STATS64_USER(mib, field)	SNMP_INC_STATS_USER(mib, field)
+#define SNMP_INC_STATS64(mib, field)		SNMP_INC_STATS(mib, field)
+#define SNMP_DEC_STATS64(mib, field)		SNMP_DEC_STATS(mib, field)
+#define SNMP_ADD_STATS64_BH(mib, field, addend) SNMP_ADD_STATS_BH(mib, field, addend)
+#define SNMP_ADD_STATS64_USER(mib, field, addend) SNMP_ADD_STATS_USER(mib, field, addend)
+#define SNMP_ADD_STATS64(mib, field, addend)	SNMP_ADD_STATS(mib, field, addend)
+#define SNMP_UPD_PO_STATS64(mib, basefield, addend) SNMP_UPD_PO_STATS(mib, basefield, addend)
+#define SNMP_UPD_PO_STATS64_BH(mib, basefield, addend) SNMP_UPD_PO_STATS_BH(mib, basefield, addend)
+#endif
+
 #endif
