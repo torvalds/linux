@@ -1196,7 +1196,7 @@ config LOCAL_TIMERS
 		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
 		ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_TEGRA)
 	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || \\
+	select HAVE_ARM_TWD if ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || \\
 		ARCH_U8500 || ARCH_TEGRA
 	help
 	  Enable support for local timers on SMP platforms, rather then the
