@@ -52,6 +52,20 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
 	return 0;
 }
 
+static struct task_struct *find_lock_task_mm(struct task_struct *p)
+{
+	struct task_struct *t = p;
+
+	do {
+		task_lock(t);
+		if (likely(t->mm))
+			return t;
+		task_unlock(t);
+	} while_each_thread(p, t);
+
+	return NULL;
+}
+
 /**
  * badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
@@ -74,8 +88,8 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
 unsigned long badness(struct task_struct *p, unsigned long uptime)
 {
 	unsigned long points, cpu_time, run_time;
-	struct mm_struct *mm;
 	struct task_struct *child;
+	struct task_struct *c, *t;
 	int oom_adj = p->signal->oom_adj;
 	struct task_cputime task_time;
 	unsigned long utime;
@@ -84,17 +98,14 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	if (oom_adj == OOM_DISABLE)
 		return 0;
 
-	task_lock(p);
-	mm = p->mm;
-	if (!mm) {
-		task_unlock(p);
+	p = find_lock_task_mm(p);
+	if (!p)
 		return 0;
-	}
 
 	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
-	points = mm->total_vm;
+	points = p->mm->total_vm;
 
 	/*
 	 * After this unlock we can no longer dereference local variable `mm'
@@ -115,12 +126,17 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	 * child is eating the vast majority of memory, adding only half
 	 * to the parents will make the child our kill candidate of choice.
 	 */
-	list_for_each_entry(child, &p->children, sibling) {
-		task_lock(child);
-		if (child->mm != mm && child->mm)
-			points += child->mm->total_vm/2 + 1;
-		task_unlock(child);
-	}
+	t = p;
+	do {
+		list_for_each_entry(c, &t->children, sibling) {
+			child = find_lock_task_mm(c);
+			if (child) {
+				if (child->mm != p->mm)
+					points += child->mm->total_vm/2 + 1;
+				task_unlock(child);
+			}
+		}
+	} while_each_thread(p, t);
 
 	/*
 	 * CPU time is in tens of seconds and run time is in thousands
@@ -256,9 +272,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 	for_each_process(p) {
 		unsigned long points;
 
-		/* skip tasks that have already released their mm */
-		if (!p->mm)
-			continue;
 		/* skip the init task and kthreads */
 		if (is_global_init(p) || (p->flags & PF_KTHREAD))
 			continue;
@@ -385,14 +398,9 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 		return;
 	}
 
-	task_lock(p);
-	if (!p->mm) {
-		WARN_ON(1);
-		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
-			task_pid_nr(p), p->comm);
-		task_unlock(p);
+	p = find_lock_task_mm(p);
+	if (!p)
 		return;
-	}
 
 	if (verbose)
 		printk(KERN_ERR "Killed process %d (%s) "
@@ -437,6 +445,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			    const char *message)
 {
 	struct task_struct *c;
+	struct task_struct *t = p;
 
 	if (printk_ratelimit())
 		dump_header(p, gfp_mask, order, mem);
@@ -454,14 +463,17 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 					message, task_pid_nr(p), p->comm, points);
 
 	/* Try to kill a child first */
-	list_for_each_entry(c, &p->children, sibling) {
-		if (c->mm == p->mm)
-			continue;
-		if (mem && !task_in_mem_cgroup(c, mem))
-			continue;
-		if (!oom_kill_task(c))
-			return 0;
-	}
+	do {
+		list_for_each_entry(c, &t->children, sibling) {
+			if (c->mm == p->mm)
+				continue;
+			if (mem && !task_in_mem_cgroup(c, mem))
+				continue;
+			if (!oom_kill_task(c))
+				return 0;
+		}
+	} while_each_thread(p, t);
+
 	return oom_kill_task(p);
 }
 
