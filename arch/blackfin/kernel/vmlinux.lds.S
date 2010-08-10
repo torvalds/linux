@@ -48,15 +48,10 @@ SECTIONS
 #if !L1_CODE_LENGTH
 		*(.l1.text)
 #endif
-
-		. = ALIGN(16);
-		___start___ex_table = .;
-		*(__ex_table)
-		___stop___ex_table = .;
-
 		__etext = .;
 	}
 
+	EXCEPTION_TABLE(4)
 	NOTES
 
 	/* Just in case the first read only is a 32-bit access */
