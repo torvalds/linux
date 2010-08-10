@@ -284,8 +284,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
  * (not docbooked, we don't want this one cluttering up the manual)
  */
 static struct task_struct *select_bad_process(unsigned long *ppoints,
-		struct mem_cgroup *mem, enum oom_constraint constraint,
-		const nodemask_t *mask)
+		struct mem_cgroup *mem, const nodemask_t *nodemask)
 {
 	struct task_struct *p;
 	struct task_struct *chosen = NULL;
@@ -301,9 +300,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 			continue;
 		if (mem && !task_in_mem_cgroup(p, mem))
 			continue;
-		if (!has_intersects_mems_allowed(p,
-				constraint == CONSTRAINT_MEMORY_POLICY ? mask :
-									 NULL))
+		if (!has_intersects_mems_allowed(p, nodemask))
 			continue;
 
 		/*
@@ -518,7 +515,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0);
 	read_lock(&tasklist_lock);
 retry:
-	p = select_bad_process(&points, mem, CONSTRAINT_MEMCG, NULL);
+	p = select_bad_process(&points, mem, NULL);
 	if (!p || PTR_ERR(p) == -1UL)
 		goto out;
 
@@ -635,8 +632,7 @@ static void clear_system_oom(void)
 /*
  * Must be called with tasklist_lock held for read.
  */
-static void __out_of_memory(gfp_t gfp_mask, int order,
-			enum oom_constraint constraint, const nodemask_t *mask)
+static void __out_of_memory(gfp_t gfp_mask, int order, const nodemask_t *mask)
 {
 	struct task_struct *p;
 	unsigned long points;
@@ -650,7 +646,7 @@ retry:
 	 * Rambo mode: Shoot down a process and hope it solves whatever
 	 * issues we may have.
 	 */
-	p = select_bad_process(&points, NULL, constraint, mask);
+	p = select_bad_process(&points, NULL, mask);
 
 	if (PTR_ERR(p) == -1UL)
 		return;
@@ -708,7 +704,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
 	check_panic_on_oom(constraint, gfp_mask, order);
 	read_lock(&tasklist_lock);
-	__out_of_memory(gfp_mask, order, constraint, nodemask);
+	__out_of_memory(gfp_mask, order,
+			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
+								 NULL);
 	read_unlock(&tasklist_lock);
 
 	/*
