@@ -1454,6 +1454,13 @@ sub process {
 			WARN("please, no space before tabs\n" . $herevet);
 		}
 
+# check for spaces at the beginning of a line.
+		if ($rawline =~ /^\+ / && $rawline !~ /\+ +\*/)  {
+			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
+			WARN("please, no space for starting a line, \
+				excluding comments\n" . $herevet);
+		}
+
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c)$/);
 
