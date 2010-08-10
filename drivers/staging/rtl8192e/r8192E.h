@@ -1505,7 +1505,6 @@ void rtl8187_set_rxconf(struct net_device *dev);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-void CamPrintDbgReg(struct net_device* dev);
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern void firmware_init_param(struct net_device *dev);
 extern RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);

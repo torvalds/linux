@@ -6896,26 +6896,6 @@ void setKey(	struct net_device *dev,
 	}
 	RT_TRACE(COMP_SEC,"=========>after set key, usconfig:%x\n", usConfig);
 }
-// This function seems not ready! WB
-void CamPrintDbgReg(struct net_device* dev)
-{
-	unsigned long rvalue;
-	unsigned char ucValue;
-	write_nic_dword(dev, DCAM, 0x80000000);
-	msleep(40);
-	rvalue = read_nic_dword(dev, DCAM);	//delay_ms(40);
-	RT_TRACE(COMP_SEC, " TX CAM=%8lX ",rvalue);
-	if((rvalue & 0x40000000) != 0x4000000)
-		RT_TRACE(COMP_SEC, "-->TX Key Not Found      ");
-	msleep(20);
-	write_nic_dword(dev, DCAM, 0x00000000);	//delay_ms(40);
-	rvalue = read_nic_dword(dev, DCAM);	//delay_ms(40);
-	RT_TRACE(COMP_SEC, "RX CAM=%8lX ",rvalue);
-	if((rvalue & 0x40000000) != 0x4000000)
-		RT_TRACE(COMP_SEC, "-->CAM Key Not Found   ");
-	ucValue = read_nic_byte(dev, SECR);
-	RT_TRACE(COMP_SEC, "WPA_Config=%x \n",ucValue);
-}
 
 bool NicIFEnableNIC(struct net_device* dev)
 {
