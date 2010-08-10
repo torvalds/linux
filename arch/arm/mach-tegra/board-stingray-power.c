@@ -326,7 +326,9 @@ unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_VAUDIO]   = 0x0000,
 };
 
-#define REGULATOR_CONSUMER(name, device) { .supply = name, .dev = device, }
+#define REGULATOR_CONSUMER(name, device) { .supply = name, .dev_name = device, }
+#define REGULATOR_CONSUMER_BY_DEVICE(name, device) \
+	{ .supply = name, .dev = device, }
 
 struct regulator_consumer_supply cpcap_sw2_consumers[] = {
 	REGULATOR_CONSUMER("sw2", NULL),
@@ -360,7 +362,7 @@ struct regulator_consumer_supply cpcap_vsdio_consumers[] = {
 };
 
 struct regulator_consumer_supply cpcap_vcsi_consumers[] = {
-	REGULATOR_CONSUMER("vcsi", NULL),
+	REGULATOR_CONSUMER("vcsi", "tegra_camera"),
 };
 
 struct regulator_consumer_supply cpcap_vwlan2_consumers[] = {
@@ -372,7 +374,7 @@ struct regulator_consumer_supply cpcap_vvib_consumers[] = {
 };
 
 struct regulator_consumer_supply cpcap_vusb_consumers[] = {
-	REGULATOR_CONSUMER("vusb", &cpcap_whisper_device.dev),
+	REGULATOR_CONSUMER_BY_DEVICE("vusb", &cpcap_whisper_device.dev),
 };
 
 struct regulator_consumer_supply cpcap_vaudio_consumers[] = {
