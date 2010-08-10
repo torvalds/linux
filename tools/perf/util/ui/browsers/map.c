@@ -100,11 +100,11 @@ static int map_browser__search(struct map_browser *self)
 
 static int map_browser__run(struct map_browser *self, struct newtExitStruct *es)
 {
-	if (ui_browser__show(&self->b, self->map->dso->long_name) < 0)
+	if (ui_browser__show(&self->b, self->map->dso->long_name,
+			     "Press <- or ESC to exit, %s / to search",
+			     verbose ? "" : "restart with -v to use") < 0)
 		return -1;
 
-	ui_helpline__fpush("Press <- or ESC to exit, %s / to search",
-			   verbose ? "" : "restart with -v to use");
 	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
 	newtFormAddHotKey(self->b.form, NEWT_KEY_ENTER);
 	if (verbose)
@@ -121,9 +121,7 @@ static int map_browser__run(struct map_browser *self, struct newtExitStruct *es)
 			break;
 	}
 
-	newtFormDestroy(self->b.form);
-	newtPopWindow();
-	ui_helpline__pop();
+	ui_browser__hide(&self->b);
 	return 0;
 }
 

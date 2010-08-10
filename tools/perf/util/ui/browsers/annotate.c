@@ -141,10 +141,10 @@ static int annotate_browser__run(struct annotate_browser *self,
 	struct rb_node *nd;
 	struct hist_entry *he = self->b.priv;
 
-	if (ui_browser__show(&self->b, he->ms.sym->name) < 0)
+	if (ui_browser__show(&self->b, he->ms.sym->name,
+			     "<- or ESC: exit, TAB/shift+TAB: cycle thru samples") < 0)
 		return -1;
 
-	ui_helpline__fpush("<- or ESC: exit, TAB/shift+TAB: cycle thru samples");
 	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
 
 	nd = self->curr_hot;
@@ -177,9 +177,7 @@ static int annotate_browser__run(struct annotate_browser *self,
 		}
 	}
 out:
-	newtFormDestroy(self->b.form);
-	newtPopWindow();
-	ui_helpline__pop();
+	ui_browser__hide(&self->b);
 	return 0;
 }
 

@@ -16,7 +16,7 @@ void ui_helpline__push(const char *msg)
 	newtPushHelpLine(msg);
 }
 
-static void ui_helpline__vpush(const char *fmt, va_list ap)
+void ui_helpline__vpush(const char *fmt, va_list ap)
 {
 	char *s;
 

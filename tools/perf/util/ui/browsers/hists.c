@@ -211,7 +211,8 @@ static int hist_browser__run(struct hist_browser *self, const char *title,
 		 nr_events, unit);
 	newtDrawRootText(0, 0, str);
 
-	if (ui_browser__show(&self->b, title) < 0)
+	if (ui_browser__show(&self->b, title,
+			     "Press '?' for help on key bindings") < 0)
 		return -1;
 
 	newtFormAddHotKey(self->b.form, 'A');
@@ -253,6 +254,8 @@ static int hist_browser__run(struct hist_browser *self, const char *title,
 			return 0;
 		}
 	}
+
+	ui_browser__hide(&self->b);
 	return 0;
 }
 

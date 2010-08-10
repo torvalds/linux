@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <sys/ttydefaults.h>
 #include "browser.h"
+#include "helpline.h"
 #include "../color.h"
 #include "../util.h"
 
@@ -145,8 +146,11 @@ void ui_browser__reset_index(struct ui_browser *self)
 	self->seek(self, 0, SEEK_SET);
 }
 
-int ui_browser__show(struct ui_browser *self, const char *title)
+int ui_browser__show(struct ui_browser *self, const char *title,
+		     const char *helpline, ...)
 {
+	va_list ap;
+
 	if (self->form != NULL) {
 		newtFormDestroy(self->form);
 		newtPopWindow();
@@ -171,7 +175,19 @@ int ui_browser__show(struct ui_browser *self, const char *title)
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
 	newtFormAddHotKey(self->form, ' ');
 	newtFormAddComponent(self->form, self->sb);
+
+	va_start(ap, helpline);
+	ui_helpline__vpush(helpline, ap);
+	va_end(ap);
 	return 0;
+}
+
+void ui_browser__hide(struct ui_browser *self)
+{
+	newtFormDestroy(self->form);
+	newtPopWindow();
+	self->form = NULL;
+	ui_helpline__pop();
 }
 
 int ui_browser__refresh(struct ui_browser *self)
