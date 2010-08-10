@@ -77,7 +77,7 @@
  */
 #ifdef CONFIG_SA1111
 #define NR_IRQS			(IRQ_BOARD_END + 55)
-#elif defined(CONFIG_SHARPSL_LOCOMO)
+#elif defined(CONFIG_SHARP_LOCOMO)
 #define NR_IRQS			(IRQ_BOARD_START + 4)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)

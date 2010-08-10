@@ -26,10 +26,10 @@
 /* clock sources for the mmc bus clock, order as for the ctrl2[5..4] */
 
 char *s5pc100_hsmmc_clksrcs[4] = {
-	[0] = "hsmmc",
-	[1] = "hsmmc",
-	/* [2] = "mmc_bus", not yet successfully used yet */
-	/* [3] = "48m", - note not successfully used yet */
+	[0] = "hsmmc",		/* HCLK */
+	/* [1] = "hsmmc",	- duplicate HCLK entry */
+	[2] = "sclk_mmc",	/* mmc_bus */
+	/* [3] = "48m",		- note not successfully used yet */
 };
 
 
