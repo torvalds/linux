@@ -124,6 +124,7 @@ void     XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex, str
 void     XGI_GetLVDSResInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 			    struct vb_device_info *pVBInfo);
 void     XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex, struct vb_device_info *pVBInfo);
+unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo);
 void     XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 			 unsigned short RefreshRateTableIndex,
 			 struct xgi_hw_device_info *HwDeviceExtension,
@@ -191,7 +192,7 @@ extern void ReadVBIOSTablData(unsigned char ChipType, struct vb_device_info *pVB
 /* unsigned short XGINew_flag_clearbuffer; 0: no clear frame buffer 1:clear frame buffer */
 
 
-unsigned short XGINew_MDA_DAC[] = {
+static unsigned short XGINew_MDA_DAC[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15,
 	0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15,
@@ -201,7 +202,7 @@ unsigned short XGINew_MDA_DAC[] = {
 	0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15,
 	0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F};
 
-unsigned short XGINew_CGA_DAC[] = {
+static unsigned short XGINew_CGA_DAC[] = {
 	0x00, 0x10, 0x04, 0x14, 0x01, 0x11, 0x09, 0x15,
 	0x00, 0x10, 0x04, 0x14, 0x01, 0x11, 0x09, 0x15,
 	0x2A, 0x3A, 0x2E, 0x3E, 0x2B, 0x3B, 0x2F, 0x3F,
@@ -211,7 +212,7 @@ unsigned short XGINew_CGA_DAC[] = {
 	0x2A, 0x3A, 0x2E, 0x3E, 0x2B, 0x3B, 0x2F, 0x3F,
 	0x2A, 0x3A, 0x2E, 0x3E, 0x2B, 0x3B, 0x2F, 0x3F};
 
-unsigned short XGINew_EGA_DAC[] = {
+static unsigned short XGINew_EGA_DAC[] = {
 	0x00, 0x10, 0x04, 0x14, 0x01, 0x11, 0x05, 0x15,
 	0x20, 0x30, 0x24, 0x34, 0x21, 0x31, 0x25, 0x35,
 	0x08, 0x18, 0x0C, 0x1C, 0x09, 0x19, 0x0D, 0x1D,
@@ -221,7 +222,7 @@ unsigned short XGINew_EGA_DAC[] = {
 	0x0A, 0x1A, 0x0E, 0x1E, 0x0B, 0x1B, 0x0F, 0x1F,
 	0x2A, 0x3A, 0x2E, 0x3E, 0x2B, 0x3B, 0x2F, 0x3F};
 
-unsigned short XGINew_VGA_DAC[] = {
+static unsigned short XGINew_VGA_DAC[] = {
 	0x00, 0x10, 0x04, 0x14, 0x01, 0x11, 0x09, 0x15,
 	0x2A, 0x3A, 0x2E, 0x3E, 0x2B, 0x3B, 0x2F, 0x3F,
 	0x00, 0x05, 0x08, 0x0B, 0x0E, 0x11, 0x14, 0x18,
@@ -2947,7 +2948,7 @@ void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		LCDPtr = (struct XGI330_LCDDataDesStruct *)XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex, RefreshRateTableIndex, pVBInfo);
             }
 
-            if ( ( pVBInfo->IF_DEF_OEMUtil == 0 ) || ( LCDPtr == 0 ) )
+            if ( ( pVBInfo->IF_DEF_OEMUtil == 0 ) || ( LCDPtr == NULL ) )
             {
                 tempbx = 3 ;
                 if ( pVBInfo->LCDInfo & EnableScalingLCD )
@@ -4058,13 +4059,15 @@ unsigned char XGI_SearchModeID(unsigned short ModeNo,
 
 /* win2000 MM adapter not support standard mode! */
 
+#if 0
 /* --------------------------------------------------------------------- */
 /* Function : */
 /* Input : */
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_CheckMemorySize(struct xgi_hw_device_info *HwDeviceExtension,
+static unsigned char XGINew_CheckMemorySize(
+				     struct xgi_hw_device_info *HwDeviceExtension,
 				     unsigned short ModeNo,
 				     unsigned short ModeIdIndex,
 				     struct vb_device_info *pVBInfo)
@@ -4141,7 +4144,7 @@ unsigned char XGINew_CheckMemorySize(struct xgi_hw_device_info *HwDeviceExtensio
     else
 	    return 1;
 }
-
+#endif
 
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_IsLowResolution */
@@ -4415,28 +4418,20 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 }
 
 
-
-
-
-
-
-
-
-
+#if 0
 /* --------------------------------------------------------------------- */
 /* Function : XGI_WaitDisplay */
 /* Input : */
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGI_WaitDisplay(struct vb_device_info *pVBInfo)
+static void XGI_WaitDisplay(struct vb_device_info *pVBInfo)
 {
     while( !( XGINew_GetReg2( pVBInfo->P3da ) & 0x01 ) ) ;
 
     while( XGINew_GetReg2( pVBInfo->P3da ) & 0x01 ) ;
 }
-
-
+#endif
 
 
 /* --------------------------------------------------------------------- */
@@ -5139,7 +5134,7 @@ void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGI_SetCRT2Offset(unsigned short ModeNo,
+static void XGI_SetCRT2Offset(unsigned short ModeNo,
 		       unsigned short ModeIdIndex,
 		       unsigned short RefreshRateTableIndex,
 		       struct xgi_hw_device_info *HwDeviceExtension,
@@ -5218,7 +5213,7 @@ unsigned short XGI_GetOffset(unsigned short ModeNo, unsigned short ModeIdIndex, 
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGI_SetCRT2FIFO(struct vb_device_info *pVBInfo)
+static void XGI_SetCRT2FIFO(struct vb_device_info *pVBInfo)
 {
     XGINew_SetReg1( pVBInfo->Part1Port , 0x01 , 0x3B ) ;			/* threshold high ,disable auto threshold */
     XGINew_SetRegANDOR( pVBInfo->Part1Port , 0x02 , ~( 0x3F ) , 0x04 ) ;	/* threshold low default 04h */
@@ -7143,7 +7138,7 @@ void *XGI_GetLcdPtr(unsigned short BX,
            modeflag ,
            table ;
 
-    struct XGI330_LCDDataTablStruct *tempdi = 0 ;
+    struct XGI330_LCDDataTablStruct *tempdi = NULL;
 
 
     tempbx = BX;
@@ -7224,14 +7219,14 @@ void *XGI_GetLcdPtr(unsigned short BX,
         case 7:
         case 8:
         case 9:
-            tempdi = 0 ;
+            tempdi = NULL;
             break ;
         default:
         break ;
     }
 
-    if ( tempdi == 0x00 )  /* OEMUtil */
-        return 0 ;
+    if ( tempdi == NULL )  /* OEMUtil */
+        return NULL;
 
     table = tempbx ;
     i = 0 ;
@@ -7625,7 +7620,7 @@ void *XGI_GetLcdPtr(unsigned short BX,
                 break ;
         }
     }
-    return 0 ;
+    return NULL;
 }
 
 
@@ -7641,7 +7636,7 @@ void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		   struct vb_device_info *pVBInfo)
 {
     unsigned short i , tempdx , tempbx , tempal , modeflag , table ;
-    struct XGI330_TVDataTablStruct *tempdi = 0 ;
+    struct XGI330_TVDataTablStruct *tempdi = NULL;
 
     tempbx = BX ;
 
@@ -7662,14 +7657,14 @@ void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
     switch( tempbx )
     {
         case 0:
-            tempdi = 0 ;	/*EPLCHTVCRT1Ptr_H;*/
+            tempdi = NULL;	/*EPLCHTVCRT1Ptr_H;*/
             if ( pVBInfo->IF_DEF_CH7007 == 1 )
             {
                 tempdi = XGI_EPLCHTVCRT1Ptr;
             }
             break ;
         case 1:
-            tempdi = 0 ;	/*EPLCHTVCRT1Ptr_V;*/
+            tempdi = NULL;	/*EPLCHTVCRT1Ptr_V;*/
             if ( pVBInfo->IF_DEF_CH7007 == 1 )
             {
                 tempdi = XGI_EPLCHTVCRT1Ptr;
@@ -7679,13 +7674,13 @@ void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
             tempdi = XGI_EPLCHTVDataPtr ;
             break ;
         case 3:
-            tempdi = 0 ;
+            tempdi = NULL;
             break ;
         case 4:
             tempdi = XGI_TVDataTable ;
             break ;
         case 5:
-            tempdi = 0 ;
+            tempdi = NULL;
             break ;
         case 6:
             tempdi = XGI_EPLCHTVRegPtr ;
@@ -7694,8 +7689,8 @@ void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
             break ;
     }
 
-    if ( tempdi == 0x00 )  /* OEMUtil */
-        return( 0 ) ;
+    if ( tempdi == NULL )  /* OEMUtil */
+        return NULL;
 
     tempdx = pVBInfo->TVInfo ;
 
@@ -7793,7 +7788,7 @@ void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
     else if( table == 0x06 )
     {
     }
-    return( 0 ) ;
+    return NULL;
 }
 
 
@@ -7913,7 +7908,7 @@ void XGI_SetPanelPower(unsigned short tempah, unsigned short tempbl, struct vb_d
         XGINew_SetRegANDOR( pVBInfo->P3c4 , 0x11 , tempbl , tempah ) ;
 }
 
-unsigned char XG21GPIODataTransfer(unsigned char ujDate)
+static unsigned char XG21GPIODataTransfer(unsigned char ujDate)
 {
     unsigned char  ujRet = 0;
     unsigned char  i = 0;

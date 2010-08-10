@@ -170,7 +170,7 @@ void XGINew_SetRegOR( unsigned long Port , unsigned short Index , unsigned short
     XGINew_SetReg1( Port , Index , temp ) ;
 }
 
-
+#if 0
 /* --------------------------------------------------------------------- */
 /* Function : NewDelaySecond */
 /* Input : */
@@ -190,7 +190,6 @@ void NewDelaySeconds( int seconds )
     }
 }
 
-
 /* --------------------------------------------------------------------- */
 /* Function : Newdebugcode */
 /* Input : */
@@ -203,6 +202,4 @@ void Newdebugcode(unsigned char code)
     /* OutPortByte ( 0x300 , code ) ; */
     /* NewDelaySeconds( 0x3 ) ; */
 }
-
-
-
+#endif

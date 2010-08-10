@@ -44,6 +44,8 @@
 #include "XGI_main.h"
 #include "vb_util.h"
 
+int XGIfb_accel = 0;
+
 
 #define Index_CR_GPIO_Reg1 0x48
 #define Index_CR_GPIO_Reg2 0x49
@@ -161,8 +163,9 @@ struct video_info  xgi_video_info;
 
 /* --------------- Hardware Access Routines -------------------------- */
 
-int
-XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
+static int
+XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
+			  struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
 {
     unsigned short ModeNo = modeno;
@@ -196,8 +199,9 @@ XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr, struct xgi_hw_device_in
     return(Clock);
 }
 
-int
-XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
+static int
+XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
+			 struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 u32 *left_margin, u32 *right_margin,
 			 u32 *upper_margin, u32 *lower_margin,
@@ -377,7 +381,7 @@ XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr, struct xgi_hw_device_inf
 
 
 
-void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
+static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
    XGI_Pr->RelIO = BaseAddr;
    XGI_Pr->P3c4 = BaseAddr + 0x14;
@@ -570,7 +574,7 @@ static void XGIfb_search_vesamode(unsigned int vesamode)
 	if(!j) printk(KERN_INFO "XGIfb: Invalid VESA mode 0x%x'\n", vesamode);
 }
 
-int XGIfb_GetXG21LVDSData(void)
+static int XGIfb_GetXG21LVDSData(void)
 {
     u8 tmp;
     unsigned char *pData;
@@ -2057,9 +2061,9 @@ static int XGIfb_heap_init(void)
 
 	int            agp_enabled = 1;
 	u32            agp_size;
-	unsigned long *cmdq_baseport = 0;
-	unsigned long *read_port = 0;
-	unsigned long *write_port = 0;
+	unsigned long *cmdq_baseport = NULL;
+	unsigned long *read_port = NULL;
+	unsigned long *write_port = NULL;
 	XGI_CMDTYPE    cmd_type;
 #ifndef AGPOFF
 	struct agp_kern_info  *agp_info;
@@ -2827,7 +2831,7 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 
 static unsigned char VBIOS_BUF[65535];
 
-unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
+static unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
 {
     u32 rom_size      = 0;
     u32 rom_address   = 0;
@@ -2872,7 +2876,8 @@ unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
 	return copy_address;
 }
 
-int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit xgifb_probe(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	u16 reg16;
 	u8  reg, reg1;
@@ -3641,7 +3646,7 @@ MODULE_PARM_DESC(nocrt2rate,
 
 
 
-int __init xgifb_init_module(void)
+static int __init xgifb_init_module(void)
 {
         printk("\nXGIfb_init_module");
 	if(mode)

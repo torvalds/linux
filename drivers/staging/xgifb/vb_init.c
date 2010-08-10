@@ -18,7 +18,7 @@
 
 
 
-unsigned char XGINew_ChannelAB, XGINew_DataBusWidth;
+static unsigned char XGINew_ChannelAB, XGINew_DataBusWidth;
 
 unsigned short XGINew_DRAMType[17][5] = {
 	{0x0C, 0x0A, 0x02, 0x40, 0x39}, {0x0D, 0x0A, 0x01, 0x40, 0x48},
@@ -31,7 +31,7 @@ unsigned short XGINew_DRAMType[17][5] = {
 	{0x0B, 0x08, 0x01, 0x04, 0x20}, {0x0A, 0x08, 0x01, 0x02, 0x10},
 	{0x09, 0x08, 0x01, 0x01, 0x00} };
 
-unsigned short XGINew_SDRDRAM_TYPE[13][5] = {
+static unsigned short XGINew_SDRDRAM_TYPE[13][5] = {
 	{ 2, 12, 9, 64, 0x35},
 	{ 1, 13, 9, 64, 0x44},
 	{ 2, 12, 8, 32, 0x31},
@@ -46,19 +46,19 @@ unsigned short XGINew_SDRDRAM_TYPE[13][5] = {
 	{ 1, 10, 8,  4, 0x10},
 	{ 1,  9, 8,  2, 0x00} };
 
-unsigned short XGINew_DDRDRAM_TYPE[4][5] = {
+static unsigned short XGINew_DDRDRAM_TYPE[4][5] = {
 	{ 2, 12, 9, 64, 0x35},
 	{ 2, 12, 8, 32, 0x31},
 	{ 2, 11, 8, 16, 0x21},
 	{ 2,  9, 8,  4, 0x01} };
 
-unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
+static unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
 	{ 2, 13, 9, 64, 0x45},
 	{ 2, 12, 9, 32, 0x35},
 	{ 2, 12, 8, 16, 0x31},
 	{ 2, 11, 8,  8, 0x21} };
 
-unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
+static unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 14, 11, 128, 0x5D},
 	{ 2, 14, 10, 64, 0x59},
 	{ 2, 13, 11, 64, 0x4D},
@@ -89,8 +89,10 @@ void     XGINew_CheckBusWidth_310(struct vb_device_info *) ;
 int      XGINew_SDRSizing(struct vb_device_info *);
 int      XGINew_DDRSizing(struct vb_device_info *);
 void     XGINew_EnableRefresh(struct xgi_hw_device_info *, struct vb_device_info *);
-int      XGINew_RAMType;                  /*int      ModeIDOffset,StandTable,CRT1Table,ScreenOffset,REFIndex;*/
-unsigned long	 UNIROM;			  /* UNIROM */
+static int      XGINew_RAMType;		/*int      ModeIDOffset,StandTable,CRT1Table,ScreenOffset,REFIndex;*/
+#if 0
+static unsigned long	 UNIROM;
+#endif
 unsigned char  ChkLFB(struct vb_device_info *);
 void     XGINew_Delay15us(unsigned long);
 void     SetPowerConsume(struct xgi_hw_device_info *HwDeviceExtension,
@@ -106,7 +108,7 @@ unsigned char    GetXG21FPBits(struct vb_device_info *pVBInfo);
 void     XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo) ;
 unsigned char    GetXG27FPBits(struct vb_device_info *pVBInfo);
 
-void DelayUS(unsigned long MicroSeconds)
+static void DelayUS(unsigned long MicroSeconds)
 {
 	udelay(MicroSeconds);
 }
@@ -148,7 +150,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
    /* if ( pVBInfo->ROMAddr == 0 ) */
    /* return( 0 ) ; */
 
-    if (pVBInfo->FBAddr == 0) {
+    if (pVBInfo->FBAddr == NULL) {
        printk("\n pVBInfo->FBAddr == 0 ");
        return 0;
     }
@@ -617,7 +619,7 @@ unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtensio
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_Get310DRAMType(struct vb_device_info *pVBInfo)
+static unsigned char XGINew_Get310DRAMType(struct vb_device_info *pVBInfo)
 {
     unsigned char data ;
 
@@ -653,7 +655,7 @@ void XGINew_Delay15us(unsigned long ulMicrsoSec)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SDR_MRS(struct vb_device_info *pVBInfo)
+static void XGINew_SDR_MRS(struct vb_device_info *pVBInfo)
 {
     unsigned short data ;
 
@@ -673,7 +675,7 @@ void XGINew_SDR_MRS(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR1x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBInfo)
+static void XGINew_DDR1x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBInfo)
 {
     XGINew_SetReg1( P3c4 , 0x18 , 0x01 ) ;
     XGINew_SetReg1( P3c4 , 0x19 , 0x20 ) ;
@@ -711,7 +713,8 @@ void XGINew_DDR1x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBInfo)
+static void XGINew_DDR2x_MRS_340(unsigned long P3c4,
+				 struct vb_device_info *pVBInfo)
 {
     XGINew_SetReg1( P3c4 , 0x18 , 0x00 ) ;
     XGINew_SetReg1( P3c4 , 0x19 , 0x20 ) ;
@@ -740,8 +743,10 @@ void XGINew_DDR2x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDRII_Bootup_XG27(struct xgi_hw_device_info *HwDeviceExtension,
-			      unsigned long P3c4, struct vb_device_info *pVBInfo)
+static void XGINew_DDRII_Bootup_XG27(
+				struct xgi_hw_device_info *HwDeviceExtension,
+				unsigned long P3c4,
+				struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
     XGINew_RAMType = ( int )XGINew_GetXG20DRAMType( HwDeviceExtension , pVBInfo ) ;
@@ -819,7 +824,7 @@ void XGINew_DDRII_Bootup_XG27(struct xgi_hw_device_info *HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned long P3c4, struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
@@ -866,13 +871,14 @@ void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
     DelayUS( 200 ) ;
 }
 
+#if 0
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_DDR2_MRS_XG20 */
 /* Input : */
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_MRS_XG27(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_DDR2_MRS_XG27(struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned long P3c4, struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
@@ -944,6 +950,7 @@ void XGINew_DDR2_MRS_XG27(struct xgi_hw_device_info *HwDeviceExtension,
     XGINew_SetReg1( P3c4 , 0x1B , 0x03 ) ;			/* SR1B */
 
 }
+#endif
 
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_DDR1x_DefaultRegister */
@@ -951,8 +958,10 @@ void XGINew_DDR2_MRS_XG27(struct xgi_hw_device_info *HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR1x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
-				  unsigned long Port, struct vb_device_info *pVBInfo)
+static void XGINew_DDR1x_DefaultRegister(
+				struct xgi_hw_device_info *HwDeviceExtension,
+				unsigned long Port,
+				struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = Port ,
            P3c4 = Port - 0x10 ;
@@ -1005,15 +1014,17 @@ void XGINew_DDR1x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
     }
 }
 
-
+#if 0
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_DDR2x_DefaultRegister */
 /* Input : */
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
-				  unsigned long Port, struct vb_device_info *pVBInfo)
+static void XGINew_DDR2x_DefaultRegister(
+				struct xgi_hw_device_info *HwDeviceExtension,
+				unsigned long Port,
+				struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = Port ,
            P3c4 = Port - 0x10 ;
@@ -1056,7 +1067,7 @@ void XGINew_DDR2x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
 
     XGINew_DDR2x_MRS_340( P3c4 , pVBInfo ) ;
 }
-
+#endif
 
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_DDR2_DefaultRegister */
@@ -1064,8 +1075,10 @@ void XGINew_DDR2x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
-				 unsigned long Port, struct vb_device_info *pVBInfo)
+static void XGINew_DDR2_DefaultRegister(
+				struct xgi_hw_device_info *HwDeviceExtension,
+				unsigned long Port,
+				struct vb_device_info *pVBInfo)
 {
     unsigned long P3d4 = Port ,
            P3c4 = Port - 0x10 ;
@@ -1247,7 +1260,7 @@ void XGINew_SetDRAMDefaultRegister340(struct xgi_hw_device_info *HwDeviceExtensi
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR_MRS(struct vb_device_info *pVBInfo)
+static void XGINew_DDR_MRS(struct vb_device_info *pVBInfo)
 {
     unsigned short data ;
 
@@ -1315,7 +1328,8 @@ void XGINew_DDR_MRS(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_VerifyMclk(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+static void XGINew_VerifyMclk(struct xgi_hw_device_info *HwDeviceExtension,
+			      struct vb_device_info *pVBInfo)
 {
     unsigned char *pVideoMemory = pVBInfo->FBAddr ;
     unsigned char i, j ;
@@ -1561,7 +1575,7 @@ void XGINew_EnableRefresh(struct xgi_hw_device_info *HwDeviceExtension, struct v
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DisableChannelInterleaving(int index,
+static void XGINew_DisableChannelInterleaving(int index,
 				       unsigned short XGINew_DDRDRAM_TYPE[][5],
 				       struct vb_device_info *pVBInfo)
 {
@@ -1597,7 +1611,7 @@ void XGINew_DisableChannelInterleaving(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetDRAMSizingType(int index,
+static void XGINew_SetDRAMSizingType(int index,
 			      unsigned short DRAMTYPE_TABLE[][5],
 			      struct vb_device_info *pVBInfo)
 {
@@ -1750,7 +1764,7 @@ void XGINew_CheckBusWidth_310(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_SetRank(int index,
+static int XGINew_SetRank(int index,
 		   unsigned char RankNo,
 		   unsigned char XGINew_ChannelAB,
 		   unsigned short DRAMTYPE_TABLE[][5],
@@ -1791,7 +1805,7 @@ int XGINew_SetRank(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_SetDDRChannel(int index,
+static int XGINew_SetDDRChannel(int index,
 			 unsigned char ChannelNo,
 			 unsigned char XGINew_ChannelAB,
 			 unsigned short DRAMTYPE_TABLE[][5],
@@ -1831,7 +1845,7 @@ int XGINew_SetDDRChannel(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckColumn(int index,
+static int XGINew_CheckColumn(int index,
 		       unsigned short DRAMTYPE_TABLE[][5],
 		       struct vb_device_info *pVBInfo)
 {
@@ -1865,7 +1879,7 @@ int XGINew_CheckColumn(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckBanks(int index,
+static int XGINew_CheckBanks(int index,
 		      unsigned short DRAMTYPE_TABLE[][5],
 		      struct vb_device_info *pVBInfo)
 {
@@ -1898,7 +1912,7 @@ int XGINew_CheckBanks(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckRank(int RankNo, int index,
+static int XGINew_CheckRank(int RankNo, int index,
 		     unsigned short DRAMTYPE_TABLE[][5],
 		     struct vb_device_info *pVBInfo)
 {
@@ -1934,7 +1948,7 @@ int XGINew_CheckRank(int RankNo, int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckDDRRank(int RankNo, int index,
+static int XGINew_CheckDDRRank(int RankNo, int index,
 			unsigned short DRAMTYPE_TABLE[][5],
 			struct vb_device_info *pVBInfo)
 {
@@ -1978,7 +1992,7 @@ int XGINew_CheckDDRRank(int RankNo, int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckRanks(int RankNo, int index,
+static int XGINew_CheckRanks(int RankNo, int index,
 		      unsigned short DRAMTYPE_TABLE[][5],
 		      struct vb_device_info *pVBInfo)
 {
@@ -2006,7 +2020,7 @@ int XGINew_CheckRanks(int RankNo, int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_CheckDDRRanks(int RankNo, int index,
+static int XGINew_CheckDDRRanks(int RankNo, int index,
 			 unsigned short DRAMTYPE_TABLE[][5],
 			 struct vb_device_info *pVBInfo)
 {
@@ -2065,7 +2079,7 @@ int XGINew_SDRSizing(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned short XGINew_SetDRAMSizeReg(int index,
+static unsigned short XGINew_SetDRAMSizeReg(int index,
 				     unsigned short DRAMTYPE_TABLE[][5],
 				     struct vb_device_info *pVBInfo)
 {
@@ -2116,7 +2130,7 @@ unsigned short XGINew_SetDRAMSizeReg(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned short XGINew_SetDRAMSize20Reg(int index,
+static unsigned short XGINew_SetDRAMSize20Reg(int index,
 				       unsigned short DRAMTYPE_TABLE[][5],
 				       struct vb_device_info *pVBInfo)
 {
@@ -2168,8 +2182,9 @@ unsigned short XGINew_SetDRAMSize20Reg(int index,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_ReadWriteRest(unsigned short StopAddr, unsigned short StartAddr,
-			 struct vb_device_info *pVBInfo)
+static int XGINew_ReadWriteRest(unsigned short StopAddr,
+				unsigned short StartAddr,
+				struct vb_device_info *pVBInfo)
 {
     int i ;
     unsigned long Position = 0 ;
@@ -2205,7 +2220,7 @@ int XGINew_ReadWriteRest(unsigned short StopAddr, unsigned short StartAddr,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
+static unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 {
     unsigned char data ;
 
@@ -2228,7 +2243,8 @@ unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
+				struct vb_device_info *pVBInfo)
 {
     unsigned char data;
 
@@ -2672,8 +2688,9 @@ void SetPowerConsume(struct xgi_hw_device_info *HwDeviceExtension,
     }
 }
 
-
-void XGINew_InitVBIOSData(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+#if 0
+static void XGINew_InitVBIOSData(struct xgi_hw_device_info *HwDeviceExtension,
+				 struct vb_device_info *pVBInfo)
 {
 
 	/* unsigned long ROMAddr = (unsigned long)HwDeviceExtension->pjVirtualRomBase; */
@@ -2715,6 +2732,7 @@ void XGINew_InitVBIOSData(struct xgi_hw_device_info *HwDeviceExtension, struct v
 	}
 
 }
+#endif
 
 /* --------------------------------------------------------------------- */
 /* Function : ReadVBIOSTablData */

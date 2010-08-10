@@ -44,7 +44,7 @@ unsigned char XGI_Is301LV(struct vb_device_info *);
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
+static unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 {
     unsigned short flag ;
 
@@ -816,7 +816,8 @@ unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, str
 ;		     DX: PAnel V. resolution
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub70(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
+static void XGI_XG21Fun14Sub70(struct vb_device_info *pVBInfo,
+				PX86_REGS pBiosArguments)
 {
 
     unsigned short ModeIdIndex;
@@ -859,7 +860,8 @@ void XGI_XG21Fun14Sub70(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub71(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
+static void XGI_XG21Fun14Sub71(struct vb_device_info *pVBInfo,
+				PX86_REGS pBiosArguments)
 {
 
     unsigned short EModeCount;
@@ -905,7 +907,8 @@ void XGI_XG21Fun14Sub71(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub72(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
+static void XGI_XG21Fun14Sub72(struct vb_device_info *pVBInfo,
+				PX86_REGS pBiosArguments)
 {
     unsigned short ModeIdIndex, resindex;
     unsigned short ModeNo;
@@ -964,7 +967,8 @@ void XGI_XG21Fun14Sub72(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments
 ;                       BX[6]: *Value1 D[6] Panel H. Polarity
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub73(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
+static void XGI_XG21Fun14Sub73(struct vb_device_info *pVBInfo,
+				PX86_REGS pBiosArguments)
 {
     unsigned char Select;
 
