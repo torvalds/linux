@@ -1008,7 +1008,7 @@ M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/vpac270.c
-F:	arch/arm/mach-pxa/include/mach-pxa/vpac270.h
+F:	arch/arm/mach-pxa/include/mach/vpac270.h
 
 ARM/ZIPIT Z2 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>
