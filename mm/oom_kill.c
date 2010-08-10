@@ -424,7 +424,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 static int oom_kill_task(struct task_struct *p)
 {
 	p = find_lock_task_mm(p);
-	if (!p || p->signal->oom_adj == OOM_DISABLE) {
+	if (!p) {
 		task_unlock(p);
 		return 1;
 	}
@@ -686,7 +686,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 
 	read_lock(&tasklist_lock);
 	if (sysctl_oom_kill_allocating_task &&
-	    !oom_unkillable_task(current, NULL, nodemask)) {
+	    !oom_unkillable_task(current, NULL, nodemask) &&
+	    (current->signal->oom_adj != OOM_DISABLE)) {
 		/*
 		 * oom_kill_process() needs tasklist_lock held.  If it returns
 		 * non-zero, current could not be killed so we must fallback to
