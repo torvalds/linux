@@ -10,6 +10,7 @@
 #include "mux2420.h"
 #include "mux2430.h"
 #include "mux34xx.h"
+#include "mux44xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
 
@@ -37,6 +38,9 @@
 #define OMAP_OFF_PULL_UP		(1 << 13)
 #define OMAP_WAKEUP_EN			(1 << 14)
 
+/* 44xx specific mux bit defines */
+#define OMAP_WAKEUP_EVENT		(1 << 15)
+
 /* Active pin states */
 #define OMAP_PIN_OUTPUT			0
 #define OMAP_PIN_INPUT			OMAP_INPUT_EN
@@ -58,6 +62,7 @@
 
 /* Flags for omapX_mux_init */
 #define OMAP_PACKAGE_MASK		0xffff
+#define OMAP_PACKAGE_CBL		7		/* 547-pin 0.40 0.40 */
 #define OMAP_PACKAGE_CBP		6		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
 #define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */
@@ -238,6 +243,13 @@ int omap2430_mux_init(struct omap_board_mux *board_mux, int flags);
  * @flags:		OMAP package type used for the board
  */
 int omap3_mux_init(struct omap_board_mux *board_mux, int flags);
+
+/**
+ * omap4_mux_init() - initialize mux system with board specific set
+ * @board_mux:		Board specific mux table
+ * @flags:		OMAP package type used for the board
+ */
+int omap4_mux_init(struct omap_board_mux *board_mux, int flags);
 
 /**
  * omap_mux_init - private mux init function, do not call
