@@ -160,6 +160,11 @@ static void rtl8192_prepare_beacon(struct r8192_priv *priv);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 static void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+static void rtl8192_update_ratr_table(struct net_device* dev);
+static void rtl8192_restart(struct work_struct *work);
+static void watch_dog_timer_callback(unsigned long data);
+static int _rtl8192_up(struct net_device *dev);
+static void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
 
 #ifdef ENABLE_DOT11D
 
@@ -498,13 +503,9 @@ void force_pci_posting(struct net_device *dev)
 }
 
 
-//warning message WB
 //static struct net_device_stats *rtl8192_stats(struct net_device *dev);
-//void rtl8192_restart(struct net_device *dev);
-void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
 
-void watch_dog_timer_callback(unsigned long data);
 /****************************************************************************
    -----------------------------PROCFS STUFF-------------------------
 *****************************************************************************/
@@ -1914,7 +1915,6 @@ static void rtl8192_pci_resetdescring(struct net_device *dev)
 }
 
 #if 1
-extern void rtl8192_update_ratr_table(struct net_device* dev);
 static void rtl8192_link_change(struct net_device *dev)
 {
 //	int i;
@@ -1957,7 +1957,7 @@ static void rtl8192_link_change(struct net_device *dev)
 #endif
 
 
-static struct ieee80211_qos_parameters def_qos_parameters = {
+static const struct ieee80211_qos_parameters def_qos_parameters = {
         {3,3,3,3},/* cw_min */
         {7,7,7,7},/* cw_max */
         {2,2,2,2},/* aifs */
@@ -2141,7 +2141,7 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 
 
 //updateRATRTabel for MCS only. Basic rate is not implement.
-void rtl8192_update_ratr_table(struct net_device* dev)
+static void rtl8192_update_ratr_table(struct net_device* dev)
 	//	POCTET_STRING	posLegacyRate,
 	//	u8*			pMcsRate)
 	//	PRT_WLAN_STA	pEntry)
@@ -4230,9 +4230,6 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	}
 }
 
-void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
-int _rtl8192_up(struct net_device *dev);
-
 /*
  * This function is used to fix Tx/Rx stop bug temporarily.
  * This function will do "system reset" to NIC when Tx or Rx is stuck.
@@ -4795,7 +4792,8 @@ void watch_dog_timer_callback(unsigned long data)
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
 
 }
-int _rtl8192_up(struct net_device *dev)
+
+static int _rtl8192_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//int i;
@@ -4945,7 +4943,7 @@ void rtl8192_commit(struct net_device *dev)
 	_rtl8192_up(dev);
 }
 
-void rtl8192_restart(struct work_struct *work)
+static void rtl8192_restart(struct work_struct *work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, reset_wq);
         struct net_device *dev = priv->ieee80211->dev;
@@ -6493,7 +6491,7 @@ fail_free:
 /* detach all the work and timer structure declared or inititialized
  * in r8192_init function.
  * */
-void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
+static void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 {
 	/* call cancel_work_sync instead of cancel_delayed_work if and only if Linux_version_code
          * is  or is newer than 2.6.20 and work structure is defined to be struct work_struct.
