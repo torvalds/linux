@@ -35,6 +35,7 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 
+#include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
 #include "control.h"
@@ -505,10 +506,19 @@ static void __init omap_sfh7741prox_init(void)
 	}
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_4430sdp_init(void)
 {
 	int status;
 
+	omap4_mux_init(board_mux, OMAP_PACKAGE_CBL);
 	omap4_i2c_init();
 	omap_sfh7741prox_init();
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
