@@ -686,9 +686,8 @@ long st_register(struct st_proto_s *new_proto)
 		default:
 			pr_err("%d protocol not supported",
 				   new_proto->type);
-			err = -EPROTONOSUPPORT;
-			/* something wrong */
-			break;
+			spin_unlock_irqrestore(&st_gdata->lock, flags);
+			return -EPROTONOSUPPORT;
 		}
 		st_gdata->list[new_proto->type] = new_proto;
 		st_gdata->protos_registered++;
