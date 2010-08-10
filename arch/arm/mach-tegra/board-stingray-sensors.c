@@ -28,6 +28,7 @@
 #include <linux/max9635.h>
 #include <linux/akm8975.h>
 #include <media/ov5650.h>
+#include <media/soc2030.h>
 #include <linux/platform_device.h>
 
 #include <linux/regulator/consumer.h>
@@ -44,6 +45,8 @@
 #define LM3559_GPIO		TEGRA_GPIO_PT4
 #define OV5650_RESETN_GPIO	TEGRA_GPIO_PD2
 #define OV5650_PWRDN_GPIO	TEGRA_GPIO_PBB1
+#define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
+#define SOC2030_PWRDN_GPIO	TEGRA_GPIO_PBB5
 
 struct regulator *stingray_ov5650_regulator_vcam;
 
@@ -105,6 +108,50 @@ struct ov5650_platform_data stingray_ov5650_data = {
 	.power_off = stingray_ov5650_power_off,
 };
 
+static int stingray_soc2030_init(void)
+{
+	tegra_gpio_enable(SOC2030_RESETN_GPIO);
+	gpio_request(SOC2030_RESETN_GPIO, "soc2030_reset");
+	gpio_direction_output(SOC2030_RESETN_GPIO, 0);
+	gpio_export(SOC2030_RESETN_GPIO, false);
+
+	tegra_gpio_enable(SOC2030_PWRDN_GPIO);
+	gpio_request(SOC2030_PWRDN_GPIO, "soc2030_pwrdn");
+	gpio_direction_output(SOC2030_PWRDN_GPIO, 1);
+	gpio_export(SOC2030_PWRDN_GPIO, false);
+
+	pr_info("initialize the soc2030 sensor\n");
+
+	return 0;
+}
+
+
+static int stingray_soc2030_power_on(void)
+{
+	gpio_direction_output(SOC2030_PWRDN_GPIO, 0);
+	msleep(10);
+
+	gpio_direction_output(SOC2030_RESETN_GPIO, 1);
+	msleep(5);
+	gpio_direction_output(SOC2030_RESETN_GPIO, 0);
+	msleep(5);
+	gpio_direction_output(SOC2030_RESETN_GPIO, 1);
+	msleep(5);
+
+	return 0;
+}
+
+static int stingray_soc2030_power_off(void)
+{
+	gpio_direction_output(SOC2030_RESETN_GPIO, 0);
+	gpio_direction_output(SOC2030_PWRDN_GPIO, 1);
+	return 0;
+}
+
+struct soc2030_platform_data stingray_soc2030_data = {
+	.power_on = stingray_soc2030_power_on,
+	.power_off = stingray_soc2030_power_off,
+};
 
 static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
@@ -502,6 +549,12 @@ static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 		I2C_BOARD_INFO("ov5650", 0x36),
 		.platform_data = &stingray_ov5650_data,
 	},
+
+	{
+		I2C_BOARD_INFO("soc2030", 0x3c),
+		.platform_data = &stingray_soc2030_data,
+	},
+
 };
 
 int __init stingray_sensors_init(void)
@@ -513,6 +566,7 @@ int __init stingray_sensors_init(void)
 	stingray_akm8975_init();
 	stingray_lm3559_init();
 	stingray_ov5650_init();
+	stingray_soc2030_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
