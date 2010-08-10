@@ -74,6 +74,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 	struct vnic_dev_bar *bar, unsigned int num_bars)
 {
 	struct vnic_resource_header __iomem *rh;
+	struct mgmt_barmap_hdr __iomem *mrh;
 	struct vnic_resource __iomem *r;
 	u8 type;
 
@@ -85,22 +86,32 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		return -EINVAL;
 	}
 
-	rh = bar->vaddr;
+	rh  = bar->vaddr;
+	mrh = bar->vaddr;
 	if (!rh) {
 		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
 		return -EINVAL;
 	}
 
-	if (ioread32(&rh->magic) != VNIC_RES_MAGIC ||
-	    ioread32(&rh->version) != VNIC_RES_VERSION) {
-		pr_err("vNIC BAR0 res magic/version error "
-			"exp (%lx/%lx) curr (%x/%x)\n",
+	/* Check for mgmt vnic in addition to normal vnic */
+	if ((ioread32(&rh->magic) != VNIC_RES_MAGIC) ||
+		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
+		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
+			(ioread32(&mrh->version) != MGMTVNIC_VERSION)) {
+			pr_err("vNIC BAR0 res magic/version error "
+			"exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
 			VNIC_RES_MAGIC, VNIC_RES_VERSION,
+			MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
 			ioread32(&rh->magic), ioread32(&rh->version));
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
 
-	r = (struct vnic_resource __iomem *)(rh + 1);
+	if (ioread32(&mrh->magic) == MGMTVNIC_MAGIC)
+		r = (struct vnic_resource __iomem *)(mrh + 1);
+	else
+		r = (struct vnic_resource __iomem *)(rh + 1);
+
 
 	while ((type = ioread8(&r->type)) != RES_TYPE_EOL) {
 
