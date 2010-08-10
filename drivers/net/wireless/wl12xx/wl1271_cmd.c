@@ -395,13 +395,6 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
 
-	/* FIXME: this should be in ps.c */
-	ret = wl1271_acx_wake_up_conditions(wl);
-	if (ret < 0) {
-		wl1271_error("couldn't set wake up conditions");
-		goto out;
-	}
-
 	wl1271_debug(DEBUG_CMD, "cmd set ps mode");
 
 	ps_params = kzalloc(sizeof(*ps_params), GFP_KERNEL);
