@@ -8,6 +8,24 @@
 #include <linux/tracepoint.h>
 #include "gfpflags.h"
 
+#define RECLAIM_WB_ANON		0x0001u
+#define RECLAIM_WB_FILE		0x0002u
+#define RECLAIM_WB_SYNC		0x0004u
+#define RECLAIM_WB_ASYNC	0x0008u
+
+#define show_reclaim_flags(flags)				\
+	(flags) ? __print_flags(flags, "|",			\
+		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
+		{RECLAIM_WB_FILE,	"RECLAIM_WB_FILE"},	\
+		{RECLAIM_WB_SYNC,	"RECLAIM_WB_SYNC"},	\
+		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
+		) : "RECLAIM_WB_NONE"
+
+#define trace_reclaim_flags(page, sync) ( \
+	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+	(sync == PAGEOUT_IO_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
+	)
+
 TRACE_EVENT(mm_vmscan_kswapd_sleep,
 
 	TP_PROTO(int nid),
@@ -153,6 +171,29 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__entry->nr_lumpy_taken,
 		__entry->nr_lumpy_dirty,
 		__entry->nr_lumpy_failed)
+);
+
+TRACE_EVENT(mm_vmscan_writepage,
+
+	TP_PROTO(struct page *page,
+		int reclaim_flags),
+
+	TP_ARGS(page, reclaim_flags),
+
+	TP_STRUCT__entry(
+		__field(struct page *, page)
+		__field(int, reclaim_flags)
+	),
+
+	TP_fast_assign(
+		__entry->page = page;
+		__entry->reclaim_flags = reclaim_flags;
+	),
+
+	TP_printk("page=%p pfn=%lu flags=%s",
+		__entry->page,
+		page_to_pfn(__entry->page),
+		show_reclaim_flags(__entry->reclaim_flags))
 );
 
 #endif /* _TRACE_VMSCAN_H */
