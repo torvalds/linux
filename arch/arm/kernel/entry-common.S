@@ -128,6 +128,13 @@ ENDPROC(ret_from_fork)
  * allows it to be clobbered in subroutines and doesn't use it to hold
  * parameters.)
  */
+
+#ifndef CONFIG_OLD_MCOUNT
+#if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error Ftrace requires CONFIG_FRAME_POINTER=y with GCC older than 4.4.0.
+#endif
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
 	stmdb	sp!, {r0-r3, lr}
@@ -173,6 +180,12 @@ gnu_trace:
 	ldmia	sp!, {r0-r3, ip, lr}
 	mov	pc, ip
 
+#ifdef CONFIG_OLD_MCOUNT
+/*
+ * This is under an ifdef in order to force link-time errors for people trying
+ * to build with !FRAME_POINTER with a GCC which doesn't use the new-style
+ * mcount.
+ */
 ENTRY(mcount)
 	stmdb	sp!, {r0-r3, lr}
 	ldr	r0, =ftrace_trace_function
@@ -191,6 +204,7 @@ trace:
 	mov	pc, r2
 	ldr	lr, [fp, #-4]			@ restore lr
 	ldmia	sp!, {r0-r3, pc}
+#endif
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
