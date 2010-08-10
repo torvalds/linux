@@ -132,6 +132,11 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 			if (unlikely(!anon_vma))
 				goto out_enomem_free_avc;
 			allocated = anon_vma;
+			/*
+			 * This VMA had no anon_vma yet.  This anon_vma is
+			 * the root of any anon_vma tree that might form.
+			 */
+			anon_vma->root = anon_vma;
 		}
 
 		anon_vma_lock(anon_vma);
@@ -224,9 +229,15 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	avc = anon_vma_chain_alloc();
 	if (!avc)
 		goto out_error_free_anon_vma;
-	anon_vma_chain_link(vma, avc, anon_vma);
+
+	/*
+	 * The root anon_vma's spinlock is the lock actually used when we
+	 * lock any of the anon_vmas in this anon_vma tree.
+	 */
+	anon_vma->root = pvma->anon_vma->root;
 	/* Mark this anon_vma as the one where our new (COWed) pages go. */
 	vma->anon_vma = anon_vma;
+	anon_vma_chain_link(vma, avc, anon_vma);
 
 	return 0;
 
@@ -261,7 +272,10 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 {
 	struct anon_vma_chain *avc, *next;
 
-	/* Unlink each anon_vma chained to the VMA. */
+	/*
+	 * Unlink each anon_vma chained to the VMA.  This list is ordered
+	 * from newest to oldest, ensuring the root anon_vma gets freed last.
+	 */
 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
 		anon_vma_unlink(avc);
 		list_del(&avc->same_vma);
