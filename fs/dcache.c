@@ -2014,10 +2014,7 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	if (path->dentry->d_op && path->dentry->d_op->d_dname)
 		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
 
-	read_lock(&current->fs->lock);
-	root = current->fs->root;
-	path_get(&root);
-	read_unlock(&current->fs->lock);
+	get_fs_root(current->fs, &root);
 	spin_lock(&dcache_lock);
 	tmp = root;
 	res = __d_path(path, &tmp, buf, buflen);
@@ -2129,12 +2126,7 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	if (!page)
 		return -ENOMEM;
 
-	read_lock(&current->fs->lock);
-	pwd = current->fs->pwd;
-	path_get(&pwd);
-	root = current->fs->root;
-	path_get(&root);
-	read_unlock(&current->fs->lock);
+	get_fs_root_and_pwd(current->fs, &root, &pwd);
 
 	error = -ENOENT;
 	spin_lock(&dcache_lock);

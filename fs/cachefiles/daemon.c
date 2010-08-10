@@ -552,7 +552,6 @@ static int cachefiles_daemon_tag(struct cachefiles_cache *cache, char *args)
  */
 static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 {
-	struct fs_struct *fs;
 	struct path path;
 	const struct cred *saved_cred;
 	int ret;
@@ -573,11 +572,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	}
 
 	/* extract the directory dentry from the cwd */
-	fs = current->fs;
-	read_lock(&fs->lock);
-	path = fs->pwd;
-	path_get(&path);
-	read_unlock(&fs->lock);
+	get_fs_pwd(current->fs, &path);
 
 	if (!S_ISDIR(path.dentry->d_inode->i_mode))
 		goto notdir;
@@ -629,7 +624,6 @@ inval:
  */
 static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 {
-	struct fs_struct *fs;
 	struct path path;
 	const struct cred *saved_cred;
 	int ret;
@@ -650,11 +644,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	}
 
 	/* extract the directory dentry from the cwd */
-	fs = current->fs;
-	read_lock(&fs->lock);
-	path = fs->pwd;
-	path_get(&path);
-	read_unlock(&fs->lock);
+	get_fs_pwd(current->fs, &path);
 
 	if (!S_ISDIR(path.dentry->d_inode->i_mode))
 		goto notdir;
