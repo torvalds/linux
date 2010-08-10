@@ -336,35 +336,38 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
  */
 static void dump_tasks(const struct mem_cgroup *mem)
 {
-	struct task_struct *g, *p;
+	struct task_struct *p;
+	struct task_struct *task;
 
 	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
 	       "name\n");
-	do_each_thread(g, p) {
-		struct mm_struct *mm;
-
+	for_each_process(p) {
+		/*
+		 * We don't have is_global_init() check here, because the old
+		 * code do that. printing init process is not big matter. But
+		 * we don't hope to make unnecessary compatibility breaking.
+		 */
+		if (p->flags & PF_KTHREAD)
+			continue;
 		if (mem && !task_in_mem_cgroup(p, mem))
 			continue;
-		if (!thread_group_leader(p))
-			continue;
 
-		task_lock(p);
-		mm = p->mm;
-		if (!mm) {
+		task = find_lock_task_mm(p);
+		if (!task) {
 			/*
-			 * total_vm and rss sizes do not exist for tasks with no
-			 * mm so there's no need to report them; they can't be
-			 * oom killed anyway.
+			 * Probably oom vs task-exiting race was happen and ->mm
+			 * have been detached. thus there's no need to report
+			 * them; they can't be oom killed anyway.
 			 */
-			task_unlock(p);
 			continue;
 		}
+
 		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
-		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
-		       get_mm_rss(mm), (int)task_cpu(p), p->signal->oom_adj,
-		       p->comm);
-		task_unlock(p);
-	} while_each_thread(g, p);
+		       task->pid, __task_cred(task)->uid, task->tgid,
+		       task->mm->total_vm, get_mm_rss(task->mm),
+		       (int)task_cpu(task), task->signal->oom_adj, p->comm);
+		task_unlock(task);
+	}
 }
 
 static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
