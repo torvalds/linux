@@ -13,7 +13,6 @@
  * published by the Free Software Foundation.
  */
 
-#define DEBUG
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
