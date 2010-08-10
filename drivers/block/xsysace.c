@@ -89,6 +89,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
@@ -465,7 +466,7 @@ struct request *ace_get_next_request(struct request_queue * q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (blk_fs_request(req))
+		if (req->cmd_type == REQ_TYPE_FS)
 			break;
 		blk_start_request(req);
 		__blk_end_request_all(req, -EIO);
@@ -901,11 +902,14 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_open() users=%i\n", ace->users + 1);
 
+	lock_kernel();
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
 	check_disk_change(bdev);
+	unlock_kernel();
+
 	return 0;
 }
 
@@ -917,6 +921,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_release() users=%i\n", ace->users - 1);
 
+	lock_kernel();
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users--;
 	if (ace->users == 0) {
@@ -924,6 +929,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 		ace_out(ace, ACE_CTRL, val & ~ACE_CTRL_LOCKREQ);
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
+	unlock_kernel();
 	return 0;
 }
 

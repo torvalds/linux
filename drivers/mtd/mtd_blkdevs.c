@@ -29,6 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/spinlock.h>
+#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -87,14 +88,14 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 
 	buf = req->buffer;
 
-	if (!blk_fs_request(req))
+	if (req->cmd_type != REQ_TYPE_FS)
 		return -EIO;
 
 	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
 	    get_capacity(req->rq_disk))
 		return -EIO;
 
-	if (blk_discard_rq(req))
+	if (req->cmd_flags & REQ_DISCARD)
 		return tr->discard(dev, block, nsect);
 
 	switch(rq_data_dir(req)) {
@@ -178,8 +179,9 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	int ret;
 
 	if (!dev)
-		return -ERESTARTSYS;
+		return -ERESTARTSYS; /* FIXME: busy loop! -arnd*/
 
+	lock_kernel();
 	mutex_lock(&dev->lock);
 
 	if (!dev->mtd) {
@@ -196,6 +198,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
+	unlock_kernel();
 	return ret;
 }
 
@@ -207,6 +210,7 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 	if (!dev)
 		return ret;
 
+	lock_kernel();
 	mutex_lock(&dev->lock);
 
 	/* Release one reference, we sure its not the last one here*/
@@ -219,6 +223,7 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
+	unlock_kernel();
 	return ret;
 }
 
@@ -251,6 +256,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!dev)
 		return ret;
 
+	lock_kernel();
 	mutex_lock(&dev->lock);
 
 	if (!dev->mtd)
@@ -265,6 +271,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 unlock:
 	mutex_unlock(&dev->lock);
+	unlock_kernel();
 	blktrans_dev_put(dev);
 	return ret;
 }
@@ -273,7 +280,7 @@ static const struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,
-	.locked_ioctl	= blktrans_ioctl,
+	.ioctl		= blktrans_ioctl,
 	.getgeo		= blktrans_getgeo,
 };
 

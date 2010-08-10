@@ -3958,7 +3958,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	const int rw = bio_data_dir(bi);
 	int remaining;
 
-	if (unlikely(bio_rw_flagged(bi, BIO_RW_BARRIER))) {
+	if (unlikely(bi->bi_rw & REQ_HARDBARRIER)) {
 		/* Drain all pending writes.  We only really need
 		 * to ensure they have been submitted, but this is
 		 * easier.

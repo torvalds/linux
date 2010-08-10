@@ -36,6 +36,7 @@
 #include <linux/blkdev.h>
 #include <linux/sysctl.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
 #include <linux/ctype.h>
@@ -353,7 +354,7 @@ static void md_submit_barrier(struct work_struct *ws)
 		/* an empty barrier - all done */
 		bio_endio(bio, 0);
 	else {
-		bio->bi_rw &= ~(1<<BIO_RW_BARRIER);
+		bio->bi_rw &= ~REQ_HARDBARRIER;
 		if (mddev->pers->make_request(mddev, bio))
 			generic_make_request(bio);
 		mddev->barrier = POST_REQUEST_BARRIER;
@@ -675,11 +676,11 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	 * if zero is reached.
 	 * If an error occurred, call md_error
 	 *
-	 * As we might need to resubmit the request if BIO_RW_BARRIER
+	 * As we might need to resubmit the request if REQ_HARDBARRIER
 	 * causes ENOTSUPP, we allocate a spare bio...
 	 */
 	struct bio *bio = bio_alloc(GFP_NOIO, 1);
-	int rw = (1<<BIO_RW) | (1<<BIO_RW_SYNCIO) | (1<<BIO_RW_UNPLUG);
+	int rw = REQ_WRITE | REQ_SYNC | REQ_UNPLUG;
 
 	bio->bi_bdev = rdev->bdev;
 	bio->bi_sector = sector;
@@ -691,7 +692,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	atomic_inc(&mddev->pending_writes);
 	if (!test_bit(BarriersNotsupp, &rdev->flags)) {
 		struct bio *rbio;
-		rw |= (1<<BIO_RW_BARRIER);
+		rw |= REQ_HARDBARRIER;
 		rbio = bio_clone(bio, GFP_NOIO);
 		rbio->bi_private = bio;
 		rbio->bi_end_io = super_written_barrier;
@@ -736,7 +737,7 @@ int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 	struct completion event;
 	int ret;
 
-	rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
+	rw |= REQ_SYNC | REQ_UNPLUG;
 
 	bio->bi_bdev = bdev;
 	bio->bi_sector = sector;
@@ -5902,6 +5903,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	mddev_t *mddev = mddev_find(bdev->bd_dev);
 	int err;
 
+	lock_kernel();
 	if (mddev->gendisk != bdev->bd_disk) {
 		/* we are racing with mddev_put which is discarding this
 		 * bd_disk.
@@ -5910,6 +5912,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 		/* Wait until bdev->bd_disk is definitely gone */
 		flush_scheduled_work();
 		/* Then retry the open from the top */
+		unlock_kernel();
 		return -ERESTARTSYS;
 	}
 	BUG_ON(mddev != bdev->bd_disk->private_data);
@@ -5923,6 +5926,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	check_disk_size_change(mddev->gendisk, bdev);
  out:
+	unlock_kernel();
 	return err;
 }
 
@@ -5931,8 +5935,10 @@ static int md_release(struct gendisk *disk, fmode_t mode)
  	mddev_t *mddev = disk->private_data;
 
 	BUG_ON(!mddev);
+	lock_kernel();
 	atomic_dec(&mddev->openers);
 	mddev_put(mddev);
+	unlock_kernel();
 
 	return 0;
 }
