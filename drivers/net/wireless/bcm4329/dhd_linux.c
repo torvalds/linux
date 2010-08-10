@@ -2369,7 +2369,8 @@ dhd_detach(dhd_pub_t *dhdp)
 			int i;
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
-			unregister_early_suspend(&dhd->early_suspend);
+			if (dhd->early_suspend.suspend)
+				unregister_early_suspend(&dhd->early_suspend);
 #endif	/* defined(CONFIG_HAS_EARLYSUSPEND) */
 #if defined(CONFIG_WIRELESS_EXT)
 			/* Attach and link in the iw */
