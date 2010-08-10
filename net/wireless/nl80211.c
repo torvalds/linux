@@ -3572,6 +3572,21 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
+	if (key.idx >= 0) {
+		int i;
+		bool ok = false;
+		for (i = 0; i < rdev->wiphy.n_cipher_suites; i++) {
+			if (key.p.cipher == rdev->wiphy.cipher_suites[i]) {
+				ok = true;
+				break;
+			}
+		}
+		if (!ok) {
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
 	if (!rdev->ops->auth) {
 		err = -EOPNOTSUPP;
 		goto out;
