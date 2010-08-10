@@ -73,7 +73,11 @@ static inline void *kmap_atomic(struct page *page, enum km_type idx)
 }
 #define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
 
-#define kunmap_atomic_notypecheck(addr, idx)	do { pagefault_enable(); } while (0)
+static inline void kunmap_atomic_notypecheck(void *addr, enum km_type idx)
+{
+	pagefault_enable();
+}
+
 #define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
 
