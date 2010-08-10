@@ -508,21 +508,18 @@ do_boot_cpu (int sapicid, int cpu)
 		.done	= COMPLETION_INITIALIZER(c_idle.done),
 	};
 
+	/*
+	 * We can't use kernel_thread since we must avoid to
+	 * reschedule the child.
+	 */
  	c_idle.idle = get_idle_for_cpu(cpu);
  	if (c_idle.idle) {
 		init_idle(c_idle.idle, cpu);
  		goto do_rest;
 	}
 
-	/*
-	 * We can't use kernel_thread since we must avoid to reschedule the child.
-	 */
-	if (!keventd_up())
-		c_idle.work.func(&c_idle.work);
-	else {
-		schedule_work(&c_idle.work);
-		wait_for_completion(&c_idle.done);
-	}
+	schedule_work(&c_idle.work);
+	wait_for_completion(&c_idle.done);
 
 	if (IS_ERR(c_idle.idle))
 		panic("failed fork for CPU %d", cpu);
