@@ -75,7 +75,7 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 		unsigned char len, unsigned char *value)
 {
 	struct i2c_client *client = tsc->client;
-	unsigned int ret;
+	int ret;
 	unsigned char i2c_data[6];
 
 	BUG_ON(len > 5);
@@ -86,7 +86,7 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 	ret = i2c_master_send(client, i2c_data, len + 1);
 	if (ret != 1) {
 		dev_err(&client->dev, "i2c write data cmd failed\n");
-		return ret;
+		return ret ? ret : -EIO;
 	}
 
 	return 0;
@@ -96,7 +96,7 @@ static int cy8ctmg110_read_regs(struct cy8ctmg110 *tsc,
 		unsigned char *data, unsigned char len, unsigned char cmd)
 {
 	struct i2c_client *client = tsc->client;
-	unsigned int ret;
+	int ret;
 	struct i2c_msg msg[2] = {
 		/* first write slave position to i2c devices */
 		{ client->addr, 0, 1, &cmd },

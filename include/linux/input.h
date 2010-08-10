@@ -776,6 +776,7 @@ struct input_absinfo {
 #define REP_DELAY		0x00
 #define REP_PERIOD		0x01
 #define REP_MAX			0x01
+#define REP_CNT			(REP_MAX+1)
 
 /*
  * Sounds
@@ -1099,21 +1100,18 @@ struct input_mt_slot {
  * @repeat_key: stores key code of the last key pressed; used to implement
  *	software autorepeat
  * @timer: timer for software autorepeat
- * @abs: current values for reports from absolute axes
  * @rep: current values for autorepeat parameters (delay, rate)
  * @mt: pointer to array of struct input_mt_slot holding current values
  *	of tracked contacts
  * @mtsize: number of MT slots the device uses
  * @slot: MT slot currently being transmitted
+ * @absinfo: array of &struct absinfo elements holding information
+ *	about absolute axes (current value, min, max, flat, fuzz,
+ *	resolution)
  * @key: reflects current state of device's keys/buttons
  * @led: reflects current state of device's LEDs
  * @snd: reflects current state of sound effects
  * @sw: reflects current state of device's switches
- * @absmax: maximum values for events coming from absolute axes
- * @absmin: minimum values for events coming from absolute axes
- * @absfuzz: describes noisiness for axes
- * @absflat: size of the center flat position (used by joydev)
- * @absres: resolution used for events coming form absolute axes
  * @open: this method is called when the very first user calls
  *	input_open_device(). The driver must prepare the device
  *	to start generating events (start polling thread,
@@ -1180,23 +1178,18 @@ struct input_dev {
 	unsigned int repeat_key;
 	struct timer_list timer;
 
-	int abs[ABS_CNT];
-	int rep[REP_MAX + 1];
+	int rep[REP_CNT];
 
 	struct input_mt_slot *mt;
 	int mtsize;
 	int slot;
 
+	struct input_absinfo *absinfo;
+
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long led[BITS_TO_LONGS(LED_CNT)];
 	unsigned long snd[BITS_TO_LONGS(SND_CNT)];
 	unsigned long sw[BITS_TO_LONGS(SW_CNT)];
-
-	int absmax[ABS_CNT];
-	int absmin[ABS_CNT];
-	int absfuzz[ABS_CNT];
-	int absflat[ABS_CNT];
-	int absres[ABS_CNT];
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
@@ -1459,15 +1452,31 @@ static inline void input_set_events_per_packet(struct input_dev *dev, int n_even
 	dev->hint_events_per_packet = n_events;
 }
 
-static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)
-{
-	dev->absmin[axis] = min;
-	dev->absmax[axis] = max;
-	dev->absfuzz[axis] = fuzz;
-	dev->absflat[axis] = flat;
+void input_alloc_absinfo(struct input_dev *dev);
+void input_set_abs_params(struct input_dev *dev, unsigned int axis,
+			  int min, int max, int fuzz, int flat);
 
-	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
+#define INPUT_GENERATE_ABS_ACCESSORS(_suffix, _item)			\
+static inline int input_abs_get_##_suffix(struct input_dev *dev,	\
+					  unsigned int axis)		\
+{									\
+	return dev->absinfo ? dev->absinfo[axis]._item : 0;		\
+}									\
+									\
+static inline void input_abs_set_##_suffix(struct input_dev *dev,	\
+					   unsigned int axis, int val)	\
+{									\
+	input_alloc_absinfo(dev);					\
+	if (dev->absinfo)						\
+		dev->absinfo[axis]._item = val;				\
 }
+
+INPUT_GENERATE_ABS_ACCESSORS(val, value)
+INPUT_GENERATE_ABS_ACCESSORS(min, minimum)
+INPUT_GENERATE_ABS_ACCESSORS(max, maximum)
+INPUT_GENERATE_ABS_ACCESSORS(fuzz, fuzz)
+INPUT_GENERATE_ABS_ACCESSORS(flat, flat)
+INPUT_GENERATE_ABS_ACCESSORS(res, resolution)
 
 int input_get_keycode(struct input_dev *dev,
 		      unsigned int scancode, unsigned int *keycode);
