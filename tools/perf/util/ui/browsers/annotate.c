@@ -17,6 +17,7 @@ static void ui__error_window(const char *fmt, ...)
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
+	struct rb_node	  *curr_hot;
 };
 
 struct objdump_line_rb_node {
@@ -110,12 +111,83 @@ static void objdump__insert_line(struct rb_root *self,
 	rb_insert_color(&line->rb_node, self);
 }
 
+static void annotate_browser__set_top(struct annotate_browser *self,
+				      struct rb_node *nd)
+{
+	struct objdump_line_rb_node *rbpos;
+	struct objdump_line *pos;
+	unsigned back;
+
+	ui_browser__refresh_dimensions(&self->b);
+	back = self->b.height / 2;
+	rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
+	pos = ((struct objdump_line *)rbpos) - 1;
+	self->b.top_idx = self->b.index = rbpos->idx;
+
+	while (self->b.top_idx != 0 && back != 0) {
+		pos = list_entry(pos->node.prev, struct objdump_line, node);
+
+		--self->b.top_idx;
+		--back;
+	}
+
+	self->b.top = pos;
+	self->curr_hot = nd;
+}
+
+static int annotate_browser__run(struct annotate_browser *self,
+				 struct newtExitStruct *es)
+{
+	struct rb_node *nd;
+	struct hist_entry *he = self->b.priv;
+
+	if (ui_browser__show(&self->b, he->ms.sym->name) < 0)
+		return -1;
+
+	ui_helpline__fpush("<- or ESC: exit, TAB/shift+TAB: cycle thru samples");
+	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
+
+	nd = self->curr_hot;
+	if (nd) {
+		newtFormAddHotKey(self->b.form, NEWT_KEY_TAB);
+		newtFormAddHotKey(self->b.form, NEWT_KEY_UNTAB);
+	}
+
+	while (1) {
+		ui_browser__run(&self->b, es);
+
+		if (es->reason != NEWT_EXIT_HOTKEY)
+			break;
+
+		switch (es->u.key) {
+		case NEWT_KEY_TAB:
+			nd = rb_prev(nd);
+			if (nd == NULL)
+				nd = rb_last(&self->entries);
+			annotate_browser__set_top(self, nd);
+			break;
+		case NEWT_KEY_UNTAB:
+			nd = rb_next(nd);
+			if (nd == NULL)
+				nd = rb_first(&self->entries);
+			annotate_browser__set_top(self, nd);
+			break;
+		default:
+			goto out;
+		}
+	}
+out:
+	newtFormDestroy(self->b.form);
+	newtPopWindow();
+	ui_helpline__pop();
+	return 0;
+}
+
 int hist_entry__tui_annotate(struct hist_entry *self)
 {
 	struct newtExitStruct es;
 	struct objdump_line *pos, *n;
 	struct objdump_line_rb_node *rbpos;
-	struct rb_node *nd;
 	LIST_HEAD(head);
 	struct annotate_browser browser = {
 		.b = {
@@ -156,35 +228,15 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	/*
 	 * Position the browser at the hottest line.
 	 */
-	nd = rb_last(&browser.entries);
-	if (nd != NULL) {
-		unsigned back;
-
-		ui_browser__refresh_dimensions(&browser.b);
-		back = browser.b.height / 2;
-		rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
-		pos = ((struct objdump_line *)rbpos) - 1;
-		browser.b.top_idx = browser.b.index = rbpos->idx;
-
-		while (browser.b.top_idx != 0 && back != 0) {
-			pos = list_entry(pos->node.prev, struct objdump_line, node);
-
-			--browser.b.top_idx;
-			--back;
-		}
-
-		browser.b.top = pos;
-	}
+	browser.curr_hot = rb_last(&browser.entries);
+	if (browser.curr_hot)
+		annotate_browser__set_top(&browser, browser.curr_hot);
 
 	browser.b.width += 18; /* Percentage */
-	ui_browser__show(&browser.b, self->ms.sym->name);
-	ret = ui_browser__run(&browser.b, &es);
-	newtFormDestroy(browser.b.form);
-	newtPopWindow();
+	ret = annotate_browser__run(&browser, &es);
 	list_for_each_entry_safe(pos, n, &head, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);
 	}
-	ui_helpline__pop();
 	return ret;
 }
