@@ -22,13 +22,13 @@
 #include <net/caif/caif_spi.h>
 
 #ifndef CONFIG_CAIF_SPI_SYNC
-#define SPI_DATA_POS SPI_CMD_SZ
+#define SPI_DATA_POS 0
 static inline int forward_to_spi_cmd(struct cfspi *cfspi)
 {
 	return cfspi->rx_cpck_len;
 }
 #else
-#define SPI_DATA_POS 0
+#define SPI_DATA_POS SPI_CMD_SZ
 static inline int forward_to_spi_cmd(struct cfspi *cfspi)
 {
 	return 0;
