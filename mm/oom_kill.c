@@ -521,17 +521,40 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	return oom_kill_task(victim);
 }
 
+/*
+ * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+ */
+static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
+				int order)
+{
+	if (likely(!sysctl_panic_on_oom))
+		return;
+	if (sysctl_panic_on_oom != 2) {
+		/*
+		 * panic_on_oom == 1 only affects CONSTRAINT_NONE, the kernel
+		 * does not panic for cpuset, mempolicy, or memcg allocation
+		 * failures.
+		 */
+		if (constraint != CONSTRAINT_NONE)
+			return;
+	}
+	read_lock(&tasklist_lock);
+	dump_header(NULL, gfp_mask, order, NULL);
+	read_unlock(&tasklist_lock);
+	panic("Out of memory: %s panic_on_oom is enabled\n",
+		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+}
+
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 {
 	unsigned long points = 0;
 	struct task_struct *p;
 
-	if (sysctl_panic_on_oom == 2)
-		panic("out of memory(memcg). panic_on_oom is selected.\n");
+	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0);
 	read_lock(&tasklist_lock);
 retry:
-	p = select_bad_process(&points, mem, CONSTRAINT_NONE, NULL);
+	p = select_bad_process(&points, mem, CONSTRAINT_MEMCG, NULL);
 	if (!p || PTR_ERR(p) == -1UL)
 		goto out;
 
@@ -632,8 +655,8 @@ retry:
 
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
-		read_unlock(&tasklist_lock);
 		dump_header(NULL, gfp_mask, order, NULL);
+		read_unlock(&tasklist_lock);
 		panic("Out of memory and no killable processes...\n");
 	}
 
@@ -655,9 +678,7 @@ void pagefault_out_of_memory(void)
 		/* Got some memory back in the last second. */
 		return;
 
-	if (sysctl_panic_on_oom)
-		panic("out of memory from page fault. panic_on_oom is selected.\n");
-
+	check_panic_on_oom(CONSTRAINT_NONE, 0, 0);
 	read_lock(&tasklist_lock);
 	/* unknown gfp_mask and order */
 	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
@@ -704,29 +725,13 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		return;
 	}
 
-	if (sysctl_panic_on_oom == 2) {
-		dump_header(NULL, gfp_mask, order, NULL);
-		panic("out of memory. Compulsory panic_on_oom is selected.\n");
-	}
-
 	/*
 	 * Check if there were limitations on the allocation (only relevant for
 	 * NUMA) that may require different handling.
 	 */
 	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+	check_panic_on_oom(constraint, gfp_mask, order);
 	read_lock(&tasklist_lock);
-	if (unlikely(sysctl_panic_on_oom)) {
-		/*
-		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
-		 * should not panic for cpuset or mempolicy induced memory
-		 * failures.
-		 */
-		if (constraint == CONSTRAINT_NONE) {
-			dump_header(NULL, gfp_mask, order, NULL);
-			read_unlock(&tasklist_lock);
-			panic("Out of memory: panic_on_oom is enabled\n");
-		}
-	}
 	__out_of_memory(gfp_mask, order, constraint, nodemask);
 	read_unlock(&tasklist_lock);
 

@@ -22,6 +22,7 @@ enum oom_constraint {
 	CONSTRAINT_NONE,
 	CONSTRAINT_CPUSET,
 	CONSTRAINT_MEMORY_POLICY,
+	CONSTRAINT_MEMCG,
 };
 
 extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
