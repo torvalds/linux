@@ -16,16 +16,14 @@
 #define imx31_add_imx_i2c2(pdata)	\
 	imx_add_imx_i2c(2, MX31_I2C3_BASE_ADDR, SZ_4K, MX31_INT_I2C3, pdata)
 
-#define imx31_add_imx_uart0(pdata)	\
-	imx_add_imx_uart_1irq(0, MX31_UART1_BASE_ADDR, SZ_16K, MX31_INT_UART1, pdata)
-#define imx31_add_imx_uart1(pdata)	\
-	imx_add_imx_uart_1irq(1, MX31_UART2_BASE_ADDR, SZ_16K, MX31_INT_UART2, pdata)
-#define imx31_add_imx_uart2(pdata)	\
-	imx_add_imx_uart_1irq(2, MX31_UART3_BASE_ADDR, SZ_16K, MX31_INT_UART3, pdata)
-#define imx31_add_imx_uart3(pdata)	\
-	imx_add_imx_uart_1irq(3, MX31_UART4_BASE_ADDR, SZ_16K, MX31_INT_UART4, pdata)
-#define imx31_add_imx_uart4(pdata)	\
-	imx_add_imx_uart_1irq(4, MX31_UART5_BASE_ADDR, SZ_16K, MX31_INT_UART5, pdata)
+extern const struct imx_imx_uart_1irq_data imx31_imx_uart_data[] __initconst;
+#define imx31_add_imx_uart(id, pdata)	\
+	imx_add_imx_uart_1irq(&imx31_imx_uart_data[id], pdata)
+#define imx31_add_imx_uart0(pdata)	imx31_add_imx_uart(0, pdata)
+#define imx31_add_imx_uart1(pdata)	imx31_add_imx_uart(1, pdata)
+#define imx31_add_imx_uart2(pdata)	imx31_add_imx_uart(2, pdata)
+#define imx31_add_imx_uart3(pdata)	imx31_add_imx_uart(3, pdata)
+#define imx31_add_imx_uart4(pdata)	imx31_add_imx_uart(4, pdata)
 
 #define imx31_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand_v1(MX31_NFC_BASE_ADDR, MX31_INT_NANDFC, pdata)

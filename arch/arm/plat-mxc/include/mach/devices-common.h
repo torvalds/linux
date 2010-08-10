@@ -26,14 +26,26 @@ struct platform_device *__init imx_add_imx_i2c(int id,
 		const struct imxi2c_platform_data *pdata);
 
 #include <mach/imx-uart.h>
-struct platform_device *__init imx_add_imx_uart_3irq(int id,
-		resource_size_t iobase, resource_size_t iosize,
-		resource_size_t irqrx, resource_size_t irqtx,
-		resource_size_t irqrts,
+struct imx_imx_uart_3irq_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irqrx;
+	resource_size_t irqtx;
+	resource_size_t irqrts;
+};
+struct platform_device *__init imx_add_imx_uart_3irq(
+		const struct imx_imx_uart_3irq_data *data,
 		const struct imxuart_platform_data *pdata);
-struct platform_device *__init imx_add_imx_uart_1irq(int id,
-		resource_size_t iobase, resource_size_t iosize,
-		resource_size_t irq,
+
+struct imx_imx_uart_1irq_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx_uart_1irq(
+		const struct imx_imx_uart_1irq_data *data,
 		const struct imxuart_platform_data *pdata);
 
 #include <mach/mxc_nand.h>
