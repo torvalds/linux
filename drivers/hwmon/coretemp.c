@@ -540,12 +540,9 @@ static int __init coretemp_init(void)
 		 * sensors. We check this bit only, all the early CPUs
 		 * without thermal sensors will be filtered out.
 		 */
-		if (c->cpuid_level >= 6 && (cpuid_eax(0x06) & 0x01)) {
-			err = coretemp_device_add(i);
-			if (err)
-				goto exit_devices_unreg;
-
-		} else {
+		if (c->cpuid_level >= 6 && (cpuid_eax(0x06) & 0x01))
+			coretemp_device_add(i);
+		else {
 			printk(KERN_INFO DRVNAME ": CPU (model=0x%x)"
 				" has no thermal sensor.\n", c->x86_model);
 		}
@@ -560,14 +557,6 @@ static int __init coretemp_init(void)
 #endif
 	return 0;
 
-exit_devices_unreg:
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
 exit_driver_unreg:
 #ifndef CONFIG_HOTPLUG_CPU
 	platform_driver_unregister(&coretemp_driver);
