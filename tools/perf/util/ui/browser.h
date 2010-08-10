@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <newt.h>
+#include <sys/types.h>
 #include "../types.h"
 
 #define HE_COLORSET_TOP		50
