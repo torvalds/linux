@@ -2019,6 +2019,11 @@ static int path_with_deleted(const struct path *path, struct path *root,
 	return prepend_path(path, root, buf, buflen);
 }
 
+static int prepend_unreachable(char **buffer, int *buflen)
+{
+	return prepend(buffer, buflen, "(unreachable)", 13);
+}
+
 /**
  * d_path - return the path of a dentry
  * @path: path to report
@@ -2063,6 +2068,39 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	return res;
 }
 EXPORT_SYMBOL(d_path);
+
+/**
+ * d_path_with_unreachable - return the path of a dentry
+ * @path: path to report
+ * @buf: buffer to return value in
+ * @buflen: buffer length
+ *
+ * The difference from d_path() is that this prepends "(unreachable)"
+ * to paths which are unreachable from the current process' root.
+ */
+char *d_path_with_unreachable(const struct path *path, char *buf, int buflen)
+{
+	char *res = buf + buflen;
+	struct path root;
+	struct path tmp;
+	int error;
+
+	if (path->dentry->d_op && path->dentry->d_op->d_dname)
+		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
+
+	get_fs_root(current->fs, &root);
+	spin_lock(&dcache_lock);
+	tmp = root;
+	error = path_with_deleted(path, &tmp, &res, &buflen);
+	if (!error && !path_equal(&tmp, &root))
+		error = prepend_unreachable(&res, &buflen);
+	spin_unlock(&dcache_lock);
+	path_put(&root);
+	if (error)
+		res =  ERR_PTR(error);
+
+	return res;
+}
 
 /*
  * Helper function for dentry_operations.d_dname() members
@@ -2173,14 +2211,22 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	if (!d_unlinked(pwd.dentry)) {
 		unsigned long len;
 		struct path tmp = root;
-		char * cwd;
+		char *cwd = page + PAGE_SIZE;
+		int buflen = PAGE_SIZE;
 
-		cwd = __d_path(&pwd, &tmp, page, PAGE_SIZE);
+		prepend(&cwd, &buflen, "\0", 1);
+		error = prepend_path(&pwd, &tmp, &cwd, &buflen);
 		spin_unlock(&dcache_lock);
 
-		error = PTR_ERR(cwd);
-		if (IS_ERR(cwd))
+		if (error)
 			goto out;
+
+		/* Unreachable from current root */
+		if (!path_equal(&tmp, &root)) {
+			error = prepend_unreachable(&cwd, &buflen);
+			if (error)
+				goto out;
+		}
 
 		error = -ERANGE;
 		len = PAGE_SIZE + page - cwd;
