@@ -4565,11 +4565,6 @@ W:	http://prism54.org
 S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
-PROMISE DC4030 CACHING DISK CONTROLLER DRIVER
-M:	Peter Denison <promise@pnd-pc.demon.co.uk>
-W:	http://www.pnd-pc.demon.co.uk/promise/
-S:	Maintained
-
 PROMISE SATA TX2/TX4 CONTROLLER LIBATA DRIVER
 M:	Mikael Pettersson <mikpe@it.uu.se>
 L:	linux-ide@vger.kernel.org
