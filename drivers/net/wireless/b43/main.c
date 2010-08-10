@@ -3759,17 +3759,17 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	err = -EINVAL;
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			algorithm = B43_SEC_ALGO_WEP40;
-		else
-			algorithm = B43_SEC_ALGO_WEP104;
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		algorithm = B43_SEC_ALGO_WEP40;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		algorithm = B43_SEC_ALGO_WEP104;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
 		algorithm = B43_SEC_ALGO_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		algorithm = B43_SEC_ALGO_AES;
 		break;
 	default:

@@ -36,8 +36,8 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	int tail;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (!tx->key || tx->key->conf.alg != ALG_TKIP || skb->len < 24 ||
-	    !ieee80211_is_data_present(hdr->frame_control))
+	if (!tx->key || tx->key->conf.cipher != WLAN_CIPHER_SUITE_TKIP ||
+	    skb->len < 24 || !ieee80211_is_data_present(hdr->frame_control))
 		return TX_CONTINUE;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -94,7 +94,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	if (status->flag & RX_FLAG_MMIC_STRIPPED)
 		return RX_CONTINUE;
 
-	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
+	if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_TKIP ||
 	    !ieee80211_has_protected(hdr->frame_control) ||
 	    !ieee80211_is_data_present(hdr->frame_control))
 		return RX_CONTINUE;

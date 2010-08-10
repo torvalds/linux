@@ -789,20 +789,6 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 }
 
 /**
- * enum ieee80211_key_alg - key algorithm
- * @ALG_WEP: WEP40 or WEP104
- * @ALG_TKIP: TKIP
- * @ALG_CCMP: CCMP (AES)
- * @ALG_AES_CMAC: AES-128-CMAC
- */
-enum ieee80211_key_alg {
-	ALG_WEP,
-	ALG_TKIP,
-	ALG_CCMP,
-	ALG_AES_CMAC,
-};
-
-/**
  * enum ieee80211_key_flags - key flags
  *
  * These flags are used for communication about keys between the driver
@@ -839,7 +825,7 @@ enum ieee80211_key_flags {
  * @hw_key_idx: To be set by the driver, this is the key index the driver
  *	wants to be given when a frame is transmitted and needs to be
  *	encrypted in hardware.
- * @alg: The key algorithm.
+ * @cipher: The key's cipher suite selector.
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
@@ -852,7 +838,7 @@ enum ieee80211_key_flags {
  * @iv_len: The IV length for this key type
  */
 struct ieee80211_key_conf {
-	enum ieee80211_key_alg alg;
+	u32 cipher;
 	u8 icv_len;
 	u8 iv_len;
 	u8 hw_key_idx;

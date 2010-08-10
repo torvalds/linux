@@ -152,7 +152,7 @@ static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
 	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key,
 	       keyconf->keylen);
@@ -223,23 +223,25 @@ static int iwl3945_set_dynamic_key(struct iwl_priv *priv,
 
 	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		ret = iwl3945_set_ccmp_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		ret = iwl3945_set_tkip_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_WEP:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwl3945_set_wep_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	default:
-		IWL_ERR(priv, "Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
+		IWL_ERR(priv, "Unknown alg: %s alg=%x\n", __func__,
+			keyconf->cipher);
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP(priv, "Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
-		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+	IWL_DEBUG_WEP(priv, "Set dynamic key: alg=%x len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
 
 	return ret;
@@ -255,10 +257,11 @@ static int iwl3945_remove_static_key(struct iwl_priv *priv)
 static int iwl3945_set_static_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key)
 {
-	if (key->alg == ALG_WEP)
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
 		return -EOPNOTSUPP;
 
-	IWL_ERR(priv, "Static key invalid: alg %d\n", key->alg);
+	IWL_ERR(priv, "Static key invalid: cipher %x\n", key->cipher);
 	return -EINVAL;
 }
 
@@ -370,22 +373,24 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 	struct iwl3945_tx_cmd *tx_cmd = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
 	struct iwl_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
 
-	switch (keyinfo->alg) {
-	case ALG_CCMP:
+	tx_cmd->sec_ctl = 0;
+
+	switch (keyinfo->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(tx_cmd->key, keyinfo->key, keyinfo->keylen);
 		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		break;
 
-	case ALG_WEP:
-		tx_cmd->sec_ctl = TX_CMD_SEC_WEP |
+	case WLAN_CIPHER_SUITE_WEP104:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_WEP40:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_WEP |
 		    (info->control.hw_key->hw_key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
-
-		if (keyinfo->keylen == 13)
-			tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
 
 		memcpy(&tx_cmd->key[3], keyinfo->key, keyinfo->keylen);
 
@@ -394,7 +399,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		IWL_ERR(priv, "Unknown encode alg %d\n", keyinfo->alg);
+		IWL_ERR(priv, "Unknown encode cipher %x\n", keyinfo->cipher);
 		break;
 	}
 }

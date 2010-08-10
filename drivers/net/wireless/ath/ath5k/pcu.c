@@ -695,21 +695,18 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 static
 int ath5k_keycache_type(const struct ieee80211_key_conf *key)
 {
-	switch (key->alg) {
-	case ALG_TKIP:
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
 		return AR5K_KEYTABLE_TYPE_TKIP;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		return AR5K_KEYTABLE_TYPE_CCM;
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			return AR5K_KEYTABLE_TYPE_40;
-		else if (key->keylen == WLAN_KEY_LEN_WEP104)
-			return AR5K_KEYTABLE_TYPE_104;
-		return -EINVAL;
+	case WLAN_CIPHER_SUITE_WEP40:
+		return AR5K_KEYTABLE_TYPE_40;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return AR5K_KEYTABLE_TYPE_104;
 	default:
 		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 /*
@@ -728,7 +725,7 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	bool is_tkip;
 	const u8 *key_ptr;
 
-	is_tkip = (key->alg == ALG_TKIP);
+	is_tkip = (key->cipher == WLAN_CIPHER_SUITE_TKIP);
 
 	/*
 	 * key->keylen comes in from mac80211 in bytes.

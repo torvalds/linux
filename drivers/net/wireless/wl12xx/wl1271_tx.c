@@ -193,7 +193,7 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 
 	if (info->control.hw_key &&
-	    info->control.hw_key->alg == ALG_TKIP)
+	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP)
 		extra = WL1271_TKIP_IV_SPACE;
 
 	if (info->control.hw_key) {
@@ -347,7 +347,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	/* remove TKIP header space if present */
 	if (info->control.hw_key &&
-	    info->control.hw_key->alg == ALG_TKIP) {
+	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 		memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data, hdrlen);
 		skb_pull(skb, WL1271_TKIP_IV_SPACE);

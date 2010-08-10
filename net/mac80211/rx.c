@@ -961,7 +961,8 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 * pairwise or station-to-station keys, but for WEP we allow
 		 * using a key index as well.
 		 */
-		if (rx->key && rx->key->conf.alg != ALG_WEP &&
+		if (rx->key && rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP40 &&
+		    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP104 &&
 		    !is_multicast_ether_addr(hdr->addr1))
 			rx->key = NULL;
 	}
@@ -977,8 +978,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 	/* the hdr variable is invalid now! */
 
-	switch (rx->key->conf.alg) {
-	case ALG_WEP:
+	switch (rx->key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		/* Check for weak IVs if possible */
 		if (rx->sta && ieee80211_is_data(fc) &&
 		    (!(status->flag & RX_FLAG_IV_STRIPPED) ||
@@ -988,13 +990,13 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		result = ieee80211_crypto_wep_decrypt(rx);
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		result = ieee80211_crypto_tkip_decrypt(rx);
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		result = ieee80211_crypto_ccmp_decrypt(rx);
 		break;
-	case ALG_AES_CMAC:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
 		result = ieee80211_crypto_aes_cmac_decrypt(rx);
 		break;
 	}
@@ -1291,7 +1293,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		/* This is the first fragment of a new frame. */
 		entry = ieee80211_reassemble_add(rx->sdata, frag, seq,
 						 rx->queue, &(rx->skb));
-		if (rx->key && rx->key->conf.alg == ALG_CCMP &&
+		if (rx->key && rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP &&
 		    ieee80211_has_protected(fc)) {
 			int queue = ieee80211_is_mgmt(fc) ?
 				NUM_RX_DATA_QUEUES : rx->queue;
@@ -1320,7 +1322,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		int i;
 		u8 pn[CCMP_PN_LEN], *rpn;
 		int queue;
-		if (!rx->key || rx->key->conf.alg != ALG_CCMP)
+		if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP)
 			return RX_DROP_UNUSABLE;
 		memcpy(pn, entry->last_pn, CCMP_PN_LEN);
 		for (i = CCMP_PN_LEN - 1; i >= 0; i--) {

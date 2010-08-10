@@ -3297,11 +3297,12 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (sc->opmode == NL80211_IFTYPE_AP)
 		return -EOPNOTSUPP;
 
-	switch (key->alg) {
-	case ALG_WEP:
-	case ALG_TKIP:
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		if (sc->ah->ah_aes_support)
 			break;
 
