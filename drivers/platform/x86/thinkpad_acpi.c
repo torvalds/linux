@@ -1911,6 +1911,17 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_VOLUMEDOWN,
 	TP_ACPI_HOTKEYSCAN_MUTE,
 	TP_ACPI_HOTKEYSCAN_THINKPAD,
+	TP_ACPI_HOTKEYSCAN_UNK1,
+	TP_ACPI_HOTKEYSCAN_UNK2,
+	TP_ACPI_HOTKEYSCAN_UNK3,
+	TP_ACPI_HOTKEYSCAN_UNK4,
+	TP_ACPI_HOTKEYSCAN_UNK5,
+	TP_ACPI_HOTKEYSCAN_UNK6,
+	TP_ACPI_HOTKEYSCAN_UNK7,
+	TP_ACPI_HOTKEYSCAN_UNK8,
+
+	/* Hotkey keymap size */
+	TPACPI_HOTKEY_MAP_LEN
 };
 
 enum {	/* Keys/events available through NVRAM polling */
@@ -3113,7 +3124,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 * If the above is too much to ask, don't change the keymap.
 	 * Ask the thinkpad-acpi maintainer to do it, instead.
 	 */
-	static u16 ibm_keycode_map[] __initdata = {
+	static u16 ibm_keycode_map[TPACPI_HOTKEY_MAP_LEN] __initdata = {
 		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
 		KEY_FN_F1,	KEY_FN_F2,	KEY_COFFEE,	KEY_SLEEP,
 		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
@@ -3147,7 +3158,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 	};
-	static u16 lenovo_keycode_map[] __initdata = {
+	static u16 lenovo_keycode_map[TPACPI_HOTKEY_MAP_LEN] __initdata = {
 		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
 		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
 		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
@@ -3191,7 +3202,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 	};
 
-#define TPACPI_HOTKEY_MAP_LEN		ARRAY_SIZE(ibm_keycode_map)
 #define TPACPI_HOTKEY_MAP_SIZE		sizeof(ibm_keycode_map)
 #define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(ibm_keycode_map[0])
 
@@ -3469,7 +3479,8 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
-	if (scancode > 0 && scancode < 0x21) {
+	/* HKEY event 0x1001 is scancode 0x00 */
+	if (scancode > 0 && scancode <= TPACPI_HOTKEY_MAP_LEN) {
 		scancode--;
 		if (!(hotkey_source_mask & (1 << scancode))) {
 			tpacpi_input_send_key_masked(scancode);
