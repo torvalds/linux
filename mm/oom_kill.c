@@ -479,9 +479,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned long child_points;
 
-			if (child->mm == p->mm)
-				continue;
-
 			/* badness() returns 0 if the thread is unkillable */
 			child_points = badness(child, mem, nodemask,
 					       uptime.tv_sec);
