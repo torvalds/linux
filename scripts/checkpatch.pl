@@ -2584,6 +2584,14 @@ sub process {
 			}
 		}
 
+# prefer usleep_range over udelay
+		if ($line =~ /\budelay\s*\(\s*(\w+)\s*\)/) {
+			# ignore udelay's < 10, however
+			if (! (($1 =~ /(\d+)/) && ($1 < 10)) ) {
+				CHK("usleep_range is preferred over udelay; see Documentation/timers/timers-howto.txt\n" . $line);
+			}
+		}
+
 # warn about #ifdefs in C files
 #		if ($line =~ /^.\s*\#\s*if(|n)def/ && ($realfile =~ /\.c$/)) {
 #			print "#ifdef in C files should be avoided\n";
