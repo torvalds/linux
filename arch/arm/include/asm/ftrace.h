@@ -18,7 +18,8 @@ struct dyn_arch_ftrace {
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
-	return addr;
+	/* With Thumb-2, the recorded addresses have the lsb set */
+	return addr & ~1;
 }
 
 extern void ftrace_caller_old(void);
