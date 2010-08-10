@@ -4,12 +4,14 @@ defines of FPGA chip ICE65L08's register
 
 #ifndef SPI_UART_H
 #define SPI_UART_H
+
 #include <linux/circ_buf.h>
 #include <linux/miscdevice.h>
 
 #define SPI_FPGA_INT_PIN RK2818_PIN_PA4
 #define SPI_DPRAM_BUSY_PIN RK2818_PIN_PA2
 #define SPI_FPGA_STANDBY_PIN RK2818_PIN_PH7
+#define SPI_FPGA_RST_PIN RK2818_PIN_PH6
 
 #define SPI_FPGA_TEST_DEBUG	0
 #if SPI_FPGA_TEST_DEBUG
@@ -60,7 +62,10 @@ struct spi_gpio
 {
 	struct workqueue_struct 	*spi_gpio_workqueue;
 	struct work_struct 	spi_gpio_work;
+	struct workqueue_struct 	*spi_gpio_irq_workqueue;
+	struct work_struct 	spi_gpio_irq_work;
 	struct timer_list 	gpio_timer;
+	struct list_head	msg_queue;
 
 };
 struct spi_i2c_data
