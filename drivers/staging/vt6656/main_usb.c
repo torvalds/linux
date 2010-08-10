@@ -770,10 +770,9 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	udev = usb_get_dev(udev);
 	netdev = alloc_etherdev(sizeof(DEVICE_INFO));
-
 	if (!netdev) {
 		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
-		kfree(pDevice);
+		rc = -ENOMEM;
 		goto err_nomem;
 	}
 
@@ -799,9 +798,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	rc = register_netdev(netdev);
 	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
-		free_netdev(netdev);
-		kfree(pDevice);
-		return -ENODEV;
+		goto err_netdev;
 	}
 
 	usb_device_reset(pDevice);
@@ -819,10 +816,12 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	return 0;
 
+err_netdev:
+	free_netdev(netdev);
 err_nomem:
 	usb_put_dev(udev);
 
-	return -ENOMEM;
+	return rc;
 }
 
 static void device_free_tx_bufs(PSDevice pDevice)
