@@ -239,13 +239,14 @@ void edac_mc_free(struct mem_ctl_info *mci)
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
 
-/*
+/**
  * find_mci_by_dev
  *
  *	scan list of controllers looking for the one that manages
  *	the 'dev' device
+ * @dev: pointer to a struct device related with the MCI
  */
-static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
+struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 {
 	struct mem_ctl_info *mci;
 	struct list_head *item;
@@ -261,6 +262,7 @@ static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(find_mci_by_dev);
 
 /*
  * handler for EDAC to check if NMI type handler has asserted interrupt

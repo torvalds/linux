@@ -261,6 +261,9 @@ struct i7core_pvt {
 
 	/* Count indicator to show errors not got */
 	unsigned		mce_overrun;
+
+	/* Struct to control EDAC polling */
+	struct edac_pci_ctl_info *i7core_pci;
 };
 
 /* Static vars */
@@ -377,8 +380,6 @@ static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNNFIELD_QPI_LINK0)},
 	{0,}			/* 0 terminated list. */
 };
-
-static struct edac_pci_ctl_info *i7core_pci;
 
 /****************************************************************************
 			Anciliary status routines
@@ -1906,9 +1907,9 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	}
 
 	/* allocating generic PCI control info */
-	i7core_pci = edac_pci_create_generic_ctl(&i7core_dev->pdev[0]->dev,
+	pvt->i7core_pci = edac_pci_create_generic_ctl(&i7core_dev->pdev[0]->dev,
 						 EDAC_MOD_STR);
-	if (unlikely(!i7core_pci)) {
+	if (unlikely(!pvt->i7core_pci)) {
 		printk(KERN_WARNING
 			"%s(): Unable to create PCI control\n",
 			__func__);
@@ -2008,11 +2009,9 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_dev *i7core_dev, *tmp;
+	struct i7core_pvt *pvt;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
-
-	if (i7core_pci)
-		edac_pci_release_generic_ctl(i7core_pci);
 
 	/*
 	 * we have a trouble here: pdev value for removal will be wrong, since
@@ -2024,19 +2023,28 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 
 	mutex_lock(&i7core_edac_lock);
 	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list) {
-		mci = edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
-		if (mci) {
-			struct i7core_pvt *pvt = mci->pvt_info;
-
+		mci = find_mci_by_dev(&i7core_dev->pdev[0]->dev);
+		if (unlikely(!mci || !mci->pvt_info)) {
+			i7core_printk(KERN_ERR,
+				      "Couldn't find mci hanler\n");
+		} else {
+			pvt = mci->pvt_info;
 			i7core_dev = pvt->i7core_dev;
+
+			if (likely(pvt->i7core_pci))
+				edac_pci_release_generic_ctl(pvt->i7core_pci);
+			else
+				i7core_printk(KERN_ERR,
+					      "Couldn't find mem_ctl_info for socket %d\n",
+					      i7core_dev->socket);
+			pvt->i7core_pci = NULL;
+
+			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
+
 			edac_mce_unregister(&pvt->edac_mce);
 			kfree(mci->ctl_name);
 			edac_mc_free(mci);
 			i7core_put_devices(i7core_dev);
-		} else {
-			i7core_printk(KERN_ERR,
-				      "Couldn't find mci for socket %d\n",
-				      i7core_dev->socket);
 		}
 	}
 	probed--;
