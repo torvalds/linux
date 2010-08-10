@@ -221,19 +221,13 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 	if (!rx->sta || skb->len - hdrlen < 12)
 		return RX_DROP_UNUSABLE;
 
-	if (status->flag & RX_FLAG_DECRYPTED) {
-		if (status->flag & RX_FLAG_IV_STRIPPED) {
-			/*
-			 * Hardware took care of all processing, including
-			 * replay protection, and stripped the ICV/IV so
-			 * we cannot do any checks here.
-			 */
-			return RX_CONTINUE;
-		}
-
-		/* let TKIP code verify IV, but skip decryption */
+	/*
+	 * Let TKIP code verify IV, but skip decryption.
+	 * In the case where hardware checks the IV as well,
+	 * we don't even get here, see ieee80211_rx_h_decrypt()
+	 */
+	if (status->flag & RX_FLAG_DECRYPTED)
 		hwaccel = 1;
-	}
 
 	res = ieee80211_tkip_decrypt_data(rx->local->wep_rx_tfm,
 					  key, skb->data + hdrlen,
@@ -447,10 +441,6 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	if (!rx->sta || data_len < 0)
 		return RX_DROP_UNUSABLE;
 
-	if ((status->flag & RX_FLAG_DECRYPTED) &&
-	    (status->flag & RX_FLAG_IV_STRIPPED))
-		return RX_CONTINUE;
-
 	ccmp_hdr2pn(pn, skb->data + hdrlen);
 
 	queue = ieee80211_is_mgmt(hdr->frame_control) ?
@@ -562,10 +552,6 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (!ieee80211_is_mgmt(hdr->frame_control))
-		return RX_CONTINUE;
-
-	if ((status->flag & RX_FLAG_DECRYPTED) &&
-	    (status->flag & RX_FLAG_IV_STRIPPED))
 		return RX_CONTINUE;
 
 	if (skb->len < 24 + sizeof(*mmie))
