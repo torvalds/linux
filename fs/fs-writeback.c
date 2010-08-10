@@ -530,7 +530,8 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
 {
 	int ret = 0;
 
-	wbc->wb_start = jiffies; /* livelock avoidance */
+	if (!wbc->wb_start)
+		wbc->wb_start = jiffies; /* livelock avoidance */
 	spin_lock(&inode_lock);
 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
 		queue_io(wb, wbc->older_than_this);
@@ -559,7 +560,6 @@ static void __writeback_inodes_sb(struct super_block *sb,
 {
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
-	wbc->wb_start = jiffies; /* livelock avoidance */
 	spin_lock(&inode_lock);
 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
 		queue_io(wb, wbc->older_than_this);
@@ -625,6 +625,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		wbc.range_end = LLONG_MAX;
 	}
 
+	wbc.wb_start = jiffies; /* livelock avoidance */
 	for (;;) {
 		/*
 		 * Stop writeback when nr_pages has been consumed
