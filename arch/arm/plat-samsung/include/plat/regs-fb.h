@@ -322,6 +322,10 @@
 #define VIDINTCON1_INT_FIFO			(1 << 0)
 
 /* Window colour-key control registers */
+#define WKEYCON					(0x140)	/* 6410,V210 */
+
+#define WKEYCON0				(0x00)
+#define WKEYCON1				(0x04)
 
 #define WxKEYCON0_KEYBL_EN			(1 << 26)
 #define WxKEYCON0_KEYEN_F			(1 << 25)

@@ -40,15 +40,9 @@
 
 /* OSD1 and OSD4 do not have register D */
 
-#define VIDOSD_A(_win)				(0x40 + ((_win) * 16))
-#define VIDOSD_B(_win)				(0x44 + ((_win) * 16))
-#define VIDOSD_C(_win)				(0x48 + ((_win) * 16))
-#define VIDOSD_D(_win)				(0x4C + ((_win) * 16))
-
+#define VIDOSD_BASE				(0x40)
 
 #define VIDINTCON0				(0x130)
-
-#define WxKEYCONy(_win, _con)			((0x140 + ((_win) * 8)) + ((_con) * 4))
 
 /* WINCONx */
 
