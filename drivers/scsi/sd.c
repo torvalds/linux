@@ -119,8 +119,8 @@ static DEFINE_IDA(sd_index_ida);
  * object after last put) */
 static DEFINE_MUTEX(sd_ref_mutex);
 
-struct kmem_cache *sd_cdb_cache;
-mempool_t *sd_cdb_pool;
+static struct kmem_cache *sd_cdb_cache;
+static mempool_t *sd_cdb_pool;
 
 static const char *sd_cache_types[] = {
 	"write through", "none", "write back",
@@ -147,7 +147,7 @@ sd_store_cache_type(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(sd_cache_types); i++) {
-		const int len = strlen(sd_cache_types[i]);
+		len = strlen(sd_cache_types[i]);
 		if (strncmp(sd_cache_types[i], buf, len) == 0 &&
 		    buf[len] == '\n') {
 			ct = i;
@@ -1423,7 +1423,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 /*
  * Determine whether disk supports Data Integrity Field.
  */
-void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
+static void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
 {
 	struct scsi_device *sdp = sdkp->device;
 	u8 type;
@@ -1969,7 +1969,7 @@ defaults:
  * The ATO bit indicates whether the DIF application tag is available
  * for use by the operating system.
  */
-void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
+static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 {
 	int res, offset;
 	struct scsi_device *sdp = sdkp->device;
@@ -2315,7 +2315,7 @@ static int sd_probe(struct device *dev)
 	struct scsi_device *sdp = to_scsi_device(dev);
 	struct scsi_disk *sdkp;
 	struct gendisk *gd;
-	u32 index;
+	int index;
 	int error;
 
 	error = -ENODEV;
