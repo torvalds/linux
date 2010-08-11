@@ -889,17 +889,17 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 }
 
 /**
- * __nand_unlock - [REPLACABLE] unlocks specified locked blockes
+ * __nand_unlock - [REPLACEABLE] unlocks specified locked blocks
  *
- * @param mtd - mtd info
- * @param ofs - offset to start unlock from
- * @param len - length to unlock
- * @invert -  when = 0, unlock the range of blocks within the lower and
+ * @mtd: mtd info
+ * @ofs: offset to start unlock from
+ * @len: length to unlock
+ * @invert:   when = 0, unlock the range of blocks within the lower and
  *                      upper boundary address
- *            whne = 1, unlock the range of blocks outside the boundaries
+ *            when = 1, unlock the range of blocks outside the boundaries
  *                      of the lower and upper boundary address
  *
- * @return - unlock status
+ * return - unlock status
  */
 static int __nand_unlock(struct mtd_info *mtd, loff_t ofs,
 					uint64_t len, int invert)
@@ -931,13 +931,13 @@ static int __nand_unlock(struct mtd_info *mtd, loff_t ofs,
 }
 
 /**
- * nand_unlock - [REPLACABLE] unlocks specified locked blockes
+ * nand_unlock - [REPLACEABLE] unlocks specified locked blocks
  *
- * @param mtd - mtd info
- * @param ofs - offset to start unlock from
- * @param len - length to unlock
+ * @mtd: mtd info
+ * @ofs: offset to start unlock from
+ * @len: length to unlock
  *
- * @return - unlock status
+ * return - unlock status
  */
 int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
@@ -982,16 +982,16 @@ out:
 }
 
 /**
- * nand_lock - [REPLACABLE] locks all blockes present in the device
+ * nand_lock - [REPLACEABLE] locks all blocks present in the device
  *
- * @param mtd - mtd info
- * @param ofs - offset to start unlock from
- * @param len - length to unlock
+ * @mtd: mtd info
+ * @ofs: offset to start unlock from
+ * @len: length to unlock
  *
- * @return - lock status
+ * return - lock status
  *
- * This feature is not support in many NAND parts. 'Micron' NAND parts
- * do have this feature, but it allows only to lock all blocks not for
+ * This feature is not supported in many NAND parts. 'Micron' NAND parts
+ * do have this feature, but it allows only to lock all blocks, not for
  * specified range for block.
  *
  * Implementing 'lock' feature by making use of 'unlock', for now.
@@ -2093,6 +2093,7 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
  * nand_fill_oob - [Internal] Transfer client buffer to oob
  * @chip:	nand chip structure
  * @oob:	oob data buffer
+ * @len:	oob data write length
  * @ops:	oob ops structure
  */
 static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
