@@ -73,6 +73,27 @@ static mfp_cfg_t colibri_pxa320_evalboard_pin_config[] __initdata = {
 	/* I2C */
 	GPIO32_I2C_SCL,
 	GPIO33_I2C_SDA,
+
+	/* PCMCIA */
+	MFP_CFG(GPIO59, AF7),	/* PRST ; AF7 to tristate */
+	MFP_CFG(GPIO61, AF7),	/* PCE1 ; AF7 to tristate */
+	MFP_CFG(GPIO60, AF7),	/* PCE2 ; AF7 to tristate */
+	MFP_CFG(GPIO62, AF7),	/* PCD ; AF7 to tristate */
+	MFP_CFG(GPIO56, AF7),	/* PSKTSEL ; AF7 to tristate */
+	GPIO27_GPIO,		/* RDnWR ; input/tristate */
+	GPIO50_GPIO,		/* PREG ; input/tristate */
+	GPIO2_RDY,
+	GPIO5_NPIOR,
+	GPIO6_NPIOW,
+	GPIO7_NPIOS16,
+	GPIO8_NPWAIT,
+	GPIO29_GPIO,		/* PRDY (READY GPIO) */
+	GPIO57_GPIO,		/* PPEN (POWER GPIO) */
+	GPIO81_GPIO,		/* PCD (DETECT GPIO) */
+	GPIO77_GPIO,		/* PRST (RESET GPIO) */
+	GPIO53_GPIO,		/* PBVD1 */
+	GPIO79_GPIO,		/* PBVD2 */
+	GPIO54_GPIO,		/* POE */
 };
 #else
 static mfp_cfg_t colibri_pxa320_evalboard_pin_config[] __initdata = {};

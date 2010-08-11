@@ -27,6 +27,13 @@
 #define	COLIBRI270_DETECT_GPIO	84
 #define	COLIBRI270_READY_GPIO	1
 
+#define	COLIBRI320_RESET_GPIO	77
+#define	COLIBRI320_PPEN_GPIO	57
+#define	COLIBRI320_BVD1_GPIO	53
+#define	COLIBRI320_BVD2_GPIO	79
+#define	COLIBRI320_DETECT_GPIO	81
+#define	COLIBRI320_READY_GPIO	29
+
 static struct {
 	int	reset_gpio;
 	int	ppen_gpio;
@@ -186,6 +193,14 @@ static int __init colibri_pcmcia_init(void)
 		colibri_pcmcia_gpio.bvd2_gpio	= COLIBRI270_BVD2_GPIO;
 		colibri_pcmcia_gpio.detect_gpio	= COLIBRI270_DETECT_GPIO;
 		colibri_pcmcia_gpio.ready_gpio	= COLIBRI270_READY_GPIO;
+	/* Colibri PXA320 */
+	} else if (machine_is_colibri320()) {
+		colibri_pcmcia_gpio.reset_gpio	= COLIBRI320_RESET_GPIO;
+		colibri_pcmcia_gpio.ppen_gpio	= COLIBRI320_PPEN_GPIO;
+		colibri_pcmcia_gpio.bvd1_gpio	= COLIBRI320_BVD1_GPIO;
+		colibri_pcmcia_gpio.bvd2_gpio	= COLIBRI320_BVD2_GPIO;
+		colibri_pcmcia_gpio.detect_gpio	= COLIBRI320_DETECT_GPIO;
+		colibri_pcmcia_gpio.ready_gpio	= COLIBRI320_READY_GPIO;
 	}
 
 	ret = platform_device_add_data(colibri_pcmcia_device,
@@ -209,6 +224,6 @@ module_init(colibri_pcmcia_init);
 module_exit(colibri_pcmcia_exit);
 
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");
-MODULE_DESCRIPTION("PCMCIA support for Toradex Colibri PXA270");
+MODULE_DESCRIPTION("PCMCIA support for Toradex Colibri PXA270/PXA320");
 MODULE_ALIAS("platform:pxa2xx-pcmcia");
 MODULE_LICENSE("GPL");
