@@ -2159,8 +2159,8 @@ start:
 	/* Alarm MSIX Vectors count */
 	vdev->intr_cnt++;
 
-	vdev->entries = kzalloc(vdev->intr_cnt * sizeof(struct msix_entry),
-						GFP_KERNEL);
+	vdev->entries = kcalloc(vdev->intr_cnt, sizeof(struct msix_entry),
+				GFP_KERNEL);
 	if (!vdev->entries) {
 		vxge_debug_init(VXGE_ERR,
 			"%s: memory allocation failed",
@@ -2169,9 +2169,9 @@ start:
 		goto alloc_entries_failed;
 	}
 
-	vdev->vxge_entries =
-		kzalloc(vdev->intr_cnt * sizeof(struct vxge_msix_entry),
-				GFP_KERNEL);
+	vdev->vxge_entries = kcalloc(vdev->intr_cnt,
+				     sizeof(struct vxge_msix_entry),
+				     GFP_KERNEL);
 	if (!vdev->vxge_entries) {
 		vxge_debug_init(VXGE_ERR, "%s: memory allocation failed",
 			VXGE_DRIVER_NAME);

@@ -4504,7 +4504,7 @@ static int niu_alloc_channels(struct niu *np)
 
 	np->dev->real_num_tx_queues = np->num_tx_rings;
 
-	np->rx_rings = kzalloc(np->num_rx_rings * sizeof(struct rx_ring_info),
+	np->rx_rings = kcalloc(np->num_rx_rings, sizeof(struct rx_ring_info),
 			       GFP_KERNEL);
 	err = -ENOMEM;
 	if (!np->rx_rings)
@@ -4538,7 +4538,7 @@ static int niu_alloc_channels(struct niu *np)
 			return err;
 	}
 
-	np->tx_rings = kzalloc(np->num_tx_rings * sizeof(struct tx_ring_info),
+	np->tx_rings = kcalloc(np->num_tx_rings, sizeof(struct tx_ring_info),
 			       GFP_KERNEL);
 	err = -ENOMEM;
 	if (!np->tx_rings)

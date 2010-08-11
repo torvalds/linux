@@ -1921,9 +1921,9 @@ static int ipw2100_net_init(struct net_device *dev)
 
 		bg_band->band = IEEE80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels =
-			kzalloc(geo->bg_channels *
-				sizeof(struct ieee80211_channel), GFP_KERNEL);
+		bg_band->channels = kcalloc(geo->bg_channels,
+					    sizeof(struct ieee80211_channel),
+					    GFP_KERNEL);
 		if (!bg_band->channels) {
 			ipw2100_down(priv);
 			return -ENOMEM;

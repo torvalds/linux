@@ -322,7 +322,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->lro.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 	ring->lro.max_desc = mdev->profile.num_lro;
 	ring->lro.max_aggr = MAX_SKB_FRAGS;
-	ring->lro.lro_arr = kzalloc(mdev->profile.num_lro *
+	ring->lro.lro_arr = kcalloc(mdev->profile.num_lro,
 				    sizeof(struct net_lro_desc),
 				    GFP_KERNEL);
 	if (!ring->lro.lro_arr) {

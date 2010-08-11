@@ -188,7 +188,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->nbufs       = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 		buf->npages      = buf->nbufs;
 		buf->page_shift  = PAGE_SHIFT;
-		buf->page_list   = kzalloc(buf->nbufs * sizeof *buf->page_list,
+		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
 					   GFP_KERNEL);
 		if (!buf->page_list)
 			return -ENOMEM;

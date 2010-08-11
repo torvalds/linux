@@ -333,7 +333,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 	if (*offset)
 		return 0;
 
-	data = kzalloc(lines * MAX_LINE_LENGTH, GFP_KERNEL);
+	data = kcalloc(lines, MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

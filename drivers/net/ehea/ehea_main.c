@@ -180,7 +180,7 @@ static void ehea_update_firmware_handles(void)
 			 num_portres * EHEA_NUM_PORTRES_FW_HANDLES;
 
 	if (num_fw_handles) {
-		arr = kzalloc(num_fw_handles * sizeof(*arr), GFP_KERNEL);
+		arr = kcalloc(num_fw_handles, sizeof(*arr), GFP_KERNEL);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -265,7 +265,7 @@ static void ehea_update_bcmc_registrations(void)
 		}
 
 	if (num_registrations) {
-		arr = kzalloc(num_registrations * sizeof(*arr), GFP_ATOMIC);
+		arr = kcalloc(num_registrations, sizeof(*arr), GFP_ATOMIC);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
