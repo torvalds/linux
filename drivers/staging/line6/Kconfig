@@ -1,4 +1,4 @@
-config LINE6_USB
+menuconfig LINE6_USB
 	tristate "Line6 USB support"
 	depends on USB && SND
 	select SND_RAWMIDI
@@ -18,5 +18,68 @@ config LINE6_USB
 	    * Signal routing (record clean/processed guitar signal,
 	      re-amping)
 
-	  Preliminary support for the Variax Workbench is included.
+	  Preliminary support for the Variax Workbench and TonePort
+	  devices is included.
 
+if LINE6_USB
+
+config LINE6_USB_DEBUG
+	bool "print debug messages"
+	default n
+	help
+	  Say Y here to write debug messages to the syslog.
+
+	  If unsure, say N.
+
+config LINE6_USB_DUMP_CTRL
+	bool "dump control messages"
+	default n
+	help
+	  Say Y here to write control messages sent to and received from
+	  Line6 devices to the syslog.
+
+	  If unsure, say N.
+
+config LINE6_USB_DUMP_MIDI
+	bool "dump MIDI messages"
+	default n
+	help
+	  Say Y here to write MIDI messages sent to and received from
+	  Line6 devices to the syslog.
+
+	  If unsure, say N.
+
+config LINE6_USB_DUMP_PCM
+	bool "dump PCM data"
+	default n
+	help
+	  Say Y here to write PCM data sent to and received from Line6
+	  devices to the syslog. This will produce a huge amount of
+	  syslog data during playback and capture.
+
+	  If unsure, say N.
+
+config LINE6_USB_RAW
+	bool "raw data communication"
+	default n
+	help
+	  Say Y here to create special files which allow to send raw data
+	  to the device. This bypasses any sanity checks, so if you discover
+	  the code to erase the firmware, feel free to render your device
+	  useless, but only after reading the GPL section "NO WARRANTY".
+
+	  If unsure, say N.
+
+config LINE6_USB_IMPULSE_RESPONSE
+	bool "measure impulse response"
+	default n
+	help
+	  Say Y here to add code to measure the impulse response of a Line6
+	  device. This is more accurate than user-space methods since it
+	  bypasses any PCM data buffering (e.g., by ALSA or jack). This is
+	  useful for assessing the performance of new devices, but is not
+	  required for normal operation.
+
+	  If unsure, say N.
+
+endif # LINE6_USB
