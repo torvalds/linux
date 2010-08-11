@@ -439,6 +439,15 @@ config FB_CYBER2000
 	  Say Y if you have a NetWinder or a graphics card containing this
 	  device, otherwise say N.
 
+config FB_CYBER2000_DDC
+	bool "DDC for CyberPro support"
+	depends on FB_CYBER2000
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC support for your CyberPro graphics
+	  card. This is only I2C bus support, driver does not use EDID.
+
 config FB_APOLLO
 	bool
 	depends on (FB = y) && APOLLO
