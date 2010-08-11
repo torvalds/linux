@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
-#include <linux/parser.h>
 #include "sysv.h"
 
 /*

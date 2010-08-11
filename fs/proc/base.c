@@ -149,18 +149,13 @@ static unsigned int pid_entry_count_dirs(const struct pid_entry *entries,
 	return count;
 }
 
-static int get_fs_path(struct task_struct *task, struct path *path, bool root)
+static int get_task_root(struct task_struct *task, struct path *root)
 {
-	struct fs_struct *fs;
 	int result = -ENOENT;
 
 	task_lock(task);
-	fs = task->fs;
-	if (fs) {
-		read_lock(&fs->lock);
-		*path = root ? fs->root : fs->pwd;
-		path_get(path);
-		read_unlock(&fs->lock);
+	if (task->fs) {
+		get_fs_root(task->fs, root);
 		result = 0;
 	}
 	task_unlock(task);
@@ -173,7 +168,12 @@ static int proc_cwd_link(struct inode *inode, struct path *path)
 	int result = -ENOENT;
 
 	if (task) {
-		result = get_fs_path(task, path, 0);
+		task_lock(task);
+		if (task->fs) {
+			get_fs_pwd(task->fs, path);
+			result = 0;
+		}
+		task_unlock(task);
 		put_task_struct(task);
 	}
 	return result;
@@ -185,7 +185,7 @@ static int proc_root_link(struct inode *inode, struct path *path)
 	int result = -ENOENT;
 
 	if (task) {
-		result = get_fs_path(task, path, 1);
+		result = get_task_root(task, path);
 		put_task_struct(task);
 	}
 	return result;
@@ -597,7 +597,7 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 				get_mnt_ns(ns);
 		}
 		rcu_read_unlock();
-		if (ns && get_fs_path(task, &root, 1) == 0)
+		if (ns && get_task_root(task, &root) == 0)
 			ret = 0;
 		put_task_struct(task);
 	}
@@ -1526,7 +1526,7 @@ static int do_proc_readlink(struct path *path, char __user *buffer, int buflen)
 	if (!tmp)
 		return -ENOMEM;
 
-	pathname = d_path(path, tmp, PAGE_SIZE);
+	pathname = d_path_with_unreachable(path, tmp, PAGE_SIZE);
 	len = PTR_ERR(pathname);
 	if (IS_ERR(pathname))
 		goto out;
