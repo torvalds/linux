@@ -102,7 +102,7 @@ static int *check_rtc_access_enable(struct nuc900_rtc *nuc900_rtc)
 	return 0;
 }
 
-static void nuc900_rtc_bcd2bin(unsigned int timereg,
+static int nuc900_rtc_bcd2bin(unsigned int timereg,
 				unsigned int calreg, struct rtc_time *tm)
 {
 	tm->tm_mday	= bcd2bin(calreg >> 0);
@@ -113,7 +113,7 @@ static void nuc900_rtc_bcd2bin(unsigned int timereg,
 	tm->tm_min	= bcd2bin(timereg >> 8);
 	tm->tm_hour	= bcd2bin(timereg >> 16);
 
-	rtc_valid_tm(tm);
+	return rtc_valid_tm(tm);
 }
 
 static void nuc900_rtc_bin2bcd(struct device *dev, struct rtc_time *settm,
@@ -170,9 +170,7 @@ static int nuc900_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	timeval = __raw_readl(rtc->rtc_reg + REG_RTC_TLR);
 	clrval	= __raw_readl(rtc->rtc_reg + REG_RTC_CLR);
 
-	nuc900_rtc_bcd2bin(timeval, clrval, tm);
-
-	return 0;
+	return nuc900_rtc_bcd2bin(timeval, clrval, tm);
 }
 
 static int nuc900_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -205,9 +203,7 @@ static int nuc900_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	timeval = __raw_readl(rtc->rtc_reg + REG_RTC_TAR);
 	carval	= __raw_readl(rtc->rtc_reg + REG_RTC_CAR);
 
-	nuc900_rtc_bcd2bin(timeval, carval, &alrm->time);
-
-	return 0;
+	return nuc900_rtc_bcd2bin(timeval, carval, &alrm->time);
 }
 
 static int nuc900_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
