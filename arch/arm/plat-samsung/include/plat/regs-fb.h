@@ -220,6 +220,9 @@
 #define WINCON1_BPPMODE_25BPP_A1888		(0xd << 2)
 #define WINCON1_BPPMODE_28BPP_A4888		(0xd << 2)
 
+/* S5PV210 */
+#define SHADOWCON				(0x34)
+#define SHADOWCON_WINx_PROTECT(_win)		(1 << (10 + (_win)))
 
 #define VIDOSDxA_TOPLEFT_X_MASK			(0x7ff << 11)
 #define VIDOSDxA_TOPLEFT_X_SHIFT		(11)
