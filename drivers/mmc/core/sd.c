@@ -119,6 +119,13 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
 		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
 		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
+
+		if (UNSTUFF_BITS(resp, 46, 1)) {
+			csd->erase_size = 1;
+		} else if (csd->write_blkbits >= 9) {
+			csd->erase_size = UNSTUFF_BITS(resp, 39, 7) + 1;
+			csd->erase_size <<= csd->write_blkbits - 9;
+		}
 		break;
 	case 1:
 		/*
@@ -147,12 +154,15 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->r2w_factor = 4; /* Unused */
 		csd->write_blkbits = 9;
 		csd->write_partial = 0;
+		csd->erase_size = 1;
 		break;
 	default:
 		printk(KERN_ERR "%s: unrecognised CSD structure version %d\n",
 			mmc_hostname(card->host), csd_struct);
 		return -EINVAL;
 	}
+
+	card->erase_size = csd->erase_size;
 
 	return 0;
 }
@@ -179,7 +189,65 @@ static int mmc_decode_scr(struct mmc_card *card)
 	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
 	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
 
+	if (UNSTUFF_BITS(resp, 55, 1))
+		card->erased_byte = 0xFF;
+	else
+		card->erased_byte = 0x0;
+
 	return 0;
+}
+
+/*
+ * Fetch and process SD Status register.
+ */
+static int mmc_read_ssr(struct mmc_card *card)
+{
+	unsigned int au, es, et, eo;
+	int err, i;
+	u32 *ssr;
+
+	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
+		printk(KERN_WARNING "%s: card lacks mandatory SD Status "
+			"function.\n", mmc_hostname(card->host));
+		return 0;
+	}
+
+	ssr = kmalloc(64, GFP_KERNEL);
+	if (!ssr)
+		return -ENOMEM;
+
+	err = mmc_app_sd_status(card, ssr);
+	if (err) {
+		printk(KERN_WARNING "%s: problem reading SD Status "
+			"register.\n", mmc_hostname(card->host));
+		err = 0;
+		goto out;
+	}
+
+	for (i = 0; i < 16; i++)
+		ssr[i] = be32_to_cpu(ssr[i]);
+
+	/*
+	 * UNSTUFF_BITS only works with four u32s so we have to offset the
+	 * bitfield positions accordingly.
+	 */
+	au = UNSTUFF_BITS(ssr, 428 - 384, 4);
+	if (au > 0 || au <= 9) {
+		card->ssr.au = 1 << (au + 4);
+		es = UNSTUFF_BITS(ssr, 408 - 384, 16);
+		et = UNSTUFF_BITS(ssr, 402 - 384, 6);
+		eo = UNSTUFF_BITS(ssr, 400 - 384, 2);
+		if (es && et) {
+			card->ssr.erase_timeout = (et * 1000) / es;
+			card->ssr.erase_offset = eo * 1000;
+		}
+	} else {
+		printk(KERN_WARNING "%s: SD Status: Invalid Allocation Unit "
+			"size.\n", mmc_hostname(card->host));
+	}
+out:
+	kfree(ssr);
+	return err;
 }
 
 /*
@@ -289,6 +357,8 @@ MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
 	card->raw_csd[2], card->raw_csd[3]);
 MMC_DEV_ATTR(scr, "%08x%08x\n", card->raw_scr[0], card->raw_scr[1]);
 MMC_DEV_ATTR(date, "%02d/%04d\n", card->cid.month, card->cid.year);
+MMC_DEV_ATTR(erase_size, "%u\n", card->erase_size << 9);
+MMC_DEV_ATTR(preferred_erase_size, "%u\n", card->pref_erase << 9);
 MMC_DEV_ATTR(fwrev, "0x%x\n", card->cid.fwrev);
 MMC_DEV_ATTR(hwrev, "0x%x\n", card->cid.hwrev);
 MMC_DEV_ATTR(manfid, "0x%06x\n", card->cid.manfid);
@@ -302,6 +372,8 @@ static struct attribute *sd_std_attrs[] = {
 	&dev_attr_csd.attr,
 	&dev_attr_scr.attr,
 	&dev_attr_date.attr,
+	&dev_attr_erase_size.attr,
+	&dev_attr_preferred_erase_size.attr,
 	&dev_attr_fwrev.attr,
 	&dev_attr_hwrev.attr,
 	&dev_attr_manfid.attr,
@@ -395,6 +467,16 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		err = mmc_decode_scr(card);
 		if (err)
 			return err;
+
+		/*
+		 * Fetch and process SD Status register.
+		 */
+		err = mmc_read_ssr(card);
+		if (err)
+			return err;
+
+		/* Erase init depends on CSD and SSR */
+		mmc_init_erase(card);
 
 		/*
 		 * Fetch switch information from card.

@@ -232,6 +232,8 @@ memory.txt
 	- info on typical Linux memory problems.
 mips/
 	- directory with info about Linux on MIPS architecture.
+mmc/
+	- directory with info about the MMC subsystem
 mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
 mutex-design.txt
