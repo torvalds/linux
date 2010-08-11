@@ -81,7 +81,8 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		nr_more_io++;
 	spin_unlock(&inode_lock);
 
-	get_dirty_limits(&background_thresh, &dirty_thresh, &bdi_thresh, bdi);
+	global_dirty_limits(&background_thresh, &dirty_thresh);
+	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	seq_printf(m,
