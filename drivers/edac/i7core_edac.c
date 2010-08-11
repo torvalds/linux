@@ -2070,6 +2070,10 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 				__func__, mci, &i7core_dev->pdev[0]->dev);
 
+			/* Disable MCE NMI handler */
+			edac_mce_unregister(&pvt->edac_mce);
+
+			/* Disable EDAC polling */
 			if (likely(pvt->i7core_pci))
 				edac_pci_release_generic_ctl(pvt->i7core_pci);
 			else
@@ -2078,11 +2082,14 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 					      i7core_dev->socket);
 			pvt->i7core_pci = NULL;
 
+			/* Remove MC sysfs nodes */
 			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
 
-			edac_mce_unregister(&pvt->edac_mce);
+			/* Free data */
 			kfree(mci->ctl_name);
 			edac_mc_free(mci);
+
+			/* Release PCI resources */
 			i7core_put_devices(i7core_dev);
 		}
 	}
