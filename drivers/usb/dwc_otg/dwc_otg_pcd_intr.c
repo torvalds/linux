@@ -2567,6 +2567,7 @@ int32_t dwc_otg_pcd_handle_intr( dwc_otg_pcd_t *_pcd )
 		gintr_status.d32 = dwc_otg_read_core_intr(core_if);
 		if (!gintr_status.d32) 
 		{
+			SPIN_UNLOCK(&_pcd->lock);
 			return 0;
 		}
 		DWC_DEBUGPL(DBG_PCDV, "%s: gintsts&gintmsk=%08x\n",
