@@ -171,7 +171,7 @@ static inline unsigned int kfifo_len(struct kfifo *fifo)
  * kfifo_is_empty - returns true if the fifo is empty
  * @fifo: the fifo to be used.
  */
-static inline __must_check int kfifo_is_empty(struct kfifo *fifo)
+static inline __must_check bool kfifo_is_empty(struct kfifo *fifo)
 {
 	return fifo->in == fifo->out;
 }
@@ -180,7 +180,7 @@ static inline __must_check int kfifo_is_empty(struct kfifo *fifo)
  * kfifo_is_full - returns true if the fifo is full
  * @fifo: the fifo to be used.
  */
-static inline __must_check int kfifo_is_full(struct kfifo *fifo)
+static inline __must_check bool kfifo_is_full(struct kfifo *fifo)
 {
 	return kfifo_len(fifo) == kfifo_size(fifo);
 }
