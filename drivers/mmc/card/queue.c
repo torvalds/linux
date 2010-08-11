@@ -141,6 +141,9 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 			mq->queue->limits.discard_alignment =
 							card->erase_size << 9;
 		}
+		if (mmc_can_secure_erase_trim(card))
+			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD,
+						mq->queue);
 	}
 
 #ifdef CONFIG_MMC_BLOCK_BOUNCE
