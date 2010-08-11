@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <newt.h>
+#include <sys/types.h>
 #include "../types.h"
 
 #define HE_COLORSET_TOP		50
@@ -13,9 +14,9 @@
 
 struct ui_browser {
 	newtComponent form, sb;
-	u64	      index, first_visible_entry_idx;
-	void	      *first_visible_entry, *entries;
-	u16	      top, left, width, height;
+	u64	      index, top_idx;
+	void	      *top, *entries;
+	u16	      y, x, width, height;
 	void	      *priv;
 	unsigned int  (*refresh)(struct ui_browser *self);
 	void	      (*write)(struct ui_browser *self, void *entry, int row);
@@ -29,7 +30,9 @@ bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row);
 void ui_browser__refresh_dimensions(struct ui_browser *self);
 void ui_browser__reset_index(struct ui_browser *self);
 
-int ui_browser__show(struct ui_browser *self, const char *title);
+int ui_browser__show(struct ui_browser *self, const char *title,
+		     const char *helpline, ...);
+void ui_browser__hide(struct ui_browser *self);
 int ui_browser__refresh(struct ui_browser *self);
 int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es);
 

@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <sys/ttydefaults.h>
 #include "browser.h"
+#include "helpline.h"
 #include "../color.h"
 #include "../util.h"
 
@@ -49,7 +50,7 @@ void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whenc
 		pos = head->next;
 		break;
 	case SEEK_CUR:
-		pos = self->first_visible_entry;
+		pos = self->top;
 		break;
 	case SEEK_END:
 		pos = head->prev;
@@ -66,7 +67,7 @@ void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whenc
 			pos = pos->prev;
 	}
 
-	self->first_visible_entry = pos;
+	self->top = pos;
 }
 
 void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
@@ -79,7 +80,7 @@ void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
 		nd = rb_first(root);
 		break;
 	case SEEK_CUR:
-		nd = self->first_visible_entry;
+		nd = self->top;
 		break;
 	case SEEK_END:
 		nd = rb_last(root);
@@ -96,7 +97,7 @@ void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
 			nd = rb_prev(nd);
 	}
 
-	self->first_visible_entry = nd;
+	self->top = nd;
 }
 
 unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
@@ -104,13 +105,13 @@ unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
 	struct rb_node *nd;
 	int row = 0;
 
-	if (self->first_visible_entry == NULL)
-                self->first_visible_entry = rb_first(self->entries);
+	if (self->top == NULL)
+                self->top = rb_first(self->entries);
 
-	nd = self->first_visible_entry;
+	nd = self->top;
 
 	while (nd != NULL) {
-		SLsmg_gotorc(self->top + row, self->left);
+		SLsmg_gotorc(self->y + row, self->x);
 		self->write(self, nd, row);
 		if (++row == self->height)
 			break;
@@ -122,7 +123,7 @@ unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
 
 bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row)
 {
-	return (self->first_visible_entry_idx + row) == self->index;
+	return self->top_idx + row == self->index;
 }
 
 void ui_browser__refresh_dimensions(struct ui_browser *self)
@@ -135,18 +136,21 @@ void ui_browser__refresh_dimensions(struct ui_browser *self)
 	self->height = rows - 5;
 	if (self->height > self->nr_entries)
 		self->height = self->nr_entries;
-	self->top  = (rows - self->height) / 2;
-	self->left = (cols - self->width) / 2;
+	self->y  = (rows - self->height) / 2;
+	self->x = (cols - self->width) / 2;
 }
 
 void ui_browser__reset_index(struct ui_browser *self)
 {
-	self->index = self->first_visible_entry_idx = 0;
+	self->index = self->top_idx = 0;
 	self->seek(self, 0, SEEK_SET);
 }
 
-int ui_browser__show(struct ui_browser *self, const char *title)
+int ui_browser__show(struct ui_browser *self, const char *title,
+		     const char *helpline, ...)
 {
+	va_list ap;
+
 	if (self->form != NULL) {
 		newtFormDestroy(self->form);
 		newtPopWindow();
@@ -169,8 +173,21 @@ int ui_browser__show(struct ui_browser *self, const char *title)
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddHotKey(self->form, ' ');
 	newtFormAddComponent(self->form, self->sb);
+
+	va_start(ap, helpline);
+	ui_helpline__vpush(helpline, ap);
+	va_end(ap);
 	return 0;
+}
+
+void ui_browser__hide(struct ui_browser *self)
+{
+	newtFormDestroy(self->form);
+	newtPopWindow();
+	self->form = NULL;
+	ui_helpline__pop();
 }
 
 int ui_browser__refresh(struct ui_browser *self)
@@ -180,7 +197,7 @@ int ui_browser__refresh(struct ui_browser *self)
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
 	row = self->refresh(self);
 	SLsmg_set_color(HE_COLORSET_NORMAL);
-	SLsmg_fill_region(self->top + row, self->left,
+	SLsmg_fill_region(self->y + row, self->x,
 			  self->height - row, self->width, ' ');
 
 	return 0;
@@ -205,8 +222,8 @@ int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			if (self->index == self->nr_entries - 1)
 				break;
 			++self->index;
-			if (self->index == self->first_visible_entry_idx + self->height) {
-				++self->first_visible_entry_idx;
+			if (self->index == self->top_idx + self->height) {
+				++self->top_idx;
 				self->seek(self, +1, SEEK_CUR);
 			}
 			break;
@@ -214,34 +231,34 @@ int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			if (self->index == 0)
 				break;
 			--self->index;
-			if (self->index < self->first_visible_entry_idx) {
-				--self->first_visible_entry_idx;
+			if (self->index < self->top_idx) {
+				--self->top_idx;
 				self->seek(self, -1, SEEK_CUR);
 			}
 			break;
 		case NEWT_KEY_PGDN:
 		case ' ':
-			if (self->first_visible_entry_idx + self->height > self->nr_entries - 1)
+			if (self->top_idx + self->height > self->nr_entries - 1)
 				break;
 
 			offset = self->height;
 			if (self->index + offset > self->nr_entries - 1)
 				offset = self->nr_entries - 1 - self->index;
 			self->index += offset;
-			self->first_visible_entry_idx += offset;
+			self->top_idx += offset;
 			self->seek(self, +offset, SEEK_CUR);
 			break;
 		case NEWT_KEY_PGUP:
-			if (self->first_visible_entry_idx == 0)
+			if (self->top_idx == 0)
 				break;
 
-			if (self->first_visible_entry_idx < self->height)
-				offset = self->first_visible_entry_idx;
+			if (self->top_idx < self->height)
+				offset = self->top_idx;
 			else
 				offset = self->height;
 
 			self->index -= offset;
-			self->first_visible_entry_idx -= offset;
+			self->top_idx -= offset;
 			self->seek(self, -offset, SEEK_CUR);
 			break;
 		case NEWT_KEY_HOME:
@@ -253,7 +270,7 @@ int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 				offset = self->nr_entries - 1;
 
 			self->index = self->nr_entries - 1;
-			self->first_visible_entry_idx = self->index - offset;
+			self->top_idx = self->index - offset;
 			self->seek(self, -offset, SEEK_END);
 			break;
 		default:
@@ -271,14 +288,13 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 	struct list_head *head = self->entries;
 	int row = 0;
 
-	if (self->first_visible_entry == NULL ||
-	    self->first_visible_entry == self->entries)
-                self->first_visible_entry = head->next;
+	if (self->top == NULL || self->top == self->entries)
+                self->top = head->next;
 
-	pos = self->first_visible_entry;
+	pos = self->top;
 
 	list_for_each_from(pos, head) {
-		SLsmg_gotorc(self->top + row, self->left);
+		SLsmg_gotorc(self->y + row, self->x);
 		self->write(self, pos, row);
 		if (++row == self->height)
 			break;
