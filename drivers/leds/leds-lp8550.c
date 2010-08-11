@@ -397,9 +397,8 @@ static int lp8550_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (lp8550_debug)
 		pr_info("%s: Suspending\n", __func__);
 
-	brightness = (led_data->last_requested_brightness &
-			LD_LP8550_ON_OFF_MASK);
-	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL, brightness);
+	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
+        led_data->led_pdata->dev_ctrl_config & LD_LP8550_ON_OFF_MASK);
 
 	return 0;
 }
@@ -409,12 +408,12 @@ static int lp8550_resume(struct i2c_client *client)
 	struct lp8550_data *led_data = i2c_get_clientdata(client);
 	int brightness;
 
-	brightness = (led_data->last_requested_brightness | 0x01);
 	if (lp8550_debug)
 		pr_info("%s: Resuming with brightness %i\n",
 		__func__, brightness);
 
-	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL, brightness);
+	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
+        led_data->led_pdata->dev_ctrl_config | 0x01);
 
 	return 0;
 }
