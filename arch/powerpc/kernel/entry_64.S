@@ -202,7 +202,9 @@ syscall_exit:
 	bge-	syscall_error
 syscall_error_cont:
 	ld	r7,_NIP(r1)
+BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
+END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
 	/*
@@ -419,6 +421,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	sync
 #endif /* CONFIG_SMP */
 
+	/*
+	 * If we optimise away the clear of the reservation in system
+	 * calls because we know the CPU tracks the address of the
+	 * reservation, then we need to clear it here to cover the
+	 * case that the kernel context switch path has no larx
+	 * instructions.
+	 */
+BEGIN_FTR_SECTION
+	ldarx	r6,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
+
 	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 
@@ -576,7 +589,16 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 	andi.	r0,r3,MSR_RI
 	beq-	unrecov_restore
 
+	/*
+	 * Clear the reservation. If we know the CPU tracks the address of
+	 * the reservation then we can potentially save some cycles and use
+	 * a larx. On POWER6 and POWER7 this is significantly faster.
+	 */
+BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
+FTR_SECTION_ELSE
+	ldarx	r4,0,r1
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	/*
 	 * Clear RI before restoring r13.  If we are returning to
