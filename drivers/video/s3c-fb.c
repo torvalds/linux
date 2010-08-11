@@ -300,9 +300,9 @@ static int s3c_fb_set_par(struct fb_info *info)
 	/* disable the window whilst we update it */
 	writel(0, regs + WINCON(win_no));
 
-	/* use window 0 as the basis for the lcd output timings */
+	/* use platform specified window as the basis for the lcd timings */
 
-	if (win_no == 0) {
+	if (win_no == sfb->pdata->default_win) {
 		clkdiv = s3c_fb_calc_pixclk(sfb, var->pixclock);
 
 		data = sfb->pdata->vidcon0;
@@ -636,7 +636,7 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	/* we're stuck with this until we can do something about overriding
 	 * the power control using the blanking event for a single fb.
 	 */
-	if (index == 0)
+	if (index == sfb->pdata->default_win)
 		s3c_fb_enable(sfb, blank_mode != FB_BLANK_POWERDOWN ? 1 : 0);
 
 	return 0;
