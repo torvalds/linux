@@ -1515,28 +1515,6 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 }
 EXPORT_SYMBOL(iwl_send_statistics_request);
 
-/*
- * CARD_STATE_CMD
- *
- * Use: Sets the device's internal card state to enable, disable, or halt
- *
- * When in the 'enable' state the card operates as normal.
- * When in the 'disable' state, the card enters into a low power mode.
- * When in the 'halt' state, the card is shut down and must be fully
- * restarted to come back on.
- */
-int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
-{
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_CARD_STATE_CMD,
-		.len = sizeof(u32),
-		.data = &flags,
-		.flags = meta_flag,
-	};
-
-	return iwl_send_cmd(priv, &cmd);
-}
-
 void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb)
 {

@@ -595,8 +595,6 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
-int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
-			u8 meta_flag);
 
 /*****************************************************
  * PCI						     *
