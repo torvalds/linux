@@ -62,6 +62,12 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		max_discard_sectors &= ~(disc_sects - 1);
 	}
 
+	if (flags & BLKDEV_IFL_SECURE) {
+		if (!blk_queue_secdiscard(q))
+			return -EOPNOTSUPP;
+		type |= DISCARD_SECURE;
+	}
+
 	while (nr_sects && !ret) {
 		bio = bio_alloc(gfp_mask, 1);
 		if (!bio) {

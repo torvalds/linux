@@ -150,6 +150,7 @@ enum rq_flag_bits {
 	__REQ_FLUSH,		/* request for cache flush */
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
+	__REQ_SECURE,		/* secure discard (used with __REQ_DISCARD) */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -190,5 +191,6 @@ enum rq_flag_bits {
 #define REQ_FLUSH		(1 << __REQ_FLUSH)
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
+#define REQ_SECURE		(1 << __REQ_SECURE)
 
 #endif /* __LINUX_BLK_TYPES_H */

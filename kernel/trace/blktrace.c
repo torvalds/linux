@@ -710,6 +710,9 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= REQ_DISCARD;
 
+	if (rq->cmd_flags & REQ_SECURE)
+		rw |= REQ_SECURE;
+
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
 		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
@@ -1816,6 +1819,8 @@ void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
 		rwbs[i++] = 'S';
 	if (rw & REQ_META)
 		rwbs[i++] = 'M';
+	if (rw & REQ_SECURE)
+		rwbs[i++] = 'E';
 
 	rwbs[i] = '\0';
 }
@@ -1827,6 +1832,9 @@ void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
 
 	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= REQ_DISCARD;
+
+	if (rq->cmd_flags & REQ_SECURE)
+		rw |= REQ_SECURE;
 
 	bytes = blk_rq_bytes(rq);
 

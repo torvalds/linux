@@ -174,6 +174,7 @@ struct inodes_stat_t {
  */
 #define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
 #define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
+#define DISCARD_SECURE		(DISCARD_NOBARRIER | REQ_SECURE)
 
 #define SEL_IN		1
 #define SEL_OUT		2
@@ -317,6 +318,7 @@ struct inodes_stat_t {
 #define BLKALIGNOFF _IO(0x12,122)
 #define BLKPBSZGET _IO(0x12,123)
 #define BLKDISCARDZEROES _IO(0x12,124)
+#define BLKSECDISCARD _IO(0x12,125)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
