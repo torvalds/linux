@@ -1965,8 +1965,8 @@ static int acpi_gpe_irq_setup(struct smi_info *info)
 
 /*
  * Defined at
- * http://h21007.www2.hp.com/dspp/files/unprotected/devresource/
- * Docs/TechPapers/IA64/hpspmi.pdf
+ * http://h21007.www2.hp.com/portal/download/files
+ * /unprot/hpspmi.pdf
  */
 struct SPMITable {
 	s8	Signature[4];
@@ -2013,17 +2013,11 @@ struct SPMITable {
 static __devinit int try_init_spmi(struct SPMITable *spmi)
 {
 	struct smi_info  *info;
-	u8 		 addr_space;
 
 	if (spmi->IPMIlegacy != 1) {
 		printk(KERN_INFO PFX "Bad SPMI legacy %d\n", spmi->IPMIlegacy);
 		return -ENODEV;
 	}
-
-	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		addr_space = IPMI_MEM_ADDR_SPACE;
-	else
-		addr_space = IPMI_IO_ADDR_SPACE;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
