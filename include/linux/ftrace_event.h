@@ -191,8 +191,8 @@ struct ftrace_event_call {
 	unsigned int		flags;
 
 #ifdef CONFIG_PERF_EVENTS
-	int			perf_refcount;
-	struct hlist_head	*perf_events;
+	int				perf_refcount;
+	struct hlist_head __percpu	*perf_events;
 #endif
 };
 
