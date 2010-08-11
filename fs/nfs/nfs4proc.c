@@ -2273,8 +2273,7 @@ static int nfs4_get_referral(struct inode *dir, const struct qstr *name, struct 
 out:
 	if (page)
 		__free_page(page);
-	if (locations)
-		kfree(locations);
+	kfree(locations);
 	return status;
 }
 
