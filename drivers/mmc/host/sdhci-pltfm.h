@@ -11,4 +11,8 @@
 #ifndef _DRIVERS_MMC_SDHCI_PLTFM_H
 #define _DRIVERS_MMC_SDHCI_PLTFM_H
 
+#include <linux/sdhci-pltfm.h>
+
+extern struct sdhci_pltfm_data sdhci_cns3xxx_pdata;
+
 #endif /* _DRIVERS_MMC_SDHCI_PLTFM_H */
