@@ -204,8 +204,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	}
 
 	/* Initialize expiry counter after successful mount */
-	if (ino)
-		ino->last_used = jiffies;
+	ino->last_used = jiffies;
 
 	spin_lock(&sbi->fs_lock);
 	ino->flags &= ~AUTOFS_INF_PENDING;
