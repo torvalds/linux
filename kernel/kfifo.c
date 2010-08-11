@@ -10,7 +10,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -333,17 +333,16 @@ static int setup_sgl_buf(struct scatterlist *sgl, void *buf,
 		buf += PAGE_SIZE;
 		npage = virt_to_page(buf);
 		if (page_to_phys(page) != page_to_phys(npage) - l) {
-			sgl->page_link = 0;
-			sg_set_page(sgl++, page, l - off, off);
-			if (++n == nents)
+			sg_set_page(sgl, page, l - off, off);
+			sgl = sg_next(sgl);
+			if (++n == nents || sgl == NULL)
 				return n;
 			page = npage;
 			len -= l - off;
 			l = off = 0;
 		}
 	}
-	sgl->page_link = 0;
-	sg_set_page(sgl++, page, len, off);
+	sg_set_page(sgl, page, len, off);
 	return n + 1;
 }
 
@@ -363,7 +362,7 @@ static unsigned int setup_sgl(struct __kfifo *fifo, struct scatterlist *sgl,
 	}
 	l = min(len, size - off);
 
-	n  = setup_sgl_buf(sgl, fifo->data + off, nents, l);
+	n = setup_sgl_buf(sgl, fifo->data + off, nents, l);
 	n += setup_sgl_buf(sgl + n, fifo->data, nents - n, len - l);
 
 	if (n)
