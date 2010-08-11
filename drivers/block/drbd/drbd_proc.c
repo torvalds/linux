@@ -57,6 +57,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	unsigned long db, dt, dbdt, rt, rs_left;
 	unsigned int res;
 	int i, x, y;
+	int stalled = 0;
 
 	drbd_get_syncer_progress(mdev, &rs_left, &res);
 
@@ -90,18 +91,17 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	 * db: blocks written from mark until now
 	 * rt: remaining time
 	 */
-	dt = (jiffies - mdev->rs_mark_time) / HZ;
-
-	if (dt > 20) {
-		/* if we made no update to rs_mark_time for too long,
-		 * we are stalled. show that. */
-		seq_printf(seq, "stalled\n");
-		return;
-	}
+	/* Rolling marks. last_mark+1 may just now be modified.  last_mark+2 is
+	 * at least (DRBD_SYNC_MARKS-2)*DRBD_SYNC_MARK_STEP old, and has at
+	 * least DRBD_SYNC_MARK_STEP time before it will be modified. */
+	i = (mdev->rs_last_mark + 2) % DRBD_SYNC_MARKS;
+	dt = (jiffies - mdev->rs_mark_time[i]) / HZ;
+	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
+		stalled = 1;
 
 	if (!dt)
 		dt++;
-	db = mdev->rs_mark_left - rs_left;
+	db = mdev->rs_mark_left[i] - rs_left;
 	rt = (dt * (rs_left / (db/100+1)))/100; /* seconds */
 
 	seq_printf(seq, "finish: %lu:%02lu:%02lu",
@@ -128,7 +128,14 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	else
 		seq_printf(seq, " (%ld)", dbdt);
 
-	seq_printf(seq, " K/sec\n");
+	if (mdev->state.conn == C_SYNC_TARGET) {
+		if (mdev->c_sync_rate > 1000)
+			seq_printf(seq, " want: %d,%03d",
+				   mdev->c_sync_rate / 1000, mdev->c_sync_rate % 1000);
+		else
+			seq_printf(seq, " want: %d", mdev->c_sync_rate);
+	}
+	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
 }
 
 static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)

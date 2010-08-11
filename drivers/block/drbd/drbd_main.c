@@ -1064,7 +1064,8 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	if ((os.conn == C_PAUSED_SYNC_T || os.conn == C_PAUSED_SYNC_S) &&
 	    (ns.conn == C_SYNC_TARGET  || ns.conn == C_SYNC_SOURCE)) {
 		dev_info(DEV, "Syncer continues.\n");
-		mdev->rs_paused += (long)jiffies-(long)mdev->rs_mark_time;
+		mdev->rs_paused += (long)jiffies
+				  -(long)mdev->rs_mark_time[mdev->rs_last_mark];
 		if (ns.conn == C_SYNC_TARGET) {
 			if (!test_and_clear_bit(STOP_SYNC_TIMER, &mdev->flags))
 				mod_timer(&mdev->resync_timer, jiffies);
@@ -1078,26 +1079,32 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	if ((os.conn == C_SYNC_TARGET  || os.conn == C_SYNC_SOURCE) &&
 	    (ns.conn == C_PAUSED_SYNC_T || ns.conn == C_PAUSED_SYNC_S)) {
 		dev_info(DEV, "Resync suspended\n");
-		mdev->rs_mark_time = jiffies;
+		mdev->rs_mark_time[mdev->rs_last_mark] = jiffies;
 		if (ns.conn == C_PAUSED_SYNC_T)
 			set_bit(STOP_SYNC_TIMER, &mdev->flags);
 	}
 
 	if (os.conn == C_CONNECTED &&
 	    (ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T)) {
+		unsigned long now = jiffies;
+		int i;
+
 		mdev->ov_position = 0;
-		mdev->rs_total =
-		mdev->rs_mark_left = drbd_bm_bits(mdev);
+		mdev->rs_total = drbd_bm_bits(mdev);
 		if (mdev->agreed_pro_version >= 90)
 			set_ov_position(mdev, ns.conn);
 		else
 			mdev->ov_start_sector = 0;
 		mdev->ov_left = mdev->rs_total
 			      - BM_SECT_TO_BIT(mdev->ov_position);
-		mdev->rs_start     =
-		mdev->rs_mark_time = jiffies;
+		mdev->rs_start = now;
 		mdev->ov_last_oos_size = 0;
 		mdev->ov_last_oos_start = 0;
+
+		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
+			mdev->rs_mark_left[i] = mdev->rs_total;
+			mdev->rs_mark_time[i] = now;
+		}
 
 		if (ns.conn == C_VERIFY_S) {
 			dev_info(DEV, "Starting Online Verify from sector %llu\n",
@@ -2793,6 +2800,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 void drbd_mdev_cleanup(struct drbd_conf *mdev)
 {
+	int i;
 	if (mdev->receiver.t_state != None)
 		dev_err(DEV, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
 				mdev->receiver.t_state);
@@ -2809,9 +2817,12 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	mdev->p_size       =
 	mdev->rs_start     =
 	mdev->rs_total     =
-	mdev->rs_failed    =
-	mdev->rs_mark_left =
-	mdev->rs_mark_time = 0;
+	mdev->rs_failed    = 0;
+	mdev->rs_last_events = 0;
+	for (i = 0; i < DRBD_SYNC_MARKS; i++) {
+		mdev->rs_mark_left[i] = 0;
+		mdev->rs_mark_time[i] = 0;
+	}
 	D_ASSERT(mdev->net_conf == NULL);
 
 	drbd_set_my_capacity(mdev, 0);

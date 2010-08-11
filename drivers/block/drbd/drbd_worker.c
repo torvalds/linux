@@ -1481,13 +1481,19 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		r = SS_UNKNOWN_ERROR;
 
 	if (r == SS_SUCCESS) {
-		mdev->rs_total     =
-		mdev->rs_mark_left = drbd_bm_total_weight(mdev);
+		unsigned long tw = drbd_bm_total_weight(mdev);
+		unsigned long now = jiffies;
+		int i;
+
 		mdev->rs_failed    = 0;
 		mdev->rs_paused    = 0;
-		mdev->rs_start     =
-		mdev->rs_mark_time = jiffies;
 		mdev->rs_same_csum = 0;
+		mdev->rs_total     = tw;
+		mdev->rs_start     = now;
+		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
+			mdev->rs_mark_left[i] = tw;
+			mdev->rs_mark_time[i] = now;
+		}
 		_drbd_pause_after(mdev);
 	}
 	write_unlock_irq(&global_state_lock);
