@@ -56,7 +56,7 @@ MODULE_PARM_DESC(onfi_timing_mode, "Overrides default ONFI setting."
 			INTR_STATUS0__ERASE_COMP)
 
 /* indicates whether or not the internal value for the flash bank is
-   valid or not */
+ * valid or not */
 #define CHIP_SELECT_INVALID	-1
 
 #define SUPPORT_8BITECC		1
@@ -71,7 +71,7 @@ MODULE_PARM_DESC(onfi_timing_mode, "Overrides default ONFI setting."
 #define mtd_to_denali(m) container_of(m, struct denali_nand_info, mtd)
 
 /* These constants are defined by the driver to enable common driver
-   configuration options. */
+ * configuration options. */
 #define SPARE_ACCESS		0x41
 #define MAIN_ACCESS		0x42
 #define MAIN_SPARE_ACCESS	0x43
@@ -97,7 +97,7 @@ static const struct pci_device_id denali_pci_ids[] = {
 
 
 /* these are static lookup tables that give us easy access to
-   registers in the NAND controller.
+ * registers in the NAND controller.
  */
 static const uint32_t intr_status_addresses[4] = {INTR_STATUS0,
 						  INTR_STATUS1,
@@ -429,7 +429,7 @@ static void get_hynix_nand_para(struct denali_nand_info *denali,
 }
 
 /* determines how many NAND chips are connected to the controller. Note for
-   Intel CE4100 devices we don't support more than one device.
+ * Intel CE4100 devices we don't support more than one device.
  */
 static void find_valid_banks(struct denali_nand_info *denali)
 {
@@ -572,7 +572,7 @@ static void denali_set_intr_modes(struct denali_nand_info *denali,
 }
 
 /* validation function to verify that the controlling software is making
-   a valid request
+ * a valid request
  */
 static inline bool is_flash_bank_valid(int flash_bank)
 {
@@ -726,7 +726,7 @@ static uint32_t wait_for_irq(struct denali_nand_info *denali, uint32_t irq_mask)
 }
 
 /* This helper function setups the registers for ECC and whether or not
-   the spare area will be transfered. */
+ * the spare area will be transfered. */
 static void setup_ecc_for_xfer(struct denali_nand_info *denali, bool ecc_en,
 				bool transfer_spare)
 {
@@ -743,7 +743,7 @@ static void setup_ecc_for_xfer(struct denali_nand_info *denali, bool ecc_en,
 }
 
 /* sends a pipeline command operation to the controller. See the Denali NAND
-   controller's user guide for more information (section 4.2.3.6).
+ * controller's user guide for more information (section 4.2.3.6).
  */
 static int denali_send_pipeline_cmd(struct denali_nand_info *denali,
 							bool ecc_en,
@@ -1042,7 +1042,7 @@ static void denali_setup_dma(struct denali_nand_info *denali, int op)
 }
 
 /* writes a page. user specifies type, and this function handles the
-   configuration details. */
+ * configuration details. */
 static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf, bool raw_xfer)
 {
@@ -1099,8 +1099,9 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 /* NAND core entry points */
 
 /* this is the callback that the NAND core calls to write a page. Since
-   writing a page with ECC or without is similar, all the work is done
-   by write_page above.   */
+ * writing a page with ECC or without is similar, all the work is done
+ * by write_page above.
+ * */
 static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				const uint8_t *buf)
 {
@@ -1110,8 +1111,8 @@ static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /* This is the callback that the NAND core calls to write a page without ECC.
-   raw access is similiar to ECC page writes, so all the work is done in the
-   write_page() function above.
+ * raw access is similiar to ECC page writes, so all the work is done in the
+ * write_page() function above.
  */
 static void denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 					const uint8_t *buf)
