@@ -825,10 +825,10 @@ void __init page_writeback_init(void)
 /*
  * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce tree_lock latency.
  */
-#define WRITEBACK_TAG_BATCH 4096
 void tag_pages_for_writeback(struct address_space *mapping,
 			     pgoff_t start, pgoff_t end)
 {
+#define WRITEBACK_TAG_BATCH 4096
 	unsigned long tagged;
 
 	do {
