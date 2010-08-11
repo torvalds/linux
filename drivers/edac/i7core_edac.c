@@ -1941,18 +1941,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 		goto fail;
 	}
 
-	/* allocating generic PCI control info */
-	pvt->i7core_pci = edac_pci_create_generic_ctl(&i7core_dev->pdev[0]->dev,
-						 EDAC_MOD_STR);
-	if (unlikely(!pvt->i7core_pci)) {
-		printk(KERN_WARNING
-			"%s(): Unable to create PCI control\n",
-			__func__);
-		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
-			__func__);
-	}
-
 	/* Default error mask is any memory */
 	pvt->inject.channel = 0;
 	pvt->inject.dimm = -1;
@@ -1964,6 +1952,18 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	/* Registers on edac_mce in order to receive memory errors */
 	pvt->edac_mce.priv = mci;
 	pvt->edac_mce.check_error = i7core_mce_check_error;
+
+	/* allocating generic PCI control info */
+	pvt->i7core_pci = edac_pci_create_generic_ctl(&i7core_dev->pdev[0]->dev,
+						 EDAC_MOD_STR);
+	if (unlikely(!pvt->i7core_pci)) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
 
 	rc = edac_mce_register(&pvt->edac_mce);
 	if (unlikely(rc < 0)) {
