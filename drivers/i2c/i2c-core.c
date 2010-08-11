@@ -1378,13 +1378,17 @@ static int i2c_default_probe(struct i2c_adapter *adap, unsigned short addr)
 				     I2C_SMBUS_BYTE_DATA, &dummy);
 	else
 #endif
-	if ((addr & ~0x07) == 0x30 || (addr & ~0x0f) == 0x50
-	 || !i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK))
-		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
-				     I2C_SMBUS_BYTE, &dummy);
-	else
+	if (!((addr & ~0x07) == 0x30 || (addr & ~0x0f) == 0x50)
+	 && i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK))
 		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_WRITE, 0,
 				     I2C_SMBUS_QUICK, NULL);
+	else if (i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_BYTE))
+		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
+				     I2C_SMBUS_BYTE, &dummy);
+	else {
+		dev_warn(&adap->dev, "No suitable probing method supported\n");
+		err = -EOPNOTSUPP;
+	}
 
 	return err >= 0;
 }
@@ -1465,16 +1469,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	if (!(adapter->class & driver->class))
 		goto exit_free;
 
-	/* Stop here if the bus doesn't support probing */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE)) {
-		if (address_list[0] == I2C_CLIENT_END)
-			goto exit_free;
-
-		dev_warn(&adapter->dev, "Probing not supported\n");
-		err = -EOPNOTSUPP;
-		goto exit_free;
-	}
-
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev, "found normal entry for adapter %d, "
 			"addr 0x%02x\n", adap_id, address_list[i]);
@@ -1504,14 +1498,8 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 {
 	int i;
 
-	if (!probe) {
-		/* Stop here if the bus doesn't support probing */
-		if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_BYTE)) {
-			dev_err(&adap->dev, "Probing not supported\n");
-			return NULL;
-		}
+	if (!probe)
 		probe = i2c_default_probe;
-	}
 
 	for (i = 0; addr_list[i] != I2C_CLIENT_END; i++) {
 		/* Check address validity */
