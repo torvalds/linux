@@ -280,6 +280,7 @@
 			reg = <0x114000 0x1000>;
 			interrupts = <48 2>;
 			interrupt-parent = <&mpic>;
+			sdhci,auto-cmd12;
 		};
 
 		i2c@118000 {
