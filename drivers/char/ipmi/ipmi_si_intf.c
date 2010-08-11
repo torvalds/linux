@@ -2088,6 +2088,11 @@ static __devinit int try_init_spmi(struct SPMITable *spmi)
 	}
 	info->io.addr_data = spmi->addr.address;
 
+	pr_info("ipmi_si: SPMI: %s %#lx regsize %d spacing %d irq %d\n",
+		 (info->io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
+		 info->io.addr_data, info->io.regsize, info->io.regspacing,
+		 info->irq);
+
 	if (add_smi(info))
 		kfree(info);
 
@@ -2365,6 +2370,11 @@ static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 	info->irq = ipmi_data->irq;
 	if (info->irq)
 		info->irq_setup = std_irq_setup;
+
+	pr_info("ipmi_si: SMBIOS: %s %#lx regsize %d spacing %d irq %d\n",
+		 (info->io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
+		 info->io.addr_data, info->io.regsize, info->io.regspacing,
+		 info->irq);
 
 	if (add_smi(info))
 		kfree(info);
@@ -3056,7 +3066,7 @@ static int add_smi(struct smi_info *new_smi)
 			si_to_str[new_smi->si_type]);
 	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
-		printk(KERN_CONT PFX "duplicate interface\n");
+		printk(KERN_CONT " duplicate interface\n");
 		rv = -EBUSY;
 		goto out_err;
 	}
