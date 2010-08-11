@@ -92,6 +92,7 @@ NL_PACKET(syncer_conf, 8,
 	NL_INTEGER(     77,	T_MAY_IGNORE,	c_delay_target)
 	NL_INTEGER(     78,	T_MAY_IGNORE,	c_fill_target)
 	NL_INTEGER(     79,	T_MAY_IGNORE,	c_max_rate)
+	NL_INTEGER(     80,	T_MAY_IGNORE,	c_min_rate)
 )
 
 NL_PACKET(invalidate, 9, )

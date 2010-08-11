@@ -150,5 +150,9 @@
 #define DRBD_C_MAX_RATE_MAX     (4 << 20)
 #define DRBD_C_MAX_RATE_DEF     102400
 
+#define DRBD_C_MIN_RATE_MIN     0 /* kByte/sec */
+#define DRBD_C_MIN_RATE_MAX     (4 << 20)
+#define DRBD_C_MIN_RATE_DEF     4096
+
 #undef RANGE
 #endif

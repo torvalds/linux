@@ -1561,6 +1561,7 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 	list_add(&e->w.list, &mdev->sync_ee);
 	spin_unlock_irq(&mdev->req_lock);
 
+	atomic_add(data_size >> 9, &mdev->rs_sect_ev);
 	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_RS_WR) == 0)
 		return TRUE;
 
@@ -2017,17 +2018,66 @@ out_interrupted:
 	return FALSE;
 }
 
+/* We may throttle resync, if the lower device seems to be busy,
+ * and current sync rate is above c_min_rate.
+ *
+ * To decide whether or not the lower device is busy, we use a scheme similar
+ * to MD RAID is_mddev_idle(): if the partition stats reveal "significant"
+ * (more than 64 sectors) of activity we cannot account for with our own resync
+ * activity, it obviously is "busy".
+ *
+ * The current sync rate used here uses only the most recent two step marks,
+ * to have a short time average so we can react faster.
+ */
+int drbd_rs_should_slow_down(struct drbd_conf *mdev)
+{
+	struct gendisk *disk = mdev->ldev->backing_bdev->bd_contains->bd_disk;
+	unsigned long db, dt, dbdt;
+	int curr_events;
+	int throttle = 0;
+
+	/* feature disabled? */
+	if (mdev->sync_conf.c_min_rate == 0)
+		return 0;
+
+	curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
+		      (int)part_stat_read(&disk->part0, sectors[1]) -
+			atomic_read(&mdev->rs_sect_ev);
+	if (!mdev->rs_last_events || curr_events - mdev->rs_last_events > 64) {
+		unsigned long rs_left;
+		int i;
+
+		mdev->rs_last_events = curr_events;
+
+		/* sync speed average over the last 2*DRBD_SYNC_MARK_STEP,
+		 * approx. */
+		i = (mdev->rs_last_mark + DRBD_SYNC_MARKS-2) % DRBD_SYNC_MARKS;
+		rs_left = drbd_bm_total_weight(mdev) - mdev->rs_failed;
+
+		dt = ((long)jiffies - (long)mdev->rs_mark_time[i]) / HZ;
+		if (!dt)
+			dt++;
+		db = mdev->rs_mark_left[i] - rs_left;
+		dbdt = Bit2KB(db/dt);
+
+		if (dbdt > mdev->sync_conf.c_min_rate)
+			throttle = 1;
+	}
+	return throttle;
+}
+
+
 static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 {
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	struct drbd_epoch_entry *e;
 	struct digest_info *di = NULL;
+	struct p_block_req *p = (struct p_block_req *)h;
+	const int brps = sizeof(*p)-sizeof(*h);
 	int size, digest_size;
 	unsigned int fault_type;
-	struct p_block_req *p =
-		(struct p_block_req *)h;
-	const int brps = sizeof(*p)-sizeof(*h);
+
 
 	if (drbd_recv(mdev, h->payload, brps) != brps)
 		return FALSE;
@@ -2099,8 +2149,9 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		} else if (h->command == P_OV_REPLY) {
 			e->w.cb = w_e_end_ov_reply;
 			dec_rs_pending(mdev);
-			/* drbd_rs_begin_io done when we sent this request */
-			goto submit;
+			/* drbd_rs_begin_io done when we sent this request,
+			 * but accounting still needs to be done. */
+			goto submit_for_resync;
 		}
 		break;
 
@@ -2128,8 +2179,35 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		goto out_free_e;
 	}
 
+	/* Throttle, drbd_rs_begin_io and submit should become asynchronous
+	 * wrt the receiver, but it is not as straightforward as it may seem.
+	 * Various places in the resync start and stop logic assume resync
+	 * requests are processed in order, requeuing this on the worker thread
+	 * introduces a bunch of new code for synchronization between threads.
+	 *
+	 * Unlimited throttling before drbd_rs_begin_io may stall the resync
+	 * "forever", throttling after drbd_rs_begin_io will lock that extent
+	 * for application writes for the same time.  For now, just throttle
+	 * here, where the rest of the code expects the receiver to sleep for
+	 * a while, anyways.
+	 */
+
+	/* Throttle before drbd_rs_begin_io, as that locks out application IO;
+	 * this defers syncer requests for some time, before letting at least
+	 * on request through.  The resync controller on the receiving side
+	 * will adapt to the incoming rate accordingly.
+	 *
+	 * We cannot throttle here if remote is Primary/SyncTarget:
+	 * we would also throttle its application reads.
+	 * In that case, throttling is done on the SyncTarget only.
+	 */
+	if (mdev->state.peer != R_PRIMARY && drbd_rs_should_slow_down(mdev))
+		msleep(100);
 	if (drbd_rs_begin_io(mdev, e->sector))
 		goto out_free_e;
+
+submit_for_resync:
+	atomic_add(size >> 9, &mdev->rs_sect_ev);
 
 submit:
 	inc_unacked(mdev);

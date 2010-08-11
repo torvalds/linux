@@ -1098,6 +1098,8 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		mdev->ov_left = mdev->rs_total
 			      - BM_SECT_TO_BIT(mdev->ov_position);
 		mdev->rs_start = now;
+		mdev->rs_last_events = 0;
+		mdev->rs_last_sect_ev = 0;
 		mdev->ov_last_oos_size = 0;
 		mdev->ov_last_oos_start = 0;
 
@@ -2706,7 +2708,8 @@ static void drbd_set_defaults(struct drbd_conf *mdev)
 		/* .c_plan_ahead = */	DRBD_C_PLAN_AHEAD_DEF,
 		/* .c_delay_target = */	DRBD_C_DELAY_TARGET_DEF,
 		/* .c_fill_target = */	DRBD_C_FILL_TARGET_DEF,
-		/* .c_max_rate = */	DRBD_C_MAX_RATE_DEF
+		/* .c_max_rate = */	DRBD_C_MAX_RATE_DEF,
+		/* .c_min_rate = */	DRBD_C_MIN_RATE_DEF
 	};
 
 	/* Have to use that way, because the layout differs between
@@ -2742,6 +2745,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
 	atomic_set(&mdev->rs_sect_in, 0);
+	atomic_set(&mdev->rs_sect_ev, 0);
 
 	mutex_init(&mdev->md_io_mutex);
 	mutex_init(&mdev->data.mutex);
@@ -2819,6 +2823,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	mdev->rs_total     =
 	mdev->rs_failed    = 0;
 	mdev->rs_last_events = 0;
+	mdev->rs_last_sect_ev = 0;
 	for (i = 0; i < DRBD_SYNC_MARKS; i++) {
 		mdev->rs_mark_left[i] = 0;
 		mdev->rs_mark_time[i] = 0;

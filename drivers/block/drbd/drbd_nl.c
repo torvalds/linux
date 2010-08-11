@@ -1604,7 +1604,8 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		sc.c_plan_ahead = DRBD_C_PLAN_AHEAD_DEF;
 		sc.c_delay_target = DRBD_C_DELAY_TARGET_DEF;
 		sc.c_fill_target = DRBD_C_FILL_TARGET_DEF;
-		sc.c_max_rate   = DRBD_C_MAX_RATE_DEF;
+		sc.c_max_rate = DRBD_C_MAX_RATE_DEF;
+		sc.c_min_rate = DRBD_C_MIN_RATE_DEF;
 	} else
 		memcpy(&sc, &mdev->sync_conf, sizeof(struct syncer_conf));
 
