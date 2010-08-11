@@ -34,13 +34,19 @@
 #define IDEAPAD_DEV_3G		3
 #define IDEAPAD_DEV_KILLSW	4
 
-static struct rfkill *ideapad_rfkill[5];
-
-static const char *ideapad_rfk_names[] = {
-	"ideapad_camera", "ideapad_wlan", "ideapad_bluetooth", "ideapad_3g", "ideapad_rfkill"
+struct ideapad_private {
+	struct rfkill *rfk[5];
 };
-static const int ideapad_rfk_types[] = {
-	0, RFKILL_TYPE_WLAN, RFKILL_TYPE_BLUETOOTH, RFKILL_TYPE_WWAN, RFKILL_TYPE_WLAN
+
+static struct {
+	char *name;
+	int type;
+} ideapad_rfk_data[] = {
+	/* camera has no rfkill */
+	{ "ideapad_wlan",	RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth",	RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",		RFKILL_TYPE_WWAN },
+	{ "ideapad_killsw",	RFKILL_TYPE_WLAN }
 };
 
 static int ideapad_dev_exists(int device)
@@ -155,48 +161,52 @@ static struct rfkill_ops ideapad_rfk_ops = {
 	.set_block = ideapad_rfk_set,
 };
 
-static void ideapad_sync_rfk_state(void)
+static void ideapad_sync_rfk_state(struct acpi_device *adevice)
 {
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int hw_blocked = !ideapad_dev_get_state(IDEAPAD_DEV_KILLSW);
 	int i;
 
-	rfkill_set_hw_state(ideapad_rfkill[IDEAPAD_DEV_KILLSW], hw_blocked);
+	rfkill_set_hw_state(priv->rfk[IDEAPAD_DEV_KILLSW], hw_blocked);
 	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++)
-		if (ideapad_rfkill[i])
-			rfkill_set_hw_state(ideapad_rfkill[i], hw_blocked);
+		if (priv->rfk[i])
+			rfkill_set_hw_state(priv->rfk[i], hw_blocked);
 	if (hw_blocked)
 		return;
 
 	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++)
-		if (ideapad_rfkill[i])
-			rfkill_set_sw_state(ideapad_rfkill[i], !ideapad_dev_get_state(i));
+		if (priv->rfk[i])
+			rfkill_set_sw_state(priv->rfk[i], !ideapad_dev_get_state(i));
 }
 
-static int ideapad_register_rfkill(struct acpi_device *device, int dev)
+static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 {
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int ret;
 
-	ideapad_rfkill[dev] = rfkill_alloc(ideapad_rfk_names[dev], &device->dev,
-					   ideapad_rfk_types[dev], &ideapad_rfk_ops,
-					   (void *)(long)dev);
-	if (!ideapad_rfkill[dev])
+	priv->rfk[dev] = rfkill_alloc(ideapad_rfk_data[dev-1].name, &adevice->dev,
+				      ideapad_rfk_data[dev-1].type, &ideapad_rfk_ops,
+				      (void *)(long)dev);
+	if (!priv->rfk[dev])
 		return -ENOMEM;
 
-	ret = rfkill_register(ideapad_rfkill[dev]);
+	ret = rfkill_register(priv->rfk[dev]);
 	if (ret) {
-		rfkill_destroy(ideapad_rfkill[dev]);
+		rfkill_destroy(priv->rfk[dev]);
 		return ret;
 	}
 	return 0;
 }
 
-static void ideapad_unregister_rfkill(int dev)
+static void ideapad_unregister_rfkill(struct acpi_device *adevice, int dev)
 {
-	if (!ideapad_rfkill[dev])
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
+
+	if (!priv->rfk[dev])
 		return;
 
-	rfkill_unregister(ideapad_rfkill[dev]);
-	rfkill_destroy(ideapad_rfkill[dev]);
+	rfkill_unregister(priv->rfk[dev]);
+	rfkill_destroy(priv->rfk[dev]);
 }
 
 static const struct acpi_device_id ideapad_device_ids[] = {
@@ -205,10 +215,11 @@ static const struct acpi_device_id ideapad_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
-static int ideapad_acpi_add(struct acpi_device *device)
+static int ideapad_acpi_add(struct acpi_device *adevice)
 {
 	int i;
 	int devs_present[5];
+	struct ideapad_private *priv;
 
 	for (i = IDEAPAD_DEV_CAMERA; i < IDEAPAD_DEV_KILLSW; i++) {
 		devs_present[i] = ideapad_dev_exists(i);
@@ -219,34 +230,47 @@ static int ideapad_acpi_add(struct acpi_device *device)
 	/* The hardware switch is always present */
 	devs_present[IDEAPAD_DEV_KILLSW] = 1;
 
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
 	if (devs_present[IDEAPAD_DEV_CAMERA]) {
-		int ret = device_create_file(&device->dev, &dev_attr_camera_power);
-		if (ret)
+		int ret = device_create_file(&adevice->dev, &dev_attr_camera_power);
+		if (ret) {
+			kfree(priv);
 			return ret;
+		}
 	}
 
+	dev_set_drvdata(&adevice->dev, priv);
 	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++) {
 		if (!devs_present[i])
 			continue;
 
-		ideapad_register_rfkill(device, i);
+		ideapad_register_rfkill(adevice, i);
 	}
-	ideapad_sync_rfk_state();
+	ideapad_sync_rfk_state(adevice);
 	return 0;
 }
 
-static int ideapad_acpi_remove(struct acpi_device *device, int type)
+static int ideapad_acpi_remove(struct acpi_device *adevice, int type)
 {
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int i;
-	device_remove_file(&device->dev, &dev_attr_camera_power);
-	for (i = 0; i < 5; i++)
-		ideapad_unregister_rfkill(i);
+
+	device_remove_file(&adevice->dev, &dev_attr_camera_power);
+
+	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++)
+		ideapad_unregister_rfkill(adevice, i);
+
+	dev_set_drvdata(&adevice->dev, NULL);
+	kfree(priv);
 	return 0;
 }
 
-static void ideapad_acpi_notify(struct acpi_device *device, u32 event)
+static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 {
-	ideapad_sync_rfk_state();
+	ideapad_sync_rfk_state(adevice);
 }
 
 static struct acpi_driver ideapad_acpi_driver = {
