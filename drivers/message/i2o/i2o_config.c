@@ -115,7 +115,7 @@ static int i2o_cfg_gethrt(unsigned long arg)
 	put_user(len, kcmd.reslen);
 	if (len > reslen)
 		ret = -ENOBUFS;
-	if (copy_to_user(kcmd.resbuf, (void *)hrt, len))
+	else if (copy_to_user(kcmd.resbuf, (void *)hrt, len))
 		ret = -EFAULT;
 
 	return ret;
