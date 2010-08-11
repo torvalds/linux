@@ -37,6 +37,7 @@
 #include <linux/of.h>		/* for struct device_node */
 
 extern struct bus_type i2c_bus_type;
+extern struct device_type i2c_adapter_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -381,6 +382,13 @@ static inline void *i2c_get_adapdata(const struct i2c_adapter *dev)
 static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
+}
+
+static inline int i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
+{
+	return adapter->dev.parent != NULL
+		&& adapter->dev.parent->bus == &i2c_bus_type
+		&& adapter->dev.parent->type == &i2c_adapter_type;
 }
 
 /* Adapter locking functions, exported for shared pin cases */

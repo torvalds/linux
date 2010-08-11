@@ -47,6 +47,17 @@ config I2C_CHARDEV
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
 
+config I2C_MUX
+	tristate "I2C bus multiplexing support"
+	depends on EXPERIMENTAL
+	help
+	  Say Y here if you want the I2C core to support the ability to
+	  handle multiplexed I2C bus topologies, by presenting each
+	  multiplexed segment as a I2C adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-mux.
+
 config I2C_HELPER_AUTO
 	bool "Autoselect pertinent helper modules"
 	default y

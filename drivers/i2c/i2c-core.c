@@ -20,7 +20,9 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
    All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
    SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
-   Jean Delvare <khali@linux-fr.org> */
+   Jean Delvare <khali@linux-fr.org>
+   Mux support by Rodolfo Giometti <giometti@enneenne.com> and
+   Michael Lawnick <michael.lawnick.ext@nsn.com> */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -423,10 +425,48 @@ static int __i2c_check_addr_busy(struct device *dev, void *addrp)
 	return 0;
 }
 
+/* walk up mux tree */
+static int i2c_check_mux_parents(struct i2c_adapter *adapter, int addr)
+{
+	int result;
+
+	result = device_for_each_child(&adapter->dev, &addr,
+					__i2c_check_addr_busy);
+
+	if (!result && i2c_parent_is_i2c_adapter(adapter))
+		result = i2c_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	return result;
+}
+
+/* recurse down mux tree */
+static int i2c_check_mux_children(struct device *dev, void *addrp)
+{
+	int result;
+
+	if (dev->type == &i2c_adapter_type)
+		result = device_for_each_child(dev, addrp,
+						i2c_check_mux_children);
+	else
+		result = __i2c_check_addr_busy(dev, addrp);
+
+	return result;
+}
+
 static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
 {
-	return device_for_each_child(&adapter->dev, &addr,
-				     __i2c_check_addr_busy);
+	int result = 0;
+
+	if (i2c_parent_is_i2c_adapter(adapter))
+		result = i2c_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	if (!result)
+		result = device_for_each_child(&adapter->dev, &addr,
+						i2c_check_mux_children);
+
+	return result;
 }
 
 /**
@@ -435,7 +475,10 @@ static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
  */
 void i2c_lock_adapter(struct i2c_adapter *adapter)
 {
-	rt_mutex_lock(&adapter->bus_lock);
+	if (i2c_parent_is_i2c_adapter(adapter))
+		i2c_lock_adapter(to_i2c_adapter(adapter->dev.parent));
+	else
+		rt_mutex_lock(&adapter->bus_lock);
 }
 EXPORT_SYMBOL_GPL(i2c_lock_adapter);
 
@@ -445,7 +488,10 @@ EXPORT_SYMBOL_GPL(i2c_lock_adapter);
  */
 static int i2c_trylock_adapter(struct i2c_adapter *adapter)
 {
-	return rt_mutex_trylock(&adapter->bus_lock);
+	if (i2c_parent_is_i2c_adapter(adapter))
+		return i2c_trylock_adapter(to_i2c_adapter(adapter->dev.parent));
+	else
+		return rt_mutex_trylock(&adapter->bus_lock);
 }
 
 /**
@@ -454,7 +500,10 @@ static int i2c_trylock_adapter(struct i2c_adapter *adapter)
  */
 void i2c_unlock_adapter(struct i2c_adapter *adapter)
 {
-	rt_mutex_unlock(&adapter->bus_lock);
+	if (i2c_parent_is_i2c_adapter(adapter))
+		i2c_unlock_adapter(to_i2c_adapter(adapter->dev.parent));
+	else
+		rt_mutex_unlock(&adapter->bus_lock);
 }
 EXPORT_SYMBOL_GPL(i2c_unlock_adapter);
 
@@ -743,10 +792,11 @@ static const struct attribute_group *i2c_adapter_attr_groups[] = {
 	NULL
 };
 
-static struct device_type i2c_adapter_type = {
+struct device_type i2c_adapter_type = {
 	.groups		= i2c_adapter_attr_groups,
 	.release	= i2c_adapter_dev_release,
 };
+EXPORT_SYMBOL_GPL(i2c_adapter_type);
 
 #ifdef CONFIG_I2C_COMPAT
 static struct class_compat *i2c_adapter_compat_class;

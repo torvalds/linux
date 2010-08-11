@@ -189,12 +189,50 @@ static int i2cdev_check(struct device *dev, void *addrp)
 	return dev->driver ? -EBUSY : 0;
 }
 
+/* walk up mux tree */
+static int i2cdev_check_mux_parents(struct i2c_adapter *adapter, int addr)
+{
+	int result;
+
+	result = device_for_each_child(&adapter->dev, &addr, i2cdev_check);
+
+	if (!result && i2c_parent_is_i2c_adapter(adapter))
+		result = i2cdev_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	return result;
+}
+
+/* recurse down mux tree */
+static int i2cdev_check_mux_children(struct device *dev, void *addrp)
+{
+	int result;
+
+	if (dev->type == &i2c_adapter_type)
+		result = device_for_each_child(dev, addrp,
+						i2cdev_check_mux_children);
+	else
+		result = i2cdev_check(dev, addrp);
+
+	return result;
+}
+
 /* This address checking function differs from the one in i2c-core
    in that it considers an address with a registered device, but no
    driver bound to it, as NOT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
-	return device_for_each_child(&adapter->dev, &addr, i2cdev_check);
+	int result = 0;
+
+	if (i2c_parent_is_i2c_adapter(adapter))
+		result = i2cdev_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	if (!result)
+		result = device_for_each_child(&adapter->dev, &addr,
+						i2cdev_check_mux_children);
+
+	return result;
 }
 
 static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
