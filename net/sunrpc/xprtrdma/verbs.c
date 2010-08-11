@@ -650,10 +650,22 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
 	switch (ia->ri_memreg_strategy) {
 	case RPCRDMA_FRMR:
-		/* Add room for frmr register and invalidate WRs */
-		ep->rep_attr.cap.max_send_wr *= 3;
-		if (ep->rep_attr.cap.max_send_wr > devattr.max_qp_wr)
-			return -EINVAL;
+		/* Add room for frmr register and invalidate WRs.
+		 * 1. FRMR reg WR for head
+		 * 2. FRMR invalidate WR for head
+		 * 3. FRMR reg WR for pagelist
+		 * 4. FRMR invalidate WR for pagelist
+		 * 5. FRMR reg WR for tail
+		 * 6. FRMR invalidate WR for tail
+		 * 7. The RDMA_SEND WR
+		 */
+		ep->rep_attr.cap.max_send_wr *= 7;
+		if (ep->rep_attr.cap.max_send_wr > devattr.max_qp_wr) {
+			cdata->max_requests = devattr.max_qp_wr / 7;
+			if (!cdata->max_requests)
+				return -EINVAL;
+			ep->rep_attr.cap.max_send_wr = cdata->max_requests * 7;
+		}
 		break;
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
