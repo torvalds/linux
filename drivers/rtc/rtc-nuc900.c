@@ -85,7 +85,7 @@ static irqreturn_t nuc900_rtc_interrupt(int irq, void *_rtc)
 
 static int *check_rtc_access_enable(struct nuc900_rtc *nuc900_rtc)
 {
-	unsigned int i, timeout = 0x1000;
+	unsigned int timeout = 0x1000;
 	__raw_writel(INIRRESET, nuc900_rtc->rtc_reg + REG_RTC_INIR);
 
 	mdelay(10);
