@@ -125,12 +125,6 @@ int dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline
-int dma_get_cache_alignment(void)
-{
-	return 1 << L1_CACHE_SHIFT;
-}
-
 #define dma_is_consistent(d, h)	(1)
 
 static inline

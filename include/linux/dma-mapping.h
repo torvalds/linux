@@ -142,6 +142,14 @@ static inline int dma_set_seg_boundary(struct device *dev, unsigned long mask)
 		return -EIO;
 }
 
+static inline int dma_get_cache_alignment(void)
+{
+#ifdef ARCH_DMA_MINALIGN
+	return ARCH_DMA_MINALIGN;
+#endif
+	return 1;
+}
+
 /* flags for the coherent memory api */
 #define	DMA_MEMORY_MAP			0x01
 #define DMA_MEMORY_IO			0x02

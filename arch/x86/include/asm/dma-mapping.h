@@ -87,13 +87,6 @@ dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	flush_write_buffers();
 }
 
-static inline int dma_get_cache_alignment(void)
-{
-	/* no easy way to get cache size on all x86, so return the
-	 * maximum possible, to be safe */
-	return boot_cpu_data.x86_clflush_size;
-}
-
 static inline unsigned long dma_alloc_coherent_mask(struct device *dev,
 						    gfp_t gfp)
 {

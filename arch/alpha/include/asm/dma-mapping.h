@@ -44,6 +44,5 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 #define dma_is_consistent(d, h)			(1)
 
 #define dma_cache_sync(dev, va, size, dir)		  ((void)0)
-#define dma_get_cache_alignment()			  L1_CACHE_BYTES
 
 #endif	/* _ALPHA_DMA_MAPPING_H */

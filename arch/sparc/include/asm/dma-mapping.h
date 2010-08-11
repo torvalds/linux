@@ -52,15 +52,6 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return (dma_addr == DMA_ERROR_CODE);
 }
 
-static inline int dma_get_cache_alignment(void)
-{
-	/*
-	 * no easy way to get cache size on all processors, so return
-	 * the maximum possible, to be safe
-	 */
-	return (1 << INTERNODE_CACHE_SHIFT);
-}
-
 static inline int dma_set_mask(struct device *dev, u64 mask)
 {
 #ifdef CONFIG_PCI

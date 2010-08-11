@@ -48,15 +48,6 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 #define dma_is_consistent(d, h) (0)
 #endif
 
-static inline int dma_get_cache_alignment(void)
-{
-	/*
-	 * Each processor family will define its own L1_CACHE_SHIFT,
-	 * L1_CACHE_BYTES wraps to this, so this is always safe.
-	 */
-	return L1_CACHE_BYTES;
-}
-
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);

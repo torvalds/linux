@@ -341,9 +341,4 @@ static inline int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
 	return 1;
 }
 
-static inline int dma_get_cache_alignment(void)
-{
-	return boot_cpu_data.dcache.linesz;
-}
-
 #endif /* __ASM_AVR32_DMA_MAPPING_H */

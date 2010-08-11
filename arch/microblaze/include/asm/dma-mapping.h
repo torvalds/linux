@@ -132,11 +132,6 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 	ops->free_coherent(dev, size, cpu_addr, dma_handle);
 }
 
-static inline int dma_get_cache_alignment(void)
-{
-	return L1_CACHE_BYTES;
-}
-
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)
 {
