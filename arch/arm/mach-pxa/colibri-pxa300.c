@@ -31,9 +31,28 @@
 #include "generic.h"
 #include "devices.h"
 
+
+#ifdef CONFIG_MACH_COLIBRI_PXA270_EVALBOARD
+static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {
+	/* MMC */
+	GPIO7_MMC1_CLK,
+	GPIO14_MMC1_CMD,
+	GPIO3_MMC1_DAT0,
+	GPIO4_MMC1_DAT1,
+	GPIO5_MMC1_DAT2,
+	GPIO6_MMC1_DAT3,
+	GPIO39_GPIO,	/* SD detect */
+
+	/* UHC */
+	GPIO0_2_USBH_PEN,
+	GPIO1_2_USBH_PWR,
+};
+#else
+static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {};
+#endif
+
 #if defined(CONFIG_AX88796)
 #define COLIBRI_ETH_IRQ_GPIO	mfp_to_gpio(GPIO26_GPIO)
-
 /*
  * Asix AX88796 Ethernet
  */
@@ -79,35 +98,6 @@ static void __init colibri_pxa300_init_eth(void)
 #else
 static inline void __init colibri_pxa300_init_eth(void) {}
 #endif /* CONFIG_AX88796 */
-
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-static mfp_cfg_t colibri_pxa300_usb_pin_config[] __initdata = {
-	GPIO0_2_USBH_PEN,
-	GPIO1_2_USBH_PWR,
-};
-
-static struct pxaohci_platform_data colibri_pxa300_ohci_info = {
-	.port_mode	= PMM_GLOBAL_MODE,
-	.flags		= ENABLE_PORT1 | POWER_CONTROL_LOW | POWER_SENSE_LOW,
-};
-
-void __init colibri_pxa300_init_ohci(void)
-{
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_usb_pin_config));
-	pxa_set_ohci_info(&colibri_pxa300_ohci_info);
-}
-#else
-static inline void colibri_pxa300_init_ohci(void) {}
-#endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
-
-static mfp_cfg_t colibri_pxa300_mmc_pin_config[] __initdata = {
-	GPIO7_MMC1_CLK,
-	GPIO14_MMC1_CMD,
-	GPIO3_MMC1_DAT0,
-	GPIO4_MMC1_DAT1,
-	GPIO5_MMC1_DAT2,
-	GPIO6_MMC1_DAT3,
-};
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static mfp_cfg_t colibri_pxa300_lcd_pin_config[] __initdata = {
@@ -171,18 +161,15 @@ static inline void colibri_pxa310_init_ac97(void) {}
 
 void __init colibri_pxa300_init(void)
 {
-	pxa_set_ffuart_info(NULL);
-	pxa_set_btuart_info(NULL);
-	pxa_set_stuart_info(NULL);
-
 	colibri_pxa300_init_eth();
-	colibri_pxa300_init_ohci();
 	colibri_pxa3xx_init_nand();
 	colibri_pxa300_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO39_GPIO));
 	colibri_pxa310_init_ac97();
-	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa300_mmc_pin_config),
-				mfp_to_gpio(MFP_PIN_GPIO13));
+
+	/* Evalboard init */
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_evalboard_pin_config));
+	colibri_pxa270_evalboard_init();
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")

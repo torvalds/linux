@@ -33,6 +33,99 @@
 #include "generic.h"
 
 /******************************************************************************
+ * Evaluation board MFP
+ ******************************************************************************/
+#ifdef	 CONFIG_MACH_COLIBRI_PXA270_EVALBOARD
+static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+	GPIO0_GPIO,	/* SD detect */
+
+	/* FFUART */
+	GPIO39_FFUART_TXD,
+	GPIO34_FFUART_RXD,
+
+	/* UHC */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+	GPIO119_USBH2_PWR,
+	GPIO120_USBH2_PEN,
+
+	/* PCMCIA */
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO55_nPREG,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO49_nPWE,
+	GPIO48_nPOE,
+	GPIO57_nIOIS16,
+	GPIO56_nPWAIT,
+	GPIO104_PSKTSEL,
+	GPIO53_GPIO,	/* RESET */
+	GPIO83_GPIO,	/* BVD1 */
+	GPIO82_GPIO,	/* BVD2 */
+	GPIO1_GPIO,	/* READY */
+	GPIO84_GPIO,	/* DETECT */
+	GPIO107_GPIO,	/* PPEN */
+};
+#else
+static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {};
+#endif
+
+#ifdef	CONFIG_MACH_COLIBRI_PXA270_INCOME
+static mfp_cfg_t income_pin_config[] __initdata = {
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+	GPIO0_GPIO,	/* SD detect */
+	GPIO1_GPIO,	/* SD read-only */
+
+	/* FFUART */
+	GPIO39_FFUART_TXD,
+	GPIO34_FFUART_RXD,
+
+	/* BFUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO45_BTUART_RTS,
+
+	/* STUART */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+
+	/* UHC */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+
+	/* LCD */
+	GPIOxx_LCD_TFT_16BPP,
+
+	/* PWM */
+	GPIO16_PWM0_OUT,
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
+	/* LED */
+	GPIO54_GPIO,	/* LED A */
+	GPIO55_GPIO,	/* LED B */
+};
+#else
+static mfp_cfg_t income_pin_config[] __initdata = {};
+#endif
+
+/******************************************************************************
  * Pin configuration
  ******************************************************************************/
 static mfp_cfg_t colibri_pxa270_pin_config[] __initdata = {
@@ -185,9 +278,12 @@ static void __init colibri_pxa270_init(void)
 
 	switch (colibri_pxa270_baseboard) {
 	case COLIBRI_PXA270_EVALBOARD:
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(
+			colibri_pxa270_evalboard_pin_config));
 		colibri_pxa270_evalboard_init();
 		break;
 	case COLIBRI_PXA270_INCOME:
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(income_pin_config));
 		colibri_pxa270_income_boardinit();
 		break;
 	default:

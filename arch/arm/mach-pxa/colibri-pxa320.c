@@ -35,9 +35,47 @@
 #include "generic.h"
 #include "devices.h"
 
+#ifdef	CONFIG_MACH_COLIBRI_PXA270_EVALBOARD
+static mfp_cfg_t colibri_pxa320_evalboard_pin_config[] __initdata = {
+	/* MMC */
+	GPIO22_MMC1_CLK,
+	GPIO23_MMC1_CMD,
+	GPIO18_MMC1_DAT0,
+	GPIO19_MMC1_DAT1,
+	GPIO20_MMC1_DAT2,
+	GPIO21_MMC1_DAT3,
+	GPIO28_GPIO,	/* SD detect */
+
+	/* UART 1 configuration (may be set by bootloader) */
+	GPIO99_UART1_CTS,
+	GPIO104_UART1_RTS,
+	GPIO97_UART1_RXD,
+	GPIO98_UART1_TXD,
+	GPIO101_UART1_DTR,
+	GPIO103_UART1_DSR,
+	GPIO100_UART1_DCD,
+	GPIO102_UART1_RI,
+
+	/* UART 2 configuration */
+	GPIO109_UART2_CTS,
+	GPIO112_UART2_RTS,
+	GPIO110_UART2_RXD,
+	GPIO111_UART2_TXD,
+
+	/* UART 3 configuration */
+	GPIO30_UART3_RXD,
+	GPIO31_UART3_TXD,
+
+	/* UHC */
+	GPIO2_2_USBH_PEN,
+	GPIO3_2_USBH_PWR,
+};
+#else
+static mfp_cfg_t colibri_pxa320_evalboard_pin_config[] __initdata = {};
+#endif
+
 #if defined(CONFIG_AX88796)
 #define COLIBRI_ETH_IRQ_GPIO	mfp_to_gpio(GPIO36_GPIO)
-
 /*
  * Asix AX88796 Ethernet
  */
@@ -84,26 +122,6 @@ static void __init colibri_pxa320_init_eth(void)
 static inline void __init colibri_pxa320_init_eth(void) {}
 #endif /* CONFIG_AX88796 */
 
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-static mfp_cfg_t colibri_pxa320_usb_pin_config[] __initdata = {
-	GPIO2_2_USBH_PEN,
-	GPIO3_2_USBH_PWR,
-};
-
-static struct pxaohci_platform_data colibri_pxa320_ohci_info = {
-	.port_mode	= PMM_GLOBAL_MODE,
-	.flags		= ENABLE_PORT1 | POWER_CONTROL_LOW | POWER_SENSE_LOW,
-};
-
-void __init colibri_pxa320_init_ohci(void)
-{
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_usb_pin_config));
-	pxa_set_ohci_info(&colibri_pxa320_ohci_info);
-}
-#else
-static inline void colibri_pxa320_init_ohci(void) {}
-#endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
-
 #if defined(CONFIG_USB_GADGET_PXA27X)||defined(CONFIG_USB_GADGET_PXA27X_MODULE)
 static struct gpio_vbus_mach_info colibri_pxa320_gpio_vbus_info = {
 	.gpio_vbus		= mfp_to_gpio(MFP_PIN_GPIO96),
@@ -139,15 +157,6 @@ static void __init colibri_pxa320_init_udc(void)
 #else
 static inline void colibri_pxa320_init_udc(void) {}
 #endif
-
-static mfp_cfg_t colibri_pxa320_mmc_pin_config[] __initdata = {
-	GPIO22_MMC1_CLK,
-	GPIO23_MMC1_CMD,
-	GPIO18_MMC1_DAT0,
-	GPIO19_MMC1_DAT1,
-	GPIO20_MMC1_DAT2,
-	GPIO21_MMC1_DAT3
-};
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static mfp_cfg_t colibri_pxa320_lcd_pin_config[] __initdata = {
@@ -205,53 +214,18 @@ static inline void __init colibri_pxa320_init_ac97(void)
 static inline void colibri_pxa320_init_ac97(void) {}
 #endif
 
-/*
- * The following configuration is verified to work with the Toradex Orchid
- * carrier board
- */
-static mfp_cfg_t colibri_pxa320_uart_pin_config[] __initdata = {
-	/* UART 1 configuration (may be set by bootloader) */
-	GPIO99_UART1_CTS,
-	GPIO104_UART1_RTS,
-	GPIO97_UART1_RXD,
-	GPIO98_UART1_TXD,
-	GPIO101_UART1_DTR,
-	GPIO103_UART1_DSR,
-	GPIO100_UART1_DCD,
-	GPIO102_UART1_RI,
-
-	/* UART 2 configuration */
-	GPIO109_UART2_CTS,
-	GPIO112_UART2_RTS,
-	GPIO110_UART2_RXD,
-	GPIO111_UART2_TXD,
-
-	/* UART 3 configuration */
-	GPIO30_UART3_RXD,
-	GPIO31_UART3_TXD,
-};
-
-static void __init colibri_pxa320_init_uart(void)
-{
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_uart_pin_config));
-}
-
 void __init colibri_pxa320_init(void)
 {
-	pxa_set_ffuart_info(NULL);
-	pxa_set_btuart_info(NULL);
-	pxa_set_stuart_info(NULL);
-
 	colibri_pxa320_init_eth();
-	colibri_pxa320_init_ohci();
 	colibri_pxa3xx_init_nand();
 	colibri_pxa320_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO49_GPIO));
 	colibri_pxa320_init_ac97();
-	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa320_mmc_pin_config),
-				mfp_to_gpio(MFP_PIN_GPIO28));
-	colibri_pxa320_init_uart();
 	colibri_pxa320_init_udc();
+
+	/* Evalboard init */
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_evalboard_pin_config));
+	colibri_pxa270_evalboard_init();
 }
 
 MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")

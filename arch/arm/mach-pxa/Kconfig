@@ -236,10 +236,6 @@ config MACH_COLIBRI
 	bool "Toradex Colibri PXA270"
 	select PXA27x
 
-config MACH_COLIBRI_PXA270_EVALBOARD
-	bool "Toradex Colibri Evaluation Carrier Board support (PXA270)"
-	depends on MACH_COLIBRI
-
 config MACH_COLIBRI_PXA270_INCOME
 	bool "Income s.r.o. PXA270 SBC"
 	depends on MACH_COLIBRI
@@ -256,6 +252,10 @@ config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"
 	select PXA3xx
 	select CPU_PXA320
+
+config MACH_COLIBRI_PXA270_EVALBOARD
+	bool "Toradex Colibri Evaluation Carrier Board support"
+	depends on MACH_COLIBRI || MACH_COLIBRI300 || MACH_COLIBRI320
 
 config MACH_VPAC270
 	bool "Voipac PXA270"

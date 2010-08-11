@@ -30,61 +30,28 @@
 #include "devices.h"
 
 /******************************************************************************
- * Pin configuration
- ******************************************************************************/
-static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {
-	/* MMC */
-	GPIO32_MMC_CLK,
-	GPIO92_MMC_DAT_0,
-	GPIO109_MMC_DAT_1,
-	GPIO110_MMC_DAT_2,
-	GPIO111_MMC_DAT_3,
-	GPIO112_MMC_CMD,
-	GPIO0_GPIO,	/* SD detect */
-
-	/* FFUART */
-	GPIO39_FFUART_TXD,
-	GPIO34_FFUART_RXD,
-
-	/* UHC */
-	GPIO88_USBH1_PWR,
-	GPIO89_USBH1_PEN,
-	GPIO119_USBH2_PWR,
-	GPIO120_USBH2_PEN,
-
-	/* PCMCIA */
-	GPIO85_nPCE_1,
-	GPIO54_nPCE_2,
-	GPIO55_nPREG,
-	GPIO50_nPIOR,
-	GPIO51_nPIOW,
-	GPIO49_nPWE,
-	GPIO48_nPOE,
-	GPIO57_nIOIS16,
-	GPIO56_nPWAIT,
-	GPIO104_PSKTSEL,
-	GPIO53_GPIO,	/* RESET */
-	GPIO83_GPIO,	/* BVD1 */
-	GPIO82_GPIO,	/* BVD2 */
-	GPIO1_GPIO,	/* READY */
-	GPIO84_GPIO,	/* DETECT */
-	GPIO107_GPIO,	/* PPEN */
-};
-
-/******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data colibri_pxa270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_power		= -1,
-	.gpio_card_detect	= GPIO0_COLIBRI_PXA270_SD_DETECT,
 	.gpio_card_ro		= -1,
 	.detect_delay_ms	= 200,
 };
 
 static void __init colibri_pxa270_mmc_init(void)
 {
+	if (machine_is_colibri())	/* PXA270 Colibri */
+		colibri_pxa270_mci_platform_data.gpio_card_detect =
+			GPIO0_COLIBRI_PXA270_SD_DETECT;
+	if (machine_is_colibri300())	/* PXA300 Colibri */
+		colibri_pxa270_mci_platform_data.gpio_card_detect =
+			GPIO39_COLIBRI_PXA300_SD_DETECT;
+	else				/* PXA320 Colibri */
+		colibri_pxa270_mci_platform_data.gpio_card_detect =
+			GPIO28_COLIBRI_PXA320_SD_DETECT;
+
 	pxa_set_mci_info(&colibri_pxa270_mci_platform_data);
 }
 #else
@@ -103,13 +70,17 @@ static int colibri_pxa270_ohci_init(struct device *dev)
 
 static struct pxaohci_platform_data colibri_pxa270_ohci_info = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.flags		= ENABLE_PORT1 | ENABLE_PORT2 |
+	.flags		= ENABLE_PORT1 |
 			  POWER_CONTROL_LOW | POWER_SENSE_LOW,
 	.init		= colibri_pxa270_ohci_init,
 };
 
 static void __init colibri_pxa270_uhc_init(void)
 {
+	/* Colibri PXA270 has two usb ports, TBA for 320 */
+	if (machine_is_colibri())
+		colibri_pxa270_ohci_info.flags	|= ENABLE_PORT2;
+
 	pxa_set_ohci_info(&colibri_pxa270_ohci_info);
 }
 #else
@@ -118,7 +89,6 @@ static inline void colibri_pxa270_uhc_init(void) {}
 
 void __init colibri_pxa270_evalboard_init(void)
 {
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa270_evalboard_pin_config));
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
@@ -126,4 +96,3 @@ void __init colibri_pxa270_evalboard_init(void)
 	colibri_pxa270_mmc_init();
 	colibri_pxa270_uhc_init();
 }
-
