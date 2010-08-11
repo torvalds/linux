@@ -208,7 +208,7 @@ static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	/* hours, minutes and seconds */
 	buf[ISL12022_REG_SC] = bin2bcd(tm->tm_sec);
 	buf[ISL12022_REG_MN] = bin2bcd(tm->tm_min);
-	buf[ISL12022_REG_HR] = bin2bcd(tm->tm_hour);
+	buf[ISL12022_REG_HR] = bin2bcd(tm->tm_hour) | ISL12022_HR_MIL;
 
 	buf[ISL12022_REG_DT] = bin2bcd(tm->tm_mday);
 
