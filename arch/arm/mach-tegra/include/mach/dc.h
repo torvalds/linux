@@ -33,8 +33,8 @@ struct tegra_dc_blend {
 };
 
 #define BLEND(key, control, weight0, weight1)				\
-	CKEY_ ## key | BLEND_CONTROL_ ## control |			\
-	 BLEND_WEIGHT0(weight0) | BLEND_WEIGHT0(weight1)
+	(CKEY_ ## key | BLEND_CONTROL_ ## control |			\
+	 BLEND_WEIGHT0(weight0) | BLEND_WEIGHT0(weight1))
 
 struct tegra_dc_mode {
 	int	pclk;

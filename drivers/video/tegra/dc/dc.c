@@ -64,7 +64,7 @@ DEFINE_MUTEX(tegra_dc_lock);
 
 static inline int tegra_dc_fmt_bpp(int fmt)
 {
-	switch(fmt) {
+	switch (fmt) {
 	case TEGRA_WIN_FMT_P1:
 		return 1;
 
@@ -229,7 +229,8 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 		snprintf(buff, sizeof(buff), "WINDOW %c:\n", 'A' + i);
 		print(data, buff);
 
-		tegra_dc_writel(dc, WINDOW_A_SELECT << i, DC_CMD_DISPLAY_WINDOW_HEADER);
+		tegra_dc_writel(dc, WINDOW_A_SELECT << i,
+				DC_CMD_DISPLAY_WINDOW_HEADER);
 		DUMP_REG(DC_CMD_DISPLAY_WINDOW_HEADER);
 		DUMP_REG(DC_WIN_WIN_OPTIONS);
 		DUMP_REG(DC_WIN_BYTE_SWAP);
@@ -311,7 +312,7 @@ static void tegra_dc_dbg_add(struct tegra_dc *dc)
 	char name[32];
 
 	snprintf(name, sizeof(name), "tegra_dc%d_regs", dc->pdev->id);
-	(void) debugfs_create_file(name, S_IRUGO,NULL, dc, &dbg_fops);
+	(void) debugfs_create_file(name, S_IRUGO, NULL, dc, &dbg_fops);
 }
 #else
 static void tegra_dc_dbg_add(struct tegra_dc *dc) {}
@@ -419,7 +420,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 			val |= COLOR_EXPAND;
 		tegra_dc_writel(dc, val, DC_WIN_WIN_OPTIONS);
 
-		tegra_dc_writel(dc, (unsigned long)win->phys_addr, DC_WINBUF_START_ADDR);
+		tegra_dc_writel(dc, (unsigned long)win->phys_addr,
+				DC_WINBUF_START_ADDR);
 		tegra_dc_writel(dc, 0, DC_WINBUF_ADDR_H_OFFSET);
 		tegra_dc_writel(dc, 0, DC_WINBUF_ADDR_V_OFFSET);
 
@@ -474,12 +476,14 @@ void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *blend)
 	int i;
 
 	for (i = 0; i < DC_N_WINDOWS; i++) {
-		tegra_dc_writel(dc, WINDOW_A_SELECT << i, DC_CMD_DISPLAY_WINDOW_HEADER);
+		tegra_dc_writel(dc, WINDOW_A_SELECT << i,
+				DC_CMD_DISPLAY_WINDOW_HEADER);
 		tegra_dc_writel(dc, blend[i].nokey, DC_WIN_BLEND_NOKEY);
 		tegra_dc_writel(dc, blend[i].one_win, DC_WIN_BLEND_1WIN);
 		tegra_dc_writel(dc, blend[i].two_win_x, DC_WIN_BLEND_2WIN_X);
 		tegra_dc_writel(dc, blend[i].two_win_y, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, blend[i].three_win_xy, DC_WIN_BLEND_3WIN_XY);
+		tegra_dc_writel(dc, blend[i].three_win_xy,
+				DC_WIN_BLEND_3WIN_XY);
 	}
 }
 EXPORT_SYMBOL(tegra_dc_set_blending);
@@ -551,7 +555,8 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 	if (out->n_modes > 0)
 		dc->mode = &dc->out->modes[0];
 	else
-		dev_err(&dc->pdev->dev, "No default modes specified.  Leaving output disabled.\n");
+		dev_err(&dc->pdev->dev,
+			"No default modes specified.  Leaving output disabled.\n");
 
 	switch (out->type) {
 	case TEGRA_DC_OUT_RGB:
@@ -754,7 +759,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (fb_mem && dc->pdata->fb) {
 		dc->fb = tegra_fb_register(pdev, dc, dc->pdata->fb, fb_mem);
 		if (IS_ERR_OR_NULL(dc->fb))
-		    dc->fb = NULL;
+			dc->fb = NULL;
 	}
 
 	return 0;

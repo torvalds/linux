@@ -25,7 +25,7 @@
 struct tegra_dc;
 
 struct tegra_dc_out_ops {
-	void (* init)(struct tegra_dc *dc);
+	void (*init)(struct tegra_dc *dc);
 };
 
 struct tegra_dc {
@@ -64,7 +64,7 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 }
 
 static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
-                       unsigned long reg)
+				   unsigned long reg)
 {
 	writel(val, dc->base + reg * 4);
 }

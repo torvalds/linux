@@ -66,7 +66,8 @@ static int tegra_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static int tegra_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+static int tegra_fb_check_var(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
 {
 	if ((var->xres != info->var.xres) ||
 	    (var->yres != info->var.yres) ||
@@ -135,7 +136,8 @@ static int tegra_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static int tegra_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
+				struct fb_info *info)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
 	char __iomem *flush_start;
@@ -144,7 +146,6 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *i
 
 	flush_start = info->screen_base + (var->yoffset * info->fix.line_length);
 	flush_end = flush_start + (var->yres * info->fix.line_length);
-	/* do we need to dma flush here? */
 
 	info->var.xoffset = var->xoffset;
 	info->var.yoffset = var->yoffset;
@@ -161,23 +162,23 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *i
 	return 0;
 }
 
-static void tegra_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+static void tegra_fb_fillrect(struct fb_info *info,
+			      const struct fb_fillrect *rect)
 {
 	cfb_fillrect(info, rect);
 }
 
-static void tegra_fb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
+static void tegra_fb_copyarea(struct fb_info *info,
+			      const struct fb_copyarea *region)
 {
 	cfb_copyarea(info, region);
 }
 
-static void tegra_fb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void tegra_fb_imageblit(struct fb_info *info,
+			       const struct fb_image *image)
 {
 	cfb_imageblit(info, image);
 }
-
-/* TODO: implement ALLOC, FREE, BLANK ioctls */
-/* TODO: implement private window ioctls to set overlay x,y */
 
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
@@ -192,8 +193,10 @@ static struct fb_ops tegra_fb_ops = {
 	.fb_imageblit = tegra_fb_imageblit,
 };
 
-struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev, struct tegra_dc *dc,
-					struct tegra_fb_data *fb_data, struct resource *fb_mem)
+struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev,
+					struct tegra_dc *dc,
+					struct tegra_fb_data *fb_data,
+					struct resource *fb_mem)
 {
 	struct tegra_dc_win *win;
 	struct fb_info *info;
@@ -205,7 +208,8 @@ struct tegra_fb_info *tegra_fb_register(struct platform_device *pdev, struct teg
 
 	win = tegra_dc_get_window(dc, fb_data->win);
 	if (!win) {
-		dev_err(&pdev->dev, "dc does not have a window at index %d\n", fb_data->win);
+		dev_err(&pdev->dev, "dc does not have a window at index %d\n",
+			fb_data->win);
 		return ERR_PTR(-ENOENT);
 	}
 
