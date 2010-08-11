@@ -31,6 +31,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/fb-core.h>
 #include <plat/s5pv210.h>
 #include <plat/iic-core.h>
 #include <plat/sdhci.h>
@@ -91,6 +92,8 @@ void __init s5pv210_map_io(void)
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
 	s3c_i2c2_setname("s3c2440-i2c");
+
+	s3c_fb_setname("s5pv210-fb");
 }
 
 void __init s5pv210_init_clocks(int xtal)
