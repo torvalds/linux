@@ -137,40 +137,6 @@
 #define WPALCON_W2PAL_16BPP_A555		(1 << 6)
 
 
-/* system specific implementation code for palette sizes, and other
- * information that changes depending on which architecture is being
- * compiled.
-*/
-
-struct s3c_fb_palette {
-	struct fb_bitfield	r;
-	struct fb_bitfield	g;
-	struct fb_bitfield	b;
-	struct fb_bitfield	a;
-};
-
-static inline void s3c_fb_init_palette(unsigned int window,
-				       struct s3c_fb_palette *palette)
-{
-	if (window < 2) {
-		/* Windows 0/1 are 8/8/8 or A/8/8/8 */
-		palette->r.offset = 16;
-		palette->r.length = 8;
-		palette->g.offset = 8;
-		palette->g.length = 8;
-		palette->b.offset = 0;
-		palette->b.length = 8;
-	} else {
-		/* currently we assume RGB 5/6/5 */
-		palette->r.offset = 11;
-		palette->r.length = 5;
-		palette->g.offset = 5;
-		palette->g.length = 6;
-		palette->b.offset = 0;
-		palette->b.length = 5;
-	}
-}
-
 /* Notes on per-window bpp settings
  *
  * Value	Win0	 Win1	  Win2	   Win3	    Win 4

@@ -116,6 +116,20 @@ struct s3c_fb_driverdata {
 };
 
 /**
+ * struct s3c_fb_palette - palette information
+ * @r: Red bitfield.
+ * @g: Green bitfield.
+ * @b: Blue bitfield.
+ * @a: Alpha bitfield.
+ */
+struct s3c_fb_palette {
+	struct fb_bitfield	r;
+	struct fb_bitfield	g;
+	struct fb_bitfield	b;
+	struct fb_bitfield	a;
+};
+
+/**
  * struct s3c_fb_win - per window private data for each framebuffer.
  * @windata: The platform data supplied for the window configuration.
  * @parent: The hardware that this window is part of.
@@ -866,7 +880,24 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 	}
 
 	/* setup the r/b/g positions for the window's palette */
-	s3c_fb_init_palette(win_no, &win->palette);
+	if (win->variant.palette_16bpp) {
+		/* Set RGB 5:6:5 as default */
+		win->palette.r.offset = 11;
+		win->palette.r.length = 5;
+		win->palette.g.offset = 5;
+		win->palette.g.length = 6;
+		win->palette.b.offset = 0;
+		win->palette.b.length = 5;
+
+	} else {
+		/* Set 8bpp or 8bpp and 1bit alpha */
+		win->palette.r.offset = 16;
+		win->palette.r.length = 8;
+		win->palette.g.offset = 8;
+		win->palette.g.length = 8;
+		win->palette.b.offset = 0;
+		win->palette.b.length = 8;
+	}
 
 	/* setup the initial video mode from the window */
 	fb_videomode_to_var(&fbinfo->var, initmode);
