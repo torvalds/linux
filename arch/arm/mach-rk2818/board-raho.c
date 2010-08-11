@@ -585,6 +585,13 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_RTC_DRV_S35392A)
+	{
+		.type    		= "rtc-s35392a",
+		.addr           = 0x30,
+		.flags			= 0,
+	},
+#endif
 #if defined (CONFIG_FM_QN8006)
 	{
 		.type    		= "fm_qn8006",
