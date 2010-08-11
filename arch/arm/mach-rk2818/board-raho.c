@@ -49,7 +49,7 @@
 #include "devices.h"
 
 #include "../../../drivers/spi/rk2818_spim.h"
-
+#include "../../../drivers/regulator/rk2818_lp8725.h"
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
  * -------------------------------------------------------------------- */
@@ -265,6 +265,241 @@ struct pca9554_platform_data rk2818_pca9554_data={
 #endif
 
 /*****************************************************************************************
+ *regulator devices  drivers/regulator/rk2818_lp8725.c  linux/regulator/rk2818_lp8725.h
+ *author: cym
+*****************************************************************************************/
+#if defined (CONFIG_RK2818_REGULATOR_LP8725)
+/*ldo1 2V8OUT USB2.5V LCD_VCC*/
+static struct regulator_consumer_supply ldo1_consumers[] = {
+	{
+		.supply = "ldo1",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_ldo1_data = {
+	.constraints = {
+		.name = "LDO1",
+		.min_uV = 1200000,
+		.max_uV = 3300000,
+		.apply_uV = 1,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo1_consumers),
+	.consumer_supplies = ldo1_consumers,
+};
+
+/*ldo2 CAMERA_1V8 SD_CARD*/
+static struct regulator_consumer_supply ldo2_consumers[] = {
+	{
+		.supply = "ldo2",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_ldo2_data = {
+	.constraints = {
+		.name = "LDO2",
+		.min_uV = 1200000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo2_consumers),
+	.consumer_supplies = ldo2_consumers,
+};
+
+/*ldo3 VCC_NAND WIFI/BT/FM_BCM4325*/
+static struct regulator_consumer_supply ldo3_consumers[] = {
+	{
+		.supply = "ldo3",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_ldo3_data = {
+	.constraints = {
+		.name = "LDO3",
+		.min_uV = 1200000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo3_consumers),
+	.consumer_supplies = ldo3_consumers,
+};
+
+/*ldo4 VCCA CODEC_WM8994*/
+static struct regulator_consumer_supply ldo4_consumers[] = {
+	{
+		.supply = "ldo4",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_ldo4_data = {
+	.constraints = {
+		.name = "LDO4",
+		.min_uV = 1200000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo4_consumers),
+	.consumer_supplies = ldo4_consumers,
+};
+
+/*ldo5 AVDD18 CODEC_WM8994*/
+static struct regulator_consumer_supply ldo5_consumers[] = {
+	{
+		.supply = "ldo5",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_ldo5_data = {
+	.constraints = {
+		.name = "LDO5",
+		.min_uV = 1200000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo5_consumers),
+	.consumer_supplies = ldo5_consumers,
+};
+
+/*lilo1 VCCIO Sensor（3M）*/
+static struct regulator_consumer_supply lilo1_consumers[] = {
+	{
+		.supply = "lilo1",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_lilo1_data = {
+	.constraints = {
+		.name = "LILO1",
+		.min_uV = 800000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(lilo1_consumers),
+	.consumer_supplies = lilo1_consumers
+};
+
+/*lilo2 VCC33_SD Sensor（3M）*/
+static struct regulator_consumer_supply lilo2_consumers[] = {
+	{
+		.supply = "lilo2",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_lilo2_data = {
+	.constraints = {
+		.name = "LILO2",
+		.min_uV = 800000,
+		.max_uV = 3300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(lilo2_consumers),
+	.consumer_supplies = lilo2_consumers
+};
+
+/*buck1 VDD12 Core*/
+static struct regulator_consumer_supply buck1_consumers[] = {
+	{
+		.supply = "vdd12",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_buck1_data = {
+	.constraints = {
+		.name = "VDD12",
+		.min_uV = 800000,
+		.max_uV = 1500000,
+		.apply_uV = 1,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(buck1_consumers),
+	.consumer_supplies = buck1_consumers
+};
+
+/*buck2 VDDDR MobileDDR VCC*/
+static struct regulator_consumer_supply buck2_consumers[] = {
+	{
+		.supply = "vccdr",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_buck2_data = {
+	.constraints = {
+		.name = "VCCDR",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.apply_uV = 1,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(buck2_consumers),
+	.consumer_supplies = buck2_consumers
+};
+
+
+
+
+struct lp8725_regulator_subdev rk2818_lp8725_regulator_subdev[] = {
+	{
+		.id=LP8725_LDO1,
+		.initdata=&rk2818_lp8725_ldo1_data,		
+	 },
+
+	{
+		.id=LP8725_LDO2,
+		.initdata=&rk2818_lp8725_ldo2_data,		
+	 },
+
+	{
+		.id=LP8725_LDO3,
+		.initdata=&rk2818_lp8725_ldo3_data,		
+	 },
+
+	{
+		.id=LP8725_LDO4,
+		.initdata=&rk2818_lp8725_ldo4_data,		
+	 },
+
+	{
+		.id=LP8725_LDO5,
+		.initdata=&rk2818_lp8725_ldo5_data,		
+	 },
+
+	{
+		.id=LP8725_LILO1,
+		.initdata=&rk2818_lp8725_lilo1_data,		
+	 },
+
+	{
+		.id=LP8725_LILO2,
+		.initdata=&rk2818_lp8725_lilo2_data,		
+	 },
+
+	{
+		.id=LP8725_DCDC1,
+		.initdata=&rk2818_lp8725_buck1_data,		
+	 },
+
+	{
+		.id=LP8725_DCDC2,
+		.initdata=&rk2818_lp8725_buck2_data,		
+	 },
+	
+};
+
+struct lp8725_platform_data rk2818_lp8725_data={
+	.num_regulators=LP8725_NUM_REGULATORS,
+	.regulators=rk2818_lp8725_regulator_subdev,
+};
+#endif
+
+/*****************************************************************************************
  * I2C devices
  *author: kfx
 *****************************************************************************************/
@@ -365,11 +600,12 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.platform_data=&rk2818_pca9554_data.gpio_base,
 	},
 #endif
-#if defined (CONFIG_PMIC_LP8725)
+#if defined (CONFIG_RK2818_REGULATOR_LP8725)
 	{
 		.type    		= "lp8725",
 		.addr           = 0x79, 
 		.flags			= 0,
+		.platform_data=&rk2818_lp8725_data,
 	},
 #endif
 #if defined (CONFIG_GS_MMA7660)
