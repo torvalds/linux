@@ -42,6 +42,7 @@ typedef enum {
 struct afs_mount_params {
 	bool			rwpath;		/* T if the parent should be considered R/W */
 	bool			force;		/* T to force cell type */
+	bool			autocell;	/* T if set auto mount operation */
 	afs_voltype_t		type;		/* type of volume requested */
 	int			volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
@@ -358,6 +359,8 @@ struct afs_vnode {
 #define AFS_VNODE_READLOCKED	7		/* set if vnode is read-locked on the server */
 #define AFS_VNODE_WRITELOCKED	8		/* set if vnode is write-locked on the server */
 #define AFS_VNODE_UNLOCKING	9		/* set if vnode is being unlocked on the server */
+#define AFS_VNODE_AUTOCELL	10		/* set if Vnode is an auto mount point */
+#define AFS_VNODE_PSEUDODIR	11		/* set if Vnode is a pseudo directory */
 
 	long			acl_order;	/* ACL check count (callback break count) */
 
@@ -468,8 +471,8 @@ extern struct list_head afs_proc_cells;
 
 #define afs_get_cell(C) do { atomic_inc(&(C)->usage); } while(0)
 extern int afs_cell_init(char *);
-extern struct afs_cell *afs_cell_create(const char *, char *);
-extern struct afs_cell *afs_cell_lookup(const char *, unsigned);
+extern struct afs_cell *afs_cell_create(const char *, unsigned, char *, bool);
+extern struct afs_cell *afs_cell_lookup(const char *, unsigned, bool);
 extern struct afs_cell *afs_grab_cell(struct afs_cell *);
 extern void afs_put_cell(struct afs_cell *);
 extern void afs_cell_purge(void);
@@ -558,6 +561,8 @@ extern int afs_fs_release_lock(struct afs_server *, struct key *,
 /*
  * inode.c
  */
+extern struct inode *afs_iget_autocell(struct inode *, const char *, int,
+				       struct key *);
 extern struct inode *afs_iget(struct super_block *, struct key *,
 			      struct afs_fid *, struct afs_file_status *,
 			      struct afs_callback *);
@@ -566,6 +571,7 @@ extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int afs_setattr(struct dentry *, struct iattr *);
 extern void afs_evict_inode(struct inode *);
+extern int afs_drop_inode(struct inode *);
 
 /*
  * main.c
@@ -581,6 +587,7 @@ extern int afs_abort_to_error(u32);
  * mntpt.c
  */
 extern const struct inode_operations afs_mntpt_inode_operations;
+extern const struct inode_operations afs_autocell_inode_operations;
 extern const struct file_operations afs_mntpt_file_operations;
 
 extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
