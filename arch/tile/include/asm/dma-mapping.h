@@ -90,6 +90,4 @@ dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-#define dma_is_consistent(d, h)	(1)
-
 #endif /* _ASM_TILE_DMA_MAPPING_H */

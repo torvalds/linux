@@ -62,8 +62,6 @@ dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-extern int dma_is_consistent(struct device *dev, dma_addr_t dma_addr);
-
 extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction);
 

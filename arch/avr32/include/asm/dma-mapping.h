@@ -336,9 +336,4 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-static inline int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
-{
-	return 1;
-}
-
 #endif /* __ASM_AVR32_DMA_MAPPING_H */

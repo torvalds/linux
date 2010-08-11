@@ -161,8 +161,6 @@ int dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-#define dma_is_consistent(d)	(1)
-
 static inline
 void dma_cache_sync(void *vaddr, size_t size,
 		    enum dma_data_direction direction)

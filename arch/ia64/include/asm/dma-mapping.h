@@ -97,6 +97,4 @@ dma_cache_sync (struct device *dev, void *vaddr, size_t size,
 	mb();
 }
 
-#define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
-
 #endif /* _ASM_IA64_DMA_MAPPING_H */
