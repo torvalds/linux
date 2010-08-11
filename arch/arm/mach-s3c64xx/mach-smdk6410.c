@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -56,6 +57,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-sys.h>
 #include <mach/regs-srom.h>
+#include <plat/ata.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
@@ -66,6 +68,7 @@
 #include <plat/cpu.h>
 #include <plat/adc.h>
 #include <plat/ts.h>
+#include <plat/keypad.h>
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
@@ -241,6 +244,29 @@ static struct platform_device smdk6410_b_pwr_5v = {
 };
 #endif
 
+static struct s3c_ide_platdata smdk6410_ide_pdata __initdata = {
+	.setup_gpio	= s3c64xx_ide_setup_gpio,
+};
+
+static uint32_t smdk6410_keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 3, KEY_1), KEY(0, 4, KEY_2), KEY(0, 5, KEY_3),
+	KEY(0, 6, KEY_4), KEY(0, 7, KEY_5),
+	KEY(1, 3, KEY_A), KEY(1, 4, KEY_B), KEY(1, 5, KEY_C),
+	KEY(1, 6, KEY_D), KEY(1, 7, KEY_E)
+};
+
+static struct matrix_keymap_data smdk6410_keymap_data __initdata = {
+	.keymap		= smdk6410_keymap,
+	.keymap_size	= ARRAY_SIZE(smdk6410_keymap),
+};
+
+static struct samsung_keypad_platdata smdk6410_keypad_data __initdata = {
+	.keymap_data	= &smdk6410_keymap_data,
+	.rows		= 2,
+	.cols		= 8,
+};
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -256,6 +282,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iisv4,
+	&samsung_device_keypad,
 
 #ifdef CONFIG_REGULATOR
 	&smdk6410_b_pwr_5v,
@@ -264,6 +291,8 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 
 	&smdk6410_smsc911x,
 	&s3c_device_adc,
+	&s3c_device_cfcon,
+	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
@@ -635,6 +664,8 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
 
+	samsung_keypad_set_platdata(&smdk6410_keypad_data);
+
 	s3c24xx_ts_set_platdata(&s3c_ts_platform);
 
 	/* configure nCS1 width to 16 bits */
@@ -663,6 +694,8 @@ static void __init smdk6410_machine_init(void)
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
+	s3c_ide_set_platdata(&smdk6410_ide_pdata);
 
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 }
