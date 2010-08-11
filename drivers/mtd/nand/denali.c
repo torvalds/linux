@@ -169,13 +169,11 @@ static void read_status(struct denali_nand_info *denali)
 	/* initialize the data buffer to store status */
 	reset_buf(denali);
 
-	/* initiate a device status read */
-	cmd = MODE_11 | BANK(denali->flash_bank);
-	index_addr(denali, cmd | COMMAND_CYCLE, 0x70);
-	iowrite32(cmd | STATUS_CYCLE, denali->flash_mem);
-
-	/* update buffer with status value */
-	write_byte_to_buf(denali, ioread32(denali->flash_mem + 0x10));
+	cmd = ioread32(denali->flash_reg + WRITE_PROTECT);
+	if (cmd)
+		write_byte_to_buf(denali, NAND_STATUS_WP);
+	else
+		write_byte_to_buf(denali, 0);
 }
 
 /* resets a specific device connected to the core */
