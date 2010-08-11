@@ -386,9 +386,9 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 		}
 	}
 
-	ret = request_irq(irq, gpio_sysfs_irq, irq_flags,
+	ret = request_any_context_irq(irq, gpio_sysfs_irq, irq_flags,
 				"gpiolib", value_sd);
-	if (ret)
+	if (ret < 0)
 		goto free_id;
 
 	desc->flags |= gpio_flags;
