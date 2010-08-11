@@ -140,7 +140,7 @@ static ssize_t store_ideapad_cam(struct device *dev,
 		return 0;
 	if (sscanf(buf, "%i", &state) != 1)
 		return -EINVAL;
-	ret = ideapad_dev_set_state(IDEAPAD_DEV_CAMERA, state);
+	ret = ideapad_dev_set_state(IDEAPAD_DEV_CAMERA, !!state);
 	if (ret < 0)
 		return ret;
 	return count;
