@@ -141,7 +141,6 @@ static struct platform_device smdk6410_lcd_powerdev = {
 static struct s3c_fb_pd_win smdk6410_fb_win0 = {
 	/* this is to ensure we use win0 */
 	.win_mode	= {
-		.pixclock	= 41094,
 		.left_margin	= 8,
 		.right_margin	= 13,
 		.upper_margin	= 7,

@@ -128,7 +128,6 @@ static struct platform_device smdkc100_lcd_powerdev = {
 static struct s3c_fb_pd_win smdkc100_fb_win0 = {
 	/* this is to ensure we use win0 */
 	.win_mode	= {
-		.pixclock = 1000000000000ULL / ((8+13+3+800)*(7+5+1+480)*80),
 		.left_margin	= 8,
 		.right_margin	= 13,
 		.upper_margin	= 7,
@@ -137,6 +136,7 @@ static struct s3c_fb_pd_win smdkc100_fb_win0 = {
 		.vsync_len	= 1,
 		.xres		= 800,
 		.yres		= 480,
+		.refresh	= 80,
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,

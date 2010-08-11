@@ -77,7 +77,6 @@ static struct s3c2410_uartcfg smdkv210_uartcfgs[] __initdata = {
 /* Frame Buffer */
 static struct s3c_fb_pd_win aquila_fb_win0 = {
 	.win_mode = {
-		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*60),
 		.left_margin = 16,
 		.right_margin = 16,
 		.upper_margin = 3,
@@ -93,7 +92,6 @@ static struct s3c_fb_pd_win aquila_fb_win0 = {
 
 static struct s3c_fb_pd_win aquila_fb_win1 = {
 	.win_mode = {
-		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*60),
 		.left_margin = 16,
 		.right_margin = 16,
 		.upper_margin = 3,

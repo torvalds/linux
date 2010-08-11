@@ -134,8 +134,6 @@ static struct platform_device smartq5_buttons_device  = {
 
 static struct s3c_fb_pd_win smartq5_fb_win0 = {
 	.win_mode	= {
-		.pixclock	= 1000000000000ULL /
-				((40+1+216+800)*(10+1+35+480)*80),
 		.left_margin	= 40,
 		.right_margin	= 216,
 		.upper_margin	= 10,
@@ -144,6 +142,7 @@ static struct s3c_fb_pd_win smartq5_fb_win0 = {
 		.vsync_len	= 1,
 		.xres		= 800,
 		.yres		= 480,
+		.refresh	= 80,
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
