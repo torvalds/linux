@@ -28,7 +28,6 @@
 #include <mach/eukrea-baseboards.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
 #include <mach/mxc_ehci.h>
 
@@ -38,6 +37,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define CPUIMX51_USBH1_STP	(0*32 + 27)
@@ -147,7 +147,7 @@ static struct pad_desc eukrea_cpuimx51_pads[] = {
 	MX51_PAD_USBH1_STP__USBH1_STP,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -239,7 +239,7 @@ static void __init eukrea_cpuimx51_init(void)
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx51_pads,
 					ARRAY_SIZE(eukrea_cpuimx51_pads));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx51_add_imx_uart(0, &uart_pdata);
 	gpio_request(CPUIMX51_QUARTA_GPIO, "quarta_irq");
 	gpio_direction_input(CPUIMX51_QUARTA_GPIO);
 	gpio_free(CPUIMX51_QUARTA_GPIO);

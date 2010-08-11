@@ -17,63 +17,6 @@
 #include <mach/imx-uart.h>
 #include <mach/irqs.h>
 
-static struct resource uart0[] = {
-	{
-		.start = MX51_UART1_BASE_ADDR,
-		.end = MX51_UART1_BASE_ADDR + 0xfff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX51_MXC_INT_UART1,
-		.end = MX51_MXC_INT_UART1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device0 = {
-	.name = "imx-uart",
-	.id = 0,
-	.resource = uart0,
-	.num_resources = ARRAY_SIZE(uart0),
-};
-
-static struct resource uart1[] = {
-	{
-		.start = MX51_UART2_BASE_ADDR,
-		.end = MX51_UART2_BASE_ADDR + 0xfff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX51_MXC_INT_UART2,
-		.end = MX51_MXC_INT_UART2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device1 = {
-	.name = "imx-uart",
-	.id = 1,
-	.resource = uart1,
-	.num_resources = ARRAY_SIZE(uart1),
-};
-
-static struct resource uart2[] = {
-	{
-		.start = MX51_UART3_BASE_ADDR,
-		.end = MX51_UART3_BASE_ADDR + 0xfff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX51_MXC_INT_UART3,
-		.end = MX51_MXC_INT_UART3,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device2 = {
-	.name = "imx-uart",
-	.id = 2,
-	.resource = uart2,
-	.num_resources = ARRAY_SIZE(uart2),
-};
-
 static struct resource mxc_fec_resources[] = {
 	{
 		.start	= MX51_MXC_FEC_BASE_ADDR,
