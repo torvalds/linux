@@ -1598,6 +1598,14 @@ static int omap_hsmmc_get_ro(struct mmc_host *mmc)
 	return mmc_slot(host).get_ro(host->dev, 0);
 }
 
+static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
+{
+	struct omap_hsmmc_host *host = mmc_priv(mmc);
+
+	if (mmc_slot(host).init_card)
+		mmc_slot(host).init_card(card);
+}
+
 static void omap_hsmmc_conf_bus_power(struct omap_hsmmc_host *host)
 {
 	u32 hctl, capa, value;
@@ -1869,6 +1877,7 @@ static const struct mmc_host_ops omap_hsmmc_ops = {
 	.set_ios = omap_hsmmc_set_ios,
 	.get_cd = omap_hsmmc_get_cd,
 	.get_ro = omap_hsmmc_get_ro,
+	.init_card = omap_hsmmc_init_card,
 	/* NYET -- enable_sdio_irq */
 };
 
@@ -1879,6 +1888,7 @@ static const struct mmc_host_ops omap_hsmmc_ps_ops = {
 	.set_ios = omap_hsmmc_set_ios,
 	.get_cd = omap_hsmmc_get_cd,
 	.get_ro = omap_hsmmc_get_ro,
+	.init_card = omap_hsmmc_init_card,
 	/* NYET -- enable_sdio_irq */
 };
 
