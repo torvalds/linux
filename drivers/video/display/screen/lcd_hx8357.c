@@ -339,26 +339,50 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 	
      lcd_td043mgea1.screen_set_iomux(1);
 	if(enable) {
-		//printk("---------screen suspend--------------\n");
+		//printk("---------hx8357   screen suspend--------------\n");
 		#if 0 
 		spi_screenreg_set(0x03, 0xde); 
-		#else 
+		#else
+		//modify by robert
+		#if 0
 		spi_screenreg_set(0x1f, 0x91); 
-		spi_screenreg_set(0x19, 0x00); 
+		spi_screenreg_set(0x19, 0x00);
+		#else
+		spi_screenreg_set(0x28, 0x38); 
+		msleep(10);
+		spi_screenreg_set(0x28, 0x24);
+		msleep(10);
+		spi_screenreg_set(0x28, 0x04);
+		#endif
+		//modify end
 		#endif 
 	} else { 
-		//printk("---------screen resume--------------\n ");
+		//printk("---------  hx8357 screen resume--------------\n ");
 		#if 0 
 		spi_screenreg_set(0x03, 0x5f); 
 		#else 
+		//modify by robert
+		#if 0
 		spi_screenreg_set(0x19, 0x01); 
 		spi_screenreg_set(0x1f, 0x90); 
 		mdelay(10); 
-		spi_screenreg_set(0x1f, 0xd2); 
+		spi_screenreg_set(0x1f, 0xd2);
+		#else
+		spi_screenreg_set(0x28, 0x38); 
+		msleep(10);
+		spi_screenreg_set(0x28, 0x3c);
+		msleep(10);
+		spi_screenreg_set(0x80, 0x00);
+		spi_screenreg_set(0x81, 0x00);
+		spi_screenreg_set(0x82, 0x00);
+		spi_screenreg_set(0x83, 0x00);
+		
+		#endif
+		//modify end
 		#endif 
 	}
 
-   lcd_td043mgea1.screen_set_iomux(0);
+    lcd_td043mgea1.screen_set_iomux(0);
     return 0;
 }
 
