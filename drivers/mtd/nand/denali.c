@@ -211,9 +211,9 @@ static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 		iowrite32(device_reset_banks[i],
 				denali->flash_reg + DEVICE_RESET);
 		while (!(ioread32(denali->flash_reg +
-						intr_status_addresses[i]) &
+				intr_status_addresses[i]) &
 			(reset_complete[i] | operation_timeout[i])))
-			;
+			cpu_relax();
 		if (ioread32(denali->flash_reg + intr_status_addresses[i]) &
 			operation_timeout[i])
 			dev_dbg(&denali->dev->dev,
