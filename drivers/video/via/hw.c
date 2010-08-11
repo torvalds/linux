@@ -718,10 +718,6 @@ static struct rgbLUT palLUT_table[] = {
 								     0x00}
 };
 
-static void dvi_patch_skew_dvp0(void);
-static void dvi_patch_skew_dvp_low(void);
-static void set_dvi_output_path(int set_iga, int output_interface);
-static void set_lcd_output_path(int set_iga, int output_interface);
 static void load_fix_bit_crtc_reg(void);
 static void __devinit init_gfx_chip_info(int chip_type);
 static void __devinit init_tmds_chip_info(void);
@@ -944,21 +940,6 @@ void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue)
 	set_color_register(index, red, green, blue);
 }
 
-void viafb_set_output_path(int device, int set_iga, int output_interface)
-{
-	switch (device) {
-	case DEVICE_CRT:
-		viafb_write_reg_mask(CR36, VIACR, 0x00, BIT4 + BIT5);
-		break;
-	case DEVICE_DVI:
-		set_dvi_output_path(set_iga, output_interface);
-		break;
-	case DEVICE_LCD:
-		set_lcd_output_path(set_iga, output_interface);
-		break;
-	}
-}
-
 static void set_source_common(u8 index, u8 offset, u8 iga)
 {
 	u8 value, mask = 1 << offset;
@@ -1043,134 +1024,6 @@ void via_set_source(u32 devices, u8 iga)
 		set_lvds1_source(iga);
 	if (devices & VIA_LVDS2)
 		set_lvds2_source(iga);
-}
-
-static void dvi_patch_skew_dvp0(void)
-{
-	/* Reset data driving first: */
-	viafb_write_reg_mask(SR1B, VIASR, 0, BIT1);
-	viafb_write_reg_mask(SR2A, VIASR, 0, BIT4);
-
-	switch (viaparinfo->chip_info->gfx_chip_name) {
-	case UNICHROME_P4M890:
-		{
-			if ((viaparinfo->tmds_setting_info->h_active == 1600) &&
-				(viaparinfo->tmds_setting_info->v_active ==
-				1200))
-				viafb_write_reg_mask(CR96, VIACR, 0x03,
-					       BIT0 + BIT1 + BIT2);
-			else
-				viafb_write_reg_mask(CR96, VIACR, 0x07,
-					       BIT0 + BIT1 + BIT2);
-			break;
-		}
-
-	case UNICHROME_P4M900:
-		{
-			viafb_write_reg_mask(CR96, VIACR, 0x07,
-				       BIT0 + BIT1 + BIT2 + BIT3);
-			viafb_write_reg_mask(SR1B, VIASR, 0x02, BIT1);
-			viafb_write_reg_mask(SR2A, VIASR, 0x10, BIT4);
-			break;
-		}
-
-	default:
-		{
-			break;
-		}
-	}
-}
-
-static void dvi_patch_skew_dvp_low(void)
-{
-	switch (viaparinfo->chip_info->gfx_chip_name) {
-	case UNICHROME_K8M890:
-		{
-			viafb_write_reg_mask(CR99, VIACR, 0x03, BIT0 + BIT1);
-			break;
-		}
-
-	case UNICHROME_P4M900:
-		{
-			viafb_write_reg_mask(CR99, VIACR, 0x08,
-				       BIT0 + BIT1 + BIT2 + BIT3);
-			break;
-		}
-
-	case UNICHROME_P4M890:
-		{
-			viafb_write_reg_mask(CR99, VIACR, 0x0F,
-				       BIT0 + BIT1 + BIT2 + BIT3);
-			break;
-		}
-
-	default:
-		{
-			break;
-		}
-	}
-}
-
-static void set_dvi_output_path(int set_iga, int output_interface)
-{
-	switch (output_interface) {
-	case INTERFACE_DVP0:
-		viafb_write_reg_mask(CR6B, VIACR, 0x01, BIT0);
-		viafb_write_reg_mask(CR6C, VIACR, 0x21, BIT0 + BIT5);
-		viafb_write_reg_mask(SR1E, VIASR, 0xC0, BIT7 + BIT6);
-		dvi_patch_skew_dvp0();
-		break;
-
-	case INTERFACE_DVP1:
-		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-			viafb_write_reg_mask(CR93, VIACR, 0x21, BIT0 + BIT5);
-
-		viafb_write_reg_mask(SR1E, VIASR, 0x30, BIT4 + BIT5);
-		break;
-	case INTERFACE_DFP_HIGH:
-		if (viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266)
-			via_write_reg_mask(VIACR, CR97, 0x03, 0x03);
-
-		viafb_write_reg_mask(SR2A, VIASR, 0x0C, BIT2 + BIT3);
-		break;
-
-	case INTERFACE_DFP_LOW:
-		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-			break;
-		viafb_write_reg_mask(SR2A, VIASR, 0x03, BIT0 + BIT1);
-		dvi_patch_skew_dvp_low();
-		break;
-	}
-
-	if (set_iga == IGA2) {
-		/* Disable LCD Scaling */
-		viafb_write_reg_mask(CR79, VIACR, 0x00, BIT0);
-	}
-}
-
-static void set_lcd_output_path(int set_iga, int output_interface)
-{
-	DEBUG_MSG(KERN_INFO
-		  "set_lcd_output_path, iga:%d,out_interface:%d\n",
-		  set_iga, output_interface);
-
-	viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
-	viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-	switch (output_interface) {
-	case INTERFACE_DFP:
-		if ((UNICHROME_K8M890 == viaparinfo->chip_info->gfx_chip_name)
-		    || (UNICHROME_P4M890 ==
-		    viaparinfo->chip_info->gfx_chip_name))
-			viafb_write_reg_mask(CR97, VIACR, 0x84,
-				       BIT7 + BIT2 + BIT1 + BIT0);
-	case INTERFACE_DVP0:
-	case INTERFACE_DVP1:
-	case INTERFACE_DFP_HIGH:
-	case INTERFACE_DFP_LOW:
-		if (set_iga == IGA2)
-			viafb_write_reg(CR91, VIACR, 0x00);
-		break;
-	}
 }
 
 static void load_fix_bit_crtc_reg(void)
@@ -2447,9 +2300,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				viafb_read_reg(VIACR, CR02) - 1);
 			viafb_lock_crt();
 		}
-
-		viafb_set_output_path(DEVICE_CRT,
-			viaparinfo->crt_setting_info->iga_path, 0);
 	}
 
 	if (viafb_DVI_ON) {
@@ -2469,10 +2319,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				     video_bpp, viaparinfo->
 				     tmds_setting_info->iga_path);
 		}
-
-		viafb_set_output_path(DEVICE_DVI,
-			viaparinfo->tmds_setting_info->iga_path,
-			viaparinfo->chip_info->tmds_chip_info.output_interface);
 	}
 
 	if (viafb_LCD_ON) {
@@ -2493,11 +2339,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				lvds_setting_info,
 				     &viaparinfo->chip_info->lvds_chip_info);
 		}
-
-		viafb_set_output_path(DEVICE_LCD,
-			viaparinfo->lvds_setting_info->iga_path,
-			viaparinfo->chip_info->
-			lvds_chip_info.output_interface);
 	}
 	if (viafb_LCD2_ON) {
 		if (viafb_SAMM_ON &&
@@ -2517,11 +2358,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				lvds_setting_info2,
 				     &viaparinfo->chip_info->lvds_chip_info2);
 		}
-
-		viafb_set_output_path(DEVICE_LCD,
-			viaparinfo->lvds_setting_info2->iga_path,
-			viaparinfo->chip_info->
-			lvds_chip_info2.output_interface);
 	}
 
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CX700)

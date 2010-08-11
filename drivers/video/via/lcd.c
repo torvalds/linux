@@ -833,8 +833,36 @@ void viafb_lcd_disable(void)
 
 }
 
+static void set_lcd_output_path(int set_iga, int output_interface)
+{
+	switch (output_interface) {
+	case INTERFACE_DFP:
+		if ((UNICHROME_K8M890 == viaparinfo->chip_info->gfx_chip_name)
+		    || (UNICHROME_P4M890 ==
+		    viaparinfo->chip_info->gfx_chip_name))
+			viafb_write_reg_mask(CR97, VIACR, 0x84,
+				       BIT7 + BIT2 + BIT1 + BIT0);
+	case INTERFACE_DVP0:
+	case INTERFACE_DVP1:
+	case INTERFACE_DFP_HIGH:
+	case INTERFACE_DFP_LOW:
+		if (set_iga == IGA2)
+			viafb_write_reg(CR91, VIACR, 0x00);
+		break;
+	}
+}
+
 void viafb_lcd_enable(void)
 {
+	viafb_write_reg_mask(CR6B, VIACR, 0x00, BIT3);
+	viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
+	set_lcd_output_path(viaparinfo->lvds_setting_info->iga_path,
+		viaparinfo->chip_info->lvds_chip_info.output_interface);
+	if (viafb_LCD2_ON)
+		set_lcd_output_path(viaparinfo->lvds_setting_info2->iga_path,
+			viaparinfo->chip_info->
+			lvds_chip_info2.output_interface);
+
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
 		/* DI1 pad on */
 		viafb_write_reg_mask(SR1E, VIASR, 0x30, 0x30);
