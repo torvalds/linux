@@ -1149,6 +1149,13 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			    INTR_STATUS0__ECC_ERR;
 	bool check_erased_page = false;
 
+	if (page != denali->page) {
+		dev_err(&denali->dev->dev, "IN %s: page %d is not"
+				" equal to denali->page %d, investigate!!",
+				__func__, page, denali->page);
+		BUG();
+	}
+
 	setup_ecc_for_xfer(denali, true, false);
 
 	denali_enable_dma(denali, true);
@@ -1192,6 +1199,13 @@ static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 	uint32_t irq_status = 0;
 	uint32_t irq_mask = INTR_STATUS0__DMA_CMD_COMP;
+
+	if (page != denali->page) {
+		dev_err(&denali->dev->dev, "IN %s: page %d is not"
+				" equal to denali->page %d, investigate!!",
+				__func__, page, denali->page);
+		BUG();
+	}
 
 	setup_ecc_for_xfer(denali, false, true);
 	denali_enable_dma(denali, true);
