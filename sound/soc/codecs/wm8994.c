@@ -3082,10 +3082,11 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
-			/* Tweak DC servo configuration for improved
-			 * performance. */
+			/* Tweak DC servo and DSP configuration for
+			 * improved performance. */
 			snd_soc_write(codec, 0x102, 0x3);
 			snd_soc_write(codec, 0x56, 0x3);
+			snd_soc_write(codec, 0x817, 0);
 			snd_soc_write(codec, 0x102, 0);
 
 			/* Discharge LINEOUT1 & 2 */
