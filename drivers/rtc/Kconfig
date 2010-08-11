@@ -166,6 +166,16 @@ config RTC_DRV_DS1672
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1672.
 
+config RTC_DRV_DS3232
+	tristate "Dallas/Maxim DS3232"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS3232 real-time clock chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called rtc-ds3232.
+
 config RTC_DRV_MAX6900
 	tristate "Maxim MAX6900"
 	help
