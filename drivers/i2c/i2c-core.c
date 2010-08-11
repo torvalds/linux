@@ -1461,6 +1461,13 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	return err;
 }
 
+int i2c_probe_func_quick_read(struct i2c_adapter *adap, unsigned short addr)
+{
+	return i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
+			      I2C_SMBUS_QUICK, NULL) >= 0;
+}
+EXPORT_SYMBOL_GPL(i2c_probe_func_quick_read);
+
 struct i2c_client *
 i2c_new_probed_device(struct i2c_adapter *adap,
 		      struct i2c_board_info *info,

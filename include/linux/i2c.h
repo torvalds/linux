@@ -294,6 +294,9 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		      unsigned short const *addr_list,
 		      int (*probe)(struct i2c_adapter *, unsigned short addr));
 
+/* Common custom probe functions */
+extern int i2c_probe_func_quick_read(struct i2c_adapter *, unsigned short addr);
+
 /* For devices that use several addresses, use i2c_new_dummy() to make
  * client handles for the extra addresses.
  */
