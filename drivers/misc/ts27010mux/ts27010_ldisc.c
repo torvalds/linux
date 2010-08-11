@@ -96,6 +96,10 @@ static void ts27010_ldisc_close(struct tty_struct *tty)
 {
 	struct ts27010_ldisc_data *ts = tty->disc_data;
 
+	if (!ts)
+		return;
+
+	tty->disc_data = NULL;
 	/* TODO: goes away with clean tty interface */
 	ts27010mux_tty = NULL;
 	/* TODO: find some way of dealing with ts_data freeing safely */
