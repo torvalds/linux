@@ -269,29 +269,30 @@ static int __devinit nuc900_rtc_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
-	nuc900_rtc->irq_num = platform_get_irq(pdev, 0);
-	if (request_irq(nuc900_rtc->irq_num, nuc900_rtc_interrupt,
-				IRQF_DISABLED, "nuc900rtc", nuc900_rtc)) {
-		dev_err(&pdev->dev, "NUC900 RTC request irq failed\n");
-		err = -EBUSY;
-		goto fail3;
-	}
+	platform_set_drvdata(pdev, nuc900_rtc);
 
 	nuc900_rtc->rtcdev = rtc_device_register(pdev->name, &pdev->dev,
 						&nuc900_rtc_ops, THIS_MODULE);
 	if (IS_ERR(nuc900_rtc->rtcdev)) {
 		dev_err(&pdev->dev, "rtc device register faild\n");
 		err = PTR_ERR(nuc900_rtc->rtcdev);
-		goto fail4;
+		goto fail3;
 	}
 
-	platform_set_drvdata(pdev, nuc900_rtc);
 	__raw_writel(__raw_readl(nuc900_rtc->rtc_reg + REG_RTC_TSSR) | MODE24,
 					nuc900_rtc->rtc_reg + REG_RTC_TSSR);
 
+	nuc900_rtc->irq_num = platform_get_irq(pdev, 0);
+	if (request_irq(nuc900_rtc->irq_num, nuc900_rtc_interrupt,
+				IRQF_DISABLED, "nuc900rtc", nuc900_rtc)) {
+		dev_err(&pdev->dev, "NUC900 RTC request irq failed\n");
+		err = -EBUSY;
+		goto fail4;
+	}
+
 	return 0;
 
-fail4:	free_irq(nuc900_rtc->irq_num, nuc900_rtc);
+fail4:	rtc_device_unregister(nuc900_rtc->rtcdev);
 fail3:	iounmap(nuc900_rtc->rtc_reg);
 fail2:	release_mem_region(res->start, resource_size(res));
 fail1:	kfree(nuc900_rtc);
@@ -303,8 +304,8 @@ static int __devexit nuc900_rtc_remove(struct platform_device *pdev)
 	struct nuc900_rtc *nuc900_rtc = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	rtc_device_unregister(nuc900_rtc->rtcdev);
 	free_irq(nuc900_rtc->irq_num, nuc900_rtc);
+	rtc_device_unregister(nuc900_rtc->rtcdev);
 	iounmap(nuc900_rtc->rtc_reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
