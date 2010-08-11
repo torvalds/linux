@@ -6924,7 +6924,6 @@ EXPORT_SYMBOL(mpt_halt_firmware);
  *	mpt_SoftResetHandler - Issues a less expensive reset
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Indicates if sleep or schedule must be called.
-
  *
  *	Returns 0 for SUCCESS or -1 if FAILED.
  *
@@ -7069,7 +7068,6 @@ mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
  *	mpt_Soft_Hard_ResetHandler - Try less expensive reset
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Indicates if sleep or schedule must be called.
-
  *
  *	Returns 0 for SUCCESS or -1 if FAILED.
  *	Try for softreset first, only if it fails go for expensive
