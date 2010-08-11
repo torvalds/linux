@@ -284,12 +284,15 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
 
 /* If you don't know the exact address of an I2C device, use this variant
  * instead, which can probe for device presence in a list of possible
- * addresses.
+ * addresses. The "probe" callback function is optional. If it is provided,
+ * it must return 1 on successful probe, 0 otherwise. If it is not provided,
+ * a default probing method is used.
  */
 extern struct i2c_client *
 i2c_new_probed_device(struct i2c_adapter *adap,
 		      struct i2c_board_info *info,
-		      unsigned short const *addr_list);
+		      unsigned short const *addr_list,
+		      int (*probe)(struct i2c_adapter *, unsigned short addr));
 
 /* For devices that use several addresses, use i2c_new_dummy() to make
  * client handles for the extra addresses.
