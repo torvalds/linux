@@ -2018,10 +2018,9 @@ out:
  * < 0 if the cgroup is over its limit
  */
 static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask, enum charge_type ctype,
-				struct mem_cgroup *memcg)
+				gfp_t gfp_mask, enum charge_type ctype)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem = NULL;
 	struct page_cgroup *pc;
 	int ret;
 
@@ -2031,7 +2030,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 		return 0;
 	prefetchw(pc);
 
-	mem = memcg;
 	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
 	if (ret || !mem)
 		return ret;
@@ -2059,7 +2057,7 @@ int mem_cgroup_newpage_charge(struct page *page,
 	if (unlikely(!mm))
 		mm = &init_mm;
 	return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+				MEM_CGROUP_CHARGE_TYPE_MAPPED);
 }
 
 static void
@@ -2069,7 +2067,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
-	struct mem_cgroup *mem = NULL;
 	int ret;
 
 	if (mem_cgroup_disabled())
@@ -2101,22 +2098,24 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 		unlock_page_cgroup(pc);
 	}
 
-	if (unlikely(!mm && !mem))
+	if (unlikely(!mm))
 		mm = &init_mm;
 
 	if (page_is_file_cache(page))
 		return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
+				MEM_CGROUP_CHARGE_TYPE_CACHE);
 
 	/* shmem */
 	if (PageSwapCache(page)) {
+		struct mem_cgroup *mem = NULL;
+
 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
 		if (!ret)
 			__mem_cgroup_commit_charge_swapin(page, mem,
 					MEM_CGROUP_CHARGE_TYPE_SHMEM);
 	} else
 		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
-					MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
+					MEM_CGROUP_CHARGE_TYPE_SHMEM);
 
 	return ret;
 }
