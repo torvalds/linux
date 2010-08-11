@@ -1027,7 +1027,7 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	int error;
 	char *filename;
 
-	filename = getname((char __user *) a0);
+	filename = getname((const char __user *) a0);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;

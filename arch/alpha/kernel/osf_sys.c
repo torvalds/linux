@@ -244,7 +244,7 @@ do_osf_statfs(struct path *path, struct osf_statfs __user *buffer,
 	return error;	
 }
 
-SYSCALL_DEFINE3(osf_statfs, char __user *, pathname,
+SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
 		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct path path;
@@ -358,7 +358,7 @@ osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
 	return do_mount("", dirname, "proc", flags, NULL);
 }
 
-SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
+SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		int, flag, void __user *, data)
 {
 	int retval;
@@ -932,7 +932,7 @@ SYSCALL_DEFINE3(osf_setitimer, int, which, struct itimerval32 __user *, in,
 
 }
 
-SYSCALL_DEFINE2(osf_utimes, char __user *, filename,
+SYSCALL_DEFINE2(osf_utimes, const char __user *, filename,
 		struct timeval32 __user *, tvs)
 {
 	struct timespec tv[2];

@@ -51,7 +51,7 @@
 #define AA(__x)		((unsigned long)(__x))
 
 
-asmlinkage long sys32_truncate64(char __user *filename,
+asmlinkage long sys32_truncate64(const char __user *filename,
 				 unsigned long offset_low,
 				 unsigned long offset_high)
 {
@@ -96,7 +96,7 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	return 0;
 }
 
-asmlinkage long sys32_stat64(char __user *filename,
+asmlinkage long sys32_stat64(const char __user *filename,
 			     struct stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -107,7 +107,7 @@ asmlinkage long sys32_stat64(char __user *filename,
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(char __user *filename,
+asmlinkage long sys32_lstat64(const char __user *filename,
 			      struct stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -126,7 +126,7 @@ asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 	return ret;
 }
 
-asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
+asmlinkage long sys32_fstatat(unsigned int dfd, const char __user *filename,
 			      struct stat64 __user *statbuf, int flag)
 {
 	struct kstat stat;
@@ -408,8 +408,8 @@ asmlinkage long sys32_pread(unsigned int fd, char __user *ubuf, u32 count,
 			 ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
-asmlinkage long sys32_pwrite(unsigned int fd, char __user *ubuf, u32 count,
-			     u32 poslo, u32 poshi)
+asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
+			     u32 count, u32 poslo, u32 poshi)
 {
 	return sys_pwrite64(fd, ubuf, count,
 			  ((loff_t)AA(poshi) << 32) | AA(poslo));
@@ -449,7 +449,7 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 	return ret;
 }
 
-asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
 			     compat_uptr_t __user *envp, struct pt_regs *regs)
 {
 	long error;
