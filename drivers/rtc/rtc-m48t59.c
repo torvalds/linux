@@ -506,7 +506,6 @@ out:
 		free_irq(m48t59->irq, &pdev->dev);
 	if (m48t59->ioaddr)
 		iounmap(m48t59->ioaddr);
-	if (m48t59)
 		kfree(m48t59);
 	return ret;
 }
