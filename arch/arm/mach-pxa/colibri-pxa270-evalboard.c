@@ -51,6 +51,24 @@ static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {
 	GPIO89_USBH1_PEN,
 	GPIO119_USBH2_PWR,
 	GPIO120_USBH2_PEN,
+
+	/* PCMCIA */
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO55_nPREG,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO49_nPWE,
+	GPIO48_nPOE,
+	GPIO57_nIOIS16,
+	GPIO56_nPWAIT,
+	GPIO104_PSKTSEL,
+	GPIO53_GPIO,	/* RESET */
+	GPIO83_GPIO,	/* BVD1 */
+	GPIO82_GPIO,	/* BVD2 */
+	GPIO1_GPIO,	/* READY */
+	GPIO84_GPIO,	/* DETECT */
+	GPIO107_GPIO,	/* PPEN */
 };
 
 /******************************************************************************
