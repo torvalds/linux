@@ -1150,21 +1150,17 @@ static void __init machine_rk2818_board_init(void)
 			ARRAY_SIZE(board_i2c3_devices));
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
-	printk("after platform_add_devices -- begin \n");
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
 	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
 	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
 
 	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
-		
 	if(0 != gpio_request(RK2818_PIN_PF5, NULL))
     {
         gpio_free(RK2818_PIN_PF5);
         printk(">>>>>> RK2818_PIN_PF5 gpio_request err \n "); 
     } 
-    
-   printk("after platform_add_devices -- end \n");
 }
 
 static void __init machine_rk2818_mapio(void)

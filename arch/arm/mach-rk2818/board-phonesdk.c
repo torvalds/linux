@@ -422,7 +422,7 @@ static struct spi_board_info board_spi_devices[] = {
 
 /*rk2818_fb gpio information*/
 static struct rk2818_fb_gpio rk2818_fb_gpio_info = {
-    .display_on = (GPIO_LOW<<16)|RK2818_PIN_PB1,
+    .display_on = (GPIO_LOW<<16)|RK2818_PIN_PA2,
     .lcd_standby = 0,
     .mcu_fmk_pin = 0,
 };
@@ -592,7 +592,7 @@ static struct platform_device *devices[] __initdata = {
 };
 
 extern struct sys_timer rk2818_timer;
-#define POWER_PIN	RK2818_PIN_PH7
+#define POWER_PIN	RK2818_PIN_PB1
 static void rk2818_power_on(void)
 {
 	int ret;
@@ -752,7 +752,7 @@ MACHINE_START(RK2818, "RK28board")
 /* UART for LL DEBUG */
 	.phys_io	= 0x18002000,
 	.io_pg_offst	= ((0xFF100000) >> 18) & 0xfffc,
-	.boot_params	= RK2818_SDRAM_PHYS + 0x88000,
+	.boot_params	= RK2818_SDRAM_PHYS + 0xf8000,
 	.map_io		= machine_rk2818_mapio,
 	.init_irq	= machine_rk2818_init_irq,
 	.init_machine	= machine_rk2818_board_init,
