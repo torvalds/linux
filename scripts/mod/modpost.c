@@ -14,6 +14,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
@@ -1217,7 +1218,7 @@ static char *sec2annotation(const char *s)
 			strcat(p, " ");
 		return r; /* we leak her but we do not care */
 	} else {
-		return "";
+		return strdup("");
 	}
 }
 
@@ -1352,7 +1353,7 @@ static void report_sec_mismatch(const char *modname,
 		"%s%s so it may be used outside an exit section.\n",
 		from, prl_from, fromsym, from_p,
 		to, prl_to, tosym, to_p,
-		sec2annotation(tosec), tosym, to_p);
+		prl_to, tosym, to_p);
 		free(prl_from);
 		free(prl_to);
 		break;
