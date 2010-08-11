@@ -919,7 +919,7 @@ static void gsm_dlci_data_sweep(struct gsm_mux *gsm)
 		else
 			len = gsm_dlci_data_output_framed(gsm, dlci);
 		if (len < 0)
-			return;
+			break;
 		/* DLCI empty - try the next */
 		if (len == 0)
 			i++;
