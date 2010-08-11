@@ -54,6 +54,16 @@ struct i2c_board_info;
  * transmit one message at a time, a more complex version can be used to
  * transmit an arbitrary number of messages without interruption.
  */
+#if defined (CONFIG_I2C_RK2818)
+/* If everything went ok, return 'count' transmitted, else error code. */
+extern int i2c_master_normal_send(struct i2c_client *client,const char *buf ,int count, int scl_rate);
+extern int i2c_master_normal_recv(struct i2c_client *client, char *buf ,int count, int scl_rate);
+extern int i2c_master_reg8_send(struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate);
+extern int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate);
+extern int i2c_master_reg16_send(struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate);
+extern int i2c_master_reg16_recv(struct i2c_client *client, const short regs, short *buf, int count, int scl_rate);
+#endif
+
 extern int i2c_master_send(struct i2c_client *client, const char *buf,
 			   int count);
 extern int i2c_master_recv(struct i2c_client *client, char *buf, int count);

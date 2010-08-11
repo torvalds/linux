@@ -25,76 +25,18 @@
 #else
 #define DBG(x...)
 #endif
-
+#define RTC_SPEED 	100 * 1000
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
-	int ret;
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msgs[2];
-	msgs[0].addr = client->addr;
-	msgs[0].buf = &reg;
-	msgs[0].flags = client->flags;
-	msgs[0].len = 1;
-	msgs[0].scl_rate = 400 * 1000; /* set 400kHz, but real is about 300kHz */
-
-	msgs[1].buf = buf;
-	msgs[1].addr = client->addr;
-	msgs[1].flags = client->flags | I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].scl_rate = 400 * 1000; 
-
-	ret = i2c_transfer(adap, msgs, 2);
-	/*
-	struct i2c_msg msgs[1] = {
-		{ client->addr, 1, len, buf },
-	};
-	buf[0] = reg;
-	BUG_ON(len == 0);
-	BUG_ON(reg > RTC_T_COUNT);
-	BUG_ON(reg + len > RTC_T_COUNT + 1);
-
-	ret = i2c_transfer(client->adapter, msgs, 1);
-	if (ret > 0)
-		ret = 0;
-	*/
-	return ret;
+	int ret; 
+	ret = i2c_master_reg8_recv(client, reg, buf, len, RTC_SPEED);
+	return ret; 
 }
 
 static int hym8563_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[], __u16 len)
 {
-	int ret;
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msg;
-	char tx_buf[len + 1];
-
-	tx_buf[0] = reg;
-	memcpy(tx_buf + 1, buf, len);
-
-	msg.addr = client->addr;
-	msg.buf = tx_buf;
-	msg.len = len + 1;
-	msg.flags = client->flags;
-	msg.scl_rate = 400 * 1000;
-
-	ret = i2c_transfer(adap, &msg, 1);
-
-	/*
-	u8 i2c_buf[HYM8563_REG_LEN + 1];
-	struct i2c_msg msgs[1] = {
-		{ client->addr, 0, len + 1, i2c_buf }
-	};
-	
-	BUG_ON(len == 0);
-	BUG_ON(reg > RTC_T_COUNT);
-	BUG_ON(reg + len > RTC_T_COUNT + 1);
-
-	i2c_buf[0] = reg;
-	memcpy(&i2c_buf[1], &buf[0], len);
-	
-	ret = i2c_transfer(client->adapter, msgs, 1);
-	if (ret > 0)
-		ret = 0;
-	*/
+	int ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, RTC_SPEED);
 	return ret;
 }
 

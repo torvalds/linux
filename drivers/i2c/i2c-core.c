@@ -1119,6 +1119,177 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 }
 EXPORT_SYMBOL(i2c_transfer);
+#if defined (CONFIG_I2C_RK2818)
+int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
+{
+	int ret;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = 400 * 1000;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_send);
+
+int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags | I2C_M_RD;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = 400 * 1000;
+
+	ret = i2c_transfer(adap, &msg, 1);
+
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_recv);
+
+int i2c_master_normal_send(struct i2c_client *client,const char *buf ,int count, int scl_rate)
+{
+	int ret;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_normal_send);
+
+int i2c_master_normal_recv(struct i2c_client *client, char *buf ,int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags | I2C_M_RD;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_normal_recv);
+
+int i2c_master_reg8_send(struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char *tx_buf = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	tx_buf[0] = reg;
+	memcpy(tx_buf+1, buf, count); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count + 1;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+
+}
+EXPORT_SYMBOL(i2c_master_reg8_send);
+
+int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
+	
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
+	msgs[0].scl_rate = scl_rate;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+}
+
+EXPORT_SYMBOL(i2c_master_reg8_recv);
+
+int i2c_master_reg16_send(struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char *tx_buf = (char *)kmalloc(2 * (count + 1), GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	memcpy(tx_buf, &regs, 2); 
+	memcpy(tx_buf+2, (char *)buf, count * 2); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = 2 * (count + 1);
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_reg16_send);
+
+int i2c_master_reg16_recv(struct i2c_client *client, const short regs, short *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf[2];
+
+	memcpy(reg_buf, &regs, 2);
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 2;
+	msgs[0].buf = reg_buf;
+	msgs[0].scl_rate = scl_rate;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count * 2;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_reg16_recv);
+#else
 
 /**
  * i2c_master_send - issue a single I2C message in master transmit mode
@@ -1174,7 +1345,7 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_master_recv);
-
+#endif
 /* ----------------------------------------------------
  * the i2c address scanning function
  * Will not work for 10-bit addresses!

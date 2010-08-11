@@ -33,6 +33,14 @@
 #define DRV_NAME	"rk2818_i2c"
 
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
+#define RK2818_DELAY_TIME		2
+
+#if 0
+#define i2c_dbg(dev, format, arg...)		\
+	dev_printk(KERN_INFO , dev , format , ## arg)
+#else
+#define i2c_dbg(dev, format, arg...)	
+#endif
 
 enum rk2818_error {
 	RK2818_ERROR_NONE = 0,
@@ -61,6 +69,7 @@ struct rk2818_i2c_data {
 
 	unsigned int			suspended:1;
 	unsigned long			scl_rate;
+	unsigned long			i2c_rate;
 	struct clk				*clk;
 
 	unsigned int			mode;
@@ -79,7 +88,7 @@ struct rk2818_i2c_data {
 #endif
 };
 
-static int rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c);
+static void rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c);
 
 static inline void rk2818_i2c_disable_irqs(struct rk2818_i2c_data *i2c)
 {
@@ -122,42 +131,36 @@ static void rk2818_i2c_calcdivisor(unsigned long pclk,
 	return;
 }
 /* set i2c bus scl rate */
-static unsigned long  rk2818_i2c_clockrate(struct rk2818_i2c_data *i2c)
+static void  rk2818_i2c_clockrate(struct rk2818_i2c_data *i2c)
 {
 	struct rk2818_i2c_platform_data *pdata = i2c->dev->platform_data;
 	unsigned int rem = 0, exp = 0;
-	unsigned long scl_rate, real_rate = 0, tmp, pclk;
-	struct clk *arm_pclk;
+	unsigned long scl_rate, real_rate = 0, tmp;
 
-	arm_pclk = clk_get_parent(i2c->clk);
-	if(IS_ERR(arm_pclk))		
-	{
-		dev_err(i2c->dev, "cannot get pclk\n");
-		return -ENOENT;
-	}
-	pclk = clk_get_rate(arm_pclk);
+	i2c->i2c_rate = clk_get_rate(i2c->clk);
 
 	scl_rate = (i2c->scl_rate) ? i2c->scl_rate : ((pdata->scl_rate)? pdata->scl_rate:100000);
 
-	rk2818_i2c_calcdivisor(pclk, scl_rate, &real_rate, &rem, &exp);
+	rk2818_i2c_calcdivisor(i2c->i2c_rate, scl_rate, &real_rate, &rem, &exp);
 
 	tmp = readl(i2c->regs + I2C_OPR);
 	tmp |= exp;
 	tmp |= rem<<I2CCDVR_EXP_BITS;	
 	writel(tmp, i2c->regs + I2C_OPR);
 	if(real_rate > 400000)
-		dev_info(i2c->dev, "WARN: PCLK %luKhz, I2C set rate %luKhz, and real rate is %luKhz > 400Khz\n", 
-				pclk/1000, scl_rate/1000, real_rate/1000);
+		dev_warn(i2c->dev, "i2c_rate[%luKhz], scl_rate[%luKhz], real_rate[%luKhz] > 400Khz\n", 
+				i2c->i2c_rate/1000, scl_rate/1000, real_rate/1000);
 	else
-		dev_dbg(i2c->dev, " OK: PCLK %luKhz, I2C set rate %luKhz, real rate is %luKhz\n", 
-				pclk/1000, scl_rate/1000, real_rate/1000);
-	return 0;
+		i2c_dbg(i2c->dev, "i2c_rate[%luKhz], scl_rate[%luKhz], real_rate[%luKhz]\n", 
+				i2c->i2c_rate/1000, scl_rate/1000, real_rate/1000);
+	return;
 }
 static int rk2818_event_occurred(struct rk2818_i2c_data *i2c)
 {
 	unsigned long isr;
 
 	isr = readl(i2c->regs + I2C_ISR);
+	i2c_dbg(i2c->dev,"event occurred, isr = %lx\n", isr);
 	if(isr & I2C_ISR_ARBITR_LOSE)
 	{
 		isr &= ~I2C_ISR_ARBITR_LOSE;
@@ -204,15 +207,13 @@ static irqreturn_t rk2818_i2c_irq(int irq, void *data)
 	spin_unlock(&i2c->cmd_lock);
 	return IRQ_HANDLED;
 }
-static int wait_for_completion_poll_timeout(struct rk2818_i2c_data *i2c)
+static int wait_for_completion_poll_timeout(struct rk2818_i2c_data *i2c, unsigned long timeout)
 {
-	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
 	unsigned int time = 10;
 	int res;
 
 	while(!time_after(jiffies, timeout))
 	{
-		dev_dbg(i2c->dev, "%s: time = %d\n", __func__, time);
 		res = rk2818_event_occurred(i2c);
 		if(res || i2c->cmd_err != RK2818_ERROR_NONE)
 			return 1;
@@ -242,20 +243,14 @@ static int rk2818_wait_event(struct rk2818_i2c_data *i2c,
 
 	rk2818_i2c_enable_irqs(i2c);
 	if(i2c->mode == I2C_MODE_IRQ)
-	{
 		ret = wait_for_completion_interruptible_timeout(&i2c->cmd_complete,
 								RK2818_I2C_TIMEOUT);
-	}
 	else
-	{
-		ret = wait_for_completion_poll_timeout(i2c);
-		dev_dbg(i2c->dev, "%s: ret = %d\n", __func__, ret);
-	}
+		ret = wait_for_completion_poll_timeout(i2c, RK2818_I2C_TIMEOUT);
+	
 	if(ret < 0)
 	{
-		dev_err(i2c->dev, "wait_for_completion_interruptible_timeout(): "
-								"retrun %d waiting for event %04x\n", ret,
-								mr_event);
+		dev_err(i2c->dev, "i2c wait for event %04x, retrun %d \n", mr_event, ret);
 		return ret;
 	}
 	if(ret == 0)
@@ -269,8 +264,8 @@ static int rk2818_wait_while_busy(struct rk2818_i2c_data *i2c)
 {
 	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
 	unsigned long lsr;
-	unsigned int time = 10;
-	dev_dbg(i2c->dev,"wait_while_busy");
+	unsigned int time = RK2818_DELAY_TIME;
+
 	while(!time_after(jiffies, timeout))
 	{
 		lsr = readl(i2c->regs + I2C_LSR);
@@ -281,176 +276,188 @@ static int rk2818_wait_while_busy(struct rk2818_i2c_data *i2c)
 	}
 	return -ETIMEDOUT;
 }
+static int rk2818_i2c_stop(struct rk2818_i2c_data *i2c)
+{
+	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
+	unsigned int time = RK2818_DELAY_TIME;
 
+	writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+	while(!time_after(jiffies, timeout))
+	{
+		if(!(readl(i2c->regs + I2C_LCMR) & I2C_LCMR_STOP))
+		{
+			i2c_dbg(i2c->dev, "i2c stop successfully\n");
+			return 0;
+		}
+		udelay(time);
+		time *= 2;
+	}
+	return -ETIMEDOUT;
+    
+}
+static int rk2818_send_2nd_addr(struct rk2818_i2c_data *i2c,
+						struct i2c_msg *msg, int start)
+{
+	int ret = 0;
+	unsigned long addr_2nd = msg->addr & 0xff;
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
+
+	conr |= I2C_CONR_MTX_MODE;
+	//conr &= I2C_CONR_ACK;
+	writel(conr, i2c->regs + I2C_CONR);
+	
+	i2c_dbg(i2c->dev, "i2c send addr_2nd: %lx\n", addr_2nd);	
+	writel(addr_2nd, i2c->regs + I2C_MTXR);
+	writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+	if((ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+	{
+		dev_err(i2c->dev, "after sent addr_2nd, i2c wait for ACK timeout\n");
+		return ret;
+	}
+	return ret;
+}
 static int rk2818_send_address(struct rk2818_i2c_data *i2c,
-						struct i2c_msg *msg)
+						struct i2c_msg *msg, int start)
 {
 	unsigned long addr_1st;
-	//unsigned long addr_2nd;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	int ret = 0;
-	/*
+	
 	if(msg->flags & I2C_M_TEN)
 		addr_1st = (0xf0 | (((unsigned long) msg->addr & 0x300) >> 7)) & 0xff;
 	else
-	*/
-	addr_1st = ((msg->addr << 1) & 0xff);
+		addr_1st = ((msg->addr << 1) & 0xff);
+	
 	if (msg->flags & I2C_M_RD) 
 		addr_1st |= 0x01;
 	else
 		addr_1st &= (~0x01);
 
 	conr |= I2C_CONR_MTX_MODE;
-	conr &= I2C_CONR_ACK;
+	//conr &= I2C_CONR_ACK;
 	writel(conr, i2c->regs + I2C_CONR);
-	dev_dbg(i2c->dev, "send addr: %lx\n", addr_1st);
+	i2c_dbg(i2c->dev, "i2c send addr_1st: %lx\n", addr_1st);
+	
 	writel(addr_1st, i2c->regs + I2C_MTXR);
-	if(i2c->msg_idx == 0)
+	
+	if (start)
 	{
-		ret = rk2818_wait_while_busy(i2c);
-		if(ret != 0)
+		if((ret = rk2818_wait_while_busy(i2c)) != 0)
 		{
-			dev_err(i2c->dev, "send addr:wait_while_busy\n");
-			conr = readl(i2c->regs + I2C_CONR);
-			conr |= I2C_CONR_NAK;
-			writel(conr, i2c->regs + I2C_CONR);
-			writel(I2C_LCMR_STOP, i2c->regs + I2C_LCMR);
+			dev_err(i2c->dev, "i2c is busy, when send address\n");
 			return ret;
 		}
-	}
-	if (msg->flags & I2C_M_RD)
-		writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-	else
 		writel(I2C_LCMR_START, i2c->regs + I2C_LCMR);
-	/*
-	if(msg->flags & I2C_M_TEN)
-	{
-		ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK);
-		if(ret != 0)
-		{
-			return ret;
-		}
-		addr_2nd = msg->addr & 0xff;if (msg->flags & I2C_M_RD)
-		writel(addr_2nd, i2c->regs + I2C_MTXR);
-		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-		if (msg->flags & I2C_M_RD)
-		{
-			ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK);
-			if(ret != 0)
-			{
-				return ret;
-			}
-
-			writel(addr_1st, i2c->regs + I2C_MTXR);
-			writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-		}
-
 	}
-	*/
-	ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK);
-	if(ret != 0)
-		dev_err(i2c->dev, "send addr:wait ack timeout\n");
+	else
+		writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+
+	if((ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+	{
+		dev_err(i2c->dev, "after sent addr_1st, i2c wait for ACK timeout\n");
+		return ret;
+	}
+	if(start && (msg->flags & I2C_M_TEN))
+		ret = rk2818_send_2nd_addr(i2c, msg, start);
 	return ret;
 }
 
+static int rk2818_i2c_send_msg(struct rk2818_i2c_data *i2c, struct i2c_msg *msg)
+{
+	int i, ret = 0;
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
+	
+	conr = readl(i2c->regs + I2C_CONR);
+	conr |= I2C_CONR_MTX_MODE;
+	writel(conr, i2c->regs + I2C_CONR);
+	for(i = 0; i < msg->len; i++)
+	{
+		i2c_dbg(i2c->dev, "i2c send buf[%d]: %x\n", i, msg->buf[i]);
+		writel(msg->buf[i], i2c->regs + I2C_MTXR);
+		/*
+		conr = readl(i2c->regs + I2C_CONR);
+		conr &= I2C_CONR_ACK;
+		writel(conr, i2c->regs + I2C_CONR);
+		*/
+		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+
+		if((ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+			return ret;
+	}
+	return ret;
+}
+static int rk2818_i2c_recv_msg(struct rk2818_i2c_data *i2c, struct i2c_msg *msg)
+{
+	int i, ret = 0;
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
+
+	conr = readl(i2c->regs + I2C_CONR);
+	conr &= I2C_CONR_MRX_MODE;
+	writel(conr, i2c->regs + I2C_CONR);
+
+	for(i = 0; i < msg->len; i++)
+	{
+		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+		if((ret = rk2818_wait_event(i2c, RK2818_EVENT_MRX_NEED_ACK)) != 0)
+			return ret;
+		conr = readl(i2c->regs + I2C_CONR);
+		conr &= I2C_CONR_ACK;
+		writel(conr, i2c->regs + I2C_CONR);
+		msg->buf[i] = (uint8_t)readl(i2c->regs + I2C_MRXR);
+		i2c_dbg(i2c->dev, "i2c recv >>>>>>>>>>>> buf[%d]: %x\n", i, msg->buf[i]);
+	}
+	return ret;
+}
 static int rk2818_xfer_msg(struct i2c_adapter *adap, 
-						 struct i2c_msg *msg, int stop)
+						 struct i2c_msg *msg, int start, int stop)
 {
 	struct rk2818_i2c_data *i2c = (struct rk2818_i2c_data *)adap->algo_data;
-
-	int ret, i;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
-	conr |= I2C_CONR_MPORT_ENABLE;
-	writel(conr, i2c->regs + I2C_CONR);
+	int ret = 0;
+
+	
 	if(msg->len == 0)
 	{
 		ret = -EINVAL;
-		goto exit_disable;
+		dev_err(i2c->dev, "<error>msg->len = %d\n", msg->len);
+		goto exit;
 	}
 
-	clk_enable(i2c->clk);
-
-	ret = rk2818_send_address(i2c, msg);
-	if(ret != 0)
+	if((ret = rk2818_send_address(i2c, msg, start))!= 0)
 	{
-		dev_err(i2c->dev, "send addr error\n");
-		goto exit_disable;
+		dev_err(i2c->dev, "<error>rk2818_send_address timeout\n");
+		goto exit;
 	}
 	if(msg->flags & I2C_M_RD)
 	{	
-		conr = readl(i2c->regs + I2C_CONR);
-		conr &= I2C_CONR_MRX_MODE;
-		writel(conr, i2c->regs + I2C_CONR);
-
-		for(i = 0; i < msg->len; i++)
+		if((ret = rk2818_i2c_recv_msg(i2c, msg)) != 0)
 		{
-			writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-			ret = rk2818_wait_event(i2c, RK2818_EVENT_MRX_NEED_ACK);
-			if(ret != 0)
-			{
-				dev_err(i2c->dev, "read data timeout\n");
-				goto exit_disable;
-			}
-			msg->buf[i] = (uint8_t)readl(i2c->regs + I2C_MRXR);
-			dev_dbg(i2c->dev, "receive data=%u\n",msg->buf[i]);
-			if(i == msg->len - 1)
-			{
-				conr = readl(i2c->regs + I2C_CONR);
-				conr &= I2C_CONR_ACK;
-				writel(conr, i2c->regs + I2C_CONR);
-			}
+			dev_err(i2c->dev, "<error>rk2818_i2c_recv_msg timeout\n");
+			goto exit;
 		}
 	}
 	else
 	{
-		conr = readl(i2c->regs + I2C_CONR);
-		conr |= I2C_CONR_MTX_MODE;
-		writel(conr, i2c->regs + I2C_CONR);
-		for(i = 0; i < msg->len; i++)
+		if((ret = rk2818_i2c_send_msg(i2c, msg)) != 0)
 		{
-			writel(msg->buf[i], i2c->regs + I2C_MTXR);
-			dev_dbg(i2c->dev, "send data =%u\n", msg->buf[i]);
-			conr = readl(i2c->regs + I2C_CONR);
-			conr |= I2C_CONR_NAK;
-			writel(conr, i2c->regs + I2C_CONR);
-			writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-
-			ret = rk2818_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK);
-			if(ret != 0)
-			{
-				dev_err(i2c->dev, "send data timeout\n");
-				goto exit_disable;
-			}
+			dev_err(i2c->dev, "<error>rk2818_i2c_send_msg timeout\n");
+			goto exit;
 		}
-		
 	}
-	if(i == msg->len)
+	
+	if(stop)
 	{
 		conr = readl(i2c->regs + I2C_CONR);
 		conr |= I2C_CONR_NAK;
 		writel(conr, i2c->regs + I2C_CONR);
-		if(!stop)
-			return 0;
-		if(msg->flags & I2C_M_TEN)
-			writel(I2C_LCMR_START|I2C_LCMR_RESUME , i2c->regs + I2C_LCMR);
-		else
-			writel(I2C_LCMR_STOP|I2C_LCMR_RESUME , i2c->regs + I2C_LCMR);
-		if(i2c->msg_idx >= i2c->msg_num - 1)
+		if((ret = rk2818_i2c_stop(i2c)) != 0)
 		{
-			ret = rk2818_wait_while_busy(i2c);
-	
-			if(ret != 0)
-			{
-				dev_err(i2c->dev, "tx success wait bus busy time out\n");
-				goto exit_disable;
-			}
+			dev_err(i2c->dev, "<error>rk2818_i2c_stop timeout\n");
+			goto exit;
 		}
+			
 	}
-exit_disable:
-	conr = readl(i2c->regs + I2C_CONR);
-	conr &= I2C_CONR_MPORT_DISABLE;
-	writel(conr, i2c->regs + I2C_CONR);
-	clk_disable(i2c->clk);
+exit:	
 	return ret;
 
 }
@@ -459,35 +466,29 @@ static int rk2818_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	int ret = -1;
-	int i,retry;
+	int i;
 	struct rk2818_i2c_data *i2c = (struct rk2818_i2c_data *)adap->algo_data;
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	
 	if(i2c->suspended ==1)
 		return -EIO;
 	if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate > 0)
-	{
 		i2c->scl_rate = msgs[0].scl_rate;
-	}
 	else
-	{
-		//dev_info(i2c->dev, "Scl_rate(%uKhz) is failed to change[0 -- 400Khz],  current rate(%luKhz)\n",
-		//		msgs[0].scl_rate/1000, i2c->scl_rate/1000);
 		i2c->scl_rate = 400000;
-	}
+	
+	conr |= I2C_CONR_MPORT_ENABLE;
+	writel(conr, i2c->regs + I2C_CONR);
+	
+	rk2818_i2c_init_hw(i2c);
+	
+	conr = readl(i2c->regs + I2C_CONR);
+	conr &= I2C_CONR_ACK;
+	writel(conr, i2c->regs + I2C_CONR);
 
-	ret = rk2818_i2c_init_hw(i2c);
-	if(ret < 0)
-		return ret;
-	i2c->msg_num = num;
 	for (i = 0; i < num; i++) 
 	{
-		i2c->msg_idx = i;
-		for(retry = 0; retry < adap->retries; retry ++)
-		{
-			ret = rk2818_xfer_msg(adap, &msgs[i], (i == (num - 1)));
-			if(ret == 0)
-				break;
-		}
+		ret = rk2818_xfer_msg(adap, &msgs[i], (i == 0), (i == (num - 1)));
 		if (ret != 0)
 		{
 			num = ret;
@@ -495,6 +496,9 @@ static int rk2818_i2c_xfer(struct i2c_adapter *adap,
 			break;
 		}
 	}
+	conr = readl(i2c->regs + I2C_CONR);
+	conr &= I2C_CONR_MPORT_DISABLE;
+	writel(conr, i2c->regs + I2C_CONR);
 	return num;
 }
 
@@ -509,6 +513,26 @@ static const struct i2c_algorithm rk2818_i2c_algorithm = {
 };
 
 
+static void rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c)
+{
+	unsigned long lcmr = 0x00000000;
+
+	unsigned long opr = readl(i2c->regs + I2C_OPR);
+	opr |= I2C_OPR_RESET_STATUS;
+	writel(opr, i2c->regs + I2C_OPR);
+	
+	writel(lcmr, i2c->regs + I2C_LCMR);
+
+	rk2818_i2c_disable_irqs(i2c);
+
+	rk2818_i2c_clockrate(i2c); 
+
+	opr = readl(i2c->regs + I2C_OPR);
+	opr |= I2C_OPR_CORE_ENABLE;
+	writel(opr, i2c->regs + I2C_OPR);
+
+	return;
+}
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -520,19 +544,16 @@ static int rk2818_i2c_cpufreq_transition(struct notifier_block *nb,
 	struct rk2818_i2c_data *i2c = freq_to_i2c(nb);
 	unsigned long flags;
 	int delta_f;
-	int ret = 0;
-
-	delta_f = clk_get_rate(i2c->clk) - i2c->scl_rate;
+	delta_f = clk_get_rate(i2c->clk) - i2c->i2c_rate;
 
 	if ((val == CPUFREQ_POSTCHANGE && delta_f < 0) ||
 	    (val == CPUFREQ_PRECHANGE && delta_f > 0)) 
 	{
 		spin_lock_irqsave(&i2c->cmd_lock, flags);
-		ret = rk2818_i2c_clockrate(i2c);
+		rk2818_i2c_clockrate(i2c);
 		spin_unlock_irqrestore(&i2c->cmd_lock, flags);
 	}
-
-	return ret;
+	return 0;
 }
 
 static inline int rk2818_i2c_register_cpufreq(struct rk2818_i2c_data *i2c)
@@ -560,34 +581,6 @@ static inline void rk2818_i2c_unregister_cpufreq(struct rk2818_i2c_data *i2c)
 	return;
 }
 #endif
-
-
-static int rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c)
-{
-	unsigned long lcmr = 0x00000000;
-
-	unsigned long opr = readl(i2c->regs + I2C_OPR);
-	opr |= I2C_OPR_RESET_STATUS;
-	writel(opr, i2c->regs + I2C_OPR);
-	
-	writel(lcmr, i2c->regs + I2C_LCMR);
-
-	rk2818_i2c_disable_irqs(i2c);
-
-	if (rk2818_i2c_clockrate(i2c) < 0) {
-		dev_err(i2c->dev, "cannot meet bus clkrate required\n");
-		return -EINVAL;
-	}
-
-	opr = readl(i2c->regs + I2C_OPR);
-	//opr &= ~I2C_OPR_RESET_STATUS;
-	opr |= I2C_OPR_CORE_ENABLE;
-	writel(opr, i2c->regs + I2C_OPR);
-
-	return 0;
-}
-
-
 static int rk2818_i2c_probe(struct platform_device *pdev)
 {
 	struct rk2818_i2c_data *i2c;
@@ -598,13 +591,13 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (!pdata) 
 	{
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "<error>no platform data\n");
 		return -EINVAL;
 	}
 	i2c = kzalloc(sizeof(struct rk2818_i2c_data), GFP_KERNEL);
 	if (!i2c) 
 	{
-		dev_err(&pdev->dev, "no memory for state\n");
+		dev_err(&pdev->dev, "<error>no memory for state\n");
 		return -ENOMEM;
 	}
 	i2c->mode = pdata->mode;
@@ -620,18 +613,16 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 	
 	i2c->clk = clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "<error>cannot get clock\n");
 		ret = -ENOENT;
 		goto err_noclk;
 	}
-
-	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
 	clk_enable(i2c->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "cannot find IO resource\n");
+		dev_err(&pdev->dev, "<error>cannot find IO resource\n");
 		ret = -ENOENT;
 		goto err_clk;
 	}
@@ -640,7 +631,7 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 					 pdev->name);
 
 	if (i2c->ioarea == NULL) {
-		dev_err(&pdev->dev, "cannot request IO\n");
+		dev_err(&pdev->dev, "<error>cannot request IO\n");
 		ret = -ENXIO;
 		goto err_clk;
 	}
@@ -648,23 +639,17 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 	i2c->regs = ioremap(res->start, res->end - res->start + 1);
 
 	if (i2c->regs == NULL) {
-		dev_err(&pdev->dev, "cannot map IO\n");
+		dev_err(&pdev->dev, "<error>annot map IO\n");
 		ret = -ENXIO;
 		goto err_ioarea;
 	}
-
-	dev_dbg(&pdev->dev, "registers %p (%p, %p)\n",
-		i2c->regs, i2c->ioarea, res);
-
 	i2c->adap.algo_data = i2c;
-	i2c->adap.retries = 4;
 	i2c->adap.dev.parent = &pdev->dev;
 
 	if(pdata->cfg_gpio)
 		pdata->cfg_gpio(pdev);
-	ret = rk2818_i2c_init_hw(i2c);
-	if (ret != 0)
-		goto err_iomap;
+	 
+	rk2818_i2c_init_hw(i2c);
 
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
@@ -791,7 +776,67 @@ static void __exit rk2818_i2c_adap_exit(void)
 
 subsys_initcall(rk2818_i2c_adap_init);
 module_exit(rk2818_i2c_adap_exit);
+#if 0
+/* i2c devices test driver */
+static int i2c_test_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	int ret, i ;
+	char buf;
+	char reg = 0x02;
 
+	int scl_rate = 100 * 1000;
+	ret = i2c_master_normal_send(client, &reg ,1, scl_rate);
+	ret = i2c_master_normal_recv(client, &buf ,1, scl_rate);
+	ret = i2c_master_reg8_recv(client, reg, &buf ,1, scl_rate);
+	/*
+	short buf161 = 0x0303;
+	short reg161 = 0x0100;
+	short buf162 = 0xc001;
+	short reg162 = 0x1006;
+	printk("%s\n", __func__);
+	ret = i2c_master_reg16_send(client, reg162, &buf162 ,1, scl_rate);
+	ret = i2c_master_reg16_send(client, reg161, &buf161 ,1, scl_rate);
+	ret = i2c_master_reg16_recv(client, reg162, &buf162 ,1, scl_rate);
+	ret = i2c_master_reg16_recv(client, reg161, &buf161 ,1, scl_rate);
+	*/
+	return 0;	
+}
+
+static int i2c_test_remove(struct i2c_client *client)
+{
+	return 0;
+}
+
+static const struct i2c_device_id i2c_test_id[] = {
+	{ "i2c_test", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, i2c_test_id);
+
+static struct i2c_driver i2c_test_driver = {
+	.driver = {
+		.name = "i2c_test",
+	},
+	.probe = i2c_test_probe,
+	.remove = i2c_test_remove,
+	.id_table = i2c_test_id,
+};
+
+static int __init i2c_test_init(void)
+{
+	return i2c_add_driver(&i2c_test_driver);
+}
+
+static void __exit i2c_test_exit(void)
+{
+	i2c_del_driver(&i2c_test_driver);
+}
+
+module_init(i2c_test_init);
+module_exit(i2c_test_exit);
+/************************************/
+#endif
 MODULE_DESCRIPTION("Driver for RK2818 I2C Bus");
 MODULE_AUTHOR("kfx, kfx@rock-chips.com");
 MODULE_LICENSE("GPL");
