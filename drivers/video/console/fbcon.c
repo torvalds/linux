@@ -287,7 +287,7 @@ static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 		!vt_force_oops_output(vc);
 }
 
-static inline int get_color(struct vc_data *vc, struct fb_info *info,
+static int get_color(struct vc_data *vc, struct fb_info *info,
 	      u16 c, int is_fg)
 {
 	int depth = fb_get_color_depth(&info->var, &info->fix);
