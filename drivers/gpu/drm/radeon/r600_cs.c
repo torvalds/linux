@@ -328,7 +328,6 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 				dev_warn(p->dev, "z/stencil buffer size not set\n");
 				return -EINVAL;
 			}
-			printk_once(KERN_WARNING "You have old & broken userspace please consider updating mesa\n");
 			tmp = radeon_bo_size(track->db_bo) - track->db_offset;
 			tmp = (tmp / bpe) >> 6;
 			if (!tmp) {
@@ -883,8 +882,6 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 				return -EINVAL;
 			}
 			ib[idx] = track->cb_color_base_last[tmp];
-			printk_once(KERN_WARNING "You have old & broken userspace "
-					"please consider updating mesa & xf86-video-ati\n");
 			track->cb_color_frag_bo[tmp] = track->cb_color_bo[tmp];
 		} else {
 			r = r600_cs_packet_next_reloc(p, &reloc);
@@ -911,8 +908,6 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 				return -EINVAL;
 			}
 			ib[idx] = track->cb_color_base_last[tmp];
-			printk_once(KERN_WARNING "You have old & broken userspace "
-					"please consider updating mesa & xf86-video-ati\n");
 			track->cb_color_tile_bo[tmp] = track->cb_color_bo[tmp];
 		} else {
 			r = r600_cs_packet_next_reloc(p, &reloc);
