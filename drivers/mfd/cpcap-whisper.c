@@ -42,6 +42,7 @@
 			     CPCAP_BIT_SESSVLD_S)
 
 #define SENSE_USB_HOST      (CPCAP_BIT_ID_GROUND_S)
+#define SENSE_USB_HOST_MASK (~CPCAP_BIT_SE1_S)
 
 #define SENSE_FACTORY       (CPCAP_BIT_ID_FLOAT_S  | \
 			     CPCAP_BIT_ID_GROUND_S | \
@@ -403,7 +404,7 @@ static void whisper_det_work(struct work_struct *work)
 
 			/* Special handling of USB undetect. */
 			data->state = USB;
-		} else if (data->sense == SENSE_USB_HOST) {
+		} else if ((data->sense & SENSE_USB_HOST_MASK) == SENSE_USB_HOST) {
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
