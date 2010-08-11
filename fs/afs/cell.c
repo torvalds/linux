@@ -73,6 +73,10 @@ static struct afs_cell *afs_cell_alloc(const char *name, char *vllist)
 	if (!vllist || strlen(vllist) < 7) {
 		ret = dns_query("afsdb", name, namelen, "ipv4", &dvllist, NULL);
 		if (ret < 0) {
+			if (ret == -ENODATA || ret == -EAGAIN || ret == -ENOKEY)
+				/* translate these errors into something
+				 * userspace might understand */
+				ret = -EDESTADDRREQ;
 			_leave(" = %d", ret);
 			return ERR_PTR(ret);
 		}
