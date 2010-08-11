@@ -46,6 +46,10 @@ static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {
 	/* UHC */
 	GPIO0_2_USBH_PEN,
 	GPIO1_2_USBH_PWR,
+
+	/* I2C */
+	GPIO21_I2C_SCL,
+	GPIO22_I2C_SDA,
 };
 #else
 static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {};

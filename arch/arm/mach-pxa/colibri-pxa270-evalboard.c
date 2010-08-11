@@ -19,12 +19,15 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
+#include <linux/i2c.h>
 
 #include <mach/pxa27x.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x-udc.h>
+
+#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -87,6 +90,25 @@ static void __init colibri_pxa270_uhc_init(void)
 static inline void colibri_pxa270_uhc_init(void) {}
 #endif
 
+/******************************************************************************
+ * I2C RTC
+ ******************************************************************************/
+#if defined(CONFIG_RTC_DRV_DS1307) || defined(CONFIG_RTC_DRV_DS1307_MODULE)
+static struct i2c_board_info __initdata colibri_pxa270_i2c_devs[] = {
+	{
+		I2C_BOARD_INFO("m41t00", 0x68),
+	},
+};
+
+static void __init colibri_pxa270_rtc_init(void)
+{
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(colibri_pxa270_i2c_devs));
+}
+#else
+static inline void colibri_pxa270_rtc_init(void) {}
+#endif
+
 void __init colibri_pxa270_evalboard_init(void)
 {
 	pxa_set_ffuart_info(NULL);
@@ -95,4 +117,5 @@ void __init colibri_pxa270_evalboard_init(void)
 
 	colibri_pxa270_mmc_init();
 	colibri_pxa270_uhc_init();
+	colibri_pxa270_rtc_init();
 }

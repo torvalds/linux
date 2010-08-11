@@ -73,6 +73,10 @@ static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {
 	GPIO1_GPIO,	/* READY */
 	GPIO84_GPIO,	/* DETECT */
 	GPIO107_GPIO,	/* PPEN */
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
 };
 #else
 static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {};
