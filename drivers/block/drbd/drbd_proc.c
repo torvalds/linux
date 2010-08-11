@@ -118,7 +118,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	/* mean speed since syncer started
 	 * we do account for PausedSync periods */
 	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
-	if (dt <= 0)
+	if (dt == 0)
 		dt = 1;
 	db = mdev->rs_total - rs_left;
 	dbdt = Bit2KB(db/dt);
