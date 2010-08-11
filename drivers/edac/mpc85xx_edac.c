@@ -43,7 +43,7 @@ static u32 orig_pci_err_en;
 #endif
 
 static u32 orig_l2_err_disable;
-#ifdef CONFIG_MPC85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 static u32 orig_hid1[2];
 #endif
 
@@ -1140,7 +1140,7 @@ static struct of_platform_driver mpc85xx_mc_err_driver = {
 	},
 };
 
-#ifdef CONFIG_MPC85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 static void __init mpc85xx_mc_clear_rfxe(void *data)
 {
 	orig_hid1[smp_processor_id()] = mfspr(SPRN_HID1);
@@ -1179,7 +1179,7 @@ static int __init mpc85xx_mc_init(void)
 		printk(KERN_WARNING EDAC_MOD_STR "PCI fails to register\n");
 #endif
 
-#ifdef CONFIG_MPC85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 	/*
 	 * need to clear HID1[RFXE] to disable machine check int
 	 * so we can catch it
@@ -1193,7 +1193,7 @@ static int __init mpc85xx_mc_init(void)
 
 module_init(mpc85xx_mc_init);
 
-#ifdef CONFIG_MPC85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 static void __exit mpc85xx_mc_restore_hid1(void *data)
 {
 	mtspr(SPRN_HID1, orig_hid1[smp_processor_id()]);
@@ -1202,7 +1202,7 @@ static void __exit mpc85xx_mc_restore_hid1(void *data)
 
 static void __exit mpc85xx_mc_exit(void)
 {
-#ifdef CONFIG_MPC85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 	on_each_cpu(mpc85xx_mc_restore_hid1, NULL, 0);
 #endif
 #ifdef CONFIG_PCI
