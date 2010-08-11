@@ -1370,12 +1370,6 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 
 	blk_start_request(req);
 
-	if (unlikely(cmd == NULL)) {
-		printk(KERN_CRIT "impossible request in %s.\n",
-				 __func__);
-		BUG();
-	}
-
 	sdev = cmd->device;
 	starget = scsi_target(sdev);
 	shost = sdev->host;
