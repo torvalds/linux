@@ -1272,7 +1272,7 @@ void gpio_free(unsigned gpio)
 	if (chip && test_bit(FLAG_REQUESTED, &desc->flags)) {
 		if (chip->free) {
 			spin_unlock_irqrestore(&gpio_lock, flags);
-			might_sleep_if(extra_checks && chip->can_sleep);
+			might_sleep_if(chip->can_sleep);
 			chip->free(chip, gpio - chip->base);
 			spin_lock_irqsave(&gpio_lock, flags);
 		}
@@ -1410,7 +1410,7 @@ int gpio_direction_input(unsigned gpio)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	might_sleep_if(extra_checks && chip->can_sleep);
+	might_sleep_if(chip->can_sleep);
 
 	if (status) {
 		status = chip->request(chip, gpio);
@@ -1463,7 +1463,7 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	might_sleep_if(extra_checks && chip->can_sleep);
+	might_sleep_if(chip->can_sleep);
 
 	if (status) {
 		status = chip->request(chip, gpio);
@@ -1521,7 +1521,7 @@ int gpio_set_debounce(unsigned gpio, unsigned debounce)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	might_sleep_if(extra_checks && chip->can_sleep);
+	might_sleep_if(chip->can_sleep);
 
 	return chip->set_debounce(chip, gpio, debounce);
 
@@ -1571,7 +1571,7 @@ int __gpio_get_value(unsigned gpio)
 	struct gpio_chip	*chip;
 
 	chip = gpio_to_chip(gpio);
-	WARN_ON(extra_checks && chip->can_sleep);
+	WARN_ON(chip->can_sleep);
 	return chip->get ? chip->get(chip, gpio - chip->base) : 0;
 }
 EXPORT_SYMBOL_GPL(__gpio_get_value);
@@ -1590,7 +1590,7 @@ void __gpio_set_value(unsigned gpio, int value)
 	struct gpio_chip	*chip;
 
 	chip = gpio_to_chip(gpio);
-	WARN_ON(extra_checks && chip->can_sleep);
+	WARN_ON(chip->can_sleep);
 	chip->set(chip, gpio - chip->base, value);
 }
 EXPORT_SYMBOL_GPL(__gpio_set_value);
