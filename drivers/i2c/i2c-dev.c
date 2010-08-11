@@ -219,9 +219,7 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
-	rdwr_pa = (struct i2c_msg *)
-		kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg),
-		GFP_KERNEL);
+	rdwr_pa = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
 	if (!rdwr_pa)
 		return -ENOMEM;
 
