@@ -1478,7 +1478,7 @@ static int s3c_fb_resume(struct platform_device *pdev)
 #define VALID_BPP124 (VALID_BPP(1) | VALID_BPP(2) | VALID_BPP(4))
 #define VALID_BPP1248 (VALID_BPP124 | VALID_BPP(8))
 
-static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] __devinitdata = {
+static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 	[0] = {
 		.has_osd_c	= 1,
 		.osd_size_off	= 0x8,
@@ -1526,7 +1526,7 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] __devinitdata = {
 	},
 };
 
-static struct s3c_fb_driverdata s3c_fb_data_64xx __devinitdata = {
+static struct s3c_fb_driverdata s3c_fb_data_64xx = {
 	.variant = {
 		.nr_windows	= 5,
 		.vidtcon	= VIDTCON0,
@@ -1556,7 +1556,7 @@ static struct s3c_fb_driverdata s3c_fb_data_64xx __devinitdata = {
 	.win[4]	= &s3c_fb_data_64xx_wins[4],
 };
 
-static struct s3c_fb_driverdata s3c_fb_data_s5pc100 __devinitdata = {
+static struct s3c_fb_driverdata s3c_fb_data_s5pc100 = {
 	.variant = {
 		.nr_windows	= 5,
 		.vidtcon	= VIDTCON0,
@@ -1586,7 +1586,7 @@ static struct s3c_fb_driverdata s3c_fb_data_s5pc100 __devinitdata = {
 	.win[4]	= &s3c_fb_data_64xx_wins[4],
 };
 
-static struct s3c_fb_driverdata s3c_fb_data_s5pv210 __devinitdata = {
+static struct s3c_fb_driverdata s3c_fb_data_s5pv210 = {
 	.variant = {
 		.nr_windows	= 5,
 		.vidtcon	= VIDTCON0,
@@ -1617,7 +1617,7 @@ static struct s3c_fb_driverdata s3c_fb_data_s5pv210 __devinitdata = {
 };
 
 /* S3C2443/S3C2416 style hardware */
-static struct s3c_fb_driverdata s3c_fb_data_s3c2443 __devinitdata = {
+static struct s3c_fb_driverdata s3c_fb_data_s3c2443 = {
 	.variant = {
 		.nr_windows	= 2,
 		.is_2443	= 1,
