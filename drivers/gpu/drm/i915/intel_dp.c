@@ -840,20 +840,19 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		if (dp_reg & DP_PORT_EN) {
-			intel_dp_link_down(intel_dp);
-			if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
-				ironlake_edp_backlight_off(dev);
-				ironlake_edp_panel_off(dev);
-			}
+		if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
+			ironlake_edp_backlight_off(dev);
+			ironlake_edp_panel_off(dev);
 		}
+		if (dp_reg & DP_PORT_EN)
+			intel_dp_link_down(intel_dp);
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
-			intel_dp_link_train(intel_dp);
-			if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
+			if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
 				ironlake_edp_panel_on(dev);
+			intel_dp_link_train(intel_dp);
+			if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
 				ironlake_edp_backlight_on(dev);
-			}
 		}
 	}
 	intel_dp->dpms_mode = mode;
