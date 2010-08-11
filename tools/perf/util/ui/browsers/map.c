@@ -56,9 +56,8 @@ static void map_browser__write(struct ui_browser *self, void *nd, int row)
 	struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
 	struct map_browser *mb = container_of(self, struct map_browser, b);
 	bool current_entry = ui_browser__is_current_entry(self, row);
-	int color = ui_browser__percent_color(0, current_entry);
 
-	SLsmg_set_color(color);
+	ui_browser__set_percent_color(self, 0, current_entry);
 	slsmg_printf("%*llx %*llx %c ",
 		     mb->addrlen, sym->start, mb->addrlen, sym->end,
 		     sym->binding == STB_GLOBAL ? 'g' :

@@ -25,11 +25,14 @@ struct ui_browser {
 };
 
 
-int ui_browser__percent_color(double percent, bool current);
+void ui_browser__set_color(struct ui_browser *self, int color);
+void ui_browser__set_percent_color(struct ui_browser *self,
+				   double percent, bool current);
 bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row);
 void ui_browser__refresh_dimensions(struct ui_browser *self);
 void ui_browser__reset_index(struct ui_browser *self);
 
+void ui_browser__gotorc(struct ui_browser *self, int y, int x);
 int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...);
 void ui_browser__hide(struct ui_browser *self);

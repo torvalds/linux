@@ -40,14 +40,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 	if (ol->offset != -1) {
 		struct objdump_line_rb_node *olrb = objdump_line__rb(ol);
-		int color = ui_browser__percent_color(olrb->percent, current_entry);
-		SLsmg_set_color(color);
+		ui_browser__set_percent_color(self, olrb->percent, current_entry);
 		slsmg_printf(" %7.2f ", olrb->percent);
 		if (!current_entry)
-			SLsmg_set_color(HE_COLORSET_CODE);
+			ui_browser__set_color(self, HE_COLORSET_CODE);
 	} else {
-		int color = ui_browser__percent_color(0, current_entry);
-		SLsmg_set_color(color);
+		ui_browser__set_percent_color(self, 0, current_entry);
 		slsmg_write_nstring(" ", 9);
 	}
 

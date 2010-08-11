@@ -1,16 +1,6 @@
-#define _GNU_SOURCE
-#include <stdio.h>
-#undef _GNU_SOURCE
-/*
- * slang versions <= 2.0.6 have a "#if HAVE_LONG_LONG" that breaks
- * the build if it isn't defined. Use the equivalent one that glibc
- * has on features.h.
- */
-#include <features.h>
-#ifndef HAVE_LONG_LONG
-#define HAVE_LONG_LONG __GLIBC_HAVE_LONG_LONG
-#endif
 #include <slang.h>
+#include "libslang.h"
+#include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdlib.h>
@@ -19,17 +9,11 @@
 #include "helpline.h"
 #include "../color.h"
 #include "../util.h"
-
-#if SLANG_VERSION < 20104
-#define sltt_set_color(obj, name, fg, bg) \
-	SLtt_set_color(obj,(char *)name, (char *)fg, (char *)bg)
-#else
-#define sltt_set_color SLtt_set_color
-#endif
+#include <stdio.h>
 
 newtComponent newt_form__new(void);
 
-int ui_browser__percent_color(double percent, bool current)
+static int ui_browser__percent_color(double percent, bool current)
 {
 	if (current)
 		return HE_COLORSET_SELECTED;
@@ -38,6 +22,23 @@ int ui_browser__percent_color(double percent, bool current)
 	if (percent >= MIN_GREEN)
 		return HE_COLORSET_MEDIUM;
 	return HE_COLORSET_NORMAL;
+}
+
+void ui_browser__set_color(struct ui_browser *self __used, int color)
+{
+	SLsmg_set_color(color);
+}
+
+void ui_browser__set_percent_color(struct ui_browser *self,
+				   double percent, bool current)
+{
+	 int color = ui_browser__percent_color(percent, current);
+	 ui_browser__set_color(self, color);
+}
+
+void ui_browser__gotorc(struct ui_browser *self, int y, int x)
+{
+	SLsmg_gotorc(self->y + y, self->x + x);
 }
 
 void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whence)
@@ -111,7 +112,7 @@ unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
 	nd = self->top;
 
 	while (nd != NULL) {
-		SLsmg_gotorc(self->y + row, self->x);
+		ui_browser__gotorc(self, row, 0);
 		self->write(self, nd, row);
 		if (++row == self->height)
 			break;
@@ -196,7 +197,7 @@ int ui_browser__refresh(struct ui_browser *self)
 
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
 	row = self->refresh(self);
-	SLsmg_set_color(HE_COLORSET_NORMAL);
+	ui_browser__set_color(self, HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->y + row, self->x,
 			  self->height - row, self->width, ' ');
 
@@ -294,7 +295,7 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 	pos = self->top;
 
 	list_for_each_from(pos, head) {
-		SLsmg_gotorc(self->y + row, self->x);
+		ui_browser__gotorc(self, row, 0);
 		self->write(self, pos, row);
 		if (++row == self->height)
 			break;

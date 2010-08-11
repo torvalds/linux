@@ -341,8 +341,8 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *self,
 				*is_current_entry = true;
 			}
 
-			SLsmg_set_color(color);
-			SLsmg_gotorc(self->b.y + row, self->b.x);
+			ui_browser__set_color(&self->b, color);
+			ui_browser__gotorc(&self->b, row, 0);
 			slsmg_write_nstring(" ", offset + extra_offset);
 			slsmg_printf("%c ", folded_sign);
 			slsmg_write_nstring(str, width);
@@ -405,8 +405,8 @@ static int hist_browser__show_callchain_node(struct hist_browser *self,
 		}
 
 		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
-		SLsmg_gotorc(self->b.y + row, self->b.x);
-		SLsmg_set_color(color);
+		ui_browser__gotorc(&self->b, row, 0);
+		ui_browser__set_color(&self->b, color);
 		slsmg_write_nstring(" ", offset);
 		slsmg_printf("%c ", folded_sign);
 		slsmg_write_nstring(s, width - 2);
@@ -484,8 +484,8 @@ static int hist_browser__show_entry(struct hist_browser *self,
 				color = HE_COLORSET_NORMAL;
 		}
 
-		SLsmg_set_color(color);
-		SLsmg_gotorc(self->b.y + row, self->b.x);
+		ui_browser__set_color(&self->b, color);
+		ui_browser__gotorc(&self->b, row, 0);
 		if (symbol_conf.use_callchain) {
 			slsmg_printf("%c ", folded_sign);
 			width -= 2;
