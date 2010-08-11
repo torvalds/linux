@@ -789,7 +789,7 @@ static int __process_new_adapter(struct device_driver *d, void *data)
 
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
-	int res = 0, dummy;
+	int res = 0;
 
 	/* Can't register until after driver model init */
 	if (unlikely(WARN_ON(!i2c_bus_type.p))) {
@@ -830,8 +830,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	/* Notify drivers */
 	mutex_lock(&core_lock);
-	dummy = bus_for_each_drv(&i2c_bus_type, NULL, adap,
-				 __process_new_adapter);
+	bus_for_each_drv(&i2c_bus_type, NULL, adap, __process_new_adapter);
 	mutex_unlock(&core_lock);
 
 	return 0;
