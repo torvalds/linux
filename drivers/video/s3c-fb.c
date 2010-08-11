@@ -804,7 +804,8 @@ static void s3c_fb_free_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 {
 	struct fb_info *fbi = win->fbinfo;
 
-	dma_free_writecombine(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
+	if (fbi->screen_base)
+		dma_free_writecombine(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
 			      fbi->screen_base, fbi->fix.smem_start);
 }
 
@@ -819,7 +820,8 @@ static void s3c_fb_release_win(struct s3c_fb *sfb, struct s3c_fb_win *win)
 {
 	if (win->fbinfo) {
 		unregister_framebuffer(win->fbinfo);
-		fb_dealloc_cmap(&win->fbinfo->cmap);
+		if (win->fbinfo->cmap.len)
+			fb_dealloc_cmap(&win->fbinfo->cmap);
 		s3c_fb_free_memory(sfb, win);
 		framebuffer_release(win->fbinfo);
 	}
@@ -865,6 +867,7 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 	WARN_ON(windata->win_mode.yres == 0);
 
 	win = fbinfo->par;
+	*res = win;
 	var = &fbinfo->var;
 	win->variant = *variant;
 	win->fbinfo = fbinfo;
@@ -939,7 +942,6 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 		return ret;
 	}
 
-	*res = win;
 	dev_info(sfb->dev, "window %d: fb %s\n", win_no, fbinfo->fix.id);
 
 	return 0;
