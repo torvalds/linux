@@ -87,7 +87,6 @@ struct pxa_rtc {
 	int			irq_Alrm;
 	struct rtc_device	*rtc;
 	spinlock_t		lock;		/* Protects this structure */
-	struct rtc_time		rtc_alarm;
 };
 
 static u32 ryxr_calc(struct rtc_time *tm)
