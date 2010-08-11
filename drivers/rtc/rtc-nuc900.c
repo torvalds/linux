@@ -116,12 +116,18 @@ static void nuc900_rtc_bcd2bin(unsigned int timereg,
 	rtc_valid_tm(tm);
 }
 
-static void nuc900_rtc_bin2bcd(struct rtc_time *settm,
+static void nuc900_rtc_bin2bcd(struct device *dev, struct rtc_time *settm,
 						struct nuc900_bcd_time *gettm)
 {
 	gettm->bcd_mday = bin2bcd(settm->tm_mday) << 0;
 	gettm->bcd_mon  = bin2bcd(settm->tm_mon) << 8;
-	gettm->bcd_year = bin2bcd(settm->tm_year - 100) << 16;
+
+	if (settm->tm_year < 100) {
+		dev_warn(dev, "The year will be between 1970-1999, right?\n");
+		gettm->bcd_year = bin2bcd(settm->tm_year) << 16;
+	} else {
+		gettm->bcd_year = bin2bcd(settm->tm_year - 100) << 16;
+	}
 
 	gettm->bcd_sec  = bin2bcd(settm->tm_sec) << 0;
 	gettm->bcd_min  = bin2bcd(settm->tm_min) << 8;
@@ -176,7 +182,7 @@ static int nuc900_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned long val;
 	int *err;
 
-	nuc900_rtc_bin2bcd(tm, &gettm);
+	nuc900_rtc_bin2bcd(dev, tm, &gettm);
 
 	err = check_rtc_access_enable(rtc);
 	if (IS_ERR(err))
@@ -211,7 +217,7 @@ static int nuc900_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long val;
 	int *err;
 
-	nuc900_rtc_bin2bcd(&alrm->time, &tm);
+	nuc900_rtc_bin2bcd(dev, &alrm->time, &tm);
 
 	err = check_rtc_access_enable(rtc);
 	if (IS_ERR(err))
