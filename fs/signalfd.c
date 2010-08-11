@@ -87,6 +87,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		 err |= __put_user(kinfo->si_tid, &uinfo->ssi_tid);
 		 err |= __put_user(kinfo->si_overrun, &uinfo->ssi_overrun);
 		 err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
+		 err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	case __SI_POLL:
 		err |= __put_user(kinfo->si_band, &uinfo->ssi_band);
@@ -110,6 +111,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
 		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
 		err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
+		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	default:
 		/*
