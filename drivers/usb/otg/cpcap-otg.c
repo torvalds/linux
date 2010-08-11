@@ -55,9 +55,11 @@ static const char *cpcap_state_name(enum usb_otg_state state)
 
 static irqreturn_t cpcap_otg_irq(int irq, void *data)
 {
-	if (tegra_legacy_force_irq_status(irq))
+	if (tegra_legacy_force_irq_status(irq)) {
 		tegra_legacy_force_irq_clr(irq);
-	return IRQ_HANDLED;
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }
 
 static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
@@ -92,13 +94,12 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 			&& otg->host) {
 		hcd = (struct usb_hcd *)otg->host;
 
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 		clk_enable(cpcap->clk);
 
 		val = readl(cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 		val &= ~TEGRA_ID_SW_VALUE;
 		writel(val, cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
-
-		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	} else if ((to == OTG_STATE_A_SUSPEND) && (from == OTG_STATE_A_HOST)
 			&& otg->host) {
