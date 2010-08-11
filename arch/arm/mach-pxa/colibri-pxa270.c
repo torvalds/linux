@@ -35,7 +35,7 @@
 /******************************************************************************
  * Evaluation board MFP
  ******************************************************************************/
-#ifdef	 CONFIG_MACH_COLIBRI_PXA270_EVALBOARD
+#ifdef	 CONFIG_MACH_COLIBRI_EVALBOARD
 static mfp_cfg_t colibri_pxa270_evalboard_pin_config[] __initdata = {
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -281,10 +281,10 @@ static void __init colibri_pxa270_init(void)
 	colibri_pxa270_tsc_init();
 
 	switch (colibri_pxa270_baseboard) {
-	case COLIBRI_PXA270_EVALBOARD:
+	case COLIBRI_EVALBOARD:
 		pxa2xx_mfp_config(ARRAY_AND_SIZE(
 			colibri_pxa270_evalboard_pin_config));
-		colibri_pxa270_evalboard_init();
+		colibri_evalboard_init();
 		break;
 	case COLIBRI_PXA270_INCOME:
 		pxa2xx_mfp_config(ARRAY_AND_SIZE(income_pin_config));

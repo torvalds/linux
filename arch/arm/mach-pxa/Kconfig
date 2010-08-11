@@ -253,7 +253,7 @@ config MACH_COLIBRI320
 	select PXA3xx
 	select CPU_PXA320
 
-config MACH_COLIBRI_PXA270_EVALBOARD
+config MACH_COLIBRI_EVALBOARD
 	bool "Toradex Colibri Evaluation Carrier Board support"
 	depends on MACH_COLIBRI || MACH_COLIBRI300 || MACH_COLIBRI320
 

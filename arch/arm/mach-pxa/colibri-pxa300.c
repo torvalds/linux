@@ -32,7 +32,7 @@
 #include "devices.h"
 
 
-#ifdef CONFIG_MACH_COLIBRI_PXA270_EVALBOARD
+#ifdef CONFIG_MACH_COLIBRI_EVALBOARD
 static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {
 	/* MMC */
 	GPIO7_MMC1_CLK,
@@ -173,7 +173,7 @@ void __init colibri_pxa300_init(void)
 
 	/* Evalboard init */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_evalboard_pin_config));
-	colibri_pxa270_evalboard_init();
+	colibri_evalboard_init();
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")
