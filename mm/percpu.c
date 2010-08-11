@@ -1164,7 +1164,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		}
 
 		/*
-		 * Don't accept if wastage is over 25%.  The
+		 * Don't accept if wastage is over 1/3.  The
 		 * greater-than comparison ensures upa==1 always
 		 * passes the following check.
 		 */
