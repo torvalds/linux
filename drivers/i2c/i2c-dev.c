@@ -167,13 +167,9 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 	if (count > 8192)
 		count = 8192;
 
-	tmp = kmalloc(count, GFP_KERNEL);
-	if (tmp == NULL)
-		return -ENOMEM;
-	if (copy_from_user(tmp, buf, count)) {
-		kfree(tmp);
-		return -EFAULT;
-	}
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
@@ -245,15 +241,9 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 			break;
 		}
 		data_ptrs[i] = (u8 __user *)rdwr_pa[i].buf;
-		rdwr_pa[i].buf = kmalloc(rdwr_pa[i].len, GFP_KERNEL);
-		if (rdwr_pa[i].buf == NULL) {
-			res = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(rdwr_pa[i].buf, data_ptrs[i],
-				   rdwr_pa[i].len)) {
-				++i; /* Needs to be kfreed too */
-				res = -EFAULT;
+		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
+		if (IS_ERR(rdwr_pa[i].buf)) {
+			res = PTR_ERR(rdwr_pa[i].buf);
 			break;
 		}
 	}
