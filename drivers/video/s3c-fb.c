@@ -424,6 +424,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 		else
 			data |= WINCON0_BPPMODE_24BPP_888;
 
+		data |= WINCONx_WSWP;
 		data |= WINCONx_BURSTLEN_16WORD;
 		break;
 	}
