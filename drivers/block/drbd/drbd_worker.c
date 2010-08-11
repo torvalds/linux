@@ -1052,9 +1052,6 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	dec_unacked(mdev);
-
-	kfree(di);
-
 	move_to_net_ee_or_free(mdev, e);
 
 	if (unlikely(!ok))
@@ -1145,9 +1142,6 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	dec_unacked(mdev);
-
-	kfree(di);
-
 	if (!eq)
 		drbd_ov_oos_found(mdev, e->sector, e->size);
 	else

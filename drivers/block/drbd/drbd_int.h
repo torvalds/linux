@@ -796,12 +796,16 @@ enum {
 	 * if any of those fail, we set this flag atomically
 	 * from the endio callback */
 	__EE_WAS_ERROR,
+
+	/* This ee has a pointer to a digest instead of a block id */
+	__EE_HAS_DIGEST,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
 #define EE_IS_BARRIER          (1<<__EE_IS_BARRIER)
 #define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
+#define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 
 /* global flag bits */
 enum {

@@ -377,6 +377,8 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 
 void drbd_free_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 {
+	if (e->flags & EE_HAS_DIGEST)
+		kfree(e->digest);
 	drbd_pp_free(mdev, e->pages);
 	D_ASSERT(atomic_read(&e->pending_bios) == 0);
 	D_ASSERT(hlist_unhashed(&e->colision));
@@ -2094,10 +2096,12 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		di->digest_size = digest_size;
 		di->digest = (((char *)di)+sizeof(struct digest_info));
 
+		e->digest = di;
+		e->flags |= EE_HAS_DIGEST;
+
 		if (drbd_recv(mdev, di->digest, digest_size) != digest_size)
 			goto out_free_e;
 
-		e->digest = di;
 		if (h->command == P_CSUM_RS_REQUEST) {
 			D_ASSERT(mdev->agreed_pro_version >= 89);
 			e->w.cb = w_e_end_csum_rs_req;
@@ -2159,7 +2163,6 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		return TRUE;
 
 out_free_e:
-	kfree(di);
 	put_ldev(mdev);
 	drbd_free_ee(mdev, e);
 	return FALSE;
