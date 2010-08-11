@@ -544,6 +544,7 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 	int ret;
 	struct rk2818_battery_data *data;
 
+  printk("enter rk2818_battery_probe\n");
 	ret = gpio_request(CHARGEOK_PIN, NULL);
 	if (ret) {
 		printk("failed to request charge_ok gpio\n");

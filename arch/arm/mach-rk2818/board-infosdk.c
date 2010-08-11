@@ -697,7 +697,7 @@ static unsigned char gInitKeyCode[] =
 };
 
 struct adc_key_data rk2818_adc_key = {
-    .pin_playon     = RK2818_PIN_PA3,
+    .pin_playon     = RK2818_PIN_PE1,
     .playon_level   = 1,
     .adc_empty      = 900,
     .adc_invalid    = 20,
@@ -705,7 +705,7 @@ struct adc_key_data rk2818_adc_key = {
     .adc_chn        = 1,
     .adc_key_table  = gAdcValueTab,
     .initKeyCode    = gInitKeyCode,
-    .adc_key_cnt    = 9,
+    .adc_key_cnt    = 7,
 };
 
 static void __init machine_rk2818_init_irq(void)
