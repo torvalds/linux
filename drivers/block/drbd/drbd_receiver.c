@@ -2068,21 +2068,12 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 	case P_DATA_REQUEST:
 		e->w.cb = w_e_end_data_req;
 		fault_type = DRBD_FAULT_DT_RD;
-		break;
+		/* application IO, don't drbd_rs_begin_io */
+		goto submit;
+
 	case P_RS_DATA_REQUEST:
 		e->w.cb = w_e_end_rsdata_req;
 		fault_type = DRBD_FAULT_RS_RD;
-		/* Eventually this should become asynchronously. Currently it
-		 * blocks the whole receiver just to delay the reading of a
-		 * resync data block.
-		 * the drbd_work_queue mechanism is made for this...
-		 */
-		if (!drbd_rs_begin_io(mdev, sector)) {
-			/* we have been interrupted,
-			 * probably connection lost! */
-			D_ASSERT(signal_pending(current));
-			goto out_free_e;
-		}
 		break;
 
 	case P_OV_REPLY:
@@ -2108,13 +2099,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		} else if (h->command == P_OV_REPLY) {
 			e->w.cb = w_e_end_ov_reply;
 			dec_rs_pending(mdev);
-			break;
-		}
-
-		if (!drbd_rs_begin_io(mdev, sector)) {
-			/* we have been interrupted, probably connection lost! */
-			D_ASSERT(signal_pending(current));
-			goto out_free_e;
+			/* drbd_rs_begin_io done when we sent this request */
+			goto submit;
 		}
 		break;
 
@@ -2133,31 +2119,23 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		}
 		e->w.cb = w_e_end_ov_req;
 		fault_type = DRBD_FAULT_RS_RD;
-		/* Eventually this should become asynchronous. Currently it
-		 * blocks the whole receiver just to delay the reading of a
-		 * resync data block.
-		 * the drbd_work_queue mechanism is made for this...
-		 */
-		if (!drbd_rs_begin_io(mdev, sector)) {
-			/* we have been interrupted,
-			 * probably connection lost! */
-			D_ASSERT(signal_pending(current));
-			goto out_free_e;
-		}
 		break;
-
 
 	default:
 		dev_err(DEV, "unexpected command (%s) in receive_DataRequest\n",
 		    cmdname(h->command));
 		fault_type = DRBD_FAULT_MAX;
+		goto out_free_e;
 	}
 
-	spin_lock_irq(&mdev->req_lock);
-	list_add(&e->w.list, &mdev->read_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	if (drbd_rs_begin_io(mdev, e->sector))
+		goto out_free_e;
 
+submit:
 	inc_unacked(mdev);
+	spin_lock_irq(&mdev->req_lock);
+	list_add_tail(&e->w.list, &mdev->read_ee);
+	spin_unlock_irq(&mdev->req_lock);
 
 	if (drbd_submit_ee(mdev, e, READ, fault_type) == 0)
 		return TRUE;

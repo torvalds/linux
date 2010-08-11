@@ -374,26 +374,26 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	struct drbd_epoch_entry *e;
 
 	if (!get_ldev(mdev))
-		return 0;
+		return -EIO;
 
 	/* GFP_TRY, because if there is no memory available right now, this may
 	 * be rescheduled for later. It is "only" background resync, after all. */
 	e = drbd_alloc_ee(mdev, DRBD_MAGIC+0xbeef, sector, size, GFP_TRY);
 	if (!e)
-		goto fail;
+		goto defer;
 
+	e->w.cb = w_e_send_csum;
 	spin_lock_irq(&mdev->req_lock);
 	list_add(&e->w.list, &mdev->read_ee);
 	spin_unlock_irq(&mdev->req_lock);
 
-	e->w.cb = w_e_send_csum;
 	if (drbd_submit_ee(mdev, e, READ, DRBD_FAULT_RS_RD) == 0)
-		return 1;
+		return 0;
 
 	drbd_free_ee(mdev, e);
-fail:
+defer:
 	put_ldev(mdev);
-	return 2;
+	return -EAGAIN;
 }
 
 void resync_timer_fn(unsigned long data)
@@ -649,15 +649,19 @@ next_sector:
 			size = (capacity-sector)<<9;
 		if (mdev->agreed_pro_version >= 89 && mdev->csums_tfm) {
 			switch (read_for_csum(mdev, sector, size)) {
-			case 0: /* Disk failure*/
+			case -EIO: /* Disk failure */
 				put_ldev(mdev);
 				return 0;
-			case 2: /* Allocation failed */
+			case -EAGAIN: /* allocation failed, or ldev busy */
 				drbd_rs_complete_io(mdev, sector);
 				mdev->bm_resync_fo = BM_SECT_TO_BIT(sector);
 				i = rollback_i;
 				goto requeue;
-			/* case 1: everything ok */
+			case 0:
+				/* everything ok */
+				break;
+			default:
+				BUG();
 			}
 		} else {
 			inc_rs_pending(mdev);
