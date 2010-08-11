@@ -1686,14 +1686,9 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		int len, size = sizeof(struct sg_iovec) * iov_count;
 		struct iovec *iov;
 
-		iov = kmalloc(size, GFP_ATOMIC);
-		if (!iov)
-			return -ENOMEM;
-
-		if (copy_from_user(iov, hp->dxferp, size)) {
-			kfree(iov);
-			return -EFAULT;
-		}
+		iov = memdup_user(hp->dxferp, size);
+		if (IS_ERR(iov))
+			return PTR_ERR(iov);
 
 		len = iov_length(iov, iov_count);
 		if (hp->dxfer_len < len) {
