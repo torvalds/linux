@@ -148,42 +148,6 @@
  * compiled.
 */
 
-/* return true if window _win has OSD register D */
-#define s3c_fb_has_osd_d(_win) ((_win) != 4 && (_win) != 0)
-
-static inline unsigned int s3c_fb_win_pal_size(unsigned int win)
-{
-	if (win < 2)
-		return 256;
-	if (win < 4)
-		return 16;
-	if (win == 4)
-		return 4;
-
-	BUG();	/* shouldn't get here */
-}
-
-static inline int s3c_fb_validate_win_bpp(unsigned int win, unsigned int bpp)
-{
-	/* all windows can do 1/2 bpp */
-
-	if ((bpp == 25 || bpp == 19) && win == 0)
-		return 0;	/* win 0 does not have 19 or 25bpp modes */
-
-	if (bpp == 4 && win == 4)
-		return 0;
-
-	if (bpp == 8 && (win >= 3))
-		return 0;	/* win 3/4 cannot do 8bpp in any mode */
-
-	return 1;
-}
-
-static inline int s3c_fb_pal_is16(unsigned int window)
-{
-	return window > 1;
-}
-
 struct s3c_fb_palette {
 	struct fb_bitfield	r;
 	struct fb_bitfield	g;
