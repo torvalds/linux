@@ -1889,7 +1889,8 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	if (unlikely(!mci))
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
+	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
+		__func__, mci, &i7core_dev->pdev[0]->dev);
 
 	/* record ptr to the generic device */
 	mci->dev = &i7core_dev->pdev[0]->dev;
@@ -2057,11 +2058,17 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list) {
 		mci = find_mci_by_dev(&i7core_dev->pdev[0]->dev);
 		if (unlikely(!mci || !mci->pvt_info)) {
-			i7core_printk(KERN_ERR,
+			debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
+				__func__, &i7core_dev->pdev[0]->dev);
+
+				i7core_printk(KERN_ERR,
 				      "Couldn't find mci hanler\n");
 		} else {
 			pvt = mci->pvt_info;
 			i7core_dev = pvt->i7core_dev;
+
+			debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
+				__func__, mci, &i7core_dev->pdev[0]->dev);
 
 			if (likely(pvt->i7core_pci))
 				edac_pci_release_generic_ctl(pvt->i7core_pci);
