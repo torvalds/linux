@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/earlysuspend.h>
 #include <linux/platform_device.h>
 #include <linux/leds-lp8550.h>
 #include <linux/slab.h>
@@ -59,7 +58,6 @@ struct lp8550_data {
 	struct i2c_client *client;
 	struct work_struct wq;
 	struct lp8550_platform_data *led_pdata;
-	struct early_suspend early_suspend;
 	uint8_t last_requested_brightness;
 	int brightness;
 };
@@ -84,11 +82,6 @@ struct lp8550_reg {
 	{ "EEPROM_A6",		LP8550_EEPROM_A6 },
 	{ "EEPROM_A7",		LP8550_EEPROM_A7 },
 };
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void lp8550_early_suspend(struct early_suspend *handler);
-static void lp8550_late_resume(struct early_suspend *handler);
 #endif
 
 static uint32_t lp8550_debug;
@@ -375,12 +368,6 @@ static int ld_lp8550_probe(struct i2c_client *client,
 	}
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	led_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	led_data->early_suspend.suspend = lp8550_early_suspend;
-	led_data->early_suspend.resume = lp8550_late_resume;
-	register_early_suspend(&led_data->early_suspend);
-#endif
 	return 0;
 
 err_class_reg_failed:
@@ -394,7 +381,6 @@ static int ld_lp8550_remove(struct i2c_client *client)
 {
 	struct lp8550_data *led_data = i2c_get_clientdata(client);
 
-	unregister_early_suspend(&led_data->early_suspend);
 #ifdef DEBUG
 	device_remove_file(led_data->led_dev.dev, &dev_attr_registers);
 #endif
@@ -433,24 +419,6 @@ static int lp8550_resume(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void lp8550_early_suspend(struct early_suspend *handler)
-{
-	struct lp8550_data *led_data;
-
-	led_data = container_of(handler, struct lp8550_data, early_suspend);
-	lp8550_suspend(led_data->client, PMSG_SUSPEND);
-}
-
-static void lp8550_late_resume(struct early_suspend *handler)
-{
-	struct lp8550_data *led_data;
-
-	led_data = container_of(handler, struct lp8550_data, early_suspend);
-	lp8550_resume(led_data->client);
-}
-#endif
-
 static const struct i2c_device_id lp8550_id[] = {
 	{LD_LP8550_NAME, 0},
 	{}
@@ -459,10 +427,8 @@ static const struct i2c_device_id lp8550_id[] = {
 static struct i2c_driver ld_lp8550_i2c_driver = {
 	.probe = ld_lp8550_probe,
 	.remove = ld_lp8550_remove,
-#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= lp8550_suspend,
 	.resume		= lp8550_resume,
-#endif
 	.id_table = lp8550_id,
 	.driver = {
 		   .name = LD_LP8550_NAME,
