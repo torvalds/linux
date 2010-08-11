@@ -30,7 +30,7 @@ REVISION 0.01
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/regulator/driver.h>
-#include "rk2818_lp8725.h"
+#include <linux/regulator/rk2818_lp8725.h>
 
 
 #if 0

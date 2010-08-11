@@ -49,7 +49,7 @@
 #include "devices.h"
 
 #include "../../../drivers/spi/rk2818_spim.h"
-#include "../../../drivers/regulator/rk2818_lp8725.h"
+#include <linux/regulator/rk2818_lp8725.h>
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
  * -------------------------------------------------------------------- */
