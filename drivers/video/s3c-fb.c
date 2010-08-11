@@ -845,9 +845,6 @@ static void s3c_fb_clear_win(struct s3c_fb *sfb, int win)
 	void __iomem *regs = sfb->regs;
 
 	writel(0, regs + WINCON(win));
-	writel(0xffffff, regs + WxKEYCONy(win, 0));
-	writel(0xffffff, regs + WxKEYCONy(win, 1));
-
 	writel(0, regs + VIDOSD_A(win));
 	writel(0, regs + VIDOSD_B(win));
 	writel(0, regs + VIDOSD_C(win));
@@ -919,6 +916,12 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 
 	for (win = 0; win < S3C_FB_MAX_WIN; win++)
 		s3c_fb_clear_win(sfb, win);
+
+	/* initialise colour key controls */
+	for (win = 0; win < (S3C_FB_MAX_WIN - 1); win++) {
+		writel(0xffffff, sfb->regs + WxKEYCONy(win, 0));
+		writel(0xffffff, sfb->regs + WxKEYCONy(win, 1));
+	}
 
 	/* we have the register setup, start allocating framebuffers */
 
@@ -1019,6 +1022,11 @@ static int s3c_fb_resume(struct platform_device *pdev)
 	/* zero all windows before we do anything */
 	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++)
 		s3c_fb_clear_win(sfb, win_no);
+
+	for (win_no = 0; win_no < S3C_FB_MAX_WIN - 1; win_no++) {
+		writel(0xffffff, sfb->regs + WxKEYCONy(win_no, 1));
+		writel(0xffffff, sfb->regs + WxKEYCONy(win_no, 1));
+	}
 
 	/* restore framebuffers */
 	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++) {
