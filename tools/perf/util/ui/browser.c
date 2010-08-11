@@ -204,21 +204,21 @@ int ui_browser__refresh(struct ui_browser *self)
 	return 0;
 }
 
-int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
+int ui_browser__run(struct ui_browser *self)
 {
+	struct newtExitStruct es;
+
 	if (ui_browser__refresh(self) < 0)
 		return -1;
 
 	while (1) {
 		off_t offset;
 
-		newtFormRun(self->form, es);
+		newtFormRun(self->form, &es);
 
-		if (es->reason != NEWT_EXIT_HOTKEY)
+		if (es.reason != NEWT_EXIT_HOTKEY)
 			break;
-		if (is_exit_key(es->u.key))
-			return es->u.key;
-		switch (es->u.key) {
+		switch (es.u.key) {
 		case NEWT_KEY_DOWN:
 			if (self->index == self->nr_entries - 1)
 				break;
@@ -275,12 +275,12 @@ int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			self->seek(self, -offset, SEEK_END);
 			break;
 		default:
-			return es->u.key;
+			return es.u.key;
 		}
 		if (ui_browser__refresh(self) < 0)
 			return -1;
 	}
-	return 0;
+	return -1;
 }
 
 unsigned int ui_browser__list_head_refresh(struct ui_browser *self)

@@ -321,7 +321,7 @@ static int hist_entry__tty_annotate(struct hist_entry *he)
 
 static void hists__find_annotations(struct hists *self)
 {
-	struct rb_node *first = rb_first(&self->entries), *nd = first;
+	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = KEY_RIGHT;
 
 	while (nd) {
@@ -343,20 +343,19 @@ find_next:
 
 		if (use_browser > 0) {
 			key = hist_entry__tui_annotate(he);
-			if (is_exit_key(key))
-				break;
 			switch (key) {
 			case KEY_RIGHT:
-			case '\t':
-				nd = rb_next(nd);
+				next = rb_next(nd);
 				break;
 			case KEY_LEFT:
-				if (nd == first)
-					continue;
-				nd = rb_prev(nd);
-			default:
+				next = rb_prev(nd);
 				break;
+			default:
+				return;
 			}
+
+			if (next != NULL)
+				nd = next;
 		} else {
 			hist_entry__tty_annotate(he);
 			nd = rb_next(nd);

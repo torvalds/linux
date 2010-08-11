@@ -133,14 +133,14 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	self->curr_hot = nd;
 }
 
-static int annotate_browser__run(struct annotate_browser *self,
-				 struct newtExitStruct *es)
+static int annotate_browser__run(struct annotate_browser *self)
 {
 	struct rb_node *nd;
 	struct hist_entry *he = self->b.priv;
+	int key;
 
 	if (ui_browser__show(&self->b, he->ms.sym->name,
-			     "<- or ESC: exit, TAB/shift+TAB: cycle thru samples") < 0)
+			     "<-, -> or ESC: exit, TAB/shift+TAB: cycle thru samples") < 0)
 		return -1;
 
 	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
@@ -153,12 +153,9 @@ static int annotate_browser__run(struct annotate_browser *self,
 	}
 
 	while (1) {
-		ui_browser__run(&self->b, es);
+		key = ui_browser__run(&self->b);
 
-		if (es->reason != NEWT_EXIT_HOTKEY)
-			break;
-
-		switch (es->u.key) {
+		switch (key) {
 		case NEWT_KEY_TAB:
 			nd = rb_prev(nd);
 			if (nd == NULL)
@@ -177,12 +174,11 @@ static int annotate_browser__run(struct annotate_browser *self,
 	}
 out:
 	ui_browser__hide(&self->b);
-	return es->u.key;
+	return key;
 }
 
 int hist_entry__tui_annotate(struct hist_entry *self)
 {
-	struct newtExitStruct es;
 	struct objdump_line *pos, *n;
 	struct objdump_line_rb_node *rbpos;
 	LIST_HEAD(head);
@@ -230,7 +226,7 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 		annotate_browser__set_top(&browser, browser.curr_hot);
 
 	browser.b.width += 18; /* Percentage */
-	ret = annotate_browser__run(&browser, &es);
+	ret = annotate_browser__run(&browser);
 	list_for_each_entry_safe(pos, n, &head, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);
