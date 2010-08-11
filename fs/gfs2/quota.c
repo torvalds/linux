@@ -735,10 +735,8 @@ get_a_page:
 		goto out;
 
 	size = loc + sizeof(struct gfs2_quota);
-	if (size > inode->i_size) {
-		ip->i_disksize = size;
+	if (size > inode->i_size)
 		i_size_write(inode, size);
-	}
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -1190,18 +1188,17 @@ static void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_qc_inode);
-	unsigned int blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
+	u64 size = i_size_read(sdp->sd_qc_inode);
+	unsigned int blocks = size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;
 	u64 dblock;
 	u32 extlen = 0;
 	int error;
 
-	if (!ip->i_disksize || ip->i_disksize > (64 << 20) ||
-	    ip->i_disksize & (sdp->sd_sb.sb_bsize - 1)) {
-		gfs2_consist_inode(ip);
+	if (gfs2_check_internal_file_size(sdp->sd_qc_inode, 1, 64 << 20))
 		return -EIO;
-	}
+
 	sdp->sd_quota_slots = blocks * sdp->sd_qc_per_block;
 	sdp->sd_quota_chunks = DIV_ROUND_UP(sdp->sd_quota_slots, 8 * PAGE_SIZE);
 

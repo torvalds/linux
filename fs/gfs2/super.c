@@ -342,15 +342,14 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	u64 size = i_size_read(jd->jd_inode);
 
-	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
-	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
-		gfs2_consist_inode(ip);
+	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, 1 << 30))
 		return -EIO;
-	}
-	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	if (gfs2_write_alloc_required(ip, 0, ip->i_disksize)) {
+	jd->jd_blocks = size >> sdp->sd_sb.sb_bsize_shift;
+
+	if (gfs2_write_alloc_required(ip, 0, size)) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}

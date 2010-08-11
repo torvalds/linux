@@ -80,6 +80,19 @@ static inline void gfs2_inum_out(const struct gfs2_inode *ip,
 	dent->de_inum.no_addr = cpu_to_be64(ip->i_no_addr);
 }
 
+static inline int gfs2_check_internal_file_size(struct inode *inode,
+						u64 minsize, u64 maxsize)
+{
+	u64 size = i_size_read(inode);
+	if (size < minsize || size > maxsize)
+		goto err;
+	if (size & ((1 << inode->i_blkbits) - 1))
+		goto err;
+	return 0;
+err:
+	gfs2_consist_inode(GFS2_I(inode));
+	return -EIO;
+}
 
 extern void gfs2_set_iop(struct inode *inode);
 extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 

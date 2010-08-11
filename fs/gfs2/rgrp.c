@@ -500,7 +500,7 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 	for (rgrps = 0;; rgrps++) {
 		loff_t pos = rgrps * sizeof(struct gfs2_rindex);
 
-		if (pos + sizeof(struct gfs2_rindex) >= ip->i_disksize)
+		if (pos + sizeof(struct gfs2_rindex) >= i_size_read(inode))
 			break;
 		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
 					   sizeof(struct gfs2_rindex));
@@ -588,7 +588,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
 	struct file_ra_state ra_state;
-	u64 rgrp_count = ip->i_disksize;
+	u64 rgrp_count = i_size_read(inode);
 	int error;
 
 	do_div(rgrp_count, sizeof(struct gfs2_rindex));
@@ -628,7 +628,7 @@ static int gfs2_ri_update_special(struct gfs2_inode *ip)
 	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
 		/* Ignore partials */
 		if ((sdp->sd_rgrps + 1) * sizeof(struct gfs2_rindex) >
-		    ip->i_disksize)
+		    i_size_read(inode))
 			break;
 		error = read_rindex_entry(ip, &ra_state);
 		if (error) {

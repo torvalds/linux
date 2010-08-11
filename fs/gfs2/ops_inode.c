@@ -406,7 +406,6 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 	ip = ghs[1].gh_gl->gl_object;
 
-	ip->i_disksize = size;
 	i_size_write(inode, size);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
@@ -461,7 +460,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ip = ghs[1].gh_gl->gl_object;
 
 	ip->i_inode.i_nlink = 2;
-	ip->i_disksize = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+	i_size_write(inode, sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode));
 	ip->i_diskflags |= GFS2_DIF_JDATA;
 	ip->i_entries = 2;
 
@@ -990,7 +989,7 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
 	struct gfs2_holder i_gh;
 	struct buffer_head *dibh;
-	unsigned int x;
+	unsigned int x, size;
 	char *buf;
 	int error;
 
@@ -1002,7 +1001,8 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 		return NULL;
 	}
 
-	if (!ip->i_disksize) {
+	size = (unsigned int)i_size_read(&ip->i_inode);
+	if (size == 0) {
 		gfs2_consist_inode(ip);
 		buf = ERR_PTR(-EIO);
 		goto out;
@@ -1014,7 +1014,7 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 		goto out;
 	}
 
-	x = ip->i_disksize + 1;
+	x = size + 1;
 	buf = kmalloc(x, GFP_NOFS);
 	if (!buf)
 		buf = ERR_PTR(-ENOMEM);
