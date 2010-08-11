@@ -59,6 +59,13 @@
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
+/*
+ * To send multiple CAN frame content within TX_SETUP or to filter
+ * CAN messages with multiplex index within RX_SETUP, the number of
+ * different filters is limited to 256 due to the one byte index value.
+ */
+#define MAX_NFRAMES 256
+
 /* use of last_frames[index].can_dlc */
 #define RX_RECV    0x40 /* received data for this element */
 #define RX_THR     0x80 /* element not been sent due to throttle feature */
@@ -88,16 +95,16 @@ struct bcm_op {
 	struct list_head list;
 	int ifindex;
 	canid_t can_id;
-	int flags;
+	u32 flags;
 	unsigned long frames_abs, frames_filtered;
 	struct timeval ival1, ival2;
 	struct hrtimer timer, thrtimer;
 	struct tasklet_struct tsklet, thrtsklet;
 	ktime_t rx_stamp, kt_ival1, kt_ival2, kt_lastmsg;
 	int rx_ifindex;
-	int count;
-	int nframes;
-	int currframe;
+	u32 count;
+	u32 nframes;
+	u32 currframe;
 	struct can_frame *frames;
 	struct can_frame *last_frames;
 	struct can_frame sframe;
@@ -174,7 +181,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 
 		seq_printf(m, "rx_op: %03X %-5s ",
 				op->can_id, bcm_proc_getifname(ifname, op->ifindex));
-		seq_printf(m, "[%d]%c ", op->nframes,
+		seq_printf(m, "[%u]%c ", op->nframes,
 				(op->flags & RX_CHECK_DLC)?'d':' ');
 		if (op->kt_ival1.tv64)
 			seq_printf(m, "timeo=%lld ",
@@ -197,7 +204,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 
 	list_for_each_entry(op, &bo->tx_ops, list) {
 
-		seq_printf(m, "tx_op: %03X %s [%d] ",
+		seq_printf(m, "tx_op: %03X %s [%u] ",
 				op->can_id,
 				bcm_proc_getifname(ifname, op->ifindex),
 				op->nframes);
@@ -282,7 +289,7 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	struct can_frame *firstframe;
 	struct sockaddr_can *addr;
 	struct sock *sk = op->sk;
-	int datalen = head->nframes * CFSIZ;
+	unsigned int datalen = head->nframes * CFSIZ;
 	int err;
 
 	skb = alloc_skb(sizeof(*head) + datalen, gfp_any());
@@ -467,7 +474,7 @@ rx_changed_settime:
  * bcm_rx_cmp_to_index - (bit)compares the currently received data to formerly
  *                       received data stored in op->last_frames[]
  */
-static void bcm_rx_cmp_to_index(struct bcm_op *op, int index,
+static void bcm_rx_cmp_to_index(struct bcm_op *op, unsigned int index,
 				const struct can_frame *rxdata)
 {
 	/*
@@ -553,7 +560,8 @@ static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
 /*
  * bcm_rx_do_flush - helper for bcm_rx_thr_flush
  */
-static inline int bcm_rx_do_flush(struct bcm_op *op, int update, int index)
+static inline int bcm_rx_do_flush(struct bcm_op *op, int update,
+				  unsigned int index)
 {
 	if ((op->last_frames) && (op->last_frames[index].can_dlc & RX_THR)) {
 		if (update)
@@ -574,7 +582,7 @@ static int bcm_rx_thr_flush(struct bcm_op *op, int update)
 	int updated = 0;
 
 	if (op->nframes > 1) {
-		int i;
+		unsigned int i;
 
 		/* for MUX filter we start at index 1 */
 		for (i = 1; i < op->nframes; i++)
@@ -623,7 +631,7 @@ static void bcm_rx_handler(struct sk_buff *skb, void *data)
 {
 	struct bcm_op *op = (struct bcm_op *)data;
 	const struct can_frame *rxframe = (struct can_frame *)skb->data;
-	int i;
+	unsigned int i;
 
 	/* disable timeout */
 	hrtimer_cancel(&op->timer);
@@ -823,14 +831,15 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 {
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
-	int i, err;
+	unsigned int i;
+	int err;
 
 	/* we need a real device to send frames */
 	if (!ifindex)
 		return -ENODEV;
 
-	/* we need at least one can_frame */
-	if (msg_head->nframes < 1)
+	/* check nframes boundaries - we need at least one can_frame */
+	if (msg_head->nframes < 1 || msg_head->nframes > MAX_NFRAMES)
 		return -EINVAL;
 
 	/* check the given can_id */
@@ -993,6 +1002,10 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		/* ignore trailing garbage */
 		msg_head->nframes = 0;
 	}
+
+	/* the first element contains the mux-mask => MAX_NFRAMES + 1  */
+	if (msg_head->nframes > MAX_NFRAMES + 1)
+		return -EINVAL;
 
 	if ((msg_head->flags & RX_RTR_FRAME) &&
 	    ((msg_head->nframes != 1) ||
