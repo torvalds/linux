@@ -169,7 +169,12 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 		pid = RESERVED_PIDS;
 	offset = pid & BITS_PER_PAGE_MASK;
 	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
-	max_scan = (pid_max + BITS_PER_PAGE - 1)/BITS_PER_PAGE - !offset;
+	/*
+	 * If last_pid points into the middle of the map->page we
+	 * want to scan this bitmap block twice, the second time
+	 * we start with offset == 0 (or RESERVED_PIDS).
+	 */
+	max_scan = DIV_ROUND_UP(pid_max, BITS_PER_PAGE) - !offset;
 	for (i = 0; i <= max_scan; ++i) {
 		if (unlikely(!map->page)) {
 			void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
@@ -196,15 +201,7 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 				}
 				offset = find_next_offset(map, offset);
 				pid = mk_pid(pid_ns, map, offset);
-			/*
-			 * find_next_offset() found a bit, the pid from it
-			 * is in-bounds, and if we fell back to the last
-			 * bitmap block and the final block was the same
-			 * as the starting point, pid is before last_pid.
-			 */
-			} while (offset < BITS_PER_PAGE && pid < pid_max &&
-					(i != max_scan || pid < last ||
-					    !((last+1) & BITS_PER_PAGE_MASK)));
+			} while (offset < BITS_PER_PAGE && pid < pid_max);
 		}
 		if (map < &pid_ns->pidmap[(pid_max-1)/BITS_PER_PAGE]) {
 			++map;
