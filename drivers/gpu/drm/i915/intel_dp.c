@@ -765,6 +765,12 @@ static void ironlake_edp_panel_on (struct drm_device *dev)
 		return;
 
 	pp = I915_READ(PCH_PP_CONTROL);
+
+	/* ILK workaround: disable reset around power sequence */
+	pp &= ~PANEL_POWER_RESET;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+
 	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
@@ -773,7 +779,9 @@ static void ironlake_edp_panel_on (struct drm_device *dev)
 			  I915_READ(PCH_PP_STATUS));
 
 	pp &= ~(PANEL_UNLOCK_REGS | EDP_FORCE_VDD);
+	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
 }
 
 static void ironlake_edp_panel_off (struct drm_device *dev)
@@ -782,6 +790,12 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	u32 pp;
 
 	pp = I915_READ(PCH_PP_CONTROL);
+
+	/* ILK workaround: disable reset around power sequence */
+	pp &= ~PANEL_POWER_RESET;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+
 	pp &= ~POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
@@ -790,8 +804,9 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 			  I915_READ(PCH_PP_STATUS));
 
 	/* Make sure VDD is enabled so DP AUX will work */
-	pp |= EDP_FORCE_VDD;
+	pp |= EDP_FORCE_VDD | PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
 }
 
 static void ironlake_edp_backlight_on (struct drm_device *dev)
