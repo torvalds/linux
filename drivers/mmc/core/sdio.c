@@ -63,13 +63,19 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 
 	func->num = fn;
 
-	ret = sdio_read_fbr(func);
-	if (ret)
-		goto fail;
+	if (!(card->quirks & MMC_QUIRK_NONSTD_SDIO)) {
+		ret = sdio_read_fbr(func);
+		if (ret)
+			goto fail;
 
-	ret = sdio_read_func_cis(func);
-	if (ret)
-		goto fail;
+		ret = sdio_read_func_cis(func);
+		if (ret)
+			goto fail;
+	} else {
+		func->vendor = func->card->cis.vendor;
+		func->device = func->card->cis.device;
+		func->max_blksize = func->card->cis.blksize;
+	}
 
 	card->sdio_func[fn - 1] = func;
 
@@ -412,6 +418,23 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			goto remove;
 	}
 
+	if (card->quirks & MMC_QUIRK_NONSTD_SDIO) {
+		/*
+		 * This is non-standard SDIO device, meaning it doesn't
+		 * have any CIA (Common I/O area) registers present.
+		 * It's host's responsibility to fill cccr and cis
+		 * structures in init_card().
+		 */
+		mmc_set_clock(host, card->cis.max_dtr);
+
+		if (card->cccr.high_speed) {
+			mmc_card_set_highspeed(card);
+			mmc_set_timing(card->host, MMC_TIMING_SD_HS);
+		}
+
+		goto finish;
+	}
+
 	/*
 	 * Read the common registers.
 	 */
@@ -480,6 +503,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	else if (err)
 		goto remove;
 
+finish:
 	if (!oldcard)
 		host->card = card;
 	return 0;
