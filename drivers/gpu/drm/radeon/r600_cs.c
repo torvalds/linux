@@ -133,6 +133,7 @@ static inline int r600_bpe_from_format(u32 *bpe, u32 format)
 	case V_038004_FMT_GB_GR:
 	case V_038004_FMT_BG_RG:
 	case V_038004_COLOR_INVALID:
+	default:
 		*bpe = 16;
 		return -EINVAL;
 	}
