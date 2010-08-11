@@ -26,6 +26,7 @@
 #ifndef _IPR_H
 #define _IPR_H
 
+#include <asm/unaligned.h>
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/libata.h>
@@ -372,7 +373,7 @@ struct ipr_config_table_entry {
 
 	struct ipr_res_addr res_addr;
 	__be32 res_handle;
-	__be32 reserved4[2];
+	__be32 lun_wwn[2];
 	struct ipr_std_inq_data std_inq_data;
 }__attribute__ ((packed, aligned (4)));
 
@@ -1210,6 +1211,7 @@ struct ipr_resource_entry {
 
 	__be32 res_handle;
 	__be64 dev_id;
+	__be64 lun_wwn;
 	struct scsi_lun dev_lun;
 	u8 res_path[8];
 
