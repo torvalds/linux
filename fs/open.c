@@ -1031,7 +1031,9 @@ EXPORT_SYMBOL(generic_file_open);
 
 /*
  * This is used by subsystems that don't want seekable
- * file descriptors
+ * file descriptors. The function is not supposed to ever fail, the only
+ * reason it returns an 'int' and not 'void' is so that it can be plugged
+ * directly into file_operations structure.
  */
 int nonseekable_open(struct inode *inode, struct file *filp)
 {
