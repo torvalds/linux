@@ -858,10 +858,6 @@ struct drbd_bitmap; /* opaque for drbd_conf */
 
 /* THINK maybe we actually want to use the default "event/%s" worker threads
  * or similar in linux 2.6, which uses per cpu data and threads.
- *
- * To be general, this might need a spin_lock member.
- * For now, please use the mdev->req_lock to protect list_head,
- * see drbd_queue_work below.
  */
 struct drbd_work_queue {
 	struct list_head q;
@@ -1892,13 +1888,6 @@ static inline sector_t drbd_md_ss__(struct drbd_conf *mdev,
 	case DRBD_MD_INDEX_FLEX_EXT:
 		return 0;
 	}
-}
-
-static inline void
-_drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
-{
-	list_add_tail(&w->list, &q->q);
-	up(&q->s);
 }
 
 static inline void
