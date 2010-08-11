@@ -547,3 +547,12 @@ Why:	superseded by acpi_sleep=nonvs
 Who:	Rafael J. Wysocki <rjw@sisk.pl>
 
 ----------------------------
+
+What: 	PCI DMA unmap state API
+When:	August 2012
+Why:	PCI DMA unmap state API (include/linux/pci-dma.h) was replaced
+	with DMA unmap state API (DMA unmap state API can be used for
+	any bus).
+Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+
+----------------------------
