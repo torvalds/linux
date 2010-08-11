@@ -430,6 +430,35 @@ static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
 }
 
 /**
+ * i2c_lock_adapter - Get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ */
+void i2c_lock_adapter(struct i2c_adapter *adapter)
+{
+	rt_mutex_lock(&adapter->bus_lock);
+}
+EXPORT_SYMBOL_GPL(i2c_lock_adapter);
+
+/**
+ * i2c_trylock_adapter - Try to get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ */
+static int i2c_trylock_adapter(struct i2c_adapter *adapter)
+{
+	return rt_mutex_trylock(&adapter->bus_lock);
+}
+
+/**
+ * i2c_unlock_adapter - Release exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ */
+void i2c_unlock_adapter(struct i2c_adapter *adapter)
+{
+	rt_mutex_unlock(&adapter->bus_lock);
+}
+EXPORT_SYMBOL_GPL(i2c_unlock_adapter);
+
+/**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
  * @info: describes one I2C device; bus_num is ignored
@@ -1238,12 +1267,12 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 #endif
 
 		if (in_atomic() || irqs_disabled()) {
-			ret = rt_mutex_trylock(&adap->bus_lock);
+			ret = i2c_trylock_adapter(adap);
 			if (!ret)
 				/* I2C activity is ongoing. */
 				return -EAGAIN;
 		} else {
-			rt_mutex_lock(&adap->bus_lock);
+			i2c_lock_adapter(adap);
 		}
 
 		/* Retry automatically on arbitration loss */
@@ -1255,7 +1284,7 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (time_after(jiffies, orig_jiffies + adap->timeout))
 				break;
 		}
-		rt_mutex_unlock(&adap->bus_lock);
+		i2c_unlock_adapter(adap);
 
 		return ret;
 	} else {
@@ -2013,7 +2042,7 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
 
 	if (adapter->algo->smbus_xfer) {
-		rt_mutex_lock(&adapter->bus_lock);
+		i2c_lock_adapter(adapter);
 
 		/* Retry automatically on arbitration loss */
 		orig_jiffies = jiffies;
@@ -2027,7 +2056,7 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 				       orig_jiffies + adapter->timeout))
 				break;
 		}
-		rt_mutex_unlock(&adapter->bus_lock);
+		i2c_unlock_adapter(adapter);
 	} else
 		res = i2c_smbus_xfer_emulated(adapter, addr, flags, read_write,
 					      command, protocol, data);
