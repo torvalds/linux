@@ -1611,6 +1611,8 @@ static int ntty_install(struct tty_driver *driver, struct tty_struct *tty)
 	ret = tty_init_termios(tty);
 	if (ret == 0) {
 		tty_driver_kref_get(driver);
+		tty->count++;
+		tty->driver_data = port;
 		driver->ttys[tty->index] = tty;
 	}
 	return ret;
@@ -1639,7 +1641,7 @@ static int ntty_activate(struct tty_port *tport, struct tty_struct *tty)
 
 static int ntty_open(struct tty_struct *tty, struct file *filp)
 {
-	struct port *port = get_port_by_tty(tty);
+	struct port *port = tty->driver_data;
 	return tty_port_open(&port->port, tty, filp);
 }
 

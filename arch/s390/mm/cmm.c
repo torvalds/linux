@@ -427,7 +427,7 @@ static struct notifier_block cmm_power_notifier = {
 	.notifier_call = cmm_power_event,
 };
 
-static int cmm_init(void)
+static int __init cmm_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -435,6 +435,13 @@ static int cmm_init(void)
 	if (!cmm_sysctl_header)
 		goto out_sysctl;
 #ifdef CONFIG_CMM_IUCV
+	/* convert sender to uppercase characters */
+	if (sender) {
+		int len = strlen(sender);
+		while (len--)
+			sender[len] = toupper(sender[len]);
+	}
+
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 	if (rc < 0)
 		goto out_smsg;
@@ -467,7 +474,7 @@ out_sysctl:
 }
 module_init(cmm_init);
 
-static void cmm_exit(void)
+static void __exit cmm_exit(void)
 {
 	unregister_sysctl_table(cmm_sysctl_header);
 #ifdef CONFIG_CMM_IUCV

@@ -525,13 +525,11 @@ struct inode *logfs_new_meta_inode(struct super_block *sb, u64 ino);
 struct inode *logfs_read_meta_inode(struct super_block *sb, u64 ino);
 int logfs_init_inode_cache(void);
 void logfs_destroy_inode_cache(void);
-void destroy_meta_inode(struct inode *inode);
 void logfs_set_blocks(struct inode *inode, u64 no);
 /* these logically belong into inode.c but actually reside in readwrite.c */
 int logfs_read_inode(struct inode *inode);
 int __logfs_write_inode(struct inode *inode, long flags);
-void logfs_delete_inode(struct inode *inode);
-void logfs_clear_inode(struct inode *inode);
+void logfs_evict_inode(struct inode *inode);
 
 /* journal.c */
 void logfs_write_anchor(struct super_block *sb);

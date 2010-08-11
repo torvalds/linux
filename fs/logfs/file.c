@@ -232,15 +232,19 @@ static int logfs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	int err = 0;
 
-	if (attr->ia_valid & ATTR_SIZE)
-		err = logfs_truncate(inode, attr->ia_size);
-	attr->ia_valid &= ~ATTR_SIZE;
+	err = inode_change_ok(inode, attr);
+	if (err)
+		return err;
 
-	if (!err)
-		err = inode_change_ok(inode, attr);
-	if (!err)
-		err = inode_setattr(inode, attr);
-	return err;
+	if (attr->ia_valid & ATTR_SIZE) {
+		err = logfs_truncate(inode, attr->ia_size);
+		if (err)
+			return err;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 const struct inode_operations logfs_reg_iops = {

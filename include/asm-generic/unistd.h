@@ -640,9 +640,11 @@ __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
 #define __NR_wait4 260
 __SYSCALL(__NR_wait4, sys_wait4)
+#define __NR_prlimit64 261
+__SYSCALL(__NR_prlimit64, sys_prlimit64)
 
 #undef __NR_syscalls
-#define __NR_syscalls 261
+#define __NR_syscalls 262
 
 /*
  * All syscalls below here should go away really,

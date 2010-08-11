@@ -86,6 +86,5 @@ const struct file_operations exofs_file_operations = {
 };
 
 const struct inode_operations exofs_file_inode_operations = {
-	.truncate	= exofs_truncate,
 	.setattr	= exofs_setattr,
 };

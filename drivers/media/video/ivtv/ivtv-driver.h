@@ -62,6 +62,7 @@
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
@@ -631,6 +632,8 @@ struct ivtv {
 	struct ivtv_options options; 	/* user options */
 
 	struct v4l2_device v4l2_dev;
+	struct cx2341x_handler cxhdl;
+	struct v4l2_ctrl_handler hdl_gpio;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
 	u16 instance;
 
@@ -648,7 +651,6 @@ struct ivtv {
 	v4l2_std_id std_out;            /* current TV output standard */
 	u8 audio_stereo_mode;           /* decoder setting how to handle stereo MPEG audio */
 	u8 audio_bilingual_mode;        /* decoder setting how to handle bilingual MPEG audio */
-	struct cx2341x_mpeg_params params;              /* current encoder parameters */
 
 
 	/* Locking */

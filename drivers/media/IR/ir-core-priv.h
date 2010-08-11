@@ -32,7 +32,7 @@ struct ir_raw_handler {
 
 struct ir_raw_event_ctrl {
 	struct list_head		list;		/* to keep track of raw clients */
-	struct work_struct		rx_work;	/* for the rx decoding workqueue */
+	struct task_struct		*thread;
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
@@ -41,10 +41,13 @@ struct ir_raw_event_ctrl {
 
 	/* raw decoder state follows */
 	struct ir_raw_event prev_ev;
+	struct ir_raw_event this_ev;
 	struct nec_dec {
 		int state;
 		unsigned count;
 		u32 bits;
+		bool is_nec_x;
+		bool necx_repeat;
 	} nec;
 	struct rc5_dec {
 		int state;
@@ -76,7 +79,7 @@ struct ir_raw_event_ctrl {
 	struct lirc_codec {
 		struct ir_input_dev *ir_dev;
 		struct lirc_driver *drv;
-		int lircdata;
+		int carrier_low;
 	} lirc;
 };
 
@@ -104,10 +107,9 @@ static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
 		ev->duration -= duration;
 }
 
-#define TO_US(duration)			(((duration) + 500) / 1000)
+#define TO_US(duration)			DIV_ROUND_CLOSEST((duration), 1000)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
 #define IS_RESET(ev)			(ev.duration == 0)
-
 /*
  * Routines from ir-sysfs.c - Meant to be called only internally inside
  * ir-core
@@ -126,7 +128,8 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_init(void);
 
-
+int ir_rcmap_init(void);
+void ir_rcmap_cleanup(void);
 /*
  * Decoder initialization code
  *

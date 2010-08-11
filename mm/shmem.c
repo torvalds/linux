@@ -766,6 +766,10 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 	loff_t newsize = attr->ia_size;
 	int error;
 
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)
 					&& newsize != inode->i_size) {
 		struct page *page = NULL;
@@ -800,25 +804,22 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			}
 		}
 
-		error = simple_setsize(inode, newsize);
+		/* XXX(truncate): truncate_setsize should be called last */
+		truncate_setsize(inode, newsize);
 		if (page)
 			page_cache_release(page);
-		if (error)
-			return error;
 		shmem_truncate_range(inode, newsize, (loff_t)-1);
 	}
 
-	error = inode_change_ok(inode, attr);
-	if (!error)
-		generic_setattr(inode, attr);
+	setattr_copy(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	if (!error && (attr->ia_valid & ATTR_MODE))
+	if (attr->ia_valid & ATTR_MODE)
 		error = generic_acl_chmod(inode);
 #endif
 	return error;
 }
 
-static void shmem_delete_inode(struct inode *inode)
+static void shmem_evict_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
@@ -835,7 +836,7 @@ static void shmem_delete_inode(struct inode *inode)
 	}
 	BUG_ON(inode->i_blocks);
 	shmem_free_inode(inode->i_sb);
-	clear_inode(inode);
+	end_writeback(inode);
 }
 
 static inline int shmem_find_swp(swp_entry_t entry, swp_entry_t *dir, swp_entry_t *edir)
@@ -932,7 +933,7 @@ found:
 
 	/*
 	 * Move _head_ to start search for next from here.
-	 * But be careful: shmem_delete_inode checks list_empty without taking
+	 * But be careful: shmem_evict_inode checks list_empty without taking
 	 * mutex, and there's an instant in list_move_tail when info->swaplist
 	 * would appear empty, if it were the only one on shmem_swaplist.  We
 	 * could avoid doing it if inode NULL; or use this minor optimization.
@@ -2518,7 +2519,7 @@ static const struct super_operations shmem_ops = {
 	.remount_fs	= shmem_remount_fs,
 	.show_options	= shmem_show_options,
 #endif
-	.delete_inode	= shmem_delete_inode,
+	.evict_inode	= shmem_evict_inode,
 	.drop_inode	= generic_delete_inode,
 	.put_super	= shmem_put_super,
 };

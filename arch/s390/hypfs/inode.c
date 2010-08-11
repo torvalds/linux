@@ -117,10 +117,10 @@ static struct inode *hypfs_make_inode(struct super_block *sb, int mode)
 	return ret;
 }
 
-static void hypfs_drop_inode(struct inode *inode)
+static void hypfs_evict_inode(struct inode *inode)
 {
+	end_writeback(inode);
 	kfree(inode->i_private);
-	generic_delete_inode(inode);
 }
 
 static int hypfs_open(struct inode *inode, struct file *filp)
@@ -460,7 +460,7 @@ static struct file_system_type hypfs_type = {
 
 static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= hypfs_drop_inode,
+	.evict_inode	= hypfs_evict_inode,
 	.show_options	= hypfs_show_options,
 };
 

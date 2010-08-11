@@ -15,6 +15,7 @@
 #include <linux/blkpg.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
+#include <linux/smp_lock.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -338,6 +339,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
+	lock_kernel();
 	spin_lock(&_minor_lock);
 
 	md = bdev->bd_disk->private_data;
@@ -355,6 +357,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 
 out:
 	spin_unlock(&_minor_lock);
+	unlock_kernel();
 
 	return md ? 0 : -ENXIO;
 }
@@ -362,8 +365,12 @@ out:
 static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
+
+	lock_kernel();
 	atomic_dec(&md->open_count);
 	dm_put(md);
+	unlock_kernel();
+
 	return 0;
 }
 
@@ -614,7 +621,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md)) {
-				if (!bio_rw_flagged(io->bio, BIO_RW_BARRIER))
+				if (!(io->bio->bi_rw & REQ_HARDBARRIER))
 					bio_list_add_head(&md->deferred,
 							  io->bio);
 			} else
@@ -626,7 +633,7 @@ static void dec_pending(struct dm_io *io, int error)
 		io_error = io->error;
 		bio = io->bio;
 
-		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
+		if (bio->bi_rw & REQ_HARDBARRIER) {
 			/*
 			 * There can be just one barrier request so we use
 			 * a per-device variable for error reporting.
@@ -792,12 +799,12 @@ static void dm_end_request(struct request *clone, int error)
 {
 	int rw = rq_data_dir(clone);
 	int run_queue = 1;
-	bool is_barrier = blk_barrier_rq(clone);
+	bool is_barrier = clone->cmd_flags & REQ_HARDBARRIER;
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
 	struct request *rq = tio->orig;
 
-	if (blk_pc_request(rq) && !is_barrier) {
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC && !is_barrier) {
 		rq->errors = clone->errors;
 		rq->resid_len = clone->resid_len;
 
@@ -844,7 +851,7 @@ void dm_requeue_unmapped_request(struct request *clone)
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.
 		 * Leave it to dm_end_request(), which handles this special
@@ -943,7 +950,7 @@ static void dm_complete_request(struct request *clone, int error)
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct request *rq = tio->orig;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.  So can't use
 		 * softirq_done with the original.
@@ -972,7 +979,7 @@ void dm_kill_unmapped_request(struct request *clone, int error)
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct request *rq = tio->orig;
 
-	if (unlikely(blk_barrier_rq(clone))) {
+	if (unlikely(clone->cmd_flags & REQ_HARDBARRIER)) {
 		/*
 		 * Barrier clones share an original request.
 		 * Leave it to dm_end_request(), which handles this special
@@ -1106,7 +1113,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 
 	clone->bi_sector = sector;
 	clone->bi_bdev = bio->bi_bdev;
-	clone->bi_rw = bio->bi_rw & ~(1 << BIO_RW_BARRIER);
+	clone->bi_rw = bio->bi_rw & ~REQ_HARDBARRIER;
 	clone->bi_vcnt = 1;
 	clone->bi_size = to_bytes(len);
 	clone->bi_io_vec->bv_offset = offset;
@@ -1133,7 +1140,7 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 
 	clone = bio_alloc_bioset(GFP_NOIO, bio->bi_max_vecs, bs);
 	__bio_clone(clone, bio);
-	clone->bi_rw &= ~(1 << BIO_RW_BARRIER);
+	clone->bi_rw &= ~REQ_HARDBARRIER;
 	clone->bi_destructor = dm_bio_destructor;
 	clone->bi_sector = sector;
 	clone->bi_idx = idx;
@@ -1301,7 +1308,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_live_table(md);
 	if (unlikely(!ci.map)) {
-		if (!bio_rw_flagged(bio, BIO_RW_BARRIER))
+		if (!(bio->bi_rw & REQ_HARDBARRIER))
 			bio_io_error(bio);
 		else
 			if (!md->barrier_error)
@@ -1414,7 +1421,7 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	 * we have to queue this io for later.
 	 */
 	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) ||
-	    unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
+	    unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -1455,20 +1462,9 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	return _dm_request(q, bio);
 }
 
-/*
- * Mark this request as flush request, so that dm_request_fn() can
- * recognize.
- */
-static void dm_rq_prepare_flush(struct request_queue *q, struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_LINUX_BLOCK;
-	rq->cmd[0] = REQ_LB_OP_FLUSH;
-}
-
 static bool dm_rq_is_flush_request(struct request *rq)
 {
-	if (rq->cmd_type == REQ_TYPE_LINUX_BLOCK &&
-	    rq->cmd[0] == REQ_LB_OP_FLUSH)
+	if (rq->cmd_flags & REQ_FLUSH)
 		return true;
 	else
 		return false;
@@ -1912,8 +1908,7 @@ static struct mapped_device *alloc_dev(int minor)
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
 	blk_queue_lld_busy(md->queue, dm_lld_busy);
-	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN_FLUSH,
-			  dm_rq_prepare_flush);
+	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN_FLUSH);
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
@@ -2296,7 +2291,7 @@ static void dm_wq_work(struct work_struct *work)
 		if (dm_request_based(md))
 			generic_make_request(c);
 		else {
-			if (bio_rw_flagged(c, BIO_RW_BARRIER))
+			if (c->bi_rw & REQ_HARDBARRIER)
 				process_barrier(md, c);
 			else
 				__split_and_process_bio(md, c);

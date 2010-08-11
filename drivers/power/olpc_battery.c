@@ -384,7 +384,6 @@ static struct bin_attribute olpc_bat_eeprom = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = 0,
 	.read = olpc_bat_eeprom_read,

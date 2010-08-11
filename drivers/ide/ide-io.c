@@ -135,7 +135,7 @@ EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
-	u8 drv_req = blk_special_request(rq) && rq->rq_disk;
+	u8 drv_req = (rq->cmd_type == REQ_TYPE_SPECIAL) && rq->rq_disk;
 	u8 media = drive->media;
 
 	drive->failed_pc = NULL;
@@ -145,7 +145,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
-		else if (blk_fs_request(rq) == 0 && rq->errors == 0)
+		else if (rq->cmd_type != REQ_TYPE_FS && rq->errors == 0)
 			rq->errors = -EIO;
 	}
 
@@ -307,7 +307,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-	BUG_ON(!blk_rq_started(rq));
+	BUG_ON(!(rq->cmd_flags & REQ_STARTED));
 
 #ifdef DEBUG
 	printk("%s: start_request: current=0x%08lx\n",
@@ -353,7 +353,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			    pm->pm_step == IDE_PM_COMPLETED)
 				ide_complete_pm_rq(drive, rq);
 			return startstop;
-		} else if (!rq->rq_disk && blk_special_request(rq))
+		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_SPECIAL)
 			/*
 			 * TODO: Once all ULDs have been modified to
 			 * check for specific op codes rather than

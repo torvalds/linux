@@ -234,11 +234,11 @@ linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_st
 }
 
 static int
-do_osf_statfs(struct dentry * dentry, struct osf_statfs __user *buffer,
+do_osf_statfs(struct path *path, struct osf_statfs __user *buffer,
 	      unsigned long bufsiz)
 {
 	struct kstatfs linux_stat;
-	int error = vfs_statfs(dentry, &linux_stat);
+	int error = vfs_statfs(path, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
 	return error;	
@@ -252,7 +252,7 @@ SYSCALL_DEFINE3(osf_statfs, char __user *, pathname,
 
 	retval = user_path(pathname, &path);
 	if (!retval) {
-		retval = do_osf_statfs(path.dentry, buffer, bufsiz);
+		retval = do_osf_statfs(&path buffer, bufsiz);
 		path_put(&path);
 	}
 	return retval;
@@ -267,7 +267,7 @@ SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 	retval = -EBADF;
 	file = fget(fd);
 	if (file) {
-		retval = do_osf_statfs(file->f_path.dentry, buffer, bufsiz);
+		retval = do_osf_statfs(&file->f_path, buffer, bufsiz);
 		fput(file);
 	}
 	return retval;

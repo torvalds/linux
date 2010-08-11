@@ -325,6 +325,7 @@ static int __init ir_core_init(void)
 
 	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
+	ir_rcmap_init();
 
 	return 0;
 }
@@ -332,6 +333,7 @@ static int __init ir_core_init(void)
 static void __exit ir_core_exit(void)
 {
 	class_unregister(&ir_input_class);
+	ir_rcmap_cleanup();
 }
 
 module_init(ir_core_init);

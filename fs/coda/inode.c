@@ -35,7 +35,7 @@
 #include "coda_int.h"
 
 /* VFS super_block ops */
-static void coda_clear_inode(struct inode *);
+static void coda_evict_inode(struct inode *);
 static void coda_put_super(struct super_block *);
 static int coda_statfs(struct dentry *dentry, struct kstatfs *buf);
 
@@ -93,7 +93,7 @@ static const struct super_operations coda_super_operations =
 {
 	.alloc_inode	= coda_alloc_inode,
 	.destroy_inode	= coda_destroy_inode,
-	.clear_inode	= coda_clear_inode,
+	.evict_inode	= coda_evict_inode,
 	.put_super	= coda_put_super,
 	.statfs		= coda_statfs,
 	.remount_fs	= coda_remount,
@@ -224,8 +224,10 @@ static void coda_put_super(struct super_block *sb)
 	printk("Coda: Bye bye.\n");
 }
 
-static void coda_clear_inode(struct inode *inode)
+static void coda_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	coda_cache_clear_inode(inode);
 }
 

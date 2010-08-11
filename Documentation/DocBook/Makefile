@@ -45,7 +45,7 @@ PDF := $(patsubst %.xml, %.pdf, $(BOOKS))
 pdfdocs: $(PDF)
 
 HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
-htmldocs: $(HTML)
+htmldocs: $(HTML) xmldoclinks
 	$(call build_main_index)
 	$(call build_images)
 

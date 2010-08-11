@@ -142,7 +142,7 @@ static struct usb_descriptor_header *hidg_fs_descriptors[] = {
 static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 			size_t count, loff_t *ptr)
 {
-	struct f_hidg	*hidg     = (struct f_hidg *)file->private_data;
+	struct f_hidg	*hidg     = file->private_data;
 	char		*tmp_buff = NULL;
 	unsigned long	flags;
 
@@ -200,7 +200,7 @@ static void f_hidg_req_complete(struct usb_ep *ep, struct usb_request *req)
 static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *offp)
 {
-	struct f_hidg *hidg  = (struct f_hidg *)file->private_data;
+	struct f_hidg *hidg  = file->private_data;
 	ssize_t status = -ENOMEM;
 
 	if (!access_ok(VERIFY_READ, buffer, count))
@@ -257,7 +257,7 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 
 static unsigned int f_hidg_poll(struct file *file, poll_table *wait)
 {
-	struct f_hidg	*hidg  = (struct f_hidg *)file->private_data;
+	struct f_hidg	*hidg  = file->private_data;
 	unsigned int	ret = 0;
 
 	poll_wait(file, &hidg->read_queue, wait);

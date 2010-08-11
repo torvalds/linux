@@ -329,8 +329,10 @@ cifs_destroy_inode(struct inode *inode)
 }
 
 static void
-cifs_clear_inode(struct inode *inode)
+cifs_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	cifs_fscache_release_inode_cookie(inode);
 }
 
@@ -479,14 +481,13 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-void cifs_drop_inode(struct inode *inode)
+static int cifs_drop_inode(struct inode *inode)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
-		return generic_drop_inode(inode);
-
-	return generic_delete_inode(inode);
+	/* no serverino => unconditional eviction */
+	return !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) ||
+		generic_drop_inode(inode);
 }
 
 static const struct super_operations cifs_super_ops = {
@@ -495,7 +496,7 @@ static const struct super_operations cifs_super_ops = {
 	.alloc_inode = cifs_alloc_inode,
 	.destroy_inode = cifs_destroy_inode,
 	.drop_inode	= cifs_drop_inode,
-	.clear_inode	= cifs_clear_inode,
+	.evict_inode	= cifs_evict_inode,
 /*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
 	function unless later we add lazy close of inodes or unless the
 	kernel forgets to call us with the same number of releases (closes)
