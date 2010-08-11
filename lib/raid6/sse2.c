@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * raid6sse2.c
+ * raid6/sse2.c
  *
  * SSE-2 implementation of RAID-6 syndrome functions
  *
@@ -20,7 +20,7 @@
 #if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
 
 #include <linux/raid/pq.h>
-#include "raid6x86.h"
+#include "x86.h"
 
 static const struct raid6_sse_constants {
 	u64 x1d[2];

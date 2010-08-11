@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * raid6recov.c
+ * raid6/recov.c
  *
  * RAID-6 data recovery in dual failure mode.  In single failure mode,
  * use the RAID-5 algorithm (or, in the case of Q failure, just reconstruct

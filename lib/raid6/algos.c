@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * raid6algos.c
+ * raid6/algos.c
  *
  * Algorithm list and algorithm selection for RAID-6
  */
