@@ -1929,6 +1929,41 @@ static const struct drm_encoder_funcs intel_sdvo_enc_funcs = {
 	.destroy = intel_sdvo_enc_destroy,
 };
 
+static void
+intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
+{
+	uint16_t mask = 0;
+	unsigned int num_bits;
+
+	/* Make a mask of outputs less than or equal to our own priority in the
+	 * list.
+	 */
+	switch (sdvo->controlled_output) {
+	case SDVO_OUTPUT_LVDS1:
+		mask |= SDVO_OUTPUT_LVDS1;
+	case SDVO_OUTPUT_LVDS0:
+		mask |= SDVO_OUTPUT_LVDS0;
+	case SDVO_OUTPUT_TMDS1:
+		mask |= SDVO_OUTPUT_TMDS1;
+	case SDVO_OUTPUT_TMDS0:
+		mask |= SDVO_OUTPUT_TMDS0;
+	case SDVO_OUTPUT_RGB1:
+		mask |= SDVO_OUTPUT_RGB1;
+	case SDVO_OUTPUT_RGB0:
+		mask |= SDVO_OUTPUT_RGB0;
+		break;
+	}
+
+	/* Count bits to find what number we are in the priority list. */
+	mask &= sdvo->caps.output_flags;
+	num_bits = hweight16(mask);
+	/* If more than 3 outputs, default to DDC bus 3 for now. */
+	if (num_bits > 3)
+		num_bits = 3;
+
+	/* Corresponds to SDVO_CONTROL_BUS_DDCx */
+	sdvo->ddc_bus = 1 << num_bits;
+}
 
 /**
  * Choose the appropriate DDC bus for control bus switch command for this
@@ -1948,7 +1983,10 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 	else
 		mapping = &(dev_priv->sdvo_mappings[1]);
 
-	sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
+	if (mapping->initialized)
+		sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
+	else
+		intel_sdvo_guess_ddc_bus(sdvo);
 }
 
 static bool
