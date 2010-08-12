@@ -213,10 +213,12 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
 	sector_t offset, chunk;
 	uint32_t stripe;
+	unsigned target_request_nr;
 
 	if (unlikely(bio_empty_barrier(bio))) {
-		BUG_ON(map_context->flush_request >= sc->stripes);
-		bio->bi_bdev = sc->stripe[map_context->flush_request].dev->bdev;
+		target_request_nr = map_context->target_request_nr;
+		BUG_ON(target_request_nr >= sc->stripes);
+		bio->bi_bdev = sc->stripe[target_request_nr].dev->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
 

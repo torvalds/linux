@@ -22,7 +22,7 @@ typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 union map_info {
 	void *ptr;
 	unsigned long long ll;
-	unsigned flush_request;
+	unsigned target_request_nr;
 };
 
 /*
@@ -174,7 +174,7 @@ struct dm_target {
 	 * A number of zero-length barrier requests that will be submitted
 	 * to the target for the purpose of flushing cache.
 	 *
-	 * The request number will be placed in union map_info->flush_request.
+	 * The request number will be placed in union map_info->target_request_nr.
 	 * It is a responsibility of the target driver to remap these requests
 	 * to the real underlying devices.
 	 */

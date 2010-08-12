@@ -1183,12 +1183,12 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 }
 
 static void __flush_target(struct clone_info *ci, struct dm_target *ti,
-			  unsigned flush_nr)
+			  unsigned request_nr)
 {
 	struct dm_target_io *tio = alloc_tio(ci, ti);
 	struct bio *clone;
 
-	tio->info.flush_request = flush_nr;
+	tio->info.target_request_nr = request_nr;
 
 	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
 	__bio_clone(clone, ci->bio);
@@ -1199,13 +1199,13 @@ static void __flush_target(struct clone_info *ci, struct dm_target *ti,
 
 static int __clone_and_map_empty_barrier(struct clone_info *ci)
 {
-	unsigned target_nr = 0, flush_nr;
+	unsigned target_nr = 0, request_nr;
 	struct dm_target *ti;
 
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
-		for (flush_nr = 0; flush_nr < ti->num_flush_requests;
-		     flush_nr++)
-			__flush_target(ci, ti, flush_nr);
+		for (request_nr = 0; request_nr < ti->num_flush_requests;
+		     request_nr++)
+			__flush_target(ci, ti, request_nr);
 
 	ci->sector_count = 0;
 
@@ -2424,11 +2424,11 @@ static void dm_queue_flush(struct mapped_device *md)
 	queue_work(md->wq, &md->work);
 }
 
-static void dm_rq_set_flush_nr(struct request *clone, unsigned flush_nr)
+static void dm_rq_set_target_request_nr(struct request *clone, unsigned request_nr)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
-	tio->info.flush_request = flush_nr;
+	tio->info.target_request_nr = request_nr;
 }
 
 /* Issue barrier requests to targets and wait for their completion. */
@@ -2446,7 +2446,7 @@ static int dm_rq_barrier(struct mapped_device *md)
 		ti = dm_table_get_target(map, i);
 		for (j = 0; j < ti->num_flush_requests; j++) {
 			clone = clone_rq(md->flush_request, md, GFP_NOIO);
-			dm_rq_set_flush_nr(clone, j);
+			dm_rq_set_target_request_nr(clone, j);
 			atomic_inc(&md->pending[rq_data_dir(clone)]);
 			map_request(ti, clone, md);
 		}
