@@ -287,9 +287,8 @@ extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);
-extern int intel_overlay_switch_off(struct intel_overlay *overlay);
-extern int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
-						bool interruptible);
+extern int intel_overlay_switch_off(struct intel_overlay *overlay,
+				    bool interruptible);
 extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,

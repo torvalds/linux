@@ -2223,33 +2223,17 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 {
-	struct intel_overlay *overlay;
-	int ret;
-
 	if (!enable && intel_crtc->overlay) {
-		overlay = intel_crtc->overlay;
-		mutex_lock(&overlay->dev->struct_mutex);
-		for (;;) {
-			ret = intel_overlay_switch_off(overlay);
-			if (ret == 0)
-				break;
+		struct intel_overlay *overlay = intel_crtc->overlay;
 
-			ret = intel_overlay_recover_from_interrupt(overlay, 0);
-			if (ret != 0) {
-				/* overlay doesn't react anymore. Usually
-				 * results in a black screen and an unkillable
-				 * X server. */
-				BUG();
-				overlay->hw_wedged = HW_WEDGED;
-				break;
-			}
-		}
+		mutex_lock(&overlay->dev->struct_mutex);
+		(void) intel_overlay_switch_off(overlay, false);
 		mutex_unlock(&overlay->dev->struct_mutex);
 	}
-	/* Let userspace switch the overlay on again. In most cases userspace
-	 * has to recompute where to put it anyway. */
 
-	return;
+	/* Let userspace switch the overlay on again. In most cases userspace
+	 * has to recompute where to put it anyway.
+	 */
 }
 
 static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)

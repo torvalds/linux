@@ -365,7 +365,8 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 }
 
 /* overlay needs to be disabled in OCMD reg */
-static int intel_overlay_off(struct intel_overlay *overlay)
+static int intel_overlay_off(struct intel_overlay *overlay,
+			     bool interruptible)
 {
 	struct drm_device *dev = overlay->dev;
 	u32 flip_addr = overlay->flip_addr;
@@ -394,7 +395,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	ADVANCE_LP_RING();
 
-	return intel_overlay_do_wait_request(overlay, request, true,
+	return intel_overlay_do_wait_request(overlay, request, interruptible,
 					     SWITCH_OFF);
 }
 
@@ -427,8 +428,8 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 
 /* recover from an interruption due to a signal
  * We have to be careful not to repeat work forever an make forward progess. */
-int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
-					 bool interruptible)
+static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
+						bool interruptible)
 {
 	struct drm_device *dev = overlay->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -855,17 +856,19 @@ out_unpin:
 	return ret;
 }
 
-int intel_overlay_switch_off(struct intel_overlay *overlay)
+int intel_overlay_switch_off(struct intel_overlay *overlay,
+			     bool interruptible)
 {
-	int ret;
 	struct overlay_registers *regs;
 	struct drm_device *dev = overlay->dev;
+	int ret;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (overlay->hw_wedged) {
-		ret = intel_overlay_recover_from_interrupt(overlay, 1);
+		ret = intel_overlay_recover_from_interrupt(overlay,
+							   interruptible);
 		if (ret != 0)
 			return ret;
 	}
@@ -881,7 +884,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	regs->OCMD = 0;
 	intel_overlay_unmap_regs(overlay, regs);
 
-	ret = intel_overlay_off(overlay);
+	ret = intel_overlay_off(overlay, interruptible);
 	if (ret != 0)
 		return ret;
 
@@ -1097,7 +1100,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		mutex_lock(&dev->mode_config.mutex);
 		mutex_lock(&dev->struct_mutex);
 
-		ret = intel_overlay_switch_off(overlay);
+		ret = intel_overlay_switch_off(overlay, true);
 
 		mutex_unlock(&dev->struct_mutex);
 		mutex_unlock(&dev->mode_config.mutex);
@@ -1135,7 +1138,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	if (overlay->crtc != crtc) {
 		struct drm_display_mode *mode = &crtc->base.mode;
-		ret = intel_overlay_switch_off(overlay);
+		ret = intel_overlay_switch_off(overlay, true);
 		if (ret != 0)
 			goto out_unlock;
 
