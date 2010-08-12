@@ -1555,8 +1555,6 @@ static int ieee80211_action(struct wiphy *wiphy, struct net_device *dev,
 			return -ENOLINK;
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (!(sdata->u.mgd.flags & IEEE80211_STA_MFP_ENABLED))
-			flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 		break;
 	default:
 		return -EOPNOTSUPP;
