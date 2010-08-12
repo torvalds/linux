@@ -1715,7 +1715,7 @@ unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
  * ieee80211_hdrlen - get header length in bytes from frame control
  * @fc: frame control field in little-endian format
  */
-unsigned int ieee80211_hdrlen(__le16 fc);
+unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc);
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
