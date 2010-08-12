@@ -148,6 +148,12 @@ struct dm_snapshot {
 #define RUNNING_MERGE          0
 #define SHUTDOWN_MERGE         1
 
+struct dm_dev *dm_snap_origin(struct dm_snapshot *s)
+{
+	return s->origin;
+}
+EXPORT_SYMBOL(dm_snap_origin);
+
 struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
 {
 	return s->cow;
@@ -1065,16 +1071,22 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		origin_mode = FMODE_WRITE;
 	}
 
-	origin_path = argv[0];
-	argv++;
-	argc--;
-
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ti->error = "Cannot allocate snapshot context private "
 		    "structure";
 		r = -ENOMEM;
 		goto bad;
+	}
+
+	origin_path = argv[0];
+	argv++;
+	argc--;
+
+	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
+	if (r) {
+		ti->error = "Cannot get origin device";
+		goto bad_origin;
 	}
 
 	cow_path = argv[0];
@@ -1096,12 +1108,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	argv += args_used;
 	argc -= args_used;
-
-	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
-	if (r) {
-		ti->error = "Cannot get origin device";
-		goto bad_origin;
-	}
 
 	s->ti = ti;
 	s->valid = 1;
@@ -1212,15 +1218,15 @@ bad_kcopyd:
 	dm_exception_table_exit(&s->complete, exception_cache);
 
 bad_hash_tables:
-	dm_put_device(ti, s->origin);
-
-bad_origin:
 	dm_exception_store_destroy(s->store);
 
 bad_store:
 	dm_put_device(ti, s->cow);
 
 bad_cow:
+	dm_put_device(ti, s->origin);
+
+bad_origin:
 	kfree(s);
 
 bad:
@@ -1314,11 +1320,11 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	mempool_destroy(s->pending_pool);
 
-	dm_put_device(ti, s->origin);
-
 	dm_exception_store_destroy(s->store);
 
 	dm_put_device(ti, s->cow);
+
+	dm_put_device(ti, s->origin);
 
 	kfree(s);
 }
