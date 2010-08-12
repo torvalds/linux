@@ -207,6 +207,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	}
 
 	mci->op_state = OP_ALLOC;
+	INIT_LIST_HEAD(&mci->grp_kobj_list);
 
 	/*
 	 * Initialize the 'root' kobj for the edac_mc controller
