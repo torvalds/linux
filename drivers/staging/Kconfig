@@ -155,5 +155,7 @@ source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/westbridge/Kconfig"
 
+source "drivers/staging/sbe-2t3e3/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
