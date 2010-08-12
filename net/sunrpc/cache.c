@@ -506,13 +506,13 @@ EXPORT_SYMBOL_GPL(cache_purge);
 
 static DEFINE_SPINLOCK(cache_defer_lock);
 static LIST_HEAD(cache_defer_list);
-static struct list_head cache_defer_hash[DFR_HASHSIZE];
+static struct hlist_head cache_defer_hash[DFR_HASHSIZE];
 static int cache_defer_cnt;
 
 static void __unhash_deferred_req(struct cache_deferred_req *dreq)
 {
 	list_del_init(&dreq->recent);
-	list_del_init(&dreq->hash);
+	hlist_del_init(&dreq->hash);
 	cache_defer_cnt--;
 }
 
@@ -521,9 +521,7 @@ static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_he
 	int hash = DFR_HASH(item);
 
 	list_add(&dreq->recent, &cache_defer_list);
-	if (cache_defer_hash[hash].next == NULL)
-		INIT_LIST_HEAD(&cache_defer_hash[hash]);
-	list_add(&dreq->hash, &cache_defer_hash[hash]);
+	hlist_add_head(&dreq->hash, &cache_defer_hash[hash]);
 }
 
 static int setup_deferral(struct cache_deferred_req *dreq, struct cache_head *item)
@@ -588,7 +586,7 @@ static int cache_wait_req(struct cache_req *req, struct cache_head *item)
 		 * to clean up
 		 */
 		spin_lock(&cache_defer_lock);
-		if (!list_empty(&sleeper.handle.hash)) {
+		if (!hlist_unhashed(&sleeper.handle.hash)) {
 			__unhash_deferred_req(&sleeper.handle);
 			spin_unlock(&cache_defer_lock);
 		} else {
@@ -642,24 +640,18 @@ static void cache_revisit_request(struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 	struct list_head pending;
-
-	struct list_head *lp;
+	struct hlist_node *lp, *tmp;
 	int hash = DFR_HASH(item);
 
 	INIT_LIST_HEAD(&pending);
 	spin_lock(&cache_defer_lock);
 
-	lp = cache_defer_hash[hash].next;
-	if (lp) {
-		while (lp != &cache_defer_hash[hash]) {
-			dreq = list_entry(lp, struct cache_deferred_req, hash);
-			lp = lp->next;
-			if (dreq->item == item) {
-				__unhash_deferred_req(dreq);
-				list_add(&dreq->recent, &pending);
-			}
+	hlist_for_each_entry_safe(dreq, lp, tmp, &cache_defer_hash[hash], hash)
+		if (dreq->item == item) {
+			__unhash_deferred_req(dreq);
+			list_add(&dreq->recent, &pending);
 		}
-	}
+
 	spin_unlock(&cache_defer_lock);
 
 	while (!list_empty(&pending)) {
