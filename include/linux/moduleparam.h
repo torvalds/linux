@@ -125,7 +125,7 @@ struct kparam_array
  */
 #define module_param_cb(name, ops, arg, perm)				      \
 	__module_param_call(MODULE_PARAM_PREFIX,			      \
-			    name, ops, arg, __same_type(*(arg), bool), perm)
+			    name, ops, arg, __same_type((arg), bool *), perm)
 
 /* On alpha, ia64 and ppc64 relocations to global data cannot go into
    read-only sections (which is part of respective UNIX ABI on these
@@ -157,7 +157,7 @@ struct kparam_array
 		 { (void *)set, (void *)get };				\
 	__module_param_call(MODULE_PARAM_PREFIX,			\
 			    name, &__param_ops_##name, arg,		\
-			    __same_type(*(arg), bool),			\
+			    __same_type(arg, bool *),			\
 			    (perm) + sizeof(__check_old_set_param(set))*0)
 
 /* We don't get oldget: it's often a new-style param_get_uint, etc. */
@@ -330,9 +330,9 @@ extern int param_get_bool(char *buffer, const struct kernel_param *kp);
 #define param_check_bool(name, p)					\
 	static inline void __check_##name(void)				\
 	{								\
-		BUILD_BUG_ON(!__same_type(*(p), bool) &&		\
-			     !__same_type(*(p), unsigned int) &&	\
-			     !__same_type(*(p), int));			\
+		BUILD_BUG_ON(!__same_type((p), bool *) &&		\
+			     !__same_type((p), unsigned int *) &&	\
+			     !__same_type((p), int *));			\
 	}
 
 extern struct kernel_param_ops param_ops_invbool;
