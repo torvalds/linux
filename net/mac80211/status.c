@@ -296,7 +296,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
-		cfg80211_action_tx_status(
+		cfg80211_mgmt_tx_status(
 			skb->dev, (unsigned long) skb, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 

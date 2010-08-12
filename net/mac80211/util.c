@@ -471,7 +471,7 @@ void ieee80211_iterate_active_interfaces(
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case __NL80211_IFTYPE_AFTER_LAST:
+		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NL80211_IFTYPE_MONITOR:
 		case NL80211_IFTYPE_AP_VLAN:
@@ -505,7 +505,7 @@ void ieee80211_iterate_active_interfaces_atomic(
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case __NL80211_IFTYPE_AFTER_LAST:
+		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NL80211_IFTYPE_MONITOR:
 		case NL80211_IFTYPE_AP_VLAN:
@@ -1189,7 +1189,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			/* ignore virtual */
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
-		case __NL80211_IFTYPE_AFTER_LAST:
+		case NUM_NL80211_IFTYPES:
 			WARN_ON(1);
 			break;
 		}

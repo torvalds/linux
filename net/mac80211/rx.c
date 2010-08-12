@@ -1940,13 +1940,36 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 }
 
 static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+
+	/*
+	 * From here on, look only at management frames.
+	 * Data and control frames are already handled,
+	 * and unknown (reserved) frames are useless.
+	 */
+	if (rx->skb->len < 24)
+		return RX_DROP_MONITOR;
+
+	if (!ieee80211_is_mgmt(mgmt->frame_control))
+		return RX_DROP_MONITOR;
+
+	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
+		return RX_DROP_MONITOR;
+
+	if (ieee80211_drop_unencrypted_mgmt(rx))
+		return RX_DROP_UNUSABLE;
+
+	return RX_CONTINUE;
+}
+
+static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
-	struct sk_buff *nskb;
-	struct ieee80211_rx_status *status;
 	int len = rx->skb->len;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
@@ -1960,9 +1983,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
-		return RX_DROP_UNUSABLE;
-
-	if (ieee80211_drop_unencrypted_mgmt(rx))
 		return RX_DROP_UNUSABLE;
 
 	switch (mgmt->u.action.category) {
@@ -2055,17 +2075,36 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		goto queue;
 	}
 
+	return RX_CONTINUE;
+
  invalid:
-	/*
-	 * For AP mode, hostapd is responsible for handling any action
-	 * frames that we didn't handle, including returning unknown
-	 * ones. For all other modes we will return them to the sender,
-	 * setting the 0x80 bit in the action category, as required by
-	 * 802.11-2007 7.3.1.11.
-	 */
-	if (sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		return RX_DROP_MONITOR;
+	rx->flags |= IEEE80211_MALFORMED_ACTION_FRM;
+	/* will return in the next handlers */
+	return RX_CONTINUE;
+
+ handled:
+	if (rx->sta)
+		rx->sta->rx_packets++;
+	dev_kfree_skb(rx->skb);
+	return RX_QUEUED;
+
+ queue:
+	rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
+	skb_queue_tail(&sdata->skb_queue, rx->skb);
+	ieee80211_queue_work(&local->hw, &sdata->work);
+	if (rx->sta)
+		rx->sta->rx_packets++;
+	return RX_QUEUED;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_rx_status *status;
+
+	/* skip known-bad action frames and return them in the next handler */
+	if (rx->flags & IEEE80211_MALFORMED_ACTION_FRM)
+		return RX_CONTINUE;
 
 	/*
 	 * Getting here means the kernel doesn't know how to handle
@@ -2075,10 +2114,44 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	 */
 	status = IEEE80211_SKB_RXCB(rx->skb);
 
-	if (cfg80211_rx_action(rx->sdata->dev, status->freq,
-			       rx->skb->data, rx->skb->len,
-			       GFP_ATOMIC))
-		goto handled;
+	if (cfg80211_rx_mgmt(rx->sdata->dev, status->freq,
+			     rx->skb->data, rx->skb->len,
+			     GFP_ATOMIC)) {
+		if (rx->sta)
+			rx->sta->rx_packets++;
+		dev_kfree_skb(rx->skb);
+		return RX_QUEUED;
+	}
+
+
+	return RX_CONTINUE;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_local *local = rx->local;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	struct sk_buff *nskb;
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
+
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return RX_CONTINUE;
+
+	/*
+	 * For AP mode, hostapd is responsible for handling any action
+	 * frames that we didn't handle, including returning unknown
+	 * ones. For all other modes we will return them to the sender,
+	 * setting the 0x80 bit in the action category, as required by
+	 * 802.11-2007 7.3.1.11.
+	 * Newer versions of hostapd shall also use the management frame
+	 * registration mechanisms, but older ones still use cooked
+	 * monitor interfaces so push all frames there.
+	 */
+	if (!(rx->flags & IEEE80211_MALFORMED_ACTION_FRM) &&
+	    (sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
+		return RX_DROP_MONITOR;
 
 	/* do not return rejected action frames */
 	if (mgmt->u.action.category & 0x80)
@@ -2097,19 +2170,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		ieee80211_tx_skb(rx->sdata, nskb);
 	}
-
- handled:
-	if (rx->sta)
-		rx->sta->rx_packets++;
 	dev_kfree_skb(rx->skb);
-	return RX_QUEUED;
-
- queue:
-	rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
-	skb_queue_tail(&sdata->skb_queue, rx->skb);
-	ieee80211_queue_work(&local->hw, &sdata->work);
-	if (rx->sta)
-		rx->sta->rx_packets++;
 	return RX_QUEUED;
 }
 
@@ -2120,15 +2181,6 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	ieee80211_rx_result rxs;
 	struct ieee80211_mgmt *mgmt = (void *)rx->skb->data;
 	__le16 stype;
-
-	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
-		return RX_DROP_MONITOR;
-
-	if (rx->skb->len < 24)
-		return RX_DROP_MONITOR;
-
-	if (ieee80211_drop_unencrypted_mgmt(rx))
-		return RX_DROP_UNUSABLE;
 
 	rxs = ieee80211_work_rx_mgmt(rx->sdata, rx->skb);
 	if (rxs != RX_CONTINUE)
@@ -2374,7 +2426,10 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		if (res != RX_CONTINUE)
 			goto rxh_next;
 
+		CALL_RXH(ieee80211_rx_h_mgmt_check)
 		CALL_RXH(ieee80211_rx_h_action)
+		CALL_RXH(ieee80211_rx_h_userspace_mgmt)
+		CALL_RXH(ieee80211_rx_h_action_return)
 		CALL_RXH(ieee80211_rx_h_mgmt)
 
  rxh_next:
@@ -2527,7 +2582,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case __NL80211_IFTYPE_AFTER_LAST:
+	case NUM_NL80211_IFTYPES:
 		/* should never get here */
 		WARN_ON(1);
 		break;

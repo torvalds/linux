@@ -1020,7 +1020,7 @@ struct cfg80211_pmksa {
  * @cancel_remain_on_channel: Cancel an on-going remain-on-channel operation.
  *	This allows the operation to be terminated prior to timeout based on
  *	the duration value.
- * @action: Transmit an action frame
+ * @mgmt_tx: Transmit a management frame
  *
  * @testmode_cmd: run a test mode command
  *
@@ -1172,7 +1172,7 @@ struct cfg80211_ops {
 					    struct net_device *dev,
 					    u64 cookie);
 
-	int	(*action)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*mgmt_tx)(struct wiphy *wiphy, struct net_device *dev,
 			  struct ieee80211_channel *chan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid,
@@ -1236,6 +1236,10 @@ struct mac_address {
 	u8 addr[ETH_ALEN];
 };
 
+struct ieee80211_txrx_stypes {
+	u16 tx, rx;
+};
+
 /**
  * struct wiphy - wireless hardware description
  * @reg_notifier: the driver's regulatory notification callback
@@ -1286,6 +1290,10 @@ struct mac_address {
  * @privid: a pointer that drivers can use to identify if an arbitrary
  *	wiphy is theirs, e.g. in global notifiers
  * @bands: information about bands/channels supported by this device
+ *
+ * @mgmt_stypes: bitmasks of frame subtypes that can be subscribed to or
+ *	transmitted through nl80211, points to an array indexed by interface
+ *	type
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1294,8 +1302,11 @@ struct wiphy {
 	u8 perm_addr[ETH_ALEN];
 	u8 addr_mask[ETH_ALEN];
 
-	u16 n_addresses;
 	struct mac_address *addresses;
+
+	const struct ieee80211_txrx_stypes *mgmt_stypes;
+
+	u16 n_addresses;
 
 	/* Supported interface modes, OR together BIT(NL80211_IFTYPE_...) */
 	u16 interface_modes;
@@ -1492,8 +1503,8 @@ struct cfg80211_cached_keys;
  *	set by driver (if supported) on add_interface BEFORE registering the
  *	netdev and may otherwise be used by driver read-only, will be update
  *	by cfg80211 on change_interface
- * @action_registrations: list of registrations for action frames
- * @action_registrations_lock: lock for the list
+ * @mgmt_registrations: list of registrations for management frames
+ * @mgmt_registrations_lock: lock for the list
  * @mtx: mutex used to lock data in this struct
  * @cleanup_work: work struct used for cleanup that can't be done directly
  */
@@ -1505,8 +1516,8 @@ struct wireless_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
-	struct list_head action_registrations;
-	spinlock_t action_registrations_lock;
+	struct list_head mgmt_registrations;
+	spinlock_t mgmt_registrations_lock;
 
 	struct mutex mtx;
 
@@ -2373,38 +2384,39 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
- * cfg80211_rx_action - notification of received, unprocessed Action frame
+ * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @dev: network device
  * @freq: Frequency on which the frame was received in MHz
- * @buf: Action frame (header + body)
+ * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @gfp: context flags
- * Returns %true if a user space application is responsible for rejecting the
- *	unrecognized Action frame; %false if no such application is registered
- *	(i.e., the driver is responsible for rejecting the unrecognized Action
- *	frame)
+ *
+ * Returns %true if a user space application has registered for this frame.
+ * For action frames, that makes it responsible for rejecting unrecognized
+ * action frames; %false otherwise, in which case for action frames the
+ * driver is responsible for rejecting the frame.
  *
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_action(struct net_device *dev, int freq, const u8 *buf,
-			size_t len, gfp_t gfp);
+bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
+		      size_t len, gfp_t gfp);
 
 /**
- * cfg80211_action_tx_status - notification of TX status for Action frame
+ * cfg80211_mgmt_tx_status - notification of TX status for management frame
  * @dev: network device
- * @cookie: Cookie returned by cfg80211_ops::action()
- * @buf: Action frame (header + body)
+ * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
+ * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @ack: Whether frame was acknowledged
  * @gfp: context flags
  *
- * This function is called whenever an Action frame was requested to be
- * transmitted with cfg80211_ops::action() to report the TX status of the
+ * This function is called whenever a management frame was requested to be
+ * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
  * transmission attempt.
  */
-void cfg80211_action_tx_status(struct net_device *dev, u64 cookie,
-			       const u8 *buf, size_t len, bool ack, gfp_t gfp);
+void cfg80211_mgmt_tx_status(struct net_device *dev, u64 cookie,
+			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
 
 /**

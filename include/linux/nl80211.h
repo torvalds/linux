@@ -40,6 +40,43 @@
  */
 
 /**
+ * DOC: Frame transmission/registration support
+ *
+ * Frame transmission and registration support exists to allow userspace
+ * management entities such as wpa_supplicant react to management frames
+ * that are not being handled by the kernel. This includes, for example,
+ * certain classes of action frames that cannot be handled in the kernel
+ * for various reasons.
+ *
+ * Frame registration is done on a per-interface basis and registrations
+ * cannot be removed other than by closing the socket. It is possible to
+ * specify a registration filter to register, for example, only for a
+ * certain type of action frame. In particular with action frames, those
+ * that userspace registers for will not be returned as unhandled by the
+ * driver, so that the registered application has to take responsibility
+ * for doing that.
+ *
+ * The type of frame that can be registered for is also dependent on the
+ * driver and interface type. The frame types are advertised in wiphy
+ * attributes so applications know what to expect.
+ *
+ * NOTE: When an interface changes type while registrations are active,
+ *       these registrations are ignored until the interface type is
+ *       changed again. This means that changing the interface type can
+ *       lead to a situation that couldn't otherwise be produced, but
+ *       any such registrations will be dormant in the sense that they
+ *       will not be serviced, i.e. they will not receive any frames.
+ *
+ * Frame transmission allows userspace to send for example the required
+ * responses to action frames. It is subject to some sanity checking,
+ * but many frames can be transmitted. When a frame was transmitted, its
+ * status is indicated to the sending socket.
+ *
+ * For more technical details, see the corresponding command descriptions
+ * below.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -301,16 +338,18 @@
  *	rate selection. %NL80211_ATTR_IFINDEX is used to specify the interface
  *	and @NL80211_ATTR_TX_RATES the set of allowed rates.
  *
- * @NL80211_CMD_REGISTER_ACTION: Register for receiving certain action frames
- *	(via @NL80211_CMD_ACTION) for processing in userspace. This command
- *	requires an interface index and a match attribute containing the first
- *	few bytes of the frame that should match, e.g. a single byte for only
- *	a category match or four bytes for vendor frames including the OUI.
- *	The registration cannot be dropped, but is removed automatically
- *	when the netlink socket is closed. Multiple registrations can be made.
- * @NL80211_CMD_ACTION: Action frame TX request and RX notification. This
- *	command is used both as a request to transmit an Action frame and as an
- *	event indicating reception of an Action frame that was not processed in
+ * @NL80211_CMD_REGISTER_FRAME: Register for receiving certain mgmt frames
+ *	(via @NL80211_CMD_FRAME) for processing in userspace. This command
+ *	requires an interface index, a frame type attribute (optional for
+ *	backward compatibility reasons, if not given assumes action frames)
+ *	and a match attribute containing the first few bytes of the frame
+ *	that should match, e.g. a single byte for only a category match or
+ *	four bytes for vendor frames including the OUI. The registration
+ *	cannot be dropped, but is removed automatically when the netlink
+ *	socket is closed. Multiple registrations can be made.
+ * @NL80211_CMD_FRAME: Management frame TX request and RX notification. This
+ *	command is used both as a request to transmit a management frame and
+ *	as an event indicating reception of a frame that was not processed in
  *	kernel code, but is for us (i.e., which may need to be processed in a
  *	user space application). %NL80211_ATTR_FRAME is used to specify the
  *	frame contents (including header). %NL80211_ATTR_WIPHY_FREQ (and
@@ -320,8 +359,8 @@
  *	operational channel). When called, this operation returns a cookie
  *	(%NL80211_ATTR_COOKIE) that will be included with the TX status event
  *	pertaining to the TX request.
- * @NL80211_CMD_ACTION_TX_STATUS: Report TX status of an Action frame
- *	transmitted with %NL80211_CMD_ACTION. %NL80211_ATTR_COOKIE identifies
+ * @NL80211_CMD_FRAME_TX_STATUS: Report TX status of a management frame
+ *	transmitted with %NL80211_CMD_FRAME. %NL80211_ATTR_COOKIE identifies
  *	the TX command and %NL80211_ATTR_FRAME includes the contents of the
  *	frame. %NL80211_ATTR_ACK flag is included if the recipient acknowledged
  *	the frame.
@@ -429,9 +468,12 @@ enum nl80211_commands {
 
 	NL80211_CMD_SET_TX_BITRATE_MASK,
 
-	NL80211_CMD_REGISTER_ACTION,
-	NL80211_CMD_ACTION,
-	NL80211_CMD_ACTION_TX_STATUS,
+	NL80211_CMD_REGISTER_FRAME,
+	NL80211_CMD_REGISTER_ACTION = NL80211_CMD_REGISTER_FRAME,
+	NL80211_CMD_FRAME,
+	NL80211_CMD_ACTION = NL80211_CMD_FRAME,
+	NL80211_CMD_FRAME_TX_STATUS,
+	NL80211_CMD_ACTION_TX_STATUS = NL80211_CMD_FRAME_TX_STATUS,
 
 	NL80211_CMD_SET_POWER_SAVE,
 	NL80211_CMD_GET_POWER_SAVE,
@@ -708,7 +750,16 @@ enum nl80211_commands {
  *	is used with %NL80211_CMD_SET_TX_BITRATE_MASK.
  *
  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
- *	at least one byte, currently used with @NL80211_CMD_REGISTER_ACTION.
+ *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
+ * @NL80211_ATTR_FRAME_TYPE: A u16 indicating the frame type/subtype for the
+ *	@NL80211_CMD_REGISTER_FRAME command.
+ * @NL80211_ATTR_TX_FRAME_TYPES: wiphy capability attribute, which is a
+ *	nested attribute of %NL80211_ATTR_FRAME_TYPE attributes, containing
+ *	information about which frame types can be transmitted with
+ *	%NL80211_CMD_FRAME.
+ * @NL80211_ATTR_RX_FRAME_TYPES: wiphy capability attribute, which is a
+ *	nested attribute of %NL80211_ATTR_FRAME_TYPE attributes, containing
+ *	information about which frame types can be registered for RX.
  *
  * @NL80211_ATTR_ACK: Flag attribute indicating that the frame was
  *	acknowledged by the recipient.
@@ -891,6 +942,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_WIPHY_TX_POWER_SETTING,
 	NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
 
+	NL80211_ATTR_TX_FRAME_TYPES,
+	NL80211_ATTR_RX_FRAME_TYPES,
+	NL80211_ATTR_FRAME_TYPE,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -947,7 +1002,7 @@ enum nl80211_attrs {
  * @NL80211_IFTYPE_MONITOR: monitor interface receiving all frames
  * @NL80211_IFTYPE_MESH_POINT: mesh point
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
- * @__NL80211_IFTYPE_AFTER_LAST: internal use
+ * @NUM_NL80211_IFTYPES: number of defined interface types
  *
  * These values are used with the %NL80211_ATTR_IFTYPE
  * to set the type of an interface.
@@ -964,8 +1019,8 @@ enum nl80211_iftype {
 	NL80211_IFTYPE_MESH_POINT,
 
 	/* keep last */
-	__NL80211_IFTYPE_AFTER_LAST,
-	NL80211_IFTYPE_MAX = __NL80211_IFTYPE_AFTER_LAST - 1
+	NUM_NL80211_IFTYPES,
+	NL80211_IFTYPE_MAX = NUM_NL80211_IFTYPES - 1
 };
 
 /**

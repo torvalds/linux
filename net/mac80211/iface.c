@@ -177,7 +177,7 @@ static int ieee80211_open(struct net_device *dev)
 		/* no special treatment */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case __NL80211_IFTYPE_AFTER_LAST:
+	case NUM_NL80211_IFTYPES:
 		/* cannot happen */
 		WARN_ON(1);
 		break;
@@ -634,7 +634,7 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 	case NL80211_IFTYPE_MONITOR:
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case __NL80211_IFTYPE_AFTER_LAST:
+	case NUM_NL80211_IFTYPES:
 		BUG();
 		break;
 	}
@@ -886,7 +886,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP_VLAN:
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case __NL80211_IFTYPE_AFTER_LAST:
+	case NUM_NL80211_IFTYPES:
 		BUG();
 		break;
 	}
