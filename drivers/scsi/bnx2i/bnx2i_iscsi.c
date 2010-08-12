@@ -1078,11 +1078,9 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 		buf = bnx2i_conn->gen_pdu.req_buf;
 		if (data_len)
 			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
-						     RESERVED_ITT,
 						     buf, data_len, 1);
 		else
 			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
-						     RESERVED_ITT,
 						     NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
