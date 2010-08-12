@@ -164,7 +164,7 @@ static u8 hostaddr[ETH_ALEN];
 
 #ifdef USB_ETH_RNDIS
 
-static __ref int rndis_do_config(struct usb_configuration *c)
+static __init int rndis_do_config(struct usb_configuration *c)
 {
 	int ret;
 
@@ -191,7 +191,6 @@ static __ref int rndis_do_config(struct usb_configuration *c)
 static int rndis_config_register(struct usb_composite_dev *cdev)
 {
 	static struct usb_configuration config = {
-		.bind			= rndis_do_config,
 		.bConfigurationValue	= MULTI_RNDIS_CONFIG_NUM,
 		.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
 	};
@@ -199,7 +198,7 @@ static int rndis_config_register(struct usb_composite_dev *cdev)
 	config.label          = strings_dev[MULTI_STRING_RNDIS_CONFIG_IDX].s;
 	config.iConfiguration = strings_dev[MULTI_STRING_RNDIS_CONFIG_IDX].id;
 
-	return usb_add_config(cdev, &config);
+	return usb_add_config(cdev, &config, rndis_do_config);
 }
 
 #else
@@ -216,7 +215,7 @@ static int rndis_config_register(struct usb_composite_dev *cdev)
 
 #ifdef CONFIG_USB_G_MULTI_CDC
 
-static __ref int cdc_do_config(struct usb_configuration *c)
+static __init int cdc_do_config(struct usb_configuration *c)
 {
 	int ret;
 
@@ -243,7 +242,6 @@ static __ref int cdc_do_config(struct usb_configuration *c)
 static int cdc_config_register(struct usb_composite_dev *cdev)
 {
 	static struct usb_configuration config = {
-		.bind			= cdc_do_config,
 		.bConfigurationValue	= MULTI_CDC_CONFIG_NUM,
 		.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
 	};
@@ -251,7 +249,7 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 	config.label          = strings_dev[MULTI_STRING_CDC_CONFIG_IDX].s;
 	config.iConfiguration = strings_dev[MULTI_STRING_CDC_CONFIG_IDX].id;
 
-	return usb_add_config(cdev, &config);
+	return usb_add_config(cdev, &config, cdc_do_config);
 }
 
 #else

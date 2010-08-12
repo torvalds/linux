@@ -234,11 +234,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 		c->c.label			= gfs_strings[i].s;
 		c->c.iConfiguration		= gfs_strings[i].id;
-		c->c.bind			= gfs_do_config;
 		c->c.bConfigurationValue	= 1 + i;
 		c->c.bmAttributes		= USB_CONFIG_ATT_SELFPOWER;
 
-		ret = usb_add_config(cdev, &c->c);
+		ret = usb_add_config(cdev, &c->c, gfs_do_config);
 		if (unlikely(ret < 0))
 			goto error_unbind;
 	}

@@ -155,7 +155,6 @@ static int __init serial_bind_config(struct usb_configuration *c)
 
 static struct usb_configuration serial_config_driver = {
 	/* .label = f(use_acm) */
-	.bind		= serial_bind_config,
 	/* .bConfigurationValue = f(use_acm) */
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
@@ -225,7 +224,8 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &serial_config_driver);
+	status = usb_add_config(cdev, &serial_config_driver,
+			serial_bind_config);
 	if (status < 0)
 		goto fail;
 

@@ -474,18 +474,20 @@ done:
  * usb_add_config() - add a configuration to a device.
  * @cdev: wraps the USB gadget
  * @config: the configuration, with bConfigurationValue assigned
+ * @bind: the configuration's bind function
  * Context: single threaded during gadget setup
  *
- * One of the main tasks of a composite driver's bind() routine is to
+ * One of the main tasks of a composite @bind() routine is to
  * add each of the configurations it supports, using this routine.
  *
- * This function returns the value of the configuration's bind(), which
+ * This function returns the value of the configuration's @bind(), which
  * is zero for success else a negative errno value.  Binding configurations
  * assigns global resources including string IDs, and per-configuration
  * resources such as interface IDs and endpoints.
  */
 int usb_add_config(struct usb_composite_dev *cdev,
-		struct usb_configuration *config)
+		struct usb_configuration *config,
+		int (*bind)(struct usb_configuration *))
 {
 	int				status = -EINVAL;
 	struct usb_configuration	*c;
@@ -494,7 +496,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 			config->bConfigurationValue,
 			config->label, config);
 
-	if (!config->bConfigurationValue || !config->bind)
+	if (!config->bConfigurationValue || !bind)
 		goto done;
 
 	/* Prevent duplicate configuration identifiers */
@@ -511,7 +513,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	INIT_LIST_HEAD(&config->functions);
 	config->next_interface_id = 0;
 
-	status = config->bind(config);
+	status = bind(config);
 	if (status < 0) {
 		list_del(&config->list);
 		config->cdev = NULL;
@@ -537,7 +539,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		}
 	}
 
-	/* set_alt(), or next config->bind(), sets up
+	/* set_alt(), or next bind(), sets up
 	 * ep->driver_data as needed.
 	 */
 	usb_ep_autoconfig_reset(cdev->gadget);

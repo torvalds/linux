@@ -148,7 +148,6 @@ static int __init do_config(struct usb_configuration *c)
 
 static struct usb_configuration config_driver = {
 	.label			= "HID Gadget",
-	.bind			= do_config,
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -201,7 +200,7 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = status;
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &config_driver);
+	status = usb_add_config(cdev, &config_driver, do_config);
 	if (status < 0)
 		return status;
 

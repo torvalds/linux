@@ -161,8 +161,6 @@ ep_choose(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
  *	and by language IDs provided in control requests.
  * @descriptors: Table of descriptors preceding all function descriptors.
  *	Examples include OTG and vendor-specific descriptors.
- * @bind: Called from @usb_add_config() to allocate resources unique to this
- *	configuration and to call @usb_add_function() for each function used.
  * @unbind: Reverses @bind; called as a side effect of unregistering the
  *	driver which added this configuration.
  * @setup: Used to delegate control requests that aren't handled by standard
@@ -207,8 +205,7 @@ struct usb_configuration {
 	 * we can't restructure things to avoid mismatching...
 	 */
 
-	/* configuration management:  bind/unbind */
-	int			(*bind)(struct usb_configuration *);
+	/* configuration management: unbind/setup */
 	void			(*unbind)(struct usb_configuration *);
 	int			(*setup)(struct usb_configuration *,
 					const struct usb_ctrlrequest *);
@@ -232,7 +229,8 @@ struct usb_configuration {
 };
 
 int usb_add_config(struct usb_composite_dev *,
-		struct usb_configuration *);
+		struct usb_configuration *,
+		int (*)(struct usb_configuration *));
 
 /**
  * struct usb_composite_driver - groups configurations into a gadget

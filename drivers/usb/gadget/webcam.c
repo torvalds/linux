@@ -317,7 +317,6 @@ webcam_config_bind(struct usb_configuration *c)
 
 static struct usb_configuration webcam_config_driver = {
 	.label			= webcam_config_label,
-	.bind			= webcam_config_bind,
 	.bConfigurationValue	= 1,
 	.iConfiguration		= 0, /* dynamic */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -354,7 +353,8 @@ webcam_bind(struct usb_composite_dev *cdev)
 	webcam_config_driver.iConfiguration = ret;
 
 	/* Register our configuration. */
-	if ((ret = usb_add_config(cdev, &webcam_config_driver)) < 0)
+	if ((ret = usb_add_config(cdev, &webcam_config_driver,
+					webcam_config_bind)) < 0)
 		goto error;
 
 	INFO(cdev, "Webcam Video Gadget\n");
