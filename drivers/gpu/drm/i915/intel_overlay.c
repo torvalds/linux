@@ -989,25 +989,24 @@ static int check_overlay_src(struct drm_device *dev,
 			     struct drm_intel_overlay_put_image *rec,
 			     struct drm_gem_object *new_bo)
 {
-	u32 stride_mask;
-	int depth;
 	int uv_hscale = uv_hsubsampling(rec->flags);
 	int uv_vscale = uv_vsubsampling(rec->flags);
-	size_t tmp;
+	u32 stride_mask, depth, tmp;
 
 	/* check src dimensions */
 	if (IS_845G(dev) || IS_I830(dev)) {
 		if (rec->src_height > IMAGE_MAX_HEIGHT_LEGACY ||
-		    rec->src_width > IMAGE_MAX_WIDTH_LEGACY)
+		    rec->src_width  > IMAGE_MAX_WIDTH_LEGACY)
 			return -EINVAL;
 	} else {
 		if (rec->src_height > IMAGE_MAX_HEIGHT ||
-		    rec->src_width > IMAGE_MAX_WIDTH)
+		    rec->src_width  > IMAGE_MAX_WIDTH)
 			return -EINVAL;
 	}
+
 	/* better safe than sorry, use 4 as the maximal subsampling ratio */
 	if (rec->src_height < N_VERT_Y_TAPS*4 ||
-	    rec->src_width < N_HORIZ_Y_TAPS*4)
+	    rec->src_width  < N_HORIZ_Y_TAPS*4)
 		return -EINVAL;
 
 	/* check alignment constraints */
@@ -1015,12 +1014,15 @@ static int check_overlay_src(struct drm_device *dev,
 	case I915_OVERLAY_RGB:
 		/* not implemented */
 		return -EINVAL;
+
 	case I915_OVERLAY_YUV_PACKED:
-		depth = packed_depth_bytes(rec->flags);
 		if (uv_vscale != 1)
 			return -EINVAL;
+
+		depth = packed_depth_bytes(rec->flags);
 		if (depth < 0)
 			return depth;
+
 		/* ignore UV planes */
 		rec->stride_UV = 0;
 		rec->offset_U = 0;
@@ -1029,11 +1031,13 @@ static int check_overlay_src(struct drm_device *dev,
 		if (rec->offset_Y % depth)
 			return -EINVAL;
 		break;
+
 	case I915_OVERLAY_YUV_PLANAR:
 		if (uv_vscale < 0 || uv_hscale < 0)
 			return -EINVAL;
 		/* no offset restrictions for planar formats */
 		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -1053,8 +1057,8 @@ static int check_overlay_src(struct drm_device *dev,
 		return -EINVAL;
 
 	tmp = (rec->flags & I915_OVERLAY_TYPE_MASK) == I915_OVERLAY_YUV_PLANAR ?
-		4 : 8;
-	if (rec->stride_Y > tmp*1024 || rec->stride_UV > 2*1024)
+		4096 : 8192;
+	if (rec->stride_Y > tmp || rec->stride_UV > 2*1024)
 		return -EINVAL;
 
 	/* check buffer dimensions */
@@ -1076,11 +1080,11 @@ static int check_overlay_src(struct drm_device *dev,
 		if (rec->src_width/uv_hscale > rec->stride_UV)
 			return -EINVAL;
 
-		tmp = rec->stride_Y*rec->src_height;
+		tmp = rec->stride_Y * rec->src_height;
 		if (rec->offset_Y + tmp > new_bo->size)
 			return -EINVAL;
-		tmp = rec->stride_UV*rec->src_height;
-		tmp /= uv_vscale;
+
+		tmp = rec->stride_UV * (rec->src_height / uv_vscale);
 		if (rec->offset_U + tmp > new_bo->size ||
 		    rec->offset_V + tmp > new_bo->size)
 			return -EINVAL;
