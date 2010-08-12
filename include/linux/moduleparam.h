@@ -161,7 +161,7 @@ __check_old_set_param(int (*oldset)(const char *, struct kernel_param *))
 /* Called on module insert or kernel boot */
 extern int parse_args(const char *name,
 		      char *args,
-		      struct kernel_param *params,
+		      const struct kernel_param *params,
 		      unsigned num,
 		      int (*unknown)(char *param, char *val));
 
