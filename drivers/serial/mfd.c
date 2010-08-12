@@ -172,6 +172,9 @@ static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, HSU_REGS_BUFSIZE - len,
 			"DIV: \t\t0x%08x\n", serial_in(up, UART_DIV));
 
+	if (len > HSU_REGS_BUFSIZE)
+		len = HSU_REGS_BUFSIZE;
+
 	ret =  simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
 	return ret;
@@ -218,6 +221,9 @@ static ssize_t dma_show_regs(struct file *file, char __user *user_buf,
 			"D0SAR: \t\t0x%08x\n", chan_readl(chan, HSU_CH_D3SAR));
 	len += snprintf(buf + len, HSU_REGS_BUFSIZE - len,
 			"D0TSR: \t\t0x%08x\n", chan_readl(chan, HSU_CH_D3TSR));
+
+	if (len > HSU_REGS_BUFSIZE)
+		len = HSU_REGS_BUFSIZE;
 
 	ret =  simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
