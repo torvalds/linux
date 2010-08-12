@@ -43,7 +43,7 @@ static struct snd_soc_dai_driver wm8727_dai = {
 		},
 };
 
-struct snd_soc_codec_driver soc_codec_dev_wm8727;
+static struct snd_soc_codec_driver soc_codec_dev_wm8727;
 
 static __devinit int wm8727_probe(struct platform_device *pdev)
 {
