@@ -386,15 +386,13 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	} else
 		goto fail;
 
-	if (len >= 0) {
-		req->length = min(length, len);
-		req->zero = len < req->length;
-		if (data && req->length)
-			memcpy(req->buf, data, req->length);
+	req->length = min(length, len);
+	req->zero = len < req->length;
+	if (data && req->length)
+		memcpy(req->buf, data, req->length);
 
-		req->complete = dbgp_setup_complete;
-		return usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
-	}
+	req->complete = dbgp_setup_complete;
+	return usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 
 fail:
 	dev_dbg(&dbgp.gadget->dev,
