@@ -121,8 +121,6 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 enum {
-	MULTI_STRING_MANUFACTURER_IDX,
-	MULTI_STRING_PRODUCT_IDX,
 #ifdef CONFIG_USB_G_MULTI_RNDIS
 	MULTI_STRING_RNDIS_CONFIG_IDX,
 #endif
@@ -131,11 +129,7 @@ enum {
 #endif
 };
 
-static char manufacturer[50];
-
 static struct usb_string strings_dev[] = {
-	[MULTI_STRING_MANUFACTURER_IDX].s = manufacturer,
-	[MULTI_STRING_PRODUCT_IDX].s      = DRIVER_DESC,
 #ifdef CONFIG_USB_G_MULTI_RNDIS
 	[MULTI_STRING_RNDIS_CONFIG_IDX].s = "Multifunction with RNDIS",
 #endif
@@ -314,19 +308,10 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		device_desc.bcdDevice = cpu_to_le16(0x0300 | 0x0099);
 	}
 
-	/* allocate string descriptor numbers */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-	         init_utsname()->sysname, init_utsname()->release,
-	         gadget->name);
-
+	/* allocate string IDs */
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (unlikely(status < 0))
 		goto fail2;
-
-	device_desc.iManufacturer =
-		strings_dev[MULTI_STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct      =
-		strings_dev[MULTI_STRING_PRODUCT_IDX].id;
 
 	/* register configurations */
 	status = rndis_config_register(cdev);
@@ -370,6 +355,8 @@ static struct usb_composite_driver multi_driver = {
 	.strings	= dev_strings,
 	.bind		= multi_bind,
 	.unbind		= __exit_p(multi_unbind),
+	.iProduct	= DRIVER_DESC,
+	.needs_serial	= 1,
 };
 
 
