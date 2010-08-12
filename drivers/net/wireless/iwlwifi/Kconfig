@@ -3,6 +3,9 @@ config IWLWIFI
 	depends on PCI && MAC80211
 	select FW_LOADER
 
+menu "Debugging Options"
+	depends on IWLWIFI
+
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
@@ -59,6 +62,7 @@ config IWLWIFI_DEVICE_TRACING
 
 	  If unsure, say Y so we can help you better when problems
 	  occur.
+endmenu
 
 config IWLAGN
 	tristate "Intel Wireless WiFi Next Gen AGN (iwlagn)"
