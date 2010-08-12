@@ -1193,7 +1193,7 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 }
 
 static void __issue_target_request(struct clone_info *ci, struct dm_target *ti,
-				   unsigned request_nr)
+				   unsigned request_nr, sector_t len)
 {
 	struct dm_target_io *tio = alloc_tio(ci, ti);
 	struct bio *clone;
@@ -1208,17 +1208,21 @@ static void __issue_target_request(struct clone_info *ci, struct dm_target *ti,
 	clone = bio_alloc_bioset(GFP_NOIO, ci->bio->bi_max_vecs, ci->md->bs);
 	__bio_clone(clone, ci->bio);
 	clone->bi_destructor = dm_bio_destructor;
+	if (len) {
+		clone->bi_sector = ci->sector;
+		clone->bi_size = to_bytes(len);
+	}
 
 	__map_bio(ti, clone, tio);
 }
 
 static void __issue_target_requests(struct clone_info *ci, struct dm_target *ti,
-				    unsigned num_requests)
+				    unsigned num_requests, sector_t len)
 {
 	unsigned request_nr;
 
 	for (request_nr = 0; request_nr < num_requests; request_nr++)
-		__issue_target_request(ci, ti, request_nr);
+		__issue_target_request(ci, ti, request_nr, len);
 }
 
 static int __clone_and_map_empty_barrier(struct clone_info *ci)
@@ -1227,7 +1231,7 @@ static int __clone_and_map_empty_barrier(struct clone_info *ci)
 	struct dm_target *ti;
 
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
-		__issue_target_requests(ci, ti, ti->num_flush_requests);
+		__issue_target_requests(ci, ti, ti->num_flush_requests, 0);
 
 	ci->sector_count = 0;
 
@@ -1253,32 +1257,27 @@ static void __clone_and_map_simple(struct clone_info *ci, struct dm_target *ti)
 static int __clone_and_map_discard(struct clone_info *ci)
 {
 	struct dm_target *ti;
-	sector_t max;
+	sector_t len;
 
-	ti = dm_table_find_target(ci->map, ci->sector);
-	if (!dm_target_is_valid(ti))
-		return -EIO;
+	do {
+		ti = dm_table_find_target(ci->map, ci->sector);
+		if (!dm_target_is_valid(ti))
+			return -EIO;
 
-	/*
-	 * Even though the device advertised discard support,
-	 * reconfiguration might have changed that since the
-	 * check was performed.
-	 */
-
-	if (!ti->num_discard_requests)
-		return -EOPNOTSUPP;
-
-	max = max_io_len(ci->sector, ti);
-
-	if (ci->sector_count > max)
 		/*
-		 * FIXME: Handle a discard that spans two or more targets.
+		 * Even though the device advertised discard support,
+		 * reconfiguration might have changed that since the
+		 * check was performed.
 		 */
-		return -EOPNOTSUPP;
+		if (!ti->num_discard_requests)
+			return -EOPNOTSUPP;
 
-	__issue_target_requests(ci, ti, ti->num_discard_requests);
+		len = min(ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
 
-	ci->sector_count = 0;
+		__issue_target_requests(ci, ti, ti->num_discard_requests, len);
+
+		ci->sector += len;
+	} while (ci->sector_count -= len);
 
 	return 0;
 }
