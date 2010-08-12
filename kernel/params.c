@@ -399,9 +399,20 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 	return off;
 }
 
+static void param_array_free(void *arg)
+{
+	unsigned int i;
+	const struct kparam_array *arr = arg;
+
+	if (arr->ops->free)
+		for (i = 0; i < (arr->num ? *arr->num : arr->max); i++)
+			arr->ops->free(arr->elem + arr->elemsize * i);
+}
+
 struct kernel_param_ops param_array_ops = {
 	.set = param_array_set,
 	.get = param_array_get,
+	.free = param_array_free,
 };
 EXPORT_SYMBOL(param_array_ops);
 
@@ -634,7 +645,11 @@ void module_param_sysfs_remove(struct module *mod)
 
 void destroy_params(const struct kernel_param *params, unsigned num)
 {
-	/* FIXME: This should free kmalloced charp parameters.  It doesn't. */
+	unsigned int i;
+
+	for (i = 0; i < num; i++)
+		if (params[i].ops->free)
+			params[i].ops->free(params[i].arg);
 }
 
 static void __init kernel_add_sysfs_param(const char *name,

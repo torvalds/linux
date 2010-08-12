@@ -36,6 +36,8 @@ struct kernel_param_ops {
 	int (*set)(const char *val, const struct kernel_param *kp);
 	/* Returns length written or -errno.  Buffer is 4k (ie. be short!) */
 	int (*get)(char *buffer, const struct kernel_param *kp);
+	/* Optional function to free kp->arg when module unloaded. */
+	void (*free)(void *arg);
 };
 
 /* Flag bits for kernel_param.flags */
