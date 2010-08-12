@@ -1364,18 +1364,18 @@ static void denali_hw_init(struct denali_nand_info *denali)
 	 * */
 	denali->bbtskipbytes = ioread32(denali->flash_reg +
 						SPARE_AREA_SKIP_BYTES);
-	denali_irq_init(denali);
 	denali_nand_reset(denali);
 	iowrite32(0x0F, denali->flash_reg + RB_PIN_ENABLED);
 	iowrite32(CHIP_EN_DONT_CARE__FLAG,
 			denali->flash_reg + CHIP_ENABLE_DONT_CARE);
 
-	iowrite32(0x0, denali->flash_reg + SPARE_AREA_SKIP_BYTES);
 	iowrite32(0xffff, denali->flash_reg + SPARE_AREA_MARKER);
 
 	/* Should set value for these registers when init */
 	iowrite32(0, denali->flash_reg + TWO_ROW_ADDR_CYCLES);
 	iowrite32(1, denali->flash_reg + ECC_ENABLE);
+	denali_nand_timing_set(denali);
+	denali_irq_init(denali);
 }
 
 /* Althogh controller spec said SLC ECC is forceb to be 4bit,
@@ -1501,6 +1501,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_master(dev);
 	denali->dev = dev;
+	denali->mtd.dev.parent = &dev->dev;
 
 	ret = pci_request_regions(dev, DENALI_NAND_NAME);
 	if (ret) {
@@ -1525,6 +1526,8 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali_hw_init(denali);
 	denali_drv_init(denali);
 
+	/* denali_isr register is done after all the hardware
+	 * initilization is finished*/
 	if (request_irq(dev->irq, denali_isr, IRQF_SHARED,
 			DENALI_NAND_NAME, denali)) {
 		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
@@ -1537,9 +1540,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_drvdata(dev, denali);
 
-	denali_nand_timing_set(denali);
-
-	denali->mtd.name = "Denali NAND";
+	denali->mtd.name = "denali-nand";
 	denali->mtd.owner = THIS_MODULE;
 	denali->mtd.priv = &denali->nand;
 
