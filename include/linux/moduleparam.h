@@ -130,6 +130,62 @@ __check_old_set_param(int (*oldset)(const char *, struct kernel_param *))
 #define module_param(name, type, perm)				\
 	module_param_named(name, name, type, perm)
 
+/**
+ * kparam_block_sysfs_write - make sure a parameter isn't written via sysfs.
+ * @name: the name of the parameter
+ *
+ * There's no point blocking write on a paramter that isn't writable via sysfs!
+ */
+#define kparam_block_sysfs_write(name)			\
+	do {						\
+		BUG_ON(!(__param_##name.perm & 0222));	\
+		__kernel_param_lock();			\
+	} while (0)
+
+/**
+ * kparam_unblock_sysfs_write - allows sysfs to write to a parameter again.
+ * @name: the name of the parameter
+ */
+#define kparam_unblock_sysfs_write(name)		\
+	do {						\
+		BUG_ON(!(__param_##name.perm & 0222));	\
+		__kernel_param_unlock();		\
+	} while (0)
+
+/**
+ * kparam_block_sysfs_read - make sure a parameter isn't read via sysfs.
+ * @name: the name of the parameter
+ *
+ * This also blocks sysfs writes.
+ */
+#define kparam_block_sysfs_read(name)			\
+	do {						\
+		BUG_ON(!(__param_##name.perm & 0444));	\
+		__kernel_param_lock();			\
+	} while (0)
+
+/**
+ * kparam_unblock_sysfs_read - allows sysfs to read a parameter again.
+ * @name: the name of the parameter
+ */
+#define kparam_unblock_sysfs_read(name)			\
+	do {						\
+		BUG_ON(!(__param_##name.perm & 0444));	\
+		__kernel_param_unlock();		\
+	} while (0)
+
+#ifdef CONFIG_SYSFS
+extern void __kernel_param_lock(void);
+extern void __kernel_param_unlock(void);
+#else
+static inline void __kernel_param_lock(void)
+{
+}
+static inline void __kernel_param_unlock(void)
+{
+}
+#endif
+
 #ifndef MODULE
 /**
  * core_param - define a historical core kernel parameter.
