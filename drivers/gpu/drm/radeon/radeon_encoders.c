@@ -81,7 +81,7 @@ void radeon_setup_encoder_clones(struct drm_device *dev)
 }
 
 uint32_t
-radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device, uint8_t dac)
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device, uint8_t dac)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t ret = 0;
@@ -97,59 +97,59 @@ radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device, uint8_t
 			if ((rdev->family == CHIP_RS300) ||
 			    (rdev->family == CHIP_RS400) ||
 			    (rdev->family == CHIP_RS480))
-				ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
+				ret = ENCODER_INTERNAL_DAC2_ENUM_ID1;
 			else if (ASIC_IS_AVIVO(rdev))
-				ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
+				ret = ENCODER_INTERNAL_KLDSCP_DAC1_ENUM_ID1;
 			else
-				ret = ENCODER_OBJECT_ID_INTERNAL_DAC1;
+				ret = ENCODER_INTERNAL_DAC1_ENUM_ID1;
 			break;
 		case 2: /* dac b */
 			if (ASIC_IS_AVIVO(rdev))
-				ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
+				ret = ENCODER_INTERNAL_KLDSCP_DAC2_ENUM_ID1;
 			else {
 				/*if (rdev->family == CHIP_R200)
-				  ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+				  ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
 				  else*/
-				ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
+				ret = ENCODER_INTERNAL_DAC2_ENUM_ID1;
 			}
 			break;
 		case 3: /* external dac */
 			if (ASIC_IS_AVIVO(rdev))
-				ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
+				ret = ENCODER_INTERNAL_KLDSCP_DVO1_ENUM_ID1;
 			else
-				ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+				ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
 			break;
 		}
 		break;
 	case ATOM_DEVICE_LCD1_SUPPORT:
 		if (ASIC_IS_AVIVO(rdev))
-			ret = ENCODER_OBJECT_ID_INTERNAL_LVTM1;
+			ret = ENCODER_INTERNAL_LVTM1_ENUM_ID1;
 		else
-			ret = ENCODER_OBJECT_ID_INTERNAL_LVDS;
+			ret = ENCODER_INTERNAL_LVDS_ENUM_ID1;
 		break;
 	case ATOM_DEVICE_DFP1_SUPPORT:
 		if ((rdev->family == CHIP_RS300) ||
 		    (rdev->family == CHIP_RS400) ||
 		    (rdev->family == CHIP_RS480))
-			ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+			ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
 		else if (ASIC_IS_AVIVO(rdev))
-			ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1;
+			ret = ENCODER_INTERNAL_KLDSCP_TMDS1_ENUM_ID1;
 		else
-			ret = ENCODER_OBJECT_ID_INTERNAL_TMDS1;
+			ret = ENCODER_INTERNAL_TMDS1_ENUM_ID1;
 		break;
 	case ATOM_DEVICE_LCD2_SUPPORT:
 	case ATOM_DEVICE_DFP2_SUPPORT:
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
 		    (rdev->family == CHIP_RS740))
-			ret = ENCODER_OBJECT_ID_INTERNAL_DDI;
+			ret = ENCODER_INTERNAL_DDI_ENUM_ID1;
 		else if (ASIC_IS_AVIVO(rdev))
-			ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
+			ret = ENCODER_INTERNAL_KLDSCP_DVO1_ENUM_ID1;
 		else
-			ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+			ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
 		break;
 	case ATOM_DEVICE_DFP3_SUPPORT:
-		ret = ENCODER_OBJECT_ID_INTERNAL_LVTM1;
+		ret = ENCODER_INTERNAL_LVTM1_ENUM_ID1;
 		break;
 	}
 
@@ -562,7 +562,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
 					args.v1.ucMisc |= (1 << 1);
 			} else {
-				if (dig_connector->linkb)
+				if (dig->linkb)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_TMDS_LINKB;
 				if (radeon_encoder->pixel_clock > 165000)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_DUAL;
@@ -601,7 +601,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 						args.v2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 				}
 			} else {
-				if (dig_connector->linkb)
+				if (dig->linkb)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_TMDS_LINKB;
 				if (radeon_encoder->pixel_clock > 165000)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
@@ -781,7 +781,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 			args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER3;
 			break;
 		}
-		if (dig_connector->linkb)
+		if (dig->linkb)
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
 		else
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
@@ -864,7 +864,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v3.ucLaneNum = 4;
 
-		if (dig_connector->linkb) {
+		if (dig->linkb) {
 			args.v3.acConfig.ucLinkSel = 1;
 			args.v3.acConfig.ucEncoderSel = 1;
 		}
@@ -904,7 +904,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
 		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
-		if (dig_connector->linkb)
+		if (dig->linkb)
 			args.v2.acConfig.ucLinkSel = 1;
 
 		switch (radeon_encoder->encoder_id) {
@@ -954,7 +954,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 			}
 		}
 
-		if (dig_connector->linkb)
+		if (dig->linkb)
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;
 		else
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
@@ -1290,24 +1290,22 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	uint32_t dig_enc_in_use = 0;
 
 	if (ASIC_IS_DCE4(rdev)) {
-		struct radeon_connector_atom_dig *dig_connector =
-			radeon_get_atom_connector_priv_from_encoder(encoder);
-
+		dig = radeon_encoder->enc_priv;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			if (dig_connector->linkb)
+			if (dig->linkb)
 				return 1;
 			else
 				return 0;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-			if (dig_connector->linkb)
+			if (dig->linkb)
 				return 3;
 			else
 				return 2;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			if (dig_connector->linkb)
+			if (dig->linkb)
 				return 5;
 			else
 				return 4;
@@ -1641,6 +1639,7 @@ radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 struct radeon_encoder_atom_dig *
 radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 {
+	int encoder_enum = (radeon_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
 	struct radeon_encoder_atom_dig *dig = kzalloc(sizeof(struct radeon_encoder_atom_dig), GFP_KERNEL);
 
 	if (!dig)
@@ -1650,11 +1649,16 @@ radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 	dig->coherent_mode = true;
 	dig->dig_encoder = -1;
 
+	if (encoder_enum == 2)
+		dig->linkb = true;
+	else
+		dig->linkb = false;
+
 	return dig;
 }
 
 void
-radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t supported_device)
+radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t supported_device)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
@@ -1663,7 +1667,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 	/* see if we already added it */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		radeon_encoder = to_radeon_encoder(encoder);
-		if (radeon_encoder->encoder_id == encoder_id) {
+		if (radeon_encoder->encoder_enum == encoder_enum) {
 			radeon_encoder->devices |= supported_device;
 			return;
 		}
@@ -1691,7 +1695,8 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 
 	radeon_encoder->enc_priv = NULL;
 
-	radeon_encoder->encoder_id = encoder_id;
+	radeon_encoder->encoder_enum = encoder_enum;
+	radeon_encoder->encoder_id = (encoder_enum & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
 	radeon_encoder->devices = supported_device;
 	radeon_encoder->rmx_type = RMX_OFF;
 	radeon_encoder->underscan_type = UNDERSCAN_OFF;
