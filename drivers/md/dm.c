@@ -1182,30 +1182,42 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 	return tio;
 }
 
-static void __flush_target(struct clone_info *ci, struct dm_target *ti,
-			  unsigned request_nr)
+static void __issue_target_request(struct clone_info *ci, struct dm_target *ti,
+				   unsigned request_nr)
 {
 	struct dm_target_io *tio = alloc_tio(ci, ti);
 	struct bio *clone;
 
 	tio->info.target_request_nr = request_nr;
 
-	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
+	/*
+	 * Discard requests require the bio's inline iovecs be initialized.
+	 * ci->bio->bi_max_vecs is BIO_INLINE_VECS anyway, for both flush
+	 * and discard, so no need for concern about wasted bvec allocations.
+	 */
+	clone = bio_alloc_bioset(GFP_NOIO, ci->bio->bi_max_vecs, ci->md->bs);
 	__bio_clone(clone, ci->bio);
 	clone->bi_destructor = dm_bio_destructor;
 
 	__map_bio(ti, clone, tio);
 }
 
+static void __issue_target_requests(struct clone_info *ci, struct dm_target *ti,
+				    unsigned num_requests)
+{
+	unsigned request_nr;
+
+	for (request_nr = 0; request_nr < num_requests; request_nr++)
+		__issue_target_request(ci, ti, request_nr);
+}
+
 static int __clone_and_map_empty_barrier(struct clone_info *ci)
 {
-	unsigned target_nr = 0, request_nr;
+	unsigned target_nr = 0;
 	struct dm_target *ti;
 
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
-		for (request_nr = 0; request_nr < ti->num_flush_requests;
-		     request_nr++)
-			__flush_target(ci, ti, request_nr);
+		__issue_target_requests(ci, ti, ti->num_flush_requests);
 
 	ci->sector_count = 0;
 
@@ -1254,7 +1266,9 @@ static int __clone_and_map_discard(struct clone_info *ci)
 		 */
 		return -EOPNOTSUPP;
 
-	__clone_and_map_simple(ci, ti);
+	__issue_target_requests(ci, ti, ti->num_discard_requests);
+
+	ci->sector_count = 0;
 
 	return 0;
 }
