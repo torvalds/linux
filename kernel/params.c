@@ -31,6 +31,45 @@
 #define DEBUGP(fmt, a...)
 #endif
 
+/* This just allows us to keep track of which parameters are kmalloced. */
+struct kmalloced_param {
+	struct list_head list;
+	char val[];
+};
+static DEFINE_MUTEX(param_lock);
+static LIST_HEAD(kmalloced_params);
+
+static void *kmalloc_parameter(unsigned int size)
+{
+	struct kmalloced_param *p;
+
+	p = kmalloc(sizeof(*p) + size, GFP_KERNEL);
+	if (!p)
+		return NULL;
+
+	mutex_lock(&param_lock);
+	list_add(&p->list, &kmalloced_params);
+	mutex_unlock(&param_lock);
+
+	return p->val;
+}
+
+/* Does nothing if parameter wasn't kmalloced above. */
+static void maybe_kfree_parameter(void *param)
+{
+	struct kmalloced_param *p;
+
+	mutex_lock(&param_lock);
+	list_for_each_entry(p, &kmalloced_params, list) {
+		if (p->val == param) {
+			list_del(&p->list);
+			kfree(p);
+			break;
+		}
+	}
+	mutex_unlock(&param_lock);
+}
+
 static inline char dash2underscore(char c)
 {
 	if (c == '-')
@@ -219,12 +258,15 @@ int param_set_charp(const char *val, const struct kernel_param *kp)
 		return -ENOSPC;
 	}
 
-	/* This is a hack.  We can't need to strdup in early boot, and we
+	maybe_kfree_parameter(*(char **)kp->arg);
+
+	/* This is a hack.  We can't kmalloc in early boot, and we
 	 * don't need to; this mangled commandline is preserved. */
 	if (slab_is_available()) {
-		*(char **)kp->arg = kstrdup(val, GFP_KERNEL);
+		*(char **)kp->arg = kmalloc_parameter(strlen(val)+1);
 		if (!*(char **)kp->arg)
 			return -ENOMEM;
+		strcpy(*(char **)kp->arg, val);
 	} else
 		*(const char **)kp->arg = val;
 
@@ -238,9 +280,15 @@ int param_get_charp(char *buffer, const struct kernel_param *kp)
 }
 EXPORT_SYMBOL(param_get_charp);
 
+static void param_free_charp(void *arg)
+{
+	maybe_kfree_parameter(*((char **)arg));
+}
+
 struct kernel_param_ops param_ops_charp = {
 	.set = param_set_charp,
 	.get = param_get_charp,
+	.free = param_free_charp,
 };
 EXPORT_SYMBOL(param_ops_charp);
 
