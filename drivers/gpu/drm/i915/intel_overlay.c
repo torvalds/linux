@@ -290,36 +290,6 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
 		i915_add_request(dev, NULL, &dev_priv->render_ring);
 }
 
-static int intel_overlay_wait_flip(struct intel_overlay *overlay)
-{
-	struct drm_device *dev = overlay->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
-	u32 tmp;
-
-	if (overlay->last_flip_req != 0) {
-		ret = i915_do_wait_request(dev,
-					   overlay->last_flip_req, true,
-					   &dev_priv->render_ring);
-		if (ret == 0) {
-			overlay->last_flip_req = 0;
-
-			tmp = I915_READ(ISR);
-
-			if (!(tmp & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT))
-				return 0;
-		}
-	}
-
-	/* synchronous slowpath */
-	BEGIN_LP_RING(2);
-	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
-
-	return intel_overlay_do_wait_request(overlay, true, RELEASE_OLD_VID);
-}
-
 /* overlay needs to be disabled in OCMD reg */
 static int intel_overlay_off(struct intel_overlay *overlay)
 {
@@ -348,6 +318,16 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	return intel_overlay_do_wait_request(overlay, true, SWITCH_OFF);
 }
 
+static void intel_overlay_release_old_vid_tail(struct intel_overlay *overlay)
+{
+	struct drm_gem_object *obj = &overlay->old_vid_bo->base;
+
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(obj);
+
+	overlay->old_vid_bo = NULL;
+}
+
 static void intel_overlay_off_tail(struct intel_overlay *overlay)
 {
 	struct drm_gem_object *obj;
@@ -372,7 +352,6 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 {
 	struct drm_device *dev = overlay->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
 	int ret;
 
 	if (overlay->hw_wedged == HW_WEDGED)
@@ -385,10 +364,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 
 	switch (overlay->hw_wedged) {
 	case RELEASE_OLD_VID:
-		obj = &overlay->old_vid_bo->base;
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
-		overlay->old_vid_bo = NULL;
+		intel_overlay_release_old_vid_tail(overlay);
 		break;
 
 	case SWITCH_OFF:
@@ -410,23 +386,30 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
  */
 static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
+	struct drm_device *dev = overlay->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
-	struct drm_gem_object *obj;
 
-	/* only wait if there is actually an old frame to release to
-	 * guarantee forward progress */
+	/* Only wait if there is actually an old frame to release to
+	 * guarantee forward progress.
+	 */
 	if (!overlay->old_vid_bo)
 		return 0;
 
-	ret = intel_overlay_wait_flip(overlay);
-	if (ret != 0)
-		return ret;
+	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
+		/* synchronous slowpath */
+		BEGIN_LP_RING(2);
+		OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+		OUT_RING(MI_NOOP);
+		ADVANCE_LP_RING();
 
-	obj = &overlay->old_vid_bo->base;
-	i915_gem_object_unpin(obj);
-	drm_gem_object_unreference(obj);
-	overlay->old_vid_bo = NULL;
+		ret = intel_overlay_do_wait_request(overlay, true,
+						    RELEASE_OLD_VID);
+		if (ret)
+			return ret;
+	}
 
+	intel_overlay_release_old_vid_tail(overlay);
 	return 0;
 }
 
