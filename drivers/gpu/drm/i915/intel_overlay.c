@@ -1406,7 +1406,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (OVERLAY_NEEDS_PHYSICAL(dev)) {
 		ret = i915_gem_attach_phys_object(dev, reg_bo,
 						  I915_GEM_PHYS_OVERLAY_REGS,
-						  0);
+						  PAGE_SIZE);
                 if (ret) {
                         DRM_ERROR("failed to attach phys overlay regs\n");
                         goto out_free_bo;
