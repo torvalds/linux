@@ -1953,6 +1953,9 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	if (!cnic)
 		return 0;
 
+	if (bnx2i_ep->state == EP_STATE_IDLE)
+		return 0;
+
 	if (!bnx2i_ep_tcp_conn_active(bnx2i_ep))
 		goto destroy_conn;
 
