@@ -125,6 +125,8 @@ struct if_sdio_card {
 
 	const char		*helper;
 	const char		*firmware;
+	bool			helper_allocated;
+	bool			firmware_allocated;
 
 	u8			buffer[65536];
 
@@ -984,16 +986,34 @@ static int if_sdio_probe(struct sdio_func *func,
 	card->helper = if_sdio_models[i].helper;
 	card->firmware = if_sdio_models[i].firmware;
 
+	kparam_block_sysfs_write(helper_name);
 	if (lbs_helper_name) {
+		char *helper = kstrdup(lbs_helper_name, GFP_KERNEL);
+		if (!helper) {
+			kparam_unblock_sysfs_write(helper_name);
+			ret = -ENOMEM;
+			goto free;
+		}
 		lbs_deb_sdio("overriding helper firmware: %s\n",
 			lbs_helper_name);
-		card->helper = lbs_helper_name;
+		card->helper = helper;
+		card->helper_allocated = true;
 	}
+	kparam_unblock_sysfs_write(helper_name);
 
+	kparam_block_sysfs_write(fw_name);
 	if (lbs_fw_name) {
+		char *fw_name = kstrdup(lbs_fw_name, GFP_KERNEL);
+		if (!fw_name) {
+			kparam_unblock_sysfs_write(fw_name);
+			ret = -ENOMEM;
+			goto free;
+		}
 		lbs_deb_sdio("overriding firmware: %s\n", lbs_fw_name);
-		card->firmware = lbs_fw_name;
+		card->firmware = fw_name;
+		card->firmware_allocated = true;
 	}
+	kparam_unblock_sysfs_write(fw_name);
 
 	sdio_claim_host(func);
 
@@ -1127,6 +1147,10 @@ free:
 		kfree(packet);
 	}
 
+	if (card->helper_allocated)
+		kfree(card->helper);
+	if (card->firmware_allocated)
+		kfree(card->firmware);
 	kfree(card);
 
 	goto out;
@@ -1177,6 +1201,10 @@ static void if_sdio_remove(struct sdio_func *func)
 		kfree(packet);
 	}
 
+	if (card->helper_allocated)
+		kfree(card->helper);
+	if (card->firmware_allocated)
+		kfree(card->firmware);
 	kfree(card);
 
 	lbs_deb_leave(LBS_DEB_SDIO);
