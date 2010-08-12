@@ -1,4 +1,4 @@
 
-obj-m := wlan.o
+obj-m += wlan.o
 
 
