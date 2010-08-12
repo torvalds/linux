@@ -2224,11 +2224,11 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 {
 	if (!enable && intel_crtc->overlay) {
-		struct intel_overlay *overlay = intel_crtc->overlay;
+		struct drm_device *dev = intel_crtc->base.dev;
 
-		mutex_lock(&overlay->dev->struct_mutex);
-		(void) intel_overlay_switch_off(overlay, false);
-		mutex_unlock(&overlay->dev->struct_mutex);
+		mutex_lock(&dev->struct_mutex);
+		(void) intel_overlay_switch_off(intel_crtc->overlay, false);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	/* Let userspace switch the overlay on again. In most cases userspace

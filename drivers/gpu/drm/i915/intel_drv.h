@@ -146,30 +146,6 @@ struct intel_connector {
 	struct drm_connector base;
 };
 
-struct intel_crtc;
-struct intel_overlay {
-	struct drm_device *dev;
-	struct intel_crtc *crtc;
-	struct drm_i915_gem_object *vid_bo;
-	struct drm_i915_gem_object *old_vid_bo;
-	int active;
-	int pfit_active;
-	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
-	u32 color_key;
-	u32 brightness, contrast, saturation;
-	u32 old_xscale, old_yscale;
-	/* register access */
-	u32 flip_addr;
-	struct drm_i915_gem_object *reg_bo;
-	/* flip handling */
-	uint32_t last_flip_req;
-	int hw_wedged;
-#define HW_WEDGED		1
-#define NEEDS_WAIT_FOR_FLIP	2
-#define RELEASE_OLD_VID		3
-#define SWITCH_OFF		4
-};
-
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
