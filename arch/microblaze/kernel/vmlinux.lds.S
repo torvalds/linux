@@ -8,7 +8,6 @@
  * for more details.
  */
 
-OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
 ENTRY(microblaze_start)
 
