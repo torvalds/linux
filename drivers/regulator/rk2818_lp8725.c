@@ -612,7 +612,7 @@ static int lp8725_set_init(void)
 	/*init buck1*/
 	DBG_INFO("***buck1 vcc init\n");
 	buck1 = regulator_get(NULL, "vdd12");
-	regulator_set_voltage(buck1,1200000,1200000);
+//	regulator_set_voltage(buck1,1200000,1200000);
 	tmp = regulator_get_voltage(buck1);
 	DBG_INFO("***regulator_set_init: buck1 vcc =%d\n",tmp);
 
