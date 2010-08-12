@@ -1609,20 +1609,22 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 uint32_t
 i915_add_request(struct drm_device *dev,
 		 struct drm_file *file_priv,
+		 struct drm_i915_gem_request *request,
 		 struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_file_private *i915_file_priv = NULL;
-	struct drm_i915_gem_request *request;
 	uint32_t seqno;
 	int was_empty;
 
 	if (file_priv != NULL)
 		i915_file_priv = file_priv->driver_priv;
 
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL)
-		return 0;
+	if (request == NULL) {
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return 0;
+	}
 
 	seqno = ring->add_request(dev, ring, file_priv, 0);
 
@@ -1839,7 +1841,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 	BUG_ON(seqno == 0);
 
 	if (seqno == dev_priv->next_seqno) {
-		seqno = i915_add_request(dev, NULL, ring);
+		seqno = i915_add_request(dev, NULL, NULL, ring);
 		if (seqno == 0)
 			return -ENOMEM;
 	}
@@ -3505,8 +3507,7 @@ i915_gem_wait_for_pending_flip(struct drm_device *dev,
 	return ret;
 }
 
-
-int
+static int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv,
 		       struct drm_i915_gem_execbuffer2 *args,
@@ -3518,6 +3519,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_gem_relocation_entry *relocs = NULL;
+	struct drm_i915_gem_request *request = NULL;
 	int ret = 0, ret2, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, reloc_index;
@@ -3569,6 +3571,12 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			ret = -EFAULT;
 			goto pre_mutex_err;
 		}
+	}
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL) {
+		ret = -ENOMEM;
+		goto pre_mutex_err;
 	}
 
 	ret = i915_gem_get_relocs_from_user(exec_list, args->buffer_count,
@@ -3736,11 +3744,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (dev_priv->render_ring.outstanding_lazy_request) {
-		(void)i915_add_request(dev, file_priv, &dev_priv->render_ring);
+		(void)i915_add_request(dev, file_priv, NULL, &dev_priv->render_ring);
 		dev_priv->render_ring.outstanding_lazy_request = false;
 	}
 	if (dev_priv->bsd_ring.outstanding_lazy_request) {
-		(void)i915_add_request(dev, file_priv, &dev_priv->bsd_ring);
+		(void)i915_add_request(dev, file_priv, NULL, &dev_priv->bsd_ring);
 		dev_priv->bsd_ring.outstanding_lazy_request = false;
 	}
 
@@ -3810,7 +3818,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * *some* interrupts representing completion of buffers that we can
 	 * wait on when trying to clear up gtt space).
 	 */
-	seqno = i915_add_request(dev, file_priv, ring);
+	seqno = i915_add_request(dev, file_priv, request, ring);
+	request = NULL;
 
 #if WATCH_LRU
 	i915_dump_lru(dev, __func__);
@@ -3849,6 +3858,7 @@ pre_mutex_err:
 
 	drm_free_large(object_list);
 	kfree(cliprects);
+	kfree(request);
 
 	return ret;
 }
@@ -4199,7 +4209,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 */
 		if (obj->write_domain) {
 			i915_gem_flush(dev, 0, obj->write_domain);
-			(void)i915_add_request(dev, file_priv, obj_priv->ring);
+			(void)i915_add_request(dev, file_priv, NULL, obj_priv->ring);
 		}
 
 		/* Update the active list for the hardware's current position.

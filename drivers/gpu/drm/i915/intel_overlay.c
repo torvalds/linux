@@ -218,6 +218,7 @@ static void intel_overlay_unmap_regs(struct intel_overlay *overlay,
 }
 
 static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
+					 struct drm_i915_gem_request *request,
 					 bool interruptible,
 					 int stage)
 {
@@ -226,7 +227,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	int ret;
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, request, &dev_priv->render_ring);
 	if (overlay->last_flip_req == 0)
 		return -ENOMEM;
 
@@ -246,10 +247,14 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
+	struct drm_i915_gem_request *request;
 
 	BUG_ON(overlay->active);
-
 	overlay->active = 1;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_ON);
@@ -258,20 +263,25 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
 
-	return intel_overlay_do_wait_request(overlay, true,
+	return intel_overlay_do_wait_request(overlay, request, true,
 					     NEEDS_WAIT_FOR_FLIP);
 }
 
 /* overlay needs to be enabled in OCMD reg */
-static void intel_overlay_continue(struct intel_overlay *overlay,
-				   bool load_polyphase_filter)
+static int intel_overlay_continue(struct intel_overlay *overlay,
+				  bool load_polyphase_filter)
 {
 	struct drm_device *dev = overlay->dev;
         drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_request *request;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
 
 	BUG_ON(!overlay->active);
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
@@ -287,16 +297,22 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
         ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, request, &dev_priv->render_ring);
+	return 0;
 }
 
 /* overlay needs to be disabled in OCMD reg */
 static int intel_overlay_off(struct intel_overlay *overlay)
 {
-	u32 flip_addr = overlay->flip_addr;
 	struct drm_device *dev = overlay->dev;
+	u32 flip_addr = overlay->flip_addr;
+	struct drm_i915_gem_request *request;
 
 	BUG_ON(!overlay->active);
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
 
 	/* According to intel docs the overlay hw may hang (when switching
 	 * off) without loading the filter coeffs. It is however unclear whether
@@ -315,7 +331,8 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	ADVANCE_LP_RING();
 
-	return intel_overlay_do_wait_request(overlay, true, SWITCH_OFF);
+	return intel_overlay_do_wait_request(overlay, request, true,
+					     SWITCH_OFF);
 }
 
 static void intel_overlay_release_old_vid_tail(struct intel_overlay *overlay)
@@ -397,13 +414,19 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		return 0;
 
 	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
+		struct drm_i915_gem_request *request;
+
 		/* synchronous slowpath */
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
 		BEGIN_LP_RING(2);
 		OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 		OUT_RING(MI_NOOP);
 		ADVANCE_LP_RING();
 
-		ret = intel_overlay_do_wait_request(overlay, true,
+		ret = intel_overlay_do_wait_request(overlay, request, true,
 						    RELEASE_OLD_VID);
 		if (ret)
 			return ret;
@@ -755,7 +778,9 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	intel_overlay_unmap_regs(overlay, regs);
 
-	intel_overlay_continue(overlay, scale_changed);
+	ret = intel_overlay_continue(overlay, scale_changed);
+	if (ret)
+		goto out_unpin;
 
 	overlay->old_vid_bo = overlay->vid_bo;
 	overlay->vid_bo = to_intel_bo(new_bo);

@@ -992,8 +992,9 @@ int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 int i915_gpu_idle(struct drm_device *dev);
 int i915_gem_idle(struct drm_device *dev);
 uint32_t i915_add_request(struct drm_device *dev,
-		struct drm_file *file_priv,
-		struct intel_ring_buffer *ring);
+			  struct drm_file *file_priv,
+			  struct drm_i915_gem_request *request,
+			  struct intel_ring_buffer *ring);
 int i915_do_wait_request(struct drm_device *dev,
 			 uint32_t seqno,
 			 bool interruptible,
