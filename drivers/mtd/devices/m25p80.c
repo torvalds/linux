@@ -793,7 +793,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			break;
 		}
 
-		if (plat_id)
+		if (i < ARRAY_SIZE(m25p_ids) - 1)
 			id = plat_id;
 		else
 			dev_warn(&spi->dev, "unrecognized id %s\n", data->type);
