@@ -266,6 +266,7 @@ pnx833x_flash_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 static struct platform_nand_data pnx833x_flash_nand_data = {
 	.chip = {
+		.nr_chips		= 1,
 		.chip_delay		= 25,
 		.part_probe_types 	= part_probes,
 	},
