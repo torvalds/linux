@@ -167,8 +167,7 @@ struct intel_overlay {
 #define HW_WEDGED		1
 #define NEEDS_WAIT_FOR_FLIP	2
 #define RELEASE_OLD_VID		3
-#define SWITCH_OFF_STAGE_1	4
-#define SWITCH_OFF_STAGE_2	5
+#define SWITCH_OFF		4
 };
 
 struct intel_crtc {

@@ -325,7 +325,6 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	u32 flip_addr = overlay->flip_addr;
 	struct drm_device *dev = overlay->dev;
-	int ret;
 
 	BUG_ON(!overlay->active);
 
@@ -335,29 +334,18 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	 * of the hw. Do it in both cases */
 	flip_addr |= OFC_UPDATE;
 
+	BEGIN_LP_RING(6);
 	/* wait for overlay to go idle */
-	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
-
-	ret = intel_overlay_do_wait_request(overlay, true,
-					    SWITCH_OFF_STAGE_1);
-	if (ret)
-		return ret;
-
 	/* turn overlay off */
-	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
 	OUT_RING(flip_addr);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
 
-	return intel_overlay_do_wait_request(overlay, true,
-					     SWITCH_OFF_STAGE_2);
+	return intel_overlay_do_wait_request(overlay, true, SWITCH_OFF);
 }
 
 static void intel_overlay_off_tail(struct intel_overlay *overlay)
@@ -383,9 +371,8 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 					 bool interruptible)
 {
 	struct drm_device *dev = overlay->dev;
-	struct drm_gem_object *obj;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 flip_addr;
+	struct drm_gem_object *obj;
 	int ret;
 
 	if (overlay->hw_wedged == HW_WEDGED)
@@ -404,25 +391,10 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 		overlay->old_vid_bo = NULL;
 		break;
 
-	case SWITCH_OFF_STAGE_1:
-		flip_addr = overlay->flip_addr;
-		flip_addr |= OFC_UPDATE;
-
-		BEGIN_LP_RING(4);
-		OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
-		OUT_RING(flip_addr);
-		OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-		OUT_RING(MI_NOOP);
-		ADVANCE_LP_RING();
-
-		ret = intel_overlay_do_wait_request(overlay, interruptible,
-						    SWITCH_OFF_STAGE_2);
-		if (ret)
-			return ret;
-
-	case SWITCH_OFF_STAGE_2:
+	case SWITCH_OFF:
 		intel_overlay_off_tail(overlay);
 		break;
+
 	default:
 		BUG_ON(overlay->hw_wedged != NEEDS_WAIT_FOR_FLIP);
 	}
