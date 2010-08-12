@@ -34,6 +34,7 @@ struct cpcap_led_data {
 	struct work_struct brightness_work;
 	enum led_brightness brightness;
 	int regulator_state;
+	u8 blink;
 };
 
 static void cpcap_set(struct led_classdev *led_cdev,
@@ -50,6 +51,19 @@ static void cpcap_set(struct led_classdev *led_cdev,
 	schedule_work(&cpcap_led_data->brightness_work);
 }
 EXPORT_SYMBOL(cpcap_set);
+
+static int cpcap_msg_ind_blink(struct led_classdev *led_cdev,
+			       unsigned long *delay_on,
+			       unsigned long *delay_off)
+{
+	struct cpcap_led_data *info =
+		container_of(led_cdev, struct cpcap_led_data,
+			 cpcap_class_dev);
+
+	info->blink = 1;
+	schedule_work(&info->brightness_work);
+	return 0;
+}
 
 static void cpcap_brightness_work(struct work_struct *work)
 {
@@ -80,6 +94,8 @@ static void cpcap_brightness_work(struct work_struct *work)
 			pr_err("%s: Writing to the register failed for %i\n",
 			       __func__, cpcap_status);
 
+		if (cpcap_led_data->blink)
+			cpcap_uc_start(cpcap_led_data->cpcap, CPCAP_MACRO_6);
 	} else {
 		if ((cpcap_led_data->regulator) &&
 		    (cpcap_led_data->regulator_state == 1)) {
@@ -105,6 +121,9 @@ static void cpcap_brightness_work(struct work_struct *work)
 		if (cpcap_status < 0)
 			pr_err("%s: Writing to the register failed for %i\n",
 			       __func__, cpcap_status);
+
+		if (cpcap_led_data->blink)
+			cpcap_uc_stop(cpcap_led_data->cpcap, CPCAP_MACRO_6);
 	}
 }
 
@@ -143,13 +162,20 @@ static int cpcap_probe(struct platform_device *pdev)
 
 	info->cpcap_class_dev.name = info->pdata->class_name;
 	info->cpcap_class_dev.brightness_set = cpcap_set;
+	info->cpcap_class_dev.brightness = LED_OFF;
+	info->cpcap_class_dev.max_brightness = 255;
+	if (info->pdata->blink_able)
+		info->cpcap_class_dev.blink_set = cpcap_msg_ind_blink;
+
 	ret = led_classdev_register(&pdev->dev, &info->cpcap_class_dev);
 	if (ret < 0) {
 		pr_err("%s:Register %s class failed\n",
 			__func__, info->cpcap_class_dev.name);
 		goto err_reg_button_class_failed;
 	}
+
 	INIT_WORK(&info->brightness_work, cpcap_brightness_work);
+
 	return ret;
 
 err_reg_button_class_failed:
@@ -166,7 +192,6 @@ static int cpcap_remove(struct platform_device *pdev)
 
 	if (info->regulator)
 		regulator_put(info->regulator);
-
 	led_classdev_unregister(&info->cpcap_class_dev);
 	return 0;
 }

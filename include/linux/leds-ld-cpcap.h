@@ -25,6 +25,7 @@
 
 #define LD_DISP_BUTTON_DEV "button-backlight"
 #define LD_PRIVACY_LED_DEV "privacy-led"
+#define LD_NOTIF_LED_DEV "notification-backlight"
 
 struct cpcap_display_led {
 	unsigned int display_reg;
@@ -41,6 +42,7 @@ struct cpcap_display_led {
 };
 
 struct cpcap_led {
+	u8 blink_able;
 	unsigned int cpcap_register;
 	unsigned int cpcap_mask;
 	unsigned int on_val;
