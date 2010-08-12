@@ -207,11 +207,20 @@ static void stripe_dtr(struct dm_target *ti)
 	kfree(sc);
 }
 
+static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
+			      uint32_t *stripe, sector_t *result)
+{
+	sector_t offset = dm_target_offset(sc->ti, sector);
+	sector_t chunk = offset >> sc->chunk_shift;
+
+	*stripe = sector_div(chunk, sc->stripes);
+	*result = (chunk << sc->chunk_shift) | (offset & sc->chunk_mask);
+}
+
 static int stripe_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
-	struct stripe_c *sc = (struct stripe_c *) ti->private;
-	sector_t offset, chunk;
+	struct stripe_c *sc = ti->private;
 	uint32_t stripe;
 	unsigned target_request_nr;
 
@@ -222,13 +231,11 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		return DM_MAPIO_REMAPPED;
 	}
 
-	offset = dm_target_offset(ti, bio->bi_sector);
-	chunk = offset >> sc->chunk_shift;
-	stripe = sector_div(chunk, sc->stripes);
+	stripe_map_sector(sc, bio->bi_sector, &stripe, &bio->bi_sector);
 
+	bio->bi_sector += sc->stripe[stripe].physical_start;
 	bio->bi_bdev = sc->stripe[stripe].dev->bdev;
-	bio->bi_sector = sc->stripe[stripe].physical_start +
-	    (chunk << sc->chunk_shift) + (offset & sc->chunk_mask);
+
 	return DM_MAPIO_REMAPPED;
 }
 
