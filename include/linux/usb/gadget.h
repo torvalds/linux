@@ -705,11 +705,6 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  * struct usb_gadget_driver - driver for usb 'slave' devices
  * @function: String describing the gadget's function
  * @speed: Highest speed the driver handles.
- * @bind: Invoked when the driver is bound to a gadget, usually
- *	after registering the driver.
- *	At that point, ep0 is fully initialized, and ep_list holds
- *	the currently-available endpoints.
- *	Called in a context that permits sleeping.
  * @setup: Invoked for ep0 control requests that aren't handled by
  *	the hardware level driver. Most calls must be handled by
  *	the gadget driver, including descriptor and configuration
@@ -774,7 +769,6 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 struct usb_gadget_driver {
 	char			*function;
 	enum usb_device_speed	speed;
-	int			(*bind)(struct usb_gadget *);
 	void			(*unbind)(struct usb_gadget *);
 	int			(*setup)(struct usb_gadget *,
 					const struct usb_ctrlrequest *);
@@ -798,17 +792,19 @@ struct usb_gadget_driver {
  */
 
 /**
- * usb_gadget_register_driver - register a gadget driver
- * @driver:the driver being registered
+ * usb_gadget_probe_driver - probe a gadget driver
+ * @driver: the driver being registered
+ * @bind: the driver's bind callback
  * Context: can sleep
  *
  * Call this in your gadget driver's module initialization function,
  * to tell the underlying usb controller driver about your driver.
- * The driver's bind() function will be called to bind it to a
- * gadget before this registration call returns.  It's expected that
- * the bind() functions will be in init sections.
+ * The @bind() function will be called to bind it to a gadget before this
+ * registration call returns.  It's expected that the @bind() function will
+ * be in init sections.
  */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver);
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
 
 /**
  * usb_gadget_unregister_driver - unregister a gadget driver

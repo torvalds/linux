@@ -1292,7 +1292,6 @@ static void gmidi_resume(struct usb_gadget *gadget)
 static struct usb_gadget_driver gmidi_driver = {
 	.speed		= USB_SPEED_FULL,
 	.function	= (char *)longname,
-	.bind		= gmidi_bind,
 	.unbind		= gmidi_unbind,
 
 	.setup		= gmidi_setup,
@@ -1309,7 +1308,7 @@ static struct usb_gadget_driver gmidi_driver = {
 
 static int __init gmidi_init(void)
 {
-	return usb_gadget_register_driver(&gmidi_driver);
+	return usb_gadget_probe_driver(&gmidi_driver, gmidi_bind);
 }
 module_init(gmidi_init);
 

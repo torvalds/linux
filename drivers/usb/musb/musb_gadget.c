@@ -1699,9 +1699,11 @@ void musb_gadget_cleanup(struct musb *musb)
  * -ENOMEM no memeory to perform the operation
  *
  * @param driver the gadget driver
+ * @param bind the driver's bind function
  * @return <0 if error, 0 if everything is fine
  */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	int retval;
 	unsigned long flags;
@@ -1709,8 +1711,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !driver->bind
-			|| !driver->setup)
+			|| !bind || !driver->setup)
 		return -EINVAL;
 
 	/* driver must be initialized to support peripheral mode */
@@ -1738,7 +1739,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	if (retval == 0) {
-		retval = driver->bind(&musb->g);
+		retval = bind(&musb->g);
 		if (retval != 0) {
 			DBG(3, "bind to driver %s failed --> %d\n",
 					driver->driver.name, retval);
@@ -1786,7 +1787,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
 {

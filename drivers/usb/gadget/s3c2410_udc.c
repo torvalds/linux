@@ -1632,15 +1632,15 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 }
 
 /*
- *	usb_gadget_register_driver
+ *	usb_gadget_probe_driver
  */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct s3c2410_udc *udc = the_controller;
 	int		retval;
 
-	dprintk(DEBUG_NORMAL, "usb_gadget_register_driver() '%s'\n",
-		driver->driver.name);
+	dprintk(DEBUG_NORMAL, "%s() '%s'\n", __func__, driver->driver.name);
 
 	/* Sanity checks */
 	if (!udc)
@@ -1649,10 +1649,9 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	if (udc->driver)
 		return -EBUSY;
 
-	if (!driver->bind || !driver->setup
-			|| driver->speed < USB_SPEED_FULL) {
+	if (!bind || !driver->setup || driver->speed < USB_SPEED_FULL) {
 		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
-			driver->bind, driver->setup, driver->speed);
+			bind, driver->setup, driver->speed);
 		return -EINVAL;
 	}
 #if defined(MODULE)
@@ -1675,7 +1674,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dprintk(DEBUG_NORMAL, "binding gadget driver '%s'\n",
 		driver->driver.name);
 
-	if ((retval = driver->bind (&udc->gadget)) != 0) {
+	if ((retval = bind(&udc->gadget)) != 0) {
 		device_del(&udc->gadget.dev);
 		goto register_error;
 	}
@@ -1690,6 +1689,7 @@ register_error:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /*
  *	usb_gadget_unregister_driver
@@ -2049,7 +2049,6 @@ static void __exit udc_exit(void)
 }
 
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
-EXPORT_SYMBOL(usb_gadget_register_driver);
 
 module_init(udc_init);
 module_exit(udc_exit);

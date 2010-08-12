@@ -1213,7 +1213,6 @@ composite_resume(struct usb_gadget *gadget)
 static struct usb_gadget_driver composite_driver = {
 	.speed		= USB_SPEED_HIGH,
 
-	.bind		= composite_bind,
 	.unbind		= composite_unbind,
 
 	.setup		= composite_setup,
@@ -1255,7 +1254,7 @@ int usb_composite_register(struct usb_composite_driver *driver)
 	composite_driver.driver.name = driver->name;
 	composite = driver;
 
-	return usb_gadget_register_driver(&composite_driver);
+	return usb_gadget_probe_driver(&composite_driver, composite_bind);
 }
 
 /**

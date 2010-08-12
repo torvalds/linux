@@ -403,7 +403,6 @@ fail:
 static struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.speed = USB_SPEED_HIGH,
-	.bind = dbgp_bind,
 	.unbind = dbgp_unbind,
 	.setup = dbgp_setup,
 	.disconnect = dbgp_disconnect,
@@ -415,7 +414,7 @@ static struct usb_gadget_driver dbgp_driver = {
 
 static int __init dbgp_init(void)
 {
-	return usb_gadget_register_driver(&dbgp_driver);
+	return usb_gadget_probe_driver(&dbgp_driver, dbgp_bind);
 }
 
 static void __exit dbgp_exit(void)
