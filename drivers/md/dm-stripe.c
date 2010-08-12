@@ -176,6 +176,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->split_io = chunk_size;
 	ti->num_flush_requests = stripes;
+	ti->num_discard_requests = stripes;
 
 	sc->chunk_shift = ffs(chunk_size) - 1;
 	sc->chunk_mask = ((sector_t) chunk_size) - 1;
@@ -230,6 +231,39 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 	*result = (chunk << sc->chunk_shift) | (offset & sc->chunk_mask);
 }
 
+static void stripe_map_range_sector(struct stripe_c *sc, sector_t sector,
+				    uint32_t target_stripe, sector_t *result)
+{
+	uint32_t stripe;
+
+	stripe_map_sector(sc, sector, &stripe, result);
+	if (stripe == target_stripe)
+		return;
+	*result &= ~sc->chunk_mask;			/* round down */
+	if (target_stripe < stripe)
+		*result += sc->chunk_mask + 1;		/* next chunk */
+}
+
+static int stripe_map_discard(struct stripe_c *sc, struct bio *bio,
+			      uint32_t target_stripe)
+{
+	sector_t begin, end;
+
+	stripe_map_range_sector(sc, bio->bi_sector, target_stripe, &begin);
+	stripe_map_range_sector(sc, bio->bi_sector + bio_sectors(bio),
+				target_stripe, &end);
+	if (begin < end) {
+		bio->bi_bdev = sc->stripe[target_stripe].dev->bdev;
+		bio->bi_sector = begin + sc->stripe[target_stripe].physical_start;
+		bio->bi_size = to_bytes(end - begin);
+		return DM_MAPIO_REMAPPED;
+	} else {
+		/* The range doesn't map to the target stripe */
+		bio_endio(bio, 0);
+		return DM_MAPIO_SUBMITTED;
+	}
+}
+
 static int stripe_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
@@ -242,6 +276,11 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		BUG_ON(target_request_nr >= sc->stripes);
 		bio->bi_bdev = sc->stripe[target_request_nr].dev->bdev;
 		return DM_MAPIO_REMAPPED;
+	}
+	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+		target_request_nr = map_context->target_request_nr;
+		BUG_ON(target_request_nr >= sc->stripes);
+		return stripe_map_discard(sc, bio, target_request_nr);
 	}
 
 	stripe_map_sector(sc, bio->bi_sector, &stripe, &bio->bi_sector);
