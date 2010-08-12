@@ -65,9 +65,10 @@
 #define SPI_INTLVL_1		0x000001FFu
 #define SPI_INTLVL_0		0x00000000u
 
-/* SPIDAT1 */
-#define SPIDAT1_CSHOLD_MASK	BIT(28)
-#define SPIDAT1_CSNR_SHIFT	16
+/* SPIDAT1 (upper 16 bit defines) */
+#define SPIDAT1_CSHOLD_MASK	BIT(12)
+
+/* SPIGCR1 */
 #define SPIGCR1_CLKMOD_MASK	BIT(1)
 #define SPIGCR1_MASTER_MASK     BIT(0)
 #define SPIGCR1_LOOPBACK_MASK	BIT(16)
@@ -235,8 +236,8 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 {
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_platform_data *pdata;
-	u32 data1_reg_val;
 	u8 chip_sel = spi->chip_select;
+	u16 spidat1_cfg = CS_DEFAULT;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
@@ -245,17 +246,12 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 * Board specific chip select logic decides the polarity and cs
 	 * line for the controller
 	 */
-	data1_reg_val = CS_DEFAULT << SPIDAT1_CSNR_SHIFT;
 	if (value == BITBANG_CS_ACTIVE) {
-		data1_reg_val |= SPIDAT1_CSHOLD_MASK;
-		data1_reg_val &= ~((0x1 << chip_sel) << SPIDAT1_CSNR_SHIFT);
+		spidat1_cfg |= SPIDAT1_CSHOLD_MASK;
+		spidat1_cfg &= ~(0x1 << chip_sel);
 	}
 
-	iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
-	while ((ioread32(davinci_spi->base + SPIBUF)
-				& SPIBUF_RXEMPTY_MASK) == 0)
-		cpu_relax();
-
+	iowrite16(spidat1_cfg, davinci_spi->base + SPIDAT1 + 2);
 }
 
 /**
