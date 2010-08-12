@@ -8,25 +8,34 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/netdevice.h>
+#if defined(CONFIG_MACH_RAHO)
 #include <linux/i2c.h>
-#include <linux/miscdevice.h>
-#include <linux/circ_buf.h>
 #include <mach/spi_fpga.h>
-
+#elif defined(CONFIG_MACH_RK2818INFO)
+/* include gpio definition header file */
+#endif
 #include "wifi_power.h"
+
 #if (WIFI_GPIO_POWER_CONTROL == 1)
+#if defined(CONFIG_MACH_RAHO)
 struct wifi_power power_gpio = 
 {
-	POWER_USE_GPIO, 0, 0,
-	0, SPI_GPIO_P1_06, SPI_GPIO_HIGH
-	
+	POWER_USE_GPIO, 0, 0, 0, SPI_GPIO_P1_06, SPI_GPIO_HIGH
 };
 
 struct wifi_power power_save_gpio = 
 {
 	POWER_USE_GPIO, 0, 0, 0, SPI_GPIO_P1_03, SPI_GPIO_HIGH
 }; 
+#elif defined(CONFIG_MACH_RK2818INFO)
+struct wifi_power power_gpio = {
+       0,0,0,0,0,0
+};
+
+struct wifi_power power_save_gpio = {
+       0,0,0,0,0,0
+}; 
+#endif
 
 int wifi_gpio_operate(struct wifi_power *gpio, int flag)
 {
@@ -38,15 +47,23 @@ int wifi_gpio_operate(struct wifi_power *gpio, int flag)
 	{
 		rk2818_mux_api_set(gpio->iomux_name, gpio->iomux_value);
 	}
-	
+
+#if defined(CONFIG_MACH_RAHO)	
         spi_gpio_set_pindirection(gpio->gpio_id, SPI_GPIO_OUT); 
+#elif defined(CONFIG_MACH_RK2818INFO)
+        /* set pin direction */
+#endif
 
 	if (flag == GPIO_SWITCH_ON)
 		sensitive = gpio->sensi_level;
 	else
 		sensitive = 1 - gpio->sensi_level;
 
+#if defined(CONFIG_MACH_RAHO)
         spi_gpio_set_pinlevel(gpio->gpio_id, sensitive);
+#elif defined(CONFIG_MACH_RK2818INFO)
+       /* set pin level */ 
+#endif
 
 	return 0;
 }
