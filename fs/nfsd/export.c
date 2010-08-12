@@ -935,10 +935,9 @@ static void exp_fsid_unhash(struct svc_export *exp)
 
 	ek = exp_get_fsid_key(exp->ex_client, exp->ex_fsid);
 	if (!IS_ERR(ek)) {
-		ek->h.expiry_time = get_seconds()-1;
+		sunrpc_invalidate(&ek->h, &svc_expkey_cache);
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
-	svc_expkey_cache.nextcheck = get_seconds();
 }
 
 static int exp_fsid_hash(svc_client *clp, struct svc_export *exp)
@@ -973,10 +972,9 @@ static void exp_unhash(struct svc_export *exp)
 
 	ek = exp_get_key(exp->ex_client, inode->i_sb->s_dev, inode->i_ino);
 	if (!IS_ERR(ek)) {
-		ek->h.expiry_time = get_seconds()-1;
+		sunrpc_invalidate(&ek->h, &svc_expkey_cache);
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
-	svc_expkey_cache.nextcheck = get_seconds();
 }
 	
 /*
@@ -1097,8 +1095,7 @@ out:
 static void
 exp_do_unexport(svc_export *unexp)
 {
-	unexp->h.expiry_time = get_seconds()-1;
-	svc_export_cache.nextcheck = get_seconds();
+	sunrpc_invalidate(&unexp->h, &svc_export_cache);
 	exp_unhash(unexp);
 	exp_fsid_unhash(unexp);
 }

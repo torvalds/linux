@@ -228,4 +228,10 @@ static inline time_t get_expiry(char **bpp)
 	return rv;
 }
 
+static inline void sunrpc_invalidate(struct cache_head *h,
+				     struct cache_detail *detail)
+{
+	h->expiry_time = get_seconds() - 1;
+	detail->nextcheck = get_seconds();
+}
 #endif /*  _LINUX_SUNRPC_CACHE_H_ */
