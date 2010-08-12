@@ -822,7 +822,8 @@ static int fimc_m2m_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	} else {
 		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
 			 "Wrong buffer/video queue type (%d)\n", f->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto s_fmt_out;
 	}
 
 	pix = &f->fmt.pix;
