@@ -45,6 +45,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
@@ -272,15 +274,14 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
-	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
-    printk(KERN_INFO
-	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
-           dev->name, dev->base_addr, dev->irq,
-	   (u_long)ti->mmio, (u_long)(ti->sram_base << 12),
-	   dev->dev_addr);
+    netdev_info(dev, "port %#3lx, irq %d, mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
+		dev->base_addr, dev->irq,
+		(u_long)ti->mmio, (u_long)(ti->sram_base << 12),
+		dev->dev_addr);
     return 0;
 
 failed:

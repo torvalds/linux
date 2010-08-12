@@ -69,6 +69,8 @@ earlier 3Com products.
 
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -373,8 +375,8 @@ static int tc574_config(struct pcmcia_device *link)
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(read_eeprom(ioaddr, i + 10));
 		if (phys_addr[0] == htons(0x6060)) {
-			printk(KERN_NOTICE "3c574_cs: IO port conflict at 0x%03lx"
-				   "-0x%03lx\n", dev->base_addr, dev->base_addr+15);
+			pr_notice("IO port conflict at 0x%03lx-0x%03lx\n",
+				  dev->base_addr, dev->base_addr+15);
 			goto failed;
 		}
 	}
@@ -388,7 +390,7 @@ static int tc574_config(struct pcmcia_device *link)
 		outw(2<<11, ioaddr + RunnerRdCtrl);
 		mcr = inb(ioaddr + 2);
 		outw(0<<11, ioaddr + RunnerRdCtrl);
-		printk(KERN_INFO "  ASIC rev %d,", mcr>>3);
+		pr_info("  ASIC rev %d,", mcr>>3);
 		EL3WINDOW(3);
 		config = inl(ioaddr + Wn3_Config);
 		lp->default_media = (config & Xcvr) >> Xcvr_shift;
@@ -425,7 +427,7 @@ static int tc574_config(struct pcmcia_device *link)
 			}
 		}
 		if (phy > 32) {
-			printk(KERN_NOTICE "  No MII transceivers found!\n");
+			pr_notice("  No MII transceivers found!\n");
 			goto failed;
 		}
 		i = mdio_read(ioaddr, lp->phys, 16) | 0x40;
@@ -441,18 +443,16 @@ static int tc574_config(struct pcmcia_device *link)
 	SET_NETDEV_DEV(dev, &link->dev);
 
 	if (register_netdev(dev) != 0) {
-		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
+		pr_notice("register_netdev() failed\n");
 		goto failed;
 	}
 
-	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, "
-	       "hw_addr %pM.\n",
-	       dev->name, cardname, dev->base_addr, dev->irq,
-	       dev->dev_addr);
-	printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
-		   8 << config & Ram_size,
-		   ram_split[(config & Ram_split) >> Ram_split_shift],
-		   config & Autoselect ? "autoselect " : "");
+	netdev_info(dev, "%s at io %#3lx, irq %d, hw_addr %pM\n",
+		    cardname, dev->base_addr, dev->irq, dev->dev_addr);
+	netdev_info(dev, " %dK FIFO split %s Rx:Tx, %sMII interface.\n",
+		    8 << config & Ram_size,
+		    ram_split[(config & Ram_split) >> Ram_split_shift],
+		    config & Autoselect ? "autoselect " : "");
 
 	return 0;
 
@@ -499,14 +499,14 @@ static void dump_status(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	EL3WINDOW(1);
-	printk(KERN_INFO "  irq status %04x, rx status %04x, tx status "
-		   "%02x, tx free %04x\n", inw(ioaddr+EL3_STATUS),
-		   inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
-		   inw(ioaddr+TxFree));
+	netdev_info(dev, "  irq status %04x, rx status %04x, tx status %02x, tx free %04x\n",
+		    inw(ioaddr+EL3_STATUS),
+		    inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
+		    inw(ioaddr+TxFree));
 	EL3WINDOW(4);
-	printk(KERN_INFO "  diagnostics: fifo %04x net %04x ethernet %04x"
-		   " media %04x\n", inw(ioaddr+0x04), inw(ioaddr+0x06),
-		   inw(ioaddr+0x08), inw(ioaddr+0x0a));
+	netdev_info(dev, "  diagnostics: fifo %04x net %04x ethernet %04x media %04x\n",
+		    inw(ioaddr+0x04), inw(ioaddr+0x06),
+		    inw(ioaddr+0x08), inw(ioaddr+0x0a));
 	EL3WINDOW(1);
 }
 
@@ -520,7 +520,7 @@ static void tc574_wait_for_completion(struct net_device *dev, int cmd)
 	while (--i > 0)
 		if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000)) break;
 	if (i == 0)
-		printk(KERN_NOTICE "%s: command 0x%04x did not complete!\n", dev->name, cmd);
+		netdev_notice(dev, "command 0x%04x did not complete!\n", cmd);
 }
 
 /* Read a word from the EEPROM using the regular EEPROM access register.
@@ -722,7 +722,7 @@ static void el3_tx_timeout(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	
-	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
+	netdev_notice(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
 	dev->trans_start = jiffies; /* prevent tx timeout */
@@ -845,8 +845,8 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + Wn4_FIFODiag);
 				EL3WINDOW(1);
-				printk(KERN_NOTICE "%s: adapter failure, FIFO diagnostic"
-					   " register %04x.\n", dev->name, fifo_diag);
+				netdev_notice(dev, "adapter failure, FIFO diagnostic register %04x\n",
+					      fifo_diag);
 				if (fifo_diag & 0x0400) {
 					/* Tx overrun */
 					tc574_wait_for_completion(dev, TxReset);
@@ -900,7 +900,7 @@ static void media_check(unsigned long arg)
 	   this, we can limp along even if the interrupt is blocked */
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
-			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+			netdev_info(dev, "interrupt(s) dropped!\n");
 
 		local_irq_save(flags);
 		el3_interrupt(dev->irq, dev);
@@ -923,23 +923,21 @@ static void media_check(unsigned long arg)
 	
 	if (media != lp->media_status) {
 		if ((media ^ lp->media_status) & 0x0004)
-			printk(KERN_INFO "%s: %s link beat\n", dev->name,
-				   (lp->media_status & 0x0004) ? "lost" : "found");
+			netdev_info(dev, "%s link beat\n",
+				    (lp->media_status & 0x0004) ? "lost" : "found");
 		if ((media ^ lp->media_status) & 0x0020) {
 			lp->partner = 0;
 			if (lp->media_status & 0x0020) {
-				printk(KERN_INFO "%s: autonegotiation restarted\n",
-					   dev->name);
+				netdev_info(dev, "autonegotiation restarted\n");
 			} else if (partner) {
 				partner &= lp->advertising;
 				lp->partner = partner;
-				printk(KERN_INFO "%s: autonegotiation complete: "
-					   "%sbaseT-%cD selected\n", dev->name,
-					   ((partner & 0x0180) ? "100" : "10"),
-					   ((partner & 0x0140) ? 'F' : 'H'));
+				netdev_info(dev, "autonegotiation complete: "
+					    "%dbaseT-%cD selected\n",
+					    (partner & 0x0180) ? 100 : 10,
+					    (partner & 0x0140) ? 'F' : 'H');
 			} else {
-				printk(KERN_INFO "%s: link partner did not autonegotiate\n",
-					   dev->name);
+				netdev_info(dev, "link partner did not autonegotiate\n");
 			}
 
 			EL3WINDOW(3);
@@ -949,10 +947,9 @@ static void media_check(unsigned long arg)
 
 		}
 		if (media & 0x0010)
-			printk(KERN_INFO "%s: remote fault detected\n",
-				   dev->name);
+			netdev_info(dev, "remote fault detected\n");
 		if (media & 0x0002)
-			printk(KERN_INFO "%s: jabber detected\n", dev->name);
+			netdev_info(dev, "jabber detected\n");
 		lp->media_status = media;
 	}
 	spin_unlock_irqrestore(&lp->window_lock, flags);
