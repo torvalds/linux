@@ -497,7 +497,7 @@ int conf_write_defconfig(const char *filename)
 			/*
 			 * If symbol is a choice value and equals to the
 			 * default for a choice - skip.
-			 * But only if value equal to "y".
+			 * But only if value is bool and equal to "y" .
 			 */
 			if (sym_is_choice_value(sym)) {
 				struct symbol *cs;
@@ -506,9 +506,8 @@ int conf_write_defconfig(const char *filename)
 				cs = prop_get_symbol(sym_get_choice_prop(sym));
 				ds = sym_choice_default(cs);
 				if (sym == ds) {
-					if ((sym->type == S_BOOLEAN ||
-					sym->type == S_TRISTATE) &&
-					sym_get_tristate_value(sym) == yes)
+					if ((sym->type == S_BOOLEAN) &&
+					    sym_get_tristate_value(sym) == yes)
 						goto next_menu;
 				}
 			}
