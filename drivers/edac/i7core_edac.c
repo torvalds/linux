@@ -1240,16 +1240,17 @@ static void i7core_put_devices(struct i7core_dev *i7core_dev)
 		pci_dev_put(pdev);
 	}
 	kfree(i7core_dev->pdev);
-	list_del(&i7core_dev->list);
-	kfree(i7core_dev);
 }
 
 static void i7core_put_all_devices(void)
 {
 	struct i7core_dev *i7core_dev, *tmp;
 
-	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list)
+	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list) {
 		i7core_put_devices(i7core_dev);
+		list_del(&i7core_dev->list);
+		kfree(i7core_dev);
+	}
 }
 
 static void __init i7core_xeon_pci_fixup(const struct pci_id_table *table)
@@ -1437,7 +1438,6 @@ static int i7core_get_devices(const struct pci_id_table *table)
 		table++;
 	}
 
-	return 0;
 	return 0;
 }
 
@@ -2092,6 +2092,8 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			/* Release PCI resources */
 			i7core_put_devices(i7core_dev);
 		}
+		list_del(&i7core_dev->list);
+		kfree(i7core_dev);
 	}
 	probed--;
 
