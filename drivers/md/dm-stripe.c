@@ -222,7 +222,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		return DM_MAPIO_REMAPPED;
 	}
 
-	offset = bio->bi_sector - ti->begin;
+	offset = dm_target_offset(ti, bio->bi_sector);
 	chunk = offset >> sc->chunk_shift;
 	stripe = sector_div(chunk, sc->stripes);
 

@@ -445,7 +445,7 @@ static sector_t map_sector(struct mirror *m, struct bio *bio)
 {
 	if (unlikely(!bio->bi_size))
 		return 0;
-	return m->offset + (bio->bi_sector - m->ms->ti->begin);
+	return m->offset + dm_target_offset(m->ms->ti, bio->bi_sector);
 }
 
 static void map_bio(struct mirror *m, struct bio *bio)

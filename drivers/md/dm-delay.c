@@ -281,14 +281,13 @@ static int delay_map(struct dm_target *ti, struct bio *bio,
 		bio->bi_bdev = dc->dev_write->bdev;
 		if (bio_sectors(bio))
 			bio->bi_sector = dc->start_write +
-					 (bio->bi_sector - ti->begin);
+					 dm_target_offset(ti, bio->bi_sector);
 
 		return delay_bio(dc, dc->write_delay, bio);
 	}
 
 	bio->bi_bdev = dc->dev_read->bdev;
-	bio->bi_sector = dc->start_read +
-			 (bio->bi_sector - ti->begin);
+	bio->bi_sector = dc->start_read + dm_target_offset(ti, bio->bi_sector);
 
 	return delay_bio(dc, dc->read_delay, bio);
 }
