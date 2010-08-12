@@ -2528,7 +2528,7 @@ static struct pci_driver ipmi_pci_driver = {
 
 
 #ifdef CONFIG_PPC_OF
-static int __devinit ipmi_of_probe(struct of_device *dev,
+static int __devinit ipmi_of_probe(struct platform_device *dev,
 			 const struct of_device_id *match)
 {
 	struct smi_info *info;
@@ -2607,7 +2607,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 	return 0;
 }
 
-static int __devexit ipmi_of_remove(struct of_device *dev)
+static int __devexit ipmi_of_remove(struct platform_device *dev)
 {
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
 	return 0;

@@ -52,7 +52,7 @@ static struct {
 	struct task_struct	*poll_task;
 	
 	struct mutex	 	lock;
-	struct of_device	*of_dev;
+	struct platform_device	*of_dev;
 	
 	struct i2c_client	*thermostat;
 	struct i2c_client	*fan;
@@ -444,13 +444,13 @@ static struct i2c_driver g4fan_driver = {
 /************************************************************************/
 
 static int
-therm_of_probe( struct of_device *dev, const struct of_device_id *match )
+therm_of_probe( struct platform_device *dev, const struct of_device_id *match )
 {
 	return i2c_add_driver( &g4fan_driver );
 }
 
 static int
-therm_of_remove( struct of_device *dev )
+therm_of_remove( struct platform_device *dev )
 {
 	i2c_del_driver( &g4fan_driver );
 	return 0;

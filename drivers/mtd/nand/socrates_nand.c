@@ -162,7 +162,7 @@ static const char *part_probes[] = { "cmdlinepart", NULL };
 /*
  * Probe for the NAND device.
  */
-static int __devinit socrates_nand_probe(struct of_device *ofdev,
+static int __devinit socrates_nand_probe(struct platform_device *ofdev,
 					 const struct of_device_id *ofid)
 {
 	struct socrates_nand_host *host;
@@ -276,7 +276,7 @@ out:
 /*
  * Remove a NAND device.
  */
-static int __devexit socrates_nand_remove(struct of_device *ofdev)
+static int __devexit socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
 	struct mtd_info *mtd = &host->mtd;

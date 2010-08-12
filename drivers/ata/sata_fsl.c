@@ -1296,7 +1296,7 @@ static const struct ata_port_info sata_fsl_port_info[] = {
 	 },
 };
 
-static int sata_fsl_probe(struct of_device *ofdev,
+static int sata_fsl_probe(struct platform_device *ofdev,
 			const struct of_device_id *match)
 {
 	int retval = -ENXIO;
@@ -1370,7 +1370,7 @@ error_exit_with_cleanup:
 	return retval;
 }
 
-static int sata_fsl_remove(struct of_device *ofdev)
+static int sata_fsl_remove(struct platform_device *ofdev)
 {
 	struct ata_host *host = dev_get_drvdata(&ofdev->dev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;
@@ -1387,13 +1387,13 @@ static int sata_fsl_remove(struct of_device *ofdev)
 }
 
 #ifdef CONFIG_PM
-static int sata_fsl_suspend(struct of_device *op, pm_message_t state)
+static int sata_fsl_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 	return ata_host_suspend(host, state);
 }
 
-static int sata_fsl_resume(struct of_device *op)
+static int sata_fsl_resume(struct platform_device *op)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;

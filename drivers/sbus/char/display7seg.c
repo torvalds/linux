@@ -170,7 +170,7 @@ static struct miscdevice d7s_miscdev = {
 	.fops		= &d7s_fops
 };
 
-static int __devinit d7s_probe(struct of_device *op,
+static int __devinit d7s_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct device_node *opts;
@@ -236,7 +236,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit d7s_remove(struct of_device *op)
+static int __devexit d7s_remove(struct platform_device *op)
 {
 	struct d7s *p = dev_get_drvdata(&op->dev);
 	u8 regs = readb(p->regs);

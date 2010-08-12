@@ -105,7 +105,7 @@ struct i2c_reg {
 
 struct cpm_i2c {
 	char *base;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	struct i2c_adapter adap;
 	uint dp_addr;
 	int version; /* CPM1=1, CPM2=2 */
@@ -428,7 +428,7 @@ static const struct i2c_adapter cpm_ops = {
 
 static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)
 {
-	struct of_device *ofdev = cpm->ofdev;
+	struct platform_device *ofdev = cpm->ofdev;
 	const u32 *data;
 	int len, ret, i;
 	void __iomem *i2c_base;
@@ -634,7 +634,7 @@ static void cpm_i2c_shutdown(struct cpm_i2c *cpm)
 		cpm_muram_free(cpm->i2c_addr);
 }
 
-static int __devinit cpm_i2c_probe(struct of_device *ofdev,
+static int __devinit cpm_i2c_probe(struct platform_device *ofdev,
 			 const struct of_device_id *match)
 {
 	int result, len;
@@ -687,7 +687,7 @@ out_free:
 	return result;
 }
 
-static int __devexit cpm_i2c_remove(struct of_device *ofdev)
+static int __devexit cpm_i2c_remove(struct platform_device *ofdev)
 {
 	struct cpm_i2c *cpm = dev_get_drvdata(&ofdev->dev);
 

@@ -1536,6 +1536,7 @@ static int __devexit mmc_spi_remove(struct spi_device *spi)
 #if defined(CONFIG_OF)
 static struct of_device_id mmc_spi_of_match_table[] __devinitdata = {
 	{ .compatible = "mmc-spi-slot", },
+	{},
 };
 #endif
 

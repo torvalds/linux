@@ -1298,7 +1298,7 @@ static struct of_device_id mpc52xx_uart_of_match[] = {
 };
 
 static int __devinit
-mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
+mpc52xx_uart_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	int idx = -1;
 	unsigned int uartclk;
@@ -1369,7 +1369,7 @@ mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
 }
 
 static int
-mpc52xx_uart_of_remove(struct of_device *op)
+mpc52xx_uart_of_remove(struct platform_device *op)
 {
 	struct uart_port *port = dev_get_drvdata(&op->dev);
 	dev_set_drvdata(&op->dev, NULL);
@@ -1382,7 +1382,7 @@ mpc52xx_uart_of_remove(struct of_device *op)
 
 #ifdef CONFIG_PM
 static int
-mpc52xx_uart_of_suspend(struct of_device *op, pm_message_t state)
+mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct uart_port *port = (struct uart_port *) dev_get_drvdata(&op->dev);
 
@@ -1393,7 +1393,7 @@ mpc52xx_uart_of_suspend(struct of_device *op, pm_message_t state)
 }
 
 static int
-mpc52xx_uart_of_resume(struct of_device *op)
+mpc52xx_uart_of_resume(struct platform_device *op)
 {
 	struct uart_port *port = (struct uart_port *) dev_get_drvdata(&op->dev);
 
