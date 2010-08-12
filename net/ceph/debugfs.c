@@ -252,8 +252,7 @@ void ceph_debugfs_cleanup(void)
 {
 }
 
-int ceph_debugfs_client_init(struct ceph_client *client,
-			     int (*module_debugfs_init)(struct ceph_client *))
+int ceph_debugfs_client_init(struct ceph_client *client)
 {
 	return 0;
 }
