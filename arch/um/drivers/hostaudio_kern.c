@@ -187,7 +187,9 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	int ret;
 
 #ifdef DEBUG
+	kparam_block_sysfs_write(dsp);
 	printk(KERN_DEBUG "hostaudio: open called (host: %s)\n", dsp);
+	kparam_unblock_sysfs_write(dsp);
 #endif
 
 	state = kmalloc(sizeof(struct hostaudio_state), GFP_KERNEL);
@@ -199,9 +201,11 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		w = 1;
 
+	kparam_block_sysfs_write(dsp);
 	lock_kernel();
 	ret = os_open_file(dsp, of_set_rw(OPENFLAGS(), r, w), 0);
 	unlock_kernel();
+	kparam_unblock_sysfs_write(dsp);
 
 	if (ret < 0) {
 		kfree(state);
@@ -258,13 +262,17 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		w = 1;
 
+	kparam_block_sysfs_write(mixer);
 	lock_kernel();
 	ret = os_open_file(mixer, of_set_rw(OPENFLAGS(), r, w), 0);
 	unlock_kernel();
+	kparam_unblock_sysfs_write(mixer);
 
 	if (ret < 0) {
+		kparam_block_sysfs_write(dsp);
 		printk(KERN_ERR "hostaudio_open_mixdev failed to open '%s', "
 		       "err = %d\n", dsp, -ret);
+		kparam_unblock_sysfs_write(dsp);
 		kfree(state);
 		return ret;
 	}
@@ -320,8 +328,10 @@ MODULE_LICENSE("GPL");
 
 static int __init hostaudio_init_module(void)
 {
+	__kernel_param_lock();
 	printk(KERN_INFO "UML Audio Relay (host dsp = %s, host mixer = %s)\n",
 	       dsp, mixer);
+	__kernel_param_unlock();
 
 	module_data.dev_audio = register_sound_dsp(&hostaudio_fops, -1);
 	if (module_data.dev_audio < 0) {

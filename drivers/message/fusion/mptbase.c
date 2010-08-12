@@ -110,8 +110,7 @@ MODULE_PARM_DESC(mpt_debug_level, " debug level - refer to mptdebug.h \
 
 int mpt_fwfault_debug;
 EXPORT_SYMBOL(mpt_fwfault_debug);
-module_param_call(mpt_fwfault_debug, param_set_int, param_get_int,
-	  &mpt_fwfault_debug, 0600);
+module_param(mpt_fwfault_debug, int, 0600);
 MODULE_PARM_DESC(mpt_fwfault_debug, "Enable detection of Firmware fault"
 	" and halt Firmware on fault - (default=0)");
 

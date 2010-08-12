@@ -201,11 +201,11 @@ static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
 
-extern struct obs_kernel_param __setup_start[], __setup_end[];
+extern const struct obs_kernel_param __setup_start[], __setup_end[];
 
 static int __init obsolete_checksetup(char *line)
 {
-	struct obs_kernel_param *p;
+	const struct obs_kernel_param *p;
 	int had_early_param = 0;
 
 	p = __setup_start;
@@ -458,7 +458,7 @@ static noinline void __init_refok rest_init(void)
 /* Check for early params. */
 static int __init do_early_param(char *param, char *val)
 {
-	struct obs_kernel_param *p;
+	const struct obs_kernel_param *p;
 
 	for (p = __setup_start; p < __setup_end; p++) {
 		if ((p->early && strcmp(param, p->str) == 0) ||
@@ -536,7 +536,7 @@ static void __init mm_init(void)
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
-	extern struct kernel_param __start___param[], __stop___param[];
+	extern const struct kernel_param __start___param[], __stop___param[];
 
 	smp_setup_processor_id();
 
