@@ -3404,6 +3404,7 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
  * unrefcounted extent.
  */
 static int ocfs2_refcount_cow_hunk(struct inode *inode,
+				   struct file *file,
 				   struct buffer_head *di_bh,
 				   u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3481,6 +3482,7 @@ out:
  * clusters between cpos and cpos+write_len are safe to modify.
  */
 int ocfs2_refcount_cow(struct inode *inode,
+		       struct file *file,
 		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3500,7 +3502,7 @@ int ocfs2_refcount_cow(struct inode *inode,
 			num_clusters = write_len;
 
 		if (ext_flags & OCFS2_EXT_REFCOUNTED) {
-			ret = ocfs2_refcount_cow_hunk(inode, di_bh, cpos,
+			ret = ocfs2_refcount_cow_hunk(inode, file, di_bh, cpos,
 						      num_clusters, max_cpos);
 			if (ret) {
 				mlog_errno(ret);

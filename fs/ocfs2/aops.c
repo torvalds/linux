@@ -1693,7 +1693,7 @@ int ocfs2_write_begin_nolock(struct file *filp,
 		mlog_errno(ret);
 		goto out;
 	} else if (ret == 1) {
-		ret = ocfs2_refcount_cow(inode, di_bh,
+		ret = ocfs2_refcount_cow(inode, filp, di_bh,
 					 wc->w_cpos, wc->w_clen, UINT_MAX);
 		if (ret) {
 			mlog_errno(ret);
