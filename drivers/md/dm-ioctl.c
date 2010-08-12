@@ -285,19 +285,20 @@ retry:
 	up_write(&_hash_lock);
 }
 
-static int dm_hash_rename(uint32_t cookie, uint32_t *flags, const char *old,
-			  const char *new)
+static struct mapped_device *dm_hash_rename(struct dm_ioctl *param,
+					    const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
 	struct dm_table *table;
+	struct mapped_device *md;
 
 	/*
 	 * duplicate new.
 	 */
 	new_name = kstrdup(new, GFP_KERNEL);
 	if (!new_name)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	down_write(&_hash_lock);
 
@@ -306,24 +307,24 @@ static int dm_hash_rename(uint32_t cookie, uint32_t *flags, const char *old,
 	 */
 	hc = __get_name_cell(new);
 	if (hc) {
-		DMWARN("asked to rename to an already existing name %s -> %s",
-		       old, new);
+		DMWARN("asked to rename to an already-existing name %s -> %s",
+		       param->name, new);
 		dm_put(hc->md);
 		up_write(&_hash_lock);
 		kfree(new_name);
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
 
 	/*
 	 * Is there such a device as 'old' ?
 	 */
-	hc = __get_name_cell(old);
+	hc = __get_name_cell(param->name);
 	if (!hc) {
-		DMWARN("asked to rename a non existent device %s -> %s",
-		       old, new);
+		DMWARN("asked to rename a non-existent device %s -> %s",
+		       param->name, new);
 		up_write(&_hash_lock);
 		kfree(new_name);
-		return -ENXIO;
+		return ERR_PTR(-ENXIO);
 	}
 
 	/*
@@ -345,13 +346,14 @@ static int dm_hash_rename(uint32_t cookie, uint32_t *flags, const char *old,
 		dm_table_put(table);
 	}
 
-	if (!dm_kobject_uevent(hc->md, KOBJ_CHANGE, cookie))
-		*flags |= DM_UEVENT_GENERATED_FLAG;
+	if (!dm_kobject_uevent(hc->md, KOBJ_CHANGE, param->event_nr))
+		param->flags |= DM_UEVENT_GENERATED_FLAG;
 
-	dm_put(hc->md);
+	md = hc->md;
 	up_write(&_hash_lock);
 	kfree(old_name);
-	return 0;
+
+	return md;
 }
 
 /*-----------------------------------------------------------------
@@ -760,6 +762,7 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 {
 	int r;
 	char *new_name = (char *) param + param->data_start;
+	struct mapped_device *md;
 
 	if (new_name < param->data ||
 	    invalid_str(new_name, (void *) param + param_size) ||
@@ -772,10 +775,14 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		return r;
 
-	param->data_size = 0;
+	md = dm_hash_rename(param, new_name);
+	if (IS_ERR(md))
+		return PTR_ERR(md);
 
-	return dm_hash_rename(param->event_nr, &param->flags, param->name,
-			      new_name);
+	__dev_status(md, param);
+	dm_put(md);
+
+	return 0;
 }
 
 static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
