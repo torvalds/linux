@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/mfd/davinci_voicecodec.h>
+#include <linux/spi/spi.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -40,8 +41,6 @@
 #include <sound/initval.h>
 
 #include <mach/dm365.h>
-
-#include "cq93vc.h"
 
 static inline unsigned int cq93vc_read(struct snd_soc_codec *codec,
 						unsigned int reg)
@@ -130,8 +129,8 @@ static struct snd_soc_dai_ops cq93vc_dai_ops = {
 	.set_sysclk	= cq93vc_set_dai_sysclk,
 };
 
-struct snd_soc_dai cq93vc_dai = {
-	.name = "CQ93VC",
+static struct snd_soc_dai_driver cq93vc_dai = {
+	.name = "cq93vc-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -146,36 +145,20 @@ struct snd_soc_dai cq93vc_dai = {
 		.formats = CQ93VC_FORMATS,},
 	.ops = &cq93vc_dai_ops,
 };
-EXPORT_SYMBOL_GPL(cq93vc_dai);
 
-static int cq93vc_resume(struct platform_device *pdev)
+static int cq93vc_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
 
-static struct snd_soc_codec *cq93vc_codec;
-
-static int cq93vc_probe(struct platform_device *pdev)
+static int cq93vc_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	struct snd_soc_codec *codec;
-	int ret;
+	struct davinci_vc *davinci_vc = codec->dev->platform_data;
 
-	socdev->card->codec = cq93vc_codec;
-	codec = socdev->card->codec;
-
-	/* Register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(dev, "%s: failed to create pcms\n", pdev->name);
-		return ret;
-	}
+	davinci_vc->cq93vc.codec = codec;
+	codec->control_data = davinci_vc;
 
 	/* Set controls */
 	snd_soc_add_controls(codec, cq93vc_snd_controls,
@@ -187,108 +170,51 @@ static int cq93vc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cq93vc_remove(struct platform_device *pdev)
+static int cq93vc_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
+	cq93vc_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_cq93vc = {
+static struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
+	.read = cq93vc_read,
+	.write = cq93vc_write,
+	.set_bias_level = cq93vc_set_bias_level,
 	.probe = cq93vc_probe,
 	.remove = cq93vc_remove,
 	.resume = cq93vc_resume,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_cq93vc);
 
-static __init int cq93vc_codec_probe(struct platform_device *pdev)
+static int cq93vc_platform_probe(struct platform_device *pdev)
 {
-	struct davinci_vc *davinci_vc = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret;
-
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL) {
-		dev_dbg(davinci_vc->dev,
-			"could not allocate memory for codec data\n");
-		return -ENOMEM;
-	}
-
-	davinci_vc->cq93vc.codec = codec;
-
-	cq93vc_dai.dev = &pdev->dev;
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-	codec->dev = &pdev->dev;
-	codec->name = "CQ93VC";
-	codec->owner = THIS_MODULE;
-	codec->read = cq93vc_read;
-	codec->write = cq93vc_write;
-	codec->set_bias_level = cq93vc_set_bias_level;
-	codec->dai = &cq93vc_dai;
-	codec->num_dai = 1;
-	codec->control_data = davinci_vc;
-
-	cq93vc_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret) {
-		dev_err(davinci_vc->dev, "failed to register codec\n");
-		goto fail1;
-	}
-
-	ret = snd_soc_register_dai(&cq93vc_dai);
-	if (ret) {
-		dev_err(davinci_vc->dev, "could register dai\n");
-		goto fail2;
-	}
-	return 0;
-
-fail2:
-	snd_soc_unregister_codec(codec);
-
-fail1:
-	kfree(codec);
-	cq93vc_codec = NULL;
-
-	return ret;
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_cq93vc, &cq93vc_dai, 1);
 }
 
-static int __devexit cq93vc_codec_remove(struct platform_device *pdev)
+static int cq93vc_platform_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	snd_soc_unregister_dai(&cq93vc_dai);
-	snd_soc_unregister_codec(&codec);
-
-	kfree(codec);
-	cq93vc_codec = NULL;
-
+	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
 static struct platform_driver cq93vc_codec_driver = {
 	.driver = {
-		   .name = "cq93vc",
-		   .owner = THIS_MODULE,
-		   },
-	.probe = cq93vc_codec_probe,
-	.remove = __devexit_p(cq93vc_codec_remove),
+			.name = "cq93vc-codec",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = cq93vc_platform_probe,
+	.remove = __devexit_p(cq93vc_platform_remove),
 };
 
-static __init int cq93vc_init(void)
+static int __init cq93vc_init(void)
 {
-	return platform_driver_probe(&cq93vc_codec_driver, cq93vc_codec_probe);
+	return platform_driver_register(&cq93vc_codec_driver);
 }
 module_init(cq93vc_init);
 
-static __exit void cq93vc_exit(void)
+static void __exit cq93vc_exit(void)
 {
 	platform_driver_unregister(&cq93vc_codec_driver);
 }

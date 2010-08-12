@@ -31,7 +31,6 @@
 #include <plat/mux.h>
 
 #include "mcpdm.h"
-#include "omap-mcpdm.h"
 #include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
@@ -41,7 +40,7 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int clk_id, freq;
 	int ret;
 
@@ -60,6 +59,7 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_ERR "can't set codec system clock\n");
 		return ret;
 	}
+	return ret;
 }
 
 static struct snd_soc_ops sdp4430_ops = {
@@ -126,8 +126,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Earphone Spk", NULL, "EP"},
 };
 
-static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
+static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int ret;
 
 	/* Add SDP4430 specific controls */
@@ -164,8 +165,10 @@ static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link sdp4430_dai = {
 	.name = "TWL6040",
 	.stream_name = "TWL6040",
-	.cpu_dai = &omap_mcpdm_dai,
-	.codec_dai = &twl6040_dai,
+	.cpu_dai_name ="omap-mcpdm-dai",
+	.codec_dai_name = "twl6040-hifi",
+	.platform_name = "omap-pcm-audio",
+	.codec_name = "twl6040-codec",
 	.init = sdp4430_twl6040_init,
 	.ops = &sdp4430_ops,
 };
@@ -173,15 +176,8 @@ static struct snd_soc_dai_link sdp4430_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_sdp4430 = {
 	.name = "SDP4430",
-	.platform = &omap_soc_platform,
 	.dai_link = &sdp4430_dai,
 	.num_links = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device sdp4430_snd_devdata = {
-	.card = &snd_soc_sdp4430,
-	.codec_dev = &soc_codec_dev_twl6040,
 };
 
 static struct platform_device *sdp4430_snd_device;
@@ -202,8 +198,7 @@ static int __init sdp4430_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(sdp4430_snd_device, &sdp4430_snd_devdata);
-	sdp4430_snd_devdata.dev = &sdp4430_snd_device->dev;
+	platform_set_drvdata(sdp4430_snd_device, &snd_soc_sdp4430);
 
 	ret = platform_device_add(sdp4430_snd_device);
 	if (ret)

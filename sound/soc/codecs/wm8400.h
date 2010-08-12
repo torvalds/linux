@@ -56,7 +56,4 @@
 #define WM8400_BCLK_DIV_44                      (0xE << 1)
 #define WM8400_BCLK_DIV_48                      (0xF << 1)
 
-extern struct snd_soc_dai wm8400_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8400;
-
 #endif

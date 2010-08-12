@@ -19,7 +19,6 @@
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-db1x00/bcsr.h>
 
-#include "../codecs/ac97.h"
 #include "../codecs/wm8731.h"
 #include "psc.h"
 
@@ -28,20 +27,16 @@
 static struct snd_soc_dai_link db1200_ac97_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.cpu_dai	= &au1xpsc_ac97_dai,
-	.codec_dai	= &ac97_dai,
+	.cpu_dai_name	= "au1xpsc-ac97",
+	.codec_dai_name	= "ac97-hifi",
+	.platform_name	=  "au1xpsc-pcm-audio",
+	.codec_name	= "ac97-codec",
 };
 
 static struct snd_soc_card db1200_ac97_machine = {
 	.name		= "DB1200_AC97",
 	.dai_link	= &db1200_ac97_dai,
 	.num_links	= 1,
-	.platform	= &au1xpsc_soc_platform,
-};
-
-static struct snd_soc_device db1200_ac97_devdata = {
-	.card		= &db1200_ac97_machine,
-	.codec_dev	= &soc_codec_dev_ac97,
 };
 
 /*-------------------------  I2S PART  ---------------------------*/
@@ -49,8 +44,8 @@ static struct snd_soc_device db1200_ac97_devdata = {
 static int db1200_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	/* WM8731 has its own 12MHz crystal */
@@ -80,8 +75,10 @@ static struct snd_soc_ops db1200_i2s_wm8731_ops = {
 static struct snd_soc_dai_link db1200_i2s_dai = {
 	.name		= "WM8731",
 	.stream_name	= "WM8731 PCM",
-	.cpu_dai	= &au1xpsc_i2s_dai,
-	.codec_dai	= &wm8731_dai,
+	.cpu_dai_name	= "au1xpsc",
+	.codec_dai_name	= "wm8731-hifi"
+	.platform_name	= "au1xpsc-pcm-audio",
+	.codec_name	= "wm8731-codec.0-001a",
 	.ops		= &db1200_i2s_wm8731_ops,
 };
 
@@ -89,12 +86,6 @@ static struct snd_soc_card db1200_i2s_machine = {
 	.name		= "DB1200_I2S",
 	.dai_link	= &db1200_i2s_dai,
 	.num_links	= 1,
-	.platform	= &au1xpsc_soc_platform,
-};
-
-static struct snd_soc_device db1200_i2s_devdata = {
-	.card		= &db1200_i2s_machine,
-	.codec_dev	= &soc_codec_dev_wm8731,
 };
 
 /*-------------------------  COMMON PART  ---------------------------*/
@@ -112,12 +103,10 @@ static int __init db1200_audio_load(void)
 
 	/* DB1200 board setup set PSC1MUX to preferred audio device */
 	if (bcsr_read(BCSR_RESETS) & BCSR_RESETS_PSC1MUX)
-		platform_set_drvdata(db1200_asoc_dev, &db1200_i2s_devdata);
+		platform_set_drvdata(db1200_asoc_dev, &db1200_i2s_machine);
 	else
-		platform_set_drvdata(db1200_asoc_dev, &db1200_ac97_devdata);
+		platform_set_drvdata(db1200_asoc_dev, &db1200_ac97_machine);
 
-	db1200_ac97_devdata.dev = &db1200_asoc_dev->dev;
-	db1200_i2s_devdata.dev = &db1200_asoc_dev->dev;
 	ret = platform_device_add(db1200_asoc_dev);
 
 	if (ret) {

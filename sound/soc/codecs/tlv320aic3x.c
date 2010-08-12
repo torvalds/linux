@@ -63,8 +63,10 @@ static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct aic3x_priv {
-	struct snd_soc_codec codec;
 	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
+	enum snd_soc_control_type control_type;
+	struct aic3x_setup_data *setup;
+	void *control_data;
 	unsigned int sysclk;
 	int master;
 	int gpio_reset;
@@ -773,8 +775,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec =rtd->codec;
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
@@ -1101,8 +1102,8 @@ static struct snd_soc_dai_ops aic3x_dai_ops = {
 	.set_fmt	= aic3x_set_dai_fmt,
 };
 
-struct snd_soc_dai aic3x_dai = {
-	.name = "tlv320aic3x",
+static struct snd_soc_dai_driver aic3x_dai = {
+	.name = "tlv320aic3x-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -1117,22 +1118,16 @@ struct snd_soc_dai aic3x_dai = {
 		.formats = AIC3X_FORMATS,},
 	.ops = &aic3x_dai_ops,
 };
-EXPORT_SYMBOL_GPL(aic3x_dai);
 
-static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
+static int aic3x_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-static int aic3x_resume(struct platform_device *pdev)
+static int aic3x_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u8 *cache = codec->reg_cache;
@@ -1156,22 +1151,6 @@ static int aic3x_resume(struct platform_device *pdev)
 static int aic3x_init(struct snd_soc_codec *codec)
 {
 	int reg;
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	codec->name = "tlv320aic3x";
-	codec->owner = THIS_MODULE;
-	codec->read = aic3x_read_reg_cache;
-	codec->write = aic3x_write;
-	codec->set_bias_level = aic3x_set_bias_level;
-	codec->dai = &aic3x_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(aic3x_reg);
-	codec->reg_cache = kmemdup(aic3x_reg, sizeof(aic3x_reg), GFP_KERNEL);
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
 
 	aic3x_write(codec, AIC3X_PAGE_SELECT, PAGE0_SELECT);
 	aic3x_write(codec, AIC3X_RESET, SOFT_RESET);
@@ -1245,55 +1224,49 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec *aic3x_codec;
-
-static int aic3x_register(struct snd_soc_codec *codec)
+static int aic3x_probe(struct snd_soc_codec *codec)
 {
-	int ret;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 
-	ret = aic3x_init(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to initialise device\n");
-		return ret;
+	codec->hw_write = (hw_write_t) i2c_master_send;
+	codec->control_data = aic3x->control_data;
+
+	if (aic3x->setup) {
+		/* setup GPIO functions */
+		aic3x_write(codec, AIC3X_GPIO1_REG,
+			    (aic3x->setup->gpio_func[0] & 0xf) << 4);
+		aic3x_write(codec, AIC3X_GPIO2_REG,
+			    (aic3x->setup->gpio_func[1] & 0xf) << 4);
 	}
 
-	aic3x_codec = codec;
+	aic3x_init(codec);
 
-	ret = snd_soc_register_codec(codec);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register codec\n");
-		return ret;
-	}
+	snd_soc_add_controls(codec, aic3x_snd_controls,
+			     ARRAY_SIZE(aic3x_snd_controls));
 
-	ret = snd_soc_register_dai(&aic3x_dai);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register dai\n");
-		snd_soc_unregister_codec(codec);
-		return ret;
-	}
+	aic3x_add_widgets(codec);
 
 	return 0;
 }
 
-static int aic3x_unregister(struct aic3x_priv *aic3x)
+static int aic3x_remove(struct snd_soc_codec *codec)
 {
-	aic3x_set_bias_level(&aic3x->codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_unregister_dai(&aic3x_dai);
-	snd_soc_unregister_codec(&aic3x->codec);
-
-	if (aic3x->gpio_reset >= 0) {
-		gpio_set_value(aic3x->gpio_reset, 0);
-		gpio_free(aic3x->gpio_reset);
-	}
-	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
-	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
-
-	kfree(aic3x);
-	aic3x_codec = NULL;
-
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
+
+static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
+	.read = aic3x_read_reg_cache,
+	.write = aic3x_write,
+	.set_bias_level = aic3x_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(aic3x_reg),
+	.reg_word_size = sizeof(u8),
+	.reg_cache_default = aic3x_reg,
+	.probe = aic3x_probe,
+	.remove = aic3x_remove,
+	.suspend = aic3x_suspend,
+	.resume = aic3x_resume,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -1308,9 +1281,9 @@ static int aic3x_unregister(struct aic3x_priv *aic3x)
 static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
-	struct snd_soc_codec *codec;
-	struct aic3x_priv *aic3x;
 	struct aic3x_pdata *pdata = i2c->dev.platform_data;
+	struct aic3x_setup_data *setup = pdata->setup;
+	struct aic3x_priv *aic3x;
 	int ret, i;
 
 	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
@@ -1319,12 +1292,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 	}
 
-	codec = &aic3x->codec;
-	codec->dev = &i2c->dev;
-	snd_soc_codec_set_drvdata(codec, aic3x);
-	codec->control_data = i2c;
-	codec->hw_write = (hw_write_t) i2c_master_send;
-
+	aic3x->control_data = i2c;
+	aic3x->setup = setup;
 	i2c_set_clientdata(i2c, aic3x);
 
 	aic3x->gpio_reset = -1;
@@ -1339,17 +1308,17 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
 		aic3x->supplies[i].supply = aic3x_supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(aic3x->supplies),
+	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(aic3x->supplies),
 				 aic3x->supplies);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
 		goto err_get;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(aic3x->supplies),
 				    aic3x->supplies);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
 		goto err_enable;
 	}
 
@@ -1358,7 +1327,11 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		gpio_set_value(aic3x->gpio_reset, 1);
 	}
 
-	return aic3x_register(codec);
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_aic3x, &aic3x_dai, 1);
+	if (ret < 0)
+		goto err_enable;
+	return ret;
 
 err_enable:
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
@@ -1374,7 +1347,16 @@ static int aic3x_i2c_remove(struct i2c_client *client)
 {
 	struct aic3x_priv *aic3x = i2c_get_clientdata(client);
 
-	return aic3x_unregister(aic3x);
+	if (aic3x->gpio_reset >= 0) {
+		gpio_set_value(aic3x->gpio_reset, 0);
+		gpio_free(aic3x->gpio_reset);
+	}
+	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
+	return 0;
 }
 
 static const struct i2c_device_id aic3x_i2c_id[] = {
@@ -1387,7 +1369,7 @@ MODULE_DEVICE_TABLE(i2c, aic3x_i2c_id);
 /* machine i2c codec control layer */
 static struct i2c_driver aic3x_i2c_driver = {
 	.driver = {
-		.name = "aic3x I2C Codec",
+		.name = "tlv320aic3x-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe	= aic3x_i2c_probe,
@@ -1409,90 +1391,27 @@ static inline void aic3x_i2c_exit(void)
 {
 	i2c_del_driver(&aic3x_i2c_driver);
 }
-#else
-static inline void aic3x_i2c_init(void) { }
-static inline void aic3x_i2c_exit(void) { }
 #endif
-
-static int aic3x_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct aic3x_setup_data *setup;
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	codec = aic3x_codec;
-	if (!codec) {
-		dev_err(&pdev->dev, "Codec not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = codec;
-	setup = socdev->codec_data;
-
-	if (setup) {
-		/* setup GPIO functions */
-		aic3x_write(codec, AIC3X_GPIO1_REG,
-			    (setup->gpio_func[0] & 0xf) << 4);
-		aic3x_write(codec, AIC3X_GPIO2_REG,
-			    (setup->gpio_func[1] & 0xf) << 4);
-	}
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "aic3x: failed to create pcms\n");
-		goto pcm_err;
-	}
-
-	snd_soc_add_controls(codec, aic3x_snd_controls,
-			     ARRAY_SIZE(aic3x_snd_controls));
-
-	aic3x_add_widgets(codec);
-
-	return ret;
-
-pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
-}
-
-static int aic3x_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	/* power down chip */
-	if (codec->control_data)
-		aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	kfree(codec->reg_cache);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_aic3x = {
-	.probe = aic3x_probe,
-	.remove = aic3x_remove,
-	.suspend = aic3x_suspend,
-	.resume = aic3x_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_aic3x);
 
 static int __init aic3x_modinit(void)
 {
-	aic3x_i2c_init();
-
-	return 0;
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&aic3x_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register TLV320AIC3x I2C driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(aic3x_modinit);
 
 static void __exit aic3x_exit(void)
 {
-	aic3x_i2c_exit();
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_driver(&aic3x_i2c_driver);
+#endif
 }
 module_exit(aic3x_exit);
 

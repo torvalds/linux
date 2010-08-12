@@ -32,14 +32,14 @@
  * Returns zero if successful, or a negative error code on failure.
  * On success jack will be initialised.
  */
-int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
+int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 		     struct snd_soc_jack *jack)
 {
-	jack->card = card;
+	jack->codec = codec;
 	INIT_LIST_HEAD(&jack->pins);
 	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
 
-	return snd_jack_new(card->codec->card, id, type, &jack->jack);
+	return snd_jack_new(codec->card->snd_card, id, type, &jack->jack);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_new);
 
@@ -67,7 +67,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	if (!jack)
 		return;
 
-	codec = jack->card->codec;
+	codec = jack->codec;
 
 	mutex_lock(&codec->mutex);
 
@@ -268,7 +268,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		ret = request_irq(gpio_to_irq(gpios[i].gpio),
 				gpio_handler,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				jack->card->dev->driver->name,
+				jack->codec->dev->driver->name,
 				&gpios[i]);
 		if (ret)
 			goto err;

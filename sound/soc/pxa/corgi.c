@@ -99,7 +99,7 @@ static void corgi_ext_control(struct snd_soc_codec *codec)
 static int corgi_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	/* check the jack status at stream startup */
 	corgi_ext_control(codec);
@@ -118,8 +118,8 @@ static int corgi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -272,8 +272,9 @@ static const struct snd_kcontrol_new wm8731_corgi_controls[] = {
 /*
  * Logic for a wm8731 as connected on a Sharp SL-C7x0 Device
  */
-static int corgi_wm8731_init(struct snd_soc_codec *codec)
+static int corgi_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	snd_soc_dapm_nc_pin(codec, "LLINEIN");
@@ -300,8 +301,10 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &wm8731_dai,
+	.cpu_dai_name = "pxa-is2-dai",
+	.codec_dai_name = "wm8731-hifi",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "wm8731-codec-0.001a",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
 };
@@ -309,15 +312,8 @@ static struct snd_soc_dai_link corgi_dai = {
 /* corgi audio machine driver */
 static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = &corgi_dai,
 	.num_links = 1,
-};
-
-/* corgi audio subsystem */
-static struct snd_soc_device corgi_snd_devdata = {
-	.card = &snd_soc_corgi,
-	.codec_dev = &soc_codec_dev_wm8731,
 };
 
 static struct platform_device *corgi_snd_device;
@@ -334,8 +330,7 @@ static int __init corgi_init(void)
 	if (!corgi_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(corgi_snd_device, &corgi_snd_devdata);
-	corgi_snd_devdata.dev = &corgi_snd_device->dev;
+	platform_set_drvdata(corgi_snd_device, &snd_soc_corgi);
 	ret = platform_device_add(corgi_snd_device);
 
 	if (ret)

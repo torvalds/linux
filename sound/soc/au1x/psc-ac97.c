@@ -315,15 +315,9 @@ static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int au1xpsc_ac97_probe(struct platform_device *pdev,
-			      struct snd_soc_dai *dai)
+static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 {
 	return au1xpsc_ac97_workdata ? 0 : -ENODEV;
-}
-
-static void au1xpsc_ac97_remove(struct platform_device *pdev,
-				struct snd_soc_dai *dai)
-{
 }
 
 static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
@@ -331,11 +325,9 @@ static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
 	.hw_params	= au1xpsc_ac97_hw_params,
 };
 
-struct snd_soc_dai au1xpsc_ac97_dai = {
-	.name			= "au1xpsc_ac97",
+struct snd_soc_dai_driver au1xpsc_ac97_dai = {
 	.ac97_control		= 1,
 	.probe			= au1xpsc_ac97_probe,
-	.remove			= au1xpsc_ac97_remove,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -395,7 +387,7 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	au_writel(PSC_SEL_PS_AC97MODE | sel, PSC_SEL(wd));
 	au_sync();
 
-	ret = snd_soc_register_dai(&au1xpsc_ac97_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &au1xpsc_ac97_dai);
 	if (ret)
 		goto out1;
 
@@ -406,7 +398,7 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 		return 0;
 	}
 
-	snd_soc_unregister_dai(&au1xpsc_ac97_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 out1:
 	release_mem_region(r->start, resource_size(r));
 out0:
@@ -422,7 +414,7 @@ static int __devexit au1xpsc_ac97_drvremove(struct platform_device *pdev)
 	if (wd->dmapd)
 		au1xpsc_pcm_destroy(wd->dmapd);
 
-	snd_soc_unregister_dai(&au1xpsc_ac97_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	/* disable PSC completely */
 	au_writel(0, AC97_CFG(wd));
@@ -485,7 +477,7 @@ static struct dev_pm_ops au1xpscac97_pmops = {
 
 static struct platform_driver au1xpsc_ac97_driver = {
 	.driver	= {
-		.name	= "au1xpsc_ac97",
+		.name	= "au1xpsc-ac97",
 		.owner	= THIS_MODULE,
 		.pm	= AU1XPSCAC97_PMOPS,
 	},

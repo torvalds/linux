@@ -1,6 +1,3 @@
-config SND_SOC_OF_SIMPLE
-	tristate
-	
 config SND_MPC52xx_DMA
 	tristate
 

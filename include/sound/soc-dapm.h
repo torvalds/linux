@@ -322,14 +322,14 @@ int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec);
-void snd_soc_dapm_free(struct snd_soc_device *socdev);
+void snd_soc_dapm_free(struct snd_soc_codec *codec);
 int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
 			    const struct snd_soc_dapm_route *route, int num);
 
 /* dapm events */
-int snd_soc_dapm_stream_event(struct snd_soc_codec *codec, char *stream,
-	int event);
-void snd_soc_dapm_shutdown(struct snd_soc_device *socdev);
+int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd,
+	const char *stream, int event);
+void snd_soc_dapm_shutdown(struct snd_soc_card *card);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);

@@ -31,7 +31,4 @@
 #define STATUS0_DAIFMT_MASK (~(7<<1))
 #define STATUS0_SYSCLK_MASK (~(3<<4))
 
-extern struct snd_soc_dai uda134x_dai;
-extern struct snd_soc_codec_device soc_codec_dev_uda134x;
-
 #endif

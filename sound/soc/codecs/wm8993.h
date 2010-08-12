@@ -1,9 +1,6 @@
 #ifndef WM8993_H
 #define WM8993_H
 
-extern struct snd_soc_dai wm8993_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8993;
-
 #define WM8993_SYSCLK_MCLK     1
 #define WM8993_SYSCLK_FLL      2
 

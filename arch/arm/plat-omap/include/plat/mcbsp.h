@@ -30,6 +30,13 @@
 #include <mach/hardware.h>
 #include <plat/clock.h>
 
+/* macro for building platform_device for McBSP ports */
+#define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
+static struct platform_device omap_mcbsp##port_nr = {	\
+	.name	= "omap-mcbsp-dai",			\
+	.id	= OMAP_MCBSP##port_nr,			\
+}
+
 #define OMAP7XX_MCBSP1_BASE	0xfffb1000
 #define OMAP7XX_MCBSP2_BASE	0xfffb1800
 

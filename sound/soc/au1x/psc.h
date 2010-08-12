@@ -16,9 +16,6 @@
 #ifndef _AU1X_PCM_H
 #define _AU1X_PCM_H
 
-extern struct snd_soc_dai au1xpsc_ac97_dai;
-extern struct snd_soc_dai au1xpsc_i2s_dai;
-extern struct snd_soc_platform au1xpsc_soc_platform;
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 /* DBDMA helpers */

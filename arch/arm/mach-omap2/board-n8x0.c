@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
+#include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -612,10 +613,24 @@ static int n8x0_menelaus_late_init(struct device *dev)
 	return 0;
 }
 
+static struct aic3x_setup_data n810_aic33_setup = {
+	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
+	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
+};
+
+static struct aic3x_pdata n810_aic33_data = {
+	.setup = &n810_aic33_setup,
+	.gpio_reset = -1,
+};
+
 static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] = {
 	{
 		I2C_BOARD_INFO("menelaus", 0x72),
 		.irq = INT_24XX_SYS_NIRQ,
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x1b),
+		.platform_data = &n810_aic33_data,
 	},
 };
 
