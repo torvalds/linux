@@ -3178,6 +3178,7 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
 		if (curlun->registered) {
+			device_remove_file(&curlun->dev, &dev_attr_nofua);
 			device_remove_file(&curlun->dev, &dev_attr_ro);
 			device_remove_file(&curlun->dev, &dev_attr_file);
 			fsg_lun_close(curlun);
