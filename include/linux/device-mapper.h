@@ -180,6 +180,12 @@ struct dm_target {
 	 */
 	unsigned num_flush_requests;
 
+	/*
+	 * The number of discard requests that will be submitted to the
+	 * target.  map_info->request_nr is used just like num_flush_requests.
+	 */
+	unsigned num_discard_requests;
+
 	/* target specific data */
 	void *private;
 

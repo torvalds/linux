@@ -1212,6 +1212,53 @@ static int __clone_and_map_empty_barrier(struct clone_info *ci)
 	return 0;
 }
 
+/*
+ * Perform all io with a single clone.
+ */
+static void __clone_and_map_simple(struct clone_info *ci, struct dm_target *ti)
+{
+	struct bio *clone, *bio = ci->bio;
+	struct dm_target_io *tio;
+
+	tio = alloc_tio(ci, ti);
+	clone = clone_bio(bio, ci->sector, ci->idx,
+			  bio->bi_vcnt - ci->idx, ci->sector_count,
+			  ci->md->bs);
+	__map_bio(ti, clone, tio);
+	ci->sector_count = 0;
+}
+
+static int __clone_and_map_discard(struct clone_info *ci)
+{
+	struct dm_target *ti;
+	sector_t max;
+
+	ti = dm_table_find_target(ci->map, ci->sector);
+	if (!dm_target_is_valid(ti))
+		return -EIO;
+
+	/*
+	 * Even though the device advertised discard support,
+	 * reconfiguration might have changed that since the
+	 * check was performed.
+	 */
+
+	if (!ti->num_discard_requests)
+		return -EOPNOTSUPP;
+
+	max = max_io_len(ci->md, ci->sector, ti);
+
+	if (ci->sector_count > max)
+		/*
+		 * FIXME: Handle a discard that spans two or more targets.
+		 */
+		return -EOPNOTSUPP;
+
+	__clone_and_map_simple(ci, ti);
+
+	return 0;
+}
+
 static int __clone_and_map(struct clone_info *ci)
 {
 	struct bio *clone, *bio = ci->bio;
@@ -1222,27 +1269,21 @@ static int __clone_and_map(struct clone_info *ci)
 	if (unlikely(bio_empty_barrier(bio)))
 		return __clone_and_map_empty_barrier(ci);
 
+	if (unlikely(bio->bi_rw & REQ_DISCARD))
+		return __clone_and_map_discard(ci);
+
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
 	max = max_io_len(ci->md, ci->sector, ti);
 
-	/*
-	 * Allocate a target io object.
-	 */
-	tio = alloc_tio(ci, ti);
-
 	if (ci->sector_count <= max) {
 		/*
 		 * Optimise for the simple case where we can do all of
 		 * the remaining io with a single clone.
 		 */
-		clone = clone_bio(bio, ci->sector, ci->idx,
-				  bio->bi_vcnt - ci->idx, ci->sector_count,
-				  ci->md->bs);
-		__map_bio(ti, clone, tio);
-		ci->sector_count = 0;
+		__clone_and_map_simple(ci, ti);
 
 	} else if (to_sector(bio->bi_io_vec[ci->idx].bv_len) <= max) {
 		/*
@@ -1263,6 +1304,7 @@ static int __clone_and_map(struct clone_info *ci)
 			len += bv_len;
 		}
 
+		tio = alloc_tio(ci, ti);
 		clone = clone_bio(bio, ci->sector, ci->idx, i - ci->idx, len,
 				  ci->md->bs);
 		__map_bio(ti, clone, tio);
@@ -1286,12 +1328,11 @@ static int __clone_and_map(struct clone_info *ci)
 					return -EIO;
 
 				max = max_io_len(ci->md, ci->sector, ti);
-
-				tio = alloc_tio(ci, ti);
 			}
 
 			len = min(remaining, max);
 
+			tio = alloc_tio(ci, ti);
 			clone = split_bvec(bio, ci->sector, ci->idx,
 					   bv->bv_offset + offset, len,
 					   ci->md->bs);

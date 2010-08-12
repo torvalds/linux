@@ -54,6 +54,8 @@ struct dm_table {
 	sector_t *highs;
 	struct dm_target *targets;
 
+	unsigned discards_supported:1;
+
 	/*
 	 * Indicates the rw permissions for the new logical
 	 * device.  This should be a combination of FMODE_READ
@@ -203,6 +205,7 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 
 	INIT_LIST_HEAD(&t->devices);
 	atomic_set(&t->holders, 0);
+	t->discards_supported = 1;
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -770,6 +773,9 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	t->highs[t->num_targets++] = tgt->begin + tgt->len - 1;
 
+	if (!tgt->num_discard_requests)
+		t->discards_supported = 0;
+
 	return 0;
 
  bad:
@@ -1135,6 +1141,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
+	if (!dm_table_supports_discards(t))
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
+	else
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+
 	dm_table_set_integrity(t);
 
 	/*
@@ -1279,6 +1290,39 @@ void dm_table_unplug_all(struct dm_table *t)
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
 	return t->md;
+}
+
+static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && blk_queue_discard(q);
+}
+
+bool dm_table_supports_discards(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	if (!t->discards_supported)
+		return 0;
+
+	/*
+	 * Ensure that at least one underlying device supports discards.
+	 * t->devices includes internal dm devices such as mirror logs
+	 * so we need to use iterate_devices here, which targets
+	 * supporting discard must provide.
+	 */
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti, device_discard_capable, NULL))
+			return 1;
+	}
+
+	return 0;
 }
 
 EXPORT_SYMBOL(dm_vcalloc);
