@@ -675,10 +675,13 @@ static void update_colorkey(struct intel_overlay *overlay,
 			    struct overlay_registers *regs)
 {
 	u32 key = overlay->color_key;
+
 	switch (overlay->crtc->base.fb->bits_per_pixel) {
 	case 8:
 		regs->DCLRKV = 0;
 		regs->DCLRKM = CLK_RGB8I_MASK | DST_KEY_ENABLE;
+		break;
+
 	case 16:
 		if (overlay->crtc->base.fb->depth == 15) {
 			regs->DCLRKV = RGB15_TO_COLORKEY(key);
@@ -687,10 +690,13 @@ static void update_colorkey(struct intel_overlay *overlay,
 			regs->DCLRKV = RGB16_TO_COLORKEY(key);
 			regs->DCLRKM = CLK_RGB16_MASK | DST_KEY_ENABLE;
 		}
+		break;
+
 	case 24:
 	case 32:
 		regs->DCLRKV = key;
 		regs->DCLRKM = CLK_RGB24_MASK | DST_KEY_ENABLE;
+		break;
 	}
 }
 
