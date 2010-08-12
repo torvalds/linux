@@ -306,6 +306,13 @@ static inline void log_buf_kexec_setup(void)
 }
 #endif
 
+/*
+ * Dummy printk for disabled debugging statements to use whilst maintaining
+ * gcc's format and side-effect checking.
+ */
+static inline __attribute__ ((format (printf, 1, 2)))
+int no_printk(const char *s, ...) { return 0; }
+
 extern int printk_needs_cpu(int cpu);
 extern void printk_tick(void);
 
