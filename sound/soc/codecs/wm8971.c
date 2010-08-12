@@ -30,8 +30,6 @@
 
 #include "wm8971.h"
 
-#define WM8971_VERSION "0.9"
-
 #define	WM8971_REG_COUNT		43
 
 static struct workqueue_struct *wm8971_workq = NULL;
@@ -638,8 +636,6 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 	struct wm8971_priv *wm8971 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 	u16 reg;
-
-	pr_info("WM8971 Audio Codec %s", WM8971_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8971->control_type);
 	if (ret < 0) {
