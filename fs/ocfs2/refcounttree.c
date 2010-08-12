@@ -49,6 +49,7 @@
 
 struct ocfs2_cow_context {
 	struct inode *inode;
+	struct file *file;
 	u32 cow_start;
 	u32 cow_len;
 	struct ocfs2_extent_tree data_et;
@@ -2922,13 +2923,16 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
 	struct page *page;
 	pgoff_t page_index;
-	unsigned int from, to;
+	unsigned int from, to, readahead_pages;
 	loff_t offset, end, map_end;
 	struct address_space *mapping = context->inode->i_mapping;
 
 	mlog(0, "old_cluster %u, new %u, len %u at offset %u\n", old_cluster,
 	     new_cluster, new_len, cpos);
 
+	readahead_pages =
+		(ocfs2_cow_contig_clusters(sb) <<
+		 OCFS2_SB(sb)->s_clustersize_bits) >> PAGE_CACHE_SHIFT;
 	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
 	end = offset + (new_len << OCFS2_SB(sb)->s_clustersize_bits);
 	/*
@@ -2958,6 +2962,14 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		 */
 		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
 			BUG_ON(PageDirty(page));
+
+		if (PageReadahead(page) && context->file) {
+			page_cache_async_readahead(mapping,
+						   &context->file->f_ra,
+						   context->file,
+						   page, page_index,
+						   readahead_pages);
+		}
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
@@ -3478,6 +3490,7 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	context->ref_root_bh = ref_root_bh;
 	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_page;
 	context->get_clusters = ocfs2_di_get_clusters;
+	context->file = file;
 
 	ocfs2_init_dinode_extent_tree(&context->data_et,
 				      INODE_CACHE(inode), di_bh);
