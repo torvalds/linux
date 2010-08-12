@@ -1347,7 +1347,7 @@ printer_unbind(struct usb_gadget *gadget)
 	set_gadget_data(gadget, NULL);
 }
 
-static int __ref
+static int __init
 printer_bind(struct usb_gadget *gadget)
 {
 	struct printer_dev	*dev;
