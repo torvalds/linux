@@ -217,7 +217,6 @@ struct wm8903_priv {
 	u16 reg_cache[ARRAY_SIZE(wm8903_reg_defaults)];
 
 	int sysclk;
-	struct i2c_client *control_data;
 	int irq;
 
 	/* Reference counts */
@@ -1639,7 +1638,6 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 	u16 val;
 
 	init_completion(&wm8903->wseq);
-	codec->control_data = wm8903->control_data;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
@@ -1779,7 +1777,6 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8903);
-	wm8903->control_data = i2c;
 	wm8903->irq = i2c->irq;
 
 	ret = snd_soc_register_codec(&i2c->dev,

@@ -86,7 +86,6 @@ static const u16 wm8753_reg[] = {
 /* codec private data */
 struct wm8753_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	unsigned int sysclk;
 	unsigned int pcmclk;
 	u16 reg_cache[ARRAY_SIZE(wm8753_reg)];
@@ -1551,8 +1550,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, reg;
 
-	codec->bias_level = SND_SOC_BIAS_OFF,
-	codec->control_data = wm8753->control_data;
+	codec->bias_level = SND_SOC_BIAS_OFF;
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8753->control_type);
@@ -1637,7 +1635,6 @@ static int __devinit wm8753_spi_probe(struct spi_device *spi)
 	if (wm8753 == NULL)
 		return -ENOMEM;
 
-	wm8753->control_data = spi;
 	wm8753->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8753);
 
@@ -1678,7 +1675,6 @@ static __devinit int wm8753_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8753);
-	wm8753->control_data = i2c;
 	wm8753->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

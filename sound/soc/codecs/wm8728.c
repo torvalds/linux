@@ -45,7 +45,6 @@ static const u16 wm8728_reg_defaults[] = {
 /* codec private data */
 struct wm8728_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 };
 
 static const DECLARE_TLV_DB_SCALE(wm8728_tlv, -12750, 50, 1);
@@ -244,7 +243,6 @@ static int wm8728_probe(struct snd_soc_codec *codec)
 	struct wm8728_priv *wm8728 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = wm8728->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8728->control_type);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8728: failed to configure cache I/O: %d\n",
@@ -289,7 +287,6 @@ static int __devinit wm8728_spi_probe(struct spi_device *spi)
 	if (wm8728 == NULL)
 		return -ENOMEM;
 
-	wm8728->control_data = spi;
 	wm8728->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8728);
 
@@ -330,7 +327,6 @@ static __devinit int wm8728_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8728);
-	wm8728->control_data = i2c;
 	wm8728->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

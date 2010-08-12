@@ -200,7 +200,6 @@ static const char *wm8580_supply_names[WM8580_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8580_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	struct regulator_bulk_data supplies[WM8580_NUM_SUPPLIES];
 	u16 reg_cache[WM8580_MAX_REGISTER + 1];
 	struct pll_state a;
@@ -778,7 +777,6 @@ static int wm8580_probe(struct snd_soc_codec *codec)
 	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0,i;
 
-	codec->control_data = wm8580->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8580->control_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -858,7 +856,6 @@ static int wm8580_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8580);
-	wm8580->control_data = i2c;
 	wm8580->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

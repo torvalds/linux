@@ -60,7 +60,6 @@ static const u16 wm8510_reg[WM8510_CACHEREGNUM] = {
 /* codec private data */
 struct wm8510_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 };
 
 static const char *wm8510_companding[] = { "Off", "NC", "u-law", "A-law" };
@@ -561,7 +560,6 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 	struct wm8510_priv *wm8510 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = wm8510->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9,  wm8510->control_type);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8510: failed to set cache I/O: %d\n", ret);
@@ -611,7 +609,6 @@ static int __devinit wm8510_spi_probe(struct spi_device *spi)
 	if (wm8510 == NULL)
 		return -ENOMEM;
 
-	wm8510->control_data = spi;
 	wm8510->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8510);
 
@@ -651,7 +648,6 @@ static __devinit int wm8510_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8510);
-	wm8510->control_data = i2c;
 	wm8510->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

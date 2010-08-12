@@ -53,7 +53,6 @@ static const u16 wm8750_reg[] = {
 struct wm8750_priv {
 	unsigned int sysclk;
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	u16 reg_cache[ARRAY_SIZE(wm8750_reg)];
 };
 
@@ -697,7 +696,6 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	struct wm8750_priv *wm8750 = snd_soc_codec_get_drvdata(codec);
 	int reg, ret;
 
-	codec->control_data = wm8750->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8750->control_type);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8750: failed to set cache I/O: %d\n", ret);
@@ -764,7 +762,6 @@ static int __devinit wm8750_spi_probe(struct spi_device *spi)
 	if (wm8750 == NULL)
 		return -ENOMEM;
 
-	wm8750->control_data = spi;
 	wm8750->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8750);
 
@@ -805,7 +802,6 @@ static __devinit int wm8750_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8750);
-	wm8750->control_data = i2c;
 	wm8750->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

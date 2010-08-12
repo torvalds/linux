@@ -41,7 +41,6 @@ static const char *wm8955_supply_names[WM8955_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8955_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 
 	u16 reg_cache[WM8955_MAX_REGISTER + 1];
 
@@ -904,7 +903,6 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	struct wm8955_pdata *pdata = dev_get_platdata(codec->dev);
 	int ret, i;
 
-	codec->control_data = wm8955->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8955->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -1004,7 +1002,6 @@ static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8955);
-	wm8955->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8955, &wm8955_dai, 1);

@@ -41,7 +41,6 @@ static const char *wm8523_supply_names[WM8523_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8523_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	u16 reg_cache[WM8523_REGISTER_COUNT];
 	struct regulator_bulk_data supplies[WM8523_NUM_SUPPLIES];
 	unsigned int sysclk;
@@ -419,7 +418,6 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	codec->hw_write = (hw_write_t)i2c_master_send;
-	codec->control_data = wm8523->control_data;
 	wm8523->rate_constraint.list = &wm8523->rate_constraint_list[0];
 	wm8523->rate_constraint.count =
 		ARRAY_SIZE(wm8523->rate_constraint_list);
@@ -528,7 +526,6 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8523);
-	wm8523->control_data = i2c;
 	wm8523->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

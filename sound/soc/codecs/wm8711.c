@@ -34,7 +34,6 @@
 /* codec private data */
 struct wm8711_priv {
 	enum snd_soc_control_type bus_type;
-	void *control_data;
 	u16 reg_cache[WM8711_CACHEREGNUM];
 	unsigned int sysclk;
 };
@@ -378,7 +377,6 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 	struct wm8711_priv *wm8711 = snd_soc_codec_get_drvdata(codec);
 	int ret, reg;
 
-	codec->control_data = wm8711->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8711->bus_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -436,7 +434,6 @@ static int __devinit wm8711_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, wm8711);
-	wm8711->control_data = spi;
 	wm8711->bus_type = SND_SOC_SPI;
 
 	ret = snd_soc_register_codec(&spi->dev,
@@ -476,7 +473,6 @@ static __devinit int wm8711_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, wm8711);
-	wm8711->control_data = client;
 	wm8711->bus_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&client->dev,

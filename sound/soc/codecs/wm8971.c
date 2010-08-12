@@ -39,7 +39,6 @@ static struct workqueue_struct *wm8971_workq = NULL;
 /* codec private data */
 struct wm8971_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	unsigned int sysclk;
 };
 
@@ -642,7 +641,6 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 
 	pr_info("WM8971 Audio Codec %s", WM8971_VERSION);
 
-	codec->control_data = wm8971->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8971->control_type);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8971: failed to set cache I/O: %d\n", ret);
@@ -725,7 +723,6 @@ static __devinit int wm8971_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8971);
-	wm8971->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8971, &wm8971_dai, 1);

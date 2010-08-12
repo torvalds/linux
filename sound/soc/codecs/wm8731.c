@@ -43,7 +43,6 @@ static const char *wm8731_supply_names[WM8731_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8731_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	struct regulator_bulk_data supplies[WM8731_NUM_SUPPLIES];
 	u16 reg_cache[WM8731_CACHEREGNUM];
 	unsigned int sysclk;
@@ -463,7 +462,6 @@ static int wm8731_probe(struct snd_soc_codec *codec)
 	int ret = 0, i;
 
 	codec->bias_level = SND_SOC_BIAS_OFF,
-	codec->control_data = wm8731->control_data;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8731->control_type);
 	if (ret < 0) {
@@ -557,7 +555,6 @@ static int __devinit wm8731_spi_probe(struct spi_device *spi)
 	if (wm8731 == NULL)
 		return -ENOMEM;
 
-	wm8731->control_data = spi;
 	wm8731->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8731);
 
@@ -598,7 +595,6 @@ static __devinit int wm8731_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8731);
-	wm8731->control_data = i2c;
 	wm8731->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,

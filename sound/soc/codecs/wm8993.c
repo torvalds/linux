@@ -230,7 +230,6 @@ struct wm8993_priv {
 	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	int master;
 	int sysclk_source;
 	int tdm_slots;
@@ -1425,7 +1424,6 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret, i, val;
 
-	codec->control_data = wm8993->control_data;
 	wm8993->hubs_data.hp_startup_mode = 1;
 	wm8993->hubs_data.dcs_codes = -2;
 
@@ -1606,7 +1604,6 @@ static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8993);
-	wm8993->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8993, &wm8993_dai, 1);

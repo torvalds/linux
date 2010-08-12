@@ -33,7 +33,6 @@
 /* codec private data */
 struct wm8990_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	unsigned int sysclk;
 	unsigned int pcmclk;
 };
@@ -1343,11 +1342,9 @@ static int wm8990_resume(struct snd_soc_codec *codec)
  */
 static int wm8990_probe(struct snd_soc_codec *codec)
 {
-	struct wm8990_priv *wm8990 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	u16 reg;
 
-	codec->control_data = wm8990->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8990: failed to set cache I/O: %d\n", ret);
@@ -1410,7 +1407,6 @@ static __devinit int wm8990_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8990);
-	wm8990->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8990, &wm8990_dai, 1);

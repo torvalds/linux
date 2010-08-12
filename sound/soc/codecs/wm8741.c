@@ -41,7 +41,6 @@ static const char *wm8741_supply_names[WM8741_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8741_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	u16 reg_cache[WM8741_REGISTER_COUNT];
 	struct regulator_bulk_data supplies[WM8741_NUM_SUPPLIES];
 	unsigned int sysclk;
@@ -347,7 +346,6 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	codec->control_data = wm8741->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8741->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -415,7 +413,6 @@ static int wm8741_i2c_probe(struct i2c_client *i2c,
 	}
 
 	i2c_set_clientdata(i2c, wm8741);
-	wm8741->control_data = i2c;
 	wm8741->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
