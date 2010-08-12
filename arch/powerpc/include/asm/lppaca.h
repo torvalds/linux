@@ -153,6 +153,8 @@ struct lppaca {
 
 extern struct lppaca lppaca[];
 
+#define lppaca_of(cpu)	(lppaca[cpu])
+
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area
  * contains adjacent ESID and VSID pairs for each shadowed SLB.  The

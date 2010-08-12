@@ -107,14 +107,14 @@ static int dtl_enable(struct dtl *dtl)
 	}
 
 	/* set our initial buffer indices */
-	dtl->last_idx = lppaca[dtl->cpu].dtl_idx = 0;
+	dtl->last_idx = lppaca_of(dtl->cpu).dtl_idx = 0;
 
 	/* ensure that our updates to the lppaca fields have occurred before
 	 * we actually enable the logging */
 	smp_wmb();
 
 	/* enable event logging */
-	lppaca[dtl->cpu].dtl_enable_mask = dtl_event_mask;
+	lppaca_of(dtl->cpu).dtl_enable_mask = dtl_event_mask;
 
 	return 0;
 }
@@ -123,7 +123,7 @@ static void dtl_disable(struct dtl *dtl)
 {
 	int hwcpu = get_hard_smp_processor_id(dtl->cpu);
 
-	lppaca[dtl->cpu].dtl_enable_mask = 0x0;
+	lppaca_of(dtl->cpu).dtl_enable_mask = 0x0;
 
 	unregister_dtl(hwcpu, __pa(dtl->buf));
 
@@ -171,7 +171,7 @@ static ssize_t dtl_file_read(struct file *filp, char __user *buf, size_t len,
 	/* actual number of entries read */
 	n_read = 0;
 
-	cur_idx = lppaca[dtl->cpu].dtl_idx;
+	cur_idx = lppaca_of(dtl->cpu).dtl_idx;
 	last_idx = dtl->last_idx;
 
 	if (cur_idx - last_idx > dtl->buf_entries) {

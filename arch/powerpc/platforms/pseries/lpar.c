@@ -250,9 +250,9 @@ void vpa_init(int cpu)
 	long ret;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		lppaca[cpu].vmxregs_in_use = 1;
+		lppaca_of(cpu).vmxregs_in_use = 1;
 
-	addr = __pa(&lppaca[cpu]);
+	addr = __pa(&lppaca_of(cpu));
 	ret = register_vpa(hwcpu, addr);
 
 	if (ret) {
