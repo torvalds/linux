@@ -513,3 +513,4 @@ module_exit(s3c_ac97_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("AC97 driver for the Samsung SoC");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c-ac97");

@@ -500,3 +500,4 @@ module_exit(snd_s3c24xx_pcm_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C Audio DMA module");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c24xx-pcm-audio");

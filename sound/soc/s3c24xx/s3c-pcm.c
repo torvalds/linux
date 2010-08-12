@@ -543,3 +543,4 @@ module_exit(s3c_pcm_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C PCM Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:samsung-pcm-audio");
