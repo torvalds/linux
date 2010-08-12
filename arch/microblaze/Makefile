@@ -42,11 +42,8 @@ KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
 LDFLAGS		:=
 LDFLAGS_vmlinux	:=
 
-LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
-libs-y += $(LIBGCC)
 core-y += arch/microblaze/kernel/
 core-y += arch/microblaze/mm/
 core-y += arch/microblaze/platform/
