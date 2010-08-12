@@ -2930,6 +2930,8 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 				if ( pCh )
 				{
 					rc = copy_to_user(argp, pCh, sizeof(i2ChanStr));
+					if (rc)
+						rc = -EFAULT;
 				} else {
 					rc = -ENODEV;
 				}
