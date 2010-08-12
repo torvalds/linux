@@ -35,7 +35,7 @@
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
-#if 0
+#if 1
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #else
@@ -202,20 +202,22 @@ static irqreturn_t rk2818_i2c_irq(int irq, void *data)
 	rk2818_i2c_disable_irqs(i2c);
 	spin_lock(&i2c->cmd_lock);
 	res = rk2818_event_occurred(i2c);
-	if(res || i2c->cmd_err != RK2818_ERROR_NONE)
+	if(res)
+	//if(res || i2c->cmd_err != RK2818_ERROR_NONE)
 		complete(&i2c->cmd_complete);
 	spin_unlock(&i2c->cmd_lock);
 	return IRQ_HANDLED;
 }
 static int wait_for_completion_poll_timeout(struct rk2818_i2c_data *i2c, unsigned long timeout)
 {
-	unsigned int time = 10;
+	unsigned int time = RK2818_DELAY_TIME;
 	int res;
 
 	while(!time_after(jiffies, timeout))
 	{
 		res = rk2818_event_occurred(i2c);
-		if(res || i2c->cmd_err != RK2818_ERROR_NONE)
+		if(res)
+		//if(res || (i2c->cmd_err != RK2818_ERROR_NONE && i2c->cmd_err != RK2818_ERROR_UNKNOWN))
 			return 1;
 		udelay(time);
 		time *= 2;

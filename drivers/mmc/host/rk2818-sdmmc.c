@@ -815,7 +815,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	}
 
-	spin_lock_irqsave(host->lock,flags);
+	spin_lock_irqsave(&host->lock,flags);
 	/* Set the current host bus width */
 	writel(host->ctype, host->regs + SDMMC_CTYPE);
 
@@ -823,7 +823,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_OD_PULLUP, host->regs + SDMMC_CTRL);
 	else
 		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_OD_PULLUP, host->regs + SDMMC_CTRL);
-	spin_unlock_irqrestore(host->lock,flags);
+	spin_unlock_irqrestore(&host->lock,flags);
 
 	if (ios->clock && (host->current_speed != ios->clock)) {
 		/*
@@ -842,7 +842,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			xjhprintk("SD/MMC busy now(status 0x%x),can not change clock\n",readl(host->regs + SDMMC_STATUS));
 			//cpu_relax();
 		}
-		spin_lock_irqsave(host->lock,flags);
+		spin_lock_irqsave(&host->lock,flags);
 		/* disable clock */
 		writel(0, host->regs + SDMMC_CLKENA);
 		writel(0, host->regs + SDMMC_CLKSRC);
@@ -862,7 +862,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		host->current_speed= ios->clock; 
 		
-		spin_unlock_irqrestore(host->lock,flags);
+		spin_unlock_irqrestore(&host->lock,flags);
 
 	} 
 	#if 0
@@ -872,7 +872,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		spin_unlock(&host->lock);
 	}
 	#endif
-	spin_lock_irqsave(host->lock,flags);
+	spin_lock_irqsave(&host->lock,flags);
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
@@ -883,7 +883,7 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		//rk2818_sdmmc_set_power(host, 0);
 		break;
 	}
-	spin_unlock_irqrestore(host->lock,flags);
+	spin_unlock_irqrestore(&host->lock,flags);
 	
 }
 

@@ -786,6 +786,10 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 ylcd = screen->y_res;
     u16 yres = 0;
     
+    if(inf->win0fb->var.rotate == 270) {
+        xlcd = screen->y_res;
+        ylcd = screen->x_res;
+    }
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -928,11 +932,16 @@ static int win0fb_set_par(struct fb_info *info)
     u32 win0_en = var->reserved[2];
     u32 y_addr = var->reserved[3];       //user alloc buf addr y
     u32 uv_addr = var->reserved[4];    
-    
+
+     if(var->rotate == 270)
+     {
+          xpos = (var->nonstd>>20) & 0xfff;      //visiable pos in panel
+          ypos = (var->nonstd>>8) & 0xfff;
+          xsize = (var->grayscale>>20) & 0xfff;  //visiable size in panel
+           ysize = (var->grayscale>>8) & 0xfff;
+     }
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    fbprintk("win0_en = %x, y_addr = %8x, uv_addr = %8x\n", win0_en, y_addr, uv_addr);
-
+    
 	CHK_SUSPEND(inf);
 
 	/* calculate y_offset,uv_offset,line_length,cblen and crlen  */
@@ -1308,7 +1317,7 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
-
+#if 0
     switch(var0->nonstd&0x0f)
     {
     case 0: // rgb
@@ -1356,9 +1365,9 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
     par->y_offset = y_offset;
     par->uv_offset = uv_offset;
-
-    y_addr = fix0->smem_start + y_offset;
-    uv_addr = fix0->mmio_start + uv_offset;
+#endif
+    y_addr = fix0->smem_start +  par->y_offset;//y_offset;
+    uv_addr = fix0->mmio_start + par->uv_offset ;//uv_offset;
 
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
@@ -1376,7 +1385,7 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 int win0fb_rotate(struct fb_info *fbi, int rotate)
 {
     struct fb_var_screeninfo *var = &fbi->var;
-    u32 SrcFmt = var->nonstd&0x0f;
+  //  u32 SrcFmt = var->nonstd&0x0f;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
     
@@ -1385,21 +1394,22 @@ int win0fb_rotate(struct fb_info *fbi, int rotate)
         if(var->rotate)
         {
            var->rotate = 0; 
-           if(!win0fb_check_var(var, fbi))
-              win0fb_set_par(fbi);
+     //      if(!win0fb_check_var(var, fbi))
+     //         win0fb_set_par(fbi);
         }        
     }
     else
     {
-        if((var->xres >1280) || (var->yres >720)||((SrcFmt!= 1) && (SrcFmt!= 2) && (SrcFmt!= 3)))
-        {
-            return -EPERM;
-        }  
+      //  if((var->xres >1280) || (var->yres >720)||((SrcFmt!= 1) && (SrcFmt!= 2) && (SrcFmt!= 3)))
+      //  {
+      //      printk(">>>>>> %s par err SrcFmt = %d\n", __FUNCTION__ ,SrcFmt);
+      //      return -EPERM;
+     //   }  
         if(var->rotate != 270)
         {
             var->rotate = 270;
-            if(!win0fb_check_var(var, fbi))
-               win0fb_set_par(fbi);
+      //      if(!win0fb_check_var(var, fbi))
+      //         win0fb_set_par(fbi);
         }
     }
     
@@ -1469,10 +1479,14 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
     case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
         {
             u32 panel_size[2];
-          {
+             if(inf->win0fb->var.rotate == 270) {
+                panel_size[0] = inf->cur_screen->y_res;
+                panel_size[1] = inf->cur_screen->x_res;
+            } else {
                 panel_size[0] = inf->cur_screen->x_res;
                 panel_size[1] = inf->cur_screen->y_res;
-            }
+            }    
+            
             if(copy_to_user(argp, panel_size, 8))  return -EFAULT;
         }
         break;
@@ -1482,11 +1496,12 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             u32 yuv_phy[2];
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
-            
+           LcdWrReg(inf, WIN0_YRGB_VIR_MST,yuv_phy[0]);
+           LcdWrReg(inf, WIN0_CBR_VIR_MST,yuv_phy[1]);
+
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->uv_offset;
 
-            //printk("new y_addr=%08x, new uv_addr=%08x \n", yuv_phy[0], yuv_phy[1]);
             LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
             LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
             LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -1499,54 +1514,14 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
         }
         break;
 
-    case FB1_TOCTL_SET_MCU_DIR:    //change MCU panel scan direction
-        {
-            fbprintk(">>>>>> change MCU panel scan direction(%d) \n", (int)arg);
-
-            if(SCREEN_MCU!=inf->cur_screen->type)   return -1;
-
-            switch(arg)
-            {
-            case 0:
-            case 90:
-            case 180:
-            case 270:
-                {
-                    if(inf->cur_screen->scandir) {
-                        inf->mcu_stopflush = 1;
-                        inf->mcu_needflush = 0;
-                        inf->mcu_status = MS_IDLE;
-                        while(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
-                            msleep(10);
-                        }
-                        msleep(10);
-                        while(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
-                            msleep(10);
-                        }
-                        msleep(10);
-
-                        inf->cur_screen->scandir(arg);
-                    }
-                    inf->mcu_scandir = arg;
-                    load_screen(info, 0);
-                    msleep(10);
-                    inf->mcu_stopflush = 0;
-                    win1fb_set_par(inf->win1fb);
-                }
-                break;
-
-            default:
-                return -1;
-            }
-        }
-        break;
-    case FB1_IOCTL_SET_ROTATE:
+    case FB1_IOCTL_SET_ROTATE:    //change MCU panel scan direction        
         fbprintk(">>>>>> change lcdc direction(%d) \n", (int)arg);
         switch(arg)
         {
         case 0:
             win0fb_rotate(info, 0);
             break;
+        case 90:
         case 270:
             win0fb_rotate(info, 270);
             break;
