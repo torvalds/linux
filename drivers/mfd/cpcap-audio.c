@@ -126,35 +126,41 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	int rc = 0;
+	struct cpcap_audio_output out;
 
 	mutex_lock(&cpcap_lock);
 
 	switch (cmd) {
 	case CPCAP_AUDIO_OUT_SET_OUTPUT:
-		if (arg > CPCAP_AUDIO_OUT_MAX) {
-			pr_err("%s: invalid audio-output selector %ld\n",
-				__func__, arg);
+		if (copy_from_user(&out, (const void __user *)arg,
+				sizeof(out))) {
+			rc = -EFAULT;
+			goto done;
+		}
+		if (out.id > CPCAP_AUDIO_OUT_MAX) {
+			pr_err("%s: invalid audio-output selector %d\n",
+				__func__, out.id);
 			rc = -EINVAL;
 			goto done;
 		}
-		switch (arg) {
+		switch (out.id) {
 		case CPCAP_AUDIO_OUT_SPEAKER:
 			pr_info("%s: setting output path to %s\n", __func__,
 					pdata->speaker->name);
 			cpcap_audio_set(pdata->headset, 0);
-			cpcap_audio_set(pdata->speaker, 1);
+			cpcap_audio_set(pdata->speaker, out.on);
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET:
 			pr_info("%s: setting output path to %s\n", __func__,
 					pdata->headset->name);
 			cpcap_audio_set(pdata->speaker, 0);
-			cpcap_audio_set(pdata->headset, 1);
+			cpcap_audio_set(pdata->headset, out.on);
 			break;
 		}
-		current_output = arg;
+		current_output = out.id;
 		break;
 	case CPCAP_AUDIO_OUT_GET_OUTPUT:
-		if (copy_to_user((void *)arg, &current_output,
+		if (copy_to_user((void __user *)arg, &current_output,
 					sizeof(unsigned int)))
 			rc = -EFAULT;
 		break;
@@ -187,7 +193,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		current_input = arg;
 		break;
 	case CPCAP_AUDIO_IN_GET_INPUT:
-		if (copy_to_user((void *)arg, &current_input,
+		if (copy_to_user((void __user *)arg, &current_input,
 					sizeof(unsigned int)))
 			rc = -EFAULT;
 		break;
@@ -222,14 +228,14 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		current_in_volume = arg;
 		break;
 	case CPCAP_AUDIO_OUT_GET_VOLUME:
-		if (copy_to_user((void *)arg, &current_volume,
+		if (copy_to_user((void __user *)arg, &current_volume,
 					sizeof(unsigned int))) {
 			rc = -EFAULT;
 			goto done;
 		}
 		break;
 	case CPCAP_AUDIO_IN_GET_VOLUME:
-		if (copy_to_user((void *)arg, &current_in_volume,
+		if (copy_to_user((void __user *)arg, &current_in_volume,
 					sizeof(unsigned int))) {
 			rc = -EFAULT;
 			goto done;

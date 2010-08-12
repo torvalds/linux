@@ -27,7 +27,13 @@
 #define CPCAP_AUDIO_OUT_HEADSET		1
 #define CPCAP_AUDIO_OUT_MAX		1
 
-#define CPCAP_AUDIO_OUT_SET_OUTPUT _IOW(CPCAP_AUDIO_MAGIC, 0, unsigned int)
+struct cpcap_audio_output {
+	int id; /* e.g., CPCAP_AUDIO_OUT_SPEAKER */
+	int on;
+};
+
+#define CPCAP_AUDIO_OUT_SET_OUTPUT _IOW(CPCAP_AUDIO_MAGIC, 0, \
+			struct cpcap_audio_output *)
 
 #define CPCAP_AUDIO_OUT_VOL_MIN 0
 #define CPCAP_AUDIO_OUT_VOL_MAX 15
