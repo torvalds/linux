@@ -239,6 +239,7 @@ static struct platform_device cpcap_disp_button_led = {
 		.platform_data  = &stingray_display_led,
 	},
 };
+
 static struct cpcap_led stingray_privacy_led ={
 	.cpcap_register = CPCAP_REG_BLEDC,
 	.cpcap_mask = 0x03FF,
@@ -256,10 +257,31 @@ static struct platform_device cpcap_privacy_led = {
 		.platform_data  = &stingray_privacy_led,
 	},
 };
+
+static struct cpcap_led stingray_notification_led ={
+	.blink_able = 1,
+	.cpcap_register = CPCAP_REG_ADLC,
+	.cpcap_mask = 0x7FFF,
+	.on_val = 0x7FF5,
+	.off_val = 0x7FF4,
+	.cpcap_duty_cycle = 0x41,
+	.cpcap_current = 0x0,
+	.class_name = LD_NOTIF_LED_DEV,
+};
+
+static struct platform_device cpcap_notification_led = {
+	.name   = LD_CPCAP_LED_DRV,
+	.id     = 3,
+	.dev    = {
+		.platform_data  = &stingray_notification_led,
+	},
+};
+
 static struct platform_device *cpcap_devices[] = {
 	&cpcap_validity_device,
 	&cpcap_whisper_device,
 	&cpcap_disp_button_led,
+	&cpcap_notification_led,
 	&cpcap_privacy_led,
 	&cpcap_3mm5_device,
 };
