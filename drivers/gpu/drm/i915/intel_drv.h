@@ -161,7 +161,6 @@ struct intel_overlay {
 	/* register access */
 	u32 flip_addr;
 	struct drm_i915_gem_object *reg_bo;
-	void *virt_addr;
 	/* flip handling */
 	uint32_t last_flip_req;
 	int hw_wedged;

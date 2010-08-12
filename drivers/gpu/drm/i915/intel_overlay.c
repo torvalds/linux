@@ -177,34 +177,22 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay,
         drm_i915_private_t *dev_priv = overlay->dev->dev_private;
 	struct overlay_registers *regs;
 
-	/* no recursive mappings */
-	BUG_ON(overlay->virt_addr);
-
-	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev)) {
+	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		regs = overlay->reg_bo->phys_obj->handle->vaddr;
-	} else {
+	else
 		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
 						overlay->reg_bo->gtt_offset,
 						slot);
 
-		if (!regs) {
-			DRM_ERROR("failed to map overlay regs in GTT\n");
-			return NULL;
-		}
-	}
-
-	return overlay->virt_addr = regs;
+	return regs;
 }
 
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
-				     int slot)
+					    int slot,
+					    struct overlay_registers *regs)
 {
 	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		io_mapping_unmap_atomic(overlay->virt_addr, slot);
-
-	overlay->virt_addr = NULL;
-
-	return;
+		io_mapping_unmap_atomic(regs, slot);
 }
 
 static struct overlay_registers *
@@ -213,32 +201,20 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
         drm_i915_private_t *dev_priv = overlay->dev->dev_private;
 	struct overlay_registers *regs;
 
-	/* no recursive mappings */
-	BUG_ON(overlay->virt_addr);
-
-	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev)) {
+	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		regs = overlay->reg_bo->phys_obj->handle->vaddr;
-	} else {
+	else
 		regs = io_mapping_map_wc(dev_priv->mm.gtt_mapping,
 					 overlay->reg_bo->gtt_offset);
 
-		if (!regs) {
-			DRM_ERROR("failed to map overlay regs in GTT\n");
-			return NULL;
-		}
-	}
-
-	return overlay->virt_addr = regs;
+	return regs;
 }
 
-static void intel_overlay_unmap_regs(struct intel_overlay *overlay)
+static void intel_overlay_unmap_regs(struct intel_overlay *overlay,
+				     struct overlay_registers *regs)
 {
 	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		io_mapping_unmap(overlay->virt_addr);
-
-	overlay->virt_addr = NULL;
-
-	return;
+		io_mapping_unmap(regs);
 }
 
 static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
@@ -772,7 +748,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			regs->OCONFIG |= OCONF_CSC_MODE_BT709;
 		regs->OCONFIG |= overlay->crtc->pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
-		intel_overlay_unmap_regs(overlay);
+		intel_overlay_unmap_regs(overlay, regs);
 
 		ret = intel_overlay_on(overlay);
 		if (ret != 0)
@@ -822,7 +798,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	regs->OCMD = overlay_cmd_reg(params);
 
-	intel_overlay_unmap_regs(overlay);
+	intel_overlay_unmap_regs(overlay, regs);
 
 	intel_overlay_continue(overlay, scale_changed);
 
@@ -860,7 +836,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 
 	regs = intel_overlay_map_regs(overlay);
 	regs->OCMD = 0;
-	intel_overlay_unmap_regs(overlay);
+	intel_overlay_unmap_regs(overlay, regs);
 
 	ret = intel_overlay_off(overlay);
 	if (ret != 0)
@@ -1309,7 +1285,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 		update_reg_attrs(overlay, regs);
 
-		intel_overlay_unmap_regs(overlay);
+		intel_overlay_unmap_regs(overlay, regs);
 
 		if (attrs->flags & I915_OVERLAY_UPDATE_GAMMA) {
 			if (!IS_I9XX(dev))
@@ -1398,10 +1374,9 @@ void intel_setup_overlay(struct drm_device *dev)
 
 	memset(regs, 0, sizeof(struct overlay_registers));
 	update_polyphase_filter(regs);
-
 	update_reg_attrs(overlay, regs);
 
-	intel_overlay_unmap_regs(overlay);
+	intel_overlay_unmap_regs(overlay, regs);
 
 	dev_priv->overlay = overlay;
 	DRM_INFO("initialized overlay support\n");
@@ -1466,7 +1441,7 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 		goto err;
 
 	memcpy_fromio(&error->regs, regs, sizeof(struct overlay_registers));
-	intel_overlay_unmap_regs_atomic(overlay, KM_IRQ0);
+	intel_overlay_unmap_regs_atomic(overlay, KM_IRQ0, regs);
 
 	return error;
 
