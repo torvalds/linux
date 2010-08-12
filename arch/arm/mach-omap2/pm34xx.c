@@ -55,11 +55,6 @@
 #define OMAP343X_TABLE_VALUE_OFFSET	   0x30
 #define OMAP343X_CONTROL_REG_VALUE_OFFSET  0x32
 
-u32 enable_off_mode;
-u32 sleep_while_idle;
-u32 wakeup_timer_seconds;
-u32 wakeup_timer_milliseconds;
-
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;

@@ -37,6 +37,10 @@
 #include "pm.h"
 
 int omap2_pm_debug;
+u32 enable_off_mode;
+u32 sleep_while_idle;
+u32 wakeup_timer_seconds;
+u32 wakeup_timer_milliseconds;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -494,8 +498,10 @@ int pm_dbg_regset_init(int reg_set)
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
-	int ret;
-	ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	int ret = -EINVAL;
+
+	if (cpu_is_omap34xx())
+		ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
 	*val = ret;
 
 	if (ret >= 0)
@@ -505,7 +511,10 @@ static int pwrdm_suspend_get(void *data, u64 *val)
 
 static int pwrdm_suspend_set(void *data, u64 val)
 {
-	return omap3_pm_set_suspend_state((struct powerdomain *)data, (int)val);
+	if (cpu_is_omap34xx())
+		return omap3_pm_set_suspend_state(
+			(struct powerdomain *)data, (int)val);
+	return -EINVAL;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
@@ -553,8 +562,10 @@ static int option_set(void *data, u64 val)
 
 	*option = val;
 
-	if (option == &enable_off_mode)
-		omap3_pm_off_mode_enable(val);
+	if (option == &enable_off_mode) {
+		if (cpu_is_omap34xx())
+			omap3_pm_off_mode_enable(val);
+	}
 
 	return 0;
 }
