@@ -245,8 +245,6 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 * line for the controller
 	 */
 	if (value == BITBANG_CS_INACTIVE) {
-		set_io_bits(davinci_spi->base + SPIDEF, CS_DEFAULT);
-
 		data1_reg_val |= CS_DEFAULT << SPIDAT1_CSNR_SHIFT;
 		iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
 
@@ -1131,6 +1129,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	else
 		clear_io_bits(davinci_spi->base + SPIGCR1,
 				SPIGCR1_CLKMOD_MASK);
+
+	iowrite32(CS_DEFAULT, davinci_spi->base + SPIDEF);
 
 	/* master mode default */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_MASTER_MASK);
