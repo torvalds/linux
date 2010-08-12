@@ -279,9 +279,11 @@ int ir_raw_event_register(struct input_dev *input_dev)
 			"rc%u",  (unsigned int)ir->devno);
 
 	if (IS_ERR(ir->raw->thread)) {
+		int ret = PTR_ERR(ir->raw->thread);
+
 		kfree(ir->raw);
 		ir->raw = NULL;
-		return PTR_ERR(ir->raw->thread);
+		return ret;
 	}
 
 	mutex_lock(&ir_raw_handler_lock);
