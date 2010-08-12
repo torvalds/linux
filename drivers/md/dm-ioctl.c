@@ -249,40 +249,46 @@ static void __hash_remove(struct hash_cell *hc)
 
 static void dm_hash_remove_all(int keep_open_devices)
 {
-	int i, dev_skipped, dev_removed;
+	int i, dev_skipped;
 	struct hash_cell *hc;
-	struct list_head *tmp, *n;
+	struct mapped_device *md;
+
+retry:
+	dev_skipped = 0;
 
 	down_write(&_hash_lock);
 
-retry:
-	dev_skipped = dev_removed = 0;
 	for (i = 0; i < NUM_BUCKETS; i++) {
-		list_for_each_safe (tmp, n, _name_buckets + i) {
-			hc = list_entry(tmp, struct hash_cell, name_list);
+		list_for_each_entry(hc, _name_buckets + i, name_list) {
+			md = hc->md;
+			dm_get(md);
 
-			if (keep_open_devices &&
-			    dm_lock_for_deletion(hc->md)) {
+			if (keep_open_devices && dm_lock_for_deletion(md)) {
+				dm_put(md);
 				dev_skipped++;
 				continue;
 			}
+
 			__hash_remove(hc);
-			dev_removed = 1;
+
+			up_write(&_hash_lock);
+
+			dm_put(md);
+
+			/*
+			 * Some mapped devices may be using other mapped
+			 * devices, so repeat until we make no further
+			 * progress.  If a new mapped device is created
+			 * here it will also get removed.
+			 */
+			goto retry;
 		}
 	}
 
-	/*
-	 * Some mapped devices may be using other mapped devices, so if any
-	 * still exist, repeat until we make no further progress.
-	 */
-	if (dev_skipped) {
-		if (dev_removed)
-			goto retry;
-
-		DMWARN("remove_all left %d open device(s)", dev_skipped);
-	}
-
 	up_write(&_hash_lock);
+
+	if (dev_skipped)
+		DMWARN("remove_all left %d open device(s)", dev_skipped);
 }
 
 static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
