@@ -959,7 +959,6 @@ static struct snd_soc_dai_driver wm8961_dai = {
 
 static int wm8961_probe(struct snd_soc_codec *codec)
 {
-	struct wm8961_priv *wm8961 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 	u16 reg;
 
