@@ -20,6 +20,7 @@
 #ifndef __MACH_TEGRA_DC_H
 #define __MACH_TEGRA_DC_H
 
+#include <linux/pm.h>
 
 #define TEGRA_MAX_DC		2
 #define DC_N_WINDOWS		3
