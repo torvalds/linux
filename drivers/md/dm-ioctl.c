@@ -1189,6 +1189,21 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		goto out;
 	}
 
+	/* Protect md->type against concurrent table loads. */
+	dm_lock_md_type(md);
+	if (dm_get_md_type(md) == DM_TYPE_NONE)
+		/* Initial table load: acquire type of table. */
+		dm_set_md_type(md, dm_table_get_type(t));
+	else if (dm_get_md_type(md) != dm_table_get_type(t)) {
+		DMWARN("can't change device type after initial table load.");
+		dm_table_destroy(t);
+		dm_unlock_md_type(md);
+		r = -EINVAL;
+		goto out;
+	}
+	dm_unlock_md_type(md);
+
+	/* stage inactive table */
 	down_write(&_hash_lock);
 	hc = dm_get_mdptr(md);
 	if (!hc || hc->md != md) {

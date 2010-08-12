@@ -125,6 +125,10 @@ struct mapped_device {
 	unsigned long flags;
 
 	struct request_queue *queue;
+	unsigned type;
+	/* Protect type against concurrent access. */
+	struct mutex type_lock;
+
 	struct gendisk *disk;
 	char name[16];
 
@@ -1877,8 +1881,10 @@ static struct mapped_device *alloc_dev(int minor)
 	if (r < 0)
 		goto bad_minor;
 
+	md->type = DM_TYPE_NONE;
 	init_rwsem(&md->io_lock);
 	mutex_init(&md->suspend_lock);
+	mutex_init(&md->type_lock);
 	spin_lock_init(&md->deferred_lock);
 	spin_lock_init(&md->barrier_error_lock);
 	rwlock_init(&md->map_lock);
@@ -2128,6 +2134,30 @@ int dm_create(int minor, struct mapped_device **result)
 
 	*result = md;
 	return 0;
+}
+
+/*
+ * Functions to manage md->type.
+ * All are required to hold md->type_lock.
+ */
+void dm_lock_md_type(struct mapped_device *md)
+{
+	mutex_lock(&md->type_lock);
+}
+
+void dm_unlock_md_type(struct mapped_device *md)
+{
+	mutex_unlock(&md->type_lock);
+}
+
+void dm_set_md_type(struct mapped_device *md, unsigned type)
+{
+	md->type = type;
+}
+
+unsigned dm_get_md_type(struct mapped_device *md)
+{
+	return md->type;
 }
 
 static struct mapped_device *dm_find_md(dev_t dev)
@@ -2437,13 +2467,6 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	r = dm_calculate_queue_limits(table, &limits);
 	if (r) {
 		map = ERR_PTR(r);
-		goto out;
-	}
-
-	/* cannot change the device type, once a table is bound */
-	if (md->map &&
-	    (dm_table_get_type(md->map) != dm_table_get_type(table))) {
-		DMWARN("can't change the device type after a table is bound");
 		goto out;
 	}
 
