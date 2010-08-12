@@ -1314,10 +1314,11 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	mutex_lock(&dev->mode_config.mutex);
 	mutex_lock(&dev->struct_mutex);
 
+	ret = -EINVAL;
 	if (!(attrs->flags & I915_OVERLAY_UPDATE_ATTRS)) {
-		attrs->color_key = overlay->color_key;
+		attrs->color_key  = overlay->color_key;
 		attrs->brightness = overlay->brightness;
-		attrs->contrast = overlay->contrast;
+		attrs->contrast   = overlay->contrast;
 		attrs->saturation = overlay->saturation;
 
 		if (IS_I9XX(dev)) {
@@ -1328,29 +1329,18 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 			attrs->gamma4 = I915_READ(OGAMC4);
 			attrs->gamma5 = I915_READ(OGAMC5);
 		}
-		ret = 0;
 	} else {
-		overlay->color_key = attrs->color_key;
-		if (attrs->brightness >= -128 && attrs->brightness <= 127) {
-			overlay->brightness = attrs->brightness;
-		} else {
-			ret = -EINVAL;
+		if (attrs->brightness < -128 || attrs->brightness > 127)
 			goto out_unlock;
-		}
+		if (attrs->contrast > 255)
+			goto out_unlock;
+		if (attrs->saturation > 1023)
+			goto out_unlock;
 
-		if (attrs->contrast <= 255) {
-			overlay->contrast = attrs->contrast;
-		} else {
-			ret = -EINVAL;
-			goto out_unlock;
-		}
-
-		if (attrs->saturation <= 1023) {
-			overlay->saturation = attrs->saturation;
-		} else {
-			ret = -EINVAL;
-			goto out_unlock;
-		}
+		overlay->color_key  = attrs->color_key;
+		overlay->brightness = attrs->brightness;
+		overlay->contrast   = attrs->contrast;
+		overlay->saturation = attrs->saturation;
 
 		regs = intel_overlay_map_regs(overlay);
 		if (!regs) {
@@ -1363,10 +1353,8 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 		intel_overlay_unmap_regs(overlay);
 
 		if (attrs->flags & I915_OVERLAY_UPDATE_GAMMA) {
-			if (!IS_I9XX(dev)) {
-				ret = -EINVAL;
+			if (!IS_I9XX(dev))
 				goto out_unlock;
-			}
 
 			if (overlay->active) {
 				ret = -EBUSY;
@@ -1374,7 +1362,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 			}
 
 			ret = check_gamma(attrs);
-			if (ret != 0)
+			if (ret)
 				goto out_unlock;
 
 			I915_WRITE(OGAMC0, attrs->gamma0);
@@ -1384,9 +1372,9 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 			I915_WRITE(OGAMC4, attrs->gamma4);
 			I915_WRITE(OGAMC5, attrs->gamma5);
 		}
-		ret = 0;
 	}
 
+	ret = 0;
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
