@@ -1461,14 +1461,16 @@ void intel_cleanup_overlay(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (dev_priv->overlay) {
-		/* The bo's should be free'd by the generic code already.
-		 * Furthermore modesetting teardown happens beforehand so the
-		 * hardware should be off already */
-		BUG_ON(dev_priv->overlay->active);
+	if (!dev_priv->overlay)
+		return;
 
-		kfree(dev_priv->overlay);
-	}
+	/* The bo's should be free'd by the generic code already.
+	 * Furthermore modesetting teardown happens beforehand so the
+	 * hardware should be off already */
+	BUG_ON(dev_priv->overlay->active);
+
+	drm_gem_object_unreference_unlocked(&dev_priv->overlay->reg_bo->base);
+	kfree(dev_priv->overlay);
 }
 
 struct intel_overlay_error_state {
