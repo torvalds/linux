@@ -15,6 +15,7 @@
 #include <linux/syscalls.h>
 
 #include <asm/checksum.h>
+#include <asm/cacheflush.h>
 #include <linux/io.h>
 #include <asm/page.h>
 #include <asm/system.h>
@@ -38,3 +39,9 @@ EXPORT_SYMBOL(__strncpy_user);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 #endif
+
+#ifdef CONFIG_MMU
+EXPORT_SYMBOL(empty_zero_page);
+#endif
+
+EXPORT_SYMBOL(mbc);
