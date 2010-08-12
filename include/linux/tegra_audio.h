@@ -26,4 +26,14 @@
 #define TEGRA_AUDIO_IN_START _IO(TEGRA_AUDIO_MAGIC, 0)
 #define TEGRA_AUDIO_IN_STOP  _IO(TEGRA_AUDIO_MAGIC, 1)
 
+struct tegra_audio_in_config {
+	int rate;
+	int stereo;
+};
+
+#define TEGRA_AUDIO_IN_SET_CONFIG	_IOW(TEGRA_AUDIO_MAGIC, 2, \
+			const struct tegra_audio_in_config *)
+#define TEGRA_AUDIO_IN_GET_CONFIG	_IOR(TEGRA_AUDIO_MAGIC, 3, \
+			struct tegra_audio_in_config *)
+
 #endif/*_CPCAP_AUDIO_H*/
