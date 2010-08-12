@@ -153,7 +153,7 @@ struct lppaca {
 
 extern struct lppaca lppaca[];
 
-#define lppaca_of(cpu)	(lppaca[cpu])
+#define lppaca_of(cpu)	(*paca[cpu].lppaca_ptr)
 
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area
