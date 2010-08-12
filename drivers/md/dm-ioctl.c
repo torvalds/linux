@@ -274,6 +274,10 @@ retry:
 			up_write(&_hash_lock);
 
 			dm_put(md);
+			if (likely(keep_open_devices))
+				dm_destroy(md);
+			else
+				dm_destroy_immediate(md);
 
 			/*
 			 * Some mapped devices may be using other mapped
@@ -644,17 +648,19 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	r = dm_hash_insert(param->name, *param->uuid ? param->uuid : NULL, md);
-	if (r)
-		goto out;
+	if (r) {
+		dm_put(md);
+		dm_destroy(md);
+		return r;
+	}
 
 	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
 
 	__dev_status(md, param);
 
-out:
 	dm_put(md);
 
-	return r;
+	return 0;
 }
 
 /*
@@ -748,6 +754,7 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 		param->flags |= DM_UEVENT_GENERATED_FLAG;
 
 	dm_put(md);
+	dm_destroy(md);
 	return 0;
 }
 
