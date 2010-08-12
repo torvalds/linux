@@ -235,7 +235,7 @@ static void hil_dev_handle_ptr_events(struct hil_dev *ptr)
 			if (val < input_abs_min(dev, ABS_X + i))
 				input_abs_set_min(dev, ABS_X + i, val);
 			if (val > input_abs_max(dev, ABS_X + i))
-				XXinput_abs_set_max(dev, ABS_X + i, val);
+				input_abs_set_max(dev, ABS_X + i, val);
 #endif
 			if (i % 3)
 				val = input_abs_max(dev, ABS_X + i) - val;
@@ -391,7 +391,7 @@ static void hil_dev_pointer_setup(struct hil_dev *ptr)
 			int diff = input_abs_max(input_dev, ABS_X + i) / 10;
 			input_abs_set_min(input_dev, ABS_X + i,
 				input_abs_min(input_dev, ABS_X + i) + diff)
-			XXinput_abs_set_max(input_dev, ABS_X + i,
+			input_abs_set_max(input_dev, ABS_X + i,
 				input_abs_max(input_dev, ABS_X + i) - diff)
 		}
 #endif

@@ -139,7 +139,7 @@ static int __init amijoy_init(void)
 		amijoy_dev[i]->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
 			BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 		for (j = 0; j < 2; j++) {
-			XXinput_set_abs_params(amijoy_dev[i], ABS_X + j,
+			input_set_abs_params(amijoy_dev[i], ABS_X + j,
 					     -1, 1, 0, 0);
 		}
 
