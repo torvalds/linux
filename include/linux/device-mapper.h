@@ -398,6 +398,12 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 #define dm_array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
 
+/*
+ * Sector offset taken relative to the start of the target instead of
+ * relative to the start of the device.
+ */
+#define dm_target_offset(ti, sector) ((sector) - (ti)->begin)
+
 static inline sector_t to_sector(unsigned long n)
 {
 	return (n >> SECTOR_SHIFT);

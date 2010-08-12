@@ -1030,17 +1030,27 @@ static void end_clone_request(struct request *clone, int error)
 	dm_complete_request(clone, error);
 }
 
-static sector_t max_io_len(struct mapped_device *md,
-			   sector_t sector, struct dm_target *ti)
+/*
+ * Return maximum size of I/O possible at the supplied sector up to the current
+ * target boundary.
+ */
+static sector_t max_io_len_target_boundary(sector_t sector, struct dm_target *ti)
 {
-	sector_t offset = sector - ti->begin;
-	sector_t len = ti->len - offset;
+	sector_t target_offset = dm_target_offset(ti, sector);
+
+	return ti->len - target_offset;
+}
+
+static sector_t max_io_len(sector_t sector, struct dm_target *ti)
+{
+	sector_t len = max_io_len_target_boundary(sector, ti);
 
 	/*
 	 * Does the target need to split even further ?
 	 */
 	if (ti->split_io) {
 		sector_t boundary;
+		sector_t offset = dm_target_offset(ti, sector);
 		boundary = ((offset + ti->split_io) & ~(ti->split_io - 1))
 			   - offset;
 		if (len > boundary)
@@ -1258,7 +1268,7 @@ static int __clone_and_map_discard(struct clone_info *ci)
 	if (!ti->num_discard_requests)
 		return -EOPNOTSUPP;
 
-	max = max_io_len(ci->md, ci->sector, ti);
+	max = max_io_len(ci->sector, ti);
 
 	if (ci->sector_count > max)
 		/*
@@ -1290,7 +1300,7 @@ static int __clone_and_map(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
-	max = max_io_len(ci->md, ci->sector, ti);
+	max = max_io_len(ci->sector, ti);
 
 	if (ci->sector_count <= max) {
 		/*
@@ -1341,7 +1351,7 @@ static int __clone_and_map(struct clone_info *ci)
 				if (!dm_target_is_valid(ti))
 					return -EIO;
 
-				max = max_io_len(ci->md, ci->sector, ti);
+				max = max_io_len(ci->sector, ti);
 			}
 
 			len = min(remaining, max);
@@ -1428,7 +1438,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	/*
 	 * Find maximum amount of I/O that won't need splitting
 	 */
-	max_sectors = min(max_io_len(md, bvm->bi_sector, ti),
+	max_sectors = min(max_io_len(bvm->bi_sector, ti),
 			  (sector_t) BIO_MAX_SECTORS);
 	max_size = (max_sectors << SECTOR_SHIFT) - bvm->bi_size;
 	if (max_size < 0)
