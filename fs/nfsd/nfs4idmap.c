@@ -550,7 +550,7 @@ do_idmap_lookup_nowait(struct ent *(*lookup_fn)(struct ent *),
 		goto out_err;
 	ret = -ETIMEDOUT;
 	if (!test_bit(CACHE_VALID, &(*item)->h.flags)
-			|| (*item)->h.expiry_time < get_seconds()
+			|| (*item)->h.expiry_time < seconds_since_boot()
 			|| detail->flush_time > (*item)->h.last_refresh)
 		goto out_put;
 	ret = -ENOENT;
