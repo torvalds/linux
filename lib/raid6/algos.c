@@ -11,17 +11,17 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * raid6algos.c
+ * raid6/algos.c
  *
  * Algorithm list and algorithm selection for RAID-6
  */
 
 #include <linux/raid/pq.h>
-#include <linux/gfp.h>
 #ifndef __KERNEL__
 #include <sys/mman.h>
 #include <stdio.h>
 #else
+#include <linux/gfp.h>
 #if !RAID6_USE_EMPTY_ZERO_PAGE
 /* In .bss so it's zeroed */
 const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));

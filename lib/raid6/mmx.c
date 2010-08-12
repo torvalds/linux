@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * raid6mmx.c
+ * raid6/mmx.c
  *
  * MMX implementation of RAID-6 syndrome functions
  */
@@ -19,9 +19,9 @@
 #if defined(__i386__) && !defined(__arch_um__)
 
 #include <linux/raid/pq.h>
-#include "raid6x86.h"
+#include "x86.h"
 
-/* Shared with raid6sse1.c */
+/* Shared with raid6/sse1.c */
 const struct raid6_mmx_constants {
 	u64 x1d;
 } raid6_mmx_constants = {
