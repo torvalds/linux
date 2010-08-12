@@ -189,48 +189,15 @@ enum subpixel_order {
  */
 struct drm_display_info {
 	char name[DRM_DISPLAY_INFO_LEN];
-	/* Input info */
-	bool serration_vsync;
-	bool sync_on_green;
-	bool composite_sync;
-	bool separate_syncs;
-	bool blank_to_black;
-	unsigned char video_level;
-	bool digital;
+
 	/* Physical size */
         unsigned int width_mm;
 	unsigned int height_mm;
-
-	/* Display parameters */
-	unsigned char gamma; /* FIXME: storage format */
-	bool gtf_supported;
-	bool standard_color;
-	enum {
-		monochrome = 0,
-		rgb,
-		other,
-		unknown,
-	} display_type;
-	bool active_off_supported;
-	bool suspend_supported;
-	bool standby_supported;
-
-	/* Color info FIXME: storage format */
-	unsigned short redx, redy;
-	unsigned short greenx, greeny;
-	unsigned short bluex, bluey;
-	unsigned short whitex, whitey;
 
 	/* Clock limits FIXME: storage format */
 	unsigned int min_vfreq, max_vfreq;
 	unsigned int min_hfreq, max_hfreq;
 	unsigned int pixel_clock;
-
-	/* White point indices FIXME: storage format */
-	unsigned int wpx1, wpy1;
-	unsigned int wpgamma1;
-	unsigned int wpx2, wpy2;
-	unsigned int wpgamma2;
 
 	enum subpixel_order subpixel_order;
 
@@ -342,7 +309,7 @@ struct drm_crtc_funcs {
 
 	/* Set gamma on the CRTC */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t size);
+			  uint32_t start, uint32_t size);
 	/* Object destroy routine */
 	void (*destroy)(struct drm_crtc *crtc);
 

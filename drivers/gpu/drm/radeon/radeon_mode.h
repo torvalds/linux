@@ -82,6 +82,8 @@ enum radeon_hpd_id {
 	RADEON_HPD_NONE = 0xff,
 };
 
+#define RADEON_MAX_I2C_BUS 16
+
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
@@ -398,6 +400,16 @@ struct radeon_hpd {
 	struct radeon_gpio_rec gpio;
 };
 
+struct radeon_router {
+	bool valid;
+	u32 router_id;
+	struct radeon_i2c_bus_rec i2c_info;
+	u8 i2c_addr;
+	u8 mux_type;
+	u8 mux_control_pin;
+	u8 mux_state;
+};
+
 struct radeon_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
@@ -413,6 +425,8 @@ struct radeon_connector {
 	bool dac_load_detect;
 	uint16_t connector_object_id;
 	struct radeon_hpd hpd;
+	struct radeon_router router;
+	struct radeon_i2c_chan *router_bus;
 };
 
 struct radeon_framebuffer {
@@ -445,6 +459,15 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
 
+extern void radeon_i2c_init(struct radeon_device *rdev);
+extern void radeon_i2c_fini(struct radeon_device *rdev);
+extern void radeon_combios_i2c_init(struct radeon_device *rdev);
+extern void radeon_atombios_i2c_init(struct radeon_device *rdev);
+extern void radeon_i2c_add(struct radeon_device *rdev,
+			   struct radeon_i2c_bus_rec *rec,
+			   const char *name);
+extern struct radeon_i2c_chan *radeon_i2c_lookup(struct radeon_device *rdev,
+						 struct radeon_i2c_bus_rec *i2c_bus);
 extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 						    struct radeon_i2c_bus_rec *rec,
 						    const char *name);
@@ -460,6 +483,7 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 				u8 slave_addr,
 				u8 addr,
 				u8 val);
+extern void radeon_router_select_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 

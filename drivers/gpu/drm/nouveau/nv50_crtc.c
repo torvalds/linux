@@ -264,10 +264,15 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 int
 nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 {
-	uint32_t reg = NV50_PDISPLAY_CRTC_CLK_CTRL1(head);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct pll_lims pll;
-	uint32_t reg1, reg2;
+	uint32_t reg, reg1, reg2;
 	int ret, N1, M1, N2, M2, P;
+
+	if (dev_priv->chipset < NV_C0)
+		reg = NV50_PDISPLAY_CRTC_CLK_CTRL1(head);
+	else
+		reg = 0x614140 + (head * 0x800);
 
 	ret = get_pll_limits(dev, reg, &pll);
 	if (ret)
@@ -286,7 +291,8 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 		nv_wr32(dev, reg, 0x10000611);
 		nv_wr32(dev, reg + 4, reg1 | (M1 << 16) | N1);
 		nv_wr32(dev, reg + 8, reg2 | (P << 28) | (M2 << 16) | N2);
-	} else {
+	} else
+	if (dev_priv->chipset < NV_C0) {
 		ret = nv50_calc_pll2(dev, &pll, pclk, &N1, &N2, &M1, &P);
 		if (ret <= 0)
 			return 0;
@@ -298,6 +304,17 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 		nv_wr32(dev, reg, 0x50000610);
 		nv_wr32(dev, reg + 4, reg1 | (P << 16) | (M1 << 8) | N1);
 		nv_wr32(dev, reg + 8, N2);
+	} else {
+		ret = nv50_calc_pll2(dev, &pll, pclk, &N1, &N2, &M1, &P);
+		if (ret <= 0)
+			return 0;
+
+		NV_DEBUG(dev, "pclk %d out %d N %d fN 0x%04x M %d P %d\n",
+			 pclk, ret, N1, N2, M1, P);
+
+		nv_mask(dev, reg + 0x0c, 0x00000000, 0x00000100);
+		nv_wr32(dev, reg + 0x04, (P << 16) | (N1 << 8) | M1);
+		nv_wr32(dev, reg + 0x10, N2 << 16);
 	}
 
 	return 0;
@@ -348,7 +365,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)
-		return -EINVAL;
+		return -ENOENT;
 	cursor = nouveau_gem_object(gem);
 
 	ret = nouveau_bo_map(cursor);
@@ -381,15 +398,12 @@ nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 static void
 nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size)
+		    uint32_t start, uint32_t size)
 {
+	int end = (start + size > 256) ? 256 : start + size, i;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	int i;
 
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		nv_crtc->lut.r[i] = r[i];
 		nv_crtc->lut.g[i] = g[i];
 		nv_crtc->lut.b[i] = b[i];

@@ -76,7 +76,10 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
 	nv_wo32(dev, obj, 2, offset);
 	nv_wo32(dev, obj, 3, 0x00000000);
 	nv_wo32(dev, obj, 4, 0x00000000);
-	nv_wo32(dev, obj, 5, 0x00010000);
+	if (dev_priv->card_type < NV_C0)
+		nv_wo32(dev, obj, 5, 0x00010000);
+	else
+		nv_wo32(dev, obj, 5, 0x00020000);
 	dev_priv->engine.instmem.flush(dev);
 
 	return 0;

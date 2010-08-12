@@ -1100,6 +1100,8 @@ struct radeon_device {
 	struct notifier_block acpi_nb;
 	/* only one userspace can use Hyperz features at a time */
 	struct drm_file *hyperz_filp;
+	/* i2c buses */
+	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
 };
 
 int radeon_device_init(struct radeon_device *rdev,

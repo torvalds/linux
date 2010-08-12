@@ -281,6 +281,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 
 	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
+		case NV_C0:
+			break;
 		case NV_50:
 			nv50_fbcon_accel_init(info);
 			info->fbops = &nv50_fbcon_ops;

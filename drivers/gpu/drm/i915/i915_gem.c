@@ -456,7 +456,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 	obj_priv = to_intel_bo(obj);
 
 	/* Bounds check source.
@@ -919,7 +919,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 	obj_priv = to_intel_bo(obj);
 
 	/* Bounds check destination.
@@ -1002,7 +1002,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
@@ -1060,7 +1060,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
 		mutex_unlock(&dev->struct_mutex);
-		return -EBADF;
+		return -ENOENT;
 	}
 
 #if WATCH_BUF
@@ -1099,7 +1099,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 
 	offset = args->offset;
 
@@ -1373,7 +1373,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -3364,7 +3364,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 						   reloc->target_handle);
 		if (target_obj == NULL) {
 			i915_gem_object_unpin(obj);
-			return -EBADF;
+			return -ENOENT;
 		}
 		target_obj_priv = to_intel_bo(target_obj);
 
@@ -3781,7 +3781,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				   exec_list[i].handle, i);
 			/* prevent error path from reading uninitialized data */
 			args->buffer_count = i + 1;
-			ret = -EBADF;
+			ret = -ENOENT;
 			goto err;
 		}
 
@@ -3791,7 +3791,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				   object_list[i]);
 			/* prevent error path from reading uninitialized data */
 			args->buffer_count = i + 1;
-			ret = -EBADF;
+			ret = -EINVAL;
 			goto err;
 		}
 		obj_priv->in_execbuffer = true;
@@ -4265,7 +4265,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		DRM_ERROR("Bad handle in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
 		mutex_unlock(&dev->struct_mutex);
-		return -EBADF;
+		return -ENOENT;
 	}
 	obj_priv = to_intel_bo(obj);
 
@@ -4321,7 +4321,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 		DRM_ERROR("Bad handle in i915_gem_unpin_ioctl(): %d\n",
 			  args->handle);
 		mutex_unlock(&dev->struct_mutex);
-		return -EBADF;
+		return -ENOENT;
 	}
 
 	obj_priv = to_intel_bo(obj);
@@ -4355,7 +4355,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL) {
 		DRM_ERROR("Bad handle in i915_gem_busy_ioctl(): %d\n",
 			  args->handle);
-		return -EBADF;
+		return -ENOENT;
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -4408,7 +4408,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL) {
 		DRM_ERROR("Bad handle in i915_gem_madvise_ioctl(): %d\n",
 			  args->handle);
-		return -EBADF;
+		return -ENOENT;
 	}
 
 	mutex_lock(&dev->struct_mutex);
