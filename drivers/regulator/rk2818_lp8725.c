@@ -589,7 +589,7 @@ static int lp8725_set_init(void)
 	DBG_INFO("***ldo5 vcc init\n");
 	ldo5 = regulator_get(NULL, "ldo5");
 	regulator_enable(ldo5);
-//	regulator_set_voltage(ldo5,1900000,1900000);
+	regulator_set_voltage(ldo5,1800000,1800000);
 	tmp = regulator_get_voltage(ldo5);
 	DBG_INFO("***regulator_set_init: ldo5 vcc =%d\n",tmp);
 
