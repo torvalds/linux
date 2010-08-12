@@ -573,7 +573,7 @@ static int rtl8187_cmd_reset(struct ieee80211_hw *dev)
 	} while (--i);
 
 	if (!i) {
-		wiphy_err(dev->wiphy, "reset timeout!\n");
+		wiphy_err(dev->wiphy, "Reset timeout!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1526,7 +1526,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
 
-	wiphy_info(dev->wiphy, "hwaddr %pm, %s v%d + %s, rfkill mask %d\n",
+	wiphy_info(dev->wiphy, "hwaddr %pM, %s V%d + %s, rfkill mask %d\n",
 		   mac_addr, chip_name, priv->asic_rev, priv->rf->name,
 		   priv->rfkill_mask);
 
