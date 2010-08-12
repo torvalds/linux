@@ -573,7 +573,7 @@ static struct dm_table *dm_get_live_or_inactive_table(struct mapped_device *md,
  * Fills in a dm_ioctl structure, ready for sending back to
  * userland.
  */
-static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
+static void __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 {
 	struct gendisk *disk = dm_disk(md);
 	struct dm_table *table;
@@ -617,8 +617,6 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 			dm_table_put(table);
 		}
 	}
-
-	return 0;
 }
 
 static int dev_create(struct dm_ioctl *param, size_t param_size)
@@ -638,14 +636,14 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	r = dm_hash_insert(param->name, *param->uuid ? param->uuid : NULL, md);
-	if (r) {
-		dm_put(md);
-		return r;
-	}
+	if (r)
+		goto out;
 
 	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
 
-	r = __dev_status(md, param);
+	__dev_status(md, param);
+
+out:
 	dm_put(md);
 
 	return r;
@@ -841,13 +839,17 @@ static int do_suspend(struct dm_ioctl *param)
 	if (param->flags & DM_NOFLUSH_FLAG)
 		suspend_flags |= DM_SUSPEND_NOFLUSH_FLAG;
 
-	if (!dm_suspended_md(md))
+	if (!dm_suspended_md(md)) {
 		r = dm_suspend(md, suspend_flags);
+		if (r)
+			goto out;
+	}
 
-	if (!r)
-		r = __dev_status(md, param);
+	__dev_status(md, param);
 
+out:
 	dm_put(md);
+
 	return r;
 }
 
@@ -909,7 +911,7 @@ static int do_resume(struct dm_ioctl *param)
 		dm_table_destroy(old_map);
 
 	if (!r)
-		r = __dev_status(md, param);
+		__dev_status(md, param);
 
 	dm_put(md);
 	return r;
@@ -933,16 +935,16 @@ static int dev_suspend(struct dm_ioctl *param, size_t param_size)
  */
 static int dev_status(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
 	struct mapped_device *md;
 
 	md = find_device(param);
 	if (!md)
 		return -ENXIO;
 
-	r = __dev_status(md, param);
+	__dev_status(md, param);
 	dm_put(md);
-	return r;
+
+	return 0;
 }
 
 /*
@@ -1017,7 +1019,7 @@ static void retrieve_status(struct dm_table *table,
  */
 static int dev_wait(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
+	int r = 0;
 	struct mapped_device *md;
 	struct dm_table *table;
 
@@ -1038,9 +1040,7 @@ static int dev_wait(struct dm_ioctl *param, size_t param_size)
 	 * changed to trigger the event, so we may as well tell
 	 * him and save an ioctl.
 	 */
-	r = __dev_status(md, param);
-	if (r)
-		goto out;
+	__dev_status(md, param);
 
 	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
@@ -1048,8 +1048,9 @@ static int dev_wait(struct dm_ioctl *param, size_t param_size)
 		dm_table_put(table);
 	}
 
- out:
+out:
 	dm_put(md);
+
 	return r;
 }
 
@@ -1184,7 +1185,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	up_write(&_hash_lock);
 
 	param->flags |= DM_INACTIVE_PRESENT_FLAG;
-	r = __dev_status(md, param);
+	__dev_status(md, param);
 
 out:
 	dm_put(md);
@@ -1194,7 +1195,6 @@ out:
 
 static int table_clear(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
 	struct hash_cell *hc;
 	struct mapped_device *md;
 
@@ -1214,11 +1214,12 @@ static int table_clear(struct dm_ioctl *param, size_t param_size)
 
 	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
 
-	r = __dev_status(hc->md, param);
+	__dev_status(hc->md, param);
 	md = hc->md;
 	up_write(&_hash_lock);
 	dm_put(md);
-	return r;
+
+	return 0;
 }
 
 /*
@@ -1263,7 +1264,6 @@ static void retrieve_deps(struct dm_table *table,
 
 static int table_deps(struct dm_ioctl *param, size_t param_size)
 {
-	int r = 0;
 	struct mapped_device *md;
 	struct dm_table *table;
 
@@ -1271,9 +1271,7 @@ static int table_deps(struct dm_ioctl *param, size_t param_size)
 	if (!md)
 		return -ENXIO;
 
-	r = __dev_status(md, param);
-	if (r)
-		goto out;
+	__dev_status(md, param);
 
 	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
@@ -1281,9 +1279,9 @@ static int table_deps(struct dm_ioctl *param, size_t param_size)
 		dm_table_put(table);
 	}
 
- out:
 	dm_put(md);
-	return r;
+
+	return 0;
 }
 
 /*
@@ -1292,7 +1290,6 @@ static int table_deps(struct dm_ioctl *param, size_t param_size)
  */
 static int table_status(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
 	struct mapped_device *md;
 	struct dm_table *table;
 
@@ -1300,9 +1297,7 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 	if (!md)
 		return -ENXIO;
 
-	r = __dev_status(md, param);
-	if (r)
-		goto out;
+	__dev_status(md, param);
 
 	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
@@ -1310,9 +1305,9 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 		dm_table_put(table);
 	}
 
-out:
 	dm_put(md);
-	return r;
+
+	return 0;
 }
 
 /*
