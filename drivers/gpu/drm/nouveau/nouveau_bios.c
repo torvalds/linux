@@ -4587,7 +4587,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -1) {
@@ -4597,7 +4597,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -2) {
@@ -4610,7 +4610,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 2\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 2\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk > 0) {
@@ -4622,7 +4622,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk < 0) {
@@ -4634,7 +4634,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	}
 
