@@ -1659,24 +1659,37 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 static int iwl_mac_setup_register(struct iwl_priv *priv,
 				  struct iwlagn_ucode_capabilities *capa);
 
+#define UCODE_EXPERIMENTAL_INDEX	100
+#define UCODE_EXPERIMENTAL_TAG		"exp"
+
 static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 {
 	const char *name_pre = priv->cfg->fw_name_pre;
+	char tag[8];
 
-	if (first)
+	if (first) {
+#ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+		priv->fw_index = UCODE_EXPERIMENTAL_INDEX;
+		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
+	} else if (priv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
+#endif
 		priv->fw_index = priv->cfg->ucode_api_max;
-	else
+		sprintf(tag, "%d", priv->fw_index);
+	} else {
 		priv->fw_index--;
+		sprintf(tag, "%d", priv->fw_index);
+	}
 
 	if (priv->fw_index < priv->cfg->ucode_api_min) {
 		IWL_ERR(priv, "no suitable firmware found!\n");
 		return -ENOENT;
 	}
 
-	sprintf(priv->firmware_name, "%s%d%s",
-		name_pre, priv->fw_index, ".ucode");
+	sprintf(priv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
 
-	IWL_DEBUG_INFO(priv, "attempting to load firmware '%s'\n",
+	IWL_DEBUG_INFO(priv, "attempting to load firmware %s'%s'\n",
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? "EXPERIMENTAL " : "",
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
@@ -1971,8 +1984,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		IWL_ERR(priv, "request for firmware file '%s' failed.\n",
-			priv->firmware_name);
+		if (priv->fw_index <= priv->cfg->ucode_api_max)
+			IWL_ERR(priv,
+				"request for firmware file '%s' failed.\n",
+				priv->firmware_name);
 		goto try_again;
 	}
 
@@ -2019,7 +2034,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			  api_max, api_ver);
 
 	if (build)
-		sprintf(buildstr, " build %u", build);
+		sprintf(buildstr, " build %u%s", build,
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? " (EXP)" : "");
 	else
 		buildstr[0] = '\0';
 

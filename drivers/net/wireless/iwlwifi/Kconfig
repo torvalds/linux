@@ -36,6 +36,12 @@ config IWLWIFI_DEBUGFS
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
 
+config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+        bool "Experimental uCode support"
+        depends on IWLWIFI && IWLWIFI_DEBUG
+        ---help---
+	  Enable use of experimental ucode for testing and debugging.
+
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
 	depends on IWLWIFI
