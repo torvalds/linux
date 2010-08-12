@@ -11,8 +11,6 @@
 #include "../util.h"
 #include <stdio.h>
 
-newtComponent newt_form__new(void);
-
 static int ui_browser__percent_color(double percent, bool current)
 {
 	if (current)
@@ -147,10 +145,28 @@ void ui_browser__reset_index(struct ui_browser *self)
 	self->seek(self, 0, SEEK_SET);
 }
 
+void ui_browser__add_exit_key(struct ui_browser *self, int key)
+{
+	newtFormAddHotKey(self->form, key);
+}
+
+void ui_browser__add_exit_keys(struct ui_browser *self, int keys[])
+{
+	int i = 0;
+
+	while (keys[i] && i < 64) {
+		ui_browser__add_exit_key(self, keys[i]);
+		++i;
+	}
+}
+
 int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...)
 {
 	va_list ap;
+	int keys[] = { NEWT_KEY_UP, NEWT_KEY_DOWN, NEWT_KEY_PGUP,
+		       NEWT_KEY_PGDN, NEWT_KEY_HOME, NEWT_KEY_END, ' ',
+		       NEWT_KEY_LEFT, NEWT_KEY_ESCAPE, 'q', CTRL('c'), 0 };
 
 	if (self->form != NULL) {
 		newtFormDestroy(self->form);
@@ -158,7 +174,7 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 	}
 	ui_browser__refresh_dimensions(self);
 	newtCenteredWindow(self->width, self->height, title);
-	self->form = newt_form__new();
+	self->form = newtForm(NULL, NULL, 0);
 	if (self->form == NULL)
 		return -1;
 
@@ -168,13 +184,7 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 	if (self->sb == NULL)
 		return -1;
 
-	newtFormAddHotKey(self->form, NEWT_KEY_UP);
-	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
-	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
-	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, ' ');
+	ui_browser__add_exit_keys(self, keys);
 	newtFormAddComponent(self->form, self->sb);
 
 	va_start(ap, helpline);

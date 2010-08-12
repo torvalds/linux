@@ -142,14 +142,16 @@ static int annotate_browser__run(struct annotate_browser *self)
 	if (ui_browser__show(&self->b, he->ms.sym->name,
 			     "<-, -> or ESC: exit, TAB/shift+TAB: cycle thru samples") < 0)
 		return -1;
-
-	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
-	newtFormAddHotKey(self->b.form, NEWT_KEY_RIGHT);
+	/*
+	 * To allow builtin-annotate to cycle thru multiple symbols by
+	 * examining the exit key for this function.
+	 */
+	ui_browser__add_exit_key(&self->b, NEWT_KEY_RIGHT);
 
 	nd = self->curr_hot;
 	if (nd) {
-		newtFormAddHotKey(self->b.form, NEWT_KEY_TAB);
-		newtFormAddHotKey(self->b.form, NEWT_KEY_UNTAB);
+		int tabs[] = { NEWT_KEY_TAB, NEWT_KEY_UNTAB, 0 };
+		ui_browser__add_exit_keys(&self->b, tabs);
 	}
 
 	while (1) {

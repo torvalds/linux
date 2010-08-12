@@ -198,6 +198,8 @@ static bool hist_browser__toggle_fold(struct hist_browser *self)
 static int hist_browser__run(struct hist_browser *self, const char *title)
 {
 	int key;
+	int exit_keys[] = { 'a', '?', 'h', 'd', 'D', 't', NEWT_KEY_ENTER,
+			    NEWT_KEY_RIGHT, NEWT_KEY_LEFT, 0, };
 	char str[256], unit;
 	unsigned long nr_events = self->hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
@@ -215,16 +217,7 @@ static int hist_browser__run(struct hist_browser *self, const char *title)
 			     "Press '?' for help on key bindings") < 0)
 		return -1;
 
-	newtFormAddHotKey(self->b.form, 'a');
-	newtFormAddHotKey(self->b.form, '?');
-	newtFormAddHotKey(self->b.form, 'h');
-	newtFormAddHotKey(self->b.form, 'd');
-	newtFormAddHotKey(self->b.form, 'D');
-	newtFormAddHotKey(self->b.form, 't');
-
-	newtFormAddHotKey(self->b.form, NEWT_KEY_LEFT);
-	newtFormAddHotKey(self->b.form, NEWT_KEY_RIGHT);
-	newtFormAddHotKey(self->b.form, NEWT_KEY_ENTER);
+	ui_browser__add_exit_keys(&self->b, exit_keys);
 
 	while (1) {
 		key = ui_browser__run(&self->b);

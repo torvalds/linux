@@ -33,6 +33,8 @@ void ui_browser__refresh_dimensions(struct ui_browser *self);
 void ui_browser__reset_index(struct ui_browser *self);
 
 void ui_browser__gotorc(struct ui_browser *self, int y, int x);
+void ui_browser__add_exit_key(struct ui_browser *self, int key);
+void ui_browser__add_exit_keys(struct ui_browser *self, int keys[]);
 int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...);
 void ui_browser__hide(struct ui_browser *self);
