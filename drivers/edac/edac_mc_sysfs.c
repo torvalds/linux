@@ -759,8 +759,6 @@ static void edac_inst_grp_release(struct kobject *kobj)
 
 	grp = container_of(kobj, struct mcidev_sysfs_group_kobj, kobj);
 	mci = grp->mci;
-
-	kobject_put(&mci->edac_mci_kobj);
 }
 
 /* Intermediate show/store table */
