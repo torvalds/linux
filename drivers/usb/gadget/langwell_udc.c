@@ -842,9 +842,9 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		VDBG(dev, "req->mapped = 0\n");
 	}
 
-	DBG(dev, "%s queue req %p, len %u, buf %p, dma 0x%08x\n",
-			_ep->name,
-			_req, _req->length, _req->buf, _req->dma);
+	DBG(dev, "%s queue req %p, len %u, buf %p, dma 0x%08llx\n",
+	    _ep->name,
+	    _req, _req->length, _req->buf, (unsigned long long)_req->dma);
 
 	_req->status = -EINPROGRESS;
 	_req->actual = 0;

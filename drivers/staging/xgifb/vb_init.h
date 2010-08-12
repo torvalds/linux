@@ -1,7 +1,7 @@
 #ifndef  _VBINIT_
 #define  _VBINIT_
-extern   BOOLEAN    XGIInitNew( PXGI_HW_DEVICE_INFO HwDeviceExtension ) ;
-extern XGI21_LVDSCapStruct  XGI21_LCDCapList[13];
+extern   unsigned char    XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension) ;
+extern struct XGI21_LVDSCapStruct  XGI21_LCDCapList[13];
 
 #endif
 

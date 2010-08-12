@@ -727,10 +727,10 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_FCBE	0xFCBE	//FW codes ahead of available documentation, so ???????
 #define CFG_FCBF	0xFCBF	//FW codes ahead of available documentation, so ???????
 
-#define CFG_HANDOVER_ADDR				0xFCC0		//[AP] Station MAC Adrress re-associated with other AP
+#define CFG_HANDOVER_ADDR				0xFCC0		//[AP] Station MAC Address re-associated with other AP
 #define CFG_SCAN_CHANNEL				0xFCC2		//Channel set for host requested scan
 //;?#define CFG_SCAN_CHANNEL_MASK			0xFCC2		// contains
-#define CFG_DISASSOCIATE_ADDR			0xFCC4		//[AP] Station MAC Adrress to be disassociated
+#define CFG_DISASSOCIATE_ADDR			0xFCC4		//[AP] Station MAC Address to be disassociated
 #define CFG_PROBE_DATA_RATE				0xFCC5		//WARP connection control
 #define CFG_FRAME_BURST_LIMIT			0xFCC6		//
 #define CFG_COEXISTENSE_BEHAVIOUR		0xFCC7		//[AP]

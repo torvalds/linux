@@ -110,7 +110,7 @@ struct pcc_cpu {
 	u32 output_offset;
 };
 
-static struct pcc_cpu *pcc_cpu_info;
+static struct pcc_cpu __percpu *pcc_cpu_info;
 
 static int pcc_cpufreq_verify(struct cpufreq_policy *policy)
 {

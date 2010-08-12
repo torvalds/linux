@@ -454,7 +454,7 @@ static int __init sst25l_probe(struct spi_device *spi)
 						  parts, nr_parts);
 		}
 
-	} else if (data->nr_parts) {
+	} else if (data && data->nr_parts) {
 		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
 			 data->nr_parts, data->name);
 	}

@@ -54,49 +54,84 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_update_gpe_enable_masks
+ * FUNCTION:    acpi_ev_update_gpe_enable_mask
  *
  * PARAMETERS:  gpe_event_info          - GPE to update
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Updates GPE register enable masks based upon whether there are
- *              references (either wake or run) to this GPE
+ * DESCRIPTION: Updates GPE register enable mask based upon whether there are
+ *              runtime references to this GPE
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
+acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
 {
 	struct acpi_gpe_register_info *gpe_register_info;
 	u32 register_bit;
 
-	ACPI_FUNCTION_TRACE(ev_update_gpe_enable_masks);
+	ACPI_FUNCTION_TRACE(ev_update_gpe_enable_mask);
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
 						gpe_register_info);
 
-	/* Clear the wake/run bits up front */
+	/* Clear the run bit up front */
 
-	ACPI_CLEAR_BIT(gpe_register_info->enable_for_wake, register_bit);
 	ACPI_CLEAR_BIT(gpe_register_info->enable_for_run, register_bit);
 
-	/* Set the mask bits only if there are references to this GPE */
+	/* Set the mask bit only if there are references to this GPE */
 
 	if (gpe_event_info->runtime_count) {
-		ACPI_SET_BIT(gpe_register_info->enable_for_run, register_bit);
-	}
-
-	if (gpe_event_info->wakeup_count) {
-		ACPI_SET_BIT(gpe_register_info->enable_for_wake, register_bit);
+		ACPI_SET_BIT(gpe_register_info->enable_for_run, (u8)register_bit);
 	}
 
 	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_enable_gpe
+ *
+ * PARAMETERS:  gpe_event_info  - GPE to enable
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Clear the given GPE from stale events and enable it.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(ev_enable_gpe);
+
+	/*
+	 * We will only allow a GPE to be enabled if it has either an
+	 * associated method (_Lxx/_Exx) or a handler. Otherwise, the
+	 * GPE will be immediately disabled by acpi_ev_gpe_dispatch the
+	 * first time it fires.
+	 */
+	if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)) {
+		return_ACPI_STATUS(AE_NO_HANDLER);
+	}
+
+	/* Clear the GPE (of stale events) */
+	status = acpi_hw_clear_gpe(gpe_event_info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Enable the requested GPE */
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
+
+	return_ACPI_STATUS(status);
 }
 
 
@@ -417,8 +452,12 @@ static void acpi_ev_asynch_enable_gpe(void *context)
 		}
 	}
 
-	/* Enable this GPE */
-	(void)acpi_hw_write_gpe_enable_reg(gpe_event_info);
+	/*
+	 * Enable this GPE, conditionally. This means that the GPE will only be
+	 * physically enabled if the enable_for_run bit is set in the event_info
+	 */
+	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_COND_ENABLE);
+
 	return_VOID;
 }
 

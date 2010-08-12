@@ -434,8 +434,11 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 	int ret;
 
 	ta = kzalloc(sizeof(*ta), GFP_KERNEL);
-	if (!ta)
+	if (!ta) {
+		inode->i_nlink--;
+		iput(inode);
 		return -ENOMEM;
+	}
 
 	ta->state = CREATE_1;
 	ta->ino = inode->i_ino;

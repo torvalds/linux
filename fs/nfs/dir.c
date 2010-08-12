@@ -1652,16 +1652,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 
-	/*
-	 * ... prune child dentries and writebacks if needed.
-	 */
-	if (atomic_read(&old_dentry->d_count) > 1) {
-		if (S_ISREG(old_inode->i_mode))
-			nfs_wb_all(old_inode);
-		shrink_dcache_parent(old_dentry);
-	}
 	nfs_inode_return_delegation(old_inode);
-
 	if (new_inode != NULL)
 		nfs_inode_return_delegation(new_inode);
 
@@ -1953,7 +1944,7 @@ int nfs_permission(struct inode *inode, int mask)
 	if ((mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
 		goto out;
 	/* Is this sys_access() ? */
-	if (mask & MAY_ACCESS)
+	if (mask & (MAY_ACCESS | MAY_CHDIR))
 		goto force_lookup;
 
 	switch (inode->i_mode & S_IFMT) {

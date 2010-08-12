@@ -315,11 +315,8 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 	int total_size = 0;
 	struct scatterlist *current_sg = sg;
 	int i;
-	u32 next_lli_off_dst;
-	u32 next_lli_off_src;
-
-	next_lli_off_src = 0;
-	next_lli_off_dst = 0;
+	u32 next_lli_off_dst = 0;
+	u32 next_lli_off_src = 0;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
 		total_size += sg_dma_len(current_sg);
@@ -351,7 +348,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 sg_dma_len(current_sg),
 					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 term_int && !next_lli_off_src,
+					 false,
 					 true);
 			d40_log_fill_lli(&lli->dst[i],
 					 dev_addr,
@@ -375,7 +372,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 sg_dma_len(current_sg),
 					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 term_int && !next_lli_off_src,
+					 false,
 					 false);
 		}
 	}
@@ -423,32 +420,35 @@ int d40_log_sg_to_lli(int lcla_id,
 	return total_size;
 }
 
-void d40_log_lli_write(struct d40_log_lli_full *lcpa,
+int d40_log_lli_write(struct d40_log_lli_full *lcpa,
 		       struct d40_log_lli *lcla_src,
 		       struct d40_log_lli *lcla_dst,
 		       struct d40_log_lli *lli_dst,
 		       struct d40_log_lli *lli_src,
 		       int llis_per_log)
 {
-	u32 slos = 0;
-	u32 dlos = 0;
+	u32 slos;
+	u32 dlos;
 	int i;
 
-	lcpa->lcsp0 = lli_src->lcsp02;
-	lcpa->lcsp1 = lli_src->lcsp13;
-	lcpa->lcsp2 = lli_dst->lcsp02;
-	lcpa->lcsp3 = lli_dst->lcsp13;
+	writel(lli_src->lcsp02, &lcpa->lcsp0);
+	writel(lli_src->lcsp13, &lcpa->lcsp1);
+	writel(lli_dst->lcsp02, &lcpa->lcsp2);
+	writel(lli_dst->lcsp13, &lcpa->lcsp3);
 
 	slos = lli_src->lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
 	dlos = lli_dst->lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
 
 	for (i = 0; (i < llis_per_log) && slos && dlos; i++) {
-		writel(lli_src[i+1].lcsp02, &lcla_src[i].lcsp02);
-		writel(lli_src[i+1].lcsp13, &lcla_src[i].lcsp13);
-		writel(lli_dst[i+1].lcsp02, &lcla_dst[i].lcsp02);
-		writel(lli_dst[i+1].lcsp13, &lcla_dst[i].lcsp13);
+		writel(lli_src[i + 1].lcsp02, &lcla_src[i].lcsp02);
+		writel(lli_src[i + 1].lcsp13, &lcla_src[i].lcsp13);
+		writel(lli_dst[i + 1].lcsp02, &lcla_dst[i].lcsp02);
+		writel(lli_dst[i + 1].lcsp13, &lcla_dst[i].lcsp13);
 
-		slos = lli_src[i+1].lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
-		dlos = lli_dst[i+1].lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
+		slos = lli_src[i + 1].lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
+		dlos = lli_dst[i + 1].lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
 	}
+
+	return i;
+
 }

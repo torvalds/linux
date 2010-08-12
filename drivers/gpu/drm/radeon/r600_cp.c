@@ -200,7 +200,7 @@ int r600_page_table_init(struct drm_device *dev)
 						 entry->pagelist[i], 0,
 						 PAGE_SIZE,
 						 PCI_DMA_BIDIRECTIONAL);
-		if (entry->busaddr[i] == 0) {
+		if (pci_dma_mapping_error(dev->pdev, entry->busaddr[i])) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			r600_page_table_cleanup(dev, gart_info);
 			goto done;

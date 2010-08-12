@@ -394,7 +394,7 @@ int __init early_altera_uart_setup(struct altera_uart_platform_uart *platp)
 static void altera_uart_console_putc(struct uart_port *port, const char c)
 {
 	while (!(readl(port->membase + ALTERA_UART_STATUS_REG) &
-	         ALTERA_UART_STATUS_TRDY_MSK))
+		 ALTERA_UART_STATUS_TRDY_MSK))
 		cpu_relax();
 
 	writel(c, port->membase + ALTERA_UART_TXDATA_REG);

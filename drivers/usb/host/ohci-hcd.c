@@ -212,7 +212,7 @@ static int ohci_urb_enqueue (
 	spin_lock_irqsave (&ohci->lock, flags);
 
 	/* don't submit to a dead HC */
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		retval = -ENODEV;
 		goto fail;
 	}
@@ -685,7 +685,7 @@ retry:
 	}
 
 	/* use rhsc irqs after khubd is fully initialized */
-	hcd->poll_rh = 1;
+	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	hcd->uses_new_polling = 1;
 
 	/* start controller operations */
@@ -822,7 +822,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	else if (ints & OHCI_INTR_RD) {
 		ohci_vdbg(ohci, "resume detect\n");
 		ohci_writel(ohci, OHCI_INTR_RD, &regs->intrstatus);
-		hcd->poll_rh = 1;
+		set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 		if (ohci->autostop) {
 			spin_lock (&ohci->lock);
 			ohci_rh_resume (ohci);
@@ -1031,7 +1031,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_ep93xx_driver
 #endif
 
-#ifdef CONFIG_SOC_AU1X00
+#ifdef CONFIG_MIPS_ALCHEMY
 #include "ohci-au1xxx.c"
 #define PLATFORM_DRIVER		ohci_hcd_au1xxx_driver
 #endif
@@ -1093,6 +1093,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_MFD_TC6393XB
 #include "ohci-tmio.c"
 #define TMIO_OHCI_DRIVER	ohci_hcd_tmio_driver
+#endif
+
+#ifdef CONFIG_MACH_JZ4740
+#include "ohci-jz4740.c"
+#define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\

@@ -235,6 +235,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->flaglock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
+	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
+	mutex_init(&sta->ampdu_mlme.mtx);
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
@@ -246,14 +248,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	for (i = 0; i < STA_TID_NUM; i++) {
-		/* timer_to_tid must be initialized with identity mapping to
-		 * enable session_timer's data differentiation. refer to
-		 * sta_rx_agg_session_timer_expired for useage */
+		/*
+		 * timer_to_tid must be initialized with identity mapping
+		 * to enable session_timer's data differentiation. See
+		 * sta_rx_agg_session_timer_expired for usage.
+		 */
 		sta->timer_to_tid[i] = i;
-		/* tx */
-		sta->ampdu_mlme.tid_state_tx[i] = HT_AGG_STATE_IDLE;
-		sta->ampdu_mlme.tid_tx[i] = NULL;
-		sta->ampdu_mlme.addba_req_num[i] = 0;
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
@@ -647,15 +647,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		return ret;
 
 	if (sta->key) {
-		ieee80211_key_free(sta->key);
-		/*
-		 * We have only unlinked the key, and actually destroying it
-		 * may mean it is removed from hardware which requires that
-		 * the key->sta pointer is still valid, so flush the key todo
-		 * list here.
-		 */
-		ieee80211_key_todo();
-
+		ieee80211_key_free(local, sta->key);
 		WARN_ON(sta->key);
 	}
 

@@ -37,6 +37,23 @@ void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
 EXPORT_SYMBOL(blk_queue_prep_rq);
 
 /**
+ * blk_queue_unprep_rq - set an unprepare_request function for queue
+ * @q:		queue
+ * @ufn:	unprepare_request function
+ *
+ * It's possible for a queue to register an unprepare_request callback
+ * which is invoked before the request is finally completed. The goal
+ * of the function is to deallocate any data that was allocated in the
+ * prepare_request callback.
+ *
+ */
+void blk_queue_unprep_rq(struct request_queue *q, unprep_rq_fn *ufn)
+{
+	q->unprep_rq_fn = ufn;
+}
+EXPORT_SYMBOL(blk_queue_unprep_rq);
+
+/**
  * blk_queue_merge_bvec - set a merge_bvec function for queue
  * @q:		queue
  * @mbfn:	merge_bvec_fn

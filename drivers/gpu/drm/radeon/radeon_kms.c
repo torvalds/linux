@@ -49,7 +49,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct radeon_device *rdev;
-	int r;
+	int r, acpi_status;
 
 	rdev = kzalloc(sizeof(struct radeon_device), GFP_KERNEL);
 	if (rdev == NULL) {
@@ -77,6 +77,12 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
+
+	/* Call ACPI methods */
+	acpi_status = radeon_acpi_init(rdev);
+	if (acpi_status)
+		dev_dbg(&dev->pdev->dev, "Error during ACPI methods call\n");
+
 	/* Again modeset_init should fail only on fatal error
 	 * otherwise it should provide enough functionalities
 	 * for shadowfb to run
@@ -106,7 +112,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	info = data;
 	value_ptr = (uint32_t *)((unsigned long)info->value);
-	value = *value_ptr;
+	if (DRM_COPY_FROM_USER(&value, value_ptr, sizeof(value)))
+		return -EFAULT;
+
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
 		value = dev->pci_device;
@@ -135,15 +143,50 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			}
 		}
 		if (!found) {
-			DRM_DEBUG("unknown crtc id %d\n", value);
+			DRM_DEBUG_KMS("unknown crtc id %d\n", value);
 			return -EINVAL;
 		}
 		break;
 	case RADEON_INFO_ACCEL_WORKING2:
 		value = rdev->accel_working;
 		break;
+	case RADEON_INFO_TILING_CONFIG:
+		if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.tile_config;
+		else if (rdev->family >= CHIP_RV770)
+			value = rdev->config.rv770.tile_config;
+		else if (rdev->family >= CHIP_R600)
+			value = rdev->config.r600.tile_config;
+		else {
+			DRM_DEBUG_KMS("tiling config is r6xx+ only!\n");
+			return -EINVAL;
+		}
+	case RADEON_INFO_WANT_HYPERZ:
+		/* The "value" here is both an input and output parameter.
+		 * If the input value is 1, filp requests hyper-z access.
+		 * If the input value is 0, filp revokes its hyper-z access.
+		 *
+		 * When returning, the value is 1 if filp owns hyper-z access,
+		 * 0 otherwise. */
+		if (value >= 2) {
+			DRM_DEBUG_KMS("WANT_HYPERZ: invalid value %d\n", value);
+			return -EINVAL;
+		}
+		mutex_lock(&dev->struct_mutex);
+		if (value == 1) {
+			/* wants hyper-z */
+			if (!rdev->hyperz_filp)
+				rdev->hyperz_filp = filp;
+		} else if (value == 0) {
+			/* revokes hyper-z */
+			if (rdev->hyperz_filp == filp)
+				rdev->hyperz_filp = NULL;
+		}
+		value = rdev->hyperz_filp == filp ?  1 : 0;
+		mutex_unlock(&dev->struct_mutex);
+		break;
 	default:
-		DRM_DEBUG("Invalid request %d\n", info->request);
+		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
 	if (DRM_COPY_TO_USER(value_ptr, &value, sizeof(uint32_t))) {
@@ -181,8 +224,10 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
+	struct radeon_device *rdev = dev->dev_private;
+	if (rdev->hyperz_filp == file_priv)
+		rdev->hyperz_filp = NULL;
 }
-
 
 /*
  * VBlank related functions.

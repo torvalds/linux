@@ -190,18 +190,28 @@ static int truncate_restart_transaction(handle_t *handle, struct inode *inode)
 }
 
 /*
- * Called at the last iput() if i_nlink is zero.
+ * Called at inode eviction from icache
  */
-void ext3_delete_inode (struct inode * inode)
+void ext3_evict_inode (struct inode *inode)
 {
+	struct ext3_block_alloc_info *rsv;
 	handle_t *handle;
+	int want_delete = 0;
 
-	if (!is_bad_inode(inode))
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
 		dquot_initialize(inode);
+		want_delete = 1;
+	}
 
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (is_bad_inode(inode))
+	ext3_discard_reservation(inode);
+	rsv = EXT3_I(inode)->i_block_alloc_info;
+	EXT3_I(inode)->i_block_alloc_info = NULL;
+	if (unlikely(rsv))
+		kfree(rsv);
+
+	if (!want_delete)
 		goto no_delete;
 
 	handle = start_transaction(inode);
@@ -238,15 +248,22 @@ void ext3_delete_inode (struct inode * inode)
 	 * having errors), but we can't free the inode if the mark_dirty
 	 * fails.
 	 */
-	if (ext3_mark_inode_dirty(handle, inode))
-		/* If that failed, just do the required in-core inode clear. */
-		clear_inode(inode);
-	else
+	if (ext3_mark_inode_dirty(handle, inode)) {
+		/* If that failed, just dquot_drop() and be done with that */
+		dquot_drop(inode);
+		end_writeback(inode);
+	} else {
+		ext3_xattr_delete_inode(handle, inode);
+		dquot_free_inode(inode);
+		dquot_drop(inode);
+		end_writeback(inode);
 		ext3_free_inode(handle, inode);
+	}
 	ext3_journal_stop(handle);
 	return;
 no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	end_writeback(inode);
+	dquot_drop(inode);
 }
 
 typedef struct {
@@ -1149,9 +1166,25 @@ static int walk_page_buffers(	handle_t *handle,
 static int do_journal_get_write_access(handle_t *handle,
 					struct buffer_head *bh)
 {
+	int dirty = buffer_dirty(bh);
+	int ret;
+
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
-	return ext3_journal_get_write_access(handle, bh);
+	/*
+	 * __block_prepare_write() could have dirtied some buffers. Clean
+	 * the dirty bit as jbd2_journal_get_write_access() could complain
+	 * otherwise about fs integrity issues. Setting of the dirty bit
+	 * by __block_prepare_write() isn't a real problem here as we clear
+	 * the bit before releasing a page lock and thus writeback cannot
+	 * ever write the buffer.
+	 */
+	if (dirty)
+		clear_buffer_dirty(bh);
+	ret = ext3_journal_get_write_access(handle, bh);
+	if (!ret && dirty)
+		ret = ext3_journal_dirty_metadata(handle, bh);
+	return ret;
 }
 
 /*
@@ -1196,8 +1229,7 @@ retry:
 		ret = PTR_ERR(handle);
 		goto out;
 	}
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-							ext3_get_block);
+	ret = __block_write_begin(page, pos, len, ext3_get_block);
 	if (ret)
 		goto write_begin_failed;
 
@@ -1625,10 +1657,7 @@ static int ext3_writeback_writepage(struct page *page,
 		goto out_fail;
 	}
 
-	if (test_opt(inode->i_sb, NOBH) && ext3_should_writeback_data(inode))
-		ret = nobh_writepage(page, ext3_get_block, wbc);
-	else
-		ret = block_write_full_page(page, ext3_get_block, wbc);
+	ret = block_write_full_page(page, ext3_get_block, wbc);
 
 	err = ext3_journal_stop(handle);
 	if (!ret)
@@ -1785,6 +1814,17 @@ retry:
 	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				 offset, nr_segs,
 				 ext3_get_block, NULL);
+	/*
+	 * In case of error extending write may have instantiated a few
+	 * blocks outside i_size. Trim these off again.
+	 */
+	if (unlikely((rw & WRITE) && ret < 0)) {
+		loff_t isize = i_size_read(inode);
+		loff_t end = offset + iov_length(iov, nr_segs);
+
+		if (end > isize)
+			vmtruncate(inode, isize);
+	}
 	if (ret == -ENOSPC && ext3_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
@@ -1921,17 +1961,6 @@ static int ext3_block_truncate_page(handle_t *handle, struct page *page,
 	blocksize = inode->i_sb->s_blocksize;
 	length = blocksize - (offset & (blocksize - 1));
 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
-
-	/*
-	 * For "nobh" option,  we can only work if we don't need to
-	 * read-in the page - otherwise we create buffers to do the IO.
-	 */
-	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH) &&
-	     ext3_should_writeback_data(inode) && PageUptodate(page)) {
-		zero_user(page, offset, length);
-		set_page_dirty(page);
-		goto unlock;
-	}
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
@@ -2284,27 +2313,6 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 					   depth);
 
 			/*
-			 * We've probably journalled the indirect block several
-			 * times during the truncate.  But it's no longer
-			 * needed and we now drop it from the transaction via
-			 * journal_revoke().
-			 *
-			 * That's easy if it's exclusively part of this
-			 * transaction.  But if it's part of the committing
-			 * transaction then journal_forget() will simply
-			 * brelse() it.  That means that if the underlying
-			 * block is reallocated in ext3_get_block(),
-			 * unmap_underlying_metadata() will find this block
-			 * and will try to get rid of it.  damn, damn.
-			 *
-			 * If this block has already been committed to the
-			 * journal, a revoke record will be written.  And
-			 * revoke records must be emitted *before* clearing
-			 * this block's bit in the bitmaps.
-			 */
-			ext3_forget(handle, 1, inode, bh, bh->b_blocknr);
-
-			/*
 			 * Everything below this this pointer has been
 			 * released.  Now let this top-of-subtree go.
 			 *
@@ -2326,6 +2334,31 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 				ext3_mark_inode_dirty(handle, inode);
 				truncate_restart_transaction(handle, inode);
 			}
+
+			/*
+			 * We've probably journalled the indirect block several
+			 * times during the truncate.  But it's no longer
+			 * needed and we now drop it from the transaction via
+			 * journal_revoke().
+			 *
+			 * That's easy if it's exclusively part of this
+			 * transaction.  But if it's part of the committing
+			 * transaction then journal_forget() will simply
+			 * brelse() it.  That means that if the underlying
+			 * block is reallocated in ext3_get_block(),
+			 * unmap_underlying_metadata() will find this block
+			 * and will try to get rid of it.  damn, damn. Thus
+			 * we don't allow a block to be reallocated until
+			 * a transaction freeing it has fully committed.
+			 *
+			 * We also have to make sure journal replay after a
+			 * crash does not overwrite non-journaled data blocks
+			 * with old metadata when the block got reallocated for
+			 * data.  Thus we have to store a revoke record for a
+			 * block in the same transaction in which we free the
+			 * block.
+			 */
+			ext3_forget(handle, 1, inode, bh, bh->b_blocknr);
 
 			ext3_free_blocks(handle, inode, nr, 1);
 
@@ -2554,7 +2587,7 @@ out_stop:
 	 * If this was a simple ftruncate(), and the file will remain alive
 	 * then we need to clear up the orphan record which we created above.
 	 * However, if this was a real unlink then we were called by
-	 * ext3_delete_inode(), and we allow that function to clean up the
+	 * ext3_evict_inode(), and we allow that function to clean up the
 	 * orphan info for us.
 	 */
 	if (inode->i_nlink)
@@ -3198,9 +3231,17 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		ext3_journal_stop(handle);
 	}
 
-	rc = inode_setattr(inode, attr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		rc = vmtruncate(inode, attr->ia_size);
+		if (rc)
+			goto err_out;
+	}
 
-	if (!rc && (ia_valid & ATTR_MODE))
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	if (ia_valid & ATTR_MODE)
 		rc = ext3_acl_chmod(inode);
 
 err_out:

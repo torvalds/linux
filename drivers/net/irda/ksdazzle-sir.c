@@ -117,7 +117,7 @@ struct ksdazzle_speedparams {
 	__le32 baudrate;	/* baud rate, little endian */
 	__u8 flags;
 	__u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define KS_DATA_5_BITS 0x00
 #define KS_DATA_6_BITS 0x01

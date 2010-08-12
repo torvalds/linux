@@ -48,8 +48,6 @@ struct tracectx {
 /* CoreSight Component Registers */
 #define CSCR_CLASS	0xff4
 
-#define CSCR_PRSR	0x314
-
 #define UNLOCK_MAGIC	0xc5acce55
 
 /* ETM control register, "ETM Architecture", 3.3.1 */
@@ -131,6 +129,12 @@ struct tracectx {
 				ETMCTRL_DATA_DO_ADDR | \
 				ETMCTRL_BRANCH_OUTPUT | \
 				ETMCTRL_DO_CONTEXTID)
+
+/* ETM management registers, "ETM Architecture", 3.5.24 */
+#define ETMMR_OSLAR	0x300
+#define ETMMR_OSLSR	0x304
+#define ETMMR_OSSRR	0x308
+#define ETMMR_PDSR	0x314
 
 /* ETB registers, "CoreSight Components TRM", 9.3 */
 #define ETBR_DEPTH		0x04

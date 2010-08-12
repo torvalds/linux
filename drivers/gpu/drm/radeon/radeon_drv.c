@@ -46,9 +46,10 @@
  * - 2.3.0 - add MSPOS + 3D texture + r500 VAP regs
  * - 2.4.0 - add crtc id query
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
+ * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	5
+#define KMS_DRIVER_MINOR	6
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -238,7 +239,7 @@ static struct drm_driver kms_driver;
 static int __devinit
 radeon_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &kms_driver);
+	return drm_get_pci_dev(pdev, ent, &kms_driver);
 }
 
 static void

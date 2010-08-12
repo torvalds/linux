@@ -316,7 +316,7 @@ int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 /*
  * clear an AFS inode
  */
-void afs_clear_inode(struct inode *inode)
+void afs_evict_inode(struct inode *inode)
 {
 	struct afs_permits *permits;
 	struct afs_vnode *vnode;
@@ -334,6 +334,9 @@ void afs_clear_inode(struct inode *inode)
 	_debug("CLEAR INODE %p", inode);
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
+
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 
 	afs_give_up_callback(vnode);
 

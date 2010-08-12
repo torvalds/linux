@@ -17,9 +17,6 @@ ENTRY(_sleep_mode)
 
 	call _set_sic_iwr;
 
-	R0 = 0xFFFF (Z);
-	call _set_rtc_istat;
-
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R1 = W[P0](z);
@@ -65,9 +62,6 @@ ENTRY(_hibernate_mode)
 	call _set_dram_srfs;
 	SSYNC;
 
-	R0 = 0xFFFF (Z);
-	call _set_rtc_istat;
-
 	P0.H = hi(VR_CTL);
 	P0.L = lo(VR_CTL);
 
@@ -95,9 +89,6 @@ ENTRY(_sleep_deeper)
 	call _set_sic_iwr;
 	call _set_dram_srfs;	/* Set SDRAM Self Refresh */
 
-	/* Clear all the interrupts,bits sticky */
-	R0 = 0xFFFF (Z);
-	call _set_rtc_istat;
 	P0.H = hi(PLL_DIV);
 	P0.L = lo(PLL_DIV);
 	R6 = W[P0](z);
@@ -268,21 +259,6 @@ ENTRY(_set_sic_iwr)
 	SSYNC;
 	RTS;
 ENDPROC(_set_sic_iwr)
-
-ENTRY(_set_rtc_istat)
-#ifndef CONFIG_BF561
-	P0.H = hi(RTC_ISTAT);
-	P0.L = lo(RTC_ISTAT);
-	w[P0] = R0.L;
-	SSYNC;
-#elif (ANOMALY_05000371)
-	nop;
-	nop;
-	nop;
-	nop;
-#endif
-	RTS;
-ENDPROC(_set_rtc_istat)
 
 ENTRY(_test_pll_locked)
 	P0.H = hi(PLL_STAT);

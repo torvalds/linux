@@ -761,7 +761,7 @@ static struct platform_driver hwicap_platform_driver = {
 
 #if defined(CONFIG_OF)
 static int __devinit
-hwicap_of_probe(struct of_device *op, const struct of_device_id *match)
+hwicap_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource res;
 	const unsigned int *id;
@@ -798,7 +798,7 @@ hwicap_of_probe(struct of_device *op, const struct of_device_id *match)
 			regs);
 }
 
-static int __devexit hwicap_of_remove(struct of_device *op)
+static int __devexit hwicap_of_remove(struct platform_device *op)
 {
 	return hwicap_remove(&op->dev);
 }

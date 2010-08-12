@@ -230,6 +230,15 @@ static void __fput(struct file *file)
 	might_sleep();
 
 	fsnotify_close(file);
+
+	/*
+	 * fsnotify_create_event may have taken one or more references on this
+	 * file.  If it did so it left one reference for us to drop to make sure
+	 * its calls to fput could not prematurely destroy the file.
+	 */
+	if (atomic_long_read(&file->f_count))
+		return fput(file);
+
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.
@@ -289,11 +298,20 @@ struct file *fget(unsigned int fd)
 EXPORT_SYMBOL(fget);
 
 /*
- * Lightweight file lookup - no refcnt increment if fd table isn't shared. 
- * You can use this only if it is guranteed that the current task already 
- * holds a refcnt to that file. That check has to be done at fget() only
- * and a flag is returned to be passed to the corresponding fput_light().
- * There must not be a cloning between an fget_light/fput_light pair.
+ * Lightweight file lookup - no refcnt increment if fd table isn't shared.
+ *
+ * You can use this instead of fget if you satisfy all of the following
+ * conditions:
+ * 1) You must call fput_light before exiting the syscall and returning control
+ *    to userspace (i.e. you cannot remember the returned struct file * after
+ *    returning to userspace).
+ * 2) You must not call filp_close on the returned struct file * in between
+ *    calls to fget_light and fput_light.
+ * 3) You must not clone the current task in between the calls to fget_light
+ *    and fput_light.
+ *
+ * The fput_needed flag returned by fget_light should be passed to the
+ * corresponding fput_light.
  */
 struct file *fget_light(unsigned int fd, int *fput_needed)
 {

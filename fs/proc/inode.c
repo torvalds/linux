@@ -25,11 +25,12 @@
 
 #include "internal.h"
 
-static void proc_delete_inode(struct inode *inode)
+static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 
 	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 
 	/* Stop tracking associated processes */
 	put_pid(PROC_I(inode)->pid);
@@ -40,7 +41,6 @@ static void proc_delete_inode(struct inode *inode)
 		pde_put(de);
 	if (PROC_I(inode)->sysctl)
 		sysctl_head_put(PROC_I(inode)->sysctl);
-	clear_inode(inode);
 }
 
 struct vfsmount *proc_mnt;
@@ -91,7 +91,7 @@ static const struct super_operations proc_sops = {
 	.alloc_inode	= proc_alloc_inode,
 	.destroy_inode	= proc_destroy_inode,
 	.drop_inode	= generic_delete_inode,
-	.delete_inode	= proc_delete_inode,
+	.evict_inode	= proc_evict_inode,
 	.statfs		= simple_statfs,
 };
 

@@ -33,7 +33,13 @@ ffff0000	ffff0fff	CPU vector page.
 
 fffe0000	fffeffff	XScale cache flush area.  This is used
 				in proc-xscale.S to flush the whole data
-				cache.  Free for other usage on non-XScale.
+				cache. (XScale does not have TCM.)
+
+fffe8000	fffeffff	DTCM mapping area for platforms with
+				DTCM mounted inside the CPU.
+
+fffe0000	fffe7fff	ITCM mapping area for platforms with
+				ITCM mounted inside the CPU.
 
 fff00000	fffdffff	Fixmap mapping region.  Addresses provided
 				by fix_to_virt() will be located here.

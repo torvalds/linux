@@ -91,7 +91,7 @@ int i2400m_op_rfkill_sw_toggle(struct wimax_dev *wimax_dev,
 	struct {
 		struct i2400m_l3l4_hdr hdr;
 		struct i2400m_tlv_rf_operation sw_rf;
-	} __attribute__((packed)) *cmd;
+	} __packed *cmd;
 	char strerr[32];
 
 	d_fnstart(4, dev, "(wimax_dev %p state %d)\n", wimax_dev, state);

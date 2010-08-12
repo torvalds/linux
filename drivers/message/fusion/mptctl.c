@@ -261,10 +261,16 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 	/* We are done, issue wake up
 	 */
 	if (ioc->ioctl_cmds.status & MPT_MGMT_STATUS_PENDING) {
-		if (req->u.hdr.Function == MPI_FUNCTION_SCSI_TASK_MGMT)
+		if (req->u.hdr.Function == MPI_FUNCTION_SCSI_TASK_MGMT) {
 			mpt_clear_taskmgmt_in_progress_flag(ioc);
-		ioc->ioctl_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
-		complete(&ioc->ioctl_cmds.done);
+			ioc->ioctl_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
+			complete(&ioc->ioctl_cmds.done);
+			if (ioc->bus_type == SAS)
+				ioc->schedule_target_reset(ioc);
+		} else {
+			ioc->ioctl_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
+			complete(&ioc->ioctl_cmds.done);
+		}
 	}
 
  out_continuation:
@@ -298,6 +304,8 @@ mptctl_taskmgmt_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		mpt_clear_taskmgmt_in_progress_flag(ioc);
 		ioc->taskmgmt_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
 		complete(&ioc->taskmgmt_cmds.done);
+		if (ioc->bus_type == SAS)
+			ioc->schedule_target_reset(ioc);
 		return 1;
 	}
 	return 0;
@@ -946,9 +954,12 @@ retry_wait:
 			mpt_free_msg_frame(iocp, mf);
 			goto fwdl_out;
 		}
-		if (!timeleft)
+		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "FW download timeout, doorbell=0x%08x\n",
+			       iocp->name, mpt_GetIocState(iocp, 0));
 			mptctl_timeout_expired(iocp, mf);
-		else
+		} else
 			goto retry_wait;
 		goto fwdl_out;
 	}
@@ -2293,6 +2304,10 @@ retry_wait:
 			goto done_free_mem;
 		}
 		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "mpt cmd timeout, doorbell=0x%08x"
+			       " function=0x%x\n",
+			       ioc->name, mpt_GetIocState(ioc, 0), function);
 			if (function == MPI_FUNCTION_SCSI_TASK_MGMT)
 				mutex_unlock(&ioc->taskmgmt_cmds.mutex);
 			mptctl_timeout_expired(ioc, mf);
@@ -2600,9 +2615,12 @@ retry_wait:
 			mpt_free_msg_frame(ioc, mf);
 			goto out;
 		}
-		if (!timeleft)
+		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "HOST INFO command timeout, doorbell=0x%08x\n",
+			       ioc->name, mpt_GetIocState(ioc, 0));
 			mptctl_timeout_expired(ioc, mf);
-		else
+		} else
 			goto retry_wait;
 		goto out;
 	}
@@ -3000,7 +3018,8 @@ static int __init mptctl_init(void)
 	 *  Install our handler
 	 */
 	++where;
-	mptctl_id = mpt_register(mptctl_reply, MPTCTL_DRIVER);
+	mptctl_id = mpt_register(mptctl_reply, MPTCTL_DRIVER,
+	    "mptctl_reply");
 	if (!mptctl_id || mptctl_id >= MPT_MAX_PROTOCOL_DRIVERS) {
 		printk(KERN_ERR MYNAM ": ERROR: Failed to register with Fusion MPT base driver\n");
 		misc_deregister(&mptctl_miscdev);
@@ -3008,7 +3027,8 @@ static int __init mptctl_init(void)
 		goto out_fail;
 	}
 
-	mptctl_taskmgmt_id = mpt_register(mptctl_taskmgmt_reply, MPTCTL_DRIVER);
+	mptctl_taskmgmt_id = mpt_register(mptctl_taskmgmt_reply, MPTCTL_DRIVER,
+	    "mptctl_taskmgmt_reply");
 	if (!mptctl_taskmgmt_id || mptctl_taskmgmt_id >= MPT_MAX_PROTOCOL_DRIVERS) {
 		printk(KERN_ERR MYNAM ": ERROR: Failed to register with Fusion MPT base driver\n");
 		mpt_deregister(mptctl_id);

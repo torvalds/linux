@@ -179,7 +179,7 @@ struct hfa384x_comp_ident
 	__le16 variant;
 	__le16 major;
 	__le16 minor;
-} __attribute__ ((packed));
+} __packed;
 
 #define HFA384X_COMP_ID_PRI 0x15
 #define HFA384X_COMP_ID_STA 0x1f
@@ -192,14 +192,14 @@ struct hfa384x_sup_range
 	__le16 variant;
 	__le16 bottom;
 	__le16 top;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct hfa384x_build_id
 {
 	__le16 pri_seq;
 	__le16 sec_seq;
-} __attribute__ ((packed));
+} __packed;
 
 /* FD01 - Download Buffer */
 struct hfa384x_rid_download_buffer
@@ -207,14 +207,14 @@ struct hfa384x_rid_download_buffer
 	__le16 page;
 	__le16 offset;
 	__le16 length;
-} __attribute__ ((packed));
+} __packed;
 
 /* BSS connection quality (RID FD43 range, RID FD51 dBm-normalized) */
 struct hfa384x_comms_quality {
 	__le16 comm_qual; /* 0 .. 92 */
 	__le16 signal_level; /* 27 .. 154 */
 	__le16 noise_level; /* 27 .. 154 */
-} __attribute__ ((packed));
+} __packed;
 
 
 /* netdevice private ioctls (used, e.g., with iwpriv from user space) */

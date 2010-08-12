@@ -22,11 +22,33 @@ building C files and assembler files.
 
 KAFLAGS
 --------------------------------------------------
-Additional options to the assembler.
+Additional options to the assembler (for built-in and modules).
+
+AFLAGS_MODULE
+--------------------------------------------------
+Addtional module specific options to use for $(AS).
+
+AFLAGS_KERNEL
+--------------------------------------------------
+Addtional options for $(AS) when used for assembler
+code for code that is compiled as built-in.
 
 KCFLAGS
 --------------------------------------------------
-Additional options to the C compiler.
+Additional options to the C compiler (for built-in and modules).
+
+CFLAGS_KERNEL
+--------------------------------------------------
+Addtional options for $(CC) when used to compile
+code that is compiled as built-in.
+
+CFLAGS_MODULE
+--------------------------------------------------
+Addtional module specific options to use for $(CC).
+
+LDFLAGS_MODULE
+--------------------------------------------------
+Additional options used for $(LD) when linking modules.
 
 KBUILD_VERBOSE
 --------------------------------------------------
@@ -40,15 +62,15 @@ Set the directory to look for the kernel source when building external
 modules.
 The directory can be specified in several ways:
 1) Use "M=..." on the command line
-2) Environmnet variable KBUILD_EXTMOD
-3) Environmnet variable SUBDIRS
+2) Environment variable KBUILD_EXTMOD
+3) Environment variable SUBDIRS
 The possibilities are listed in the order they take precedence.
 Using "M=..." will always override the others.
 
 KBUILD_OUTPUT
 --------------------------------------------------
 Specify the output directory when building the kernel.
-The output directory can also be specificed using "O=...".
+The output directory can also be specified using "O=...".
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
 
 ARCH
@@ -90,7 +112,7 @@ The script will be called with the following arguments:
     $3 - kernel map file
     $4 - default install path (use root directory if blank)
 
-The implmentation of "make install" is architecture specific
+The implementation of "make install" is architecture specific
 and it may differ from the above.
 
 INSTALLKERNEL is provided to enable the possibility to

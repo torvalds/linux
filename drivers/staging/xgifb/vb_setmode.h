@@ -1,40 +1,42 @@
 #ifndef  _VBSETMODE_
 #define  _VBSETMODE_
 
-extern   void     InitTo330Pointer(UCHAR,PVB_DEVICE_INFO);
-extern   void     XGI_UnLockCRT2(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_LockCRT2(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_LongWait( PVB_DEVICE_INFO );
-extern   void     XGI_SetCRT2ModeRegs(USHORT ModeNo,PXGI_HW_DEVICE_INFO,  PVB_DEVICE_INFO  );
-extern   void     XGI_DisableBridge(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void  	  XGI_EnableBridge(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_DisplayOff( PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO );
-extern   void     XGI_DisplayOn( PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO );
-extern   void     XGI_GetVBType(PVB_DEVICE_INFO);
-extern   void     XGI_SenseCRT1(PVB_DEVICE_INFO );
-extern   void     XGI_GetVGAType(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_GetVBInfo(USHORT ModeNo,USHORT ModeIdIndex,PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_GetTVInfo(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO );
-extern   void     XGI_SetCRT1Offset(USHORT ModeNo,USHORT ModeIdIndex,USHORT RefreshRateTableIndex,PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_SetLCDAGroup(USHORT ModeNo,USHORT ModeIdIndex,PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
-extern   void     XGI_WaitDisply( PVB_DEVICE_INFO );
-extern   USHORT   XGI_GetResInfo(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO pVBInfo);
+extern   void     InitTo330Pointer(unsigned char, struct vb_device_info *);
+extern   void     XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_LongWait(struct vb_device_info *);
+extern   void     XGI_SetCRT2ModeRegs(unsigned short ModeNo,
+				      struct xgi_hw_device_info *,
+				      struct vb_device_info *);
+extern   void     XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_DisplayOff(struct xgi_hw_device_info *, struct vb_device_info *);
+extern   void     XGI_DisplayOn(struct xgi_hw_device_info *, struct vb_device_info *);
+extern   void     XGI_GetVBType(struct vb_device_info *);
+extern   void     XGI_SenseCRT1(struct vb_device_info *);
+extern   void     XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *);
+extern   void     XGI_SetCRT1Offset(unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   void     XGI_WaitDisply(struct vb_device_info *);
+extern   unsigned short   XGI_GetResInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
 
-extern   BOOLEAN  XGISetModeNew( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo ) ;
+extern   unsigned char  XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension, unsigned short ModeNo) ;
 
-extern   BOOLEAN  XGI_SearchModeID( USHORT ModeNo,USHORT  *ModeIdIndex, PVB_DEVICE_INFO );
-extern   BOOLEAN  XGI_GetLCDInfo(USHORT ModeNo,USHORT ModeIdIndex,PVB_DEVICE_INFO );
-extern   BOOLEAN  XGI_BridgeIsOn( PVB_DEVICE_INFO );
-extern   BOOLEAN  XGI_SetCRT2Group301(USHORT ModeNo, PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO);
-extern   USHORT   XGI_GetRatePtrCRT2( PXGI_HW_DEVICE_INFO pXGIHWDE, USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO );
+extern   unsigned char  XGI_SearchModeID(unsigned short ModeNo, unsigned short  *ModeIdIndex, struct vb_device_info *);
+extern   unsigned char  XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *);
+extern   unsigned char  XGI_BridgeIsOn(struct vb_device_info *);
+extern   unsigned char  XGI_SetCRT2Group301(unsigned short ModeNo, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
+extern   unsigned short   XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE, unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *);
 
-extern   void     XGI_SetXG21FPBits(PVB_DEVICE_INFO pVBInfo);
-extern   void     XGI_SetXG27FPBits(PVB_DEVICE_INFO pVBInfo);
-extern   void     XGI_XG21BLSignalVDD(USHORT tempbh,USHORT tempbl, PVB_DEVICE_INFO pVBInfo);
-extern   void     XGI_XG27BLSignalVDD(USHORT tempbh,USHORT tempbl, PVB_DEVICE_INFO pVBInfo);
-extern   void     XGI_XG21SetPanelDelay(USHORT tempbl, PVB_DEVICE_INFO pVBInfo);
-extern   BOOLEAN  XGI_XG21CheckLVDSMode(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO pVBInfo );
-extern   void     XGI_SetXG21LVDSPara(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO pVBInfo );
-extern   USHORT XGI_GetLVDSOEMTableIndex(PVB_DEVICE_INFO pVBInfo);
+extern   void     XGI_SetXG21FPBits(struct vb_device_info *pVBInfo);
+extern   void     XGI_SetXG27FPBits(struct vb_device_info *pVBInfo);
+extern   void     XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl, struct vb_device_info *pVBInfo);
+extern   void     XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl, struct vb_device_info *pVBInfo);
+extern   void     XGI_XG21SetPanelDelay(unsigned short tempbl, struct vb_device_info *pVBInfo);
+extern   unsigned char  XGI_XG21CheckLVDSMode(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
+extern   void     XGI_SetXG21LVDSPara(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
+extern   unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo);
 
 #endif

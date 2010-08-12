@@ -43,7 +43,7 @@ struct iwm_lmac_hdr {
 	u8 id;
 	u8 flags;
 	__le16 seq_num;
-} __attribute__ ((packed));
+} __packed;
 
 /* LMAC commands */
 #define CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_AFTER_MSK  0x1
@@ -54,23 +54,23 @@ struct iwm_lmac_cal_cfg_elt {
 	__le32 send_res; /* 1 for sending back results */
 	__le32 apply_res; /* 1 for applying calibration results to HW */
 	__le32 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_lmac_cal_cfg_status {
 	struct iwm_lmac_cal_cfg_elt init;
 	struct iwm_lmac_cal_cfg_elt periodic;
 	__le32 flags; /* CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_AFTER_MSK */
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_lmac_cal_cfg_cmd {
 	struct iwm_lmac_cal_cfg_status ucode_cfg;
 	struct iwm_lmac_cal_cfg_status driver_cfg;
 	__le32 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_lmac_cal_cfg_resp {
 	__le32 status;
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_CARD_STATE_SW_HW_ENABLED	0x00
 #define IWM_CARD_STATE_HW_DISABLED	0x01
@@ -80,7 +80,7 @@ struct iwm_lmac_cal_cfg_resp {
 
 struct iwm_lmac_card_state {
 	__le32 flags;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * COEX_PRIORITY_TABLE_CMD
@@ -131,7 +131,7 @@ struct coex_event {
 	u8 win_med_prio;
 	u8 reserved;
 	u8 flags;
-} __attribute__ ((packed));
+} __packed;
 
 #define COEX_FLAGS_STA_TABLE_VALID_MSK		0x1
 #define COEX_FLAGS_UNASSOC_WAKEUP_UMASK_MSK	0x4
@@ -142,7 +142,7 @@ struct iwm_coex_prio_table_cmd {
 	u8 flags;
 	u8 reserved[3];
 	struct coex_event sta_prio[COEX_EVENTS_NUM];
-} __attribute__ ((packed));
+} __packed;
 
 /* Coexistence definitions
  *
@@ -192,7 +192,7 @@ struct iwm_ct_kill_cfg_cmd {
 	u32 exit_threshold;
 	u32 reserved;
 	u32 entry_threshold;
-} __attribute__ ((packed));
+} __packed;
 
 
 /* LMAC OP CODES */
@@ -428,7 +428,7 @@ struct iwm_lmac_calib_hdr {
 	u8 first_grp;
 	u8 grp_num;
 	u8 all_data_valid;
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_LMAC_CALIB_FREQ_GROUPS_NR	7
 #define IWM_CALIB_FREQ_GROUPS_NR	5
@@ -437,20 +437,20 @@ struct iwm_lmac_calib_hdr {
 struct iwm_calib_rxiq_entry {
 	u16 ptam_postdist_ars;
 	u16 ptam_postdist_arc;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_calib_rxiq_group {
 	struct iwm_calib_rxiq_entry mode[IWM_CALIB_DC_MODES_NR];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_lmac_calib_rxiq {
 	struct iwm_calib_rxiq_group group[IWM_LMAC_CALIB_FREQ_GROUPS_NR];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_calib_rxiq {
 	struct iwm_lmac_calib_hdr hdr;
 	struct iwm_calib_rxiq_group group[IWM_CALIB_FREQ_GROUPS_NR];
-} __attribute__ ((packed));
+} __packed;
 
 #define LMAC_STA_ID_SEED	0x0f
 #define LMAC_STA_ID_POS		0
@@ -463,7 +463,7 @@ struct iwm_lmac_power_report {
 	u8 pa_integ_res_A[3];
 	u8 pa_integ_res_B[3];
 	u8 pa_integ_res_C[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_lmac_tx_resp {
 	u8 frame_cnt; /* 1-no aggregation, greater then 1 - aggregation */
@@ -479,6 +479,6 @@ struct iwm_lmac_tx_resp {
 	u8 ra_tid;
 	__le16 frame_ctl;
 	__le32 status;
-} __attribute__ ((packed));
+} __packed;
 
 #endif

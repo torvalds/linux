@@ -301,10 +301,10 @@
 
 /* DMAC0 Registers */
 
-#define bfin_read_DMAC0_TCPER()		bfin_read16(DMAC0_TCPER)
-#define bfin_write_DMAC0_TCPER(val)	bfin_write16(DMAC0_TCPER, val)
-#define bfin_read_DMAC0_TCCNT()		bfin_read16(DMAC0_TCCNT)
-#define bfin_write_DMAC0_TCCNT(val)	bfin_write16(DMAC0_TCCNT, val)
+#define bfin_read_DMAC0_TC_PER()		bfin_read16(DMAC0_TC_PER)
+#define bfin_write_DMAC0_TC_PER(val)	bfin_write16(DMAC0_TC_PER, val)
+#define bfin_read_DMAC0_TC_CNT()		bfin_read16(DMAC0_TC_CNT)
+#define bfin_write_DMAC0_TC_CNT(val)	bfin_write16(DMAC0_TC_CNT, val)
 
 /* DMA Channel 0 Registers */
 
@@ -1155,10 +1155,10 @@
 
 /* DMAC1 Registers */
 
-#define bfin_read_DMAC1_TCPER()			bfin_read16(DMAC1_TCPER)
-#define bfin_write_DMAC1_TCPER(val)		bfin_write16(DMAC1_TCPER, val)
-#define bfin_read_DMAC1_TCCNT()			bfin_read16(DMAC1_TCCNT)
-#define bfin_write_DMAC1_TCCNT(val)		bfin_write16(DMAC1_TCCNT, val)
+#define bfin_read_DMAC1_TC_PER()			bfin_read16(DMAC1_TC_PER)
+#define bfin_write_DMAC1_TC_PER(val)		bfin_write16(DMAC1_TC_PER, val)
+#define bfin_read_DMAC1_TC_CNT()			bfin_read16(DMAC1_TC_CNT)
+#define bfin_write_DMAC1_TC_CNT(val)		bfin_write16(DMAC1_TC_CNT, val)
 
 /* DMA Channel 12 Registers */
 

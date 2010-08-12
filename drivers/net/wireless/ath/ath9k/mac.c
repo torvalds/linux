@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "hw-ops.h"
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
@@ -554,8 +555,13 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		REGWRITE_BUFFER_FLUSH(ah);
 		DISABLE_REGWRITE_BUFFER(ah);
 
-		/* cwmin and cwmax should be 0 for beacon queue */
-		if (AR_SREV_9300_20_OR_LATER(ah)) {
+		/*
+		 * cwmin and cwmax should be 0 for beacon queue
+		 * but not for IBSS as we would create an imbalance
+		 * on beaconing fairness for participating nodes.
+		 */
+		if (AR_SREV_9300_20_OR_LATER(ah) &&
+		    ah->opmode != NL80211_IFTYPE_ADHOC) {
 			REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
 				  | SM(0, AR_D_LCL_IFS_CWMAX)
 				  | SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
@@ -756,11 +762,11 @@ void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp)
 }
 EXPORT_SYMBOL(ath9k_hw_putrxbuf);
 
-void ath9k_hw_startpcureceive(struct ath_hw *ah)
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
 {
 	ath9k_enable_mib_counters(ah);
 
-	ath9k_ani_reset(ah);
+	ath9k_ani_reset(ah, is_scanning);
 
 	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 }

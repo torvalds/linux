@@ -442,8 +442,9 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			 * the file is either opened or mmaped
 			 */
 			if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
-				      CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
-				      CEPH_CAP_FILE_EXCL)) ||
+				       CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
+				       CEPH_CAP_FILE_EXCL|
+				       CEPH_CAP_FILE_LAZYIO)) ||
 			    mapping_mapped(inode->i_mapping) ||
 			    __ceph_caps_file_wanted(ci)) {
 				ci->i_truncate_pending++;

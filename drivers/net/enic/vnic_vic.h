@@ -44,7 +44,7 @@ struct vic_provinfo {
 		u16 length;
 		u8 value[0];
 	} tlv[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define VIC_PROVINFO_MAX_DATA		1385
 #define VIC_PROVINFO_MAX_TLV_DATA (VIC_PROVINFO_MAX_DATA - \

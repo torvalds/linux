@@ -1,6 +1,6 @@
 if ARCH_OMAP
 
-menu "TI OMAP Implementations"
+menu "TI OMAP Common Features"
 
 config ARCH_OMAP_OTG
 	bool
@@ -21,24 +21,6 @@ config ARCH_OMAP2PLUS
 	help
 	  "Systems based on omap24xx, omap34xx or omap44xx"
 
-config ARCH_OMAP2
-	bool "TI OMAP2"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V6
-
-config ARCH_OMAP3
-	bool "TI OMAP3"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V7
-	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6
-
-config ARCH_OMAP4
-	bool "TI OMAP4"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V7
-	select ARM_GIC
-
 endchoice
 
 comment "OMAP Feature Selections"
@@ -51,7 +33,7 @@ config OMAP_DEBUG_DEVICES
 config OMAP_DEBUG_LEDS
 	bool
 	depends on OMAP_DEBUG_DEVICES
-	default y if LEDS || LEDS_OMAP_DEBUG
+	default y if LEDS
 
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
@@ -106,6 +88,15 @@ config OMAP_MBOX_FWK
 	  Say Y here if you want to use OMAP Mailbox framework support for
 	  DSP, IVA1.0 and IVA2 in OMAP1/2/3.
 
+config OMAP_MBOX_KFIFO_SIZE
+	int "Mailbox kfifo default buffer size (bytes)"
+	depends on OMAP_MBOX_FWK
+	default 256
+	help
+	  Specify the default size of mailbox's kfifo buffers (bytes).
+	  This can also be changed at runtime (via the mbox_kfifo_size
+	  module parameter).
+
 config OMAP_IOMMU
 	tristate
 
@@ -120,7 +111,7 @@ config OMAP_IOMMU_DEBUG
 
 choice
 	prompt "System timer"
-	default OMAP_MPU_TIMER
+	default OMAP_32K_TIMER if !ARCH_OMAP15XX
 
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"

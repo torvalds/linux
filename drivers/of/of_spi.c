@@ -9,17 +9,17 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_irq.h>
 #include <linux/of_spi.h>
 
 /**
  * of_register_spi_devices - Register child devices onto the SPI bus
  * @master:	Pointer to spi_master device
- * @np:		parent node of SPI device nodes
  *
- * Registers an spi_device for each child node of 'np' which has a 'reg'
+ * Registers an spi_device for each child node of master node which has a 'reg'
  * property.
  */
-void of_register_spi_devices(struct spi_master *master, struct device_node *np)
+void of_register_spi_devices(struct spi_master *master)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
@@ -27,7 +27,10 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 	int rc;
 	int len;
 
-	for_each_child_of_node(np, nc) {
+	if (!master->dev.of_node)
+		return;
+
+	for_each_child_of_node(master->dev.of_node, nc) {
 		/* Alloc an spi_device */
 		spi = spi_alloc_device(master);
 		if (!spi) {

@@ -18,9 +18,6 @@
 #ifndef __BFAD_IM_COMPAT_H__
 #define __BFAD_IM_COMPAT_H__
 
-extern u32 *bfi_image_buf;
-extern u32 bfi_image_size;
-
 extern struct device_attribute *bfad_im_host_attrs[];
 extern struct device_attribute *bfad_im_vport_attrs[];
 
@@ -37,10 +34,12 @@ bfad_load_fwimg(struct pci_dev *pdev)
 static inline void
 bfad_free_fwimg(void)
 {
-	if (bfi_image_ct_size && bfi_image_ct)
-		vfree(bfi_image_ct);
-	if (bfi_image_cb_size && bfi_image_cb)
-		vfree(bfi_image_cb);
+	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
+		vfree(bfi_image_ct_fc);
+	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
+		vfree(bfi_image_ct_cna);
+	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
+		vfree(bfi_image_cb_fc);
 }
 
 #endif

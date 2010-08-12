@@ -7,7 +7,16 @@ menuconfig MFD_SUPPORT
 	depends on HAS_IOMEM
 	default y
 	help
-	  Configure MFD device drivers.
+	  Multifunction devices embed several functions (e.g. GPIOs,
+	  touchscreens, keyboards, current regulators, power management chips,
+	  etc...) in one single integrated circuit. They usually talk to the
+	  main CPU through one or more IRQ lines and low speed data busses (SPI,
+	  I2C, etc..). They appear as one single device to the main system
+	  through the data bus and the MFD framework allows for sub devices
+	  (a.k.a. functions) to appear as discrete platform devices.
+	  MFDs are typically found on embedded platforms.
+
+	  This option alone does not add any kernel code.
 
 if MFD_SUPPORT
 
@@ -177,6 +186,38 @@ config TWL4030_CODEC
 	select MFD_CORE
 	default n
 
+config TWL6030_PWM
+	tristate "TWL6030 PWM (Pulse Width Modulator) Support"
+	depends on TWL4030_CORE
+	select HAVE_PWM
+	default n
+	help
+	  Say yes here if you want support for TWL6030 PWM.
+	  This is used to control charging LED brightness.
+
+config MFD_STMPE
+	bool "Support STMicroelectronics STMPE"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  Support for the STMPE family of I/O Expanders from
+	  STMicroelectronics.
+
+	  Currently supported devices are:
+
+		STMPE811: GPIO, Touchscreen
+		STMPE1601: GPIO, Keypad
+		STMPE2401: GPIO, Keypad
+		STMPE2403: GPIO, Keypad
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.  Currently available sub drivers are:
+
+		GPIO: stmpe-gpio
+		Keypad: stmpe-keypad
+		Touchscreen: stmpe-ts
+
 config MFD_TC35892
 	bool "Support Toshiba TC35892"
 	depends on I2C=y && GENERIC_HARDIRQS
@@ -248,6 +289,16 @@ config MFD_MAX8925
 	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is
+	  a Power Management IC. This driver provies common support for
+	  accessing the device, additional drivers must be enabled in order
+	  to use the functionality of the device.
+
+config MFD_MAX8998
+	bool "Maxim Semiconductor MAX8998 PMIC Support"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8998. This is
 	  a Power Management IC. This driver provies common support for
 	  accessing the device, additional drivers must be enabled in order
 	  to use the functionality of the device.
@@ -481,6 +532,28 @@ config MFD_JANZ_CMODIO
 	  carrier board. This device is a PCI to MODULbus bridge which may
 	  host many different types of MODULbus daughterboards, including
 	  CAN and GPIO controllers.
+
+config MFD_JZ4740_ADC
+	tristate "Support for the JZ4740 SoC ADC core"
+	select MFD_CORE
+	depends on MACH_JZ4740
+	help
+	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
+	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
+
+config MFD_TPS6586X
+	tristate "TPS6586x Power Management chips"
+	depends on I2C && GPIOLIB
+	select MFD_CORE
+	help
+	  If you say yes here you get support for the TPS6586X series of
+	  Power Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6586x.
 
 endif # MFD_SUPPORT
 

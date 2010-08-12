@@ -33,7 +33,8 @@ struct statfs {
 	__kernel_fsid_t f_fsid;
 	int  f_namelen;
 	int  f_frsize;
-	int  f_spare[5];
+	int  f_flags;
+	int  f_spare[4];
 };
 
 struct statfs64 {
@@ -47,7 +48,8 @@ struct statfs64 {
 	__kernel_fsid_t f_fsid;
 	int  f_namelen;
 	int  f_frsize;
-	int  f_spare[5];
+	int  f_flags;
+	int  f_spare[4];
 };
 
 struct compat_statfs64 {
@@ -61,7 +63,8 @@ struct compat_statfs64 {
 	__kernel_fsid_t f_fsid;
 	__u32 f_namelen;
 	__u32 f_frsize;
-	__u32 f_spare[5];
+	__u32 f_flags;
+	__u32 f_spare[4];
 };
 
 #endif /* __s390x__ */

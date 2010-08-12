@@ -10,8 +10,8 @@
 		union {				\
 			__le32 data;		\
 			__u8 raw[size];		\
-		} __attribute__((__packed__));	\
-	} __attribute__((__packed__))
+		} __packed;	\
+	} __packed
 
 /* struct b43_plcp_hdr4 */
 _b43_declare_plcp_hdr(4);
@@ -57,7 +57,7 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} new_format __attribute__ ((__packed__));
+		} new_format __packed;
 
 		/* The old r351 format. */
 		struct {
@@ -68,10 +68,10 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} old_format __attribute__ ((__packed__));
+		} old_format __packed;
 
-	} __attribute__ ((__packed__));
-} __attribute__ ((__packed__));
+	} __packed;
+} __packed;
 
 /* MAC TX control */
 #define B43_TXH_MAC_USEFBR		0x10000000 /* Use fallback rate for this AMPDU */
@@ -218,20 +218,20 @@ struct b43_rxhdr_fw4 {
 		struct {
 			__u8 jssi;	/* PHY RX Status 1: JSSI */
 			__u8 sig_qual;	/* PHY RX Status 1: Signal Quality */
-		} __attribute__ ((__packed__));
+		} __packed;
 
 		/* RSSI for N-PHYs */
 		struct {
 			__s8 power0;	/* PHY RX Status 1: Power 0 */
 			__s8 power1;	/* PHY RX Status 1: Power 1 */
-		} __attribute__ ((__packed__));
-	} __attribute__ ((__packed__));
+		} __packed;
+	} __packed;
 	__le16 phy_status2;	/* PHY RX Status 2 */
 	__le16 phy_status3;	/* PHY RX Status 3 */
 	__le32 mac_status;	/* MAC RX status */
 	__le16 mac_time;
 	__le16 channel;
-} __attribute__ ((__packed__));
+} __packed;
 
 /* PHY RX Status 0 */
 #define B43_RX_PHYST0_GAINCTL		0x4000 /* Gain Control */

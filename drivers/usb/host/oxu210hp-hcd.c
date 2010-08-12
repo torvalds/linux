@@ -1641,8 +1641,7 @@ static int submit_async(struct oxu_hcd	*oxu, struct urb *urb,
 #endif
 
 	spin_lock_irqsave(&oxu->lock, flags);
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &oxu_to_hcd(oxu)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(oxu_to_hcd(oxu)))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}
@@ -2209,8 +2208,7 @@ static int intr_submit(struct oxu_hcd *oxu, struct urb *urb,
 
 	spin_lock_irqsave(&oxu->lock, flags);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &oxu_to_hcd(oxu)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(oxu_to_hcd(oxu)))) {
 		status = -ESHUTDOWN;
 		goto done;
 	}
@@ -2715,7 +2713,6 @@ static int oxu_run(struct usb_hcd *hcd)
 	u32 temp, hcc_params;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	/* EHCI spec section 4.1 */
 	retval = ehci_reset(oxu);

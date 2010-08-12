@@ -260,6 +260,18 @@ static void __init omap_perseus2_init(void)
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
 
+	/* Mux pins for keypad */
+	omap_cfg_reg(E2_7XX_KBR0);
+	omap_cfg_reg(J7_7XX_KBR1);
+	omap_cfg_reg(E1_7XX_KBR2);
+	omap_cfg_reg(F3_7XX_KBR3);
+	omap_cfg_reg(D2_7XX_KBR4);
+	omap_cfg_reg(C2_7XX_KBC0);
+	omap_cfg_reg(D3_7XX_KBC1);
+	omap_cfg_reg(E4_7XX_KBC2);
+	omap_cfg_reg(F4_7XX_KBC3);
+	omap_cfg_reg(E3_7XX_KBC4);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	omap_board_config = perseus2_config;
@@ -339,6 +351,7 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_perseus2_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_perseus2_init_irq,
 	.init_machine	= omap_perseus2_init,
 	.timer		= &omap_timer,

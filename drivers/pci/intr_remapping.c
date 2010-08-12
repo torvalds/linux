@@ -311,8 +311,8 @@ int modify_irte(int irq, struct irte *irte_modified)
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit((unsigned long *)&irte->low, irte_modified->low);
-	set_64bit((unsigned long *)&irte->high, irte_modified->high);
+	set_64bit(&irte->low, irte_modified->low);
+	set_64bit(&irte->high, irte_modified->high);
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -393,8 +393,8 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 	end = start + (1 << irq_iommu->irte_mask);
 
 	for (entry = start; entry < end; entry++) {
-		set_64bit((unsigned long *)&entry->low, 0);
-		set_64bit((unsigned long *)&entry->high, 0);
+		set_64bit(&entry->low, 0);
+		set_64bit(&entry->high, 0);
 	}
 
 	return qi_flush_iec(iommu, index, irq_iommu->irte_mask);

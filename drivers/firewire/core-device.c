@@ -107,11 +107,11 @@ static int textual_leaf_to_string(const u32 *block, char *buf, size_t size)
 }
 
 /**
- * fw_csr_string - reads a string from the configuration ROM
- * @directory: e.g. root directory or unit directory
- * @key: the key of the preceding directory entry
- * @buf: where to put the string
- * @size: size of @buf, in bytes
+ * fw_csr_string() - reads a string from the configuration ROM
+ * @directory:	e.g. root directory or unit directory
+ * @key:	the key of the preceding directory entry
+ * @buf:	where to put the string
+ * @size:	size of @buf, in bytes
  *
  * The string is taken from a minimal ASCII text descriptor leaf after
  * the immediate entry with @key.  The string is zero-terminated.
@@ -1136,6 +1136,7 @@ static void fw_device_refresh(struct work_struct *work)
 		goto give_up;
 	}
 
+	fw_device_cdev_update(device);
 	create_units(device);
 
 	/* Userspace may want to re-read attributes. */
