@@ -206,6 +206,13 @@ config GPIO_SX150X
 	  8 bits:  sx1508q
 	  16 bits: sx1509q
 
+config GPIO_STMPE
+	bool "STMPE GPIOs"
+	depends on MFD_STMPE
+	help
+	  This enables support for the GPIOs found on the STMPE I/O
+	  Expanders.
+
 config GPIO_TC35892
 	bool "TC35892 GPIOs"
 	depends on MFD_TC35892
