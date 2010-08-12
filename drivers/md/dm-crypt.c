@@ -107,11 +107,10 @@ struct crypt_config {
 	struct workqueue_struct *io_queue;
 	struct workqueue_struct *crypt_queue;
 
-	/*
-	 * crypto related data
-	 */
+	char *cipher;
+	char *cipher_mode;
+
 	struct crypt_iv_operations *iv_gen_ops;
-	char *iv_mode;
 	union {
 		struct iv_essiv_private essiv;
 		struct iv_benbi_private benbi;
@@ -135,8 +134,6 @@ struct crypt_config {
 	unsigned int dmreq_start;
 	struct ablkcipher_request *req;
 
-	char cipher[CRYPTO_MAX_ALG_NAME];
-	char chainmode[CRYPTO_MAX_ALG_NAME];
 	struct crypto_ablkcipher *tfm;
 	unsigned long flags;
 	unsigned int key_size;
@@ -1032,90 +1029,102 @@ static void crypt_dtr(struct dm_target *ti)
 	if (cc->dev)
 		dm_put_device(ti, cc->dev);
 
-	kfree(cc->iv_mode);
+	kzfree(cc->cipher);
+	kzfree(cc->cipher_mode);
 
 	/* Must zero key material before freeing */
 	kzfree(cc);
 }
 
-/*
- * Construct an encryption mapping:
- * <cipher> <key> <iv_offset> <dev_path> <start>
- */
-static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+static int crypt_ctr_cipher(struct dm_target *ti,
+			    char *cipher_in, char *key)
 {
-	struct crypt_config *cc;
-	char *tmp;
-	char *cipher;
-	char *chainmode;
-	char *ivmode;
-	char *ivopts;
-	unsigned int key_size;
-	unsigned long long tmpll;
+	struct crypt_config *cc = ti->private;
+	char *tmp, *cipher, *chainmode, *ivmode, *ivopts;
+	char *cipher_api = NULL;
 	int ret = -EINVAL;
 
-	if (argc != 5) {
-		ti->error = "Not enough arguments";
+	/* Convert to crypto api definition? */
+	if (strchr(cipher_in, '(')) {
+		ti->error = "Bad cipher specification";
 		return -EINVAL;
 	}
 
-	tmp = argv[0];
+	/*
+	 * Legacy dm-crypt cipher specification
+	 * cipher-mode-iv:ivopts
+	 */
+	tmp = cipher_in;
 	cipher = strsep(&tmp, "-");
+
+	cc->cipher = kstrdup(cipher, GFP_KERNEL);
+	if (!cc->cipher)
+		goto bad_mem;
+
+	if (tmp) {
+		cc->cipher_mode = kstrdup(tmp, GFP_KERNEL);
+		if (!cc->cipher_mode)
+			goto bad_mem;
+	}
+
 	chainmode = strsep(&tmp, "-");
 	ivopts = strsep(&tmp, "-");
 	ivmode = strsep(&ivopts, ":");
 
 	if (tmp)
-		DMWARN("Unexpected additional cipher options");
+		DMWARN("Ignoring unexpected additional cipher options");
 
-	key_size = strlen(argv[1]) >> 1;
-
- 	cc = kzalloc(sizeof(*cc) + key_size * sizeof(u8), GFP_KERNEL);
-	if (!cc) {
-		ti->error = "Cannot allocate transparent encryption context";
-		return -ENOMEM;
-	}
-
-	ti->private = cc;
-
-	/* Compatibility mode for old dm-crypt cipher strings */
-	if (!chainmode || (strcmp(chainmode, "plain") == 0 && !ivmode)) {
+	/* Compatibility mode for old dm-crypt mappings */
+	if (!chainmode || (!strcmp(chainmode, "plain") && !ivmode)) {
+		kfree(cc->cipher_mode);
+		cc->cipher_mode = kstrdup("cbc-plain", GFP_KERNEL);
 		chainmode = "cbc";
 		ivmode = "plain";
 	}
 
 	if (strcmp(chainmode, "ecb") && !ivmode) {
-		ti->error = "This chaining mode requires an IV mechanism";
-		goto bad;
+		ti->error = "IV mechanism required";
+		return -EINVAL;
 	}
 
-	ret = -ENOMEM;
-	if (snprintf(cc->cipher, CRYPTO_MAX_ALG_NAME, "%s(%s)",
-		     chainmode, cipher) >= CRYPTO_MAX_ALG_NAME) {
-		ti->error = "Chain mode + cipher name is too long";
-		goto bad;
+	cipher_api = kmalloc(CRYPTO_MAX_ALG_NAME, GFP_KERNEL);
+	if (!cipher_api)
+		goto bad_mem;
+
+	ret = snprintf(cipher_api, CRYPTO_MAX_ALG_NAME,
+		       "%s(%s)", chainmode, cipher);
+	if (ret < 0) {
+		kfree(cipher_api);
+		goto bad_mem;
 	}
 
-	cc->tfm = crypto_alloc_ablkcipher(cc->cipher, 0, 0);
+	/* Allocate cipher */
+	cc->tfm = crypto_alloc_ablkcipher(cipher_api, 0, 0);
 	if (IS_ERR(cc->tfm)) {
+		ret = PTR_ERR(cc->tfm);
 		ti->error = "Error allocating crypto tfm";
 		goto bad;
 	}
 
-	strcpy(cc->cipher, cipher);
-	strcpy(cc->chainmode, chainmode);
-
-	ret = crypt_set_key(cc, argv[1]);
+	/* Initialize and set key */
+	ret = crypt_set_key(cc, key);
 	if (ret < 0) {
 		ti->error = "Error decoding and setting key";
 		goto bad;
 	}
 
-	/*
-	 * Choose ivmode. Valid modes: "plain", "essiv:<esshash>", "benbi".
-	 * See comments at iv code
-	 */
-	ret = -EINVAL;
+	/* Initialize IV */
+	cc->iv_size = crypto_ablkcipher_ivsize(cc->tfm);
+	if (cc->iv_size)
+		/* at least a 64 bit sector number should fit in our buffer */
+		cc->iv_size = max(cc->iv_size,
+				  (unsigned int)(sizeof(u64) / sizeof(u8)));
+	else if (ivmode) {
+		DMWARN("Selected cipher does not support IVs");
+		ivmode = NULL;
+	}
+
+	/* Choose ivmode, see comments at iv code. */
 	if (ivmode == NULL)
 		cc->iv_gen_ops = NULL;
 	else if (strcmp(ivmode, "plain") == 0)
@@ -1129,6 +1138,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	else if (strcmp(ivmode, "null") == 0)
 		cc->iv_gen_ops = &crypt_iv_null_ops;
 	else {
+		ret = -EINVAL;
 		ti->error = "Invalid IV mode";
 		goto bad;
 	}
@@ -1151,19 +1161,44 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
-	cc->iv_size = crypto_ablkcipher_ivsize(cc->tfm);
-	if (cc->iv_size)
-		/* at least a 64 bit sector number should fit in our buffer */
-		cc->iv_size = max(cc->iv_size,
-				  (unsigned int)(sizeof(u64) / sizeof(u8)));
-	else {
-		if (cc->iv_gen_ops) {
-			DMWARN("Selected cipher does not support IVs");
-			if (cc->iv_gen_ops->dtr)
-				cc->iv_gen_ops->dtr(cc);
-			cc->iv_gen_ops = NULL;
-		}
+	ret = 0;
+bad:
+	kfree(cipher_api);
+	return ret;
+
+bad_mem:
+	ti->error = "Cannot allocate cipher strings";
+	return -ENOMEM;
+}
+
+/*
+ * Construct an encryption mapping:
+ * <cipher> <key> <iv_offset> <dev_path> <start>
+ */
+static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+{
+	struct crypt_config *cc;
+	unsigned int key_size;
+	unsigned long long tmpll;
+	int ret;
+
+	if (argc != 5) {
+		ti->error = "Not enough arguments";
+		return -EINVAL;
 	}
+
+	key_size = strlen(argv[1]) >> 1;
+
+	cc = kzalloc(sizeof(*cc) + key_size * sizeof(u8), GFP_KERNEL);
+	if (!cc) {
+		ti->error = "Cannot allocate encryption context";
+		return -ENOMEM;
+	}
+
+	ti->private = cc;
+	ret = crypt_ctr_cipher(ti, argv[0], argv[1]);
+	if (ret < 0)
+		goto bad;
 
 	ret = -ENOMEM;
 	cc->io_pool = mempool_create_slab_pool(MIN_IOS, _crypt_io_pool);
@@ -1217,17 +1252,6 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cc->start = tmpll;
 
 	ret = -ENOMEM;
-	if (ivmode && cc->iv_gen_ops) {
-		if (ivopts)
-			*(ivopts - 1) = ':';
-		cc->iv_mode = kstrdup(ivmode, GFP_KERNEL);
-		if (!cc->iv_mode) {
-			ti->error = "Error kmallocing iv_mode string";
-			goto bad;
-		}
-	} else
-		cc->iv_mode = NULL;
-
 	cc->io_queue = create_singlethread_workqueue("kcryptd_io");
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
@@ -1273,7 +1297,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 static int crypt_status(struct dm_target *ti, status_type_t type,
 			char *result, unsigned int maxlen)
 {
-	struct crypt_config *cc = (struct crypt_config *) ti->private;
+	struct crypt_config *cc = ti->private;
 	unsigned int sz = 0;
 
 	switch (type) {
@@ -1282,11 +1306,10 @@ static int crypt_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		if (cc->iv_mode)
-			DMEMIT("%s-%s-%s ", cc->cipher, cc->chainmode,
-			       cc->iv_mode);
+		if (cc->cipher_mode)
+			DMEMIT("%s-%s ", cc->cipher, cc->cipher_mode);
 		else
-			DMEMIT("%s-%s ", cc->cipher, cc->chainmode);
+			DMEMIT("%s ", cc->cipher);
 
 		if (cc->key_size > 0) {
 			if ((maxlen - sz) < ((cc->key_size << 1) + 1))
