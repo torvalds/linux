@@ -1033,6 +1033,13 @@ static const struct sectioncheck *section_mismatch(
  *   fromsec = .data*
  *   atsym   =__param*
  *
+ * Pattern 1a:
+ *   module_param_call() ops can refer to __init set function if permissions=0
+ *   The pattern is identified by:
+ *   tosec   = .init.text
+ *   fromsec = .data*
+ *   atsym   = __param_ops_*
+ *
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
@@ -1065,6 +1072,12 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 	if (match(tosec, init_data_sections) &&
 	    match(fromsec, data_sections) &&
 	    (strncmp(fromsym, "__param", strlen("__param")) == 0))
+		return 0;
+
+	/* Check for pattern 1a */
+	if (strcmp(tosec, ".init.text") == 0 &&
+	    match(fromsec, data_sections) &&
+	    (strncmp(fromsym, "__param_ops_", strlen("__param_ops_")) == 0))
 		return 0;
 
 	/* Check for pattern 2 */
