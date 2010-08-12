@@ -161,6 +161,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("tiling config is r6xx+ only!\n");
 			return -EINVAL;
 		}
+		break;
 	case RADEON_INFO_WANT_HYPERZ:
 		/* The "value" here is both an input and output parameter.
 		 * If the input value is 1, filp requests hyper-z access.
