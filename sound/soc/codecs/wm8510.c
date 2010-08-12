@@ -29,8 +29,6 @@
 
 #include "wm8510.h"
 
-#define WM8510_VERSION "0.6"
-
 /*
  * wm8510 register cache
  * We can't read the WM8510 register space when we are
@@ -562,8 +560,6 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 {
 	struct wm8510_priv *wm8510 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	pr_info("WM8510 Audio Codec %s", WM8510_VERSION);
 
 	codec->control_data = wm8510->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9,  wm8510->control_type);
