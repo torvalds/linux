@@ -999,6 +999,45 @@ static int crypt_wipe_key(struct crypt_config *cc)
 	return crypto_ablkcipher_setkey(cc->tfm, cc->key, cc->key_size);
 }
 
+static void crypt_dtr(struct dm_target *ti)
+{
+	struct crypt_config *cc = ti->private;
+
+	ti->private = NULL;
+
+	if (!cc)
+		return;
+
+	if (cc->io_queue)
+		destroy_workqueue(cc->io_queue);
+	if (cc->crypt_queue)
+		destroy_workqueue(cc->crypt_queue);
+
+	if (cc->bs)
+		bioset_free(cc->bs);
+
+	if (cc->page_pool)
+		mempool_destroy(cc->page_pool);
+	if (cc->req_pool)
+		mempool_destroy(cc->req_pool);
+	if (cc->io_pool)
+		mempool_destroy(cc->io_pool);
+
+	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
+		cc->iv_gen_ops->dtr(cc);
+
+	if (cc->tfm && !IS_ERR(cc->tfm))
+		crypto_free_ablkcipher(cc->tfm);
+
+	if (cc->dev)
+		dm_put_device(ti, cc->dev);
+
+	kfree(cc->iv_mode);
+
+	/* Must zero key material before freeing */
+	kzfree(cc);
+}
+
 /*
  * Construct an encryption mapping:
  * <cipher> <key> <iv_offset> <dev_path> <start>
@@ -1006,7 +1045,6 @@ static int crypt_wipe_key(struct crypt_config *cc)
 static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
-	struct crypto_ablkcipher *tfm;
 	char *tmp;
 	char *cipher;
 	char *chainmode;
@@ -1014,6 +1052,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char *ivopts;
 	unsigned int key_size;
 	unsigned long long tmpll;
+	int ret = -EINVAL;
 
 	if (argc != 5) {
 		ti->error = "Not enough arguments";
@@ -1032,11 +1071,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	key_size = strlen(argv[1]) >> 1;
 
  	cc = kzalloc(sizeof(*cc) + key_size * sizeof(u8), GFP_KERNEL);
-	if (cc == NULL) {
-		ti->error =
-			"Cannot allocate transparent encryption context";
+	if (!cc) {
+		ti->error = "Cannot allocate transparent encryption context";
 		return -ENOMEM;
 	}
+
+	ti->private = cc;
 
 	/* Compatibility mode for old dm-crypt cipher strings */
 	if (!chainmode || (strcmp(chainmode, "plain") == 0 && !ivmode)) {
@@ -1046,35 +1086,36 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (strcmp(chainmode, "ecb") && !ivmode) {
 		ti->error = "This chaining mode requires an IV mechanism";
-		goto bad_cipher;
+		goto bad;
 	}
 
+	ret = -ENOMEM;
 	if (snprintf(cc->cipher, CRYPTO_MAX_ALG_NAME, "%s(%s)",
 		     chainmode, cipher) >= CRYPTO_MAX_ALG_NAME) {
 		ti->error = "Chain mode + cipher name is too long";
-		goto bad_cipher;
+		goto bad;
 	}
 
-	tfm = crypto_alloc_ablkcipher(cc->cipher, 0, 0);
-	if (IS_ERR(tfm)) {
+	cc->tfm = crypto_alloc_ablkcipher(cc->cipher, 0, 0);
+	if (IS_ERR(cc->tfm)) {
 		ti->error = "Error allocating crypto tfm";
-		goto bad_cipher;
+		goto bad;
 	}
 
 	strcpy(cc->cipher, cipher);
 	strcpy(cc->chainmode, chainmode);
-	cc->tfm = tfm;
 
-	if (crypt_set_key(cc, argv[1]) < 0) {
+	ret = crypt_set_key(cc, argv[1]);
+	if (ret < 0) {
 		ti->error = "Error decoding and setting key";
-		goto bad_ivmode;
+		goto bad;
 	}
 
 	/*
 	 * Choose ivmode. Valid modes: "plain", "essiv:<esshash>", "benbi".
 	 * See comments at iv code
 	 */
-
+	ret = -EINVAL;
 	if (ivmode == NULL)
 		cc->iv_gen_ops = NULL;
 	else if (strcmp(ivmode, "plain") == 0)
@@ -1089,20 +1130,28 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_gen_ops = &crypt_iv_null_ops;
 	else {
 		ti->error = "Invalid IV mode";
-		goto bad_ivmode;
+		goto bad;
 	}
 
-	if (cc->iv_gen_ops && cc->iv_gen_ops->ctr &&
-	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
-		goto bad_ivmode;
-
-	if (cc->iv_gen_ops && cc->iv_gen_ops->init &&
-	    cc->iv_gen_ops->init(cc) < 0) {
-		ti->error = "Error initialising IV";
-		goto bad_slab_pool;
+	/* Allocate IV */
+	if (cc->iv_gen_ops && cc->iv_gen_ops->ctr) {
+		ret = cc->iv_gen_ops->ctr(cc, ti, ivopts);
+		if (ret < 0) {
+			ti->error = "Error creating IV";
+			goto bad;
+		}
 	}
 
-	cc->iv_size = crypto_ablkcipher_ivsize(tfm);
+	/* Initialize IV (set keys for ESSIV etc) */
+	if (cc->iv_gen_ops && cc->iv_gen_ops->init) {
+		ret = cc->iv_gen_ops->init(cc);
+		if (ret < 0) {
+			ti->error = "Error initialising IV";
+			goto bad;
+		}
+	}
+
+	cc->iv_size = crypto_ablkcipher_ivsize(cc->tfm);
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
 		cc->iv_size = max(cc->iv_size,
@@ -1116,62 +1165,65 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
+	ret = -ENOMEM;
 	cc->io_pool = mempool_create_slab_pool(MIN_IOS, _crypt_io_pool);
 	if (!cc->io_pool) {
 		ti->error = "Cannot allocate crypt io mempool";
-		goto bad_slab_pool;
+		goto bad;
 	}
 
 	cc->dmreq_start = sizeof(struct ablkcipher_request);
-	cc->dmreq_start += crypto_ablkcipher_reqsize(tfm);
+	cc->dmreq_start += crypto_ablkcipher_reqsize(cc->tfm);
 	cc->dmreq_start = ALIGN(cc->dmreq_start, crypto_tfm_ctx_alignment());
-	cc->dmreq_start += crypto_ablkcipher_alignmask(tfm) &
+	cc->dmreq_start += crypto_ablkcipher_alignmask(cc->tfm) &
 			   ~(crypto_tfm_ctx_alignment() - 1);
 
 	cc->req_pool = mempool_create_kmalloc_pool(MIN_IOS, cc->dmreq_start +
 			sizeof(struct dm_crypt_request) + cc->iv_size);
 	if (!cc->req_pool) {
 		ti->error = "Cannot allocate crypt request mempool";
-		goto bad_req_pool;
+		goto bad;
 	}
 	cc->req = NULL;
 
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = "Cannot allocate page mempool";
-		goto bad_page_pool;
+		goto bad;
 	}
 
 	cc->bs = bioset_create(MIN_IOS, 0);
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
-		goto bad_bs;
+		goto bad;
 	}
 
+	ret = -EINVAL;
 	if (sscanf(argv[2], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid iv_offset sector";
-		goto bad_device;
+		goto bad;
 	}
 	cc->iv_offset = tmpll;
 
+	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev)) {
+		ti->error = "Device lookup failed";
+		goto bad;
+	}
+
 	if (sscanf(argv[4], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid device sector";
-		goto bad_device;
+		goto bad;
 	}
 	cc->start = tmpll;
 
-	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev)) {
-		ti->error = "Device lookup failed";
-		goto bad_device;
-	}
-
+	ret = -ENOMEM;
 	if (ivmode && cc->iv_gen_ops) {
 		if (ivopts)
 			*(ivopts - 1) = ':';
 		cc->iv_mode = kstrdup(ivmode, GFP_KERNEL);
 		if (!cc->iv_mode) {
 			ti->error = "Error kmallocing iv_mode string";
-			goto bad_ivmode_string;
+			goto bad;
 		}
 	} else
 		cc->iv_mode = NULL;
@@ -1179,67 +1231,21 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cc->io_queue = create_singlethread_workqueue("kcryptd_io");
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
-		goto bad_io_queue;
+		goto bad;
 	}
 
 	cc->crypt_queue = create_singlethread_workqueue("kcryptd");
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
-		goto bad_crypt_queue;
+		goto bad;
 	}
 
 	ti->num_flush_requests = 1;
-	ti->private = cc;
 	return 0;
 
-bad_crypt_queue:
-	destroy_workqueue(cc->io_queue);
-bad_io_queue:
-	kfree(cc->iv_mode);
-bad_ivmode_string:
-	dm_put_device(ti, cc->dev);
-bad_device:
-	bioset_free(cc->bs);
-bad_bs:
-	mempool_destroy(cc->page_pool);
-bad_page_pool:
-	mempool_destroy(cc->req_pool);
-bad_req_pool:
-	mempool_destroy(cc->io_pool);
-bad_slab_pool:
-	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
-		cc->iv_gen_ops->dtr(cc);
-bad_ivmode:
-	crypto_free_ablkcipher(tfm);
-bad_cipher:
-	/* Must zero key material before freeing */
-	kzfree(cc);
-	return -EINVAL;
-}
-
-static void crypt_dtr(struct dm_target *ti)
-{
-	struct crypt_config *cc = (struct crypt_config *) ti->private;
-
-	destroy_workqueue(cc->io_queue);
-	destroy_workqueue(cc->crypt_queue);
-
-	if (cc->req)
-		mempool_free(cc->req, cc->req_pool);
-
-	bioset_free(cc->bs);
-	mempool_destroy(cc->page_pool);
-	mempool_destroy(cc->req_pool);
-	mempool_destroy(cc->io_pool);
-
-	kfree(cc->iv_mode);
-	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
-		cc->iv_gen_ops->dtr(cc);
-	crypto_free_ablkcipher(cc->tfm);
-	dm_put_device(ti, cc->dev);
-
-	/* Must zero key material before freeing */
-	kzfree(cc);
+bad:
+	crypt_dtr(ti);
+	return ret;
 }
 
 static int crypt_map(struct dm_target *ti, struct bio *bio,
