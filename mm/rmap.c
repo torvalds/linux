@@ -56,6 +56,7 @@
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>
+#include <linux/hugetlb.h>
 
 #include <asm/tlbflush.h>
 
@@ -350,6 +351,8 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 	unsigned long address;
 
+	if (unlikely(is_vm_hugetlb_page(vma)))
+		pgoff = page->index << huge_page_order(page_hstate(page));
 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
 		/* page should be within @vma mapping range */
@@ -394,6 +397,12 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 	pte_t *pte;
 	spinlock_t *ptl;
 
+	if (unlikely(PageHuge(page))) {
+		pte = huge_pte_offset(mm, address);
+		ptl = &mm->page_table_lock;
+		goto check;
+	}
+
 	pgd = pgd_offset(mm, address);
 	if (!pgd_present(*pgd))
 		return NULL;
@@ -414,6 +423,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 	}
 
 	ptl = pte_lockptr(mm, pmd);
+check:
 	spin_lock(ptl);
 	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
 		*ptlp = ptl;
@@ -916,6 +926,12 @@ void page_remove_rmap(struct page *page)
 		page_clear_dirty(page);
 		set_page_dirty(page);
 	}
+	/*
+	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
+	 * and not charged by memcg for now.
+	 */
+	if (unlikely(PageHuge(page)))
+		return;
 	if (PageAnon(page)) {
 		mem_cgroup_uncharge_page(page);
 		__dec_zone_page_state(page, NR_ANON_PAGES);
@@ -1524,3 +1540,46 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
 		return rmap_walk_file(page, rmap_one, arg);
 }
 #endif /* CONFIG_MIGRATION */
+
+#ifdef CONFIG_HUGETLB_PAGE
+/*
+ * The following three functions are for anonymous (private mapped) hugepages.
+ * Unlike common anonymous pages, anonymous hugepages have no accounting code
+ * and no lru code, because we handle hugepages differently from common pages.
+ */
+static void __hugepage_set_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address, int exclusive)
+{
+	struct anon_vma *anon_vma = vma->anon_vma;
+	BUG_ON(!anon_vma);
+	if (!exclusive) {
+		struct anon_vma_chain *avc;
+		avc = list_entry(vma->anon_vma_chain.prev,
+				 struct anon_vma_chain, same_vma);
+		anon_vma = avc->anon_vma;
+	}
+	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+	page->mapping = (struct address_space *) anon_vma;
+	page->index = linear_page_index(vma, address);
+}
+
+void hugepage_add_anon_rmap(struct page *page,
+			    struct vm_area_struct *vma, unsigned long address)
+{
+	struct anon_vma *anon_vma = vma->anon_vma;
+	int first;
+	BUG_ON(!anon_vma);
+	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	first = atomic_inc_and_test(&page->_mapcount);
+	if (first)
+		__hugepage_set_anon_rmap(page, vma, address, 0);
+}
+
+void hugepage_add_new_anon_rmap(struct page *page,
+			struct vm_area_struct *vma, unsigned long address)
+{
+	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	atomic_set(&page->_mapcount, 0);
+	__hugepage_set_anon_rmap(page, vma, address, 1);
+}
+#endif /* CONFIG_HUGETLB_PAGE */
