@@ -1996,11 +1996,13 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	else
 		close_ret = cnic->cm_abort(bnx2i_ep->cm_sk);
 
+	/* No longer allow CFC delete if cm_close/abort fails the request */
 	if (close_ret)
-		bnx2i_ep->state = EP_STATE_DISCONN_COMPL;
-
-	/* wait for option-2 conn teardown */
-	wait_event_interruptible(bnx2i_ep->ofld_wait,
+		printk(KERN_ALERT "bnx2i: %s close/abort(%d) returned %d\n",
+			bnx2i_ep->hba->netdev->name, close, close_ret);
+	else
+		/* wait for option-2 conn teardown */
+		wait_event_interruptible(bnx2i_ep->ofld_wait,
 				 bnx2i_ep->state != EP_STATE_DISCONN_START);
 
 	if (signal_pending(current))
