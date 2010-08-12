@@ -579,6 +579,7 @@ struct drm_nouveau_private {
 	/* VRAM/fb configuration */
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
+	u32 vram_rblock_size;
 
 	uint64_t fb_phys;
 	uint64_t fb_available_size;

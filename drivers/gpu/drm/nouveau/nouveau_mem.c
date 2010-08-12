@@ -308,7 +308,61 @@ nouveau_mem_detect_nforce(struct drm_device *dev)
 	return 0;
 }
 
-/* returns the amount of FB ram in bytes */
+static void
+nv50_vram_preinit(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i, parts, colbits, rowbitsa, rowbitsb, banks;
+	u64 rowsize, predicted;
+	u32 r0, r4, rt, ru;
+
+	r0 = nv_rd32(dev, 0x100200);
+	r4 = nv_rd32(dev, 0x100204);
+	rt = nv_rd32(dev, 0x100250);
+	ru = nv_rd32(dev, 0x001540);
+	NV_DEBUG(dev, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n", r0, r4, rt, ru);
+
+	for (i = 0, parts = 0; i < 8; i++) {
+		if (ru & (0x00010000 << i))
+			parts++;
+	}
+
+	colbits  =  (r4 & 0x0000f000) >> 12;
+	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
+	rowbitsb = ((r4 & 0x00f00000) >> 20) + 8;
+	banks    = ((r4 & 0x01000000) ? 8 : 4);
+
+	rowsize = parts * banks * (1 << colbits) * 8;
+	predicted = rowsize << rowbitsa;
+	if (r0 & 0x00000004)
+		predicted += rowsize << rowbitsb;
+
+	if (predicted != dev_priv->vram_size) {
+		NV_WARN(dev, "memory controller reports %dMiB VRAM\n",
+			(u32)(dev_priv->vram_size >> 20));
+		NV_WARN(dev, "we calculated %dMiB VRAM\n",
+			(u32)(predicted >> 20));
+	}
+
+	dev_priv->vram_rblock_size = rowsize >> 12;
+	if (rt & 1)
+		dev_priv->vram_rblock_size *= 3;
+
+	NV_DEBUG(dev, "rblock %lld bytes\n",
+		 (u64)dev_priv->vram_rblock_size << 12);
+}
+
+static void
+nvaa_vram_preinit(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/* To our knowledge, there's no large scale reordering of pages
+	 * that occurs on IGP chipsets.
+	 */
+	dev_priv->vram_rblock_size = 1;
+}
+
 int
 nouveau_mem_detect(struct drm_device *dev)
 {
@@ -328,9 +382,18 @@ nouveau_mem_detect(struct drm_device *dev)
 		dev_priv->vram_size = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 		dev_priv->vram_size &= 0xffffffff00ll;
-		if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac) {
+
+		switch (dev_priv->chipset) {
+		case 0xaa:
+		case 0xac:
+		case 0xaf:
 			dev_priv->vram_sys_base = nv_rd32(dev, 0x100e10);
 			dev_priv->vram_sys_base <<= 12;
+			nvaa_vram_preinit(dev);
+			break;
+		default:
+			nv50_vram_preinit(dev);
+			break;
 		}
 	} else {
 		dev_priv->vram_size  = nv_rd32(dev, 0x10f20c) << 20;
