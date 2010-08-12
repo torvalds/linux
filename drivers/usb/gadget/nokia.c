@@ -241,13 +241,12 @@ static struct usb_composite_driver nokia_driver = {
 	.name		= "g_nokia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= nokia_bind,
 	.unbind		= __exit_p(nokia_unbind),
 };
 
 static int __init nokia_init(void)
 {
-	return usb_composite_register(&nokia_driver);
+	return usb_composite_probe(&nokia_driver, nokia_bind);
 }
 module_init(nokia_init);
 

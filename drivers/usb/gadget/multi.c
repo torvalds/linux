@@ -353,7 +353,6 @@ static struct usb_composite_driver multi_driver = {
 	.name		= "g_multi",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= multi_bind,
 	.unbind		= __exit_p(multi_unbind),
 	.iProduct	= DRIVER_DESC,
 	.needs_serial	= 1,
@@ -362,7 +361,7 @@ static struct usb_composite_driver multi_driver = {
 
 static int __init multi_init(void)
 {
-	return usb_composite_register(&multi_driver);
+	return usb_composite_probe(&multi_driver, multi_bind);
 }
 module_init(multi_init);
 

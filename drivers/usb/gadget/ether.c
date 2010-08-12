@@ -402,7 +402,6 @@ static struct usb_composite_driver eth_driver = {
 	.name		= "g_ether",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= eth_bind,
 	.unbind		= __exit_p(eth_unbind),
 };
 
@@ -412,7 +411,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_register(&eth_driver);
+	return usb_composite_probe(&eth_driver, eth_bind);
 }
 module_init(init);
 

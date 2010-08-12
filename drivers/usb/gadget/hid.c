@@ -256,7 +256,6 @@ static struct usb_composite_driver hidg_driver = {
 	.name		= "g_hid",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= hid_bind,
 	.unbind		= __exit_p(hid_unbind),
 };
 
@@ -282,7 +281,7 @@ static int __init hidg_init(void)
 	if (status < 0)
 		return status;
 
-	status = usb_composite_register(&hidg_driver);
+	status = usb_composite_probe(&hidg_driver, hid_bind);
 	if (status < 0)
 		platform_driver_unregister(&hidg_plat_driver);
 

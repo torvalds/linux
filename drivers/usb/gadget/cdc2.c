@@ -245,7 +245,6 @@ static struct usb_composite_driver cdc_driver = {
 	.name		= "g_cdc",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= cdc_bind,
 	.unbind		= __exit_p(cdc_unbind),
 };
 
@@ -255,7 +254,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_register(&cdc_driver);
+	return usb_composite_probe(&cdc_driver, cdc_bind);
 }
 module_init(init);
 
