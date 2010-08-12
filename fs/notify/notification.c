@@ -31,7 +31,6 @@
  * allocated and used.
  */
 
-#include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -90,8 +89,8 @@ void fsnotify_put_event(struct fsnotify_event *event)
 	if (atomic_dec_and_test(&event->refcnt)) {
 		pr_debug("%s: event=%p\n", __func__, event);
 
-		if (event->data_type == FSNOTIFY_EVENT_FILE)
-			fput(event->file);
+		if (event->data_type == FSNOTIFY_EVENT_PATH)
+			path_put(&event->path);
 
 		BUG_ON(!list_empty(&event->private_data_list));
 
@@ -376,8 +375,8 @@ struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event)
 		}
 	}
 	event->tgid = get_pid(old_event->tgid);
-	if (event->data_type == FSNOTIFY_EVENT_FILE)
-		get_file(event->file);
+	if (event->data_type == FSNOTIFY_EVENT_PATH)
+		path_get(&event->path);
 
 	return event;
 }
@@ -424,22 +423,11 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 	event->data_type = data_type;
 
 	switch (data_type) {
-	case FSNOTIFY_EVENT_FILE: {
-		event->file = data;
-		/*
-		 * if this file is about to disappear hold an extra reference
-		 * until we return to __fput so we don't have to worry about
-		 * future get/put destroying the file under us or generating
-		 * additional events.  Notice that we change f_mode without
-		 * holding f_lock.  This is safe since this is the only possible
-		 * reference to this object in the kernel (it was about to be
-		 * freed, remember?)
-		 */
-		if (!atomic_long_read(&event->file->f_count)) {
-			event->file->f_mode |= FMODE_NONOTIFY;
-			get_file(event->file);
-		}
-		get_file(event->file);
+	case FSNOTIFY_EVENT_PATH: {
+		struct path *path = data;
+		event->path.dentry = path->dentry;
+		event->path.mnt = path->mnt;
+		path_get(&event->path);
 		break;
 	}
 	case FSNOTIFY_EVENT_INODE:
@@ -447,7 +435,8 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 		break;
 	case FSNOTIFY_EVENT_NONE:
 		event->inode = NULL;
-		event->file = NULL;
+		event->path.dentry = NULL;
+		event->path.mnt = NULL;
 		break;
 	default:
 		BUG();

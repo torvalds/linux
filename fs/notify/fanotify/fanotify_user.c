@@ -65,7 +65,7 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 	if (client_fd < 0)
 		return client_fd;
 
-	if (event->data_type != FSNOTIFY_EVENT_FILE) {
+	if (event->data_type != FSNOTIFY_EVENT_PATH) {
 		WARN_ON(1);
 		put_unused_fd(client_fd);
 		return -EINVAL;
@@ -75,8 +75,8 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 	 * we need a new file handle for the userspace program so it can read even if it was
 	 * originally opened O_WRONLY.
 	 */
-	dentry = dget(event->file->f_path.dentry);
-	mnt = mntget(event->file->f_path.mnt);
+	dentry = dget(event->path.dentry);
+	mnt = mntget(event->path.mnt);
 	/* it's possible this event was an overflow event.  in that case dentry and mnt
 	 * are NULL;  That's fine, just don't call dentry open */
 	if (dentry && mnt)
