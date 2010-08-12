@@ -170,9 +170,6 @@ struct overlay_registers {
     u16 RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
 };
 
-/* overlay flip addr flag */
-#define OFC_UPDATE		0x1
-
 static struct overlay_registers *
 intel_overlay_map_regs_atomic(struct intel_overlay *overlay,
 			      int slot)
