@@ -71,4 +71,9 @@ config XEN_PLATFORM_PCI
 	  initializing xenbus and grant_table when running in a Xen HVM
 	  domain. As a consequence this driver is required to run any Xen PV
 	  frontend on Xen HVM.
+
+config SWIOTLB_XEN
+	def_bool y
+	depends on SWIOTLB
+
 endmenu
