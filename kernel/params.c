@@ -58,6 +58,9 @@ static int parse_one(char *param,
 	/* Find parameter */
 	for (i = 0; i < num_params; i++) {
 		if (parameq(param, params[i].name)) {
+			/* Noone handled NULL, so do it here. */
+			if (!val && params[i].set != param_set_bool)
+				return -EINVAL;
 			DEBUGP("They are equal!  Calling %p\n",
 			       params[i].set);
 			return params[i].set(val, &params[i]);
@@ -181,7 +184,6 @@ int parse_args(const char *name,
 		tmptype l;						\
 		int ret;						\
 									\
-		if (!val) return -EINVAL;				\
 		ret = strtolfn(val, 0, &l);				\
 		if (ret == -EINVAL || ((type)l != l))			\
 			return -EINVAL;					\
@@ -203,12 +205,6 @@ STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", unsigned long, strict_strtoul);
 
 int param_set_charp(const char *val, struct kernel_param *kp)
 {
-	if (!val) {
-		printk(KERN_ERR "%s: string parameter expected\n",
-		       kp->name);
-		return -EINVAL;
-	}
-
 	if (strlen(val) > 1024) {
 		printk(KERN_ERR "%s: string parameter too long\n",
 		       kp->name);
@@ -309,12 +305,6 @@ static int param_array(const char *name,
 	kp.arg = elem;
 	kp.flags = flags;
 
-	/* No equals sign? */
-	if (!val) {
-		printk(KERN_ERR "%s: expects arguments\n", name);
-		return -EINVAL;
-	}
-
 	*num = 0;
 	/* We expect a comma-separated list of values. */
 	do {
@@ -381,10 +371,6 @@ int param_set_copystring(const char *val, struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
 
-	if (!val) {
-		printk(KERN_ERR "%s: missing param set value\n", kp->name);
-		return -EINVAL;
-	}
 	if (strlen(val)+1 > kps->maxlen) {
 		printk(KERN_ERR "%s: string doesn't fit in %u chars.\n",
 		       kp->name, kps->maxlen-1);
