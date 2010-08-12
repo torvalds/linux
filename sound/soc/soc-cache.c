@@ -584,11 +584,19 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 #endif
 		if (io_types[i].i2c_read)
 			codec->hw_read = io_types[i].i2c_read;
+
+		codec->control_data = container_of(codec->dev,
+						   struct i2c_client,
+						   dev);
 		break;
 
 	case SND_SOC_SPI:
 		if (io_types[i].spi_write)
 			codec->hw_write = io_types[i].spi_write;
+
+		codec->control_data = container_of(codec->dev,
+						   struct spi_device,
+						   dev);
 		break;
 	}
 
