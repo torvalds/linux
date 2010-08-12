@@ -1599,11 +1599,14 @@ static const struct file_operations _ctl_fops = {
 };
 
 static struct miscdevice _dm_misc = {
-	.minor 		= MISC_DYNAMIC_MINOR,
+	.minor		= MAPPER_CTRL_MINOR,
 	.name  		= DM_NAME,
-	.nodename	= "mapper/control",
+	.nodename	= DM_DIR "/" DM_CONTROL_NODE,
 	.fops  		= &_ctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(MAPPER_CTRL_MINOR);
+MODULE_ALIAS("devname:" DM_DIR "/" DM_CONTROL_NODE);
 
 /*
  * Create misc character device and link to DM_DIR/control.
