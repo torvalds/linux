@@ -1634,7 +1634,7 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	azx_dev->period_bytes = 0;
 	azx_dev->format_val = 0;
 
-	hinfo->ops.cleanup(hinfo, apcm->codec, substream);
+	snd_hda_codec_cleanup(apcm->codec, hinfo, substream);
 
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -1688,8 +1688,8 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	else
 		azx_dev->fifo_size = 0;
 
-	return hinfo->ops.prepare(hinfo, apcm->codec, azx_dev->stream_tag,
-				  azx_dev->format_val, substream);
+	return snd_hda_codec_prepare(apcm->codec, hinfo, azx_dev->stream_tag,
+				     azx_dev->format_val, substream);
 }
 
 static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
