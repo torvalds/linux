@@ -747,6 +747,8 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	}
 
 	tegra_dc_init(dc);
+	if (dc->out && dc->out->init)
+		dc->out->init();
 
 	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
 
@@ -812,6 +814,9 @@ static int tegra_dc_suspend(struct platform_device *pdev, pm_message_t state)
 
 	dev_info(&pdev->dev, "suspend\n");
 
+	if (dc->out && dc->out->suspend)
+		dc->out->suspend(state);
+
 	disable_irq(dc->irq);
 	tegra_periph_reset_assert(dc->clk);
 	clk_disable(dc->clk);
@@ -835,6 +840,8 @@ static int tegra_dc_resume(struct platform_device *pdev)
 		wins[i] = &dc->windows[i];
 
 	tegra_dc_init(dc);
+	if (dc->out && dc->out->resume)
+		dc->out->resume();
 
 	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
 	tegra_dc_update_windows(wins, dc->n_windows);

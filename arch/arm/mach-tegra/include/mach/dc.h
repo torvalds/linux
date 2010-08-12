@@ -62,6 +62,10 @@ struct tegra_dc_out {
 
 	struct tegra_dc_mode	*modes;
 	int			n_modes;
+
+	int	(*init)(void);
+	int	(*suspend)(pm_message_t state);
+	int	(*resume)(void);
 };
 
 #define TEGRA_DC_ALIGN_MSB		0
