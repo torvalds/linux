@@ -1060,7 +1060,7 @@ msmsdcc_init_dma(struct msmsdcc_host *host)
 static int
 msmsdcc_probe(struct platform_device *pdev)
 {
-	struct mmc_platform_data *plat = pdev->dev.platform_data;
+	struct msm_mmc_platform_data *plat = pdev->dev.platform_data;
 	struct msmsdcc_host *host;
 	struct mmc_host *mmc;
 	struct resource *cmd_irqres = NULL;
