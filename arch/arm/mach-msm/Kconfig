@@ -35,6 +35,14 @@ config ARCH_QSD8X50
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
 
+config ARCH_MSM8X60
+	bool "MSM8X60"
+	select ARM_GIC
+	select CPU_V7
+	select MSM_V2_TLMM
+	select MSM_GPIOMUX
+	select MACH_MSM8X60_RUMI3 if (!MACH_MSM8X60_RUMI3)
+
 endchoice
 
 config MSM_SOC_REV_A
