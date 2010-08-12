@@ -173,9 +173,6 @@ struct overlay_registers {
 /* overlay flip addr flag */
 #define OFC_UPDATE		0x1
 
-#define OVERLAY_NONPHYSICAL(dev) (IS_G33(dev) || IS_I965G(dev))
-#define OVERLAY_EXISTS(dev) (!IS_G4X(dev) && !IS_IRONLAKE(dev) && !IS_GEN6(dev))
-
 static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 {
         drm_i915_private_t *dev_priv = overlay->dev->dev_private;
@@ -184,7 +181,9 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 	/* no recursive mappings */
 	BUG_ON(overlay->virt_addr);
 
-	if (OVERLAY_NONPHYSICAL(overlay->dev)) {
+	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev)) {
+		regs = overlay->reg_bo->phys_obj->handle->vaddr;
+	} else {
 		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
 						overlay->reg_bo->gtt_offset,
 						KM_USER0);
@@ -193,15 +192,14 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 			DRM_ERROR("failed to map overlay regs in GTT\n");
 			return NULL;
 		}
-	} else
-		regs = overlay->reg_bo->phys_obj->handle->vaddr;
+	}
 
 	return overlay->virt_addr = regs;
 }
 
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 {
-	if (OVERLAY_NONPHYSICAL(overlay->dev))
+	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		io_mapping_unmap_atomic(overlay->virt_addr, KM_USER0);
 
 	overlay->virt_addr = NULL;
@@ -1366,7 +1364,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	struct overlay_registers *regs;
 	int ret;
 
-	if (!OVERLAY_EXISTS(dev))
+	if (!HAS_OVERLAY(dev))
 		return;
 
 	overlay = kzalloc(sizeof(struct intel_overlay), GFP_KERNEL);
@@ -1379,7 +1377,16 @@ void intel_setup_overlay(struct drm_device *dev)
 		goto out_free;
 	overlay->reg_bo = to_intel_bo(reg_bo);
 
-	if (OVERLAY_NONPHYSICAL(dev)) {
+	if (OVERLAY_NEEDS_PHYSICAL(dev)) {
+		ret = i915_gem_attach_phys_object(dev, reg_bo,
+						  I915_GEM_PHYS_OVERLAY_REGS,
+						  0);
+                if (ret) {
+                        DRM_ERROR("failed to attach phys overlay regs\n");
+                        goto out_free_bo;
+                }
+		overlay->flip_addr = overlay->reg_bo->phys_obj->handle->busaddr;
+	} else {
 		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE);
 		if (ret) {
                         DRM_ERROR("failed to pin overlay register bo\n");
@@ -1392,15 +1399,6 @@ void intel_setup_overlay(struct drm_device *dev)
                         DRM_ERROR("failed to move overlay register bo into the GTT\n");
                         goto out_unpin_bo;
                 }
-	} else {
-		ret = i915_gem_attach_phys_object(dev, reg_bo,
-						  I915_GEM_PHYS_OVERLAY_REGS,
-						  0);
-                if (ret) {
-                        DRM_ERROR("failed to attach phys overlay regs\n");
-                        goto out_free_bo;
-                }
-		overlay->flip_addr = overlay->reg_bo->phys_obj->handle->busaddr;
 	}
 
 	/* init all values */
@@ -1471,10 +1469,10 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 
 	error->dovsta = I915_READ(DOVSTA);
 	error->isr = I915_READ(ISR);
-	if (OVERLAY_NONPHYSICAL(overlay->dev))
-		error->base = (long) overlay->reg_bo->gtt_offset;
-	else
+	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		error->base = (long) overlay->reg_bo->phys_obj->handle->vaddr;
+	else
+		error->base = (long) overlay->reg_bo->gtt_offset;
 
 	regs = intel_overlay_map_regs_atomic(overlay);
 	if (!regs)

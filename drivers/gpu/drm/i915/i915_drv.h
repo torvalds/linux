@@ -213,6 +213,8 @@ struct intel_device_info {
 	u8 has_pipe_cxsr : 1;
 	u8 has_hotplug : 1;
 	u8 cursor_needs_physical : 1;
+	u8 has_overlay : 1;
+	u8 overlay_needs_physical : 1;
 };
 
 enum no_fbc_reason {
@@ -1217,6 +1219,9 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 
 #define HAS_BSD(dev)            (IS_IRONLAKE(dev) || IS_G4X(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
+
+#define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
+#define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
