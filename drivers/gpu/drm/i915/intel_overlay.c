@@ -689,9 +689,9 @@ static u32 overlay_cmd_reg(struct put_image_params *params)
 	return cmd;
 }
 
-int intel_overlay_do_put_image(struct intel_overlay *overlay,
-			       struct drm_gem_object *new_bo,
-			       struct put_image_params *params)
+static int intel_overlay_do_put_image(struct intel_overlay *overlay,
+				      struct drm_gem_object *new_bo,
+				      struct put_image_params *params)
 {
 	int ret, tmp_width;
 	struct overlay_registers *regs;
