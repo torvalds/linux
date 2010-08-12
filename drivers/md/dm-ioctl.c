@@ -818,8 +818,6 @@ static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
 	geometry.start = indata[3];
 
 	r = dm_set_geometry(md, &geometry);
-	if (!r)
-		r = __dev_status(md, param);
 
 	param->data_size = 0;
 
@@ -1332,10 +1330,6 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 	md = find_device(param);
 	if (!md)
 		return -ENXIO;
-
-	r = __dev_status(md, param);
-	if (r)
-		goto out;
 
 	if (tmsg < (struct dm_target_msg *) param->data ||
 	    invalid_str(tmsg->message, (void *) param + param_size)) {
