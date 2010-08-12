@@ -34,9 +34,6 @@
 
 #include "wm8962.h"
 
-static struct snd_soc_codec *wm8962_codec;
-struct snd_soc_codec_device soc_codec_dev_wm8962;
-
 #define WM8962_NUM_SUPPLIES 8
 static const char *wm8962_supply_names[WM8962_NUM_SUPPLIES] = {
 	"DCVDD",
@@ -51,7 +48,8 @@ static const char *wm8962_supply_names[WM8962_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8962_priv {
-	struct snd_soc_codec codec;
+	struct snd_soc_codec *codec;
+
 	u16 reg_cache[WM8962_MAX_REGISTER + 1];
 
 	int sysclk;
@@ -85,7 +83,7 @@ static int wm8962_regulator_event_##n(struct notifier_block *nb, \
 	struct wm8962_priv *wm8962 = container_of(nb, struct wm8962_priv, \
 						  disable_nb[n]); \
 	if (event & REGULATOR_EVENT_DISABLE) { \
-		wm8962->codec.cache_sync = 1; \
+		wm8962->codec->cache_sync = 1; \
 	} \
 	return 0; \
 }
@@ -107,7 +105,7 @@ static int wm8962_volatile_register(unsigned int reg)
 		return 0;
 }
 
-static int wm8962_readable(unsigned int reg)
+static int wm8962_readable_register(unsigned int reg)
 {
 	if (wm8962_reg_access[reg].read)
 		return 1;
@@ -150,7 +148,8 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	u16 *reg_cache = codec->reg_cache;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = wm8962->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -178,7 +177,8 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	u16 *reg_cache = codec->reg_cache;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = wm8962->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -486,7 +486,8 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u16 *reg_cache = codec->reg_cache;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = wm8962->reg_cache;
 	int reg;
 
 	switch (w->shift) {
@@ -1071,8 +1072,7 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int rate = params_rate(params);
 	int i;
@@ -1441,8 +1441,8 @@ static struct snd_soc_dai_ops wm8962_dai_ops = {
 	.digital_mute = wm8962_mute,
 };
 
-struct snd_soc_dai wm8962_dai = {
-	.name = "WM8962",
+static struct snd_soc_dai_driver wm8962_dai = {
+	.name = "wm8962",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -1460,52 +1460,10 @@ struct snd_soc_dai wm8962_dai = {
 	.ops = &wm8962_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(wm8962_dai);
-
-static int wm8962_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	if (wm8962_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = wm8962_codec;
-	codec = wm8962_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	wm8962_add_widgets(codec);
-
-	return ret;
-
-pcm_err:
-	return ret;
-}
-
-static int wm8962_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
 
 #ifdef CONFIG_PM
-static int wm8962_resume(struct platform_device *pdev)
+static int wm8962_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	u16 *reg_cache = codec->reg_cache;
 	int i;
@@ -1529,13 +1487,6 @@ static int wm8962_resume(struct platform_device *pdev)
 #define wm8962_resume NULL
 #endif
 
-struct snd_soc_codec_device soc_codec_dev_wm8962 = {
-	.probe = 	wm8962_probe,
-	.remove = 	wm8962_remove,
-	.resume =	wm8962_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8962);
-
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int beep_rates[] = {
 	500, 1000, 2000, 4000,
@@ -1545,7 +1496,7 @@ static void wm8962_beep_work(struct work_struct *work)
 {
 	struct wm8962_priv *wm8962 =
 		container_of(work, struct wm8962_priv, beep_work);
-	struct snd_soc_codec *codec = &wm8962->codec;
+	struct snd_soc_codec *codec = wm8962->codec;
 	int i;
 	int reg = 0;
 	int best = 0;
@@ -1676,40 +1627,19 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 }
 #endif
 
-static int wm8962_register(struct wm8962_priv *wm8962,
-			   enum snd_soc_control_type control)
+static int wm8962_probe(struct snd_soc_codec *codec)
 {
 	int ret;
-	struct snd_soc_codec *codec = &wm8962->codec;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
 	int i;
 
-	if (wm8962_codec) {
-		dev_err(codec->dev, "Another WM8962 is registered\n");
-		return -EINVAL;
-	}
+	wm8962->codec = codec;
 
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, wm8962);
-	codec->name = "WM8962";
-	codec->owner = THIS_MODULE;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm8962_set_bias_level;
-	codec->dai = &wm8962_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = WM8962_MAX_REGISTER;
-	codec->reg_cache = &wm8962->reg_cache;
-	codec->volatile_register = wm8962_volatile_register;
 	codec->cache_sync = 1;
 	codec->idle_bias_off = 1;
-	codec->readable_register = wm8962_readable;
 
-	memcpy(codec->reg_cache, wm8962_reg, sizeof(wm8962_reg));
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, control);
+	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		goto err;
@@ -1814,22 +1744,9 @@ static int wm8962_register(struct wm8962_priv *wm8962,
 	wm8962->reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
 	wm8962->reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
 
-       	wm8962_dai.dev = codec->dev;
-
-	wm8962_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_register_dai(&wm8962_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		return ret;
-	}
+	snd_soc_add_controls(codec, wm8962_snd_controls,
+			     ARRAY_SIZE(wm8962_snd_controls));
+	wm8962_add_widgets(codec);
 
 	wm8962_init_beep(codec);
 
@@ -1844,48 +1761,57 @@ err:
 	return ret;
 }
 
-static void wm8962_unregister(struct wm8962_priv *wm8962)
+static int wm8962_remove(struct snd_soc_codec *codec)
 {
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int i;
 
-	wm8962_free_beep(&wm8962->codec);
-	wm8962_set_bias_level(&wm8962->codec, SND_SOC_BIAS_OFF);
+	wm8962_free_beep(codec);
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		regulator_unregister_notifier(wm8962->supplies[i].consumer,
 					      &wm8962->disable_nb[i]);
 	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
-	snd_soc_unregister_dai(&wm8962_dai);
-	snd_soc_unregister_codec(&wm8962->codec);
-	kfree(wm8962);
-	wm8962_codec = NULL;
+
+	return 0;
 }
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
+	.probe =	wm8962_probe,
+	.remove =	wm8962_remove,
+	.resume =	wm8962_resume,
+	.set_bias_level = wm8962_set_bias_level,
+	.reg_cache_size = WM8962_MAX_REGISTER,
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8962_reg,
+	.volatile_register = wm8962_volatile_register,
+	.readable_register = wm8962_readable_register,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8962_priv *wm8962;
-	struct snd_soc_codec *codec;
+	int ret;
 
 	wm8962 = kzalloc(sizeof(struct wm8962_priv), GFP_KERNEL);
 	if (wm8962 == NULL)
 		return -ENOMEM;
 
-	codec = &wm8962->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
-
 	i2c_set_clientdata(i2c, wm8962);
-	codec->control_data = i2c;
 
-	codec->dev = &i2c->dev;
+	ret = snd_soc_register_codec(&i2c->dev,
+				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
+	if (ret < 0)
+		kfree(wm8962);
 
-	return wm8962_register(wm8962, SND_SOC_I2C);
+	return ret;
 }
 
 static __devexit int wm8962_i2c_remove(struct i2c_client *client)
 {
-	struct wm8962_priv *wm8962 = i2c_get_clientdata(client);
-	wm8962_unregister(wm8962);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 

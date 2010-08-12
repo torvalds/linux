@@ -15,9 +15,6 @@
 
 #include <asm/types.h>
 
-extern struct snd_soc_dai wm8962_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8962;
-
 #define WM8962_SYSCLK_MCLK 1
 #define WM8962_SYSCLK_FLL  2
 #define WM8962_SYSCLK_PLL3 3
