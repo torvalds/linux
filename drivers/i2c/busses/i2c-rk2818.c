@@ -35,7 +35,7 @@
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
-#if 1
+#if 0
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #else
@@ -447,6 +447,7 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 		}
 	}
 	
+exit:	
 	if(stop)
 	{
 		conr = readl(i2c->regs + I2C_CONR);
@@ -455,11 +456,9 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 		if((ret = rk2818_i2c_stop(i2c)) != 0)
 		{
 			dev_err(i2c->dev, "<error>rk2818_i2c_stop timeout\n");
-			goto exit;
 		}
 			
 	}
-exit:	
 	return ret;
 
 }
@@ -778,7 +777,7 @@ static void __exit rk2818_i2c_adap_exit(void)
 
 subsys_initcall(rk2818_i2c_adap_init);
 module_exit(rk2818_i2c_adap_exit);
-#if 0
+#if 1
 /* i2c devices test driver */
 static int i2c_test_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -788,8 +787,6 @@ static int i2c_test_probe(struct i2c_client *client,
 	char reg = 0x02;
 
 	int scl_rate = 100 * 1000;
-	ret = i2c_master_normal_send(client, &reg ,1, scl_rate);
-	ret = i2c_master_normal_recv(client, &buf ,1, scl_rate);
 	ret = i2c_master_reg8_recv(client, reg, &buf ,1, scl_rate);
 	/*
 	short buf161 = 0x0303;
@@ -835,7 +832,7 @@ static void __exit i2c_test_exit(void)
 	i2c_del_driver(&i2c_test_driver);
 }
 
-module_init(i2c_test_init);
+fs_initcall(i2c_test_init);
 module_exit(i2c_test_exit);
 /************************************/
 #endif
