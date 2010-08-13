@@ -486,14 +486,18 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 	/* bit size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
+		paifa |= 0x8;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
+		paifa |= 0x10;
 		paifb |= WM8580_AIF_LENGTH_20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+		paifa |= 0x10;
 		paifb |= WM8580_AIF_LENGTH_24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
+		paifa |= 0x10;
 		paifb |= WM8580_AIF_LENGTH_24;
 		break;
 	default:
@@ -515,7 +519,8 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 		wm8580_sysclk_ratios[i], wm8580->sysclk[dai->driver->id]);
 
 	snd_soc_update_bits(codec, WM8580_PAIF1 + dai->driver->id,
-			    WM8580_AIF_RATE_MASK, paifa);
+			    WM8580_AIF_RATE_MASK | WM8580_AIF_BCLKSEL_MASK,
+			    paifa);
 	snd_soc_update_bits(codec, WM8580_PAIF3 + dai->driver->id,
 			    WM8580_AIF_LENGTH_MASK, paifb);
 	return 0;
