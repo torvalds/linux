@@ -1606,8 +1606,10 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 
 	/* Init vmlinux path */
 	ret = init_vmlinux();
-	if (ret < 0)
+	if (ret < 0) {
+		free(pkgs);
 		return ret;
+	}
 
 	/* Loop 1: convert all events */
 	for (i = 0; i < npevs; i++) {
@@ -1625,10 +1627,13 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 		ret = __add_probe_trace_events(pkgs[i].pev, pkgs[i].tevs,
 						pkgs[i].ntevs, force_add);
 end:
-	/* Loop 3: cleanup trace events  */
-	for (i = 0; i < npevs; i++)
+	/* Loop 3: cleanup and free trace events  */
+	for (i = 0; i < npevs; i++) {
 		for (j = 0; j < pkgs[i].ntevs; j++)
 			clear_probe_trace_event(&pkgs[i].tevs[j]);
+		free(pkgs[i].tevs);
+	}
+	free(pkgs);
 
 	return ret;
 }

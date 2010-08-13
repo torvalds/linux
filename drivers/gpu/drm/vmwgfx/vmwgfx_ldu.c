@@ -79,7 +79,7 @@ static void vmw_ldu_crtc_restore(struct drm_crtc *crtc)
 
 static void vmw_ldu_crtc_gamma_set(struct drm_crtc *crtc,
 				   u16 *r, u16 *g, u16 *b,
-				   uint32_t size)
+				   uint32_t start, uint32_t size)
 {
 }
 

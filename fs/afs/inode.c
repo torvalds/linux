@@ -19,6 +19,8 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/mount.h>
+#include <linux/namei.h>
 #include "internal.h"
 
 struct afs_iget_data {
@@ -102,6 +104,16 @@ static int afs_iget5_test(struct inode *inode, void *opaque)
 }
 
 /*
+ * iget5() comparator for inode created by autocell operations
+ *
+ * These pseudo inodes don't match anything.
+ */
+static int afs_iget5_autocell_test(struct inode *inode, void *opaque)
+{
+	return 0;
+}
+
+/*
  * iget5() inode initialiser
  */
 static int afs_iget5_set(struct inode *inode, void *opaque)
@@ -115,6 +127,67 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 	vnode->volume = data->volume;
 
 	return 0;
+}
+
+/*
+ * inode retrieval for autocell
+ */
+struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
+				int namesz, struct key *key)
+{
+	struct afs_iget_data data;
+	struct afs_super_info *as;
+	struct afs_vnode *vnode;
+	struct super_block *sb;
+	struct inode *inode;
+	static atomic_t afs_autocell_ino;
+
+	_enter("{%x:%u},%*.*s,",
+	       AFS_FS_I(dir)->fid.vid, AFS_FS_I(dir)->fid.vnode,
+	       namesz, namesz, dev_name ?: "");
+
+	sb = dir->i_sb;
+	as = sb->s_fs_info;
+	data.volume = as->volume;
+	data.fid.vid = as->volume->vid;
+	data.fid.unique = 0;
+	data.fid.vnode = 0;
+
+	inode = iget5_locked(sb, atomic_inc_return(&afs_autocell_ino),
+			     afs_iget5_autocell_test, afs_iget5_set,
+			     &data);
+	if (!inode) {
+		_leave(" = -ENOMEM");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	_debug("GOT INODE %p { ino=%lu, vl=%x, vn=%x, u=%x }",
+	       inode, inode->i_ino, data.fid.vid, data.fid.vnode,
+	       data.fid.unique);
+
+	vnode = AFS_FS_I(inode);
+
+	/* there shouldn't be an existing inode */
+	BUG_ON(!(inode->i_state & I_NEW));
+
+	inode->i_size		= 0;
+	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
+	inode->i_op		= &afs_autocell_inode_operations;
+	inode->i_nlink		= 2;
+	inode->i_uid		= 0;
+	inode->i_gid		= 0;
+	inode->i_ctime.tv_sec	= get_seconds();
+	inode->i_ctime.tv_nsec	= 0;
+	inode->i_atime		= inode->i_mtime = inode->i_ctime;
+	inode->i_blocks		= 0;
+	inode->i_version	= 0;
+	inode->i_generation	= 0;
+
+	set_bit(AFS_VNODE_PSEUDODIR, &vnode->flags);
+	inode->i_flags |= S_NOATIME;
+	unlock_new_inode(inode);
+	_leave(" = %p", inode);
+	return inode;
 }
 
 /*
@@ -311,6 +384,19 @@ int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	generic_fillattr(inode, stat);
 	return 0;
+}
+
+/*
+ * discard an AFS inode
+ */
+int afs_drop_inode(struct inode *inode)
+{
+	_enter("");
+
+	if (test_bit(AFS_VNODE_PSEUDODIR, &AFS_FS_I(inode)->flags))
+		return generic_delete_inode(inode);
+	else
+		return generic_drop_inode(inode);
 }
 
 /*

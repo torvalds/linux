@@ -186,6 +186,9 @@
 #define PORT_ALTERA_JTAGUART	91
 #define PORT_ALTERA_UART	92
 
+/* SH-SCI */
+#define PORT_SCIFB	93
+
 /* MAX3107 */
 #define PORT_MAX3107	94
 

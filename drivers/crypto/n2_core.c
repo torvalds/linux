@@ -1552,7 +1552,7 @@ static void __exit n2_unregister_algs(void)
 
 /* To map CWQ queues to interrupt sources, the hypervisor API provides
  * a devino.  This isn't very useful to us because all of the
- * interrupts listed in the of_device node have been translated to
+ * interrupts listed in the device_node have been translated to
  * Linux virtual IRQ cookie numbers.
  *
  * So we have to back-translate, going through the 'intr' and 'ino'
@@ -1560,7 +1560,7 @@ static void __exit n2_unregister_algs(void)
  * 'interrupts' property entries, in order to to figure out which
  * devino goes to which already-translated IRQ.
  */
-static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
+static int find_devino_index(struct platform_device *dev, struct spu_mdesc_info *ip,
 			     unsigned long dev_ino)
 {
 	const unsigned int *dev_intrs;
@@ -1580,7 +1580,7 @@ static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
 	if (!dev_intrs)
 		return -ENODEV;
 
-	for (i = 0; i < dev->num_irqs; i++) {
+	for (i = 0; i < dev->archdata.num_irqs; i++) {
 		if (dev_intrs[i] == intr)
 			return i;
 	}
@@ -1588,7 +1588,7 @@ static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
 	return -ENODEV;
 }
 
-static int spu_map_ino(struct of_device *dev, struct spu_mdesc_info *ip,
+static int spu_map_ino(struct platform_device *dev, struct spu_mdesc_info *ip,
 		       const char *irq_name, struct spu_queue *p,
 		       irq_handler_t handler)
 {
@@ -1603,7 +1603,7 @@ static int spu_map_ino(struct of_device *dev, struct spu_mdesc_info *ip,
 	if (index < 0)
 		return index;
 
-	p->irq = dev->irqs[index];
+	p->irq = dev->archdata.irqs[index];
 
 	sprintf(p->irq_name, "%s-%d", irq_name, index);
 
@@ -1736,7 +1736,7 @@ static void spu_list_destroy(struct list_head *list)
  * gathering cpu membership information.
  */
 static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
-			       struct of_device *dev,
+			       struct platform_device *dev,
 			       u64 node, struct spu_queue *p,
 			       struct spu_queue **table)
 {
@@ -1763,7 +1763,7 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 
 /* Process an 'exec-unit' MDESC node of type 'cwq'.  */
 static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
-			    struct of_device *dev, struct mdesc_handle *mdesc,
+			    struct platform_device *dev, struct mdesc_handle *mdesc,
 			    u64 node, const char *iname, unsigned long q_type,
 			    irq_handler_t handler, struct spu_queue **table)
 {
@@ -1794,7 +1794,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 	return spu_map_ino(dev, ip, iname, p, handler);
 }
 
-static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct of_device *dev,
+static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *dev,
 			  struct spu_mdesc_info *ip, struct list_head *list,
 			  const char *exec_name, unsigned long q_type,
 			  irq_handler_t handler, struct spu_queue **table)
@@ -1855,7 +1855,7 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 }
 
 static int __devinit grab_mdesc_irq_props(struct mdesc_handle *mdesc,
-					  struct of_device *dev,
+					  struct platform_device *dev,
 					  struct spu_mdesc_info *ip,
 					  const char *node_name)
 {
@@ -2004,7 +2004,7 @@ static void __devinit n2_spu_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2_crypto_probe(struct of_device *dev,
+static int __devinit n2_crypto_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	struct mdesc_handle *mdesc;
@@ -2081,7 +2081,7 @@ out_free_n2cp:
 	return err;
 }
 
-static int __devexit n2_crypto_remove(struct of_device *dev)
+static int __devexit n2_crypto_remove(struct platform_device *dev)
 {
 	struct n2_crypto *np = dev_get_drvdata(&dev->dev);
 
@@ -2116,7 +2116,7 @@ static void free_ncp(struct n2_mau *mp)
 	kfree(mp);
 }
 
-static int __devinit n2_mau_probe(struct of_device *dev,
+static int __devinit n2_mau_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	struct mdesc_handle *mdesc;
@@ -2184,7 +2184,7 @@ out_free_ncp:
 	return err;
 }
 
-static int __devexit n2_mau_remove(struct of_device *dev)
+static int __devexit n2_mau_remove(struct platform_device *dev)
 {
 	struct n2_mau *mp = dev_get_drvdata(&dev->dev);
 

@@ -32,9 +32,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/writeback.h>
-#include <linux/buffer_head.h>
-#include <scsi/scsi_device.h>
 
 #include "exofs.h"
 
@@ -773,15 +770,13 @@ static int exofs_releasepage(struct page *page, gfp_t gfp)
 {
 	EXOFS_DBGMSG("page 0x%lx\n", page->index);
 	WARN_ON(1);
-	return try_to_free_buffers(page);
+	return 0;
 }
 
 static void exofs_invalidatepage(struct page *page, unsigned long offset)
 {
-	EXOFS_DBGMSG("page_has_buffers=>%d\n", page_has_buffers(page));
+	EXOFS_DBGMSG("page 0x%lx offset 0x%lx\n", page->index, offset);
 	WARN_ON(1);
-
-	block_invalidatepage(page, offset);
 }
 
 const struct address_space_operations exofs_aops = {

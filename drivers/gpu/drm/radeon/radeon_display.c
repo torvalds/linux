@@ -161,17 +161,13 @@ void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 }
 
 static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t size)
+				  u16 *blue, uint32_t start, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
-
-	if (size != 256) {
-		return;
-	}
+	int end = (start + size > 256) ? 256 : start + size, i;
 
 	/* userspace palettes are always correct as is */
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		radeon_crtc->lut_r[i] = red[i] >> 6;
 		radeon_crtc->lut_g[i] = green[i] >> 6;
 		radeon_crtc->lut_b[i] = blue[i] >> 6;
@@ -319,6 +315,10 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
+			if (radeon_connector->router_bus)
+				DRM_INFO("  DDC Router 0x%x/0x%x\n",
+					 radeon_connector->router.mux_control_pin,
+					 radeon_connector->router.mux_state);
 		} else {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
@@ -395,6 +395,10 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	struct radeon_device *rdev = dev->dev_private;
 	int ret = 0;
 
+	/* on hw with routers, select right port */
+	if (radeon_connector->router.valid)
+		radeon_router_select_port(radeon_connector);
+
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
@@ -424,6 +428,10 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	struct edid *edid;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int ret = 0;
+
+	/* on hw with routers, select right port */
+	if (radeon_connector->router.valid)
+		radeon_router_select_port(radeon_connector);
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
@@ -876,13 +884,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handle);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
-		return NULL;
-	}
+	if (radeon_fb == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 
@@ -1040,6 +1047,9 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
+	/* init i2c buses */
+	radeon_i2c_init(rdev);
+
 	/* check combios for a valid hardcoded EDID - Sun servers */
 	if (!rdev->is_atom_bios) {
 		/* check for hardcoded EDID in BIOS */
@@ -1080,6 +1090,8 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}
+	/* free i2c buses */
+	radeon_i2c_fini(rdev);
 }
 
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,

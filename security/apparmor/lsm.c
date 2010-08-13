@@ -667,17 +667,29 @@ static struct security_operations apparmor_ops = {
  * AppArmor sysfs module parameters
  */
 
-static int param_set_aabool(const char *val, struct kernel_param *kp);
-static int param_get_aabool(char *buffer, struct kernel_param *kp);
+static int param_set_aabool(const char *val, const struct kernel_param *kp);
+static int param_get_aabool(char *buffer, const struct kernel_param *kp);
 #define param_check_aabool(name, p) __param_check(name, p, int)
+static struct kernel_param_ops param_ops_aabool = {
+	.set = param_set_aabool,
+	.get = param_get_aabool
+};
 
-static int param_set_aauint(const char *val, struct kernel_param *kp);
-static int param_get_aauint(char *buffer, struct kernel_param *kp);
+static int param_set_aauint(const char *val, const struct kernel_param *kp);
+static int param_get_aauint(char *buffer, const struct kernel_param *kp);
 #define param_check_aauint(name, p) __param_check(name, p, int)
+static struct kernel_param_ops param_ops_aauint = {
+	.set = param_set_aauint,
+	.get = param_get_aauint
+};
 
-static int param_set_aalockpolicy(const char *val, struct kernel_param *kp);
-static int param_get_aalockpolicy(char *buffer, struct kernel_param *kp);
+static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp);
+static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp);
 #define param_check_aalockpolicy(name, p) __param_check(name, p, int)
+static struct kernel_param_ops param_ops_aalockpolicy = {
+	.set = param_set_aalockpolicy,
+	.get = param_get_aalockpolicy
+};
 
 static int param_set_audit(const char *val, struct kernel_param *kp);
 static int param_get_audit(char *buffer, struct kernel_param *kp);
@@ -751,7 +763,7 @@ static int __init apparmor_enabled_setup(char *str)
 __setup("apparmor=", apparmor_enabled_setup);
 
 /* set global flag turning off the ability to load policy */
-static int param_set_aalockpolicy(const char *val, struct kernel_param *kp)
+static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
@@ -760,35 +772,35 @@ static int param_set_aalockpolicy(const char *val, struct kernel_param *kp)
 	return param_set_bool(val, kp);
 }
 
-static int param_get_aalockpolicy(char *buffer, struct kernel_param *kp)
+static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
 
-static int param_set_aabool(const char *val, struct kernel_param *kp)
+static int param_set_aabool(const char *val, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
 
-static int param_get_aabool(char *buffer, struct kernel_param *kp)
+static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
 
-static int param_set_aauint(const char *val, struct kernel_param *kp)
+static int param_set_aauint(const char *val, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 	return param_set_uint(val, kp);
 }
 
-static int param_get_aauint(char *buffer, struct kernel_param *kp)
+static int param_get_aauint(char *buffer, const struct kernel_param *kp)
 {
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;

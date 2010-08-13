@@ -273,7 +273,7 @@ static int __devinit bw2_do_default_mode(struct bw2_par *par,
 	return 0;
 }
 
-static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit bw2_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -350,7 +350,7 @@ out_err:
 	return err;
 }
 
-static int __devexit bw2_remove(struct of_device *op)
+static int __devexit bw2_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct bw2_par *par = info->par;

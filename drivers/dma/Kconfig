@@ -141,7 +141,7 @@ config TXX9_DMAC
 
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
-	depends on SUPERH && SH_DMA
+	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
 	depends on !SH_DMA_API
 	select DMA_ENGINE
 	help

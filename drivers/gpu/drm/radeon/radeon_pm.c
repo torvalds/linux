@@ -472,9 +472,9 @@ static const struct attribute_group hwmon_attrgroup = {
 	.attrs = hwmon_attributes,
 };
 
-static void radeon_hwmon_init(struct radeon_device *rdev)
+static int radeon_hwmon_init(struct radeon_device *rdev)
 {
-	int err;
+	int err = 0;
 
 	rdev->pm.int_hwmon_dev = NULL;
 
@@ -483,15 +483,26 @@ static void radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_RV770:
 	case THERMAL_TYPE_EVERGREEN:
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
+		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
+			err = PTR_ERR(rdev->pm.int_hwmon_dev);
+			dev_err(rdev->dev,
+				"Unable to register hwmon device: %d\n", err);
+			break;
+		}
 		dev_set_drvdata(rdev->pm.int_hwmon_dev, rdev->ddev);
 		err = sysfs_create_group(&rdev->pm.int_hwmon_dev->kobj,
 					 &hwmon_attrgroup);
-		if (err)
-			DRM_ERROR("Unable to create hwmon sysfs file: %d\n", err);
+		if (err) {
+			dev_err(rdev->dev,
+				"Unable to create hwmon sysfs file: %d\n", err);
+			hwmon_device_unregister(rdev->dev);
+		}
 		break;
 	default:
 		break;
 	}
+
+	return err;
 }
 
 static void radeon_hwmon_fini(struct radeon_device *rdev)
@@ -540,6 +551,7 @@ void radeon_pm_resume(struct radeon_device *rdev)
 int radeon_pm_init(struct radeon_device *rdev)
 {
 	int ret;
+
 	/* default to profile method */
 	rdev->pm.pm_method = PM_METHOD_PROFILE;
 	rdev->pm.profile = PM_PROFILE_DEFAULT;
@@ -561,7 +573,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 	}
 
 	/* set up the internal thermal sensor if applicable */
-	radeon_hwmon_init(rdev);
+	ret = radeon_hwmon_init(rdev);
+	if (ret)
+		return ret;
 	if (rdev->pm.num_power_states > 1) {
 		/* where's the best place to put these? */
 		ret = device_create_file(rdev->dev, &dev_attr_power_profile);

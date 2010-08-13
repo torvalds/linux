@@ -21,6 +21,7 @@
 #include <plat/s5p6442.h>
 #include <plat/s5pc100.h>
 #include <plat/s5pv210.h>
+#include <plat/s5pv310.h>
 
 /* table of supported CPUs */
 
@@ -28,6 +29,7 @@ static const char name_s5p6440[] = "S5P6440";
 static const char name_s5p6442[] = "S5P6442";
 static const char name_s5pc100[] = "S5PC100";
 static const char name_s5pv210[] = "S5PV210/S5PC110";
+static const char name_s5pv310[] = "S5PV310";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
@@ -62,6 +64,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s5pv210_init_uarts,
 		.init		= s5pv210_init,
 		.name		= name_s5pv210,
+	}, {
+		.idcode		= 0x43200000,
+		.idmask		= 0xfffff000,
+		.map_io		= s5pv310_map_io,
+		.init_clocks	= s5pv310_init_clocks,
+		.init_uarts	= s5pv310_init_uarts,
+		.init		= s5pv310_init,
+		.name		= name_s5pv310,
 	},
 };
 
@@ -81,8 +91,9 @@ static struct map_desc s5p_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S3C_VA_UART,
 		.pfn		= __phys_to_pfn(S3C_PA_UART),
-		.length		= SZ_4K,
+		.length		= SZ_512K,
 		.type		= MT_DEVICE,
+#ifdef CONFIG_ARM_VIC
 	}, {
 		.virtual	= (unsigned long)VA_VIC0,
 		.pfn		= __phys_to_pfn(S5P_PA_VIC0),
@@ -93,6 +104,7 @@ static struct map_desc s5p_iodesc[] __initdata = {
 		.pfn		= __phys_to_pfn(S5P_PA_VIC1),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
+#endif
 	}, {
 		.virtual	= (unsigned long)S3C_VA_TIMER,
 		.pfn		= __phys_to_pfn(S5P_PA_TIMER),
@@ -101,6 +113,11 @@ static struct map_desc s5p_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GPIO,
 		.pfn		= __phys_to_pfn(S5P_PA_GPIO),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_WATCHDOG,
+		.pfn		= __phys_to_pfn(S3C_PA_WDT),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},

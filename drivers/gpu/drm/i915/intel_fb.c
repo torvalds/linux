@@ -121,7 +121,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->par = ifbdev;
 
-	intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	if (ret)
+		goto out_unpin;
 
 	fb = &ifbdev->ifb.base;
 

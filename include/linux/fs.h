@@ -93,7 +93,7 @@ struct inodes_stat_t {
 #define FMODE_RANDOM		((__force fmode_t)0x1000)
 
 /* File was opened by fanotify and shouldn't generate fanotify events */
-#define FMODE_NONOTIFY		((__force fmode_t)16777216) /* 0x1000000 */
+#define FMODE_NONOTIFY		((__force fmode_t)0x1000000)
 
 /*
  * The below are the various read and write types that we support. Some of
@@ -174,6 +174,7 @@ struct inodes_stat_t {
  */
 #define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
 #define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
+#define DISCARD_SECURE		(DISCARD_NOBARRIER | REQ_SECURE)
 
 #define SEL_IN		1
 #define SEL_OUT		2
@@ -317,6 +318,7 @@ struct inodes_stat_t {
 #define BLKALIGNOFF _IO(0x12,122)
 #define BLKPBSZGET _IO(0x12,123)
 #define BLKDISCARDZEROES _IO(0x12,124)
+#define BLKSECDISCARD _IO(0x12,125)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */

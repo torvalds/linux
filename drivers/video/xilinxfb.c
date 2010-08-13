@@ -397,7 +397,7 @@ static int xilinxfb_release(struct device *dev)
  */
 
 static int __devinit
-xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
+xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	const u32 *prop;
 	u32 *p;
@@ -477,7 +477,7 @@ xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
 	return -ENODEV;
 }
 
-static int __devexit xilinxfb_of_remove(struct of_device *op)
+static int __devexit xilinxfb_of_remove(struct platform_device *op)
 {
 	return xilinxfb_release(&op->dev);
 }

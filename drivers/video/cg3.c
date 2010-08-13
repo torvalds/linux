@@ -346,7 +346,7 @@ static int __devinit cg3_do_default_mode(struct cg3_par *par)
 	return 0;
 }
 
-static int __devinit cg3_probe(struct of_device *op,
+static int __devinit cg3_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -433,7 +433,7 @@ out_err:
 	return err;
 }
 
-static int __devexit cg3_remove(struct of_device *op)
+static int __devexit cg3_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct cg3_par *par = info->par;

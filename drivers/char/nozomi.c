@@ -1743,8 +1743,7 @@ static int ntty_write_room(struct tty_struct *tty)
 	if (dc) {
 		mutex_lock(&port->tty_sem);
 		if (port->port.count)
-			room = port->fifo_ul.size -
-					kfifo_len(&port->fifo_ul);
+			room = kfifo_avail(&port->fifo_ul);
 		mutex_unlock(&port->tty_sem);
 	}
 	return room;

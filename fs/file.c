@@ -39,28 +39,27 @@ int sysctl_nr_open_max = 1024 * 1024; /* raised later */
  */
 static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
 
-static inline void * alloc_fdmem(unsigned int size)
+static inline void *alloc_fdmem(unsigned int size)
 {
-	if (size <= PAGE_SIZE)
-		return kmalloc(size, GFP_KERNEL);
-	else
-		return vmalloc(size);
+	void *data;
+
+	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+	if (data != NULL)
+		return data;
+
+	return vmalloc(size);
 }
 
-static inline void free_fdarr(struct fdtable *fdt)
+static void free_fdmem(void *ptr)
 {
-	if (fdt->max_fds <= (PAGE_SIZE / sizeof(struct file *)))
-		kfree(fdt->fd);
-	else
-		vfree(fdt->fd);
+	is_vmalloc_addr(ptr) ? vfree(ptr) : kfree(ptr);
 }
 
-static inline void free_fdset(struct fdtable *fdt)
+static void __free_fdtable(struct fdtable *fdt)
 {
-	if (fdt->max_fds <= (PAGE_SIZE * BITS_PER_BYTE / 2))
-		kfree(fdt->open_fds);
-	else
-		vfree(fdt->open_fds);
+	free_fdmem(fdt->fd);
+	free_fdmem(fdt->open_fds);
+	kfree(fdt);
 }
 
 static void free_fdtable_work(struct work_struct *work)
@@ -75,9 +74,8 @@ static void free_fdtable_work(struct work_struct *work)
 	spin_unlock_bh(&f->lock);
 	while(fdt) {
 		struct fdtable *next = fdt->next;
-		vfree(fdt->fd);
-		free_fdset(fdt);
-		kfree(fdt);
+
+		__free_fdtable(fdt);
 		fdt = next;
 	}
 }
@@ -98,7 +96,7 @@ void free_fdtable_rcu(struct rcu_head *rcu)
 				container_of(fdt, struct files_struct, fdtab));
 		return;
 	}
-	if (fdt->max_fds <= (PAGE_SIZE / sizeof(struct file *))) {
+	if (!is_vmalloc_addr(fdt->fd) && !is_vmalloc_addr(fdt->open_fds)) {
 		kfree(fdt->fd);
 		kfree(fdt->open_fds);
 		kfree(fdt);
@@ -183,7 +181,7 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	return fdt;
 
 out_arr:
-	free_fdarr(fdt);
+	free_fdmem(fdt->fd);
 out_fdt:
 	kfree(fdt);
 out:
@@ -213,9 +211,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 	 * caller and alloc_fdtable().  Cheaper to catch it here...
 	 */
 	if (unlikely(new_fdt->max_fds <= nr)) {
-		free_fdarr(new_fdt);
-		free_fdset(new_fdt);
-		kfree(new_fdt);
+		__free_fdtable(new_fdt);
 		return -EMFILE;
 	}
 	/*
@@ -231,9 +227,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 			free_fdtable(cur_fdt);
 	} else {
 		/* Somebody else expanded, so undo our attempt */
-		free_fdarr(new_fdt);
-		free_fdset(new_fdt);
-		kfree(new_fdt);
+		__free_fdtable(new_fdt);
 	}
 	return 1;
 }
@@ -323,11 +317,8 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	while (unlikely(open_files > new_fdt->max_fds)) {
 		spin_unlock(&oldf->file_lock);
 
-		if (new_fdt != &newf->fdtab) {
-			free_fdarr(new_fdt);
-			free_fdset(new_fdt);
-			kfree(new_fdt);
-		}
+		if (new_fdt != &newf->fdtab)
+			__free_fdtable(new_fdt);
 
 		new_fdt = alloc_fdtable(open_files - 1);
 		if (!new_fdt) {
@@ -337,9 +328,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 		/* beyond sysctl_nr_open; nothing to do */
 		if (unlikely(new_fdt->max_fds < open_files)) {
-			free_fdarr(new_fdt);
-			free_fdset(new_fdt);
-			kfree(new_fdt);
+			__free_fdtable(new_fdt);
 			*errorp = -EMFILE;
 			goto out_release;
 		}

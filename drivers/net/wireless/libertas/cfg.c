@@ -6,7 +6,10 @@
  *
  */
 
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>

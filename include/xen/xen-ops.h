@@ -17,4 +17,10 @@ void xen_arch_resume(void);
 
 int xen_setup_shutdown_event(void);
 
+extern unsigned long *xen_contiguous_bitmap;
+int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
+				unsigned int address_bits);
+
+void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order);
+
 #endif /* INCLUDE_XEN_OPS_H */

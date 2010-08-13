@@ -168,6 +168,11 @@ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned lon
 void page_add_file_rmap(struct page *);
 void page_remove_rmap(struct page *);
 
+void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
+			    unsigned long);
+void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+				unsigned long);
+
 static inline void page_dup_rmap(struct page *page)
 {
 	atomic_inc(&page->_mapcount);

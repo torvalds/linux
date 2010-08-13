@@ -614,6 +614,7 @@ int tps6507x_pmic_probe(struct platform_device *pdev)
 	}
 
 	tps6507x_dev->pmic = tps;
+	platform_set_drvdata(pdev, tps6507x_dev);
 
 	return 0;
 

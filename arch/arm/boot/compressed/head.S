@@ -170,9 +170,8 @@ not_angel:
 
 		.text
 		adr	r0, LC0
- ARM(		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip, sp})
- THUMB(		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip}	)
- THUMB(		ldr	sp, [r0, #32]				)
+		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip}
+		ldr	sp, [r0, #28]
 #ifdef CONFIG_AUTO_ZRELADDR
 		@ determine final kernel image address
 		and	r4, pc, #0xf8000000

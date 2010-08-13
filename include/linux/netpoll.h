@@ -122,7 +122,7 @@ static inline int netpoll_tx_running(struct net_device *dev)
 }
 
 #else
-static inline int netpoll_rx(struct sk_buff *skb)
+static inline bool netpoll_rx(struct sk_buff *skb)
 {
 	return 0;
 }

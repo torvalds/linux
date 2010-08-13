@@ -1,6 +1,8 @@
 #ifndef _PERF_PSTACK_
 #define _PERF_PSTACK_
 
+#include <stdbool.h>
+
 struct pstack;
 struct pstack *pstack__new(unsigned short max_nr_entries);
 void pstack__delete(struct pstack *self);
