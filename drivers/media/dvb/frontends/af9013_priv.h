@@ -791,8 +791,9 @@ static struct regdesc tuner_init_unknown[] = {
 	{ 0x9bd9, 0, 8, 0x08 },
 };
 
-/* NXP TDA18271 tuner init
-   AF9013_TUNER_TDA18271   = 156 */
+/* NXP TDA18271 & TDA18218 tuner init
+   AF9013_TUNER_TDA18271   = 156
+   AF9013_TUNER_TDA18218   = 179 */
 static struct regdesc tuner_init_tda18271[] = {
 	{ 0x9bd5, 0, 8, 0x01 },
 	{ 0x9bd6, 0, 8, 0x04 },
