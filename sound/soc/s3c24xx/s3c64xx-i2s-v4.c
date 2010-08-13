@@ -187,7 +187,18 @@ err:
 
 static __devexit int s3c64xx_i2sv4_dev_remove(struct platform_device *pdev)
 {
+	struct s3c_i2sv2_info *i2s = &s3c64xx_i2sv4;
+	struct resource *res;
+
 	snd_soc_unregister_dai(&pdev->dev);
+	clk_put(i2s->iis_cclk);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res)
+		release_mem_region(res->start, resource_size(res));
+	else
+		dev_warn(&pdev->dev, "Unable to get I2S SFR address\n");
+		
 	return 0;
 }
 
