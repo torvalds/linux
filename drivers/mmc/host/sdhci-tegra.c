@@ -179,28 +179,24 @@ static int tegra_sdhci_remove(struct platform_device *pdev)
 static int tegra_sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct tegra_sdhci_host *host = platform_get_drvdata(pdev);
-	struct mmc_host *mmc = host->sdhci->mmc;
-	int ret = 0;
+	int ret;
 
-	if (mmc->card && (mmc->card->type != MMC_TYPE_SDIO)) {
-		ret = sdhci_suspend_host(host->sdhci, state);
-		if (ret)
-			pr_err("%s: failed, error = %d\n", __func__, ret);
-	}
+	ret = sdhci_suspend_host(host->sdhci, state);
+	if (ret)
+		pr_err("%s: failed, error = %d\n", __func__, ret);
+
 	return ret;
 }
 
 static int tegra_sdhci_resume(struct platform_device *pdev)
 {
 	struct tegra_sdhci_host *host = platform_get_drvdata(pdev);
-	struct mmc_host *mmc = host->sdhci->mmc;
-	int ret = 0;
+	int ret;
 
-	if (mmc->card && (mmc->card->type != MMC_TYPE_SDIO)) {
-		ret = sdhci_resume_host(host->sdhci);
-		if (ret)
-			pr_err("%s: failed, error = %d\n", __func__, ret);
-	}
+	ret = sdhci_resume_host(host->sdhci);
+	if (ret)
+		pr_err("%s: failed, error = %d\n", __func__, ret);
+
 	return ret;
 }
 #else
