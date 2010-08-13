@@ -16,7 +16,6 @@
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
 
-#include "pxa2xx-pcm.h"
 #include "../../arm/pxa2xx-pcm.h"
 
 static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,

@@ -35,7 +35,7 @@
 #include <mach/audio.h>
 #include <plat/ssp.h>
 
-#include "pxa2xx-pcm.h"
+#include "../../arm/pxa2xx-pcm.h"
 #include "pxa-ssp.h"
 
 /*
