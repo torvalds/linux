@@ -953,7 +953,7 @@ static void __init load_hv_initrd(void)
 	if (rc != stat.size) {
 		pr_err("Error reading %d bytes from hvfs file '%s': %d\n",
 		       stat.size, initramfs_file, rc);
-		free_bootmem((unsigned long) initrd, stat.size);
+		free_initrd_mem((unsigned long) initrd, stat.size);
 		return;
 	}
 	initrd_start = (unsigned long) initrd;
@@ -962,7 +962,7 @@ static void __init load_hv_initrd(void)
 
 void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
-	free_bootmem(begin, end - begin);
+	free_bootmem(__pa(begin), end - begin);
 }
 
 static void __init validate_hv(void)
