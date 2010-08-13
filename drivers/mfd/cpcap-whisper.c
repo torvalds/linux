@@ -48,6 +48,8 @@
 			     CPCAP_BIT_VBUSVLD_S   | \
 			     CPCAP_BIT_SESSVLD_S)
 
+#define SENSE_WHISPER_SPD   (CPCAP_BIT_SE1_S)
+
 #define SENSE_WHISPER_PPD   (0)
 
 #define SENSE_WHISPER_SMART (CPCAP_BIT_ID_GROUND_S | \
@@ -405,7 +407,8 @@ static void whisper_det_work(struct work_struct *work)
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
-		} else if (data->sense == SENSE_WHISPER_PPD) {
+		} else if ((data->sense == SENSE_WHISPER_SPD) ||
+			   (data->sense == SENSE_WHISPER_PPD)) {
 			gpio_set_value(data->pdata->pwr_gpio, 1);
 
 			/* Extra identification step for Whisper. */
