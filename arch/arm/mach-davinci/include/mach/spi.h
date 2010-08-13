@@ -19,6 +19,8 @@
 #ifndef __ARCH_ARM_DAVINCI_SPI_H
 #define __ARCH_ARM_DAVINCI_SPI_H
 
+#define SPI_INTERN_CS	0xFF
+
 enum {
 	SPI_VERSION_1, /* For DM355/DM365/DM6467 */
 	SPI_VERSION_2, /* For DA8xx */
@@ -38,6 +40,7 @@ struct davinci_spi_platform_data {
 	u8	use_dma;
 	u8	c2tdelay;
 	u8	t2cdelay;
+	u8	*chip_sel;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_SPI_H */

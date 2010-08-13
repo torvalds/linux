@@ -238,20 +238,32 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	struct davinci_spi_platform_data *pdata;
 	u8 chip_sel = spi->chip_select;
 	u16 spidat1_cfg = CS_DEFAULT;
+	bool gpio_chipsel = false;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
+
+	if (pdata->chip_sel && chip_sel < pdata->num_chipselect &&
+				pdata->chip_sel[chip_sel] != SPI_INTERN_CS)
+		gpio_chipsel = true;
 
 	/*
 	 * Board specific chip select logic decides the polarity and cs
 	 * line for the controller
 	 */
-	if (value == BITBANG_CS_ACTIVE) {
-		spidat1_cfg |= SPIDAT1_CSHOLD_MASK;
-		spidat1_cfg &= ~(0x1 << chip_sel);
-	}
+	if (gpio_chipsel) {
+		if (value == BITBANG_CS_ACTIVE)
+			gpio_set_value(pdata->chip_sel[chip_sel], 0);
+		else
+			gpio_set_value(pdata->chip_sel[chip_sel], 1);
+	} else {
+		if (value == BITBANG_CS_ACTIVE) {
+			spidat1_cfg |= SPIDAT1_CSHOLD_MASK;
+			spidat1_cfg &= ~(0x1 << chip_sel);
+		}
 
-	iowrite16(spidat1_cfg, davinci_spi->base + SPIDAT1 + 2);
+		iowrite16(spidat1_cfg, davinci_spi->base + SPIDAT1 + 2);
+	}
 }
 
 /**
@@ -546,6 +558,7 @@ static void davinci_spi_cleanup(struct spi_device *spi)
 static int davinci_spi_bufs_prep(struct spi_device *spi,
 				 struct davinci_spi *davinci_spi)
 {
+	struct davinci_spi_platform_data *pdata;
 	int op_mode = 0;
 
 	/*
@@ -558,8 +571,12 @@ static int davinci_spi_bufs_prep(struct spi_device *spi,
 	op_mode = SPIPC0_DIFUN_MASK
 		| SPIPC0_DOFUN_MASK
 		| SPIPC0_CLKFUN_MASK;
-	if (!(spi->mode & SPI_NO_CS))
-		op_mode |= 1 << spi->chip_select;
+	if (!(spi->mode & SPI_NO_CS)) {
+		pdata = davinci_spi->pdata;
+		if (!pdata->chip_sel ||
+		     pdata->chip_sel[spi->chip_select] == SPI_INTERN_CS)
+			op_mode |= 1 << spi->chip_select;
+	}
 	if (spi->mode & SPI_READY)
 		op_mode |= SPIPC0_SPIENA_MASK;
 
@@ -1100,6 +1117,14 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	iowrite32(0, davinci_spi->base + SPIGCR0);
 	udelay(100);
 	iowrite32(1, davinci_spi->base + SPIGCR0);
+
+	/* initialize chip selects */
+	if (pdata->chip_sel) {
+		for (i = 0; i < pdata->num_chipselect; i++) {
+			if (pdata->chip_sel[i] != SPI_INTERN_CS)
+				gpio_direction_output(pdata->chip_sel[i], 1);
+		}
+	}
 
 	/* Clock internal */
 	if (davinci_spi->pdata->clk_internal)
