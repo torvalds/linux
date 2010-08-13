@@ -1261,12 +1261,17 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_setup_stream);
 
+static void really_cleanup_stream(struct hda_codec *codec,
+				  struct hda_cvt_setup *q);
+
 /**
- * snd_hda_codec_cleanup_stream - clean up the codec for closing
+ * __snd_hda_codec_cleanup_stream - clean up the codec for closing
  * @codec: the CODEC to clean up
  * @nid: the NID to clean up
+ * @do_now: really clean up the stream instead of clearing the active flag
  */
-void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
+void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
+				    int do_now)
 {
 	struct hda_cvt_setup *p;
 
@@ -1274,14 +1279,19 @@ void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
 		return;
 
 	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
-	/* here we just clear the active flag; actual clean-ups will be done
-	 * in purify_inactive_streams()
-	 */
 	p = get_hda_cvt_setup(codec, nid);
-	if (p)
-		p->active = 0;
+	if (p) {
+		/* here we just clear the active flag when do_now isn't set;
+		 * actual clean-ups will be done later in
+		 * purify_inactive_streams() called from snd_hda_codec_prpapre()
+		 */
+		if (do_now)
+			really_cleanup_stream(codec, p);
+		else
+			p->active = 0;
+	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_codec_cleanup_stream);
+EXPORT_SYMBOL_HDA(__snd_hda_codec_cleanup_stream);
 
 static void really_cleanup_stream(struct hda_codec *codec,
 				  struct hda_cvt_setup *q)
