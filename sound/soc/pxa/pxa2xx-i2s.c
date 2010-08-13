@@ -27,7 +27,6 @@
 #include <mach/dma.h>
 #include <mach/audio.h>
 
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
 
 /*
