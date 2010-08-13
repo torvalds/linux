@@ -517,6 +517,7 @@ struct rk2818_i2c_platform_data default_i2c0_data = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
+	.mode       = I2C_MODE_IRQ, //I2C_MODE_POLL
 	.cfg_gpio = rk2818_i2c0_cfg_gpio,
 };
 struct rk2818_i2c_platform_data default_i2c1_data = { 
@@ -528,6 +529,7 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
+	.mode       = I2C_MODE_IRQ, //I2C_MODE_POLL
 	.cfg_gpio = rk2818_i2c1_cfg_gpio,
 };
 

@@ -166,6 +166,7 @@ static int rk2818_event_occurred(struct rk2818_i2c_data *i2c)
 		isr &= ~I2C_ISR_ARBITR_LOSE;
 		writel(isr, i2c->regs + I2C_ISR);
 		i2c->cmd_err = RK2818_ERROR_ARBITR_LOSE;
+		dev_err(i2c->dev, "<error>arbitration loss\n");
 		return 1;
 	}
 
@@ -777,65 +778,7 @@ static void __exit rk2818_i2c_adap_exit(void)
 
 subsys_initcall(rk2818_i2c_adap_init);
 module_exit(rk2818_i2c_adap_exit);
-#if 1
-/* i2c devices test driver */
-static int i2c_test_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
-{
-	int ret, i ;
-	char buf;
-	char reg = 0x02;
 
-	int scl_rate = 100 * 1000;
-	ret = i2c_master_reg8_recv(client, reg, &buf ,1, scl_rate);
-	/*
-	short buf161 = 0x0303;
-	short reg161 = 0x0100;
-	short buf162 = 0xc001;
-	short reg162 = 0x1006;
-	printk("%s\n", __func__);
-	ret = i2c_master_reg16_send(client, reg162, &buf162 ,1, scl_rate);
-	ret = i2c_master_reg16_send(client, reg161, &buf161 ,1, scl_rate);
-	ret = i2c_master_reg16_recv(client, reg162, &buf162 ,1, scl_rate);
-	ret = i2c_master_reg16_recv(client, reg161, &buf161 ,1, scl_rate);
-	*/
-	return 0;	
-}
-
-static int i2c_test_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
-static const struct i2c_device_id i2c_test_id[] = {
-	{ "i2c_test", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, i2c_test_id);
-
-static struct i2c_driver i2c_test_driver = {
-	.driver = {
-		.name = "i2c_test",
-	},
-	.probe = i2c_test_probe,
-	.remove = i2c_test_remove,
-	.id_table = i2c_test_id,
-};
-
-static int __init i2c_test_init(void)
-{
-	return i2c_add_driver(&i2c_test_driver);
-}
-
-static void __exit i2c_test_exit(void)
-{
-	i2c_del_driver(&i2c_test_driver);
-}
-
-fs_initcall(i2c_test_init);
-module_exit(i2c_test_exit);
-/************************************/
-#endif
 MODULE_DESCRIPTION("Driver for RK2818 I2C Bus");
 MODULE_AUTHOR("kfx, kfx@rock-chips.com");
 MODULE_LICENSE("GPL");
