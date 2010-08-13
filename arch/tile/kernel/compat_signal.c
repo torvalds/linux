@@ -56,13 +56,15 @@ struct compat_ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
+#define COMPAT_SI_PAD_SIZE	((SI_MAX_SIZE - 3 * sizeof(int)) / sizeof(int))
+
 struct compat_siginfo {
 	int si_signo;
 	int si_errno;
 	int si_code;
 
 	union {
-		int _pad[SI_PAD_SIZE];
+		int _pad[COMPAT_SI_PAD_SIZE];
 
 		/* kill() */
 		struct {
