@@ -849,9 +849,18 @@ wl_iw_set_suspend(
 )
 {
 	int suspend_flag;
+	int ret;
 
 	suspend_flag = *(extra + strlen("SETSUSPEND") + 1) - '0';
-	return net_os_set_suspend_disable(dev, suspend_flag);
+	if (suspend_flag != 0)
+		suspend_flag = 1;
+
+	ret = net_os_set_suspend_disable(dev, suspend_flag);
+	WL_TRACE(("%s: Suspend Flag %d -> %d\n", __func__, ret, suspend_flag));
+
+	if (ret != suspend_flag)
+		net_os_set_suspend(dev, ret);
+	return 0;
 }
 
 int

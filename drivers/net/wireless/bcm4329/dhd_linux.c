@@ -217,11 +217,12 @@ print_tainted()
 #include <wl_iw.h>
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len);
 extern void dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg);
 extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode);
+
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+#include <linux/earlysuspend.h>
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 
 /* Interface control information */
@@ -495,10 +496,7 @@ extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-
-int dhd_set_suspend(int value, dhd_pub_t *dhd)
+static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 	int power_mode = PM_MAX;
 	/* wl_pkt_filter_enable_t	enable_parm; */
@@ -510,10 +508,10 @@ int dhd_set_suspend(int value, dhd_pub_t *dhd)
 	int i;
 
 #define htod32(i) i
+	DHD_TRACE(("%s: enter, value = %d\n", __FUNCTION__, value));
 
-	if (dhd && (dhd->up && !dhd->suspend_disable_flag)) {
-		dhd_os_proto_block(dhd);
-		if (value) {
+	if (dhd && dhd->up) {
+		if (value && dhd->in_suspend) {
 
 			/* Kernel suspended */
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_PM,
@@ -564,30 +562,43 @@ int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 #endif /* CUSTOMER_HW2 */
 		}
-		dhd_os_proto_unblock(dhd);
 	}
 
 	return 0;
 }
 
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+static void dhd_suspend_resume_helper(struct dhd_info *dhd, int val)
+{
+	dhd_pub_t *dhdp = &dhd->pub;
+
+	dhd_os_wake_lock(dhdp);
+	dhd_os_proto_block(dhdp);
+	dhdp->in_suspend = val;
+	if (!dhdp->suspend_disable_flag)
+		dhd_set_suspend(val, dhdp);
+	dhd_os_proto_unblock(dhdp);
+	dhd_os_wake_unlock(dhdp);
+}
+
 static void dhd_early_suspend(struct early_suspend *h)
 {
-	struct dhd_info *dhdp;
-	dhdp = container_of(h, struct dhd_info, early_suspend);
+	struct dhd_info *dhd = container_of(h, struct dhd_info, early_suspend);
 
 	DHD_TRACE(("%s: enter\n", __FUNCTION__));
 
-	dhd_set_suspend(1, &dhdp->pub);
+	if (dhd)
+		dhd_suspend_resume_helper(dhd, 1);
 }
 
 static void dhd_late_resume(struct early_suspend *h)
 {
-	struct dhd_info *dhdp;
-	dhdp = container_of(h, struct dhd_info, early_suspend);
+	struct dhd_info *dhd = container_of(h, struct dhd_info, early_suspend);
 
 	DHD_TRACE(("%s: enter\n", __FUNCTION__));
 
-	dhd_set_suspend(0, &dhdp->pub);
+	if (dhd)
+		dhd_suspend_resume_helper(dhd, 0);
 }
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 
@@ -3056,8 +3067,24 @@ int net_os_wake_unlock(struct net_device *dev)
 int net_os_set_suspend_disable(struct net_device *dev, int val)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	int ret = 0;
 
-	if (dhd)
+	if (dhd) {
+		ret = dhd->pub.suspend_disable_flag;
 		dhd->pub.suspend_disable_flag = val;
-	return 0;
+	}
+	return ret;
+}
+
+int net_os_set_suspend(struct net_device *dev, int val)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	int ret = 0;
+
+	if (dhd) {
+		dhd_os_proto_block(&dhd->pub);
+		ret = dhd_set_suspend(val, &dhd->pub);
+		dhd_os_proto_unblock(&dhd->pub);
+	}
+	return ret;
 }
