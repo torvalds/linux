@@ -218,13 +218,22 @@ over a rather long period of time, but improvements are always welcome!
 	include:
 
 	a.	Keeping a count of the number of data-structure elements
-		used by the RCU-protected data structure, including those
-		waiting for a grace period to elapse.  Enforce a limit
-		on this number, stalling updates as needed to allow
-		previously deferred frees to complete.
+		used by the RCU-protected data structure, including
+		those waiting for a grace period to elapse.  Enforce a
+		limit on this number, stalling updates as needed to allow
+		previously deferred frees to complete.	Alternatively,
+		limit only the number awaiting deferred free rather than
+		the total number of elements.
 
-		Alternatively, limit only the number awaiting deferred
-		free rather than the total number of elements.
+		One way to stall the updates is to acquire the update-side
+		mutex.	(Don't try this with a spinlock -- other CPUs
+		spinning on the lock could prevent the grace period
+		from ever ending.)  Another way to stall the updates
+		is for the updates to use a wrapper function around
+		the memory allocator, so that this wrapper function
+		simulates OOM when there is too much memory awaiting an
+		RCU grace period.  There are of course many other
+		variations on this theme.
 
 	b.	Limiting update rate.  For example, if updates occur only
 		once per hour, then no explicit rate limiting is required,
