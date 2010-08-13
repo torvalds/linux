@@ -2792,8 +2792,10 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	pte_t entry;
 
-	if (check_stack_guard_page(vma, address) < 0)
+	if (check_stack_guard_page(vma, address) < 0) {
+		pte_unmap(page_table);
 		return VM_FAULT_SIGBUS;
+	}
 
 	if (!(flags & FAULT_FLAG_WRITE)) {
 		entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
