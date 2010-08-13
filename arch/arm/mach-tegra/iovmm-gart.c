@@ -347,5 +347,5 @@ static struct tegra_iovmm_domain *gart_alloc_domain(
 	return &gart->domain;
 }
 
-module_init(gart_init);
+subsys_initcall(gart_init);
 module_exit(gart_exit);
