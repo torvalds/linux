@@ -285,7 +285,7 @@ static int hist_entry__tty_annotate(struct hist_entry *he)
 	LIST_HEAD(head);
 	struct objdump_line *pos, *n;
 
-	if (hist_entry__annotate(he, &head) < 0)
+	if (hist_entry__annotate(he, &head, 0) < 0)
 		return -1;
 
 	if (full_paths)

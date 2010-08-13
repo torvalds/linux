@@ -1,13 +1,16 @@
 #include "builtin.h"
 
-#include "util/util.h"
+#include "perf.h"
 #include "util/cache.h"
+#include "util/debug.h"
+#include "util/exec_cmd.h"
+#include "util/header.h"
+#include "util/parse-options.h"
+#include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
-#include "util/header.h"
-#include "util/exec_cmd.h"
 #include "util/trace-event.h"
-#include "util/session.h"
+#include "util/util.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -58,14 +61,6 @@ static int cleanup_scripting(void)
 
 	return scripting_ops->stop_script();
 }
-
-#include "util/parse-options.h"
-
-#include "perf.h"
-#include "util/debug.h"
-
-#include "util/trace-event.h"
-#include "util/exec_cmd.h"
 
 static char const		*input_name = "perf.data";
 
