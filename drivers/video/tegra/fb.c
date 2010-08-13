@@ -212,6 +212,10 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 	tegra_dc_update_windows(&tegra_fb->win, 1);
 	tegra_dc_sync_windows(&tegra_fb->win, 1);
 
+	if (tegra_fb->win->cur_handle)
+		nvmap_unpin((struct nvmap_handle **) &tegra_fb->win->cur_handle, 1);
+	tegra_fb->win->cur_handle = args->buff_id;
+
 	return 0;
 }
 

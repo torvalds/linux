@@ -98,6 +98,8 @@ struct tegra_dc_win {
 
 	int			dirty;
 	struct tegra_dc		*dc;
+
+	unsigned long		cur_handle;
 };
 
 #define TEGRA_WIN_FLAG_ENABLED		(1 << 0)
