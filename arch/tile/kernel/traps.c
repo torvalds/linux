@@ -128,7 +128,9 @@ static int special_ill(bundle_bits bundle, int *sigp, int *codep)
 #ifdef __tilegx__
 	if ((bundle & TILEGX_BUNDLE_MODE_MASK) != 0)
 		return 0;
-	if (get_Opcode_X1(bundle) != UNARY_OPCODE_X1)
+	if (get_Opcode_X1(bundle) != RRR_0_OPCODE_X1)
+		return 0;
+	if (get_RRROpcodeExtension_X1(bundle) != UNARY_RRR_0_OPCODE_X1)
 		return 0;
 	if (get_UnaryOpcodeExtension_X1(bundle) != ILL_UNARY_OPCODE_X1)
 		return 0;
