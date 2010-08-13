@@ -885,7 +885,12 @@ static void __init tegra_stingray_init(void)
 	}
 
 	/* Enable charge LEDs */
-	if (stingray_revision() >= STINGRAY_REVISION_P0) {
+	if (stingray_revision() >= STINGRAY_REVISION_P2) {
+		tegra_gpio_enable(TEGRA_GPIO_PV0);
+		gpio_request(TEGRA_GPIO_PV0, "chg_led_disable");
+		gpio_direction_output(TEGRA_GPIO_PV0, 0);
+		gpio_export(TEGRA_GPIO_PV0, false);
+	} else if (stingray_revision() >= STINGRAY_REVISION_P0) {
 		/* Set the SYS_CLK_REQ override bit to allow PZ5 to be used
 		   as a GPIO. */
 		writel(0, IO_TO_VIRT(TEGRA_PMC_BASE + 0x01C));
