@@ -808,6 +808,7 @@ xirc2ps_config(struct pcmcia_device * link)
     }
 
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+    link->io_lines = 10;
     if (local->modem) {
 	int pass;
 
@@ -839,7 +840,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->io_lines = 10;
 	link->resource[0]->end = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->resource[0]->start = ioaddr;
