@@ -167,7 +167,7 @@ static struct s3c2410_ts_mach_info smartq_touchscreen_pdata __initdata = {
 
 static struct s3c_sdhci_platdata smartq_internal_hsmmc_pdata = {
 	.max_width		= 4,
-	/*.broken_card_detection	= true,*/
+	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
 static struct s3c_hwmon_pdata smartq_hwmon_pdata __initdata = {
