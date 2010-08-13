@@ -32,6 +32,7 @@ struct pvr_s {
 #define PVR0_USE_DCACHE_MASK		0x01000000
 #define PVR0_USE_MMU			0x00800000
 #define PVR0_USE_BTC			0x00400000
+#define PVR0_ENDI			0x00200000
 #define PVR0_VERSION_MASK		0x0000FF00
 #define PVR0_USER1_MASK			0x000000FF
 
@@ -209,6 +210,8 @@ struct pvr_s {
 #define PVR_MMU_TLB_ACCESS(pvr)	(pvr.pvr[11] & PVR11_MMU_TLB_ACCESS)
 #define PVR_MMU_ZONES(pvr)	(pvr.pvr[11] & PVR11_MMU_ZONES)
 
+/* endian */
+#define PVR_ENDIAN(pvr)	(pvr.pvr[0] & PVR0_ENDI)
 
 int cpu_has_pvr(void);
 void get_pvr(struct pvr_s *pvr);

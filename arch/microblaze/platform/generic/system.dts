@@ -85,6 +85,7 @@
 			xlnx,dynamic-bus-sizing = <0x1>;
 			xlnx,edge-is-positive = <0x1>;
 			xlnx,family = "virtex5";
+			xlnx,endianness = <0x1>;
 			xlnx,fpu-exception = <0x1>;
 			xlnx,fsl-data-size = <0x20>;
 			xlnx,fsl-exception = <0x0>;
