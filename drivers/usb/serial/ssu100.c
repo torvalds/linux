@@ -602,7 +602,8 @@ static void ssu100_update_msr(struct usb_serial_port *port, u8 msr)
 	}
 }
 
-static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr)
+static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
+			      char *tty_flag)
 {
 	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
@@ -611,16 +612,32 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr)
 	priv->shadowLSR = lsr;
 	spin_unlock_irqrestore(&priv->status_lock, flags);
 
+	*tty_flag = TTY_NORMAL;
 	if (lsr & UART_LSR_BRK_ERROR_BITS) {
-		if (lsr & UART_LSR_BI)
+		/* we always want to update icount, but we only want to
+		 * update tty_flag for one case */
+		if (lsr & UART_LSR_BI) {
 			priv->icount.brk++;
-		if (lsr & UART_LSR_FE)
-			priv->icount.frame++;
-		if (lsr & UART_LSR_PE)
+			*tty_flag = TTY_BREAK;
+			usb_serial_handle_break(port);
+		}
+		if (lsr & UART_LSR_PE) {
 			priv->icount.parity++;
-		if (lsr & UART_LSR_OE)
+			if (*tty_flag == TTY_NORMAL)
+				*tty_flag = TTY_PARITY;
+		}
+		if (lsr & UART_LSR_FE) {
+			priv->icount.frame++;
+			if (*tty_flag == TTY_NORMAL)
+				*tty_flag = TTY_FRAME;
+		}
+		if (lsr & UART_LSR_OE){
 			priv->icount.overrun++;
+			if (*tty_flag == TTY_NORMAL)
+				*tty_flag = TTY_OVERRUN;
+		}
 	}
+
 }
 
 static int ssu100_process_packet(struct tty_struct *tty,
@@ -629,7 +646,7 @@ static int ssu100_process_packet(struct tty_struct *tty,
 				 char *packet, int len)
 {
 	int i;
-	char flag;
+	char flag = TTY_NORMAL;
 	char *ch;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -637,8 +654,11 @@ static int ssu100_process_packet(struct tty_struct *tty,
 	if ((len >= 4) &&
 	    (packet[0] == 0x1b) && (packet[1] == 0x1b) &&
 	    ((packet[2] == 0x00) || (packet[2] == 0x01))) {
-		if (packet[2] == 0x00)
-			ssu100_update_lsr(port, packet[3]);
+		if (packet[2] == 0x00) {
+			ssu100_update_lsr(port, packet[3], &flag);
+			if (flag == TTY_OVERRUN)
+				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 		if (packet[2] == 0x01)
 			ssu100_update_msr(port, packet[3]);
 
