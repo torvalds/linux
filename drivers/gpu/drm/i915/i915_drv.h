@@ -264,6 +264,9 @@ typedef struct drm_i915_private {
 	int front_offset;
 	int current_page;
 	int page_flipping;
+#define I915_DEBUG_READ (1<<0)
+#define I915_DEBUG_WRITE (1<<1)
+	unsigned long debug_flags;
 
 	wait_queue_head_t irq_queue;
 	atomic_t irq_received;
@@ -1100,8 +1103,26 @@ extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_ove
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#define I915_READ(reg)          readl(dev_priv->regs + (reg))
-#define I915_WRITE(reg, val)     writel(val, dev_priv->regs + (reg))
+static inline u32 i915_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val;
+
+	val = readl(dev_priv->regs + reg);
+	if (dev_priv->debug_flags & I915_DEBUG_READ)
+		printk(KERN_ERR "read 0x%08x from 0x%08x\n", val, reg);
+	return val;
+}
+
+static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
+			      u32 val)
+{
+	writel(val, dev_priv->regs + reg);
+	if (dev_priv->debug_flags & I915_DEBUG_WRITE)
+		printk(KERN_ERR "wrote 0x%08x to 0x%08x\n", val, reg);
+}
+
+#define I915_READ(reg)          i915_read(dev_priv, (reg))
+#define I915_WRITE(reg, val)    i915_write(dev_priv, (reg), (val))
 #define I915_READ16(reg)	readw(dev_priv->regs + (reg))
 #define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
 #define I915_READ8(reg)		readb(dev_priv->regs + (reg))
@@ -1110,6 +1131,11 @@ extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_ove
 #define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16(reg)
+
+#define I915_DEBUG_ENABLE_IO() (dev_priv->debug_flags |= I915_DEBUG_READ | \
+				I915_DEBUG_WRITE)
+#define I915_DEBUG_DISABLE_IO() (dev_priv->debug_flags &= ~(I915_DEBUG_READ | \
+							    I915_DEBUG_WRITE))
 
 #define I915_VERBOSE 0
 
