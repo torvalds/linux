@@ -53,6 +53,7 @@
 #define SPIFMT_WDELAY_MASK	0x3f000000u
 #define SPIFMT_WDELAY_SHIFT	24
 #define SPIFMT_CHARLEN_MASK	0x0000001Fu
+#define SPIFMT_PRESCALE_SHIFT	8
 
 
 /* SPIPC0 */
@@ -267,6 +268,29 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 }
 
 /**
+ * davinci_spi_get_prescale - Calculates the correct prescale value
+ * @maxspeed_hz: the maximum rate the SPI clock can run at
+ *
+ * This function calculates the prescale value that generates a clock rate
+ * less than or equal to the specified maximum.
+ *
+ * Returns: calculated prescale - 1 for easy programming into SPI registers
+ * or negative error number if valid prescalar cannot be updated.
+ */
+static inline int davinci_spi_get_prescale(struct davinci_spi *davinci_spi,
+							u32 max_speed_hz)
+{
+	int ret;
+
+	ret = DIV_ROUND_UP(clk_get_rate(davinci_spi->clk), max_speed_hz);
+
+	if (ret < 3 || ret > 256)
+		return -EINVAL;
+
+	return ret - 1;
+}
+
+/**
  * davinci_spi_setup_transfer - This functions will determine transfer method
  * @spi: spi device on which data transfer to be done
  * @t: spi transfer in which transfer info is filled
@@ -281,7 +305,7 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 
 	struct davinci_spi *davinci_spi;
 	u8 bits_per_word = 0;
-	u32 hz = 0, prescale = 0, clkspeed;
+	u32 hz = 0, prescale = 0;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 
@@ -312,21 +336,18 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	if (!hz)
 		hz = spi->max_speed_hz;
 
+	prescale = davinci_spi_get_prescale(davinci_spi, hz);
+	if (prescale < 0)
+		return prescale;
+
 	clear_fmt_bits(davinci_spi->base, SPIFMT_CHARLEN_MASK,
 			spi->chip_select);
 	set_fmt_bits(davinci_spi->base, bits_per_word & 0x1f,
 			spi->chip_select);
 
-	clkspeed = clk_get_rate(davinci_spi->clk);
-	if (hz > clkspeed / 2)
-		prescale = 1 << 8;
-	if (hz < clkspeed / 256)
-		prescale = 255 << 8;
-	if (!prescale)
-		prescale = ((clkspeed / hz - 1) << 8) & 0x0000ff00;
-
 	clear_fmt_bits(davinci_spi->base, 0x0000ff00, spi->chip_select);
-	set_fmt_bits(davinci_spi->base, prescale, spi->chip_select);
+	set_fmt_bits(davinci_spi->base,
+			prescale << SPIFMT_PRESCALE_SHIFT, spi->chip_select);
 
 	return 0;
 }
@@ -413,10 +434,8 @@ static int davinci_spi_setup(struct spi_device *spi)
 	int retval;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
-	struct device *sdev;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	sdev = davinci_spi->bitbang.master->dev.parent;
 
 	/* if bits per word length is zero then set it default 8 */
 	if (!spi->bits_per_word)
@@ -433,16 +452,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 			if (retval < 0)
 				return retval;
 		}
-	}
-
-	/*
-	 * SPI in DaVinci and DA8xx operate between
-	 * 600 KHz and 50 MHz
-	 */
-	if (spi->max_speed_hz < 600000 || spi->max_speed_hz > 50000000) {
-		dev_dbg(sdev, "Operating frequency is not in acceptable "
-				"range\n");
-		return -EINVAL;
 	}
 
 	/*
