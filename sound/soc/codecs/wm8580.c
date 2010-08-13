@@ -94,6 +94,8 @@
 
 #define WM8580_MAX_REGISTER                  0x35
 
+#define WM8580_DACOSR 0x40
+
 /* PLLB4 (register 7h) */
 #define WM8580_PLLB4_MCLKOUTSRC_MASK   0x60
 #define WM8580_PLLB4_MCLKOUTSRC_PLLA   0x20
@@ -481,7 +483,7 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
 	u16 paifa = 0;
 	u16 paifb = 0;
-	int i, ratio;
+	int i, ratio, osr;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -517,6 +519,22 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 	paifa |= i;
 	dev_dbg(codec->dev, "Running at %dfs with %dHz clock\n",
 		wm8580_sysclk_ratios[i], wm8580->sysclk[dai->driver->id]);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (ratio) {
+		case 128:
+		case 192:
+			osr = WM8580_DACOSR;
+			dev_dbg(codec->dev, "Selecting 64x OSR\n");
+			break;
+		default:
+			osr = 0;
+			dev_dbg(codec->dev, "Selecting 128x OSR\n");
+			break;
+		}
+
+		snd_soc_update_bits(codec, WM8580_PAIF3, WM8580_DACOSR, osr);
+	}
 
 	snd_soc_update_bits(codec, WM8580_PAIF1 + dai->driver->id,
 			    WM8580_AIF_RATE_MASK | WM8580_AIF_BCLKSEL_MASK,
