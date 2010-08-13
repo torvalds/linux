@@ -133,13 +133,6 @@ static inline int rcu_needs_cpu(int cpu)
 	return rcu_preempt_needs_cpu();
 }
 
-/*
- * Defined as macro as it is a very low level header
- * included from areas that don't even know about current
- * FIXME: combine with include/linux/rcutree.h into rcupdate.h.
- */
-#define rcu_preempt_depth() (current->rcu_read_lock_nesting)
-
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 static inline void rcu_note_context_switch(int cpu)

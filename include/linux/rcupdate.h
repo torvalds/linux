@@ -47,6 +47,9 @@
 extern int rcutorture_runnable; /* for sysctl */
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
+#define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
+#define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
+
 /**
  * struct rcu_head - callback structure for use with RCU
  * @next: next update requests in a list
@@ -65,6 +68,18 @@ extern int sched_expedited_torture_stats(char *page);
 
 /* Internal to kernel */
 extern void rcu_init(void);
+
+#ifdef CONFIG_PREEMPT_RCU
+
+/*
+ * Defined as a macro as it is a very low level header included from
+ * areas that don't even know about current.  This gives the rcu_read_lock()
+ * nesting depth, but makes sense only if CONFIG_PREEMPT_RCU -- in other
+ * types of kernel builds, the rcu_read_lock() nesting depth is unknowable.
+ */
+#define rcu_preempt_depth() (current->rcu_read_lock_nesting)
+
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 #include <linux/rcutree.h>

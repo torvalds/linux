@@ -26,10 +26,6 @@
 
 #include <linux/delay.h>
 
-/* FIXME: merge with definitions in kernel/rcutree.h. */
-#define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
-#define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
-
 /* Global control variables for preemptible RCU. */
 struct rcu_preempt_ctrlblk {
 	struct rcu_ctrlblk rcb;	/* curtail: ->next ptr of last CB for GP. */

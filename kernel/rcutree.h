@@ -272,9 +272,6 @@ struct rcu_data {
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
-#define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
-#define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
-
 /*
  * RCU global state, including node hierarchy.  This hierarchy is
  * represented in "heap" form in a dense array.  The root (first level)
