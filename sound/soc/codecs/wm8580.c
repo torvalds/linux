@@ -112,19 +112,7 @@
 
 /* AIF control 1 (registers 9h-bh) */
 #define WM8580_AIF_RATE_MASK       0x7
-#define WM8580_AIF_RATE_128        0x0
-#define WM8580_AIF_RATE_192        0x1
-#define WM8580_AIF_RATE_256        0x2
-#define WM8580_AIF_RATE_384        0x3
-#define WM8580_AIF_RATE_512        0x4
-#define WM8580_AIF_RATE_768        0x5
-#define WM8580_AIF_RATE_1152       0x6
-
 #define WM8580_AIF_BCLKSEL_MASK   0x18
-#define WM8580_AIF_BCLKSEL_64     0x00
-#define WM8580_AIF_BCLKSEL_128    0x08
-#define WM8580_AIF_BCLKSEL_256    0x10
-#define WM8580_AIF_BCLKSEL_SYSCLK 0x18
 
 #define WM8580_AIF_MS             0x20
 
