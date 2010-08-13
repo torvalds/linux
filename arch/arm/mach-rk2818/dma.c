@@ -726,6 +726,7 @@ static int __init rk28_dma_init(void)
         rk2818_dma[i].residue = 0;
         rk2818_dma[i].length = 0;
         rk2818_dma[i].tasklet_flag = 0;
+		spin_lock_init(&rk2818_dma[i].lock);
 	}
     	
 	/* clear all interrupts */
