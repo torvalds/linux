@@ -266,13 +266,15 @@ static int hiddev_open(struct inode *inode, struct file *file)
 {
 	struct hiddev_list *list;
 	struct usb_interface *intf;
+	struct hid_device *hid;
 	struct hiddev *hiddev;
 	int res;
 
 	intf = usb_find_interface(&hiddev_driver, iminor(inode));
 	if (!intf)
 		return -ENODEV;
-	hiddev = usb_get_intfdata(intf);
+	hid = usb_get_intfdata(intf);
+	hiddev = hid->hiddev;
 
 	if (!(list = kzalloc(sizeof(struct hiddev_list), GFP_KERNEL)))
 		return -ENOMEM;
@@ -890,7 +892,6 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hid->hiddev = hiddev;
 	hiddev->hid = hid;
 	hiddev->exist = 1;
-	usb_set_intfdata(usbhid->intf, usbhid);
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
 		err_hid("Not able to get a minor for this device.");
