@@ -614,7 +614,7 @@ sys32_sysfs_wrapper:
 
 	.globl	sys32_personality_wrapper
 sys32_personality_wrapper:
-	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r2,%r2			# unsigned int
 	jg	sys_s390_personality	# branch to system call
 
 	.globl	sys32_setfsuid16_wrapper
