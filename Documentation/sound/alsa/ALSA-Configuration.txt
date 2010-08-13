@@ -1709,20 +1709,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This card is also known as Audio Excel DSP 16 or Zoltrix AV302.
 
-  Module snd-sgalaxy
-  ------------------
-
-    Module for Aztech Sound Galaxy sound card.
-
-    sbport	- Port # for SB16 interface (0x220,0x240)
-    wssport	- Port # for WSS interface (0x530,0xe80,0xf40,0x604)
-    irq		- IRQ # (7,9,10,11)
-    dma1	- DMA #
-
-    This module supports multiple cards.
-
-    The power-management is supported.
-
   Module snd-sscape
   -----------------
 

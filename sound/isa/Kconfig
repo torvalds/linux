@@ -377,16 +377,6 @@ config SND_SB16_CSP
 	  coprocessor can do variable tasks like various compression and
 	  decompression algorithms.
 
-config SND_SGALAXY
-	tristate "Aztech Sound Galaxy"
-	select SND_WSS_LIB
-	help
-	  Say Y here to include support for Aztech Sound Galaxy
-	  soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sgalaxy.
-
 config SND_SSCAPE
 	tristate "Ensoniq SoundScape driver"
 	select SND_MPU401_UART
