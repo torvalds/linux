@@ -221,7 +221,7 @@ nvc0_instmem_init(struct drm_device *dev)
 	/*XXX: incorrect, but needed to make hash func "work" */
 	dev_priv->ramht_offset = 0x10000;
 	dev_priv->ramht_bits   = 9;
-	dev_priv->ramht_size   = (1 << dev_priv->ramht_bits);
+	dev_priv->ramht_size   = (1 << dev_priv->ramht_bits) * 8;
 	return 0;
 }
 
