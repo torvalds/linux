@@ -485,9 +485,8 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
-	u16 paifb = snd_soc_read(codec, WM8580_PAIF3 + dai->driver->id);
+	u16 paifb = 0;
 
-	paifb &= ~WM8580_AIF_LENGTH_MASK;
 	/* bit size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -505,7 +504,8 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, WM8580_PAIF3 + dai->driver->id, paifb);
+	snd_soc_update_bits(codec, WM8580_PAIF3 + dai->driver->id,
+			    WM8580_AIF_LENGTH_MASK, paifb);
 	return 0;
 }
 
