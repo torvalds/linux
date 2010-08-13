@@ -567,6 +567,14 @@ do_sigbus:
  * since that might indicate we have not yet squirreled the SPR
  * contents away and can thus safely take a recursive interrupt.
  * Accordingly, the hypervisor passes us the PC via SYSTEM_SAVE_1_2.
+ *
+ * Note that this routine is called before homecache_tlb_defer_enter(),
+ * which means that we can properly unlock any atomics that might
+ * be used there (good), but also means we must be very sensitive
+ * to not touch any data structures that might be located in memory
+ * that could migrate, as we could be entering the kernel on a dataplane
+ * cpu that has been deferring kernel TLB updates.  This means, for
+ * example, that we can't migrate init_mm or its pgd.
  */
 struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 				      unsigned long address,

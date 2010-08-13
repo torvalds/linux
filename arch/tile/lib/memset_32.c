@@ -141,7 +141,6 @@ void *memset(void *s, int c, size_t n)
 			 */
 			__insn_prefetch(&out32[ahead32]);
 
-#if 1
 #if CACHE_LINE_SIZE_IN_WORDS % 4 != 0
 #error "Unhandled CACHE_LINE_SIZE_IN_WORDS"
 #endif
@@ -157,30 +156,6 @@ void *memset(void *s, int c, size_t n)
 				*out32++ = v32;
 				*out32++ = v32;
 			}
-#else
-			/* Unfortunately, due to a code generator flaw this
-			 * allocates a separate register for each of these
-			 * stores, which requires a large number of spills,
-			 * which makes this procedure enormously bigger
-			 * (something like 70%)
-			 */
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			*out32++ = v32;
-			n32 -= 16;
-#endif
 
 			/* To save compiled code size, reuse this loop even
 			 * when we run out of prefetching to do by dropping

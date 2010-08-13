@@ -532,11 +532,11 @@ void hv_disable_intr(HV_IntrMask disab_mask);
  */
 void hv_clear_intr(HV_IntrMask clear_mask);
 
-/** Assert a set of device interrupts.
+/** Raise a set of device interrupts.
  *
- * @param assert_mask Bitmap of interrupts to clear.
+ * @param raise_mask Bitmap of interrupts to raise.
  */
-void hv_assert_intr(HV_IntrMask assert_mask);
+void hv_raise_intr(HV_IntrMask raise_mask);
 
 /** Trigger a one-shot interrupt on some tile
  *
@@ -1712,7 +1712,7 @@ typedef struct
  * @param cache_control This argument allows you to specify a length of
  *        physical address space to flush (maximum HV_FLUSH_MAX_CACHE_LEN).
  *        You can "or" in HV_FLUSH_EVICT_L2 to flush the whole L2 cache.
- *        You can "or" in HV_FLUSH_EVICT_LI1 to flush the whole LII cache.
+ *        You can "or" in HV_FLUSH_EVICT_L1I to flush the whole L1I cache.
  *        HV_FLUSH_ALL flushes all caches.
  * @param cache_cpumask Bitmask (in row-major order, supervisor-relative) of
  *        tile indices to perform cache flush on.  The low bit of the first
