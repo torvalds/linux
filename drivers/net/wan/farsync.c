@@ -885,20 +885,21 @@ fst_rx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
  *      Receive a frame through the DMA
  */
 static inline void
-fst_rx_dma(struct fst_card_info *card, unsigned char *skb,
-	   unsigned char *mem, int len)
+fst_rx_dma(struct fst_card_info *card, dma_addr_t skb,
+	   dma_addr_t mem, int len)
 {
 	/*
 	 * This routine will setup the DMA and start it
 	 */
 
-	dbg(DBG_RX, "In fst_rx_dma %p %p %d\n", skb, mem, len);
+	dbg(DBG_RX, "In fst_rx_dma %lx %lx %d\n",
+	    (unsigned long) skb, (unsigned long) mem, len);
 	if (card->dmarx_in_progress) {
 		dbg(DBG_ASS, "In fst_rx_dma while dma in progress\n");
 	}
 
-	outl((unsigned long) skb, card->pci_conf + DMAPADR0);	/* Copy to here */
-	outl((unsigned long) mem, card->pci_conf + DMALADR0);	/* from here */
+	outl(skb, card->pci_conf + DMAPADR0);	/* Copy to here */
+	outl(mem, card->pci_conf + DMALADR0);	/* from here */
 	outl(len, card->pci_conf + DMASIZ0);	/* for this length */
 	outl(0x00000000c, card->pci_conf + DMADPR0);	/* In this direction */
 
@@ -1309,8 +1310,8 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 		card->dma_port_rx = port;
 		card->dma_len_rx = len;
 		card->dma_rxpos = rxp;
-		fst_rx_dma(card, (char *) card->rx_dma_handle_card,
-			   (char *) BUF_OFFSET(rxBuffer[pi][rxp][0]), len);
+		fst_rx_dma(card, card->rx_dma_handle_card,
+			   BUF_OFFSET(rxBuffer[pi][rxp][0]), len);
 	}
 	if (rxp != port->rxpos) {
 		dbg(DBG_ASS, "About to increment rxpos by more than 1\n");
