@@ -831,6 +831,60 @@ static void ironlake_edp_backlight_off (struct drm_device *dev)
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
 
+static void ironlake_edp_pll_on(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpa_ctl;
+
+	DRM_DEBUG_KMS("\n");
+	dpa_ctl = I915_READ(DP_A);
+	dpa_ctl &= ~DP_PLL_ENABLE;
+	I915_WRITE(DP_A, dpa_ctl);
+}
+
+static void ironlake_edp_pll_off(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpa_ctl;
+
+	dpa_ctl = I915_READ(DP_A);
+	dpa_ctl |= DP_PLL_ENABLE;
+	I915_WRITE(DP_A, dpa_ctl);
+	udelay(200);
+}
+
+static void intel_dp_prepare(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
+
+	if (IS_eDP(intel_dp)) {
+		ironlake_edp_backlight_off(dev);
+		ironlake_edp_panel_on(dev);
+		ironlake_edp_pll_on(encoder);
+	}
+	if (dp_reg & DP_PORT_EN)
+		intel_dp_link_down(intel_dp);
+}
+
+static void intel_dp_commit(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
+
+	if (!(dp_reg & DP_PORT_EN)) {
+		intel_dp_link_train(intel_dp);
+	}
+	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
+		ironlake_edp_backlight_on(dev);
+}
+
 static void
 intel_dp_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -846,6 +900,8 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		}
 		if (dp_reg & DP_PORT_EN)
 			intel_dp_link_down(intel_dp);
+		if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
+			ironlake_edp_pll_off(encoder);
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
 			if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
@@ -1427,9 +1483,9 @@ intel_dp_destroy (struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 	.dpms = intel_dp_dpms,
 	.mode_fixup = intel_dp_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_dp_prepare,
 	.mode_set = intel_dp_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_dp_commit,
 };
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {

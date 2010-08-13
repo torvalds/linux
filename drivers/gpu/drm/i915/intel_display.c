@@ -1622,32 +1622,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void ironlake_disable_pll_edp (struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 dpa_ctl;
-
-	DRM_DEBUG_KMS("\n");
-	dpa_ctl = I915_READ(DP_A);
-	dpa_ctl &= ~DP_PLL_ENABLE;
-	I915_WRITE(DP_A, dpa_ctl);
-}
-
-static void ironlake_enable_pll_edp (struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 dpa_ctl;
-
-	dpa_ctl = I915_READ(DP_A);
-	dpa_ctl |= DP_PLL_ENABLE;
-	I915_WRITE(DP_A, dpa_ctl);
-	POSTING_READ(DP_A);
-	udelay(200);
-}
-
-
 static void ironlake_set_pll_edp (struct drm_crtc *crtc, int clock)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1940,10 +1914,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			}
 		}
 
-		if (HAS_eDP) {
-			/* enable eDP PLL */
-			ironlake_enable_pll_edp(crtc);
-		} else {
+		if (!HAS_eDP) {
 
 			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 			temp = I915_READ(fdi_rx_reg);
@@ -2241,10 +2212,6 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		temp = I915_READ(pch_dpll_reg);
 		I915_WRITE(pch_dpll_reg, temp & ~DPLL_VCO_ENABLE);
 		I915_READ(pch_dpll_reg);
-
-		if (HAS_eDP) {
-			ironlake_disable_pll_edp(crtc);
-		}
 
 		/* Switch from PCDclk to Rawclk */
 		temp = I915_READ(fdi_rx_reg);
@@ -3930,9 +3897,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll_reg = pch_dpll_reg;
 	}
 
-	if (is_edp) {
-		ironlake_disable_pll_edp(crtc);
-	} else if ((dpll & DPLL_VCO_ENABLE)) {
+	if (!is_edp) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 		I915_READ(dpll_reg);
