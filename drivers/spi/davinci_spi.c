@@ -66,7 +66,7 @@
 #define SPI_INTLVL_0		0x00000000u
 
 /* SPIDAT1 */
-#define SPIDAT1_CSHOLD_SHIFT	28
+#define SPIDAT1_CSHOLD_MASK	BIT(28)
 #define SPIDAT1_CSNR_SHIFT	16
 #define SPIGCR1_CLKMOD_MASK	BIT(1)
 #define SPIGCR1_MASTER_MASK     BIT(0)
@@ -235,7 +235,8 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 {
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_platform_data *pdata;
-	u32 data1_reg_val = 0;
+	u32 data1_reg_val;
+	u8 chip_sel = spi->chip_select;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
@@ -244,14 +245,17 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 * Board specific chip select logic decides the polarity and cs
 	 * line for the controller
 	 */
-	if (value == BITBANG_CS_INACTIVE) {
-		data1_reg_val |= CS_DEFAULT << SPIDAT1_CSNR_SHIFT;
-		iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
-
-		while ((ioread32(davinci_spi->base + SPIBUF)
-					& SPIBUF_RXEMPTY_MASK) == 0)
-			cpu_relax();
+	data1_reg_val = CS_DEFAULT << SPIDAT1_CSNR_SHIFT;
+	if (value == BITBANG_CS_ACTIVE) {
+		data1_reg_val |= SPIDAT1_CSHOLD_MASK;
+		data1_reg_val &= ~((0x1 << chip_sel) << SPIDAT1_CSNR_SHIFT);
 	}
+
+	iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
+	while ((ioread32(davinci_spi->base + SPIBUF)
+				& SPIBUF_RXEMPTY_MASK) == 0)
+		cpu_relax();
+
 }
 
 /**
@@ -632,7 +636,7 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
 	int int_status, count, ret;
-	u8 conv, tmp;
+	u8 conv;
 	u32 tx_data, data1_reg_val;
 	u32 buf_val, flg_val;
 	struct davinci_spi_platform_data *pdata;
@@ -646,6 +650,8 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	/* convert len to words based on bits_per_word */
 	conv = davinci_spi->slave[spi->chip_select].bytes_per_word;
 	davinci_spi->count = t->len / conv;
+
+	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
 	INIT_COMPLETION(davinci_spi->done);
 
@@ -661,16 +667,6 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 			davinci_spi->base + SPIDELAY);
 
 	count = davinci_spi->count;
-	data1_reg_val = pdata->cs_hold << SPIDAT1_CSHOLD_SHIFT;
-	tmp = ~(0x1 << spi->chip_select);
-
-	clear_io_bits(davinci_spi->base + SPIDEF, ~tmp);
-
-	data1_reg_val |= tmp << SPIDAT1_CSNR_SHIFT;
-
-	while ((ioread32(davinci_spi->base + SPIBUF)
-				& SPIBUF_RXEMPTY_MASK) == 0)
-		cpu_relax();
 
 	/* Determine the command to execute READ or WRITE */
 	if (t->tx_buf) {
@@ -770,7 +766,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	int int_status = 0;
 	int count, temp_count;
 	u8 conv = 1;
-	u8 tmp;
 	u32 data1_reg_val;
 	struct davinci_spi_dma *davinci_spi_dma;
 	int word_len, data_type, ret;
@@ -793,6 +788,8 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	/* convert len to words based on bits_per_word */
 	conv = davinci_spi->slave[spi->chip_select].bytes_per_word;
 	davinci_spi->count = t->len / conv;
+
+	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
 	INIT_COMPLETION(davinci_spi->done);
 
@@ -820,27 +817,13 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 			davinci_spi->base + SPIDELAY);
 
 	count = davinci_spi->count;	/* the number of elements */
-	data1_reg_val = pdata->cs_hold << SPIDAT1_CSHOLD_SHIFT;
-
-	/* CS default = 0xFF */
-	tmp = ~(0x1 << spi->chip_select);
-
-	clear_io_bits(davinci_spi->base + SPIDEF, ~tmp);
-
-	data1_reg_val |= tmp << SPIDAT1_CSNR_SHIFT;
 
 	/* disable all interrupts for dma transfers */
 	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
 	/* Disable SPI to write configuration bits in SPIDAT */
 	clear_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
-	iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
 	/* Enable SPI */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
-
-	while ((ioread32(davinci_spi->base + SPIBUF)
-				& SPIBUF_RXEMPTY_MASK) == 0)
-		cpu_relax();
-
 
 	if (t->tx_buf) {
 		t->tx_dma = dma_map_single(&spi->dev, (void *)t->tx_buf, count,

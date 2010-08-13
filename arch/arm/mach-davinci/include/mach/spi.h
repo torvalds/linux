@@ -33,7 +33,6 @@ struct davinci_spi_platform_data {
 	u8	wait_enable;
 	u8	timer_disable;
 	u8	clk_internal;
-	u8	cs_hold;
 	u8	intr_level;
 	u8	poll_mode;
 	u8	use_dma;
