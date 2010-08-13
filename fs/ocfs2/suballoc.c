@@ -1719,7 +1719,6 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 {
 	int status;
 	u16 chain;
-	u32 tmp_used;
 	u64 next_group;
 	struct inode *alloc_inode = ac->ac_inode;
 	struct buffer_head *group_bh = NULL;
@@ -1807,21 +1806,13 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		}
 	}
 
-	/* Ok, claim our bits now: set the info on dinode, chainlist
-	 * and then the group */
-	status = ocfs2_journal_access_di(handle,
-					 INODE_CACHE(alloc_inode),
-					 ac->ac_bh,
-					 OCFS2_JOURNAL_ACCESS_WRITE);
-	if (status < 0) {
+	status = ocfs2_alloc_dinode_update_counts(alloc_inode, handle,
+						  ac->ac_bh, res->sr_bits,
+						  chain);
+	if (status) {
 		mlog_errno(status);
 		goto bail;
 	}
-
-	tmp_used = le32_to_cpu(fe->id1.bitmap1.i_used);
-	fe->id1.bitmap1.i_used = cpu_to_le32(res->sr_bits + tmp_used);
-	le32_add_cpu(&cl->cl_recs[chain].c_free, -res->sr_bits);
-	ocfs2_journal_dirty(handle, ac->ac_bh);
 
 	status = ocfs2_block_group_set_bits(handle,
 					    alloc_inode,
