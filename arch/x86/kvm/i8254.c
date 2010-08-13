@@ -742,7 +742,7 @@ fail:
 	kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	kvm_unregister_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
 	kvm_free_irq_source_id(kvm, pit->irq_source_id);
-
+	destroy_workqueue(pit->wq);
 	kfree(pit);
 	return NULL;
 }
