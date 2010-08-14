@@ -528,6 +528,10 @@ int spi_register_master(struct spi_master *master)
 		dynamic = 1;
 	}
 
+	spin_lock_init(&master->bus_lock_spinlock);
+	mutex_init(&master->bus_lock_mutex);
+	master->bus_lock_flag = 0;
+
 	/* register the device, then userspace will see it.
 	 * registration fails if the bus ID is in use.
 	 */
@@ -670,6 +674,35 @@ int spi_setup(struct spi_device *spi)
 }
 EXPORT_SYMBOL_GPL(spi_setup);
 
+static int __spi_async(struct spi_device *spi, struct spi_message *message)
+{
+	struct spi_master *master = spi->master;
+
+	/* Half-duplex links include original MicroWire, and ones with
+	 * only one data pin like SPI_3WIRE (switches direction) or where
+	 * either MOSI or MISO is missing.  They can also be caused by
+	 * software limitations.
+	 */
+	if ((master->flags & SPI_MASTER_HALF_DUPLEX)
+			|| (spi->mode & SPI_3WIRE)) {
+		struct spi_transfer *xfer;
+		unsigned flags = master->flags;
+
+		list_for_each_entry(xfer, &message->transfers, transfer_list) {
+			if (xfer->rx_buf && xfer->tx_buf)
+				return -EINVAL;
+			if ((flags & SPI_MASTER_NO_TX) && xfer->tx_buf)
+				return -EINVAL;
+			if ((flags & SPI_MASTER_NO_RX) && xfer->rx_buf)
+				return -EINVAL;
+		}
+	}
+
+	message->spi = spi;
+	message->status = -EINPROGRESS;
+	return master->transfer(spi, message);
+}
+
 /**
  * spi_async - asynchronous SPI transfer
  * @spi: device with which data will be exchanged
@@ -702,32 +735,67 @@ EXPORT_SYMBOL_GPL(spi_setup);
 int spi_async(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_master *master = spi->master;
+	int ret;
+	unsigned long flags;
 
-	/* Half-duplex links include original MicroWire, and ones with
-	 * only one data pin like SPI_3WIRE (switches direction) or where
-	 * either MOSI or MISO is missing.  They can also be caused by
-	 * software limitations.
-	 */
-	if ((master->flags & SPI_MASTER_HALF_DUPLEX)
-			|| (spi->mode & SPI_3WIRE)) {
-		struct spi_transfer *xfer;
-		unsigned flags = master->flags;
+	spin_lock_irqsave(&master->bus_lock_spinlock, flags);
 
-		list_for_each_entry(xfer, &message->transfers, transfer_list) {
-			if (xfer->rx_buf && xfer->tx_buf)
-				return -EINVAL;
-			if ((flags & SPI_MASTER_NO_TX) && xfer->tx_buf)
-				return -EINVAL;
-			if ((flags & SPI_MASTER_NO_RX) && xfer->rx_buf)
-				return -EINVAL;
-		}
-	}
+	if (master->bus_lock_flag)
+		ret = -EBUSY;
+	else
+		ret = __spi_async(spi, message);
 
-	message->spi = spi;
-	message->status = -EINPROGRESS;
-	return master->transfer(spi, message);
+	spin_unlock_irqrestore(&master->bus_lock_spinlock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_async);
+
+/**
+ * spi_async_locked - version of spi_async with exclusive bus usage
+ * @spi: device with which data will be exchanged
+ * @message: describes the data transfers, including completion callback
+ * Context: any (irqs may be blocked, etc)
+ *
+ * This call may be used in_irq and other contexts which can't sleep,
+ * as well as from task contexts which can sleep.
+ *
+ * The completion callback is invoked in a context which can't sleep.
+ * Before that invocation, the value of message->status is undefined.
+ * When the callback is issued, message->status holds either zero (to
+ * indicate complete success) or a negative error code.  After that
+ * callback returns, the driver which issued the transfer request may
+ * deallocate the associated memory; it's no longer in use by any SPI
+ * core or controller driver code.
+ *
+ * Note that although all messages to a spi_device are handled in
+ * FIFO order, messages may go to different devices in other orders.
+ * Some device might be higher priority, or have various "hard" access
+ * time requirements, for example.
+ *
+ * On detection of any fault during the transfer, processing of
+ * the entire message is aborted, and the device is deselected.
+ * Until returning from the associated message completion callback,
+ * no other spi_message queued to that device will be processed.
+ * (This rule applies equally to all the synchronous transfer calls,
+ * which are wrappers around this core asynchronous primitive.)
+ */
+int spi_async_locked(struct spi_device *spi, struct spi_message *message)
+{
+	struct spi_master *master = spi->master;
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&master->bus_lock_spinlock, flags);
+
+	ret = __spi_async(spi, message);
+
+	spin_unlock_irqrestore(&master->bus_lock_spinlock, flags);
+
+	return ret;
+
+}
+EXPORT_SYMBOL_GPL(spi_async_locked);
 
 
 /*-------------------------------------------------------------------------*/
@@ -740,6 +808,32 @@ EXPORT_SYMBOL_GPL(spi_async);
 static void spi_complete(void *arg)
 {
 	complete(arg);
+}
+
+static int __spi_sync(struct spi_device *spi, struct spi_message *message,
+		      int bus_locked)
+{
+	DECLARE_COMPLETION_ONSTACK(done);
+	int status;
+	struct spi_master *master = spi->master;
+
+	message->complete = spi_complete;
+	message->context = &done;
+
+	if (!bus_locked)
+		mutex_lock(&master->bus_lock_mutex);
+
+	status = spi_async_locked(spi, message);
+
+	if (!bus_locked)
+		mutex_unlock(&master->bus_lock_mutex);
+
+	if (status == 0) {
+		wait_for_completion(&done);
+		status = message->status;
+	}
+	message->context = NULL;
+	return status;
 }
 
 /**
@@ -765,20 +859,85 @@ static void spi_complete(void *arg)
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
-	int status;
-
-	message->complete = spi_complete;
-	message->context = &done;
-	status = spi_async(spi, message);
-	if (status == 0) {
-		wait_for_completion(&done);
-		status = message->status;
-	}
-	message->context = NULL;
-	return status;
+	return __spi_sync(spi, message, 0);
 }
 EXPORT_SYMBOL_GPL(spi_sync);
+
+/**
+ * spi_sync_locked - version of spi_sync with exclusive bus usage
+ * @spi: device with which data will be exchanged
+ * @message: describes the data transfers
+ * Context: can sleep
+ *
+ * This call may only be used from a context that may sleep.  The sleep
+ * is non-interruptible, and has no timeout.  Low-overhead controller
+ * drivers may DMA directly into and out of the message buffers.
+ *
+ * This call should be used by drivers that require exclusive access to the
+ * SPI bus. It has to be preceeded by a spi_bus_lock call. The SPI bus must
+ * be released by a spi_bus_unlock call when the exclusive access is over.
+ *
+ * It returns zero on success, else a negative error code.
+ */
+int spi_sync_locked(struct spi_device *spi, struct spi_message *message)
+{
+	return __spi_sync(spi, message, 1);
+}
+EXPORT_SYMBOL_GPL(spi_sync_locked);
+
+/**
+ * spi_bus_lock - obtain a lock for exclusive SPI bus usage
+ * @master: SPI bus master that should be locked for exclusive bus access
+ * Context: can sleep
+ *
+ * This call may only be used from a context that may sleep.  The sleep
+ * is non-interruptible, and has no timeout.
+ *
+ * This call should be used by drivers that require exclusive access to the
+ * SPI bus. The SPI bus must be released by a spi_bus_unlock call when the
+ * exclusive access is over. Data transfer must be done by spi_sync_locked
+ * and spi_async_locked calls when the SPI bus lock is held.
+ *
+ * It returns zero on success, else a negative error code.
+ */
+int spi_bus_lock(struct spi_master *master)
+{
+	unsigned long flags;
+
+	mutex_lock(&master->bus_lock_mutex);
+
+	spin_lock_irqsave(&master->bus_lock_spinlock, flags);
+	master->bus_lock_flag = 1;
+	spin_unlock_irqrestore(&master->bus_lock_spinlock, flags);
+
+	/* mutex remains locked until spi_bus_unlock is called */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_bus_lock);
+
+/**
+ * spi_bus_unlock - release the lock for exclusive SPI bus usage
+ * @master: SPI bus master that was locked for exclusive bus access
+ * Context: can sleep
+ *
+ * This call may only be used from a context that may sleep.  The sleep
+ * is non-interruptible, and has no timeout.
+ *
+ * This call releases an SPI bus lock previously obtained by an spi_bus_lock
+ * call.
+ *
+ * It returns zero on success, else a negative error code.
+ */
+int spi_bus_unlock(struct spi_master *master)
+{
+	master->bus_lock_flag = 0;
+
+	mutex_unlock(&master->bus_lock_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_bus_unlock);
 
 /* portable code must never pass more than 32 bytes */
 #define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
