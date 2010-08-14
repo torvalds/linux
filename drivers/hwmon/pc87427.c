@@ -217,9 +217,8 @@ done:
 static ssize_t show_fan_input(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct pc87427_data *data = pc87427_update_device(dev);
-	int nr = attr->index;
+	int nr = to_sensor_dev_attr(devattr)->index;
 
 	return sprintf(buf, "%lu\n", fan_from_reg(data->fan[nr]));
 }
@@ -227,9 +226,8 @@ static ssize_t show_fan_input(struct device *dev, struct device_attribute
 static ssize_t show_fan_min(struct device *dev, struct device_attribute
 			    *devattr, char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct pc87427_data *data = pc87427_update_device(dev);
-	int nr = attr->index;
+	int nr = to_sensor_dev_attr(devattr)->index;
 
 	return sprintf(buf, "%lu\n", fan_from_reg(data->fan_min[nr]));
 }
@@ -237,9 +235,8 @@ static ssize_t show_fan_min(struct device *dev, struct device_attribute
 static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct pc87427_data *data = pc87427_update_device(dev);
-	int nr = attr->index;
+	int nr = to_sensor_dev_attr(devattr)->index;
 
 	return sprintf(buf, "%d\n", !!(data->fan_status[nr]
 				       & FAN_STATUS_LOSPD));
@@ -248,9 +245,8 @@ static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
 static ssize_t show_fan_fault(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct pc87427_data *data = pc87427_update_device(dev);
-	int nr = attr->index;
+	int nr = to_sensor_dev_attr(devattr)->index;
 
 	return sprintf(buf, "%d\n", !!(data->fan_status[nr]
 				       & FAN_STATUS_STALL));
@@ -260,10 +256,12 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 			   *devattr, const char *buf, size_t count)
 {
 	struct pc87427_data *data = dev_get_drvdata(dev);
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	int nr = attr->index;
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int nr = to_sensor_dev_attr(devattr)->index;
+	unsigned long val;
 	int iobase = data->address[LD_FAN];
+
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->lock);
 	outb(BANK_FM(nr), iobase + PC87427_REG_BANK);
@@ -441,7 +439,8 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, err;
 
-	if (!(data = kzalloc(sizeof(struct pc87427_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct pc87427_data), GFP_KERNEL);
+	if (!data) {
 		err = -ENOMEM;
 		printk(KERN_ERR DRVNAME ": Out of memory\n");
 		goto exit;
@@ -464,13 +463,15 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 	pc87427_init_device(&pdev->dev);
 
 	/* Register sysfs hooks */
-	if ((err = device_create_file(&pdev->dev, &dev_attr_name)))
+	err = device_create_file(&pdev->dev, &dev_attr_name);
+	if (err)
 		goto exit_release_region;
 	for (i = 0; i < 8; i++) {
 		if (!(data->fan_enabled & (1 << i)))
 			continue;
-		if ((err = sysfs_create_group(&pdev->dev.kobj,
-					      &pc87427_group_fan[i])))
+		err = sysfs_create_group(&pdev->dev.kobj,
+					 &pc87427_group_fan[i]);
+		if (err)
 			goto exit_remove_files;
 	}
 
