@@ -1,1 +1,1 @@
-unifdef-y += debug.h
+header-y += debug.h
