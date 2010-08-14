@@ -277,6 +277,11 @@ struct w83627ehf_data {
 	struct device *hwmon_dev;
 	struct mutex lock;
 
+	const u8 *REG_FAN_START_OUTPUT;
+	const u8 *REG_FAN_STOP_OUTPUT;
+	const u8 *REG_FAN_MAX_OUTPUT;
+	const u8 *REG_FAN_STEP_OUTPUT;
+
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -524,7 +529,10 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 			}
 		}
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < data->pwm_num; i++) {
+			if (!(data->has_fan & (1 << i)))
+				continue;
+
 			/* pwmcfg, tolerance mapped for i=0, i=1 to same reg */
 			if (i != 1) {
 				pwmcfg = w83627ehf_read_value(data,
@@ -546,6 +554,17 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 						W83627EHF_REG_FAN_STOP_OUTPUT[i]);
 			data->fan_stop_time[i] = w83627ehf_read_value(data,
 						W83627EHF_REG_FAN_STOP_TIME[i]);
+
+			if (data->REG_FAN_MAX_OUTPUT[i] != 0xff)
+				data->fan_max_output[i] =
+				  w83627ehf_read_value(data,
+					       data->REG_FAN_MAX_OUTPUT[i]);
+
+			if (data->REG_FAN_STEP_OUTPUT[i] != 0xff)
+				data->fan_step_output[i] =
+				  w83627ehf_read_value(data,
+					       data->REG_FAN_STEP_OUTPUT[i]);
+
 			data->target_temp[i] =
 				w83627ehf_read_value(data,
 					W83627EHF_REG_TARGET[i]) &
@@ -1126,7 +1145,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	u32 val = SENSORS_LIMIT(simple_strtoul(buf, NULL, 10), 1, 255); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
-	w83627ehf_write_value(data, W83627EHF_REG_##REG[nr], val); \
+	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 }
@@ -1206,12 +1225,26 @@ static struct sensor_device_attribute sda_sf3_arrays[] = {
 		    store_fan_stop_output, 1),
 	SENSOR_ATTR(pwm3_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
 		    store_fan_stop_output, 2),
+};
 
-	/* pwm1 and pwm3 don't support max and step settings */
+
+/*
+ * pwm1 and pwm3 don't support max and step settings on all chips.
+ * Need to check support while generating/removing attribute files.
+ */
+static struct sensor_device_attribute sda_sf3_max_step_arrays[] = {
+	SENSOR_ATTR(pwm1_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
+		    store_fan_max_output, 0),
+	SENSOR_ATTR(pwm1_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
+		    store_fan_step_output, 0),
 	SENSOR_ATTR(pwm2_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
 		    store_fan_max_output, 1),
 	SENSOR_ATTR(pwm2_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
 		    store_fan_step_output, 1),
+	SENSOR_ATTR(pwm3_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
+		    store_fan_max_output, 2),
+	SENSOR_ATTR(pwm3_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
+		    store_fan_step_output, 2),
 };
 
 static ssize_t
@@ -1235,6 +1268,12 @@ static void w83627ehf_device_remove_files(struct device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays); i++)
 		device_remove_file(dev, &sda_sf3_arrays[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_max_step_arrays); i++) {
+		struct sensor_device_attribute *attr =
+		  &sda_sf3_max_step_arrays[i];
+		if (data->REG_FAN_STEP_OUTPUT[attr->index] != 0xff)
+			device_remove_file(dev, &attr->dev_attr);
+	}
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
 		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
 	for (i = 0; i < data->in_num; i++) {
@@ -1352,6 +1391,11 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		data->in6_skip = !data->temp3_disable;
 	}
 
+	data->REG_FAN_START_OUTPUT = W83627EHF_REG_FAN_START_OUTPUT;
+	data->REG_FAN_STOP_OUTPUT = W83627EHF_REG_FAN_STOP_OUTPUT;
+	data->REG_FAN_MAX_OUTPUT = W83627EHF_REG_FAN_MAX_OUTPUT;
+	data->REG_FAN_STEP_OUTPUT = W83627EHF_REG_FAN_STEP_OUTPUT;
+
 	/* Initialize the chip */
 	w83627ehf_init_device(data);
 
@@ -1440,6 +1484,15 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			&sda_sf3_arrays[i].dev_attr)))
 			goto exit_remove;
 
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_max_step_arrays); i++) {
+		struct sensor_device_attribute *attr =
+		  &sda_sf3_max_step_arrays[i];
+		if (data->REG_FAN_STEP_OUTPUT[attr->index] != 0xff) {
+			err = device_create_file(dev, &attr->dev_attr);
+			if (err)
+				goto exit_remove;
+		}
+	}
 	/* if fan4 is enabled create the sf3 files for it */
 	if ((data->has_fan & (1 << 3)) && data->pwm_num >= 4)
 		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++) {
