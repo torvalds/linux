@@ -775,6 +775,7 @@ struct lpfc_hba {
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
 	unsigned long last_completion_time;
+	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;
 	uint8_t hb_outstanding;
 	enum hba_temp_state over_temp_state;
@@ -817,6 +818,8 @@ struct lpfc_hba {
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
 	atomic_t sdev_cnt;
+	uint8_t fips_spec_rev;
+	uint8_t fips_level;
 };
 
 static inline struct Scsi_Host *

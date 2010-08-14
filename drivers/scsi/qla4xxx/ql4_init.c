@@ -308,7 +308,6 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 			DEBUG2(printk("scsi%ld: %s: unable to get firmware "
 				      "state\n", ha->host_no, __func__));
 			break;
-
 		}
 
 		if (ha->firmware_state & FW_STATE_ERROR) {
@@ -444,6 +443,16 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
+
+	if (is_aer_supported(ha) &&
+	    test_bit(AF_PCI_CHANNEL_IO_PERM_FAILURE, &ha->flags))
+		return status;
+
+	/* For 82xx, stop firmware before initializing because if BIOS
+	 * has previously initialized firmware, then driver's initialize
+	 * firmware will fail. */
+	if (is_qla8022(ha))
+		qla4_8xxx_stop_firmware(ha);
 
 	ql4_printk(KERN_INFO, ha, "Initializing firmware..\n");
 	if (qla4xxx_initialize_fw_cb(ha) == QLA_ERROR) {
@@ -669,7 +678,6 @@ static struct ddb_entry * qla4xxx_alloc_ddb(struct scsi_qla_host *ha,
 	}
 
 	ddb_entry->fw_ddb_index = fw_ddb_index;
-	atomic_set(&ddb_entry->port_down_timer, ha->port_down_retry_count);
 	atomic_set(&ddb_entry->retry_relogin_timer, INVALID_ENTRY);
 	atomic_set(&ddb_entry->relogin_timer, 0);
 	atomic_set(&ddb_entry->relogin_retry_count, 0);
@@ -1556,8 +1564,6 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 	/* Device is back online. */
 	if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE) {
 		atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
-		atomic_set(&ddb_entry->port_down_timer,
-			   ha->port_down_retry_count);
 		atomic_set(&ddb_entry->relogin_retry_count, 0);
 		atomic_set(&ddb_entry->relogin_timer, 0);
 		clear_bit(DF_RELOGIN, &ddb_entry->flags);

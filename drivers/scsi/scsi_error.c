@@ -473,14 +473,17 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		 */
 		return SUCCESS;
 	case RESERVATION_CONFLICT:
-		/*
-		 * let issuer deal with this, it could be just fine
-		 */
-		return SUCCESS;
+		if (scmd->cmnd[0] == TEST_UNIT_READY)
+			/* it is a success, we probed the device and
+			 * found it */
+			return SUCCESS;
+		/* otherwise, we failed to send the command */
+		return FAILED;
 	case QUEUE_FULL:
 		scsi_handle_queue_full(scmd->device);
 		/* fall through */
 	case BUSY:
+		return NEEDS_RETRY;
 	default:
 		return FAILED;
 	}

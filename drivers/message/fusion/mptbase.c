@@ -8049,7 +8049,7 @@ union loginfo_type {
 			code_desc = ir_code_str[sas_loginfo.dw.code];
 			if (sas_loginfo.dw.subcode >=
 			    ARRAY_SIZE(raid_sub_code_str))
-			break;
+				break;
 			if (sas_loginfo.dw.code == 0)
 				sub_code_desc =
 				    raid_sub_code_str[sas_loginfo.dw.subcode];
