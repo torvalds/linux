@@ -363,9 +363,6 @@ Also see the Alarms section for status flags associated with temperatures.
 * Currents *
 ************
 
-Note that no known chip provides current measurements as of writing,
-so this part is theoretical, so to say.
-
 curr[1-*]_max	Current max value
 		Unit: milliampere
 		RW
@@ -490,6 +487,7 @@ limit-related alarms, not both. The driver should just reflect the hardware
 implementation.
 
 in[0-*]_alarm
+curr[1-*]_alarm
 fan[1-*]_alarm
 temp[1-*]_alarm
 		Channel alarm
@@ -501,6 +499,8 @@ OR
 
 in[0-*]_min_alarm
 in[0-*]_max_alarm
+curr[1-*]_min_alarm
+curr[1-*]_max_alarm
 fan[1-*]_min_alarm
 fan[1-*]_max_alarm
 temp[1-*]_min_alarm
@@ -532,6 +532,7 @@ beep_enable	Master beep enable
 		RW
 
 in[0-*]_beep
+curr[1-*]_beep
 fan[1-*]_beep
 temp[1-*]_beep
 		Channel beep
