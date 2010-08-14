@@ -369,11 +369,9 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					info->desc.name);
 			/* when we fail, un-register all earlier regulators */
-			i--;
-			while (i > 0) {
+			while (--i >= 0) {
 				info = &ab8500_regulator_info[i];
 				regulator_unregister(info->regulator);
-				i--;
 			}
 			return err;
 		}
