@@ -301,7 +301,7 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	ii->i_state = 1 << NILFS_I_NEW;
 	ii->i_root = root;
 
-	err = nilfs_ifile_create_inode(sbi->s_ifile, &ino, &ii->i_bh);
+	err = nilfs_ifile_create_inode(root->ifile, &ino, &ii->i_bh);
 	if (unlikely(err))
 		goto failed_ifile_create_inode;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
@@ -356,16 +356,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 			 called */
  failed:
 	return ERR_PTR(err);
-}
-
-void nilfs_free_inode(struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-
-	/* XXX: check error code? Is there any thing I can do? */
-	(void) nilfs_ifile_delete_inode(sbi->s_ifile, inode->i_ino);
-	atomic_dec(&sbi->s_inodes_count);
 }
 
 void nilfs_set_inode_flags(struct inode *inode)
@@ -431,7 +421,8 @@ int nilfs_read_inode_common(struct inode *inode,
 	return 0;
 }
 
-static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
+static int __nilfs_read_inode(struct super_block *sb,
+			      struct nilfs_root *root, unsigned long ino,
 			      struct inode *inode)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
@@ -441,11 +432,11 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 	int err;
 
 	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	err = nilfs_ifile_get_inode_block(sbi->s_ifile, ino, &bh);
+	err = nilfs_ifile_get_inode_block(root->ifile, ino, &bh);
 	if (unlikely(err))
 		goto bad_inode;
 
-	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, bh);
+	raw_inode = nilfs_ifile_map_inode(root->ifile, ino, bh);
 
 	err = nilfs_read_inode_common(inode, raw_inode);
 	if (err)
@@ -468,14 +459,14 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 			inode, inode->i_mode,
 			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
 	}
-	nilfs_ifile_unmap_inode(sbi->s_ifile, ino, bh);
+	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
 	brelse(bh);
 	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
 	nilfs_set_inode_flags(inode);
 	return 0;
 
  failed_unmap:
-	nilfs_ifile_unmap_inode(sbi->s_ifile, ino, bh);
+	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
 	brelse(bh);
 
  bad_inode:
@@ -530,7 +521,7 @@ struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	err = __nilfs_read_inode(sb, ino, inode);
+	err = __nilfs_read_inode(sb, root, ino, inode);
 	if (unlikely(err)) {
 		iget_failed(inode);
 		return ERR_PTR(err);
@@ -595,21 +586,20 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh)
 {
 	ino_t ino = inode->i_ino;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct super_block *sb = inode->i_sb;
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct inode *ifile = ii->i_root->ifile;
 	struct nilfs_inode *raw_inode;
 
-	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, ibh);
+	raw_inode = nilfs_ifile_map_inode(ifile, ino, ibh);
 
 	if (test_and_clear_bit(NILFS_I_NEW, &ii->i_state))
-		memset(raw_inode, 0, NILFS_MDT(sbi->s_ifile)->mi_entry_size);
+		memset(raw_inode, 0, NILFS_MDT(ifile)->mi_entry_size);
 	set_bit(NILFS_I_INODE_DIRTY, &ii->i_state);
 
 	nilfs_write_inode_common(inode, raw_inode, 0);
 		/* XXX: call with has_bmap = 0 is a workaround to avoid
 		   deadlock of bmap. This delays update of i_bmap to just
 		   before writing */
-	nilfs_ifile_unmap_inode(sbi->s_ifile, ino, ibh);
+	nilfs_ifile_unmap_inode(ifile, ino, ibh);
 }
 
 #define NILFS_MAX_TRUNCATE_BLOCKS	16384  /* 64MB for 4KB block */
@@ -719,12 +709,16 @@ void nilfs_evict_inode(struct inode *inode)
 	if (inode->i_data.nrpages)
 		truncate_inode_pages(&inode->i_data, 0);
 
+	/* TODO: some of the following operations may fail.  */
 	nilfs_truncate_bmap(ii, 0);
 	nilfs_mark_inode_dirty(inode);
 	end_writeback(inode);
+
+	nilfs_ifile_delete_inode(ii->i_root->ifile, inode->i_ino);
+	atomic_dec(&NILFS_SB(sb)->s_inodes_count);
+
 	nilfs_clear_inode(inode);
-	nilfs_free_inode(inode);
-	/* nilfs_free_inode() marks inode buffer dirty */
+
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 	nilfs_transaction_commit(sb);
@@ -779,8 +773,8 @@ int nilfs_load_inode_block(struct nilfs_sb_info *sbi, struct inode *inode,
 	spin_lock(&sbi->s_inode_lock);
 	if (ii->i_bh == NULL) {
 		spin_unlock(&sbi->s_inode_lock);
-		err = nilfs_ifile_get_inode_block(sbi->s_ifile, inode->i_ino,
-						  pbh);
+		err = nilfs_ifile_get_inode_block(ii->i_root->ifile,
+						  inode->i_ino, pbh);
 		if (unlikely(err))
 			return err;
 		spin_lock(&sbi->s_inode_lock);
@@ -860,7 +854,7 @@ int nilfs_mark_inode_dirty(struct inode *inode)
 	}
 	nilfs_update_inode(inode, ibh);
 	nilfs_mdt_mark_buffer_dirty(ibh);
-	nilfs_mdt_mark_dirty(sbi->s_ifile);
+	nilfs_mdt_mark_dirty(NILFS_I(inode)->i_root->ifile);
 	brelse(ibh);
 	return 0;
 }

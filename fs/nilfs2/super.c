@@ -358,9 +358,9 @@ static void nilfs_put_super(struct super_block *sb)
 	down_write(&nilfs->ns_super_sem);
 	if (nilfs->ns_current == sbi)
 		nilfs->ns_current = NULL;
+	list_del_init(&sbi->s_list);
 	up_write(&nilfs->ns_super_sem);
 
-	nilfs_detach_checkpoint(sbi);
 	put_nilfs(sbi->s_nilfs);
 	sbi->s_super = NULL;
 	sb->s_fs_info = NULL;
@@ -405,13 +405,12 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 	if (!root)
 		return err;
 
-	down_write(&nilfs->ns_super_sem);
-	list_add(&sbi->s_list, &nilfs->ns_supers);
-	up_write(&nilfs->ns_super_sem);
+	if (root->ifile)
+		goto reuse; /* already attached checkpoint */
 
-	sbi->s_ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
-	if (!sbi->s_ifile)
-		goto delist;
+	root->ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
+	if (!root->ifile)
+		goto failed;
 
 	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
@@ -427,7 +426,7 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 		}
 		goto failed;
 	}
-	err = nilfs_read_inode_common(sbi->s_ifile, &raw_cp->cp_ifile_inode);
+	err = nilfs_read_inode_common(root->ifile, &raw_cp->cp_ifile_inode);
 	if (unlikely(err))
 		goto failed_bh;
 	atomic_set(&sbi->s_inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
@@ -435,33 +434,16 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
 
+ reuse:
 	*rootp = root;
 	return 0;
 
  failed_bh:
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
  failed:
-	nilfs_mdt_destroy(sbi->s_ifile);
-	sbi->s_ifile = NULL;
-
- delist:
-	down_write(&nilfs->ns_super_sem);
-	list_del_init(&sbi->s_list);
-	up_write(&nilfs->ns_super_sem);
 	nilfs_put_root(root);
 
 	return err;
-}
-
-void nilfs_detach_checkpoint(struct nilfs_sb_info *sbi)
-{
-	struct the_nilfs *nilfs = sbi->s_nilfs;
-
-	nilfs_mdt_destroy(sbi->s_ifile);
-	sbi->s_ifile = NULL;
-	down_write(&nilfs->ns_super_sem);
-	list_del_init(&sbi->s_list);
-	up_write(&nilfs->ns_super_sem);
 }
 
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -862,7 +844,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	}
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		err = nilfs_attach_segment_constructor(sbi);
+		err = nilfs_attach_segment_constructor(sbi, fsroot);
 		if (err)
 			goto failed_checkpoint;
 	}
@@ -896,6 +878,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	}
 
 	down_write(&nilfs->ns_super_sem);
+	list_add(&sbi->s_list, &nilfs->ns_supers);
 	if (!nilfs_test_opt(sbi, SNAPSHOT))
 		nilfs->ns_current = sbi;
 	up_write(&nilfs->ns_super_sem);
@@ -906,7 +889,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	nilfs_detach_segment_constructor(sbi);
 
  failed_checkpoint:
-	nilfs_detach_checkpoint(sbi);
 	nilfs_put_root(fsroot);
 
  failed_sbi:
@@ -966,6 +948,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		up_write(&nilfs->ns_sem);
 	} else {
 		__u64 features;
+		struct nilfs_root *root;
 
 		/*
 		 * Mounting a RDONLY partition read-write, so reread and
@@ -987,7 +970,8 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 		sb->s_flags &= ~MS_RDONLY;
 
-		err = nilfs_attach_segment_constructor(sbi);
+		root = NILFS_I(sb->s_root->d_inode)->i_root;
+		err = nilfs_attach_segment_constructor(sbi, root);
 		if (err)
 			goto restore_opts;
 

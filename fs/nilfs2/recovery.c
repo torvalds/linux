@@ -773,7 +773,7 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
 			goto failed;
 		}
 
-		err = nilfs_attach_segment_constructor(sbi);
+		err = nilfs_attach_segment_constructor(sbi, root);
 		if (unlikely(err))
 			goto failed;
 
@@ -791,7 +791,6 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
 	}
 
  failed:
-	nilfs_detach_checkpoint(sbi);
 	nilfs_put_root(root);
 	return err;
 }

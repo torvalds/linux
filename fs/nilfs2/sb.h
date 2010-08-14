@@ -68,9 +68,6 @@ struct nilfs_sb_info {
 	spinlock_t s_inode_lock;	/* Lock for the nilfs inode.
 					   It covers s_dirty_files list */
 
-	/* Metadata files */
-	struct inode *s_ifile;		/* index file inode */
-
 	/* Inode allocator */
 	spinlock_t s_next_gen_lock;
 	u32 s_next_generation;

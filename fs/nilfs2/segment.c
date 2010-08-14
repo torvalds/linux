@@ -763,12 +763,12 @@ static void nilfs_dispose_list(struct nilfs_sb_info *sbi,
 	}
 }
 
-static int nilfs_test_metadata_dirty(struct nilfs_sb_info *sbi)
+static int nilfs_test_metadata_dirty(struct the_nilfs *nilfs,
+				     struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int ret = 0;
 
-	if (nilfs_mdt_fetch_dirty(sbi->s_ifile))
+	if (nilfs_mdt_fetch_dirty(root->ifile))
 		ret++;
 	if (nilfs_mdt_fetch_dirty(nilfs->ns_cpfile))
 		ret++;
@@ -793,7 +793,7 @@ static int nilfs_segctor_confirm(struct nilfs_sc_info *sci)
 	struct nilfs_sb_info *sbi = sci->sc_sbi;
 	int ret = 0;
 
-	if (nilfs_test_metadata_dirty(sbi))
+	if (nilfs_test_metadata_dirty(sbi->s_nilfs, sci->sc_root))
 		set_bit(NILFS_SC_DIRTY, &sci->sc_flags);
 
 	spin_lock(&sbi->s_inode_lock);
@@ -809,7 +809,7 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 	struct nilfs_sb_info *sbi = sci->sc_sbi;
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 
-	nilfs_mdt_clear_dirty(sbi->s_ifile);
+	nilfs_mdt_clear_dirty(sci->sc_root->ifile);
 	nilfs_mdt_clear_dirty(nilfs->ns_cpfile);
 	nilfs_mdt_clear_dirty(nilfs->ns_sufile);
 	nilfs_mdt_clear_dirty(nilfs_dat_inode(nilfs));
@@ -869,7 +869,8 @@ static int nilfs_segctor_fill_in_checkpoint(struct nilfs_sc_info *sci)
 	else
 		nilfs_checkpoint_set_minor(raw_cp);
 
-	nilfs_write_inode_common(sbi->s_ifile, &raw_cp->cp_ifile_inode, 1);
+	nilfs_write_inode_common(sci->sc_root->ifile,
+				 &raw_cp->cp_ifile_inode, 1);
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
 	return 0;
 
@@ -894,13 +895,12 @@ static void nilfs_fill_in_file_bmap(struct inode *ifile,
 	}
 }
 
-static void nilfs_segctor_fill_in_file_bmap(struct nilfs_sc_info *sci,
-					    struct inode *ifile)
+static void nilfs_segctor_fill_in_file_bmap(struct nilfs_sc_info *sci)
 {
 	struct nilfs_inode_info *ii;
 
 	list_for_each_entry(ii, &sci->sc_dirty_files, i_dirty) {
-		nilfs_fill_in_file_bmap(ifile, ii);
+		nilfs_fill_in_file_bmap(sci->sc_root->ifile, ii);
 		set_bit(NILFS_I_COLLECTED, &ii->i_state);
 	}
 }
@@ -1143,7 +1143,7 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 		sci->sc_stage.flags |= NILFS_CF_IFILE_STARTED;
 		/* Fall through */
 	case NILFS_ST_IFILE:
-		err = nilfs_segctor_scan_file(sci, sbi->s_ifile,
+		err = nilfs_segctor_scan_file(sci, sci->sc_root->ifile,
 					      &nilfs_sc_file_ops);
 		if (unlikely(err))
 			break;
@@ -1984,6 +1984,7 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 					struct nilfs_sb_info *sbi)
 {
 	struct nilfs_inode_info *ii, *n;
+	struct inode *ifile = sci->sc_root->ifile;
 
 	spin_lock(&sbi->s_inode_lock);
  retry:
@@ -1994,14 +1995,14 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 
 			spin_unlock(&sbi->s_inode_lock);
 			err = nilfs_ifile_get_inode_block(
-				sbi->s_ifile, ii->vfs_inode.i_ino, &ibh);
+				ifile, ii->vfs_inode.i_ino, &ibh);
 			if (unlikely(err)) {
 				nilfs_warning(sbi->s_super, __func__,
 					      "failed to get inode block.\n");
 				return err;
 			}
 			nilfs_mdt_mark_buffer_dirty(ibh);
-			nilfs_mdt_mark_dirty(sbi->s_ifile);
+			nilfs_mdt_mark_dirty(ifile);
 			spin_lock(&sbi->s_inode_lock);
 			if (likely(!ii->i_bh))
 				ii->i_bh = ibh;
@@ -2058,7 +2059,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 	if (unlikely(err))
 		goto out;
 
-	if (nilfs_test_metadata_dirty(sbi))
+	if (nilfs_test_metadata_dirty(nilfs, sci->sc_root))
 		set_bit(NILFS_SC_DIRTY, &sci->sc_flags);
 
 	if (nilfs_segctor_clean(sci))
@@ -2090,7 +2091,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 			goto failed;
 
 		if (sci->sc_stage.flags & NILFS_CF_IFILE_STARTED)
-			nilfs_segctor_fill_in_file_bmap(sci, sbi->s_ifile);
+			nilfs_segctor_fill_in_file_bmap(sci);
 
 		if (mode == SC_LSEG_SR &&
 		    sci->sc_stage.scnt >= NILFS_ST_CPFILE) {
@@ -2684,7 +2685,8 @@ static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
 /*
  * Setup & clean-up functions
  */
-static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi)
+static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi,
+					       struct nilfs_root *root)
 {
 	struct nilfs_sc_info *sci;
 
@@ -2694,6 +2696,9 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi)
 
 	sci->sc_sbi = sbi;
 	sci->sc_super = sbi->s_super;
+
+	nilfs_get_root(root);
+	sci->sc_root = root;
 
 	init_waitqueue_head(&sci->sc_wait_request);
 	init_waitqueue_head(&sci->sc_wait_daemon);
@@ -2769,6 +2774,8 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 	WARN_ON(!list_empty(&sci->sc_segbufs));
 	WARN_ON(!list_empty(&sci->sc_write_logs));
 
+	nilfs_put_root(sci->sc_root);
+
 	down_write(&sbi->s_nilfs->ns_segctor_sem);
 
 	del_timer_sync(&sci->sc_timer);
@@ -2778,6 +2785,7 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 /**
  * nilfs_attach_segment_constructor - attach a segment constructor
  * @sbi: nilfs_sb_info
+ * @root: root object of the current filesystem tree
  *
  * nilfs_attach_segment_constructor() allocates a struct nilfs_sc_info,
  * initializes it, and starts the segment constructor.
@@ -2787,7 +2795,8 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi)
+int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
+				     struct nilfs_root *root)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err;
@@ -2801,7 +2810,7 @@ int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi)
 		nilfs_detach_segment_constructor(sbi);
 	}
 
-	sbi->s_sc_info = nilfs_segctor_new(sbi);
+	sbi->s_sc_info = nilfs_segctor_new(sbi, root);
 	if (!sbi->s_sc_info)
 		return -ENOMEM;
 
