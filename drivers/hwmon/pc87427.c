@@ -1045,6 +1045,29 @@ static void __devinit pc87427_init_device(struct device *dev)
 	}
 }
 
+static void pc87427_remove_files(struct device *dev)
+{
+	struct pc87427_data *data = dev_get_drvdata(dev);
+	int i;
+
+	device_remove_file(dev, &dev_attr_name);
+	for (i = 0; i < 8; i++) {
+		if (!(data->fan_enabled & (1 << i)))
+			continue;
+		sysfs_remove_group(&dev->kobj, &pc87427_group_fan[i]);
+	}
+	for (i = 0; i < 4; i++) {
+		if (!(data->pwm_enabled & (1 << i)))
+			continue;
+		sysfs_remove_group(&dev->kobj, &pc87427_group_pwm[i]);
+	}
+	for (i = 0; i < 6; i++) {
+		if (!(data->temp_enabled & (1 << i)))
+			continue;
+		sysfs_remove_group(&dev->kobj, &pc87427_group_temp[i]);
+	}
+}
+
 static int __devinit pc87427_probe(struct platform_device *pdev)
 {
 	struct pc87427_sio_data *sio_data = pdev->dev.platform_data;
@@ -1110,21 +1133,7 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 	return 0;
 
 exit_remove_files:
-	for (i = 0; i < 8; i++) {
-		if (!(data->fan_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
-	}
-	for (i = 0; i < 4; i++) {
-		if (!(data->pwm_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_pwm[i]);
-	}
-	for (i = 0; i < 6; i++) {
-		if (!(data->temp_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_temp[i]);
-	}
+	pc87427_remove_files(&pdev->dev);
 exit_release_region:
 	pc87427_release_regions(pdev, res_count);
 exit_kfree:
@@ -1137,27 +1146,12 @@ exit:
 static int __devexit pc87427_remove(struct platform_device *pdev)
 {
 	struct pc87427_data *data = platform_get_drvdata(pdev);
-	int i, res_count;
+	int res_count;
 
 	res_count = (data->address[0] != 0) + (data->address[1] != 0);
 
 	hwmon_device_unregister(data->hwmon_dev);
-	device_remove_file(&pdev->dev, &dev_attr_name);
-	for (i = 0; i < 8; i++) {
-		if (!(data->fan_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
-	}
-	for (i = 0; i < 4; i++) {
-		if (!(data->pwm_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_pwm[i]);
-	}
-	for (i = 0; i < 6; i++) {
-		if (!(data->temp_enabled & (1 << i)))
-			continue;
-		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_temp[i]);
-	}
+	pc87427_remove_files(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
