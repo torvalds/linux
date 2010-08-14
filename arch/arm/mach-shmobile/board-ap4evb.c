@@ -39,6 +39,7 @@
 #include <linux/sh_clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
 
@@ -650,7 +651,44 @@ static struct platform_device hdmi_device = {
 	},
 };
 
+static struct gpio_led ap4evb_leds[] = {
+	{
+		.name			= "led4",
+		.gpio			= GPIO_PORT185,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led2",
+		.gpio			= GPIO_PORT186,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led3",
+		.gpio			= GPIO_PORT187,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name			= "led1",
+		.gpio			= GPIO_PORT188,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}
+};
+
+static struct gpio_led_platform_data ap4evb_leds_pdata = {
+	.num_leds = ARRAY_SIZE(ap4evb_leds),
+	.leds = &ap4evb_leds,
+};
+
+static struct platform_device leds_device = {
+	.name = "leds-gpio",
+	.id = 0,
+	.dev = {
+		.platform_data  = &ap4evb_leds_pdata,
+	},
+};
+
 static struct platform_device *ap4evb_devices[] __initdata = {
+	&leds_device,
 	&nor_flash_device,
 	&smc911x_device,
 	&sdhi0_device,
@@ -839,20 +877,6 @@ static void __init ap4evb_init(void)
 	/* enable SMSC911X */
 	gpio_request(GPIO_FN_CS5A,	NULL);
 	gpio_request(GPIO_FN_IRQ6_39,	NULL);
-
-	/* enable LED 1 - 4 */
-	gpio_request(GPIO_PORT185, NULL);
-	gpio_request(GPIO_PORT186, NULL);
-	gpio_request(GPIO_PORT187, NULL);
-	gpio_request(GPIO_PORT188, NULL);
-	gpio_direction_output(GPIO_PORT185, 1);
-	gpio_direction_output(GPIO_PORT186, 1);
-	gpio_direction_output(GPIO_PORT187, 1);
-	gpio_direction_output(GPIO_PORT188, 1);
-	gpio_export(GPIO_PORT185, 0);
-	gpio_export(GPIO_PORT186, 0);
-	gpio_export(GPIO_PORT187, 0);
-	gpio_export(GPIO_PORT188, 0);
 
 	/* enable Debug switch (S6) */
 	gpio_request(GPIO_PORT32, NULL);
