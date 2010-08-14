@@ -89,6 +89,8 @@ static struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	INIT_LIST_HEAD(&nilfs->ns_supers);
 	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
+	nilfs->ns_cptree = RB_ROOT;
+	spin_lock_init(&nilfs->ns_cptree_lock);
 	init_rwsem(&nilfs->ns_segctor_sem);
 
 	return nilfs;
@@ -807,6 +809,96 @@ int nilfs_near_disk_full(struct the_nilfs *nilfs)
 		nilfs->ns_blocks_per_segment + 1;
 
 	return ncleansegs <= nilfs->ns_nrsvsegs + nincsegs;
+}
+
+struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno)
+{
+	struct rb_node *n;
+	struct nilfs_root *root;
+
+	spin_lock(&nilfs->ns_cptree_lock);
+	n = nilfs->ns_cptree.rb_node;
+	while (n) {
+		root = rb_entry(n, struct nilfs_root, rb_node);
+
+		if (cno < root->cno) {
+			n = n->rb_left;
+		} else if (cno > root->cno) {
+			n = n->rb_right;
+		} else {
+			atomic_inc(&root->count);
+			spin_unlock(&nilfs->ns_cptree_lock);
+			return root;
+		}
+	}
+	spin_unlock(&nilfs->ns_cptree_lock);
+
+	return NULL;
+}
+
+struct nilfs_root *
+nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cno)
+{
+	struct rb_node **p, *parent;
+	struct nilfs_root *root, *new;
+
+	root = nilfs_lookup_root(nilfs, cno);
+	if (root)
+		return root;
+
+	new = kmalloc(sizeof(*root), GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	spin_lock(&nilfs->ns_cptree_lock);
+
+	p = &nilfs->ns_cptree.rb_node;
+	parent = NULL;
+
+	while (*p) {
+		parent = *p;
+		root = rb_entry(parent, struct nilfs_root, rb_node);
+
+		if (cno < root->cno) {
+			p = &(*p)->rb_left;
+		} else if (cno > root->cno) {
+			p = &(*p)->rb_right;
+		} else {
+			atomic_inc(&root->count);
+			spin_unlock(&nilfs->ns_cptree_lock);
+			kfree(new);
+			return root;
+		}
+	}
+
+	new->cno = cno;
+	new->ifile = NULL;
+	new->nilfs = nilfs;
+	atomic_set(&new->count, 1);
+	atomic_set(&new->inodes_count, 0);
+	atomic_set(&new->blocks_count, 0);
+
+	rb_link_node(&new->rb_node, parent, p);
+	rb_insert_color(&new->rb_node, &nilfs->ns_cptree);
+
+	spin_unlock(&nilfs->ns_cptree_lock);
+
+	return new;
+}
+
+void nilfs_put_root(struct nilfs_root *root)
+{
+	if (atomic_dec_and_test(&root->count)) {
+		struct the_nilfs *nilfs = root->nilfs;
+
+		spin_lock(&nilfs->ns_cptree_lock);
+		rb_erase(&root->rb_node, &nilfs->ns_cptree);
+		spin_unlock(&nilfs->ns_cptree_lock);
+		if (root->ifile)
+			nilfs_mdt_destroy(root->ifile);
+
+		kfree(root);
+	}
 }
 
 /**

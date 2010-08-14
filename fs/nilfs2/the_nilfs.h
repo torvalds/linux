@@ -26,6 +26,7 @@
 
 #include <linux/types.h>
 #include <linux/buffer_head.h>
+#include <linux/rbtree.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
@@ -80,6 +81,8 @@ enum {
  * @ns_cpfile: checkpoint file inode
  * @ns_sufile: segusage file inode
  * @ns_gc_dat: shadow inode of the DAT file inode for GC
+ * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
+ * @ns_cptree_lock: lock protecting @ns_cptree
  * @ns_gc_inodes: dummy inodes to keep live blocks
  * @ns_blocksize_bits: bit length of block size
  * @ns_blocksize: block size
@@ -164,6 +167,10 @@ struct the_nilfs {
 	struct inode	       *ns_sufile;
 	struct inode	       *ns_gc_dat;
 
+	/* Checkpoint tree */
+	struct rb_root		ns_cptree;
+	spinlock_t		ns_cptree_lock;
+
 	/* GC inode list */
 	struct list_head	ns_gc_inodes;
 
@@ -200,6 +207,32 @@ THE_NILFS_FNS(DISCONTINUED, discontinued)
 THE_NILFS_FNS(GC_RUNNING, gc_running)
 THE_NILFS_FNS(SB_DIRTY, sb_dirty)
 
+/**
+ * struct nilfs_root - nilfs root object
+ * @cno: checkpoint number
+ * @rb_node: red-black tree node
+ * @count: refcount of this structure
+ * @nilfs: nilfs object
+ * @ifile: inode file
+ * @root: root inode
+ * @inodes_count: number of inodes
+ * @blocks_count: number of blocks (Reserved)
+ */
+struct nilfs_root {
+	__u64 cno;
+	struct rb_node rb_node;
+
+	atomic_t count;
+	struct the_nilfs *nilfs;
+	struct inode *ifile;
+
+	atomic_t inodes_count;
+	atomic_t blocks_count;
+};
+
+/* Special checkpoint number */
+#define NILFS_CPTREE_CURRENT_CNO	0
+
 /* Minimum interval of periodical update of superblocks (in seconds) */
 #define NILFS_SB_FREQ		10
 
@@ -222,6 +255,10 @@ int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
 int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
 int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
+struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno);
+struct nilfs_root *nilfs_find_or_create_root(struct the_nilfs *nilfs,
+					     __u64 cno);
+void nilfs_put_root(struct nilfs_root *root);
 struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
 int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);
 int nilfs_near_disk_full(struct the_nilfs *);
@@ -233,6 +270,11 @@ static inline void get_nilfs(struct the_nilfs *nilfs)
 {
 	/* Caller must have at least one reference of the_nilfs. */
 	atomic_inc(&nilfs->ns_count);
+}
+
+static inline void nilfs_get_root(struct nilfs_root *root)
+{
+	atomic_inc(&root->count);
 }
 
 static inline void
