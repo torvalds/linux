@@ -397,7 +397,7 @@ unsigned long determine_dirtyable_memory(void)
 	return x + 1;	/* Ensure that we never return 0 */
 }
 
-/**
+/*
  * global_dirty_limits - background-writeback and dirty-throttling thresholds
  *
  * Calculate the dirty thresholds based on sysctl parameters
@@ -440,7 +440,7 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 	*pdirty = dirty;
 }
 
-/**
+/*
  * bdi_dirty_limit - @bdi's share of dirty throttling threshold
  *
  * Allocate high/low dirty limits to fast/slow devices, in order to prevent
