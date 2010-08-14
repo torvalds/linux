@@ -634,12 +634,9 @@ static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
 				"%s: failed to register regulator %s err %d\n",
 				__func__, ab3100_regulator_desc[i].name,
 				err);
-			i--;
 			/* remove the already registered regulators */
-			while (i > 0) {
+			while (--i >= 0)
 				regulator_unregister(ab3100_regulators[i].rdev);
-				i--;
-			}
 			return err;
 		}
 
