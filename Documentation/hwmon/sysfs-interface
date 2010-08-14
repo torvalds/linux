@@ -516,7 +516,6 @@ to notify open diodes, unconnected fans etc. where the hardware
 supports it. When this boolean has value 1, the measurement for that
 channel should not be trusted.
 
-in[0-*]_fault
 fan[1-*]_fault
 temp[1-*]_fault
 		Input fault condition
