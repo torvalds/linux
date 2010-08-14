@@ -429,8 +429,9 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 	err = nilfs_read_inode_common(root->ifile, &raw_cp->cp_ifile_inode);
 	if (unlikely(err))
 		goto failed_bh;
-	atomic_set(&sbi->s_inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
-	atomic_set(&sbi->s_blocks_count, le64_to_cpu(raw_cp->cp_blocks_count));
+
+	atomic_set(&root->inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
+	atomic_set(&root->blocks_count, le64_to_cpu(raw_cp->cp_blocks_count));
 
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
 
@@ -449,8 +450,8 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct nilfs_root *root = NILFS_I(dentry->d_inode)->i_root;
+	struct the_nilfs *nilfs = root->nilfs;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 	unsigned long long blocks;
 	unsigned long overhead;
@@ -486,7 +487,7 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = nfreeblocks;
 	buf->f_bavail = (buf->f_bfree >= nrsvblocks) ?
 		(buf->f_bfree - nrsvblocks) : 0;
-	buf->f_files = atomic_read(&sbi->s_inodes_count);
+	buf->f_files = atomic_read(&root->inodes_count);
 	buf->f_ffree = 0; /* nilfs_count_free_inodes(sb); */
 	buf->f_namelen = NILFS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;

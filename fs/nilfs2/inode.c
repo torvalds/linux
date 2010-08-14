@@ -306,7 +306,7 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 		goto failed_ifile_create_inode;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
 
-	atomic_inc(&sbi->s_inodes_count);
+	atomic_inc(&root->inodes_count);
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = ino;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
@@ -715,7 +715,7 @@ void nilfs_evict_inode(struct inode *inode)
 	end_writeback(inode);
 
 	nilfs_ifile_delete_inode(ii->i_root->ifile, inode->i_ino);
-	atomic_dec(&NILFS_SB(sb)->s_inodes_count);
+	atomic_dec(&ii->i_root->inodes_count);
 
 	nilfs_clear_inode(inode);
 

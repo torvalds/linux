@@ -44,8 +44,6 @@ struct nilfs_sc_info;
 struct nilfs_sb_info {
 	/* Snapshot status */
 	__u64 s_snapshot_cno;		/* Checkpoint number */
-	atomic_t s_inodes_count;
-	atomic_t s_blocks_count;	/* Reserved (might be deleted) */
 
 	/* Mount options */
 	unsigned long s_mount_opt;
