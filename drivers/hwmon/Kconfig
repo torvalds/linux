@@ -711,7 +711,8 @@ config SENSORS_PC87427
 	  functions of the National Semiconductor PC87427 Super-I/O chip.
 	  The chip has two distinct logical devices, one for fan speed
 	  monitoring and control, and one for voltage and temperature
-	  monitoring. Only fan speed monitoring is supported right now.
+	  monitoring. Only fan speed monitoring and control is supported
+	  right now.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pc87427.
