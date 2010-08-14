@@ -107,10 +107,24 @@ in[0-*]_min	Voltage min value.
 		Unit: millivolt
 		RW
 		
+in[0-*]_lcrit	Voltage critical min value.
+		Unit: millivolt
+		RW
+		If voltage drops to or below this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
 in[0-*]_max	Voltage max value.
 		Unit: millivolt
 		RW
 		
+in[0-*]_crit	Voltage critical max value.
+		Unit: millivolt
+		RW
+		If voltage reaches or exceeds this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
 in[0-*]_input	Voltage input value.
 		Unit: millivolt
 		RO
@@ -284,7 +298,7 @@ temp[1-*]_input Temperature input value.
 		Unit: millidegree Celsius
 		RO
 
-temp[1-*]_crit	Temperature critical value, typically greater than
+temp[1-*]_crit	Temperature critical max value, typically greater than
 		corresponding temp_max values.
 		Unit: millidegree Celsius
 		RW
@@ -294,6 +308,11 @@ temp[1-*]_crit_hyst
 		Unit: millidegree Celsius
 		Must be reported as an absolute temperature, NOT a delta
 		from the critical value.
+		RW
+
+temp[1-*]_lcrit	Temperature critical min value, typically lower than
+		corresponding temp_min values.
+		Unit: millidegree Celsius
 		RW
 
 temp[1-*]_offset
