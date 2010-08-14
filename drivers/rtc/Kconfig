@@ -286,6 +286,13 @@ config RTC_DRV_DM355EVM
 	help
 	  Supports the RTC firmware in the MSP430 on the DM355 EVM.
 
+config RTC_DRV_TPS6586X
+	tristate "TI TPS6586X RTC"
+	depends on I2C
+	select MFD_TPS6586X
+	help
+	  This driver supports TPS6586X RTC
+
 config RTC_DRV_TWL92330
 	boolean "TI TWL92330/Menelaus"
 	depends on MENELAUS
