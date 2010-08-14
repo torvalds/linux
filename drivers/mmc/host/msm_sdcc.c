@@ -160,18 +160,7 @@ msmsdcc_stop_data(struct msmsdcc_host *host)
 
 uint32_t msmsdcc_fifo_addr(struct msmsdcc_host *host)
 {
-	switch (host->pdev_id) {
-	case 1:
-		return MSM_SDC1_PHYS + MMCIFIFO;
-	case 2:
-		return MSM_SDC2_PHYS + MMCIFIFO;
-	case 3:
-		return MSM_SDC3_PHYS + MMCIFIFO;
-	case 4:
-		return MSM_SDC4_PHYS + MMCIFIFO;
-	}
-	BUG();
-	return 0;
+	return host->memres->start + MMCIFIFO;
 }
 
 static inline void
@@ -1289,6 +1278,24 @@ msmsdcc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_MMC_MSM7X00A_RESUME_IN_WQ
+static void
+do_resume_work(struct work_struct *work)
+{
+	struct msmsdcc_host *host =
+		container_of(work, struct msmsdcc_host, resume_task);
+	struct mmc_host	*mmc = host->mmc;
+
+	if (mmc) {
+		mmc_resume_host(mmc);
+		if (host->stat_irq)
+			enable_irq(host->stat_irq);
+	}
+}
+#endif
+
+
 static int
 msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -1333,6 +1340,10 @@ msmsdcc_resume(struct platform_device *dev)
 	}
 	return 0;
 }
+#else
+#define msmsdcc_suspend	0
+#define msmsdcc_resume 0
+#endif
 
 static struct platform_driver msmsdcc_driver = {
 	.probe		= msmsdcc_probe,
