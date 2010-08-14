@@ -9,7 +9,7 @@
 #include <linux/kprobes.h>
 #include "trace.h"
 
-static char *perf_trace_buf[4];
+static char *perf_trace_buf[PERF_NR_CONTEXTS];
 
 /*
  * Force it to be aligned to unsigned long to avoid misaligned accesses
@@ -45,7 +45,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 		char *buf;
 		int i;
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
 			buf = (char *)alloc_percpu(perf_trace_t);
 			if (!buf)
 				goto fail;
@@ -65,7 +65,7 @@ fail:
 	if (!total_ref_count) {
 		int i;
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
 			free_percpu(perf_trace_buf[i]);
 			perf_trace_buf[i] = NULL;
 		}
@@ -140,7 +140,7 @@ void perf_trace_destroy(struct perf_event *p_event)
 	tp_event->perf_events = NULL;
 
 	if (!--total_ref_count) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
 			free_percpu(perf_trace_buf[i]);
 			perf_trace_buf[i] = NULL;
 		}

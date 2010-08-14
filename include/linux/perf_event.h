@@ -808,6 +808,12 @@ struct perf_event_context {
 	struct rcu_head			rcu_head;
 };
 
+/*
+ * Number of contexts where an event can trigger:
+ * 	task, softirq, hardirq, nmi.
+ */
+#define PERF_NR_CONTEXTS	4
+
 /**
  * struct perf_event_cpu_context - per cpu event context structure
  */
@@ -821,12 +827,8 @@ struct perf_cpu_context {
 	struct mutex			hlist_mutex;
 	int				hlist_refcount;
 
-	/*
-	 * Recursion avoidance:
-	 *
-	 * task, softirq, irq, nmi context
-	 */
-	int				recursion[4];
+	/* Recursion avoidance in each contexts */
+	int				recursion[PERF_NR_CONTEXTS];
 };
 
 struct perf_output_handle {

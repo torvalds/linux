@@ -1772,7 +1772,7 @@ struct callchain_cpus_entries {
 	struct perf_callchain_entry	*cpu_entries[0];
 };
 
-static DEFINE_PER_CPU(int, callchain_recursion[4]);
+static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
 static atomic_t nr_callchain_events;
 static DEFINE_MUTEX(callchain_mutex);
 struct callchain_cpus_entries *callchain_cpus_entries;
@@ -1828,7 +1828,7 @@ static int alloc_callchain_buffers(void)
 	if (!entries)
 		return -ENOMEM;
 
-	size = sizeof(struct perf_callchain_entry) * 4;
+	size = sizeof(struct perf_callchain_entry) * PERF_NR_CONTEXTS;
 
 	for_each_possible_cpu(cpu) {
 		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
