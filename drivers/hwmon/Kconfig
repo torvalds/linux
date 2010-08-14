@@ -804,6 +804,16 @@ config SENSORS_EMC1403
 	  Threshold values can be configured using sysfs.
 	  Data from the different diodes are accessible via sysfs.
 
+config SENSORS_EMC2103
+	tristate "SMSC EMC2103"
+	depends on I2C
+	help
+	  If you say yes here you get support for the temperature
+	  and fan sensors of the SMSC EMC2103 chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called emc2103.
+
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
 	help

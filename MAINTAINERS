@@ -5279,6 +5279,13 @@ S:	Maintained
 F:	Documentation/hwmon/smm665
 F:	drivers/hwmon/smm665.c
 
+SMSC EMC2103 HARDWARE MONITOR DRIVER
+M:	Steve Glendinning <steve.glendinning@smsc.com>
+L:	lm-sensors@lm-sensors.org
+S:	Supported
+F:	Documentation/hwmon/emc2103
+F:	drivers/hwmon/emc2103.c
+
 SMSC47B397 HARDWARE MONITOR DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	lm-sensors@lm-sensors.org
