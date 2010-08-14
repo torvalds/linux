@@ -1976,7 +1976,7 @@ global_root:
  * __d_path - return the path of a dentry
  * @path: the dentry/vfsmount to report
  * @root: root vfsmnt/dentry (may be modified by this function)
- * @buffer: buffer to return value in
+ * @buf: buffer to return value in
  * @buflen: buffer length
  *
  * Convert a dentry into an ASCII path name.
