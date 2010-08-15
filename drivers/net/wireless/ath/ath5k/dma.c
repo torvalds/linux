@@ -377,11 +377,11 @@ int ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue, u32 phys_addr)
  *
  * This function increases/decreases the tx trigger level for the tx fifo
  * buffer (aka FIFO threshold) that is used to indicate when PCU flushes
- * the buffer and transmits it's data. Lowering this results sending small
+ * the buffer and transmits its data. Lowering this results sending small
  * frames more quickly but can lead to tx underruns, raising it a lot can
  * result other problems (i think bmiss is related). Right now we start with
  * the lowest possible (64Bytes) and if we get tx underrun we increase it using
- * the increase flag. Returns -EIO if we have have reached maximum/minimum.
+ * the increase flag. Returns -EIO if we have reached maximum/minimum.
  *
  * XXX: Link this with tx DMA size ?
  * XXX: Use it to save interrupts ?
