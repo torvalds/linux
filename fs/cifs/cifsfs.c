@@ -514,22 +514,30 @@ cifs_get_sb(struct file_system_type *fs_type,
 	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	int rc;
-	struct super_block *sb = sget(fs_type, NULL, set_anon_super, NULL);
+	struct super_block *sb;
+
+	lock_kernel();
+
+	sb = sget(fs_type, NULL, set_anon_super, NULL);
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
-	if (IS_ERR(sb))
+	if (IS_ERR(sb)) {
+		unlock_kernel();
 		return PTR_ERR(sb);
+	}
 
 	sb->s_flags = flags;
 
 	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		deactivate_locked_super(sb);
+		unlock_kernel();
 		return rc;
 	}
 	sb->s_flags |= MS_ACTIVE;
 	simple_set_mnt(mnt, sb);
+	unlock_kernel();
 	return 0;
 }
 

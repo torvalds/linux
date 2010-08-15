@@ -1002,6 +1002,8 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	char nodestr[8];
 	struct ocfs2_blockcheck_stats stats;
 
+	lock_kernel();
+
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 0)) {
@@ -1179,6 +1181,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 			atomic_set(&osb->vol_state, VOLUME_DISABLED);
 			wake_up(&osb->osb_mount_event);
 			mlog_exit(status);
+			unlock_kernel();
 			return status;
 		}
 	}
@@ -1193,6 +1196,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	ocfs2_orphan_scan_start(osb);
 
 	mlog_exit(status);
+	unlock_kernel();
 	return status;
 
 read_super_error:
@@ -1208,6 +1212,7 @@ read_super_error:
 	}
 
 	mlog_exit(status);
+	unlock_kernel();
 	return status;
 }
 

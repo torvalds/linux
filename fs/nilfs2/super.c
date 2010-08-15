@@ -1113,9 +1113,12 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
+	lock_kernel();
 	sd.bdev = open_bdev_exclusive(dev_name, mode, fs_type);
-	if (IS_ERR(sd.bdev))
+	if (IS_ERR(sd.bdev)) {
+		unlock_kernel();
 		return PTR_ERR(sd.bdev);
+	}
 
 	/*
 	 * To get mount instance using sget() vfs-routine, NILFS needs
@@ -1198,6 +1201,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (need_to_close)
 		close_bdev_exclusive(sd.bdev, mode);
 	simple_set_mnt(mnt, s);
+	unlock_kernel();
 	return 0;
 
  failed_unlock:
@@ -1206,6 +1210,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
  failed:
 	close_bdev_exclusive(sd.bdev, mode);
 
+	unlock_kernel();
 	return err;
 
  cancel_new:
@@ -1218,6 +1223,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	 * We must finish all post-cleaning before this call;
 	 * put_nilfs() needs the block device.
 	 */
+	unlock_kernel();
 	return err;
 }
 

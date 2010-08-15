@@ -234,9 +234,13 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	struct qnx4_sb_info *qs;
 	int ret = -EINVAL;
 
+	lock_kernel();
+
 	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
-	if (!qs)
+	if (!qs) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	s->s_fs_info = qs;
 
 	sb_set_blocksize(s, QNX4_BLOCK_SIZE);
@@ -284,6 +288,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 
 	brelse(bh);
 
+	unlock_kernel();
 	return 0;
 
       outi:
@@ -293,6 +298,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
       outnobh:
 	kfree(qs);
 	s->s_fs_info = NULL;
+	unlock_kernel();
 	return ret;
 }
 

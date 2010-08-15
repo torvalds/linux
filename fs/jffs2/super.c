@@ -146,14 +146,19 @@ static const struct super_operations jffs2_super_operations =
 static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct jffs2_sb_info *c;
+	int ret;
+
+	lock_kernel();
 
 	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd():"
 		  " New superblock for device %d (\"%s\")\n",
 		  sb->s_mtd->index, sb->s_mtd->name));
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c)
+	if (!c) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
@@ -175,7 +180,9 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
-	return jffs2_do_fill_super(sb, data, silent);
+	ret = jffs2_do_fill_super(sb, data, silent);
+	unlock_kernel();
+	return ret;
 }
 
 static int jffs2_get_sb(struct file_system_type *fs_type,

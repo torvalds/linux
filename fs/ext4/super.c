@@ -2568,6 +2568,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	int err;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
 
+	lock_kernel();
+
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		goto out_free_orig;
@@ -3166,7 +3168,6 @@ no_journal:
 	if (es->s_error_count)
 		mod_timer(&sbi->s_err_report, jiffies + 300*HZ); /* 5 minutes */
 
-	lock_kernel();
 	kfree(orig_data);
 	return 0;
 
@@ -3213,8 +3214,11 @@ out_fail:
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
-	lock_kernel();
+	kfree(orig_data);
+	return ret;
+
 out_free_orig:
+	unlock_kernel();
 	kfree(orig_data);
 	return ret;
 }

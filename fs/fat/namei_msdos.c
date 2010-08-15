@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/buffer_head.h>
+#include <linux/smp_lock.h>     /* For lock_kernel() */
 #include "fat.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
@@ -662,12 +663,16 @@ static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_kernel();
 	res = fat_fill_super(sb, data, silent, &msdos_dir_inode_operations, 0);
-	if (res)
+	if (res) {
+		unlock_kernel();
 		return res;
+	}
 
 	sb->s_flags |= MS_NOATIME;
 	sb->s_root->d_op = &msdos_dentry_operations;
+	unlock_kernel();
 	return 0;
 }
 

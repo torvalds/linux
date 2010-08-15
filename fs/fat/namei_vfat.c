@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
+#include <linux/smp_lock.h>     /* For lock_kernel() */
 #include "fat.h"
 
 /*
@@ -1055,15 +1056,19 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_kernel();
 	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
-	if (res)
+	if (res) {
+		unlock_kernel();
 		return res;
+	}
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
 		sb->s_root->d_op = &vfat_ci_dentry_ops;
 	else
 		sb->s_root->d_op = &vfat_dentry_ops;
 
+	unlock_kernel();
 	return 0;
 }
 

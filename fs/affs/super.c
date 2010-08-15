@@ -291,6 +291,8 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	u8			 sig[4];
 	int			 ret = -EINVAL;
 
+	lock_kernel();
+
 	save_mount_options(sb, data);
 
 	pr_debug("AFFS: read_super(%s)\n",data ? (const char *)data : "no options");
@@ -300,8 +302,10 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_flags |= MS_NODIRATIME;
 
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->s_bmlock);
 	spin_lock_init(&sbi->symlink_lock);
@@ -312,6 +316,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR "AFFS: Error parsing options\n");
 		kfree(sbi->s_prefix);
 		kfree(sbi);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	/* N.B. after this point s_prefix must be released */
@@ -482,6 +487,7 @@ got_root:
 	sb->s_root->d_op = &affs_dentry_operations;
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
+	unlock_kernel();
 	return 0;
 
 	/*
@@ -496,6 +502,7 @@ out_error_noinode:
 	kfree(sbi->s_prefix);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
+	unlock_kernel();
 	return ret;
 }
 

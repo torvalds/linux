@@ -302,12 +302,15 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	struct inode *inode = NULL;
 	int ret;
 
+	lock_kernel();
+
 	_enter("");
 
 	/* allocate a superblock info record */
 	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
 	if (!as) {
 		_leave(" = -ENOMEM");
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -341,6 +344,7 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	sb->s_root = root;
 
 	_leave(" = 0");
+	unlock_kernel();
 	return 0;
 
 error_inode:
@@ -354,6 +358,7 @@ error:
 	sb->s_fs_info = NULL;
 
 	_leave(" = %d", ret);
+	unlock_kernel();
 	return ret;
 }
 

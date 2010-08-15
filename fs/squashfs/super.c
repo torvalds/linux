@@ -87,11 +87,14 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	u64 lookup_table_start, xattr_id_table_start;
 	int err;
 
+	lock_kernel();
+
 	TRACE("Entered squashfs_fill_superblock\n");
 
 	sb->s_fs_info = kzalloc(sizeof(*msblk), GFP_KERNEL);
 	if (sb->s_fs_info == NULL) {
 		ERROR("Failed to allocate squashfs_sb_info\n");
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	msblk = sb->s_fs_info;
@@ -301,6 +304,7 @@ allocate_root:
 
 	TRACE("Leaving squashfs_fill_super\n");
 	kfree(sblk);
+	unlock_kernel();
 	return 0;
 
 failed_mount:
@@ -315,11 +319,13 @@ failed_mount:
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 	kfree(sblk);
+	unlock_kernel();
 	return err;
 
 failure:
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+	unlock_kernel();
 	return -ENOMEM;
 }
 

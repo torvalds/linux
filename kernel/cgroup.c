@@ -1430,6 +1430,8 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct cgroupfs_root *new_root;
 
+	lock_kernel();
+
 	/* First find the desired set of subsystems */
 	mutex_lock(&cgroup_mutex);
 	ret = parse_cgroupfs_options(data, &opts);
@@ -1559,6 +1561,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	simple_set_mnt(mnt, sb);
 	kfree(opts.release_agent);
 	kfree(opts.name);
+	unlock_kernel();
 	return 0;
 
  drop_new_super:
@@ -1568,6 +1571,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
  out_err:
 	kfree(opts.release_agent);
 	kfree(opts.name);
+	unlock_kernel();
 
 	return ret;
 }

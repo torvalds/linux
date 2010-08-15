@@ -2732,6 +2732,8 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	struct inode *tmp_ino;
 	int blocksize, result;
 
+	lock_kernel();
+
 	/*
 	 * We do a pretty difficult piece of bootstrap by reading the
 	 * MFT (and other metadata) from disk into memory. We'll only
@@ -2755,6 +2757,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(sb, "Allocation of NTFS volume structure "
 					"failed. Aborting mount...");
 		lockdep_on();
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	/* Initialize ntfs_volume structure. */
@@ -2942,6 +2945,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		sb->s_export_op = &ntfs_export_ops;
 		lock_kernel();
 		lockdep_on();
+		unlock_kernel();
 		return 0;
 	}
 	ntfs_error(sb, "Failed to allocate root directory.");
@@ -3062,6 +3066,7 @@ err_out_now:
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");
 	lockdep_on();
+	unlock_kernel();
 	return -EINVAL;
 }
 

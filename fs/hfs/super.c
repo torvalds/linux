@@ -382,9 +382,13 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root_inode;
 	int res;
 
+	lock_kernel();
+
 	sbi = kzalloc(sizeof(struct hfs_sb_info), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 
@@ -435,6 +439,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root->d_op = &hfs_dentry_operations;
 
 	/* everything's okay */
+	unlock_kernel();
 	return 0;
 
 bail_iput:
@@ -443,6 +448,7 @@ bail_no_root:
 	printk(KERN_ERR "hfs: get root inode failed.\n");
 bail:
 	hfs_mdb_put(sb);
+	unlock_kernel();
 	return res;
 }
 

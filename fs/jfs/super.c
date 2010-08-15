@@ -438,14 +438,20 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	s64 newLVSize = 0;
 	int flag, ret = -EINVAL;
 
+	lock_kernel();
+
 	jfs_info("In jfs_read_super: s_flags=0x%lx", sb->s_flags);
 
-	if (!new_valid_dev(sb->s_bdev->bd_dev))
+	if (!new_valid_dev(sb->s_bdev->bd_dev)) {
+		unlock_kernel();
 		return -EOVERFLOW;
+	}
 
 	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 	sbi->uid = sbi->gid = sbi->umask = -1;
@@ -542,6 +548,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1, (u64)sb->s_maxbytes);
 #endif
 	sb->s_time_gran = 1;
+	unlock_kernel();
 	return 0;
 
 out_no_root:
@@ -564,6 +571,7 @@ out_unload:
 		unload_nls(sbi->nls_tab);
 out_kfree:
 	kfree(sbi);
+	unlock_kernel();
 	return ret;
 }
 

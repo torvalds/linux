@@ -571,11 +571,15 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	int table, error = -EINVAL;
 	unsigned int vol_desc_start;
 
+	lock_kernel();
+
 	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	s->s_fs_info = sbi;
 
 	if (!parse_options((char *)data, &opt))
@@ -900,6 +904,7 @@ root_found:
 
 	kfree(opt.iocharset);
 
+	unlock_kernel();
 	return 0;
 
 	/*
@@ -939,6 +944,7 @@ out_freesbi:
 	kfree(opt.iocharset);
 	kfree(sbi);
 	s->s_fs_info = NULL;
+	unlock_kernel();
 	return error;
 }
 

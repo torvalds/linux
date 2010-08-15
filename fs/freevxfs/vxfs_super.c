@@ -148,7 +148,7 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
  *   The superblock on success, else %NULL.
  *
  * Locking:
- *   We are under the bkl and @sbp->s_lock.
+ *   We are under @sbp->s_lock.
  */
 static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 {
@@ -159,11 +159,14 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	struct inode *root;
 	int ret = -EINVAL;
 
+	lock_kernel();
+
 	sbp->s_flags |= MS_RDONLY;
 
 	infp = kzalloc(sizeof(*infp), GFP_KERNEL);
 	if (!infp) {
 		printk(KERN_WARNING "vxfs: unable to allocate incore superblock\n");
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -236,6 +239,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out_free_ilist;
 	}
 
+	unlock_kernel();
 	return 0;
 	
 out_free_ilist:
@@ -245,6 +249,7 @@ out_free_ilist:
 out:
 	brelse(bp);
 	kfree(infp);
+	unlock_kernel();
 	return ret;
 }
 

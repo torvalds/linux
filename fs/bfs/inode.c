@@ -322,9 +322,13 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	int ret = -EINVAL;
 	unsigned long i_sblock, i_eblock, i_eoff, s_size;
 
+	lock_kernel();
+
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
+	if (!info) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	mutex_init(&info->bfs_lock);
 	s->s_fs_info = info;
 
@@ -439,6 +443,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	brelse(bh);
 	brelse(sbh);
 	dump_imap("read_super", s);
+	unlock_kernel();
 	return 0;
 
 out3:
@@ -452,6 +457,7 @@ out:
 	mutex_destroy(&info->bfs_lock);
 	kfree(info);
 	s->s_fs_info = NULL;
+	unlock_kernel();
 	return ret;
 }
 

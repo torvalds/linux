@@ -1611,14 +1611,19 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	__le32 features;
 	int err;
 
+	lock_kernel();
+
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	sb->s_fs_info = sbi;
@@ -2026,6 +2031,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		"writeback");
 
 	lock_kernel();
+	unlock_kernel();
 	return 0;
 
 cantfind_ext3:
@@ -2056,6 +2062,7 @@ out_fail:
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	lock_kernel();
+	unlock_kernel();
 	return ret;
 }
 
