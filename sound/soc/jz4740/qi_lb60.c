@@ -22,11 +22,6 @@
 #include <sound/soc-dapm.h>
 #include <linux/gpio.h>
 
-#include "../codecs/jz4740.h"
-#include "jz4740-pcm.h"
-#include "jz4740-i2s.h"
-
-
 #define QI_LB60_SND_GPIO JZ_GPIO_PORTB(29)
 #define QI_LB60_AMP_GPIO JZ_GPIO_PORTD(4)
 
@@ -86,7 +81,7 @@ static struct snd_soc_dai_link qi_lb60_dai = {
 	.name = "jz4740",
 	.stream_name = "jz4740",
 	.cpu_dai_name = "jz4740-i2s",
-	.platform_name = "jz4740-pmc-audio",
+	.platform_name = "jz4740-pcm-audio",
 	.codec_dai_name = "jz4740-hifi",
 	.codec_name = "jz4740-codec",
 	.init = qi_lb60_codec_init,
