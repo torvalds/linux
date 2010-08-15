@@ -79,18 +79,6 @@ static __initdata struct tegra_clk_init_table ventana_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
-/* PDA power */
-static struct pda_power_pdata pda_power_pdata = {
-};
-
-static struct platform_device pda_power_device = {
-	.name   = "pda_power",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &pda_power_pdata,
-	},
-};
-
 static struct tegra_i2c_platform_data ventana_i2c1_platform_data = {
 	.adapter_nr	= 0,
 	.bus_count	= 1,
@@ -178,7 +166,6 @@ static struct platform_device *ventana_devices[] __initdata = {
 	&debug_uart,
 	&pmu_device,
 	&tegra_udc_device,
-	&pda_power_device,
 	&tegra_gart_device,
 	&ventana_keys_device,
 };
