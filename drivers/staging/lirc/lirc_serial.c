@@ -1058,6 +1058,7 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
+	.llseek		= no_llseek,
 };
 
 static struct lirc_driver driver = {
