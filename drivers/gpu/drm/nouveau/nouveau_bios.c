@@ -4381,11 +4381,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 *
 	 * For the moment, a quirk will do :)
 	 */
-	if ((dev->pdev->device == 0x01d7) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x01c2)) {
+	if (nv_match_device(dev, 0x01d7, 0x1028, 0x01c2))
 		bios->fp.duallink_transition_clk = 80000;
-	}
 
 	/* set dual_link flag for EDID case */
 	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
@@ -5814,9 +5811,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 		 */
 
 		/* Apple iMac G4 NV18 */
-		if (dev->pdev->device == 0x0189 &&
-		    dev->pdev->subsystem_vendor == 0x10de &&
-		    dev->pdev->subsystem_device == 0x0010) {
+		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
 			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
 
 			gpio->tag = DCB_GPIO_TVDAC0;
@@ -5898,9 +5893,7 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	struct drm_device *dev = bios->dev;
 
 	/* Gigabyte NX85T */
-	if ((dev->pdev->device == 0x0421) &&
-	    (dev->pdev->subsystem_vendor == 0x1458) &&
-	    (dev->pdev->subsystem_device == 0x344c)) {
+	if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
 		if (cte->type == DCB_CONNECTOR_HDMI_1)
 			cte->type = DCB_CONNECTOR_DVI_I;
 	}
@@ -6321,9 +6314,7 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 * nasty problems until this is sorted (assuming it's not a
 	 * VBIOS bug).
 	 */
-	if ((dev->pdev->device == 0x040d) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x019b)) {
+	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
 			return false;
 	}
