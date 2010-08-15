@@ -2035,9 +2035,8 @@ ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 			return true;
 		}
 
-		/* let crypto-error packets fall through in MNTR */
-		if ((rs->rs_status & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
-		    sc->opmode != NL80211_IFTYPE_MONITOR)
+		/* reject any frames with non-crypto errors */
+		if (rs->rs_status & ~(AR5K_RXERR_DECRYPT))
 			return false;
 	}
 
