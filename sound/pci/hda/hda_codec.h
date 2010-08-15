@@ -963,7 +963,10 @@ void snd_hda_codec_cleanup(struct hda_codec *codec,
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format);
-void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid);
+void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
+				    int do_now);
+#define snd_hda_codec_cleanup_stream(codec, nid) \
+	__snd_hda_codec_cleanup_stream(codec, nid, 0)
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,

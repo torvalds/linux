@@ -347,10 +347,8 @@ static int nvhdmi_dig_playback_pcm_prepare_2ch(struct hda_pcm_stream *hinfo,
 static struct hda_pcm_stream nvhdmi_pcm_digital_playback_8ch_89 = {
 	.substreams = 1,
 	.channels_min = 2,
-	.rates = SUPPORTED_RATES,
-	.maxbps = SUPPORTED_MAXBPS,
-	.formats = SUPPORTED_FORMATS,
 	.ops = {
+		.open = hdmi_pcm_open,
 		.prepare = nvhdmi_dig_playback_pcm_prepare_8ch_89,
 		.cleanup = nvhdmi_playback_pcm_cleanup,
 	},

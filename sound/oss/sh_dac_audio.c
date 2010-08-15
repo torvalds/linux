@@ -15,7 +15,6 @@
 #include <linux/linkage.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/sound.h>
 #include <linux/smp_lock.h>
 #include <linux/soundcard.h>

@@ -392,6 +392,10 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		/* fp->channels is already set in this case */
 		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
+	default:
+		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		return -EINVAL;
 	}
 
 	if (fp->channels < 1) {
@@ -452,6 +456,10 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
 	}
+	default:
+		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		return -EINVAL;
 	}
 
 	return ret;
