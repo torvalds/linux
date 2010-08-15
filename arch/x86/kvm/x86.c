@@ -3931,6 +3931,28 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 		kvm_queue_exception(vcpu, ctxt->exception);
 }
 
+static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
+{
+	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+	int cs_db, cs_l;
+
+	cache_all_regs(vcpu);
+
+	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+
+	vcpu->arch.emulate_ctxt.vcpu = vcpu;
+	vcpu->arch.emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
+	vcpu->arch.emulate_ctxt.eip = kvm_rip_read(vcpu);
+	vcpu->arch.emulate_ctxt.mode =
+		(!is_protmode(vcpu)) ? X86EMUL_MODE_REAL :
+		(vcpu->arch.emulate_ctxt.eflags & X86_EFLAGS_VM)
+		? X86EMUL_MODE_VM86 : cs_l
+		? X86EMUL_MODE_PROT64 :	cs_db
+		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+	memset(c, 0, sizeof(struct decode_cache));
+	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+}
+
 static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.insn_emulation_fail;
@@ -3987,20 +4009,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	cache_all_regs(vcpu);
 
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
-		int cs_db, cs_l;
-		kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-
-		vcpu->arch.emulate_ctxt.vcpu = vcpu;
-		vcpu->arch.emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
-		vcpu->arch.emulate_ctxt.eip = kvm_rip_read(vcpu);
-		vcpu->arch.emulate_ctxt.mode =
-			(!is_protmode(vcpu)) ? X86EMUL_MODE_REAL :
-			(vcpu->arch.emulate_ctxt.eflags & X86_EFLAGS_VM)
-			? X86EMUL_MODE_VM86 : cs_l
-			? X86EMUL_MODE_PROT64 :	cs_db
-			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
-		memset(c, 0, sizeof(struct decode_cache));
-		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+		init_emulate_ctxt(vcpu);
 		vcpu->arch.emulate_ctxt.interruptibility = 0;
 		vcpu->arch.emulate_ctxt.exception = -1;
 		vcpu->arch.emulate_ctxt.perm_ok = false;
@@ -5052,22 +5061,9 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 		    bool has_error_code, u32 error_code)
 {
 	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
-	int cs_db, cs_l, ret;
-	cache_all_regs(vcpu);
+	int ret;
 
-	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-
-	vcpu->arch.emulate_ctxt.vcpu = vcpu;
-	vcpu->arch.emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
-	vcpu->arch.emulate_ctxt.eip = kvm_rip_read(vcpu);
-	vcpu->arch.emulate_ctxt.mode =
-		(!is_protmode(vcpu)) ? X86EMUL_MODE_REAL :
-		(vcpu->arch.emulate_ctxt.eflags & X86_EFLAGS_VM)
-		? X86EMUL_MODE_VM86 : cs_l
-		? X86EMUL_MODE_PROT64 :	cs_db
-		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
-	memset(c, 0, sizeof(struct decode_cache));
-	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+	init_emulate_ctxt(vcpu);
 
 	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt,
 				   tss_selector, reason, has_error_code,
