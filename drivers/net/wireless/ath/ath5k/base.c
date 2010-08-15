@@ -1709,7 +1709,7 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	struct ath5k_buf *bf;
 	int ret;
 
-	common->rx_bufsize = roundup(IEEE80211_MAX_LEN, common->cachelsz);
+	common->rx_bufsize = roundup(IEEE80211_MAX_FRAME_LEN, common->cachelsz);
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rx_bufsize %u\n",
 		  common->cachelsz, common->rx_bufsize);
