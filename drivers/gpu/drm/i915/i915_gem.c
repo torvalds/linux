@@ -1979,8 +1979,6 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	 * cause memory corruption through use-after-free.
 	 */
 
-	BUG_ON(obj_priv->active);
-
 	/* release the fence reg _after_ flushing */
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
