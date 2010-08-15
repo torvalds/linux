@@ -201,12 +201,9 @@ static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
  */
 #ifdef CONFIG_NILFS_POSIX_ACL
 #error "NILFS: not yet supported POSIX ACL"
-extern int nilfs_permission(struct inode *, int, struct nameidata *);
 extern int nilfs_acl_chmod(struct inode *);
 extern int nilfs_init_acl(struct inode *, struct inode *);
 #else
-#define nilfs_permission   NULL
-
 static inline int nilfs_acl_chmod(struct inode *inode)
 {
 	return 0;
@@ -256,6 +253,7 @@ extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
+int nilfs_permission(struct inode *inode, int mask);
 extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
 				  struct buffer_head **);
 extern int nilfs_inode_dirty(struct inode *);
