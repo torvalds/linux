@@ -6303,8 +6303,9 @@ S:	Supported
 F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
 
-WOLFSON MICROELECTRONICS PMIC DRIVERS
+WOLFSON MICROELECTRONICS DRIVERS
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Ian Lartey <ian@opensource.wolfsonmicro.com>
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/node/8
 S:	Supported
@@ -6319,8 +6320,8 @@ F:	drivers/watchdog/wm83*_wdt.c
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
 F:	include/linux/mfd/wm8400*
-F:	sound/soc/codecs/wm8350.*
-F:	sound/soc/codecs/wm8400.*
+F:	include/sound/wm????.h
+F:	sound/soc/codecs/wm*
 
 X.25 NETWORK LAYER
 M:	Andrew Hendry <andrew.hendry@gmail.com>

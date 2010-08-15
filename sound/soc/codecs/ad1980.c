@@ -11,6 +11,14 @@
  *  option) any later version.
  */
 
+/*
+ * WARNING:
+ *
+ * Because Analog Devices Inc. discontinued the ad1980 sound chip since
+ * Sep. 2009, this ad1980 driver is not maintained, tested and supported
+ * by ADI now.
+ */
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -283,6 +291,6 @@ static void __exit ad1980_exit(void)
 }
 module_exit(ad1980_exit);
 
-MODULE_DESCRIPTION("ASoC ad1980 driver");
+MODULE_DESCRIPTION("ASoC ad1980 driver (Obsolete)");
 MODULE_AUTHOR("Roy Huang, Cliff Cai");
 MODULE_LICENSE("GPL");
