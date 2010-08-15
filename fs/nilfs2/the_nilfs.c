@@ -82,11 +82,9 @@ static struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	atomic_set(&nilfs->ns_count, 1);
 	atomic_set(&nilfs->ns_ndirtyblks, 0);
 	init_rwsem(&nilfs->ns_sem);
-	init_rwsem(&nilfs->ns_super_sem);
 	mutex_init(&nilfs->ns_mount_mutex);
 	init_rwsem(&nilfs->ns_writer_sem);
 	INIT_LIST_HEAD(&nilfs->ns_list);
-	INIT_LIST_HEAD(&nilfs->ns_supers);
 	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_cptree = RB_ROOT;
@@ -306,15 +304,6 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	int really_read_only = bdev_read_only(nilfs->ns_bdev);
 	int valid_fs = nilfs_valid_fs(nilfs);
 	int err;
-
-	if (nilfs_loaded(nilfs)) {
-		if (valid_fs ||
-		    ((s_flags & MS_RDONLY) && nilfs_test_opt(sbi, NORECOVERY)))
-			return 0;
-		printk(KERN_ERR "NILFS: the filesystem is in an incomplete "
-		       "recovery state.\n");
-		return -EINVAL;
-	}
 
 	if (!valid_fs) {
 		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
@@ -632,12 +621,7 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
  *
  * init_nilfs() performs common initialization per block device (e.g.
  * reading the super block, getting disk layout information, initializing
- * shared fields in the_nilfs). It takes on some portion of the jobs
- * typically done by a fill_super() routine. This division arises from
- * the nature that multiple NILFS instances may be simultaneously
- * mounted on a device.
- * For multiple mounts on the same device, only the first mount
- * invokes these tasks.
+ * shared fields in the_nilfs).
  *
  * Return Value: On success, 0 is returned. On error, a negative error
  * code is returned.
@@ -651,27 +635,6 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	int err;
 
 	down_write(&nilfs->ns_sem);
-	if (nilfs_init(nilfs)) {
-		/* Load values from existing the_nilfs */
-		sbp = nilfs->ns_sbp[0];
-		err = nilfs_store_magic_and_option(sb, sbp, data);
-		if (err)
-			goto out;
-
-		err = nilfs_check_feature_compatibility(sb, sbp);
-		if (err)
-			goto out;
-
-		blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
-		if (sb->s_blocksize != blocksize &&
-		    !sb_set_blocksize(sb, blocksize)) {
-			printk(KERN_ERR "NILFS: blocksize %d unfit to device\n",
-			       blocksize);
-			err = -EINVAL;
-		}
-		sb->s_maxbytes = nilfs_max_size(sb->s_blocksize_bits);
-		goto out;
-	}
 
 	blocksize = sb_min_blocksize(sb, NILFS_MIN_BLOCK_SIZE);
 	if (!blocksize) {
@@ -899,56 +862,6 @@ void nilfs_put_root(struct nilfs_root *root)
 
 		kfree(root);
 	}
-}
-
-/**
- * nilfs_find_sbinfo - find existing nilfs_sb_info structure
- * @nilfs: nilfs object
- * @rw_mount: mount type (non-zero value for read/write mount)
- * @cno: checkpoint number (zero for read-only mount)
- *
- * nilfs_find_sbinfo() returns the nilfs_sb_info structure which
- * @rw_mount and @cno (in case of snapshots) matched.  If no instance
- * was found, NULL is returned.  Although the super block instance can
- * be unmounted after this function returns, the nilfs_sb_info struct
- * is kept on memory until nilfs_put_sbinfo() is called.
- */
-struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *nilfs,
-					int rw_mount, __u64 cno)
-{
-	struct nilfs_sb_info *sbi;
-
-	down_read(&nilfs->ns_super_sem);
-	/*
-	 * The SNAPSHOT flag and sb->s_flags are supposed to be
-	 * protected with nilfs->ns_super_sem.
-	 */
-	sbi = nilfs->ns_current;
-	if (rw_mount) {
-		if (sbi && !(sbi->s_super->s_flags & MS_RDONLY))
-			goto found; /* read/write mount */
-		else
-			goto out;
-	} else if (cno == 0) {
-		if (sbi && (sbi->s_super->s_flags & MS_RDONLY))
-			goto found; /* read-only mount */
-		else
-			goto out;
-	}
-
-	list_for_each_entry(sbi, &nilfs->ns_supers, s_list) {
-		if (nilfs_test_opt(sbi, SNAPSHOT) &&
-		    sbi->s_snapshot_cno == cno)
-			goto found; /* snapshot mount */
-	}
- out:
-	up_read(&nilfs->ns_super_sem);
-	return NULL;
-
- found:
-	atomic_inc(&sbi->s_count);
-	up_read(&nilfs->ns_super_sem);
-	return sbi;
 }
 
 int nilfs_checkpoint_is_mounted(struct the_nilfs *nilfs, __u64 cno,

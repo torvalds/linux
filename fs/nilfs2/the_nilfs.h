@@ -52,16 +52,13 @@ enum {
  * @ns_bdi: backing dev info
  * @ns_writer: back pointer to writable nilfs_sb_info
  * @ns_sem: semaphore for shared states
- * @ns_super_sem: semaphore for global operations across super block instances
  * @ns_mount_mutex: mutex protecting mount process of nilfs
  * @ns_writer_sem: semaphore protecting ns_writer attach/detach
- * @ns_current: back pointer to current mount
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
  * @ns_sbwtime: previous write time of super block
  * @ns_sbwcount: write count of super block
  * @ns_sbsize: size of valid data in super block
- * @ns_supers: list of nilfs super block structs
  * @ns_seg_seq: segment sequence counter
  * @ns_segnum: index number of the latest full segment.
  * @ns_nextnum: index number of the full segment index to be used next
@@ -104,15 +101,8 @@ struct the_nilfs {
 	struct backing_dev_info *ns_bdi;
 	struct nilfs_sb_info   *ns_writer;
 	struct rw_semaphore	ns_sem;
-	struct rw_semaphore	ns_super_sem;
 	struct mutex		ns_mount_mutex;
 	struct rw_semaphore	ns_writer_sem;
-
-	/*
-	 * components protected by ns_super_sem
-	 */
-	struct nilfs_sb_info   *ns_current;
-	struct list_head	ns_supers;
 
 	/*
 	 * used for
@@ -292,12 +282,6 @@ nilfs_detach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	if (sbi == nilfs->ns_writer)
 		nilfs->ns_writer = NULL;
 	up_write(&nilfs->ns_writer_sem);
-}
-
-static inline void nilfs_put_sbinfo(struct nilfs_sb_info *sbi)
-{
-	if (atomic_dec_and_test(&sbi->s_count))
-		kfree(sbi);
 }
 
 static inline int nilfs_valid_fs(struct the_nilfs *nilfs)
