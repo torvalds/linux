@@ -308,27 +308,26 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 }
 
 /**
- * ath5k_hw_set_associd - Set BSSID for association
+ * ath5k_hw_set_bssid - Set current BSSID on hw
  *
  * @ah: The &struct ath5k_hw
- * @bssid: BSSID
- * @assoc_id: Assoc id
  *
- * Sets the BSSID which trigers the "SME Join" operation
+ * Sets the current BSSID and BSSID mask we have from the
+ * common struct into the hardware
  */
-void ath5k_hw_set_associd(struct ath5k_hw *ah)
+void ath5k_hw_set_bssid(struct ath5k_hw *ah)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	u16 tim_offset = 0;
 
 	/*
-	 * Set simple BSSID mask on 5212
+	 * Set BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212)
 		ath_hw_setbssidmask(common);
 
 	/*
-	 * Set BSSID which triggers the "SME Join" operation
+	 * Set BSSID
 	 */
 	ath5k_hw_reg_write(ah,
 			   get_unaligned_le32(common->curbssid),

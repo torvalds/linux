@@ -1160,7 +1160,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 
 	/* Restore bssid and bssid mask */
-	ath5k_hw_set_associd(ah);
+	ath5k_hw_set_bssid(ah);
 
 	/* Set PCU config */
 	ath5k_hw_set_opmode(ah, op_mode);

@@ -3476,7 +3476,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		/* Cache for later use during resets */
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = 0;
-		ath5k_hw_set_associd(ah);
+		ath5k_hw_set_bssid(ah);
 		mmiowb();
 	}
 
@@ -3494,7 +3494,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 				  "Bss Info ASSOC %d, bssid: %pM\n",
 				  bss_conf->aid, common->curbssid);
 			common->curaid = bss_conf->aid;
-			ath5k_hw_set_associd(ah);
+			ath5k_hw_set_bssid(ah);
 			/* Once ANI is available you would start it here */
 		}
 	}
