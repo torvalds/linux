@@ -1530,15 +1530,6 @@ static int nsp_eh_host_reset(struct scsi_cmnd *SCpnt)
   PCMCIA functions
 **********************************************************************/
 
-/*======================================================================
-    nsp_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-======================================================================*/
 static int nsp_cs_probe(struct pcmcia_device *link)
 {
 	scsi_info_t  *info;
@@ -1563,12 +1554,6 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 } /* nsp_cs_attach */
 
 
-/*======================================================================
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.	 If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-======================================================================*/
 static void nsp_cs_detach(struct pcmcia_device *link)
 {
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
@@ -1580,12 +1565,6 @@ static void nsp_cs_detach(struct pcmcia_device *link)
 	link->priv = NULL;
 } /* nsp_cs_detach */
 
-
-/*======================================================================
-    nsp_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-======================================================================*/
 
 static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -1697,11 +1676,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 } /* nsp_cs_config */
 
 
-/*======================================================================
-    After a card is removed, nsp_cs_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-======================================================================*/
 static void nsp_cs_release(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;

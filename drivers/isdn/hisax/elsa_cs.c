@@ -63,26 +63,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 static int protocol = 2;        /* EURO-ISDN Default */
 module_param(protocol, int, 0);
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card insertion
-   and ejection events.  They are invoked from the elsa_cs event
-   handler.
-*/
-
 static int elsa_cs_config(struct pcmcia_device *link) __devinit ;
 static void elsa_cs_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static void elsa_cs_detach(struct pcmcia_device *p_dev) __devexit;
 
 typedef struct local_info_t {
@@ -90,18 +72,6 @@ typedef struct local_info_t {
     int                 busy;
     int			cardnr;
 } local_info_t;
-
-/*======================================================================
-
-    elsa_cs_attach() creates an "instance" of the driver, allocatingx
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int __devinit elsa_cs_probe(struct pcmcia_device *link)
 {
@@ -121,15 +91,6 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
     return elsa_cs_config(link);
 } /* elsa_cs_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
 static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 {
 	local_info_t *info = link->priv;
@@ -141,14 +102,6 @@ static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 
 	kfree(info);
 } /* elsa_cs_detach */
-
-/*======================================================================
-
-    elsa_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
 
 static int elsa_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -214,14 +167,6 @@ failed:
     elsa_cs_release(link);
     return -ENODEV;
 } /* elsa_cs_config */
-
-/*======================================================================
-
-    After a card is removed, elsa_cs_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void elsa_cs_release(struct pcmcia_device *link)
 {

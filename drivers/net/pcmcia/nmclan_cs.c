@@ -434,13 +434,6 @@ static const struct net_device_ops mace_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* ----------------------------------------------------------------------------
-nmclan_attach
-	Creates an "instance" of the driver, allocating local data
-	structures for one device.  The device is registered with Card
-	Services.
----------------------------------------------------------------------------- */
-
 static int nmclan_probe(struct pcmcia_device *link)
 {
     mace_private *lp;
@@ -471,14 +464,6 @@ static int nmclan_probe(struct pcmcia_device *link)
 
     return nmclan_config(link);
 } /* nmclan_attach */
-
-/* ----------------------------------------------------------------------------
-nmclan_detach
-	This deletes a driver "instance".  The device is de-registered
-	with Card Services.  If it has been released, all local data
-	structures are freed.  Otherwise, the structures will be freed
-	when the device is released.
----------------------------------------------------------------------------- */
 
 static void nmclan_detach(struct pcmcia_device *link)
 {
@@ -623,13 +608,6 @@ static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
   return 0;
 } /* mace_init */
 
-/* ----------------------------------------------------------------------------
-nmclan_config
-	This routine is scheduled to run after a CARD_INSERTION event
-	is received, to configure the PCMCIA socket, and to make the
-	ethernet device available to the system.
----------------------------------------------------------------------------- */
-
 static int nmclan_config(struct pcmcia_device *link)
 {
   struct net_device *dev = link->priv;
@@ -710,12 +688,6 @@ failed:
 	return -ENODEV;
 } /* nmclan_config */
 
-/* ----------------------------------------------------------------------------
-nmclan_release
-	After a card is removed, nmclan_release() will unregister the
-	net device, and release the PCMCIA configuration.  If the device
-	is still open, this will be postponed until it is closed.
----------------------------------------------------------------------------- */
 static void nmclan_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "nmclan_release\n");

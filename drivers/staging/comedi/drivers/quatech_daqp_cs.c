@@ -968,42 +968,13 @@ static int daqp_detach(struct comedi_device *dev)
 
 ======================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.
-
-   Kernel version 2.6.16 upwards uses suspend() and resume() functions
-   instead of an event() function.
-*/
-
 static void daqp_cs_config(struct pcmcia_device *link);
 static void daqp_cs_release(struct pcmcia_device *link);
 static int daqp_cs_suspend(struct pcmcia_device *p_dev);
 static int daqp_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
-
-/*======================================================================
-
-    daqp_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int daqp_cs_attach(struct pcmcia_device *link)
 {
@@ -1035,15 +1006,6 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	return 0;
 }				/* daqp_cs_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
 static void daqp_cs_detach(struct pcmcia_device *link)
 {
 	struct local_info_t *dev = link->priv;
@@ -1058,15 +1020,6 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 	kfree(dev);
 
 }				/* daqp_cs_detach */
-
-/*======================================================================
-
-    daqp_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
 
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -1094,11 +1047,6 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
@@ -1116,18 +1064,6 @@ static void daqp_cs_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }				/* daqp_cs_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {

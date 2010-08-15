@@ -163,27 +163,6 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 
 
 
-/*******************************************************************************
- *	wl_adapter_detach()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      This deletes a driver "instance". The device is de-registered with Card
- *  Services. If it has been released, then the net device is unregistered, and
- *  all local data structures are freed. Otherwise, the structures will be
- *  freed when the device is released.
- *
- *  PARAMETERS:
- *
- *      link    - pointer to the dev_link_t structure representing the device to
- *                detach
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 static void wl_adapter_detach(struct pcmcia_device *link)
 {
 	struct net_device   *dev = link->priv;
@@ -207,26 +186,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 /*============================================================================*/
 
 
-/*******************************************************************************
- *	wl_adapter_release()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      After a card is removed, this routine will release the PCMCIA
- *  configuration. If the device is still open, this will be postponed until it
- *  is closed.
- *
- *  PARAMETERS:
- *
- *      arg - a u_long representing a pointer to a dev_link_t structure for the
- *            device to be released.
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 void wl_adapter_release(struct pcmcia_device *link)
 {
 	DBG_FUNC("wl_adapter_release");
@@ -266,26 +225,6 @@ static int wl_adapter_resume(struct pcmcia_device *link)
 	return 0;
 } /* wl_adapter_resume */
 
-/*******************************************************************************
- *	wl_adapter_insert()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      wl_adapter_insert() is scheduled to run after a CARD_INSERTION event is
- *  received, to configure the PCMCIA socket, and to make the ethernet device
- *  available to the system.
- *
- *  PARAMETERS:
- *
- *      link    - pointer to the dev_link_t structure representing the device to
- *                insert
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 void wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;

@@ -736,11 +736,6 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;

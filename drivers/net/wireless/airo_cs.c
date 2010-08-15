@@ -53,41 +53,14 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
 
 /*====================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the airo_cs
-   event handler.
-*/
-
 static int airo_config(struct pcmcia_device *link);
 static void airo_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
 
 static void airo_detach(struct pcmcia_device *p_dev);
 
 typedef struct local_info_t {
 	struct net_device *eth_dev;
 } local_info_t;
-
-/*======================================================================
-
-  airo_attach() creates an "instance" of the driver, allocating
-  local data structures for one device.  The device is registered
-  with Card Services.
-
-  The dev_link structure is initialized, but we don't actually
-  configure the card at this point -- we wait until we receive a
-  card insertion event.
-
-  ======================================================================*/
 
 static int airo_probe(struct pcmcia_device *p_dev)
 {
@@ -106,15 +79,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 	return airo_config(p_dev);
 } /* airo_attach */
 
-/*======================================================================
-
-  This deletes a driver "instance".  The device is de-registered
-  with Card Services.  If it has been released, all local data
-  structures are freed.  Otherwise, the structures will be freed
-  when the device is released.
-
-  ======================================================================*/
-
 static void airo_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "airo_detach\n");
@@ -128,14 +92,6 @@ static void airo_detach(struct pcmcia_device *link)
 
 	kfree(link->priv);
 } /* airo_detach */
-
-/*======================================================================
-
-  airo_config() is scheduled to run after a CARD_INSERTION event
-  is received, to configure the PCMCIA socket, and to make the
-  device available to the system.
-
-  ======================================================================*/
 
 static int airo_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -158,20 +114,6 @@ static int airo_config(struct pcmcia_device *link)
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
 		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
-	/*
-	 * In this loop, we scan the CIS for configuration table
-	 * entries, each of which describes a valid card
-	 * configuration, including voltage, IO window, memory window,
-	 * and interrupt settings.
-	 *
-	 * We make no assumptions about the card to be configured: we
-	 * use just the information available in the CIS.  In an ideal
-	 * world, this would work for any PCMCIA card, but it requires
-	 * a complete and accurate CIS.  In practice, a driver usually
-	 * "knows" most of these things without consulting the CIS,
-	 * and most client drivers will only use the CIS to fill in
-	 * implementation-defined details.
-	 */
 	ret = pcmcia_loop_config(link, airo_cs_config_check, NULL);
 	if (ret)
 		goto failed;
@@ -179,11 +121,6 @@ static int airo_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	  This actually configures the PCMCIA socket -- setting up
-	  the I/O windows and the interrupt mapping, and putting the
-	  card and host interface into "Memory and IO" mode.
-	*/
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
@@ -199,14 +136,6 @@ static int airo_config(struct pcmcia_device *link)
 	airo_release(link);
 	return -ENODEV;
 } /* airo_config */
-
-/*======================================================================
-
-  After a card is removed, airo_release() will unregister the
-  device, and release the PCMCIA configuration.  If the device is
-  still open, this will be postponed until it is closed.
-
-  ======================================================================*/
 
 static void airo_release(struct pcmcia_device *link)
 {

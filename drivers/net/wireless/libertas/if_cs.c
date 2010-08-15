@@ -760,15 +760,6 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 }
 
 
-/********************************************************************/
-/* Card Services                                                    */
-/********************************************************************/
-
-/*
- * After a card is removed, if_cs_release() will unregister the
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
 static void if_cs_release(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;
@@ -783,16 +774,6 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 	lbs_deb_leave(LBS_DEB_CS);
 }
 
-
-/*
- * This creates an "instance" of the driver, allocating local data
- * structures for one device.  The device is registered with Card
- * Services.
- *
- * The dev_link structure is initialized, but we don't actually
- * configure the card at this point -- we wait until we receive a card
- * insertion event.
- */
 
 static int if_cs_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -849,11 +830,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out1;
 	}
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
 	ret = pcmcia_enable_device(p_dev);
 	if (ret) {
 		lbs_pr_err("error in pcmcia_enable_device\n");
@@ -950,12 +926,6 @@ out:
 }
 
 
-/*
- * This deletes a driver "instance".  The device is de-registered with
- * Card Services.  If it has been released, all local data structures
- * are freed.  Otherwise, the structures will be freed when the device
- * is released.
- */
 static void if_cs_detach(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;

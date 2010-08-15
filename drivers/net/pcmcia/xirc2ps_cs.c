@@ -266,32 +266,10 @@ static unsigned mii_rd(unsigned int ioaddr, u_char phyaddr, u_char phyreg);
 static void mii_wr(unsigned int ioaddr, u_char phyaddr, u_char phyreg,
 		   unsigned data, int len);
 
-/*
- * The event() function is this driver's Card Services event handler.
- * It will be called by Card Services when an appropriate card status
- * event is received.  The config() and release() entry points are
- * used to configure or release a socket, in response to card insertion
- * and ejection events.  They are invoked from the event handler.
- */
-
 static int has_ce2_string(struct pcmcia_device * link);
 static int xirc2ps_config(struct pcmcia_device * link);
 static void xirc2ps_release(struct pcmcia_device * link);
-
-/****************
- * The attach() and detach() entry points are used to create and destroy
- * "instances" of the driver, where each instance represents everything
- * needed to manage one actual PCMCIA card.
- */
-
 static void xirc2ps_detach(struct pcmcia_device *p_dev);
-
-/****************
- * You'll also need to prototype all the functions that will actually
- * be used to talk to your device.  See 'pcmem_cs' for a good example
- * of a fully self-sufficient driver; the other drivers rely more or
- * less on other parts of the kernel.
- */
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
@@ -500,16 +478,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/****************
- * xirc2ps_attach() creates an "instance" of the driver, allocating
- * local data structures for one device.  The device is registered
- * with Card Services.
- *
- * The dev_link structure is initialized, but we don't actually
- * configure the card at this point -- we wait until we receive a
- * card insertion event.
- */
-
 static int
 xirc2ps_probe(struct pcmcia_device *link)
 {
@@ -538,13 +506,6 @@ xirc2ps_probe(struct pcmcia_device *link)
 
     return xirc2ps_config(link);
 } /* xirc2ps_attach */
-
-/****************
- *  This deletes a driver "instance".  The device is de-registered
- *  with Card Services.  If it has been released, all local data
- *  structures are freed.  Otherwise, the structures will be freed
- *  when the device is released.
- */
 
 static void
 xirc2ps_detach(struct pcmcia_device *link)
@@ -733,11 +694,6 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 };
 
 
-/****************
- * xirc2ps_config() is scheduled to run after a CARD_INSERTION event
- * is received, to configure the PCMCIA socket, and to make the
- * ethernet device available to the system.
- */
 static int
 xirc2ps_config(struct pcmcia_device * link)
 {
@@ -861,10 +817,6 @@ xirc2ps_config(struct pcmcia_device * link)
     if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
 	goto config_error;
 
-    /****************
-     * This actually configures the PCMCIA socket -- setting up
-     * the I/O windows and the interrupt mapping.
-     */
     link->config_flags |= CONF_ENABLE_IRQ;
     if (do_sound)
 	    link->config_flags |= CONF_ENABLE_SPKR;
@@ -980,11 +932,6 @@ xirc2ps_config(struct pcmcia_device * link)
     return -ENODEV;
 } /* xirc2ps_config */
 
-/****************
- * After a card is removed, xirc2ps_release() will unregister the net
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
 static void
 xirc2ps_release(struct pcmcia_device *link)
 {

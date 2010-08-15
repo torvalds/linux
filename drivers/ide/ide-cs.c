@@ -71,17 +71,6 @@ static int ide_config(struct pcmcia_device *);
 
 static void ide_detach(struct pcmcia_device *p_dev);
 
-
-
-
-/*======================================================================
-
-    ide_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int ide_probe(struct pcmcia_device *link)
 {
     ide_info_t *info;
@@ -101,15 +90,6 @@ static int ide_probe(struct pcmcia_device *link)
 
     return ide_config(link);
 } /* ide_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void ide_detach(struct pcmcia_device *link)
 {
@@ -183,14 +163,6 @@ out_release:
     release_region(io, 8);
     return NULL;
 }
-
-/*======================================================================
-
-    ide_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ide device available to the system.
-
-======================================================================*/
 
 static int pcmcia_check_one_config(struct pcmcia_device *pdev, void *priv_data)
 {
@@ -275,14 +247,6 @@ failed:
     return -ENODEV;
 } /* ide_config */
 
-/*======================================================================
-
-    After a card is removed, ide_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
 static void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
@@ -307,15 +271,6 @@ static void ide_release(struct pcmcia_device *link)
     pcmcia_disable_device(link);
 } /* ide_release */
 
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the ide drivers from
-    talking to the ports.
-
-======================================================================*/
 
 static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(4),

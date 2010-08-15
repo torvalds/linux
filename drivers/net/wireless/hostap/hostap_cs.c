@@ -466,9 +466,6 @@ static void prism2_detach(struct pcmcia_device *link)
 }
 
 
-/* run after a CARD_INSERTION event is received to configure the PCMCIA
- * socket and make the device available to the system */
-
 static int prism2_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	if (p_dev->config_index == 0)
@@ -530,11 +527,6 @@ static int prism2_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed_unlock;
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed_unlock;

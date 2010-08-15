@@ -121,14 +121,6 @@ static irqreturn_t ibmtr_interrupt(int irq, void *dev_id) {
 	return tok_interrupt(irq, dev);
 };
 
-/*======================================================================
-
-    ibmtr_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int __devinit ibmtr_attach(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info;
@@ -161,15 +153,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     return ibmtr_config(link);
 } /* ibmtr_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
 static void ibmtr_detach(struct pcmcia_device *link)
 {
     struct ibmtr_dev_t *info = link->priv;
@@ -193,14 +176,6 @@ static void ibmtr_detach(struct pcmcia_device *link)
     free_netdev(dev);
     kfree(info);
 } /* ibmtr_detach */
-
-/*======================================================================
-
-    ibmtr_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    token-ring device available to the system.
-
-======================================================================*/
 
 static int __devinit ibmtr_config(struct pcmcia_device *link)
 {
@@ -296,14 +271,6 @@ failed:
     ibmtr_release(link);
     return -ENODEV;
 } /* ibmtr_config */
-
-/*======================================================================
-
-    After a card is removed, ibmtr_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void ibmtr_release(struct pcmcia_device *link)
 {

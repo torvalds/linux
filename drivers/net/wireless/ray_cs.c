@@ -168,13 +168,6 @@ static int bc;
  */
 static char *phy_addr = NULL;
 
-
-/* A struct pcmcia_device structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a struct pcmcia_device structure can be used to point to
-   a device-specific private data structure, like this.
-*/
 static unsigned int ray_mem_speed = 500;
 
 /* WARNING: THIS DRIVER IS NOT CAPABLE OF HANDLING MULTIPLE DEVICES! */
@@ -289,14 +282,6 @@ static const struct net_device_ops ray_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*=============================================================================
-    ray_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-=============================================================================*/
 static int ray_probe(struct pcmcia_device *p_dev)
 {
 	ray_dev_t *local;
@@ -351,12 +336,6 @@ fail_alloc_dev:
 	return -ENOMEM;
 } /* ray_attach */
 
-/*=============================================================================
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-=============================================================================*/
 static void ray_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev;
@@ -379,11 +358,6 @@ static void ray_detach(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "ray_cs ray_detach ending\n");
 } /* ray_detach */
 
-/*=============================================================================
-    ray_config() is run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-=============================================================================*/
 #define MAX_TUPLE_SIZE 128
 static int ray_config(struct pcmcia_device *link)
 {
@@ -409,9 +383,6 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 	dev->irq = link->irq;
 
-	/* This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping.
-	 */
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
@@ -771,11 +742,7 @@ static void join_net(u_long data)
 	local->card_status = CARD_DOING_ACQ;
 }
 
-/*============================================================================
-    After a card is removed, ray_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-=============================================================================*/
+
 static void ray_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;

@@ -287,16 +287,7 @@ static int tc574_probe(struct pcmcia_device *link)
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return tc574_config(link);
-} /* tc574_attach */
-
-/*
-
-	This deletes a driver "instance".  The device is de-registered
-	with Card Services.  If it has been released, all local data
-	structures are freed.  Otherwise, the structures will be freed
-	when the device is released.
-
-*/
+}
 
 static void tc574_detach(struct pcmcia_device *link)
 {
@@ -310,12 +301,6 @@ static void tc574_detach(struct pcmcia_device *link)
 
 	free_netdev(dev);
 } /* tc574_detach */
-
-/*
-	tc574_config() is scheduled to run after a CARD_INSERTION event
-	is received, to configure the PCMCIA socket, and to make the
-	ethernet device available to the system.
-*/
 
 static const char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 
@@ -462,12 +447,6 @@ failed:
 	return -ENODEV;
 
 } /* tc574_config */
-
-/*
-	After a card is removed, tc574_release() will unregister the net
-	device, and release the PCMCIA configuration.  If the device is
-	still open, this will be postponed until it is closed.
-*/
 
 static void tc574_release(struct pcmcia_device *link)
 {

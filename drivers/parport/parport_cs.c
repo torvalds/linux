@@ -80,14 +80,6 @@ static void parport_detach(struct pcmcia_device *p_dev);
 static int parport_config(struct pcmcia_device *link);
 static void parport_cs_release(struct pcmcia_device *);
 
-/*======================================================================
-
-    parport_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int parport_probe(struct pcmcia_device *link)
 {
     parport_info_t *info;
@@ -105,15 +97,6 @@ static int parport_probe(struct pcmcia_device *link)
     return parport_config(link);
 } /* parport_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
 static void parport_detach(struct pcmcia_device *link)
 {
     dev_dbg(&link->dev, "parport_detach\n");
@@ -122,14 +105,6 @@ static void parport_detach(struct pcmcia_device *link)
 
     kfree(link->priv);
 } /* parport_detach */
-
-/*======================================================================
-
-    parport_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    parport device available to the system.
-
-======================================================================*/
 
 static int parport_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -186,14 +161,6 @@ failed:
     parport_cs_release(link);
     return -ENODEV;
 } /* parport_config */
-
-/*======================================================================
-
-    After a card is removed, parport_cs_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-    
-======================================================================*/
 
 static void parport_cs_release(struct pcmcia_device *link)
 {

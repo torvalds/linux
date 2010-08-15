@@ -321,11 +321,6 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 }
 
 
-/* After a card is removed, pcmciamtd_release() will unregister the
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
-
 static void pcmciamtd_release(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
@@ -474,11 +469,6 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *p_dev
 	      dev->pcmcia_map.bankwidth << 3, dev->mtd_name);
 }
 
-
-/* pcmciamtd_config() is scheduled to run after a CARD_INSERTION event
- * is received, to configure the PCMCIA socket, and to make the
- * MTD device available to the system.
- */
 
 static int pcmciamtd_config(struct pcmcia_device *link)
 {
@@ -676,12 +666,6 @@ static int pcmciamtd_resume(struct pcmcia_device *dev)
 }
 
 
-/* This deletes a driver "instance".  The device is de-registered
- * with Card Services.  If it has been released, all local data
- * structures are freed.  Otherwise, the structures will be freed
- * when the device is released.
- */
-
 static void pcmciamtd_detach(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
@@ -698,11 +682,6 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 	pcmciamtd_release(link);
 }
 
-
-/* pcmciamtd_attach() creates an "instance" of the driver, allocating
- * local data structures for one device.  The device is registered
- * with Card Services.
- */
 
 static int pcmciamtd_probe(struct pcmcia_device *link)
 {

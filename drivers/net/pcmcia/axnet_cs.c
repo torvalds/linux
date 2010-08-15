@@ -139,14 +139,6 @@ static const struct net_device_ops axnet_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*======================================================================
-
-    axnet_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int axnet_probe(struct pcmcia_device *link)
 {
     axnet_dev_t *info;
@@ -174,15 +166,6 @@ static int axnet_probe(struct pcmcia_device *link)
 
     return axnet_config(link);
 } /* axnet_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void axnet_detach(struct pcmcia_device *link)
 {
@@ -245,14 +228,6 @@ static int get_prom(struct pcmcia_device *link)
     }
     return 1;
 } /* get_prom */
-
-/*======================================================================
-
-    axnet_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int try_io_port(struct pcmcia_device *link)
 {
@@ -391,14 +366,6 @@ failed:
     axnet_release(link);
     return -ENODEV;
 } /* axnet_config */
-
-/*======================================================================
-
-    After a card is removed, axnet_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void axnet_release(struct pcmcia_device *link)
 {

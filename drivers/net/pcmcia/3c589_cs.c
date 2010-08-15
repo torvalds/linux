@@ -175,14 +175,6 @@ static const struct ethtool_ops netdev_ethtool_ops;
 
 static void tc589_detach(struct pcmcia_device *p_dev);
 
-/*======================================================================
-
-    tc589_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static const struct net_device_ops el3_netdev_ops = {
 	.ndo_open		= el3_open,
 	.ndo_stop		= el3_close,
@@ -224,16 +216,7 @@ static int tc589_probe(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     return tc589_config(link);
-} /* tc589_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
+}
 
 static void tc589_detach(struct pcmcia_device *link)
 {
@@ -247,14 +230,6 @@ static void tc589_detach(struct pcmcia_device *link)
 
     free_netdev(dev);
 } /* tc589_detach */
-
-/*======================================================================
-
-    tc589_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int tc589_config(struct pcmcia_device *link)
 {
@@ -349,14 +324,6 @@ failed:
     tc589_release(link);
     return -ENODEV;
 } /* tc589_config */
-
-/*======================================================================
-
-    After a card is removed, tc589_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void tc589_release(struct pcmcia_device *link)
 {

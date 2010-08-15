@@ -237,14 +237,6 @@ static const struct net_device_ops pcnet_netdev_ops = {
 #endif
 };
 
-/*======================================================================
-
-    pcnet_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int pcnet_probe(struct pcmcia_device *link)
 {
     pcnet_dev_t *info;
@@ -265,15 +257,6 @@ static int pcnet_probe(struct pcmcia_device *link)
 
     return pcnet_config(link);
 } /* pcnet_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void pcnet_detach(struct pcmcia_device *link)
 {
@@ -460,14 +443,6 @@ static hw_info_t *get_hwired(struct pcmcia_device *link)
 
     return &default_info;
 } /* get_hwired */
-
-/*======================================================================
-
-    pcnet_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int try_io_port(struct pcmcia_device *link)
 {
@@ -665,14 +640,6 @@ failed:
     return -ENODEV;
 } /* pcnet_config */
 
-/*======================================================================
-
-    After a card is removed, pcnet_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
 static void pcnet_release(struct pcmcia_device *link)
 {
 	pcnet_dev_t *info = PRIV(link->priv);
@@ -684,15 +651,6 @@ static void pcnet_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
 
 static int pcnet_suspend(struct pcmcia_device *link)
 {

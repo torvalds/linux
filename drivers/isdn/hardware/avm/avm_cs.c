@@ -38,37 +38,9 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card insertion
-   and ejection events.  They are invoked from the skeleton event
-   handler.
-*/
-
 static int avmcs_config(struct pcmcia_device *link);
 static void avmcs_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static void avmcs_detach(struct pcmcia_device *p_dev);
-
-/*======================================================================
-
-    avmcs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-    
-======================================================================*/
 
 static int avmcs_probe(struct pcmcia_device *p_dev)
 {
@@ -80,27 +52,11 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     return avmcs_config(p_dev);
 } /* avmcs_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void avmcs_detach(struct pcmcia_device *link)
 {
 	avmcs_release(link);
 } /* avmcs_detach */
-
-/*======================================================================
-
-    avmcs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-    
-======================================================================*/
 
 static int avmcs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -185,13 +141,6 @@ static int avmcs_config(struct pcmcia_device *link)
 
 } /* avmcs_config */
 
-/*======================================================================
-
-    After a card is removed, avmcs_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-    
-======================================================================*/
 
 static void avmcs_release(struct pcmcia_device *link)
 {

@@ -152,58 +152,19 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return labpc_common_attach(dev, iobase, irq, 0);
 }
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the dummy
-   event handler.
-
-   Kernel version 2.6.16 upwards uses suspend() and resume() functions
-   instead of an event() function.
-*/
-
 static void labpc_config(struct pcmcia_device *link);
 static void labpc_release(struct pcmcia_device *link);
 static int labpc_cs_suspend(struct pcmcia_device *p_dev);
 static int labpc_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int labpc_cs_attach(struct pcmcia_device *);
 static void labpc_cs_detach(struct pcmcia_device *);
-
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
 
 struct local_info_t {
 	struct pcmcia_device *link;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    labpc_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int labpc_cs_attach(struct pcmcia_device *link)
 {
@@ -225,15 +186,6 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	return 0;
 }				/* labpc_cs_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
 static void labpc_cs_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "labpc_cs_detach\n");
@@ -251,14 +203,6 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 	kfree(link->priv);
 
 }				/* labpc_cs_detach */
-
-/*======================================================================
-
-    labpc_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
 
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
@@ -288,11 +232,6 @@ static void labpc_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
@@ -311,18 +250,6 @@ static void labpc_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 }				/* labpc_release */
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
-
 static int labpc_cs_suspend(struct pcmcia_device *link)
 {
 	struct local_info_t *local = link->priv;
@@ -339,8 +266,6 @@ static int labpc_cs_resume(struct pcmcia_device *link)
 	local->stop = 0;
 	return 0;
 }				/* labpc_cs_resume */
-
-/*====================================================================*/
 
 static struct pcmcia_device_id labpc_cs_ids[] = {
 	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */

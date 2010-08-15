@@ -299,14 +299,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/*======================================================================
-
-  smc91c92_attach() creates an "instance" of the driver, allocating
-  local data structures for one device.  The device is registered
-  with Card Services.
-
-======================================================================*/
-
 static int smc91c92_probe(struct pcmcia_device *link)
 {
     struct smc_private *smc;
@@ -337,15 +329,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
 
     return smc91c92_config(link);
 } /* smc91c92_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void smc91c92_detach(struct pcmcia_device *link)
 {
@@ -819,14 +802,6 @@ static int check_sig(struct pcmcia_device *link)
     return -ENODEV;
 }
 
-/*======================================================================
-
-    smc91c92_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
-
 static int smc91c92_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
@@ -976,14 +951,6 @@ config_failed:
     free_netdev(dev);
     return -ENODEV;
 } /* smc91c92_config */
-
-/*======================================================================
-
-    After a card is removed, smc91c92_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void smc91c92_release(struct pcmcia_device *link)
 {

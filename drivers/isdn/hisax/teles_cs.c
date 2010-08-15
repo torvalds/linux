@@ -44,26 +44,8 @@ MODULE_LICENSE("GPL");
 static int protocol = 2;        /* EURO-ISDN Default */
 module_param(protocol, int, 0);
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card insertion
-   and ejection events.  They are invoked from the teles_cs event
-   handler.
-*/
-
 static int teles_cs_config(struct pcmcia_device *link) __devinit ;
 static void teles_cs_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static void teles_detach(struct pcmcia_device *p_dev) __devexit ;
 
 typedef struct local_info_t {
@@ -71,18 +53,6 @@ typedef struct local_info_t {
     int                 busy;
     int			cardnr;
 } local_info_t;
-
-/*======================================================================
-
-    teles_attach() creates an "instance" of the driver, allocatingx
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int __devinit teles_probe(struct pcmcia_device *link)
 {
@@ -98,26 +68,10 @@ static int __devinit teles_probe(struct pcmcia_device *link)
     local->p_dev = link;
     link->priv = local;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
     link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     return teles_cs_config(link);
 } /* teles_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void __devexit teles_detach(struct pcmcia_device *link)
 {
@@ -130,14 +84,6 @@ static void __devexit teles_detach(struct pcmcia_device *link)
 
 	kfree(info);
 } /* teles_detach */
-
-/*======================================================================
-
-    teles_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
 
 static int teles_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
@@ -203,14 +149,6 @@ cs_failed:
     teles_cs_release(link);
     return -ENODEV;
 } /* teles_cs_config */
-
-/*======================================================================
-
-    After a card is removed, teles_cs_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void teles_cs_release(struct pcmcia_device *link)
 {

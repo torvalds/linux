@@ -63,41 +63,14 @@ MODULE_SUPPORTED_DEVICE("Atmel at76c50x PCMCIA cards");
 
 /*====================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the atmel_cs
-   event handler.
-*/
-
 static int atmel_config(struct pcmcia_device *link);
 static void atmel_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
 
 static void atmel_detach(struct pcmcia_device *p_dev);
 
 typedef struct local_info_t {
 	struct net_device *eth_dev;
 } local_info_t;
-
-/*======================================================================
-
-  atmel_attach() creates an "instance" of the driver, allocating
-  local data structures for one device.  The device is registered
-  with Card Services.
-
-  The dev_link structure is initialized, but we don't actually
-  configure the card at this point -- we wait until we receive a
-  card insertion event.
-
-  ======================================================================*/
 
 static int atmel_probe(struct pcmcia_device *p_dev)
 {
@@ -116,15 +89,6 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 	return atmel_config(p_dev);
 } /* atmel_attach */
 
-/*======================================================================
-
-  This deletes a driver "instance".  The device is de-registered
-  with Card Services.  If it has been released, all local data
-  structures are freed.  Otherwise, the structures will be freed
-  when the device is released.
-
-  ======================================================================*/
-
 static void atmel_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "atmel_detach\n");
@@ -133,14 +97,6 @@ static void atmel_detach(struct pcmcia_device *link)
 
 	kfree(link->priv);
 }
-
-/*======================================================================
-
-  atmel_config() is scheduled to run after a CARD_INSERTION event
-  is received, to configure the PCMCIA socket, and to make the
-  device available to the system.
-
-  ======================================================================*/
 
 /* Call-back function to interrogate PCMCIA-specific information
    about the current existance of the card */
@@ -176,18 +132,6 @@ static int atmel_config(struct pcmcia_device *link)
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
 		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
-	/*
-	  In this loop, we scan the CIS for configuration table entries,
-	  each of which describes a valid card configuration, including
-	  voltage, IO window, memory window, and interrupt settings.
-
-	  We make no assumptions about the card to be configured: we use
-	  just the information available in the CIS.  In an ideal world,
-	  this would work for any PCMCIA card, but it requires a complete
-	  and accurate CIS.  In practice, a driver usually "knows" most of
-	  these things without consulting the CIS, and most client drivers
-	  will only use the CIS to fill in implementation-defined details.
-	*/
 	if (pcmcia_loop_config(link, atmel_config_check, NULL))
 		goto failed;
 
@@ -196,11 +140,6 @@ static int atmel_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	  This actually configures the PCMCIA socket -- setting up
-	  the I/O windows and the interrupt mapping, and putting the
-	  card and host interface into "Memory and IO" mode.
-	*/
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
@@ -222,14 +161,6 @@ static int atmel_config(struct pcmcia_device *link)
 	atmel_release(link);
 	return -ENODEV;
 }
-
-/*======================================================================
-
-  After a card is removed, atmel_release() will unregister the
-  device, and release the PCMCIA configuration.  If the device is
-  still open, this will be postponed until it is closed.
-
-  ======================================================================*/
 
 static void atmel_release(struct pcmcia_device *link)
 {

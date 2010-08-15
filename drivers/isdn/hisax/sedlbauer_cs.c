@@ -63,25 +63,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 static int protocol = 2;        /* EURO-ISDN Default */
 module_param(protocol, int, 0);
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the sedlbauer
-   event handler. 
-*/
-
 static int sedlbauer_config(struct pcmcia_device *link) __devinit ;
 static void sedlbauer_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
 
 static void sedlbauer_detach(struct pcmcia_device *p_dev) __devexit;
 
@@ -90,18 +73,6 @@ typedef struct local_info_t {
     int			stop;
     int			cardnr;
 } local_info_t;
-
-/*======================================================================
-
-    sedlbauer_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-    
-======================================================================*/
 
 static int __devinit sedlbauer_probe(struct pcmcia_device *link)
 {
@@ -117,29 +88,8 @@ static int __devinit sedlbauer_probe(struct pcmcia_device *link)
     local->p_dev = link;
     link->priv = local;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
-
-    /* from old sedl_cs 
-    */
-    /* The io structure describes IO port mapping */
-
     return sedlbauer_config(link);
 } /* sedlbauer_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void __devexit sedlbauer_detach(struct pcmcia_device *link)
 {
@@ -152,13 +102,6 @@ static void __devexit sedlbauer_detach(struct pcmcia_device *link)
 	kfree(link->priv);
 } /* sedlbauer_detach */
 
-/*======================================================================
-
-    sedlbauer_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-    
-======================================================================*/
 static int sedlbauer_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	if (p_dev->config_index == 0)
@@ -167,8 +110,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	p_dev->io_lines = 3;
 	return pcmcia_request_io(p_dev);
 }
-
-
 
 static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
@@ -180,27 +121,10 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
     link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_CHECK_VCC |
 	    CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
-    /*
-      In this loop, we scan the CIS for configuration table entries,
-      each of which describes a valid card configuration, including
-      voltage, IO window, memory window, and interrupt settings.
-
-      We make no assumptions about the card to be configured: we use
-      just the information available in the CIS.  In an ideal world,
-      this would work for any PCMCIA card, but it requires a complete
-      and accurate CIS.  In practice, a driver usually "knows" most of
-      these things without consulting the CIS, and most client drivers
-      will only use the CIS to fill in implementation-defined details.
-    */
     ret = pcmcia_loop_config(link, sedlbauer_config_check, NULL);
     if (ret)
 	    goto failed;
 
-    /*
-       This actually configures the PCMCIA socket -- setting up
-       the I/O windows and the interrupt mapping, and putting the
-       card and host interface into "Memory and IO" mode.
-    */
     ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
@@ -227,14 +151,6 @@ failed:
     return -ENODEV;
 
 } /* sedlbauer_config */
-
-/*======================================================================
-
-    After a card is removed, sedlbauer_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-    
-======================================================================*/
 
 static void sedlbauer_release(struct pcmcia_device *link)
 {

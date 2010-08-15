@@ -262,13 +262,6 @@ static const struct serial_quirk quirks[] = {
 static int serial_config(struct pcmcia_device * link);
 
 
-/*======================================================================
-
-    After a card is removed, serial_remove() will unregister
-    the serial device(s), and release the PCMCIA configuration.
-    
-======================================================================*/
-
 static void serial_remove(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
@@ -311,14 +304,6 @@ static int serial_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-/*======================================================================
-
-    serial_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int serial_probe(struct pcmcia_device *link)
 {
 	struct serial_info *info;
@@ -338,15 +323,6 @@ static int serial_probe(struct pcmcia_device *link)
 
 	return serial_config(link);
 }
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void serial_detach(struct pcmcia_device *link)
 {
@@ -630,14 +606,6 @@ static int serial_check_for_multi(struct pcmcia_device *p_dev,  void *priv_data)
 	return 0; /* break */
 }
 
-
-/*======================================================================
-
-    serial_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    serial device available to the system.
-
-======================================================================*/
 
 static int serial_config(struct pcmcia_device * link)
 {
