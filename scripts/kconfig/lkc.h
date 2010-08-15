@@ -37,6 +37,9 @@ extern "C" {
 #define _(text) gettext(text)
 #define N_(text) (text)
 
+#ifndef CONFIG_
+#define CONFIG_ "CONFIG_"
+#endif
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002

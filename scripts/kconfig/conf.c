@@ -425,7 +425,7 @@ static void check_conf(struct menu *menu)
 		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
 			if (input_mode == listnewconfig) {
 				if (sym->name && !sym_is_choice_value(sym)) {
-					printf("CONFIG_%s\n", sym->name);
+					printf("%s%s\n", CONFIG_, sym->name);
 				}
 			} else if (input_mode != oldnoconfig) {
 				if (!conf_cnt++)

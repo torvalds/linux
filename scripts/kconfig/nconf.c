@@ -744,8 +744,8 @@ static void search_conf(void)
 again:
 	dres = dialog_inputbox(main_window,
 			_("Search Configuration Parameter"),
-			_("Enter CONFIG_ (sub)string to search for "
-				"(with or without \"CONFIG\")"),
+			_("Enter " CONFIG_ " (sub)string to search for "
+				"(with or without \"" CONFIG_ "\")"),
 			"", dialog_input_result, 99);
 	switch (dres) {
 	case 0:
@@ -758,10 +758,10 @@ again:
 		return;
 	}
 
-	/* strip CONFIG_ if necessary */
+	/* strip the prefix if necessary */
 	dialog_input = dialog_input_result;
-	if (strncasecmp(dialog_input_result, "CONFIG_", 7) == 0)
-		dialog_input += 7;
+	if (strncasecmp(dialog_input_result, CONFIG_, strlen(CONFIG_)) == 0)
+		dialog_input += strlen(CONFIG_);
 
 	sym_arr = sym_re_search(dialog_input);
 	res = get_relations_str(sym_arr);
@@ -1261,7 +1261,7 @@ static void show_help(struct menu *menu)
 
 	if (menu && menu->sym && menu_has_help(menu)) {
 		if (menu->sym->name) {
-			str_printf(&help, "CONFIG_%s:\n\n", menu->sym->name);
+			str_printf(&help, "%s%s:\n\n", CONFIG_, menu->sym->name);
 			str_append(&help, _(menu_get_help(menu)));
 			str_append(&help, "\n");
 			get_symbol_str(&help, menu->sym);

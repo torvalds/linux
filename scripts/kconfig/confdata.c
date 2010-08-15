@@ -222,22 +222,22 @@ load:
 		conf_lineno++;
 		sym = NULL;
 		if (line[0] == '#') {
-			if (memcmp(line + 2, "CONFIG_", 7))
+			if (memcmp(line + 2, CONFIG_, strlen(CONFIG_)))
 				continue;
-			p = strchr(line + 9, ' ');
+			p = strchr(line + 2 + strlen(CONFIG_), ' ');
 			if (!p)
 				continue;
 			*p++ = 0;
 			if (strncmp(p, "is not set", 10))
 				continue;
 			if (def == S_DEF_USER) {
-				sym = sym_find(line + 9);
+				sym = sym_find(line + 2 + strlen(CONFIG_));
 				if (!sym) {
 					sym_add_change_count(1);
 					break;
 				}
 			} else {
-				sym = sym_lookup(line + 9, 0);
+				sym = sym_lookup(line + 2 + strlen(CONFIG_), 0);
 				if (sym->type == S_UNKNOWN)
 					sym->type = S_BOOLEAN;
 			}
@@ -253,8 +253,8 @@ load:
 			default:
 				;
 			}
-		} else if (memcmp(line, "CONFIG_", 7) == 0) {
-			p = strchr(line + 7, '=');
+		} else if (memcmp(line, CONFIG_, strlen(CONFIG_)) == 0) {
+			p = strchr(line + strlen(CONFIG_), '=');
 			if (!p)
 				continue;
 			*p++ = 0;
@@ -265,13 +265,13 @@ load:
 					*p2 = 0;
 			}
 			if (def == S_DEF_USER) {
-				sym = sym_find(line + 7);
+				sym = sym_find(line + strlen(CONFIG_));
 				if (!sym) {
 					sym_add_change_count(1);
 					break;
 				}
 			} else {
-				sym = sym_lookup(line + 7, 0);
+				sym = sym_lookup(line + strlen(CONFIG_), 0);
 				if (sym->type == S_UNKNOWN)
 					sym->type = S_OTHER;
 			}
@@ -397,9 +397,9 @@ static void conf_write_string(bool headerfile, const char *name,
 {
 	int l;
 	if (headerfile)
-		fprintf(out, "#define CONFIG_%s \"", name);
+		fprintf(out, "#define %s%s \"", CONFIG_, name);
 	else
-		fprintf(out, "CONFIG_%s=\"", name);
+		fprintf(out, "%s%s=\"", CONFIG_, name);
 
 	while (1) {
 		l = strcspn(str, "\"\\");
@@ -425,13 +425,14 @@ static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
 		switch (sym_get_tristate_value(sym)) {
 		case no:
 			if (write_no)
-				fprintf(out, "# CONFIG_%s is not set\n", sym->name);
+				fprintf(out, "# %s%s is not set\n",
+				    CONFIG_, sym->name);
 			break;
 		case mod:
-			fprintf(out, "CONFIG_%s=m\n", sym->name);
+			fprintf(out, "%s%s=m\n", CONFIG_, sym->name);
 			break;
 		case yes:
-			fprintf(out, "CONFIG_%s=y\n", sym->name);
+			fprintf(out, "%s%s=y\n", CONFIG_, sym->name);
 			break;
 		}
 		break;
@@ -441,7 +442,7 @@ static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
 	case S_HEX:
 	case S_INT:
 		str = sym_get_string_value(sym);
-		fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
+		fprintf(out, "%s%s=%s\n", CONFIG_, sym->name, str);
 		break;
 	case S_OTHER:
 	case S_UNKNOWN:
@@ -832,14 +833,17 @@ int conf_write_autoconf(void)
 			case no:
 				break;
 			case mod:
-				fprintf(tristate, "CONFIG_%s=M\n", sym->name);
-				fprintf(out_h, "#define CONFIG_%s_MODULE 1\n", sym->name);
+				fprintf(tristate, "%s%s=M\n",
+				    CONFIG_, sym->name);
+				fprintf(out_h, "#define %s%s_MODULE 1\n",
+				    CONFIG_, sym->name);
 				break;
 			case yes:
 				if (sym->type == S_TRISTATE)
-					fprintf(tristate, "CONFIG_%s=Y\n",
-							sym->name);
-				fprintf(out_h, "#define CONFIG_%s 1\n", sym->name);
+					fprintf(tristate,"%s%s=Y\n",
+					    CONFIG_, sym->name);
+				fprintf(out_h, "#define %s%s 1\n",
+				    CONFIG_, sym->name);
 				break;
 			}
 			break;
@@ -849,12 +853,14 @@ int conf_write_autoconf(void)
 		case S_HEX:
 			str = sym_get_string_value(sym);
 			if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-				fprintf(out_h, "#define CONFIG_%s 0x%s\n", sym->name, str);
+				fprintf(out_h, "#define %s%s 0x%s\n",
+				    CONFIG_, sym->name, str);
 				break;
 			}
 		case S_INT:
 			str = sym_get_string_value(sym);
-			fprintf(out_h, "#define CONFIG_%s %s\n", sym->name, str);
+			fprintf(out_h, "#define %s%s %s\n",
+			    CONFIG_, sym->name, str);
 			break;
 		default:
 			break;
