@@ -134,10 +134,14 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 	vcpu->arch.shared->msr = msr;
 	kvmppc_recalc_shadow_msr(vcpu);
 
-	if (msr & (MSR_WE|MSR_POW)) {
+	if (msr & MSR_POW) {
 		if (!vcpu->arch.pending_exceptions) {
 			kvm_vcpu_block(vcpu);
 			vcpu->stat.halt_wakeup++;
+
+			/* Unset POW bit after we woke up */
+			msr &= ~MSR_POW;
+			vcpu->arch.shared->msr = msr;
 		}
 	}
 
