@@ -325,6 +325,20 @@ struct tegra_dc *tegra_dc_get_dc(unsigned idx)
 }
 EXPORT_SYMBOL(tegra_dc_get_dc);
 
+ssize_t tegra_dc_compute_stride(int xres, int bpp, enum tegra_win_layout layout)
+{
+	unsigned int raw_stride = (xres * bpp) / 8;
+	unsigned int k, n = 0;
+
+	if (layout == TEGRA_WIN_LAYOUT_PITCH)
+		return ALIGN(raw_stride, TEGRA_DC_PITCH_ATOM);
+	else if (layout == TEGRA_WIN_LAYOUT_TILED)
+		return ALIGN(raw_stride, TEGRA_DC_TILED_ATOM);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(tegra_dc_compute_stride);
+
 struct tegra_dc_win *tegra_dc_get_window(struct tegra_dc *dc, unsigned win)
 {
 	if (win >= dc->n_windows)
