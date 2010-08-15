@@ -2325,8 +2325,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
-	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION ||
-			sc->opmode == NL80211_IFTYPE_MONITOR)) {
+	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION)) {
 		ATH5K_WARN(sc, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
 		return;
 	}
@@ -2900,9 +2899,6 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	ath5k_debug_dump_skb(sc, skb, "TX  ", 1);
 
-	if (sc->opmode == NL80211_IFTYPE_MONITOR)
-		ATH5K_DBG(sc, ATH5K_DEBUG_XMIT, "tx in monitor (scan?)\n");
-
 	/*
 	 * The hardware expects the header padded to 4 byte boundaries.
 	 * If this is not the case, we add the padding after the header.
@@ -3048,7 +3044,6 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_MONITOR:
 		sc->opmode = vif->type;
 		break;
 	default:
@@ -3250,7 +3245,6 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	switch (sc->opmode) {
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_MONITOR:
 		rfilt |= AR5K_RX_FILTER_CONTROL |
 			 AR5K_RX_FILTER_BEACON |
 			 AR5K_RX_FILTER_PROBEREQ |
