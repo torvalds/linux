@@ -35,6 +35,7 @@ static ssize_t capabilities_read(struct file *file, char __user *buf,
 
 static const struct file_operations capabilities_file_ops = {
 	.read = capabilities_read,
+	.llseek = default_llseek,
 };
 
 static int xenfs_fill_super(struct super_block *sb, void *data, int silent)

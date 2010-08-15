@@ -102,7 +102,8 @@ static ssize_t tsf_write(struct file *file,
 static const struct file_operations tsf_ops = {
 	.read = tsf_read,
 	.write = tsf_write,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
@@ -121,6 +122,7 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 static const struct file_operations reset_ops = {
 	.write = reset_write,
 	.open = mac80211_open_file_generic,
+	.llseek = noop_llseek,
 };
 
 static ssize_t noack_read(struct file *file, char __user *user_buf,
@@ -156,7 +158,8 @@ static ssize_t noack_write(struct file *file,
 static const struct file_operations noack_ops = {
 	.read = noack_read,
 	.write = noack_write,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t uapsd_queues_read(struct file *file, char __user *user_buf,
@@ -202,7 +205,8 @@ static ssize_t uapsd_queues_write(struct file *file,
 static const struct file_operations uapsd_queues_ops = {
 	.read = uapsd_queues_read,
 	.write = uapsd_queues_write,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t uapsd_max_sp_len_read(struct file *file, char __user *user_buf,
@@ -248,7 +252,8 @@ static ssize_t uapsd_max_sp_len_write(struct file *file,
 static const struct file_operations uapsd_max_sp_len_ops = {
 	.read = uapsd_max_sp_len_read,
 	.write = uapsd_max_sp_len_write,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t channel_type_read(struct file *file, char __user *user_buf,
@@ -280,7 +285,8 @@ static ssize_t channel_type_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations channel_type_ops = {
 	.read = channel_type_read,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t queues_read(struct file *file, char __user *user_buf,
@@ -303,7 +309,8 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations queues_ops = {
 	.read = queues_read,
-	.open = mac80211_open_file_generic
+	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 /* statistics stuff */

@@ -1039,6 +1039,7 @@ static const struct file_operations aac_cfg_fops = {
 	.compat_ioctl   = aac_compat_cfg_ioctl,
 #endif
 	.open		= aac_cfg_open,
+	.llseek		= noop_llseek,
 };
 
 static struct scsi_host_template aac_driver_template = {

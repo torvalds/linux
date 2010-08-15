@@ -1241,6 +1241,7 @@ static const struct file_operations rfkill_fops = {
 	.unlocked_ioctl	= rfkill_fop_ioctl,
 	.compat_ioctl	= rfkill_fop_ioctl,
 #endif
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice rfkill_miscdev = {

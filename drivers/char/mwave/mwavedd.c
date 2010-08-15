@@ -479,7 +479,8 @@ static const struct file_operations mwave_fops = {
 	.write		= mwave_write,
 	.unlocked_ioctl	= mwave_ioctl,
 	.open		= mwave_open,
-	.release	= mwave_close
+	.release	= mwave_close,
+	.llseek		= default_llseek,
 };
 
 

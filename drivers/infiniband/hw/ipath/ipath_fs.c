@@ -103,6 +103,7 @@ static ssize_t atomic_stats_read(struct file *file, char __user *buf,
 
 static const struct file_operations atomic_stats_ops = {
 	.read = atomic_stats_read,
+	.llseek = default_llseek,
 };
 
 static ssize_t atomic_counters_read(struct file *file, char __user *buf,
@@ -120,6 +121,7 @@ static ssize_t atomic_counters_read(struct file *file, char __user *buf,
 
 static const struct file_operations atomic_counters_ops = {
 	.read = atomic_counters_read,
+	.llseek = default_llseek,
 };
 
 static ssize_t flash_read(struct file *file, char __user *buf,
@@ -224,6 +226,7 @@ bail:
 static const struct file_operations flash_ops = {
 	.read = flash_read,
 	.write = flash_write,
+	.llseek = default_llseek,
 };
 
 static int create_device_files(struct super_block *sb,

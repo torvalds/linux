@@ -131,6 +131,7 @@ static const struct file_operations mrst_spi_regs_ops = {
 	.owner		= THIS_MODULE,
 	.open		= spi_show_regs_open,
 	.read		= spi_show_regs,
+	.llseek		= default_llseek,
 };
 
 static int mrst_spi_debugfs_init(struct dw_spi *dws)

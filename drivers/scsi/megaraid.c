@@ -101,6 +101,7 @@ static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= megadev_unlocked_ioctl,
 	.open		= megadev_open,
+	.llseek		= noop_llseek,
 };
 
 /*

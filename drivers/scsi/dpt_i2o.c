@@ -126,6 +126,7 @@ static const struct file_operations adpt_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_adpt_ioctl,
 #endif
+	.llseek		= noop_llseek,
 };
 
 /* Structures and definitions for synchronous message posting.

@@ -222,7 +222,8 @@ static const struct file_operations twa_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= twa_chrdev_ioctl,
 	.open		= twa_chrdev_open,
-	.release	= NULL
+	.release	= NULL,
+	.llseek		= noop_llseek,
 };
 
 /* This function will complete an aen request from the isr */

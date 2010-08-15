@@ -890,7 +890,8 @@ static const struct file_operations twl_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= twl_chrdev_ioctl,
 	.open		= twl_chrdev_open,
-	.release	= NULL
+	.release	= NULL,
+	.llseek		= noop_llseek,
 };
 
 /* This function passes sense data from firmware to scsi layer */

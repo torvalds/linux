@@ -346,6 +346,7 @@ static const struct file_operations coda_psdev_fops = {
 	.unlocked_ioctl	= coda_psdev_ioctl,
 	.open		= coda_psdev_open,
 	.release	= coda_psdev_release,
+	.llseek		= noop_llseek,
 };
 
 static int init_coda_psdev(void)

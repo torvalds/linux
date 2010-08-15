@@ -893,6 +893,7 @@ static const struct file_operations gpio_fops = {
 	.write		= gpio_write,
 	.open		= gpio_open,
 	.release	= gpio_release,
+	.llseek		= noop_llseek,
 };
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

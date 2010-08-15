@@ -51,6 +51,7 @@ coreb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations coreb_fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = coreb_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice coreb_dev = {

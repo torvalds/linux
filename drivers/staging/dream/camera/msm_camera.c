@@ -1941,6 +1941,7 @@ static const struct file_operations msm_fops_config = {
 	.open = msm_open,
 	.unlocked_ioctl = msm_ioctl_config,
 	.release = msm_release_config,
+	.llseek = no_llseek,
 };
 
 static const struct file_operations msm_fops_control = {
@@ -1948,6 +1949,7 @@ static const struct file_operations msm_fops_control = {
 	.open = msm_open_control,
 	.unlocked_ioctl = msm_ioctl_control,
 	.release = msm_release_control,
+	.llseek = no_llseek,
 };
 
 static const struct file_operations msm_fops_frame = {
@@ -1956,6 +1958,7 @@ static const struct file_operations msm_fops_frame = {
 	.unlocked_ioctl = msm_ioctl_frame,
 	.release = msm_release_frame,
 	.poll = msm_poll_frame,
+	.llseek = no_llseek,
 };
 
 static int msm_setup_cdev(struct msm_device *msm,

@@ -387,6 +387,7 @@ print_rtc_status(void)
 static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl = rtc_unlocked_ioctl,
+	.llseek		= noop_llseek,
 }; 
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */

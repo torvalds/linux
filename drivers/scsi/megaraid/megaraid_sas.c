@@ -3957,6 +3957,7 @@ static const struct file_operations megasas_mgmt_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = megasas_mgmt_compat_ioctl,
 #endif
+	.llseek = noop_llseek,
 };
 
 /*

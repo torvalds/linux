@@ -1285,6 +1285,7 @@ static const struct file_operations tunables_fops = {
 	.open		= tunables_open,
 	.read		= tunables_read,
 	.write		= tunables_write,
+	.llseek		= default_llseek,
 };
 
 static int __init uv_ptc_init(void)

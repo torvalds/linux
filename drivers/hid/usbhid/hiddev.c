@@ -847,6 +847,7 @@ static const struct file_operations hiddev_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= hiddev_compat_ioctl,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static char *hiddev_devnode(struct device *dev, mode_t *mode)

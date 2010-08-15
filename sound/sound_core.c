@@ -165,6 +165,7 @@ static const struct file_operations soundcore_fops =
 	/* We must have an owner or the module locking fails */
 	.owner	= THIS_MODULE,
 	.open	= soundcore_open,
+	.llseek = noop_llseek,
 };
 
 /*

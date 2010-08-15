@@ -772,6 +772,7 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 
 static const struct file_operations proc_sysrq_trigger_operations = {
 	.write		= write_sysrq_trigger,
+	.llseek		= noop_llseek,
 };
 
 static void sysrq_init_procfs(void)

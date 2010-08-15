@@ -748,6 +748,7 @@ static const struct file_operations lp_fops = {
 #ifdef CONFIG_PARPORT_1284
 	.read		= lp_read,
 #endif
+	.llseek		= noop_llseek,
 };
 
 /* --- support for console on the line printer ----------------- */

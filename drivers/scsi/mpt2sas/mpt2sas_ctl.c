@@ -2952,6 +2952,7 @@ static const struct file_operations ctl_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = _ctl_ioctl_compat,
 #endif
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice ctl_dev = {

@@ -730,6 +730,7 @@ static const struct file_operations iowarrior_fops = {
 	.open = iowarrior_open,
 	.release = iowarrior_release,
 	.poll = iowarrior_poll,
+	.llseek = noop_llseek,
 };
 
 static char *iowarrior_devnode(struct device *dev, mode_t *mode)

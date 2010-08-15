@@ -59,6 +59,7 @@ write_cris_profile(struct file *file, const char __user *buf,
 static const struct file_operations cris_proc_profile_operations = {
 	.read		= read_cris_profile,
 	.write		= write_cris_profile,
+	.llseek		= default_llseek,
 };
 
 static int __init init_cris_profile(void)

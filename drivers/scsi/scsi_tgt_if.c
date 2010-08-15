@@ -333,6 +333,7 @@ static const struct file_operations tgt_fops = {
 	.poll		= tgt_poll,
 	.write		= tgt_write,
 	.mmap		= tgt_mmap,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice tgt_miscdev = {

@@ -123,6 +123,7 @@ static int ev_log_open(struct inode *inode, struct file *file)
 static const struct file_operations ev_log_ops = {
 	.read = ev_log_read,
 	.open = ev_log_open,
+	.llseek = default_llseek,
 };
 
 static int ev_log_init(struct ev_log *log)

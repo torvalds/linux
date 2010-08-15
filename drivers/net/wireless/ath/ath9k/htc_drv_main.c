@@ -536,7 +536,8 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 static const struct file_operations fops_tgt_stats = {
 	.read = read_file_tgt_stats,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
@@ -584,7 +585,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
@@ -613,7 +615,8 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 static const struct file_operations fops_recv = {
 	.read = read_file_recv,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 int ath9k_htc_init_debug(struct ath_hw *ah)

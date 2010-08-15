@@ -117,6 +117,7 @@ static const struct file_operations sctpprobe_fops = {
 	.owner	= THIS_MODULE,
 	.open	= sctpprobe_open,
 	.read	= sctpprobe_read,
+	.llseek = noop_llseek,
 };
 
 sctp_disposition_t jsctp_sf_eat_sack(const struct sctp_endpoint *ep,

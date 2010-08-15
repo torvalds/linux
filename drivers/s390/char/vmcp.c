@@ -177,6 +177,7 @@ static const struct file_operations vmcp_fops = {
 	.write		= vmcp_write,
 	.unlocked_ioctl	= vmcp_ioctl,
 	.compat_ioctl	= vmcp_ioctl,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice vmcp_dev = {

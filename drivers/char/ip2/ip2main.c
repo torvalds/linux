@@ -236,6 +236,7 @@ static const struct file_operations ip2_ipl = {
 	.write		= ip2_ipl_write,
 	.unlocked_ioctl	= ip2_ipl_ioctl,
 	.open		= ip2_ipl_open,
+	.llseek		= noop_llseek,
 }; 
 
 static unsigned long irq_counter;

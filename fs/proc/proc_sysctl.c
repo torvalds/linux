@@ -364,6 +364,7 @@ static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 static const struct file_operations proc_sys_file_operations = {
 	.read		= proc_sys_read,
 	.write		= proc_sys_write,
+	.llseek		= default_llseek,
 };
 
 static const struct file_operations proc_sys_dir_file_operations = {

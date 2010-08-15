@@ -364,6 +364,7 @@ static const struct file_operations iwm_debugfs_sdio_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_debugfs_sdio_open,
 	.read =		iwm_debugfs_sdio_read,
+	.llseek =	default_llseek,
 };
 
 static void if_sdio_debugfs_init(struct iwm_priv *iwm, struct dentry *parent_dir)

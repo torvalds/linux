@@ -567,6 +567,7 @@ static const struct file_operations hwicap_fops = {
 	.read = hwicap_read,
 	.open = hwicap_open,
 	.release = hwicap_release,
+	.llseek = noop_llseek,
 };
 
 static int __devinit hwicap_setup(struct device *dev, int id,

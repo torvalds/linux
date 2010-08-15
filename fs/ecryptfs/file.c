@@ -332,6 +332,7 @@ const struct file_operations ecryptfs_dir_fops = {
 	.fsync = ecryptfs_fsync,
 	.fasync = ecryptfs_fasync,
 	.splice_read = generic_file_splice_read,
+	.llseek = default_llseek,
 };
 
 const struct file_operations ecryptfs_main_fops = {

@@ -618,6 +618,7 @@ static const struct file_operations dbfs_d204_ops = {
 	.open		= dbfs_d204_open,
 	.read		= dbfs_d204_read,
 	.release	= dbfs_d204_release,
+	.llseek		= no_llseek,
 };
 
 static int hypfs_dbfs_init(void)

@@ -71,7 +71,8 @@ static const struct file_operations fops_debug = {
 	.read = read_file_debug,
 	.write = write_file_debug,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 #endif
@@ -116,7 +117,8 @@ static const struct file_operations fops_tx_chainmask = {
 	.read = read_file_tx_chainmask,
 	.write = write_file_tx_chainmask,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -158,7 +160,8 @@ static const struct file_operations fops_rx_chainmask = {
 	.read = read_file_rx_chainmask,
 	.write = write_file_rx_chainmask,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -259,7 +262,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 static const struct file_operations fops_dma = {
 	.read = read_file_dma,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 
@@ -375,7 +379,8 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 static const struct file_operations fops_interrupt = {
 	.read = read_file_interrupt,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 void ath_debug_stat_rc(struct ath_softc *sc, int final_rate)
@@ -464,7 +469,8 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 static const struct file_operations fops_rcstat = {
 	.read = read_file_rcstat,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static const char * ath_wiphy_state_str(enum ath_wiphy_state state)
@@ -623,7 +629,8 @@ static const struct file_operations fops_wiphy = {
 	.read = read_file_wiphy,
 	.write = write_file_wiphy,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 #define PR(str, elem)							\
@@ -702,7 +709,8 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
@@ -814,7 +822,8 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 static const struct file_operations fops_recv = {
 	.read = read_file_recv,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
@@ -852,7 +861,8 @@ static const struct file_operations fops_regidx = {
 	.read = read_file_regidx,
 	.write = write_file_regidx,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static ssize_t read_file_regval(struct file *file, char __user *user_buf,
@@ -894,7 +904,8 @@ static const struct file_operations fops_regval = {
 	.read = read_file_regval,
 	.write = write_file_regval,
 	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 int ath9k_init_debug(struct ath_hw *ah)

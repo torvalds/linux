@@ -650,6 +650,7 @@ static const struct file_operations reader_fops = {
 	.open		= cm4040_open,
 	.release	= cm4040_close,
 	.poll		= cm4040_poll,
+	.llseek		= no_llseek,
 };
 
 static struct pcmcia_device_id cm4040_ids[] = {

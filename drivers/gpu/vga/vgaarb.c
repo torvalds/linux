@@ -1211,6 +1211,7 @@ static const struct file_operations vga_arb_device_fops = {
 	.poll = vga_arb_fpoll,
 	.open = vga_arb_open,
 	.release = vga_arb_release,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice vga_arb_device = {

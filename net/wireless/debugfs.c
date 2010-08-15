@@ -103,6 +103,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 static const struct file_operations ht40allow_map_ops = {
 	.read = ht40allow_map_read,
 	.open = cfg80211_open_file_generic,
+	.llseek = default_llseek,
 };
 
 #define DEBUGFS_ADD(name)						\

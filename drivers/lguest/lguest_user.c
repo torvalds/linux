@@ -514,6 +514,7 @@ static const struct file_operations lguest_fops = {
 	.release = close,
 	.write	 = write,
 	.read	 = read,
+	.llseek  = default_llseek,
 };
 
 /*

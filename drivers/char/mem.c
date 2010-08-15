@@ -804,6 +804,7 @@ static const struct file_operations full_fops = {
 static const struct file_operations oldmem_fops = {
 	.read	= read_oldmem,
 	.open	= open_oldmem,
+	.llseek = default_llseek,
 };
 #endif
 
@@ -830,6 +831,7 @@ static ssize_t kmsg_write(struct file *file, const char __user *buf,
 
 static const struct file_operations kmsg_fops = {
 	.write = kmsg_write,
+	.llseek = noop_llseek,
 };
 
 static const struct memdev {
@@ -881,6 +883,7 @@ static int memory_open(struct inode *inode, struct file *filp)
 
 static const struct file_operations memory_fops = {
 	.open = memory_open,
+	.llseek = noop_llseek,
 };
 
 static char *mem_devnode(struct device *dev, mode_t *mode)

@@ -251,8 +251,9 @@ static const struct file_operations zfcp_cfdc_fops = {
 	.open = nonseekable_open,
 	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = zfcp_cfdc_dev_ioctl
+	.compat_ioctl = zfcp_cfdc_dev_ioctl,
 #endif
+	.llseek = no_llseek,
 };
 
 struct miscdevice zfcp_cfdc_misc = {

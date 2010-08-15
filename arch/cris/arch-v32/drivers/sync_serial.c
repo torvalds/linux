@@ -247,7 +247,8 @@ static const struct file_operations sync_serial_fops = {
 	.poll		= sync_serial_poll,
 	.unlocked_ioctl	= sync_serial_ioctl,
 	.open		= sync_serial_open,
-	.release	= sync_serial_release
+	.release	= sync_serial_release,
+	.llseek		= noop_llseek,
 };
 
 static int __init etrax_sync_serial_init(void)

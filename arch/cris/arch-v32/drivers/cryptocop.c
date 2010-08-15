@@ -281,7 +281,8 @@ const struct file_operations cryptocop_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cryptocop_open,
 	.release	= cryptocop_release,
-	.unlocked_ioctl = cryptocop_ioctl
+	.unlocked_ioctl = cryptocop_ioctl,
+	.llseek		= noop_llseek,
 };
 
 

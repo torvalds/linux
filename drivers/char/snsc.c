@@ -357,6 +357,7 @@ static const struct file_operations scdrv_fops = {
 	.poll =		scdrv_poll,
 	.open =		scdrv_open,
 	.release =	scdrv_release,
+	.llseek =	noop_llseek,
 };
 
 static struct class *snsc_class;

@@ -2625,6 +2625,7 @@ static const struct file_operations dfs_fops = {
 	.open = open_debugfs_file,
 	.write = write_debugfs_file,
 	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 /**

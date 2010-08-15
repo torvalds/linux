@@ -239,6 +239,7 @@ static const struct file_operations pt_fops = {
 	.unlocked_ioctl = pt_ioctl,
 	.open = pt_open,
 	.release = pt_release,
+	.llseek = noop_llseek,
 };
 
 /* sysfs class support */

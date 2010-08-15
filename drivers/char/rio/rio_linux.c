@@ -241,6 +241,7 @@ static struct real_driver rio_real_driver = {
 static const struct file_operations rio_fw_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = rio_fw_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice rio_fw_device = {

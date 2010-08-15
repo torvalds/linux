@@ -1992,6 +1992,7 @@ static ssize_t write_enabled_file_bool(struct file *file,
 static const struct file_operations fops_kp = {
 	.read =         read_enabled_file_bool,
 	.write =        write_enabled_file_bool,
+	.llseek =	default_llseek,
 };
 
 static int __kprobes debugfs_kprobe_init(void)

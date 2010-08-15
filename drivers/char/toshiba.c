@@ -95,6 +95,7 @@ static long tosh_ioctl(struct file *, unsigned int,
 static const struct file_operations tosh_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= tosh_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice tosh_device = {

@@ -1441,6 +1441,7 @@ static const struct file_operations cache_flush_operations_procfs = {
 	.read		= read_flush_procfs,
 	.write		= write_flush_procfs,
 	.release	= release_flush_procfs,
+	.llseek		= no_llseek,
 };
 
 static void remove_cache_proc_entries(struct cache_detail *cd)
@@ -1646,6 +1647,7 @@ const struct file_operations cache_flush_operations_pipefs = {
 	.read		= read_flush_pipefs,
 	.write		= write_flush_pipefs,
 	.release	= release_flush_pipefs,
+	.llseek		= no_llseek,
 };
 
 int sunrpc_cache_register_pipefs(struct dentry *parent,

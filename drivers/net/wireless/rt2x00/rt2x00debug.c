@@ -315,6 +315,7 @@ static const struct file_operations rt2x00debug_fop_queue_dump = {
 	.poll		= rt2x00debug_poll_queue_dump,
 	.open		= rt2x00debug_open_queue_dump,
 	.release	= rt2x00debug_release_queue_dump,
+	.llseek		= default_llseek,
 };
 
 static ssize_t rt2x00debug_read_queue_stats(struct file *file,
@@ -371,6 +372,7 @@ static const struct file_operations rt2x00debug_fop_queue_stats = {
 	.read		= rt2x00debug_read_queue_stats,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
@@ -423,6 +425,7 @@ static const struct file_operations rt2x00debug_fop_crypto_stats = {
 	.read		= rt2x00debug_read_crypto_stats,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 #endif
 
@@ -543,6 +546,7 @@ static const struct file_operations rt2x00debug_fop_dev_flags = {
 	.read		= rt2x00debug_read_dev_flags,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 
 static struct dentry *rt2x00debug_create_file_driver(const char *name,

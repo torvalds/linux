@@ -238,6 +238,7 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 static const struct file_operations tx_queue_len_ops = {
 	.read = tx_queue_len_read,
 	.open = wl1251_open_file_generic,
+	.llseek = generic_file_llseek,
 };
 
 static ssize_t tx_queue_status_read(struct file *file, char __user *userbuf,
@@ -259,6 +260,7 @@ static ssize_t tx_queue_status_read(struct file *file, char __user *userbuf,
 static const struct file_operations tx_queue_status_ops = {
 	.read = tx_queue_status_read,
 	.open = wl1251_open_file_generic,
+	.llseek = generic_file_llseek,
 };
 
 static void wl1251_debugfs_delete_files(struct wl1251 *wl)

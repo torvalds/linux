@@ -166,6 +166,7 @@ static const struct file_operations harddog_fops = {
 	.unlocked_ioctl	= harddog_ioctl,
 	.open		= harddog_open,
 	.release	= harddog_release,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice harddog_miscdev = {

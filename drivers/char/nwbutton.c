@@ -182,6 +182,7 @@ static int button_read (struct file *filp, char __user *buffer,
 static const struct file_operations button_fops = {
 	.owner		= THIS_MODULE,
 	.read		= button_read,
+	.llseek		= noop_llseek,
 };
 
 /* 

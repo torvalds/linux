@@ -482,6 +482,7 @@ static const struct file_operations dsp56k_fops = {
 	.unlocked_ioctl	= dsp56k_ioctl,
 	.open		= dsp56k_open,
 	.release	= dsp56k_release,
+	.llseek		= noop_llseek,
 };
 
 

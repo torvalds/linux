@@ -63,7 +63,8 @@ static const struct file_operations qib_file_ops = {
 	.open = qib_open,
 	.release = qib_close,
 	.poll = qib_poll,
-	.mmap = qib_mmapf
+	.mmap = qib_mmapf,
+	.llseek = noop_llseek,
 };
 
 /*

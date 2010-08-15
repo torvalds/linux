@@ -64,6 +64,7 @@ static int voltage_low;
 static const struct file_operations pcf8563_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = pcf8563_unlocked_ioctl,
+	.llseek		= noop_llseek,
 };
 
 unsigned char
