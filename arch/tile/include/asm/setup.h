@@ -15,6 +15,10 @@
 #ifndef _ASM_TILE_SETUP_H
 #define _ASM_TILE_SETUP_H
 
+#define COMMAND_LINE_SIZE	2048
+
+#ifdef __KERNEL__
+
 #include <linux/pfn.h>
 #include <linux/init.h>
 
@@ -23,10 +27,10 @@
  */
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 
-#define COMMAND_LINE_SIZE	2048
-
 void early_panic(const char *fmt, ...);
 void warn_early_printk(void);
 void __init disable_early_printk(void);
+
+#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_SETUP_H */
