@@ -30,6 +30,12 @@ int acpi_debug_init(void);
 static inline int acpi_debug_init(void) { return 0; }
 #endif
 
+#ifdef CONFIG_DEBUG_FS
+int acpi_debugfs_init(void);
+#else
+static inline int acpi_debugfs_init(void) { return 0; }
+#endif
+
 /* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
