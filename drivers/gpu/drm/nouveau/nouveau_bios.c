@@ -5807,6 +5807,22 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			gpio->line = tvdac_gpio[1] >> 4;
 			gpio->invert = tvdac_gpio[0] & 2;
 		}
+	} else {
+		/*
+		 * No systematic way to store GPIO info on pre-v2.2
+		 * DCBs, try to match the PCI device IDs.
+		 */
+
+		/* Apple iMac G4 NV18 */
+		if (dev->pdev->device == 0x0189 &&
+		    dev->pdev->subsystem_vendor == 0x10de &&
+		    dev->pdev->subsystem_device == 0x0010) {
+			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+
+			gpio->tag = DCB_GPIO_TVDAC0;
+			gpio->line = 4;
+		}
+
 	}
 
 	if (!gpio_table_ptr)
