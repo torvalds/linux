@@ -275,18 +275,15 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 	backwards_map = !backwards_map;
 
 	/* Uh-oh ... out of mappings. Let's flush! */
-	if (vcpu_book3s->vsid_next >= vcpu_book3s->vsid_max) {
-		vcpu_book3s->vsid_next = vcpu_book3s->vsid_first;
+	if (vcpu_book3s->vsid_next >= VSID_POOL_SIZE) {
+		vcpu_book3s->vsid_next = 0;
 		memset(vcpu_book3s->sid_map, 0,
 		       sizeof(struct kvmppc_sid_map) * SID_MAP_NUM);
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 		kvmppc_mmu_flush_segments(vcpu);
 	}
-	map->host_vsid = vcpu_book3s->vsid_next;
-
-	/* Would have to be 111 to be completely aligned with the rest of
-	   Linux, but that is just way too little space! */
-	vcpu_book3s->vsid_next+=1;
+	map->host_vsid = vcpu_book3s->vsid_pool[vcpu_book3s->vsid_next];
+	vcpu_book3s->vsid_next++;
 
 	map->guest_vsid = gvsid;
 	map->valid = true;
@@ -333,40 +330,38 @@ void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 {
+	int i;
+
 	kvmppc_mmu_hpte_destroy(vcpu);
 	preempt_disable();
-	__destroy_context(to_book3s(vcpu)->context_id);
+	for (i = 0; i < SID_CONTEXTS; i++)
+		__destroy_context(to_book3s(vcpu)->context_id[i]);
 	preempt_enable();
 }
 
 /* From mm/mmu_context_hash32.c */
-#define CTX_TO_VSID(ctx) (((ctx) * (897 * 16)) & 0xffffff)
+#define CTX_TO_VSID(c, id)	((((c) * (897 * 16)) + (id * 0x111)) & 0xffffff)
 
 int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int err;
 	ulong sdr1;
+	int i;
+	int j;
 
-	err = __init_new_context();
-	if (err < 0)
-		return -1;
-	vcpu3s->context_id = err;
+	for (i = 0; i < SID_CONTEXTS; i++) {
+		err = __init_new_context();
+		if (err < 0)
+			goto init_fail;
+		vcpu3s->context_id[i] = err;
 
-	vcpu3s->vsid_max = CTX_TO_VSID(vcpu3s->context_id + 1) - 1;
-	vcpu3s->vsid_first = CTX_TO_VSID(vcpu3s->context_id);
+		/* Remember context id for this combination */
+		for (j = 0; j < 16; j++)
+			vcpu3s->vsid_pool[(i * 16) + j] = CTX_TO_VSID(err, j);
+	}
 
-#if 0 /* XXX still doesn't guarantee uniqueness */
-	/* We could collide with the Linux vsid space because the vsid
-	 * wraps around at 24 bits. We're safe if we do our own space
-	 * though, so let's always set the highest bit. */
-
-	vcpu3s->vsid_max |= 0x00800000;
-	vcpu3s->vsid_first |= 0x00800000;
-#endif
-	BUG_ON(vcpu3s->vsid_max < vcpu3s->vsid_first);
-
-	vcpu3s->vsid_next = vcpu3s->vsid_first;
+	vcpu3s->vsid_next = 0;
 
 	/* Remember where the HTAB is */
 	asm ( "mfsdr1 %0" : "=r"(sdr1) );
@@ -376,4 +371,14 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 	kvmppc_mmu_hpte_init(vcpu);
 
 	return 0;
+
+init_fail:
+	for (j = 0; j < i; j++) {
+		if (!vcpu3s->context_id[j])
+			continue;
+
+		__destroy_context(to_book3s(vcpu)->context_id[j]);
+	}
+
+	return -1;
 }
