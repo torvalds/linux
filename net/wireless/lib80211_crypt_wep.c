@@ -269,7 +269,6 @@ static struct lib80211_crypto_ops lib80211_crypt_wep = {
 	.name = "WEP",
 	.init = lib80211_wep_init,
 	.deinit = lib80211_wep_deinit,
-	.build_iv = lib80211_wep_build_iv,
 	.encrypt_mpdu = lib80211_wep_encrypt,
 	.decrypt_mpdu = lib80211_wep_decrypt,
 	.encrypt_msdu = NULL,

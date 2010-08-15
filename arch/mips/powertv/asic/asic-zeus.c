@@ -77,7 +77,7 @@ const struct register_map zeus_register_map __initdata = {
 	.int_docsis_en = {.phys = ZEUS_ADDR(0x2828F4)},
 
 	.mips_pll_setup = {.phys = ZEUS_ADDR(0x1a0000)},
-	.usb_fs = {.phys = ZEUS_ADDR(0x1a0018)},
+	.fs432x4b4_usb_ctl = {.phys = ZEUS_ADDR(0x1a0018)},
 	.test_bus = {.phys = ZEUS_ADDR(0x1a0238)},
 	.crt_spare = {.phys = ZEUS_ADDR(0x1a0090)},
 	.usb2_ohci_int_mask = {.phys = ZEUS_ADDR(0x1e000c)},

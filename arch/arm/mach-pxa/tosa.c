@@ -948,7 +948,6 @@ static void __init fixup_tosa(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	mi->bank[0].size = (64*1024*1024);
 }
 

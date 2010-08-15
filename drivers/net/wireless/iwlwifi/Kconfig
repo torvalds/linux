@@ -30,9 +30,11 @@ config IWLWIFI_DEBUG
 
 config IWLWIFI_DEBUGFS
         bool "iwlagn debugfs support"
-        depends on IWLWIFI && IWLWIFI_DEBUG && MAC80211_DEBUGFS
+        depends on IWLWIFI && MAC80211_DEBUGFS
         ---help---
-	  Enable creation of debugfs files for the iwlwifi drivers.
+	  Enable creation of debugfs files for the iwlwifi drivers. This
+	  is a low-impact option that allows getting insight into the
+	  driver's state at runtime.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
@@ -85,10 +87,15 @@ config IWL4965
 	  This option enables support for Intel Wireless WiFi Link 4965AGN
 
 config IWL5000
-	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 1000, 6000, and 6050 Series"
+	bool "Intel Wireless-N/Advanced-N/Ultimate-N WiFi Link"
 	depends on IWLAGN
 	---help---
-	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
+	  This option enables support for use with the following hardware:
+		Intel Wireless WiFi Link 6250AGN Adapter
+		Intel 6000 Series Wi-Fi Adapters (6200AGN and 6300AGN)
+		Intel WiFi Link 1000BGN
+		Intel Wireless WiFi 5150AGN
+		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"

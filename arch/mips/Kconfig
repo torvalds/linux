@@ -10,6 +10,8 @@ config MIPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
 	select RTC_LIB if !MACH_LOONGSON
 
 mainmenu "Linux/MIPS Kernel Configuration"
@@ -23,8 +25,17 @@ choice
 	prompt "System type"
 	default SGI_IP22
 
-config MACH_ALCHEMY
+config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
+	select 64BIT_PHYS_ADDR
+	select CEVT_R4K_LIB
+	select CSRC_R4K_LIB
+	select IRQ_CPU
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_GPIO
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
 
 config AR7
@@ -62,6 +73,7 @@ config BCM47XX
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
 	select SSB_EMBEDDED
+	select SSB_B43_PCI_BRIDGE if PCI
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -161,6 +173,18 @@ config MACH_JAZZ
 	 used by several vendors to build RISC/os and Windows NT workstations.
 	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	 Olivetti M700-10 workstations.
+
+config MACH_JZ4740
+	bool "Ingenic JZ4740 based machines"
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select SYS_HAS_EARLY_PRINTK
+	select HAVE_PWM
 
 config LASAT
 	bool "LASAT Networks platforms"
@@ -686,6 +710,7 @@ endchoice
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
+source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/powertv/Kconfig"
@@ -730,10 +755,6 @@ config GENERIC_CALIBRATE_DELAY
 	default y
 
 config GENERIC_CLOCKEVENTS
-	bool
-	default y
-
-config GENERIC_TIME
 	bool
 	default y
 
@@ -891,6 +912,9 @@ config CPU_LITTLE_ENDIAN
 	help
 
 endchoice
+
+config EXPORT_UASM
+	bool
 
 config SYS_SUPPORTS_APM_EMULATION
 	bool

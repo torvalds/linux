@@ -2511,7 +2511,7 @@ void RTMPWriteTxWI(struct rt_rtmp_adapter *pAd, struct rt_txwi * pTxWI, IN BOOLE
 		   u8 TID,
 		   u8 TxRate,
 		   u8 Txopmode,
-		   IN BOOLEAN CfAck, IN HTTRANSMIT_SETTING * pTransmit);
+		   IN BOOLEAN CfAck, IN HTTRANSMIT_SETTING *pTransmit);
 
 void RTMPWriteTxWI_Data(struct rt_rtmp_adapter *pAd,
 			struct rt_txwi *pTxWI, struct rt_tx_blk *pTxBlk);
@@ -3059,7 +3059,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(struct rt_rtmp_adapter *pAd,
 				    u16 *pBeaconPeriod,
 				    u8 *pChannel,
 				    u8 *pNewChannel,
-				    OUT LARGE_INTEGER * pTimestamp,
+				    OUT LARGE_INTEGER *pTimestamp,
 				    struct rt_cf_parm *pCfParm,
 				    u16 *pAtimWin,
 				    u16 *pCapabilityInfo,

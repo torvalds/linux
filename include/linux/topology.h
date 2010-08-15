@@ -103,6 +103,7 @@ int arch_update_cpu_topology(void);
 				| 1*SD_SHARE_PKG_RESOURCES		\
 				| 0*SD_SERIALIZE			\
 				| 0*SD_PREFER_SIBLING			\
+				| arch_sd_sibling_asym_packing()	\
 				,					\
 	.last_balance		= jiffies,				\
 	.balance_interval	= 1,					\
@@ -290,10 +291,6 @@ static inline void set_cpu_numa_mem(int cpu, int node)
 #endif
 
 #else	/* !CONFIG_HAVE_MEMORYLESS_NODES */
-
-static inline void set_numa_mem(int node) {}
-
-static inline void set_cpu_numa_mem(int cpu, int node) {}
 
 #ifndef numa_mem_id
 /* Returns the number of the nearest Node with memory */

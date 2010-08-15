@@ -8,6 +8,7 @@
 #include <net/iw_handler.h>
 #include <net/lib80211.h>
 
+#include "host.h"
 
 #ifdef CONFIG_LIBERTAS_MESH
 
@@ -51,10 +52,15 @@ struct cmd_ds_command;
 struct cmd_ds_mesh_access;
 struct cmd_ds_mesh_config;
 
-int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
-	u16 cmd_action, void *pdata_buf);
-int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
-	u16 cmd_action, void *pdata_buf);
+int lbs_mesh_bt_add_del(struct lbs_private *priv, bool add, u8 *addr1);
+int lbs_mesh_bt_reset(struct lbs_private *priv);
+int lbs_mesh_bt_get_inverted(struct lbs_private *priv, bool *inverted);
+int lbs_mesh_bt_set_inverted(struct lbs_private *priv, bool inverted);
+int lbs_mesh_bt_get_entry(struct lbs_private *priv, u32 id, u8 *addr1);
+
+int lbs_cmd_fwt_access(struct lbs_private *priv, u16 cmd_action,
+			struct cmd_ds_fwt_access *cmd);
+
 int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 		    struct cmd_ds_mesh_access *cmd);
 int lbs_mesh_config_send(struct lbs_private *priv,
@@ -68,11 +74,6 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
 
 void lbs_persist_config_init(struct net_device *net);
 void lbs_persist_config_remove(struct net_device *net);
-
-
-/* WEXT handler */
-
-extern struct iw_handler_def mesh_handler_def;
 
 
 /* Ethtool statistics */

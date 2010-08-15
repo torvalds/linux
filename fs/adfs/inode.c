@@ -50,10 +50,19 @@ static int adfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int ret;
+
 	*pagep = NULL;
-	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				adfs_get_block,
 				&ADFS_I(mapping->host)->mmu_private);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t _adfs_bmap(struct address_space *mapping, sector_t block)
@@ -324,10 +333,7 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	/* XXX: this is missing some actual on-disk truncation.. */
 	if (ia_valid & ATTR_SIZE)
-		error = simple_setsize(inode, attr->ia_size);
-
-	if (error)
-		goto out;
+		truncate_setsize(inode, attr->ia_size);
 
 	if (ia_valid & ATTR_MTIME) {
 		inode->i_mtime = attr->ia_mtime;

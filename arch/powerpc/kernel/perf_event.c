@@ -410,15 +410,15 @@ static void power_pmu_read(struct perf_event *event)
 	 * Therefore we treat them like NMIs.
 	 */
 	do {
-		prev = atomic64_read(&event->hw.prev_count);
+		prev = local64_read(&event->hw.prev_count);
 		barrier();
 		val = read_pmc(event->hw.idx);
-	} while (atomic64_cmpxchg(&event->hw.prev_count, prev, val) != prev);
+	} while (local64_cmpxchg(&event->hw.prev_count, prev, val) != prev);
 
 	/* The counters are only 32 bits wide */
 	delta = (val - prev) & 0xfffffffful;
-	atomic64_add(delta, &event->count);
-	atomic64_sub(delta, &event->hw.period_left);
+	local64_add(delta, &event->count);
+	local64_sub(delta, &event->hw.period_left);
 }
 
 /*
@@ -444,10 +444,10 @@ static void freeze_limited_counters(struct cpu_hw_events *cpuhw,
 		if (!event->hw.idx)
 			continue;
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
-		prev = atomic64_read(&event->hw.prev_count);
+		prev = local64_read(&event->hw.prev_count);
 		event->hw.idx = 0;
 		delta = (val - prev) & 0xfffffffful;
-		atomic64_add(delta, &event->count);
+		local64_add(delta, &event->count);
 	}
 }
 
@@ -462,7 +462,7 @@ static void thaw_limited_counters(struct cpu_hw_events *cpuhw,
 		event = cpuhw->limited_counter[i];
 		event->hw.idx = cpuhw->limited_hwidx[i];
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
-		atomic64_set(&event->hw.prev_count, val);
+		local64_set(&event->hw.prev_count, val);
 		perf_event_update_userpage(event);
 	}
 }
@@ -666,11 +666,11 @@ void hw_perf_enable(void)
 		}
 		val = 0;
 		if (event->hw.sample_period) {
-			left = atomic64_read(&event->hw.period_left);
+			left = local64_read(&event->hw.period_left);
 			if (left < 0x80000000L)
 				val = 0x80000000L - left;
 		}
-		atomic64_set(&event->hw.prev_count, val);
+		local64_set(&event->hw.prev_count, val);
 		event->hw.idx = idx;
 		write_pmc(idx, val);
 		perf_event_update_userpage(event);
@@ -754,7 +754,7 @@ static int power_pmu_enable(struct perf_event *event)
 	 * skip the schedulability test here, it will be peformed
 	 * at commit time(->commit_txn) as a whole
 	 */
-	if (cpuhw->group_flag & PERF_EVENT_TXN_STARTED)
+	if (cpuhw->group_flag & PERF_EVENT_TXN)
 		goto nocheck;
 
 	if (check_excludes(cpuhw->event, cpuhw->flags, n0, 1))
@@ -845,8 +845,8 @@ static void power_pmu_unthrottle(struct perf_event *event)
 	if (left < 0x80000000L)
 		val = 0x80000000L - left;
 	write_pmc(event->hw.idx, val);
-	atomic64_set(&event->hw.prev_count, val);
-	atomic64_set(&event->hw.period_left, left);
+	local64_set(&event->hw.prev_count, val);
+	local64_set(&event->hw.period_left, left);
 	perf_event_update_userpage(event);
 	perf_enable();
 	local_irq_restore(flags);
@@ -861,7 +861,7 @@ void power_pmu_start_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag |= PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag |= PERF_EVENT_TXN;
 	cpuhw->n_txn_start = cpuhw->n_events;
 }
 
@@ -874,7 +874,7 @@ void power_pmu_cancel_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag &= ~PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag &= ~PERF_EVENT_TXN;
 }
 
 /*
@@ -900,6 +900,7 @@ int power_pmu_commit_txn(const struct pmu *pmu)
 	for (i = cpuhw->n_txn_start; i < n; ++i)
 		cpuhw->event[i]->hw.config = cpuhw->events[i];
 
+	cpuhw->group_flag &= ~PERF_EVENT_TXN;
 	return 0;
 }
 
@@ -1111,7 +1112,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	event->hw.config = events[n];
 	event->hw.event_base = cflags[n];
 	event->hw.last_period = event->hw.sample_period;
-	atomic64_set(&event->hw.period_left, event->hw.last_period);
+	local64_set(&event->hw.period_left, event->hw.last_period);
 
 	/*
 	 * See if we need to reserve the PMU.
@@ -1149,16 +1150,16 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	int record = 0;
 
 	/* we don't have to worry about interrupts here */
-	prev = atomic64_read(&event->hw.prev_count);
+	prev = local64_read(&event->hw.prev_count);
 	delta = (val - prev) & 0xfffffffful;
-	atomic64_add(delta, &event->count);
+	local64_add(delta, &event->count);
 
 	/*
 	 * See if the total period for this event has expired,
 	 * and update for the next period.
 	 */
 	val = 0;
-	left = atomic64_read(&event->hw.period_left) - delta;
+	left = local64_read(&event->hw.period_left) - delta;
 	if (period) {
 		if (left <= 0) {
 			left += period;
@@ -1196,8 +1197,8 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	}
 
 	write_pmc(event->hw.idx, val);
-	atomic64_set(&event->hw.prev_count, val);
-	atomic64_set(&event->hw.period_left, left);
+	local64_set(&event->hw.prev_count, val);
+	local64_set(&event->hw.period_left, left);
 	perf_event_update_userpage(event);
 }
 

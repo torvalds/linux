@@ -89,18 +89,33 @@ struct usb_hcd {
 	 */
 	const struct hc_driver	*driver;	/* hw-specific hooks */
 
-	/* Flags that need to be manipulated atomically */
+	/* Flags that need to be manipulated atomically because they can
+	 * change while the host controller is running.  Always use
+	 * set_bit() or clear_bit() to change their values.
+	 */
 	unsigned long		flags;
-#define HCD_FLAG_HW_ACCESSIBLE	0x00000001
-#define HCD_FLAG_SAW_IRQ	0x00000002
+#define HCD_FLAG_HW_ACCESSIBLE		0	/* at full power */
+#define HCD_FLAG_SAW_IRQ		1
+#define HCD_FLAG_POLL_RH		2	/* poll for rh status? */
+#define HCD_FLAG_POLL_PENDING		3	/* status has changed? */
+#define HCD_FLAG_WAKEUP_PENDING		4	/* root hub is resuming? */
 
+	/* The flags can be tested using these macros; they are likely to
+	 * be slightly faster than test_bit().
+	 */
+#define HCD_HW_ACCESSIBLE(hcd)	((hcd)->flags & (1U << HCD_FLAG_HW_ACCESSIBLE))
+#define HCD_SAW_IRQ(hcd)	((hcd)->flags & (1U << HCD_FLAG_SAW_IRQ))
+#define HCD_POLL_RH(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_RH))
+#define HCD_POLL_PENDING(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_PENDING))
+#define HCD_WAKEUP_PENDING(hcd)	((hcd)->flags & (1U << HCD_FLAG_WAKEUP_PENDING))
+
+	/* Flags that get set only during HCD registration or removal. */
 	unsigned		rh_registered:1;/* is root hub registered? */
+	unsigned		rh_pollable:1;	/* may we poll the root hub? */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */
 	unsigned		uses_new_polling:1;
-	unsigned		poll_rh:1;	/* poll for rh status? */
-	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
@@ -198,7 +213,7 @@ struct hc_driver {
 	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
-	int	(*pci_suspend)(struct usb_hcd *hcd);
+	int	(*pci_suspend)(struct usb_hcd *hcd, bool do_wakeup);
 
 	/* called after entering D0 (etc), before resuming the hub */
 	int	(*pci_resume)(struct usb_hcd *hcd, bool hibernated);
@@ -299,6 +314,10 @@ struct hc_driver {
 	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
 	int	(*reset_device)(struct usb_hcd *, struct usb_device *);
+		/* Notifies the HCD after a device is connected and its
+		 * address is set
+		 */
+	int	(*update_device)(struct usb_hcd *, struct usb_device *);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

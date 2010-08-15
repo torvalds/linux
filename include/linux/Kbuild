@@ -39,6 +39,7 @@ header-y += ax25.h
 header-y += b1lli.h
 header-y += baycom.h
 header-y += bfs_fs.h
+header-y += blk_types.h
 header-y += blkpg.h
 header-y += bpqether.h
 header-y += bsg.h
@@ -210,6 +211,7 @@ unifdef-y += ethtool.h
 unifdef-y += eventpoll.h
 unifdef-y += signalfd.h
 unifdef-y += ext2_fs.h
+unifdef-y += fanotify.h
 unifdef-y += fb.h
 unifdef-y += fcntl.h
 unifdef-y += filter.h
@@ -276,6 +278,7 @@ ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
 		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h),)
 unifdef-y += kvm_para.h
 endif
+unifdef-y += l2tp.h
 unifdef-y += llc.h
 unifdef-y += loop.h
 unifdef-y += lp.h

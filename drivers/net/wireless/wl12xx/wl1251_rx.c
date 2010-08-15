@@ -74,6 +74,12 @@ static void wl1251_rx_status(struct wl1251 *wl,
 
 	status->signal = desc->rssi;
 
+	/*
+	 * FIXME: guessing that snr needs to be divided by two, otherwise
+	 * the values don't make any sense
+	 */
+	wl->noise = desc->rssi - desc->snr / 2;
+
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 
 	status->flag |= RX_FLAG_TSFT;

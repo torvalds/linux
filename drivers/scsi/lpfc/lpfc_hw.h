@@ -1170,6 +1170,7 @@ typedef struct {
 #define PCI_DEVICE_ID_TIGERSHARK    0x0704
 #define PCI_DEVICE_ID_TOMCAT        0x0714
 #define PCI_DEVICE_ID_FALCON        0xf180
+#define PCI_DEVICE_ID_BALIUS        0xe131
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
@@ -3014,18 +3015,10 @@ struct sli3_pgp {
 	uint32_t hbq_get[16];
 };
 
-struct sli3_inb_pgp {
-	uint32_t ha_copy;
-	uint32_t counter;
-	struct lpfc_pgp port[MAX_RINGS];
-	uint32_t hbq_get[16];
-};
-
 union sli_var {
 	struct sli2_desc	s2;
 	struct sli3_desc	s3;
 	struct sli3_pgp		s3_pgp;
-	struct sli3_inb_pgp	s3_inb_pgp;
 };
 
 typedef struct {
@@ -3132,6 +3125,14 @@ typedef struct {
 #define IOERR_BUFFER_SHORTAGE         0x28
 #define IOERR_DEFAULT                 0x29
 #define IOERR_CNT                     0x2A
+#define IOERR_SLER_FAILURE            0x46
+#define IOERR_SLER_CMD_RCV_FAILURE    0x47
+#define IOERR_SLER_REC_RJT_ERR        0x48
+#define IOERR_SLER_REC_SRR_RETRY_ERR  0x49
+#define IOERR_SLER_SRR_RJT_ERR        0x4A
+#define IOERR_SLER_RRQ_RJT_ERR        0x4C
+#define IOERR_SLER_RRQ_RETRY_ERR      0x4D
+#define IOERR_SLER_ABTS_ERR           0x4E
 
 #define IOERR_DRVR_MASK               0x100
 #define IOERR_SLI_DOWN                0x101  /* ulpStatus  - Driver defined */

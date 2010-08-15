@@ -61,6 +61,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRremcd, -EACCES},
 	{ERRdiffdevice, -EXDEV},
 	{ERRnofiles, -ENOENT},
+	{ERRwriteprot, -EROFS},
 	{ERRbadshare, -ETXTBSY},
 	{ERRlock, -EACCES},
 	{ERRunsup, -EINVAL},
@@ -139,17 +140,18 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
  * Returns 0 on failure.
  */
 static int
-cifs_inet_pton(const int address_family, const char *cp, void *dst)
+cifs_inet_pton(const int address_family, const char *cp, int len, void *dst)
 {
 	int ret = 0;
 
 	/* calculate length by finding first slash or NULL */
 	if (address_family == AF_INET)
-		ret = in4_pton(cp, -1 /* len */, dst, '\\', NULL);
+		ret = in4_pton(cp, len, dst, '\\', NULL);
 	else if (address_family == AF_INET6)
-		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
+		ret = in6_pton(cp, len, dst , '\\', NULL);
 
-	cFYI(DBG2, "address conversion returned %d for %s", ret, cp);
+	cFYI(DBG2, "address conversion returned %d for %*.*s",
+	     ret, len, len, cp);
 	if (ret > 0)
 		ret = 1;
 	return ret;
@@ -164,41 +166,64 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
  * Returns 0 on failure.
  */
 int
-cifs_convert_address(char *src, void *dst)
+cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 {
-	int rc;
-	char *pct, *endp;
+	int rc, alen, slen;
+	const char *pct;
+	char *endp, scope_id[13];
 	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
 	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
 
 	/* IPv4 address */
-	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
+	if (cifs_inet_pton(AF_INET, src, len, &s4->sin_addr.s_addr)) {
 		s4->sin_family = AF_INET;
 		return 1;
 	}
 
-	/* temporarily terminate string */
-	pct = strchr(src, '%');
-	if (pct)
-		*pct = '\0';
+	/* attempt to exclude the scope ID from the address part */
+	pct = memchr(src, '%', len);
+	alen = pct ? pct - src : len;
 
-	rc = cifs_inet_pton(AF_INET6, src, &s6->sin6_addr.s6_addr);
-
-	/* repair temp termination (if any) and make pct point to scopeid */
-	if (pct)
-		*pct++ = '%';
-
+	rc = cifs_inet_pton(AF_INET6, src, alen, &s6->sin6_addr.s6_addr);
 	if (!rc)
 		return rc;
 
 	s6->sin6_family = AF_INET6;
 	if (pct) {
+		/* grab the scope ID */
+		slen = len - (alen + 1);
+		if (slen <= 0 || slen > 12)
+			return 0;
+		memcpy(scope_id, pct + 1, slen);
+		scope_id[slen] = '\0';
+
 		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
-		if (!*pct || *endp)
+		if (endp != scope_id + slen)
 			return 0;
 	}
 
 	return rc;
+}
+
+int
+cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
+		   const unsigned short int port)
+{
+	if (!cifs_convert_address(dst, src, len))
+		return 0;
+
+	switch (dst->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)dst)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)dst)->sin6_port = htons(port);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
 }
 
 /*****************************************************************************

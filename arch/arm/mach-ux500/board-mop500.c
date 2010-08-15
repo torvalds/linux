@@ -13,18 +13,41 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
+#include <linux/mfd/ab8500.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include <plat/pincfg.h>
 #include <plat/i2c.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+
+#include "pins-db8500.h"
+
+static pin_cfg_t mop500_pins[] = {
+	/* SSP0 */
+	GPIO143_SSP0_CLK,
+	GPIO144_SSP0_FRM,
+	GPIO145_SSP0_RXD,
+	GPIO146_SSP0_TXD,
+
+	/* I2C */
+	GPIO147_I2C0_SCL,
+	GPIO148_I2C0_SDA,
+	GPIO16_I2C1_SCL,
+	GPIO17_I2C1_SDA,
+	GPIO10_I2C2_SDA,
+	GPIO11_I2C2_SCL,
+	GPIO229_I2C3_SDA,
+	GPIO230_I2C3_SCL,
+};
 
 static void ab4500_spi_cs_control(u32 command)
 {
@@ -48,15 +71,20 @@ struct pl022_config_chip ab4500_chip_info = {
 	.cs_control = ab4500_spi_cs_control,
 };
 
+static struct ab8500_platform_data ab8500_platdata = {
+	.irq_base	= MOP500_AB8500_IRQ_BASE,
+};
+
 static struct spi_board_info u8500_spi_devices[] = {
 	{
 		.modalias = "ab8500",
 		.controller_data = &ab4500_chip_info,
+		.platform_data = &ab8500_platdata,
 		.max_speed_hz = 12000000,
 		.bus_num = 0,
 		.chip_select = 0,
 		.mode = SPI_MODE_0,
-		.irq = IRQ_AB4500,
+		.irq = IRQ_DB8500_AB8500,
 	},
 };
 
@@ -118,6 +146,10 @@ static void __init u8500_init_machine(void)
 {
 	int i;
 
+	u8500_init_devices();
+
+	nmk_config_pins(mop500_pins, ARRAY_SIZE(mop500_pins));
+
 	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
 	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
 	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
@@ -133,8 +165,6 @@ static void __init u8500_init_machine(void)
 
 	spi_register_board_info(u8500_spi_devices,
 			ARRAY_SIZE(u8500_spi_devices));
-
-	u8500_init_devices();
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")

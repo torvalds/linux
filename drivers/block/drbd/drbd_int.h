@@ -550,12 +550,6 @@ struct p_delay_probe {
 	u32	offset;	 /* usecs the probe got sent after the reference time point */
 } __packed;
 
-struct delay_probe {
-	struct list_head list;
-	unsigned int seq_num;
-	struct timeval time;
-};
-
 /* DCBP: Drbd Compressed Bitmap Packet ... */
 static inline enum drbd_bitmap_code
 DCBP_get_code(struct p_compressed_bm *p)
@@ -942,11 +936,9 @@ struct drbd_conf {
 	unsigned int ko_count;
 	struct drbd_work  resync_work,
 			  unplug_work,
-			  md_sync_work,
-			  delay_probe_work;
+			  md_sync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
-	struct timer_list delay_probe_timer;
 
 	/* Used after attach while negotiating new disk state. */
 	union drbd_state new_state_tmp;
@@ -1062,12 +1054,6 @@ struct drbd_conf {
 	u64 ed_uuid; /* UUID of the exposed data */
 	struct mutex state_mutex;
 	char congestion_reason;  /* Why we where congested... */
-	struct list_head delay_probes; /* protected by peer_seq_lock */
-	int data_delay;   /* Delay of packets on the data-sock behind meta-sock */
-	unsigned int delay_seq; /* To generate sequence numbers of delay probes */
-	struct timeval dps_time; /* delay-probes-start-time */
-	unsigned int dp_volume_last;  /* send_cnt of last delay probe */
-	int c_sync_rate; /* current resync rate after delay_probe magic */
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)

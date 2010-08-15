@@ -52,13 +52,14 @@ static void __clk_disable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return;
-
-	__clk_disable(clk->parent);
-	__clk_disable(clk->secondary);
-
 	WARN_ON(!clk->usecount);
-	if (!(--clk->usecount) && clk->disable)
-		clk->disable(clk);
+
+	if (!(--clk->usecount)) {
+		if (clk->disable)
+			clk->disable(clk);
+		__clk_disable(clk->parent);
+		__clk_disable(clk->secondary);
+	}
 }
 
 static int __clk_enable(struct clk *clk)
@@ -66,12 +67,13 @@ static int __clk_enable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	__clk_enable(clk->parent);
-	__clk_enable(clk->secondary);
+	if (clk->usecount++ == 0) {
+		__clk_enable(clk->parent);
+		__clk_enable(clk->secondary);
 
-	if (clk->usecount++ == 0 && clk->enable)
-		clk->enable(clk);
-
+		if (clk->enable)
+			clk->enable(clk);
+	}
 	return 0;
 }
 
@@ -160,16 +162,27 @@ EXPORT_SYMBOL(clk_set_rate);
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	int ret = -EINVAL;
+	struct clk *old;
 
 	if (clk == NULL || IS_ERR(clk) || parent == NULL ||
 	    IS_ERR(parent) || clk->set_parent == NULL)
 		return ret;
 
+	if (clk->usecount)
+		clk_enable(parent);
+
 	mutex_lock(&clocks_mutex);
 	ret = clk->set_parent(clk, parent);
-	if (ret == 0)
+	if (ret == 0) {
+		old = clk->parent;
 		clk->parent = parent;
+	} else {
+		old = parent;
+	}
 	mutex_unlock(&clocks_mutex);
+
+	if (clk->usecount)
+		clk_disable(old);
 
 	return ret;
 }

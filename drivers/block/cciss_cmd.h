@@ -52,8 +52,10 @@
 /* Configuration Table */
 #define CFGTBL_ChangeReq        0x00000001l
 #define CFGTBL_AccCmds          0x00000001l
+#define DOORBELL_CTLR_RESET     0x00000004l
 
 #define CFGTBL_Trans_Simple     0x00000002l
+#define CFGTBL_Trans_Performant 0x00000004l
 
 #define CFGTBL_BusType_Ultra2   0x00000001l
 #define CFGTBL_BusType_Ultra3   0x00000002l
@@ -173,12 +175,15 @@ typedef struct _SGDescriptor_struct {
  * PAD_64 can be adjusted independently as needed for 32-bit
  * and 64-bits systems.
  */
-#define COMMANDLIST_ALIGNMENT (8)
+#define COMMANDLIST_ALIGNMENT (32)
 #define IS_64_BIT ((sizeof(long) - 4)/4)
 #define IS_32_BIT (!IS_64_BIT)
 #define PAD_32 (0)
 #define PAD_64 (4)
 #define PADSIZE (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
+#define DIRECT_LOOKUP_BIT 0x10
+#define DIRECT_LOOKUP_SHIFT 5
+
 typedef struct _CommandList_struct {
   CommandListHeader_struct Header;
   RequestBlock_struct      Request;
@@ -195,7 +200,7 @@ typedef struct _CommandList_struct {
   struct completion *waiting;
   int	 retry_count;
   void * scsi_cmd;
-  char   pad[PADSIZE];
+  char pad[PADSIZE];
 } CommandList_struct;
 
 /* Configuration Table Structure */
@@ -209,12 +214,15 @@ typedef struct _HostWrite_struct {
 typedef struct _CfgTable_struct {
   BYTE             Signature[4];
   DWORD            SpecValence;
+#define SIMPLE_MODE	0x02
+#define PERFORMANT_MODE	0x04
+#define MEMQ_MODE	0x08
   DWORD            TransportSupport;
   DWORD            TransportActive;
   HostWrite_struct HostWrite;
   DWORD            CmdsOutMax;
   DWORD            BusTypes;
-  DWORD            Reserved; 
+  DWORD            TransMethodOffset;
   BYTE             ServerName[16];
   DWORD            HeartBeat;
   DWORD            SCSI_Prefetch;
@@ -222,6 +230,28 @@ typedef struct _CfgTable_struct {
   DWORD            MaxLogicalUnits;
   DWORD            MaxPhysicalDrives;
   DWORD            MaxPhysicalDrivesPerLogicalUnit;
+  DWORD            MaxPerformantModeCommands;
+  u8		   reserved[0x78 - 0x58];
+  u32		   misc_fw_support; /* offset 0x78 */
+#define MISC_FW_DOORBELL_RESET (0x02)
 } CfgTable_struct;
+
+struct TransTable_struct {
+  u32 BlockFetch0;
+  u32 BlockFetch1;
+  u32 BlockFetch2;
+  u32 BlockFetch3;
+  u32 BlockFetch4;
+  u32 BlockFetch5;
+  u32 BlockFetch6;
+  u32 BlockFetch7;
+  u32 RepQSize;
+  u32 RepQCount;
+  u32 RepQCtrAddrLow32;
+  u32 RepQCtrAddrHigh32;
+  u32 RepQAddr0Low32;
+  u32 RepQAddr0High32;
+};
+
 #pragma pack()	 
 #endif /* CCISS_CMD_H */

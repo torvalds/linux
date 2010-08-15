@@ -119,7 +119,6 @@ static void __init smdk2413_fixup(struct machine_desc *desc,
 		mi->nr_banks=1;
 		mi->bank[0].start = 0x30000000;
 		mi->bank[0].size = SZ_64M;
-		mi->bank[0].node = 0;
 	}
 }
 

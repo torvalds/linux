@@ -35,6 +35,7 @@
 #define CIFS_MOUNT_DYNPERM      0x1000 /* allow in-memory only mode setting   */
 #define CIFS_MOUNT_NOPOSIXBRL   0x2000 /* mandatory not posix byte range lock */
 #define CIFS_MOUNT_NOSSYNC      0x4000 /* don't do slow SMBflush on every sync*/
+#define CIFS_MOUNT_FSCACHE	0x8000 /* local caching enabled */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */

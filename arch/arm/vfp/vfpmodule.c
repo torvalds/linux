@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 
+#include <asm/cputype.h>
 #include <asm/thread_notify.h>
 #include <asm/vfp.h>
 
@@ -549,10 +550,13 @@ static int __init vfp_init(void)
 		/*
 		 * Check for the presence of the Advanced SIMD
 		 * load/store instructions, integer and single
-		 * precision floating point operations.
+		 * precision floating point operations. Only check
+		 * for NEON if the hardware has the MVFR registers.
 		 */
-		if ((fmrx(MVFR1) & 0x000fff00) == 0x00011100)
-			elf_hwcap |= HWCAP_NEON;
+		if ((read_cpuid_id() & 0x000f0000) == 0x000f0000) {
+			if ((fmrx(MVFR1) & 0x000fff00) == 0x00011100)
+				elf_hwcap |= HWCAP_NEON;
+		}
 #endif
 	}
 	return 0;

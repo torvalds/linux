@@ -85,6 +85,7 @@
 #include <linux/net_tstamp.h>
 
 #include <asm/io.h>
+#include <asm/reg.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -121,9 +122,9 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
-static int gfar_probe(struct of_device *ofdev,
+static int gfar_probe(struct platform_device *ofdev,
 		const struct of_device_id *match);
-static int gfar_remove(struct of_device *ofdev);
+static int gfar_remove(struct platform_device *ofdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
@@ -604,7 +605,7 @@ static int gfar_parse_group(struct device_node *np,
 	return 0;
 }
 
-static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
+static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 {
 	const char *model;
 	const char *ctype;
@@ -685,8 +686,8 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		priv->rx_queue[i] = NULL;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kzalloc(
-				sizeof (struct gfar_priv_tx_q), GFP_KERNEL);
+		priv->tx_queue[i] = kzalloc(sizeof(struct gfar_priv_tx_q),
+					    GFP_KERNEL);
 		if (!priv->tx_queue[i]) {
 			err = -ENOMEM;
 			goto tx_alloc_failed;
@@ -698,8 +699,8 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kzalloc(
-					sizeof (struct gfar_priv_rx_q), GFP_KERNEL);
+		priv->rx_queue[i] = kzalloc(sizeof(struct gfar_priv_rx_q),
+					    GFP_KERNEL);
 		if (!priv->rx_queue[i]) {
 			err = -ENOMEM;
 			goto rx_alloc_failed;
@@ -846,7 +847,7 @@ static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!priv->phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
 static unsigned int reverse_bitmap(unsigned int bit_map, unsigned int max_qs)
@@ -916,7 +917,7 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_UDP);
 	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_TCP);
 
-	/* cur_filer_idx indicated the fisrt non-masked rule */
+	/* cur_filer_idx indicated the first non-masked rule */
 	priv->cur_filer_idx = rqfar;
 
 	/* Rest are masked rules */
@@ -928,9 +929,37 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	}
 }
 
+static void gfar_detect_errata(struct gfar_private *priv)
+{
+	struct device *dev = &priv->ofdev->dev;
+	unsigned int pvr = mfspr(SPRN_PVR);
+	unsigned int svr = mfspr(SPRN_SVR);
+	unsigned int mod = (svr >> 16) & 0xfff6; /* w/o E suffix */
+	unsigned int rev = svr & 0xffff;
+
+	/* MPC8313 Rev 2.0 and higher; All MPC837x */
+	if ((pvr == 0x80850010 && mod == 0x80b0 && rev >= 0x0020) ||
+			(pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
+		priv->errata |= GFAR_ERRATA_74;
+
+	/* MPC8313 and MPC837x all rev */
+	if ((pvr == 0x80850010 && mod == 0x80b0) ||
+			(pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
+		priv->errata |= GFAR_ERRATA_76;
+
+	/* MPC8313 and MPC837x all rev */
+	if ((pvr == 0x80850010 && mod == 0x80b0) ||
+			(pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
+		priv->errata |= GFAR_ERRATA_A002;
+
+	if (priv->errata)
+		dev_info(dev, "enabled errata workarounds, flags: 0x%x\n",
+			 priv->errata);
+}
+
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
-static int gfar_probe(struct of_device *ofdev,
+static int gfar_probe(struct platform_device *ofdev,
 		const struct of_device_id *match)
 {
 	u32 tempval;
@@ -960,6 +989,8 @@ static int gfar_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, priv);
 	regs = priv->gfargrp[0].regs;
 
+	gfar_detect_errata(priv);
+
 	/* Stop the DMA engine now, in case it was running before */
 	/* (The firmware could have used it, and left it running). */
 	gfar_halt(dev);
@@ -974,7 +1005,10 @@ static int gfar_probe(struct of_device *ofdev,
 	gfar_write(&regs->maccfg1, tempval);
 
 	/* Initialize MACCFG2. */
-	gfar_write(&regs->maccfg2, MACCFG2_INIT_SETTINGS);
+	tempval = MACCFG2_INIT_SETTINGS;
+	if (gfar_has_errata(priv, GFAR_ERRATA_74))
+		tempval |= MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK;
+	gfar_write(&regs->maccfg2, tempval);
 
 	/* Initialize ECNTRL */
 	gfar_write(&regs->ecntrl, ECNTRL_INIT_SETTINGS);
@@ -1204,7 +1238,7 @@ register_fail:
 	return err;
 }
 
-static int gfar_remove(struct of_device *ofdev)
+static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
 
@@ -1541,6 +1575,29 @@ static void init_registers(struct net_device *dev)
 	gfar_write(&regs->minflr, MINFLR_INIT_SETTINGS);
 }
 
+static int __gfar_is_rx_idle(struct gfar_private *priv)
+{
+	u32 res;
+
+	/*
+	 * Normaly TSEC should not hang on GRS commands, so we should
+	 * actually wait for IEVENT_GRSC flag.
+	 */
+	if (likely(!gfar_has_errata(priv, GFAR_ERRATA_A002)))
+		return 0;
+
+	/*
+	 * Read the eTSEC register at offset 0xD1C. If bits 7-14 are
+	 * the same as bits 23-30, the eTSEC Rx is assumed to be idle
+	 * and the Rx can be safely reset.
+	 */
+	res = gfar_read((void __iomem *)priv->gfargrp[0].regs + 0xd1c);
+	res &= 0x7f807f80;
+	if ((res & 0xffff) == (res >> 16))
+		return 1;
+
+	return 0;
+}
 
 /* Halt the receive and transmit queues */
 static void gfar_halt_nodisable(struct net_device *dev)
@@ -1564,12 +1621,18 @@ static void gfar_halt_nodisable(struct net_device *dev)
 	tempval = gfar_read(&regs->dmactrl);
 	if ((tempval & (DMACTRL_GRS | DMACTRL_GTS))
 	    != (DMACTRL_GRS | DMACTRL_GTS)) {
+		int ret;
+
 		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
 		gfar_write(&regs->dmactrl, tempval);
 
-		spin_event_timeout(((gfar_read(&regs->ievent) &
-			 (IEVENT_GRSC | IEVENT_GTSC)) ==
-			 (IEVENT_GRSC | IEVENT_GTSC)), -1, 0);
+		do {
+			ret = spin_event_timeout(((gfar_read(&regs->ievent) &
+				 (IEVENT_GRSC | IEVENT_GTSC)) ==
+				 (IEVENT_GRSC | IEVENT_GTSC)), 1000000, 0);
+			if (!ret && !(gfar_read(&regs->ievent) & IEVENT_GRSC))
+				ret = __gfar_is_rx_idle(priv);
+		} while (!ret);
 	}
 }
 
@@ -1987,6 +2050,20 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int nr_frags, nr_txbds, length;
 	union skb_shared_tx *shtx;
 
+	/*
+	 * TOE=1 frames larger than 2500 bytes may see excess delays
+	 * before start of transmission.
+	 */
+	if (unlikely(gfar_has_errata(priv, GFAR_ERRATA_76) &&
+			skb->ip_summed == CHECKSUM_PARTIAL &&
+			skb->len > 2500)) {
+		int ret;
+
+		ret = skb_checksum_help(skb);
+		if (ret)
+			return ret;
+	}
+
 	rq = skb->queue_mapping;
 	tx_queue = priv->tx_queue[rq];
 	txq = netdev_get_tx_queue(dev, rq);
@@ -2300,7 +2377,8 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	 * to allow huge frames, and to check the length */
 	tempval = gfar_read(&regs->maccfg2);
 
-	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE)
+	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE ||
+			gfar_has_errata(priv, GFAR_ERRATA_74))
 		tempval |= (MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
 	else
 		tempval &= ~(MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
@@ -2340,6 +2418,15 @@ static void gfar_timeout(struct net_device *dev)
 
 	dev->stats.tx_errors++;
 	schedule_work(&priv->reset_task);
+}
+
+static void gfar_align_skb(struct sk_buff *skb)
+{
+	/* We need the data buffer to be aligned properly.  We will reserve
+	 * as many bytes as needed to align the data properly
+	 */
+	skb_reserve(skb, RXBUF_ALIGNMENT -
+		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1)));
 }
 
 /* Interrupt Handler for Transmit complete */
@@ -2426,9 +2513,10 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		 */
 		if (skb_queue_len(&priv->rx_recycle) < rx_queue->rx_ring_size &&
 				skb_recycle_check(skb, priv->rx_buffer_size +
-					RXBUF_ALIGNMENT))
+					RXBUF_ALIGNMENT)) {
+			gfar_align_skb(skb);
 			__skb_queue_head(&priv->rx_recycle, skb);
-		else
+		} else
 			dev_kfree_skb_any(skb);
 
 		tx_queue->tx_skbuff[skb_dirtytx] = NULL;
@@ -2491,29 +2579,28 @@ static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 	gfar_init_rxbdp(rx_queue, bdp, buf);
 }
 
+static struct sk_buff * gfar_alloc_skb(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct sk_buff *skb = NULL;
+
+	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
+	if (!skb)
+		return NULL;
+
+	gfar_align_skb(skb);
+
+	return skb;
+}
 
 struct sk_buff * gfar_new_skb(struct net_device *dev)
 {
-	unsigned int alignamount;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
 
 	skb = __skb_dequeue(&priv->rx_recycle);
 	if (!skb)
-		skb = netdev_alloc_skb(dev,
-				priv->rx_buffer_size + RXBUF_ALIGNMENT);
-
-	if (!skb)
-		return NULL;
-
-	alignamount = RXBUF_ALIGNMENT -
-		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1));
-
-	/* We need the data buffer to be aligned properly.  We will reserve
-	 * as many bytes as needed to align the data properly
-	 */
-	skb_reserve(skb, alignamount);
-	GFAR_CB(skb)->alignamount = alignamount;
+		skb = gfar_alloc_skb(dev);
 
 	return skb;
 }
@@ -2666,17 +2753,8 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 
 			if (unlikely(!newskb))
 				newskb = skb;
-			else if (skb) {
-				/*
-				 * We need to un-reserve() the skb to what it
-				 * was before gfar_new_skb() re-aligned
-				 * it to an RXBUF_ALIGNMENT boundary
-				 * before we put the skb back on the
-				 * recycle list.
-				 */
-				skb_reserve(skb, -GFAR_CB(skb)->alignamount);
+			else if (skb)
 				__skb_queue_head(&priv->rx_recycle, skb);
-			}
 		} else {
 			/* Increment the number of packets */
 			rx_queue->stats.rx_packets++;

@@ -16,6 +16,7 @@ obj-pci-$(CONFIG_MACH_DSMG600)		+= dsmg600-pci.o
 obj-pci-$(CONFIG_MACH_GATEWAY7001)	+= gateway7001-pci.o
 obj-pci-$(CONFIG_MACH_WG302V2)		+= wg302v2-pci.o
 obj-pci-$(CONFIG_MACH_FSG)		+= fsg-pci.o
+obj-pci-$(CONFIG_MACH_ARCOM_VULCAN)	+= vulcan-pci.o
 
 obj-y	+= common.o
 
@@ -31,6 +32,7 @@ obj-$(CONFIG_MACH_GATEWAY7001)	+= gateway7001-setup.o
 obj-$(CONFIG_MACH_WG302V2)	+= wg302v2-setup.o
 obj-$(CONFIG_MACH_FSG)		+= fsg-setup.o
 obj-$(CONFIG_MACH_GORAMO_MLR)	+= goramo_mlr.o
+obj-$(CONFIG_MACH_ARCOM_VULCAN)	+= vulcan-setup.o
 
 obj-$(CONFIG_PCI)		+= $(obj-pci-$(CONFIG_PCI)) common-pci.o
 obj-$(CONFIG_IXP4XX_QMGR)	+= ixp4xx_qmgr.o

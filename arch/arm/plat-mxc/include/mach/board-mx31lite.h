@@ -32,7 +32,7 @@ enum mx31lite_boards {
 
 /*
  * This CPU module needs a baseboard to work. After basic initializing
- * its own devices, it calls baseboard's init function.
+ * its own devices, it calls the baseboard's init function.
  */
 
 extern void mx31lite_db_init(void);

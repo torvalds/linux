@@ -150,6 +150,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_boot_time = CURRENT_TIME;
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 	clp->cl_minorversion = cl_init->minorversion;
+	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 #endif
 	cred = rpc_lookup_machine_cred();
 	if (!IS_ERR(cred))
@@ -178,7 +179,7 @@ static void nfs4_clear_client_minor_version(struct nfs_client *clp)
 		clp->cl_session = NULL;
 	}
 
-	clp->cl_call_sync = _nfs4_call_sync;
+	clp->cl_mvops = nfs_v4_minor_ops[0];
 #endif /* CONFIG_NFS_V4_1 */
 }
 
@@ -188,7 +189,7 @@ static void nfs4_clear_client_minor_version(struct nfs_client *clp)
 static void nfs4_destroy_callback(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down(clp->cl_minorversion);
+		nfs_callback_down(clp->cl_mvops->minor_version);
 }
 
 static void nfs4_shutdown_client(struct nfs_client *clp)
@@ -1126,7 +1127,7 @@ static int nfs4_init_callback(struct nfs_client *clp)
 				return error;
 		}
 
-		error = nfs_callback_up(clp->cl_minorversion,
+		error = nfs_callback_up(clp->cl_mvops->minor_version,
 					clp->cl_rpcclient->cl_xprt);
 		if (error < 0) {
 			dprintk("%s: failed to start callback. Error = %d\n",
@@ -1143,10 +1144,8 @@ static int nfs4_init_callback(struct nfs_client *clp)
  */
 static int nfs4_init_client_minor_version(struct nfs_client *clp)
 {
-	clp->cl_call_sync = _nfs4_call_sync;
-
 #if defined(CONFIG_NFS_V4_1)
-	if (clp->cl_minorversion) {
+	if (clp->cl_mvops->minor_version) {
 		struct nfs4_session *session = NULL;
 		/*
 		 * Create the session and mark it expired.
@@ -1158,7 +1157,13 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 			return -ENOMEM;
 
 		clp->cl_session = session;
-		clp->cl_call_sync = _nfs4_call_sync_session;
+		/*
+		 * The create session reply races with the server back
+		 * channel probe. Mark the client NFS_CS_SESSION_INITING
+		 * so that the client back channel can find the
+		 * nfs_client struct
+		 */
+		clp->cl_cons_state = NFS_CS_SESSION_INITING;
 	}
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -1454,7 +1459,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				data->authflavor,
 				parent_server->client->cl_xprt->prot,
 				parent_server->client->cl_timeout,
-				parent_client->cl_minorversion);
+				parent_client->cl_mvops->minor_version);
 	if (error < 0)
 		goto error;
 

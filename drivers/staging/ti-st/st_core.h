@@ -36,57 +36,87 @@
 #define ST_REG_PENDING		3
 #define ST_WAITING_FOR_RESP	4
 
-/*
- * local data required for ST/KIM/ST-HCI-LL
+/**
+ * struct st_data_s - ST core internal structure
+ * @st_state: different states of ST like initializing, registration
+ *	in progress, this is mainly used to return relevant err codes
+ *	when protocol drivers are registering. It is also used to track
+ *	the recv function, as in during fw download only HCI events
+ *	can occur , where as during other times other events CH8, CH9
+ *	can occur.
+ * @tty: tty provided by the TTY core for line disciplines.
+ * @ldisc_ops: the procedures that this line discipline registers with TTY.
+ * @tx_skb: If for some reason the tty's write returns lesser bytes written
+ *	then to maintain the rest of data to be written on next instance.
+ *	This needs to be protected, hence the lock inside wakeup func.
+ * @tx_state: if the data is being written onto the TTY and protocol driver
+ *	wants to send more, queue up data and mark that there is
+ *	more data to send.
+ * @list: the list of protocols registered, only MAX can exist, one protocol
+ *	can register only once.
+ * @rx_state: states to be maintained inside st's tty receive
+ * @rx_count: count to be maintained inside st's tty receieve
+ * @rx_skb: the skb where all data for a protocol gets accumulated,
+ *	since tty might not call receive when a complete event packet
+ *	is received, the states, count and the skb needs to be maintained.
+ * @txq: the list of skbs which needs to be sent onto the TTY.
+ * @tx_waitq: if the chip is not in AWAKE state, the skbs needs to be queued
+ *	up in here, PM(WAKEUP_IND) data needs to be sent and then the skbs
+ *	from waitq can be moved onto the txq.
+ *	Needs locking too.
+ * @lock: the lock to protect skbs, queues, and ST states.
+ * @protos_registered: count of the protocols registered, also when 0 the
+ *	chip enable gpio can be toggled, and when it changes to 1 the fw
+ *	needs to be downloaded to initialize chip side ST.
+ * @ll_state: the various PM states the chip can be, the states are notified
+ *	to us, when the chip sends relevant PM packets(SLEEP_IND, WAKE_IND).
+ * @kim_data: reference to the parent encapsulating structure.
+ *
  */
 struct st_data_s {
 	unsigned long st_state;
-/*
- * an instance of tty_struct & ldisc ops to move around
- */
 	struct tty_struct *tty;
 	struct tty_ldisc_ops *ldisc_ops;
-/*
- * the tx skb -
- * if the skb is already dequeued and the tty failed to write the same
- * maintain the skb to write in the next transaction
- */
 	struct sk_buff *tx_skb;
 #define ST_TX_SENDING	1
 #define ST_TX_WAKEUP	2
 	unsigned long tx_state;
-/*
- * list of protocol registered
- */
 	struct st_proto_s *list[ST_MAX];
-/*
- * lock
- */
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
 	struct sk_buff_head txq, tx_waitq;
-	spinlock_t lock;	/* ST LL state lock  */
+	spinlock_t lock;
 	unsigned char	protos_registered;
-	unsigned long ll_state;	/* ST LL power state */
+	unsigned long ll_state;
+	void *kim_data;
 };
 
-/* point this to tty->driver->write or tty->ops->write
+/**
+ * st_int_write -
+ * point this to tty->driver->write or tty->ops->write
  * depending upon the kernel version
  */
 int st_int_write(struct st_data_s*, const unsigned char*, int);
-/* internal write function, passed onto protocol drivers
+
+/**
+ * st_write -
+ * internal write function, passed onto protocol drivers
  * via the write function ptr of protocol struct
  */
 long st_write(struct sk_buff *);
-/* function to be called from ST-LL
- */
+
+/* function to be called from ST-LL */
 void st_ll_send_frame(enum proto_type, struct sk_buff *);
+
 /* internal wake up function */
 void st_tx_wakeup(struct st_data_s *st_data);
 
+/* init, exit entry funcs called from KIM */
 int st_core_init(struct st_data_s **);
 void st_core_exit(struct st_data_s *);
+
+/* ask for reference from KIM */
 void st_kim_ref(struct st_data_s **);
 
 #define GPS_STUB_TEST

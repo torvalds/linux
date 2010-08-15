@@ -37,7 +37,8 @@
 
 #define NILFS_BUFFER_INHERENT_BITS  \
 	((1UL << BH_Uptodate) | (1UL << BH_Mapped) | (1UL << BH_NILFS_Node) | \
-	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated))
+	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated) | \
+	 (1UL << BH_NILFS_Checked))
 
 static struct buffer_head *
 __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
@@ -129,6 +130,7 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
+	clear_buffer_nilfs_checked(bh);
 	clear_buffer_dirty(bh);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
@@ -480,6 +482,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping)
 				lock_buffer(bh);
 				clear_buffer_dirty(bh);
 				clear_buffer_nilfs_volatile(bh);
+				clear_buffer_nilfs_checked(bh);
 				clear_buffer_uptodate(bh);
 				clear_buffer_mapped(bh);
 				unlock_buffer(bh);

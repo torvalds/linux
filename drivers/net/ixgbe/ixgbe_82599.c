@@ -206,6 +206,14 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	s32 status = 0;
 	u32 autoc = 0;
 
+	/* Determine 1G link capabilities off of SFP+ type */
+	if (hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core1) {
+		*speed = IXGBE_LINK_SPEED_1GB_FULL;
+		*negotiation = true;
+		goto out;
+	}
+
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
 	 * which represents EEPROM defaults.  If AUTOC value has not been
@@ -707,9 +715,8 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 
 out:
 	if (link_up && (link_speed == IXGBE_LINK_SPEED_1GB_FULL))
-		netif_info(adapter, hw, adapter->netdev, "Smartspeed has"
-			" downgraded the link speed from the maximum"
-			" advertised\n");
+		e_info(hw, "Smartspeed has downgraded the link speed from "
+		       "the maximum advertised\n");
 	return status;
 }
 
@@ -2088,6 +2095,7 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 	u16 ext_ability = 0;
 	u8 comp_codes_10g = 0;
+	u8 comp_codes_1g = 0;
 
 	hw->phy.ops.identify(hw);
 
@@ -2168,11 +2176,15 @@ sfp_check:
 	case ixgbe_phy_sfp_intel:
 	case ixgbe_phy_sfp_unknown:
 		hw->phy.ops.read_i2c_eeprom(hw,
+		      IXGBE_SFF_1GBE_COMP_CODES, &comp_codes_1g);
+		hw->phy.ops.read_i2c_eeprom(hw,
 		      IXGBE_SFF_10GBE_COMP_CODES, &comp_codes_10g);
 		if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
 		else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+		else if (comp_codes_1g & IXGBE_SFF_1GBASET_CAPABLE)
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_T;
 		break;
 	default:
 		break;

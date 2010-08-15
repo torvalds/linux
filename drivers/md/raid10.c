@@ -799,12 +799,12 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const bool do_sync = (bio->bi_rw & REQ_SYNC);
 	struct bio_list bl;
 	unsigned long flags;
 	mdk_rdev_t *blocked_rdev;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
+	if (unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
 		md_barrier_request(mddev, bio);
 		return 0;
 	}
@@ -825,10 +825,28 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		 */
 		bp = bio_split(bio,
 			       chunk_sects - (bio->bi_sector & (chunk_sects - 1)) );
+
+		/* Each of these 'make_request' calls will call 'wait_barrier'.
+		 * If the first succeeds but the second blocks due to the resync
+		 * thread raising the barrier, we will deadlock because the
+		 * IO to the underlying device will be queued in generic_make_request
+		 * and will never complete, so will never reduce nr_pending.
+		 * So increment nr_waiting here so no new raise_barriers will
+		 * succeed, and so the second wait_barrier cannot block.
+		 */
+		spin_lock_irq(&conf->resync_lock);
+		conf->nr_waiting++;
+		spin_unlock_irq(&conf->resync_lock);
+
 		if (make_request(mddev, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (make_request(mddev, &bp->bio2))
 			generic_make_request(&bp->bio2);
+
+		spin_lock_irq(&conf->resync_lock);
+		conf->nr_waiting--;
+		wake_up(&conf->wait_barrier);
+		spin_unlock_irq(&conf->resync_lock);
 
 		bio_pair_release(bp);
 		return 0;
@@ -879,7 +897,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 			mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
-		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r10_bio;
 
 		generic_make_request(read_bio);
@@ -947,7 +965,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 			conf->mirrors[d].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | (do_sync << BIO_RW_SYNCIO);
+		mbio->bi_rw = WRITE | do_sync;
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
@@ -1716,7 +1734,7 @@ static void raid10d(mddev_t *mddev)
 				raid_end_bio_io(r10_bio);
 				bio_put(bio);
 			} else {
-				const bool do_sync = bio_rw_flagged(r10_bio->master_bio, BIO_RW_SYNCIO);
+				const bool do_sync = (r10_bio->master_bio->bi_rw & REQ_SYNC);
 				bio_put(bio);
 				rdev = conf->mirrors[mirror].rdev;
 				if (printk_ratelimit())
@@ -1730,7 +1748,7 @@ static void raid10d(mddev_t *mddev)
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
-				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+				bio->bi_rw = READ | do_sync;
 				bio->bi_private = r10_bio;
 				bio->bi_end_io = raid10_end_read_request;
 				unplug = 1;

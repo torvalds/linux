@@ -159,8 +159,8 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	vxp->p_dev = link;
 	link->priv = chip;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	link->resource[0]->end = 16;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -226,7 +226,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 		strcpy(chip->card->driver, vxp440_hw.name);
 	}
 
-	ret = pcmcia_request_io(link, &link->io);
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
 
@@ -241,7 +241,8 @@ static int vxpocket_config(struct pcmcia_device *link)
 	chip->dev = &link->dev;
 	snd_card_set_dev(chip->card, chip->dev);
 
-	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq) < 0)
+	if (snd_vxpocket_assign_resources(chip, link->resource[0]->start,
+						link->irq) < 0)
 		goto failed;
 
 	return 0;

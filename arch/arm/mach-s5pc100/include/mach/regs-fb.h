@@ -100,40 +100,6 @@
 #define BLENDCON					(0x260)
 #define BLENDCON_8BIT_ALPHA				(1 << 0)
 
-/* Per-window palette base addresses (start of palette memory).
- * Each window palette area consists of 256 32-bit entries.
- * START is the first address (entry 0th), END is the address of 255th entry.
- */
-#define WIN0_PAL_BASE					(0x2400)
-#define WIN0_PAL_END					(0x27fc)
-#define WIN1_PAL_BASE					(0x2800)
-#define WIN1_PAL_END					(0x2bfc)
-#define WIN2_PAL_BASE					(0x2c00)
-#define WIN2_PAL_END					(0x2ffc)
-#define WIN3_PAL_BASE					(0x3000)
-#define WIN3_PAL_END					(0x33fc)
-#define WIN4_PAL_BASE					(0x3400)
-#define WIN4_PAL_END					(0x37fc)
-
-#define WIN0_PAL(_entry)			(WIN0_PAL_BASE + ((_entry) * 4))
-#define WIN1_PAL(_entry)			(WIN1_PAL_BASE + ((_entry) * 4))
-#define WIN2_PAL(_entry)			(WIN2_PAL_BASE + ((_entry) * 4))
-#define WIN3_PAL(_entry)			(WIN3_PAL_BASE + ((_entry) * 4))
-#define WIN4_PAL(_entry)			(WIN4_PAL_BASE + ((_entry) * 4))
-
-static inline unsigned int s3c_fb_pal_reg(unsigned int window, int reg)
-{
-	switch (window) {
-	case 0: return WIN0_PAL(reg);
-	case 1: return WIN1_PAL(reg);
-	case 2: return WIN2_PAL(reg);
-	case 3: return WIN3_PAL(reg);
-	case 4: return WIN4_PAL(reg);
-	}
-
-	BUG();
-}
-
 
 #endif /* __ASM_ARCH_REGS_FB_H */
 

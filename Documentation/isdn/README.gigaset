@@ -47,9 +47,9 @@ GigaSet 307x Device Driver
 
 1.2. Software
      --------
-     The driver works with ISDN4linux and so can be used with any software
-     which is able to use ISDN4linux for ISDN connections (voice or data).
-     Experimental Kernel CAPI support is available as a compilation option.
+     The driver works with the Kernel CAPI subsystem as well as the old
+     ISDN4Linux subsystem, so it can be used with any software which is able
+     to use CAPI 2.0 or ISDN4Linux for ISDN connections (voice or data).
 
      There are some user space tools available at
      http://sourceforge.net/projects/gigaset307x/
@@ -152,61 +152,42 @@ GigaSet 307x Device Driver
      - GIGVER_FWBASE: retrieve the firmware version of the base
      Upon return, version[] is filled with the requested version information.
 
-2.3. ISDN4linux
-     ----------
-     This is the "normal" mode of operation. After loading the module you can
-     set up the ISDN system just as you'd do with any ISDN card supported by
-     the ISDN4Linux subsystem. Most distributions provide some configuration
-     utility. If not, you can use some HOWTOs like
-         http://www.linuxhaven.de/dlhp/HOWTO/DE-ISDN-HOWTO-5.html
-     If this doesn't work, because you have some device like SX100 where
-     debug output (see section 3.2.) shows something like this when dialing
-         CMD Received: ERROR
-         Available Params: 0
-         Connection State: 0, Response: -1
-         gigaset_process_response: resp_code -1 in ConState 0 !
-         Timeout occurred
-     you probably need to use unimodem mode. (see section 2.5.)
-
-2.4. CAPI
+2.3. CAPI
      ----
      If the driver is compiled with CAPI support (kernel configuration option
-     GIGASET_CAPI, experimental) it can also be used with CAPI 2.0 kernel and
-     user space applications. For user space access, the module capi.ko must
-     be loaded. The capiinit command (included in the capi4k-utils package)
-     does this for you.
+     GIGASET_CAPI) the devices will show up as CAPI controllers as soon as the
+     corresponding driver module is loaded, and can then be used with CAPI 2.0
+     kernel and user space applications. For user space access, the module
+     capi.ko must be loaded.
 
-     The CAPI variant of the driver supports legacy ISDN4Linux applications
-     via the capidrv compatibility driver. The kernel module capidrv.ko must
-     be loaded explicitly with the command
+     Legacy ISDN4Linux applications are supported via the capidrv
+     compatibility driver. The kernel module capidrv.ko must be loaded
+     explicitly with the command
         modprobe capidrv
      if needed, and cannot be unloaded again without unloading the driver
      first. (These are limitations of capidrv.)
 
-     The note about unimodem mode in the preceding section applies here, too.
+     Most distributions handle loading and unloading of the various CAPI
+     modules automatically via the command capiinit(1) from the capi4k-utils
+     package or a similar mechanism. Note that capiinit(1) cannot unload the
+     Gigaset drivers because it doesn't support more than one module per
+     driver.
+
+2.4. ISDN4Linux
+     ----------
+     If the driver is compiled without CAPI support (native ISDN4Linux
+     variant), it registers the device with the legacy ISDN4Linux subsystem
+     after loading the module. It can then be used with ISDN4Linux
+     applications only. Most distributions provide some configuration utility
+     for setting up that subsystem. Otherwise you can use some HOWTOs like
+         http://www.linuxhaven.de/dlhp/HOWTO/DE-ISDN-HOWTO-5.html
+
 
 2.5. Unimodem mode
      -------------
-     This is needed for some devices [e.g. SX100] as they have problems with
-     the "normal" commands.
-
-     If you have installed the command line tool gigacontr, you can enter
-     unimodem mode using
-         gigacontr --mode unimodem
-     You can switch back using
-         gigacontr --mode isdn
-
-     You can also put the driver directly into Unimodem mode when it's loaded,
-     by passing the module parameter startmode=0 to the hardware specific
-     module, e.g.
-	modprobe usb_gigaset startmode=0
-     or by adding a line like
-	options usb_gigaset startmode=0
-     to an appropriate module configuration file, like /etc/modprobe.d/gigaset
-     or /etc/modprobe.conf.local.
-
      In this mode the device works like a modem connected to a serial port
      (the /dev/ttyGU0, ... mentioned above) which understands the commands
+
          ATZ                 init, reset
              => OK or ERROR
          ATD
@@ -231,6 +212,31 @@ GigaSet 307x Device Driver
 
         options ppp_async flag_time=0
 
+     to an appropriate module configuration file, like /etc/modprobe.d/gigaset
+     or /etc/modprobe.conf.local.
+
+     Unimodem mode is needed for making some devices [e.g. SX100] work which
+     do not support the regular Gigaset command set. If debug output (see
+     section 3.2.) shows something like this when dialing:
+         CMD Received: ERROR
+         Available Params: 0
+         Connection State: 0, Response: -1
+         gigaset_process_response: resp_code -1 in ConState 0 !
+         Timeout occurred
+     then switching to unimodem mode may help.
+
+     If you have installed the command line tool gigacontr, you can enter
+     unimodem mode using
+         gigacontr --mode unimodem
+     You can switch back using
+         gigacontr --mode isdn
+
+     You can also put the driver directly into Unimodem mode when it's loaded,
+     by passing the module parameter startmode=0 to the hardware specific
+     module, e.g.
+	modprobe usb_gigaset startmode=0
+     or by adding a line like
+	options usb_gigaset startmode=0
      to an appropriate module configuration file, like /etc/modprobe.d/gigaset
      or /etc/modprobe.conf.local.
 
@@ -263,7 +269,22 @@ GigaSet 307x Device Driver
      change its CID mode while the driver is loaded, eg.
         echo 0 > /sys/class/tty/ttyGU0/cidmode
 
-2.7. Unregistered Wireless Devices (M101/M105)
+2.7. Dialing Numbers
+     ---------------
+     The called party number provided by an application for dialing out must
+     be a public network number according to the local dialing plan, without
+     any dial prefix for getting an outside line.
+
+     Internal calls can be made by providing an internal extension number
+     prefixed with "**" (two asterisks) as the called party number. So to dial
+     eg. the first registered DECT handset, give "**11" as the called party
+     number. Dialing "***" (three asterisks) calls all extensions
+     simultaneously (global call).
+
+     This holds for both CAPI 2.0 and ISDN4Linux applications. Unimodem mode
+     does not support internal calls.
+
+2.8. Unregistered Wireless Devices (M101/M105)
      -----------------------------------------
      The main purpose of the ser_gigaset and usb_gigaset drivers is to allow
      the M101 and M105 wireless devices to be used as ISDN devices for ISDN

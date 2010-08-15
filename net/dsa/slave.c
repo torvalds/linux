@@ -164,10 +164,9 @@ out:
 static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct mii_ioctl_data *mii_data = if_mii(ifr);
 
 	if (p->phy != NULL)
-		return phy_mii_ioctl(p->phy, mii_data, cmd);
+		return phy_mii_ioctl(p->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }

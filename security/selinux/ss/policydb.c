@@ -31,6 +31,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/audit.h>
+#include <linux/flex_array.h>
 #include "security.h"
 
 #include "policydb.h"
@@ -655,6 +656,9 @@ static int range_tr_destroy(void *key, void *datum, void *p)
 
 static void ocontext_destroy(struct ocontext *c, int i)
 {
+	if (!c)
+		return;
+
 	context_destroy(&c->context[0]);
 	context_destroy(&c->context[1]);
 	if (i == OCON_ISID || i == OCON_FS ||
@@ -736,11 +740,17 @@ void policydb_destroy(struct policydb *p)
 	hashtab_map(p->range_tr, range_tr_destroy, NULL);
 	hashtab_destroy(p->range_tr);
 
-	if (p->type_attr_map) {
-		for (i = 0; i < p->p_types.nprim; i++)
-			ebitmap_destroy(&p->type_attr_map[i]);
+	if (p->type_attr_map_array) {
+		for (i = 0; i < p->p_types.nprim; i++) {
+			struct ebitmap *e;
+
+			e = flex_array_get(p->type_attr_map_array, i);
+			if (!e)
+				continue;
+			ebitmap_destroy(e);
+		}
+		flex_array_free(p->type_attr_map_array);
 	}
-	kfree(p->type_attr_map);
 	ebitmap_destroy(&p->policycaps);
 	ebitmap_destroy(&p->permissive_map);
 
@@ -1701,6 +1711,333 @@ u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name)
 	return 1U << (perdatum->value-1);
 }
 
+static int range_read(struct policydb *p, void *fp)
+{
+	struct range_trans *rt = NULL;
+	struct mls_range *r = NULL;
+	int i, rc;
+	__le32 buf[2];
+	u32 nel;
+
+	if (p->policyvers < POLICYDB_VERSION_MLS)
+		return 0;
+
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc)
+		goto out;
+
+	nel = le32_to_cpu(buf[0]);
+	for (i = 0; i < nel; i++) {
+		rc = -ENOMEM;
+		rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+		if (!rt)
+			goto out;
+
+		rc = next_entry(buf, fp, (sizeof(u32) * 2));
+		if (rc)
+			goto out;
+
+		rt->source_type = le32_to_cpu(buf[0]);
+		rt->target_type = le32_to_cpu(buf[1]);
+		if (p->policyvers >= POLICYDB_VERSION_RANGETRANS) {
+			rc = next_entry(buf, fp, sizeof(u32));
+			if (rc)
+				goto out;
+			rt->target_class = le32_to_cpu(buf[0]);
+		} else
+			rt->target_class = p->process_class;
+
+		rc = -EINVAL;
+		if (!policydb_type_isvalid(p, rt->source_type) ||
+		    !policydb_type_isvalid(p, rt->target_type) ||
+		    !policydb_class_isvalid(p, rt->target_class))
+			goto out;
+
+		rc = -ENOMEM;
+		r = kzalloc(sizeof(*r), GFP_KERNEL);
+		if (!r)
+			goto out;
+
+		rc = mls_read_range_helper(r, fp);
+		if (rc)
+			goto out;
+
+		rc = -EINVAL;
+		if (!mls_range_isvalid(p, r)) {
+			printk(KERN_WARNING "SELinux:  rangetrans:  invalid range\n");
+			goto out;
+		}
+
+		rc = hashtab_insert(p->range_tr, rt, r);
+		if (rc)
+			goto out;
+
+		rt = NULL;
+		r = NULL;
+	}
+	rangetr_hash_eval(p->range_tr);
+	rc = 0;
+out:
+	kfree(rt);
+	kfree(r);
+	return rc;
+}
+
+static int genfs_read(struct policydb *p, void *fp)
+{
+	int i, j, rc;
+	u32 nel, nel2, len, len2;
+	__le32 buf[1];
+	struct ocontext *l, *c;
+	struct ocontext *newc = NULL;
+	struct genfs *genfs_p, *genfs;
+	struct genfs *newgenfs = NULL;
+
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc)
+		goto out;
+	nel = le32_to_cpu(buf[0]);
+
+	for (i = 0; i < nel; i++) {
+		rc = next_entry(buf, fp, sizeof(u32));
+		if (rc)
+			goto out;
+		len = le32_to_cpu(buf[0]);
+
+		rc = -ENOMEM;
+		newgenfs = kzalloc(sizeof(*newgenfs), GFP_KERNEL);
+		if (!newgenfs)
+			goto out;
+
+		rc = -ENOMEM;
+		newgenfs->fstype = kmalloc(len + 1, GFP_KERNEL);
+		if (!newgenfs->fstype)
+			goto out;
+
+		rc = next_entry(newgenfs->fstype, fp, len);
+		if (rc)
+			goto out;
+
+		newgenfs->fstype[len] = 0;
+
+		for (genfs_p = NULL, genfs = p->genfs; genfs;
+		     genfs_p = genfs, genfs = genfs->next) {
+			rc = -EINVAL;
+			if (strcmp(newgenfs->fstype, genfs->fstype) == 0) {
+				printk(KERN_ERR "SELinux:  dup genfs fstype %s\n",
+				       newgenfs->fstype);
+				goto out;
+			}
+			if (strcmp(newgenfs->fstype, genfs->fstype) < 0)
+				break;
+		}
+		newgenfs->next = genfs;
+		if (genfs_p)
+			genfs_p->next = newgenfs;
+		else
+			p->genfs = newgenfs;
+		genfs = newgenfs;
+		newgenfs = NULL;
+
+		rc = next_entry(buf, fp, sizeof(u32));
+		if (rc)
+			goto out;
+
+		nel2 = le32_to_cpu(buf[0]);
+		for (j = 0; j < nel2; j++) {
+			rc = next_entry(buf, fp, sizeof(u32));
+			if (rc)
+				goto out;
+			len = le32_to_cpu(buf[0]);
+
+			rc = -ENOMEM;
+			newc = kzalloc(sizeof(*newc), GFP_KERNEL);
+			if (!newc)
+				goto out;
+
+			rc = -ENOMEM;
+			newc->u.name = kmalloc(len + 1, GFP_KERNEL);
+			if (!newc->u.name)
+				goto out;
+
+			rc = next_entry(newc->u.name, fp, len);
+			if (rc)
+				goto out;
+			newc->u.name[len] = 0;
+
+			rc = next_entry(buf, fp, sizeof(u32));
+			if (rc)
+				goto out;
+
+			newc->v.sclass = le32_to_cpu(buf[0]);
+			rc = context_read_and_validate(&newc->context[0], p, fp);
+			if (rc)
+				goto out;
+
+			for (l = NULL, c = genfs->head; c;
+			     l = c, c = c->next) {
+				rc = -EINVAL;
+				if (!strcmp(newc->u.name, c->u.name) &&
+				    (!c->v.sclass || !newc->v.sclass ||
+				     newc->v.sclass == c->v.sclass)) {
+					printk(KERN_ERR "SELinux:  dup genfs entry (%s,%s)\n",
+					       genfs->fstype, c->u.name);
+					goto out;
+				}
+				len = strlen(newc->u.name);
+				len2 = strlen(c->u.name);
+				if (len > len2)
+					break;
+			}
+
+			newc->next = c;
+			if (l)
+				l->next = newc;
+			else
+				genfs->head = newc;
+			newc = NULL;
+		}
+	}
+	rc = 0;
+out:
+	if (newgenfs)
+		kfree(newgenfs->fstype);
+	kfree(newgenfs);
+	ocontext_destroy(newc, OCON_FSUSE);
+
+	return rc;
+}
+
+static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
+			 void *fp)
+{
+	int i, j, rc;
+	u32 nel, len;
+	__le32 buf[3];
+	struct ocontext *l, *c;
+	u32 nodebuf[8];
+
+	for (i = 0; i < info->ocon_num; i++) {
+		rc = next_entry(buf, fp, sizeof(u32));
+		if (rc)
+			goto out;
+		nel = le32_to_cpu(buf[0]);
+
+		l = NULL;
+		for (j = 0; j < nel; j++) {
+			rc = -ENOMEM;
+			c = kzalloc(sizeof(*c), GFP_KERNEL);
+			if (!c)
+				goto out;
+			if (l)
+				l->next = c;
+			else
+				p->ocontexts[i] = c;
+			l = c;
+
+			switch (i) {
+			case OCON_ISID:
+				rc = next_entry(buf, fp, sizeof(u32));
+				if (rc)
+					goto out;
+
+				c->sid[0] = le32_to_cpu(buf[0]);
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				break;
+			case OCON_FS:
+			case OCON_NETIF:
+				rc = next_entry(buf, fp, sizeof(u32));
+				if (rc)
+					goto out;
+				len = le32_to_cpu(buf[0]);
+
+				rc = -ENOMEM;
+				c->u.name = kmalloc(len + 1, GFP_KERNEL);
+				if (!c->u.name)
+					goto out;
+
+				rc = next_entry(c->u.name, fp, len);
+				if (rc)
+					goto out;
+
+				c->u.name[len] = 0;
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				rc = context_read_and_validate(&c->context[1], p, fp);
+				if (rc)
+					goto out;
+				break;
+			case OCON_PORT:
+				rc = next_entry(buf, fp, sizeof(u32)*3);
+				if (rc)
+					goto out;
+				c->u.port.protocol = le32_to_cpu(buf[0]);
+				c->u.port.low_port = le32_to_cpu(buf[1]);
+				c->u.port.high_port = le32_to_cpu(buf[2]);
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				break;
+			case OCON_NODE:
+				rc = next_entry(nodebuf, fp, sizeof(u32) * 2);
+				if (rc)
+					goto out;
+				c->u.node.addr = nodebuf[0]; /* network order */
+				c->u.node.mask = nodebuf[1]; /* network order */
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				break;
+			case OCON_FSUSE:
+				rc = next_entry(buf, fp, sizeof(u32)*2);
+				if (rc)
+					goto out;
+
+				rc = -EINVAL;
+				c->v.behavior = le32_to_cpu(buf[0]);
+				if (c->v.behavior > SECURITY_FS_USE_NONE)
+					goto out;
+
+				rc = -ENOMEM;
+				len = le32_to_cpu(buf[1]);
+				c->u.name = kmalloc(len + 1, GFP_KERNEL);
+				if (!c->u.name)
+					goto out;
+
+				rc = next_entry(c->u.name, fp, len);
+				if (rc)
+					goto out;
+				c->u.name[len] = 0;
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				break;
+			case OCON_NODE6: {
+				int k;
+
+				rc = next_entry(nodebuf, fp, sizeof(u32) * 8);
+				if (rc)
+					goto out;
+				for (k = 0; k < 4; k++)
+					c->u.node6.addr[k] = nodebuf[k];
+				for (k = 0; k < 4; k++)
+					c->u.node6.mask[k] = nodebuf[k+4];
+				rc = context_read_and_validate(&c->context[0], p, fp);
+				if (rc)
+					goto out;
+				break;
+			}
+			}
+		}
+	}
+	rc = 0;
+out:
+	return rc;
+}
+
 /*
  * Read the configuration data from a policy database binary
  * representation file into a policy database structure.
@@ -1709,16 +2046,12 @@ int policydb_read(struct policydb *p, void *fp)
 {
 	struct role_allow *ra, *lra;
 	struct role_trans *tr, *ltr;
-	struct ocontext *l, *c, *newc;
-	struct genfs *genfs_p, *genfs, *newgenfs;
 	int i, j, rc;
 	__le32 buf[4];
-	u32 nodebuf[8];
-	u32 len, len2, nprim, nel, nel2;
+	u32 len, nprim, nel;
+
 	char *policydb_str;
 	struct policydb_compat_info *info;
-	struct range_trans *rt;
-	struct mls_range *r;
 
 	rc = policydb_init(p);
 	if (rc)
@@ -1919,294 +2252,45 @@ int policydb_read(struct policydb *p, void *fp)
 	if (!p->process_trans_perms)
 		goto bad;
 
-	for (i = 0; i < info->ocon_num; i++) {
-		rc = next_entry(buf, fp, sizeof(u32));
-		if (rc < 0)
-			goto bad;
-		nel = le32_to_cpu(buf[0]);
-		l = NULL;
-		for (j = 0; j < nel; j++) {
-			c = kzalloc(sizeof(*c), GFP_KERNEL);
-			if (!c) {
-				rc = -ENOMEM;
-				goto bad;
-			}
-			if (l)
-				l->next = c;
-			else
-				p->ocontexts[i] = c;
-			l = c;
-			rc = -EINVAL;
-			switch (i) {
-			case OCON_ISID:
-				rc = next_entry(buf, fp, sizeof(u32));
-				if (rc < 0)
-					goto bad;
-				c->sid[0] = le32_to_cpu(buf[0]);
-				rc = context_read_and_validate(&c->context[0], p, fp);
-				if (rc)
-					goto bad;
-				break;
-			case OCON_FS:
-			case OCON_NETIF:
-				rc = next_entry(buf, fp, sizeof(u32));
-				if (rc < 0)
-					goto bad;
-				len = le32_to_cpu(buf[0]);
-				c->u.name = kmalloc(len + 1, GFP_KERNEL);
-				if (!c->u.name) {
-					rc = -ENOMEM;
-					goto bad;
-				}
-				rc = next_entry(c->u.name, fp, len);
-				if (rc < 0)
-					goto bad;
-				c->u.name[len] = 0;
-				rc = context_read_and_validate(&c->context[0], p, fp);
-				if (rc)
-					goto bad;
-				rc = context_read_and_validate(&c->context[1], p, fp);
-				if (rc)
-					goto bad;
-				break;
-			case OCON_PORT:
-				rc = next_entry(buf, fp, sizeof(u32)*3);
-				if (rc < 0)
-					goto bad;
-				c->u.port.protocol = le32_to_cpu(buf[0]);
-				c->u.port.low_port = le32_to_cpu(buf[1]);
-				c->u.port.high_port = le32_to_cpu(buf[2]);
-				rc = context_read_and_validate(&c->context[0], p, fp);
-				if (rc)
-					goto bad;
-				break;
-			case OCON_NODE:
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 2);
-				if (rc < 0)
-					goto bad;
-				c->u.node.addr = nodebuf[0]; /* network order */
-				c->u.node.mask = nodebuf[1]; /* network order */
-				rc = context_read_and_validate(&c->context[0], p, fp);
-				if (rc)
-					goto bad;
-				break;
-			case OCON_FSUSE:
-				rc = next_entry(buf, fp, sizeof(u32)*2);
-				if (rc < 0)
-					goto bad;
-				c->v.behavior = le32_to_cpu(buf[0]);
-				if (c->v.behavior > SECURITY_FS_USE_NONE)
-					goto bad;
-				len = le32_to_cpu(buf[1]);
-				c->u.name = kmalloc(len + 1, GFP_KERNEL);
-				if (!c->u.name) {
-					rc = -ENOMEM;
-					goto bad;
-				}
-				rc = next_entry(c->u.name, fp, len);
-				if (rc < 0)
-					goto bad;
-				c->u.name[len] = 0;
-				rc = context_read_and_validate(&c->context[0], p, fp);
-				if (rc)
-					goto bad;
-				break;
-			case OCON_NODE6: {
-				int k;
-
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 8);
-				if (rc < 0)
-					goto bad;
-				for (k = 0; k < 4; k++)
-					c->u.node6.addr[k] = nodebuf[k];
-				for (k = 0; k < 4; k++)
-					c->u.node6.mask[k] = nodebuf[k+4];
-				if (context_read_and_validate(&c->context[0], p, fp))
-					goto bad;
-				break;
-			}
-			}
-		}
-	}
-
-	rc = next_entry(buf, fp, sizeof(u32));
-	if (rc < 0)
+	rc = ocontext_read(p, info, fp);
+	if (rc)
 		goto bad;
-	nel = le32_to_cpu(buf[0]);
-	genfs_p = NULL;
-	rc = -EINVAL;
-	for (i = 0; i < nel; i++) {
-		rc = next_entry(buf, fp, sizeof(u32));
-		if (rc < 0)
-			goto bad;
-		len = le32_to_cpu(buf[0]);
-		newgenfs = kzalloc(sizeof(*newgenfs), GFP_KERNEL);
-		if (!newgenfs) {
-			rc = -ENOMEM;
-			goto bad;
-		}
 
-		newgenfs->fstype = kmalloc(len + 1, GFP_KERNEL);
-		if (!newgenfs->fstype) {
-			rc = -ENOMEM;
-			kfree(newgenfs);
-			goto bad;
-		}
-		rc = next_entry(newgenfs->fstype, fp, len);
-		if (rc < 0) {
-			kfree(newgenfs->fstype);
-			kfree(newgenfs);
-			goto bad;
-		}
-		newgenfs->fstype[len] = 0;
-		for (genfs_p = NULL, genfs = p->genfs; genfs;
-		     genfs_p = genfs, genfs = genfs->next) {
-			if (strcmp(newgenfs->fstype, genfs->fstype) == 0) {
-				printk(KERN_ERR "SELinux:  dup genfs "
-				       "fstype %s\n", newgenfs->fstype);
-				kfree(newgenfs->fstype);
-				kfree(newgenfs);
-				goto bad;
-			}
-			if (strcmp(newgenfs->fstype, genfs->fstype) < 0)
-				break;
-		}
-		newgenfs->next = genfs;
-		if (genfs_p)
-			genfs_p->next = newgenfs;
-		else
-			p->genfs = newgenfs;
-		rc = next_entry(buf, fp, sizeof(u32));
-		if (rc < 0)
-			goto bad;
-		nel2 = le32_to_cpu(buf[0]);
-		for (j = 0; j < nel2; j++) {
-			rc = next_entry(buf, fp, sizeof(u32));
-			if (rc < 0)
-				goto bad;
-			len = le32_to_cpu(buf[0]);
+	rc = genfs_read(p, fp);
+	if (rc)
+		goto bad;
 
-			newc = kzalloc(sizeof(*newc), GFP_KERNEL);
-			if (!newc) {
-				rc = -ENOMEM;
-				goto bad;
-			}
+	rc = range_read(p, fp);
+	if (rc)
+		goto bad;
 
-			newc->u.name = kmalloc(len + 1, GFP_KERNEL);
-			if (!newc->u.name) {
-				rc = -ENOMEM;
-				goto bad_newc;
-			}
-			rc = next_entry(newc->u.name, fp, len);
-			if (rc < 0)
-				goto bad_newc;
-			newc->u.name[len] = 0;
-			rc = next_entry(buf, fp, sizeof(u32));
-			if (rc < 0)
-				goto bad_newc;
-			newc->v.sclass = le32_to_cpu(buf[0]);
-			if (context_read_and_validate(&newc->context[0], p, fp))
-				goto bad_newc;
-			for (l = NULL, c = newgenfs->head; c;
-			     l = c, c = c->next) {
-				if (!strcmp(newc->u.name, c->u.name) &&
-				    (!c->v.sclass || !newc->v.sclass ||
-				     newc->v.sclass == c->v.sclass)) {
-					printk(KERN_ERR "SELinux:  dup genfs "
-					       "entry (%s,%s)\n",
-					       newgenfs->fstype, c->u.name);
-					goto bad_newc;
-				}
-				len = strlen(newc->u.name);
-				len2 = strlen(c->u.name);
-				if (len > len2)
-					break;
-			}
+	rc = -ENOMEM;
+	p->type_attr_map_array = flex_array_alloc(sizeof(struct ebitmap),
+						  p->p_types.nprim,
+						  GFP_KERNEL | __GFP_ZERO);
+	if (!p->type_attr_map_array)
+		goto bad;
 
-			newc->next = c;
-			if (l)
-				l->next = newc;
-			else
-				newgenfs->head = newc;
-		}
-	}
-
-	if (p->policyvers >= POLICYDB_VERSION_MLS) {
-		int new_rangetr = p->policyvers >= POLICYDB_VERSION_RANGETRANS;
-		rc = next_entry(buf, fp, sizeof(u32));
-		if (rc < 0)
-			goto bad;
-		nel = le32_to_cpu(buf[0]);
-		for (i = 0; i < nel; i++) {
-			rt = kzalloc(sizeof(*rt), GFP_KERNEL);
-			if (!rt) {
-				rc = -ENOMEM;
-				goto bad;
-			}
-			rc = next_entry(buf, fp, (sizeof(u32) * 2));
-			if (rc < 0) {
-				kfree(rt);
-				goto bad;
-			}
-			rt->source_type = le32_to_cpu(buf[0]);
-			rt->target_type = le32_to_cpu(buf[1]);
-			if (new_rangetr) {
-				rc = next_entry(buf, fp, sizeof(u32));
-				if (rc < 0) {
-					kfree(rt);
-					goto bad;
-				}
-				rt->target_class = le32_to_cpu(buf[0]);
-			} else
-				rt->target_class = p->process_class;
-			if (!policydb_type_isvalid(p, rt->source_type) ||
-			    !policydb_type_isvalid(p, rt->target_type) ||
-			    !policydb_class_isvalid(p, rt->target_class)) {
-				kfree(rt);
-				rc = -EINVAL;
-				goto bad;
-			}
-			r = kzalloc(sizeof(*r), GFP_KERNEL);
-			if (!r) {
-				kfree(rt);
-				rc = -ENOMEM;
-				goto bad;
-			}
-			rc = mls_read_range_helper(r, fp);
-			if (rc) {
-				kfree(rt);
-				kfree(r);
-				goto bad;
-			}
-			if (!mls_range_isvalid(p, r)) {
-				printk(KERN_WARNING "SELinux:  rangetrans:  invalid range\n");
-				kfree(rt);
-				kfree(r);
-				goto bad;
-			}
-			rc = hashtab_insert(p->range_tr, rt, r);
-			if (rc) {
-				kfree(rt);
-				kfree(r);
-				goto bad;
-			}
-		}
-		rangetr_hash_eval(p->range_tr);
-	}
-
-	p->type_attr_map = kmalloc(p->p_types.nprim * sizeof(struct ebitmap), GFP_KERNEL);
-	if (!p->type_attr_map)
+	/* preallocate so we don't have to worry about the put ever failing */
+	rc = flex_array_prealloc(p->type_attr_map_array, 0, p->p_types.nprim - 1,
+				 GFP_KERNEL | __GFP_ZERO);
+	if (rc)
 		goto bad;
 
 	for (i = 0; i < p->p_types.nprim; i++) {
-		ebitmap_init(&p->type_attr_map[i]);
+		struct ebitmap *e = flex_array_get(p->type_attr_map_array, i);
+
+		BUG_ON(!e);
+		ebitmap_init(e);
 		if (p->policyvers >= POLICYDB_VERSION_AVTAB) {
-			if (ebitmap_read(&p->type_attr_map[i], fp))
+			rc = ebitmap_read(e, fp);
+			if (rc)
 				goto bad;
 		}
 		/* add the type itself as the degenerate case */
-		if (ebitmap_set_bit(&p->type_attr_map[i], i, 1))
-				goto bad;
+		rc = ebitmap_set_bit(e, i, 1);
+		if (rc)
+			goto bad;
 	}
 
 	rc = policydb_bounds_sanity_check(p);
@@ -2216,8 +2300,6 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = 0;
 out:
 	return rc;
-bad_newc:
-	ocontext_destroy(newc, OCON_FSUSE);
 bad:
 	if (!rc)
 		rc = -EINVAL;

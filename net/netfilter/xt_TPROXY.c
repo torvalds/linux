@@ -37,8 +37,10 @@ tproxy_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		return NF_DROP;
 
 	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), iph->protocol,
-				   iph->saddr, tgi->laddr ? tgi->laddr : iph->daddr,
-				   hp->source, tgi->lport ? tgi->lport : hp->dest,
+				   iph->saddr,
+				   tgi->laddr ? tgi->laddr : iph->daddr,
+				   hp->source,
+				   tgi->lport ? tgi->lport : hp->dest,
 				   par->in, true);
 
 	/* NOTE: assign_sock consumes our sk reference */

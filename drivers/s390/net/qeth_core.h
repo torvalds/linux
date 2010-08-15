@@ -40,11 +40,7 @@
  */
 enum qeth_dbf_names {
 	QETH_DBF_SETUP,
-	QETH_DBF_QERR,
-	QETH_DBF_TRACE,
 	QETH_DBF_MSG,
-	QETH_DBF_SENSE,
-	QETH_DBF_MISC,
 	QETH_DBF_CTRL,
 	QETH_DBF_INFOS	/* must be last element */
 };
@@ -71,7 +67,19 @@ struct qeth_dbf_info {
 	debug_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
 
 #define QETH_DBF_TEXT_(name, level, text...) \
-	qeth_dbf_longtext(QETH_DBF_##name, level, text)
+	qeth_dbf_longtext(qeth_dbf[QETH_DBF_##name].id, level, text)
+
+#define QETH_CARD_TEXT(card, level, text) \
+	debug_text_event(card->debug, level, text)
+
+#define QETH_CARD_HEX(card, level, addr, len) \
+	debug_event(card->debug, level, (void *)(addr), len)
+
+#define QETH_CARD_MESSAGE(card, text...) \
+	debug_sprintf_event(card->debug, level, text)
+
+#define QETH_CARD_TEXT_(card, level, text...) \
+	qeth_dbf_longtext(card->debug, level, text)
 
 #define SENSE_COMMAND_REJECT_BYTE 0
 #define SENSE_COMMAND_REJECT_FLAG 0x80
@@ -180,8 +188,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 		qeth_is_enabled6(c, f) : qeth_is_enabled(c, f))
 
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
-#define QETH_IDX_FUNC_LEVEL_IQD_ENA_IPAT 0x4108
-#define QETH_IDX_FUNC_LEVEL_IQD_DIS_IPAT 0x5108
+#define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
 
 #define QETH_MODELLIST_ARRAY \
 	{{0x1731, 0x01, 0x1732, QETH_CARD_TYPE_OSD, QETH_MAX_QUEUES, 0}, \
@@ -733,12 +740,15 @@ struct qeth_card {
 	struct qeth_qdio_info qdio;
 	struct qeth_perf_stats perf_stats;
 	int use_hard_stop;
+	int read_or_write_problem;
 	struct qeth_osn_info osn_info;
 	struct qeth_discipline discipline;
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
+	debug_info_t *debug;
 	struct mutex conf_mutex;
+	struct mutex discipline_mutex;
 };
 
 struct qeth_card_list_struct {
@@ -857,9 +867,10 @@ void qeth_core_get_ethtool_stats(struct net_device *,
 				struct ethtool_stats *, u64 *);
 void qeth_core_get_strings(struct net_device *, u32, u8 *);
 void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
-void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...);
+void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
 int qeth_set_access_ctrl_online(struct qeth_card *card);
+int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

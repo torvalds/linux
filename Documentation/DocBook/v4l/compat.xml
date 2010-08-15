@@ -1091,8 +1091,9 @@ signed 64-bit integer. Output devices should not send a buffer out
 until the time in the timestamp field has arrived. I would like to
 follow SGI's lead, and adopt a multimedia timestamping system like
 their UST (Unadjusted System Time). See
-http://reality.sgi.com/cpirazzi_engr/lg/time/intro.html. [This link is
-no longer valid.] UST uses timestamps that are 64-bit signed integers
+http://web.archive.org/web/*/http://reality.sgi.com
+/cpirazzi_engr/lg/time/intro.html. 
+UST uses timestamps that are 64-bit signed integers
 (not struct timeval's) and given in nanosecond units. The UST clock
 starts at zero when the system is booted and runs continuously and
 uniformly. It takes a little over 292 years for UST to overflow. There

@@ -162,7 +162,7 @@ struct iwm_umac_key_hdr {
 	u8 mac[ETH_ALEN];
 	u8 key_idx;
 	u8 multicast; /* BCast encrypt & BCast decrypt of frames FROM mac */
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_key {
 	struct iwm_umac_key_hdr hdr;

@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/moduleparam.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/ch9.h>
@@ -2397,7 +2398,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /* udc structure's alloc and setup, include ep-param alloc */
-static struct qe_udc __devinit *qe_udc_config(struct of_device *ofdev)
+static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2522,7 +2523,7 @@ static void qe_udc_release(struct device *dev)
 }
 
 /* Driver probe functions */
-static int __devinit qe_udc_probe(struct of_device *ofdev,
+static int __devinit qe_udc_probe(struct platform_device *ofdev,
 			const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -2678,18 +2679,18 @@ err1:
 }
 
 #ifdef CONFIG_PM
-static int qe_udc_suspend(struct of_device *dev, pm_message_t state)
+static int qe_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	return -ENOTSUPP;
 }
 
-static int qe_udc_resume(struct of_device *dev)
+static int qe_udc_resume(struct platform_device *dev)
 {
 	return -ENOTSUPP;
 }
 #endif
 
-static int __devexit qe_udc_remove(struct of_device *ofdev)
+static int __devexit qe_udc_remove(struct platform_device *ofdev)
 {
 	struct qe_ep *ep;
 	unsigned int size;

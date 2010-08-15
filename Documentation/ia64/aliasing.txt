@@ -168,8 +168,6 @@ PAST PROBLEM CASES
 
     mmap of 0x0-0x9FFFF /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
 
-      See https://bugzilla.novell.com/show_bug.cgi?id=140858.
-
       The EFI memory map reports the following attributes:
         0x00000-0x9FFFF WB only
         0xA0000-0xBFFFF UC only (VGA frame buffer)

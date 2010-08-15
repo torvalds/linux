@@ -122,6 +122,31 @@ static int __init amba_init(void)
 
 postcore_initcall(amba_init);
 
+static int amba_get_enable_pclk(struct amba_device *pcdev)
+{
+	struct clk *pclk = clk_get(&pcdev->dev, "apb_pclk");
+	int ret;
+
+	pcdev->pclk = pclk;
+
+	if (IS_ERR(pclk))
+		return PTR_ERR(pclk);
+
+	ret = clk_enable(pclk);
+	if (ret)
+		clk_put(pclk);
+
+	return ret;
+}
+
+static void amba_put_disable_pclk(struct amba_device *pcdev)
+{
+	struct clk *pclk = pcdev->pclk;
+
+	clk_disable(pclk);
+	clk_put(pclk);
+}
+
 /*
  * These are the device model conversion veneers; they convert the
  * device model structures to our more specific structures.
@@ -130,17 +155,33 @@ static int amba_probe(struct device *dev)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
-	struct amba_id *id;
+	struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
+	int ret;
 
-	id = amba_lookup(pcdrv->id_table, pcdev);
+	do {
+		ret = amba_get_enable_pclk(pcdev);
+		if (ret)
+			break;
 
-	return pcdrv->probe(pcdev, id);
+		ret = pcdrv->probe(pcdev, id);
+		if (ret == 0)
+			break;
+
+		amba_put_disable_pclk(pcdev);
+	} while (0);
+
+	return ret;
 }
 
 static int amba_remove(struct device *dev)
 {
+	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *drv = to_amba_driver(dev->driver);
-	return drv->remove(to_amba_device(dev));
+	int ret = drv->remove(pcdev);
+
+	amba_put_disable_pclk(pcdev);
+
+	return ret;
 }
 
 static void amba_shutdown(struct device *dev)
@@ -203,7 +244,6 @@ static void amba_device_release(struct device *dev)
  */
 int amba_device_register(struct amba_device *dev, struct resource *parent)
 {
-	u32 pid, cid;
 	u32 size;
 	void __iomem *tmp;
 	int i, ret;
@@ -241,24 +281,34 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 		goto err_release;
 	}
 
-	/*
-	 * Read pid and cid based on size of resource
-	 * they are located at end of region
-	 */
-	for (pid = 0, i = 0; i < 4; i++)
-		pid |= (readl(tmp + size - 0x20 + 4 * i) & 255) << (i * 8);
-	for (cid = 0, i = 0; i < 4; i++)
-		cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) << (i * 8);
+	ret = amba_get_enable_pclk(dev);
+	if (ret == 0) {
+		u32 pid, cid;
+
+		/*
+		 * Read pid and cid based on size of resource
+		 * they are located at end of region
+		 */
+		for (pid = 0, i = 0; i < 4; i++)
+			pid |= (readl(tmp + size - 0x20 + 4 * i) & 255) <<
+				(i * 8);
+		for (cid = 0, i = 0; i < 4; i++)
+			cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) <<
+				(i * 8);
+
+		amba_put_disable_pclk(dev);
+
+		if (cid == 0xb105f00d)
+			dev->periphid = pid;
+
+		if (!dev->periphid)
+			ret = -ENODEV;
+	}
 
 	iounmap(tmp);
 
-	if (cid == 0xb105f00d)
-		dev->periphid = pid;
-
-	if (!dev->periphid) {
-		ret = -ENODEV;
+	if (ret)
 		goto err_release;
-	}
 
 	ret = device_add(&dev->dev);
 	if (ret)

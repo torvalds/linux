@@ -23,6 +23,9 @@ static int syscall_exit_register(struct ftrace_event_call *event,
 static int syscall_enter_define_fields(struct ftrace_event_call *call);
 static int syscall_exit_define_fields(struct ftrace_event_call *call);
 
+/* All syscall exit events have the same fields */
+static LIST_HEAD(syscall_exit_fields);
+
 static struct list_head *
 syscall_get_enter_fields(struct ftrace_event_call *call)
 {
@@ -34,9 +37,7 @@ syscall_get_enter_fields(struct ftrace_event_call *call)
 static struct list_head *
 syscall_get_exit_fields(struct ftrace_event_call *call)
 {
-	struct syscall_metadata *entry = call->data;
-
-	return &entry->exit_fields;
+	return &syscall_exit_fields;
 }
 
 struct trace_event_functions enter_syscall_print_funcs = {

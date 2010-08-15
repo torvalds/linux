@@ -35,7 +35,7 @@ struct cfg80211_conn {
 	bool auto_auth, prev_bssid_valid;
 };
 
-bool cfg80211_is_all_idle(void)
+static bool cfg80211_is_all_idle(void)
 {
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;

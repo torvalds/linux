@@ -184,8 +184,8 @@ _startup:
 	 * Now clear the BSS segment.
 	 */
 
-	movi	a2, _bss_start	# start of BSS
-	movi	a3, _bss_end	# end of BSS
+	movi	a2, __bss_start	# start of BSS
+	movi	a3, __bss_stop	# end of BSS
 
 	__loopt	a2, a3, a4, 2
 	s32i	a0, a2, 0

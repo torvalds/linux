@@ -535,6 +535,7 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 err_out:
 	iounmap(opregion->header);
 	opregion->header = NULL;
+	acpi_video_register();
 	return err;
 }
 

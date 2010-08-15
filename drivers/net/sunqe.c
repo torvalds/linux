@@ -689,7 +689,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	const struct linux_prom_registers *regs;
 	struct sunqe *qep = netdev_priv(dev);
-	struct of_device *op;
+	struct platform_device *op;
 
 	strcpy(info->driver, "sunqe");
 	strcpy(info->version, "3.0");
@@ -720,7 +720,7 @@ static const struct ethtool_ops qe_ethtool_ops = {
 };
 
 /* This is only called once at boot time for each card probed. */
-static void qec_init_once(struct sunqec *qecp, struct of_device *op)
+static void qec_init_once(struct sunqec *qecp, struct platform_device *op)
 {
 	u8 bsizes = qecp->qec_bursts;
 
@@ -770,9 +770,9 @@ static u8 __devinit qec_get_burst(struct device_node *dp)
 	return bsizes;
 }
 
-static struct sunqec * __devinit get_qec(struct of_device *child)
+static struct sunqec * __devinit get_qec(struct platform_device *child)
 {
-	struct of_device *op = to_of_device(child->dev.parent);
+	struct platform_device *op = to_platform_device(child->dev.parent);
 	struct sunqec *qecp;
 
 	qecp = dev_get_drvdata(&op->dev);
@@ -803,7 +803,7 @@ static struct sunqec * __devinit get_qec(struct of_device *child)
 
 			qec_init_once(qecp, op);
 
-			if (request_irq(op->irqs[0], qec_interrupt,
+			if (request_irq(op->archdata.irqs[0], qec_interrupt,
 					IRQF_SHARED, "qec", (void *) qecp)) {
 				printk(KERN_ERR "qec: Can't register irq.\n");
 				goto fail;
@@ -836,7 +836,7 @@ static const struct net_device_ops qec_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit qec_ether_init(struct of_device *op)
+static int __devinit qec_ether_init(struct platform_device *op)
 {
 	static unsigned version_printed;
 	struct net_device *dev;
@@ -901,7 +901,7 @@ static int __devinit qec_ether_init(struct of_device *op)
 	SET_NETDEV_DEV(dev, &op->dev);
 
 	dev->watchdog_timeo = 5*HZ;
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 	dev->dma = 0;
 	dev->ethtool_ops = &qe_ethtool_ops;
 	dev->netdev_ops = &qec_ops;
@@ -941,12 +941,12 @@ fail:
 	return res;
 }
 
-static int __devinit qec_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit qec_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	return qec_ether_init(op);
 }
 
-static int __devexit qec_sbus_remove(struct of_device *op)
+static int __devexit qec_sbus_remove(struct platform_device *op)
 {
 	struct sunqe *qp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = qp->dev;
@@ -988,18 +988,18 @@ static struct of_platform_driver qec_sbus_driver = {
 
 static int __init qec_init(void)
 {
-	return of_register_driver(&qec_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&qec_sbus_driver);
 }
 
 static void __exit qec_exit(void)
 {
-	of_unregister_driver(&qec_sbus_driver);
+	of_unregister_platform_driver(&qec_sbus_driver);
 
 	while (root_qec_dev) {
 		struct sunqec *next = root_qec_dev->next_module;
-		struct of_device *op = root_qec_dev->op;
+		struct platform_device *op = root_qec_dev->op;
 
-		free_irq(op->irqs[0], (void *) root_qec_dev);
+		free_irq(op->archdata.irqs[0], (void *) root_qec_dev);
 		of_iounmap(&op->resource[0], root_qec_dev->gregs,
 			   GLOB_REG_SIZE);
 		kfree(root_qec_dev);

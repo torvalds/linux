@@ -27,58 +27,6 @@
 #include <net/ip.h>
 #include <net/ip6_checksum.h>
 
-static struct ip_vs_conn *
-udp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
-		const struct ip_vs_iphdr *iph, unsigned int proto_off,
-		int inverse)
-{
-	struct ip_vs_conn *cp;
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) {
-		cp = ip_vs_conn_in_get(af, iph->protocol,
-				       &iph->saddr, pptr[0],
-				       &iph->daddr, pptr[1]);
-	} else {
-		cp = ip_vs_conn_in_get(af, iph->protocol,
-				       &iph->daddr, pptr[1],
-				       &iph->saddr, pptr[0]);
-	}
-
-	return cp;
-}
-
-
-static struct ip_vs_conn *
-udp_conn_out_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
-		 const struct ip_vs_iphdr *iph, unsigned int proto_off,
-		 int inverse)
-{
-	struct ip_vs_conn *cp;
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) {
-		cp = ip_vs_conn_out_get(af, iph->protocol,
-					&iph->saddr, pptr[0],
-					&iph->daddr, pptr[1]);
-	} else {
-		cp = ip_vs_conn_out_get(af, iph->protocol,
-					&iph->daddr, pptr[1],
-					&iph->saddr, pptr[0]);
-	}
-
-	return cp;
-}
-
-
 static int
 udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  int *verdict, struct ip_vs_conn **cpp)
@@ -520,8 +468,8 @@ struct ip_vs_protocol ip_vs_protocol_udp = {
 	.init =			udp_init,
 	.exit =			udp_exit,
 	.conn_schedule =	udp_conn_schedule,
-	.conn_in_get =		udp_conn_in_get,
-	.conn_out_get =		udp_conn_out_get,
+	.conn_in_get =		ip_vs_conn_in_get_proto,
+	.conn_out_get =		ip_vs_conn_out_get_proto,
 	.snat_handler =		udp_snat_handler,
 	.dnat_handler =		udp_dnat_handler,
 	.csum_check =		udp_csum_check,

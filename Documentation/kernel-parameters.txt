@@ -73,7 +73,6 @@ parameter is applicable:
 	MTD	MTD (Memory Technology Device) support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
-	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
 	PV_OPS	A paravirtualized kernel is enabled.
@@ -93,6 +92,7 @@ parameter is applicable:
 			Documentation/scsi/.
 	SECURITY Different security models are enabled.
 	SELINUX SELinux support is enabled.
+	APPARMOR AppArmor support is enabled.
 	SERIAL	Serial support is enabled.
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
@@ -115,6 +115,7 @@ parameter is applicable:
 			More X86-64 boot options can be found in
 			Documentation/x86/x86_64/boot-options.txt .
 	X86	Either 32bit or 64bit x86 (same as X86-32+X86-64)
+	XEN	Xen support is enabled
 
 In addition, the following text indicates that the option:
 
@@ -280,18 +281,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			no: ACPI OperationRegions are not marked as reserved,
 			no further checks are performed.
 
-	ad1848=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>,<type>
-
 	add_efi_memmap	[EFI; X86] Include EFI memory map in
 			kernel's map of available physical RAM.
 
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
-
-	aedsp16=	[HW,OSS] Audio Excel DSP 16
-			Format: <io>,<irq>,<dma>,<mss_io>,<mpu_io>,<mpu_irq>
-			See also header of sound/oss/aedsp16.c.
 
 	agp=		[AGP]
 			{ off | try_unsupported }
@@ -310,6 +304,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
+
+	ALSA		[HW,ALSA]
+			See Documentation/sound/alsa/alsa-parameters.txt
 
 	alignment=	[KNL,ARM]
 			Allow the default userspace alignment fault handler
@@ -468,7 +465,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			clocksource is not available, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
-	clocksource=	[GENERIC_TIME] Override the default clocksource
+	clocksource=	Override the default clocksource
 			Format: <string>
 			Override the default clocksource and use the clocksource
 			with the name specified.
@@ -655,8 +652,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
-	dmasound=	[HW,OSS] Sound subsystem buffers
-
 	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
 			this option disables the debugging code at boot.
 
@@ -686,8 +681,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
+		uart[8250],mmio32,<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address.
+			MMIO inter-register address stride is either 8bit (mmio)
+                        or 32bit (mmio32).
 			The options are the same as for ttyS, above.
 
 	earlyprintk=	[X86,SH,BLACKFIN]
@@ -917,9 +915,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
-	i8042.panicblink=
-			[HW] Frequency with which keyboard LEDs should blink
-			     when kernel panics (default is 0.5 sec)
 	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 
@@ -1143,9 +1138,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	kgdboc=		[KGDB,HW] kgdb over consoles.
 			Requires a tty driver that supports console polling,
 			or a supported polling keyboard driver (non-usb).
-			Serial only format: <serial_device>[,baud]
-			keyboard only format: kbd
-			keyboard and serial format: kbd,<serial_device>[,baud]
+			 Serial only format: <serial_device>[,baud]
+			 keyboard only format: kbd
+			 keyboard and serial format: kbd,<serial_device>[,baud]
+			Optional Kernel mode setting:
+			 kms, kbd format: kms,kbd
+			 kms, kbd and serial format: kms,kbd,<ser_dev>[,baud]
 
 	kgdbwait	[KGDB] Stop kernel execution and enter the
 			kernel debugger at the earliest opportunity.
@@ -1523,9 +1521,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	mpu401=		[HW,OSS]
-			Format: <io>,<irq>
-
 	MTD_Partition=	[MTD]
 			Format: <name>,<region-number>,<size>,<offset>
 
@@ -1597,8 +1592,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			[NETFILTER] Enable connection tracking flow accounting
 			0 to disable accounting
 			1 to enable accounting
-			Default value depends on CONFIG_NF_CT_ACCT that is
-			going to be removed in 2.6.29.
+			Default value is 0.
 
 	nfsaddrs=	[NFS]
 			See Documentation/filesystems/nfs/nfsroot.txt.
@@ -1812,6 +1806,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nousb		[USB] Disable the USB subsystem
 
+	nowatchdog	[KNL] Disable the lockup detector.
+
 	nowb		[ARM]
 
 	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
@@ -1849,9 +1845,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			For example, to override I2C bus2:
 			omap_mux=i2c2_scl.i2c2_scl=0x100,i2c2_sda.i2c2_sda=0x100
 
-	opl3=		[HW,OSS]
-			Format: <io>
-
 	oprofile.timer=	[HW]
 			Use timer interrupt instead of performance counters
 
@@ -1862,6 +1855,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch_perfmon: [X86] Force use of architectural
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
+
+	OSS		[HW,OSS]
+			See Documentation/sound/oss/oss-parameters.txt
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
@@ -1898,9 +1894,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			up parallel port mode and sets it to spp.
 			Currently this function knows 686a and 8231 chips.
 			Format: [spp|ps2|epp|ecp|ecpepp]
-
-	pas2=		[HW,OSS] Format:
-			<io>,<irq>,<dma>,<dma16>,<sb_io>,<sb_irq>,<sb_dma>,<sb_dma16>
 
 	pas16=		[HW,SCSI]
 			See header of drivers/scsi/pas16.c.
@@ -1970,6 +1963,8 @@ and is between 256 and 4096 characters. It is defined in the file
 		norom		[X86] Do not assign address space to
 				expansion ROMs that do not already have
 				BIOS assigned address ranges.
+		nobar		[X86] Do not assign address space to the
+				BARs that weren't assigned by the BIOS.
 		irqmask=0xMMMM	[X86] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
@@ -2171,10 +2166,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			[HW,MOUSE] Controls Logitech smartscroll autorepeat.
 			0 = disabled, 1 = enabled (default).
 
-	pss=		[HW,OSS] Personal Sound System (ECHO ESC614)
-			Format:
-			<io>,<mss_io>,<mss_irq>,<mss_dma>,<mpu_io>,<mpu_irq>
-
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
@@ -2312,6 +2303,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
 
+	apparmor=	[APPARMOR] Disable or enable AppArmor at boot time
+			Format: { "0" | "1" }
+			See security/apparmor/Kconfig help text
+			0 -- disable.
+			1 -- enable.
+			Default value is set via kernel config option.
+
 	serialnumber	[BUGS=X86-32]
 
 	shapers=	[NET]
@@ -2383,128 +2381,6 @@ and is between 256 and 4096 characters. It is defined in the file
 				1: Fast pin select (default)
 				2: ATC IRMode
 
-	snd-ad1816a=	[HW,ALSA]
-
-	snd-ad1848=	[HW,ALSA]
-
-	snd-ali5451=	[HW,ALSA]
-
-	snd-als100=	[HW,ALSA]
-
-	snd-als4000=	[HW,ALSA]
-
-	snd-azt2320=	[HW,ALSA]
-
-	snd-cmi8330=	[HW,ALSA]
-
-	snd-cmipci=	[HW,ALSA]
-
-	snd-cs4231=	[HW,ALSA]
-
-	snd-cs4232=	[HW,ALSA]
-
-	snd-cs4236=	[HW,ALSA]
-
-	snd-cs4281=	[HW,ALSA]
-
-	snd-cs46xx=	[HW,ALSA]
-
-	snd-dt019x=	[HW,ALSA]
-
-	snd-dummy=	[HW,ALSA]
-
-	snd-emu10k1=	[HW,ALSA]
-
-	snd-ens1370=	[HW,ALSA]
-
-	snd-ens1371=	[HW,ALSA]
-
-	snd-es968=	[HW,ALSA]
-
-	snd-es1688=	[HW,ALSA]
-
-	snd-es18xx=	[HW,ALSA]
-
-	snd-es1938=	[HW,ALSA]
-
-	snd-es1968=	[HW,ALSA]
-
-	snd-fm801=	[HW,ALSA]
-
-	snd-gusclassic=	[HW,ALSA]
-
-	snd-gusextreme=	[HW,ALSA]
-
-	snd-gusmax=	[HW,ALSA]
-
-	snd-hdsp=	[HW,ALSA]
-
-	snd-ice1712=	[HW,ALSA]
-
-	snd-intel8x0=	[HW,ALSA]
-
-	snd-interwave=	[HW,ALSA]
-
-	snd-interwave-stb=
-			[HW,ALSA]
-
-	snd-korg1212=	[HW,ALSA]
-
-	snd-maestro3=	[HW,ALSA]
-
-	snd-mpu401=	[HW,ALSA]
-
-	snd-mtpav=	[HW,ALSA]
-
-	snd-nm256=	[HW,ALSA]
-
-	snd-opl3sa2=	[HW,ALSA]
-
-	snd-opti92x-ad1848=
-			[HW,ALSA]
-
-	snd-opti92x-cs4231=
-			[HW,ALSA]
-
-	snd-opti93x=	[HW,ALSA]
-
-	snd-pmac=	[HW,ALSA]
-
-	snd-rme32=	[HW,ALSA]
-
-	snd-rme96=	[HW,ALSA]
-
-	snd-rme9652=	[HW,ALSA]
-
-	snd-sb8=	[HW,ALSA]
-
-	snd-sb16=	[HW,ALSA]
-
-	snd-sbawe=	[HW,ALSA]
-
-	snd-serial=	[HW,ALSA]
-
-	snd-sgalaxy=	[HW,ALSA]
-
-	snd-sonicvibes=	[HW,ALSA]
-
-	snd-sun-amd7930=
-			[HW,ALSA]
-
-	snd-sun-cs4231=	[HW,ALSA]
-
-	snd-trident=	[HW,ALSA]
-
-	snd-usb-audio=	[HW,ALSA,USB]
-
-	snd-via82xx=	[HW,ALSA]
-
-	snd-virmidi=	[HW,ALSA]
-
-	snd-wavefront=	[HW,ALSA]
-
-	snd-ymfpci=	[HW,ALSA]
-
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
 
@@ -2518,9 +2394,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	spia_fio_base=
 	spia_pedr=
 	spia_peddr=
-
-	sscape=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<mpu_io>,<mpu_irq>
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
@@ -2661,10 +2534,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			to facilitate early boot debugging.
 			See also Documentation/trace/events.txt
 
-	trix=		[HW,OSS] MediaTrix AudioTrix Pro
-			Format:
-			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
-
 	tsc=		Disable clocksource-must-verify flag for TSC.
 			Format: <string>
 			[x86] reliable: mark tsc clocksource as reliable, this
@@ -2680,12 +2549,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	u14-34f=	[HW,SCSI] UltraStor 14F/34F SCSI host adapter
 			See header of drivers/scsi/u14-34f.c.
-
-	uart401=	[HW,OSS]
-			Format: <io>,<irq>
-
-	uart6850=	[HW,OSS]
-			Format: <io>,<irq>
 
 	uhash_entries=	[KNL,NET]
 			Set number of hash buckets for UDP/UDP-Lite connections
@@ -2852,9 +2715,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			overridden by individual drivers. 0 will hide
 			cursors, 1 will display them.
 
-	waveartist=	[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>
-
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.
 
@@ -2879,6 +2739,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
 	xd_geo=		See header of drivers/block/xd.c.
 
+	xen_emul_unplug=		[HW,X86,XEN]
+			Unplug Xen emulated devices
+			Format: [unplug0,][unplug1]
+			ide-disks -- unplug primary master IDE devices
+			aux-ide-disks -- unplug non-primary-master IDE devices
+			nics -- unplug network devices
+			all -- unplug all emulated devices (NICs and IDE disks)
+			ignore -- continue loading the Xen platform PCI driver even
+				if the version check failed
+
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
@@ -2887,5 +2757,4 @@ ______________________________________________________________________
 
 TODO:
 
-	Add documentation for ALSA options.
 	Add more DRM drivers.
