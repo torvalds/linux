@@ -3227,9 +3227,9 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		rfilt |= AR5K_RX_FILTER_PHYERR;
 
 	/* FIF_BCN_PRBRESP_PROMISC really means to enable beacons
-	* and probes for any BSSID, this needs testing */
+	* and probes for any BSSID */
 	if (*new_flags & FIF_BCN_PRBRESP_PROMISC)
-		rfilt |= AR5K_RX_FILTER_BEACON | AR5K_RX_FILTER_PROBEREQ;
+		rfilt |= AR5K_RX_FILTER_BEACON;
 
 	/* FIF_CONTROL doc says that if FIF_PROMISC_IN_BSS is not
 	 * set we should only pass on control frames for this
