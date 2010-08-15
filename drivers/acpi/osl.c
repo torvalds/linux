@@ -1064,26 +1064,6 @@ static int __init acpi_serialize_setup(char *str)
 
 __setup("acpi_serialize", acpi_serialize_setup);
 
-/*
- * Wake and Run-Time GPES are expected to be separate.
- * We disable wake-GPEs at run-time to prevent spurious
- * interrupts.
- *
- * However, if a system exists that shares Wake and
- * Run-time events on the same GPE this flag is available
- * to tell Linux to keep the wake-time GPEs enabled at run-time.
- */
-static int __init acpi_wake_gpes_always_on_setup(char *str)
-{
-	printk(KERN_INFO PREFIX "wake GPEs not disabled\n");
-
-	acpi_gbl_leave_wake_gpes_disabled = FALSE;
-
-	return 1;
-}
-
-__setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
-
 /* Check of resource interference between native drivers and ACPI
  * OperationRegions (SystemIO and System Memory only).
  * IO ports and memory declared in ACPI might be used by the ACPI subsystem
