@@ -548,6 +548,41 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	return 1;  /* caller may want to ceph_flush_snaps */
 }
 
+/*
+ * Queue cap_snaps for snap writeback for this realm and its children.
+ * Called under snap_rwsem, so realm topology won't change.
+ */
+static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
+{
+	struct ceph_inode_info *ci;
+	struct inode *lastinode = NULL;
+	struct ceph_snap_realm *child;
+
+	dout("queue_realm_cap_snaps %p %llx inodes\n", realm, realm->ino);
+
+	spin_lock(&realm->inodes_with_caps_lock);
+	list_for_each_entry(ci, &realm->inodes_with_caps,
+			    i_snap_realm_item) {
+		struct inode *inode = igrab(&ci->vfs_inode);
+		if (!inode)
+			continue;
+		spin_unlock(&realm->inodes_with_caps_lock);
+		if (lastinode)
+			iput(lastinode);
+		lastinode = inode;
+		ceph_queue_cap_snap(ci);
+		spin_lock(&realm->inodes_with_caps_lock);
+	}
+	spin_unlock(&realm->inodes_with_caps_lock);
+	if (lastinode)
+		iput(lastinode);
+
+	dout("queue_realm_cap_snaps %p %llx children\n", realm, realm->ino);
+	list_for_each_entry(child, &realm->children, child_item)
+		queue_realm_cap_snaps(child);
+
+	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->ino);
+}
 
 /*
  * Parse and apply a snapblob "snap trace" from the MDS.  This specifies
@@ -598,29 +633,8 @@ more:
 		 *
 		 * ...unless it's a snap deletion!
 		 */
-		if (!deletion) {
-			struct ceph_inode_info *ci;
-			struct inode *lastinode = NULL;
-
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_for_each_entry(ci, &realm->inodes_with_caps,
-					    i_snap_realm_item) {
-				struct inode *inode = igrab(&ci->vfs_inode);
-				if (!inode)
-					continue;
-				spin_unlock(&realm->inodes_with_caps_lock);
-				if (lastinode)
-					iput(lastinode);
-				lastinode = inode;
-				ceph_queue_cap_snap(ci);
-				spin_lock(&realm->inodes_with_caps_lock);
-			}
-			spin_unlock(&realm->inodes_with_caps_lock);
-			if (lastinode)
-				iput(lastinode);
-			dout("update_snap_trace cap_snaps queued\n");
-		}
-
+		if (!deletion)
+			queue_realm_cap_snaps(realm);
 	} else {
 		dout("update_snap_trace %llx %p seq %lld unchanged\n",
 		     realm->ino, realm, realm->seq);
