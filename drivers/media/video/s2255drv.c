@@ -600,7 +600,7 @@ static int s2255_got_frame(struct s2255_channel *channel, int jpgsize)
 	dprintk(2, "%s: [buf/i] [%p/%d]\n", __func__, buf, buf->vb.i);
 unlock:
 	spin_unlock_irqrestore(&dev->slock, flags);
-	return 0;
+	return rc;
 }
 
 static const struct s2255_fmt *format_by_fourcc(int fourcc)
