@@ -155,6 +155,8 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 	if (plat->force_hs != 0)
 		sdhci->quirks |= SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE;
 
+	sdhci->mmc->pm_caps = MMC_PM_KEEP_POWER;
+
 	rc = sdhci_add_host(sdhci);
 	if (rc)
 		goto err_clk_disable;
@@ -218,7 +220,11 @@ static int tegra_sdhci_remove(struct platform_device *pdev)
 static int tegra_sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct tegra_sdhci_host *host = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = host->sdhci->mmc;
 	int ret;
+
+	if (host->plat->mmc_data.built_in)
+	        mmc->pm_flags |= MMC_PM_KEEP_POWER;
 
 	ret = sdhci_suspend_host(host->sdhci, state);
 	if (ret)
