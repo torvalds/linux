@@ -74,3 +74,11 @@ config FIQ_DEBUGGER_WAKEUP_IRQ_ALWAYS_ON
 	  cause extra interrupts, but it makes the serial debugger usable with
 	  on some MSM radio builds that ignore the uart clock request in power
 	  collapse.
+
+config FIQ_DEBUGGER_CONSOLE
+	bool "Console on FIQ Serial Debugger port"
+	depends on FIQ_DEBUGGER
+	default n
+	help
+	  Enables a console so that printk messages are displayed on
+	  the debugger serial port as the occur.
