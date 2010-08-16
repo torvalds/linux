@@ -126,9 +126,9 @@
  * for HT availability, it could take a couple hundred ms more, so
  * max out at a half second (500000us).
  */
-#if (PMU_MAX_TRANSITION_DLY <= 500000)
+#if (PMU_MAX_TRANSITION_DLY < 1000000)
 #undef PMU_MAX_TRANSITION_DLY
-#define PMU_MAX_TRANSITION_DLY 500000
+#define PMU_MAX_TRANSITION_DLY 1000000
 #endif
 
 /* Value for ChipClockCSR during initial setup */
