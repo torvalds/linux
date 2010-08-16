@@ -294,7 +294,7 @@ ACPI_EXPORT_SYMBOL(acpi_gpe_wakeup)
  ******************************************************************************/
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
-	acpi_status status = AE_OK;
+	acpi_status status = AE_BAD_PARAMETER;
 	struct acpi_gpe_event_info *gpe_event_info;
 	acpi_cpu_flags flags;
 
@@ -305,28 +305,10 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	/* Ensure that we have a valid GPE number */
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (!gpe_event_info) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
+	if (gpe_event_info) {
+		status = acpi_raw_enable_gpe(gpe_event_info);
 	}
 
-	if (gpe_event_info->runtime_count == ACPI_UINT8_MAX) {
-		status = AE_LIMIT;	/* Too many references */
-		goto unlock_and_exit;
-	}
-
-	gpe_event_info->runtime_count++;
-	if (gpe_event_info->runtime_count == 1) {
-		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
-		if (ACPI_SUCCESS(status)) {
-			status = acpi_ev_enable_gpe(gpe_event_info);
-		}
-		if (ACPI_FAILURE(status)) {
-			gpe_event_info->runtime_count--;
-		}
-	}
-
-unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
@@ -348,7 +330,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_gpe)
  ******************************************************************************/
 acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
-	acpi_status status = AE_OK;
+	acpi_status status = AE_BAD_PARAMETER;
 	struct acpi_gpe_event_info *gpe_event_info;
 	acpi_cpu_flags flags;
 
@@ -359,32 +341,10 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	/* Ensure that we have a valid GPE number */
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (!gpe_event_info) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
+	if (gpe_event_info) {
+		status = acpi_raw_disable_gpe(gpe_event_info) ;
 	}
 
-	/* Hardware-disable a runtime GPE on removal of the last reference */
-
-	if (!gpe_event_info->runtime_count) {
-		status = AE_LIMIT;	/* There are no references to remove */
-		goto unlock_and_exit;
-	}
-
-	gpe_event_info->runtime_count--;
-	if (!gpe_event_info->runtime_count) {
-		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
-		if (ACPI_SUCCESS(status)) {
-			status =
-			    acpi_hw_low_set_gpe(gpe_event_info,
-						ACPI_GPE_DISABLE);
-		}
-		if (ACPI_FAILURE(status)) {
-			gpe_event_info->runtime_count++;
-		}
-	}
-
-unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
@@ -411,7 +371,6 @@ acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number)
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 	acpi_cpu_flags flags;
-	u8 disable = 0;
 
 	ACPI_FUNCTION_TRACE(acpi_gpe_can_wake);
 
@@ -430,15 +389,12 @@ acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number)
 	}
 
 	gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
-	disable = (gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD)
-		&& gpe_event_info->runtime_count;
+	if (gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD) {
+		(void)acpi_raw_disable_gpe(gpe_event_info);
+	}
 
 unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
-
-	if (disable)
-		status = acpi_disable_gpe(gpe_device, gpe_number);
-
 	return_ACPI_STATUS(status);
 }
 ACPI_EXPORT_SYMBOL(acpi_gpe_can_wake)
