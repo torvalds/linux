@@ -1362,7 +1362,6 @@ static int __exit ab3550_remove(struct i2c_client *client)
 	 * their notifiers so deactivate IRQ
 	 */
 	free_irq(client->irq, ab);
-	i2c_set_clientdata(client, NULL);
 	kfree(ab);
 	return 0;
 }

@@ -43,6 +43,9 @@ struct ui_progress *ui_progress__new(const char *title, u64 total)
 
 	if (self != NULL) {
 		int cols;
+
+		if (use_browser <= 0)	
+			return self;
 		newtGetScreenSize(&cols, NULL);
 		cols -= 4;
 		newtCenteredWindow(cols, 1, title);
@@ -67,14 +70,22 @@ out_free_self:
 
 void ui_progress__update(struct ui_progress *self, u64 curr)
 {
+	/*
+	 * FIXME: We should have a per UI backend way of showing progress,
+	 * stdio will just show a percentage as NN%, etc.
+	 */
+	if (use_browser <= 0)
+		return;
 	newtScaleSet(self->scale, curr);
 	newtRefresh();
 }
 
 void ui_progress__delete(struct ui_progress *self)
 {
-	newtFormDestroy(self->form);
-	newtPopWindow();
+	if (use_browser > 0) {
+		newtFormDestroy(self->form);
+		newtPopWindow();
+	}
 	free(self);
 }
 

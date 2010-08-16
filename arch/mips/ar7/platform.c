@@ -542,7 +542,7 @@ static int __init ar7_register_uarts(void)
 	if (IS_ERR(bus_clk))
 		panic("unable to get bus clk\n");
 
-	uart_port.type		= PORT_16550A;
+	uart_port.type		= PORT_AR7;
 	uart_port.uartclk	= clk_get_rate(bus_clk) / 2;
 	uart_port.iotype	= UPIO_MEM32;
 	uart_port.regshift	= 2;

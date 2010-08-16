@@ -949,8 +949,8 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 	int ret = 0, len;
 	DECLARE_WAITQUEUE(wait, current);
 
+	mutex_lock(&list->read_mutex);
 	while (ret == 0) {
-		mutex_lock(&list->read_mutex);
 		if (list->head == list->tail) {
 			add_wait_queue(&list->hdev->debug_wait, &wait);
 			set_current_state(TASK_INTERRUPTIBLE);

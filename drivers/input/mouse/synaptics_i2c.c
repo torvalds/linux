@@ -613,7 +613,6 @@ static int __devexit synaptics_i2c_remove(struct i2c_client *client)
 		free_irq(client->irq, touch);
 
 	input_unregister_device(touch->input);
-	i2c_set_clientdata(client, NULL);
 	kfree(touch);
 
 	return 0;

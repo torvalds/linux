@@ -686,6 +686,7 @@ struct qib_devdata {
 	void __iomem *piobase;
 	/* mem-mapped pointer to base of user chip regs (if using WC PAT) */
 	u64 __iomem *userbase;
+	void __iomem *piovl15base; /* base of VL15 buffers, if not WC */
 	/*
 	 * points to area where PIOavail registers will be DMA'ed.
 	 * Has to be on a page of it's own, because the page will be

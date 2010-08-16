@@ -182,8 +182,7 @@ static int dlmfs_file_release(struct inode *inode,
 {
 	int level, status;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
-	struct dlmfs_filp_private *fp =
-		(struct dlmfs_filp_private *) file->private_data;
+	struct dlmfs_filp_private *fp = file->private_data;
 
 	if (S_ISDIR(inode->i_mode))
 		BUG();

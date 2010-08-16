@@ -435,20 +435,21 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 static int __init au1xxx_platform_init(void)
 {
 	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
-	int i;
+	int err, i;
 
 	/* Fill up uartclk. */
 	for (i = 0; au1x00_uart_data[i].flags; i++)
 		au1x00_uart_data[i].uartclk = uartclk;
 
+	err = platform_add_devices(au1xxx_platform_devices,
+				   ARRAY_SIZE(au1xxx_platform_devices));
 #ifndef CONFIG_SOC_AU1100
 	/* Register second MAC if enabled in pinfunc */
-	if (!(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2))
+	if (!err && !(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2))
 		platform_device_register(&au1xxx_eth1_device);
 #endif
 
-	return platform_add_devices(au1xxx_platform_devices,
-				    ARRAY_SIZE(au1xxx_platform_devices));
+	return err;
 }
 
 arch_initcall(au1xxx_platform_init);

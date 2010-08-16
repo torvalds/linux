@@ -397,7 +397,7 @@ static int __init spi_ppc4xx_of_probe(struct of_device *op,
 	struct spi_master *master;
 	struct spi_bitbang *bbp;
 	struct resource resource;
-	struct device_node *np = op->node;
+	struct device_node *np = op->dev.of_node;
 	struct device *dev = &op->dev;
 	struct device_node *opbnp;
 	int ret;

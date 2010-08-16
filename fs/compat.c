@@ -8,7 +8,7 @@
  *  Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)
  *  Copyright (C) 1998       Eddie C. Dost  (ecd@skynet.be)
  *  Copyright (C) 2001,2002  Andi Kleen, SuSE Labs 
- *  Copyright (C) 2003       Pavel Machek (pavel@suse.cz)
+ *  Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -626,7 +626,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		tot_len += len;
 		if (tot_len < tmp) /* maths overflow on the compat_ssize_t */
 			goto out;
-		if (!access_ok(vrfy_dir(type), buf, len)) {
+		if (!access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
 		}

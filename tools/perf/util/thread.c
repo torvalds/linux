@@ -7,6 +7,15 @@
 #include "util.h"
 #include "debug.h"
 
+/* Skip "." and ".." directories */
+static int filter(const struct dirent *dir)
+{
+	if (dir->d_name[0] == '.')
+		return 0;
+	else
+		return 1;
+}
+
 int find_all_tid(int pid, pid_t ** all_tid)
 {
 	char name[256];
@@ -16,7 +25,7 @@ int find_all_tid(int pid, pid_t ** all_tid)
 	int i;
 
 	sprintf(name, "/proc/%d/task", pid);
-	items = scandir(name, &namelist, NULL, NULL);
+	items = scandir(name, &namelist, filter, NULL);
 	if (items <= 0)
                 return -ENOENT;
 	*all_tid = malloc(sizeof(pid_t) * items);

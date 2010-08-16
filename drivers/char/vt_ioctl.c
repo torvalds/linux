@@ -1303,7 +1303,9 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		if (!perm)
 			goto eperm;
 		ret = copy_from_user(&ui, up, sizeof(struct unimapinit));
-		if (!ret)
+		if (ret)
+			ret = -EFAULT;
+		else
 			con_clear_unimap(vc, &ui);
 		break;
 	      }

@@ -54,8 +54,10 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 int ocfs2_simple_size_update(struct inode *inode,
 			     struct buffer_head *di_bh,
 			     u64 new_i_size);
-int ocfs2_extend_no_holes(struct inode *inode, u64 new_i_size,
-			  u64 zero_to);
+int ocfs2_extend_no_holes(struct inode *inode, struct buffer_head *di_bh,
+			  u64 new_i_size, u64 zero_to);
+int ocfs2_zero_extend(struct inode *inode, struct buffer_head *di_bh,
+		      loff_t zero_to);
 int ocfs2_setattr(struct dentry *dentry, struct iattr *attr);
 int ocfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);

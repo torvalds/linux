@@ -22,7 +22,7 @@
 #include <linux/smp.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/slab.h>
 
 #include <asm/prom.h>
@@ -934,11 +934,11 @@ void __init rtas_initialize(void)
 	 */
 #ifdef CONFIG_PPC64
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
-		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
+		rtas_region = min(memblock.rmo_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}
 #endif
-	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
+	rtas_rmo_buf = memblock_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 	rtas_last_error_token = rtas_token("rtas-last-error");

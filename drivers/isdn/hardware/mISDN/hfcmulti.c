@@ -4268,7 +4268,7 @@ init_card(struct hfc_multi *hc)
 		goto error;
 	/*
 	 * Finally enable IRQ output
-	 * this is only allowed, if an IRQ routine is allready
+	 * this is only allowed, if an IRQ routine is already
 	 * established for this HFC, so don't do that earlier
 	 */
 	spin_lock_irqsave(&hc->lock, flags);
@@ -5212,7 +5212,7 @@ static void __devexit hfc_remove_pci(struct pci_dev *pdev)
 		spin_unlock_irqrestore(&HFClock, flags);
 	}  else {
 		if (debug)
-			printk(KERN_DEBUG "%s: drvdata allready removed\n",
+			printk(KERN_DEBUG "%s: drvdata already removed\n",
 			    __func__);
 	}
 }

@@ -590,6 +590,8 @@ static void prune_dcache(int count)
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
+		/* lock was dropped, must reset next */
+		list_safe_reset_next(sb, n, s_list);
 		count -= pruned;
 		__put_super(sb);
 		/* more work left to do? */
@@ -894,7 +896,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
+static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))

@@ -82,8 +82,6 @@ struct backing_dev_info {
 	struct bdi_writeback wb;  /* default writeback info for this bdi */
 	spinlock_t wb_lock;	  /* protects update side of wb_list */
 	struct list_head wb_list; /* the flusher threads hanging off this bdi */
-	unsigned long wb_mask;	  /* bitmask of registered tasks */
-	unsigned int wb_cnt;	  /* number of registered tasks */
 
 	struct list_head work_list;
 
@@ -105,8 +103,8 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
 void bdi_unregister(struct backing_dev_info *bdi);
 int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
-void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
-				long nr_pages, int sb_locked);
+void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages);
+void bdi_start_background_writeback(struct backing_dev_info *bdi);
 int bdi_writeback_task(struct bdi_writeback *wb);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
 void bdi_arm_supers_timer(void);

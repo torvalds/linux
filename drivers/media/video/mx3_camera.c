@@ -672,7 +672,7 @@ static bool mx3_camera_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
+static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				  struct soc_camera_format_xlate *xlate)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -689,7 +689,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
 		dev_err(icd->dev.parent,
-			"Invalid format code #%d: %d\n", idx, code);
+			"Invalid format code #%u: %d\n", idx, code);
 		return 0;
 	}
 

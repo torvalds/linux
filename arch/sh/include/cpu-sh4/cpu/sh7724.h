@@ -9,6 +9,7 @@
  * MD3: BSC - Area0 Bus Width (16/32-bit) [CS0BCR.9,10]
  * MD5: BSC - Endian Mode (L: Big, H: Little) [CMNCR.3]
  * MD8: Test Mode
+ * BOOT: FBR - Boot Mode (L: MMCIF, H: Area0)
  */
 
 /* Pin Function Controller:

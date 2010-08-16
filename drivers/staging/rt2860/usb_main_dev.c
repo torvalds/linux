@@ -77,6 +77,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x083A, 0x7522)},	/* Arcadyan */
 	{USB_DEVICE(0x0CDE, 0x0022)},	/* ZCOM */
 	{USB_DEVICE(0x0586, 0x3416)},	/* Zyxel */
+	{USB_DEVICE(0x0586, 0x341a)},	/* Zyxel NWD-270N */
 	{USB_DEVICE(0x0CDE, 0x0025)},	/* Zyxel */
 	{USB_DEVICE(0x1740, 0x9701)},	/* EnGenius */
 	{USB_DEVICE(0x1740, 0x9702)},	/* EnGenius */

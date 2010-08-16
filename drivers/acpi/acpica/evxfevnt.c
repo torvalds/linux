@@ -70,6 +70,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 acpi_status acpi_enable(void)
 {
 	acpi_status status;
+	int retry;
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
@@ -98,16 +99,18 @@ acpi_status acpi_enable(void)
 
 	/* Sanity check that transition succeeded */
 
-	if (acpi_hw_get_mode() != ACPI_SYS_MODE_ACPI) {
-		ACPI_ERROR((AE_INFO,
-			    "Hardware did not enter ACPI mode"));
-		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+	for (retry = 0; retry < 30000; ++retry) {
+		if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
+			if (retry != 0)
+				ACPI_WARNING((AE_INFO,
+				"Platform took > %d00 usec to enter ACPI mode", retry));
+			return_ACPI_STATUS(AE_OK);
+		}
+		acpi_os_stall(100);	/* 100 usec */
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "Transition to ACPI mode successful\n"));
-
-	return_ACPI_STATUS(AE_OK);
+	ACPI_ERROR((AE_INFO, "Hardware did not enter ACPI mode"));
+	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enable)
@@ -210,6 +213,44 @@ ACPI_EXPORT_SYMBOL(acpi_enable_event)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_clear_and_enable_gpe
+ *
+ * PARAMETERS:  gpe_event_info  - GPE to enable
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Clear the given GPE from stale events and enable it.
+ *
+ ******************************************************************************/
+static acpi_status
+acpi_clear_and_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+{
+	acpi_status status;
+
+	/*
+	 * We will only allow a GPE to be enabled if it has either an
+	 * associated method (_Lxx/_Exx) or a handler. Otherwise, the
+	 * GPE will be immediately disabled by acpi_ev_gpe_dispatch the
+	 * first time it fires.
+	 */
+	if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)) {
+		return_ACPI_STATUS(AE_NO_HANDLER);
+	}
+
+	/* Clear the GPE (of stale events) */
+	status = acpi_hw_clear_gpe(gpe_event_info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Enable the requested GPE */
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
+
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_set_gpe
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
@@ -249,11 +290,11 @@ acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action)
 
 	switch (action) {
 	case ACPI_GPE_ENABLE:
-		status = acpi_ev_enable_gpe(gpe_event_info);
+		status = acpi_clear_and_enable_gpe(gpe_event_info);
 		break;
 
 	case ACPI_GPE_DISABLE:
-		status = acpi_ev_disable_gpe(gpe_event_info);
+		status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
 		break;
 
 	default:
@@ -316,7 +357,11 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type)
 
 		gpe_event_info->runtime_count++;
 		if (gpe_event_info->runtime_count == 1) {
-			status = acpi_ev_enable_gpe(gpe_event_info);
+			status = acpi_ev_update_gpe_enable_masks(gpe_event_info);
+			if (ACPI_SUCCESS(status)) {
+				status = acpi_clear_and_enable_gpe(gpe_event_info);
+			}
+
 			if (ACPI_FAILURE(status)) {
 				gpe_event_info->runtime_count--;
 				goto unlock_and_exit;
@@ -343,7 +388,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type)
 		 */
 		gpe_event_info->wakeup_count++;
 		if (gpe_event_info->wakeup_count == 1) {
-			(void)acpi_ev_update_gpe_enable_masks(gpe_event_info);
+			status = acpi_ev_update_gpe_enable_masks(gpe_event_info);
 		}
 	}
 
@@ -403,7 +448,12 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type
 
 		gpe_event_info->runtime_count--;
 		if (!gpe_event_info->runtime_count) {
-			status = acpi_ev_disable_gpe(gpe_event_info);
+			status = acpi_ev_update_gpe_enable_masks(gpe_event_info);
+			if (ACPI_SUCCESS(status)) {
+				status = acpi_hw_low_set_gpe(gpe_event_info,
+							     ACPI_GPE_DISABLE);
+			}
+
 			if (ACPI_FAILURE(status)) {
 				gpe_event_info->runtime_count++;
 				goto unlock_and_exit;
@@ -424,7 +474,7 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type
 
 		gpe_event_info->wakeup_count--;
 		if (!gpe_event_info->wakeup_count) {
-			(void)acpi_ev_update_gpe_enable_masks(gpe_event_info);
+			status = acpi_ev_update_gpe_enable_masks(gpe_event_info);
 		}
 	}
 

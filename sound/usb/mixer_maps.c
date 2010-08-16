@@ -85,8 +85,8 @@ static struct usbmix_name_map extigy_map[] = {
 	/* 16: MU (w/o controls) */
 	{ 17, NULL, 1 }, /* DISABLED: PU-switch (any effect?) */
 	{ 17, "Channel Routing", 2 },	/* PU: mode select */
-	{ 18, "Tone Control - Bass", UAC_BASS_CONTROL }, /* FU */
-	{ 18, "Tone Control - Treble", UAC_TREBLE_CONTROL }, /* FU */
+	{ 18, "Tone Control - Bass", UAC_FU_BASS }, /* FU */
+	{ 18, "Tone Control - Treble", UAC_FU_TREBLE }, /* FU */
 	{ 18, "Master Playback" }, /* FU; others */
 	/* 19: OT speaker */
 	/* 20: OT headphone */

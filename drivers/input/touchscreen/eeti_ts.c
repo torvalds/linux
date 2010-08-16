@@ -238,7 +238,6 @@ err2:
 	input = NULL; /* so we dont try to free it below */
 err1:
 	input_free_device(input);
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 err0:
 	return err;
@@ -256,7 +255,6 @@ static int __devexit eeti_ts_remove(struct i2c_client *client)
 	enable_irq(priv->irq);
 
 	input_unregister_device(priv->input);
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 
 	return 0;

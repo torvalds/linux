@@ -472,6 +472,7 @@ MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= am3517_evm_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= am3517_evm_init_irq,
 	.init_machine	= am3517_evm_init,
 	.timer		= &omap_timer,

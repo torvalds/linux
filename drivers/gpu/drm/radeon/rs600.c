@@ -74,7 +74,8 @@ void rs600_pm_misc(struct radeon_device *rdev)
 			if (voltage->delay)
 				udelay(voltage->delay);
 		}
-	}
+	} else if (voltage->type == VOLTAGE_VDDC)
+		radeon_atom_set_voltage(rdev, voltage->vddc_id);
 
 	dyn_pwrmgt_sclk_length = RREG32_PLL(DYN_PWRMGT_SCLK_LENGTH);
 	dyn_pwrmgt_sclk_length &= ~REDUCED_POWER_SCLK_HILEN(0xf);
@@ -697,6 +698,7 @@ void rs600_mc_init(struct radeon_device *rdev)
 	base = G_000004_MC_FB_START(base) << 16;
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
+	rdev->mc.gtt_base_align = 0;
 	radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 }

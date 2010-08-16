@@ -20,35 +20,13 @@
 /* Define the max number of pulse/space transitions to buffer */
 #define MAX_IR_EVENT_SIZE      512
 
-/* Used to handle IR raw handler extensions */
-static LIST_HEAD(ir_raw_handler_list);
-static DEFINE_SPINLOCK(ir_raw_handler_lock);
+/* Used to keep track of IR raw clients, protected by ir_raw_handler_lock */
+static LIST_HEAD(ir_raw_client_list);
 
-/**
- * RUN_DECODER()	- runs an operation on all IR decoders
- * @ops:	IR raw handler operation to be called
- * @arg:	arguments to be passed to the callback
- *
- * Calls ir_raw_handler::ops for all registered IR handlers. It prevents
- * new decode addition/removal while running, by locking ir_raw_handler_lock
- * mutex. If an error occurs, it stops the ops. Otherwise, it returns a sum
- * of the return codes.
- */
-#define RUN_DECODER(ops, ...) ({					    \
-	struct ir_raw_handler		*_ir_raw_handler;		    \
-	int _sumrc = 0, _rc;						    \
-	spin_lock(&ir_raw_handler_lock);				    \
-	list_for_each_entry(_ir_raw_handler, &ir_raw_handler_list, list) {  \
-		if (_ir_raw_handler->ops) {				    \
-			_rc = _ir_raw_handler->ops(__VA_ARGS__);	    \
-			if (_rc < 0)					    \
-				break;					    \
-			_sumrc += _rc;					    \
-		}							    \
-	}								    \
-	spin_unlock(&ir_raw_handler_lock);				    \
-	_sumrc;								    \
-})
+/* Used to handle IR raw handler extensions */
+static DEFINE_SPINLOCK(ir_raw_handler_lock);
+static LIST_HEAD(ir_raw_handler_list);
+static u64 available_protocols;
 
 #ifdef MODULE
 /* Used to load the decoders */
@@ -58,57 +36,17 @@ static struct work_struct wq_load;
 static void ir_raw_event_work(struct work_struct *work)
 {
 	struct ir_raw_event ev;
+	struct ir_raw_handler *handler;
 	struct ir_raw_event_ctrl *raw =
 		container_of(work, struct ir_raw_event_ctrl, rx_work);
 
-	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev))
-		RUN_DECODER(decode, raw->input_dev, ev);
-}
-
-int ir_raw_event_register(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-	int rc;
-
-	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
-	if (!ir->raw)
-		return -ENOMEM;
-
-	ir->raw->input_dev = input_dev;
-	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
-
-	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
-			 GFP_KERNEL);
-	if (rc < 0) {
-		kfree(ir->raw);
-		ir->raw = NULL;
-		return rc;
+	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev)) {
+		spin_lock(&ir_raw_handler_lock);
+		list_for_each_entry(handler, &ir_raw_handler_list, list)
+			handler->decode(raw->input_dev, ev);
+		spin_unlock(&ir_raw_handler_lock);
+		raw->prev_ev = ev;
 	}
-
-	rc = RUN_DECODER(raw_register, input_dev);
-	if (rc < 0) {
-		kfifo_free(&ir->raw->kfifo);
-		kfree(ir->raw);
-		ir->raw = NULL;
-		return rc;
-	}
-
-	return rc;
-}
-
-void ir_raw_event_unregister(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-
-	if (!ir->raw)
-		return;
-
-	cancel_work_sync(&ir->raw->rx_work);
-	RUN_DECODER(raw_unregister, input_dev);
-
-	kfifo_free(&ir->raw->kfifo);
-	kfree(ir->raw);
-	ir->raw = NULL;
 }
 
 /**
@@ -204,23 +142,103 @@ void ir_raw_event_handle(struct input_dev *input_dev)
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
+/* used internally by the sysfs interface */
+u64
+ir_raw_get_allowed_protocols()
+{
+	u64 protocols;
+	spin_lock(&ir_raw_handler_lock);
+	protocols = available_protocols;
+	spin_unlock(&ir_raw_handler_lock);
+	return protocols;
+}
+
+/*
+ * Used to (un)register raw event clients
+ */
+int ir_raw_event_register(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	int rc;
+	struct ir_raw_handler *handler;
+
+	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
+	if (!ir->raw)
+		return -ENOMEM;
+
+	ir->raw->input_dev = input_dev;
+	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
+	ir->raw->enabled_protocols = ~0;
+	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
+			 GFP_KERNEL);
+	if (rc < 0) {
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return rc;
+	}
+
+	spin_lock(&ir_raw_handler_lock);
+	list_add_tail(&ir->raw->list, &ir_raw_client_list);
+	list_for_each_entry(handler, &ir_raw_handler_list, list)
+		if (handler->raw_register)
+			handler->raw_register(ir->raw->input_dev);
+	spin_unlock(&ir_raw_handler_lock);
+
+	return 0;
+}
+
+void ir_raw_event_unregister(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	struct ir_raw_handler *handler;
+
+	if (!ir->raw)
+		return;
+
+	cancel_work_sync(&ir->raw->rx_work);
+
+	spin_lock(&ir_raw_handler_lock);
+	list_del(&ir->raw->list);
+	list_for_each_entry(handler, &ir_raw_handler_list, list)
+		if (handler->raw_unregister)
+			handler->raw_unregister(ir->raw->input_dev);
+	spin_unlock(&ir_raw_handler_lock);
+
+	kfifo_free(&ir->raw->kfifo);
+	kfree(ir->raw);
+	ir->raw = NULL;
+}
+
 /*
  * Extension interface - used to register the IR decoders
  */
 
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 {
+	struct ir_raw_event_ctrl *raw;
+
 	spin_lock(&ir_raw_handler_lock);
 	list_add_tail(&ir_raw_handler->list, &ir_raw_handler_list);
+	if (ir_raw_handler->raw_register)
+		list_for_each_entry(raw, &ir_raw_client_list, list)
+			ir_raw_handler->raw_register(raw->input_dev);
+	available_protocols |= ir_raw_handler->protocols;
 	spin_unlock(&ir_raw_handler_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(ir_raw_handler_register);
 
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
+	struct ir_raw_event_ctrl *raw;
+
 	spin_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
+	if (ir_raw_handler->raw_unregister)
+		list_for_each_entry(raw, &ir_raw_client_list, list)
+			ir_raw_handler->raw_unregister(raw->input_dev);
+	available_protocols &= ~ir_raw_handler->protocols;
 	spin_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
@@ -235,6 +253,7 @@ static void init_decoders(struct work_struct *work)
 	load_rc6_decode();
 	load_jvc_decode();
 	load_sony_decode();
+	load_lirc_codec();
 
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at ir-core.h

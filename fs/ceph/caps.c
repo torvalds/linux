@@ -244,8 +244,14 @@ static struct ceph_cap *get_cap(struct ceph_cap_reservation *ctx)
 	struct ceph_cap *cap = NULL;
 
 	/* temporary, until we do something about cap import/export */
-	if (!ctx)
-		return kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
+	if (!ctx) {
+		cap = kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
+		if (cap) {
+			caps_use_count++;
+			caps_total_count++;
+		}
+		return cap;
+	}
 
 	spin_lock(&caps_list_lock);
 	dout("get_cap ctx=%p (%d) %d = %d used + %d resv + %d avail\n",
@@ -621,7 +627,7 @@ retry:
 	if (fmode >= 0)
 		__ceph_get_fmode(ci, fmode);
 	spin_unlock(&inode->i_lock);
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
@@ -981,6 +987,46 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	return 0;
 }
 
+static void __queue_cap_release(struct ceph_mds_session *session,
+				u64 ino, u64 cap_id, u32 migrate_seq,
+				u32 issue_seq)
+{
+	struct ceph_msg *msg;
+	struct ceph_mds_cap_release *head;
+	struct ceph_mds_cap_item *item;
+
+	spin_lock(&session->s_cap_lock);
+	BUG_ON(!session->s_num_cap_releases);
+	msg = list_first_entry(&session->s_cap_releases,
+			       struct ceph_msg, list_head);
+
+	dout(" adding %llx release to mds%d msg %p (%d left)\n",
+	     ino, session->s_mds, msg, session->s_num_cap_releases);
+
+	BUG_ON(msg->front.iov_len + sizeof(*item) > PAGE_CACHE_SIZE);
+	head = msg->front.iov_base;
+	head->num = cpu_to_le32(le32_to_cpu(head->num) + 1);
+	item = msg->front.iov_base + msg->front.iov_len;
+	item->ino = cpu_to_le64(ino);
+	item->cap_id = cpu_to_le64(cap_id);
+	item->migrate_seq = cpu_to_le32(migrate_seq);
+	item->seq = cpu_to_le32(issue_seq);
+
+	session->s_num_cap_releases--;
+
+	msg->front.iov_len += sizeof(*item);
+	if (le32_to_cpu(head->num) == CEPH_CAPS_PER_RELEASE) {
+		dout(" release msg %p full\n", msg);
+		list_move_tail(&msg->list_head, &session->s_cap_releases_done);
+	} else {
+		dout(" release msg %p at %d/%d (%d)\n", msg,
+		     (int)le32_to_cpu(head->num),
+		     (int)CEPH_CAPS_PER_RELEASE,
+		     (int)msg->front.iov_len);
+	}
+	spin_unlock(&session->s_cap_lock);
+}
+
 /*
  * Queue cap releases when an inode is dropped from our cache.  Since
  * inode is about to be destroyed, there is no need for i_lock.
@@ -994,41 +1040,9 @@ void ceph_queue_caps_release(struct inode *inode)
 	while (p) {
 		struct ceph_cap *cap = rb_entry(p, struct ceph_cap, ci_node);
 		struct ceph_mds_session *session = cap->session;
-		struct ceph_msg *msg;
-		struct ceph_mds_cap_release *head;
-		struct ceph_mds_cap_item *item;
 
-		spin_lock(&session->s_cap_lock);
-		BUG_ON(!session->s_num_cap_releases);
-		msg = list_first_entry(&session->s_cap_releases,
-				       struct ceph_msg, list_head);
-
-		dout(" adding %p release to mds%d msg %p (%d left)\n",
-		     inode, session->s_mds, msg, session->s_num_cap_releases);
-
-		BUG_ON(msg->front.iov_len + sizeof(*item) > PAGE_CACHE_SIZE);
-		head = msg->front.iov_base;
-		head->num = cpu_to_le32(le32_to_cpu(head->num) + 1);
-		item = msg->front.iov_base + msg->front.iov_len;
-		item->ino = cpu_to_le64(ceph_ino(inode));
-		item->cap_id = cpu_to_le64(cap->cap_id);
-		item->migrate_seq = cpu_to_le32(cap->mseq);
-		item->seq = cpu_to_le32(cap->issue_seq);
-
-		session->s_num_cap_releases--;
-
-		msg->front.iov_len += sizeof(*item);
-		if (le32_to_cpu(head->num) == CEPH_CAPS_PER_RELEASE) {
-			dout(" release msg %p full\n", msg);
-			list_move_tail(&msg->list_head,
-				       &session->s_cap_releases_done);
-		} else {
-			dout(" release msg %p at %d/%d (%d)\n", msg,
-			     (int)le32_to_cpu(head->num),
-			     (int)CEPH_CAPS_PER_RELEASE,
-			     (int)msg->front.iov_len);
-		}
-		spin_unlock(&session->s_cap_lock);
+		__queue_cap_release(session, ceph_ino(inode), cap->cap_id,
+				    cap->mseq, cap->issue_seq);
 		p = rb_next(p);
 		__ceph_remove_cap(cap);
 	}
@@ -1167,7 +1181,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	}
 
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 
 	return delayed;
 }
@@ -2139,7 +2153,7 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 	else if (flushsnaps)
 		ceph_flush_snaps(ci);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 	if (put)
 		iput(inode);
 }
@@ -2215,7 +2229,7 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 		iput(inode);
 	} else if (complete_capsnap) {
 		ceph_flush_snaps(ci);
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 	}
 	if (drop_capsnap)
 		iput(inode);
@@ -2391,7 +2405,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	if (queue_invalidate)
 		ceph_queue_invalidate(inode);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 
 	if (check_caps == 1)
 		ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_AUTHONLY,
@@ -2446,7 +2460,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 					 struct ceph_inode_info,
 					 i_flushing_item)->vfs_inode);
 		mdsc->num_cap_flushing--;
-		wake_up(&mdsc->cap_flushing_wq);
+		wake_up_all(&mdsc->cap_flushing_wq);
 		dout(" inode %p now !flushing\n", inode);
 
 		if (ci->i_dirty_caps == 0) {
@@ -2458,7 +2472,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 		}
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 
 out:
 	spin_unlock(&inode->i_lock);
@@ -2655,7 +2669,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct ceph_mds_caps *h;
 	int mds = session->s_mds;
 	int op;
-	u32 seq;
+	u32 seq, mseq;
 	struct ceph_vino vino;
 	u64 cap_id;
 	u64 size, max_size;
@@ -2675,6 +2689,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	vino.snap = CEPH_NOSNAP;
 	cap_id = le64_to_cpu(h->cap_id);
 	seq = le32_to_cpu(h->seq);
+	mseq = le32_to_cpu(h->migrate_seq);
 	size = le64_to_cpu(h->size);
 	max_size = le64_to_cpu(h->max_size);
 
@@ -2689,6 +2704,18 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	     vino.snap, inode);
 	if (!inode) {
 		dout(" i don't have ino %llx\n", vino.ino);
+
+		if (op == CEPH_CAP_OP_IMPORT)
+			__queue_cap_release(session, vino.ino, cap_id,
+					    mseq, seq);
+
+		/*
+		 * send any full release message to try to move things
+		 * along for the mds (who clearly thinks we still have this
+		 * cap).
+		 */
+		ceph_add_cap_releases(mdsc, session, -1);
+		ceph_send_cap_releases(mdsc, session);
 		goto done;
 	}
 
@@ -2714,7 +2741,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	spin_lock(&inode->i_lock);
 	cap = __get_cap_for_mds(ceph_inode(inode), mds);
 	if (!cap) {
-		dout("no cap on %p ino %llx.%llx from mds%d, releasing\n",
+		dout(" no cap on %p ino %llx.%llx from mds%d\n",
 		     inode, ceph_ino(inode), ceph_snap(inode), mds);
 		spin_unlock(&inode->i_lock);
 		goto done;
@@ -2865,18 +2892,19 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_cap *cap;
 	struct ceph_mds_request_release *rel = *p;
+	int used, dirty;
 	int ret = 0;
-	int used = 0;
 
 	spin_lock(&inode->i_lock);
 	used = __ceph_caps_used(ci);
+	dirty = __ceph_caps_dirty(ci);
 
-	dout("encode_inode_release %p mds%d used %s drop %s unless %s\n", inode,
-	     mds, ceph_cap_string(used), ceph_cap_string(drop),
+	dout("encode_inode_release %p mds%d used|dirty %s drop %s unless %s\n",
+	     inode, mds, ceph_cap_string(used|dirty), ceph_cap_string(drop),
 	     ceph_cap_string(unless));
 
-	/* only drop unused caps */
-	drop &= ~used;
+	/* only drop unused, clean caps */
+	drop &= ~(used | dirty);
 
 	cap = __get_cap_for_mds(ci, mds);
 	if (cap && __cap_is_valid(cap)) {
@@ -2956,6 +2984,7 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 		memcpy(*p, dentry->d_name.name, dentry->d_name.len);
 		*p += dentry->d_name.len;
 		rel->dname_seq = cpu_to_le32(di->lease_seq);
+		__ceph_mdsc_drop_dentry_lease(dentry);
 	}
 	spin_unlock(&dentry->d_lock);
 	return ret;

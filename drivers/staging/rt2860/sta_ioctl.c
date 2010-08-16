@@ -2522,6 +2522,8 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 			Status =
 			    copy_to_user(erq->pointer, pAd->nickname,
 					 erq->length);
+			if (Status)
+				Status = -EFAULT;
 			break;
 		}
 	case SIOCGIWRATE:	/*get default bit rate (bps) */

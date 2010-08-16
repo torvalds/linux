@@ -59,12 +59,17 @@ static int ulpi_set_flags(struct otg_transceiver *otg)
 
 static int ulpi_init(struct otg_transceiver *otg)
 {
-	int i, vid, pid;
+	int i, vid, pid, ret;
+	u32 ulpi_id = 0;
 
-	vid = (otg_io_read(otg, ULPI_VENDOR_ID_HIGH) << 8) |
-	       otg_io_read(otg, ULPI_VENDOR_ID_LOW);
-	pid = (otg_io_read(otg, ULPI_PRODUCT_ID_HIGH) << 8) |
-	       otg_io_read(otg, ULPI_PRODUCT_ID_LOW);
+	for (i = 0; i < 4; i++) {
+		ret = otg_io_read(otg, ULPI_PRODUCT_ID_HIGH - i);
+		if (ret < 0)
+			return ret;
+		ulpi_id = (ulpi_id << 8) | ret;
+	}
+	vid = ulpi_id & 0xffff;
+	pid = ulpi_id >> 16;
 
 	pr_info("ULPI transceiver vendor/product ID 0x%04x/0x%04x\n", vid, pid);
 

@@ -2578,6 +2578,9 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 	if (err)
 		return -err;
 
+	memset(&prev_ctl, 0, sizeof(prev_ctl));
+	prev_ctl.control_type = -1;
+
 	for (idx = 0; idx < 2000; idx++) {
 		err = hpi_mixer_get_control_by_index(
 				ss, asihpi->h_mixer,

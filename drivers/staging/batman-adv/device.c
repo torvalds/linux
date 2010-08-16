@@ -196,7 +196,7 @@ ssize_t bat_device_read(struct file *file, char __user *buf, size_t count,
 	kfree(device_packet);
 
 	if (error)
-		return error;
+		return -EFAULT;
 
 	return sizeof(struct icmp_packet);
 }
@@ -309,7 +309,7 @@ void bat_device_add_packet(struct device_client *device_client,
 	struct device_packet *device_packet;
 	unsigned long flags;
 
-	device_packet = kmalloc(sizeof(struct device_packet), GFP_KERNEL);
+	device_packet = kmalloc(sizeof(struct device_packet), GFP_ATOMIC);
 
 	if (!device_packet)
 		return;

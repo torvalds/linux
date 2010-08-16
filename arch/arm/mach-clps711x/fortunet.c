@@ -39,7 +39,6 @@ struct meminfo memmap = {
 		{
 			.start	= 0xC0000000,
 			.size	= 0x01000000,
-			.node	= 0
 		},
 	},
 };

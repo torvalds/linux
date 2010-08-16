@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/i2c/mcs5000_ts.h>
+#include <linux/i2c/mcs.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/irq.h>
@@ -105,7 +105,7 @@ enum mcs5000_ts_read_offset {
 struct mcs5000_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
-	const struct mcs5000_ts_platform_data *platform_data;
+	const struct mcs_platform_data *platform_data;
 };
 
 static irqreturn_t mcs5000_ts_interrupt(int irq, void *dev_id)
@@ -164,7 +164,7 @@ static irqreturn_t mcs5000_ts_interrupt(int irq, void *dev_id)
 
 static void mcs5000_ts_phys_init(struct mcs5000_ts_data *data)
 {
-	const struct mcs5000_ts_platform_data *platform_data =
+	const struct mcs_platform_data *platform_data =
 		data->platform_data;
 	struct i2c_client *client = data->client;
 
@@ -256,7 +256,6 @@ static int __devexit mcs5000_ts_remove(struct i2c_client *client)
 	free_irq(client->irq, data);
 	input_unregister_device(data->input_dev);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

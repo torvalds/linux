@@ -200,6 +200,7 @@ ext2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 					return error;
 				else {
 					inode->i_mode = mode;
+					inode->i_ctime = CURRENT_TIME_SEC;
 					mark_inode_dirty(inode);
 					if (error == 0)
 						acl = NULL;

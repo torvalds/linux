@@ -2705,8 +2705,9 @@ done:
 		case L2CAP_MODE_ERTM:
 			pi->remote_tx_win = rfc.txwin_size;
 			pi->remote_max_tx = rfc.max_transmit;
-			if (rfc.max_pdu_size > pi->conn->mtu - 10)
-				rfc.max_pdu_size = le16_to_cpu(pi->conn->mtu - 10);
+
+			if (le16_to_cpu(rfc.max_pdu_size) > pi->conn->mtu - 10)
+				rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
 			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
@@ -2723,8 +2724,8 @@ done:
 			break;
 
 		case L2CAP_MODE_STREAMING:
-			if (rfc.max_pdu_size > pi->conn->mtu - 10)
-				rfc.max_pdu_size = le16_to_cpu(pi->conn->mtu - 10);
+			if (le16_to_cpu(rfc.max_pdu_size) > pi->conn->mtu - 10)
+				rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
 			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
@@ -2806,7 +2807,6 @@ static int l2cap_parse_conf_rsp(struct sock *sk, void *rsp, int len, void *data,
 	if (*result == L2CAP_CONF_SUCCESS) {
 		switch (rfc.mode) {
 		case L2CAP_MODE_ERTM:
-			pi->remote_tx_win   = rfc.txwin_size;
 			pi->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
 			pi->monitor_timeout = le16_to_cpu(rfc.monitor_timeout);
 			pi->mps    = le16_to_cpu(rfc.max_pdu_size);
@@ -2862,7 +2862,6 @@ static void l2cap_conf_rfc_get(struct sock *sk, void *rsp, int len)
 done:
 	switch (rfc.mode) {
 	case L2CAP_MODE_ERTM:
-		pi->remote_tx_win   = rfc.txwin_size;
 		pi->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
 		pi->monitor_timeout = le16_to_cpu(rfc.monitor_timeout);
 		pi->mps    = le16_to_cpu(rfc.max_pdu_size);

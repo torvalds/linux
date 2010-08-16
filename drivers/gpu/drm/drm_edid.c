@@ -864,8 +864,8 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 		mode = drm_cvt_mode(dev, 1366, 768, vrefresh_rate, 0, 0,
 				    false);
 		mode->hdisplay = 1366;
-		mode->vsync_start = mode->vsync_start - 1;
-		mode->vsync_end = mode->vsync_end - 1;
+		mode->hsync_start = mode->hsync_start - 1;
+		mode->hsync_end = mode->hsync_end - 1;
 		return mode;
 	}
 
@@ -929,13 +929,11 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
 		{ 1440,  576 },
 		{ 2880,  576 },
 	};
-	static const int n_sizes =
-		sizeof(cea_interlaced)/sizeof(cea_interlaced[0]);
 
 	if (!(pt->misc & DRM_EDID_PT_INTERLACED))
 		return;
 
-	for (i = 0; i < n_sizes; i++) {
+	for (i = 0; i < ARRAY_SIZE(cea_interlaced); i++) {
 		if ((mode->hdisplay == cea_interlaced[i].w) &&
 		    (mode->vdisplay == cea_interlaced[i].h / 2)) {
 			mode->vdisplay *= 2;
@@ -1375,7 +1373,6 @@ static const struct {
 	{ 1920, 1440, 60, 0 },
 	{ 1920, 1440, 75, 0 },
 };
-static const int num_est3_modes = sizeof(est3_modes) / sizeof(est3_modes[0]);
 
 static int
 drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
@@ -1387,7 +1384,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 	for (i = 0; i < 6; i++) {
 		for (j = 7; j > 0; j--) {
 			m = (i * 8) + (7 - j);
-			if (m >= num_est3_modes)
+			if (m >= ARRAY_SIZE(est3_modes))
 				break;
 			if (est[i] & (1 << j)) {
 				mode = drm_mode_find_dmt(connector->dev,

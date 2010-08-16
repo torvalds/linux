@@ -66,7 +66,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 	tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--) {
-		/* can't move this out since we might cross LMB boundary */
+		/* can't move this out since we might cross MEMBLOCK boundary */
 		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 

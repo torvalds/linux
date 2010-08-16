@@ -175,6 +175,13 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		nouveau_bo_unpin(nouveau_fb->nvbo);
 	}
 
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+
+		nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+	}
+
 	NV_INFO(dev, "Evicting buffers...\n");
 	ttm_bo_evict_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 
@@ -314,11 +321,33 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
 	}
 
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		int ret;
+
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		if (!ret)
+			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+		if (ret)
+			NV_ERROR(dev, "Could not pin/map cursor.\n");
+	}
+
 	if (dev_priv->card_type < NV_50) {
 		nv04_display_restore(dev);
 		NVLockVgaCrtcs(dev, false);
 	} else
 		nv50_display_init(dev);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+
+		nv_crtc->cursor.set_offset(nv_crtc,
+					nv_crtc->cursor.nvbo->bo.offset -
+					dev_priv->vm_vram_base);
+
+		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
+			nv_crtc->cursor_saved_y);
+	}
 
 	/* Force CLUT to get re-loaded during modeset */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

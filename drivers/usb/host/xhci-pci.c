@@ -78,6 +78,8 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
 					" endpoint cmd after reset endpoint\n");
 	}
+	if (pdev->vendor == PCI_VENDOR_ID_NEC)
+		xhci->quirks |= XHCI_NEC_HOST;
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);

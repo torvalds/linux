@@ -984,16 +984,17 @@
 #define __NR_perf_event_open		(__NR_Linux + 296)
 #define __NR_accept4			(__NR_Linux + 297)
 #define __NR_recvmmsg			(__NR_Linux + 298)
+#define __NR_getdents64			(__NR_Linux + 299)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		298
+#define __NR_Linux_syscalls		299
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		298
+#define __NR_N32_Linux_syscalls		299
 
 #ifdef __KERNEL__
 

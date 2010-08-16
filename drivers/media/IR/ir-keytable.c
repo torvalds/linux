@@ -490,14 +490,16 @@ int __ir_input_register(struct input_dev *input_dev,
 	if (rc < 0)
 		goto out_table;
 
-	if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW) {
-		rc = ir_raw_event_register(input_dev);
-		if (rc < 0)
-			goto out_event;
-	}
+	if (ir_dev->props)
+		if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW) {
+			rc = ir_raw_event_register(input_dev);
+			if (rc < 0)
+				goto out_event;
+		}
 
-	IR_dprintk(1, "Registered input device on %s for %s remote.\n",
-		   driver_name, rc_tab->name);
+	IR_dprintk(1, "Registered input device on %s for %s remote%s.\n",
+		   driver_name, rc_tab->name,
+		   ir_dev->props->driver_type == RC_DRIVER_IR_RAW ? " in raw mode" : "");
 
 	return 0;
 
@@ -530,8 +532,10 @@ void ir_input_unregister(struct input_dev *input_dev)
 	IR_dprintk(1, "Freed keycode table\n");
 
 	del_timer_sync(&ir_dev->timer_keyup);
-	if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW)
-		ir_raw_event_unregister(input_dev);
+	if (ir_dev->props)
+		if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW)
+			ir_raw_event_unregister(input_dev);
+
 	rc_tab = &ir_dev->rc_tab;
 	rc_tab->size = 0;
 	kfree(rc_tab->scan);

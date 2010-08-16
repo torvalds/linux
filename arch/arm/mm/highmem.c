@@ -48,7 +48,16 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	debug_kmap_atomic(type);
 
-	kmap = kmap_high_get(page);
+#ifdef CONFIG_DEBUG_HIGHMEM
+	/*
+	 * There is no cache coherency issue when non VIVT, so force the
+	 * dedicated kmap usage for better debugging purposes in that case.
+	 */
+	if (!cache_is_vivt())
+		kmap = NULL;
+	else
+#endif
+		kmap = kmap_high_get(page);
 	if (kmap)
 		return kmap;
 
@@ -154,18 +163,21 @@ static DEFINE_PER_CPU(int, kmap_high_l1_vipt_depth);
 
 void *kmap_high_l1_vipt(struct page *page, pte_t *saved_pte)
 {
-	unsigned int idx, cpu = smp_processor_id();
-	int *depth = &per_cpu(kmap_high_l1_vipt_depth, cpu);
+	unsigned int idx, cpu;
+	int *depth;
 	unsigned long vaddr, flags;
 	pte_t pte, *ptep;
+
+	if (!in_interrupt())
+		preempt_disable();
+
+	cpu = smp_processor_id();
+	depth = &per_cpu(kmap_high_l1_vipt_depth, cpu);
 
 	idx = KM_L1_CACHE + KM_TYPE_NR * cpu;
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	ptep = TOP_PTE(vaddr);
 	pte = mk_pte(page, kmap_prot);
-
-	if (!in_interrupt())
-		preempt_disable();
 
 	raw_local_irq_save(flags);
 	(*depth)++;

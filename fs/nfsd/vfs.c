@@ -443,8 +443,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	if (size_change)
 		put_write_access(inode);
 	if (!err)
-		if (EX_ISSYNC(fhp->fh_export))
-			write_inode_now(inode, 1);
+		commit_metadata(fhp);
 out:
 	return err;
 

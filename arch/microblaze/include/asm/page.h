@@ -34,6 +34,8 @@
 /* MS be sure that SLAB allocates aligned objects */
 #define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
 
+#define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
+
 #define PAGE_UP(addr)	(((addr)+((PAGE_SIZE)-1))&(~((PAGE_SIZE)-1)))
 #define PAGE_DOWN(addr)	((addr)&(~((PAGE_SIZE)-1)))
 

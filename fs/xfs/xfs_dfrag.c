@@ -24,24 +24,15 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_dfrag.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
@@ -69,7 +60,9 @@ xfs_swapext(
 		goto out;
 	}
 
-	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
+	if (!(file->f_mode & FMODE_WRITE) ||
+	    !(file->f_mode & FMODE_READ) ||
+	    (file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_file;
 	}
@@ -81,6 +74,7 @@ xfs_swapext(
 	}
 
 	if (!(tmp_file->f_mode & FMODE_WRITE) ||
+	    !(tmp_file->f_mode & FMODE_READ) ||
 	    (tmp_file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_tmp_file;
@@ -422,11 +416,8 @@ xfs_swap_extents(
 	}
 
 
-	IHOLD(ip);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-
-	IHOLD(tip);
-	xfs_trans_ijoin(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 
 	xfs_trans_log_inode(tp, ip,  ilf_fields);
 	xfs_trans_log_inode(tp, tip, tilf_fields);

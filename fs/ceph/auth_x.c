@@ -493,7 +493,7 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 		return -EAGAIN;
 	}
 
-	op = le32_to_cpu(head->op);
+	op = le16_to_cpu(head->op);
 	result = le32_to_cpu(head->result);
 	dout("handle_reply op %d result %d\n", op, result);
 	switch (op) {
@@ -612,6 +612,9 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 			rb_entry(p, struct ceph_x_ticket_handler, node);
 		remove_ticket_handler(ac, th);
 	}
+
+	if (xi->auth_authorizer.buf)
+		ceph_buffer_put(xi->auth_authorizer.buf);
 
 	kfree(ac->private);
 	ac->private = NULL;

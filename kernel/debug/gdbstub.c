@@ -6,7 +6,7 @@
  * Copyright (C) 2000-2001 VERITAS Software Corporation.
  * Copyright (C) 2002-2004 Timesys Corporation
  * Copyright (C) 2003-2004 Amit S. Kale <amitkale@linsyssoft.com>
- * Copyright (C) 2004 Pavel Machek <pavel@suse.cz>
+ * Copyright (C) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2004-2006 Tom Rini <trini@kernel.crashing.org>
  * Copyright (C) 2004-2006 LinSysSoft Technologies Pvt. Ltd.
  * Copyright (C) 2005-2009 Wind River Systems, Inc.
@@ -621,10 +621,8 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 	switch (remcom_in_buffer[1]) {
 	case 's':
 	case 'f':
-		if (memcmp(remcom_in_buffer + 2, "ThreadInfo", 10)) {
-			error_packet(remcom_out_buffer, -EINVAL);
+		if (memcmp(remcom_in_buffer + 2, "ThreadInfo", 10))
 			break;
-		}
 
 		i = 0;
 		remcom_out_buffer[0] = 'm';
@@ -665,10 +663,9 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 		pack_threadid(remcom_out_buffer + 2, thref);
 		break;
 	case 'T':
-		if (memcmp(remcom_in_buffer + 1, "ThreadExtraInfo,", 16)) {
-			error_packet(remcom_out_buffer, -EINVAL);
+		if (memcmp(remcom_in_buffer + 1, "ThreadExtraInfo,", 16))
 			break;
-		}
+
 		ks->threadid = 0;
 		ptr = remcom_in_buffer + 17;
 		kgdb_hex2long(&ptr, &ks->threadid);

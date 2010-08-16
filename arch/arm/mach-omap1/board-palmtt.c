@@ -321,6 +321,7 @@ MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_palmtt_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_palmtt_init_irq,
 	.init_machine	= omap_palmtt_init,
 	.timer		= &omap_timer,

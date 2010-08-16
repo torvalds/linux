@@ -815,6 +815,7 @@ MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_3430sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_3430sdp_init_irq,
 	.init_machine	= omap_3430sdp_init,
 	.timer		= &omap_timer,

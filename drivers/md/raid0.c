@@ -173,9 +173,11 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		int j = rdev1->raid_disk;
 
-		if (mddev->level == 10)
+		if (mddev->level == 10) {
 			/* taking over a raid10-n2 array */
 			j /= 2;
+			rdev1->new_raid_disk = j;
+		}
 
 		if (j < 0 || j >= mddev->raid_disks) {
 			printk(KERN_ERR "md/raid0:%s: bad disk number %d - "
@@ -361,12 +363,6 @@ static int raid0_run(mddev_t *mddev)
 		mddev->private = conf;
 	}
 	conf = mddev->private;
-	if (conf->scale_raid_disks) {
-		int i;
-		for (i=0; i < conf->strip_zone[0].nb_dev; i++)
-			conf->devlist[i]->raid_disk /= conf->scale_raid_disks;
-		/* FIXME update sysfs rd links */
-	}
 
 	/* calculate array device size */
 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
@@ -573,7 +569,7 @@ static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 	return;
 }
 
-static void *raid0_takeover_raid5(mddev_t *mddev)
+static void *raid0_takeover_raid45(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
 	raid0_conf_t *priv_conf;
@@ -596,6 +592,7 @@ static void *raid0_takeover_raid5(mddev_t *mddev)
 
 	/* Set new parameters */
 	mddev->new_level = 0;
+	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->raid_disks--;
 	mddev->delta_disks = -1;
@@ -635,6 +632,7 @@ static void *raid0_takeover_raid10(mddev_t *mddev)
 
 	/* Set new parameters */
 	mddev->new_level = 0;
+	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->delta_disks = - mddev->raid_disks / 2;
 	mddev->raid_disks += mddev->delta_disks;
@@ -643,19 +641,22 @@ static void *raid0_takeover_raid10(mddev_t *mddev)
 	mddev->recovery_cp = MaxSector;
 
 	create_strip_zones(mddev, &priv_conf);
-	priv_conf->scale_raid_disks = 2;
 	return priv_conf;
 }
 
 static void *raid0_takeover(mddev_t *mddev)
 {
 	/* raid0 can take over:
+	 *  raid4 - if all data disks are active.
 	 *  raid5 - providing it is Raid4 layout and one disk is faulty
 	 *  raid10 - assuming we have all necessary active disks
 	 */
+	if (mddev->level == 4)
+		return raid0_takeover_raid45(mddev);
+
 	if (mddev->level == 5) {
 		if (mddev->layout == ALGORITHM_PARITY_N)
-			return raid0_takeover_raid5(mddev);
+			return raid0_takeover_raid45(mddev);
 
 		printk(KERN_ERR "md/raid0:%s: Raid can only takeover Raid5 with layout: %d\n",
 		       mdname(mddev), ALGORITHM_PARITY_N);

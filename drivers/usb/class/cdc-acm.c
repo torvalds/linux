@@ -2,7 +2,7 @@
  * cdc-acm.c
  *
  * Copyright (c) 1999 Armin Fuerst	<fuerst@in.tum.de>
- * Copyright (c) 1999 Pavel Machek	<pavel@suse.cz>
+ * Copyright (c) 1999 Pavel Machek	<pavel@ucw.cz>
  * Copyright (c) 1999 Johannes Erdfelt	<johannes@erdfelt.com>
  * Copyright (c) 2000 Vojtech Pavlik	<vojtech@suse.cz>
  * Copyright (c) 2004 Oliver Neukum	<oliver@neukum.name>
@@ -1201,7 +1201,7 @@ made_compressed_probe:
 		if (rcv->urb == NULL) {
 			dev_dbg(&intf->dev,
 				"out of memory (read urbs usb_alloc_urb)\n");
-			goto alloc_fail7;
+			goto alloc_fail6;
 		}
 
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
@@ -1225,7 +1225,7 @@ made_compressed_probe:
 		if (snd->urb == NULL) {
 			dev_dbg(&intf->dev,
 				"out of memory (write urbs usb_alloc_urb)");
-			goto alloc_fail7;
+			goto alloc_fail8;
 		}
 
 		if (usb_endpoint_xfer_int(epwrite))
@@ -1264,6 +1264,7 @@ made_compressed_probe:
 		i = device_create_file(&intf->dev,
 						&dev_attr_iCountryCodeRelDate);
 		if (i < 0) {
+			device_remove_file(&intf->dev, &dev_attr_wCountryCodes);
 			kfree(acm->country_codes);
 			goto skip_countries;
 		}
@@ -1300,6 +1301,7 @@ alloc_fail8:
 		usb_free_urb(acm->wb[i].urb);
 alloc_fail7:
 	acm_read_buffers_free(acm);
+alloc_fail6:
 	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->ru[i].urb);
 	usb_free_urb(acm->ctrlurb);
@@ -1594,6 +1596,7 @@ static const struct usb_device_id acm_ids[] = {
 	{ NOKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Nokia 5320 XpressMusic */
 	{ NOKIA_PCSUITE_ACM_INFO(0x0108), }, /* Nokia 5320 XpressMusic 2G */
 	{ NOKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Nokia N97, RM-505 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x02e3), }, /* Nokia 5230, RM-588 */
 
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
 

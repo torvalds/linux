@@ -461,7 +461,7 @@ static struct rtc_class_ops rx8025_rtc_ops = {
  * Clock precision adjustment support
  *
  * According to the RX8025 SA/NB application manual the frequency and
- * temperature charateristics can be approximated using the following
+ * temperature characteristics can be approximated using the following
  * equation:
  *
  *   df = a * (ut - t)**2
@@ -632,7 +632,6 @@ errout_reg:
 	rtc_device_unregister(rx8025->rtc);
 
 errout_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(rx8025);
 
 errout:
@@ -656,7 +655,6 @@ static int __devexit rx8025_remove(struct i2c_client *client)
 
 	rx8025_sysfs_unregister(&client->dev);
 	rtc_device_unregister(rx8025->rtc);
-	i2c_set_clientdata(client, NULL);
 	kfree(rx8025);
 	return 0;
 }

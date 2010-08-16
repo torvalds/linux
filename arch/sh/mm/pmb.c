@@ -770,7 +770,7 @@ static void __init pmb_resize(void)
 		spin_unlock_irqrestore(&pmbe->lock, flags);
 	}
 
-	read_lock(&pmb_rwlock);
+	read_unlock(&pmb_rwlock);
 }
 #endif
 

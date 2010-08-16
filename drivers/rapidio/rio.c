@@ -808,7 +808,7 @@ int rio_std_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 
 /**
  * rio_std_route_get_entry - Read switch route table entry (port number)
- *   assosiated with specified destID using standard registers defined in RIO
+ *   associated with specified destID using standard registers defined in RIO
  *   specification rev.1.3
  * @mport: Master port to issue transaction
  * @destid: Destination ID of the device

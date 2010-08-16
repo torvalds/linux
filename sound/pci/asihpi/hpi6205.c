@@ -941,11 +941,11 @@ static void outstream_host_buffer_free(struct hpi_adapter_obj *pao,
 
 }
 
-static long outstream_get_space_available(struct hpi_hostbuffer_status
+static u32 outstream_get_space_available(struct hpi_hostbuffer_status
 	*status)
 {
-	return status->size_in_bytes - ((long)(status->host_index) -
-		(long)(status->dSP_index));
+	return status->size_in_bytes - (status->host_index -
+		status->dSP_index);
 }
 
 static void outstream_write(struct hpi_adapter_obj *pao,
@@ -954,7 +954,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	struct hpi_hw_obj *phw = pao->priv;
 	struct bus_master_interface *interface = phw->p_interface_buffer;
 	struct hpi_hostbuffer_status *status;
-	long space_available;
+	u32 space_available;
 
 	if (!phw->outstream_host_buffer_size[phm->obj_index]) {
 		/* there  is no BBM buffer, write via message */
@@ -1007,7 +1007,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	}
 
 	space_available = outstream_get_space_available(status);
-	if (space_available < (long)phm->u.d.u.data.data_size) {
+	if (space_available < phm->u.d.u.data.data_size) {
 		phr->error = HPI_ERROR_INVALID_DATASIZE;
 		return;
 	}
@@ -1018,7 +1018,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 		&& hpios_locked_mem_valid(&phw->outstream_host_buffers[phm->
 				obj_index])) {
 		u8 *p_bbm_data;
-		long l_first_write;
+		u32 l_first_write;
 		u8 *p_app_data = (u8 *)phm->u.d.u.data.pb_data;
 
 		if (hpios_locked_mem_get_virt_addr(&phw->
@@ -1248,9 +1248,9 @@ static void instream_start(struct hpi_adapter_obj *pao,
 	hw_message(pao, phm, phr);
 }
 
-static long instream_get_bytes_available(struct hpi_hostbuffer_status *status)
+static u32 instream_get_bytes_available(struct hpi_hostbuffer_status *status)
 {
-	return (long)(status->dSP_index) - (long)(status->host_index);
+	return status->dSP_index - status->host_index;
 }
 
 static void instream_read(struct hpi_adapter_obj *pao,
@@ -1259,9 +1259,9 @@ static void instream_read(struct hpi_adapter_obj *pao,
 	struct hpi_hw_obj *phw = pao->priv;
 	struct bus_master_interface *interface = phw->p_interface_buffer;
 	struct hpi_hostbuffer_status *status;
-	long data_available;
+	u32 data_available;
 	u8 *p_bbm_data;
-	long l_first_read;
+	u32 l_first_read;
 	u8 *p_app_data = (u8 *)phm->u.d.u.data.pb_data;
 
 	if (!phw->instream_host_buffer_size[phm->obj_index]) {
@@ -1272,7 +1272,7 @@ static void instream_read(struct hpi_adapter_obj *pao,
 
 	status = &interface->instream_host_buffer_status[phm->obj_index];
 	data_available = instream_get_bytes_available(status);
-	if (data_available < (long)phm->u.d.u.data.data_size) {
+	if (data_available < phm->u.d.u.data.data_size) {
 		phr->error = HPI_ERROR_INVALID_DATASIZE;
 		return;
 	}

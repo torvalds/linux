@@ -24,21 +24,13 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -496,7 +488,7 @@ xfs_vn_getattr(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -585,11 +577,20 @@ xfs_vn_fallocate(
 	bf.l_len = len;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	/* check the new inode size is valid before allocating */
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + len > i_size_read(inode)) {
+		new_size = offset + len;
+		error = inode_newsize_ok(inode, new_size);
+		if (error)
+			goto out_unlock;
+	}
+
 	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
 				       0, XFS_ATTR_NOLOCK);
-	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode))
-		new_size = offset + len;
+	if (error)
+		goto out_unlock;
 
 	/* Change file size if needed */
 	if (new_size) {
@@ -600,6 +601,7 @@ xfs_vn_fallocate(
 		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
+out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 out_error:
 	return error;

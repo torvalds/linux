@@ -26,6 +26,7 @@ struct perf_session {
 	unsigned long		size;
 	unsigned long		mmap_window;
 	struct rb_root		threads;
+	struct list_head	dead_threads;
 	struct thread		*last_match;
 	struct machine		host_machine;
 	struct rb_root		machines;
@@ -99,6 +100,7 @@ int perf_session__create_kernel_maps(struct perf_session *self);
 
 int do_read(int fd, void *buf, size_t size);
 void perf_session__update_sample_type(struct perf_session *self);
+void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 
 static inline
 struct machine *perf_session__find_host_machine(struct perf_session *self)

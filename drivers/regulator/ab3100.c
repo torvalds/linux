@@ -286,7 +286,7 @@ static int ab3100_list_voltage_regulator(struct regulator_dev *reg,
 {
 	struct ab3100_regulator *abreg = reg->reg_data;
 
-	if (selector > abreg->voltages_len)
+	if (selector >= abreg->voltages_len)
 		return -EINVAL;
 	return abreg->typ_voltages[selector];
 }
@@ -318,7 +318,7 @@ static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 	regval &= 0xE0;
 	regval >>= 5;
 
-	if (regval > abreg->voltages_len) {
+	if (regval >= abreg->voltages_len) {
 		dev_err(&reg->dev,
 			"regulator register %02x contains an illegal voltage setting\n",
 			abreg->regreg);

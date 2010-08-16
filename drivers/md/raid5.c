@@ -277,12 +277,13 @@ out:
 	return sh;
 }
 
-static void shrink_buffers(struct stripe_head *sh, int num)
+static void shrink_buffers(struct stripe_head *sh)
 {
 	struct page *p;
 	int i;
+	int num = sh->raid_conf->pool_size;
 
-	for (i=0; i<num ; i++) {
+	for (i = 0; i < num ; i++) {
 		p = sh->dev[i].page;
 		if (!p)
 			continue;
@@ -291,11 +292,12 @@ static void shrink_buffers(struct stripe_head *sh, int num)
 	}
 }
 
-static int grow_buffers(struct stripe_head *sh, int num)
+static int grow_buffers(struct stripe_head *sh)
 {
 	int i;
+	int num = sh->raid_conf->pool_size;
 
-	for (i=0; i<num; i++) {
+	for (i = 0; i < num; i++) {
 		struct page *page;
 
 		if (!(page = alloc_page(GFP_KERNEL))) {
@@ -362,6 +364,73 @@ static struct stripe_head *__find_stripe(raid5_conf_t *conf, sector_t sector,
 			return sh;
 	pr_debug("__stripe %llu not in cache\n", (unsigned long long)sector);
 	return NULL;
+}
+
+/*
+ * Need to check if array has failed when deciding whether to:
+ *  - start an array
+ *  - remove non-faulty devices
+ *  - add a spare
+ *  - allow a reshape
+ * This determination is simple when no reshape is happening.
+ * However if there is a reshape, we need to carefully check
+ * both the before and after sections.
+ * This is because some failed devices may only affect one
+ * of the two sections, and some non-in_sync devices may
+ * be insync in the section most affected by failed devices.
+ */
+static int has_failed(raid5_conf_t *conf)
+{
+	int degraded;
+	int i;
+	if (conf->mddev->reshape_position == MaxSector)
+		return conf->mddev->degraded > conf->max_degraded;
+
+	rcu_read_lock();
+	degraded = 0;
+	for (i = 0; i < conf->previous_raid_disks; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (!rdev || test_bit(Faulty, &rdev->flags))
+			degraded++;
+		else if (test_bit(In_sync, &rdev->flags))
+			;
+		else
+			/* not in-sync or faulty.
+			 * If the reshape increases the number of devices,
+			 * this is being recovered by the reshape, so
+			 * this 'previous' section is not in_sync.
+			 * If the number of devices is being reduced however,
+			 * the device can only be part of the array if
+			 * we are reverting a reshape, so this section will
+			 * be in-sync.
+			 */
+			if (conf->raid_disks >= conf->previous_raid_disks)
+				degraded++;
+	}
+	rcu_read_unlock();
+	if (degraded > conf->max_degraded)
+		return 1;
+	rcu_read_lock();
+	degraded = 0;
+	for (i = 0; i < conf->raid_disks; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (!rdev || test_bit(Faulty, &rdev->flags))
+			degraded++;
+		else if (test_bit(In_sync, &rdev->flags))
+			;
+		else
+			/* not in-sync or faulty.
+			 * If reshape increases the number of devices, this
+			 * section has already been recovered, else it
+			 * almost certainly hasn't.
+			 */
+			if (conf->raid_disks <= conf->previous_raid_disks)
+				degraded++;
+	}
+	rcu_read_unlock();
+	if (degraded > conf->max_degraded)
+		return 1;
+	return 0;
 }
 
 static void unplug_slaves(mddev_t *mddev);
@@ -1240,19 +1309,18 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 static int grow_one_stripe(raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
-	int disks = max(conf->raid_disks, conf->previous_raid_disks);
 	sh = kmem_cache_alloc(conf->slab_cache, GFP_KERNEL);
 	if (!sh)
 		return 0;
-	memset(sh, 0, sizeof(*sh) + (disks-1)*sizeof(struct r5dev));
+	memset(sh, 0, sizeof(*sh) + (conf->pool_size-1)*sizeof(struct r5dev));
 	sh->raid_conf = conf;
 	spin_lock_init(&sh->lock);
 	#ifdef CONFIG_MULTICORE_RAID456
 	init_waitqueue_head(&sh->ops.wait_for_ops);
 	#endif
 
-	if (grow_buffers(sh, disks)) {
-		shrink_buffers(sh, disks);
+	if (grow_buffers(sh)) {
+		shrink_buffers(sh);
 		kmem_cache_free(conf->slab_cache, sh);
 		return 0;
 	}
@@ -1468,7 +1536,7 @@ static int drop_one_stripe(raid5_conf_t *conf)
 	if (!sh)
 		return 0;
 	BUG_ON(atomic_read(&sh->count));
-	shrink_buffers(sh, conf->pool_size);
+	shrink_buffers(sh);
 	kmem_cache_free(conf->slab_cache, sh);
 	atomic_dec(&conf->active_stripes);
 	return 1;
@@ -2963,7 +3031,6 @@ static void handle_stripe5(struct stripe_head *sh)
 		mdk_rdev_t *rdev;
 
 		dev = &sh->dev[i];
-		clear_bit(R5_Insync, &dev->flags);
 
 		pr_debug("check %d: state 0x%lx toread %p read %p write %p "
 			"written %p\n",	i, dev->flags, dev->toread, dev->read,
@@ -3000,17 +3067,27 @@ static void handle_stripe5(struct stripe_head *sh)
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
+		clear_bit(R5_Insync, &dev->flags);
+		if (!rdev)
+			/* Not in-sync */;
+		else if (test_bit(In_sync, &rdev->flags))
+			set_bit(R5_Insync, &dev->flags);
+		else {
+			/* could be in-sync depending on recovery/reshape status */
+			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
+				set_bit(R5_Insync, &dev->flags);
+		}
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
 			clear_bit(R5_ReWrite, &dev->flags);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)
-		    || test_bit(R5_ReadError, &dev->flags)) {
+		if (test_bit(R5_ReadError, &dev->flags))
+			clear_bit(R5_Insync, &dev->flags);
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			s.failed++;
 			s.failed_num = i;
-		} else
-			set_bit(R5_Insync, &dev->flags);
+		}
 	}
 	rcu_read_unlock();
 
@@ -3244,7 +3321,6 @@ static void handle_stripe6(struct stripe_head *sh)
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
 		dev = &sh->dev[i];
-		clear_bit(R5_Insync, &dev->flags);
 
 		pr_debug("check %d: state 0x%lx read %p write %p written %p\n",
 			i, dev->flags, dev->toread, dev->towrite, dev->written);
@@ -3282,18 +3358,28 @@ static void handle_stripe6(struct stripe_head *sh)
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
+		clear_bit(R5_Insync, &dev->flags);
+		if (!rdev)
+			/* Not in-sync */;
+		else if (test_bit(In_sync, &rdev->flags))
+			set_bit(R5_Insync, &dev->flags);
+		else {
+			/* in sync if before recovery_offset */
+			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
+				set_bit(R5_Insync, &dev->flags);
+		}
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
 			clear_bit(R5_ReWrite, &dev->flags);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)
-		    || test_bit(R5_ReadError, &dev->flags)) {
+		if (test_bit(R5_ReadError, &dev->flags))
+			clear_bit(R5_Insync, &dev->flags);
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			if (s.failed < 2)
 				r6s.failed_num[s.failed] = i;
 			s.failed++;
-		} else
-			set_bit(R5_Insync, &dev->flags);
+		}
 	}
 	rcu_read_unlock();
 
@@ -4971,8 +5057,10 @@ static int run(mddev_t *mddev)
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->raid_disk < 0)
 			continue;
-		if (test_bit(In_sync, &rdev->flags))
+		if (test_bit(In_sync, &rdev->flags)) {
 			working_disks++;
+			continue;
+		}
 		/* This disc is not fully in-sync.  However if it
 		 * just stored parity (beyond the recovery_offset),
 		 * when we don't need to be concerned about the
@@ -5005,7 +5093,7 @@ static int run(mddev_t *mddev)
 	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
 			   - working_disks);
 
-	if (mddev->degraded > conf->max_degraded) {
+	if (has_failed(conf)) {
 		printk(KERN_ERR "md/raid:%s: not enough operational devices"
 			" (%d/%d failed)\n",
 			mdname(mddev), mddev->degraded, conf->raid_disks);
@@ -5207,6 +5295,7 @@ static int raid5_spare_active(mddev_t *mddev)
 	for (i = 0; i < conf->raid_disks; i++) {
 		tmp = conf->disks + i;
 		if (tmp->rdev
+		    && tmp->rdev->recovery_offset == MaxSector
 		    && !test_bit(Faulty, &tmp->rdev->flags)
 		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
 			unsigned long flags;
@@ -5242,7 +5331,7 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 		 * isn't possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    mddev->degraded <= conf->max_degraded &&
+		    !has_failed(conf) &&
 		    number < conf->raid_disks) {
 			err = -EBUSY;
 			goto abort;
@@ -5270,7 +5359,7 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
-	if (mddev->degraded > conf->max_degraded)
+	if (has_failed(conf))
 		/* no point adding a device */
 		return -EINVAL;
 
@@ -5362,7 +5451,7 @@ static int check_reshape(mddev_t *mddev)
 	if (mddev->bitmap)
 		/* Cannot grow a bitmap yet */
 		return -EBUSY;
-	if (mddev->degraded > conf->max_degraded)
+	if (has_failed(conf))
 		return -EINVAL;
 	if (mddev->delta_disks < 0) {
 		/* We might be able to shrink, but the devices must
@@ -5437,8 +5526,13 @@ static int raid5_start_reshape(mddev_t *mddev)
 
 	/* Add some new drives, as many as will fit.
 	 * We know there are enough to make the newly sized array work.
+	 * Don't add devices if we are reducing the number of
+	 * devices in the array.  This is because it is not possible
+	 * to correctly record the "partially reconstructed" state of
+	 * such devices during the reshape and confusion could result.
 	 */
-	list_for_each_entry(rdev, &mddev->disks, same_set)
+	if (mddev->delta_disks >= 0)
+	    list_for_each_entry(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
@@ -5460,7 +5554,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 		}
 
 	/* When a reshape changes the number of devices, ->degraded
-	 * is measured against the large of the pre and post number of
+	 * is measured against the larger of the pre and post number of
 	 * devices.*/
 	if (mddev->delta_disks > 0) {
 		spin_lock_irqsave(&conf->device_lock, flags);

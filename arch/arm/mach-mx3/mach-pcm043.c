@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -40,19 +36,15 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
-#include <mach/i2c.h>
-#endif
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
 #include <mach/ssi.h>
 
+#include "devices-imx35.h"
 #include "devices.h"
 
 static const struct fb_videomode fb_modedb[] = {
@@ -122,12 +114,12 @@ static struct platform_device pcm043_flash = {
 	.num_resources = 1,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 #if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
-static struct imxi2c_platform_data pcm043_i2c_1_data = {
+static const struct imxi2c_platform_data pcm043_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
 
@@ -222,6 +214,9 @@ static struct pad_desc pcm043_pads[] = {
 	MX35_PAD_STXD4__AUDMUX_AUD4_TXD,
 	MX35_PAD_SRXD4__AUDMUX_AUD4_RXD,
 	MX35_PAD_SCK4__AUDMUX_AUD4_TXC,
+	/* CAN2 */
+	MX35_PAD_TX5_RX0__CAN2_TXCAN,
+	MX35_PAD_TX4_RX1__CAN2_RXCAN,
 };
 
 #define AC97_GPIO_TXFS	(1 * 32 + 31)
@@ -304,11 +299,13 @@ static struct imx_ssi_platform_data pcm043_ssi_pdata = {
 	.flags = IMX_SSI_USE_AC97,
 };
 
-static struct mxc_nand_platform_data pcm037_nand_board_info = {
+static const struct mxc_nand_platform_data
+pcm037_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
 
+#if defined(CONFIG_USB_ULPI)
 static struct mxc_usbh_platform_data otg_pdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
@@ -319,6 +316,7 @@ static struct mxc_usbh_platform_data usbh1_pdata = {
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
+#endif
 
 static struct fsl_usb2_platform_data otg_device_pdata = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -361,17 +359,17 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	imx35_add_imx_uart0(&uart_pdata);
+	imx35_add_mxc_nand(&pcm037_nand_board_info);
 	mxc_register_device(&imx_ssi_device0, &pcm043_ssi_pdata);
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx35_add_imx_uart1(&uart_pdata);
 
 #if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
 	i2c_register_board_info(0, pcm043_i2c_devices,
 			ARRAY_SIZE(pcm043_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device0, &pcm043_i2c_1_data);
+	imx35_add_imx_i2c0(&pcm043_i2c0_data);
 #endif
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
@@ -390,6 +388,7 @@ static void __init mxc_board_init(void)
 	if (!otg_mode_host)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 
+	imx35_add_flexcan1(NULL);
 }
 
 static void __init pcm043_timer_init(void)

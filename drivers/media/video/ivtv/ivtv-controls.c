@@ -267,13 +267,13 @@ int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		if (p.video_encoding != itv->params.video_encoding) {
 			int is_mpeg1 = p.video_encoding ==
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-			struct v4l2_format fmt;
+			struct v4l2_mbus_framefmt fmt;
 
 			/* fix videodecoder resolution */
-			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			fmt.fmt.pix.width = itv->params.width / (is_mpeg1 ? 2 : 1);
-			fmt.fmt.pix.height = itv->params.height;
-			v4l2_subdev_call(itv->sd_video, video, s_fmt, &fmt);
+			fmt.width = itv->params.width / (is_mpeg1 ? 2 : 1);
+			fmt.height = itv->params.height;
+			fmt.code = V4L2_MBUS_FMT_FIXED;
+			v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &fmt);
 		}
 		err = cx2341x_update(itv, ivtv_api_func, &itv->params, &p);
 		if (!err && itv->params.stream_vbi_fmt != p.stream_vbi_fmt)

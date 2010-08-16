@@ -417,12 +417,11 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 					 new_dentry);
 }
 
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs)
+int security_path_truncate(struct path *path)
 {
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_truncate(path, length, time_attrs);
+	return security_ops->path_truncate(path);
 }
 
 int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,

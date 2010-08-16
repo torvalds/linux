@@ -203,13 +203,6 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 
 	priv->start_calib = 0;
 	if (new_assoc) {
-		/*
-		 * allow CTS-to-self if possible for new association.
-		 * this is relevant only for 5000 series and up,
-		 * but will not damage 4965
-		 */
-		priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
-
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
@@ -1619,45 +1612,9 @@ static ssize_t store_tx_power(struct device *d,
 
 static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
 
-static ssize_t show_rts_ht_protection(struct device *d,
-			     struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "%s\n",
-		priv->cfg->use_rts_for_ht ? "RTS/CTS" : "CTS-to-self");
-}
-
-static ssize_t store_rts_ht_protection(struct device *d,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	int ret;
-
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret)
-		IWL_INFO(priv, "Input is not in decimal form.\n");
-	else {
-		if (!iwl_is_associated(priv))
-			priv->cfg->use_rts_for_ht = val ? true : false;
-		else
-			IWL_ERR(priv, "Sta associated with AP - "
-				"Change protection mechanism is not allowed\n");
-		ret = count;
-	}
-	return ret;
-}
-
-static DEVICE_ATTR(rts_ht_protection, S_IWUSR | S_IRUGO,
-			show_rts_ht_protection, store_rts_ht_protection);
-
-
 static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-	&dev_attr_rts_ht_protection.attr,
 #ifdef CONFIG_IWLWIFI_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
@@ -3465,25 +3422,6 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
-/*
- * switch to RTS/CTS for TX
- */
-static void iwl_enable_rts_cts(struct iwl_priv *priv)
-{
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	priv->staging_rxon.flags &= ~RXON_FLG_SELF_CTS_EN;
-	if (!test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_INFO(priv, "use RTS/CTS protection\n");
-		iwlcore_commit_rxon(priv);
-	} else {
-		/* scanning, defer the request until scan completed */
-		IWL_DEBUG_INFO(priv, "defer setting RTS/CTS protection\n");
-	}
-}
-
 static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				enum ieee80211_ampdu_mlme_action action,
@@ -3530,14 +3468,33 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
+		if (priv->cfg->use_rts_for_aggregation) {
+			struct iwl_station_priv *sta_priv =
+				(void *) sta->drv_priv;
+			/*
+			 * switch off RTS/CTS if it was previously enabled
+			 */
+
+			sta_priv->lq_sta.lq.general_params.flags &=
+				~LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
+			iwl_send_lq_cmd(priv, &sta_priv->lq_sta.lq,
+				CMD_ASYNC, false);
+		}
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		if (priv->cfg->use_rts_for_ht) {
+		if (priv->cfg->use_rts_for_aggregation) {
+			struct iwl_station_priv *sta_priv =
+				(void *) sta->drv_priv;
+
 			/*
 			 * switch to RTS/CTS if it is the prefer protection
 			 * method for HT traffic
 			 */
-			iwl_enable_rts_cts(priv);
+
+			sta_priv->lq_sta.lq.general_params.flags |=
+				LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
+			iwl_send_lq_cmd(priv, &sta_priv->lq_sta.lq,
+				CMD_ASYNC, false);
 		}
 		ret = 0;
 		break;

@@ -47,8 +47,7 @@
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-
-#include "../rar_register/rar_register.h"
+#include <linux/rar_register.h>
 
 #include "memrar.h"
 #include "memrar_allocator.h"

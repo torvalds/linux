@@ -904,9 +904,7 @@ static void gsm_dlci_data_sweep(struct gsm_mux *gsm)
 	int len;
 	/* Priority ordering: We should do priority with RR of the groups */
 	int i = 1;
-	unsigned long flags;
 
-	spin_lock_irqsave(&gsm->tx_lock, flags);
 	while (i < NUM_DLCI) {
 		struct gsm_dlci *dlci;
 
@@ -927,7 +925,6 @@ static void gsm_dlci_data_sweep(struct gsm_mux *gsm)
 		if (len == 0)
 			i++;
 	}
-	spin_unlock_irqrestore(&gsm->tx_lock, flags);
 }
 
 /**
@@ -2230,12 +2227,16 @@ static int gsmld_open(struct tty_struct *tty)
 static void gsmld_write_wakeup(struct tty_struct *tty)
 {
 	struct gsm_mux *gsm = tty->disc_data;
+	unsigned long flags;
 
 	/* Queue poll */
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	gsm_data_kick(gsm);
-	if (gsm->tx_bytes < TX_THRESH_LO)
+	if (gsm->tx_bytes < TX_THRESH_LO) {
+		spin_lock_irqsave(&gsm->tx_lock, flags);
 		gsm_dlci_data_sweep(gsm);
+		spin_unlock_irqrestore(&gsm->tx_lock, flags);
+	}
 }
 
 /**

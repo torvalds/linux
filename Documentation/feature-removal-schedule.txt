@@ -93,7 +93,7 @@ Why:	Broken design for runtime control over driver power states, confusing
 	inputs.  This framework was never widely used, and most attempts to
 	use it were broken.  Drivers should instead be exposing domain-specific
 	interfaces either to kernel or to userspace.
-Who:	Pavel Machek <pavel@suse.cz>
+Who:	Pavel Machek <pavel@ucw.cz>
 
 ---------------------------
 
@@ -368,16 +368,6 @@ Who:	Eric Paris <eparis@redhat.com>
 
 ----------------------------
 
-What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
-	exported interface anymore.
-When:	2.6.33
-Why:	cpu_policy_rwsem has a new cleaner definition making it local to
-	cpufreq core and contained inside cpufreq.c. Other dependent
-	drivers should not use it in order to safely avoid lockdep issues.
-Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
-----------------------------
-
 What:	sound-slot/service-* module aliases and related clutters in
 	sound/sound_core.c
 When:	August 2010
@@ -450,57 +440,6 @@ Who:	Corentin Chary <corentin.chary@gmail.com>
 
 ----------------------------
 
-What:	usbvideo quickcam_messenger driver
-When:	2.6.35
-Files:	drivers/media/video/usbvideo/quickcam_messenger.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_stv06xx
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
-What:	ov511 v4l1 driver
-When:	2.6.35
-Files:	drivers/media/video/ov511.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_ov519
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
-What:	w9968cf v4l1 driver
-When:	2.6.35
-Files:	drivers/media/video/w9968cf*.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_ov519
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
-What:	ovcamchip sensor framework
-When:	2.6.35
-Files:	drivers/media/video/ovcamchip/*
-Why:	Only used by obsoleted v4l1 drivers
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
-What:	stv680 v4l1 driver
-When:	2.6.35
-Files:	drivers/media/video/stv680.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_stv0680
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
-What:	zc0301 v4l driver
-When:	2.6.35
-Files:	drivers/media/video/zc0301/*
-Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
-	supports 2 USB-ID's (because it only supports a limited set of
-	sensors) wich are also supported by the gspca_zc3xx driver
-	(which supports 53 USB-ID's in total)
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	sysfs-class-rfkill state file
 When:	Feb 2014
 Files:	net/rfkill/core.c
@@ -529,17 +468,6 @@ Who:	Jan Kiszka <jan.kiszka@web.de>
 
 ----------------------------
 
-What:	KVM memory aliases support
-When:	July 2010
-Why:	Memory aliasing support is used for speeding up guest vga access
-	through the vga windows.
-
-	Modern userspace no longer uses this feature, so it's just bitrotted
-	code and can be removed with no impact.
-Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
 What:	xtime, wall_to_monotonic
 When:	2.6.36+
 Files:	kernel/time/timekeeping.c include/linux/time.h
@@ -550,31 +478,12 @@ Who:	John Stultz <johnstul@us.ibm.com>
 
 ----------------------------
 
-What:	KVM kernel-allocated memory slots
-When:	July 2010
-Why:	Since 2.6.25, kvm supports user-allocated memory slots, which are
-	much more flexible than kernel-allocated slots.  All current userspace
-	supports the newer interface and this code can be removed with no
-	impact.
-Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
 	on newer and older hardware.  It is already not exposed to the guest,
 	and kept only for live migration purposes.
 Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
-What: 	"acpi=ht" boot option
-When:	2.6.35
-Why:	Useful in 2003, implementation is a hack.
-	Generally invoked by accident today.
-	Seen as doing more harm than good.
-Who:	Len Brown <len.brown@intel.com>
 
 ----------------------------
 
@@ -647,3 +556,10 @@ Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ----------------------------
 
+What:	The acpi_sleep=s4_nonvs command line option
+When:	2.6.37
+Files:	arch/x86/kernel/acpi/sleep.c
+Why:	superseded by acpi_sleep=nonvs
+Who:	Rafael J. Wysocki <rjw@sisk.pl>
+
+----------------------------

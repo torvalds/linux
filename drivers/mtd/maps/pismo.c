@@ -234,7 +234,6 @@ static int __devexit pismo_remove(struct i2c_client *client)
 	/* FIXME: set_vpp needs saner arguments */
 	pismo_setvpp_remove_fix(pismo);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(pismo);
 
 	return 0;
@@ -286,7 +285,6 @@ static int __devinit pismo_probe(struct i2c_client *client,
 	return 0;
 
  exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(pismo);
 	return ret;
 }

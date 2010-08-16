@@ -1471,12 +1471,12 @@ static struct ctl_table fs_table[] = {
 	},
 #endif
 	{
-		.procname	= "pipe-max-pages",
-		.data		= &pipe_max_pages,
+		.procname	= "pipe-max-size",
+		.data		= &pipe_max_size,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.extra1		= &two,
+		.proc_handler	= &pipe_proc_fn,
+		.extra1		= &pipe_min_size,
 	},
 /*
  * NOTE: do not add new entries to this table unless you have read

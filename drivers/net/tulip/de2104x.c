@@ -367,8 +367,8 @@ static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
 static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 
 
-#define dr32(reg)		readl(de->regs + (reg))
-#define dw32(reg,val)		writel((val), de->regs + (reg))
+#define dr32(reg)	ioread32(de->regs + (reg))
+#define dw32(reg, val)	iowrite32((val), de->regs + (reg))
 
 
 static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
@@ -1706,6 +1706,7 @@ static void __devinit de21040_get_mac_address (struct de_private *de)
 		int value, boguscnt = 100000;
 		do {
 			value = dr32(ROMCmd);
+			rmb();
 		} while (value < 0 && --boguscnt > 0);
 		de->dev->dev_addr[i] = value;
 		udelay(1);

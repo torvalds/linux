@@ -185,7 +185,7 @@ struct jffs2_raw_xref
 	jint32_t hdr_crc;
 	jint32_t ino;		/* inode number */
 	jint32_t xid;		/* XATTR identifier number */
-	jint32_t xseqno;	/* xref sequencial number */
+	jint32_t xseqno;	/* xref sequential number */
 	jint32_t node_crc;
 } __attribute__((packed));
 

@@ -481,6 +481,7 @@ void r300_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP)
 		base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
 	radeon_vram_location(rdev, &rdev->mc, base);
+	rdev->mc.gtt_base_align = 0;
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -881,6 +882,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_Y4X4:
 		case R300_TX_FORMAT_Z3Y3X2:
 			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_X16:
 		case R300_TX_FORMAT_Y8X8:
@@ -892,6 +894,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_B8G8_B8G8:
 		case R300_TX_FORMAT_G8R8_G8B8:
 			track->textures[i].cpp = 2;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_Y16X16:
 		case R300_TX_FORMAT_Z11Y11X10:
@@ -902,14 +905,17 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_FL_I32:
 		case 0x1e:
 			track->textures[i].cpp = 4;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_W16Z16Y16X16:
 		case R300_TX_FORMAT_FL_R16G16B16A16:
 		case R300_TX_FORMAT_FL_I32A32:
 			track->textures[i].cpp = 8;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_FL_R32G32B32A32:
 			track->textures[i].cpp = 16;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_DXT1:
 			track->textures[i].cpp = 1;
@@ -1171,6 +1177,8 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 	int r;
 
 	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (track == NULL)
+		return -ENOMEM;
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {

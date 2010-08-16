@@ -102,32 +102,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		}
 	}
 
-	/* if it was a local io error, we want to notify our
-	 * peer about that, and see if we need to
-	 * detach the disk and stuff.
-	 * to avoid allocating some special work
-	 * struct, reuse the request. */
-
-	/* THINK
-	 * why do we do this not when we detect the error,
-	 * but delay it until it is "done", i.e. possibly
-	 * until the next barrier ack? */
-
-	if (rw == WRITE &&
-	    ((s & RQ_LOCAL_MASK) && !(s & RQ_LOCAL_OK))) {
-		if (!(req->w.list.next == LIST_POISON1 ||
-		      list_empty(&req->w.list))) {
-			/* DEBUG ASSERT only; if this triggers, we
-			 * probably corrupt the worker list here */
-			dev_err(DEV, "req->w.list.next = %p\n", req->w.list.next);
-			dev_err(DEV, "req->w.list.prev = %p\n", req->w.list.prev);
-		}
-		req->w.cb = w_io_error;
-		drbd_queue_work(&mdev->data.work, &req->w);
-		/* drbd_req_free() is done in w_io_error */
-	} else {
-		drbd_req_free(req);
-	}
+	drbd_req_free(req);
 }
 
 static void queue_barrier(struct drbd_conf *mdev)
@@ -453,9 +428,6 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		dev_alert(DEV, "Local WRITE failed sec=%llus size=%u\n",
-		      (unsigned long long)req->sector, req->size);
-		/* and now: check how to handle local io error. */
 		__drbd_chk_io_error(mdev, FALSE);
 		_req_may_be_done(req, m);
 		put_ldev(mdev);
@@ -475,22 +447,21 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		dev_alert(DEV, "Local READ failed sec=%llus size=%u\n",
-		      (unsigned long long)req->sector, req->size);
-		/* _req_mod(req,to_be_send); oops, recursion... */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
-		req->rq_state |= RQ_NET_PENDING;
-		inc_ap_pending(mdev);
 
 		__drbd_chk_io_error(mdev, FALSE);
 		put_ldev(mdev);
-		/* NOTE: if we have no connection,
-		 * or know the peer has no good data either,
-		 * then we don't actually need to "queue_for_net_read",
-		 * but we do so anyways, since the drbd_io_error()
-		 * and the potential state change to "Diskless"
-		 * needs to be done from process context */
 
+		/* no point in retrying if there is no good remote data,
+		 * or we have no connection. */
+		if (mdev->state.pdsk != D_UP_TO_DATE) {
+			_req_may_be_done(req, m);
+			break;
+		}
+
+		/* _req_mod(req,to_be_send); oops, recursion... */
+		req->rq_state |= RQ_NET_PENDING;
+		inc_ap_pending(mdev);
 		/* fall through: _req_mod(req,queue_for_net_read); */
 
 	case queue_for_net_read:
@@ -600,6 +571,9 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done(req, m);
 		break;
 
+	case read_retry_remote_canceled:
+		req->rq_state &= ~RQ_NET_QUEUED;
+		/* fall through, in case we raced with drbd_disconnect */
 	case connection_lost_while_pending:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */

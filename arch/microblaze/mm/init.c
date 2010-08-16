@@ -10,7 +10,7 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/mm.h> /* mem_init */
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
@@ -76,10 +76,10 @@ void __init setup_memory(void)
 	u32 kernel_align_start, kernel_align_size;
 
 	/* Find main memory where is the kernel */
-	for (i = 0; i < lmb.memory.cnt; i++) {
-		memory_start = (u32) lmb.memory.region[i].base;
-		memory_end = (u32) lmb.memory.region[i].base
-				+ (u32) lmb.memory.region[i].size;
+	for (i = 0; i < memblock.memory.cnt; i++) {
+		memory_start = (u32) memblock.memory.region[i].base;
+		memory_end = (u32) memblock.memory.region[i].base
+				+ (u32) memblock.memory.region[i].size;
 		if ((memory_start <= (u32)_text) &&
 					((u32)_text <= memory_end)) {
 			memory_size = memory_end - memory_start;
@@ -100,7 +100,7 @@ void __init setup_memory(void)
 	kernel_align_start = PAGE_DOWN((u32)_text);
 	/* ALIGN can be remove because _end in vmlinux.lds.S is align */
 	kernel_align_size = PAGE_UP((u32)klimit) - kernel_align_start;
-	lmb_reserve(kernel_align_start, kernel_align_size);
+	memblock_reserve(kernel_align_start, kernel_align_size);
 	printk(KERN_INFO "%s: kernel addr=0x%08x-0x%08x size=0x%08x\n",
 		__func__, kernel_align_start, kernel_align_start
 			+ kernel_align_size, kernel_align_size);
@@ -141,18 +141,18 @@ void __init setup_memory(void)
 	map_size = init_bootmem_node(&contig_page_data,
 		PFN_UP(TOPHYS((u32)klimit)), min_low_pfn, max_low_pfn);
 #endif
-	lmb_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
+	memblock_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
 
 	/* free bootmem is whole main memory */
 	free_bootmem(memory_start, memory_size);
 
 	/* reserve allocate blocks */
-	for (i = 0; i < lmb.reserved.cnt; i++) {
+	for (i = 0; i < memblock.reserved.cnt; i++) {
 		pr_debug("reserved %d - 0x%08x-0x%08x\n", i,
-			(u32) lmb.reserved.region[i].base,
-			(u32) lmb_size_bytes(&lmb.reserved, i));
-		reserve_bootmem(lmb.reserved.region[i].base,
-			lmb_size_bytes(&lmb.reserved, i) - 1, BOOTMEM_DEFAULT);
+			(u32) memblock.reserved.region[i].base,
+			(u32) memblock_size_bytes(&memblock.reserved, i));
+		reserve_bootmem(memblock.reserved.region[i].base,
+			memblock_size_bytes(&memblock.reserved, i) - 1, BOOTMEM_DEFAULT);
 	}
 #ifdef CONFIG_MMU
 	init_bootmem_done = 1;
@@ -235,7 +235,7 @@ static void mm_cmdline_setup(void)
 		if (maxmem && memory_size > maxmem) {
 			memory_size = maxmem;
 			memory_end = memory_start + memory_size;
-			lmb.memory.region[0].size = memory_size;
+			memblock.memory.region[0].size = memory_size;
 		}
 	}
 }
@@ -273,19 +273,19 @@ asmlinkage void __init mmu_init(void)
 {
 	unsigned int kstart, ksize;
 
-	if (!lmb.reserved.cnt) {
+	if (!memblock.reserved.cnt) {
 		printk(KERN_EMERG "Error memory count\n");
 		machine_restart(NULL);
 	}
 
-	if ((u32) lmb.memory.region[0].size < 0x1000000) {
+	if ((u32) memblock.memory.region[0].size < 0x1000000) {
 		printk(KERN_EMERG "Memory must be greater than 16MB\n");
 		machine_restart(NULL);
 	}
 	/* Find main memory where the kernel is */
-	memory_start = (u32) lmb.memory.region[0].base;
-	memory_end = (u32) lmb.memory.region[0].base +
-				(u32) lmb.memory.region[0].size;
+	memory_start = (u32) memblock.memory.region[0].base;
+	memory_end = (u32) memblock.memory.region[0].base +
+				(u32) memblock.memory.region[0].size;
 	memory_size = memory_end - memory_start;
 
 	mm_cmdline_setup(); /* FIXME parse args from command line - not used */
@@ -297,7 +297,7 @@ asmlinkage void __init mmu_init(void)
 	kstart = __pa(CONFIG_KERNEL_START); /* kernel start */
 	/* kernel size */
 	ksize = PAGE_ALIGN(((u32)_end - (u32)CONFIG_KERNEL_START));
-	lmb_reserve(kstart, ksize);
+	memblock_reserve(kstart, ksize);
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* Remove the init RAM disk from the available memory. */
@@ -335,7 +335,7 @@ void __init *early_get_page(void)
 		 * Mem start + 32MB -> here is limit
 		 * because of mem mapping from head.S
 		 */
-		p = __va(lmb_alloc_base(PAGE_SIZE, PAGE_SIZE,
+		p = __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
 					memory_start + 0x2000000));
 	}
 	return p;

@@ -1710,7 +1710,7 @@ static void nfs_access_free_list(struct list_head *head)
 	}
 }
 
-int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
+int nfs_access_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	LIST_HEAD(head);
 	struct nfs_inode *nfsi;
@@ -1953,7 +1953,7 @@ int nfs_permission(struct inode *inode, int mask)
 	if ((mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
 		goto out;
 	/* Is this sys_access() ? */
-	if (mask & MAY_ACCESS)
+	if (mask & (MAY_ACCESS | MAY_CHDIR))
 		goto force_lookup;
 
 	switch (inode->i_mode & S_IFMT) {

@@ -1820,9 +1820,8 @@ static int kdb_sr(int argc, const char **argv)
 {
 	if (argc != 1)
 		return KDB_ARGCOUNT;
-	sysrq_toggle_support(1);
 	kdb_trap_printk++;
-	handle_sysrq(*argv[1], NULL);
+	__handle_sysrq(*argv[1], NULL, 0);
 	kdb_trap_printk--;
 
 	return 0;
@@ -1857,12 +1856,6 @@ static int kdb_ef(int argc, const char **argv)
 }
 
 #if defined(CONFIG_MODULES)
-/* modules using other modules */
-struct module_use {
-	struct list_head list;
-	struct module *module_which_uses;
-};
-
 /*
  * kdb_lsmod - This function implements the 'lsmod' command.  Lists
  *	currently loaded kernel modules.
@@ -1889,14 +1882,15 @@ static int kdb_lsmod(int argc, const char **argv)
 			kdb_printf(" (Loading)");
 		else
 			kdb_printf(" (Live)");
+		kdb_printf(" 0x%p", mod->module_core);
 
 #ifdef CONFIG_MODULE_UNLOAD
 		{
 			struct module_use *use;
 			kdb_printf(" [ ");
-			list_for_each_entry(use, &mod->modules_which_use_me,
-					    list)
-				kdb_printf("%s ", use->module_which_uses->name);
+			list_for_each_entry(use, &mod->source_list,
+					    source_list)
+				kdb_printf("%s ", use->target->name);
 			kdb_printf("]\n");
 		}
 #endif
@@ -2296,6 +2290,9 @@ static int kdb_ll(int argc, const char **argv)
 
 	while (va) {
 		char buf[80];
+
+		if (KDB_FLAG(CMD_INTERRUPT))
+			return 0;
 
 		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
 		diag = kdb_parse(buf);

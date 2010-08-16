@@ -47,6 +47,15 @@
 #define UAC_FORMAT_TYPE			0x02
 #define UAC_FORMAT_SPECIFIC		0x03
 
+/* A.7 Processing Unit Process Types */
+#define UAC_PROCESS_UNDEFINED		0x00
+#define UAC_PROCESS_UP_DOWNMIX		0x01
+#define UAC_PROCESS_DOLBY_PROLOGIC	0x02
+#define UAC_PROCESS_STEREO_EXTENDER	0x03
+#define UAC_PROCESS_REVERB		0x04
+#define UAC_PROCESS_CHORUS		0x05
+#define UAC_PROCESS_DYN_RANGE_COMP	0x06
+
 /* A.8 Audio Class-Specific Endpoint Descriptor Subtypes */
 #define UAC_EP_GENERAL			0x01
 
@@ -72,6 +81,60 @@
 #define UAC_GET_MEM			(UAC_GET_ | UAC__MEM)
 
 #define UAC_GET_STAT			0xff
+
+/* A.10 Control Selector Codes */
+
+/* A.10.1 Terminal Control Selectors */
+#define UAC_TERM_COPY_PROTECT		0x01
+
+/* A.10.2 Feature Unit Control Selectors */
+#define UAC_FU_MUTE			0x01
+#define UAC_FU_VOLUME			0x02
+#define UAC_FU_BASS			0x03
+#define UAC_FU_MID			0x04
+#define UAC_FU_TREBLE			0x05
+#define UAC_FU_GRAPHIC_EQUALIZER	0x06
+#define UAC_FU_AUTOMATIC_GAIN		0x07
+#define UAC_FU_DELAY			0x08
+#define UAC_FU_BASS_BOOST		0x09
+#define UAC_FU_LOUDNESS			0x0a
+
+#define UAC_CONTROL_BIT(CS)	(1 << ((CS) - 1))
+
+/* A.10.3.1 Up/Down-mix Processing Unit Controls Selectors */
+#define UAC_UD_ENABLE			0x01
+#define UAC_UD_MODE_SELECT		0x02
+
+/* A.10.3.2 Dolby Prologic (tm) Processing Unit Controls Selectors */
+#define UAC_DP_ENABLE			0x01
+#define UAC_DP_MODE_SELECT		0x02
+
+/* A.10.3.3 3D Stereo Extender Processing Unit Control Selectors */
+#define UAC_3D_ENABLE			0x01
+#define UAC_3D_SPACE			0x02
+
+/* A.10.3.4 Reverberation Processing Unit Control Selectors */
+#define UAC_REVERB_ENABLE		0x01
+#define UAC_REVERB_LEVEL		0x02
+#define UAC_REVERB_TIME			0x03
+#define UAC_REVERB_FEEDBACK		0x04
+
+/* A.10.3.5 Chorus Processing Unit Control Selectors */
+#define UAC_CHORUS_ENABLE		0x01
+#define UAC_CHORUS_LEVEL		0x02
+#define UAC_CHORUS_RATE			0x03
+#define UAC_CHORUS_DEPTH		0x04
+
+/* A.10.3.6 Dynamic Range Compressor Unit Control Selectors */
+#define UAC_DCR_ENABLE			0x01
+#define UAC_DCR_RATE			0x02
+#define UAC_DCR_MAXAMPL			0x03
+#define UAC_DCR_THRESHOLD		0x04
+#define UAC_DCR_ATTACK_TIME		0x05
+#define UAC_DCR_RELEASE_TIME		0x06
+
+/* A.10.4 Extension Unit Control Selectors */
+#define UAC_XU_ENABLE			0x01
 
 /* MIDI - A.1 MS Class-Specific Interface Descriptor Subtypes */
 #define UAC_MS_HEADER			0x01
@@ -244,7 +307,7 @@ struct uac_selector_unit_descriptor {
 static inline __u8 uac_selector_unit_iSelector(struct uac_selector_unit_descriptor *desc)
 {
 	__u8 *raw = (__u8 *) desc;
-	return raw[9 + desc->bLength - 1];
+	return raw[desc->bLength - 1];
 }
 
 /* 4.3.2.5 Feature Unit Descriptor */
@@ -462,31 +525,6 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_EP_CS_ATTR_SAMPLE_RATE	0x01
 #define UAC_EP_CS_ATTR_PITCH_CONTROL	0x02
 #define UAC_EP_CS_ATTR_FILL_MAX		0x80
-
-/* A.10.2 Feature Unit Control Selectors */
-
-#define UAC_FU_CONTROL_UNDEFINED	0x00
-#define UAC_MUTE_CONTROL		0x01
-#define UAC_VOLUME_CONTROL		0x02
-#define UAC_BASS_CONTROL		0x03
-#define UAC_MID_CONTROL			0x04
-#define UAC_TREBLE_CONTROL		0x05
-#define UAC_GRAPHIC_EQUALIZER_CONTROL	0x06
-#define UAC_AUTOMATIC_GAIN_CONTROL	0x07
-#define UAC_DELAY_CONTROL		0x08
-#define UAC_BASS_BOOST_CONTROL		0x09
-#define UAC_LOUDNESS_CONTROL		0x0a
-
-#define UAC_FU_MUTE		(1 << (UAC_MUTE_CONTROL - 1))
-#define UAC_FU_VOLUME		(1 << (UAC_VOLUME_CONTROL - 1))
-#define UAC_FU_BASS		(1 << (UAC_BASS_CONTROL - 1))
-#define UAC_FU_MID		(1 << (UAC_MID_CONTROL - 1))
-#define UAC_FU_TREBLE		(1 << (UAC_TREBLE_CONTROL - 1))
-#define UAC_FU_GRAPHIC_EQ	(1 << (UAC_GRAPHIC_EQUALIZER_CONTROL - 1))
-#define UAC_FU_AUTO_GAIN	(1 << (UAC_AUTOMATIC_GAIN_CONTROL - 1))
-#define UAC_FU_DELAY		(1 << (UAC_DELAY_CONTROL - 1))
-#define UAC_FU_BASS_BOOST	(1 << (UAC_BASS_BOOST_CONTROL - 1))
-#define UAC_FU_LOUDNESS		(1 << (UAC_LOUDNESS_CONTROL - 1))
 
 /* status word format (3.7.1.1) */
 

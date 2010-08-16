@@ -125,6 +125,7 @@ void r520_mc_init(struct radeon_device *rdev)
 	r520_vram_get_type(rdev);
 	r100_vram_init_sizes(rdev);
 	radeon_vram_location(rdev, &rdev->mc, 0);
+	rdev->mc.gtt_base_align = 0;
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);

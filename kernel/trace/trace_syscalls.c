@@ -519,7 +519,7 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
 
-	head = per_cpu_ptr(sys_data->enter_event->perf_events, smp_processor_id());
+	head = this_cpu_ptr(sys_data->enter_event->perf_events);
 	perf_trace_buf_submit(rec, size, rctx, 0, 1, regs, head);
 }
 
@@ -595,7 +595,7 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	head = per_cpu_ptr(sys_data->exit_event->perf_events, smp_processor_id());
+	head = this_cpu_ptr(sys_data->exit_event->perf_events);
 	perf_trace_buf_submit(rec, size, rctx, 0, 1, regs, head);
 }
 

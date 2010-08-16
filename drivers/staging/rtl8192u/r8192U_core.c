@@ -121,6 +121,8 @@ static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* LG */
+	{USB_DEVICE(0x043e, 0x7a01)},
 	{}
 };
 

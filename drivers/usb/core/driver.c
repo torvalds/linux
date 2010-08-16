@@ -1272,8 +1272,7 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 
 static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 {
-	int			w, i;
-	struct usb_interface	*intf;
+	int	w;
 
 	/* Remote wakeup is needed only when we actually go to sleep.
 	 * For things like FREEZE and QUIESCE, if the device is already
@@ -1285,16 +1284,10 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 		return;
 	}
 
-	/* If remote wakeup is permitted, see whether any interface drivers
+	/* Enable remote wakeup if it is allowed, even if no interface drivers
 	 * actually want it.
 	 */
-	w = 0;
-	if (device_may_wakeup(&udev->dev) && udev->actconfig) {
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			intf = udev->actconfig->interface[i];
-			w |= intf->needs_remote_wakeup;
-		}
-	}
+	w = device_may_wakeup(&udev->dev);
 
 	/* If the device is autosuspended with the wrong wakeup setting,
 	 * autoresume now so the setting can be changed.
@@ -1328,6 +1321,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 
 	/* For all other calls, take the device back to full power and
 	 * tell the PM core in case it was autosuspended previously.
+	 * Unbind the interfaces that will need rebinding later.
 	 */
 	} else {
 		status = usb_resume_both(udev, msg);
@@ -1336,6 +1330,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 			pm_runtime_set_active(dev);
 			pm_runtime_enable(dev);
 			udev->last_busy = jiffies;
+			do_unbind_rebind(udev, DO_REBIND);
 		}
 	}
 

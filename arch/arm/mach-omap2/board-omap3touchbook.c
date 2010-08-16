@@ -571,6 +571,7 @@ MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_touchbook_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3_touchbook_init_irq,
 	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap_timer,

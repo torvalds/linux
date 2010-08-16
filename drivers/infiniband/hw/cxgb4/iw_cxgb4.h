@@ -261,7 +261,7 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 
 struct c4iw_fr_page_list {
 	struct ib_fast_reg_page_list ibpl;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
 	int size;

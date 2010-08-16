@@ -354,10 +354,10 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 		*vsid = VSID_REAL_DR | gvsid;
 		break;
 	case MSR_DR|MSR_IR:
-		if (!sr->valid)
-			return -1;
-
-		*vsid = sr->vsid;
+		if (sr->valid)
+			*vsid = sr->vsid;
+		else
+			*vsid = VSID_BAT | gvsid;
 		break;
 	default:
 		BUG();

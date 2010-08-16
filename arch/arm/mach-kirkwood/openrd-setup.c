@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-kirkwood/openrd-setup.c
  *
- * Marvell OpenRD (Base|Client) Board Setup
+ * Marvell OpenRD (Base|Client|Ultimate) Board Setup
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -73,9 +73,15 @@ static void __init openrd_init(void)
 
 	kirkwood_ehci_init();
 
+	if (machine_is_openrd_ultimate()) {
+		openrd_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
+		openrd_ge01_data.phy_addr = MV643XX_ETH_PHY_ADDR(1);
+	}
+
 	kirkwood_ge00_init(&openrd_ge00_data);
-	if (machine_is_openrd_client())
+	if (!machine_is_openrd_base())
 		kirkwood_ge01_init(&openrd_ge01_data);
+
 	kirkwood_sata_init(&openrd_sata_data);
 	kirkwood_sdio_init(&openrd_mvsdio_data);
 
@@ -84,8 +90,10 @@ static void __init openrd_init(void)
 
 static int __init openrd_pci_init(void)
 {
-	if (machine_is_openrd_base() || machine_is_openrd_client())
-		kirkwood_pcie_init();
+	if (machine_is_openrd_base() ||
+	    machine_is_openrd_client() ||
+	    machine_is_openrd_ultimate())
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }
@@ -106,6 +114,19 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_OPENRD_CLIENT
 MACHINE_START(OPENRD_CLIENT, "Marvell OpenRD Client Board")
+	/* Maintainer: Dhaval Vasa <dhaval.vasa@einfochips.com> */
+	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
+	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.init_machine	= openrd_init,
+	.map_io		= kirkwood_map_io,
+	.init_irq	= kirkwood_init_irq,
+	.timer		= &kirkwood_timer,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_OPENRD_ULTIMATE
+MACHINE_START(OPENRD_ULTIMATE, "Marvell OpenRD Ultimate Board")
 	/* Maintainer: Dhaval Vasa <dhaval.vasa@einfochips.com> */
 	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
 	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,

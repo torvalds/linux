@@ -105,7 +105,7 @@ struct cpuset {
 	/* for custom sched domain */
 	int relax_domain_level;
 
-	/* used for walking a cpuset heirarchy */
+	/* used for walking a cpuset hierarchy */
 	struct list_head stack_list;
 };
 

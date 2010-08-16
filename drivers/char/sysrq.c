@@ -493,7 +493,7 @@ static void __sysrq_put_key_op(int key, struct sysrq_key_op *op_p)
                 sysrq_key_table[i] = op_p;
 }
 
-static void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
+void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 {
 	struct sysrq_key_op *op_p;
 	int orig_log_level;
@@ -580,8 +580,12 @@ static bool sysrq_filter(struct input_handle *handle, unsigned int type,
 	case KEY_RIGHTALT:
 		if (value)
 			sysrq_alt = code;
-		else if (sysrq_down && code == sysrq_alt_use)
-			sysrq_down = false;
+		else {
+			if (sysrq_down && code == sysrq_alt_use)
+				sysrq_down = false;
+
+			sysrq_alt = 0;
+		}
 		break;
 
 	case KEY_SYSRQ:

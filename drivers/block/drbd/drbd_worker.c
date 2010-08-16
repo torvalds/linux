@@ -224,9 +224,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
-	if (error)
-		dev_warn(DEV, "p %s: error=%d\n",
-			 bio_data_dir(bio) == WRITE ? "write" : "read", error);
 	if (!error && !uptodate) {
 		dev_warn(DEV, "p %s: setting error to -EIO\n",
 			 bio_data_dir(bio) == WRITE ? "write" : "read");
@@ -257,20 +254,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-int w_io_error(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	struct drbd_request *req = container_of(w, struct drbd_request, w);
-
-	/* NOTE: mdev->ldev can be NULL by the time we get here! */
-	/* D_ASSERT(mdev->ldev->dc.on_io_error != EP_PASS_ON); */
-
-	/* the only way this callback is scheduled is from _req_may_be_done,
-	 * when it is done and had a local write error, see comments there */
-	drbd_req_free(req);
-
-	return TRUE;
-}
-
 int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
@@ -280,12 +263,9 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * to give the disk the chance to relocate that block */
 
 	spin_lock_irq(&mdev->req_lock);
-	if (cancel ||
-	    mdev->state.conn < C_CONNECTED ||
-	    mdev->state.pdsk <= D_INCONSISTENT) {
-		_req_mod(req, send_canceled);
+	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
+		_req_mod(req, read_retry_remote_canceled);
 		spin_unlock_irq(&mdev->req_lock);
-		dev_alert(DEV, "WE ARE LOST. Local IO failure, no peer.\n");
 		return 1;
 	}
 	spin_unlock_irq(&mdev->req_lock);

@@ -188,11 +188,11 @@ scsi_cmd_free(ctlr_info_t *h, CommandList_struct *cmd)
 
 	sa = h->scsi_ctlr;
 	stk = &sa->cmd_stack; 
+	stk->top++;
 	if (stk->top >= CMD_STACK_SIZE) {
 		printk("cciss: scsi_cmd_free called too many times.\n");
 		BUG();
 	}
-	stk->top++;
 	stk->elem[stk->top] = (struct cciss_scsi_cmd_stack_elem_t *) cmd;
 }
 
@@ -861,6 +861,7 @@ cciss_scsi_detect(int ctlr)
 	sh->n_io_port = 0;	// I don't think we use these two...
 	sh->this_id = SELF_SCSI_ID;  
 	sh->sg_tablesize = hba[ctlr]->maxsgentries;
+	sh->max_cmd_len = MAX_COMMAND_SIZE;
 
 	((struct cciss_scsi_adapter_data_t *) 
 		hba[ctlr]->scsi_ctlr)->scsi_host = sh;

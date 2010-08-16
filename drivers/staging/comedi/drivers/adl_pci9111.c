@@ -824,9 +824,12 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
 					  false, true, true);
 
-		dev_private->scan_delay =
-		    (async_cmd->scan_begin_arg / (async_cmd->convert_arg *
-						  async_cmd->chanlist_len)) - 1;
+		if (async_cmd->scan_begin_src == TRIG_TIMER) {
+			dev_private->scan_delay =
+				(async_cmd->scan_begin_arg /
+				 (async_cmd->convert_arg *
+				  async_cmd->chanlist_len)) - 1;
+		}
 
 		break;
 

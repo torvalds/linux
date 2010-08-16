@@ -40,9 +40,6 @@ struct snd_usb_audio {
 	int num_interfaces;
 	int num_suspended_intf;
 
-	/* for audio class v2 */
-	int clock_id;
-
 	struct list_head pcm_list;	/* list of pcm streams */
 	int pcm_devs;
 
@@ -53,6 +50,8 @@ struct snd_usb_audio {
 	int setup;			/* from the 'device_setup' module param */
 	int nrpacks;			/* from the 'nrpacks' module param */
 	int async_unlink;		/* from the 'async_unlink' module param */
+
+	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 };
 
 /*

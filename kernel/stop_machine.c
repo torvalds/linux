@@ -321,7 +321,7 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
-	case CPU_DEAD:
+	case CPU_POST_DEAD:
 	{
 		struct cpu_stop_work *work;
 

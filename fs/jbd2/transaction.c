@@ -725,6 +725,9 @@ done:
 		page = jh2bh(jh)->b_page;
 		offset = ((unsigned long) jh2bh(jh)->b_data) & ~PAGE_MASK;
 		source = kmap_atomic(page, KM_USER0);
+		/* Fire data frozen trigger just before we copy the data */
+		jbd2_buffer_frozen_trigger(jh, source + offset,
+					   jh->b_triggers);
 		memcpy(jh->b_frozen_data, source+offset, jh2bh(jh)->b_size);
 		kunmap_atomic(source, KM_USER0);
 
@@ -963,15 +966,15 @@ void jbd2_journal_set_triggers(struct buffer_head *bh,
 	jh->b_triggers = type;
 }
 
-void jbd2_buffer_commit_trigger(struct journal_head *jh, void *mapped_data,
+void jbd2_buffer_frozen_trigger(struct journal_head *jh, void *mapped_data,
 				struct jbd2_buffer_trigger_type *triggers)
 {
 	struct buffer_head *bh = jh2bh(jh);
 
-	if (!triggers || !triggers->t_commit)
+	if (!triggers || !triggers->t_frozen)
 		return;
 
-	triggers->t_commit(triggers, bh, mapped_data, bh->b_size);
+	triggers->t_frozen(triggers, bh, mapped_data, bh->b_size);
 }
 
 void jbd2_buffer_abort_trigger(struct journal_head *jh,

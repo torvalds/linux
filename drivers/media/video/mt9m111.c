@@ -143,10 +143,10 @@ static const struct mt9m111_datafmt *mt9m111_find_datafmt(
 }
 
 static const struct mt9m111_datafmt mt9m111_colour_fmts[] = {
-	{V4L2_MBUS_FMT_YUYV8_2X8_LE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YVYU8_2X8_LE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YUYV8_2X8_BE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YVYU8_2X8_BE, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG},
 	{V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
 	{V4L2_MBUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
 	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
@@ -505,22 +505,22 @@ static int mt9m111_set_pixfmt(struct i2c_client *client,
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		ret = mt9m111_setfmt_rgb565(client);
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8_BE:
+	case V4L2_MBUS_FMT_VYUY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8_LE:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8_LE:
+	case V4L2_MBUS_FMT_YVYU8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
@@ -999,10 +999,10 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
-static int mt9m111_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9m111_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(mt9m111_colour_fmts))
+	if (index >= ARRAY_SIZE(mt9m111_colour_fmts))
 		return -EINVAL;
 
 	*code = mt9m111_colour_fmts[index].code;
@@ -1068,7 +1068,6 @@ static int mt9m111_probe(struct i2c_client *client,
 	ret = mt9m111_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9m111);
 	}
 
@@ -1081,7 +1080,6 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9m111);
 

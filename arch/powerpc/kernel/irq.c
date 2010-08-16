@@ -295,7 +295,10 @@ void fixup_irqs(const struct cpumask *map)
 
 	for_each_irq(irq) {
 		desc = irq_to_desc(irq);
-		if (desc && desc->status & IRQ_PER_CPU)
+		if (!desc)
+			continue;
+
+		if (desc->status & IRQ_PER_CPU)
 			continue;
 
 		cpumask_and(mask, desc->affinity, map);
@@ -317,7 +320,6 @@ void fixup_irqs(const struct cpumask *map)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 static inline void handle_one_irq(unsigned int irq)
 {
 	struct thread_info *curtp, *irqtp;
@@ -358,12 +360,6 @@ static inline void handle_one_irq(unsigned int irq)
 	if (irqtp->flags)
 		set_bits(irqtp->flags, &curtp->flags);
 }
-#else
-static inline void handle_one_irq(unsigned int irq)
-{
-	generic_handle_irq(irq);
-}
-#endif
 
 static inline void check_stack_overflow(void)
 {
@@ -455,7 +451,6 @@ void exc_lvl_ctx_init(void)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
 struct thread_info *hardirq_ctx[NR_CPUS] __read_mostly;
 
@@ -491,10 +486,6 @@ static inline void do_softirq_onstack(void)
 	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 }
-
-#else
-#define do_softirq_onstack()	__do_softirq()
-#endif /* CONFIG_IRQSTACKS */
 
 void do_softirq(void)
 {

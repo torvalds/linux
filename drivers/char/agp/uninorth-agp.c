@@ -415,7 +415,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	bridge->gatt_table_real = (u32 *) table;
 	/* Need to clear out any dirty data still sitting in caches */
 	flush_dcache_range((unsigned long)table,
-			   (unsigned long)(table_end + PAGE_SIZE));
+			   (unsigned long)table_end + 1);
 	bridge->gatt_table = vmap(pages, (1 << page_order), 0, PAGE_KERNEL_NCG);
 
 	if (bridge->gatt_table == NULL)

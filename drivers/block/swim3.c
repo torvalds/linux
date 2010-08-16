@@ -1159,8 +1159,10 @@ static struct of_device_id swim3_match[] =
 
 static struct macio_driver swim3_driver =
 {
-	.name 		= "swim3",
-	.match_table	= swim3_match,
+	.driver = {
+		.name 		= "swim3",
+		.of_match_table	= swim3_match,
+	},
 	.probe		= swim3_attach,
 #if 0
 	.suspend	= swim3_suspend,

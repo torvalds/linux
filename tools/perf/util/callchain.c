@@ -230,7 +230,7 @@ fill_node(struct callchain_node *node, struct resolved_chain *chain, int start)
 
 static void
 add_child(struct callchain_node *parent, struct resolved_chain *chain,
-	  int start)
+	  int start, u64 period)
 {
 	struct callchain_node *new;
 
@@ -238,7 +238,7 @@ add_child(struct callchain_node *parent, struct resolved_chain *chain,
 	fill_node(new, chain, start);
 
 	new->children_hit = 0;
-	new->hit = 1;
+	new->hit = period;
 }
 
 /*
@@ -248,7 +248,8 @@ add_child(struct callchain_node *parent, struct resolved_chain *chain,
  */
 static void
 split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
-		struct callchain_list *to_split, int idx_parents, int idx_local)
+		struct callchain_list *to_split, int idx_parents, int idx_local,
+		u64 period)
 {
 	struct callchain_node *new;
 	struct list_head *old_tail;
@@ -275,41 +276,41 @@ split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 	/* create a new child for the new branch if any */
 	if (idx_total < chain->nr) {
 		parent->hit = 0;
-		add_child(parent, chain, idx_total);
-		parent->children_hit++;
+		add_child(parent, chain, idx_total, period);
+		parent->children_hit += period;
 	} else {
-		parent->hit = 1;
+		parent->hit = period;
 	}
 }
 
 static int
 __append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start);
+	       unsigned int start, u64 period);
 
 static void
 __append_chain_children(struct callchain_node *root,
 			struct resolved_chain *chain,
-			unsigned int start)
+			unsigned int start, u64 period)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	chain_for_each_child(rnode, root) {
-		unsigned int ret = __append_chain(rnode, chain, start);
+		unsigned int ret = __append_chain(rnode, chain, start, period);
 
 		if (!ret)
 			goto inc_children_hit;
 	}
 	/* nothing in children, add to the current node */
-	add_child(root, chain, start);
+	add_child(root, chain, start, period);
 
 inc_children_hit:
-	root->children_hit++;
+	root->children_hit += period;
 }
 
 static int
 __append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start)
+	       unsigned int start, u64 period)
 {
 	struct callchain_list *cnode;
 	unsigned int i = start;
@@ -345,18 +346,18 @@ __append_chain(struct callchain_node *root, struct resolved_chain *chain,
 
 	/* we match only a part of the node. Split it and add the new chain */
 	if (i - start < root->val_nr) {
-		split_add_child(root, chain, cnode, start, i - start);
+		split_add_child(root, chain, cnode, start, i - start, period);
 		return 0;
 	}
 
 	/* we match 100% of the path, increment the hit */
 	if (i - start == root->val_nr && i == chain->nr) {
-		root->hit++;
+		root->hit += period;
 		return 0;
 	}
 
 	/* We match the node and still have a part remaining */
-	__append_chain_children(root, chain, i);
+	__append_chain_children(root, chain, i, period);
 
 	return 0;
 }
@@ -380,7 +381,7 @@ static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
 
 
 int append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		 struct map_symbol *syms)
+		 struct map_symbol *syms, u64 period)
 {
 	struct resolved_chain *filtered;
 
@@ -397,7 +398,7 @@ int append_chain(struct callchain_node *root, struct ip_callchain *chain,
 	if (!filtered->nr)
 		goto end;
 
-	__append_chain_children(root, filtered, 0);
+	__append_chain_children(root, filtered, 0, period);
 end:
 	free(filtered);
 

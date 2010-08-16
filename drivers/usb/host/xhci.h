@@ -925,6 +925,7 @@ union xhci_trb {
 /* TRB bit mask */
 #define	TRB_TYPE_BITMASK	(0xfc00)
 #define TRB_TYPE(p)		((p) << 10)
+#define TRB_FIELD_TO_TYPE(p)	(((p) & TRB_TYPE_BITMASK) >> 10)
 /* TRB type IDs */
 /* bulk, interrupt, isoc scatter/gather, and control data stage */
 #define TRB_NORMAL		1
@@ -991,6 +992,14 @@ union xhci_trb {
 /* MFINDEX Wrap Event - microframe counter wrapped */
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
+
+/* Nec vendor-specific command completion event. */
+#define	TRB_NEC_CMD_COMP	48
+/* Get NEC firmware revision. */
+#define	TRB_NEC_GET_FW		49
+
+#define NEC_FW_MINOR(p)		(((p) >> 0) & 0xff)
+#define NEC_FW_MAJOR(p)		(((p) >> 8) & 0xff)
 
 /*
  * TRBS_PER_SEGMENT must be a multiple of 4,
@@ -1172,6 +1181,7 @@ struct xhci_hcd {
 	unsigned int		quirks;
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
+#define XHCI_NEC_HOST		(1 << 2)
 };
 
 /* For testing purposes */
@@ -1282,6 +1292,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags);
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id);
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
+void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
+		struct usb_device *udev);
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
@@ -1379,6 +1391,8 @@ void xhci_set_hc_event_deq(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
+int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+		u32 field1, u32 field2, u32 field3, u32 field4);
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index);
 int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,

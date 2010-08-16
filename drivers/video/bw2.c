@@ -275,7 +275,7 @@ static int __devinit bw2_do_default_mode(struct bw2_par *par,
 
 static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct bw2_par *par;
 	int linebytes, err;

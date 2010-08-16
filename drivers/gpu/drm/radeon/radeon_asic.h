@@ -314,6 +314,7 @@ void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int evergreen_irq_set(struct radeon_device *rdev);
 int evergreen_irq_process(struct radeon_device *rdev);
+extern int evergreen_cs_parse(struct radeon_cs_parser *p);
 extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);

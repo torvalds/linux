@@ -818,6 +818,9 @@ static struct i2c_board_info akita_i2c_board_info[] = {
 		.type		= "max7310",
 		.addr		= 0x18,
 		.platform_data	= &akita_ioexp,
+	}, {
+		.type		= "wm8750",
+		.addr		= 0x1b,
 	},
 };
 
@@ -844,7 +847,6 @@ static void __init fixup_spitz(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks = 1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	mi->bank[0].size = (64*1024*1024);
 }
 

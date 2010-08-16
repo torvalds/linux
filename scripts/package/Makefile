@@ -44,7 +44,7 @@ rpm-pkg rpm: $(objtree)/kernel.spec FORCE
 	fi
 	$(MAKE) clean
 	$(PREV) ln -sf $(srctree) $(KERNELPATH)
-	$(CONFIG_SHELL) $(srctree)/scripts/setlocalversion > $(objtree)/.scmversion
+	$(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --save-scmversion
 	$(PREV) tar -cz $(RCS_TAR_IGNORE) -f $(KERNELPATH).tar.gz $(KERNELPATH)/.
 	$(PREV) rm $(KERNELPATH)
 	rm -f $(objtree)/.scmversion

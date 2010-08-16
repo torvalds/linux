@@ -8,7 +8,7 @@ capture network traffic with utilities like tcpdump or any other that needs
 raw access to network interface.
 
 You can find the latest version of this document at:
-    http://pusa.uv.es/~ulisses/packet_mmap/
+    http://wiki.ipxwarzone.com/index.php5?title=Linux_packet_mmap
 
 Howto can be found at:
     http://wiki.gnu-log.net (packet_mmap)
@@ -56,7 +56,7 @@ support for PACKET_MMAP, and also probably the libpcap included in your distribu
 
 I'm aware of two implementations of PACKET_MMAP in libpcap:
 
-    http://pusa.uv.es/~ulisses/packet_mmap/  (by Simon Patarin, based on libpcap 0.6.2)
+    http://wiki.ipxwarzone.com/		     (by Simon Patarin, based on libpcap 0.6.2)
     http://public.lanl.gov/cpw/              (by Phil Wood, based on lastest libpcap)
 
 The rest of this document is intended for people who want to understand

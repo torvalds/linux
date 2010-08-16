@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -43,20 +39,17 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/board-pcm037.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
 #include <mach/mmc.h>
 #include <mach/mx3_camera.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 #include "pcm037.h"
 
@@ -225,7 +218,7 @@ static struct platform_device pcm037_flash = {
 	.num_resources = 1,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -279,16 +272,17 @@ static struct platform_device pcm037_sram_device = {
 	.resource = &pcm038_sram_resource,
 };
 
-static struct mxc_nand_platform_data pcm037_nand_board_info = {
+static const struct mxc_nand_platform_data
+pcm037_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
 
-static struct imxi2c_platform_data pcm037_i2c_1_data = {
+static const struct imxi2c_platform_data pcm037_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct imxi2c_platform_data pcm037_i2c_2_data = {
+static const struct imxi2c_platform_data pcm037_i2c2_data __initconst = {
 	.bitrate = 20000,
 };
 
@@ -545,6 +539,7 @@ static struct platform_device pcm970_sja1000 = {
 	.num_resources = ARRAY_SIZE(pcm970_sja1000_resources),
 };
 
+#if defined(CONFIG_USB_ULPI)
 static struct mxc_usbh_platform_data otg_pdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
@@ -554,6 +549,7 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
+#endif
 
 static struct fsl_usb2_platform_data otg_device_pdata = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -581,7 +577,6 @@ __setup("otg_mode=", pcm037_otg_mode);
 static void __init mxc_board_init(void)
 {
 	int ret;
-	u32 tmp;
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 
@@ -614,9 +609,10 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
+	imx31_add_imx_uart1(&uart_pdata);
+	imx31_add_imx_uart2(&uart_pdata);
 
 	mxc_register_device(&mxc_w1_master_device, NULL);
 
@@ -634,10 +630,10 @@ static void __init mxc_board_init(void)
 	i2c_register_board_info(1, pcm037_i2c_devices,
 			ARRAY_SIZE(pcm037_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
-	mxc_register_device(&mxc_i2c_device2, &pcm037_i2c_2_data);
+	imx31_add_imx_i2c1(&pcm037_i2c1_data);
+	imx31_add_imx_i2c2(&pcm037_i2c2_data);
 
-	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);

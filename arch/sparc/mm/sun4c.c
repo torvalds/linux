@@ -2087,9 +2087,6 @@ void __init ld_mmu_sun4c(void)
 
 	BTFIXUPSET_CALL(set_pte, sun4c_set_pte, BTFIXUPCALL_STO1O0);
 
-	/* The 2.4.18 code does not set this on sun4c, how does it work? XXX */
-	/* BTFIXUPSET_SETHI(none_mask, 0x00000000); */	/* Defaults to zero? */
-
 	BTFIXUPSET_CALL(pte_pfn, sun4c_pte_pfn, BTFIXUPCALL_NORM);
 #if 0 /* PAGE_SHIFT <= 12 */ /* Eek. Investigate. XXX */
 	BTFIXUPSET_CALL(pmd_page, sun4c_pmd_page, BTFIXUPCALL_ANDNINT(PAGE_SIZE - 1));

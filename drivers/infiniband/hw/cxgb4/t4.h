@@ -279,7 +279,7 @@ struct t4_swsqe {
 struct t4_sq {
 	union t4_wr *queue;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
 	u64 udb;
@@ -298,7 +298,7 @@ struct t4_swrqe {
 struct t4_rq {
 	union  t4_recv_wr *queue;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
 	u64 udb;
 	size_t memsize;
@@ -429,7 +429,7 @@ static inline int t4_wq_db_enabled(struct t4_wq *wq)
 struct t4_cq {
 	struct t4_cqe *queue;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_cqe *sw_queue;
 	void __iomem *gts;
 	struct c4iw_rdev *rdev;

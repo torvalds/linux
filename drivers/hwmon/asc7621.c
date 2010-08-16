@@ -1141,7 +1141,6 @@ exit_remove:
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return err;
 }
@@ -1196,7 +1195,6 @@ static int asc7621_remove(struct i2c_client *client)
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

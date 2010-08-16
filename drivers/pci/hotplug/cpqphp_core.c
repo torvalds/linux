@@ -828,7 +828,14 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pci_name(pdev), err);
 		return err;
 	}
+
 	bus = pdev->subordinate;
+	if (!bus) {
+		dev_notice(&pdev->dev, "the device is not a bridge, "
+				"skipping\n");
+		rc = -ENODEV;
+		goto err_disable_device;
+	}
 
 	/* Need to read VID early b/c it's used to differentiate CPQ and INTC
 	 * discovery

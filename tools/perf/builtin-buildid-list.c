@@ -43,8 +43,10 @@ static int __cmd_buildid_list(void)
 	if (session == NULL)
 		return -1;
 
-	if (with_hits)
+	if (with_hits) {
+		symbol_conf.full_paths = true;
 		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
+	}
 
 	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
 

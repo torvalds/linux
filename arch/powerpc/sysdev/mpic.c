@@ -1666,7 +1666,7 @@ static int mpic_resume(struct sys_device *dev)
 			       mpic->save_data[i].dest);
 
 #ifdef CONFIG_MPIC_U3_HT_IRQS
-	{
+	if (mpic->fixups) {
 		struct mpic_irq_fixup *fixup = &mpic->fixups[i];
 
 		if (fixup->base) {

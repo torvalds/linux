@@ -20,50 +20,49 @@ static void putc_dummy(char c, void __iomem *base)
 	/* nothing */
 }
 
+static int timeout;
+
 static void putc_ns9360(char c, void __iomem *base)
 {
-	static int t = 0x10000;
 	do {
-		if (t)
-			--t;
+		if (timeout)
+			--timeout;
 
 		if (__raw_readl(base + 8) & (1 << 3)) {
 			__raw_writeb(c, base + 16);
-			t = 0x10000;
+			timeout = 0x10000;
 			break;
 		}
-	} while (t);
+	} while (timeout);
 }
 
 static void putc_a9m9750dev(char c, void __iomem *base)
 {
-	static int t = 0x10000;
 	do {
-		if (t)
-			--t;
+		if (timeout)
+			--timeout;
 
 		if (__raw_readb(base + 5) & (1 << 5)) {
 			__raw_writeb(c, base);
-			t = 0x10000;
+			timeout = 0x10000;
 			break;
 		}
-	} while (t);
+	} while (timeout);
 
 }
 
 static void putc_ns921x(char c, void __iomem *base)
 {
-	static int t = 0x10000;
 	do {
-		if (t)
-			--t;
+		if (timeout)
+			--timeout;
 
 		if (!(__raw_readl(base) & (1 << 11))) {
 			__raw_writeb(c, base + 0x0028);
-			t = 0x10000;
+			timeout = 0x10000;
 			break;
 		}
-	} while (t);
+	} while (timeout);
 }
 
 #define MSCS __REG(0xA0900184)
@@ -89,6 +88,7 @@ static void putc_ns921x(char c, void __iomem *base)
 
 static void autodetect(void (**putc)(char, void __iomem *), void __iomem **base)
 {
+	timeout = 0x10000;
 	if (((__raw_readl(MSCS) >> 16) & 0xfe) == 0x00) {
 		/* ns9360 or ns9750 */
 		if (NS9360_UART_ENABLED(NS9360_UARTA)) {

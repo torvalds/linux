@@ -790,11 +790,11 @@ struct net_device {
 	/*
 	 * This is the first field of the "visible" part of this structure
 	 * (i.e. as seen by users in the "Space.c" file).  It is the name
-	 * the interface.
+	 * of the interface.
 	 */
 	char			name[IFNAMSIZ];
 
-	struct pm_qos_request_list *pm_qos_req;
+	struct pm_qos_request_list pm_qos_req;
 
 	/* device name hash chain */
 	struct hlist_node	name_hlist;

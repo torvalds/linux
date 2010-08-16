@@ -23,7 +23,7 @@
  * between pcm data and GPIO status data changes. Our FIQ handler is not
  * able to handle this, hence this driver only works with 48000Hz sampling
  * rate.
- * Reading and writing AC97 registers is another challange. The core
+ * Reading and writing AC97 registers is another challenge. The core
  * provides us status bits when the read register is updated with *another*
  * value. When we read the same register two times (and the register still
  * contains the same value) these status bits are not set. We work

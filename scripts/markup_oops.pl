@@ -2,6 +2,7 @@
 
 use File::Basename;
 use Math::BigInt;
+use Getopt::Long;
 
 # Copyright 2008, Intel Corporation
 #
@@ -15,6 +16,16 @@ use Math::BigInt;
 # 	Arjan van de Ven <arjan@linux.intel.com>
 
 
+my $cross_compile = "";
+my $vmlinux_name = "";
+my $modulefile = "";
+
+# Get options
+Getopt::Long::GetOptions(
+	'cross-compile|c=s'	=> \$cross_compile,
+	'module|m=s'		=> \$modulefile,
+	'help|h'		=> \&usage,
+) || usage ();
 my $vmlinux_name = $ARGV[0];
 if (!defined($vmlinux_name)) {
 	my $kerver = `uname -r`;
@@ -23,9 +34,8 @@ if (!defined($vmlinux_name)) {
 	print "No vmlinux specified, assuming $vmlinux_name\n";
 }
 my $filename = $vmlinux_name;
-#
-# Step 1: Parse the oops to find the EIP value
-#
+
+# Parse the oops to find the EIP value
 
 my $target = "0";
 my $function;
@@ -177,26 +187,26 @@ my $decodestart = Math::BigInt->from_hex("0x$target") - Math::BigInt->from_hex("
 my $decodestop = Math::BigInt->from_hex("0x$target") + 8192;
 if ($target eq "0") {
 	print "No oops found!\n";
-	print "Usage: \n";
-	print "    dmesg | perl scripts/markup_oops.pl vmlinux\n";
-	exit;
+	usage();
 }
 
 # if it's a module, we need to find the .ko file and calculate a load offset
 if ($module ne "") {
-	my $modulefile = `modinfo $module | grep '^filename:' | awk '{ print \$2 }'`;
-	chomp($modulefile);
+	if ($modulefile eq "") {
+		$modulefile = `modinfo -F filename $module`;
+		chomp($modulefile);
+	}
 	$filename = $modulefile;
 	if ($filename eq "") {
 		print "Module .ko file for $module not found. Aborting\n";
 		exit;
 	}
 	# ok so we found the module, now we need to calculate the vma offset
-	open(FILE, "objdump -dS $filename |") || die "Cannot start objdump";
+	open(FILE, $cross_compile."objdump -dS $filename |") || die "Cannot start objdump";
 	while (<FILE>) {
 		if ($_ =~ /^([0-9a-f]+) \<$function\>\:/) {
 			my $fu = $1;
-			$vmaoffset = hex($target) - hex($fu) - hex($func_offset);
+			$vmaoffset = Math::BigInt->from_hex("0x$target") - Math::BigInt->from_hex("0x$fu") - Math::BigInt->from_hex("0x$func_offset");
 		}
 	}
 	close(FILE);
@@ -204,7 +214,7 @@ if ($module ne "") {
 
 my $counter = 0;
 my $state   = 0;
-my $center  = 0;
+my $center  = -1;
 my @lines;
 my @reglines;
 
@@ -212,7 +222,7 @@ sub InRange {
 	my ($address, $target) = @_;
 	my $ad = "0x".$address;
 	my $ta = "0x".$target;
-	my $delta = hex($ad) - hex($ta);
+	my $delta = Math::BigInt->from_hex($ad) - Math::BigInt->from_hex($ta);
 
 	if (($delta > -4096) && ($delta < 4096)) {
 		return 1;
@@ -225,7 +235,7 @@ sub InRange {
 # first, parse the input into the lines array, but to keep size down,
 # we only do this for 4Kb around the sweet spot
 
-open(FILE, "objdump -dS --adjust-vma=$vmaoffset --start-address=$decodestart --stop-address=$decodestop $filename |") || die "Cannot start objdump";
+open(FILE, $cross_compile."objdump -dS --adjust-vma=$vmaoffset --start-address=$decodestart --stop-address=$decodestop $filename |") || die "Cannot start objdump";
 
 while (<FILE>) {
 	my $line = $_;
@@ -236,7 +246,8 @@ while (<FILE>) {
 				$state = 1;
 			}
 		}
-	} else {
+	}
+	if ($state == 1) {
 		if ($line =~ /^([a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]+)\:/) {
 			my $val = $1;
 			if (!InRange($val, $target)) {
@@ -259,7 +270,7 @@ if ($counter == 0) {
 	exit;
 }
 
-if ($center == 0) {
+if ($center == -1) {
 	print "No matching code found \n";
 	exit;
 }
@@ -342,5 +353,18 @@ while ($i < $finish) {
 	}
 	print "\n";
 	$i = $i +1;
+}
+
+sub usage {
+	print <<EOT;
+Usage:
+  dmesg | perl $0 [OPTION] [VMLINUX]
+
+OPTION:
+  -c, --cross-compile CROSS_COMPILE	Specify the prefix used for toolchain.
+  -m, --module MODULE_DIRNAME		Specify the module filename.
+  -h, --help				Help.
+EOT
+	exit;
 }
 

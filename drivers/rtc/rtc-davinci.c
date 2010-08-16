@@ -29,6 +29,7 @@
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /*
  * The DaVinci RTC is a simple RTC with the following

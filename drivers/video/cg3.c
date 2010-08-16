@@ -349,7 +349,7 @@ static int __devinit cg3_do_default_mode(struct cg3_par *par)
 static int __devinit cg3_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct cg3_par *par;
 	int linebytes, err;

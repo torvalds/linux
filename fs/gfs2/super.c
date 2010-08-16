@@ -342,8 +342,6 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	int ar;
-	int error;
 
 	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
 	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
@@ -352,13 +350,12 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	}
 	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	error = gfs2_write_alloc_required(ip, 0, ip->i_disksize, &ar);
-	if (!error && ar) {
+	if (gfs2_write_alloc_required(ip, 0, ip->i_disksize)) {
 		gfs2_consist_inode(ip);
-		error = -EIO;
+		return -EIO;
 	}
 
-	return error;
+	return 0;
 }
 
 /**

@@ -176,9 +176,7 @@ int allocator_free_dma(unsigned long address)
 	prev = ptr; ptr = ptr->next;
 
 	if (!ptr) {
-		printk(KERN_ERR ALL_MSG
-			"free_dma(0x%08lx) but add. not allocated\n",
-			ptr->address);
+		pr_err(ALL_MSG "free_dma but add. not allocated\n");
 		return -EINVAL;
 	}
 	PDEBUGG("freeing: %08lx (%li) next %08lx\n", ptr->address, ptr->size,

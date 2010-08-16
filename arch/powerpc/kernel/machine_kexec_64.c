@@ -182,28 +182,12 @@ static void kexec_prepare_cpus_wait(int wait_state)
 
 	my_cpu = get_cpu();
 	/* Make sure each CPU has atleast made it to the state we need */
-	for (i=0; i < NR_CPUS; i++) {
+	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
 
 		while (paca[i].kexec_state < wait_state) {
 			barrier();
-			if (!cpu_possible(i)) {
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" possible, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
-			if (!cpu_online(i)) {
-				/* Fixme: this can be spinning in
-				 * pSeries_secondary_wait with a paca
-				 * waiting for it to go online.
-				 */
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" online, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
 			if (i != notified) {
 				printk( "kexec: waiting for cpu %d (physical"
 						" %d) to enter %i state\n",

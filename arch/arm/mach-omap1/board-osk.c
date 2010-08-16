@@ -584,6 +584,7 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= osk_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= osk_init_irq,
 	.init_machine	= osk_init,
 	.timer		= &omap_timer,

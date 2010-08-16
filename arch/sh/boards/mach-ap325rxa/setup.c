@@ -316,7 +316,7 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.code = V4L2_MBUS_FMT_YUYV8_2X8_BE,
+		.code = V4L2_MBUS_FMT_UYVY8_2X8,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.field = V4L2_FIELD_NONE,
 		.width = 640,
@@ -328,7 +328,7 @@ static struct soc_camera_platform_info camera_info = {
 	.set_capture = camera_set_capture,
 };
 
-struct soc_camera_link camera_link = {
+static struct soc_camera_link camera_link = {
 	.bus_id		= 0,
 	.add_device	= ap325rxa_camera_add,
 	.del_device	= ap325rxa_camera_del,

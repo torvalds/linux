@@ -29,6 +29,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/marvell_phy.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -47,8 +48,6 @@
 #define MII_M1145_PHY_EXT_CR		0x14
 #define MII_M1145_RGMII_RX_DELAY	0x0080
 #define MII_M1145_RGMII_TX_DELAY	0x0002
-
-#define M1145_DEV_FLAGS_RESISTANCE	0x00000001
 
 #define MII_M1111_PHY_LED_CONTROL	0x18
 #define MII_M1111_PHY_LED_DIRECT	0x4100
@@ -407,7 +406,10 @@ static int m88e1118_config_init(struct phy_device *phydev)
 		return err;
 
 	/* Adjust LED Control */
-	err = phy_write(phydev, 0x10, 0x021e);
+	if (phydev->dev_flags & MARVELL_PHY_M1118_DNS323_LEDS)
+		err = phy_write(phydev, 0x10, 0x1100);
+	else
+		err = phy_write(phydev, 0x10, 0x021e);
 	if (err < 0)
 		return err;
 
@@ -455,7 +457,7 @@ static int m88e1145_config_init(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		if (phydev->dev_flags & M1145_DEV_FLAGS_RESISTANCE) {
+		if (phydev->dev_flags & MARVELL_PHY_M1145_FLAGS_RESISTANCE) {
 			err = phy_write(phydev, 0x1d, 0x0012);
 			if (err < 0)
 				return err;
@@ -586,8 +588,8 @@ static int m88e1121_did_interrupt(struct phy_device *phydev)
 
 static struct phy_driver marvell_drivers[] = {
 	{
-		.phy_id = 0x01410c60,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1101,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1101",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -598,8 +600,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410c90,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1112,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1112",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -611,8 +613,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410cc0,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1111,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1111",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -624,8 +626,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410e10,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1118,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1118",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -637,8 +639,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = {.owner = THIS_MODULE,},
 	},
 	{
-		.phy_id = 0x01410cb0,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1121R,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1121R",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -650,8 +652,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410e90,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88EC048,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88EC048",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -663,8 +665,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410cd0,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1145,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1145",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
@@ -676,8 +678,8 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
-		.phy_id = 0x01410e30,
-		.phy_id_mask = 0xfffffff0,
+		.phy_id = MARVELL_PHY_ID_88E1240,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1240",
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,

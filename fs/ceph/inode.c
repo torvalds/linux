@@ -827,7 +827,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 
 	spin_lock(&dcache_lock);
 	spin_lock(&dn->d_lock);
-	list_move_tail(&dir->d_subdirs, &dn->d_u.d_child);
+	list_move(&dn->d_u.d_child, &dir->d_subdirs);
 	dout("set_dentry_offset %p %lld (%p %p)\n", dn, di->offset,
 	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
 	spin_unlock(&dn->d_lock);
@@ -854,8 +854,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 		d_drop(dn);
 	realdn = d_materialise_unique(dn, in);
 	if (IS_ERR(realdn)) {
-		pr_err("splice_dentry error %p inode %p ino %llx.%llx\n",
-		       dn, in, ceph_vinop(in));
+		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
+		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
 		if (prehash)
 			*prehash = false; /* don't rehash on error */
 		dn = realdn; /* note realdn contains the error */
@@ -1199,8 +1199,10 @@ retry_lookup:
 				goto out;
 			}
 			err = ceph_init_dentry(dn);
-			if (err < 0)
+			if (err < 0) {
+				dput(dn);
 				goto out;
+			}
 		} else if (dn->d_inode &&
 			   (ceph_ino(dn->d_inode) != vino.ino ||
 			    ceph_snap(dn->d_inode) != vino.snap)) {
@@ -1234,18 +1236,23 @@ retry_lookup:
 				goto out;
 			}
 			dn = splice_dentry(dn, in, NULL);
+			if (IS_ERR(dn))
+				dn = NULL;
 		}
 
 		if (fill_inode(in, &rinfo->dir_in[i], NULL, session,
 			       req->r_request_started, -1,
 			       &req->r_caps_reservation) < 0) {
 			pr_err("fill_inode badness on %p\n", in);
-			dput(dn);
-			continue;
+			goto next_item;
 		}
-		update_dentry_lease(dn, rinfo->dir_dlease[i],
-				    req->r_session, req->r_request_started);
-		dput(dn);
+		if (dn)
+			update_dentry_lease(dn, rinfo->dir_dlease[i],
+					    req->r_session,
+					    req->r_request_started);
+next_item:
+		if (dn)
+			dput(dn);
 	}
 	req->r_did_prepopulate = true;
 
@@ -1494,7 +1501,7 @@ retry:
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 }
 
 

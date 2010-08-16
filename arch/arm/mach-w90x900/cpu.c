@@ -93,7 +93,7 @@ static struct clk_lookup nuc900_clkregs[] = {
 	DEF_CLKLOOK(&clk_kpi, "nuc900-kpi", NULL),
 	DEF_CLKLOOK(&clk_wdt, "nuc900-wdt", NULL),
 	DEF_CLKLOOK(&clk_gdma, "nuc900-gdma", NULL),
-	DEF_CLKLOOK(&clk_adc, "nuc900-adc", NULL),
+	DEF_CLKLOOK(&clk_adc, "nuc900-ts", NULL),
 	DEF_CLKLOOK(&clk_usi, "nuc900-spi", NULL),
 	DEF_CLKLOOK(&clk_ext, NULL, "ext"),
 	DEF_CLKLOOK(&clk_timer0, NULL, "timer0"),

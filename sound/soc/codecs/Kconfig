@@ -83,8 +83,8 @@ config SND_SOC_ALL_CODECS
 
 config SND_SOC_WM_HUBS
 	tristate
-	default y if SND_SOC_WM8993=y
-	default m if SND_SOC_WM8993=m
+	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
+	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
 
 config SND_SOC_AC97_CODEC
 	tristate

@@ -284,8 +284,7 @@ static const char *connector_names[15] = {
 	"eDP",
 };
 
-static const char *hpd_names[7] = {
-	"NONE",
+static const char *hpd_names[6] = {
 	"HPD1",
 	"HPD2",
 	"HPD3",

@@ -868,7 +868,7 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 	if (arg) {
 		spin_lock(&inode->i_lock);
 		ci->i_wanted_max_size = 0;
@@ -1066,9 +1066,9 @@ static int trim_caps(struct ceph_mds_client *mdsc,
  *
  * Called under s_mutex.
  */
-static int add_cap_releases(struct ceph_mds_client *mdsc,
-			    struct ceph_mds_session *session,
-			    int extra)
+int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
+			  struct ceph_mds_session *session,
+			  int extra)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_cap_release *head;
@@ -1176,8 +1176,8 @@ static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 /*
  * called under s_mutex
  */
-static void send_cap_releases(struct ceph_mds_client *mdsc,
-		       struct ceph_mds_session *session)
+void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
+			    struct ceph_mds_session *session)
 {
 	struct ceph_msg *msg;
 
@@ -1514,6 +1514,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	ceph_encode_filepath(&p, end, ino1, path1);
 	ceph_encode_filepath(&p, end, ino2, path2);
 
+	/* make note of release offset, in case we need to replay */
+	req->r_request_release_offset = p - msg->front.iov_base;
+
 	/* cap releases */
 	releases = 0;
 	if (req->r_inode_drop)
@@ -1561,7 +1564,7 @@ static void complete_request(struct ceph_mds_client *mdsc,
 	if (req->r_callback)
 		req->r_callback(mdsc, req);
 	else
-		complete(&req->r_completion);
+		complete_all(&req->r_completion);
 }
 
 /*
@@ -1579,6 +1582,32 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	req->r_attempts++;
 	dout("prepare_send_request %p tid %lld %s (attempt %d)\n", req,
 	     req->r_tid, ceph_mds_op_name(req->r_op), req->r_attempts);
+
+	if (req->r_got_unsafe) {
+		/*
+		 * Replay.  Do not regenerate message (and rebuild
+		 * paths, etc.); just use the original message.
+		 * Rebuilding paths will break for renames because
+		 * d_move mangles the src name.
+		 */
+		msg = req->r_request;
+		rhead = msg->front.iov_base;
+
+		flags = le32_to_cpu(rhead->flags);
+		flags |= CEPH_MDS_FLAG_REPLAY;
+		rhead->flags = cpu_to_le32(flags);
+
+		if (req->r_target_inode)
+			rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
+
+		rhead->num_retry = req->r_attempts - 1;
+
+		/* remove cap/dentry releases from message */
+		rhead->num_releases = 0;
+		msg->hdr.front_len = cpu_to_le32(req->r_request_release_offset);
+		msg->front.iov_len = req->r_request_release_offset;
+		return 0;
+	}
 
 	if (req->r_request) {
 		ceph_msg_put(req->r_request);
@@ -1601,13 +1630,9 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	rhead->flags = cpu_to_le32(flags);
 	rhead->num_fwd = req->r_num_fwd;
 	rhead->num_retry = req->r_attempts - 1;
+	rhead->ino = 0;
 
 	dout(" r_locked_dir = %p\n", req->r_locked_dir);
-
-	if (req->r_target_inode && req->r_got_unsafe)
-		rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
-	else
-		rhead->ino = 0;
 	return 0;
 }
 
@@ -1907,7 +1932,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	if (head->safe) {
 		req->r_got_safe = true;
 		__unregister_request(mdsc, req);
-		complete(&req->r_safe_completion);
+		complete_all(&req->r_safe_completion);
 
 		if (req->r_got_unsafe) {
 			/*
@@ -1922,7 +1947,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 			/* last unsafe request during umount? */
 			if (mdsc->stopping && !__get_oldest_req(mdsc))
-				complete(&mdsc->safe_umount_waiters);
+				complete_all(&mdsc->safe_umount_waiters);
 			mutex_unlock(&mdsc->mutex);
 			goto out;
 		}
@@ -1980,7 +2005,7 @@ out_err:
 	}
 	mutex_unlock(&mdsc->mutex);
 
-	add_cap_releases(mdsc, req->r_session, -1);
+	ceph_add_cap_releases(mdsc, req->r_session, -1);
 	mutex_unlock(&session->s_mutex);
 
 	/* kick calling process */
@@ -2101,7 +2126,7 @@ static void handle_session(struct ceph_mds_session *session,
 			pr_info("mds%d reconnect denied\n", session->s_mds);
 		remove_session_caps(session);
 		wake = 1; /* for good measure */
-		complete(&mdsc->session_close_waiters);
+		complete_all(&mdsc->session_close_waiters);
 		kick_requests(mdsc, mds);
 		break;
 
@@ -2433,6 +2458,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	struct ceph_dentry_info *di;
 	int mds = session->s_mds;
 	struct ceph_mds_lease *h = msg->front.iov_base;
+	u32 seq;
 	struct ceph_vino vino;
 	int mask;
 	struct qstr dname;
@@ -2446,6 +2472,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	vino.ino = le64_to_cpu(h->ino);
 	vino.snap = CEPH_NOSNAP;
 	mask = le16_to_cpu(h->mask);
+	seq = le32_to_cpu(h->seq);
 	dname.name = (void *)h + sizeof(*h) + sizeof(u32);
 	dname.len = msg->front.iov_len - sizeof(*h) - sizeof(u32);
 	if (dname.len != get_unaligned_le32(h+1))
@@ -2456,8 +2483,9 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 
 	/* lookup inode */
 	inode = ceph_find_inode(sb, vino);
-	dout("handle_lease '%s', mask %d, ino %llx %p\n",
-	     ceph_lease_op_name(h->action), mask, vino.ino, inode);
+	dout("handle_lease %s, mask %d, ino %llx %p %.*s\n",
+	     ceph_lease_op_name(h->action), mask, vino.ino, inode,
+	     dname.len, dname.name);
 	if (inode == NULL) {
 		dout("handle_lease no inode %llx\n", vino.ino);
 		goto release;
@@ -2482,7 +2510,8 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	switch (h->action) {
 	case CEPH_MDS_LEASE_REVOKE:
 		if (di && di->lease_session == session) {
-			h->seq = cpu_to_le32(di->lease_seq);
+			if (ceph_seq_cmp(di->lease_seq, seq) > 0)
+				h->seq = cpu_to_le32(di->lease_seq);
 			__ceph_mdsc_drop_dentry_lease(dentry);
 		}
 		release = 1;
@@ -2496,7 +2525,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 			unsigned long duration =
 				le32_to_cpu(h->duration_ms) * HZ / 1000;
 
-			di->lease_seq = le32_to_cpu(h->seq);
+			di->lease_seq = seq;
 			dentry->d_time = di->lease_renew_from + duration;
 			di->lease_renew_after = di->lease_renew_from +
 				(duration >> 1);
@@ -2686,10 +2715,10 @@ static void delayed_work(struct work_struct *work)
 			send_renew_caps(mdsc, s);
 		else
 			ceph_con_keepalive(&s->s_con);
-		add_cap_releases(mdsc, s, -1);
+		ceph_add_cap_releases(mdsc, s, -1);
 		if (s->s_state == CEPH_MDS_SESSION_OPEN ||
 		    s->s_state == CEPH_MDS_SESSION_HUNG)
-			send_cap_releases(mdsc, s);
+			ceph_send_cap_releases(mdsc, s);
 		mutex_unlock(&s->s_mutex);
 		ceph_put_mds_session(s);
 
@@ -2779,6 +2808,12 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 	drop_leases(mdsc);
 	ceph_flush_dirty_caps(mdsc);
 	wait_requests(mdsc);
+
+	/*
+	 * wait for reply handlers to drop their request refs and
+	 * their inode/dcache refs
+	 */
+	ceph_msgr_flush();
 }
 
 /*

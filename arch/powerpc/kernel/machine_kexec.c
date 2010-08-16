@@ -12,7 +12,7 @@
 #include <linux/kexec.h>
 #include <linux/reboot.h>
 #include <linux/threads.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -66,11 +66,11 @@ void __init reserve_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
-	/* this is necessary because of lmb_phys_mem_size() */
-	lmb_analyze();
+	/* this is necessary because of memblock_phys_mem_size() */
+	memblock_analyze();
 
 	/* use common parsing */
-	ret = parse_crashkernel(boot_command_line, lmb_phys_mem_size(),
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size > 0) {
 		crashk_res.start = crash_base;
@@ -133,9 +133,9 @@ void __init reserve_crashkernel(void)
 			"for crashkernel (System RAM: %ldMB)\n",
 			(unsigned long)(crash_size >> 20),
 			(unsigned long)(crashk_res.start >> 20),
-			(unsigned long)(lmb_phys_mem_size() >> 20));
+			(unsigned long)(memblock_phys_mem_size() >> 20));
 
-	lmb_reserve(crashk_res.start, crash_size);
+	memblock_reserve(crashk_res.start, crash_size);
 }
 
 int overlaps_crashkernel(unsigned long start, unsigned long size)

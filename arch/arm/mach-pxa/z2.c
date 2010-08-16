@@ -3,8 +3,9 @@
  *
  *  Support for the Zipit Z2 Handheld device.
  *
- *  Author: 	Ken McGuire
- *  Created:	Jan 25, 2009
+ *  Copyright (C) 2009-2010 Marek Vasut <marek.vasut@gmail.com>
+ *
+ *  Based on research and code by: Ken McGuire
  *  Based on mainstone.c as modified for the Zipit Z2.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -157,21 +158,14 @@ static struct mtd_partition z2_flash_parts[] = {
 	{
 		.name	= "U-Boot Bootloader",
 		.offset	= 0x0,
-		.size	= 0x20000,
-	},
-	{
-		.name	= "Linux Kernel",
-		.offset	= 0x20000,
-		.size	= 0x220000,
-	},
-	{
-		.name	= "Filesystem",
-		.offset	= 0x240000,
-		.size	= 0x5b0000,
-	},
-	{
+		.size	= 0x40000,
+	}, {
 		.name	= "U-Boot Environment",
-		.offset	= 0x7f0000,
+		.offset	= 0x40000,
+		.size	= 0x60000,
+	}, {
+		.name	= "Flash",
+		.offset	= 0x60000,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };

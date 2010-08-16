@@ -98,7 +98,7 @@ More Documentation
 There is an Overview of the LDM together with complete Technical Documentation.
 It is available for download.
 
-  http://www.linux-ntfs.org/content/view/19/37/
+  http://www.linux-ntfs.org/
 
 If you have any LDM questions that aren't answered in the documentation, email
 me.

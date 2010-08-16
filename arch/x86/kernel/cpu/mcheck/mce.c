@@ -36,6 +36,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/debugfs.h>
+#include <linux/edac_mce.h>
 
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
@@ -168,6 +169,15 @@ void mce_log(struct mce *mce)
 	for (;;) {
 		entry = rcu_dereference_check_mce(mcelog.next);
 		for (;;) {
+			/*
+			 * If edac_mce is enabled, it will check the error type
+			 * and will process it, if it is a known error.
+			 * Otherwise, the error will be sent through mcelog
+			 * interface
+			 */
+			if (edac_mce_parse(mce))
+				return;
+
 			/*
 			 * When the buffer fills up discard new entries.
 			 * Assume that the earlier errors are the more
@@ -590,6 +600,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 */
 		if (!(flags & MCP_DONTLOG) && !mce_dont_log_ce) {
 			mce_log(&m);
+			atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, &m);
 			add_taint(TAINT_MACHINE_CHECK);
 		}
 

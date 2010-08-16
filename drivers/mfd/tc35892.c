@@ -296,7 +296,6 @@ out_freeirq:
 out_removeirq:
 	tc35892_irq_remove(tc35892);
 out_free:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(tc35892);
 	return ret;
 }
@@ -310,7 +309,6 @@ static int __devexit tc35892_remove(struct i2c_client *client)
 	free_irq(tc35892->i2c->irq, tc35892);
 	tc35892_irq_remove(tc35892);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(tc35892);
 
 	return 0;

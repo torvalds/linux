@@ -32,6 +32,7 @@
 #include "ivtv-yuv.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
+#include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
 #include <media/saa7115.h>
 
@@ -526,6 +527,7 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
+	int rc;
 
 	if (atomic_read(&itv->decoding) == 0) {
 		if (ivtv_claim_stream(id, s->type)) {
@@ -533,7 +535,13 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 			IVTV_DEBUG_WARN("start decode, stream already claimed\n");
 			return -EBUSY;
 		}
-		ivtv_start_v4l2_decode_stream(s, 0);
+		rc = ivtv_start_v4l2_decode_stream(s, 0);
+		if (rc < 0) {
+			if (rc == -EAGAIN)
+				rc = ivtv_start_v4l2_decode_stream(s, 0);
+			if (rc < 0)
+				return rc;
+		}
 	}
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
 		return ivtv_set_speed(itv, speed);
@@ -823,6 +831,12 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 
 	IVTV_DEBUG_FILE("close() of %s\n", s->name);
 
+	if (id->type == IVTV_DEC_STREAM_TYPE_YUV &&
+		test_bit(IVTV_F_I_DECODING_YUV, &itv->i_flags)) {
+		/* Restore registers we've changed & clean up any mess */
+		ivtv_yuv_close(itv);
+	}
+
 	/* Stop decoding */
 	if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 		IVTV_DEBUG_INFO("close stopping decode\n");
@@ -832,10 +846,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	}
 	clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
-	if (id->type == IVTV_DEC_STREAM_TYPE_YUV && test_bit(IVTV_F_I_DECODING_YUV, &itv->i_flags)) {
-		/* Restore registers we've changed & clean up any mess we've made */
-		ivtv_yuv_close(itv);
-	}
+
 	if (itv->output_mode == OUT_UDMA_YUV && id->yuv_frames)
 		itv->output_mode = OUT_NONE;
 
@@ -909,11 +920,31 @@ int ivtv_v4l2_close(struct file *filp)
 
 static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 {
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	struct video_device *vdev = video_devdata(filp);
+#endif
 	struct ivtv *itv = s->itv;
 	struct ivtv_open_id *item;
 	int res = 0;
 
 	IVTV_DEBUG_FILE("open %s\n", s->name);
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
+	if (ivtv_fw_debug) {
+		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",
+			  video_device_node_name(vdev));
+		IVTV_WARN("Selected firmware errors will be ignored\n");
+	} else {
+#else
+	if (1) {
+#endif
+		res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res == -EAGAIN)
+			res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res < 0)
+			return -EIO;
+	}
 
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))

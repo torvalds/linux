@@ -24,10 +24,12 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tvaudio.h>
 #include <media/i2c-addr.h>
+#include <media/rc-map.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -68,6 +70,8 @@ struct tm6000_board {
 	int             demod_addr;     /* demodulator address */
 
 	struct tm6000_gpio gpio;
+
+	char		*ir_codes;
 };
 
 struct tm6000_board tm6000_boards[] = {
@@ -275,6 +279,7 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
@@ -346,7 +351,7 @@ int tm6000_xc5000_callback(void *ptr, int component, int command, int arg)
 	}
 	return (rc);
 }
-
+EXPORT_SYMBOL_GPL(tm6000_xc5000_callback);
 
 /* Tuner callback to provide the proper gpio changes needed for xc2028 */
 
@@ -360,16 +365,12 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 
 	switch (command) {
 	case XC2028_RESET_CLK:
+		tm6000_ir_wait(dev, 0);
+
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 					0x02, arg);
 		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 0);
-		if (rc < 0)
-			return rc;
-		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 1);
+		rc = tm6000_i2c_reset(dev, 10);
 		break;
 	case XC2028_TUNER_RESET:
 		/* Reset codes during load firmware */
@@ -415,27 +416,22 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 				msleep(130);
 				break;
 			}
+
+			tm6000_ir_wait(dev, 1);
 			break;
 		case 1:
 			tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 						0x02, 0x01);
 			msleep(10);
 			break;
-
 		case 2:
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 0);
-			if (rc < 0)
-				return rc;
-			msleep(100);
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 1);
-			msleep(100);
+			rc = tm6000_i2c_reset(dev, 100);
 			break;
 		}
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(tm6000_tuner_callback);
 
 int tm6000_cards_setup(struct tm6000_core *dev)
 {
@@ -563,7 +559,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 
 	switch (dev->tuner_type) {
 	case TUNER_XC2028:
-		tun_setup.tuner_callback = tm6000_tuner_callback;;
+		tun_setup.tuner_callback = tm6000_tuner_callback;
 		break;
 	case TUNER_XC5000:
 		tun_setup.tuner_callback = tm6000_xc5000_callback;
@@ -647,6 +643,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	dev->gpio = tm6000_boards[dev->model].gpio;
 
+	dev->ir_codes = tm6000_boards[dev->model].ir_codes;
+
 	dev->demod_addr = tm6000_boards[dev->model].demod_addr;
 
 	dev->caps = tm6000_boards[dev->model].caps;
@@ -692,27 +690,13 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	if (rc < 0)
 		goto err;
 
-	if (dev->caps.has_dvb) {
-		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
-		if (!dev->dvb) {
-			rc = -ENOMEM;
-			goto err2;
-		}
+	tm6000_add_into_devlist(dev);
+	tm6000_init_extension(dev);
 
-#ifdef CONFIG_VIDEO_TM6000_DVB
-		rc = tm6000_dvb_register(dev);
-		if (rc < 0) {
-			kfree(dev->dvb);
-			dev->dvb = NULL;
-			goto err2;
-		}
-#endif
-	}
+	tm6000_ir_init(dev);
+
 	mutex_unlock(&dev->lock);
 	return 0;
-
-err2:
-	v4l2_device_unregister(&dev->v4l2_dev);
 
 err:
 	mutex_unlock(&dev->lock);
@@ -732,7 +716,7 @@ static void get_max_endpoint(struct usb_device *udev,
 	unsigned int size = tmp & 0x7ff;
 
 	if (udev->speed == USB_SPEED_HIGH)
-		size = size * hb_mult (tmp);
+		size = size * hb_mult(tmp);
 
 	if (size > tm_ep->maxsize) {
 		tm_ep->endp = curr_e;
@@ -856,6 +840,19 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 							 &dev->isoc_out);
 				}
 				break;
+			case USB_ENDPOINT_XFER_INT:
+				if (!dir_out) {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT IN", e,
+							&dev->int_in);
+				} else {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT OUT", e,
+							&dev->int_out);
+				}
+				break;
 			}
 		}
 	}
@@ -914,13 +911,27 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&dev->lock);
 
-#ifdef CONFIG_VIDEO_TM6000_DVB
-	if (dev->dvb) {
-		tm6000_dvb_unregister(dev);
-		kfree(dev->dvb);
-	}
-#endif
+	tm6000_ir_fini(dev);
 
+	if (dev->gpio.power_led) {
+		switch (dev->model) {
+		case TM6010_BOARD_HAUPPAUGE_900H:
+		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+		case TM6010_BOARD_TWINHAN_TU501:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x01);
+			msleep(15);
+			break;
+		case TM6010_BOARD_BEHOLD_WANDER:
+		case TM6010_BOARD_BEHOLD_VOYAGER:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x00);
+			msleep(15);
+			break;
+		}
+	}
 	tm6000_v4l2_unregister(dev);
 
 	tm6000_i2c_unregister(dev);
@@ -930,6 +941,9 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	dev->state |= DEV_DISCONNECTED;
 
 	usb_put_dev(dev->udev);
+
+	tm6000_close_extension(dev);
+	tm6000_remove_from_devlist(dev);
 
 	mutex_unlock(&dev->lock);
 	kfree(dev);

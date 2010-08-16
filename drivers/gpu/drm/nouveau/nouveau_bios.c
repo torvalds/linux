@@ -178,41 +178,51 @@ out:
 	pci_disable_rom(dev->pdev);
 }
 
+static void load_vbios_acpi(struct drm_device *dev, uint8_t *data)
+{
+	int i;
+	int ret;
+	int size = 64 * 1024;
+
+	if (!nouveau_acpi_rom_supported(dev->pdev))
+		return;
+
+	for (i = 0; i < (size / ROM_BIOS_PAGE); i++) {
+		ret = nouveau_acpi_get_bios_chunk(data,
+						  (i * ROM_BIOS_PAGE),
+						  ROM_BIOS_PAGE);
+		if (ret <= 0)
+			break;
+	}
+	return;
+}
+
 struct methods {
 	const char desc[8];
 	void (*loadbios)(struct drm_device *, uint8_t *);
 	const bool rw;
 };
 
-static struct methods nv04_methods[] = {
-	{ "PROM", load_vbios_prom, false },
-	{ "PRAMIN", load_vbios_pramin, true },
-	{ "PCIROM", load_vbios_pci, true },
-};
-
-static struct methods nv50_methods[] = {
+static struct methods shadow_methods[] = {
 	{ "PRAMIN", load_vbios_pramin, true },
 	{ "PROM", load_vbios_prom, false },
 	{ "PCIROM", load_vbios_pci, true },
+	{ "ACPI", load_vbios_acpi, true },
 };
-
-#define METHODCNT 3
 
 static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct methods *methods;
-	int i;
+	const int nr_methods = ARRAY_SIZE(shadow_methods);
+	struct methods *methods = shadow_methods;
 	int testscore = 3;
-	int scores[METHODCNT];
+	int scores[nr_methods], i;
 
 	if (nouveau_vbios) {
-		methods = nv04_methods;
-		for (i = 0; i < METHODCNT; i++)
+		for (i = 0; i < nr_methods; i++)
 			if (!strcasecmp(nouveau_vbios, methods[i].desc))
 				break;
 
-		if (i < METHODCNT) {
+		if (i < nr_methods) {
 			NV_INFO(dev, "Attempting to use BIOS image from %s\n",
 				methods[i].desc);
 
@@ -224,12 +234,7 @@ static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 		NV_ERROR(dev, "VBIOS source \'%s\' invalid\n", nouveau_vbios);
 	}
 
-	if (dev_priv->card_type < NV_50)
-		methods = nv04_methods;
-	else
-		methods = nv50_methods;
-
-	for (i = 0; i < METHODCNT; i++) {
+	for (i = 0; i < nr_methods; i++) {
 		NV_TRACE(dev, "Attempting to load BIOS image from %s\n",
 			 methods[i].desc);
 		data[0] = data[1] = 0;	/* avoid reuse of previous image */
@@ -240,7 +245,7 @@ static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 	}
 
 	while (--testscore > 0) {
-		for (i = 0; i < METHODCNT; i++) {
+		for (i = 0; i < nr_methods; i++) {
 			if (scores[i] == testscore) {
 				NV_TRACE(dev, "Using BIOS image from %s\n",
 					 methods[i].desc);
@@ -814,7 +819,7 @@ init_i2c_device_find(struct drm_device *dev, int i2c_index)
 	if (i2c_index == 0x81)
 		i2c_index = (dcb->i2c_default_indices & 0xf0) >> 4;
 
-	if (i2c_index > DCB_MAX_NUM_I2C_ENTRIES) {
+	if (i2c_index >= DCB_MAX_NUM_I2C_ENTRIES) {
 		NV_ERROR(dev, "invalid i2c_index 0x%x\n", i2c_index);
 		return NULL;
 	}
@@ -2807,7 +2812,10 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
 
-		nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
+		BIOSLOG(bios, "0x%04X: set gpio 0x%02x, state %d\n",
+			offset, gpio->tag, gpio->state_default);
+		if (bios->execute)
+			nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
 
 		/* The NVIDIA binary driver doesn't appear to actually do
 		 * any of this, my VBIOS does however.
@@ -3897,7 +3905,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 
 static uint8_t *
 bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
-			 uint16_t record, int record_len, int record_nr)
+			 uint16_t record, int record_len, int record_nr,
+			 bool match_link)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
@@ -3905,11 +3914,27 @@ bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
 	uint16_t table;
 	int i, v;
 
+	switch (dcbent->type) {
+	case OUTPUT_TMDS:
+	case OUTPUT_LVDS:
+	case OUTPUT_DP:
+		break;
+	default:
+		match_link = false;
+		break;
+	}
+
 	for (i = 0; i < record_nr; i++, record += record_len) {
 		table = ROM16(bios->data[record]);
 		if (!table)
 			continue;
 		entry = ROM32(bios->data[table]);
+
+		if (match_link) {
+			v = (entry & 0x00c00000) >> 22;
+			if (!(v & dcbent->sorconf.link))
+				continue;
+		}
 
 		v = (entry & 0x000f0000) >> 16;
 		if (!(v & dcbent->or))
@@ -3952,7 +3977,7 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	*length = table[4];
 	return bios_output_config_match(dev, dcbent,
 					bios->display.dp_table_ptr + table[1],
-					table[2], table[3]);
+					table[2], table[3], table[0] >= 0x21);
 }
 
 int
@@ -4041,7 +4066,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			dcbent->type, dcbent->location, dcbent->or);
 	otable = bios_output_config_match(dev, dcbent, table[1] +
 					  bios->display.script_table_ptr,
-					  table[2], table[3]);
+					  table[2], table[3], table[0] >= 0x21);
 	if (!otable) {
 		NV_ERROR(dev, "Couldn't find matching output script table\n");
 		return 1;
@@ -5533,12 +5558,6 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	entry->bus = (conn >> 16) & 0xf;
 	entry->location = (conn >> 20) & 0x3;
 	entry->or = (conn >> 24) & 0xf;
-	/*
-	 * Normal entries consist of a single bit, but dual link has the
-	 * next most significant bit set too
-	 */
-	entry->duallink_possible =
-			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
 
 	switch (entry->type) {
 	case OUTPUT_ANALOG:
@@ -5620,6 +5639,16 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		return false;
 	default:
 		break;
+	}
+
+	if (dcb->version < 0x40) {
+		/* Normal entries consist of a single bit, but dual link has
+		 * the next most significant bit set too
+		 */
+		entry->duallink_possible =
+			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
+	} else {
+		entry->duallink_possible = (entry->sorconf.link == 3);
 	}
 
 	/* unsure what DCB version introduces this, 3.0? */
@@ -6205,6 +6234,30 @@ nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
 		nouveau_i2c_fini(dev, entry);
 }
 
+static bool
+nouveau_bios_posted(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool was_locked;
+	unsigned htotal;
+
+	if (dev_priv->chipset >= NV_50) {
+		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
+		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
+			return false;
+		return true;
+	}
+
+	was_locked = NVLockVgaCrtcs(dev, false);
+	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
+	NVLockVgaCrtcs(dev, was_locked);
+	return (htotal != 0);
+}
+
 int
 nouveau_bios_init(struct drm_device *dev)
 {
@@ -6239,11 +6292,9 @@ nouveau_bios_init(struct drm_device *dev)
 	bios->execute = false;
 
 	/* ... unless card isn't POSTed already */
-	if (dev_priv->card_type >= NV_10 &&
-	    NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
-	    NVReadVgaCrtc(dev, 0, 0x1a) == 0) {
+	if (!nouveau_bios_posted(dev)) {
 		NV_INFO(dev, "Adaptor not initialised\n");
-		if (dev_priv->card_type < NV_50) {
+		if (dev_priv->card_type < NV_40) {
 			NV_ERROR(dev, "Unable to POST this chipset\n");
 			return -ENODEV;
 		}

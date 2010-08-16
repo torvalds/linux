@@ -50,6 +50,8 @@
 #define DRM_VMW_EXECBUF              12
 #define DRM_VMW_FIFO_DEBUG           13
 #define DRM_VMW_FENCE_WAIT           14
+/* guarded by minor version >= 2 */
+#define DRM_VMW_UPDATE_LAYOUT        15
 
 
 /*************************************************************************/
@@ -584,5 +586,29 @@ struct drm_vmw_stream_arg {
  * Return a single stream that was claimed by this process. Also makes
  * sure that the stream has been stopped.
  */
+
+/*************************************************************************/
+/**
+ * DRM_VMW_UPDATE_LAYOUT - Update layout
+ *
+ * Updates the prefered modes and connection status for connectors. The
+ * command conisits of one drm_vmw_update_layout_arg pointing out a array
+ * of num_outputs drm_vmw_rect's.
+ */
+
+/**
+ * struct drm_vmw_update_layout_arg
+ *
+ * @num_outputs: number of active
+ * @rects: pointer to array of drm_vmw_rect
+ *
+ * Input argument to the DRM_VMW_UPDATE_LAYOUT Ioctl.
+ */
+
+struct drm_vmw_update_layout_arg {
+	uint32_t num_outputs;
+	uint32_t pad64;
+	uint64_t rects;
+};
 
 #endif

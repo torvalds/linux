@@ -178,7 +178,6 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 			       unsigned long val,
 			       struct cpufreq_freqs *freqs)
 {
-#warning "it's not clear if this is right since the core CPU (N) clock has no effect on the memory (L) clock"
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
 		if (freqs->new > freqs->old) {
@@ -186,7 +185,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 			       "pre-updating\n",
 			       freqs->new / 1000, (freqs->new / 100) % 10,
 			       freqs->old / 1000, (freqs->old / 100) % 10);
-			pxa2xx_pcmcia_set_mcxx(skt, freqs->new);
+			pxa2xx_pcmcia_set_timing(skt);
 		}
 		break;
 
@@ -196,7 +195,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 			       "post-updating\n",
 			       freqs->new / 1000, (freqs->new / 100) % 10,
 			       freqs->old / 1000, (freqs->old / 100) % 10);
-			pxa2xx_pcmcia_set_mcxx(skt, freqs->new);
+			pxa2xx_pcmcia_set_timing(skt);
 		}
 		break;
 	}

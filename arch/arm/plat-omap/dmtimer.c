@@ -541,11 +541,11 @@ void omap_dm_timer_stop(struct omap_dm_timer *timer)
 		  * timer is stopped
 		  */
 		udelay(3500000 / clk_get_rate(timer->fclk) + 1);
-		/* Ack possibly pending interrupt */
-		omap_dm_timer_write_reg(timer, OMAP_TIMER_STAT_REG,
-				OMAP_TIMER_INT_OVERFLOW);
 #endif
 	}
+	/* Ack possibly pending interrupt */
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_STAT_REG,
+			OMAP_TIMER_INT_OVERFLOW);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_stop);
 

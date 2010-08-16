@@ -123,10 +123,6 @@ static inline struct pci_dev *macio_get_pci_dev(struct macio_dev *mdev)
  */
 struct macio_driver
 {
-	char			*name;
-	struct of_device_id	*match_table;
-	struct module		*owner;
-
 	int	(*probe)(struct macio_dev* dev, const struct of_device_id *match);
 	int	(*remove)(struct macio_dev* dev);
 

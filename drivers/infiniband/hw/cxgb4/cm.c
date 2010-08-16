@@ -969,7 +969,8 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		goto err;
 	goto out;
 err:
-	abort_connection(ep, skb, GFP_KERNEL);
+	state_set(&ep->com, ABORTING);
+	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
 	return;
@@ -1372,7 +1373,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 				    pdev, 0);
 		mtu = pdev->mtu;
 		tx_chan = cxgb4_port_chan(pdev);
-		smac_idx = tx_chan << 1;
+		smac_idx = (cxgb4_port_viid(pdev) & 0x7F) << 1;
 		step = dev->rdev.lldi.ntxq / dev->rdev.lldi.nchan;
 		txq_idx = cxgb4_port_idx(pdev) * step;
 		step = dev->rdev.lldi.nrxq / dev->rdev.lldi.nchan;
@@ -1383,7 +1384,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 					dst->neighbour->dev, 0);
 		mtu = dst_mtu(dst);
 		tx_chan = cxgb4_port_chan(dst->neighbour->dev);
-		smac_idx = tx_chan << 1;
+		smac_idx = (cxgb4_port_viid(dst->neighbour->dev) & 0x7F) << 1;
 		step = dev->rdev.lldi.ntxq / dev->rdev.lldi.nchan;
 		txq_idx = cxgb4_port_idx(dst->neighbour->dev) * step;
 		step = dev->rdev.lldi.nrxq / dev->rdev.lldi.nchan;
@@ -1950,7 +1951,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					pdev, 0);
 		ep->mtu = pdev->mtu;
 		ep->tx_chan = cxgb4_port_chan(pdev);
-		ep->smac_idx = ep->tx_chan << 1;
+		ep->smac_idx = (cxgb4_port_viid(pdev) & 0x7F) << 1;
 		step = ep->com.dev->rdev.lldi.ntxq /
 		       ep->com.dev->rdev.lldi.nchan;
 		ep->txq_idx = cxgb4_port_idx(pdev) * step;
@@ -1965,7 +1966,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					ep->dst->neighbour->dev, 0);
 		ep->mtu = dst_mtu(ep->dst);
 		ep->tx_chan = cxgb4_port_chan(ep->dst->neighbour->dev);
-		ep->smac_idx = ep->tx_chan << 1;
+		ep->smac_idx = (cxgb4_port_viid(ep->dst->neighbour->dev) &
+				0x7F) << 1;
 		step = ep->com.dev->rdev.lldi.ntxq /
 		       ep->com.dev->rdev.lldi.nchan;
 		ep->txq_idx = cxgb4_port_idx(ep->dst->neighbour->dev) * step;

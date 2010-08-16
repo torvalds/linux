@@ -642,8 +642,8 @@ void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 	}
 	flicker_removal = (tmp + 500) / 1000;
 
-	if (flicker_removal < 2)
-		flicker_removal = 2;
+	if (flicker_removal < 3)
+		flicker_removal = 3;
 	for (i = 0; i < ARRAY_SIZE(SLOPE_limit); ++i) {
 		if (flicker_removal == SLOPE_limit[i])
 			break;

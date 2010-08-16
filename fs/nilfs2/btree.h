@@ -75,8 +75,6 @@ struct nilfs_btree_path {
 
 extern struct kmem_cache *nilfs_btree_path_cache;
 
-int nilfs_btree_path_cache_init(void);
-void nilfs_btree_path_cache_destroy(void);
 int nilfs_btree_init(struct nilfs_bmap *);
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
 				   const __u64 *, const __u64 *, int);

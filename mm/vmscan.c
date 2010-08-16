@@ -213,8 +213,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 	list_for_each_entry(shrinker, &shrinker_list, list) {
 		unsigned long long delta;
 		unsigned long total_scan;
-		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
+		unsigned long max_pass;
 
+		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
 		delta = (4 * scanned) / shrinker->seeks;
 		delta *= max_pass;
 		do_div(delta, lru_pages + 1);
@@ -242,8 +243,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 			int shrink_ret;
 			int nr_before;
 
-			nr_before = (*shrinker->shrink)(0, gfp_mask);
-			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
+			nr_before = (*shrinker->shrink)(shrinker, 0, gfp_mask);
+			shrink_ret = (*shrinker->shrink)(shrinker, this_scan,
+								gfp_mask);
 			if (shrink_ret == -1)
 				break;
 			if (shrink_ret < nr_before)
@@ -296,7 +298,7 @@ static int may_write_to_queue(struct backing_dev_info *bdi)
 static void handle_write_error(struct address_space *mapping,
 				struct page *page, int error)
 {
-	lock_page(page);
+	lock_page_nosync(page);
 	if (page_mapping(page) == mapping)
 		mapping_set_error(mapping, error);
 	unlock_page(page);
@@ -1724,13 +1726,13 @@ static void shrink_zone(int priority, struct zone *zone,
  * If a zone is deemed to be full of pinned pages then just give it a light
  * scan then give up on it.
  */
-static int shrink_zones(int priority, struct zonelist *zonelist,
+static bool shrink_zones(int priority, struct zonelist *zonelist,
 					struct scan_control *sc)
 {
 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
 	struct zoneref *z;
 	struct zone *zone;
-	int progress = 0;
+	bool all_unreclaimable = true;
 
 	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
 					sc->nodemask) {
@@ -1757,9 +1759,9 @@ static int shrink_zones(int priority, struct zonelist *zonelist,
 		}
 
 		shrink_zone(priority, zone, sc);
-		progress = 1;
+		all_unreclaimable = false;
 	}
-	return progress;
+	return all_unreclaimable;
 }
 
 /*
@@ -1782,7 +1784,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 					struct scan_control *sc)
 {
 	int priority;
-	unsigned long ret = 0;
+	bool all_unreclaimable;
 	unsigned long total_scanned = 0;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
 	unsigned long lru_pages = 0;
@@ -1813,7 +1815,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		sc->nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
-		ret = shrink_zones(priority, zonelist, sc);
+		all_unreclaimable = shrink_zones(priority, zonelist, sc);
 		/*
 		 * Don't shrink slabs when reclaiming memory from
 		 * over limit cgroups
@@ -1826,10 +1828,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 			}
 		}
 		total_scanned += sc->nr_scanned;
-		if (sc->nr_reclaimed >= sc->nr_to_reclaim) {
-			ret = sc->nr_reclaimed;
+		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
 			goto out;
-		}
 
 		/*
 		 * Try to write back as many pages as we just scanned.  This
@@ -1849,9 +1849,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		    priority < DEF_PRIORITY - 2)
 			congestion_wait(BLK_RW_ASYNC, HZ/10);
 	}
-	/* top priority shrink_zones still had more to do? don't OOM, then */
-	if (ret && scanning_global_lru(sc))
-		ret = sc->nr_reclaimed;
+
 out:
 	/*
 	 * Now that we've scanned all the zones at this priority level, note
@@ -1877,7 +1875,14 @@ out:
 	delayacct_freepages_end();
 	put_mems_allowed();
 
-	return ret;
+	if (sc->nr_reclaimed)
+		return sc->nr_reclaimed;
+
+	/* top priority shrink_zones still had more to do? don't OOM, then */
+	if (scanning_global_lru(sc) && !all_unreclaimable)
+		return 1;
+
+	return 0;
 }
 
 unsigned long try_to_free_pages(struct zonelist *zonelist, int order,

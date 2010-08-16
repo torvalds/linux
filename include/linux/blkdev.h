@@ -1211,14 +1211,23 @@ struct work_struct;
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work);
 
 #ifdef CONFIG_BLK_CGROUP
+/*
+ * This should not be using sched_clock(). A real patch is in progress
+ * to fix this up, until that is in place we need to disable preemption
+ * around sched_clock() in this function and set_io_start_time_ns().
+ */
 static inline void set_start_time_ns(struct request *req)
 {
+	preempt_disable();
 	req->start_time_ns = sched_clock();
+	preempt_enable();
 }
 
 static inline void set_io_start_time_ns(struct request *req)
 {
+	preempt_disable();
 	req->io_start_time_ns = sched_clock();
+	preempt_enable();
 }
 
 static inline uint64_t rq_start_time_ns(struct request *req)

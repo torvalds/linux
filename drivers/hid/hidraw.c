@@ -46,7 +46,6 @@ static ssize_t hidraw_read(struct file *file, char __user *buffer, size_t count,
 {
 	struct hidraw_list *list = file->private_data;
 	int ret = 0, len;
-	char *report;
 	DECLARE_WAITQUEUE(wait, current);
 
 	mutex_lock(&list->read_mutex);
@@ -84,7 +83,6 @@ static ssize_t hidraw_read(struct file *file, char __user *buffer, size_t count,
 		if (ret)
 			goto out;
 
-		report = list->buffer[list->tail].value;
 		len = list->buffer[list->tail].len > count ?
 			count : list->buffer[list->tail].len;
 

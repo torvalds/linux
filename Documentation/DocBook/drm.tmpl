@@ -389,7 +389,7 @@
       </para>
       <para>
 	If your driver supports memory management (it should!), you'll
-	need to set that up at load time as well.  How you intialize
+	need to set that up at load time as well.  How you initialize
 	it depends on which memory manager you're using, TTM or GEM.
       </para>
       <sect3>
@@ -399,7 +399,7 @@
 	  aperture space for graphics devices. TTM supports both UMA devices
 	  and devices with dedicated video RAM (VRAM), i.e. most discrete
 	  graphics devices.  If your device has dedicated RAM, supporting
-	  TTM is desireable.  TTM also integrates tightly with your
+	  TTM is desirable.  TTM also integrates tightly with your
 	  driver specific buffer execution function.  See the radeon
 	  driver for examples.
 	</para>
@@ -443,7 +443,7 @@
 	  likely eventually calling ttm_bo_global_init and
 	  ttm_bo_global_release, respectively.  Also like the previous
 	  object, ttm_global_item_ref is used to create an initial reference
-	  count for the TTM, which will call your initalization function.
+	  count for the TTM, which will call your initialization function.
 	</para>
       </sect3>
       <sect3>
@@ -557,7 +557,7 @@ void intel_crt_init(struct drm_device *dev)
 	  CRT connector and encoder combination is created.  A device
 	  specific i2c bus is also created, for fetching EDID data and
 	  performing monitor detection.  Once the process is complete,
-	  the new connector is regsitered with sysfs, to make its
+	  the new connector is registered with sysfs, to make its
 	  properties available to applications.
 	</para>
 	<sect4>
@@ -581,12 +581,12 @@ void intel_crt_init(struct drm_device *dev)
 	<para>
 	  For each encoder, CRTC and connector, several functions must
 	  be provided, depending on the object type.  Encoder objects
-	  need should provide a DPMS (basically on/off) function, mode fixup
+	  need to provide a DPMS (basically on/off) function, mode fixup
 	  (for converting requested modes into native hardware timings),
 	  and prepare, set and commit functions for use by the core DRM
 	  helper functions.  Connector helpers need to provide mode fetch and
 	  validity functions as well as an encoder matching function for
-	  returing an ideal encoder for a given connector.  The core
+	  returning an ideal encoder for a given connector.  The core
 	  connector functions include a DPMS callback, (deprecated)
 	  save/restore routines, detection, mode probing, property handling,
 	  and cleanup functions.

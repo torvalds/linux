@@ -127,7 +127,10 @@ int init_module(void)
 	return 0;
 
 unreg_soft_device:
-	unregister_netdevice(soft_device);
+	unregister_netdev(soft_device);
+	soft_device = NULL;
+	return -ENOMEM;
+
 free_soft_device:
 	free_netdev(soft_device);
 	soft_device = NULL;

@@ -303,7 +303,10 @@ static int stv6110x_set_mode(struct dvb_frontend *fe, enum tuner_mode mode)
 
 static int stv6110x_sleep(struct dvb_frontend *fe)
 {
-	return stv6110x_set_mode(fe, TUNER_SLEEP);
+	if (fe->tuner_priv)
+		return stv6110x_set_mode(fe, TUNER_SLEEP);
+
+	return 0;
 }
 
 static int stv6110x_get_status(struct dvb_frontend *fe, u32 *status)

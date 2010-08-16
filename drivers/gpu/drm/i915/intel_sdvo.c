@@ -392,13 +392,13 @@ static void intel_sdvo_debug_write(struct intel_encoder *intel_encoder, u8 cmd,
 		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
 		DRM_LOG_KMS("   ");
-	for (i = 0; i < sizeof(sdvo_cmd_names) / sizeof(sdvo_cmd_names[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
 			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
-	if (i == sizeof(sdvo_cmd_names)/ sizeof(sdvo_cmd_names[0]))
+	if (i == ARRAY_SIZE(sdvo_cmd_names))
 		DRM_LOG_KMS("(%02X)", cmd);
 	DRM_LOG_KMS("\n");
 }
@@ -1479,7 +1479,7 @@ intel_find_analog_connector(struct drm_device *dev)
 		intel_encoder = enc_to_intel_encoder(encoder);
 		if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
 			list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-				if (connector && encoder == intel_attached_encoder(connector))
+				if (encoder == intel_attached_encoder(connector))
 					return connector;
 			}
 		}

@@ -976,7 +976,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 2:
 		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
-		break;
+		return;
 
 	case 3:
 		break;

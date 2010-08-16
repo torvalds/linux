@@ -330,7 +330,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_path *path;
 	int ret;
-	u32 refs;
 	struct btrfs_root_item *ri;
 	struct extent_buffer *leaf;
 
@@ -344,8 +343,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	leaf = path->nodes[0];
 	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);
 
-	refs = btrfs_disk_root_refs(leaf, ri);
-	BUG_ON(refs != 0);
 	ret = btrfs_del_item(trans, root, path);
 out:
 	btrfs_free_path(path);

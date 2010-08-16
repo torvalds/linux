@@ -144,6 +144,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 	prkey = 0;
 	if (cred->tgcred->process_keyring)
 		prkey = cred->tgcred->process_keyring->serial;
+	sprintf(keyring_str[1], "%d", prkey);
 
 	rcu_read_lock();
 	session = rcu_dereference(cred->tgcred->session_keyring);

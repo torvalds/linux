@@ -991,13 +991,13 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		priv->ch[j].lcdc = priv;
 		memcpy(&priv->ch[j].cfg, &pdata->ch[i], sizeof(pdata->ch[i]));
 
-		error = sh_mobile_lcdc_check_interface(&priv->ch[i]);
+		error = sh_mobile_lcdc_check_interface(&priv->ch[j]);
 		if (error) {
 			dev_err(&pdev->dev, "unsupported interface type\n");
 			goto err1;
 		}
-		init_waitqueue_head(&priv->ch[i].frame_end_wait);
-		init_completion(&priv->ch[i].vsync_completion);
+		init_waitqueue_head(&priv->ch[j].frame_end_wait);
+		init_completion(&priv->ch[j].vsync_completion);
 		priv->ch[j].pan_offset = 0;
 
 		switch (pdata->ch[i].chan) {

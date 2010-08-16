@@ -33,7 +33,6 @@
 
 	.text
 
-#ifdef CONFIG_IRQSTACKS
 _GLOBAL(call_do_softirq)
 	mflr	r0
 	stw	r0,4(r1)
@@ -56,7 +55,6 @@ _GLOBAL(call_handle_irq)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
-#endif /* CONFIG_IRQSTACKS */
 
 /*
  * This returns the high 64 bits of the product of two 64-bit numbers.
@@ -711,6 +709,22 @@ relocate_new_kernel:
 	/* r4 = reboot_code_buffer */
 	/* r5 = start_address      */
 
+#ifdef CONFIG_FSL_BOOKE
+
+	mr	r29, r3
+	mr	r30, r4
+	mr	r31, r5
+
+#define ENTRY_MAPPING_KEXEC_SETUP
+#include "fsl_booke_entry_mapping.S"
+#undef ENTRY_MAPPING_KEXEC_SETUP
+
+	mr      r3, r29
+	mr      r4, r30
+	mr      r5, r31
+
+	li	r0, 0
+#else
 	li	r0, 0
 
 	/*
@@ -727,6 +741,7 @@ relocate_new_kernel:
 	rfi
 
 1:
+#endif
 	/* from this point address translation is turned off */
 	/* and interrupts are disabled */
 

@@ -492,8 +492,8 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 	}
 
 	/* Add media bay devices if any */
-	pnode = mbdev->ofdev.dev.of_node;
-	if (mbdev)
+	if (mbdev) {
+		pnode = mbdev->ofdev.dev.of_node;
 		for (np = NULL; (np = of_get_next_child(pnode, np)) != NULL;) {
 			if (macio_skip_device(np))
 				continue;
@@ -502,10 +502,11 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 						 mbdev,  root_res) == NULL)
 				of_node_put(np);
 		}
+	}
 
 	/* Add serial ports if any */
-	pnode = sdev->ofdev.dev.of_node;
 	if (sdev) {
+		pnode = sdev->ofdev.dev.of_node;
 		for (np = NULL; (np = of_get_next_child(pnode, np)) != NULL;) {
 			if (macio_skip_device(np))
 				continue;
@@ -525,7 +526,6 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 int macio_register_driver(struct macio_driver *drv)
 {
 	/* initialize common driver fields */
-	drv->driver.name = drv->name;
 	drv->driver.bus = &macio_bus_type;
 
 	/* register with core */

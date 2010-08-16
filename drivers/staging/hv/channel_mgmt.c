@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/completion.h>
 #include "osd.h"
 #include "logging.h"
 #include "vmbus_private.h"
@@ -293,6 +294,25 @@ void FreeVmbusChannel(struct vmbus_channel *Channel)
 			      Channel);
 }
 
+
+DECLARE_COMPLETION(hv_channel_ready);
+
+/*
+ * Count initialized channels, and ensure all channels are ready when hv_vmbus
+ * module loading completes.
+ */
+static void count_hv_channel(void)
+{
+	static int counter;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+	if (++counter == MAX_MSG_TYPES)
+		complete(&hv_channel_ready);
+	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+}
+
+
 /*
  * VmbusChannelProcessOffer - Process the offer by creating a channel/device
  * associated with this offer
@@ -373,22 +393,21 @@ static void VmbusChannelProcessOffer(void *context)
 		 * can cleanup properly
 		 */
 		newChannel->State = CHANNEL_OPEN_STATE;
-		cnt = 0;
 
-		while (cnt != MAX_MSG_TYPES) {
+		/* Open IC channels */
+		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
 			if (memcmp(&newChannel->OfferMsg.Offer.InterfaceType,
 				   &hv_cb_utils[cnt].data,
-				   sizeof(struct hv_guid)) == 0) {
+				   sizeof(struct hv_guid)) == 0 &&
+				VmbusChannelOpen(newChannel, 2 * PAGE_SIZE,
+						 2 * PAGE_SIZE, NULL, 0,
+						 hv_cb_utils[cnt].callback,
+						 newChannel) == 0) {
+				hv_cb_utils[cnt].channel = newChannel;
 				DPRINT_INFO(VMBUS, "%s",
-					    hv_cb_utils[cnt].log_msg);
-
-				if (VmbusChannelOpen(newChannel, 2 * PAGE_SIZE,
-						    2 * PAGE_SIZE, NULL, 0,
-						    hv_cb_utils[cnt].callback,
-						    newChannel) == 0)
-					hv_cb_utils[cnt].channel = newChannel;
+						hv_cb_utils[cnt].log_msg);
+				count_hv_channel();
 			}
-			cnt++;
 		}
 	}
 	DPRINT_EXIT(VMBUS);

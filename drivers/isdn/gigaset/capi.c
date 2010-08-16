@@ -1052,6 +1052,7 @@ static inline void remove_appl_from_channel(struct bc_state *bcs,
 	do {
 		if (bcap->bcnext == ap) {
 			bcap->bcnext = bcap->bcnext->bcnext;
+			spin_unlock_irqrestore(&bcs->aplock, flags);
 			return;
 		}
 		bcap = bcap->bcnext;

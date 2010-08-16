@@ -215,6 +215,9 @@ extern void intel_init_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 
+extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
+				      struct drm_gem_object *obj);
+
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd *mode_cmd,
@@ -224,6 +227,7 @@ extern void intel_fbdev_fini(struct drm_device *dev);
 
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
 extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
+extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);

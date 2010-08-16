@@ -1280,7 +1280,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
-		goto out;
+		goto out_up_write;
 	}
 	trans->block_rsv = &root->fs_info->global_block_rsv;
 
@@ -1458,7 +1458,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	 */
 
 	/* the destination must be opened for writing */
-	if (!(file->f_mode & FMODE_WRITE))
+	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND))
 		return -EINVAL;
 
 	ret = mnt_want_write(file->f_path.mnt);
@@ -1511,7 +1511,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 	/* determine range to clone */
 	ret = -EINVAL;
-	if (off >= src->i_size || off + len > src->i_size)
+	if (off + len > src->i_size || off + len < off)
 		goto out_unlock;
 	if (len == 0)
 		olen = len = src->i_size - off;
@@ -1578,6 +1578,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			u64 disko = 0, diskl = 0;
 			u64 datao = 0, datal = 0;
 			u8 comp;
+			u64 endoff;
 
 			size = btrfs_item_size_nr(leaf, slot);
 			read_extent_buffer(leaf, buf,
@@ -1712,9 +1713,18 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			btrfs_release_path(root, path);
 
 			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-			if (new_key.offset + datal > inode->i_size)
-				btrfs_i_size_write(inode,
-						   new_key.offset + datal);
+
+			/*
+			 * we round up to the block size at eof when
+			 * determining which extents to clone above,
+			 * but shouldn't round up the file size
+			 */
+			endoff = new_key.offset + datal;
+			if (endoff > off+olen)
+				endoff = off+olen;
+			if (endoff > inode->i_size)
+				btrfs_i_size_write(inode, endoff);
+
 			BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
 			ret = btrfs_update_inode(trans, root, inode);
 			BUG_ON(ret);
@@ -1845,7 +1855,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
 	di = btrfs_lookup_dir_item(trans, root->fs_info->tree_root, path,
 				   dir_id, "default", 7, 1);
-	if (!di) {
+	if (IS_ERR_OR_NULL(di)) {
 		btrfs_free_path(path);
 		btrfs_end_transaction(trans, root);
 		printk(KERN_ERR "Umm, you don't have the default dir item, "

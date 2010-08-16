@@ -842,6 +842,7 @@ static void blk_add_trace_split(void *ignore,
 
 /**
  * blk_add_trace_remap - Add a trace for a remap operation
+ * @ignore:	trace callback data parameter (not used)
  * @q:		queue the io is for
  * @bio:	the source bio
  * @dev:	target device
@@ -873,6 +874,7 @@ static void blk_add_trace_remap(void *ignore,
 
 /**
  * blk_add_trace_rq_remap - Add a trace for a request-remap operation
+ * @ignore:	trace callback data parameter (not used)
  * @q:		queue the io is for
  * @rq:		the source request
  * @dev:	target device

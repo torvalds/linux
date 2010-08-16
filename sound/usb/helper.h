@@ -28,5 +28,9 @@ unsigned char snd_usb_parse_datainterval(struct snd_usb_audio *chip,
 #define snd_usb_get_speed(dev) ((dev)->speed)
 #endif
 
+static inline int snd_usb_ctrl_intf(struct snd_usb_audio *chip)
+{
+	return get_iface_desc(chip->ctrl_intf)->bInterfaceNumber;
+}
 
 #endif /* __USBAUDIO_HELPER_H */

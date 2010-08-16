@@ -50,7 +50,7 @@
 #define UR8_REGS_WDT	(AR7_REGS_BASE + 0x0b00)
 #define UR8_REGS_UART1	(AR7_REGS_BASE + 0x0f00)
 
-#define AR7_RESET_PEREPHERIAL	0x0
+#define AR7_RESET_PERIPHERAL	0x0
 #define AR7_RESET_SOFTWARE	0x4
 #define AR7_RESET_STATUS	0x8
 
@@ -128,7 +128,7 @@ static inline int ar7_has_high_cpmac(void)
 static inline void ar7_device_enable(u32 bit)
 {
 	void *reset_reg =
-		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PEREPHERIAL);
+		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PERIPHERAL);
 	writel(readl(reset_reg) | (1 << bit), reset_reg);
 	msleep(20);
 }
@@ -136,7 +136,7 @@ static inline void ar7_device_enable(u32 bit)
 static inline void ar7_device_disable(u32 bit)
 {
 	void *reset_reg =
-		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PEREPHERIAL);
+		(void *)KSEG1ADDR(AR7_REGS_RESET + AR7_RESET_PERIPHERAL);
 	writel(readl(reset_reg) & ~(1 << bit), reset_reg);
 	msleep(20);
 }

@@ -1,13 +1,3 @@
-menuconfig MTD_NAND
-	tristate "NAND Device Support"
-	depends on MTD
-	select MTD_NAND_IDS
-	select MTD_NAND_ECC
-	help
-	  This enables support for accessing all type of NAND flash
-	  devices. For further information see
-	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
-
 config MTD_NAND_ECC
 	tristate
 
@@ -18,6 +8,17 @@ config MTD_NAND_ECC_SMC
 	help
 	  Software ECC according to the Smart Media Specification.
 	  The original Linux implementation had byte 0 and 1 swapped.
+
+
+menuconfig MTD_NAND
+	tristate "NAND Device Support"
+	depends on MTD
+	select MTD_NAND_IDS
+	select MTD_NAND_ECC
+	help
+	  This enables support for accessing all type of NAND flash
+	  devices. For further information see
+	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
 
 if MTD_NAND
 

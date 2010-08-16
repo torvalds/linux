@@ -181,7 +181,7 @@ static int migor_nand_flash_ready(struct mtd_info *mtd)
 	return gpio_get_value(GPIO_PTA1); /* NAND_RBn */
 }
 
-struct platform_nand_data migor_nand_flash_data = {
+static struct platform_nand_data migor_nand_flash_data = {
 	.chip = {
 		.nr_chips = 1,
 		.partitions = migor_nand_flash_partitions,

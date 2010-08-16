@@ -59,8 +59,11 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 		SDVO_VSYNC_ACTIVE_HIGH |
 		SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (hdmi_priv->has_hdmi_sink)
+	if (hdmi_priv->has_hdmi_sink) {
 		sdvox |= SDVO_AUDIO_ENABLE;
+		if (HAS_PCH_CPT(dev))
+			sdvox |= HDMI_MODE_SELECT;
+	}
 
 	if (intel_crtc->pipe == 1) {
 		if (HAS_PCH_CPT(dev))

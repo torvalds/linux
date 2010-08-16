@@ -498,7 +498,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
 		    (rdev->family == CHIP_RS740))
-			pll->flags |= (RADEON_PLL_USE_FRAC_FB_DIV |
+			pll->flags |= (/*RADEON_PLL_USE_FRAC_FB_DIV |*/
 				       RADEON_PLL_PREFER_CLOSEST_LOWER);
 
 		if (ASIC_IS_DCE32(rdev) && mode->clock > 200000)	/* range limits??? */

@@ -673,7 +673,7 @@ static struct kobject *get_device_parent(struct device *dev,
 		 */
 		if (parent == NULL)
 			parent_kobj = virtual_device_parent(dev);
-		else if (parent->class)
+		else if (parent->class && !dev->class->ns_type)
 			return &parent->kobj;
 		else
 			parent_kobj = &parent->kobj;

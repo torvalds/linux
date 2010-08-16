@@ -781,6 +781,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb();	/* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 		skb = buffer_info->skb;
@@ -991,6 +992,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		bool cleaned = false;
+		rmb(); /* read buffer_info after eop_desc */
 		for (; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -1087,6 +1089,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			break;
 		(*work_done)++;
 		skb = buffer_info->skb;
+		rmb();	/* read descriptor and rx_buffer_info after status DD */
 
 		/* in the packet split case this is header only */
 		prefetch(skb->data - NET_IP_ALIGN);
@@ -1286,6 +1289,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb();	/* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 		skb = buffer_info->skb;
@@ -2928,10 +2932,10 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 			 * dropped transactions.
 			 */
 			pm_qos_update_request(
-				adapter->netdev->pm_qos_req, 55);
+				&adapter->netdev->pm_qos_req, 55);
 		} else {
 			pm_qos_update_request(
-				adapter->netdev->pm_qos_req,
+				&adapter->netdev->pm_qos_req,
 				PM_QOS_DEFAULT_VALUE);
 		}
 	}
@@ -3527,9 +3531,9 @@ static int e1000_open(struct net_device *netdev)
 
 	/* DMA latency requirement to workaround early-receive/jumbo issue */
 	if (adapter->flags & FLAG_HAS_ERT)
-		adapter->netdev->pm_qos_req =
-		                    pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
-		                                       PM_QOS_DEFAULT_VALUE);
+		pm_qos_add_request(&adapter->netdev->pm_qos_req,
+				   PM_QOS_CPU_DMA_LATENCY,
+				   PM_QOS_DEFAULT_VALUE);
 
 	/*
 	 * before we allocate an interrupt, we must be ready to handle it.
@@ -3635,10 +3639,8 @@ static int e1000_close(struct net_device *netdev)
 	if (adapter->flags & FLAG_HAS_AMT)
 		e1000_release_hw_control(adapter);
 
-	if (adapter->flags & FLAG_HAS_ERT) {
-		pm_qos_remove_request(adapter->netdev->pm_qos_req);
-		adapter->netdev->pm_qos_req = NULL;
-	}
+	if (adapter->flags & FLAG_HAS_ERT)
+		pm_qos_remove_request(&adapter->netdev->pm_qos_req);
 
 	pm_runtime_put_sync(&pdev->dev);
 

@@ -503,6 +503,11 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		    strncmp(symname, "_rest32gpr_", sizeof("_rest32gpr_") - 1) == 0 ||
 		    strncmp(symname, "_save32gpr_", sizeof("_save32gpr_") - 1) == 0)
 			return 1;
+	if (info->hdr->e_machine == EM_PPC64)
+		/* Special register function linked on all modules during final link of .ko */
+		if (strncmp(symname, "_restgpr0_", sizeof("_restgpr0_") - 1) == 0 ||
+		    strncmp(symname, "_savegpr0_", sizeof("_savegpr0_") - 1) == 0)
+			return 1;
 	/* Do not ignore this symbol */
 	return 0;
 }
@@ -781,10 +786,13 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_EXIT_TEXT_SECTIONS \
 	".exit.text$", ".devexit.text$", ".cpuexit.text$", ".memexit.text$"
 
-#define ALL_INIT_SECTIONS INIT_SECTIONS, DEV_INIT_SECTIONS, \
-	CPU_INIT_SECTIONS, MEM_INIT_SECTIONS
-#define ALL_EXIT_SECTIONS EXIT_SECTIONS, DEV_EXIT_SECTIONS, \
-	CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS
+#define ALL_XXXINIT_SECTIONS DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, \
+	MEM_INIT_SECTIONS
+#define ALL_XXXEXIT_SECTIONS DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, \
+	MEM_EXIT_SECTIONS
+
+#define ALL_INIT_SECTIONS INIT_SECTIONS, ALL_XXXINIT_SECTIONS
+#define ALL_EXIT_SECTIONS EXIT_SECTIONS, ALL_XXXEXIT_SECTIONS
 
 #define DATA_SECTIONS ".data$", ".data.rel$"
 #define TEXT_SECTIONS ".text$"
@@ -814,33 +822,29 @@ static const char *data_sections[] = { DATA_SECTIONS, NULL };
 
 
 /* symbols in .data that may refer to init/exit sections */
-static const char *symbol_white_list[] =
-{
-	"*driver",
-	"*_template", /* scsi uses *_template a lot */
-	"*_timer",    /* arm uses ops structures named _timer a lot */
-	"*_sht",      /* scsi also used *_sht to some extent */
-	"*_ops",
-	"*_probe",
-	"*_probe_one",
-	"*_console",
-	NULL
-};
+#define DEFAULT_SYMBOL_WHITE_LIST					\
+	"*driver",							\
+	"*_template", /* scsi uses *_template a lot */			\
+	"*_timer",    /* arm uses ops structures named _timer a lot */	\
+	"*_sht",      /* scsi also used *_sht to some extent */		\
+	"*_ops",							\
+	"*_probe",							\
+	"*_probe_one",							\
+	"*_console"
 
 static const char *head_sections[] = { ".head.text*", NULL };
 static const char *linker_symbols[] =
 	{ "__init_begin", "_sinittext", "_einittext", NULL };
 
 enum mismatch {
-	NO_MISMATCH,
-	TEXT_TO_INIT,
-	DATA_TO_INIT,
-	TEXT_TO_EXIT,
-	DATA_TO_EXIT,
-	XXXINIT_TO_INIT,
-	XXXEXIT_TO_EXIT,
-	INIT_TO_EXIT,
-	EXIT_TO_INIT,
+	TEXT_TO_ANY_INIT,
+	DATA_TO_ANY_INIT,
+	TEXT_TO_ANY_EXIT,
+	DATA_TO_ANY_EXIT,
+	XXXINIT_TO_SOME_INIT,
+	XXXEXIT_TO_SOME_EXIT,
+	ANY_INIT_TO_ANY_EXIT,
+	ANY_EXIT_TO_ANY_INIT,
 	EXPORT_TO_INIT_EXIT,
 };
 
@@ -848,6 +852,7 @@ struct sectioncheck {
 	const char *fromsec[20];
 	const char *tosec[20];
 	enum mismatch mismatch;
+	const char *symbol_white_list[20];
 };
 
 const struct sectioncheck sectioncheck[] = {
@@ -857,80 +862,103 @@ const struct sectioncheck sectioncheck[] = {
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_INIT,
+	.mismatch = TEXT_TO_ANY_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
-	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_INIT,
+	.tosec   = { ALL_XXXINIT_SECTIONS, NULL },
+	.mismatch = DATA_TO_ANY_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
+},
+{
+	.fromsec = { DATA_SECTIONS, NULL },
+	.tosec   = { INIT_SECTIONS, NULL },
+	.mismatch = DATA_TO_ANY_INIT,
+	.symbol_white_list = {
+		"*_template", "*_timer", "*_sht", "*_ops",
+		"*_probe", "*_probe_one", "*_console", NULL
+	},
 },
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_EXIT,
+	.mismatch = TEXT_TO_ANY_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_EXIT,
+	.mismatch = DATA_TO_ANY_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference init code/data from devinit/cpuinit/meminit code/data */
 {
-	.fromsec = { DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, MEM_INIT_SECTIONS, NULL },
+	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
 	.tosec   = { INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference cpuinit code/data from meminit code/data */
 {
 	.fromsec = { MEM_INIT_SECTIONS, NULL },
 	.tosec   = { CPU_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference meminit code/data from cpuinit code/data */
 {
 	.fromsec = { CPU_INIT_SECTIONS, NULL },
 	.tosec   = { MEM_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference exit code/data from devexit/cpuexit/memexit code/data */
 {
-	.fromsec = { DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS, NULL },
+	.fromsec = { ALL_XXXEXIT_SECTIONS, NULL },
 	.tosec   = { EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference cpuexit code/data from memexit code/data */
 {
 	.fromsec = { MEM_EXIT_SECTIONS, NULL },
 	.tosec   = { CPU_EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference memexit code/data from cpuexit code/data */
 {
 	.fromsec = { CPU_EXIT_SECTIONS, NULL },
 	.tosec   = { MEM_EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not use exit code/data from init code */
 {
 	.fromsec = { ALL_INIT_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = INIT_TO_EXIT,
+	.mismatch = ANY_INIT_TO_ANY_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not use init code/data from exit code */
 {
 	.fromsec = { ALL_EXIT_SECTIONS, NULL },
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = EXIT_TO_INIT,
+	.mismatch = ANY_EXIT_TO_ANY_INIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not export init/exit functions or data */
 {
 	.fromsec = { "__ksymtab*", NULL },
 	.tosec   = { INIT_SECTIONS, EXIT_SECTIONS, NULL },
-	.mismatch = EXPORT_TO_INIT_EXIT
+	.mismatch = EXPORT_TO_INIT_EXIT,
+	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 }
 };
 
-static int section_mismatch(const char *fromsec, const char *tosec)
+static const struct sectioncheck *section_mismatch(
+		const char *fromsec, const char *tosec)
 {
 	int i;
 	int elems = sizeof(sectioncheck) / sizeof(struct sectioncheck);
@@ -939,10 +967,10 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 	for (i = 0; i < elems; i++) {
 		if (match(fromsec, check->fromsec) &&
 		    match(tosec, check->tosec))
-			return check->mismatch;
+			return check;
 		check++;
 	}
-	return NO_MISMATCH;
+	return NULL;
 }
 
 /**
@@ -961,7 +989,7 @@ static int section_mismatch(const char *fromsec, const char *tosec)
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
- *   These functions may often be marked __init and we do not want to
+ *   These functions may often be marked __devinit and we do not want to
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = init or exit section
@@ -982,7 +1010,8 @@ static int section_mismatch(const char *fromsec, const char *tosec)
  *   refsymname = __init_begin, _sinittext, _einittext
  *
  **/
-static int secref_whitelist(const char *fromsec, const char *fromsym,
+static int secref_whitelist(const struct sectioncheck *mismatch,
+			    const char *fromsec, const char *fromsym,
 			    const char *tosec, const char *tosym)
 {
 	/* Check for pattern 1 */
@@ -994,7 +1023,7 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
 	/* Check for pattern 2 */
 	if (match(tosec, init_exit_sections) &&
 	    match(fromsec, data_sections) &&
-	    match(fromsym, symbol_white_list))
+	    match(fromsym, mismatch->symbol_white_list))
 		return 0;
 
 	/* Check for pattern 3 */
@@ -1155,7 +1184,8 @@ static int is_function(Elf_Sym *sym)
  * Try to find symbols near it so user can find it.
  * Check whitelist before warning - it may be a false positive.
  */
-static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
+static void report_sec_mismatch(const char *modname,
+				const struct sectioncheck *mismatch,
                                 const char *fromsec,
                                 unsigned long long fromaddr,
                                 const char *fromsym,
@@ -1186,8 +1216,8 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 	     modname, fromsec, fromaddr, from, fromsym, from_p, to, tosec,
 	     tosym, to_p);
 
-	switch (mismatch) {
-	case TEXT_TO_INIT:
+	switch (mismatch->mismatch) {
+	case TEXT_TO_ANY_INIT:
 		fprintf(stderr,
 		"The function %s%s() references\n"
 		"the %s %s%s%s.\n"
@@ -1197,8 +1227,8 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		fromsym, sec2annotation(tosec), tosym);
 		break;
-	case DATA_TO_INIT: {
-		const char **s = symbol_white_list;
+	case DATA_TO_ANY_INIT: {
+		const char *const *s = mismatch->symbol_white_list;
 		fprintf(stderr,
 		"The variable %s references\n"
 		"the %s %s%s%s\n"
@@ -1211,15 +1241,15 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		fprintf(stderr, "\n");
 		break;
 	}
-	case TEXT_TO_EXIT:
+	case TEXT_TO_ANY_EXIT:
 		fprintf(stderr,
 		"The function %s() references a %s in an exit section.\n"
 		"Often the %s %s%s has valid usage outside the exit section\n"
 		"and the fix is to remove the %sannotation of %s.\n",
 		fromsym, to, to, tosym, to_p, sec2annotation(tosec), tosym);
 		break;
-	case DATA_TO_EXIT: {
-		const char **s = symbol_white_list;
+	case DATA_TO_ANY_EXIT: {
+		const char *const *s = mismatch->symbol_white_list;
 		fprintf(stderr,
 		"The variable %s references\n"
 		"the %s %s%s%s\n"
@@ -1232,8 +1262,8 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		fprintf(stderr, "\n");
 		break;
 	}
-	case XXXINIT_TO_INIT:
-	case XXXEXIT_TO_EXIT:
+	case XXXINIT_TO_SOME_INIT:
+	case XXXEXIT_TO_SOME_EXIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
@@ -1243,7 +1273,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		tosym, fromsym, tosym);
 		break;
-	case INIT_TO_EXIT:
+	case ANY_INIT_TO_ANY_EXIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
@@ -1256,7 +1286,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		sec2annotation(tosec), tosym, to_p);
 		break;
-	case EXIT_TO_INIT:
+	case ANY_EXIT_TO_ANY_INIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
@@ -1275,8 +1305,6 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		"Fix this by removing the %sannotation of %s "
 		"or drop the export.\n",
 		tosym, sec2annotation(tosec), sec2annotation(tosec), tosym);
-	case NO_MISMATCH:
-		/* To get warnings on missing members */
 		break;
 	}
 	fprintf(stderr, "\n");
@@ -1286,11 +1314,11 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
                                    Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
 {
 	const char *tosec;
-	enum mismatch mismatch;
+	const struct sectioncheck *mismatch;
 
 	tosec = sec_name(elf, sym->st_shndx);
 	mismatch = section_mismatch(fromsec, tosec);
-	if (mismatch != NO_MISMATCH) {
+	if (mismatch) {
 		Elf_Sym *to;
 		Elf_Sym *from;
 		const char *tosym;
@@ -1302,7 +1330,8 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
 		tosym = sym_name(elf, to);
 
 		/* check whitelist - we may ignore it */
-		if (secref_whitelist(fromsec, fromsym, tosec, tosym)) {
+		if (secref_whitelist(mismatch,
+					fromsec, fromsym, tosec, tosym)) {
 			report_sec_mismatch(modname, mismatch,
 			   fromsec, r->r_offset, fromsym,
 			   is_function(from), tosec, tosym,
@@ -1318,7 +1347,7 @@ static unsigned int *reloc_location(struct elf_info *elf,
 	int section = sechdr->sh_info;
 
 	return (void *)elf->hdr + sechdrs[section].sh_offset +
-		(r->r_offset - sechdrs[section].sh_addr);
+		r->r_offset - sechdrs[section].sh_addr;
 }
 
 static int addend_386_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
