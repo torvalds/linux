@@ -30,6 +30,7 @@ struct stmpe_gpio {
 	struct mutex irq_lock;
 
 	int irq_base;
+	unsigned norequest_mask;
 
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -102,6 +103,9 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct stmpe_gpio *stmpe_gpio = to_stmpe_gpio(chip);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
+
+	if (stmpe_gpio->norequest_mask & (1 << offset))
+		return -EINVAL;
 
 	return stmpe_set_altfunc(stmpe, 1 << offset, STMPE_BLOCK_GPIO);
 }
@@ -302,6 +306,7 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 
 	stmpe_gpio->dev = &pdev->dev;
 	stmpe_gpio->stmpe = stmpe;
+	stmpe_gpio->norequest_mask = pdata ? pdata->norequest_mask : 0;
 
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
