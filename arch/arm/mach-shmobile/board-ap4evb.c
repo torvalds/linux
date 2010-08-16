@@ -676,7 +676,7 @@ static struct gpio_led ap4evb_leds[] = {
 
 static struct gpio_led_platform_data ap4evb_leds_pdata = {
 	.num_leds = ARRAY_SIZE(ap4evb_leds),
-	.leds = &ap4evb_leds,
+	.leds = ap4evb_leds,
 };
 
 static struct platform_device leds_device = {
