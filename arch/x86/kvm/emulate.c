@@ -194,13 +194,13 @@ struct group_dual {
 #define ON64(x)
 #endif
 
-#define ____emulate_2op(_op, _src, _dst, _eflags, _x, _y, _suffix)	\
+#define ____emulate_2op(_op, _src, _dst, _eflags, _x, _y, _suffix, _dsttype) \
 	do {								\
 		__asm__ __volatile__ (					\
 			_PRE_EFLAGS("0", "4", "2")			\
 			_op _suffix " %"_x"3,%1; "			\
 			_POST_EFLAGS("0", "4", "2")			\
-			: "=m" (_eflags), "=m" ((_dst).val),		\
+			: "=m" (_eflags), "=m" (*(_dsttype*)&(_dst).val),\
 			  "=&r" (_tmp)					\
 			: _y ((_src).val), "i" (EFLAGS_MASK));		\
 	} while (0)
@@ -213,13 +213,13 @@ struct group_dual {
 									\
 		switch ((_dst).bytes) {					\
 		case 2:							\
-			____emulate_2op(_op,_src,_dst,_eflags,_wx,_wy,"w"); \
+			____emulate_2op(_op,_src,_dst,_eflags,_wx,_wy,"w",u16);\
 			break;						\
 		case 4:							\
-			____emulate_2op(_op,_src,_dst,_eflags,_lx,_ly,"l"); \
+			____emulate_2op(_op,_src,_dst,_eflags,_lx,_ly,"l",u32);\
 			break;						\
 		case 8:							\
-			ON64(____emulate_2op(_op,_src,_dst,_eflags,_qx,_qy,"q")); \
+			ON64(____emulate_2op(_op,_src,_dst,_eflags,_qx,_qy,"q",u64)); \
 			break;						\
 		}							\
 	} while (0)
@@ -229,7 +229,7 @@ struct group_dual {
 		unsigned long _tmp;					     \
 		switch ((_dst).bytes) {				             \
 		case 1:							     \
-			____emulate_2op(_op,_src,_dst,_eflags,_bx,_by,"b");  \
+			____emulate_2op(_op,_src,_dst,_eflags,_bx,_by,"b",u8); \
 			break;						     \
 		default:						     \
 			__emulate_2op_nobyte(_op, _src, _dst, _eflags,	     \
